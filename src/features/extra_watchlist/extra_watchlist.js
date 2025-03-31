@@ -17,6 +17,10 @@ const CryptoJS = require("crypto-js");
 
 const ONE_HOUR = 60 * 60 * 1000; // ms
 const browserAPI = typeof browser !== "undefined" ? browser : chrome;
+const DATA_VERSION = "extraWatchlistVersion";
+const WATCHLIST_IDS = "extraWatchlist";
+const WATCHLIST_DATA = "extraWatchlistData";
+
 let ewData = [];
 let loadedEwDataVersion = 0;
 let md5AtLoad = "";
@@ -24,6 +28,7 @@ let peopleTable;
 let spaceTable;
 let isLoading = false;
 
+const DEBUG_LOGGING = false;
 // ====================================================================
 // INITIALIZATION
 // ====================================================================
@@ -39,16 +44,16 @@ shouldInitializeFeature("extraWatchlist").then((result) => {
 
 // Normalize localStorage: replace "@" with commas and back up if needed.
 const normalizeLocalStorage = () => {
-  const extraWatchlist = localStorage.getItem("extraWatchlist");
+  const extraWatchlist = localStorage.getItem(WATCHLIST_IDS);
   if (extraWatchlist && extraWatchlist.includes("@") && !extraWatchlist.includes(",")) {
     localStorage.setItem("extraWatchlistBackUp", extraWatchlist);
-    localStorage.setItem("extraWatchlist", extraWatchlist.replace(/@/g, ","));
+    localStorage.setItem(WATCHLIST_IDS, extraWatchlist.replace(/@/g, ","));
   }
-  const version = localStorage.getItem("extraWatchlistVersion");
+  const version = localStorage.getItem(DATA_VERSION);
   if (!version) {
     const newVersion = Date.now();
-    localStorage.setItem("extraWatchlistVersion", newVersion);
-    browserAPI.storage.local.set({ extraWatchlistVersion: newVersion });
+    localStorage.setItem(DATA_VERSION, newVersion);
+    browserAPI.storage.local.set({ [DATA_VERSION]: newVersion });
   }
 };
 
@@ -56,25 +61,24 @@ const normalizeLocalStorage = () => {
 // DATA STORAGE AND RETRIEVAL
 // ====================================================================
 
-// Returns [id-list, version, ewData]
-// Convert the stored version to a number for proper comparison.
+// Returns id-list and set global md5AtLoad loadedEwDataVersion and ewData
 function getFullWatchlist() {
   const ids = getWatchlistIds();
-  const newVersion = Number(localStorage.getItem("extraWatchlistVersion"));
+  const newVersion = Number(localStorage.getItem(DATA_VERSION));
   if (newVersion === loadedEwDataVersion) {
-    console.log(`No need to load,  ids=${ids.length}`);
+    if (DEBUG_LOGGING) console.log(`No need to load,  ids=${ids.length}`);
     return ids;
   }
-  const ewd = localStorage.getItem("extraWatchlistData") || JSON.stringify([]);
+  const ewd = localStorage.getItem(WATCHLIST_DATA) || JSON.stringify([]);
   md5AtLoad = CryptoJS.MD5(ewd).toString();
   ewData = JSON.parse(ewd);
   loadedEwDataVersion = newVersion;
-  console.log(`Loaded ewData: v:${loadedEwDataVersion}, count=${ids.length}, size=${ewd.length}`);
+  if (DEBUG_LOGGING) console.log(`Loaded ewData: v:${loadedEwDataVersion}, count=${ids.length}, size=${ewd.length}`);
   return ids;
 }
 
 function getWatchlistIds() {
-  const ids = localStorage.getItem("extraWatchlist");
+  const ids = localStorage.getItem(WATCHLIST_IDS);
   return ids
     ? ids
         .split(",")
@@ -94,12 +98,14 @@ function saveWatchList(ids) {
   const idString = idArray.sort().join(",");
   const dataIds = ewData.map((d) => d.wtId).sort();
   const dataIdsString = dataIds.join(",");
-  console.log(`saveWatchList: v:${loadedEwDataVersion}, count=${idArray.length}, ${idString}`, dataIds);
+  if (DEBUG_LOGGING)
+    console.log(`saveWatchList: v:${loadedEwDataVersion}, count=${idArray.length}, ${idString}`, dataIds);
 
   if (idString != dataIdsString) {
-    console.log(
-      `ewData out of sync: ids=${idArray.length} vs ewData=${ewData.length}, sizes: ${idString.length} va ${dataIdsString.length}, clearing ewData`
-    );
+    if (DEBUG_LOGGING)
+      console.log(
+        `ewData out of sync: ids=${idArray.length} vs ewData=${ewData.length}, sizes: ${idString.length} va ${dataIdsString.length}, clearing ewData`
+      );
     // const [a, b] = arrayDifferences(idArray, dataIds);
     // console.log("In ids and not in ewData", a);
     // console.log("In ewData and not in ids", b);
@@ -109,17 +115,18 @@ function saveWatchList(ids) {
   const newMd5 = CryptoJS.MD5(jsonData).toString();
   if (newMd5 === md5AtLoad && idString == dataIdsString) {
     // No changes, so no need to change anything
-    console.log("No need to save");
+    if (DEBUG_LOGGING) console.log("No need to save");
     return;
   }
 
   md5AtLoad = newMd5;
   loadedEwDataVersion = Date.now();
-  console.log(`Saving new ewData: v:${loadedEwDataVersion}, count=${idArray.length} size=${jsonData.length}`);
-  localStorage.setItem("extraWatchlist", idString);
-  localStorage.setItem("extraWatchlistData", jsonData);
-  localStorage.setItem("extraWatchlistVersion", loadedEwDataVersion);
-  browserAPI.storage.local.set({ extraWatchlistVersion: loadedEwDataVersion });
+  if (DEBUG_LOGGING)
+    console.log(`Saving new ewData: v:${loadedEwDataVersion}, count=${idArray.length} size=${jsonData.length}`);
+  localStorage.setItem(WATCHLIST_IDS, idString);
+  localStorage.setItem(WATCHLIST_DATA, jsonData);
+  localStorage.setItem(DATA_VERSION, loadedEwDataVersion);
+  browserAPI.storage.local.set({ [DATA_VERSION]: loadedEwDataVersion });
 }
 
 // Check if ewData contains all and only the ids in ids
@@ -287,14 +294,10 @@ function extractFSP(data) {
 // WATCHLIST MANAGEMENT
 // ====================================================================
 
-function ewDataIds() {
-  return ewData.map((d) => d.wtId).sort();
-}
-
 const doExtraWatchlist = () => {
   // Prevent overlapping calls
   if (isLoading) {
-    console.log("Data fetch already in progress, skipping new fetch");
+    if (DEBUG_LOGGING) console.log("Data fetch already in progress, skipping new fetch");
     return;
   }
   isLoading = true;
@@ -307,19 +310,16 @@ const doExtraWatchlist = () => {
     setEmptyMessages();
     if (ids.length > 0) {
       if (ewData.length && Date.now() - loadedEwDataVersion < ONE_HOUR && watchlistInSync(ids)) {
-        console.log(`Redrawing ids=${ids.length}: ${ids.join(",")}`, ewDataIds());
         redrawPeopleTable();
         redrawSpaceTable();
-        console.log(`Done redrawing ids=${ids.length}: ${ids.join(",")}`, ewDataIds());
         isLoading = false;
       } else {
-        console.log(`Fetch and draw  ids=${ids.length}: ${ids.join(",")}`, ewDataIds());
         const spacePages = ids.filter((x) => x.match("^Space%3A"));
         const personPages = ids.filter((x) => !x.match("^Space%3A")).map((id) => decodeURIComponent(id));
         ewData = [];
         const errors = [];
 
-        // Process person pages in chunks of 1000
+        // Function to process person pages in chunks of 1000
         const handlePersonPages = () => {
           const personPromises = [];
           while (personPages.length) {
@@ -339,7 +339,7 @@ const doExtraWatchlist = () => {
           return Promise.all(personPromises);
         };
 
-        // Process space pages
+        // Function to process space pages
         const handleSpacePages = () => {
           const spacePromises = spacePages.map(async (aKey) => {
             const fsp = await get_Profile(decodeURIComponent(aKey));
@@ -351,7 +351,7 @@ const doExtraWatchlist = () => {
           return Promise.all(spacePromises);
         };
 
-        // Execute both sets of promises and update the watchlist
+        // Execute both sets of promises and then update the watchlist display
         Promise.all([handlePersonPages(), handleSpacePages()])
           .then(() => {
             redrawSpaceTable();
@@ -361,7 +361,6 @@ const doExtraWatchlist = () => {
             } else {
               newIds = ewData.map((d) => d.wtId);
             }
-            console.log(`Done Fetch and draw  ids=${ids.length}: ${ids.join(",")}`, ewDataIds());
             saveWatchList(newIds);
             isLoading = false;
           })
@@ -380,28 +379,27 @@ const doExtraWatchlist = () => {
 };
 
 // Debounced storage change listener to avoid rapid-fire triggers.
+// We only debounce events we are interested in, others we ignore
 let debounceTimer = null;
 function storageChangeListener(changes, namespace) {
-  if (debounceTimer) clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => {
-    const dataVersion = "extraWatchlistVersion";
-    if (namespace === "local" && changes[dataVersion]) {
-      const newVersion = Number(changes[dataVersion].newValue);
-      console.log(`Storage change. Current version: ${loadedEwDataVersion} New version: ${newVersion}`);
+  if (namespace === "local" && changes[DATA_VERSION]) {
+    if (DEBUG_LOGGING) console.log("Extra Watchlist Change Notification");
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      const newVersion = Number(changes[DATA_VERSION].newValue);
+      if (DEBUG_LOGGING)
+        console.log(`Storage change. Current version: ${loadedEwDataVersion} New version: ${newVersion}`);
       if (newVersion !== loadedEwDataVersion) {
         if ($("#extraWatchlistWindow").length) {
-          console.log(`updateLocalData v${loadedEwDataVersion} (with popup) to ${newVersion}, current data`, ewData);
           doExtraWatchlist();
         } else {
-          console.log(`updateLocalData v${loadedEwDataVersion} (no popup) to ${newVersion}, current data`, ewData);
           getFullWatchlist();
         }
-        console.log(`updateLocalData, done`, ewData);
         setPlusButton();
       }
-    }
-    debounceTimer = null;
-  }, 300);
+      debounceTimer = null;
+    }, 300);
+  }
 }
 
 function setEmptyMessages() {
@@ -437,9 +435,10 @@ const extraWatchlist = async () => {
       list = list.filter((id) => id !== currentID);
       ewData = ewData.filter((d) => d.wtId != currentID);
       if ($("#extraWatchlistWindow").is(":visible")) {
-        let row = peopleTable.row($(`#touchedListPersons tbody tr[data-id="${htmlEntities(currentID)}"]`));
+        const htmlIds = htmlEntities(currentID);
+        let row = peopleTable.row($(`#touchedListPersons tbody tr[data-id="${htmlIds}"]`));
         if (row.length == 0) {
-          row = spaceTable.row($(`#touchedListSpaces tbody tr[data-id="${htmlEntities(currentID)}"]`));
+          row = spaceTable.row($(`#touchedListSpaces tbody tr[data-id="${htmlIds}"]`));
         }
         row.remove().draw();
       }
@@ -748,7 +747,7 @@ const createWatchlistPopup = async (mouseY) => {
     .on("click", function (e) {
       e.preventDefault();
 
-      const ewText = localStorage.getItem("extraWatchlist")?.replace(/@/g, ",") || "";
+      const ewText = localStorage.getItem(WATCHLIST_IDS)?.replace(/@/g, ",") || "";
       const dStr = strDate();
       const blob = new Blob([ewText], { type: "text/plain" });
 
