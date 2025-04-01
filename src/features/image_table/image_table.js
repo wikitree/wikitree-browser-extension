@@ -192,6 +192,7 @@ function showLargeImage(photo) {
         height: naturalHeight,
       });
     }
+    setHighestZIndex(largeImageDiv);
   });
 
   // Append the image to the container and add the container to the body

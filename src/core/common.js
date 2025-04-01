@@ -1753,7 +1753,7 @@ export function setHighestZIndex(el) {
     ...Array.from(document.querySelectorAll("*"))
       .filter((el) => {
         const style = getComputedStyle(el);
-        return style.display !== "none" && style.visibility !== "hidden";
+        return style.display !== "none" && style.visibility !== "hidden" && el.id !== "largeImagePopup";
       })
       .map((el) => parseFloat(getComputedStyle(el).zIndex) || 0)
   );
