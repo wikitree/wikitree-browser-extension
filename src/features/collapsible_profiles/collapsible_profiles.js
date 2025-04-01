@@ -59,7 +59,7 @@ function init(options) {
   });
 }
 
-function wrapContent() {
+function createCollapsibleSections() {
   const bodyText = $(".body-text");
   if (bodyText.length === 0) return;
 
@@ -140,63 +140,6 @@ function wrapContent() {
 
   //     $heading.after($wrapper);
   //   });
-}
-
-function createCollapsibleSections() {
-  const bodyText = $(".body-text");
-  if (bodyText.length === 0) return;
-
-  const headings = bodyText.find("h1, h2, h3, h4, h5, h6");
-  const stack = [];
-  const headingCounters = {};
-  let transformedContent = $("<div></div>");
-  let beforeFirstHeading = $('<div class="before-headings"></div>');
-
-  let firstHeadingFound = false;
-  bodyText.contents().each(function () {
-    if (!firstHeadingFound && !$(this).is("h1, h2, h3, h4, h5, h6")) {
-      beforeFirstHeading.append($(this));
-    } else {
-      firstHeadingFound = true;
-    }
-  });
-
-  if (beforeFirstHeading.children().length > 0) {
-    transformedContent.append(beforeFirstHeading);
-  }
-
-  let currentContainer = transformedContent;
-
-  bodyText.contents().each(function () {
-    if ($(this).is("h1, h2, h3, h4, h5, h6")) {
-      const heading = $(this);
-      const level = parseInt(this.tagName.substring(1));
-
-      headingCounters[level] = (headingCounters[level] || 0) + 1;
-
-      const contentId = `hcl${level}${headingCounters[level]}`;
-      heading.attr("data-content-id", contentId);
-
-      const newDiv = $(`<div id="${contentId}" class="collapsible-section"></div>`);
-
-      while (stack.length > 0 && stack[stack.length - 1].level >= level) {
-        stack.pop();
-      }
-
-      if (stack.length > 0) {
-        stack[stack.length - 1].container.append(heading).append(newDiv);
-      } else {
-        transformedContent.append(heading).append(newDiv);
-      }
-
-      stack.push({ level, container: newDiv });
-      currentContainer = newDiv;
-    } else {
-      currentContainer.append($(this));
-    }
-  });
-
-  bodyText.empty().append(transformedContent.children());
 }
 
 function addCollapsibleButtons() {
