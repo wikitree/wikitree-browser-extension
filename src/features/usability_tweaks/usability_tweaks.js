@@ -595,6 +595,19 @@ function enhanceThonStats() {
   }
 }
 
+function addNavHomePageLink() {
+  const findButton = document.getElementsByClassName("btn btn-link btn-search")[0];
+  if (findButton) {
+    const navHomePageLink = document.createElement("button");
+    navHomePageLink.addEventListener("click", () => {
+      window.location = "https://" + mainDomain + "/wiki/Special:Home";
+    });
+    navHomePageLink.innerHTML = " &#127968;";
+    navHomePageLink.classList = findButton.classList;
+    findButton.parentNode.parentNode.insertBefore(navHomePageLink, findButton.parentNode.previousSibling.previousSibling);
+  }
+}
+
 // Ignoring the Scratch item, find the first item in parent that wil push the right-hand column height
 // past that of the first item in the left-hand column.
 function findItemByCumulativeSpan($parent) {
@@ -753,6 +766,10 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
 
       if (isPlusDomain && options.enhanceThonPages) {
         enhanceThonStats();
+      }
+
+      if (options.navHomePage) {
+        addNavHomePageLink();
       }
 
       if (options.biggerCheckboxesAndRadios && !isPlusDomain) {
