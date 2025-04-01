@@ -63,18 +63,26 @@ function createCollapsibleSections() {
   const bodyText = $(".body-text");
   if (bodyText.length === 0) return;
 
-  const headings = bodyText.find("h1, h2, h3, h4, h5, h6");
   const stack = [];
   const headingCounters = {};
-  let transformedContent = $("<div></div>");
-  let beforeFirstHeading = $('<div class="before-headings"></div>');
+  const transformedContent = $("<div></div>");
+  const beforeFirstHeading = $('<div class="before-headings"></div>');
 
-  let firstHeadingFound = false;
+  let lastAnchor = null;
+
+  // Collect everything before the first heading (and it's named anchor)
   bodyText.contents().each(function () {
-    if (!firstHeadingFound && !$(this).is("h1, h2, h3, h4, h5, h6")) {
-      beforeFirstHeading.append($(this));
+    if ($(this).is("a") && $(this).attr("name") && $(this).attr("id")) {
+      lastAnchor = $(this); // Store anchor instead of adding it to beforeFirstHeading
+    } else if ($(this).is("h1, h2, h3, h4, h5, h6")) {
+      return false;
     } else {
-      firstHeadingFound = true;
+      if (lastAnchor) {
+        // the anchor is not immediately before a heading, so add it to beforeFirstHeading
+        transformedContent.append(lastAnchor);
+        lastAnchor = null;
+      }
+      beforeFirstHeading.append($(this));
     }
   });
 
@@ -85,7 +93,9 @@ function createCollapsibleSections() {
   let currentContainer = transformedContent;
 
   bodyText.contents().each(function () {
-    if ($(this).is("h1, h2, h3, h4, h5, h6")) {
+    if ($(this).is("a") && $(this).attr("name") && $(this).attr("id")) {
+      lastAnchor = $(this);
+    } else if ($(this).is("h1, h2, h3, h4, h5, h6")) {
       const heading = $(this);
       const level = parseInt(this.tagName.substring(1));
 
@@ -101,14 +111,28 @@ function createCollapsibleSections() {
       }
 
       if (stack.length > 0) {
-        stack[stack.length - 1].container.append(heading).append(newDiv);
+        stack[stack.length - 1].container.append(heading);
+        if (lastAnchor) {
+          heading.before(lastAnchor); // Ensure anchor is the previous sibling of the heading
+          lastAnchor = null;
+        }
+        stack[stack.length - 1].container.append(newDiv);
       } else {
+        if (lastAnchor) {
+          transformedContent.append(lastAnchor); // Ensure anchor is the previous sibling of the heading
+          lastAnchor = null;
+        }
         transformedContent.append(heading).append(newDiv);
       }
 
       stack.push({ level, container: newDiv });
       currentContainer = newDiv;
     } else {
+      if (lastAnchor) {
+        // the anchor is not immediately before a heading, so add it to currentContainer
+        currentContainer.append(lastAnchor);
+        lastAnchor = null;
+      }
       currentContainer.append($(this));
     }
   });
