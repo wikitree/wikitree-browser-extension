@@ -142,7 +142,6 @@ export function getProfilePersonInfo() {
   if (!pageData) {
     return null;
   }
-<<<<<<< HEAD
   if (/Space(:|%3a|%3A)/i.test(window.location.href)) {
     // For space pages, the profile person is the space page itself
     let namePart = window.location.href.split(/Space(:|%3a|%3A)/i)[2];
@@ -150,12 +149,6 @@ export function getProfilePersonInfo() {
       person.Name = "Space:" + namePart.split(/[?#]/)[0];
       return person;
     }
-=======
-  if (window.location.href.match(/Space(:|%3A|%3a)/)) {
-    // For space pages, the profile person is the space page itself
-    person.Name = window.location.href.split(/\/wiki\/|title=/)[1].split(/[?#]/)[0];
-    return person;
->>>>>>> 78c547b9 (Update common.js)
   }
 
   person.Name = pageData.mnamedb;
