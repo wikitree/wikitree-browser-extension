@@ -41,6 +41,12 @@ const usabilityTweaks = {
           label: "Bigger checkboxes and radio buttons",
           defaultValue: false,
         },
+        {
+          id: "navHomePage",
+          type: OptionType.CHECKBOX,
+          label: "Add link to Nav Home Page next to My WikiTree",
+          defaultValue: false,
+        },
       ],
     },
     {
