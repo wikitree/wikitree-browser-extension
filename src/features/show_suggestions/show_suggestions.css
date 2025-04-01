@@ -5,13 +5,9 @@
 
 #suggestionsPopup .popup-content {
   background-color: white;
-  padding: 20px;
-  border: 1px solid #888;
-  width: 80%;
-  margin: auto;
-  max-width: 750px;
   max-height: 80%; /* Limit height */
   overflow-y: auto; /* Make content scrollable only when needed */
+  margin-bottom: 40px;
 }
 
 #suggestionsPopup .close {
@@ -30,24 +26,14 @@
 }
 
 .suggestions-table {
-  padding: 20px;
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  padding: 0;
   font-family: Arial, sans-serif;
   position: relative;
 }
 
-#suggestionsHeader {
-  margin-top: 0;
-  font-weight: bold;
-  font-size: 22px;
-  margin-bottom: 12px;
-}
-
 #suggestionsText {
   font-size: 20px;
-  margin-bottom: 26px;
+  margin-bottom: 36px;
   font-weight: normal;
 }
 
@@ -81,12 +67,14 @@
 #warningMessages,
 #hintMessages {
   background-color: #f0f0f0;
-  padding: 10px;
+  padding: 20px 10px 10px 10px;
   border: 1px solid #ddd;
   border-radius: 5px;
-  margin-bottom: 20px;
+  margin-bottom: 30px;
   font-size: 16px;
   position: relative;
+  width: 100%;
+  max-width: 700px;
 }
 
 #errorMessages p,
@@ -101,14 +89,14 @@
 #warningMessages::before,
 #hintMessages::before {
   position: absolute;
-  top: -1.5em;
+  top: -1.3em;
   left: 0.5em;
   font-size: 18px;
   font-weight: bold;
   color: #888;
   background-color: #fdfdfd;
   padding: 5px 10px;
-  border: 1px solid #888;
+  border: 1px solid #ddd;
   border-radius: 5px;
 }
 
