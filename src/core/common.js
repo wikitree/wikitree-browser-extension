@@ -142,11 +142,15 @@ export function getProfilePersonInfo() {
   if (!pageData) {
     return null;
   }
-  if (window.location.href.match(/Space(:|%3A)/)) {
+  if (/Space(:|3a|3A)/i.test(window.location.href)) {
     // For space pages, the profile person is the space page itself
-    person.Name = window.location.href.split("/wiki/")[1].split("?#")[0];
-    return person;
+    let namePart = window.location.href.split(/Space(:|3a|3A)/i)[2];
+    if (namePart) {
+      person.Name = "Space:" + namePart.split(/[?#]/)[0];
+      return person;
+    }
   }
+
   person.Name = pageData.mnamedb;
   // Clone h1, remove all children and trim the text.
 
