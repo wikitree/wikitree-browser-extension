@@ -142,9 +142,9 @@ export function getProfilePersonInfo() {
   if (!pageData) {
     return null;
   }
-  if (/Space(:|3a|3A)/i.test(window.location.href)) {
+  if (/Space(:|%3a|%3A)/i.test(window.location.href)) {
     // For space pages, the profile person is the space page itself
-    let namePart = window.location.href.split(/Space(:|3a|3A)/i)[2];
+    let namePart = window.location.href.split(/Space(:|%3a|%3A)/i)[2];
     if (namePart) {
       person.Name = "Space:" + namePart.split(/[?#]/)[0];
       return person;
