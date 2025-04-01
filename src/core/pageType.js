@@ -264,8 +264,8 @@ if (domain.match("apps.wikitree.com")) {
   ) {
     isSpacePage = true;
     if (
-      path.match(/\/wiki\/Space:WikiTree_Browser_Extension$/g) ||
-      path.match(/\/wiki\/Space:WikiTree_Browser_Extension#/g)
+      path.match(/\/wiki\/Space(:|%3A|%3a)WikiTree_Browser_Extension$/g) ||
+      path.match(/\/wiki\/Space(:|%3A|%3a)WikiTree_Browser_Extension#/g)
     ) {
       isWBESpace = true;
     }
