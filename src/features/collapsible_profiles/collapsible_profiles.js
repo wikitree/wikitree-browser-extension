@@ -3,15 +3,9 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { isProfilePage, isSpacePage } from "../../core/pageType";
 
 const headingLevels = [2, 3, 4, 5, 6];
-const exclusionSelector = "section#nav-familyContent, div#Collaboration, div#Collaboration *, #Matches"; // Exclude #Matches
 
 function escapeId(id) {
   return typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id;
-}
-
-function shouldExcludeHeading(heading) {
-  if (heading.closest(exclusionSelector)) return true;
-  return false;
 }
 
 shouldInitializeFeature("collapsibleProfiles").then(async (result) => {
@@ -139,6 +133,8 @@ function createCollapsibleSections() {
 
   bodyText.empty().append(transformedContent.children());
 
+  createSpecialCollapsibles();
+
   // Handle any headings buried within other structures
   // $(".body-text")
   //   .find("h1, h2, h3, h4, h5, h6")
@@ -166,40 +162,60 @@ function createCollapsibleSections() {
   //   });
 }
 
+function createSpecialCollapsibles() {
+  $("#Memories, #Comments, #Matches")
+    .add($("h3:contains('Collaboration')").closest("div"))
+    .add($("p:contains('Featured connections')").closest("section"))
+    .each(function (index) {
+      const id = `hclx${index}`;
+      const $original = $(this);
+      const newDiv = $(`<div id="${id}" class="collapsible-section"></div>`);
+      $original.before(newDiv);
+      newDiv.append($original);
+
+      let button = createCollapseButtonFor(id);
+      newDiv.before(button);
+    });
+}
+
 function addCollapsibleButtons() {
   headingLevels.forEach((level) => {
-    $(`.body-text h${level}`).each(function () {
-      if (shouldExcludeHeading(this)) return;
-
+    $(`.body-text h${level}[data-content-id]`).each(function () {
       const sectionId = $(this).attr("data-content-id");
-      const $section = $(`#${sectionId}`);
-      if ($section.length) {
-        const isExpanded = $section.is(":visible");
-        const $button = $(`
-          <button class="collapse-toggle"
-                  data-target-id="${sectionId}"
-                  aria-expanded="${isExpanded}">
-            ${isExpanded ? "−" : "+"}
-          </button>
-        `);
+      const $button = createCollapseButtonFor(sectionId);
+      if ($button) {
         $(this).append($button);
       }
     });
   });
 }
 
+function createCollapseButtonFor(sectionId) {
+  if (!sectionId) return null;
+
+  const $section = $(`#${sectionId}`);
+  if ($section.length) {
+    const isExpanded = $section.is(":visible");
+    return $(`
+      <button class="collapse-toggle"
+              data-target-id="${sectionId}"
+              aria-expanded="${isExpanded}">
+        ${isExpanded ? "−" : "+"}
+      </button>
+    `);
+  }
+  return null;
+}
+
 function addCollapseAllButton() {
-  $("h1").each(function () {
+  $("h1[itemprop='name']").each(function () {
     const $h1 = $(this);
     const $button = $(`<button class="collapse-all-toggle">−</button>`);
     $button.on("click", function () {
       const isCollapsed = $(this).text().trim() === "−";
       $(".collapsible-section").each(function () {
-        if (!$(this).closest("#Matches").length) {
-          // Exclude anything inside #Matches
-          if (isCollapsed) $(this).slideUp();
-          else $(this).slideDown();
-        }
+        if (isCollapsed) $(this).slideUp();
+        else $(this).slideDown();
       });
       $(".collapse-toggle").text(isCollapsed ? "+" : "−"); // Update all small toggles
       $(this).text(isCollapsed ? "+" : "−");
@@ -210,7 +226,7 @@ function addCollapseAllButton() {
 
 function collapseAllSections() {
   $(".collapsible-section").each(function () {
-    if (!$(this).closest("#Matches").length) $(this).hide(); // Exclude anything inside #Matches
+    $(this).hide();
   });
 }
 
@@ -258,11 +274,7 @@ function attachCollapseToggleHandler() {
     const targetId = $(this).attr("data-target-id");
     const $target = $("#" + escapeId(targetId));
     const isExpanded = $target.is(":visible");
-
-    if (!$target.closest("#Matches").length) {
-      // Exclude anything inside #Matches
-      $target.slideToggle(200);
-      $(this).text(isExpanded ? "+" : "−");
-    }
+    $target.slideToggle(200);
+    $(this).text(isExpanded ? "+" : "−");
   });
 }
