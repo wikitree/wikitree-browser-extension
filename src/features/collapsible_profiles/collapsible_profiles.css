@@ -65,6 +65,23 @@ button.collapse-toggle[data-target-id="nVitals"] {
   transform: none;
 }
 
+.special-collapse-button {
+  top: auto !important;
+  left: auto !important;
+  position: relative;
+  margin: auto;
+  display: block;
+  width: 10em;
+  margin-bottom: 1em;
+}
+.special-collapse-button::after {
+  content: attr(data-for);
+  width: fit-content;
+  font-weight: bold;
+  font-size: 0.8em;
+  padding-left: 1em;
+}
+
 @media (max-width: 980px) {
   h1 .collapse-all-toggle,
   .collapse-toggle {

@@ -167,13 +167,30 @@ function createSpecialCollapsibles() {
     .add($("h3:contains('Collaboration')").closest("div"))
     .add($("p:contains('Featured connections')").closest("section"))
     .each(function (index) {
+      let forText;
+
+      if ($(this).prop("id")) {
+        forText = $(this).prop("id");
+      } else {
+        if ($(this).text().includes("Collaboration")) {
+          forText = "Collaboration";
+        } else if ($(this).text().includes("Featured connections")) {
+          forText = "Featured connections";
+        }
+      }
+
       const id = `hclx${index}`;
       const $original = $(this);
       const newDiv = $(`<div id="${id}" class="collapsible-section"></div>`);
       $original.before(newDiv);
       newDiv.append($original);
 
-      let button = createCollapseButtonFor(id);
+      const buttonOptions = {};
+      if (forText) {
+        buttonOptions.forText = forText;
+        buttonOptions.classes = "special-collapse-button";
+      }
+      let button = createCollapseButtonFor(id, buttonOptions);
       newDiv.before(button);
     });
 }
@@ -190,14 +207,18 @@ function addCollapsibleButtons() {
   });
 }
 
-function createCollapseButtonFor(sectionId) {
+function createCollapseButtonFor(sectionId, options = {}) {
   if (!sectionId) return null;
 
+  const forText = options.forText || "";
+  const classes = options.classes || "";
   const $section = $(`#${sectionId}`);
   if ($section.length) {
     const isExpanded = $section.is(":visible");
     return $(`
-      <button class="collapse-toggle"
+      <button class="collapse-toggle ${classes}"
+              title="Show/Hide ${forText}"
+              data-for="${forText}"
               data-target-id="${sectionId}"
               aria-expanded="${isExpanded}">
         ${isExpanded ? "−" : "+"}
