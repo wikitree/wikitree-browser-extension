@@ -85,10 +85,14 @@ button.collapse-toggle[data-target-id="nVitals"] {
 .button-container {
   margin-top: 1em;
 }
-.collapsible-section .my-5,
-.collapsible-section .mt-5 {
+.collapsible-profiles .my-5,
+.collapsible-profiles .mt-5 {
   margin-top: 1em !important;
   margin-bottom: 1em !important;
+}
+
+.collapsible-profiles .pb-5 {
+  padding-bottom: 1em !important;
 }
 
 @media (max-width: 980px) {

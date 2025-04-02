@@ -11,6 +11,7 @@ function escapeId(id) {
 
 shouldInitializeFeature("collapsibleProfiles").then(async (result) => {
   if (result) {
+    $("body").addClass("collapsible-profiles");
     const options = await getFeatureOptions("collapsibleProfiles");
     let autoAddButtons = isProfilePage
       ? options.automaticallyAddButtonsProfiles
