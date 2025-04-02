@@ -84,8 +84,8 @@ button.collapse-toggle[data-target-id="nVitals"] {
 .button-container {
   margin-top: 1em;
 }
-#hclx2 hr.my-5,
-#hclx1 hr.my-5 {
+.collapsible-section .my-5,
+.collapsible-section .mt-5 {
   margin-top: 1em !important;
   margin-bottom: 1em !important;
 }
