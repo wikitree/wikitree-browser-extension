@@ -73,7 +73,6 @@ button.collapse-toggle[data-target-id="nVitals"] {
   text-align: left;
   width: 10em;
   margin-top: 1em;
-  margin-bottom: 1em;
 }
 .special-collapse-button::after {
   content: attr(data-for);
