@@ -189,6 +189,7 @@ function createSpecialCollapsibles() {
       if (forText) {
         buttonOptions.forText = forText;
         buttonOptions.classes = "special-collapse-button";
+        buttonOptions.needsContainer = true;
       }
       let button = createCollapseButtonFor(id, buttonOptions);
       newDiv.before(button);
@@ -215,7 +216,7 @@ function createCollapseButtonFor(sectionId, options = {}) {
   const $section = $(`#${sectionId}`);
   if ($section.length) {
     const isExpanded = $section.is(":visible");
-    return $(`
+    const aButton = $(`
       <button class="collapse-toggle ${classes}"
               title="Show/Hide ${forText}"
               data-for="${forText}"
@@ -224,6 +225,12 @@ function createCollapseButtonFor(sectionId, options = {}) {
         ${isExpanded ? "−" : "+"}
       </button>
     `);
+    if (options.needsContainer) {
+      const $container = $("<div class='container button-container'></div>");
+      $container.append(aButton);
+      return $container;
+    }
+    return aButton;
   }
   return null;
 }
