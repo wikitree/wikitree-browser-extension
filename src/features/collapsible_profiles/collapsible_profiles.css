@@ -70,6 +70,7 @@ button.collapse-toggle[data-target-id="nVitals"] {
   left: auto !important;
   position: relative;
   display: block;
+  text-align: left;
   width: 10em;
   margin-top: 1em;
   margin-bottom: 1em;
