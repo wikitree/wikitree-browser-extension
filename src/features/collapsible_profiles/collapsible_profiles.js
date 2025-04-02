@@ -2,6 +2,8 @@ import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isProfilePage, isSpacePage } from "../../core/pageType";
 
+const EXPAND_IT_SYMB = "+";
+const COLLAPSE_IT_SYMB = "−";
 const headingLevels = [1, 2, 3, 4, 5, 6];
 const headingSelectors = headingLevels.map((level) => `h${level}`).join(", ");
 
@@ -13,9 +15,10 @@ shouldInitializeFeature("collapsibleProfiles").then(async (result) => {
   if (result) {
     $("body").addClass("collapsible-profiles");
     const options = await getFeatureOptions("collapsibleProfiles");
-    let autoAddButtons = isProfilePage
+    const autoAddButtons = isProfilePage
       ? options.automaticallyAddButtonsProfiles
       : options.automaticallyAddButtonsSpaces;
+    options.autoCollapse = isProfilePage ? options.collapseProfilesAllSections : options.collapseSpacesAllSections;
     if (autoAddButtons) {
       init(options);
     } else {
@@ -41,25 +44,24 @@ shouldInitializeFeature("collapsibleProfiles").then(async (result) => {
 function init(options) {
   import("./collapsible_profiles.css").then(() => {
     createCollapsibleSections();
-    addCollapsibleButtons();
     addCollapseAllButton();
     attachCollapseToggleHandler();
-    // addNavigationClickHandler();
+    addNavigationClickHandler();
 
     let autoCollapse = options.autoCollapse || false;
     if (autoCollapse) {
       collapseAllSections();
-      $(".collapse-all-toggle").text("+");
+      $(".collapse-all-toggle").text(EXPAND_IT_SYMB);
     } else {
       collapseSpecificSections(options);
     }
-    // const initialHash = window.location.hash.substring(1);
-    // if (initialHash) {
-    //   // Delay to ensure all sections are initialized
-    //   setTimeout(() => {
-    //     navigateTo(decodeURIComponent(initialHash));
-    //   }, 500); // Adjust the delay as needed
-    // }
+    const initialHash = window.location.hash.substring(1);
+    if (initialHash) {
+      // Delay to ensure all sections are initialized
+      setTimeout(() => {
+        navigateTo(decodeURIComponent(initialHash));
+      }, 500); // Adjust the delay as needed
+    }
   });
 }
 
@@ -107,6 +109,7 @@ function createCollapsibleSections() {
 
       const contentId = `hcl${level}${headingCounters[level]}`;
       heading.attr("data-content-id", contentId);
+      const anchorName = lastAnchor.attr("name");
 
       const newDiv = $(`<div id="${contentId}" class="collapsible-section"></div>`);
 
@@ -128,6 +131,8 @@ function createCollapsibleSections() {
         }
         transformedContent.append(heading).append(newDiv);
       }
+      const btn = createCollapseButtonFor(contentId, { anchorName: anchorName });
+      heading.append(btn);
 
       stack.push({ level, container: newDiv });
       currentContainer = newDiv;
@@ -221,89 +226,36 @@ function createSpecialCollapsibles() {
     let button = createCollapseButtonFor(id, buttonOptions);
     newDiv.before(button);
   });
-
-  // $("#Memories, #Comments, #Matches")
-  //   .add($("h3:contains('Collaboration')").closest("div"))
-  //   .add($("p:contains('Featured connections')").closest("section"))
-  //   .each(function (index) {
-  //     let forText;
-
-  //     if ($(this).prop("id")) {
-  //       forText = $(this).prop("id");
-  //     } else {
-  //       if ($(this).text().includes("Collaboration")) {
-  //         forText = "Collaboration";
-  //       } else if ($(this).text().includes("Featured connections")) {
-  //         forText = "Featured connections";
-  //       }
-  //     }
-
-  //     const id = `hclx${index}`;
-  //     const $original = $(this);
-  //     const newDiv = $(`<div id="${id}" class="collapsible-section"></div>`);
-  //     $original.before(newDiv);
-  //     newDiv.append($original);
-
-  //     const buttonOptions = {};
-  //     if (forText) {
-  //       buttonOptions.forText = forText;
-  //       buttonOptions.classes = "special-collapse-button";
-  //       buttonOptions.needsContainer = true;
-  //     }
-  //     let button = createCollapseButtonFor(id, buttonOptions);
-  //     newDiv.before(button);
-  //   });
-}
-
-function addCollapsibleButtons() {
-  headingLevels.forEach((level) => {
-    $(`.body-text h${level}[data-content-id]`).each(function () {
-      const sectionId = $(this).attr("data-content-id");
-      const $button = createCollapseButtonFor(sectionId);
-      if ($button) {
-        $(this).append($button);
-      }
-    });
-  });
 }
 
 function createCollapseButtonFor(sectionId, options = {}) {
   if (!sectionId) return null;
 
   const forText = options.forText || "";
+  const anchor = options.anchorName || forText;
   const classes = options.classes || "";
-  const $section = $(`#${sectionId}`);
-  if ($section.length) {
-    const isExpanded = $section.is(":visible");
-    const aButton = $(`
+  const aButton = $(`
       <button class="collapse-toggle ${classes}"
               title="Show/Hide ${forText}"
               data-for="${forText}"
-              data-target-id="${sectionId}"
-              aria-expanded="${isExpanded}">${isExpanded ? "−" : "+"}</button>
+              data-anchor="${anchor}"
+              data-target-id="${sectionId}">${COLLAPSE_IT_SYMB}</button>
     `);
-    // if (options.needsContainer) {
-    //   const $container = $("<div class='container button-container'></div>");
-    //   $container.append(aButton);
-    //   return $container;
-    // }
-    return aButton;
-  }
-  return null;
+  return aButton;
 }
 
 function addCollapseAllButton() {
   $("h1[itemprop='name']").each(function () {
     const $h1 = $(this);
-    const $button = $(`<button class="collapse-all-toggle">−</button>`);
+    const $button = $(`<button class="collapse-all-toggle">${COLLAPSE_IT_SYMB}</button>`);
     $button.on("click", function () {
-      const isCollapsed = $(this).text().trim() === "−";
+      const isToBeCollapsed = $(this).text().trim() === COLLAPSE_IT_SYMB;
       $(".collapsible-section").each(function () {
-        if (isCollapsed) $(this).slideUp();
+        if (isToBeCollapsed) $(this).slideUp();
         else $(this).slideDown();
       });
-      $(".collapse-toggle").text(isCollapsed ? "+" : "−"); // Update all small toggles
-      $(this).text(isCollapsed ? "+" : "−");
+      $(".collapse-toggle").text(isToBeCollapsed ? EXPAND_IT_SYMB : COLLAPSE_IT_SYMB); // Update all small toggles
+      $(this).text(isToBeCollapsed ? EXPAND_IT_SYMB : COLLAPSE_IT_SYMB);
     });
     $h1.append($button);
   });
@@ -313,45 +265,55 @@ function collapseAllSections() {
   $(".collapsible-section").each(function () {
     $(this).hide();
   });
+  $(`.collapse-toggle`).text(EXPAND_IT_SYMB);
 }
 
 function collapseSpecificSections(options) {
   if (isProfilePage) {
-    if (options.collapseProfilesBiography) collapseSectionByHeadingId("Biography");
-    if (options.collapseProfilesResearchNotes) collapseSectionByHeadingId("Research Notes");
-    if (options.collapseProfilesSources) collapseSectionByHeadingId("Sources");
-    if (options.collapseProfilesAcknowledgments) collapseSectionByHeadingId("Acknowledgments");
+    if (options.collapseProfilesBiography) collapseSectionByTarget("Biography");
+    if (options.collapseProfilesResearchNotes) collapseSectionByTarget("Research_Notes");
+    if (options.collapseProfilesSources) collapseSectionByTarget("Sources");
+    if (options.collapseProfilesAcknowledgments) collapseSectionByTarget("Acknowledgments");
+    if (options.collapseProfilesMemories) collapseSectionByTarget("Memories");
+    if (options.collapseProfilesCollaboration) collapseSectionByTarget("Collaboration");
+    if (options.collapseProfilesComments) collapseSectionByTarget("Comments");
+    if (options.collapseProfilesMatches) collapseSectionByTarget("Matches");
+    if (options.collapseProfilesFeatured) collapseSectionByTarget("Featured ");
   } else if (isSpacePage) {
-    if (options.collapseSpacesResearchNotes) collapseSectionByHeadingId("Research Notes");
-    if (options.collapseSpacesSources) collapseSectionByHeadingId("Sources");
-    if (options.collapseSpacesAcknowledgments) collapseSectionByHeadingId("Acknowledgments");
+    if (options.collapseSpacesResearchNotes) collapseSectionByTarget("Research_Notes");
+    if (options.collapseSpacesSources) collapseSectionByTarget("Sources");
+    if (options.collapseSpacesAcknowledgments) collapseSectionByTarget("Acknowledgments");
+    if (options.collapseSpacesMemories) collapseSectionByTarget("Memories");
+    if (options.collapseSpacesCollaboration) collapseSectionByTarget("Collaboration");
+    if (options.collapseSpacesComments) collapseSectionByTarget("Comments");
   }
 }
 
-function collapseSectionByHeadingId(heading) {
-  const contentIds = getContentIdsByHeadlineText(heading);
-  contentIds.forEach((id) => {
-    $(`#${id}`).hide();
-    $(`.collapse-toggle[data-target-id="${id}"]`).text("+");
-  });
+function collapseSectionByTarget(targetId) {
+  $(`button.collapse-toggle[data-anchor^="${targetId}"]`).trigger("click");
+  // const contentIds = getContentIdsByHeadlineText(heading);
+  // contentIds.forEach((id) => {
+  //   $(`#${id}`).hide();
+  //   $(`.collapse-toggle[data-target-id="${id}"]`).text(EXPAND_IT_SYMB);
+  // });
 }
 
-function getContentIdsByHeadlineText(targetText) {
-  let contentIds = [];
+// function getContentIdsByHeadlineText(targetText) {
+//   let contentIds = [];
 
-  $("span.mw-headline")
-    .filter(function () {
-      return $(this).text().trim().toLowerCase() === targetText.toLowerCase();
-    })
-    .each(function () {
-      let contentId = $(this).closest(headingSelectors).attr("data-content-id");
-      if (contentId) {
-        contentIds.push(contentId);
-      }
-    });
+//   $("span.mw-headline")
+//     .filter(function () {
+//       return $(this).text().trim().toLowerCase() === targetText.toLowerCase();
+//     })
+//     .each(function () {
+//       let contentId = $(this).closest(headingSelectors).attr("data-content-id");
+//       if (contentId) {
+//         contentIds.push(contentId);
+//       }
+//     });
 
-  return contentIds;
-}
+//   return contentIds;
+// }
 
 function attachCollapseToggleHandler() {
   $(document).on("click", ".collapse-toggle", function (e) {
@@ -360,29 +322,20 @@ function attachCollapseToggleHandler() {
     const $target = $("#" + escapeId(targetId));
     const isExpanded = $target.is(":visible");
     $target.slideToggle(200);
-    $(this).text(isExpanded ? "+" : "−");
+    $(this).text(isExpanded ? EXPAND_IT_SYMB : COLLAPSE_IT_SYMB);
   });
 }
 
 function navigateTo(targetId) {
-  const targetElement = document.getElementById(targetId);
+  const $targetButton = $(`.collapse-toggle[data-anchor=${targetId}]`);
 
-  if (!targetElement) {
-    console.warn(`Element with id '${targetId}' not found.`);
+  if ($targetButton.length == 0) {
+    // console.warn(`Element with id '${targetId}' not found.`);
     return;
   }
 
-  // let targetCollapsible;
-  // const $target = $(targetElement);
-  // const firstSib = $target.next();
-  // const ourButton = firstSib.find(".collapse-toggle");
-  // if (ourButton.length) {
-  //   targetCollapsible =
-  // }
-  const $target = $(targetElement);
-
   // Expand all collapsed parent sections
-  const $parentSections = $target.parents(".collapsible-section").get().reverse();
+  const $parentSections = $targetButton.parents(".collapsible-section").get().reverse();
   $($parentSections).each(function () {
     const $parentSection = $(this);
     if ($parentSection.is(":hidden")) {
@@ -396,46 +349,20 @@ function navigateTo(targetId) {
   });
 
   // Expand the target section if it is not already expanded
-  if ($target.is(":hidden")) {
-  }
-  if ($target.next().is(headingSelectors)) {
-    // If the target is a heading, expand its section
-    const $section = $target.next(".collapsible-section");
-    if ($section.length && $section.is(":hidden")) {
-      // Expand the section
-      $section.show();
-      // Update the toggle button
-      const $toggleButton = $target.next().find(".collapse-toggle");
-      if ($toggleButton.length) {
-        $toggleButton.text("−").attr("aria-expanded", "true");
-      }
-    }
-  } else {
-    // If the target is within a collapsed section, expand that section
-    const $closestSection = $target.closest(".collapsible-section");
-    if ($closestSection.length && $closestSection.is(":hidden")) {
-      const $sectionHeading = $closestSection.prev(headingSelectors);
-      if ($sectionHeading.length) {
-        // Expand the section
-        $closestSection.show();
-        // Update the toggle button
-        const $toggleButton = $sectionHeading.find(".collapse-toggle");
-        if ($toggleButton.length) {
-          $toggleButton.text("−").attr("aria-expanded", "true");
-        }
-      }
-    }
+  const isCollapsed = $targetButton.text().trim().startsWith(EXPAND_IT_SYMB);
+  if (isCollapsed) {
+    $targetButton.trigger("click");
   }
 
   // Smoothly scroll to the target element
   (function () {
     let headerHeight = 0;
-    const $header = $("body > header");
+    const $header = $(".tabs--wrapper");
 
     if ($header.length) {
       const headerPosition = $header.css("position");
 
-      if (headerPosition === "fixed" || headerPosition === "sticky") {
+      if (headerPosition === "fixed" || headerPosition === "sticky" || headerPosition === "static") {
         // Get the total height of the header, including margins
         headerHeight = $header.outerHeight(true); // 'true' includes margins
       }
@@ -451,7 +378,7 @@ function navigateTo(targetId) {
     // Adjust scrollTop by subtracting totalOffset
     $("html, body").animate(
       {
-        scrollTop: $target.offset().top - totalOffset,
+        scrollTop: $targetButton.offset().top - totalOffset,
       },
       500
     );

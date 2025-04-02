@@ -58,6 +58,37 @@ registerFeature({
           label: "Collapse Acknowledgments",
           defaultValue: false,
         },
+        // Memories, Collaboration, Commens, Matches, Featured Connections
+        {
+          id: "collapseProfilesMemories",
+          type: OptionType.CHECKBOX,
+          label: "Collapse Memories",
+          defaultValue: false,
+        },
+        {
+          id: "collapseProfilesCollaboration",
+          type: OptionType.CHECKBOX,
+          label: "Collapse Collaboration",
+          defaultValue: false,
+        },
+        {
+          id: "collapseProfilesComments",
+          type: OptionType.CHECKBOX,
+          label: "Collapse Comments",
+          defaultValue: false,
+        },
+        {
+          id: "collapseProfilesMatches",
+          type: OptionType.CHECKBOX,
+          label: "Collapse Matches",
+          defaultValue: false,
+        },
+        {
+          id: "collapseProfilesFeatured",
+          type: OptionType.CHECKBOX,
+          label: "Collapse Featured Connections",
+          defaultValue: false,
+        },
       ],
     },
     {
@@ -93,6 +124,24 @@ registerFeature({
           id: "collapseSpacesAcknowledgments",
           type: OptionType.CHECKBOX,
           label: "Collapse Acknowledgments",
+          defaultValue: false,
+        },
+        {
+          id: "collapseSpacesMemories",
+          type: OptionType.CHECKBOX,
+          label: "Collapse Memories",
+          defaultValue: false,
+        },
+        {
+          id: "collapseSpacesCollaboration",
+          type: OptionType.CHECKBOX,
+          label: "Collapse Collaboration",
+          defaultValue: false,
+        },
+        {
+          id: "collapseSpacesComments",
+          type: OptionType.CHECKBOX,
+          label: "Collapse Comments",
           defaultValue: false,
         },
       ],
