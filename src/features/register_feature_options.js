@@ -160,7 +160,8 @@ registerFeature({
   name: "Category Finder Pins",
   id: "categoryFinderPins",
   description:
-    "Adds pins to Category Finder results (on the edit page), similar to the pins in the location dropdown.  These pins link to the category page for you to check that you have the right category.",
+    "Adds pins to Category Finder results (on the edit page), similar to the pins in the location dropdown.  " +
+    "Hovering over these pins gives a preview of the category page for you to check that you have the right category.",
   category: "Navigation",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],

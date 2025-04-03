@@ -13,7 +13,7 @@ import "../../core/navigatorDetect"; // needed for CSS classes
 
 let previewClasses = "x-page-preview";
 
-function onHoverIn($element) {
+export function onHoverIn($element) {
   if ($element.get(0).xCancelHover || $element.hasClass("noPreview")) {
     // if they already clicked on the link, don't pop up the preview
     return false;

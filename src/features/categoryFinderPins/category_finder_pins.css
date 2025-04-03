@@ -1,6 +1,9 @@
-body.categoryFinderPins .autocomplete-suggestion {
-  margin-left: 13px;
-}
 body.categoryFinderPins .autocomplete-suggestion-maplink {
   position: absolute;
+  left: 0;
+  cursor: helper;
+}
+body.categoryFinderPins .autocomplete-suggestion {
+  padding-left: 1.3em;
+  position: relative;
 }
