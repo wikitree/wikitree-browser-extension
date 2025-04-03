@@ -327,7 +327,7 @@ function attachCollapseToggleHandler() {
 }
 
 function navigateTo(targetId) {
-  const $targetButton = $(`.collapse-toggle[data-anchor=${targetId}]`);
+  const $targetButton = $(`.collapse-toggle[data-anchor="${targetId}"]`);
 
   if ($targetButton.length == 0) {
     // console.warn(`Element with id '${targetId}' not found.`);
