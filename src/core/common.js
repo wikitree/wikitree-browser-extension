@@ -169,7 +169,11 @@ export function getProfilePersonInfo() {
   person.Gender = pageData.mgender;
 
   if (!person.Gender) {
-    person.Gender = $("div.tree--person_m").length ? "Male" : $("div.tree--person_f").length ? "Female" : "";
+    person.Gender = $("#Family-pane div.tree--person_m").length
+      ? "Male"
+      : $("#Family-pane div.tree--person_f").length
+      ? "Female"
+      : "";
   }
 
   person.BirthDate = $("div.page--title div.VITALS:contains('Born')")
