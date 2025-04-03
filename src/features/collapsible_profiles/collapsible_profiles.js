@@ -22,14 +22,7 @@ shouldInitializeFeature("collapsibleProfiles").then(async (result) => {
     if (autoAddButtons) {
       init(options);
     } else {
-      const submenu = $("#views-wrap ul.views.viewsm").eq(0);
-      const menuItem = $(`
-        <li class="viewsi">
-          <a class="viewsi" title="Collapse sections" id="collapsibleProfilesMenuItem">Collapse&nbsp;</a>
-        </li>
-      `);
-      submenu.append(menuItem);
-      $("#collapsibleProfilesMenuItem").on("click", function (e) {
+      $("#activateCollapsibleProfiles").on("click", function (e) {
         e.preventDefault();
         options.autoCollapse = true;
         init(options);
