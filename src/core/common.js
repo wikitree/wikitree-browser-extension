@@ -418,16 +418,12 @@ async function checkButtonFeatures() {
       );
     }
     if (results[3]) {
-      console.log("Collapsible Profiles feature is enabled.");
       getFeatureOptions("collapsibleProfiles")
         .then((opt) => {
-          console.log("Feature options for collapsibleProfiles:", opt);
           const autoAddButtons = isProfilePage
             ? opt.automaticallyAddButtonsProfiles
             : opt.automaticallyAddButtonsSpaces;
-          console.log("Auto-add buttons setting:", autoAddButtons);
           if (!autoAddButtons) {
-            console.log("Adding 'Activate Collapsible Profile' button.");
             $(".clipboardContainer").append(
               createButton({
                 id: "activateCollapsibleProfiles",
@@ -436,8 +432,6 @@ async function checkButtonFeatures() {
                 img: collapseProfilesImg,
               })
             );
-          } else {
-            console.log("Auto-add buttons is enabled, skipping button addition.");
           }
         })
         .catch((error) => {

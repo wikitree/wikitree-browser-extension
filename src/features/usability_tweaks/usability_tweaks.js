@@ -652,9 +652,17 @@ function makeTableOverflowVisible() {
   }
   */
   const style = document.createElement("style");
+  const backgroundColor = $("body").css("background-color");
   style.innerHTML = `
     .table-wrapper {
       overflow-x: visible !important;
+      background-color: ${backgroundColor} !important;
+      z-index: 800 !important;
+    }
+    .table-wrapper table {
+      background-color: ${backgroundColor} !important;
+      position:relative !important;
+      z-index: 800 !important;
     }
   `;
   document.head.appendChild(style);
