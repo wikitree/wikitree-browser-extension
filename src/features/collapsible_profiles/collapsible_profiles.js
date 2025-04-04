@@ -22,7 +22,7 @@ shouldInitializeFeature("collapsibleProfiles").then(async (result) => {
     if (autoAddButtons) {
       init(options);
     } else {
-      $("#activateCollapsibleProfiles").on("click", function (e) {
+      $(document).on("click", "#activateCollapsibleProfiles", function (e) {
         e.preventDefault();
         options.autoCollapse = true;
         init(options);

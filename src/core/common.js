@@ -414,19 +414,31 @@ async function checkButtonFeatures() {
       );
     }
     if (results[3]) {
-      getFeatureOptions("collapsibleProfiles").then((opt) => {
-        const autoAddButtons = isProfilePage ? opt.automaticallyAddButtonsProfiles : opt.automaticallyAddButtonsSpaces;
-        if (!autoAddButtons) {
-          $(".clipboardContainer").append(
-            createButton({
-              id: "activateCollapsibleProfiles",
-              aClass: "activateCollapsibleProfiles",
-              title: "Activate Collapsible Profile",
-              img: collapseProfilesImg,
-            })
-          );
-        }
-      });
+      console.log("Collapsible Profiles feature is enabled.");
+      getFeatureOptions("collapsibleProfiles")
+        .then((opt) => {
+          console.log("Feature options for collapsibleProfiles:", opt);
+          const autoAddButtons = isProfilePage
+            ? opt.automaticallyAddButtonsProfiles
+            : opt.automaticallyAddButtonsSpaces;
+          console.log("Auto-add buttons setting:", autoAddButtons);
+          if (!autoAddButtons) {
+            console.log("Adding 'Activate Collapsible Profile' button.");
+            $(".clipboardContainer").append(
+              createButton({
+                id: "activateCollapsibleProfiles",
+                aClass: "activateCollapsibleProfiles",
+                title: "Activate Collapsible Profile",
+                img: collapseProfilesImg,
+              })
+            );
+          } else {
+            console.log("Auto-add buttons is enabled, skipping button addition.");
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching feature options for collapsibleProfiles:", error);
+        });
     }
   } catch (error) {
     console.error("Error checking features to initialize:", error);

@@ -30,7 +30,7 @@ async function initUnconnectedBranch() {
       if (!isUnconnectedNotables) {
         // Add a button to the profile page
         const $unconnectedButton = $(
-          `<a href="#n" id="unconnectedBranchButton" title="Unconnected Branch Table"><span class="icon--unconnected"></span></a>`
+          `<a href="#n" id="unconnectedBranchButton" class="wbe-button" data-tooltip="Unconnected Branch Table"><span class="icon--unconnected"></span></a>`
         );
         $unconnectedButton.attr("href", "#n");
         $unconnectedButton.appendTo(".profile--actions.float-end");
