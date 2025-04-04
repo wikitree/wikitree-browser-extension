@@ -105,9 +105,9 @@ function getDateOfData() {
 
 function getErrorMessages() {
   // Get the error, warning & hint messages from the returned html string
-  const regex1 = /<td bgcolor="#FFDDDD">([a-zA-Z]+ \d+: .*?) <a href=/g; // Errors
-  const regex2 = /<td bgcolor="#FFFFDD">([a-zA-Z]+ \d+: .*?) <a href=/g; // Warnings
-  const regex3 = /<td bgcolor="#DDDDFF">([a-zA-Z]+ \d+: .*?) <a href=/g; // Hints
+  const regex1 = /<td style="background-color: #FFDDDD">([a-zA-Z]+ \d+: .*?) <a href=/g; // Errors
+  const regex2 = /<td style="background-color: #FFFFDD">([a-zA-Z]+ \d+: .*?) <a href=/g; // Warnings
+  const regex3 = /<td style="background-color: #DDDDFF">([a-zA-Z]+ \d+: .*?) <a href=/g; // Hints
   const matches1 = Array.from(htmlString.matchAll(regex1));
   const matches2 = Array.from(htmlString.matchAll(regex2));
   const matches3 = Array.from(htmlString.matchAll(regex3));
@@ -140,14 +140,16 @@ function initSuggestionsPopup() {
   popup.innerHTML = `
     <div class="popup-content">
       <span class="close">&times;</span>
-      <div id="suggestionsTable" class="suggestions-table">
-        <h2 id="suggestionsHeader">Suggestions for ${firstName} ${lastName} (${wikiTreeID})</h2>
-        <h2 id="suggestionsText">${suggestionsText}</h2>
-        <div id="errorMessages"></div>
-        <div id="warningMessages"></div>
-        <div id="hintMessages"></div>
-        <p>The latest suggestions report update was: <strong>${dateOfData}</strong></p>
-        <p>View the report on <a href="${wtpLink}" target="_blank" title="WikiTree Plus Report">WikiTree Plus</a></p>
+      <div class="container">
+        <h2 id="suggestionsHeader">Suggestions for ${firstName} ${lastName}</h2>
+        <div id="suggestionsTable" class="suggestions-table">
+          <h2 id="suggestionsText">${suggestionsText}</h2>
+          <div id="errorMessages"></div>
+          <div id="warningMessages"></div>
+          <div id="hintMessages"></div>
+          <p>The latest suggestions report update was: <strong>${dateOfData}</strong></p>
+          <p>View the report for ${wikiTreeID} on <a href="${wtpLink}" target="_blank" title="WikiTree Plus Report">WikiTree Plus</a></p>
+        </div>
       </div>
     </div>
   `;

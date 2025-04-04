@@ -30,16 +30,19 @@ async function initUnconnectedBranch() {
       if (!isUnconnectedNotables) {
         // Add a button to the profile page
         const $unconnectedButton = $(
-          `<a href="#n" id="unconnectedBranchButton" title="Unconnected Branch Table"><span class="icon--unconnected"></span></a>`
+          `<a href="#n" id="unconnectedBranchButton" class="wbe-button" data-tooltip="Unconnected Branch Table"><span class="icon--unconnected"></span></a>`
         );
         $unconnectedButton.attr("href", "#n");
-        $unconnectedButton.appendTo(".profile--actions.float-end");
-
+        if ($("span.clipboardContainer").length > 0) {
+          $("span.clipboardContainer").first().append($unconnectedButton);
+        } else {
+          $unconnectedButton.appendTo(".profile--actions.float-end");
+        }
         $("#unconnectedBranchButton").on("click", function (event) {
           event.preventDefault();
           if ($("#unconnectedBranchTable").length == 0) {
             addShakingTree(event);
-            unconnectedBranch();
+            unconnectedBranch(event);
           } else {
             $("#unconnectedBranchTable").slideToggle();
           }
@@ -371,11 +374,13 @@ async function unconnectedBranch(event) {
   let profileID = profilePerson.Id;
   let littleTree = $(event.target);
   let row;
-  if (event) {
+  if (event && !isProfilePage) {
     littleTree = $(event.target);
     row = littleTree.closest("tr");
     profileID = row.find("a").first().attr("href").split("/").pop();
   }
+
+  console.log("Profile ID:", profileID);
 
   // Initialize the cache object if it doesn't exist
   if (!window.unconnectedBranch) {
@@ -425,6 +430,7 @@ async function unconnectedBranch(event) {
     }
   }
   let peopleArray = Object.values(people);
+  console.log("People array:", peopleArray);
   const isConnected = peopleArray[0].Connected;
   const branchText = isConnected ? "Connected! Connections" : "Unconnected Branch";
   const realName = profilePerson.FullName;

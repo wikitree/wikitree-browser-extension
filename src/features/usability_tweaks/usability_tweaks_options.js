@@ -41,6 +41,38 @@ const usabilityTweaks = {
           label: "Bigger checkboxes and radio buttons",
           defaultValue: false,
         },
+        {
+          id: "navHomePage",
+          type: OptionType.CHECKBOX,
+          label: "Add link to Nav Home Page next to My WikiTree",
+          defaultValue: false,
+        },
+      ],
+    },
+    {
+      id: "profilesAndSpaces",
+      type: OptionType.GROUP,
+      label: "Profiles and Space Pages",
+      options: [
+        {
+          id: "makeTableOverflowVisible",
+          type: OptionType.CHECKBOX,
+          label: "Make table overflow visible",
+          defaultValue: false,
+        },
+      ],
+    },
+    {
+      id: "editSpacePage",
+      type: OptionType.GROUP,
+      label: "Free Space Pages",
+      options: [
+        {
+          id: "leaveSpaceEditAfterSave",
+          type: OptionType.CHECKBOX,
+          label: "Leave edit view after saving",
+          defaultValue: false,
+        },
       ],
     },
     {
@@ -96,19 +128,6 @@ const usabilityTweaks = {
           id: "rememberTextareaHeight",
           type: OptionType.CHECKBOX,
           label: "Remember the height of the editor on the edit page.",
-          defaultValue: false,
-        },
-      ],
-    },
-    {
-      id: "editSpacePage",
-      type: OptionType.GROUP,
-      label: "Free Space Pages",
-      options: [
-        {
-          id: "leaveSpaceEditAfterSave",
-          type: OptionType.CHECKBOX,
-          label: "Leave edit view after saving",
           defaultValue: false,
         },
       ],

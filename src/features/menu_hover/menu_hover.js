@@ -60,7 +60,7 @@ function menuHover() {
   $(document).on("mouseleave", "header .btn-group[data-menu]", function () {
     const dropdownMenu = $(this).find(".dropdown-menu");
     setTimeout(() => {
-      if (!dropdownMenu[0].matches(":hover") && !clickToggledMenus.has(this)) {
+      if (dropdownMenu[0] && !dropdownMenu[0].matches(":hover") && !clickToggledMenus.has(this)) {
         dropdownMenu.removeClass("show");
       }
     }, 100); // 300ms delay to allow moving to menu

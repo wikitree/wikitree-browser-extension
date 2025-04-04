@@ -595,6 +595,22 @@ function enhanceThonStats() {
   }
 }
 
+function addNavHomePageLink() {
+  const findButton = document.getElementsByClassName("btn btn-link btn-search")[0];
+  if (findButton) {
+    const navHomePageLink = document.createElement("button");
+    navHomePageLink.addEventListener("click", () => {
+      window.location = "https://" + mainDomain + "/wiki/Special:Home";
+    });
+    navHomePageLink.innerHTML = " &#127968;";
+    navHomePageLink.classList = findButton.classList;
+    findButton.parentNode.parentNode.insertBefore(
+      navHomePageLink,
+      findButton.parentNode.previousSibling.previousSibling
+    );
+  }
+}
+
 // Ignoring the Scratch item, find the first item in parent that wil push the right-hand column height
 // past that of the first item in the left-hand column.
 function findItemByCumulativeSpan($parent) {
@@ -626,6 +642,30 @@ function findItemByCumulativeSpan($parent) {
   });
 
   return foundItem;
+}
+
+function makeTableOverflowVisible() {
+  // Add style to the head:
+  /*
+  .table-wrapper {
+    overflow-x: visible !important;
+  }
+  */
+  const style = document.createElement("style");
+  const backgroundColor = $("body").css("background-color");
+  style.innerHTML = `
+    .table-wrapper {
+      overflow-x: visible !important;
+      background-color: ${backgroundColor} !important;
+      z-index: 800 !important;
+    }
+    .table-wrapper table {
+      background-color: ${backgroundColor} !important;
+      position:relative !important;
+      z-index: 800 !important;
+    }
+  `;
+  document.head.appendChild(style);
 }
 
 shouldInitializeFeature("usabilityTweaks").then((result) => {
@@ -755,6 +795,10 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
         enhanceThonStats();
       }
 
+      if (options.navHomePage) {
+        addNavHomePageLink();
+      }
+
       if (options.biggerCheckboxesAndRadios && !isPlusDomain) {
         // Add style to the head:
         const style = document.createElement("style");
@@ -768,6 +812,10 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
                   }
                 `;
         document.head.appendChild(style);
+      }
+
+      if (options.makeTableOverflowVisible) {
+        makeTableOverflowVisible();
       }
     }); //getFeatureOptions
   }

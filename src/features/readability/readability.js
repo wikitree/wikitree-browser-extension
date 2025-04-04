@@ -390,9 +390,6 @@ async function initReadability(options) {
     if (isToggled(options.removeBackReferences)) {
       $("html").toggleClass("hide-src-back");
     }
-    if (isToggled(options.hideSidebarStatus)) {
-      $("html").toggleClass("hide-sidebar-status");
-    }
     if (isToggled(options.hideForumPosts)) {
       $("html").toggleClass("hide-sidebar-posts");
     }

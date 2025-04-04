@@ -64,7 +64,7 @@ function initPhotoPopup() {
       closeButton = `<div id="closeWrapper"><span class="close close-popup">&times;</span></div>`;
     }
     // Create the popup element with necessary structure and content
-    const popup = $(`<div id="photoPopup" class="popup">
+    const popup = $(`<div id="photoPopup" tabindex="0" class="popup">
        ${closeButton}
         <div class="popup-content">
           <div id="loadingGif"><img src="${treeImageURL}" alt="Loading..." /></div>
@@ -80,6 +80,10 @@ function initPhotoPopup() {
       theSection.append(popup);
     }
   }
+  $(document).on("mousedown", "#photoPopup", function (e) {
+    // Fix for Safari
+    this.focus();
+  });
 }
 
 /**
@@ -192,6 +196,7 @@ function showLargeImage(photo) {
         height: naturalHeight,
       });
     }
+    setHighestZIndex(largeImageDiv);
   });
 
   // Append the image to the container and add the container to the body

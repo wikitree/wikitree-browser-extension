@@ -25,7 +25,7 @@ import {
   isAddUnrelatedPerson,
   isG2G,
 } from "./pageType.js";
-import { checkIfFeatureEnabled } from "./options/options_storage";
+import { checkIfFeatureEnabled, getFeatureOptions } from "./options/options_storage";
 
 import Cookies from "js-cookie";
 
@@ -142,11 +142,15 @@ export function getProfilePersonInfo() {
   if (!pageData) {
     return null;
   }
-  if (window.location.href.match(/Space(:|%3A)/)) {
+  if (/Space(:|%3a|%3A)/i.test(window.location.href)) {
     // For space pages, the profile person is the space page itself
-    person.Name = window.location.href.split("/wiki/")[1].split("?#")[0];
-    return person;
+    let namePart = window.location.href.split(/Space(:|%3a|%3A)/i)[2];
+    if (namePart) {
+      person.Name = "Space:" + namePart.split(/[?#]/)[0];
+      return person;
+    }
   }
+
   person.Name = pageData.mnamedb;
   // Clone h1, remove all children and trim the text.
 
@@ -165,7 +169,11 @@ export function getProfilePersonInfo() {
   person.Gender = pageData.mgender;
 
   if (!person.Gender) {
-    person.Gender = $("div.tree--person_m").length ? "Male" : $("div.tree--person_f").length ? "Female" : "";
+    person.Gender = $("#Family-pane div.tree--person_m").length
+      ? "Male"
+      : $("#Family-pane div.tree--person_f").length
+      ? "Female"
+      : "";
   }
 
   person.BirthDate = $("div.page--title div.VITALS:contains('Born')")
@@ -300,7 +308,7 @@ async function checkAnyDataFeature() {
 }
 
 async function checkButtonFeatures() {
-  const features = ["extraWatchlist", "clipboardAndNotes", "spaceWatchlistSorter"];
+  const features = ["extraWatchlist", "clipboardAndNotes", "spaceWatchlistSorter", "collapsibleProfiles"];
   const promises = features.map((feature) => checkIfFeatureEnabled(feature));
 
   let buttonContainer2 = $("<div>").addClass("wbe-button-container2");
@@ -341,6 +349,7 @@ async function checkButtonFeatures() {
     const clipboardImg = chrome.runtime.getURL("images/clipboard2.svg");
     const notesImg = chrome.runtime.getURL("images/notepad2.svg");
     const spaceWatchlistImg = chrome.runtime.getURL("images/s.svg");
+    const collapseProfilesImg = chrome.runtime.getURL("images/collapse.svg");
 
     // Button creation function
     const createButton = (options) => {
@@ -407,6 +416,27 @@ async function checkButtonFeatures() {
           img: spaceWatchlistImg,
         })
       );
+    }
+    if (results[3]) {
+      getFeatureOptions("collapsibleProfiles")
+        .then((opt) => {
+          const autoAddButtons = isProfilePage
+            ? opt.automaticallyAddButtonsProfiles
+            : opt.automaticallyAddButtonsSpaces;
+          if (!autoAddButtons) {
+            $(".clipboardContainer").append(
+              createButton({
+                id: "activateCollapsibleProfiles",
+                aClass: "activateCollapsibleProfiles",
+                title: "Activate Collapsible Profile",
+                img: collapseProfilesImg,
+              })
+            );
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching feature options for collapsibleProfiles:", error);
+        });
     }
   } catch (error) {
     console.error("Error checking features to initialize:", error);
@@ -1753,7 +1783,7 @@ export function setHighestZIndex(el) {
     ...Array.from(document.querySelectorAll("*"))
       .filter((el) => {
         const style = getComputedStyle(el);
-        return style.display !== "none" && style.visibility !== "hidden";
+        return style.display !== "none" && style.visibility !== "hidden" && el.id !== "largeImagePopup";
       })
       .map((el) => parseFloat(getComputedStyle(el).zIndex) || 0)
   );

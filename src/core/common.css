@@ -65,8 +65,8 @@ form[name="a_form"] {
 .wbe-icon {
   position: relative;
 }
-.wbe-button span,
-.wbe-icon:not(.WBEHelpIcon) span {
+.wbe-button:not(.WBEHelpIcon, #unconnectedBranchButton) span,
+.wbe-icon:not(.WBEHelpIcon, #unconnectedBranchButton) span {
   background: transparent left no-repeat;
   background-size: contain;
   display: inline-block;
