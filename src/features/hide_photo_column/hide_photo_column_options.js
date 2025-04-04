@@ -19,6 +19,12 @@ registerFeature({
   pages: [isWikiEdit],
   options: [
     {
+      id: "startHiddenFamily",
+      type: OptionType.CHECKBOX,
+      defaultValue: false,
+      label: "Hide the family section on page load",
+    },
+    {
       id: "startHidden",
       type: OptionType.CHECKBOX,
       defaultValue: false,

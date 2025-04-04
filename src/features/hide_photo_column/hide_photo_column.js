@@ -101,6 +101,9 @@ async function init() {
         toggleTipsColumn();
       }, 2000);
     }
+    if (options.startHiddenFamily) {
+      toggleFamilySection();
+    }
   }
 }
 
@@ -127,4 +130,29 @@ function toggleTipsColumn() {
     }
     setButtonTitle();
   }, 100);
+}
+
+function toggleFamilySection() {
+  const texth2 = document.getElementById("Text");
+  const familyh2 = document.getElementById("Family");
+  const familyDivInner = familyh2.parentNode;
+  const familyDivOuter = familyDivInner.parentNode;
+  const hrBelow = familyDivOuter.nextSibling.nextSibling;
+  const hrAbove = familyDivOuter.previousSibling.previousSibling;
+
+  familyh2.addEventListener("click", () => {
+    if (hrAbove.style.display == "none") {
+      hrAbove.style.display = "block";
+      hrBelow.style.display = "block";
+      familyDivOuter.style.display = "block";
+      familyDivInner.insertBefore(familyh2, familyDivInner.firstChild);
+    } else {
+      texth2.parentNode.insertBefore(familyh2, texth2);
+      hrAbove.style.display = "none";
+      hrBelow.style.display = "none";
+      familyDivOuter.style.display = "none";
+    }
+  });
+
+  familyh2.click();
 }
