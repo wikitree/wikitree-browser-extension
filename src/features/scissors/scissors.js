@@ -207,7 +207,7 @@ function modifyLinkButtons(options) {
     const button = $(buttonQuery);
     const aTitle = document.title.replace("Editing ", "").trim();
     const pageUrlPartEncoded = window.location.href
-      .split(/Space(:|%3A)/)[1]
+      .split(/Space(?:\:|%3A)/)[1]
       .split("#")[0]
       .split("?")[0]
       .split("&")[0];
