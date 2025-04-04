@@ -65,6 +65,35 @@ button.collapse-toggle[data-target-id="nVitals"] {
   transform: none;
 }
 
+.special-collapse-button {
+  top: auto !important;
+  left: auto !important;
+  position: relative;
+  display: block;
+  text-align: left;
+  width: 10em;
+  margin-top: 1em;
+}
+.special-collapse-button::after {
+  content: attr(data-for);
+  width: fit-content;
+  font-weight: bold;
+  font-size: 0.8em;
+  padding-left: 1em;
+}
+.button-container {
+  margin-top: 1em;
+}
+.collapsible-profiles .my-5,
+.collapsible-profiles .mt-5 {
+  margin-top: 1em !important;
+  margin-bottom: 1em !important;
+}
+
+.collapsible-profiles .pb-5 {
+  padding-bottom: 1em !important;
+}
+
 @media (max-width: 980px) {
   h1 .collapse-all-toggle,
   .collapse-toggle {

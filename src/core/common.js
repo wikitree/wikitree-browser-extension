@@ -25,7 +25,7 @@ import {
   isAddUnrelatedPerson,
   isG2G,
 } from "./pageType.js";
-import { checkIfFeatureEnabled } from "./options/options_storage";
+import { checkIfFeatureEnabled, getFeatureOptions } from "./options/options_storage";
 
 import Cookies from "js-cookie";
 
@@ -308,7 +308,7 @@ async function checkAnyDataFeature() {
 }
 
 async function checkButtonFeatures() {
-  const features = ["extraWatchlist", "clipboardAndNotes", "spaceWatchlistSorter"];
+  const features = ["extraWatchlist", "clipboardAndNotes", "spaceWatchlistSorter", "collapsibleProfiles"];
   const promises = features.map((feature) => checkIfFeatureEnabled(feature));
 
   let buttonContainer2 = $("<div>").addClass("wbe-button-container2");
@@ -349,6 +349,7 @@ async function checkButtonFeatures() {
     const clipboardImg = chrome.runtime.getURL("images/clipboard2.svg");
     const notesImg = chrome.runtime.getURL("images/notepad2.svg");
     const spaceWatchlistImg = chrome.runtime.getURL("images/s.svg");
+    const collapseProfilesImg = chrome.runtime.getURL("images/collapse.svg");
 
     // Button creation function
     const createButton = (options) => {
@@ -415,6 +416,33 @@ async function checkButtonFeatures() {
           img: spaceWatchlistImg,
         })
       );
+    }
+    if (results[3]) {
+      console.log("Collapsible Profiles feature is enabled.");
+      getFeatureOptions("collapsibleProfiles")
+        .then((opt) => {
+          console.log("Feature options for collapsibleProfiles:", opt);
+          const autoAddButtons = isProfilePage
+            ? opt.automaticallyAddButtonsProfiles
+            : opt.automaticallyAddButtonsSpaces;
+          console.log("Auto-add buttons setting:", autoAddButtons);
+          if (!autoAddButtons) {
+            console.log("Adding 'Activate Collapsible Profile' button.");
+            $(".clipboardContainer").append(
+              createButton({
+                id: "activateCollapsibleProfiles",
+                aClass: "activateCollapsibleProfiles",
+                title: "Activate Collapsible Profile",
+                img: collapseProfilesImg,
+              })
+            );
+          } else {
+            console.log("Auto-add buttons is enabled, skipping button addition.");
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching feature options for collapsibleProfiles:", error);
+        });
     }
   } catch (error) {
     console.error("Error checking features to initialize:", error);
