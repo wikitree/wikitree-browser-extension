@@ -604,7 +604,10 @@ function addNavHomePageLink() {
     });
     navHomePageLink.innerHTML = " &#127968;";
     navHomePageLink.classList = findButton.classList;
-    findButton.parentNode.parentNode.insertBefore(navHomePageLink, findButton.parentNode.previousSibling.previousSibling);
+    findButton.parentNode.parentNode.insertBefore(
+      navHomePageLink,
+      findButton.parentNode.previousSibling.previousSibling
+    );
   }
 }
 
@@ -639,6 +642,22 @@ function findItemByCumulativeSpan($parent) {
   });
 
   return foundItem;
+}
+
+function makeTableOverflowVisible() {
+  // Add style to the head:
+  /*
+  .table-wrapper {
+    overflow-x: visible !important;
+  }
+  */
+  const style = document.createElement("style");
+  style.innerHTML = `
+    .table-wrapper {
+      overflow-x: visible !important;
+    }
+  `;
+  document.head.appendChild(style);
 }
 
 shouldInitializeFeature("usabilityTweaks").then((result) => {
@@ -785,6 +804,10 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
                   }
                 `;
         document.head.appendChild(style);
+      }
+
+      if (options.makeTableOverflowVisible) {
+        makeTableOverflowVisible();
       }
     }); //getFeatureOptions
   }
