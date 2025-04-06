@@ -380,29 +380,6 @@ function autoClickAddPersonOptions() {
 }
 
 function replaceAddRemoveReplaceLinks() {
-  if (isProfilePage) {
-    const editFamilyLinks = document.getElementsByClassName("BLANK");
-    for (let i = 0; i < editFamilyLinks.length; i++) {
-      switch (editFamilyLinks[i].innerText) {
-        case "[mother?]":
-        case "[father?]":
-        case "[spouse?]":
-        case "[add spouse?]":
-        case "[add child]":
-        case "[children?]":
-        case "[brothers or sisters?]":
-        case "[add sibling]": {
-          if (editFamilyLinks[i].tagName == "A") {
-            editFamilyLinks[i].href = editFamilyLinks[i].href + "&WBEaction=Add";
-          } else if (editFamilyLinks[i].tagName == "SPAN") {
-            editFamilyLinks[i].firstChild.href = editFamilyLinks[i].firstChild.href + "&WBEaction=Add";
-          }
-
-          break;
-        }
-      }
-    }
-  }
   if (isProfileEdit) {
     const hasFather = $("input[name='mStatus_Father']").length;
     const hasMother = $("input[name='mStatus_Mother']").length;

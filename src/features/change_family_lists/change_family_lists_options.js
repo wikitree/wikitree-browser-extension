@@ -117,6 +117,12 @@ const changeFamilyLists = {
       label: "Add prefixes to family lists",
       defaultValue: false,
     },
+    {
+      id: "addNotEdit",
+      type: OptionType.CHECKBOX,
+      label: "Make links directly create new profiles (rather than chosing between creating and connecting)",
+      defaultValue: false,
+    },
   ],
 };
 
