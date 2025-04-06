@@ -594,6 +594,9 @@ function createEditButton(href, tooltip, text = "edit") {
 function createDefaultLink(section, defaultText) {
   const a = document.createElement("a");
   a.href = `https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=${section}`;
+  if (options.addNotEdit) {
+    a.href += "&WBEaction=Add";
+  }
   a.className = "BLANK";
   a.textContent = defaultText;
   return a;
@@ -1217,6 +1220,24 @@ function getApproxDate(theDate) {
     }
   }
   return { Date: aDate, Approx: approx };
+}
+
+/**
+ * Changes the edit links to add links
+ */
+function changeNativeEditLinks() {
+  const editFamilyLinks = document.querySelectorAll('a[href*="EditFamily"]');
+  for (let i = 0; i < editFamilyLinks.length; i++) {
+    if (editFamilyLinks[i].innerText.includes("?")) {
+      editFamilyLinks[i].href = editFamilyLinks[i].href + "&WBEaction=Add";
+    }
+  }
+
+  const nVitals = $("#nVitals");
+  nVitals.find("#siblingDetails").append(" ");
+  nVitals.find("#siblingDetails").append(createDefaultLink("sibling", "[+]"));
+  nVitals.find("#childrenDetails").append(" ");
+  nVitals.find("#childrenDetails").append(createDefaultLink("child", "[+]"));
 }
 
 /**
@@ -2037,6 +2058,10 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   }
   if (options.agesAtMarriages) {
     addMarriageAges();
+  }
+
+  if (options.addNotEdit) {
+    changeNativeEditLinks();
   }
 
   const pagePerson = getPerson(profilePerson.Id);
