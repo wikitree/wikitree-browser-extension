@@ -26,8 +26,8 @@ const photoH2 = $("h2#Photo, h2#photo");
 const photoParent = photoH2.parent();
 
 // Button tooltip titles.
-const buttonTitleHide = "Hide the photo column";
-const buttonTitleShow = "Show the photo column";
+const buttonTitleHide = "Hide the Photo Settings column";
+const buttonTitleShow = "Show the Photo Settings column";
 const buttonTitleEESHide = "Turn off enhanced editor and hide the photo column";
 const buttonTitleEEShow = "Turn on enhanced editor and show the photo column";
 const minusURL = chrome.runtime.getURL("images/minus-toggler.svg");
@@ -101,6 +101,9 @@ async function init() {
         toggleTipsColumn();
       }, 2000);
     }
+    if (options.startHiddenFamily) {
+      toggleFamilySection();
+    }
   }
 }
 
@@ -127,4 +130,42 @@ function toggleTipsColumn() {
     }
     setButtonTitle();
   }, 100);
+}
+
+function toggleFamilySection() {
+  const texth2 = document.getElementById("Text");
+  const familyh2 = document.getElementById("Family");
+  const familyDivInner = familyh2.parentNode;
+  const familyDivOuter = familyDivInner.parentNode;
+  const hrBelow = familyDivOuter.nextSibling.nextSibling;
+  const hrAbove = familyDivOuter.previousSibling.previousSibling;
+
+  const toggle = document.createElement("a");
+  toggle.href = "#0";
+  // toggle.classList.add("toggleTipsColumn");
+  toggle.classList.add("small");
+  toggle.classList.add("wbe-button");
+  const toggleImg = document.createElement("img");
+  toggleImg.src = plusURL;
+  toggle.appendChild(toggleImg);
+  familyh2.lastChild.previousSibling.appendChild(toggle); //the ? link before the newline
+  toggle.addEventListener("click", () => {
+    if (hrAbove.style.display == "none") {
+      toggleImg.src = minusURL;
+      hrAbove.style.display = "block";
+      hrBelow.style.display = "block";
+      familyDivOuter.style.display = "block";
+      familyDivInner.insertBefore(familyh2, familyDivInner.firstChild);
+      toggle.setAttribute("data-tooltip", "Hide the Edit Family section")
+    } else {
+      toggleImg.src = plusURL;
+      texth2.parentNode.insertBefore(familyh2, texth2);
+      hrAbove.style.display = "none";
+      hrBelow.style.display = "none";
+      familyDivOuter.style.display = "none";
+      toggle.setAttribute("data-tooltip", "Show the Edit Family section")
+    }
+  });
+
+  toggle.click();
 }
