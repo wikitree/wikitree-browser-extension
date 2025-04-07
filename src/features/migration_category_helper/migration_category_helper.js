@@ -106,7 +106,7 @@ function IsAllowedOPS() {
   for (let i = 0; i < menuItems.length; i++) {
     if ((menuItems[i].innerText = !null && menuItems[i].innerText == "Ancestors")) {
       const profile = menuItems[i].href;
-      if (profile.includes("Straub-620") || profile.includes("Craig-4574")) {
+      if (profile.includes("Straub-620") || profile.includes("Craig-4574") || profile.includes("Lemen-157")) {
         return true;
       } else {
         return false;
