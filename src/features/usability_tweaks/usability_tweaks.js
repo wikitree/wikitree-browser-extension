@@ -360,7 +360,7 @@ function putFocusOnFirstNameField() {
   }
 }
 
-function autoClickAddPersonOptions() {
+export function autoClickAddPersonOptions() {
   setTimeout(function () {
     const whoValue = new URL(window.location.href).searchParams.get("who");
     const WBEactionValue = new URL(window.location.href).searchParams.get("WBEaction");

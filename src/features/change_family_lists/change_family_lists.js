@@ -22,7 +22,8 @@ import { getUserWtId } from "../../core/common";
 import "./change_family_lists.css";
 import { initRelationshipDB, RELATIONSHIP_STORE_NAME } from "../distanceAndRelationship/distanceAndRelationship.js";
 import { getProfilePersonInfo } from "../../core/common";
-import { mainDomain } from "../../core/pageType";
+import { mainDomain, isProfileAddRelative } from "../../core/pageType";
+import { autoClickAddPersonOptions } from "../usability_tweaks/usability_tweaks.js";
 
 let options;
 const user = getUserWtId();
@@ -2028,6 +2029,14 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     // parseSiblings();
     return;
   }
+
+  options = await getFeatureOptions("changeFamilyLists");
+  if (isProfileAddRelative && options.addNotEdit) {
+    autoClickAddPersonOptions();
+
+    return;
+  }
+
   pencils = getInitialPencils();
   moveMetaGender();
   const familyData = parseInitialData();
@@ -2035,7 +2044,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   const treePerson = $("#Family-pane div.tree--person");
   // Retain only the first .VITALS element.
   treePerson.children().not(":first").remove();
-  options = await getFeatureOptions("changeFamilyLists");
+
   await getWindowPeople();
   const newVitals = buildFamilyListsFromData(familyData);
   treePersonBit.append(newVitals);
