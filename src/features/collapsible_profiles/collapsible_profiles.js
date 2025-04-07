@@ -1,5 +1,6 @@
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { addCollapseButtons } from "../../core/common";
 import { isProfilePage, isSpacePage } from "../../core/pageType";
 
 const EXPAND_IT_SYMB = "+";
@@ -15,16 +16,12 @@ shouldInitializeFeature("collapsibleProfiles").then(async (result) => {
   if (result) {
     $("body").addClass("collapsible-profiles");
     const options = await getFeatureOptions("collapsibleProfiles");
-    const autoAddButtons = isProfilePage
-      ? options.automaticallyAddButtonsProfiles
-      : options.automaticallyAddButtonsSpaces;
     options.autoCollapse = isProfilePage ? options.collapseProfilesAllSections : options.collapseSpacesAllSections;
-    if (autoAddButtons) {
+    if (addCollapseButtons(options)) {
       init(options);
     } else {
       $(document).on("click", "#activateCollapsibleProfiles", function (e) {
         e.preventDefault();
-        options.autoCollapse = true;
         init(options);
         $(this).fadeOut(1000, function () {
           $(this).remove();
@@ -170,6 +167,8 @@ function createCollapsibleSections() {
   //   });
 }
 
+// Function to get the text for the "data-for" attribute of the collapse buttons of the
+// element ($el) to be made collapsible.
 function getForText($el) {
   let forText = "";
   if ($el.prop("id")) {
