@@ -32,6 +32,7 @@ let useAltHeadings = false;
 const treePersonBit = $("#nav-familyContent #Family-pane div.tree--person");
 const profilePerson = getProfilePersonInfo(); // from the page
 let profilePersonData; // from API
+let pencils;
 
 const getPeopleFields =
   "BirthDate,BirthDateDecade,BirthLocation,BirthName,Connected,DataStatus,DeathDate,DeathDateDecade,DeathLocation," +
@@ -64,6 +65,15 @@ function newPersonRecord() {
  */
 function newFamilyData() {
   return { parents: [], siblings: [], spouses: [], children: [] };
+}
+
+function getInitialPencils() {
+  let pencils = {};
+  pencils.parents = treePersonBit.find("#Parents span.EDIT a").attr("href") || "";
+  pencils.siblings = treePersonBit.find("#Siblings span.EDIT a").attr("href") || "";
+  pencils.spouses = treePersonBit.find("#Spouses span.EDIT a").attr("href") || "";
+  pencils.children = treePersonBit.find("#Children span.EDIT a").attr("href") || "";
+  return pencils;
 }
 
 /**
@@ -729,12 +739,9 @@ function buildSiblingsSection(siblings) {
 
   const headerDiv = document.createElement("div");
   headerDiv.appendChild(createHeader("Siblings: ", "siblingsHeader", ""));
-  headerDiv.appendChild(
-    createEditButton(
-      `https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=sibling`,
-      "Add Sibling"
-    )
-  );
+  if (pencils.siblings) {
+    headerDiv.appendChild(createEditButton(pencils.siblings, "Add Sibling"));
+  }
   container.appendChild(headerDiv);
 
   const ol = createListElement("siblingList", "nameList hasRelAge");
@@ -789,12 +796,9 @@ function buildSpousesSection(spouses) {
   container.className = "VITALS spouseDetails familyList";
   const headerDiv = document.createElement("div");
 
-  headerDiv.appendChild(
-    createEditButton(
-      `https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=spouse`,
-      "Add/Edit Spouses"
-    )
-  );
+  if (pencils.spouses) {
+    headerDiv.appendChild(createEditButton(pencils.spouses, "Add/Edit Spouses"));
+  }
   headerDiv.appendChild(createHeader("Spouses: ", "spousesHeader", ""));
   container.appendChild(headerDiv);
 
@@ -921,12 +925,9 @@ function buildChildrenSection(children) {
   container.id = "childrenDetails";
 
   container.appendChild(createHeader("Children: ", "childrenHeader", ""));
-  container.appendChild(
-    createEditButton(
-      `https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=child`,
-      "Add/Edit Children"
-    )
-  );
+  if (pencils.children) {
+    container.appendChild(createEditButton(pencils.children, "Add/Edit Children"));
+  }
 
   const ol = createListElement("childrenList", "nameList hasRelAge");
   children.forEach((c) => {
@@ -1234,10 +1235,14 @@ function changeNativeEditLinks() {
   }
 
   const nVitals = $("#nVitals");
-  nVitals.find("#siblingDetails").append(" ");
-  nVitals.find("#siblingDetails").append(createDefaultLink("sibling", "[+]"));
-  nVitals.find("#childrenDetails").append(" ");
-  nVitals.find("#childrenDetails").append(createDefaultLink("child", "[+]"));
+  if (pencils.siblings) {
+    nVitals.find("#siblingDetails").append(" ");
+    nVitals.find("#siblingDetails").append(createDefaultLink("sibling", "[+]"));
+  }
+  if (pencils.children) {
+    nVitals.find("#childrenDetails").append(" ");
+    nVitals.find("#childrenDetails").append(createDefaultLink("child", "[+]"));
+  }
 }
 
 /**
@@ -2023,6 +2028,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     // parseSiblings();
     return;
   }
+  pencils = getInitialPencils();
   moveMetaGender();
   const familyData = parseInitialData();
   console.log("Family data:", familyData);
