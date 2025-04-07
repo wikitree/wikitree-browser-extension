@@ -5,8 +5,6 @@ import { isProfilePage, isSpacePage } from "../../core/pageType";
 
 const EXPAND_IT_SYMB = "+";
 const COLLAPSE_IT_SYMB = "−";
-const headingLevels = [1, 2, 3, 4, 5, 6];
-const headingSelectors = headingLevels.map((level) => `h${level}`).join(", ");
 
 function escapeId(id) {
   return typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id;
@@ -70,7 +68,7 @@ function createCollapsibleSections() {
   bodyText.contents().each(function () {
     if ($(this).is("a") && $(this).attr("name") && $(this).attr("id")) {
       lastAnchor = $(this); // Store anchor instead of adding it to beforeFirstHeading
-    } else if ($(this).is(headingSelectors)) {
+    } else if ($(this).is(":header")) {
       return false;
     } else {
       if (lastAnchor) {
@@ -91,7 +89,7 @@ function createCollapsibleSections() {
   bodyText.contents().each(function () {
     if ($(this).is("a") && $(this).attr("name") && $(this).attr("id")) {
       lastAnchor = $(this);
-    } else if ($(this).is(headingSelectors)) {
+    } else if ($(this).is(":header")) {
       const heading = $(this);
       const level = parseInt(this.tagName.substring(1));
 
@@ -298,7 +296,7 @@ function collapseSectionByTarget(targetId) {
 //       return $(this).text().trim().toLowerCase() === targetText.toLowerCase();
 //     })
 //     .each(function () {
-//       let contentId = $(this).closest(headingSelectors).attr("data-content-id");
+//       let contentId = $(this).closest(":header").attr("data-content-id");
 //       if (contentId) {
 //         contentIds.push(contentId);
 //       }
@@ -319,10 +317,21 @@ function attachCollapseToggleHandler() {
 }
 
 function navigateTo(targetId) {
-  const $targetButton = $(`.collapse-toggle[data-anchor="${targetId}"]`);
+  let $targetButton = $(`.collapse-toggle[data-anchor="${targetId}"]`);
+  if ($targetButton.length == 0) {
+    const target = $(`#${targetId}`);
+    // See if the target is has a data-target attribute (used by the WBE help page)
+    if (target.length > 0 && target.is("span")) {
+      const $nextH = findNextHeading(target[0]);
+      if ($nextH) {
+        $targetButton = $nextH.find(`.collapse-toggle`);
+      }
+    }
+  }
 
   if ($targetButton.length == 0) {
     // console.warn(`Element with id '${targetId}' not found.`);
+    // return so the normal browser behavior can take over
     return;
   }
 
@@ -375,6 +384,21 @@ function navigateTo(targetId) {
       500
     );
   })();
+}
+
+function findNextHeading(el) {
+  let $all = $(".body-text").find("*");
+  let found = false;
+
+  for (let i = 0; i < $all.length; i++) {
+    if ($all[i] === el) {
+      found = true;
+    } else if (found && /^H[1-6]$/i.test($all[i].tagName)) {
+      return $($all[i]);
+    }
+  }
+
+  return null;
 }
 
 function addNavigationClickHandler() {

@@ -462,7 +462,8 @@ function downloadFeatureData() {
 }
 
 export function addCollapseButtons(opt) {
-  return isProfilePage ? opt.automaticallyAddButtonsProfiles : opt.automaticallyAddButtonsSpaces;
+  const toBoolean = (val) => val === true || val === "true" || val === 1 || val === "1";
+  return isProfilePage ? toBoolean(opt.automaticallyAddButtonsProfiles) : toBoolean(opt.automaticallyAddButtonsSpaces);
 }
 
 export function wrapBackupData(key, data, isDataSubset = false) {
