@@ -30,3 +30,27 @@ body.hiddenSidebar #toggleTipsColumn .minus {
 body.enhancedEditorChosen #toggleTipsColumn::after {
   left: -10em;
 }
+
+body.hiddenSidebar .family-section-wrapper {
+  overflow: hidden;
+  transition: max-height 0.4s ease, opacity 0.4s ease;
+  max-height: 1000px; /* or some large enough height */
+  opacity: 1;
+}
+
+body.hiddenSidebar .family-section-wrapper.hidden {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+body.hiddenSidebar hr.hr-transition {
+  transition: opacity 0.4s ease;
+}
+body.hiddenSidebar hr.hr-hidden {
+  opacity: 0;
+}
+
+#wbe-family-transition {
+  overflow: hidden;
+  transition: height 0.3s ease, opacity 0.3s ease;
+}

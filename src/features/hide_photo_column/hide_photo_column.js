@@ -101,8 +101,11 @@ async function init() {
         toggleTipsColumn();
       }, 2000);
     }
+    toggleFamilySection();
     if (options.startHiddenFamily) {
-      toggleFamilySection();
+      setTimeout(() => {
+        toggleFamilySection();
+      }, 2000);
     }
   }
 }
@@ -140,32 +143,59 @@ function toggleFamilySection() {
   const hrBelow = familyDivOuter.nextSibling.nextSibling;
   const hrAbove = familyDivOuter.previousSibling.previousSibling;
 
+  // Wrap familyDivOuter for smoother height transitions
+  let wrapper = familyDivOuter;
+  wrapper.id = "wbe-family-transition";
+  wrapper.style.height = wrapper.scrollHeight + "px";
+  wrapper.style.opacity = "1";
+
   const toggle = document.createElement("a");
+  toggle.id = "toggleFamilyColumn";
   toggle.href = "#0";
-  // toggle.classList.add("toggleTipsColumn");
-  toggle.classList.add("small");
-  toggle.classList.add("wbe-button");
+  toggle.classList.add("small", "wbe-button");
+
   const toggleImg = document.createElement("img");
-  toggleImg.src = plusURL;
+  toggleImg.src = minusURL;
   toggle.appendChild(toggleImg);
-  familyh2.lastChild.previousSibling.appendChild(toggle); //the ? link before the newline
+  familyh2.lastChild.previousSibling.appendChild(toggle);
+
+  let isHidden = false;
+
   toggle.addEventListener("click", () => {
-    if (hrAbove.style.display == "none") {
+    if (isHidden) {
+      // Show
       toggleImg.src = minusURL;
+      wrapper.style.display = "block";
+
+      requestAnimationFrame(() => {
+        wrapper.style.height = wrapper.scrollHeight + "px";
+        wrapper.style.opacity = "1";
+      });
+
       hrAbove.style.display = "block";
       hrBelow.style.display = "block";
-      familyDivOuter.style.display = "block";
+
       familyDivInner.insertBefore(familyh2, familyDivInner.firstChild);
-      toggle.setAttribute("data-tooltip", "Hide the Edit Family section")
+      toggle.setAttribute("data-tooltip", "Hide the Edit Family section");
     } else {
+      // Hide
       toggleImg.src = plusURL;
-      texth2.parentNode.insertBefore(familyh2, texth2);
+
+      wrapper.style.height = wrapper.scrollHeight + "px";
+      wrapper.style.opacity = "1";
+
+      requestAnimationFrame(() => {
+        wrapper.style.height = "0px";
+        wrapper.style.opacity = "0";
+      });
+
       hrAbove.style.display = "none";
       hrBelow.style.display = "none";
-      familyDivOuter.style.display = "none";
-      toggle.setAttribute("data-tooltip", "Show the Edit Family section")
-    }
-  });
 
-  toggle.click();
+      texth2.parentNode.insertBefore(familyh2, texth2);
+      toggle.setAttribute("data-tooltip", "Show the Edit Family section");
+    }
+
+    isHidden = !isHidden;
+  });
 }
