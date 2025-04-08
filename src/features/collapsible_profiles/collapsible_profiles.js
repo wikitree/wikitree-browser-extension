@@ -137,32 +137,6 @@ function createCollapsibleSections() {
   bodyText.empty().append(transformedContent.children());
 
   createSpecialCollapsibles();
-
-  // Handle any headings buried within other structures
-  // $(".body-text")
-  //   .find("h1, h2, h3, h4, h5, h6")
-  //   .filter(function () {
-  //     return !$(this).attr("data-content-id");
-  //   })
-  //   .each(function (index) {
-  //     const $heading = $(this);
-  //     const level = parseInt(this.tagName.substring(1), 10); // Extract heading level (h1 -> 1, h2 -> 2, etc.)
-  //     const contentId = `xhcl${level}${index}`;
-  //     const $wrapper = $(`<div id="${contentId}" class="collapsible-section"></div>`);
-  //     $heading.attr("data-content-id", contentId);
-
-  //     let $next = $heading.next();
-  //     while (
-  //       $next.length &&
-  //       (!$next.is("h1, h2, h3, h4, h5, h6") || parseInt($next.prop("tagName").substring(1), 10) > level)
-  //     ) {
-  //       let $temp = $next;
-  //       $next = $next.next();
-  //       $wrapper.append($temp);
-  //     }
-
-  //     $heading.after($wrapper);
-  //   });
 }
 
 // Function to get the text for the "data-for" attribute of the collapse buttons of the
@@ -317,14 +291,23 @@ function attachCollapseToggleHandler() {
 }
 
 function navigateTo(targetId) {
+  // First look for a collapsible button with the targetId
   let $targetButton = $(`.collapse-toggle[data-anchor="${targetId}"]`);
   if ($targetButton.length == 0) {
     const target = $(`#${targetId}`);
-    // See if the target is has a data-target attribute (used by the WBE help page)
-    if (target.length > 0 && target.is("span")) {
-      const $nextH = findNextHeading(target[0]);
-      if ($nextH) {
-        $targetButton = $nextH.find(`.collapse-toggle`);
+    if (target.length > 0) {
+      // If the target is a WBE help page feature identifier, extract the real target from it
+      if (target.hasClass("hidden milestone")) {
+        const href = target.find("a").attr("href");
+        if (href) {
+          const targetId = href.substring(href.indexOf("#") + 1);
+          $targetButton = $(`.collapse-toggle[data-anchor="${targetId}"]`);
+        }
+      } else {
+        // Ensure the target is visible and scroll to it
+        expandParentSections(target);
+        scrollTo(target);
+        return;
       }
     }
   }
@@ -336,7 +319,49 @@ function navigateTo(targetId) {
   }
 
   // Expand all collapsed parent sections
-  const $parentSections = $targetButton.parents(".collapsible-section").get().reverse();
+  expandParentSections($targetButton);
+
+  // Expand the target section if it is not already expanded
+  const isCollapsed = $targetButton.text().trim().startsWith(EXPAND_IT_SYMB);
+  if (isCollapsed) {
+    $targetButton.trigger("click");
+  }
+
+  scrollTo($targetButton);
+}
+
+// Smoothly scroll to the target element
+function scrollTo($el) {
+  let headerHeight = 0;
+  const $header = $(".tabs--wrapper");
+
+  if ($header.length) {
+    const headerPosition = $header.css("position");
+
+    if (headerPosition === "fixed" || headerPosition === "sticky" || headerPosition === "static") {
+      // Get the total height of the header, including margins
+      headerHeight = $header.outerHeight(true); // 'true' includes margins
+    }
+  }
+
+  // Adjust for any additional fixed or sticky elements if necessary
+  let additionalOffset = 0;
+  // Add code here if you have other elements to consider
+
+  // Total offset to subtract
+  const totalOffset = headerHeight + additionalOffset;
+
+  // Adjust scrollTop by subtracting totalOffset
+  $("html, body").animate(
+    {
+      scrollTop: $el.offset().top - totalOffset,
+    },
+    500
+  );
+}
+
+function expandParentSections($el) {
+  const $parentSections = $el.parents(".collapsible-section").get().reverse();
   $($parentSections).each(function () {
     const $parentSection = $(this);
     if ($parentSection.is(":hidden")) {
@@ -348,42 +373,21 @@ function navigateTo(targetId) {
       }
     }
   });
+}
 
-  // Expand the target section if it is not already expanded
-  const isCollapsed = $targetButton.text().trim().startsWith(EXPAND_IT_SYMB);
-  if (isCollapsed) {
-    $targetButton.trigger("click");
-  }
+function findPreviousHeading($el) {
+  const headers = $(":header"); // Select all headers in the document
+  let previousHeading = null;
 
-  // Smoothly scroll to the target element
-  (function () {
-    let headerHeight = 0;
-    const $header = $(".tabs--wrapper");
-
-    if ($header.length) {
-      const headerPosition = $header.css("position");
-
-      if (headerPosition === "fixed" || headerPosition === "sticky" || headerPosition === "static") {
-        // Get the total height of the header, including margins
-        headerHeight = $header.outerHeight(true); // 'true' includes margins
-      }
+  headers.each(function () {
+    if (this === $el[0]) {
+      // Stop if we've reached the element
+      return false;
     }
+    previousHeading = this;
+  });
 
-    // Adjust for any additional fixed or sticky elements if necessary
-    let additionalOffset = 0;
-    // Add code here if you have other elements to consider
-
-    // Total offset to subtract
-    const totalOffset = headerHeight + additionalOffset;
-
-    // Adjust scrollTop by subtracting totalOffset
-    $("html, body").animate(
-      {
-        scrollTop: $targetButton.offset().top - totalOffset,
-      },
-      500
-    );
-  })();
+  return $(previousHeading);
 }
 
 function findNextHeading(el) {
@@ -391,7 +395,7 @@ function findNextHeading(el) {
   let found = false;
 
   for (let i = 0; i < $all.length; i++) {
-    if ($all[i] === el) {
+    if (!found && $all[i] === el) {
       found = true;
     } else if (found && /^H[1-6]$/i.test($all[i].tagName)) {
       return $($all[i]);
@@ -430,7 +434,6 @@ function addNavigationClickHandler() {
   });
 
   // If there's an initial hash when the page loads, handle it
-
   const initialHash = location.hash.substring(1);
   if (initialHash) {
     navigateTo(decodeURIComponent(initialHash));
