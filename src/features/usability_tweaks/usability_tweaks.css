@@ -228,3 +228,27 @@ span.feed-item.highlight {
   padding: 0.2em 0.5em;
   border-radius: 5px;
 }
+
+/* Make table overflow visible */
+
+.wbe-overflow .table-wrapper {
+  overflow-x: visible !important;
+  z-index: 800 !important;
+}
+.wbe-overflow .table-wrapper table {
+  position: relative !important;
+  z-index: 800 !important;
+}
+
+/* Style for the toggle button */
+.toggleOverflowButton {
+  display: inline-block;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  background-repeat: no-repeat;
+  background-position: center;
+  position: absolute !important;
+  background-size: 1.5em;
+  margin-top: -1em;
+}
