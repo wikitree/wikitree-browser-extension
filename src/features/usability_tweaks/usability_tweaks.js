@@ -681,7 +681,7 @@ function makeTableOverflowVisible() {
   /************************************/
   // We only want to place a button before .table-wrapper not inside a .box
   const $eligibleWrappers = $(".table-wrapper").filter(function () {
-    return $(this).closest(".box").length === 0;
+    return $(this).closest(".box").length === 0 && $(this).find("tr.x-inline-img").length === 0;
   });
 
   // Helper to update all button icons
