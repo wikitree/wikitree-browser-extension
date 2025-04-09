@@ -25,6 +25,14 @@ shouldInitializeFeature("collapsibleProfiles").then(async (result) => {
           $(this).remove();
         });
       });
+      // If there's an initial hash when the page loads, handle it
+      const initialHash = window.location.hash.substring(1);
+      if (initialHash) {
+        // Delay to ensure all sections are initialized
+        setTimeout(() => {
+          navigateTo(decodeURIComponent(initialHash));
+        }, 500); // Adjust the delay as needed
+      }
     }
   }
 });
