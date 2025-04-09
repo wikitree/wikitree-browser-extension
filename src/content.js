@@ -64,15 +64,11 @@ import "./features/register_feature_options";
 
 // First are loaded modules that change the wikitree appearence by altering css style
 import "./features/visitedLinks/visitedLinks";
-import "./features/sticky_header/sticky_header";
-import "./features/show_search/show_search";
+import "./features/collapsible_profiles/collapsible_profiles";
 import "./features/darkMode/darkMode";
 import "./features/enhanced_editor_style/enhanced_editor_style";
 import "./features/readability/readability";
 import "./features/custom_style/custom_style";
-import "./features/menu_style/menu_style";
-import "./features/menu_hover/menu_hover";
-import "./features/collapsible_profiles/collapsible_profiles";
 
 // followed by the rest
 import "./features/access_keys/access_keys";
@@ -110,7 +106,7 @@ import "./features/sortBadges/sortBadges";
 import "./features/sort_theme_people/sort_theme_people";
 import "./features/sourcepreview/sourcepreview";
 import "./features/spacepreview/spacepreview";
-
+import "./features/sticky_header/sticky_header";
 import "./features/surname_table/surname_table";
 import "./features/table_filters/table_filters";
 import "./features/unconnected_branch_table/unconnected_branch_table";
@@ -155,17 +151,25 @@ import "./features/editor_expander/editor_expander";
 import "./features/draftList/draftList";
 import "./features/image_table/image_table";
 import "./features/randomProfile/randomProfile";
-import "./features/space_watchlist_sorter/space_watchlist_sorter";
 import "./features/what_links_here/what_links_here";
 
 /* MARKER: Default place for new features. Move these to a more appropriate place.*/
 import "./features/hide_photo_column/hide_photo_column";
 
+import "./features/show_search/show_search";
+
+import "./features/menu_style/menu_style";
+
+import "./features/menu_hover/menu_hover";
+
 import "./features/links_to_new_tabs/links_to_new_tabs";
 
 //import "./features/family_status_sync/family_status_sync"; // Disabled for now
 
+import "./features/space_watchlist_sorter/space_watchlist_sorter";
+
 import "./features/help/help";
+
 import "./features/pending_merges_filters/pending_merges_filters";
 import "./features/enumerate_image_detail/enumerate_image_detail.js";
 /*
