@@ -290,43 +290,40 @@ function attachCollapseToggleHandler() {
   });
 }
 
-function navigateTo(targetId) {
-  // First look for a collapsible button with the targetId
-  let $targetButton = $(`.collapse-toggle[data-anchor="${targetId}"]`);
-  if ($targetButton.length == 0) {
-    const target = $(`#${targetId}`);
-    if (target.length > 0) {
-      // If the target is a WBE help page feature identifier, extract the real target from it
-      if (target.hasClass("hidden milestone")) {
-        const href = target.find("a").attr("href");
-        if (href) {
-          const targetId = href.substring(href.indexOf("#") + 1);
-          $targetButton = $(`.collapse-toggle[data-anchor="${targetId}"]`);
-        }
-      } else {
-        // Ensure the target is visible and scroll to it
-        expandParentSections(target);
-        scrollTo(target);
-        return;
-      }
-    }
-  }
+async function navigateTo(targetId) {
+  // See if there’s a “collapse-toggle” button tied to this anchor
+  const $targetButton = $(`.collapse-toggle[data-anchor="${targetId}"]`);
 
-  if ($targetButton.length == 0) {
-    // console.warn(`Element with id '${targetId}' not found.`);
-    // return so the normal browser behavior can take over
+  if ($targetButton.length === 0) {
+    // No toggle button found, so try scrolling directly
+    const $target = $(`#${targetId}`);
+    if ($target.length) {
+      await expandParentSections($target); // ensure parents are expanded
+      setTimeout(() => {
+        scrollTo($target);
+      }, 100); // Delay to ensure the scroll happens after any animations
+    }
     return;
   }
 
-  // Expand all collapsed parent sections
-  expandParentSections($targetButton);
+  // 1) Make sure all parent sections are expanded
+  await expandParentSections($targetButton);
 
-  // Expand the target section if it is not already expanded
-  const isCollapsed = $targetButton.text().trim().startsWith(EXPAND_IT_SYMB);
+  // 2) If the target section is still collapsed, expand it
+  const isCollapsed = $targetButton.text().trim().startsWith("+"); // EXPAND_IT_SYMB
   if (isCollapsed) {
-    $targetButton.trigger("click");
+    const targetSectionId = $targetButton.attr("data-target-id");
+    const $targetSection = $(`#${targetSectionId}`);
+    // Wait for its slideDown animation
+    await new Promise((resolve) => {
+      $targetSection.slideDown(200, () => {
+        $targetButton.text("−"); // COLLAPSE_IT_SYMB
+        resolve();
+      });
+    });
   }
 
+  // 3) Finally, scroll to the target element
   scrollTo($targetButton);
 }
 
@@ -343,35 +340,85 @@ function scrollTo($el) {
       headerHeight = $header.outerHeight(true); // 'true' includes margins
     }
   }
-
+  //headerHeight = 0;
+  console.log("Header height: " + headerHeight);
   // Adjust for any additional fixed or sticky elements if necessary
   let additionalOffset = 0;
   // Add code here if you have other elements to consider
+  if ($("html.sticky-header").length) {
+    const $stickyHeader = $("header");
+    if ($stickyHeader.length) {
+      additionalOffset = $stickyHeader.outerHeight(true); // 'true' includes margins
+      console.log("Sticky header height: " + additionalOffset);
+    }
+  }
+  if ($("#searchBar.showSearch.show").length) {
+    const $searchBar = $("#searchBar.showSearch.show");
+    if ($searchBar.length) {
+      additionalOffset += $searchBar.outerHeight(true);
+      console.log("Search bar height: " + additionalOffset);
+    }
+  }
 
   // Total offset to subtract
   const totalOffset = headerHeight + additionalOffset;
 
   // Adjust scrollTop by subtracting totalOffset
+  console.log("Total offset: " + totalOffset);
+  console.log("ScrollTop: " + $el.offset().top);
+  console.log("ScrollTop - offset: " + ($el.offset().top - totalOffset));
+  // Animate the scroll to the target element
   $("html, body").animate(
     {
       scrollTop: $el.offset().top - totalOffset,
     },
-    500
+    1000
   );
 }
 
 function expandParentSections($el) {
-  const $parentSections = $el.parents(".collapsible-section").get().reverse();
-  $($parentSections).each(function () {
-    const $parentSection = $(this);
-    if ($parentSection.is(":hidden")) {
-      const prev = $parentSection.prev();
-      if (prev.is("button.collapse-toggle")) {
-        prev.trigger("click");
-      } else {
-        prev.find("button.collapse-toggle").trigger("click");
+  // Return a Promise so we know when expansions are finished
+  return new Promise((resolve) => {
+    const $parentSections = $el.parents(".collapsible-section");
+    // If there are no collapsible parents, we’re already done
+    if ($parentSections.length === 0) {
+      resolve();
+      return;
+    }
+
+    let completed = 0;
+
+    // This is called each time one parent finishes expanding (or is already visible).
+    function doneOne() {
+      completed++;
+      if (completed === $parentSections.length) {
+        resolve();
       }
     }
+
+    // For each parent, if it’s hidden, expand it and update the toggle text.
+    $parentSections.each(function () {
+      const $parentSection = $(this);
+      if ($parentSection.is(":hidden")) {
+        // Find its associated toggle button
+        const $toggle = $parentSection.prev("button.collapse-toggle");
+        if ($toggle.length) {
+          // Force the parent to slideDown
+          $parentSection.slideDown(200, () => {
+            // Once animation completes, update the button text
+            $toggle.text(COLLAPSE_IT_SYMB);
+            doneOne();
+          });
+        } else {
+          // If the toggle is nested (for example <div><button>…</button></div>)
+          $parentSection.prev().find("button.collapse-toggle").text(COLLAPSE_IT_SYMB);
+          $parentSection.slideDown(200, doneOne);
+        }
+      } else {
+        // Already visible
+        doneOne();
+      }
+    });
   });
 }
 
@@ -419,10 +466,12 @@ function addNavigationClickHandler() {
     // Allow the default action to proceed (don't preventDefault)
 
     // Delay handling to allow the browser to update the URL hash
+    /*
     setTimeout(() => {
       const targetId = decodeURIComponent(href.substring(1)); // Remove the '#' character and decode
       navigateTo(targetId);
     }, 0);
+    */
   });
 
   // Handle hashchange event for back/forward navigation
