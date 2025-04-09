@@ -957,3 +957,7 @@ body.verticalLists hr {
 body.verticalLists div.mb-5:has(div.tree--person) {
   margin-bottom: 0.5em !important;
 }
+
+body.familyListsRight #nVitals.vanilla span.EDIT {
+  position: relative;
+}

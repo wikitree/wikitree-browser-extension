@@ -1449,6 +1449,7 @@ function moveFamilyLists() {
     sidebarHeading.hide();
     $nVitals.removeClass("row").appendTo(treePersonBit);
   } else if (options.moveToRight) {
+    $("body").addClass("familyListsRight");
     if (options.showSidebarHeading) {
       sidebarHeading.show();
     }
