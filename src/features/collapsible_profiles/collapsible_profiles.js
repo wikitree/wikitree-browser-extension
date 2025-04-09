@@ -43,6 +43,8 @@ function init(options) {
     } else {
       collapseSpecificSections(options);
     }
+
+    // If there's an initial hash when the page loads, handle it
     const initialHash = window.location.hash.substring(1);
     if (initialHash) {
       // Delay to ensure all sections are initialized
@@ -282,15 +284,28 @@ function collapseSectionByTarget(targetId) {
 function attachCollapseToggleHandler() {
   $(document).on("click", ".collapse-toggle", function (e) {
     e.preventDefault();
-    const targetId = $(this).attr("data-target-id");
-    const $target = $("#" + escapeId(targetId));
-    const isExpanded = $target.is(":visible");
-    $target.slideToggle(200);
-    $(this).text(isExpanded ? EXPAND_IT_SYMB : COLLAPSE_IT_SYMB);
+    toggleSection($(this));
+    // const targetId = $(this).attr("data-target-id");
+    // const $target = $("#" + escapeId(targetId));
+    // const isExpanded = $target.is(":visible");
+    // $target.slideToggle(200);
+    // $(this).text(isExpanded ? EXPAND_IT_SYMB : COLLAPSE_IT_SYMB);
   });
 }
 
-function navigateTo(targetId) {
+function toggleSection($button, promise = null) {
+  const targetId = $button.attr("data-target-id");
+  const $target = $("#" + escapeId(targetId));
+  const isExpanded = $target.is(":visible");
+  $button.text(isExpanded ? EXPAND_IT_SYMB : COLLAPSE_IT_SYMB);
+  $target.slideToggle(200, () => {
+    if (promise) {
+      promise.resolve();
+    }
+  });
+}
+
+async function navigateTo(targetId) {
   // First look for a collapsible button with the targetId
   let $targetButton = $(`.collapse-toggle[data-anchor="${targetId}"]`);
   if ($targetButton.length == 0) {
@@ -305,7 +320,7 @@ function navigateTo(targetId) {
         }
       } else {
         // Ensure the target is visible and scroll to it
-        expandParentSections(target);
+        await expandParentSections(target);
         scrollTo(target);
         return;
       }
@@ -319,7 +334,7 @@ function navigateTo(targetId) {
   }
 
   // Expand all collapsed parent sections
-  expandParentSections($targetButton);
+  await expandParentSections($targetButton);
 
   // Expand the target section if it is not already expanded
   const isCollapsed = $targetButton.text().trim().startsWith(EXPAND_IT_SYMB);
@@ -343,15 +358,34 @@ function scrollTo($el) {
       headerHeight = $header.outerHeight(true); // 'true' includes margins
     }
   }
-
+  //headerHeight = 0;
+  console.log("Header height: " + headerHeight);
   // Adjust for any additional fixed or sticky elements if necessary
   let additionalOffset = 0;
   // Add code here if you have other elements to consider
+  if ($("html.sticky-header").length) {
+    const $stickyHeader = $("header");
+    if ($stickyHeader.length) {
+      additionalOffset = $stickyHeader.outerHeight(true); // 'true' includes margins
+      console.log("Sticky header height: " + additionalOffset);
+    }
+  }
+  if ($("#searchBar.showSearch.show").length) {
+    const $searchBar = $("#searchBar.showSearch.show");
+    if ($searchBar.length) {
+      additionalOffset += $searchBar.outerHeight(true);
+      console.log("Search bar height: " + additionalOffset);
+    }
+  }
 
   // Total offset to subtract
   const totalOffset = headerHeight + additionalOffset;
 
   // Adjust scrollTop by subtracting totalOffset
+  console.log("Total offset: " + totalOffset);
+  console.log("ScrollTop: " + $el.offset().top);
+  console.log("ScrollTop - offset: " + ($el.offset().top - totalOffset));
+  // Animate the scroll to the target element
   $("html, body").animate(
     {
       scrollTop: $el.offset().top - totalOffset,
@@ -360,19 +394,23 @@ function scrollTo($el) {
   );
 }
 
-function expandParentSections($el) {
+async function expandParentSections($el) {
   const $parentSections = $el.parents(".collapsible-section").get().reverse();
-  $($parentSections).each(function () {
-    const $parentSection = $(this);
+  const promises = [];
+
+  for (const section of $parentSections) {
+    const $parentSection = $(section);
     if ($parentSection.is(":hidden")) {
-      const prev = $parentSection.prev();
-      if (prev.is("button.collapse-toggle")) {
-        prev.trigger("click");
-      } else {
-        prev.find("button.collapse-toggle").trigger("click");
-      }
+      const $prev = $parentSection.prev();
+      const $button = $prev.is("button.collapse-toggle") ? $prev : $prev.find("button.collapse-toggle");
+
+      const deferred = $.Deferred();
+      toggleSection($button, deferred);
+      promises.push(deferred.promise());
     }
-  });
+  }
+
+  await Promise.all(promises);
 }
 
 function findPreviousHeading($el) {
@@ -407,23 +445,23 @@ function findNextHeading(el) {
 
 function addNavigationClickHandler() {
   // Define selectors for navigational links: TOC, WBEnav, footnote references, and back-references
-  const navSelectors = "#toc a:not(#togglelink), #jump-nav a";
+  // const navSelectors = "#toc a:not(#togglelink), #jump-nav a";
 
   // Attach click event listener to all navigational <a> tags
-  $(document).on("click", navSelectors, function (e) {
-    const href = $(this).attr("href");
-    if (!href || !href.startsWith("#")) {
-      return; // Not an internal link
-    }
+  // $(document).on("click", navSelectors, function (e) {
+  //   const href = $(this).attr("href");
+  //   if (!href || !href.startsWith("#")) {
+  //     return; // Not an internal link
+  //   }
 
-    // Allow the default action to proceed (don't preventDefault)
+  //   // Allow the default action to proceed (don't preventDefault)
 
-    // Delay handling to allow the browser to update the URL hash
-    setTimeout(() => {
-      const targetId = decodeURIComponent(href.substring(1)); // Remove the '#' character and decode
-      navigateTo(targetId);
-    }, 0);
-  });
+  //   // Delay handling to allow the browser to update the URL hash
+  //   setTimeout(() => {
+  //     const targetId = decodeURIComponent(href.substring(1)); // Remove the '#' character and decode
+  //     navigateTo(targetId);
+  //   }, 0);
+  // });
 
   // Handle hashchange event for back/forward navigation
   $(window).on("hashchange", function () {
@@ -432,10 +470,4 @@ function addNavigationClickHandler() {
       navigateTo(decodeURIComponent(targetId));
     }
   });
-
-  // If there's an initial hash when the page loads, handle it
-  const initialHash = location.hash.substring(1);
-  if (initialHash) {
-    navigateTo(decodeURIComponent(initialHash));
-  }
 }
