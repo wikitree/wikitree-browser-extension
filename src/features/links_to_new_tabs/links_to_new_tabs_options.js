@@ -6,7 +6,7 @@ import { registerFeature, OptionType } from "../../core/options/options_registry
 import { isMainDomain, isG2G } from "../../core/pageType";
 
 registerFeature({
-  name: "Links To New Tabs",
+  name: "Links to New Tabs",
   id: "linksToNewTabs",
   description: "Open all links in a new tab",
   category: "Global",
