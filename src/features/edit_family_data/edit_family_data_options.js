@@ -1,7 +1,7 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 import { isProfileAddRelative } from "../../core/pageType";
 registerFeature({
-  name: "Dates/Locations on New Profile Page",
+  name: "Dates and Locations on New Profile Page",
   id: "editFamilyData",
   description:
     "Adds the dates and locations of the profile person to a new profile page (for a parent, sibling, etc.).",

@@ -12416,14 +12416,19 @@ class Biography {
 
     var countryValidForMiddleNames = false;
 
+    // Proper first name is First Name at Birth per Help:Name_Fields
     if (isLocationValidForMiddleNames(this.birthLocation)) {
       countryValidForMiddleNames = true;
-    } else if (isLocationValidForMiddleNames(this.deathLocation)) {
-      countryValidForMiddleNames = true;
     } else {
-      for (var fact of this.facts) {
-        if (isLocationValidForMiddleNames(fact.location)) {
+      if (this.birthLocation == undefined || this.birthLocation == "") {
+        if (isLocationValidForMiddleNames(this.deathLocation)) {
           countryValidForMiddleNames = true;
+        } else {
+          for (var fact of this.facts) {
+            if (isLocationValidForMiddleNames(fact.location)) {
+              countryValidForMiddleNames = true;
+            }
+          }
         }
       }
     }

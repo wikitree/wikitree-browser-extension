@@ -1,11 +1,10 @@
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { addCollapseButtons } from "../../core/common";
 import { isProfilePage, isSpacePage } from "../../core/pageType";
 
 const EXPAND_IT_SYMB = "+";
 const COLLAPSE_IT_SYMB = "−";
-const headingLevels = [1, 2, 3, 4, 5, 6];
-const headingSelectors = headingLevels.map((level) => `h${level}`).join(", ");
 
 function escapeId(id) {
   return typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id;
@@ -15,21 +14,25 @@ shouldInitializeFeature("collapsibleProfiles").then(async (result) => {
   if (result) {
     $("body").addClass("collapsible-profiles");
     const options = await getFeatureOptions("collapsibleProfiles");
-    const autoAddButtons = isProfilePage
-      ? options.automaticallyAddButtonsProfiles
-      : options.automaticallyAddButtonsSpaces;
     options.autoCollapse = isProfilePage ? options.collapseProfilesAllSections : options.collapseSpacesAllSections;
-    if (autoAddButtons) {
+    if (addCollapseButtons(options)) {
       init(options);
     } else {
       $(document).on("click", "#activateCollapsibleProfiles", function (e) {
         e.preventDefault();
-        options.autoCollapse = true;
         init(options);
         $(this).fadeOut(1000, function () {
           $(this).remove();
         });
       });
+      // If there's an initial hash when the page loads, handle it
+      const initialHash = window.location.hash.substring(1);
+      if (initialHash) {
+        // Delay to ensure all sections are initialized
+        setTimeout(() => {
+          navigateTo(decodeURIComponent(initialHash));
+        }, 500); // Adjust the delay as needed
+      }
     }
   }
 });
@@ -48,6 +51,8 @@ function init(options) {
     } else {
       collapseSpecificSections(options);
     }
+
+    // If there's an initial hash when the page loads, handle it
     const initialHash = window.location.hash.substring(1);
     if (initialHash) {
       // Delay to ensure all sections are initialized
@@ -73,7 +78,7 @@ function createCollapsibleSections() {
   bodyText.contents().each(function () {
     if ($(this).is("a") && $(this).attr("name") && $(this).attr("id")) {
       lastAnchor = $(this); // Store anchor instead of adding it to beforeFirstHeading
-    } else if ($(this).is(headingSelectors)) {
+    } else if ($(this).is(":header")) {
       return false;
     } else {
       if (lastAnchor) {
@@ -94,7 +99,7 @@ function createCollapsibleSections() {
   bodyText.contents().each(function () {
     if ($(this).is("a") && $(this).attr("name") && $(this).attr("id")) {
       lastAnchor = $(this);
-    } else if ($(this).is(headingSelectors)) {
+    } else if ($(this).is(":header")) {
       const heading = $(this);
       const level = parseInt(this.tagName.substring(1));
 
@@ -142,34 +147,10 @@ function createCollapsibleSections() {
   bodyText.empty().append(transformedContent.children());
 
   createSpecialCollapsibles();
-
-  // Handle any headings buried within other structures
-  // $(".body-text")
-  //   .find("h1, h2, h3, h4, h5, h6")
-  //   .filter(function () {
-  //     return !$(this).attr("data-content-id");
-  //   })
-  //   .each(function (index) {
-  //     const $heading = $(this);
-  //     const level = parseInt(this.tagName.substring(1), 10); // Extract heading level (h1 -> 1, h2 -> 2, etc.)
-  //     const contentId = `xhcl${level}${index}`;
-  //     const $wrapper = $(`<div id="${contentId}" class="collapsible-section"></div>`);
-  //     $heading.attr("data-content-id", contentId);
-
-  //     let $next = $heading.next();
-  //     while (
-  //       $next.length &&
-  //       (!$next.is("h1, h2, h3, h4, h5, h6") || parseInt($next.prop("tagName").substring(1), 10) > level)
-  //     ) {
-  //       let $temp = $next;
-  //       $next = $next.next();
-  //       $wrapper.append($temp);
-  //     }
-
-  //     $heading.after($wrapper);
-  //   });
 }
 
+// Function to get the text for the "data-for" attribute of the collapse buttons of the
+// element ($el) to be made collapsible.
 function getForText($el) {
   let forText = "";
   if ($el.prop("id")) {
@@ -299,7 +280,7 @@ function collapseSectionByTarget(targetId) {
 //       return $(this).text().trim().toLowerCase() === targetText.toLowerCase();
 //     })
 //     .each(function () {
-//       let contentId = $(this).closest(headingSelectors).attr("data-content-id");
+//       let contentId = $(this).closest(":header").attr("data-content-id");
 //       if (contentId) {
 //         contentIds.push(contentId);
 //       }
@@ -311,35 +292,57 @@ function collapseSectionByTarget(targetId) {
 function attachCollapseToggleHandler() {
   $(document).on("click", ".collapse-toggle", function (e) {
     e.preventDefault();
-    const targetId = $(this).attr("data-target-id");
-    const $target = $("#" + escapeId(targetId));
-    const isExpanded = $target.is(":visible");
-    $target.slideToggle(200);
-    $(this).text(isExpanded ? EXPAND_IT_SYMB : COLLAPSE_IT_SYMB);
+    toggleSection($(this));
+    // const targetId = $(this).attr("data-target-id");
+    // const $target = $("#" + escapeId(targetId));
+    // const isExpanded = $target.is(":visible");
+    // $target.slideToggle(200);
+    // $(this).text(isExpanded ? EXPAND_IT_SYMB : COLLAPSE_IT_SYMB);
   });
 }
 
-function navigateTo(targetId) {
-  const $targetButton = $(`.collapse-toggle[data-anchor="${targetId}"]`);
+function toggleSection($button, promise = null) {
+  const targetId = $button.attr("data-target-id");
+  const $target = $("#" + escapeId(targetId));
+  const isExpanded = $target.is(":visible");
+  $button.text(isExpanded ? EXPAND_IT_SYMB : COLLAPSE_IT_SYMB);
+  $target.slideToggle(200, () => {
+    if (promise) {
+      promise.resolve();
+    }
+  });
+}
+
+async function navigateTo(targetId) {
+  // First look for a collapsible button with the targetId
+  let $targetButton = $(`.collapse-toggle[data-anchor="${targetId}"]`);
+  if ($targetButton.length == 0) {
+    const target = $(`#${targetId}`);
+    if (target.length > 0) {
+      // If the target is a WBE help page feature identifier, extract the real target from it
+      if (target.hasClass("hidden milestone")) {
+        const href = target.find("a").attr("href");
+        if (href) {
+          const targetId = href.substring(href.indexOf("#") + 1);
+          $targetButton = $(`.collapse-toggle[data-anchor="${targetId}"]`);
+        }
+      } else {
+        // Ensure the target is visible and scroll to it
+        await expandParentSections(target);
+        scrollTo(target);
+        return;
+      }
+    }
+  }
 
   if ($targetButton.length == 0) {
     // console.warn(`Element with id '${targetId}' not found.`);
+    // return so the normal browser behavior can take over
     return;
   }
 
   // Expand all collapsed parent sections
-  const $parentSections = $targetButton.parents(".collapsible-section").get().reverse();
-  $($parentSections).each(function () {
-    const $parentSection = $(this);
-    if ($parentSection.is(":hidden")) {
-      const prev = $parentSection.prev();
-      if (prev.is("button.collapse-toggle")) {
-        prev.trigger("click");
-      } else {
-        prev.find("button.collapse-toggle").trigger("click");
-      }
-    }
-  });
+  await expandParentSections($targetButton);
 
   // Expand the target section if it is not already expanded
   const isCollapsed = $targetButton.text().trim().startsWith(EXPAND_IT_SYMB);
@@ -347,56 +350,126 @@ function navigateTo(targetId) {
     $targetButton.trigger("click");
   }
 
-  // Smoothly scroll to the target element
-  (function () {
-    let headerHeight = 0;
-    const $header = $(".tabs--wrapper");
+  scrollTo($targetButton);
+}
 
-    if ($header.length) {
-      const headerPosition = $header.css("position");
+// Smoothly scroll to the target element
+function scrollTo($el) {
+  let headerHeight = 0;
+  const $header = $(".tabs--wrapper");
 
-      if (headerPosition === "fixed" || headerPosition === "sticky" || headerPosition === "static") {
-        // Get the total height of the header, including margins
-        headerHeight = $header.outerHeight(true); // 'true' includes margins
-      }
+  if ($header.length) {
+    const headerPosition = $header.css("position");
+
+    if (headerPosition === "fixed" || headerPosition === "sticky" || headerPosition === "static") {
+      // Get the total height of the header, including margins
+      headerHeight = $header.outerHeight(true); // 'true' includes margins
     }
+  }
+  //headerHeight = 0;
+  console.log("Header height: " + headerHeight);
+  // Adjust for any additional fixed or sticky elements if necessary
+  let additionalOffset = 0;
+  // Add code here if you have other elements to consider
+  if ($("html.sticky-header").length) {
+    const $stickyHeader = $("header");
+    if ($stickyHeader.length) {
+      additionalOffset = $stickyHeader.outerHeight(true); // 'true' includes margins
+      console.log("Sticky header height: " + additionalOffset);
+    }
+  }
+  if ($("#searchBar.showSearch.show").length) {
+    const $searchBar = $("#searchBar.showSearch.show");
+    if ($searchBar.length) {
+      additionalOffset += $searchBar.outerHeight(true);
+      console.log("Search bar height: " + additionalOffset);
+    }
+  }
 
-    // Adjust for any additional fixed or sticky elements if necessary
-    let additionalOffset = 0;
-    // Add code here if you have other elements to consider
+  // Total offset to subtract
+  const totalOffset = headerHeight + additionalOffset;
 
-    // Total offset to subtract
-    const totalOffset = headerHeight + additionalOffset;
+  // Adjust scrollTop by subtracting totalOffset
+  console.log("Total offset: " + totalOffset);
+  console.log("ScrollTop: " + $el.offset().top);
+  console.log("ScrollTop - offset: " + ($el.offset().top - totalOffset));
+  // Animate the scroll to the target element
+  $("html, body").animate(
+    {
+      scrollTop: $el.offset().top - totalOffset,
+    },
+    500
+  );
+}
 
-    // Adjust scrollTop by subtracting totalOffset
-    $("html, body").animate(
-      {
-        scrollTop: $targetButton.offset().top - totalOffset,
-      },
-      500
-    );
-  })();
+async function expandParentSections($el) {
+  const $parentSections = $el.parents(".collapsible-section").get().reverse();
+  const promises = [];
+
+  for (const section of $parentSections) {
+    const $parentSection = $(section);
+    if ($parentSection.is(":hidden")) {
+      const $prev = $parentSection.prev();
+      const $button = $prev.is("button.collapse-toggle") ? $prev : $prev.find("button.collapse-toggle");
+
+      const deferred = $.Deferred();
+      toggleSection($button, deferred);
+      promises.push(deferred.promise());
+    }
+  }
+
+  await Promise.all(promises);
+}
+
+function findPreviousHeading($el) {
+  const headers = $(":header"); // Select all headers in the document
+  let previousHeading = null;
+
+  headers.each(function () {
+    if (this === $el[0]) {
+      // Stop if we've reached the element
+      return false;
+    }
+    previousHeading = this;
+  });
+
+  return $(previousHeading);
+}
+
+function findNextHeading(el) {
+  let $all = $(".body-text").find("*");
+  let found = false;
+
+  for (let i = 0; i < $all.length; i++) {
+    if (!found && $all[i] === el) {
+      found = true;
+    } else if (found && /^H[1-6]$/i.test($all[i].tagName)) {
+      return $($all[i]);
+    }
+  }
+
+  return null;
 }
 
 function addNavigationClickHandler() {
   // Define selectors for navigational links: TOC, WBEnav, footnote references, and back-references
-  const navSelectors = "#toc a:not(#togglelink), #jump-nav a";
+  // const navSelectors = "#toc a:not(#togglelink), #jump-nav a";
 
   // Attach click event listener to all navigational <a> tags
-  $(document).on("click", navSelectors, function (e) {
-    const href = $(this).attr("href");
-    if (!href || !href.startsWith("#")) {
-      return; // Not an internal link
-    }
+  // $(document).on("click", navSelectors, function (e) {
+  //   const href = $(this).attr("href");
+  //   if (!href || !href.startsWith("#")) {
+  //     return; // Not an internal link
+  //   }
 
-    // Allow the default action to proceed (don't preventDefault)
+  //   // Allow the default action to proceed (don't preventDefault)
 
-    // Delay handling to allow the browser to update the URL hash
-    setTimeout(() => {
-      const targetId = decodeURIComponent(href.substring(1)); // Remove the '#' character and decode
-      navigateTo(targetId);
-    }, 0);
-  });
+  //   // Delay handling to allow the browser to update the URL hash
+  //   setTimeout(() => {
+  //     const targetId = decodeURIComponent(href.substring(1)); // Remove the '#' character and decode
+  //     navigateTo(targetId);
+  //   }, 0);
+  // });
 
   // Handle hashchange event for back/forward navigation
   $(window).on("hashchange", function () {
@@ -405,11 +478,4 @@ function addNavigationClickHandler() {
       navigateTo(decodeURIComponent(targetId));
     }
   });
-
-  // If there's an initial hash when the page loads, handle it
-
-  const initialHash = location.hash.substring(1);
-  if (initialHash) {
-    navigateTo(decodeURIComponent(initialHash));
-  }
 }

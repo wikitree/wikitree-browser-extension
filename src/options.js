@@ -743,8 +743,10 @@ function addFeatureToOptionsPage(featureData, container) {
       )
       .append($(`<label for="toggle_${featureData.id}"></label>`).text(featureData.name))
   );
+  let encodedName = encodeURIComponent(featureData.name).replace(/%20/g, "_").replace(/\(/g,".28").replace(/\)/g,".29").replace(/%/g, ".");
+
   let helpLink =
-    featureData.helpLink || `https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#${featureData.id}`;
+    featureData.helpLink || `https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#${encodedName}`;
   if (helpLink) {
     $header.find("label").after(
       $(`<a class="feature-help-link nohover" target="WBE_Help"></a>`)

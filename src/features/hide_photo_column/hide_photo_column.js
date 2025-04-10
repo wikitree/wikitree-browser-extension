@@ -26,8 +26,8 @@ const photoH2 = $("h2#Photo, h2#photo");
 const photoParent = photoH2.parent();
 
 // Button tooltip titles.
-const buttonTitleHide = "Hide the photo column";
-const buttonTitleShow = "Show the photo column";
+const buttonTitleHide = "Hide the Photo Settings column";
+const buttonTitleShow = "Show the Photo Settings column";
 const buttonTitleEESHide = "Turn off enhanced editor and hide the photo column";
 const buttonTitleEEShow = "Turn on enhanced editor and show the photo column";
 const minusURL = chrome.runtime.getURL("images/minus-toggler.svg");
@@ -101,6 +101,12 @@ async function init() {
         toggleTipsColumn();
       }, 2000);
     }
+    toggleFamilySection();
+    if (options.startHiddenFamily) {
+      setTimeout(() => {
+        toggleFamilySection();
+      }, 2000);
+    }
   }
 }
 
@@ -127,4 +133,69 @@ function toggleTipsColumn() {
     }
     setButtonTitle();
   }, 100);
+}
+
+function toggleFamilySection() {
+  const texth2 = document.getElementById("Text");
+  const familyh2 = document.getElementById("Family");
+  const familyDivInner = familyh2.parentNode;
+  const familyDivOuter = familyDivInner.parentNode;
+  const hrBelow = familyDivOuter.nextSibling.nextSibling;
+  const hrAbove = familyDivOuter.previousSibling.previousSibling;
+
+  // Wrap familyDivOuter for smoother height transitions
+  let wrapper = familyDivOuter;
+  wrapper.id = "wbe-family-transition";
+  wrapper.style.height = wrapper.scrollHeight + "px";
+  wrapper.style.opacity = "1";
+
+  const toggle = document.createElement("a");
+  toggle.id = "toggleFamilyColumn";
+  toggle.href = "#0";
+  toggle.classList.add("small", "wbe-button");
+
+  const toggleImg = document.createElement("img");
+  toggleImg.src = minusURL;
+  toggle.appendChild(toggleImg);
+  familyh2.lastChild.previousSibling.appendChild(toggle);
+
+  let isHidden = false;
+
+  toggle.addEventListener("click", () => {
+    if (isHidden) {
+      // Show
+      toggleImg.src = minusURL;
+      wrapper.style.display = "block";
+
+      requestAnimationFrame(() => {
+        wrapper.style.height = wrapper.scrollHeight + "px";
+        wrapper.style.opacity = "1";
+      });
+
+      hrAbove.style.display = "block";
+      hrBelow.style.display = "block";
+
+      familyDivInner.insertBefore(familyh2, familyDivInner.firstChild);
+      toggle.setAttribute("data-tooltip", "Hide the Edit Family section");
+    } else {
+      // Hide
+      toggleImg.src = plusURL;
+
+      wrapper.style.height = wrapper.scrollHeight + "px";
+      wrapper.style.opacity = "1";
+
+      requestAnimationFrame(() => {
+        wrapper.style.height = "0px";
+        wrapper.style.opacity = "0";
+      });
+
+      hrAbove.style.display = "none";
+      hrBelow.style.display = "none";
+
+      texth2.parentNode.insertBefore(familyh2, texth2);
+      toggle.setAttribute("data-tooltip", "Show the Edit Family section");
+    }
+
+    isHidden = !isHidden;
+  });
 }

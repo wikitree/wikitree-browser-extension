@@ -42,11 +42,13 @@ async function initializeFeatureSettingsOnHelpPage(space) {
 function injectFeatureSettings(feature, $headingElement) {
   // Certain features with their own help pages may have a different way of identifying the header element
   if (!$headingElement) {
-    // By default, find the <span> element that has the feature ID
-    const $featureSpan = $(`span#${feature.id}`);
-    if ($featureSpan.length) {
-      $headingElement = $featureSpan.closest("p").nextAll("h4, h5").first();
-    }
+    const encodedName = encodeURIComponent(feature.name)
+      .replace(/%20/g, "_")
+      .replace(/\(/g, ".28")
+      .replace(/\)/g, ".29")
+      .replace(/%/g, ".");
+    /// $headingElement is the hx after the a anchor link to the feature
+    $headingElement = $(`a[id="${encodedName}"]`).nextAll("h2,h3,h4,h5,h6,h7,h8").first();
   }
 
   if ($headingElement) {

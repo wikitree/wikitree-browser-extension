@@ -323,6 +323,8 @@ class CustomStyle {
 
 shouldInitializeFeature("customStyle").then((result) => {
   if (result) {
+    // Add class to body customStyle
+    $("body").addClass("customStyle");
     getFeatureOptions("customStyle").then((options) => {
       const customStyle = new CustomStyle(options);
       customStyle.applyStyles();

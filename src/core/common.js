@@ -420,10 +420,8 @@ async function checkButtonFeatures() {
     if (results[3]) {
       getFeatureOptions("collapsibleProfiles")
         .then((opt) => {
-          const autoAddButtons = isProfilePage
-            ? opt.automaticallyAddButtonsProfiles
-            : opt.automaticallyAddButtonsSpaces;
-          if (!autoAddButtons) {
+          const add = addCollapseButtons(opt);
+          if (!add) {
             $(".clipboardContainer").append(
               createButton({
                 id: "activateCollapsibleProfiles",
@@ -461,6 +459,11 @@ function downloadFeatureData() {
       showFriendlyError(err);
     }
   });
+}
+
+export function addCollapseButtons(opt) {
+  const toBoolean = (val) => val === true || val === "true" || val === 1 || val === "1";
+  return isProfilePage ? toBoolean(opt.automaticallyAddButtonsProfiles) : toBoolean(opt.automaticallyAddButtonsSpaces);
 }
 
 export function wrapBackupData(key, data, isDataSubset = false) {

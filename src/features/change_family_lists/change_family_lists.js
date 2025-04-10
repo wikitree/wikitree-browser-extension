@@ -22,7 +22,8 @@ import { getUserWtId } from "../../core/common";
 import "./change_family_lists.css";
 import { initRelationshipDB, RELATIONSHIP_STORE_NAME } from "../distanceAndRelationship/distanceAndRelationship.js";
 import { getProfilePersonInfo } from "../../core/common";
-import { mainDomain } from "../../core/pageType";
+import { mainDomain, isProfileAddRelative } from "../../core/pageType";
+import { autoClickAddPersonOptions } from "../usability_tweaks/usability_tweaks.js";
 
 let options;
 const user = getUserWtId();
@@ -32,6 +33,7 @@ let useAltHeadings = false;
 const treePersonBit = $("#nav-familyContent #Family-pane div.tree--person");
 const profilePerson = getProfilePersonInfo(); // from the page
 let profilePersonData; // from API
+let pencils;
 
 const getPeopleFields =
   "BirthDate,BirthDateDecade,BirthLocation,BirthName,Connected,DataStatus,DeathDate,DeathDateDecade,DeathLocation," +
@@ -64,6 +66,15 @@ function newPersonRecord() {
  */
 function newFamilyData() {
   return { parents: [], siblings: [], spouses: [], children: [] };
+}
+
+function getInitialPencils() {
+  let pencils = {};
+  pencils.parents = treePersonBit.find("#Parents span.EDIT a").attr("href") || "";
+  pencils.siblings = treePersonBit.find("#Siblings span.EDIT a").attr("href") || "";
+  pencils.spouses = treePersonBit.find("#Spouses span.EDIT a").attr("href") || "";
+  pencils.children = treePersonBit.find("#Children span.EDIT a").attr("href") || "";
+  return pencils;
 }
 
 /**
@@ -594,6 +605,9 @@ function createEditButton(href, tooltip, text = "edit") {
 function createDefaultLink(section, defaultText) {
   const a = document.createElement("a");
   a.href = `https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=${section}`;
+  if (options.addNotEdit) {
+    a.href += "&WBEaction=Add";
+  }
   a.className = "BLANK";
   a.textContent = defaultText;
   return a;
@@ -726,12 +740,9 @@ function buildSiblingsSection(siblings) {
 
   const headerDiv = document.createElement("div");
   headerDiv.appendChild(createHeader("Siblings: ", "siblingsHeader", ""));
-  headerDiv.appendChild(
-    createEditButton(
-      `https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=sibling`,
-      "Add Sibling"
-    )
-  );
+  if (pencils.siblings) {
+    headerDiv.appendChild(createEditButton(pencils.siblings, "Add Sibling"));
+  }
   container.appendChild(headerDiv);
 
   const ol = createListElement("siblingList", "nameList hasRelAge");
@@ -786,12 +797,9 @@ function buildSpousesSection(spouses) {
   container.className = "VITALS spouseDetails familyList";
   const headerDiv = document.createElement("div");
 
-  headerDiv.appendChild(
-    createEditButton(
-      `https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=spouse`,
-      "Add/Edit Spouses"
-    )
-  );
+  if (pencils.spouses) {
+    headerDiv.appendChild(createEditButton(pencils.spouses, "Add/Edit Spouses"));
+  }
   headerDiv.appendChild(createHeader("Spouses: ", "spousesHeader", ""));
   container.appendChild(headerDiv);
 
@@ -918,12 +926,9 @@ function buildChildrenSection(children) {
   container.id = "childrenDetails";
 
   container.appendChild(createHeader("Children: ", "childrenHeader", ""));
-  container.appendChild(
-    createEditButton(
-      `https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=child`,
-      "Add/Edit Children"
-    )
-  );
+  if (pencils.children) {
+    container.appendChild(createEditButton(pencils.children, "Add/Edit Children"));
+  }
 
   const ol = createListElement("childrenList", "nameList hasRelAge");
   children.forEach((c) => {
@@ -1220,6 +1225,28 @@ function getApproxDate(theDate) {
 }
 
 /**
+ * Changes the edit links to add links
+ */
+function changeNativeEditLinks() {
+  const editFamilyLinks = document.querySelectorAll('a[href*="EditFamily"]');
+  for (let i = 0; i < editFamilyLinks.length; i++) {
+    if (editFamilyLinks[i].innerText.includes("?")) {
+      editFamilyLinks[i].href = editFamilyLinks[i].href + "&WBEaction=Add";
+    }
+  }
+
+  const nVitals = $("#nVitals");
+  if (pencils.siblings) {
+    nVitals.find("#siblingDetails").append(" ");
+    nVitals.find("#siblingDetails").append(createDefaultLink("sibling", "[+]"));
+  }
+  if (pencils.children) {
+    nVitals.find("#childrenDetails").append(" ");
+    nVitals.find("#childrenDetails").append(createDefaultLink("child", "[+]"));
+  }
+}
+
+/**
  * Calculates and displays marriage ages for spouse entries.
  */
 function addMarriageAges() {
@@ -1422,6 +1449,7 @@ function moveFamilyLists() {
     sidebarHeading.hide();
     $nVitals.removeClass("row").appendTo(treePersonBit);
   } else if (options.moveToRight) {
+    $("body").addClass("familyListsRight");
     if (options.showSidebarHeading) {
       sidebarHeading.show();
     }
@@ -2002,13 +2030,22 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     // parseSiblings();
     return;
   }
+
+  options = await getFeatureOptions("changeFamilyLists");
+  if (isProfileAddRelative && options.addNotEdit) {
+    autoClickAddPersonOptions();
+
+    return;
+  }
+
+  pencils = getInitialPencils();
   moveMetaGender();
   const familyData = parseInitialData();
   console.log("Family data:", familyData);
   const treePerson = $("#Family-pane div.tree--person");
   // Retain only the first .VITALS element.
   treePerson.children().not(":first").remove();
-  options = await getFeatureOptions("changeFamilyLists");
+
   await getWindowPeople();
   const newVitals = buildFamilyListsFromData(familyData);
   treePersonBit.append(newVitals);
@@ -2037,6 +2074,10 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   }
   if (options.agesAtMarriages) {
     addMarriageAges();
+  }
+
+  if (options.addNotEdit) {
+    changeNativeEditLinks();
   }
 
   const pagePerson = getPerson(profilePerson.Id);

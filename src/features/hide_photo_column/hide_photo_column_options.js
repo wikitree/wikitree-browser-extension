@@ -6,23 +6,29 @@ import { registerFeature, OptionType } from "../../core/options/options_registry
 import { isWikiEdit } from "../../core/pageType";
 
 registerFeature({
-  name: "Toggle Photo Column",
+  name: "Edit Profile Redesign",
   id: "hidePhotoColumn",
   description:
-    "Adds a button to hide/show the photos (and tips) column on edit pages. " +
-    "This is not very compatible with the enhanced editor, so this button will also turn off the enhanced editor. " +
-    "(You can click it back on again after hiding the photo column.)",
+    "Adds buttons to hide/show the Edit Family section and the Photo Settings (and tips) column on edit pages. " +
+    "The latter is not very compatible with the enhanced editor, so the Photo Settings button will also turn off the enhanced editor. " +
+    "(You can click it back on again after hiding the Photo Settings column.)",
   category: "Editing/Edit_Profile",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
+  contributors: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
   defaultValue: false,
   pages: [isWikiEdit],
   options: [
     {
+      id: "startHiddenFamily",
+      type: OptionType.CHECKBOX,
+      defaultValue: false,
+      label: "Hide the Edit Family section on page load",
+    },
+    {
       id: "startHidden",
       type: OptionType.CHECKBOX,
       defaultValue: false,
-      label: "Hide the photo column on page load",
+      label: "Hide the Photo Settings column on page load",
     },
   ],
 });

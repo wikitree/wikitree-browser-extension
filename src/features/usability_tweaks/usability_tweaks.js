@@ -360,7 +360,7 @@ function putFocusOnFirstNameField() {
   }
 }
 
-function autoClickAddPersonOptions() {
+export function autoClickAddPersonOptions() {
   setTimeout(function () {
     const whoValue = new URL(window.location.href).searchParams.get("who");
     const WBEactionValue = new URL(window.location.href).searchParams.get("WBEaction");
@@ -380,29 +380,6 @@ function autoClickAddPersonOptions() {
 }
 
 function replaceAddRemoveReplaceLinks() {
-  if (isProfilePage) {
-    const editFamilyLinks = document.getElementsByClassName("BLANK");
-    for (let i = 0; i < editFamilyLinks.length; i++) {
-      switch (editFamilyLinks[i].innerText) {
-        case "[mother?]":
-        case "[father?]":
-        case "[spouse?]":
-        case "[add spouse?]":
-        case "[add child]":
-        case "[children?]":
-        case "[brothers or sisters?]":
-        case "[add sibling]": {
-          if (editFamilyLinks[i].tagName == "A") {
-            editFamilyLinks[i].href = editFamilyLinks[i].href + "&WBEaction=Add";
-          } else if (editFamilyLinks[i].tagName == "SPAN") {
-            editFamilyLinks[i].firstChild.href = editFamilyLinks[i].firstChild.href + "&WBEaction=Add";
-          }
-
-          break;
-        }
-      }
-    }
-  }
   if (isProfileEdit) {
     const hasFather = $("input[name='mStatus_Father']").length;
     const hasMother = $("input[name='mStatus_Mother']").length;
@@ -645,27 +622,109 @@ function findItemByCumulativeSpan($parent) {
 }
 
 function makeTableOverflowVisible() {
-  // Add style to the head:
-  /*
-  .table-wrapper {
-    overflow-x: visible !important;
+  /************************************/
+  /*  A) Inject dynamic icon CSS      */
+  /************************************/
+  // We build a small <style> so we can reference extension icons using runtime.getURL().
+  let minusURL = chrome.runtime.getURL("images/minus-toggler.svg");
+  let plusURL = chrome.runtime.getURL("images/plus-toggler.svg");
+
+  // If we haven't already created it, do so:
+  if ($("#overflowIconsStyle").length === 0) {
+    const cssContent = `
+      .toggleOverflowButton.minus {
+        background-image: url("${minusURL}") !important;
+      }
+      .toggleOverflowButton.plus {
+        background-image: url("${plusURL}") !important;
+      }
+    `;
+    // Append that to <head>
+    $("<style>", { id: "overflowIconsStyle", text: cssContent }).appendTo("head");
   }
-  */
-  const style = document.createElement("style");
-  const backgroundColor = $("body").css("background-color");
-  style.innerHTML = `
-    .table-wrapper {
-      overflow-x: visible !important;
-      background-color: ${backgroundColor} !important;
-      z-index: 800 !important;
+
+  /************************************/
+  /*  B) Overflow styling approach    */
+  /************************************/
+  // We'll toggle a body class .wbe-overflow that sets .table-wrapper overflow via your main CSS
+  // Or we can inject a global style. Up to you.
+  // For example, you might have in your CSS:
+  //   .wbe-overflow .table-wrapper { overflow-x: visible !important; }
+
+  // If you prefer dynamic injection for the overflow rules too, you can do that here:
+  let $globalOverflowStyle = $("#tableOverflowStyle");
+  if ($globalOverflowStyle.length === 0) {
+    // This is the style that actually enables overflow
+    $globalOverflowStyle = $("<style>", { id: "tableOverflowStyle" })
+      .text(
+        `
+      .wbe-overflow .table-wrapper {
+        overflow-x: visible !important;
+        z-index: 800 !important;
+      }
+      .wbe-overflow .table-wrapper table {
+        position: relative !important;
+        z-index: 800 !important;
+      }
+    `
+      )
+      .appendTo("head");
+  }
+
+  // Start with overflow ON or OFF?
+  // For example, let's start with overflow ON:
+  let overflowOn = true;
+  $("body").addClass("wbe-overflow");
+
+  /************************************/
+  /*  C) Create toggle buttons        */
+  /************************************/
+  // We only want to place a button before .table-wrapper not inside a .box
+  const $eligibleWrappers = $(".table-wrapper").filter(function () {
+    return $(this).closest(".box").length === 0 && $(this).find("tr.x-inline-img").length === 0;
+  });
+
+  // Helper to update all button icons
+  function updateAllButtons() {
+    if (overflowOn) {
+      // If overflow is ON => every button is "minus"
+      $(".toggleOverflowButton").removeClass("plus").addClass("minus");
+      // Add title to all buttons
+      $(".toggleOverflowButton").attr("title", "Hide overflow");
+    } else {
+      // Overflow OFF => every button is "plus"
+      $(".toggleOverflowButton").removeClass("minus").addClass("plus");
+      // Add title to all buttons
+      $(".toggleOverflowButton").attr("title", "Show overflow");
     }
-    .table-wrapper table {
-      background-color: ${backgroundColor} !important;
-      position:relative !important;
-      z-index: 800 !important;
-    }
-  `;
-  document.head.appendChild(style);
+  }
+
+  // Insert a button for each eligible table wrapper
+  $eligibleWrappers.each(function () {
+    const $btn = $("<a>", {
+      class: "toggleOverflowButton small wbe-button minus",
+      // We add .minus initially because overflowOn = true
+    });
+
+    // Insert button before the table wrapper
+    $(this).before($btn);
+
+    // Attach a click handler for toggling
+    $btn.on("click", (e) => {
+      e.preventDefault();
+      overflowOn = !overflowOn;
+      if (overflowOn) {
+        $("body").addClass("wbe-overflow");
+      } else {
+        $("body").removeClass("wbe-overflow");
+      }
+      // Update icons on all existing buttons
+      updateAllButtons();
+    });
+  });
+
+  // Make sure all buttons reflect the initial state
+  updateAllButtons();
 }
 
 shouldInitializeFeature("usabilityTweaks").then((result) => {
