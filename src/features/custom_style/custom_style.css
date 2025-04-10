@@ -79,7 +79,8 @@ body.space div.body-text table:has(a.image) {
   z-index: 100;
   position: relative;
 }
-body.customStyle .x-sticker {
+body.customStyle .x-sticker,
+body.customStyle .box {
   position: relative;
   z-index: 100; /* Show above header colour */
 }
