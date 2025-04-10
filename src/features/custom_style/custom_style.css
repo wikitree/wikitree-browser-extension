@@ -84,3 +84,8 @@ body.customStyle .box {
   position: relative;
   z-index: 100; /* Show above header colour */
 }
+
+body.customStyle span.float-end {
+  position: relative;
+  z-index: 101; /* Show above header colour */
+}
