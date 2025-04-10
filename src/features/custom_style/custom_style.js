@@ -165,7 +165,7 @@ class CustomStyle {
         "button.nav-link:not(.active),a.nav-link:not(.active),footer#footer ul.nav a.nav-link:not(.active),footer#footer p a:link,header,footer,div.tabs--wrapper,div.category--links",
       color2: ".nav-link.active,.nav-link.active a,button.button, a.btn-pill-sm",
       color3: "aside",
-      color4: "div.box.rounded,aside.box.rounded",
+      color4: "div.box.orange.rounded,aside.box.orange.rounded",
       link: "a:link:not(.btn-secondary,#jump-nav a,.qa-nav-main-link,a.button,a.new,.qa-nav-sub-link,.qa-nav-footer-link,#footer a,a.qa-tag-link,a.new,.wt.table th a,#editToolbarExt a,#view-container a,.btn-pill-sm,.menu-style .dropdown-menu a)",
       tag: ".qa-q-item-tag-item a:link",
       tagHover: ".qa-q-item-tag-item a:link:hover,.qa-q-item-tag-item a:visited:hover",
