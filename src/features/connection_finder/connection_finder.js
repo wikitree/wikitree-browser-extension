@@ -444,7 +444,7 @@ async function connectionFinderThings() {
     //connectionText = [
     // "Ian Beacall is \n        22 Degrees from\n        Joseph Harnois"
     //]
-    if ($("h2:contains('Degrees')").length) {
+    if ($("h2:contains('Degrees')").length && $("#person1Name").val() && $("#person2Name").val()) {
       // Get text of first and last links in #connectionList
       const firstLink = $("#connectionList a").first().text();
       const lastLink = $("#connectionList a").last().text();
@@ -457,6 +457,8 @@ async function connectionFinderThings() {
     } else if ($("h2:contains('No Connection Found')").length) {
       clearInterval(checkForDegreesHeader); // Stop checking
       setupConnectionTools();
+    } else {
+      clearInterval(checkForDegreesHeader); // Stop checking
     }
   }, 100);
 
@@ -1447,7 +1449,9 @@ function showHeritageSocietyBox() {
         pText = hsDetails(aCouple[1]);
 
         $.ajax({
-          url: "https://api.wikitree.com/api.php?action=getRelatives&appID=WBE-connectionFinder&getParents=true&keys=" + aCouple[1].Name,
+          url:
+            "https://api.wikitree.com/api.php?action=getRelatives&appID=WBE-connectionFinder&getParents=true&keys=" +
+            aCouple[1].Name,
           crossDomain: true,
           xhrFields: { withCredentials: true },
           type: "POST",
