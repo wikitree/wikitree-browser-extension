@@ -42,6 +42,12 @@
   display: inline-block;
 }
 
+body.edit_relation .clipboardContainer,
+body.add_unrelated .clipboardContainer {
+  top: 0.2em;
+  margin-left: 0.5em;
+}
+
 form[name="a_form"] {
   position: relative;
 }

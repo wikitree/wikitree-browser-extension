@@ -66,8 +66,11 @@ function initEditorExpander() {
       const textareaTd = labelTd.next("td");
       const textarea = textareaTd.find("textarea");
 
-      labelTd.append(expandButton);
-
+      if (labelIds[i] === "sourcesLabel") {
+        labelTd.before(expandButton);
+      } else {
+        labelTd.append(expandButton);
+      }
       // Store original elements in JavaScript Map
       originalButtonMap.set(expandButton[0], labelTd);
       originalTextareaMap.set(expandButton[0], textarea);

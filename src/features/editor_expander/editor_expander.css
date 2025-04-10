@@ -15,6 +15,11 @@
   display: block;
   margin-top: 0.2em;
 }
+body.edit_relation .expandTextareaButton,
+body.add_unrelated .expandTextareaButton {
+  float: left;
+  margin-right: 0.5em;
+}
 
 div.CodeMirror.expanded,
 textarea#wpTextbox1.expanded {

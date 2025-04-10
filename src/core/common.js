@@ -330,7 +330,7 @@ async function checkButtonFeatures() {
         $("h1").eq(0).after(clipboardContainer);
         clipboardContainer.draggable();
       } else if (isAddUnrelatedPerson || isProfileAddRelative) {
-        $("#sourcesLabel").append(clipboardContainer);
+        $("#sourcesLabel").after(clipboardContainer);
       } else if (isG2G) {
         $("#anew h2").prepend(clipboardContainer);
         clipboardContainer.css("float", "right");
