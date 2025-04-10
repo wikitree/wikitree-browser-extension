@@ -7,9 +7,9 @@ import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 // Initialize the feature if enabled.
-shouldInitializeFeature("hidePhotoColumn").then((result) => {
+shouldInitializeFeature("editProfileRedesign").then((result) => {
   if (result) {
-    import("./hide_photo_column.css");
+    import("./edit_profile_redesign.css");
     init();
   }
 });
@@ -75,7 +75,7 @@ function setButtonTitle() {
 }
 
 /**
- * Initializes the hidePhotoColumn feature.
+ * Initializes the editProfileRedesign feature.
  * Appends the toggle button and binds its event listener.
  */
 async function init() {
@@ -95,18 +95,13 @@ async function init() {
     });
 
     // Retrieve options and auto-toggle if startHidden is set.
-    const options = await getFeatureOptions("hidePhotoColumn");
+    const options = await getFeatureOptions("editProfileRedesign");
     if (options.startHidden) {
       setTimeout(() => {
         toggleTipsColumn();
       }, 2000);
     }
-    toggleFamilySection();
-    if (options.startHiddenFamily) {
-      setTimeout(() => {
-        toggleFamilySection();
-      }, 2000);
-    }
+    addToggleFamilySectionButton(options.startHiddenFamily);
   }
 }
 
@@ -135,7 +130,7 @@ function toggleTipsColumn() {
   }, 100);
 }
 
-function toggleFamilySection() {
+function addToggleFamilySectionButton(hideOnLoad) {
   const texth2 = document.getElementById("Text");
   const familyh2 = document.getElementById("Family");
   const familyDivInner = familyh2.parentNode;
@@ -161,7 +156,8 @@ function toggleFamilySection() {
 
   let isHidden = false;
 
-  toggle.addEventListener("click", () => {
+  toggle.addEventListener("click", (e) => {
+    e.preventDefault();
     if (isHidden) {
       // Show
       toggleImg.src = minusURL;
@@ -198,4 +194,10 @@ function toggleFamilySection() {
 
     isHidden = !isHidden;
   });
+
+  if (hideOnLoad) {
+    setTimeout(() => {
+      toggle.click();
+    }, 500);
+  }
 }
