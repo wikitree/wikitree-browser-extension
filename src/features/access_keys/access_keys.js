@@ -117,6 +117,24 @@ function setJumpNavAccessKeys(options) {
                 document.getElementById("wpSummary").focus();
               });
             }
+
+            if (aTags[i].href.toLowerCase().includes("#family")) {
+              aTags[i].addEventListener("click", () => {
+                const toggleFamilySectionButton = document.getElementById("toggleFamilyColumn");
+                if (toggleFamilySectionButton != null && toggleFamilySectionButton.innerHTML.includes("plus-toggler")) {
+                  toggleFamilySectionButton.click();
+                }
+              });
+            }
+
+            if (aTags[i].href.toLowerCase().includes("#photo")) {
+              aTags[i].addEventListener("click", () => {
+                const togglePhotoSectionButton = document.getElementById("toggleTipsColumn");
+                if (togglePhotoSectionButton && togglePhotoSectionButton.innerHTML.includes("plus")) {
+                  togglePhotoSectionButton.click();
+                }
+              });
+            }
           }
           if (options.JumpNavHints) {
             const hint = document.createElement("sup");

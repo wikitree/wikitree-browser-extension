@@ -1,7 +1,7 @@
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isProfileAddRelative, isAddUnrelatedPerson } from "../../core/pageType";
-import { isEnhancedEditorOn } from "../hide_photo_column/hide_photo_column";
+import { isEnhancedEditorOn } from "../edit_profile_redesign/edit_profile_redesign";
 
 shouldInitializeFeature("editorExpander").then((result) => {
   if (result) {
