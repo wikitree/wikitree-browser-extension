@@ -157,9 +157,9 @@ import "./features/image_table/image_table";
 import "./features/randomProfile/randomProfile";
 import "./features/space_watchlist_sorter/space_watchlist_sorter";
 import "./features/what_links_here/what_links_here";
+import "./features/edit_profile_redesign/edit_profile_redesign";
 
 /* MARKER: Default place for new features. Move these to a more appropriate place.*/
-import "./features/hide_photo_column/hide_photo_column";
 
 import "./features/links_to_new_tabs/links_to_new_tabs";
 

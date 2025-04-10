@@ -7,7 +7,7 @@ import { isWikiEdit } from "../../core/pageType";
 
 registerFeature({
   name: "Edit Profile Redesign",
-  id: "hidePhotoColumn",
+  id: "editProfileRedesign",
   description:
     "Adds buttons to hide/show the Edit Family section and the Photo Settings (and tips) column on edit pages. " +
     "The latter is not very compatible with the enhanced editor, so the Photo Settings button will also turn off the enhanced editor. " +
