@@ -148,6 +148,7 @@ function addToggleFamilySectionButton(hideOnLoad) {
   toggle.id = "toggleFamilyColumn";
   toggle.href = "#0";
   toggle.classList.add("small", "wbe-button");
+  toggle.setAttribute("data-tooltip", "Hide the Edit Family section");
 
   const toggleImg = document.createElement("img");
   toggleImg.src = minusURL;
