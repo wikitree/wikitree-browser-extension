@@ -26,6 +26,7 @@ import { profilePerson } from "../../core/common";
 let enhanced = false;
 let theID;
 let options;
+let selectionEnd = 0;
 // Flag to track if #toggleTipsColumn was toggled by shareable sources.
 let shareableSourcesToggledTips = false;
 
@@ -137,33 +138,42 @@ shouldInitializeFeature("shareableSources").then((result) => {
  * @param {number} [active=0] - The index of the active source.
  */
 function getSources(person, active = 0) {
+  console.log("getSources called with person:", person, "and active:", active);
+
   // Remove any existing shareable sources elements.
+  console.log("Removing existing shareable sources elements.");
   $("div.referenceBox").remove();
   $("#relativeBiography").remove();
   $("#otherPersonLabel").remove();
 
   let activeSources = active;
   if (!person?.bio) {
+    console.warn("No biography found for the person. Exiting getSources.");
     return;
   }
 
+  console.log("Extracting sources from biography.");
   let refArr = basicSourcesArray(person.bio);
+  console.log("Extracted sources:", refArr);
 
   let enhancedEditorButton = $("#toggleMarkupColor");
   enhanced = false;
   if (enhancedEditorButton.attr("value") === "Turn Off Enhanced Editor") {
     enhanced = true;
   }
+  console.log("Enhanced editor status:", enhanced);
 
   window.sourceButtonEnhancedClickedCount = 0;
 
   enhancedEditorButton.on("click", function () {
+    console.log("Enhanced editor button clicked.");
     setTimeout(function () {
       if (enhancedEditorButton.attr("value") === "Turn Off Enhanced Editor") {
         enhanced = true;
       } else {
         enhanced = false;
       }
+      console.log("Updated enhanced editor status:", enhanced);
       if ($(".referenceBox").length) {
         $(".referenceBox button.inline, .referenceBox button.copyInline").each(function () {
           if (enhanced) {
@@ -178,6 +188,7 @@ function getSources(person, active = 0) {
 
   let efProfile = person;
   if (person.bio) {
+    console.log("Creating reference box for profile:", efProfile);
     let efBio = person.bio;
     let refBoxClass = "";
     if (isProfileAddRelative) {
@@ -195,6 +206,7 @@ function getSources(person, active = 0) {
     `);
 
     refArr.forEach(function (aRef, index) {
+      console.log("Adding source to reference box:", aRef, "at index:", index);
       let button1 = `<button data-ref=${index} class='small paste'>Add to Sources</button>`;
       let button2 = `<button data-ref=${index} class='small inline'>Add Inline Citation</button>`;
       let button3 = `<button data-ref='${index}' class='small copyInline'>Copy Inline Citation</button>`;
@@ -207,14 +219,17 @@ function getSources(person, active = 0) {
     });
 
     if (isProfileEdit) {
+      console.log("In profile edit mode. Adding reference box to sidebar.");
       referenceBox.prependTo($("#Lower-Sidebar"));
       const isPhotoColumnHidden = $("#toggleTipsColumn[data-tooltip*='show']").length > 0;
       if (isPhotoColumnHidden) {
+        console.log("Photo column is hidden. Toggling it.");
         $("#toggleTipsColumn").trigger("click");
         shareableSourcesToggledTips = true;
       }
       referenceBox.draggable();
     } else {
+      console.log("Not in profile edit mode. Adding reference box after sources label.");
       $("#sourcesLabel").after(referenceBox);
       setTimeout(function () {
         referenceBox.find("h3").trigger("click");
@@ -222,10 +237,17 @@ function getSources(person, active = 0) {
     }
 
     if (activeSources === 1 && !isProfileAddRelative) {
+      console.log("Active sources is 1 and not adding relative. Expanding reference box.");
       $("div.referenceBox div").slideDown("swing");
     }
 
+    const firstButton = referenceBox.find("button.paste.small").first();
+    if (firstButton.length) {
+      firstButton.addClass("activeSrc");
+    }
+
     $("#previewButton").on("click", function () {
+      console.log("Preview button clicked.");
       if ($(".referenceBox").hasClass("active")) {
         $(".referenceBox h3").trigger("click");
         setTimeout(function () {
@@ -240,13 +262,17 @@ function getSources(person, active = 0) {
       "click",
       function (e) {
         e.preventDefault();
+        console.log("Source button clicked:", this);
         if (enhanced) {
           window.clickedSourceButton = true;
         }
         let ref = $(this).data("ref");
+        console.log("Reference index:", ref);
         let thePerson = $(this).closest("div.referenceBox").data("id");
+        console.log("Person ID:", thePerson);
         let theTextarea = $(`.referenceBox[data-id="${thePerson}"] textarea[data-ref="${ref}"]`);
         let theText = theTextarea.html();
+        console.log("Text to insert:", theText);
         let box;
         if ($(this).hasClass("paste")) {
           box = "mSources";
@@ -275,19 +301,24 @@ function getSources(person, active = 0) {
           .val()
           .substr(selStart);
         if ($(this).hasClass("copyInline")) {
+          console.log("Copying inline citation to clipboard.");
           copyToClipboard3($("<a>" + theText + "</a>")[0]);
         } else {
-          if (selStart > 0) {
+          console.log("Inserting text into box:", box);
+          if (selStart > 0 && $(this).hasClass("inline")) {
             if (partA.substr(partA.length - 1) !== "\n" && !theText.includes("<ref>")) {
               theText = "\n" + theText;
             }
             $("#" + box).val(partA + decodeHTMLEntities(theText) + partB);
+            const valNew = $("#" + box).val();
+            selectionEnd = valNew.indexOf(partB);
           } else {
             let optionalTrailingNewLine = "\n";
             if ($("#" + box).val() === "") {
               optionalTrailingNewLine = "";
             }
             $("#" + box).val($("#" + box).val() + optionalTrailingNewLine + decodeHTMLEntities(theText) + "\n");
+            selectionEnd = selStart;
           }
         }
         if (isProfileEdit && enhanced === true) {
@@ -297,14 +328,17 @@ function getSources(person, active = 0) {
     );
 
     $(".referenceBox h3").on("click", function () {
+      console.log("Reference box header clicked.");
       let topDiv = $(this).parent();
       if (topDiv.hasClass("active")) {
+        console.log("Collapsing reference box.");
         topDiv.find("div").slideUp("fade", function () {
-          //  topDiv.remove();
+          topDiv.remove();
           topDiv.removeClass("active");
           maybeRestoreToggle();
         });
       } else {
+        console.log("Expanding reference box.");
         topDiv.find("div").slideDown("swing");
         topDiv.addClass("active");
       }
@@ -319,26 +353,33 @@ function getSources(person, active = 0) {
         <textarea id='relativeBioContent'>${efBio}</textarea>
       </div>
     `);
+    console.log("Adding relative biography popup.");
     relativeBiography.insertBefore($(".referenceBox"));
     $("#relativeBiography").draggable({
       handle: "#relBioh3",
     });
     $(".referenceBox .seeBiography").on("click", function (e) {
       e.preventDefault();
+      console.log("See biography button clicked.");
       if ($("#relativeBiography").is(":visible")) {
+        console.log("Hiding relative biography.");
         $("#relativeBiography").slideUp("fade", function () {
+          $(this).remove();
           maybeRestoreToggle();
         });
       } else {
+        console.log("Showing relative biography.");
         $("#relativeBiography").slideDown("swing");
       }
     });
 
     $(".referenceBox x").on("click", function () {
+      console.log("Closing reference box.");
       $(this).parent().remove();
       maybeRestoreToggle();
     });
     $("#relativeBiography x").on("click", function () {
+      console.log("Closing relative biography.");
       $("#relativeBiography").remove();
       maybeRestoreToggle();
     });
@@ -441,6 +482,8 @@ function basicSourcesArray(bio) {
  * to restore the original view and resets the flag.
  */
 $(document).on("keydown.shareableSourcesPopup", function (e) {
+  const activeButton = $(this).find('button[class*="activeSrc"]').first();
+  let activeButtonIsInline = activeButton.length && activeButton.get(0).className.includes("nline");
   if (e.key === "Escape") {
     let popups = $("div.referenceBox, #relativeBiography, #otherPersonLabel").filter(function () {
       return $(this).css("display") !== "none";
@@ -471,8 +514,52 @@ $(document).on("keydown.shareableSourcesPopup", function (e) {
         shareableSourcesToggledTips = false;
       }
     }, 300);
+
+    const box = $("#mBioWithoutSources, #mSources, #wpTextbox1");
+    if (box.length) {
+      box.get(0).focus();
+      box.get(0).selectionEnd = selectionEnd;
+    }
+  } else if (e.shiftKey && e.key == "ArrowRight" && activeButton.length) {
+    e.preventDefault();
+    if (!activeButtonIsInline) {
+      switchActiveButton(activeButton, activeButton.next("button"));
+    }
+  } else if (e.shiftKey && e.key == "ArrowLeft" && activeButton.length) {
+    e.preventDefault();
+    if (activeButtonIsInline) {
+      switchActiveButton(activeButton, activeButton.prev("button"));
+    }
+  } else if (e.shiftKey && e.key == "ArrowDown" && activeButton.length) {
+    e.preventDefault();
+    let nextButton = activeButton.parent().next().find("button").first();
+    if (activeButtonIsInline) {
+      nextButton = nextButton.next("button");
+    }
+    if (nextButton.length) {
+      switchActiveButton(activeButton, nextButton);
+    }
+  } else if (e.shiftKey && e.key == "ArrowUp" && activeButton.length) {
+    e.preventDefault();
+    let prevButton = activeButton.parent().prev().find("button").first();
+    if (activeButtonIsInline) {
+      prevButton = prevButton.next("button");
+    }
+    if (prevButton.length) {
+      switchActiveButton(activeButton, prevButton);
+    }
+  } else if (e.key === "Enter") {
+    if (activeButton.length) {
+      e.stopPropagation();
+      activeButton.trigger("click");
+    }
   }
 });
+
+function switchActiveButton(activeButton, nextButton) {
+  activeButton.removeClass("activeSrc");
+  nextButton.addClass("activeSrc");
+}
 
 // Remove any shareable sources elements on page unload to prevent unwanted auto-save.
 window.addEventListener("beforeunload", function () {

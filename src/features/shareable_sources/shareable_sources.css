@@ -70,6 +70,10 @@ button.seeBiography {
   left: -2em;
 }
 
+button.activeSrc {
+  border: 1px solid forestgreen;
+}
+
 #relativeBiography {
   display: none;
   width: 30em;
