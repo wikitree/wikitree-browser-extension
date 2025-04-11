@@ -251,7 +251,7 @@ async function whatLinksHereLink() {
         $("#Memories").before(theSection);
       } else if ($("div.box.orange.rounded h3")) {
         // on private pages, put it above the orange box and any stray <br> tags from the memories code
-        $("div.box.orange.rounded h3").closest("div.box").before(theSection);
+        $("div.box.orange.rounded h3").last().closest("div.box").before(theSection);
       } else {
         $("#content .ten").append(theSection);
       }
