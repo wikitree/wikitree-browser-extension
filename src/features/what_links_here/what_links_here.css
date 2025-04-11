@@ -16,3 +16,8 @@
 #whatLinksHereSection:not(.expand-whl) > h2 + div {
   display: none !important;
 }
+
+div#whatLinksHere div {
+  max-width: 50%;
+  overflow: overlay;
+}

@@ -23,46 +23,47 @@ shouldInitializeFeature("whatLinksHere").then((result) => {
 async function fillWhatLinksHereSection() {
   const s = getWhatLinksHereLink(200);
   const url = new URL(s, "https://" + mainDomain);
+
   getWikiTreePage("WhatLinksHereSection", url.pathname, url.search).then((data) => {
     const dLinks = $(data).find("div.body-text ul a[href*='/wiki/']");
+
     const whatLinksHerePages = [];
     const whatLinksHereWikiTreeIDs = [];
     const whatLinksHereProfiles = [];
+
     if (dLinks.length == 0) {
-      const nextElement = $("#What_Links_Here").next();
+      const nextElement = $("h2#What_Links_Here").next();
       const $whatLinksHere = $("<div id='whatLinksHere'><dl><dd>Nothing links here yet.</dd></dl></div>");
       if (nextElement.hasClass("collapsible-section")) {
         nextElement.prepend($whatLinksHere);
-        if ($("#What_Links_Here").find("button.collapse-toggle").text() == "+") {
-          $("#What_Links_Here").find("button.collapse-toggle").trigger("click");
+        if ($("h2#What_Links_Here").find("button.collapse-toggle").text() == "+") {
+          $("h2#What_Links_Here").find("button.collapse-toggle").trigger("click");
           $("span.toggle-whl").fadeOut(500);
         }
       } else {
-        $("#What_Links_Here").after($whatLinksHere);
+        $("h2#What_Links_Here").after($whatLinksHere);
       }
       return;
     }
+
     dLinks.sort(function (a, b) {
-      // sort all links by ID (including the Category: or Space: prefixes)
       let c = $(a).attr("href")?.toLowerCase();
       let d = $(b).attr("href")?.toLowerCase();
       return c < d ? -1 : c > d ? 1 : 0;
     });
+
     dLinks.each(function () {
-      if (
-        $(this)
-          .attr("href")
-          .match(/Help:|Docs:|Space:|Category:|Project:|Special:|Template:/) == null
-      ) {
+      const href = $(this).attr("href");
+      if (href.match(/Help:|Docs:|Space:|Category:|Project:|Special:|Template:/) == null) {
         whatLinksHereWikiTreeIDs.push($(this).text());
       } else {
-        whatLinksHerePages.push($(`<a href="/wiki/${$(this).attr("href").split("/wiki/")[1]}">${$(this).text()}</a>`));
+        whatLinksHerePages.push($(`<a href="/wiki/${href.split("/wiki/")[1]}">${$(this).text()}</a>`));
       }
     });
 
     if (whatLinksHereWikiTreeIDs.length || whatLinksHerePages.length) {
       let profiles = whatLinksHereWikiTreeIDs.join(",");
-      // private profiles will not be returned and displayed
+
       getPeople(profiles, 0, 0, 0, 0, 0, "Name,Derived.ShortName,Derived.LongName", "WBE_what_links_here").then(
         (data) => {
           if (data.length) {
@@ -80,6 +81,7 @@ async function fillWhatLinksHereSection() {
               ).toLowerCase();
               return c < d ? -1 : c > d ? 1 : 0;
             });
+
             theKeys.forEach(function (aKey) {
               let person = data[0].people[aKey];
               if (person.Name) {
@@ -90,6 +92,7 @@ async function fillWhatLinksHereSection() {
               }
             });
           }
+
           let wlhContainers = "";
           if (whatLinksHereWikiTreeIDs.length) {
             wlhContainers += "<div><ul id='whatLinksHereLinksProfiles' class='star'></ul></div>";
@@ -99,17 +102,13 @@ async function fillWhatLinksHereSection() {
           }
           wlhContainers = '<div id="whatLinksHere" style="display: flex;">' + wlhContainers + "</div>";
 
-          // If the element after #What_Links_Here is a .collapsible-section, append the new content to it.
-          // If #What_Links_Here button.collapse-toggle text() == "−", toggle the section open.
-          // Otherwise, append the new content after #What_Links_Here.
-
-          if ($("#What_Links_Here").next().hasClass("collapsible-section")) {
-            $("#What_Links_Here").next().prepend(wlhContainers);
-            if ($("#What_Links_Here").find("button.collapse-toggle").text() == "+") {
-              $("#What_Links_Here").find("button.collapse-toggle").trigger("click");
+          if ($("h2#What_Links_Here").next().hasClass("collapsible-section")) {
+            $("h2#What_Links_Here").next().prepend(wlhContainers);
+            if ($("h2#What_Links_Here").find("button.collapse-toggle").text() == "+") {
+              $("h2#What_Links_Here").find("button.collapse-toggle").trigger("click");
             }
           } else {
-            $("#What_Links_Here").after(wlhContainers);
+            $("h2#What_Links_Here").after(wlhContainers);
           }
 
           whatLinksHerePages.forEach(function (aLink) {
@@ -117,6 +116,7 @@ async function fillWhatLinksHereSection() {
             $("#whatLinksHereLinksPages").append(anLi);
             anLi.append($(aLink));
           });
+
           whatLinksHereProfiles.forEach(function (aLink) {
             let anLi = $("<li></li>");
             $("#whatLinksHereLinksProfiles").append(anLi);
@@ -125,9 +125,6 @@ async function fillWhatLinksHereSection() {
         }
       );
     }
-    $("#whatLinksHereMore").fadeOut(200, function () {
-      $(this).remove();
-    });
   });
 }
 
@@ -265,12 +262,19 @@ async function whatLinksHereLink() {
     } else {
       $("main div.container div.page--content").last().append(theSection);
     }
-    $("#whatLinksHereMore").on("change", function () {
-      if (!this.xWhatLinksHerePopulated) {
-        fillWhatLinksHereSection();
-        this.xWhatLinksHerePopulated = true;
+    $(document).on("change", "#whatLinksHereMore", async function (event) {
+      const checkbox = event.target;
+      if (!checkbox.xWhatLinksHerePopulated) {
+        await fillWhatLinksHereSection();
+        checkbox.xWhatLinksHerePopulated = true;
       }
-      $("#whatLinksHere").toggle(); // toggle display on subsequent changes
+      // Toggle visibility of #whatLinksHere
+      const whatLinksHere = $("h2#What_Links_Here + #whatLinksHere");
+      if (checkbox.checked) {
+        whatLinksHere.css("display", "flex");
+      } else {
+        whatLinksHere.css("display", "none");
+      }
     });
   }
   $("a.whatLinksHere").on("contextmenu", function (e) {
