@@ -13,6 +13,7 @@
  */
 
 import $ from "jquery";
+import { isSpacePage } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 /**
@@ -55,6 +56,9 @@ async function moveCategories() {
   $categories.addClass("x-categories");
   $("a[name='Categories']").remove();
   if (!$categories.length) return;
+  // Create a new ordered list container.
+  const $ol = $('<ol class="star"></ol>');
+  let $heading = null; // Will store the heading link if found.
 
   // Transform the structure if "list" display is selected.
   switch (options.displayType) {
@@ -65,10 +69,6 @@ async function moveCategories() {
     case "list":
       // Remove any <span class="SMALL"> elements.
       $categories.find("span.SMALL").remove();
-
-      // Create a new ordered list container.
-      const $ol = $('<ol class="star"></ol>');
-      let $heading = null; // Will store the heading link if found.
 
       // Iterate over each child node of #Categories.
       $categories.contents().each(function () {
@@ -134,7 +134,10 @@ async function moveCategories() {
 
   // Relocate the #Categories element if required.
   const $privacyModal = $("#privacyModal");
-  const $sidebar = $("#Profile-Data").closest("div");
+  let $sidebar = $("#Profile-Data").closest("div");
+  if (isSpacePage) {
+    $sidebar = $("aside.x-sidebar-section").closest("div.x-sidebar");
+  }
 
   switch (options.categoryLocation) {
     case "sidebar":
@@ -162,6 +165,9 @@ async function moveCategories() {
       break;
     case "top":
       $categories.find("span.SMALL").remove();
+      if (isSpacePage) {
+        $("div.before-headings").prepend($categories);
+      }
       $privacyModal.before($categories);
       break;
     case "default":
