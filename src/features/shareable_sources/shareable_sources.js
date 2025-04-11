@@ -310,7 +310,7 @@ function getSources(person, active = 0) {
       let topDiv = $(this).parent();
       if (topDiv.hasClass("active")) {
         topDiv.find("div").slideUp("fade", function () {
-          topDiv.remove();
+          //topDiv.remove();
           topDiv.removeClass("active");
           maybeRestoreToggle();
         });
