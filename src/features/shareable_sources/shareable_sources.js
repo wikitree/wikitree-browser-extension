@@ -327,7 +327,6 @@ function getSources(person, active = 0) {
       e.preventDefault();
       if ($("#relativeBiography").is(":visible")) {
         $("#relativeBiography").slideUp("fade", function () {
-          $(this).remove();
           maybeRestoreToggle();
         });
       } else {
