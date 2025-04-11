@@ -17,5 +17,11 @@ registerFeature({
       label: "Add correct Welsh patronymic as the last name at birth",
       defaultValue: true,
     },
+    {
+      id: "copyLocations",
+      type: OptionType.CHECKBOX,
+      label: "Add links to copy locations into location fields",
+      defaultValue: true,
+    },
   ],
 });
