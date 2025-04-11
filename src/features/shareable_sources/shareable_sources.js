@@ -26,6 +26,7 @@ import { profilePerson } from "../../core/common";
 let enhanced = false;
 let theID;
 let options;
+let selectionEnd = 0;
 // Flag to track if #toggleTipsColumn was toggled by shareable sources.
 let shareableSourcesToggledTips = false;
 
@@ -225,6 +226,11 @@ function getSources(person, active = 0) {
       $("div.referenceBox div").slideDown("swing");
     }
 
+    const firstButton = referenceBox.find("button.paste.small").first();
+    if (firstButton.length) {
+      firstButton.addClass("activeSrc");
+    }
+
     $("#previewButton").on("click", function () {
       if ($(".referenceBox").hasClass("active")) {
         $(".referenceBox h3").trigger("click");
@@ -277,17 +283,21 @@ function getSources(person, active = 0) {
         if ($(this).hasClass("copyInline")) {
           copyToClipboard3($("<a>" + theText + "</a>")[0]);
         } else {
-          if (selStart > 0) {
+          console.log("Inserting text into box:", box);
+          if (selStart > 0 && $(this).hasClass("inline")) {
             if (partA.substr(partA.length - 1) !== "\n" && !theText.includes("<ref>")) {
               theText = "\n" + theText;
             }
             $("#" + box).val(partA + decodeHTMLEntities(theText) + partB);
+            const valNew = $("#" + box).val();
+            selectionEnd = valNew.indexOf(partB);
           } else {
             let optionalTrailingNewLine = "\n";
             if ($("#" + box).val() === "") {
               optionalTrailingNewLine = "";
             }
             $("#" + box).val($("#" + box).val() + optionalTrailingNewLine + decodeHTMLEntities(theText) + "\n");
+            selectionEnd = selStart;
           }
         }
         if (isProfileEdit && enhanced === true) {
@@ -300,7 +310,7 @@ function getSources(person, active = 0) {
       let topDiv = $(this).parent();
       if (topDiv.hasClass("active")) {
         topDiv.find("div").slideUp("fade", function () {
-          //  topDiv.remove();
+          //topDiv.remove();
           topDiv.removeClass("active");
           maybeRestoreToggle();
         });
@@ -441,6 +451,8 @@ function basicSourcesArray(bio) {
  * to restore the original view and resets the flag.
  */
 $(document).on("keydown.shareableSourcesPopup", function (e) {
+  const activeButton = $(this).find('button[class*="activeSrc"]').first();
+  let activeButtonIsInline = activeButton.length && activeButton.get(0).className.includes("nline");
   if (e.key === "Escape") {
     let popups = $("div.referenceBox, #relativeBiography, #otherPersonLabel").filter(function () {
       return $(this).css("display") !== "none";
@@ -471,8 +483,52 @@ $(document).on("keydown.shareableSourcesPopup", function (e) {
         shareableSourcesToggledTips = false;
       }
     }, 300);
+
+    const box = $("#mBioWithoutSources, #mSources, #wpTextbox1");
+    if (box.length) {
+      box.get(0).focus();
+      box.get(0).selectionEnd = selectionEnd;
+    }
+  } else if (e.shiftKey && e.key == "ArrowRight" && activeButton.length) {
+    e.preventDefault();
+    if (!activeButtonIsInline) {
+      switchActiveButton(activeButton, activeButton.next("button"));
+    }
+  } else if (e.shiftKey && e.key == "ArrowLeft" && activeButton.length) {
+    e.preventDefault();
+    if (activeButtonIsInline) {
+      switchActiveButton(activeButton, activeButton.prev("button"));
+    }
+  } else if (e.shiftKey && e.key == "ArrowDown" && activeButton.length) {
+    e.preventDefault();
+    let nextButton = activeButton.parent().next().find("button").first();
+    if (activeButtonIsInline) {
+      nextButton = nextButton.next("button");
+    }
+    if (nextButton.length) {
+      switchActiveButton(activeButton, nextButton);
+    }
+  } else if (e.shiftKey && e.key == "ArrowUp" && activeButton.length) {
+    e.preventDefault();
+    let prevButton = activeButton.parent().prev().find("button").first();
+    if (activeButtonIsInline) {
+      prevButton = prevButton.next("button");
+    }
+    if (prevButton.length) {
+      switchActiveButton(activeButton, prevButton);
+    }
+  } else if (e.key === "Enter") {
+    if (activeButton.length) {
+      e.stopPropagation();
+      activeButton.trigger("click");
+    }
   }
 });
+
+function switchActiveButton(activeButton, nextButton) {
+  activeButton.removeClass("activeSrc");
+  nextButton.addClass("activeSrc");
+}
 
 // Remove any shareable sources elements on page unload to prevent unwanted auto-save.
 window.addEventListener("beforeunload", function () {
