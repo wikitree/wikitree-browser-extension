@@ -24,7 +24,7 @@ async function fillWhatLinksHereSection() {
   const s = getWhatLinksHereLink(200);
   const url = new URL(s, "https://" + mainDomain);
   getWikiTreePage("WhatLinksHereSection", url.pathname, url.search).then((data) => {
-    const dLinks = $(data).find("div.page--content ul a[href*='/wiki/']");
+    const dLinks = $(data).find("div.body-text ul a[href*='/wiki/']");
     const whatLinksHerePages = [];
     const whatLinksHereWikiTreeIDs = [];
     const whatLinksHereProfiles = [];
@@ -270,7 +270,7 @@ async function whatLinksHereLink() {
         fillWhatLinksHereSection();
         this.xWhatLinksHerePopulated = true;
       }
-      $(this).closest("section").toggleClass("expand-whl");
+      $("#whatLinksHere").toggle(); // toggle display on subsequent changes
     });
   }
   $("a.whatLinksHere").on("contextmenu", function (e) {
