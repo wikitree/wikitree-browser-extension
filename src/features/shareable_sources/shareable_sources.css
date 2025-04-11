@@ -66,8 +66,8 @@ button.seeBiography {
   font-size: 0.7em;
   position: absolute !important;
   padding: 5px;
-  top: 3em;
-  left: 0;
+  top: 1.5em;
+  left: -2em;
 }
 
 #relativeBiography {
@@ -116,4 +116,18 @@ button.seeBiography {
   height: 24em;
   width: 100%;
   resize: none;
+}
+
+div.referenceBox .showSources {
+  /* Rotate the text -90 degrees */
+  display: inline-block;
+  transform: rotate(-90deg);
+  transition: transform 0.3s ease, margin 0.3s ease, font-size 0.3s ease, color 0.3s ease;
+}
+
+div.referenceBox.active .showSources {
+  transform: rotate(0deg);
+  margin-left: 0;
+  margin-top: 0;
+  color: black;
 }
