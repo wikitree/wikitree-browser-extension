@@ -137,31 +137,42 @@ shouldInitializeFeature("shareableSources").then((result) => {
  * @param {number} [active=0] - The index of the active source.
  */
 function getSources(person, active = 0) {
+  console.log("getSources called with person:", person, "and active:", active);
+
   // Remove any existing shareable sources elements.
+  console.log("Removing existing shareable sources elements.");
   $("div.referenceBox").remove();
   $("#relativeBiography").remove();
   $("#otherPersonLabel").remove();
 
   let activeSources = active;
   if (!person?.bio) {
+    console.warn("No biography found for the person. Exiting getSources.");
     return;
   }
 
+  console.log("Extracting sources from biography.");
   let refArr = basicSourcesArray(person.bio);
+  console.log("Extracted sources:", refArr);
+
   let enhancedEditorButton = $("#toggleMarkupColor");
   enhanced = false;
   if (enhancedEditorButton.attr("value") === "Turn Off Enhanced Editor") {
     enhanced = true;
   }
+  console.log("Enhanced editor status:", enhanced);
+
   window.sourceButtonEnhancedClickedCount = 0;
 
   enhancedEditorButton.on("click", function () {
+    console.log("Enhanced editor button clicked.");
     setTimeout(function () {
       if (enhancedEditorButton.attr("value") === "Turn Off Enhanced Editor") {
         enhanced = true;
       } else {
         enhanced = false;
       }
+      console.log("Updated enhanced editor status:", enhanced);
       if ($(".referenceBox").length) {
         $(".referenceBox button.inline, .referenceBox button.copyInline").each(function () {
           if (enhanced) {
@@ -176,14 +187,14 @@ function getSources(person, active = 0) {
 
   let efProfile = person;
   if (person.bio) {
+    console.log("Creating reference box for profile:", efProfile);
     let efBio = person.bio;
     let refBoxClass = "";
     if (isProfileAddRelative) {
       refBoxClass = "addRelative";
     }
 
-    // Create the reference box element.
-    let referenceBox = $(`
+    let referenceBox = $(` 
       <div class='referenceBox active ${refBoxClass}' data-id=${efProfile.Name}>
         <button class='seeBiography' class='small'>Bio</button>
         <h3 title='${efProfile.Name}'>Sources for ${displayName(efProfile)[0]} 
@@ -194,6 +205,7 @@ function getSources(person, active = 0) {
     `);
 
     refArr.forEach(function (aRef, index) {
+      console.log("Adding source to reference box:", aRef, "at index:", index);
       let button1 = `<button data-ref=${index} class='small paste'>Add to Sources</button>`;
       let button2 = `<button data-ref=${index} class='small inline'>Add Inline Citation</button>`;
       let button3 = `<button data-ref='${index}' class='small copyInline'>Copy Inline Citation</button>`;
@@ -206,25 +218,30 @@ function getSources(person, active = 0) {
     });
 
     if (isProfileEdit) {
+      console.log("In profile edit mode. Adding reference box to sidebar.");
       referenceBox.prependTo($("#Lower-Sidebar"));
       const isPhotoColumnHidden = $("#toggleTipsColumn[data-tooltip*='show']").length > 0;
       if (isPhotoColumnHidden) {
+        console.log("Photo column is hidden. Toggling it.");
         $("#toggleTipsColumn").trigger("click");
         shareableSourcesToggledTips = true;
       }
       referenceBox.draggable();
     } else {
-      referenceBox.appendTo($("#sourcesLabel"));
+      console.log("Not in profile edit mode. Adding reference box after sources label.");
+      $("#sourcesLabel").after(referenceBox);
       setTimeout(function () {
         referenceBox.find("h3").trigger("click");
       }, 1000);
     }
 
     if (activeSources === 1 && !isProfileAddRelative) {
+      console.log("Active sources is 1 and not adding relative. Expanding reference box.");
       $("div.referenceBox div").slideDown("swing");
     }
 
     $("#previewButton").on("click", function () {
+      console.log("Preview button clicked.");
       if ($(".referenceBox").hasClass("active")) {
         $(".referenceBox h3").trigger("click");
         setTimeout(function () {
@@ -235,18 +252,21 @@ function getSources(person, active = 0) {
       }
     });
 
-    // Attach click handlers for the source buttons.
     $(".referenceBox button.paste, .referenceBox button.inline, .referenceBox button.copyInline").on(
       "click",
       function (e) {
         e.preventDefault();
+        console.log("Source button clicked:", this);
         if (enhanced) {
           window.clickedSourceButton = true;
         }
         let ref = $(this).data("ref");
+        console.log("Reference index:", ref);
         let thePerson = $(this).closest("div.referenceBox").data("id");
+        console.log("Person ID:", thePerson);
         let theTextarea = $(`.referenceBox[data-id="${thePerson}"] textarea[data-ref="${ref}"]`);
         let theText = theTextarea.html();
+        console.log("Text to insert:", theText);
         let box;
         if ($(this).hasClass("paste")) {
           box = "mSources";
@@ -275,8 +295,10 @@ function getSources(person, active = 0) {
           .val()
           .substr(selStart);
         if ($(this).hasClass("copyInline")) {
+          console.log("Copying inline citation to clipboard.");
           copyToClipboard3($("<a>" + theText + "</a>")[0]);
         } else {
+          console.log("Inserting text into box:", box);
           if (selStart > 0) {
             if (partA.substr(partA.length - 1) !== "\n" && !theText.includes("<ref>")) {
               theText = "\n" + theText;
@@ -296,15 +318,18 @@ function getSources(person, active = 0) {
       }
     );
 
-    // Toggle reference box visibility on clicking the header.
     $(".referenceBox h3").on("click", function () {
+      console.log("Reference box header clicked.");
       let topDiv = $(this).parent();
       if (topDiv.hasClass("active")) {
+        console.log("Collapsing reference box.");
         topDiv.find("div").slideUp("fade", function () {
-          topDiv.remove();
+          //  topDiv.remove();
+          topDiv.removeClass("active");
           maybeRestoreToggle();
         });
       } else {
+        console.log("Expanding reference box.");
         topDiv.find("div").slideDown("swing");
         topDiv.addClass("active");
       }
@@ -312,34 +337,40 @@ function getSources(person, active = 0) {
 
     $("#wpSave").not('[value="Go"]').insertAfter($("#mSources"));
 
-    const relativeBiography = $(`
+    const relativeBiography = $(` 
       <div id='relativeBiography'>
         <h3 id='relBioh3'>${displayName(efProfile)[0]}'s Bio</h3>
         <x class='small button'>x</x>
         <textarea id='relativeBioContent'>${efBio}</textarea>
       </div>
     `);
+    console.log("Adding relative biography popup.");
     relativeBiography.insertBefore($(".referenceBox"));
     $("#relativeBiography").draggable({
       handle: "#relBioh3",
     });
     $(".referenceBox .seeBiography").on("click", function (e) {
       e.preventDefault();
+      console.log("See biography button clicked.");
       if ($("#relativeBiography").is(":visible")) {
+        console.log("Hiding relative biography.");
         $("#relativeBiography").slideUp("fade", function () {
           $(this).remove();
           maybeRestoreToggle();
         });
       } else {
+        console.log("Showing relative biography.");
         $("#relativeBiography").slideDown("swing");
       }
     });
-    // Updated close handlers for the X buttons:
+
     $(".referenceBox x").on("click", function () {
+      console.log("Closing reference box.");
       $(this).parent().remove();
       maybeRestoreToggle();
     });
     $("#relativeBiography x").on("click", function () {
+      console.log("Closing relative biography.");
       $("#relativeBiography").remove();
       maybeRestoreToggle();
     });
