@@ -43,3 +43,6 @@
 #familyDropdown ul li:active {
   background: #d0d0eb;
 }
+#familyDropdown ul li.active {
+  background: #d0d0eb;
+}
