@@ -493,17 +493,19 @@ $(document).on("keydown.shareableSourcesPopup", function (e) {
       box.get(0).focus();
       box.get(0).selectionEnd = selectionEnd;
     }
-  } else if (e.shiftKey && e.key == "ArrowRight" && activeButton.length) {
+  }
+
+  if (IsKeyFromDivShiftPressedAndButtonActive("ArrowRight")) {
     e.preventDefault();
     if (!activeButtonIsInline) {
       switchActiveButton(activeButton, activeButton.next("button"));
     }
-  } else if (e.shiftKey && e.key == "ArrowLeft" && activeButton.length) {
+  } else if (IsKeyFromDivShiftPressedAndButtonActive("ArrowLeft")) {
     e.preventDefault();
     if (activeButtonIsInline) {
       switchActiveButton(activeButton, activeButton.prev("button"));
     }
-  } else if (e.shiftKey && e.key == "ArrowDown" && activeButton.length) {
+  } else if (IsKeyFromDivShiftPressedAndButtonActive("ArrowDown")) {
     e.preventDefault();
     let nextButton = activeButton.parent().next().find("button").first();
     if (activeButtonIsInline) {
@@ -512,7 +514,7 @@ $(document).on("keydown.shareableSourcesPopup", function (e) {
     if (nextButton.length) {
       switchActiveButton(activeButton, nextButton);
     }
-  } else if (e.shiftKey && e.key == "ArrowUp" && activeButton.length) {
+  } else if (IsKeyFromDivShiftPressedAndButtonActive("ArrowUp")) {
     e.preventDefault();
     let prevButton = activeButton.parent().prev().find("button").first();
     if (activeButtonIsInline) {
@@ -521,11 +523,15 @@ $(document).on("keydown.shareableSourcesPopup", function (e) {
     if (prevButton.length) {
       switchActiveButton(activeButton, prevButton);
     }
-  } else if (e.key === "Enter") {
+  } else if (IsKeyFromDivShiftPressedAndButtonActive("Enter")) {
     if (activeButton.length) {
       e.stopPropagation();
       activeButton.trigger("click");
     }
+  }
+
+  function IsKeyFromDivShiftPressedAndButtonActive(theKey) {
+    return e.target.className.includes("sourcesContent") && e.shiftKey && e.key == theKey && activeButton.length;
   }
 });
 
