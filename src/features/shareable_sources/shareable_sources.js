@@ -82,6 +82,10 @@ export async function initShareableSources(id = theID) {
           $("#otherPerson").addClass("highlight").trigger("focus");
         }
       } else {
+        const box = $("#mBioWithoutSources, #mSources, #wpTextbox1");
+        if (box.length > 0 && box.get(0).selectionEnd != 0) {
+          selectionEnd = box.get(0).selectionEnd;
+        }
         let anID = $(this).data("id");
         if (anID != "") {
           const ourPerson =
