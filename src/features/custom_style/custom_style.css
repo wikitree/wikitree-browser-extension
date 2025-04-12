@@ -80,7 +80,8 @@ body.space div.body-text table:has(a.image) {
   position: relative;
 }
 body.customStyle .x-sticker,
-body.customStyle .box {
+body.customStyle .box,
+body.customStyle img.scale-with-grid {
   position: relative;
   z-index: 100; /* Show above header colour */
 }
@@ -88,4 +89,8 @@ body.customStyle .box {
 body.customStyle span.float-end {
   position: relative;
   z-index: 101; /* Show above header colour */
+}
+
+body.customStyle.help h2:not(#title) {
+  background: transparent !important;
 }
