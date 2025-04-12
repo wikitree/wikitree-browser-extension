@@ -45,10 +45,52 @@ async function addInfoAboutOtherPerson() {
       }
       const efHTML =
         "<ul id='EFdates'>" +
-        (isOK(efBdate) || isOK(efBlocation) ? "<li>b." + " " + efBdate + " " + efBlocation + "</li>" : "") +
-        (efDdate != "" || efDlocation != "" ? "<li>d." + " " + efDdate + " " + efDlocation + "</li>" : "") +
-        "</ul>";
+        (isOK(efBdate) || isOK(efBlocation)
+          ? "<li>b." +
+            " " +
+            efBdate +
+            " " +
+            efBlocation +
+            "&nbsp;<a class='copyLocation' data-to='Birthplace' data-to-id='mBirthLocation' data-value='" +
+            efBlocation +
+            "'/>" +
+            " &nbsp;<a class='copyLocation' data-to='Deathplace' data-to-id='mDeathLocation' data-value='" +
+            efBlocation +
+            "'/>" +
+            "</li>"
+          : "") +
+        (efDdate != "" || efDlocation != ""
+          ? "<li>d." +
+            " " +
+            efDdate +
+            " " +
+            efDlocation +
+            " &nbsp;<a class='copyLocation' data-to='Birthplace' data-to-id='mBirthLocation' data-value='" +
+            efDlocation +
+            "'/>" +
+            " &nbsp;<a class='copyLocation' data-to='Deathplace' data-to-id='mDeathLocation' data-value='" +
+            efDlocation +
+            "'/>" +
+            "</li>"
+          : "");
+      ("</ul>");
       $("h1").append(efHTML);
+      getFeatureOptions("editFamilyData").then((options) => {
+        if (options.copyLocations) {
+          $("#EFdates .copyLocation").each(function () {
+            this.href = "#0";
+            const destinationName = this.getAttribute("data-to");
+            const destinationId = this.getAttribute("data-to-id");
+            const place = this.getAttribute("data-value");
+            this.innerText = " " + destinationName;
+            this.title = "Use '" + place + "' as " + destinationName.toLowerCase();
+            this.addEventListener("click", () => {
+              document.getElementById(destinationId).value = place;
+              document.getElementById(destinationId).focus();
+            });
+          });
+        }
+      });
     } else {
       console.log("No profile data found for wtid:", wtid);
     }
