@@ -98,6 +98,27 @@ function keepBasicDataSectionVisible() {
     });
   });
 
+  $(document).on("click", "button.matchActionButton:contains('Set as spouse')", function () {
+    setTimeout(() => {
+      $("ul.profile-tabs").after($("#connectionsSection"));
+      $("#connectionsSection").show();
+      $("#addNewPersonButton").show();
+      $("#backToActionButton2").show();
+      $("#connectionsSection").after(
+        $("#returnToBasicButton"),
+        $("#returnToMatchesButton"),
+        $("#backToActionButton2"),
+        $("#addNewPersonButton")
+      );
+      $("#backToActionButton2").addClass("notProceedToSpouse");
+    }, 100);
+  });
+
+  $(document).on("click", "button#backToActionButton2.notProceedToSpouse", function () {
+    $(this).hide();
+    $("#addNewPersonButton").hide();
+  });
+
   // observe changes to the DOM and show the basic data section when the #matchesContainer appears
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {

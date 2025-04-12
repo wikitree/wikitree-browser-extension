@@ -4,7 +4,7 @@ Contributors: Jonathan Duke (Duke-5773), Riël Smit (Smit-641)
 Description: Change the position and/or appearance of family lists (parents, siblings, spouses, and children)
 */
 
-import { isProfilePage, isProfileAddRelative } from "../../core/pageType";
+import { isProfilePage } from "../../core/pageType";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 const changeFamilyLists = {
@@ -18,7 +18,7 @@ const changeFamilyLists = {
     { name: "Riël Smit", wikitreeid: "Smit-641" },
   ],
   defaultValue: false,
-  pages: [isProfilePage, isProfileAddRelative],
+  pages: [isProfilePage],
 
   options: [
     {
