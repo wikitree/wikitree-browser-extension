@@ -178,9 +178,17 @@ export function ensureProfileClasses() {
 
     // mark root sections in content (h2 only)
     $(".x-content > h1[id], .x-content > h2[id]").addClass("x-root-section x-section");
+    $(".x-content a[name] + h1:not([id]), .x-content a[name] + h2:not([id])")
+      .prev()
+      .addClass("x-root-section x-section");
 
     // mark subdivided sections (h3, etc.)
     $(".x-content > h3[id], .x-content > h4[id], .x-content > h5[id], .x-content > h6[id]").addClass("x-section");
+    $(
+      ".x-content a[name] + h3:not([id]), .x-content a[name] + h4:not([id]), .x-content a[name] + h5:not([id]), .x-content a[name] + h6:not([id])"
+    )
+      .prev()
+      .addClass("x-section");
 
     // mark memories section (only at the bottom of certain profiles)
     $("section#Memories").addClass("x-memories");
@@ -194,19 +202,34 @@ export function ensureProfileClasses() {
       .addClass("x-callout x-callout-collaboration")
       .removeClass("x-alert");
 
-    // mark elements related to certain sections (including header, lists, and any other root elements) up until the next section *** dependent on x-memories being set
+    // mark elements contained within each section (including the header, lists, and any other root-level siblings that follow)
+    let sectionNames = [],
+      sectionNumbers = [0, 0, 0, 0, 0]; // h2 through h6
     $(".x-content .x-root-section, .x-content .x-section").each(function () {
-      const name = (this.id && this.id.replace(/[\W_]+/g, "")) || "";
-      if (name) {
-        let className = "section-" + name.replace(/[\W_]+/g, "").toLowerCase();
-        if (className == "section-sources") {
-          className += " x-sources";
+      const nameOrId = this.id || this.name;
+      const sanitizedName = (nameOrId && nameOrId.replace(/[\W_]+/g, "").toLowerCase()) || "";
+      const h = getSectionLevel(this) - 2;
+      if (h >= 0) {
+        for (var i = h; i < sectionNumbers.length; i++) {
+          sectionNames[i] = i > h ? "" : sanitizedName ?? "";
+          sectionNumbers[i] = i > h ? 0 : (sectionNumbers[i] ?? 0) + 1;
         }
+      }
+      let classList = [
+        "x-level-" + sectionNumbers.join("-").replace(/(-0)+$/, ""),
+        ...sectionNames.filter((sn) => sn && sn.length).map((sn) => `section-${sn}`),
+      ];
+      if (classList.includes("section-sources")) {
+        // for backward-compatibility
+        classList.push("x-sources");
+      }
+      if (classList.length > 0) {
+        const classNames = classList.join(" ");
         $(this)
           .first()
-          .nextUntil(".x-root-section, .x-edit, .x-memories, br[clear] + div.SMALL")
+          .nextUntil(".x-section")
           .addBack()
-          .addClass(className)
+          .addClass(classNames)
           .each(function () {
             /*
              * Sometimes unwrapped text can be rendered in the body, such as "See also:"
@@ -215,11 +238,13 @@ export function ensureProfileClasses() {
              * we have to wrap the text nodes in a <span> tag so that the classes can be applied.
              */
             if (this.previousSibling.nodeType == 3 && /\S/.test(this.previousSibling.nodeValue)) {
-              $(this.previousSibling).wrap('<span class="' + className + '"></span>');
+              $(this.previousSibling).wrap('<span class="' + classNames + '"></span>');
             }
           });
       }
     });
+
+    // even if not under the sources header, the list of references should be considered as such
     $(".x-content ol.references").addClass("section-sources x-sources");
 
     // mark plain-text elements at the root of the sources section
@@ -278,4 +303,18 @@ export function ensureProfileClasses() {
     // prevent this from running more than once per page
     hasProfileClasses = true;
   }
+}
+
+function getSectionLevel(e) {
+  let h = e.tagName.match(/^H([1-6])$/i);
+  if (!h) {
+    e = e.nextElementSibling;
+    if (e) {
+      h = e.tagName.match(/^H([1-6])$/i);
+    }
+  }
+  if (h) {
+    return parseInt(h[1], 10);
+  }
+  return 0;
 }

@@ -109,6 +109,7 @@
   .print-content-only .x-toc,
   .print-content-only .x-widget,
   .print-content-only a[target="_map"],
+  .print-content-only #searchBar,
   .print-content-only.no-print-dna *[class*="section-dnaconfirmations"],
   .print-content-only.no-print-dna .section-dnaconfirmations,
   .print-content-only.no-print-research-notes .section-researchnotes,
