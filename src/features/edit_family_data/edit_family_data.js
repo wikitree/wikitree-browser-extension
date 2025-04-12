@@ -51,12 +51,12 @@ async function addInfoAboutOtherPerson() {
             efBdate +
             " " +
             efBlocation +
-            "&nbsp;<a class='copyLocation' data-to='Birthplace' data-to-id='mBirthLocation' data-value='" +
+            " <span class='copyLocation' data-to='Birthplace' data-to-id='mBirthLocation' data-location='" +
             efBlocation +
-            "'/>" +
-            " &nbsp;<a class='copyLocation' data-to='Deathplace' data-to-id='mDeathLocation' data-value='" +
+            "'></span>" +
+            " <span class='copyLocation' data-to='Deathplace' data-to-id='mDeathLocation' data-location='" +
             efBlocation +
-            "'/>" +
+            "'></span>" +
             "</li>"
           : "") +
         (efDdate != "" || efDlocation != ""
@@ -65,12 +65,12 @@ async function addInfoAboutOtherPerson() {
             efDdate +
             " " +
             efDlocation +
-            " &nbsp;<a class='copyLocation' data-to='Birthplace' data-to-id='mBirthLocation' data-value='" +
+            " &nbsp;<span class='copyLocation' data-to='Birthplace' data-to-id='mBirthLocation' data-location='" +
             efDlocation +
-            "'/>" +
-            " &nbsp;<a class='copyLocation' data-to='Deathplace' data-to-id='mDeathLocation' data-value='" +
+            "'></span>" +
+            " &nbsp;<span class='copyLocation' data-to='Deathplace' data-to-id='mDeathLocation' data-location='" +
             efDlocation +
-            "'/>" +
+            "'></span>" +
             "</li>"
           : "");
       ("</ul>");
@@ -78,16 +78,35 @@ async function addInfoAboutOtherPerson() {
       getFeatureOptions("editFamilyData").then((options) => {
         if (options.copyLocations) {
           $("#EFdates .copyLocation").each(function () {
-            this.href = "#0";
+            console.debug("famdata: " + this.tagName);
             const destinationName = this.getAttribute("data-to");
+            console.debug("famdata: 1" + destinationName);
             const destinationId = this.getAttribute("data-to-id");
-            const place = this.getAttribute("data-value");
-            this.innerText = " " + destinationName;
-            this.title = "Use '" + place + "' as " + destinationName.toLowerCase();
-            this.addEventListener("click", () => {
-              document.getElementById(destinationId).value = place;
-              document.getElementById(destinationId).focus();
-            });
+            console.debug("famdata: 2" + destinationId);
+
+            const place = this.getAttribute("data-location");
+            console.debug("famdata: 3" + place);
+            console.debug("famdata: 4");
+            if (place == null || place == "") {
+              this.style.visibility = "none";
+              console.debug("famdata: dööt");
+            } else {
+              this.innerText = destinationName;
+              console.debug("famdata: 5");
+              this.title = "Use '" + place + "' as " + destinationName.toLowerCase();
+              console.debug("famdata: 6");
+
+              this.addEventListener("click", function () {
+                const locationField = document.getElementById(destinationId);
+                alert(locationField);
+                console.debug("famdata: A");
+                locationField.value = place;
+                console.debug("famdata: B");
+                locationField.focus();
+                console.debug("famdata: C");
+              });
+              console.debug("famdata: 7");
+            }
           });
         }
       });
