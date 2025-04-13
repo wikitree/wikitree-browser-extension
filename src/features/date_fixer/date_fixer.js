@@ -277,6 +277,7 @@ function sanitizeInput(input) {
     .replaceAll(/\.+/g, ".") // Replace all occurrences of multiple periods with a single period
     .replaceAll(/\s+[-/]/g, "-") // Replace all occurrences of space followed by a hyphen or slash with a single hyphen
     .replaceAll(/[-/]\s+/g, "-") // Replace all occurrences of a hyphen or slash followed by a space with a single hyphen
+    .replaceAll(/\.\s+/g, " ") // Replace all occurrences of a period and a space by a single space (experimental)
     .replace(/([a-zA-Z])(\d)/g, "$1 $2") // Add a space between a month and a year
     .replace(/(\d)([a-zA-Z])/g, "$1 $2"); // Add a space between a day and a month
 }
