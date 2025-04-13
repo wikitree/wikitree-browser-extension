@@ -158,7 +158,7 @@ function getForText($el) {
   } else {
     if ($el.text().includes("Collaboration")) {
       forText = "Collaboration";
-    } else if ($el.text().includes("Featured connections")) {
+    } else if ($el.text().includes("eatured connections")) {
       forText = "Featured connections";
     }
   }
@@ -174,7 +174,7 @@ function createSpecialCollapsibles() {
       insertionPoints.push({ forText: getForText($el), at: $el, siblings: false });
     });
   $("#Comments, #Matches")
-    .add($("p:contains('Featured connections')").closest("section"))
+    .add($("p:contains('eatured connections')").closest("section"))
     .each(function () {
       const $el = $(this);
       insertionPoints.push({
