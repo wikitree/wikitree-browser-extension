@@ -648,11 +648,6 @@ function buildParentsSection(parents) {
   );
   container.appendChild(headerDiv);
 
-  const meta = document.createElement("meta");
-  meta.setAttribute("itemprop", "gender");
-  meta.content = "male";
-  container.appendChild(meta);
-
   const ol = createListElement("parentList");
   if (parents.length === 0) {
     ol.appendChild(createDefaultLink("father", "[father?]"));
@@ -666,19 +661,19 @@ function buildParentsSection(parents) {
       let hrefBit = `href="${p.Link}"`;
       if (isPrivate) {
         hrefBit = "";
+        p.Gender = p.Name.includes("father") ? "Male" : p.Name.includes("mother") ? "Female" : "";
       }
       let status;
 
       if (profilePersonData?.DataStatus?.Father && p.relationship == "Father") {
         status = profilePersonData.DataStatus?.Father;
+        p.Gender = "Male";
       } else if (profilePersonData?.DataStatus?.Mother && p.relationship == "Mother") {
         status = profilePersonData.DataStatus.Mother;
+        p.Gender = "Female";
       }
       let theStatusWord;
-      // console.log(profilePersonData);
       if (status) {
-        // console.log("status", status);
-
         theStatusWord =
           status == 5
             ? "Non-biological"
@@ -720,6 +715,8 @@ function buildParentsSection(parents) {
           ? "DNA confirmed"
           : "";
       $(li).data("tooltip", theStatusWord).data("bs-tooltip", tip);
+      li.dataset.bsTooltip = tip;
+      li.dataset.gender = getGender(p);
     });
   }
   container.appendChild(ol);
@@ -736,8 +733,6 @@ function buildSiblingsSection(siblings) {
   container.className = "VITALS familyList";
   container.id = "siblingDetails";
 
-  // console.log("siblings", siblings);
-
   const headerDiv = document.createElement("div");
   headerDiv.appendChild(createHeader("Siblings: ", "siblingsHeader", ""));
   if (pencils.siblings) {
@@ -753,8 +748,10 @@ function buildSiblingsSection(siblings) {
       const li = document.createElement("li");
       li.dataset.parseName = s.Name;
       const dates = getDatesFromFamilyData(s);
-      s.Name = s.Name.trim();
-      const isPrivate = s.Name.toLowerCase()?.startsWith("[private");
+      s.Name = s.Name?.trim() || "";
+      s.FullName = s.FullName?.trim() || "";
+      const isPrivate = s.Name?.toLowerCase()?.startsWith("[private");
+      s.Gender = getGender(s);
       if (isPrivate) {
         li.innerHTML = `<span itemprop="sibling" class="privateSibling" itemtype="https://schema.org/Person">
           <span itemprop="name">${s.FullName || s.Name} ${
@@ -769,7 +766,7 @@ function buildSiblingsSection(siblings) {
         }</span></a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
           dates.deathYear || ""
         }">${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
-        li.setAttribute("data-gender", s.Gender || "male");
+
         if (s.halfMarker) {
           $(li).find(".bdDates").before(s.halfMarker);
         }
@@ -777,11 +774,38 @@ function buildSiblingsSection(siblings) {
         if (s.Father) li.setAttribute("data-father", s.Father);
         if (s.Mother) li.setAttribute("data-mother", s.Mother);
       }
+      li.setAttribute("data-gender", s.Gender || "");
       ol.appendChild(li);
     });
   }
   container.appendChild(ol);
   return container;
+}
+
+function getGender(person) {
+  const isMale =
+    person.Gender == "Male" ||
+    person.Name?.includes("brother") ||
+    person.Name?.includes("husband") ||
+    person.Name?.includes("son") ||
+    person.FullName?.includes("brother") ||
+    person.FullName?.includes("husband") ||
+    person.FullName?.includes("son") ||
+    person.relationship == "Father" ||
+    person.relationship == "Son";
+  const isFemale =
+    person.Gender == "Female" ||
+    person.Name?.includes("sister") ||
+    person.Name?.includes("wife") ||
+    person.Name?.includes("daughter") ||
+    person.FullName?.includes("sister") ||
+    person.FullName?.includes("wife") ||
+    person.FullName?.includes("daughter") ||
+    person.relationship == "Mother" ||
+    person.relationship == "Daughter";
+  const notShow = person.DataStatus?.Gender == "blank";
+
+  return isMale && !notShow ? "Male" : isFemale && !notShow ? "Female" : "";
 }
 
 /**
@@ -815,7 +839,7 @@ function buildSpousesSection(spouses) {
     spouseLI.className = "spouse";
     spouseLI.dataset.parseName = spouse.Name;
     spouseLI.setAttribute("data-id", spouse.Id);
-    spouseLI.setAttribute("data-gender", spouse.Gender);
+    spouseLI.setAttribute("data-gender", getGender(spouse));
 
     const grid = document.createElement("div");
     grid.className = "spouseGrid";
@@ -935,9 +959,10 @@ function buildChildrenSection(children) {
     const dates = getDatesFromFamilyData(c);
     const li = document.createElement("li");
     li.dataset.parseName = c.Name;
-    const isPrivate = c.Name.trim().toLowerCase().startsWith("[private");
+    const isPrivate = c.FullName.trim().toLowerCase().startsWith("[private");
+    c.Gender = getGender(c);
     if (c.Link && !isPrivate) {
-      li.innerHTML = `<span itemprop="children" itemscope itemtype="https://schema.org/Person">
+      li.innerHTML = `<span itemprop="children" itemtype="https://schema.org/Person">
           <a href="${
             c.Link.startsWith("http") ? c.Link : "https://" + mainDomain + c.Link
           }" itemprop="url" title="" aria-label="Child" class="childLink"><span itemprop="name">${
@@ -947,14 +972,14 @@ function buildChildrenSection(children) {
       }">
             ${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
     } else {
-      li.innerHTML = `<span itemprop="children" itemscope itemtype="https://schema.org/Person">
+      li.innerHTML = `<span itemprop="children" class="privateChild" itemtype="https://schema.org/Person">
             <span itemprop="name">${c.FullName || c.Name}</span><span class="bdDates" data-birth-year="${
         dates.birthYear || ""
       }" data-death-year="${dates.deathYear || ""}">
              ${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
     }
     if (!/^\[.*\?\]$/.test(c.Name)) {
-      li.setAttribute("data-gender", c.Gender || "male");
+      li.setAttribute("data-gender", c.Gender || "");
     }
     if (c.Father) li.setAttribute("data-father", c.Father);
     if (c.Mother) li.setAttribute("data-mother", c.Mother);
@@ -1573,7 +1598,6 @@ function insertInSibList() {
     console.log("Profile person data is missing.");
     return;
   }
-  // console.log("Profile person for insertion:", pPerson);
 
   const getBirthYear = (person) => {
     if (person.BirthDate && person.BirthDate !== "0000-00-00") {
@@ -1754,7 +1778,6 @@ async function getAncestorsOnPage() {
     allItemsRequest.onerror = (event) => reject(event.target.error);
   });
   const ancestorKeys = await ancestorsPromise;
-  //console.log("Ancestor keys:", ancestorKeys);
   const familyLinks = $(".VITALS a[href*='/wiki/']");
   const peopleOnPage = familyLinks
     .map(function () {
@@ -1767,7 +1790,6 @@ async function getAncestorsOnPage() {
     })
     .get();
   peopleOnPage.push(profilePerson.Name);
-  // console.log("People on page:", peopleOnPage);
   const ancestorsOnPage = peopleOnPage.filter((person) => {
     const personWithUnderscores = person.replace(/ /g, "_");
     const personWithSpaces = person.replace(/_/g, " ");
@@ -1781,7 +1803,6 @@ async function getAncestorsOnPage() {
        #nVitals .VITALS a[data-wtid="${ancestor.replace(/_/g, " ")}"]`
     );
     if (element.length && element.data("status") != 5) {
-      // console.log("Adding ancestor label to", ancestor, element);
       addAncestorLabels(element);
     }
   });
@@ -1995,10 +2016,6 @@ function addDNAConfirmedToFamily() {
     return;
   }
 
-  console.log("window.people:", window.people);
-  console.log("profilePersonData:", profilePersonData);
-  console.log("Parent Person:", parentPerson);
-
   for (const person of window.people.values()) {
     let addDNAconfirmed = false;
 
@@ -2011,7 +2028,6 @@ function addDNAConfirmedToFamily() {
     if (addDNAconfirmed) {
       const name = person.Name;
       const nameWithSpaces = name?.replace(/_/g, " ");
-      console.log(`Adding DNA confirmed icon for: ${name}`);
 
       $(`.VITALS a[href$="${name}"],.VITALS a[href$="${nameWithSpaces}"]`).append(
         $(
