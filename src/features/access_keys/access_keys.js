@@ -36,6 +36,7 @@ function addAccessKeys(options) {
     setAccessKeyIfOptionEnabled(options.AutoBio, ".editToolbarMenu0 a[data-id='Auto Bio']", "b", options);
     setAccessKeyIfOptionEnabled(options.AddTemplate, ".editToolbarMenu0 a[data-id='Add any template']", "t", options);
     setAccessKeyIfOptionEnabled(options.FamilyDropdown, "#familyDropdown", "y", options);
+    setAccessKeyIfOptionEnabled(options.FamilyDropdown, "#showSourcesHeadline", "y", options);
     setCopyButtonAccessKeyAndClickEvent(options.CopyID, "Copy ID", "i");
     setCopyButtonAccessKeyAndClickEvent(options.CopyUserID, "Copy UserID", "j");
     setCopyButtonAccessKeyAndClickEvent(options.CopyLink, "Copy Wiki Link", "l");

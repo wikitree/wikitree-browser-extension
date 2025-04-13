@@ -233,7 +233,7 @@ registerFeature({
         {
           id: "FamilyDropdown",
           type: OptionType.CHECKBOX,
-          label: "Open Family Dropdown (Access key: y; then use shift + up or down arrow to navigate)",
+          label: "Open Family Dropdown/Shared Sources (Access key: y; then use shift + up or down arrow to navigate)",
           defaultValue: true,
         },
       ],

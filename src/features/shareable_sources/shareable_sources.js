@@ -189,10 +189,11 @@ function getSources(person, active = 0) {
       refBoxClass = "addRelative";
     }
 
+    const h3id = isProfileAddRelative ? "showSourcesHeadline" : "";
     let referenceBox = $(` 
-      <div class='referenceBox active ${refBoxClass}' data-id=${efProfile.Name}>
+      <div class='referenceBox active ${refBoxClass}' data-id=${efProfile.Name} tabindex='-1'>
         <button class='seeBiography' class='small'>Bio</button>
-        <h3 title='${efProfile.Name}'>Sources for ${displayName(efProfile)[0]} 
+        <h3 id='${h3id}' title='${efProfile.Name}'>Sources for ${displayName(efProfile)[0]} 
           <span class='showSources'>&#9660;</span>
         </h3>
         <x class='small button'>x</x>
@@ -218,6 +219,7 @@ function getSources(person, active = 0) {
         $("#toggleTipsColumn").trigger("click");
         shareableSourcesToggledTips = true;
       }
+      referenceBox.get(0).focus();
       referenceBox.draggable();
     } else {
       $("#sourcesLabel").after(referenceBox);
@@ -321,6 +323,7 @@ function getSources(person, active = 0) {
       } else {
         topDiv.find("div").slideDown("swing");
         topDiv.addClass("active");
+        topDiv.focus();
       }
     });
 
@@ -495,6 +498,8 @@ $(document).on("keydown.shareableSourcesPopup", function (e) {
     }
   }
 
+  //console.debug("shareable " + e.target.className + " id: " + e.target.id);
+
   if (IsKeyFromDivShiftPressedAndButtonActive("ArrowRight")) {
     e.preventDefault();
     if (!activeButtonIsInline) {
@@ -531,7 +536,12 @@ $(document).on("keydown.shareableSourcesPopup", function (e) {
   }
 
   function IsKeyFromDivShiftPressedAndButtonActive(theKey) {
-    return e.target.className.includes("sourcesContent") && e.shiftKey && e.key == theKey && activeButton.length;
+    return (
+      (e.target.className.includes("sourcesContent") || e.target.className.includes("referenceBox")) &&
+      e.shiftKey &&
+      e.key == theKey &&
+      activeButton.length
+    );
   }
 });
 
