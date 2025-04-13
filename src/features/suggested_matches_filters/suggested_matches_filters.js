@@ -13,6 +13,17 @@ import { countries } from "../auto_bio/countries";
 const newPerson = {};
 const suggestedMatches = [];
 
+function isCountry(locationString) {
+  if (!isOK(locationString)) return false;
+
+  // Extract and standardize the country portion from the location string.
+  const normalized = getNormalizedCountry(locationString);
+
+  // Check if the normalized value matches any country name (in lowercase)
+  // in the countries array.
+  return countries.some((country) => country.name.toLowerCase() === normalized);
+}
+
 /* 
   Returns a standardized version of a country name in lowercase.
   It compares the given countryName (case‑insensitively) against both the "name" and "nativeName" 
@@ -163,7 +174,10 @@ function locationFilter(person, filteredLocations, newPerson) {
   let thisTR = $(`a[href$="${person.WTID}"]`).closest("tr");
   let matchCount = 0;
   person.locations.forEach(function (aLocation) {
-    if (isOK(aLocation) && filteredLocations.includes(aLocation)) {
+    // Check if any segment in filteredLocations is found in the current location string.
+    const matchesSegment = filteredLocations.some((segment) => aLocation.indexOf(segment) !== -1);
+
+    if (isOK(aLocation) && matchesSegment) {
       // If aLocation is a recognized country and there are many location values,
       // we don't add extra points.
       if (!isCountry(aLocation) || filteredLocations.length <= 1) {
@@ -174,6 +188,7 @@ function locationFilter(person, filteredLocations, newPerson) {
       }
     }
   });
+
   if (matchCount === 0) {
     thisTR.addClass("locationFiltered");
   }
@@ -187,7 +202,7 @@ function locationFilter(person, filteredLocations, newPerson) {
   }
   suggestedMatches.forEach(function (aMatch) {
     if (aMatch.WTID === person.WTID) {
-      aMatch = person;
+      Object.assign(aMatch, person);
     }
   });
 }
@@ -516,7 +531,6 @@ function highlightMatches() {
 
 async function initSuggestedMatchesFilters() {
   const WTID = $("h1 button[aria-label='Copy ID']").data("copy-text");
-  console.log(WTID);
   let relatives;
   const APP_ID = "WBE_suggested_matches_filters";
   if (WTID) {
