@@ -354,7 +354,7 @@ function putFocusOnFirstNameField() {
         clearTimeout(timeoutShowBasicData);
         timeoutShowBasicData = setTimeout(function () {
           document.getElementById("mFirstName").focus();
-        }, 300);
+        }, 500);
       });
     }
   }
