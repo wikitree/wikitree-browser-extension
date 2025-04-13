@@ -651,7 +651,11 @@ span[itemprop="sibling"]:has(.activeProfile) {
   grid-template-columns: 2fr 1fr;
   grid-template-areas: "name dates";
 }
-.vertical span.privateSibling {
+.vertical span.privateSibling,
+.vertical span.privateChild,
+.vertical span.privateParent,
+.vertical span.privateFather,
+.vertical span.privateMother {
   padding-left: 0.2em;
 }
 
