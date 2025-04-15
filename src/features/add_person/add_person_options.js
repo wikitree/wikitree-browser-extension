@@ -22,6 +22,12 @@ const addPersonRedesign = {
       defaultValue: false,
     },
     {
+      id: "shortenInputBoxes",
+      type: OptionType.CHECKBOX,
+      label: "Shorten some boxes (Prefix, Suffix, Dates, Sex At Birth)",
+      defaultValue: false,
+    },
+    {
       id: "categoryPicker",
       type: OptionType.CHECKBOX,
       label: "Add a category picker",
@@ -31,12 +37,6 @@ const addPersonRedesign = {
       id: "sourceHints",
       type: OptionType.CHECKBOX,
       label: "Remove source hints",
-      defaultValue: false,
-    },
-    {
-      id: "shorterDateBoxes",
-      type: OptionType.CHECKBOX,
-      label: "Shorter date boxes",
       defaultValue: false,
     },
   ],

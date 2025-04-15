@@ -199,8 +199,8 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
       if (options.sourceHints) {
         removeSourceHints();
       }
-      if (options.shorterDateBoxes) {
-        shorterDateBoxes();
+      if (options.shortenInputBoxes) {
+        shortenInputs();
       }
     });
 
@@ -274,16 +274,18 @@ function ShowProfileIdInBox(newProfilebox) {
 
 function newRow(variables) {
   return `
-  <div class="mb-4 form-group row" bis_skin_checked="1">
+  <div class="mb-4 form-group row">
     <label class="col-lg-2 col-form-label text-lg-end" for="${variables.id}">${variables.text}:</label>
-    <div class="col-lg-8" bis_skin_checked="1">
-      <div class="input-group" bis_skin_checked="1">
+    <div class="col-lg-8">
+      <div class="input-group">
         <input class="form-control" type="text" id="${variables.id}" name="${variables.id}" value="" maxlength="${
     variables.maxlength || ""
   }" placeholder="${variables.placeholder || ""}">
         <span class="input-group-text">
-          <a href="/wiki/Help:Name_Fields#${variables.help}" target="Help" title="">
-            <span class="icon--help" alt="Help" data-bs-toggle="tooltip" data-bs-title="Open an explanation of the First Name at Birth field in a new window"></span>
+          <a href="/wiki/Help:Name_Fields#${
+            variables.help
+          }" target="Help" class="wbe-icon WBEHelpIcon" data-tooltip="Explanation of the ${variables.text} field">
+            <span class="icon--help" alt="Help"></span>
           </a>
         </span>
       </div>
@@ -297,7 +299,7 @@ function addAdditionalFields() {
       id: "mPrefix",
       text: "Prefix",
       help: "Prefix",
-      placeholder: "E.g. Mr., Sir, Sgt. (max. length: 10 characters)",
+      placeholder: "Max. 10 characters",
       maxlength: 10,
     })
   );
@@ -306,7 +308,7 @@ function addAdditionalFields() {
       id: "mNicknames",
       text: "Other Nicknames",
       help: "Other_Nicknames",
-      placeholder: "Enter other nicknames here",
+      placeholder: "(Comma separated)",
     })
   );
   const otherLastNamesRow = $(
@@ -314,7 +316,7 @@ function addAdditionalFields() {
       id: "mLastNameOther",
       text: "Other Last Name(s)",
       help: "Other_Last_Names",
-      placeholder: "Enter other last names here",
+      placeholder: "(Comma separated)",
     })
   );
   const suffixRow = $(
@@ -322,7 +324,7 @@ function addAdditionalFields() {
       id: "mSuffix",
       text: "Suffix",
       help: "Suffix",
-      placeholder: "E.g. Jr., III, M.D. (max. length: 10 characters)",
+      placeholder: "Max. 10 characters",
       maxlength: 10,
     })
   );
@@ -356,11 +358,8 @@ function addAdditionalFields() {
   });
 }
 
-function shorterDateBoxes() {
-  const dateBoxes = ["#mBirthDate", "#mDeathDate", "#mMarriageDate"];
-  dateBoxes.forEach((dateBox) => {
-    $(dateBox).closest(".input-group").css("width", "13em");
-  });
+function shortenInputs() {
+  $("#mBirthDate, #mDeathDate, #mMarriageDate, #mPrefix, #mSuffix, #mGender").closest("div").css("width", "15em");
 }
 
 function addCategoryPicker() {
