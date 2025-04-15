@@ -33,6 +33,12 @@ const addPersonRedesign = {
       label: "Remove source hints",
       defaultValue: false,
     },
+    {
+      id: "shorterDateBoxes",
+      type: OptionType.CHECKBOX,
+      label: "Shorter date boxes",
+      defaultValue: false,
+    },
   ],
 };
 
