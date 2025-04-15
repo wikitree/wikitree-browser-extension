@@ -77,8 +77,9 @@ function menuHover() {
 
 shouldInitializeFeature("menuHover").then((result) => {
   if (result) {
-    $("header .btn-group[data-menu='AddFindHelp']").removeAttr("data-menu");
-
+    setTimeout(() => {
+      $(".btn-group[data-menu='AddFindHelp']").removeAttr("data-menu");
+    }, 2000); // Delay to ensure the menu is loaded before removing the attribute
     menuHover();
   }
 });
