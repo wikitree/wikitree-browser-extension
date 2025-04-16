@@ -24,7 +24,7 @@
   padding-top: 0;
   border: 2px solid forestgreen;
   border-radius: 1em;
-  max-height: 40em;
+  max-height: 50em;
   overflow: auto;
   position: absolute;
   z-index: 9000;
