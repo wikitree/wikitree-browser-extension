@@ -29,12 +29,6 @@ const g2g = {
       defaultValue: true,
     },
     {
-      id: "wikiIDgo",
-      type: OptionType.CHECKBOX,
-      label: "A 'WikiTree ID Go' box",
-      defaultValue: true,
-    },
-    {
       id: "moreTabs",
       type: OptionType.CHECKBOX,
       label: "More tab buttons: Recent Activity, My Activity, + (Favorited)",

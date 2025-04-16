@@ -155,9 +155,6 @@ async function initG2G() {
   if (options.favorited) {
     g2gFavorited();
   }
-  if (options.wikiIDgo) {
-    addWikiIDGoBox();
-  }
   if (options.moreTabs) {
     addG2GButtons();
   }
@@ -278,34 +275,6 @@ function addG2GButtons() {
     [recentActivity, myActivity, myFavourites].forEach((button) => {
       if (currentURL === button.find("a").attr("href")) {
         button.find("a").parent().addClass("qa-nav-main-selected").addClass("active");
-      }
-    });
-  }
-}
-
-function addWikiIDGoBox() {
-  const WTIDgo = $(`
-    <div class="nav-item" id="wtIDgo_label">
-      <input type="text" id="wtIDgo_id" placeholder="WikiTree ID">
-      <input type="submit" class="button small" id="wtIDgo_go" value="GO">
-    </div>`);
-
-  if ($("#wtIDgo_label").length == 0) {
-    $("#heading").prepend(WTIDgo);
-
-    $("#wtIDgo_id").on("keyup", function (up) {
-      if (up.key == "Enter") {
-        $("#wtIDgo_go").trigger("click");
-      }
-    });
-
-    $("#wtIDgo_go").on("click", function (ev) {
-      ev.preventDefault();
-      const thisValue = $("#wtIDgo_id").val().trim();
-      if (thisValue.match(/[0-9]/) == null) {
-        window.location = "https://" + mainDomain + "/genealogy/" + thisValue;
-      } else {
-        window.location = "https://www.wikitree.com/wiki/" + thisValue;
       }
     });
   }

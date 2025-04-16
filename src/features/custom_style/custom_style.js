@@ -73,8 +73,8 @@ class CustomStyle {
 
   handleRoundedCorners() {
     return `
-  .qa-voting,
-  .qa-a-count,
+  .g2g-q-voting,
+  .g2g-q-a-count,
   input.qa-form-tall-text,
   input[type="text"],
   input[type="submit"],
@@ -171,8 +171,8 @@ class CustomStyle {
       tagHover: ".qa-q-item-tag-item a:link:hover,.qa-q-item-tag-item a:visited:hover",
       visitedLink:
         "a:visited:not(.btn-secondary,.qa-nav-main-link,a.button,a.new,.qa-nav-sub-link,.qa-nav-footer-link,#footer a,.wt.table th a,#editToolbarExt a,#view-container a,.menu-style .dropdown-menu a,.qa-page-next,.qa-page-prev,.qa-page-selected,.qa-page-link,.qa-tag-link,.qa-tag-link:hover,.qa-tag-link:visited,.qa-tag-link:visited:hover,.qa-tag-link:visited,.qa-tag-link:visited:hover)",
-      voteCount: ".green.box:has(.qa-voting)",
-      answerCount: ".orange.box:has(.qa-a-count)",
+      voteCount: ".qa-body-wrapper .green.box:has(.qa-voting)",
+      answerCount: ".qa-body-wrapper .orange.box:has(.qa-a-count)",
       editor: "div.CodeMirror,#wpTextbox1",
     };
 
