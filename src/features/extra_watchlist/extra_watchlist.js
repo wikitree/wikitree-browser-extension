@@ -662,7 +662,9 @@ const createWatchlistPopup = async (mouseY) => {
         data: "lName",
         render: (data, type, row) => {
           if (type === "display") {
-            return `<a href="https://${mainDomain}/wiki/${htmlEntities(row.wtId)}">${data}</a>`;
+            return `<a href="https://${mainDomain}/wiki/${htmlEntities(
+              row.wtId.replace(/^Space%3[Aa]/, "Space:")
+            )}">${data}</a>`;
           }
           return data;
         },
