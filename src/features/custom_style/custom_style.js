@@ -193,8 +193,10 @@ class CustomStyle {
     let important = " !important";
     for (let key in this.options) {
       important = " !important";
-      if (key == "g2gtab_color") {
-        // important = "";
+      if (
+        ["link_text-decoration-color", "link_text-decoration-style", "link_text-decoration-thickness"].includes(key)
+      ) {
+        important = "";
       }
 
       const bits = key.split("_");

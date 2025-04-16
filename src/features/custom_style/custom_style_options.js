@@ -221,6 +221,19 @@ const myCustomStyle = {
           ],
           defaultValue: "solid",
         },
+        {
+          id: "link_text-decoration-thickness",
+          type: OptionType.SELECT,
+          label: "Link text decoration thickness",
+          values: [
+            { value: "1px", text: "1px" },
+            { value: "2px", text: "2px" },
+            { value: "3px", text: "3px" },
+            { value: "4px", text: "4px" },
+            { value: "5px", text: "5px" },
+          ],
+          defaultValue: "1px",
+        },
       ],
     },
     {
