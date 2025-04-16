@@ -176,7 +176,7 @@ const myCustomStyle = {
     {
       id: "linkColors",
       type: OptionType.GROUP,
-      label: "Profile Link Colors",
+      label: "Profile Link Colors and Style",
       options: [
         {
           id: "link_color",
@@ -189,6 +189,37 @@ const myCustomStyle = {
           type: "color",
           label: "Visited link color",
           defaultValue: "#800080",
+        },
+        {
+          id: "link_text-decoration",
+          type: OptionType.SELECT,
+          label: "Link text decoration",
+          values: [
+            { value: "none", text: "None" },
+            { value: "underline", text: "Underline" },
+            { value: "overline", text: "Overline" },
+            { value: "line-through", text: "Line-through" },
+          ],
+          defaultValue: "underline",
+        },
+        {
+          id: "link_text-decoration-color",
+          type: "color",
+          label: "Link text decoration color",
+          defaultValue: "#008000",
+        },
+        {
+          id: "link_text-decoration-style",
+          type: OptionType.SELECT,
+          label: "Link text decoration style",
+          values: [
+            { value: "solid", text: "Solid" },
+            { value: "double", text: "Double" },
+            { value: "dotted", text: "Dotted" },
+            { value: "dashed", text: "Dashed" },
+            { value: "wavy", text: "Wavy" },
+          ],
+          defaultValue: "solid",
         },
       ],
     },
