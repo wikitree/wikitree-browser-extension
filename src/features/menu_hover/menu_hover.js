@@ -81,5 +81,9 @@ shouldInitializeFeature("menuHover").then((result) => {
       $(".btn-group[data-menu='AddFindHelp']").removeAttr("data-menu");
     }, 2000); // Delay to ensure the menu is loaded before removing the attribute
     menuHover();
+    // Before leaving the page, remove the classes.
+    $(window).on("beforeunload", function () {
+      $(".btn-group[data-menu] .dropdown-menu").removeClass("show hovered");
+    });
   }
 });
