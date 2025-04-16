@@ -406,14 +406,50 @@ async function storeCustomMenu() {
       menuName = "Uncategorized";
     }
     const linkHref = $li.find("a").attr("href");
-    const linkText = $li
+    let linkText = $li
       .find("a")
       .text()
       .trim()
-      .replace(/Suggestions.*?\b/, "Suggestions")
-      .replace(/^Contributions.*?\b/, "Contributions")
-      .replace(/Badges.*?\b/, "Badges")
+      .replace(/Suggestions.*?/, "Suggestions")
+      .replace(/^Contributions:.*?/, "Contributions")
+      .replace(/Badges:.*?\b/, "Badges")
       .replace(/Thank-Yous.*?/, "Thank-Yous");
+    if (linkText == "Contributions") {
+      const contributionCountMatch = $li
+        .find("header a[href*='Special:Contribiutions'")
+        .text()
+        .match(/Contributions: ([0-9]+)/);
+      if (contributionCountMatch) {
+        linkText = "Contributions: " + contributionCountMatch[1];
+      }
+    }
+    if (linkText == "Badges") {
+      const badgeCountMatch = $li
+        .find("header a[href*='Special:Badges'")
+        .text()
+        .match(/Badges: ([0-9]+)/);
+      if (badgeCountMatch) {
+        linkText = "Badges: " + badgeCountMatch[1];
+      }
+    }
+    if (linkText == "Connections") {
+      const connectionCountMatch = $li
+        .find("header a[href*='Special:MyConnections'")
+        .text()
+        .match(/Connections: ([0-9]+)/);
+      if (connectionCountMatch) {
+        linkText = "Connections: " + connectionCountMatch[1];
+      }
+    }
+    if (linkText == "Thank-Yous") {
+      const thankYouCountMatch = $li
+        .find("header a[href*='Special:Thanks'")
+        .text()
+        .match(/Thank-Yous: ([0-9]+)/);
+      if (thankYouCountMatch) {
+        linkText = "Thank-Yous: " + thankYouCountMatch[1];
+      }
+    }
     arr.push({ Link: linkHref, LinkText: linkText, Menu: menuName });
   });
   localStorage.setItem("customMenu", JSON.stringify({ arr }));

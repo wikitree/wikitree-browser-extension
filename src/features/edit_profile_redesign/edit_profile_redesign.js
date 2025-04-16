@@ -5,6 +5,7 @@
 
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { isProfileEdit } from "../../core/pageType";
 
 // Initialize the feature if enabled.
 shouldInitializeFeature("editProfileRedesign").then((result) => {
@@ -101,7 +102,9 @@ async function init() {
         toggleTipsColumn();
       }, 2000);
     }
-    addToggleFamilySectionButton(options.startHiddenFamily);
+    if (isProfileEdit) {
+      addToggleFamilySectionButton(options.startHiddenFamily);
+    }
   }
 }
 
