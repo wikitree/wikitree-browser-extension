@@ -194,7 +194,12 @@ class CustomStyle {
     for (let key in this.options) {
       important = " !important";
       if (
-        ["link_text-decoration-color", "link_text-decoration-style", "link_text-decoration-thickness"].includes(key)
+        [
+          "link_text-decoration",
+          "link_text-decoration-color",
+          "link_text-decoration-style",
+          "link_text-decoration-thickness",
+        ].includes(key)
       ) {
         important = "";
       }
