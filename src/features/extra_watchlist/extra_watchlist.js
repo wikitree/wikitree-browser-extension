@@ -266,7 +266,7 @@ function extractPerson(data) {
   }
 
   let dYear = data?.DeathDate?.substr(0, 4) || "";
-  if (!isOK(dYear)) dYear = person?.DeathDateDecade || "";
+  if (!isOK(dYear)) dYear = data?.DeathDateDecade || "";
   if ((dYear === "unknown" || dYear == "") && data.IsLiving === 1) dYear = "living";
 
   return {
@@ -276,17 +276,21 @@ function extractPerson(data) {
     lName: isOK(data.LongNamePrivate) ? data.LongNamePrivate : isOK(data.ShortName) ? data.ShortName : "Private",
     wtId: data.Name ? encodeURIComponent(decodeURIComponent(data.Name.replaceAll(" ", "_"))) : "",
     numId: data.Id,
-    touched: data.Touched,
+    touched: data.Touched || "",
   };
 }
 
-function extractFSP(data) {
+function extractFSP(theData) {
+  const data = theData?.profile;
+  console.log("extractFSP", data);
   return {
     type: "s",
-    lName: data.Title.Text,
-    wtId: encodeURIComponent(decodeURIComponent(data.Title.PrefixedURL)),
-    numId: data.PageId,
-    touched: data.Touched,
+    lName: data.Title?.Text || theData?.page_name?.replace(/Space:/, "").replace(/_/g, " ") || "",
+    wtId: data.Title?.PrefixedURL
+      ? encodeURIComponent(decodeURIComponent(data.Title.PrefixedURL))
+      : encodeURIComponent(decodeURIComponent(theData.page_name)) || "",
+    numId: data.PageId || theData?.Profile?.Id || 0,
+    touched: data.Touched || "",
   };
 }
 
@@ -341,11 +345,14 @@ const doExtraWatchlist = () => {
 
         // Function to process space pages
         const handleSpacePages = () => {
+          console.log("spacePages", spacePages);
           const spacePromises = spacePages.map(async (aKey) => {
+            console.log("aKey", aKey);
             const fsp = await get_Profile(decodeURIComponent(aKey));
             const status = fsp[0]?.status;
             if (status != 0) errors.push(status);
-            const fspData = extractFSP(fsp[0].profile);
+            console.log("fsp", fsp[0]);
+            const fspData = extractFSP(fsp[0]);
             ewData.push(fspData);
           });
           return Promise.all(spacePromises);
@@ -678,10 +685,10 @@ const createWatchlistPopup = async (mouseY) => {
         searchable: false,
         orderable: false,
         render: (data, type, row) => {
-          if (type === "display") {
+          if (type === "display" && data) {
             return `<a href="https://${mainDomain}/index.php?title=Special:NetworkFeed&space=${data}" title='See recent changes'>Changes</a>`;
           }
-          return data;
+          return "";
         },
         width: "8%",
       },
