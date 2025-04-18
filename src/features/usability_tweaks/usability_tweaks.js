@@ -15,6 +15,8 @@ import {
   isPlusDomain,
   isSpaceEdit,
   isCategoryEdit,
+  isCategoryPage,
+  isHelpPage,
   isNetworkFeed,
 } from "../../core/pageType";
 import "./usability_tweaks.css";
@@ -683,7 +685,9 @@ function makeTableOverflowVisible() {
   const $eligibleWrappers = $(".table-wrapper").filter(function () {
     return (
       $(this).closest(".box,.projectbox,.x-alert").length === 0 &&
-      $(this).find("tr.x-inline-img,tbody>tr>td>a.image").length === 0
+      $(this).find("tr.x-inline-img,tbody>tr>td>a.image").length === 0 &&
+      !isCategoryPage &&
+      !isHelpPage
     );
   });
 
