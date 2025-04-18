@@ -17,7 +17,6 @@ import {
   isWikiEdit,
 } from "../../core/pageType";
 import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
-import { set } from "date-fns";
 
 const CB_DB_NAME = "Clipboard";
 const CB_DB_VERSION = 1;
@@ -336,6 +335,12 @@ function copyClippingToClipboard(element) {
       el = $("#commentPostText");
     } else if ($(".memoriesFormToggle").css("display") == "block") {
       el = $("textarea[name='wpText']");
+    } else if (isProfileAddRelative || isAddUnrelatedPerson) {
+      if ($("textarea.expanded").length) {
+        el = $("textarea.expanded");
+      } else {
+        el = $("#mSources");
+      }
     } else if ($("textarea[name='a_content']").length) {
       const oIframe = $(".cke_wysiwyg_frame");
       const conDoc = oIframe[0].contentDocument;

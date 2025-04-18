@@ -2,6 +2,7 @@ import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isProfileAddRelative, isAddUnrelatedPerson } from "../../core/pageType";
 import { isEnhancedEditorOn } from "../edit_profile_redesign/edit_profile_redesign";
+import { set } from "date-fns";
 
 shouldInitializeFeature("editorExpander").then((result) => {
   if (result) {
@@ -23,16 +24,18 @@ function returnEditorToNormal() {
   $("textarea#wpTextbox1").removeClass("expanded").insertAfter("#addCategoryInput");
   $("#toolbar").removeClass("expanded");
   $("#familyDropdown").insertBefore("#toolbar").removeClass("expanded");
-  $(document).off("keyup");
+  $(document).off("keyup.expander");
   if (eeWasOn) {
     $("#toggleMarkupColor").trigger("click");
   }
   $("#expandTextareaButton").attr("title", "Expand text box");
 }
-const imgURL = chrome.runtime.getURL("images/expand.svg");
+const expandURL = chrome.runtime.getURL("images/expand.svg");
+const shrinkURL = chrome.runtime.getURL("images/shrink.svg");
+
 function initEditorExpander() {
   const expandButton = $(
-    `<img id="expandTextareaButton" src="${imgURL}" class="mw-toolbar-editbutton" title="Expand text box" />`
+    `<img id="expandTextareaButton" src="${expandURL}" class="mw-toolbar-editbutton" title="Expand text box" />`
   );
   $("#toolbar").prepend(expandButton);
   expandButton.on("click", function () {
@@ -45,7 +48,7 @@ function initEditorExpander() {
       $("#toolbar").addClass("expanded");
       expandButton.attr("title", "Shrink text box");
       $("#familyDropdown").appendTo("#editToolbarExt").addClass("expanded");
-      $(document).on("keyup", function (e) {
+      $(document).on("keyup.expander", function (e) {
         if (e.key === "Escape") {
           returnEditorToNormal();
         }
@@ -61,10 +64,9 @@ function initEditorExpander() {
     const labelIds = ["notesLabel", "sourcesLabel"];
 
     for (let i = 0; i < labelIds.length; i++) {
-      const expandButton = $(`<img class="expandTextareaButton" src="${imgURL}" title="Expand text box"></img>`);
+      const expandButton = $(`<img class="expandTextareaButton" src="${expandURL}" title="Expand text box"></img>`);
       const labelTd = $(`#${labelIds[i]}`);
-      const textareaTd = labelTd.next("td");
-      const textarea = textareaTd.find("textarea");
+      const textarea = labelTd.siblings("textarea").first();
 
       if (labelIds[i] === "sourcesLabel") {
         labelTd.before(expandButton);
@@ -87,23 +89,27 @@ function initEditorExpander() {
       }
 
       function returnElementsToNormal() {
+        if (isProfileAddRelative || isAddUnrelatedPerson) {
+          $("#sourcesLabel").after($(".clipboardContainer"));
+        }
+
+        originalTextarea.off("input.expander");
+
         $("#editorExpanderFixedDiv").remove();
         originalTextarea.removeClass("expanded");
         originalTextarea.show();
         originalLabelTd.show();
         $(button).show();
         // Remove ESC key listener
-        $(document).off("keyup");
+        $(document).off("keyup.expander");
       }
 
       // Add ESC key listener
-      $(document)
-        .off()
-        .on("keyup", function (e) {
-          if (e.key === "Escape") {
-            returnElementsToNormal();
-          }
-        });
+      $(document).on("keyup.expander", function (e) {
+        if (e.key === "Escape") {
+          returnElementsToNormal();
+        }
+      });
 
       if (originalTextarea.hasClass("expanded")) {
         returnElementsToNormal();
@@ -115,7 +121,9 @@ function initEditorExpander() {
 
         const fixedDiv = $('<div id="editorExpanderFixedDiv"></div>');
 
-        const newButton = $('<span class="expandTextareaButton" title="Shrink text box"></span>');
+        const newButton = $(
+          `<img class="expandTextareaButton wbe-button" src="${shrinkURL}" data-tooltip="Shrink text box" title="Shrink text box" />`
+        );
         const newTextarea = $("<textarea></textarea>")
           .attr({
             rows: "5",
@@ -126,18 +134,39 @@ function initEditorExpander() {
 
         const labelClone = originalLabelTd.find("a").clone(); // Clone the label
 
-        // Sync value from original textarea to new textarea
+        // Initial sync from original to new
         newTextarea.val(originalTextarea.val());
 
-        // Add event listener to sync value when new textarea changes
+        // Two-way sync
         newTextarea.on("input", function () {
-          originalTextarea.val(newTextarea.val());
+          originalTextarea.val(this.value);
+        });
+
+        originalTextarea.on("input.expander", function () {
+          newTextarea.val(this.value);
+        });
+
+        newTextarea.on("scroll", function () {
+          originalTextarea.scrollTop(this.scrollTop);
+        });
+        originalTextarea.on("scroll.expander", function () {
+          newTextarea.scrollTop(this.scrollTop);
         });
 
         fixedDiv.append(labelClone).append(newTextarea).append(newButton); // Add the cloned label
+
+        if (isProfileAddRelative || isAddUnrelatedPerson) {
+          labelClone.after($(".clipboardContainer"));
+        }
+
         $("body").append(fixedDiv);
 
         newButton.on("click", function () {
+          if (isProfileAddRelative || isAddUnrelatedPerson) {
+            $("#sourcesLabel").after($(".clipboardContainer"));
+          }
+          originalTextarea.off("input.expander");
+
           $("#editorExpanderFixedDiv").remove();
           originalTextarea.removeClass("expanded");
           originalTextarea.show();
@@ -149,7 +178,6 @@ function initEditorExpander() {
   }
 
   // Initialize the function after a delay, if necessary
-  // Replace isProfileAddRelative and isAddUnrelatedPerson with your actual conditions
   if (
     (typeof isProfileAddRelative !== "undefined" && isProfileAddRelative) ||
     (typeof isAddUnrelatedPerson !== "undefined" && isAddUnrelatedPerson)
