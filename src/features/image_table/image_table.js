@@ -92,7 +92,6 @@ function initPhotoPopup() {
  * @param {Array} photos - An array of photo objects to display.
  */
 function createPhotoTable(photos) {
-  // Create the basic HTML table structure
   const table = $(`
     <table id="photosTable" class="display">
       <thead>
@@ -103,6 +102,8 @@ function createPhotoTable(photos) {
           <th>Date</th>
           <th>Type</th>
           <th>Dimensions</th>
+          <th style="display:none;">Width</th>
+          <th style="display:none;">Height</th>
           <th>Uploaded</th>
         </tr>
       </thead>
@@ -110,52 +111,77 @@ function createPhotoTable(photos) {
     </table>
   `);
 
-  // Loop over each photo and create a row with its details
   photos.forEach((photo) => {
-    const row = $("<tr></tr>");
+    const width = photo.Width || 0;
+    const height = photo.Height || 0;
 
-    // Thumbnail cell: display a small image and attach a click event to show a larger image
-    const thumbCell = $("<td></td>");
-    const thumbImg = $(`
-      <img src="https://www.wikitree.com${photo.URL_75}" alt="${photo.Title}" style="width:50px;" />
+    const row = $(`
+      <tr>
+        <td>
+          <img src="https://www.wikitree.com${photo.URL_75}" alt="${photo.Title}" style="width:50px; cursor:pointer;" />
+        </td>
+        <td><a href="https://www.wikitree.com${photo.URL}">${photo.Title}</a></td>
+        <td>${photo.Location || "N/A"}</td>
+        <td>${photo.Date || "N/A"}</td>
+        <td>${photo.Type || "N/A"}</td>
+        <td>${width} x ${height}</td>
+        <td style="display:none;">${width}</td>
+        <td style="display:none;">${height}</td>
+        <td>${photo.Uploaded || "N/A"}</td>
+      </tr>
     `);
-    thumbImg.on("click", function () {
-      showLargeImage(photo);
-    });
-    thumbCell.append(thumbImg);
-    row.append(thumbCell);
 
-    // Title cell with a clickable link to the photo's page
-    const titleCell = $("<td></td>");
-    const titleLink = $(`<a href="https://www.wikitree.com${photo.URL}">${photo.Title}</a>`);
-    titleCell.append(titleLink);
-    row.append(titleCell);
+    // Thumbnail click event
+    row.find("img").on("click", () => showLargeImage(photo));
 
-    // Append remaining cells with photo details; use "N/A" if data is missing
-    row.append($(`<td>${photo.Location || "N/A"}</td>`));
-    row.append($(`<td>${photo.Date || "N/A"}</td>`));
-    row.append($(`<td>${photo.Type || "N/A"}</td>`));
-    row.append($(`<td>${photo.Width} x ${photo.Height}</td>`));
-    row.append($(`<td>${photo.Uploaded || "N/A"}</td>`));
-
-    // Add the row to the table body
     table.find("tbody").append(row);
   });
 
-  // Append the complete table to the designated container
   $("#photoTable").append(table);
 
-  // Initialize the DataTables plugin with desired settings
-  $("#photosTable").DataTable({
+  const dataTable = $("#photosTable").DataTable({
     paging: true,
     searching: true,
     ordering: true,
     autoWidth: false,
     pageLength: 10,
     columnDefs: [
-      { orderable: false, targets: 0 }, // Disable sorting on the thumbnail column
+      { orderable: false, targets: [0] }, // Thumbnail not sortable
+      { visible: false, targets: [6, 7] }, // Hide Width and Height columns
     ],
+    order: [[8, "asc"]], // default sort by uploaded date ASC
   });
+
+  // Custom sort cycle logic for Dimensions
+  let sortCycle = -1;
+  const sortModes = [
+    [7, "desc"], // Height DESC
+    [7, "asc"], // Height ASC
+    [6, "desc"], // Width DESC
+    [6, "asc"], // Width ASC
+  ];
+
+  // Use DataTables header click listener to intercept default behavior
+  $("#photosTable thead")
+    .off("click.DT")
+    .on("click", "th", function (e) {
+      const colIdx = $(this).index();
+
+      if (colIdx === 5) {
+        // Dimensions column
+        e.stopImmediatePropagation(); // stop DataTables' default sorting
+        sortCycle = (sortCycle + 1) % sortModes.length;
+        dataTable.order([sortModes[sortCycle]]).draw();
+
+        // Manually update the sort indicators
+        $("#photosTable thead th").removeClass("sorting_asc sorting_desc");
+        const currentSortClass = sortModes[sortCycle][1] === "asc" ? "sorting_asc" : "sorting_desc";
+        $(this).addClass(currentSortClass);
+      } else {
+        // Use default sorting for other columns
+        dataTable.order([colIdx, "asc"]).draw();
+      }
+    });
 }
 
 /**
