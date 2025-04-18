@@ -1775,7 +1775,8 @@ $(document).on("keydown", function (e) {
 });
 
 /// document .popup click -> set highest z-index
-$(document).on("click", ".popup", function (e) {
+$(document).on("click", ".popup,#editorExpanderFixedDiv", function (e) {
+  console.log("Popup clicked:", this);
   setHighestZIndex(this);
   e.stopPropagation(); // Prevent event bubbling to parent elements
 });
