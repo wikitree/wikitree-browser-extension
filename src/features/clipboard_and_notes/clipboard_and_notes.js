@@ -130,13 +130,13 @@ shouldInitializeFeature("clipboardAndNotes").then((result) => {
       }
     }
 
-    $("#mSources,#wpTextbox1,#wpSummary,#privateMessage-comments").on("mouseup", function () {
-      window.activeTextarea = document.activeElement.id;
+    $(document).on("focusin", "textarea, #wpSummary", function () {
+      window.activeFormElement = this.id;
     });
 
     setTimeout(function () {
       $("#mBioWithoutSources").on("mouseup", function () {
-        window.activeTextarea = document.activeElement.id;
+        window.activeFormElement = document.activeElement.id;
       });
     }, 1500);
   }
@@ -297,11 +297,11 @@ async function editClipping(key, type, e) {
     clipboard(type, e, "edit");
     $("#clippingBox").val("");
   } catch (error) {
-    console.error(`Failed to updte ${type} ${key}`, error);
+    console.error(`Failed to update ${type} ${key}`, error);
   }
 }
 
-function copyClippingToClipboard(element) {
+async function copyClippingToClipboard(element) {
   const $temp = $("<textarea>");
   $("body").append($temp);
   let theText = "";
@@ -310,9 +310,19 @@ function copyClippingToClipboard(element) {
   } else {
     theText = display2real(element);
   }
-  $temp.val(theText).select();
-  document.execCommand("copy");
-  $temp.remove();
+  // Modern clipboard API with fallback
+  try {
+    await navigator.clipboard.writeText(theText);
+    console.log("Copied to clipboard (Clipboard API)");
+  } catch (err) {
+    console.warn("Clipboard API failed, using fallback:", err);
+
+    const $temp = $("<textarea>");
+    $("body").append($temp);
+    $temp.val(theText).trigger("focus").trigger("select");
+    document.execCommand("copy");
+    $temp.remove();
+  }
 
   const enhancedEditorButton = $("#toggleMarkupColor");
   if (
@@ -325,7 +335,7 @@ function copyClippingToClipboard(element) {
     $("h1:contains('Edit Marriage Information')").length ||
     $("#mSources").length
   ) {
-    const box = window.activeTextarea;
+    const box = window.activeFormElement;
     let el = $();
     if ($("#photo_upload").length) {
       el = $("#wpUploadDescription");
@@ -338,6 +348,8 @@ function copyClippingToClipboard(element) {
     } else if (isProfileAddRelative || isAddUnrelatedPerson) {
       if ($("textarea.expanded").length) {
         el = $("textarea.expanded");
+      } else if (box) {
+        el = $("#" + box);
       } else {
         el = $("#mSources");
       }
@@ -356,14 +368,14 @@ function copyClippingToClipboard(element) {
     }
     if (el[0]) {
       const selStart = el[0].selectionStart;
-      const partA = el.val().substr(0, selStart);
-      const partB = el.val().substr(selStart);
+      const textToInsert = decodeHTMLEntities(theText);
+      const before = el.val().substring(0, selStart);
+      const after = el.val().substring(selStart);
 
-      el.val(partA + decodeHTMLEntities(theText) + partB);
+      el.val(before + textToInsert + after);
 
-      //textarea: putting the cursor after the insertion and focussing
-      el[0].selectionStart = el.val().indexOf(partB);
-      el[0].selectionEnd = el[0].selectionStart;
+      // Place cursor after inserted text
+      el[0].selectionStart = el[0].selectionEnd = before.length + textToInsert.length;
       el[0].focus();
     }
   }
@@ -526,7 +538,7 @@ async function clipboard(type, e, action = false) {
       return true;
     });
   } catch (error) {
-    console.error(`Failed to retrieve cliboard items`, error);
+    console.error(`Failed to retrieve clipboard items`, error);
   }
 
   // We've collected them all, now render them
@@ -947,8 +959,8 @@ function setClipboardText() {
     .on("click", () => {
       $("#toggleMarkupColor").trigger("click");
       setClipboardText();
-      if (window.activeTextarea == undefined) {
-        window.activeTextarea = "wpTextbox1";
+      if (window.activeFormElement == undefined) {
+        window.activeFormElement = "wpTextbox1";
       }
     });
 }
