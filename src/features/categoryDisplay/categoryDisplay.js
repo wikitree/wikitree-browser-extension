@@ -166,7 +166,7 @@ async function moveCategories() {
     case "top":
       $categories.find("span.SMALL").remove();
       if (isSpacePage) {
-        $("div.before-headings").prepend($categories);
+        $("div.body-text").prepend($categories);
       }
       $privacyModal.before($categories);
       break;
