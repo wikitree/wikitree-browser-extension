@@ -4,6 +4,39 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 class CustomStyle {
   constructor(options) {
     this.options = options;
+    this.idToSelectorMapping = {
+      global: "body:not(.darkMode),.tab-pane.active",
+      input: "input[type='text'],input[type='submit'],textarea",
+      header: ".sticky-header body:not(.darkMode) .wrapper #header::before,#header",
+      headings:
+        "h1,h2:not(#view-container h2),h3:not(#view-container h3),h4:not(#view-container h4),h5:not(#view-container h5),h6:not(#view-container h6,.tree--placement h6),#themeTable caption",
+      headingLinks:
+        "h1 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h1 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h2 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h2 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h3 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h3 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h4 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h4 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h5 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h5 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h6 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h6 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a)",
+      color1:
+        "button.nav-link:not(.active),a.nav-link:not(.active),footer#footer ul.nav a.nav-link:not(.active),footer#footer p a:link,header,footer,div.tabs--wrapper,div.category--links",
+      color2: ".nav-link.active,.nav-link.active a,button.button, a.btn-pill-sm",
+      color3: "aside",
+      color4: "div.box.orange.rounded,aside.box.orange.rounded",
+      link: "a:link:not(.btn-secondary,#jump-nav a,.qa-nav-main-link,a.button,a.new,.qa-nav-sub-link,.qa-nav-footer-link,#footer a,a.qa-tag-link,a.new,.wt.table th a,#editToolbarExt a,#view-container a,.btn-pill-sm,.menu-style .dropdown-menu a)",
+      tag: ".qa-q-item-tag-item a:link",
+      tagHover: ".qa-q-item-tag-item a:link:hover,.qa-q-item-tag-item a:visited:hover",
+      visitedLink:
+        "a:visited:not(.btn-secondary,.qa-nav-main-link,a.button,a.new,.qa-nav-sub-link,.qa-nav-footer-link,#footer a,.wt.table th a,#editToolbarExt a,#view-container a,.menu-style .dropdown-menu a,.qa-page-next,.qa-page-prev,.qa-page-selected,.qa-page-link,.qa-tag-link,.qa-tag-link:hover,.qa-tag-link:visited,.qa-tag-link:visited:hover,.qa-tag-link:visited,.qa-tag-link:visited:hover)",
+      voteCount: ".qa-body-wrapper .green.box:has(.qa-voting)",
+      answerCount: ".qa-body-wrapper .orange.box:has(.qa-a-count)",
+      editor: "div.CodeMirror,#wpTextbox1",
+    };
   }
 
   isLight(color) {
@@ -142,48 +175,19 @@ class CustomStyle {
   }
 
   getSelectors(bits) {
-    let idToSelectorMapping = {
-      global: "body:not(.darkMode),.tab-pane.active",
-      input: "input[type='text'],input[type='submit'],textarea",
-      header: ".sticky-header body:not(.darkMode) .wrapper #header::before,#header",
-      headings:
-        "h1,h2:not(#view-container h2),h3:not(#view-container h3),h4:not(#view-container h4),h5:not(#view-container h5),h6:not(#view-container h6,.tree--placement h6),#themeTable caption",
-      headingLinks:
-        "h1 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
-        "h1 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
-        "h2 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
-        "h2 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
-        "h3 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
-        "h3 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
-        "h4 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
-        "h4 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
-        "h5 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
-        "h5 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
-        "h6 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
-        "h6 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a)",
-      color1:
-        "button.nav-link:not(.active),a.nav-link:not(.active),footer#footer ul.nav a.nav-link:not(.active),footer#footer p a:link,header,footer,div.tabs--wrapper,div.category--links",
-      color2: ".nav-link.active,.nav-link.active a,button.button, a.btn-pill-sm",
-      color3: "aside",
-      color4: "div.box.orange.rounded,aside.box.orange.rounded",
-      link: "a:link:not(.btn-secondary,#jump-nav a,.qa-nav-main-link,a.button,a.new,.qa-nav-sub-link,.qa-nav-footer-link,#footer a,a.qa-tag-link,a.new,.wt.table th a,#editToolbarExt a,#view-container a,.btn-pill-sm,.menu-style .dropdown-menu a)",
-      tag: ".qa-q-item-tag-item a:link",
-      tagHover: ".qa-q-item-tag-item a:link:hover,.qa-q-item-tag-item a:visited:hover",
-      visitedLink:
-        "a:visited:not(.btn-secondary,.qa-nav-main-link,a.button,a.new,.qa-nav-sub-link,.qa-nav-footer-link,#footer a,.wt.table th a,#editToolbarExt a,#view-container a,.menu-style .dropdown-menu a,.qa-page-next,.qa-page-prev,.qa-page-selected,.qa-page-link,.qa-tag-link,.qa-tag-link:hover,.qa-tag-link:visited,.qa-tag-link:visited:hover,.qa-tag-link:visited,.qa-tag-link:visited:hover)",
-      voteCount: ".qa-body-wrapper .green.box:has(.qa-voting)",
-      answerCount: ".qa-body-wrapper .orange.box:has(.qa-a-count)",
-      editor: "div.CodeMirror,#wpTextbox1",
-    };
-
     if (bits[1] === "color" && bits[0] === "headings") {
-      idToSelectorMapping["headings"] += ",button.copyWidget";
-      idToSelectorMapping["headingLinks"] = "h1 a,h2 a,h3 a,h4 a,h5 a,h6 a";
+      this.idToSelectorMapping["headings"] += ",button.copyWidget";
+      this.idToSelectorMapping["headingLinks"] = "h1 a,h2 a,h3 a,h4 a,h5 a,h6 a";
     }
-
+    if (bits[1] === "font-family" && bits[0] === "input") {
+      if (this.options["input_font-family"] != "'Roboto', sans-serif") {
+        this.idToSelectorMapping["input"] +=
+          ",.mono-b,.btn, span.TAG, .jump--links .showHideTree, .jump--links #showHideDescendants, .cat--links a,.tooltip";
+      }
+    }
+    console.log(this.options);
     let id = bits[0].replace(/-/g, "_");
-
-    return idToSelectorMapping[id] || null;
+    return this.idToSelectorMapping[id] || null;
   }
 
   myCustomStyleFunction() {
