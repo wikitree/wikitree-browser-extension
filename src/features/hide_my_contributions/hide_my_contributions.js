@@ -10,7 +10,7 @@ checkIfFeatureEnabled("hideMyContributions").then((isEnabled) => {
 
       if (hideMyContributionsValue) {
         // If the option is true, hide user's contributions
-        $("span.HISTORY-ITEM a:first-child").each(function () {
+        $("span.feed-item a:first-child").each(function () {
           const isUserContrib = $(this).text() === "You";
           const isUserContribPhoto =
             $(this)
