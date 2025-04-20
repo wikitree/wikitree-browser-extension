@@ -4,7 +4,6 @@ import "datatables.net-dt/css/jquery.dataTables.css";
 import "datatables.net";
 import { isProfilePage } from "../../core/pageType";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
-import { set } from "date-fns";
 
 let theSection;
 let theTab;
@@ -149,37 +148,57 @@ function createPhotoTable(photos) {
       { orderable: false, targets: [0] }, // Thumbnail not sortable
       { visible: false, targets: [6, 7] }, // Hide Width and Height columns
     ],
-    order: [[8, "asc"]], // default sort by uploaded date ASC
+    order: [[8, "asc"]], // default sort by Uploaded date ASC
   });
 
+  // Store current sort directions per column
+  const sortDirections = {
+    1: "desc", // Title
+    2: "desc", // Location
+    3: "desc", // Date
+    4: "desc", // Type
+    5: "asc", // Dimensions (handled separately)
+    8: "asc", // Uploaded
+  };
+
   // Custom sort cycle logic for Dimensions
-  let sortCycle = -1;
-  const sortModes = [
+  let dimensionSortCycle = -1;
+  const dimensionSortModes = [
     [7, "desc"], // Height DESC
     [7, "asc"], // Height ASC
     [6, "desc"], // Width DESC
     [6, "asc"], // Width ASC
   ];
 
-  // Use DataTables header click listener to intercept default behavior
+  // Override DataTables' header click handler
   $("#photosTable thead")
     .off("click.DT")
     .on("click", "th", function (e) {
       const colIdx = $(this).index();
 
+      // Dimensions column custom sort cycle
       if (colIdx === 5) {
-        // Dimensions column
-        e.stopImmediatePropagation(); // stop DataTables' default sorting
-        sortCycle = (sortCycle + 1) % sortModes.length;
-        dataTable.order([sortModes[sortCycle]]).draw();
+        e.stopImmediatePropagation();
+        dimensionSortCycle = (dimensionSortCycle + 1) % dimensionSortModes.length;
+        dataTable.order([dimensionSortModes[dimensionSortCycle]]).draw();
 
-        // Manually update the sort indicators
+        // Update sorting indicators manually
         $("#photosTable thead th").removeClass("sorting_asc sorting_desc");
-        const currentSortClass = sortModes[sortCycle][1] === "asc" ? "sorting_asc" : "sorting_desc";
-        $(this).addClass(currentSortClass);
-      } else {
-        // Use default sorting for other columns
-        dataTable.order([colIdx, "asc"]).draw();
+        const currentClass = dimensionSortModes[dimensionSortCycle][1] === "asc" ? "sorting_asc" : "sorting_desc";
+        $(this).addClass(currentClass);
+      }
+      // Other sortable columns (Title, Location, Date, Type, Uploaded)
+      else if ([1, 2, 3, 4, 8].includes(colIdx)) {
+        e.stopImmediatePropagation();
+
+        // Toggle direction
+        sortDirections[colIdx] = sortDirections[colIdx] === "asc" ? "desc" : "asc";
+
+        dataTable.order([colIdx, sortDirections[colIdx]]).draw();
+
+        // Update sorting indicators manually
+        $("#photosTable thead th").removeClass("sorting_asc sorting_desc");
+        $(this).addClass(sortDirections[colIdx] === "asc" ? "sorting_asc" : "sorting_desc");
       }
     });
 }

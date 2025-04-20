@@ -143,7 +143,7 @@ class CustomStyle {
 
   getSelectors(bits) {
     let idToSelectorMapping = {
-      global: "body:not(.darkMode),.tab-pane.active",
+      global: "body:not(.darkMode),.tab-pane.active,h1,h2,h3,h4,h5,h6,strong,b,em,i",
       input: "input[type='text'],input[type='submit'],textarea",
       header: ".sticky-header body:not(.darkMode) .wrapper #header::before,#header",
       headings:
