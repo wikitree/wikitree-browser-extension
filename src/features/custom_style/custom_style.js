@@ -4,7 +4,9 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 class CustomStyle {
   constructor(options) {
     this.options = options;
+    this.removeGlobalBackgroundColorSetting();
     this.idToSelectorMapping = {
+      all: "body:not(.darkMode),.tab-pane.active",
       global: "body:not(.darkMode),.tab-pane.active,h1,h2,h3,h4,h5,h6,em,strong,b,i",
       input: "input[type='text'],input[type='submit'],textarea",
       header: ".sticky-header body:not(.darkMode) .wrapper #header::before,#header",
@@ -37,6 +39,21 @@ class CustomStyle {
       answerCount: ".qa-body-wrapper .orange.box:has(.qa-a-count)",
       editor: "div.CodeMirror,#wpTextbox1",
     };
+  }
+
+  removeGlobalBackgroundColorSetting() {
+    const globalBackgroundColor = this.options["global_background-color"];
+    this.options["global_background-color"] = null;
+    if (globalBackgroundColor) {
+      getFeatureOptions("customStyle").then((options) => {
+        options["global_background-color"] = null;
+        options["all_background-color"] = globalBackgroundColor;
+        const storageName = "customStyle_options";
+        chrome.storage.sync.set({
+          [storageName]: options,
+        });
+      });
+    }
   }
 
   isLight(color) {
@@ -277,7 +294,7 @@ class CustomStyle {
     rules += `
     div.qa-body-wrapper a:link span.checkmark,
     span.qa-q-item-meta a.qa-q-item-what:link .checkmark {
-      color: ${this.options["global_background-color"]};   
+      color: ${this.options["all_background-color"]};   
     }`; // Checkmark color
     return rules;
   }

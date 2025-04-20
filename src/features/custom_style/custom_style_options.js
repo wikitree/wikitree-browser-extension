@@ -16,7 +16,7 @@ const myCustomStyle = {
       type: OptionType.GROUP,
       label: "Global",
       options: [
-        { id: "global_background-color", type: "color", label: "Background color", defaultValue: "#ffffff" },
+        { id: "all_background-color", type: "color", label: "Background color", defaultValue: "#ffffff" },
         {
           id: "global_color",
           type: "color",
