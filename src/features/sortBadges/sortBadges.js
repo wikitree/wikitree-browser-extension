@@ -41,10 +41,7 @@ shouldInitializeFeature("sortBadges").then((result) => {
         localStorage.removeItem("sortBadges");
       }
     }
-    console.log(isProfileLoggedInUserPage);
-    console.log(window.location.href.match("Space:"));
-    console.log(profilePerson.Name);
-    console.log(getUserWtId());
+
     if (
       isProfileLoggedInUserPage &&
       window.location.href.match("Space:") == null &&
