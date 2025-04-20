@@ -54,6 +54,7 @@ const myCustomStyle = {
             { value: "'Lucida Console', monospace", text: "Lucida Console" },
             { value: "OpenDyslexic", text: "OpenDyslexic" },
             { value: "'Roboto', sans-serif", text: "Roboto" },
+            { value: "'Roboto Mono', monospace", text: "Roboto Mono" },
             { value: "Tahoma, sans-serif", text: "Tahoma" },
             { value: "'Times New Roman', serif", text: "Times New Roman" },
             { value: "'Trebuchet MS', sans-serif", text: "Trebuchet MS" },
