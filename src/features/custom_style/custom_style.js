@@ -5,7 +5,7 @@ class CustomStyle {
   constructor(options) {
     this.options = options;
     this.idToSelectorMapping = {
-      global: "body:not(.darkMode),.tab-pane.active",
+      global: "body:not(.darkMode),.tab-pane.active,h1,h2,h3,h4,h5,h6,em,strong,b,i",
       input: "input[type='text'],input[type='submit'],textarea",
       header: ".sticky-header body:not(.darkMode) .wrapper #header::before,#header",
       headings:
@@ -182,7 +182,7 @@ class CustomStyle {
     if (bits[1] === "font-family" && bits[0] === "input") {
       if (this.options["input_font-family"] != "'Roboto', sans-serif") {
         this.idToSelectorMapping["input"] +=
-          ",.mono-b,.btn, span.TAG, .jump--links .showHideTree, .jump--links #showHideDescendants, .cat--links a,.tooltip";
+          ",mono,.mono-b,.btn, span.TAG, .jump--links .showHideTree, .jump--links #showHideDescendants, .cat--links a,.tooltip";
       }
     }
     console.log(this.options);
