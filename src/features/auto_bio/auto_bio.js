@@ -105,37 +105,32 @@ function dataStatusWord(status, ISOdate, options = { needOnIn: false, onlyYears:
 }
 
 function findUSState(location) {
-  if (!location) {
-    return false;
-  }
-  // Test last part of location against variants of US country name and US state names
-  const usCountryNames = ["United States", "USA", "U.S.A.", "U.S.", "US", "United States of America"];
-  // Split the location string into parts
-  const parts = location.split(",").map((part) => part.trim());
+  if (!location) return null;
 
-  // Check if the last part is a US country name or a state
+  const usCountryNames = ["united states", "usa", "u.s.a.", "u.s.", "us", "united states of america"];
+
+  const parts = location.split(",").map((part) => part.trim().toLowerCase());
+
   const lastPart = parts[parts.length - 1];
-  const isUSLocation = usCountryNames.includes(lastPart);
-  const lastPartState = USstatesObjArray.find((state) => state.name === lastPart || state.abbreviation === lastPart);
+  const lastPartState = USstatesObjArray.find(
+    (state) => state.name.toLowerCase() === lastPart || state.abbreviation.toLowerCase() === lastPart
+  );
 
-  // If the last part is a US country name, check the second-to-last part for a state name
-  if (isUSLocation && parts.length > 1) {
+  if (usCountryNames.includes(lastPart) && parts.length > 1) {
     const secondToLastPart = parts[parts.length - 2];
     const secondToLastPartState = USstatesObjArray.find(
-      (state) => state.name === secondToLastPart || state.abbreviation === secondToLastPart
+      (state) => state.name.toLowerCase() === secondToLastPart || state.abbreviation.toLowerCase() === secondToLastPart
     );
     if (secondToLastPartState) {
-      return secondToLastPartState.name; // Return the full state name
+      return secondToLastPartState.name;
     }
   }
 
-  // If the last part is a state, return the full state name
   if (lastPartState) {
     return lastPartState.name;
   }
 
-  // If no matching state is found, return false
-  return false;
+  return null;
 }
 
 function autoBioCheck(sourcesStr) {
@@ -1332,8 +1327,13 @@ export function assignCemeteryFromSources() {
       let cemeteryMatch = source.Text.match(
         /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Graveyard)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)|Memorial Park).*?),?.*?(?=[;.])/im
       );
+
       let cemeteryMatch2 = source.Text.match(
         /,\s((?:(?!Acadian|Wall of Names|sameas=no)[^,])*(?:Cemetery|Memorial|Cimetière|kyrkogård|temető|Graveyard|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard)).*?;/i
+      );
+
+      let cemeteryMatch3 = source.Text.match(
+        /(?:\b(?:in|burial in)\s)([A-Z][^.\n]*?(?:Cemetery|Memorial|Cimetière|kyrkogård|temető|Graveyard|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard)\b[^.\n]*)/i
       );
 
       if (cemeteryMatch) {
@@ -1343,6 +1343,10 @@ export function assignCemeteryFromSources() {
       } else if (cemeteryMatch2) {
         let cemetery = cemeteryMatch2[1].trim();
         window.profilePerson.Cemetery = cemetery;
+      } else if (cemeteryMatch3) {
+        let cemetery = cemeteryMatch3[1].trim();
+        window.profilePerson.Cemetery = cemetery;
+        window.profilePerson.CemeteryFull = cemetery;
       }
 
       if (window.profilePerson?.Cemetery && window.profilePerson?.Cemetery.match(/record|Find a Grave/i)) {
@@ -2436,7 +2440,6 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
           .replace(/(in\s)?(\d{4})?/, "")
           .replace(/, \d{4}/)
           .trim();
-        console.log("locationMatch", locationMatch, reference.Residence, referenceTempText);
       }
     }
     text += ourText
@@ -5277,11 +5280,6 @@ export function sourcesArray(bio) {
       const detailsMatch2 = aRef.Text.match(/\(http.*?\)(.*?image.*?;\s)(.*?)\./);
       const detailsMatch3 = aRef.Text.match(/[>;)]([A-z\s-]*) marriage to\s(.*?)\s\bon\b\s(.*?)\s\bin\b\s(.*)\./);
       const entryForMatch = aRef.Text.match(/in entry for/);
-
-      console.log("detailsMatch:", detailsMatch);
-      console.log("detailsMatch2:", detailsMatch2);
-      console.log("detailsMatch3:", detailsMatch3);
-      console.log("entryForMatch:", entryForMatch);
 
       if (detailsMatch2) {
         aRef["Marriage Place"] = detailsMatch2[2].replace("Archives", "");
@@ -9021,6 +9019,8 @@ function removeCountryName(location) {
 }
 
 function generateCombinations(location) {
+  location = location.split(". Born")[0].trim(); // Remove "Born" part if present
+
   const replacements = [
     { full: "Saint", abbr: "St." },
     { full: "Fort", abbr: "Ft." },
@@ -9069,7 +9069,8 @@ function generateCombinations(location) {
     }
   }
 
-  return Array.from(resultSet);
+  const array = Array.from(resultSet);
+  return array;
 }
 
 // Function to check and replace the county name before 'Ireland'
@@ -9129,6 +9130,8 @@ export async function getLocationCategory(type, location = null) {
       categoryType = "cemetery";
       const cemeteryBits = location.split(/, /);
       cemeteryVariants = generateCombinations(cemeteryBits[0]);
+      // Remove any that matches 'undefined' anywhere in the text
+      cemeteryVariants = cemeteryVariants.filter((variant) => !variant.match(/undefined/i));
     } else {
       return;
     }
@@ -9182,7 +9185,6 @@ export async function getLocationCategory(type, location = null) {
   if (cemeteryVariants.length > 0) {
     searchLocationsArray.push(...cemeteryVariants);
   }
-
   const apiPromises = searchLocationsArray.map((searchLocation) => {
     return promiseWithTimeout(wtAPICatCIBSearch("AutoBio_" + categoryType, categoryType, searchLocation), 5000); // 5 seconds timeout
   });
@@ -9195,6 +9197,20 @@ export async function getLocationCategory(type, location = null) {
     for (const api of apiResponses) {
       if (api.status === "fulfilled") {
         const response = api.value.response;
+
+        // If location includes United States, find the state.
+
+        if (location.match(/United States|USA|U\.S\.A\.|U\.S\./i)) {
+          const thisState = findUSState(location);
+          if (thisState) {
+            response.categories = response.categories.filter((category) => {
+              const categoryState = findUSState(category.category);
+              if (!categoryState) return true; // Keep categories not tied to a specific state
+              return categoryState === thisState; // Keep only if state matches
+            });
+          }
+        }
+
         if (response?.categories?.length === 1) {
           const category = response.categories[0];
           if (!category.topLevel) {

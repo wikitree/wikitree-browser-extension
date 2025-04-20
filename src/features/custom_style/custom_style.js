@@ -185,7 +185,6 @@ class CustomStyle {
           ",mono,.mono-b,.btn, span.TAG, .jump--links .showHideTree, .jump--links #showHideDescendants, .cat--links a,.tooltip";
       }
     }
-    console.log(this.options);
     let id = bits[0].replace(/-/g, "_");
     return this.idToSelectorMapping[id] || null;
   }
