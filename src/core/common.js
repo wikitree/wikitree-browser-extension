@@ -1793,6 +1793,7 @@ export function setHighestZIndex(el) {
   );
 
   $(el).css("z-index", zIndex + 1);
+  $("#spaceWatchlistContextMenu").css("z-index", zIndex + 2); // Ensure the context menu is on top
 }
 
 //////////////////// For Notables Project

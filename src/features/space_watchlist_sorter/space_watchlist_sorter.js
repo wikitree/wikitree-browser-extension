@@ -813,6 +813,7 @@ let contextMenuHideTimer;
 function showCustomContextMenu(event, $item) {
   event.preventDefault();
   const $contextMenu = $("#spaceWatchlistContextMenu");
+  setHighestZIndex("#spaceWatchlistContextMenu");
   $contextMenu.empty(); // Clear any existing menu items
 
   // console.log("context 2");
