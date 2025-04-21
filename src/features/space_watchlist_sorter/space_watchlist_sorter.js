@@ -799,7 +799,7 @@ function initLongPressContextMenu() {
     .on("touchstart", ".spaceWatchlistSorter-sortable li", function (e) {
       const $this = $(this);
       pressTimer = window.setTimeout(function () {
-        showCustomContextMenu(e, $this);
+        showCustomContextMenuAtTouch(e, $this);
       }, 600); // Adjust duration as needed (600ms here)
     })
     .on("touchmove touchend", ".spaceWatchlistSorter-sortable li", function (e) {
@@ -810,10 +810,11 @@ function initLongPressContextMenu() {
 let contextMenuHideTimer;
 
 // Display your custom context menu at the touch position
-function showCustomContextMenu(event, $item) {
+function showCustomContextMenuAtTouch(event, $item) {
+  // TODO: see if we can can get rid of the duplication of code between this and the
+  //       .on("contextmenu", ".spaceWatchlistSorter-sortable li" ... processing.
   event.preventDefault();
   const $contextMenu = $("#spaceWatchlistContextMenu");
-  setHighestZIndex("#spaceWatchlistContextMenu");
   $contextMenu.empty(); // Clear any existing menu items
 
   // console.log("context 2");
@@ -846,8 +847,8 @@ function showCustomContextMenu(event, $item) {
     top: posY + "px",
     left: posX + "px",
     display: "block",
-    zIndex: 9999,
   });
+  setHighestZIndex("#spaceWatchlistContextMenu");
 
   if (contextMenuHideTimer) clearTimeout(contextMenuHideTimer);
   contextMenuHideTimer = setTimeout(() => {
@@ -974,8 +975,7 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
 
     addListeners();
 
-    // Call context menu initialization
-    // initializeContextMenu();
+    // Ensure we have a context menu object in the DOM (we'll populate it's content later)
     const $contextMenu = $("<div>", { id: "spaceWatchlistContextMenu", class: "context-menu" }).hide();
     if (!$("#spaceWatchlistContextMenu").length) {
       $("body").append($contextMenu);
@@ -992,6 +992,9 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
     $(document)
       .off("click", "#spaceWatchlistSorterClosePopup")
       .on("click", "#spaceWatchlistSorterClosePopup", function () {
+        // Ensure the context menu is hidden
+        $("#spaceWatchlistContextMenu").hide();
+
         // Get updated folders and filter out empty ones
         let updatedFolders = getUpdatedFolders().filter((folder) => folder.items.length > 0);
 
@@ -1136,8 +1139,8 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
             top: event.pageY + "px",
             left: event.pageX + "px",
             display: "block",
-            zIndex: 9999,
           });
+          setHighestZIndex("#spaceWatchlistContextMenu");
           return;
         }
 
@@ -1167,8 +1170,8 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
           top: `${top}px`,
           left: `${left}px`,
           display: "block",
-          zIndex: 9999,
         });
+        setHighestZIndex("#spaceWatchlistContextMenu");
       });
 
     // Hide the context menu on click outside
