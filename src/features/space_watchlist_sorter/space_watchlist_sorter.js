@@ -666,6 +666,7 @@ async function updateUI() {
 }
 
 function addFolder() {
+  $("#spaceWatchlistContextMenu").hide();
   const timestamp = Date.now();
   const tId = tabId(timestamp);
 
@@ -1036,6 +1037,7 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
     $(document)
       .off("click", ".spaceWatchlistSorter-removeFolder")
       .on("click", ".spaceWatchlistSorter-removeFolder", function () {
+        $("#spaceWatchlistContextMenu").hide();
         const srcGroupId = $(this).data("folder-id") || $(this).attr("data-folder-id");
         const srcFolderId = folderId(srcGroupId);
         const srcTabId = tabId(srcGroupId);
@@ -1090,6 +1092,7 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
     $(document)
       .off("click", ".spaceWatchlistSorter-sortable li")
       .on("click", ".spaceWatchlistSorter-sortable li", function (event) {
+        $("#spaceWatchlistContextMenu").hide();
         if (event.ctrlKey || event.metaKey) {
           // Toggle selection with Ctrl/Command key
           $(this).toggleClass("selected");
@@ -1196,6 +1199,7 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
       .off("dblclick", ".spaceWatchlistSorter-tab")
       .on("dblclick", ".spaceWatchlistSorter-tab", function (event) {
         event.stopPropagation(); // Prevent event propagation
+        $("#spaceWatchlistContextMenu").hide();
 
         const $tab = $(this);
         renameFolder($tab);
