@@ -603,11 +603,10 @@ function findItemByCumulativeSpan($parent) {
   items.each(function () {
     if ($(this).attr("id") == "Scratch") return; // Ignore the Scratch item
 
-    const span = parseInt(
-      $(this)
-        .attr("style")
-        .match(/grid-row-end:\s*span\s*(\d+)/)[1]
-    );
+    const style = $(this).attr("style");
+    if (!style) return; // Skip if no style attribute
+
+    const span = parseInt(style.match(/grid-row-end:\s*span\s*(\d+)/)[1]);
     if (firstSpan == null) {
       firstSpan = span;
     } else {
@@ -823,7 +822,7 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
                   if (tgtItem) {
                     scratch.detach().insertAfter(tgtItem);
                   } else {
-                    // There is no such element, so put scratch first in the lleft column since we take
+                    // There is no such element, so put scratch first in the left column since we take
                     // being in the left column as more important than being there in 2nd place
                     scratch.detach().prependTo(parent);
                   }
