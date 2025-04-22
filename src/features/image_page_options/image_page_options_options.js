@@ -8,7 +8,7 @@ import { isImagePage } from "../../core/pageType";
 registerFeature({
   name: "Image Page Options",
   id: "imagePageOptions",
-  description: "",
+  description: "Tweak the image page template examples",
   category: "Editing",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],

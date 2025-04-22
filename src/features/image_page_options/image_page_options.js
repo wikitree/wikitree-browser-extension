@@ -1,5 +1,5 @@
 /*
-Created By: Ian Beacall (Beacall-6)
+ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
@@ -7,9 +7,10 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { showCopyMessage } from "../access_keys/access_keys.js";
 
 let options;
-const templateSection = $("h3:contains('Use inside text')").closest("section");
-const examples = templateSection.find("div.EXAMPLE");
-const imageTitle = $("#heading h1").text().trim();
+let templateSection;
+let examples;
+let exampleParagraphs;
+let imageTitle;
 
 function getCleanedExampleText(example) {
   return $(example)
@@ -45,24 +46,46 @@ function addCopyButtons() {
 }
 
 function addLabel() {
+  // 1. Update the EXAMPLE blocks
   examples.each((_, example) => {
     let text = getCleanedExampleText(example);
     text = text.replace(/\n\}\}/, `\n|label=${imageTitle}\n}}`);
-    text = text.replace(/caption:/, "caption and with hover text (label parameter):");
     setExampleHTMLFromText(example, text);
+  });
+
+  // 2. Update the paragraphs
+  exampleParagraphs.each((_, paragraph) => {
+    const $p = $(paragraph);
+    let html = $p.html();
+    html = html.replace(/caption:/g, "caption and with hover text (label parameter):");
+    $p.html(html);
   });
 }
 
 function fixCaption() {
+  // 1. Update the EXAMPLE blocks
   examples.each((_, example) => {
     let text = getCleanedExampleText(example);
     text = text.replace(/caption=[^|}]+/, `caption=${imageTitle}\n`);
-    text = text.replace(/a different caption/, "a caption");
     setExampleHTMLFromText(example, text);
+  });
+
+  // 2. Update the paragraphs
+  exampleParagraphs.each((_, paragraph) => {
+    const $p = $(paragraph);
+    let html = $p.html();
+    html = html.replace(/a different caption/g, "a caption");
+    $p.html(html);
   });
 }
 
 async function init() {
+  // grab everything *after* the DOM is loaded
+  templateSection = $("h3:contains('Use inside text')").closest("section");
+  examples = templateSection.find("div.EXAMPLE");
+  exampleParagraphs = templateSection.find("p");
+  imageTitle = $("#heading h1").text().trim();
+
   options = await getFeatureOptions("imagePageOptions");
   if (options.addLabel) addLabel();
   if (options.fixCaption) fixCaption();
@@ -70,8 +93,7 @@ async function init() {
 }
 
 shouldInitializeFeature("imagePageOptions").then((result) => {
-  if (result) {
-    import("./image_page_options.css");
-    init();
-  }
+  if (!result) return;
+  import("./image_page_options.css");
+  init();
 });
