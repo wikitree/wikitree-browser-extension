@@ -1854,8 +1854,7 @@ class RangeringTool {
 
 let rangeringTool;
 const rangers = [
-  "Lee-29092",
-  "Lucas-407",
+  "Michaelsen-74",
   "Gilbert-20491",
   "Johnson-107455",
   "Beacall-6",
