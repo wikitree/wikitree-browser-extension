@@ -168,7 +168,8 @@ function parseBracketedUnknownInBlock(blockEl) {
       /^edit\b/i.test(text) ||
       text === "[date unknown]" ||
       text === "[location unknown]" ||
-      text === "[uncertain]"
+      text === "[uncertain]" ||
+      text === "[South Africa]"
     ) {
       return;
     }
@@ -177,7 +178,7 @@ function parseBracketedUnknownInBlock(blockEl) {
   let raw = blockEl.innerText;
   anchors.forEach((a) => {
     const t = a.textContent.trim();
-    if (/^\[half\]$/i.test(t) || /^add\b/i.test(t) || /^edit\b/i.test(t)) {
+    if (/^\[half\]$/i.test(t) || /^add\b/i.test(t) || /^edit\b/i.test(t) || t == "[South Africa]") {
       return;
     }
     raw = raw.replace(t, "");
@@ -190,7 +191,7 @@ function parseBracketedUnknownInBlock(blockEl) {
       /^\[half\]$/i.test(b) ||
       /^add\b/i.test(b) ||
       /^edit\b/i.test(b) ||
-      ["[uncertain]", "[certain]", "[non-biological]"].includes(trimmed)
+      ["[uncertain]", "[certain]", "[non-biological]", "[South Africa]"].includes(trimmed)
     ) {
       return;
     }
@@ -266,10 +267,13 @@ function parseSpousesBlock(spousesEl) {
     (b) => b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google")
   );
   bracketed.forEach((b) => {
-    if (!records.some((m) => m.Link === b.Link || m.Name === b.Name)) {
+    console.log("Spouse bracketed: ", b);
+    if (!records.some((m) => m.Link === b.Link || m.Name === b.Name) && b.Name.trim() != "[South Africa]") {
       records.push(b);
     }
   });
+
+  console.log("Spouses records: ", records);
   return records;
 }
 
@@ -370,6 +374,7 @@ function parseInitialData() {
     "[non-biological]",
     "[marriage location?]",
     "[marriage date?]",
+    "[South Africa]",
   ];
   const container = document.querySelector("#nav-familyContent div.tree--person");
   familyData = newFamilyData();
@@ -466,7 +471,7 @@ function parseInitialData() {
       );
     });
     bracketed.forEach((b) => {
-      if (!spouseEntries.some((m) => m.Link === b.Link || m.Name === b.Name)) {
+      if (!spouseEntries.some((m) => m.Link === b.Link || m.Name === b.Name) && b.Name.trim() != "[South Africa]") {
         spouseEntries.push(b);
       }
     });
