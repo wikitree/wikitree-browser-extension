@@ -290,6 +290,13 @@ class CustomStyle {
     if (this.options["roundedCorners"]) {
       rules += this.handleRoundedCorners();
     }
+
+    // Hide the [ ] in headings
+    rules += `
+    h2 .editsection, h3 .editsection, h4 .editsection, h5 .editsection, h6 .editsection {
+      color: ${this.options["headings_background-color"]} !important;
+    }`;
+
     // Handle G2G checkmarks
     rules += `
     div.qa-body-wrapper a:link span.checkmark,
