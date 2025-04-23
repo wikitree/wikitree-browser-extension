@@ -1260,7 +1260,11 @@ export function buildBirth(person) {
   }
   if (person.Father || person.Mother) {
     if (person.BirthDate || person.BirthLocation) {
-      text += ", ";
+      if (window.autoBioOptions?.firstSentences == "parentsWere") {
+        text += ". ";
+      } else {
+        text += ", ";
+      }
     } else {
       text += " the ";
     }
