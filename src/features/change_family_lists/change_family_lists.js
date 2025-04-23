@@ -1897,6 +1897,9 @@ async function getAncestorConnection(ancestor, user) {
  * Adds sibling and child counts to the DOM.
  */
 function addChildrenSiblingCount() {
+  const isLiving = pagePerson.IsLiving;
+  const hasHad = isLiving ? "has" : "had";
+  console.log("isLiving", isLiving);
   if ($("#childrenCount").length === 0) {
     const nVitals = $("#nVitals");
     const siblingCount = countItems(nVitals.find("span[itemprop='sibling']"));
@@ -1904,15 +1907,21 @@ function addChildrenSiblingCount() {
       .find("#siblingDetails")
       .append(
         $(
-          `<span id="siblingCount" class="familyCount" title="${profilePerson.FirstName} has ${siblingCount} sibling${
-            siblingCount !== 1 ? "s" : ""
-          }">[${siblingCount}]</span>`
+          `<span id="siblingCount" class="familyCount" title="${
+            profilePerson.FirstName
+          } ${hasHad} ${siblingCount} sibling${siblingCount !== 1 ? "s" : ""}">[${siblingCount}].</span>`
         )
       );
     const childrenCount = countItems(nVitals.find("span[itemprop='children']"));
     nVitals
       .find("#childrenDetails")
-      .append($(`<span id="childrenCount" class="familyCount">[${childrenCount}]</span>`));
+      .append(
+        $(
+          `<span id="childrenCount" class="familyCount" title="${
+            profilePerson.FirstName
+          } ${hasHad} ${childrenCount} child${childrenCount !== 1 ? "ren" : ""}">[${childrenCount}].</span>`
+        )
+      );
   }
 }
 
@@ -2046,6 +2055,7 @@ function addDNAConfirmedToFamily() {
 /* ========================================================================
    Main Hook: Initialize, Replace DOM, and Attach Events
    ======================================================================== */
+let pagePerson;
 shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   if (!result) {
     // parseSiblings();
@@ -2101,7 +2111,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     changeNativeEditLinks();
   }
 
-  const pagePerson = getPerson(profilePerson.Id);
+  pagePerson = getPerson(profilePerson.Id);
   let isPrivate = false;
   if (!pagePerson?.Name) {
     isPrivate = true;
