@@ -17,12 +17,6 @@ const customChangeSummaryOptions = {
 
   options: [
     {
-      id: "movingSaveBox",
-      type: OptionType.CHECKBOX,
-      label: "Show the options and save button in the right-hand column",
-      defaultValue: true,
-    },
-    {
       id: "showOnSpacePages",
       type: OptionType.CHECKBOX,
       label: "Show the options on space pages",
