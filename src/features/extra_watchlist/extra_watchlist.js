@@ -261,8 +261,7 @@ const getPeople = async (
 function extractPerson(data) {
   let bYear = data?.BirthDate?.substr(0, 4) || "";
   if (!isOK(bYear)) {
-    bYear = data?.BirthDateDecade;
-    if (bYear === "unknown") bYear = "";
+    bYear = data?.BirthDateDecade || "unknown";
   }
 
   let dYear = data?.DeathDate?.substr(0, 4) || "";
@@ -282,15 +281,16 @@ function extractPerson(data) {
 
 function extractFSP(theData) {
   const data = theData?.profile;
-  console.log("extractFSP", data);
+  // console.log(theData);
+  // console.log("extractFSP", data);
   return {
     type: "s",
-    lName: data.Title?.Text || theData?.page_name?.replace(/Space:/, "").replace(/_/g, " ") || "",
-    wtId: data.Title?.PrefixedURL
-      ? encodeURIComponent(decodeURIComponent(data.Title.PrefixedURL))
-      : encodeURIComponent(decodeURIComponent(theData.page_name)) || "",
-    numId: data.PageId || theData?.Profile?.Id || 0,
-    touched: data.Touched || "",
+    lName: data?.Title?.Text || theData?.page_name?.replace(/Space:/, "").replace(/_/g, " ") || "",
+    wtId: data?.Title?.PrefixedURL
+      ? encodeURIComponent(decodeURIComponent(data?.Title?.PrefixedURL))
+      : encodeURIComponent(decodeURIComponent(theData?.page_name)) || "",
+    numId: data?.PageId || theData?.Profile?.Id || 0,
+    touched: data?.Touched || "",
   };
 }
 
@@ -345,13 +345,13 @@ const doExtraWatchlist = () => {
 
         // Function to process space pages
         const handleSpacePages = () => {
-          console.log("spacePages", spacePages);
+          // console.log("spacePages", spacePages);
           const spacePromises = spacePages.map(async (aKey) => {
-            console.log("aKey", aKey);
+            //  console.log("aKey", aKey);
             const fsp = await get_Profile(decodeURIComponent(aKey));
             const status = fsp[0]?.status;
             if (status != 0) errors.push(status);
-            console.log("fsp", fsp[0]);
+            //  console.log("fsp", fsp[0]);
             const fspData = extractFSP(fsp[0]);
             ewData.push(fspData);
           });
@@ -454,10 +454,12 @@ const extraWatchlist = async () => {
     } else {
       // The profile is not on the watchlist, add it.
       list.push(currentID);
+      //console.log(currentID);
+      // console.log(decodeURIComponent(currentID));
       get_Profile(decodeURIComponent(currentID)).then((response) => {
         const visible = $("#extraWatchlistWindow").is(":visible");
         if (response[0].profile?.IsSpace) {
-          const record = extractFSP(response[0].profile);
+          const record = extractFSP(response[0]);
           ewData.push(record);
           if (visible) spaceTable.row.add(record).draw(false);
         } else {
