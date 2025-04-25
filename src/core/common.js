@@ -24,6 +24,7 @@ import {
   isProfileAddRelative,
   isAddUnrelatedPerson,
   isG2G,
+  isMergeEdit,
 } from "./pageType.js";
 import { checkIfFeatureEnabled, getFeatureOptions } from "./options/options_storage";
 
@@ -334,6 +335,8 @@ async function checkButtonFeatures() {
       } else if (isG2G) {
         $("#anew h2").prepend(clipboardContainer);
         clipboardContainer.css("float", "right");
+      } else if (isMergeEdit) {
+        $("#toolbar").append(clipboardContainer);
       } else {
         $(".profile--actions.float-end").append(clipboardContainer);
         const readingModeIcon = $(".profile--actions a.action--reading-mode");

@@ -408,7 +408,7 @@ if (domain.match("apps.wikitree.com")) {
       uri.match(/\/index.php\?title=Special(:|%3A|%3a)Connection.*/g)
     ) {
       isConnectionFinder = true;
-    } else if (uri.match(/Special(:|%3A|%3a)MergeEdit/)) {
+    } else if (uri.match(/Special(:|%3A|%3a)MergeEdit/) || uri.match(/Special(:|%3A|%3a)MergePerson/)) {
       isMergeEdit = true;
     } else if (uri.match(/Special(:|%3A|%3a)TrustedList/)) {
       isSpecialTrustedList = true;
