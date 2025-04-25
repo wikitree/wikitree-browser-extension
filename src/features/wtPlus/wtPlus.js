@@ -324,11 +324,11 @@ export function wtUpdateEdit() {
   }
 
   if (tb.elSummary) {
-    tb.elSummary.focus();
+    //tb.elSummary.focus();
     var s = tb.elSummary.value;
     if (s) {
       if (s.indexOf(tb.addToSummary) == -1) {
-        s += ", " + tb.addToSummary;
+        s += " " + tb.addToSummary;
       }
     } else {
       s = tb.addToSummary;
@@ -496,7 +496,9 @@ function editTemplate(summaryPrefix) {
       "</table>" +
       "</button>" +
       '<div style="flex:1"></div>' +
-      '<a class="button" href="https://' + mainDomain + '/wiki/Space:WikiTree_Plus_Chrome_Extension#Edit_Template" target="_blank">Help</a>' +
+      '<a class="button" href="https://' +
+      mainDomain +
+      '/wiki/Space:WikiTree_Plus_Chrome_Extension#Edit_Template" target="_blank">Help</a>' +
       //OK, Cancel
       '<button style="text-align:right" class="dlgClick" data-op="onDlgEditTemplateBtn" data-id="0">Close</button>' +
       '<button style="text-align:right" class="dlgClick" data-op="onDlgEditTemplateBtn" data-id="1" value="default">Update changes</button>' +
@@ -762,7 +764,9 @@ function selectTemplate(data) {
       .join("\n") +
     "</table></div>" +
     '<div style="text-align:right">' +
-    '<a class="button" href="https://' + mainDomain + '/wiki/Space:WikiTree_Plus_Chrome_Extension#Add_Template" target="_blank">Help</a>' +
+    '<a class="button" href="https://' +
+    mainDomain +
+    '/wiki/Space:WikiTree_Plus_Chrome_Extension#Add_Template" target="_blank">Help</a>' +
     //OK, Cancel
     '<button style="text-align:right" class="dlgClick" data-op="onDlgSelectTemplateBtn" data-id="0">Close</button>' +
     '<button style="text-align:right" class="dlgClick" data-op="onDlgSelectTemplateBtn" data-id="1" value="default">Select</button>' +
@@ -938,7 +942,9 @@ function AutoUpdate() {
       s2 +
       '<div style="text-align:right">' +
       //OK, Cancel
-      '<a class="button" href="https://' + mainDomain + '/wiki/Space:WikiTree_Plus_Chrome_Extension#Profile_Cleanup" target="_blank">Help</a>' +
+      '<a class="button" href="https://' +
+      mainDomain +
+      '/wiki/Space:WikiTree_Plus_Chrome_Extension#Profile_Cleanup" target="_blank">Help</a>' +
       '<button style="text-align:right" class="dlgClick" data-op="onDlgProfileCleanupBtn" data-id="0">Close</button>' +
       '<button style="text-align:right" class="dlgClick" data-op="onDlgProfileCleanupBtn" data-id="1" value="default">Select</button>' +
       "</div>";
@@ -1038,7 +1044,9 @@ function pasteSource() {
     '<textarea class="resultFld" rows="5" cols="80"></textarea>' +
     '<div style="text-align:right">' +
     //OK, Cancel
-    '<a class="button" href="https://' + mainDomain + '/wiki/Space:WikiTree_Plus_Chrome_Extension#Paste_Sources" target="_blank">Help</a>' +
+    '<a class="button" href="https://' +
+    mainDomain +
+    '/wiki/Space:WikiTree_Plus_Chrome_Extension#Paste_Sources" target="_blank">Help</a>' +
     '<button style="text-align:right" class="dlgClick" data-op="onDlgPasteSourceBtn" data-id="0">Close</button>' +
     '<button style="text-align:right" class="dlgClick" data-op="onDlgPasteSourceBtn" data-id="1" value="default">Select</button>' +
     "</div>";
