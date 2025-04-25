@@ -5,6 +5,7 @@ Created By: Ian Beacall (Beacall-6)
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 import { isAddUnrelatedPerson, isMergeEdit, isProfileAddRelative } from "../../core/pageType";
 
+/*
 registerFeature({
   name: "Send to Merge",
   id: "sendToMerge",
@@ -17,3 +18,4 @@ registerFeature({
   defaultValue: false,
   pages: [isProfileAddRelative, isAddUnrelatedPerson, isMergeEdit],
 });
+*/

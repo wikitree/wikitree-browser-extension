@@ -103,7 +103,7 @@ import "./features/my_menu/my_menu";
 import "./features/printerfriendly/printerfriendly";
 import "./features/redir_ext_links/redir_ext_links";
 import "./features/scissors/scissors";
-import "./features/send_to_merge/send_to_merge";
+// import "./features/send_to_merge/send_to_merge";
 import "./features/shareable_sources/shareable_sources";
 import "./features/show_suggestions/show_suggestions";
 import "./features/sortBadges/sortBadges";
@@ -161,7 +161,6 @@ import "./features/edit_profile_redesign/edit_profile_redesign";
 
 /* MARKER: Default place for new features. Move these to a more appropriate place.*/
 import "./features/image_page_options/image_page_options";
-
 
 import "./features/links_to_new_tabs/links_to_new_tabs";
 
