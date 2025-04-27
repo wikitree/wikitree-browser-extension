@@ -337,5 +337,5 @@ body.edit_spouse .clipboardContainer {
 }
 
 body.darkMode .clipboardContainer {
-  border-bottom: 10px solid #f0f0eb;
+  border-bottom: 10px solid inherit;
 }

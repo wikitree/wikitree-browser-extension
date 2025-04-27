@@ -314,6 +314,19 @@ class CustomStyle {
     span.qa-q-item-meta a.qa-q-item-what:link .checkmark {
       color: ${this.options["all_background-color"]};   
     }`; // Checkmark color
+
+    if (this.options.noHeadingBackgroundColor) {
+      rules += `
+      h1:not(#dummyID h1),
+      h2:not(#dummyID h2),
+      h3:not(#dummyID h3),
+      h4:not(#dummyID h4),
+      h5:not(#dummyID h5),
+      h6:not(#dummyID h6) {
+        background-color: transparent !important;
+      }`;
+    }
+
     return rules;
   }
 

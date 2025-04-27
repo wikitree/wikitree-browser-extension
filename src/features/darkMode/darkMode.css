@@ -90,7 +90,8 @@
   body.darkMode aside#memoryContainer,
   body.darkMode .table>:not(caption)>*>*,
   body.darkMode .vertical .nameList li[data-gender],
-  body.darkMode .myCustomMenu {
+  body.darkMode .myCustomMenu,
+  body.darkMode input::placeholder {
     background-color: #36393f !important;
     color: #dedecb !important;
   }
@@ -691,5 +692,30 @@
 
   body.darkMode aside.callout.notable--connection {
     border: 2px solid #fcb815;
+  }
+
+  body.darkMode .x-sticker,
+  body.darkMode .box,
+  body.darkMode img.scale-with-grid {
+    position: relative;
+    z-index: 100; /* Show above header colour */
+  }
+
+  body.darkMode span.float-end {
+    position: relative;
+    z-index: 101; /* Show above header colour */
+  }
+
+  body.darkMode.help h2:not(#title) {
+    background: transparent !important;
+  }
+  body.darkMode li a.btn-tag:not(#dummyID) {
+    border: 1px solid forestgreen !important;
+    background-color: #008000 !important;
+  }
+  body.darkMode #ebWBE:not(#dummyID) a:link,
+  body.darkMode #ebWBE:not(#dummyID) a:visited,
+  body.darkMode #ebWBE:not(#dummyID) {
+    background-color: inherit !important;
   }
 }
