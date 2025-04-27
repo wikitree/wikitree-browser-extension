@@ -184,6 +184,13 @@ class CustomStyle {
   }`;
   }
 
+  handleFullWidthMode() {
+    return `
+    .container {
+      max-width: 98% !important;
+    }`;
+  }
+
   editorFontSize(size) {
     return `
     div.codeMirror{
@@ -289,6 +296,10 @@ class CustomStyle {
 
     if (this.options["roundedCorners"]) {
       rules += this.handleRoundedCorners();
+    }
+
+    if (this.options["fullWidthMode"]) {
+      rules += this.handleFullWidthMode();
     }
 
     // Hide the [ ] in headings

@@ -92,6 +92,12 @@ const myCustomStyle = {
           label: "Rounded corners",
           defaultValue: false,
         },
+        {
+          id: "fullWidthMode",
+          type: OptionType.CHECKBOX,
+          label: "Expand content to fill window and reduce margins",
+          defaultValue: false,
+        },
       ],
     },
     {
