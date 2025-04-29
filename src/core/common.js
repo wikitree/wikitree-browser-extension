@@ -1752,10 +1752,10 @@ export function WBEHelpIcon(settings) {
   return helpIcon;
 }
 
-// Close .popup with the highest z-index on Esc key press
+// Close .wbe-popup with the highest z-index on Esc key press
 $(document).on("keydown", function (e) {
   if (e.key === "Escape") {
-    const $popups = $(".popup")
+    const $popups = $(".wbe-popup")
       .filter(":visible") // only visible
       .filter((_, el) => el.id !== "photoPopup"); // exclude #photoPopup
 
@@ -1777,8 +1777,8 @@ $(document).on("keydown", function (e) {
   }
 });
 
-/// document .popup click -> set highest z-index
-$(document).on("click", ".popup,#editorExpanderFixedDiv", function (e) {
+/// document .wbe-popup click -> set highest z-index
+$(document).on("click", ".wbe-popup,#editorExpanderFixedDiv", function (e) {
   console.log("Popup clicked:", this);
   setHighestZIndex(this);
   e.stopPropagation(); // Prevent event bubbling to parent elements
