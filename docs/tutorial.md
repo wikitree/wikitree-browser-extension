@@ -211,16 +211,13 @@ This simple feature will just change the header of a profile from `Name` to `Hel
 The HTML for the header looks like this:
 
 ```html
-<h1>
-  <span itemprop="name">Daniel George Nelson</span>
-  ...
-</h1>
+<h1 itemprop="name" class="x-heading-title">Daniel George Nelson</h1>
 ```
 
 To grab the name and make changes we want to:
 
 1. Use jQuery to make changing the DOM a bit easier: `import $ from "jquery"`.
-2. Grab the element that has the name of the profile and save it: `const nameElement = $('h1 > [itemprop="name"]');`.
+2. Grab the element that has the name of the profile and save it: `const nameElement = $('h1[itemprop="name"]');`.
 3. Get the name inside of that element and save it: `const nameText = nameElement.text();`.
 4. Change the text inside of the element to our desired text: `$(nameElement).text(\`Hello, ${nameText}\`);`.
 
@@ -232,7 +229,7 @@ import $ from "jquery";
 
 shouldInitializeFeature("helloWorld").then((result) => {
   if (result) {
-    const nameElement = $('h1 > [itemprop="name"]');
+    const nameElement = $('h1[itemprop="name"]');
     const nameText = nameElement.text();
     $(nameElement).text(`Hello, ${nameText}`);
   }
