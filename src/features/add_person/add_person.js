@@ -12,6 +12,21 @@ import {
 } from "../category_management/category_management";
 import { isProfileEdit } from "../../core/pageType";
 
+function addResearchNotesSection() {
+  setTimeout(() => {
+    const sourcesBox = $("#mSources");
+    if (sourcesBox.length) {
+      const sourcesBoxVal = sourcesBox.val();
+      if (sourcesBoxVal.match("== Sources ==") && sourcesBoxVal.match("== Research Notes ==") == null) {
+        // Add `== Research Notes ==` on the line before `== Sources ==`.
+        const researchNotes = sourcesBoxVal.replace(/== Sources ==/g, "== Research Notes ==\n\n== Sources ==\n");
+        sourcesBox.val(researchNotes);
+        sourcesBox.attr("rows", "8");
+      }
+    }
+  }, 100);
+}
+
 function moveSourcesParts() {
   /*
 Take p.sourcesContent, table.sourcesContent, 
@@ -182,6 +197,9 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
           removeSourceHints();
         }
       }
+      if (options.shortenInputBoxes) {
+        shortenInputs();
+      }
     });
   } else if (result && $("h1:contains('Edit Marriage')").length == 0) {
     import("./add_person.css");
@@ -202,6 +220,9 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
       if (options.shortenInputBoxes) {
         shortenInputs();
       }
+      if (options.addResearchNotesSection) {
+        addResearchNotesSection();
+      }
     });
 
     $("#enterBasicDataButton").insertAfter($("#mSources"));
@@ -217,7 +238,6 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
     $("#enterBasicDataButton,#saveWithoutCorrection").on("click", function () {
       setTimeout(() => {
         $("#dismissMatchesButton").show();
-        console.log($("#matchesContainer").length, $("#validationContainer").length);
         if ($("#matchesContainer").length == 0 && $("#validationContainer").length == 0) {
           $("#sourcesSection,#basicDataSection").show();
           showBasicData();
@@ -350,11 +370,11 @@ function addAdditionalFields() {
   }
   $(".toggleAdvancedSources").on("click", function () {
     if ($(".toggleAdvancedSources").text().match("Basic") && $("#notesLabel").length == 0) {
-      console.log(notesRow);
       $("#sourcesLabel").closest(".sourcesContent").before(notesRow);
     } else {
       $("#notesLabel").closest("div").remove();
     }
+    addResearchNotesSection();
   });
 }
 
