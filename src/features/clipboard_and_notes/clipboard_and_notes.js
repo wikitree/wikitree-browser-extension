@@ -437,7 +437,7 @@ async function clipboard(type, e, action = false) {
     }
 
     const aClipboard = $(
-      `<div id='clipboard' class="popup" data-type='${type}'>
+      `<div id='clipboard' class="wbe-popup" data-type='${type}'>
         <h1>${h1}<x class="close-popup">x</x></h1>
         <div id='tab-container'>
           <div id='groupTabs'>

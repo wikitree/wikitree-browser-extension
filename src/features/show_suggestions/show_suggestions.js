@@ -134,7 +134,7 @@ function initSuggestionsPopup() {
   // Create the popup element
   const popup = document.createElement("div");
   popup.id = "suggestionsPopup";
-  popup.className = "popup";
+  popup.className = "wbe-popup";
 
   // Create the popup content and insert data
   popup.innerHTML = `

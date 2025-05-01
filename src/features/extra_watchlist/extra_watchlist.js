@@ -476,7 +476,7 @@ const extraWatchlist = async () => {
 
 // Creates the popup with two tabs: Profiles (default) and Spaces.
 const createWatchlistPopup = async (mouseY) => {
-  const $popup = $("<div id='extraWatchlistWindow' class='ui-widget-content popup'></div>");
+  const $popup = $("<div id='extraWatchlistWindow' class='ui-widget-content wbe-popup'></div>");
   $popup.insertAfter($(".tabs--wrapper")).css({
     position: "absolute",
     top: mouseY + 10,

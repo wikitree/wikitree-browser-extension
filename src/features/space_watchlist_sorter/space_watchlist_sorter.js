@@ -17,7 +17,7 @@ const APP_ID = "WBE-SpaceSorter";
 const browserAPI = typeof browser !== "undefined" ? browser : chrome;
 
 const spaceWatchlistSorterHTML = `
-<div id="spaceWatchlistSorter-popup" class="spaceWatchlistSorter-popup popup" style="display: none;">
+<div id="spaceWatchlistSorter-popup" class="spaceWatchlistSorter-popup wbe-popup" style="display: none;">
   <div class="spaceWatchlistSorter-header">
     <h2>Space Watchlist</h2>
     <label for="searchFSP" class="search-wrapper">

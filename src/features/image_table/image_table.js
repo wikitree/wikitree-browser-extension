@@ -63,7 +63,7 @@ function initPhotoPopup() {
       closeButton = `<div id="closeWrapper"><span class="close close-popup">&times;</span></div>`;
     }
     // Create the popup element with necessary structure and content
-    const popup = $(`<div id="photoPopup" tabindex="0" class="popup">
+    const popup = $(`<div id="photoPopup" tabindex="0" class="wbe-popup">
        ${closeButton}
         <div class="popup-content">
           <div id="loadingGif"><img src="${treeImageURL}" alt="Loading..." /></div>
