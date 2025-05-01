@@ -39,6 +39,12 @@ const addPersonRedesign = {
       label: "Remove source hints",
       defaultValue: false,
     },
+    {
+      id: "addResearchNotesSection",
+      type: OptionType.CHECKBOX,
+      label: "Add a Research Notes section (in 'Advanced' mode)",
+      defaultValue: false,
+    },
   ],
 };
 
