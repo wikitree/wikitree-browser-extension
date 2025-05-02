@@ -28,6 +28,12 @@ const addPersonRedesign = {
       defaultValue: false,
     },
     {
+      id: "tabbingOptions",
+      type: OptionType.CHECKBOX,
+      label: "Allow change of tabbing order between input fields",
+      defaultValue: true,
+    },
+    {
       id: "categoryPicker",
       type: OptionType.CHECKBOX,
       label: "Add a category picker",

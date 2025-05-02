@@ -11,6 +11,7 @@ import {
   isNotArrowOrEnter,
 } from "../category_management/category_management";
 import { isProfileEdit } from "../../core/pageType";
+import { setSync, getSync } from "../g2g/g2g";
 
 function addResearchNotesSection() {
   setTimeout(() => {
@@ -200,6 +201,9 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
       if (options.shortenInputBoxes) {
         shortenInputs();
       }
+      if (options.tabbingOptions) {
+        showTabbingOptions();
+      }
     });
   } else if (result && $("h1:contains('Edit Marriage')").length == 0) {
     import("./add_person.css");
@@ -219,6 +223,9 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
       }
       if (options.shortenInputBoxes) {
         shortenInputs();
+      }
+      if (options.tabbingOptions) {
+        showTabbingOptions();
       }
       if (options.addResearchNotesSection) {
         addResearchNotesSection();
@@ -283,6 +290,76 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
     //  ||$("#editAction_connectExisting").prop("checked") == true
   }
 });
+
+function showTabbingOptions() {
+  if ($("#tabbingOptions").length == 0) {
+    $('<input type="button" class="small" id="tabbingOptions" value="🡒 Minimal tabbing">').insertBefore(
+      $("#basicDataSection").eq(0)
+    );
+    doTabbingOptions($("#tabbingOptions"));
+  }
+  $("#tabbingOptions").click(function () {
+    doTabbingOptions($(this), 1);
+  });
+}
+
+function doTabbingOptions(el, sw = 0) {
+  getSync(["w_convenientTabbing"]).then((sync) => {
+    if (sync.w_convenientTabbing != 1 && sw == 0) {
+      return false;
+    } else if ((sync.w_convenientTabbing == 0 && sw == 1) || (sync.w_convenientTabbing == 1 && sw == 0)) {
+      setSync({
+        w_convenientTabbing: 1,
+      });
+
+      const tabem = [
+        $("#mFirstName"),
+        $("#mLastNameAtBirth"),
+        $("#mLastNameCurrent"),
+        $("#mBirthDate"),
+        $("#mDeathDate"),
+        $("#mBirthLocation"),
+        $("#wikidata_mBirthLocation"), //from BEE
+        $("#mDeathLocation"),
+        $("#wikidata_mDeathLocation"), //from BEE
+        $("#mMarrriageDate"),
+        $("#mMarriageDate"),
+        $("#mMarriageLocation"),
+        $("#wikidata_mMarriageLocation"), //from BEE
+        $("input[name='mMarriageLocation']"),
+        $("#mBioWithoutSources"),
+        $("#mSources"),
+        $("#wpTextbox1"),
+        $("#wpSummary"),
+        $("#saveStuffLabels label"),
+        $("#wpSaveDraft"),
+        $("#wpSave"),
+      ];
+
+      $("*").attr("tabindex", "-1");
+      $(":not(input[type='radio'])").css("outline-width", "0");
+      tabem.forEach(function (ele) {
+        ele.attr("tabindex", "0");
+      });
+      $("#saveStuffLabels label").each(function () {
+        $(this).attr("tabindex", "0");
+      });
+
+      el.val("🡒 Natural tabbing");
+    } else if (sw == 1) {
+      setSync({
+        w_convenientTabbing: 0,
+      });
+      $("a").attr("tabindex", "0");
+      $("input").attr("tabindex", "0");
+      $("textarea").attr("tabindex", "0");
+      $("input[type='radio']").attr("tabindex", "-1");
+      $("input[type='radio']:first-child").attr("tabindex", "0");
+
+      el.val("🡒 Minimal tabbing");
+    }
+  });
+}
 
 function ShowProfileIdInBox(newProfilebox) {
   const linkNew = newProfilebox.getElementsByTagName("a")[0].href;
