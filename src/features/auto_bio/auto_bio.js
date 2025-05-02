@@ -4950,7 +4950,7 @@ function addReferencePlaces() {
   window.profilePerson.referencePlaces = [];
   window.references.forEach(function (aRef, index) {
     // Get the place names from the aRef.Text. First, remove "Born in.*?\.".
-    let refText = aRef?.Text ? aRef.Text.replace(/Born in.*?\.$/, "") : "";
+    let refText = aRef?.Text ? aRef.Text.replace(/(\. )?Born [io]n.*?\.$/, "") : "";
 
     const placeMatchRegex = /in\s+([A-Z].*?)\.$/;
     const placeMatchRegex2 = /in\s+((?:[A-Z][^,.]*?)(?:,\s*(?![a-z])[A-Z][^,.]*?)*?)(?=\s*,\s*[a-z]|\s*\.[^A-Z])/g;
@@ -9206,6 +9206,9 @@ export async function getLocationCategory(type, location = null) {
 
         if (location.match(/United States|USA|U\.S\.A\.|U\.S\./i)) {
           const thisState = findUSState(location);
+          console.log("thisState", thisState);
+          console.log("location", location);
+          console.log("locationSplit", locationSplit);
           if (thisState) {
             response.categories = response.categories.filter((category) => {
               const categoryState = findUSState(category.category);
