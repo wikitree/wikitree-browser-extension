@@ -307,7 +307,7 @@ function g2gBackToTop() {
   }
 }
 
-async function getSync(key) {
+export async function getSync(key) {
   try {
     const result = await chrome.storage.sync.get(key);
     return result;
@@ -316,7 +316,7 @@ async function getSync(key) {
   }
 }
 
-function setSync(thing) {
+export function setSync(thing) {
   // object
   chrome.storage.sync.set(thing, function () {});
 }
