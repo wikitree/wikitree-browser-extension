@@ -8,7 +8,8 @@ import { registerFeature, OptionType } from "../../core/options/options_registry
 const addPersonRedesign = {
   name: "Add Person Redesign",
   id: "addPersonRedesign",
-  description: "Redesigns the Add Person page for the convenience of advanced members.",
+  description:
+    "Redesigns the Add Person page for the convenience of advanced members. Some options might also affect editing existing profiles.",
   category: "Editing/Add_Person",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
@@ -24,13 +25,13 @@ const addPersonRedesign = {
     {
       id: "shortenInputBoxes",
       type: OptionType.CHECKBOX,
-      label: "Shorten some boxes (Prefix, Suffix, Dates, Sex At Birth)",
+      label: "Shorten some boxes (Prefix, Suffix, Dates, Sex at Birth)",
       defaultValue: false,
     },
     {
       id: "tabbingOptions",
       type: OptionType.CHECKBOX,
-      label: "Allow change of tabbing order between input fields",
+      label: "Show 'minimal tabbing' toggle (makes tab key skip less common input fields)",
       defaultValue: true,
     },
     {
