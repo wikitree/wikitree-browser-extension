@@ -10,7 +10,7 @@ async function updateAllLinks() {
 
   // get all link (anchor) elements within the content area that start with "http"
   // this should get all the external links that we want
-  let allLinks = document.querySelectorAll("#content a[href^='http']");
+  let allLinks = document.querySelectorAll("#main a[href^='http']");
 
   for (let link of allLinks) {
     let href = link.getAttribute("href");
