@@ -43,11 +43,16 @@ function init(options) {
     addCollapseAllButton();
     attachCollapseToggleHandler();
     addNavigationClickHandler();
+    setTimeout(() => {
+      addToggleButtonsToTOC();
+      addToggleAllToTOC();
+    }, 2000);
 
     let autoCollapse = options.autoCollapse || false;
     if (autoCollapse) {
       collapseAllSections();
       $(".collapse-all-toggle").text(EXPAND_IT_SYMB);
+      toggleTOCAll(true); // Collapse the TOC
     } else {
       collapseSpecificSections(options);
     }
@@ -200,6 +205,7 @@ function createSpecialCollapsibles() {
     let button = createCollapseButtonFor(id, buttonOptions);
     newDiv.before(button);
   });
+  $("#toc h2 .collapse-toggle").prop("id", "Contents");
 }
 
 function createCollapseButtonFor(sectionId, options = {}) {
@@ -228,7 +234,7 @@ function addCollapseAllButton() {
         if (isToBeCollapsed) $(this).slideUp();
         else $(this).slideDown();
       });
-      $(".collapse-toggle").text(isToBeCollapsed ? EXPAND_IT_SYMB : COLLAPSE_IT_SYMB); // Update all small toggles
+      $(".collapse-toggle:not(#tocToggleAll)").text(isToBeCollapsed ? EXPAND_IT_SYMB : COLLAPSE_IT_SYMB); // Update all small toggles
       $(this).text(isToBeCollapsed ? EXPAND_IT_SYMB : COLLAPSE_IT_SYMB);
     });
     $h1.append($button);
@@ -239,7 +245,7 @@ function collapseAllSections() {
   $(".collapsible-section").each(function () {
     $(this).hide();
   });
-  $(`.collapse-toggle`).text(EXPAND_IT_SYMB);
+  $(`.collapse-toggle:not(#tocToggleAll)`).text(EXPAND_IT_SYMB);
 }
 
 function collapseSpecificSections(options) {
@@ -268,7 +274,7 @@ function collapseSectionByTarget(targetId) {
 }
 
 function attachCollapseToggleHandler() {
-  $(document).on("click", ".collapse-toggle", function (e) {
+  $(document).on("click", ".collapse-toggle:not(#tocToggleAll)", function (e) {
     e.preventDefault();
     toggleSection($(this));
   });
@@ -387,5 +393,80 @@ function addNavigationClickHandler() {
     if (targetId) {
       navigateTo(decodeURIComponent(targetId));
     }
+  });
+}
+
+function toggleTOCAll(collapse = true) {
+  const $toc = $("#toc ul");
+  const buttons = $toc.find("button.collapse-toc-toggle");
+  const uls = $toc.find("ul");
+
+  if (collapse) {
+    buttons.text("+");
+    uls.slideUp();
+  } else {
+    buttons.text("−");
+    uls.slideDown();
+  }
+}
+
+function addToggleAllToTOC() {
+  // Add a toggle button to the TOC h2
+  const $tocHeader = $("#toc h2");
+  const $button = $(
+    '<button id="tocToggleAll" class="collapse-toggle" aria-expanded="false" aria-label="Expand section">+</button>'
+  );
+  $tocHeader.append($button);
+  const contentsToggler = $("#tocToggleAll");
+  if (contentsToggler.length) {
+    $(document).on("click", "#tocToggleAll", function () {
+      const $button = $(this);
+      const isExpanded = $button.text() === "−";
+
+      if (isExpanded) {
+        $button.text("+");
+        $button.attr("aria-expanded", "false");
+        toggleTOCAll(true);
+      } else {
+        $button.text("−");
+        $button.attr("aria-expanded", "true");
+        toggleTOCAll(false);
+      }
+    });
+  }
+}
+
+function addToggleButtonsToTOC() {
+  const $toc = $("#toc ul");
+  $toc.css("list-style-type", "none");
+
+  // Remove any existing event handlers to prevent duplicate bindings
+  $(document).off("click", "#toc ul .collapse-toc-toggle");
+
+  $(document).on("click", "#toc ul .collapse-toc-toggle", function () {
+    const $button = $(this);
+
+    const $li = $button.closest("li");
+    const $section = $li.children("ul");
+    const isExpanded = $button.text() === "−";
+
+    if (isExpanded) {
+      $section.slideUp();
+      $button.text("+");
+    } else {
+      $section.slideDown();
+      $button.text("−");
+    }
+  });
+
+  // Find all LIs with a nested UL (i.e., sections with subsections)
+  $toc.find("li:has(ul)").each(function () {
+    const $li = $(this);
+    $li.css("position", "relative"); // Ensure that the button is positioned correctly
+    const $section = $li.children("ul");
+    const isExpanded = $section.is(":visible");
+    const buttonText = isExpanded ? "−" : "+";
+    const $button = $(`<button class="collapse-toc-toggle">${buttonText}</button>`);
+    $li.prepend($button);
   });
 }
