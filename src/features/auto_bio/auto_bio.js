@@ -1340,17 +1340,64 @@ export function assignCemeteryFromSources() {
         /(?:\b(?:in|burial in)\s)([A-Z][^.\n]*?(?:Cemetery|Memorial|Cimetière|kyrkogård|temető|Graveyard|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard)\b[^.\n]*)/i
       );
 
-      if (cemeteryMatch) {
-        let cemetery = cemeteryMatch[0].replace("citing ", "").replace("Burial, ", "").trim();
-        window.profilePerson.Cemetery = cemetery;
-        window.profilePerson.CemeteryFull = cemetery;
-      } else if (cemeteryMatch2) {
-        let cemetery = cemeteryMatch2[1].trim();
-        window.profilePerson.Cemetery = cemetery;
-      } else if (cemeteryMatch3) {
-        let cemetery = cemeteryMatch3[1].trim();
-        window.profilePerson.Cemetery = cemetery;
-        window.profilePerson.CemeteryFull = cemetery;
+      // 1) pull out the Burial…; block
+      let cemeteryMatch4 = source.Text.match(/;\s*Burial,\s*([^;]+?)(?=;)/i);
+
+      if (cemeteryMatch4) {
+        const full = cemeteryMatch4[1].trim();
+
+        // 2) check for a country name
+        const countryNames = countries.map((c) => c.name);
+        const hasCountry = countryNames.some((name) => new RegExp(`\\b${name}\\b`, "i").test(full));
+
+        // 3) check that it ends with a cemetery‐type word
+        const cemeteryKeywords = [
+          "Cemetery",
+          "Memorial",
+          "Cimetière",
+          "kyrkogård",
+          "temető",
+          "Graveyard",
+          "Churchyard",
+          "Burial",
+          "Crematorium",
+          "Erebegraafplaats",
+          "Cementerio",
+          "Cimitero",
+          "Friedhof",
+          "Burying",
+          "begravningsplats",
+          "Begraafplaats",
+          "Mausoleum",
+          "Chapelyard",
+          "Memorial Park",
+        ];
+        const endsWithCemetery = new RegExp(`\\b(?:${cemeteryKeywords.join("|")})$`, "i").test(full);
+
+        if (hasCountry && endsWithCemetery) {
+          // split off the final cemetery name
+          const parts = full.split(/\s*,\s*/);
+          const cemeteryName = parts.pop();
+          const cemeteryLocation = parts.join(", ");
+
+          window.profilePerson.Cemetery = cemeteryName;
+          window.profilePerson.CemeteryLocation = cemeteryLocation;
+          window.profilePerson.CemeteryFull = full;
+        }
+      }
+      if (!window.profilePerson.Cemetery) {
+        if (cemeteryMatch) {
+          let cemetery = cemeteryMatch[0].replace("citing ", "").replace("Burial, ", "").trim();
+          window.profilePerson.Cemetery = cemetery;
+          window.profilePerson.CemeteryFull = cemetery;
+        } else if (cemeteryMatch2) {
+          let cemetery = cemeteryMatch2[1].trim();
+          window.profilePerson.Cemetery = cemetery;
+        } else if (cemeteryMatch3) {
+          let cemetery = cemeteryMatch3[1].trim();
+          window.profilePerson.Cemetery = cemetery;
+          window.profilePerson.CemeteryFull = cemetery;
+        }
       }
 
       if (window.profilePerson?.Cemetery && window.profilePerson?.Cemetery.match(/record|Find a Grave/i)) {
@@ -9203,10 +9250,9 @@ export async function getLocationCategory(type, location = null) {
         const response = api.value.response;
 
         // If location includes United States, find the state.
-
         if (location.match(/United States|USA|U\.S\.A\.|U\.S\./i)) {
           const thisState = findUSState(location);
-          if (thisState) {
+          if (thisState && response?.categories?.length > 0) {
             response.categories = response.categories.filter((category) => {
               const categoryState = findUSState(category.category);
               if (!categoryState) return true; // Keep categories not tied to a specific state
