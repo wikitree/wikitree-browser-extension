@@ -236,57 +236,57 @@ function parseBlock(blockEl, itempropName) {
  * @returns {Object[]} Array of spouse person records.
  */
 function parseSpousesBlock(spousesEl) {
-  console.log("Parsing spouses block:", spousesEl);
+  //console.log("Parsing spouses block:", spousesEl);
   const records = [];
   // Split the innerHTML by markers (e.g., "Husband of", "Wife of", etc.)
   const chunks = spousesEl.innerHTML.split(/(?:Husband|Wife|Spouse)\s+of/i);
-  console.log("Chunks after splitting by markers:", chunks);
+  //console.log("Chunks after splitting by markers:", chunks);
   // Remove the first chunk (content before the first spouse).
   chunks.shift();
   chunks.forEach((chunk, index) => {
-    console.log(`Processing chunk ${index + 1}:`, chunk);
+    //  console.log(`Processing chunk ${index + 1}:`, chunk);
     const temp = document.createElement("div");
     temp.innerHTML = chunk;
     const spouseEl = temp.querySelector('[itemprop="spouse"]');
     if (spouseEl) {
-      console.log("Found spouse element:", spouseEl);
+      //  console.log("Found spouse element:", spouseEl);
       const rec = parseItempropElement(spouseEl);
-      console.log("Parsed spouse record:", rec);
+      //  console.log("Parsed spouse record:", rec);
       spouseEl.remove();
       let details = temp.textContent || "";
       details = details.replace(/\s{2,}/g, " ").trim();
       details = details.replace(/add\/edit spouses/gi, "").trim();
       rec.MarriageDetails = details;
-      console.log("Marriage details:", details);
+      //  console.log("Marriage details:", details);
       const mapLinkEl = temp.querySelector('a[href*="maps.google"]');
       if (mapLinkEl) {
         rec.MarriageMapLink = mapLinkEl.getAttribute("href") || "";
-        console.log("Found marriage map link:", rec.MarriageMapLink);
+        //   console.log("Found marriage map link:", rec.MarriageMapLink);
       }
       rec.merge = false;
       if (rec.Name && rec.Name.trim()) {
         rec.Name = rec.Name.trim();
         records.push(rec);
-        console.log("Added spouse record:", rec);
+        //   console.log("Added spouse record:", rec);
       }
     }
   });
   const bracketed = parseBracketedUnknownInBlock(spousesEl).filter(
     (b) => b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google")
   );
-  console.log("Bracketed unknown spouses:", bracketed);
+  // console.log("Bracketed unknown spouses:", bracketed);
   bracketed.forEach((b) => {
-    console.log("Processing bracketed spouse:", b);
+    //   console.log("Processing bracketed spouse:", b);
     if (
       (!records.some((m) => m.Link === b.Link || m.Name === b.Name) && b.Name.trim() != "[South Africa]") ||
       b.Name.includes("private")
     ) {
       records.push(b);
-      console.log("Added bracketed spouse record:", b);
+      //    console.log("Added bracketed spouse record:", b);
     }
   });
 
-  console.log("Final spouses records:", records);
+  //  console.log("Final spouses records:", records);
   return records;
 }
 
@@ -472,13 +472,13 @@ function parseInitialData() {
   // Parse spouses
   const spousesBlock = container.querySelector("#Spouses");
   if (spousesBlock) {
-    console.log("Parsing spouses block...");
+    // console.log("Parsing spouses block...");
     let spouseEntries = parseSpousesBlock(spousesBlock);
-    console.log("Initial spouse entries:", spouseEntries);
+    //console.log("Initial spouse entries:", spouseEntries);
     spouseEntries = spouseEntries.filter(
       (r) => r.Name && r.Name.trim() && excludeBrackets.includes(r.Name.trim().toLowerCase()) === false
     );
-    console.log("Filtered spouse entries:", spouseEntries);
+    // console.log("Filtered spouse entries:", spouseEntries);
     const bracketed = parseBracketedUnknownInBlock(spousesBlock).filter((b) => {
       return (
         b.Name &&
@@ -487,15 +487,15 @@ function parseInitialData() {
         !b.Link.startsWith("https://maps.google")
       );
     });
-    console.log("Bracketed unknown spouses:", bracketed);
+    // console.log("Bracketed unknown spouses:", bracketed);
     bracketed.forEach((b) => {
       if (!spouseEntries.some((m) => m.Link === b.Link || m.Name === b.Name) && b.Name.trim() != "[South Africa]") {
         spouseEntries.push(b);
-        console.log("Added bracketed spouse record:", b);
+        //    console.log("Added bracketed spouse record:", b);
       }
     });
     familyData.spouses = spouseEntries;
-    console.log("Final spouse entries:", familyData.spouses);
+    // console.log("Final spouse entries:", familyData.spouses);
   } else {
     console.log("No spouses block found.");
     delete familyData.spouses;
@@ -512,7 +512,7 @@ function parseInitialData() {
       return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
     });
     bracketed.forEach((b) => {
-      console.log("Child bracketed: ", b);
+      //console.log("Child bracketed: ", b);
       if (!parsedChildren.some((m) => m.Link === b.Link || m.Name === b.Name) || b.Name.includes("private")) {
         parsedChildren.push(b);
       }
@@ -1921,7 +1921,7 @@ async function getAncestorConnection(ancestor, user) {
 function addChildrenSiblingCount() {
   const isLiving = pagePerson.IsLiving;
   const hasHad = isLiving ? "has" : "had";
-  console.log("isLiving", isLiving);
+  // console.log("isLiving", isLiving);
   if ($("#childrenCount").length === 0) {
     const nVitals = $("#nVitals");
     const siblingCount = countItems(nVitals.find("span[itemprop='sibling']"));
