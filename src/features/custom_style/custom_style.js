@@ -305,7 +305,11 @@ class CustomStyle {
     // Hide the [ ] in headings
     rules += `
     h2 .editsection, h3 .editsection, h4 .editsection, h5 .editsection, h6 .editsection {
-      color: ${this.options["headings_background-color"]} !important;
+      color: ${
+        this.options["noHeadingBackgroundColor"]
+          ? this.options["all_background-color"]
+          : this.options["headings_background-color"]
+      } !important;
     }`;
 
     // Handle G2G checkmarks
@@ -325,6 +329,16 @@ class CustomStyle {
       h6:not(#dummyID h6) {
         background-color: transparent !important;
       }`;
+    }
+
+    if (this.options["headings_left-padding"]) {
+      for (let i = 2; i <= 8; i++) {
+        const val = (i + i / 10) * 7;
+        rules += `
+        div.body-text h${i}:not(#dummyID h${i}) {
+          padding-left: ${val}px !important;
+        }`;
+      }
     }
 
     return rules;

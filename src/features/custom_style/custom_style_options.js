@@ -106,6 +106,12 @@ const myCustomStyle = {
       label: "Headings",
       options: [
         {
+          id: "headings_left-padding",
+          type: OptionType.CHECKBOX,
+          label: "Increase left padding with each heading level",
+          defaultValue: false,
+        },
+        {
           id: "headings_background-color",
           type: "color",
           label: "Background color",
