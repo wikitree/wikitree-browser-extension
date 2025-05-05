@@ -114,7 +114,7 @@ const myCustomStyle = {
         {
           id: "noHeadingBackgroundColor",
           type: OptionType.CHECKBOX,
-          label: "Transparent heading background",
+          label: "No heading background",
           defaultValue: "true",
         },
         {
