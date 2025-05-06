@@ -27,13 +27,16 @@ async function initializeFeatureSettingsOnHelpPage(space) {
     const feature = features.find((feature) => feature.id === "readability");
     if (feature) {
       const $optionsSpan = $(`a#Options`);
+      let $headingElement;
       if ($optionsSpan.length) {
-        const $headingElement = $optionsSpan.nextAll("h2").first();
-        if ($headingElement.length) {
-          $headingElement.nextAll("p").first().remove();
-          $headingElement.nextAll("table").first().wrap("<p></p>");
-          injectFeatureSettings(feature, $headingElement);
-        }
+        $headingElement = $optionsSpan.nextAll("h2").first();
+      } else {
+        $headingElement = $(`h2#Options`);
+      }
+      if ($headingElement.length) {
+        $headingElement.nextAll("p").first().remove();
+        $headingElement.nextAll("table").first().wrap("<p></p>");
+        injectFeatureSettings(feature, $headingElement);
       }
     }
   }
@@ -48,7 +51,17 @@ function injectFeatureSettings(feature, $headingElement) {
       .replace(/\)/g, ".29")
       .replace(/%/g, ".");
     /// $headingElement is the hx after the a anchor link to the feature
-    $headingElement = $(`a[id="${encodedName}"]`).nextAll("h2,h3,h4,h5,h6,h7,h8").first();
+    //    $headingElement = $(`a[id="${encodedName}"]`).nextAll("h2,h3,h4,h5,h6,h7,h8").first();
+    // try <a id="…"> first, then fall back to the heading itself having that id
+    const $anchor = $(`a[id="${encodedName}"]`);
+    if ($anchor.length) {
+      $headingElement = $anchor.nextAll("h2,h3,h4,h5,h6,h7,h8").first();
+    } else {
+      // headings now often carry the id directly
+      $headingElement = $(
+        `h2#${encodedName},h3#${encodedName},h4#${encodedName},h5#${encodedName},h6#${encodedName}`
+      ).first();
+    }
   }
 
   if ($headingElement) {
