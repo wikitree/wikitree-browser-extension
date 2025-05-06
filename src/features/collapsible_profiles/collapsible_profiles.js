@@ -105,9 +105,18 @@ function createCollapsibleSections() {
 
       headingCounters[level] = (headingCounters[level] || 0) + 1;
 
+      /*
       const contentId = `hcl${level}${headingCounters[level]}`;
       heading.attr("data-content-id", contentId);
       const anchorName = lastAnchor.attr("name");
+
+      const newDiv = $(`<div id="${contentId}" class="collapsible-section"></div>`);
+*/
+
+      const contentId = `hcl${level}${headingCounters[level]}`;
+      heading.attr("data-content-id", contentId);
+      // use <a name="…"> if present, otherwise fall back to the heading’s own id or the generated contentId
+      const anchorName = (lastAnchor && lastAnchor.attr("name")) || heading.attr("id") || contentId;
 
       const newDiv = $(`<div id="${contentId}" class="collapsible-section"></div>`);
 
@@ -289,6 +298,9 @@ function toggleSection($button, promise = null) {
 async function navigateTo(targetId) {
   // First look for a collapsible button with the targetId
   let $targetButton = $(`.collapse-toggle[data-anchor="${targetId}"]`);
+  if (!$targetButton.length) {
+    $targetButton = $(`.collapse-toggle[data-target-id="${targetId}"]`);
+  }
   if ($targetButton.length) {
     // Expand all collapsed parent sections
     await expandParentSections($targetButton);
