@@ -19,8 +19,16 @@ export function onHoverIn($element) {
     return false;
   }
   hideActivePreview();
-  const match = $element[0].href.match(/\/wiki\/((\w+):.*?)(#.*|$)/i);
-  const pageType = match[2].toLowerCase();
+  const href = $element[0].href;
+  const match = href.match(/\/wiki\/((\w+:)?.*?)(#.*|$)/i);
+  const pageId =
+    match && match.length > 1 && match[1]
+      ? match[1] // prefixed ID (Space:WikiTree_Browser_Extension, Category:Cemeteries, Help:Apps, Smith-1234)
+      : new URL(href, window.location.origin).searchParams.get("title"); // for self-referencing links, check the title parameter on the query string (in case of index.php format)
+  const pageType =
+    pageId && pageId.indexOf(":") >= 0
+      ? pageId.split(":")[0].toLowerCase() // lowercase page type (Space, Category, Help, etc.)
+      : "person"; // assume any unprefixed type of wiki URL refers to a person
   let $popup = $(
     '<div id="activePagePreview" class="' +
       previewClasses +
@@ -42,8 +50,8 @@ export function onHoverIn($element) {
 
   // fetch the content to be displayed in the popup
   getPreviewContent(
-    pageType, // page type (Space, Category, Help, etc.)
-    decodeURIComponent(match[1]), // prefixed ID (Space:WikiTree_Browser_Extension, Category:Cemeteries, Help:Apps)
+    pageType,
+    decodeURIComponent(pageId),
     $element[0].href // page URL
   )
     .then((content) => {
@@ -104,7 +112,7 @@ export function onHoverIn($element) {
           .addClass("preview-audit"); // this text is displayed at the bottom on other content pages
       }
       addCloseButton($popup);
-      const copyLink = decodeURIComponent(match[1]).replace(/_/g, " ");
+      const copyLink = decodeURIComponent(pageId).replace(/_/g, " ");
       $popup.prepend(
         $('<h2 class="preview-title"></h2>').append($("<a></a>").attr("href", $element[0].href).text(content.title))
           .append(`
@@ -113,7 +121,7 @@ export function onHoverIn($element) {
 <li><button aria-label="Copy ID" class="copyWidget mono-b text-capitalize" data-copy-text="${copyLink}" data-bs-toggle="tooltip" data-bs-title="Copy ${copyLink}">ID</button></li>
 <li><button aria-label="Copy Wiki Link" class="copyWidget mono-b" data-copy-label="Copy Wiki Link" data-copy-text="[[${copyLink}|${copyLink}]]" data-bs-toggle="tooltip" data-bs-title="Copy Link">Link</button></li>
 <li><button aria-label="Copy URL" class="copyWidget mono-b" data-copy-label="Copy URL" data-copy-text="${
-          (window.location.href.match(/^.*\/{2,}.*?(?=\/)/) ?? "") + "/wiki/" + match[1]
+          (window.location.href.match(/^.*\/{2,}.*?(?=\/)/) ?? "") + "/wiki/" + pageId
         }" data-bs-toggle="tooltip" data-bs-title="Copy URL">URL</button></li>
 </ul>`)
       );
@@ -207,7 +215,6 @@ function parsePageContent(response) {
 function parseSpaceContent(response) {
   let content = parsePageContent(response);
   if (previewClasses.indexOf("show-audit") > -1) {
-    console.log(content.body);
     let $audit = $("<div></div>").html(response.replace(/(<\/?)(?=(script|style|link))/g, "$1no"));
     $audit = $audit.find("aside > #Manager").first().closest("aside");
     if ($audit.length > 0) {
@@ -288,9 +295,7 @@ function attachHover(target) {
       otherPagePreview ? 'a[href*="/wiki/Special:"]' : null,
       otherPagePreview ? 'a[href*="/wiki/Template:"]' : null,
       otherPagePreview ? 'a[href*="/wiki/Automated:"]' : null,
-      otherPagePreview && /\/wiki\/(Help|Project|Special|Template|Automated):/i.test(window.location.href)
-        ? 'a[href^="#"]'
-        : null,
+      otherPagePreview ? '.body-text a[href^="#"]' : null,
     ]
       .join(", ")
       .replace(/,[\s+,]+/g, ", ")
