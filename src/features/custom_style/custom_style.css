@@ -80,7 +80,7 @@ body.space div.body-text table:has(a.image) {
   position: relative;
 }
 body.customStyle .x-sticker,
-body.customStyle .box,
+body.customStyle .box:not(foreignObject div),
 body.customStyle img.scale-with-grid {
   position: relative;
   z-index: 100; /* Show above header colour */
