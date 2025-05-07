@@ -112,18 +112,59 @@ export function onHoverIn($element) {
           .addClass("preview-audit"); // this text is displayed at the bottom on other content pages
       }
       addCloseButton($popup);
-      const copyLink = decodeURIComponent(pageId).replace(/_/g, " ");
+      const decodedId = decodeURIComponent(pageId).replace(/_/g, " ");
+      const wikiLink = `[[${decodedId}|${content.title || decodedId}]]`;
+      const wikiUrl = `${window.location.href.match(/^.*\/{2,}.*?(?=\/)/) ?? ""}/wiki/${pageId}`;
       $popup.prepend(
-        $('<h2 class="preview-title"></h2>').append($("<a></a>").attr("href", $element[0].href).text(content.title))
-          .append(`
-<ul class="copy--buttons mono-b" style="display: inline-block !important">
-<li><img src="/images/icons/icon-copy.svg" alt="Copy icon"></li>
-<li><button aria-label="Copy ID" class="copyWidget mono-b text-capitalize" data-copy-text="${copyLink}" data-bs-toggle="tooltip" data-bs-title="Copy ${copyLink}">ID</button></li>
-<li><button aria-label="Copy Wiki Link" class="copyWidget mono-b" data-copy-label="Copy Wiki Link" data-copy-text="[[${copyLink}|${copyLink}]]" data-bs-toggle="tooltip" data-bs-title="Copy Link">Link</button></li>
-<li><button aria-label="Copy URL" class="copyWidget mono-b" data-copy-label="Copy URL" data-copy-text="${
-          (window.location.href.match(/^.*\/{2,}.*?(?=\/)/) ?? "") + "/wiki/" + pageId
-        }" data-bs-toggle="tooltip" data-bs-title="Copy URL">URL</button></li>
-</ul>`)
+        $("<h2>", { class: "preview-title" }).append(
+          $("<a>", { href: $element[0].href }).text(content.title),
+          $("<ul>", {
+            class: "copy--buttons mono-b",
+            style: "display: inline-block !important; vertical-align: text-bottom;",
+          }).append(
+            $("<li>").append(
+              $("<img>", {
+                src: "/images/icons/icon-copy.svg",
+                alt: "Copy icon",
+              })
+            ),
+            "\n",
+            $("<li>").append(
+              $("<button>", {
+                "aria-label": "Copy ID",
+                class: "copyWidget mono-b text-capitalize",
+                "data-copy-text": pageId,
+                "data-bs-toggle": "tooltip",
+                "data-bs-title": `Copy ${pageId}`,
+                text: pageId && pageId.indexOf(":") === -1 ? pageId : "ID",
+              })
+            ),
+            "\n",
+            $("<li>").append(
+              $("<button>", {
+                "aria-label": "Copy Wiki Link",
+                class: "copyWidget mono-b",
+                "data-copy-label": "Copy Wiki Link",
+                "data-copy-text": `${wikiLink}`,
+                "data-bs-toggle": "tooltip",
+                "data-bs-title": "Copy Link",
+                text: "Link",
+              })
+            ),
+            "\n",
+            $("<li>").append(
+              $("<button>", {
+                "aria-label": "Copy URL",
+                class: "copyWidget mono-b",
+                "data-copy-label": "Copy URL",
+                "data-copy-text": wikiUrl,
+                "data-bs-toggle": "tooltip",
+                "data-bs-title": "Copy URL",
+                text: "URL",
+              })
+            )
+          )
+        )
       );
       let visibleElements = $popup.children().filter(function () {
         if ($(this).css("visibility") !== "hidden") {
@@ -204,7 +245,8 @@ function parsePageContent(response) {
   }
   let $content = parseDocument(content.documentHTML);
   content.title = (
-    $content.find("h1").first().clone().children().remove().end().text() ?? $content.find("title").first().text()
+    $content.find("h1").first().clone().children(":not([data-cy='person-name'])").remove().end().text() ??
+    $content.find("title").first().text()
   )?.replace(/(^\s+)|(\s+$)/g, "");
   if ($content && ($content = $content.find(".page--content, .body-text")).length > 0) {
     content.body = $content.last().prop("outerHTML");
