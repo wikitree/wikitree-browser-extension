@@ -29,7 +29,7 @@ const myCustomStyle = {
           label: "Font family",
           values: [
             { value: "Arial, sans-serif", text: "Arial" },
-            { value: "'Comic Sans MS', Verdana, cursive", text: "Comic Sans MS" },
+            { value: "'Comic Sans MS', Verdana, sans-serif", text: "Comic Sans MS" },
             { value: "'Courier New', monospace", text: "Courier New" },
             { value: "Georgia, serif", text: "Georgia" },
             { value: "'Lucida Console', monospace", text: "Lucida Console" },
