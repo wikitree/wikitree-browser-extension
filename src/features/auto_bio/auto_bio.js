@@ -7184,15 +7184,29 @@ export function topOfLineOnlyCondition(surname) {
 }
 
 // Helper function to add timeout to a promise
-async function promiseWithTimeout(promise, ms) {
+async function promiseWithTimeout(promise, ms, label = "") {
   let timeoutId;
+
+  // Wrap the original promise so that if it rejects on its own, we still tag the Error
+  const guarded = Promise.resolve(promise).catch((err) => {
+    // annotate the Error
+    err.timedOut = false;
+    err.promise = promise;
+    err.label = label;
+    throw err;
+  });
+
   const timeoutPromise = new Promise((_, reject) => {
     timeoutId = setTimeout(() => {
-      reject(new Error("Promise timed out"));
+      const err = new Error(`Promise${label ? ` (“${label}”)` : ""} timed out after ${ms} ms`);
+      err.timedOut = true;
+      err.promise = promise;
+      err.label = label;
+      reject(err);
     }, ms);
   });
 
-  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+  return Promise.race([guarded, timeoutPromise]).finally(() => clearTimeout(timeoutId));
 }
 
 export async function getONSstickers() {
@@ -7246,7 +7260,11 @@ export async function getONSstickers() {
     }
     let results;
     try {
-      results = await promiseWithTimeout(wtAPICatCIBSearch("AutoBio_ONS", "nameStudy", aSurname + " name study"), 5000); // 5 seconds timeout
+      results = await promiseWithTimeout(
+        wtAPICatCIBSearch("AutoBio_ONS", "nameStudy", aSurname + " name study"),
+        5000,
+        `wtAPICatCIBSearch("AutoBio_ONS", "nameStudy", "${aSurname} name study")`
+      ); // 5 seconds timeout
       if (results?.response?.categories) {
         const result = findBestMatch(
           aSurname,
@@ -9237,7 +9255,11 @@ export async function getLocationCategory(type, location = null) {
     searchLocationsArray.push(...cemeteryVariants);
   }
   const apiPromises = searchLocationsArray.map((searchLocation) => {
-    return promiseWithTimeout(wtAPICatCIBSearch("AutoBio_" + categoryType, categoryType, searchLocation), 5000); // 5 seconds timeout
+    return promiseWithTimeout(
+      wtAPICatCIBSearch("AutoBio_" + categoryType, categoryType, searchLocation),
+      5000,
+      `wtAPICatCIBSearch("AutoBio_${categoryType}, ${categoryType}, ${searchLocation})`
+    ); // 5 seconds timeout
   });
 
   const apiResponses = await Promise.allSettled(apiPromises);
