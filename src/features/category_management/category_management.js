@@ -39,7 +39,7 @@ shouldInitializeFeature("categoryManagement").then((result) => {
       getFeatureOptions("categoryManagement").then((options) => {
         AddOptionalCategoryEditPageLinks(options);
         PerformActualCategoryChanges();
-        AddCategoryExitLink($document.getElementsByClassName("EDIT")[0]);
+        AddCategoryExitLink($document.getElementsByTagName("h1")[0]);
       });
     } else if (isCategoryPage) {
       getFeatureOptions("categoryManagement").then((options) => {
