@@ -240,6 +240,18 @@ function AddToSections(alsoOnProfilePages) {
     return;
   }
 
+  const allHs = document.querySelectorAll("h1, h2, h3, h4, h5, h6");
+  for (let i = 0; i < allHs.length; i++) {
+    if (allHs[i].id == null || allHs[i].id == "") {
+      continue;
+    }
+    const url = document.location.href.split("#")[0].split("?")[0] + "#" + allHs[i].id;
+
+    const section = allHs[i].innerText.split("[edit]")[0];
+    AddToOneSection(section, url, $(allHs[i]));
+  }
+
+  //just in case it gets switched back to the old pattern, we keep this loop for the moment as well
   const allAs = document.getElementsByTagName("a");
   for (let i = 0; i < allAs.length; i++) {
     if (allAs[i].getAttribute("name") == null || allAs[i].getAttribute("name") == "" || allAs[i].nextSibling == null) {
@@ -257,22 +269,25 @@ function AddToSections(alsoOnProfilePages) {
           return x.replace(".", "%");
         })
     );
-
-    let title = document.title;
-    if (isSpacePage) {
-      title = "Space:" + title;
-    }
-
-    let wikiLink = "[[" + title + "#" + section + "]]";
-
-    if (isProfilePage) {
-      const profileID = profilePerson.Name;
-      wikiLink = `[[${profileID}#${section}|${title.replace(" - WikiTree Profile", "")}: ${section}]]`;
-    }
-    const wikiLinkItem = { label: "Link", text: wikiLink, image: true };
-    const urlLinkItem = { label: "URL", text: url, image: false };
-    addItems([wikiLinkItem, urlLinkItem], $(allAs[i].nextSibling), { isNew: true });
+    AddToOneSection(section, url, $(allAs[i].nextSibling));
   }
+}
+
+function AddToOneSection(section, url, copyPosition) {
+  let title = document.title;
+  if (isSpacePage) {
+    title = "Space:" + title;
+  }
+
+  let wikiLink = "[[" + title + "#" + section + "]]";
+
+  if (isProfilePage) {
+    const profileID = profilePerson.Name;
+    wikiLink = `[[${profileID}#${section}|${title.replace(" - WikiTree Profile", "")}: ${section}]]`;
+  }
+  const wikiLinkItem = { label: "Link", text: wikiLink, image: true };
+  const urlLinkItem = { label: "URL", text: url, image: false };
+  addItems([wikiLinkItem, urlLinkItem], copyPosition, { isNew: true });
 }
 
 export function addItems(copyItems, copyPosition, options = { isNew: false }) {
