@@ -26,7 +26,7 @@ function addAccessKeys(options) {
       options
     );
     setAccessKeyIfOptionEnabled(options.EnhancedEditor, "#toggleMarkupColor", "e", options, () => isWikiEdit);
-    setAccessKeyIfOptionEnabled(options.Save, "#wpSave, input[value='Save Scratch Pad Changes']", "s", options);
+    setAccessKeyIfOptionEnabled(options.Save, "#wpSave, #wpSave1, input[value='Save Scratch Pad Changes']", "s", options);
     setAccessKeyIfOptionEnabled(options.Category, "#addCategoryButton", "k", options);
     setAccessKeyIfOptionEnabled(options.RandomProfile, "a.dropdown-item.randomProfile", "r", options);
     setAccessKeyIfOptionEnabled(options.NavHomePage, "a[href$='/wiki/Special:Home']", "1", options);
