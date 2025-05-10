@@ -40,6 +40,7 @@ shouldInitializeFeature("categoryManagement").then((result) => {
         AddOptionalCategoryEditPageLinks(options);
         PerformActualCategoryChanges();
         AddCategoryExitLink($document.getElementsByTagName("h1")[0]);
+        ShowCategorySectionOnTop(options);
       });
     } else if (isCategoryPage) {
       getFeatureOptions("categoryManagement").then((options) => {
@@ -302,6 +303,15 @@ function AddCategoryExitLink(parent) {
   parent.appendChild(WrapWithBrackets(linkExit));
 }
 
+function ShowCategorySectionOnTop(options) {
+  if (options.catOnTop) {
+    const previewDiv = document.getElementById("wikiPreview");
+    const categoriesSection = document.getElementById("Categories");
+    if (categoriesSection) {
+      previewDiv.insertBefore(categoriesSection.parentNode.parentNode.parentNode.parentNode.cloneNode(true), previewDiv.firstChild.nextSibling);
+    }
+  }
+}
 function AddCategoryChangeLinksOnProfile(categoryDiv) {
   const profileId = getProfilePersonInfo().Name;
 

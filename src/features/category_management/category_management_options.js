@@ -87,6 +87,12 @@ registerFeature({
       defaultValue: true,
     },
     {
+      id: "catOnTop",
+      type: OptionType.CHECKBOX,
+      label: "show categories section on top of category preview",
+      defaultValue: true,
+    },
+    {
       id: "showCategoryLinksProfile",
       type: OptionType.CHECKBOX,
       label: "enable category change in profile",
