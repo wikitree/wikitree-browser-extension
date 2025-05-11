@@ -1327,8 +1327,8 @@ function GetActualAkaCategoryUsedInProfile(wpTextbox1, cats) {
 function AddCat(wpTextbox1, cat) {
   let bio = wpTextbox1.value;
   let catSyntax = "[[Category:" + cat + "]]";
-  const catUnderlines = cat.replace(" ", "_");
-  if (bio.indexOf(cat + "]]") == -1 && bio.indexOf(catUnderlines) == -1) {
+  const catUnderlines = catSyntax.replace(" ", "_");
+  if (!bio.includes(cat + "]]") && !bio.includes(catUnderlines)) {
     wpTextbox1.value = catSyntax + "\n" + bio;
   }
 }
