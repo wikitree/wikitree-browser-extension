@@ -979,11 +979,11 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     let missingSibling = "";
     let missingChildren = "";
     if (specialMyConnectionsMatch != null) {
-      missingFather = "<th id='missing-father'>F</th>";
-      missingMother = "<th id='missing-mother'>M</th>";
-      missingSibling = "<th id='missing-sibling'>Si</th>";
-      missingSpouse = "<th id='missing-spouse'>Sp</th>";
-      missingChildren = "<th id='missing-children'>Ch</th>";
+      missingFather = "<th id='missing-father' title='Missing father'>F</th>";
+      missingMother = "<th id='missing-mother' title='Missing father'>M</th>";
+      missingSibling = "<th id='missing-sibling' title='Sibling count'>Si</th>";
+      missingSpouse = "<th id='missing-spouse' title='Missing spouse? / Spouse count'>Sp</th>";
+      missingChildren = "<th id='missing-children'title='Missing children? / Child count'>Ch</th>";
     }
 
     let tableIDBit = "";
