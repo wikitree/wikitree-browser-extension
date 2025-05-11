@@ -577,12 +577,12 @@ function enhanceThonStats() {
 function addNavHomePageLink() {
   const findButton = document.getElementsByClassName("btn btn-link btn-search")[0];
   if (findButton) {
-    const navHomePageLink = document.createElement("button");
-    navHomePageLink.addEventListener("click", () => {
-      window.location = "https://" + mainDomain + "/wiki/Special:Home";
-    });
-    navHomePageLink.innerHTML = " &#127968;";
+    const navHomePageLink = document.createElement("div");
+    const link = "https://" + mainDomain + "/wiki/Special:Home";
+    navHomePageLink.innerHTML = '<a style="text-decoration: none" href="' + link + '">&#127968;</a>';
     navHomePageLink.classList = findButton.classList;
+    navHomePageLink.style.fontSize = "125%";
+
     findButton.parentNode.parentNode.insertBefore(
       navHomePageLink,
       findButton.parentNode.previousSibling.previousSibling
