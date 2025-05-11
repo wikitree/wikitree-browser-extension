@@ -45,6 +45,9 @@ const spaceLargestUnconnectedBranchesMatch = window.location.href.match(/Space:L
 const specialMyConnectionsMatch = window.location.href.match(/Special:MyConnections/);
 const specialSearchPersonMatch = window.location.href.match(/Special:SearchPerson/);
 
+let combinedPeople = {};
+let peopleArr;
+
 export const USstatesObjArray = [
   {
     name: "Alabama",
@@ -828,12 +831,13 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
   const fields =
     "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,BirthDate,BirthLocation, DeathDate,DeathLocation, BirthDateDecade,DeathDateDecade,Touched, Created, Gender, Father, Mother,Id,Name,Privacy,DataStatus,ShortName,Derived.BirthNamePrivate,Derived.BirthName,LongNamePrivate,Connected";
 
-  let combinedPeople = {};
+  //let combinedPeople = {};
 
   // Convert comma-separated IDstring into an array
   const IDs = IDstring.split(",");
 
   // Split the IDs if there are more than 100
+  /*
   if (IDs.length > 100) {
     const firstHalf = IDs.slice(0, 100);
     const secondHalf = IDs.slice(100);
@@ -851,8 +855,21 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     const singleCall = await getPeople(IDstring, false, false, false, 1, 0, fields, "WBE_my_connections_file");
     combinedPeople = singleCall[0]?.people;
   }
+    */
 
-  // console.log(combinedPeople);
+  combinedPeople = await getDegree2WithNuclear(
+    IDstring.split(","), // degree-2 IDs (array)
+    "WBE_my_connections_file"
+  );
+
+  //console.log(JSON.parse(JSON.stringify(combinedPeople)));
+  peopleArr = Object.values(combinedPeople); // <-- refresh the cache
+
+  buildNuclearArrays(combinedPeople);
+
+  //console.log(JSON.parse(JSON.stringify(combinedPeople)));
+
+  //console.log(combinedPeople);
 
   const tablePeople = [];
   const peopleKeys = Object.keys(combinedPeople);
@@ -900,6 +917,11 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     aPerson.Parent = [];
     aPerson.Sibling = [];
     aPerson.Child = [];
+
+    aPerson.spouseCount = spouseCount(aPerson);
+    aPerson.childCount = childCount(aPerson.Id);
+    aPerson.siblingCount = siblingCount(aPerson);
+    console.log("Person ID: " + aPerson.Name);
 
     ["Father", "Mother"].forEach((aParent) => {
       if (aPerson[aParent]) {
@@ -954,12 +976,14 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     let missingFather = "";
     let missingMother = "";
     let missingSpouse = "";
+    let missingSibling = "";
     let missingChildren = "";
     if (specialMyConnectionsMatch != null) {
       missingFather = "<th id='missing-father'>F</th>";
       missingMother = "<th id='missing-mother'>M</th>";
-      missingSpouse = ""; // "<th id='missing-spouse'>Sp</th>";
-      missingChildren = ""; // "<th id='missing-children'>Ch</th>";
+      missingSibling = "<th id='missing-sibling'>Si</th>";
+      missingSpouse = "<th id='missing-spouse'>Sp</th>";
+      missingChildren = "<th id='missing-children'>Ch</th>";
     }
 
     let tableIDBit = "";
@@ -967,7 +991,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       tableIDBit = "data-table-id='" + tableID + "' ";
     }
     aTable = $(
-      `<table class='peopleTable ${tableClass}' id='${tableID}' ${tableIDBit}>${aCaption}<thead><tr>${missingFather}${missingMother}${missingSpouse}${missingChildren}${ahnenHeader}${relTH}<th id='firstname' data-order=''>Given name(s)</th><th id='lnab'>LNAB</th><th id='lnc' data-order=''>CLN</th><th id='birthdate' data-order=''>Birth date</th><th data-order='' id='birthlocation'>Birth place</th><th data-order='' id='deathdate'>Death date</th><th data-order='' id='deathlocation'>Death place</th>${livedForCol}${setAs}${childrenCountTH}${emptyTD}<th id='created' data-order='' >Created</th><th id='edited' data-order='' >Edited</th></tr></thead><tbody></tbody></table>`
+      `<table class='peopleTable ${tableClass}' id='${tableID}' ${tableIDBit}>${aCaption}<thead><tr>${missingFather}${missingMother}${missingSibling}${missingSpouse}${missingChildren}${ahnenHeader}${relTH}<th id='firstname' data-order=''>Given name(s)</th><th id='lnab'>LNAB</th><th id='lnc' data-order=''>CLN</th><th id='birthdate' data-order=''>Birth date</th><th data-order='' id='birthlocation'>Birth place</th><th data-order='' id='deathdate'>Death date</th><th data-order='' id='deathlocation'>Death place</th>${livedForCol}${setAs}${childrenCountTH}${emptyTD}<th id='created' data-order='' >Created</th><th id='edited' data-order='' >Edited</th></tr></thead><tbody></tbody></table>`
     );
 
     // eslint-disable-next-line no-undef
@@ -1025,13 +1049,15 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       let noBorDdate = false;
       let missingFatherCell = "";
       let missingMotherCell = "";
+      let missingSiblingCell = "";
       let missingSpouseCell = "";
       let missingChildrenCell = "";
       if ($("body.my-connections").length) {
         missingFatherCell = "<td class='missingPersonCell'></td>";
         missingMotherCell = "<td class='missingPersonCell'></td>";
-        missingSpouseCell = ""; // "<td class='missingPersonCell'></td>";
-        missingChildrenCell = ""; // "<td class='missingPersonCell'></td>";
+        missingSiblingCell = "<td class='missingPersonCell'></td>";
+        missingSpouseCell = "<td class='missingPersonCell'></td>";
+        missingChildrenCell = "<td class='missingPersonCell'></td>";
         const deathAge = ageAtDeath(mPerson);
         if (mPerson?.Name) {
           let thisLink = $("ol[id*='gen'] a[href='/wiki/" + htmlEntities(mPerson.Name) + "']");
@@ -1060,14 +1086,25 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
                 "'>"
             ).insertBefore(thisLink);
           } else {
-            if (mPerson.Spouses) {
+            if (mPerson.spouseCount) {
+              missingSpouseCell = "<td class='missingPersonCell'>" + mPerson.spouseCount + "</td>";
+            } else if (mPerson.Spouses) {
               let oSpouses = Object.keys(mPerson.Spouses);
               missingSpouseCell = "<td class='missingPersonCell'>" + oSpouses.length + "</td>";
             }
           }
           let oChildren, oChildrenNumber;
-          if (mPerson.Children) {
+          if (mPerson.childCount) {
+            missingChildrenCell = "<td class='missingPersonCell'>" + mPerson.childCount + "</td>";
+          } else if (mPerson.childCount === 0) {
+            if (deathAge.age > 12 && mPerson.DataStatus.Spouse != "Null" && mPerson.DataStatus.Spouse != "Blank") {
+              missingChildrenCell = "<td class='missingPersonCell missingPersonZero'></td>";
+            } else {
+              missingChildrenCell = "<td class='missingPersonCell'></td>";
+            }
+          } else if (mPerson.Children) {
             oChildren = Object.keys(mPerson.Children);
+
             if (oChildren.length > 0) {
               oChildrenNumber = oChildren.length;
               missingChildrenCell = "<td class='missingPersonCell'>" + oChildrenNumber + "</td>";
@@ -1080,6 +1117,18 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
             } else {
               missingChildrenCell = "<td class='missingPersonCell'></td>";
             }
+          }
+          if (mPerson.siblingCount) {
+            missingSiblingCell = "<td class='missingPersonCell'>" + mPerson.siblingCount + "</td>";
+          } else if (mPerson.Siblings) {
+            let oSiblings = Object.keys(mPerson.Siblings);
+            if (oSiblings.length > 0) {
+              missingSiblingCell = "<td class='missingPersonCell'>" + oSiblings.length + "</td>";
+            } else {
+              missingSiblingCell = "<td class='missingPersonCell'></td>";
+            }
+          } else {
+            missingSiblingCell = "<td class='missingPersonCell'></td>";
           }
         }
       }
@@ -1651,7 +1700,10 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       let dataMissingMotherNumber = mPerson.Father == 0 ? 0 : 1;
       let dataMissingMother = "data-missing-mother='" + dataMissingMotherNumber + "' ";
       let dataMissingSpouseNumber;
-      if (mPerson.Spouses) {
+      if (mPerson.spouseCount) {
+        dataMissingSpouseNumber =
+          mPerson.spouseCount == 0 && mPerson.DataStatus.Spouse != "Blank" ? 100 : mPerson.spouseCount;
+      } else if (mPerson.Spouses) {
         dataMissingSpouseNumber =
           mPerson.Spouses.length == 0 && mPerson.DataStatus.Spouse != "Blank" && deathAge.age > 12
             ? 100
@@ -1659,22 +1711,27 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       }
       let dataMissingSpouse = "data-missing-spouse='" + dataMissingSpouseNumber + "' ";
       let dataMissingChildrenNumber;
-      if (mPerson.Children) {
+      if (mPerson.childCount) {
+        dataMissingChildrenNumber = mPerson.childCount == 0 && deathAge.age > 12 ? 100 : mPerson.childCount;
+      } else if (mPerson.Children) {
         dataMissingChildrenNumber =
           mPerson.Children.length == 0 && deathAge.age > 12 ? 100 : Object.keys(mPerson.Children).length;
       }
       let dataMissingChildren = "data-missing-children='" + dataMissingChildrenNumber + "' ";
       const dataConnected = "data-connected='" + mPerson.Connected + "' ";
+      let dataMissingSibling = "data-missing-sibling='" + mPerson.siblingCount + "' ";
 
       let aLine = $(
         `<tr ${dataMissingFather}
         ${dataMissingMother}
         ${dataMissingSpouse}
+        ${dataMissingSibling}
         ${dataMissingChildren}
         ${dataConnected}
         ${ancestorData} data-created='${dataCreated}' data-edited='${dataEdited}' data-name='${mPerson.Name}' data-locations='${oLocations}' data-firstname='${mPerson.FirstName}' data-lnab='${mPerson.LastNameAtBirth}'  data-lnc='${mPerson.LastNameCurrent}' data-birthdate='${dBirthDate}' data-deathdate='${dDeathDate}' data-birthlocation='${birthLocation}' data-birthlocation-reversed='${birthLocationReversed}' data-deathlocation='${deathLocation}' data-deathlocation-reversed='${deathLocationReversed}' ${livedToDays}  class='${aClass} ${mPerson.Gender}'>
         ${missingFatherCell}
         ${missingMotherCell}
+        ${missingSiblingCell}
         ${missingSpouseCell}
         ${missingChildrenCell}
         ${ahnenCell}
@@ -2636,4 +2693,183 @@ function getAge2(start, end) {
 
 function isLeapYear(year) {
   return year % 100 === 0 ? year % 400 === 0 : year % 4 === 0;
+}
+
+async function getPeopleAllPages(keys, fields, appId = "WBE_my_connections_file", pageLimit = 1000) {
+  let start = 0;
+  let people = {};
+
+  while (true) {
+    const page = await getPeople(
+      keys, // keys
+      0,
+      0,
+      0, // siblings/ancestors/descendants flags (not used)
+      1, // nuclear = 1  (brings back parents + spouses IDs)
+      0, // minGeneration
+      fields,
+      appId,
+      start,
+      pageLimit
+    );
+
+    const pagePeople = page?.[0]?.people || {};
+    Object.assign(people, pagePeople);
+
+    if (Object.keys(pagePeople).length < pageLimit) break; // last page
+    start += pageLimit;
+  }
+  return people;
+}
+
+/*****************************************************************
+ *  Build Parent / Child / Sibling / Spouse arrays in-memory
+ *****************************************************************/
+function buildNuclearArrays(people) {
+  const ids = Object.keys(people);
+
+  // ---- pre-seed ------------------------------------------------
+  ids.forEach((id) => {
+    people[id].Parent = [];
+    people[id].Child = [];
+    people[id].Sibling = [];
+    people[id].Spouse = []; // will hold full Person records
+  });
+
+  // ---- parents / children -------------------------------------
+  ids.forEach((id) => {
+    const p = people[id];
+    const dad = people[p.Father];
+    const mom = people[p.Mother];
+
+    if (dad) {
+      // father <--> child links
+      p.Parent.push(dad);
+      dad.Child.push(p);
+    }
+    if (mom) {
+      // mother <--> child links
+      p.Parent.push(mom);
+      mom.Child.push(p);
+    }
+  });
+
+  // ---- siblings -----------------------------------------------
+  ids.forEach((id) => {
+    const p = people[id];
+    const sibSet = new Set();
+
+    p.Parent.forEach((par) =>
+      par.Child.forEach((ch) => {
+        if (ch.Id !== p.Id) sibSet.add(ch);
+      })
+    );
+    p.Sibling = Array.from(sibSet);
+  });
+
+  // ---- spouses -------------------------------------------------
+  ids.forEach((id) => {
+    const p = people[id];
+    if (Array.isArray(p.Spouses)) {
+      // mini objects from API
+      p.Spouses.forEach((s) => {
+        const sRec = people[s.Id];
+        if (sRec) {
+          p.Spouse.push(sRec);
+        }
+      });
+    }
+  });
+}
+/* ----------------------------------------------------------------- */
+
+/**
+ * Fetch full data for 2-degree people + thin nuclear data for their relatives.
+ * @param {string[]} degree2Ids   – array of WT Ids (numeric or Name-format) that you are going to display
+ * @param {string}   appId        – appId to send to the API (default WBE_my_connections_file)
+ * @returns {Promise<Object>}     – map keyed by person.Id containing:
+ *                                    • full records for every 2-degree person
+ *                                    • minimal records (Id, Father, Mother, Spouses) for nuclear relatives
+ */
+export async function getDegree2WithNuclear(degree2Ids, appId = "WBE_my_connections_file") {
+  const fullFields = [
+    "FirstName",
+    "MiddleName",
+    "LastNameAtBirth",
+    "LastNameCurrent",
+    "BirthDate",
+    "DeathDate",
+    "BirthLocation",
+    "DeathLocation",
+    "Touched",
+    "Created",
+    "Gender",
+    "Id",
+    "Name",
+    "Father",
+    "Mother",
+    "Spouses",
+    "Privacy",
+    "DataStatus",
+  ].join(",");
+
+  const thinFields = "Id,Father,Mother,Spouses";
+
+  const keysString = degree2Ids.join(",");
+
+  /* ---------- pass 1 : full record for each 2-degree profile ---------- */
+  const fullCall = await getPeople(
+    keysString,
+    0, // siblings
+    0, // ancestors
+    0, // descendants
+    0, // nuclear
+    0, // minGeneration
+    fullFields,
+    appId
+  );
+  const fullPeople = fullCall?.[0]?.people || {};
+
+  /* ---------- pass 2 : thin nuclear records (parents, spouses, children) */
+  const thinCall = await getPeople(
+    keysString,
+    0,
+    0,
+    0,
+    1, // nuclear = 1
+    0,
+    thinFields,
+    appId
+  );
+  const thinPeople = thinCall?.[0]?.people || {};
+
+  /* ---------- merge : thin → full (full data overwrites when duplicate) */
+  return { ...thinPeople, ...fullPeople };
+}
+
+// quick index for look-ups
+const byId = (id) => combinedPeople[id];
+
+/* ---------- children count */
+function childCount(personId) {
+  return peopleArr.filter((p) => p.Father === personId || p.Mother === personId).length;
+}
+
+/* ---------- spouse count */
+function spouseCount(person) {
+  return Array.isArray(person.Spouses) ? person.Spouses.length : 0;
+}
+
+/* ---------- sibling count (share at least one parent) */
+function siblingCount(person) {
+  const sibs = new Set();
+  peopleArr.forEach((p) => {
+    if (
+      p.Id !== person.Id &&
+      ((p.Father === person.Father && person.Father) || (p.Mother === person.Mother && person.Mother))
+    ) {
+      sibs.add(p.Id);
+    }
+  });
+  return sibs.size;
 }
