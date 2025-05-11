@@ -1508,20 +1508,20 @@ function moveFamilyLists() {
     $nVitals.addClass("row");
     let $before;
     if (options.familyListPosition === "beforeManager") {
-      $before = $("#Profile-Data");
+      $before = $(".col-lg-4 #Profile-Data");
     } else if (options.familyListPosition === "beforePhotos") {
-      $before = $("#Photos");
+      $before = $(".col-lg-4 #Photos");
     }
     if (!$before?.length) {
       $before = $("#DNA-Connections");
       if (!$before.length) {
-        $before = $("#Research");
+        $before = $(".col-lg-4 #Research");
       }
     }
     if ($before.length) {
       $nVitals.insertBefore($before);
     } else {
-      $nVitals.insertAfter("#Profile-Data");
+      $nVitals.insertAfter(".col-lg-4 #Profile-Data");
     }
   }
 }
