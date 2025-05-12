@@ -37,27 +37,24 @@ shouldInitializeFeature("categoryFinderPins").then((result) => {
       }
     }, 2000);
 
-    checkIfFeatureEnabled("spacePreviews").then((result) => {
-      if (!result) {
-        $(document).on("mouseenter", ".autocomplete-suggestion-maplink a", function () {
-          onHoverIn($(this));
-          setTimeout(function () {
-            $("#activePagePreview").addClass("categoryFinderPinsPreview");
-          }, 1000);
-        });
-        $(document).on("click", function (e) {
-          if ($("#activePagePreview").hasClass("categoryFinderPinsPreview")) {
-            if (!$(e.target).closest("#activePagePreview").length) {
-              $("#activePagePreview")
-                .removeClass("categoryFinderPinsPreview")
-                .fadeOut(200, function () {
-                  $(this).remove();
-                });
-            } else if (e.target.classList.contains("x-preview-close")) {
-              $("#activePagePreview").removeClass("categoryFinderPinsPreview");
-            }
-          }
-        });
+    $(document).on("mouseenter", ".autocomplete-suggestion-maplink a", function () {
+      console.log("hovered");
+      onHoverIn($(this));
+      setTimeout(function () {
+        $("#activePagePreview").addClass("categoryFinderPinsPreview");
+      }, 1000);
+    });
+    $(document).on("click", function (e) {
+      if ($("#activePagePreview").hasClass("categoryFinderPinsPreview")) {
+        if (!$(e.target).closest("#activePagePreview").length) {
+          $("#activePagePreview")
+            .removeClass("categoryFinderPinsPreview")
+            .fadeOut(200, function () {
+              $(this).remove();
+            });
+        } else if (e.target.classList.contains("x-preview-close")) {
+          $("#activePagePreview").removeClass("categoryFinderPinsPreview");
+        }
       }
     });
 
