@@ -217,3 +217,42 @@ span.float-end {
   margin-top: 0.5em;
   color: #000;
 }
+
+/* ---------------  pseudo-checkbox --------------- */
+.wbe-checkbox {
+  position: relative; /* <<< needed so ::after is anchored */
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  vertical-align: middle;
+  border: 1px solid #666;
+  border-radius: 2px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.wbe-checkbox[aria-checked="true"] {
+  background: #198754; /* green fill – pick any colour */
+  border-color: #198754;
+}
+
+.wbe-checkbox[aria-checked="true"]::after {
+  content: "";
+  position: absolute; /* now relative to the span */
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid #fff; /* white tick on green box  */
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+#changeSummaryOptions {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+}

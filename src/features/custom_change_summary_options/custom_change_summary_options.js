@@ -6,8 +6,9 @@ import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isSpaceEdit } from "../../core/pageType";
 
-// -------------------------------
-// Default Options (each ends with a period)
+/*──────────────────────────────
+  1. Default phrases
+  ─────────────────────────────*/
 const defaultOptions = [
   "Adding sources.",
   "Bio improvement.",
@@ -19,172 +20,100 @@ const defaultOptions = [
   "Research notes.",
 ];
 
-// -------------------------------
-// Unified Summary Entries
-// Stored in localStorage under "summaryEntries" as an array of objects:
-// { type: "button" | "manual", text: string, order: number }
+/*──────────────────────────────
+  2. summaryEntries helpers
+  ─────────────────────────────*/
 function getSummaryEntries() {
   return JSON.parse(localStorage.getItem("summaryEntries")) || [];
 }
-function setSummaryEntries(entries) {
-  localStorage.setItem("summaryEntries", JSON.stringify(entries));
+function setSummaryEntries(list) {
+  localStorage.setItem("summaryEntries", JSON.stringify(list));
 }
 
-// -------------------------------
-// Helper functions to update #wpSummary without wiping external text
-
-// Append the given text if not already present.
+/*──────────────────────────────
+  3. wpSummary helpers
+  ─────────────────────────────*/
 function appendToSummary(text) {
-  let current = $("#wpSummary").val();
-  // Escape any special regex characters in text.
-  let escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  let regex = new RegExp(escaped);
-  if (!regex.test(current)) {
-    let newSummary = (current + " " + text).replace(/\s+/g, " ").trim();
-    $("#wpSummary").val(newSummary);
-    $("#wpSummaryTextArea").text(newSummary);
+  const $fld = $("#wpSummary");
+  if (!$fld.val().includes(text)) {
+    $fld.val(`${$fld.val()} ${text}`.replace(/\s+/g, " ").trim());
+    $("#wpSummaryTextArea").text($fld.val());
   }
 }
-
-// Remove the given text from #wpSummary.
 function removeFromSummary(text) {
-  let current = $("#wpSummary").val();
-  let escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  let regex = new RegExp("\\s*" + escaped + "\\s*", "g");
-  let newSummary = current.replace(regex, " ").replace(/\s+/g, " ").trim();
-  $("#wpSummary").val(newSummary);
-  $("#wpSummaryTextArea").text(newSummary);
+  const $fld = $("#wpSummary");
+  const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  $fld.val(
+    $fld
+      .val()
+      .replace(new RegExp(`\\s*${escaped}\\s*`, "g"), " ")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+  $("#wpSummaryTextArea").text($fld.val());
 }
 
-// -------------------------------
-// Unified list functions for button (checkbox) entries
-function addButtonEntry(text) {
-  let entries = getSummaryEntries();
-  if (!entries.some((e) => e.type === "button" && e.text === text)) {
-    let newOrder = entries.length > 0 ? Math.max(...entries.map((e) => e.order)) + 1 : 1;
-    entries.push({ type: "button", text: text, order: newOrder });
-    setSummaryEntries(entries);
-  }
-}
-function removeButtonEntry(text) {
-  let entries = getSummaryEntries();
-  entries = entries.filter((e) => !(e.type === "button" && e.text === text));
-  setSummaryEntries(entries);
-}
+/*──────────────────────────────
+  4. Init
+  ─────────────────────────────*/
+shouldInitializeFeature("customChangeSummaryOptions").then(async (on) => {
+  if (!on) return;
 
-// -------------------------------
-// Unified list functions for manual entries (kept for preservation of externally added text)
-function addManualEntry(manualText, insertIndex) {
-  let entries = getSummaryEntries();
-  entries.sort((a, b) => a.order - b.order);
-  let newOrder;
-  if (insertIndex <= 0) {
-    newOrder = entries.length > 0 ? entries[0].order / 2 : 1;
-  } else if (insertIndex >= entries.length) {
-    newOrder = entries.length > 0 ? entries[entries.length - 1].order + 1 : 1;
-  } else {
-    let prev = entries[insertIndex - 1].order;
-    let next = entries[insertIndex].order;
-    newOrder = (prev + next) / 2;
-  }
-  entries.splice(insertIndex, 0, { type: "manual", text: manualText, order: newOrder });
-  setSummaryEntries(entries);
-}
+  setTimeout(async () => {
+    $("#save").closest("div.page--content").prop("id", "saveButtons");
 
-// Compute insertion index from the caret position in #wpSummary.
-function getInsertionIndex() {
-  let summaryField = $("#wpSummary")[0];
-  let caretPos = summaryField && typeof summaryField.selectionStart === "number" ? summaryField.selectionStart : 0;
-  let entries = getSummaryEntries();
-  entries.sort((a, b) => a.order - b.order);
-  let summaryParts = entries.map((e) => e.text);
-  let cumulative = 0;
-  for (let i = 0; i < summaryParts.length; i++) {
-    let part = summaryParts[i];
-    if (caretPos <= cumulative + part.length) {
-      return i;
+    if (isSpaceEdit) {
+      const opt = await getFeatureOptions("customChangeSummaryOptions");
+      if (!opt.showOnSpacePages) return;
     }
-    cumulative += part.length + 1; // account for the space
-  }
-  return entries.length;
-}
 
-// -------------------------------
-// Initialization
-shouldInitializeFeature("customChangeSummaryOptions").then(async (result) => {
-  if (result) {
-    setTimeout(async function () {
-      $("#save").closest("div.page--content").prop("id", "saveButtons");
-      if (isSpaceEdit) {
-        const options = await getFeatureOptions("customChangeSummaryOptions");
-        if (!options.showOnSpacePages) return;
-      }
-      await import("./custom_change_summary_options.css");
+    await import("./custom_change_summary_options.css");
 
-      // Clear previous unified summary entries.
-      localStorage.removeItem("summaryEntries");
-      // Preserve any pre-existing text in #wpSummary (from URL parameters or another feature).
-      let initialText = $("#wpSummary").val().trim();
-      if (initialText) {
-        setSummaryEntries([{ type: "manual", text: initialText, order: 1 }]);
-      }
+    localStorage.removeItem("summaryEntries");
+    const initTxt = $("#wpSummary").val().trim();
+    if (initTxt) {
+      setSummaryEntries([{ type: "manual", text: initTxt, order: 1 }]);
+    }
 
-      // Create containers and add the modal popup.
-      initializeSummaryOptionsContainer();
-      addMovingSaveBox();
-
-      // Render checkbox list and custom options.
-      renderSummaryOptions();
-      renderCustomOptionsPopup();
-
-      // Do not rebuild #wpSummary so as not to wipe externally added text.
-      $("#wpSummaryTextArea").text($("#wpSummary").val());
-    }, 3000);
-  }
+    buildCheckboxContainer();
+    addGearAndPopup();
+    renderSummaryOptions();
+    renderCustomOptionsPopup();
+  }, 3000);
 });
 
-// -------------------------------
-// Create container for checkboxes.
-function initializeSummaryOptionsContainer() {
-  const saveButtons = $("#saveButtons");
-  let $container = saveButtons.find("#summaryOptionsContainer");
-  if (!$container.length) {
-    $container = saveButtons.find(".form-check");
-    if ($container.length) {
-      $container.empty().attr("id", "summaryOptionsContainer");
-    } else {
-      saveButtons.append(`<div id="summaryOptionsContainer" class="form-check" style="margin-top:1em;"></div>`);
-    }
+/*──────────────────────────────
+  5. DOM builders
+  ─────────────────────────────*/
+/*
+function buildCheckboxContainer() {
+  const $save = $("#saveButtons");
+  let $box = $save.find("#summaryOptionsContainer");
+  if (!$box.length) {
+    $box = $('<div id="summaryOptionsContainer" class="mt-2"></div>');
+    $save.append($box);
   }
 }
 
-// -------------------------------
-// Add the gear icon and modal popup.
-// The popup HTML has been updated to include a fixed header with inputs and a scrollable body.
-function addMovingSaveBox() {
-  const $saveButtons = $("#saveButtons");
-  if (!$saveButtons.length) {
-    console.error("#saveButtons container not found!");
-    return;
-  }
+function addGearAndPopup() {
+  const $save = $("#saveButtons");
   if (!$("#changeSummaryGears").length) {
-    const gearImg = $(`
-      <img id="changeSummaryGears" title="Add more phrases" 
-           src="${chrome.runtime.getURL("images/settings30.png")}" 
-           style="cursor:pointer; position:absolute; top:5px; right:5px;">
-    `);
-    $saveButtons.prepend(gearImg);
+    $save.prepend(
+      `<img id="changeSummaryGears"
+             title="Add more phrases"
+             src="${chrome.runtime.getURL("images/settings30.png")}"
+             style="cursor:pointer;position:absolute;top:5px;right:5px;">`
+    );
   }
   if (!$("#changeSummaryOptions").length) {
-    // The CSS for #changeSummaryOptions is moved to your CSS file.
-    const popupHTML = `
+    $save.append(`
       <div id="changeSummaryOptions">
         <div class="modal-header">
           <h3>Custom Options</h3>
           <span id="closeChangeSummaryOptions">&times;</span>
           <div class="add-option-container">
             <label>Add option:</label>
-            <input type="text" id="newOption" />
+            <input type="text" id="newOption" name="" disabled />
             <button id="addOptionButton" class="small">Add Option</button>
           </div>
         </div>
@@ -192,60 +121,127 @@ function addMovingSaveBox() {
           <ul id="currentOptions"></ul>
         </div>
       </div>
-    `;
-    $saveButtons.append(popupHTML);
+    `);
+  }
+}
+  */
+
+/*──────────────────────────────
+  buildCheckboxContainer
+  ─────────────────────────────*/
+/*──────────────────────────────
+  buildCheckboxContainer
+  ─────────────────────────────*/
+function buildCheckboxContainer() {
+  // ① the first native <input summary-suggestion …>
+  const $firstNative = $("input.summary-suggestion").first().closest(".form-check, .form-check-inline");
+
+  // ② create (or reuse) our container
+  let $box = $("#summaryOptionsContainer");
+  if (!$box.length) {
+    $box = $('<div id="summaryOptionsContainer" class="mt-2"></div>');
+  }
+
+  if ($firstNative.length) {
+    // insert our bar before the native radios
+    $firstNative.before($box);
+
+    // ③ hide ALL the native suggestion blocks
+    $("input.summary-suggestion").closest(".form-check, .form-check-inline").hide();
+  } else {
+    // fallback: append inside #saveButtons if selector ever changes
+    $("#saveButtons").append($box);
   }
 }
 
-// -------------------------------
-// Event Handlers
+/*──────────────────────────────
+  addGearAndPopup
+  ─────────────────────────────*/
+function addGearAndPopup() {
+  const $body = $("body");
+  const $save = $("#saveButtons");
+  const savePos = $save.offset() || { left: 0, top: 0 };
+
+  /* ── gear icon (positioned top-right of the save area) */
+  if (!$("#changeSummaryGears").length && $save.length) {
+    const $gear = $(`
+      <img id="changeSummaryGears"
+           title="Add more phrases"
+           src="${chrome.runtime.getURL("images/settings30.png")}"
+           style="cursor:pointer;position:absolute;z-index:11;">
+    `).appendTo($body);
+
+    // once image loads we can compute width
+    const placeGear = () =>
+      $gear.css({
+        left: savePos.left + $save.outerWidth() - $gear.width() - 6,
+        top: savePos.top + 6,
+      });
+    $gear.on("load", placeGear);
+    placeGear();
+  }
+
+  /* ── modal popup (anywhere in <body>, absolute / fixed handles placement) */
+  if (!$("#changeSummaryOptions").length) {
+    $body.append(`
+      <div id="changeSummaryOptions">
+        <div class="modal-header">
+          <h3>Custom Options</h3>
+          <span id="closeChangeSummaryOptions">&times;</span>
+          <div class="add-option-container">
+            <label>Add option:</label>
+            <!-- name="" + disabled so WT draft-watcher ignores it -->
+            <input type="text" id="newOption" name="" disabled />
+            <button id="addOptionButton" class="small">Add Option</button>
+          </div>
+        </div>
+        <div class="modal-body">
+          <ul id="currentOptions"></ul>
+        </div>
+      </div>
+    `);
+  }
+}
+
+/*──────────────────────────────
+  6. Event delegation
+  ─────────────────────────────*/
+$("body").on("click", "#changeSummaryGears", () => {
+  $("#changeSummaryOptions").toggle();
+  $("#newOption").prop("disabled", false).trigger("focus"); // enable here
+});
+
 $("body")
-  // Toggle the modal popup when the gear icon is clicked.
-  .on("click", "#changeSummaryGears", (e) => {
-    e.preventDefault();
-    $("#changeSummaryOptions").toggle();
-  })
-  // Close the modal popup.
-  .on("click", "#closeChangeSummaryOptions", (e) => {
-    e.preventDefault();
-    $("#changeSummaryOptions").hide();
-  })
-  // Custom Option (checkbox) events.
+  .on("click", "#closeChangeSummaryOptions", () => $("#changeSummaryOptions").hide())
   .on("click", "#addOptionButton", (e) => {
     e.preventDefault();
-    let optionText = $("#newOption").val().trim();
-    if (optionText !== "") {
-      if (optionText.endsWith(".")) {
-        optionText = optionText.slice(0, -1);
-      }
-      optionText += ".";
-      addCustomOption(optionText);
-      $("#newOption").val("");
-    }
+    let t = $("#newOption").val().trim();
+    if (!t) return;
+    if (!t.endsWith(".")) t += ".";
+    addCustomOption(t);
+    $("#newOption").val("");
   })
-  .on("click", ".deleteOption", (e) => {
+  .on("click", ".deleteOption", function (e) {
     e.preventDefault();
-    const option = $(e.currentTarget).data("option");
-    deleteCustomOption(option);
-    renderCustomOptionsPopup();
-    renderSummaryOptions();
+    deleteCustomOption($(this).data("option"));
   })
-  .on("click", ".editOption", (e) => {
+  .on("click", ".editOption", function (e) {
     e.preventDefault();
-    const option = $(e.currentTarget).data("option");
-    deleteCustomOption(option);
-    let editable = option;
-    if (editable.endsWith(".")) {
-      editable = editable.slice(0, -1);
-    }
-    $("#newOption").val(editable).focus();
-    renderCustomOptionsPopup();
-    renderSummaryOptions();
+    const txt = $(this).data("option").replace(/\.$/, "");
+    deleteCustomOption($(this).data("option"));
+    $("#newOption").val(txt).trigger("focus");
   })
-  // Checkbox clicks update the unified list and update #wpSummary using the helper functions.
-  .on("click", "#summaryOptionsContainer input.summary-suggestion", (e) => {
-    const option = $(e.currentTarget).val().trim();
-    if ($(e.currentTarget).is(":checked")) {
+  /* Toggle pseudo-checkbox with click, Enter, or Space */
+  .on("click keydown", "#summaryOptionsContainer .wbe-checkbox", function (e) {
+    if (e.type === "keydown" && ![13, 32].includes(e.which)) return;
+    e.preventDefault();
+    const $cb = $(this);
+    const now = $cb.attr("aria-checked") === "true";
+    const option = $cb.data("option");
+
+    $cb.attr("aria-checked", !now);
+
+    if (!now) {
       addButtonEntry(option);
       appendToSummary(option);
     } else {
@@ -255,60 +251,77 @@ $("body")
     $("#wpSave").prop("disabled", $("#wpSummary").val() === "");
   });
 
-// -------------------------------
-// Custom Option helper functions
-function addCustomOption(optionText) {
-  let customOptions = JSON.parse(localStorage.getItem("LSchangeSummaryOptions")) || [];
-  if (!customOptions.includes(optionText)) {
-    customOptions.push(optionText);
-    localStorage.setItem("LSchangeSummaryOptions", JSON.stringify(customOptions));
-  }
-  // Note: We no longer add the new option to the unified summary.
-  renderCustomOptionsPopup();
-  renderSummaryOptions();
-  // Do NOT call appendToSummary(optionText) here.
-}
-function deleteCustomOption(optionText) {
-  let customOptions = JSON.parse(localStorage.getItem("LSchangeSummaryOptions")) || [];
-  const idx = customOptions.indexOf(optionText);
-  if (idx > -1) {
-    customOptions.splice(idx, 1);
-    localStorage.setItem("LSchangeSummaryOptions", JSON.stringify(customOptions));
-  }
-  removeButtonEntry(optionText);
-}
+/*──────────────────────────────
+  7. Renderers
+  ─────────────────────────────*/
 function renderSummaryOptions() {
-  let customOptions = JSON.parse(localStorage.getItem("LSchangeSummaryOptions")) || [];
-  const sortedDefaults = [...defaultOptions].sort((a, b) => a.localeCompare(b));
-  let merged = [...sortedDefaults, ...customOptions];
-  merged = Array.from(new Set(merged));
-  const sortedOrder = merged.sort((a, b) => a.localeCompare(b));
-  const $container = $("#summaryOptionsContainer");
-  $container.empty();
-  sortedOrder.forEach((opt) => {
-    const isChecked = getSummaryEntries().some((e) => e.type === "button" && e.text === opt);
-    const $label = $(`
-      <label class="form-check-label" style="margin-right:1em; color:#000;">
-        <input type="checkbox" class="form-check-input summary-suggestion" value="${opt}" ${isChecked ? "checked" : ""}>
+  const custom = JSON.parse(localStorage.getItem("LSchangeSummaryOptions")) || [];
+  const items = [...new Set([...defaultOptions, ...custom])].sort((a, b) => a.localeCompare(b));
+
+  const $c = $("#summaryOptionsContainer").empty();
+  items.forEach((opt, i) => {
+    const checked = getSummaryEntries().some((e) => e.type === "button" && e.text === opt);
+    $c.append(`
+      <label class="form-check-label mr-3" style="cursor:pointer;color:#000;">
+        <span class="wbe-checkbox"
+              role="checkbox"
+              tabindex="0"
+              data-option="${opt}"
+              aria-checked="${checked}"></span>
         ${opt}
       </label>
     `);
-    $container.append($label);
   });
 }
+
 function renderCustomOptionsPopup() {
-  let customOptions = JSON.parse(localStorage.getItem("LSchangeSummaryOptions")) || [];
-  // Sort custom options alphabetically.
-  customOptions.sort((a, b) => a.localeCompare(b));
-  const $popupList = $("#currentOptions");
-  $popupList.empty();
-  customOptions.forEach((opt) => {
-    $popupList.append(`
-      <li data-option="${opt}" style="color:#000;">
-        ${opt} 
-        <a href="#" class="editOption" data-option="${opt}" style="margin-left:5px;">[edit]</a> 
-        <a href="#" class="deleteOption" data-option="${opt}" style="margin-left:5px;">[x]</a>
-      </li>
-    `);
-  });
+  const list = JSON.parse(localStorage.getItem("LSchangeSummaryOptions")) || [];
+  const $ul = $("#currentOptions").empty();
+
+  list
+    .sort((a, b) => a.localeCompare(b))
+    .forEach((opt) =>
+      $ul.append(`
+        <li data-option="${opt}" style="color:#000;">
+          ${opt}
+          <a href="#" class="editOption" data-option="${opt}">[edit]</a>
+          <a href="#" class="deleteOption" data-option="${opt}">[x]</a>
+        </li>`)
+    );
+}
+
+/*──────────────────────────────
+  8. Custom-option helpers
+  ─────────────────────────────*/
+function addCustomOption(txt) {
+  const list = JSON.parse(localStorage.getItem("LSchangeSummaryOptions")) || [];
+  if (!list.includes(txt)) {
+    list.push(txt);
+    localStorage.setItem("LSchangeSummaryOptions", JSON.stringify(list));
+  }
+  renderCustomOptionsPopup();
+  renderSummaryOptions();
+}
+function deleteCustomOption(txt) {
+  let list = JSON.parse(localStorage.getItem("LSchangeSummaryOptions")) || [];
+  list = list.filter((x) => x !== txt);
+  localStorage.setItem("LSchangeSummaryOptions", JSON.stringify(list));
+  removeButtonEntry(txt);
+  renderCustomOptionsPopup();
+  renderSummaryOptions();
+}
+
+/*──────────────────────────────
+  9. Button-entry helpers
+  ─────────────────────────────*/
+function addButtonEntry(txt) {
+  const list = getSummaryEntries();
+  if (!list.some((e) => e.type === "button" && e.text === txt)) {
+    const ord = list.length ? Math.max(...list.map((e) => e.order)) + 1 : 1;
+    list.push({ type: "button", text: txt, order: ord });
+    setSummaryEntries(list);
+  }
+}
+function removeButtonEntry(txt) {
+  setSummaryEntries(getSummaryEntries().filter((e) => !(e.type === "button" && e.text === txt)));
 }
