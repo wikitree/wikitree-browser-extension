@@ -256,3 +256,7 @@ span.float-end {
   transform: translate(-50%, -50%);
   z-index: 1000;
 }
+
+#summaryOptionsContainer label {
+  margin: 0.5em 0.5em 0.5em 0;
+}
