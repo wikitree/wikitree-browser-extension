@@ -160,25 +160,14 @@ function buildCheckboxContainer() {
 function addGearAndPopup() {
   const $body = $("body");
   const $save = $("#saveButtons");
-  const savePos = $save.offset() || { left: 0, top: 0 };
 
   /* ── gear icon (positioned top-right of the save area) */
   if (!$("#changeSummaryGears").length && $save.length) {
     const $gear = $(`
       <img id="changeSummaryGears"
            title="Add more phrases"
-           src="${chrome.runtime.getURL("images/settings30.png")}"
-           style="cursor:pointer;position:absolute;z-index:11;">
-    `).appendTo($body);
-
-    // once image loads we can compute width
-    const placeGear = () =>
-      $gear.css({
-        left: savePos.left + $save.outerWidth() - $gear.width() - 6,
-        top: savePos.top + 6,
-      });
-    $gear.on("load", placeGear);
-    placeGear();
+           src="${chrome.runtime.getURL("images/settings30.png")}">
+    `).appendTo($save);
   }
 
   /* ── modal popup (anywhere in <body>, absolute / fixed handles placement) */
@@ -250,6 +239,25 @@ $("body")
     }
     $("#wpSave").prop("disabled", $("#wpSummary").val() === "");
   });
+
+/* add once, right after the existing .wbe-checkbox handler */
+$("body").on("click", "#summaryOptionsContainer label", function (e) {
+  // If the user clicked anywhere except the span, forward the click
+  if (!$(e.target).hasClass("wbe-checkbox")) {
+    $(this).find(".wbe-checkbox").trigger(e.type);
+  }
+});
+
+$("body")
+  .on("keydown", "#summaryOptionsContainer label", function (e) {
+    if ([13, 32].includes(e.which)) {
+      // Enter or Space
+      e.preventDefault();
+      $(this).find(".wbe-checkbox").trigger("click");
+    }
+  })
+  .find("#summaryOptionsContainer label")
+  .attr("tabindex", "0"); // make labels focusable
 
 /*──────────────────────────────
   7. Renderers
