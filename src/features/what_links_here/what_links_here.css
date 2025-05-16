@@ -1,8 +1,3 @@
-#whatLinksHereLinksProfiles,
-#whatLinksHereLinksPages {
-  list-style: none;
-  margin-left: 10px;
-}
 #whatLinksHereLinksProfiles {
   white-space: nowrap;
 }
@@ -17,7 +12,8 @@
   display: none !important;
 }
 
-div#whatLinksHere div {
+/* only apply to the first child div (where the profiles live) or else this will interfere with space page previews */
+div#whatLinksHere > div:first-child {
   max-width: 50%;
   overflow: overlay;
 }

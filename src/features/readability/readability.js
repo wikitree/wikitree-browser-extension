@@ -13,22 +13,40 @@ import { isCategoryPage, isProfilePage, isSpacePage } from "../../core/pageType"
 import { ensureProfileClasses } from "../../core/profileClasses";
 
 async function initAccessibility(options) {
+  let didModify = false;
   // accessibility options for the whole site, including edit pages
   if (options.formFieldContrast && options.formFieldContrast !== "default") {
     document.documentElement.style.setProperty("--a11y-form-contrast", `${options.formFieldContrast / 100}`);
     $("html").addClass("a11y-form-contrast");
+    didModify = true;
   }
   if (options.formFieldSpacing && options.formFieldSpacing !== "default") {
     document.documentElement.style.setProperty("--a11y-form-spacing", `${options.formFieldSpacing / 1}`);
     $("html").addClass("a11y-form-spacing");
+    didModify = true;
   }
   if (options.textLineHeight && options.textLineHeight !== "default") {
     document.documentElement.style.setProperty("--a11y-line-height", `${options.textLineHeight / 100}`);
     $("html").addClass("a11y-line-height");
+    didModify = true;
   }
   if (options.fontSizeAdjust && options.fontSizeAdjust !== "default") {
     document.documentElement.style.setProperty("--a11y-font-size", `${options.fontSizeAdjust / 100}`);
     $("html").addClass("a11y-font-size");
+    didModify = true;
+  }
+  if (didModify) {
+    // trigger the browser's resize event to force things like CodeMirror to refresh
+    window.setTimeout(() => {
+      window.dispatchEvent(new Event("resize"));
+    }, 500);
+
+    // also force a resize when toggling the enhanced editor, just in case
+    $("#toggleMarkupColor").on("click", () => {
+      window.setTimeout(() => {
+        window.dispatchEvent(new Event("resize"));
+      }, 500);
+    });
   }
 }
 

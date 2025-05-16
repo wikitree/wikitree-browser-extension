@@ -213,6 +213,38 @@ div.wbe-button-container2 {
   float: right;
 }
 
+/* the star1 class is based on the star class from WT, but it only applies to the first level of li elements, so it won't interfere with page previews; it also adjusts the sizing to match the RO font preferences */
+ul.star1,
+ol.star1 {
+  list-style: none !important;
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+}
+
+ul.star1 > li,
+ol.star1 > li {
+  margin-left: 0.8125rem;
+  padding-left: 0rem;
+}
+
+ul.star1 > li::before,
+ol.star1 > li::before {
+  position: relative;
+  top: 0.0625rem;
+  margin-right: 0.8125rem;
+  border: 0.22rem solid #fad158;
+  border-radius: 30%;
+  content: " ";
+  display: inline-block;
+  height: 0.8125rem;
+  width: 0.8125rem;
+}
+
+ul.star1.green > li::before,
+ol.star1.green > li::before {
+  border-color: #8fc641;
+}
+
 #ebWBE {
   font-size: small;
   display: block;

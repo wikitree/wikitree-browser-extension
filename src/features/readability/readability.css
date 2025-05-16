@@ -8,12 +8,26 @@
 }
 
 /* override bootstrap variables based on feature settings */
-:root.a11y-line-height {
+html.a11y-line-height {
   --bs-body-line-height: calc(var(--a11y-line-height, 1) * var(--x-bs-body-line-height, 1.5));
 }
 
 html.a11y-font-size {
   font-size: calc(var(--a11y-font-size, 1) * 100%);
+}
+
+/* restore line-height and font-size to the defaults for the text editors */
+html.a11y-line-height #editform textarea,
+html.a11y-line-height .CodeMirror {
+  line-height: var(--x-bs-body-line-height, 1.5) !important;
+}
+
+html.a11y-line-height #editform textarea {
+  font-size: calc(1rem / var(--a11y-font-size, 1)) !important;
+}
+
+html.a11y-font-size .CodeMirror {
+  font-size: calc(100% / var(--a11y-font-size, 1)) !important;
 }
 
 /* the WT stylesheets override the bootstrap settings on these elements to make them larger */
@@ -216,7 +230,7 @@ sup.reference {
     display: none !important;
   }
 
-  .hide-status .x-status,
+  .hide-status .x-status:not(.x-no-hide),
   .hide-status .x-callout-notable,
   .hide-status .x-callout-verified {
     display: none !important;
@@ -267,7 +281,7 @@ sup.reference {
   }
 
   .hide-edits .x-edit:not(.x-no-hide),
-  .hide-edits .x-alert:not(.status) {
+  .hide-edits .x-alert:not(.x-no-hide):not(.status) {
     display: none !important;
   }
 
