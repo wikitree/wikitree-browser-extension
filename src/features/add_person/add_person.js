@@ -494,7 +494,13 @@ function addCategoryPicker() {
       if (oldValue.indexOf(catTag) > -1) {
         return;
       }
-      if (document.getElementById("mBioWithoutSources") != null) {
+      const sourceModeToggle = document.getElementsByClassName("toggleAdvancedSources")[0];
+      let isBasicMode =
+        sourceModeToggle != null &&
+        sourceModeToggle.innerText != null &&
+        sourceModeToggle.innerText.includes("Advanced");
+
+      if (isBasicMode) {
         //basic sourcing mode, profile will need to be touched afterwards anyway,
         //so better put them at the end to have the generated bio at least
         tb.value = oldValue.replace(/\n+$/, "") + "\n" + catTag;
