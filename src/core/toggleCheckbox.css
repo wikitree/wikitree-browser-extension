@@ -1,6 +1,6 @@
 /* turns a checkbox input into a toggle button */
 .toggle {
-  --font-px: 24;
+  --font-px: calc(var(--a11y-font-size, 1) * 24);
   --relative-adjustment: calc(var(--font-px) / 15);
 }
 .toggle.fit-line {
