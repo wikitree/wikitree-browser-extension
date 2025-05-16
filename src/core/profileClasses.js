@@ -202,6 +202,15 @@ export function ensureProfileClasses() {
       .addClass("x-callout x-callout-collaboration")
       .removeClass("x-alert");
 
+    // flag critical alerts that should never be hidden (hold request, closed account)
+    $(".x-status, .x-alert")
+      .filter(function () {
+        return !!$(this)
+          .text()
+          .match(/Hold Request:|account is now closed/i);
+      })
+      .addClass("x-no-hide");
+
     // mark elements contained within each section (including the header, lists, and any other root-level siblings that follow)
     let sectionNames = [],
       sectionNumbers = [0, 0, 0, 0, 0]; // h2 through h6

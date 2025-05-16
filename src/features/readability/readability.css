@@ -230,7 +230,7 @@ sup.reference {
     display: none !important;
   }
 
-  .hide-status .x-status,
+  .hide-status .x-status:not(.x-no-hide),
   .hide-status .x-callout-notable,
   .hide-status .x-callout-verified {
     display: none !important;
@@ -281,7 +281,7 @@ sup.reference {
   }
 
   .hide-edits .x-edit:not(.x-no-hide),
-  .hide-edits .x-alert:not(.status) {
+  .hide-edits .x-alert:not(.x-no-hide):not(.status) {
     display: none !important;
   }
 
