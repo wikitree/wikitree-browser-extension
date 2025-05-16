@@ -95,10 +95,10 @@ async function fillWhatLinksHereSection() {
 
           let wlhContainers = "";
           if (whatLinksHereWikiTreeIDs.length) {
-            wlhContainers += "<div><ul id='whatLinksHereLinksProfiles' class='star'></ul></div>";
+            wlhContainers += "<div><ul id='whatLinksHereLinksProfiles' class='star1'></ul></div>";
           }
           if (whatLinksHerePages.length) {
-            wlhContainers += "<div><ul id='whatLinksHereLinksPages' class='star'></ul></div>";
+            wlhContainers += "<div><ul id='whatLinksHereLinksPages' class='star1'></ul></div>";
           }
           wlhContainers = '<div id="whatLinksHere" style="display: flex;">' + wlhContainers + "</div>";
 
