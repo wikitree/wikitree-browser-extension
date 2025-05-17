@@ -60,7 +60,7 @@ async function initFamilyDropdown() {
       andSourcesText = " &amp; Show Sources";
     }
     const familyDropdown = $(`
-      <div id="familyDropdown" class="custom-dropdown">
+      <div id="familyDropdown" class="custom-dropdown" tabindex="-1">
         <button type="button" class="custom-dropdown-toggle">Copy Wiki Link ${andSourcesText}</button>
         <ul class="custom-dropdown-menu" style="display: none;"></ul>
       </div>
