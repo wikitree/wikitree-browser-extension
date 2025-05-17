@@ -512,7 +512,7 @@ async function initSurnameTableSorting() {
 
       // data-birth-location-small2big / big2small
       $(this).attr("data-birth-location-small2big", birthLocation);
-      $(this).attr("data-birth-location-big2small", birthLocation.split(", ").reverse().join(", "));
+      $(this).attr("data-birth-location-big2small", birthLocation.trim().split(", ").reverse().join(", "));
 
       // data-death-location-small2big / big2small
       const newlyAddedDeathTD = combinedTD.next().next();
