@@ -511,14 +511,14 @@ async function initSurnameTableSorting() {
       }
 
       // data-birth-location-small2big / big2small
-      $(this).attr("data-birth-location-small2big", birthLocation);
-      $(this).attr("data-birth-location-big2small", birthLocation.trim().split(", ").reverse().join(", "));
+      $(this).attr("data-birth-location-small2big", birthLocation.trim());
+      $(this).attr("data-birth-location-big2small", birthLocation.trim().split(/,\s?/).reverse().join(", "));
 
       // data-death-location-small2big / big2small
       const newlyAddedDeathTD = combinedTD.next().next();
       const deathLocText = newlyAddedDeathTD.text().trim() || "";
       $(this).attr("data-death-location-small2big", deathLocText);
-      $(this).attr("data-death-location-big2small", deathLocText.split(", ").reverse().join(", "));
+      $(this).attr("data-death-location-big2small", deathLocText.split(/,\s?/).reverse().join(", "));
     } else {
       // Normal scenario
       const datePattern = /((\d+ )?(\w+ )?(<b>)?\d{4}<\/b>)/;
@@ -531,19 +531,19 @@ async function initSurnameTableSorting() {
 
       const birthDate = bdMatch ? bdMatch[0] : "";
       const birthLoc = blMatch ? blMatch[1] : "";
-      $(this).attr("data-birth-location-small2big", birthLoc);
-      $(this).attr("data-birth-location-big2small", birthLoc.split(", ").reverse().join(", "));
+      $(this).attr("data-birth-location-small2big", birthLoc.trim());
+      $(this).attr("data-birth-location-big2small", birthLoc.trim().split(/,\s?/).reverse().join(", "));
 
       const deathDate = ddMatch ? ddMatch[0] : "";
       const deathLoc = dlMatch ? dlMatch[1] : "";
-      $(this).attr("data-death-location-small2big", deathLoc);
-      $(this).attr("data-death-location-big2small", deathLoc.split(", ").reverse().join(", "));
+      $(this).attr("data-death-location-small2big", deathLoc.trim());
+      $(this).attr("data-death-location-big2small", deathLoc.trim().split(/,\s?/).reverse().join(", "));
 
-      const bLocTD = $("<td class='birthLocation'></td>").html(birthLoc);
+      const bLocTD = $("<td class='birthLocation'></td>").html(birthLoc.trim());
       birthTD.html(birthDate);
       bLocTD.insertAfter(birthTD);
 
-      const dLocTD = $("<td class='deathLocation'></td>").html(deathLoc);
+      const dLocTD = $("<td class='deathLocation'></td>").html(deathLoc.trim());
       if (deathTD) deathTD.html(deathDate);
       if (deathTD) dLocTD.insertAfter(deathTD);
     }
@@ -600,8 +600,10 @@ async function initSurnameTableSorting() {
   // This flips all location columns' displayed text between small->big and big->small,
   // and re-sorts if the last-sorted column was a location column.
   if (!$("#flipLocationsButton").length) {
-    const titleText = "Flip all birth/death locations between small->big and big->small.";
-    const $flipBtn = $(`<button id='flipLocationsButton' title="${titleText}" class='small'>Flip Locations</button>`);
+    const titleText = "Toggle all birth/death locations between small->big and big->small.";
+    const $flipBtn = $(
+      `<button id='flipLocationsButton' title="${titleText}" class='small'>Reverse Locations</button>`
+    );
     $flipBtn.insertBefore(theTable);
 
     $flipBtn.on("click", function () {
