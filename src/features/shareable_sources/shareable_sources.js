@@ -232,10 +232,7 @@ function getSources(person, active = 0) {
       $("div.referenceBox div").slideDown("swing");
     }
 
-    const firstButton = referenceBox.find("button.paste.small").first();
-    if (firstButton.length) {
-      firstButton.addClass("activeSrc");
-    }
+    focusFirstButton(referenceBox);
 
     $("#previewButton").on("click", function () {
       if ($(".referenceBox").hasClass("active")) {
@@ -324,6 +321,7 @@ function getSources(person, active = 0) {
         topDiv.find("div").slideDown("swing");
         topDiv.addClass("active");
         topDiv.focus();
+        focusFirstButton(referenceBox);
       }
     });
 
@@ -359,6 +357,14 @@ function getSources(person, active = 0) {
       $("#relativeBiography").remove();
       maybeRestoreToggle();
     });
+  }
+}
+
+function focusFirstButton(referenceBox) {
+  const firstButton = referenceBox.find("button.paste.small").first();
+  if (firstButton.length) {
+    console.debug("first button focus");
+    firstButton.focus();
   }
 }
 
@@ -458,7 +464,7 @@ function basicSourcesArray(bio) {
  * to restore the original view and resets the flag.
  */
 $(document).on("keydown.shareableSourcesPopup", function (e) {
-  const activeButton = $(this).find('button[class*="activeSrc"]').first();
+  const activeButton = $(":focus");
   let activeButtonIsInline = activeButton.length && activeButton.get(0).className.includes("nline");
   if (e.key === "Escape") {
     let popups = $("div.referenceBox, #relativeBiography, #otherPersonLabel").filter(function () {
@@ -524,20 +530,18 @@ $(document).on("keydown.shareableSourcesPopup", function (e) {
     let prevButton = activeButton.parent().prev().find("button").first();
     if (activeButtonIsInline) {
       prevButton = prevButton.next("button");
+    } else if (prevButton.get(0) == null) {
+      //top source button, only bio above
+      prevButton = $(".seeBiography").first();
     }
     if (prevButton.length) {
       switchActiveButton(activeButton, prevButton);
-    }
-  } else if (IsKeyFromDivShiftPressedAndButtonActive("Enter")) {
-    if (activeButton.length) {
-      e.stopPropagation();
-      activeButton.trigger("click");
     }
   }
 
   function IsKeyFromDivShiftPressedAndButtonActive(theKey) {
     return (
-      (e.target.className.includes("sourcesContent") || e.target.className.includes("referenceBox")) &&
+      (e.target.className.includes("small paste") || e.target.className.includes("small inline")) &&
       e.shiftKey &&
       e.key == theKey &&
       activeButton.length
@@ -546,8 +550,7 @@ $(document).on("keydown.shareableSourcesPopup", function (e) {
 });
 
 function switchActiveButton(activeButton, nextButton) {
-  activeButton.removeClass("activeSrc");
-  nextButton.addClass("activeSrc");
+  nextButton.focus();
 }
 
 // Remove any shareable sources elements on page unload to prevent unwanted auto-save.
