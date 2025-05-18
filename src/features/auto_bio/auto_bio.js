@@ -9195,12 +9195,13 @@ export async function getLocationCategory(type, location = null) {
   let cemeteryVariants = [];
   if (type === "Cemetery") {
     if (window.profilePerson.Cemetery || window.profilePerson.CemeteryFull) {
-      location = window.profilePerson.Cemetery || window.profilePerson.CemeteryFull;
+      location = window.profilePerson.CemeteryFull || window.profilePerson.Cemetery;
       categoryType = "cemetery";
-      const cemeteryBits = location.split(/, /);
-      cemeteryVariants = generateCombinations(cemeteryBits[0]);
+      cemeteryVariants = generateCombinations(location);
       // Remove any that matches 'undefined' anywhere in the text
       cemeteryVariants = cemeteryVariants.filter((variant) => !variant.match(/undefined/i));
+
+      console.log("Cemetery variants:", cemeteryVariants);
     } else {
       return;
     }
@@ -9297,6 +9298,9 @@ export async function getLocationCategory(type, location = null) {
               if (!isFirstWordInText(type, aCat?.category)) {
                 return;
               }
+            }
+            if (type == "Death" || type == "Burial" || type == "Cemetery") {
+              console.log("Checking category:", aCat.category, "for location:", location);
             }
             if (!aCat.topLevel) {
               let category = aCat.category;
