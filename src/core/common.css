@@ -258,9 +258,15 @@ ol.star1.green > li::before {
 .wbe-highlight #addFSID,
 .wbe-highlight menu.subMenu,
 .wbe-highlight button.special-collapse-button,
-.wbe-highlight #toggleTipsColumn .icon--toggler,
-.wbe-highlight #toggleFamilyColumn .icon--toggler,
-.wbe-highlight #familyDropdown {
+.wbe-highlight button.collapse-toggle,
+.wbe-highlight #toggleTipsColumn span.icon--toggler,
+.wbe-highlight #toggleFamilyColumn img,
+.wbe-highlight #familyDropdown .custom-dropdown-toggle,
+.wbe-highlight #Categories,
+.wbe-highlight #themeTable,
+.wbe-highlight #themeTable caption,
+.wbe-highlight #showAllDegreesButton,
+.wbe-highlight #matchup-popup {
   border: var(--wbe-orange) 2px solid !important;
 }
 .wbe-highlight #extraWatchlistWindow,
@@ -281,7 +287,14 @@ ol.star1.green > li::before {
 .wbe-highlight textarea.wbe,
 .wbe-highlight div.wbe-popup,
 .wbe-highlight #addFSID,
-.wbe-highlight #nVitals {
+.wbe-highlight #nVitals,
+.wbe-highlight #themeTable,
+.wbe-highlight #themeTable caption,
+.wbe-highlight #matchup-popup,
+.wbe-highlight #familyDropdown .custom-dropdown-toggle,
+.wbe-highlight #toggleTipsColumn span.icon--toggler,
+.wbe-highlight #toggleFamilyColumn img,
+.wbe-highlight #summaryOptionsContainer {
   border-radius: 5px !important;
 }
 .wbe-highlight .myMenuGears,
