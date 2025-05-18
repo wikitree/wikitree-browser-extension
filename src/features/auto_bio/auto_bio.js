@@ -6865,7 +6865,7 @@ export function setOrderBirthDate(person) {
 // 5. Find a Grave memorial #123456789
 // Note that if the input is in format 3, it will not parse if the link contains the text "database and images" (the link will be ignored).
 
-function getFindAGraveLink(text) {
+export function getFindAGraveLink(text) {
   // Define the regexes to be used to find the link
   const match1 = /(https?:\/\/www\.findagrave.com[^\s);.,<]+)/;
   const match2 = /\[(https?:\/\/www\.findagrave.com[^\s]+)(\s([^\]]+))?\]/;
@@ -6893,7 +6893,7 @@ function getFindAGraveLink(text) {
   }
 }
 
-async function getCitation(link) {
+export async function getCitation(link) {
   if (link.match("cgi-bin/fg.cgi") && link.match("id=")) {
     let memorial = link.split("id=")[1];
     link = "https://www.findagrave.com/memorial/" + memorial;
@@ -6968,6 +6968,14 @@ function fixSpaces(citation) {
   return citation;
 }
 
+export function cleanFindAGraveCitation(citation, refText) {
+  citation = addHeading(citation, refText);
+  //citation = fixDate(citation);
+  citation = fixDashes(citation);
+  citation = fixSpaces(citation);
+  return citation;
+}
+
 export async function getCitations() {
   window.NonSourceCount = 0;
   for (let i = 0; i < window.references.length; i++) {
@@ -6986,10 +6994,7 @@ export async function getCitations() {
         let citation = await getCitation(citationLink);
         if (citation) {
           if (findAGraveLink) {
-            citation = addHeading(citation, aRef.Text);
-            //citation = fixDate(citation);
-            citation = fixDashes(citation);
-            citation = fixSpaces(citation);
+            citation = cleanFindAGraveCitation(citation, aRef.Text);
           }
           aRef.Text = citation.trim();
 

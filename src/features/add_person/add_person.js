@@ -4,6 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { getCitation, cleanFindAGraveCitation } from "../auto_bio/auto_bio.js";
 import {
   CreateAutoSuggestionDiv,
   showResultsOnKeyUp,
@@ -288,6 +289,8 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
       }, 300);
     });
     //  ||$("#editAction_connectExisting").prop("checked") == true
+
+    initializeFindAGraveHandlers();
   }
 });
 
@@ -549,4 +552,220 @@ function removeSourceHints() {
   if (sourceHints != null) {
     sourceHints.remove();
   }
+}
+
+// Provide full Find a Grave citations in the edit form
+// This feature provides full Find a Grave citations in the edit form
+// It replaces short citations with full ones and allows undoing the replacement
+const undoStates = {
+  mSources: null,
+  mBioWithoutSources: null,
+};
+
+const findAGraveTimers = {};
+const justReplaced = {
+  mSources: false,
+  mBioWithoutSources: false,
+};
+
+// Extract Find a Grave URL from various formats
+function extractFindAGraveIdOrLink(text) {
+  let urlMatch = text.match(/https?:\/\/(?:www\.)?findagrave\.com\/memorial\/(\d+)/i);
+  if (urlMatch) return urlMatch[0];
+  let templateMatch = text.match(/\{\{FindAGrave\|(\d+)\}\}/i);
+  if (templateMatch) return "https://www.findagrave.com/memorial/" + templateMatch[1];
+  let hashMatch = text.match(/Find a Grave(?: memorial)? #(\d+)/i);
+  if (hashMatch) return "https://www.findagrave.com/memorial/" + hashMatch[1];
+  return null;
+}
+
+// Replace <ref>...</ref> or bullet line containing a Find a Grave citation
+function replaceFindAGraveCitation(originalText, useCitation) {
+  let replaced = false;
+  const findAGraveRefTagRegex =
+    /<ref[^>]*>[\s\S]*?(https?:\/\/(?:www\.)?findagrave\.com\/memorial\/\d+|\{\{FindAGrave\|\d+\}\}|Find a Grave( memorial)? #\d+)[\s\S]*?<\/ref>/i;
+  const findAGraveLineRegex =
+    /^[ \t]*\*?[ \t]*(\[\s*)?(https?:\/\/)?(www\.)?findagrave\.com\/memorial\/\d+[^\]\n]*\]?|^[ \t]*\*?[ \t]*\{\{FindAGrave\|\d+\}\}|^[ \t]*\*?[ \t]*Find a Grave( memorial)? #\d+/im;
+
+  let newText = originalText;
+  if (findAGraveRefTagRegex.test(newText)) {
+    newText = newText.replace(findAGraveRefTagRegex, `<ref>${useCitation}</ref>`);
+    replaced = true;
+  } else {
+    let lines = newText.split(/\r?\n/);
+    lines = lines.map((line) => {
+      if (!replaced && findAGraveLineRegex.test(line)) {
+        replaced = true;
+        return useCitation;
+      }
+      return line;
+    });
+    newText = lines.join("\n");
+  }
+  if (!replaced) newText = newText.trim() + "\n" + useCitation;
+  return newText.replace(/\n{3,}/g, "\n\n").trim();
+}
+
+// Adds or replaces the 'accessed' date in the citation in (Mon DD, YYYY) format
+function addAccessedDateToCitation(citation) {
+  const today = new Date();
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const formattedDate = `${months[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
+  // Covers ': accessed)', ': accessed, )', or variations with/without a comma
+  return citation.replace(/: accessed[^\)]*\)/i, `: accessed ${formattedDate})`);
+}
+
+// Button state updater: always call after any .val() change or tools render
+function updateFindAGraveButtonStates($box, refCitation, bulletCitation) {
+  const $wrapper = $("#" + $box.attr("id") + "_findAGraveCitationTools");
+  const $replaceBtn = $wrapper.find(".findAGrave-replace");
+  const $undoBtn = $wrapper.find(".findAGrave-undo");
+  const currentVal = $box.val();
+
+  if (
+    currentVal.includes(refCitation) ||
+    currentVal.includes(`<ref>${refCitation}</ref>`) ||
+    currentVal.includes(bulletCitation)
+  ) {
+    $replaceBtn.prop("disabled", true).text("Citation replaced!");
+    $undoBtn.show();
+  } else {
+    $replaceBtn.prop("disabled", false).text("Replace current Find a Grave citation with full citation");
+    $undoBtn.hide();
+  }
+}
+
+function showFindAGraveCitationToolsForBox($box, citationText) {
+  const boxId = $box.attr("id");
+  const toolId = boxId + "_findAGraveCitationTools";
+
+  let refCitation = "'''Burial''': " + cleanFindAGraveCitation(citationText, "");
+  refCitation = addAccessedDateToCitation(refCitation);
+  let bulletCitation = "* " + refCitation;
+
+  $("#" + toolId).remove();
+
+  const $wrapper = $(`
+    <div id="${toolId}" title="Full Find a Grave citations provided by WBE" style="margin-top: 1em; border:3px solid #e29306; border-radius:0.5em; padding:1em; background:#f8f8f8;">
+    </div>
+  `);
+  const $label = $("<label><b>Full Find a Grave Citation</b> (copy if needed):</label>");
+  const $textarea = $('<textarea rows="4" style="width: 100%;"></textarea>').val(refCitation);
+  const $replaceBtn = $(
+    '<button type="button" class="findAGrave-replace" style="margin-top: 0.5em;">Replace current Find a Grave citation with full citation</button>'
+  );
+  const $undoBtn = $(
+    '<button type="button" class="findAGrave-undo" style="margin: 0.5em; display:none;">Undo</button>'
+  );
+  const $copyBtn = $('<button type="button" class="findAGrave-copy" style="margin: 0.5em;">Copy</button>');
+
+  $wrapper.append($label, $textarea, $replaceBtn, $undoBtn, $copyBtn);
+  $box.after($wrapper);
+
+  // --- Event handlers ---
+  $replaceBtn.on("click", function () {
+    const originalText = $box.val();
+    undoStates[boxId] = originalText;
+    justReplaced[boxId] = true;
+
+    // Immediately update UI for robust, race-proof UX
+    $replaceBtn.prop("disabled", true).text("Citation replaced!");
+    $undoBtn.show();
+
+    const findAGraveRefTagRegex =
+      /<ref[^>]*>[\s\S]*?(https?:\/\/(?:www\.)?findagrave\.com\/memorial\/\d+|\{\{FindAGrave\|\d+\}\}|Find a Grave( memorial)? #\d+)[\s\S]*?<\/ref>/i;
+    const findAGraveLineRegex =
+      /^[ \t]*\*?[ \t]*(\[\s*)?(https?:\/\/)?(www\.)?findagrave\.com\/memorial\/\d+[^\]\n]*\]?|^[ \t]*\*?[ \t]*\{\{FindAGrave\|\d+\}\}|^[ \t]*\*?[ \t]*Find a Grave( memorial)? #\d+/im;
+
+    let refIndex = originalText.search(findAGraveRefTagRegex);
+    let lineIndex = originalText.search(findAGraveLineRegex);
+
+    let useCitation;
+    if (refIndex !== -1 && (lineIndex === -1 || refIndex < lineIndex)) {
+      useCitation = refCitation;
+    } else {
+      useCitation = bulletCitation;
+    }
+
+    const newVal = replaceFindAGraveCitation(originalText, useCitation);
+    $box.val(newVal);
+    $textarea.val(refCitation);
+    // Do NOT call updateFindAGraveButtonStates here—let the flag handle it next render
+  });
+
+  $undoBtn.on("click", function () {
+    if (undoStates[boxId] !== null) {
+      $box.val(undoStates[boxId]);
+      undoStates[boxId] = null;
+      justReplaced[boxId] = false;
+      $textarea.val(refCitation);
+      updateFindAGraveButtonStates($box, refCitation, bulletCitation);
+    }
+  });
+
+  $copyBtn.on("click", function () {
+    navigator.clipboard.writeText($textarea.val()).then(() => {
+      $copyBtn.text("Copied!");
+      setTimeout(() => {
+        $copyBtn.text("Copy");
+      }, 1000);
+    });
+  });
+
+  // --- Robust, race-proof state: ---
+  if (justReplaced[boxId]) {
+    $replaceBtn.prop("disabled", true).text("Citation replaced!");
+    $undoBtn.show();
+    justReplaced[boxId] = false;
+  } else {
+    updateFindAGraveButtonStates($box, refCitation, bulletCitation);
+  }
+}
+
+// Core handler for a single box
+function handleFindAGraveEventForBox($box) {
+  const boxId = $box.attr("id");
+  const boxVal = $box.val();
+  const toolId = boxId + "_findAGraveCitationTools";
+  const hasFullCitation = /database and images.*findagrave\.com\/memorial\//i.test(boxVal);
+
+  // Only block tools from being rendered if not shown yet AND full citation is present
+  if (!$(`#${toolId}`).length && hasFullCitation) {
+    $(`#${toolId}`).remove();
+    return;
+  }
+
+  // Remove tools ONLY if no short/long Find a Grave citation at all
+  const hasFindAGrave = extractFindAGraveIdOrLink(boxVal) !== null;
+  if (!hasFindAGrave) {
+    $(`#${toolId}`).remove();
+    return;
+  }
+
+  // At this point, show or update the tools as appropriate
+  const findAGraveLink = extractFindAGraveIdOrLink(boxVal);
+  if (findAGraveLink) {
+    getCitation(findAGraveLink).then((citationText) => {
+      if (citationText) {
+        showFindAGraveCitationToolsForBox($box, citationText);
+      }
+    });
+  }
+}
+
+// Debounced event handler per box
+function debounceFindAGraveHandler($box) {
+  const id = $box.attr("id");
+  if (findAGraveTimers[id]) clearTimeout(findAGraveTimers[id]);
+  findAGraveTimers[id] = setTimeout(() => handleFindAGraveEventForBox($box), 30);
+}
+
+function initializeFindAGraveHandlers() {
+  // Delegated event listeners for dynamic fields
+  $("#editform").on("change", "#mSources, #mBioWithoutSources", function () {
+    debounceFindAGraveHandler($(this));
+  });
+  $("#editform").on("paste", "#mSources, #mBioWithoutSources", function () {
+    debounceFindAGraveHandler($(this));
+  });
 }
