@@ -148,27 +148,6 @@ form[name="a_form"] {
   opacity: 1;
 }
 
-/* Tooltip for the WBE help icon */
-.WBEHelpIcon {
-  text-indent: 0 !important;
-  text-decoration: none !important;
-}
-.WBEHelpIcon span.icon--help {
-  background-size: 22px 22px !important;
-  background-position: center !important;
-  filter: invert(57%) sepia(98%) saturate(563%) hue-rotate(2deg) brightness(93%) contrast(95%);
-}
-
-.WBEHelpIcon::before {
-  top: -0.55em !important;
-  bottom: auto !important;
-  border-color: #fcb815 transparent transparent transparent !important;
-}
-.WBEHelpIcon::after {
-  top: -3em !important;
-}
-/* End tooltip stuff */
-
 .float-end {
   z-index: 10;
   position: relative;
@@ -263,3 +242,76 @@ ol.star1.green > li::before {
     margin-left: 1em;
   }
 }
+
+/* WBE branding */
+:root {
+  --wbe-orange: #e29306;
+  --wbe-orange-light: #ffd180;
+  --wbe-icon-filter: invert(57%) sepia(98%) saturate(563%) hue-rotate(2deg) brightness(93%) contrast(95%);
+}
+.wbe-highlight input[type="button"].wbe,
+.wbe-highlight img.expandTextareaButton,
+.wbe-highlight #nVitals,
+.wbe-highlight button.wbe-tab,
+.wbe-highlight #extraWatchlistWindow,
+.wbe-highlight div.wbe-popup,
+.wbe-highlight #addFSID,
+.wbe-highlight menu.subMenu,
+.wbe-highlight button.special-collapse-button,
+.wbe-highlight #toggleTipsColumn .icon--toggler,
+.wbe-highlight #toggleFamilyColumn .icon--toggler,
+.wbe-highlight #familyDropdown {
+  border: var(--wbe-orange) 2px solid !important;
+}
+.wbe-highlight #extraWatchlistWindow,
+.wbe-highlight div.wbe-popup {
+  box-shadow: 0.1em 0.1em 0.1em 0.1em var(--wbe-orange-light) !important;
+}
+.wbe-highlight button.wbe-tab {
+  border-bottom: none !important;
+}
+.wbe-highlight textarea.wbe,
+.wbe-highlight form.wbe,
+.wbe-highlight div.familySheet,
+.wbe-highlight div.timeline,
+.wbe-highlight #summaryOptionsContainer,
+.wbe-highlight #bioCheckResultsContainer {
+  border: var(--wbe-orange) 3px solid !important;
+}
+.wbe-highlight textarea.wbe,
+.wbe-highlight div.wbe-popup,
+.wbe-highlight #addFSID,
+.wbe-highlight #nVitals {
+  border-radius: 5px !important;
+}
+.wbe-highlight .myMenuGears,
+.wbe-highlight #changeSummaryGears {
+  filter: var(--wbe-icon-filter) !important;
+}
+.wbe-highlight #addFSID,
+.wbe-highlight #summaryOptionsContainer {
+  padding: 0.5em;
+  margin: 0.5em;
+  display: block;
+}
+
+/* Tooltip for the WBE help icon */
+.WBEHelpIcon {
+  text-indent: 0 !important;
+  text-decoration: none !important;
+}
+.WBEHelpIcon span.icon--help {
+  background-size: 22px 22px !important;
+  background-position: center !important;
+  filter: var(--wbe-icon-filter) !important;
+}
+
+.WBEHelpIcon::before {
+  top: -0.55em !important;
+  bottom: auto !important;
+  border-color: #fcb815 transparent transparent transparent !important;
+}
+.WBEHelpIcon::after {
+  top: -3em !important;
+}
+/* End tooltip stuff */

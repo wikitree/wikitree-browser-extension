@@ -882,6 +882,11 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
       if (options.makeTableOverflowVisible) {
         makeTableOverflowVisible();
       }
+
+      if (options.addWBEHighlighting) {
+        // Add WBE highlighting
+        $("body").addClass("wbe-highlight");
+      }
     }); //getFeatureOptions
   }
 });

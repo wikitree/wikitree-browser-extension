@@ -296,12 +296,12 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
 
 function showTabbingOptions() {
   if ($("#tabbingOptions").length == 0) {
-    $('<input type="button" class="small" id="tabbingOptions" value="🡒 Minimal tabbing">').insertBefore(
+    $('<input type="button" class="wbe small" id="tabbingOptions" value="🡒 Minimal tabbing">').insertBefore(
       $("#basicDataSection").eq(0)
     );
     doTabbingOptions($("#tabbingOptions"));
   }
-  $("#tabbingOptions").click(function () {
+  $("#tabbingOptions").on("click", function () {
     doTabbingOptions($(this), 1);
   });
 }
@@ -443,7 +443,7 @@ function addAdditionalFields() {
       <label id="notesLabel">
         <a title="Added by WBE">Biography</a>:
       </label>
-        <textarea class="small" id="mBioWithoutSources" name="mBioWithoutSources" rows="5" cols="80" placeholder="Add your biography here or wait until you reach the edit page."></textarea>
+        <textarea class="small wbe" id="mBioWithoutSources" name="mBioWithoutSources" rows="6" cols="80" placeholder="Add your biography here or wait until you reach the edit page."></textarea>
     </div>`);
   if ($(".toggleAdvancedSources").text().match("Basic") == null) {
     $("#sourcesLabel").closest(".sourcesContent").prepend(notesRow);
@@ -650,7 +650,7 @@ function showFindAGraveCitationToolsForBox($box, citationText) {
     </div>
   `);
   const $label = $("<label><b>Full Find a Grave Citation</b> (copy if needed):</label>");
-  const $textarea = $('<textarea rows="4" style="width: 100%;"></textarea>').val(refCitation);
+  const $textarea = $('<textarea rows="6" style="width: 100%;"></textarea>').val(refCitation);
   const $replaceBtn = $(
     '<button type="button" class="findAGrave-replace" style="margin-top: 0.5em;">Replace current Find a Grave citation with full citation</button>'
   );

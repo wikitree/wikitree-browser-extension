@@ -29,7 +29,7 @@ shouldInitializeFeature("addSearchBoxes").then((result) => {
 function addGoogleSearchBox() {
   // add search box to bottom of page
   const searchAll = $(
-    `<form id="googleSearchBox" class="googleSearch" action="https://www.google.com/cse" id="cse-search-box" target="_blank">
+    `<form id="googleSearchBox" class="googleSearch wbe" action="https://www.google.com/cse" id="cse-search-box" target="_blank">
   <div>
     <input type="hidden" id="cse_cx" name="cx" value="partner-pub-5983849578006601:2801067696">
     <input type="hidden" name="ie" value="UTF-8">
@@ -70,7 +70,7 @@ function addHelpSearchbox() {
 </form>
   */
   const searchHelp = $(
-    '<form id="helpSearchBox"class="helpSearch" action="/index.php" method="GET">' +
+    '<form id="helpSearchBox" class="helpSearch wbe" action="/index.php" method="GET">' +
       '<label id="helpSearchLabel"   class="searchBoxLabel" >Search Help Pages</label>' +
       '<input type="hidden" name="title" value="Special:SearchPages">' +
       '<input type="text" name="keywords" id="keywords" size="20" value="">' +
