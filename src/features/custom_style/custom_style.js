@@ -341,6 +341,13 @@ class CustomStyle {
       }
     }
 
+    if (this.options["removeLinkUnderlines"]) {
+      rules += `
+      a:link, a:visited {
+        text-decoration: none !important;
+      }`;
+    }
+
     return rules;
   }
 

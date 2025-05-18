@@ -85,6 +85,7 @@ import "./g2g/g2g_options";
 import "./genderPredictor/gender_predictor_options";
 import "./help/help_options";
 import "./hide_my_contributions/hide_my_contributions_options";
+import "./highlight_WBE_features/highlight_WBE_features_options";
 import "./image_page_options/image_page_options_options";
 import "./image_table/image_table_options";
 import "./image_zoom/image_zoom_options";

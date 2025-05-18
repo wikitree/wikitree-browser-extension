@@ -195,7 +195,7 @@ const myCustomStyle = {
     {
       id: "linkColors",
       type: OptionType.GROUP,
-      label: "Profile Link Colors",
+      label: "Profile Links",
       options: [
         {
           id: "link_color",
@@ -208,6 +208,12 @@ const myCustomStyle = {
           type: "color",
           label: "Visited link color",
           defaultValue: "#800080",
+        },
+        {
+          id: "removeLinkUnderlines",
+          type: OptionType.CHECKBOX,
+          label: "Remove underline from links",
+          defaultValue: false,
         },
       ],
     },

@@ -212,12 +212,6 @@ const usabilityTweaks = {
           label: "Show differences and normalized popup on Thon stats pages.",
           defaultValue: true,
         },
-        {
-          id: "addWBEHighlighting",
-          type: OptionType.CHECKBOX,
-          label: "Highlight elements added or significantly changed by WBE.",
-          defaultValue: false,
-        },
       ],
     },
   ],
