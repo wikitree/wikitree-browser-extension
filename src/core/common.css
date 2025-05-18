@@ -244,6 +244,7 @@ ol.star1.green > li::before {
 }
 
 /* WBE branding */
+/* #D18400 (almost brown) or #e29306 or...? */
 :root {
   --wbe-orange: #e29306;
   --wbe-orange-light: #ffd180;
@@ -259,6 +260,7 @@ ol.star1.green > li::before {
 .wbe-highlight menu.subMenu,
 .wbe-highlight button.special-collapse-button,
 .wbe-highlight button.collapse-toggle,
+.wbe-highlight button.collapse-all-toggle,
 .wbe-highlight #toggleTipsColumn span.icon--toggler,
 .wbe-highlight #toggleFamilyColumn img,
 .wbe-highlight #familyDropdown .custom-dropdown-toggle,
@@ -266,14 +268,26 @@ ol.star1.green > li::before {
 .wbe-highlight #themeTable,
 .wbe-highlight #themeTable caption,
 .wbe-highlight #showAllDegreesButton,
-.wbe-highlight #matchup-popup {
+.wbe-highlight #matchup-popup,
+.wbe-highlight #searchBar.showSearch,
+.wbe-highlight span.awtG2GLink {
   border: var(--wbe-orange) 2px solid !important;
 }
+
+.wbe-highlight span.awtG2GLink {
+  border-width: 1px !important;
+}
+
+.wbe-highlight input.catCheck {
+  outline: auto 1px var(--wbe-orange) !important;
+}
+
 .wbe-highlight #extraWatchlistWindow,
 .wbe-highlight div.wbe-popup {
   box-shadow: 0.1em 0.1em 0.1em 0.1em var(--wbe-orange-light) !important;
 }
-.wbe-highlight button.wbe-tab {
+.wbe-highlight button.wbe-tab,
+.wbe-highlight span.awtG2GLink {
   border-bottom: none !important;
 }
 .wbe-highlight textarea.wbe,
@@ -294,11 +308,13 @@ ol.star1.green > li::before {
 .wbe-highlight #familyDropdown .custom-dropdown-toggle,
 .wbe-highlight #toggleTipsColumn span.icon--toggler,
 .wbe-highlight #toggleFamilyColumn img,
-.wbe-highlight #summaryOptionsContainer {
+.wbe-highlight #summaryOptionsContainer,
+.wbe-highlight #searchBar.showSearch {
   border-radius: 5px !important;
 }
 .wbe-highlight .myMenuGears,
-.wbe-highlight #changeSummaryGears {
+.wbe-highlight #changeSummaryGears,
+.wbe-highlight ul.scissors img {
   filter: var(--wbe-icon-filter) !important;
 }
 .wbe-highlight #addFSID,
@@ -306,6 +322,10 @@ ol.star1.green > li::before {
   padding: 0.5em;
   margin: 0.5em;
   display: block;
+}
+.wbe-highlight #tabs .clipboardContainer {
+  border-left: 0.4em solid var(--wbe-orange) !important;
+  margin-left: 0.5em;
 }
 
 /* Tooltip for the WBE help icon */
