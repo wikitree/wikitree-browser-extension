@@ -160,6 +160,8 @@ import "./features/what_links_here/what_links_here";
 import "./features/edit_profile_redesign/edit_profile_redesign";
 
 /* MARKER: Default place for new features. Move these to a more appropriate place.*/
+import "./features/disable_GIFs/disable_GIFs";
+
 import "./features/highlight_WBE_features/highlight_WBE_features";
 
 import "./features/image_page_options/image_page_options";
