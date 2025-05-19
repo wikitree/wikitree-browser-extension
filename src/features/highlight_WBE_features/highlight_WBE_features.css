@@ -14,14 +14,29 @@
 .wbe-highlight #toggleTipsColumn span.icon--toggler,
 .wbe-highlight #toggleFamilyColumn img,
 .wbe-highlight #familyDropdown .custom-dropdown-toggle,
-.wbe-highlight #Categories,
+html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 .wbe-highlight #themeTable,
 .wbe-highlight #themeTable caption,
 .wbe-highlight #showAllDegreesButton,
 .wbe-highlight #matchup-popup,
 .wbe-highlight #searchBar.showSearch,
 .wbe-highlight span.awtG2GLink,
-.wbe-highlight button.copyLocation {
+.wbe-highlight button.copyLocation,
+.wbe-highlight button#surnameTableMoreButton,
+.wbe-highlight #leftButton,
+.wbe-highlight #rightButton,
+.wbe-highlight #saveSearchFromButton,
+.wbe-highlight #flipLocationsButton,
+.wbe-highlight .wideTableButton,
+.wbe-highlight button.moreDetails,
+.wbe-highlight button#surnameSummaries,
+.wbe-highlight #customActionsContainer button,
+.wbe-highlight #anniversariesTable_wrapper,
+.wbe-highlight .categoryTablesButton,
+.wbe-highlight #hideClubBadges,
+.wbe-highlight #moveClubBadgesDown,
+.wbe-highlight .myConnectionsTableButton,
+.wbe-highlight #clonedEditButton {
   border: var(--wbe-orange) 2px solid !important;
 }
 
@@ -34,7 +49,8 @@
 }
 
 .wbe-highlight #extraWatchlistWindow,
-.wbe-highlight div.wbe-popup {
+.wbe-highlight div.wbe-popup,
+.wbe-highlight #myDrafts {
   box-shadow: 0.1em 0.1em 0.1em 0.1em var(--wbe-orange-light) !important;
 }
 .wbe-highlight button.wbe-tab,
@@ -46,7 +62,12 @@
 .wbe-highlight div.familySheet,
 .wbe-highlight div.timeline,
 .wbe-highlight #summaryOptionsContainer,
-.wbe-highlight #bioCheckResultsContainer {
+.wbe-highlight #bioCheckResultsContainer,
+.wbe-highlight #activePagePreview,
+.wbe-highlight #categoryFilterButtonsContainer,
+.wbe-highlight table.degreeCount,
+.wbe-highlight #myDrafts,
+.wbe-highlight #cc7DeltaContainer {
   border: var(--wbe-orange) 3px solid !important;
 }
 .wbe-highlight textarea.wbe,
@@ -69,7 +90,8 @@
   filter: var(--wbe-icon-filter) !important;
 }
 .wbe-highlight #addFSID,
-.wbe-highlight #summaryOptionsContainer {
+.wbe-highlight #summaryOptionsContainer,
+.wbe-highlight #anniversariesTable_wrapper {
   padding: 0.5em;
   margin: 0.5em;
   display: block;
