@@ -4,11 +4,15 @@
 
 .copyLocation {
   font-size: 0.5em;
-  text-decoration: none  !important;
+  text-decoration: none !important;
 }
 
 .copyLocation:hover {
   cursor: pointer;
+}
+
+.copyLocation.noLocation {
+  display: none;
 }
 
 .copied-message {

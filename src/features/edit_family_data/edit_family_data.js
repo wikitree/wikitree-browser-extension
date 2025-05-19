@@ -28,6 +28,8 @@ async function addInfoAboutOtherPerson() {
     let efBlocation = "";
     let efDdate = "";
     let efDlocation = "";
+    let birthButtonClass = "";
+    let deathButtonClass = "";
     if (efProfile) {
       if (isOK(efProfile.BirthDate)) {
         if (efProfile.BirthDate != "" && efProfile.BirthDate != "0000-00-00") {
@@ -36,43 +38,37 @@ async function addInfoAboutOtherPerson() {
       }
       if (isOK(efProfile.BirthLocation)) {
         efBlocation = efProfile.BirthLocation;
+      } else {
+        birthButtonClass = "noLocation";
       }
       if (isOK(efProfile.DeathDate)) {
         efDdate = efProfile.DeathDate;
       }
       if (isOK(efProfile.DeathLocation)) {
         efDlocation = efProfile.DeathLocation;
+      } else {
+        deathButtonClass = "noLocation";
       }
-      const efHTML =
-        "<ul id='EFdates'>" +
-        (isOK(efBdate) || isOK(efBlocation)
-          ? "<li>b." +
-            " " +
-            efBdate +
-            " " +
-            efBlocation +
-            " <button class='copyLocation' data-to='birth location' data-to-id='mBirthLocation' data-location='" +
-            efBlocation +
-            "'></button>" +
-            " <button class='copyLocation' data-to='death location' data-to-id='mDeathLocation' data-location='" +
-            efBlocation +
-            "'></button>" +
-            "</li>"
-          : "") +
-        (efDdate != "" || efDlocation != ""
-          ? "<li>d." +
-            " " +
-            efDdate +
-            " " +
-            efDlocation +
-            " &nbsp;<button class='copyLocation' data-to='birth location' data-to-id='mBirthLocation' data-location='" +
-            efDlocation +
-            "'></button>" +
-            " &nbsp;<button class='copyLocation' data-to='death location' data-to-id='mDeathLocation' data-location='" +
-            efDlocation +
-            "'></button>" +
-            "</li>"
-          : "");
+      const efHTML = `
+        <ul id='EFdates'>
+          ${
+        (isOK(efBdate) || isOK(efBlocation))
+          ? `<li>b. ${efBdate} ${efBlocation}
+          <button class='copyLocation ${birthButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location='${efBlocation}'></button>
+          <button class='copyLocation ${birthButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location='${efBlocation}'></button>
+            </li>`
+          : ""
+          }
+          ${
+        (efDdate !== "" || efDlocation !== "")
+          ? `<li>d. ${efDdate} ${efDlocation}
+          &nbsp;<button class='copyLocation ${deathButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location='${efDlocation}'></button>
+          &nbsp;<button class='copyLocation ${deathButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location='${efDlocation}'></button>
+            </li>`
+          : ""
+          }
+        </ul>
+      `;
       ("</ul>");
       $("h1").append(efHTML);
       getFeatureOptions("editFamilyData").then((options) => {

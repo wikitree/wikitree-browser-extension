@@ -20,7 +20,8 @@
 .wbe-highlight #showAllDegreesButton,
 .wbe-highlight #matchup-popup,
 .wbe-highlight #searchBar.showSearch,
-.wbe-highlight span.awtG2GLink {
+.wbe-highlight span.awtG2GLink,
+.wbe-highlight button.copyLocation {
   border: var(--wbe-orange) 2px solid !important;
 }
 
