@@ -52,20 +52,20 @@ async function addInfoAboutOtherPerson() {
       const efHTML = `
         <ul id='EFdates'>
           ${
-        (isOK(efBdate) || isOK(efBlocation))
-          ? `<li>b. ${efBdate} ${efBlocation}
+            isOK(efBdate) || isOK(efBlocation)
+              ? `<li>b. ${efBdate} ${efBlocation}
           <button class='copyLocation ${birthButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location='${efBlocation}'></button>
           <button class='copyLocation ${birthButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location='${efBlocation}'></button>
             </li>`
-          : ""
+              : ""
           }
           ${
-        (efDdate !== "" || efDlocation !== "")
-          ? `<li>d. ${efDdate} ${efDlocation}
-          &nbsp;<button class='copyLocation ${deathButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location='${efDlocation}'></button>
-          &nbsp;<button class='copyLocation ${deathButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location='${efDlocation}'></button>
+            efDdate !== "" || efDlocation !== ""
+              ? `<li>d. ${efDdate} ${efDlocation}
+          <button class='copyLocation ${deathButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location='${efDlocation}'></button>
+          <button class='copyLocation ${deathButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location='${efDlocation}'></button>
             </li>`
-          : ""
+              : ""
           }
         </ul>
       `;

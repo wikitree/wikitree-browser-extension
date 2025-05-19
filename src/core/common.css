@@ -271,3 +271,28 @@ ol.star1.green > li::before {
   top: -3em !important;
 }
 /* End tooltip stuff */
+
+/* Enhanced By WBE */
+#ebWBE {
+  position: relative;
+}
+#showWBEFeatures {
+  display: none;
+}
+#ebWBE:hover #showWBEFeatures {
+  display: block;
+  position: absolute;
+  border: 2px solid var(--wbe-orange);
+  border-radius: 5px;
+  background-color: var(--wbe-orange-light);
+  padding: 0.5em;
+  border-radius: 5px;
+  font-size: small;
+  z-index: 10000;
+}
+#showWBEFeatures:hover {
+  background-color: var(--wbe-orange);
+}
+#showWBEFeatures:active {
+  background-color: var(--wbe-orange-light);
+}

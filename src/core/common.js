@@ -277,7 +277,11 @@ oncePerTab((rootWindow) => {
 if ($("#ebWBE").length == 0) {
   $('a img[alt="WikiTree: Where genealogists collaborate"]').parent("a")
     .after(`<span id="ebWBE"><a style="color: inherit !important; text-decoration: none;"
-        href="/wiki/Space:WikiTree_Browser_Extension">Enhanced by the WikiTree Browser Extension</a></span>`);
+        href="/wiki/Space:WikiTree_Browser_Extension">Enhanced by the WikiTree Browser Extension</a><button id="showWBEFeatures">Toggle WBE highlighting</button></span>`);
+  $("header").on("click", "#showWBEFeatures", function (e) {
+    e.preventDefault();
+    $("body").toggleClass("wbe-highlight");
+  });
 }
 
 // Add wte class to body to let WikiTree BEE know not to add the same functions

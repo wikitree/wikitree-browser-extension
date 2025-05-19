@@ -1,7 +1,9 @@
 #nVitals {
-  margin: 0.5em;
   font-size: 1rem;
   width: 100%;
+}
+#nVitals.vertical {
+  margin: 0.5em;
   max-width: 40em;
 }
 

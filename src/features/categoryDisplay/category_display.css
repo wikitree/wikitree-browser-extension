@@ -2,7 +2,7 @@
   display: block;
 }
 #Categories.box * {
-  margin: 0 !important;
+  margin: 0.2em !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
 }
