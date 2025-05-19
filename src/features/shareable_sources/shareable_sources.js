@@ -346,6 +346,7 @@ function getSources(person, active = 0) {
         });
       } else {
         $("#relativeBiography").slideDown("swing");
+        $("#relativeBioContent").focus();
       }
     });
 
