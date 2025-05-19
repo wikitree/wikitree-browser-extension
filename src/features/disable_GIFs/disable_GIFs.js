@@ -10,8 +10,6 @@ shouldInitializeFeature("disableGIFs").then((result) => {
   }
 });
 
-// testing
-
 function stopAllGifs() {
   // Freeze background GIFs
   $("*").each(function () {
