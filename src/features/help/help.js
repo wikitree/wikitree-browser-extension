@@ -45,11 +45,14 @@ async function initializeFeatureSettingsOnHelpPage(space) {
 function injectFeatureSettings(feature, $headingElement) {
   // Certain features with their own help pages may have a different way of identifying the header element
   if (!$headingElement) {
-    const encodedName = encodeURIComponent(feature.name)
-      .replace(/%20/g, "_")
-      .replace(/\(/g, ".28")
-      .replace(/\)/g, ".29")
-      .replace(/%/g, ".");
+    const encodedName = CSS.escape(
+      encodeURIComponent(feature.name)
+        .replace(/%20/g, "_")
+        .replace(/\(/g, ".28")
+        .replace(/\)/g, ".29")
+        .replace(/%/g, ".")
+    );
+
     /// $headingElement is the hx after the a anchor link to the feature
     //    $headingElement = $(`a[id="${encodedName}"]`).nextAll("h2,h3,h4,h5,h6,h7,h8").first();
     // try <a id="…"> first, then fall back to the heading itself having that id
