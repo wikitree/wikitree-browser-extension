@@ -2,42 +2,6 @@
 Created By: Kay Knight (Sands-1865)
 */
 
-/*
- * The following external components are referenced. As of 06 Februrary 2025
- * Any element created by this feature has an id that starts with bioCheck
- *
- * Looks in document.body.classList for
- *    page-Special_EditPerson
- *    page-Special_EditFamily
- *    page-Special_WatchedList
- * Looks for ElementById
- *    wpSaveDraft
- *    wpSave
- *    mSources
- *    addNewPersonButton
- *    saveStuff
- *    wpTextbox1
- *    suggestionContainer
- *    validationContainer
- *    editAction_connectExisting
- *    mSources
- *    useAdvancedSources
- *    addNewPersonButton
- * Does a document.QuerySelector for table.sourcesContent
- *
- * On the Watchlist pages looks for ElementById
- *    views-outer
- *    views-inner
- *
- * In BioCheckPerson.js
- *    checks if window.location.hostname.includes('apps.wikitree.com'
- *    Looks for ElementById
- *        mBirthDate
- *        mStatus_Father
- *        mStatus_Mother
- *        mEmail
- */
-
 import { shouldInitializeFeature, checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 import { dataTables, dataTableTemplateFindByName, dataTablesLoad } from "../../core/API/wtPlusData";
 import { mainDomain } from "../../core/pageType";
@@ -221,6 +185,26 @@ function buildReportLines(container, bioStatus, biography, isPre1700) {
     }
     bioResultItem.appendChild(sourcesListElement);
   }
+
+  // Now report any DNA sources that may be incomplete
+  if (biography.getInvalidDnaSources().length > 0) {
+    let bioResultItem = document.createElement("li");
+    msg = "Bio Check found DNA sources that may not be complete";
+    bioResultItem.appendChild(document.createTextNode(msg));
+    container.appendChild(bioResultItem);
+
+    let dnaSourcesListElement = document.createElement("ul");
+    let numLines = biography.getInvalidDnaSources().length;
+    if (biography.getInvalidDnaSources().length > 0) {
+      for (let i = 0; i < biography.getInvalidDnaSources().length; i++) {
+        let bioResultItem = document.createElement("li");
+        bioResultItem.appendChild(document.createTextNode(biography.getInvalidDnaSources()[i]));
+        dnaSourcesListElement.appendChild(bioResultItem);
+      }
+    }
+    bioResultItem.appendChild(dnaSourcesListElement);
+  }
+
   let messages = biography.getSectionMessages();
   for (let i = 0; i < messages.length; i++) {
     let bioResultItem = document.createElement("li");
@@ -234,21 +218,6 @@ function buildReportLines(container, bioStatus, biography, isPre1700) {
     container.appendChild(bioResultItem);
   }
 }
-
-/*
-function buildSourcesList(biography) {
-  let sourcesListElement = document.createElement('ul');
-  let numLines = biography.getInvalidSources().length;
-  if (biography.getInvalidSources().length > 0) {
-    for (let i=0; i<biography.getInvalidSources().length; i++) {
-      let bioResultItem = document.createElement("li");
-      bioResultItem.appendChild(document.createTextNode(biography.getInvalidSources()[i]));
-      sourcesListElement.appendChild(bioResultItem);
-    }
-  }
-  return sourcesListElement;
-}
-*/
 
 function reportResults(biography, isPre1700, bioStatus) {
   // If you have been here before get and remove the old list of results

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2024 Kathryn J Knight
+Copyright (c) 2025 Kathryn J Knight
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -55,6 +55,7 @@ class SourceRules {
     "Æviskrá",
     "bographie",
     "biografijo",
+    "biografija",
     "biografía",
   ];
   #researchNotesHeadings = [
@@ -128,6 +129,37 @@ class SourceRules {
     "digitaal testament",
     "wilsverklaring",
     "predhodna direktiva",
+  ];
+  #commonDnaTestCompany = [ // identifies a confirmation
+    "23andme",
+    "23 and me",
+    "ancestrydna",
+    "family tree dna",
+    "family finder",
+    "ftdna",
+    "gedmatch",
+    "living dna",
+    "mitoydna",
+    "myheritagedna",
+  ];
+  #dnaTestCompany = [  // used in a confirmation 
+    "dna heritage",
+    "family genetics",
+    "familytreedna",
+    "relative genetics",
+    "y search",  // has to be here to avoid matching family search
+    "ysearch",
+    "myheritage",
+    "my heritage",
+    "ancestry",  // might be too generic
+  ];
+  #dnaSourceIdentifier = [ // line with this is might be a DNA confirmation
+    "dna confirmation",
+    "dna research",
+    "dna test",
+    "triangulat",
+    "relationship confirmed by",
+    "relationship is confirmed",
   ];
 
   // loads from templates, each is name and status
@@ -238,6 +270,7 @@ class SourceRules {
     "www.ancestry.ca",
     "www.bms2000.org",
     "confirmed by dna",
+    "dna confirmation",
     "familysearch.org",
     "family documents",
     "family knowledge",
@@ -304,10 +337,13 @@ class SourceRules {
     "family search records",
     "family search website",
     "freereg baptism entry",
+    "maternal dna matches:",
     "mormon church records",
+    "paternal dna matches:",
     "replace this citation",
     "ancestry and documents",
     "confirmed by dna match",
+    "'''dna confirmation'''",
     "freereg marriage entry",
     "own family information",
     "personal contributions",
@@ -325,6 +361,7 @@ class SourceRules {
     "scotland's people website",
     "us census, public records",
     "ancestry and family search",
+    "dna confirmation statement",
     "family bible, certificates",
     "michigan deaths, 1867-1996",
     "new york census, 1790-1890",
@@ -334,13 +371,17 @@ class SourceRules {
     "library and archives canada",
     "social security death index",
     "torrey's marriages database",
+    "ftdna confirmation statement",
     "sources are on my family tree",
-    "familysearch.org ancestry.com",
     "ancestry.com familysearch.org",
+    "familysearch.org ancestry.com",
+    "ftdna confirmation statement:",
+    "paternal/maternal dna matches:",
     "online trees. will add sources",
     "geneanet community trees index",
     "'''footnotes and citations:'''",
     ":'''footnotes and citations:'''",
+    "dna confirmed with ancestrydna:",
     "family search files on internet",
     "other vital statistic documents",
     "victorian death index 1921-1985",
@@ -348,11 +389,14 @@ class SourceRules {
     "california death index, 1940-1997",
     "iowa, select marriages, 1809-1992",
     "research on ancestry and wikitree",
+    "dna confirmed through ancestrydna:",
     "minnesota birth certificates index",
     "personal knowledge , census reports",
     "new zealand, birth index, 1840-1950",
     "canada births and baptisms, 1661-1959",
     "queensland births, deaths & marriages",
+    "maternal relationship is confirmed by:",
+    "paternal relationship is confirmed by:",
     "a source is still needed for this data",
     "maryland births and christenings index",
     "social security applications and claims",
@@ -360,7 +404,7 @@ class SourceRules {
     "new zealand, electoral rolls, 1853-1981",
     "california, u.s., death index, 1940-1997",
     "scotland, births and baptisms, 1564-1950",
-    "a source for this information is required",
+    "triangulation is needed for confirmation",
     "a source for this information is required",
     "family records, census, and death records",
     "iowa, u.s., state census collection, 1915",
@@ -385,6 +429,7 @@ class SourceRules {
     "personal knowledge, newspaper and bible records",
     "us and international marriage records 1560-1900", 
     "massachusetts, town and vital records, 1620-1988",
+    "paternal & maternal relationship is confirmed by:",
     "replace this citation if there is another source",
     "england and wales, freebmd birth index, 1837-1915",
     "england and wales, freebmd death index, 1837-1915",
@@ -400,6 +445,8 @@ class SourceRules {
     "u.s., world war i draft registration cards, 1917-1918",
     "u.s., civil war draft registrations records, 1863-1865",
     "u.s., new england marriages prior to 1700 (ancestry.com)",
+    "maternal relationship is confirmed by dna as described above",
+    "paternal relationship is confirmed by dna as described above",
     "u.s., social security applications and claims index, 1936-2007",
     "philadelphia, pennsylvania, death certificates index, 1803-1915",
     "massachusetts, town and vital records, 1620-1988 (ancestry.com)",
@@ -485,8 +532,15 @@ class SourceRules {
     "no note record found",
     "biography written by",
     "click the changes tab",
+    "citation generated by", 
+    "* citation generated by", 
+    "dna confirmation entered",
+    "* dna confirmation entered",
+    "citation information generated by",
     "no more info is currently available for",
+    "paternal & maternal relationship is confirmed by",
     "this biography is a rough draft. it was auto-generated",
+
   ];
 
   // on a line by itself
@@ -936,6 +990,30 @@ class SourceRules {
    */
   isAdvanceDirective(line) {
     return this.#advanceDirectiveHeadings.includes(line);
+  }
+  /**
+   * Determine if a line contains a DNA testing company
+   * @param {String} line to test
+   * @returns {Boolean} true if a DNA testing company
+   */
+  hasDnaTestCompany(line) {
+    return this.hasCommonDnaTestCompany(line) || this.lineContainsListEntry(line, this.#dnaTestCompany);
+  }
+  /**
+   * Determine if a line has a common DNA testing company 
+   * @param {String} line to test
+   * @returns {Boolean} true if a common DNA testing company
+   */
+  hasCommonDnaTestCompany(line) {
+    return this.lineContainsListEntry(line, this.#commonDnaTestCompany);
+  }
+  /**
+   * Determine if a line is something specifying DNA source
+   * @param {String} line to test
+   * @returns {Boolean} true if something specifying a DNA source
+   */
+  isDnaSourceIdentifier(line) {
+    return this.lineContainsListEntry(line, this.#dnaSourceIdentifier);
   }
 
   /**
