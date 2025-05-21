@@ -112,7 +112,8 @@ html[data-wbe-datefixer] #mMarriageDate,
 .wbe-highlight #toggleFamilyColumn img,
 .wbe-highlight #summaryOptionsContainer,
 .wbe-highlight #searchBar.showSearch,
-.wbe-highlight #newPersonSummary {
+.wbe-highlight #newPersonSummary,
+.wbe-highlight ol.STYLED.enumerated {
   border-radius: 5px !important;
 }
 .wbe-highlight .myMenuGears,
