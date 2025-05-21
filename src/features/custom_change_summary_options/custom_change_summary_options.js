@@ -58,7 +58,7 @@ function removeFromSummary(text) {
   ─────────────────────────────*/
 shouldInitializeFeature("customChangeSummaryOptions").then(async (on) => {
   if (!on) return;
-
+  if ($("#summaryOptionsContainer").length) return; // already initialized
   setTimeout(async () => {
     $("#save").closest("div.page--content").prop("id", "saveButtons");
 
@@ -79,56 +79,79 @@ shouldInitializeFeature("customChangeSummaryOptions").then(async (on) => {
     addGearAndPopup();
     renderSummaryOptions();
     renderCustomOptionsPopup();
+    addListeners();
   }, 3000);
 });
 
-/*──────────────────────────────
-  5. DOM builders
+function addListeners() {
+  /*──────────────────────────────
+  6. Event delegation
   ─────────────────────────────*/
-/*
-function buildCheckboxContainer() {
-  const $save = $("#saveButtons");
-  let $box = $save.find("#summaryOptionsContainer");
-  if (!$box.length) {
-    $box = $('<div id="summaryOptionsContainer" class="mt-2"></div>');
-    $save.append($box);
-  }
+  $("body").on("click", "#changeSummaryGears", () => {
+    $("#changeSummaryOptions").toggle();
+    $("#newOption").prop("disabled", false).trigger("focus"); // enable here
+  });
+
+  $("body")
+    .on("click", "#closeChangeSummaryOptions", () => $("#changeSummaryOptions").hide())
+    .on("click", "#addOptionButton", (e) => {
+      e.preventDefault();
+      let t = $("#newOption").val().trim();
+      if (!t) return;
+      if (!t.endsWith(".")) t += ".";
+      addCustomOption(t);
+      $("#newOption").val("");
+    })
+    .on("click", ".deleteOption", function (e) {
+      e.preventDefault();
+      deleteCustomOption($(this).data("option"));
+    })
+    .on("click", ".editOption", function (e) {
+      e.preventDefault();
+      const txt = $(this).data("option").replace(/\.$/, "");
+      deleteCustomOption($(this).data("option"));
+      $("#newOption").val(txt).trigger("focus");
+    })
+    /* Toggle pseudo-checkbox with click, Enter, or Space */
+    .on("click keydown", "#summaryOptionsContainer .wbe-checkbox", function (e) {
+      if (e.type === "keydown" && ![13, 32].includes(e.which)) return;
+      e.preventDefault();
+      const $cb = $(this);
+      const now = $cb.attr("aria-checked") === "true";
+      const option = $cb.data("option");
+
+      $cb.attr("aria-checked", !now);
+
+      if (!now) {
+        addButtonEntry(option);
+        appendToSummary(option);
+      } else {
+        removeButtonEntry(option);
+        removeFromSummary(option);
+      }
+      $("#wpSave").prop("disabled", $("#wpSummary").val() === "");
+    });
+
+  /* add once, right after the existing .wbe-checkbox handler */
+  $("body").on("click", "#summaryOptionsContainer label", function (e) {
+    // If the user clicked anywhere except the span, forward the click
+    if (!$(e.target).hasClass("wbe-checkbox")) {
+      $(this).find(".wbe-checkbox").trigger(e.type);
+    }
+  });
+
+  $("body")
+    .on("keydown", "#summaryOptionsContainer label", function (e) {
+      if ([13, 32].includes(e.which)) {
+        // Enter or Space
+        e.preventDefault();
+        $(this).find(".wbe-checkbox").trigger("click");
+      }
+    })
+    .find("#summaryOptionsContainer label")
+    .attr("tabindex", "0"); // make labels focusable
 }
 
-function addGearAndPopup() {
-  const $save = $("#saveButtons");
-  if (!$("#changeSummaryGears").length) {
-    $save.prepend(
-      `<img id="changeSummaryGears"
-             title="Add more phrases"
-             src="${chrome.runtime.getURL("images/settings30.png")}"
-             style="cursor:pointer;position:absolute;top:5px;right:5px;">`
-    );
-  }
-  if (!$("#changeSummaryOptions").length) {
-    $save.append(`
-      <div id="changeSummaryOptions">
-        <div class="modal-header">
-          <h3>Custom Options</h3>
-          <span id="closeChangeSummaryOptions">&times;</span>
-          <div class="add-option-container">
-            <label>Add option:</label>
-            <input type="text" id="newOption" name="" disabled />
-            <button id="addOptionButton" class="small">Add Option</button>
-          </div>
-        </div>
-        <div class="modal-body">
-          <ul id="currentOptions"></ul>
-        </div>
-      </div>
-    `);
-  }
-}
-  */
-
-/*──────────────────────────────
-  buildCheckboxContainer
-  ─────────────────────────────*/
 /*──────────────────────────────
   buildCheckboxContainer
   ─────────────────────────────*/
@@ -191,73 +214,6 @@ function addGearAndPopup() {
     `);
   }
 }
-
-/*──────────────────────────────
-  6. Event delegation
-  ─────────────────────────────*/
-$("body").on("click", "#changeSummaryGears", () => {
-  $("#changeSummaryOptions").toggle();
-  $("#newOption").prop("disabled", false).trigger("focus"); // enable here
-});
-
-$("body")
-  .on("click", "#closeChangeSummaryOptions", () => $("#changeSummaryOptions").hide())
-  .on("click", "#addOptionButton", (e) => {
-    e.preventDefault();
-    let t = $("#newOption").val().trim();
-    if (!t) return;
-    if (!t.endsWith(".")) t += ".";
-    addCustomOption(t);
-    $("#newOption").val("");
-  })
-  .on("click", ".deleteOption", function (e) {
-    e.preventDefault();
-    deleteCustomOption($(this).data("option"));
-  })
-  .on("click", ".editOption", function (e) {
-    e.preventDefault();
-    const txt = $(this).data("option").replace(/\.$/, "");
-    deleteCustomOption($(this).data("option"));
-    $("#newOption").val(txt).trigger("focus");
-  })
-  /* Toggle pseudo-checkbox with click, Enter, or Space */
-  .on("click keydown", "#summaryOptionsContainer .wbe-checkbox", function (e) {
-    if (e.type === "keydown" && ![13, 32].includes(e.which)) return;
-    e.preventDefault();
-    const $cb = $(this);
-    const now = $cb.attr("aria-checked") === "true";
-    const option = $cb.data("option");
-
-    $cb.attr("aria-checked", !now);
-
-    if (!now) {
-      addButtonEntry(option);
-      appendToSummary(option);
-    } else {
-      removeButtonEntry(option);
-      removeFromSummary(option);
-    }
-    $("#wpSave").prop("disabled", $("#wpSummary").val() === "");
-  });
-
-/* add once, right after the existing .wbe-checkbox handler */
-$("body").on("click", "#summaryOptionsContainer label", function (e) {
-  // If the user clicked anywhere except the span, forward the click
-  if (!$(e.target).hasClass("wbe-checkbox")) {
-    $(this).find(".wbe-checkbox").trigger(e.type);
-  }
-});
-
-$("body")
-  .on("keydown", "#summaryOptionsContainer label", function (e) {
-    if ([13, 32].includes(e.which)) {
-      // Enter or Space
-      e.preventDefault();
-      $(this).find(".wbe-checkbox").trigger("click");
-    }
-  })
-  .find("#summaryOptionsContainer label")
-  .attr("tabindex", "0"); // make labels focusable
 
 /*──────────────────────────────
   7. Renderers
