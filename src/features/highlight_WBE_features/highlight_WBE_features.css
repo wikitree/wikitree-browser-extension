@@ -36,8 +36,24 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 .wbe-highlight #hideClubBadges,
 .wbe-highlight #moveClubBadgesDown,
 .wbe-highlight .myConnectionsTableButton,
-.wbe-highlight #clonedEditButton {
+.wbe-highlight #clonedEditButton,
+.wbe-highlight #draftsLink,
+.wbe-highlight .randomProfile.dropdown-item,
+.wbe-highlight .randomSpace.dropdown-item,
+.wbe-highlight .whatLinksHere.dropdown-item,
+.wbe-highlight .wte-tm-printer-friendly,
+.wbe-highlight span.distanceFromYou,
+.wbe-highlight span.yourRelationshipText,
+.wbe-highlight #pendingMergesFilterButtons button,
+.wbe-highlight tr.filter-row,
+.wbe-highlight ol.STYLED.enumerated,
+.wbe-highlight button.image-template-copy-button {
   border: var(--wbe-orange) 2px solid !important;
+}
+
+.wbe-highlight ol.STYLED.enumerated {
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
 }
 
 .wbe-highlight span.awtG2GLink {
@@ -50,7 +66,8 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 
 .wbe-highlight #extraWatchlistWindow,
 .wbe-highlight div.wbe-popup,
-.wbe-highlight #myDrafts {
+.wbe-highlight #myDrafts,
+.wbe-highlight div#verification {
   box-shadow: 0.1em 0.1em 0.1em 0.1em var(--wbe-orange-light) !important;
 }
 .wbe-highlight button.wbe-tab,
@@ -67,7 +84,20 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 .wbe-highlight #categoryFilterButtonsContainer,
 .wbe-highlight table.degreeCount,
 .wbe-highlight #myDrafts,
-.wbe-highlight #cc7DeltaContainer {
+.wbe-highlight #cc7DeltaContainer,
+.wbe-highlight div.ui-dialog,
+html[data-wbe-savebuttonsstyleoptions] .wbe-highlight div.form-buttons button,
+.wbe-highlight div#utilityButtons a,
+.wbe-highlight h2#What_Links_Here:has(.toggle-whl),
+.wbe-highlight ul.myCustomMenu,
+.wbe-highlight div.referenceBox,
+.wbe-highlight div#verification,
+.wbe-highlight #filterButtons button,
+.wbe-highlight #newPersonSummary,
+html[data-wbe-datefixer] #mBirthDate,
+html[data-wbe-datefixer] #mDeathDate,
+html[data-wbe-datefixer] #mMarriageDate,
+.wbe-highlight #editToolbarExt {
   border: var(--wbe-orange) 3px solid !important;
 }
 .wbe-highlight textarea.wbe,
@@ -81,20 +111,30 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 .wbe-highlight #toggleTipsColumn span.icon--toggler,
 .wbe-highlight #toggleFamilyColumn img,
 .wbe-highlight #summaryOptionsContainer,
-.wbe-highlight #searchBar.showSearch {
+.wbe-highlight #searchBar.showSearch,
+.wbe-highlight #newPersonSummary {
   border-radius: 5px !important;
 }
 .wbe-highlight .myMenuGears,
 .wbe-highlight #changeSummaryGears,
-.wbe-highlight ul.scissors img {
+.wbe-highlight ul.scissors img,
+.wbe-highlight #jigsawMan {
   filter: var(--wbe-icon-filter) !important;
 }
 .wbe-highlight #addFSID,
 .wbe-highlight #summaryOptionsContainer,
-.wbe-highlight #anniversariesTable_wrapper {
+.wbe-highlight #anniversariesTable_wrapper,
+.wbe-highlight #newPersonSummary,
+.wbe-highlight #editToolbarExt {
   padding: 0.5em;
   margin: 0.5em;
   display: block;
+}
+.wbe-highlight #editToolbarExt {
+  margin: auto;
+}
+.wbe-highlight #newPersonSummary {
+  display: inline-block;
 }
 .wbe-highlight #tabs .clipboardContainer {
   border-left: 0.4em solid var(--wbe-orange) !important;

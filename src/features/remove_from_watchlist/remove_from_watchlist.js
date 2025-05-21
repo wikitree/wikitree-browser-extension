@@ -54,6 +54,7 @@ function init() {
   const checkAllButton = document.createElement("input");
   checkAllButton.type = "button";
   checkAllButton.classList.add("small");
+  checkAllButton.classList.add("wbe");
   checkAllButton.value = "check/uncheck all";
   checkAllButton.style.setProperty("margin-left", "1em", "important");
   checkAllButton.addEventListener("click", () => {
@@ -75,6 +76,7 @@ function init() {
   orphanButton.type = "button";
   orphanButton.value = "remove selected from watchlist";
   orphanButton.classList.add("small");
+  orphanButton.classList.add("wbe");
   orphanButton.style.setProperty("margin-left", "1em", "important");
   orphanButton.addEventListener("click", () => {
     DoOrphan();

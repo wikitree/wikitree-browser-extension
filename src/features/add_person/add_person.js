@@ -465,7 +465,7 @@ function shortenInputs() {
 function addCategoryPicker() {
   const catTextbox = document.createElement("input");
   catTextbox.value = "";
-  catTextbox.className = "small";
+  catTextbox.className = "small wbe";
   catTextbox.accessKey = "k";
   catTextbox.size = 50;
   catTextbox.autocomplete = false;
