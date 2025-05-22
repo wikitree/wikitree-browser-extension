@@ -51,7 +51,7 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 .wbe-highlight ol.STYLED.enumerated,
 .wbe-highlight button.image-template-copy-button,
 .wbe-highlight a.backToTop {
-  border: var(--wbe-orange) 2px solid !important;
+  border: var(--wbe-colour) 2px solid !important;
 }
 
 .wbe-highlight ol.STYLED.enumerated {
@@ -64,14 +64,14 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 }
 
 .wbe-highlight input.catCheck {
-  outline: auto 1px var(--wbe-orange) !important;
+  outline: auto 1px var(--wbe-colour) !important;
 }
 
 .wbe-highlight #extraWatchlistWindow,
 .wbe-highlight div.wbe-popup,
 .wbe-highlight #myDrafts,
 .wbe-highlight div#verification {
-  box-shadow: 0.1em 0.1em 0.1em 0.1em var(--wbe-orange-light) !important;
+  box-shadow: 0.1em 0.1em 0.1em 0.1em var(--wbe-colour-light) !important;
 }
 .wbe-highlight button.wbe-tab,
 .wbe-highlight span.awtG2GLink {
@@ -101,7 +101,7 @@ html[data-wbe-datefixer] #mBirthDate,
 html[data-wbe-datefixer] #mDeathDate,
 html[data-wbe-datefixer] #mMarriageDate,
 .wbe-highlight #editToolbarExt {
-  border: var(--wbe-orange) 3px solid !important;
+  border: var(--wbe-colour) 3px solid !important;
 }
 .wbe-highlight textarea.wbe,
 .wbe-highlight div.wbe-popup,
@@ -145,6 +145,6 @@ html[data-wbe-datefixer] #mMarriageDate,
   display: inline-block;
 }
 .wbe-highlight #tabs .clipboardContainer {
-  border-left: 0.4em solid var(--wbe-orange) !important;
+  border-left: 0.4em solid var(--wbe-colour) !important;
   margin-left: 0.5em;
 }

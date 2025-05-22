@@ -248,7 +248,10 @@ ol.star1.green > li::before {
 :root {
   --wbe-orange: #e29306;
   --wbe-orange-light: #ffd180;
-  --wbe-icon-filter: invert(57%) sepia(98%) saturate(563%) hue-rotate(2deg) brightness(93%) contrast(95%);
+  --wbe-orange-icon-filter: invert(57%) sepia(98%) saturate(563%) hue-rotate(2deg) brightness(93%) contrast(95%);
+  --wbe-colour: #00beee;
+  --wbe-colour-light: #b2e0f7;
+  --wbe-icon-filter: invert(62%) sepia(98%) saturate(7492%) hue-rotate(160deg) brightness(101%) contrast(101%);
 }
 
 /* Tooltip for the WBE help icon */
@@ -273,6 +276,21 @@ ol.star1.green > li::before {
 /* End tooltip stuff */
 
 /* Enhanced By WBE */
+#showWBEFeatures {
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  font-size: 1.5em;
+}
+#showWBEFeatures img {
+  height: 1.5em !important;
+  width: 1.5em !important;
+  position: relative;
+  top: -0.1em;
+}
+
+/*
 #ebWBE {
   position: relative;
 }
@@ -282,17 +300,18 @@ ol.star1.green > li::before {
 #ebWBE:hover #showWBEFeatures {
   display: block;
   position: absolute;
-  border: 2px solid var(--wbe-orange);
+  border: 2px solid var(--wbe-colour);
   border-radius: 5px;
-  background-color: var(--wbe-orange-light);
+  background-color: var(--wbe-colour-light);
   padding: 0.5em;
   border-radius: 5px;
   font-size: small;
   z-index: 10000;
 }
 #showWBEFeatures:hover {
-  background-color: var(--wbe-orange);
+  background-color: var(--wbe-colour);
 }
 #showWBEFeatures:active {
-  background-color: var(--wbe-orange-light);
+  background-color: var(--wbe-colour-light);
 }
+  */
