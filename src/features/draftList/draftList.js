@@ -8,7 +8,7 @@ import { addDataMenuAttributes } from "../my_menu/my_menu";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 shouldInitializeFeature("draftList").then((result) => {
-  if (result) {
+  if (result && $("#draftsLink").length == 0) {
     import("./draftList.css");
     addDataMenuAttributes();
 
