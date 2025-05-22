@@ -362,6 +362,7 @@ async function checkButtonFeatures() {
     const createButton = (options) => {
       // Break out options
       const { id, title, aClass, img } = options;
+      if ($("#" + id).length) return; // Don't create button if it already exists
       const button = $("<a>")
         .attr("id", id)
         // .attr("title", title)
