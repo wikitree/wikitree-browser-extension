@@ -131,6 +131,7 @@ function attachMenu(anchorHref, submenuId, menuItems) {
   });
 
   const theLink = getLink(anchorHref);
+  theLink.addClass("wbe");
   const menuLink = theLink.parent();
   if (submenuId == "helpSubMenu") {
     theLink.html(`<b>« Help</b>`);

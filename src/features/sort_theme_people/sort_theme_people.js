@@ -23,7 +23,21 @@ async function init() {
 
   featuredConnectionsParagraph = $("section.connections p:contains('degrees from')");
   if (!featuredConnectionsParagraph.length) {
-    featuredConnectionsParagraph = $("div.container p:contains('degrees from')");
+    const possFeaturedConnectionsParagraph = $("div.container p:contains('degrees from')");
+    if (possFeaturedConnectionsParagraph.length) {
+      possFeaturedConnectionsParagraph.each(function () {
+        // If "degrees from " matches a few times in the paragraph, that's the one.
+        if (
+          $(this)
+            .text()
+            .match(/degrees from /g).length > 1
+        ) {
+          featuredConnectionsParagraph = $(this);
+          // break?
+          return false; // Exit the each loop
+        }
+      });
+    }
     hasSection = false;
   }
   /*

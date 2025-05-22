@@ -42,12 +42,15 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 .wbe-highlight .randomSpace.dropdown-item,
 .wbe-highlight .whatLinksHere.dropdown-item,
 .wbe-highlight .wte-tm-printer-friendly,
+.wbe-highlight .cc7tracker,
+.wbe-highlight .wbe.dropdown-item,
 .wbe-highlight span.distanceFromYou,
 .wbe-highlight span.yourRelationshipText,
 .wbe-highlight #pendingMergesFilterButtons button,
 .wbe-highlight tr.filter-row,
 .wbe-highlight ol.STYLED.enumerated,
-.wbe-highlight button.image-template-copy-button {
+.wbe-highlight button.image-template-copy-button,
+.wbe-highlight a.backToTop {
   border: var(--wbe-orange) 2px solid !important;
 }
 
@@ -113,7 +116,9 @@ html[data-wbe-datefixer] #mMarriageDate,
 .wbe-highlight #summaryOptionsContainer,
 .wbe-highlight #searchBar.showSearch,
 .wbe-highlight #newPersonSummary,
-.wbe-highlight ol.STYLED.enumerated {
+.wbe-highlight ol.STYLED.enumerated,
+.wbe-highlight a.backToTop,
+.wbe-highlight h2#What_Links_Here:has(.toggle-whl) {
   border-radius: 5px !important;
 }
 .wbe-highlight .myMenuGears,
@@ -126,7 +131,8 @@ html[data-wbe-datefixer] #mMarriageDate,
 .wbe-highlight #summaryOptionsContainer,
 .wbe-highlight #anniversariesTable_wrapper,
 .wbe-highlight #newPersonSummary,
-.wbe-highlight #editToolbarExt {
+.wbe-highlight #editToolbarExt,
+.wbe-highlight a.backToTop {
   padding: 0.5em;
   margin: 0.5em;
   display: block;
@@ -134,7 +140,8 @@ html[data-wbe-datefixer] #mMarriageDate,
 .wbe-highlight #editToolbarExt {
   margin: auto;
 }
-.wbe-highlight #newPersonSummary {
+.wbe-highlight #newPersonSummary,
+.wbe-highlight a.backToTop {
   display: inline-block;
 }
 .wbe-highlight #tabs .clipboardContainer {
