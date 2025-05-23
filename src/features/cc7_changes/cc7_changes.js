@@ -359,8 +359,7 @@ export async function addCC7ChangesButton() {
     fetchAndReportLi.on("click", (e) => cc7ChangesClick(e));
 
     const reportOnlyLi = $(
-      `<li><a href="#n" class='dropdown-item cc7Tracker' " +
-        "title='Show the CC7 changes report again without fetching your latest CC7'>CC7 Report Only</li>`
+      `<li><a href="#n" class='dropdown-item cc7Tracker' title='Show the CC7 changes report again without fetching your latest CC7'>CC7 Report Only</li>`
     );
     reportOnlyLi.insertBefore(categoryLI.parent());
     reportOnlyLi.on("click", (e) => cc7ChangesClick(e, true));
