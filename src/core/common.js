@@ -274,19 +274,29 @@ oncePerTab((rootWindow) => {
 /*
  * * * * * * * * * * * * * * * * * * * */
 
-if ($("#ebWBE").length == 0) {
-  $('a img[alt="WikiTree: Where genealogists collaborate"]').parent("a")
-    .after(`<span id="ebWBE"><a style="color: inherit !important; text-decoration: none;"
-        href="/wiki/Space:WikiTree_Browser_Extension">Enhanced by the WikiTree Browser Extension</a>
-        <a href="/wiki/Space:WikiTree_Browser_Extension" target="Help" id="showWBEFeatures" class="wbe-icon WBEHelpIcon enhancedBy" data-tooltip="Help" title="">
-            <img src="https://www.wikitree.com/images/icons/icon-question.svg" alt="Help" />
-          </a>
-          <button id="showWBEFeatures" title="Show WBE features">✨</button></span>`);
+if ($("#ebWBE").length === 0) {
+  $('a img[alt="WikiTree: Where genealogists collaborate"]').parent("a").after(`
+      <span id="ebWBE">
+        <a style="color: inherit !important; text-decoration: none;"
+           href="/wiki/Space:WikiTree_Browser_Extension">Enhanced by the WikiTree Browser Extension</a>
+        <button id="showWBEFeatures" title="Highlight WBE features">✨</button>
+        <a href="/wiki/Space:WikiTree_Browser_Extension" target="Help" class="wbe-icon WBEHelpIcon enhancedBy"
+           title="Help" target="_blank">
+          <img src="https://www.wikitree.com/images/icons/icon-question.svg" alt="Help" />
+        </a>
+      </span>
+    `);
+
+  // Click handler toggles body class and updates button title
   $("header").on("click", "#showWBEFeatures", function (e) {
     e.preventDefault();
     $("body").toggleClass("wbe-highlight");
+
+    const isHighlighted = $("body").hasClass("wbe-highlight");
+    $("#showWBEFeatures").attr("title", isHighlighted ? "Hide WBE features highlight" : "Highlight WBE features");
   });
 }
+
 // 🪄🖍️
 
 // Add wte class to body to let WikiTree BEE know not to add the same functions

@@ -8,7 +8,7 @@ import { isMainDomain } from "../../core/pageType";
 registerFeature({
   name: "Highlight WBE Features",
   id: "highlightWBEFeatures",
-  description: "Highlight WBE features with orange borders.",
+  description: "Highlight WBE features with cyan borders.",
   category: "Global/Style",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
