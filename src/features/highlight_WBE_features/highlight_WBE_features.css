@@ -54,7 +54,9 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 .wbe-highlight #removeMeButton,
 .wbe-highlight #onlyMembers,
 .wbe-highlight #saveSearchFormButton,
-.wbe-highlight #showBirthplacesButton {
+.wbe-highlight #showBirthplacesButton,
+.wbe-highlight input.wbe,
+.wbe-highlight #rangersButtons button {
   border: var(--wbe-colour) 2px solid !important;
 }
 
