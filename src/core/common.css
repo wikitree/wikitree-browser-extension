@@ -98,7 +98,6 @@ form[name="a_form"] {
   left: 50%;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.75);
-  color: #fff;
   padding: 4px 8px;
   border-radius: 4px;
   white-space: nowrap;
@@ -106,7 +105,7 @@ form[name="a_form"] {
   pointer-events: none;
   transition: opacity 0.2s ease-in-out;
   z-index: 1000;
-  background-color: #fcb815;
+  background-color: #fcb815 !important;
   color: #25422d;
   font-family: "Roboto Mono", monospace;
   font-optical-sizing: auto;
@@ -248,7 +247,14 @@ ol.star1.green > li::before {
 :root {
   --wbe-orange: #e29306;
   --wbe-orange-light: #ffd180;
-  --wbe-icon-filter: invert(57%) sepia(98%) saturate(563%) hue-rotate(2deg) brightness(93%) contrast(95%);
+  --wbe-orange-icon-filter: invert(57%) sepia(98%) saturate(563%) hue-rotate(2deg) brightness(93%) contrast(95%);
+  --wbe-colour: #00bfff;
+  --wbe-colour-light: #83defc;
+  --wbe-icon-filter: invert(53%) sepia(100%) saturate(3900%) hue-rotate(193deg) brightness(131%) contrast(110%);
+}
+
+.enhancedBy {
+  filter: var(--wbe-icon-filter) !important;
 }
 
 /* Tooltip for the WBE help icon */
@@ -257,7 +263,7 @@ ol.star1.green > li::before {
   text-decoration: none !important;
 }
 .WBEHelpIcon span.icon--help {
-  background-size: 22px 22px !important;
+  background-size: 26px 26px !important;
   background-position: center !important;
   filter: var(--wbe-icon-filter) !important;
 }
@@ -269,30 +275,21 @@ ol.star1.green > li::before {
 }
 .WBEHelpIcon::after {
   top: -3em !important;
+  color: white;
 }
 /* End tooltip stuff */
 
 /* Enhanced By WBE */
-#ebWBE {
-  position: relative;
-}
 #showWBEFeatures {
-  display: none;
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  font-size: 1.5em;
 }
-#ebWBE:hover #showWBEFeatures {
-  display: block;
-  position: absolute;
-  border: 2px solid var(--wbe-orange);
-  border-radius: 5px;
-  background-color: var(--wbe-orange-light);
-  padding: 0.5em;
-  border-radius: 5px;
-  font-size: small;
-  z-index: 10000;
-}
-#showWBEFeatures:hover {
-  background-color: var(--wbe-orange);
-}
-#showWBEFeatures:active {
-  background-color: var(--wbe-orange-light);
+#ebWBE img {
+  height: 22px !important;
+  width: 22px !important;
+  position: relative;
+  top: -0.1em;
 }
