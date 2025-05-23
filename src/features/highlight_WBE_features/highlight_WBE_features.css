@@ -45,12 +45,16 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 .wbe-highlight .cc7Tracker,
 .wbe-highlight .wbe.dropdown-item,
 .wbe-highlight span.distanceFromYou,
-.wbe-highlight span.yourRelationshipText,
+.wbe-highlight div.yourRelationshipText,
 .wbe-highlight #pendingMergesFilterButtons button,
 .wbe-highlight tr.filter-row,
 .wbe-highlight ol.STYLED.enumerated,
 .wbe-highlight button.image-template-copy-button,
-.wbe-highlight a.backToTop {
+.wbe-highlight a.backToTop,
+.wbe-highlight #removeMeButton,
+.wbe-highlight #onlyMembers,
+.wbe-highlight #saveSearchFormButton,
+.wbe-highlight #showBirthplacesButton {
   border: var(--wbe-colour) 2px solid !important;
 }
 
@@ -59,8 +63,17 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
   padding-bottom: 0.5em;
 }
 
+.wbe-highlight span.home {
+  border-bottom: var(--wbe-colour) 3px solid;
+}
+
 .wbe-highlight span.awtG2GLink {
   border-width: 1px !important;
+}
+
+.wbe-highlight div.yourRelationshipText {
+  border-left-width: 1px !important;
+  border-top-width: 1px !important;
 }
 
 .wbe-highlight input.catCheck {
@@ -118,7 +131,8 @@ html[data-wbe-datefixer] #mMarriageDate,
 .wbe-highlight #newPersonSummary,
 .wbe-highlight ol.STYLED.enumerated,
 .wbe-highlight a.backToTop,
-.wbe-highlight h2#What_Links_Here:has(.toggle-whl) {
+.wbe-highlight h2#What_Links_Here:has(.toggle-whl),
+.wbe-highlight #onlyMembers {
   border-radius: 5px !important;
 }
 .wbe-highlight .myMenuGears,
@@ -132,7 +146,8 @@ html[data-wbe-datefixer] #mMarriageDate,
 .wbe-highlight #anniversariesTable_wrapper,
 .wbe-highlight #newPersonSummary,
 .wbe-highlight #editToolbarExt,
-.wbe-highlight a.backToTop {
+.wbe-highlight a.backToTop,
+.wbe-highlight #onlyMembers {
   padding: 0.5em;
   margin: 0.5em;
   display: block;
@@ -141,7 +156,8 @@ html[data-wbe-datefixer] #mMarriageDate,
   margin: auto;
 }
 .wbe-highlight #newPersonSummary,
-.wbe-highlight a.backToTop {
+.wbe-highlight a.backToTop,
+.wbe-highlight #onlyMembers {
   display: inline-block;
 }
 .wbe-highlight #tabs .clipboardContainer {

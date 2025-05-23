@@ -281,7 +281,6 @@ ol.star1.green > li::before {
 
 /* Enhanced By WBE */
 #showWBEFeatures {
-  background: none !important;
   border: none !important;
   padding: 0 !important;
   margin: 0 !important;
@@ -290,7 +289,13 @@ ol.star1.green > li::before {
   font-size: 11px;
   width: 17px;
   position: relative;
-  top:-0.1em;
+  top: -0.1em;
+}
+#showWBEFeatures:hover {
+  background: var(--wbe-colour-light) !important;
+}
+body.wbe-highlight #showWBEFeatures {
+  background: #000 !important;
 }
 #ebWBE img {
   height: 22px !important;

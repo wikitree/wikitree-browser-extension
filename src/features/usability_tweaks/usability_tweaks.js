@@ -733,10 +733,24 @@ function makeTableOverflowVisible() {
   updateAllButtons();
 }
 
+function addAccessedCountToProfileData() {
+  const accessedCountText = $("#subfooter i:contains('This page has been accessed')").text();
+  const accessedCount = accessedCountText.match(/This page has been accessed (\d+) times/);
+  if (accessedCount) {
+    const count = parseInt(accessedCount[1]);
+    $("#Profile-Data").append(`<div class="profile-data-item wbe">Accessed <strong>${count}</strong> times.</div>`);
+  }
+}
+
 shouldInitializeFeature("usabilityTweaks").then((result) => {
   if (result) {
     getFeatureOptions("usabilityTweaks").then((options) => {
       window.usabilityTweaksOptions = options;
+
+      // addAccessedCountToProfileData();
+      if (isProfilePage && options.addAccessedCountToProfileData) {
+        addAccessedCountToProfileData();
+      }
 
       // Add save form button
       if (isSearchPage && options.saveSearchFormDataButton) {
