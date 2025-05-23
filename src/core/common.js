@@ -293,7 +293,7 @@ if ($("#ebWBE").length === 0) {
     $("body").toggleClass("wbe-highlight");
 
     const isHighlighted = $("body").hasClass("wbe-highlight");
-    $("#showWBEFeatures").attr("title", isHighlighted ? "Hide WBE features highlight" : "Highlight WBE features");
+    $("#showWBEFeatures").attr("title", isHighlighted ? "Remove WBE features highlight" : "Highlight WBE features");
   });
 }
 
