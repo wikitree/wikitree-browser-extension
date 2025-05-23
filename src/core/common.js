@@ -321,6 +321,9 @@ async function checkButtonFeatures() {
   if (isWikiEdit) {
     $("#toolbar").append(buttonContainer2);
   }
+  if (isG2G) {
+    $(".qa-c-form h2").before(buttonContainer2);
+  }
 
   try {
     const results = await Promise.all(promises);
@@ -362,7 +365,7 @@ async function checkButtonFeatures() {
     const createButton = (options) => {
       // Break out options
       const { id, title, aClass, img } = options;
-      if ($("#" + id).length) return; // Don't create button if it already exists
+      if (id && $("#" + id).length) return; // Don't create button if it already exists
       const button = $("<a>")
         .attr("id", id)
         // .attr("title", title)
@@ -403,16 +406,26 @@ async function checkButtonFeatures() {
         createButton({ id: "clipboardButton", aClass: "aClipboardButton", title: "Clipboard", img: clipboardImg }),
         createButton({ id: "notesButton", aClass: "aNotesButton", title: "Notes", img: notesImg })
       );
-      if (isWikiEdit) {
-        buttonContainer2.append(
-          createButton({
-            id: "anotherClipboardButton",
-            aClass: "aClipboardButton",
-            title: "Clipboard",
-            img: clipboardImg,
-          }),
-          createButton({ id: "anotherNotesButton", aClass: "aNotesButton", title: "Notes", img: notesImg })
-        );
+      if (isWikiEdit || isG2G) {
+        console.log("Adding clipboard and notes buttons to the toolbar");
+        $(".wbe-button-container2").each(function () {
+          $(this).append(
+            createButton({
+              id: "",
+              aClass: "aClipboardButton",
+              title: "Clipboard",
+              img: clipboardImg,
+            })
+          );
+          $(this).append(
+            createButton({
+              id: "",
+              aClass: "aNotesButton",
+              title: "Notes",
+              img: notesImg,
+            })
+          );
+        });
       }
     }
     if (results[2]) {
