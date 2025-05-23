@@ -55,11 +55,17 @@ async function initFamilyDropdown() {
 
   // Create the dropdown container with toggle button and hidden menu
   const familyDropdown = $(`
-    <div id="familyDropdown" class="custom-dropdown" tabindex="-1">
+    <div id="familyDropdown" class="custom-dropdown" tabindex="-1" accesskey="y">
       <button type="button" class="custom-dropdown-toggle">Copy Wiki Link ${andSourcesText}</button>
       <ul class="custom-dropdown-menu" style="display:none;"></ul>
     </div>
   `);
+
+  // When container receives focus (e.g. via Alt+Y), programmatically click the toggle button to open dropdown
+  familyDropdown.get(0).addEventListener("focus", () => {
+    familyDropdown.find(".custom-dropdown-toggle").trigger("click");
+    activeDropDownIndex = 0;
+  });
 
   // Insert the dropdown just before the WikiTree toolbar
   familyDropdown.insertBefore($("#toolbar"));
