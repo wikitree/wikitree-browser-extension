@@ -1,18 +1,5 @@
-/**
- * Main module for the family dropdown feature.
- *
- * This module creates a custom dropdown for copying WikiTree links.
- * It replaces the native <select> element to avoid triggering unwanted auto-save
- * behaviours in WikiTree. The module fetches relative data, groups and sorts them,
- * and then dynamically populates a custom dropdown menu.
- *
- * The dropdown menu is hidden when a user clicks outside of it or presses the Esc key.
- *
- * @module familyDropdown
- */
 import $ from "jquery";
-import { displayName, getUserNumId, profilePerson, getProfilePersonInfo } from "../../core/common";
-import "jquery-ui/ui/widgets/draggable";
+import { displayName, getUserNumId, profilePerson } from "../../core/common";
 import { displayDates } from "../verifyID/verifyID";
 import { getRelatives, getPerson } from "wikitree-js";
 import { shouldInitializeFeature, getFeatureOptions, checkIfFeatureEnabled } from "../../core/options/options_storage";
@@ -21,16 +8,23 @@ import { isProfileEdit } from "../../core/pageType";
 import { showCopyMessage } from "../access_keys/access_keys.js";
 import "../../core/common.css";
 
-// Global variables to track state.
-let theID; // The WikiTree name of the current profile person.
+// The current profile’s WikiTree ID (e.g., "Cantrell-922")
+let theID;
+
+// Store the full nuclear family profile object here once fetched
 window.profilePersonNuclear = null;
+
+// Flag to prevent multiple dropdown initializations
 window.familyDropdownInitialized = false;
 
-// Define the fields to fetch for relatives.
+// Fields we want from the API when fetching relatives
 const fields =
   "Name,FirstName,Gender,LastNameAtBirth,LastNameCurrent,Bio,BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,DataStatus,Id";
 
-// Initialize the familyDropdown feature if enabled.
+/**
+ * Entry point: check if the familyDropdown feature is enabled.
+ * If yes, set the current profile ID, import CSS, and initialize the dropdown.
+ */
 shouldInitializeFeature("familyDropdown").then((result) => {
   if (result) {
     theID = profilePerson.Name;
@@ -42,135 +36,392 @@ shouldInitializeFeature("familyDropdown").then((result) => {
 });
 
 /**
- * Initializes the custom family dropdown feature on profile edit pages.
- * Creates the dropdown UI, sets up the event handlers, and binds global events
- * to hide the dropdown when clicking outside or pressing Esc.
+ * Initializes the custom family dropdown UI and its event handlers.
+ * Builds the dropdown HTML, binds events for toggling and keyboard navigation.
+ * Populates the dropdown with relatives on first open.
  */
 async function initFamilyDropdown() {
+  // Exit early if no profile or not an edit page
+  if (!theID || !isProfileEdit) return;
+
+  // Load feature options for customizing behavior
   window.familyDropdownOptions = await getFeatureOptions("familyDropdown");
   window.shareableSourcesOptions = await getFeatureOptions("shareableSources");
   const isShareableSourcesEnabled = await checkIfFeatureEnabled("shareableSources");
 
-  if (!theID) {
-    return;
-  } else if (isProfileEdit) {
-    // Build the custom dropdown HTML structure.
-    let andSourcesText = "";
-    if (window.shareableSourcesOptions?.connectWithFamilyDropdown && isShareableSourcesEnabled) {
-      andSourcesText = " &amp; Show Sources";
+  // Text appended to button if Shareable Sources feature is connected
+  const andSourcesText =
+    window.shareableSourcesOptions?.connectWithFamilyDropdown && isShareableSourcesEnabled ? " &amp; Show Sources" : "";
+
+  // Create the dropdown container with toggle button and hidden menu
+  const familyDropdown = $(`
+    <div id="familyDropdown" class="custom-dropdown" tabindex="-1">
+      <button type="button" class="custom-dropdown-toggle">Copy Wiki Link ${andSourcesText}</button>
+      <ul class="custom-dropdown-menu" style="display:none;"></ul>
+    </div>
+  `);
+
+  // Insert the dropdown just before the WikiTree toolbar
+  familyDropdown.insertBefore($("#toolbar"));
+
+  // Active dropdown list item index, -1 means none active
+  let activeDropDownIndex = -1;
+
+  /**
+   * Helper: get the <li> element at a given index in the dropdown
+   * @param {number} index
+   * @returns {jQuery} jQuery object for the li at that index
+   */
+  function getActiveDropDownElement(index) {
+    return $("#familyDropdown li").eq(index);
+  }
+
+  /**
+   * Helper: Update the "active" CSS class on the list items for visual highlight,
+   * and scroll the active item into view if needed.
+   */
+  function updateActiveItem() {
+    $("#familyDropdown li").removeClass("active");
+    const el = getActiveDropDownElement(activeDropDownIndex);
+    if (el.length) {
+      el.addClass("active");
+      el[0].scrollIntoView({ block: "nearest" });
     }
-    const familyDropdown = $(`
-      <div id="familyDropdown" class="custom-dropdown" tabindex="-1">
-        <button type="button" class="custom-dropdown-toggle">Copy Wiki Link ${andSourcesText}</button>
-        <ul class="custom-dropdown-menu" style="display: none;"></ul>
-      </div>
-    `);
-
-    let activeDropDownIndex = -1;
-    familyDropdown.get(0).addEventListener("focus", () => {
-      //via access key
-      toggleDropDownMenuOnButtonClick(familyDropdown);
-      activeDropDownIndex = 0;
-    });
-
-    // Insert the custom dropdown before the toolbar.
-    familyDropdown.insertBefore($("#toolbar"));
-
-    // Toggle the dropdown menu on button click.
-    familyDropdown.find(".custom-dropdown-toggle").on("click", function () {
-      toggleDropDownMenuOnButtonClick(familyDropdown);
-    });
-
-    // Hide dropdown menu when clicking outside of the familyDropdown element.
-    $(document).on("click.familyDropdown", function (e) {
-      if ($(e.target).closest("#familyDropdown").length === 0) {
-        $("#familyDropdown .custom-dropdown-menu").hide();
-      }
-    });
-
-    // Hide dropdown menu when pressing the Escape key.
-    $(document).on("keydown.familyDropdown", function (e) {
-      if (e.key === "Escape") {
-        $("#familyDropdown .custom-dropdown-menu").hide();
-        getActiveDropDownElement(activeDropDownIndex).removeClass("active");
-      }
-
-      if (document.activeElement && document.activeElement.id != "familyDropdown") {
-        //only handle the arrows if has focus
-        return;
-      }
-      const previousIndex = activeDropDownIndex;
-
-      if (e.key === "Enter") {
-        e.preventDefault();
-        getActiveDropDownElement(activeDropDownIndex).trigger("click");
-        getActiveDropDownElement(activeDropDownIndex).removeClass("active");
-      } else if (e.key === "ArrowDown" && e.shiftKey) {
-        e.preventDefault();
-        activeDropDownIndex++;
-        if (activeDropDownIndex > $("#familyDropdown li").length) {
-          activeDropDownIndex == 0;
-        }
-        switchActiveDropDownElement(previousIndex, activeDropDownIndex);
-      } else if (e.key === "ArrowUp" && e.shiftKey) {
-        e.preventDefault();
-
-        activeDropDownIndex--;
-        if (activeDropDownIndex < 0) {
-          activeDropDownIndex == $("#familyDropdown li").length - 1;
-        }
-        switchActiveDropDownElement(previousIndex, activeDropDownIndex);
-      }
-    });
   }
 
-  function getActiveDropDownElement(activeDropDownIndex) {
-    return $("#familyDropdown li").eq(activeDropDownIndex);
+  /**
+   * Helper: Clear active item selection and index
+   */
+  function clearActiveItem() {
+    activeDropDownIndex = -1;
+    $("#familyDropdown li").removeClass("active");
   }
 
-  function switchActiveDropDownElement(previous, current) {
-    getActiveDropDownElement(previous).removeClass("active");
-    getActiveDropDownElement(current).addClass("active");
+  /**
+   * Fetch relatives data from WikiTree API, then build and insert <li> elements
+   * into the dropdown menu. Adds parents, siblings, spouses, children,
+   * and optionally 'Other' and 'Me' options.
+   *
+   * @param {jQuery} menu jQuery object for the <ul> menu container
+   */
+  async function doFamilyDropdown(menu) {
+    // Request family data via WikiTree API
+    const result = await getRelatives(
+      [theID],
+      {
+        getSpouses: true,
+        getChildren: true,
+        getParents: true,
+        getSiblings: true,
+        fields: [fields],
+        bioFormat: "text",
+      },
+      { appId: "WBE_family_dropdown" }
+    );
+    if (!result[0]) return;
+
+    window.profilePersonNuclear = result[0];
+    const profilePersonNuclear = result[0];
+
+    // Group relatives by relationship
+    const familyMemberGroups = {
+      father: null,
+      mother: null,
+      siblings: [],
+      spouses: [],
+      children: [],
+    };
+
+    // Assign parents
+    if (typeof profilePersonNuclear["Parents"] === "object") {
+      Object.values(profilePersonNuclear["Parents"]).forEach((person) => {
+        if (person.Gender === "Male") familyMemberGroups.father = person;
+        else if (person.Gender === "Female") familyMemberGroups.mother = person;
+      });
+    }
+    // Assign siblings
+    if (typeof profilePersonNuclear["Siblings"] === "object") {
+      familyMemberGroups.siblings = Object.values(profilePersonNuclear["Siblings"]);
+    }
+    // Assign spouses
+    if (typeof profilePersonNuclear["Spouses"] === "object") {
+      familyMemberGroups.spouses = Object.values(profilePersonNuclear["Spouses"]);
+    }
+    // Assign children
+    if (typeof profilePersonNuclear["Children"] === "object") {
+      familyMemberGroups.children = Object.values(profilePersonNuclear["Children"]);
+    }
+
+    // Sort siblings and children by birth date
+    familyMemberGroups.siblings = sortPeopleByBirthDate(familyMemberGroups.siblings);
+    familyMemberGroups.children = sortPeopleByBirthDate(familyMemberGroups.children);
+    // Sort spouses by marriage date
+    familyMemberGroups.spouses = sortSpousesByMarriageDate(familyMemberGroups.spouses);
+
+    // Combine all relatives into one array for display order
+    const allRelatives = [familyMemberGroups.father, familyMemberGroups.mother]
+      .filter(Boolean)
+      .concat(familyMemberGroups.siblings, familyMemberGroups.spouses, familyMemberGroups.children);
+
+    // Clear existing menu items
+    menu.empty();
+
+    // Create and append <li> for each relative with accessibility tabindex and data attributes
+    allRelatives.forEach((person) => {
+      let relSymbol = "";
+      let relFull = "";
+
+      if (person === familyMemberGroups.father) {
+        relSymbol = "[F]";
+        relFull = "Father";
+      } else if (person === familyMemberGroups.mother) {
+        relSymbol = "[M]";
+        relFull = "Mother";
+      } else if (familyMemberGroups.siblings.includes(person)) {
+        relSymbol = person.Gender === "Male" ? "[Bro]" : "[Sis]";
+        relFull = person.Gender === "Male" ? "Brother" : "Sister";
+      } else if (familyMemberGroups.spouses.includes(person)) {
+        relSymbol = person.Gender === "Male" ? "[H]" : "[W]";
+        relFull = person.Gender === "Male" ? "Husband" : "Wife";
+      } else if (familyMemberGroups.children.includes(person)) {
+        relSymbol = person.Gender === "Male" ? "[Son]" : "[Dau]";
+        relFull = person.Gender === "Male" ? "Son" : "Daughter";
+      }
+
+      const dName = displayName(person)[0];
+      const oDisplayDates = window.familyDropdownOptions.includeDates ? " " + displayDates(person) : "";
+
+      const wikilink = `[[${person.Name}|${dName}${oDisplayDates}]]`;
+
+      const li = $(`
+        <li tabindex="0" data-id="${person.Id}" data-gender="${person.Gender}" data-wikilink="${wikilink}" title="${dName} was ${profilePersonNuclear.FirstName}'s ${relFull}">
+          ${relSymbol} ${dName}${oDisplayDates}
+        </li>
+      `);
+      menu.append(li);
+    });
+
+    // Add "Other" option if shareableSources feature is enabled
+    if (window.shareableSourcesOptions?.connectWithFamilyDropdown) {
+      const liOther = $(`<li tabindex="0" value="other" data-wikilink="other">Other</li>`);
+      menu.append(liOther);
+    }
+
+    // Add "Me" option if enabled in familyDropdown options
+    if (window.familyDropdownOptions.addMeLink) {
+      const userId = getUserNumId();
+      const user = await getPerson(userId, { fields: ["Name", "FirstName", "LastNameCurrent", "Bio"] });
+      if (user) {
+        let userName = "Me";
+        if (user.FirstName) userName = user.FirstName;
+        if (user.LastNameCurrent) userName += " " + user.LastNameCurrent;
+        const wikilink = `[[${user.Name}|${userName}]]`;
+        const liMe = $(`
+          <li tabindex="0" data-id="" title="Me" data-wikilink="${wikilink}">
+            [Me] ${userName}
+          </li>
+        `);
+        menu.append(liMe);
+      }
+    }
+
+    // Set first item as active and update styling
+    activeDropDownIndex = 0;
+    updateActiveItem();
   }
 
-  function toggleDropDownMenuOnButtonClick(familyDropdown) {
-    const menu = familyDropdown.find(".custom-dropdown-menu");
+  /**
+   * Toggles the dropdown menu visibility.
+   * On showing, focuses the first item to allow keyboard navigation.
+   * On hiding, clears active item and returns focus to toggle button.
+   */
+  function toggleDropDownMenuOnButtonClick() {
+    const menu = $("#familyDropdown .custom-dropdown-menu");
     if (!window.familyDropdownInitialized) {
       doFamilyDropdown(menu);
       window.familyDropdownInitialized = true;
     }
     menu.toggle();
+
+    if (menu.is(":visible")) {
+      activeDropDownIndex = 0;
+      updateActiveItem();
+      getActiveDropDownElement(activeDropDownIndex).focus();
+    } else {
+      clearActiveItem();
+      $("#familyDropdown .custom-dropdown-toggle").focus();
+    }
   }
+
+  // Bind toggle button click event
+  familyDropdown.find(".custom-dropdown-toggle").on("click", toggleDropDownMenuOnButtonClick);
+
+  // Close dropdown when clicking outside it, and return focus to toggle button
+  $(document).on("click.familyDropdown", (e) => {
+    if ($(e.target).closest("#familyDropdown").length === 0) {
+      $("#familyDropdown .custom-dropdown-menu").hide();
+      clearActiveItem();
+      $("#familyDropdown .custom-dropdown-toggle").focus();
+    }
+  });
+
+  /**
+   * Keyboard navigation for dropdown menu items:
+   * ArrowDown / ArrowUp to move selection,
+   * Enter to activate,
+   * Escape to close menu.
+   */
+  $(document).on("keydown.familyDropdown", (e) => {
+    const menu = $("#familyDropdown .custom-dropdown-menu");
+    if (menu.css("display") === "none") return;
+
+    const container = document.getElementById("familyDropdown");
+    if (!container || !container.contains(document.activeElement)) return;
+
+    const itemsCount = $("#familyDropdown li").length;
+
+    if (e.key === "Escape") {
+      e.preventDefault();
+      menu.hide();
+      clearActiveItem();
+      $("#familyDropdown .custom-dropdown-toggle").focus();
+      return;
+    }
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const item = getActiveDropDownElement(activeDropDownIndex);
+      if (item.length) {
+        item.trigger("click");
+        clearActiveItem();
+      }
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      activeDropDownIndex++;
+      if (activeDropDownIndex >= itemsCount) activeDropDownIndex = 0;
+      updateActiveItem();
+      getActiveDropDownElement(activeDropDownIndex).focus();
+      return;
+    }
+
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      activeDropDownIndex--;
+      if (activeDropDownIndex < 0) activeDropDownIndex = itemsCount - 1;
+      updateActiveItem();
+      getActiveDropDownElement(activeDropDownIndex).focus();
+      return;
+    }
+  });
+
+  /**
+   * Delegate click events on dropdown items to handle copy and input for "Other".
+   * Uses event delegation on body to support dynamically added list items.
+   */
+  $("body")
+    .off("click.familyDropdown", "#familyDropdown .custom-dropdown-menu li")
+    .on("click.familyDropdown", "#familyDropdown .custom-dropdown-menu li", async function () {
+      const clickedLi = $(this);
+      const wikilink = clickedLi.data("wikilink");
+
+      if (!wikilink) {
+        console.warn("No wikilink found for clicked item");
+        return;
+      }
+
+      // If "Other" clicked, show input to enter WikiTree ID manually
+      if (wikilink === "other") {
+        if ($("#otherPerson").length === 0) {
+          const otherPersonInput = $(`
+            <label id="otherPersonLabel" style="display:block; margin-top:5px;">
+              Enter WikiTree ID and Press 'Enter': <input type="text" id="otherPerson" autocomplete="off" />
+            </label>
+          `);
+          otherPersonInput.insertAfter("#familyDropdown");
+          $("#otherPerson").trigger("focus");
+
+          $("#otherPerson").on("keydown", async (event) => {
+            if (event.key === "Enter") {
+              const anID = $(event.target).val().trim();
+              if (!anID) return;
+
+              const thingObject = await getDataAndMakeWikilink(anID);
+              if (thingObject) {
+                const wikilink = thingObject.wikilink;
+                const success = await copyThingToClipboard(wikilink);
+                if (success) {
+                  $("#familyDropdown .custom-dropdown-toggle").attr("title", `Copied "${wikilink}". (Paste: Ctrl+V)`);
+                  showCopyMessage("Wiki Link");
+                  FocusWpTextBoxIfPresent();
+                } else {
+                  alert("Failed to copy wikilink.");
+                }
+                $("#otherPersonLabel").remove();
+              } else {
+                alert("Person not found. Please check the WikiTree ID and try again.");
+              }
+            }
+          });
+        } else {
+          $("#otherPerson").addClass("highlight").trigger("focus");
+        }
+        $("#familyDropdown .custom-dropdown-menu").hide();
+        clearActiveItem();
+        return;
+      }
+
+      // Normal item clicked: copy wikilink to clipboard and show feedback
+      const success = await copyThingToClipboard(wikilink);
+      if (success) {
+        $("#familyDropdown .custom-dropdown-toggle").attr("title", `Copied "${wikilink}". (Paste: Ctrl+V)`);
+        showCopyMessage("Wiki Link");
+      } else {
+        console.warn("Copy failed");
+      }
+      $("#familyDropdown .custom-dropdown-menu").hide();
+      clearActiveItem();
+      FocusWpTextBoxIfPresent();
+
+      /**
+       * Focuses the main WikiTree textbox if present,
+       * so the user can paste or continue editing.
+       */
+      function FocusWpTextBoxIfPresent() {
+        const box = $("#wpTextbox1");
+        if (box.length) box.trigger("focus");
+      }
+    });
 }
 
 /**
- * Sorts an array of person objects by their birth year.
- * Uses either the 'BirthDate' or 'BirthDateDecade' field.
- *
- * @param {Array} people - Array of person objects.
- * @returns {Array} Sorted array of people.
+ * Sorts people by their birth year or decade.
+ * Falls back to 0 if date info is missing.
+ * @param {Array} people Array of person objects
+ * @returns {Array} Sorted array
  */
 function sortPeopleByBirthDate(people) {
   return people.sort((a, b) => {
-    const aBirthYear = a.BirthDate
+    const aYear = a.BirthDate
       ? parseInt(a.BirthDate.split("-")[0], 10)
       : a.BirthDateDecade
       ? parseInt(a.BirthDateDecade.slice(0, 4), 10)
       : 0;
-    const bBirthYear = b.BirthDate
+    const bYear = b.BirthDate
       ? parseInt(b.BirthDate.split("-")[0], 10)
       : b.BirthDateDecade
       ? parseInt(b.BirthDateDecade.slice(0, 4), 10)
       : 0;
-    return aBirthYear - bBirthYear;
+    return aYear - bYear;
   });
 }
 
 /**
- * Sorts an array of spouse objects by their marriage date.
- *
- * @param {Array} spouses - Array of spouse objects.
- * @returns {Array} Sorted array of spouses.
+ * Sorts spouses by their marriage date.
+ * @param {Array} spouses Array of spouse objects
+ * @returns {Array} Sorted array
  */
 function sortSpousesByMarriageDate(spouses) {
   return spouses.sort((a, b) => {
@@ -181,215 +432,27 @@ function sortSpousesByMarriageDate(spouses) {
 }
 
 /**
- * Fetches relatives data from WikiTree and populates the custom dropdown menu.
- * Groups relatives into parents, siblings, spouses, and children; sorts them;
- * then creates a list item (<li>) for each relative.
- *
- * @param {jQuery} dropdownMenu - The <ul> element to populate with <li> items.
- */
-async function doFamilyDropdown(dropdownMenu) {
-  // Fetch relatives from WikiTree.
-  const result = await getRelatives(
-    [theID],
-    {
-      getSpouses: true,
-      getChildren: true,
-      getParents: true,
-      getSiblings: true,
-      fields: [fields],
-      bioFormat: "text",
-    },
-    { appId: "WBE_family_dropdown" }
-  );
-  if (!result[0]) return;
-
-  window.profilePersonNuclear = result[0];
-  const profilePersonNuclear = result[0];
-
-  // Initialize family member groups.
-  const familyMemberGroups = {
-    father: null,
-    mother: null,
-    siblings: [],
-    spouses: [],
-    children: [],
-  };
-
-  // Group relatives by their relationship.
-  if (typeof profilePersonNuclear["Parents"] === "object") {
-    Object.values(profilePersonNuclear["Parents"]).forEach((person) => {
-      if (person.Gender === "Male") familyMemberGroups.father = person;
-      else if (person.Gender === "Female") familyMemberGroups.mother = person;
-    });
-  }
-  if (typeof profilePersonNuclear["Siblings"] === "object") {
-    familyMemberGroups.siblings = Object.values(profilePersonNuclear["Siblings"]);
-  }
-  if (typeof profilePersonNuclear["Spouses"] === "object") {
-    familyMemberGroups.spouses = Object.values(profilePersonNuclear["Spouses"]);
-  }
-  if (typeof profilePersonNuclear["Children"] === "object") {
-    familyMemberGroups.children = Object.values(profilePersonNuclear["Children"]);
-  }
-
-  // Sort relatives as required.
-  familyMemberGroups.siblings = sortPeopleByBirthDate(familyMemberGroups.siblings);
-  familyMemberGroups.children = sortPeopleByBirthDate(familyMemberGroups.children);
-  familyMemberGroups.spouses = sortSpousesByMarriageDate(familyMemberGroups.spouses);
-
-  // Combine relatives into one array (placing parents first).
-  const allRelatives = [familyMemberGroups.father, familyMemberGroups.mother]
-    .filter(Boolean)
-    .concat(familyMemberGroups.siblings, familyMemberGroups.spouses, familyMemberGroups.children);
-
-  // Create a list item for each relative.
-  allRelatives.forEach((person) => {
-    let relSymbol = "";
-    let relFull = "";
-    if (person === familyMemberGroups.father) {
-      relSymbol = "[F]";
-      relFull = "Father";
-    } else if (person === familyMemberGroups.mother) {
-      relSymbol = "[M]";
-      relFull = "Mother";
-    } else if (familyMemberGroups.siblings.includes(person)) {
-      relSymbol = person.Gender === "Male" ? "[Bro]" : "[Sis]";
-      relFull = person.Gender === "Male" ? "Brother" : "Sister";
-    } else if (familyMemberGroups.spouses.includes(person)) {
-      relSymbol = person.Gender === "Male" ? "[H]" : "[W]";
-      relFull = person.Gender === "Male" ? "Husband" : "Wife";
-    } else if (familyMemberGroups.children.includes(person)) {
-      relSymbol = person.Gender === "Male" ? "[Son]" : "[Dau]";
-      relFull = person.Gender === "Male" ? "Son" : "Daughter";
-    }
-    const dName = displayName(person)[0];
-    let oDisplayDates = window.familyDropdownOptions.includeDates ? " " + displayDates(person) : "";
-
-    // Create the <li> element with a data-gender attribute.
-    const li = $(`
-      <li data-id="${person.Id}" data-gender="${person.Gender}" title="${dName} was ${profilePersonNuclear.FirstName}'s ${relFull}">
-        ${relSymbol} ${dName}${oDisplayDates}
-      </li>
-    `);
-
-    // Bind a click handler to copy the wikilink.
-    li.on("click", function () {
-      const wikilink = `[[${person.Name}|${dName}${oDisplayDates}]]`;
-      copyThingToClipboard(wikilink);
-      $("#familyDropdown .custom-dropdown-toggle").attr("title", `Copied "${wikilink}". (Paste: Ctrl+V)`);
-      showCopyMessage("Wiki Link");
-      dropdownMenu.hide();
-    });
-    dropdownMenu.append(li);
-  });
-
-  // Add "Other" option if shareableSources is enabled.
-  if (window.shareableSourcesOptions?.connectWithFamilyDropdown) {
-    const liOther = $(`
-      <li value="other">Other</li>
-    `);
-    liOther.on("click", function () {
-      if ($("#otherPerson").length === 0) {
-        let otherPerson = $(`
-          <label id="otherPersonLabel">
-            Enter WikiTree ID and Press 'Enter': <input type="text" id="otherPerson">
-          </label>
-        `);
-        otherPerson.insertAfter("#familyDropdown");
-        $("#otherPerson").trigger("focus");
-
-        $("#otherPerson").on("keydown", async function (event) {
-          if (event.key === "Enter") {
-            let anID = $(this).val().trim();
-            const thingObject = await getDataAndMakeWikilink(anID);
-            if (thingObject) {
-              const wikilink = thingObject.wikilink;
-              copyThingToClipboard(wikilink);
-              $("#familyDropdown .custom-dropdown-toggle").attr("title", `Copied "${wikilink}". (Paste: Ctrl+V)`);
-              showCopyMessage("Wiki Link");
-              FocusWpTextBoxIfPresent();
-              $("#otherPersonLabel").remove();
-            }
-          }
-        });
-      } else {
-        $("#otherPerson").addClass("highlight").trigger("focus");
-      }
-      dropdownMenu.hide();
-    });
-    dropdownMenu.append(liOther);
-  }
-
-  // Add "Me" option if enabled.
-  if (window.familyDropdownOptions.addMeLink) {
-    const userId = getUserNumId();
-    const user = await getPerson(userId, { fields: ["Name", "FirstName", "LastNameCurrent", "Bio"] });
-    if (user) {
-      let userName = "Me";
-      if (user.FirstName) {
-        userName = user.FirstName;
-      }
-      if (user.LastNameCurrent) {
-        userName += " " + user.LastNameCurrent;
-      }
-      const liMe = $(`
-        <li data-id="" title="Me">
-          [Me] ${userName}
-        </li>
-      `);
-      liMe.on("click", function () {
-        const wikilink = `[[${user.Name}|${userName}]]`;
-        copyThingToClipboard(wikilink);
-        $("#familyDropdown .custom-dropdown-toggle").attr("title", `Copied "${wikilink}". (Paste: Ctrl+V)`);
-        showCopyMessage("Wiki Link");
-        dropdownMenu.hide();
-        FocusWpTextBoxIfPresent();
-      });
-      dropdownMenu.append(liMe);
-    }
-  }
-
-  let firstLi = $(dropdownMenu).children().eq(0);
-  firstLi.addClass("active");
-
-  function FocusWpTextBoxIfPresent() {
-    const box = $("#wpTextbox1");
-    if (box.length) {
-      box.focus();
-    }
-  }
-}
-
-/**
- * Fetches a person by their WikiTree ID and returns a wikilink object.
- *
- * @param {string} id - The WikiTree ID of the person.
- * @returns {Promise<Object|boolean>} An object with 'wikilink', 'person', and 'userName' properties, or false if not found.
+ * Fetches a person's details by WikiTree ID and returns a wikilink object.
+ * @param {string} id WikiTree ID of the person
+ * @returns {Promise<{wikilink: string, person: Object, userName: string}|boolean>} Wikilink object or false if not found
  */
 async function getDataAndMakeWikilink(id) {
   const person = await getPerson(id, { fields: ["Name", "FirstName", "LastNameCurrent", "Bio"] });
   if (person) {
     let personName = "";
-    if (person.FirstName) {
-      personName = person.FirstName;
-    }
-    if (person.LastNameCurrent) {
-      personName += " " + person.LastNameCurrent;
-    }
+    if (person.FirstName) personName = person.FirstName;
+    if (person.LastNameCurrent) personName += " " + person.LastNameCurrent;
     const wikilink = `[[${person.Name}|${personName}]]`;
-    return { wikilink: wikilink, person: person, userName: personName };
-  } else {
-    return false;
+    return { wikilink, person, userName: personName };
   }
+  return false;
 }
 
 /**
- * Copies a given string to the clipboard.
- * Uses the modern Clipboard API if available and in a secure context,
- * otherwise falls back to the legacy document.execCommand method.
- *
- * @param {string} thing - The string to copy.
- * @returns {Promise<boolean>} Resolves to true if the copy was successful, otherwise false.
+ * Copies a string to the clipboard.
+ * Uses Clipboard API if available and falls back to execCommand otherwise.
+ * @param {string} thing Text to copy
+ * @returns {Promise<boolean>} True if copy succeeded
  */
 async function copyThingToClipboard(thing) {
   if (navigator.clipboard && window.isSecureContext) {
@@ -400,10 +463,9 @@ async function copyThingToClipboard(thing) {
       console.error("Clipboard write failed, falling back to legacy method.", err);
     }
   }
-  // Fallback: create a temporary textarea element off-screen.
   const textArea = document.createElement("textarea");
   textArea.value = thing;
-  textArea.style.position = "fixed";
+  textArea.style.position = "fixed"; // avoid scrolling to bottom
   textArea.style.left = "-9999px";
   textArea.style.top = "-9999px";
   document.body.appendChild(textArea);
