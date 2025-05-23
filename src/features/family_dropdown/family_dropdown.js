@@ -21,6 +21,12 @@ window.familyDropdownInitialized = false;
 const fields =
   "Name,FirstName,Gender,LastNameAtBirth,LastNameCurrent,Bio,BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,DataStatus,Id";
 
+// Active dropdown list item index, -1 means none active
+let activeDropDownIndex = -1;
+
+// Timer handle for debouncing outside clicks
+let closeDropdownTimeout = null;
+
 /**
  * Entry point: check if the familyDropdown feature is enabled.
  * If yes, set the current profile ID, import CSS, and initialize the dropdown.
@@ -64,14 +70,10 @@ async function initFamilyDropdown() {
   // When container receives focus (e.g. via Alt+Y), programmatically click the toggle button to open dropdown
   familyDropdown.get(0).addEventListener("focus", () => {
     familyDropdown.find(".custom-dropdown-toggle").trigger("click");
-    activeDropDownIndex = 0;
   });
 
   // Insert the dropdown just before the WikiTree toolbar
   familyDropdown.insertBefore($("#toolbar"));
-
-  // Active dropdown list item index, -1 means none active
-  let activeDropDownIndex = -1;
 
   /**
    * Helper: get the <li> element at a given index in the dropdown
@@ -101,6 +103,74 @@ async function initFamilyDropdown() {
   function clearActiveItem() {
     activeDropDownIndex = -1;
     $("#familyDropdown li").removeClass("active");
+  }
+
+  /**
+   * Attach keyboard event listener for dropdown navigation.
+   */
+  function attachKeydownListener() {
+    $(document).on("keydown.familyDropdown", keyboardHandler);
+    console.log("Attaching keyboard listener for dropdown menu");
+  }
+
+  /**
+   * Detach keyboard event listener for dropdown navigation.
+   */
+  function detachKeydownListener() {
+    $(document).off("keydown.familyDropdown", keyboardHandler);
+    console.log("Detaching keyboard listener from dropdown menu");
+  }
+
+  /**
+   * Keyboard event handler for dropdown menu navigation.
+   * Handles arrow keys, Enter, and Escape.
+   * @param {KeyboardEvent} e
+   */
+  function keyboardHandler(e) {
+    const menu = $("#familyDropdown .custom-dropdown-menu");
+    if (menu.css("display") === "none") return;
+
+    const container = document.getElementById("familyDropdown");
+    if (!container || !container.contains(document.activeElement)) return;
+
+    const itemsCount = $("#familyDropdown li").length;
+
+    if (e.key === "Escape") {
+      e.preventDefault();
+      menu.hide();
+      clearActiveItem();
+      $("#familyDropdown .custom-dropdown-toggle").focus();
+      detachKeydownListener();
+      return;
+    }
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const item = getActiveDropDownElement(activeDropDownIndex);
+      if (item.length) {
+        item.trigger("click");
+        clearActiveItem();
+      }
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      activeDropDownIndex++;
+      if (activeDropDownIndex >= itemsCount) activeDropDownIndex = 0;
+      updateActiveItem();
+      getActiveDropDownElement(activeDropDownIndex).focus();
+      return;
+    }
+
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      activeDropDownIndex--;
+      if (activeDropDownIndex < 0) activeDropDownIndex = itemsCount - 1;
+      updateActiveItem();
+      getActiveDropDownElement(activeDropDownIndex).focus();
+      return;
+    }
   }
 
   /**
@@ -253,73 +323,46 @@ async function initFamilyDropdown() {
       activeDropDownIndex = 0;
       updateActiveItem();
       getActiveDropDownElement(activeDropDownIndex).focus();
+      attachKeydownListener();
     } else {
       clearActiveItem();
       $("#familyDropdown .custom-dropdown-toggle").focus();
+      detachKeydownListener();
     }
   }
 
   // Bind toggle button click event
   familyDropdown.find(".custom-dropdown-toggle").on("click", toggleDropDownMenuOnButtonClick);
 
-  // Close dropdown when clicking outside it, and return focus to toggle button
-  $(document).on("click.familyDropdown", (e) => {
-    if ($(e.target).closest("#familyDropdown").length === 0) {
-      $("#familyDropdown .custom-dropdown-menu").hide();
-      clearActiveItem();
-      $("#familyDropdown .custom-dropdown-toggle").focus();
-    }
-  });
-
   /**
-   * Keyboard navigation for dropdown menu items:
-   * ArrowDown / ArrowUp to move selection,
-   * Enter to activate,
-   * Escape to close menu.
+   * Debounced click outside handler to close dropdown.
+   * Ignores clicks inside dropdown, toggle button, and CodeMirror.
    */
-  $(document).on("keydown.familyDropdown", (e) => {
-    const menu = $("#familyDropdown .custom-dropdown-menu");
-    if (menu.css("display") === "none") return;
+  $(document).on("click.familyDropdown", (e) => {
+    const $target = $(e.target);
 
-    const container = document.getElementById("familyDropdown");
-    if (!container || !container.contains(document.activeElement)) return;
-
-    const itemsCount = $("#familyDropdown li").length;
-
-    if (e.key === "Escape") {
-      e.preventDefault();
-      menu.hide();
-      clearActiveItem();
-      $("#familyDropdown .custom-dropdown-toggle").focus();
+    // If dropdown already hidden, no need to close
+    if ($("#familyDropdown .custom-dropdown-menu").css("display") === "none") {
       return;
     }
 
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const item = getActiveDropDownElement(activeDropDownIndex);
-      if (item.length) {
-        item.trigger("click");
-        clearActiveItem();
+    // Ignore clicks inside dropdown, toggle button, or CodeMirror editor
+    if (
+      $target.closest("#familyDropdown").length === 0 &&
+      $target.closest(".custom-dropdown-toggle").length === 0 &&
+      $target.closest(".CodeMirror, .CodeMirror-scroll").length === 0
+    ) {
+      if (closeDropdownTimeout) {
+        clearTimeout(closeDropdownTimeout);
       }
-      return;
-    }
-
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      activeDropDownIndex++;
-      if (activeDropDownIndex >= itemsCount) activeDropDownIndex = 0;
-      updateActiveItem();
-      getActiveDropDownElement(activeDropDownIndex).focus();
-      return;
-    }
-
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      activeDropDownIndex--;
-      if (activeDropDownIndex < 0) activeDropDownIndex = itemsCount - 1;
-      updateActiveItem();
-      getActiveDropDownElement(activeDropDownIndex).focus();
-      return;
+      closeDropdownTimeout = setTimeout(() => {
+        console.log("Click outside dropdown and CodeMirror: closing dropdown");
+        $("#familyDropdown .custom-dropdown-menu").hide();
+        clearActiveItem();
+        $("#familyDropdown .custom-dropdown-toggle").focus();
+        detachKeydownListener();
+        closeDropdownTimeout = null;
+      }, 200);
     }
   });
 
