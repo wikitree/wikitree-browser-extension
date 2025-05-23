@@ -282,7 +282,7 @@ if ($("#ebWBE").length === 0) {
         <button id="showWBEFeatures" title="Highlight WBE features">✨</button>
         <a href="/wiki/Space:WikiTree_Browser_Extension" target="Help" class="wbe-icon WBEHelpIcon enhancedBy"
            title="Help" target="_blank">
-          <img src="https://www.wikitree.com/images/icons/icon-question.svg" alt="Help" />
+          <img src="https://www.wikitree.com/images/icons/icon-question.svg" alt="WikiTree Browser Extension Help" />
         </a>
       </span>
     `);
