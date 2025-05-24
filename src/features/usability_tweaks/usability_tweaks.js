@@ -735,10 +735,11 @@ function makeTableOverflowVisible() {
 
 function addAccessedCountToProfileData() {
   const accessedCountText = $("#subfooter i:contains('This page has been accessed')").text();
-  const accessedCount = accessedCountText.match(/This page has been accessed (\d+) times/);
+  const accessedCount = accessedCountText.match(/This page has been accessed ([\d,]+) times/);
   if (accessedCount) {
-    const count = parseInt(accessedCount[1]);
-    $("#Profile-Data").append(`<div class="profile-data-item wbe">Accessed <strong>${count}</strong> times.</div>`);
+    // Use the matched string directly, commas included
+    const countStr = accessedCount[1];
+    $("#Profile-Data").append(`<div class="profile-data-item wbe">Accessed <strong>${countStr}</strong> times.</div>`);
   }
 }
 
