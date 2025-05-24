@@ -810,7 +810,7 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
           addScratchPadButton();
         }
 
-        if (options.scratchPadPosition) {
+        if (options.scratchPadPosition && options.scratchPadPosition != "false") {
           setTimeout(function () {
             // Find the scratch pad
             const scratch = $("#Scratch");
@@ -843,6 +843,7 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
                   }
                   break;
               }
+              $("#scratchPadDisplayInner").addClass("wbe");
             }
           }, 1000);
         }

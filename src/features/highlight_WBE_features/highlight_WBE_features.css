@@ -1,4 +1,7 @@
 /* Styles for highlightWBEFeatures feature */
+.wbe-highlight #downloadFeatureData,
+.wbe-highlight #importFeatureData,
+.wbe-highlight #scratchPadDisplayInner.wbe,
 .wbe-highlight input[type="button"].wbe,
 .wbe-highlight img.expandTextareaButton,
 .wbe-highlight #nVitals,
