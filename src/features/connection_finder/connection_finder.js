@@ -1189,7 +1189,7 @@ function connectionFinderTable() {
 
             /* 6. timeline / family-sheet icons -------------------------------- */
             const timelineBtn = `<img data-wtid="${m.Name}" src="${timeLineImg}" class="timelineButton" title="View Timeline">`;
-            const familySheetBtn = `<img data-wtid="${m.Name}" src="${homeImg}" class="familyHome" title="View Family Group">`;
+            const familySheetBtn = `<span data-wtid="${m.Name}" class="familyHome" title="View Family Group">🏠</span>`;
 
             /* 7. assemble & append the table row ------------------------------ */
             const $row = $(`
@@ -1260,8 +1260,12 @@ function connectionFinderTable() {
 
           addConnectionText(); // insert the summary sentence
           addWideTableButton(); // existing table buttons
-          $("img.timelineButton").on("click", (e) => cfTimeline($(e.currentTarget)));
-          $("img.familyHome").on("click", function () {
+          $("img.timelineButton").on("click", function (e) {
+            window.pointerY = e.pageY;
+            window.pointerX = e.pageX;
+            cfTimeline($(e.currentTarget));
+          });
+          $("span.familyHome").on("click", function () {
             showFamilySheet($(this), $(this).data("wtid"));
           });
           showHeritageSocietyBox(); // the heritage-society textarea
@@ -1430,23 +1434,23 @@ function showHeritageSocietyBox() {
             }
             if (spF && spM) {
               spPText =
-                (spFather.FirstName + " " + spFather.MiddleName).trim() +
+                (spFather?.FirstName + " " + spFather?.MiddleName).trim() +
                 " and " +
-                (spMother.FirstName + " " + spMother.MiddleName).trim() +
+                (spMother?.FirstName + " " + spMother?.MiddleName).trim() +
                 " (" +
-                spMother.LastNameAtBirth +
+                spMother?.LastNameAtBirth +
                 ") " +
-                spFather.LastNameCurrent;
+                spFather?.LastNameCurrent;
             } else if (spF) {
-              spPText = (spFather.FirstName + " " + spFather.MiddleName).trim() + " " + spFather.LastNameAtBirth;
+              spPText = (spFather?.FirstName + " " + spFather?.MiddleName).trim() + " " + spFather?.LastNameAtBirth;
             } else if (spM) {
               spPText =
-                (spMother.FirstName + " " + spMother.MiddleName).trim() +
+                (spMother?.FirstName + " " + spMother?.MiddleName).trim() +
                 " " +
                 " (" +
-                spMother.LastNameAtBirth +
+                spMother?.LastNameAtBirth +
                 ") " +
-                spMother.LastNameCurrent;
+                spMother?.LastNameCurrent;
             }
             let anS = "";
             if (spPText != "") {

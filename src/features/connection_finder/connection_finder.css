@@ -36,11 +36,8 @@ body.connection .tableContainer {
   right: 1.5em;
 }
 
-#connectionsTable .connectionsName .familyHome {
-  position: absolute;
-  right: 0;
-  left: auto;
-  margin-top: 0;
+#connectionsTable .familyHome {
+  cursor: pointer;
 }
 
 #connectionsTable #theRelText {

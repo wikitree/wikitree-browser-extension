@@ -281,25 +281,25 @@ ol.star1.green > li::before {
 
 /* Enhanced By WBE */
 #showWBEFeatures {
+  text-decoration: none;
   border: none !important;
   padding: 0 !important;
   margin: 0 !important;
-  background: var(--wbe-colour) !important;
   border-radius: 50%;
-  font-size: 11px;
-  width: 17px;
   position: relative;
-  top: -0.1em;
+  cursor: pointer;
 }
-#showWBEFeatures:hover {
-  background: var(--wbe-colour-light) !important;
+#showWBEFeatures:hover circle {
+  fill: var(--wbe-colour-light);
 }
-body.wbe-highlight #showWBEFeatures {
-  background: #000 !important;
+body.wbe-highlight #showWBEFeatures circle {
+  fill: #000;
 }
-#ebWBE img {
-  height: 22px !important;
-  width: 22px !important;
+
+#ebWBE img,
+#ebWBE svg {
+  height: 20px !important;
+  width: 20px !important;
   position: relative;
   top: -0.1em;
 }

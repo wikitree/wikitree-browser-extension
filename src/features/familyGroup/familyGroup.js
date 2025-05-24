@@ -8,9 +8,10 @@ import "jquery-ui/ui/widgets/draggable";
 import { getRelatives } from "wikitree-js";
 import { familyArray, isOK, htmlEntities, setAdjustedDates } from "../../core/common";
 import { mainDomain, isSearchPage, isProfilePage } from "../../core/pageType";
-import { profilePerson, addTab } from "../../core/common";
+import { profilePerson, addTab, setHighestZIndex } from "../../core/common";
 
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { set } from "date-fns";
 
 // Initialize the familyGroup feature if enabled and if on a profile page
 shouldInitializeFeature("familyGroup").then((result) => {
@@ -197,7 +198,7 @@ export async function showFamilySheet(theClicked, profileID) {
     if (isProfilePage) {
       positionTable(theClicked, thisFamilySheet);
     } else {
-      thisFamilySheet.css("z-index", getHighestZindex() + 1);
+      setHighestZIndex(thisFamilySheet);
     }
   } else {
     // If the table doesn't exist, create it by fetching relatives data.
@@ -222,8 +223,7 @@ export async function showFamilySheet(theClicked, profileID) {
       familyTable.attr("id", createValidId(profileID.replace(" ", "_")) + "_family");
       if (!isProfilePage) {
         familyTable.draggable();
-        familyTable.css("z-index", getHighestZindex() + 1);
-        incrementZIndex(familyTable);
+        setHighestZIndex(familyTable);
       }
       familyTable.fadeIn();
 
@@ -299,7 +299,7 @@ export function peopleToTable(kPeople) {
     oPerson.ShortName || oPerson.LongName || oPerson.RealName || oPerson.FirstName
   }'s Family Group`;
   const kTable = $(
-    `<div class='familySheet'><w>↔</w><x>x</x><table class='table-borderless'><caption>${captionText}</caption><thead><tr><th>Relation</th><th>Name</th><th>Birth Date</th><th>Birth Place</th><th>Death Date</th><th>Death Place</th></tr></thead><tbody></tbody></table></div>`
+    `<div class='familySheet wbe-popup'><w>↔</w><x>x</x><table class='table-borderless'><caption>${captionText}</caption><thead><tr><th>Relation</th><th>Name</th><th>Birth Date</th><th>Birth Place</th><th>Death Date</th><th>Death Place</th></tr></thead><tbody></tbody></table></div>`
   );
   kPeople.forEach(function (kPers) {
     if (kPers) {
