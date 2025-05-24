@@ -40,13 +40,6 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 .wbe-highlight #moveClubBadgesDown,
 .wbe-highlight .myConnectionsTableButton,
 .wbe-highlight #clonedEditButton,
-.wbe-highlight #draftsLink,
-.wbe-highlight .randomProfile.dropdown-item,
-.wbe-highlight .randomSpace.dropdown-item,
-.wbe-highlight .whatLinksHere.dropdown-item,
-.wbe-highlight .wte-tm-printer-friendly,
-.wbe-highlight .cc7Tracker,
-.wbe-highlight .wbe.dropdown-item,
 .wbe-highlight span.distanceFromYou,
 .wbe-highlight div.yourRelationshipText,
 .wbe-highlight #pendingMergesFilterButtons button,
@@ -61,14 +54,29 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 .wbe-highlight input.wbe,
 .wbe-highlight #navHomePageHouse,
 .wbe-highlight .accessKeyHint,
-
 .wbe-highlight #rangersButtons button {
   border: var(--wbe-colour) 2px solid !important;
+}
+
+/* Added to top menus */
+.wbe-highlight #draftsLink,
+.wbe-highlight .randomProfile.dropdown-item,
+.wbe-highlight .randomSpace.dropdown-item,
+.wbe-highlight .whatLinksHere.dropdown-item,
+.wbe-highlight .wte-tm-printer-friendly,
+.wbe-highlight .cc7Tracker,
+.wbe-highlight .wbe.dropdown-item {
+  border-right: 5px solid var(--wbe-colour) !important;
+  border-left: 5px solid var(--wbe-colour) !important;
 }
 
 .wbe-highlight ol.STYLED.enumerated {
   padding-top: 0.5em;
   padding-bottom: 0.5em;
+}
+
+.wbe-highlight .helpScissors {
+  color: var(--wbe-colour) !important;
 }
 
 .wbe-highlight span.home {
