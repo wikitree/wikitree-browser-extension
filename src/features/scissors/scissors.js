@@ -349,22 +349,22 @@ export function addItems(copyItems, copyPosition, options = {}) {
       aLI.append(button);
       aUL.append(aLI);
     });
-  }
 
-  if (options.style) {
-    const splitStyle = options.style.split(";");
-    splitStyle.forEach((style) => {
-      const split = style.split(":");
-      aUL.css(split[0], split[1]);
-    });
-  }
+    if (options.style) {
+      const splitStyle = options.style.split(";");
+      splitStyle.forEach((style) => {
+        const split = style.split(":");
+        aUL.css(split[0], split[1]);
+      });
+    }
 
-  if (options.positioning == "before") {
-    copyPosition.before(aUL);
-  } else if (options.positioning == "prepend") {
-    copyPosition.prepend(aUL);
-  } else {
-    copyPosition.append(aUL);
+    if (options.positioning == "before") {
+      copyPosition.before(aUL);
+    } else if (options.positioning == "prepend") {
+      copyPosition.prepend(aUL);
+    } else {
+      copyPosition.append(aUL);
+    }
   }
 }
 
