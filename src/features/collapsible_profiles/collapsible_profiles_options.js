@@ -73,6 +73,12 @@ registerFeature({
               defaultValue: false,
             },
             {
+              id: "collapseProfilesDirective",
+              type: OptionType.CHECKBOX,
+              label: "Advance Directive",
+              defaultValue: false,
+            },
+            {
               id: "collapseProfilesMemories",
               type: OptionType.CHECKBOX,
               label: "Memories",
