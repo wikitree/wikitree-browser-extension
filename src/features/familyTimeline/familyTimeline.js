@@ -510,14 +510,13 @@ export function timeline(id = false) {
       if (isProfilePage) {
         aTimeline.prependTo(theSection);
         //positionTable(aTimeline);
+      } else if ($("#connectionList").length) {
+        aTimeline.prependTo($("#content"));
+        aTimeline.css({ top: window.pointerY - 30, left: 10 });
+        aTimeline.css("z-index", getHighestZindex() + 1);
       } else {
         theContainer = $("div.container");
         aTimeline.prependTo(theContainer);
-        aTimeline.css({ top: window.pointerY - 30, left: 10 });
-        aTimeline.css("z-index", getHighestZindex() + 1);
-      }
-      if ($("#connectionList").length) {
-        aTimeline.prependTo($("#content"));
         aTimeline.css({ top: window.pointerY - 30, left: 10 });
         aTimeline.css("z-index", getHighestZindex() + 1);
       }

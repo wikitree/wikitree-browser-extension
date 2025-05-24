@@ -2500,7 +2500,7 @@ export async function addWideTableButton() {
             }
 
             $("#buttonBox").hide();
-            $(".wideTableButton").text("Wide table");
+            $(".wideTableButton").text("Wide Table");
             if (spaceLargestUnconnectedBranchesMatch) {
               $("#lubRule").remove();
             }

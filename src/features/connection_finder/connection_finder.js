@@ -1115,8 +1115,8 @@ function connectionFinderTable() {
               <thead>
                 <tr>
                   <th></th><th></th><th>Relation</th><th>Name</th>
-                  <th>Birth date</th><th>Birth place</th>
-                  <th>Death date</th><th>Death place</th>
+                  <th>Birth Date</th><th>Birth Place</th>
+                  <th>Death Date</th><th>Death Place</th>
                   <th>Marriage Date</th><th>Marriage Place</th>
                 </tr>
               </thead>
@@ -1128,7 +1128,7 @@ function connectionFinderTable() {
                     <ul>
                       <li>Colours in 'Relation' change at each marriage.</li>
                       <li>Marriage details only for spouse relations.</li>
-                      <li>Colours in 'Birth date' represent 50-year periods.</li>
+                      <li>Colours in 'Birth Date' represent 50-year periods.</li>
                     </ul>
                   </td>
                 </tr>
@@ -1188,31 +1188,31 @@ function connectionFinderTable() {
             } = buildRelationBits(i, relTxt, i > 0 ? people[i - 1].person.Gender : "", m.Gender);
 
             /* 6. timeline / family-sheet icons -------------------------------- */
-            const timelineBtn = `<img data-wtid="${m.Name}" src="${timeLineImg}" class="timelineButton">`;
-            const familySheetBtn = `<img data-wtid="${m.Name}" src="${homeImg}"     class="familyHome">`;
+            const timelineBtn = `<img data-wtid="${m.Name}" src="${timeLineImg}" class="timelineButton" title="View Timeline">`;
+            const familySheetBtn = `<img data-wtid="${m.Name}" src="${homeImg}" class="familyHome" title="View Family Group">`;
 
             /* 7. assemble & append the table row ------------------------------ */
             const $row = $(`
-    <tr data-wtid="${m.Name}" class="${m.Gender}">
-      <td>${pNumber}</td>
-      <td class="buttonsCell">
-        <img class="privacyImage" src="${privacy}" title="${privacyTitle}">
-        ${timelineBtn}${familySheetBtn}
-      </td>
-      <td class="relationship ${relColour}" data-relationship="${i ? corrected : ""}">
-        ${arrow}<span class="hisHer">${pronoun}</span> <span class="relationWord">${baseWord}</span>
-      </td>
-      <td class="connectionsName">
-        <a href="/wiki/${m.Name}">${displayName(m)[0]}</a>
-      </td>
-      <td style="background:${yearColour}" class="aDate ${textColour}">${birthRaw}</td>
-      <td>${birthLoc}</td>
-      <td class="aDate">${deathRaw}</td>
-      <td>${deathLoc}</td>
-      <td class="aDate">${marriageDate}</td>
-      <td>${marriageLoc}</td>
-    </tr>
-  `);
+              <tr data-wtid="${m.Name}" class="${m.Gender}">
+                <td>${pNumber}</td>
+                <td class="buttonsCell">
+                  <img class="privacyImage" src="${privacy}" title="${privacyTitle}">
+                  ${timelineBtn}${familySheetBtn}
+                </td>
+                <td class="relationship ${relColour}" data-relationship="${i ? corrected : ""}">
+                  ${arrow}<span class="hisHer">${pronoun}</span> <span class="relationWord">${baseWord}</span>
+                </td>
+                <td class="connectionsName">
+                  <a href="/wiki/${m.Name}">${displayName(m)[0]}</a>
+                </td>
+                <td style="background:${yearColour}" class="aDate ${textColour}">${birthRaw}</td>
+                <td>${birthLoc}</td>
+                <td class="aDate">${deathRaw}</td>
+                <td>${deathLoc}</td>
+                <td class="aDate">${marriageDate}</td>
+                <td>${marriageLoc}</td>
+              </tr>
+            `);
             $("#connectionsTable tbody").append($row);
 
             /* 8. counters / heritage box -------------------------------------- */
