@@ -41,6 +41,7 @@ shouldInitializeFeature("scissors").then((result) => {
 
 async function helpScissors() {
   const options = await getFeatureOptions("scissors");
+  const displayOptions = {};
   let copyItems = [];
   let copyPosition = $("#person ul.copy--buttons");
   // Network feed
@@ -167,6 +168,7 @@ async function helpScissors() {
 
   // Space page
   if (isSpacePage || isSpaceEdit) {
+    displayOptions.classic = true;
     const aTitle = document.title.replace("Editing ", "");
     copyItems.push({ label: "/Title", text: aTitle });
 
@@ -178,11 +180,12 @@ async function helpScissors() {
 
   // Profile page
   if (isProfilePage || isProfileEdit) {
+    displayOptions.classic = true;
     const userID = $("#pageData").attr("data-mid");
     copyItems.push({ label: "UserID", text: userID });
   }
 
-  addItems(copyItems, copyPosition);
+  addItems(copyItems, copyPosition, displayOptions);
 
   modifyLinkButtons(options);
 
@@ -292,16 +295,46 @@ function AddToOneSection(section, url, copyPosition) {
 }
 
 export function addItems(copyItems, copyPosition, options = {}) {
-  const aUL = $('<ul class="copy--buttons mono-b scissors"></ul>');
-  const imageLI = $("<li></li>");
-  const image = $('<img src="/images/icons/icon-copy.svg" alt="Copy icon">');
-  imageLI.append(image);
-  aUL.append(imageLI);
+  if (options.classic) {
+    for (let i = 0; i < copyItems.length; i++) {
+      const item = copyItems[i];
+      let button = document.createElement("button");
+      button.setAttribute("aria-label", item.label);
+      button.setAttribute("title", item.text);
+      button.setAttribute("data-copy-label", `Copy ${item.label}`);
+      button.setAttribute("class", "copyWidget helpScissors mono-b");
+      button.setAttribute("data-copy-text", item.text);
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-title", "Copy User ID");
 
-  copyItems.forEach((item, index) => {
-    const aLI = $("<li></li>");
-    let theLabel = item.label == "UserID" ? "User ID" : item.label;
-    const button = $(`
+      if (item.image) {
+        button.innerHTML = '<img src="/images/icons/scissors.png">';
+      }
+      if (item.label == "UserID") {
+        item.label = "User ID";
+      }
+      button.innerHTML += item.label.replace("/", "");
+
+      if (item.label == "User ID" || item.label.match("Title")) {
+        const li = document.createElement("li");
+        li.append(button);
+        copyPosition.append(li);
+      } else {
+        copyPosition.append(button);
+      }
+    }
+  } else {
+    const aUL = $('<ul class="copy--buttons mono-b scissors"></ul>');
+
+    const imageLI = $("<li></li>");
+    const image = $('<img src="/images/icons/icon-copy.svg" alt="Copy icon">');
+    imageLI.append(image);
+    aUL.append(imageLI);
+
+    copyItems.forEach((item, index) => {
+      const aLI = $("<li></li>");
+      let theLabel = item.label == "UserID" ? "User ID" : item.label;
+      const button = $(`
           <button class="copyWidget helpScissors mono-b" data-copy-label="Copy ${item.label}" 
               data-copy-text="${item.text}" data-bs-toggle="tooltip" 
               data-bs-title="Copy ${item.label}">
@@ -309,28 +342,29 @@ export function addItems(copyItems, copyPosition, options = {}) {
           </button>
       `);
 
-    button.attr("aria-label", item.label);
-    button.attr("title", item.text);
-    button.attr("data-bs-title", "Copy User ID");
+      button.attr("aria-label", item.label);
+      button.attr("title", item.text);
+      button.attr("data-bs-title", "Copy User ID");
 
-    aLI.append(button);
-    aUL.append(aLI);
-  });
-
-  if (options.style) {
-    const splitStyle = options.style.split(";");
-    splitStyle.forEach((style) => {
-      const split = style.split(":");
-      aUL.css(split[0], split[1]);
+      aLI.append(button);
+      aUL.append(aLI);
     });
-  }
 
-  if (options.positioning == "before") {
-    copyPosition.before(aUL);
-  } else if (options.positioning == "prepend") {
-    copyPosition.prepend(aUL);
-  } else {
-    copyPosition.append(aUL);
+    if (options.style) {
+      const splitStyle = options.style.split(";");
+      splitStyle.forEach((style) => {
+        const split = style.split(":");
+        aUL.css(split[0], split[1]);
+      });
+    }
+
+    if (options.positioning == "before") {
+      copyPosition.before(aUL);
+    } else if (options.positioning == "prepend") {
+      copyPosition.prepend(aUL);
+    } else {
+      copyPosition.append(aUL);
+    }
   }
 }
 

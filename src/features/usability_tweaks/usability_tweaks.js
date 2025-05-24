@@ -582,6 +582,7 @@ function addNavHomePageLink() {
     navHomePageLink.innerHTML = '<a style="text-decoration: none" href="' + link + '">&#127968;</a>';
     navHomePageLink.classList = findButton.classList;
     navHomePageLink.style.fontSize = "125%";
+    navHomePageLink.id = "navHomePageHouse";
 
     findButton.parentNode.parentNode.insertBefore(
       navHomePageLink,

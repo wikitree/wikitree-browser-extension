@@ -263,6 +263,7 @@ function collapseSpecificSections(options) {
     if (options.collapseProfilesResearchNotes) collapseSectionByTarget("Research_Notes");
     if (options.collapseProfilesSources) collapseSectionByTarget("Sources");
     if (options.collapseProfilesAcknowledgments) collapseSectionByTarget("Acknowledgments");
+    if (options.collapseProfilesDirective) collapseSectionByTarget("Advance_Directive");
     if (options.collapseProfilesMemories) collapseSectionByTarget("Memories");
     if (options.collapseProfilesCollaboration) collapseSectionByTarget("Collaboration");
     if (options.collapseProfilesComments) collapseSectionByTarget("Comments");
