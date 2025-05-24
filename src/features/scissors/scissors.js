@@ -43,11 +43,9 @@ async function helpScissors() {
   const options = await getFeatureOptions("scissors");
   let copyItems = [];
   let copyPosition = $("#person ul.copy--buttons");
-  let useIsNew = false;
   // Network feed
   if (isNetworkFeed || isProfileHistoryDetail) {
     const urlParams = new URLSearchParams(window.location.search);
-    useIsNew = true;
     $("h1").first().parent().append(`<div id="wbe-copy" class="col-auto col-lg-12 text-lg-end"></div>`);
     copyPosition = $("#wbe-copy");
     let feedID = urlParams.get("who");
@@ -97,6 +95,7 @@ async function helpScissors() {
   if (isMediaWikiPage || isCategoryEdit) {
     let aTitle = "";
     if (isProjectPage) {
+      copyPosition = $("h1");
       aTitle = "Project:" + document.title.replace(" Project", "");
     } else if (isCategoryPage || isCategoryEdit) {
       aTitle = document.title.replace("Edit ", "").replace(": ", ":").replace(" :", ":").trim();
@@ -127,7 +126,6 @@ async function helpScissors() {
 
     if (isCategoryPage || isCategoryEdit) {
       copyPosition = $("h1");
-      useIsNew = true;
 
       const aLink = `[[${aTitle}]]`;
       copyItems.push({ label: "Use", text: aLink });
@@ -135,12 +133,12 @@ async function helpScissors() {
     if (isTemplatePage) {
       const aLink = `{{${aTitle.replace("Template:", "")}}}`;
       copyItems.push({ label: "Use", text: aLink });
+      copyPosition = $("h1");
     }
   }
 
   if (isImagePage) {
     copyPosition = $("#jump-nav");
-    useIsNew = true;
     const aTitle = document.title.trim();
     const url = window.location.toString().split("#")[0].split("?")[0];
 
@@ -184,7 +182,7 @@ async function helpScissors() {
     copyItems.push({ label: "UserID", text: userID });
   }
 
-  addItems(copyItems, copyPosition, { isNew: useIsNew });
+  addItems(copyItems, copyPosition);
 
   modifyLinkButtons(options);
 
@@ -278,6 +276,9 @@ function AddToOneSection(section, url, copyPosition) {
   if (isSpacePage) {
     title = "Space:" + title;
   }
+  if (isProjectPage) {
+    title = "Project:" + document.location.href.split("Project:")[1].split("#")[0].split("?")[0];
+  }
 
   let wikiLink = "[[" + title + "#" + section + "]]";
 
@@ -287,21 +288,20 @@ function AddToOneSection(section, url, copyPosition) {
   }
   const wikiLinkItem = { label: "Link", text: wikiLink, image: true };
   const urlLinkItem = { label: "URL", text: url, image: false };
-  addItems([wikiLinkItem, urlLinkItem], copyPosition, { isNew: true });
+  addItems([wikiLinkItem, urlLinkItem], copyPosition);
 }
 
-export function addItems(copyItems, copyPosition, options = { isNew: false }) {
-  if (options.isNew) {
-    const aUL = $('<ul class="copy--buttons mono-b scissors"></ul>');
-    const imageLI = $("<li></li>");
-    const image = $('<img src="/images/icons/icon-copy.svg" alt="Copy icon">');
-    imageLI.append(image);
-    aUL.append(imageLI);
+export function addItems(copyItems, copyPosition, options = {}) {
+  const aUL = $('<ul class="copy--buttons mono-b scissors"></ul>');
+  const imageLI = $("<li></li>");
+  const image = $('<img src="/images/icons/icon-copy.svg" alt="Copy icon">');
+  imageLI.append(image);
+  aUL.append(imageLI);
 
-    copyItems.forEach((item, index) => {
-      const aLI = $("<li></li>");
-      let theLabel = item.label == "UserID" ? "User ID" : item.label;
-      const button = $(`
+  copyItems.forEach((item, index) => {
+    const aLI = $("<li></li>");
+    let theLabel = item.label == "UserID" ? "User ID" : item.label;
+    const button = $(`
           <button class="copyWidget helpScissors mono-b" data-copy-label="Copy ${item.label}" 
               data-copy-text="${item.text}" data-bs-toggle="tooltip" 
               data-bs-title="Copy ${item.label}">
@@ -309,57 +309,28 @@ export function addItems(copyItems, copyPosition, options = { isNew: false }) {
           </button>
       `);
 
-      button.attr("aria-label", item.label);
-      button.attr("title", item.text);
-      button.attr("data-bs-title", "Copy User ID");
+    button.attr("aria-label", item.label);
+    button.attr("title", item.text);
+    button.attr("data-bs-title", "Copy User ID");
 
-      aLI.append(button);
-      aUL.append(aLI);
+    aLI.append(button);
+    aUL.append(aLI);
+  });
+
+  if (options.style) {
+    const splitStyle = options.style.split(";");
+    splitStyle.forEach((style) => {
+      const split = style.split(":");
+      aUL.css(split[0], split[1]);
     });
+  }
 
-    if (options.style) {
-      const splitStyle = options.style.split(";");
-      splitStyle.forEach((style) => {
-        const split = style.split(":");
-        aUL.css(split[0], split[1]);
-      });
-    }
-
-    if (options.positioning == "before") {
-      copyPosition.before(aUL);
-    } else if (options.positioning == "prepend") {
-      copyPosition.prepend(aUL);
-    } else {
-      copyPosition.append(aUL);
-    }
+  if (options.positioning == "before") {
+    copyPosition.before(aUL);
+  } else if (options.positioning == "prepend") {
+    copyPosition.prepend(aUL);
   } else {
-    for (let i = 0; i < copyItems.length; i++) {
-      const item = copyItems[i];
-      let button = document.createElement("button");
-      button.setAttribute("aria-label", item.label);
-      button.setAttribute("title", item.text);
-      button.setAttribute("data-copy-label", `Copy ${item.label}`);
-      button.setAttribute("class", "copyWidget helpScissors mono-b");
-      button.setAttribute("data-copy-text", item.text);
-      button.setAttribute("data-bs-toggle", "tooltip");
-      button.setAttribute("data-bs-title", "Copy User ID");
-
-      if (item.image) {
-        button.innerHTML = '<img src="/images/icons/scissors.png">';
-      }
-      if (item.label == "UserID") {
-        item.label = "User ID";
-      }
-      button.innerHTML += item.label.replace("/", "");
-
-      if (item.label == "User ID" || item.label.match("Title")) {
-        const li = document.createElement("li");
-        li.append(button);
-        copyPosition.append(li);
-      } else {
-        copyPosition.append(button);
-      }
-    }
+    copyPosition.append(aUL);
   }
 }
 

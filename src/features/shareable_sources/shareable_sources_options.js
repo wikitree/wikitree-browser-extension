@@ -11,7 +11,7 @@ registerFeature({
   description: "See the sources from the profile person's family members.",
   category: "Editing",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
+  contributors: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
   defaultValue: false,
   pages: [isProfileEdit, isProfileAddRelative],
   options: [
