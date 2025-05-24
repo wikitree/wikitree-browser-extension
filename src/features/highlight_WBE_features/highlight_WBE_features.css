@@ -60,6 +60,8 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 .wbe-highlight #showBirthplacesButton,
 .wbe-highlight input.wbe,
 .wbe-highlight #navHomePageHouse,
+.wbe-highlight .accessKeyHint,
+
 .wbe-highlight #rangersButtons button {
   border: var(--wbe-colour) 2px solid !important;
 }
