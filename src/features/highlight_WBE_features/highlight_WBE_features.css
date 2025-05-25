@@ -1,4 +1,6 @@
 /* Styles for highlightWBEFeatures feature */
+
+/* 2px border */
 .wbe-highlight #downloadFeatureData,
 .wbe-highlight #importFeatureData,
 .wbe-highlight #scratchPadDisplayInner.wbe,
@@ -72,43 +74,27 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
   border-left: 5px solid var(--wbe-colour) !important;
 }
 
-.wbe-highlight ol.STYLED.enumerated {
-  padding-top: 0.5em;
-  padding-bottom: 0.5em;
-}
-
+/* coloured text */
 .wbe-highlight .helpScissors,
 .wbe-highlight #Profile-Data .wbe {
   color: var(--wbe-colour) !important;
 }
 
-.wbe-highlight span.home {
-  border-bottom: var(--wbe-colour) 3px solid;
-}
-
-.wbe-highlight span.awtG2GLink {
-  border-width: 1px !important;
-}
-
-.wbe-highlight div.yourRelationshipText {
-  border-left-width: 1px !important;
-  border-top-width: 1px !important;
-}
-
-.wbe-highlight input.catCheck {
-  outline: auto 1px var(--wbe-colour) !important;
-}
-
+/* box shadows */
 .wbe-highlight #extraWatchlistWindow,
 .wbe-highlight div.wbe-popup,
 .wbe-highlight #myDrafts,
 .wbe-highlight div#verification {
   box-shadow: 0.1em 0.1em 0.1em 0.1em var(--wbe-colour-light) !important;
 }
+
+/* no border-bottom */
 .wbe-highlight button.wbe-tab,
 .wbe-highlight span.awtG2GLink {
   border-bottom: none !important;
 }
+
+/* 3px border */
 .wbe-highlight textarea.wbe,
 .wbe-highlight form.wbe,
 .wbe-highlight div.familySheet,
@@ -136,9 +122,12 @@ html[data-wbe-genderpredictor] .wbe-highlight #mGender,
 .wbe-highlight .input-group.wbe .form-control,
 .wbe-highlight #editToolbarExt,
 .wbe-highlight #googleSearchBox,
-.wbe-highlight #helpSearchBox {
+.wbe-highlight #helpSearchBox,
+.wbe-highlight #changeSummaryOptions {
   border: var(--wbe-colour) 3px solid !important;
 }
+
+/* rounded corners */
 .wbe-highlight textarea.wbe,
 .wbe-highlight div.wbe-popup,
 .wbe-highlight #addFSID,
@@ -160,22 +149,7 @@ html[data-wbe-genderpredictor] .wbe-highlight #mGender,
   border-radius: 5px !important;
 }
 
-.wbe-highlight .accessKeyHint {
-  padding: 1px;
-}
-
-.wbe-highlight .wbe-button:not(.toggleTipsColumn, #toggleFamilyColumn) {
-  filter: var(--wbe-icon-filter) !important;
-}
-
-.wbe-highlight .myMenuGears,
-.wbe-highlight #changeSummaryGears,
-.wbe-highlight ul.scissors img,
-.wbe-highlight #jigsawMan,
-.wbe-highlight .WBEHelpIcon span.icon--help {
-  filter: var(--wbe-icon-filter) !important;
-}
-
+/* padding and margin 0.5em / display:block */
 .wbe-highlight #addFSID,
 .wbe-highlight #summaryOptionsContainer,
 .wbe-highlight #anniversariesTable_wrapper,
@@ -187,26 +161,12 @@ html[data-wbe-genderpredictor] .wbe-highlight #mGender,
   margin: 0.5em;
   display: block;
 }
-.wbe-highlight #editToolbarExt {
-  margin: auto;
-}
+
+/* display:inline-block */
 .wbe-highlight #newPersonSummary,
 .wbe-highlight a.backToTop,
 .wbe-highlight #onlyMembers {
   display: inline-block;
-}
-.wbe-highlight #tabs .clipboardContainer {
-  border-left: 0.4em solid var(--wbe-colour) !important;
-  margin-left: 0.5em;
-}
-
-body.wbe-highlight .showWBEFeatures circle {
-  fill: var(--wbe-colour-light) !important;
-}
-
-body.wbe-highlight #myMenuGroup {
-  border-top: 2px solid var(--wbe-colour) !important;
-  border-bottom: 2px solid var(--wbe-colour) !important;
 }
 
 /* Button borders need to be lighter */
@@ -249,4 +209,55 @@ body.wbe-highlight #myMenuGroup {
 .wbe-highlight img.mw-toolbar-editbutton[alt="Automatic GEDCOM Cleanup"],
 .wbe-highlight #expandTextareaButton {
   border-color: var(--wbe-colour-light) !important;
+}
+
+/* Individual tweaks */
+.wbe-highlight ol.STYLED.enumerated {
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
+}
+.wbe-highlight span.home {
+  border-bottom: var(--wbe-colour) 3px solid;
+}
+.wbe-highlight span.awtG2GLink {
+  border-width: 1px !important;
+}
+.wbe-highlight div.yourRelationshipText {
+  border-left-width: 1px !important;
+  border-top-width: 1px !important;
+}
+.wbe-highlight input.catCheck {
+  outline: auto 1px var(--wbe-colour) !important;
+}
+.wbe-highlight .accessKeyHint {
+  padding: 1px;
+}
+
+.wbe-highlight #tabs .clipboardContainer {
+  border-left: 0.4em solid var(--wbe-colour) !important;
+  margin-left: 0.5em;
+}
+
+body.wbe-highlight .showWBEFeatures circle {
+  fill: var(--wbe-colour-light) !important;
+}
+
+body.wbe-highlight #myMenuGroup {
+  border-top: 2px solid var(--wbe-colour) !important;
+  border-bottom: 2px solid var(--wbe-colour) !important;
+}
+.wbe-highlight #editToolbarExt {
+  margin: auto;
+}
+
+/* image filters */
+.wbe-highlight .wbe-button:not(.toggleTipsColumn, #toggleFamilyColumn) {
+  filter: var(--wbe-icon-filter);
+}
+.wbe-highlight .myMenuGears,
+.wbe-highlight #changeSummaryGears,
+.wbe-highlight ul.scissors img,
+.wbe-highlight #jigsawMan,
+.wbe-highlight .WBEHelpIcon span.icon--help {
+  filter: var(--wbe-icon-filter);
 }
