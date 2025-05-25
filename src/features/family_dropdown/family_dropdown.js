@@ -46,6 +46,7 @@ shouldInitializeFeature("familyDropdown").then((result) => {
  * Builds the dropdown HTML, binds events for toggling and keyboard navigation.
  * Populates the dropdown with relatives on first open.
  */
+
 async function initFamilyDropdown() {
   // Exit early if no profile or not an edit page
   if (!theID || !isProfileEdit) return;
@@ -139,7 +140,7 @@ async function initFamilyDropdown() {
       e.preventDefault();
       menu.hide();
       clearActiveItem();
-      $("#familyDropdown .custom-dropdown-toggle").focus();
+      $("#familyDropdown .custom-dropdown-toggle").trigger("focus");
       detachKeydownListener();
       return;
     }
@@ -326,7 +327,7 @@ async function initFamilyDropdown() {
       attachKeydownListener();
     } else {
       clearActiveItem();
-      $("#familyDropdown .custom-dropdown-toggle").focus();
+      $("#familyDropdown .custom-dropdown-toggle").trigger("focus");
       detachKeydownListener();
     }
   }
@@ -359,7 +360,7 @@ async function initFamilyDropdown() {
         console.log("Click outside dropdown and CodeMirror: closing dropdown");
         $("#familyDropdown .custom-dropdown-menu").hide();
         clearActiveItem();
-        $("#familyDropdown .custom-dropdown-toggle").focus();
+        $("#familyDropdown .custom-dropdown-toggle").trigger("focus");
         detachKeydownListener();
         closeDropdownTimeout = null;
       }, 200);
@@ -432,7 +433,11 @@ async function initFamilyDropdown() {
       }
       $("#familyDropdown .custom-dropdown-menu").hide();
       clearActiveItem();
-      FocusWpTextBoxIfPresent();
+      /* If Shareable Sources is NOT connected, return focus to the edit box.
+        Otherwise let getSources() keep the caret on its first button. */
+      if (!window.shareableSourcesOptions?.connectWithFamilyDropdown || !window.shareableSourcesEnabled) {
+        FocusWpTextBoxIfPresent();
+      }
 
       /**
        * Focuses the main WikiTree textbox if present,
@@ -443,6 +448,21 @@ async function initFamilyDropdown() {
         if (box.length) box.trigger("focus");
       }
     });
+
+  // Highest-priority Escape: close the dropdown before anything else
+  $(document).on("keydown.familyDropdownGlobalEsc", function (e) {
+    if (e.key !== "Escape") return;
+
+    const menu = $("#familyDropdown .custom-dropdown-menu");
+    if (menu.is(":visible")) {
+      e.preventDefault(); // don't let the keystroke do anything else
+      e.stopImmediatePropagation(); // ← stops the Shareable-Sources handler
+      menu.hide();
+      clearActiveItem();
+      $("#familyDropdown .custom-dropdown-toggle").trigger("focus");
+      detachKeydownListener();
+    }
+  });
 }
 
 /**
