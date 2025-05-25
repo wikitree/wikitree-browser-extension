@@ -223,38 +223,32 @@ ol.star1.green > li::before {
   border-color: #8fc641;
 }
 
-#ebWBE {
+.ebWBE {
   font-size: small;
   display: block;
   margin-top: 0.3em;
   min-width: max-content;
+  height: 0.65em;
 }
 @media (max-width: 600px) {
-  #ebWBE {
+  .ebWBE {
     font-size: x-small;
     margin-left: 1em;
   }
 }
 @media (min-width: 992px) and (max-width: 1200px) {
-  #ebWBE {
+  .ebWBE {
     font-size: x-small;
     margin-left: 1em;
   }
 }
 
 /* WBE branding */
-/* #D18400 (almost brown) or #e29306 or...? */
 :root {
-  --wbe-orange: #e29306;
-  --wbe-orange-light: #ffd180;
-  --wbe-orange-icon-filter: invert(57%) sepia(98%) saturate(563%) hue-rotate(2deg) brightness(93%) contrast(95%);
-  --wbe-colour: #00bfff;
-  --wbe-colour-light: #83defc;
-  --wbe-icon-filter: invert(53%) sepia(100%) saturate(3900%) hue-rotate(193deg) brightness(131%) contrast(110%);
-}
-
-.enhancedBy {
-  filter: var(--wbe-icon-filter) !important;
+  --wbe-colour: #005070;
+  --wbe-colour-light: #0086b3;
+  --wbe-icon-filter: sepia(0%) saturate(650%) hue-rotate(80deg) brightness(81%) contrast(101%);
+  --wbe-icon-filter-light: sepia(0%) saturate(650%) hue-rotate(80deg) brightness(120%) contrast(101%);
 }
 
 /* Tooltip for the WBE help icon */
@@ -265,7 +259,6 @@ ol.star1.green > li::before {
 .WBEHelpIcon span.icon--help {
   background-size: 26px 26px !important;
   background-position: center !important;
-  filter: var(--wbe-icon-filter) !important;
 }
 
 .WBEHelpIcon::before {
@@ -280,7 +273,7 @@ ol.star1.green > li::before {
 /* End tooltip stuff */
 
 /* Enhanced By WBE */
-#showWBEFeatures {
+.showWBEFeatures {
   text-decoration: none;
   border: none !important;
   padding: 0 !important;
@@ -289,15 +282,12 @@ ol.star1.green > li::before {
   position: relative;
   cursor: pointer;
 }
-#showWBEFeatures:hover circle {
+.showWBEFeatures:hover circle {
   fill: var(--wbe-colour-light);
 }
-body.wbe-highlight #showWBEFeatures circle {
-  fill: #000;
-}
 
-#ebWBE img,
-#ebWBE svg {
+.ebWBE img,
+.ebWBE svg {
   height: 20px !important;
   width: 20px !important;
   position: relative;

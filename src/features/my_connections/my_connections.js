@@ -34,7 +34,7 @@ const privacyPrivacy35URL = chrome.runtime.getURL("images/privacy_privacy35.png"
 const privacyPublicBioURL = chrome.runtime.getURL("images/privacy_public-bio.png");
 const privacyPrivateURL = chrome.runtime.getURL("images/privacy_private.png");
 const privacyUnlistedURL = chrome.runtime.getURL("images/unlisted.png");
-const homeIconURL = chrome.runtime.getURL("images/Home_icon.png");
+const homeIconURL = chrome.runtime.getURL("images/family_group.svg");
 const blueBricksURL = chrome.runtime.getURL("images/blue_bricks.jpg");
 const pinkBricksURL = chrome.runtime.getURL("images/pink_bricks.jpg");
 const purpleBricksURL = chrome.runtime.getURL("images/purple_bricks.jpg");
@@ -1736,7 +1736,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
         ${missingChildrenCell}
         ${ahnenCell}
         ${relCell}
-        <td class='connectionsName'  title='${unknownText}'><img class='familyHome' src='${homeIconURL}'><img class='privacyImage' src='${privacy}' title='${privacyTitle}'>${oLink}</td>
+        <td class='connectionsName'  title='${unknownText}'><img class='familyHome' src='${homeIconURL}' width='18' height='18'><img class='privacyImage' src='${privacy}' title='${privacyTitle}' height='7' width='7'>${oLink}</td>
         <td class='lnab'><a href="https://${mainDomain}/index.php?title=Special:Surname&order=name&layout=table&s=${mPerson.LastNameAtBirth}">${mPerson.LastNameAtBirth}</a></td>
         <td class='lnc'><a href="https://${mainDomain}/index.php?title=Special:Surname&order=name&layout=table&s=${mPerson.LastNameCurrent}">${mPerson.LastNameCurrent}</a></td>
         <td class='aDate birthdate'>${birthDate}</td><td class='location birthlocation'>${birthLocation}</td>

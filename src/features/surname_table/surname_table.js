@@ -151,6 +151,7 @@ async function init() {
   }
 }
 
+const homeIconSrc = chrome.runtime.getURL("images/family_group.svg");
 /**
  * Adds a home icon (representing the family group) to each row in the table.
  *
@@ -161,7 +162,9 @@ async function addHomeIcon() {
     const indexCell = $(this).find("td").eq(0);
     const thisWTID =
       $(this).find("input[name='mergeany[]']").val() || $(this).find("a").eq(0).attr("href").split("/")?.[2] || "";
-    let homeIcon = $(`<span data-wtid="${thisWTID}" class='home'  title='See family group'>🏠</span>`);
+    let homeIcon = $(
+      `<span data-wtid="${thisWTID}" class='home wbe'  title='See family group'><img height="18" width="18" src="${homeIconSrc}"></span>`
+    );
     if (thisWTID) {
       indexCell.append(homeIcon);
     }

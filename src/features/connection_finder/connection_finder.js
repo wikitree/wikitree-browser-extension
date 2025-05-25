@@ -86,6 +86,7 @@ const yearColours = [
   "#4B088A",
   "#868A08",
 ];
+const colourArr = [...yearColours].reverse(); // Reverse the yearColours array for use in the timeline
 const familyColours = [
   "#90EE90", // lightgreen
   "#ADD8E6", // lightblue
@@ -122,8 +123,8 @@ const publicTreePrivacy = chrome.runtime.getURL("images/privacy_privacy35.png");
 const publicBioPrivacy = chrome.runtime.getURL("images/privacy_public-bio.png");
 const privatePrivacy = chrome.runtime.getURL("images/privacy_private.png");
 const unlisted = chrome.runtime.getURL("images/unlisted.png");
-const timeLineImg = chrome.runtime.getURL("images/timeline.png");
-const homeImg = chrome.runtime.getURL("images/Home_icon.png");
+const timeLineImg = chrome.runtime.getURL("images/timeline.svg");
+const homeImg = chrome.runtime.getURL("images/family_group.svg");
 
 let connectionNames = [];
 
@@ -727,7 +728,7 @@ function addAPrivate(privateMatch, person) {
 function getRels(rel, person, theRelation = false) {
   const peeps = [];
   if (typeof rel == "undefined" || rel == null) {
-    return false;
+    return []; // <--- Return empty array, NOT false!
   }
   const pKeys = Object.keys(rel);
   pKeys.forEach(function (pKey) {
@@ -1019,7 +1020,7 @@ function reduceRelWordsMore() {
    ----------------------------------------------------------------------
    • returns   { birthRaw, deathRaw,  yearColour, textColour,
                  birthLoc,  deathLoc }
-   • uses the global  yearColours  array that’s already defined
+   • uses the global  colourArr  array that’s already defined
    ====================================================================== */
 function buildDateBits(p) {
   const birthRaw = ymdFix(p.BirthDate) || p.BirthDateDecade || "";
@@ -1027,7 +1028,7 @@ function buildDateBits(p) {
 
   const bYear = parseInt(birthRaw.slice(0, 4)) || "";
   const bucket = bYear === "" ? -1 : Math.floor(bYear / 50);
-  const yearColour = bucket < 0 || bYear > 1999 ? "#fff" : yearColours[bucket];
+  const yearColour = bucket < 0 || bYear > 1999 ? "#fff" : colourArr[bucket];
 
   const whiteTextBuckets = [5, 10, 15, 17, 18, 20];
   const textColour = bucket >= 0 && bucket < 22 && !whiteTextBuckets.includes(bucket) ? "whiteText" : "";
@@ -1109,7 +1110,6 @@ function connectionFinderTable() {
         dataType: "json",
         xhrFields: { withCredentials: true },
         success: function (data) {
-          yearColours.reverse();
           const table = $(`
             <table id="connectionsTable">
               <thead>
@@ -1188,8 +1188,8 @@ function connectionFinderTable() {
             } = buildRelationBits(i, relTxt, i > 0 ? people[i - 1].person.Gender : "", m.Gender);
 
             /* 6. timeline / family-sheet icons -------------------------------- */
-            const timelineBtn = `<img data-wtid="${m.Name}" src="${timeLineImg}" class="timelineButton" title="View Timeline">`;
-            const familySheetBtn = `<span data-wtid="${m.Name}" class="familyHome" title="View Family Group">🏠</span>`;
+            const timelineBtn = `<img data-wtid="${m.Name}" src="${timeLineImg}" class="timelineButton" width="18" height="18" title="View Family Timeline">`;
+            const familySheetBtn = `<span data-wtid="${m.Name}" class="familyHome" title="View Family Group"><img src="${homeImg}" width="18" height="18"></span>`;
 
             /* 7. assemble & append the table row ------------------------------ */
             const $row = $(`
@@ -1270,6 +1270,13 @@ function connectionFinderTable() {
           });
           showHeritageSocietyBox(); // the heritage-society textarea
           $(".treeImg").remove(); // remove the tree GIF
+          // Smooth scroll to 200px above the table
+          $("html, body").animate(
+            {
+              scrollTop: $("#connectionsTable").offset().top - 200,
+            },
+            500
+          );
         },
       });
 
@@ -1338,9 +1345,11 @@ function addConnectionText(num = 0) {
   /* 6) add a small “Copy” button                                       */
   /* ------------------------------------------------------------------ */
   const $copyBtn = $(`
-    <button id="copyRelText"
-            class="small button"
-            style="margin-left:.5em;">Copy</button>
+    <img id="copyRelText" src="https://www.wikitree.com/images/icons/icon-copy.svg" 
+            height:"18" width="18" 
+            class="small wbe"
+            style="margin-left:.5em;" 
+            title="Copy the relationship description" />
   `).on("click", () => {
     /* use the Clipboard API when available, fall back otherwise */
     if (navigator.clipboard && navigator.clipboard.writeText) {

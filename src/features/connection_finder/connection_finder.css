@@ -336,4 +336,11 @@ body.connection #copyRelText {
   position: absolute;
   left: -3em;
   margin-top: -3em;
+  cursor: pointer;
+}
+body.connection #copyRelText:hover {
+  filter: var(--wbe-icon-filter) !important;
+}
+body.connection #copyRelText:active {
+  filter: var(--wbe-icon-filter-light) !important;
 }

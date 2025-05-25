@@ -4,7 +4,6 @@ import $ from "jquery";
 import { mainDomain } from "../../core/pageType";
 import { getUserNumId } from "../../core/common";
 
-let editLink;
 function init() {
   const profileRows = document.getElementsByTagName("tr");
 
@@ -20,6 +19,7 @@ function init() {
       const checkBox = document.createElement("input");
       checkBox.type = "checkbox";
       checkBox.value = profileId;
+      checkBox.classList.add("wbe");
       checkBox.id = "cb_" + profileId;
 
       const tdThis = editLink.parentNode;

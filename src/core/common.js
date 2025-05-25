@@ -2,10 +2,6 @@
 Created By: Ian Beacall (Beacall-6)
 Contributors: Jonathan Duke (Duke-5773)
 
-export let isProfileAddRelative = false;
-// Add unrelated person
-export let isAddUnrelatedPerson = false;
-
 */
 
 import $ from "jquery";
@@ -273,19 +269,19 @@ oncePerTab((rootWindow) => {
 });
 /*
  * * * * * * * * * * * * * * * * * * * */
-//         <button id="showWBEFeatures" title="Highlight WBE features">✨</button>
 
-const sparkleIcon = chrome.runtime.getURL("images/sparkle.svg");
 const questionIcon = chrome.runtime.getURL("images/question-icon.svg");
-if ($("#ebWBE").length === 0) {
+// const fillColor = "#00bfff"; // Default fill color for the WBE icon
+const fillColor = "#25422d"; // Default fill color for the WBE icon
+if ($(".ebWBE").length === 0) {
   $('a img[alt="WikiTree: Where genealogists collaborate"]').parent("a").after(`
-  <span id="ebWBE">
+  <span class="ebWBE">
     <a style="color: inherit !important; text-decoration: none;"
        href="/wiki/Space:WikiTree_Browser_Extension">Enhanced by the WikiTree Browser Extension</a>
-    <a class="wbe-icon" id="showWBEFeatures" title="Highlight WBE features">
+    <a class="wbe-icon showWBEFeatures" title="Highlight WBE features">
       <!-- Inline SVG starts here -->
       <svg class="wbe-sparkle-icon" width="28" height="28" viewBox="0 0 512 512" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="256" cy="256" r="256" fill="#00bfff" />
+        <circle cx="256" cy="256" r="256" fill="${fillColor}" />
         <g transform="translate(64,64) scale(0.85)">
           <path
             class="wbe-sparkle-main"
@@ -301,18 +297,24 @@ if ($("#ebWBE").length === 0) {
     </a>
     <a href="/wiki/Space:WikiTree_Browser_Extension" target="Help" class="wbe-icon WBEHelpIcon enhancedBy"
        title="WBE Help" target="_blank">
-      <img src="${questionIcon}" alt="WikiTree Browser Extension Help" />
+       <svg  width="28" height="28" viewBox="66.26 66.26 379.48 379.48" xmlns="http://www.w3.org/2000/svg">
+    <path
+        d="m256 66.27c-104.62 0-189.74 85.113-189.74 189.74 0 104.62 85.121 189.73 189.74 189.73s189.74-85.117 189.74-189.74c0-104.62-85.121-189.73-189.74-189.73zm21.27 288.59h-43.258v-24.176h43.258zm23.184-90.527c-19.977 9.8984-23.199 22.035-23.199 47.258h-43.258c0-21.883 0-62.613 47.254-86.02 9.1094-4.5156 10.418-12.523 8.6133-18.504-2.457-8.1055-12-15.867-31.441-13.348-29.188 3.793-32.211 21.34-32.441 26.629l-43.258-0.41797c-0.011718-20.75 14.629-61.902 70.117-69.113 43.34-5.6172 70.59 17.891 78.418 43.688 8.4648 27.926-4.207 56.637-30.805 69.828z"
+        fill="${fillColor}" />
+</svg>
     </a>
   </span>
 `);
 
+  //      <img src="${questionIcon}" alt="WikiTree Browser Extension Help" />
+
   // Click handler toggles body class and updates button title
-  $("header").on("click", "#showWBEFeatures", function (e) {
+  $("header").on("click", ".showWBEFeatures", function (e) {
     e.preventDefault();
     $("body").toggleClass("wbe-highlight");
 
     const isHighlighted = $("body").hasClass("wbe-highlight");
-    $("#showWBEFeatures").attr("title", isHighlighted ? "Remove WBE features highlight" : "Highlight WBE features");
+    $(".showWBEFeatures").attr("title", isHighlighted ? "Remove WBE features highlight" : "Highlight WBE features");
   });
 }
 

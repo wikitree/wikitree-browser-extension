@@ -75,7 +75,8 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
   padding-bottom: 0.5em;
 }
 
-.wbe-highlight .helpScissors {
+.wbe-highlight .helpScissors,
+.wbe-highlight #Profile-Data .wbe {
   color: var(--wbe-colour) !important;
 }
 
@@ -126,10 +127,14 @@ html[data-wbe-savebuttonsstyleoptions] .wbe-highlight div.form-buttons button,
 .wbe-highlight div#verification,
 .wbe-highlight #filterButtons button,
 .wbe-highlight #newPersonSummary,
-html[data-wbe-datefixer] #mBirthDate,
-html[data-wbe-datefixer] #mDeathDate,
-html[data-wbe-datefixer] #mMarriageDate,
-.wbe-highlight #editToolbarExt {
+html[data-wbe-datefixer] .wbe-highlight #mBirthDate,
+html[data-wbe-datefixer] .wbe-highlight #mDeathDate,
+html[data-wbe-datefixer] .wbe-highlight #mMarriageDate,
+html[data-wbe-genderpredictor] .wbe-highlight #mGender,
+.wbe-highlight .input-group.wbe .form-control,
+.wbe-highlight #editToolbarExt,
+.wbe-highlight #googleSearchBox,
+.wbe-highlight #helpSearchBox {
   border: var(--wbe-colour) 3px solid !important;
 }
 .wbe-highlight textarea.wbe,
@@ -148,15 +153,27 @@ html[data-wbe-datefixer] #mMarriageDate,
 .wbe-highlight ol.STYLED.enumerated,
 .wbe-highlight a.backToTop,
 .wbe-highlight h2#What_Links_Here:has(.toggle-whl),
-.wbe-highlight #onlyMembers {
+.wbe-highlight #onlyMembers,
+.wbe-highlight .accessKeyHint {
   border-radius: 5px !important;
 }
+
+.wbe-highlight .accessKeyHint {
+  padding: 1px;
+}
+
+.wbe-highlight .wbe-button:not(.toggleTipsColumn, #toggleFamilyColumn) {
+  filter: var(--wbe-icon-filter) !important;
+}
+
 .wbe-highlight .myMenuGears,
 .wbe-highlight #changeSummaryGears,
 .wbe-highlight ul.scissors img,
-.wbe-highlight #jigsawMan {
+.wbe-highlight #jigsawMan,
+.wbe-highlight .WBEHelpIcon span.icon--help {
   filter: var(--wbe-icon-filter) !important;
 }
+
 .wbe-highlight #addFSID,
 .wbe-highlight #summaryOptionsContainer,
 .wbe-highlight #anniversariesTable_wrapper,
@@ -179,4 +196,53 @@ html[data-wbe-datefixer] #mMarriageDate,
 .wbe-highlight #tabs .clipboardContainer {
   border-left: 0.4em solid var(--wbe-colour) !important;
   margin-left: 0.5em;
+}
+
+body.wbe-highlight .showWBEFeatures circle {
+  fill: var(--wbe-colour-light) !important;
+}
+
+body.wbe-highlight #myMenuGroup {
+  border-top: 2px solid var(--wbe-colour) !important;
+  border-bottom: 2px solid var(--wbe-colour) !important;
+}
+
+/* Button borders need to be lighter */
+.wbe-highlight #downloadFeatureData,
+.wbe-highlight #importFeatureData,
+.wbe-highlight #scratchPadDisplayInner.wbe,
+.wbe-highlight input[type="button"].wbe,
+.wbe-highlight img.expandTextareaButton,
+.wbe-highlight button.special-collapse-button,
+.wbe-highlight button.collapse-toggle,
+.wbe-highlight button.collapse-all-toggle,
+.wbe-highlight button.collapse-toc-toggle,
+.wbe-highlight #showAllDegreesButton,
+.wbe-highlight span.awtG2GLink,
+.wbe-highlight button.copyLocation,
+.wbe-highlight button#surnameTableMoreButton,
+.wbe-highlight #leftButton,
+.wbe-highlight #rightButton,
+.wbe-highlight #saveSearchFromButton,
+.wbe-highlight #flipLocationsButton,
+.wbe-highlight .wideTableButton,
+.wbe-highlight button.moreDetails,
+.wbe-highlight button#surnameSummaries,
+.wbe-highlight #customActionsContainer button,
+.wbe-highlight .categoryTablesButton,
+.wbe-highlight #hideClubBadges,
+.wbe-highlight #moveClubBadgesDown,
+.wbe-highlight .myConnectionsTableButton,
+.wbe-highlight #clonedEditButton,
+.wbe-highlight #pendingMergesFilterButtons button,
+.wbe-highlight button.image-template-copy-button,
+.wbe-highlight #removeMeButton,
+.wbe-highlight #saveSearchFormButton,
+.wbe-highlight #showBirthplacesButton,
+.wbe-highlight #rangersButtons button,
+.wbe-highlight #googleSearchBox,
+.wbe-highlight #helpSearchBox,
+.wbe-highlight .toggleTipsColumn,
+.wbe-highlight #toggleFamilyColumn {
+  border-color: var(--wbe-colour-light) !important;
 }

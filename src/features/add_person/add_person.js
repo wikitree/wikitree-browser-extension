@@ -459,7 +459,10 @@ function addAdditionalFields() {
 }
 
 function shortenInputs() {
-  $("#mBirthDate, #mDeathDate, #mMarriageDate, #mPrefix, #mSuffix, #mGender").closest("div").css("width", "15em");
+  $("#mBirthDate, #mDeathDate, #mMarriageDate, #mPrefix, #mSuffix, #mGender")
+    .closest("div")
+    .css("width", "15em")
+    .addClass("wbe");
 }
 
 function addCategoryPicker() {
