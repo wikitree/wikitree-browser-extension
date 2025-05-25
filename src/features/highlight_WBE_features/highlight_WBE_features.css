@@ -54,7 +54,9 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 .wbe-highlight input.wbe,
 .wbe-highlight #navHomePageHouse,
 .wbe-highlight .accessKeyHint,
-.wbe-highlight #rangersButtons button {
+.wbe-highlight #rangersButtons button,
+.wbe-highlight img.mw-toolbar-editbutton[alt="Automatic GEDCOM Cleanup"],
+.wbe-highlight #expandTextareaButton {
   border: var(--wbe-colour) 2px solid !important;
 }
 
@@ -243,6 +245,8 @@ body.wbe-highlight #myMenuGroup {
 .wbe-highlight #googleSearchBox,
 .wbe-highlight #helpSearchBox,
 .wbe-highlight .toggleTipsColumn,
-.wbe-highlight #toggleFamilyColumn {
+.wbe-highlight #toggleFamilyColumn,
+.wbe-highlight img.mw-toolbar-editbutton[alt="Automatic GEDCOM Cleanup"],
+.wbe-highlight #expandTextareaButton {
   border-color: var(--wbe-colour-light) !important;
 }
