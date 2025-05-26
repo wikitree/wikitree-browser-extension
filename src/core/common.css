@@ -245,9 +245,9 @@ ol.star1.green > li::before {
 
 /* WBE branding */
 :root {
-  --wbe-colour: #005070;
+  --wbe-colour: #006080;
   --wbe-colour-light: #0086b3;
-  --wbe-icon-filter: sepia(0%) saturate(650%) hue-rotate(80deg) brightness(81%) contrast(101%);
+  --wbe-icon-filter: sepia(0%) saturate(690%) hue-rotate(445deg) brightness(89%) contrast(100%);
   --wbe-icon-filter-light: sepia(0%) saturate(650%) hue-rotate(80deg) brightness(120%) contrast(101%);
 }
 
