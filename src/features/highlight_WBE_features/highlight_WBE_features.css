@@ -74,10 +74,11 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
   border-left: 5px solid var(--wbe-colour) !important;
 }
 
-/* coloured text */
+/* bold WBE-coloured text */
 .wbe-highlight .helpScissors,
 .wbe-highlight #Profile-Data .wbe {
   color: var(--wbe-colour) !important;
+  font-weight: bold;
 }
 
 /* box shadows */
@@ -211,6 +212,13 @@ html[data-wbe-genderpredictor] .wbe-highlight #mGender,
   border-color: var(--wbe-colour-light) !important;
 }
 
+/* 2px top and bottom borders only */
+body.wbe-highlight #myMenuGroup,
+.wbe-highlight #navHomePageHouse {
+  border-top: 2px solid var(--wbe-colour) !important;
+  border-bottom: 2px solid var(--wbe-colour) !important;
+}
+
 /* Individual tweaks */
 .wbe-highlight ol.STYLED.enumerated {
   padding-top: 0.5em;
@@ -242,10 +250,6 @@ body.wbe-highlight .showWBEFeatures circle {
   fill: var(--wbe-colour-light) !important;
 }
 
-body.wbe-highlight #myMenuGroup {
-  border-top: 2px solid var(--wbe-colour) !important;
-  border-bottom: 2px solid var(--wbe-colour) !important;
-}
 .wbe-highlight #editToolbarExt {
   margin: auto;
 }
