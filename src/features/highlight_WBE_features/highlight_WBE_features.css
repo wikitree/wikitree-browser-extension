@@ -217,6 +217,8 @@ body.wbe-highlight #myMenuGroup,
 .wbe-highlight #navHomePageHouse {
   border-top: 2px solid var(--wbe-colour) !important;
   border-bottom: 2px solid var(--wbe-colour) !important;
+  border-left: none !important;
+  border-right: none !important;
 }
 
 /* Individual tweaks */
