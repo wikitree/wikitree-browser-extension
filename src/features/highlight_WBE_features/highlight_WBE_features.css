@@ -58,7 +58,8 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 .wbe-highlight .accessKeyHint,
 .wbe-highlight #rangersButtons button,
 .wbe-highlight img.mw-toolbar-editbutton[alt="Automatic GEDCOM Cleanup"],
-.wbe-highlight #expandTextareaButton {
+.wbe-highlight #expandTextareaButton,
+.wbe-highlight span.awtG2GLink {
   border: var(--wbe-colour) 2px solid !important;
 }
 
@@ -181,7 +182,6 @@ html[data-wbe-genderpredictor] .wbe-highlight #mGender,
 .wbe-highlight button.collapse-all-toggle,
 .wbe-highlight button.collapse-toc-toggle,
 .wbe-highlight #showAllDegreesButton,
-.wbe-highlight span.awtG2GLink,
 .wbe-highlight button.copyLocation,
 .wbe-highlight button#surnameTableMoreButton,
 .wbe-highlight #leftButton,
@@ -227,9 +227,7 @@ body.wbe-highlight #myMenuGroup,
 .wbe-highlight span.home {
   border-bottom: var(--wbe-colour) 3px solid;
 }
-.wbe-highlight span.awtG2GLink {
-  border-width: 1px !important;
-}
+
 .wbe-highlight div.yourRelationshipText {
   border-left-width: 1px !important;
   border-top-width: 1px !important;

@@ -2,12 +2,11 @@
   display: block;
 }
 #Categories.box * {
-  margin: 0.2em !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
 }
 #Categories ol.star li {
-  margin-left: 1em !important;
+  margin-left: 0.5em !important;
 }
 #Categories a {
   cursor: pointer;
