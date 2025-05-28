@@ -46,3 +46,20 @@
 #familyDropdown ul li.active {
   background: #d0d0eb;
 }
+
+/* =======================
+   Focus / active item
+   ======================= */
+#familyDropdown .custom-dropdown-menu li:focus,
+#familyDropdown .custom-dropdown-menu li.active {
+  /* background so the line is obvious even if the outline is hidden
+     behind the scrollbar gutter */
+  background: #e0f0ff;
+  outline: 2px solid #2196f3; /* blue ring like Chrome’s default */
+  outline-offset: -2px; /* keeps the ring snug inside */
+}
+
+/* Optional: keep mouse clicks visually consistent */
+#familyDropdown .custom-dropdown-menu li:hover:not(.active) {
+  background: #f5faff;
+}

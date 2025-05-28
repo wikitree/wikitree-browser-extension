@@ -582,6 +582,7 @@ function addNavHomePageLink() {
     navHomePageLink.innerHTML = '<a style="text-decoration: none" href="' + link + '">&#127968;</a>';
     navHomePageLink.classList = findButton.classList;
     navHomePageLink.style.fontSize = "125%";
+    navHomePageLink.id = "navHomePageHouse";
 
     findButton.parentNode.parentNode.insertBefore(
       navHomePageLink,
@@ -733,10 +734,25 @@ function makeTableOverflowVisible() {
   updateAllButtons();
 }
 
+function addAccessedCountToProfileData() {
+  const accessedCountText = $("#subfooter i:contains('This page has been accessed')").text();
+  const accessedCount = accessedCountText.match(/This page has been accessed ([\d,]+) times/);
+  if (accessedCount) {
+    // Use the matched string directly, commas included
+    const countStr = accessedCount[1];
+    $("#Profile-Data").append(`<div class="profile-data-item wbe">Accessed <strong>${countStr}</strong> times.</div>`);
+  }
+}
+
 shouldInitializeFeature("usabilityTweaks").then((result) => {
   if (result) {
     getFeatureOptions("usabilityTweaks").then((options) => {
       window.usabilityTweaksOptions = options;
+
+      // addAccessedCountToProfileData();
+      if (isProfilePage && options.addAccessedCountToProfileData) {
+        addAccessedCountToProfileData();
+      }
 
       // Add save form button
       if (isSearchPage && options.saveSearchFormDataButton) {
@@ -795,7 +811,7 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
           addScratchPadButton();
         }
 
-        if (options.scratchPadPosition) {
+        if (options.scratchPadPosition && options.scratchPadPosition != "false") {
           setTimeout(function () {
             // Find the scratch pad
             const scratch = $("#Scratch");
@@ -828,6 +844,7 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
                   }
                   break;
               }
+              $("#scratchPadDisplayInner").addClass("wbe");
             }
           }, 1000);
         }

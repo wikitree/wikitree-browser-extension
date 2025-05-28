@@ -98,7 +98,6 @@ form[name="a_form"] {
   left: 50%;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.75);
-  color: #fff;
   padding: 4px 8px;
   border-radius: 4px;
   white-space: nowrap;
@@ -106,7 +105,7 @@ form[name="a_form"] {
   pointer-events: none;
   transition: opacity 0.2s ease-in-out;
   z-index: 1000;
-  background-color: #fcb815;
+  background-color: #fcb815 !important;
   color: #25422d;
   font-family: "Roboto Mono", monospace;
   font-optical-sizing: auto;
@@ -224,31 +223,32 @@ ol.star1.green > li::before {
   border-color: #8fc641;
 }
 
-#ebWBE {
+.ebWBE {
   font-size: small;
   display: block;
   margin-top: 0.3em;
   min-width: max-content;
+  height: 0.65em;
 }
 @media (max-width: 600px) {
-  #ebWBE {
+  .ebWBE {
     font-size: x-small;
     margin-left: 1em;
   }
 }
 @media (min-width: 992px) and (max-width: 1200px) {
-  #ebWBE {
+  .ebWBE {
     font-size: x-small;
     margin-left: 1em;
   }
 }
 
 /* WBE branding */
-/* #D18400 (almost brown) or #e29306 or...? */
 :root {
-  --wbe-orange: #e29306;
-  --wbe-orange-light: #ffd180;
-  --wbe-icon-filter: invert(57%) sepia(98%) saturate(563%) hue-rotate(2deg) brightness(93%) contrast(95%);
+  --wbe-colour: #006080;
+  --wbe-colour-light: #0086b3;
+  --wbe-icon-filter: sepia(0%) saturate(690%) hue-rotate(445deg) brightness(89%) contrast(100%);
+  --wbe-icon-filter-light: sepia(0%) saturate(650%) hue-rotate(80deg) brightness(120%) contrast(101%);
 }
 
 /* Tooltip for the WBE help icon */
@@ -257,9 +257,8 @@ ol.star1.green > li::before {
   text-decoration: none !important;
 }
 .WBEHelpIcon span.icon--help {
-  background-size: 22px 22px !important;
+  background-size: 26px 26px !important;
   background-position: center !important;
-  filter: var(--wbe-icon-filter) !important;
 }
 
 .WBEHelpIcon::before {
@@ -269,30 +268,28 @@ ol.star1.green > li::before {
 }
 .WBEHelpIcon::after {
   top: -3em !important;
+  color: white;
 }
 /* End tooltip stuff */
 
 /* Enhanced By WBE */
-#ebWBE {
+.showWBEFeatures {
+  text-decoration: none;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 50%;
   position: relative;
+  cursor: pointer;
 }
-#showWBEFeatures {
-  display: none;
+.showWBEFeatures:hover circle {
+  fill: var(--wbe-colour-light);
 }
-#ebWBE:hover #showWBEFeatures {
-  display: block;
-  position: absolute;
-  border: 2px solid var(--wbe-orange);
-  border-radius: 5px;
-  background-color: var(--wbe-orange-light);
-  padding: 0.5em;
-  border-radius: 5px;
-  font-size: small;
-  z-index: 10000;
-}
-#showWBEFeatures:hover {
-  background-color: var(--wbe-orange);
-}
-#showWBEFeatures:active {
-  background-color: var(--wbe-orange-light);
+
+.ebWBE img,
+.ebWBE svg {
+  height: 20px !important;
+  width: 20px !important;
+  position: relative;
+  top: -0.1em;
 }

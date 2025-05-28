@@ -1,3 +1,12 @@
 #agc-toast .toast-header {
   background-color: #ffc107 !important;
 }
+img.mw-toolbar-editbutton[alt="Automatic GEDCOM Cleanup"] {
+  height: 28px;
+  cursor: pointer;
+  border: solid gray 1px;
+  width: 28px;
+  margin-left: 2px;
+  margin-right: 1px;
+  border-radius: 3px;
+}

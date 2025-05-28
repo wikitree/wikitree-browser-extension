@@ -43,6 +43,7 @@ async function initializeFeatureSettingsOnHelpPage(space) {
 }
 
 function injectFeatureSettings(feature, $headingElement) {
+  if ($(`#${feature.id}Toggle`).length) return; // Already injected
   // Certain features with their own help pages may have a different way of identifying the header element
   if (!$headingElement) {
     const encodedName = CSS.escape(

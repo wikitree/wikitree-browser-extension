@@ -28,7 +28,7 @@ shouldInitializeFeature("enumerateImageDetail").then(async (result) => {
 
         // Convert <ul> to <ol>
         let $ol = $("<ol>").html($ul.html()).attr("class", $ul.attr("class")).addClass("enumerated");
-        const copyButton = $("<button>").addClass("small button copyButton").text("Copy list");
+        const copyButton = $("<button>").addClass("small button copyButton wbe").text("Copy list");
         $(this).parent().find(`a[data-bs-title="Edit Identified Profiles"]`).after(copyButton);
 
         // Get all <li> elements and sort them based on the text inside the <span itemprop="about">

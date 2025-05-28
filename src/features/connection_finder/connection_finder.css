@@ -36,11 +36,8 @@ body.connection .tableContainer {
   right: 1.5em;
 }
 
-#connectionsTable .connectionsName .familyHome {
-  position: absolute;
-  right: 0;
-  left: auto;
-  margin-top: 0;
+#connectionsTable .familyHome {
+  cursor: pointer;
 }
 
 #connectionsTable #theRelText {
@@ -333,4 +330,17 @@ body.connection #connectionsTable td.buttonsCell {
 body.connection #connectionsTable td.buttonsCell img {
   display: block !important;
   max-width: none;
+}
+
+body.connection #copyRelText {
+  position: absolute;
+  left: -3em;
+  margin-top: -3em;
+  cursor: pointer;
+}
+body.connection #copyRelText:hover {
+  filter: var(--wbe-icon-filter) !important;
+}
+body.connection #copyRelText:active {
+  filter: var(--wbe-icon-filter-light) !important;
 }

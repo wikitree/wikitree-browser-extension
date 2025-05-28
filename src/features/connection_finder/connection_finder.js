@@ -86,6 +86,7 @@ const yearColours = [
   "#4B088A",
   "#868A08",
 ];
+const colourArr = [...yearColours].reverse(); // Reverse the yearColours array for use in the timeline
 const familyColours = [
   "#90EE90", // lightgreen
   "#ADD8E6", // lightblue
@@ -122,8 +123,8 @@ const publicTreePrivacy = chrome.runtime.getURL("images/privacy_privacy35.png");
 const publicBioPrivacy = chrome.runtime.getURL("images/privacy_public-bio.png");
 const privatePrivacy = chrome.runtime.getURL("images/privacy_private.png");
 const unlisted = chrome.runtime.getURL("images/unlisted.png");
-const timeLineImg = chrome.runtime.getURL("images/timeline.png");
-const homeImg = chrome.runtime.getURL("images/Home_icon.png");
+const timeLineImg = chrome.runtime.getURL("images/timeline.svg");
+const homeImg = chrome.runtime.getURL("images/family_group.svg");
 
 let connectionNames = [];
 
@@ -517,53 +518,217 @@ function connectionsRelation(relationText) {
   return [gender, arrow, relationshipColour, mRelationOut];
 }
 
-function addAPrivate(privateMatch) {
-  const pPerson = {};
-  pPerson.Name = privateMatch[0].replaceAll(/[\[\]]/g, "");
-  const relationshipMatch = connectionList
+/**
+ * Copy plain text to the clipboard.  Falls back to the older
+ * execCommand method for older browsers.
+ * @param {string} text
+ */
+function copyPlain(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text);
+  } else {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+  }
+  showCopyMessage("relationship sentence to clipboard");
+}
+
+/* ======================================================================
+   gatherConnectionIDs()
+   ----------------------------------------------------------------------
+   – walks over every .connection-box once
+   – returns the same two things the old loop built:
+       • an array  connectionIDs  →  [[id, "(his father)"], …]
+       • the comma-separated  IDstring  for the API call
+   – also clears & re-uses the global connectionIDs array so the rest
+     of the script doesn’t have to change at all.
+   ====================================================================== */
+function gatherConnectionIDs() {
+  connectionIDs.length = 0; // re-use the existing global
+
+  let IDstring = "";
+
+  $("#connectionList .connection-box").each(function () {
+    const $box = $(this);
+
+    /* WT-ID -------------------------------------------------------- */
+    const id = $box.find("a").attr("href").replace("/wiki/", "");
+
+    /* raw relationship text --------------------------------------- */
+    const rel = ($box.text().match(/\(([^)]+)\)/) || [, ""])[1].trim();
+
+    connectionIDs.push([id, rel]);
+    IDstring += id + ",";
+  });
+
+  return IDstring; // caller only needs the string
+}
+
+/* ======================================================================
+   buildRelationBits(i, relTxt, prevGender, personGender)
+   ----------------------------------------------------------------------
+   • i            → index in the people[] loop
+   • relTxt       → raw "(his mother)" etc. from connectionIDs[i][1]
+   • prevGender   → gender of the previous person (needed for pronoun)
+   • personGender → gender of the current person   (for base-word agree.)
+   ----------------------------------------------------------------------
+   Returns { arrow, colour, pronoun, baseWord, corrected }
+   – for the first person (i === 0) everything is blank so the cell shows nothing
+   ====================================================================== */
+function buildRelationBits(i, relTxt, prevGender, personGender) {
+  /* first row – leave the column empty -------------------------------- */
+  if (i === 0) {
+    return { arrow: "", colour: "", pronoun: "", baseWord: "", corrected: "" };
+  }
+
+  /* the three things we used to get from connectionsRelation() */
+  const [, arrow, colour] = connectionsRelation(relTxt);
+
+  /* pronoun belongs to the *previous* person -------------------------- */
+  let pronoun = "their";
+  if (prevGender === "Male") pronoun = "his";
+  if (prevGender === "Female") pronoun = "her";
+
+  /* base-word must match *this* person’s gender ----------------------- */
+  let baseWord = relTxt.trim().split(" ").pop().toLowerCase();
+
+  const swap = (from, toMale, toFemale) => {
+    if (baseWord === from) {
+      baseWord = personGender === "Female" ? toFemale : personGender === "Male" ? toMale : from;
+    }
+  };
+  swap("son", "son", "daughter");
+  swap("daughter", "son", "daughter");
+  swap("husband", "husband", "wife");
+  swap("wife", "husband", "wife");
+  swap("brother", "brother", "sister");
+  swap("sister", "brother", "sister");
+  swap("father", "father", "mother");
+  swap("mother", "father", "mother");
+
+  const corrected = `${pronoun} ${baseWord}`;
+  return { arrow, colour, pronoun, baseWord, corrected };
+}
+
+/**
+ * Given a raw relation word like "son"/"daughter"/etc
+ * and a true gender ("Male" or "Female"), returns
+ * the correct string "his son"/"her daughter", etc.
+ */
+function getCorrectRelationString(relationText, personGender) {
+  if (!relationText) return "";
+
+  // pick off the last word
+  let base = relationText.trim().split(" ").pop().toLowerCase();
+  let pronoun = "their";
+
+  if (personGender === "Male") pronoun = "his";
+  if (personGender === "Female") pronoun = "her";
+
+  // fix mismatches: e.g. raw "son" but person is Female => "daughter"
+  switch (base) {
+    case "son":
+      if (personGender === "Female") base = "daughter";
+      break;
+    case "daughter":
+      if (personGender === "Male") base = "son";
+      break;
+    case "husband":
+      if (personGender === "Female") base = "wife";
+      break;
+    case "wife":
+      if (personGender === "Male") base = "husband";
+      break;
+    case "brother":
+      if (personGender === "Female") base = "sister";
+      break;
+    case "sister":
+      if (personGender === "Male") base = "brother";
+      break;
+    case "father":
+      if (personGender === "Female") base = "mother";
+      break;
+    case "mother":
+      if (personGender === "Male") base = "father";
+      break;
+  }
+
+  return pronoun + " " + base;
+}
+
+/**
+ * Replaces addAPrivate.  Now takes the real mPerson
+ * so we can pull person.Gender instead of guessing from the raw text.
+ */
+function addAPrivate(privateMatch, person) {
+  // 1) clean up the name
+  const name = privateMatch[0].replaceAll(/[\[\]]/g, "");
+
+  // 2) pull the raw "(...)" text from the connection list
+  const relMatch = connectionList
     .eq(pNumber)
     .text()
-    .match(/\(.*?\)/);
-  pPerson.Relation = relationshipMatch[0].replaceAll(/[\(\)]/g, "");
+    .match(/\(([^)]+)\)/);
+  const rawRelation = relMatch ? relMatch[1] : "";
 
-  const relationArr = connectionsRelation(pPerson.Relation);
-  pPerson.Gender = relationArr[0];
+  // 3) get arrow & colour from existing connectionsRelation helper
+  //    we ignore its gender output here, since we'll use person.Gender
+  const [, arrow, colour] = connectionsRelation(rawRelation);
 
-  const pArrow = relationArr[1];
-  relationshipColour = relationArr[2];
-  const mRelationOut = relationArr[3];
+  // 4) build the correct pronoun+relation string
+  const pronounRel = getCorrectRelationString(rawRelation, person.Gender);
 
-  let privacyTitle = "Private";
+  // 5) split that into pronoun vs relation word
+  const [pronoun, relationWord] = pronounRel.split(" ");
 
-  const aLine = $(
-    `<tr class='${pPerson.Gender}'>
+  // 6) wrap in spans
+  const mRelationOut = `
+    <span class="hisHer">${pronoun}</span>
+    <span class="relationWord">${relationWord}</span>
+  `;
+
+  // 7) now build & append the row exactly as before
+  const aLine = $(`
+    <tr class="${person.Gender}">
       <td>${pNumber}</td>
-      <td class='relationship ${relationshipColour}' data-relationship='${pPerson.Relation}'><span class='relationshipArrow'>${pArrow}</span>${mRelationOut}</td>
-      <td class='connectionsName'><img class='privacyImage'  src='${privatePrivacy}' title='${privacyTitle}'><a>${pPerson.Name}</a></td><td class='aDate'></td>
+      <td class="relationship ${colour}"
+          data-relationship="${pronounRel}">
+        <span class="relationshipArrow">${arrow}</span>
+        ${mRelationOut}
+      </td>
+      <td class="connectionsName">
+        <img class="privacyImage"
+             src="${privatePrivacy}"
+             title="Private">
+        <a>${name}</a>
+      </td>
+      <td class="aDate"></td>
       <td></td>
-      <td class='aDate'></td>
+      <td class="aDate"></td>
       <td></td>
-      <td class='aDate'></td>
+      <td class="aDate"></td>
       <td></td>
-    </tr>`
-  );
+    </tr>
+  `);
   $("#connectionsTable tbody").append(aLine);
   pNumber++;
 
-  privateMatch = connectionList
+  // 8) recurse if there’s another private placeholder
+  const next = connectionList
     .eq(pNumber)
     .text()
     .match(/\[private.*?\]/);
-
-  if (privateMatch != null) {
-    addAPrivate(pNumber);
-  }
+  if (next) addAPrivate(next, person);
 }
 
 function getRels(rel, person, theRelation = false) {
   const peeps = [];
   if (typeof rel == "undefined" || rel == null) {
-    return false;
+    return []; // <--- Return empty array, NOT false!
   }
   const pKeys = Object.keys(rel);
   pKeys.forEach(function (pKey) {
@@ -589,172 +754,18 @@ function addRelArraysToPerson(zPerson) {
   return zPerson;
 }
 
-function birthDeathStatus(person) {
-  var bdStatus = "";
-  var ddStatus = "";
-  if (person != undefined) {
-    if (typeof person["DataStatus"] != "undefined") {
-      if (person["BirthDate"] != "0000-00-00") {
-        if (person["DataStatus"]["BirthDate"] != "") {
-          if (person["DataStatus"]["BirthDate"] == "guess") {
-            bdStatus = "~";
-          } else if (person["DataStatus"]["BirthDate"] == "before") {
-            bdStatus = "<";
-          } else if (person["DataStatus"]["BirthDate"] == "after") {
-            bdStatus = ">";
-          }
-        }
-      }
-    }
-
-    if (typeof person["DataStatus"] != "undefined") {
-      if (person["DeathDate"] != "0000-00-00") {
-        if (person["DataStatus"]["DeathDate"] != "") {
-          if (person["DataStatus"]["DeathDate"] == "guess") {
-            ddStatus = "~";
-          } else if (person["DataStatus"]["DeathDate"] == "before") {
-            ddStatus = "<";
-          } else if (person["DataStatus"]["DeathDate"] == "after") {
-            ddStatus = ">";
-          }
-        }
-      }
-    }
-
-    return [bdStatus, ddStatus];
-  } else {
-    return ["", ""];
-  }
-}
-
-function getDateFormat(fbds) {
-  let dateFormat;
-  let fullDateFormat;
-  let fbdsDate;
-  let fbd;
-
-  if (localStorage.w_dateFormat) {
-    dateFormat = localStorage.w_dateFormat;
-  } else {
-    dateFormat = 0;
-    fullDateFormat = "M j, Y";
-  }
-
-  if (dateFormat == 1) {
-    fullDateFormat = "j M Y";
-  }
-  if (dateFormat == 2) {
-    fullDateFormat = "F j, Y";
-  } else if (dateFormat == 3) {
-    fullDateFormat = "j F Y";
-  }
-  if (fbds[1] != "00" && fbds[2] != "00" && fbds[0] != "00") {
-    // month is zero-indexed(!)
-    fbdsDate = new Date(fbds[0], parseInt(fbds[1]) - 1, fbds[2]);
-    fbd = fbdsDate.format("j M Y");
-    if (dateFormat > 0) {
-      fbd = fbdsDate.format(fullDateFormat);
-    }
-  } else if (fbds[1] != "00" && fbds[2] == "00" && fbds[0] != "00") {
-    // month is zero-indexed(!)
-    fbdsDate = new Date(fbds[0], parseInt(fbds[1]) - 1, 1);
-    fbd = fbdsDate.format("M Y");
-    if (dateFormat > 1) {
-      fbd = fbdsDate.format("F Y");
-    }
-  } else if (fbds[1] != "00" && fbds[2] == "00") {
-    // month is zero-indexed(!)
-    fbdsDate = new Date(fbds[0], parseInt(fbds[1]) - 1, 1);
-    fbd = fbdsDate.format("M Y");
-    if (dateFormat > 1) {
-      fbd = fbdsDate.format("F Y");
-    }
-  } else {
-    // month is zero-indexed(!)
-    fbdsDate = new Date(fbds[0], 0, 1);
-    fbd = fbdsDate.format("Y");
-  }
-
-  return fbd;
-}
-
-// Get the birth and death dates of a person and return them as a list
-function displayFullDates(person, showStatus = true) {
-  // Get the birth and death status of the person
-  const [birthStatus, deathStatus] = birthDeathStatus(person);
-
-  // Get the birth date of the person
-  let birthDate = "";
-  if (person["BirthDate"] != "" && person["BirthDate"] != "0000-00-00" && typeof person["BirthDate"] != "undefined") {
-    const birthDateSplit = person["BirthDate"].split("-");
-    if (birthDateSplit[0] == "unkno5") {
-      birthDate = "";
-    } else {
-      birthDate = getDateFormat(birthDateSplit);
-    }
-  } else if (typeof person["BirthDateDecade"] != "undefined") {
-    birthDate = person["BirthDateDecade"];
-  } else {
-    birthDate = "";
-  }
-
-  // Get the death date of the person
-  let deathDate = "";
-  if (typeof person["IsLiving"] != "undefined") {
-    if (person["IsLiving"] == 1) {
-      deathDate = "living";
-    }
-  }
-  if (deathDate == "") {
-    if (person["DeathDate"] != "" && person["DeathDate"] != "0000-00-00" && typeof person["DeathDate"] != "undefined") {
-      const deathDateSplit = person["DeathDate"].split("-");
-      if (deathDateSplit[0] == "unkno5") {
-        deathDate = "";
-      } else {
-        deathDate = getDateFormat(deathDateSplit);
-      }
-    } else if (typeof person["DeathDateDecade"] != "undefined") {
-      if (person["DeathDateDecade"] != "unknown") {
-        deathDate = person["DeathDateDecade"];
-      }
-    } else {
-      deathDate = "";
-    }
-  }
-
-  // Return the birth and death date with or without status
-  const dates = [];
-  if (birthDate == "") {
-    dates.push("");
-  } else if (showStatus == false) {
-    dates.push(birthDate);
-  } else {
-    dates.push(birthStatus + birthDate);
-  }
-  if (deathDate == "") {
-    dates.push("");
-  } else if (showStatus == false) {
-    dates.push(deathDate);
-  } else {
-    dates.push(deathStatus + deathDate);
-  }
-  return dates;
-}
-
 function getSpouse(mPerson, relPerson) {
+  // guard against missing relPerson
+  if (!relPerson) return {};
+
   let oSpouse = {};
-  if (mPerson.Gender == "Male") {
-    if (relPerson.Father == mPerson.Id) {
-      if (mPerson.Spouses) {
-        oSpouse = mPerson.Spouses[relPerson.Mother];
-      }
+  if (mPerson.Gender === "Male") {
+    if (relPerson.Father === mPerson.Id && mPerson.Spouses) {
+      oSpouse = mPerson.Spouses[relPerson.Mother] || {};
     }
-  }
-  if (mPerson.Gender == "Female") {
-    if (relPerson.Mother == mPerson.Id) {
-      if (mPerson.Spouses) {
-        oSpouse = mPerson.Spouses[relPerson.Father];
-      }
+  } else if (mPerson.Gender === "Female") {
+    if (relPerson.Mother === mPerson.Id && mPerson.Spouses) {
+      oSpouse = mPerson.Spouses[relPerson.Father] || {};
     }
   }
   return oSpouse;
@@ -1004,405 +1015,364 @@ function reduceRelWordsMore() {
   }
 }
 
-async function addConnectionText(num = 0) {
-  $("#theRelText").remove();
-  let arr = window.relWords2;
-  if (num == 1) {
-    arr = window.relWords;
-  }
+/* ======================================================================
+   buildDateBits(person)
+   ----------------------------------------------------------------------
+   • returns   { birthRaw, deathRaw,  yearColour, textColour,
+                 birthLoc,  deathLoc }
+   • uses the global  colourArr  array that’s already defined
+   ====================================================================== */
+function buildDateBits(p) {
+  const birthRaw = ymdFix(p.BirthDate) || p.BirthDateDecade || "";
+  const deathRaw = ymdFix(p.DeathDate) || p.DeathDateDecade || "";
 
-  let relMessage =
-    connectionNames[1].replaceAll(/(↓)|(More)|(Table)/g, "").trim() + " is " + connectionNames[0] + "&apos;s ";
+  const bYear = parseInt(birthRaw.slice(0, 4)) || "";
+  const bucket = bYear === "" ? -1 : Math.floor(bYear / 50);
+  const yearColour = bucket < 0 || bYear > 1999 ? "#fff" : colourArr[bucket];
 
-  arr.forEach(function (aRel, i) {
-    let addApos;
-    if (i < arr.length - 1) {
-      addApos = "&apos;s ";
-    } else {
-      addApos = ".";
-    }
+  const whiteTextBuckets = [5, 10, 15, 17, 18, 20];
+  const textColour = bucket >= 0 && bucket < 22 && !whiteTextBuckets.includes(bucket) ? "whiteText" : "";
 
-    if (aRel[2]) {
-      relMessage += aRel[2] + addApos;
-    } else {
-      relMessage += aRel[0] + addApos;
-    }
-  });
-  let disTitle = "";
-  if (window.relWords.length != window.relWords2.length) {
-    disTitle = "Click to expand this a little.";
-    if (num == 1) {
-      disTitle = "Click to reduce this a little.";
-    }
-  }
-
-  console.log(relMessage);
-
-  $("tr#connectionsTableNotes td").prepend(
-    $("<span id='theRelText' title='" + disTitle + "' data-relative-list='" + num + "'>" + relMessage + "</span>")
-  );
-  $("#theRelText").on("click", function () {
-    copyToClipboard($(this));
-    if ($(this).data("relative-list") == 0) {
-      addConnectionText(1);
-    } else {
-      addConnectionText();
-    }
-  });
+  return {
+    birthRaw,
+    deathRaw,
+    yearColour,
+    textColour,
+    birthLoc: p.BirthLocation || "",
+    deathLoc: p.DeathLocation || "",
+  };
 }
 
-function copyToClipboard(element) {
-  var $temp = $("<input>");
-  $("body").prepend($temp);
-  $temp.val($(element).text()).select();
-  document.execCommand("copy");
-  $temp.remove();
+/* ======================================================================
+   getMarriageDetails(person, relTxt, prevWTID)
+   ----------------------------------------------------------------------
+   • returns { date:"", place:"" }
+   • only filled when relTxt is “his wife” / “her husband”
+   ====================================================================== */
+function getMarriageDetails(p, relTxt, prevWtid) {
+  if (!/his wife|her husband/.test(relTxt)) return { date: "", place: "" };
+
+  let date = "",
+    place = "";
+  getRels(p.Spouses, p).forEach((sp) => {
+    if (sp.Name === prevWtid) {
+      date = ymdFix(sp.marriage_date) || "";
+      place = sp.marriage_location || "";
+    }
+  });
+  return { date, place };
+}
+
+/* ======================================================================
+   getPrivacyIcon(person)
+   ----------------------------------------------------------------------
+   • returns { src, title }
+   • the big if-ladder lives here now
+   ====================================================================== */
+function getPrivacyIcon(p) {
+  const priv = p.Privacy;
+
+  if (p.Privacy_IsOpen || priv === 60) return { src: openPrivacy, title: "Open" };
+  if (p.Privacy_IsPublic) return { src: publicPrivacy, title: "Public" };
+  if (p.Privacy_IsSemiPrivate || priv === 40) return { src: publicTreePrivacy, title: "Tree public" };
+  if (priv === 35) return { src: publicTreePrivacy, title: "Tree public" };
+  if (p.Privacy_IsSemiPrivateBio || priv === 30) return { src: publicBioPrivacy, title: "Bio public" };
+  if (priv === 20) return { src: privatePrivacy, title: "Private" };
+  return { src: unlisted, title: "Unlisted" };
 }
 
 function connectionFinderTable() {
+  // Delay just long enough for the page to render
   setTimeout(() => {
-    const moreDetailsButton = "<button class='small button moreDetails'>Table</button>";
+    // 1) Add the “Table” button to the header
+    const moreDetailsButton = `<button class="small button moreDetails">Table</button>`;
     $("h1:contains(Connection Finder)").append($(moreDetailsButton));
-    // <button class='downloadLines small' title='Download Excel file'> &darr; </button>
-    if (window.location.href.match("action=connect") != null) {
+    // Show it immediately if we're already on action=connect
+    if (window.location.href.includes("action=connect")) {
       $(".moreDetails").show();
     }
 
-    $(".moreDetails").on("click", function () {
-      $(".moreDetails").slideUp();
-      if ($("#connectionList").length) {
-        const treeImg = $("<img class='treeImg' src='" + tree + "'>");
-        $("h1:contains(Connection Finder)").append(treeImg);
-        let IDstring = "";
-        const connectionLinks = $("#connectionList a");
-        connectionLinks.each(function () {
-          const connectionID = $(this).attr("href").replace("/wiki/", "");
-          const connectionRelation = $(this)
-            .parent()
-            .text()
-            .match(/\((.*)\)/);
-          let connectionRel = "";
-          if (connectionRelation != null) {
-            connectionRel = connectionRelation[0].replaceAll(/[()]/g, "");
-          }
-          connectionIDs.push([connectionID, connectionRel]);
-          IDstring += connectionID + ",";
-        });
+    // 2) When the user clicks “Table”…
+    $(".moreDetails").on("click", () => {
+      $(".moreDetails").slideUp(); // hide the button
+      if (!$("#connectionList").length) return; // bail if there's no list
 
-        $.ajax({
-          url:
-            "https://api.wikitree.com/api.php?action=getRelatives&appID=WBE-connectionFinder&getSpouses=1&getParents=1&getSiblings=1&getChildren=1&keys=" +
-            IDstring,
-          crossDomain: true,
-          xhrFields: { withCredentials: true },
-          type: "POST",
-          dataType: "json",
-          success: function (data) {
-            yearColours.reverse();
+      // show the little tree GIF in the header
+      $("h1:contains(Connection Finder)").append($(`<img class="treeImg" src="${tree}">`));
 
-            const connectionsTable = $(
-              "<table id='connectionsTable'><thead><tr><th></th><th></th><th>Relation</th><th>Name</th><th>Birth date</th><th>Birth place</th><th>Death date</th><th>Death place</th><th>Marriage Date</th><th>Marriage Place</th></tr></thead><tbody></tbody><tfoot><tr id='connectionsTableNotes'><td colspan='9' >Notes: <ul><li>The colours in the 'Relation' column change at each connection by marriage.</li><li>Marriage details are shown when the relation is 'her/his husband' or 'his/her wife'.</li><li>The colours in the 'Birth date' column represent 50-year periods.</li></ul></td></tr></tfoot></table>"
+      // build the comma-separated list of wiki IDs + collect raw relations
+      const IDstring = gatherConnectionIDs();
+
+      // 3) Do the AJAX call
+      $.ajax({
+        url: `https://api.wikitree.com/api.php?action=getRelatives&appID=WBE-connectionFinder&getSpouses=1&getParents=1&getSiblings=1&getChildren=1&keys=${IDstring}`,
+        type: "POST",
+        dataType: "json",
+        xhrFields: { withCredentials: true },
+        success: function (data) {
+          const table = $(`
+            <table id="connectionsTable">
+              <thead>
+                <tr>
+                  <th></th><th></th><th>Relation</th><th>Name</th>
+                  <th>Birth Date</th><th>Birth Place</th>
+                  <th>Death Date</th><th>Death Place</th>
+                  <th>Marriage Date</th><th>Marriage Place</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+              <tfoot>
+                <tr id="connectionsTableNotes">
+                  <td colspan="10">
+                    Notes:
+                    <ul>
+                      <li>Colours in 'Relation' change at each marriage.</li>
+                      <li>Marriage details only for spouse relations.</li>
+                      <li>Colours in 'Birth Date' represent 50-year periods.</li>
+                    </ul>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          `);
+          table.insertAfter("#connectionList");
+
+          const people = data[0].items;
+          pNumber = 0;
+          window.heritageSociety = [];
+
+          /* ───────────────────────────  main loop  ───────────────────────────── */
+
+          people.forEach((item, i) => {
+            let m = item.person;
+
+            /* 1. back-fill “[private]” stubs (unchanged) ----------------------- */
+            if (!m.Name) {
+              const link = $("#connectionList li").eq(i).find("a");
+              const parts = link.text().split(" ");
+              m.Name = link.attr("href").replace("/wiki/", "");
+              m.FirstName = parts.shift();
+              m.LastNameAtBirth = m.LastNameCurrent = parts.pop();
+              if (parts.length) m.MiddleName = parts.join(" ");
+              m.Privacy = 10;
+            }
+            const privMatch = $("#connectionList li")
+              .eq(pNumber)
+              .text()
+              .match(/\[private.*?\]/);
+            if (privMatch) addAPrivate(privMatch, m);
+
+            m = addRelArraysToPerson(m); // normalise arrays
+
+            /* 2. dates / colours ---------------------------------------------- */
+            const { birthRaw, deathRaw, yearColour, textColour, birthLoc, deathLoc } = buildDateBits(m);
+
+            /* 3. marriage details (only if this row is a spouse) -------------- */
+            const relTxt = connectionIDs[i][1];
+            const { date: marriageDate, place: marriageLoc } = getMarriageDetails(
+              m,
+              relTxt,
+              i > 0 ? connectionIDs[i - 1][0] : ""
             );
-            connectionsTable.insertAfter($("#connectionList"));
-            const thePeople = data[0].items;
-            pNumber = 0;
-            window.heritageSociety = [];
-            thePeople.forEach(function (aPerson, index) {
-              const privateMatch = connectionList
-                .eq(pNumber)
-                .text()
-                .match(/\[private.*?\]/);
-              if (privateMatch != null) {
-                addAPrivate(privateMatch);
-              }
-              let mPerson = aPerson.person;
-              if (!mPerson.Name) {
-                const oPerson = $("#connectionList li").eq(index);
-                const thisLink = oPerson.find("a");
-                const thisLinkHREF = thisLink.attr("href");
-                if (thisLinkHREF) {
-                  mPerson.Name = thisLinkHREF.replace("/wiki/", "");
-                  const nameBits = thisLink.text().split(" ");
-                  mPerson.LastNameAtBirth = nameBits[nameBits.length - 1];
-                  mPerson.LastNameCurrent = nameBits[nameBits.length - 1];
-                  mPerson.FirstName = nameBits[0];
-                  if (nameBits.length > 2) {
-                    mPerson.MiddleName = nameBits[1];
-                  }
-                }
-                mPerson.Privacy = "10";
-              }
 
-              mPerson = addRelArraysToPerson(mPerson);
-              const pDates = displayFullDates(mPerson);
-              let birthDate = ymdFix(mPerson.BirthDate);
-              if (birthDate == "") {
-                if (mPerson.BirthDateDecade) {
-                  birthDate = mPerson.BirthDateDecade;
-                }
-              }
-              let deathDate = ymdFix(mPerson.DeathDate);
-              if (deathDate == "") {
-                if (mPerson.deathDateDecade) {
-                  deathDate = mPerson.DeathDateDecade;
-                }
-              }
+            /* 4. privacy icon -------------------------------------------------- */
+            const { src: privacy, title: privacyTitle } = getPrivacyIcon(m);
 
-              const bYear = parseInt(birthDate.substring(0, 4));
-              let yearColour;
-              let myNumber;
-              if (bYear == "") {
-                yearColour = "rgb(255,255,255)";
-              } else if (bYear > 1999) {
-                yearColour = "rgb(230,230,230)";
-                yearColour = "#fff";
-              } else {
-                myNumber = Math.floor(bYear / 50);
-                yearColour = yearColours[myNumber];
-              }
+            /* 5. relation column ---------------------------------------------- */
+            const {
+              arrow,
+              colour: relColour,
+              pronoun,
+              baseWord,
+              corrected,
+            } = buildRelationBits(i, relTxt, i > 0 ? people[i - 1].person.Gender : "", m.Gender);
 
-              let textColor = "";
-              const blackUns = [10, 5, 15, 17, 18, 20];
-              if (myNumber < 22 && !blackUns.includes(myNumber)) {
-                textColor = "whiteText";
-              }
+            /* 6. timeline / family-sheet icons -------------------------------- */
+            const timelineBtn = `<img data-wtid="${m.Name}" src="${timeLineImg}" class="timelineButton" width="18" height="18" title="View Family Timeline">`;
+            const familySheetBtn = `<span data-wtid="${m.Name}" class="familyHome" title="View Family Group"><img src="${homeImg}" width="18" height="18"></span>`;
 
-              let birthLocation = mPerson.BirthLocation;
-              if (birthLocation == "null" || birthLocation == undefined) {
-                birthLocation = "";
-              }
-              let deathLocation = mPerson.DeathLocation;
-              if (deathLocation == "null" || deathLocation == undefined) {
-                deathLocation = "";
-              }
-
-              let marriageDate = "";
-              let marriageLocation = "";
-              if (connectionIDs[index][1] == "his wife" || connectionIDs[index][1] == "her husband") {
-                const mSpouses = getRels(mPerson.Spouses, mPerson);
-                if (mSpouses.length > 0) {
-                  mSpouses.forEach(function (aSpouse) {
-                    if (aSpouse.Name == connectionIDs[index - 1][0]) {
-                      marriageDate = ymdFix(aSpouse.marriage_date);
-                      marriageLocation = aSpouse.marriage_location;
-                    }
-                  });
-                }
-                if (marriageLocation == "null" || marriageLocation == null) {
-                  marriageLocation = "";
-                }
-                if (marriageDate == "null" || marriageDate == null) {
-                  marriageDate = "";
-                }
-              }
-
-              let mArrow = "";
-              const mRelation = connectionIDs[index][1];
-
-              let privacyLevel = mPerson.Privacy;
-              let privacy;
-              let privacyTitle;
-              if (mPerson.Privacy_IsOpen == true || privacyLevel == 60) {
-                privacy = openPrivacy;
-                privacyTitle = "Open";
-              }
-              if (mPerson.Privacy_IsPublic == true) {
-                privacy = publicPrivacy;
-                privacyTitle = "Public";
-              }
-              if (mPerson.Privacy_IsSemiPrivate == true || privacyLevel == 40) {
-                privacy = publicTreePrivacy;
-                privacyTitle = "Private with Public Bio and Tree";
-              }
-              if (privacyLevel == 35) {
-                privacy = publicTreePrivacy;
-                privacyTitle = "Private with Public Tree";
-              }
-              if (mPerson.Privacy_IsSemiPrivateBio == true || privacyLevel == 30) {
-                privacy = publicBioPrivacy;
-                privacyTitle = "Public Bio";
-              }
-
-              if (privacyLevel == 20) {
-                privacy = privatePrivacy;
-                privacyTitle = "Private";
-              }
-
-              if (privacyLevel < 20) {
-                privacy = unlisted;
-                privacyTitle = "Unlisted";
-              }
-
-              const relationArr = connectionsRelation(mRelation);
-              if (mPerson.Gender == undefined) {
-                mPerson.Gender = relationArr[0];
-              }
-              mArrow = relationArr[1];
-              const relationshipColour = relationArr[2];
-              const mRelationOut = relationArr[3];
-
-              const timelineButton =
-                "<img data-wtid='" + mPerson.Name + "' src='" + timeLineImg + "' class='timelineButton'>";
-
-              const familySheetButton =
-                "<img data-wtid='" + mPerson.Name + "' src='" + homeImg + "' class='familyHome'>";
-
-              const aLine = $(
-                `<tr data-wtid='${mPerson.Name}' data-name='${mPerson.Name}' class='${mPerson.Gender}'>
+            /* 7. assemble & append the table row ------------------------------ */
+            const $row = $(`
+              <tr data-wtid="${m.Name}" class="${m.Gender}">
                 <td>${pNumber}</td>
-                <td class='buttonsCell'><img  class='privacyImage' src='${privacy}' title='${privacyTitle}'>
-                ${timelineButton}
-                ${familySheetButton}</td>
-                <td class='relationship ${relationshipColour}' data-relationship='${mRelation}'><span class='relationshipArrow'>${mArrow}</span>${mRelationOut}</td>
-                <td class='connectionsName'><a href='/wiki/${mPerson.Name}'>${displayName(mPerson)[0]}</a></td>
-                <td style='background-color:${yearColour}' class='aDate ${textColor}'>${birthDate}</td>
-                <td>${birthLocation}</td>
-                <td  class='aDate'>${deathDate}</td>
-                <td>${deathLocation}</td>
-                <td class='aDate'>${marriageDate}</td>
-                <td>${marriageLocation}</td>
-                </tr>`
-              );
-              $("#connectionsTable tbody").append(aLine);
-              pNumber++;
+                <td class="buttonsCell">
+                  <img class="privacyImage" src="${privacy}" title="${privacyTitle}">
+                  ${timelineBtn}${familySheetBtn}
+                </td>
+                <td class="relationship ${relColour}" data-relationship="${i ? corrected : ""}">
+                  ${arrow}<span class="hisHer">${pronoun}</span> <span class="relationWord">${baseWord}</span>
+                </td>
+                <td class="connectionsName">
+                  <a href="/wiki/${m.Name}">${displayName(m)[0]}</a>
+                </td>
+                <td style="background:${yearColour}" class="aDate ${textColour}">${birthRaw}</td>
+                <td>${birthLoc}</td>
+                <td class="aDate">${deathRaw}</td>
+                <td>${deathLoc}</td>
+                <td class="aDate">${marriageDate}</td>
+                <td>${marriageLoc}</td>
+              </tr>
+            `);
+            $("#connectionsTable tbody").append($row);
 
-              // Heritage Society stuff (A)
-              if ($("span.familyCount2").length == 0) {
-                let oSpouse = {};
-                let relPerson;
-                if (thePeople[index - 1]) {
-                  relPerson = thePeople[index - 1].person;
-                  oSpouse = getSpouse(mPerson, relPerson);
-                }
-                if ($.isEmptyObject(oSpouse)) {
-                  if (thePeople[index + 1]) {
-                    relPerson = thePeople[index + 1].person;
-                    oSpouse = getSpouse(mPerson, relPerson);
-                  }
-                }
+            /* 8. counters / heritage box -------------------------------------- */
+            pNumber++;
+            const prev = people[i - 1] && people[i - 1].person;
+            window.heritageSociety.push([m, getSpouse(m, prev)]);
+          });
+          /* ───────────────────────────  end loop  ───────────────────────────── */
 
-                window.heritageSociety.push([mPerson, oSpouse]);
-              }
-              // end heritage society
-            });
-            window.peopleTablePeople = thePeople;
-            window.relWords = [];
-            $("#connectionsTable td[data-relationship]").each(function () {
-              const rWord = $(this).data("relationship").substring(4);
-              if (rWord != "") {
-                window.relWords.push([rWord, 0]);
-              }
-            });
+          connectionNames = [
+            // (re-)capture endpoints *guaranteed* to be correct
+            displayName(people[0].person)[0], //  ↖ first real profile
+            displayName(people[people.length - 1].person)[0], // ↗ last real profile
+          ];
 
-            const pWords = /(father)|(mother)/;
-            reduceRelWords(pWords);
+          // — post-processing: collapse/expand text, reductions, buttons, heritage box…
+          window.peopleTablePeople = people;
+          window.relWords = [];
+          $("#connectionsTable td[data-relationship]").each(function () {
+            const w = $(this).data("relationship").substring(4);
+            if (w) window.relWords.push([w, 0]);
+          });
+          const pW = /(father)|(mother)/,
+            cW = /(son)|(daughter)/,
+            sW = /(brother)|(sister)/;
+          reduceRelWords(pW);
+          reduceRelWords(cW);
+          reduceRelWords(sW, pW);
+          reduceRelWords(sW, cW);
+          window.relWords.forEach((r, i) => {
+            if (r[1] > 0) r[2] = (r[1] > 1 ? "great-" : "grand") + r[0];
+            if (r[1] > 2) r[2] = ordinal(r[1] - 1) + " " + r[2];
+          });
+          window.relWords2 = JSON.parse(JSON.stringify(window.relWords));
+          window.sameGen = ["husband", "wife", "sibling", "brother", "sister", "cousin"];
+          window.upOne = ["father", "mother", "uncle", "aunt"];
+          window.downOne = ["son", "daughter", "nephew", "niece"];
+          window.bloodRels = ["father", "mother", "uncle", "aunt", "niece", "nephew", "son", "daughter"];
+          window.siblingWords = ["brother", "sister"];
+          window.childrenWords = ["son", "daughter"];
+          window.relWords2.forEach((a) => {
+            if (window.upOne.includes(a[0]) || window.downOne.includes(a[0])) a[1]++;
+          });
+          reduceRelWordsMore();
 
-            const cWords = /(son)|(daughter)/;
-            reduceRelWords(cWords);
+          addConnectionText(); // insert the summary sentence
+          addWideTableButton(); // existing table buttons
+          $("img.timelineButton").on("click", function (e) {
+            window.pointerY = e.pageY;
+            window.pointerX = e.pageX;
+            cfTimeline($(e.currentTarget));
+          });
+          $("span.familyHome").on("click", function () {
+            showFamilySheet($(this), $(this).data("wtid"));
+          });
+          showHeritageSocietyBox(); // the heritage-society textarea
+          $(".treeImg").remove(); // remove the tree GIF
+          // Smooth scroll to 200px above the table
+          $("html, body").animate(
+            {
+              scrollTop: $("#connectionsTable").offset().top - 200,
+            },
+            500
+          );
+        },
+      });
 
-            const sWords = /(brother)|(sister)/;
-            reduceRelWords(sWords, pWords);
-            reduceRelWords(sWords, cWords);
-
-            const ankles = /(uncle)|(aunt)/;
-
-            window.relWords.forEach(function (rWord, i) {
-              if (rWord[1] > 0) {
-                rWord[2] = "grand" + rWord[0];
-              }
-              if (rWord[1] > 1) {
-                rWord[2] = "great-" + rWord[2];
-              }
-              if (rWord[1] > 2) {
-                const theOrdinal = ordinal(rWord[1] - 1);
-                rWord[2] = theOrdinal + " " + rWord[2];
-              }
-            });
-
-            window.relWords2 = JSON.parse(JSON.stringify(window.relWords));
-            window.sameGen = ["husband", "wife", "sibling", "brother", "sister", "cousin"];
-            window.upOne = ["father", "mother", "uncle", "aunt"];
-            window.downOne = ["son", "daughter", "nephew", "niece"];
-            window.bloodRels = ["father", "mother", "uncle", "aunt", "niece", "nephew", "son", "daughter"];
-            window.siblingWords = ["brother", "sister"];
-            window.childrenWords = ["son", "daughter"];
-            window.relWords2.forEach(function (aRel) {
-              if (window.upOne.includes(aRel[0]) || window.downOne.includes(aRel[0])) {
-                aRel[1] = aRel[1] + 1;
-              }
-            });
-
-            window.relWords2.forEach(function (aRel, i) {
-              let rWord = [];
-              if (i > 0) {
-                if (!aRel[2] && aRel[0].match(cWords) != null && window.relWords2[i - 1][0].match(ankles) != null) {
-                  let prevRel = window.relWords2[i - 1];
-                  rWord[0] = "cousin";
-
-                  const no1 = prevRel[1];
-                  const no2 = aRel[1];
-                  let result = no1 - no2;
-                  let removed;
-                  let cousin;
-                  if (result >= 0) {
-                    removed = result;
-                    cousin = no1 - removed;
-                  }
-                  if (result < 0) {
-                    removed = Math.abs(result);
-                    cousin = no1;
-                  }
-                  aRel[0] = "cousin";
-                  aRel[1] = removed;
-                  let removedOut = "";
-                  if (removed == 1) {
-                    removedOut = "once";
-                  }
-                  if (removed == 2) {
-                    removedOut = "twice";
-                  }
-                  if (removed > 2) {
-                    removedOut = removed + " times";
-                  }
-                  if (removed > 0) {
-                    removedOut += " removed";
-                  }
-                  aRel[2] = (ordinal(cousin) + " cousin " + removedOut).trim();
-                  window.relWords2.splice(i - 1, 1);
-                }
-              }
-            });
-
-            reduceRelWordsMore();
-            addConnectionText();
-            // $(".downloadLines").show();
-            // excelOut();
-            $(".treeImg").remove();
-            addWideTableButton();
-
-            $("img.timelineButton").on("click", function (event) {
-              window.pointerX = event.pageX;
-              window.pointerY = event.pageY;
-              cfTimeline($(this));
-            });
-
-            $("img.familyHome").on("click", function () {
-              showFamilySheet($(this), $(this).data("wtid"));
-            });
-            showHeritageSocietyBox();
-          }, // end success
-        });
-      }
+      // 4) Re-enable "Table" after 20 seconds
       $(".moreDetails").prop("disabled", true);
-      setTimeout(function () {
-        $(".moreDetails").prop("disabled", false);
-      }, 20000);
+      setTimeout(() => $(".moreDetails").prop("disabled", false), 20000);
     });
 
-    $("#findButton").on("click", function () {
-      $(".moreDetails").show();
-    });
+    // If they re-run Connection Finder, show the button again
+    $("#findButton").on("click", () => $(".moreDetails").show());
   }, 1000);
+}
+
+/**
+ * Render the relationship sentence (expanded or reduced) and
+ * place a one-click copy button next to it.
+ * @param {number} num – 0 = reduced      1 = expanded
+ */
+function addConnectionText(num = 0) {
+  /* ------------------------------------------------------------------ */
+  /* 1) clear out the previous sentence *and* any prior copy button     */
+  /* ------------------------------------------------------------------ */
+  $("#theRelText, #copyRelText").remove();
+
+  /* ------------------------------------------------------------------ */
+  /* 2) decide which word-list to use                                   */
+  /* ------------------------------------------------------------------ */
+  const arr = num === 1 ? window.relWords : window.relWords2;
+
+  /* ------------------------------------------------------------------ */
+  /* 3) figure out the two endpoint names                              */
+  /* ------------------------------------------------------------------ */
+  let [from, to] = connectionNames;
+  const $links = $("#connectionList a");
+  if (!from) from = $links.first().text().trim();
+  if (!to) to = $links.last().text().trim();
+
+  /* ------------------------------------------------------------------ */
+  /* 4) build the sentence                                              */
+  /* ------------------------------------------------------------------ */
+  let msg;
+  if (arr.length === 0) {
+    msg = `${to} is ${from}.`;
+  } else {
+    msg = `${to} is ${from}'s `;
+    arr.forEach((r, i) => {
+      const label = r[2] || r[0];
+      msg += label + (i < arr.length - 1 ? "'s " : ".");
+    });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* 5) inject the sentence span                                        */
+  /* ------------------------------------------------------------------ */
+  const canToggle = window.relWords.length !== window.relWords2.length;
+  const title = canToggle ? (num === 0 ? "Click to expand this." : "Click to reduce this.") : "";
+
+  const $span = $(`
+    <span id="theRelText"
+          title="${title}"
+          data-relative-list="${num}">${msg}</span>
+  `);
+  $("tr#connectionsTableNotes td").prepend($span);
+
+  /* ------------------------------------------------------------------ */
+  /* 6) add a small “Copy” button                                       */
+  /* ------------------------------------------------------------------ */
+  const $copyBtn = $(`
+    <img id="copyRelText" src="https://www.wikitree.com/images/icons/icon-copy.svg" 
+            height:"18" width="18" 
+            class="small wbe"
+            style="margin-left:.5em;" 
+            title="Copy the relationship description" />
+  `).on("click", () => {
+    /* use the Clipboard API when available, fall back otherwise */
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(msg);
+    } else {
+      const ta = document.createElement("textarea");
+      ta.value = msg;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    showCopyMessage("relationship sentence to clipboard");
+  });
+
+  $span.after($copyBtn);
+
+  /* ------------------------------------------------------------------ */
+  /* 7) wire up the toggle behaviour (unchanged)                        */
+  /* ------------------------------------------------------------------ */
+  if (canToggle) {
+    $span.on("click", () => addConnectionText(num === 0 ? 1 : 0));
+  }
 }
 
 function cfTimeline(jq) {
@@ -1473,23 +1443,23 @@ function showHeritageSocietyBox() {
             }
             if (spF && spM) {
               spPText =
-                (spFather.FirstName + " " + spFather.MiddleName).trim() +
+                (spFather?.FirstName + " " + spFather?.MiddleName).trim() +
                 " and " +
-                (spMother.FirstName + " " + spMother.MiddleName).trim() +
+                (spMother?.FirstName + " " + spMother?.MiddleName).trim() +
                 " (" +
-                spMother.LastNameAtBirth +
+                spMother?.LastNameAtBirth +
                 ") " +
-                spFather.LastNameCurrent;
+                spFather?.LastNameCurrent;
             } else if (spF) {
-              spPText = (spFather.FirstName + " " + spFather.MiddleName).trim() + " " + spFather.LastNameAtBirth;
+              spPText = (spFather?.FirstName + " " + spFather?.MiddleName).trim() + " " + spFather?.LastNameAtBirth;
             } else if (spM) {
               spPText =
-                (spMother.FirstName + " " + spMother.MiddleName).trim() +
+                (spMother?.FirstName + " " + spMother?.MiddleName).trim() +
                 " " +
                 " (" +
-                spMother.LastNameAtBirth +
+                spMother?.LastNameAtBirth +
                 ") " +
-                spMother.LastNameCurrent;
+                spMother?.LastNameCurrent;
             }
             let anS = "";
             if (spPText != "") {

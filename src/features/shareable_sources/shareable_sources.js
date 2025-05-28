@@ -320,7 +320,7 @@ function getSources(person, active = 0) {
       } else {
         topDiv.find("div").slideDown("swing");
         topDiv.addClass("active");
-        topDiv.focus();
+        topDiv.trigger("focus");
         focusFirstButton(referenceBox);
       }
     });
@@ -346,7 +346,7 @@ function getSources(person, active = 0) {
         });
       } else {
         $("#relativeBiography").slideDown("swing");
-        $("#relativeBioContent").focus();
+        $("#relativeBioContent").trigger("focus");
       }
     });
 
@@ -465,6 +465,8 @@ function basicSourcesArray(bio) {
  * to restore the original view and resets the flag.
  */
 $(document).on("keydown.shareableSourcesPopup", function (e) {
+  // If the family dropdown is still open, it gets first dibs.
+  if ($("#familyDropdown .custom-dropdown-menu").is(":visible")) return;
   const activeButton = $(":focus");
   let activeButtonIsInline = activeButton.length && activeButton.get(0).className.includes("nline");
   if (e.key === "Escape") {

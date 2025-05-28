@@ -743,7 +743,11 @@ function addFeatureToOptionsPage(featureData, container) {
       )
       .append($(`<label for="toggle_${featureData.id}"></label>`).text(featureData.name))
   );
-  let encodedName = encodeURIComponent(featureData.name).replace(/%20/g, "_").replace(/\(/g,".28").replace(/\)/g,".29").replace(/%/g, ".");
+  let encodedName = encodeURIComponent(featureData.name)
+    .replace(/%20/g, "_")
+    .replace(/\(/g, ".28")
+    .replace(/\)/g, ".29")
+    .replace(/%/g, ".");
 
   let helpLink =
     featureData.helpLink || `https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#${encodedName}`;
@@ -753,7 +757,7 @@ function addFeatureToOptionsPage(featureData, container) {
         .attr("href", helpLink)
         .append(
           $(
-            '<img src="https://www.wikitree.com/images/icons/help.gif" border="0" width="11" height="11" alt="Help"></img>'
+            '<img src="https://www.wikitree.com/images/icons/icon-question.svg" border="0" width="18" height="18" alt="Help"></img>'
           ).attr("title", `Help about ${featureData.name}`)
         )
     );

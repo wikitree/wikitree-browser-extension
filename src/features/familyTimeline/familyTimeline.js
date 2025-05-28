@@ -14,9 +14,9 @@ import {
   setAdjustedDates,
   statusOfDiff,
   addTab,
+  setHighestZIndex,
 } from "../../core/common";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
-import { getHighestZindex } from "../familyGroup/familyGroup";
 import { mainDomain, isProfilePage } from "../../core/pageType";
 import { profilePerson } from "../../core/common";
 
@@ -256,7 +256,7 @@ export function timeline(id = false) {
         return;
       }
       thisTimeline.slideToggle();
-      thisTimeline.css("z-index", getHighestZindex() + 1);
+      setHighestZIndex(thisTimeline);
       doit = false;
       return;
     }
@@ -500,7 +500,7 @@ export function timeline(id = false) {
       }
       // Create the timeline HTML element using a template literal
       const aTimeline = $(
-        `<div class='wrap' class='timeline' data-wtid='${person.Name}'><w>↔</w><x>x</x><table class='timelineTable table-borderless'>` +
+        `<div class='wrap timeline wbe-popup' data-wtid='${person.Name}'><w>↔</w><x>x</x><table class='timelineTable table-borderless'>` +
           `<caption>Events in the life of ${person.FirstName}'s family</caption><thead><th class='tlDate'>Date</th>` +
           `<th class='tlBioAge'>Age</th><th class='tlEventDescription'>Event</th><th class='tlEventLocation'>Location</th>` +
           `</thead><tbody></tbody></table></div>`
@@ -510,16 +510,16 @@ export function timeline(id = false) {
       if (isProfilePage) {
         aTimeline.prependTo(theSection);
         //positionTable(aTimeline);
+      } else if ($("#connectionList").length) {
+        aTimeline.prependTo($("#results"));
+        aTimeline.css({ top: window.pointerY + 10, left: window.pointerX + 10 });
+        console.log(window.pointerY);
+        setHighestZIndex(aTimeline);
       } else {
         theContainer = $("div.container");
         aTimeline.prependTo(theContainer);
         aTimeline.css({ top: window.pointerY - 30, left: 10 });
-        aTimeline.css("z-index", getHighestZindex() + 1);
-      }
-      if ($("#connectionList").length) {
-        aTimeline.prependTo($("#content"));
-        aTimeline.css({ top: window.pointerY - 30, left: 10 });
-        aTimeline.css("z-index", getHighestZindex() + 1);
+        setHighestZIndex(aTimeline);
       }
       let tlpDead = false;
       let tlpDeadAge;

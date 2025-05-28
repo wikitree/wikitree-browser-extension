@@ -138,7 +138,7 @@ function addScissorsToAnswers() {
       const g2gScissorsClassDiv = $("<div class='g2gScissors'></div>");
       g2gScissorsClassDiv.insertAfter(allAnchorNodes[i].parentNode);
 
-      addItems([previewLinkItem, urlItem], g2gScissorsClassDiv, { isNew: true });
+      addItems([previewLinkItem, urlItem], g2gScissorsClassDiv);
     }
   }
 }
@@ -233,7 +233,6 @@ function g2gScissors(alsoInAnswers) {
       };
 
       addItems([IDItem, urlItem, questionItem], position, {
-        isNew: true,
         positioning: "prepend",
         style: "margin-bottom: 1em",
       });

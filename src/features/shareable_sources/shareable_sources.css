@@ -64,7 +64,6 @@ div.six.columns.omega {
 
 button.seeBiography {
   font-size: 0.7em;
-  position: absolute !important;
   padding: 5px;
   top: 1.5em;
   left: -2em;
@@ -131,3 +130,16 @@ div.referenceBox.active .showSources {
   margin-top: 0;
   color: black;
 }
+
+/* ============================
+   Reference-Box button focus
+   ============================ */
+.referenceBox button:focus-visible {
+  outline: 2px solid #ff9800; /* orange = distinct from blue */
+  outline-offset: 2px;
+  /* a soft halo so the ring doesn’t get lost on busy pages */
+  box-shadow: 0 0 0 3px rgba(255, 153, 0, 0.35);
+}
+
+/* If you also want to show focus when users click with the mouse
+   (not just keyboard), replace :focus-visible with :focus */

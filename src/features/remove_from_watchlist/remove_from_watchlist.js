@@ -4,7 +4,6 @@ import $ from "jquery";
 import { mainDomain } from "../../core/pageType";
 import { getUserNumId } from "../../core/common";
 
-let editLink;
 function init() {
   const profileRows = document.getElementsByTagName("tr");
 
@@ -20,6 +19,7 @@ function init() {
       const checkBox = document.createElement("input");
       checkBox.type = "checkbox";
       checkBox.value = profileId;
+      checkBox.classList.add("wbe");
       checkBox.id = "cb_" + profileId;
 
       const tdThis = editLink.parentNode;
@@ -54,6 +54,7 @@ function init() {
   const checkAllButton = document.createElement("input");
   checkAllButton.type = "button";
   checkAllButton.classList.add("small");
+  checkAllButton.classList.add("wbe");
   checkAllButton.value = "check/uncheck all";
   checkAllButton.style.setProperty("margin-left", "1em", "important");
   checkAllButton.addEventListener("click", () => {
@@ -75,6 +76,7 @@ function init() {
   orphanButton.type = "button";
   orphanButton.value = "remove selected from watchlist";
   orphanButton.classList.add("small");
+  orphanButton.classList.add("wbe");
   orphanButton.style.setProperty("margin-left", "1em", "important");
   orphanButton.addEventListener("click", () => {
     DoOrphan();

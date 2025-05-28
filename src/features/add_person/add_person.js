@@ -459,13 +459,16 @@ function addAdditionalFields() {
 }
 
 function shortenInputs() {
-  $("#mBirthDate, #mDeathDate, #mMarriageDate, #mPrefix, #mSuffix, #mGender").closest("div").css("width", "15em");
+  $("#mBirthDate, #mDeathDate, #mMarriageDate, #mPrefix, #mSuffix, #mGender")
+    .closest("div")
+    .css("width", "15em")
+    .addClass("wbe");
 }
 
 function addCategoryPicker() {
   const catTextbox = document.createElement("input");
   catTextbox.value = "";
-  catTextbox.className = "small";
+  catTextbox.className = "small wbe";
   catTextbox.accessKey = "k";
   catTextbox.size = 50;
   catTextbox.autocomplete = false;

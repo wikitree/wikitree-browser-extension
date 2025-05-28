@@ -86,6 +86,12 @@ const usabilityTweaks = {
           label: "Add a button to profile pages to remove yourself as manager.",
           defaultValue: false,
         },
+        {
+          id: "addAccessedCountToProfileData",
+          type: OptionType.CHECKBOX,
+          label: "Add the accessed count to the profile data box (with the profile manager and edits).",
+          defaultValue: false,
+        },
       ],
     },
     {

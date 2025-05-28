@@ -2,10 +2,6 @@
 Created By: Ian Beacall (Beacall-6)
 Contributors: Jonathan Duke (Duke-5773)
 
-export let isProfileAddRelative = false;
-// Add unrelated person
-export let isAddUnrelatedPerson = false;
-
 */
 
 import $ from "jquery";
@@ -274,15 +270,55 @@ oncePerTab((rootWindow) => {
 /*
  * * * * * * * * * * * * * * * * * * * */
 
-if ($("#ebWBE").length == 0) {
-  $('a img[alt="WikiTree: Where genealogists collaborate"]').parent("a")
-    .after(`<span id="ebWBE"><a style="color: inherit !important; text-decoration: none;"
-        href="/wiki/Space:WikiTree_Browser_Extension">Enhanced by the WikiTree Browser Extension</a><button id="showWBEFeatures">Toggle WBE highlighting</button></span>`);
-  $("header").on("click", "#showWBEFeatures", function (e) {
+const questionIcon = chrome.runtime.getURL("images/question-icon.svg");
+// const fillColor = "#00bfff"; // Default fill color for the WBE icon
+const fillColor = "#25422d"; // Default fill color for the WBE icon
+if ($(".ebWBE").length === 0) {
+  $('a img[alt="WikiTree: Where genealogists collaborate"]').parent("a").after(`
+  <span class="ebWBE">
+    <a style="color: inherit !important; text-decoration: none;"
+       href="/wiki/Space:WikiTree_Browser_Extension">Enhanced by the WikiTree Browser Extension</a>
+    <a class="wbe-icon showWBEFeatures" title="Highlight WBE features">
+      <!-- Inline SVG starts here -->
+      <svg class="wbe-sparkle-icon" width="28" height="28" viewBox="0 0 512 512" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="256" cy="256" r="256" fill="${fillColor}" />
+        <g transform="translate(64,64) scale(0.85)">
+          <path
+            class="wbe-sparkle-main"
+            d="M259.92,262.91,216.4,149.77a9,9,0,0,0-16.8,0L156.08,262.91a9,9,0,0,1-5.17,5.17L37.77,311.6a9,9,0,0,0,0,16.8l113.14,43.52a9,9,0,0,1,5.17,5.17L199.6,490.23a9,9,0,0,0,16.8,0l43.52-113.14a9,9,0,0,1,5.17-5.17L378.23,328.4a9,9,0,0,0,0-16.8L265.09,268.08A9,9,0,0,1,259.92,262.91Z"
+            fill="#FFD700" stroke="#FFC300" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" />
+          <polygon class="wbe-sparkle-smallL" points="108 68 88 16 68 68 16 88 68 108 88 160 108 108 160 88 108 68"
+            fill="#FFFDE4" stroke="#FFE066" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" />
+          <polygon class="wbe-sparkle-smallR"
+            points="426.67 117.33 400 48 373.33 117.33 304 144 373.33 170.67 400 240 426.67 170.67 496 144 426.67 117.33"
+            fill="#FFE4B2" stroke="#FFD180" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" />
+        </g>
+      </svg>
+    </a>
+    <a href="/wiki/Space:WikiTree_Browser_Extension" target="Help" class="wbe-icon WBEHelpIcon enhancedBy"
+       title="WBE Help" target="_blank">
+       <svg  width="28" height="28" viewBox="66.26 66.26 379.48 379.48" xmlns="http://www.w3.org/2000/svg">
+    <path
+        d="m256 66.27c-104.62 0-189.74 85.113-189.74 189.74 0 104.62 85.121 189.73 189.74 189.73s189.74-85.117 189.74-189.74c0-104.62-85.121-189.73-189.74-189.73zm21.27 288.59h-43.258v-24.176h43.258zm23.184-90.527c-19.977 9.8984-23.199 22.035-23.199 47.258h-43.258c0-21.883 0-62.613 47.254-86.02 9.1094-4.5156 10.418-12.523 8.6133-18.504-2.457-8.1055-12-15.867-31.441-13.348-29.188 3.793-32.211 21.34-32.441 26.629l-43.258-0.41797c-0.011718-20.75 14.629-61.902 70.117-69.113 43.34-5.6172 70.59 17.891 78.418 43.688 8.4648 27.926-4.207 56.637-30.805 69.828z"
+        fill="${fillColor}" />
+</svg>
+    </a>
+  </span>
+`);
+
+  //      <img src="${questionIcon}" alt="WikiTree Browser Extension Help" />
+
+  // Click handler toggles body class and updates button title
+  $("header").on("click", ".showWBEFeatures", function (e) {
     e.preventDefault();
     $("body").toggleClass("wbe-highlight");
+
+    const isHighlighted = $("body").hasClass("wbe-highlight");
+    $(".showWBEFeatures").attr("title", isHighlighted ? "Remove WBE features highlight" : "Highlight WBE features");
   });
 }
+
+// 🪄🖍️
 
 // Add wte class to body to let WikiTree BEE know not to add the same functions
 document.querySelector("body").classList.add("wte");
@@ -320,6 +356,9 @@ async function checkButtonFeatures() {
   const isMarriageInfo = $("h1:contains('Edit Marriage Information')").length;
   if (isWikiEdit) {
     $("#toolbar").append(buttonContainer2);
+  }
+  if (isG2G) {
+    $(".qa-c-form h2").before(buttonContainer2);
   }
 
   try {
@@ -362,6 +401,7 @@ async function checkButtonFeatures() {
     const createButton = (options) => {
       // Break out options
       const { id, title, aClass, img } = options;
+      if (id && $("#" + id).length) return; // Don't create button if it already exists
       const button = $("<a>")
         .attr("id", id)
         // .attr("title", title)
@@ -402,16 +442,26 @@ async function checkButtonFeatures() {
         createButton({ id: "clipboardButton", aClass: "aClipboardButton", title: "Clipboard", img: clipboardImg }),
         createButton({ id: "notesButton", aClass: "aNotesButton", title: "Notes", img: notesImg })
       );
-      if (isWikiEdit) {
-        buttonContainer2.append(
-          createButton({
-            id: "anotherClipboardButton",
-            aClass: "aClipboardButton",
-            title: "Clipboard",
-            img: clipboardImg,
-          }),
-          createButton({ id: "anotherNotesButton", aClass: "aNotesButton", title: "Notes", img: notesImg })
-        );
+      if (isWikiEdit || isG2G) {
+        console.log("Adding clipboard and notes buttons to the toolbar");
+        $(".wbe-button-container2").each(function () {
+          $(this).append(
+            createButton({
+              id: "",
+              aClass: "aClipboardButton",
+              title: "Clipboard",
+              img: clipboardImg,
+            })
+          );
+          $(this).append(
+            createButton({
+              id: "",
+              aClass: "aNotesButton",
+              title: "Notes",
+              img: notesImg,
+            })
+          );
+        });
       }
     }
     if (results[2]) {
@@ -1783,7 +1833,6 @@ $(document).on("keydown", function (e) {
 
 /// document .wbe-popup click -> set highest z-index
 $(document).on("click", ".wbe-popup,#editorExpanderFixedDiv", function (e) {
-  console.log("Popup clicked:", this);
   setHighestZIndex(this);
   e.stopPropagation(); // Prevent event bubbling to parent elements
 });
@@ -1794,7 +1843,12 @@ export function setHighestZIndex(el) {
     ...Array.from(document.querySelectorAll("*"))
       .filter((el) => {
         const style = getComputedStyle(el);
-        return style.display !== "none" && style.visibility !== "hidden" && el.id !== "largeImagePopup";
+        return (
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          !["largeImagePopup", "pagePreview"].includes(el.id) &&
+          !el.classList.contains("dropdown-menu")
+        );
       })
       .map((el) => parseFloat(getComputedStyle(el).zIndex) || 0)
   );

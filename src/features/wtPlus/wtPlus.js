@@ -12,7 +12,7 @@ export const tb = {};
 const newTabIconURL = chrome.runtime.getURL("images/newTab.png");
 
 shouldInitializeFeature("wtplus").then((result) => {
-  if (result && isWikiEdit) {
+  if (result && isWikiEdit && !document.querySelector("#editToolbarExt")) {
     import("./wtPlus.css");
     initWTPlus();
   }

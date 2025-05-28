@@ -1,4 +1,9 @@
 /* Styles for highlightWBEFeatures feature */
+
+/* 2px border */
+.wbe-highlight #downloadFeatureData,
+.wbe-highlight #importFeatureData,
+.wbe-highlight #scratchPadDisplayInner.wbe,
 .wbe-highlight input[type="button"].wbe,
 .wbe-highlight img.expandTextareaButton,
 .wbe-highlight #nVitals,
@@ -36,27 +41,62 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 .wbe-highlight #hideClubBadges,
 .wbe-highlight #moveClubBadgesDown,
 .wbe-highlight .myConnectionsTableButton,
-.wbe-highlight #clonedEditButton {
-  border: var(--wbe-orange) 2px solid !important;
-}
-
+.wbe-highlight #clonedEditButton,
+.wbe-highlight span.distanceFromYou,
+.wbe-highlight div.yourRelationshipText,
+.wbe-highlight #pendingMergesFilterButtons button,
+.wbe-highlight tr.filter-row,
+.wbe-highlight ol.STYLED.enumerated,
+.wbe-highlight button.image-template-copy-button,
+.wbe-highlight a.backToTop,
+.wbe-highlight #removeMeButton,
+.wbe-highlight #onlyMembers,
+.wbe-highlight #saveSearchFormButton,
+.wbe-highlight #showBirthplacesButton,
+.wbe-highlight input.wbe,
+.wbe-highlight #navHomePageHouse,
+.wbe-highlight .accessKeyHint,
+.wbe-highlight #rangersButtons button,
+.wbe-highlight img.mw-toolbar-editbutton[alt="Automatic GEDCOM Cleanup"],
+.wbe-highlight #expandTextareaButton,
 .wbe-highlight span.awtG2GLink {
-  border-width: 1px !important;
+  border: var(--wbe-colour) 2px solid !important;
 }
 
-.wbe-highlight input.catCheck {
-  outline: auto 1px var(--wbe-orange) !important;
+/* Added to top menus */
+.wbe-highlight #draftsLink,
+.wbe-highlight .randomProfile.dropdown-item,
+.wbe-highlight .randomSpace.dropdown-item,
+.wbe-highlight .whatLinksHere.dropdown-item,
+.wbe-highlight .wte-tm-printer-friendly,
+.wbe-highlight .cc7Tracker,
+.wbe-highlight .wbe.dropdown-item {
+  border-right: 5px solid var(--wbe-colour) !important;
+  border-left: 5px solid var(--wbe-colour) !important;
 }
 
+/* bold WBE-coloured text */
+.wbe-highlight .helpScissors,
+.wbe-highlight #Profile-Data .wbe {
+  color: var(--wbe-colour) !important;
+  font-weight: bold;
+}
+
+/* box shadows */
 .wbe-highlight #extraWatchlistWindow,
 .wbe-highlight div.wbe-popup,
-.wbe-highlight #myDrafts {
-  box-shadow: 0.1em 0.1em 0.1em 0.1em var(--wbe-orange-light) !important;
+.wbe-highlight #myDrafts,
+.wbe-highlight div#verification {
+  box-shadow: 0.1em 0.1em 0.1em 0.1em var(--wbe-colour-light) !important;
 }
+
+/* no border-bottom */
 .wbe-highlight button.wbe-tab,
 .wbe-highlight span.awtG2GLink {
   border-bottom: none !important;
 }
+
+/* 3px border */
 .wbe-highlight textarea.wbe,
 .wbe-highlight form.wbe,
 .wbe-highlight div.familySheet,
@@ -67,9 +107,29 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 .wbe-highlight #categoryFilterButtonsContainer,
 .wbe-highlight table.degreeCount,
 .wbe-highlight #myDrafts,
-.wbe-highlight #cc7DeltaContainer {
-  border: var(--wbe-orange) 3px solid !important;
+.wbe-highlight #cc7DeltaContainer,
+.wbe-highlight div.ui-dialog,
+html[data-wbe-savebuttonsstyleoptions] .wbe-highlight div.form-buttons button,
+.wbe-highlight div#utilityButtons a,
+.wbe-highlight h2#What_Links_Here:has(.toggle-whl),
+.wbe-highlight ul.myCustomMenu,
+.wbe-highlight div.referenceBox,
+.wbe-highlight div#verification,
+.wbe-highlight #filterButtons button,
+.wbe-highlight #newPersonSummary,
+html[data-wbe-datefixer] .wbe-highlight #mBirthDate,
+html[data-wbe-datefixer] .wbe-highlight #mDeathDate,
+html[data-wbe-datefixer] .wbe-highlight #mMarriageDate,
+html[data-wbe-genderpredictor] .wbe-highlight #mGender,
+.wbe-highlight .input-group.wbe .form-control,
+.wbe-highlight #editToolbarExt,
+.wbe-highlight #googleSearchBox,
+.wbe-highlight #helpSearchBox,
+.wbe-highlight #changeSummaryOptions {
+  border: var(--wbe-colour) 3px solid !important;
 }
+
+/* rounded corners */
 .wbe-highlight textarea.wbe,
 .wbe-highlight div.wbe-popup,
 .wbe-highlight #addFSID,
@@ -81,22 +141,127 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 .wbe-highlight #toggleTipsColumn span.icon--toggler,
 .wbe-highlight #toggleFamilyColumn img,
 .wbe-highlight #summaryOptionsContainer,
-.wbe-highlight #searchBar.showSearch {
+.wbe-highlight #searchBar.showSearch,
+.wbe-highlight #newPersonSummary,
+.wbe-highlight ol.STYLED.enumerated,
+.wbe-highlight a.backToTop,
+.wbe-highlight h2#What_Links_Here:has(.toggle-whl),
+.wbe-highlight #onlyMembers,
+.wbe-highlight .accessKeyHint {
   border-radius: 5px !important;
 }
-.wbe-highlight .myMenuGears,
-.wbe-highlight #changeSummaryGears,
-.wbe-highlight ul.scissors img {
-  filter: var(--wbe-icon-filter) !important;
-}
+
+/* padding and margin 0.5em / display:block */
 .wbe-highlight #addFSID,
 .wbe-highlight #summaryOptionsContainer,
-.wbe-highlight #anniversariesTable_wrapper {
+.wbe-highlight #anniversariesTable_wrapper,
+.wbe-highlight #newPersonSummary,
+.wbe-highlight #editToolbarExt,
+.wbe-highlight a.backToTop,
+.wbe-highlight #onlyMembers {
   padding: 0.5em;
   margin: 0.5em;
   display: block;
 }
+
+/* display:inline-block */
+.wbe-highlight #newPersonSummary,
+.wbe-highlight a.backToTop,
+.wbe-highlight #onlyMembers {
+  display: inline-block;
+}
+
+/* Button borders need to be lighter */
+.wbe-highlight #downloadFeatureData,
+.wbe-highlight #importFeatureData,
+.wbe-highlight #scratchPadDisplayInner.wbe,
+.wbe-highlight input[type="button"].wbe,
+.wbe-highlight img.expandTextareaButton,
+.wbe-highlight button.special-collapse-button,
+.wbe-highlight button.collapse-toggle,
+.wbe-highlight button.collapse-all-toggle,
+.wbe-highlight button.collapse-toc-toggle,
+.wbe-highlight #showAllDegreesButton,
+.wbe-highlight button.copyLocation,
+.wbe-highlight button#surnameTableMoreButton,
+.wbe-highlight #leftButton,
+.wbe-highlight #rightButton,
+.wbe-highlight #saveSearchFromButton,
+.wbe-highlight #flipLocationsButton,
+.wbe-highlight .wideTableButton,
+.wbe-highlight button.moreDetails,
+.wbe-highlight button#surnameSummaries,
+.wbe-highlight #customActionsContainer button,
+.wbe-highlight .categoryTablesButton,
+.wbe-highlight #hideClubBadges,
+.wbe-highlight #moveClubBadgesDown,
+.wbe-highlight .myConnectionsTableButton,
+.wbe-highlight #clonedEditButton,
+.wbe-highlight #pendingMergesFilterButtons button,
+.wbe-highlight button.image-template-copy-button,
+.wbe-highlight #removeMeButton,
+.wbe-highlight #saveSearchFormButton,
+.wbe-highlight #showBirthplacesButton,
+.wbe-highlight #rangersButtons button,
+.wbe-highlight #googleSearchBox,
+.wbe-highlight #helpSearchBox,
+.wbe-highlight .toggleTipsColumn,
+.wbe-highlight #toggleFamilyColumn,
+.wbe-highlight img.mw-toolbar-editbutton[alt="Automatic GEDCOM Cleanup"],
+.wbe-highlight #expandTextareaButton {
+  border-color: var(--wbe-colour-light) !important;
+}
+
+/* 2px top and bottom borders only */
+body.wbe-highlight #myMenuGroup,
+.wbe-highlight #navHomePageHouse {
+  border-top: 2px solid var(--wbe-colour) !important;
+  border-bottom: 2px solid var(--wbe-colour) !important;
+  border-left: none !important;
+  border-right: none !important;
+}
+
+/* Individual tweaks */
+.wbe-highlight ol.STYLED.enumerated {
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
+}
+.wbe-highlight span.home {
+  border-bottom: var(--wbe-colour) 3px solid;
+}
+
+.wbe-highlight div.yourRelationshipText {
+  border-left-width: 1px !important;
+  border-top-width: 1px !important;
+}
+.wbe-highlight input.catCheck {
+  outline: auto 1px var(--wbe-colour) !important;
+}
+.wbe-highlight .accessKeyHint {
+  padding: 1px;
+}
+
 .wbe-highlight #tabs .clipboardContainer {
-  border-left: 0.4em solid var(--wbe-orange) !important;
+  border-left: 0.4em solid var(--wbe-colour) !important;
   margin-left: 0.5em;
+}
+
+body.wbe-highlight .showWBEFeatures circle {
+  fill: var(--wbe-colour-light) !important;
+}
+
+.wbe-highlight #editToolbarExt {
+  margin: auto;
+}
+
+/* image filters */
+.wbe-highlight .wbe-button:not(.toggleTipsColumn, #toggleFamilyColumn) {
+  filter: var(--wbe-icon-filter);
+}
+.wbe-highlight .myMenuGears,
+.wbe-highlight #changeSummaryGears,
+.wbe-highlight ul.scissors img,
+.wbe-highlight #jigsawMan,
+.wbe-highlight .WBEHelpIcon span.icon--help {
+  filter: var(--wbe-icon-filter);
 }

@@ -304,7 +304,7 @@ function addProfileAction(details) {
 
 // Initialize the photo popup and related actions on page load if the feature is enabled
 shouldInitializeFeature("imageTable").then((result) => {
-  if (result && $("#wt-photos").length) {
+  if (result && $("#wt-photos").length && !$("#photoPopup,#ImageTable,#ImageTable-tab").length) {
     // Dynamically import the CSS for the image table
     import("./image_table.css");
     if (isProfilePage) {
