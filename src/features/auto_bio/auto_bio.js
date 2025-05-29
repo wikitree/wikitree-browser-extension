@@ -9,7 +9,8 @@ import { occupationList } from "./occupation_list";
 import { occupationList2 } from "./occupation_list_2";
 import { unsourcedCategories } from "./unsourced_categories.js";
 import { firstNameVariants } from "./first_name_variants.js";
-import { ageAtDeath, familyArray, getUserNumId, isOK, treeImageURL } from "../../core/common";
+import { ageAtDeath, familyArray, isOK, treeImageURL } from "../../core/common";
+import { addLoginButton } from "../../core/loginButton";
 import { getAge } from "../change_family_lists/change_family_lists";
 import { titleCase } from "../familyTimeline/familyTimeline";
 import { wtAPICatCIBSearch } from "../../core/API/wtPlusAPI";
@@ -690,16 +691,16 @@ export function getPronouns(person) {
 
 export function formatDates(person) {
   let birthDate = " ";
-  if (person.BirthDate) {
+  if (isOK(person.BirthDate)) {
     birthDate = person.BirthDate.substring(0, 4) || " ";
-  } else if (person.BirthDateDecade) {
-    birthDate = person.BirthDateDecade.substring(0, 3) + "5" || " ";
+  } else if (isOK(person.BirthDateDecade)) {
+    birthDate = person.BirthDateDecade.substring(0, 3) + "5";
   }
   let deathDate = " ";
-  if (person?.DeathDate) {
-    deathDate = person?.DeathDate.substring(0, 4) || " ";
-  } else if (person?.DeathDateDecade) {
-    deathDate = person?.DeathDateDecade.substring(0, 3) + "5" || " ";
+  if (isOK(person.DeathDate)) {
+    deathDate = person.DeathDate.substring(0, 4) || " ";
+  } else if (isOK(person.DeathDateDecade)) {
+    deathDate = person.DeathDateDecade.substring(0, 3) + "5";
   }
   if (birthDate === "0000") birthDate = " ";
   if (deathDate === "0000") deathDate = " ";
@@ -6805,62 +6806,6 @@ export function assignPersonNames(person) {
   });
 }
 
-export function addLoginButton() {
-  let x = window.location.href.split("?");
-  if (x[1]) {
-    let queryParams = new URLSearchParams(x[1]);
-    if (queryParams.get("authcode")) {
-      let authcode = queryParams.get("authcode");
-      $.ajax({
-        url: "https://api.wikitree.com/api.php",
-        crossDomain: true,
-        xhrFields: { withCredentials: true },
-        type: "POST",
-        dataType: "JSON",
-        data: {
-          action: "clientLogin",
-          authcode: authcode,
-          appId: "WBE_auto_bio",
-        },
-        success: function (data) {
-          if (data) {
-            if (data.clientLogin.result == "Success") {
-              $("#appsLoginButton").hide();
-            }
-          }
-        },
-      });
-    }
-  }
-
-  const userID = getUserNumId();
-  $.ajax({
-    url: "https://api.wikitree.com/api.php?action=clientLogin&appId=WBE_auto_bio&checkLogin=" + userID,
-    crossDomain: true,
-    xhrFields: { withCredentials: true },
-    type: "POST",
-    dataType: "JSON",
-    success: function (data) {
-      if (data) {
-        if (data?.clientLogin?.result == "error") {
-          let loginButton = $(
-            "<button title='Log in to the apps server for better Auto Bio results' class='small button' id='appsLoginButton'>Apps Login</button>"
-          );
-          if ($("#appsLoginButton")?.length == 0) {
-            $("#toolbar").append(loginButton);
-          }
-          loginButton.on("click", function (e) {
-            e.preventDefault();
-            window.location =
-              "https://api.wikitree.com/api.php?action=clientLogin&appId=WBE_auto_bio&returnURL=" +
-              encodeURI(window.location.href);
-          });
-        }
-      }
-    },
-  });
-}
-
 /*
 Set OrderBirthDate.  If person has a BirthDate, use that; if they have a BirthDecade use July 2nd in the 5th year of that decade.
 */
@@ -8211,7 +8156,13 @@ export async function generateBio() {
       );
       window.profilePerson.Name = profileID;
       window.profilePerson.MiddleInitial = "";
-      addLoginButton();
+      addLoginButton({
+        appId: "WBE_auto_bio",
+        btnId: "appsLoginButton",
+        btnTitle: "Log in to the apps server for better Auto Bio results",
+        btnContainer: $("#toolbar"),
+        returnURL: encodeURI(window.location.href),
+      });
     } else {
       window.profilePerson.BirthYear = window.profilePerson.BirthDate?.split("-")[0];
       if (window.profilePerson?.DeathDate) {

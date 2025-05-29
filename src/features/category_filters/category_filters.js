@@ -1,7 +1,7 @@
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { treeImageURL } from "../../core/common";
-import { addLoginButton } from "../my_connections/my_connections";
+import { addLoginButton } from "../../core/loginButton";
 
 // Initial filter mode
 let filterMode = "only"; // Default filter mode
@@ -59,7 +59,14 @@ function initCategoryFilters() {
   filterButtonsContainer.appendTo(personProfilesh2);
 
   // Add login button if necessary
-  addLoginButton("WBE_category_filters");
+  addLoginButton({
+    appId: "WBE_category_filters",
+    btnId: "categoryFiltersLoginButton",
+    btnTitle:
+      "Log in to the apps server for profiles that you are on the trusted list of to be included in the filtering",
+    btnContainer: $("#categoryFilterButtonsContainer"),
+    returnURL: encodeURI(window.location.href),
+  });
 
   // Data for the radio buttons (filter modes)
   const radioData = [
