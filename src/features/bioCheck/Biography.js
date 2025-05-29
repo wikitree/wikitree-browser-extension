@@ -2472,16 +2472,16 @@ export class Biography {
       }
     }
     if (isValidConf) {
-      // Could be as little as 0 so just report for the 3C1R numbers
-      if (((cM > 0) && (cM < 26)) || ((sharedDnaPercent > 0) && (sharedDnaPercent < .39))) {
-        this.#style.bioHasStyleIssues = true;
-        this.#messages.styleMessages.push('DNA Match might not be 3rd cousin or closer');
-      }
       // Predicted relationships: MyHeritage: 3rd - 4th cousin, FTDNA: 2nd-4th Cousin
       // AncestryDNA: 3rd-4th Cousins
       // if (line.includes('fourth cousin') || line.includes('4th cousin') || 
       if (line.includes('fourth cousin') || 
           line.includes('4C') || line.includes('3C1')) {
+        this.#style.bioHasStyleIssues = true;
+        this.#messages.styleMessages.push('DNA Match might not be 3rd cousin or closer');
+      }
+      // Could be as little as 0 so just report for the fourth cousins numbers
+      if (((cM > 0) && (cM < 13)) || ((sharedDnaPercent > 0) && (sharedDnaPercent < .19))) {
         this.#style.bioHasStyleIssues = true;
         this.#messages.styleMessages.push('DNA Match might not be 3rd cousin or closer');
       }
