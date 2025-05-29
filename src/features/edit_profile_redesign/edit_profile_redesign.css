@@ -14,14 +14,17 @@ body.hiddenSidebar div.container:has(h2#Photo),
 body.hiddenSidebar.edit-space div.row:has(div.photo--wrapper) {
   position: relative;
 }
-#toggleTipsColumn {
-  float: right;
+body #toggleTipsColumn {
+  text-decoration: none;
+}
+body #toggleTipsColumn #Photo {
+  top: 0;
 }
 body #toggleTipsColumn .plus {
   display: none;
 }
 body.hiddenSidebar #toggleTipsColumn .plus {
-  display: block;
+  display: inline-block;
 }
 body.hiddenSidebar #toggleTipsColumn .minus {
   display: none;
@@ -53,4 +56,9 @@ body.hiddenSidebar hr.hr-hidden {
 #wbe-family-transition {
   overflow: hidden;
   transition: height 0.3s ease, opacity 0.3s ease;
+}
+
+#toggleFamilyColumn .icon--toggler,
+#Photo .icon--toggler {
+  top: 5px;
 }
