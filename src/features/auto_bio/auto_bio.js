@@ -120,33 +120,43 @@ function dataStatusWord(status, ISOdate, options = { needOnIn: false, onlyYears:
   }
 }
 
+/**
+ * Try to identify a U S state in the last 1–2 comma-separated tokens of a
+ * place string.
+ *
+ *   "Lexington, Kentucky, USA"     → "Kentucky"
+ *   "Berkeley County, Virginia"    → "Virginia"
+ *   "Fort Loudoun, VA"             → "Virginia"
+ *   "Boston, Massachusetts Bay"    → null   (no state match)
+ *
+ * @param {string} location
+ * @return {string|null}  canonical state name or null if none found
+ */
 function findUSState(location) {
   if (!location) return null;
 
-  const usCountryNames = ["united states", "usa", "u.s.a.", "u.s.", "us", "united states of america"];
+  // Comma-separated tokens, trimmed & lower-cased
+  const parts = location.split(",").map((p) => p.trim().toLowerCase());
 
-  const parts = location.split(",").map((part) => part.trim().toLowerCase());
+  // Country tokens we should ignore if we hit them
+  const usCountryNames = new Set(["united states", "united states of america", "usa", "u.s.a.", "u.s.", "us"]);
 
-  const lastPart = parts[parts.length - 1];
-  const lastPartState = USstatesObjArray.find(
-    (state) => state.name.toLowerCase() === lastPart || state.abbreviation.toLowerCase() === lastPart
-  );
+  // Look at the last token, then (if needed) the one before it
+  for (let i = parts.length - 1; i >= 0 && i >= parts.length - 2; i--) {
+    const token = parts[i];
 
-  if (usCountryNames.includes(lastPart) && parts.length > 1) {
-    const secondToLastPart = parts[parts.length - 2];
-    const secondToLastPartState = USstatesObjArray.find(
-      (state) => state.name.toLowerCase() === secondToLastPart || state.abbreviation.toLowerCase() === secondToLastPart
+    // Skip “USA”, “United States”, etc.
+    if (usCountryNames.has(token)) continue;
+
+    // Match against state name or two-letter abbreviation
+    const match = USstatesObjArray.find(
+      (s) => s.name.toLowerCase() === token || s.abbreviation.toLowerCase() === token
     );
-    if (secondToLastPartState) {
-      return secondToLastPartState.name;
-    }
+
+    if (match) return match.name;
   }
 
-  if (lastPartState) {
-    return lastPartState.name;
-  }
-
-  return null;
+  return null; // nothing recognised
 }
 
 function autoBioCheck(sourcesStr) {
@@ -9183,53 +9193,57 @@ function addCountyForIreland(locations) {
   });
 }
 
+/**
+ * If a profile’s county is within ARC-defined Appalachia for the given state,
+ * add  [[Category: {State} Appalachians]]  to StuffBeforeTheBio.
+ *
+ * @param {string} location  – full place string (e.g. “Jefferson Co., Tennessee, USA”)
+ * @param {string} thisState – plain-text state name (e.g. “Tennessee”)
+ */
 async function appalachiaCategory(location, thisState) {
-  console.log("[appalachiaCategory] Called with location:", location, "thisState:", thisState);
-
-  // import appalachia_counties.json if not already imported
-  if (!window.appalachiaCounties) {
-    console.log("[appalachiaCategory] Importing appalachia_counties.json...");
-    const module = await import("./appalachia_counties.json");
-    window.appalachiaCounties = module.default;
-    console.log("[appalachiaCategory] appalachiaCounties loaded:", window.appalachiaCounties);
-  } else {
-    console.log("[appalachiaCategory] appalachiaCounties already loaded.");
+  /* ------------------------------------------------------------------
+   * 1. Load the county list exactly once, even with overlapping calls
+   * ----------------------------------------------------------------*/
+  if (!window.__appalachiaCountiesPromise) {
+    window.__appalachiaCountiesPromise = import("./appalachia_counties.json").then((m) => m.default); // keep only the default export
   }
 
-  // The place before the state is the county.
-  // Split location by comma and get the part before the state.
-  const locationParts = location.split(", ");
-  console.log("[appalachiaCategory] locationParts:", locationParts);
+  /** @type {{[state:string]: string[]}} */
+  const countiesObj = await window.__appalachiaCountiesPromise;
 
-  // Find the index of the state in the locationParts array
-  const stateIndex = locationParts.findIndex((part) => part.match(new RegExp(thisState, "i")));
-  console.log("[appalachiaCategory] stateIndex:", stateIndex);
+  /* ------------------------------------------------------------------
+   * 2. Pull the county that immediately precedes the state in the place string
+   * ----------------------------------------------------------------*/
+  const parts = location.split(", ").map((p) => p.trim());
+  const stateIndex = parts.findIndex((p) => p.toLowerCase() === thisState.toLowerCase());
+  if (stateIndex <= 0) {
+    return;
+  }
 
-  // If the state is found and there is a part before it, use that as the county
-  if (stateIndex > 0) {
-    const county = locationParts[stateIndex - 1];
-    console.log("[appalachiaCategory] Found county:", county);
+  const county = parts[stateIndex - 1] // raw piece
+    .replace(/\s+(County|Co\.?)$/i, "") // strip “County”, “Co”, “Co.”
+    .trim();
 
-    // Check if the county is in the appalachiaCounties
-    if (window.appalachiaCounties.includes(county)) {
-      console.log("[appalachiaCategory] County is in appalachiaCounties:", county);
+  /* ------------------------------------------------------------------
+   * 3. Is that county in the Appalachian list for this state?
+   * ----------------------------------------------------------------*/
+  const countyList = countiesObj[thisState] ?? [];
+  const isAppalachian = countyList.some((c) => c.toLowerCase() === county.toLowerCase());
+  if (!isAppalachian) {
+    return;
+  }
 
-      if (window.sectionsObject["StuffBeforeTheBio"].text) {
-        const appalachiaCategory = `[[Category: ${thisState} Appalachians]]`;
-        if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(appalachiaCategory)) {
-          window.sectionsObject["StuffBeforeTheBio"].text.push(appalachiaCategory);
-          console.log("[appalachiaCategory] Added category:", appalachiaCategory);
-        } else {
-          console.log("[appalachiaCategory] Category already present:", appalachiaCategory);
-        }
-      } else {
-        console.log("[appalachiaCategory] window.sectionsObject['StuffBeforeTheBio'].text not found.");
-      }
-    } else {
-      console.log("[appalachiaCategory] County not in appalachiaCounties:", county);
-    }
-  } else {
-    console.log("[appalachiaCategory] State not found or no county before state in locationParts.");
+  /* ------------------------------------------------------------------
+   * 4. Add the category if it isn’t already present
+   * ----------------------------------------------------------------*/
+  const stuff = window.sectionsObject?.StuffBeforeTheBio?.text;
+  if (!Array.isArray(stuff)) {
+    return;
+  }
+
+  const tag = `[[Category: ${thisState} Appalachians]]`;
+  if (!stuff.includes(tag)) {
+    stuff.push(tag);
   }
 }
 
@@ -9336,8 +9350,12 @@ export async function getLocationCategory(type, location = null) {
 
   const apiResponses = await Promise.allSettled(apiPromises);
 
-  let foundCategory = null;
+  const thisState = findUSState(location);
+  if (thisState && appalachiaStates.includes(thisState)) {
+    appalachiaCategory(location, thisState);
+  }
 
+  let foundCategory = null;
   for (const location of searchLocationsArray) {
     for (const api of apiResponses) {
       if (api.status === "fulfilled") {
@@ -9347,13 +9365,6 @@ export async function getLocationCategory(type, location = null) {
 
         if (location.match(/United States|USA|U\.S\.A\.|U\.S\./i)) {
           const thisState = findUSState(location);
-
-          console.log("Found state:", thisState, "for location:", location);
-          if (thisState && appalachiaStates.includes(thisState)) {
-            console.log("Adding Appalachia category for state:", thisState);
-            appalachiaCategory(location, thisState);
-          }
-
           if (thisState && response?.categories?.length > 0) {
             response.categories = response.categories.filter((category) => {
               const categoryState = findUSState(category.category);
