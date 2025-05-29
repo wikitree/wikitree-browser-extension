@@ -23,6 +23,22 @@ import { mainDomain, isIansProfile } from "../../core/pageType";
 import { profilePerson } from "../../core/common";
 import ONSjson from "./ONS.json";
 
+const appalachiaStates = [
+  "Alabama",
+  "Georgia",
+  "Kentucky",
+  "Maryland",
+  "Mississippi",
+  "New York",
+  "North Carolina",
+  "Ohio",
+  "Pennsylvania",
+  "South Carolina",
+  "Tennessee",
+  "Virginia",
+  "West Virginia",
+];
+
 const irishCounties = [
   "Antrim",
   "Armagh",
@@ -104,33 +120,43 @@ function dataStatusWord(status, ISOdate, options = { needOnIn: false, onlyYears:
   }
 }
 
+/**
+ * Try to identify a U S state in the last 1–2 comma-separated tokens of a
+ * place string.
+ *
+ *   "Lexington, Kentucky, USA"     → "Kentucky"
+ *   "Berkeley County, Virginia"    → "Virginia"
+ *   "Fort Loudoun, VA"             → "Virginia"
+ *   "Boston, Massachusetts Bay"    → null   (no state match)
+ *
+ * @param {string} location
+ * @return {string|null}  canonical state name or null if none found
+ */
 function findUSState(location) {
   if (!location) return null;
 
-  const usCountryNames = ["united states", "usa", "u.s.a.", "u.s.", "us", "united states of america"];
+  // Comma-separated tokens, trimmed & lower-cased
+  const parts = location.split(",").map((p) => p.trim().toLowerCase());
 
-  const parts = location.split(",").map((part) => part.trim().toLowerCase());
+  // Country tokens we should ignore if we hit them
+  const usCountryNames = new Set(["united states", "united states of america", "usa", "u.s.a.", "u.s.", "us"]);
 
-  const lastPart = parts[parts.length - 1];
-  const lastPartState = USstatesObjArray.find(
-    (state) => state.name.toLowerCase() === lastPart || state.abbreviation.toLowerCase() === lastPart
-  );
+  // Look at the last token, then (if needed) the one before it
+  for (let i = parts.length - 1; i >= 0 && i >= parts.length - 2; i--) {
+    const token = parts[i];
 
-  if (usCountryNames.includes(lastPart) && parts.length > 1) {
-    const secondToLastPart = parts[parts.length - 2];
-    const secondToLastPartState = USstatesObjArray.find(
-      (state) => state.name.toLowerCase() === secondToLastPart || state.abbreviation.toLowerCase() === secondToLastPart
+    // Skip “USA”, “United States”, etc.
+    if (usCountryNames.has(token)) continue;
+
+    // Match against state name or two-letter abbreviation
+    const match = USstatesObjArray.find(
+      (s) => s.name.toLowerCase() === token || s.abbreviation.toLowerCase() === token
     );
-    if (secondToLastPartState) {
-      return secondToLastPartState.name;
-    }
+
+    if (match) return match.name;
   }
 
-  if (lastPartState) {
-    return lastPartState.name;
-  }
-
-  return null;
+  return null; // nothing recognised
 }
 
 function autoBioCheck(sourcesStr) {
@@ -9167,6 +9193,60 @@ function addCountyForIreland(locations) {
   });
 }
 
+/**
+ * If a profile’s county is within ARC-defined Appalachia for the given state,
+ * add  [[Category: {State} Appalachians]]  to StuffBeforeTheBio.
+ *
+ * @param {string} location  – full place string (e.g. “Jefferson Co., Tennessee, USA”)
+ * @param {string} thisState – plain-text state name (e.g. “Tennessee”)
+ */
+async function appalachiaCategory(location, thisState) {
+  /* ------------------------------------------------------------------
+   * 1. Load the county list exactly once, even with overlapping calls
+   * ----------------------------------------------------------------*/
+  if (!window.__appalachiaCountiesPromise) {
+    window.__appalachiaCountiesPromise = import("./appalachia_counties.json").then((m) => m.default); // keep only the default export
+  }
+
+  /** @type {{[state:string]: string[]}} */
+  const countiesObj = await window.__appalachiaCountiesPromise;
+
+  /* ------------------------------------------------------------------
+   * 2. Pull the county that immediately precedes the state in the place string
+   * ----------------------------------------------------------------*/
+  const parts = location.split(", ").map((p) => p.trim());
+  const stateIndex = parts.findIndex((p) => p.toLowerCase() === thisState.toLowerCase());
+  if (stateIndex <= 0) {
+    return;
+  }
+
+  const county = parts[stateIndex - 1] // raw piece
+    .replace(/\s+(County|Co\.?)$/i, "") // strip “County”, “Co”, “Co.”
+    .trim();
+
+  /* ------------------------------------------------------------------
+   * 3. Is that county in the Appalachian list for this state?
+   * ----------------------------------------------------------------*/
+  const countyList = countiesObj[thisState] ?? [];
+  const isAppalachian = countyList.some((c) => c.toLowerCase() === county.toLowerCase());
+  if (!isAppalachian) {
+    return;
+  }
+
+  /* ------------------------------------------------------------------
+   * 4. Add the category if it isn’t already present
+   * ----------------------------------------------------------------*/
+  const stuff = window.sectionsObject?.StuffBeforeTheBio?.text;
+  if (!Array.isArray(stuff)) {
+    return;
+  }
+
+  const tag = `[[Category: ${thisState} Appalachians]]`;
+  if (!stuff.includes(tag)) {
+    stuff.push(tag);
+  }
+}
+
 export async function getLocationCategory(type, location = null) {
   if (!USstatesObjArray) {
     const module = await import("./us_states.json");
@@ -9270,8 +9350,12 @@ export async function getLocationCategory(type, location = null) {
 
   const apiResponses = await Promise.allSettled(apiPromises);
 
-  let foundCategory = null;
+  const thisState = findUSState(location);
+  if (thisState && appalachiaStates.includes(thisState)) {
+    appalachiaCategory(location, thisState);
+  }
 
+  let foundCategory = null;
   for (const location of searchLocationsArray) {
     for (const api of apiResponses) {
       if (api.status === "fulfilled") {
