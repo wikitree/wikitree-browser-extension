@@ -15,7 +15,6 @@ import { getUserNumId, isLoggedIntoAPI } from "./common";
  */
 export async function addLoginButton(opt) {
   const returnURL = opt.returnURL ? opt.returnURL : currentHrefWithoutAuthcode();
-  console.log(`returnUrl=${returnURL}`);
 
   await handleOptionalAuthCode(opt);
 
@@ -34,7 +33,6 @@ export async function addLoginButton(opt) {
         if (opt.btnOnClick) {
           opt.btnOnClick(e);
         }
-        console.log(`returnUrl=${returnURL}`);
         window.location = `https://api.wikitree.com/api.php?action=clientLogin&appId=${opt.appId}&returnURL=${returnURL}`;
       });
     } else {
