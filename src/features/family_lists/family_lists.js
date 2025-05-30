@@ -71,7 +71,6 @@ async function getFamily() {
         btnId: "appsLoginButton",
         btnTitle: "Log in to the apps server for better family list results",
         btnContainer: $("#toolbar"),
-        returnURL: encodeURI(window.location.href),
       });
     } else {
       window.profilePerson.BirthYear = window.profilePerson.BirthDate?.split("-")[0];

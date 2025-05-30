@@ -47,6 +47,26 @@ const usabilityTweaks = {
           label: "Add link to Nav Home Page next to My WikiTree",
           defaultValue: false,
         },
+        {
+          id: "addApiLoginButton",
+          type: OptionType.RADIO,
+          label: "Add an App Login button if not logged in to the WikiTree API",
+          values: [
+            {
+              value: "none",
+              text: "Never",
+            },
+            {
+              value: "navOnly",
+              text: "On Navigation Home Page",
+            },
+            {
+              value: "all",
+              text: "Home + Profile Pages",
+            },
+          ],
+          defaultValue: "all",
+        },
       ],
     },
     {

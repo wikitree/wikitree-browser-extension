@@ -241,13 +241,32 @@ function addIDsToOLs() {
 
 shouldInitializeFeature("myConnections").then((result) => {
   if (result && $("body.my-connections").length && $("#gen0").length && window.doingMyConnections == undefined) {
+    let btnContainer = $("span[title^='This is your Connection Count']");
+    if (btnContainer.length == 0) {
+      btnContainer = $("#my-connections h1");
+    }
     addLoginButton({
       appId: "WBE_my_connections",
       btnId: "myConnectionsLoginButton",
       btnTitle: "Log in to the apps server for better Missing Connections results",
-      btnContainer: $("span[title^='This is your Connection Count']"),
-      returnURL: encodeURI(window.location.href.split("?")[0]),
+      btnContainer: btnContainer,
+      btnOnClick: function (e) {
+        const url = new URL(window.location.href);
+        const wtId = url.searchParams.get("w");
+        if (wtId) {
+          localStorage.setItem("wbeMyConnectionsId", wtId);
+        }
+      },
     });
+    if (localStorage.wbeMyConnectionsId) {
+      const wtId = localStorage.wbeMyConnectionsId;
+      localStorage.removeItem("wbeMyConnectionsId");
+
+      // Add or update the 'w' parameter to the current URL and redisplay
+      const url = new URL(window.location.href);
+      url.searchParams.set("w", wtId);
+      window.location.href = url.toString();
+    }
     $("body").addClass("wbeMyConnections");
     window.doingMyConnections = true;
     addIDsToOLs();
