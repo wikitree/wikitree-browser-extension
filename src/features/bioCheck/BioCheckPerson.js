@@ -89,12 +89,13 @@ export class BioCheckPerson {
    * Build person from WikiTree API profile object
    * and determine if it can be used to check sources and style
    * This method is used from an app, either on app server or tree tools
+   * When requesting the profile using the WikiTree API, resolveRedirect should be used
    * @param {Object} profileObj containing the profile as returned from WikiTree APIs
    * @param {Boolean} mustBeOpen true if profile must be open privacy
-   * @param {Boolean} mustBeOpen true if profile must not have a manager
+   * @param {Boolean} mustBeOrphan true if profile must not have a manager
    * @param {Boolean} ignorePre1500 true to ignore Pre1500 profiles
-   * @param {String} userId wikiTreeId of the person running the app
-   * @returns {Boolean} true if this person can be checked
+   * @param {String} userId ID number of the person running the app (not the WikiTree-Id)
+   * @returns {Boolean} true if this person can be checked else false
    */
   canUse(profileObj, mustBeOpen, mustBeOrphan, ignorePre1500, userId) {
     let canUseThis = false;
