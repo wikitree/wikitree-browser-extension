@@ -8,7 +8,7 @@ import { isMainDomain } from "../../core/pageType";
 registerFeature({
   name: "Space Watchlist Sorter",
   id: "spaceWatchlistSorter",
-  description: "",
+  description: "Organize the space pages on your watchlist into tabs.",
   category: "Global",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
