@@ -8,6 +8,7 @@
 .wbe-highlight img.expandTextareaButton,
 .wbe-highlight #nVitals,
 .wbe-highlight button.wbe-tab,
+.wbe-highlight button.wbe-app-login,
 .wbe-highlight #extraWatchlistWindow,
 .wbe-highlight div.wbe-popup,
 .wbe-highlight #addFSID,
@@ -55,7 +56,6 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 .wbe-highlight #showBirthplacesButton,
 .wbe-highlight input.wbe,
 .wbe-highlight #navHomePageHouse,
-.wbe-highlight .accessKeyHint,
 .wbe-highlight #rangersButtons button,
 .wbe-highlight img.mw-toolbar-editbutton[alt="Automatic GEDCOM Cleanup"],
 .wbe-highlight #expandTextareaButton,
@@ -214,7 +214,8 @@ html[data-wbe-genderpredictor] .wbe-highlight #mGender,
 
 /* 2px top and bottom borders only */
 body.wbe-highlight #myMenuGroup,
-.wbe-highlight #navHomePageHouse {
+.wbe-highlight #navHomePageHouse,
+.wbe-highlight .accessKeyHint {
   border-top: 2px solid var(--wbe-colour) !important;
   border-bottom: 2px solid var(--wbe-colour) !important;
   border-left: none !important;

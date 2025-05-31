@@ -112,6 +112,16 @@ async function init() {
  * Toggles the photo column and related UI elements.
  */
 function toggleTipsColumn() {
+  const bodyBG = $("body").css("background-color");
+  // Add style rule to head: body.hiddenSidebar #Lower-Sidebar h2 { border-left: 0.5em bodyBG solid; }
+  const style = document.createElement("style");
+  style.textContent = `
+    body.hiddenSidebar #Lower-Sidebar h2 {
+      border-left: 0.5em ${bodyBG} solid;
+    }
+  `;
+  document.head.appendChild(style);
+
   const condition1 = $("body").hasClass("hiddenSidebar") && enhancedEditorChosen && !isEnhancedEditorOn();
   const condition2 = !$("body").hasClass("hiddenSidebar") && isEnhancedEditorOn();
 
@@ -153,9 +163,11 @@ function addToggleFamilySectionButton(hideOnLoad) {
   toggle.classList.add("small", "wbe-button");
   toggle.setAttribute("data-tooltip", "Hide the Edit Family section");
 
-  const toggleImg = document.createElement("img");
-  toggleImg.src = minusURL;
-  toggle.appendChild(toggleImg);
+  const toggleSpan = document.createElement("span");
+  toggleSpan.classList.add("icon--toggler", "minus");
+  toggleSpan.style.backgroundImage = `url(${minusURL})`;
+  toggle.appendChild(toggleSpan);
+
   familyh2.lastChild.previousSibling.appendChild(toggle);
 
   let isHidden = false;
@@ -164,8 +176,9 @@ function addToggleFamilySectionButton(hideOnLoad) {
     e.preventDefault();
     if (isHidden) {
       // Show
-      toggleImg.src = minusURL;
-      wrapper.style.display = "block";
+      toggleSpan.classList.remove("plus");
+      toggleSpan.classList.add("minus");
+      toggleSpan.style.backgroundImage = `url(${minusURL})`;
 
       requestAnimationFrame(() => {
         wrapper.style.height = wrapper.scrollHeight + "px";
@@ -179,7 +192,9 @@ function addToggleFamilySectionButton(hideOnLoad) {
       toggle.setAttribute("data-tooltip", "Hide the Edit Family section");
     } else {
       // Hide
-      toggleImg.src = plusURL;
+      toggleSpan.classList.remove("minus");
+      toggleSpan.classList.add("plus");
+      toggleSpan.style.backgroundImage = `url(${plusURL})`;
 
       wrapper.style.height = wrapper.scrollHeight + "px";
       wrapper.style.opacity = "1";

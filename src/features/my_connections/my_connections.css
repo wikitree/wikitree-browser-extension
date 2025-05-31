@@ -37,6 +37,11 @@ button#myConnectionsLoginButton {
   position: relative;
   top: -0.3em;
 }
+h1 button#myConnectionsLoginButton {
+  float: right;
+  font-size: 12px;
+  display: inline;
+}
 
 button.myConnectionsMoreButton.small.hidden,
 button.myConnectionsTableButton.small.hidden {

@@ -7,15 +7,8 @@ import $ from "jquery";
 import "./my_connections.css";
 import "jquery-ui/ui/widgets/draggable";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
-import {
-  ageAtDeath,
-  extractRelatives,
-  getUserNumId,
-  htmlEntities,
-  isLoggedIntoAPI,
-  isOK,
-  treeImageURL,
-} from "../../core/common";
+import { ageAtDeath, extractRelatives, htmlEntities, isOK, treeImageURL } from "../../core/common";
+import { addLoginButton } from "../../core/loginButton";
 import { ymdFix, showFamilySheet, displayName } from "../familyGroup/familyGroup";
 import { ancestorType } from "../distanceAndRelationship/distanceAndRelationship";
 import { getPeople } from "../dna_table/dna_table";
@@ -236,70 +229,6 @@ export const USstatesObjArray = [
   { name: "Wyoming", abbreviation: "WY", admissionDate: "1890-07-10", former_name: "Wyoming Territory" },
 ];
 
-export function addLoginButton(appId = "WBE") {
-  let x = window.location.href.split("?");
-  if (x[1]) {
-    let queryParams = new URLSearchParams(x[1]);
-    if (queryParams.get("authcode")) {
-      let authcode = queryParams.get("authcode");
-      if (authcode) {
-        $.ajax({
-          url: "https://api.wikitree.com/api.php",
-          crossDomain: true,
-          xhrFields: { withCredentials: true },
-          type: "POST",
-          dataType: "JSON",
-          data: {
-            action: "clientLogin",
-            authcode: authcode,
-            appId: appId,
-          },
-          success: function (data) {
-            if (data) {
-              if (data.clientLogin.result == "Success") {
-                $("#myConnectionsLoginButton,#connectionFinderLoginButton,#categoryFiltersLoginButton").hide();
-              }
-            }
-          },
-        });
-      }
-    }
-  }
-  const userID = getUserNumId();
-  isLoggedIntoAPI(userID, appId).then((loggedIn) => {
-    if (!loggedIn) {
-      let loginButton = $(
-        "<button title='Log in to the apps server for better Missing Connections results' class='small button' id='myConnectionsLoginButton'>Apps Login</button>"
-      );
-      loginButton.appendTo($("span[title^='This is your Connection Count']"));
-      let returnURL = encodeURI(window.location.href.split("?")[0]);
-      if (appId == "WBE_connection_finder_options") {
-        loginButton.attr("id", "connectionFinderLoginButton");
-        loginButton.attr("title", "Log in to the apps server for better Connection Finder Table results");
-        loginButton.appendTo($("h1:contains('Connection Finder')"));
-        returnURL = encodeURI(window.location.href.replace(/&action=connect/, ""));
-      } else if (appId == "WBE_category_filters") {
-        loginButton.attr("id", "categoryFiltersLoginButton");
-        loginButton.attr(
-          "title",
-          "Log in to the apps server for profiles that you are on the trusted list of to be included in the filtering"
-        );
-        loginButton.appendTo($("#categoryFilterButtonsContainer"));
-        returnURL = encodeURI(window.location.href);
-      }
-      loginButton.on("click", function (e) {
-        e.preventDefault();
-        if (appId == "WBE_connection_finder_options") {
-          const currentPeople = { person1Name: $("#person1Name").val(), person2Name: $("#person2Name").val() };
-          localStorage.setItem("connectionFinderLogin", JSON.stringify(currentPeople));
-        }
-        window.location =
-          "https://api.wikitree.com/api.php?action=clientLogin&appId=" + appId + "&returnURL=" + returnURL;
-      });
-    }
-  });
-}
-
 function addIDsToOLs() {
   // Find all h3[id^="gen"]; get the id number; add id={h3id}_list to the following ol
   const h3s = document.querySelectorAll("div.page--content h3[id*='gen']");
@@ -312,7 +241,32 @@ function addIDsToOLs() {
 
 shouldInitializeFeature("myConnections").then((result) => {
   if (result && $("body.my-connections").length && $("#gen0").length && window.doingMyConnections == undefined) {
-    addLoginButton("WBE_my_connections");
+    let btnContainer = $("span[title^='This is your Connection Count']");
+    if (btnContainer.length == 0) {
+      btnContainer = $("#my-connections h1");
+    }
+    addLoginButton({
+      appId: "WBE_my_connections",
+      btnId: "myConnectionsLoginButton",
+      btnTitle: "Log in to the apps server for better Missing Connections results",
+      btnContainer: btnContainer,
+      btnOnClick: function (e) {
+        const url = new URL(window.location.href);
+        const wtId = url.searchParams.get("w");
+        if (wtId) {
+          localStorage.setItem("wbeMyConnectionsId", wtId);
+        }
+      },
+    });
+    if (localStorage.wbeMyConnectionsId) {
+      const wtId = localStorage.wbeMyConnectionsId;
+      localStorage.removeItem("wbeMyConnectionsId");
+
+      // Add or update the 'w' parameter to the current URL and redisplay
+      const url = new URL(window.location.href);
+      url.searchParams.set("w", wtId);
+      window.location.href = url.toString();
+    }
     $("body").addClass("wbeMyConnections");
     window.doingMyConnections = true;
     addIDsToOLs();

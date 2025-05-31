@@ -5,9 +5,9 @@ import { getPeople } from "../dna_table/dna_table";
 import { showCopyMessage } from "../access_keys/access_keys";
 import "../../core/common.css";
 import { profilePerson } from "../../core/common";
+import { addLoginButton } from "../../core/loginButton";
 import {
   getFormData,
-  addLoginButton,
   buildFamilyForPrivateProfiles,
   assignPersonNames,
   setOrderBirthDate,
@@ -66,7 +66,12 @@ async function getFamily() {
       );
       window.profilePerson.Name = profileID;
       window.profilePerson.MiddleInitial = "";
-      addLoginButton();
+      addLoginButton({
+        appId: "WBE_family_lists",
+        btnId: "appsLoginButton",
+        btnTitle: "Log in to the apps server for better family list results",
+        btnContainer: $("#toolbar"),
+      });
     } else {
       window.profilePerson.BirthYear = window.profilePerson.BirthDate?.split("-")[0];
       if (window.profilePerson.DeathDate) {

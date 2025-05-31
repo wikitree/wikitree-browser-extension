@@ -11,6 +11,7 @@ import {
   getUserWtId,
   isLoggedIntoAPI,
 } from "../../core/common";
+import { currentHrefWithoutAuthcode } from "../../core/loginButton";
 import { PersonName } from "../auto_bio/person_name.js";
 import { displayDates } from "../verifyID/verifyID";
 import { goAndLogIn } from "../randomProfile/randomProfile";
@@ -325,7 +326,7 @@ function showLoginPopup() {
 
   // Attach an event listener to the login button
   document.getElementById("login-btn").addEventListener("click", async () => {
-    goAndLogIn(window.location.href);
+    goAndLogIn(currentHrefWithoutAuthcode());
 
     // After successful login, hide the popup and initialize CC7 Changes
     const userId = getTheUsersWtId();

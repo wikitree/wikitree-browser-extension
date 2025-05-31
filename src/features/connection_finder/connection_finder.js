@@ -4,9 +4,10 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { htmlEntities, isOK } from "../../core/common.js";
+import { addLoginButton } from "../../core/loginButton";
 import { ordinal } from "../distanceAndRelationship/distanceAndRelationship.js";
 import { timeline } from "../familyTimeline/familyTimeline.js";
-import { addWideTableButton, addLoginButton } from "../my_connections/my_connections.js";
+import { addWideTableButton } from "../my_connections/my_connections.js";
 import { ymdFix, showFamilySheet, displayName } from "../familyGroup/familyGroup";
 import { showCopyMessage } from "../access_keys/access_keys.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
@@ -1571,7 +1572,17 @@ shouldInitializeFeature("connectionFinderOptions").then((result) => {
       import("../familyTimeline/familyTimeline.css");
       connectionFinderTable();
       connectionFinderThings();
-      addLoginButton("WBE_connection_finder_options");
+      addLoginButton({
+        appId: "WBE_connection_finder_options",
+        btnId: "connectionFinderLoginButton",
+        btnTitle: "Log in to the apps server for better Connection Finder Table results",
+        btnContainer: $("h1:contains('Connection Finder')"),
+        btnOnClick: function (e) {
+          const currentPeople = { person1Name: $("#person1Name").val(), person2Name: $("#person2Name").val() };
+          localStorage.setItem("connectionFinderLogin", JSON.stringify(currentPeople));
+        },
+        returnURL: encodeURI(window.location.href.replace(/&action=connect/, "")),
+      });
       if (localStorage.connectionFinderLogin) {
         const currentPeople = JSON.parse(localStorage.connectionFinderLogin);
         if (currentPeople.person1Name) {

@@ -252,3 +252,9 @@ span.feed-item.highlight {
   background-size: 1.5em;
   margin-top: -1em;
 }
+
+#wbeAppLoginBtn {
+  float: right;
+  font-size: 12px;
+  display: inline;
+}
