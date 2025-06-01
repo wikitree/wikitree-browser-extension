@@ -10,12 +10,11 @@ if (chrome.runtime) {
       (chrome ?? browser).storage?.sync?.get("wbeSettings_disableUpdateNotification", function (result) {
         if (!result?.wbeSettings_disableUpdateNotification) {
           // Use this to open the extension update page on update. Comment it out the rest of the time.
-          /*
           chrome.tabs.create({
-            url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension_Update",
+            //            url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension_Update",
+            url: "https://www.wikitree.com/g2g/1896249/wikitree-browser-extension-update-2-3",
             active: true,
           });
-          */
         }
       });
     }
