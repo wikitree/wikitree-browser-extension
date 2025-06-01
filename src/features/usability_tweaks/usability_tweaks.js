@@ -893,7 +893,9 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
             buttonOpt.btnContainer = $("h1:contains('My WikiTree: Navigation Home Page')");
             addLoginButton(buttonOpt);
           } else if (isProfilePage && options.addApiLoginButton == "all") {
-            buttonOpt.btnContainer = $(".page--title h1[itemprop='name']");
+            const buttonContainer = $(".profile--actions.float-end");
+            const h1 = document.querySelector(".profile--title h1[itemprop='name']");
+            buttonOpt.btnContainer = buttonContainer.length > 0 ? buttonContainer : h1;
             addLoginButton(buttonOpt);
           }
         }, 1000);

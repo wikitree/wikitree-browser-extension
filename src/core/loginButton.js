@@ -24,7 +24,7 @@ export async function addLoginButton(opt) {
       let loginButton = $(`#${opt.btnId}`);
       if (!loginButton || loginButton.length == 0) {
         loginButton = $(
-          `<button title="${opt.btnTitle}" class='small button wbe-app-login' id="${opt.btnId}">Apps Login</button>`
+          `<button title="${opt.btnTitle}" class='small button wbe-app-login wbe-button' id="${opt.btnId}">Apps Login</button>`
         );
         loginButton.appendTo(opt.btnContainer);
       }
