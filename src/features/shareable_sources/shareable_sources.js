@@ -190,11 +190,16 @@ function getSources(person, active = 0) {
     }
 
     const h3id = isProfileAddRelative ? "showSourcesHeadline" : "";
+
+    /* pick arrow markup only if we are NOT on profile edit page */
+const arrowHtml = isProfileEdit ? "" : "<span class='showSources'>&#9660;</span>";
+
+
     let referenceBox = $(` 
       <div class='referenceBox active ${refBoxClass}' data-id=${efProfile.Name} tabindex='-1'>
         <button class='seeBiography' class='small'>Bio</button>
         <h3 id='${h3id}' title='${efProfile.Name}'>Sources for ${displayName(efProfile)[0]} 
-          <span class='showSources'>&#9660;</span>
+          ${arrowHtml}
         </h3>
         <x class='small button'>x</x>
       </div>
@@ -309,6 +314,8 @@ function getSources(person, active = 0) {
       }
     );
 
+    /* collapse / expand – add this handler only for add person pages */
+if (!isProfileEdit) {
     $(".referenceBox h3").on("click", function () {
       let topDiv = $(this).parent();
       if (topDiv.hasClass("active")) {
@@ -324,6 +331,7 @@ function getSources(person, active = 0) {
         focusFirstButton(referenceBox);
       }
     });
+  }
 
     $("#wpSave").not('[value="Go"]').insertAfter($("#mSources"));
 
@@ -365,7 +373,7 @@ function focusFirstButton(referenceBox) {
   const firstButton = referenceBox.find("button.paste.small").first();
   if (firstButton.length) {
     console.debug("first button focus");
-    firstButton.focus();
+    firstButton.trigger("focus");
   }
 }
 

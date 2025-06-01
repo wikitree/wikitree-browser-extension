@@ -110,8 +110,9 @@ async function initFamilyDropdown() {
    * Attach keyboard event listener for dropdown navigation.
    */
   function attachKeydownListener() {
-    $(document).on("keydown.familyDropdown", keyboardHandler);
-    console.log("Attaching keyboard listener for dropdown menu");
+    $(document)
+      .off("keydown.familyDropdown") // <- ensures we start from zero
+      .on("keydown.familyDropdown", keyboardHandler);
   }
 
   /**
@@ -312,23 +313,37 @@ async function initFamilyDropdown() {
    * On showing, focuses the first item to allow keyboard navigation.
    * On hiding, clears active item and returns focus to toggle button.
    */
+  /**
+   * Show / hide the dropdown and wire the keyboard listener
+   * only while the menu is open.
+   */
   function toggleDropDownMenuOnButtonClick() {
+    /* cancel any still-pending outside-click timeout */
+    if (closeDropdownTimeout) {
+      clearTimeout(closeDropdownTimeout);
+      closeDropdownTimeout = null;
+    }
+
     const menu = $("#familyDropdown .custom-dropdown-menu");
+
+    /* first-time population */
     if (!window.familyDropdownInitialized) {
       doFamilyDropdown(menu);
       window.familyDropdownInitialized = true;
     }
-    menu.toggle();
 
+    /* open / close */
     if (menu.is(":visible")) {
-      activeDropDownIndex = 0;
-      updateActiveItem();
-      getActiveDropDownElement(activeDropDownIndex).focus();
-      attachKeydownListener();
-    } else {
+      menu.hide();
       clearActiveItem();
       $("#familyDropdown .custom-dropdown-toggle").trigger("focus");
-      detachKeydownListener();
+      detachKeydownListener(); // remove nav handler
+    } else {
+      menu.show();
+      activeDropDownIndex = 0;
+      updateActiveItem();
+      getActiveDropDownElement(activeDropDownIndex).trigger("focus");
+      attachKeydownListener(); // add nav handler
     }
   }
 
@@ -357,12 +372,19 @@ async function initFamilyDropdown() {
         clearTimeout(closeDropdownTimeout);
       }
       closeDropdownTimeout = setTimeout(() => {
-        console.log("Click outside dropdown and CodeMirror: closing dropdown");
+        // hide menu & clear state
         $("#familyDropdown .custom-dropdown-menu").hide();
         clearActiveItem();
-        $("#familyDropdown .custom-dropdown-toggle").trigger("focus");
         detachKeydownListener();
         closeDropdownTimeout = null;
+
+        /* ——— NEW: smart focus target ——— */
+        const $firstSrcBtn = $(".referenceBox button.paste.small").first();
+        if ($firstSrcBtn.length) {
+          $firstSrcBtn.trigger("focus");
+        } else {
+          $("#familyDropdown .custom-dropdown-toggle").trigger("focus");
+        }
       }, 200);
     }
   });
@@ -374,47 +396,49 @@ async function initFamilyDropdown() {
   $("body")
     .off("click.familyDropdown", "#familyDropdown .custom-dropdown-menu li")
     .on("click.familyDropdown", "#familyDropdown .custom-dropdown-menu li", async function () {
-      const clickedLi = $(this);
-      const wikilink = clickedLi.data("wikilink");
-
-      if (!wikilink) {
-        console.warn("No wikilink found for clicked item");
-        return;
+      /* ──────────────────────────────────────────────────────────────
+       If the outside-click handler scheduled a delayed close, kill
+       it now so it can’t run after we open the Sources popup.
+       ──────────────────────────────────────────────────────────── */
+      if (closeDropdownTimeout) {
+        clearTimeout(closeDropdownTimeout);
+        closeDropdownTimeout = null;
       }
 
-      // If "Other" clicked, show input to enter WikiTree ID manually
+      const $li = $(this);
+      const wikilink = $li.data("wikilink");
+      if (!wikilink) return;
+
+      /* =====  “Other” branch  ===================================== */
       if (wikilink === "other") {
         if ($("#otherPerson").length === 0) {
-          const otherPersonInput = $(`
-            <label id="otherPersonLabel" style="display:block; margin-top:5px;">
-              Enter WikiTree ID and Press 'Enter': <input type="text" id="otherPerson" autocomplete="off" />
-            </label>
-          `);
-          otherPersonInput.insertAfter("#familyDropdown");
-          $("#otherPerson").trigger("focus");
+          $(`
+          <label id="otherPersonLabel" style="display:block;margin-top:5px;">
+            Enter WikiTree ID and press 'Enter':
+            <input type="text" id="otherPerson" autocomplete="off" />
+          </label>
+        `).insertAfter("#familyDropdown");
 
-          $("#otherPerson").on("keydown", async (event) => {
-            if (event.key === "Enter") {
-              const anID = $(event.target).val().trim();
+          $("#otherPerson")
+            .trigger("focus")
+            .on("keydown", async (e) => {
+              if (e.key !== "Enter") return;
+              const anID = $(e.target).val().trim();
               if (!anID) return;
 
-              const thingObject = await getDataAndMakeWikilink(anID);
-              if (thingObject) {
-                const wikilink = thingObject.wikilink;
-                const success = await copyThingToClipboard(wikilink);
-                if (success) {
-                  $("#familyDropdown .custom-dropdown-toggle").attr("title", `Copied "${wikilink}". (Paste: Ctrl+V)`);
-                  showCopyMessage("Wiki Link");
-                  FocusWpTextBoxIfPresent();
-                } else {
-                  alert("Failed to copy wikilink.");
-                }
-                $("#otherPersonLabel").remove();
-              } else {
+              const obj = await getDataAndMakeWikilink(anID);
+              if (!obj) {
                 alert("Person not found. Please check the WikiTree ID and try again.");
+                return;
               }
-            }
-          });
+              const ok = await copyThingToClipboard(obj.wikilink);
+              if (ok) {
+                $("#familyDropdown .custom-dropdown-toggle").attr("title", `Copied "${obj.wikilink}" (Paste: Ctrl+V)`);
+                showCopyMessage("Wiki Link");
+                $("#otherPersonLabel").remove();
+                focusWpTextboxIfPresent();
+              }
+            });
         } else {
           $("#otherPerson").addClass("highlight").trigger("focus");
         }
@@ -423,31 +447,29 @@ async function initFamilyDropdown() {
         return;
       }
 
-      // Normal item clicked: copy wikilink to clipboard and show feedback
-      const success = await copyThingToClipboard(wikilink);
-      if (success) {
-        $("#familyDropdown .custom-dropdown-toggle").attr("title", `Copied "${wikilink}". (Paste: Ctrl+V)`);
+      /* =====  Normal (relative) branch  ============================ */
+      const ok = await copyThingToClipboard(wikilink);
+      if (ok) {
+        $("#familyDropdown .custom-dropdown-toggle").attr("title", `Copied "${wikilink}" (Paste: Ctrl+V)`);
         showCopyMessage("Wiki Link");
       } else {
         console.warn("Copy failed");
       }
+
       $("#familyDropdown .custom-dropdown-menu").hide();
       clearActiveItem();
-      /* If Shareable Sources is NOT connected, return focus to the edit box.
-        Otherwise let getSources() keep the caret on its first button. */
-      if (!window.shareableSourcesOptions?.connectWithFamilyDropdown || !window.shareableSourcesEnabled) {
-        FocusWpTextBoxIfPresent();
-      }
 
-      /**
-       * Focuses the main WikiTree textbox if present,
-       * so the user can paste or continue editing.
-       */
-      function FocusWpTextBoxIfPresent() {
-        const box = $("#wpTextbox1");
-        if (box.length) box.trigger("focus");
+      /* Hand focus to Sources button OR back to edit box ------------- */
+      if (!window.shareableSourcesOptions?.connectWithFamilyDropdown || !window.shareableSourcesEnabled) {
+        focusWpTextboxIfPresent();
       }
     });
+
+  /* helper */
+  function focusWpTextboxIfPresent() {
+    const $box = $("#wpTextbox1");
+    if ($box.length) $box.trigger("focus");
+  }
 
   // Highest-priority Escape: close the dropdown before anything else
   $(document).on("keydown.familyDropdownGlobalEsc", function (e) {
