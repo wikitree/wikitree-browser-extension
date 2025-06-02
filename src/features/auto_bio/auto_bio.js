@@ -5570,7 +5570,7 @@ const DEATH_PLACE_PATTERNS = [
 ];
 export function parseDeathGeneric(aRef) {
   if (aRef._locks?.has("Death Date")) return aRef;
-  if (!/\bdied\b|Death\b|d\.|findagrave/i.test(aRef.Text)) return aRef;
+  if (!/\bdied\b|Death\b|findagrave/i.test(aRef.Text)) return aRef;
   // If aRef["Record Type"] exists, ensure "Death" is included
   aRef["Record Type"] = aRef["Record Type"] || [];
   if (!aRef["Record Type"].includes("Death")) aRef["Record Type"].push("Death");
