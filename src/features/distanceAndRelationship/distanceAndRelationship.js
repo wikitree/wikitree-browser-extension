@@ -398,6 +398,10 @@ function doRelationshipText(userID, profileID) {
           relationshipText = fixOrdinalSuffix(relationshipParts.join(" "));
           console.log(relationshipText);
 
+          // The relationship server returns the common ancestors with path lengths equal to the
+          // number of people in the path (start and end included), while CC7 Views calclates the
+          // path lengths (and stores them in RELATIONSHIP_STORE_NAME) as the number of edges in
+          // the path. The following is to make the 2 compatible.
           data.commonAncestors.forEach((ancestor) => {
             ancestor.path1Length = reducePathLength(ancestor.path1Length);
             ancestor.path2Length = reducePathLength(ancestor.path2Length);
