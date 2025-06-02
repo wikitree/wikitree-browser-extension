@@ -398,6 +398,11 @@ function doRelationshipText(userID, profileID) {
           relationshipText = fixOrdinalSuffix(relationshipParts.join(" "));
           console.log(relationshipText);
 
+          data.commonAncestors.forEach((ancestor) => {
+            ancestor.path1Length = reducePathLength(ancestor.path1Length);
+            ancestor.path2Length = reducePathLength(ancestor.path2Length);
+          });
+
           // Insert relationship text
           addRelationshipText(relationshipText, cleanCommonAncestors(data.commonAncestors));
         }
@@ -419,6 +424,11 @@ function doRelationshipText(userID, profileID) {
     }
   });
 }
+
+const reducePathLength = (len) => {
+  if (len > 0) return len - 1;
+  return len;
+};
 
 async function addDistance(data) {
   const profileID = profilePerson.Name;
@@ -531,7 +541,7 @@ export function ordinal(i) {
 
 export function ancestorType(generation, gender) {
   let relType;
-  if (generation > 0 || generation == 0) {
+  if (generation >= 0) {
     if (gender == "Female") {
       relType = "Mother";
     } else if (gender == "Male") {
@@ -540,14 +550,14 @@ export function ancestorType(generation, gender) {
       relType = "Parent";
     }
   }
-  if (generation > 1) {
+  if (generation >= 1) {
     relType = "Grand" + relType.toLowerCase();
   }
-  if (generation > 2) {
+  if (generation >= 2) {
     relType = "Great-" + relType.toLowerCase();
   }
-  if (generation > 3) {
-    relType = ordinal(generation - 2) + " " + relType;
+  if (generation >= 3) {
+    relType = ordinal(generation - 1) + " " + relType;
   }
   return relType;
 }
