@@ -5176,7 +5176,7 @@ const BIRTH_DATE_PATTERNS = [
   p(/\(\s*born\b\s*([^()]+?\d{4})\s*\)/i),
 
   // 1.  “born on 28 Apr 1867”, “born 28 april 1867”, “born about 1867”
-  p(/\bborn\b\s+(?:on|abt\.?|about)?\s*([^\n;,]+?\d{4})/i),
+  p(/\bborn\b\s+(on|abt\.?|about)?\s?([^\n;]+?\d{4})/i, 2),
 
   // 2.  “b. 28 Apr 1867”
   p(/\bb\.\s*([^;,.\n]+?\d{4})/i),
@@ -5187,9 +5187,6 @@ const BIRTH_DATE_PATTERNS = [
   // 4.  ISO: “born 1867-04-28”
   p(/\bborn\b\s+(\d{4}[-/]\d{2}[-/]\d{2})/i),
 
-  // 5.  lower-case month: “born 29 april 1867”
-  p(/\bborn\b[^;,.\n]*?\b([0-3]?\d\s[a-z]{3,9}\s\d{4})/i),
-
   // 6.  numeric d-m-y: “born 29-04-1867”
   p(/\bborn\b[^;,.\n]*?\b([0-3]?\d[-/][0-1]?\d[-/]\d{4})/i),
 
@@ -5199,7 +5196,7 @@ const BIRTH_DATE_PATTERNS = [
 
 /* ---------- PLACE patterns (unchanged) --------------------------- */
 const BIRTH_PLACE_PATTERNS = [
-  p(/\bborn\b[^.\n]{0,120}?\bin\s([^;,.\n]+?)(?:[;.,]|$)/i),
+  p(/[^.\n]{0,120}?\bin\s([^;,.\n]+?)(?:[;.,]|$)/i),
   p(/Birth Place[^:]*:\s*([^\n]+?)(?:[;.,]|$)/i),
   p(/\bbirth registered\b[^.\n]{0,120}?\bin\s([^;,.\n]+?)(?:[;.,]|$)/i),
 ];
@@ -5216,7 +5213,19 @@ export function parseBirthGeneric(aRef) {
     const m = text.match(regex);
     if (m && m[group]) {
       aRef["Birth Date"] = norm(post(m[group]));
+      // Logging for debugging birth date extraction
+      console.debug(
+        "[parseBirthGeneric] Matched birth date:",
+        m[group],
+        "with pattern:",
+        regex,
+        "->",
+        aRef["Birth Date"]
+      );
       break; // stop at the first full date
+    } else {
+      // Log when a pattern does not match
+      console.debug("[parseBirthGeneric] No match for pattern:", regex);
     }
   }
 
@@ -5265,144 +5274,167 @@ export function parseBirthGeneric(aRef) {
   return aRef;
 }
 
-function parseMarriage(aRef) {
-  if (
-    aRef.Text.match(
-      /NZBDM MARRIAGE|(New Zealand Department.*Marriage Registration)|Marriages? Index|Huwelijk|Trouwen|'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage (Registration )?Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage -|citing.*Marriage|> Marriages/
-    ) ||
-    aRef["Marriage Date"]
-  ) {
-    console.log("Marriage reference found or Marriage Date exists.");
+// --- Utility: Remove MediaWiki and Markdown links ---
+function stripLinks(str) {
+  if (!str) return "";
+  return str
+    .replace(/\[https?:\/\/[^\s\]]+\s+([^\]]+)\]/g, "$1") // [http ... Label]
+    .replace(/\[\[([^|\]]*\|)?([^\]]+)\]\]/g, "$2") // [[Page|Label]]
+    .replace(/''+/g, "") // bold/italic wiki
+    .replace(/<.*?>/g, "") // HTML tags
+    .trim();
+}
 
-    const dateMatch = aRef.Text.match(/\b\d{1,2}\s\w{3}\s1[6789]\d{2}\b/);
-    const dateMatch2 = aRef.Text.match(/\s(1[6789]\d{2})\b(?!-)/);
-    console.log("Date match:", dateMatch);
-    console.log("Secondary date match:", dateMatch2);
+// --- Utility: Parse year from a date string ---
+function parseYearFromDate(dateStr) {
+  if (!dateStr) return null;
+  const m = dateStr.match(/\d{4}/);
+  return m ? parseInt(m[0], 10) : null;
+}
 
-    aRef["Record Type"].push("Marriage");
+function cleanCoupleName(str) {
+  if (!str) return "";
+  // Remove trailing "in entry for ..." or leading "X in entry for "
+  // Handles e.g. 'Sarah Gunn in entry for Wm. A. Gunn' → 'Wm. A. Gunn'
+  const inEntry = str.match(/in entry for (.+)/i);
+  if (inEntry) return inEntry[1].trim();
+  return str.trim();
+}
 
-    if (dateMatch) {
-      aRef["Marriage Date"] = dateMatch[0];
-      aRef.Year = dateMatch[0].match(/\d{4}/)[0];
-      console.log("Marriage Date set from dateMatch:", aRef["Marriage Date"]);
-      console.log("Year set from dateMatch:", aRef.Year);
-    } else if (dateMatch2) {
-      aRef["Marriage Date"] = dateMatch2[1];
-      aRef.Year = dateMatch2[1];
-      console.log("Marriage Date set from dateMatch2:", aRef["Marriage Date"]);
-      console.log("Year set from dateMatch2:", aRef.Year);
+// --- Main extractor for couple and date
+function extractMarriageCoupleAndDate(text) {
+  // 1. Scan all [http ... Label]s for couple/date
+  const bracketed = text.match(/\[https?:\/\/[^\s\]]+\s+([^\]]+?)\]/g);
+  if (bracketed) {
+    for (const b of bracketed) {
+      const label = b.replace(/\[https?:\/\/[^\s\]]+\s+([^\]]+?)\]/, "$1");
+      // Try: "A and B, <date>"
+      const m1 = label.match(/(.+?) and (.+?),\s*([0-3]?\d\s+\w{3,9}\s+\d{4})/);
+      if (m1) return { couple: [stripLinks(m1[1]), stripLinks(m1[2])], date: m1[3].replace(/,/, "").trim() };
+      // Try: "A married B on <date>"
+      const m2 = label.match(/(.+?) married (.+?) on ([0-3]?\d\s+\w{3,9}\s+\d{4})/i);
+      if (m2) return { couple: [stripLinks(m2[1]), stripLinks(m2[2])], date: m2[3].trim() };
+      // Try: "marriage of X to Y"
+      const m3 = label.match(/marriage of (.+?) to (.+?)[,;]/i);
+      if (m3) return { couple: [stripLinks(m3[1]), stripLinks(m3[2])], date: null };
     }
-
-    const detailsMatch = aRef.Text.match(/(\d{4}\),\s)(.+?),\s(\d+\s\w+\s\d+)/);
-    const detailsMatch2 = aRef.Text.match(/\(http.*?\)(.*?image.*?;\s)(.*?)\./);
-    const detailsMatch3 = aRef.Text.match(/[>;)]([A-z\s-]*) marriage to\s(.*?)\s\bon\b\s(.*?)\s\bin\b\s(.*)\./);
-    const entryForMatch = aRef.Text.match(/in entry for/);
-
-    if (detailsMatch2) {
-      aRef["Marriage Place"] = detailsMatch2[2].replace("Archives", "");
-      console.log("Marriage Place set from detailsMatch2:", aRef["Marriage Place"]);
-    } else if (detailsMatch) {
-      if (entryForMatch == null) {
-        aRef["Marriage Date"] = detailsMatch[3].trim();
-        const couple = detailsMatch[2].split(/\band\b/);
-        aRef["Couple"] = couple.map((item) => item.trim());
-        console.log("Couple found:", aRef["Couple"]);
-
-        let person1 = [couple[0].trim().split(" ")[0]];
-        if (firstNameVariants[person1]) {
-          person1 = firstNameVariants[person1[0]];
-          console.log("Person 1 name variant:", person1);
-        }
-        if (couple[1]) {
-          let person2 = [couple[1].trim().split(" ")[0]];
-          if (firstNameVariants[person2]) {
-            person2 = firstNameVariants[person2[0]];
-            console.log("Person 2 name variant:", person2);
-          }
-        }
-        if (!isSameName(window.profilePerson.FirstName, person1)) {
-          aRef["Spouse Name"] = aRef["Couple"][0];
-          console.log("Spouse name set to Couple[0]:", aRef["Spouse Name"]);
-        } else {
-          aRef["Spouse Name"] = aRef["Couple"][1];
-          console.log("Spouse name set to Couple[1]:", aRef["Spouse Name"]);
-        }
-        const marriageYearMatch = aRef["Marriage Date"].match(/\d{4}/);
-        if (marriageYearMatch) {
-          aRef.Year = marriageYearMatch[0];
-          console.log("Marriage Year found and set:", aRef.Year);
-        }
-        const weddingLocationMatch = aRef.Text.match(/citing Marriage,?(.*?), United States/);
-        if (weddingLocationMatch) {
-          aRef["Marriage Place"] = weddingLocationMatch[1].trim();
-          console.log("Marriage Place set from weddingLocationMatch:", aRef["Marriage Place"]);
-        }
-      }
-    } else if (detailsMatch3) {
-      aRef.Couple = [];
-      let person1AgeMatch = detailsMatch3[1].match(/\d{1,2}( years)?/);
-      let person1Age = "";
-      if (person1AgeMatch) {
-        person1Age = person1AgeMatch[0];
-      }
-      console.log("Person 1 Age:", person1Age);
-
-      const person1 = detailsMatch3[1]
-        .replaceAll(/\(.*?\)/g, "")
-        .trim()
-        .replaceAll(/^.*''/g, "")
-        .trim();
-
-      let person2AgeMatch = detailsMatch3[2].match(/\d{1,2}( years)?/);
-      let person2Age = "";
-      if (person2AgeMatch) {
-        person2Age = person2AgeMatch[0];
-      }
-      console.log("Person 2 Age:", person2Age);
-
-      const person2 = detailsMatch3[2].replace(/\(.*?\)/, "").trim();
-      aRef.Couple.push(person1);
-      aRef.Couple.push(person2);
-      console.log("Couple set from detailsMatch3:", aRef.Couple);
-
-      aRef["Marriage Date"] = detailsMatch3[3];
-      console.log("Marriage Date set from detailsMatch3:", aRef["Marriage Date"]);
-
-      const refYearMatch = detailsMatch3[3].match(/\d{4}/);
-      if (refYearMatch) {
-        aRef.Year = detailsMatch3[3].match(/\d{4}/)[0];
-        console.log("Year set from refYearMatch:", aRef.Year);
-      } else {
-        aRef.Year = "";
-        console.log("Year not found in detailsMatch3, set to empty string.");
-      }
-      aRef["Marriage Place"] = detailsMatch3[4].trim();
-      console.log("Marriage Place set from detailsMatch3:", aRef["Marriage Place"]);
-
-      window.profilePerson.NameVariants.forEach((name) => {
-        if (name == aRef.Couple[0]) {
-          aRef["Spouse Name"] = aRef.Couple[1];
-          aRef["Spouse Age"] = person2Age;
-          aRef["Age"] = person1Age;
-          console.log("Spouse Name and Age set:", aRef["Spouse Name"], aRef["Spouse Age"]);
-        } else if (name == aRef.Couple[1]) {
-          aRef["Spouse Name"] = aRef.Couple[0];
-          aRef["Spouse Age"] = person1Age;
-          aRef["Age"] = person2Age;
-          console.log("Spouse Name and Age set:", aRef["Spouse Name"], aRef["Spouse Age"]);
-        }
-      });
-    } else if (aRef.Text.match(/GRO Reference.*?(\d{4}).*\bin\b\s(.*)Volume/)) {
-      const details = aRef.Text.match(/GRO Reference.*?(\d{4}).*\bin\b\s(.*)Volume/);
-      aRef.Year = details[1];
-      aRef["Marriage Place"] = details[2].trim();
-      console.log("GRO Reference found, Year set:", aRef.Year);
-      console.log("Marriage Place set from GRO Reference:", aRef["Marriage Place"]);
-    }
-
-    aRef.OrderDate = formatDate(aRef["Marriage Date"], 0, { format: 8 });
-    console.log("OrderDate set:", aRef.OrderDate);
   }
+
+  const entry = text.match(/in entry for ([^,]+?) and ([^,]+?),\s*([0-3]?\d\s+\w{3,9}\s+\d{4})/i);
+  if (entry) {
+    return {
+      couple: [cleanCoupleName(stripLinks(entry[1])), cleanCoupleName(stripLinks(entry[2]))],
+      date: entry[3].replace(/,/, "").trim(),
+    };
+  }
+
+  // 2. Try plain text (outside links): "A and B, <date>"
+  const m4 = text.match(/([A-Za-z .'-]+?) and ([A-Za-z .'-]+?),\s*([0-3]?\d\s+\w{3,9}\s+\d{4})/);
+  if (m4) return { couple: [stripLinks(m4[1]), stripLinks(m4[2])], date: m4[3].replace(/,/, "").trim() };
+
+  // 3. "A married B on <date>"
+  const m5 = text.match(/([A-Za-z .'-]+?) married ([A-Za-z .'-]+?) on ([0-3]?\d\s+\w{3,9}\s+\d{4})/i);
+  if (m5) return { couple: [stripLinks(m5[1]), stripLinks(m5[2])], date: m5[3].trim() };
+
+  // 4. "marriage of X to Y"
+  const m6 = text.match(/marriage of ([^,]+?) to ([^,]+?)[,;]/i);
+  if (m6) return { couple: [stripLinks(m6[1]), stripLinks(m6[2])], date: null };
+
+  // 5. "Groom: ... Bride: ..."
+  const groom = text.match(/Groom: ([^,;]+)[,;]/i);
+  const bride = text.match(/Bride: ([^,;]+)[,;]/i);
+  if (groom && bride) return { couple: [stripLinks(groom[1]), stripLinks(bride[1])], date: null };
+
+  return null;
+}
+
+// --- Main parser ---
+export function parseMarriage(aRef) {
+  if (aRef._locks?.has("Marriage Date")) return aRef;
+
+  const text = (aRef.Text || "")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/\s+/g, " ")
+    .replace(/''+/g, "");
+
+  // Check if relevant for parsing
+  if (!/(Marriage|Huwelijk|Trouwen|Mariage|Heirat|Hochzeit|married)/i.test(text) && !aRef["Marriage Date"]) return aRef;
+
+  aRef["Record Type"] = aRef["Record Type"] || [];
+  if (!aRef["Record Type"].includes("Marriage")) aRef["Record Type"].push("Marriage");
+
+  // --- 1. Find all possible date candidates ---
+  // Accepts: 3 Nov 1895, Nov 3, 1895, 1895-11-03, etc. (avoid "accessed", "image", "registration" dates)
+  const allDates = [];
+  const dateRegex = /(?:[0-3]?\d\s+\w{3,9}\s+\d{4}|\w{3,9}\s+\d{1,2},?\s*\d{4}|\d{4}-\d{2}-\d{2})/g;
+  let match;
+  while ((match = dateRegex.exec(text))) {
+    // Only push if not immediately after "accessed", "image", or "registration"
+    const before = text.slice(Math.max(0, match.index - 24), match.index).toLowerCase();
+    if (!/accessed|image|registered|registration/.test(before)) {
+      allDates.push({ idx: match.index, date: match[0] });
+    }
+  }
+
+  // --- 2. Choose the best date: the *earliest* date not after death year ---
+  let chosenDate = null;
+  let chosenIdx = null;
+  let deathYear = window.profilePerson?.DeathDate ? parseYearFromDate(window.profilePerson.DeathDate) : null;
+
+  for (const { idx, date } of allDates) {
+    const yr = parseYearFromDate(date);
+    if (!yr) continue;
+    if (deathYear && yr > deathYear) continue;
+    // Choose the *first* suitable date before death
+    chosenDate = date.replace(/,/, "").trim();
+    chosenIdx = idx;
+    break;
+  }
+
+  // Fallback: if nothing before death year, just pick the first found date
+  if (!chosenDate && allDates.length) {
+    chosenDate = allDates[0].date.replace(/,/, "").trim();
+    chosenIdx = allDates[0].idx;
+  }
+
+  // --- 3. Couple extraction ---
+  const result = extractMarriageCoupleAndDate(text);
+  let couple;
+  if (result) {
+    couple = result.couple;
+    if (result.couple) aRef.Couple = result.couple;
+    if (result.date && !aRef["Marriage Date"]) aRef["Marriage Date"] = result.date;
+  }
+
+  // Only assign Spouse Name if profile person matches either
+  if (aRef.Couple && window.profilePerson?.NameVariants) {
+    const [c1, c2] = aRef.Couple;
+    if (isSameName(c1, window.profilePerson.NameVariants)) {
+      aRef["Spouse Name"] = c2;
+    } else if (isSameName(c2, window.profilePerson.NameVariants)) {
+      aRef["Spouse Name"] = c1;
+    }
+    // If neither matches, don't assign
+  }
+
+  // --- 4. Place extraction ---
+  let marriagePlace = null;
+  // Try common patterns (citing Marriage, ... ; married in ... ; Marriage Place: ...)
+  let placeMatch =
+    text.match(/citing Marriage,?\s([^,;]+?),\s(?:United States|Canada|England|Australia|New Zealand)/i) ||
+    text.match(/married in ([A-Za-z .'-]+), (United States|Canada|England|Australia|New Zealand)/i) ||
+    text.match(/Marriage Place[^:]*:\s*([^\n]+?)(?:[;.,]|$)/i);
+  if (placeMatch) marriagePlace = placeMatch[1].trim();
+
+  // --- 5. Assign results ---
+  if (chosenDate) {
+    aRef["Marriage Date"] = chosenDate;
+    const ym = chosenDate.match(/\d{4}/);
+    if (ym) aRef.Year = ym[0];
+    if (/\D/.test(chosenDate.trim())) safeSet(aRef, "OrderDate", formatDate(chosenDate, 0, { format: 8 }));
+  }
+  if (marriagePlace) aRef["Marriage Place"] = marriagePlace;
+
   return aRef;
 }
 
@@ -6879,6 +6911,7 @@ export function setOrderBirthDate(person) {
 // 3. {{FindAGrave|123456789}}
 // 4. Find a Grave #123456789
 // 5. Find a Grave memorial #123456789
+// 6. http://www.findagrave.com/cgi-bin/fg.cgi?page=gr&GRid=37306858
 // Note that if the input is in format 3, it will not parse if the link contains the text "database and images" (the link will be ignored).
 
 export function getFindAGraveLink(text) {
@@ -6888,12 +6921,15 @@ export function getFindAGraveLink(text) {
   const match3 = /\{\{\s?FindAGrave\s?\|\s?(\d+)(\|.*?)?\s?\}\}/;
   const match4 = /database and images/;
   const match5 = /^\s?Find a Grave:?( memorial)? #?(\d+)\.?$/i;
+  const match6 = /http.*?www.findagrave.com\/cgi-bin\/.*?GRid=(\d+)/i;
   const sourcerMatch = /'''.+<br(.*)?>.+<br(.*)?>/;
 
   // Check for sourcerMatch
   if (!text.match(sourcerMatch)) {
     // Check each match case and log the outcome
-    if (text.match(match1)) {
+    if (text.match(match6)) {
+      return "https://www.findagrave.com/memorial/" + text.match(match6)[1];
+    } else if (text.match(match1)) {
       return text.match(match1)[1];
     } else if (text.match(match2)) {
       return text.match(match2)[1];
