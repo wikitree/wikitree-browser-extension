@@ -16,6 +16,28 @@ shouldInitializeFeature("editFamilyData").then((result) => {
     import("./edit_family_data.css");
     addInfoAboutOtherPerson();
   }
+
+  $(document).on("click", "#EFdates .copyLocation", function () {
+    const destinationName = this.getAttribute("data-to");
+    const destinationId = this.getAttribute("data-to-id");
+    const place = this.getAttribute("data-location");
+    if (!place) return;
+
+    this.innerText = "as " + destinationName;
+    this.title = "Use '" + place + "' as " + destinationName.toLowerCase();
+
+    const locationField = document.getElementById(destinationId);
+
+    const message = "Set '" + place + "' as " + destinationName.toLowerCase();
+    $("<div class='copied-message'>" + message + "</div>")
+      .appendTo("body")
+      .delay(1000)
+      .fadeOut(2000, function () {
+        $(this).remove();
+      });
+
+    locationField.value = place;
+  });
 });
 async function addInfoAboutOtherPerson() {
   const h1Link = $("#addEditHeadline a:first");
@@ -82,6 +104,7 @@ async function addInfoAboutOtherPerson() {
             } else {
               this.innerText = "as " + destinationName;
               this.title = "Use '" + place + "' as " + destinationName.toLowerCase();
+              /*              
               this.addEventListener("click", function () {
                 const locationField = document.getElementById(destinationId);
 
@@ -95,6 +118,7 @@ async function addInfoAboutOtherPerson() {
 
                 locationField.value = place;
               });
+              */
             }
           });
         }
