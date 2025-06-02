@@ -22,6 +22,10 @@ import { initBioCheck } from "../bioCheck/bioCheck.js";
 import { bioTimelineFacts, buildTimelineTable, buildTimelineSA } from "./timeline";
 import { mainDomain, isIansProfile } from "../../core/pageType";
 import { profilePerson } from "../../core/common";
+import { collectReferences, REGEX_UNSOURCED, processSourcesSection } from "./auto_bio_helpers";
+import { p, norm } from "./date_utils.js";
+import { lock, safeSet } from "./utils/fieldLocks.js";
+
 import ONSjson from "./ONS.json";
 
 const appalachiaStates = [
@@ -5044,624 +5048,665 @@ function addReferencePlaces() {
   });
 }
 
-export function sourcesArray(bio) {
-  let dummy = $(document.createElement("html"));
-  bio = bio.replace(/\{\|\s*class="wikitable".*?\|\+ Timeline.*?\|\}/gs, "").replace(/<ref[^>]*\/>/g, "");
-  dummy.append(bio);
-  let refArr = [];
-  let refs = dummy.find("ref");
-  let refNamesAdded = new Set(); // Keep track of added reference names
-  let refNameCounter = new Map(); // Map to hold counters for each RefName
+function whoseCitation(aRef) {
+  // Match pattern '''Birth|Baptism|Marriage||Burial|Death of (child|son|daughter|husband|wife|father|mother|brother|sister|sibling) (.*?)'''
+  const whoseCitationPattern =
+    /'''(Birth|Baptism|Marriage|Burial|Death) of (child|son|daughter|husband|wife|father|mother|brother|sister|sibling) (.*?)'''/i;
+  const whoseCitationMatch = aRef.Text.match(whoseCitationPattern);
+  if (whoseCitationMatch) {
+    const relation = whoseCitationMatch[2];
+    const name = whoseCitationMatch[3];
+    aRef.Relation = relation;
+    aRef.Name = name;
+  }
+}
 
-  refs.each(function () {
-    let refElement = $(this);
-    let refName = refElement.attr("name");
-    if (refName && refNamesAdded.has(refName)) return; // Skip if the reference with this name has already been added
+/**
+ * Detect household tables or Sourcer family lists and
+ * attach the parsed data to the reference.
+ *
+ * Returns the (possibly enriched) aRef so calling code
+ * can keep chaining assignments.
+ */
+function handleHousehold(aRef) {
+  // ── A. Wikitable with Name / Age columns ────────────
+  const tableMatch = aRef.Text.match(/\{\|[^}]*Name.[^}]*Age[^}]*\|\}/gs);
+  if (tableMatch) {
+    aRef.Household = parseFamilyData(tableMatch[0], { format: "wikitable" });
+  }
 
-    // If the refName exists in the map, increment its value, else set it to 'a'
-    if (refName) {
-      if (refNameCounter.has(refName)) {
-        let counter = refNameCounter.get(refName);
-        counter = String.fromCharCode(counter.charCodeAt() + 1); // Increment character ('a' to 'b', 'b' to 'c', etc.)
-        refNameCounter.set(refName, counter);
-      } else {
-        refNameCounter.set(refName, "a");
+  // ── B. Sourcer mini-lists (“John (45)<br>Mary (42) …”) ─
+  aRef = parseSourcerFamilyListWithBRs(aRef);
+
+  // ── C. Final tidy-up / narrative generation ──────────
+  aRef = doHousehold(aRef);
+
+  return aRef;
+}
+
+/*********************************************************************
+ * parseBaptismGeneric(aRef)
+ *  – Works for FamilySearch, Ancestry, FreeREG, church registers …
+ *  – Extracts Baptism Date, Baptism Place, and links to profile person
+ *  – Adds Record Type = Baptism  (and Birth if “born …” also present)
+ *  – Ignores collection-range or “accessed 2025” years
+ *********************************************************************/
+
+/* Ordered from most-specific to most-generic.  Stops at first hit. */
+/* --------- DATE patterns ---------------------------------------- */
+const BAPTISM_DATE_PATTERNS = [
+  p(/\bbaptis[ze]d?\b\s+(?:on\s+)?([^;,\n]+?\d{4})/i),
+  p(/(?:Baptism|Christening) Date[^:]*[:\s]\s*([^\n]+?\d{4})/i),
+  p(/Baptism,\s[^;,]*?,\s([^;,]+?\d{4})/i),
+  p(/\bbaptis[ze]d?\b\s+(\d{4}[-/]\d{2}[-/]\d{2})/i),
+  p(/\bbaptis[ze]d?\b[^;,.\n]{0,120}?\b([0-3]?\d\s[a-z]{3,9}\s\d{4})/i),
+];
+
+/* --------- PLACE patterns --------------------------------------- */
+const BAPTISM_PLACE_PATTERNS = [
+  p(/\bbaptis[ze]d?\b[^.\n]{0,120}?\bin\s([^;,.\n]+?)(?:[;.,]|$)/i),
+  p(/(?:Baptism|Christening) Place[^:]*:\s*([^\n]+?)(?:[;.,]|$)/i),
+];
+
+export function parseBaptismGeneric(aRef) {
+  if (aRef._locks?.has("Baptism Date")) return aRef;
+  if (!/Baptis[ze]d|Baptism|Christening/i.test(aRef.Text)) return aRef;
+
+  if (!aRef["Record Type"].includes("Baptism")) aRef["Record Type"].push("Baptism");
+
+  /* 1️⃣  full-date search */
+  for (const { regex, group, post } of BAPTISM_DATE_PATTERNS) {
+    const m = aRef.Text.match(regex);
+    if (m && m[group]) {
+      aRef["Baptism Date"] = norm(post(m[group]));
+      break;
+    }
+  }
+
+  /* 2️⃣  year-only fallback */
+  if (!aRef["Baptism Date"]) {
+    const m = aRef.Text.match(
+      /\bbaptis[ze]d?\b[^.\n]{0,120}?(?<![-–])\b(1[6-9]\d{2}|20[0-2]\d)\b(?!\s*[-–]\s*\d{2,4})/
+    );
+    if (m) {
+      const yr = m[1];
+      aRef["Baptism Date"] = yr;
+      safeSet(aRef, "Year", yr); // respects Birth lock
+    }
+  }
+
+  /* 3️⃣  place */
+  if (!aRef["Baptism Place"]) {
+    for (const { regex, group } of BAPTISM_PLACE_PATTERNS) {
+      const m = aRef.Text.match(regex);
+      if (m && m[group]) {
+        aRef["Baptism Place"] = m[group].trim();
+        break;
       }
-      // Append the counter to the refName to make it unique
-      refName = refName + "_" + refNameCounter.get(refName);
+    }
+  }
+
+  /* 4️⃣  link to profile person (optional) */
+  const prof = profilePersonMatch(aRef.Text);
+  if (prof) aRef.Name = prof[0];
+  if (aRef.Name && isSameName(aRef.Name, window.profilePerson?.NameVariants)) {
+    window.profilePerson["Baptism Date"] = aRef["Baptism Date"];
+    window.profilePerson["Baptism Place"] = aRef["Baptism Place"] || "";
+  }
+
+  /* 5️⃣  lock full date & set OrderDate */
+  if (aRef["Baptism Date"] && /\D/.test(aRef["Baptism Date"].trim())) {
+    lock(aRef, "Baptism Date", aRef["Baptism Date"]);
+    const y = aRef["Baptism Date"].match(/\d{4}/);
+    if (y) safeSet(aRef, "Year", y[0]);
+    safeSet(aRef, "OrderDate", formatDate(aRef["Baptism Date"], 0, { format: 8 }));
+  }
+  return aRef;
+}
+
+/*********************************************************************
+ * Generic Birth parser
+ *  – Works for FamilySearch, Ancestry, MyHeritage, etc.
+ *  – Adds/locks  Birth Date, Birth Place, Parents, Year, OrderDate
+ *********************************************************************/
+/* Ordered pattern list – most specific first */
+/* ---------- FULL-DATE patterns, most specific ➜ generic ---------- */
+const BIRTH_DATE_PATTERNS = [
+  // 0.  Date inside parentheses takes top priority
+  p(/\(\s*born\b\s*([^()]+?\d{4})\s*\)/i),
+
+  // 1.  “born on 28 Apr 1867”, “born 28 april 1867”, “born about 1867”
+  p(/\bborn\b\s+(?:on|abt\.?|about)?\s*([^\n;,]+?\d{4})/i),
+
+  // 2.  “b. 28 Apr 1867”
+  p(/\bb\.\s*([^;,.\n]+?\d{4})/i),
+
+  // 3.  Label form: “Birth Date: 28 Apr 1867”
+  p(/Birth Date[^:]*:\s*([^\n]+?\d{4})/i),
+
+  // 4.  ISO: “born 1867-04-28”
+  p(/\bborn\b\s+(\d{4}[-/]\d{2}[-/]\d{2})/i),
+
+  // 5.  lower-case month: “born 29 april 1867”
+  p(/\bborn\b[^;,.\n]*?\b([0-3]?\d\s[a-z]{3,9}\s\d{4})/i),
+
+  // 6.  numeric d-m-y: “born 29-04-1867”
+  p(/\bborn\b[^;,.\n]*?\b([0-3]?\d[-/][0-1]?\d[-/]\d{4})/i),
+
+  // 7.  “birth registered 29 Apr 1867”
+  p(/\bbirth registered\b[^;\n]*?\s([0-3]?\d\s[a-z]{3,9}\s\d{4})/i),
+];
+
+/* ---------- PLACE patterns (unchanged) --------------------------- */
+const BIRTH_PLACE_PATTERNS = [
+  p(/\bborn\b[^.\n]{0,120}?\bin\s([^;,.\n]+?)(?:[;.,]|$)/i),
+  p(/Birth Place[^:]*:\s*([^\n]+?)(?:[;.,]|$)/i),
+  p(/\bbirth registered\b[^.\n]{0,120}?\bin\s([^;,.\n]+?)(?:[;.,]|$)/i),
+];
+
+export function parseBirthGeneric(aRef) {
+  if (aRef._locks?.has("Birth Date")) return aRef;
+  if (!/born\b|Birth\b|b\./i.test(aRef.Text)) return aRef;
+
+  // flatten
+  const text = aRef.Text.replace(/<br\s*\/?>/gi, " ").replace(/\s+/g, " ");
+
+  /* 1️⃣  FULL-DATE search */
+  for (const { regex, group, post } of BIRTH_DATE_PATTERNS) {
+    const m = text.match(regex);
+    if (m && m[group]) {
+      aRef["Birth Date"] = norm(post(m[group]));
+      break; // stop at the first full date
+    }
+  }
+
+  /* 2️⃣  Year-only fallback  (runs only if no full date captured) */
+  if (!aRef["Birth Date"]) {
+    // year-only fallback – one-liner, valid JS
+    const yOnly = text.match(/\bborn\b[^.\n]{0,120}?(?<![-–])\b(1[6-9]\d{2}|20[0-2]\d)\b(?!\s*[-–]\s*\d{2,4})/);
+
+    if (yOnly) {
+      const yr = yOnly[1];
+      aRef["Birth Date"] = yr; // store plain year
+      lock(aRef, "Year", yr);
+      lock(aRef, "Birth Date", yr);
+    }
+  }
+
+  /* 3️⃣  Place extraction */
+  if (!aRef["Birth Place"]) {
+    for (const { regex, group } of BIRTH_PLACE_PATTERNS) {
+      const m = text.match(regex);
+      if (m && m[group]) {
+        aRef["Birth Place"] = m[group].trim();
+        break;
+      }
+    }
+  }
+
+  /* 4️⃣  Parents */
+  const par = text.match(/\b(?:son|daughter) of ([^;,.\n]+)/i);
+  if (par) aRef.Parents = par[1].trim();
+
+  /* 5️⃣  Record-type & locks */
+  if (aRef["Birth Date"]) {
+    if (!aRef["Record Type"].includes("Birth")) aRef["Record Type"].push("Birth");
+
+    // Lock full date if not already locked
+    lock(aRef, "Birth Date", aRef["Birth Date"]);
+
+    const ym = aRef["Birth Date"].match(/\d{4}/);
+    if (ym) lock(aRef, "Year", ym[0]);
+
+    // OrderDate only if we have day & month
+    if (/\D/.test(aRef["Birth Date"].trim()))
+      safeSet(aRef, "OrderDate", formatDate(aRef["Birth Date"], 0, { format: 8 }));
+  }
+  return aRef;
+}
+
+function parseMarriage(aRef) {
+  if (
+    aRef.Text.match(
+      /NZBDM MARRIAGE|(New Zealand Department.*Marriage Registration)|Marriages? Index|Huwelijk|Trouwen|'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage (Registration )?Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage -|citing.*Marriage|> Marriages/
+    ) ||
+    aRef["Marriage Date"]
+  ) {
+    console.log("Marriage reference found or Marriage Date exists.");
+
+    const dateMatch = aRef.Text.match(/\b\d{1,2}\s\w{3}\s1[6789]\d{2}\b/);
+    const dateMatch2 = aRef.Text.match(/\s(1[6789]\d{2})\b(?!-)/);
+    console.log("Date match:", dateMatch);
+    console.log("Secondary date match:", dateMatch2);
+
+    aRef["Record Type"].push("Marriage");
+
+    if (dateMatch) {
+      aRef["Marriage Date"] = dateMatch[0];
+      aRef.Year = dateMatch[0].match(/\d{4}/)[0];
+      console.log("Marriage Date set from dateMatch:", aRef["Marriage Date"]);
+      console.log("Year set from dateMatch:", aRef.Year);
+    } else if (dateMatch2) {
+      aRef["Marriage Date"] = dateMatch2[1];
+      aRef.Year = dateMatch2[1];
+      console.log("Marriage Date set from dateMatch2:", aRef["Marriage Date"]);
+      console.log("Year set from dateMatch2:", aRef.Year);
     }
 
-    let innerHTML = refElement.html().trim();
-    if (innerHTML?.length === 0) return; // Skip if the reference has no content
+    const detailsMatch = aRef.Text.match(/(\d{4}\),\s)(.+?),\s(\d+\s\w+\s\d+)/);
+    const detailsMatch2 = aRef.Text.match(/\(http.*?\)(.*?image.*?;\s)(.*?)\./);
+    const detailsMatch3 = aRef.Text.match(/[>;)]([A-z\s-]*) marriage to\s(.*?)\s\bon\b\s(.*?)\s\bin\b\s(.*)\./);
+    const entryForMatch = aRef.Text.match(/in entry for/);
 
-    let theRef = innerHTML
-      .match(/^(.*?)(?=<\/?ref|$)/s)[1]
-      .trim()
-      .replace(/&amp;/g, "&");
+    if (detailsMatch2) {
+      aRef["Marriage Place"] = detailsMatch2[2].replace("Archives", "");
+      console.log("Marriage Place set from detailsMatch2:", aRef["Marriage Place"]);
+    } else if (detailsMatch) {
+      if (entryForMatch == null) {
+        aRef["Marriage Date"] = detailsMatch[3].trim();
+        const couple = detailsMatch[2].split(/\band\b/);
+        aRef["Couple"] = couple.map((item) => item.trim());
+        console.log("Couple found:", aRef["Couple"]);
 
-    if (window.isFirefox == true) {
-      theRef = $(this)[0].innerText;
-    }
-    if (theRef != "" && theRef != "\n" && theRef != "\n\n" && theRef.match(/==\s?Sources\s?==/) == null) {
-      let NonSource = false;
-      if (theRef.match(unsourced)) {
-        NonSource = true;
-      }
-      refArr.push({ Text: theRef.trim(), RefName: refName, NonSource: NonSource });
-
-      if (refName) {
-        refNamesAdded.add(refName); // Mark this reference name as added
-      }
-    }
-  });
-
-  window.sourcesSection.text = window.sourcesSection.text.map(function (aSource) {
-    if (aSource) {
-      if (aSource.match(/database( with images)?, FamilySearch|^http/) && aSource.match(/^\*/) == null) {
-        return "* " + aSource.replace(/''Replace this citation if there is another source.''/, "");
-      } else {
-        if (aSource.match(/<references\s?\/>/) == null) {
-          return aSource.replace(/''Replace this citation if there is another source.''/, "");
-        } else {
-          return;
+        let person1 = [couple[0].trim().split(" ")[0]];
+        if (firstNameVariants[person1]) {
+          person1 = firstNameVariants[person1[0]];
+          console.log("Person 1 name variant:", person1);
         }
-      }
-    }
-  });
-
-  let sourcesSection = window.sourcesSection.text.join("\n");
-  let sourcesBits = sourcesSection.split(/^\*/gm);
-  /* If a sourceBit starts with * now, it started with ** before, so add the * back (so... **)
-  and add it to the previous sourceBit */
-  for (let i = sourcesBits?.length - 1; i >= 0; i--) {
-    let aSourceBit = sourcesBits[i];
-    if (aSourceBit.match(/^\*/) && i > 0) {
-      sourcesBits[i - 1] = sourcesBits[i - 1] + "*" + aSourceBit;
-      sourcesBits[i] = "";
-    }
-  }
-
-  let notShow = /^[\n\s]*$/;
-  if (sourcesSection.match(/\*/) == null) {
-    sourcesBits = sourcesSection.split(/\n/);
-  }
-
-  sourcesBits.forEach(function (aSource) {
-    if (aSource.match(notShow) == null) {
-      let NonSource = false;
-      if (aSource.match(unsourced)) {
-        NonSource = true;
-      }
-      if (aSource.match(/\n\n(!\{\|)/)) {
-        const aSourceBits = aSource.split(/\n\n(!\{\|)/);
-        aSourceBits.forEach(function (aSourceBit) {
-          if (aSourceBit.match(notShow) == null) {
-            refArr.push({ Text: aSourceBit.trim(), RefName: "", NonSource: NonSource });
+        if (couple[1]) {
+          let person2 = [couple[1].trim().split(" ")[0]];
+          if (firstNameVariants[person2]) {
+            person2 = firstNameVariants[person2[0]];
+            console.log("Person 2 name variant:", person2);
           }
-        });
-      } else {
-        const newRef = { Text: aSource.trim(), RefName: "", NonSource: NonSource };
-        /* Look for ref tags in aSource and compare the text with the refArr
-         If there is a match take the text from before the ref tag
-         and add it to the object in refArr as Narrative, and don't add newRef to refArr
-        */
-        const refTags = aSource.match(/<ref[^>]*>.*?<\/ref>/gs);
-        let addIt = true;
-        if (refTags) {
-          refTags.forEach(function (aRefTag) {
-            const refTagText = aRefTag.match(/<ref[^>]*>(.*?)<\/ref>/s)[1].trim();
-            const refTagText2 = refTagText.replace(/<br\/>/g, "<br>");
-            const refTagTextMatch = refArr.find((ref) => ref.Text == refTagText || ref.Text == refTagText2);
-            if (refTagTextMatch) {
-              const narrative = aSource.split(aRefTag)[0];
-              refTagTextMatch.Narrative = narrative;
-              addIt = false;
-            }
-          });
         }
-        if (addIt) {
-          refArr.push(newRef);
+        if (!isSameName(window.profilePerson.FirstName, person1)) {
+          aRef["Spouse Name"] = aRef["Couple"][0];
+          console.log("Spouse name set to Couple[0]:", aRef["Spouse Name"]);
+        } else {
+          aRef["Spouse Name"] = aRef["Couple"][1];
+          console.log("Spouse name set to Couple[1]:", aRef["Spouse Name"]);
+        }
+        const marriageYearMatch = aRef["Marriage Date"].match(/\d{4}/);
+        if (marriageYearMatch) {
+          aRef.Year = marriageYearMatch[0];
+          console.log("Marriage Year found and set:", aRef.Year);
+        }
+        const weddingLocationMatch = aRef.Text.match(/citing Marriage,?(.*?), United States/);
+        if (weddingLocationMatch) {
+          aRef["Marriage Place"] = weddingLocationMatch[1].trim();
+          console.log("Marriage Place set from weddingLocationMatch:", aRef["Marriage Place"]);
         }
       }
-    }
-  });
+    } else if (detailsMatch3) {
+      aRef.Couple = [];
+      let person1AgeMatch = detailsMatch3[1].match(/\d{1,2}( years)?/);
+      let person1Age = "";
+      if (person1AgeMatch) {
+        person1Age = person1AgeMatch[0];
+      }
+      console.log("Person 1 Age:", person1Age);
 
-  function whoseCitation(aRef) {
-    // Match pattern '''Birth|Baptism|Marriage||Burial|Death of (child|son|daughter|husband|wife|father|mother|brother|sister|sibling) (.*?)'''
-    const whoseCitationPattern =
-      /'''(Birth|Baptism|Marriage|Burial|Death) of (child|son|daughter|husband|wife|father|mother|brother|sister|sibling) (.*?)'''/i;
-    const whoseCitationMatch = aRef.Text.match(whoseCitationPattern);
-    if (whoseCitationMatch) {
-      const relation = whoseCitationMatch[2];
-      const name = whoseCitationMatch[3];
-      aRef.Relation = relation;
-      aRef.Name = name;
+      const person1 = detailsMatch3[1]
+        .replaceAll(/\(.*?\)/g, "")
+        .trim()
+        .replaceAll(/^.*''/g, "")
+        .trim();
+
+      let person2AgeMatch = detailsMatch3[2].match(/\d{1,2}( years)?/);
+      let person2Age = "";
+      if (person2AgeMatch) {
+        person2Age = person2AgeMatch[0];
+      }
+      console.log("Person 2 Age:", person2Age);
+
+      const person2 = detailsMatch3[2].replace(/\(.*?\)/, "").trim();
+      aRef.Couple.push(person1);
+      aRef.Couple.push(person2);
+      console.log("Couple set from detailsMatch3:", aRef.Couple);
+
+      aRef["Marriage Date"] = detailsMatch3[3];
+      console.log("Marriage Date set from detailsMatch3:", aRef["Marriage Date"]);
+
+      const refYearMatch = detailsMatch3[3].match(/\d{4}/);
+      if (refYearMatch) {
+        aRef.Year = detailsMatch3[3].match(/\d{4}/)[0];
+        console.log("Year set from refYearMatch:", aRef.Year);
+      } else {
+        aRef.Year = "";
+        console.log("Year not found in detailsMatch3, set to empty string.");
+      }
+      aRef["Marriage Place"] = detailsMatch3[4].trim();
+      console.log("Marriage Place set from detailsMatch3:", aRef["Marriage Place"]);
+
+      window.profilePerson.NameVariants.forEach((name) => {
+        if (name == aRef.Couple[0]) {
+          aRef["Spouse Name"] = aRef.Couple[1];
+          aRef["Spouse Age"] = person2Age;
+          aRef["Age"] = person1Age;
+          console.log("Spouse Name and Age set:", aRef["Spouse Name"], aRef["Spouse Age"]);
+        } else if (name == aRef.Couple[1]) {
+          aRef["Spouse Name"] = aRef.Couple[0];
+          aRef["Spouse Age"] = person1Age;
+          aRef["Age"] = person2Age;
+          console.log("Spouse Name and Age set:", aRef["Spouse Name"], aRef["Spouse Age"]);
+        }
+      });
+    } else if (aRef.Text.match(/GRO Reference.*?(\d{4}).*\bin\b\s(.*)Volume/)) {
+      const details = aRef.Text.match(/GRO Reference.*?(\d{4}).*\bin\b\s(.*)Volume/);
+      aRef.Year = details[1];
+      aRef["Marriage Place"] = details[2].trim();
+      console.log("GRO Reference found, Year set:", aRef.Year);
+      console.log("Marriage Place set from GRO Reference:", aRef["Marriage Place"]);
+    }
+
+    aRef.OrderDate = formatDate(aRef["Marriage Date"], 0, { format: 8 });
+    console.log("OrderDate set:", aRef.OrderDate);
+  }
+  return aRef;
+}
+
+function parseDivorce(aRef) {
+  if (aRef.Text.match(/Divorce Records/) && aRef.Text.match(/Marriage and/) == null) {
+    aRef["Record Type"].push("Divorce");
+    const divorceDetails = aRef.Text.match(
+      /([^>;,]+?)\sdivorce from\s(.*?)\son\s(\d{1,2}\s[A-z]{3}\s\d{4})(\s\bin\b\s(.*))?\./
+    );
+    if (divorceDetails) {
+      const divorceCouple = [divorceDetails[1], divorceDetails[2]];
+      aRef.Couple = divorceCouple;
+      aRef["Divorce Date"] = divorceDetails[3];
+      aRef["Event Date"] = divorceDetails[3];
+      if (divorceDetails[5]) {
+        aRef["Divorce Place"] = divorceDetails[5];
+      }
+      aRef["Event Type"] = "Divorce";
+      aRef.Year = divorceDetails[3].match(/\d{4}/)[0];
+      const locationMatch = aRef.Text.match(/in\s(.*?)(,\sUnited States)?/);
+      if (locationMatch) {
+        aRef.Location = aRef.Text.match(/in\s(.*?)(,\sUnited States)?/)[1];
+      }
+      aRef.OrderDate = formatDate(aRef["Divorce Date"], 0, { format: 8 });
+      aRef.Narrative = "";
+      let thisSpouse = "";
+      if (aRef.Couple) {
+        if (aRef.Couple[0].match(window.profilePerson.PersonName?.FirstName)) {
+          thisSpouse = aRef.Couple[1];
+        } else {
+          thisSpouse = aRef.Couple[0];
+        }
+      }
+      aRef.Narrative =
+        capitalizeFirstLetter(formatDate(aRef["Divorce Date"])) +
+        ", " +
+        window.profilePerson.PersonName?.FirstName +
+        " and " +
+        thisSpouse.replace(window.profilePerson.LastNameAtBirth, "").replace(/\s$/, "") +
+        " divorced" +
+        (aRef["Divorce Place"] ? " in " + aRef["Divorce Place"] : "") +
+        ".";
     }
   }
+  return aRef;
+}
 
+function parsePrisonRecord(aRef) {
+  if (aRef.Text.match(/Prison Records/)) {
+    aRef["Record Type"].push("Prison");
+    aRef["Event Type"] = "Prison";
+    const admissionDateMatch = aRef.Text.match(/Admission Date:\s([\w\d\s]+).*;/);
+    if (admissionDateMatch) {
+      aRef["Event Date"] = admissionDateMatch[1].trim();
+      const aRefYearMatch = aRef["Event Date"].match(/\d{4}/);
+      if (aRefYearMatch) {
+        aRefYearMatch[0];
+        aRef.OrderDate = formatDate(aRef["Event Date"], 0, { format: 8 });
+      }
+    }
+    const locationMatch = aRef.Text.match(/Prison:\s([^;.]+)/);
+    if (locationMatch) {
+      if (locationMatch[1]) {
+        aRef.Location = locationMatch[1];
+      }
+    }
+    aRef.Narrative = "";
+    aRef.Narrative =
+      capitalizeFirstLetter(formatDate(aRef["Event Date"])) +
+      ", " +
+      window.profilePerson.PersonName?.FirstName +
+      " entered prison in " +
+      aRef.Location;
+  }
+  return aRef;
+}
+
+function parseDeath(aRef) {
+  if (
+    (aRef.Text.match(
+      /NZBDM DEATH|(New Zealand Department.*Death Registration)|Overlijden|[A-Z][a-z]+ Deaths(?!\s&|\sand)|'''Death'''|Death (Index|Record|Reg)|findagrave|Find a Grave|memorial|Cemetery Registers|Death Certificate|^Death -|citing Death|citing.*Burial,|Probate/i
+    ) ||
+      aRef["Death Date"]) &&
+    aRef.Text.match("Birth of") == null
+  ) {
+    aRef["Record Type"].push("Death");
+
+    aRef.OrderDate = formatDate(aRef["Death Date"], 0, { format: 8 });
+  }
+  return aRef;
+}
+
+/**
+ * Detect any FamilySearch (or similar) burial citation and
+ *   – extract Burial Date / Place (comma **or** space after “citing”)
+ *   – mark Record Type = Burial
+ *   – copy data to profile person when the ref is for them
+ *   – set OrderDate / Event fields
+ */
+function parseBurial(aRef) {
+  // ① Trigger on either “…citing Burial,”  OR  “…citing Burial”
+  if (!/citing\s.*Burial/i.test(aRef.Text)) return aRef;
+
+  // ② Try the FamilySearch pattern with comma
+  const fsMatch = aRef.Text.match(
+    /familysearch.*\),\s(.*?),\s(\d{1,2}\s\w{3}\s\d{4});.*Burial,\s(.*?),\s(?:United|Canada|Australia|New Zealand)/i
+  );
+  if (fsMatch) {
+    aRef.Name = fsMatch[1];
+    aRef["Burial Date"] = fsMatch[2];
+    aRef["Burial Place"] = fsMatch[3];
+  }
+
+  // ③ If the ref already carried “Death or Burial” fields, fall back to them
+  if (!aRef["Burial Date"] && aRef["Death or Burial Date"]) aRef["Burial Date"] = aRef["Death or Burial Date"];
+  if (!aRef["Burial Place"] && aRef["Death or Burial Place"]) aRef["Burial Place"] = aRef["Death or Burial Place"];
+
+  // ④ Update profile person if the ref is *their* burial entry
+  const entryFor = aRef.Text.match(/Entry for (.*?),/i);
+  if (entryFor) {
+    window.profilePerson["Burial Date"] = aRef["Burial Date"];
+    window.profilePerson["Burial Place"] = aRef["Burial Place"];
+  }
+
+  // ⑤ Tag & date-order
+  if (!aRef["Record Type"].includes("Burial")) aRef["Record Type"].push("Burial");
+  aRef["Event Type"] = "Burial";
+  if (aRef["Burial Date"] && !aRef.OrderDate) {
+    aRef.OrderDate = formatDate(aRef["Burial Date"], 0, { format: 8 });
+  }
+  if (aRef["Burial Place"] && !aRef["Event Place"]) {
+    aRef["Event Place"] = aRef["Burial Place"];
+  }
+  return aRef;
+}
+
+function parseGEDCOMReference(aRef) {
+  if (aRef.Text.match(/created .*? the import of.*\.GED/i)) {
+    aRef["Record Type"].push("GEDCOM");
+    aRef.Text = aRef.Text.replace(/See the .*for the details.*$/, "").replace(
+      /''This comment and citation should be deleted.*/,
+      ""
+    );
+  }
+  return aRef;
+}
+
+function parseCensusOrRegister(aRef) {
+  if (aRef.Text.match(/Census|1939 England and Wales Register/)) {
+    aRef["Record Type"].push("Census");
+    const yearMatch = aRef.Text.match(/(1[89]\d{2}) .*?Census/);
+    const yearMatch2 = aRef.Text.match(/(1[89]\d{2}) England and Wales/);
+    if (yearMatch) {
+      aRef.Year = yearMatch[1];
+      aRef["Census Year"] = yearMatch[1];
+    } else if (yearMatch2) {
+      aRef.Year = yearMatch2[1];
+      aRef["Census Year"] = yearMatch2[1];
+    }
+    if (aRef.Year) {
+      aRef.OrderDate = formatDate(aRef.Year, 0, { format: 8 });
+    }
+    const placeMatch = aRef.Text.match(/household.*, ([^,]+?, [^,]+?), United States;/);
+    if (placeMatch) {
+      aRef.Residence = placeMatch[1].trim();
+    }
+    const placeMatch2 = aRef.Text.match(/Residence place:\s([^.{]*)/);
+    const placeMatch3 = aRef.Text.match(/(Home in \d{4})|(Census Place):(.+?);/);
+    const thePlace = placeMatch2 ? placeMatch2[1] : placeMatch3 ? placeMatch3[3] : "";
+    if (thePlace) {
+      aRef.Residence = thePlace.trim();
+    }
+
+    /* Search bio for "In the [year] census, [person] was living in [place]." */
+    const censusBioRegex = new RegExp("In the " + aRef.Year + " census .*? was living in ([^.]+)", "i");
+    const censusBioRegex2 = new RegExp("In the " + aRef.Year + " census .*? was ([^.]+) in ([^.]+)", "i");
+    const censusResidenceRegex = aRef.Text.match(
+      /\(\d{1,2}\).*? in (.+)(?=(, (United States|United Kingdom|England|Scotland|Wales|Canada|Australia)))/
+    );
+    const censusResidenceRegex2 = aRef.Text.match(/\(\d{1,2}\).*? in (.+)(?=\. Born)/);
+    const censusBioMatch = localStorage.previousBio.match(censusBioRegex);
+    const censusBioMatch2 = localStorage.previousBio.match(censusBioRegex2);
+
+    if (censusBioMatch) {
+      aRef.Residence = censusBioMatch[1];
+      aRef.SourcerNarrative = true;
+    } else if (censusBioMatch2) {
+      aRef.Residence = censusBioMatch2[2];
+      aRef.SourcerNarrative = true;
+    } else if (censusResidenceRegex) {
+      aRef.Residence = censusResidenceRegex[1];
+    } else if (censusResidenceRegex2) {
+      aRef.Residence = censusResidenceRegex2[1];
+    }
+
+    if (aRef.Residence) {
+      if (aRef.Residence.match(" in ")) {
+        aRef.Residence = aRef.Residence.split(" in ")[1];
+      }
+      if (censusBioMatch) {
+        aRef.Narrative = censusBioMatch[0].replace(/In the/, "In").replace(/\scensus/i, ",");
+      } else if (censusBioMatch2) {
+        aRef.Narrative = censusBioMatch2[0].replace(/In the/, "In").replace(/\scensus/i, ",");
+      } else if (aRef.Residence) {
+        aRef.Narrative =
+          "In " +
+          aRef.Year +
+          ", " +
+          window.profilePerson.PersonName?.FirstName +
+          " was living in " +
+          minimalPlace(aRef.Residence) +
+          ".";
+        // aRef.SourcerNarrative = true;
+      }
+      if (aRef.Narrative) {
+        // Remove United States, United Kingdom, etc. from the end of the place name
+        aRef.Narrative = aRef.Narrative.replace(/, (United States|United Kingdom|England|Wales|Canada|Australia)/, "");
+      }
+    }
+  }
+  return aRef;
+}
+
+function parseMilitaryRecord(aRef) {
+  // Add military service records
+  const militaryMatch = aRef.Text.match(/World War I\b|World War II|Korean War|Vietnam War/);
+  if (militaryMatch) {
+    aRef = addMilitaryRecord(aRef, militaryMatch[0]);
+  }
+  return aRef;
+}
+
+function parseFreeRegIfNeeded(aRef) {
+  return aRef.Text.match(/freereg\.org\.uk/i) ? parseFreeReg(aRef) : aRef;
+}
+function parseFreeCenIfNeeded(aRef) {
+  return aRef.Text.match(/FreeCen Transcription/i) ? parseFreeCen(aRef) : aRef;
+}
+function parseNZBDMIfNeeded(aRef) {
+  return /\bNZ\b/.test(aRef.Text) && /\bBDM\b/.test(aRef.Text) ? parseNZBDM(aRef) : aRef;
+}
+function flagGenericBirth(aRef) {
+  if (
+    aRef["Birth Date"] ||
+    /NZBDM BIRTH|New Zealand Department.*Birth Registration|Dopen|Doop|Geboorte|'''Birth'''|Births? (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|[A-Z][a-z]+ Births, (?!Marriages|Deaths)|GRO Online Index - Birth|^Birth -|births,\s\d|citing Birth/i.test(
+      aRef.Text
+    )
+  ) {
+    aRef["Record Type"].push("Birth");
+    if (aRef["Birth Date"]) aRef.OrderDate = formatDate(aRef["Birth Date"], 0, { format: 8 });
+  }
+  return aRef;
+}
+
+export function enrichReferences(refArr) {
   refArr.forEach(function (aRef) {
+    console.log("Processing reference:", aRef.Text);
+    aRef["Record Type"] = aRef["Record Type"] || [];
     if (aRef.Text) {
       whoseCitation(aRef);
-      const tableMatch = aRef.Text.match(/\{\|[^}]*Name.[^}]*Age[^}]*\|\}/gs);
-      if (tableMatch) {
-        const table = tableMatch[0];
-        aRef.Household = parseFamilyData(table, { format: "wikitable" });
-      }
-      aRef = parseSourcerFamilyListWithBRs(aRef);
-      aRef = doHousehold(aRef);
+      aRef = handleHousehold(aRef);
     }
     let table = parseWikiTable(aRef);
     Object.assign(aRef, table);
 
-    // Parse FreeREG
-    if (aRef.Text.match(/freereg.org.uk/)) {
-      aRef = parseFreeReg(aRef);
-    }
-
-    // Parse FreeCen
-    if (aRef.Text.match(/FreeCen Transcription/i)) {
-      aRef = parseFreeCen(aRef);
-    }
-
-    // Parse NZ BDM
-    if (aRef.Text.match(/\bNZ\b/) && aRef.Text.match(/\bBDM\b/)) {
-      aRef = parseNZBDM(aRef);
-    }
-
-    if (aRef["Record Type"]) {
-      if (!Array.isArray(aRef["Record Type"])) {
-        aRef["Record Type"] = [aRef["Record Type"]];
-      }
-    } else {
-      aRef["Record Type"] = [];
-    }
-
-    if (
-      aRef.Text.match(
-        /NZBDM BIRTH|(New Zealand Department.*Birth Registration)|Dopen|Doop|Geboorte|'''Birth'''|Births? (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|[A-Z][a-z]+ Births, (?!Marriages|Deaths)|GRO Online Index - Birth|^Birth -|births,\s\d|citing Birth/i
-      ) ||
-      aRef["Birth Date"]
-    ) {
-      aRef["Record Type"].push("Birth");
-      if (aRef["Birth Date"]) {
-        aRef.OrderDate = formatDate(aRef["Birth Date"], 0, { format: 8 });
-      }
-    }
-
-    // FamilySearch baptism
-    if (
-      aRef["Baptism Date"] ||
-      aRef["Christening Date"] ||
-      aRef["Baptism date"] ||
-      aRef["Christening date"] ||
-      aRef.Text.match(/Baptism Record|citing.+Baptism,|Baptism\b/)
-    ) {
-      aRef["Record Type"].push("Baptism");
-      const nameMatch = aRef.Text.match(/familysearch.*, ([A-Z].*?) baptism/i);
-      const nameMatch2 = aRef.Text.match(
-        /familysearch.*\),\s(.*?),\s\b\d{1,2}\s\w{3}\s\d{4}\b;.*Baptism,\s(.*), (United Kingdom|USA|United States|Canada|Australia|New Zealand)/i
-      );
-      const baptismDateMatch = aRef.Text.match(/familysearch.*,.*?baptis.*?\bon\b (.*?\d{4}\b)/i);
-      const baptismDateMatch2 = aRef.Text.match(/familysearch.*\),.*(\b(\d{1,2}\s)(\w{3}\s)\d{4}\b);/i);
-      const birthDateMatch = aRef.Text.match(/familysearch.*,.*?\bborn\b (.*?\d{4}\b)/i);
-      const baptismLocationMatch = aRef.Text.match(/familysearch.*,.*?\bin\b (.*?)\./i);
-      const baptismLocationMatch2 = aRef.Text.match(
-        /familysearch.*\),.*\b\d{1,2}\s\w{3}\s\d{4}\b;.*Baptism,\s(.*), (United Kingdom|USA|United States|Canada|Australia|New Zealand)/i
-      );
-
-      if (nameMatch) {
-        aRef.Name = nameMatch[1];
-      }
-      if (nameMatch2) {
-        aRef.Name = nameMatch2[1];
-      }
-      if (baptismDateMatch) {
-        aRef["Baptism Date"] = baptismDateMatch[1];
-        aRef["Year"] = baptismDateMatch[1].match(/\d{4}/)[0];
-      } else if (baptismDateMatch2) {
-        aRef["Baptism Date"] = baptismDateMatch2[1];
-        aRef["Year"] = baptismDateMatch2[1].match(/\d{4}/)[0];
-      } else if (aRef["Record Type"].includes("Baptism")) {
-        const dateMatch1 = aRef.Text.match(/\b\d{1,2}\s\w{3}\s1[6789]\d{2}\b/);
-        const dateMatch2 = aRef.Text.match(/\s(1[6789]\d{2})\b(?!-)/);
-        const dateMatch3 = aRef.Text.match(/\b\w{3}\s\d{1,2}\s1[6789]\d{2}\b/);
-        if (dateMatch1) {
-          aRef["Baptism Date"] = dateMatch1[0];
-
-          aRef.Year = dateMatch1[0].match(/\d{4}/)[0];
-        } else if (dateMatch2) {
-          aRef["Baptism Date"] = dateMatch2[1];
-          aRef.Year = dateMatch2[1];
-        } else if (dateMatch3) {
-          aRef["Baptism Date"] = dateMatch3[0];
-          aRef.Year = dateMatch3[0].match(/\d{4}/)[0];
-        }
-      }
-      if (birthDateMatch) {
-        aRef["Birth Date"] = birthDateMatch[1];
-        aRef["Record Type"].push("Birth");
-      }
-      if (baptismLocationMatch) {
-        aRef["Baptism Place"] = baptismLocationMatch[1];
-      } else if (baptismLocationMatch2) {
-        aRef["Baptism Place"] = baptismLocationMatch2[1];
-      }
-
-      // Check if the baptism is for the profile person
-      // Check aRef.Text against the profile person's name variants and add the name to aRef.Name
-      const isProfilePerson = profilePersonMatch(aRef.Text) || false;
-      if (isProfilePerson) {
-        aRef.Name = isProfilePerson[0];
-      }
-
-      if (aRef.Name) {
-        if (isSameName(aRef?.Name, window.profilePerson?.NameVariants)) {
-          window.profilePerson["Baptism Date"] =
-            aRef["Baptism Date"] || aRef["Christening Date"] || aRef["Baptism Date"] || aRef["Christening Date"];
-          window.profilePerson["Baptism Place"] =
-            aRef["Baptism Place"] ||
-            aRef["Christening Place"] ||
-            aRef["Baptism place"] ||
-            aRef["Christening place"] ||
-            "";
-          if (!aRef.OrderDate) {
-            aRef.OrderDate = formatDate(window.profilePerson["Baptism Date"], 0, { format: 8 });
-          }
-        }
-      }
-    }
-
-    // FamilySearch birth
-    if (aRef.Text.match(/familysearch.*\bborn\b/i)) {
-      aRef["Record Type"].push("Birth");
-      const detailsPattern1 = /familysearch.*\bborn\b\s(on )?(.*?), ((son|daughter) of (.*?), )?(in (.*))(\.|$)/i;
-      const detailsPattern1Match = aRef.Text.match(detailsPattern1);
-      if (detailsPattern1Match) {
-        aRef["Birth Date"] = detailsPattern1Match[2];
-        const yearMatch = detailsPattern1Match[2].match(/\d{4}/);
-        if (yearMatch) {
-          aRef.Year = yearMatch[0];
-        }
-        aRef["Birth Place"] = detailsPattern1Match[7];
-        aRef["Parents"] = detailsPattern1Match[5];
-      }
-    }
-
-    if (
-      aRef.Text.match(
-        /NZBDM MARRIAGE|(New Zealand Department.*Marriage Registration)|Marriages? Index|Huwelijk|Trouwen|'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage (Registration )?Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage -|citing.*Marriage|> Marriages/
-      ) ||
-      aRef["Marriage Date"]
-    ) {
-      console.log("Marriage reference found or Marriage Date exists.");
-
-      const dateMatch = aRef.Text.match(/\b\d{1,2}\s\w{3}\s1[6789]\d{2}\b/);
-      const dateMatch2 = aRef.Text.match(/\s(1[6789]\d{2})\b(?!-)/);
-      console.log("Date match:", dateMatch);
-      console.log("Secondary date match:", dateMatch2);
-
-      aRef["Record Type"].push("Marriage");
-
-      if (dateMatch) {
-        aRef["Marriage Date"] = dateMatch[0];
-        aRef.Year = dateMatch[0].match(/\d{4}/)[0];
-        console.log("Marriage Date set from dateMatch:", aRef["Marriage Date"]);
-        console.log("Year set from dateMatch:", aRef.Year);
-      } else if (dateMatch2) {
-        aRef["Marriage Date"] = dateMatch2[1];
-        aRef.Year = dateMatch2[1];
-        console.log("Marriage Date set from dateMatch2:", aRef["Marriage Date"]);
-        console.log("Year set from dateMatch2:", aRef.Year);
-      }
-
-      const detailsMatch = aRef.Text.match(/(\d{4}\),\s)(.+?),\s(\d+\s\w+\s\d+)/);
-      const detailsMatch2 = aRef.Text.match(/\(http.*?\)(.*?image.*?;\s)(.*?)\./);
-      const detailsMatch3 = aRef.Text.match(/[>;)]([A-z\s-]*) marriage to\s(.*?)\s\bon\b\s(.*?)\s\bin\b\s(.*)\./);
-      const entryForMatch = aRef.Text.match(/in entry for/);
-
-      if (detailsMatch2) {
-        aRef["Marriage Place"] = detailsMatch2[2].replace("Archives", "");
-        console.log("Marriage Place set from detailsMatch2:", aRef["Marriage Place"]);
-      } else if (detailsMatch) {
-        if (entryForMatch == null) {
-          aRef["Marriage Date"] = detailsMatch[3].trim();
-          const couple = detailsMatch[2].split(/\band\b/);
-          aRef["Couple"] = couple.map((item) => item.trim());
-          console.log("Couple found:", aRef["Couple"]);
-
-          let person1 = [couple[0].trim().split(" ")[0]];
-          if (firstNameVariants[person1]) {
-            person1 = firstNameVariants[person1[0]];
-            console.log("Person 1 name variant:", person1);
-          }
-          if (couple[1]) {
-            let person2 = [couple[1].trim().split(" ")[0]];
-            if (firstNameVariants[person2]) {
-              person2 = firstNameVariants[person2[0]];
-              console.log("Person 2 name variant:", person2);
-            }
-          }
-          if (!isSameName(window.profilePerson.FirstName, person1)) {
-            aRef["Spouse Name"] = aRef["Couple"][0];
-            console.log("Spouse name set to Couple[0]:", aRef["Spouse Name"]);
-          } else {
-            aRef["Spouse Name"] = aRef["Couple"][1];
-            console.log("Spouse name set to Couple[1]:", aRef["Spouse Name"]);
-          }
-          const marriageYearMatch = aRef["Marriage Date"].match(/\d{4}/);
-          if (marriageYearMatch) {
-            aRef.Year = marriageYearMatch[0];
-            console.log("Marriage Year found and set:", aRef.Year);
-          }
-          const weddingLocationMatch = aRef.Text.match(/citing Marriage,?(.*?), United States/);
-          if (weddingLocationMatch) {
-            aRef["Marriage Place"] = weddingLocationMatch[1].trim();
-            console.log("Marriage Place set from weddingLocationMatch:", aRef["Marriage Place"]);
-          }
-        }
-      } else if (detailsMatch3) {
-        aRef.Couple = [];
-        let person1AgeMatch = detailsMatch3[1].match(/\d{1,2}( years)?/);
-        let person1Age = "";
-        if (person1AgeMatch) {
-          person1Age = person1AgeMatch[0];
-        }
-        console.log("Person 1 Age:", person1Age);
-
-        const person1 = detailsMatch3[1]
-          .replaceAll(/\(.*?\)/g, "")
-          .trim()
-          .replaceAll(/^.*''/g, "")
-          .trim();
-
-        let person2AgeMatch = detailsMatch3[2].match(/\d{1,2}( years)?/);
-        let person2Age = "";
-        if (person2AgeMatch) {
-          person2Age = person2AgeMatch[0];
-        }
-        console.log("Person 2 Age:", person2Age);
-
-        const person2 = detailsMatch3[2].replace(/\(.*?\)/, "").trim();
-        aRef.Couple.push(person1);
-        aRef.Couple.push(person2);
-        console.log("Couple set from detailsMatch3:", aRef.Couple);
-
-        aRef["Marriage Date"] = detailsMatch3[3];
-        console.log("Marriage Date set from detailsMatch3:", aRef["Marriage Date"]);
-
-        const refYearMatch = detailsMatch3[3].match(/\d{4}/);
-        if (refYearMatch) {
-          aRef.Year = detailsMatch3[3].match(/\d{4}/)[0];
-          console.log("Year set from refYearMatch:", aRef.Year);
-        } else {
-          aRef.Year = "";
-          console.log("Year not found in detailsMatch3, set to empty string.");
-        }
-        aRef["Marriage Place"] = detailsMatch3[4].trim();
-        console.log("Marriage Place set from detailsMatch3:", aRef["Marriage Place"]);
-
-        window.profilePerson.NameVariants.forEach((name) => {
-          if (name == aRef.Couple[0]) {
-            aRef["Spouse Name"] = aRef.Couple[1];
-            aRef["Spouse Age"] = person2Age;
-            aRef["Age"] = person1Age;
-            console.log("Spouse Name and Age set:", aRef["Spouse Name"], aRef["Spouse Age"]);
-          } else if (name == aRef.Couple[1]) {
-            aRef["Spouse Name"] = aRef.Couple[0];
-            aRef["Spouse Age"] = person1Age;
-            aRef["Age"] = person2Age;
-            console.log("Spouse Name and Age set:", aRef["Spouse Name"], aRef["Spouse Age"]);
-          }
-        });
-      } else if (aRef.Text.match(/GRO Reference.*?(\d{4}).*\bin\b\s(.*)Volume/)) {
-        const details = aRef.Text.match(/GRO Reference.*?(\d{4}).*\bin\b\s(.*)Volume/);
-        aRef.Year = details[1];
-        aRef["Marriage Place"] = details[2].trim();
-        console.log("GRO Reference found, Year set:", aRef.Year);
-        console.log("Marriage Place set from GRO Reference:", aRef["Marriage Place"]);
-      }
-
-      aRef.OrderDate = formatDate(aRef["Marriage Date"], 0, { format: 8 });
-      console.log("OrderDate set:", aRef.OrderDate);
-    }
-
-    if (aRef.Text.match(/Divorce Records/) && aRef.Text.match(/Marriage and/) == null) {
-      aRef["Record Type"].push("Divorce");
-      const divorceDetails = aRef.Text.match(
-        /([^>;,]+?)\sdivorce from\s(.*?)\son\s(\d{1,2}\s[A-z]{3}\s\d{4})(\s\bin\b\s(.*))?\./
-      );
-      if (divorceDetails) {
-        const divorceCouple = [divorceDetails[1], divorceDetails[2]];
-        aRef.Couple = divorceCouple;
-        aRef["Divorce Date"] = divorceDetails[3];
-        aRef["Event Date"] = divorceDetails[3];
-        if (divorceDetails[5]) {
-          aRef["Divorce Place"] = divorceDetails[5];
-        }
-        aRef["Event Type"] = "Divorce";
-        aRef.Year = divorceDetails[3].match(/\d{4}/)[0];
-        const locationMatch = aRef.Text.match(/in\s(.*?)(,\sUnited States)?/);
-        if (locationMatch) {
-          aRef.Location = aRef.Text.match(/in\s(.*?)(,\sUnited States)?/)[1];
-        }
-        aRef.OrderDate = formatDate(aRef["Divorce Date"], 0, { format: 8 });
-        aRef.Narrative = "";
-        let thisSpouse = "";
-        if (aRef.Couple) {
-          if (aRef.Couple[0].match(window.profilePerson.PersonName?.FirstName)) {
-            thisSpouse = aRef.Couple[1];
-          } else {
-            thisSpouse = aRef.Couple[0];
-          }
-        }
-        aRef.Narrative =
-          capitalizeFirstLetter(formatDate(aRef["Divorce Date"])) +
-          ", " +
-          window.profilePerson.PersonName?.FirstName +
-          " and " +
-          thisSpouse.replace(window.profilePerson.LastNameAtBirth, "").replace(/\s$/, "") +
-          " divorced" +
-          (aRef["Divorce Place"] ? " in " + aRef["Divorce Place"] : "") +
-          ".";
-      }
-    }
-    if (aRef.Text.match(/Prison Records/)) {
-      aRef["Record Type"].push("Prison");
-      aRef["Event Type"] = "Prison";
-      const admissionDateMatch = aRef.Text.match(/Admission Date:\s([\w\d\s]+).*;/);
-      if (admissionDateMatch) {
-        aRef["Event Date"] = admissionDateMatch[1].trim();
-        const aRefYearMatch = aRef["Event Date"].match(/\d{4}/);
-        if (aRefYearMatch) {
-          aRefYearMatch[0];
-          aRef.OrderDate = formatDate(aRef["Event Date"], 0, { format: 8 });
-        }
-      }
-      const locationMatch = aRef.Text.match(/Prison:\s([^;.]+)/);
-      if (locationMatch) {
-        if (locationMatch[1]) {
-          aRef.Location = locationMatch[1];
-        }
-      }
-      aRef.Narrative = "";
-      aRef.Narrative =
-        capitalizeFirstLetter(formatDate(aRef["Event Date"])) +
-        ", " +
-        window.profilePerson.PersonName?.FirstName +
-        " entered prison in " +
-        aRef.Location;
-    }
-    if (
-      (aRef.Text.match(
-        /NZBDM DEATH|(New Zealand Department.*Death Registration)|Overlijden|[A-Z][a-z]+ Deaths(?!\s&|\sand)|'''Death'''|Death (Index|Record|Reg)|findagrave|Find a Grave|memorial|Cemetery Registers|Death Certificate|^Death -|citing Death|citing.*Burial,|Probate/i
-      ) ||
-        aRef["Death Date"]) &&
-      aRef.Text.match("Birth of") == null
-    ) {
-      aRef["Record Type"].push("Death");
-
-      aRef.OrderDate = formatDate(aRef["Death Date"], 0, { format: 8 });
-    }
-    if (aRef.Text.match(/citing.*Burial,/i)) {
-      const familySearchBurialMatch = aRef.Text.match(
-        /familysearch.*\),\s(.*?),\s(\b\d{1,2}\s\w{3}\s\d{4}\b);.*Burial,\s(.*), (United Kingdom|USA|United States|Canada|Australia|New Zealand)/i
-      );
-      if (familySearchBurialMatch) {
-        aRef["Burial Date"] = familySearchBurialMatch[2];
-        aRef["Burial Place"] = familySearchBurialMatch[3];
-        aRef["Name"] = familySearchBurialMatch[1];
-      }
-      aRef["Event Type"] = "Burial";
-      if (aRef["Burial Date"]) {
-        aRef.OrderDate = formatDate(aRef["Burial Date"], 0, { format: 8 });
-      }
-    }
-    if (aRef.Text.match(/created .*? the import of.*\.GED/i)) {
-      aRef["Record Type"].push("GEDCOM");
-      aRef.Text = aRef.Text.replace(/See the .*for the details.*$/, "").replace(
-        /''This comment and citation should be deleted.*/,
-        ""
-      );
-    }
-    if (aRef.Text.match(/Census|1939 England and Wales Register/)) {
-      aRef["Record Type"].push("Census");
-      const yearMatch = aRef.Text.match(/(1[89]\d{2}) .*?Census/);
-      const yearMatch2 = aRef.Text.match(/(1[89]\d{2}) England and Wales/);
-      if (yearMatch) {
-        aRef.Year = yearMatch[1];
-        aRef["Census Year"] = yearMatch[1];
-      } else if (yearMatch2) {
-        aRef.Year = yearMatch2[1];
-        aRef["Census Year"] = yearMatch2[1];
-      }
-      if (aRef.Year) {
-        aRef.OrderDate = formatDate(aRef.Year, 0, { format: 8 });
-      }
-      const placeMatch = aRef.Text.match(/household.*, ([^,]+?, [^,]+?), United States;/);
-      if (placeMatch) {
-        aRef.Residence = placeMatch[1].trim();
-      }
-      const placeMatch2 = aRef.Text.match(/Residence place:\s([^.{]*)/);
-      const placeMatch3 = aRef.Text.match(/(Home in \d{4})|(Census Place):(.+?);/);
-      const thePlace = placeMatch2 ? placeMatch2[1] : placeMatch3 ? placeMatch3[3] : "";
-      if (thePlace) {
-        aRef.Residence = thePlace.trim();
-      }
-
-      /* Search bio for "In the [year] census, [person] was living in [place]." */
-      const censusBioRegex = new RegExp("In the " + aRef.Year + " census .*? was living in ([^.]+)", "i");
-      const censusBioRegex2 = new RegExp("In the " + aRef.Year + " census .*? was ([^.]+) in ([^.]+)", "i");
-      const censusResidenceRegex = aRef.Text.match(
-        /\(\d{1,2}\).*? in (.+)(?=(, (United States|United Kingdom|England|Scotland|Wales|Canada|Australia)))/
-      );
-      const censusResidenceRegex2 = aRef.Text.match(/\(\d{1,2}\).*? in (.+)(?=\. Born)/);
-      const censusBioMatch = localStorage.previousBio.match(censusBioRegex);
-      const censusBioMatch2 = localStorage.previousBio.match(censusBioRegex2);
-
-      if (censusBioMatch) {
-        aRef.Residence = censusBioMatch[1];
-        aRef.SourcerNarrative = true;
-      } else if (censusBioMatch2) {
-        aRef.Residence = censusBioMatch2[2];
-        aRef.SourcerNarrative = true;
-      } else if (censusResidenceRegex) {
-        aRef.Residence = censusResidenceRegex[1];
-      } else if (censusResidenceRegex2) {
-        aRef.Residence = censusResidenceRegex2[1];
-      }
-
-      if (aRef.Residence) {
-        if (aRef.Residence.match(" in ")) {
-          aRef.Residence = aRef.Residence.split(" in ")[1];
-        }
-        if (censusBioMatch) {
-          aRef.Narrative = censusBioMatch[0].replace(/In the/, "In").replace(/\scensus/i, ",");
-        } else if (censusBioMatch2) {
-          aRef.Narrative = censusBioMatch2[0].replace(/In the/, "In").replace(/\scensus/i, ",");
-        } else if (aRef.Residence) {
-          aRef.Narrative =
-            "In " +
-            aRef.Year +
-            ", " +
-            window.profilePerson.PersonName?.FirstName +
-            " was living in " +
-            minimalPlace(aRef.Residence) +
-            ".";
-          // aRef.SourcerNarrative = true;
-        }
-        if (aRef.Narrative) {
-          // Remove United States, United Kingdom, etc. from the end of the place name
-          aRef.Narrative = aRef.Narrative.replace(
-            /, (United States|United Kingdom|England|Wales|Canada|Australia)/,
-            ""
-          );
-        }
-      }
-    }
-    if (aRef.Text.match(/citing Burial/)) {
-      const burialPersonRegex = new RegExp("Entry for (.*?),", "i");
-      const burialPersonMatch = aRef.Text.match(burialPersonRegex);
-      if (burialPersonMatch) {
-        window.profilePerson["Burial Date"] = aRef["Death or Burial Date"];
-        window.profilePerson["Burial Place"] = aRef["Death or Burial Place"];
-      }
-      aRef["Record Type"].push("Burial");
-      if (aRef["Death or Burial Date"]) {
-        aRef["Burial Date"] = aRef["Death or Burial Date"];
-        aRef.OrderDate = formatDate(aRef["Death or Burial Date"], 0, { format: 8 });
-        aRef["Event Date"] = aRef["Death or Burial Date"];
-      }
-      if (aRef["Death or Burial Place"]) {
-        aRef["Burial Place"] = aRef["Death or Burial Place"];
-        aRef["Event Place"] = aRef["Death or Burial Place"];
-      }
-    }
-    // Add military service records
-    const militaryMatch = aRef.Text.match(/World War I\b|World War II|Korean War|Vietnam War/);
-    if (militaryMatch) {
-      aRef = addMilitaryRecord(aRef, militaryMatch[0]);
-    }
+    aRef = parseFreeRegIfNeeded(aRef);
+    console.log(logNow(aRef));
+    aRef = parseFreeCenIfNeeded(aRef);
+    console.log(logNow(aRef));
+    aRef = parseNZBDMIfNeeded(aRef);
+    console.log(logNow(aRef));
+    aRef = parseBirthGeneric(aRef);
+    console.log(logNow(aRef));
+    aRef = flagGenericBirth(aRef);
+    console.log(logNow(aRef));
+    aRef = parseBaptismGeneric(aRef);
+    console.log(logNow(aRef));
+    aRef = parseMarriage(aRef);
+    console.log(logNow(aRef));
+    aRef = parseDivorce(aRef);
+    console.log(logNow(aRef));
+    aRef = parsePrisonRecord(aRef);
+    console.log(logNow(aRef));
+    aRef = parseDeath(aRef);
+    console.log(logNow(aRef));
+    aRef = parseBurial(aRef);
+    console.log(logNow(aRef));
+    aRef = parseGEDCOMReference(aRef);
+    console.log(logNow(aRef));
+    aRef = parseCensusOrRegister(aRef);
+    console.log(logNow(aRef));
+    aRef = parseMilitaryRecord(aRef);
   });
+}
+
+export function sourcesArray(bio) {
+  let dummy = $(document.createElement("html"));
+  bio = bio.replace(/\{\|\s*class="wikitable".*?\|\+ Timeline.*?\|\}/gs, "").replace(/<ref[^>]*\/>/g, "");
+  dummy.append(bio);
+  const refArr = collectReferences(dummy.html(), unsourced);
+
+  processSourcesSection(window.sourcesSection.text, refArr, unsourced);
+  enrichReferences(refArr);
+
   let birthCitation = false;
   let censusCitation = false;
   let findAGraveCitation = false;
