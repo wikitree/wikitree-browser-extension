@@ -22,9 +22,10 @@ import { initBioCheck } from "../bioCheck/bioCheck.js";
 import { bioTimelineFacts, buildTimelineTable, buildTimelineSA } from "./timeline";
 import { mainDomain, isIansProfile } from "../../core/pageType";
 import { profilePerson } from "../../core/common";
-import { collectReferences, REGEX_UNSOURCED, processSourcesSection } from "./auto_bio_helpers";
+import { collectReferences, processSourcesSection } from "./auto_bio_helpers";
 import { p, norm } from "./date_utils.js";
 import { lock, safeSet } from "./utils/fieldLocks.js";
+import { addAccessedDateToCitation } from "../add_person/add_person";
 
 import ONSjson from "./ONS.json";
 
@@ -1726,10 +1727,12 @@ export function minimalPlace(place) {
 
 export function buildSpouses(person) {
   console.log("[buildSpouses] Called for person:", person?.PersonName?.FullName || person);
+  /*
   if (!isObject(person.Spouses)) {
     console.warn("[buildSpouses] person.Spouses is not an object. Exiting.");
     return;
   }
+  */
   let spouseKeys = Object.keys(person.Spouses);
   console.log("[buildSpouses] Found spouse keys:", spouseKeys);
   let marriages = [];
@@ -1956,40 +1959,50 @@ export function buildSpouses(person) {
   }
 
   if (window.references) {
+    console.log("[buildSpouses] Checking references for unmatched marriages...");
     window.references.forEach(function (reference, i) {
       if (reference["Record Type"].includes("Marriage")) {
         let foundSpouse = false;
         const thisSpouse = reference["Spouse Name"] || reference.Spouse || "";
+        console.log(`[buildSpouses][ref ${i}] Checking reference:`, reference);
         firstNameAndYear.forEach(function (obj) {
+          console.log(`[buildSpouses][ref ${i}] Comparing with spouse object:`, obj);
           if (obj.Year == reference.Year) {
             foundSpouse = true;
+            console.log(`[buildSpouses][ref ${i}] Matched by year: ${obj.Year}`);
           } else if (thisSpouse) {
             if (thisSpouse.split(" ")[0] == obj.FirstName) {
               foundSpouse = true;
+              console.log(`[buildSpouses][ref ${i}] Matched by first name: ${obj.FirstName}`);
             }
           }
         });
         if (foundSpouse == false && thisSpouse) {
-          console.log("[buildSpouses] Unmatched reference for spouse:", { thisSpouse, firstNameAndYear });
+          console.warn("[buildSpouses] Unmatched reference for spouse:", { thisSpouse, firstNameAndYear, reference });
           let text = "";
           let marriageDate = "";
           if (reference["Marriage Date"]) {
             marriageDate = getYYYYMMDD(reference["Marriage Date"]);
+            console.log(`[buildSpouses][ref ${i}] Parsed marriage date from Marriage Date:`, marriageDate);
           } else if (reference["Marriage Year"]) {
             marriageDate = reference["Marriage Year"].trim() + "-00-00";
+            console.log(`[buildSpouses][ref ${i}] Parsed marriage date from Marriage Year:`, marriageDate);
           }
           let age = getAgeFromISODates(window.profilePerson.BirthDate, marriageDate);
           let marriageAge = "";
           if (isOK(age)) {
             marriageAge = ` (${age})`;
+            console.log(`[buildSpouses][ref ${i}] Calculated marriage age:`, marriageAge);
           }
           text += person.PersonName?.FirstName + marriageAge + " married " + thisSpouse;
           if (reference["Marriage Place"]) {
             text += " in " + reference["Marriage Place"];
+            console.log(`[buildSpouses][ref ${i}] Added marriage place:`, reference["Marriage Place"]);
           }
           if (reference["Marriage Date"]) {
             const showMarriageDate = formatDate(reference["Marriage Date"], "", { needOn: true }).replace(/\s0/, " ");
             text += " " + showMarriageDate;
+            console.log(`[buildSpouses][ref ${i}] Added formatted marriage date:`, showMarriageDate);
           }
           text += ".";
           marriages.push({
@@ -2012,6 +2025,7 @@ export function buildSpouses(person) {
         }
       }
     });
+    console.log("[buildSpouses] Finished processing unmatched marriage references.");
   }
 
   // Ensure unique OrderDates
@@ -5345,6 +5359,10 @@ function extractMarriageCoupleAndDate(text) {
   const bride = text.match(/Bride: ([^,;]+)[,;]/i);
   if (groom && bride) return { couple: [stripLinks(groom[1]), stripLinks(bride[1])], date: null };
 
+  // 6. "A marriage to B on <date>"
+  const m7 = text.match(/([A-Za-z .'-]+?) marriage to ([A-Za-z .'-]+?) on ([0-3]?\d\s+\w{3,9}\s+\d{4})/i);
+  if (m7) return { couple: [stripLinks(m7[1]), stripLinks(m7[2])], date: m7[3].trim() };
+
   return null;
 }
 
@@ -5511,7 +5529,7 @@ function parsePrisonRecord(aRef) {
   }
   return aRef;
 }
-
+/*
 function parseDeath(aRef) {
   if (
     (aRef.Text.match(
@@ -5526,6 +5544,81 @@ function parseDeath(aRef) {
   }
   return aRef;
 }
+  */
+
+const DEATH_DATE_PATTERNS = [
+  // (died 2 Jun 1944)
+  p(/\(\s*died\b\s*([^()]+?\d{4})\s*\)/i),
+  // "died on 12 Feb 1923", "died about 1880"
+  p(/\bdied\b\s+(on|abt\.?|about)?\s?([^\n;,]+?\d{4})/i, 2),
+  // "d. 12 Feb 1923"
+  p(/\bd\.\s*([^;,.\n]+?\d{4})/i),
+  // "Death Date: 12 Feb 1923"
+  p(/Death Date[^:]*:\s*([^\n]+?\d{4})/i),
+  // ISO "died 1923-02-12"
+  p(/\bdied\b\s+(\d{4}[-/]\d{2}[-/]\d{2})/i),
+  // numeric d-m-y: "died 29-04-1867"
+  p(/\bdied\b[^;,.\n]*?\b([0-3]?\d[-/][0-1]?\d[-/]\d{4})/i),
+  // "death registered 29 Apr 1867"
+  p(/\bdeath registered\b[^;\n]*?\s([0-3]?\d\s[a-z]{3,9}\s\d{4})/i),
+];
+
+const DEATH_PLACE_PATTERNS = [
+  p(/[^.\n]{0,120}?\bin\s([^;,.\n]+?)(?:[;.,]|$)/i),
+  p(/Death Place[^:]*:\s*([^\n]+?)(?:[;.,]|$)/i),
+  p(/\bdeath registered\b[^.\n]{0,120}?\bin\s([^;,.\n]+?)(?:[;.,]|$)/i),
+];
+export function parseDeathGeneric(aRef) {
+  if (aRef._locks?.has("Death Date")) return aRef;
+  if (!/\bdied\b|Death\b|d\.|findagrave/i.test(aRef.Text)) return aRef;
+  // If aRef["Record Type"] exists, ensure "Death" is included
+  aRef["Record Type"] = aRef["Record Type"] || [];
+  if (!aRef["Record Type"].includes("Death")) aRef["Record Type"].push("Death");
+
+  const text = aRef.Text.replace(/<br\s*\/?>/gi, " ").replace(/\s+/g, " ");
+
+  // 1️⃣ Full date search
+  for (const { regex, group, post } of DEATH_DATE_PATTERNS) {
+    const m = text.match(regex);
+    if (m && m[group]) {
+      aRef["Death Date"] = norm(post(m[group]));
+      break;
+    }
+  }
+
+  // 2️⃣ Year-only fallback
+  if (!aRef["Death Date"]) {
+    const yOnly = text.match(/\bdied\b[^.\n]{0,120}?(?<![-–])\b(1[6-9]\d{2}|20[0-2]\d)\b(?!\s*[-–]\s*\d{2,4})/);
+    if (yOnly) {
+      const yr = yOnly[1];
+      aRef["Death Date"] = yr;
+      lock(aRef, "Year", yr);
+      lock(aRef, "Death Date", yr);
+    }
+  }
+
+  // 3️⃣ Place extraction
+  if (!aRef["Death Place"]) {
+    for (const { regex, group } of DEATH_PLACE_PATTERNS) {
+      const m = text.match(regex);
+      if (m && m[group]) {
+        aRef["Death Place"] = m[group].trim();
+        break;
+      }
+    }
+  }
+
+  // 4️⃣ Record-type & locks
+  if (aRef["Death Date"]) {
+    if (!aRef["Record Type"].includes("Death")) aRef["Record Type"].push("Death");
+    lock(aRef, "Death Date", aRef["Death Date"]);
+    const ym = aRef["Death Date"].match(/\d{4}/);
+    if (ym) lock(aRef, "Year", ym[0]);
+    if (/\D/.test(aRef["Death Date"].trim()))
+      safeSet(aRef, "OrderDate", formatDate(aRef["Death Date"], 0, { format: 8 }));
+  }
+  return aRef;
+}
 
 /**
  * Detect any FamilySearch (or similar) burial citation and
@@ -5534,6 +5627,7 @@ function parseDeath(aRef) {
  *   – copy data to profile person when the ref is for them
  *   – set OrderDate / Event fields
  */
+/*
 function parseBurial(aRef) {
   // ① Trigger on either “…citing Burial,”  OR  “…citing Burial”
   if (!/citing\s.*Burial/i.test(aRef.Text)) return aRef;
@@ -5568,6 +5662,39 @@ function parseBurial(aRef) {
   if (aRef["Burial Place"] && !aRef["Event Place"]) {
     aRef["Event Place"] = aRef["Burial Place"];
   }
+  return aRef;
+}
+  */
+
+export function parseBurialGeneric(aRef) {
+  if (aRef._locks?.has("Burial Date")) return aRef;
+  if (!/burial|buried|葬儀|葬|sepultado|begraben/i.test(aRef.Text)) return aRef;
+
+  const text = aRef.Text.replace(/<br\s*\/?>/gi, " ").replace(/\s+/g, " ");
+
+  // TODO: Add burial patterns as above if you want more.
+  // For now, just extract "burial" date and place, similar to the above.
+  // Optionally, fallback to "Death or Burial Date/Place" fields if set
+
+  // 1️⃣ Direct extraction (example)
+  let m = text.match(/burial (?:date|was|on)?[:\s]+([^\n;,]+?\d{4})/i);
+  if (m) aRef["Burial Date"] = norm(m[1]);
+  m = text.match(/burial (?:place)?[:\s]+([^\n;,]+)/i);
+  if (m) aRef["Burial Place"] = m[1].trim();
+
+  if (!aRef["Burial Date"] && aRef["Death or Burial Date"]) aRef["Burial Date"] = aRef["Death or Burial Date"];
+  if (!aRef["Burial Place"] && aRef["Death or Burial Place"]) aRef["Burial Place"] = aRef["Death or Burial Place"];
+
+  if (aRef["Burial Date"]) {
+    if (!aRef["Record Type"].includes("Burial")) aRef["Record Type"].push("Burial");
+    lock(aRef, "Burial Date", aRef["Burial Date"]);
+    const ym = aRef["Burial Date"].match(/\d{4}/);
+    if (ym) lock(aRef, "Year", ym[0]);
+    if (/\D/.test(aRef["Burial Date"].trim()))
+      safeSet(aRef, "OrderDate", formatDate(aRef["Burial Date"], 0, { format: 8 }));
+  }
+  if (aRef["Burial Place"]) aRef["Event Place"] = aRef["Burial Place"];
+
   return aRef;
 }
 
@@ -5691,7 +5818,6 @@ function flagGenericBirth(aRef) {
 
 export function enrichReferences(refArr) {
   refArr.forEach(function (aRef) {
-    console.log("Processing reference:", aRef.Text);
     aRef["Record Type"] = aRef["Record Type"] || [];
     if (aRef.Text) {
       whoseCitation(aRef);
@@ -5701,31 +5827,18 @@ export function enrichReferences(refArr) {
     Object.assign(aRef, table);
 
     aRef = parseFreeRegIfNeeded(aRef);
-    console.log(logNow(aRef));
     aRef = parseFreeCenIfNeeded(aRef);
-    console.log(logNow(aRef));
     aRef = parseNZBDMIfNeeded(aRef);
-    console.log(logNow(aRef));
     aRef = parseBirthGeneric(aRef);
-    console.log(logNow(aRef));
     aRef = flagGenericBirth(aRef);
-    console.log(logNow(aRef));
     aRef = parseBaptismGeneric(aRef);
-    console.log(logNow(aRef));
     aRef = parseMarriage(aRef);
-    console.log(logNow(aRef));
     aRef = parseDivorce(aRef);
-    console.log(logNow(aRef));
     aRef = parsePrisonRecord(aRef);
-    console.log(logNow(aRef));
-    aRef = parseDeath(aRef);
-    console.log(logNow(aRef));
-    aRef = parseBurial(aRef);
-    console.log(logNow(aRef));
+    aRef = parseDeathGeneric(aRef);
+    aRef = parseBurialGeneric(aRef);
     aRef = parseGEDCOMReference(aRef);
-    console.log(logNow(aRef));
     aRef = parseCensusOrRegister(aRef);
-    console.log(logNow(aRef));
     aRef = parseMilitaryRecord(aRef);
   });
 }
@@ -7047,6 +7160,7 @@ export async function getCitations() {
         if (citation) {
           if (findAGraveLink) {
             citation = cleanFindAGraveCitation(citation, aRef.Text);
+            citation = addAccessedDateToCitation(citation);
           }
           aRef.Text = citation.trim();
 
@@ -8308,6 +8422,7 @@ export async function generateBio() {
     }
     sourcesArray(currentBio);
     console.log("references", JSON.parse(JSON.stringify(window.references)));
+    console.log("references", window.references);
 
     // Update references with Find A Grave citations
     await getCitations();

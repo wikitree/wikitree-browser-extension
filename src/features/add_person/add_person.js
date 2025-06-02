@@ -610,7 +610,7 @@ function replaceFindAGraveCitation(originalText, useCitation) {
 }
 
 // Adds or replaces the 'accessed' date in the citation in (Mon DD, YYYY) format
-function addAccessedDateToCitation(citation) {
+export function addAccessedDateToCitation(citation) {
   const today = new Date();
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const formattedDate = `${months[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
