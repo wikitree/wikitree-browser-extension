@@ -387,8 +387,8 @@ export class Biography {
              *  They should be placed directly above the Biography headline, below any Research Note Boxes 
              *  and Project Boxes. 
              *
-             * and since you are confusing the Successsion and Succession box and the later are deprecated, check for
-             * that first
+             * and since you are confusing the Successsion and Succession box and the later are deprecated, 
+             * check for that first
              */
             if (this.#sourceRules.isNavBox(partialLine)) {
               let stat = this.#sourceRules.getNavBoxStatus(partialLine);
@@ -469,6 +469,7 @@ export class Biography {
                       this.#style.bioHasStyleIssues = true;
                     }
                   }
+                  // TODO check status
                 } else {
                   if (this.#sourceRules.isSticker(partialLine)) {
                     if (!haveBiography) {
@@ -476,6 +477,11 @@ export class Biography {
                       this.#messages.styleMessages.push(msg);
                       this.#style.bioHasStyleIssues = true;
                     }
+                    // TODO check status
+                    // TODO else some other type so check status
+                    // and to do all of this, need to save status in SourceRules
+                    // and make sure the name stops at the optional | denoting a parameter
+                    // it does seem to stop at the |
                   }  // end sticker
                 } // end project box 
               } // end research note box
@@ -2495,7 +2501,7 @@ export class Biography {
   #isPaternalConf(line) {
     return ((line.includes('paternal') || line.includes('father') ||
              line.includes('paternity') || line.includes('parental')) ||
-             line.includes(' parents') &&
+             line.includes(' parents confirm') &&
             (line.includes('relation') || line.includes('descent') ||
              line.includes('line')));
   }
@@ -2505,7 +2511,7 @@ export class Biography {
   #isMaternalConf(line) {
     return ((line.includes('maternal') || line.includes('mother') ||
              line.includes('maternity') || line.includes('parental')) ||
-             line.includes(' parents') &&
+             line.includes(' parents confirm') &&
             (line.includes('relation') || line.includes('descent') ||
              line.includes('line')));
   }
