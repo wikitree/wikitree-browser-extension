@@ -981,6 +981,13 @@ async function initSuggestedMatchesFilters() {
   // ──────────────────────────────────────────────────────────────
   filterButtons.appendTo($("#matchesStatusBox p:first-child"));
 
+  // Activate the text‐filter logic and wire up the “Clear” button
+  initTextFilter();
+  $("#clearFilterButton").on("click", function (e) {
+    e.preventDefault();
+    $("#suggestedMatchesTextFilter").val("").trigger("input");
+  });
+
   const $helpIcon = $("#textFilterHelpIcon"); // the WBEHelpIcon() element
   const $helpPopup = $("#textFilterHelpPopup"); // the popup <div>
 
@@ -1037,7 +1044,6 @@ async function initSuggestedMatchesFilters() {
       highlightMatches();
     }
     if (options.defaultFilterText) {
-      initTextFilter();
       $("#suggestedMatchesTextFilter").val(options.defaultFilterText);
       $("#suggestedMatchesTextFilter").trigger("input");
     }
