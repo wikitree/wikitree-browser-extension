@@ -901,3 +901,100 @@ function addResetToDefaultButtons() {
     }
   }
 }
+
+/* Button to download JSON of features */
+
+// Recursively build a map of featureId -> full category path ("Parent > Child > Subchild")
+function buildFeatureCategoryMapFromMixedChildren(node, parentNames = []) {
+  let map = {};
+
+  if (!node || !node.children) return map;
+
+  node.children.forEach((child) => {
+    // Check if this child is a category or a feature
+    const isCategory = !!child.categories || (child.children && Array.isArray(child.children));
+
+    if (isCategory) {
+      // Recurse into categories, adding current node name to path
+      Object.assign(map, buildFeatureCategoryMapFromMixedChildren(child, [...parentNames, node.name]));
+    } else if (child.id) {
+      // It's a feature; assign full category path
+      map[child.id] = [...parentNames, node.name].filter(Boolean).join(" > ");
+    }
+  });
+
+  return map;
+}
+
+const featureCategoryMap = buildFeatureCategoryMapFromMixedChildren(rootCategory);
+
+// Recursively flatten all options in a feature into a simple list
+function flattenFeatureOptions(feature) {
+  const result = [];
+
+  function recurse(options, prefix) {
+    options.forEach((opt) => {
+      if (opt.type === OptionType.GROUP && opt.options) {
+        recurse(opt.options, prefix + (opt.id ? opt.id + "." : ""));
+      } else {
+        result.push({
+          optionId: prefix + (opt.id || ""),
+          optionLabel: opt.label || "",
+          optionType: opt.type,
+          defaultValue: opt.defaultValue,
+          comment: opt.comment || "",
+          values: opt.values || null, // for radio/select
+        });
+      }
+    });
+  }
+
+  if (feature.options) recurse(feature.options, "");
+  return result;
+}
+
+// Create a full list of features with their flattened options and category
+function getAllFeaturesWithOptions() {
+  const all = [];
+
+  features.forEach((feature) => {
+    const flatOptions = flattenFeatureOptions(feature);
+    all.push({
+      featureId: feature.id,
+      featureName: feature.name,
+      category: featureCategoryMap[feature.id] || "",
+      description: feature.description || "",
+      options: flatOptions,
+    });
+  });
+
+  return all;
+}
+
+// Export the features and options JSON and trigger download
+function exportFeaturesOptionsToJSON() {
+  const data = getAllFeaturesWithOptions();
+  const jsonStr = JSON.stringify(data, null, 2);
+
+  const blob = new Blob([jsonStr], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "wbe_features_options.json";
+  document.body.appendChild(a);
+  a.click();
+
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 100);
+}
+
+// Add an export button to your options page and hook it up
+$(() => {
+  const exportBtn = $('<button id="exportJsonBtn" style="margin: 10px;">Export Features/Options JSON</button>');
+  $("#h1Text").after(exportBtn);
+
+  $("#exportJsonBtn").on("click", exportFeaturesOptionsToJSON);
+});
