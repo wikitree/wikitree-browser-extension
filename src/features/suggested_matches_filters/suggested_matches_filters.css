@@ -1,8 +1,15 @@
 #potentialMatchesSection tr.locationFiltered,
 #potentialMatchesSection tr.nameFiltered,
-#potentialMatchesSection tr.dateFiltered {
+#potentialMatchesSection tr.dateFiltered,
+#potentialMatchesSection tr.textFiltered {
   display: none;
 }
+div.textFilter {
+  display: block;
+  margin: 0.5em;
+  padding: 0.5em;
+}
+
 #filterButtons {
   float: right;
 }

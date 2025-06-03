@@ -12,6 +12,7 @@ import { countries } from "../auto_bio/countries";
 
 const newPerson = {};
 const suggestedMatches = [];
+let options = {};
 
 function isCountry(locationString) {
   if (!isOK(locationString)) return false;
@@ -92,6 +93,327 @@ function addNewPersonToH1() {
     newPerson.DeathYear +
     ")";
   $("h1").append($("<span id='newPersonSummary'>&rarr; " + newPerson.summary + "</span>"));
+}
+
+function initTextFilter() {
+  $(document).on("input", "#suggestedMatchesTextFilter", function () {
+    const raw = $(this).val().trim().toLowerCase();
+    if (!raw) {
+      // Empty filter → show all rows
+      $("table#matchesTable tr[id^=potentialMatch]").removeClass("textFiltered");
+      return;
+    }
+
+    //
+    // 1️⃣ Tokenize input into chunks like:
+    //     - !"some phrase"
+    //     - "some phrase"
+    //     - !b<1902   or   b<1902
+    //     - !death>1875   or   death>1875
+    //     - !<1900   or   <1900
+    //     - plainWord (e.g. wales, 1901)
+    //     - OR separators: “or” or “||”
+    //
+    //    Regex explanation:
+    //      (!?"[^"]+")  → matches either !"…"  or  "…"
+    //      | !\S+       → matches a leading‐! token (no spaces) (e.g. !b<1902, !"New South")
+    //      | \S+        → matches any other non‐space chunk
+    //
+    const tokenPattern = /(!?"[^"]+"|!\S+|\S+)/g;
+    const rawTokens = raw.match(tokenPattern) || [];
+
+    //
+    // 2️⃣ Separate “global exclusions” vs. “positive items (including birth/death comparisons) + separators”
+    //
+    //    – Any token starting with “!” is a global exclusion.  We strip the “!” then categorize:
+    //        • If it matches ^(b|birth)([<>])(\d{1,4})$/, it’s {type:"year", field:"birth", op:"<"|">", year}
+    //        • If it matches ^(d|death)([<>])(\d{1,4})$/, it’s {type:"year", field:"death", op, year}
+    //        • If it matches ^([<>])(\d{1,4})$/, treat as {type:"year", field:"any", op, year}
+    //        • Otherwise strip quotes (if present) and treat as {type:"text", term:String}
+    //
+    //    – Every other token (not “!”) is either:
+    //        • Separator “or” or “||” → { type:"sep" }
+    //        • A positive item (untagged by “!”).  We parse it similarly to above, producing:
+    //            – { type:"year", field:"birth"|"death"|"any", op:"<"|">", year }
+    //            – or { type:"text", term:String }
+    //
+    const globalExclusions = []; // array of {type:"text",term} or {type:"year",field,op,year}
+    const positiveAndSep = []; // array of {type:"sep"} or {type:"text",term} or {type:"year",field,op,year}
+
+    rawTokens.forEach((tok) => {
+      // 2a) OR separators (case‐insensitive because rawTokens came from raw.toLowerCase())
+      if (tok === "or" || tok === "||") {
+        positiveAndSep.push({ type: "sep" });
+        return;
+      }
+
+      // 2b) Global exclusion if starts with "!"
+      if (tok.startsWith("!")) {
+        let term = tok.slice(1); // drop leading "!"
+        // strip surrounding quotes if present:
+        if (term.startsWith('"') && term.endsWith('"')) {
+          term = term.slice(1, -1).trim();
+        }
+        if (!term) return; // skip empty
+
+        // birth comparison?
+        let m = term.match(/^(?:b|birth)([<>])\s*(\d{1,4})$/);
+        if (m) {
+          globalExclusions.push({
+            type: "year",
+            field: "birth",
+            op: m[1], // "<" or ">"
+            year: parseInt(m[2], 10),
+          });
+          return;
+        }
+
+        // death comparison?
+        m = term.match(/^(?:d|death)([<>])\s*(\d{1,4})$/);
+        if (m) {
+          globalExclusions.push({
+            type: "year",
+            field: "death",
+            op: m[1],
+            year: parseInt(m[2], 10),
+          });
+          return;
+        }
+
+        // generic year comparison (any column)
+        m = term.match(/^([<>])\s*(\d{1,4})$/);
+        if (m) {
+          globalExclusions.push({
+            type: "year",
+            field: "any",
+            op: m[1],
+            year: parseInt(m[2], 10),
+          });
+          return;
+        }
+
+        // otherwise treat as text exclusion
+        globalExclusions.push({
+          type: "text",
+          term,
+        });
+        return;
+      }
+
+      // 2c) Otherwise, a “positive” item (not starting with “!”)
+      let term = tok;
+      // strip quotes if present
+      if (term.startsWith('"') && term.endsWith('"')) {
+        term = term.slice(1, -1).trim();
+      }
+      if (!term) return;
+
+      // birth comparison?
+      let m = term.match(/^(?:b|birth)([<>])\s*(\d{1,4})$/);
+      if (m) {
+        positiveAndSep.push({
+          type: "year",
+          field: "birth",
+          op: m[1],
+          year: parseInt(m[2], 10),
+        });
+        return;
+      }
+
+      // death comparison?
+      m = term.match(/^(?:d|death)([<>])\s*(\d{1,4})$/);
+      if (m) {
+        positiveAndSep.push({
+          type: "year",
+          field: "death",
+          op: m[1],
+          year: parseInt(m[2], 10),
+        });
+        return;
+      }
+
+      // generic year comparison (any column)
+      m = term.match(/^([<>])\s*(\d{1,4})$/);
+      if (m) {
+        positiveAndSep.push({
+          type: "year",
+          field: "any",
+          op: m[1],
+          year: parseInt(m[2], 10),
+        });
+        return;
+      }
+
+      // plain‐text positive
+      positiveAndSep.push({
+        type: "text",
+        term,
+      });
+    });
+
+    //
+    // 3️⃣ Split positiveAndSep into separate clauses at each {type:"sep"}.
+    //     Each clause = { positives: [ array of items: either {type:"text", term} or {type:"year", field, op, year} ] }
+    //
+    const clauses = [];
+    let currentPositives = [];
+
+    positiveAndSep.forEach((item) => {
+      if (item.type === "sep") {
+        if (currentPositives.length) {
+          clauses.push({ positives: currentPositives.slice() });
+        }
+        currentPositives = [];
+      } else {
+        currentPositives.push(item);
+      }
+    });
+    if (currentPositives.length) {
+      clauses.push({ positives: currentPositives.slice() });
+    }
+
+    //
+    // 4️⃣ Now run through each row and decide: show or hide?
+    //
+    $("table#matchesTable tr[id^=potentialMatch]").each(function () {
+      const $row = $(this);
+      const nameText = $row.find("td").eq(0).text().toLowerCase();
+      const birthText = $row.find("td").eq(1).text().toLowerCase();
+      const deathText = $row.find("td").eq(2).text().toLowerCase();
+
+      // Helper: does any of the three columns contain this substring?
+      const containsText = (substr) => {
+        return nameText.includes(substr) || birthText.includes(substr) || deathText.includes(substr);
+      };
+
+      // Gather all four‐digit numbers in the “birth” column
+      const birthYears = (birthText.match(/\b(\d{4})\b/g) || []).map((s) => parseInt(s, 10));
+      // Gather all four‐digit numbers in the “death” column
+      const deathYears = (deathText.match(/\b(\d{4})\b/g) || []).map((s) => parseInt(s, 10));
+      // Also gather all four‐digit numbers anywhere in birth or death (for “field:'any'”)
+      const allYearsInRow = birthYears.concat(deathYears);
+
+      //
+      // 4a) GLOBAL‐EXCLUSION CHECK:
+      //     If ANY globalExclusion rule matches ⇒ hide immediately
+      //
+      let isGloballyExcluded = false;
+      for (const excl of globalExclusions) {
+        if (excl.type === "text") {
+          if (containsText(excl.term)) {
+            isGloballyExcluded = true;
+            break;
+          }
+        } else {
+          // excl.type === "year"
+          if (excl.field === "birth") {
+            // hide if ANY birthYear satisfies the comparison
+            for (const y of birthYears) {
+              if ((excl.op === "<" && y < excl.year) || (excl.op === ">" && y > excl.year)) {
+                isGloballyExcluded = true;
+                break;
+              }
+            }
+            if (isGloballyExcluded) break;
+          } else if (excl.field === "death") {
+            // hide if ANY deathYear satisfies the comparison
+            for (const y of deathYears) {
+              if ((excl.op === "<" && y < excl.year) || (excl.op === ">" && y > excl.year)) {
+                isGloballyExcluded = true;
+                break;
+              }
+            }
+            if (isGloballyExcluded) break;
+          } else {
+            // field === "any"
+            for (const y of allYearsInRow) {
+              if ((excl.op === "<" && y < excl.year) || (excl.op === ">" && y > excl.year)) {
+                isGloballyExcluded = true;
+                break;
+              }
+            }
+            if (isGloballyExcluded) break;
+          }
+        }
+      }
+      if (isGloballyExcluded) {
+        $row.addClass("textFiltered");
+        return; // done with this row
+      }
+
+      //
+      // 4b) CLAUSE‐MATCHING:
+      //     Show this row if **any** one clause has **all** its positives satisfied.
+      //
+      let clauseMatches = false;
+      for (const clause of clauses) {
+        let allPosFound = true;
+
+        for (const pos of clause.positives) {
+          if (pos.type === "text") {
+            if (!containsText(pos.term)) {
+              allPosFound = false;
+              break;
+            }
+          } else {
+            // pos.type === "year"
+            if (pos.field === "birth") {
+              // clause requires birth‐year < or > some value
+              let foundOne = false;
+              for (const y of birthYears) {
+                if ((pos.op === "<" && y < pos.year) || (pos.op === ">" && y > pos.year)) {
+                  foundOne = true;
+                  break;
+                }
+              }
+              if (!foundOne) {
+                allPosFound = false;
+                break;
+              }
+            } else if (pos.field === "death") {
+              // clause requires death‐year < or > some value
+              let foundOne = false;
+              for (const y of deathYears) {
+                if ((pos.op === "<" && y < pos.year) || (pos.op === ">" && y > pos.year)) {
+                  foundOne = true;
+                  break;
+                }
+              }
+              if (!foundOne) {
+                allPosFound = false;
+                break;
+              }
+            } else {
+              // field === "any"
+              let foundOne = false;
+              for (const y of allYearsInRow) {
+                if ((pos.op === "<" && y < pos.year) || (pos.op === ">" && y > pos.year)) {
+                  foundOne = true;
+                  break;
+                }
+              }
+              if (!foundOne) {
+                allPosFound = false;
+                break;
+              }
+            }
+          }
+        }
+
+        if (allPosFound) {
+          clauseMatches = true;
+          break;
+        }
+      }
+
+      // If at least one clause matched → show, else hide.
+      if (clauseMatches) {
+        $row.removeClass("textFiltered");
+      } else {
+        $row.addClass("textFiltered");
+      }
+    });
+  });
 }
 
 shouldInitializeFeature("suggestedMatchesFilters").then((result) => {
@@ -598,6 +920,11 @@ async function initSuggestedMatchesFilters() {
       <button class='btn btn-secondary' id='locationFilterButton'>location</button>
       <button class='btn btn-secondary' id='nameFilterButton'>name</button>
       <button class='btn btn-secondary' id='dateFilterButton'>date</button>
+      <div class='textFilter'>
+        <label for='suggestedMatchesTextFilter'>Text Filter: </label>
+          <input type='text' id='suggestedMatchesTextFilter' placeholder='Filter by text' />
+          <button class='small' id='clearFilterButton'>Clear Text Filter</button>
+      </div>
     </div>`
   );
   if ($("#filterButtons").length === 0) {
@@ -610,9 +937,15 @@ async function initSuggestedMatchesFilters() {
   }
 
   // Highlight matches if the option is set
-  getFeatureOptions("suggestedMatchesFilters").then((options) => {
+  getFeatureOptions("suggestedMatchesFilters").then((theOptions) => {
+    options = theOptions;
     if (options.highlightMatches) {
       highlightMatches();
+    }
+    if (options.defaultFilterText) {
+      initTextFilter();
+      $("#suggestedMatchesTextFilter").val(options.defaultFilterText);
+      $("#suggestedMatchesTextFilter").trigger("input");
     }
   });
 
