@@ -718,6 +718,9 @@ function dissectLocation(location) {
 function highlightMatches() {
   const people = $("table#matchesTable tr[id^=potentialMatch]");
   people.each(function () {
+    // Remove any old match‐labels before adding new ones
+    $(this).find(".matchSpan").remove();
+
     const extractedData = extractPersonFromRow(this);
     let matchCount = 0;
     let exactBirthLocationMatch = false;
@@ -728,10 +731,14 @@ function highlightMatches() {
     const theDeathCell = $row.find("td").eq(2);
     const isOnlyYear = (date) => /^\d{4}$/.test(date);
 
-    // --- Birth Date Matching using Date objects ---
+    // --- Birth Date / Year Matching ---
     const newBirthDate = new Date(newPerson.BirthDate);
     const extractedBirthDate = new Date(extractedData.BirthDate);
+    const newYear = getYear(newPerson.BirthDate);
+    const extractedYear = getYear(extractedData.BirthDate);
+
     if (!isNaN(newBirthDate) && !isNaN(extractedBirthDate)) {
+      // both strings parsed to real Date objects → do exact‐date or exact‐year match
       if (newBirthDate.getTime() === extractedBirthDate.getTime()) {
         theBirthCell.append($("<span class='birthDateMatchSpan matchSpan'>Birth Date Match</span>"));
         matchCount += 1;
@@ -739,12 +746,21 @@ function highlightMatches() {
         theBirthCell.append($("<span class='birthYearMatchSpan matchSpan'>Birth Year Match</span>"));
         matchCount += 0.5;
       }
+    } else if (newYear && extractedYear && newYear === extractedYear) {
+      // fallback: compare just the four-digit years
+      theBirthCell.append($("<span class='birthYearMatchSpan matchSpan'>Birth Year Match</span>"));
+      matchCount += 0.5;
     }
 
     // --- Death Date Matching using Date objects ---
+    // --- Death Date / Year Matching ---
     const newDeathDate = new Date(newPerson.DeathDate);
     const extractedDeathDate = new Date(extractedData.DeathDate);
+    const newDeathYear = getYear(newPerson.DeathDate);
+    const extractedDeathYear = getYear(extractedData.DeathDate);
+
     if (!isNaN(newDeathDate) && !isNaN(extractedDeathDate)) {
+      // both parsed successfully → exact‐date or exact‐year
       if (newDeathDate.getTime() === extractedDeathDate.getTime()) {
         theDeathCell.append($("<span class='deathDateMatchSpan matchSpan'>Death Date Match</span>"));
         matchCount += 1;
@@ -752,6 +768,10 @@ function highlightMatches() {
         theDeathCell.append($("<span class='deathYearMatchSpan matchSpan'>Death Year Match</span>"));
         matchCount += 0.5;
       }
+    } else if (newDeathYear && extractedDeathYear && newDeathYear === extractedDeathYear) {
+      // fallback: only the four‐digit years match
+      theDeathCell.append($("<span class='deathYearMatchSpan matchSpan'>Death Year Match</span>"));
+      matchCount += 0.5;
     }
 
     // --- Name Matching ---
@@ -979,8 +999,14 @@ async function initSuggestedMatchesFilters() {
   // ──────────────────────────────────────────────────────────────
   //  4) Finally, insert filterButtons into the page (exactly as before)
   // ──────────────────────────────────────────────────────────────
-  filterButtons.appendTo($("#matchesStatusBox p:first-child"));
-
+  if (!$("#filterButtons").length) {
+    filterButtons.appendTo($("#matchesStatusBox p:first-child"));
+    const helpIcon = WBEHelpIcon({
+      url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#suggestedMatchesFilters",
+      feature: "Suggested Matches Filters",
+    });
+    filterButtons.prepend(helpIcon);
+  }
   // Activate the text‐filter logic and wire up the “Clear” button
   initTextFilter();
   $("#clearFilterButton").on("click", function (e) {
@@ -1027,15 +1053,6 @@ async function initSuggestedMatchesFilters() {
   $helpPopup.on("mouseleave", function () {
     $helpPopup.fadeOut(100);
   });
-
-  if ($("#filterButtons").length === 0) {
-    filterButtons.appendTo($("#matchesStatusBox p:first-child"));
-    const helpIcon = WBEHelpIcon({
-      url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#suggestedMatchesFilters",
-      feature: "Suggested Matches Filters",
-    });
-    filterButtons.prepend(helpIcon);
-  }
 
   // Highlight matches if the option is set
   getFeatureOptions("suggestedMatchesFilters").then((theOptions) => {
