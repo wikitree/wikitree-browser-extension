@@ -1001,11 +1001,6 @@ async function initSuggestedMatchesFilters() {
   // ──────────────────────────────────────────────────────────────
   if (!$("#filterButtons").length) {
     filterButtons.appendTo($("#matchesStatusBox p:first-child"));
-    const helpIcon = WBEHelpIcon({
-      url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#suggestedMatchesFilters",
-      feature: "Suggested Matches Filters",
-    });
-    filterButtons.prepend(helpIcon);
   }
   // Activate the text‐filter logic and wire up the “Clear” button
   initTextFilter();
