@@ -915,18 +915,112 @@ async function initSuggestedMatchesFilters() {
     suggestedMatches.push(aMatch);
   });
 
-  const filterButtons = $(
-    `<div id='filterButtons'><label>Filters: </label>
-      <button class='btn btn-secondary' id='locationFilterButton'>location</button>
-      <button class='btn btn-secondary' id='nameFilterButton'>name</button>
-      <button class='btn btn-secondary' id='dateFilterButton'>date</button>
-      <div class='textFilter'>
-        <label for='suggestedMatchesTextFilter'>Text Filter: </label>
-          <input type='text' id='suggestedMatchesTextFilter' placeholder='Filter by text' />
-          <button class='small' id='clearFilterButton'>Clear Text Filter</button>
-      </div>
-    </div>`
-  );
+  // ──────────────────────────────────────────────────────────────
+  //  Build the “Filters:” HTML block with buttons and text input
+  // ──────────────────────────────────────────────────────────────
+  const filterButtons = $(`
+  <div id="filterButtons">
+    <label>Filters: </label>
+    <button class="btn btn-secondary" id="locationFilterButton">location</button>
+    <button class="btn btn-secondary" id="nameFilterButton">name</button>
+    <button class="btn btn-secondary" id="dateFilterButton">date</button>
+
+    <div class="textFilter">
+      <label for="suggestedMatchesTextFilter">Text Filter: </label>
+      <input type="text" id="suggestedMatchesTextFilter" placeholder="Filter by text" />
+      <button class="small" id="clearFilterButton">Clear Text Filter</button>
+      <!--  (We will append two WBEHelpIcon() calls below) -->
+    </div>
+  </div>
+`);
+
+  // ──────────────────────────────────────────────────────────────
+  //  1) Create the “feature‐help” icon (links to overall feature page)
+  //     and prepend it to the entire filterButtons block
+  // ──────────────────────────────────────────────────────────────
+  const featureHelpIcon = WBEHelpIcon({
+    url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#suggestedMatchesFilters",
+    feature: "Suggested Matches Filters",
+  });
+  filterButtons.prepend(featureHelpIcon);
+
+  // ──────────────────────────────────────────────────────────────
+  //  2) Create the “text‐filter” icon—this will toggle your own popup
+  //     and append it inside .textFilter (immediately after the input)
+  // ──────────────────────────────────────────────────────────────
+  const textFilterHelpIcon = WBEHelpIcon({
+    url: "#", // (we don’t need a real link; popup will appear on hover)
+    feature: "Text Filter Syntax",
+  });
+  textFilterHelpIcon.attr("id", "textFilterHelpIcon");
+  textFilterHelpIcon.off("click").on("click", (e) => e.preventDefault());
+  filterButtons.find(".textFilter").append(textFilterHelpIcon);
+
+  // ──────────────────────────────────────────────────────────────
+  //  3) Append the custom popup DIV (initially hidden) right after that icon
+  // ──────────────────────────────────────────────────────────────
+  const textFilterHelpPopup = $(`
+  <div id="textFilterHelpPopup" class="filterHelpPopup">
+    <strong>Syntax Help for Text Filter:</strong>
+    <ul>
+      <li><em>Multiple words</em> (e.g. <code>wales 1901</code>) → rows containing <strong>both</strong> “wales” and “1901”.</li>
+      <li><em>OR / ||</em> (e.g. <code>wales OR 1901</code> or <code>wales || 1901</code>) → rows containing “wales” <strong>or</strong> “1901”.</li>
+      <li><em>Quoted phrases</em> (e.g. <code>"New South"</code>) → match the exact substring “new south”.</li>
+      <li><em>Negation <code>!</code></em> (e.g. <code>!"New South"</code> or <code>!1901</code>) → hide any row containing that phrase or number.</li>
+      <li><em>Birth‐only</em> (e.g. <code>b<1902</code> or <code>birth>1850</code>) → match rows whose birth‐year is &lt;1902 or &gt;1850.</li>
+      <li><em>Death‐only</em> (e.g. <code>d<1900</code> or <code>death>1950</code>) → match rows whose death‐year is &lt;1900 or &gt;1950.</li>
+      <li><em>Generic year</em> (e.g. <code><1900</code> or <code>>1850</code>) → match if <strong>any</strong> four‐digit year (in Birth or Death) satisfies that comparison.</li>
+    </ul>
+    <p>Combine these in clauses with <code>OR</code> (or <code>||</code>) to create alternate clauses. Negations always apply globally.</p>
+  </div>
+`);
+  filterButtons.find(".textFilter").append(textFilterHelpPopup);
+
+  // ──────────────────────────────────────────────────────────────
+  //  4) Finally, insert filterButtons into the page (exactly as before)
+  // ──────────────────────────────────────────────────────────────
+  filterButtons.appendTo($("#matchesStatusBox p:first-child"));
+
+  const $helpIcon = $("#textFilterHelpIcon"); // the WBEHelpIcon() element
+  const $helpPopup = $("#textFilterHelpPopup"); // the popup <div>
+
+  // Show popup on mouseenter
+  $helpIcon.on("mouseenter", function () {
+    const iconPos = $helpIcon.position();
+    const iconHeight = $helpIcon.outerHeight();
+    const iconWidth = $helpIcon.outerWidth();
+    const popupWidth = $helpPopup.outerWidth();
+
+    // Position to the left of the icon if it would overflow to the right
+    let leftPos = iconPos.left;
+    if (iconPos.left + popupWidth > $helpIcon.parent().width()) {
+      leftPos = iconPos.left - popupWidth + iconWidth;
+    }
+
+    $helpPopup
+      .css({
+        top: iconPos.top + iconHeight + 4 + "px",
+        left: leftPos + "px",
+      })
+      .fadeIn(150);
+  });
+
+  // Hide popup on mouseleave (unless cursor moved into popup)
+  $helpIcon.on("mouseleave", function () {
+    setTimeout(() => {
+      if (!$helpPopup.is(":hover")) {
+        $helpPopup.fadeOut(100);
+      }
+    }, 200);
+  });
+
+  $helpPopup.on("mouseenter", function () {
+    // keep visible while hovering inside popup
+  });
+  $helpPopup.on("mouseleave", function () {
+    $helpPopup.fadeOut(100);
+  });
+
   if ($("#filterButtons").length === 0) {
     filterButtons.appendTo($("#matchesStatusBox p:first-child"));
     const helpIcon = WBEHelpIcon({

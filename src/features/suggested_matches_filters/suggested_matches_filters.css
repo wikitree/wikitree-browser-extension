@@ -71,3 +71,62 @@ body.page-Special_EditFamilySteps table {
   padding: 0.2em;
   display: inline-block;
 }
+
+/* ────── Ensure the parent container is relative ────── */
+.textFilter {
+  position: relative;
+}
+
+/* ────── Help‐icon styling ────── */
+.filterHelpIcon {
+  display: inline-block;
+  margin-left: 0.5em;
+  background-color: #f2f2f2;
+  border: 1px solid #666;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 12px;
+  color: #333;
+}
+
+/* ────── Popup container (initially hidden) ────── */
+.filterHelpPopup {
+  display: none; /* start hidden */
+  position: absolute;
+  z-index: 9999;
+  width: 280px;
+  background-color: #fff;
+  border: 1px solid #666;
+  border-radius: 4px;
+  padding: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  font-size: 13px;
+  color: #222;
+  line-height: 1.4em;
+}
+
+/* ────── Optional arrow pointing up at the icon ────── */
+.filterHelpPopup::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 12px;
+  border-width: 0 8px 8px 8px;
+  border-style: solid;
+  border-color: transparent transparent #666 transparent;
+}
+
+/* ────── List styling inside the popup ────── */
+.filterHelpPopup ul {
+  padding-left: 1.2em;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+.filterHelpPopup ul li {
+  margin-bottom: 4px;
+}
