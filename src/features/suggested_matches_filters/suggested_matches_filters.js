@@ -731,15 +731,28 @@ function highlightMatches() {
     const theDeathCell = $row.find("td").eq(2);
     const isOnlyYear = (date) => /^\d{4}$/.test(date);
 
-    // --- Birth Date / Year Matching ---
-    const newBirthDate = new Date(newPerson.BirthDate);
+    // --- Birth Date / Year Matching (compare Y/M/D explicitly in local time) ---
+    let newBirthDate;
+    {
+      // If input is "YYYY-MM-DD", construct a local Date at midnight
+      const m = newPerson.BirthDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (m) {
+        newBirthDate = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+      } else {
+        newBirthDate = new Date(newPerson.BirthDate);
+      }
+    }
     const extractedBirthDate = new Date(extractedData.BirthDate);
     const newYear = getYear(newPerson.BirthDate);
     const extractedYear = getYear(extractedData.BirthDate);
 
     if (!isNaN(newBirthDate) && !isNaN(extractedBirthDate)) {
-      // both strings parsed to real Date objects → do exact‐date or exact‐year match
-      if (newBirthDate.getTime() === extractedBirthDate.getTime()) {
+      // compare local Y/M/D rather than UTC or getTime()
+      if (
+        newBirthDate.getFullYear() === extractedBirthDate.getFullYear() &&
+        newBirthDate.getMonth() === extractedBirthDate.getMonth() &&
+        newBirthDate.getDate() === extractedBirthDate.getDate()
+      ) {
         theBirthCell.append($("<span class='birthDateMatchSpan matchSpan'>Birth Date Match</span>"));
         matchCount += 1;
       } else if (newBirthDate.getFullYear() === extractedBirthDate.getFullYear()) {
@@ -747,21 +760,31 @@ function highlightMatches() {
         matchCount += 0.5;
       }
     } else if (newYear && extractedYear && newYear === extractedYear) {
-      // fallback: compare just the four-digit years
+      // fallback on four-digit year alone
       theBirthCell.append($("<span class='birthYearMatchSpan matchSpan'>Birth Year Match</span>"));
       matchCount += 0.5;
     }
 
-    // --- Death Date Matching using Date objects ---
-    // --- Death Date / Year Matching ---
-    const newDeathDate = new Date(newPerson.DeathDate);
+    // --- Death Date / Year Matching (compare Y/M/D explicitly in local time) ---
+    let newDeathDate;
+    {
+      const m2 = newPerson.DeathDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (m2) {
+        newDeathDate = new Date(parseInt(m2[1], 10), parseInt(m2[2], 10) - 1, parseInt(m2[3], 10));
+      } else {
+        newDeathDate = new Date(newPerson.DeathDate);
+      }
+    }
     const extractedDeathDate = new Date(extractedData.DeathDate);
     const newDeathYear = getYear(newPerson.DeathDate);
     const extractedDeathYear = getYear(extractedData.DeathDate);
 
     if (!isNaN(newDeathDate) && !isNaN(extractedDeathDate)) {
-      // both parsed successfully → exact‐date or exact‐year
-      if (newDeathDate.getTime() === extractedDeathDate.getTime()) {
+      if (
+        newDeathDate.getFullYear() === extractedDeathDate.getFullYear() &&
+        newDeathDate.getMonth() === extractedDeathDate.getMonth() &&
+        newDeathDate.getDate() === extractedDeathDate.getDate()
+      ) {
         theDeathCell.append($("<span class='deathDateMatchSpan matchSpan'>Death Date Match</span>"));
         matchCount += 1;
       } else if (newDeathDate.getFullYear() === extractedDeathDate.getFullYear()) {
@@ -769,7 +792,6 @@ function highlightMatches() {
         matchCount += 0.5;
       }
     } else if (newDeathYear && extractedDeathYear && newDeathYear === extractedDeathYear) {
-      // fallback: only the four‐digit years match
       theDeathCell.append($("<span class='deathYearMatchSpan matchSpan'>Death Year Match</span>"));
       matchCount += 0.5;
     }
