@@ -175,10 +175,10 @@ function displayBranchList() {
 
   // Select all children that have either of the two classes:
   $("#connectionList")
-    .children("div.family-count-odd, div.family-count-even")
+    .children("div.connection-box")
     .each(function () {
       // Identify if this is an odd or even element
-      const thisClass = $(this).hasClass("family-count-odd") ? "odd" : "even";
+      const thisClass = $(this).hasClass("green") ? "odd" : "even";
 
       // If it's the first item or it matches the current branch class, increment
       if (!currentClass || thisClass === currentClass) {
