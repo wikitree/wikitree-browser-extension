@@ -13,6 +13,8 @@ import { countries } from "../auto_bio/countries";
 const newPerson = {};
 const suggestedMatches = [];
 let options = {};
+let continueButtonClickedOnce = false;
+let originalButtonText;
 
 function isCountry(locationString) {
   if (!isOK(locationString)) return false;
@@ -424,6 +426,7 @@ shouldInitializeFeature("suggestedMatchesFilters").then((result) => {
       }, 2000);
       addNewPersonToH1();
     });
+    initCheckAgainLogic();
   }
 });
 
@@ -695,18 +698,161 @@ function extractPersonFromRow(rowElement) {
   return aMatch;
 }
 
+/**
+ * Compare new‐person birth date to extracted row birth date.
+ * Appends the appropriate “Birth Date Match” or “Birth Year Match” span into `cell`.
+ * Returns:
+ *   1.0 if exact Y/M/D match,
+ *   0.5 if only Year matches,
+ *   0 otherwise.
+ */
+function matchBirthDateOrYear(cell, newBirthDateStr, extractedBirthDateStr) {
+  let points = 0;
+
+  // 1) Parse new‐person birth date as local Date if “YYYY-MM-DD”, else fallback to Date constructor
+  let newBirthDate;
+  {
+    const m = newBirthDateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) {
+      newBirthDate = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+    } else {
+      newBirthDate = new Date(newBirthDateStr);
+    }
+  }
+
+  // 2) Parse the extracted row’s birth date
+  const extractedBirthDate = new Date(extractedBirthDateStr);
+
+  // 3) Four‐digit year fallback
+  const newYear = getYear(newBirthDateStr);
+  const extractedYear = getYear(extractedBirthDateStr);
+
+  // 4) If both parsed as valid Dates, compare via UTC Y/M/D
+  if (!isNaN(newBirthDate) && !isNaN(extractedBirthDate)) {
+    if (
+      newBirthDate.getUTCFullYear() === extractedBirthDate.getUTCFullYear() &&
+      newBirthDate.getUTCMonth() === extractedBirthDate.getUTCMonth() &&
+      newBirthDate.getUTCDate() === extractedBirthDate.getUTCDate()
+    ) {
+      cell.append($("<span class='birthDateMatchSpan matchSpan'>Birth Date Match</span>"));
+      points = 1;
+    } else if (newBirthDate.getUTCFullYear() === extractedBirthDate.getUTCFullYear()) {
+      cell.append($("<span class='birthYearMatchSpan matchSpan'>Birth Year Match</span>"));
+      points = 0.5;
+    }
+  }
+  // 5) Otherwise, if both yielded the same four‐digit year
+  else if (newYear && extractedYear && newYear === extractedYear) {
+    cell.append($("<span class='birthYearMatchSpan matchSpan'>Birth Year Match</span>"));
+    points = 0.5;
+  }
+
+  return points;
+}
+
+/**
+ * Compare new‐person death date to extracted row death date.
+ * Appends the appropriate “Death Date Match” or “Death Year Match” span into `cell`.
+ * Returns:
+ *   1.0 if exact Y/M/D match,
+ *   0.5 if only Year matches,
+ *   0 otherwise.
+ */
+function matchDeathDateOrYear(cell, newDeathDateStr, extractedDeathDateStr) {
+  let points = 0;
+
+  // 1) Parse new‐person death date as local Date if “YYYY-MM-DD”, else fallback
+  let newDeathDate;
+  {
+    const m = newDeathDateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) {
+      newDeathDate = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+    } else {
+      newDeathDate = new Date(newDeathDateStr);
+    }
+  }
+
+  // 2) Parse the extracted row’s death date
+  const extractedDeathDate = new Date(extractedDeathDateStr);
+
+  // 3) Four‐digit year fallback
+  const newDeathYear = getYear(newDeathDateStr);
+  const extractedDeathYear = getYear(extractedDeathDateStr);
+
+  // 4) If both parsed as valid Dates, compare via UTC Y/M/D
+  if (!isNaN(newDeathDate) && !isNaN(extractedDeathDate)) {
+    if (
+      newDeathDate.getUTCFullYear() === extractedDeathDate.getUTCFullYear() &&
+      newDeathDate.getUTCMonth() === extractedDeathDate.getUTCMonth() &&
+      newDeathDate.getUTCDate() === extractedDeathDate.getUTCDate()
+    ) {
+      cell.append($("<span class='deathDateMatchSpan matchSpan'>Death Date Match</span>"));
+      points = 1;
+    } else if (newDeathDate.getUTCFullYear() === extractedDeathDate.getUTCFullYear()) {
+      cell.append($("<span class='deathYearMatchSpan matchSpan'>Death Year Match</span>"));
+      points = 0.5;
+    }
+  }
+  // 5) Otherwise, if both yielded the same four‐digit year
+  else if (newDeathYear && extractedDeathYear && newDeathYear === extractedDeathYear) {
+    cell.append($("<span class='deathYearMatchSpan matchSpan'>Death Year Match</span>"));
+    points = 0.5;
+  }
+
+  return points;
+}
+
+/**
+ * Compare new‐person full name to extracted row full name.
+ * Appends “Name Match” span into `cell` if they match exactly (case‐sensitive).
+ * Returns:
+ *   1.0 if exact match,
+ *   0 otherwise.
+ */
+function matchName(cell, newFullName, extractedFullName) {
+  if (newFullName && extractedFullName && newFullName === extractedFullName) {
+    cell.append($("<span class='nameMatchSpan matchSpan'>Name Match</span>"));
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * If `countryName` exactly matches either a country’s English name or its nativeName,
+ * return the opposite form. Otherwise return null.
+ *
+ * Example:
+ *   findAlternativeCountryName("Poland")  → "Polska"
+ *   findAlternativeCountryName("Polska")  → "Poland"
+ */
 function findAlternativeCountryName(countryName) {
+  if (!countryName) return null;
   for (const country of countries) {
-    if (country.name === countryName || country.nativeName === countryName) {
-      return country.name === countryName ? country.nativeName : country.name;
+    if (country.name === countryName) {
+      return country.nativeName || null;
+    }
+    if (country.nativeName === countryName) {
+      return country.name || null;
     }
   }
   return null;
 }
 
-// Break down a location string into components
+/**
+ * Break a comma‐delimited location string into its components:
+ *   - town = parts[0]
+ *   - county = parts[parts.length-3]
+ *   - state = parts[parts.length-2]
+ *   - country = parts[parts.length-1]
+ *
+ * If some pieces are missing, they become empty strings.
+ *
+ * Example:
+ *   dissectLocation("Kraków, Małopolskie, Polska")
+ *     → { country: "Polska", state: "Małopolskie", county: "", town: "Kraków" }
+ */
 function dissectLocation(location) {
-  const parts = location.split(",").map((part) => part.trim());
+  const parts = location.split(",").map((p) => p.trim());
   return {
     country: parts[parts.length - 1] || "",
     state: parts[parts.length - 2] || "",
@@ -715,185 +861,203 @@ function dissectLocation(location) {
   };
 }
 
-function highlightMatches() {
-  const people = $("table#matchesTable tr[id^=potentialMatch]");
-  people.each(function () {
-    // Remove any old match‐labels before adding new ones
-    $(this).find(".matchSpan").remove();
+/**
+ * Compare new‐person birth location to extracted row’s birth location.
+ *
+ * 1) Split each on commas, trim, reverse into arrays so index 0=country, index 1=state/county, etc.
+ * 2) Let totalSlots = max(newArr.length, extArr.length).
+ * 3) For each slot i from 0..totalSlots-1:
+ *     • If both arrays have a non-empty value at i, check equality.
+ *     • At i = 0 (country), allow native↔English matches via findAlternativeCountryName().
+ * 4) If matchCount === totalSlots, that's a full match → append “Birth Location Match”.
+ * 5) Else if matchCount > 0, append “Partial Birth Location Match” with class `level-${matchCount}`.
+ *    Return matchCount × (1/totalSlots) (so full=1, partial=0.33,0.67, etc.).
+ */
+function matchBirthLocation(cell, newBirthLocStr, extractedBirthLocStr) {
+  if (!newBirthLocStr || !extractedBirthLocStr) return 0;
 
+  // Strip trailing "UK"/"United Kingdom"/"U.K." for a fair compare
+  const stripUK = (s) => s.replace(/, (United Kingdom|UK|U\.K\.)$/g, "");
+
+  const cleanNew = stripUK(newBirthLocStr);
+  const cleanExt = stripUK(extractedBirthLocStr);
+
+  // Split by comma, trim whitespace, reverse so index 0=country, index 1=next, etc.
+  const arrNew = cleanNew
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .reverse();
+  const arrExt = cleanExt
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .reverse();
+
+  const totalSlots = Math.max(arrNew.length, arrExt.length);
+  let matchCount = 0;
+
+  for (let i = 0; i < totalSlots; i++) {
+    const vNew = arrNew[i] || "";
+    const vExt = arrExt[i] || "";
+
+    if (!vNew || !vExt) continue; // skip if either is missing
+
+    if (i === 0) {
+      // Compare country (native↔English allowed)
+      const alt1 = findAlternativeCountryName(vNew);
+      const alt2 = findAlternativeCountryName(vExt);
+      if (vNew.toLowerCase() === vExt.toLowerCase() || (alt1 && alt1 === vExt) || (alt2 && alt2 === vNew)) {
+        matchCount++;
+      }
+    } else {
+      // Compare state/county/town by exact match
+      if (vNew === vExt) {
+        matchCount++;
+      }
+    }
+  }
+
+  const score = matchCount / totalSlots; // e.g. 1/3, 2/3, 3/3, etc.
+
+  if (matchCount === totalSlots) {
+    // Full match on every component
+    cell.append($("<span class='birthLocationMatchSpan matchSpan'>Birth Location Match</span>"));
+    return 1;
+  }
+
+  if (matchCount > 0) {
+    // Partial match: attach exactly one span, with class "level-N"
+    cell.append(
+      $(`<span class='partialBirthLocationMatchSpan level-${matchCount} matchSpan'>Partial Birth Location Match</span>`)
+    );
+    return score;
+  }
+
+  return 0;
+}
+
+/**
+ * The same algorithm for death-location.
+ */
+function matchDeathLocation(cell, newDeathLocStr, extractedDeathLocStr) {
+  if (!newDeathLocStr || !extractedDeathLocStr) return 0;
+
+  const stripUK = (s) => s.replace(/, (United Kingdom|UK|U\.K\.)$/g, "");
+  const cleanNew = stripUK(newDeathLocStr);
+  const cleanExt = stripUK(extractedDeathLocStr);
+
+  const arrNew = cleanNew
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .reverse();
+  const arrExt = cleanExt
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .reverse();
+
+  const totalSlots = Math.max(arrNew.length, arrExt.length);
+  let matchCount = 0;
+
+  for (let i = 0; i < totalSlots; i++) {
+    const vNew = arrNew[i] || "";
+    const vExt = arrExt[i] || "";
+
+    if (!vNew || !vExt) continue;
+
+    if (i === 0) {
+      // Country comparison (native↔English allowed)
+      const alt1 = findAlternativeCountryName(vNew);
+      const alt2 = findAlternativeCountryName(vExt);
+      if (vNew.toLowerCase() === vExt.toLowerCase() || (alt1 && alt1 === vExt) || (alt2 && alt2 === vNew)) {
+        matchCount++;
+      }
+    } else {
+      if (vNew === vExt) {
+        matchCount++;
+      }
+    }
+  }
+
+  const score = matchCount / totalSlots;
+
+  if (matchCount === totalSlots) {
+    cell.append($("<span class='deathLocationMatchSpan matchSpan'>Death Location Match</span>"));
+    return 1;
+  }
+
+  if (matchCount > 0) {
+    cell.append(
+      $(`<span class='partialDeathLocationMatchSpan level-${matchCount} matchSpan'>Partial Death Location Match</span>`)
+    );
+    return score;
+  }
+
+  return 0;
+}
+
+/**
+ * The new, chunked highlightMatches() function.
+ */
+function highlightMatches() {
+  // 1) Grab all rows whose id starts with “potentialMatch”
+  const people = $("table#matchesTable tr[id^=potentialMatch]");
+
+  // 2) Loop over each row
+  people.each(function () {
+    // “this” is the <tr> element
+    const $row = $(this);
+
+    // 2a) Remove any previous match labels
+    $row.find(".matchSpan").remove();
+
+    // 2b) Extract data from this row
     const extractedData = extractPersonFromRow(this);
     let matchCount = 0;
-    let exactBirthLocationMatch = false;
-    let exactDeathLocationMatch = false;
-    const $row = $(this);
+
+    // 2c) Cache the three cells: (0)=Name, (1)=Birth, (2)=Death
     const theNameCell = $row.find("td").eq(0);
     const theBirthCell = $row.find("td").eq(1);
     const theDeathCell = $row.find("td").eq(2);
-    const isOnlyYear = (date) => /^\d{4}$/.test(date);
 
-    // --- Birth Date / Year Matching (compare Y/M/D explicitly in local time) ---
-    let newBirthDate;
-    {
-      // If input is "YYYY-MM-DD", construct a local Date at midnight
-      const m = newPerson.BirthDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (m) {
-        newBirthDate = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
-      } else {
-        newBirthDate = new Date(newPerson.BirthDate);
-      }
-    }
-    const extractedBirthDate = new Date(extractedData.BirthDate);
-    const newYear = getYear(newPerson.BirthDate);
-    const extractedYear = getYear(extractedData.BirthDate);
+    // 3a) Birth date/year match
+    matchCount += matchBirthDateOrYear(theBirthCell, newPerson.BirthDate, extractedData.BirthDate);
 
-    if (!isNaN(newBirthDate) && !isNaN(extractedBirthDate)) {
-      // compare local Y/M/D rather than UTC or getTime()
-      if (
-        newBirthDate.getFullYear() === extractedBirthDate.getFullYear() &&
-        newBirthDate.getMonth() === extractedBirthDate.getMonth() &&
-        newBirthDate.getDate() === extractedBirthDate.getDate()
-      ) {
-        theBirthCell.append($("<span class='birthDateMatchSpan matchSpan'>Birth Date Match</span>"));
-        matchCount += 1;
-      } else if (newBirthDate.getFullYear() === extractedBirthDate.getFullYear()) {
-        theBirthCell.append($("<span class='birthYearMatchSpan matchSpan'>Birth Year Match</span>"));
-        matchCount += 0.5;
-      }
-    } else if (newYear && extractedYear && newYear === extractedYear) {
-      // fallback on four-digit year alone
-      theBirthCell.append($("<span class='birthYearMatchSpan matchSpan'>Birth Year Match</span>"));
-      matchCount += 0.5;
-    }
+    // 3b) Death date/year match
+    matchCount += matchDeathDateOrYear(theDeathCell, newPerson.DeathDate, extractedData.DeathDate);
 
-    // --- Death Date / Year Matching (compare Y/M/D explicitly in local time) ---
-    let newDeathDate;
-    {
-      const m2 = newPerson.DeathDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (m2) {
-        newDeathDate = new Date(parseInt(m2[1], 10), parseInt(m2[2], 10) - 1, parseInt(m2[3], 10));
-      } else {
-        newDeathDate = new Date(newPerson.DeathDate);
-      }
-    }
-    const extractedDeathDate = new Date(extractedData.DeathDate);
-    const newDeathYear = getYear(newPerson.DeathDate);
-    const extractedDeathYear = getYear(extractedData.DeathDate);
+    // 3c) Full‐name match
+    matchCount += matchName(theNameCell, newPerson.FullName, extractedData.fullName);
 
-    if (!isNaN(newDeathDate) && !isNaN(extractedDeathDate)) {
-      if (
-        newDeathDate.getFullYear() === extractedDeathDate.getFullYear() &&
-        newDeathDate.getMonth() === extractedDeathDate.getMonth() &&
-        newDeathDate.getDate() === extractedDeathDate.getDate()
-      ) {
-        theDeathCell.append($("<span class='deathDateMatchSpan matchSpan'>Death Date Match</span>"));
-        matchCount += 1;
-      } else if (newDeathDate.getFullYear() === extractedDeathDate.getFullYear()) {
-        theDeathCell.append($("<span class='deathYearMatchSpan matchSpan'>Death Year Match</span>"));
-        matchCount += 0.5;
-      }
-    } else if (newDeathYear && extractedDeathYear && newDeathYear === extractedDeathYear) {
-      theDeathCell.append($("<span class='deathYearMatchSpan matchSpan'>Death Year Match</span>"));
-      matchCount += 0.5;
-    }
+    // 3d) Birth location match
+    matchCount += matchBirthLocation(theBirthCell, newPerson.BirthLocation, extractedData.BirthLocation);
 
-    // --- Name Matching ---
-    if (extractedData.fullName && newPerson.FullName && extractedData.fullName === newPerson.FullName) {
-      theNameCell.append($("<span class='nameMatchSpan matchSpan'>Name Match</span>"));
-      matchCount++;
-    }
+    // 3e) Death location match
+    matchCount += matchDeathLocation(theDeathCell, newPerson.DeathLocation, extractedData.DeathLocation);
 
-    // --- Exact Birth Location Matching (after stripping UK variants) ---
-    if (isOK(extractedData.BirthLocation) && isOK(newPerson.BirthLocation)) {
-      const cleanExtractedBirth = extractedData.BirthLocation.replace(/, (United Kingdom|UK|U.K.)$/g, "");
-      const cleanNewBirth = newPerson.BirthLocation.replace(/, (United Kingdom|UK|U.K.)$/g, "");
-      if (cleanExtractedBirth === cleanNewBirth) {
-        theBirthCell.append($("<span class='birthLocationMatchSpan matchSpan'>Birth Location Match</span>"));
-        matchCount++;
-        exactBirthLocationMatch = true;
-      }
-    }
-
-    // --- Partial Birth Location Matching ---
-    if (!exactBirthLocationMatch && isOK(newPerson.BirthLocation) && isOK(extractedData.BirthLocation)) {
-      const normNewCountry = getNormalizedCountry(newPerson.BirthLocation);
-      const normExtractedCountry = getNormalizedCountry(extractedData.BirthLocation);
-      let partialBirthLocationMatchCount = 0;
-      if (normNewCountry && normExtractedCountry && normNewCountry === normExtractedCountry) {
-        partialBirthLocationMatchCount += 0.25;
-      }
-      const newBirthLoc = dissectLocation(newPerson.BirthLocation);
-      const extractedBirthLoc = dissectLocation(extractedData.BirthLocation);
-      if (newBirthLoc.state && newBirthLoc.state === extractedBirthLoc.state) {
-        partialBirthLocationMatchCount += 0.25;
-      }
-      if (newBirthLoc.county && newBirthLoc.county === extractedBirthLoc.county) {
-        partialBirthLocationMatchCount += 0.25;
-      }
-      if (newBirthLoc.town && newBirthLoc.town === extractedBirthLoc.town) {
-        partialBirthLocationMatchCount += 0.25;
-      }
-      if (partialBirthLocationMatchCount > 0) {
-        theBirthCell.append(
-          $("<span class='partialBirthLocationMatchSpan matchSpan'>Partial Birth Location Match</span>")
-        );
-        matchCount += partialBirthLocationMatchCount;
-      }
-    }
-
-    // --- Exact Death Location Matching ---
-    if (isOK(extractedData.DeathLocation) && isOK(newPerson.DeathLocation)) {
-      const cleanExtractedDeath = extractedData.DeathLocation.replace(/, (United Kingdom|UK|U.K.)$/g, "");
-      const cleanNewDeath = newPerson.DeathLocation.replace(/, (United Kingdom|UK|U.K.)$/g, "");
-      if (cleanExtractedDeath === cleanNewDeath) {
-        theDeathCell.append($("<span class='deathLocationMatchSpan matchSpan'>Death Location Match</span>"));
-        matchCount++;
-        exactDeathLocationMatch = true;
-      }
-    }
-
-    // --- Partial Death Location Matching ---
-    if (!exactDeathLocationMatch && isOK(newPerson.DeathLocation) && isOK(extractedData.DeathLocation)) {
-      const normNewDeath = getNormalizedCountry(newPerson.DeathLocation);
-      const normExtractedDeath = getNormalizedCountry(extractedData.DeathLocation);
-      let partialDeathLocationMatchCount = 0;
-      if (normNewDeath && normExtractedDeath && normNewDeath === normExtractedDeath) {
-        partialDeathLocationMatchCount += 0.25;
-      }
-      const newDeathLoc = dissectLocation(newPerson.DeathLocation);
-      const extractedDeathLoc = dissectLocation(extractedData.DeathLocation);
-      if (newDeathLoc.state && newDeathLoc.state === extractedDeathLoc.state) {
-        partialDeathLocationMatchCount += 0.25;
-      }
-      if (newDeathLoc.county && newDeathLoc.county === extractedDeathLoc.county) {
-        partialDeathLocationMatchCount += 0.25;
-      }
-      if (newDeathLoc.town && newDeathLoc.town === extractedDeathLoc.town) {
-        partialDeathLocationMatchCount += 0.25;
-      }
-      if (partialDeathLocationMatchCount > 0) {
-        theDeathCell.append(
-          $("<span class='partialDeathLocationMatchSpan matchSpan'>Partial Death Location Match</span>")
-        );
-        matchCount += partialDeathLocationMatchCount;
-      }
-    }
-
+    // 4) Store the total “matchCount” on this <tr> for sorting later
     $row.data("match-count", matchCount);
   });
 
-  // Reorder rows by match count (highest matches first)
+  // 5) Re‐sort all rows by descending match‐count
   const rowsArray = $("table#matchesTable tr[id^=potentialMatch]").get();
   rowsArray.sort((a, b) => {
-    const matchCountA = $(a).data("match-count") || 0;
-    const matchCountB = $(b).data("match-count") || 0;
-    return matchCountB - matchCountA;
+    const aCount = $(a).data("match-count") || 0;
+    const bCount = $(b).data("match-count") || 0;
+    return bCount - aCount;
   });
+
+  // 6) Replace the <tbody> contents in that sorted order
   const tableBody = $("table#matchesTable tbody");
   tableBody.empty();
   rowsArray.forEach((row) => tableBody.append(row));
 }
 
 async function initSuggestedMatchesFilters() {
+  $("#filterButtons").remove();
+  suggestedMatches.length = 0;
   const WTID = $("h1 button[aria-label='Copy ID']").data("copy-text");
   let relatives;
   const APP_ID = "WBE_suggested_matches_filters";
@@ -1019,7 +1183,7 @@ async function initSuggestedMatchesFilters() {
   filterButtons.find(".textFilter").append(textFilterHelpPopup);
 
   // ──────────────────────────────────────────────────────────────
-  //  4) Finally, insert filterButtons into the page (exactly as before)
+  //  4) Finally, insert filterButtons into the page
   // ──────────────────────────────────────────────────────────────
   if (!$("#filterButtons").length) {
     filterButtons.appendTo($("#matchesStatusBox p:first-child"));
@@ -1142,5 +1306,51 @@ async function initSuggestedMatchesFilters() {
         locationFilter(person, filteredLocations, newPerson);
       });
     }
+  });
+}
+
+function initCheckAgainLogic() {
+  const $btn = $("#enterBasicDataButton");
+  const originalText = $btn.text();
+  const fieldSelector =
+    "#mFirstName, #mBirthDate, #mMiddleName, #mLastNameAtBirth, " +
+    "#mLastNameCurrent, #mBirthLocation, #mDeathDate, #mDeathLocation";
+
+  let hasRunOnce = false;
+  let needsCheck = false;
+
+  // Helper that binds exactly one “field changed” listener:
+  function bindFieldChange() {
+    $(fieldSelector)
+      .off("input change.setCheck") // unbind any previous
+      .one("input change.setCheck", () => {
+        // As soon as any field changes, mark needsCheck and highlight the button
+        needsCheck = true;
+        $btn.addClass("needsCheckAgain").text("Check again");
+      });
+  }
+
+  $btn.on("click", () => {
+    // 1) Always run the lookup
+    addNewPersonToH1();
+    setTimeout(checkReady, 2000);
+
+    // 2) If this was the first-ever click, bind the “field changed” listener now:
+    if (!hasRunOnce) {
+      hasRunOnce = true;
+      bindFieldChange();
+      return;
+    }
+
+    // 3) If we’re clicking again because fields changed (i.e. needsCheck===true),
+    //    remove the highlight/text and re-bind so next edit will re-highlight.
+    if (needsCheck) {
+      needsCheck = false;
+      $btn.removeClass("needsCheckAgain").text(originalText);
+      bindFieldChange();
+    }
+
+    // 4) If hasRunOnce && !needsCheck, the user clicked the button again without
+    //    having changed any field yet—just rerun the lookup (no style change, no rebinding).
   });
 }

@@ -130,3 +130,92 @@ body.page-Special_EditFamilySteps table {
 .filterHelpPopup ul li {
   margin-bottom: 4px;
 }
+
+/* suggested_matches_filters.css */
+
+/* Remove any @keyframes or animation rules */
+
+#enterBasicDataButton.needsCheckAgain {
+  background-color: #e74c3c;
+  color: #ffffff;
+  border: 3px solid #c0392b;
+  box-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+  padding: 0.75em 1.5em; /* slightly larger */
+  font-size: 1.1em;
+  transition: background-color 0.15s, box-shadow 0.15s;
+}
+
+#enterBasicDataButton.needsCheckAgain:hover {
+  background-color: #c0392b;
+  box-shadow: 0 0 10px rgba(192, 57, 43, 0.7);
+}
+
+/* ─── Birth location full match ─── */
+#potentialMatchesSection td span.birthLocationMatchSpan {
+  border: 2px solid forestgreen;
+  background-color: #a5d167;
+  color: #25422d;
+}
+
+/* ─── Birth location partial matches ─── */
+#potentialMatchesSection td span.partialBirthLocationMatchSpan {
+  border: 2px solid #e1f0b4;
+  /* a very light fallback in case no level-N rule applies */
+  background-color: rgb(196, 245, 196);
+  color: #25422d;
+}
+
+/* Level 1 (only country matched) */
+#potentialMatchesSection td span.partialBirthLocationMatchSpan.level-1 {
+  background-color: #e1f0b4; /* very light green */
+  color: #25422d;
+}
+
+/* Level 2 (country + one additional part matched) */
+#potentialMatchesSection td span.partialBirthLocationMatchSpan.level-2 {
+  background-color: #a5d167; /* medium green */
+  color: #ffffff;
+}
+
+/* Level 3 (country + two additional parts matched) */
+#potentialMatchesSection td span.partialBirthLocationMatchSpan.level-3 {
+  background-color: #8fc641; /* darker green */
+  color: #ffffff;
+}
+
+/* Level 4 (if you ever compare 4 parts and get 3 of 4—but full is separate) */
+/* You can optionally add .level-4 here if you want a special shade. */
+
+/* ─── Death location full match ─── */
+#potentialMatchesSection td span.deathLocationMatchSpan {
+  border: 2px solid darkgrey;
+  background-color: #25422d;
+  color: #dedecb;
+}
+
+/* ─── Death location partial matches ─── */
+#potentialMatchesSection td span.partialDeathLocationMatchSpan {
+  border: 2px solid darkgrey;
+  background-color: #393a3c; /* fallback */
+  color: #dedecb;
+}
+
+#potentialMatchesSection td span.partialDeathLocationMatchSpan.level-1 {
+  background-color: #666666; /* light grey */
+  color: #f0f0eb;
+}
+#potentialMatchesSection td span.partialDeathLocationMatchSpan.level-2 {
+  background-color: #393a3c; /* medium grey */
+  color: #ffffff;
+}
+#potentialMatchesSection td span.partialDeathLocationMatchSpan.level-3 {
+  background-color: #25422d; /* darker grey */
+  color: #ffeeee;
+}
+
+/* Ensure all .matchSpan have consistent padding/margin */
+#potentialMatchesSection td span.matchSpan {
+  margin: 0.2em;
+  padding: 0.2em;
+  display: inline-block;
+}
