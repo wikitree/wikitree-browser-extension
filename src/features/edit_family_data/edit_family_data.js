@@ -44,7 +44,7 @@ async function addInfoAboutOtherPerson() {
   const wtid = h1Link.attr("href").split("/").pop();
   const fields = ["Id", "Name", "BirthDate", "BirthLocation", "DeathDate", "DeathLocation"];
   console.log("Fetching person data for wtid:", wtid);
-  WikiTreeAPI.getPerson("WBE_edit_family_data", wtid, fields).then((data) => {
+  WikiTreeAPI.getPerson("WBE_edit_family_data", wtid, fields).then(async (data) => {
     const efProfile = data._data;
     let efBdate = "";
     let efBlocation = "";
@@ -71,22 +71,35 @@ async function addInfoAboutOtherPerson() {
       } else {
         deathButtonClass = "noLocation";
       }
+
+      const options = await getFeatureOptions("editFamilyData");
+      let theBirthButtons = "";
+      let theDeathButtons = "";
+      if (options.copyLocations) {
+        theBirthButtons = `
+          <button class='copyLocation ${birthButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location='${efBlocation}'>as birth location</button>
+          <button class='copyLocation ${birthButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location='${efBlocation}'>as death location</button>
+        `;
+        theDeathButtons = `
+          <button class='copyLocation ${deathButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location='${efDlocation}'>as birth location</button>
+          <button class='copyLocation ${deathButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location='${efDlocation}'>as death location</button>
+        `;
+      }
+
       const efHTML = `
         <ul id='EFdates'>
           ${
             isOK(efBdate) || isOK(efBlocation)
               ? `<li>b. ${efBdate} ${efBlocation}
-          <button class='copyLocation ${birthButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location='${efBlocation}'></button>
-          <button class='copyLocation ${birthButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location='${efBlocation}'></button>
-            </li>`
+              ${theBirthButtons}
+              </li>`
               : ""
           }
           ${
             efDdate !== "" || efDlocation !== ""
               ? `<li>d. ${efDdate} ${efDlocation}
-          <button class='copyLocation ${deathButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location='${efDlocation}'></button>
-          <button class='copyLocation ${deathButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location='${efDlocation}'></button>
-            </li>`
+              ${theDeathButtons}
+              </li>`
               : ""
           }
         </ul>
