@@ -558,8 +558,8 @@ function removeSourceHints() {
 }
 
 // Provide full Find a Grave citations in the edit form
-// This feature provides full Find a Grave citations in the edit form
-// It replaces short citations with full ones and allows undoing the replacement
+// Replaces only the single FAG block matching the fetched ID—whether in <ref>…</ref> or a bullet block—leaving other text intact.
+
 const undoStates = {
   mSources: null,
   mBioWithoutSources: null,
@@ -571,56 +571,102 @@ const justReplaced = {
   mBioWithoutSources: false,
 };
 
-// Extract Find a Grave URL from various formats
+// Extract a Find a Grave URL or ID from various formats
 function extractFindAGraveIdOrLink(text) {
   let urlMatch = text.match(/https?:\/\/(?:www\.)?findagrave\.com\/memorial\/(\d+)/i);
   if (urlMatch) return urlMatch[0];
-  let templateMatch = text.match(/\{\{FindAGrave\|(\d+)\}\}/i);
+
+  let templateMatch = text.match(/\{\{FindAGrave\|(\d+)(?:\|[^\}]*)?\}\}/i);
   if (templateMatch) return "https://www.findagrave.com/memorial/" + templateMatch[1];
+
   let hashMatch = text.match(/Find a Grave(?: memorial)? #(\d+)/i);
   if (hashMatch) return "https://www.findagrave.com/memorial/" + hashMatch[1];
+
   return null;
 }
 
-// Replace <ref>...</ref> or bullet line containing a Find a Grave citation
-function replaceFindAGraveCitation(originalText, useCitation) {
-  let replaced = false;
-  const findAGraveRefTagRegex =
-    /<ref[^>]*>[\s\S]*?(https?:\/\/(?:www\.)?findagrave\.com\/memorial\/\d+|\{\{FindAGrave\|\d+\}\}|Find a Grave( memorial)? #\d+)[\s\S]*?<\/ref>/i;
-  const findAGraveLineRegex =
-    /^[ \t]*\*?[ \t]*(\[\s*)?(https?:\/\/)?(www\.)?findagrave\.com\/memorial\/\d+[^\]\n]*\]?|^[ \t]*\*?[ \t]*\{\{FindAGrave\|\d+\}\}|^[ \t]*\*?[ \t]*Find a Grave( memorial)? #\d+/im;
+// Replaces only the FAG block for targetId—either <ref>…</ref> or a bullet block—leaving everything else intact.
+function replaceFindAGraveCitation(originalText, refCitation, bulletCitation, targetId) {
+  // Build a pattern that matches exactly this ID in template, URL, or “Find a Grave #ID”
+  const escapedId = targetId.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+  const idPattern = new RegExp(
+    `(?:\\{\\{FindAGrave\\|${escapedId}(?:\\|[^\\}]*)?\\}\\}|https?:\\/\\/(?:www\\.)?findagrave\\.com\\/memorial\\/${escapedId}\\b|Find a Grave(?: memorial)? #${escapedId})`,
+    "i"
+  );
 
-  let newText = originalText;
-  if (findAGraveRefTagRegex.test(newText)) {
-    newText = newText.replace(findAGraveRefTagRegex, `<ref>${useCitation}</ref>`);
-    replaced = true;
-  } else {
-    let lines = newText.split(/\r?\n/);
-    lines = lines.map((line) => {
-      if (!replaced && findAGraveLineRegex.test(line)) {
-        replaced = true;
-        return useCitation;
+  // 1) Look for the specific ID inside a <ref>…</ref> block by locating exact indices
+  const refIdMatchIndex = originalText.search(idPattern);
+  if (refIdMatchIndex !== -1) {
+    // Find the start of the enclosing <ref>
+    const startRef = originalText.lastIndexOf("<ref", refIdMatchIndex);
+    if (startRef !== -1) {
+      // Find the end of that </ref>
+      const endRefTag = "</ref>";
+      const endRef = originalText.indexOf(endRefTag, refIdMatchIndex);
+      if (endRef !== -1) {
+        // Replace the entire <ref>…</ref> block
+        const before = originalText.slice(0, startRef);
+        const after = originalText.slice(endRef + endRefTag.length);
+        return before + `<ref>${refCitation}</ref>` + after;
       }
-      return line;
-    });
-    newText = lines.join("\n");
+    }
   }
-  if (!replaced) newText = newText.trim() + "\n" + useCitation;
-  return newText.replace(/\n{3,}/g, "\n\n").trim();
+
+  // 2) Otherwise, handle multi‐line bullet blocks containing that specific ID
+  const lines = originalText.split(/\r?\n/);
+  let i = 0;
+  while (i < lines.length) {
+    if (/^[ \t]*\*/.test(lines[i])) {
+      // Start of a bullet block
+      let start = i;
+      let end = i + 1;
+      while (end < lines.length) {
+        const line = lines[end];
+        if (/^\s*$/.test(line) || /^[ \t]*\*/.test(line) || /^[ \t]*==/.test(line)) {
+          break;
+        }
+        end++;
+      }
+      // Check if any line in [start..end-1] contains targetId
+      let blockContainsTarget = false;
+      for (let k = start; k < end; k++) {
+        if (idPattern.test(lines[k])) {
+          blockContainsTarget = true;
+          break;
+        }
+      }
+      if (blockContainsTarget) {
+        lines.splice(start, end - start, bulletCitation);
+        // Stop scanning bullets after one replacement
+        break;
+      } else {
+        i = end;
+      }
+    } else {
+      i++;
+    }
+  }
+
+  const newText = lines.join("\n");
+
+  // 3) If targetId was never found anywhere, append bulletCitation at end
+  if (!idPattern.test(originalText)) {
+    return (originalText.trim() + "\n" + bulletCitation).replace(/\n{3,}/g, "\n\n").trim();
+  }
+  return newText;
 }
 
-// Adds or replaces the 'accessed' date in the citation in (Mon DD, YYYY) format
+// Inserts or updates the “accessed” date in (Mon DD, YYYY) format
 function addAccessedDateToCitation(citation) {
   const today = new Date();
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const formattedDate = `${months[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
-  // Covers ': accessed)', ': accessed, )', or variations with/without a comma
   return citation.replace(/: accessed[^\)]*\)/i, `: accessed ${formattedDate})`);
 }
 
-// Button state updater: always call after any .val() change or tools render
+// Update Replace/Undo button states based on box’s content
 function updateFindAGraveButtonStates($box, refCitation, bulletCitation) {
-  const $wrapper = $("#" + $box.attr("id") + "_findAGraveCitationTools");
+  const $wrapper = $(`#${$box.attr("id")}_findAGraveCitationTools`);
   const $replaceBtn = $wrapper.find(".findAGrave-replace");
   const $undoBtn = $wrapper.find(".findAGrave-undo");
   const currentVal = $box.val();
@@ -638,64 +684,61 @@ function updateFindAGraveButtonStates($box, refCitation, bulletCitation) {
   }
 }
 
-function showFindAGraveCitationToolsForBox($box, citationText) {
+function showFindAGraveCitationToolsForBox($box, citationText, targetId) {
   const boxId = $box.attr("id");
   const toolId = boxId + "_findAGraveCitationTools";
 
+  // Build both variants of the full citation:
+  //  • refCitation (no "*") for <ref>…</ref>
+  //  • bulletCitation (with "* ") for bullet blocks
   let refCitation = "'''Burial''': " + cleanFindAGraveCitation(citationText, "");
   refCitation = addAccessedDateToCitation(refCitation);
   let bulletCitation = "* " + refCitation;
 
-  $("#" + toolId).remove();
+  $(`#${toolId}`).remove();
 
   const $wrapper = $(`
-    <div id="${toolId}" title="Full Find a Grave citations provided by WBE" style="margin-top: 1em; border:3px solid #e29306; border-radius:0.5em; padding:1em; background:#f8f8f8;">
+    <div id="${toolId}" title="Full Find a Grave citations provided by WBE"
+         style="margin-top: 1em; border:3px solid #e29306; border-radius:0.5em;
+                padding:1em; background:#f8f8f8;">
     </div>
   `);
+
   const $label = $("<label><b>Full Find a Grave Citation</b> (copy if needed):</label>");
   const $textarea = $('<textarea rows="6" style="width: 100%;"></textarea>').val(refCitation);
-  const $replaceBtn = $(
-    '<button type="button" class="findAGrave-replace" style="margin-top: 0.5em;">Replace current Find a Grave citation with full citation</button>'
-  );
-  const $undoBtn = $(
-    '<button type="button" class="findAGrave-undo" style="margin: 0.5em; display:none;">Undo</button>'
-  );
+  const $replaceBtn = $(`
+    <button type="button" class="findAGrave-replace" 
+            style="margin-top: 0.5em;">
+      Replace current Find a Grave citation with full citation
+    </button>
+  `);
+  const $undoBtn = $(`
+    <button type="button" class="findAGrave-undo" style="margin: 0.5em; display:none;">
+      Undo
+    </button>
+  `);
   const $copyBtn = $('<button type="button" class="findAGrave-copy" style="margin: 0.5em;">Copy</button>');
 
   $wrapper.append($label, $textarea, $replaceBtn, $undoBtn, $copyBtn);
   $box.after($wrapper);
 
-  // --- Event handlers ---
+  // — Replace button logic —
   $replaceBtn.on("click", function () {
     const originalText = $box.val();
     undoStates[boxId] = originalText;
     justReplaced[boxId] = true;
 
-    // Immediately update UI for robust, race-proof UX
+    // Immediately disable Replace and show Undo
     $replaceBtn.prop("disabled", true).text("Citation replaced!");
     $undoBtn.show();
 
-    const findAGraveRefTagRegex =
-      /<ref[^>]*>[\s\S]*?(https?:\/\/(?:www\.)?findagrave\.com\/memorial\/\d+|\{\{FindAGrave\|\d+\}\}|Find a Grave( memorial)? #\d+)[\s\S]*?<\/ref>/i;
-    const findAGraveLineRegex =
-      /^[ \t]*\*?[ \t]*(\[\s*)?(https?:\/\/)?(www\.)?findagrave\.com\/memorial\/\d+[^\]\n]*\]?|^[ \t]*\*?[ \t]*\{\{FindAGrave\|\d+\}\}|^[ \t]*\*?[ \t]*Find a Grave( memorial)? #\d+/im;
-
-    let refIndex = originalText.search(findAGraveRefTagRegex);
-    let lineIndex = originalText.search(findAGraveLineRegex);
-
-    let useCitation;
-    if (refIndex !== -1 && (lineIndex === -1 || refIndex < lineIndex)) {
-      useCitation = refCitation;
-    } else {
-      useCitation = bulletCitation;
-    }
-
-    const newVal = replaceFindAGraveCitation(originalText, useCitation);
+    // Perform replacement for this specific ID
+    const newVal = replaceFindAGraveCitation(originalText, refCitation, bulletCitation, targetId);
     $box.val(newVal);
     $textarea.val(refCitation);
-    // Do NOT call updateFindAGraveButtonStates here—let the flag handle it next render
   });
 
+  // — Undo button logic —
   $undoBtn.on("click", function () {
     if (undoStates[boxId] !== null) {
       $box.val(undoStates[boxId]);
@@ -706,6 +749,7 @@ function showFindAGraveCitationToolsForBox($box, citationText) {
     }
   });
 
+  // — Copy button logic —
   $copyBtn.on("click", function () {
     navigator.clipboard.writeText($textarea.val()).then(() => {
       $copyBtn.text("Copied!");
@@ -715,7 +759,7 @@ function showFindAGraveCitationToolsForBox($box, citationText) {
     });
   });
 
-  // --- Robust, race-proof state: ---
+  // — Race‐proof state —
   if (justReplaced[boxId]) {
     $replaceBtn.prop("disabled", true).text("Citation replaced!");
     $undoBtn.show();
@@ -725,46 +769,48 @@ function showFindAGraveCitationToolsForBox($box, citationText) {
   }
 }
 
-// Core handler for a single box
+// Called whenever #mSources or #mBioWithoutSources changes or is pasted into
 function handleFindAGraveEventForBox($box) {
   const boxId = $box.attr("id");
   const boxVal = $box.val();
   const toolId = boxId + "_findAGraveCitationTools";
+
+  // 1) If tools are NOT yet shown, and user already has a full citation, do nothing
   const hasFullCitation = /database and images.*findagrave\.com\/memorial\//i.test(boxVal);
-
-  // Only block tools from being rendered if not shown yet AND full citation is present
-  if (!$(`#${toolId}`).length && hasFullCitation) {
-    $(`#${toolId}`).remove();
+  if (!$("#" + toolId).length && hasFullCitation) {
+    $("#" + toolId).remove();
     return;
   }
 
-  // Remove tools ONLY if no short/long Find a Grave citation at all
-  const hasFindAGrave = extractFindAGraveIdOrLink(boxVal) !== null;
-  if (!hasFindAGrave) {
-    $(`#${toolId}`).remove();
-    return;
-  }
-
-  // At this point, show or update the tools as appropriate
+  // 2) If there’s NO Find a Grave token anywhere, remove the tools
   const findAGraveLink = extractFindAGraveIdOrLink(boxVal);
-  if (findAGraveLink) {
-    getCitation(findAGraveLink).then((citationText) => {
-      if (citationText) {
-        showFindAGraveCitationToolsForBox($box, citationText);
-      }
-    });
+  if (!findAGraveLink) {
+    $("#" + toolId).remove();
+    return;
   }
+
+  // Extract the specific ID from the found link
+  const idMatch = findAGraveLink.match(/memorial\/(\d+)/i);
+  if (!idMatch) return;
+  const targetId = idMatch[1];
+
+  // 3) Fetch the full citation and show/update tools, passing the target ID
+  getCitation(findAGraveLink).then((citationText) => {
+    if (citationText) {
+      showFindAGraveCitationToolsForBox($box, citationText, targetId);
+    }
+  });
 }
 
-// Debounced event handler per box
+// Debounced wrapper so “change” and “paste” don’t fire twice in quick succession
 function debounceFindAGraveHandler($box) {
   const id = $box.attr("id");
   if (findAGraveTimers[id]) clearTimeout(findAGraveTimers[id]);
   findAGraveTimers[id] = setTimeout(() => handleFindAGraveEventForBox($box), 30);
 }
 
+// Initialize delegated listeners on the edit form
 function initializeFindAGraveHandlers() {
-  // Delegated event listeners for dynamic fields
   $("#editform").on("change", "#mSources, #mBioWithoutSources", function () {
     debounceFindAGraveHandler($(this));
   });

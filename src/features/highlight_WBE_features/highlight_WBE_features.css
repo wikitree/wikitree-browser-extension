@@ -8,6 +8,7 @@
 .wbe-highlight img.expandTextareaButton,
 .wbe-highlight #nVitals,
 .wbe-highlight button.wbe-tab,
+.wbe-highlight button.wbe-app-login,
 .wbe-highlight #extraWatchlistWindow,
 .wbe-highlight div.wbe-popup,
 .wbe-highlight #addFSID,
@@ -207,6 +208,7 @@ html[data-wbe-genderpredictor] .wbe-highlight #mGender,
 .wbe-highlight .toggleTipsColumn,
 .wbe-highlight #toggleFamilyColumn,
 .wbe-highlight img.mw-toolbar-editbutton[alt="Automatic GEDCOM Cleanup"],
+.wbe-highlight .fontSizeButton,
 .wbe-highlight #expandTextareaButton {
   border-color: var(--wbe-colour-light) !important;
 }

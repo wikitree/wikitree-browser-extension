@@ -11,6 +11,10 @@
   cursor: pointer;
 }
 
+#expandTextareaButton {
+  margin-right: 3px;
+}
+
 .expandTextareaButton {
   display: block;
   margin-top: 0.2em;

@@ -243,6 +243,15 @@ ol.star1.green > li::before {
   }
 }
 
+.profile--actions.float-end #wbeAppLoginBtn {
+  margin-left: 0.5em;
+  position: relative;
+  padding: 0.2em 0.5em;
+  display: inline-block;
+  height: 80%;
+  top: 0.2em;
+}
+
 /* WBE branding */
 :root {
   --wbe-colour: #006080;

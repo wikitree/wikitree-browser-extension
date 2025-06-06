@@ -23,6 +23,7 @@ import "./usability_tweaks.css";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { getUserWtId, getUserNumId } from "../../core/common";
 import "../../core/common.css";
+import { addLoginButton, currentHrefWithoutAuthcode } from "../../core/loginButton";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { theSourceRules } from "../bioCheck/SourceRules.js";
@@ -879,6 +880,25 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
 
       if (options.navHomePage) {
         addNavHomePageLink();
+      }
+
+      if (options.addApiLoginButton && options.addApiLoginButton != "none") {
+        setTimeout(function () {
+          const buttonOpt = {
+            appId: "WBE_api_login_button",
+            btnId: "wbeAppLoginBtn",
+            btnTitle: "Log in to the apps server for a better WBE experience",
+          };
+          if (isNavHomePage && (options.addApiLoginButton == "navOnly" || options.addApiLoginButton == "all")) {
+            buttonOpt.btnContainer = $("h1:contains('My WikiTree: Navigation Home Page')");
+            addLoginButton(buttonOpt);
+          } else if (isProfilePage && options.addApiLoginButton == "all") {
+            const buttonContainer = $(".profile--actions.float-end");
+            const h1 = document.querySelector(".profile--title h1[itemprop='name']");
+            buttonOpt.btnContainer = buttonContainer.length > 0 ? buttonContainer : h1;
+            addLoginButton(buttonOpt);
+          }
+        }, 1000);
       }
 
       if (options.biggerCheckboxesAndRadios && !isPlusDomain) {

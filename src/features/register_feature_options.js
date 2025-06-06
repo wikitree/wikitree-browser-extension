@@ -112,6 +112,7 @@ import "./sourcepreview/sourcepreview_options";
 import "./space_drafts/space_drafts_options";
 import "./space_watchlist_sorter/space_watchlist_sorter_options";
 import "./spacepreview/spacepreview_options";
+import "./suggested_matches_filters/suggested_matches_filters_options";
 import "./surname_table/surname_table_options";
 import "./table_filters/table_filters_options";
 import "./unconnected_branch_table/unconnected_branch_table_options";
@@ -361,28 +362,6 @@ registerFeature({
   contributors: [],
   defaultValue: true,
   pages: [isMainDomain],
-});
-
-registerFeature({
-  name: "Suggested Matches Filters",
-  id: "suggestedMatchesFilters",
-  description:
-    "Lets you filter out suggested matches for new profiles by location, name, and/or date. " +
-    "The Highlight and Sort option finds exact name, date, and location matches, highlights them and brings " +
-    "suggestions with the most matches to the top of the list.",
-  category: "Editing/Add_Person",
-  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
-  defaultValue: true,
-  options: [
-    {
-      id: "highlightMatches",
-      type: OptionType.CHECKBOX,
-      label: "Highlight and Sort",
-      defaultValue: true,
-    },
-  ],
-  pages: [isProfileAddRelative, isAddUnrelatedPerson],
 });
 
 registerFeature({

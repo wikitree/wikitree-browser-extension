@@ -532,7 +532,7 @@ function setCategorySwitches() {
       .each(function () {
         let $toggle = $(this).find("> .section-header > .toggle > input").first();
         if ($toggle.length) {
-          if (!$toggle.closest("#darkMode").length) {
+          if (!$toggle.closest("#darkMode").length && !$toggle.closest("#highlightWBEFeatures").length) {
             count++;
             if ($toggle.is(":checked")) {
               checked++;
@@ -574,7 +574,10 @@ $("#toggleAll, .section.category > .section-header > .toggle > input").on("click
     $top = $(this).closest(".section.category");
   }
   if ($top) {
-    $top.find(".section:not(#darkMode) > .section-header > .toggle > input").prop("checked", oSwitch).trigger("change");
+    $top
+      .find(".section:not(#darkMode,#highlightWBEFeatures) > .section-header > .toggle > input")
+      .prop("checked", oSwitch)
+      .trigger("change");
     saveFeatureOnOffOptions();
   }
 });
