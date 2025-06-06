@@ -967,6 +967,7 @@ function getAllFeaturesWithOptions() {
       featureName: feature.name,
       category: featureCategoryMap[feature.id] || "",
       description: feature.description || "",
+      defaultValue: feature.defaultValue || false,
       options: flatOptions,
     });
   });
