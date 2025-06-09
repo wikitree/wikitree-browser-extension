@@ -1,0 +1,26 @@
+/* Styles for collapsibleDescendants feature */
+button.wikitreeturbo {
+  cursor: pointer;
+  border: 1px solid #ccc;
+  padding: 2px 5px !important;
+  font-size: 0.8em !important;
+  border-radius: 0.5em;
+  position: absolute;
+  margin: 0;
+  font-family: monospace;
+  background-color: #eee;
+  color: #333;
+  margin-left: -4em;
+  margin-top: 0.2em;
+}
+#Descendants-pane li.tree--person_m .wikitreeturbo,
+#Descendants-pane li.tree--person_f .wikitreeturbo {
+  margin-top: 0.9em;
+}
+button.wikitreeturbo,
+button.wikitreeturbo:active {
+  top: auto !important;
+}
+#descendantsContainer li.collapse {
+  position: relative;
+}

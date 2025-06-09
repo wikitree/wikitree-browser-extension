@@ -55,6 +55,7 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 .wbe-highlight #saveSearchFormButton,
 .wbe-highlight #showBirthplacesButton,
 .wbe-highlight input.wbe,
+.wbe-highlight button.wbe,
 .wbe-highlight #navHomePageHouse,
 .wbe-highlight #rangersButtons button,
 .wbe-highlight img.mw-toolbar-editbutton[alt="Automatic GEDCOM Cleanup"],
@@ -125,7 +126,8 @@ html[data-wbe-genderpredictor] .wbe-highlight #mGender,
 .wbe-highlight #editToolbarExt,
 .wbe-highlight #googleSearchBox,
 .wbe-highlight #helpSearchBox,
-.wbe-highlight #changeSummaryOptions {
+.wbe-highlight #changeSummaryOptions,
+.wbe-highlight button.btn-secondary.wbe {
   border: var(--wbe-colour) 3px solid !important;
 }
 
@@ -209,7 +211,8 @@ html[data-wbe-genderpredictor] .wbe-highlight #mGender,
 .wbe-highlight #toggleFamilyColumn,
 .wbe-highlight img.mw-toolbar-editbutton[alt="Automatic GEDCOM Cleanup"],
 .wbe-highlight .fontSizeButton,
-.wbe-highlight #expandTextareaButton {
+.wbe-highlight #expandTextareaButton,
+.wbe-highlight button.btn-secondary.wbe {
   border-color: var(--wbe-colour-light) !important;
 }
 
