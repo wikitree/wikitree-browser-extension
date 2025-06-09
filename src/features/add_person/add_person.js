@@ -136,6 +136,10 @@ function keepBasicDataSectionVisible() {
     $("#addNewPersonButton").hide();
   });
 
+  $(document).on("click", "#saveWithoutCorrection", function () {
+    $("#dismissMatchesButton").show();
+  });
+
   // observe changes to the DOM and show the basic data section when the #matchesContainer appears
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
