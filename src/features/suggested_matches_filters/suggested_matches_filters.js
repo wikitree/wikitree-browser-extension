@@ -530,6 +530,13 @@ function highlightMatches() {
 }
 
 async function initSuggestedMatchesFilters() {
+  const matchesStatusText = $("#matchesStatusBox b").text();
+  if (matchesStatusText && matchesStatusText.match(/^0 Possible Matches/)) {
+    return; // No matches found, so no filters needed
+  }
+
+  $("#filterButtons").remove();
+  suggestedMatches.length = 0;
   const WTID = $("h1 button[aria-label='Copy ID']").data("copy-text");
   let relatives;
   const APP_ID = "WBE_suggested_matches_filters";
