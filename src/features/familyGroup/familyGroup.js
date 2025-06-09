@@ -337,33 +337,17 @@ export function peopleToTable(kPeople) {
       }
       if (oName) {
         const aLine = $(
-          "<tr data-name='" +
-            escapeHtml(kPers.Name) +
-            "' data-birthdate='" +
-            bDate.date.replaceAll(/-/g, "") +
-            "' data-relation='" +
-            escapeHtml(kPers.Relation) +
-            "' class='" +
-            rClass +
-            " " +
-            escapeHtml(kPers.Gender) +
-            "'><td>" +
-            escapeHtml(kPers.RelationShow) +
-            "</td><td><a href='https://" +
-            mainDomain +
-            "/wiki/" +
-            htmlEntities(kPers.Name) +
-            "'>" +
-            escapeHtml(oName) +
-            "</td><td class='aDate'>" +
-            escapeHtml(bDate.display) +
-            "</td><td>" +
-            escapeHtml(kPers.BirthLocation) +
-            "</td><td class='aDate'>" +
-            escapeHtml(dDate.display) +
-            "</td><td>" +
-            escapeHtml(kPers.DeathLocation) +
-            "</td></tr>"
+          `<tr data-name="${escapeHtml(kPers.Name)}" data-birthdate="${bDate.date.replaceAll(
+            /-/g,
+            ""
+          )}" data-relation="${escapeHtml(kPers.Relation)}" class="${rClass} ${escapeHtml(kPers.Gender)}">
+          <td>${escapeHtml(kPers.RelationShow)}</td>
+          <td><a href="https://${mainDomain}/wiki/${htmlEntities(kPers.Name)}">${escapeHtml(oName)}</td>
+          <td class="aDate">${bDate.annotation}${escapeHtml(bDate.display)}</td>
+          <td>${escapeHtml(kPers.BirthLocation)}</td>
+          <td class="aDate">${dDate.annotation}${escapeHtml(dDate.display)}</td>
+          <td>${escapeHtml(kPers.DeathLocation)}</td>
+          </tr>`
         );
 
         kTable.find("tbody").append(aLine);
