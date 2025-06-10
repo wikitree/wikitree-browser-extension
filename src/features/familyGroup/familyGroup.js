@@ -11,7 +11,6 @@ import { mainDomain, isSearchPage, isProfilePage } from "../../core/pageType";
 import { profilePerson, addTab, setHighestZIndex } from "../../core/common";
 
 import { shouldInitializeFeature } from "../../core/options/options_storage";
-import { set } from "date-fns";
 
 // Initialize the familyGroup feature if enabled and if on a profile page
 shouldInitializeFeature("familyGroup").then((result) => {

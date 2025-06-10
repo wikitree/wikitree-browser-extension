@@ -528,7 +528,7 @@ export function timeline(id = false) {
       familyFacts.forEach(function (aFact) {
         // Check if the event belongs to the primary bio person
         const isEventForBioPerson = aFact.wtId == person.Name;
-        const tlDate = "<td class='tlDate'>" + aFact.eventDate.display + "</td>";
+        const tlDate = `<td class='tlDate'>${aFact.eventDate.annotation}${aFact.eventDate.display}</td>`;
         const tlPersonBirth = person.adjustedBirth;
         const eventDate = aFact.eventDate;
         const evPersonBirth = aFact.birthDate;
