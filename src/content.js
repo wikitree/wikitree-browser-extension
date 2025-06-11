@@ -156,6 +156,7 @@ import "./features/draftList/draftList";
 import "./features/image_table/image_table";
 import "./features/randomProfile/randomProfile";
 import "./features/space_watchlist_sorter/space_watchlist_sorter";
+import "./features/text_expander/text_expander";
 import "./features/what_links_here/what_links_here";
 import "./features/edit_profile_redesign/edit_profile_redesign";
 

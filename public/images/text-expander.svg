@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background circle -->
+    <circle cx="12" cy="12" r="11" fill="#25422d" fill-opacity="0.1" />
+    <!-- Small text -->
+    <text x="6" y="14" font-family="Arial" font-size="10" font-weight="bold" fill="#25422d">wt</text>
+    <!-- Arrow -->
+    <path d="M10 12 L14 12 L14 8 L18 12 L14 16 L14 12 L10 12" fill="#25422d" />
+    <!-- Expanded text -->
+    <text x="20" y="14" font-family="Arial" font-size="8" font-weight="bold" fill="#25422d">WT</text>
+    <!-- Decorative elements -->
+    <circle cx="12" cy="12" r="10" stroke="#25422d" stroke-width="0.5" fill="none" />
+    <path d="M8 8 L16 16 M16 8 L8 16" stroke="#25422d" stroke-width="0.5" stroke-opacity="0.3" />
+</svg>

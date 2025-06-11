@@ -1,0 +1,197 @@
+.wbe-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 10000;
+  max-width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+#textExpanderDialog {
+  position: fixed;
+  text-align: left;
+  z-index: 100000000;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 1em;
+  border: 2px solid forestgreen;
+  border-radius: 1em;
+  height: 40em;
+  max-height: 80vh;
+  max-width: 50em;
+  min-width: 400px;
+  overflow: auto;
+  box-shadow: 0.1em 0.1em 0.1em 0.1em lightgreen;
+  background: white;
+  resize: both;
+}
+
+#textExpanderDialog h1 {
+  margin: 0 0 20px 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.2em;
+}
+
+#textExpanderDialog h1 x {
+  position: absolute;
+  top: 0.1em;
+  right: 0.2em;
+  cursor: pointer;
+}
+
+#textExpanderDialog .close-popup {
+  cursor: pointer;
+  font-size: 24px;
+  color: #666;
+  padding: 0 5px;
+  line-height: 1;
+}
+
+#textExpanderDialog .close-popup:hover {
+  color: #000;
+}
+
+#textExpanderDialog .expansions-list {
+  margin-bottom: 20px;
+  max-height: 400px;
+  overflow-y: auto;
+  background: white;
+  border-radius: 4px;
+  padding: 10px;
+}
+
+#textExpanderDialog table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#textExpanderDialog th,
+#textExpanderDialog td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+#textExpanderDialog th {
+  background: #f5f5f5;
+  font-weight: bold;
+}
+
+#textExpanderDialog .default-expansion,
+#textExpanderDialog .custom-expansion {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+#textExpanderDialog .default-expansion {
+  background: #f0f0f0;
+  color: #666;
+}
+
+#textExpanderDialog .custom-expansion {
+  background: #25422d;
+  color: white;
+}
+
+#textExpanderDialog .delete-expansion {
+  background: #dc3545;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+#textExpanderDialog .delete-expansion:hover {
+  background: #c82333;
+}
+
+#textExpanderDialog .add-expansion {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  background: white;
+  padding: 15px;
+  border-radius: 4px;
+}
+
+#textExpanderDialog input[type="text"] {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+#textExpanderDialog button {
+  padding: 8px 16px;
+  background: #25422d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#textExpanderDialog button:hover {
+  background: #1a2f1f;
+}
+
+.abbr-input,
+.expansion-input {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.abbr-input:read-only,
+.expansion-input:read-only {
+  background: #f8f9fa;
+  cursor: not-allowed;
+}
+
+#textExpanderDialog .dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
+#textExpanderDialog .dialog-buttons button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+#textExpanderDialog #saveChanges {
+  background: #25422d;
+  color: white;
+  border: none;
+}
+
+#textExpanderDialog #saveChanges:hover {
+  background: #1a2f1f;
+}
+
+#textExpanderDialog #cancelChanges {
+  background: #f8f9fa;
+  color: #666;
+  border: 1px solid #ddd;
+}
+
+#textExpanderDialog #cancelChanges:hover {
+  background: #e9ecef;
+  color: #333;
+}
