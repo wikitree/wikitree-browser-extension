@@ -30,7 +30,6 @@ class TextExpander {
       this.expansions = new Map([
         ["wt", "WikiTree"],
         ["wt+", "WikiTree+"],
-        ["g2g", "Genealogy to Genealogy"],
         ["fs", "FamilySearch"],
         ["anc", "Ancestry"],
         ["myh", "MyHeritage"],
