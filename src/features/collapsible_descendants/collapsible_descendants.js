@@ -1,17 +1,10 @@
 /**
- * @file collapsibleDescendants.js
- * @description
- * Adds “– / +” buttons to every row of the WikiTree descendants tree *and* an
- * “Expand / Collapse All” control that is placed context-sensitively:
- *
- * • **DNA “treewidget” pages** — one toggle is injected into each heading
- *   (`<h2 id="Y">`, `<h2 id="X">`) and controls only the tree that follows
- *   that heading.
- * • **Profile & Special:Descendants pages** — a single toggle is inserted
- *   immediately above the first `<ol>` and controls the whole tree.
- *
- * The per-row logic and AJAX resilience are unchanged from the previous
- * version; only the global-toggle helper is new.
+ * @file        collapsibleDescendants.js
+ * @description Adds per-row collapse / expand buttons to WikiTree
+ *              descendants trees and context-sensitive “Collapse / Expand All”
+ *              controls.
+ * @requires    jQuery
+ * @module      collapsibleDescendants
  */
 
 import $ from "jquery";
@@ -19,19 +12,29 @@ import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { isDNADescendants } from "../../core/pageType";
 
 /* ------------------------------------------------------------------ */
-/* Debug helper                                                       */
+/* Configuration / diagnostics                                        */
 /* ------------------------------------------------------------------ */
 
 const DEBUG = false;
 const log = (...m) => DEBUG && console.log("[Collapsible]", ...m);
 
 /* ------------------------------------------------------------------ */
-/* Tiny utilities                                                     */
+/* Utilities                                                          */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Resolves when DOMContentLoaded has fired.
+ * @returns {Promise<void>}
+ */
 const domReady = () =>
   document.readyState === "loading" ? new Promise((r) => addEventListener("DOMContentLoaded", r)) : Promise.resolve();
 
+/**
+ * Waits until the selector matches at least once inside `root`.
+ * @param   {string}    sel   CSS selector
+ * @param   {Element}   root  Root element to observe
+ * @returns {Promise<void>}
+ */
 const waitFor = (sel, root) =>
   new Promise((res) => {
     if (root.querySelector(sel)) return res();
@@ -43,12 +46,16 @@ const waitFor = (sel, root) =>
     }).observe(root, { childList: true, subtree: true });
   });
 
-/** Flip inline `display` between "" and "none". */
+/**
+ * Toggles an element’s inline `display` between "" and "none".
+ * @param {HTMLElement} el
+ */
 const toggleDisplay = (el) => (el.style.display = el.style.display === "none" ? "" : "none");
 
 /* ------------------------------------------------------------------ */
 /* Bootstrap                                                          */
 /* ------------------------------------------------------------------ */
+
 (async () => {
   if (!(await shouldInitializeFeature("collapsibleDescendants"))) return;
 
@@ -56,17 +63,12 @@ const toggleDisplay = (el) => (el.style.display = el.style.display === "none" ? 
   await import("./collapsible_descendants.css");
 
   const container = document.querySelector("#descendantsContainer") ?? document.body;
-
   await waitFor("ol", container);
 
-  addButtonsUnder(container); /* row-level buttons        */
-  observeNewRows(container); /* watch for future rows    */
+  addButtonsUnder(container);
+  observeNewRows(container);
 
-  /* -------------------------------------------------------------- */
-  /* Insert “Expand / Collapse All” buttons                         */
-  /* -------------------------------------------------------------- */
   if (isDNADescendants) {
-    /* Y-DNA and X-DNA live in separate <section>s headed by <h2 id> */
     document.querySelectorAll("h2#Y, h2#X").forEach((h2) => createSectionToggle(h2, h2.parentElement));
   } else {
     const firstOl = container.querySelector("ol");
@@ -77,8 +79,9 @@ const toggleDisplay = (el) => (el.style.display = el.style.display === "none" ? 
 })();
 
 /* ------------------------------------------------------------------ */
-/* Delegated per-row click handler                                    */
+/* Per-row click handler (delegated)                                  */
 /* ------------------------------------------------------------------ */
+
 $(document).on("click", "button.wikitreeturbo", (e) => {
   const btn = /** @type {HTMLButtonElement} */ (e.currentTarget);
   btn.textContent = btn.textContent === "–" ? "+" : "–";
@@ -86,13 +89,11 @@ $(document).on("click", "button.wikitreeturbo", (e) => {
   const li = btn.closest("li");
   if (!li) return;
 
-  /* DNA layout – children in next-sibling <div> */
   if (isDNADescendants && li.nextElementSibling?.tagName === "DIV") {
     toggleDisplay(li.nextElementSibling);
     return;
   }
 
-  /* Classic layout – nested or sibling OL / DIV */
   const target =
     li.querySelector(":scope > ol, :scope > div") ??
     (["OL", "DIV"].includes(li.nextElementSibling?.tagName ?? "") ? li.nextElementSibling : null);
@@ -101,9 +102,13 @@ $(document).on("click", "button.wikitreeturbo", (e) => {
 });
 
 /* ------------------------------------------------------------------ */
-/* Helpers – row-level buttons                                        */
+/* Row-level helpers                                                  */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Prepends a ± button to every descendant row that qualifies.
+ * @param {Element} root
+ */
 function addButtonsUnder(root) {
   /** @type {HTMLLIElement[]} */
   const lis = [];
@@ -118,11 +123,10 @@ function addButtonsUnder(root) {
     const hasSiblingOl = li.nextElementSibling?.tagName === "OL";
     const hasDescLink = li.querySelector('a[href$="/890"]');
 
-    const qualifies = hasNestedOl || hasNextDiv || hasSiblingOl || hasDescLink;
-
-    if (!qualifies) return;
+    if (!(hasNestedOl || hasNextDiv || hasSiblingOl || hasDescLink)) return;
 
     li.classList.add("wtt-togglable");
+
     const btn = document.createElement("button");
     btn.className = "wikitreeturbo wbe";
     btn.textContent = "–";
@@ -130,6 +134,10 @@ function addButtonsUnder(root) {
   });
 }
 
+/**
+ * Observes `root` for added LI/OL/DIV nodes and augments them on the fly.
+ * @param {Element} root
+ */
 function observeNewRows(root) {
   new MutationObserver((muts) =>
     muts.forEach(({ addedNodes }) =>
@@ -143,15 +151,13 @@ function observeNewRows(root) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Helpers – section / global toggles                                 */
+/* Section- and page-wide toggles                                     */
 /* ------------------------------------------------------------------ */
 
 /**
- * Creates a toggle button inside an <h2> (DNA page) that controls only the
- * tree contained in its sibling <ol>/<div> elements.
- *
- * @param {HTMLHeadingElement} heading – <h2 id="Y"> or <h2 id="X">.
- * @param {HTMLElement} section        – parent <section>.
+ * Creates a toggle button inside an H2 that controls only its section.
+ * @param {HTMLHeadingElement} heading
+ * @param {HTMLElement}        section
  */
 function createSectionToggle(heading, section) {
   const btn = document.createElement("button");
@@ -160,7 +166,6 @@ function createSectionToggle(heading, section) {
   heading.append(" ", btn);
 
   let collapsed = false;
-
   btn.addEventListener("click", () => {
     toggleAll(section, !collapsed);
     collapsed = !collapsed;
@@ -169,10 +174,8 @@ function createSectionToggle(heading, section) {
 }
 
 /**
- * Inserts a toggle button immediately above the first <ol> on profile/special
- * pages.
- *
- * @param {HTMLElement} firstOl – the first ordered-list of the tree.
+ * Inserts a page-wide toggle button above the first OL.
+ * @param {HTMLElement} firstOl
  */
 function insertGlobalToggle(firstOl) {
   const wrapper = document.createElement("div");
@@ -183,7 +186,6 @@ function insertGlobalToggle(firstOl) {
   firstOl.parentElement.insertBefore(wrapper, firstOl);
 
   let collapsed = false;
-
   btn.addEventListener("click", () => {
     toggleAll(firstOl.closest("#descendantsContainer") ?? document.body, !collapsed);
     collapsed = !collapsed;
@@ -191,18 +193,49 @@ function insertGlobalToggle(firstOl) {
   });
 }
 
+/* ------------------------------------------------------------------ */
+/* Fast global collapse / expand                                      */
+/* ------------------------------------------------------------------ */
+
 /**
- * Clicks every individual row-toggle inside `scope` so existing row logic
- * performs the show/hide work.
- *
- * @param {Element} scope         – subtree to search.
- * @param {boolean} toCollapse    – true → collapse, false → expand.
+ * Collapses or expands all togglable rows inside `scope`.
+ * @param {Element} scope
+ * @param {boolean} collapse
  */
-function toggleAll(scope, toCollapse) {
-  /** @type {HTMLButtonElement[]} */
-  const buttons = Array.from(scope.querySelectorAll("button.wikitreeturbo"));
-  buttons.forEach((b) => {
-    if (toCollapse && b.textContent === "–") b.click();
-    if (!toCollapse && b.textContent === "+") b.click();
-  });
+function toggleAll(scope, collapse) {
+  scope.querySelectorAll("li.wtt-togglable").forEach((li) => setRowState(li, collapse));
+}
+
+/**
+ * Ensures a single row is in the desired state.
+ * @param {HTMLLIElement} li
+ * @param {boolean}       collapse
+ */
+function setRowState(li, collapse) {
+  const btn = li.querySelector(":scope > button.wikitreeturbo");
+  if (!btn) return;
+
+  const target = findDescendantBlock(li);
+  if (!target) return;
+
+  if (collapse && btn.textContent === "+") return;
+  if (!collapse && btn.textContent === "–") return;
+
+  btn.textContent = collapse ? "+" : "–";
+  target.style.display = collapse ? "none" : "";
+}
+
+/**
+ * Locates the element that must be shown/hidden for a row.
+ * @param   {HTMLLIElement} li
+ * @returns {HTMLElement|null}
+ */
+function findDescendantBlock(li) {
+  if (isDNADescendants && li.nextElementSibling?.tagName === "DIV") {
+    return li.nextElementSibling;
+  }
+  return (
+    li.querySelector(":scope > ol, :scope > div") ??
+    (["OL", "DIV"].includes(li.nextElementSibling?.tagName ?? "") ? li.nextElementSibling : null)
+  );
 }
