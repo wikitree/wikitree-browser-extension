@@ -349,7 +349,7 @@ async function checkAnyDataFeature() {
 }
 
 async function checkButtonFeatures() {
-  const features = ["extraWatchlist", "clipboardAndNotes", "spaceWatchlistSorter", "collapsibleProfiles"];
+  const features = ["extraWatchlist", "clipboardAndNotes", "spaceWatchlistSorter", "collapsibleProfiles","textExpander"];
   const promises = features.map((feature) => checkIfFeatureEnabled(feature));
 
   let buttonContainer2 = $("<div>").addClass("wbe-button-container2");

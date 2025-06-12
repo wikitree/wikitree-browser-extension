@@ -2,12 +2,17 @@ import { isMainDomain } from "../../core/pageType";
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage.js";
 import "../../core/common.css";
-import "./text_expander.css";
+import PerfectScrollbar from 'perfect-scrollbar';
+import 'perfect-scrollbar/css/perfect-scrollbar.css';
+
 /* global chrome */
 
 class TextExpander {
   constructor() {
     this.expansions = new Map();
+    this.originalExpansions = new Map(); // Store original state for cancel
+    this.hasChanges = false;
+    this.ps = null; // Store Perfect Scrollbar instance
     this.initializeExpansions().then(() => {
       this.setupEventListeners();
       this.loadCustomExpansions();
@@ -63,9 +68,9 @@ class TextExpander {
     const manageButton = $("<a>")
       .attr("id", "textExpanderButton")
       .addClass("wbe-button")
-      .attr("data-bs-title", "Manage Text Expansions")
+      .attr("data-bs-title", "Text Expander")
       .attr("data-bs-toggle", "tooltip")
-      .attr("data-tooltip", "Manage Text Expansions")
+      .attr("data-tooltip", "Text Expander")
       .append(
         $("<span>")
           .addClass("icon--textExpander")
@@ -80,16 +85,20 @@ class TextExpander {
   }
 
   showManageDialog() {
+    // Store original state for cancel functionality
+    this.originalExpansions = new Map(this.expansions);
+    this.hasChanges = false;
+
     const dialog = $(`
       <div id="textExpanderDialog" class="wbe-popup">
-        <h1>Manage Text Expansions<span class="close-popup">&times;</span></h1>
+        <h1>Text Expander<span class="close-popup">&times;</span></h1>
         <div class="expansions-list">
           <table>
             <thead>
               <tr>
                 <th>Abbreviation</th>
                 <th>Expansion</th>
-                <th>Actions</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -105,7 +114,7 @@ class TextExpander {
                       <input type="text" class="expansion-input" value="${expansion}">
                     </td>
                     <td>
-                      <button class="delete-expansion" data-abbr="${abbr}">Delete</button>
+                      <button class="delete-expansion" data-abbr="${abbr}" title="Delete">🗑️</button>
                     </td>
                   </tr>
                 `
@@ -120,19 +129,35 @@ class TextExpander {
           <button id="addExpansion">Add</button>
         </div>
         <div class="dialog-buttons">
-          <button id="saveChanges">Save Changes</button>
-          <button id="cancelChanges">Cancel</button>
+          <button id="cancelChanges" class="inactive">Cancel Changes</button>
         </div>
       </div>
     `);
 
     $("body").append(dialog);
 
-    // Close button
-    dialog.find(".close-popup, #cancelChanges").on("click", () => {
-      dialog.remove();
-      return false; // Prevent any other handlers from firing
+    // Initialize Perfect Scrollbar
+    const container = dialog.find('.expansions-list')[0];
+    this.ps = new PerfectScrollbar(container, {
+      suppressScrollX: true,
+      wheelPropagation: false
     });
+
+    // Update scrollbar when content changes
+    const updateScrollbar = () => {
+      if (this.ps) {
+        this.ps.update();
+      }
+    };
+
+    const updateCancelButton = () => {
+      const $cancelButton = dialog.find("#cancelChanges");
+      if (this.hasChanges) {
+        $cancelButton.removeClass("inactive").addClass("active");
+      } else {
+        $cancelButton.removeClass("active").addClass("inactive");
+      }
+    };
 
     // Handle edits
     dialog.find(".abbr-input, .expansion-input").on("change", (e) => {
@@ -142,8 +167,10 @@ class TextExpander {
       const newExpansion = $row.find(".expansion-input").val().trim();
 
       if (newAbbr && newExpansion) {
-        // Store the changes but don't save yet
-        $row.data("changes", { oldAbbr, newAbbr, newExpansion });
+        this.expansions.delete(oldAbbr);
+        this.expansions.set(newAbbr, newExpansion);
+        this.hasChanges = true;
+        updateCancelButton();
       }
     });
 
@@ -151,10 +178,10 @@ class TextExpander {
     dialog.find(".delete-expansion").on("click", (e) => {
       const $row = $(e.target).closest("tr");
       const abbr = $row.find(".abbr-input").val().trim();
-      // Remove from the map immediately
       this.expansions.delete(abbr);
-      // Remove the row from the table
       $row.remove();
+      this.hasChanges = true;
+      updateCancelButton();
     });
 
     // Add new expansion
@@ -163,12 +190,9 @@ class TextExpander {
       const expansion = dialog.find("#newExpansion").val().trim();
 
       if (abbr && expansion) {
-        // Add to the map but don't save yet
         this.expansions.set(abbr, expansion);
-        // Clear the input fields
         dialog.find("#newAbbr, #newExpansion").val("");
 
-        // Add the new row to the table in the correct position
         const newRow = $(`
           <tr>
             <td>
@@ -178,43 +202,59 @@ class TextExpander {
               <input type="text" class="expansion-input" value="${expansion}">
             </td>
             <td>
-              <button class="delete-expansion" data-abbr="${abbr}">Delete</button>
+              <button class="delete-expansion" data-abbr="${abbr}" title="Delete">🗑️</button>
             </td>
           </tr>
         `);
 
-        // Find the correct position to insert the new row
         let inserted = false;
         dialog.find("tbody tr").each((_, row) => {
           const rowAbbr = $(row).find(".abbr-input").val();
           if (abbr.localeCompare(rowAbbr) < 0) {
             $(row).before(newRow);
             inserted = true;
-            return false; // break the loop
+            return false;
           }
         });
 
-        // If not inserted, append to the end
         if (!inserted) {
           dialog.find("tbody").append(newRow);
         }
+
+        this.hasChanges = true;
+        updateCancelButton();
+        updateScrollbar();
       }
     });
 
-    // Save changes
-    dialog.find("#saveChanges").on("click", () => {
-      // Apply all changes
-      dialog.find("tr").each((_, row) => {
-        const $row = $(row);
-        if ($row.data("changes")) {
-          const { oldAbbr, newAbbr, newExpansion } = $row.data("changes");
-          this.expansions.delete(oldAbbr);
-          this.expansions.set(newAbbr, newExpansion);
-        }
-      });
+    // Cancel changes
+    dialog.find("#cancelChanges").on("click", () => {
+      if (this.hasChanges) {
+        this.expansions = new Map(this.originalExpansions);
+        this.hasChanges = false;
+        updateCancelButton();
+        dialog.remove();
+        this.showManageDialog(); // Refresh the dialog with original data
+      }
+    });
 
-      this.saveCustomExpansions();
+    // Clean up Perfect Scrollbar when dialog is closed
+    const closeDialog = () => {
+      if (this.hasChanges) {
+        this.saveCustomExpansions();
+      }
+      if (this.ps) {
+        this.ps.destroy();
+        this.ps = null;
+      }
       dialog.remove();
+    };
+
+    dialog.find(".close-popup").on("click", closeDialog);
+    $(document).on("keydown", (e) => {
+      if (e.key === "Escape" && dialog.is(":visible")) {
+        closeDialog();
+      }
     });
   }
 
@@ -254,6 +294,7 @@ class TextExpander {
 if (isMainDomain) {
   shouldInitializeFeature("textExpander").then((result) => {
     if (result) {
+      import("./text_expander.css");  
       new TextExpander();
     }
   });
