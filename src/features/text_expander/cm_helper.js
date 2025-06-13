@@ -46,13 +46,18 @@
           setupCodeMirror(node.CodeMirror);
         }
       }
+      // Also check for CodeMirror being removed and re-added
+      for (const node of mutation.removedNodes) {
+        if (node.classList?.contains("CodeMirror")) {
+          // When CodeMirror is removed, we'll wait for it to be re-added
+          // The observer will catch the re-addition and set it up again
+        }
+      }
     }
   });
 
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true,
-  });
+  // Start observing the document with the configured parameters
+  observer.observe(document.body, { childList: true, subtree: true });
 
   // Setup text expansion for a CodeMirror instance
   function setupCodeMirror(cm) {
