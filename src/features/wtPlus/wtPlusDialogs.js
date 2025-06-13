@@ -164,7 +164,7 @@ export async function selectCIB(data, hideTopLevel) {
     "</label><br>" +
     '<label for="flt1">Filter: </label><input type="text" class="cbFilter" id="flt1" name="flt1" data-op="onDlgSelectCIBFlt" data-id="9" autofocus>' +
     '<label id="cntr">enter word(s) to find</label><br>' +
-    '<div style="min-width: 600px;overflow-y:auto;height: 400px;"><table style="width: 100%;" id="tb">' +
+    '<div style="min-width: 558px;overflow-y:auto;height: 400px;"><table style="width: 100%;" id="tb">' +
     "</table></div>" +
     '<div style="text-align:right">' +
     '<a class="button" href="https://' + mainDomain + '/wiki/Space:WikiTree_Plus_Chrome_Extension#Add_Template" target="_blank">Help</a>' +

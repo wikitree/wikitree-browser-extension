@@ -749,7 +749,7 @@ function selectTemplate(data) {
     (data == "CategoryInfoBox" ? " checked" : "") +
     '><label for="cb5"> CategoryInfoBox</label><br>' +
     '<label for="flt1">Filter: </label><input type="text" class="cbFilter" id="flt1" name="flt1" data-op="onDlgSelectTemplateFlt" data-id="9" autofocus><br>' +
-    '<div style="min-width: 600px;overflow-y:auto;height: 400px;"><table style="width: 100%;" id="tb">' +
+    '<div style="min-width: 558px;overflow-y:auto;height: 400px;"><table style="width: 100%;" id="tb">' +
     dataTables.templates
       .map(
         (item) =>
