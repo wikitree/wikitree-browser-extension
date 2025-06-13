@@ -26,7 +26,9 @@
         "js/images/*",
         "fonts/*.woff2",
         "fonts/*.woff",
-        "fonts/*.ttf"
+        "fonts/*.ttf",
+        "features/text_expander/cm_helper.js",
+        "features/text_expander/event_dispatcher.js"
       ]
     }
   ],

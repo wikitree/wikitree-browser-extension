@@ -55,6 +55,16 @@ module.exports = (env) => ({
           to: "../manifest.json",
           context: "src",
         },
+        {
+          from: "features/text_expander/cm_helper.js",
+          to: "../features/text_expander/cm_helper.js",
+          context: "src",
+        },
+        {
+          from: "features/text_expander/event_dispatcher.js",
+          to: "../features/text_expander/event_dispatcher.js",
+          context: "src",
+        },
       ],
     }),
     new webpack.DefinePlugin({

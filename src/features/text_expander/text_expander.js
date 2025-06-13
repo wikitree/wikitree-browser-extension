@@ -2,8 +2,8 @@ import { isMainDomain } from "../../core/pageType";
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage.js";
 import "../../core/common.css";
-import PerfectScrollbar from 'perfect-scrollbar';
-import 'perfect-scrollbar/css/perfect-scrollbar.css';
+import PerfectScrollbar from "perfect-scrollbar";
+import "perfect-scrollbar/css/perfect-scrollbar.css";
 
 /* global chrome */
 
@@ -13,10 +13,12 @@ class TextExpander {
     this.originalExpansions = new Map(); // Store original state for cancel
     this.hasChanges = false;
     this.ps = null; // Store Perfect Scrollbar instance
+    this.helperScriptId = "wbe-text-expander-helper";
     this.initializeExpansions().then(() => {
       this.setupEventListeners();
-      this.loadCustomExpansions();
-      this.addManageButton();
+      this.injectHelperScript(); // inject helper for CodeMirror
+      this.sendExpansionUpdate(); // send initial expansions
+      this.addButtonListener();
       // Update the button's background image
       $("#textExpanderButton .icon--textExpander").css(
         "background-image",
@@ -26,62 +28,94 @@ class TextExpander {
   }
 
   async initializeExpansions() {
-    // Try to load from storage first
-    const stored = await chrome.storage.local.get("textExpanderExpansions");
-    if (stored.textExpanderExpansions) {
-      this.expansions = new Map(Object.entries(stored.textExpanderExpansions));
+    // Load from localStorage
+    const stored = localStorage.getItem("wbe_text_expander_custom");
+    if (stored) {
+      try {
+        const existingExpansions = JSON.parse(stored);
+        this.expansions = new Map(Object.entries(existingExpansions));
+      } catch (err) {
+        this.initializeDefaultExpansions();
+      }
     } else {
-      // If nothing in storage, initialize with defaults
-      this.expansions = new Map([
-        ["wt", "WikiTree"],
-        ["wt+", "WikiTree+"],
-        ["fs", "FamilySearch"],
-        ["anc", "Ancestry"],
-        ["myh", "MyHeritage"],
-        ["ged", "GEDCOM"],
-        ["dna", "DNA"],
-      ]);
-      this.saveCustomExpansions();
+      // If no stored expansions, initialize with defaults
+      this.initializeDefaultExpansions();
     }
   }
 
-  loadCustomExpansions() {
-    const customExpansions = localStorage.getItem("wbe_text_expander_custom");
-    if (!customExpansions) return;
+  initializeDefaultExpansions() {
+    // Start with defaults
+    const defaultExpansions = new Map([
+      ["wt", "WikiTree"],
+      ["wt+", "WikiTree+"],
+      ["fs", "FamilySearch"],
+      ["fg", "FindAGrave"],
+      ["anc", "Ancestry"],
+      ["myh", "MyHeritage"],
+      ["ged", "GEDCOM"],
+      ["dna", "DNA"],
+    ]);
 
-    try {
-      const expansions = JSON.parse(customExpansions);
-      for (const [abbr, expansion] of Object.entries(expansions)) {
-        this.expansions.set(abbr, expansion);
+    // If we already have some expansions, merge with defaults
+    if (this.expansions.size > 0) {
+      // Add any missing defaults
+      for (const [key, value] of defaultExpansions) {
+        if (!this.expansions.has(key)) {
+          this.expansions.set(key, value);
+        }
       }
-    } catch (err) {
-      console.error("Error loading custom expansions:", err);
+    } else {
+      // If no existing expansions, use defaults
+      this.expansions = defaultExpansions;
     }
+
+    this.saveCustomExpansions();
+  }
+
+  /** Injects cm_helper.js via chrome-extension:// URL */
+  injectHelperScript() {
+    if (document.getElementById(this.helperScriptId)) return; // already in
+
+    const scriptURL = chrome.runtime.getURL("features/text_expander/cm_helper.js");
+
+    const s = document.createElement("script");
+    s.id = this.helperScriptId;
+    s.src = scriptURL;
+    s.onload = () => {};
+    s.onerror = () => {};
+    document.documentElement.appendChild(s);
+  }
+
+  /** Sends current expansions to helper */
+  sendExpansionUpdate() {
+    const expansions = Object.fromEntries(this.expansions);
+
+    // Load and execute the event dispatcher script with expansions data
+    const dispatcher = document.createElement("script");
+    dispatcher.src = chrome.runtime.getURL("features/text_expander/event_dispatcher.js");
+    dispatcher.setAttribute("data-expansions", JSON.stringify({ expansions }));
+    dispatcher.onload = () => {
+      dispatcher.remove();
+    };
+    dispatcher.onerror = () => {};
+    document.documentElement.appendChild(dispatcher);
   }
 
   saveCustomExpansions() {
     const expansionsObj = Object.fromEntries(this.expansions);
-    chrome.storage.local.set({ textExpanderExpansions: expansionsObj });
+    localStorage.setItem("wbe_text_expander_custom", JSON.stringify(expansionsObj));
+    this.sendExpansionUpdate(); // inform helper of changes
+
+    // Trigger a refresh of any existing CodeMirror instances
+    const refreshEvent = new CustomEvent("wbeTextExpanderRefresh");
+    document.dispatchEvent(refreshEvent);
   }
 
-  addManageButton() {
-    const manageButton = $("<a>")
-      .attr("id", "textExpanderButton")
-      .addClass("wbe-button")
-      .attr("data-bs-title", "Text Expander")
-      .attr("data-bs-toggle", "tooltip")
-      .attr("data-tooltip", "Text Expander")
-      .append(
-        $("<span>")
-          .addClass("icon--textExpander")
-          .css("background-image", `url(${chrome.runtime.getURL("images/text-expander.svg")})`)
-      )
-      .on("click", (e) => {
-        e.preventDefault();
-        this.showManageDialog();
-      });
-
-    $(".clipboardContainer").append(manageButton);
+  addButtonListener() {
+    $(document).on("click", "#textExpanderButton", (e) => {
+      e.preventDefault();
+      this.showManageDialog();
+    });
   }
 
   showManageDialog() {
@@ -137,10 +171,10 @@ class TextExpander {
     $("body").append(dialog);
 
     // Initialize Perfect Scrollbar
-    const container = dialog.find('.expansions-list')[0];
+    const container = dialog.find(".expansions-list")[0];
     this.ps = new PerfectScrollbar(container, {
       suppressScrollX: true,
-      wheelPropagation: false
+      wheelPropagation: false,
     });
 
     // Update scrollbar when content changes
@@ -294,7 +328,7 @@ class TextExpander {
 if (isMainDomain) {
   shouldInitializeFeature("textExpander").then((result) => {
     if (result) {
-      import("./text_expander.css");  
+      import("./text_expander.css");
       new TextExpander();
     }
   });

@@ -331,6 +331,7 @@ async function checkAnyDataFeature() {
     "extraWatchlist",
     "myMenu",
     "spaceWatchlistSorter",
+    "textExpander",
   ];
   const promises = dataFeatures.map((feature) => checkIfFeatureEnabled(feature));
 
@@ -349,7 +350,13 @@ async function checkAnyDataFeature() {
 }
 
 async function checkButtonFeatures() {
-  const features = ["extraWatchlist", "clipboardAndNotes", "spaceWatchlistSorter", "collapsibleProfiles","textExpander"];
+  const features = [
+    "extraWatchlist",
+    "clipboardAndNotes",
+    "spaceWatchlistSorter",
+    "collapsibleProfiles",
+    "textExpander",
+  ];
   const promises = features.map((feature) => checkIfFeatureEnabled(feature));
 
   let buttonContainer2 = $("<div>").addClass("wbe-button-container2");
@@ -396,6 +403,7 @@ async function checkButtonFeatures() {
     const notesImg = chrome.runtime.getURL("images/notepad2.svg");
     const spaceWatchlistImg = chrome.runtime.getURL("images/s.svg");
     const collapseProfilesImg = chrome.runtime.getURL("images/collapse.svg");
+    const textExpanderImg = chrome.runtime.getURL("images/expand-right.svg");
 
     // Button creation function
     const createButton = (options) => {
@@ -492,6 +500,16 @@ async function checkButtonFeatures() {
         .catch((error) => {
           console.error("Error fetching feature options for collapsibleProfiles:", error);
         });
+    }
+    if (results[4]) {
+      $(".clipboardContainer").append(
+        createButton({
+          id: "textExpanderButton",
+          aClass: "textExpanderButton",
+          title: "Text Expander",
+          img: textExpanderImg,
+        })
+      );
     }
   } catch (error) {
     console.error("Error checking features to initialize:", error);
@@ -597,8 +615,8 @@ function importFeatureData() {
 function addDataButtons() {
   const commonText =
     "of all data associated with features of WikiTree Browser Extension. This includes data for Change Summary " +
-    "Options, Clipboard and Notes, Distance and Relationships, Extra Watchlist, My Menu, and Space Watchlist " +
-    "Sorter";
+    "Options, Clipboard and Notes, Distance and Relationships, Extra Watchlist, My Menu, Space Watchlist " +
+    "Sorter, and Text Expander";
   const dataButtons = `
     <div id="featureDataButtons">
       <button id="downloadFeatureData" class="btn btn-secondary btn-sm"
@@ -1151,6 +1169,7 @@ async function backupData(compactMode, sendResponse) {
   data.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
   data.myMenu = localStorage.customMenu;
   data.extraWatchlist = localStorage.extraWatchlist;
+  data.textExpander = localStorage.wbe_text_expander_custom; // Add text expander data
 
   const databases = compactMode ? WBE_DATABASES_MINIMAL : WBE_DATABASES_ALL;
 
@@ -1244,6 +1263,10 @@ async function restoreData(data, sendResponse) {
   }
   if (data.extraWatchlist) {
     localStorage.setItem("extraWatchlist", data.extraWatchlist);
+  }
+  if (data.textExpander) {
+    // Add text expander restore
+    localStorage.setItem("wbe_text_expander_custom", data.textExpander);
   }
   if (data.clipboard) {
     await restoreIndexedDB("Clipboard", { Clipboard: data.clipboard });
