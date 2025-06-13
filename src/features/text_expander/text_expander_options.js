@@ -6,8 +6,7 @@ registerFeature({
   id: "textExpander",
   description:
     "Automatically expands your own abbreviations as you type. " +
-    "Set your own abbreviations by clicking the arrow icon with the other WBE buttons. " +
-    "(Not compatible with the Enhanced Editor.)",
+    "Set your own abbreviations by clicking the arrow icon with the other WBE buttons.",
   category: "Global",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
