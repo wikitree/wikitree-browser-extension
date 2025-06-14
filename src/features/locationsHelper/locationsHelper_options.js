@@ -52,5 +52,11 @@ registerFeature({
       label: "Add 'County' to US locations",
       defaultValue: false,
     },
+    {
+      id: "useNativeCountryNames",
+      type: OptionType.CHECKBOX,
+      label: "Use native country names (e.g. Polska instead of Poland)",
+      defaultValue: false,
+    },
   ],
 });

@@ -15,6 +15,8 @@ import {
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 // import { australian_locations } from "./auto_bio/australian_locations";
 import { profilePerson } from "../../core/common";
+import { countries } from "../auto_bio/countries";
+import { countryTranslations } from "./country_translations";
 
 //Cape
 const vocEnd = new Date("1795-09-17");
@@ -34,14 +36,17 @@ const natalStart = new Date("1856-01-01");
 
 shouldInitializeFeature("locationsHelper").then((result) => {
   if (result) {
+    console.log("Locations Helper feature is enabled");
     import("./locationsHelper.css");
     getFeatureOptions("locationsHelper").then((options) => {
+      console.log("Locations Helper options:", options);
       window.locationsHelperOptions = options;
     });
 
     $("#mBirthLocation,#mDeathLocation,#Email[name='mMarriageLocation'],#mLocation,#photo_location").on(
       "focus",
       function () {
+        console.log("Location field focused");
         if (!window.bdLocations) {
           locationsHelper();
         }
@@ -50,9 +55,12 @@ shouldInitializeFeature("locationsHelper").then((result) => {
 
     setTimeout(function () {
       $("#mMarriageLocation").on("focus", function () {
+        console.log("Marriage location field focused");
         locationsHelper();
       });
     }, 5000);
+  } else {
+    console.log("Locations Helper feature is disabled");
   }
 });
 
@@ -175,7 +183,95 @@ async function locationsHelper() {
           } else if (activeEl.id == "photo_location") {
             whichLocation = "photoLocation";
           }
+
+          // Get the original data value
+          const suggestionEl = $(added_node).find(".autocomplete-suggestion");
+          const originalVal = suggestionEl.attr("data-val");
+          console.log("Original suggestion value:", originalVal);
+
+          if (window.locationsHelperOptions?.useNativeCountryNames && originalVal) {
+            // Split the location into parts
+            const parts = originalVal.split(", ");
+            const lastPart = parts[parts.length - 1];
+            console.log("Last part of location:", lastPart);
+
+            // Handle dates in parentheses
+            const dateMatch = lastPart.match(/^(.*?)\s*\(([^)]*)\)$/);
+            const countryName = dateMatch ? dateMatch[1].trim() : lastPart;
+            const dateSuffix = dateMatch ? ` (${dateMatch[2]})` : "";
+            console.log("Country name after date handling:", countryName);
+            console.log("Date suffix:", dateSuffix);
+
+            let translatedLocation = originalVal;
+
+            // Check for US first - but only if it's not an English location
+            if (
+              !countryName.includes("England") &&
+              !countryName.includes("Scotland") &&
+              !countryName.includes("Wales") &&
+              !countryName.includes("Ireland")
+            ) {
+              if (
+                countryName.includes("United States") ||
+                countryName.includes("Verenigde Staten") ||
+                countryName.includes("États-Unis") ||
+                countryName.includes("Vereinigte Staaten") ||
+                countryName.includes("Verenigd Koninkrijk")
+              ) {
+                console.log("Found US variation, converting to United States");
+                parts[parts.length - 1] = "United States" + dateSuffix;
+                translatedLocation = parts.join(", ");
+              } else {
+                // Check other country translations
+                console.log("Checking other country translations");
+                for (const [countryCode, translations] of Object.entries(countryTranslations)) {
+                  console.log(`Checking translations for ${countryCode}:`, translations);
+                  for (const [langCode, translation] of Object.entries(translations)) {
+                    // Normalize both strings for comparison
+                    const normalizedCountryName = countryName.toLowerCase().trim();
+                    const normalizedTranslation = translation.toLowerCase().trim();
+
+                    if (
+                      normalizedCountryName === normalizedTranslation ||
+                      normalizedCountryName.includes(normalizedTranslation) ||
+                      normalizedTranslation.includes(normalizedCountryName)
+                    ) {
+                      console.log(`Found matching translation: ${translation} for country ${countryCode}`);
+                      const country = countries.find((c) => c.name === countryName || c.nativeName === countryName);
+                      console.log("Found country:", country);
+                      if (country) {
+                        parts[parts.length - 1] = country.nativeName + dateSuffix;
+                        translatedLocation = parts.join(", ");
+                        console.log("Updated location:", translatedLocation);
+                      }
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+
+            // Update both the data value and the displayed text
+            if (translatedLocation !== originalVal) {
+              console.log("Updating suggestion from:", originalVal, "to:", translatedLocation);
+              suggestionEl.attr("data-val", translatedLocation);
+
+              // Update the displayed text while preserving the highlighted term
+              const innerBit = $(added_node).find(".autocomplete-suggestion-head");
+              if (innerBit.length) {
+                const term = innerBit.find(".autocomplete-suggestion-term").text();
+                const newText = translatedLocation.replace(
+                  term,
+                  `<span class="autocomplete-suggestion-term">${term}</span>`
+                );
+                innerBit.html(newText);
+              }
+            }
+          }
+
           let dText = added_node.textContent;
+          console.log("Processing suggestion:", dText);
+
           let currentBirthYearMatch = null;
           let currentDeathYearMatch = null;
           let currentMarriageYearMatch = null;
@@ -249,8 +345,6 @@ async function locationsHelper() {
           }
 
           if (window.locationsHelperOptions?.correctLocations || window.locationsHelperOptions?.addUSCounty) {
-            const innerBit = $(added_node).find(".autocomplete-suggestion-head");
-
             let theDateStr = "";
             if (whichLocation == "Birth") {
               theDateStr = $("#mBirthDate").val();
@@ -269,6 +363,67 @@ async function locationsHelper() {
             if (window.locationsHelperOptions?.correctLocations && goodDate) {
               // Brisbane
               dText = dText.replace("Brisbane City, Queensland, Australia", "Brisbane, Queensland, Australia");
+
+              // Use native country names if enabled
+              if (window.locationsHelperOptions?.useNativeCountryNames) {
+                console.log("Native country names feature is enabled");
+                // Split the location into parts
+                const parts = dText.split(", ");
+                const lastPart = parts[parts.length - 1];
+                console.log("Original location:", dText);
+                console.log("Last part:", lastPart);
+
+                // Handle dates in parentheses
+                const dateMatch = lastPart.match(/^(.*?)\s*\(([^)]*)\)$/);
+                const countryName = dateMatch ? dateMatch[1].trim() : lastPart;
+                const dateSuffix = dateMatch ? ` (${dateMatch[2]})` : "";
+                console.log("Country name after date handling:", countryName);
+                console.log("Date suffix:", dateSuffix);
+
+                // First check if the last part is a translated country name
+                for (const [countryCode, translations] of Object.entries(countryTranslations)) {
+                  console.log(`Checking translations for ${countryCode}:`, translations);
+                  for (const [langCode, translation] of Object.entries(translations)) {
+                    // Check for exact match or if the translation is part of a longer name
+                    if (translation === countryName || countryName.includes(translation)) {
+                      console.log(`Found matching translation: ${translation} for country ${countryCode}`);
+                      // Found a translated name, replace with native name
+                      const country = countries.find((c) => c.name === countryName || c.nativeName === countryName);
+                      console.log("Found country:", country);
+                      if (country) {
+                        // For US, always use "United States" instead of native name
+                        if (countryCode === "US") {
+                          parts[parts.length - 1] = "United States" + dateSuffix;
+                        } else {
+                          parts[parts.length - 1] = country.nativeName + dateSuffix;
+                        }
+                        dText = parts.join(", ");
+                        console.log("Updated location:", dText);
+                      }
+                      break;
+                    }
+                  }
+                }
+
+                // If no translation was found, check if it's a direct country name
+                if (dText === lastPart) {
+                  console.log("No translation found, checking direct country names");
+                  for (const country of countries) {
+                    if (country.name === countryName && country.nativeName !== country.name) {
+                      console.log("Found direct country match:", country);
+                      // For US, always use "United States" instead of native name
+                      if (country.name === "United States of America") {
+                        parts[parts.length - 1] = "United States" + dateSuffix;
+                      } else {
+                        parts[parts.length - 1] = country.nativeName + dateSuffix;
+                      }
+                      dText = parts.join(", ");
+                      console.log("Updated location after direct match:", dText);
+                      break;
+                    }
+                  }
+                }
+              }
 
               if (dText.match(/Auschwitz-Birkenau/)) {
                 dText =
@@ -727,6 +882,7 @@ function findLocationByDate(dateObj, locationHistory) {
 }
 
 function addNewSuggestion(added_node, term, location, record, villages = []) {
+  console.log("Adding new suggestion:", { term, location, record });
   if ($(".autocomplete-suggestion-container." + term).length == 0) {
     for (let i = 0; i < villages.length + 1; i++) {
       let villageBit = "";
@@ -740,9 +896,78 @@ function addNewSuggestion(added_node, term, location, record, villages = []) {
       }
       const endBit = location.replace(aRegex, "");
       const theDates = record ? " (" + (record.startDate || "") + " - " + (record.endDate || "") + ")" : "";
+
+      // Translate country names if enabled
+      let translatedLocation = location;
+      console.log(
+        "Checking if native country names are enabled:",
+        window.locationsHelperOptions?.useNativeCountryNames
+      );
+      if (window.locationsHelperOptions?.useNativeCountryNames) {
+        console.log("Native country names feature is enabled, processing location:", location);
+        const parts = location.split(", ");
+        const lastPart = parts[parts.length - 1];
+        console.log("Last part of location:", lastPart);
+
+        // Handle dates in parentheses - more robust pattern
+        const dateMatch = lastPart.match(/^(.*?)\s*\(([^)]*)\)$/);
+        const countryName = dateMatch ? dateMatch[1].trim() : lastPart;
+        const dateSuffix = dateMatch ? ` (${dateMatch[2]})` : "";
+        console.log("Country name after date handling:", countryName);
+        console.log("Date suffix:", dateSuffix);
+
+        // Check for US first
+        if (
+          !countryName.includes("England") &&
+          !countryName.includes("Scotland") &&
+          !countryName.includes("Wales") &&
+          !countryName.includes("Ireland")
+        ) {
+          if (
+            countryName.includes("United States") ||
+            countryName.includes("Verenigde Staten") ||
+            countryName.includes("États-Unis") ||
+            countryName.includes("Vereinigte Staaten") ||
+            countryName.includes("Verenigd Koninkrijk")
+          ) {
+            console.log("Found US variation, converting to United States");
+            parts[parts.length - 1] = "United States" + dateSuffix;
+            translatedLocation = parts.join(", ");
+          } else {
+            // Check other country translations
+            console.log("Checking other country translations");
+            for (const [countryCode, translations] of Object.entries(countryTranslations)) {
+              console.log(`Checking translations for ${countryCode}:`, translations);
+              for (const [langCode, translation] of Object.entries(translations)) {
+                // Normalize both strings for comparison
+                const normalizedCountryName = countryName.toLowerCase().trim();
+                const normalizedTranslation = translation.toLowerCase().trim();
+
+                if (
+                  normalizedCountryName === normalizedTranslation ||
+                  normalizedCountryName.includes(normalizedTranslation) ||
+                  normalizedTranslation.includes(normalizedCountryName)
+                ) {
+                  console.log(`Found matching translation: ${translation} for country ${countryCode}`);
+                  const country = countries.find((c) => c.name === countryName || c.nativeName === countryName);
+                  console.log("Found country:", country);
+                  if (country) {
+                    parts[parts.length - 1] = country.nativeName + dateSuffix;
+                    translatedLocation = parts.join(", ");
+                    console.log("Updated location:", translatedLocation);
+                  }
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+
       newSuggestion.className = "autocomplete-suggestion-container";
       newSuggestion.classList.add(term);
-      const villageLocation = villageBit + location;
+      const villageLocation = villageBit + translatedLocation;
+      console.log("Final location for suggestion:", villageLocation);
       newSuggestion.innerHTML = `
       <span class="autocomplete-suggestion-maplink"><a target="_new" href="https://maps.google.com?q=${villageLocation}"><img src="/images/icons/map.gif"></a></span>
       <div class="autocomplete-suggestion" data-val="${villageLocation}">
