@@ -17,6 +17,7 @@ import {
   isProjectPage,
   isNetworkFeed,
   isCategoryEdit,
+  isHelpPage,
 } from "../../core/pageType";
 import { profilePerson } from "../../core/common";
 import { showCopyMessage } from "../access_keys/access_keys.js";
@@ -98,6 +99,9 @@ async function helpScissors() {
     if (isProjectPage) {
       copyPosition = $("h1");
       aTitle = "Project:" + document.title.replace(" Project", "");
+    } else if (isHelpPage) {
+      copyPosition = $("h1");
+      aTitle = document.title;
     } else if (isCategoryPage || isCategoryEdit) {
       aTitle = document.title.replace("Edit ", "").replace(": ", ":").replace(" :", ":").trim();
     } else {
