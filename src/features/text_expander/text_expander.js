@@ -5,8 +5,6 @@ import "../../core/common.css";
 import PerfectScrollbar from "perfect-scrollbar";
 import "perfect-scrollbar/css/perfect-scrollbar.css";
 
-/* global chrome */
-
 class TextExpander {
   constructor() {
     this.expansions = new Map();
@@ -54,18 +52,10 @@ class TextExpander {
       ["myh", "MyHeritage"],
       ["ged", "GEDCOM"],
       ["dna", "DNA"],
+      ["rn", "== Research Notes =="],
     ]);
 
-    // If we already have some expansions, merge with defaults
-    if (this.expansions.size > 0) {
-      // Add any missing defaults
-      for (const [key, value] of defaultExpansions) {
-        if (!this.expansions.has(key)) {
-          this.expansions.set(key, value);
-        }
-      }
-    } else {
-      // If no existing expansions, use defaults
+    if (this.expansions.size == 0) {
       this.expansions = defaultExpansions;
     }
 
@@ -311,14 +301,15 @@ class TextExpander {
 
       if (this.expansions.has(lastWord)) {
         e.preventDefault();
+        // Calculate the position where the expansion starts
+        const expansionStartPos = textBeforeCursor.length - lastWord.length;
         // Replace the last word with its expansion
         const newValue =
-          textBeforeCursor.substring(0, textBeforeCursor.length - lastWord.length) +
-          this.expansions.get(lastWord) +
-          " " +
-          value.substring(cursorPos);
+          textBeforeCursor.substring(0, expansionStartPos) + this.expansions.get(lastWord) + value.substring(cursorPos);
         input.value = newValue;
-        input.setSelectionRange(newValue.length, newValue.length);
+        // Set cursor position right after the expansion
+        const newCursorPos = expansionStartPos + this.expansions.get(lastWord).length;
+        input.setSelectionRange(newCursorPos, newCursorPos);
       }
     });
   }
