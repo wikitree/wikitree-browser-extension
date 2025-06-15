@@ -49,7 +49,7 @@ function saveFilters() {
 }
 
 function applyFilters() {
-  const listItems = $("section ol li.mb-5");
+  const listItems = $("section ol li.mb-3");
   listItems.show(); // Start by showing all items
 
   if (activeFilters.size === 0) {
