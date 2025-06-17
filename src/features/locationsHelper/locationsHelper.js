@@ -15,6 +15,7 @@ import {
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 // import { australian_locations } from "./auto_bio/australian_locations";
 import { profilePerson } from "../../core/common";
+import { normalizeLocation, initLocationTranslations } from "./location_helpers";
 
 //Cape
 const vocEnd = new Date("1795-09-17");
@@ -41,16 +42,40 @@ shouldInitializeFeature("locationsHelper").then((result) => {
 
     $("#mBirthLocation,#mDeathLocation,#Email[name='mMarriageLocation'],#mLocation,#photo_location").on(
       "focus",
-      function () {
+      async function () {
         if (!window.bdLocations) {
           locationsHelper();
+
+          /* ── lazy-load the huge translation table ───────────────────── */
+          if (
+            window.locationsHelperOptions?.nativeName && // option is ON
+            !window.nativeMapsReady // not fetched yet
+          ) {
+            try {
+              await initLocationTranslations(); // pulls file once
+              window.nativeMapsReady = true;
+              console.log("[locHelper] translation maps ready");
+            } catch (err) {
+              console.error("[locHelper] failed to load translations", err);
+            }
+          }
         }
       }
     );
 
     setTimeout(function () {
-      $("#mMarriageLocation").on("focus", function () {
+      $("#mMarriageLocation").on("focus", async function () {
         locationsHelper();
+
+        if (window.locationsHelperOptions?.nativeName && !window.nativeMapsReady) {
+          try {
+            await initLocationTranslations();
+            window.nativeMapsReady = true;
+            console.log("[locHelper] translation maps ready");
+          } catch (err) {
+            console.error("[locHelper] failed to load translations", err);
+          }
+        }
       });
     }, 5000);
   }
@@ -176,6 +201,15 @@ async function locationsHelper() {
             whichLocation = "photoLocation";
           }
           let dText = added_node.textContent;
+
+          console.log(window.locationsHelperOptions);
+          if (window.locationsHelperOptions?.nativeName) {
+            console.log("Normalizing location text for native names");
+            dText = normalizeLocation(dText);
+            const innerBit = $(added_node).find(".autocomplete-suggestion-head");
+            fixText(added_node, activeEl, dText, innerBit);
+          }
+
           let currentBirthYearMatch = null;
           let currentDeathYearMatch = null;
           let currentMarriageYearMatch = null;

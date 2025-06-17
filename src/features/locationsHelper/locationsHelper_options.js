@@ -52,5 +52,11 @@ registerFeature({
       label: "Add 'County' to US locations",
       defaultValue: false,
     },
+    {
+      id: "nativeName",
+      type: OptionType.CHECKBOX,
+      label: "Use native names for locations (the name of the country in its own language)",
+      defaultValue: false,
+    },
   ],
 });
