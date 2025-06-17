@@ -532,7 +532,7 @@ export const locationTranslations = {
 
   /* ─────────────────────────── ITALY ─────────────────────────── */
   IT: {
-    NativeName: ["Italy", "Italia"],
+    NativeName: ["Italia"],
     names: {
       en: ["Italy"],
       sq: ["Itali"],
@@ -693,7 +693,7 @@ export const locationTranslations = {
 
   /* ─────────────────────────── NORWAY ────────────────────────── */
   NO: {
-    NativeName: ["Norway", "Norge", "Noreg"],
+    NativeName: ["Norge", "Noreg"],
     names: {
       en: ["Norway"],
       sq: ["Norvegji"],
@@ -799,7 +799,7 @@ export const locationTranslations = {
 
   /* ─────────────────────────── SLOVENIA ──────────────────────── */
   SI: {
-    NativeName: ["Slovenia", "Slovenija"],
+    NativeName: ["Slovenija"],
     names: {
       en: ["Slovenia"],
       sq: ["Slloveni"],
@@ -853,7 +853,7 @@ export const locationTranslations = {
 
   /* ────────────────────────── SWITZERLAND ────────────────────── */
   CH: {
-    NativeName: ["Switzerland", "Schweiz", "Suisse", "Svizzera", "Svizra"],
+    NativeName: ["Suisse", "Svizzera", "Svizra", "Schweiz", "Switzerland"],
     names: {
       en: ["Switzerland"],
       sq: ["Zvicër"],
@@ -961,7 +961,7 @@ export const locationTranslations = {
 
   /* ─────────────────────────── POLAND ────────────────────────── */
   PL: {
-    NativeName: ["Poland", "Polska"],
+    NativeName: ["Polska"],
     names: {
       en: ["Poland"],
       sq: ["Poloni"],
