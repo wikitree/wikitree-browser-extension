@@ -708,7 +708,7 @@ export function formatDates(person) {
   if (birthDate === " " && deathDate === " ") return "";
 
   if (birthDate !== " ") {
-    const birthStatus = !person.BirthDate ? "guess" : person.DataStatus.BirthDate;
+    const birthStatus = !person?.BirthDate ? "guess" : person?.DataStatus?.BirthDate;
     const status = dataStatusWord(birthStatus, birthDate, { needOnIn: false, onlyYears: true });
     if (status) {
       birthDate = status + " " + birthDate;
