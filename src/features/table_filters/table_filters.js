@@ -489,6 +489,10 @@ function addSortToTables() {
 
     // Add default sort direction indicator to all headers and change cursor to pointer
     headCells.forEach((cell) => {
+      if ($(cell).find("u:contains('CR')").length) {
+        // If the header contains 'CR', do not add sorting functionality
+        return;
+      }
       // Add an img element for the arrow
       const arrow = document.createElement("img");
       if (arrow) {
