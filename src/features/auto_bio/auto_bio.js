@@ -4593,7 +4593,7 @@ function parseWikiTable(aRef) {
 
   // Add relations for unknown members
 
-  if (data.Household) {
+  if (data.Household && Array.isArray(data.Household)) {
     data.Household.forEach(function (aMember) {
       if (!aMember.Relation && aMember.Age) {
         if (!aMember.LastNameAtBirth) {
@@ -7937,6 +7937,9 @@ async function getLocationCategories() {
     addLocationCategoryToStuffBeforeTheBio(location);
   }
   const sourceLocationCategories = await getLocationCategoriesForSourcePlaces();
+  if (!sourceLocationCategories || sourceLocationCategories.length === 0) {
+    return;
+  }
   sourceLocationCategories.forEach((sourceLocationCategory) => {
     addLocationCategoryToStuffBeforeTheBio(sourceLocationCategory.category);
   });
