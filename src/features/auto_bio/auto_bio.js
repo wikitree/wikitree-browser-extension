@@ -1694,7 +1694,7 @@ export function buildParents(person) {
 }
 
 export function minimalPlace(place) {
-  if (window.autoBioOptions?.fullLocations == true) {
+  if (window.autoBioOptions?.fullLocations == true || !place) {
     return place;
   }
   if (!window.usedPlaces) {
@@ -4658,19 +4658,20 @@ function assignSelf(data) {
     }
     return data;
   }
-  if (data.Household) {
+  if (Array.isArray(data.Household)) {
     let hasSelf = data.Household.some((person) => person.Relation === "Self");
 
     if (!hasSelf) {
       data = findSelf(data, hasSelf);
     }
-    hasSelf = data.Household.some((person) => person.Relation === "Self");
+
+    hasSelf = Array.isArray(data.Household) && data.Household.some((person) => person.Relation === "Self");
     if (!hasSelf) {
       data = findSelf(data, hasSelf, false);
     }
   }
 
-  if (data.Household) {
+  if (Array.isArray(data.Household)) {
     data.Household = updateRelations(data.Household);
   }
 
@@ -5021,6 +5022,8 @@ function parseNZBDM(aRef) {
 }
 
 function addReferencePlaces() {
+  if (!window.profilePerson.references) return;
+
   window.profilePerson.referencePlaces = [];
   window.references.forEach(function (aRef, index) {
     // Get the place names from the aRef.Text. First, remove "Born in.*?\.".
@@ -5829,13 +5832,15 @@ function getFamilyFromCitations() {
       }
       if (!lastNameCompare.LastNameAtBirth) {
         const spouses = Object.values(window.profilePerson.Spouses);
-        spouses.forEach(function (aSpouse) {
-          lastNameCompare = compareLastName(aRef.Name, aSpouse);
-          if (lastNameCompare.LastNameAtBirth) {
-            return;
-          }
-          console.log(lastNameCompare);
-        });
+        if (spouses.length) {
+          spouses.forEach(function (aSpouse) {
+            lastNameCompare = compareLastName(aRef.Name, aSpouse);
+            if (lastNameCompare.LastNameAtBirth) {
+              return;
+            }
+            console.log(lastNameCompare);
+          });
+        }
       }
       if (!lastNameCompare.LastNameAtBirth) {
         const nameParts = aRef.Name.split(" ");
