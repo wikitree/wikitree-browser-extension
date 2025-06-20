@@ -1455,12 +1455,12 @@ export function buildDeath(person) {
       age = 0;
     }
     const uncertainDate =
-      person.DataStatus?.DeathDate == "guess" ||
-      person.DataStatus?.DeathDate == "before" ||
-      person.DataStatus?.DeathDate == "after" ||
-      person.DataStatus?.BirthDate == "guess" ||
-      person.DataStatus?.BirthDate == "before" ||
-      person.DataStatus?.BirthDate == "after";
+      person?.DataStatus?.DeathDate == "guess" ||
+      person?.DataStatus?.DeathDate == "before" ||
+      person?.DataStatus?.DeathDate == "after" ||
+      person?.DataStatus?.BirthDate == "guess" ||
+      person?.DataStatus?.BirthDate == "before" ||
+      person?.DataStatus?.BirthDate == "after";
     let aboutWord = "";
     if (uncertainDate) {
       aboutWord = "about ";
@@ -1800,8 +1800,8 @@ export function buildSpouses(person) {
           spouseDetailsB += " " + spouse.PersonName?.FirstName + " was born";
         }
         if (isOK(spouse.BirthDate) && window.autoBioOptions?.includeSpouseDates) {
-          spouseDetailsA += " " + formatDate(spouse.BirthDate, spouse.DataStatus.BirthDate, { needOn: true });
-          spouseDetailsB += " " + formatDate(spouse.BirthDate, spouse.DataStatus.BirthDate, { needOn: true });
+          spouseDetailsA += " " + formatDate(spouse.BirthDate, spouse?.DataStatus?.BirthDate, { needOn: true });
+          spouseDetailsB += " " + formatDate(spouse.BirthDate, spouse?.DataStatus?.BirthDate, { needOn: true });
         }
         if (spouse.BirthLocation) {
           let place = minimalPlace(spouse.BirthLocation);
