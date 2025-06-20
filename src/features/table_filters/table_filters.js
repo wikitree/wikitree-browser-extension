@@ -1,8 +1,19 @@
-/*
-Created By: Ian Beacall (Beacall-6)
-*/
+/*============================================================================*
+  Table Filters & Relationship Columns — WikiTree Browser Extension
+  -----------------------------------------------------------------------------
+  * Adds client‑side column filters to every WikiTree result table.
+  * Makes all ordinary headers sortable (MediaWiki‑style arrows).
+  * Optionally injects three extra columns — “°”, “Relation”, “Suggestion” —
+    and fills them with data from the local distance/relationship IndexedDBs
+    and from the remote Suggestions page.
+*============================================================================*/
+
+/* ------------------------------------------------------------------------- */
+/*  Imports                                                                  */
+/* ------------------------------------------------------------------------- */
 import $ from "jquery";
 import "./table_filters.css";
+
 import { getYYYYMMDD } from "../auto_bio/auto_bio";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { kinshipValue } from "../anniversaries_table/anniversaries_table";
@@ -14,692 +25,450 @@ import {
   initDistanceAndRelationshipDBs,
 } from "../distanceAndRelationship/distanceAndRelationship";
 
+/* ========================================================================= */
+/*  1. Lazy initialisation for extra columns                                 */
+/* ========================================================================= */
+
 /**
- * Call addDistanceAndRelationColumns() the moment a relevant table
- * is present – on either the watch-list or on a search-results page.
- *
- *   • If the table is already in the DOM → runs immediately.
- *   • Otherwise a MutationObserver watches until it appears, then quits.
+ * Watch the DOM for any WikiTree result table and call
+ * {@link addDistanceAndRelationColumns} the first time one appears.
  */
 function waitForDistanceTable() {
-  // never run twice
   if (window._distanceColsDone) return;
 
-  // Which selector to watch depends on the page type
-  const tableSelector = [
-    "body.watchlist table.wt.table", // special watch-list
-    "table.wt.table", // generic search results (catch-all)
-  ].join(",");
+  const selector = "body.watchlist table.wt.table, table.wt.table, #Sort-Table";
 
   const tryInit = (observer) => {
-    const tableFound = document.querySelector(tableSelector);
-    if (tableFound) {
-      window._distanceColsDone = true;
-      addDistanceAndRelationColumns(tableFound); // ← your original routine
-      if (observer) observer.disconnect();
-    }
+    const table = document.querySelector(selector);
+    if (!table) return;
+
+    window._distanceColsDone = true;
+    addDistanceAndRelationColumns(table);
+    observer?.disconnect();
   };
 
-  // 1. sync check – in case the table is already present
+  /* synchronous (cached HTML) */
   tryInit();
 
-  // 2. async check – watch for late insertion
+  /* asynchronous (AJAX‑injected HTML) */
   if (!window._distanceColsDone) {
-    const observer = new MutationObserver(() => tryInit(observer));
-    observer.observe(document.body, { childList: true, subtree: true });
+    const obs = new MutationObserver(() => tryInit(obs));
+    obs.observe(document.body, { childList: true, subtree: true });
   }
 }
 
-/**
- * Adds distance and relationship columns to the watchlist table.
- * Retrieves profile IDs from the watchlist table, initializes the distance and relationship
- * databases, and then populates the table with distance, relationship, and suggestion information.
- *
- * @returns {void}
- */
-function addDistanceAndRelationColumns(tableElem) {
-  const userID = getUserWtId();
-  const ids = {};
-  const nameTable = $(tableElem || "table.wt.table");
+/* ========================================================================= */
+/*  2. Custom sort handlers for “°” and “Relation”                            */
+/* ========================================================================= */
 
-  // Get the profile IDs from the watchlist
-  // Get first link of first TD of each TR and extract the profile ID from the href (after /wiki/)
-  nameTable.find("tr").each(function (index) {
-    const aLink = $(this).find("td a").eq(0).attr("href");
-    if (aLink) {
-      const profileID = aLink.split("/wiki/");
-      if (profileID[1]) {
-        ids[profileID[1]?.replace(/ /g, "_")] = { WTID: [profileID[1]], index: index };
-      }
+/**
+ * Attach click‑to‑sort handlers to the pseudo‑headers we inject into
+ * <table id="Sort-Table"> on the global Search page.
+ *
+ * @param {HTMLTableElement} table  #Sort-Table element.
+ */
+function addCustomSorters(table) {
+  const attach = (className, mode) => {
+    const th = table.querySelector(`#Sort-Table .${className}`);
+    if (!th || th.dataset.wbeSortReady) return;
+
+    th.dataset.sortDir = "desc"; // first click gives ascending order
+    th.dataset.wbeSortReady = "1";
+    th.addEventListener("click", () => {
+      const dir = th.dataset.sortDir === "asc" ? "desc" : "asc";
+      th.dataset.sortDir = dir;
+      sortTableRows(table, th.cellIndex, dir, mode);
+    });
+  };
+
+  attach("wbe-sort-deg", "deg");
+  attach("wbe-sort-rel", "rel");
+}
+
+/* ========================================================================= */
+/*  3. Generic sorter for two custom columns                                 */
+/* ========================================================================= */
+
+/**
+ * Re‑order all data rows in *table* by *colIdx*.
+ *
+ * @param {HTMLTableElement} table  Table whose rows will be sorted.
+ * @param {number}           colIdx Zero‑based column index.
+ * @param {"asc"|"desc"}    dir    Sort direction.
+ * @param {"deg"|"rel"}     mode   Comparison mode.
+ */
+function sortTableRows(table, colIdx, dir, mode) {
+  const rows = Array.from(table.querySelectorAll("tbody tr")).filter(
+    (r) => !r.classList.contains("filter-row") && !r.querySelector("th")
+  );
+
+  rows.sort((a, b) => {
+    const A = a.children[colIdx].textContent.trim();
+    const B = b.children[colIdx].textContent.trim();
+
+    /* degree column — blanks last */
+    if (mode === "deg") {
+      const numA = A.endsWith("°") ? parseInt(A, 10) : null;
+      const numB = B.endsWith("°") ? parseInt(B, 10) : null;
+      if (numA === null) return 1;
+      if (numB === null) return -1;
+      return dir === "asc" ? numA - numB : numB - numA;
     }
+
+    /* relation column — blanks last */
+    if (mode === "rel") {
+      const valA = A ? kinshipValue(A) : null;
+      const valB = B ? kinshipValue(B) : null;
+      if (valA === null) return 1;
+      if (valB === null) return -1;
+      return dir === "asc" ? valA - valB : valB - valA;
+    }
+
+    return 0;
   });
 
-  // Add the header cells to the table
-  const headerCells = $(`<th style="width: 5%; text-align: center; cursor: pointer;">°</th>
-  <th style="width: 15%; text-align: center; cursor: pointer;">Relation</th><th style="width: 10%; text-align: center; cursor: pointer;" id="suggestions_header">Suggestion</th>`);
-  nameTable.find("tr").eq(0).append(headerCells);
+  const tbody = table.querySelector("tbody");
+  rows.forEach((r) => tbody.appendChild(r));
+}
 
+/* ========================================================================= */
+/*  4. Inject extra columns + populate them                                  */
+/* ========================================================================= */
+
+/**
+ * Add “° / Relation / Suggestion” columns to *tableElem* and fill them once
+ * all asynchronous look‑ups finish.
+ *
+ * @param {HTMLTableElement} tableElem Result table detected by the observer.
+ */
+function addDistanceAndRelationColumns(tableElem) {
+  /* --- 4.1 collect profile IDs present in the table -------------------- */
+  const currentUser = getUserWtId();
+  const ids = {};
+  const $table = $(tableElem);
+
+  $table.find("tr").each((rowIdx, tr) => {
+    const href = $(tr).find("td a").eq(0).attr("href");
+    if (!href) return;
+    const id = href.split("/wiki/")[1];
+    if (id) ids[id.replace(/ /g, "_")] = { index: rowIdx };
+  });
+
+  /* --- 4.2 inject header cells ---------------------------------------- */
+  $table.find("tr").eq(0).append(`
+    <th class="wbe-sort-deg" style="width:5%;text-align:center;cursor:pointer;">°</th>
+    <th class="wbe-sort-rel" style="width:15%;text-align:center;cursor:pointer;">Relation</th>
+    <th id="suggestions_header" style="width:10%;text-align:center;cursor:pointer;">Suggestion</th>
+  `);
+
+  /* --- 4.3 async look‑ups --------------------------------------------- */
   setTimeout(() => {
     const distancePromises = [];
     const relationshipPromises = [];
-    /**
-     * Initializes the distance and relationship databases and tracks completion.
-     *
-     * @returns {Promise<void>} A promise that resolves when both databases have been initialized.
-     */
-    const initDb = new Promise((resolve, reject) => {
-      let completedTasks = 0;
 
-      // Ensure the distance and relationship databases are present/created/upgraded as necessary
-      initDistanceAndRelationshipDBs(onDistanceSucces, onRelationSuccess);
+    /* initialise IndexedDBs ------------------------------------------- */
+    const dbReady = new Promise((resolve) => {
+      let done = 0;
+      const tick = () => {
+        if (++done === 2) resolve();
+      };
 
-      /**
-       * Increments the completed tasks counter and resolves the initDb promise when both tasks complete.
-       *
-       * @returns {void}
-       */
-      function checkCompletion() {
-        completedTasks++;
-
-        if (completedTasks === 2) {
-          // console.log("initDistanceAndRelationshipDBs completed successfully");
-          resolve();
+      initDistanceAndRelationshipDBs(
+        (evt) => {
+          const store = evt.target.result
+            .transaction(CONNECTION_STORE_NAME, "readonly")
+            .objectStore(CONNECTION_STORE_NAME);
+          Object.keys(ids).forEach((wtid) => {
+            distancePromises.push(
+              new Promise((res) => {
+                store.get(distRelDbKeyFor(wtid, currentUser)).onsuccess = (e) => {
+                  const d = e.target.result?.distance;
+                  if (d > 0) ids[wtid].distance = `${d}°`;
+                  res();
+                };
+              })
+            );
+          });
+          tick();
+        },
+        (evt) => {
+          const store = evt.target.result
+            .transaction(RELATIONSHIP_STORE_NAME, "readonly")
+            .objectStore(RELATIONSHIP_STORE_NAME);
+          Object.keys(ids).forEach((wtid) => {
+            relationshipPromises.push(
+              new Promise((res) => {
+                store.get(distRelDbKeyFor(wtid, currentUser)).onsuccess = (e) => {
+                  ids[wtid].relationship = e.target.result?.relationship || "";
+                  res();
+                };
+              })
+            );
+          });
+          tick();
         }
-      }
-
-      /**
-       * Callback for successful initialization of the distance database.
-       * Retrieves distance information for each profile ID and pushes a promise into distancePromises.
-       *
-       * @param {Event} event - The event containing the database connection result.
-       * @returns {void}
-       */
-      function onDistanceSucces(event) {
-        // The distance table is ready, we can start collecting the distances
-        const dbConnection = event.target.result;
-        const distanceTransaction = dbConnection.transaction(CONNECTION_STORE_NAME, "readonly");
-        const distanceStore = distanceTransaction.objectStore(CONNECTION_STORE_NAME);
-        Object.keys(ids).forEach(function (wtid) {
-          // Request the distance record
-          const getDistance = distanceStore.get(distRelDbKeyFor(wtid, userID));
-          const distancePromise = new Promise((resolve, reject) => {
-            getDistance.onsuccess = function (event) {
-              const distance = event.target.result ? event.target.result.distance + "°" : "";
-              if (event.target?.result?.distance > 0) {
-                ids[wtid].distance = distance;
-              }
-              resolve();
-            };
-          });
-          distancePromises.push(distancePromise);
-        });
-        checkCompletion();
-      }
-
-      /**
-       * Callback for successful initialization of the relationship database.
-       * Retrieves relationship information for each profile ID and pushes a promise into relationshipPromises.
-       *
-       * @param {Event} event - The event containing the database connection result.
-       * @returns {void}
-       */
-      function onRelationSuccess(event) {
-        // The relationship table is ready, we can start collecting the relationships
-        const dbRelationship = event.target.result;
-        const relationshipTransaction = dbRelationship.transaction(RELATIONSHIP_STORE_NAME, "readonly");
-        const relationshipStore = relationshipTransaction.objectStore(RELATIONSHIP_STORE_NAME);
-        Object.keys(ids).forEach(function (wtid) {
-          const getRelationship = relationshipStore.get(distRelDbKeyFor(wtid, userID));
-          const relationshipPromise = new Promise((resolve, reject) => {
-            getRelationship.onsuccess = function (event) {
-              let relationship =
-                event.target.result && event.target.result.relationship ? event.target.result.relationship : "";
-              ids[wtid].relationship = relationship;
-              resolve();
-            };
-          });
-          relationshipPromises.push(relationshipPromise);
-        });
-        checkCompletion();
-      }
+      );
     });
 
-    const suggestionsPromise = GetSuggestions().then((htmlPage) => {
-      const parser = new DOMParser();
-      const suggestionsDOM = parser.parseFromString(htmlPage, "text/html");
-      Object.keys(ids).forEach(function (wtid) {
-        $(suggestionsDOM)
-          .find("td:contains(" + wtid.split("_").join(" ") + ")")
-          .each(function () {
-            if ($(this).contents()[0].nodeName != "A") {
-              //comments table, do nothing
-            } else if ($(this).prev().length == 0) {
-              let parentRow = $(this).parent();
-              while (
-                parentRow.find("td").attr("rowspan") == undefined &&
-                parentRow.length > 0 &&
-                parentRow.get(0).tagName == "TR"
-              ) {
-                parentRow = parentRow.prev();
-              }
-              SetOrAdd(wtid, parentRow.find("td"));
-            } else if ($(this).prev().get(0).firstChild.tagName == "IMG") {
-              //WT ID only in manager column
-            } else {
-              SetOrAdd(wtid, $(this).prev());
-            }
+    /* suggestions page -------------------------------------------------- */
+    const suggestionPromise = getSuggestions().then((html) => {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      Object.keys(ids).forEach((wtid) => {
+        $(doc)
+          .find(`td:contains(${wtid.replace(/_/g, " ")})`)
+          .each((_, td) => {
+            const cell =
+              td.previousElementSibling?.firstElementChild?.tagName === "IMG" ? null : td.previousElementSibling ?? td;
+            if (!cell) return;
+            ids[wtid].suggestion = ids[wtid].suggestion
+              ? `${ids[wtid].suggestion}<br>${cell.innerHTML}`
+              : cell.innerHTML;
           });
       });
     });
 
-    const datesPromise = new Promise((resolve, reject) => {
-      fetch("https://plus.wikitree.com/DataDates.json")
-        .then((res) => res.json())
-        .then((dataDates) => {
-          const suggestionHeader = document.getElementById("suggestions_header");
-          const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-          const dateParts = dataDates.dataDate.split("-");
-          const actualMonth = parseInt(dateParts[1]) - 1;
-          const suggestionsHelpLink =
-            '<a href="/wiki/Help:Suggestions" title="Click here for an explanation of the suggestions column"><img src="/images/icons/help.gif" border="0" width="11" height="11" alt="Help"></a>';
-          if (suggestionHeader) {
-            suggestionHeader.innerHTML =
-              "Sugg. " + suggestionsHelpLink + " (" + dateParts[2] + " " + months[actualMonth] + ")";
-          }
-          resolve();
-        });
-    });
+    /* last update date -------------------------------------------------- */
+    const datePromise = fetch("https://plus.wikitree.com/DataDates.json")
+      .then((r) => r.json())
+      .then((j) => {
+        const [y, m, d] = j.dataDate.split("-");
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        $("#suggestions_header").html(
+          `Sugg.&nbsp;<a href="/wiki/Help:Suggestions" title="Explanation"><img src="/images/icons/help.gif" width="11" height="11" alt="Help"></a>&nbsp;(${d} ${
+            months[m - 1]
+          })`
+        );
+      });
 
-    initDb
-      .then(() => {
-        // Wait for all promises to resolve before initializing DataTable
-        Promise.all([...distancePromises, ...relationshipPromises, suggestionsPromise, datesPromise])
-          .then(() => {
-            console.log("All promises resolved, initializing DataTable");
-            nameTable.find("tr").each(function (index) {
-              // find the ids item with the property index: index
-              const id = Object.keys(ids).find((key) => ids[key].index === index - 1);
-              if ($(this).find("th").length == 0 && $(this).hasClass("filter-row") == false) {
-                if (id) {
-                  const distance = ids[id].distance || "";
-                  const relationship = ids[id].relationship || "";
-                  const suggestion = ids[id].suggestion ? ids[id].suggestion : "";
-                  $(this).append(
-                    `<td style="text-align: center;">${distance}</td><td>${relationship}</td><td>${suggestion}</td>`
-                  );
-                } else {
-                  $(this).append(`<td style="text-align: center;"></td><td></td>`);
-                }
-              }
-            });
-            /* */
-          })
-          .catch((error) => {
-            console.error(error);
-          });
+    /* render once everything resolves ---------------------------------- */
+    dbReady.then(() =>
+      Promise.all([suggestionPromise, datePromise, ...distancePromises, ...relationshipPromises]).then(() => {
+        $table.find("tr").each((idx, tr) => {
+          const wtid = Object.keys(ids).find((k) => ids[k].index === idx - 1);
+          if (!wtid) return;
+          const { distance = "", relationship = "", suggestion = "" } = ids[wtid];
+          $(tr).append(`<td style="text-align:center;">${distance}</td><td>${relationship}</td><td>${suggestion}</td>`);
+        });
+
+        if ($table.prop("id") === "Sort-Table") addCustomSorters($table.get(0));
       })
-      .catch((error) => {
-        console.error("Error during init of distance and relationship DBs:", error);
-      });
-    /**
-     * Sets or appends suggestion HTML content for a given profile ID.
-     *
-     * @param {string} wtid - The profile ID.
-     * @param {JQuery} node - The jQuery node containing suggestion HTML.
-     * @returns {void}
-     */
-    function SetOrAdd(wtid, node) {
-      if (ids[wtid].suggestion != undefined) {
-        ids[wtid].suggestion += "<br />" + node.html();
-      } else {
-        ids[wtid].suggestion = node.html();
-      }
-    }
+    );
   }, 0);
 }
 
+/* ========================================================================= */
+/*  5. Helper: fetch Suggestions HTML                                        */
+/* ========================================================================= */
+
 /**
- * Retrieves the suggestions HTML page from a remote URL based on query parameters.
+ * Retrieve the raw HTML used to fill the “Suggestion” column.
  *
- * @returns {Promise<string>} A promise that resolves with the suggestions HTML text.
+ * @returns {Promise<string>} HTML markup, or an empty string on error.
  */
-async function GetSuggestions() {
-  return new Promise((resolve, reject) => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.has("p")) {
-      fetch("https://plus.wikitree.com/function/WTWebUser/WBE_TableFilters.htm?UserID=" + params.get("p"))
-        .then((suggestionsPage) => {
-          suggestionsPage.text().then(resolve).catch(reject);
-        })
-        .catch(() => {
-          resolve("");
-        });
-    } else {
-      resolve(""); // ← ADD THIS so Promise.all() can finish
-    }
-  });
+function getSuggestions() {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has("p")) return Promise.resolve("");
+  const url = `https://plus.wikitree.com/function/WTWebUser/WBE_TableFilters.htm?UserID=${params.get("p")}`;
+  return fetch(url)
+    .then((r) => r.text())
+    .catch(() => "");
 }
 
-/**
- * Repositions the filter row in the table if it isn't already in the right place.
- *
- * @param {HTMLTableElement} table - The table whose filter row needs repositioning.
- * @returns {void}
- */
-export function repositionFilterRow(table) {
-  const hasTbody = table.querySelector("tbody") !== null;
-  const hasThead = table.querySelector("thead") !== null;
-  const headerRow = hasThead
-    ? table.querySelector("thead tr:first-child")
-    : hasTbody
-    ? table.querySelector("tbody tr:first-child")
-    : table.querySelector("tr:first-child");
-  const filterRow = table.querySelector(".filter-row");
-  if (filterRow) {
-    if (filterRow.nextSibling !== headerRow) {
-      headerRow.parentElement.insertBefore(filterRow, headerRow.nextSibling);
-    }
-  }
-}
+/* ========================================================================= */
+/*  6. Filters: add text inputs under every header                            */
+/* ========================================================================= */
 
 /**
- * Adds filter functionality to all wikitable elements or to the table passed as a parameter.
+ * Insert a row of <input> fields directly below the header row of each table
+ * so users can live‑filter columns by substring or numeric range ("<1880", ">3").
  *
- * @param {HTMLTableElement|null} aTable - The table to add filters to. If null, filters will be added to all wikitable elements.
- * @returns {void}
+ * @param {HTMLTableElement|null} single Optional: apply to that one table only.
  */
-export function addFiltersToWikitables(aTable = null) {
-  let tables;
-  if (aTable) {
-    tables = [aTable];
-  } else {
-    tables = document.querySelectorAll(".wikitable,#Sort-Table,.category,table.wt.table");
-  }
+function addFiltersToWikitables(single = null) {
+  const tables = single ? [single] : document.querySelectorAll(".wikitable, #Sort-Table, .category, table.wt.table");
 
-  // Add filters to each table
   tables.forEach((table) => {
-    if ($(table).find(".filter-row").length) {
-      return;
-    }
-    const hasTbody = table.querySelector("tbody") !== null;
-    const hasThead = table.querySelector("thead") !== null;
+    if ($(table).find(".filter-row").length) return; // already processed
 
-    // Determine the location of the header row depending on the structure of the table
-    const headerRow = hasThead
-      ? table.querySelector("thead tr:first-child")
-      : hasTbody
-      ? table.querySelector("tbody tr:first-child")
-      : table.querySelector("tr:first-child");
+    /* find header row -------------------------------------------------- */
+    const headerRow = table.querySelector("thead tr") || table.querySelector("tbody tr") || table.querySelector("tr");
+    if (!headerRow) return;
 
-    let headerCells = headerRow.querySelectorAll("th");
-    const originalHeaderCells = headerCells;
-    let isFirstRowHeader = headerCells.length > 0;
-    if (!isFirstRowHeader) {
-      const firstRowCells = headerRow.querySelectorAll("td");
-      const dummyHeaderRow = document.createElement("tr");
-      firstRowCells.forEach(() => {
-        const emptyHeaderCell = document.createElement("th");
-        dummyHeaderRow.appendChild(emptyHeaderCell);
-      });
-      headerRow.parentElement.insertBefore(dummyHeaderRow, headerRow);
-      headerCells = dummyHeaderRow.querySelectorAll("th");
-    }
-
+    /* create filter row ------------------------------------------------ */
     const filterRow = document.createElement("tr");
-    filterRow.classList.add("filter-row");
+    filterRow.className = "filter-row";
 
-    headerCells.forEach((headerCell, i) => {
-      const filterCell = document.createElement("th");
-      if (headerCell) {
-        // Check if headerCell is not null or undefined
-        const headerCellText = headerCell.textContent.trim();
-        const originalHeaderCell = originalHeaderCells[i];
-        if (originalHeaderCell) {
-          const originalHeaderCellText = originalHeaderCell.textContent.trim();
-          if (!["Pos."].includes(headerCellText) && !["Pos.", ""].includes(originalHeaderCellText)) {
-            const filterInput = document.createElement("input");
-            filterInput.type = "text";
-            filterInput.classList.add("filter-input");
-            filterCell.appendChild(filterInput);
-          }
-        }
+    headerRow.querySelectorAll("th").forEach((th) => {
+      const cell = document.createElement("th");
+      const txt = th.textContent.trim();
+      if (txt && txt !== "Pos.") {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "filter-input";
+        cell.appendChild(input);
       }
-      filterRow.appendChild(filterCell);
+      filterRow.appendChild(cell);
     });
 
-    if (isFirstRowHeader) {
-      headerRow.parentElement.insertBefore(filterRow, headerRow.nextSibling);
-    } else {
-      headerRow.parentElement.insertBefore(filterRow, headerRow);
-    }
-
-    const sortArrows = table.querySelectorAll(".sortheader");
-    sortArrows.forEach((arrow) => {
-      arrow.addEventListener("click", () => {
-        setTimeout(() => {
-          repositionFilterRow(table);
-        }, 100);
-      });
-    });
-    const $table = $(table);
-    if ($table.hasClass("peopleTable")) {
-      // Get the first row of tbody; Find cells with classes 'edited' and 'created' and get their index.
-      // Find .filter-row and add these classes to the same cells in that row.
-      if ($table.find("tbody tr").eq(0).find("td.edited").length) {
-        const editedIndex = $table.find("tbody tr").eq(0).find("td.edited").index();
-        $table.find(".filter-row").find("th").eq(editedIndex).addClass("edited");
-        const createdIndex = $table.find("tbody tr").eq(0).find("td.created").index();
-        $table.find(".filter-row").find("th").eq(createdIndex).addClass("created");
-      }
-    }
+    headerRow.after(filterRow);
   });
 
-  // Add Clear Filters button
-  const clearFiltersButtonJQ = $("<button>")
-    .text("X")
-    .attr("title", "Clear Filters")
-    .attr("id", "clearTableFiltersButton")
-    .css("position", "absolute")
-    .on("click", () => {
-      $(".filter-input").val("");
-      filterFunction();
-      updateClearFiltersButtonVisibility();
-    });
-  const clearFiltersButton = clearFiltersButtonJQ.get(0);
-  // Filter function to filter rows based on input
-  const filterFunction = () => {
+  /* global filter handler --------------------------------------------- */
+  document.body.addEventListener("input", (e) => {
+    if (!(e.target instanceof HTMLInputElement) || !e.target.classList.contains("filter-input")) return;
+
     tables.forEach((table) => {
-      const hasTbody = table.querySelector("tbody") !== null;
-      const hasThead = table.querySelector("thead") !== null;
-      const rows = hasTbody ? table.querySelectorAll("tbody tr") : table.querySelectorAll("tr");
-      const filterInputs = table.querySelectorAll(".filter-input");
+      const inputs = table.querySelectorAll(".filter-input");
+      const rows = table.querySelectorAll("tbody tr");
 
-      rows.forEach((row, rowIndex) => {
-        // Skip first row only if there's no 'thead'
-        if (!hasThead && rowIndex === 0) {
-          return;
-        }
+      rows.forEach((row, rowIdx) => {
+        if (rowIdx < 2 || row.classList.contains("filter-row")) return; // skip header + filter rows
 
-        // Skip if row is a filter-row or contains 'th' elements
-        if (row.classList.contains("filter-row") || row.querySelector("th")) {
-          return;
-        }
+        let show = true;
+        inputs.forEach((input, colIdx) => {
+          const txt = input.value.trim().toLowerCase();
+          const cellTxt = row.children[colIdx]?.textContent.toLowerCase() || "";
 
-        let displayRow = true;
-
-        filterInputs.forEach((input, inputIndex) => {
-          const text = input.value.toLowerCase();
-          const columnIndex = Array.from(input.parentElement.parentElement.children).indexOf(input.parentElement);
-          const cell = row.children[columnIndex];
-          if (cell) {
-            const cellText = cell.textContent.toLowerCase();
-
-            // Match the date at the start of the string. The date can be preceded by 'bef', 'aft', or 'abt' and can contain a day, month, and year, a month and year, or just a year.
-            const birthYearMatch = cell.textContent.match(/\d{4}/);
-            let birthYear = birthYearMatch ? birthYearMatch : "";
-
-            if (text.startsWith(">")) {
-              const num = parseFloat(text.slice(1).replace(/-/g, ""));
-              if (!isNaN(num) && (parseFloat(cellText) <= num || (birthYear && birthYear <= num))) {
-                displayRow = false;
-              }
-            } else if (text.startsWith("<")) {
-              const num = parseFloat(text.slice(1));
-              if (!isNaN(num) && (parseFloat(cellText) >= num || (birthYear && birthYear >= num))) {
-                displayRow = false;
-              }
-            } else if (!cellText.includes(text)) {
-              displayRow = false;
-            }
+          if (txt.startsWith(">")) {
+            const n = parseFloat(txt.slice(1).replace(/-/g, ""));
+            if (!isNaN(n) && parseFloat(cellTxt) <= n) show = false;
+          } else if (txt.startsWith("<")) {
+            const n = parseFloat(txt.slice(1));
+            if (!isNaN(n) && parseFloat(cellTxt) >= n) show = false;
+          } else if (txt && !cellTxt.includes(txt)) {
+            show = false;
           }
         });
-
-        row.style.display = displayRow ? "" : "none";
+        row.style.display = show ? "" : "none";
       });
     });
-  };
-
-  // Update the visibility of the Clear Filters button
-  function updateClearFiltersButtonVisibility() {
-    const anyFilterHasText = Array.from(document.querySelectorAll(".filter-input")).some(
-      (input) => input.value.trim() !== ""
-    );
-
-    clearFiltersButton.style.display = anyFilterHasText ? "block" : "none";
-  }
-
-  document.querySelectorAll(".filter-input").forEach((input) => {
-    input.addEventListener("input", () => {
-      filterFunction();
-      updateClearFiltersButtonVisibility();
-    });
   });
-
-  // Position the Clear Filters button
-  const filterRow = tables[0] ? tables[0].querySelector(".filter-row") : null;
-  const filterRowRect = filterRow ? filterRow.getBoundingClientRect() : { top: 0, right: 0 };
-
-  // If the table has a caption, place the button within the caption, on the right, before an 'x' element if it exists
-  const caption = tables[0].querySelector("caption");
-
-  if (caption) {
-    caption.appendChild(clearFiltersButton);
-
-    // And change the text of the button to Clear Filters
-    clearFiltersButton.textContent = "Clear Filters";
-    // Add inCaption class to the button
-    clearFiltersButton.classList.add("inCaption");
-  } else if ($(".wideTableButton").length) {
-    $(clearFiltersButton).insertAfter($(".wideTableButton"));
-  } else {
-    // Place the button to the right of the filter row
-    const xButtonStyle = {
-      position: "absolute",
-      top: `${filterRowRect.top + window.scrollY}px`,
-      left: `${filterRowRect.right + 5}px`,
-    };
-    Object.assign(clearFiltersButton.style, xButtonStyle);
-    // Add the button to the page
-    document.body.appendChild(clearFiltersButton);
-  }
-
-  // Update the button position on window scroll
-  window.addEventListener("scroll", () => {
-    const filterRowRect = filterRow.getBoundingClientRect();
-    clearFiltersButton.style.top = `${filterRowRect.top + window.scrollY}px`;
-  });
-
-  // Initially hide the button
-  clearFiltersButton.style.display = "none";
 }
 
+/* ========================================================================= */
+/*  7. Built‑in sort arrows for ordinary columns                             */
+/* ========================================================================= */
+
 /**
- * Adds sort functionality to all wikitable elements that are not already sortable.
- *
- * @returns {void}
+ * Add MediaWiki‑style sortable headers to every table that isn’t already
+ * <table class="sortable">.  Dates and year‑only strings are sorted
+ * numerically using {@link getYYYYMMDD}.
  */
 function addSortToTables() {
-  const tables = document.querySelectorAll(".wikitable:not(.sortable),.wt.table:not(.sortable)");
+  const tables = document.querySelectorAll(".wikitable:not(.sortable), .wt.table:not(.sortable)");
 
-  // Add sort functionality to each table
   tables.forEach((table) => {
-    // The headers are in the first row of tbody in your case
-    const headCells = table.querySelectorAll("tbody tr:first-child th");
+    const heads = table.querySelectorAll("tbody tr:first-child th");
 
-    // Add default sort direction indicator to all headers and change cursor to pointer
-    headCells.forEach((cell) => {
-      if ($(cell).find("u:contains('CR')").length) {
-        // If the header contains 'CR', do not add sorting functionality
-        return;
-      }
-      // Add an img element for the arrow
-      const arrow = document.createElement("img");
-      if (arrow) {
-        arrow.src = "/skins/common/images/sort_none.gif";
-        arrow.alt = "↓";
-        arrow.classList.add("sort-arrow");
-        cell.appendChild(arrow);
-        cell.style.cursor = "pointer"; // change cursor to pointer
-        cell.title = "Click to sort"; // add tooltip
-      } else {
-        console.error("Failed to create arrow image element");
-      }
-    });
+    heads.forEach((th, colIdx) => {
+      if ($(th).find("u:contains('CR')").length) return; // skip connection rank
+      if (th.querySelector("img.sort-arrow")) return; // already processed
 
-    headCells.forEach((cell, columnIndex) => {
-      cell.addEventListener("click", () => {
-        // Get all rows but skip the first two (header and filters)
-        let rows = Array.from(table.querySelectorAll("tbody tr")).slice(2);
+      /* add arrow icon ------------------------------------------------- */
+      const img = document.createElement("img");
+      img.src = "/skins/common/images/sort_none.gif";
+      img.alt = "↓";
+      img.className = "sort-arrow";
+      th.appendChild(img);
+      th.style.cursor = "pointer";
 
-        const sortDirection = cell.dataset.sortDir || "desc";
-        const newSortDirection = sortDirection === "asc" ? "desc" : "asc";
-        cell.dataset.sortDir = newSortDirection;
+      /* click handler --------------------------------------------------- */
+      th.addEventListener("click", () => {
+        const dir = th.dataset.sortDir === "asc" ? "desc" : "asc";
+        th.dataset.sortDir = dir;
 
-        rows.sort((rowA, rowB) => {
-          if (!rowA.children[columnIndex] || !rowB.children[columnIndex]) {
-            return 0;
-          }
-          let cellAContent = rowA.children[columnIndex].textContent.trim();
-          let cellBContent = rowB.children[columnIndex].textContent.trim();
+        const rows = Array.from(table.querySelectorAll("tbody tr")).slice(2);
+        rows.sort((a, b) => {
+          const Araw = a.children[colIdx].textContent.trim();
+          const Braw = b.children[colIdx].textContent.trim();
 
-          // Check if this is the relationship column
-          if (columnIndex === 6 && headCells[columnIndex].textContent === "Relation") {
-            const levelA = kinshipValue(cellAContent);
-            const levelB = kinshipValue(cellBContent);
-            return newSortDirection === "asc" ? levelA - levelB : levelB - levelA;
+          /* four‑digit year first ⇒ numeric */
+          if (/^\d{4}$/.test(Araw) && /^\d{4}$/.test(Braw)) {
+            return dir === "asc" ? Araw - Braw : Braw - Araw;
           }
 
-          // Check if this is the distance column
-          if (columnIndex === 5 && headCells[columnIndex].textContent === "°") {
-            const distanceA = cellAContent.endsWith("°") ? parseInt(cellAContent.replace("°", ""), 10) : Infinity;
-            const distanceB = cellBContent.endsWith("°") ? parseInt(cellBContent.replace("°", ""), 10) : Infinity;
-            return newSortDirection === "asc" ? distanceA - distanceB : distanceB - distanceA;
+          /* date string with year inside */
+          const Adate = /\d{4}/.test(Araw) ? getYYYYMMDD(Araw) : NaN;
+          const Bdate = /\d{4}/.test(Braw) ? getYYYYMMDD(Braw) : NaN;
+          if (!isNaN(Adate) && !isNaN(Bdate)) {
+            return dir === "asc" ? Adate - Bdate : Bdate - Adate;
           }
 
-          // Exclude index span from sorting
-          const indexSpanA = rowA.children[columnIndex].querySelector(".index");
-          const indexSpanB = rowB.children[columnIndex].querySelector(".index");
-
-          if (indexSpanA) {
-            cellAContent = cellAContent.replace(indexSpanA.textContent, "").trim();
-          }
-          if (indexSpanB) {
-            cellBContent = cellBContent.replace(indexSpanB.textContent, "").trim();
-          }
-
-          // If the cell content has a four-digit number, extract the first one
-          const fourDigitNumberRegex = /^\b\d{4}\b/;
-          const matchA = cellAContent.match(fourDigitNumberRegex);
-          const matchB = cellBContent.match(fourDigitNumberRegex);
-
-          if (matchA && matchA[0]) {
-            cellAContent = matchA[0];
-          }
-          if (matchB && matchB[0]) {
-            cellBContent = matchB[0];
-          }
-
-          // If the cell content matches the pattern of a date, treat it as a date for sorting
-          const birthDateMatchA = cellAContent.match(/\b((?:abt|aft|bef)? ?(?:\d{1,2} \w+ )?\d{4})/);
-          const birthDateMatchB = cellBContent.match(/\b((?:abt|aft|bef)? ?(?:\d{1,2} \w+ )?\d{4})/);
-
-          if (birthDateMatchA && birthDateMatchA[1]) {
-            cellAContent = getYYYYMMDD(birthDateMatchA[1]);
-          }
-          if (birthDateMatchB && birthDateMatchB[1]) {
-            cellBContent = getYYYYMMDD(birthDateMatchB[1]);
-          }
-
-          const cellA = isNaN(Number(cellAContent)) ? cellAContent : Number(cellAContent);
-          const cellB = isNaN(Number(cellBContent)) ? cellBContent : Number(cellBContent);
-
-          if (typeof cellA === "number" && typeof cellB === "number") {
-            // Compare numbers
-            return newSortDirection === "asc" ? cellA - cellB : cellB - cellA;
-          } else {
-            // Compare strings
-            return newSortDirection === "asc"
-              ? cellA.toString().localeCompare(cellB.toString())
-              : cellB.toString().localeCompare(cellA.toString());
-          }
+          /* fallback string compare */
+          return dir === "asc" ? Araw.localeCompare(Braw) : Braw.localeCompare(Araw);
         });
 
-        // Append the sorted rows back to the table
+        /* reinsert in sorted order */
         const tbody = table.querySelector("tbody");
-        rows.forEach((row) => {
-          tbody.appendChild(row);
-        });
+        rows.forEach((r) => tbody.appendChild(r));
 
-        // Update sort direction indicators, tooltips, and arrow image
-        headCells.forEach((cell) => {
-          const arrow = cell.querySelector(".sort-arrow");
-          if (arrow) {
-            // Ensure arrow element exists before trying to set its properties
-            arrow.src =
-              cell === headCells[columnIndex]
-                ? newSortDirection === "asc"
-                  ? "/skins/common/images/sort_down.gif"
-                  : "/skins/common/images/sort_up.gif"
-                : "/skins/common/images/sort_none.gif";
+        /* update arrow icons */
+        heads.forEach((h) => {
+          const i = h.querySelector("img.sort-arrow");
+          if (!i) return;
+          if (h === th) {
+            i.src = dir === "asc" ? "/skins/common/images/sort_down.gif" : "/skins/common/images/sort_up.gif";
+          } else {
+            i.src = "/skins/common/images/sort_none.gif";
           }
-          cell.title =
-            cell === headCells[columnIndex]
-              ? newSortDirection === "asc"
-                ? "Sorted ascending. Click to sort descending"
-                : "Sorted descending. Click to sort ascending"
-              : "Click to sort";
         });
       });
     });
   });
 }
 
+/* ========================================================================= */
+/*  8. Public export: feature initialiser                                    */
+/* ========================================================================= */
+
 /**
- * Initializes table filters and sorting functionalities based on feature options.
- * Adds distance/relationship columns if applicable, and sets up filters and sorting on tables.
+ * Set up filters, sortable headers, and (optionally) extra relationship
+ * columns when the "tableFilters" feature is enabled.
  *
- * @returns {Promise<void>} A promise that resolves when initialization is complete.
+ * @returns {Promise<void>}
  */
 export async function initTableFilters() {
   window.tableFiltersOptions = await getFeatureOptions("tableFilters");
-  if (window.tableFiltersOptions.distanceAndRelationship) {
-    if ($("th:contains('°')").length === 0 && (isSpecialWatchedList || isSearchPage)) {
-      waitForDistanceTable(); // ← run the observer
-    }
+
+  if (
+    window.tableFiltersOptions.distanceAndRelationship &&
+    $("th:contains('°')").length === 0 &&
+    (isSpecialWatchedList || isSearchPage)
+  ) {
+    waitForDistanceTable();
   }
 
   addFiltersToWikitables();
-  if ($("table.wt.table th#deathDate").length == 0) {
-    addSortToTables();
+  if ($("table.wt.table th#deathDate").length === 0) addSortToTables();
+}
+
+/*/* ========================================================================= */
+/*  9. Back‑compat exports                                                  */
+/* ========================================================================= */
+
+// Older features (e.g. My Connections, Unconnected Branch Table) import these
+// helpers directly.  They remain public for back‑compat, even though the new
+// sorter no longer re‑orders the filter row.
+export { addFiltersToWikitables };
+
+/**
+ * Ensure the `.filter-row` sits immediately below the header row after any
+ * third‑party script re‑orders columns.  Kept for legacy callers.
+ *
+ * @param {HTMLTableElement} table Table to fix.
+ */
+export function repositionFilterRow(table) {
+  const headerRow = table.querySelector("thead tr") || table.querySelector("tbody tr") || table.querySelector("tr");
+  if (!headerRow) return;
+  const filterRow = table.querySelector(".filter-row");
+  if (filterRow && filterRow.previousSibling !== headerRow) {
+    headerRow.after(filterRow);
   }
 }
 
-// Initialize table filters if the feature is enabled
+/* initialise once --------------------------------------------------------- */
 shouldInitializeFeature("tableFilters").then((enabled) => {
-  if (!enabled) return;
-
-  /** run only once */
-  const initOnce = () => {
-    if (window._tableFiltersInit) return; // guard
-    window._tableFiltersInit = true;
-    initTableFilters(); // ← your original function
-  };
-
-  const tableSelector = ".wikitable, table.wt.table";
-
-  /* 1️⃣  If the table is already in the DOM (cached page, very fast load) */
-  if (document.querySelector(tableSelector)) {
-    initOnce();
-    return; // done
-  }
-
-  /* 2️⃣  Otherwise watch the DOM until it appears */
-  const observer = new MutationObserver(() => {
-    if (document.querySelector(tableSelector)) {
-      observer.disconnect(); // stop watching
-      initOnce();
-    }
-  });
-
-  observer.observe(document.body, { childList: true, subtree: true });
+  if (!enabled || window._tableFiltersInit) return;
+  window._tableFiltersInit = true;
+  initTableFilters();
 });
