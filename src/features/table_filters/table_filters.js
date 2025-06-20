@@ -15,16 +15,53 @@ import {
 } from "../distanceAndRelationship/distanceAndRelationship";
 
 /**
+ * Call addDistanceAndRelationColumns() the moment a relevant table
+ * is present – on either the watch-list or on a search-results page.
+ *
+ *   • If the table is already in the DOM → runs immediately.
+ *   • Otherwise a MutationObserver watches until it appears, then quits.
+ */
+function waitForDistanceTable() {
+  // never run twice
+  if (window._distanceColsDone) return;
+
+  // Which selector to watch depends on the page type
+  const tableSelector = [
+    "body.watchlist table.wt.table", // special watch-list
+    "table.wt.table", // generic search results (catch-all)
+  ].join(",");
+
+  const tryInit = (observer) => {
+    const tableFound = document.querySelector(tableSelector);
+    if (tableFound) {
+      window._distanceColsDone = true;
+      addDistanceAndRelationColumns(tableFound); // ← your original routine
+      if (observer) observer.disconnect();
+    }
+  };
+
+  // 1. sync check – in case the table is already present
+  tryInit();
+
+  // 2. async check – watch for late insertion
+  if (!window._distanceColsDone) {
+    const observer = new MutationObserver(() => tryInit(observer));
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+}
+
+/**
  * Adds distance and relationship columns to the watchlist table.
  * Retrieves profile IDs from the watchlist table, initializes the distance and relationship
  * databases, and then populates the table with distance, relationship, and suggestion information.
  *
  * @returns {void}
  */
-function addDistanceAndRelationColumns() {
+function addDistanceAndRelationColumns(tableElem) {
   const userID = getUserWtId();
   const ids = {};
-  const nameTable = $("body.watchlist table.table.wt");
+  const nameTable = $(tableElem || "table.wt.table");
+
   // Get the profile IDs from the watchlist
   // Get first link of first TD of each TR and extract the profile ID from the href (after /wiki/)
   nameTable.find("tr").each(function (index) {
@@ -178,10 +215,11 @@ function addDistanceAndRelationColumns() {
         // Wait for all promises to resolve before initializing DataTable
         Promise.all([...distancePromises, ...relationshipPromises, suggestionsPromise, datesPromise])
           .then(() => {
+            console.log("All promises resolved, initializing DataTable");
             nameTable.find("tr").each(function (index) {
               // find the ids item with the property index: index
               const id = Object.keys(ids).find((key) => ids[key].index === index - 1);
-              if ($(this).find("th").length == 0) {
+              if ($(this).find("th").length == 0 && $(this).hasClass("filter-row") == false) {
                 if (id) {
                   const distance = ids[id].distance || "";
                   const relationship = ids[id].relationship || "";
@@ -231,12 +269,13 @@ async function GetSuggestions() {
     if (params.has("p")) {
       fetch("https://plus.wikitree.com/function/WTWebUser/WBE_TableFilters.htm?UserID=" + params.get("p"))
         .then((suggestionsPage) => {
-          const txt = suggestionsPage.text();
-          resolve(txt);
+          suggestionsPage.text().then(resolve).catch(reject);
         })
         .catch(() => {
-          reject("");
+          resolve("");
         });
+    } else {
+      resolve(""); // ← ADD THIS so Promise.all() can finish
     }
   });
 }
@@ -438,7 +477,7 @@ export function addFiltersToWikitables(aTable = null) {
 
   // Position the Clear Filters button
   const filterRow = tables[0] ? tables[0].querySelector(".filter-row") : null;
-  const filterRowRect = filterRow.getBoundingClientRect();
+  const filterRowRect = filterRow ? filterRow.getBoundingClientRect() : { top: 0, right: 0 };
 
   // If the table has a caption, place the button within the caption, on the right, before an 'x' element if it exists
   const caption = tables[0].querySelector("caption");
@@ -624,10 +663,11 @@ function addSortToTables() {
 export async function initTableFilters() {
   window.tableFiltersOptions = await getFeatureOptions("tableFilters");
   if (window.tableFiltersOptions.distanceAndRelationship) {
-    if ($("th:contains('°')").length == 0 && (isSpecialWatchedList || isSearchPage)) {
-      addDistanceAndRelationColumns();
+    if ($("th:contains('°')").length === 0 && (isSpecialWatchedList || isSearchPage)) {
+      waitForDistanceTable(); // ← run the observer
     }
   }
+
   addFiltersToWikitables();
   if ($("table.wt.table th#deathDate").length == 0) {
     addSortToTables();
@@ -635,12 +675,31 @@ export async function initTableFilters() {
 }
 
 // Initialize table filters if the feature is enabled
-shouldInitializeFeature("tableFilters").then((result) => {
-  if (result) {
-    setTimeout(() => {
-      if ($(".wikitable,table.wt.table").length > 0) {
-        initTableFilters();
-      }
-    }, 1000);
+shouldInitializeFeature("tableFilters").then((enabled) => {
+  if (!enabled) return;
+
+  /** run only once */
+  const initOnce = () => {
+    if (window._tableFiltersInit) return; // guard
+    window._tableFiltersInit = true;
+    initTableFilters(); // ← your original function
+  };
+
+  const tableSelector = ".wikitable, table.wt.table";
+
+  /* 1️⃣  If the table is already in the DOM (cached page, very fast load) */
+  if (document.querySelector(tableSelector)) {
+    initOnce();
+    return; // done
   }
+
+  /* 2️⃣  Otherwise watch the DOM until it appears */
+  const observer = new MutationObserver(() => {
+    if (document.querySelector(tableSelector)) {
+      observer.disconnect(); // stop watching
+      initOnce();
+    }
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
 });
