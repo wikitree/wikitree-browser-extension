@@ -138,10 +138,22 @@ export function normalizeLocation(loc) {
   /* city (first) */
   if (mainISO) parts[0] = getNativeCityName(parts[0], mainISO);
 
-  /* mid parts that are constituent countries (England, …) */
+  /* ---------- MIDDLE PARTS (England, Holland, etc.) ---------------- */
   for (let i = 1; i < parts.length - 1; i++) {
-    const midNative = getNativeCountryName(parts[i]);
-    if (midNative !== parts[i] && getCountryISO(midNative)) parts[i] = midNative;
+    const midOriginal = parts[i];
+    const midNative = getNativeCountryName(midOriginal);
+
+    if (midNative === midOriginal) continue; // nothing changed
+
+    const midISO = getCountryISO(midNative); // may be undefined
+    const lastISO = getCountryISO(nativeCountry);
+
+    /* Translate only if:
+       – still a country (midISO),
+       – and its ISO is different from the main country’s ISO        */
+    if (midISO && midISO !== lastISO) {
+      parts[i] = midNative; // accept translation
+    }
   }
 
   const out = parts.join(", ");
