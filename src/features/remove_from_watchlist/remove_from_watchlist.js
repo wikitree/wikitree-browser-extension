@@ -49,14 +49,19 @@ function init() {
     }
   }
 
-  const nextButton = $("button:contains('Next'):first").closest("div")[0];
+  let theTable = document.querySelector('div.table-responsive');
 
-  const checkAllButton = document.createElement("input");
-  checkAllButton.type = "button";
-  checkAllButton.classList.add("small");
-  checkAllButton.classList.add("wbe");
-  checkAllButton.value = "check/uncheck all";
-  checkAllButton.style.setProperty("margin-left", "1em", "important");
+  // to get just text surrounded by a box use just the
+  // btn-sm and ms-2 classes, although ms-2 doesn't seem to have an effect
+  let checkAllButton = document.createElement('button');
+  checkAllButton.innerText = 'Check/Uncheck All';
+  checkAllButton.id = 'checkAllButton';
+  checkAllButton.classList.add("btn");
+  checkAllButton.classList.add("btn-utility");
+  checkAllButton.classList.add("btn-sm");
+  checkAllButton.classList.add('ms-2');
+  checkAllButton.title = "Click to check or uncheck all";
+
   checkAllButton.addEventListener("click", () => {
     const tableRows = document.getElementsByTagName("tr");
     for (let i = 0; i < tableRows.length; i++) {
@@ -70,18 +75,27 @@ function init() {
       }
     }
   });
-  nextButton.appendChild(checkAllButton);
+  const checkAllContainer = document.createElement("div");
+  checkAllContainer.appendChild(checkAllButton);
 
-  const orphanButton = document.createElement("input");
-  orphanButton.type = "button";
-  orphanButton.value = "remove selected from watchlist";
-  orphanButton.classList.add("small");
-  orphanButton.classList.add("wbe");
-  orphanButton.style.setProperty("margin-left", "1em", "important");
+  let orphanButton = document.createElement('button');
+  orphanButton.innerText = 'Remove Selected from Watchlist';
+  orphanButton.id = 'orphanButton';
+  orphanButton.classList.add('btn');
+  orphanButton.classList.add('btn-utility');
+  orphanButton.classList.add('btn-sm');
+  checkAllButton.classList.add('ms-2');
+  orphanButton.title = "Click to remove selected profiles from Watchlist";
   orphanButton.addEventListener("click", () => {
     DoOrphan();
   });
-  nextButton.appendChild(orphanButton);
+  
+  // TODO to make this look correct the More WBE buttons
+  // which are Reverse Locations and Wide table should probably have
+  // the same styling. And perhaps go into a single div container
+
+  checkAllContainer.appendChild(orphanButton);
+  theTable.before(checkAllContainer);
 }
 
 /**
