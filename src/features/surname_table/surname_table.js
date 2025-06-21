@@ -9,6 +9,8 @@ import { convertDate } from "../auto_bio/auto_bio";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { showFamilySheet } from "../familyGroup/familyGroup";
 import { getUserNumId } from "../../core/common";
+import { addTableButtonsContainer } from "../remove_from_watchlist/remove_from_watchlist";
+import { add } from "date-fns";
 
 const USER_NUM_ID = getUserNumId();
 let theTable;
@@ -605,9 +607,9 @@ async function initSurnameTableSorting() {
   if (!$("#flipLocationsButton").length) {
     const titleText = "Toggle all birth/death locations between small->big and big->small.";
     const $flipBtn = $(
-      `<button id='flipLocationsButton' title="${titleText}" class='small'>Reverse Locations</button>`
+      `<button id='flipLocationsButton' title="${titleText}" class='btn wbe btn-sm btn-secondary'>Reverse Locations</button>`
     );
-    $flipBtn.insertBefore(theTable);
+    addTableButtonsContainer(theTable, $flipBtn[0]);
 
     $flipBtn.on("click", function () {
       // Toggle the global
@@ -1002,10 +1004,10 @@ function addButtonBox() {
  * @returns {Promise<void>} Resolves when the wide table button is added and its event handler is attached.
  */
 async function addWideTableButton() {
-  const wideTableButton = $("<button class='button small wideTableButton'>Wide Table</button>");
+  const wideTableButton = $("<button class='button btn-sm btn wbe btn-secondary wideTableButton'>Wide Table</button>");
 
   if ($(".wideTableButton").length == 0) {
-    wideTableButton.insertBefore(theTable);
+    addTableButtonsContainer(theTable, wideTableButton[0]);
   }
 
   // Retrieve the last state from local storage

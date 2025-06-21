@@ -4,6 +4,44 @@ import $ from "jquery";
 import { mainDomain } from "../../core/pageType";
 import { getUserNumId } from "../../core/common";
 
+// jsdoc
+/**
+ * Adds a container for table buttons before the specified table.
+ * If a button is provided, it appends the button to the container.
+ * If the container already exists, it appends the button to the existing container.
+ * @param {jQuery} $table - The jQuery object representing the table before which the container will be added.
+ * @param {jQuery} [$button] - Optional jQuery object representing a button to be added to the container.
+ * @returns {void}
+ */
+export function addTableButtonsContainer(table, button) {
+  const $table = $(table);
+  const $button = button ? $(button) : null;
+  const $container = $("#tableButtonsContainer");
+
+  if ($container.length) {
+    if ($button) {
+      $container.append($button);
+    }
+    return;
+  }
+
+  const $newContainer = $("<div>", {
+    id: "tableButtonsContainer",
+    class: "d-flex align-items-center",
+    css: {
+      gap: "1em",
+      marginBottom: "0.5em",
+      marginTop: "0.5em",
+    },
+  });
+
+  if ($button) {
+    $newContainer.append($button);
+  }
+
+  $table.before($newContainer);
+}
+
 function init() {
   const profileRows = document.getElementsByTagName("tr");
 
@@ -49,17 +87,18 @@ function init() {
     }
   }
 
-  let theTable = document.querySelector('div.table-responsive');
+  let theTable = document.querySelector("div.table-responsive");
 
   // to get just text surrounded by a box use just the
   // btn-sm and ms-2 classes, although ms-2 doesn't seem to have an effect
-  let checkAllButton = document.createElement('button');
-  checkAllButton.innerText = 'Check/Uncheck All';
-  checkAllButton.id = 'checkAllButton';
+  let checkAllButton = document.createElement("button");
+  checkAllButton.innerText = "Check/Uncheck All";
+  checkAllButton.id = "checkAllButton";
   checkAllButton.classList.add("btn");
-  checkAllButton.classList.add("btn-utility");
+  checkAllButton.classList.add("wbe");
   checkAllButton.classList.add("btn-sm");
-  checkAllButton.classList.add('ms-2');
+  checkAllButton.classList.add("btn-secondary");
+  checkAllButton.classList.add("ms-2");
   checkAllButton.title = "Click to check or uncheck all";
 
   checkAllButton.addEventListener("click", () => {
@@ -75,27 +114,23 @@ function init() {
       }
     }
   });
-  const checkAllContainer = document.createElement("div");
-  checkAllContainer.appendChild(checkAllButton);
+  // Add the checkAllButton to a container
 
-  let orphanButton = document.createElement('button');
-  orphanButton.innerText = 'Remove Selected from Watchlist';
-  orphanButton.id = 'orphanButton';
-  orphanButton.classList.add('btn');
-  orphanButton.classList.add('btn-utility');
-  orphanButton.classList.add('btn-sm');
-  checkAllButton.classList.add('ms-2');
+  let orphanButton = document.createElement("button");
+  orphanButton.innerText = "Remove Selected from Watchlist";
+  orphanButton.id = "orphanButton";
+  orphanButton.classList.add("btn");
+  orphanButton.classList.add("wbe");
+  orphanButton.classList.add("btn-sm");
+  orphanButton.classList.add("btn-secondary");
+  orphanButton.classList.add("ms-2");
   orphanButton.title = "Click to remove selected profiles from Watchlist";
   orphanButton.addEventListener("click", () => {
     DoOrphan();
   });
-  
-  // TODO to make this look correct the More WBE buttons
-  // which are Reverse Locations and Wide table should probably have
-  // the same styling. And perhaps go into a single div container
 
-  checkAllContainer.appendChild(orphanButton);
-  theTable.before(checkAllContainer);
+  addTableButtonsContainer(theTable, checkAllButton);
+  addTableButtonsContainer(theTable, orphanButton);
 }
 
 /**
