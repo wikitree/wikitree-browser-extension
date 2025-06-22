@@ -27,7 +27,7 @@ registerFeature({
           value: "below",
         },
       ],
-      defaultValue: "above",
+      defaultValue: "below",
     },
   ],
 });
