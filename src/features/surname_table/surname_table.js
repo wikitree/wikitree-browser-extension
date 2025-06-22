@@ -371,7 +371,7 @@ async function initSurnameTableSorting() {
       } else if (!raw.match(/^[0-9]{3,4}s?$/)) {
         raw = convertDate(raw, "ISO");
       }
-      const yr = raw.match(/\d{3,4}/);
+      const yr = (raw || "").match(/\d{3,4}/);
       if (yr) birthYear = yr[0];
     }
     $(this).attr("data-year", birthYear);
@@ -931,8 +931,7 @@ function makeTableWide(dTable) {
     let closestTable = secondTD.closest("table");
     container.insertBefore(closestTable);
   } else {
-    container.insertAfter($("#flipLocationsButton"));
-    $(".wideTableButton").insertBefore(container);
+    container.insertAfter($("#tableButtonsContainer"));
   }
   container.append(dTable);
 
