@@ -143,7 +143,10 @@ function init() {
  */
 shouldInitializeFeature("removeFromWatchlist").then((result) => {
   if (result) {
-    setTimeout(init, 3000);
+    // Watchlist Free-Space Profiles do not have information to be able to remove them
+    if (($(".nav-link.active").text().match("Free-Space Profiles")) == null) {
+      setTimeout(init, 3000);
+    }
   }
 });
 
