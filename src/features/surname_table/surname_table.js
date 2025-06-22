@@ -124,7 +124,7 @@ async function init() {
   window.surnameTableOptions = await getFeatureOptions("surnameTable");
 
   headerRow.addClass("surnameTableHeaderRow");
-  const moreButton = $("<button id='surnameTableMoreButton' class='small'>More (WBE)</button>");
+  const moreButton = $("<button id='surnameTableMoreButton' class='small btn-secondary'>More (WBE)</button>");
 
   await replaceDittoMarks();
 
@@ -338,11 +338,11 @@ async function initSurnameTableSorting() {
   //////////////////////////////////////////////////////////
   // A) CREATE data-manager, data-year
   //////////////////////////////////////////////////////////
-  const rows = theTable.find("tbody tr");
+  //const rows = theTable.find("tbody > tr");
+  const rows = $(theTable).find("tbody").first().children("tr");
   rows.each(function () {
     let managerTD = $(this).find("td").eq(3);
     const birthTD = $(this).find("td").eq(1);
-
     if (isSpecialWatchedList) {
       managerTD = $(this).find("td").eq(2);
     }
