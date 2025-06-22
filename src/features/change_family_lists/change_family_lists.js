@@ -513,7 +513,7 @@ function parseInitialData() {
     });
     bracketed.forEach((b) => {
       //console.log("Child bracketed: ", b);
-      if (!parsedChildren.some((m) => m.Link === b.Link || m.Name === b.Name) || b.Name.includes("private")) {
+      if (!parsedChildren.some((m) => m.Link === b.Link || m.Name === b.Name) && !b.Name.includes("private")) {
         parsedChildren.push(b);
       }
     });
