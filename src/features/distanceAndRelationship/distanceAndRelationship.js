@@ -4,8 +4,8 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { getConnectionJSON, getRelationJSON } from "../../core/API/wwwWikiTree";
-import { shouldInitializeFeature } from "../../core/options/options_storage";
-import { mainDomain, isProfileEdit } from "../../core/pageType";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { mainDomain, isProfileEdit, isProfilePage } from "../../core/pageType";
 import { getProfilePersonInfo } from "../../core/common";
 import { getObjectStores, distRelDbKeyFor, getUserWtId } from "../../core/common";
 
@@ -17,6 +17,7 @@ export const RELATIONSHIP_DB_VERSION = 2;
 export const RELATIONSHIP_STORE_NAME = "relationship2";
 let profilePerson;
 let profileID;
+let options = {};
 
 const fixOrdinalSuffix = (text) => {
   const pattern = /(\d+)(?:st|nd|rd|th)\b/g;
@@ -139,7 +140,7 @@ function initDb(dbName, dbVersion, storeName, oldStoreName, onSuccess) {
   };
 }
 
-shouldInitializeFeature("distanceAndRelationship").then((result) => {
+shouldInitializeFeature("distanceAndRelationship").then(async (result) => {
   if (isProfileEdit) {
     storeProfileIfCreated(); // First, check if the profile was just created and store it
     return;
@@ -154,8 +155,9 @@ shouldInitializeFeature("distanceAndRelationship").then((result) => {
 
   const userID = getUserWtId();
 
-  if (result && $("body.profile").length && profileID != userID && profileID != "") {
+  if (result && isProfilePage && profileID != userID && profileID != "") {
     import("./distanceAndRelationship.css");
+    options = await getFeatureOptions("distanceAndRelationship");
     initDistanceAndRelationshipDBs(
       (event) => onDistancesSuccess(event, profileID, userID),
       (event) => onRelationsSuccess(event, profileID, userID)
@@ -265,7 +267,12 @@ function addRelationshipText(oText, commonAncestors) {
     <ul class='yourCommonAncestor' style='white-space:nowrap'>${commonAncestorTextOut}</ul>
     </div>`
   );
-  $("h1[itemprop='name']").after(cousinText);
+  if (options.relationshipBoxPosition == "below") {
+    $("#person #Death").after(cousinText);
+  } else {
+    $("#person h1[itemprop='name']").after(cousinText);
+  }
+
   if (cousinText.next("span.large").length > 0) {
     cousinText.after($("<br>"));
   }

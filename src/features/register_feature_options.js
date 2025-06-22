@@ -75,6 +75,7 @@ import "./custom_style/custom_style_options";
 import "./darkMode/darkMode_options";
 import "./date_fixer/date_fixer_options";
 import "./disable_GIFs/disable_GIFs_options";
+import "./distanceAndRelationship/distanceAndRelationship_options";
 import "./edit_family_data/edit_family_data_options";
 import "./edit_profile_redesign/edit_profile_redesign_options";
 import "./editor_expander/editor_expander_options";
@@ -195,18 +196,6 @@ registerFeature({
   category: "Community",
   defaultValue: false,
   pages: [isMainDomain],
-});
-
-registerFeature({
-  name: "Distance and Relationship",
-  id: "distanceAndRelationship",
-  description:
-    "Adds the distance (degrees) between you and the profile person and any relationship between you. Click the degree number or relationship text to update.",
-  category: "Profile",
-  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
-  defaultValue: true,
-  pages: [isProfilePage, isProfileEdit],
 });
 
 registerFeature({
