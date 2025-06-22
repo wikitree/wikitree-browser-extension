@@ -268,7 +268,7 @@ function addRelationshipText(oText, commonAncestors) {
     </div>`
   );
   if (options.relationshipBoxPosition == "below") {
-    $("#person #Death").after(cousinText);
+    $("#person [id='Death']").first().after(cousinText);
   } else {
     $("#person h1[itemprop='name']").after(cousinText);
   }

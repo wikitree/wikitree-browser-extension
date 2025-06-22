@@ -37,7 +37,7 @@ button.copyWidget {
   border-right: 2px solid forestgreen;
   padding: 0.5em;
   border-radius: 0.5em;
-  margin: 0.3em 1em 1em;
+  margin: 0.3em 1em 1em 0;
   font-weight: bold;
 }
 .yourCommonAncestor {
