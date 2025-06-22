@@ -10,7 +10,6 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { showFamilySheet } from "../familyGroup/familyGroup";
 import { getUserNumId } from "../../core/common";
 import { addTableButtonsContainer } from "../remove_from_watchlist/remove_from_watchlist";
-import { add } from "date-fns";
 
 const USER_NUM_ID = getUserNumId();
 let theTable;
@@ -124,7 +123,7 @@ async function init() {
   window.surnameTableOptions = await getFeatureOptions("surnameTable");
 
   headerRow.addClass("surnameTableHeaderRow");
-  const moreButton = $("<button id='surnameTableMoreButton' class='small btn-secondary'>More (WBE)</button>");
+  const moreButton = $("<button id='surnameTableMoreButton' class='small btn btn-secondary'>More (WBE)</button>");
 
   await replaceDittoMarks();
 
