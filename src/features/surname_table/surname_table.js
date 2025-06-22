@@ -361,6 +361,10 @@ async function initSurnameTableSorting() {
     let birthYear = "";
     if (birthMatch) {
       let raw = birthMatch[0].trim();
+      // Make sure raw is now a string. Replace with empty string if not.
+      if (typeof raw !== "string") {
+        raw = "";
+      }
       raw = raw.replace(/s$/, "").replace(/(bef|aft|abt)\s/, "");
       if (raw.startsWith("- ")) {
         raw = "0000-00-00";
