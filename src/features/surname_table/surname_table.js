@@ -354,7 +354,10 @@ async function initSurnameTableSorting() {
 
     // data-year for potential secondary sorting
     const birthText = birthTD.text() || "";
-    const birthMatch = birthText.match(/.*?[0-9]{3,4}s?\b/);
+    let birthMatch = null;
+    if (typeof birthText === "string" && birthText.trim() !== "") {
+      birthMatch = birthText.match(/.*?[0-9]{3,4}s?\b/);
+    }
     let birthYear = "";
     if (birthMatch) {
       let raw = birthMatch[0].trim();
