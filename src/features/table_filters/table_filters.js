@@ -42,6 +42,9 @@ function waitForDistanceTable() {
     const table = document.querySelector(selector);
     if (!table) return;
 
+    // Do not add distance and relationship to Watchlist Free-Space Profiles
+    if (($(".nav-link.active").text().match("Free-Space Profiles")) != null) return;
+
     window._distanceColsDone = true;
     addDistanceAndRelationColumns(table);
     observer?.disconnect();
@@ -146,7 +149,6 @@ function addDistanceAndRelationColumns(tableElem) {
   const currentUser = getUserWtId();
   const ids = {};
   const $table = $(tableElem);
-
   $table.find("tr").each((rowIdx, tr) => {
     const href = $(tr).find("td a").eq(0).attr("href");
     if (!href) return;
