@@ -1064,7 +1064,7 @@ shouldInitializeFeature("surnameTable").then((result) => {
     } else {
       return;
     }
-    const isFreeSpaceList = $("ul.profile-tabs li.current").text().match("Free-Space Profiles");
+    const isFreeSpaceList = $(".nav-link.active").text().match("Free-Space Profiles");
     if (window.location.href.match(/Special:(Surname|WatchedList|SearchPerson)/) && isFreeSpaceList == null) {
       init();
     }
