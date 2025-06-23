@@ -7908,7 +7908,7 @@ function minimalPlace2(narrativeBits) {
 export async function getLocationCategoriesForSourcePlaces() {
   // Check if window.profilePerson.referencePlaces exists and is an array
   if (!Array.isArray(window.profilePerson.referencePlaces)) {
-    return;
+    return [];
   }
 
   const results = [];

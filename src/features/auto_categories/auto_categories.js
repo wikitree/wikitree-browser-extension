@@ -108,7 +108,7 @@ export async function addAutoCategories() {
   window.addCategories.forEach((category) => {
     addLocationCategoryToStuffBeforeTheBio(category);
   });
-  const referenceLocations = await getLocationCategoriesForSourcePlaces();
+  const referenceLocations = (await getLocationCategoriesForSourcePlaces()) || [];
   referenceLocations.forEach((category) => {
     addLocationCategoryToStuffBeforeTheBio(category.category);
   });
