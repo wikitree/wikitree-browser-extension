@@ -114,6 +114,7 @@ import "./sourcepreview/sourcepreview_options";
 import "./space_drafts/space_drafts_options";
 import "./space_watchlist_sorter/space_watchlist_sorter_options";
 import "./spacepreview/spacepreview_options";
+import "./sticky_header/sticky_header_options";
 import "./suggested_matches_filters/suggested_matches_filters_options";
 import "./surname_table/surname_table_options";
 import "./table_filters/table_filters_options";
@@ -319,17 +320,6 @@ registerFeature({
   contributors: [],
   defaultValue: true,
   pages: [isProfileLoggedInUserPage, isSpecialBadges],
-});
-
-registerFeature({
-  name: "Sticky Header",
-  id: "stickyHeader",
-  description: "Makes the WikiTree header stick to the top of the screen when scrolling down the page.",
-  category: "Global/Style",
-  creators: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
-  contributors: [],
-  defaultValue: false,
-  pages: [isMainDomain],
 });
 
 registerFeature({

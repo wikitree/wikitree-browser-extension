@@ -3,8 +3,8 @@ Created By: Jonathan Duke (Duke-5773)
 */
 
 import $ from "jquery";
-import { shouldInitializeFeature } from "../../core/options/options_storage";
-import { isAppsDomain, isAppsPage } from "../../core/pageType";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { isAppsDomain, isAppsPage, isG2G } from "../../core/pageType";
 
 async function initStickyHeader() {
   // initialize sticky header dimensions
@@ -78,10 +78,38 @@ function debounce(func, wait) {
   };
 }
 
-shouldInitializeFeature("stickyHeader").then((result) => {
+shouldInitializeFeature("stickyHeader").then(async (result) => {
   if (result && !isAppsDomain && !isAppsPage) {
     import("./sticky_header.css");
+    if (isG2G) {
+      const options = await getFeatureOptions("stickyHeader");
+      if (options.g2gStickyHeader) {
+        $("html").addClass("g2gStickyHeader");
+        window.setTimeout(setG2GHeaderBGColour, 1000);
+      }
+    }
     // wait a second for other items to adjust the page layout
     window.setTimeout(initStickyHeader, 1000);
   }
 });
+
+function setG2GHeaderBGColour() {
+  // If G2G, make .qa-header background colour the same as body background colour
+  if (isG2G) {
+    const bodyBgColor = $("body").css("background-color");
+    if (bodyBgColor && bodyBgColor !== "rgba(0, 0, 0, 0)" && bodyBgColor !== "transparent") {
+      $(".qa-header").css("background", bodyBgColor);
+      // Add this to the head only if it doesn't already exist.
+      let style = document.getElementById("qa-header-bg-color");
+      if (!style) {
+        style = document.createElement("style");
+        style.id = "qa-header-bg-color";
+        document.head.append(style);
+      }
+      style.textContent = `
+        .qa-header {
+          background-color: ${bodyBgColor} !important;
+        }`;
+    }
+  }
+}
