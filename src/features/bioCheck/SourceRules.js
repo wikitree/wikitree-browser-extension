@@ -715,6 +715,7 @@ class SourceRules {
     "genealogieonline",
     "geneanet tree",
     "genealogical registry and database of mennonite ancestry",
+    "genesreunited.co.uk/tree",
     "geni tree",
     "myheritage tree",
     "nos origines",
