@@ -21,7 +21,7 @@
   }
 
   .sticky-header body > #banner,
-  .sticky-header body > header,
+  .sticky-header body header,
   .sticky-header.g2gStickyHeader .qa-body-wrapper .qa-header {
     position: sticky;
     z-index: 999; /* same as .tabs--wrapper to place them under modals */
@@ -31,7 +31,7 @@
     top: 0;
   }
 
-  .sticky-header body > header,
+  .sticky-header body header,
   .sticky-header.g2gStickyHeader .qa-body-wrapper .qa-header {
     top: var(--x-sticky-banner-height);
   }
@@ -40,7 +40,7 @@
     background-color: #fff;
   }
 
-  .sticky-header body > .tabs--wrapper {
+  .sticky-header body .tabs--wrapper {
     top: calc(var(--x-sticky-banner-height) + var(--x-sticky-header-height) + var(--x-sticky-search-height)) !important;
     z-index: 997;
   }

@@ -18,7 +18,6 @@ const surnameSummariesButton = $(
 );
 const tree = chrome.runtime.getURL("images/tree.gif");
 const connectionIDs = [];
-const connectionList = $("#connectionList li");
 const relationshipColours = [
   "greenFamily",
   "yellowFamily",
@@ -117,6 +116,8 @@ const familyColours = [
 
 let relationshipColourNum = 0;
 let relationshipColour;
+// NEW – keeps track of the gender shown in the previous row
+let prevRowGender = "";
 let pNumber;
 const openPrivacy = chrome.runtime.getURL("images/privacy_open.png");
 const publicPrivacy = chrome.runtime.getURL("images/privacy_public.png");
@@ -128,6 +129,7 @@ const timeLineImg = chrome.runtime.getURL("images/timeline.svg");
 const homeImg = chrome.runtime.getURL("images/family_group.svg");
 
 let connectionNames = [];
+let connectionList = $(); // Will hold the jQuery object for the connection list
 
 function setupConnectionTools() {
   if ($("#customActionsContainer").length) {
@@ -557,7 +559,7 @@ function gatherConnectionIDs() {
     const $box = $(this);
 
     /* WT-ID -------------------------------------------------------- */
-    const id = $box.find("a").attr("href").replace("/wiki/", "");
+    const id = $box.find("a").attr("href")?.replace("/wiki/", "");
 
     /* raw relationship text --------------------------------------- */
     const rel = ($box.text().match(/\(([^)]+)\)/) || [, ""])[1].trim();
@@ -662,68 +664,79 @@ function getCorrectRelationString(relationText, personGender) {
 }
 
 /**
- * Replaces addAPrivate.  Now takes the real mPerson
- * so we can pull person.Gender instead of guessing from the raw text.
+ * Builds a table-row for the “[private …]” placeholder that appears
+ * in Connection Finder paths.  We pass in a *dummy* person object so
+ * the row’s gender is “Unknown” and therefore won’t affect later
+ * pronoun logic.
+ *
+ * @param {Array}  privateMatch – array whose [0] element is the label
+ *                                e.g. “[private mother]”
+ * @param {Object} person       – dummy person; default { Gender:"" }
  */
-function addAPrivate(privateMatch, person) {
-  // 1) clean up the name
-  const name = privateMatch[0].replaceAll(/[\[\]]/g, "");
+function addAPrivate(privateMatch, person = { Gender: "" }) {
+  /* 1 — pick up the label inside the square brackets                */
+  const name = privateMatch[0].replace(/^\[|\]$/g, "").trim(); // “private …”
 
-  // 2) pull the raw "(...)" text from the connection list
-  const relMatch = connectionList
-    .eq(pNumber)
-    .text()
-    .match(/\(([^)]+)\)/);
-  const rawRelation = relMatch ? relMatch[1] : "";
+  /* 1a — if Gender not supplied, try to infer it from whole words
+         (so “person” no longer triggers the “…son” test) */
+  if (!person.Gender) {
+    const l = name.toLowerCase();
+    if (/\b(mother|wife|sister|daughter)\b/.test(l)) person.Gender = "Female";
+    else if (/\b(father|husband|brother|son)\b/.test(l)) person.Gender = "Male";
+  }
 
-  // 3) get arrow & colour from existing connectionsRelation helper
-  //    we ignore its gender output here, since we'll use person.Gender
+  /* 2 — raw “(his father)” etc. text from the parallel connection-box */
+  const rawRelation =
+    connectionList
+      .eq(pNumber)
+      .text()
+      .match(/\(([^)]+)\)/)?.[1] || "";
+
+  /* 3 — arrow & branch colour based on those raw words              */
   const [, arrow, colour] = connectionsRelation(rawRelation);
+  const arrowHTML = arrow ? `<span class="relationshipArrow">${arrow}</span>` : "";
 
-  // 4) build the correct pronoun+relation string
-  const pronounRel = getCorrectRelationString(rawRelation, person.Gender);
+  /* 4 — build safe pronoun + base-word strings                      */
+  const parts = getCorrectRelationString(rawRelation, person.Gender).split(" ");
+  const pronoun = parts[0] || "";
+  const relationWord = parts[1] || "";
 
-  // 5) split that into pronoun vs relation word
-  const [pronoun, relationWord] = pronounRel.split(" ");
-
-  // 6) wrap in spans
-  const mRelationOut = `
-    <span class="hisHer">${pronoun}</span>
-    <span class="relationWord">${relationWord}</span>
-  `;
-
-  // 7) now build & append the row exactly as before
-  const aLine = $(`
+  /* 5 — assemble the row (same 10 <td>s as real rows)               */
+  const $row = $(`
     <tr class="${person.Gender}">
       <td>${pNumber}</td>
-      <td class="relationship ${colour}"
-          data-relationship="${pronounRel}">
-        <span class="relationshipArrow">${arrow}</span>
-        ${mRelationOut}
+
+      <!-- buttonsCell: only the pad-lock for a private placeholder -->
+      <td class="buttonsCell">
+        <img class="privacyImage" src="${privatePrivacy}" title="Private">
       </td>
-      <td class="connectionsName">
-        <img class="privacyImage"
-             src="${privatePrivacy}"
-             title="Private">
-        <a>${name}</a>
+
+      <!-- relation column keeps branch colour but may be empty -->
+      <td class="relationship ${colour}" data-relationship="">
+        ${arrowHTML}
+        <span class="hisHer">${pronoun}</span>
+        <span class="relationWord">${relationWord}</span>
       </td>
-      <td class="aDate"></td>
-      <td></td>
-      <td class="aDate"></td>
-      <td></td>
-      <td class="aDate"></td>
-      <td></td>
+
+      <!-- name column -->
+      <td class="connectionsName"><a>${name}</a></td>
+
+      <!-- all date / place / marriage columns stay blank -->
+      <td class="aDate"></td><td></td>
+      <td class="aDate"></td><td></td>
+      <td class="aDate"></td><td></td>
     </tr>
   `);
-  $("#connectionsTable tbody").append(aLine);
-  pNumber++;
+  $("#connectionsTable tbody").append($row);
 
-  // 8) recurse if there’s another private placeholder
-  const next = connectionList
-    .eq(pNumber)
-    .text()
-    .match(/\[private.*?\]/);
-  if (next) addAPrivate(next, person);
+  /* 6 — advance counters and recurse if the next box is also private */
+  pNumber++;
+  prevRowGender = person.Gender; // "" ⇒ ‘their’, "Male" ⇒ ‘his’, etc.
+
+  const $next = connectionList.eq(pNumber);
+  if ($next.length && !$next.find("a").length) {
+    addAPrivate([$next.text().trim()], person); // recurse
+  }
 }
 
 function getRels(rel, person, theRelation = false) {
@@ -1139,6 +1152,10 @@ function connectionFinderTable() {
           table.insertAfter("#connectionList");
 
           const people = data[0].items;
+
+          const connectionBoxes = $("#connectionList .connection-box");
+          connectionList = connectionBoxes; // <— make the global a jQuery set
+
           pNumber = 0;
           window.heritageSociety = [];
 
@@ -1147,29 +1164,33 @@ function connectionFinderTable() {
           people.forEach((item, i) => {
             let m = item.person;
 
-            /* 1. back-fill “[private]” stubs (unchanged) ----------------------- */
+            /* 1 ─ insert any “[private …]” row that comes **before** this person */
+            const privMatch = connectionBoxes
+              .eq(pNumber)
+              .text()
+              .match(/\[private.*?\]/i);
+            if (privMatch) addAPrivate(privMatch); // ← no gender guess
+
+            /* 2 ─ fetch the relation text by real **row** number, not by `i` */
+            const relTxt = connectionIDs[pNumber][1];
+
+            /* 3 ─ we still need the real profile object – fill blanks if private */
             if (!m.Name) {
-              const link = $("#connectionList li").eq(i).find("a");
-              const parts = link.text().split(" ");
+              const link = connectionList.eq(i).find("a");
+              const parts = link.text().trim().split(" ");
               m.Name = link.attr("href").replace("/wiki/", "");
               m.FirstName = parts.shift();
               m.LastNameAtBirth = m.LastNameCurrent = parts.pop();
-              if (parts.length) m.MiddleName = parts.join(" ");
+              m.MiddleName = parts.join(" ");
               m.Privacy = 10;
             }
-            const privMatch = $("#connectionList li")
-              .eq(pNumber)
-              .text()
-              .match(/\[private.*?\]/);
-            if (privMatch) addAPrivate(privMatch, m);
 
-            m = addRelArraysToPerson(m); // normalise arrays
+            m = addRelArraysToPerson(m); // normalise rel-arrays
 
             /* 2. dates / colours ---------------------------------------------- */
             const { birthRaw, deathRaw, yearColour, textColour, birthLoc, deathLoc } = buildDateBits(m);
 
             /* 3. marriage details (only if this row is a spouse) -------------- */
-            const relTxt = connectionIDs[i][1];
             const { date: marriageDate, place: marriageLoc } = getMarriageDetails(
               m,
               relTxt,
@@ -1186,11 +1207,13 @@ function connectionFinderTable() {
               pronoun,
               baseWord,
               corrected,
-            } = buildRelationBits(i, relTxt, i > 0 ? people[i - 1].person.Gender : "", m.Gender);
+            } = buildRelationBits(pNumber, relTxt, prevRowGender, m.Gender);
 
             /* 6. timeline / family-sheet icons -------------------------------- */
             const timelineBtn = `<img data-wtid="${m.Name}" src="${timeLineImg}" class="timelineButton" width="18" height="18" title="View Family Timeline">`;
             const familySheetBtn = `<span data-wtid="${m.Name}" class="familyHome" title="View Family Group"><img src="${homeImg}" width="18" height="18"></span>`;
+
+            const arrowHTML = arrow ? `<span class="relationshipArrow">${arrow}</span>` : "";
 
             /* 7. assemble & append the table row ------------------------------ */
             const $row = $(`
@@ -1201,7 +1224,7 @@ function connectionFinderTable() {
                   ${timelineBtn}${familySheetBtn}
                 </td>
                 <td class="relationship ${relColour}" data-relationship="${i ? corrected : ""}">
-                  ${arrow}<span class="hisHer">${pronoun}</span> <span class="relationWord">${baseWord}</span>
+                  ${arrowHTML}<span class="hisHer">${pronoun}</span> <span class="relationWord">${baseWord}</span>
                 </td>
                 <td class="connectionsName">
                   <a href="/wiki/${m.Name}">${displayName(m)[0]}</a>
@@ -1219,6 +1242,7 @@ function connectionFinderTable() {
             /* 8. counters / heritage box -------------------------------------- */
             pNumber++;
             const prev = people[i - 1] && people[i - 1].person;
+            prevRowGender = m.Gender;
             window.heritageSociety.push([m, getSpouse(m, prev)]);
           });
           /* ───────────────────────────  end loop  ───────────────────────────── */
@@ -1232,10 +1256,29 @@ function connectionFinderTable() {
           // — post-processing: collapse/expand text, reductions, buttons, heritage box…
           window.peopleTablePeople = people;
           window.relWords = [];
+
           $("#connectionsTable td[data-relationship]").each(function () {
-            const w = $(this).data("relationship").substring(4);
-            if (w) window.relWords.push([w, 0]);
+            /* full string carried in the <td>, e.g.  "their father"              */
+            const relFull = ($(this).data("relationship") || "").trim();
+
+            /* 1 – strip the pronoun word, whatever its length                    */
+            let relWord = relFull.replace(/^\w+\s+/, ""); // → "father"  (or "")
+
+            /* 2 – if that left us with NOTHING and this row is a private stub,
+       push an ellipsis so the sentence shows an “unknown” hop            */
+            if (!relWord) {
+              const isPrivateRow = $(this)
+                .closest("tr")
+                .find(".connectionsName")
+                .text()
+                .toLowerCase()
+                .includes("private");
+              if (isPrivateRow) relWord = "…";
+            }
+
+            if (relWord) window.relWords.push([relWord, 0]);
           });
+
           const pW = /(father)|(mother)/,
             cW = /(son)|(daughter)/,
             sW = /(brother)|(sister)/;

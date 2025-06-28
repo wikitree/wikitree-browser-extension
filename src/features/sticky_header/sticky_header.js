@@ -49,7 +49,7 @@ function setStickyHeights() {
   if (bannerHeight) {
     document.documentElement.style.setProperty("--x-sticky-banner-height", bannerHeight);
   }
-  const headerHeight = $("body > header, .qa-header > header").first().css("height");
+  const headerHeight = $("body header, .qa-header > header").first().css("height");
   if (headerHeight) {
     document.documentElement.style.setProperty("--x-sticky-header-height", headerHeight);
   }
@@ -63,7 +63,7 @@ function setStickyHeights() {
     // right now, this is only considered on G2G where the heading is part of the entire header block
     document.documentElement.style.setProperty("--x-sticky-heading-height", headingHeight);
   }
-  const toolbarHeight = $("body > .tabs--wrapper, .qa-header > .qa-nav-main").first().css("height");
+  const toolbarHeight = $("body .tabs--wrapper, .qa-header > .qa-nav-main").first().css("height");
   if (toolbarHeight) {
     document.documentElement.style.setProperty("--x-sticky-toolbar-height", toolbarHeight);
   }
