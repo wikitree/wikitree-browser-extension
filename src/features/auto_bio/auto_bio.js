@@ -1356,7 +1356,7 @@ export function assignCemeteryFromSources() {
 
     if (source["Record Type"].includes("Death")) {
       let cemeteryMatch = source.Text.match(
-        /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Graveyard)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)|Memorial Park).*?),?.*?(?=[;.])/im
+        /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Graveyard)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)|Memorial Park).*?),?.*?(?=[;])/im
       );
 
       let cemeteryMatch2 = source.Text.match(
@@ -1364,12 +1364,11 @@ export function assignCemeteryFromSources() {
       );
 
       let cemeteryMatch3 = source.Text.match(
-        /(?:\b(?:in|burial in)\s)([A-Z][^.\n]*?(?:Cemetery|Memorial|Cimetière|kyrkogård|temető|Graveyard|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard)\b[^.\n]*)/i
+        /(?:\b(?:in|burial in)\s)([A-Z][^\n]*?(?:Cemetery|Memorial|Cimetière|kyrkogård|temető|Graveyard|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard)\b[^;\n]*)/i
       );
 
       // 1) pull out the Burial…; block
       let cemeteryMatch4 = source.Text.match(/;\s*Burial,\s*([^;]+?)(?=;)/i);
-
       if (cemeteryMatch4) {
         const full = cemeteryMatch4[1].trim();
 
