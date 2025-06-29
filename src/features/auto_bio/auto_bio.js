@@ -8124,7 +8124,7 @@ export async function generateBio() {
       "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix,BirthDate,DeathDate,BirthLocation,DeathLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren,NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings",
       "AutoBio"
     );
-    if (!window.profilePerson?.DeathLocation) {
+    if (window.profilePerson && !window.profilePerson?.DeathLocation) {
       window.profilePerson.DeathLocation = "";
     }
 
