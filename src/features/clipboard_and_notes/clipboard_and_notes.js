@@ -15,8 +15,11 @@ import {
   isSpaceEdit,
   isProfileEdit,
   isWikiEdit,
+  isSpecialTrustedList,
 } from "../../core/pageType";
 import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
+
+let lastTextboxSelection = { start: 0, end: 0 }; // Store the last selection in the text box
 
 const CB_DB_NAME = "Clipboard";
 const CB_DB_VERSION = 1;
@@ -95,10 +98,44 @@ export async function appendClipboardButtons(clipboardButtons = $()) {
   handleScroll();
 }
 
+// Remember the last selection in the text box
+
+// Update whenever the textarea is interacted with
+function updateLastTextboxSelection() {
+  // Place this outside any function, after your lastTextboxSelection declaration.
+  $(document).on("focus click keyup select blur", "#wpTextbox1", function (e) {
+    // For blur: only store if this was the active element
+    if (e.type === "blur" || e.type === "focusout") {
+      // Defensive: in some browsers, selectionStart/End is still valid on blur, in others it's 0.
+      if (typeof this.selectionStart === "number" && typeof this.selectionEnd === "number") {
+        lastTextboxSelection.start = this.selectionStart;
+        lastTextboxSelection.end = this.selectionEnd;
+      }
+    } else {
+      lastTextboxSelection.start = this.selectionStart;
+      lastTextboxSelection.end = this.selectionEnd;
+    }
+  });
+  // Insurance: Save on clipboard button mousedown
+  $(document).on("mousedown", ".aClipboardButton", function () {
+    const $t = $("#wpTextbox1");
+    if ($t.length) {
+      lastTextboxSelection.start = $t[0].selectionStart;
+      lastTextboxSelection.end = $t[0].selectionEnd;
+    }
+  });
+}
+
 var clippingRow = -1;
 var keyMode = false; // flags whether the user is using cursor keys or mouse
 
 shouldInitializeFeature("clipboardAndNotes").then((result) => {
+  if (!result) {
+    return; // Exit if the feature is not enabled
+  }
+
+  updateLastTextboxSelection();
+
   $(".qa-form-light-button-comment,.qa-form-light-button-answer").on("click", function () {
     $("#clipboard").remove();
   });
@@ -333,7 +370,8 @@ async function copyClippingToClipboard(element) {
     $("body.profile").length ||
     $("body.qa-body-js-on").length ||
     $("h1:contains('Edit Marriage Information')").length ||
-    $("#mSources").length
+    $("#mSources").length ||
+    isSpecialTrustedList
   ) {
     const box = window.activeFormElement;
     let el = $();
@@ -363,10 +401,20 @@ async function copyClippingToClipboard(element) {
       return;
     } else if ($("#privateMessage-comments").length) {
       el = $("#privateMessage-comments");
+    } else if (isSpecialTrustedList) {
+      el = $("input[name='add_email']");
+    } else if ($("#wpTextbox1").length && lastTextboxSelection) {
+      el = $("#wpTextbox1");
     } else {
       el = $("#" + box);
     }
     if (el[0]) {
+      if (el.attr("id") === "wpTextbox1" && lastTextboxSelection) {
+        el[0].focus();
+        el[0].selectionStart = lastTextboxSelection.start;
+        el[0].selectionEnd = lastTextboxSelection.end;
+      }
+
       const selStart = el[0].selectionStart;
       const textToInsert = decodeHTMLEntities(theText);
       const before = el.val().substring(0, selStart);
