@@ -135,7 +135,9 @@ class TextExpander {
                       <input type="text" class="abbr-input" value="${abbr}" data-original="${abbr}">
                     </td>
                     <td>
-                      <input type="text" class="expansion-input" value="${expansion}">
+                      <textarea class="expansion-input">${expansion
+                        .replace(/</g, "&lt;")
+                        .replace(/>/g, "&gt;")}</textarea>
                     </td>
                     <td>
                       <button class="delete-expansion" data-abbr="${abbr}" title="Delete">🗑️</button>
@@ -149,7 +151,7 @@ class TextExpander {
         </div>
         <div class="add-expansion">
           <input type="text" id="newAbbr" placeholder="Abbreviation">
-          <input type="text" id="newExpansion" placeholder="Expansion">
+          <textarea id="newExpansion" placeholder="Expansion"></textarea>
           <button id="addExpansion">Add</button>
         </div>
         <div class="dialog-buttons">
