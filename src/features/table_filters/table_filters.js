@@ -43,7 +43,7 @@ function waitForDistanceTable() {
     if (!table) return;
 
     // Do not add distance and relationship to Watchlist Free-Space Profiles
-    if (($(".nav-link.active").text().match("Free-Space Profiles")) != null) return;
+    if ($(".nav-link.active").text().match("Free-Space Profiles") != null) return;
 
     window._distanceColsDone = true;
     addDistanceAndRelationColumns(table);
@@ -324,7 +324,7 @@ function addFiltersToWikitables(single = null) {
       const rows = table.querySelectorAll("tbody tr");
 
       rows.forEach((row, rowIdx) => {
-        if (rowIdx < 2 || row.classList.contains("filter-row")) return; // skip header + filter rows
+        if (row.querySelector("th") || row.classList.contains("filter-row")) return; // skip header + filter rows
 
         let show = true;
         inputs.forEach((input, colIdx) => {
