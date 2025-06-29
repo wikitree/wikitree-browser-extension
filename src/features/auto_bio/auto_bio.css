@@ -65,3 +65,10 @@
   border-radius: 50%;
   border: 2px solid forestgreen;
 }
+
+#autoBioButtonBox {
+  float: right;
+}
+#autoBioButtonBox button {
+  margin: 0.2em;
+}

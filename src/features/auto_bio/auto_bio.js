@@ -8867,66 +8867,10 @@ export async function generateBio() {
       outputText = outputText.replace(/<ref\s.*\/>/gi, "").replace(/(\s\.)(?=\s|$)/g, "");
     }
 
-    // Switch off the enhanced editor if it's on
-    let enhanced = false;
-    let enhancedEditorButton = $("#toggleMarkupColor");
-    if (enhancedEditorButton.attr("value") == "Turn Off Enhanced Editor") {
-      enhancedEditorButton.trigger("click");
-      enhanced = true;
-    }
-
-    // Add the text to the textarea and switch back to the enhanced editor if it was on
-    $("#wpTextbox1").val(outputText.replace(/(\s\.)(?=\s|$)/g, "") + $("#wpTextbox1").val());
-    if (enhanced == true) {
-      enhancedEditorButton.trigger("click");
-    }
+    setBioText(outputText.replace(/(\s\.)(?=\s|$)/g, ""));
     removeWorking();
 
-    // Add buttons to 1) remove the Auto Bio and 2) delete the old bio.
-    if ($("#deleteOldBio").length == 0) {
-      let removeAutoBioButton = $("<button id='removeAutoBio' class='small'>");
-      removeAutoBioButton.text("Undo Auto Bio");
-      removeAutoBioButton.on("click", function (e) {
-        e.preventDefault();
-        if (enhanced == true) {
-          enhancedEditorButton.trigger("click");
-        }
-        $("#wpTextbox1").val(currentBio);
-        if (enhanced == true) {
-          enhancedEditorButton.trigger("click");
-        }
-        const formDataKeys = Object.keys(originalFormData);
-        formDataKeys.forEach(function (key) {
-          $("#m" + key).val(originalFormData[key]);
-        });
-
-        $("#deleteOldBio,#removeAutoBio,#deleteOldBioMessage").remove();
-      });
-      let deleteOldBioButton = $("<button id='deleteOldBio' class='small'>");
-      deleteOldBioButton.text("Delete Old Bio");
-      deleteOldBioButton.on("click", function (e) {
-        e.preventDefault();
-        if (enhanced == true) {
-          enhancedEditorButton.trigger("click");
-        }
-        let bioNow = $("#wpTextbox1").val();
-        let newBio = bioNow.split("<!-- \n --- WikiTree Browser Extension Auto Bio --- ")[0];
-        $("#wpTextbox1").val(newBio);
-        if (enhanced == true) {
-          enhancedEditorButton.trigger("click");
-        }
-        $("#deleteOldBio,#deleteOldBioMessage").remove();
-      });
-      $("#toolbar").append(removeAutoBioButton);
-      $("#toolbar").append(deleteOldBioButton);
-      $("#draftStatus")
-        .before(`<div id="deleteOldBioMessage" class="status"><span class="large" style="display:block; font-weight:bold; margin-bottom:0.3em;">Auto Bio</span>
-      Don't forget to <b>delete the old bio</b> and the Auto Bio message above it.</div>`);
-
-      $("#wpTextbox1").on("blur", removeOldBioMessage);
-      $("body").on("click", removeOldBioMessage);
-      $("#wpSave").on("mouseover", removeOldBioMessage);
-    }
+    addAutoBioUI(); // Add the Auto Bio UI buttons
   } catch (error) {
     console.log(error);
     removeWorking();
@@ -9703,4 +9647,121 @@ function spell(text) {
       return word;
     })
     .join("");
+}
+
+const AUTO_BIO_MARKER = "WikiTree Browser Extension Auto Bio";
+
+function addAutoBioUI() {
+  removeAutoBioUI(); // Clean up first
+
+  // Status message
+  if ($("#deleteOldBioMessage").length === 0) {
+    $("#draftStatus").before(
+      `<div id="deleteOldBioMessage" class="status">
+        <span class="large" style="display:block; font-weight:bold; margin-bottom:0.3em;">Auto Bio</span>
+        Don't forget to <b>delete the old bio</b> and the Auto Bio message above it.
+      </div>`
+    );
+  }
+
+  // Undo Auto Bio: Remove everything up to and including the Auto Bio message block
+  const $removeAutoBioButton = $("<button id='removeAutoBio' class='small  editToolbarButton'>")
+    .text("Undo Auto Bio")
+    .on("click.autoBioButtons", function (e) {
+      e.preventDefault();
+      let bioNow = getBioText();
+      // Remove from start to the end of the closing --> after the Auto Bio marker
+      // [\s\S]*? non-greedy up to and including the first --> after the marker
+      let newBio = bioNow.replace(/^.*?--- WikiTree Browser Extension Auto Bio ---[\s\S]+?-->\s*/s, "");
+      setBioText(newBio, false);
+      removeAutoBioUI();
+      removeOldBioMessage();
+    });
+
+  // Delete Old Bio: Keep only up to the end of the Auto Bio message block
+  const $deleteOldBioButton = $("<button id='deleteOldBio' class='small editToolbarButton'>")
+    .text("Delete Old Bio")
+    .on("click.autoBioButtons", function (e) {
+      e.preventDefault();
+      let bioNow = getBioText();
+      // Keep everything before the Auto Bio message block
+      //
+      // <!--
+      //    --- WikiTree Browser Extension Auto Bio ---
+      let newBio = bioNow.replace(/[\s]*<!--[\s\S]+?WikiTree Browser Extension Auto Bio[\s\S]+?-->\s*[\s\S]*$/i, "");
+      setBioText(newBio, false);
+      removeAutoBioUI();
+      removeOldBioMessage();
+    });
+
+  const aButtonBox = $("<div id='autoBioButtonBox'>")
+    .append($removeAutoBioButton, $deleteOldBioButton)
+    .appendTo("#toolbar");
+  if ($("#editToolbarExt").length) {
+    aButtonBox.appendTo("#editToolbarExt");
+  }
+}
+
+function removeAutoBioUI() {
+  // Remove the Auto Bio buttons and message
+  $("#autoBioButtonBox").remove();
+  $("#deleteOldBio,#removeAutoBio").off("click.autoBioButtons");
+  $("#wpTextbox1").off("input blur", removeOldBioMessage);
+  $("#wpSave").off("mouseover", removeOldBioMessage);
+  // Remove the delete old bio message
+  if ($("#deleteOldBioMessage").length) {
+    $("#deleteOldBioMessage").remove();
+  }
+}
+
+function checkForAutoBioMarker() {
+  if (getBioText().includes(AUTO_BIO_MARKER)) {
+    addAutoBioUI();
+    $("#wpTextbox1").on("input blur", removeOldBioMessage);
+    $("#wpSave").on("mouseover", removeOldBioMessage);
+  } else {
+    removeAutoBioUI();
+  }
+}
+
+// Initialize on load and on input/blur
+$(function () {
+  if ($("#wpTextbox1").length) {
+    setTimeout(() => {
+      checkForAutoBioMarker();
+    }, 3000); // Delay to ensure the textarea is ready
+  }
+});
+
+function setBioText(text, position = "top") {
+  let enhanced = false;
+  let enhancedEditorButton = $("#toggleMarkupColor");
+  if (enhancedEditorButton.attr("value") == "Turn Off Enhanced Editor") {
+    enhancedEditorButton.trigger("click");
+    enhanced = true;
+  }
+
+  // Add the text to the textarea and switch back to the enhanced editor if it was on
+  if (position === "top") {
+    $("#wpTextbox1").val(text + $("#wpTextbox1").val());
+  } else {
+    $("#wpTextbox1").val(text);
+  }
+  if (enhanced == true) {
+    enhancedEditorButton.trigger("click");
+  }
+}
+
+function getBioText() {
+  let enhanced = false;
+  let enhancedEditorButton = $("#toggleMarkupColor");
+  if (enhancedEditorButton.attr("value") == "Turn Off Enhanced Editor") {
+    enhancedEditorButton.trigger("click");
+    enhanced = true;
+  }
+  let bioText = $("#wpTextbox1").val();
+  if (enhanced == true) {
+    enhancedEditorButton.trigger("click");
+  }
+  return bioText;
 }
