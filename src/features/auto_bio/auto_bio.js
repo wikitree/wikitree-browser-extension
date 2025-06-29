@@ -5049,6 +5049,9 @@ function addReferencePlaces() {
 export function sourcesArray(bio) {
   let dummy = $(document.createElement("html"));
   bio = bio.replace(/\{\|\s*class="wikitable".*?\|\+ Timeline.*?\|\}/gs, "").replace(/<ref[^>]*\/>/g, "");
+  // Remove == Research Notes == section
+  bio = bio.replace(/==\s?Research Notes\s?==.*?==\s?Sources\s?==/gis, "");
+
   dummy.append(bio);
   let refArr = [];
   let refs = dummy.find("ref");
@@ -8752,7 +8755,7 @@ export async function generateBio() {
         sourcesText += "See also:\n";
         filteredText.forEach(function (anAlso) {
           if (anAlso) {
-            sourcesText += "* " + anAlso.replace(/^\*\s?/, "") + "\n";
+            sourcesText += "* " + anAlso.replace(/^\*\s?/, "").replace(/:\s*[\r\n]+/gm, ": ") + "\n";
           }
         });
         sourcesText += "\n";
