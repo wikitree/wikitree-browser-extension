@@ -24,7 +24,6 @@
 }
 
 .vertical .spouse {
-  padding-right: 3px;
   margin-bottom: 0.5em;
   padding-left: 0.3em;
 }
@@ -351,7 +350,6 @@ body.darkMode .vertical .nameList li.spouse_51 {
   grid-template-areas: "name dates";
   text-align: left;
   align-items: center;
-  gap: 0.5em;
 }
 
 .vertical .spouseGrid.hasRelAge {
