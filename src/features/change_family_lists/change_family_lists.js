@@ -914,7 +914,10 @@ function buildSpousesSection(spouses) {
     const details = document.createElement("span");
     details.className = "marriageDetails";
     let dt = spouse.MarriageDetails || "";
-    dt = dt.replace(/add\/edit spouses/gi, "").trim();
+    dt = dt
+      .replace(/add\/edit spouses/gi, "")
+      .trim()
+      .replace(/^(?:Husband|Wife|Spouse) of\s*/i, "");
 
     // Wrap date
     const dateRegex = /(\d{1,2}\s)?([A-Z][a-z]+\s)?\d{4}/;
