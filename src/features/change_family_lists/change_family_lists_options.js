@@ -47,7 +47,6 @@ const changeFamilyLists = {
       ],
       defaultValue: "beforePhotos",
     },
-    { id: "oneSpousePerLine", type: OptionType.CHECKBOX, label: "One spouse per line", defaultValue: false },
     {
       id: "showSidebarHeading",
       type: OptionType.CHECKBOX,

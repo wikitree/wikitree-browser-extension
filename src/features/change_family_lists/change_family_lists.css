@@ -339,7 +339,6 @@ body.darkMode .vertical .nameList li.spouse_51 {
 
 .marriageDetails {
   margin-top: 5px;
-  font-style: italic;
 }
 
 .marriageAges {
@@ -869,6 +868,10 @@ div.VITALS a:link .addedPrefix {
   background-size: 1.3em;
 }
 
+#nVitals.vanilla {
+  font-size: 1rem;
+}
+
 .vanilla .familyList > div,
 .vanilla ol.nameList,
 .vanilla ol.nameList li {
@@ -910,6 +913,22 @@ div.VITALS a:link .addedPrefix {
 
 .vanilla.noDates .bdDates {
   display: none;
+}
+
+.vanilla ol#Spouses.hasOverflow {
+  margin-bottom: 0;
+}
+.vanilla ol#overflowSpousesWBE {
+  list-style: none;
+  margin-bottom: 0.5em;
+  padding-left: 0;
+}
+.vanilla ol#overflowSpousesWBE li {
+  padding-left: 0;
+}
+.vanilla ol#overflowSpousesWBE li,
+.vanilla ol#Spouses li {
+  margin-bottom: 0.2em;
 }
 
 #nVitals .editAction {

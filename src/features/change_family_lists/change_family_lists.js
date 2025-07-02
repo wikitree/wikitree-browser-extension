@@ -72,7 +72,7 @@ function getInitialPencils() {
   let pencils = {};
   pencils.parents = treePersonBit.find("#Parents span.EDIT a").attr("href") || "";
   pencils.siblings = treePersonBit.find("#Siblings span.EDIT a").attr("href") || "";
-  pencils.spouses = treePersonBit.find("#Spouses span.EDIT a").attr("href") || "";
+  pencils.spouses = treePersonBit.find(".spouse span.EDIT a").attr("href") || "";
   pencils.children = treePersonBit.find("#Children span.EDIT a").attr("href") || "";
   return pencils;
 }
@@ -235,58 +235,47 @@ function parseBlock(blockEl, itempropName) {
  * @param {HTMLElement} spousesEl - The element containing spouse data.
  * @returns {Object[]} Array of spouse person records.
  */
-function parseSpousesBlock(spousesEl) {
-  //console.log("Parsing spouses block:", spousesEl);
+function parseSpousesBlock(spouseEls) {
   const records = [];
-  // Split the innerHTML by markers (e.g., "Husband of", "Wife of", etc.)
-  const chunks = spousesEl.innerHTML.split(/(?:Husband|Wife|Spouse)\s+of/i);
-  //console.log("Chunks after splitting by markers:", chunks);
-  // Remove the first chunk (content before the first spouse).
-  chunks.shift();
-  chunks.forEach((chunk, index) => {
-    //  console.log(`Processing chunk ${index + 1}:`, chunk);
-    const temp = document.createElement("div");
-    temp.innerHTML = chunk;
-    const spouseEl = temp.querySelector('[itemprop="spouse"]');
+  spouseEls.forEach((spouse, index) => {
+    const spouseEl = spouse.querySelector('[itemprop="spouse"]');
     if (spouseEl) {
-      //  console.log("Found spouse element:", spouseEl);
       const rec = parseItempropElement(spouseEl);
-      //  console.log("Parsed spouse record:", rec);
       spouseEl.remove();
-      let details = temp.textContent || "";
+      let details = spouse.textContent || "";
       details = details.replace(/\s{2,}/g, " ").trim();
       details = details.replace(/add\/edit spouses/gi, "").trim();
       rec.MarriageDetails = details;
-      //  console.log("Marriage details:", details);
-      const mapLinkEl = temp.querySelector('a[href*="maps.google"]');
+      const mapLinkEl = spouse.querySelector('a[href*="maps.google"]');
       if (mapLinkEl) {
         rec.MarriageMapLink = mapLinkEl.getAttribute("href") || "";
-        //   console.log("Found marriage map link:", rec.MarriageMapLink);
       }
       rec.merge = false;
       if (rec.Name && rec.Name.trim()) {
         rec.Name = rec.Name.trim();
         records.push(rec);
-        //   console.log("Added spouse record:", rec);
       }
     }
   });
-  const bracketed = parseBracketedUnknownInBlock(spousesEl).filter(
+
+  // Add spouseEls to a temporary div to parse bracketed unknowns.
+  const tempDiv = document.createElement("div");
+  spouseEls.forEach((spouse) => {
+    tempDiv.appendChild(spouse.cloneNode(true));
+  });
+
+  const bracketed = parseBracketedUnknownInBlock(tempDiv).filter(
     (b) => b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google")
   );
-  // console.log("Bracketed unknown spouses:", bracketed);
   bracketed.forEach((b) => {
-    //   console.log("Processing bracketed spouse:", b);
     if (
       (!records.some((m) => m.Link === b.Link || m.Name === b.Name) && b.Name.trim() != "[South Africa]") ||
       b.Name.includes("private")
     ) {
       records.push(b);
-      //    console.log("Added bracketed spouse record:", b);
     }
   });
 
-  //  console.log("Final spouses records:", records);
   return records;
 }
 
@@ -470,16 +459,19 @@ function parseInitialData() {
   }
 
   // Parse spouses
-  const spousesBlock = container.querySelector("#Spouses");
+  const spousesBlock = container.querySelectorAll(".spouse");
   if (spousesBlock) {
-    // console.log("Parsing spouses block...");
     let spouseEntries = parseSpousesBlock(spousesBlock);
-    //console.log("Initial spouse entries:", spouseEntries);
     spouseEntries = spouseEntries.filter(
       (r) => r.Name && r.Name.trim() && excludeBrackets.includes(r.Name.trim().toLowerCase()) === false
     );
-    // console.log("Filtered spouse entries:", spouseEntries);
-    const bracketed = parseBracketedUnknownInBlock(spousesBlock).filter((b) => {
+
+    const tempDiv = document.createElement("div");
+    spousesBlock.forEach((spouse) => {
+      tempDiv.appendChild(spouse.cloneNode(true));
+    });
+
+    const bracketed = parseBracketedUnknownInBlock(tempDiv).filter((b) => {
       return (
         b.Name &&
         b.Name.trim() &&
@@ -487,15 +479,12 @@ function parseInitialData() {
         !b.Link.startsWith("https://maps.google")
       );
     });
-    // console.log("Bracketed unknown spouses:", bracketed);
     bracketed.forEach((b) => {
       if (!spouseEntries.some((m) => m.Link === b.Link || m.Name === b.Name) && b.Name.trim() != "[South Africa]") {
         spouseEntries.push(b);
-        //    console.log("Added bracketed spouse record:", b);
       }
     });
     familyData.spouses = spouseEntries;
-    // console.log("Final spouse entries:", familyData.spouses);
   } else {
     console.log("No spouses block found.");
     delete familyData.spouses;
@@ -512,7 +501,6 @@ function parseInitialData() {
       return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
     });
     bracketed.forEach((b) => {
-      //console.log("Child bracketed: ", b);
       if (!parsedChildren.some((m) => m.Link === b.Link || m.Name === b.Name) && !b.Name.includes("private")) {
         parsedChildren.push(b);
       }
@@ -844,30 +832,45 @@ function buildSpousesSection(spouses) {
   if (spouses.length === 1 && spouses[0].Name === "[spouse?]") {
     return buildSpousesUnknown();
   }
+
   const container = document.createElement("div");
   container.className = "VITALS spouseDetails familyList";
-  const headerDiv = document.createElement("div");
 
+  // ── HEADER ─────────────────────────────────────────
+  const headerDiv = document.createElement("div");
   if (pencils.spouses) {
     headerDiv.appendChild(createEditButton(pencils.spouses, "Add/Edit Spouses"));
   }
   headerDiv.appendChild(createHeader("Spouses: ", "spousesHeader", ""));
   container.appendChild(headerDiv);
 
-  // Create an ordered list for spouses.
-  const ol = createListElement("Spouses");
-  if (options.oneSpousePerLine && spouses.length > 1) {
-    ol.className += " oneSpousePerLine";
+  // ── MAIN LIST (first 6) ────────────────────────────
+  const olMain = createListElement("Spouses");
+  olMain.className += " oneSpousePerLine";
+  if (spouses.length > 6) {
+    olMain.classList.add("hasOverflow");
   }
-  container.appendChild(ol);
+  container.appendChild(olMain);
 
-  spouses.forEach((spouse) => {
-    const spouseLI = document.createElement("li");
-    spouseLI.className = "spouse";
-    spouseLI.dataset.parseName = spouse.Name;
-    spouseLI.setAttribute("data-id", spouse.Id);
-    spouseLI.setAttribute("data-gender", getGender(spouse));
+  // ── OVERFLOW LIST (≥7) ─────────────────────────────
+  let olOverflow = null;
+  if (spouses.length > 6) {
+    olOverflow = document.createElement("ol");
+    olOverflow.className = "oneSpousePerLine";
+    olOverflow.style.display = "none";
+    olOverflow.id = "overflowSpousesWBE";
+    container.appendChild(olOverflow);
+  }
 
+  // ── BUILD EACH <li> ─────────────────────────────────
+  spouses.forEach((spouse, idx) => {
+    const li = document.createElement("li");
+    li.className = "spouse";
+    li.dataset.parseName = spouse.Name;
+    li.setAttribute("data-id", spouse.Id);
+    li.setAttribute("data-gender", getGender(spouse));
+
+    // Name + link
     const grid = document.createElement("div");
     grid.className = "spouseGrid";
     const entry = document.createElement("span");
@@ -876,77 +879,125 @@ function buildSpousesSection(spouses) {
     entry.setAttribute("itemscope", "");
     entry.setAttribute("itemtype", "https://schema.org/Person");
     entry.setAttribute("data-gender", spouse.Gender);
-    const theDates = getDatesFromFamilyData(spouse);
+
     const isPrivate = spouse.Name.trim().toLowerCase().startsWith("[private");
     if (spouse.Link && !isPrivate) {
-      entry.innerHTML = `<a href="${spouse.Link}" itemprop="url" title="" class="spouseLink">
-        <span itemprop="name" class="spouse-name">${spouse.FullName || spouse.Name}</span></a>`;
+      entry.innerHTML = `
+        <a href="${spouse.Link}" itemprop="url" class="spouseLink">
+          <span itemprop="name" class="spouse-name">
+            ${spouse.FullName || spouse.Name}
+          </span>
+        </a>`;
     } else {
-      entry.innerHTML = `<span itemprop="name"><strong>${spouse.FullName || spouse.Name}</strong></span>`;
+      entry.innerHTML = `
+        <span itemprop="name">
+          <strong>${spouse.FullName || spouse.Name}</strong>
+        </span>`;
     }
     grid.appendChild(entry);
+
+    // Birth/death dates
     const datesEl = document.createElement("span");
     datesEl.className = "spouseDates bdDates";
+    const theDates = getDatesFromFamilyData(spouse);
     datesEl.setAttribute("data-birth-year", theDates.birthYear || "");
     datesEl.setAttribute("data-death-year", theDates.deathYear || "");
     datesEl.textContent = theDates.dates ? " " + theDates.dates : "";
     if (spouse.Name) {
-      const idName = (spouse.Name || "").replace(/\s/g, "-");
+      const idName = spouse.Name.replace(/\s+/g, "-");
       datesEl.id = idName + "-bdDates";
     }
     grid.appendChild(datesEl);
-    spouseLI.appendChild(grid);
+    li.appendChild(grid);
 
+    // Marriage details
     const details = document.createElement("span");
     details.className = "marriageDetails";
-    let detailsText = spouse.MarriageDetails || "";
-    detailsText = detailsText.replace(/add\/edit spouses/gi, "").trim();
+    let dt = spouse.MarriageDetails || "";
+    dt = dt.replace(/add\/edit spouses/gi, "").trim();
 
-    // Match date (optional day, month, required year)
+    // Wrap date
     const dateRegex = /(\d{1,2}\s)?([A-Z][a-z]+\s)?\d{4}/;
-    const dateMatch = detailsText.match(dateRegex);
-
-    // Wrap the date in a span if found
-    if (dateMatch) {
-      detailsText = detailsText.replace(dateRegex, `<span class="marriage-date">${dateMatch[0].trim()}</span>`);
+    const dm = dt.match(dateRegex);
+    if (dm) {
+      dt = dt.replace(dateRegex, `<span class="marriage-date">${dm[0].trim()}</span>`);
     }
 
-    // Match location after "in"
-    const locationRegex = /\bin\s+(.+)$/i;
-    const locationMatch = detailsText.match(locationRegex);
-
-    // Wrap the location in a span if found
-    if (locationMatch) {
-      detailsText = detailsText.replace(
-        locationRegex,
-        `in <span class="marriage-location">${locationMatch[1].trim()}</span>`
-      );
+    // Wrap location
+    const locRegex = /\bin\s+(.+)$/i;
+    const lm = dt.match(locRegex);
+    if (lm) {
+      dt = dt.replace(locRegex, `in <span class="marriage-location">${lm[1].trim()}</span>`);
     }
 
-    details.innerHTML = detailsText;
-    spouseLI.appendChild(details);
+    details.innerHTML = dt;
+    li.appendChild(details);
 
-    // Append map link if available.
+    // Map icon link
     if (spouse.MarriageMapLink) {
       const mapLink = document.createElement("a");
       mapLink.style.position = "relative";
       mapLink.href = spouse.MarriageMapLink;
       mapLink.setAttribute("data-bs-toggle", "tooltip");
       mapLink.setAttribute("data-bs-title", "Marriage Location on Map");
-      mapLink.setAttribute("data-tooltip", "Marriage Location on Map");
       mapLink.target = "_map";
-      const mapIcon = document.createElement("img");
-      mapIcon.src = "/images/icons/icon-map-pin.svg";
-      mapIcon.alt = "map icon";
-      mapLink.appendChild(mapIcon);
+      const img = document.createElement("img");
+      img.src = "/images/icons/icon-map-pin.svg";
+      img.alt = "map icon";
+      mapLink.appendChild(img);
       details.appendChild(mapLink);
     }
-    if (spouseLI.dataset.parseName.includes("?")) {
-      spouseLI.classList.add("editAction");
-      spouseLI.classList.remove("spouse");
+
+    // Placeholder edit styling
+    if (li.dataset.parseName.includes("?")) {
+      li.classList.add("editAction");
+      li.classList.remove("spouse");
     }
-    ol.appendChild(spouseLI);
+
+    // Append to main or overflow
+    if (idx < 6 || !olOverflow) {
+      olMain.appendChild(li);
+    } else {
+      olOverflow.appendChild(li);
+    }
   });
+
+  // ── SHOW/HIDE BUTTON ────────────────────────────────
+  if (spouses.length > 6) {
+    const btn = document.createElement("button");
+    btn.className = "btn btn-utility SMALL p-0 mb-2";
+    btn.type = "button";
+
+    const txtShow = document.createElement("span");
+    txtShow.className = "when-collapsed";
+    txtShow.textContent = "Show more spouses";
+
+    const txtHide = document.createElement("span");
+    txtHide.className = "when-expanded d-none";
+    txtHide.textContent = "Show fewer spouses";
+
+    btn.appendChild(txtShow);
+    btn.appendChild(txtHide);
+
+    btn.addEventListener("click", () => {
+      // Check **new** state after we flip it
+      const nowHidden = olOverflow.style.display === "" || olOverflow.style.display === "block";
+      if (nowHidden) {
+        // It was visible → hide it
+        olOverflow.style.display = "none";
+        txtShow.classList.remove("d-none");
+        txtHide.classList.add("d-none");
+      } else {
+        // It was hidden → show it
+        olOverflow.style.display = "";
+        txtShow.classList.add("d-none");
+        txtHide.classList.remove("d-none");
+      }
+    });
+
+    container.appendChild(btn);
+  }
+
   return container;
 }
 
@@ -1337,8 +1388,8 @@ function addMarriageAges() {
         if (marriageDetailsSpan.length) {
           let html = marriageDetailsSpan.html();
           html = html.replace(
-            /—\s*married\s*/i,
-            `<a href="https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=editspouse&s=${spouseId}" target="_blank" title="Edit marriage" class="clickable">married</a> `
+            /(husband|wife) of —\s*married\s*/i,
+            `— <a href="https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=editspouse&s=${spouseId}" target="_blank" title="Edit marriage" class="clickable">married</a> `
           );
           marriageDetailsSpan.html(html);
           marriageDetailsSpan.contents().wrapAll('<div class="marriageDetailsInner"></div>');
@@ -1921,7 +1972,6 @@ async function getAncestorConnection(ancestor, user) {
 function addChildrenSiblingCount() {
   const isLiving = pagePerson.IsLiving;
   const hasHad = isLiving ? "has" : "had";
-  // console.log("isLiving", isLiving);
   if ($("#childrenCount").length === 0) {
     const nVitals = $("#nVitals");
     const siblingCount = countItems(nVitals.find("span[itemprop='sibling']"));
