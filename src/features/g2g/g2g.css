@@ -107,7 +107,7 @@ input[name$="_docomment"].bigButton {
   border-color: rgb(0, 0, 0);
   border-image: initial;
   padding: 5px;
-  margin: 15px 1em;
+  margin: 0.2em 1em;
   background: rgb(37, 59, 47);
   text-decoration: none;
 }
