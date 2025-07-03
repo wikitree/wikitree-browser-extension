@@ -534,11 +534,14 @@ function buildFamilyListsFromData(familyData) {
   if (familyData.siblings !== undefined) {
     container.appendChild(buildSiblingsSection(familyData.siblings));
   }
-  if (familyData.spouses !== undefined) {
-    if (familyData.spouses.length === 0) {
-      container.appendChild(buildSpousesUnknown());
-    } else {
+  // only show a spouses section if we actually have spouse data
+  // or if the original page offered an Add/Edit Spouses link
+  if ((familyData.spouses && familyData.spouses.length > 0) || pencils.spouses) {
+    if (familyData.spouses.length > 0) {
       container.appendChild(buildSpousesSection(familyData.spouses));
+    } else {
+      // no spouses, but pencils.spouses is truthy → render “[spouse?]”
+      container.appendChild(buildSpousesUnknown());
     }
   }
   if (familyData.children !== undefined) {
