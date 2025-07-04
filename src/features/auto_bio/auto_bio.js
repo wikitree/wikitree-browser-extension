@@ -1280,13 +1280,13 @@ export function buildBirth(person) {
     theName = person.PersonName?.FullName || person.RealName;
   }
   text += boldBit + theName + boldBit + " was";
-  if (person.BirthDate || person.BirthLocation) {
+  if (person.BirthDate || person?.BirthLocation) {
     text += " born";
     text += buildBirthDate(person);
     text += buildBirthLocation(person);
   }
   if (person.Father || person.Mother) {
-    if (person.BirthDate || person.BirthLocation) {
+    if (person.BirthDate || person?.BirthLocation) {
       if (window.autoBioOptions?.firstSentences == "parentsWere") {
         text += ". ";
       } else {
@@ -1326,7 +1326,7 @@ function buildBirthDate(person) {
 
 function buildBirthLocation(person) {
   let birthLocationBit = "";
-  if (person.BirthLocation) {
+  if (person?.BirthLocation) {
     birthLocationBit = " in " + person.BirthLocation;
     let birthPlaces = person.BirthLocation.split(",");
     birthPlaces.forEach(function (place) {
@@ -1794,7 +1794,7 @@ export function buildSpouses(person) {
       let spouseDetailsB = "";
       const spousePronoun = spouse.Gender == "Male" ? "He" : spouse.Gender == "Female" ? "She" : "";
       if (window.autoBioOptions?.spouseDetails) {
-        if (isOK(spouse.BirthDate) || spouse.BirthLocation) {
+        if (isOK(spouse.BirthDate) || spouse?.BirthLocation) {
           spouseDetailsA += " (born";
           spouseDetailsB += " " + spouse.PersonName?.FirstName + " was born";
         }
@@ -1802,7 +1802,7 @@ export function buildSpouses(person) {
           spouseDetailsA += " " + formatDate(spouse.BirthDate, spouse?.DataStatus?.BirthDate, { needOn: true });
           spouseDetailsB += " " + formatDate(spouse.BirthDate, spouse?.DataStatus?.BirthDate, { needOn: true });
         }
-        if (spouse.BirthLocation) {
+        if (spouse?.BirthLocation) {
           let place = minimalPlace(spouse.BirthLocation);
           spouseDetailsA += " in " + place;
           spouseDetailsB += " in " + place;
@@ -1856,7 +1856,7 @@ export function buildSpouses(person) {
           }
         }
 
-        if (isOK(spouse.BirthDate) || spouse.BirthLocation) {
+        if (isOK(spouse.BirthDate) || spouse?.BirthLocation) {
           spouseDetailsA += ")";
           spouseDetailsB += ".";
         }
@@ -6348,7 +6348,7 @@ export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading =
         australianLocations = window.australianLocations;
       }
       const australiaKeys = Object.keys(australianLocations);
-      const birthPlace = window.profilePerson.BirthLocation;
+      const birthPlace = window.profilePerso?.BirthLocation;
       if (birthPlace) {
         let gotBirthSticker = false;
         australiaKeys.forEach(function (colony) {
@@ -7251,7 +7251,7 @@ export async function getONSstickers() {
       if (results?.response?.categories) {
         const result = findBestMatch(
           aSurname,
-          window.profilePerson.BirthLocation,
+          window.profilePerson?.BirthLocation,
           window.profilePerson.DeathLocation,
           results.response.categories
         );
@@ -7368,12 +7368,12 @@ export function addUnsourced(feature = "autoBio") {
       let unsourcedTemplate;
 
       // Check each part of the birth and death locations for unsourced categories
-      const birthPlaces = window.profilePerson.BirthLocation?.split(", ");
-      const deathPlaces = window.profilePerson.DeathLocation?.split(", ");
+      const birthPlaces = window.profilePerson?.BirthLocation?.split(", ");
+      const deathPlaces = window.profilePerson?.DeathLocation?.split(", ");
       //const places = birthPlaces.concat(deathPlaces);
       const places = [birthPlaces, deathPlaces];
       const USstates = [];
-      const USbirthState = findUSState(window.profilePerson.BirthLocation);
+      const USbirthState = findUSState(window.profilePerson?.BirthLocation);
       if (USbirthState) {
         if (USstates?.includes(USbirthState) == false) {
           USstates.push(USbirthState);
@@ -7493,8 +7493,8 @@ export function addOccupationCategories(feature = "autoBio") {
       let occupationCategory;
       if (occupationCategories[occupationTitleCase]) {
         const places = [];
-        if (window.profilePerson.BirthLocation) {
-          places.push(window.profilePerson.BirthLocation.split(", "));
+        if (window.profilePerson?.BirthLocation) {
+          places.push(window.profilePerson?.BirthLocation.split(", "));
         }
         if (window.profilePerson.DeathLocation) {
           places.push(window.profilePerson.DeathLocation.split(", "));
@@ -8690,7 +8690,7 @@ export async function generateBio() {
         researchNotesText += needsProfileText + "\n\n";
 
         // Add Needs Profiles Created category
-        if (window.profilePerson.BirthLocation && window.autoBioOptions?.needsProfilesCreatedCategory) {
+        if (window.profilePerson?.BirthLocation && window.autoBioOptions?.needsProfilesCreatedCategory) {
           const birthPlaces = window.profilePerson.BirthLocation?.split(", ");
           let needsCategory;
           birthPlaces.forEach(function (aPlace) {
@@ -8779,8 +8779,8 @@ export async function generateBio() {
         if (window.sectionsObject["Acknowledgements"].originalTitle) {
           acknowledgementsHeader = "== " + window.sectionsObject["Acknowledgements"].originalTitle + " ==\n";
         } else if (
-          window.profilePerson.BirthLocation.match(/United States|USA/) ||
-          window.profilePerson.DeathLocation.match(/United States|USA/)
+          window.profilePerson?.BirthLocation.match(/United States|USA/) ||
+          window.profilePerson?.DeathLocation.match(/United States|USA/)
         ) {
           acknowledgementsHeader = "\n== Acknowledgments ==\n";
         }
