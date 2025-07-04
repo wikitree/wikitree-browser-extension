@@ -535,7 +535,6 @@ function buildFamilyListsFromData(familyData) {
   if (familyData.siblings !== undefined) {
     container.appendChild(buildSiblingsSection(familyData.siblings));
   }
-
   // only show a spouses section if we actually have spouse data
   // or if the original page offered an Add/Edit Spouses link
   if ((familyData.spouses && familyData.spouses.length > 0) || pencils.spouses || pencils.hasAddSpouse) {
