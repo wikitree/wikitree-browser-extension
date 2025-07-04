@@ -146,6 +146,8 @@ export let isWBESpace = false;
 export let isNetworkFeed = false;
 // Special:BrowseMatches
 export let isBrowseMatches = false;
+// Special:Contributions
+export let isContributions = false;
 
 // WikiTree Plus variables
 // Profile Search results
@@ -161,6 +163,9 @@ const domain = decodeURI(window.location.hostname); // path
 
 if (window.location.href.match("Special(:|%3A|%3a)NetworkFeed")) {
   isNetworkFeed = true;
+}
+if (window.location.href.match("Special(:|%3A|%3a)Contributions")) {
+  isContributions = true;
 }
 // log
 console.log("domain: " + domain);

@@ -67,7 +67,7 @@ function init() {
 
 shouldInitializeFeature("activityFeedFilters").then((result) => {
   if (result) {
-    if (window.location.search.includes("watchlist")) {
+    if (!window.location.search.includes("watchlist") && !window.location.search.includes("Contributions")) {
       return;
     }
     import("./activity_feed_filters.css")

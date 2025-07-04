@@ -1,3 +1,7 @@
+body.contributions #activity-feed-filters {
+  margin-top: 1em;
+}
+
 /* Styles for activityFeedFilters feature */
 #activity-feed-filters button {
   display: inline-block;
