@@ -4,6 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { is } from "date-fns/locale";
 
 // -------------------- helpers --------------------
 // Decide if a link should open in a new tab
@@ -27,10 +28,14 @@ function shouldOpenInNewTab($link, options) {
   const isProfileTab = $link.closest(".nav-tabs,.tabs--wrapper").length > 0;
   const isG2GTabOrLinks = $link.closest("div.qa-nav-main,div.qa-nav-footer,div.qa-page-links").length > 0;
   const isTopMenu = $link.closest("nav").length > 0;
+  const isEditToolbar = $link.closest("#editToolbarExt").length > 0;
+  const isBtn = $link.hasClass("btn-pill") || $link.hasClass("btn-secondary") || $link.hasClass("btn-utility");
   if (
     (options.excludeProfileTabs && isProfileTab) ||
     (options.excludeG2GTabs && isG2GTabOrLinks) ||
-    (options.excludeTopMenus && isTopMenu)
+    (options.excludeTopMenus && isTopMenu) ||
+    isEditToolbar ||
+    isBtn
   )
     return false;
 
