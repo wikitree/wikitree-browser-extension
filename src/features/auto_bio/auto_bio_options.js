@@ -78,6 +78,12 @@ const autoBio = {
           label: "Household table in the biography (when possible)",
           defaultValue: false,
         },
+        {
+          id: "noNarrativeForCensus",
+          type: OptionType.CHECKBOX,
+          label: "Do not include a narrative for census records",
+          defaultValue: false,
+        },
       ],
     },
     {

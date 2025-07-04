@@ -8351,6 +8351,10 @@ export async function generateBio() {
     let allEvents = [];
     let previousEventObject;
     marriagesAndCensusesEtc.forEach(function (event) {
+      if (window.autoBioOptions?.noNarrativeForCensus && event["Record Type"]?.includes("Census")) {
+        return; // Skip census events if the option is set
+      }
+
       if (!event.Year) {
         if (event.OrderDate) {
           event.Year = event.OrderDate.slice(0, 4);
