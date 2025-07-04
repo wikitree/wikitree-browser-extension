@@ -73,6 +73,7 @@ function getInitialPencils() {
   pencils.parents = treePersonBit.find("#Parents span.EDIT a").attr("href") || "";
   pencils.siblings = treePersonBit.find("#Siblings span.EDIT a").attr("href") || "";
   pencils.spouses = treePersonBit.find(".spouse span.EDIT a").attr("href") || "";
+  pencils.hasAddSpouse = treePersonBit.find("#Spouses a:contains('[spouse?]')").length > 0;
   pencils.children = treePersonBit.find("#Children span.EDIT a").attr("href") || "";
   return pencils;
 }
@@ -534,11 +535,15 @@ function buildFamilyListsFromData(familyData) {
   if (familyData.siblings !== undefined) {
     container.appendChild(buildSiblingsSection(familyData.siblings));
   }
-  if (familyData.spouses !== undefined) {
-    if (familyData.spouses.length === 0) {
-      container.appendChild(buildSpousesUnknown());
-    } else {
+
+  // only show a spouses section if we actually have spouse data
+  // or if the original page offered an Add/Edit Spouses link
+  if ((familyData.spouses && familyData.spouses.length > 0) || pencils.spouses || pencils.hasAddSpouse) {
+    if (familyData.spouses.length > 0) {
       container.appendChild(buildSpousesSection(familyData.spouses));
+    } else {
+      // no spouses, but pencils.spouses is truthy → render “[spouse?]”
+      container.appendChild(buildSpousesUnknown());
     }
   }
   if (familyData.children !== undefined) {
