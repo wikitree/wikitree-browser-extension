@@ -35,9 +35,11 @@ import { initBioCheck } from "../bioCheck/bioCheck.js";
 function addSaveSearchFormDataButton() {
   const searchResultsP = $("p:contains('Search Results')").closest(".row");
   if (searchResultsP.length > 0) {
-    searchResultsP.append(
-      '<button id="saveSearchFormButton" title="Save the person details in this form to populate the fields of the Add Person edit form" class="button small">Save person details</button>'
-    );
+    searchResultsP
+      .find(".text-lg-end")
+      .append(
+        `<button id="saveSearchFormButton" class="btn-secondary btn-sm btn" style="float:right; margin-left:0.4em;" title="Save the person details in this form to populate the fields of the Add Person edit form" class="button small">Save person details</button>`
+      );
     $("#saveSearchFormButton").on("click", function () {
       const aPerson = {};
       aPerson.FirstName = $("#wpFirst").val();

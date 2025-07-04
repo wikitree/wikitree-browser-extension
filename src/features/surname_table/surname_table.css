@@ -163,3 +163,7 @@ body.watchlist table.wt.table td .home {
   color: forestgreen;
   filter: hue-rotate(40deg) brightness(1.2);
 }
+
+#Sort-Table.wide tbody td:first-child {
+  padding-right: 3em;
+}

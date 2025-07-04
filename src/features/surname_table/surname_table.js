@@ -1009,7 +1009,7 @@ function addButtonBox() {
  * @returns {Promise<void>} Resolves when the wide table button is added and its event handler is attached.
  */
 async function addWideTableButton() {
-  const wideTableButton = $("<button class='button btn-sm btn wbe btn-secondary wideTableButton'>Wide Table</button>");
+  const wideTableButton = $("<button class='btn-sm btn wbe btn-secondary wideTableButton'>Wide Table</button>");
 
   if ($(".wideTableButton").length == 0) {
     addTableButtonsContainer(theTable, wideTableButton[0]);
