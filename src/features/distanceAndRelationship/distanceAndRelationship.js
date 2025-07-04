@@ -268,7 +268,13 @@ function addRelationshipText(oText, commonAncestors) {
     </div>`
   );
   if (options.relationshipBoxPosition == "below") {
-    $("#person [id='Death']").first().after(cousinText);
+    if ($("#person [id='Death']").length > 0) {
+      $("#person [id='Death']").first().after(cousinText);
+    } else if ($("#person [id='Birth']").length > 0) {
+      $("#person [id='Birth']").first().after(cousinText);
+    } else if ($("#person h1[itemprop='name']").length > 0) {
+      $("#person h1[itemprop='name']").first().after(cousinText);
+    }
   } else {
     $("#person h1[itemprop='name']").after(cousinText);
   }
