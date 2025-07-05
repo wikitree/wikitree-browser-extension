@@ -24,7 +24,7 @@ class ShowEdits {
 
   // Append and configure the diff button, initially visible for testing
   setupDiffButton() {
-    const buttonHtml = `<button id="showDiffButton" class="button small">Show Edits</button>`; // Make visible for testing
+    const buttonHtml = `<button id="showDiffButton" class="btn btn-secondary">Show Edits</button>`; // Make visible for testing
     $('a[href="/wiki/Help:Enhanced_Editor"]').after(buttonHtml);
   }
 
