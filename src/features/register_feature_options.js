@@ -257,7 +257,9 @@ registerFeature({
 registerFeature({
   name: "Make Radio Buttons De-selectable",
   id: "makeRadioButtonsDeselectable",
-  description: "Makes radio buttons de-selectable.  Click on a previously selected status value to clear it.",
+  description:
+    "Makes radio buttons de-selectable.  Click on a previously selected status value to clear it. " +
+    "(Exceptions: Death and Middle Name on the edit page.)",
   category: "Editing",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
