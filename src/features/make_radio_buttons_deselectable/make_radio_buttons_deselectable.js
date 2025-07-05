@@ -8,7 +8,7 @@ import { isSearchPage } from "../../core/pageType";
 
 shouldInitializeFeature("makeRadioButtonsDeselectable").then((result) => {
   if (result) {
-    const protectedRadioGroups = ["mStatus_DeathDate", "mStatus_DeathLocation"];
+    const protectedRadioGroups = ["mStatus_DeathDate", "mStatus_DeathLocation", "mStatus_MiddleName"];
 
     let radioSelector = "input[type='radio']";
     if (isSearchPage) {
