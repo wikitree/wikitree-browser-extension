@@ -29,12 +29,14 @@ function shouldOpenInNewTab($link, options) {
   const isTopMenu = $link.closest("nav").length > 0;
   const isEditToolbar = $link.closest("#editToolbarExt").length > 0;
   const isBtn = $link.hasClass("btn-pill") || $link.hasClass("btn-secondary") || $link.hasClass("btn-utility");
+  const isFormButton = $link.closest("form,.cke_dialog,.cke_browser_webkit").length > 0;
   if (
     (options.excludeProfileTabs && isProfileTab) ||
     (options.excludeG2GTabs && isG2GTabOrLinks) ||
     (options.excludeTopMenus && isTopMenu) ||
     isEditToolbar ||
-    isBtn
+    isBtn ||
+    isFormButton
   )
     return false;
 
