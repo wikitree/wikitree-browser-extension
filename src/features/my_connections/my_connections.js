@@ -231,7 +231,7 @@ export const USstatesObjArray = [
 
 function addIDsToOLs() {
   // Find all h3[id^="gen"]; get the id number; add id={h3id}_list to the following ol
-  const h3s = document.querySelectorAll("div.page--content h3[id*='gen']");
+  const h3s = document.querySelectorAll("h3[id^='gen']");
   h3s.forEach(function (aH3) {
     const h3ID = $(aH3).attr("id");
     const followingOL = $(aH3).next();
@@ -342,12 +342,12 @@ async function myConnectionsCount() {
     // Add id="gen{number}_list" to all ols following h3s with id="gen{number}"
     addIDsToOLs();
     $(".degreeCount").remove();
-    const ols = document.querySelectorAll("div.page--content ol[id*='gen']");
+    const ols = document.querySelectorAll("ol[id^='gen']");
     const degreeCountTable = $(
       "<table class='degreeCount'><thead><tr><th>Degree</th></tr></thead><tbody><tr class='countRow'><th>Count</th></tr><tr class='subTotalRow'><th>Total</th></tr></tbody></table>"
     );
 
-    const allH3s = document.querySelectorAll("div.page--content h3[id*='gen']");
+    const allH3s = document.querySelectorAll("h3[id^='gen']");
     const lastH3El = allH3s[allH3s.length - 1];
     //try{
     const lastH3 = lastH3El.textContent.match(/[0-9]+/)[0];
@@ -358,8 +358,8 @@ async function myConnectionsCount() {
 
 window.myConnectionsCompletedMore = [];
 async function myConnectionsMore() {
-  $("div.page--content h3").each(function (index) {
-    let dOL = $("div.page--content ol[id='" + $(this).attr("id") + "_list']");
+  $("h3[id^='gen']").each(function (index) {
+    let dOL = $("ol[id='" + $(this).attr("id") + "_list']");
     let visibility = "";
     if (index < 4 && dOL.find("a").length == 0) {
       visibility = "hidden";
@@ -368,7 +368,9 @@ async function myConnectionsMore() {
     if ($(this).attr("id") != "gen0" && dOL.find("li").length < 701) {
       if ($(this).find(".myConnectionsTableButton").length == 0) {
         let myConnectionsTableButton = $(
-          "<button class='myConnectionsTableButton small " + visibility + "'>Missing Connections Table</button>"
+          "<button class='myConnectionsTableButton small btn btn-secondary " +
+            visibility +
+            "'>Missing Connections Table</button>"
         );
         if (dOL.find("li").length < 700) {
           $(this).append(myConnectionsTableButton);
@@ -469,13 +471,13 @@ async function getMoreConnections() {
       });
     }
   }
-  const allH3s = document.querySelectorAll(".page--content h3[id*='gen']");
+  const allH3s = document.querySelectorAll("h3[id^='gen']");
   const lastH3 = allH3s[allH3s.length - 1];
   const degreeNum = lastH3.textContent.match(/[0-9]+/)[0];
   if (degreeNum > window.currentDegreeNum) {
     window.currentDegreeNum = degreeNum;
   }
-  const ols = document.querySelectorAll(".page--content  ol[id*='gen']");
+  const ols = document.querySelectorAll("ol[id^='gen']");
   if ($("#loadNextGenerationButton.finished").length) {
     const lastOL = ols[ols.length - 1];
 
@@ -486,7 +488,7 @@ async function getMoreConnections() {
     ).insertAfter($(lastOL));
   }
   window.allLinkIDs = [];
-  document.querySelectorAll(".page--content  ol[id*='gen'] a").forEach(function (anA) {
+  document.querySelectorAll("ol[id^='gen'] a").forEach(function (anA) {
     const oLinkHREF = $(anA).attr("href");
     if (oLinkHREF != undefined) {
       let oLinkSplit = oLinkHREF.split("/wiki/");
@@ -2174,7 +2176,7 @@ async function myConnections() {
   setTimeout(function () {
     myConnectionsCount();
   }, 2000);
-  $(".page--content  ol").each(function (index) {
+  $("ol[id^='gen']").each(function (index) {
     $(this).attr("id", "gen" + index + "_list");
   });
   myConnectionsMore();
@@ -2207,7 +2209,7 @@ async function myConnections() {
         $(".myConnectionsMoreButton,.myConnectionsTableButton").remove();
         myConnectionsMore();
         myConnectionsCount();
-        $(".page--content  h3 + ol, .page--content  .peopleTable + ol").each(function (index) {
+        $("h3[id^='gen'] + ol, .peopleTable + ol").each(function (index) {
           $(this).attr("id", "gen" + index + "_list");
         });
       }, 3000);
@@ -2508,7 +2510,7 @@ export async function addWideTableButton() {
               const rightButton = $("<button id='rightButton'>&rarr;</button>");
               const buttonBox = $("<div id='buttonBox'></div>");
               buttonBox.append(leftButton, rightButton);
-              $("div.page--content ").prepend(buttonBox);
+              $("form").closest("div").prepend(buttonBox);
 
               $("#rightButton").on("click", function (event) {
                 event.preventDefault();

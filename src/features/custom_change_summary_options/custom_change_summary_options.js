@@ -60,7 +60,7 @@ shouldInitializeFeature("customChangeSummaryOptions").then(async (on) => {
   if (!on) return;
   if ($("#summaryOptionsContainer").length) return; // already initialized
   setTimeout(async () => {
-    $("#save").closest("div.page--content").prop("id", "saveButtons");
+    $("#save").closest("div").prop("id", "saveButtons");
 
     if (isSpaceEdit) {
       const opt = await getFeatureOptions("customChangeSummaryOptions");
@@ -204,7 +204,7 @@ function addGearAndPopup() {
             <label>Add option:</label>
             <!-- name="" + disabled so WT draft-watcher ignores it -->
             <input type="text" id="newOption" name="" disabled />
-            <button id="addOptionButton" class="small">Add Option</button>
+            <button id="addOptionButton" class="small btn btn-secondary">Add Option</button>
           </div>
         </div>
         <div class="modal-body">

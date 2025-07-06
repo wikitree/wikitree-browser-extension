@@ -260,7 +260,7 @@ async function whatLinksHereLink() {
         `<li class="toclevel-1"><a href="#What_Links_Here" title=""><span class="tocnumber">${newToclevel1Count}</span> <span class="toctext">What Links Here</span></a></li>`
       );
     } else {
-      $("main div.container div.page--content").last().append(theSection);
+      $("main div.container h2#What_Links_Here").after(theSection);
     }
     $(document).on("change", "#whatLinksHereMore", async function (event) {
       const checkbox = event.target;

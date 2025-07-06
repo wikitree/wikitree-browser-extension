@@ -109,8 +109,17 @@ async function doNotablesSpace() {
   }
 
   setTimeout(function () {
-    const content = $("div.container .page--content");
+    const content = $("div.body-text").closest("div").parent();
+
     $("section#Manager").closest("aside").prependTo(content);
+    content.addClass("theContent");
+    // Add style to head to make the table full width
+    $("head").append(`<style>
+      div.theContent {
+        width: auto !important;
+      }
+        </style>`);
+
     content.css("width", "auto");
     $(".x-sidebar").remove();
     $(".x-content").css("width", "auto");
