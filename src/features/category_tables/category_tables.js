@@ -20,7 +20,7 @@ async function addCategoryTableButton() {
 
   personProfilesh2.append(
     $(
-      "<button class='small button categoryTablesButton' title='Build a sortable and filterable table of these profiles'>Table</button>"
+      "<button class='small btn btn-secondary categoryTablesButton' title='Build a sortable and filterable table of these profiles'>Table</button>"
     )
   );
   $("button.categoryTablesButton").on("click", async function (e) {
@@ -33,7 +33,7 @@ async function addCategoryTableButton() {
     }
     $(this).addClass("beenClicked");
 
-    const superIDs = $("#profile-list a")
+    const superIDs = $("#profile-list a[href^='/wiki/']")
       .map(function () {
         return $(this).attr("href").split("/wiki/")[1].replace(/ /g, "_");
       })
@@ -48,7 +48,7 @@ async function addCategoryTableButton() {
     // Call addPeopleTable with up to 200 IDs
     addPeopleTable(idsToUse, aTableID, $("#Persons"), "category");
 
-    const onlyUnconnected = $("<button id='onlyUnconnected' class='small button'>Only Unconnected</button>");
+    const onlyUnconnected = $("<button id='onlyUnconnected' class='small btn btn-secondary'>Only Unconnected</button>");
     onlyUnconnected.appendTo(personProfilesh2);
     onlyUnconnected.on("click", function (e) {
       e.preventDefault();
