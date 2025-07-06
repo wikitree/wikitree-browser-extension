@@ -222,7 +222,7 @@ function shouldShowButtonFilter(filterID, profileElement) {
 
 // Function to Create Filter Buttons
 function createButton(id, title, text) {
-  return $(`<button class="categoryFilterButton small" id="${id}" title="${title}">${text}</button>`);
+  return $(`<button class="categoryFilterButton btn btn-secondary small" id="${id}" title="${title}">${text}</button>`);
 }
 
 // Function to Create a Single Radio Button

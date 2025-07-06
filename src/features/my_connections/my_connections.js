@@ -2392,7 +2392,7 @@ export async function addWideTableButton() {
   ) {
     $(".wideTableButton").show();
     let dTable;
-    const wideTableButton = $("<button class='button small wideTableButton'>Wide Table</button>");
+    const wideTableButton = $("<button class='small wideTableButton btn btn-secondary'>Wide Table</button>");
     if ($(".wideTableButton").length == 0 || ($("body.page-Special_MyConnections").length && $("#gen0").length)) {
       if ($("table.wt.names").length) {
         dTable = $("table.wt.names");
