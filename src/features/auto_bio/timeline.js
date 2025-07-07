@@ -1,5 +1,6 @@
 import { isOK } from "../../core/common";
 import { PersonName } from "./person_name.js";
+import { ordinal } from "../distanceAndRelationship/distanceAndRelationship.js";
 import { minimalPlace, formatDate, getYYYYMMDD, isWithinX, nameLink } from "./auto_bio";
 // Timeline functions
 export function bioTimelineFacts(marriagesAndCensusesEtc) {
@@ -355,7 +356,7 @@ export function buildTimelineSA(bioTimeline) {
           formattedEventDate = formatDate(eventDate.replaceAll(/-00/g, "")).replace(/in\s|on\s/, "");
         }
         if (marriageCount > 1 && head == "Marriage") {
-          text += ":'''Marriage " + marriageIndex + "'''\n";
+          text += `${marriageIndex == 1 ? "" : "\n"}:'''${toOrdinalWord(marriageIndex)} Marriage'''\n`;
           marriageIndex++;
         }
         text += ":Date: " + formattedEventDate + dateSources + "\n";
@@ -405,4 +406,26 @@ function getParent(id) {
 function replaceTags(text) {
   text = text.replaceAll(/<ref\s+name="(\w+)">.*?<\/ref>/gs, `<ref name="$1" />`);
   return text;
+}
+
+function toOrdinalWord(n) {
+  const ordinalWords = [
+    "zeroth",
+    "First",
+    "Second",
+    "Third",
+    "Fourth",
+    "Fifth",
+    "Sixth",
+    "Seventh",
+    "Eighth",
+    "Ninth",
+    "Tenth",
+  ];
+
+  if (n > 0 && n <= 10) {
+    return ordinalWords[n];
+  } else {
+    return ordinal(n);
+  }
 }
