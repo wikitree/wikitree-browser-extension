@@ -32,6 +32,11 @@ class CustomStyle {
       color2: ".nav-link.active,.nav-link.active a,button.button",
       color3: "aside",
       color4: "div.box.orange.rounded,aside.box.orange.rounded,p.box.orange.rounded",
+      genderNeutral:
+        ".tree--person_u,.person--no-gender .genderbar,.vertical .nameList li:not([id*='Unknown']):not(.x-edit)",
+      male: ".tree--person_m,.person--male .genderbar,.vertical .nameList li[data-gender='Male']:not(#dummyID), .vertical .nameList li[data-gender='male'], .vertical .nameList span[data-gender='Male'], .vertical .spouse[data-gender='Male']",
+      female:
+        ".tree--person_f,.person--female .genderbar,.vertical .nameList li[data-gender='Female']:not(#dummyID), .vertical .nameList li[data-gender='female'], .vertical .nameList span[data-gender='Female'], .vertical .spouse[data-gender='Female']",
       link: "a:link:not(.btn-secondary,#jump-nav a,.qa-nav-main-link,a.button,a.new,.qa-nav-sub-link,.qa-nav-footer-link,#footer a,a.qa-tag-link,a.new,.wt.table th a,#editToolbarExt a,#view-container a,.btn-pill-sm,.menu-style .dropdown-menu a)",
       tag: ".qa-q-item-tag-item a:link",
       tagHover: ".qa-q-item-tag-item a:link:hover,.qa-q-item-tag-item a:visited:hover",

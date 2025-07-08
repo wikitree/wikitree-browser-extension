@@ -155,6 +155,24 @@ const myCustomStyle = {
       label: "Profile Background Colors",
       options: [
         {
+          id: "male_background-color",
+          type: "color",
+          label: "Male background color",
+          defaultValue: "#f2f1ff",
+        },
+        {
+          id: "female_background-color",
+          type: "color",
+          label: "Female background color",
+          defaultValue: "#ffeeee",
+        },
+        {
+          id: "genderNeutral_background-color",
+          type: "color",
+          label: "Gender neutral background color",
+          defaultValue: "#eeffee",
+        },
+        {
           id: "color1_background-color",
           type: "color",
           label: "Background color 1 (Header, footer, profile tabs, etc.)",
