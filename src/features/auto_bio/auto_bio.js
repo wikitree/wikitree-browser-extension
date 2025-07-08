@@ -1258,11 +1258,13 @@ function isReferenceRelevant(reference, event, spouse) {
       sameName = false;
     }
   }
-  window.profilePerson.NameVariants.forEach(function (name) {
-    if (matchesWithoutAccents(reference.Text, name)) {
-      sameName = true;
-    }
-  });
+  if (window.profilePerson?.NameVariants && window.profilePerson.NameVariants.length > 0) {
+    window.profilePerson.NameVariants.forEach(function (name) {
+      if (matchesWithoutAccents(reference.Text, name)) {
+        sameName = true;
+      }
+    });
+  }
   return (
     !(event == "Marriage" && spouseMatch == false && reference.Year != spouse.marriage_date?.substring(0, 4)) &&
     !(
@@ -5445,19 +5447,21 @@ export function sourcesArray(bio) {
         aRef["Marriage Place"] = detailsMatch3[4].trim();
         console.log("Marriage Place set from detailsMatch3:", aRef["Marriage Place"]);
 
-        window.profilePerson.NameVariants.forEach((name) => {
-          if (name == aRef.Couple[0]) {
-            aRef["Spouse Name"] = aRef.Couple[1];
-            aRef["Spouse Age"] = person2Age;
-            aRef["Age"] = person1Age;
-            console.log("Spouse Name and Age set:", aRef["Spouse Name"], aRef["Spouse Age"]);
-          } else if (name == aRef.Couple[1]) {
-            aRef["Spouse Name"] = aRef.Couple[0];
-            aRef["Spouse Age"] = person1Age;
-            aRef["Age"] = person2Age;
-            console.log("Spouse Name and Age set:", aRef["Spouse Name"], aRef["Spouse Age"]);
-          }
-        });
+        if (window.profilePerson?.NameVariants?.length > 0) {
+          window.profilePerson.NameVariants.forEach((name) => {
+            if (name == aRef.Couple[0]) {
+              aRef["Spouse Name"] = aRef.Couple[1];
+              aRef["Spouse Age"] = person2Age;
+              aRef["Age"] = person1Age;
+              console.log("Spouse Name and Age set:", aRef["Spouse Name"], aRef["Spouse Age"]);
+            } else if (name == aRef.Couple[1]) {
+              aRef["Spouse Name"] = aRef.Couple[0];
+              aRef["Spouse Age"] = person1Age;
+              aRef["Age"] = person2Age;
+              console.log("Spouse Name and Age set:", aRef["Spouse Name"], aRef["Spouse Age"]);
+            }
+          });
+        }
       } else if (aRef.Text.match(/GRO Reference.*?(\d{4}).*\bin\b\s(.*)Volume/)) {
         const details = aRef.Text.match(/GRO Reference.*?(\d{4}).*\bin\b\s(.*)Volume/);
         aRef.Year = details[1];
