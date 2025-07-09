@@ -219,7 +219,7 @@ To grab the name and make changes we want to:
 1. Use jQuery to make changing the DOM a bit easier: `import $ from "jquery"`.
 2. Grab the element that has the name of the profile and save it: `const nameElement = $('h1[itemprop="name"]');`.
 3. Get the name inside of that element and save it: `const nameText = nameElement.text();`.
-4. Change the text inside of the element to our desired text: `$(nameElement).text(\`Hello, ${nameText}\`);`.
+4. Change the text inside of the element to our desired text: ``$(nameElement).text(`Hello, ${nameText}`);``.
 
 Combining those, the final code in `hello_world.js` should look like this:
 
