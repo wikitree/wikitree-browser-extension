@@ -230,7 +230,7 @@ ol.star1.green > li::before {
   min-width: max-content;
   height: 0.65em;
   position: relative;
-  z-index:10000;
+  z-index: 1000;
 }
 @media (max-width: 600px) {
   .ebWBE {
