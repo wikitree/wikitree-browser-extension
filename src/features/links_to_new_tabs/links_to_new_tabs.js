@@ -4,7 +4,6 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { is } from "date-fns/locale";
 
 // -------------------- helpers --------------------
 // Decide if a link should open in a new tab
