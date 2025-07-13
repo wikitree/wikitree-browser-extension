@@ -24,7 +24,7 @@ function shouldOpenInNewTab($link, options) {
   if (navButton || navText || navListItem) return false;
 
   // 3. Skip areas the user asked to exclude
-  const isProfileTab = $link.closest(".nav-tabs,.tabs--wrapper").length > 0;
+  const isProfileTab = $link.closest(".nav-tabs,.tabs--wrapper,.nav-item").length > 0;
   const isG2GTabOrLinks = $link.closest("div.qa-nav-main,div.qa-nav-footer,div.qa-page-links").length > 0;
   const isTopMenu = $link.closest("nav").length > 0;
   const isEditToolbar = $link.closest("#editToolbarExt").length > 0;
