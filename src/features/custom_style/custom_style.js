@@ -29,7 +29,7 @@ class CustomStyle {
         "button.nav-link:not(.active),a.nav-link:not(.active),footer#footer ul.nav a.nav-link:not(.active)," +
         "footer#footer p a:link,header,footer,div.tabs--wrapper,div.category--links," +
         "nav.nav-tabs .nav-link:not(.active), nav.nav-tabs .nav-link:not(.active) a",
-      color2: ".nav-link.active,.nav-link.active a,button.button",
+      color2: ".nav-link.active:not(#dummyID),.nav-link.active a,button.button",
       color3: "aside",
       color4: "div.box.orange.rounded,aside.box.orange.rounded,p.box.orange.rounded",
       genderNeutral:
