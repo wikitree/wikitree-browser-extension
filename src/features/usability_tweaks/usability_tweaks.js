@@ -1570,7 +1570,7 @@ class RangeringTool {
     if (pre1700) {
       const pre1700Object = JSON.parse(pre1700);
       // If the list is less than a day old, use it
-      if (new Date().getTime() - pre1700Object.timestamp < 86400000) {
+      if (new Date().getTime() - pre1700Object.timestamp < 86400000 && pre1700Object.profileIDs.length > 0) {
         return pre1700Object.profileIDs;
       }
     }
@@ -1579,7 +1579,7 @@ class RangeringTool {
     const badgePage1 = await getWikiTreePage("Rangers", "index.php", "title=Special:Badges&b=pre_1700");
     // Make a DOM object of the page and find all the links like this: <span class="large"><a href="/wiki/Hill-64008" target="_blank">Sandy (Hill) McCartain</a></span>
     const badgePage1DOM = new DOMParser().parseFromString(badgePage1, "text/html");
-    const links = badgePage1DOM.querySelectorAll("span.large a[href*='/wiki/']");
+    const links = badgePage1DOM.querySelectorAll("span a[href*='/wiki/']");
     // For each link, get the profile ID and add it to the list of profile IDs
     links.forEach((link) => {
       const profileID = link.href.split("/").pop();
