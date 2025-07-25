@@ -19,13 +19,14 @@ registerFeature({
   description:
     "Manipulates the suggested locations, highlighting likely correct locations," +
     " based on family members' locations, and demoting likely wrong locations, based on the dates." +
-    " Options: 1) Automatically correct some date-based location names:" +
+    " Options: 1) Use the new, experimental location suggestion feature, or" +
+    " 2a) Automatically correct some date-based location names:" +
     " US state names before they joined the Union," +
     " Canadian regional districts," +
     " German country names and Wallenhorst," +
     " UK towns and villages," +
     " South African provinces. " +
-    "2) Add 'County' to US locations. ",
+    "2b) Add 'County' to US locations. ",
   category: "Editing",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
@@ -40,6 +41,12 @@ registerFeature({
     isImagePage,
   ],
   options: [
+    {
+      id: "newLocations",
+      type: OptionType.CHECKBOX,
+      label: "Use Experimental Location Suggestions",
+      defaultValue: false,
+    },
     {
       id: "correctLocations",
       type: OptionType.CHECKBOX,

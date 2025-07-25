@@ -1,0 +1,58 @@
+[
+  {
+    "path": "Western, Oneida County, New York, United States",
+    "lang": "00",
+    "startDate": "1798-03-14",
+    "endDate": "9999-12-31",
+    "aliases": [],
+    "origin": "Western [Oneida County, US-NY]"
+  },
+  {
+    "path": "Western Australia, Western Australia, Australia",
+    "lang": "00",
+    "startDate": "0001-01-01",
+    "endDate": "9999-12-31",
+    "aliases": [],
+    "origin": "Western Australia [AU-WA]"
+  },
+  {
+    "path": "Western Australia, Australia",
+    "lang": "00",
+    "startDate": "0001-01-01",
+    "endDate": "9999-12-31",
+    "aliases": [],
+    "origin": "Western Australia [AU]"
+  },
+  {
+    "path": "Cape Colony",
+    "lang": "en",
+    "startDate": "1806-01-19",
+    "endDate": "1910-05-30",
+    "aliases": ["cape", "the cape"],
+    "origin": "Western Cape [ZA]"
+  },
+  {
+    "path": "Kaapkolonie",
+    "lang": "af",
+    "startDate": "1806-01-19",
+    "endDate": "1910-05-30",
+    "aliases": ["cape", "the cape"],
+    "origin": "Western Cape [ZA]"
+  },
+  {
+    "path": "Western Flat, South Australia, Australia",
+    "lang": "00",
+    "startDate": "0001-01-01",
+    "endDate": "9999-12-31",
+    "aliases": [],
+    "origin": "Western Flat [AU-SA]"
+  },
+  {
+    "path": "Westernieland, Groningen, Nederland",
+    "lang": "00",
+    "startDate": "0001-01-01",
+    "endDate": "9999-12-31",
+    "aliases": [],
+    "origin": "Westernieland [NL-GR]"
+  }
+]

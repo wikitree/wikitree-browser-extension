@@ -10,6 +10,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 // import { australian_locations } from "./auto_bio/australian_locations";
 import { profilePerson } from "../../core/common";
 import { normalizeLocation, initLocationTranslations } from "./location_helpers";
+import { getWBELocSuggestions } from "./location_suggestions";
 
 /* ── logging helpers (silenced) ────────────────────────────────────────── */
 function dbg() {}
@@ -44,6 +45,11 @@ shouldInitializeFeature("locationsHelper").then((result) => {
   if (result) {
     import("./locationsHelper.css");
     getFeatureOptions("locationsHelper").then((options) => {
+      if (options?.newLocations) {
+        options.correctLocations = false;
+        options.addUSCounty = false;
+        options.nativeName = false;
+      }
       window.locationsHelperOptions = options;
       dbg("feature options", options);
     });
@@ -194,7 +200,8 @@ function normalizeForFamilyMatch(str) {
   if (!str) return "";
   let s = (str.split("(")[0] || str) // drop anything in parentheses like dates
     .toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // remove diacritics
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, ""); // remove diacritics
 
   // Normalize United States variants
   s = s.replace(/\bunited states of america\b/g, "united states");
@@ -216,7 +223,10 @@ function normalizeForFamilyMatch(str) {
 
   // Normalize US state abbreviations to full names for better matching
   // Only do this confidently when it's clearly a US location (contains 'united states')
-  const parts = s.split(",").map((p) => p.trim()).filter(Boolean);
+  const parts = s
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
   const hasUS = parts.some((p) => p === "united states");
   if (parts.length) {
     const newParts = parts.map((p, idx) => {
@@ -275,6 +285,38 @@ function fixText(added_node, activeEl, dText, innerBit, innerBitText) {
   highlightSearchWords(activeEl, dText, innerBit);
 }
 
+function collectLocationFieldData() {
+  return [
+    {
+      name: "birth",
+      fieldId: "#mBirthLocation",
+      dateId: "#mBirthDate",
+    },
+    {
+      name: "death",
+      fieldId: "#mDeathLocation",
+      dateId: "#mDeathDate",
+    },
+    {
+      name: "marriage",
+      fieldId: "#mMarriageLocation",
+      dateId: "#mMarriageDate",
+    },
+    {
+      name: "space",
+      fieldId: "#mLocation",
+      dateId: "#mStartDate",
+    },
+    {
+      name: "photo",
+      fieldId: "#photo_location",
+      dateId: "#photo_date",
+    },
+  ];
+}
+
+let currentAbortController = null;
+
 async function locationsHelper() {
   dbg("locationsHelper init");
   // Prevent multiple observers and duplicate init
@@ -314,6 +356,58 @@ async function locationsHelper() {
     });
   } else {
     dbg("No profilePerson Id; skipping bdLocations");
+  }
+
+  if (window.locationsHelperOptions?.newLocations) {
+    for (const { name, fieldId, dateId } of collectLocationFieldData()) {
+      const field = document.querySelector(fieldId);
+
+      if (field && !field.classList.contains("wbe-loc-autocomplete")) {
+        // console.log("Adding autocomplete to", name, "location field:", fieldId);
+        // Clone the input to remove attached event listeners
+        const newField = field.cloneNode(true);
+        newField.setAttribute("autocomplete", "off");
+        newField.classList.add("wbe-loc-autocomplete");
+
+        // Replace original
+        field.replaceWith(newField);
+
+        // Debounce helper
+        function debounce(fn, delay) {
+          let timer = null;
+          return function (...args) {
+            clearTimeout(timer);
+            timer = setTimeout(() => fn.apply(this, args), delay);
+          };
+        }
+
+        // Debounced input handler
+        const debouncedInputHandler = debounce(async function (e) {
+          const value = e.target.value;
+          const date = formISODate($(dateId).val());
+
+          // Abort previous request
+          if (currentAbortController) {
+            currentAbortController.abort();
+          }
+
+          currentAbortController = new AbortController();
+          const signal = currentAbortController.signal;
+
+          try {
+            const suggestions = await getWBELocSuggestions(value, date, signal);
+            showSuggestionsDropdown(e.target, suggestions);
+          } catch (err) {
+            if (err.name !== "AbortError") {
+              console.error("Suggestion fetch error:", err);
+            }
+            // Otherwise aborted — do nothing
+          }
+        }, 300); // 300ms debounce delay
+
+        document.querySelector(fieldId).addEventListener("input", debouncedInputHandler);
+      }
+    }
   }
 
   const observer2 = new MutationObserver(function (mutations_list) {
@@ -1034,3 +1128,39 @@ fixText = function (added_node, activeEl, dText, innerBit, innerBitText) {
     // non-fatal
   }
 };
+
+function showSuggestionsDropdown(input, suggestions) {
+  let dropdown = document.querySelector("#my-autocomplete-dropdown");
+  if (!dropdown) {
+    dropdown = document.createElement("div");
+    dropdown.id = "my-autocomplete-dropdown";
+    dropdown.style.position = "absolute";
+    dropdown.style.zIndex = 1000;
+    dropdown.style.border = "1px solid #ccc";
+    dropdown.style.background = "#fff";
+    dropdown.style.maxHeight = "200px";
+    dropdown.style.overflowY = "auto";
+    dropdown.style.fontSize = "14px";
+    dropdown.style.cursor = "pointer";
+    document.body.appendChild(dropdown);
+  }
+
+  // Position dropdown below the input
+  const rect = input.getBoundingClientRect();
+  dropdown.style.left = `${rect.left + window.scrollX}px`;
+  dropdown.style.top = `${rect.bottom + window.scrollY}px`;
+  dropdown.style.width = `${rect.width}px`;
+
+  // Populate with label/value suggestions
+  dropdown.innerHTML = "";
+  suggestions.forEach((s) => {
+    const item = document.createElement("div");
+    item.textContent = s.label; // show label in dropdown
+    item.style.padding = "4px";
+    item.addEventListener("click", () => {
+      input.value = s.value; // insert value into input field
+      dropdown.innerHTML = "";
+    });
+    dropdown.appendChild(item);
+  });
+}
