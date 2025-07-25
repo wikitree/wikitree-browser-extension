@@ -3,10 +3,11 @@ const allLocationsURL = `src/all_locations.php`;
 
 let cachedResults = [];
 let lastEntry = "";
-let forceUpdate = false;
+let lastDate = "";
+let forceUpdate = false; // for possible future use; not being set to true anywhere yet
 
-export async function getWBELocSuggestions(userInput, date, signal) {
-  const data = await fetchOrFilterSuggestions(userInput, date, signal);
+export async function getWBELocSuggestions(userInput, date) {
+  const data = await fetchOrFilterSuggestions(userInput, date);
   return suggestionResponse(data);
 }
 
@@ -19,17 +20,16 @@ function suggestionResponse(results) {
   }));
 }
 
-async function fetchOrFilterSuggestions(entry, date, signal) {
+async function fetchOrFilterSuggestions(entry, date) {
   // console.log(`fetchOrFilterSuggestions called, entry:${entry}:, date: ${date}`);
   if (entry.length < 3) {
     return [];
   }
   // Check if the current entry starts with the last cached entry to decide on filtering or fetching
   const entryLow = normalise(entry);
-  const currentFirstThree = entryLow.substring(0, 3);
-  if (lastEntry && entryLow.startsWith(lastEntry) && entry.length > 3 && !forceUpdate) {
-    // The new text typed by the user starts with the same characters they typed before, so we do not
-    // have to fetch new paths from the DB, just filter the ones we fetched previously.
+  if (lastDate == date && lastEntry && entryLow.startsWith(lastEntry) && entry.length > 3 && !forceUpdate) {
+    // The new text typed by the user starts with the same characters they typed before, and the date did not
+    // change, so we do not have to fetch new paths from the DB, just filter the ones we fetched previously.
     let filteredResults = null;
     if (cachedResults.length > 0) {
       filteredResults = cachedResults.filter(
@@ -43,15 +43,15 @@ async function fetchOrFilterSuggestions(entry, date, signal) {
     return filteredResults || [];
   }
 
-  // Fetch new data if the first three characters change, or there is a force update due to date conditions
-  if (currentFirstThree !== lastEntry.substring(0, 3) || forceUpdate || entry.length < lastEntry.length) {
+  // Fetch new data if the entry has changed or the date has changed
+  if (lastDate !== date || entryLow !== lastEntry || forceUpdate) {
     const options = {
       date: date,
       startsWith: entry,
     };
     // console.log(`calling fetchLocationData:`, options);
 
-    cachedResults = await fetchLocationData(options, signal);
+    cachedResults = await fetchLocationData(options);
     if (cachedResults.length > 0) {
       cachedResults.sort((a, b) => a.path.localeCompare(b.path));
       // Normalise (remove diacriticals from) the names and save them for easier comparison after we've cached them
@@ -64,24 +64,40 @@ async function fetchOrFilterSuggestions(entry, date, signal) {
       });
     }
     lastEntry = entry;
+    lastDate = date || "";
     forceUpdate = false; // Reset the force update flag
   }
   return cachedResults;
 }
 
-async function fetchLocationData(options = {}, signal) {
+let currentAbortController = null;
+
+async function fetchLocationData(options = {}) {
+  // Abort previous request
+  if (currentAbortController) {
+    currentAbortController.abort();
+  }
+  currentAbortController = new AbortController();
+
   const params = new URLSearchParams();
 
   params.append("view", "fetch");
   if (options.date) params.append("date", options.date);
   if (options.startsWith) params.append("startswith", options.startsWith);
   const url = `https://wikitreebee.com/rstest/locations/public/index.php?${params}`;
-  const response = await fetch(url, {
-    method: "POST",
-    signal: signal,
-  });
-  const data = await response.json();
-  return data; // Return the fetched data
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      signal: currentAbortController.signal,
+    });
+    const data = await response.json();
+    return data; // Return the fetched data
+  } catch (error) {
+    if (error.name !== "AbortError") {
+      console.error("Error fetching suggestions:", error);
+    }
+    return [];
+  }
 }
 
 const replaceMap = {

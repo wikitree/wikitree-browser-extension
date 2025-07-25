@@ -315,8 +315,6 @@ function collectLocationFieldData() {
   ];
 }
 
-let currentAbortController = null;
-
 async function locationsHelper() {
   dbg("locationsHelper init");
   // Prevent multiple observers and duplicate init
@@ -372,40 +370,16 @@ async function locationsHelper() {
         // Replace original
         field.replaceWith(newField);
 
-        // Debounce helper
-        function debounce(fn, delay) {
-          let timer = null;
-          return function (...args) {
-            clearTimeout(timer);
-            timer = setTimeout(() => fn.apply(this, args), delay);
-          };
-        }
-
-        // Debounced input handler
-        const debouncedInputHandler = debounce(async function (e) {
-          const value = e.target.value;
-          const date = formISODate($(dateId).val());
-
-          // Abort previous request
-          if (currentAbortController) {
-            currentAbortController.abort();
-          }
-
-          currentAbortController = new AbortController();
-          const signal = currentAbortController.signal;
-
-          try {
-            const suggestions = await getWBELocSuggestions(value, date, signal);
-            showSuggestionsDropdown(e.target, suggestions);
-          } catch (err) {
-            if (err.name !== "AbortError") {
-              console.error("Suggestion fetch error:", err);
-            }
-            // Otherwise aborted — do nothing
-          }
-        }, 300); // 300ms debounce delay
-
-        document.querySelector(fieldId).addEventListener("input", debouncedInputHandler);
+        $(fieldId).autocomplete({
+          minLength: 3,
+          delay: 300,
+          source: async (request, response) => {
+            const date = formISODate($(dateId).val());
+            // console.log(`Getting suggestions for ${request.term}, ${date}`);
+            const suggestions = await getWBELocSuggestions(request.term, date);
+            response(suggestions);
+          },
+        });
       }
     }
   }
@@ -1108,6 +1082,7 @@ function addNewSuggestion(added_node, term, location, record, villages = []) {
     dbg("addNewSuggestion skipped: container already exists for", term);
   }
 }
+<<<<<<< HEAD
 
 // Make fixText tolerant of both wrapped and unwrapped suggestion nodes
 // by setting data-val on the added node if it is itself a suggestion.
@@ -1164,3 +1139,5 @@ function showSuggestionsDropdown(input, suggestions) {
     dropdown.appendChild(item);
   });
 }
+=======
+>>>>>>> 82ef4aec (Convert to jquery autocomplete)
