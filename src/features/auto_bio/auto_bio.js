@@ -2951,6 +2951,26 @@ function updateRelations(household) {
   return data;
 }
 
+function getNameVariantsAll(name, firstNameVariants) {
+  const lower = name.toLowerCase();
+  const seenCanonicals = new Set(); // to avoid duplicates
+  const seenVariants = new Set();
+
+  // scan every bucket that contains the spelling (case-insensitive)
+  for (const [canonical, variants] of Object.entries(firstNameVariants)) {
+    if (canonical.toLowerCase() === lower || variants.some((v) => v.toLowerCase() === lower)) {
+      seenCanonicals.add(canonical);
+      variants.forEach((v) => seenVariants.add(v));
+    }
+  }
+
+  // if we found nothing, just return the name itself
+  if (!seenCanonicals.size && !seenVariants.size) return [name];
+
+  // build the final list: all canonicals + all variants, deduped
+  return [...new Set([...seenCanonicals, ...seenVariants])];
+}
+
 function findRelation(person) {
   let relationWord;
   if (!person.FirstName) {
@@ -2968,13 +2988,15 @@ function findRelation(person) {
         let keys = Object.keys(window.profilePerson[relation]);
         keys.forEach(function (key) {
           let skip = false;
-          let oNameVariants = [person.FirstName];
-          if (firstNameVariants[person.FirstName]) {
-            oNameVariants = firstNameVariants[person.FirstName];
-          }
+          const oNameVariants = getNameVariantsAll(person.FirstName, firstNameVariants);
           if (isSameName(window.profilePerson[relation][key].FirstName, oNameVariants)) {
             if (person.BirthYear) {
-              if (!isWithinX(person.BirthYear, window.profilePerson[relation][key].BirthDate.slice(0, 4), 5)) {
+              const isWithin = isWithinX(
+                person.BirthYear,
+                window.profilePerson[relation][key].BirthDate.slice(0, 4),
+                5
+              );
+              if (!isWithin) {
                 skip = true;
               }
             }
@@ -3290,122 +3312,6 @@ citiesCountiesStates.push(...UKMetropolitanCities);
 const placeNameRegExp =
   /\w+(land|shire|mere|acres|bay|beach|bluffs|center|corner|cove|crest|crossing|falls|farms|fields|flats|fork|gardens|gate|glen|green|grove|harbor|heights|hills|hollow|inlet|key|knolls|landing|light|manor|mesa|mills|mount|mountain|orchard|park|passage|pines|point|ranch|ridge|river|runway|shores|sky|springs|terrace|trace|view|village|vista|woods|basin|cape|canyon|delta|forest|glacier|gulf|island|isthmus|lake|mesa|oasis|plain|plateau|prairie|sea|shore|sound|swamp|trail|valley|waterfall|peak|ridge|summit|pass|range|butte|knob|dome|spit|shoals|rapids|falls|bend|junction|spur|switch|fork|cross|field|estate|parkway|boulevard|circle|court|place|avenue|plaza|path|way|alley|borough|city|county|district|municipality|parish|town|township|village|territory|region|state|province|shire|ton|ham|don|wick|ford|bury|port|stadt|stede|burg|burgh|by|ville|beck|dale|holme|hurts|mead|wold|boro|chester|heath|hill|vale|wyke)\b/gi;
 
-/*
-export function analyzeColumns(lines) {
-  const columns = {};
-
-  lines.forEach((lineOrParts) => {
-    let parts;
-    if (Array.isArray(lineOrParts)) {
-      parts = lineOrParts;
-    } else {
-      lineOrParts = lineOrParts.replace(/\|\|/g, "\t"); // convert double pipes to tabs
-      parts = lineOrParts.split(/ {4}|\t/);
-    }
-
-    parts.forEach((part, index) => {
-      part = part.trim(); // Trim whitespace
-      if (!columns[index]) {
-        columns[index] = {
-          Name: 0,
-          Gender: 0,
-          originalRelation: 0,
-          Age: 0,
-          BirthPlace: 0,
-          Occupation: 0,
-          MaritalStatus: 0,
-        };
-      }
-      let matched = false;
-
-      // RegExp of cities, counties, states
-      const bigPlacesMatch = new RegExp("\\b" + citiesCountiesStates.join("|") + "\\b", "i");
-      const occupationMatch = new RegExp(
-        "\\b" + occupationList.join("|") + "|" + occupationList2.join("|") + "\\b",
-        "i"
-      );
-
-      if (index == 0) {
-        columns[index].Name++;
-        matched = true;
-      } else {
-        if (part.match(/(?:M|F|Male|Female)\b/i)) {
-          columns[index].Gender++;
-          matched = true;
-        }
-        if (part.match(/married|widowed|single/i)) {
-          columns[index].MaritalStatus++;
-          matched = true;
-        }
-        if (
-          part.match(
-            /\b(Head|Wife|Son|Daughter|Mother|Father|Brother|Sister|Grand(?:mother|father)|Uncle|Aunt|Niece|Nephew|Cousin|(Father|Mother|Brother|Sister|Son|Daughter)-in-law|Step(?:son|daughter|brother|sister|mother|father)|Visitor|Lodger|Boarder)\b/i
-          )
-        ) {
-          columns[index].originalRelation++;
-          matched = true;
-        }
-        const ageMatch = part.match(/^(\d{1,3})( ?y| ?years| ?months| ?mo\.)?$/);
-        if (ageMatch) {
-          if (Number(ageMatch[1]) < 130) {
-            columns[index].Age++;
-            matched = true;
-          }
-        }
-
-        if (part.match(/,/) || part.match(bigPlacesMatch) || part.match(placeNameRegExp)) {
-          columns[index].BirthPlace++;
-          matched = true;
-        }
-        if (part.match(occupationMatch)) {
-          columns[index].Occupation++;
-          matched = true;
-        }
-
-        if (!matched && part !== "") {
-          columns[index].BirthPlace++;
-        }
-      }
-    });
-  });
-
-  const columnPriority = ["Name", "Gender", "originalRelation", "Age", "BirthPlace", "Occupation", "MaritalStatus"];
-  const assignedColumnNames = new Set();
-  const columnMapping = {};
-
-  for (const columnName of columnPriority) {
-    let maxScore = 0;
-    let maxScoreIndex = null;
-
-    for (const [index, column] of Object.entries(columns)) {
-      if (!Object.values(columnMapping).includes(index) && column) {
-        const score = column[columnName];
-
-        if (!assignedColumnNames.has(columnName) && score > maxScore) {
-          maxScore = score;
-          maxScoreIndex = index;
-        }
-      }
-    }
-
-    // Calculate the threshold for each column based on the counts
-    let numPeople = lines?.length;
-    let minCount;
-    if (numPeople <= 2) {
-      minCount = 1; // For 1-2 people, allow column assignments even for a single match
-    } else {
-      minCount = 2; // For 3 or more people, require at least 2 matches
-    }
-    if (maxScoreIndex !== null && maxScore >= minCount) {
-      columnMapping[columnName] = maxScoreIndex;
-      assignedColumnNames.add(columnName);
-    }
-  }
-
-  return columnMapping;
-}
-  */
-
 export function analyzeColumns(lines) {
   const columns = {};
 
@@ -3572,6 +3478,7 @@ function extractHouseholdMembers(row) {
 }
 
 function parseCensusWikitable(text) {
+  let rowHadBold = false;
   let lines = text.split("\n");
   lines = lines.filter(
     (line) => !line.startsWith("|-") && !line.startsWith("|+") && !line.startsWith("{|") && !line.startsWith("!")
@@ -3587,16 +3494,20 @@ function parseCensusWikitable(text) {
         const key = Object.keys(columnMapping).find((key) => columnMapping[key] === String(index));
         if (part && key) {
           if (part.includes("'''")) {
+            rowHadBold = true;
             part = part.replace(/'''/g, "").trim();
           }
           row[key] = part;
         }
       });
-
+      if (rowHadBold) {
+        row.Relation = "Self"; // Set the relation to Self
+      }
       if (Object.keys(row)?.length > 0) {
         data.push(row);
       }
     }
+    rowHadBold = false; // Reset for the next row
   });
 
   return data;
