@@ -308,7 +308,10 @@ function ShowCategorySectionOnTop(options) {
     const previewDiv = document.getElementById("wikiPreview");
     const categoriesSection = document.getElementById("Categories");
     if (categoriesSection) {
-      previewDiv.insertBefore(categoriesSection.parentNode.parentNode.parentNode.parentNode.cloneNode(true), previewDiv.firstChild.nextSibling);
+      previewDiv.insertBefore(
+        categoriesSection.parentNode.parentNode.parentNode.parentNode.cloneNode(true),
+        previewDiv.firstChild.nextSibling
+      );
     }
   }
 }
@@ -866,7 +869,9 @@ function AddLetterlinks() {
             let sibling = letterHeadlines[i].nextSibling.nextSibling;
 
             while (sibling != null && sibling.tagName == "DIV") {
-              sibling.firstChild.checked = true;
+              if (sibling.style.display != "none") {
+                sibling.firstChild.checked = true;
+              }
               sibling = sibling.nextSibling.nextSibling; //text after div
             }
           }
