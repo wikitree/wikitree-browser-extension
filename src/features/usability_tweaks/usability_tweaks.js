@@ -1892,12 +1892,15 @@ class RangeringTool {
 
 let rangeringTool;
 const rangers = [
+  "Ikeler-28",
+  "Ivey-1318",
+  "Hodson-601",
+  "Stutz-25",
   "Michaelsen-74",
   "Gilbert-20491",
   "Johnson-107455",
   "Beacall-6",
   "Snyder-19096",
-  "Mallow-254",
   "Wycoff-345",
   "Gardner-10299",
   "Urbach-13",
@@ -1910,7 +1913,6 @@ const rangers = [
   "Sonczalla-1",
   "Perkins-11750",
   "Baxter-4158",
-  "Thames-675",
   "Skelton-1756",
   "Evans-9605",
   "Vaskie-1",
@@ -1919,7 +1921,6 @@ const rangers = [
   "J-276",
   "Gürth-8",
   "Milton-1294",
-  "Stanton-3574",
   "Skillings-87",
   "Harden-1880",
   "Stewart-763",
