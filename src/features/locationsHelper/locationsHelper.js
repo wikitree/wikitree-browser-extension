@@ -194,7 +194,8 @@ function normalizeForFamilyMatch(str) {
   if (!str) return "";
   let s = (str.split("(")[0] || str) // drop anything in parentheses like dates
     .toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // remove diacritics
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, ""); // remove diacritics
 
   // Normalize United States variants
   s = s.replace(/\bunited states of america\b/g, "united states");
@@ -216,7 +217,10 @@ function normalizeForFamilyMatch(str) {
 
   // Normalize US state abbreviations to full names for better matching
   // Only do this confidently when it's clearly a US location (contains 'united states')
-  const parts = s.split(",").map((p) => p.trim()).filter(Boolean);
+  const parts = s
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
   const hasUS = parts.some((p) => p === "united states");
   if (parts.length) {
     const newParts = parts.map((p, idx) => {
