@@ -1082,7 +1082,6 @@ function addNewSuggestion(added_node, term, location, record, villages = []) {
     dbg("addNewSuggestion skipped: container already exists for", term);
   }
 }
-<<<<<<< HEAD
 
 // Make fixText tolerant of both wrapped and unwrapped suggestion nodes
 // by setting data-val on the added node if it is itself a suggestion.
@@ -1139,5 +1138,3 @@ function showSuggestionsDropdown(input, suggestions) {
     dropdown.appendChild(item);
   });
 }
-=======
->>>>>>> 82ef4aec (Convert to jquery autocomplete)
