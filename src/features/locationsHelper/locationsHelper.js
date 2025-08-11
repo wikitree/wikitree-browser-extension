@@ -10,7 +10,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 // import { australian_locations } from "./auto_bio/australian_locations";
 import { profilePerson } from "../../core/common";
 import { normalizeLocation, initLocationTranslations } from "./location_helpers";
-import { getWBELocSuggestions } from "./location_suggestions";
+import { initLocationSuggestions } from "./location_suggestions";
 
 /* ── logging helpers (silenced) ────────────────────────────────────────── */
 function dbg() {}
@@ -49,6 +49,8 @@ shouldInitializeFeature("locationsHelper").then((result) => {
         options.correctLocations = false;
         options.addUSCounty = false;
         options.nativeName = false;
+
+        initLocationSuggestions();
       }
       window.locationsHelperOptions = options;
       dbg("feature options", options);
@@ -285,36 +287,6 @@ function fixText(added_node, activeEl, dText, innerBit, innerBitText) {
   highlightSearchWords(activeEl, dText, innerBit);
 }
 
-function collectLocationFieldData() {
-  return [
-    {
-      name: "birth",
-      fieldId: "#mBirthLocation",
-      dateId: "#mBirthDate",
-    },
-    {
-      name: "death",
-      fieldId: "#mDeathLocation",
-      dateId: "#mDeathDate",
-    },
-    {
-      name: "marriage",
-      fieldId: "#mMarriageLocation",
-      dateId: "#mMarriageDate",
-    },
-    {
-      name: "space",
-      fieldId: "#mLocation",
-      dateId: "#mStartDate",
-    },
-    {
-      name: "photo",
-      fieldId: "#photo_location",
-      dateId: "#photo_date",
-    },
-  ];
-}
-
 async function locationsHelper() {
   dbg("locationsHelper init");
   // Prevent multiple observers and duplicate init
@@ -354,34 +326,6 @@ async function locationsHelper() {
     });
   } else {
     dbg("No profilePerson Id; skipping bdLocations");
-  }
-
-  if (window.locationsHelperOptions?.newLocations) {
-    for (const { name, fieldId, dateId } of collectLocationFieldData()) {
-      const field = document.querySelector(fieldId);
-
-      if (field && !field.classList.contains("wbe-loc-autocomplete")) {
-        // console.log("Adding autocomplete to", name, "location field:", fieldId);
-        // Clone the input to remove attached event listeners
-        const newField = field.cloneNode(true);
-        newField.setAttribute("autocomplete", "off");
-        newField.classList.add("wbe-loc-autocomplete");
-
-        // Replace original
-        field.replaceWith(newField);
-
-        $(fieldId).autocomplete({
-          minLength: 3,
-          delay: 300,
-          source: async (request, response) => {
-            const date = formISODate($(dateId).val());
-            // console.log(`Getting suggestions for ${request.term}, ${date}`);
-            const suggestions = await getWBELocSuggestions(request.term, date);
-            response(suggestions);
-          },
-        });
-      }
-    }
   }
 
   const observer2 = new MutationObserver(function (mutations_list) {

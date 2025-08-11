@@ -21,3 +21,9 @@
 input[name="mMarriageLocation"] {
   width: 100%;
 }
+
+/* Increase vertical spacing between options */
+.select2-results__option {
+  padding: 1px 6px; /* vertical | horizontal padding */
+  margin-bottom: 0px;
+}
