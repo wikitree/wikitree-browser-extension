@@ -1,23 +1,23 @@
 .wrongPeriod {
-	background: #ffe6ea;
+  background: #ffe6ea;
 }
 
 .familyLoc.rightPeriod {
-	background: #DAF7A6;
+  background: #daf7a6;
 }
 
 .familyLoc1.rightPeriod {
-	background: #DAF7A6;
+  background: #daf7a6;
 }
 
 .familyLoc2.rightPeriod {
-	background: lightgreen;
+  background: lightgreen;
 }
 
 .autocomplete-suggestions div.currentSelectedLocation {
-	background: #DCDCDC !important;
+  background: #dcdcdc !important;
 }
 
-input[name='mMarriageLocation'] {
-	width: 100%;
+input[name="mMarriageLocation"] {
+  width: 100%;
 }
