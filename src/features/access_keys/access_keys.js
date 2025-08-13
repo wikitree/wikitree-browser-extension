@@ -4,7 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { mainDomain, isCategoryPage, isWikiEdit, isProfileEdit, isSpaceEdit } from "../../core/pageType";
-import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions, checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 shouldInitializeFeature("accessKeys").then((result) => {
   if (result) {
@@ -43,9 +43,9 @@ function addAccessKeys(options) {
     setAccessKeyIfOptionEnabled(options.FamilyDropdown, "#familyDropdown", "y", options);
     setAccessKeyIfOptionEnabled(options.FamilyDropdown, "#showSourcesHeadline", "y", options);
     setCopyButtonAccessKeyAndClickEvent(options.CopyID, "Copy ID", "i");
-    setCopyButtonAccessKeyAndClickEvent(options.CopyUserID, "Copy UserID", "j");
     setCopyButtonAccessKeyAndClickEvent(options.CopyLink, "Copy Wiki Link", "l");
     setCopyButtonAccessKeyAndClickEvent(options.CopyURL, "Copy URL", "u");
+    setCopyButtonAccessKeyAndClickEvent(options.CopyUserID, "Copy UserID", "j");
     setAccessKeyIfOptionEnabled(options.TreeApps, "a.tree--apps_link", "t", options);
     setAccessKeyIfOptionEnabled(options.Ancestors, "#Ancestors-tab", "a", options);
     setAccessKeyIfOptionEnabled(options.Descendants, "#Descendants-tab", "d", options);
@@ -76,15 +76,27 @@ export function setAccessKeyIfOptionEnabled(option, selector, key, options, addi
 }
 
 function setCopyButtonAccessKeyAndClickEvent(option, ariaLabel, key) {
-  if (option) {
-    const selector = `button[aria-label='${ariaLabel}']`;
-    const button = $(selector);
-    if (button.length) {
-      button[0].accessKey = key;
-      button.on("click", () => {
-        showCopyMessage(ariaLabel.replace("Copy ", ""));
+  if (!option) {
+    return;
+  }
+
+  const selector = `button[aria-label='${ariaLabel}']`;
+  let button = $(selector);
+  if (button.length == 0) {
+    button = $(`button[data-copy-label='${ariaLabel}']`);
+  }
+
+  if (button.length) {
+    button[0].accessKey = key;
+    button.attr("accesskey", key);
+    button.off("click.accessKeysCopy").on("click.accessKeysCopy", () => {
+      // If scissors is not enabled show message.
+      checkIfFeatureEnabled("scissors").then((enabled) => {
+        if (!enabled) {
+          showCopyMessage(ariaLabel.replace("Copy ", ""));
+        }
       });
-    }
+    });
   }
 }
 
