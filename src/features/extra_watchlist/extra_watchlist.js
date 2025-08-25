@@ -426,9 +426,23 @@ const extraWatchlist = async () => {
     e.preventDefault();
     const $popup = $("#extraWatchlistWindow");
     if ($popup.length === 0) {
-      createWatchlistPopup(e.pageY);
+      createWatchlistPopup(e.pageY).then(() => {
+        try {
+          // Elevate above any existing .wbe-popup (cheat sheet, notes, etc.)
+          import("../../core/common").then(
+            (m) => m.setHighestZIndex && m.setHighestZIndex(document.getElementById("extraWatchlistWindow"))
+          );
+        } catch {}
+      });
     } else {
-      closeWatchlistPopup($popup);
+      // If already visible, bring to front instead of immediately closing unless modifier (Shift) pressed
+      if ($popup.is(":visible") && !e.shiftKey) {
+        try {
+          import("../../core/common").then((m) => m.setHighestZIndex && m.setHighestZIndex($popup.get(0)));
+        } catch {}
+      } else {
+        closeWatchlistPopup($popup);
+      }
     }
   });
 
@@ -476,14 +490,30 @@ const extraWatchlist = async () => {
 
 // Creates the popup with two tabs: Profiles (default) and Spaces.
 const createWatchlistPopup = async (mouseY) => {
+  // Create at document root (body) with position:fixed so it is not trapped inside a lower z-index stacking context
+  // (previously it was inserted inside the page layout, making it impossible to rise above the cheat sheet which sits at body level).
   const $popup = $("<div id='extraWatchlistWindow' class='ui-widget-content wbe-popup'></div>");
-  $popup.insertAfter($(".tabs--wrapper")).css({
-    position: "absolute",
-    top: mouseY + 10,
-  });
-  if ($("body.profile").length === 0) {
-    $popup.insertAfter($("#header,.qa-header"));
+  // Hotkey-triggered synthetic clicks may not supply a real pageY; fall back near the triggering button or a default offset.
+  let safeMouseY = typeof mouseY === "number" && mouseY > 0 ? mouseY : null;
+  if (!safeMouseY) {
+    const btn = document.getElementById("extraWatchlistButton");
+    if (btn) {
+      const rect = btn.getBoundingClientRect();
+      safeMouseY = (window.scrollY || window.pageYOffset || 0) + rect.bottom + 5;
+    } else {
+      safeMouseY = (window.scrollY || window.pageYOffset || 0) + 100; // generic fallback
+    }
   }
+  const viewportTop = safeMouseY - (window.scrollY || window.pageYOffset || 0) + 10; // convert to viewport
+  $popup.appendTo("body").css({
+    position: "fixed",
+    top: Math.max(10, viewportTop),
+    left: "10px",
+  });
+  // Raise immediately so first render is on top (after moving to body)
+  try {
+    import("../../core/common").then((m) => m.setHighestZIndex && m.setHighestZIndex($popup.get(0)));
+  } catch {}
   // Sticky header for controls.
   const $header = $("<div id='extraWatchlistHeader'></div>").css({
     position: "sticky",
@@ -493,6 +523,19 @@ const createWatchlistPopup = async (mouseY) => {
     padding: "10px",
     borderBottom: "1px solid #ccc",
   });
+  // Make entire popup draggable by header when jQuery UI is available
+  try {
+    if ($.fn.draggable) {
+      $popup.draggable({
+        handle: "#extraWatchlistHeader",
+        start: () => {
+          try {
+            import("../../core/common").then((m) => m.setHighestZIndex && m.setHighestZIndex($popup.get(0)));
+          } catch {}
+        },
+      });
+    }
+  } catch {}
   $header.append("<button id='closeWatchlistWindow' class='small close-popup'>&times;</button>");
   $header.append(
     `<div id="importExportButtons">

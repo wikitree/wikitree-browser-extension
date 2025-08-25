@@ -55,14 +55,19 @@ function editToolbarFindItem(items, name) {
 
 /* main event handler */
 function editToolbarEvent(event) {
-  let element = event.srcElement;
-  const id = element.dataset.id;
-  event.preventDefault();
-  let item = editToolbarFindItem(editToolbarOptions, id);
+  const element = event.target || event.currentTarget || event.srcElement;
+  const id = element?.dataset?.id;
+  if (!id) return; // nothing to do
+  if (event.preventDefault) event.preventDefault();
+  const item = editToolbarFindItem(editToolbarOptions, id);
   if (item) {
-    return item.call(item.params || {});
+    try {
+      return item.call(item.params || {});
+    } catch (err) {
+      console.error("editToolbarEvent error executing", id, err);
+    }
   } else {
-    alert("Unknown event " + id);
+    console.warn("Unknown edit toolbar event", id);
   }
 }
 

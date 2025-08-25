@@ -554,6 +554,14 @@ async function clipboard(type, e, action = false) {
     if (!$("#clipboard").is(":visible")) {
       $("body").removeClass("modal-open");
     }
+    // If we just made the clipboard/notes popup visible via toggle, raise its z-index
+    else {
+      try {
+        setHighestZIndex($("#clipboard"));
+      } catch (e) {
+        console.debug("[clipboard_and_notes] setHighestZIndex failed", e);
+      }
+    }
   } else {
     $("#clipboard").show();
     setHighestZIndex($("#clipboard"));

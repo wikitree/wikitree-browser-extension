@@ -27,7 +27,7 @@
   max-height: 50em;
   overflow: auto;
   position: absolute;
-  z-index: 9000;
+  /* z-index removed; dynamically managed via setHighestZIndex */
   box-shadow: 0.1em 0.1em 0.1em 0.1em lightgreen;
   background: white;
 }

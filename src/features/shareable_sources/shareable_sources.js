@@ -63,42 +63,48 @@ export async function initShareableSources(id = theID) {
   window.shareableSourcesOptions = await getFeatureOptions("shareableSources");
 
   if (isProfileEdit && options.connectWithFamilyDropdown) {
-    // Attach a delegated click event on the familyDropdown li elements.
-    $(document).on("click.shareableSources", "#familyDropdown li", async function () {
-      if ($(this).attr("value") === "other" || $(this).text().trim() === "Other") {
-        if ($("#otherPerson").length === 0) {
-          let otherPerson = $(
-            `<label id='otherPersonLabel'>Enter WikiTree ID and Press 'Enter': <input type='text' id='otherPerson'></label>`
-          );
-          otherPerson.insertAfter("#familyDropdown");
-          $("#otherPerson").trigger("focus");
-          $("#otherPerson").on("keydown", function (event) {
-            if (event.key === "Enter") {
-              let anID = $(this).val().trim();
-              initShareableSources(anID);
-            }
-          });
+    // Attach the delegated click handler only once to avoid stacking duplicates
+    if (!window.shareableSourcesFamilyDropdownClickBound) {
+      $(document).on("click.shareableSources", "#familyDropdown li", async function () {
+        if ($(this).attr("value") === "other" || $(this).text().trim() === "Other") {
+          if ($("#otherPerson").length === 0) {
+            let otherPerson = $(
+              `<label id='otherPersonLabel'>Enter WikiTree ID and Press 'Enter': <input type='text' id='otherPerson'></label>`
+            );
+            otherPerson.insertAfter("#familyDropdown");
+            $("#otherPerson").trigger("focus");
+            $("#otherPerson").on("keydown", function (event) {
+              if (event.key === "Enter") {
+                const anID = $(this).val().trim();
+                if (anID) {
+                  // Calling initShareableSources with a different ID should also surface shareable sources.
+                  initShareableSources(anID);
+                }
+              }
+            });
+          } else {
+            $("#otherPerson").addClass("highlight").trigger("focus");
+          }
         } else {
-          $("#otherPerson").addClass("highlight").trigger("focus");
+          const box = $("#mBioWithoutSources, #mSources, #wpTextbox1");
+          if (box.length > 0 && box.get(0).selectionEnd != 0) {
+            selectionEnd = box.get(0).selectionEnd;
+          }
+          const anID = $(this).data("id");
+          if (anID != "") {
+            const ourPerson =
+              window.profilePersonNuclear?.["Parents"]?.[anID] ||
+              window.profilePersonNuclear?.["Spouses"]?.[anID] ||
+              window.profilePersonNuclear?.["Siblings"]?.[anID] ||
+              window.profilePersonNuclear?.["Children"]?.[anID] ||
+              window.profilePersonNuclear;
+            getSources(ourPerson);
+            $("#otherPerson").parent().removeClass("highlight");
+          }
         }
-      } else {
-        const box = $("#mBioWithoutSources, #mSources, #wpTextbox1");
-        if (box.length > 0 && box.get(0).selectionEnd != 0) {
-          selectionEnd = box.get(0).selectionEnd;
-        }
-        let anID = $(this).data("id");
-        if (anID != "") {
-          const ourPerson =
-            window.profilePersonNuclear?.["Parents"]?.[anID] ||
-            window.profilePersonNuclear?.["Spouses"]?.[anID] ||
-            window.profilePersonNuclear?.["Siblings"]?.[anID] ||
-            window.profilePersonNuclear?.["Children"]?.[anID] ||
-            window.profilePersonNuclear;
-          getSources(ourPerson);
-          $("#otherPerson").parent().removeClass("highlight");
-        }
-      }
-    });
+      });
+      window.shareableSourcesFamilyDropdownClickBound = true;
+    }
   }
 
   const findPerson = await getProfile(id, fields, "WBE_shareable_sources");
@@ -106,6 +112,10 @@ export async function initShareableSources(id = theID) {
     window.profilePersonNuclear = findPerson;
   }
   if (isProfileAddRelative) {
+    getSources(findPerson);
+  }
+  // NEW: If user entered an "Other" ID on a profile edit page, surface its sources immediately.
+  if (isProfileEdit && id !== theID) {
     getSources(findPerson);
   }
 }
@@ -192,8 +202,7 @@ function getSources(person, active = 0) {
     const h3id = isProfileAddRelative ? "showSourcesHeadline" : "";
 
     /* pick arrow markup only if we are NOT on profile edit page */
-const arrowHtml = isProfileEdit ? "" : "<span class='showSources'>&#9660;</span>";
-
+    const arrowHtml = isProfileEdit ? "" : "<span class='showSources'>&#9660;</span>";
 
     let referenceBox = $(` 
       <div class='referenceBox active ${refBoxClass}' data-id=${efProfile.Name} tabindex='-1'>
@@ -315,23 +324,23 @@ const arrowHtml = isProfileEdit ? "" : "<span class='showSources'>&#9660;</span>
     );
 
     /* collapse / expand – add this handler only for add person pages */
-if (!isProfileEdit) {
-    $(".referenceBox h3").on("click", function () {
-      let topDiv = $(this).parent();
-      if (topDiv.hasClass("active")) {
-        topDiv.find("div").slideUp("fade", function () {
-          //topDiv.remove();
-          topDiv.removeClass("active");
-          maybeRestoreToggle();
-        });
-      } else {
-        topDiv.find("div").slideDown("swing");
-        topDiv.addClass("active");
-        topDiv.trigger("focus");
-        focusFirstButton(referenceBox);
-      }
-    });
-  }
+    if (!isProfileEdit) {
+      $(".referenceBox h3").on("click", function () {
+        let topDiv = $(this).parent();
+        if (topDiv.hasClass("active")) {
+          topDiv.find("div").slideUp("fade", function () {
+            //topDiv.remove();
+            topDiv.removeClass("active");
+            maybeRestoreToggle();
+          });
+        } else {
+          topDiv.find("div").slideDown("swing");
+          topDiv.addClass("active");
+          topDiv.trigger("focus");
+          focusFirstButton(referenceBox);
+        }
+      });
+    }
 
     $("#wpSave").not('[value="Go"]').insertAfter($("#mSources"));
 
