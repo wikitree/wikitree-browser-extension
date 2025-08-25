@@ -689,8 +689,12 @@ function buildCheatSheet(actions, prefixKey, options = {}) {
   wrap.style.display = "none";
 
   const browserKeysEnabled = options.EnableBrowserAccessKeys;
+  // Detect platform for appropriate key display - modern platform detection
+  const isMac = detectMacPlatform();
+  const browserKeyText = isMac ? "Ctrl+Option+key" : "Shift+Alt+key";
+  
   const subtitle = browserKeysEnabled
-    ? `(press ${escapeHtml(prefixKey)}, then key OR Shift+Alt+key)`
+    ? `(press ${escapeHtml(prefixKey)}, then key OR ${browserKeyText})`
     : `(press ${escapeHtml(prefixKey)}, then key)`;
 
   wrap.innerHTML = `
@@ -702,7 +706,7 @@ function buildCheatSheet(actions, prefixKey, options = {}) {
       <div class="wbe-hotkey-foot">Shift + ? to toggle • Esc to close</div>
     </div>
   `;
-  populateCheatGrid(wrap.querySelector(".wbe-hotkey-grid"), actions, prefixKey, browserKeysEnabled);
+  populateCheatGrid(wrap.querySelector(".wbe-hotkey-grid"), actions, prefixKey, browserKeysEnabled, isMac);
 
   cheatEl = wrap;
 
@@ -729,7 +733,8 @@ function toggleCheatSheet(force) {
     const grid = cheatEl.querySelector(".wbe-hotkey-grid");
     if (grid && window.__wbeAccessKeyActions) {
       const browserKeysEnabled = window.__wbeAccessKeyOptions?.EnableBrowserAccessKeys || false;
-      populateCheatGrid(grid, window.__wbeAccessKeyActions, window.__wbeAccessKeyPrefix || "w", browserKeysEnabled);
+      const isMac = detectMacPlatform();
+      populateCheatGrid(grid, window.__wbeAccessKeyActions, window.__wbeAccessKeyPrefix || "w", browserKeysEnabled, isMac);
     }
     const inner = cheatEl.querySelector(".wbe-hotkey-cheat-inner");
     if (inner) (inner.tabIndex = -1), inner.focus();
@@ -747,6 +752,23 @@ function hideCheatHint() {
 /* ============================
    Utilities
    ============================ */
+
+function detectMacPlatform() {
+  // Modern platform detection avoiding deprecated navigator.platform
+  
+  // 1. Try navigator.userAgentData first (modern browsers)
+  if (navigator.userAgentData) {
+    return navigator.userAgentData.platform === 'macOS';
+  }
+  
+  // 2. Fall back to user agent string parsing
+  const userAgent = navigator.userAgent;
+  
+  // Check for Mac-specific patterns in user agent
+  return /Mac|iPhone|iPad|iPod/.test(userAgent) || 
+         /Macintosh/.test(userAgent) ||
+         /Mac OS X/.test(userAgent);
+}
 
 function normalizeKey(e) {
   const k = e.key?.toLowerCase();
@@ -767,6 +789,9 @@ function shouldIgnoreKeyEvent(e) {
 }
 
 function applyAriaKeyShortcuts(actions, prefixKey, enableBrowserAccessKeys = false) {
+  // Detect platform for appropriate key display - modern platform detection
+  const isMac = detectMacPlatform();
+  
   for (const key of Object.keys(actions)) {
     for (const a of actions[key]) {
       if (!a.selectorForExists) continue;
@@ -781,8 +806,10 @@ function applyAriaKeyShortcuts(actions, prefixKey, enableBrowserAccessKeys = fal
       let title = el.getAttribute("title") || "";
       if (!title.includes(`[${seq}]`)) {
         if (enableBrowserAccessKeys) {
-          // Add both synthetic and browser accesskey info
-          const browserKey = `Shift+Alt+${a.key.toUpperCase()}`;
+          // Add both synthetic and browser accesskey info with platform-specific keys
+          const browserKey = isMac 
+            ? `Ctrl+Option+${a.key.toUpperCase()}`
+            : `Shift+Alt+${a.key.toUpperCase()}`;
           title = `${title} [${seq}] [${browserKey}]`.trim();
           // Set native browser accesskey
           el.setAttribute("accesskey", a.key);
@@ -860,7 +887,7 @@ function contextualizeELabels() {
   return labels;
 }
 
-function populateCheatGrid(grid, actions, prefixKey, browserKeysEnabled = false) {
+function populateCheatGrid(grid, actions, prefixKey, browserKeysEnabled = false, isMac = false) {
   if (!grid) return;
   grid.innerHTML = "";
   if (!actions) return;
@@ -895,10 +922,16 @@ function populateCheatGrid(grid, actions, prefixKey, browserKeysEnabled = false)
     const div = document.createElement("div");
     div.className = "wbe-hotkey-item";
 
-    // Show both key combinations if browser keys enabled
-    const keyDisplay = browserKeysEnabled
-      ? `<kbd>${escapeHtml(k)}</kbd> <small>or</small> <kbd>⇧⌥${escapeHtml(k.toUpperCase())}</kbd>`
-      : `<kbd>${escapeHtml(k)}</kbd>`;
+    // Show both key combinations if browser keys enabled with platform-specific symbols
+    let keyDisplay;
+    if (browserKeysEnabled) {
+      const browserKeys = isMac 
+        ? `^⌥${escapeHtml(k.toUpperCase())}` // Ctrl+Option on Mac
+        : `⇧⎇${escapeHtml(k.toUpperCase())}`; // Shift+Alt on PC
+      keyDisplay = `<kbd>${escapeHtml(k)}</kbd> <small>or</small> <kbd>${browserKeys}</kbd>`;
+    } else {
+      keyDisplay = `<kbd>${escapeHtml(k)}</kbd>`;
+    }
 
     div.innerHTML = `${keyDisplay}<span>${escapeHtml(labels.join(" / "))}</span>`;
     grid.appendChild(div);
