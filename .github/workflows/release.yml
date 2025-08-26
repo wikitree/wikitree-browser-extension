@@ -124,15 +124,17 @@ jobs:
           set -o pipefail
           FALLBACK=0
           echo "Attempting primary device archive..."
+          # Capture raw log for debugging
+          mkdir -p xcode/logs
           if run_xcode clean archive \
             -project "${{ env.X_SAFARI_PROJECT }}" \
             -scheme "${{ env.X_SAFARI_NAME }} (iOS)" \
             -configuration Release \
-            -sdk "$SDK_LINE" \
             -destination 'generic/platform=iOS' \
             ONLY_ACTIVE_ARCH=YES \
             CODE_SIGN_STYLE=Automatic \
-            -archivePath xcode/build-ios; then
+            -allowProvisioningUpdates \
+            -archivePath xcode/build-ios 2>&1 | tee xcode/logs/ios-archive.log; then
             echo "Primary archive succeeded; exporting..."
             if xcodebuild -exportArchive -archivePath xcode/build-ios.xcarchive -exportPath xcode/build-ios.xcexport -exportOptionsPlist xcode/ExportOptions.${{ env.X_BUILD_MONIKER == 'stable' && 'stable' || 'preview' }}.ios.plist; then
               cp "xcode/build-ios.xcexport/${{ env.X_SAFARI_NAME }}.ipa" dist-safari-ios.ipa
@@ -143,12 +145,21 @@ jobs:
             fi
           else
             echo "Primary archive failed; scheduling fallback" >&2
+            echo "--- Last 200 lines of archive log (if any) ---"
+            tail -n 200 xcode/logs/ios-archive.log || true
             FALLBACK=1
           fi
           if [ "$FALLBACK" = 1 ]; then
             echo "--- Simulator fallback (unsigned) ---"
-            SIM_OS=$(xcrun simctl list devices available | awk '/-- iOS 18\.5 --/ {print "18.5"; found=1} /^-- iOS / && !found { if ($3 ~ /[0-9]+\.[0-9]+/) {gsub(/--/,"",$3); print $3; found=1} } END{if(!found)print "18.5"}')
-            SIM_NAME=$(xcrun simctl list devices available | awk -v ver="$SIM_OS" '$0 ~ "-- iOS "ver" --" {in=1;next} /^-- / {in=0} in && /iPhone 16 Pro/ {print "iPhone 16 Pro";exit} in && /iPhone 16$/ {print "iPhone 16";exit} in && /iPhone SE/ {print "iPhone SE (3rd generation)";exit}')
+            # Determine highest available simulator iOS version
+            SIM_OS=$(xcrun simctl list devices available | sed -n 's/^-- iOS \([0-9][0-9.]*\) --$/\1/p' | sort -Vr | head -n1)
+            [ -z "$SIM_OS" ] && SIM_OS="17.5"
+            SIM_DEVICES=$(xcrun simctl list devices available)
+            SIM_SECTION=$(printf "%s" "$SIM_DEVICES" | awk -v ver="$SIM_OS" 'BEGIN{p=0} $0=="-- iOS "ver" --"{p=1;next} /^-- /{if(p)exit} p')
+            for D in 'iPhone 16 Pro' 'iPhone 16' 'iPhone 15 Pro' 'iPhone 15' 'iPhone SE (3rd generation)'; do
+              if printf "%s" "$SIM_SECTION" | grep -F "$D" >/dev/null; then SIM_NAME="$D"; break; fi
+            done
+            [ -z "$SIM_NAME" ] && SIM_NAME=$(printf "%s" "$SIM_SECTION" | grep -E 'iPhone' | head -n1 | sed -E 's/^[[:space:]]*//;s/ \(.*//')
             [ -z "$SIM_NAME" ] && SIM_NAME="iPhone 16"
             DEST_SIM="platform=iOS Simulator,name=$SIM_NAME,OS=$SIM_OS"
             echo "Using simulator $DEST_SIM"
