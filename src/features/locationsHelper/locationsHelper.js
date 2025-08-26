@@ -239,31 +239,34 @@ function normalizeForFamilyMatch(str) {
 function highlightSearchWords(activeEl, dText, innerBit) {
   const theLocation = $("#" + activeEl.id);
   const theLocationText = theLocation.val();
-  
+
   // Split on commas and spaces, but keep hyphenated words together
-  const theLocationTextMatch = theLocationText?.trim().split(/[,\s]+/).filter(word => word.length > 0);
-  
+  const theLocationTextMatch = theLocationText
+    ?.trim()
+    .split(/[,\s]+/)
+    .filter((word) => word.length > 0);
+
   dbg("highlightSearchWords", {
     inputField: activeEl.id,
     inputText: theLocationText,
     words: theLocationTextMatch,
     dTextSnippet: (dText || "").slice(0, 120),
   });
-  
+
   if (theLocationTextMatch && theLocationTextMatch.length > 0) {
     let textContent = innerBit.text();
-    
+
     theLocationTextMatch.forEach(function (aWord) {
       // Skip very short words to avoid issues with common words like "et", "de", etc.
       if (aWord.length >= 2) {
         // Escape special regex characters in the word
-        const escapedWord = aWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const escapedWord = aWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         // Use word boundaries to match whole words only (case insensitive)
-        const wordRegex = new RegExp(`\\b(${escapedWord})\\b`, 'gi');
+        const wordRegex = new RegExp(`\\b(${escapedWord})\\b`, "gi");
         textContent = textContent.replace(wordRegex, '<span class="autocomplete-suggestion-term">$1</span>');
       }
     });
-    
+
     // Set the highlighted HTML
     innerBit.html(textContent);
   }

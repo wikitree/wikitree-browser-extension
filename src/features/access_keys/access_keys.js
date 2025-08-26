@@ -692,7 +692,7 @@ function buildCheatSheet(actions, prefixKey, options = {}) {
   // Detect platform for appropriate key display - modern platform detection
   const isMac = detectMacPlatform();
   const browserKeyText = isMac ? "Ctrl+Option+key" : "Shift+Alt+key";
-  
+
   const subtitle = browserKeysEnabled
     ? `(press ${escapeHtml(prefixKey)}, then key OR ${browserKeyText})`
     : `(press ${escapeHtml(prefixKey)}, then key)`;
@@ -734,7 +734,13 @@ function toggleCheatSheet(force) {
     if (grid && window.__wbeAccessKeyActions) {
       const browserKeysEnabled = window.__wbeAccessKeyOptions?.EnableBrowserAccessKeys || false;
       const isMac = detectMacPlatform();
-      populateCheatGrid(grid, window.__wbeAccessKeyActions, window.__wbeAccessKeyPrefix || "w", browserKeysEnabled, isMac);
+      populateCheatGrid(
+        grid,
+        window.__wbeAccessKeyActions,
+        window.__wbeAccessKeyPrefix || "w",
+        browserKeysEnabled,
+        isMac
+      );
     }
     const inner = cheatEl.querySelector(".wbe-hotkey-cheat-inner");
     if (inner) (inner.tabIndex = -1), inner.focus();
@@ -755,19 +761,17 @@ function hideCheatHint() {
 
 function detectMacPlatform() {
   // Modern platform detection avoiding deprecated navigator.platform
-  
+
   // 1. Try navigator.userAgentData first (modern browsers)
   if (navigator.userAgentData) {
-    return navigator.userAgentData.platform === 'macOS';
+    return navigator.userAgentData.platform === "macOS";
   }
-  
+
   // 2. Fall back to user agent string parsing
   const userAgent = navigator.userAgent;
-  
+
   // Check for Mac-specific patterns in user agent
-  return /Mac|iPhone|iPad|iPod/.test(userAgent) || 
-         /Macintosh/.test(userAgent) ||
-         /Mac OS X/.test(userAgent);
+  return /Mac|iPhone|iPad|iPod/.test(userAgent) || /Macintosh/.test(userAgent) || /Mac OS X/.test(userAgent);
 }
 
 function normalizeKey(e) {
@@ -791,7 +795,7 @@ function shouldIgnoreKeyEvent(e) {
 function applyAriaKeyShortcuts(actions, prefixKey, enableBrowserAccessKeys = false) {
   // Detect platform for appropriate key display - modern platform detection
   const isMac = detectMacPlatform();
-  
+
   for (const key of Object.keys(actions)) {
     for (const a of actions[key]) {
       if (!a.selectorForExists) continue;
@@ -807,9 +811,7 @@ function applyAriaKeyShortcuts(actions, prefixKey, enableBrowserAccessKeys = fal
       if (!title.includes(`[${seq}]`)) {
         if (enableBrowserAccessKeys) {
           // Add both synthetic and browser accesskey info with platform-specific keys
-          const browserKey = isMac 
-            ? `Ctrl+Option+${a.key.toUpperCase()}`
-            : `Shift+Alt+${a.key.toUpperCase()}`;
+          const browserKey = isMac ? `Ctrl+Option+${a.key.toUpperCase()}` : `Shift+Alt+${a.key.toUpperCase()}`;
           title = `${title} [${seq}] [${browserKey}]`.trim();
           // Set native browser accesskey
           el.setAttribute("accesskey", a.key);
@@ -925,7 +927,7 @@ function populateCheatGrid(grid, actions, prefixKey, browserKeysEnabled = false,
     // Show both key combinations if browser keys enabled with platform-specific symbols
     let keyDisplay;
     if (browserKeysEnabled) {
-      const browserKeys = isMac 
+      const browserKeys = isMac
         ? `^⌥${escapeHtml(k.toUpperCase())}` // Ctrl+Option on Mac
         : `⇧⎇${escapeHtml(k.toUpperCase())}`; // Shift+Alt on PC
       keyDisplay = `<kbd>${escapeHtml(k)}</kbd> <small>or</small> <kbd>${browserKeys}</kbd>`;
