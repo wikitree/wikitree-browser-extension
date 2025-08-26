@@ -96,10 +96,12 @@ jobs:
           cp $PP_EXT_IOS_PATH ~/Library/MobileDevice/Provisioning\ Profiles
           cp $PP_EXT_MACOS_PATH ~/Library/MobileDevice/Provisioning\ Profiles
       # Safari Versions use dist already built from Chrome
+      - name: List available iOS simulators
+        run: xcrun simctl list devices available
       - name: Build signed version for Safari (iOS)
         if: vars.APPLE_SIGNING_ENABLED == 'true'
         run: |
-          xcodebuild clean archive -quiet -project "${{ env.X_SAFARI_PROJECT }}" -scheme "${{ env.X_SAFARI_NAME }} (iOS)" -configuration Release -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.5' -archivePath xcode/build-ios
+          xcodebuild clean archive -quiet -project "${{ env.X_SAFARI_PROJECT }}" -scheme "${{ env.X_SAFARI_NAME }} (iOS)" -configuration Release -destination 'platform=iOS Simulator,name=iPhone 14,OS=16.4' -archivePath xcode/build-ios
           xcodebuild -exportArchive -archivePath xcode/build-ios.xcarchive -exportPath xcode/build-ios.xcexport -exportOptionsPlist xcode/ExportOptions.${{ env.X_BUILD_MONIKER == 'stable' && 'stable' || 'preview' }}.ios.plist
           cp "xcode/build-ios.xcexport/${{ env.X_SAFARI_NAME }}.ipa" dist-safari-ios.ipa
       - name: Build signed version for Safari (macOS)
