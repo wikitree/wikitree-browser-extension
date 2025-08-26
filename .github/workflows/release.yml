@@ -11,6 +11,10 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v4
+      - name: Print Xcode & SDKs
+        run: |
+          xcodebuild -version
+          xcodebuild -showsdks
       - name: Set release flags based on branch
         run: |
           echo "X_SHORT_HASH=`git rev-parse --short HEAD`" >> $GITHUB_ENV
