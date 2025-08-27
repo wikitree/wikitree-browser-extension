@@ -274,7 +274,10 @@ function highlightSearchWords(activeEl, dText, innerBit) {
 
 function fixText(added_node, activeEl, dText, innerBit, innerBitText) {
   const before = dText;
-  dText = dText.replace(/\(.*\d{3,4}.*\)/, "").trim();
+  // Strip any trailing parenthetical date ranges e.g. (1837 - 1900), ( - 1974), (c. 1810- ), (bef. 1700 - aft. 1750)
+  // Do an aggressive pass first (legacy behaviour) then a focused cleanup.
+  dText = dText.replace(/\(.*\d{3,4}.*\)/, ""); // legacy (greedy) removal – keeps prior behaviour
+  dText = stripLocationDates(dText); // modern precise cleanup
   logIfChanged("fixText: stripped dates", before, dText);
 
   if (innerBitText) {
@@ -291,6 +294,33 @@ function fixText(added_node, activeEl, dText, innerBit, innerBitText) {
 
   $(added_node).find(".autocomplete-suggestion").attr("data-val", dText.trim());
   highlightSearchWords(activeEl, dText, innerBit);
+}
+
+// Helper: remove trailing parenthetical segments that look like date ranges or single years.
+// Examples to remove:
+//   Bromborough, Cheshire, England (1837 - 1974)
+//   Bromborough, Cheshire, England ( - 1974)
+//   Bromborough, Cheshire, England (1837 - )
+//   Bromborough, Cheshire, England (c. 1837)
+// Keeps other parenthetical content without digits (rare) intact.
+function stripLocationDates(raw) {
+  if (!raw) return "";
+  let s = raw;
+  // Iterate in case of multiple trailing date parens accidentally present
+  let changed = false;
+  const dateParenRegex = /\s*\((?:[^)]*\d{3,4}[^)]*)\)\s*$/; // any trailing (...) containing a 3-4 digit number
+  while (dateParenRegex.test(s)) {
+    s = s.replace(dateParenRegex, "");
+    changed = true;
+  }
+  if (changed) {
+    s = s
+      .replace(/\s{2,}/g, " ")
+      .trim()
+      .replace(/,\s*,/g, ", ")
+      .replace(/,\s*$/g, "");
+  }
+  return s.trim();
 }
 
 async function locationsHelper() {
@@ -376,6 +406,11 @@ async function locationsHelper() {
 
             let dText = added_node.textContent || "";
             dbg("raw suggestion text", dText.slice(0, 200));
+
+            // Always ensure the value that will be inserted (data-val) is date-free
+            const baseStrippedVal = stripLocationDates(dText.replace(/\(.*\d{3,4}.*\)/, ""));
+            $(added_node).attr("data-val", baseStrippedVal.trim());
+            dbg("sanitized base data-val", { original: dText.slice(0, 120), dataVal: baseStrippedVal });
 
             dbg("options at runtime", window.locationsHelperOptions);
             if (window.locationsHelperOptions?.nativeName) {
@@ -985,6 +1020,29 @@ async function locationsHelper() {
       pollCount++;
       if (pollCount > 20) clearInterval(poll); // stop after ~20s
     }, 1000);
+    // Intercept selection (mousedown) to guarantee sanitized insertion even if another script sets value first
+    $(document)
+      .off("mousedown.locationsHelper", ".autocomplete-suggestion")
+      .on("mousedown.locationsHelper", ".autocomplete-suggestion", function () {
+        const val = $(this).attr("data-val") || "";
+        const clean = stripLocationDates(val);
+        if (clean !== val) {
+          $(this).attr("data-val", clean);
+          dbg("mousedown sanitize data-val", { before: val, after: clean });
+        }
+        // Also proactively update the active input (plugin may set after event; use microtask)
+        const activeEl = document.activeElement;
+        if (activeEl && /Location|photo_location|Email/.test(activeEl.id || activeEl.name || "")) {
+          queueMicrotask(() => {
+            const before = activeEl.value;
+            const after = stripLocationDates(before);
+            if (after !== before) {
+              activeEl.value = after;
+              dbg("microtask sanitize input value", { before, after });
+            }
+          });
+        }
+      });
     // Mark init complete once we've attached observers
     window.locationsHelperInitDone = true;
   }, 3000);
@@ -1022,10 +1080,11 @@ function addNewSuggestion(added_node, term, location, record, villages = []) {
       newSuggestion.className = "autocomplete-suggestion-container";
       newSuggestion.classList.add(term);
       const villageLocation = villageBit + location;
+      const cleanVal = stripLocationDates(villageLocation);
       newSuggestion.innerHTML = `
-      <span class="autocomplete-suggestion-maplink"><a target="_new" href="https://maps.google.com?q=${villageLocation}"><img src="/images/icons/map.gif"></a></span>
-      <div class="autocomplete-suggestion" data-val="${villageLocation}">
-      <div class="autocomplete-suggestion-head">${villageBit}<span class="autocomplete-suggestion-term">${term}</span>${endBit} ${theDates}</div></div>`;
+  <span class="autocomplete-suggestion-maplink"><a target="_new" href="https://maps.google.com?q=${villageLocation}"><img src="/images/icons/map.gif"></a></span>
+  <div class="autocomplete-suggestion" data-val="${cleanVal}">
+  <div class="autocomplete-suggestion-head">${villageBit}<span class="autocomplete-suggestion-term">${term}</span>${endBit} ${theDates}</div></div>`;
       $(newSuggestion).insertBefore($(added_node));
     }
   } else {
@@ -1046,8 +1105,19 @@ fixText = function (added_node, activeEl, dText, innerBit, innerBitText) {
       added_node.classList &&
       added_node.classList.contains("autocomplete-suggestion")
     ) {
-      $(added_node).attr("data-val", (dText || "").trim());
+      const cleanVal = stripLocationDates((dText || "").trim());
+      $(added_node).attr("data-val", cleanVal);
     }
+    $(added_node)
+      .find(".autocomplete-suggestion")
+      .each(function () {
+        const before = $(this).attr("data-val") || "";
+        const after = stripLocationDates(before);
+        if (after !== before) {
+          $(this).attr("data-val", after);
+          dbg("post-fixText sanitize nested suggestion", { before, after });
+        }
+      });
   } catch (e) {
     // non-fatal
   }
