@@ -1176,7 +1176,7 @@ class RangeringTool {
     const processedPairs = new Set(); // Track processed ID pairs
     let anomalyCount = 0;
 
-    // Step 1: Extract activity data and user timestamps  
+    // Step 1: Extract activity data and user timestamps
     const activityData = this.extractActivityData(historyItems, userMergeTimes);
     // console.log("Extracted activityData:", activityData); // Debugging log
 
@@ -1286,36 +1286,36 @@ class RangeringTool {
       const response = await fetch(diffUrl);
       const html = await response.text();
       const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
+      const doc = parser.parseFromString(html, "text/html");
       return doc;
     } catch (error) {
-      console.error('Error fetching diff data:', error);
+      console.error("Error fetching diff data:", error);
       return null;
     }
   }
 
   parseDateFromDiff(diffDoc, dateType) {
     // dateType should be "Birth Date" or "Death Date"
-    const diffTable = diffDoc.querySelector('table.diff');
+    const diffTable = diffDoc.querySelector("table.diff");
     if (!diffTable) return { oldDate: null, newDate: null };
 
-    const rows = diffTable.querySelectorAll('tr');
+    const rows = diffTable.querySelectorAll("tr");
     let foundDateSection = false;
     let oldDate = null;
     let newDate = null;
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      const linenoCell = row.querySelector('.diff-lineno');
-      
+      const linenoCell = row.querySelector(".diff-lineno");
+
       if (linenoCell && linenoCell.textContent.trim() === dateType) {
         foundDateSection = true;
         // The next row should contain the old and new dates
         if (i + 1 < rows.length) {
           const dataRow = rows[i + 1];
-          const deletedCell = dataRow.querySelector('.diff-deletedline');
-          const addedCell = dataRow.querySelector('.diff-addedline');
-          
+          const deletedCell = dataRow.querySelector(".diff-deletedline");
+          const addedCell = dataRow.querySelector(".diff-addedline");
+
           if (deletedCell) oldDate = deletedCell.textContent.trim();
           if (addedCell) newDate = addedCell.textContent.trim();
         }
@@ -1327,15 +1327,15 @@ class RangeringTool {
   }
 
   calculateYearDifference(date1, date2) {
-    if (!date1 || !date2 || date1 === '0000-00-00' || date2 === '0000-00-00') {
+    if (!date1 || !date2 || date1 === "0000-00-00" || date2 === "0000-00-00") {
       return 0;
     }
-    
-    const year1 = parseInt(date1.split('-')[0]);
-    const year2 = parseInt(date2.split('-')[0]);
-    
+
+    const year1 = parseInt(date1.split("-")[0]);
+    const year2 = parseInt(date2.split("-")[0]);
+
     if (isNaN(year1) || isNaN(year2)) return 0;
-    
+
     return Math.abs(year1 - year2);
   }
 
@@ -1346,53 +1346,67 @@ class RangeringTool {
     for (let i = 0; i < historyItems.length; i++) {
       const item = historyItems.eq(i);
       const text = item.text();
-      
+
       // Only check items that are profile edits (contain diff links)
       const diffLink = item.find('a[href*="diff="]');
       if (diffLink.length > 0) {
         // Only process if it's a merge OR the edit text explicitly mentions date changes
-        const isMerge = text.includes('merged');
-        const hasDateChange = text.includes('Birth Date changed') || text.includes('Death Date changed') ||
-                             text.includes('birth date changed') || text.includes('death date changed');
-        
+        const isMerge = text.includes("merged");
+        const hasDateChange =
+          text.includes("Birth Date") ||
+          text.includes("Death Date") ||
+          text.includes("birth date") ||
+          text.includes("death date");
+
         if (isMerge || hasDateChange) {
-          const diffUrl = diffLink.attr('href');
-          // Make sure it's an absolute URL
-          const fullDiffUrl = diffUrl.startsWith('http') ? diffUrl : 'https://www.wikitree.com' + diffUrl;
+          console.log(`WBE: Processing edit - isMerge: ${isMerge}, hasDateChange: ${hasDateChange}, text: "${text}"`);
           
+          const diffUrl = diffLink.attr("href");
+          // Make sure it's an absolute URL
+          const fullDiffUrl = diffUrl.startsWith("http") ? diffUrl : "https://www.wikitree.com" + diffUrl;
+
           try {
             const diffDoc = await self.fetchDiffData(fullDiffUrl);
             if (diffDoc) {
               // Check birth date changes
-              const birthDateChanges = self.parseDateFromDiff(diffDoc, 'Birth Date');
+              const birthDateChanges = self.parseDateFromDiff(diffDoc, "Birth Date");
+              const deathDateChanges = self.parseDateFromDiff(diffDoc, "Death Date");
+              
+              console.log(`WBE: Date changes found - Birth: ${birthDateChanges.oldDate} → ${birthDateChanges.newDate}, Death: ${deathDateChanges.oldDate} → ${deathDateChanges.newDate}`);
+              
+              let anomalyDetails = "";
+              let hasAnyDateAnomaly = false;
+              
               if (birthDateChanges.oldDate && birthDateChanges.newDate) {
                 const birthYearDiff = self.calculateYearDifference(birthDateChanges.oldDate, birthDateChanges.newDate);
                 if (birthYearDiff > 10) {
-                  item.addClass("birth-date-anomaly");
-                  item.attr('title', `Birth date changed by ${birthYearDiff} years (${birthDateChanges.oldDate} → ${birthDateChanges.newDate})`);
-                  anomalyCount++;
+                  item.addClass("anomaly");
+                  anomalyDetails += `Birth date changed by ${birthYearDiff} years (${birthDateChanges.oldDate} → ${birthDateChanges.newDate})\n`;
+                  hasAnyDateAnomaly = true;
                 }
               }
-              
-              // Check death date changes
-              const deathDateChanges = self.parseDateFromDiff(diffDoc, 'Death Date');
+
               if (deathDateChanges.oldDate && deathDateChanges.newDate) {
                 const deathYearDiff = self.calculateYearDifference(deathDateChanges.oldDate, deathDateChanges.newDate);
                 if (deathYearDiff > 10) {
-                  item.addClass("death-date-anomaly");
-                  const existingTitle = item.attr('title') || '';
-                  const newTitle = existingTitle ? 
-                    `${existingTitle}; Death date changed by ${deathYearDiff} years (${deathDateChanges.oldDate} → ${deathDateChanges.newDate})` :
-                    `Death date changed by ${deathYearDiff} years (${deathDateChanges.oldDate} → ${deathDateChanges.newDate})`;
-                  item.attr('title', newTitle);
-                  if (!item.hasClass("birth-date-anomaly")) {
-                    anomalyCount++;
-                  }
+                  item.addClass("anomaly");
+                  anomalyDetails += `Death date changed by ${deathYearDiff} years (${deathDateChanges.oldDate} → ${deathDateChanges.newDate})\n`;
+                  hasAnyDateAnomaly = true;
                 }
+              }
+              
+              if (hasAnyDateAnomaly) {
+                // Put the detailed info in both title and anomalyDiv (like merge anomalies)
+                item.attr("title", anomalyDetails.trim());
+                const anomalyDiv = $(`<div class='anomalyDiv'>${anomalyDetails.replace(/\n/g, "<br>")}</div>`);
+                if (item.find(".anomalyDiv").length === 0) {
+                  item.append(anomalyDiv);
+                }
+                anomalyCount++;
               }
             }
           } catch (error) {
-            console.error('Error processing diff for date anomaly detection:', error);
+            console.error("Error processing diff for date anomaly detection:", error);
           }
         }
       }
@@ -1406,6 +1420,21 @@ class RangeringTool {
     let anomalyCount = 0;
 
     historyItems.each(function () {
+      const text = $(this).text();
+
+      // Only check date differences if it's a merge OR explicit date change mention
+      const isMerge = text.includes("merged");
+      const hasExplicitDateChange =
+        text.includes("Birth Date changed") ||
+        text.includes("Death Date changed") ||
+        text.includes("birth date changed") ||
+        text.includes("death date changed") ||
+        text.includes("edited the Biography, Birth Date") ||
+        text.includes("edited the Biography, Death Date") ||
+        text.includes("Birth Date and Death Date");
+
+      const shouldCheckDates = isMerge || hasExplicitDateChange;
+
       const links = $(this).find("a[href*='/wiki/']").slice(1);
       const ids = [];
 
@@ -1433,26 +1462,33 @@ class RangeringTool {
           // Check if this pair has already been processed
           if (!processedPairs.has(pairKey)) {
             processedPairs.add(pairKey); // Mark this pair as processed
-            
+
             // Only check for different genders on Merges page (where they should be the same person)
-            const differentGender = self.currentConfig.name === "Merges" && 
-                                  person1.Gender && person2.Gender && person1.Gender !== person2.Gender;
-            
+            const differentGender =
+              self.currentConfig.name === "Merges" &&
+              person1.Gender &&
+              person2.Gender &&
+              person1.Gender !== person2.Gender;
+
             let birthDifferenceOver10Years = false;
             let deathDifferenceOver10Years = false;
-            if (self.okDate(person1.BirthDate) && self.okDate(person2.BirthDate)) {
-              let b = person1.BirthDate.replace("-00-00", "");
-              let d1 = new Date(b);
-              b = person2.BirthDate.replace("-00-00", "");
-              let d2 = new Date(b);
-              birthDifferenceOver10Years = Math.abs(d1 - d2) > 315569520000;
-            }
-            if (self.okDate(person1.DeathDate) && self.okDate(person2.DeathDate)) {
-              let b = person1.DeathDate.replace("-00-00", "");
-              let d1 = new Date(b);
-              b = person2.DeathDate.replace("-00-00", "");
-              let d2 = new Date(b);
-              deathDifferenceOver10Years = Math.abs(d1 - d2) > 315569520000;
+
+            // Only check date differences if appropriate
+            if (shouldCheckDates) {
+              if (self.okDate(person1.BirthDate) && self.okDate(person2.BirthDate)) {
+                let b = person1.BirthDate.replace("-00-00", "");
+                let d1 = new Date(b);
+                b = person2.BirthDate.replace("-00-00", "");
+                let d2 = new Date(b);
+                birthDifferenceOver10Years = Math.abs(d1 - d2) > 315569520000;
+              }
+              if (self.okDate(person1.DeathDate) && self.okDate(person2.DeathDate)) {
+                let b = person1.DeathDate.replace("-00-00", "");
+                let d1 = new Date(b);
+                b = person2.DeathDate.replace("-00-00", "");
+                let d2 = new Date(b);
+                deathDifferenceOver10Years = Math.abs(d1 - d2) > 315569520000;
+              }
             }
             if (differentGender || birthDifferenceOver10Years || deathDifferenceOver10Years) {
               $(this).addClass("anomaly");
@@ -1461,10 +1497,12 @@ class RangeringTool {
                 titleText += `Different genders: ${person1.Gender} vs. ${person2.Gender} \n`;
               }
               if (birthDifferenceOver10Years) {
-                titleText += `A 10-year(+) difference in birth dates: ${person1.BirthDate} vs. ${person2.BirthDate}\n`;
+                const birthYearDiff = self.calculateYearDifference(person1.BirthDate, person2.BirthDate);
+                titleText += `Birth date changed by ${birthYearDiff} years (${person1.BirthDate} → ${person2.BirthDate})\n`;
               }
               if (deathDifferenceOver10Years) {
-                titleText += `A 10-year(+) difference in death dates: ${person1.DeathDate} vs. ${person2.DeathDate}\n`;
+                const deathYearDiff = self.calculateYearDifference(person1.DeathDate, person2.DeathDate);
+                titleText += `Death date changed by ${deathYearDiff} years (${person1.DeathDate} → ${person2.DeathDate})\n`;
               }
               $(this).attr("title", titleText);
               const anomalyDiv = $(`<div class='anomalyDiv'>${titleText.replace(/\n/g, "<br>")}</div>`);
@@ -1575,7 +1613,7 @@ class RangeringTool {
 
       // Highlight the history items and show a warning popup
       const historyItemsToHighlight = activitySequence.map((activity) => activity.element);
-      
+
       // Adapt the message based on the current page type
       let activityType = "activities";
       if (this.currentConfig.name === "Merges") {
@@ -1583,7 +1621,7 @@ class RangeringTool {
       } else if (this.currentConfig.name === "Pre-1700" || this.currentConfig.name === "Pre-1500") {
         activityType = "edits";
       }
-      
+
       const message = `${userID} performed ${activitySequence.length} ${activityType} within 5 minutes. <br>Please review their activity.`;
       this.showRapidMergePopup(message, historyItemsToHighlight);
     }
@@ -1685,13 +1723,14 @@ class RangeringTool {
 
   addAnomaliesButton() {
     // Create dynamic tooltip based on page type
-    let tooltipText = 'Check for \n';
+    let tooltipText = "Check for \n";
     if (this.currentConfig.name === "Merges") {
-      tooltipText += '1) Different genders (merged profiles should be same person)\n2) A 10-year difference in birth dates \n3) A 10-year difference in death dates';
+      tooltipText +=
+        "1) Different genders (merged profiles should be same person)\n2) A 10-year difference in birth dates \n3) A 10-year difference in death dates";
     } else {
-      tooltipText += '1) A 10-year difference in birth dates \n2) A 10-year difference in death dates';
+      tooltipText += "1) A 10-year difference in birth dates \n2) A 10-year difference in death dates";
     }
-    
+
     const anomaliesButton = $(
       `<button id='anomaliesButton' class='button small' 
       title='${tooltipText}'>
@@ -1716,43 +1755,50 @@ class RangeringTool {
 
   async getBadgeProfiles(badgeType, options = {}) {
     const { storageKey, badgeParam, cssClass, title, dateFilter } = options;
-    
+
     // Check if the list is already stored in localStorage
     const cached = localStorage.getItem(storageKey);
+    console.log(`WBE: getBadgeProfiles(${badgeType}) - cached data:`, !!cached);
+    
     if (cached) {
       const cachedObject = JSON.parse(cached);
       // If the list is less than a day old, use it
       const isValidCache = new Date().getTime() - cachedObject.timestamp < 86400000;
       const hasProfiles = dateFilter ? cachedObject.profileIDs.length >= 0 : cachedObject.profileIDs.length > 0;
+      console.log(`WBE: Cache valid: ${isValidCache}, has profiles: ${hasProfiles}, count: ${cachedObject.profileIDs.length}`);
+      
       if (isValidCache && hasProfiles) {
         return cachedObject.profileIDs;
       }
     }
-    
+
     const profileIDs = [];
-    
+
     // Get the badge page
     const badgePage = await getWikiTreePage("Rangers", "index.php", `title=Special:Badges&b=${badgeParam}`);
     const badgePageDOM = new DOMParser().parseFromString(badgePage, "text/html");
-    
+
     if (dateFilter) {
       // For date-filtered badges (like pre_1500), check each badge award item
-      const badgeItems = badgePageDOM.querySelectorAll('.row.mb-3');
-      
+      const badgeItems = badgePageDOM.querySelectorAll(".row.mb-3");
+      console.log(`WBE: Found ${badgeItems.length} badge items for ${badgeType}, filtering by date >= ${dateFilter.toDateString()}`);
+
       Array.from(badgeItems).some((item) => {
-        const dateSpan = item.querySelector('span.d-block');
+        const dateSpan = item.querySelector("span.d-block");
         if (dateSpan && dateSpan.textContent.match(/\d{2}:\d{2}, \d{1,2} \w{3} \d{4}/)) {
           const dateText = dateSpan.textContent;
           const badgeDate = this.parseBadgeDate(dateText);
-          
+
           if (badgeDate && badgeDate >= dateFilter) {
             const profileLink = item.querySelector('a[href*="/wiki/"]');
             if (profileLink) {
               const profileID = profileLink.href.split("/").pop();
               profileIDs.push(decodeURIComponent(profileID));
+              console.log(`WBE: Added ${profileID} (badged ${badgeDate.toDateString()})`);
             }
             return false; // Continue to next item
           } else {
+            console.log(`WBE: Badge date ${badgeDate ? badgeDate.toDateString() : 'null'} is too old, stopping search`);
             // Since items are in most-recent order, stop when we find an older date
             return true; // Break out of the loop
           }
@@ -1767,17 +1813,17 @@ class RangeringTool {
         profileIDs.push(decodeURIComponent(profileID));
       });
     }
-    
+
     // Store to localStorage with timestamp
     localStorage.setItem(storageKey, JSON.stringify({ profileIDs: profileIDs, timestamp: new Date().getTime() }));
-    
+
     return profileIDs;
   }
 
   async markBadgeProfiles(badgeType, options = {}) {
     const { cssClass, title } = options;
     const profileIDs = await this.getBadgeProfiles(badgeType, options);
-    
+
     const allLinks = document.querySelectorAll("a[href*='/wiki/']");
     allLinks.forEach((link) => {
       const profileID = link.href.split("/").pop();
@@ -1788,31 +1834,32 @@ class RangeringTool {
   }
 
   async getNewestPre1700People() {
-    return this.getBadgeProfiles('pre1700', {
-      storageKey: 'pre1700',
-      badgeParam: 'pre_1700'
+    return this.getBadgeProfiles("pre1700", {
+      storageKey: "pre1700",
+      badgeParam: "pre_1700",
     });
   }
 
   async markNewestPre1700People() {
-    await this.markBadgeProfiles('pre1700', {
-      storageKey: 'pre1700',
-      badgeParam: 'pre_1700',
-      cssClass: 'newestPre1700s',
-      title: 'One of the newest Pre-1700 badged people'
+    await this.markBadgeProfiles("pre1700", {
+      storageKey: "pre1700",
+      badgeParam: "pre_1700",
+      cssClass: "newestPre1700s",
+      title: "One of the newest Pre-1700 badged people",
     });
   }
 
   async markRecentPre1500People() {
-    const twoYearsAgo = new Date();
-    twoYearsAgo.setMonth(twoYearsAgo.getMonth() - 24); // 2 years for testing
-    
-    await this.markBadgeProfiles('pre1500', {
-      storageKey: 'pre1500Recent',
-      badgeParam: 'pre_1500',
-      cssClass: 'recentPre1500s',
-      title: 'Received Pre-1500 badge in the past 2 years',
-      dateFilter: twoYearsAgo
+    console.log("WBE: markRecentPre1500People() called");
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6); // 6 months as originally requested
+
+    await this.markBadgeProfiles("pre1500", {
+      storageKey: "pre1500Recent",
+      badgeParam: "pre_1500",
+      cssClass: "recentPre1500s",
+      title: "Received Pre-1500 badge in the past 6 months",
+      dateFilter: sixMonthsAgo,
     });
   }
 
@@ -1846,6 +1893,89 @@ class RangeringTool {
       }
     }
     return null;
+  }
+
+  async fetchAndShowSingleBio(bioId) {
+    // Show loading popup first
+    $("main#main").prepend(
+      `<div class="bioPopup" data-id="${bioId}">
+        <x class="closeBioPopup">&times;</x>
+        <div style="padding: 10px;">
+          <p><strong>Loading bio...</strong></p>
+        </div>
+      </div>`
+    );
+
+    try {
+      // Fetch the single bio using WikiTreeAPI
+      const peopleResponse = await WikiTreeAPI.getPeople(
+        "Rangers",
+        [bioId],
+        ["Id", "Name", "Bio", "BirthDate", "DeathDate", "Derived.ShortName", "Gender"],
+        { bioFormat: "text" }
+      );
+
+      if (peopleResponse && peopleResponse[2] && peopleResponse[2][bioId]) {
+        const person = peopleResponse[2][bioId];
+        
+        // Store the fetched profile
+        if (!this.fetchedProfiles) {
+          this.fetchedProfiles = {};
+        }
+        this.fetchedProfiles[bioId] = person;
+        sessionStorage.setItem(this.fetchedProfilesStorageKey, JSON.stringify(this.fetchedProfiles));
+
+        // Update this.people if it exists
+        if (this.people && this.people[2]) {
+          this.people[2][bioId] = person;
+        } else {
+          this.people = [null, null, this.fetchedProfiles];
+        }
+
+        // Run autoBioCheck and store result
+        if (person.bio) {
+          const autoBioCheckResult = this.autoBioCheck(person.bio);
+          if (!this.bioCheckResults) {
+            this.bioCheckResults = {};
+          }
+          this.bioCheckResults[bioId] = autoBioCheckResult;
+          sessionStorage.setItem(this.bioCheckResultsStorageKey, JSON.stringify(this.bioCheckResults));
+
+          // Update the popup with the actual bio
+          const highlightedBio = this.highlightMarkup(person.bio).replace(/\n/g, "<br>");
+          $(`.bioPopup[data-id="${bioId}"]`).html(
+            `<x class="closeBioPopup">&times;</x>
+            ${highlightedBio}`
+          );
+        } else {
+          // No bio content available
+          $(`.bioPopup[data-id="${bioId}"]`).html(
+            `<x class="closeBioPopup">&times;</x>
+            <div style="padding: 10px;">
+              <p><strong>No bio content available for this profile.</strong></p>
+            </div>`
+          );
+        }
+      } else {
+        // Failed to fetch or profile not found
+        $(`.bioPopup[data-id="${bioId}"]`).html(
+          `<x class="closeBioPopup">&times;</x>
+          <div style="padding: 10px;">
+            <p><strong>Failed to load bio.</strong></p>
+            <p>Profile may not exist or may be private.</p>
+          </div>`
+        );
+      }
+    } catch (error) {
+      console.error(`Error fetching bio for ${bioId}:`, error);
+      $(`.bioPopup[data-id="${bioId}"]`).html(
+        `<x class="closeBioPopup">&times;</x>
+        <div style="padding: 10px;">
+          <p><strong>Error loading bio.</strong></p>
+          <p>Please try again later.</p>
+        </div>`
+      );
+    }
   }
 
   async getBios() {
@@ -2051,22 +2181,8 @@ class RangeringTool {
           </div>`
         );
       } else {
-        // Bio content not available, but biocheck results exist
-        const bioCheckResult = this.bioCheckResults[bioId];
-        if (bioCheckResult !== undefined) {
-          $("main#main").prepend(
-            `<div class="bioPopup" data-id="${bioId}">
-              <x class="closeBioPopup">&times;</x>
-              <div style="padding: 10px;">
-                <p><strong>Bio not loaded yet.</strong></p>
-                <p>Click "Get bios" to load the full biography content.</p>
-                <p>BioCheck status: ${bioCheckResult === false ? 'Has issues' : 'No issues found'}</p>
-              </div>
-            </div>`
-          );
-        } else {
-          console.error(`Bio not found for ID: ${bioId}`);
-        }
+        // Bio content not available, fetch it automatically
+        this.fetchAndShowSingleBio(bioId);
       }
     });
 
@@ -2093,12 +2209,14 @@ class RangeringTool {
     });
 
     $(document).on("click", "#onlyNewestBadges,#onlyNewts", async function () {
+      console.log(`WBE: Button clicked: ${$(this).attr("id")}, current config: ${self.currentConfig.name}`);
+      
       // Find all span.HISTORY-ITEM rows not containing links with the class newestPre1700s and toggle them
       const allItems = $("span.feed-item:not(.HISTORY-HIDDEN)");
       if (self.currentConfig.name === "Merges" && Object.keys(self.memberData).length == 0) {
         await self.getMemberCreatedDates();
       }
-      
+
       // Determine which CSS classes to look for based on current configuration and button clicked
       let targetClasses = "";
       if ($(this).attr("id") === "onlyNewestBadges") {
@@ -2111,13 +2229,16 @@ class RangeringTool {
         targetClasses = "a.newt";
       }
       
+      console.log(`WBE: Looking for elements with class: ${targetClasses}`);
+      console.log(`WBE: Found ${$(targetClasses).length} highlighted elements`);
+
       allItems.each(function () {
         if ($(this).find(targetClasses).length == 0) {
           $(this).toggle();
         }
       });
       $(this).toggleClass("active");
-      
+
       // Toggle the button text based on current state
       if ($(this).hasClass("active")) {
         // Currently filtering - show "Show all" text
@@ -2153,7 +2274,7 @@ class RangeringTool {
 
   addClearCacheButton() {
     const clearCacheButton = $(
-      `<button id="clearCache" title="Clear stored rangering data for this tool" class="button small" style="float: right;">Reset Data</button>`
+      `<button id="clearCache" title="Clear stored Rangering tool data" class="button small" style="float: right;">Clear Data</button>`
     );
     $(document).on("click", "#clearCache", () => {
       this.clearCache();
@@ -2168,29 +2289,45 @@ class RangeringTool {
       this.bioCheckResultsStorageKey,
       this.mergesStorageKey,
       this.memberDataStorageKey,
-      'pre1700',
-      'pre1500Recent'
+      "pre1700",
+      "pre1500Recent",
+      "excludedNames",
+      "warningsShown",
     ];
-    
-    keysToRemove.forEach(key => {
+
+    keysToRemove.forEach((key) => {
       if (key) {
         sessionStorage.removeItem(key);
         localStorage.removeItem(key);
       }
     });
-    
+
     // Reset internal state
     this.people = null;
     this.bioCheckResults = {};
     this.mergesData = null;
     this.memberData = null;
     this.fetchedProfiles = null;
+    this.excludedNames = [];
+
+    // Remove all applied highlighting CSS classes from the page
+    $(".newestPre1700s").removeClass("newestPre1700s");
+    $(".recentPre1500s").removeClass("recentPre1500s");
     
+    // Remove anomaly classes as well
+    $(".anomaly").removeClass("anomaly");
+    $(".highlight").removeClass("highlight");
+
     // Remove any existing bio buttons and popups
     $(".getBio").remove();
     $(".bioPopup").remove();
-    
-    alert("Rangering data reset! You can now refresh the page or click 'Get bios' to reload data.");
+
+    // Debug: Log what we cleared
+    console.log("WBE: Cleared rangering data including:", keysToRemove);
+    console.log("WBE: Removed highlighting from", 
+      $(".newestPre1700s").length + $(".recentPre1500s").length, "elements");
+
+    this.showAnomaliesPopup("Rangering data cleared!");
   }
 
   addControlButtons() {
