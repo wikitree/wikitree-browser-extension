@@ -51,22 +51,9 @@ function startSyntheticHotkeys(options) {
   document.addEventListener(
     "keydown",
     (e) => {
-      // Allow prefix initiation inside main edit textarea (e.g., #wpTextbox1) so Auto Bio works while editing
+      // Disable access keys completely when in any input field, textarea, select, or editor
       if (shouldIgnoreKeyEvent(e)) {
-        const kMaybe = normalizeKey(e);
-        if (
-          !(
-            e.target &&
-            (e.target.id === "wpTextbox1" || e.target.id === "mBio" || e.target.name === "wpTextbox1") &&
-            !e.ctrlKey &&
-            !e.metaKey &&
-            !e.altKey &&
-            !e.shiftKey &&
-            kMaybe === PREFIX
-          )
-        ) {
-          return; // still ignore
-        }
+        return; // Ignore all keydown events when in input fields
       }
 
       // Cheatsheet toggle: Shift+?
@@ -785,9 +772,10 @@ function shouldIgnoreKeyEvent(e) {
   const t = e.target;
   if (!t) return false;
   const tag = (t.tagName || "").toLowerCase();
-  if (tag === "input" || tag === "textarea" || tag === "select") return true; // overridden for prefix in handler
+  if (tag === "input" || tag === "textarea" || tag === "select") return true;
   if (t.isContentEditable) return true;
-  if ($(t).closest(".CodeMirror, .cm-editor, .monaco-editor").length) return true;
+  // Check for various editor types: CodeMirror (v5 and v6), Monaco, etc.
+  if ($(t).closest(".CodeMirror, .CodeMirror-scroll, .cm-editor, .cm-content, .monaco-editor").length) return true;
   if (document.querySelector(".modal.show, .wbe-modal-open")) return true;
   return false;
 }
