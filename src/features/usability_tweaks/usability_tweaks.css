@@ -38,6 +38,21 @@ a.newt {
   margin-left: 0.5em;
 }
 
+a.recentPre1500s {
+  background-color: lightblue;
+  border: 1px solid darkblue;
+  padding: 0.1em 0.3em;
+  border-radius: 5px;
+  font-size: 1em;
+  margin-left: 0.5em;
+}
+
+.recentPre1500Badge {
+  background-color: rgba(173, 216, 230, 0.3);
+  border-left: 4px solid darkblue;
+  padding-left: 0.5em;
+}
+
 /* Rangering styles.css */
 #rangersButtons button {
   margin: 0.5em;
@@ -151,6 +166,15 @@ x.closeBioPopup {
 .feed-item.anomaly {
   background-color: #fff2e6;
   border: 1px solid #ff6600;
+  padding: 0.1em 0.3em;
+  border-radius: 5px;
+  font-size: 1em;
+}
+
+.feed-item.birth-date-anomaly,
+.feed-item.death-date-anomaly {
+  background-color: #ffebee;
+  border: 1px solid #e53935;
   padding: 0.1em 0.3em;
   border-radius: 5px;
   font-size: 1em;
