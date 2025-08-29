@@ -17,47 +17,32 @@ import { getProfilePersonInfo } from "../../core/common";
 import { isSpecialBadges, isProfileLoggedInUserPage, isProfilePage, mainDomain } from "../../core/pageType";
 
 const profilePerson = getProfilePersonInfo();
-console.log(
-  "sortBadges: Initializing, isSpecialBadges:",
-  isSpecialBadges,
-  "profilePerson:",
-  profilePerson.Name,
-  "getUserWtId:",
-  getUserWtId()
-);
+
 shouldInitializeFeature("sortBadges").then((result) => {
-  console.log("sortBadges: shouldInitializeFeature result:", result);
   if (result && profilePerson.Name == getUserWtId()) {
     // On Special:Badges page - implement state machine for cross-page actions
     if (isSpecialBadges) {
-      console.log("sortBadges: On badge page, checking for process...");
-
       // Check for pending process from profile page navigation
       const badgeProcess = localStorage.getItem("badgeProcess");
-      console.log("sortBadges: Found badge process:", badgeProcess);
 
       if (badgeProcess) {
         try {
           const processData = JSON.parse(badgeProcess);
-          console.log("sortBadges: Parsed process data:", processData);
 
           // Check if process is recent (within last 5 minutes) to avoid stale processes
           if (processData.timestamp && Date.now() - processData.timestamp < 300000) {
             handleBadgeProcess(processData);
             return; // Exit early, don't set up normal buttons
           } else {
-            console.log("sortBadges: Process too old, cleaning up");
             localStorage.removeItem("badgeProcess");
           }
         } catch (e) {
-          console.error("sortBadges: Error parsing badge process:", e);
           localStorage.removeItem("badgeProcess");
         }
       }
 
       // If no pending process and page has badge elements, set up normal buttons
       if ($("input[name^='hide']").length > 0) {
-        console.log("sortBadges: No pending process, setting up normal badge page buttons");
         getFeatureOptions("sortBadges").then((options) => {
           // Build selectors based on hide options (use defaults if undefined)
           const hideSelectors = [];
@@ -125,11 +110,9 @@ shouldInitializeFeature("sortBadges").then((result) => {
             window.location.href === processData.returnUrl &&
             processData.state === "completed"
           ) {
-            console.log("sortBadges: Back on profile page, cleaning up completed process");
             localStorage.removeItem("badgeProcess");
           }
         } catch (e) {
-          console.error("sortBadges: Error parsing badge process for cleanup:", e);
           localStorage.removeItem("badgeProcess"); // Clean up invalid process
         }
       }
@@ -184,14 +167,6 @@ shouldInitializeFeature("sortBadges").then((result) => {
             e.preventDefault();
             const badgePageUrl = getBadgePageUrl();
             const returnUrl = window.location.href;
-            console.log(
-              "sortBadges: Hide link clicked. badgePageUrl:",
-              badgePageUrl,
-              "returnUrl:",
-              returnUrl,
-              "hideSelectors:",
-              hideSelectors
-            );
             // Store the process data in localStorage
             localStorage.setItem(
               "badgeProcess",
@@ -203,7 +178,6 @@ shouldInitializeFeature("sortBadges").then((result) => {
                 state: "navigate",
               })
             );
-            console.log("sortBadges: Stored hide process:", localStorage.getItem("badgeProcess"));
             // Navigate to badge page
             window.location.href = badgePageUrl;
           });
@@ -212,14 +186,6 @@ shouldInitializeFeature("sortBadges").then((result) => {
             e.preventDefault();
             const badgePageUrl = getBadgePageUrl();
             const returnUrl = window.location.href;
-            console.log(
-              "sortBadges: Move link clicked. badgePageUrl:",
-              badgePageUrl,
-              "returnUrl:",
-              returnUrl,
-              "moveSelectors:",
-              moveSelectors
-            );
             // Store the action and return URL in localStorage
             localStorage.setItem(
               "badgeProcess",
@@ -231,7 +197,6 @@ shouldInitializeFeature("sortBadges").then((result) => {
                 state: "navigate",
               })
             );
-            console.log("sortBadges: Stored move process:", localStorage.getItem("badgeProcess"));
             // Navigate to badge page
             window.location.href = badgePageUrl;
           });
@@ -243,46 +208,37 @@ shouldInitializeFeature("sortBadges").then((result) => {
 
 // State machine handler for badge page processes
 function handleBadgeProcess(processData) {
-  console.log("sortBadges: Handling badge process, state:", processData.state);
-
   switch (processData.state) {
     case "navigate":
       // Just arrived on badge page from profile, wait for page to load
-      console.log("sortBadges: Arrived on badge page, waiting for elements...");
       waitForBadgeElements(processData, 0);
       break;
 
     case "ready_to_execute":
       // Elements are available, execute the action
-      console.log("sortBadges: Elements ready, executing action:", processData.action);
       executeAction(processData);
       break;
 
     case "waiting_for_success":
       // Action executed, waiting for success message
-      console.log("sortBadges: Waiting for success message...");
       waitForSuccessMessage(processData, 0);
       break;
 
     case "completed":
       // Success message found, redirect back to profile
-      console.log("sortBadges: Process completed, redirecting to:", processData.returnUrl);
       localStorage.removeItem("badgeProcess");
       window.location.href = processData.returnUrl;
       break;
 
     default:
-      console.log("sortBadges: Unknown process state:", processData.state);
       localStorage.removeItem("badgeProcess");
   }
 }
 
 function waitForBadgeElements(processData, attempts) {
   const maxAttempts = 10;
-  console.log("sortBadges: Waiting for badge elements, attempt:", attempts + 1);
 
   if ($("input[name^='hide']").length > 0) {
-    console.log("sortBadges: Badge elements found, updating process state to ready_to_execute");
     processData.state = "ready_to_execute";
     localStorage.setItem("badgeProcess", JSON.stringify(processData));
 
@@ -296,14 +252,11 @@ function waitForBadgeElements(processData, attempts) {
       waitForBadgeElements(processData, attempts + 1);
     }, 1000);
   } else {
-    console.log("sortBadges: Max attempts reached waiting for elements, giving up");
     localStorage.removeItem("badgeProcess");
   }
 }
 
 function executeAction(processData) {
-  console.log("sortBadges: Executing action:", processData.action, "with selectors:", processData.selectors);
-
   if (processData.action === "hide") {
     hideSelectedBadges(processData.selectors.join(", "));
   } else if (processData.action === "move") {
@@ -322,13 +275,10 @@ function executeAction(processData) {
 
 function waitForSuccessMessage(processData, attempts) {
   const maxAttempts = 15; // Wait up to 15 seconds
-  console.log("sortBadges: Looking for success message, attempt:", attempts + 1);
 
   const successMessage = $("div.status:contains('Badge changes saved.')");
-  console.log("sortBadges: Success message elements found:", successMessage.length);
 
   if (successMessage.length > 0) {
-    console.log("sortBadges: Success message found! Updating process state to completed");
     processData.state = "completed";
     localStorage.setItem("badgeProcess", JSON.stringify(processData));
 
@@ -342,7 +292,6 @@ function waitForSuccessMessage(processData, attempts) {
       waitForSuccessMessage(processData, attempts + 1);
     }, 1000);
   } else {
-    console.log("sortBadges: Max attempts reached waiting for success message, giving up");
     localStorage.removeItem("badgeProcess");
   }
 }
