@@ -7,6 +7,7 @@ import "./family_dropdown_pre.css";
 import { isProfileEdit } from "../../core/pageType";
 import { showCopyMessage } from "../access_keys/access_keys.js";
 import "../../core/common.css";
+import { initShareableSources } from "../shareable_sources/shareable_sources.js";
 
 // The current profile’s WikiTree ID (e.g., "Cantrell-922")
 let theID;
@@ -438,6 +439,12 @@ async function initFamilyDropdown() {
                 $("#otherPersonLabel").remove();
                 focusWpTextboxIfPresent();
               }
+              checkIfFeatureEnabled("shareableSources").then((enabled) => {
+                if (enabled && anID) {
+                  // Calling initShareableSources with a different ID should also surface shareable sources.
+                  initShareableSources(anID);
+                }
+              });
             });
         } else {
           $("#otherPerson").addClass("highlight").trigger("focus");

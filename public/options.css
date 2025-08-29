@@ -355,3 +355,49 @@ h1 .toggle-category {
     display: none;
   }
 }
+
+/* Confirmation dialog */
+#confirmDialog {
+  min-width: 400px;
+  max-width: 500px;
+  font-size: 16px;
+}
+#confirmDialog .dialog-content p {
+  margin: 20px 0;
+  text-align: center;
+  color: #333;
+}
+#confirmDialog .dialog-content button {
+  display: inline-block;
+  background-color: #ddd;
+  color: #000;
+  padding: 0 20px;
+  height: 36px;
+  line-height: 36px;
+  border-radius: 36px;
+  border: 0;
+  font-size: 16px;
+  cursor: pointer;
+  min-width: 80px;
+}
+#confirmDialog .dialog-content button:hover {
+  background-color: #8fc641;
+  color: #000;
+}
+#confirmDialog .dialog-content button:active {
+  background-color: #7fb535;
+}
+#confirmDialog .dialog-content #confirmYes {
+  background-color: #8fc641;
+  color: #000;
+}
+#confirmDialog .dialog-content #confirmYes:hover {
+  background-color: #7fb535;
+}
+#confirmDialog .dialog-content #confirmNo {
+  background-color: #f5f5f5;
+  border: 1px solid #ccc;
+}
+#confirmDialog .dialog-content #confirmNo:hover {
+  background-color: #e8e8e8;
+}

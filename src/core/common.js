@@ -1832,16 +1832,11 @@ export function WBEHelpIcon(settings) {
 // Close .wbe-popup with the highest z-index on Esc key press
 $(document).on("keydown", function (e) {
   if (e.key === "Escape") {
-    const $popups = $(".wbe-popup")
-      .filter(":visible") // only visible
-      .filter((_, el) => el.id !== "photoPopup"); // exclude #photoPopup
-
-    const $popup = $popups
-      .sort((a, b) => {
-        return parseInt($(b).css("z-index") || 0) - parseInt($(a).css("z-index") || 0);
-      })
+    const $popup = $(".wbe-popup")
+      .filter(":visible")
+      .filter((_, el) => el.id !== "photoPopup")
+      .sort((a, b) => parseInt($(b).css("z-index") || 0) - parseInt($(a).css("z-index") || 0))
       .eq(0);
-
     if ($popup.length) {
       if ($popup.find(".close-popup").length) {
         $popup.find(".close-popup").trigger("click");

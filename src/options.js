@@ -561,18 +561,99 @@ function setCategorySwitches() {
   });
 }
 
+// Function to show a beautiful confirmation dialog
+function showConfirmationDialog(message, onConfirm, onCancel) {
+  const $dialog = $(
+    '<dialog id="confirmDialog">' +
+      '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Confirmation</div>' +
+      '<div class="dialog-content">' +
+        '<p style="margin: 20px 0; font-size: 16px; line-height: 1.4;">' + message + '</p>' +
+        '<div style="text-align: center; margin-top: 30px;">' +
+          '<button id="confirmYes" style="margin-right: 10px;">Yes</button>' +
+          '<button id="confirmNo">No</button>' +
+        '</div>' +
+      '</div>' +
+    '</dialog>'
+  )
+    .appendTo($(document.body).remove("#confirmDialog"))
+    .on("click", function (e) {
+      if (e.target === this) {
+        // Close and trigger cancel if backdrop is clicked
+        onCancel();
+        this.close();
+      }
+    })
+    .on("close", function () {
+      $(this).remove();
+    });
+
+  // Handle close button
+  $dialog.find(".close").on("click", function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+    onCancel();
+    $dialog.get(0).close();
+  });
+
+  // Handle Yes button
+  $dialog.find("#confirmYes").on("click", function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+    onConfirm();
+    $dialog.get(0).close();
+  });
+
+  // Handle No button
+  $dialog.find("#confirmNo").on("click", function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+    onCancel();
+    $dialog.get(0).close();
+  });
+
+  $dialog.get(0).showModal();
+}
+
 // Propagate category toggle switches down to all of the sub-features
-$("#toggleAll, .section.category > .section-header > .toggle > input").on("click", function () {
+$("#toggleAll, .section.category > .section-header > .toggle > input").on("click", function (e) {
   let oSwitch = true;
   if ($(this).prop("checked") == false) {
     oSwitch = false;
   }
   let $top;
+  
+  // Special handling for Toggle All button - show confirmation
   if (this.id === "toggleAll") {
-    $top = $(".category-root");
+    const confirmMessage = oSwitch 
+      ? "Are you sure you want to enable all features?" 
+      : "Are you sure you want to disable all features?";
+    
+    // Prevent the default action temporarily
+    e.preventDefault();
+    const originalCheckbox = this;
+    
+    showConfirmationDialog(
+      confirmMessage,
+      // On confirm - proceed with the toggle
+      () => {
+        $(originalCheckbox).prop("checked", oSwitch);
+        const $top = $(".category-root");
+        $top
+          .find(".section:not(#darkMode,#highlightWBEFeatures) > .section-header > .toggle > input")
+          .prop("checked", oSwitch)
+          .trigger("change");
+        saveFeatureOnOffOptions();
+      },
+      // On cancel - revert the checkbox state
+      () => {
+        $(originalCheckbox).prop("checked", !oSwitch);
+      }
+    );
+    return;
   } else if ($(this).closest(".toggle").is(".toggle-category")) {
     $top = $(this).closest(".section.category");
   }
+  
   if ($top) {
     $top
       .find(".section:not(#darkMode,#highlightWBEFeatures) > .section-header > .toggle > input")

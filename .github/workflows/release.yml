@@ -11,6 +11,14 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v4
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "16.4"
+      - name: Show SDKs & runtimes
+        run: |
+          xcodebuild -showsdks
+          xcrun simctl list runtimes
       - name: Set release flags based on branch
         run: |
           echo "X_SHORT_HASH=`git rev-parse --short HEAD`" >> $GITHUB_ENV

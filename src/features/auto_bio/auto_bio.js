@@ -6887,7 +6887,12 @@ export async function getCitations() {
         let citation = await getCitation(citationLink);
         if (citation) {
           if (findAGraveLink) {
-            citation = cleanFindAGraveCitation(citation, aRef.Text);
+            const memorialNumber = citationLink.match(/\d{5,}/);
+            let findagraveTemplate = "";
+            if (memorialNumber) {
+              findagraveTemplate = `<br>{{FindAGrave|${memorialNumber[0]}}}`;
+            }
+            citation = cleanFindAGraveCitation(citation, aRef.Text) + findagraveTemplate;
           }
           aRef.Text = citation.trim();
 

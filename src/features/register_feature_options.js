@@ -110,6 +110,7 @@ import "./shareable_sources/shareable_sources_options";
 import "./show_edits/show_edits_options";
 import "./show_search/show_search_options";
 import "./show_suggestions/show_suggestions_options";
+import "./sortBadges/sortBadges_options";
 import "./sort_theme_people/sort_theme_people_options";
 import "./sourcepreview/sourcepreview_options";
 import "./space_drafts/space_drafts_options";
@@ -312,17 +313,6 @@ registerFeature({
   contributors: [],
   defaultValue: true,
   pages: [isSpecialWatchedList],
-});
-
-registerFeature({
-  name: "Sort Badges",
-  id: "sortBadges",
-  description: "Buttons to move or hide your Club 100/1000 badges.",
-  category: "Community",
-  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
-  defaultValue: true,
-  pages: [isProfileLoggedInUserPage, isSpecialBadges],
 });
 
 registerFeature({

@@ -19,7 +19,7 @@ export const entities = {
     "Virginia Colony",
   ],
 
-  Australia: ["Western Australia", "South Australia", "Queensland", "New South Wales", "Victoria", "Tasmania"],
+  Australia: ["Western Australia", "South Australia", "Queensland", "New South Wales", "Victoria", "Tasmania", "Van Diemen's Land"],
 
   Austria: [
     "Burgenland",

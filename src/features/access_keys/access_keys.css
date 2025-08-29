@@ -9,3 +9,168 @@
   border-radius: 5px;
   z-index: 9999999;
 }
+
+/* ========= WBE Access Keys (synthetic) ========= */
+
+/* Full-screen overlay (toggled by JS) */
+#wbe-hotkey-cheat {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 2147483647; /* sit above any site modals */
+  display: none; /* JS toggles to block */
+}
+
+/* Sheet */
+#wbe-hotkey-cheat .wbe-hotkey-cheat-inner {
+  position: absolute;
+  left: 50%;
+  top: 8%;
+  transform: translateX(-50%);
+  width: min(780px, 94vw);
+  max-height: 84vh;
+  overflow: auto;
+  background: #ffffff;
+  color: #111;
+  border-radius: 14px;
+  padding: 14px 18px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+  font: 14px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  outline: none;
+}
+
+/* When you’ve pressed the prefix (visual cue) */
+#wbe-hotkey-cheat.hinting .wbe-hotkey-cheat-inner {
+  outline: 2px dashed #888;
+}
+
+/* Title row */
+#wbe-hotkey-cheat .wbe-hotkey-cheat-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-weight: 800;
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+#wbe-hotkey-cheat .wbe-hotkey-cheat-title span {
+  font-weight: 600;
+  opacity: 0.8;
+  font-size: 13px;
+}
+
+/* Grid of shortcuts */
+#wbe-hotkey-cheat .wbe-hotkey-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+/* Item */
+#wbe-hotkey-cheat .wbe-hotkey-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #e9e9e9;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+/* Keycaps */
+#wbe-hotkey-cheat kbd {
+  color: #000;
+  display: inline-block;
+  min-width: 26px;
+  text-align: center;
+  padding: 2px 8px;
+  border: 1px solid #cfcfcf;
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: #f7f7f7;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+/* Footer */
+#wbe-hotkey-cheat .wbe-hotkey-foot {
+  margin-top: 10px;
+  opacity: 0.8;
+  font-size: 12px;
+}
+
+/* Jump-Nav inline badges (shown during g j mode) */
+.wbe-hotkey-badge,
+.accessKeyHint {
+  /* Plain superscript style (no pill) */
+  display: inline;
+  margin-left: 2px;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  font-weight: 600;
+  font-size: 10px;
+  line-height: 1;
+  vertical-align: super;
+  color: inherit;
+}
+
+/* Toast for “Copied …” message */
+.copied-message {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483647;
+  background: #111;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  pointer-events: none; /* clicks pass through */
+}
+
+/* Prefer dark mode support */
+@media (prefers-color-scheme: dark) {
+  #wbe-hotkey-cheat {
+    background: rgba(0, 0, 0, 0.55);
+  }
+  #wbe-hotkey-cheat .wbe-hotkey-cheat-inner {
+    background: #1f1f1f;
+    color: #eaeaea;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+    border: 1px solid #2c2c2c;
+  }
+  #wbe-hotkey-cheat .wbe-hotkey-item {
+    background: #242424;
+    border-color: #333;
+  }
+  #wbe-hotkey-cheat kbd {
+    background: #2b2b2b;
+    border-color: #3a3a3a;
+    color: #f2f2f2;
+  }
+  .copied-message {
+    background: #000;
+    color: #fff;
+  }
+}
+
+/* Make sure overlay content scrolls nicely on small screens */
+#wbe-hotkey-cheat .wbe-hotkey-cheat-inner {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Don’t print the overlay/badges/toast */
+@media print {
+  #wbe-hotkey-cheat,
+  .wbe-hotkey-badge,
+  .accessKeyHint,
+  .copied-message {
+    display: none !important;
+  }
+}
