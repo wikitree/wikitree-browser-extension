@@ -1004,7 +1004,7 @@ class RangeringTool {
       merges: {
         name: "Merges",
         inURL: "merge=1",
-        actions: [() => this.addMergesButtons(), () => this.addControlButtons()],
+        actions: [() => this.addControlButtons()],
       },
       pre1500: {
         name: "Pre-1500",
@@ -1717,10 +1717,6 @@ class RangeringTool {
     });
   }
 
-  addMergesButtons() {
-    this.addAnomaliesButton();
-  }
-
   addAnomaliesButton() {
     // Create dynamic tooltip based on page type
     let tooltipText = "Check for \n";
@@ -2331,24 +2327,18 @@ class RangeringTool {
   }
 
   addControlButtons() {
+    // Add filter buttons in consistent order across all pages
     if (this.currentConfig.name === "Pre-1700") {
       const onlyNewestBadgesButton = $(
         `<button id="onlyNewestBadges" title="Show only edits by the 200 newest Pre-1700 badged people" class="button small">Only edits by newly-badged people</button>`
       );
       this.rangersButtons.append(onlyNewestBadgesButton);
-
-      this.addGetBiosButton();
-      this.addAnomaliesButton();
-      this.addClearCacheButton(); // Add to the right
     }
     if (this.currentConfig.name === "Pre-1500") {
-      this.addGetBiosButton();
       const onlyNewestBadgesButton = $(
         `<button id="onlyNewestBadges" title="Show only edits by newly-badged Pre-1500 people (last six months)" class="button small">Only edits by newly-badged people</button>`
       );
       this.rangersButtons.append(onlyNewestBadgesButton);
-      this.addAnomaliesButton();
-      this.addClearCacheButton(); // Add to the right
     }
     if (this.currentConfig.name === "Merges") {
       const onlyNewtsButton = $(
@@ -2356,6 +2346,11 @@ class RangeringTool {
       );
       this.rangersButtons.append(onlyNewtsButton);
     }
+
+    // Add remaining buttons in consistent order for all pages
+    this.addGetBiosButton();
+    this.addAnomaliesButton();
+    this.addClearCacheButton(); // Add to the right
   }
 
   autoBioCheck(sourcesStr) {
