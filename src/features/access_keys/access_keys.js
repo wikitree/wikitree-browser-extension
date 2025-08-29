@@ -15,33 +15,44 @@ shouldInitializeFeature("accessKeys").then((result) => {
   getFeatureOptions("accessKeys").then(startSyntheticHotkeys);
 });
 
-function startSyntheticHotkeys(options) {
-  const PREFIX = (options?.PrefixKey || "w").toLowerCase();
-  const TIMEOUT = Number(options?.SequenceTimeoutMs) || 1800;
-  const SHOW_JUMP_HINTS = !!options?.JumpNavHints;
-  const JUMP_ENABLED = !!options?.JumpNav;
-  const DEBUG = !!options?.DebugAccessKeys;
+export function startSyntheticHotkeys(options) {
+  const PREFIX = "w";
+  const TIMEOUT = 1000;
+  const DEBUG = false; // Debugging disabled
 
   // Hidden anchor (as in original)
   $("body").append(`<a style="display:none;" id="G2Grecent" href="https://${mainDomain}/g2g/activity"></a>`);
 
   // Build actions (multi-map: key -> candidates array)
   const actions = buildActions(options, DEBUG);
+  if (DEBUG) {
+    console.debug("[WBE AccessKeys] Built actions:", actions);
+    console.debug("[WBE AccessKeys] EnableBrowserAccessKeys:", options.EnableBrowserAccessKeys);
+  }
   // Expose for dynamic cheat sheet filtering
   window.__wbeAccessKeyActions = actions;
   window.__wbeAccessKeyPrefix = PREFIX;
   window.__wbeAccessKeyOptions = options;
 
   // Add ARIA hints to targets and optionally native accesskeys
-  applyAriaKeyShortcuts(actions, PREFIX, options.EnableBrowserAccessKeys);
+  // Use simple timing like the old code
+  setTimeout(() => {
+    applyAccessKeysSimple(actions, PREFIX, options);
+  }, 1000);
 
   // Cheatsheet
   const cheat = buildCheatSheet(actions, PREFIX, options);
   document.body.appendChild(cheat);
 
-  // Restore legacy native jump navigation accesskey support (digits 1–9) if option enabled.
-  // This complements (not replaces) the synthetic g j → digit jump mode.
-  setJumpNavAccessKeys(options);
+  // Jump navigation - use simple timing like old code
+  setTimeout(() => {
+    setJumpNavAccessKeys(options, 0);
+  }, 500);
+
+  // Additional longer delay for elements that load slowly
+  setTimeout(() => {
+    applyAccessKeysSimple(actions, PREFIX, options);
+  }, 3000);
 
   // Key sequence state
   let awaitingSecond = false;
@@ -51,17 +62,36 @@ function startSyntheticHotkeys(options) {
   document.addEventListener(
     "keydown",
     (e) => {
-      // Disable access keys completely when in any input field, textarea, select, or editor
-      if (shouldIgnoreKeyEvent(e)) {
-        return; // Ignore all keydown events when in input fields
+      // Enhanced debugging for access key combinations
+      const isBrowserKey = isBrowserAccessKey(e);
+      if (isBrowserKey && DEBUG) {
+        console.debug("[WBE AccessKeys] Browser access key detected:", {
+          key: e.key,
+          alt: e.altKey,
+          shift: e.shiftKey,
+          ctrl: e.ctrlKey,
+          meta: e.metaKey,
+          target: e.target.tagName,
+          accessKeyElement: document.querySelector(`[accesskey="${e.key.toLowerCase()}"]`)
+        });
       }
 
-      // Cheatsheet toggle: Shift+?
+      // Completely ignore browser access key combinations - let browser handle them natively
+      if (isBrowserKey) {
+        return; // Don't interfere with browser access keys at all
+      }
+
+      // Cheatsheet toggle: Shift+? (should work everywhere, even in input fields)
       if (!e.ctrlKey && !e.metaKey && !e.altKey && e.shiftKey && (e.key === "?" || e.key === "/")) {
         toggleCheatSheet();
         e.preventDefault();
         e.stopImmediatePropagation();
         return;
+      }
+
+      // Only handle synthetic access keys when NOT in input fields
+      if (shouldIgnoreKeyEvent(e)) {
+        return; // Ignore synthetic hotkey events when in input fields
       }
 
       // Jump sub-mode: expect 1–9 / Esc
@@ -140,7 +170,7 @@ function startSyntheticHotkeys(options) {
         endSequence();
       }
     },
-    true
+    false // Use bubble phase, not capture phase
   );
 
   function endSequence() {
@@ -606,60 +636,75 @@ function jumpToDigit(digit) {
 // Re-applies numeric accesskey attributes (1–9) to #jump-nav links for browsers' native shortcuts.
 // Skips 1 if already used for Home when NavHomePage option is active (mirrors previous behavior).
 // Adds <sup class="accessKeyHint">n</sup> hints if JumpNavHints option enabled (persistent style).
-function setJumpNavAccessKeys(options) {
-  if (options.JumpNav) {
-    let currentAccessKey = 2;
-    if (!options.NavHomePage) {
-      currentAccessKey = 1;
+function setJumpNavAccessKeys(options, retryCount = 0) {
+  if (!options.JumpNav) return;
+
+  let currentAccessKey = options.NavHomePage ? 2 : 1;
+  const jumpNavigation = document.getElementById("jump-nav");
+
+  if (!jumpNavigation) {
+    if (options.DebugAccessKeys) {
+      console.debug("[WBE AccessKeys] jump-nav element not found");
     }
+    return;
+  }
 
-    const jumpNavigation = document.getElementById("jump-nav");
-    if (jumpNavigation != null) {
-      const aTags = jumpNavigation.getElementsByTagName("a");
+  const aTags = jumpNavigation.getElementsByTagName("a");
 
-      for (let i = 0; i < aTags.length; i++) {
-        if (aTags[i].querySelector("span:not(.badge)") === null && currentAccessKey < 10) {
-          aTags[i].accessKey = "" + currentAccessKey;
+  if (options.DebugAccessKeys) {
+    console.debug(`[WBE AccessKeys] Setting jump nav access keys for ${aTags.length} elements`);
+  }
 
-          if (isProfileEdit || isSpaceEdit) {
-            if (aTags[i].href.toLowerCase().includes("#text")) {
-              aTags[i].addEventListener("click", () => {
-                document.getElementById("wpTextbox1").focus();
-              });
-            }
-            if (aTags[i].href.toLowerCase().includes("#save")) {
-              aTags[i].addEventListener("click", () => {
-                document.getElementById("wpSummary").focus();
-              });
-            }
-
-            if (aTags[i].href.toLowerCase().includes("#family")) {
-              aTags[i].addEventListener("click", () => {
-                const toggleFamilySectionButton = document.getElementById("toggleFamilyColumn");
-                if (toggleFamilySectionButton != null && toggleFamilySectionButton.innerHTML.includes("plus-toggler")) {
-                  toggleFamilySectionButton.click();
-                }
-              });
-            }
-
-            if (aTags[i].href.toLowerCase().includes("#photo")) {
-              aTags[i].addEventListener("click", () => {
-                const togglePhotoSectionButton = document.getElementById("toggleTipsColumn");
-                if (togglePhotoSectionButton && togglePhotoSectionButton.innerHTML.includes("plus")) {
-                  togglePhotoSectionButton.click();
-                }
-              });
-            }
-          }
-          if (options.JumpNavHints) {
-            const hint = document.createElement("sup");
-            hint.classList.add("accessKeyHint");
-            hint.innerText = currentAccessKey;
-            aTags[i].parentNode.insertBefore(hint, aTags[i].nextSibling);
-          }
-          currentAccessKey++;
+  for (let i = 0; i < aTags.length && currentAccessKey < 10; i++) {
+    if (aTags[i].querySelector("span:not(.badge)") === null) {
+      // Only set browser access key if EnableBrowserAccessKeys is enabled and element doesn't already have one
+      if (options.EnableBrowserAccessKeys && !aTags[i].accessKey) {
+        aTags[i].accessKey = "" + currentAccessKey;
+        
+        if (options.DebugAccessKeys) {
+          console.debug(`[WBE AccessKeys] Set jump nav accesskey '${currentAccessKey}' on element:`, aTags[i]);
         }
       }
+
+      if (isProfileEdit || isSpaceEdit) {
+        if (aTags[i].href.toLowerCase().includes("#text")) {
+          aTags[i].addEventListener("click", () => {
+            document.getElementById("wpTextbox1").focus();
+          });
+        }
+        if (aTags[i].href.toLowerCase().includes("#save")) {
+          aTags[i].addEventListener("click", () => {
+            document.getElementById("wpSummary").focus();
+          });
+        }
+
+        if (aTags[i].href.toLowerCase().includes("#family")) {
+          aTags[i].addEventListener("click", () => {
+            const toggleFamilySectionButton = document.getElementById("toggleFamilyColumn");
+            if (toggleFamilySectionButton != null && toggleFamilySectionButton.innerHTML.includes("plus-toggler")) {
+              toggleFamilySectionButton.click();
+            }
+          });
+        }
+
+        if (aTags[i].href.toLowerCase().includes("#photo")) {
+          aTags[i].addEventListener("click", () => {
+            const togglePhotoSectionButton = document.getElementById("toggleTipsColumn");
+            if (togglePhotoSectionButton && togglePhotoSectionButton.innerHTML.includes("plus")) {
+              togglePhotoSectionButton.click();
+            }
+          });
+        }
+      }
+
+      // Only add hints if they don't already exist
+      if (options.JumpNavHints && !aTags[i].parentNode.querySelector(".accessKeyHint")) {
+        const hint = document.createElement("sup");
+        hint.classList.add("accessKeyHint");
+        hint.innerText = currentAccessKey;
+        aTags[i].parentNode.insertBefore(hint, aTags[i].nextSibling);
+      }
+      currentAccessKey++;
     }
   }
 }
@@ -678,7 +723,16 @@ function buildCheatSheet(actions, prefixKey, options = {}) {
   const browserKeysEnabled = options.EnableBrowserAccessKeys;
   // Detect platform for appropriate key display - modern platform detection
   const isMac = detectMacPlatform();
-  const browserKeyText = isMac ? "Ctrl+Option+key" : "Shift+Alt+key";
+  const isFirefox = navigator.userAgent.includes("Firefox");
+
+  let browserKeyText;
+  if (isMac) {
+    browserKeyText = "Ctrl+Option+key";
+  } else if (isFirefox) {
+    browserKeyText = "Alt+key";
+  } else {
+    browserKeyText = "Shift+Alt+key";
+  }
 
   const subtitle = browserKeysEnabled
     ? `(press ${escapeHtml(prefixKey)}, then key OR ${browserKeyText})`
@@ -761,11 +815,54 @@ function detectMacPlatform() {
   return /Mac|iPhone|iPad|iPod/.test(userAgent) || /Macintosh/.test(userAgent) || /Mac OS X/.test(userAgent);
 }
 
+function detectLinuxPlatform() {
+  // Detect Linux platform
+  if (navigator.userAgentData) {
+    return navigator.userAgentData.platform === "Linux";
+  }
+
+  const userAgent = navigator.userAgent;
+  return /Linux/.test(userAgent);
+}
+
 function normalizeKey(e) {
   const k = e.key?.toLowerCase();
   if (k === " ") return "space";
   if (k === "escape" || k === "esc") return "escape";
   return k;
+}
+
+function isBrowserAccessKey(e) {
+  // Detect if this is a browser access key combination
+  const isWindows = !detectMacPlatform() && !detectLinuxPlatform();
+  const isMac = detectMacPlatform();
+  const isFirefox = navigator.userAgent.includes("Firefox");
+
+  // Must have a single printable character key
+  if (!e.key || e.key.length !== 1 || e.key === " ") {
+    return false;
+  }
+
+  // Windows: Different patterns for different browsers
+  if (isWindows) {
+    if (isFirefox) {
+      // Firefox: Alt+[key] (no Shift)
+      return e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey;
+    } else {
+      // Chrome/Edge: Shift+Alt+[key], but also support Alt+[key] as fallback
+      return (
+        (e.shiftKey && e.altKey && !e.ctrlKey && !e.metaKey) || (e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey)
+      );
+    }
+  }
+
+  // Mac: Ctrl+Option+[key] (Control+Alt)
+  if (isMac) {
+    return e.ctrlKey && e.altKey && !e.shiftKey && !e.metaKey;
+  }
+
+  // Linux: Alt+[key]
+  return e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey;
 }
 
 function shouldIgnoreKeyEvent(e) {
@@ -780,35 +877,139 @@ function shouldIgnoreKeyEvent(e) {
   return false;
 }
 
-function applyAriaKeyShortcuts(actions, prefixKey, enableBrowserAccessKeys = false) {
-  // Detect platform for appropriate key display - modern platform detection
-  const isMac = detectMacPlatform();
+function applyAccessKeysSimple(actions, prefixKey, options) {
+  if (!options.EnableBrowserAccessKeys) return;
 
-  for (const key of Object.keys(actions)) {
-    for (const a of actions[key]) {
-      if (!a.selectorForExists) continue;
-      const el = document.querySelector(a.selectorForExists);
-      if (!el) continue;
+  const DEBUG = false; // Debugging disabled
 
-      // Synthetic hotkey sequence
-      const seq = `${prefixKey} ${a.key}`;
-      el.setAttribute("aria-keyshortcuts", seq);
+  if (DEBUG) console.debug("[WBE AccessKeys] Applying access keys...");
 
-      // Build title with both methods if browser accesskeys enabled
-      let title = el.getAttribute("title") || "";
+  // Direct mapping of selectors to keys - check if element exists and add accesskey
+  const keyMappings = [
+    { selector: "#previewButton", key: "p", option: options.Preview },
+    { selector: "#G2Grecent", key: "g", option: options.G2G },
+    {
+      selector:
+        "a[data-bs-title='Edit Person Profile'], a[data-bs-title='Edit Free-Space Profile'], input[value='Edit Scratch Pad']",
+      key: "e",
+      option: options.Edit,
+    },
+    { selector: "#wpSave, #wpSave1, input[value='Save Scratch Pad Changes']", key: "s", option: options.Save },
+    { selector: "#addCategoryButton", key: "k", option: options.Category },
+    { selector: "a.dropdown-item.randomProfile", key: "r", option: options.RandomProfile },
+    { selector: "a[href$='/wiki/Special:Home']", key: "1", option: options.NavHomePage },
+    { selector: "a[href$='/wiki/Special:SearchPages']", key: "h", option: options.HelpSearch },
+    { selector: "#deleteDraftLinkContainer a", key: "q", option: options.ReturnProfileDeleteDraft },
+    { selector: "a.viewDiffButton", key: "c", option: options.Compare },
+    { selector: "a.editToolbarClick[data-id='Auto Bio']", key: "b", option: options.AutoBio },
+    { selector: "a.editToolbarClick[data-id='Add any template']", key: "t", option: options.AddTemplate },
+    { selector: "#familyDropdown", key: "y", option: options.FamilyDropdown },
+    { selector: "#showSourcesHeadline", key: "y", option: options.FamilyDropdown },
+    { selector: "button[aria-label='Copy ID']", key: "i", option: options.CopyID },
+    { selector: "button[aria-label='Copy Wiki Link']", key: "l", option: options.CopyLink },
+    { selector: "button[aria-label='Copy URL']", key: "u", option: options.CopyURL },
+    { selector: "button[aria-label='Copy UserID']", key: "j", option: options.CopyUserID },
+    { selector: "a.tree--apps_link", key: "t", option: options.TreeApps },
+    { selector: "#Ancestors-tab", key: "a", option: options.Ancestors },
+    { selector: "#Descendants-tab", key: "d", option: options.Descendants },
+    { selector: "a[href*='Special:WatchedList']", key: "w", option: options.Watchlist },
+    { selector: "a[href*='Special:SearchPerson']", key: "f", option: options.Search },
+    { selector: "img[title='Automatic GEDCOM Cleanup']", key: "a", option: options.AGC },
+    { selector: "#toggleZoomInPlace", key: "z", option: options.ZoomInPlace },
+    { selector: "#toggleMagnifier", key: "m", option: options.Magnifier },
+    { selector: "#extraWatchlistButton", key: "x", option: options.ExtraWatchlist },
+    { selector: ".aClipboardButton", key: "v", option: options.Clipboard },
+    { selector: ".aNotesButton", key: "n", option: options.Notes },
+    {
+      selector: "div.EDIT a[title='Edit the text on this category page']",
+      key: "e",
+      option: options.Edit && isCategoryPage,
+    },
+    { selector: "#toggleMarkupColor", key: "e", option: options.EnhancedEditor && isWikiEdit },
+  ];
+
+  let applied = 0;
+  let total = 0;
+
+  keyMappings.forEach((mapping) => {
+    if (!mapping.option) return;
+
+    total++;
+    const element = document.querySelector(mapping.selector);
+    if (element && !element.accessKey) {
+      element.accessKey = mapping.key;
+      applied++;
+
+      if (DEBUG) {
+        console.debug(`[WBE AccessKeys] Set accesskey '${mapping.key}' on element:`, element);
+      }
+
+      // Add tooltip info
+      let title = element.getAttribute("title") || "";
+      const seq = `${prefixKey} ${mapping.key}`;
+      const browserKey = getBrowserKeyText(mapping.key);
+
       if (!title.includes(`[${seq}]`)) {
-        if (enableBrowserAccessKeys) {
-          // Add both synthetic and browser accesskey info with platform-specific keys
-          const browserKey = isMac ? `Ctrl+Option+${a.key.toUpperCase()}` : `Shift+Alt+${a.key.toUpperCase()}`;
-          title = `${title} [${seq}] [${browserKey}]`.trim();
-          // Set native browser accesskey
-          el.setAttribute("accesskey", a.key);
-        } else {
-          title = `${title} [${seq}]`.trim();
-        }
-        el.setAttribute("title", title);
+        title = `${title} [${seq}] [${browserKey}]`.trim();
+        element.setAttribute("title", title);
+      }
+    } else if (DEBUG && mapping.option) {
+      if (!element) {
+        console.debug(`[WBE AccessKeys] Element not found: ${mapping.selector}`);
+      } else if (element.accessKey) {
+        console.debug(`[WBE AccessKeys] Element already has accesskey: ${mapping.selector}`);
       }
     }
+  });
+
+  if (DEBUG) {
+    console.debug(`[WBE AccessKeys] Applied ${applied}/${total} access keys`);
+    
+    // Also log all elements that currently have access keys set
+    const elementsWithAccessKeys = document.querySelectorAll('[accesskey]');
+    console.debug(`[WBE AccessKeys] Total elements with accesskey attribute: ${elementsWithAccessKeys.length}`);
+    elementsWithAccessKeys.forEach(el => {
+      console.debug(`[WBE AccessKeys] Element with accesskey="${el.accessKey}":`, el);
+    });
+  }
+}
+
+function applyAriaKeyShortcuts(actions, prefixKey, enableBrowserAccessKeys = false, retryCount = 0) {
+  // Simple approach: just try to set access keys on elements that exist
+  if (enableBrowserAccessKeys) {
+    for (const key of Object.keys(actions)) {
+      for (const a of actions[key]) {
+        if (!a.selectorForExists) continue;
+
+        const element = $(a.selectorForExists);
+        if (element.length && !element[0].accessKey) {
+          element[0].accessKey = a.key;
+
+          // Add tooltip info
+          let title = element.attr("title") || "";
+          const seq = `${prefixKey} ${a.key}`;
+          const browserKey = getBrowserKeyText(a.key);
+
+          if (!title.includes(`[${seq}]`)) {
+            title = `${title} [${seq}] [${browserKey}]`.trim();
+            element.attr("title", title);
+          }
+        }
+      }
+    }
+  }
+}
+
+function getBrowserKeyText(key) {
+  const isMac = detectMacPlatform();
+  const isFirefox = navigator.userAgent.includes("Firefox");
+
+  if (isMac) {
+    return `Ctrl+Option+${key.toUpperCase()}`;
+  } else if (isFirefox) {
+    return `Alt+${key.toUpperCase()}`;
+  } else {
+    return `Shift+Alt+${key.toUpperCase()}`;
   }
 }
 
@@ -831,15 +1032,13 @@ function dedupe(arr) {
    Back-compat export
    ============================ */
 
-// Kept so other modules don’t break; we only annotate with aria-keyshortcuts now.
+// Kept so other modules don't break; simplified to match old working approach
 export function setAccessKeyIfOptionEnabled(option, selector, key, _options, additionalCondition = () => true) {
-  if (!option || !additionalCondition()) return;
-  const el = document.querySelector(selector);
-  if (el) {
-    const prefix = "w";
-    el.setAttribute("aria-keyshortcuts", `${prefix} ${key}`);
-    const t = el.getAttribute("title") || "";
-    if (!t.includes(`[${prefix} ${key}]`)) el.setAttribute("title", `${t} [${prefix} ${key}]`.trim());
+  if (option && additionalCondition()) {
+    const element = $(selector);
+    if (element.length) {
+      element[0].accessKey = key;
+    }
   }
 }
 
