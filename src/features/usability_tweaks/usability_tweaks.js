@@ -1360,7 +1360,7 @@ class RangeringTool {
 
         if (isMerge || hasDateChange) {
           console.log(`WBE: Processing edit - isMerge: ${isMerge}, hasDateChange: ${hasDateChange}, text: "${text}"`);
-          
+
           const diffUrl = diffLink.attr("href");
           // Make sure it's an absolute URL
           const fullDiffUrl = diffUrl.startsWith("http") ? diffUrl : "https://www.wikitree.com" + diffUrl;
@@ -1371,12 +1371,14 @@ class RangeringTool {
               // Check birth date changes
               const birthDateChanges = self.parseDateFromDiff(diffDoc, "Birth Date");
               const deathDateChanges = self.parseDateFromDiff(diffDoc, "Death Date");
-              
-              console.log(`WBE: Date changes found - Birth: ${birthDateChanges.oldDate} → ${birthDateChanges.newDate}, Death: ${deathDateChanges.oldDate} → ${deathDateChanges.newDate}`);
-              
+
+              console.log(
+                `WBE: Date changes found - Birth: ${birthDateChanges.oldDate} → ${birthDateChanges.newDate}, Death: ${deathDateChanges.oldDate} → ${deathDateChanges.newDate}`
+              );
+
               let anomalyDetails = "";
               let hasAnyDateAnomaly = false;
-              
+
               if (birthDateChanges.oldDate && birthDateChanges.newDate) {
                 const birthYearDiff = self.calculateYearDifference(birthDateChanges.oldDate, birthDateChanges.newDate);
                 if (birthYearDiff > 10) {
@@ -1394,7 +1396,7 @@ class RangeringTool {
                   hasAnyDateAnomaly = true;
                 }
               }
-              
+
               if (hasAnyDateAnomaly) {
                 // Put the detailed info in both title and anomalyDiv (like merge anomalies)
                 item.attr("title", anomalyDetails.trim());
@@ -1755,14 +1757,16 @@ class RangeringTool {
     // Check if the list is already stored in localStorage
     const cached = localStorage.getItem(storageKey);
     console.log(`WBE: getBadgeProfiles(${badgeType}) - cached data:`, !!cached);
-    
+
     if (cached) {
       const cachedObject = JSON.parse(cached);
       // If the list is less than a day old, use it
       const isValidCache = new Date().getTime() - cachedObject.timestamp < 86400000;
       const hasProfiles = dateFilter ? cachedObject.profileIDs.length >= 0 : cachedObject.profileIDs.length > 0;
-      console.log(`WBE: Cache valid: ${isValidCache}, has profiles: ${hasProfiles}, count: ${cachedObject.profileIDs.length}`);
-      
+      console.log(
+        `WBE: Cache valid: ${isValidCache}, has profiles: ${hasProfiles}, count: ${cachedObject.profileIDs.length}`
+      );
+
       if (isValidCache && hasProfiles) {
         return cachedObject.profileIDs;
       }
@@ -1777,7 +1781,11 @@ class RangeringTool {
     if (dateFilter) {
       // For date-filtered badges (like pre_1500), check each badge award item
       const badgeItems = badgePageDOM.querySelectorAll(".row.mb-3");
-      console.log(`WBE: Found ${badgeItems.length} badge items for ${badgeType}, filtering by date >= ${dateFilter.toDateString()}`);
+      console.log(
+        `WBE: Found ${
+          badgeItems.length
+        } badge items for ${badgeType}, filtering by date >= ${dateFilter.toDateString()}`
+      );
 
       Array.from(badgeItems).some((item) => {
         const dateSpan = item.querySelector("span.d-block");
@@ -1794,7 +1802,7 @@ class RangeringTool {
             }
             return false; // Continue to next item
           } else {
-            console.log(`WBE: Badge date ${badgeDate ? badgeDate.toDateString() : 'null'} is too old, stopping search`);
+            console.log(`WBE: Badge date ${badgeDate ? badgeDate.toDateString() : "null"} is too old, stopping search`);
             // Since items are in most-recent order, stop when we find an older date
             return true; // Break out of the loop
           }
@@ -1913,7 +1921,7 @@ class RangeringTool {
 
       if (peopleResponse && peopleResponse[2] && peopleResponse[2][bioId]) {
         const person = peopleResponse[2][bioId];
-        
+
         // Store the fetched profile
         if (!this.fetchedProfiles) {
           this.fetchedProfiles = {};
@@ -2206,7 +2214,7 @@ class RangeringTool {
 
     $(document).on("click", "#onlyNewestBadges,#onlyNewts", async function () {
       console.log(`WBE: Button clicked: ${$(this).attr("id")}, current config: ${self.currentConfig.name}`);
-      
+
       // Find all span.HISTORY-ITEM rows not containing links with the class newestPre1700s and toggle them
       const allItems = $("span.feed-item:not(.HISTORY-HIDDEN)");
       if (self.currentConfig.name === "Merges" && Object.keys(self.memberData).length == 0) {
@@ -2224,7 +2232,7 @@ class RangeringTool {
       } else if ($(this).attr("id") === "onlyNewts") {
         targetClasses = "a.newt";
       }
-      
+
       console.log(`WBE: Looking for elements with class: ${targetClasses}`);
       console.log(`WBE: Found ${$(targetClasses).length} highlighted elements`);
 
@@ -2309,7 +2317,7 @@ class RangeringTool {
     // Remove all applied highlighting CSS classes from the page
     $(".newestPre1700s").removeClass("newestPre1700s");
     $(".recentPre1500s").removeClass("recentPre1500s");
-    
+
     // Remove anomaly classes as well
     $(".anomaly").removeClass("anomaly");
     $(".highlight").removeClass("highlight");
@@ -2320,8 +2328,11 @@ class RangeringTool {
 
     // Debug: Log what we cleared
     console.log("WBE: Cleared rangering data including:", keysToRemove);
-    console.log("WBE: Removed highlighting from", 
-      $(".newestPre1700s").length + $(".recentPre1500s").length, "elements");
+    console.log(
+      "WBE: Removed highlighting from",
+      $(".newestPre1700s").length + $(".recentPre1500s").length,
+      "elements"
+    );
 
     this.showAnomaliesPopup("Rangering data cleared!");
   }
