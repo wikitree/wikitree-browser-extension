@@ -73,20 +73,20 @@ a.recentPre1500s {
   color: white;
   font-weight: bold;
   border: 2px solid #25422d;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   transition: all 0.3s ease;
 }
 
 #rangersButtons .full-check-btn:hover {
   background: linear-gradient(135deg, #a4d455 0%, #82b642 100%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 #rangersButtons .full-check-btn:active {
   background: linear-gradient(135deg, #7aa435 0%, #5e8f2a 100%);
   transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Style for the bio popup */

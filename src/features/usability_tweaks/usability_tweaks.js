@@ -1394,7 +1394,7 @@ class RangeringTool {
       // Show appropriate message based on whether rapid activities were found
       if (rapidActivityCount > 0) {
         this.showAnomaliesPopup(`Activity check completed! ${rapidActivityCount} rapid activity warning(s) found.`);
-        
+
         // Auto-scroll to first highlighted element
         setTimeout(() => {
           this.autoScrollToFirstHighlight();
@@ -1974,25 +1974,28 @@ class RangeringTool {
     // Look for highlighted elements in order of priority
     const firstAnomaly = $(".anomaly").first();
     const firstHighlight = $(".highlight").first();
-    
+
     let targetElement = null;
-    
+
     // Prioritize anomalies first, then highlights
     if (firstAnomaly.length > 0) {
       targetElement = firstAnomaly;
     } else if (firstHighlight.length > 0) {
       targetElement = firstHighlight;
     }
-    
+
     if (targetElement) {
       // Smooth scroll to the element with some offset for better visibility
       const elementTop = targetElement.offset().top;
       const offsetTop = elementTop - 100; // 100px offset from top
-      
-      $('html, body').animate({
-        scrollTop: offsetTop
-      }, 800); // 800ms smooth animation
-      
+
+      $("html, body").animate(
+        {
+          scrollTop: offsetTop,
+        },
+        800
+      ); // 800ms smooth animation
+
       console.log("WBE: Auto-scrolled to first highlighted element");
     }
   }
@@ -2705,11 +2708,11 @@ class RangeringTool {
 
   async fetchAndShowSingleBio(bioId) {
     console.log(`Attempting to fetch bio for ID: ${bioId} (type: ${typeof bioId})`);
-    
+
     // Convert to number if it's a numeric string, as WikiTree API might prefer numbers
     const apiId = /^\d+$/.test(bioId) ? parseInt(bioId, 10) : bioId;
     console.log(`Converted ID for API call: ${apiId} (type: ${typeof apiId})`);
-    
+
     // Show loading popup first
     $("main#main").prepend(
       `<div class="bioPopup" data-id="${bioId}">
@@ -2729,9 +2732,9 @@ class RangeringTool {
         ["Id", "Name", "Bio", "BirthDate", "DeathDate", "Derived.ShortName", "Gender"],
         { bioFormat: "text" }
       );
-      
+
       console.log(`WikiTreeAPI response for ${bioId}:`, peopleResponse);
-      
+
       if (peopleResponse) {
         console.log(`Response structure - [0]:`, peopleResponse[0]);
         console.log(`Response structure - [1]:`, peopleResponse[1]);
@@ -2742,13 +2745,17 @@ class RangeringTool {
       }
 
       // Check for both the original bioId and the converted apiId
-      const responseKey = peopleResponse[2] && peopleResponse[2][bioId] ? bioId : 
-                         peopleResponse[2] && peopleResponse[2][apiId] ? apiId : null;
-      
+      const responseKey =
+        peopleResponse[2] && peopleResponse[2][bioId]
+          ? bioId
+          : peopleResponse[2] && peopleResponse[2][apiId]
+          ? apiId
+          : null;
+
       if (peopleResponse && peopleResponse[2] && responseKey) {
         const person = peopleResponse[2][responseKey];
         console.log(`Found person data for ${responseKey}:`, person);
-        console.log(`Bio content length:`, person.bio ? person.bio.length : 'No bio');
+        console.log(`Bio content length:`, person.bio ? person.bio.length : "No bio");
 
         // Store the fetched profile
         if (!this.fetchedProfiles) {
@@ -3008,7 +3015,7 @@ class RangeringTool {
       console.log(`Bio button clicked for ID: ${bioId}`);
       console.log(`Button element:`, event.currentTarget);
       console.log(`this.people structure:`, this.people);
-      
+
       const thisPopup = $(`.bioPopup[data-id="${bioId}"]`);
 
       // Hide all .bioPopup elements except the current one
@@ -3028,7 +3035,7 @@ class RangeringTool {
 
       const bio = this.people[2][bioId]; // Access the bio using the string key
       console.log(`Found bio for ${bioId}:`, bio);
-      
+
       if (bio && bio.bio) {
         const highlightedBio = this.highlightMarkup(bio.bio).replace(/\n/g, "<br>");
         $("main#main").prepend(
@@ -3133,29 +3140,28 @@ class RangeringTool {
   async performFullCheck() {
     // Show initial status
     this.showAnomaliesPopup("Starting full rangering check...");
-    
+
     try {
       // Step 1: Get bios
       console.log("WBE: Full Check - Step 1: Getting bios...");
       await this.getBios();
-      
+
       // Small delay to ensure getBios completes
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       // Step 2: Check for anomalies
       console.log("WBE: Full Check - Step 2: Checking for anomalies...");
       await this.checkForAnomalies();
-      
+
       // Small delay before next step
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
       // Step 3: Check activity
       console.log("WBE: Full Check - Step 3: Checking activity patterns...");
       await this.checkActivity();
-      
+
       // Final status
       this.showAnomaliesPopup("Full rangering check completed! 🎯");
-      
     } catch (error) {
       console.error("WBE: Error during full check:", error);
       this.showAnomaliesPopup("Full check encountered an error. Please try individual checks.");
@@ -3250,7 +3256,7 @@ class RangeringTool {
     this.addGetBiosButton();
     this.addAnomaliesButton();
     this.addActivityButton();
-    
+
     // Add management buttons on the right
     this.addWhitelistButton(); // Management button - right side
     this.addClearCacheButton(); // Management button - right side
