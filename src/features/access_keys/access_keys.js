@@ -81,17 +81,17 @@ export function startSyntheticHotkeys(options) {
         return; // Don't interfere with browser access keys at all
       }
 
-      // Cheatsheet toggle: Shift+? (should work everywhere, even in input fields)
+      // Only handle any hotkeys when NOT in input fields
+      if (shouldIgnoreKeyEvent(e)) {
+        return; // Ignore all hotkey events when in input fields
+      }
+
+      // Cheatsheet toggle: Shift+?
       if (!e.ctrlKey && !e.metaKey && !e.altKey && e.shiftKey && (e.key === "?" || e.key === "/")) {
         toggleCheatSheet();
         e.preventDefault();
         e.stopImmediatePropagation();
         return;
-      }
-
-      // Only handle synthetic access keys when NOT in input fields
-      if (shouldIgnoreKeyEvent(e)) {
-        return; // Ignore synthetic hotkey events when in input fields
       }
 
       // Jump sub-mode: expect 1–9 / Esc
