@@ -1026,6 +1026,172 @@ class RangeringTool {
     this.excludedNames = [];
   }
 
+  // Whitelist management methods
+  getWhitelist() {
+    const whitelist = localStorage.getItem("rangeringActivityWhitelist");
+    return whitelist ? JSON.parse(whitelist) : [];
+  }
+
+  addToWhitelist(userID) {
+    const whitelist = this.getWhitelist();
+    if (!whitelist.includes(userID)) {
+      whitelist.push(userID);
+      localStorage.setItem("rangeringActivityWhitelist", JSON.stringify(whitelist));
+      console.log(`WBE: Added ${userID} to activity whitelist`);
+    }
+  }
+
+  removeFromWhitelist(userID) {
+    const whitelist = this.getWhitelist();
+    const index = whitelist.indexOf(userID);
+    if (index > -1) {
+      whitelist.splice(index, 1);
+      localStorage.setItem("rangeringActivityWhitelist", JSON.stringify(whitelist));
+      console.log(`WBE: Removed ${userID} from activity whitelist`);
+    }
+  }
+
+  isWhitelisted(userID) {
+    return this.getWhitelist().includes(userID);
+  }
+
+  removeWarningsForUser(userID) {
+    // Remove any visible popups for this user
+    $(`.rapid-merge-popup:contains("${userID}")`).each(function () {
+      $(this).fadeOut(300, function () {
+        $(this).remove();
+        // Recalculate positions for remaining popups
+        let currentBottom = 10;
+        $(".rapid-merge-popup").each(function () {
+          $(this).css("bottom", `${currentBottom}px`);
+          currentBottom += 120;
+        });
+      });
+    });
+
+    // Remove highlight classes from elements related to this user
+    $("span.feed-item").each(function () {
+      const text = $(this).text();
+      if (text.includes(userID)) {
+        $(this).removeClass("highlight");
+      }
+    });
+
+    // Update the clear warnings button after removing highlights
+    this.manageClearWarningsButton();
+  }
+
+  showWhitelistManager() {
+    const whitelist = this.getWhitelist();
+
+    let whitelistItems = "";
+    if (whitelist.length === 0) {
+      whitelistItems = '<p style="text-align: center; color: #666; font-style: italic;">No users in whitelist</p>';
+    } else {
+      whitelistItems = whitelist
+        .map(
+          (userID) =>
+            `<div style="display: flex; align-items: center; justify-content: space-between; padding: 5px; border-bottom: 1px solid #ddd;">
+          <span style="font-weight: bold;">${userID}</span>
+          <button class="remove-whitelist-btn button small" data-userid="${userID}" style="background-color: #d32f2f; color: white; border: none; padding: 3px 8px; border-radius: 3px; cursor: pointer;">Remove</button>
+        </div>`
+        )
+        .join("");
+    }
+
+    const popup = $(`
+      <div id="whitelistManagerPopup" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+           background: white; border: 2px solid #ccc; border-radius: 8px; padding: 20px; z-index: 10000; 
+           box-shadow: 0 4px 12px rgba(0,0,0,0.3); max-width: 400px; width: 90%;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 style="margin: 0; color: #333;">Activity Whitelist Manager</h3>
+          <button id="closeWhitelistManager" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666;">&times;</button>
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+          <p style="margin: 5px 0; font-size: 14px; color: #666;">Whitelisted users will not trigger rapid activity warnings.</p>
+        </div>
+        
+        <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 15px;">
+          ${whitelistItems}
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+          <input type="text" id="newWhitelistUser" placeholder="Enter User ID (e.g., Smith-123)" 
+                 style="flex: 1; padding: 5px; border: 1px solid #ccc; border-radius: 3px;">
+          <button id="addToWhitelistBtn" class="button small">Add</button>
+        </div>
+        
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button id="clearWhitelistBtn" class="button small" style="background-color: #f44336; color: white;">Clear All</button>
+          <button id="closeWhitelistManagerBtn" class="button small">Close</button>
+        </div>
+      </div>
+    `);
+
+    // Add backdrop
+    const backdrop = $(
+      '<div id="whitelistManagerBackdrop" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999;"></div>'
+    );
+
+    $("body").append(backdrop).append(popup);
+
+    // Event handlers
+    popup.find("#closeWhitelistManager, #closeWhitelistManagerBtn").on("click", () => {
+      popup.remove();
+      backdrop.remove();
+    });
+
+    backdrop.on("click", () => {
+      popup.remove();
+      backdrop.remove();
+    });
+
+    // Add user to whitelist
+    popup.find("#addToWhitelistBtn").on("click", () => {
+      const userID = popup.find("#newWhitelistUser").val().trim();
+      if (userID) {
+        if (this.isWhitelisted(userID)) {
+          alert(`${userID} is already in the whitelist.`);
+        } else {
+          this.addToWhitelist(userID);
+          popup.remove();
+          backdrop.remove();
+          this.showWhitelistManager(); // Refresh the display
+        }
+      }
+    });
+
+    // Handle Enter key in input field
+    popup.find("#newWhitelistUser").on("keypress", (e) => {
+      if (e.which === 13) {
+        // Enter key
+        popup.find("#addToWhitelistBtn").trgger("click");
+      }
+    });
+
+    // Remove individual users
+    popup.find(".remove-whitelist-btn").on("click", (e) => {
+      const userID = $(e.target).data("userid");
+      if (confirm(`Remove ${userID} from whitelist?`)) {
+        this.removeFromWhitelist(userID);
+        popup.remove();
+        backdrop.remove();
+        this.showWhitelistManager(); // Refresh the display
+      }
+    });
+
+    // Clear all whitelist
+    popup.find("#clearWhitelistBtn").on("click", () => {
+      if (confirm("Are you sure you want to clear the entire whitelist?")) {
+        localStorage.removeItem("rangeringActivityWhitelist");
+        popup.remove();
+        backdrop.remove();
+        this.showWhitelistManager(); // Refresh the display
+      }
+    });
+  }
+
   init() {
     // Initialize event listeners
     this.initializeEventListeners();
@@ -1138,8 +1304,8 @@ class RangeringTool {
       sessionStorage.setItem(this.fetchedProfilesStorageKey, JSON.stringify(existingProfiles));
     }
 
-    this.people = existingProfiles;
-    return this.people;
+    this.people = [null, null, existingProfiles]; // Maintain array structure for consistency
+    return existingProfiles; // Return the actual data for the caller
   }
 
   okDate(date) {
@@ -1172,7 +1338,6 @@ class RangeringTool {
     const WTIDs = [];
     const historyItems = $("span.feed-item").not(".HISTORY-HIDDEN"); // Exclude HISTORY-HIDDEN
     const userMergeTimes = {}; // Track timestamps of merges by each user
-    const warningsShown = JSON.parse(sessionStorage.getItem("warningsShown")) || {}; // Track shown warnings
     const processedPairs = new Set(); // Track processed ID pairs
     let anomalyCount = 0;
 
@@ -1180,36 +1345,264 @@ class RangeringTool {
     const activityData = this.extractActivityData(historyItems, userMergeTimes);
     // console.log("Extracted activityData:", activityData); // Debugging log
 
-    // Step 2: Highlight rapid activities (but do not count as anomalies)
-    if (!this.isNotFirstPage()) {
-      // console.log("Highlighting rapid activities (not counted as anomalies)"); // Debugging log
-      this.detectRapidActivities(userMergeTimes, warningsShown);
-    } else {
-      //console.log("Skipping rapid activity highlighting (not on the first page)"); // Debugging log
-    }
-
-    // Step 3: Add WTIDs for further checks
+    // Step 2: Add WTIDs for further checks
     this.collectWTIDsFromActivityData(activityData, WTIDs);
 
-    // Step 4: Fetch profile data
+    // Step 3: Fetch profile data
     const uniqueWTIDs = [...new Set(WTIDs)];
     const people = await this.getThePeople(uniqueWTIDs);
 
-    // Step 5: Perform gender and date anomaly checks (counted as anomalies)
+    // Step 4: Perform gender and date anomaly checks (counted as anomalies)
     anomalyCount += this.detectGenderAndDateAnomalies(historyItems, people, processedPairs);
 
-    // Step 6: Check for date change anomalies (only for Pre-1700 and Pre-1500 pages)
+    // Step 5: Check for date change anomalies (only for Pre-1700 and Pre-1500 pages)
     if (this.currentConfig.name === "Pre-1700" || this.currentConfig.name === "Pre-1500") {
       anomalyCount += await this.detectDateChangeAnomalies(historyItems);
     }
 
-    // Step 7: Display anomaly results
+    // Step 6: Display anomaly results
     this.displayAnomalyResults(anomalyCount);
+
+    // Step 7: Auto-scroll to first highlighted element if any anomalies were found
+    if (anomalyCount > 0) {
+      // Small delay to ensure DOM updates are complete
+      setTimeout(() => {
+        this.autoScrollToFirstHighlight();
+      }, 100);
+    }
+
+    // console.log("Activity data:", activityData); // Debugging log
+  }
+
+  async checkActivity() {
+    //console.log("checkActivity called"); // Debugging log
+    await this.loadExcludedNames();
+
+    const historyItems = $("span.feed-item").not(".HISTORY-HIDDEN"); // Exclude HISTORY-HIDDEN
+    const userMergeTimes = {}; // Track timestamps of merges by each user
+    const warningsShown = JSON.parse(sessionStorage.getItem("warningsShown")) || {}; // Track shown warnings
+
+    // Step 1: Extract activity data and user timestamps
+    const activityData = this.extractActivityData(historyItems, userMergeTimes);
+
+    // Step 2: Highlight rapid activities (only check activity)
+    if (!this.isNotFirstPage()) {
+      // console.log("Highlighting rapid activities"); // Debugging log
+      const rapidActivityCount = await this.detectRapidActivities(userMergeTimes, warningsShown);
+      this.manageClearWarningsButton(); // Add the clear button if there are warnings
+
+      // Show appropriate message based on whether rapid activities were found
+      if (rapidActivityCount > 0) {
+        this.showAnomaliesPopup(`Activity check completed! ${rapidActivityCount} rapid activity warning(s) found.`);
+        
+        // Auto-scroll to first highlighted element
+        setTimeout(() => {
+          this.autoScrollToFirstHighlight();
+        }, 100);
+      } else {
+        this.showAnomaliesPopup("Activity check completed! No rapid activity found.");
+      }
+    } else {
+      //console.log("Skipping rapid activity highlighting (not on the first page)"); // Debugging log
+      this.showAnomaliesPopup("Activity check only available on the first page.");
+    }
 
     // Save warnings to sessionStorage
     sessionStorage.setItem("warningsShown", JSON.stringify(warningsShown));
+  }
 
-    // console.log("Activity data:", activityData); // Debugging log
+  /**
+   * Adds or removes the "Clear All Warnings" button based on whether there are highlighted warnings
+   */
+  manageClearWarningsButton() {
+    // Look for both .highlight and the warnings table
+    const highlightedItems = $(".highlight, span.feed-item.highlight");
+    const warningsTable = $("#activityWarningsTable");
+    const hasWarnings = highlightedItems.length > 0 || warningsTable.length > 0;
+
+    const buttonId = "clearAllWarningsBtn";
+    const existingButton = $(`#${buttonId}`);
+
+    // Enhanced debugging
+    console.log("WBE: Managing clear warnings button");
+    console.log("WBE: Found", highlightedItems.length, "highlighted items");
+    console.log("WBE: Warnings table exists:", warningsTable.length > 0);
+    console.log("WBE: Has warnings:", hasWarnings);
+    console.log("WBE: Existing button count:", existingButton.length);
+
+    // Show button only if there are highlighted items (not just the table)
+    const shouldShowButton = highlightedItems.length > 0;
+
+    if (shouldShowButton) {
+      // There are warnings, ensure button exists
+      if (existingButton.length === 0) {
+        // Create a more prominent button that's easier to see
+        const buttonHtml = `
+          <div id="${buttonId}" style="position: fixed; top: 100px; right: 20px; z-index: 10001; text-align: center; margin: 15px 0; padding: 15px; background-color: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); min-width: 200px;">
+            <div style="margin-bottom: 8px; font-size: 12px; color: #856404;">Highlighted Items</div>
+            <button class="button small" style="background-color: #f44336; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); font-size: 14px;">
+              🧹 Clear Highlights
+            </button>
+            <div style="margin-top: 8px; font-size: 11px; color: #856404;">${highlightedItems.length} item(s) highlighted</div>
+          </div>
+        `;
+
+        // Insert the button into the body so it's always visible
+        $("body").append(buttonHtml);
+
+        // Add click handler
+        $(`#${buttonId} button`).on("click", () => {
+          console.log("WBE: Clear Highlights button clicked!");
+          this.clearHighlights();
+        });
+
+        // Make it draggable so users can move it if it's in the way
+        if (typeof $(`#${buttonId}`).draggable === "function") {
+          $(`#${buttonId}`).draggable();
+        }
+
+        // Debug: log that button was added
+        console.log("WBE: Clear Highlights button added with", highlightedItems.length, "highlighted items");
+        console.log("WBE: Button element:", $(`#${buttonId}`)[0]);
+      } else {
+        // Update the count in existing button
+        $(`#${buttonId}`).find('div:contains("item(s)")').text(`${highlightedItems.length} item(s) highlighted`);
+      }
+    } else {
+      // No highlighted items, remove button if it exists
+      if (existingButton.length > 0) {
+        console.log("WBE: Removing Clear Highlights button");
+        existingButton.remove();
+      }
+    }
+  }
+
+  /**
+   * Clears only the highlights, not the warnings table
+   */
+  clearHighlights() {
+    console.log("WBE: clearHighlights() called");
+
+    // Remove all highlight classes from elements
+    const highlightedElements = $(".highlight");
+    console.log("WBE: Found", highlightedElements.length, "highlighted elements to clear");
+    highlightedElements.removeClass("highlight");
+
+    // Remove the clear highlights button since there are no more highlights
+    $("#clearAllWarningsBtn").remove();
+
+    console.log("WBE: All highlights cleared");
+
+    // Update the button state
+    this.manageClearWarningsButton();
+  }
+
+  /**
+   * Manual function to test the clear warnings button - can be called from console
+   */
+  testClearWarningsButton() {
+    console.log("WBE: Testing clear warnings button...");
+
+    // Create some fake highlights for testing
+    const feedItems = $("span.feed-item").slice(0, 3); // Get first 3 feed items
+    if (feedItems.length > 0) {
+      console.log(`WBE: Adding highlight class to ${feedItems.length} feed items for testing`);
+      feedItems.addClass("highlight");
+    } else {
+      // If no feed items, add highlight to any elements
+      console.log("WBE: No feed items found, highlighting some other elements for testing");
+      $("div").slice(0, 2).addClass("highlight");
+    }
+
+    // Force add the button for testing
+    const buttonId = "clearAllWarningsBtn";
+    const existingButton = $(`#${buttonId}`);
+
+    if (existingButton.length > 0) {
+      existingButton.remove();
+    }
+
+    const buttonHtml = `
+      <div id="${buttonId}" style="position: fixed; top: 50px; right: 20px; z-index: 99999; text-align: center; padding: 20px; background-color: #ff4444; color: white; border: 3px solid #fff; border-radius: 10px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); min-width: 250px; font-family: Arial, sans-serif;">
+        <div style="margin-bottom: 10px; font-size: 16px; font-weight: bold;">🚨 TEST BUTTON 🚨</div>
+        <button style="background-color: #fff; color: #ff4444; border: none; padding: 15px 25px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; width: 100%;">
+          🗑️ CLEAR ALL WARNINGS
+        </button>
+        <div style="margin-top: 10px; font-size: 12px;">Click to test clearing</div>
+      </div>
+    `;
+
+    $("body").append(buttonHtml);
+
+    $(`#${buttonId} button`).on("click", () => {
+      console.log("WBE: Test clear button clicked!");
+      this.clearAllWarnings();
+    });
+
+    console.log("WBE: Test button added! Created fake highlights and button.");
+    return "Test setup complete!";
+  }
+
+  /**
+   * Clears all activity warning highlights
+   */
+  clearAllWarnings() {
+    console.log("WBE: clearAllWarnings() called");
+
+    // Look for all possible highlighted elements
+    const allHighlightSelectors = [
+      ".highlight",
+      "span.feed-item.highlight",
+      ".feed-item.highlight",
+      "*[class*='highlight']",
+    ];
+
+    let totalCleared = 0;
+
+    allHighlightSelectors.forEach((selector) => {
+      const elements = $(selector);
+      if (elements.length > 0) {
+        console.log(`WBE: Found ${elements.length} elements with selector: ${selector}`);
+        elements.each(function () {
+          console.log("WBE: Clearing highlight from element:", this.tagName, this.className);
+          $(this).removeClass("highlight");
+          totalCleared++;
+        });
+      }
+    });
+
+    console.log(`WBE: Total highlights cleared: ${totalCleared}`);
+
+    // Clear the warningsShown from sessionStorage
+    sessionStorage.removeItem("warningsShown");
+    console.log("WBE: Cleared warningsShown from sessionStorage");
+
+    // Remove all rapid merge popups (old system)
+    const popups = $(".rapid-merge-popup");
+    if (popups.length > 0) {
+      console.log(`WBE: Removing ${popups.length} rapid merge popups`);
+      popups.remove();
+    }
+
+    // Remove the activity warnings table (new system)
+    const table = $("#activityWarningsTable");
+    if (table.length > 0) {
+      console.log("WBE: Removing activity warnings table");
+      table.remove();
+    }
+
+    // Remove the clear button since there are no more warnings
+    $("#clearAllWarningsBtn").remove(); // Show confirmation
+    if (totalCleared > 0) {
+      alert(`Cleared ${totalCleared} activity warnings!`);
+      console.log(`WBE: Successfully cleared ${totalCleared} activity warnings`);
+    } else {
+      console.log("WBE: No highlights found to clear");
+      alert("No activity warnings found to clear.");
+    }
+
+    // Refresh the button state
+    this.manageClearWarningsButton();
   }
 
   /**
@@ -1245,6 +1638,13 @@ class RangeringTool {
 
       // Parse user ID and WTIDs
       const links = $(this).find("a[href*='/wiki/']");
+      const fullText = $(this).text();
+
+      // For merges, we need to identify the target profile (after "into")
+      const isMerge = fullText.includes("merged") && fullText.includes("into");
+      let sourceProfile = null;
+      let targetProfile = null;
+
       links.each(function (index) {
         const href = $(this).attr("href");
         const match = href.match(/\/wiki\/([\p{L}\p{M}0-9'_-]+-[0-9]+)$/u);
@@ -1253,10 +1653,36 @@ class RangeringTool {
           if (index === 0) {
             userID = match[1];
           } else if (!$(this).text().includes("merged") && !$(this).text().includes("thank")) {
-            WTIDs.push(match[1]);
+            if (isMerge) {
+              // For merges, determine which profile comes before/after "into"
+              const linkText = $(this).text();
+              const linkPosition = fullText.indexOf(linkText);
+              const intoPosition = fullText.indexOf(" into ");
+
+              if (intoPosition > 0) {
+                if (linkPosition < intoPosition) {
+                  sourceProfile = match[1];
+                } else if (linkPosition > intoPosition) {
+                  targetProfile = match[1];
+                }
+              } else {
+                // Fallback: just collect the profile
+                WTIDs.push(match[1]);
+              }
+            } else {
+              WTIDs.push(match[1]);
+            }
           }
         }
       });
+
+      // For merges, prioritize the target profile for biocheck
+      if (isMerge && targetProfile) {
+        WTIDs.push(targetProfile);
+        if (sourceProfile) {
+          WTIDs.push(sourceProfile);
+        }
+      }
 
       // Track user activity times
       if (userID && timestamp) {
@@ -1268,7 +1694,20 @@ class RangeringTool {
 
       // Add activity data if valid
       if (WTIDs.length >= 2) {
-        activityData.push({ mergeID1: WTIDs[0], mergeID2: WTIDs[1], mergedBy: userID, timestamp, element: this });
+        if (isMerge && targetProfile) {
+          // For merges, mark which profile is the target (result of merge)
+          activityData.push({
+            mergeID1: sourceProfile || WTIDs[1],
+            mergeID2: targetProfile,
+            targetProfile: targetProfile,
+            mergedBy: userID,
+            timestamp,
+            element: this,
+            isMerge: true,
+          });
+        } else {
+          activityData.push({ mergeID1: WTIDs[0], mergeID2: WTIDs[1], mergedBy: userID, timestamp, element: this });
+        }
       }
     });
 
@@ -1529,11 +1968,42 @@ class RangeringTool {
   }
 
   /**
+   * Auto-scrolls to the first highlighted element (anomaly or highlight) on the page
+   */
+  autoScrollToFirstHighlight() {
+    // Look for highlighted elements in order of priority
+    const firstAnomaly = $(".anomaly").first();
+    const firstHighlight = $(".highlight").first();
+    
+    let targetElement = null;
+    
+    // Prioritize anomalies first, then highlights
+    if (firstAnomaly.length > 0) {
+      targetElement = firstAnomaly;
+    } else if (firstHighlight.length > 0) {
+      targetElement = firstHighlight;
+    }
+    
+    if (targetElement) {
+      // Smooth scroll to the element with some offset for better visibility
+      const elementTop = targetElement.offset().top;
+      const offsetTop = elementTop - 100; // 100px offset from top
+      
+      $('html, body').animate({
+        scrollTop: offsetTop
+      }, 800); // 800ms smooth animation
+      
+      console.log("WBE: Auto-scrolled to first highlighted element");
+    }
+  }
+
+  /**
    * Detects users who performed 3 merges within 5 minutes and shows warnings.
-   * Returns the count of anomalies found.
+   * Returns the count of rapid activities found.
    */
   async detectRapidActivities(userMergeTimes, warningsShown) {
     const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+    let rapidActivityCount = 0;
 
     // Load excluded names from sessionStorage or fetch them if not present
     let excludedNames = sessionStorage.getItem("excludedNames");
@@ -1554,6 +2024,12 @@ class RangeringTool {
         continue;
       }
 
+      // Skip if the user is whitelisted
+      if (this.isWhitelisted(userID)) {
+        //  console.log(`Skipping rapid activity detection for whitelisted user: ${userID}`);
+        continue;
+      }
+
       const times = userMergeTimes[userID].sort((a, b) => a.timestamp - b.timestamp);
 
       let currentSequence = []; // Track current sequence of activities
@@ -1565,6 +2041,7 @@ class RangeringTool {
           // Highlight the previous sequence if it's valid
           if (currentSequence.length >= 3) {
             this.flagRapidActivities(userID, currentSequence, warningsShown);
+            rapidActivityCount++;
           }
           currentSequence = [currentActivity]; // Start a new sequence
         } else {
@@ -1574,10 +2051,12 @@ class RangeringTool {
       // Highlight the last sequence for the user
       if (currentSequence.length >= 3) {
         this.flagRapidActivities(userID, currentSequence, warningsShown);
+        rapidActivityCount++;
       }
     }
 
     // console.log("Rapid activities highlighted (excluding excluded users).");
+    return rapidActivityCount;
   }
 
   async fetchExcludedNames() {
@@ -1625,7 +2104,8 @@ class RangeringTool {
       }
 
       const message = `${userID} performed ${activitySequence.length} ${activityType} within 5 minutes. <br>Please review their activity.`;
-      this.showRapidMergePopup(message, historyItemsToHighlight);
+      // Use the new table instead of individual popups
+      this.addWarningToTable(userID, message, historyItemsToHighlight);
     }
   }
 
@@ -1666,7 +2146,285 @@ class RangeringTool {
     }, 5000);
   }
 
-  showRapidMergePopup(message, historyItemsToHighlight) {
+  /**
+   * Shows activity warnings in a consolidated table instead of individual popups
+   */
+  showActivityWarningsTable() {
+    // Check if table already exists
+    let existingTable = $("#activityWarningsTable");
+
+    if (existingTable.length === 0) {
+      // Create the table container
+      const tableHtml = `
+        <div id="activityWarningsTable">
+          <div class="table-header">
+            🚨 Activity Warnings (<span id="warningsCount">0</span>)
+            <button id="minimizeWarningsTable" title="Minimize/Hide Table">&times;</button>
+          </div>
+          <div class="table-content">
+            <table id="warningsTable">
+              <thead>
+                <tr>
+                  <th>Member</th>
+                  <th>Name</th>
+                  <th>Edits in 5 mins</th>
+                  <th>Highlight</th>
+                  <th>Whitelist</th>
+                  <th>Remove</th>
+                </tr>
+              </thead>
+              <tbody id="warningsTableBody">
+              </tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <button id="clearAllWarningsBtn">Clear All</button>
+            <button id="highlightAllBtn">Highlight All</button>
+          </div>
+        </div>
+      `;
+
+      $("body").append(tableHtml);
+
+      // Make the table draggable
+      $("#activityWarningsTable").draggable({
+        handle: ".table-header", // Only the header is draggable
+      });
+
+      // X button - minimizes/hides the table
+      $("#minimizeWarningsTable").on("click", () => {
+        this.minimizeWarningsTable();
+      });
+
+      // Clear All button - clears all warnings and closes popup
+      $("#clearAllWarningsBtn").on("click", () => {
+        this.clearAllActivityWarnings();
+      });
+
+      // Highlight All button
+      $("#highlightAllBtn").on("click", () => {
+        this.highlightAllWarnings();
+      });
+    }
+
+    return $("#activityWarningsTable");
+  }
+
+  /**
+   * Minimizes/hides the warnings table (can be restored later)
+   */
+  minimizeWarningsTable() {
+    $("#activityWarningsTable").hide();
+    console.log("WBE: Minimized warnings table");
+
+    // Show a small restore button
+    this.showRestoreButton();
+  }
+
+  /**
+   * Shows a small button to restore the minimized table
+   */
+  showRestoreButton() {
+    // Remove existing restore button if any
+    $("#restoreWarningsBtn").remove();
+
+    const restoreHtml = `
+      <div id="restoreWarningsBtn" style="position: fixed; top: 20px; right: 20px; z-index: 10002; background: #ff6b6b; color: white; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);" title="Click to restore warnings table">
+        🚨 <span id="restoreWarningsCount">0</span> warnings
+      </div>
+    `;
+
+    $("body").append(restoreHtml);
+
+    // Update the count
+    const count = $("#warningsTableBody tr").length;
+    $("#restoreWarningsCount").text(count);
+
+    // Click to restore
+    $("#restoreWarningsBtn").on("click", () => {
+      this.restoreWarningsTable();
+    });
+  }
+
+  /**
+   * Restores the minimized warnings table
+   */
+  restoreWarningsTable() {
+    $("#activityWarningsTable").show();
+    $("#restoreWarningsBtn").remove();
+    console.log("WBE: Restored warnings table");
+  }
+
+  /**
+   * Extracts user name from history items
+   */
+  extractUserNameFromHistoryItems(historyItemsToHighlight) {
+    if (!historyItemsToHighlight || historyItemsToHighlight.length === 0) {
+      return "Unknown";
+    }
+
+    // Look for the first link with a name in the history items
+    for (let item of historyItemsToHighlight) {
+      const $item = $(item);
+      // Look for links that might contain the user's name
+      const links = $item.find('a[href*="wikitree.com/wiki/"]:not([href*="Special:"]):not([href*="index.php"])');
+
+      if (links.length > 0) {
+        const firstLink = $(links[0]);
+        let name = firstLink.text().trim();
+
+        // Skip if it looks like a profile ID rather than a name
+        if (name && !name.match(/^[A-Z][a-z]+-\d+$/)) {
+          return name;
+        }
+      }
+    }
+
+    return "Unknown";
+  }
+
+  /**
+   * Extracts edit count from the warning message
+   */
+  extractEditCount(message) {
+    const match = message.match(/(\d+)\s+edits?\s+within/i);
+    return match ? match[1] : "?";
+  }
+
+  /**
+   * Adds a warning to the consolidated table
+   */
+  addWarningToTable(userID, message, historyItemsToHighlight = []) {
+    const table = this.showActivityWarningsTable();
+    const tbody = $("#warningsTableBody");
+
+    // Extract user name and edit count
+    const userName = this.extractUserNameFromHistoryItems(historyItemsToHighlight);
+    const editCount = this.extractEditCount(message);
+
+    // Check if this user already has a warning
+    const existingRow = tbody.find(`tr[data-userid="${userID}"]`);
+    if (existingRow.length > 0) {
+      // Update existing warning
+      existingRow.find(".user-name").text(userName);
+      existingRow.find(".edit-count").text(editCount);
+      existingRow.data("historyItems", historyItemsToHighlight);
+      return;
+    }
+
+    // Create new row
+    const rowHtml = `
+      <tr data-userid="${userID}">
+        <td>${userID}</td>
+        <td class="user-name">${userName}</td>
+        <td class="edit-count">${editCount}</td>
+        <td style="text-align: center;">
+          <button class="highlight-warning-btn" data-userid="${userID}" title="Highlight this user's items">�</button>
+        </td>
+        <td style="text-align: center;">
+          <button class="whitelist-warning-btn" data-userid="${userID}" title="Add to whitelist">Whitelist<br>${userID}</button>
+        </td>
+        <td style="text-align: center;">
+          <button class="remove-warning-btn" data-userid="${userID}" title="Remove this warning">×</button>
+        </td>
+      </tr>
+    `;
+
+    tbody.append(rowHtml);
+
+    // Store the history items for highlighting
+    tbody.find(`tr[data-userid="${userID}"]`).data("historyItems", historyItemsToHighlight);
+
+    // Add event handlers for the new row
+    tbody.find(`tr[data-userid="${userID}"] .highlight-warning-btn`).on("click", () => {
+      historyItemsToHighlight.forEach((item) => {
+        $(item).addClass("highlight");
+        item.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    });
+
+    tbody.find(`tr[data-userid="${userID}"] .whitelist-warning-btn`).on("click", () => {
+      this.addToWhitelist(userID);
+      this.removeWarningFromTable(userID);
+      this.showAnomaliesPopup(`${userID} has been whitelisted and will not trigger activity warnings.`);
+    });
+
+    tbody.find(`tr[data-userid="${userID}"] .remove-warning-btn`).on("click", () => {
+      this.removeWarningFromTable(userID);
+    });
+
+    // Update the count
+    this.updateWarningsCount();
+  }
+
+  /**
+   * Removes a specific warning from the table
+   */
+  removeWarningFromTable(userID) {
+    $(`#warningsTableBody tr[data-userid="${userID}"]`).remove();
+
+    // Update the count (this will auto-close if count reaches 0)
+    this.updateWarningsCount();
+  }
+
+  /**
+   * Updates the warning count in the table header and restore button
+   */
+  updateWarningsCount() {
+    const count = $("#warningsTableBody tr").length;
+    $("#warningsCount").text(count);
+    $("#restoreWarningsCount").text(count);
+
+    // If no warnings left, close the table and restore button
+    if (count === 0) {
+      $("#activityWarningsTable").remove();
+      $("#restoreWarningsBtn").remove();
+    }
+  }
+
+  /**
+   * Clears all activity warnings from the table and highlighted elements, then closes popup
+   */
+  clearAllActivityWarnings() {
+    console.log("WBE: clearAllActivityWarnings called");
+
+    // Remove all highlights
+    const highlightedElements = $(".highlight");
+    console.log("WBE: Clearing", highlightedElements.length, "highlighted elements");
+    highlightedElements.removeClass("highlight");
+
+    // Remove the table and restore button
+    $("#activityWarningsTable").remove();
+    $("#restoreWarningsBtn").remove();
+
+    // Clear session storage of warnings
+    sessionStorage.removeItem("activityWarnings");
+
+    console.log("WBE: All activity warnings cleared and popup closed");
+
+    // Update any external clear button state
+    this.manageClearWarningsButton();
+  }
+
+  /**
+   * Highlights all items that have warnings
+   */
+  highlightAllWarnings() {
+    $("#warningsTableBody tr").each(function () {
+      const historyItems = $(this).data("historyItems") || [];
+      historyItems.forEach((item) => {
+        $(item).addClass("highlight");
+      });
+    });
+
+    // Scroll to first highlighted item
+    const firstHighlighted = $(".highlight").first();
+    if (firstHighlighted.length > 0) {
+      firstHighlighted[0].scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+
+  showRapidMergePopup(message, historyItemsToHighlight, userID) {
     // console.log("showRapidMergePopup called with message:", message);
 
     // Find the highest existing popup
@@ -1688,6 +2446,7 @@ class RangeringTool {
         ${message}
         <span class="close-popup">&times;</span>
         <button class="highlight-btn small">Highlight</button>
+        <button class="whitelist-btn small" data-userid="${userID}">Whitelist ${userID}</button>
       </div>
     `);
 
@@ -1710,12 +2469,37 @@ class RangeringTool {
     });
 
     // Highlight button logic
-    popup.find(".highlight-btn").on("click", function () {
+    popup.find(".highlight-btn").on("click", () => {
       historyItemsToHighlight.forEach((item) => {
         $(item).addClass("highlight");
         // Scroll to the highlighted item
         item.scrollIntoView({ behavior: "smooth", block: "center" });
       });
+
+      // Add or update the "Clear All Warnings" button
+      this.manageClearWarningsButton();
+    });
+
+    // Whitelist button logic
+    popup.find(".whitelist-btn").on("click", (event) => {
+      const clickedUserID = $(event.target).data("userid");
+      this.addToWhitelist(clickedUserID);
+      this.removeWarningsForUser(clickedUserID);
+
+      // Close this popup after whitelisting
+      popup.fadeOut(300, function () {
+        $(this).remove();
+
+        // Recalculate positions for remaining popups
+        let currentBottom = 10;
+        $(".rapid-merge-popup").each(function () {
+          $(this).css("bottom", `${currentBottom}px`);
+          currentBottom += 120;
+        });
+      });
+
+      // Show confirmation
+      this.showAnomaliesPopup(`${clickedUserID} has been whitelisted and will not trigger activity warnings.`);
     });
   }
 
@@ -1736,6 +2520,26 @@ class RangeringTool {
       </button>`
     ).appendTo(this.rangersButtons);
     anomaliesButton.on("click", () => this.checkForAnomalies());
+  }
+
+  addActivityButton() {
+    const activityButton = $(
+      `<button id='activityButton' class='button small' 
+      title='Check for rapid activity patterns (3+ merges within 5 minutes)'>
+      Check activity
+      </button>`
+    ).appendTo(this.rangersButtons);
+    activityButton.on("click", () => this.checkActivity());
+  }
+
+  addWhitelistButton() {
+    const whitelistButton = $(
+      `<button id='whitelistButton' class='button small' 
+      title='View and manage the activity whitelist' style="float: right;">
+      Manage Whitelist
+      </button>`
+    ).appendTo(this.rangersButtons);
+    whitelistButton.on("click", () => this.showWhitelistManager());
   }
 
   getCurrentConfig() {
@@ -1900,6 +2704,12 @@ class RangeringTool {
   }
 
   async fetchAndShowSingleBio(bioId) {
+    console.log(`Attempting to fetch bio for ID: ${bioId} (type: ${typeof bioId})`);
+    
+    // Convert to number if it's a numeric string, as WikiTree API might prefer numbers
+    const apiId = /^\d+$/.test(bioId) ? parseInt(bioId, 10) : bioId;
+    console.log(`Converted ID for API call: ${apiId} (type: ${typeof apiId})`);
+    
     // Show loading popup first
     $("main#main").prepend(
       `<div class="bioPopup" data-id="${bioId}">
@@ -1912,15 +2722,33 @@ class RangeringTool {
 
     try {
       // Fetch the single bio using WikiTreeAPI
+      console.log(`Making WikiTreeAPI call for ID: ${apiId}`);
       const peopleResponse = await WikiTreeAPI.getPeople(
         "Rangers",
-        [bioId],
+        [apiId],
         ["Id", "Name", "Bio", "BirthDate", "DeathDate", "Derived.ShortName", "Gender"],
         { bioFormat: "text" }
       );
+      
+      console.log(`WikiTreeAPI response for ${bioId}:`, peopleResponse);
+      
+      if (peopleResponse) {
+        console.log(`Response structure - [0]:`, peopleResponse[0]);
+        console.log(`Response structure - [1]:`, peopleResponse[1]);
+        console.log(`Response structure - [2]:`, peopleResponse[2]);
+        if (peopleResponse[2]) {
+          console.log(`Available profile IDs in response:`, Object.keys(peopleResponse[2]));
+        }
+      }
 
-      if (peopleResponse && peopleResponse[2] && peopleResponse[2][bioId]) {
-        const person = peopleResponse[2][bioId];
+      // Check for both the original bioId and the converted apiId
+      const responseKey = peopleResponse[2] && peopleResponse[2][bioId] ? bioId : 
+                         peopleResponse[2] && peopleResponse[2][apiId] ? apiId : null;
+      
+      if (peopleResponse && peopleResponse[2] && responseKey) {
+        const person = peopleResponse[2][responseKey];
+        console.log(`Found person data for ${responseKey}:`, person);
+        console.log(`Bio content length:`, person.bio ? person.bio.length : 'No bio');
 
         // Store the fetched profile
         if (!this.fetchedProfiles) {
@@ -2058,6 +2886,23 @@ class RangeringTool {
     theLinks.each((index, element) => {
       if ($(element).text().match(/\d{4}/)) {
         const profileID = decodeURIComponent($(element).attr("href").split("/").pop());
+        const feedItem = $(element).closest("span.feed-item");
+        const feedText = feedItem.text();
+
+        // Check if this is a merge activity
+        const isMerge = feedText.includes("merged") && feedText.includes("into");
+
+        // For merges, only add button for the target profile (after "into")
+        if (isMerge) {
+          const linkText = $(element).text();
+          const linkPosition = feedText.indexOf(linkText);
+          const intoPosition = feedText.indexOf(" into ");
+
+          // Skip if this is not the target profile (after "into")
+          if (intoPosition > 0 && linkPosition < intoPosition) {
+            return; // Skip source profile for merges
+          }
+        }
 
         // Find the bio with the same Name as the profileID
         const person = Object.values(this.people[2]).find(
@@ -2084,6 +2929,8 @@ class RangeringTool {
           // Prepend the button to the parent element
           const failedBioCheckClass = autoBioCheckResult === false ? " failedBioCheck" : "";
           const failedBioCheckTitle = autoBioCheckResult === false ? " Bio Check issues" : "";
+          const buttonLabel = person.ShortName || person.Name;
+
           if ($(element).siblings(`button.getBio[data-id="${person.Id}"]`).length === 0) {
             $(element)
               .parent()
@@ -2091,7 +2938,7 @@ class RangeringTool {
                 `<button class="getBio${failedBioCheckClass}" data-id="${String(
                   person.Id
                 )}" title="${failedBioCheckTitle}">
-                  ${person.ShortName || person.Name}
+                  ${buttonLabel}
                 </button>`
               );
           }
@@ -2158,6 +3005,10 @@ class RangeringTool {
       event.stopPropagation(); // Prevent the document click handler from firing
 
       const bioId = String($(event.currentTarget).data("id")); // Ensure bioId is a string
+      console.log(`Bio button clicked for ID: ${bioId}`);
+      console.log(`Button element:`, event.currentTarget);
+      console.log(`this.people structure:`, this.people);
+      
       const thisPopup = $(`.bioPopup[data-id="${bioId}"]`);
 
       // Hide all .bioPopup elements except the current one
@@ -2176,6 +3027,8 @@ class RangeringTool {
       }
 
       const bio = this.people[2][bioId]; // Access the bio using the string key
+      console.log(`Found bio for ${bioId}:`, bio);
+      
       if (bio && bio.bio) {
         const highlightedBio = this.highlightMarkup(bio.bio).replace(/\n/g, "<br>");
         $("main#main").prepend(
@@ -2186,6 +3039,7 @@ class RangeringTool {
         );
       } else {
         // Bio content not available, fetch it automatically
+        console.log(`Bio not found in cache for ${bioId}, fetching...`);
         this.fetchAndShowSingleBio(bioId);
       }
     });
@@ -2266,6 +3120,48 @@ class RangeringTool {
     });
   }
 
+  addFullCheckButton() {
+    const fullCheckButton = $(
+      `<button id="fullCheck" title="Complete rangering check: Get bios, check for anomalies, and check activity patterns" class="button small full-check-btn">🔍 Full Check</button>`
+    );
+    $(document).on("click", "#fullCheck", () => {
+      this.performFullCheck();
+    });
+    this.rangersButtons.append(fullCheckButton);
+  }
+
+  async performFullCheck() {
+    // Show initial status
+    this.showAnomaliesPopup("Starting full rangering check...");
+    
+    try {
+      // Step 1: Get bios
+      console.log("WBE: Full Check - Step 1: Getting bios...");
+      await this.getBios();
+      
+      // Small delay to ensure getBios completes
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Step 2: Check for anomalies
+      console.log("WBE: Full Check - Step 2: Checking for anomalies...");
+      await this.checkForAnomalies();
+      
+      // Small delay before next step
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Step 3: Check activity
+      console.log("WBE: Full Check - Step 3: Checking activity patterns...");
+      await this.checkActivity();
+      
+      // Final status
+      this.showAnomaliesPopup("Full rangering check completed! 🎯");
+      
+    } catch (error) {
+      console.error("WBE: Error during full check:", error);
+      this.showAnomaliesPopup("Full check encountered an error. Please try individual checks.");
+    }
+  }
+
   addGetBiosButton() {
     const getBiosButton = $(
       `<button id="getBios" title="Get the bios of all these profiles" class="button small">Get bios</button>`
@@ -2287,14 +3183,13 @@ class RangeringTool {
   }
 
   clearCache() {
-    // Clear all rangering-related cached data
+    // Clear rangering-related cached data but preserve "new people" highlighting data
     const keysToRemove = [
       this.fetchedProfilesStorageKey,
       this.bioCheckResultsStorageKey,
       this.mergesStorageKey,
       this.memberDataStorageKey,
-      "pre1700",
-      "pre1500Recent",
+      // Removed "pre1700" and "pre1500Recent" to preserve new people highlights
       "excludedNames",
       "warningsShown",
     ];
@@ -2314,11 +3209,7 @@ class RangeringTool {
     this.fetchedProfiles = null;
     this.excludedNames = [];
 
-    // Remove all applied highlighting CSS classes from the page
-    $(".newestPre1700s").removeClass("newestPre1700s");
-    $(".recentPre1500s").removeClass("recentPre1500s");
-
-    // Remove anomaly classes as well
+    // Remove anomaly classes but preserve "new people" highlighting
     $(".anomaly").removeClass("anomaly");
     $(".highlight").removeClass("highlight");
 
@@ -2328,13 +3219,9 @@ class RangeringTool {
 
     // Debug: Log what we cleared
     console.log("WBE: Cleared rangering data including:", keysToRemove);
-    console.log(
-      "WBE: Removed highlighting from",
-      $(".newestPre1700s").length + $(".recentPre1500s").length,
-      "elements"
-    );
+    console.log("WBE: Preserved 'new people' highlighting classes");
 
-    this.showAnomaliesPopup("Rangering data cleared!");
+    this.showAnomaliesPopup("Rangering data cleared! <br>(Preserved 'new people' highlights)");
   }
 
   addControlButtons() {
@@ -2359,9 +3246,14 @@ class RangeringTool {
     }
 
     // Add remaining buttons in consistent order for all pages
+    this.addFullCheckButton(); // Add the comprehensive button first
     this.addGetBiosButton();
     this.addAnomaliesButton();
-    this.addClearCacheButton(); // Add to the right
+    this.addActivityButton();
+    
+    // Add management buttons on the right
+    this.addWhitelistButton(); // Management button - right side
+    this.addClearCacheButton(); // Management button - right side
   }
 
   autoBioCheck(sourcesStr) {
