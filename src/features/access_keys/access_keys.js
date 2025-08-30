@@ -72,7 +72,7 @@ export function startSyntheticHotkeys(options) {
           ctrl: e.ctrlKey,
           meta: e.metaKey,
           target: e.target.tagName,
-          accessKeyElement: document.querySelector(`[accesskey="${e.key.toLowerCase()}"]`)
+          accessKeyElement: document.querySelector(`[accesskey="${e.key.toLowerCase()}"]`),
         });
       }
 
@@ -660,7 +660,7 @@ function setJumpNavAccessKeys(options, retryCount = 0) {
       // Only set browser access key if EnableBrowserAccessKeys is enabled and element doesn't already have one
       if (options.EnableBrowserAccessKeys && !aTags[i].accessKey) {
         aTags[i].accessKey = "" + currentAccessKey;
-        
+
         if (options.DebugAccessKeys) {
           console.debug(`[WBE AccessKeys] Set jump nav accesskey '${currentAccessKey}' on element:`, aTags[i]);
         }
@@ -964,11 +964,11 @@ function applyAccessKeysSimple(actions, prefixKey, options) {
 
   if (DEBUG) {
     console.debug(`[WBE AccessKeys] Applied ${applied}/${total} access keys`);
-    
+
     // Also log all elements that currently have access keys set
-    const elementsWithAccessKeys = document.querySelectorAll('[accesskey]');
+    const elementsWithAccessKeys = document.querySelectorAll("[accesskey]");
     console.debug(`[WBE AccessKeys] Total elements with accesskey attribute: ${elementsWithAccessKeys.length}`);
-    elementsWithAccessKeys.forEach(el => {
+    elementsWithAccessKeys.forEach((el) => {
       console.debug(`[WBE AccessKeys] Element with accesskey="${el.accessKey}":`, el);
     });
   }
