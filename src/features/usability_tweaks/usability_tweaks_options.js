@@ -25,7 +25,7 @@ const usabilityTweaks = {
           id: "removeDisablePreviewLinks",
           type: OptionType.CHECKBOX,
           label:
-            "Remove the 'turn off previews' link/buttons" +
+            "Remove the 'turn off previews' link/button" +
             " from the profile previews so that you don't accidentally click it and lose the profile previews.",
           defaultValue: false,
         },

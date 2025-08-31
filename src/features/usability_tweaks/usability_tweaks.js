@@ -266,7 +266,7 @@ function getUserIds() {
 
 function addRemoveMeButton() {
   const removeMeButton = $(
-    `<button id="removeMeButton" title="Double-click to remove yourself as manager of this profile" class="button small">❌</button>`
+    `<button id="removeMeButton" title="Double-click to remove yourself from the Trusted List of this profile" class="button small">❌</button>`
   );
   const ids = getUserIds();
   const thisUserWTID = ids.Name || getUserWtId();
