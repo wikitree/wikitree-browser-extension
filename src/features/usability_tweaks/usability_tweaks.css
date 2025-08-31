@@ -746,3 +746,7 @@ button.whitelist-btn {
 #clearCache {
   float: right;
 }
+
+body.rangering-tool ul.copy--buttons {
+  clear: both;
+}

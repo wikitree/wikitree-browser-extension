@@ -3354,5 +3354,6 @@ const rangers = [
 
 if (isNetworkFeed && rangers.includes(getUserWtId()) && window.location.href.match(/pre1700|pre1500|merge=1/)) {
   initBioCheck();
+  $("body").addClass("rangering-tool");
   rangeringTool = new RangeringTool();
 }
