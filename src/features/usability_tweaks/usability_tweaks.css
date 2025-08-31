@@ -591,3 +591,158 @@ button.whitelist-btn {
   font-size: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
+
+/* Whitelist Manager Popup Styles */
+#whitelistManagerPopup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  padding: 20px;
+  z-index: 10000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  max-width: 400px;
+  width: 90%;
+}
+
+#whitelistManagerPopup .popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+#whitelistManagerPopup .popup-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+#closeWhitelistManager {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #666;
+}
+
+#whitelistManagerPopup .popup-description {
+  margin-bottom: 15px;
+}
+
+#whitelistManagerPopup .popup-description p {
+  margin: 5px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+#whitelistManagerPopup .whitelist-container {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+#whitelistManagerPopup .whitelist-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px;
+  border-bottom: 1px solid #ddd;
+}
+
+#whitelistManagerPopup .whitelist-item span {
+  font-weight: bold;
+}
+
+.remove-whitelist-btn {
+  background-color: #d32f2f;
+  color: white;
+  border: none;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+#whitelistManagerPopup .add-user-section {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+#newWhitelistUser {
+  flex: 1;
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+}
+
+#whitelistManagerPopup .popup-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+#clearWhitelistBtn {
+  background-color: #f44336;
+  color: white;
+}
+
+#whitelistManagerBackdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+}
+
+/* Additional UI elements */
+#saveSearchFormButton {
+  float: right;
+  margin-left: 0.4em;
+}
+
+.nav-home-link {
+  text-decoration: none;
+}
+
+.whitelist-empty-message {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+}
+
+#restoreWarningsBtn {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10002;
+  background: #ff6b6b;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.warning-table-cell-center {
+  text-align: center;
+}
+
+#whitelistButton {
+  float: right;
+}
+
+.bio-section {
+  padding: 10px;
+}
+
+#clearCache {
+  float: right;
+}

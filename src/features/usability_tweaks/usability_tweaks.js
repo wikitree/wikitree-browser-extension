@@ -38,7 +38,7 @@ function addSaveSearchFormDataButton() {
     searchResultsP
       .find(".text-lg-end")
       .append(
-        `<button id="saveSearchFormButton" class="btn-secondary btn-sm btn" style="float:right; margin-left:0.4em;" title="Save the person details in this form to populate the fields of the Add Person edit form" class="button small">Save person details</button>`
+        `<button id="saveSearchFormButton" class="btn-secondary btn-sm btn button small" title="Save the person details in this form to populate the fields of the Add Person edit form">Save person details</button>`
       );
     $("#saveSearchFormButton").on("click", function () {
       const aPerson = {};
@@ -582,7 +582,7 @@ function addNavHomePageLink() {
   if (findButton) {
     const navHomePageLink = document.createElement("div");
     const link = "https://" + mainDomain + "/wiki/Special:Home";
-    navHomePageLink.innerHTML = '<a style="text-decoration: none" href="' + link + '">&#127968;</a>';
+    navHomePageLink.innerHTML = '<a class="nav-home-link" href="' + link + '">&#127968;</a>';
     navHomePageLink.classList = findButton.classList;
     navHomePageLink.style.fontSize = "125%";
     navHomePageLink.id = "navHomePageHouse";
@@ -1024,6 +1024,80 @@ class RangeringTool {
     $(".page--title h1").after(this.rangersButtons);
     this.init();
     this.excludedNames = [];
+
+    // Debug flag - can be enabled via localStorage or URL parameter
+    this.debugMode =
+      localStorage.getItem("rangeringToolDebug") === "true" ||
+      new URLSearchParams(window.location.search).get("rangeringDebug") === "true";
+  }
+
+  /**
+   * Debug logging method - only logs when debug mode is enabled
+   */
+  debug(...args) {
+    if (this.debugMode) {
+      console.log("RangeringTool:", ...args);
+    }
+  }
+
+  /**
+   * Shows a confirmation dialog using the standard WikiTree Browser Extension dialog pattern
+   * @param {string} message - The message to display
+   * @param {Function} onConfirm - Callback function to execute when confirmed
+   * @param {Function} onCancel - Optional callback function to execute when cancelled
+   */
+  showConfirmDialog(message, onConfirm, onCancel = null) {
+    const $dialog = $(
+      '<dialog id="confirmDialog">' +
+        '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Confirmation</div>' +
+        '<div class="dialog-content">' +
+        '<p style="margin: 20px 0; font-size: 16px; line-height: 1.4;">' +
+        message +
+        "</p>" +
+        '<div style="text-align: center; margin-top: 30px;">' +
+        '<button id="confirmYes" style="margin-right: 10px;">Yes</button>' +
+        '<button id="confirmNo">No</button>' +
+        "</div>" +
+        "</div>" +
+        "</dialog>"
+    )
+      .appendTo($(document.body).remove("#confirmDialog"))
+      .on("click", function (e) {
+        if (e.target === this) {
+          // Close and trigger cancel if backdrop is clicked
+          if (onCancel) onCancel();
+          this.close();
+        }
+      })
+      .on("close", function () {
+        $(this).remove();
+      });
+
+    // Handle close button
+    $dialog.find(".close").on("click", function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      if (onCancel) onCancel();
+      $dialog.get(0).close();
+    });
+
+    // Handle Yes button
+    $dialog.find("#confirmYes").on("click", function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      if (onConfirm) onConfirm();
+      $dialog.get(0).close();
+    });
+
+    // Handle No button
+    $dialog.find("#confirmNo").on("click", function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      if (onCancel) onCancel();
+      $dialog.get(0).close();
+    });
+
+    $dialog.get(0).showModal();
   }
 
   // Whitelist management methods
@@ -1037,7 +1111,7 @@ class RangeringTool {
     if (!whitelist.includes(userID)) {
       whitelist.push(userID);
       localStorage.setItem("rangeringActivityWhitelist", JSON.stringify(whitelist));
-      console.log(`WBE: Added ${userID} to activity whitelist`);
+      this.debug(`Added ${userID} to activity whitelist`);
     }
   }
 
@@ -1047,7 +1121,7 @@ class RangeringTool {
     if (index > -1) {
       whitelist.splice(index, 1);
       localStorage.setItem("rangeringActivityWhitelist", JSON.stringify(whitelist));
-      console.log(`WBE: Removed ${userID} from activity whitelist`);
+      this.debug(`Removed ${userID} from activity whitelist`);
     }
   }
 
@@ -1083,53 +1157,48 @@ class RangeringTool {
 
     let whitelistItems = "";
     if (whitelist.length === 0) {
-      whitelistItems = '<p style="text-align: center; color: #666; font-style: italic;">No users in whitelist</p>';
+      whitelistItems = '<p class="whitelist-empty-message">No users in whitelist</p>';
     } else {
       whitelistItems = whitelist
         .map(
           (userID) =>
-            `<div style="display: flex; align-items: center; justify-content: space-between; padding: 5px; border-bottom: 1px solid #ddd;">
-          <span style="font-weight: bold;">${userID}</span>
-          <button class="remove-whitelist-btn button small" data-userid="${userID}" style="background-color: #d32f2f; color: white; border: none; padding: 3px 8px; border-radius: 3px; cursor: pointer;">Remove</button>
+            `<div class="whitelist-item">
+          <span>${userID}</span>
+          <button class="remove-whitelist-btn button small" data-userid="${userID}">Remove</button>
         </div>`
         )
         .join("");
     }
 
     const popup = $(`
-      <div id="whitelistManagerPopup" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-           background: white; border: 2px solid #ccc; border-radius: 8px; padding: 20px; z-index: 10000; 
-           box-shadow: 0 4px 12px rgba(0,0,0,0.3); max-width: 400px; width: 90%;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-          <h3 style="margin: 0; color: #333;">Activity Whitelist Manager</h3>
-          <button id="closeWhitelistManager" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666;">&times;</button>
+      <div id="whitelistManagerPopup">
+        <div class="popup-header">
+          <h3>Activity Whitelist Manager</h3>
+          <button id="closeWhitelistManager">&times;</button>
         </div>
         
-        <div style="margin-bottom: 15px;">
-          <p style="margin: 5px 0; font-size: 14px; color: #666;">Whitelisted users will not trigger rapid activity warnings.</p>
+        <div class="popup-description">
+          <p>Whitelisted users will not trigger rapid activity warnings.</p>
         </div>
         
-        <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 15px;">
+        <div class="whitelist-container">
           ${whitelistItems}
         </div>
         
-        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-          <input type="text" id="newWhitelistUser" placeholder="Enter User ID (e.g., Smith-123)" 
-                 style="flex: 1; padding: 5px; border: 1px solid #ccc; border-radius: 3px;">
+        <div class="add-user-section">
+          <input type="text" id="newWhitelistUser" placeholder="Enter User ID (e.g., Smith-123)">
           <button id="addToWhitelistBtn" class="button small">Add</button>
         </div>
         
-        <div style="display: flex; gap: 10px; justify-content: flex-end;">
-          <button id="clearWhitelistBtn" class="button small" style="background-color: #f44336; color: white;">Clear All</button>
+        <div class="popup-footer">
+          <button id="clearWhitelistBtn" class="button small">Clear All</button>
           <button id="closeWhitelistManagerBtn" class="button small">Close</button>
         </div>
       </div>
     `);
 
     // Add backdrop
-    const backdrop = $(
-      '<div id="whitelistManagerBackdrop" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999;"></div>'
-    );
+    const backdrop = $('<div id="whitelistManagerBackdrop"></div>');
 
     $("body").append(backdrop).append(popup);
 
@@ -1170,22 +1239,22 @@ class RangeringTool {
     // Remove individual users
     popup.find(".remove-whitelist-btn").on("click", (e) => {
       const userID = $(e.target).data("userid");
-      if (confirm(`Remove ${userID} from whitelist?`)) {
+      this.showConfirmDialog(`Remove ${userID} from whitelist?`, () => {
         this.removeFromWhitelist(userID);
         popup.remove();
         backdrop.remove();
         this.showWhitelistManager(); // Refresh the display
-      }
+      });
     });
 
     // Clear all whitelist
     popup.find("#clearWhitelistBtn").on("click", () => {
-      if (confirm("Are you sure you want to clear the entire whitelist?")) {
+      this.showConfirmDialog("Are you sure you want to clear the entire whitelist?", () => {
         localStorage.removeItem("rangeringActivityWhitelist");
         popup.remove();
         backdrop.remove();
         this.showWhitelistManager(); // Refresh the display
-      }
+      });
     });
   }
 
@@ -1248,7 +1317,7 @@ class RangeringTool {
         // Process in batches if we have more than 1000 profiles
         for (let i = 0; i < newProfiles.length; i += maxBatchSize) {
           const batch = newProfiles.slice(i, i + maxBatchSize);
-          console.log(
+          self.debug(
             `Fetching member data batch ${Math.floor(i / maxBatchSize) + 1}/${Math.ceil(
               newProfiles.length / maxBatchSize
             )} (${batch.length} profiles)`
@@ -1319,7 +1388,7 @@ class RangeringTool {
       // Process in batches if we have more than 1000 profiles
       for (let i = 0; i < newWTIDs.length; i += maxBatchSize) {
         const batch = newWTIDs.slice(i, i + maxBatchSize);
-        console.log(
+        this.debug(
           `Fetching batch ${Math.floor(i / maxBatchSize) + 1}/${Math.ceil(newWTIDs.length / maxBatchSize)} (${
             batch.length
           } profiles)`
@@ -1450,56 +1519,10 @@ class RangeringTool {
   }
 
   /**
-   * Manual function to test the clear warnings button - can be called from console
-   */
-  testClearWarningsButton() {
-    console.log("WBE: Testing clear warnings button...");
-
-    // Create some fake highlights for testing
-    const feedItems = $("span.feed-item").slice(0, 3); // Get first 3 feed items
-    if (feedItems.length > 0) {
-      console.log(`WBE: Adding highlight class to ${feedItems.length} feed items for testing`);
-      feedItems.addClass("highlight");
-    } else {
-      // If no feed items, add highlight to any elements
-      console.log("WBE: No feed items found, highlighting some other elements for testing");
-      $("div").slice(0, 2).addClass("highlight");
-    }
-
-    // Force add the button for testing
-    const buttonId = "clearAllWarningsBtn";
-    const existingButton = $(`#${buttonId}`);
-
-    if (existingButton.length > 0) {
-      existingButton.remove();
-    }
-
-    const buttonHtml = `
-      <div id="${buttonId}" style="position: fixed; top: 50px; right: 20px; z-index: 99999; text-align: center; padding: 20px; background-color: #ff4444; color: white; border: 3px solid #fff; border-radius: 10px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); min-width: 250px; font-family: Arial, sans-serif;">
-        <div style="margin-bottom: 10px; font-size: 16px; font-weight: bold;">🚨 TEST BUTTON 🚨</div>
-        <button style="background-color: #fff; color: #ff4444; border: none; padding: 15px 25px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; width: 100%;">
-          🗑️ CLEAR ALL WARNINGS
-        </button>
-        <div style="margin-top: 10px; font-size: 12px;">Click to test clearing</div>
-      </div>
-    `;
-
-    $("body").append(buttonHtml);
-
-    $(`#${buttonId} button`).on("click", () => {
-      console.log("WBE: Test clear button clicked!");
-      this.clearAllWarnings();
-    });
-
-    console.log("WBE: Test button added! Created fake highlights and button.");
-    return "Test setup complete!";
-  }
-
-  /**
    * Clears all activity warning highlights
    */
   clearAllWarnings() {
-    console.log("WBE: clearAllWarnings() called");
+    this.debug("clearAllWarnings() called");
 
     // Look for all possible highlighted elements
     const allHighlightSelectors = [
@@ -1514,32 +1537,30 @@ class RangeringTool {
     allHighlightSelectors.forEach((selector) => {
       const elements = $(selector);
       if (elements.length > 0) {
-        console.log(`WBE: Found ${elements.length} elements with selector: ${selector}`);
+        this.debug(`Found ${elements.length} elements with selector: ${selector}`);
         elements.each(function () {
-          console.log("WBE: Clearing highlight from element:", this.tagName, this.className);
-          $(this).removeClass("highlight");
           totalCleared++;
         });
       }
     });
 
-    console.log(`WBE: Total highlights cleared: ${totalCleared}`);
+    this.debug(`Total highlights cleared: ${totalCleared}`);
 
     // Clear the warningsShown from sessionStorage
     sessionStorage.removeItem("warningsShown");
-    console.log("WBE: Cleared warningsShown from sessionStorage");
+    this.debug("Cleared warningsShown from sessionStorage");
 
     // Remove all rapid merge popups (old system)
     const popups = $(".rapid-merge-popup");
     if (popups.length > 0) {
-      console.log(`WBE: Removing ${popups.length} rapid merge popups`);
+      this.debug(`Removing ${popups.length} rapid merge popups`);
       popups.remove();
     }
 
     // Remove the activity warnings table (new system)
     const table = $("#activityWarningsTable");
     if (table.length > 0) {
-      console.log("WBE: Removing activity warnings table");
+      this.debug("Removing activity warnings table");
       table.remove();
     }
 
@@ -1547,9 +1568,9 @@ class RangeringTool {
     $("#clearAllWarningsBtn").remove(); // Show confirmation
     if (totalCleared > 0) {
       alert(`Cleared ${totalCleared} activity warnings!`);
-      console.log(`WBE: Successfully cleared ${totalCleared} activity warnings`);
+      this.debug(`Successfully cleared ${totalCleared} activity warnings`);
     } else {
-      console.log("WBE: No highlights found to clear");
+      this.debug("No highlights found to clear");
       alert("No activity warnings found to clear.");
     }
   }
@@ -1747,7 +1768,7 @@ class RangeringTool {
           text.includes("death date");
 
         if (isMerge || hasDateChange) {
-          console.log(`WBE: Processing edit - isMerge: ${isMerge}, hasDateChange: ${hasDateChange}, text: "${text}"`);
+          this.debug(`Processing edit - isMerge: ${isMerge}, hasDateChange: ${hasDateChange}, text: "${text}"`);
 
           const diffUrl = diffLink.attr("href");
           // Make sure it's an absolute URL
@@ -1760,8 +1781,8 @@ class RangeringTool {
               const birthDateChanges = self.parseDateFromDiff(diffDoc, "Birth Date");
               const deathDateChanges = self.parseDateFromDiff(diffDoc, "Death Date");
 
-              console.log(
-                `WBE: Date changes found - Birth: ${birthDateChanges.oldDate} → ${birthDateChanges.newDate}, Death: ${deathDateChanges.oldDate} → ${deathDateChanges.newDate}`
+              self.debug(
+                `Date changes found - Birth: ${birthDateChanges.oldDate} → ${birthDateChanges.newDate}, Death: ${deathDateChanges.oldDate} → ${deathDateChanges.newDate}`
               );
 
               let anomalyDetails = "";
@@ -1945,7 +1966,7 @@ class RangeringTool {
         800
       ); // 800ms smooth animation
 
-      console.log("WBE: Auto-scrolled to first highlighted element");
+      this.debug("Auto-scrolled to first highlighted element");
     }
   }
 
@@ -2167,7 +2188,7 @@ class RangeringTool {
    */
   minimizeWarningsTable() {
     $("#activityWarningsTable").hide();
-    console.log("WBE: Minimized warnings table");
+    this.debug("Minimized warnings table");
 
     // Show a small restore button
     this.showRestoreButton();
@@ -2181,7 +2202,7 @@ class RangeringTool {
     $("#restoreWarningsBtn").remove();
 
     const restoreHtml = `
-      <div id="restoreWarningsBtn" style="position: fixed; top: 20px; right: 20px; z-index: 10002; background: #ff6b6b; color: white; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);" title="Click to restore warnings table">
+      <div id="restoreWarningsBtn" title="Click to restore warnings table">
         🚨 <span id="restoreWarningsCount">0</span> warnings
       </div>
     `;
@@ -2204,7 +2225,7 @@ class RangeringTool {
   restoreWarningsTable() {
     $("#activityWarningsTable").show();
     $("#restoreWarningsBtn").remove();
-    console.log("WBE: Restored warnings table");
+    this.debug("Restored warnings table");
   }
 
   /**
@@ -2270,13 +2291,13 @@ class RangeringTool {
         <td>${userID}</td>
         <td class="user-name">${userName}</td>
         <td class="edit-count">${editCount}</td>
-        <td style="text-align: center;">
-          <button class="highlight-warning-btn" data-userid="${userID}" title="Highlight this user's items">�</button>
+        <td class="warning-table-cell-center">
+          <button class="highlight-warning-btn" data-userid="${userID}" title="Highlight this user's items">🔍</button>
         </td>
-        <td style="text-align: center;">
+        <td class="warning-table-cell-center">
           <button class="whitelist-warning-btn" data-userid="${userID}" title="Add to whitelist">Whitelist<br>${userID}</button>
         </td>
-        <td style="text-align: center;">
+        <td class="warning-table-cell-center">
           <button class="remove-warning-btn" data-userid="${userID}" title="Remove this warning">×</button>
         </td>
       </tr>
@@ -2338,11 +2359,11 @@ class RangeringTool {
    * Clears all activity warnings from the table and highlighted elements, then closes popup
    */
   clearAllActivityWarnings() {
-    console.log("WBE: clearAllActivityWarnings called");
+    this.debug("clearAllActivityWarnings called");
 
     // Remove all highlights
     const highlightedElements = $(".highlight");
-    console.log("WBE: Clearing", highlightedElements.length, "highlighted elements");
+    this.debug("Clearing", highlightedElements.length, "highlighted elements");
     highlightedElements.removeClass("highlight");
 
     // Remove the table and restore button
@@ -2352,7 +2373,7 @@ class RangeringTool {
     // Clear session storage of warnings
     sessionStorage.removeItem("activityWarnings");
 
-    console.log("WBE: All activity warnings cleared and popup closed");
+    this.debug("All activity warnings cleared and popup closed");
   }
 
   /**
@@ -2481,7 +2502,7 @@ class RangeringTool {
   addWhitelistButton() {
     const whitelistButton = $(
       `<button id='whitelistButton' class='button small' 
-      title='View and manage the activity whitelist' style="float: right;">
+      title='View and manage the activity whitelist'>
       Manage Whitelist
       </button>`
     ).appendTo(this.rangersButtons);
@@ -2506,15 +2527,15 @@ class RangeringTool {
 
     // Check if the list is already stored in localStorage
     const cached = localStorage.getItem(storageKey);
-    console.log(`WBE: getBadgeProfiles(${badgeType}) - cached data:`, !!cached);
+    this.debug(`getBadgeProfiles(${badgeType}) - cached data:`, !!cached);
 
     if (cached) {
       const cachedObject = JSON.parse(cached);
       // If the list is less than a day old, use it
       const isValidCache = new Date().getTime() - cachedObject.timestamp < 86400000;
       const hasProfiles = dateFilter ? cachedObject.profileIDs.length >= 0 : cachedObject.profileIDs.length > 0;
-      console.log(
-        `WBE: Cache valid: ${isValidCache}, has profiles: ${hasProfiles}, count: ${cachedObject.profileIDs.length}`
+      this.debug(
+        `Cache valid: ${isValidCache}, has profiles: ${hasProfiles}, count: ${cachedObject.profileIDs.length}`
       );
 
       if (isValidCache && hasProfiles) {
@@ -2606,7 +2627,7 @@ class RangeringTool {
   async markRecentPre1500People() {
     console.log("WBE: markRecentPre1500People() called");
     const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6); // 6 months as originally requested
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
     await this.markBadgeProfiles("pre1500", {
       storageKey: "pre1500Recent",
@@ -2660,7 +2681,7 @@ class RangeringTool {
     $("main#main").prepend(
       `<div class="bioPopup" data-id="${bioId}">
         <x class="closeBioPopup">&times;</x>
-        <div style="padding: 10px;">
+        <div class="bio-section">
           <p><strong>Loading bio...</strong></p>
         </div>
       </div>`
@@ -2733,7 +2754,7 @@ class RangeringTool {
           // No bio content available
           $(`.bioPopup[data-id="${bioId}"]`).html(
             `<x class="closeBioPopup">&times;</x>
-            <div style="padding: 10px;">
+            <div class="bio-section">
               <p><strong>No bio content available for this profile.</strong></p>
             </div>`
           );
@@ -2742,7 +2763,7 @@ class RangeringTool {
         // Failed to fetch or profile not found
         $(`.bioPopup[data-id="${bioId}"]`).html(
           `<x class="closeBioPopup">&times;</x>
-          <div style="padding: 10px;">
+          <div class="bio-section">
             <p><strong>Failed to load bio.</strong></p>
             <p>Profile may not exist or may be private.</p>
           </div>`
@@ -2752,7 +2773,7 @@ class RangeringTool {
       console.error(`Error fetching bio for ${bioId}:`, error);
       $(`.bioPopup[data-id="${bioId}"]`).html(
         `<x class="closeBioPopup">&times;</x>
-        <div style="padding: 10px;">
+        <div class="bio-section">
           <p><strong>Error loading bio.</strong></p>
           <p>Please try again later.</p>
         </div>`
@@ -3122,7 +3143,7 @@ class RangeringTool {
       await this.checkActivity();
 
       // Final status
-      this.showAnomaliesPopup("Full rangering check completed! 🎯");
+      this.showAnomaliesPopup("Full rangering check completed!");
     } catch (error) {
       console.error("WBE: Error during full check:", error);
       this.showAnomaliesPopup("Full check encountered an error. Please try individual checks.");
