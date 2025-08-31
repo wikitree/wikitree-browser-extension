@@ -103,7 +103,7 @@ const usabilityTweaks = {
         {
           id: "removeMeButton",
           type: OptionType.CHECKBOX,
-          label: "Add a button to profile pages to remove yourself as manager.",
+          label: "Add a button to profile pages to remove yourself from the Trusted List.",
           defaultValue: false,
         },
         {
