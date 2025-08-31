@@ -3213,6 +3213,12 @@ class RangeringTool {
   }
 
   addControlButtons() {
+    // Add remaining buttons in consistent order for all pages
+    this.addFullCheckButton(); // Add the comprehensive button first
+    this.addGetBiosButton();
+    this.addAnomaliesButton();
+    this.addActivityButton();
+
     // Add filter buttons in consistent order across all pages
     if (this.currentConfig.name === "Pre-1700") {
       const onlyNewestBadgesButton = $(
@@ -3232,12 +3238,6 @@ class RangeringTool {
       );
       this.rangersButtons.append(onlyNewtsButton);
     }
-
-    // Add remaining buttons in consistent order for all pages
-    this.addFullCheckButton(); // Add the comprehensive button first
-    this.addGetBiosButton();
-    this.addAnomaliesButton();
-    this.addActivityButton();
 
     // Add management buttons on the right
     this.addWhitelistButton(); // Management button - right side
