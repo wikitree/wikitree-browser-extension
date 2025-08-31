@@ -1076,9 +1076,6 @@ class RangeringTool {
         $(this).removeClass("highlight");
       }
     });
-
-    // Update the clear warnings button after removing highlights
-    this.manageClearWarningsButton();
   }
 
   showWhitelistManager() {
@@ -1245,10 +1242,32 @@ class RangeringTool {
       const existingProfiles = Object.keys(self.memberData);
       const newProfiles = memberProfileIDs.filter((id) => !existingProfiles.includes(id));
       if (newProfiles.length) {
-        // Fetch new data only for IDs not in sessionStorage
-        const people = await WikiTreeAPI.getPeople("Rangers", newProfiles, fields, { resolveRedirect: 0 });
-        // Merge new data with existing profiles
-        self.memberData = { ...self.memberData, ...people[2] };
+        // The WikiTree API has a maximum limit of 1000 profiles per request
+        const maxBatchSize = 1000;
+
+        // Process in batches if we have more than 1000 profiles
+        for (let i = 0; i < newProfiles.length; i += maxBatchSize) {
+          const batch = newProfiles.slice(i, i + maxBatchSize);
+          console.log(
+            `Fetching member data batch ${Math.floor(i / maxBatchSize) + 1}/${Math.ceil(
+              newProfiles.length / maxBatchSize
+            )} (${batch.length} profiles)`
+          );
+
+          try {
+            // Fetch new data only for IDs not in sessionStorage
+            const people = await WikiTreeAPI.getPeople("Rangers", batch, fields, { resolveRedirect: 0 });
+
+            // Merge new data with existing profiles
+            if (people && people[2]) {
+              self.memberData = { ...self.memberData, ...people[2] };
+            }
+          } catch (error) {
+            console.error(`Error fetching member data batch ${Math.floor(i / maxBatchSize) + 1}:`, error);
+            // Continue with next batch even if one fails
+          }
+        }
+
         // Store updated data in sessionStorage
         sessionStorage.setItem(self.memberDataStorageKey, JSON.stringify(self.memberData));
       }
@@ -1294,11 +1313,31 @@ class RangeringTool {
     }
 
     if (newWTIDs.length > 0) {
-      // Fetch new data only for IDs not in sessionStorage
-      const people = await WikiTreeAPI.getPeople("Rangers", newWTIDs, fields, { resolveRedirect: 0 });
+      // The WikiTree API has a maximum limit of 1000 profiles per request
+      const maxBatchSize = 1000;
 
-      // Merge new data with existing profiles
-      existingProfiles = { ...existingProfiles, ...people[2] };
+      // Process in batches if we have more than 1000 profiles
+      for (let i = 0; i < newWTIDs.length; i += maxBatchSize) {
+        const batch = newWTIDs.slice(i, i + maxBatchSize);
+        console.log(
+          `Fetching batch ${Math.floor(i / maxBatchSize) + 1}/${Math.ceil(newWTIDs.length / maxBatchSize)} (${
+            batch.length
+          } profiles)`
+        );
+
+        try {
+          // Fetch new data only for IDs not in sessionStorage
+          const people = await WikiTreeAPI.getPeople("Rangers", batch, fields, { resolveRedirect: 0 });
+
+          // Merge new data with existing profiles
+          if (people && people[2]) {
+            existingProfiles = { ...existingProfiles, ...people[2] };
+          }
+        } catch (error) {
+          console.error(`Error fetching batch ${Math.floor(i / maxBatchSize) + 1}:`, error);
+          // Continue with next batch even if one fails
+        }
+      }
 
       // Store updated data in sessionStorage
       sessionStorage.setItem(this.fetchedProfilesStorageKey, JSON.stringify(existingProfiles));
@@ -1389,7 +1428,6 @@ class RangeringTool {
     if (!this.isNotFirstPage()) {
       // console.log("Highlighting rapid activities"); // Debugging log
       const rapidActivityCount = await this.detectRapidActivities(userMergeTimes, warningsShown);
-      this.manageClearWarningsButton(); // Add the clear button if there are warnings
 
       // Show appropriate message based on whether rapid activities were found
       if (rapidActivityCount > 0) {
@@ -1409,92 +1447,6 @@ class RangeringTool {
 
     // Save warnings to sessionStorage
     sessionStorage.setItem("warningsShown", JSON.stringify(warningsShown));
-  }
-
-  /**
-   * Adds or removes the "Clear All Warnings" button based on whether there are highlighted warnings
-   */
-  manageClearWarningsButton() {
-    // Look for both .highlight and the warnings table
-    const highlightedItems = $(".highlight, span.feed-item.highlight");
-    const warningsTable = $("#activityWarningsTable");
-    const hasWarnings = highlightedItems.length > 0 || warningsTable.length > 0;
-
-    const buttonId = "clearAllWarningsBtn";
-    const existingButton = $(`#${buttonId}`);
-
-    // Enhanced debugging
-    console.log("WBE: Managing clear warnings button");
-    console.log("WBE: Found", highlightedItems.length, "highlighted items");
-    console.log("WBE: Warnings table exists:", warningsTable.length > 0);
-    console.log("WBE: Has warnings:", hasWarnings);
-    console.log("WBE: Existing button count:", existingButton.length);
-
-    // Show button only if there are highlighted items (not just the table)
-    const shouldShowButton = highlightedItems.length > 0;
-
-    if (shouldShowButton) {
-      // There are warnings, ensure button exists
-      if (existingButton.length === 0) {
-        // Create a more prominent button that's easier to see
-        const buttonHtml = `
-          <div id="${buttonId}" style="position: fixed; top: 100px; right: 20px; z-index: 10001; text-align: center; margin: 15px 0; padding: 15px; background-color: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); min-width: 200px;">
-            <div style="margin-bottom: 8px; font-size: 12px; color: #856404;">Highlighted Items</div>
-            <button class="button small" style="background-color: #f44336; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); font-size: 14px;">
-              🧹 Clear Highlights
-            </button>
-            <div style="margin-top: 8px; font-size: 11px; color: #856404;">${highlightedItems.length} item(s) highlighted</div>
-          </div>
-        `;
-
-        // Insert the button into the body so it's always visible
-        $("body").append(buttonHtml);
-
-        // Add click handler
-        $(`#${buttonId} button`).on("click", () => {
-          console.log("WBE: Clear Highlights button clicked!");
-          this.clearHighlights();
-        });
-
-        // Make it draggable so users can move it if it's in the way
-        if (typeof $(`#${buttonId}`).draggable === "function") {
-          $(`#${buttonId}`).draggable();
-        }
-
-        // Debug: log that button was added
-        console.log("WBE: Clear Highlights button added with", highlightedItems.length, "highlighted items");
-        console.log("WBE: Button element:", $(`#${buttonId}`)[0]);
-      } else {
-        // Update the count in existing button
-        $(`#${buttonId}`).find('div:contains("item(s)")').text(`${highlightedItems.length} item(s) highlighted`);
-      }
-    } else {
-      // No highlighted items, remove button if it exists
-      if (existingButton.length > 0) {
-        console.log("WBE: Removing Clear Highlights button");
-        existingButton.remove();
-      }
-    }
-  }
-
-  /**
-   * Clears only the highlights, not the warnings table
-   */
-  clearHighlights() {
-    console.log("WBE: clearHighlights() called");
-
-    // Remove all highlight classes from elements
-    const highlightedElements = $(".highlight");
-    console.log("WBE: Found", highlightedElements.length, "highlighted elements to clear");
-    highlightedElements.removeClass("highlight");
-
-    // Remove the clear highlights button since there are no more highlights
-    $("#clearAllWarningsBtn").remove();
-
-    console.log("WBE: All highlights cleared");
-
-    // Update the button state
-    this.manageClearWarningsButton();
   }
 
   /**
@@ -1600,9 +1552,6 @@ class RangeringTool {
       console.log("WBE: No highlights found to clear");
       alert("No activity warnings found to clear.");
     }
-
-    // Refresh the button state
-    this.manageClearWarningsButton();
   }
 
   /**
@@ -2404,9 +2353,6 @@ class RangeringTool {
     sessionStorage.removeItem("activityWarnings");
 
     console.log("WBE: All activity warnings cleared and popup closed");
-
-    // Update any external clear button state
-    this.manageClearWarningsButton();
   }
 
   /**
@@ -2478,9 +2424,6 @@ class RangeringTool {
         // Scroll to the highlighted item
         item.scrollIntoView({ behavior: "smooth", block: "center" });
       });
-
-      // Add or update the "Clear All Warnings" button
-      this.manageClearWarningsButton();
     });
 
     // Whitelist button logic
@@ -2843,35 +2786,53 @@ class RangeringTool {
     });
 
     if (bioLinks.length > 0) {
-      // Fetch the bios using the WikiTreeAPI
-      const peopleResponse = await WikiTreeAPI.getPeople(
-        "Rangers",
-        bioLinks,
-        ["Id", "Name", "Bio", "BirthDate", "DeathDate", "Derived.ShortName", "Gender"],
-        { bioFormat: "text" }
-      );
+      // The WikiTree API has a maximum limit of 1000 profiles per request
+      const maxBatchSize = 1000;
 
-      // Merge the newly fetched bios into fetchedProfiles
-      Object.assign(this.fetchedProfiles, peopleResponse[2]);
+      // Process in batches if we have more than 1000 profiles
+      for (let i = 0; i < bioLinks.length; i += maxBatchSize) {
+        const batch = bioLinks.slice(i, i + maxBatchSize);
+        console.log(
+          `Fetching bio batch ${Math.floor(i / maxBatchSize) + 1}/${Math.ceil(bioLinks.length / maxBatchSize)} (${
+            batch.length
+          } profiles)`
+        );
 
-      // Store the updated profiles in sessionStorage
+        try {
+          // Fetch the bios using the WikiTreeAPI
+          const peopleResponse = await WikiTreeAPI.getPeople(
+            "Rangers",
+            batch,
+            ["Id", "Name", "Bio", "BirthDate", "DeathDate", "Derived.ShortName", "Gender"],
+            { bioFormat: "text" }
+          );
+
+          // Merge the newly fetched bios into fetchedProfiles
+          if (peopleResponse && peopleResponse[2]) {
+            Object.assign(this.fetchedProfiles, peopleResponse[2]);
+
+            // Process new profiles and run autoBioCheck
+            Object.values(peopleResponse[2]).forEach((person) => {
+              if (person && person.bio) {
+                // Run autoBioCheck
+                const autoBioCheckResult = this.autoBioCheck(person.bio);
+                // Store the result
+                this.bioCheckResults[person.Id] = autoBioCheckResult;
+              }
+            });
+          }
+        } catch (error) {
+          console.error(`Error fetching bio batch ${Math.floor(i / maxBatchSize) + 1}:`, error);
+          // Continue with next batch even if one fails
+        }
+      }
+
+      // Store the updated profiles and bio check results in sessionStorage
       sessionStorage.setItem(this.fetchedProfilesStorageKey, JSON.stringify(this.fetchedProfiles));
+      sessionStorage.setItem(this.bioCheckResultsStorageKey, JSON.stringify(this.bioCheckResults));
 
       // Update the 'people' variable
       this.people = [null, null, this.fetchedProfiles];
-
-      // Process new profiles and run autoBioCheck
-      Object.values(peopleResponse[2]).forEach((person) => {
-        if (person && person.bio) {
-          // Run autoBioCheck
-          const autoBioCheckResult = this.autoBioCheck(person.bio);
-          // Store the result
-          this.bioCheckResults[person.Id] = autoBioCheckResult;
-        }
-      });
-
-      // Update the bioCheckResults in sessionStorage
-      sessionStorage.setItem(this.bioCheckResultsStorageKey, JSON.stringify(this.bioCheckResults));
     } else {
       // No new profiles to fetch
       if (!this.people) {
