@@ -3240,8 +3240,8 @@ class RangeringTool {
     }
 
     // Add management buttons on the right
-    this.addWhitelistButton(); // Management button - right side
     this.addClearCacheButton(); // Management button - right side
+    this.addWhitelistButton(); // Management button - right side
   }
 
   autoBioCheck(sourcesStr) {
