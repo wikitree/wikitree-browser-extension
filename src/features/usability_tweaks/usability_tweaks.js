@@ -2571,10 +2571,27 @@ class RangeringTool {
 
     // Add event handlers for the new row (scoped to the specific row)
     $newRow.find(".highlight-warning-btn").on("click", () => {
+      // Remove any existing highlights first so only one user's items are highlighted
+      try {
+        $(".highlight").removeClass("highlight");
+      } catch (e) {
+        /* ignore if jQuery not present */
+      }
+
+      // Add highlight to the selected history items
       historyItemsToHighlight.forEach((item) => {
         $(item).addClass("highlight");
-        item.scrollIntoView({ behavior: "smooth", block: "center" });
       });
+
+      // Scroll to the first highlighted item for context
+      if (historyItemsToHighlight && historyItemsToHighlight.length > 0) {
+        try {
+          const first = historyItemsToHighlight[0];
+          first.scrollIntoView({ behavior: "smooth", block: "center" });
+        } catch (e) {
+          /* ignore scroll errors */
+        }
+      }
     });
 
     $newRow.find(".whitelist-warning-btn").on("click", () => {
