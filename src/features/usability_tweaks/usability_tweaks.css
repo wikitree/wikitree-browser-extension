@@ -61,7 +61,7 @@ a.recentPre1500s {
   cursor: pointer;
 }
 #rangersButtons button:hover {
-  background-color: #f0f0f0;
+  background: linear-gradient(135deg, #fcb815 0%, #fad158 100%);
 }
 #rangersButtons button:active {
   background-color: #e6e6e6;
@@ -410,6 +410,7 @@ button.whitelist-btn {
   justify-content: space-between;
   gap: 12px;
   border-radius: 6px 6px 0 0;
+  cursor: move;
 }
 
 #activityWarningsTable .table-content {

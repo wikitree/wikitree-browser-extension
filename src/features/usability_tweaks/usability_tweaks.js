@@ -741,9 +741,14 @@ function addAccessedCountToProfileData() {
   const accessedCountText = $("#subfooter i:contains('This page has been accessed')").text();
   const accessedCount = accessedCountText.match(/This page has been accessed ([\d,]+) times/);
   if (accessedCount) {
-  // Use the matched string directly, commas included
-  const countStr = accessedCount[1].replace(/,/g, ''); // Remove commas for numerical operations
-  $("#Profile-Data").append(`<div class="profile-data-item wbe">Accessed <strong>${parseInt(countStr, 10).toLocaleString()}</strong> times.</div>`);
+    // Use the matched string directly, commas included
+    const countStr = accessedCount[1].replace(/,/g, ""); // Remove commas for numerical operations
+    $("#Profile-Data").append(
+      `<div class="profile-data-item wbe">Accessed <strong>${parseInt(
+        countStr,
+        10
+      ).toLocaleString()}</strong> times.</div>`
+    );
   }
 }
 
@@ -1597,7 +1602,7 @@ class RangeringTool {
 
     const historyItems = $("span.feed-item").not(".HISTORY-HIDDEN"); // Exclude HISTORY-HIDDEN
     const userMergeTimes = {}; // Track timestamps of merges by each user
-  const warningsShown = force ? {} : JSON.parse(sessionStorage.getItem("warningsShown")) || {}; // Track shown warnings
+    const warningsShown = force ? {} : JSON.parse(sessionStorage.getItem("warningsShown")) || {}; // Track shown warnings
 
     // Step 1: Extract activity data and user timestamps
     const activityData = this.extractActivityData(historyItems, userMergeTimes);
@@ -2345,7 +2350,7 @@ class RangeringTool {
         handle: ".table-header", // Only the header is draggable
       });
 
-  // Keep footer action buttons in the footer (do not move them to the header)
+      // Keep footer action buttons in the footer (do not move them to the header)
 
       // X button - minimizes/hides the table
       $("#minimizeWarningsTable").on("click", () => {
@@ -3501,9 +3506,15 @@ class RangeringTool {
   }
 
   addFullCheckButton() {
-    const fullCheckButton = $(
-      `<button id="fullCheck" title="Complete rangering check: Get bios, check for anomalies, and check activity patterns" class="button small full-check-btn">🔍 Full Check</button>`
-    );
+    // Choose wording depending on page type: Merges -> "new members", otherwise -> "newly-badged people"
+    const isMerges = this.currentConfig && this.currentConfig.name === "Merges";
+    const highlightText = isMerges ? "highlight new members" : "highlight newly-badged people";
+    const titleText = `Complete rangering check: Get bios, check for anomalies, check activity patterns, and ${highlightText}`;
+
+    const fullCheckButton = $(`<button id="fullCheck" class="button small full-check-btn">🔍 Full Check</button>`);
+    // Set the title separately to avoid templating/escaping issues inside the HTML string
+    fullCheckButton.attr("title", titleText);
+
     $(document).on("click", "#fullCheck", () => {
       this.performFullCheck();
     });
@@ -3555,9 +3566,9 @@ class RangeringTool {
       // Small delay before next step
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-  // Step 4: Check activity
+      // Step 4: Check activity
       console.log("WBE: Full Check - Step 4: Checking activity patterns...");
-  await this.checkActivity(false); // Don't scroll when called from Full Check
+      await this.checkActivity(false); // Don't scroll when called from Full Check
       // Disable activity button
       try {
         const actb = $("#activityButton");
