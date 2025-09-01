@@ -185,6 +185,21 @@ x.closeBioPopup {
   color: #f0f0eb;
 }
 
+/* Restore button when placed in the rangers button bar */
+#rangersButtons #restoreWarningsBtn {
+  margin-left: 0.5em;
+  background: linear-gradient(135deg, #ff9b9b 0%, #ff6b6b 100%);
+  color: white;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+#rangersButtons #restoreWarningsBtn:hover {
+  filter: brightness(0.95);
+}
+
 .feed-item.anomaly {
   background-color: #fff2e6;
   border: 1px solid #ff6600;
@@ -622,18 +637,17 @@ button.whitelist-btn {
 
 /* Restore button for minimized table */
 #restoreWarningsBtn {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 9999;
-  background: #007bff;
+  /* Designed to live inside the activity warnings header .header-buttons
+     Use inline-block/flex-friendly styles so it can be placed in the button list
+     and pushed to the right with `margin-left: auto` on the container. */
+  display: inline-block;
+  background: linear-gradient(135deg, #ff8a8a 0%, #ff6b6b 100%);
   color: white;
-  border: none;
-  padding: 8px 12px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  vertical-align: middle;
 }
 
 /* Whitelist Manager Popup Styles */
@@ -761,18 +775,11 @@ button.whitelist-btn {
   font-style: italic;
 }
 
-#restoreWarningsBtn {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 10002;
-  background: #ff6b6b;
-  color: white;
-  padding: 8px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+/* When placed inside the activity warnings header button group, push the
+   restore button to the far right. The header-buttons container is flex, so
+   margin-left:auto will act like a float-right. */
+#activityWarningsContainer .header-buttons #restoreWarningsBtn {
+  margin-left: auto;
 }
 
 .warning-table-cell-center {

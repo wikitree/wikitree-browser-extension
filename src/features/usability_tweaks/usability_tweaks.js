@@ -2307,8 +2307,10 @@ class RangeringTool {
       const tableHtml = `
         <div id="activityWarningsTable">
           <div class="table-header">
-            🚨 Activity Warnings (<span id="warningsCount">0</span>)
-            <button id="minimizeWarningsTable" title="Minimize/Hide Table">&times;</button>
+            <h3>🚨 Activity Warnings (<span id="warningsCount">0</span>)</h3>
+            <div class="header-buttons">
+              <button id="minimizeWarningsTable" title="Minimize/Hide Table">&times;</button>
+            </div>
           </div>
           <div class="table-content">
             <table id="warningsTable">
@@ -2339,6 +2341,10 @@ class RangeringTool {
       $("#activityWarningsTable").draggable({
         handle: ".table-header", // Only the header is draggable
       });
+
+      // Move footer action buttons into the header button area for consistent styling
+      const $headerButtons = $("#activityWarningsTable .header-buttons");
+      $("#clearAllWarningsBtn, #highlightAllBtn").appendTo($headerButtons);
 
       // X button - minimizes/hides the table
       $("#minimizeWarningsTable").on("click", () => {
@@ -2378,12 +2384,23 @@ class RangeringTool {
     $("#restoreWarningsBtn").remove();
 
     const restoreHtml = `
-      <div id="restoreWarningsBtn" title="Click to restore warnings table">
+      <button id="restoreWarningsBtn" title="Click to restore warnings table">
         🚨 <span id="restoreWarningsCount">0</span> warnings
-      </div>
+      </button>
     `;
 
-    $("body").append(restoreHtml);
+    // Preferred: place the restore button in the top rangers button bar so it
+    // appears with other controls. Fall back to activity header, then body.
+    const $rangersButtons = $("#rangersButtons");
+    const $headerButtons = $("#activityWarningsTable .header-buttons");
+    if ($rangersButtons.length > 0) {
+      $rangersButtons.append(restoreHtml);
+    } else if ($headerButtons.length > 0) {
+      $headerButtons.append(restoreHtml);
+    } else {
+      // Fallback: append to body so user can still restore
+      $("body").append(restoreHtml);
+    }
 
     // Update the count
     const count = $("#warningsTableBody tr").length;
