@@ -1591,7 +1591,7 @@ class RangeringTool {
     // console.log("Activity data:", activityData); // Debugging log
   }
 
-  async checkActivity() {
+  async checkActivity(shouldScroll = true) {
     //console.log("checkActivity called"); // Debugging log
     await this.loadExcludedNames();
 
@@ -1611,10 +1611,12 @@ class RangeringTool {
       if (rapidActivityCount > 0) {
         this.showAnomaliesPopup(`Activity check completed! ${rapidActivityCount} rapid activity warning(s) found.`);
 
-        // Auto-scroll to first highlighted element
-        setTimeout(() => {
-          this.autoScrollToFirstHighlight();
-        }, 100);
+        // Auto-scroll to first highlighted element (only when allowed)
+        if (shouldScroll) {
+          setTimeout(() => {
+            this.autoScrollToFirstHighlight();
+          }, 100);
+        }
       } else {
         this.showAnomaliesPopup("Activity check completed! No rapid activity found.");
       }
@@ -2275,7 +2277,7 @@ class RangeringTool {
     }
 
     // New popups should be short-lived; appended messages extend timeout.
-    const timeoutMs = existed ? 8000 : 3000;
+    const timeoutMs = existed ? 3000 : 2000;
     try {
       console.debug("WBE: showAnomaliesPopup - existed=", existed, "timeoutMs=", timeoutMs);
     } catch (e) {}
@@ -3520,9 +3522,9 @@ class RangeringTool {
       // Small delay before next step
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      // Step 4: Check activity
+  // Step 4: Check activity
       console.log("WBE: Full Check - Step 4: Checking activity patterns...");
-      await this.checkActivity();
+  await this.checkActivity(false); // Don't scroll when called from Full Check
       // Disable activity button
       try {
         const actb = $("#activityButton");
