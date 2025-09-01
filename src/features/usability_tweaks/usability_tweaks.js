@@ -2385,7 +2385,7 @@ class RangeringTool {
 
     const restoreHtml = `
       <button id="restoreWarningsBtn" title="Click to restore warnings table">
-        🚨 <span id="restoreWarningsCount">0</span> warnings
+        🚨 <span id="restoreWarningsCount">0</span> activity warnings
       </button>
     `;
 
