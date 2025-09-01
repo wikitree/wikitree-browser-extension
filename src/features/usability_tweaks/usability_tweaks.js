@@ -1764,7 +1764,7 @@ class RangeringTool {
       this.excludedNames = await this.fetchExcludedNames();
 
       // Add all from trusted array to excludedNames (it's global)
-      this.excludedNames.push(...trustedNames);
+      this.excludedNames.push(...trusted);
 
       // Store in sessionStorage
       sessionStorage.setItem("excludedNames", JSON.stringify(this.excludedNames));
