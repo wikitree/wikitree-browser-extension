@@ -741,9 +741,9 @@ function addAccessedCountToProfileData() {
   const accessedCountText = $("#subfooter i:contains('This page has been accessed')").text();
   const accessedCount = accessedCountText.match(/This page has been accessed ([\d,]+) times/);
   if (accessedCount) {
-    // Use the matched string directly, commas included
-    const countStr = accessedCount[1];
-    $("#Profile-Data").append(`<div class="profile-data-item wbe">Accessed <strong>${countStr}</strong> times.</div>`);
+  // Use the matched string directly, commas included
+  const countStr = accessedCount[1].replace(/,/g, ''); // Remove commas for numerical operations
+  $("#Profile-Data").append(`<div class="profile-data-item wbe">Accessed <strong>${parseInt(countStr, 10).toLocaleString()}</strong> times.</div>`);
   }
 }
 
@@ -1591,13 +1591,13 @@ class RangeringTool {
     // console.log("Activity data:", activityData); // Debugging log
   }
 
-  async checkActivity(shouldScroll = true) {
+  async checkActivity(shouldScroll = true, force = false) {
     //console.log("checkActivity called"); // Debugging log
     await this.loadExcludedNames();
 
     const historyItems = $("span.feed-item").not(".HISTORY-HIDDEN"); // Exclude HISTORY-HIDDEN
     const userMergeTimes = {}; // Track timestamps of merges by each user
-    const warningsShown = JSON.parse(sessionStorage.getItem("warningsShown")) || {}; // Track shown warnings
+  const warningsShown = force ? {} : JSON.parse(sessionStorage.getItem("warningsShown")) || {}; // Track shown warnings
 
     // Step 1: Extract activity data and user timestamps
     const activityData = this.extractActivityData(historyItems, userMergeTimes);
@@ -1609,7 +1609,8 @@ class RangeringTool {
 
       // Show appropriate message based on whether rapid activities were found
       if (rapidActivityCount > 0) {
-        this.showAnomaliesPopup(`Activity check completed! ${rapidActivityCount} rapid activity warning(s) found.`);
+        // Put the summary sentence on its own line
+        this.showAnomaliesPopup(`Activity check completed!<br>${rapidActivityCount} rapid activity warning(s) found.`);
 
         // Auto-scroll to first highlighted element (only when allowed)
         if (shouldScroll) {
@@ -1618,7 +1619,7 @@ class RangeringTool {
           }, 100);
         }
       } else {
-        this.showAnomaliesPopup("Activity check completed! No rapid activity found.");
+        this.showAnomaliesPopup("Activity check completed!<br>No rapid activity found.");
       }
     } else {
       //console.log("Skipping rapid activity highlighting (not on the first page)"); // Debugging log
@@ -2344,9 +2345,7 @@ class RangeringTool {
         handle: ".table-header", // Only the header is draggable
       });
 
-      // Move footer action buttons into the header button area for consistent styling
-      const $headerButtons = $("#activityWarningsTable .header-buttons");
-      $("#clearAllWarningsBtn, #highlightAllBtn").appendTo($headerButtons);
+  // Keep footer action buttons in the footer (do not move them to the header)
 
       // X button - minimizes/hides the table
       $("#minimizeWarningsTable").on("click", () => {
@@ -2519,6 +2518,15 @@ class RangeringTool {
     // Extract user name and edit count
     const userName = this.extractUserNameFromHistoryItems(historyItemsToHighlight);
     const editCount = this.extractEditCount(message);
+
+    // Make sure the table is visible when adding a warning and remove restore button
+    try {
+      const $table = $("#activityWarningsTable");
+      if ($table && $table.length > 0) {
+        $table.show();
+      }
+      $("#restoreWarningsBtn").remove();
+    } catch (e) {}
 
     // If a sequenceKey was provided, use it to allow multiple rows per user.
     let existingRow = null;
@@ -2817,7 +2825,15 @@ class RangeringTool {
     ).appendTo(this.rangersButtons);
     activityButton.on("click", async () => {
       try {
-        await this.checkActivity();
+        // Force a fresh check: clear stored warningsShown cache so we always recompute
+        sessionStorage.removeItem("warningsShown");
+
+        // Ensure the activity warnings table is present and visible
+        this.showActivityWarningsTable();
+        $("#activityWarningsTable").show();
+        $("#restoreWarningsBtn").remove();
+
+        await this.checkActivity(true, true); // shouldScroll=true, force=true
         const btn = $("#activityButton");
         btn.prop("disabled", true).addClass("disabled").text("Checked activity");
       } catch (err) {
