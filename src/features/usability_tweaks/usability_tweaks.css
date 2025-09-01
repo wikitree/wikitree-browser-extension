@@ -211,19 +211,36 @@ x.closeBioPopup {
 
 /* Ranger styles */
 /* For "No anomalies found" popup */
-.anomalies-popup {
+.anomalies-container {
   position: fixed;
-  top: 50%;
+  top: 62%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  z-index: 10000;
+  pointer-events: none; /* let clicks through unless popup overrides */
+  width: auto;
+  max-width: 90%;
+}
+
+.anomalies-popup {
+  position: relative;
+  transform: none;
+  background-color: rgba(0, 0, 0, 0.85);
   color: white;
-  padding: 20px;
+  padding: 12px 16px;
   border-radius: 10px;
-  z-index: 1000;
+  z-index: 10001;
   text-align: center;
-  font-size: 1.2em;
-  animation: fade-in 0.5s ease-in-out, fade-out 5s ease-in-out forwards;
+  font-size: 1.05em;
+  /* Only fade in via CSS; fade-out is controlled by JS so it can be extended */
+  animation: fade-in 0.25s ease-in-out;
+  pointer-events: auto; /* so users can interact with popups if needed */
+  max-width: 420px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
 
 @keyframes fade-in {
@@ -242,21 +259,48 @@ x.closeBioPopup {
   }
 }
 
+.anomalies-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.anomalies-line {
+  font-size: 0.95em;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  max-width: 380px;
+  word-break: break-word;
+}
+
 /* For rapid merge warning popups */
-.rapid-merge-popup {
+.rapid-merge-container {
   position: fixed;
   left: 10px;
-  height: 5.5em;
+  bottom: 10px;
+  display: flex;
+  flex-direction: column-reverse; /* newest on bottom */
+  gap: 10px;
+  z-index: 10000;
+  pointer-events: none;
+}
+
+.rapid-merge-popup {
+  position: relative;
+  left: 0;
+  height: auto;
+  min-height: 3.5em;
   background-color: #f8d7da;
   color: #000;
   font-weight: bold;
-  padding: 15px;
+  padding: 12px 14px;
   border-radius: 5px;
   border: 1px solid red;
-  z-index: 1000;
+  z-index: 10001;
   font-size: 14px;
-  width: 30em;
+  width: 28em;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  pointer-events: auto;
 }
 .rapid-merge-popup .close-popup {
   margin-left: 15px;
@@ -743,10 +787,104 @@ button.whitelist-btn {
   padding: 10px;
 }
 
-#clearCache {
+#clearCache,
+#onlyNewts,
+#onlyNewestBadges {
   float: right;
 }
 
 body.rangering-tool ul.copy--buttons {
   clear: both;
+}
+
+/* Shaky tree loader (small, ~100x100) */
+.wbe-shaky-tree {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 120px;
+  z-index: 10050;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none; /* don't block clicks */
+}
+.wbe-shaky-tree .wbe-shaky-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* Do not apply CSS animation — the image is an animated GIF */
+  animation: none;
+  display: block;
+}
+.wbe-shaky-tree .wbe-shaky-messages {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.wbe-shaky-tree .wbe-shaky-label {
+  background: rgba(37, 66, 45, 0.95);
+  color: #fff;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes wbe-shake {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-4px) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-3px) rotate(2deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+/* Centered variant for larger fetch operations */
+.wbe-shaky-tree.center {
+  left: 50% !important;
+  top: 38% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translate(-50%, -50%);
+  width: 160px;
+  z-index: 10060;
+  /* circular image area at top; messages below */
+  background: rgba(255, 255, 255, 0.95);
+  padding: 12px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+.wbe-shaky-tree.center .wbe-shaky-image {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+  background: transparent;
+}
+.wbe-shaky-tree.center .wbe-shaky-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }

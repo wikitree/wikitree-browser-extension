@@ -1024,11 +1024,94 @@ class RangeringTool {
     $(".page--title h1").after(this.rangersButtons);
     this.init();
     this.excludedNames = [];
+    this.shakyTree = chrome.runtime.getURL("images/tree.gif");
 
     // Debug flag - can be enabled via localStorage or URL parameter
     this.debugMode =
       localStorage.getItem("rangeringToolDebug") === "true" ||
       new URLSearchParams(window.location.search).get("rangeringDebug") === "true";
+
+    // Highlight new members / newly-badged people logic
+    $(document).on("click", "#highlightNewMembersButton", async (event) => {
+      let targetClasses = "";
+      if (this.currentConfig.name === "Pre-1700") {
+        targetClasses = "a.newestPre1700s";
+      } else if (this.currentConfig.name === "Pre-1500") {
+        targetClasses = "a.recentPre1500s";
+      } else if (this.currentConfig.name === "Merges") {
+        targetClasses = "a.newt";
+        if (Object.keys(this.memberData).length == 0) {
+          await this.getMemberCreatedDates();
+        }
+      }
+      const allItems = $("span.feed-item:not(.HISTORY-HIDDEN)");
+      // Add highlight class to matching rows, do NOT remove existing highlights
+      allItems.each(function () {
+        if ($(this).find(targetClasses).length > 0) {
+          $(this).addClass("highlight-new-member");
+        }
+      });
+      // Disable the button after applying highlights to avoid accidental removal
+      const btn = $(event.currentTarget);
+      btn.prop("disabled", true).addClass("disabled");
+      if (this.currentConfig.name === "Pre-1700" || this.currentConfig.name === "Pre-1500") {
+        btn.text("Highlighted newly-badged people");
+      } else if (this.currentConfig.name === "Merges") {
+        btn.text("Highlighted new members");
+      }
+    });
+  }
+
+  /**
+   * Show the small shaky-tree loader (defaults to centered round).
+   * Multiple calls are idempotent; callers should call hideShaky() when done.
+   */
+  showShaky(label = "Loading...", position = "center") {
+    // Create the element once and then show/hide it via jQuery animations
+    let $existing = $("#wbeShakyTree");
+    const treeUrl = this.shakyTree || chrome.runtime.getURL("images/tree.png");
+    if ($existing.length === 0) {
+      const html = `
+      <div id="wbeShakyTree" class="wbe-shaky-tree" style="display:none">
+        <div class="wbe-shaky-image"><img src="${treeUrl}" alt="loading" /></div>
+        <div class="wbe-shaky-messages">
+          <div class="wbe-shaky-label">${label}</div>
+        </div>
+      </div>
+      `;
+      $(document.body).append(html);
+      $existing = $("#wbeShakyTree");
+    } else {
+      // Append a new message for subsequent calls so messages stack
+      const $msgs = $existing.find(".wbe-shaky-messages");
+      const $new = $(`<div class="wbe-shaky-label">${label}</div>`);
+      $msgs.append($new);
+      // Limit messages to last 6 entries
+      const children = $msgs.children(".wbe-shaky-label");
+      if (children.length > 6) {
+        children.first().remove();
+      }
+    }
+    // Toggle center class if requested
+    if (position === "center") {
+      $existing.addClass("center");
+    } else {
+      $existing.removeClass("center");
+    }
+    $existing.stop(true, true).fadeIn(180);
+  }
+
+  /**
+   * Hide and remove the shaky-tree loader.
+   */
+  hideShaky() {
+    // Fade out rather than removing so subsequent calls can reuse the element
+    const $el = $("#wbeShakyTree");
+    if ($el.length) {
+      $el.stop(true, true).fadeOut(150, function () {
+        $(this).removeClass("center");
+      });
+    }
   }
 
   /**
@@ -1278,10 +1361,12 @@ class RangeringTool {
     if (storedMerges && this.currentConfig.name === "Merges") {
       this.mergesData = JSON.parse(storedMerges);
       this.checkForAnomalies();
-      if (storedMemberData) {
-        this.memberData = JSON.parse(storedMemberData);
-        this.getMemberCreatedDates();
-      }
+    }
+
+    // Load member data independently if we're on the Merges page
+    if (this.currentConfig.name === "Merges" && storedMemberData) {
+      this.memberData = JSON.parse(storedMemberData);
+      this.getMemberCreatedDates();
     }
   }
 
@@ -1297,6 +1382,10 @@ class RangeringTool {
     const historyItems = $("span.feed-item");
     const memberProfileIDs = [];
     const self = this;
+    // Ensure memberData is an object to avoid TypeErrors when using Object.keys/Object.values
+    if (!self.memberData || typeof self.memberData !== "object") {
+      self.memberData = {};
+    }
     // Get ID from first /wiki/ link in each HISTORY-ITEM span
     historyItems.each(function () {
       const link = $(this).find("a[href*='/wiki/']").first();
@@ -1325,6 +1414,12 @@ class RangeringTool {
 
           try {
             // Fetch new data only for IDs not in sessionStorage
+            this.showShaky(
+              `Fetching member data ${Math.floor(i / maxBatchSize) + 1}/${Math.ceil(
+                newProfiles.length / maxBatchSize
+              )}`,
+              "center"
+            );
             const people = await WikiTreeAPI.getPeople("Rangers", batch, fields, { resolveRedirect: 0 });
 
             // Merge new data with existing profiles
@@ -1334,6 +1429,8 @@ class RangeringTool {
           } catch (error) {
             console.error(`Error fetching member data batch ${Math.floor(i / maxBatchSize) + 1}:`, error);
             // Continue with next batch even if one fails
+          } finally {
+            this.hideShaky();
           }
         }
 
@@ -1341,7 +1438,12 @@ class RangeringTool {
         sessionStorage.setItem(self.memberDataStorageKey, JSON.stringify(self.memberData));
       }
     } else {
-      self.memberData = await this.getThePeople(memberProfileIDs, fields);
+      try {
+        this.showShaky("Fetching member profiles...", "center");
+        self.memberData = await this.getThePeople(memberProfileIDs, fields);
+      } finally {
+        this.hideShaky();
+      }
     }
     // store the memberData in sessionStorage
     sessionStorage.setItem(this.memberDataStorageKey, JSON.stringify(self.memberData));
@@ -1395,6 +1497,11 @@ class RangeringTool {
         );
 
         try {
+          // Show a centered loader for longer fetches
+          this.showShaky(
+            `Fetching profiles ${Math.floor(i / maxBatchSize) + 1}/${Math.ceil(newWTIDs.length / maxBatchSize)}`,
+            "center"
+          );
           // Fetch new data only for IDs not in sessionStorage
           const people = await WikiTreeAPI.getPeople("Rangers", batch, fields, { resolveRedirect: 0 });
 
@@ -1405,6 +1512,8 @@ class RangeringTool {
         } catch (error) {
           console.error(`Error fetching batch ${Math.floor(i / maxBatchSize) + 1}:`, error);
           // Continue with next batch even if one fails
+        } finally {
+          this.hideShaky();
         }
       }
 
@@ -1439,7 +1548,7 @@ class RangeringTool {
     //("Excluded Names (from sessionStorage or fetched):", this.excludedNames);
   }
 
-  async checkForAnomalies() {
+  async checkForAnomalies(shouldScroll = true) {
     //console.log("checkForAnomalies called"); // Debugging log
     await this.loadExcludedNames();
 
@@ -1471,8 +1580,8 @@ class RangeringTool {
     // Step 6: Display anomaly results
     this.displayAnomalyResults(anomalyCount);
 
-    // Step 7: Auto-scroll to first highlighted element if any anomalies were found
-    if (anomalyCount > 0) {
+    // Step 7: Auto-scroll to first highlighted element if any anomalies were found and scrolling is enabled
+    if (anomalyCount > 0 && shouldScroll) {
       // Small delay to ensure DOM updates are complete
       setTimeout(() => {
         this.autoScrollToFirstHighlight();
@@ -2057,13 +2166,43 @@ class RangeringTool {
    * Flags a sequence of rapid merges by a user and shows a popup.
    */
   flagRapidActivities(userID, activitySequence, warningsShown) {
-    const firstActivityTime = activitySequence[0].timestamp;
-    const lastActivityTime = activitySequence[activitySequence.length - 1].timestamp;
+    // Normalize timestamps (ensure numeric ms)
+    const timesMs = activitySequence.map((activity) => {
+      const t = activity.timestamp;
+      return t instanceof Date ? t.getTime() : Number(t);
+    });
+    const firstMs = timesMs[0];
+    const lastMs = timesMs[timesMs.length - 1];
 
-    // Create a unique key for this sequence to avoid duplicate warnings
-    const sequenceKey = `${userID}-${firstActivityTime.getTime()}-${lastActivityTime.getTime()}`;
+    // Avoid duplicate/overlapping sequences: if we already have a recorded
+    // sequence for this user that overlaps the new one, skip it.
+    for (const key in warningsShown) {
+      const entry = warningsShown[key];
+      if (!entry || !entry.userID) continue;
+      if (entry.userID !== userID) continue;
+      // entry may be legacy boolean - handle that
+      const existingFirst = entry.first || (typeof entry === "number" ? entry : null);
+      const existingLast = entry.last || (typeof entry === "number" ? entry : null);
+      if (existingFirst && existingLast) {
+        // Overlap check
+        if (!(lastMs < existingFirst || firstMs > existingLast)) {
+          // Sequences overlap - treat as duplicate and skip
+          this.debug(`Skipping duplicate/overlapping sequence for ${userID}`);
+          return;
+        }
+      }
+    }
+
+    // Create a unique key for this sequence and store detailed info
+    const sequenceKey = `${userID}-${firstMs}-${lastMs}`;
     if (!warningsShown[sequenceKey]) {
-      warningsShown[sequenceKey] = true;
+      warningsShown[sequenceKey] = {
+        userID: userID,
+        first: firstMs,
+        last: lastMs,
+        times: timesMs,
+        created: Date.now(),
+      };
 
       // Highlight the history items and show a warning popup
       const historyItemsToHighlight = activitySequence.map((activity) => activity.element);
@@ -2077,8 +2216,9 @@ class RangeringTool {
       }
 
       const message = `${userID} performed ${activitySequence.length} ${activityType} within 5 minutes. <br>Please review their activity.`;
-      // Use the new table instead of individual popups
-      this.addWarningToTable(userID, message, historyItemsToHighlight);
+      // Use the new table instead of individual popups. Pass sequenceKey so multiple
+      // sequences from the same user create separate rows.
+      this.addWarningToTable(userID, message, historyItemsToHighlight, sequenceKey);
     }
   }
 
@@ -2105,18 +2245,47 @@ class RangeringTool {
    * Creates a popup for anomalies (e.g., no anomalies found).
    */
   showAnomaliesPopup(message) {
-    //console.log("showAnomaliesPopup called with message:", message);
+    // Ensure container exists (centered stacking container)
+    let $container = $(".anomalies-container");
+    if ($container.length === 0) {
+      $container = $("<div class='anomalies-container'></div>");
+      $("body").append($container);
+    }
+    // If there is an existing popup, append the message as a new line and
+    // we will extend its timeout; otherwise create a new popup with a
+    // shorter default timeout so messages don't linger too long.
+    let $popup = $container.children(".anomalies-popup").last();
+    const existed = $popup.length > 0;
+    if (!existed) {
+      $popup = $(
+        `<div class="anomalies-popup"><div class="anomalies-messages"><div class="anomalies-line">${message}</div></div></div>`
+      );
+      $container.append($popup);
+    } else {
+      const $msgs = $popup.find(".anomalies-messages");
+      $msgs.append($(`<div class="anomalies-line">${message}</div>`));
+      // Keep at most 6 lines per popup
+      const lines = $msgs.children(".anomalies-line");
+      if (lines.length > 6) lines.first().remove();
+    }
 
-    const popup = $(`<div class="anomalies-popup">${message}</div>`);
+    // Clear any existing timeout stored on the popup and set a new one.
+    if ($popup.data("fadeTimeout")) {
+      clearTimeout($popup.data("fadeTimeout"));
+    }
 
-    $("body").append(popup);
+    // New popups should be short-lived; appended messages extend timeout.
+    const timeoutMs = existed ? 8000 : 3000;
+    try {
+      console.debug("WBE: showAnomaliesPopup - existed=", existed, "timeoutMs=", timeoutMs);
+    } catch (e) {}
 
-    // Automatically fade out after 5 seconds
-    setTimeout(() => {
-      popup.fadeOut(500, function () {
+    const timeoutId = setTimeout(() => {
+      $popup.fadeOut(500, function () {
         $(this).remove();
       });
-    }, 5000);
+    }, timeoutMs);
+    $popup.data("fadeTimeout", timeoutId);
   }
 
   /**
@@ -2125,6 +2294,13 @@ class RangeringTool {
   showActivityWarningsTable() {
     // Check if table already exists
     let existingTable = $("#activityWarningsTable");
+
+    // Diagnostic log: trace when the table creation function is invoked
+    try {
+      console.debug("WBE: showActivityWarningsTable called, existingTable length=", existingTable.length);
+    } catch (e) {
+      /* swallow in environments without console */
+    }
 
     if (existingTable.length === 0) {
       // Create the table container
@@ -2260,25 +2436,81 @@ class RangeringTool {
    * Extracts edit count from the warning message
    */
   extractEditCount(message) {
-    const match = message.match(/(\d+)\s+edits?\s+within/i);
-    return match ? match[1] : "?";
+    // Match common activity words (edits, merges, activities). If not found,
+    // fall back to the first number in the message.
+    const match = message.match(/(\d+)\s+(?:edits?|merges?|activities?)\s+within/i);
+    if (match) return match[1];
+    const fallback = message.match(/(\d+)/);
+    return fallback ? fallback[1] : "?";
   }
 
   /**
-   * Adds a warning to the consolidated table
+   * Adds a warning to the consolidated table. If sequenceKey is provided a unique
+   * row is created for that sequence (allowing multiple rows for the same user).
    */
-  addWarningToTable(userID, message, historyItemsToHighlight = []) {
+  addWarningToTable(userID, message, historyItemsToHighlight = [], sequenceKey = null) {
+    // Diagnostic log: trace call and parameters
+    try {
+      console.debug("WBE: addWarningToTable called", {
+        userID,
+        sequenceKey,
+        messageSnippet: (message || "").slice(0, 80),
+      });
+    } catch (e) {}
+
     const table = this.showActivityWarningsTable();
-    const tbody = $("#warningsTableBody");
+    // Locate tbody within the created table to avoid selecting nothing if the global
+    // #warningsTableBody isn't yet present in the DOM for some reason.
+    let tbody = table.find("#warningsTableBody");
+    if (!tbody || tbody.length === 0) {
+      // Try global fallback and if still missing, create the tbody inside the table
+      tbody = $("#warningsTableBody");
+      if (!tbody || tbody.length === 0) {
+        const tableEl = table.find("table");
+        if (tableEl && tableEl.length > 0) {
+          tbody = $('<tbody id="warningsTableBody"></tbody>');
+          tableEl.append(tbody);
+        } else {
+          // As a last resort, create a container and append to body
+          tbody = $('<tbody id="warningsTableBody"></tbody>');
+          $("body").append(tbody);
+        }
+      }
+    }
+
+    // Defensive dedupe: prevent inserting the same logical row multiple times
+    // This protects against multiple calls that may try to add the same sequence/user.
+    const dedupeKey = sequenceKey ? `seq-${sequenceKey}` : `user-${userID}`;
+    let addedKeys = tbody.data("addedKeys") || {};
+    if (addedKeys[dedupeKey]) {
+      // Update existing row if present and return
+      const existingRow = sequenceKey
+        ? tbody.find(`tr[data-seq="${sequenceKey}"]`)
+        : tbody.find(`tr[data-userid="${userID}"]`);
+      if (existingRow && existingRow.length > 0) {
+        const userName = this.extractUserNameFromHistoryItems(historyItemsToHighlight);
+        const editCount = this.extractEditCount(message);
+        existingRow.find(".user-name").text(userName);
+        existingRow.find(".edit-count").text(editCount);
+        existingRow.data("historyItems", historyItemsToHighlight);
+      }
+      return;
+    }
 
     // Extract user name and edit count
     const userName = this.extractUserNameFromHistoryItems(historyItemsToHighlight);
     const editCount = this.extractEditCount(message);
 
-    // Check if this user already has a warning
-    const existingRow = tbody.find(`tr[data-userid="${userID}"]`);
-    if (existingRow.length > 0) {
-      // Update existing warning
+    // If a sequenceKey was provided, use it to allow multiple rows per user.
+    let existingRow = null;
+    if (sequenceKey) {
+      existingRow = tbody.find(`tr[data-seq="${sequenceKey}"]`);
+    } else {
+      existingRow = tbody.find(`tr[data-userid="${userID}"]`);
+    }
+
+    if (existingRow && existingRow.length > 0) {
+      // Update existing warning (either by sequence or by user)
       existingRow.find(".user-name").text(userName);
       existingRow.find(".edit-count").text(editCount);
       existingRow.data("historyItems", historyItemsToHighlight);
@@ -2286,8 +2518,10 @@ class RangeringTool {
     }
 
     // Create new row
+    // Include data-seq attribute when sequenceKey is present so rows are unique
+    const seqAttr = sequenceKey ? ` data-seq="${sequenceKey}"` : "";
     const rowHtml = `
-      <tr data-userid="${userID}">
+      <tr data-userid="${userID}"${seqAttr}>
         <td>${userID}</td>
         <td class="user-name">${userName}</td>
         <td class="edit-count">${editCount}</td>
@@ -2303,38 +2537,79 @@ class RangeringTool {
       </tr>
     `;
 
+    // Store the history items for highlighting and bind handlers on the newly created row
+    let $newRow = null;
+    // Append the row once
     tbody.append(rowHtml);
+    if (sequenceKey) {
+      $newRow = tbody.find(`tr[data-seq="${sequenceKey}"]`);
+    } else {
+      // Fallback: pick the last row for this user
+      $newRow = tbody.find(`tr[data-userid="${userID}"]`).last();
+    }
 
-    // Store the history items for highlighting
-    tbody.find(`tr[data-userid="${userID}"]`).data("historyItems", historyItemsToHighlight);
+    $newRow.data("historyItems", historyItemsToHighlight);
 
-    // Add event handlers for the new row
-    tbody.find(`tr[data-userid="${userID}"] .highlight-warning-btn`).on("click", () => {
+    // Add event handlers for the new row (scoped to the specific row)
+    $newRow.find(".highlight-warning-btn").on("click", () => {
       historyItemsToHighlight.forEach((item) => {
         $(item).addClass("highlight");
         item.scrollIntoView({ behavior: "smooth", block: "center" });
       });
     });
 
-    tbody.find(`tr[data-userid="${userID}"] .whitelist-warning-btn`).on("click", () => {
+    $newRow.find(".whitelist-warning-btn").on("click", () => {
+      // Whitelisting should prevent further warnings for this user and remove any rows
       this.addToWhitelist(userID);
-      this.removeWarningFromTable(userID);
+      this.removeWarningFromTable(userID); // remove all rows for this user
       this.showAnomaliesPopup(`${userID} has been whitelisted and will not trigger activity warnings.`);
     });
 
-    tbody.find(`tr[data-userid="${userID}"] .remove-warning-btn`).on("click", () => {
-      this.removeWarningFromTable(userID);
+    $newRow.find(".remove-warning-btn").on("click", () => {
+      // Remove either this specific sequence row or all rows for the user if no sequence
+      if (sequenceKey) this.removeWarningFromTable(userID, sequenceKey);
+      else this.removeWarningFromTable(userID);
     });
 
     // Update the count
     this.updateWarningsCount();
+
+    // Record that we've added this logical key so subsequent calls don't duplicate
+    addedKeys[dedupeKey] = true;
+    tbody.data("addedKeys", addedKeys);
   }
 
   /**
    * Removes a specific warning from the table
    */
-  removeWarningFromTable(userID) {
-    $(`#warningsTableBody tr[data-userid="${userID}"]`).remove();
+  removeWarningFromTable(userID, sequenceKey = null) {
+    if (sequenceKey) {
+      $(`#warningsTableBody tr[data-seq="${sequenceKey}"]`).remove();
+    } else {
+      $(`#warningsTableBody tr[data-userid="${userID}"]`).remove();
+    }
+
+    // Also remove from warningsShown in sessionStorage if present
+    try {
+      const raw = sessionStorage.getItem("warningsShown");
+      if (raw) {
+        const warnings = JSON.parse(raw);
+        if (sequenceKey) {
+          delete warnings[sequenceKey];
+        } else {
+          // remove any entries for this user
+          for (const key of Object.keys(warnings)) {
+            const entry = warnings[key];
+            if (entry && entry.userID === userID) delete warnings[key];
+            // legacy boolean entries may use the key prefix
+            if (!entry && key.startsWith(userID + "-")) delete warnings[key];
+          }
+        }
+        sessionStorage.setItem("warningsShown", JSON.stringify(warnings));
+      }
+    } catch (e) {
+      console.error("Error updating warningsShown in sessionStorage:", e);
+    }
 
     // Update the count (this will auto-close if count reaches 0)
     this.updateWarningsCount();
@@ -2344,9 +2619,24 @@ class RangeringTool {
    * Updates the warning count in the table header and restore button
    */
   updateWarningsCount() {
-    const count = $("#warningsTableBody tr").length;
-    $("#warningsCount").text(count);
-    $("#restoreWarningsCount").text(count);
+    // Diagnostic log: trace update count being computed
+    let count = 0;
+    const tbody = $("#warningsTableBody");
+    if (tbody && tbody.length > 0) {
+      count = tbody.find("tr").length;
+    } else {
+      // If tbody is missing, avoid removing the table immediately; set count to 0
+      count = 0;
+    }
+    try {
+      console.debug("WBE: updateWarningsCount", { count });
+    } catch (e) {}
+
+    // Update visible badges only if elements exist
+    const $warningsCount = $("#warningsCount");
+    const $restoreWarningsCount = $("#restoreWarningsCount");
+    if ($warningsCount.length > 0) $warningsCount.text(count);
+    if ($restoreWarningsCount.length > 0) $restoreWarningsCount.text(count);
 
     // If no warnings left, close the table and restore button
     if (count === 0) {
@@ -2395,24 +2685,15 @@ class RangeringTool {
   }
 
   showRapidMergePopup(message, historyItemsToHighlight, userID) {
-    // console.log("showRapidMergePopup called with message:", message);
-
-    // Find the highest existing popup
-    let highestPopupBottom = 10; // Default bottom offset
-    $(".rapid-merge-popup").each(function () {
-      const currentBottom = parseFloat($(this).css("bottom"));
-      if (currentBottom > highestPopupBottom) {
-        highestPopupBottom = currentBottom;
-      }
-    });
-
-    // Set the new popup position slightly above the highest existing popup
-    let newPopupBottom = 10;
-    if ($(".rapid-merge-popup").length > 0) {
-      newPopupBottom = highestPopupBottom + 120;
+    // Ensure container exists at bottom-left for stacked rapid merge popups
+    let $container = $(".rapid-merge-container");
+    if ($container.length === 0) {
+      $container = $("<div class='rapid-merge-container'></div>");
+      $("body").append($container);
     }
+
     const popup = $(`
-      <div class="rapid-merge-popup" style="bottom: ${newPopupBottom}px;">
+      <div class="rapid-merge-popup">
         ${message}
         <span class="close-popup">&times;</span>
         <button class="highlight-btn small">Highlight</button>
@@ -2420,21 +2701,21 @@ class RangeringTool {
       </div>
     `);
 
-    $("body").append(popup);
+    $container.append(popup);
 
-    popup.draggable(); // Make the popup draggable
+    // Make the popup draggable
+    try {
+      popup.draggable();
+    } catch (e) {
+      // draggable may not be available in all contexts
+      this.debug("draggable not available", e);
+    }
 
     // Close button logic
     popup.find(".close-popup").on("click", function () {
       popup.fadeOut(300, function () {
         $(this).remove();
-
-        // Recalculate positions for remaining popups
-        let currentBottom = 10; // Reset starting position
-        $(".rapid-merge-popup").each(function () {
-          $(this).css("bottom", `${currentBottom}px`);
-          currentBottom += 120; // Maintain spacing
-        });
+        // No need to recalc positions; container flow handles stacking
       });
     });
 
@@ -2456,13 +2737,7 @@ class RangeringTool {
       // Close this popup after whitelisting
       popup.fadeOut(300, function () {
         $(this).remove();
-
-        // Recalculate positions for remaining popups
-        let currentBottom = 10;
-        $(".rapid-merge-popup").each(function () {
-          $(this).css("bottom", `${currentBottom}px`);
-          currentBottom += 120;
-        });
+        // container flow will re-stack remaining popups
       });
 
       // Show confirmation
@@ -2486,7 +2761,15 @@ class RangeringTool {
       Check for anomalies
       </button>`
     ).appendTo(this.rangersButtons);
-    anomaliesButton.on("click", () => this.checkForAnomalies());
+    anomaliesButton.on("click", async () => {
+      try {
+        await this.checkForAnomalies();
+        const btn = $("#anomaliesButton");
+        btn.prop("disabled", true).addClass("disabled").text("Checked anomalies");
+      } catch (err) {
+        console.error("Error checking anomalies via button:", err);
+      }
+    });
   }
 
   addActivityButton() {
@@ -2496,7 +2779,32 @@ class RangeringTool {
       Check activity
       </button>`
     ).appendTo(this.rangersButtons);
-    activityButton.on("click", () => this.checkActivity());
+    activityButton.on("click", async () => {
+      try {
+        await this.checkActivity();
+        const btn = $("#activityButton");
+        btn.prop("disabled", true).addClass("disabled").text("Checked activity");
+      } catch (err) {
+        console.error("Error checking activity via button:", err);
+      }
+    });
+  }
+
+  addHighlightNewMembersButton() {
+    let buttonText, buttonTitle;
+    if (this.currentConfig.name === "Pre-1700") {
+      buttonText = "Highlight newly-badged people";
+      buttonTitle = "Highlight edits by the 200 newest Pre-1700 badged people";
+    } else if (this.currentConfig.name === "Pre-1500") {
+      buttonText = "Highlight newly-badged people";
+      buttonTitle = "Highlight edits by newly-badged Pre-1500 people (last six months)";
+    } else if (this.currentConfig.name === "Merges") {
+      buttonText = "Highlight new members";
+      buttonTitle = "Highlight edits by people who joined less than 6 months ago";
+    }
+    const highlightButton = $(
+      `<button id='highlightNewMembersButton' class='button small' title='${buttonTitle}'>${buttonText}</button>`
+    ).appendTo(this.rangersButtons);
   }
 
   addWhitelistButton() {
@@ -2529,11 +2837,16 @@ class RangeringTool {
     const cached = localStorage.getItem(storageKey);
     this.debug(`getBadgeProfiles(${badgeType}) - cached data:`, !!cached);
 
+    // Track cache validity and presence so we only show the loader when we actually
+    // need to fetch remote data (avoids showing "Loading badges" when using cache)
+    let isValidCache = false;
+    let hasProfiles = false;
+    let cachedObject = null;
     if (cached) {
-      const cachedObject = JSON.parse(cached);
+      cachedObject = JSON.parse(cached);
       // If the list is less than a day old, use it
-      const isValidCache = new Date().getTime() - cachedObject.timestamp < 86400000;
-      const hasProfiles = dateFilter ? cachedObject.profileIDs.length >= 0 : cachedObject.profileIDs.length > 0;
+      isValidCache = new Date().getTime() - cachedObject.timestamp < 86400000;
+      hasProfiles = dateFilter ? cachedObject.profileIDs.length >= 0 : cachedObject.profileIDs.length > 0;
       this.debug(
         `Cache valid: ${isValidCache}, has profiles: ${hasProfiles}, count: ${cachedObject.profileIDs.length}`
       );
@@ -2546,7 +2859,16 @@ class RangeringTool {
     const profileIDs = [];
 
     // Get the badge page
-    const badgePage = await getWikiTreePage("Rangers", "index.php", `title=Special:Badges&b=${badgeParam}`);
+    try {
+      // Only show the loader if we don't have a valid cache or there are no profiles
+      if (!isValidCache || !hasProfiles) {
+        this.showShaky("Loading badges...", "center");
+      }
+      var badgePage = await getWikiTreePage("Rangers", "index.php", `title=Special:Badges&b=${badgeParam}`);
+    } finally {
+      // hideShaky is safe to call even if showShaky wasn't shown
+      this.hideShaky();
+    }
     const badgePageDOM = new DOMParser().parseFromString(badgePage, "text/html");
 
     if (dateFilter) {
@@ -2613,6 +2935,18 @@ class RangeringTool {
       storageKey: "pre1700",
       badgeParam: "pre_1700",
     });
+  }
+
+  async highlightNewMembers() {
+    this.debug("highlightNewMembers called for page:", this.currentConfig.name);
+
+    if (this.currentConfig.name === "Pre-1700") {
+      await this.markNewestPre1700People();
+    } else if (this.currentConfig.name === "Pre-1500") {
+      await this.markRecentPre1500People();
+    } else if (this.currentConfig.name === "Merges") {
+      await this.getMemberCreatedDates();
+    }
   }
 
   async markNewestPre1700People() {
@@ -2820,6 +3154,9 @@ class RangeringTool {
         );
 
         try {
+          this.showShaky(
+            `Fetching bios ${Math.floor(i / maxBatchSize) + 1}/${Math.ceil(bioLinks.length / maxBatchSize)}`
+          );
           // Fetch the bios using the WikiTreeAPI
           const peopleResponse = await WikiTreeAPI.getPeople(
             "Rangers",
@@ -2845,6 +3182,8 @@ class RangeringTool {
         } catch (error) {
           console.error(`Error fetching bio batch ${Math.floor(i / maxBatchSize) + 1}:`, error);
           // Continue with next batch even if one fails
+        } finally {
+          this.hideShaky();
         }
       }
 
@@ -3127,20 +3466,51 @@ class RangeringTool {
       // Step 1: Get bios
       console.log("WBE: Full Check - Step 1: Getting bios...");
       await this.getBios();
+      // Disable the Get bios button after successful run
+      try {
+        const gb = $("#getBios");
+        gb.prop("disabled", true).addClass("disabled").text("Got bios");
+      } catch (e) {
+        /* ignore if button not present */
+      }
 
       // Small delay to ensure getBios completes
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Step 2: Check for anomalies
-      console.log("WBE: Full Check - Step 2: Checking for anomalies...");
-      await this.checkForAnomalies();
+      // Step 2: Highlight new members/newly badged people
+      console.log("WBE: Full Check - Step 2: Highlighting new members...");
+      await this.highlightNewMembers();
+      // Disable the highlight button after successful run
+      try {
+        const hb = $("#highlightNewMembersButton");
+        hb.prop("disabled", true).addClass("disabled");
+        if (this.currentConfig.name === "Merges") hb.text("Highlighted new members");
+        else hb.text("Highlighted newly-badged people");
+      } catch (e) {}
 
       // Small delay before next step
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      // Step 3: Check activity
-      console.log("WBE: Full Check - Step 3: Checking activity patterns...");
+      // Step 3: Check for anomalies
+      console.log("WBE: Full Check - Step 3: Checking for anomalies...");
+      await this.checkForAnomalies(false); // Don't scroll when called from Full Check
+      // Disable anomalies button
+      try {
+        const ab = $("#anomaliesButton");
+        ab.prop("disabled", true).addClass("disabled").text("Checked anomalies");
+      } catch (e) {}
+
+      // Small delay before next step
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Step 4: Check activity
+      console.log("WBE: Full Check - Step 4: Checking activity patterns...");
       await this.checkActivity();
+      // Disable activity button
+      try {
+        const actb = $("#activityButton");
+        actb.prop("disabled", true).addClass("disabled").text("Checked activity");
+      } catch (e) {}
 
       // Final status
       this.showAnomaliesPopup("Full rangering check completed!");
@@ -3154,8 +3524,14 @@ class RangeringTool {
     const getBiosButton = $(
       `<button id="getBios" title="Get the bios of all these profiles" class="button small">Get bios</button>`
     );
-    $(document).on("click", "#getBios", () => {
-      this.getBios();
+    $(document).on("click", "#getBios", async () => {
+      try {
+        await this.getBios();
+        const btn = $("#getBios");
+        btn.prop("disabled", true).addClass("disabled").text("Got bios");
+      } catch (err) {
+        console.error("Error getting bios via button:", err);
+      }
     });
     this.rangersButtons.append(getBiosButton);
   }
@@ -3205,11 +3581,43 @@ class RangeringTool {
     $(".getBio").remove();
     $(".bioPopup").remove();
 
+    // Also clear activity warnings table and related state
+    try {
+      this.clearAllActivityWarnings();
+    } catch (e) {
+      // If clearAllActivityWarnings isn't available for some reason, fall back to manual removal
+      $("#activityWarningsTable").remove();
+      $("#restoreWarningsBtn").remove();
+    }
+
     // Debug: Log what we cleared
     console.log("WBE: Cleared rangering data including:", keysToRemove);
     console.log("WBE: Preserved 'new people' highlighting classes");
 
     this.showAnomaliesPopup("Rangering data cleared! <br>(Preserved 'new people' highlights)");
+    // Re-enable core control buttons and restore their labels
+    try {
+      const gb = $("#getBios");
+      if (gb.length) gb.prop("disabled", false).removeClass("disabled").text("Get bios");
+
+      const ab = $("#anomaliesButton");
+      if (ab.length) ab.prop("disabled", false).removeClass("disabled").text("Check for anomalies");
+
+      const actb = $("#activityButton");
+      if (actb.length) actb.prop("disabled", false).removeClass("disabled").text("Check activity");
+
+      const hb = $("#highlightNewMembersButton");
+      if (hb.length) {
+        // Restore context-sensitive highlight label
+        let buttonText = "Highlight new members";
+        if (this.currentConfig.name === "Pre-1700") buttonText = "Highlight newly-badged people";
+        else if (this.currentConfig.name === "Pre-1500") buttonText = "Highlight newly-badged people";
+        else if (this.currentConfig.name === "Merges") buttonText = "Highlight new members";
+        hb.prop("disabled", false).removeClass("disabled").text(buttonText);
+      }
+    } catch (e) {
+      console.error("Error restoring button states:", e);
+    }
   }
 
   addControlButtons() {
@@ -3218,6 +3626,11 @@ class RangeringTool {
     this.addGetBiosButton();
     this.addAnomaliesButton();
     this.addActivityButton();
+    this.addHighlightNewMembersButton(); // Add the highlight button
+
+    // Add management buttons on the right
+    this.addClearCacheButton(); // Management button - right side
+    this.addWhitelistButton(); // Management button - right side
 
     // Add filter buttons in consistent order across all pages
     if (this.currentConfig.name === "Pre-1700") {
@@ -3238,10 +3651,6 @@ class RangeringTool {
       );
       this.rangersButtons.append(onlyNewtsButton);
     }
-
-    // Add management buttons on the right
-    this.addClearCacheButton(); // Management button - right side
-    this.addWhitelistButton(); // Management button - right side
   }
 
   autoBioCheck(sourcesStr) {
