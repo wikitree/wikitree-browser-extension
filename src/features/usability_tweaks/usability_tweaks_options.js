@@ -25,8 +25,8 @@ const usabilityTweaks = {
           id: "removeDisablePreviewLinks",
           type: OptionType.CHECKBOX,
           label:
-            "Remove the 'turn off preview' and 'turn off temporarily' buttons" +
-            " from the profile previews so that you don't accidentally click them and lose the profile previews.",
+            "Remove the 'turn off previews' link/button" +
+            " from the profile previews so that you don't accidentally click it and lose the profile previews.",
           defaultValue: false,
         },
         {
@@ -103,7 +103,7 @@ const usabilityTweaks = {
         {
           id: "removeMeButton",
           type: OptionType.CHECKBOX,
-          label: "Add a button to profile pages to remove yourself as manager.",
+          label: "Add a button to profile pages to remove yourself from the Trusted List.",
           defaultValue: false,
         },
         {

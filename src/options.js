@@ -567,13 +567,15 @@ function showConfirmationDialog(message, onConfirm, onCancel) {
     '<dialog id="confirmDialog">' +
       '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Confirmation</div>' +
       '<div class="dialog-content">' +
-        '<p style="margin: 20px 0; font-size: 16px; line-height: 1.4;">' + message + '</p>' +
-        '<div style="text-align: center; margin-top: 30px;">' +
-          '<button id="confirmYes" style="margin-right: 10px;">Yes</button>' +
-          '<button id="confirmNo">No</button>' +
-        '</div>' +
-      '</div>' +
-    '</dialog>'
+      '<p style="margin: 20px 0; font-size: 16px; line-height: 1.4;">' +
+      message +
+      "</p>" +
+      '<div style="text-align: center; margin-top: 30px;">' +
+      '<button id="confirmYes" style="margin-right: 10px;">Yes</button>' +
+      '<button id="confirmNo">No</button>' +
+      "</div>" +
+      "</div>" +
+      "</dialog>"
   )
     .appendTo($(document.body).remove("#confirmDialog"))
     .on("click", function (e) {
@@ -621,17 +623,17 @@ $("#toggleAll, .section.category > .section-header > .toggle > input").on("click
     oSwitch = false;
   }
   let $top;
-  
+
   // Special handling for Toggle All button - show confirmation
   if (this.id === "toggleAll") {
-    const confirmMessage = oSwitch 
-      ? "Are you sure you want to enable all features?" 
+    const confirmMessage = oSwitch
+      ? "Are you sure you want to enable all features?"
       : "Are you sure you want to disable all features?";
-    
+
     // Prevent the default action temporarily
     e.preventDefault();
     const originalCheckbox = this;
-    
+
     showConfirmationDialog(
       confirmMessage,
       // On confirm - proceed with the toggle
@@ -653,7 +655,7 @@ $("#toggleAll, .section.category > .section-header > .toggle > input").on("click
   } else if ($(this).closest(".toggle").is(".toggle-category")) {
     $top = $(this).closest(".section.category");
   }
-  
+
   if ($top) {
     $top
       .find(".section:not(#darkMode,#highlightWBEFeatures) > .section-header > .toggle > input")
