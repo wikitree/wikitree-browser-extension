@@ -2171,7 +2171,8 @@ class RangeringTool {
       const text = $(this).text();
 
       // Only check date differences if it's a merge OR explicit date change mention
-      const isMerge = text.includes("merged");
+      // Exclude "unmerged match" entries from merge detection
+      const isMerge = text.includes("merged") && !text.includes("unmerged match");
       const hasExplicitDateChange =
         text.includes("Birth Date changed") ||
         text.includes("Death Date changed") ||
