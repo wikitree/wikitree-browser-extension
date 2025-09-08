@@ -19,7 +19,7 @@ function shouldOpenInNewTab($link, options) {
     $link.find(
       "button:contains('Next Change'),button:contains('Previous Change'),button:contains('Previous'),button:contains('Next')"
     ).length > 0;
-  const navText = ["next »", "« prev", "Next", "Prev"].includes(linkText);
+  const navText = ["next »", "« prev", "Next", "Prev", "Next Change", "Prev Change"].includes(linkText);
   const navListItem = $link.closest("li.qa-page-links-item").length > 0;
   if (navButton || navText || navListItem) return false;
 
