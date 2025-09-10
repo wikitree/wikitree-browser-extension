@@ -133,7 +133,7 @@ async function moveCategories() {
   }
 
   // Relocate the #Categories element if required.
-  const $privacyModal = $("#privacyModal");
+  const $problemsOrQuestions = $("button.problemQuestionLink").closest("div");
   let $sidebar = $("#Profile-Data").closest("div");
   if (isSpacePage) {
     $sidebar = $("aside.x-sidebar-section").closest("div.x-sidebar");
@@ -168,7 +168,7 @@ async function moveCategories() {
       if (isSpacePage) {
         $("div.body-text").prepend($categories);
       }
-      $privacyModal.before($categories);
+      $problemsOrQuestions.prepend($categories);
       break;
     case "default":
       // Leave the element in its original position.
