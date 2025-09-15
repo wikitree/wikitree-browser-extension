@@ -3,7 +3,232 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import { shouldInitializeFeature } from "../../core/options/options_storage";
-import { initBioCheck } from "../bioCheck/bioCheck";
+import { getWikiTreePage } from "../../core/API/wwwWikiTree";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
+import { theSourceRules } from "../bioCheck/SourceRules.js";
+import { BioCheckPerson } from "../bioCheck/BioCheckPerson.js";
+import { Biography } from "../bioCheck/Biography.js";
+import { initBioCheck } from "../bioCheck/bioCheck.js";
+
+const rangers = [
+  "Ikeler-28",
+  "Ivey-1318",
+  "Hodson-601",
+  "Stutz-25",
+  "Michaelsen-74",
+  "Gilbert-20491",
+  "Johnson-107455",
+  "Beacall-6",
+  "Snyder-19096",
+  "Wycoff-345",
+  "Gardner-10299",
+  "Urbach-13",
+  "Butler-21232",
+  "Potter-10870",
+  "Butter-100",
+  "Robinson-27225",
+  "Weatherall-96",
+  "Franke-313",
+  "Sonczalla-1",
+  "Perkins-11750",
+  "Baxter-4158",
+  "Skelton-1756",
+  "Evans-9605",
+  "Vaskie-1",
+  "Kolze-7",
+  "Craig-4574",
+  "J-276",
+  "Gürth-8",
+  "Milton-1294",
+  "Skillings-87",
+  "Harden-1880",
+  "Stewart-763",
+  "Kreutzer-114",
+  "Greet-49",
+  "Lamoreaux-297",
+  "Cormier-1939",
+  "Stevens-17832",
+  "Mullins-2069",
+  "Cormack-404",
+  "Kirch-132",
+  "Barrett-8905",
+  "Sands-1865",
+  "Trueblood-273",
+  "Johnson-66920",
+  "Angelo-128",
+  "Roberts-7085",
+  "Sheppard-2686",
+  "Ward-9858",
+  "Seigfreid-16",
+  "Anderson-27686",
+  "Collins-17962",
+  "Stronach-8",
+  "Coleman-5109",
+  "Compton-2184",
+  "Smith-116348",
+  "Baty-260",
+  "Thomas-7679",
+  "Rassinot-1",
+  "Devlin-670",
+  "Laity-45",
+  "Thompson-31031",
+  "Gorman-1067",
+  "Shipman-738",
+  "Beckett-454",
+  "Welburn-134",
+  "Day-1904",
+  "Selman-334",
+  "Tillman-416",
+  "Richardson-7161",
+  "Howe-3137",
+  "Fiscus-32",
+  "Rutherford-448",
+  "Coat-12",
+  "Keniston-36",
+  "Atkinson-107",
+  "Snow-2128",
+  "B-404",
+  "Maxwell-1489",
+  "N.-17",
+  "Brown-8212",
+  "Bech-2",
+  "Langholf-2",
+  "Whitten-1",
+  "Trtnik-2",
+];
+
+const leaders = [
+  "Jones-116753",
+  "McMichael-211",
+  "Stuewe-5",
+  "Stutz-25",
+  "Graham-21867",
+  "Walmsley-632",
+  "Browning-5288",
+  "Awbrey-135",
+  "Crawford-15512",
+  "Merritt-1144",
+  "Hennigan-514",
+  "Test-453",
+  "McClain-3310",
+  "Haese-11",
+  "Butler-21232",
+  "Templeton-1883",
+  "Butter-100",
+  "Sands-1865",
+  "Entrikin-5",
+  "Ko-31",
+  "Lamoreaux-297",
+  "Weatherall-96",
+  "Randall-8561",
+  "Baxter-4158",
+  "X-3336",
+  "Potter-10870",
+  "Cormac-6",
+  "Craig-4574",
+  "WikiTree-1",
+  "WikiTree-3",
+  "Van_Heerden-335",
+  "J-276",
+  "Skillings-87",
+  "Harden-1880",
+  "Cullen-643",
+  "Greet-49",
+  "Hardman-1532",
+  "Laubscher-282",
+  "Robinson-27225",
+  "Berryann-1",
+  "Lewerenz-9",
+  "Van_Hout-28",
+  "Cormier-1939",
+  "Smith-116348",
+  "Hill-11959",
+  "Ward-9858",
+  "Stevens-17832",
+  "Speed-878",
+  "Collins-17962",
+  "McCallum-175",
+  "McBeth-165",
+  "Madison-125",
+  "Batman-73",
+  "Williams-47589",
+  "Bourque-573",
+  "Angelo-128",
+  "Devlin-670",
+  "Sheppard-2686",
+  "Harris-5439",
+  "Utting-102",
+  "Hvitfeldt-7",
+  "Thomas-7679",
+  "Selman-334",
+  "Silva-1055",
+  "Rutherford-448",
+  "Smith-62120",
+  "Rassinot-1",
+  "McGee-1611",
+  "Nelson-3486",
+  "Coetsee-48",
+  "Trtnik-2",
+  "Fulkerson-232",
+  "Fiscus-32",
+  "Coat-12",
+  "Athey-67",
+  "Franklin-1969",
+  "Lowe-866",
+  "Atkinson-107",
+  "B-404",
+  "Lee-5956",
+  "Gaulden-7",
+  "Roberts-7085",
+  "Langholf-2",
+  "N.-17",
+  "Brown-8212",
+  "Bech-2",
+  "Whitten-1",
+  "Example-26",
+];
+
+const mentors = [
+  "McBeth-165",
+  "Walmsley-632",
+  "McClain-3310",
+  "Vaskie-1",
+  "Hennigan-514",
+  "Bulmer-1043",
+  "Hylton-692",
+  "Champion_de_Crespigny-8",
+  "Greet-49",
+  "Entrikin-5",
+  "Awbrey-135",
+  "Ko-31",
+  "Whitehouse-2064",
+  "Dijkgraaf-24",
+  "Cormac-6",
+  "Marchal-178",
+  "Trueblood-273",
+  "Stuewe-5",
+  "Langsdorf-34",
+  "Potter-10870",
+  "Berryann-1",
+  "Lewerenz-9",
+  "Buckle-52",
+  "Thomas-7679",
+  "Speed-878",
+  "Athey-67",
+  "Atkinson-107",
+  "Williams-47589",
+  "Fiscus-32",
+  "Batman-73",
+  "Crawford-15512",
+  "Rassinot-1",
+  "Utting-102",
+  "Smith-62120",
+  "Coetsee-48",
+  "Van_Heerden-335",
+  "Lee-5956",
+];
+
+const trusted = [...leaders, ...mentors, ...rangers];
 
 // Define the class FeedHelper
 class FeedHelper {
@@ -25,6 +250,51 @@ class FeedHelper {
         inURL: "pre1500=1",
         actions: [() => this.markRecentPre1500People(), () => this.addControlButtons()],
       },
+      ancestors: {
+        name: "Ancestors Feed",
+        inURL: "set_id=ancestors",
+        actions: [() => this.addControlButtons()],
+      },
+      descendants: {
+        name: "Descendants Feed", 
+        inURL: "set_id=descendants",
+        actions: [() => this.addControlButtons()],
+      },
+      connections: {
+        name: "Connections Feed",
+        inURL: "set_id=connections", 
+        actions: [() => this.addControlButtons()],
+      },
+      contributions: {
+        name: "Contributions",
+        inURL: "Special:Contributions",
+        actions: [() => this.addControlButtons()],
+      },
+      followed: {
+        name: "Followed Surnames",
+        inURL: "followed_by=",
+        actions: [() => this.addControlButtons()],
+      },
+      surname: {
+        name: "Surname Feed",
+        inURL: "surname=",
+        actions: [() => this.addControlButtons()],
+      },
+      thanks: {
+        name: "Thanks Feed", 
+        inURL: "Special:Thanks",
+        actions: [() => this.addControlButtons()],
+      },
+      watchlist: {
+        name: "Watchlist Feed",
+        inURL: "watchlist=1",
+        actions: [() => this.addControlButtons()],
+      },
+      networkfeed: {
+        name: "Network Feed",
+        inURL: "Special:NetworkFeed",
+        actions: [() => this.addControlButtons()],
+      },
     };
     this.people = null;
     this.bioCheckResults = {};
@@ -34,6 +304,13 @@ class FeedHelper {
     this.fetchedProfilesStorageKey = "fetchedProfiles";
     this.memberDataStorageKey = "memberData";
     this.currentConfig = this.getCurrentConfig();
+    
+    // If no configuration found, we might not be on a supported page
+    if (!this.currentConfig) {
+      console.log("FeedHelper: No configuration found for current page");
+      return;
+    }
+    
     this.feedHelperButtons = $("<div id='rangersButtons'></div>");
     $(".page--title h1").after(this.feedHelperButtons);
     this.init();
@@ -1859,6 +2136,8 @@ class FeedHelper {
 
   addHighlightNewMembersButton() {
     let buttonText, buttonTitle;
+    
+    // Only add highlight button for feed types that support it
     if (this.currentConfig.name === "Pre-1700") {
       buttonText = "Highlight newly-badged people";
       buttonTitle = "Highlight edits by the 200 newest Pre-1700 badged people";
@@ -1868,7 +2147,12 @@ class FeedHelper {
     } else if (this.currentConfig.name === "Merges") {
       buttonText = "Highlight new members";
       buttonTitle = "Highlight edits by people who joined less than 6 months ago";
+    } else {
+      // For other feed types, don't add the highlight button yet
+      // This functionality could be extended in the future
+      return;
     }
+    
     const highlightButton = $(
       `<button id='highlightNewMembersButton' class='button small' title='${buttonTitle}'>${buttonText}</button>`
     ).appendTo(this.feedHelperButtons);
@@ -1886,15 +2170,22 @@ class FeedHelper {
 
   getCurrentConfig() {
     // Get each item from config and check if its inURL parameter is in the URL
-    let currentConfig;
-    for (const key in this.config) {
+    // Order matters - more specific matches should come first
+    const configOrder = [
+      'pre1700', 'pre1500', 'merges',  // Original specific feeds
+      'ancestors', 'descendants', 'connections', 'watchlist',  // NetworkFeed with set_id
+      'contributions', 'thanks',  // Special pages
+      'followed', 'surname',  // NetworkFeed with specific params
+      'networkfeed'  // Generic NetworkFeed fallback
+    ];
+    
+    for (const key of configOrder) {
       const configItem = this.config[key];
-      if (window.location.href.includes(configItem.inURL)) {
-        currentConfig = this.config[key];
-        return configItem; // Return the first match found
+      if (configItem && window.location.href.includes(configItem.inURL)) {
+        return configItem;
       }
     }
-    return currentConfig;
+    return null;
   }
 
   async getBadgeProfiles(badgeType, options = {}) {
