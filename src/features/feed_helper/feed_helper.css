@@ -1,0 +1,878 @@
+/* Styles for feedHelper feature */
+a.newestPre1700s,
+a.newt {
+  background-color: lemonchiffon;
+  border: 1px solid forestgreen;
+  padding: 0.1em 0.3em;
+  border-radius: 5px;
+  font-size: 1em;
+  margin-left: 0.5em;
+}
+
+a.recentPre1500s {
+  background-color: lightblue;
+  border: 1px solid darkblue;
+  padding: 0.1em 0.3em;
+  border-radius: 5px;
+  font-size: 1em;
+  margin-left: 0.5em;
+}
+
+.recentPre1500Badge {
+  background-color: rgba(173, 216, 230, 0.3);
+  border-left: 4px solid darkblue;
+  padding-left: 0.5em;
+}
+
+/* Feed Helper styles */
+#rangersButtons button {
+  margin: 0.5em;
+  font-size: 1.2em;
+  border-radius: 5px;
+  cursor: pointer;
+}
+#rangersButtons button:hover {
+  background: linear-gradient(135deg, #fcb815 0%, #fad158 100%);
+}
+#rangersButtons button:active {
+  background-color: #e6e6e6;
+}
+
+/* Full Check button distinctive styling */
+#rangersButtons .full-check-btn {
+  background: linear-gradient(135deg, #8fc641 0%, #6ea238 100%);
+  color: white !important;
+  font-weight: bold;
+  border: 2px solid #25422d;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+#rangersButtons .full-check-btn:hover {
+  /* Contrasting hover using amber as accent; text in dark green for readability */
+  background: linear-gradient(135deg, #fcb815 0%, #fad158 100%);
+  color: #25422d !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.18);
+}
+
+#rangersButtons .full-check-btn:active {
+  background: linear-gradient(135deg, #7aa435 0%, #5e8f2a 100%);
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Style for the bio popup */
+div.bioPopup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #fff;
+  padding: 1em;
+  border: 1px solid #000;
+  z-index: 1000;
+  max-width: 80%;
+  max-height: 80%;
+  overflow: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* Close button for the bio popup */
+x.closeBioPopup {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  font-size: 1.2em;
+  background: none;
+  border: none;
+  color: red;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* Style for the getBio buttons */
+.getBio {
+  font-size: 0.8em;
+  padding: 0.2em 0.5em;
+  margin-right: 0.5em;
+  cursor: pointer;
+  float: right;
+}
+
+/* Highlighted <ref> tags */
+.bioPopup .reference,
+.bioPopup .source-line {
+  background-color: yellow;
+  font-weight: bold;
+}
+
+/* Highlighted headings */
+.bioPopup .h2 {
+  font-size: 1.5em;
+  color: blue;
+  font-weight: bold;
+}
+
+.bioPopup .h3 {
+  font-size: 1.3em;
+  color: darkgreen;
+  font-weight: bold;
+}
+
+.bioPopup .h4 {
+  font-size: 1.1em;
+  color: darkred;
+  font-weight: bold;
+}
+
+.bioPopup .h5 {
+  font-size: 1em;
+  color: purple;
+  font-weight: bold;
+}
+
+/* Highlighted ref tags */
+.bioPopup .ref-tag,
+.bioPopup .bullet {
+  background-color: orange;
+  color: black;
+  font-weight: bold;
+}
+.getBio.failedBioCheck {
+  background-color: #ffcccc !important;
+  border: 1px solid red !important;
+  padding: 0.1em 0.3em;
+  border-radius: 5px;
+  font-size: 1em;
+  margin-left: 0.5em;
+  color: black !important;
+}
+
+#rangersButtons {
+  text-align: center;
+}
+#rangersButtons button.active {
+  background-color: forestgreen;
+  border: 1px solid black;
+  color: #f0f0eb;
+}
+
+/* Restore button when placed in the rangers button bar */
+#rangersButtons #restoreWarningsBtn {
+  margin-left: 0.5em;
+  background: linear-gradient(135deg, #ff9b9b 0%, #ff6b6b 100%);
+  color: white;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+#rangersButtons #restoreWarningsBtn:hover {
+  filter: brightness(0.95);
+}
+
+.feed-item.anomaly {
+  background-color: #fff2e6;
+  border: 1px solid #ff6600;
+  padding: 0.1em 0.3em;
+  border-radius: 5px;
+  font-size: 1em;
+}
+
+.feed-item.birth-date-anomaly,
+.feed-item.death-date-anomaly {
+  background-color: #ffebee;
+  border: 1px solid #e53935;
+  padding: 0.1em 0.3em;
+  border-radius: 5px;
+  font-size: 1em;
+}
+
+.anomalyDiv {
+  padding: 0.5em;
+  border: 1px solid forestgreen;
+  border-radius: 5px;
+  margin: 0.2em;
+}
+
+/* Feed Helper UI styles */
+/* For "No anomalies found" popup */
+.anomalies-container {
+  position: fixed;
+  top: 62%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  z-index: 10000;
+  pointer-events: none; /* let clicks through unless popup overrides */
+  width: auto;
+  max-width: 90%;
+}
+
+.anomalies-popup {
+  position: relative;
+  transform: none;
+  background-color: rgba(0, 0, 0, 0.85);
+  color: white;
+  padding: 12px 16px;
+  border-radius: 10px;
+  z-index: 10001;
+  text-align: center;
+  font-size: 1.05em;
+  /* Only fade in via CSS; fade-out is controlled by JS so it can be extended */
+  animation: fade-in 0.25s ease-in-out;
+  pointer-events: auto; /* so users can interact with popups if needed */
+  max-width: 420px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.anomalies-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.anomalies-line {
+  font-size: 0.95em;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  max-width: 380px;
+  word-break: break-word;
+}
+
+/* For rapid merge warning popups */
+.rapid-merge-container {
+  position: fixed;
+  left: 10px;
+  bottom: 10px;
+  display: flex;
+  flex-direction: column-reverse; /* newest on bottom */
+  gap: 10px;
+  z-index: 10000;
+  pointer-events: none;
+}
+
+.rapid-merge-popup {
+  position: relative;
+  left: 0;
+  height: auto;
+  min-height: 3.5em;
+  background-color: #f8d7da;
+  color: #000;
+  font-weight: bold;
+  padding: 12px 14px;
+  border-radius: 5px;
+  border: 1px solid red;
+  z-index: 10001;
+  font-size: 14px;
+  width: 28em;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  pointer-events: auto;
+}
+.rapid-merge-popup .close-popup {
+  margin-left: 15px;
+  cursor: pointer;
+  font-weight: bold;
+  position: absolute;
+  top: 0;
+  right: 1em;
+  font-size: 1em;
+}
+
+span.feed-item.highlight {
+  border: 2px solid #8fc641;
+  background-color: #eeffee;
+  padding: 0.2em 0.5em;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(143, 198, 65, 0.2);
+}
+
+/* Make table overflow visible */
+
+.wbe-overflow .table-wrapper {
+  overflow-x: visible !important;
+  z-index: 800 !important;
+}
+.wbe-overflow .table-wrapper table {
+  position: relative !important;
+  z-index: 800 !important;
+}
+
+/* Style for the toggle button */
+.toggleOverflowButton {
+  display: inline-block;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  background-repeat: no-repeat;
+  background-position: center;
+  position: absolute !important;
+  background-size: 1.5em;
+  margin-top: -1em;
+}
+
+#wbeAppLoginBtn {
+  float: right;
+  font-size: 12px;
+  display: inline;
+}
+
+button.whitelist-btn {
+  /* centre and margins top and bottom */
+  display: block;
+  margin: 0.5em auto;
+  padding: 0.5em 1em;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: center;
+}
+
+/* Activity Warnings Table Styles */
+#activityWarningsTable {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10001;
+  background: white;
+  border: 2px solid #25422d;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(37, 66, 45, 0.3);
+  max-width: 800px;
+  max-height: 800px;
+  overflow-y: auto;
+  font-family: Arial, sans-serif;
+}
+
+#activityWarningsTable h3:not(#dummyID) {
+  background-color: transparent !important;
+  margin-bottom: 0;
+}
+
+#activityWarningsTable .table-header {
+  background: #f8f9fa; /* lighter header */
+  color: #333;
+  padding: 12px 16px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 6px 6px 0 0;
+  cursor: move;
+}
+
+#activityWarningsTable .table-content {
+  padding: 0;
+}
+
+#activityWarningsTable .table-footer {
+  padding: 10px;
+  background: #f0f0eb;
+  border-top: 1px solid #dedecb;
+  text-align: center;
+}
+
+#minimizeWarningsTable {
+  float: right;
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+#clearAllWarningsBtn {
+  background: #cc0000;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-right: 5px;
+}
+
+#clearAllWarningsBtn:hover {
+  background: #aa0000;
+}
+
+#highlightAllBtn {
+  background: #fcb815;
+  color: #25422d;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+#highlightAllBtn:hover {
+  background: #fad158;
+}
+
+#warningsTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+#warningsTable th {
+  position: sticky;
+  top: 0;
+  background: #f0f0eb;
+  z-index: 1;
+  padding: 12px 8px;
+  border-bottom: 2px solid #dedecb;
+  font-weight: bold;
+  text-align: center;
+  font-size: 13px;
+  white-space: nowrap;
+  color: #25422d;
+}
+
+#warningsTable th:nth-child(3) {
+  white-space: normal;
+  line-height: 1.2;
+}
+
+#warningsTable th:nth-child(1) {
+  width: 80px;
+}
+#warningsTable th:nth-child(2) {
+  width: 120px;
+}
+#warningsTable th:nth-child(3) {
+  width: 60px;
+}
+#warningsTable th:nth-child(4) {
+  width: 60px;
+}
+#warningsTable th:nth-child(5) {
+  width: 90px;
+}
+#warningsTable th:nth-child(6) {
+  width: 40px;
+}
+
+#warningsTable td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #dedecb;
+  vertical-align: middle;
+  font-size: 14px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+#warningsTable td:first-child {
+  font-weight: bold;
+  text-align: left;
+  color: #25422d;
+}
+
+#warningsTable .user-name {
+  font-size: 13px;
+  color: #393a3c;
+  text-align: left;
+}
+
+#warningsTable .edit-count {
+  font-size: 14px;
+  font-weight: bold;
+  text-align: center;
+  color: #cc0000;
+}
+
+/* Action buttons in table */
+#warningsTable .highlight-warning-btn {
+  background: #8fc641;
+  color: #25422d;
+  border: none;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  transition: background-color 0.2s;
+}
+
+#warningsTable .highlight-warning-btn:hover {
+  background: #a5d167;
+}
+
+#warningsTable .whitelist-warning-btn {
+  background: #f0f0eb;
+  color: #25422d;
+  border: 1px solid #dedecb;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(37, 66, 45, 0.1);
+  line-height: 1.2;
+  text-align: center;
+  min-width: 80px;
+}
+
+#warningsTable .whitelist-warning-btn:hover {
+  background: #fcb815;
+  border-color: #fad158;
+  color: #25422d;
+  font-weight: bold;
+}
+
+#warningsTable .remove-warning-btn {
+  background: #cc0000;
+  color: white;
+  border: none;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  transition: background-color 0.2s;
+}
+
+#warningsTable .remove-warning-btn:hover {
+  background: #aa0000;
+}
+
+/* Warnings table container */
+#activityWarningsContainer {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-width: 800px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+#activityWarningsContainer .table-header {
+  background: #f8f9fa;
+  padding: 12px 16px;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 8px 8px 0 0;
+}
+
+#activityWarningsContainer .table-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: #495057;
+}
+
+#activityWarningsContainer .header-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+#activityWarningsContainer .header-buttons button {
+  padding: 4px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+#activityWarningsContainer .header-buttons button:hover {
+  background: #f8f9fa;
+}
+
+/* Restore button for minimized table */
+#restoreWarningsBtn {
+  /* Designed to live inside the activity warnings header .header-buttons
+     Use inline-block/flex-friendly styles so it can be placed in the button list
+     and pushed to the right with `margin-left: auto` on the container. */
+  display: inline-block;
+  background: linear-gradient(135deg, #ff8a8a 0%, #ff6b6b 100%);
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  vertical-align: middle;
+}
+
+/* Whitelist Manager Popup Styles */
+#whitelistManagerPopup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  padding: 20px;
+  z-index: 10000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  max-width: 400px;
+  width: 90%;
+}
+
+#whitelistManagerPopup .popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+#whitelistManagerPopup .popup-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+#closeWhitelistManager {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #666;
+}
+
+#whitelistManagerPopup .popup-description {
+  margin-bottom: 15px;
+}
+
+#whitelistManagerPopup .popup-description p {
+  margin: 5px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+#whitelistManagerPopup .whitelist-container {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+#whitelistManagerPopup .whitelist-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px;
+  border-bottom: 1px solid #ddd;
+}
+
+#whitelistManagerPopup .whitelist-item span {
+  font-weight: bold;
+}
+
+.remove-whitelist-btn {
+  background-color: #d32f2f;
+  color: white;
+  border: none;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+#whitelistManagerPopup .add-user-section {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+#newWhitelistUser {
+  flex: 1;
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+}
+
+#whitelistManagerPopup .popup-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+#clearWhitelistBtn {
+  background-color: #f44336;
+  color: white;
+}
+
+#whitelistManagerBackdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+}
+
+/* Additional UI elements */
+#saveSearchFormButton {
+  float: right;
+  margin-left: 0.4em;
+}
+
+.nav-home-link {
+  text-decoration: none;
+}
+
+.whitelist-empty-message {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+}
+
+/* When placed inside the activity warnings header button group, push the
+   restore button to the far right. The header-buttons container is flex, so
+   margin-left:auto will act like a float-right. */
+#activityWarningsContainer .header-buttons #restoreWarningsBtn {
+  margin-left: auto;
+}
+
+.warning-table-cell-center {
+  text-align: center;
+}
+
+#whitelistButton {
+  float: right;
+}
+
+.bio-section {
+  padding: 10px;
+}
+
+#clearCache,
+#onlyNewts,
+#onlyNewestBadges {
+  float: right;
+}
+
+body.feed-helper ul.copy--buttons {
+  clear: both;
+}
+
+/* Shaky tree loader (small, ~100x100) */
+.wbe-shaky-tree {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 120px;
+  z-index: 10050;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none; /* don't block clicks */
+}
+.wbe-shaky-tree .wbe-shaky-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* Do not apply CSS animation — the image is an animated GIF */
+  animation: none;
+  display: block;
+}
+.wbe-shaky-tree .wbe-shaky-messages {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.wbe-shaky-tree .wbe-shaky-label {
+  background: rgba(37, 66, 45, 0.95);
+  color: #fff;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes wbe-shake {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-4px) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-3px) rotate(2deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+/* Centered variant for larger fetch operations */
+.wbe-shaky-tree.center {
+  left: 50% !important;
+  top: 38% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translate(-50%, -50%);
+  width: 160px;
+  z-index: 10060;
+  /* circular image area at top; messages below */
+  background: rgba(255, 255, 255, 0.95);
+  padding: 12px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+.wbe-shaky-tree.center .wbe-shaky-image {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+  background: transparent;
+}
+.wbe-shaky-tree.center .wbe-shaky-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
