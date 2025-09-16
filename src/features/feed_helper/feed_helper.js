@@ -230,6 +230,88 @@ const mentors = [
 
 const trusted = [...leaders, ...mentors, ...rangers];
 
+// Project accounts and their badge slugs for checking newly badged people
+const projectAccounts = {
+  "WikiTree-2": "acadia",
+  "WikiTree-6": "us-presidents",
+  "WikiTree-7": "czech-roots",
+  "WikiTree-8": "new_netherland",
+  "WikiTree-9": "mayflower",
+  "WikiTree-10": "lds",
+  "WikiTree-11": "notables",
+  "WikiTree-12": "native-americans",
+  "WikiTree-13": "1776",
+  "WikiTree-14": "netherlands",
+  "WikiTree-15": "penn",
+  "WikiTree-16": "dutch_cape_colony",
+  "WikiTree-17": "canada",
+  "WikiTree-18": "quebecois",
+  "WikiTree-20": "bermuda",
+  "WikiTree-21": "canada",
+  "WikiTree-23": "holocaust",
+  "WikiTree-25": "euroaristo",
+  "WikiTree-26": "louisiana_families",
+  "WikiTree-27": "military_and_war",
+  "WikiTree-28": "louisiana_families",
+  "WikiTree-29": "adoption_angel",
+  "WikiTree-30": "pgm",
+  "WikiTree-31": "westward_ho",
+  "WikiTree-32": "quakers",
+  "WikiTree-33": "wales",
+  "WikiTree-34": "ireland",
+  "WikiTree-35": "united_states",
+  "WikiTree-36": "magna_carta",
+  "WikiTree-37": "australia",
+  "WikiTree-39": "us_civil_war",
+  "WikiTree-40": "united_states",
+  "WikiTree-41": "united_states",
+  "WikiTree-42": "united_states",
+  "WikiTree-43": "puerto_rico",
+  "WikiTree-44": "united_states",
+  "WikiTree-47": "south_africa",
+  "WikiTree-49": "sweden",
+  "WikiTree-51": "united_states",
+  "WikiTree-53": "germany",
+  "WikiTree-54": "great_war",
+  "WikiTree-55": "new_zealand",
+  "WikiTree-56": "france",
+  "WikiTree-57": "england",
+  "WikiTree-58": "canada",
+  "WikiTree-59": "poland",
+  "WikiTree-60": "huguenot",
+  "WikiTree-61": "switzerland",
+  "WikiTree-63": "denmark",
+  "WikiTree-65": "scotland",
+  "WikiTree-66": "wales",
+  "WikiTree-69": "italy",
+  "WikiTree-71": "slavic_roots",
+  "WikiTree-72": "united_states",
+  "WikiTree-75": "palatine_migration",
+  "WikiTree-76": "south_africa",
+  "WikiTree-84": "scotland",
+  "WikiTree-85": "disasters",
+  "WikiTree-86": "latin_america",
+  "WikiTree-90": "finland",
+  "WikiTree-91": "titanic",
+  "WikiTree-92": "mexico",
+  "WikiTree-93": "spain",
+  "WikiTree-94": "portugal",
+  "WikiTree-95": "one_name_studies",
+  "WikiTree-100": "norway",
+  "WikiTree-101": "india",
+  "WikiTree-102": "cemeteries",
+  "WikiTree-105": "bahamas",
+  "WikiTree-112": "black_heritage",
+  "WikiTree-113": "medieval",
+  "WikiTree-115": "nordic",
+  "WikiTree-118": "hungary",
+  "WikiTree-119": "iceland",
+  "WikiTree-125": "religion",
+  "WikiTree-130": "appalachia",
+  "WikiTree-132": "profiles",
+  "WikiTree-139": "notables",
+};
+
 // Define the class FeedHelper
 class FeedHelper {
   constructor() {
@@ -243,7 +325,7 @@ class FeedHelper {
       merges: {
         name: "Merges",
         inURL: "merge=1",
-        actions: [() => this.addControlButtons()],
+        actions: [() => this.getMemberCreatedDates(), () => this.addControlButtons()],
       },
       pre1500: {
         name: "Pre-1500",
@@ -253,47 +335,56 @@ class FeedHelper {
       ancestors: {
         name: "Ancestors Feed",
         inURL: "set_id=ancestors",
-        actions: [() => this.addControlButtons()],
+        actions: [() => this.getMemberCreatedDates(), () => this.addControlButtons()],
       },
       descendants: {
-        name: "Descendants Feed", 
+        name: "Descendants Feed",
         inURL: "set_id=descendants",
-        actions: [() => this.addControlButtons()],
+        actions: [() => this.getMemberCreatedDates(), () => this.addControlButtons()],
       },
       connections: {
         name: "Connections Feed",
-        inURL: "set_id=connections", 
-        actions: [() => this.addControlButtons()],
+        inURL: "set_id=connections",
+        actions: [() => this.getMemberCreatedDates(), () => this.addControlButtons()],
       },
       contributions: {
         name: "Contributions",
         inURL: "Special:Contributions",
-        actions: [() => this.addControlButtons()],
+        actions: [() => this.getMemberCreatedDates(), () => this.addControlButtons()],
       },
       followed: {
         name: "Followed Surnames",
         inURL: "followed_by=",
-        actions: [() => this.addControlButtons()],
+        actions: [() => this.getMemberCreatedDates(), () => this.addControlButtons()],
       },
       surname: {
         name: "Surname Feed",
         inURL: "surname=",
-        actions: [() => this.addControlButtons()],
+        actions: [() => this.getMemberCreatedDates(), () => this.addControlButtons()],
       },
       thanks: {
-        name: "Thanks Feed", 
+        name: "Thanks Feed",
         inURL: "Special:Thanks",
-        actions: [() => this.addControlButtons()],
+        actions: [() => this.getMemberCreatedDates(), () => this.addControlButtons()],
       },
       watchlist: {
         name: "Watchlist Feed",
         inURL: "watchlist=1",
-        actions: [() => this.addControlButtons()],
+        actions: [() => this.getMemberCreatedDates(), () => this.addControlButtons()],
       },
       networkfeed: {
         name: "Network Feed",
         inURL: "Special:NetworkFeed",
-        actions: [() => this.addControlButtons()],
+        actions: [() => this.getMemberCreatedDates(), () => this.addControlButtons()],
+      },
+      projectfeed: {
+        name: "Project Feed",
+        inURL: "who=WikiTree-",
+        actions: [
+          () => this.markNewestProjectBadgedPeople(),
+          () => this.getMemberCreatedDates(),
+          () => this.addControlButtons(),
+        ],
       },
     };
     this.people = null;
@@ -304,13 +395,16 @@ class FeedHelper {
     this.fetchedProfilesStorageKey = "fetchedProfiles";
     this.memberDataStorageKey = "memberData";
     this.currentConfig = this.getCurrentConfig();
-    
+
     // If no configuration found, we might not be on a supported page
     if (!this.currentConfig) {
       console.log("FeedHelper: No configuration found for current page");
       return;
     }
-    
+
+    console.log("FeedHelper: Selected configuration:", this.currentConfig.name);
+    console.log("FeedHelper: Current URL:", window.location.href);
+
     this.feedHelperButtons = $("<div id='rangersButtons'></div>");
     $(".page--title h1").after(this.feedHelperButtons);
     this.init();
@@ -334,21 +428,45 @@ class FeedHelper {
         if (Object.keys(this.memberData).length == 0) {
           await this.getMemberCreatedDates();
         }
+      } else if (this.currentConfig.name === "Project Feed") {
+        targetClasses = "a.newestProjectBadged";
       }
+
+      console.log(`Highlighting with target classes: ${targetClasses}`);
+      console.log(`Current config: ${this.currentConfig.name}`);
+
+      const matchingLinks = $(targetClasses);
+      console.log(`Found ${matchingLinks.length} links with class ${targetClasses}`);
+
       const allItems = $("span.feed-item:not(.HISTORY-HIDDEN)");
-      // Add highlight class to matching rows, do NOT remove existing highlights
+      console.log(`Found ${allItems.length} feed items`);
+
+      let highlightedCount = 0;
+      // Add specific highlight class to matching rows, do NOT remove existing highlights
       allItems.each(function () {
         if ($(this).find(targetClasses).length > 0) {
-          $(this).addClass("highlight-new-member");
+          if (self.currentConfig.name === "Project Feed") {
+            $(this).addClass("newestProjectBadged");
+          } else {
+            $(this).addClass("highlight");
+          }
+          highlightedCount++;
         }
       });
+
+      console.log(`Highlighted ${highlightedCount} feed items`);
+
       // Disable the button after applying highlights to avoid accidental removal
       const btn = $(event.currentTarget);
       btn.prop("disabled", true).addClass("disabled");
-      if (this.currentConfig.name === "Pre-1700" || this.currentConfig.name === "Pre-1500") {
-        btn.text("Highlighted newly-badged people");
+      if (
+        this.currentConfig.name === "Pre-1700" ||
+        this.currentConfig.name === "Pre-1500" ||
+        this.currentConfig.name === "Project Feed"
+      ) {
+        btn.text("Highlighted Newly-Badged People");
       } else if (this.currentConfig.name === "Merges") {
-        btn.text("Highlighted new members");
+        btn.text("Highlighted New Members");
       }
     });
   }
@@ -2094,14 +2212,14 @@ class FeedHelper {
     const anomaliesButton = $(
       `<button id='anomaliesButton' class='button small' 
       title='${tooltipText}'>
-      Check for anomalies
+      Check for Anomalies
       </button>`
     ).appendTo(this.feedHelperButtons);
     anomaliesButton.on("click", async () => {
       try {
         await this.checkForAnomalies();
         const btn = $("#anomaliesButton");
-        btn.prop("disabled", true).addClass("disabled").text("Checked anomalies");
+        btn.prop("disabled", true).addClass("disabled").text("Checked Anomalies");
       } catch (err) {
         console.error("Error checking anomalies via button:", err);
       }
@@ -2112,7 +2230,7 @@ class FeedHelper {
     const activityButton = $(
       `<button id='activityButton' class='button small' 
       title='Check for rapid activity patterns (3+ merges within 5 minutes)'>
-      Check activity
+      Check Activity
       </button>`
     ).appendTo(this.feedHelperButtons);
     activityButton.on("click", async () => {
@@ -2127,7 +2245,7 @@ class FeedHelper {
 
         await this.checkActivity(true, true); // shouldScroll=true, force=true
         const btn = $("#activityButton");
-        btn.prop("disabled", true).addClass("disabled").text("Checked activity");
+        btn.prop("disabled", true).addClass("disabled").text("Checked Activity");
       } catch (err) {
         console.error("Error checking activity via button:", err);
       }
@@ -2136,23 +2254,23 @@ class FeedHelper {
 
   addHighlightNewMembersButton() {
     let buttonText, buttonTitle;
-    
-    // Only add highlight button for feed types that support it
+
     if (this.currentConfig.name === "Pre-1700") {
-      buttonText = "Highlight newly-badged people";
-      buttonTitle = "Highlight edits by the 200 newest Pre-1700 badged people";
+      buttonText = "Highlight Newly-Badged People";
+      buttonTitle = "Highlight activity by the 200 newest Pre-1700 badged people";
     } else if (this.currentConfig.name === "Pre-1500") {
-      buttonText = "Highlight newly-badged people";
-      buttonTitle = "Highlight edits by newly-badged Pre-1500 people (last six months)";
-    } else if (this.currentConfig.name === "Merges") {
-      buttonText = "Highlight new members";
-      buttonTitle = "Highlight edits by people who joined less than 6 months ago";
+      buttonText = "Highlight Newly-Badged People";
+      buttonTitle = "Highlight activity by newly-badged Pre-1500 people (last six months)";
+    } else if (this.currentConfig.name === "Project Feed") {
+      buttonText = "Highlight New and Newly-Badged Members";
+      buttonTitle =
+        "Highlight activity by people who joined less than 6 months ago and people who recently got the project badge";
     } else {
-      // For other feed types, don't add the highlight button yet
-      // This functionality could be extended in the future
-      return;
+      // All other feed types get new member highlighting
+      buttonText = "Highlight New Members";
+      buttonTitle = "Highlight activity by people who joined less than 6 months ago";
     }
-    
+
     const highlightButton = $(
       `<button id='highlightNewMembersButton' class='button small' title='${buttonTitle}'>${buttonText}</button>`
     ).appendTo(this.feedHelperButtons);
@@ -2172,13 +2290,21 @@ class FeedHelper {
     // Get each item from config and check if its inURL parameter is in the URL
     // Order matters - more specific matches should come first
     const configOrder = [
-      'pre1700', 'pre1500', 'merges',  // Original specific feeds
-      'ancestors', 'descendants', 'connections', 'watchlist',  // NetworkFeed with set_id
-      'contributions', 'thanks',  // Special pages
-      'followed', 'surname',  // NetworkFeed with specific params
-      'networkfeed'  // Generic NetworkFeed fallback
+      "pre1700",
+      "pre1500",
+      "merges", // Original specific feeds
+      "projectfeed", // Project account feeds
+      "ancestors",
+      "descendants",
+      "connections",
+      "watchlist", // NetworkFeed with set_id
+      "contributions",
+      "thanks", // Special pages
+      "followed",
+      "surname", // NetworkFeed with specific params
+      "networkfeed", // Generic NetworkFeed fallback
     ];
-    
+
     for (const key of configOrder) {
       const configItem = this.config[key];
       if (configItem && window.location.href.includes(configItem.inURL)) {
@@ -2222,6 +2348,7 @@ class FeedHelper {
       if (!isValidCache || !hasProfiles) {
         this.showShaky("Loading badges...", "center");
       }
+      console.log(`Fetching badge page: Special:Badges&b=${badgeParam}`);
       var badgePage = await getWikiTreePage("Rangers", "index.php", `title=Special:Badges&b=${badgeParam}`);
     } finally {
       // hideShaky is safe to call even if showShaky wasn't shown
@@ -2277,15 +2404,25 @@ class FeedHelper {
 
   async markBadgeProfiles(badgeType, options = {}) {
     const { cssClass, title } = options;
+    console.log(`markBadgeProfiles called for ${badgeType} with cssClass: ${cssClass}`);
+
     const profileIDs = await this.getBadgeProfiles(badgeType, options);
+    console.log(`Got ${profileIDs.length} badge profiles:`, profileIDs);
 
     const allLinks = document.querySelectorAll("a[href*='/wiki/']");
+    console.log(`Found ${allLinks.length} profile links on page`);
+
+    let markedCount = 0;
     allLinks.forEach((link) => {
       const profileID = link.href.split("/").pop();
       if (profileIDs.includes(profileID)) {
         $(link).addClass(cssClass).attr("title", title);
+        markedCount++;
+        console.log(`Marked profile link: ${profileID} with class ${cssClass}`);
       }
     });
+
+    console.log(`Total profiles marked with ${cssClass}: ${markedCount}`);
   }
 
   async getNewestPre1700People() {
@@ -2326,6 +2463,43 @@ class FeedHelper {
       badgeParam: "pre_1500",
       cssClass: "recentPre1500s",
       title: "Received Pre-1500 badge in the past 6 months",
+      dateFilter: sixMonthsAgo,
+    });
+  }
+
+  async markNewestProjectBadgedPeople() {
+    console.log("WBE: markNewestProjectBadgedPeople() called");
+    console.log("Current URL:", window.location.href);
+
+    // Extract the project account ID from the URL
+    const urlMatch = window.location.href.match(/who=(WikiTree-\d+)/);
+    if (!urlMatch) {
+      console.log("No project account found in URL");
+      return;
+    }
+
+    const projectAccountId = urlMatch[1];
+    const badgeSlug = projectAccounts[projectAccountId];
+
+    console.log(`Found project account ID: ${projectAccountId}`);
+    console.log(`Badge slug for ${projectAccountId}:`, badgeSlug);
+
+    if (!badgeSlug) {
+      console.log(`No badge slug found for project account: ${projectAccountId}`);
+      return;
+    }
+
+    console.log(`Marking newest badged people for project: ${projectAccountId} (${badgeSlug})`);
+
+    // Get recent badges (last 6 months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    await this.markBadgeProfiles(`project_${projectAccountId}`, {
+      storageKey: `project_${projectAccountId}`,
+      badgeParam: badgeSlug,
+      cssClass: "newestProjectBadged",
+      title: `Received ${badgeSlug} project badge recently`,
       dateFilter: sixMonthsAgo,
     });
   }
@@ -2768,6 +2942,8 @@ class FeedHelper {
           targetClasses = "a.newestPre1700s";
         } else if (self.currentConfig.name === "Pre-1500") {
           targetClasses = "a.recentPre1500s";
+        } else if (self.currentConfig.name === "Project Feed") {
+          targetClasses = "a.newestProjectBadged, a.newt";
         }
       } else if ($(this).attr("id") === "onlyNewts") {
         targetClasses = "a.newt";
@@ -2787,20 +2963,22 @@ class FeedHelper {
       if ($(this).hasClass("active")) {
         // Currently filtering - show "Show all" text
         if ($(this).attr("id") === "onlyNewestBadges") {
-          $(this).text("Show all edits");
+          $(this).text("Show All Activity");
         } else if ($(this).attr("id") === "onlyNewts") {
-          $(this).text("Show all edits");
+          $(this).text("Show All Activity");
         }
       } else {
         // Currently showing all - show filter text
         if ($(this).attr("id") === "onlyNewestBadges") {
           if (self.currentConfig.name === "Pre-1700") {
-            $(this).text("Only edits by newly-badged people");
+            $(this).text("Only Activity by Newly-Badged People");
           } else if (self.currentConfig.name === "Pre-1500") {
-            $(this).text("Only edits by newly-badged people");
+            $(this).text("Only Activity by Newly-Badged People");
+          } else if (self.currentConfig.name === "Project Feed") {
+            $(this).text("Only New and Newly-Badged Members");
           }
         } else if ($(this).attr("id") === "onlyNewts") {
-          $(this).text("Only edits by new members");
+          $(this).text("Only Activity by New Members");
         }
       }
     });
@@ -2833,7 +3011,7 @@ class FeedHelper {
       // Disable the Get bios button after successful run
       try {
         const gb = $("#getBios");
-        gb.prop("disabled", true).addClass("disabled").text("Got bios");
+        gb.prop("disabled", true).addClass("disabled").text("Got Bios");
       } catch (e) {
         /* ignore if button not present */
       }
@@ -2848,8 +3026,8 @@ class FeedHelper {
       try {
         const hb = $("#highlightNewMembersButton");
         hb.prop("disabled", true).addClass("disabled");
-        if (this.currentConfig.name === "Merges") hb.text("Highlighted new members");
-        else hb.text("Highlighted newly-badged people");
+        if (this.currentConfig.name === "Merges") hb.text("Highlighted New Members");
+        else hb.text("Highlighted Newly-Badged People");
       } catch (e) {}
 
       // Small delay before next step
@@ -2861,7 +3039,7 @@ class FeedHelper {
       // Disable anomalies button
       try {
         const ab = $("#anomaliesButton");
-        ab.prop("disabled", true).addClass("disabled").text("Checked anomalies");
+        ab.prop("disabled", true).addClass("disabled").text("Checked Anomalies");
       } catch (e) {}
 
       // Small delay before next step
@@ -2873,7 +3051,7 @@ class FeedHelper {
       // Disable activity button
       try {
         const actb = $("#activityButton");
-        actb.prop("disabled", true).addClass("disabled").text("Checked activity");
+        actb.prop("disabled", true).addClass("disabled").text("Checked Activity");
       } catch (e) {}
 
       // Final status
@@ -2886,13 +3064,13 @@ class FeedHelper {
 
   addGetBiosButton() {
     const getBiosButton = $(
-      `<button id="getBios" title="Get the bios of all these profiles" class="button small">Get bios</button>`
+      `<button id="getBios" title="Get the bios of all these profiles" class="button small">Get Bios</button>`
     );
     $(document).on("click", "#getBios", async () => {
       try {
         await this.getBios();
         const btn = $("#getBios");
-        btn.prop("disabled", true).addClass("disabled").text("Got bios");
+        btn.prop("disabled", true).addClass("disabled").text("Got Bios");
       } catch (err) {
         console.error("Error getting bios via button:", err);
       }
@@ -2962,13 +3140,13 @@ class FeedHelper {
     // Re-enable core control buttons and restore their labels
     try {
       const gb = $("#getBios");
-      if (gb.length) gb.prop("disabled", false).removeClass("disabled").text("Get bios");
+      if (gb.length) gb.prop("disabled", false).removeClass("disabled").text("Get Bios");
 
       const ab = $("#anomaliesButton");
-      if (ab.length) ab.prop("disabled", false).removeClass("disabled").text("Check for anomalies");
+      if (ab.length) ab.prop("disabled", false).removeClass("disabled").text("Check for Anomalies");
 
       const actb = $("#activityButton");
-      if (actb.length) actb.prop("disabled", false).removeClass("disabled").text("Check activity");
+      if (actb.length) actb.prop("disabled", false).removeClass("disabled").text("Check Activity");
 
       const hb = $("#highlightNewMembersButton");
       if (hb.length) {
@@ -2999,19 +3177,23 @@ class FeedHelper {
     // Add filter buttons in consistent order across all pages
     if (this.currentConfig.name === "Pre-1700") {
       const onlyNewestBadgesButton = $(
-        `<button id="onlyNewestBadges" title="Show only edits by the 200 newest Pre-1700 badged people" class="button small">Only edits by newly-badged people</button>`
+        `<button id="onlyNewestBadges" title="Show only activity by the 200 newest Pre-1700 badged people" class="button small">Only Activity by Newly-Badged People</button>`
       );
       this.feedHelperButtons.append(onlyNewestBadgesButton);
-    }
-    if (this.currentConfig.name === "Pre-1500") {
+    } else if (this.currentConfig.name === "Pre-1500") {
       const onlyNewestBadgesButton = $(
-        `<button id="onlyNewestBadges" title="Show only edits by newly-badged Pre-1500 people (last six months)" class="button small">Only edits by newly-badged people</button>`
+        `<button id="onlyNewestBadges" title="Show only activity by newly-badged Pre-1500 people (last six months)" class="button small">Only Activity by Newly-Badged People</button>`
       );
       this.feedHelperButtons.append(onlyNewestBadgesButton);
-    }
-    if (this.currentConfig.name === "Merges") {
+    } else if (this.currentConfig.name === "Project Feed") {
+      const onlyNewestBadgesButton = $(
+        `<button id="onlyNewestBadges" title="Show only activity by people who recently received project badges or joined less than 6 months ago" class="button small">Only New and Newly-Badged Members</button>`
+      );
+      this.feedHelperButtons.append(onlyNewestBadgesButton);
+    } else {
+      // All other feed types get the new members filter
       const onlyNewtsButton = $(
-        `<button id="onlyNewts" title="Show only edits by people who joined less than 6 months ago" class="button small">Only edits by new members</button>`
+        `<button id="onlyNewts" title="Show only activity by people who joined less than 6 months ago" class="button small">Only Activity by New Members</button>`
       );
       this.feedHelperButtons.append(onlyNewtsButton);
     }

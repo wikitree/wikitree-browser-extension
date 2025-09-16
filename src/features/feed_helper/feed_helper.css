@@ -1,12 +1,32 @@
 /* Styles for feedHelper feature */
 a.newestPre1700s,
-a.newt {
+a.newestProjectBadged {
   background-color: lemonchiffon;
   border: 1px solid forestgreen;
   padding: 0.1em 0.3em;
   border-radius: 5px;
   font-size: 1em;
   margin-left: 0.5em;
+}
+
+a.newt {
+  background-color: lightcyan;
+  border: 1px solid darkcyan;
+  padding: 0.1em 0.3em;
+  border-radius: 5px;
+  font-size: 1em;
+  margin-left: 0.5em;
+}
+
+/* Special style for people who are both new members AND newly-badged */
+a.newt.newestProjectBadged {
+  background-color: lightcyan;
+  border: 3px solid gold;
+  padding: 0.1em 0.3em;
+  border-radius: 5px;
+  font-size: 1em;
+  margin-left: 0.5em;
+  box-shadow: 0 0 3px rgba(255, 215, 0, 0.5);
 }
 
 a.recentPre1500s {
@@ -31,7 +51,7 @@ a.recentPre1500s {
   border-radius: 5px;
   cursor: pointer;
 }
-#rangersButtons button:hover {
+#rangersButtons button:not(.disabled):hover {
   background: linear-gradient(135deg, #fcb815 0%, #fad158 100%);
 }
 #rangersButtons button:active {
@@ -149,9 +169,6 @@ x.closeBioPopup {
   color: black !important;
 }
 
-#rangersButtons {
-  text-align: center;
-}
 #rangersButtons button.active {
   background-color: forestgreen;
   border: 1px solid black;
@@ -171,6 +188,14 @@ x.closeBioPopup {
 
 #rangersButtons #restoreWarningsBtn:hover {
   filter: brightness(0.95);
+}
+
+#rangersButtons {
+  border: 2px solid #25422d;
+  overflow: auto;
+  border-radius: 5px;
+  margin-top: 0.2em;
+  margin-bottom: 0.2em;
 }
 
 .feed-item.anomaly {
@@ -306,6 +331,14 @@ span.feed-item.highlight {
   padding: 0.2em 0.5em;
   border-radius: 5px;
   box-shadow: 0 2px 4px rgba(143, 198, 65, 0.2);
+}
+
+span.feed-item.newestProjectBadged {
+  border: 2px solid #ff6b35;
+  background-color: #fff3e0;
+  padding: 0.2em 0.5em;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(255, 107, 53, 0.2);
 }
 
 /* Make table overflow visible */
