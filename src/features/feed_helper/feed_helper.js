@@ -856,19 +856,19 @@ class FeedHelper {
     if (this.currentConfig.name !== "Contributions") {
       return false;
     }
-    
+
     // Get the "who" parameter from the URL
     const urlParams = new URLSearchParams(window.location.search);
-    const whoParam = urlParams.get('who');
-    
+    const whoParam = urlParams.get("who");
+
     // Get current user's WikiTree ID
     const currentUser = getUserWtId();
-    
+
     // If either is null, we can't determine ownership
     if (!whoParam || !currentUser) {
       return false;
     }
-    
+
     // Compare the who parameter with current user ID
     return whoParam === currentUser;
   }
@@ -879,7 +879,7 @@ class FeedHelper {
   async autoRunActivityCheck() {
     try {
       this.debug("Running automatic activity check on page load");
-      
+
       // Skip rapid activity check if user is viewing their own contributions page
       if (this.isViewingOwnContributionsPage()) {
         this.debug("Skipping auto activity check - user viewing own contributions page");
@@ -3442,7 +3442,7 @@ class FeedHelper {
     this.addFullCheckButton(); // Add the comprehensive button first
     this.addGetBiosButton();
     this.addAnomaliesButton();
-    
+
     // Skip these buttons on Contributions pages
     if (this.currentConfig.name !== "Contributions") {
       this.addHighlightNewMembersButton(); // Add the highlight button
@@ -3621,11 +3621,11 @@ shouldInitializeFeature("feedHelper").then((isEnabled) => {
   if (isEnabled) {
     // Skip feed helper on NetworkFeed upgrade page
     const currentUrl = window.location.href;
-    if (currentUrl.includes('Special:NetworkFeed') && currentUrl.includes('upgrade=1')) {
-      console.log('Feed helper disabled on NetworkFeed upgrade page');
+    if (currentUrl.includes("Special:NetworkFeed") && currentUrl.includes("upgrade=1")) {
+      console.log("Feed helper disabled on NetworkFeed upgrade page");
       return;
     }
-    
+
     import("./feed_helper.css");
     initBioCheck();
     $("body").addClass("feed-helper");
