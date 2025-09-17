@@ -9,6 +9,7 @@ import { theSourceRules } from "../bioCheck/SourceRules.js";
 import { BioCheckPerson } from "../bioCheck/BioCheckPerson.js";
 import { Biography } from "../bioCheck/Biography.js";
 import { initBioCheck } from "../bioCheck/bioCheck.js";
+import { getUserWtId } from "../../core/common.js";
 
 const rangers = [
   "Ikeler-28",
@@ -362,11 +363,6 @@ class FeedHelper {
         inURL: "surname=",
         actions: [() => this.getMemberCreatedDates(), () => this.addControlButtons()],
       },
-      thanks: {
-        name: "Thanks Feed",
-        inURL: "Special:Thanks",
-        actions: [() => this.getMemberCreatedDates(), () => this.addControlButtons()],
-      },
       watchlist: {
         name: "Watchlist Feed",
         inURL: "watchlist=1",
@@ -392,8 +388,17 @@ class FeedHelper {
     this.fetchedProfiles = {};
     this.memberData = {};
     this.bioCheckResultsStorageKey = "bioCheckResults";
-    this.fetchedProfilesStorageKey = "fetchedProfiles";
+    this.fetchedProfilesStorageKey = "wt-bio-profiles";
     this.memberDataStorageKey = "memberData";
+    this.activityWarningsStorageKey = "wt-activity-warnings";
+    this.dismissedWarningsStorageKey = "wt-dismissed-warnings"; // Global dismissed warnings
+    this.lastActiveKey = "wt-last-active";
+    this.sessionTimeoutHours = 2; // Clean up data older than 2 hours
+    this.storedActivityWarnings = {}; // Rapid activity alerts restored from storage
+
+    // Set up localStorage with time-based cleanup
+    this.setupBioStorage();
+
     this.currentConfig = this.getCurrentConfig();
 
     // If no configuration found, we might not be on a supported page
@@ -426,7 +431,7 @@ class FeedHelper {
       } else if (this.currentConfig.name === "Merges") {
         targetClasses = "a.newt";
         if (Object.keys(this.memberData).length == 0) {
-          await this.getMemberCreatedDates();
+          await this.getMemberCreatedDates(true);
         }
       } else if (this.currentConfig.name === "Project Feed") {
         targetClasses = "a.newestProjectBadged";
@@ -530,6 +535,73 @@ class FeedHelper {
     if (this.debugMode) {
       console.log("FeedHelper:", ...args);
     }
+  }
+
+  /**
+   * Generates a page-specific identifier for storage
+   * This ensures rapid activity alerts are only shown for the specific page they were found on
+   */
+  getCurrentPageIdentifier() {
+    const url = window.location.href;
+    const urlObj = new URL(url);
+
+    // Create a simplified identifier that captures the essential page parameters
+    // but ignores pagination and other temporary parameters
+    let pageId = urlObj.pathname;
+
+    // Add essential search parameters that define the page content
+    const essentialParams = ["pre1700", "pre1500", "merge", "set_id", "surname", "followed_by", "who", "watchlist"];
+    const searchParams = urlObj.searchParams;
+    const relevantParams = [];
+
+    essentialParams.forEach((param) => {
+      if (searchParams.has(param)) {
+        relevantParams.push(`${param}=${searchParams.get(param)}`);
+      }
+    });
+
+    if (relevantParams.length > 0) {
+      pageId += "?" + relevantParams.join("&");
+    }
+
+    // Create a hash for consistent storage key
+    return btoa(pageId).replace(/[/+=]/g, "_");
+  }
+
+  /**
+   * Gets the page-specific rapid activity storage key
+   */
+  getPageSpecificWarningsKey() {
+    return `${this.activityWarningsStorageKey}-${this.getCurrentPageIdentifier()}`;
+  }
+
+  /**
+   * Gets the list of globally dismissed warnings (user IDs that should not show warnings again)
+   */
+  getDismissedWarnings() {
+    const dismissed = localStorage.getItem(this.dismissedWarningsStorageKey);
+    return dismissed ? JSON.parse(dismissed) : {};
+  }
+
+  /**
+   * Adds a warning to the globally dismissed list
+   */
+  addToDismissedWarnings(sequenceKey, userID) {
+    const dismissed = this.getDismissedWarnings();
+    dismissed[sequenceKey] = {
+      userID: userID,
+      dismissedAt: Date.now(),
+    };
+    localStorage.setItem(this.dismissedWarningsStorageKey, JSON.stringify(dismissed));
+    this.debug(`Added ${userID} (${sequenceKey}) to dismissed warnings`);
+  }
+
+  /**
+   * Checks if a warning sequence should be suppressed (was previously dismissed)
+   */
+  isWarningDismissed(sequenceKey) {
+    const dismissed = this.getDismissedWarnings();
+    return dismissed.hasOwnProperty(sequenceKey);
   }
 
   /**
@@ -670,7 +742,7 @@ class FeedHelper {
         </div>
         
         <div class="popup-description">
-          <p>Whitelisted users will not trigger rapid activity warnings.</p>
+          <p>Whitelisted users will not trigger rapid activity alerts.</p>
         </div>
         
         <div class="whitelist-container">
@@ -755,27 +827,80 @@ class FeedHelper {
     this.initializeEventListeners();
     this.executeCurrentConfigActions();
 
-    // On page load, if we have people data in storage, display getBio buttons
-    const storedProfiles = sessionStorage.getItem(this.fetchedProfilesStorageKey);
-    if (storedProfiles && (this.currentConfig.name === "Pre-1700" || this.currentConfig.name === "Pre-1500")) {
-      this.fetchedProfiles = JSON.parse(storedProfiles);
-      this.people = [null, null, this.fetchedProfiles];
-      this.displayBioButtons();
-    }
-
     // Load existing merge data from sessionStorage
     const storedMerges = sessionStorage.getItem(this.mergesStorageKey);
     const storedMemberData = sessionStorage.getItem(this.memberDataStorageKey);
 
     if (storedMerges && this.currentConfig.name === "Merges") {
       this.mergesData = JSON.parse(storedMerges);
-      this.checkForAnomalies();
+      this.checkForAnomalies(true, false); // Don't show loader during initialization
     }
 
     // Load member data independently if we're on the Merges page
     if (this.currentConfig.name === "Merges" && storedMemberData) {
       this.memberData = JSON.parse(storedMemberData);
       this.getMemberCreatedDates();
+    }
+
+    // Automatically run activity check after a short delay
+    setTimeout(async () => {
+      await this.autoRunActivityCheck();
+    }, 2000); // 2 second delay to let page load complete
+  }
+
+  /**
+   * Checks if we're viewing the current user's own contributions page
+   * @returns {boolean} True if viewing own contributions page
+   */
+  isViewingOwnContributionsPage() {
+    if (this.currentConfig.name !== "Contributions") {
+      return false;
+    }
+    
+    // Get the "who" parameter from the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const whoParam = urlParams.get('who');
+    
+    // Get current user's WikiTree ID
+    const currentUser = getUserWtId();
+    
+    // If either is null, we can't determine ownership
+    if (!whoParam || !currentUser) {
+      return false;
+    }
+    
+    // Compare the who parameter with current user ID
+    return whoParam === currentUser;
+  }
+
+  /**
+   * Automatically runs activity check on page load and shows minimized restore button if warnings found
+   */
+  async autoRunActivityCheck() {
+    try {
+      this.debug("Running automatic activity check on page load");
+      
+      // Skip rapid activity check if user is viewing their own contributions page
+      if (this.isViewingOwnContributionsPage()) {
+        this.debug("Skipping auto activity check - user viewing own contributions page");
+        return;
+      }
+
+      // Run activity check without scrolling, without forcing, and without showing popup messages
+      await this.checkActivity(false, false, false);
+
+      // Get the current warnings count
+      const currentWarnings = Object.keys(this.storedActivityWarnings || {}).length;
+
+      // Show minimized restore button if we have warnings (table hidden by default)
+      if (currentWarnings > 0) {
+        this.showRestoreButton(false); // false = start minimized (table hidden)
+        this.debug(`Auto-activity check found ${currentWarnings} warnings, showing restore button (minimized)`);
+      } else {
+        this.debug("Auto-activity check found no warnings");
+      }
+    } catch (error) {
+      console.error("Error in automatic activity check:", error);
     }
   }
 
@@ -786,7 +911,7 @@ class FeedHelper {
     }
   }
 
-  async getMemberCreatedDates() {
+  async getMemberCreatedDates(showLoader = false) {
     const memberCreatedDates = {};
     const historyItems = $("span.feed-item");
     const memberProfileIDs = [];
@@ -823,12 +948,14 @@ class FeedHelper {
 
           try {
             // Fetch new data only for IDs not in sessionStorage
-            this.showShaky(
-              `Fetching member data ${Math.floor(i / maxBatchSize) + 1}/${Math.ceil(
-                newProfiles.length / maxBatchSize
-              )}`,
-              "center"
-            );
+            if (showLoader) {
+              this.showShaky(
+                `Fetching member data ${Math.floor(i / maxBatchSize) + 1}/${Math.ceil(
+                  newProfiles.length / maxBatchSize
+                )}`,
+                "center"
+              );
+            }
             const people = await WikiTreeAPI.getPeople("Rangers", batch, fields, { resolveRedirect: 0 });
 
             // Merge new data with existing profiles
@@ -839,7 +966,9 @@ class FeedHelper {
             console.error(`Error fetching member data batch ${Math.floor(i / maxBatchSize) + 1}:`, error);
             // Continue with next batch even if one fails
           } finally {
-            this.hideShaky();
+            if (showLoader) {
+              this.hideShaky();
+            }
           }
         }
 
@@ -848,10 +977,14 @@ class FeedHelper {
       }
     } else {
       try {
-        this.showShaky("Fetching member profiles...", "center");
-        self.memberData = await this.getThePeople(memberProfileIDs, fields);
+        if (showLoader) {
+          this.showShaky("Fetching member profiles...", "center");
+        }
+        self.memberData = await this.getThePeople(memberProfileIDs, fields, showLoader);
       } finally {
-        this.hideShaky();
+        if (showLoader) {
+          this.hideShaky();
+        }
       }
     }
     // store the memberData in sessionStorage
@@ -880,9 +1013,9 @@ class FeedHelper {
     }
   }
 
-  async getThePeople(WTIDs, fields = []) {
+  async getThePeople(WTIDs, fields = [], showLoader = true) {
     // Check for already stored profiles
-    const storedProfiles = sessionStorage.getItem(this.fetchedProfilesStorageKey);
+    const storedProfiles = localStorage.getItem(this.fetchedProfilesStorageKey);
     let existingProfiles = storedProfiles ? JSON.parse(storedProfiles) : {};
 
     // Filter out already stored IDs
@@ -907,10 +1040,12 @@ class FeedHelper {
 
         try {
           // Show a centered loader for longer fetches
-          this.showShaky(
-            `Fetching profiles ${Math.floor(i / maxBatchSize) + 1}/${Math.ceil(newWTIDs.length / maxBatchSize)}`,
-            "center"
-          );
+          if (showLoader) {
+            this.showShaky(
+              `Fetching profiles ${Math.floor(i / maxBatchSize) + 1}/${Math.ceil(newWTIDs.length / maxBatchSize)}`,
+              "center"
+            );
+          }
           // Fetch new data only for IDs not in sessionStorage
           const people = await WikiTreeAPI.getPeople("Rangers", batch, fields, { resolveRedirect: 0 });
 
@@ -922,12 +1057,14 @@ class FeedHelper {
           console.error(`Error fetching batch ${Math.floor(i / maxBatchSize) + 1}:`, error);
           // Continue with next batch even if one fails
         } finally {
-          this.hideShaky();
+          if (showLoader) {
+            this.hideShaky();
+          }
         }
       }
 
       // Store updated data in sessionStorage
-      sessionStorage.setItem(this.fetchedProfilesStorageKey, JSON.stringify(existingProfiles));
+      this.storeBioData(this.fetchedProfilesStorageKey, JSON.stringify(existingProfiles));
     }
 
     this.people = [null, null, existingProfiles]; // Maintain array structure for consistency
@@ -957,7 +1094,7 @@ class FeedHelper {
     //("Excluded Names (from sessionStorage or fetched):", this.excludedNames);
   }
 
-  async checkForAnomalies(shouldScroll = true) {
+  async checkForAnomalies(shouldScroll = true, showLoader = true) {
     //console.log("checkForAnomalies called"); // Debugging log
     await this.loadExcludedNames();
 
@@ -976,7 +1113,7 @@ class FeedHelper {
 
     // Step 3: Fetch profile data
     const uniqueWTIDs = [...new Set(WTIDs)];
-    const people = await this.getThePeople(uniqueWTIDs);
+    const people = await this.getThePeople(uniqueWTIDs, [], showLoader);
 
     // Step 4: Perform gender and date anomaly checks (counted as anomalies)
     anomalyCount += this.detectGenderAndDateAnomalies(historyItems, people, processedPairs);
@@ -1000,26 +1137,29 @@ class FeedHelper {
     // console.log("Activity data:", activityData); // Debugging log
   }
 
-  async checkActivity(shouldScroll = true, force = false) {
+  async checkActivity(shouldScroll = true, force = false, showPopup = true) {
     //console.log("checkActivity called"); // Debugging log
     await this.loadExcludedNames();
 
     const historyItems = $("span.feed-item").not(".HISTORY-HIDDEN"); // Exclude HISTORY-HIDDEN
     const userMergeTimes = {}; // Track timestamps of merges by each user
-    const warningsShown = force ? {} : JSON.parse(sessionStorage.getItem("warningsShown")) || {}; // Track shown warnings
+
+    // Always start fresh - only check current page activity (don't load old stored warnings)
+    // The 'force' parameter is no longer needed for this behavior
+    const warningsShown = {};
 
     // Step 1: Extract activity data and user timestamps
     const activityData = this.extractActivityData(historyItems, userMergeTimes);
 
-    // Step 2: Highlight rapid activities (only check activity)
-    if (!this.isNotFirstPage()) {
-      // console.log("Highlighting rapid activities"); // Debugging log
-      const rapidActivityCount = await this.detectRapidActivities(userMergeTimes, warningsShown);
+    // Step 2: Highlight rapid activities (check activity on current page only)
+    // console.log("Highlighting rapid activities"); // Debugging log
+    const rapidActivityCount = await this.detectRapidActivities(userMergeTimes, warningsShown);
 
-      // Show appropriate message based on whether rapid activities were found
+    // Show appropriate message based on whether rapid activities were found (only if showPopup is true)
+    if (showPopup) {
       if (rapidActivityCount > 0) {
         // Put the summary sentence on its own line
-        this.showAnomaliesPopup(`Activity check completed!<br>${rapidActivityCount} rapid activity warning(s) found.`);
+        this.showAnomaliesPopup(`Activity check completed!<br>${rapidActivityCount} rapid activity alert(s) found.`);
 
         // Auto-scroll to first highlighted element (only when allowed)
         if (shouldScroll) {
@@ -1030,17 +1170,15 @@ class FeedHelper {
       } else {
         this.showAnomaliesPopup("Activity check completed!<br>No rapid activity found.");
       }
-    } else {
-      //console.log("Skipping rapid activity highlighting (not on the first page)"); // Debugging log
-      this.showAnomaliesPopup("Activity check only available on the first page.");
     }
 
-    // Save warnings to sessionStorage
-    sessionStorage.setItem("warningsShown", JSON.stringify(warningsShown));
+    // Store current warnings for this session (not persistent across page loads)
+    this.storedActivityWarnings = warningsShown;
+    // No need to save to localStorage - we only track dismissed warnings persistently
   }
 
   /**
-   * Clears all activity warning highlights
+   * Clears all rapid activity highlights
    */
   clearAllWarnings() {
     this.debug("clearAllWarnings() called");
@@ -1067,9 +1205,10 @@ class FeedHelper {
 
     this.debug(`Total highlights cleared: ${totalCleared}`);
 
-    // Clear the warningsShown from sessionStorage
-    sessionStorage.removeItem("warningsShown");
-    this.debug("Cleared warningsShown from sessionStorage");
+    // Clear the stored rapid activity alerts from memory only (no localStorage for activity data)
+    this.storedActivityWarnings = {};
+    sessionStorage.removeItem("warningsShown"); // Also clear legacy sessionStorage
+    this.debug("Cleared rapid activity alerts from memory");
 
     // Remove all rapid merge popups (old system)
     const popups = $(".rapid-merge-popup");
@@ -1078,35 +1217,27 @@ class FeedHelper {
       popups.remove();
     }
 
-    // Remove the activity warnings table (new system)
+    // Remove the rapid activity table (new system)
     const table = $("#activityWarningsTable");
     if (table.length > 0) {
-      this.debug("Removing activity warnings table");
+      this.debug("Removing rapid activity table");
       table.remove();
     }
 
     // Remove the clear button since there are no more warnings
     $("#clearAllWarningsBtn").remove(); // Show confirmation
     if (totalCleared > 0) {
-      alert(`Cleared ${totalCleared} activity warnings!`);
-      this.debug(`Successfully cleared ${totalCleared} activity warnings`);
+      alert(`Cleared ${totalCleared} rapid activity alerts!`);
+      this.debug(`Successfully cleared ${totalCleared} rapid activity alerts`);
     } else {
       this.debug("No highlights found to clear");
-      alert("No activity warnings found to clear.");
+      alert("No rapid activity alerts found to clear.");
     }
   }
 
   /**
    * Checks if the current page is not the first page of the merge feed.
    */
-  isNotFirstPage() {
-    const params = new URLSearchParams(window.location.search);
-    const p = params.get("p");
-    const isNotFirst = p && p !== "1"; // If there's a "p" and it's not "1", it's not the first page
-    // console.log("isNotFirstPage:", isNotFirst); // Debugging log
-    return isNotFirst;
-  }
-
   /**
    * Extracts activity data and user timestamps from the history items.
    */
@@ -1608,6 +1739,13 @@ class FeedHelper {
 
     // Create a unique key for this sequence and store detailed info
     const sequenceKey = `${userID}-${firstMs}-${lastMs}`;
+
+    // Check if this warning was previously dismissed
+    if (this.isWarningDismissed(sequenceKey)) {
+      this.debug(`Skipping previously dismissed warning for ${userID}`);
+      return;
+    }
+
     if (!warningsShown[sequenceKey]) {
       warningsShown[sequenceKey] = {
         userID: userID,
@@ -1702,7 +1840,7 @@ class FeedHelper {
   }
 
   /**
-   * Shows activity warnings in a consolidated table instead of individual popups
+   * Shows rapid activity in a consolidated table instead of individual popups
    */
   showActivityWarningsTable() {
     // Check if table already exists
@@ -1716,11 +1854,11 @@ class FeedHelper {
     }
 
     if (existingTable.length === 0) {
-      // Create the table container
+      // Create the table container (initially hidden)
       const tableHtml = `
-        <div id="activityWarningsTable">
+        <div id="activityWarningsTable" style="display: none;">
           <div class="table-header">
-            <h3>🚨 Activity Warnings (<span id="warningsCount">0</span>)</h3>
+            <h3>⚠️ Rapid Activity (<span id="warningsCount">0</span>)</h3>
             <div class="header-buttons">
               <button id="minimizeWarningsTable" title="Minimize/Hide Table">&times;</button>
             </div>
@@ -1783,44 +1921,68 @@ class FeedHelper {
     $("#activityWarningsTable").hide();
     this.debug("Minimized warnings table");
 
-    // Show a small restore button
-    this.showRestoreButton();
+    // Don't recreate the button - it should already exist with proper toggle handler
   }
 
   /**
-   * Shows a small button to restore the minimized table
+   * Shows a small button to toggle the rapid activity table
+   * @param {boolean} showTable - If true, show table immediately. If false, start minimized (default: false)
    */
-  showRestoreButton() {
-    // Remove existing restore button if any
-    $("#restoreWarningsBtn").remove();
+  showRestoreButton(showTable = false) {
+    const warningCount = Object.keys(this.storedActivityWarnings).length;
+    if (warningCount === 0) return;
 
+    // Remove any existing buttons
+    $("#restoreWarningsBtn, #restoreActivityWarningsBtn").remove();
+
+    const buttonText = `Rapid Activity (${warningCount})`;
     const restoreHtml = `
-      <button id="restoreWarningsBtn" title="Click to restore warnings table">
-        🚨 <span id="restoreWarningsCount">0</span> activity warnings
+      <button id="restoreWarningsBtn" class="button small" title="Click to view/hide rapid activity alerts">
+        ⚠️ ${buttonText}
       </button>
     `;
 
-    // Preferred: place the restore button in the top rangers button bar so it
-    // appears with other controls. Fall back to activity header, then body.
+    // Add to the rangers button area
     const $rangersButtons = $("#rangersButtons");
-    const $headerButtons = $("#activityWarningsTable .header-buttons");
     if ($rangersButtons.length > 0) {
       $rangersButtons.append(restoreHtml);
-    } else if ($headerButtons.length > 0) {
-      $headerButtons.append(restoreHtml);
     } else {
-      // Fallback: append to body so user can still restore
-      $("body").append(restoreHtml);
+      // Fallback to body if rangersButtons doesn't exist
+      $("body").append(`<div style="position: fixed; top: 10px; right: 10px; z-index: 9999;">${restoreHtml}</div>`);
     }
 
-    // Update the count
-    const count = $("#warningsTableBody tr").length;
-    $("#restoreWarningsCount").text(count);
-
-    // Click to restore
+    // Click handler to toggle the warnings table
     $("#restoreWarningsBtn").on("click", () => {
-      this.restoreWarningsTable();
+      this.toggleActivityWarningsTable();
     });
+
+    // If showTable is true, immediately show the table
+    if (showTable) {
+      this.restoreStoredActivityWarnings();
+    }
+
+    this.debug(
+      `Showing rapid activity button for ${warningCount} alerts (table ${showTable ? "visible" : "minimized"})`
+    );
+  }
+
+  /**
+   * Toggles the rapid activity table visibility
+   */
+  toggleActivityWarningsTable() {
+    const table = $("#activityWarningsTable");
+
+    this.debug(`Toggle called: table exists=${table.length > 0}, table hidden=${table.is(":hidden")}`);
+
+    if (table.length === 0 || table.is(":hidden")) {
+      // Table doesn't exist or is hidden - show it
+      this.debug("Showing/creating table via restoreStoredActivityWarnings");
+      this.restoreStoredActivityWarnings();
+    } else {
+      // Table is visible - hide it
+      this.debug("Hiding table via minimizeWarningsTable");
+      this.minimizeWarningsTable();
+    }
   }
 
   /**
@@ -1830,6 +1992,43 @@ class FeedHelper {
     $("#activityWarningsTable").show();
     $("#restoreWarningsBtn").remove();
     this.debug("Restored warnings table");
+  }
+
+  /**
+   * Restores stored activity warnings and populates the warnings table
+   */
+  restoreStoredActivityWarnings() {
+    // Get the existing table
+    const table = $("#activityWarningsTable");
+
+    if (table.length > 0) {
+      // Table already exists, just show it
+      table.show();
+      this.debug("Showed existing warnings table");
+    } else {
+      // Table doesn't exist, create and populate it
+      const newTable = this.showActivityWarningsTable();
+
+      // Populate the table with stored warnings
+      for (const [sequenceKey, warningData] of Object.entries(this.storedActivityWarnings)) {
+        if (!warningData || !warningData.userID) continue;
+
+        const userID = warningData.userID;
+        const editCount = warningData.times ? warningData.times.length : "?";
+
+        // Create a generic message for restored warnings
+        const message = `${userID} performed ${editCount} activities within 5 minutes. Please review their activity.`;
+
+        // Add to table without history items (since we can't reconstruct them reliably)
+        this.addWarningToTable(userID, message, [], sequenceKey);
+      }
+
+      // Now show the populated table
+      newTable.show();
+      this.debug(
+        `Created and populated warnings table with ${Object.keys(this.storedActivityWarnings).length} warnings`
+      );
+    }
   }
 
   /**
@@ -1929,12 +2128,9 @@ class FeedHelper {
     const userName = this.extractUserNameFromHistoryItems(historyItemsToHighlight);
     const editCount = this.extractEditCount(message);
 
-    // Make sure the table is visible when adding a warning and remove restore button
+    // Don't automatically show the table when adding warnings - let the toggle button control visibility
+    // Remove restore button since it will be created by the main auto-check logic
     try {
-      const $table = $("#activityWarningsTable");
-      if ($table && $table.length > 0) {
-        $table.show();
-      }
       $("#restoreWarningsBtn").remove();
     } catch (e) {}
 
@@ -2028,6 +2224,21 @@ class FeedHelper {
     // Update the count
     this.updateWarningsCount();
 
+    // Save the warning to page-specific localStorage for persistence across page reloads
+    if (sequenceKey && this.storedActivityWarnings) {
+      // Create a simplified warning data structure for storage
+      this.storedActivityWarnings[sequenceKey] = {
+        userID: userID,
+        first: Date.now(), // Simplified timestamp
+        last: Date.now(),
+        times: [Date.now()], // Simplified times array
+        created: Date.now(),
+      };
+      const pageSpecificKey = this.getPageSpecificWarningsKey();
+      localStorage.setItem(pageSpecificKey, JSON.stringify(this.storedActivityWarnings));
+      this.debug(`Saved warning for ${userID} to page-specific localStorage`);
+    }
+
     // Record that we've added this logical key so subsequent calls don't duplicate
     addedKeys[dedupeKey] = true;
     tbody.data("addedKeys", addedKeys);
@@ -2037,9 +2248,18 @@ class FeedHelper {
    * Removes a specific warning from the table
    */
   removeWarningFromTable(userID, sequenceKey = null) {
+    // Add to dismissed warnings before removing
     if (sequenceKey) {
+      this.addToDismissedWarnings(sequenceKey, userID);
       $(`#warningsTableBody tr[data-seq="${sequenceKey}"]`).remove();
     } else {
+      // For user-based removal, find all sequence keys for this user and dismiss them
+      $(`#warningsTableBody tr[data-userid="${userID}"]`).each((index, row) => {
+        const rowSequenceKey = $(row).data("seq");
+        if (rowSequenceKey) {
+          this.addToDismissedWarnings(rowSequenceKey, userID);
+        }
+      });
       $(`#warningsTableBody tr[data-userid="${userID}"]`).remove();
     }
 
@@ -2059,7 +2279,11 @@ class FeedHelper {
             if (!entry && key.startsWith(userID + "-")) delete warnings[key];
           }
         }
-        sessionStorage.setItem("warningsShown", JSON.stringify(warnings));
+        // Update page-specific localStorage and memory
+        this.storedActivityWarnings = warnings;
+        const pageSpecificKey = this.getPageSpecificWarningsKey();
+        localStorage.setItem(pageSpecificKey, JSON.stringify(warnings));
+        sessionStorage.setItem("warningsShown", JSON.stringify(warnings)); // Keep legacy support
       }
     } catch (e) {
       console.error("Error updating warningsShown in sessionStorage:", e);
@@ -2226,32 +2450,6 @@ class FeedHelper {
     });
   }
 
-  addActivityButton() {
-    const activityButton = $(
-      `<button id='activityButton' class='button small' 
-      title='Check for rapid activity patterns (3+ merges within 5 minutes)'>
-      Check Activity
-      </button>`
-    ).appendTo(this.feedHelperButtons);
-    activityButton.on("click", async () => {
-      try {
-        // Force a fresh check: clear stored warningsShown cache so we always recompute
-        sessionStorage.removeItem("warningsShown");
-
-        // Ensure the activity warnings table is present and visible
-        this.showActivityWarningsTable();
-        $("#activityWarningsTable").show();
-        $("#restoreWarningsBtn").remove();
-
-        await this.checkActivity(true, true); // shouldScroll=true, force=true
-        const btn = $("#activityButton");
-        btn.prop("disabled", true).addClass("disabled").text("Checked Activity");
-      } catch (err) {
-        console.error("Error checking activity via button:", err);
-      }
-    });
-  }
-
   addHighlightNewMembersButton() {
     let buttonText, buttonTitle;
 
@@ -2315,7 +2513,7 @@ class FeedHelper {
   }
 
   async getBadgeProfiles(badgeType, options = {}) {
-    const { storageKey, badgeParam, cssClass, title, dateFilter } = options;
+    const { storageKey, badgeParam, cssClass, title, dateFilter, showLoader = true } = options;
 
     // Check if the list is already stored in localStorage
     const cached = localStorage.getItem(storageKey);
@@ -2344,8 +2542,9 @@ class FeedHelper {
 
     // Get the badge page
     try {
-      // Only show the loader if we don't have a valid cache or there are no profiles
-      if (!isValidCache || !hasProfiles) {
+      // Only show the loader if the caller wants to show the loader (showLoader = true)
+      // AND we don't have a valid cache or there are no profiles
+      if (showLoader && (!isValidCache || !hasProfiles)) {
         this.showShaky("Loading badges...", "center");
       }
       console.log(`Fetching badge page: Special:Badges&b=${badgeParam}`);
@@ -2389,10 +2588,15 @@ class FeedHelper {
       });
     } else {
       // For non-date-filtered badges (like pre_1700), get all profile links
-      const links = badgePageDOM.querySelectorAll("span a[href*='/wiki/']");
-      links.forEach((link) => {
-        const profileID = link.href.split("/").pop();
-        profileIDs.push(decodeURIComponent(profileID));
+      // Use .row.mb-3 to get each badge item, then find the first profile link (the recipient)
+      // This avoids picking up "Awarded by" links which come later in the structure
+      const badgeItems = badgePageDOM.querySelectorAll(".row.mb-3");
+      badgeItems.forEach((item) => {
+        const profileLink = item.querySelector('a[href*="/wiki/"]');
+        if (profileLink) {
+          const profileID = profileLink.href.split("/").pop();
+          profileIDs.push(decodeURIComponent(profileID));
+        }
       });
     }
 
@@ -2425,10 +2629,11 @@ class FeedHelper {
     console.log(`Total profiles marked with ${cssClass}: ${markedCount}`);
   }
 
-  async getNewestPre1700People() {
+  async getNewestPre1700People(showLoader = true) {
     return this.getBadgeProfiles("pre1700", {
       storageKey: "pre1700",
       badgeParam: "pre_1700",
+      showLoader,
     });
   }
 
@@ -2436,24 +2641,25 @@ class FeedHelper {
     this.debug("highlightNewMembers called for page:", this.currentConfig.name);
 
     if (this.currentConfig.name === "Pre-1700") {
-      await this.markNewestPre1700People();
+      await this.markNewestPre1700People(true);
     } else if (this.currentConfig.name === "Pre-1500") {
-      await this.markRecentPre1500People();
+      await this.markRecentPre1500People(true);
     } else if (this.currentConfig.name === "Merges") {
-      await this.getMemberCreatedDates();
+      await this.getMemberCreatedDates(true);
     }
   }
 
-  async markNewestPre1700People() {
+  async markNewestPre1700People(showLoader = false) {
     await this.markBadgeProfiles("pre1700", {
       storageKey: "pre1700",
       badgeParam: "pre_1700",
       cssClass: "newestPre1700s",
       title: "One of the newest Pre-1700 badged people",
+      showLoader,
     });
   }
 
-  async markRecentPre1500People() {
+  async markRecentPre1500People(showLoader = false) {
     console.log("WBE: markRecentPre1500People() called");
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
@@ -2464,10 +2670,11 @@ class FeedHelper {
       cssClass: "recentPre1500s",
       title: "Received Pre-1500 badge in the past 6 months",
       dateFilter: sixMonthsAgo,
+      showLoader,
     });
   }
 
-  async markNewestProjectBadgedPeople() {
+  async markNewestProjectBadgedPeople(showLoader = false) {
     console.log("WBE: markNewestProjectBadgedPeople() called");
     console.log("Current URL:", window.location.href);
 
@@ -2501,6 +2708,7 @@ class FeedHelper {
       cssClass: "newestProjectBadged",
       title: `Received ${badgeSlug} project badge recently`,
       dateFilter: sixMonthsAgo,
+      showLoader,
     });
   }
 
@@ -2592,7 +2800,7 @@ class FeedHelper {
           this.fetchedProfiles = {};
         }
         this.fetchedProfiles[bioId] = person;
-        sessionStorage.setItem(this.fetchedProfilesStorageKey, JSON.stringify(this.fetchedProfiles));
+        this.storeBioData(this.fetchedProfilesStorageKey, JSON.stringify(this.fetchedProfiles));
 
         // Update this.people if it exists
         if (this.people && this.people[2]) {
@@ -2608,7 +2816,7 @@ class FeedHelper {
             this.bioCheckResults = {};
           }
           this.bioCheckResults[bioId] = autoBioCheckResult;
-          sessionStorage.setItem(this.bioCheckResultsStorageKey, JSON.stringify(this.bioCheckResults));
+          this.storeBioData(this.bioCheckResultsStorageKey, JSON.stringify(this.bioCheckResults));
 
           // Update the popup with the actual bio
           const highlightedBio = this.highlightMarkup(person.bio).replace(/\n/g, "<br>");
@@ -2647,12 +2855,12 @@ class FeedHelper {
     }
   }
 
-  async getBios() {
+  async getBios(showLoader = true) {
     // Retrieve stored profiles and bio check results
-    const storedProfiles = sessionStorage.getItem(this.fetchedProfilesStorageKey);
+    const storedProfiles = localStorage.getItem(this.fetchedProfilesStorageKey);
     this.fetchedProfiles = storedProfiles ? JSON.parse(storedProfiles) : {};
 
-    const storedBioCheckResults = sessionStorage.getItem(this.bioCheckResultsStorageKey);
+    const storedBioCheckResults = localStorage.getItem(this.bioCheckResultsStorageKey);
     this.bioCheckResults = storedBioCheckResults ? JSON.parse(storedBioCheckResults) : {};
 
     // Find all links in span.HISTORY-ITEM that include a year in the text content
@@ -2686,9 +2894,11 @@ class FeedHelper {
         );
 
         try {
-          this.showShaky(
-            `Fetching bios ${Math.floor(i / maxBatchSize) + 1}/${Math.ceil(bioLinks.length / maxBatchSize)}`
-          );
+          if (showLoader) {
+            this.showShaky(
+              `Fetching bios ${Math.floor(i / maxBatchSize) + 1}/${Math.ceil(bioLinks.length / maxBatchSize)}`
+            );
+          }
           // Fetch the bios using the WikiTreeAPI
           const peopleResponse = await WikiTreeAPI.getPeople(
             "Rangers",
@@ -2715,13 +2925,15 @@ class FeedHelper {
           console.error(`Error fetching bio batch ${Math.floor(i / maxBatchSize) + 1}:`, error);
           // Continue with next batch even if one fails
         } finally {
-          this.hideShaky();
+          if (showLoader) {
+            this.hideShaky();
+          }
         }
       }
 
-      // Store the updated profiles and bio check results in sessionStorage
-      sessionStorage.setItem(this.fetchedProfilesStorageKey, JSON.stringify(this.fetchedProfiles));
-      sessionStorage.setItem(this.bioCheckResultsStorageKey, JSON.stringify(this.bioCheckResults));
+      // Store the updated profiles and bio check results in localStorage
+      this.storeBioData(this.fetchedProfilesStorageKey, JSON.stringify(this.fetchedProfiles));
+      this.storeBioData(this.bioCheckResultsStorageKey, JSON.stringify(this.bioCheckResults));
 
       // Update the 'people' variable
       this.people = [null, null, this.fetchedProfiles];
@@ -2739,15 +2951,35 @@ class FeedHelper {
   }
 
   displayBioButtons() {
+    // Ensure this.people is properly initialized
+    if (!this.people) {
+      this.people = [null, null, this.fetchedProfiles || {}];
+    } else if (!this.people[2]) {
+      this.people[2] = this.fetchedProfiles || {};
+    }
+
     // Find all links in span.feed-item that include a year in the text content
     const theLinks = $("span.feed-item a");
 
     // For each bio Name, find it in a link and add a button
     theLinks.each((index, element) => {
       if ($(element).text().match(/\d{4}/)) {
-        const profileID = decodeURIComponent($(element).attr("href").split("/").pop());
+        const href = $(element).attr("href");
+        let profileID;
+
+        // Handle different URL formats
+        if (href.includes("who=")) {
+          // Extract profile ID from URLs like "index.php?title=Special:NetworkFeed&who=ProfileName"
+          profileID = href.split("who=")[1].split("&")[0];
+        } else {
+          // Extract from standard WikiTree URLs like "/wiki/ProfileName"
+          profileID = decodeURIComponent(href.split("/").pop());
+        }
+
         const feedItem = $(element).closest("span.feed-item");
         const feedText = feedItem.text();
+
+        console.log("FeedHelper: Processing profile link:", profileID, "from href:", href);
 
         // Check if this is a merge activity
         const isMerge = feedText.includes("merged") && feedText.includes("into");
@@ -2760,14 +2992,21 @@ class FeedHelper {
 
           // Skip if this is not the target profile (after "into")
           if (intoPosition > 0 && linkPosition < intoPosition) {
+            console.log("FeedHelper: Skipping source profile for merge:", profileID);
             return; // Skip source profile for merges
           }
         }
 
         // Find the bio with the same Name as the profileID
-        const person = Object.values(this.people[2]).find(
-          (person) => person.Name?.toLowerCase() === profileID?.toLowerCase()
-        );
+        // First try direct lookup by profileID (most efficient)
+        let person = this.people[2][profileID];
+
+        if (!person) {
+          // Fallback to name matching for edge cases
+          person = Object.values(this.people[2]).find(
+            (person) => person.Name?.toLowerCase() === profileID?.toLowerCase()
+          );
+        }
 
         if (person) {
           $("#mBirthDate").val(person.BirthDate || "0000-00-00");
@@ -2782,8 +3021,8 @@ class FeedHelper {
             autoBioCheckResult = this.autoBioCheck(person.bio);
             // Store the result
             this.bioCheckResults[person.Id] = autoBioCheckResult;
-            // Update the bioCheckResults in sessionStorage
-            sessionStorage.setItem(this.bioCheckResultsStorageKey, JSON.stringify(this.bioCheckResults));
+            // Update the bioCheckResults in localStorage
+            this.storeBioData(this.bioCheckResultsStorageKey, JSON.stringify(this.bioCheckResults));
           }
 
           // Prepend the button to the parent element
@@ -2802,6 +3041,45 @@ class FeedHelper {
                 </button>`
               );
           }
+        } else {
+          // Check if we have this profile in fetchedProfiles from cross-tab sync
+          const fetchedProfile = this.fetchedProfiles[profileID];
+          if (fetchedProfile) {
+            // We have the profile data from another tab, use it
+            $("#mBirthDate").val(fetchedProfile.BirthDate || "0000-00-00");
+            $("#mDeathDate").val(fetchedProfile.DeathDate || "0000-00-00");
+
+            let autoBioCheckResult;
+            if (this.bioCheckResults[fetchedProfile.Id] !== undefined) {
+              // Use stored result
+              autoBioCheckResult = this.bioCheckResults[fetchedProfile.Id];
+            } else {
+              // Run autoBioCheck
+              autoBioCheckResult = this.autoBioCheck(fetchedProfile.bio);
+              // Store the result
+              this.bioCheckResults[fetchedProfile.Id] = autoBioCheckResult;
+              // Update the bioCheckResults in localStorage
+              this.storeBioData(this.bioCheckResultsStorageKey, JSON.stringify(this.bioCheckResults));
+            }
+
+            // Prepend the button to the parent element
+            const failedBioCheckClass = autoBioCheckResult === false ? " failedBioCheck" : "";
+            const failedBioCheckTitle = autoBioCheckResult === false ? " Bio Check issues" : "";
+            const buttonLabel = fetchedProfile.ShortName || fetchedProfile.Name;
+
+            if ($(element).siblings(`button.getBio[data-id="${fetchedProfile.Id}"]`).length === 0) {
+              $(element)
+                .parent()
+                .append(
+                  `<button class="getBio${failedBioCheckClass}" data-id="${String(
+                    fetchedProfile.Id
+                  )}" title="${failedBioCheckTitle}">
+                    ${buttonLabel}
+                  </button>`
+                );
+            }
+          }
+          // If profile not found in either location, it will be fetched when getThePeople() runs
         }
       }
     });
@@ -2932,7 +3210,7 @@ class FeedHelper {
       // Find all span.HISTORY-ITEM rows not containing links with the class newestPre1700s and toggle them
       const allItems = $("span.feed-item:not(.HISTORY-HIDDEN)");
       if (self.currentConfig.name === "Merges" && Object.keys(self.memberData).length == 0) {
-        await self.getMemberCreatedDates();
+        await self.getMemberCreatedDates(true);
       }
 
       // Determine which CSS classes to look for based on current configuration and button clicked
@@ -3145,9 +3423,6 @@ class FeedHelper {
       const ab = $("#anomaliesButton");
       if (ab.length) ab.prop("disabled", false).removeClass("disabled").text("Check for Anomalies");
 
-      const actb = $("#activityButton");
-      if (actb.length) actb.prop("disabled", false).removeClass("disabled").text("Check Activity");
-
       const hb = $("#highlightNewMembersButton");
       if (hb.length) {
         // Restore context-sensitive highlight label
@@ -3167,35 +3442,40 @@ class FeedHelper {
     this.addFullCheckButton(); // Add the comprehensive button first
     this.addGetBiosButton();
     this.addAnomaliesButton();
-    this.addActivityButton();
-    this.addHighlightNewMembersButton(); // Add the highlight button
+    
+    // Skip these buttons on Contributions pages
+    if (this.currentConfig.name !== "Contributions") {
+      this.addHighlightNewMembersButton(); // Add the highlight button
+    }
 
     // Add management buttons on the right
     this.addClearCacheButton(); // Management button - right side
     this.addWhitelistButton(); // Management button - right side
 
-    // Add filter buttons in consistent order across all pages
-    if (this.currentConfig.name === "Pre-1700") {
-      const onlyNewestBadgesButton = $(
-        `<button id="onlyNewestBadges" title="Show only activity by the 200 newest Pre-1700 badged people" class="button small">Only Activity by Newly-Badged People</button>`
-      );
-      this.feedHelperButtons.append(onlyNewestBadgesButton);
-    } else if (this.currentConfig.name === "Pre-1500") {
-      const onlyNewestBadgesButton = $(
-        `<button id="onlyNewestBadges" title="Show only activity by newly-badged Pre-1500 people (last six months)" class="button small">Only Activity by Newly-Badged People</button>`
-      );
-      this.feedHelperButtons.append(onlyNewestBadgesButton);
-    } else if (this.currentConfig.name === "Project Feed") {
-      const onlyNewestBadgesButton = $(
-        `<button id="onlyNewestBadges" title="Show only activity by people who recently received project badges or joined less than 6 months ago" class="button small">Only New and Newly-Badged Members</button>`
-      );
-      this.feedHelperButtons.append(onlyNewestBadgesButton);
-    } else {
-      // All other feed types get the new members filter
-      const onlyNewtsButton = $(
-        `<button id="onlyNewts" title="Show only activity by people who joined less than 6 months ago" class="button small">Only Activity by New Members</button>`
-      );
-      this.feedHelperButtons.append(onlyNewtsButton);
+    // Add filter buttons in consistent order across all pages - but skip on Contributions pages
+    if (this.currentConfig.name !== "Contributions") {
+      if (this.currentConfig.name === "Pre-1700") {
+        const onlyNewestBadgesButton = $(
+          `<button id="onlyNewestBadges" title="Show only activity by the 200 newest Pre-1700 badged people" class="button small">Only Activity by Newly-Badged People</button>`
+        );
+        this.feedHelperButtons.append(onlyNewestBadgesButton);
+      } else if (this.currentConfig.name === "Pre-1500") {
+        const onlyNewestBadgesButton = $(
+          `<button id="onlyNewestBadges" title="Show only activity by newly-badged Pre-1500 people (last six months)" class="button small">Only Activity by Newly-Badged People</button>`
+        );
+        this.feedHelperButtons.append(onlyNewestBadgesButton);
+      } else if (this.currentConfig.name === "Project Feed") {
+        const onlyNewestBadgesButton = $(
+          `<button id="onlyNewestBadges" title="Show only activity by people who recently received project badges or joined less than 6 months ago" class="button small">Only New and Newly-Badged Members</button>`
+        );
+        this.feedHelperButtons.append(onlyNewestBadgesButton);
+      } else {
+        // All other feed types get the new members filter
+        const onlyNewtsButton = $(
+          `<button id="onlyNewts" title="Show only activity by people who joined less than 6 months ago" class="button small">Only Activity by New Members</button>`
+        );
+        this.feedHelperButtons.append(onlyNewtsButton);
+      }
     }
   }
 
@@ -3217,12 +3497,135 @@ class FeedHelper {
     const hasSources = biography.hasSources();
     return hasSources;
   }
+
+  // Set up localStorage with time-based cleanup
+  setupBioStorage() {
+    const now = Date.now();
+    const lastActive = localStorage.getItem(this.lastActiveKey);
+
+    // Check if data is stale (older than sessionTimeoutHours)
+    if (lastActive) {
+      const lastActiveTime = parseInt(lastActive);
+      const hoursAgo = (now - lastActiveTime) / (1000 * 60 * 60);
+
+      if (hoursAgo > this.sessionTimeoutHours) {
+        // Data is stale - clean it up
+        console.log(`FeedHelper: Cleaning up bio data (${hoursAgo.toFixed(1)} hours old)`);
+        localStorage.removeItem(this.bioCheckResultsStorageKey);
+        localStorage.removeItem(this.fetchedProfilesStorageKey);
+        localStorage.removeItem(this.dismissedWarningsStorageKey); // Clean up dismissed warnings too
+
+        // Clean up all page-specific activity warnings
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith(this.activityWarningsStorageKey)) {
+            localStorage.removeItem(key);
+          }
+        });
+      } else {
+        console.log(`FeedHelper: Keeping existing bio data (${hoursAgo.toFixed(1)} hours old)`);
+      }
+    }
+
+    // Update last active timestamp
+    localStorage.setItem(this.lastActiveKey, now.toString());
+
+    // Restore data from localStorage
+    this.restoreFromStorage();
+
+    // If we restored any data, display bio buttons after page loads
+    if (Object.keys(this.fetchedProfiles).length > 0 || Object.keys(this.bioCheckResults).length > 0) {
+      // Wait for DOM to be ready and actions to complete, then display buttons
+      const attemptDisplayButtons = () => {
+        // Check if feed items are present on the page
+        const feedItems = $("span.feed-item");
+        if (feedItems.length > 0) {
+          console.log(
+            "FeedHelper: Displaying bio buttons after data restoration, found",
+            feedItems.length,
+            "feed items"
+          );
+          this.displayBioButtons(false);
+        } else {
+          console.log("FeedHelper: No feed items found yet, retrying in 500ms");
+          setTimeout(attemptDisplayButtons, 500);
+        }
+      };
+
+      // Start attempting to display buttons after a short delay
+      setTimeout(attemptDisplayButtons, 1000);
+    }
+
+    // Update timestamp periodically while tab is active
+    setInterval(() => {
+      localStorage.setItem(this.lastActiveKey, Date.now().toString());
+    }, 60000); // Update every minute
+  }
+
+  // Restore bio-related data from localStorage
+  restoreFromStorage() {
+    // Restore fetchedProfiles
+    const storedProfiles = localStorage.getItem(this.fetchedProfilesStorageKey);
+    if (storedProfiles) {
+      try {
+        this.fetchedProfiles = JSON.parse(storedProfiles);
+        console.log(
+          "FeedHelper: Restored fetchedProfiles from localStorage:",
+          Object.keys(this.fetchedProfiles).length,
+          "profiles"
+        );
+
+        // Initialize this.people[2] with restored data
+        if (!this.people) {
+          this.people = [null, null, {}];
+        }
+        if (!this.people[2]) {
+          this.people[2] = {};
+        }
+        Object.assign(this.people[2], this.fetchedProfiles);
+      } catch (error) {
+        console.error("FeedHelper: Error parsing stored profiles:", error);
+        this.fetchedProfiles = {};
+      }
+    }
+
+    // Restore bioCheckResults
+    const storedBioCheckResults = localStorage.getItem(this.bioCheckResultsStorageKey);
+    if (storedBioCheckResults) {
+      try {
+        this.bioCheckResults = JSON.parse(storedBioCheckResults);
+        console.log(
+          "FeedHelper: Restored bioCheckResults from localStorage:",
+          Object.keys(this.bioCheckResults).length,
+          "results"
+        );
+      } catch (error) {
+        console.error("FeedHelper: Error parsing stored bio check results:", error);
+        this.bioCheckResults = {};
+      }
+    }
+
+    // Initialize storedActivityWarnings as empty - we don't restore old activity data
+    // We start fresh each page load and only track dismissed warnings globally
+    this.storedActivityWarnings = {};
+  }
+
+  // Store bio data to localStorage (replaces broadcastBioData)
+  storeBioData(key, value) {
+    localStorage.setItem(key, value);
+  }
 }
 
 let feedHelper;
 
 shouldInitializeFeature("feedHelper").then((isEnabled) => {
   if (isEnabled) {
+    // Skip feed helper on NetworkFeed upgrade page
+    const currentUrl = window.location.href;
+    if (currentUrl.includes('Special:NetworkFeed') && currentUrl.includes('upgrade=1')) {
+      console.log('Feed helper disabled on NetworkFeed upgrade page');
+      return;
+    }
+    
     import("./feed_helper.css");
     initBioCheck();
     $("body").addClass("feed-helper");
