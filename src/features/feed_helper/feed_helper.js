@@ -419,7 +419,7 @@ class FeedHelper {
     // Debug flag - set to true to enable debug logging
     this.debugMode = false;
     // Bio Check debug flag - set to true to enable Bio Check specific logging
-    this.bioCheckDebugMode = true;
+    this.bioCheckDebugMode = false;
     // Initialize failed profiles tracking
     this.failedProfiles = {};
 
