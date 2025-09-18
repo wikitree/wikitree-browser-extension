@@ -2846,7 +2846,7 @@ class FeedHelper {
         // Run autoBioCheck and store result
         if (person.bio) {
           this.bioCheckDebug(`Running Bio Check for profile ${bioId}`);
-          const autoBioCheckResult = this.autoBioCheck(person.bio);
+          const autoBioCheckResult = this.autoBioCheck(person.bio, person.Id, person.Name);
           this.bioCheckDebug(`Bio Check result for ${bioId}:`, autoBioCheckResult);
           if (!this.bioCheckResults) {
             this.bioCheckResults = {};
@@ -2986,7 +2986,7 @@ class FeedHelper {
             Object.values(peopleResponse[2]).forEach((person) => {
               if (person && person.bio) {
                 // Run autoBioCheck
-                const autoBioCheckResult = this.autoBioCheck(person.bio);
+                const autoBioCheckResult = this.autoBioCheck(person.bio, person.Id, person.Name);
                 // Store the result
                 this.bioCheckResults[person.Id] = autoBioCheckResult;
               }
@@ -3123,7 +3123,7 @@ class FeedHelper {
           } else {
             // Run autoBioCheck
             this.debug(`Running Bio Check for ${person.Id} (${person.Name})`);
-            autoBioCheckResult = this.autoBioCheck(person.bio);
+            autoBioCheckResult = this.autoBioCheck(person.bio, person.Id, person.Name);
             this.debug(`Bio Check result for ${person.Id}:`, autoBioCheckResult);
             // Store the result
             this.bioCheckResults[person.Id] = autoBioCheckResult;
@@ -3551,13 +3551,16 @@ class FeedHelper {
     }
   }
 
-  autoBioCheck(sourcesStr) {
-    this.bioCheckDebug("=== Starting autoBioCheck ===");
-    this.bioCheckDebug("Bio content length:", sourcesStr ? sourcesStr.length : 0);
-    this.bioCheckDebug("Bio content preview:", sourcesStr ? sourcesStr.substring(0, 200) + "..." : "No content");
+  autoBioCheck(sourcesStr, profileId = null, profileName = null) {
+    const profileInfo = profileId && profileName ? `${profileName} (ID: ${profileId})` : 
+                       profileId ? `ID: ${profileId}` : 
+                       profileName ? `Name: ${profileName}` : 'Unknown profile';
+    this.bioCheckDebug(`=== Starting autoBioCheck for ${profileInfo} ===`);
+    this.bioCheckDebug(`Bio content length for ${profileInfo}:`, sourcesStr ? sourcesStr.length : 0);
+    this.bioCheckDebug(`Bio content preview for ${profileInfo}:`, sourcesStr ? sourcesStr.substring(0, 200) + "..." : "No content");
 
     if (!sourcesStr) {
-      this.bioCheckDebug("No bio content provided, returning false");
+      this.bioCheckDebug(`No bio content provided for ${profileInfo}, returning false`);
       return false;
     }
 
@@ -3571,19 +3574,19 @@ class FeedHelper {
     let thePerson = new BioCheckPerson();
     thePerson["#isApp"] = true;
     thePerson.build();
-    this.bioCheckDebug("BioCheckPerson created and built");
+    this.bioCheckDebug(`BioCheckPerson created and built for ${profileInfo}`);
 
     let biography = new Biography(theSourceRules);
-    this.bioCheckDebug("Biography created with theSourceRules");
+    this.bioCheckDebug(`Biography created with theSourceRules for ${profileInfo}`);
 
     biography.parse(sourcesStr, thePerson, "");
-    this.bioCheckDebug("Biography parsed");
+    this.bioCheckDebug(`Biography parsed for ${profileInfo}`);
 
     biography.validate();
-    this.bioCheckDebug("Biography validated");
+    this.bioCheckDebug(`Biography validated for ${profileInfo}`);
 
     const hasSources = biography.hasSources();
-    this.bioCheckDebug("hasSources result:", hasSources);
+    this.bioCheckDebug(`hasSources result for ${profileInfo}:`, hasSources);
 
     // Additional debugging - check for common source patterns
     const hasRefTags = /<ref[^>]*>/.test(sourcesStr);
@@ -3593,7 +3596,7 @@ class FeedHelper {
     const hasEmptyReferences = /<references\s*\/?>/.test(sourcesStr);
     const hasUnsourcedTemplate = /\{\{unsourced\}\}/i.test(sourcesStr);
 
-    this.bioCheckDebug("Manual source pattern checks:");
+    this.bioCheckDebug(`Manual source pattern checks for ${profileInfo}:`);
     this.bioCheckDebug("- Has <ref> tags:", hasRefTags);
     this.bioCheckDebug("- Has Sources section:", hasSourcesSection);
     this.bioCheckDebug("- Has References section:", hasReferencesSection);
@@ -3602,7 +3605,7 @@ class FeedHelper {
     this.bioCheckDebug("- Has {{Unsourced}} template:", hasUnsourcedTemplate);
 
     // Check biography object for more details
-    this.bioCheckDebug("Biography object details:");
+    this.bioCheckDebug(`Biography object details for ${profileInfo}:`);
     this.bioCheckDebug("- Sources found by parser:", biography.sources ? biography.sources.length : 0);
     if (biography.sources && biography.sources.length > 0) {
       this.bioCheckDebug("- Actual sources:", biography.sources);
@@ -3639,61 +3642,9 @@ class FeedHelper {
       }
     });
 
-    // Manual check for actually meaningful sources (not just empty structures)
-    const hasRealSources = this.hasRealSources(sourcesStr);
-    this.bioCheckDebug("Manual real sources check result:", hasRealSources);
+    this.bioCheckDebug(`=== autoBioCheck result for ${profileInfo}:`, hasSources, "===");
 
-    this.bioCheckDebug("=== autoBioCheck result:", hasSources, "===");
-
-    // For testing, let's override the result if we detect it should fail
-    const finalResult = hasRealSources ? hasSources : false;
-    this.bioCheckDebug("Final result (after manual override):", finalResult);
-
-    return finalResult;
-  }
-
-  /**
-   * Manual check for actually meaningful sources (not just empty structures)
-   */
-  hasRealSources(bioContent) {
-    if (!bioContent) return false;
-
-    // Check for {{Unsourced}} template - this is a clear indicator of no sources
-    if (/\{\{unsourced\}\}/i.test(bioContent)) {
-      this.bioCheckDebug("Found {{Unsourced}} template - should fail");
-      return false;
-    }
-
-    // Check for categories that indicate lack of sources
-    const needsSourcesCategories = ["needs sources", "needs more sources", "needs validation", "unsourced"];
-
-    for (const category of needsSourcesCategories) {
-      if (new RegExp(`\\[\\[Category:[^\\]]*${category}[^\\]]*\\]\\]`, "i").test(bioContent)) {
-        this.bioCheckDebug(`Found "${category}" category - should fail`);
-        return false;
-      }
-    }
-
-    // Check if we have only empty <references />
-    const hasOnlyEmptyReferences = /<references\s*\/>/.test(bioContent) && !/<ref[^>]*>[^<]+<\/ref>/.test(bioContent);
-    if (hasOnlyEmptyReferences) {
-      this.bioCheckDebug("Found only empty <references /> with no actual <ref> content - should fail");
-      return false;
-    }
-
-    // Check for actual source content patterns
-    const hasRealRefContent = /<ref[^>]*>[^<]+<\/ref>/.test(bioContent);
-    const hasSourceBulletPoints = /==\s*sources?\s*==[\s\S]*?\*[^*\n]+/i.test(bioContent);
-    const hasCiteTemplates = /\{\{cite[^}]+\}\}/i.test(bioContent);
-    const hasUrlSources = /==\s*sources?\s*==[\s\S]*?https?:\/\/[^\s]+/i.test(bioContent);
-
-    if (hasRealRefContent || hasSourceBulletPoints || hasCiteTemplates || hasUrlSources) {
-      this.bioCheckDebug("Found real source content");
-      return true;
-    }
-
-    this.bioCheckDebug("No real source content found");
-    return false;
+    return hasSources;
   }
 
   // Set up localStorage with time-based cleanup
