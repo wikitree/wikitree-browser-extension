@@ -403,12 +403,12 @@ class FeedHelper {
 
     // If no configuration found, we might not be on a supported page
     if (!this.currentConfig) {
-      console.log("FeedHelper: No configuration found for current page");
+      this.debug("No configuration found for current page");
       return;
     }
 
-    console.log("FeedHelper: Selected configuration:", this.currentConfig.name);
-    console.log("FeedHelper: Current URL:", window.location.href);
+    this.debug("Selected configuration:", this.currentConfig.name);
+    this.debug("Current URL:", window.location.href);
 
     this.feedHelperButtons = $("<div id='rangersButtons'></div>");
     $(".page--title h1").after(this.feedHelperButtons);
@@ -416,10 +416,12 @@ class FeedHelper {
     this.excludedNames = [];
     this.shakyTree = chrome.runtime.getURL("images/tree.gif");
 
-    // Debug flag - can be enabled via localStorage or URL parameter
-    this.debugMode =
-      localStorage.getItem("feedHelperDebug") === "true" ||
-      new URLSearchParams(window.location.search).get("feedHelperDebug") === "true";
+    // Debug flag - set to true to enable debug logging
+    this.debugMode = false;
+    // Bio Check debug flag - set to true to enable Bio Check specific logging
+    this.bioCheckDebugMode = true;
+    // Initialize failed profiles tracking
+    this.failedProfiles = {};
 
     // Highlight new members / newly-badged people logic
     $(document).on("click", "#highlightNewMembersButton", async (event) => {
@@ -437,14 +439,14 @@ class FeedHelper {
         targetClasses = "a.newestProjectBadged";
       }
 
-      console.log(`Highlighting with target classes: ${targetClasses}`);
-      console.log(`Current config: ${this.currentConfig.name}`);
+      this.debug(`Highlighting with target classes: ${targetClasses}`);
+      this.debug(`Current config: ${this.currentConfig.name}`);
 
       const matchingLinks = $(targetClasses);
-      console.log(`Found ${matchingLinks.length} links with class ${targetClasses}`);
+      this.debug(`Found ${matchingLinks.length} links with class ${targetClasses}`);
 
       const allItems = $("span.feed-item:not(.HISTORY-HIDDEN)");
-      console.log(`Found ${allItems.length} feed items`);
+      this.debug(`Found ${allItems.length} feed items`);
 
       let highlightedCount = 0;
       // Add specific highlight class to matching rows, do NOT remove existing highlights
@@ -459,7 +461,7 @@ class FeedHelper {
         }
       });
 
-      console.log(`Highlighted ${highlightedCount} feed items`);
+      this.debug(`Highlighted ${highlightedCount} feed items`);
 
       // Disable the button after applying highlights to avoid accidental removal
       const btn = $(event.currentTarget);
@@ -534,6 +536,15 @@ class FeedHelper {
   debug(...args) {
     if (this.debugMode) {
       console.log("FeedHelper:", ...args);
+    }
+  }
+
+  /**
+   * Bio Check debug logging method - only logs when bioCheckDebugMode is enabled
+   */
+  bioCheckDebug(...args) {
+    if (this.bioCheckDebugMode) {
+      console.log("FeedHelper BioCheck:", ...args);
     }
   }
 
@@ -2547,7 +2558,7 @@ class FeedHelper {
       if (showLoader && (!isValidCache || !hasProfiles)) {
         this.showShaky("Loading badges...", "center");
       }
-      console.log(`Fetching badge page: Special:Badges&b=${badgeParam}`);
+      this.debug(`Fetching badge page: Special:Badges&b=${badgeParam}`);
       var badgePage = await getWikiTreePage("Rangers", "index.php", `title=Special:Badges&b=${badgeParam}`);
     } finally {
       // hideShaky is safe to call even if showShaky wasn't shown
@@ -2558,7 +2569,7 @@ class FeedHelper {
     if (dateFilter) {
       // For date-filtered badges (like pre_1500), check each badge award item
       const badgeItems = badgePageDOM.querySelectorAll(".row.mb-3");
-      console.log(
+      this.debug(
         `WBE: Found ${
           badgeItems.length
         } badge items for ${badgeType}, filtering by date >= ${dateFilter.toDateString()}`
@@ -2575,11 +2586,11 @@ class FeedHelper {
             if (profileLink) {
               const profileID = profileLink.href.split("/").pop();
               profileIDs.push(decodeURIComponent(profileID));
-              console.log(`WBE: Added ${profileID} (badged ${badgeDate.toDateString()})`);
+              this.debug(`WBE: Added ${profileID} (badged ${badgeDate.toDateString()})`);
             }
             return false; // Continue to next item
           } else {
-            console.log(`WBE: Badge date ${badgeDate ? badgeDate.toDateString() : "null"} is too old, stopping search`);
+            this.debug(`WBE: Badge date ${badgeDate ? badgeDate.toDateString() : "null"} is too old, stopping search`);
             // Since items are in most-recent order, stop when we find an older date
             return true; // Break out of the loop
           }
@@ -2608,13 +2619,13 @@ class FeedHelper {
 
   async markBadgeProfiles(badgeType, options = {}) {
     const { cssClass, title } = options;
-    console.log(`markBadgeProfiles called for ${badgeType} with cssClass: ${cssClass}`);
+    this.debug(`markBadgeProfiles called for ${badgeType} with cssClass: ${cssClass}`);
 
     const profileIDs = await this.getBadgeProfiles(badgeType, options);
-    console.log(`Got ${profileIDs.length} badge profiles:`, profileIDs);
+    this.debug(`Got ${profileIDs.length} badge profiles:`, profileIDs);
 
     const allLinks = document.querySelectorAll("a[href*='/wiki/']");
-    console.log(`Found ${allLinks.length} profile links on page`);
+    this.debug(`Found ${allLinks.length} profile links on page`);
 
     let markedCount = 0;
     allLinks.forEach((link) => {
@@ -2622,11 +2633,11 @@ class FeedHelper {
       if (profileIDs.includes(profileID)) {
         $(link).addClass(cssClass).attr("title", title);
         markedCount++;
-        console.log(`Marked profile link: ${profileID} with class ${cssClass}`);
+        this.debug(`Marked profile link: ${profileID} with class ${cssClass}`);
       }
     });
 
-    console.log(`Total profiles marked with ${cssClass}: ${markedCount}`);
+    this.debug(`Total profiles marked with ${cssClass}: ${markedCount}`);
   }
 
   async getNewestPre1700People(showLoader = true) {
@@ -2660,7 +2671,7 @@ class FeedHelper {
   }
 
   async markRecentPre1500People(showLoader = false) {
-    console.log("WBE: markRecentPre1500People() called");
+    this.debug("WBE: markRecentPre1500People() called");
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
@@ -2675,28 +2686,28 @@ class FeedHelper {
   }
 
   async markNewestProjectBadgedPeople(showLoader = false) {
-    console.log("WBE: markNewestProjectBadgedPeople() called");
-    console.log("Current URL:", window.location.href);
+    this.debug("WBE: markNewestProjectBadgedPeople() called");
+    this.debug("Current URL:", window.location.href);
 
     // Extract the project account ID from the URL
     const urlMatch = window.location.href.match(/who=(WikiTree-\d+)/);
     if (!urlMatch) {
-      console.log("No project account found in URL");
+      this.debug("No project account found in URL");
       return;
     }
 
     const projectAccountId = urlMatch[1];
     const badgeSlug = projectAccounts[projectAccountId];
 
-    console.log(`Found project account ID: ${projectAccountId}`);
-    console.log(`Badge slug for ${projectAccountId}:`, badgeSlug);
+    this.debug(`Found project account ID: ${projectAccountId}`);
+    this.debug(`Badge slug for ${projectAccountId}:`, badgeSlug);
 
     if (!badgeSlug) {
-      console.log(`No badge slug found for project account: ${projectAccountId}`);
+      this.debug(`No badge slug found for project account: ${projectAccountId}`);
       return;
     }
 
-    console.log(`Marking newest badged people for project: ${projectAccountId} (${badgeSlug})`);
+    this.debug(`Marking newest badged people for project: ${projectAccountId} (${badgeSlug})`);
 
     // Get recent badges (last 6 months)
     const sixMonthsAgo = new Date();
@@ -2745,11 +2756,11 @@ class FeedHelper {
   }
 
   async fetchAndShowSingleBio(bioId) {
-    console.log(`Attempting to fetch bio for ID: ${bioId} (type: ${typeof bioId})`);
+    this.debug(`Attempting to fetch bio for ID: ${bioId} (type: ${typeof bioId})`);
 
     // Convert to number if it's a numeric string, as WikiTree API might prefer numbers
     const apiId = /^\d+$/.test(bioId) ? parseInt(bioId, 10) : bioId;
-    console.log(`Converted ID for API call: ${apiId} (type: ${typeof apiId})`);
+    this.debug(`Converted ID for API call: ${apiId} (type: ${typeof apiId})`);
 
     // Show loading popup first
     $("main#main").prepend(
@@ -2763,7 +2774,7 @@ class FeedHelper {
 
     try {
       // Fetch the single bio using WikiTreeAPI
-      console.log(`Making WikiTreeAPI call for ID: ${apiId}`);
+      this.debug(`Making WikiTreeAPI call for ID: ${apiId}`);
       const peopleResponse = await WikiTreeAPI.getPeople(
         "Rangers",
         [apiId],
@@ -2771,14 +2782,14 @@ class FeedHelper {
         { bioFormat: "text" }
       );
 
-      console.log(`WikiTreeAPI response for ${bioId}:`, peopleResponse);
+      this.debug(`WikiTreeAPI response for ${bioId}:`, peopleResponse);
 
       if (peopleResponse) {
-        console.log(`Response structure - [0]:`, peopleResponse[0]);
-        console.log(`Response structure - [1]:`, peopleResponse[1]);
-        console.log(`Response structure - [2]:`, peopleResponse[2]);
+        this.debug(`Response structure - [0]:`, peopleResponse[0]);
+        this.debug(`Response structure - [1]:`, peopleResponse[1]);
+        this.debug(`Response structure - [2]:`, peopleResponse[2]);
         if (peopleResponse[2]) {
-          console.log(`Available profile IDs in response:`, Object.keys(peopleResponse[2]));
+          this.debug(`Available profile IDs in response:`, Object.keys(peopleResponse[2]));
         }
       }
 
@@ -2792,8 +2803,8 @@ class FeedHelper {
 
       if (peopleResponse && peopleResponse[2] && responseKey) {
         const person = peopleResponse[2][responseKey];
-        console.log(`Found person data for ${responseKey}:`, person);
-        console.log(`Bio content length:`, person.bio ? person.bio.length : "No bio");
+        this.debug(`Found person data for ${responseKey}:`, person);
+        this.debug(`Bio content length:`, person.bio ? person.bio.length : "No bio");
 
         // Store the fetched profile
         if (!this.fetchedProfiles) {
@@ -2811,7 +2822,9 @@ class FeedHelper {
 
         // Run autoBioCheck and store result
         if (person.bio) {
+          this.bioCheckDebug(`Running Bio Check for profile ${bioId}`);
           const autoBioCheckResult = this.autoBioCheck(person.bio);
+          this.bioCheckDebug(`Bio Check result for ${bioId}:`, autoBioCheckResult);
           if (!this.bioCheckResults) {
             this.bioCheckResults = {};
           }
@@ -2834,24 +2847,35 @@ class FeedHelper {
           );
         }
       } else {
-        // Failed to fetch or profile not found
-        $(`.bioPopup[data-id="${bioId}"]`).html(
-          `<x class="closeBioPopup">&times;</x>
-          <div class="bio-section">
-            <p><strong>Failed to load bio.</strong></p>
-            <p>Profile may not exist or may be private.</p>
-          </div>`
-        );
+        // Failed to fetch or profile not found  
+        this.debug(`Failed to load profile ${bioId}, removing button if it exists`);
+        
+        // Remove the button that triggered this failed fetch to prevent re-clicking
+        $(`button.getBio[data-id="${bioId}"]`).remove();
+        
+        // Don't show the popup for failed profiles - just silently handle the failure
+        $(`.bioPopup[data-id="${bioId}"]`).remove();
+        
+        // Mark this profile as failed so we don't try again
+        if (!this.failedProfiles) {
+          this.failedProfiles = {};
+        }
+        this.failedProfiles[bioId] = true;
       }
     } catch (error) {
-      console.error(`Error fetching bio for ${bioId}:`, error);
-      $(`.bioPopup[data-id="${bioId}"]`).html(
-        `<x class="closeBioPopup">&times;</x>
-        <div class="bio-section">
-          <p><strong>Error loading bio.</strong></p>
-          <p>Please try again later.</p>
-        </div>`
-      );
+      this.debug(`Error fetching bio for ${bioId}:`, error);
+      
+      // Remove the button that triggered this failed fetch
+      $(`button.getBio[data-id="${bioId}"]`).remove();
+      
+      // Remove the loading popup - don't show error popup  
+      $(`.bioPopup[data-id="${bioId}"]`).remove();
+      
+      // Mark this profile as failed so we don't try again
+      if (!this.failedProfiles) {
+        this.failedProfiles = {};
+      }
+      this.failedProfiles[bioId] = true;
     }
   }
 
@@ -2887,7 +2911,7 @@ class FeedHelper {
       // Process in batches if we have more than 1000 profiles
       for (let i = 0; i < bioLinks.length; i += maxBatchSize) {
         const batch = bioLinks.slice(i, i + maxBatchSize);
-        console.log(
+        this.debug(
           `Fetching bio batch ${Math.floor(i / maxBatchSize) + 1}/${Math.ceil(bioLinks.length / maxBatchSize)} (${
             batch.length
           } profiles)`
@@ -2979,21 +3003,43 @@ class FeedHelper {
         const feedItem = $(element).closest("span.feed-item");
         const feedText = feedItem.text();
 
-        console.log("FeedHelper: Processing profile link:", profileID, "from href:", href);
+        this.debug("Processing profile link:", profileID, "from href:", href);
 
         // Check if this is a merge activity
         const isMerge = feedText.includes("merged") && feedText.includes("into");
 
         // For merges, only add button for the target profile (after "into")
         if (isMerge) {
-          const linkText = $(element).text();
-          const linkPosition = feedText.indexOf(linkText);
+          // Find all profile links in this feed item
+          const allProfileLinks = feedItem.find('a[href*="/wiki/"]:not([href*="Special:"]):not([href*="index.php"])');
+          
+          // Find the position of " into " in the text
           const intoPosition = feedText.indexOf(" into ");
-
-          // Skip if this is not the target profile (after "into")
-          if (intoPosition > 0 && linkPosition < intoPosition) {
-            console.log("FeedHelper: Skipping source profile for merge:", profileID);
-            return; // Skip source profile for merges
+          
+          if (intoPosition > 0) {
+            // Check if this link comes before the "into" text by comparing href positions
+            let isBeforeInto = true;
+            
+            allProfileLinks.each((index, link) => {
+              if (link === element) {
+                // Found our current link - check if any later links exist after "into"
+                // If this is the last profile link or if there's a profile link after "into", 
+                // then this must be the source profile
+                const linkHtml = $(element).prop('outerHTML');
+                const linkPositionInHtml = feedItem.html().indexOf(linkHtml);
+                const intoPositionInHtml = feedItem.html().indexOf(' into ');
+                
+                isBeforeInto = (linkPositionInHtml < intoPositionInHtml);
+                return false; // Break out of each loop
+              }
+            });
+            
+            if (isBeforeInto) {
+              this.debug("Skipping source profile for merge:", profileID);
+              return; // Skip source profile for merges
+            } else {
+              this.debug("Processing target profile for merge:", profileID);
+            }
           }
         }
 
@@ -3009,6 +3055,7 @@ class FeedHelper {
         }
 
         if (person) {
+          this.debug(`Found person data for ${profileID}:`, person.Name, "ID:", person.Id);
           $("#mBirthDate").val(person.BirthDate || "0000-00-00");
           $("#mDeathDate").val(person.DeathDate || "0000-00-00");
 
@@ -3016,9 +3063,12 @@ class FeedHelper {
           if (this.bioCheckResults[person.Id] !== undefined) {
             // Use stored result
             autoBioCheckResult = this.bioCheckResults[person.Id];
+            this.debug(`Using cached Bio Check result for ${person.Id}:`, autoBioCheckResult);
           } else {
             // Run autoBioCheck
+            this.debug(`Running Bio Check for ${person.Id} (${person.Name})`);
             autoBioCheckResult = this.autoBioCheck(person.bio);
+            this.debug(`Bio Check result for ${person.Id}:`, autoBioCheckResult);
             // Store the result
             this.bioCheckResults[person.Id] = autoBioCheckResult;
             // Update the bioCheckResults in localStorage
@@ -3045,6 +3095,7 @@ class FeedHelper {
           // Check if we have this profile in fetchedProfiles from cross-tab sync
           const fetchedProfile = this.fetchedProfiles[profileID];
           if (fetchedProfile) {
+            this.debug(`Found fetchedProfile data for ${profileID}:`, fetchedProfile.Name, "ID:", fetchedProfile.Id);
             // We have the profile data from another tab, use it
             $("#mBirthDate").val(fetchedProfile.BirthDate || "0000-00-00");
             $("#mDeathDate").val(fetchedProfile.DeathDate || "0000-00-00");
@@ -3053,9 +3104,12 @@ class FeedHelper {
             if (this.bioCheckResults[fetchedProfile.Id] !== undefined) {
               // Use stored result
               autoBioCheckResult = this.bioCheckResults[fetchedProfile.Id];
+              this.debug(`Using cached Bio Check result for ${fetchedProfile.Id}:`, autoBioCheckResult);
             } else {
               // Run autoBioCheck
+              this.debug(`Running Bio Check for ${fetchedProfile.Id} (${fetchedProfile.Name})`);
               autoBioCheckResult = this.autoBioCheck(fetchedProfile.bio);
+              this.debug(`Bio Check result for ${fetchedProfile.Id}:`, autoBioCheckResult);
               // Store the result
               this.bioCheckResults[fetchedProfile.Id] = autoBioCheckResult;
               // Update the bioCheckResults in localStorage
@@ -3078,8 +3132,27 @@ class FeedHelper {
                   </button>`
                 );
             }
+          } else {
+            // Profile not found in existing data - check if it previously failed
+            if (this.failedProfiles && this.failedProfiles[profileID]) {
+              // Don't add button for profiles that previously failed to load
+              this.debug(`Skipping button for previously failed profile: ${profileID}`);
+            } else {
+              // Add a button that will fetch on demand
+              // Only add button if one doesn't already exist for this profile
+              if ($(element).siblings(`button.getBio[data-id="${profileID}"]`).length === 0) {
+                $(element)
+                  .parent()
+                  .append(
+                    `<button class="getBio" data-id="${String(
+                      profileID
+                    )}" title="Click to fetch and check bio">
+                      ${profileID}
+                    </button>`
+                  );
+              }
+            }
           }
-          // If profile not found in either location, it will be fetched when getThePeople() runs
         }
       }
     });
@@ -3143,9 +3216,9 @@ class FeedHelper {
       event.stopPropagation(); // Prevent the document click handler from firing
 
       const bioId = String($(event.currentTarget).data("id")); // Ensure bioId is a string
-      console.log(`Bio button clicked for ID: ${bioId}`);
-      console.log(`Button element:`, event.currentTarget);
-      console.log(`this.people structure:`, this.people);
+      this.debug(`Bio button clicked for ID: ${bioId}`);
+      this.debug(`Button element:`, event.currentTarget);
+      this.debug(`this.people structure:`, this.people);
 
       const thisPopup = $(`.bioPopup[data-id="${bioId}"]`);
 
@@ -3165,7 +3238,7 @@ class FeedHelper {
       }
 
       const bio = this.people[2][bioId]; // Access the bio using the string key
-      console.log(`Found bio for ${bioId}:`, bio);
+      this.debug(`Found bio for ${bioId}:`, bio);
 
       if (bio && bio.bio) {
         const highlightedBio = this.highlightMarkup(bio.bio).replace(/\n/g, "<br>");
@@ -3177,7 +3250,7 @@ class FeedHelper {
         );
       } else {
         // Bio content not available, fetch it automatically
-        console.log(`Bio not found in cache for ${bioId}, fetching...`);
+        this.debug(`Bio not found in cache for ${bioId}, fetching...`);
         this.fetchAndShowSingleBio(bioId);
       }
     });
@@ -3205,7 +3278,7 @@ class FeedHelper {
     });
 
     $(document).on("click", "#onlyNewestBadges,#onlyNewts", async function () {
-      console.log(`WBE: Button clicked: ${$(this).attr("id")}, current config: ${self.currentConfig.name}`);
+      self.debug(`WBE: Button clicked: ${$(this).attr("id")}, current config: ${self.currentConfig.name}`);
 
       // Find all span.HISTORY-ITEM rows not containing links with the class newestPre1700s and toggle them
       const allItems = $("span.feed-item:not(.HISTORY-HIDDEN)");
@@ -3227,8 +3300,8 @@ class FeedHelper {
         targetClasses = "a.newt";
       }
 
-      console.log(`WBE: Looking for elements with class: ${targetClasses}`);
-      console.log(`WBE: Found ${$(targetClasses).length} highlighted elements`);
+      self.debug(`WBE: Looking for elements with class: ${targetClasses}`);
+      self.debug(`WBE: Found ${$(targetClasses).length} highlighted elements`);
 
       allItems.each(function () {
         if ($(this).find(targetClasses).length == 0) {
@@ -3284,7 +3357,7 @@ class FeedHelper {
 
     try {
       // Step 1: Get bios
-      console.log("WBE: Full Check - Step 1: Getting bios...");
+      this.debug("WBE: Full Check - Step 1: Getting bios...");
       await this.getBios();
       // Disable the Get bios button after successful run
       try {
@@ -3298,7 +3371,7 @@ class FeedHelper {
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Step 2: Highlight new members/newly badged people
-      console.log("WBE: Full Check - Step 2: Highlighting new members...");
+      this.debug("WBE: Full Check - Step 2: Highlighting new members...");
       await this.highlightNewMembers();
       // Disable the highlight button after successful run
       try {
@@ -3312,7 +3385,7 @@ class FeedHelper {
       await new Promise((resolve) => setTimeout(resolve, 300));
 
       // Step 3: Check for anomalies
-      console.log("WBE: Full Check - Step 3: Checking for anomalies...");
+      this.debug("WBE: Full Check - Step 3: Checking for anomalies...");
       await this.checkForAnomalies(false); // Don't scroll when called from Full Check
       // Disable anomalies button
       try {
@@ -3324,7 +3397,7 @@ class FeedHelper {
       await new Promise((resolve) => setTimeout(resolve, 300));
 
       // Step 4: Check activity
-      console.log("WBE: Full Check - Step 4: Checking activity patterns...");
+      this.debug("WBE: Full Check - Step 4: Checking activity patterns...");
       await this.checkActivity(false); // Don't scroll when called from Full Check
       // Disable activity button
       try {
@@ -3411,8 +3484,8 @@ class FeedHelper {
     }
 
     // Debug: Log what we cleared
-    console.log("WBE: Cleared Feed Helper data including:", keysToRemove);
-    console.log("WBE: Preserved 'new people' highlighting classes");
+    this.debug("WBE: Cleared Feed Helper data including:", keysToRemove);
+    this.debug("WBE: Preserved 'new people' highlighting classes");
 
     this.showAnomaliesPopup("Feed Helper data cleared! <br>(Preserved 'new people' highlights)");
     // Re-enable core control buttons and restore their labels
@@ -3480,22 +3553,154 @@ class FeedHelper {
   }
 
   autoBioCheck(sourcesStr) {
+    this.bioCheckDebug("=== Starting autoBioCheck ===");
+    this.bioCheckDebug("Bio content length:", sourcesStr ? sourcesStr.length : 0);
+    this.bioCheckDebug("Bio content preview:", sourcesStr ? sourcesStr.substring(0, 200) + "..." : "No content");
+    
     if (!sourcesStr) {
+      this.bioCheckDebug("No bio content provided, returning false");
       return false;
     }
+    
     if ($("#mBirthDate").length == 0) {
       // Create hidden inputs to store the birthdate and death date
       $("body").append('<input type="hidden" id="mBirthDate" name="mBirthDate">');
       $("body").append('<input type="hidden" id="mDeathDate" name="mDeathDate">');
+      this.bioCheckDebug("Created hidden date inputs");
     }
+    
     let thePerson = new BioCheckPerson();
     thePerson["#isApp"] = true;
     thePerson.build();
+    this.bioCheckDebug("BioCheckPerson created and built");
+    
     let biography = new Biography(theSourceRules);
+    this.bioCheckDebug("Biography created with theSourceRules");
+    
     biography.parse(sourcesStr, thePerson, "");
+    this.bioCheckDebug("Biography parsed");
+    
     biography.validate();
+    this.bioCheckDebug("Biography validated");
+    
     const hasSources = biography.hasSources();
-    return hasSources;
+    this.bioCheckDebug("hasSources result:", hasSources);
+    
+    // Additional debugging - check for common source patterns
+    const hasRefTags = /<ref[^>]*>/.test(sourcesStr);
+    const hasSourcesSection = /==\s*sources?\s*==/i.test(sourcesStr);
+    const hasReferencesSection = /==\s*references?\s*==/i.test(sourcesStr);
+    const hasCitations = /\[\d+\]/.test(sourcesStr) || /\{\{[^}]*cite[^}]*\}\}/i.test(sourcesStr);
+    const hasEmptyReferences = /<references\s*\/?>/.test(sourcesStr);
+    const hasUnsourcedTemplate = /\{\{unsourced\}\}/i.test(sourcesStr);
+    
+    this.bioCheckDebug("Manual source pattern checks:");
+    this.bioCheckDebug("- Has <ref> tags:", hasRefTags);
+    this.bioCheckDebug("- Has Sources section:", hasSourcesSection);
+    this.bioCheckDebug("- Has References section:", hasReferencesSection);
+    this.bioCheckDebug("- Has citations/refs:", hasCitations);
+    this.bioCheckDebug("- Has empty <references />:", hasEmptyReferences);
+    this.bioCheckDebug("- Has {{Unsourced}} template:", hasUnsourcedTemplate);
+    
+    // Check biography object for more details
+    this.bioCheckDebug("Biography object details:");
+    this.bioCheckDebug("- Sources found by parser:", biography.sources ? biography.sources.length : 0);
+    if (biography.sources && biography.sources.length > 0) {
+      this.bioCheckDebug("- Actual sources:", biography.sources);
+    }
+    this.bioCheckDebug("- Validation errors:", biography.errors ? biography.errors.length : 0);
+    
+    // Check what Biography.hasSources() is actually checking
+    this.bioCheckDebug("- Biography.sourceList length:", biography.sourceList ? biography.sourceList.length : 0);
+    this.bioCheckDebug("- Biography.refList length:", biography.refList ? biography.refList.length : 0);
+    
+    // Let's also check the actual method that determines sources
+    if (biography.sourceList && biography.sourceList.length > 0) {
+      this.bioCheckDebug("- sourceList content:", biography.sourceList);
+    }
+    if (biography.refList && biography.refList.length > 0) {
+      this.bioCheckDebug("- refList content:", biography.refList);
+    }
+    this.bioCheckDebug("- Validation errors:", biography.errors ? biography.errors.length : 0);
+    
+    if (biography.errors && biography.errors.length > 0) {
+      this.bioCheckDebug("Validation errors found:", biography.errors);
+    }
+    
+    // Let's also inspect the Biography object directly to understand what hasSources() checks
+    this.bioCheckDebug("Biography object inspection:");
+    this.bioCheckDebug("- Biography keys:", Object.keys(biography));
+    this.bioCheckDebug("- hasSources method result:", biography.hasSources());
+    
+    // Try to understand what hasSources() actually checks by examining Biography object properties
+    const biographyProperties = ['sources', 'sourceList', 'refList', 'refs', 'sourceRefs', 'citations'];
+    biographyProperties.forEach(prop => {
+      if (biography.hasOwnProperty(prop)) {
+        this.bioCheckDebug(`- ${prop}:`, biography[prop]);
+      }
+    });
+    
+    // Manual check for actually meaningful sources (not just empty structures)
+    const hasRealSources = this.hasRealSources(sourcesStr);
+    this.bioCheckDebug("Manual real sources check result:", hasRealSources);
+    
+    this.bioCheckDebug("=== autoBioCheck result:", hasSources, "===");
+    
+    // For testing, let's override the result if we detect it should fail
+    const finalResult = hasRealSources ? hasSources : false;
+    this.bioCheckDebug("Final result (after manual override):", finalResult);
+    
+    return finalResult;
+  }
+
+  /**
+   * Manual check for actually meaningful sources (not just empty structures)
+   */
+  hasRealSources(bioContent) {
+    if (!bioContent) return false;
+    
+    // Check for {{Unsourced}} template - this is a clear indicator of no sources
+    if (/\{\{unsourced\}\}/i.test(bioContent)) {
+      this.bioCheckDebug("Found {{Unsourced}} template - should fail");
+      return false;
+    }
+    
+    // Check for categories that indicate lack of sources
+    const needsSourcesCategories = [
+      'needs sources',
+      'needs more sources', 
+      'needs validation',
+      'unsourced'
+    ];
+    
+    for (const category of needsSourcesCategories) {
+      if (new RegExp(`\\[\\[Category:[^\\]]*${category}[^\\]]*\\]\\]`, 'i').test(bioContent)) {
+        this.bioCheckDebug(`Found "${category}" category - should fail`);
+        return false;
+      }
+    }
+    
+    // Check if we have only empty <references />
+    const hasOnlyEmptyReferences = /<references\s*\/>/.test(bioContent) && 
+                                   !/<ref[^>]*>[^<]+<\/ref>/.test(bioContent);
+    if (hasOnlyEmptyReferences) {
+      this.bioCheckDebug("Found only empty <references /> with no actual <ref> content - should fail");
+      return false;
+    }
+    
+    // Check for actual source content patterns
+    const hasRealRefContent = /<ref[^>]*>[^<]+<\/ref>/.test(bioContent);
+    const hasSourceBulletPoints = /==\s*sources?\s*==[\s\S]*?\*[^*\n]+/i.test(bioContent);
+    const hasCiteTemplates = /\{\{cite[^}]+\}\}/i.test(bioContent);
+    const hasUrlSources = /==\s*sources?\s*==[\s\S]*?https?:\/\/[^\s]+/i.test(bioContent);
+    
+    if (hasRealRefContent || hasSourceBulletPoints || hasCiteTemplates || hasUrlSources) {
+      this.bioCheckDebug("Found real source content");
+      return true;
+    }
+    
+    this.bioCheckDebug("No real source content found");
+    return false;
   }
 
   // Set up localStorage with time-based cleanup
@@ -3510,7 +3715,7 @@ class FeedHelper {
 
       if (hoursAgo > this.sessionTimeoutHours) {
         // Data is stale - clean it up
-        console.log(`FeedHelper: Cleaning up bio data (${hoursAgo.toFixed(1)} hours old)`);
+        this.debug(`FeedHelper: Cleaning up bio data (${hoursAgo.toFixed(1)} hours old)`);
         localStorage.removeItem(this.bioCheckResultsStorageKey);
         localStorage.removeItem(this.fetchedProfilesStorageKey);
         localStorage.removeItem(this.dismissedWarningsStorageKey); // Clean up dismissed warnings too
@@ -3522,7 +3727,7 @@ class FeedHelper {
           }
         });
       } else {
-        console.log(`FeedHelper: Keeping existing bio data (${hoursAgo.toFixed(1)} hours old)`);
+        this.debug(`FeedHelper: Keeping existing bio data (${hoursAgo.toFixed(1)} hours old)`);
       }
     }
 
@@ -3539,14 +3744,14 @@ class FeedHelper {
         // Check if feed items are present on the page
         const feedItems = $("span.feed-item");
         if (feedItems.length > 0) {
-          console.log(
+          this.debug(
             "FeedHelper: Displaying bio buttons after data restoration, found",
             feedItems.length,
             "feed items"
           );
           this.displayBioButtons(false);
         } else {
-          console.log("FeedHelper: No feed items found yet, retrying in 500ms");
+          this.debug("FeedHelper: No feed items found yet, retrying in 500ms");
           setTimeout(attemptDisplayButtons, 500);
         }
       };
@@ -3568,7 +3773,7 @@ class FeedHelper {
     if (storedProfiles) {
       try {
         this.fetchedProfiles = JSON.parse(storedProfiles);
-        console.log(
+        this.debug(
           "FeedHelper: Restored fetchedProfiles from localStorage:",
           Object.keys(this.fetchedProfiles).length,
           "profiles"
@@ -3593,7 +3798,7 @@ class FeedHelper {
     if (storedBioCheckResults) {
       try {
         this.bioCheckResults = JSON.parse(storedBioCheckResults);
-        console.log(
+        this.debug(
           "FeedHelper: Restored bioCheckResults from localStorage:",
           Object.keys(this.bioCheckResults).length,
           "results"
@@ -3621,8 +3826,10 @@ shouldInitializeFeature("feedHelper").then((isEnabled) => {
   if (isEnabled) {
     // Skip feed helper on NetworkFeed upgrade page
     const currentUrl = window.location.href;
-    if (currentUrl.includes("Special:NetworkFeed") && currentUrl.includes("upgrade=1")) {
-      console.log("Feed helper disabled on NetworkFeed upgrade page");
+    if (
+      currentUrl.includes("Special:NetworkFeed") &&
+      (currentUrl.includes("upgrade=1") || currentUrl.includes("guest=1"))
+    ) {
       return;
     }
 
