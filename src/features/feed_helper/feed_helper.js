@@ -3552,12 +3552,20 @@ class FeedHelper {
   }
 
   autoBioCheck(sourcesStr, profileId = null, profileName = null) {
-    const profileInfo = profileId && profileName ? `${profileName} (ID: ${profileId})` : 
-                       profileId ? `ID: ${profileId}` : 
-                       profileName ? `Name: ${profileName}` : 'Unknown profile';
+    const profileInfo =
+      profileId && profileName
+        ? `${profileName} (ID: ${profileId})`
+        : profileId
+        ? `ID: ${profileId}`
+        : profileName
+        ? `Name: ${profileName}`
+        : "Unknown profile";
     this.bioCheckDebug(`=== Starting autoBioCheck for ${profileInfo} ===`);
     this.bioCheckDebug(`Bio content length for ${profileInfo}:`, sourcesStr ? sourcesStr.length : 0);
-    this.bioCheckDebug(`Bio content preview for ${profileInfo}:`, sourcesStr ? sourcesStr.substring(0, 200) + "..." : "No content");
+    this.bioCheckDebug(
+      `Bio content preview for ${profileInfo}:`,
+      sourcesStr ? sourcesStr.substring(0, 200) + "..." : "No content"
+    );
 
     if (!sourcesStr) {
       this.bioCheckDebug(`No bio content provided for ${profileInfo}, returning false`);
