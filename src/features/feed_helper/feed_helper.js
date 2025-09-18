@@ -2767,7 +2767,7 @@ class FeedHelper {
       `<div class="bioPopup" data-id="${bioId}">
         <x class="closeBioPopup">&times;</x>
         <div class="bio-section">
-          <p><strong>Loading bio...</strong></p>
+          <p><strong>Loading bio for ${bioId}...</strong></p>
         </div>
       </div>`
     );
@@ -2784,25 +2784,48 @@ class FeedHelper {
 
       this.debug(`WikiTreeAPI response for ${bioId}:`, peopleResponse);
 
-      if (peopleResponse) {
-        this.debug(`Response structure - [0]:`, peopleResponse[0]);
-        this.debug(`Response structure - [1]:`, peopleResponse[1]);
-        this.debug(`Response structure - [2]:`, peopleResponse[2]);
-        if (peopleResponse[2]) {
-          this.debug(`Available profile IDs in response:`, Object.keys(peopleResponse[2]));
+      if (peopleResponse && peopleResponse[2]) {
+        this.debug(`Available profile IDs in response:`, Object.keys(peopleResponse[2]));
+        this.debug(
+          `Looking for bioId: "${bioId}" (type: ${typeof bioId}) and apiId: "${apiId}" (type: ${typeof apiId})`
+        );
+      }
+
+      // Check for profile data with different key formats
+      let responseKey = null;
+      let person = null;
+
+      if (peopleResponse && peopleResponse[2]) {
+        // Try original bioId first (profile name like "Clarke-26589")
+        if (peopleResponse[2][bioId]) {
+          responseKey = bioId;
+          person = peopleResponse[2][bioId];
+          this.debug(`Found data using bioId key: ${bioId}`);
+        }
+        // Try numeric apiId
+        else if (peopleResponse[2][apiId]) {
+          responseKey = apiId;
+          person = peopleResponse[2][apiId];
+          this.debug(`Found data using apiId key: ${apiId}`);
+        }
+        // Try string version of numeric ID
+        else if (peopleResponse[2][String(apiId)]) {
+          responseKey = String(apiId);
+          person = peopleResponse[2][String(apiId)];
+          this.debug(`Found data using string apiId key: ${String(apiId)}`);
+        }
+        // Try any available key as fallback
+        else {
+          const availableKeys = Object.keys(peopleResponse[2]);
+          if (availableKeys.length > 0) {
+            responseKey = availableKeys[0];
+            person = peopleResponse[2][responseKey];
+            this.debug(`Using fallback key: ${responseKey}`);
+          }
         }
       }
 
-      // Check for both the original bioId and the converted apiId
-      const responseKey =
-        peopleResponse[2] && peopleResponse[2][bioId]
-          ? bioId
-          : peopleResponse[2] && peopleResponse[2][apiId]
-          ? apiId
-          : null;
-
-      if (peopleResponse && peopleResponse[2] && responseKey) {
-        const person = peopleResponse[2][responseKey];
+      if (person && person.Id) {
         this.debug(`Found person data for ${responseKey}:`, person);
         this.debug(`Bio content length:`, person.bio ? person.bio.length : "No bio");
 
@@ -2847,15 +2870,22 @@ class FeedHelper {
           );
         }
       } else {
-        // Failed to fetch or profile not found  
-        this.debug(`Failed to load profile ${bioId}, removing button if it exists`);
-        
-        // Remove the button that triggered this failed fetch to prevent re-clicking
-        $(`button.getBio[data-id="${bioId}"]`).remove();
-        
-        // Don't show the popup for failed profiles - just silently handle the failure
-        $(`.bioPopup[data-id="${bioId}"]`).remove();
-        
+        // Failed to fetch or profile not found
+        this.debug(`Failed to load profile ${bioId}, API response:`, peopleResponse);
+
+        // Show the error in the popup instead of just removing everything
+        $(`.bioPopup[data-id="${bioId}"] .bio-section`).html(`
+          <p><strong>Failed to load bio for ${bioId}</strong></p>
+          <p>API Response: ${JSON.stringify(peopleResponse, null, 2)}</p>
+          <p>This might be due to:</p>
+          <ul>
+            <li>Profile ID format not recognized by API</li>
+            <li>Private profile</li>
+            <li>Profile doesn't exist</li>
+          </ul>
+        `);
+
+        // Don't remove the button immediately - let user see the error
         // Mark this profile as failed so we don't try again
         if (!this.failedProfiles) {
           this.failedProfiles = {};
@@ -2864,13 +2894,14 @@ class FeedHelper {
       }
     } catch (error) {
       this.debug(`Error fetching bio for ${bioId}:`, error);
-      
-      // Remove the button that triggered this failed fetch
-      $(`button.getBio[data-id="${bioId}"]`).remove();
-      
-      // Remove the loading popup - don't show error popup  
-      $(`.bioPopup[data-id="${bioId}"]`).remove();
-      
+
+      // Show the error in the popup instead of just removing everything
+      $(`.bioPopup[data-id="${bioId}"] .bio-section`).html(`
+        <p><strong>Error fetching bio for ${bioId}</strong></p>
+        <p>Error: ${error.message}</p>
+        <p>This might be due to network issues or API problems.</p>
+      `);
+
       // Mark this profile as failed so we don't try again
       if (!this.failedProfiles) {
         this.failedProfiles = {};
@@ -2887,15 +2918,31 @@ class FeedHelper {
     const storedBioCheckResults = localStorage.getItem(this.bioCheckResultsStorageKey);
     this.bioCheckResults = storedBioCheckResults ? JSON.parse(storedBioCheckResults) : {};
 
-    // Find all links in span.HISTORY-ITEM that include a year in the text content
+    // Find all links in span.feed-item that look like profile links
     const theLinks = $("span.feed-item a");
     const bioLinks = [];
 
     // Collect profile IDs to fetch
     theLinks.each((index, element) => {
-      if ($(element).text().match(/\d{4}/)) {
-        const profileID = decodeURIComponent($(element).attr("href").split("/").pop());
-        if (profileID.match(/^[^-\d]*-\d+$/)) {
+      const href = $(element).attr("href");
+      let profileID;
+
+      // Handle different URL formats
+      if (href.includes("who=")) {
+        // Extract profile ID from URLs like "index.php?title=Special:NetworkFeed&who=ProfileName"
+        profileID = href.split("who=")[1].split("&")[0];
+      } else if (href.includes("/wiki/")) {
+        // Extract from standard WikiTree URLs like "/wiki/ProfileName"
+        profileID = decodeURIComponent(href.split("/").pop());
+      }
+
+      // Only process valid WikiTree profile IDs (not Special pages, etc.)
+      if (profileID && profileID.match(/^[^-\d]*-\d+$/)) {
+        // Check if this link contains a year OR if we're on a merge feed (where years might be missing)
+        const containsYear = $(element).text().match(/\d{4}/);
+        const isMergeFeed = this.currentConfig && this.currentConfig.name === "Merges";
+
+        if (containsYear || isMergeFeed) {
           // If the profile is not already stored, add to bioLinks to fetch
           if (!this.fetchedProfiles[profileID]) {
             bioLinks.push(profileID);
@@ -2987,7 +3034,11 @@ class FeedHelper {
 
     // For each bio Name, find it in a link and add a button
     theLinks.each((index, element) => {
-      if ($(element).text().match(/\d{4}/)) {
+      // Check if this link contains a year OR if we're on a merge feed (where years might be missing)
+      const containsYear = $(element).text().match(/\d{4}/);
+      const isMergeFeed = this.currentConfig && this.currentConfig.name === "Merges";
+
+      if (containsYear || isMergeFeed) {
         const href = $(element).attr("href");
         let profileID;
 
@@ -3008,37 +3059,42 @@ class FeedHelper {
         // Check if this is a merge activity
         const isMerge = feedText.includes("merged") && feedText.includes("into");
 
-        // For merges, only add button for the target profile (after "into")
+        // For merges, only add button for the target profile (the one after "into" in parentheses)
         if (isMerge) {
-          // Find all profile links in this feed item
-          const allProfileLinks = feedItem.find('a[href*="/wiki/"]:not([href*="Special:"]):not([href*="index.php"])');
-          
-          // Find the position of " into " in the text
-          const intoPosition = feedText.indexOf(" into ");
-          
-          if (intoPosition > 0) {
-            // Check if this link comes before the "into" text by comparing href positions
-            let isBeforeInto = true;
-            
-            allProfileLinks.each((index, link) => {
-              if (link === element) {
-                // Found our current link - check if any later links exist after "into"
-                // If this is the last profile link or if there's a profile link after "into", 
-                // then this must be the source profile
-                const linkHtml = $(element).prop('outerHTML');
-                const linkPositionInHtml = feedItem.html().indexOf(linkHtml);
-                const intoPositionInHtml = feedItem.html().indexOf(' into ');
-                
-                isBeforeInto = (linkPositionInHtml < intoPositionInHtml);
-                return false; // Break out of each loop
-              }
+          // Look for the parenthetical part like "(Sullivan-24023 into Sullivan-2809)"
+          const parentheticalMatch = feedText.match(/\(([^-\d]*-\d+) into ([^-\d]*-\d+)[^)]*\)/);
+
+          if (parentheticalMatch) {
+            const sourceProfileInParens = parentheticalMatch[1];
+            const targetProfileInParens = parentheticalMatch[2];
+
+            this.debug("Found parenthetical merge info:", {
+              source: sourceProfileInParens,
+              target: targetProfileInParens,
+              currentProfile: profileID,
             });
-            
-            if (isBeforeInto) {
-              this.debug("Skipping source profile for merge:", profileID);
-              return; // Skip source profile for merges
-            } else {
+
+            // Only process if this is the target profile from the parentheses
+            if (profileID === targetProfileInParens) {
               this.debug("Processing target profile for merge:", profileID);
+            } else {
+              this.debug("Skipping non-target profile for merge:", profileID);
+              return; // Skip non-target profiles for merges
+            }
+          } else {
+            // Fallback to old logic if parenthetical format not found
+            this.debug("No parenthetical merge info found, using fallback logic");
+            const intoPosition = feedText.indexOf(" into ");
+            if (intoPosition > 0) {
+              const linkHtml = $(element).prop("outerHTML");
+              const linkPositionInHtml = feedItem.html().indexOf(linkHtml);
+              const intoPositionInHtml = feedItem.html().indexOf(" into ");
+
+              const isBeforeInto = linkPositionInHtml < intoPositionInHtml;
+              if (isBeforeInto) {
+                this.debug("Skipping source profile for merge (fallback):", profileID);
+                return;
+              }
             }
           }
         }
@@ -3092,67 +3148,10 @@ class FeedHelper {
               );
           }
         } else {
-          // Check if we have this profile in fetchedProfiles from cross-tab sync
-          const fetchedProfile = this.fetchedProfiles[profileID];
-          if (fetchedProfile) {
-            this.debug(`Found fetchedProfile data for ${profileID}:`, fetchedProfile.Name, "ID:", fetchedProfile.Id);
-            // We have the profile data from another tab, use it
-            $("#mBirthDate").val(fetchedProfile.BirthDate || "0000-00-00");
-            $("#mDeathDate").val(fetchedProfile.DeathDate || "0000-00-00");
-
-            let autoBioCheckResult;
-            if (this.bioCheckResults[fetchedProfile.Id] !== undefined) {
-              // Use stored result
-              autoBioCheckResult = this.bioCheckResults[fetchedProfile.Id];
-              this.debug(`Using cached Bio Check result for ${fetchedProfile.Id}:`, autoBioCheckResult);
-            } else {
-              // Run autoBioCheck
-              this.debug(`Running Bio Check for ${fetchedProfile.Id} (${fetchedProfile.Name})`);
-              autoBioCheckResult = this.autoBioCheck(fetchedProfile.bio);
-              this.debug(`Bio Check result for ${fetchedProfile.Id}:`, autoBioCheckResult);
-              // Store the result
-              this.bioCheckResults[fetchedProfile.Id] = autoBioCheckResult;
-              // Update the bioCheckResults in localStorage
-              this.storeBioData(this.bioCheckResultsStorageKey, JSON.stringify(this.bioCheckResults));
-            }
-
-            // Prepend the button to the parent element
-            const failedBioCheckClass = autoBioCheckResult === false ? " failedBioCheck" : "";
-            const failedBioCheckTitle = autoBioCheckResult === false ? " Bio Check issues" : "";
-            const buttonLabel = fetchedProfile.ShortName || fetchedProfile.Name;
-
-            if ($(element).siblings(`button.getBio[data-id="${fetchedProfile.Id}"]`).length === 0) {
-              $(element)
-                .parent()
-                .append(
-                  `<button class="getBio${failedBioCheckClass}" data-id="${String(
-                    fetchedProfile.Id
-                  )}" title="${failedBioCheckTitle}">
-                    ${buttonLabel}
-                  </button>`
-                );
-            }
-          } else {
-            // Profile not found in existing data - check if it previously failed
-            if (this.failedProfiles && this.failedProfiles[profileID]) {
-              // Don't add button for profiles that previously failed to load
-              this.debug(`Skipping button for previously failed profile: ${profileID}`);
-            } else {
-              // Add a button that will fetch on demand
-              // Only add button if one doesn't already exist for this profile
-              if ($(element).siblings(`button.getBio[data-id="${profileID}"]`).length === 0) {
-                $(element)
-                  .parent()
-                  .append(
-                    `<button class="getBio" data-id="${String(
-                      profileID
-                    )}" title="Click to fetch and check bio">
-                      ${profileID}
-                    </button>`
-                  );
-              }
-            }
-          }
+          // Profile not found in existing data - don't create button
+          // User should run 'Get Bios' or 'Full Check' first to fetch and check all profiles
+          this.debug(`Profile ${profileID} not found in fetched data - skipping button creation`);
+          this.debug(`User should run 'Get Bios' or 'Full Check' to fetch and Bio Check all profiles first`);
         }
       }
     });
@@ -3556,36 +3555,36 @@ class FeedHelper {
     this.bioCheckDebug("=== Starting autoBioCheck ===");
     this.bioCheckDebug("Bio content length:", sourcesStr ? sourcesStr.length : 0);
     this.bioCheckDebug("Bio content preview:", sourcesStr ? sourcesStr.substring(0, 200) + "..." : "No content");
-    
+
     if (!sourcesStr) {
       this.bioCheckDebug("No bio content provided, returning false");
       return false;
     }
-    
+
     if ($("#mBirthDate").length == 0) {
       // Create hidden inputs to store the birthdate and death date
       $("body").append('<input type="hidden" id="mBirthDate" name="mBirthDate">');
       $("body").append('<input type="hidden" id="mDeathDate" name="mDeathDate">');
       this.bioCheckDebug("Created hidden date inputs");
     }
-    
+
     let thePerson = new BioCheckPerson();
     thePerson["#isApp"] = true;
     thePerson.build();
     this.bioCheckDebug("BioCheckPerson created and built");
-    
+
     let biography = new Biography(theSourceRules);
     this.bioCheckDebug("Biography created with theSourceRules");
-    
+
     biography.parse(sourcesStr, thePerson, "");
     this.bioCheckDebug("Biography parsed");
-    
+
     biography.validate();
     this.bioCheckDebug("Biography validated");
-    
+
     const hasSources = biography.hasSources();
     this.bioCheckDebug("hasSources result:", hasSources);
-    
+
     // Additional debugging - check for common source patterns
     const hasRefTags = /<ref[^>]*>/.test(sourcesStr);
     const hasSourcesSection = /==\s*sources?\s*==/i.test(sourcesStr);
@@ -3593,7 +3592,7 @@ class FeedHelper {
     const hasCitations = /\[\d+\]/.test(sourcesStr) || /\{\{[^}]*cite[^}]*\}\}/i.test(sourcesStr);
     const hasEmptyReferences = /<references\s*\/?>/.test(sourcesStr);
     const hasUnsourcedTemplate = /\{\{unsourced\}\}/i.test(sourcesStr);
-    
+
     this.bioCheckDebug("Manual source pattern checks:");
     this.bioCheckDebug("- Has <ref> tags:", hasRefTags);
     this.bioCheckDebug("- Has Sources section:", hasSourcesSection);
@@ -3601,7 +3600,7 @@ class FeedHelper {
     this.bioCheckDebug("- Has citations/refs:", hasCitations);
     this.bioCheckDebug("- Has empty <references />:", hasEmptyReferences);
     this.bioCheckDebug("- Has {{Unsourced}} template:", hasUnsourcedTemplate);
-    
+
     // Check biography object for more details
     this.bioCheckDebug("Biography object details:");
     this.bioCheckDebug("- Sources found by parser:", biography.sources ? biography.sources.length : 0);
@@ -3609,11 +3608,11 @@ class FeedHelper {
       this.bioCheckDebug("- Actual sources:", biography.sources);
     }
     this.bioCheckDebug("- Validation errors:", biography.errors ? biography.errors.length : 0);
-    
+
     // Check what Biography.hasSources() is actually checking
     this.bioCheckDebug("- Biography.sourceList length:", biography.sourceList ? biography.sourceList.length : 0);
     this.bioCheckDebug("- Biography.refList length:", biography.refList ? biography.refList.length : 0);
-    
+
     // Let's also check the actual method that determines sources
     if (biography.sourceList && biography.sourceList.length > 0) {
       this.bioCheckDebug("- sourceList content:", biography.sourceList);
@@ -3622,34 +3621,34 @@ class FeedHelper {
       this.bioCheckDebug("- refList content:", biography.refList);
     }
     this.bioCheckDebug("- Validation errors:", biography.errors ? biography.errors.length : 0);
-    
+
     if (biography.errors && biography.errors.length > 0) {
       this.bioCheckDebug("Validation errors found:", biography.errors);
     }
-    
+
     // Let's also inspect the Biography object directly to understand what hasSources() checks
     this.bioCheckDebug("Biography object inspection:");
     this.bioCheckDebug("- Biography keys:", Object.keys(biography));
     this.bioCheckDebug("- hasSources method result:", biography.hasSources());
-    
+
     // Try to understand what hasSources() actually checks by examining Biography object properties
-    const biographyProperties = ['sources', 'sourceList', 'refList', 'refs', 'sourceRefs', 'citations'];
-    biographyProperties.forEach(prop => {
+    const biographyProperties = ["sources", "sourceList", "refList", "refs", "sourceRefs", "citations"];
+    biographyProperties.forEach((prop) => {
       if (biography.hasOwnProperty(prop)) {
         this.bioCheckDebug(`- ${prop}:`, biography[prop]);
       }
     });
-    
+
     // Manual check for actually meaningful sources (not just empty structures)
     const hasRealSources = this.hasRealSources(sourcesStr);
     this.bioCheckDebug("Manual real sources check result:", hasRealSources);
-    
+
     this.bioCheckDebug("=== autoBioCheck result:", hasSources, "===");
-    
+
     // For testing, let's override the result if we detect it should fail
     const finalResult = hasRealSources ? hasSources : false;
     this.bioCheckDebug("Final result (after manual override):", finalResult);
-    
+
     return finalResult;
   }
 
@@ -3658,47 +3657,41 @@ class FeedHelper {
    */
   hasRealSources(bioContent) {
     if (!bioContent) return false;
-    
+
     // Check for {{Unsourced}} template - this is a clear indicator of no sources
     if (/\{\{unsourced\}\}/i.test(bioContent)) {
       this.bioCheckDebug("Found {{Unsourced}} template - should fail");
       return false;
     }
-    
+
     // Check for categories that indicate lack of sources
-    const needsSourcesCategories = [
-      'needs sources',
-      'needs more sources', 
-      'needs validation',
-      'unsourced'
-    ];
-    
+    const needsSourcesCategories = ["needs sources", "needs more sources", "needs validation", "unsourced"];
+
     for (const category of needsSourcesCategories) {
-      if (new RegExp(`\\[\\[Category:[^\\]]*${category}[^\\]]*\\]\\]`, 'i').test(bioContent)) {
+      if (new RegExp(`\\[\\[Category:[^\\]]*${category}[^\\]]*\\]\\]`, "i").test(bioContent)) {
         this.bioCheckDebug(`Found "${category}" category - should fail`);
         return false;
       }
     }
-    
+
     // Check if we have only empty <references />
-    const hasOnlyEmptyReferences = /<references\s*\/>/.test(bioContent) && 
-                                   !/<ref[^>]*>[^<]+<\/ref>/.test(bioContent);
+    const hasOnlyEmptyReferences = /<references\s*\/>/.test(bioContent) && !/<ref[^>]*>[^<]+<\/ref>/.test(bioContent);
     if (hasOnlyEmptyReferences) {
       this.bioCheckDebug("Found only empty <references /> with no actual <ref> content - should fail");
       return false;
     }
-    
+
     // Check for actual source content patterns
     const hasRealRefContent = /<ref[^>]*>[^<]+<\/ref>/.test(bioContent);
     const hasSourceBulletPoints = /==\s*sources?\s*==[\s\S]*?\*[^*\n]+/i.test(bioContent);
     const hasCiteTemplates = /\{\{cite[^}]+\}\}/i.test(bioContent);
     const hasUrlSources = /==\s*sources?\s*==[\s\S]*?https?:\/\/[^\s]+/i.test(bioContent);
-    
+
     if (hasRealRefContent || hasSourceBulletPoints || hasCiteTemplates || hasUrlSources) {
       this.bioCheckDebug("Found real source content");
       return true;
     }
-    
+
     this.bioCheckDebug("No real source content found");
     return false;
   }
