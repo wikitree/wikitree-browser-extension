@@ -21,18 +21,20 @@ function shouldOpenInNewTab($link, options) {
     ).length > 0;
   const navText = ["next »", "« prev", "Next", "Prev", "Next Change", "Prev Change", "previous"].includes(linkText);
   const navListItem = $link.closest("li.qa-page-links-item").length > 0;
-  
+
   // Additional check for buttons with navigation-related content
-  const containsNavButton = $link.find("button").filter(function() {
-    const buttonText = $(this).text().trim().toLowerCase();
-    return /^(next|prev|previous|next change|prev change)$/i.test(buttonText);
-  }).length > 0;
-  
+  const containsNavButton =
+    $link.find("button").filter(function () {
+      const buttonText = $(this).text().trim().toLowerCase();
+      return /^(next|prev|previous|next change|prev change)$/i.test(buttonText);
+    }).length > 0;
+
   // Check if link contains only a navigation button (common pagination pattern)
-  const containsOnlyNavButton = $link.children().length === 1 && 
-    $link.children().is("button") && 
+  const containsOnlyNavButton =
+    $link.children().length === 1 &&
+    $link.children().is("button") &&
     /^(next|prev|previous|next change|prev change)$/i.test($link.children().first().text().trim());
-  
+
   if (navButton || navText || navListItem || containsNavButton || containsOnlyNavButton) return false;
 
   // 3. Skip areas the user asked to exclude
@@ -40,11 +42,12 @@ function shouldOpenInNewTab($link, options) {
   const isG2GTabOrLinks = $link.closest("div.qa-nav-main,div.qa-nav-footer,div.qa-page-links").length > 0;
   const isTopMenu = $link.closest("nav").length > 0;
   const isEditToolbar = $link.closest("#editToolbarExt").length > 0;
-  
+
   // Check if this is a navigation button (takes precedence over general button exclusions)
   const isNavButton = navButton || navText || navListItem || containsNavButton || containsOnlyNavButton;
-  
-  const isBtn = !isNavButton && ($link.hasClass("btn-pill") || $link.hasClass("btn-secondary") || $link.hasClass("btn-utility"));
+
+  const isBtn =
+    !isNavButton && ($link.hasClass("btn-pill") || $link.hasClass("btn-secondary") || $link.hasClass("btn-utility"));
   const isFormButton = $link.closest("form,.cke_dialog,.cke_browser_webkit").length > 0;
   const isMyMenu = $link.closest("#customMenuOptions").length > 0;
   if (
