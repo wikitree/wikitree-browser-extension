@@ -225,7 +225,7 @@ async function onlyMembers() {
         `<li><a href="#n" id='onlyMembers' title="Show only the active members on this page">Only Active Members</a></li>`
       )
     );
-  
+
   // Add CSS to fix Safari border issue
   if (!$("#onlyMembersStyle").length) {
     $("head").append(`
@@ -237,12 +237,12 @@ async function onlyMembers() {
       </style>
     `);
   }
-  
+
   $("#onlyMembers").on("click", function () {
     toggleNonMembers();
     return;
   });
-  
+
   if (Cookies.get("onlyMembers") == 1) {
     // Set the button as active first, then apply the filter
     $("#onlyMembers").addClass("active");
