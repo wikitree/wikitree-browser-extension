@@ -9,7 +9,7 @@ registerFeature({
   name: "Feed Helper",
   id: "feedHelper",
   description:
-    "Adds buttons to the Network Feed and Contributions pages to check for anomalies, recent activity, and activity by new members and newly-badged members.",
+    "Adds buttons to the Activity Feed and Contributions pages to check for anomalies, recent activity, and activity by new members and newly-badged members.",
   category: "Other",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
