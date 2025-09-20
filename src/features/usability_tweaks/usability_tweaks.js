@@ -225,13 +225,40 @@ async function onlyMembers() {
         `<li><a href="#n" id='onlyMembers' title="Show only the active members on this page">Only Active Members</a></li>`
       )
     );
+  
+  // Add CSS to fix Safari border issue
+  if (!$("#onlyMembersStyle").length) {
+    $("head").append(`
+      <style id="onlyMembersStyle">
+        #onlyMembers {
+          border: none !important;
+          outline: none !important;
+        }
+      </style>
+    `);
+  }
+  
   $("#onlyMembers").on("click", function () {
     toggleNonMembers();
     return;
   });
+  
   if (Cookies.get("onlyMembers") == 1) {
-    toggleNonMembers();
+    // Set the button as active first, then apply the filter
+    $("#onlyMembers").addClass("active");
+    // Apply the filter without toggling the button state
+    $("#Sort-Table tbody tr").each(function () {
+      if ($(this).find("a[href*='/wiki/']").length > 0 && $(this).find("span:contains('ACTIVE')").length == 0) {
+        $(this).hide();
+      }
+    });
   }
+}
+
+// Helper function to clear the onlyMembers cookie for testing
+function clearOnlyMembersCookie() {
+  Cookies.remove("onlyMembers");
+  console.log("onlyMembers cookie cleared for testing");
 }
 
 function getUserIds() {
