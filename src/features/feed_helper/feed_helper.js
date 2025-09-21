@@ -450,6 +450,7 @@ class FeedHelper {
 
       let highlightedCount = 0;
       // Add specific highlight class to matching rows, do NOT remove existing highlights
+      const self = this; // Capture the class instance reference
       allItems.each(function () {
         if ($(this).find(targetClasses).length > 0) {
           if (self.currentConfig.name === "Project Feed") {
