@@ -387,12 +387,14 @@ class FeedHelper {
     this.bioCheckResults = {};
     this.fetchedProfiles = {};
     this.memberData = {};
-    this.bioCheckResultsStorageKey = "bioCheckResults";
-    this.fetchedProfilesStorageKey = "wt-bio-profiles";
-    this.memberDataStorageKey = "memberData";
-    this.activityWarningsStorageKey = "wt-activity-warnings";
-    this.dismissedWarningsStorageKey = "wt-dismissed-warnings"; // Global dismissed warnings
-    this.lastActiveKey = "wt-last-active";
+    this.bioCheckResultsStorageKey = "FeedHelper-bioCheckResults";
+    this.fetchedProfilesStorageKey = "FeedHelper-bio-profiles";
+    this.memberDataStorageKey = "FeedHelper-memberData";
+    this.mergesStorageKey = "FeedHelper-mergesData";
+    this.anomaliesStorageKey = "FeedHelper-anomalies";
+    this.activityWarningsStorageKey = "FeedHelper-activity-warnings";
+    this.dismissedWarningsStorageKey = "FeedHelper-dismissed-warnings"; // Global dismissed warnings
+    this.lastActiveKey = "FeedHelper-last-active";
     this.sessionTimeoutHours = 2; // Clean up data older than 2 hours
     this.storedActivityWarnings = {}; // Rapid activity alerts restored from storage
 
@@ -678,7 +680,7 @@ class FeedHelper {
 
   // Whitelist management methods
   getWhitelist() {
-    const whitelist = localStorage.getItem("feedHelperActivityWhitelist");
+    const whitelist = localStorage.getItem("FeedHelper-activityWhitelist");
     return whitelist ? JSON.parse(whitelist) : [];
   }
 
@@ -686,7 +688,7 @@ class FeedHelper {
     const whitelist = this.getWhitelist();
     if (!whitelist.includes(userID)) {
       whitelist.push(userID);
-      localStorage.setItem("feedHelperActivityWhitelist", JSON.stringify(whitelist));
+      localStorage.setItem("FeedHelper-activityWhitelist", JSON.stringify(whitelist));
       this.debug(`Added ${userID} to activity whitelist`);
     }
   }
@@ -696,7 +698,7 @@ class FeedHelper {
     const index = whitelist.indexOf(userID);
     if (index > -1) {
       whitelist.splice(index, 1);
-      localStorage.setItem("feedHelperActivityWhitelist", JSON.stringify(whitelist));
+      localStorage.setItem("FeedHelper-activityWhitelist", JSON.stringify(whitelist));
       this.debug(`Removed ${userID} from activity whitelist`);
     }
   }
@@ -826,7 +828,7 @@ class FeedHelper {
     // Clear all whitelist
     popup.find("#clearWhitelistBtn").on("click", () => {
       this.showConfirmDialog("Are you sure you want to clear the entire whitelist?", () => {
-        localStorage.removeItem("feedHelperActivityWhitelist");
+        localStorage.removeItem("FeedHelper-activityWhitelist");
         popup.remove();
         backdrop.remove();
         this.showWhitelistManager(); // Refresh the display
@@ -853,6 +855,9 @@ class FeedHelper {
       this.memberData = JSON.parse(storedMemberData);
       this.getMemberCreatedDates();
     }
+
+    // Restore any previously stored bio anomalies
+    this.restoreStoredAnomaliesOnPageLoad();
 
     // Automatically run activity check after a short delay
     setTimeout(async () => {
@@ -1034,7 +1039,7 @@ class FeedHelper {
     const newWTIDs = WTIDs.filter((id) => !existingProfiles[id]);
 
     if (fields.length === 0) {
-      fields = ["Id", "Name", "BirthDate", "DeathDate", "Derived.ShortName", "Gender"];
+      fields = ["Id", "Name", "FirstName", "BirthDate", "DeathDate", "Derived.ShortName", "Gender", "Bio"];
     }
 
     if (newWTIDs.length > 0) {
@@ -1059,7 +1064,18 @@ class FeedHelper {
             );
           }
           // Fetch new data only for IDs not in sessionStorage
+          console.log(`WBE: Making API call with fields:`, fields);
           const people = await WikiTreeAPI.getPeople("Rangers", batch, fields, { resolveRedirect: 0 });
+
+          console.log(`WBE: API response structure:`, people);
+          if (people && people[2]) {
+            // Check if Richardson-42231 is in this batch
+            const richardsonData = people[2]["Richardson-42231"];
+            if (richardsonData) {
+              console.log(`WBE: Richardson-42231 in API response:`, richardsonData);
+              console.log(`WBE: Richardson-42231 fields:`, Object.keys(richardsonData));
+            }
+          }
 
           // Merge new data with existing profiles
           if (people && people[2]) {
@@ -1135,16 +1151,16 @@ class FeedHelper {
       anomalyCount += await this.detectDateChangeAnomalies(historyItems);
     }
 
-    // Step 6: Display anomaly results
+    // Step 6: Check for unmerged profiles (duplicate birth info in bios)
+    anomalyCount += this.detectBioAnomalies(historyItems, this.people ? this.people[2] : {});
+
+    // Step 6.5: Restore any previously detected anomalies that may not have been caught this time
+    this.restoreStoredAnomalies(historyItems);
+
+    // Step 7: Display anomaly results
     this.displayAnomalyResults(anomalyCount);
 
-    // Step 7: Auto-scroll to first highlighted element if any anomalies were found and scrolling is enabled
-    if (anomalyCount > 0 && shouldScroll) {
-      // Small delay to ensure DOM updates are complete
-      setTimeout(() => {
-        this.autoScrollToFirstHighlight();
-      }, 100);
-    }
+    // Removed automatic scrolling when anomalies are detected to avoid forcing the page position
 
     // console.log("Activity data:", activityData); // Debugging log
   }
@@ -1173,12 +1189,7 @@ class FeedHelper {
         // Put the summary sentence on its own line
         this.showAnomaliesPopup(`Activity check completed!<br>${rapidActivityCount} rapid activity alert(s) found.`);
 
-        // Auto-scroll to first highlighted element (only when allowed)
-        if (shouldScroll) {
-          setTimeout(() => {
-            this.autoScrollToFirstHighlight();
-          }, 100);
-        }
+        // Removed automatic scrolling when rapid activity anomalies are detected
       } else {
         this.showAnomaliesPopup("Activity check completed!<br>No rapid activity found.");
       }
@@ -1449,14 +1460,27 @@ class FeedHelper {
                 `Date changes found - Birth: ${birthDateChanges.oldDate} → ${birthDateChanges.newDate}, Death: ${deathDateChanges.oldDate} → ${deathDateChanges.newDate}`
               );
 
-              let anomalyDetails = "";
+              const anomalyEntries = [];
               let hasAnyDateAnomaly = false;
 
               if (birthDateChanges.oldDate && birthDateChanges.newDate) {
                 const birthYearDiff = self.calculateYearDifference(birthDateChanges.oldDate, birthDateChanges.newDate);
                 if (birthYearDiff > 10) {
-                  item.addClass("anomaly");
-                  anomalyDetails += `Birth date changed by ${birthYearDiff} years (${birthDateChanges.oldDate} → ${birthDateChanges.newDate})\n`;
+                  console.log(`WBE: DATE ANOMALY - Birth date change flagged for item`);
+                  if (!item.hasClass("anomaly")) {
+                    item.addClass("anomaly");
+                  }
+                  anomalyEntries.push({
+                    message: `Birth date changed by ${birthYearDiff} years (${birthDateChanges.oldDate} → ${birthDateChanges.newDate})`,
+                    data: {
+                      type: "date-change",
+                      field: "Birth Date",
+                      oldDate: birthDateChanges.oldDate,
+                      newDate: birthDateChanges.newDate,
+                      yearDifference: birthYearDiff,
+                      diffUrl: fullDiffUrl,
+                    },
+                  });
                   hasAnyDateAnomaly = true;
                 }
               }
@@ -1464,18 +1488,43 @@ class FeedHelper {
               if (deathDateChanges.oldDate && deathDateChanges.newDate) {
                 const deathYearDiff = self.calculateYearDifference(deathDateChanges.oldDate, deathDateChanges.newDate);
                 if (deathYearDiff > 10) {
-                  item.addClass("anomaly");
-                  anomalyDetails += `Death date changed by ${deathYearDiff} years (${deathDateChanges.oldDate} → ${deathDateChanges.newDate})\n`;
+                  console.log(`WBE: DATE ANOMALY - Death date change flagged for item`);
+                  if (!item.hasClass("anomaly")) {
+                    item.addClass("anomaly");
+                  }
+                  anomalyEntries.push({
+                    message: `Death date changed by ${deathYearDiff} years (${deathDateChanges.oldDate} → ${deathDateChanges.newDate})`,
+                    data: {
+                      type: "date-change",
+                      field: "Death Date",
+                      oldDate: deathDateChanges.oldDate,
+                      newDate: deathDateChanges.newDate,
+                      yearDifference: deathYearDiff,
+                      diffUrl: fullDiffUrl,
+                    },
+                  });
                   hasAnyDateAnomaly = true;
                 }
               }
 
               if (hasAnyDateAnomaly) {
+                const anomalyDetails = anomalyEntries.map((entry) => entry.message).join("\n");
                 // Put the detailed info in both title and anomalyDiv (like merge anomalies)
                 item.attr("title", anomalyDetails.trim());
                 const anomalyDiv = $(`<div class='anomalyDiv'>${anomalyDetails.replace(/\n/g, "<br>")}</div>`);
                 if (item.find(".anomalyDiv").length === 0) {
                   item.append(anomalyDiv);
+                }
+
+                const profileIds = self.getProfileIdsFromHistoryItem(item);
+                if (profileIds.length === 0) {
+                  self.debug("WBE: Unable to determine profile IDs for date change anomaly", item.text().substring(0, 120));
+                } else {
+                  profileIds.forEach((profileId) => {
+                    anomalyEntries.forEach((entry) => {
+                      self.storeAnomalyData(item, profileId, entry.message, entry.data);
+                    });
+                  });
                 }
                 anomalyCount++;
               }
@@ -1567,24 +1616,70 @@ class FeedHelper {
               }
             }
             if (differentGender || birthDifferenceOver10Years || deathDifferenceOver10Years) {
-              $(this).addClass("anomaly");
-              let titleText = "";
+              console.log(`WBE: MERGE ANOMALY - Gender/date difference flagged for merge item`);
+              const $item = $(this);
+              if (!$item.hasClass("anomaly")) {
+                $item.addClass("anomaly");
+              }
+
+              const anomalyEntries = [];
               if (differentGender) {
-                titleText += `Different genders: ${person1.Gender} vs. ${person2.Gender} \n`;
+                anomalyEntries.push({
+                  message: `Different genders: ${person1.Gender} vs. ${person2.Gender}`,
+                  data: {
+                    type: "merge-comparison",
+                    subType: "gender",
+                    genderOne: person1.Gender,
+                    genderTwo: person2.Gender,
+                    profileOne: person1.Name,
+                    profileTwo: person2.Name,
+                  },
+                });
               }
               if (birthDifferenceOver10Years) {
                 const birthYearDiff = self.calculateYearDifference(person1.BirthDate, person2.BirthDate);
-                titleText += `Birth date changed by ${birthYearDiff} years (${person1.BirthDate} → ${person2.BirthDate})\n`;
+                anomalyEntries.push({
+                  message: `Birth date changed by ${birthYearDiff} years (${person1.BirthDate} → ${person2.BirthDate})`,
+                  data: {
+                    type: "merge-comparison",
+                    subType: "birth",
+                    profileOne: person1.Name,
+                    profileTwo: person2.Name,
+                    birthDateOne: person1.BirthDate,
+                    birthDateTwo: person2.BirthDate,
+                    yearDifference: birthYearDiff,
+                  },
+                });
               }
               if (deathDifferenceOver10Years) {
                 const deathYearDiff = self.calculateYearDifference(person1.DeathDate, person2.DeathDate);
-                titleText += `Death date changed by ${deathYearDiff} years (${person1.DeathDate} → ${person2.DeathDate})\n`;
+                anomalyEntries.push({
+                  message: `Death date changed by ${deathYearDiff} years (${person1.DeathDate} → ${person2.DeathDate})`,
+                  data: {
+                    type: "merge-comparison",
+                    subType: "death",
+                    profileOne: person1.Name,
+                    profileTwo: person2.Name,
+                    deathDateOne: person1.DeathDate,
+                    deathDateTwo: person2.DeathDate,
+                    yearDifference: deathYearDiff,
+                  },
+                });
               }
-              $(this).attr("title", titleText);
+
+              const titleText = anomalyEntries.map((entry) => entry.message).join("\n");
+              $item.attr("title", titleText);
               const anomalyDiv = $(`<div class='anomalyDiv'>${titleText.replace(/\n/g, "<br>")}</div>`);
-              if ($(this).find(".anomalyDiv").length === 0) {
-                $(this).append(anomalyDiv);
+              if ($item.find(".anomalyDiv").length === 0) {
+                $item.append(anomalyDiv);
               }
+
+              const profileIds = [...new Set([ids[0], ids[1]].filter(Boolean))];
+              profileIds.forEach((profileId) => {
+                anomalyEntries.forEach((entry) => {
+                  self.storeAnomalyData($item, profileId, entry.message, entry.data);
+                });
+              });
 
               anomalyCount++;
             }
@@ -1790,18 +1885,217 @@ class FeedHelper {
    * Returns the count of anomalies found.
    */
   detectOtherAnomalies(historyItems, mergeData) {
+    const self = this;
     let anomalyCount = 0;
 
     historyItems.each(function () {
       const hasAnomaly = !mergeData.find((data) => data.mergedBy);
       if (hasAnomaly) {
-        $(this).addClass("anomaly").attr("title", "Potential issue detected.");
+        console.log(`WBE: OTHER ANOMALY - Missing mergedBy data flagged for item`);
+        const $item = $(this);
+        const anomalyMessage = "Potential issue detected.";
+
+        if (!$item.hasClass("anomaly")) {
+          $item.addClass("anomaly");
+        }
+
+        let existingTitle = $item.attr("title") || "";
+        if (!existingTitle.includes(anomalyMessage)) {
+          existingTitle = existingTitle ? `${existingTitle}\n${anomalyMessage}` : anomalyMessage;
+          $item.attr("title", existingTitle);
+        }
+
+        let $anomalyDiv = $item.find(".anomalyDiv");
+        if ($anomalyDiv.length === 0) {
+          $anomalyDiv = $("<div class='anomalyDiv'></div>");
+          $item.append($anomalyDiv);
+        }
+        const currentContent = $anomalyDiv.html();
+        if (!currentContent || !currentContent.includes(anomalyMessage)) {
+          const newContent = currentContent ? `${currentContent}<br>${anomalyMessage}` : anomalyMessage;
+          $anomalyDiv.html(newContent);
+        }
+
+        const profileIds = self.getProfileIdsFromHistoryItem($item);
+        if (profileIds.length === 0) {
+          self.debug("WBE: Unable to determine profile IDs for metadata anomaly", $item.text().substring(0, 120));
+        } else {
+          profileIds.forEach((profileId) => {
+            self.storeAnomalyData($item, profileId, anomalyMessage, {
+              type: "merge-metadata",
+              detail: "missing-merged-by",
+            });
+          });
+        }
         anomalyCount++;
       }
     });
 
     //console.log("Other anomalies detected:", anomalyCount); // Debugging log
     return anomalyCount;
+  }
+
+  /**
+   * Detects bio-related anomalies including duplicate birth information and failed bio checks.
+   * @param {jQuery} historyItems - The feed items to check
+   * @param {Object} people - The people data from API (now includes Bio field)
+   * @returns {number} The count of bio anomalies found
+   */
+  detectBioAnomalies(historyItems, people) {
+    let bioAnomalyCount = 0;
+    const self = this;
+
+    // Use the people data passed in (now includes Bio field)
+    const bioData = people;
+
+    console.log("WBE: detectBioAnomalies called - checking for unmerged profiles with duplicate birth info");
+    console.log("WBE: historyItems:", historyItems.length, "bioData keys:", Object.keys(bioData || {}).length);
+
+    if (!bioData || Object.keys(bioData).length === 0) {
+      console.log("WBE: No people data available for unmerged profile detection.");
+      this.bioCheckDebug("No people data available for unmerged profile detection.");
+      return 0;
+    }
+
+    historyItems.each(function () {
+      const $item = $(this);
+
+      // Get all profile links from this feed item
+      const links = $item.find("a[href*='/wiki/']");
+
+      // Skip the first link (member who performed the action) - use .slice(1) to exclude member profiles
+      const profileLinks = links.toArray().slice(1);
+
+      profileLinks.forEach(function (linkElement) {
+        const href = $(linkElement).attr("href");
+        const match = href.match(/\/wiki\/([A-Za-z0-9_-]+)/);
+
+        if (match) {
+          const profileId = match[1];
+          const person = Object.values(bioData).find((p) => p.Name === profileId);
+
+          console.log(
+            `WBE: Checking profileId: ${profileId}, found person:`,
+            !!person,
+            person ? "with bio:" + !!(person.Bio || person.bio) : "no person"
+          );
+
+          // Special logging for Lydia Rogers (now Richardson-42231)
+          if (
+            profileId === "Richardson-42231" ||
+            profileId.includes("Rogers") ||
+            profileId.toLowerCase().includes("rogers")
+          ) {
+            console.log(`WBE: *** FOUND LYDIA ROGERS PROFILE: ${profileId} ***`);
+            console.log(`WBE: Lydia Rogers full person object:`, person);
+            console.log(`WBE: Available fields:`, Object.keys(person || {}));
+            console.log(`WBE: Bio field (uppercase):`, person?.Bio);
+            console.log(`WBE: bio field (lowercase):`, person?.bio);
+            console.log(`WBE: Biography field:`, person?.Biography);
+            console.log(`WBE: biography field:`, person?.biography);
+            if (person && (person.Bio || person.bio || person.Biography || person.biography)) {
+              const bioText = person.Bio || person.bio || person.Biography || person.biography;
+              console.log(`WBE: Lydia Rogers bio content (first 300 chars):`, bioText.substring(0, 300));
+              console.log(`WBE: Full Lydia Rogers bio:`, bioText);
+            } else {
+              console.log(`WBE: Lydia Rogers profile found but no bio data in any field`);
+            }
+          }
+
+          if (person && (person.Bio || person.bio)) {
+            // Check for duplicate birth information (handle both Bio and bio fields)
+            const bioText = person.Bio || person.bio;
+            
+            // Enhanced debugging for specific profiles
+            if (profileId === "Unknown-733548" || profileId === "Haren-154") {
+              console.log(`WBE: *** DEBUGGING ${profileId} ***`);
+              console.log(`WBE: Bio text length:`, bioText.length);
+              console.log(`WBE: Bio text first 500 chars:`, bioText.substring(0, 500));
+              console.log(`WBE: Bio text includes "was born":`, bioText.toLowerCase().includes("was born"));
+              
+              // Test the regex directly
+              const testPattern = /\bwas\s+born\s+(?:in|on|before|after)\b/gi;
+              const testMatches = bioText.match(testPattern) || [];
+              console.log(`WBE: Direct regex test matches:`, testMatches.length, testMatches);
+            }
+            
+            const duplicateBirthResult = self.checkForDuplicateBirthInfo(
+              bioText,
+              person.Id,
+              person.Name,
+              person.FirstName
+            );
+            console.log(`WBE: Duplicate birth check for ${profileId}:`, !!duplicateBirthResult);
+
+            // Only flag profiles with unmerged bio content (duplicate birth info)
+            if (duplicateBirthResult && duplicateBirthResult.detected && duplicateBirthResult.count >= 2) {
+              console.log(
+                `WBE: *** ANOMALY DETECTED *** Adding anomaly class to feed item for ${profileId} - Unmerged profile detected`
+              );
+              console.log(`WBE: duplicateBirthResult details:`, duplicateBirthResult);
+              
+              // EXTRA DEBUG FOR HAREN-154
+              if (profileId === "Haren-154") {
+                console.log("WBE: *** ERROR *** HAREN-154 IS BEING FLAGGED! This should NOT happen!");
+                console.log("WBE: duplicateBirthResult for Haren-154:", duplicateBirthResult);
+              }
+              
+              // Enhanced debugging for profiles that shouldn't be flagged
+              if (profileId === "Unknown-733548" || profileId === "Haren-154") {
+                console.log(`WBE: *** ERROR: ${profileId} should NOT be flagged! ***`);
+                console.log(`WBE: duplicateBirthResult:`, duplicateBirthResult);
+                console.log(`WBE: duplicateBirthResult.detected:`, duplicateBirthResult.detected);
+                console.log(`WBE: duplicateBirthResult.count:`, duplicateBirthResult.count);
+                console.log(`WBE: This indicates a logic error in checkForDuplicateBirthInfo`);
+              }
+              
+              // Use the duplicate birth result message
+              const bioAnomalyText = duplicateBirthResult.message;
+              console.log(`WBE: Bio anomaly text: ${bioAnomalyText}`);
+
+              // Store anomaly data for persistence
+              self.storeAnomalyData($item, profileId, bioAnomalyText, duplicateBirthResult);
+              
+              $item.addClass("anomaly");
+
+              // Add bio anomaly info to title
+              let existingTitle = $item.attr("title") || "";
+              if (existingTitle && !existingTitle.includes(bioAnomalyText)) {
+                existingTitle += `\n${bioAnomalyText}`;
+              } else if (!existingTitle) {
+                existingTitle = bioAnomalyText;
+              }
+
+              $item.attr("title", existingTitle);
+
+              // Create anomaly div with content (same pattern as other anomalies)
+              const anomalyDiv = $(`<div class='anomalyDiv'>${bioAnomalyText}</div>`);
+              console.log(`WBE: Creating anomaly div:`, anomalyDiv);
+              if ($item.find(".anomalyDiv").length === 0) {
+                console.log(`WBE: Appending new anomaly div to item`);
+                $item.append(anomalyDiv);
+              } else {
+                // If anomaly div already exists, append to it
+                const existing = $item.find(".anomalyDiv");
+                const currentContent = existing.html();
+                if (!currentContent.includes(bioAnomalyText)) {
+                  console.log(`WBE: Updating existing anomaly div`);
+                  existing.html(currentContent + `<br>${bioAnomalyText}`);
+                }
+              }
+
+              bioAnomalyCount++;
+              console.log(`WBE: Unmerged profile count now: ${bioAnomalyCount}`);
+              self.bioCheckDebug(`Unmerged profile detected for ${person.Name}: ${bioAnomalyText}`);
+            }
+          }
+        }
+      });
+    });
+
+    console.log(`WBE: *** FINAL SUMMARY *** Total unmerged profiles detected: ${bioAnomalyCount}`);
+    this.bioCheckDebug(`Bio anomalies detected: ${bioAnomalyCount}`);
+    return bioAnomalyCount;
   }
 
   /**
@@ -2435,33 +2729,6 @@ class FeedHelper {
     });
   }
 
-  addAnomaliesButton() {
-    // Create dynamic tooltip based on page type
-    let tooltipText = "Check for \n";
-    if (this.currentConfig.name === "Merges") {
-      tooltipText +=
-        "1) Different genders (merged profiles should be same person)\n2) A 10-year difference in birth dates \n3) A 10-year difference in death dates";
-    } else {
-      tooltipText += "1) A 10-year difference in birth dates \n2) A 10-year difference in death dates";
-    }
-
-    const anomaliesButton = $(
-      `<button id='anomaliesButton' class='button small' 
-      title='${tooltipText}'>
-      Check for Anomalies
-      </button>`
-    ).appendTo(this.feedHelperButtons);
-    anomaliesButton.on("click", async () => {
-      try {
-        await this.checkForAnomalies();
-        const btn = $("#anomaliesButton");
-        btn.prop("disabled", true).addClass("disabled").text("Checked Anomalies");
-      } catch (err) {
-        console.error("Error checking anomalies via button:", err);
-      }
-    });
-  }
-
   addHighlightNewMembersButton() {
     let buttonText, buttonTitle;
 
@@ -2918,6 +3185,16 @@ class FeedHelper {
 
     const storedBioCheckResults = localStorage.getItem(this.bioCheckResultsStorageKey);
     this.bioCheckResults = storedBioCheckResults ? JSON.parse(storedBioCheckResults) : {};
+    
+    // AGGRESSIVE DEBUG: Show what was loaded from storage
+    this.debug("WBE: LOADING BIO CHECK CACHE from localStorage:", storedBioCheckResults);
+    if (storedBioCheckResults) {
+      const parsed = JSON.parse(storedBioCheckResults);
+      this.debug("WBE: PARSED BIO CHECK CACHE:", parsed);
+      if (parsed["154"]) {
+        this.debug("WBE: HAREN-154 FOUND IN CACHED RESULTS:", parsed["154"]);
+      }
+    }
 
     // Find all links in span.feed-item that look like profile links
     const theLinks = $("span.feed-item a");
@@ -3117,15 +3394,37 @@ class FeedHelper {
           $("#mDeathDate").val(person.DeathDate || "0000-00-00");
 
           let autoBioCheckResult;
+          
+          // AGGRESSIVE DEBUG FOR HAREN-154
+          if (person.Id === "154") {
+            this.debug("WBE: HAREN-154 DEBUG - Full bioCheckResults cache:", JSON.stringify(this.bioCheckResults));
+            this.debug("WBE: HAREN-154 DEBUG - Cached result exists?", this.bioCheckResults[person.Id] !== undefined);
+            if (this.bioCheckResults[person.Id] !== undefined) {
+              this.debug("WBE: HAREN-154 DEBUG - Cached result value:", this.bioCheckResults[person.Id]);
+            }
+          }
+          
           if (this.bioCheckResults[person.Id] !== undefined) {
             // Use stored result
             autoBioCheckResult = this.bioCheckResults[person.Id];
             this.debug(`Using cached Bio Check result for ${person.Id}:`, autoBioCheckResult);
+            
+            // EXTRA DEBUG FOR HAREN-154
+            if (person.Id === "154") {
+              this.debug("WBE: HAREN-154 DEBUG - USING CACHED RESULT! This should NOT happen after Clear Data!");
+            }
           } else {
             // Run autoBioCheck
             this.debug(`Running Bio Check for ${person.Id} (${person.Name})`);
             autoBioCheckResult = this.autoBioCheck(person.bio, person.Id, person.Name);
             this.debug(`Bio Check result for ${person.Id}:`, autoBioCheckResult);
+            
+            // EXTRA DEBUG FOR HAREN-154
+            if (person.Id === "154") {
+              this.debug("WBE: HAREN-154 DEBUG - FRESH DETECTION RESULT:", autoBioCheckResult);
+              this.debug("WBE: HAREN-154 DEBUG - About to check if result === false:", autoBioCheckResult === false);
+            }
+            
             // Store the result
             this.bioCheckResults[person.Id] = autoBioCheckResult;
             // Update the bioCheckResults in localStorage
@@ -3136,6 +3435,13 @@ class FeedHelper {
           const failedBioCheckClass = autoBioCheckResult === false ? " failedBioCheck" : "";
           const failedBioCheckTitle = autoBioCheckResult === false ? " Bio Check issues" : "";
           const buttonLabel = person.ShortName || person.Name;
+          
+          // EXTRA DEBUG FOR HAREN-154
+          if (person.Id === "154") {
+            this.debug("WBE: HAREN-154 DEBUG - failedBioCheckClass:", failedBioCheckClass);
+            this.debug("WBE: HAREN-154 DEBUG - autoBioCheckResult === false:", autoBioCheckResult === false);
+            this.debug("WBE: HAREN-154 DEBUG - Will add failedBioCheck class?", failedBioCheckClass === " failedBioCheck");
+          }
 
           if ($(element).siblings(`button.getBio[data-id="${person.Id}"]`).length === 0) {
             $(element)
@@ -3150,9 +3456,9 @@ class FeedHelper {
           }
         } else {
           // Profile not found in existing data - don't create button
-          // User should run 'Get Bios' or 'Full Check' first to fetch and check all profiles
+          // User should run 'Check Bios' or 'Full Check' first to fetch and check all profiles
           this.debug(`Profile ${profileID} not found in fetched data - skipping button creation`);
-          this.debug(`User should run 'Get Bios' or 'Full Check' to fetch and Bio Check all profiles first`);
+          this.debug(`User should run 'Check Bios' or 'Full Check' to fetch and Bio Check all profiles first`);
         }
       }
     });
@@ -3233,7 +3539,7 @@ class FeedHelper {
 
       // Safety check: ensure this.people is available
       if (!this.people || !this.people[2]) {
-        console.error("People data not available. Try clicking 'Get bios' first.");
+        console.error("People data not available. Try clicking 'Check Bios' first.");
         return;
       }
 
@@ -3339,7 +3645,7 @@ class FeedHelper {
     // Choose wording depending on page type: Merges -> "new members", otherwise -> "newly-badged people"
     const isMerges = this.currentConfig && this.currentConfig.name === "Merges";
     const highlightText = isMerges ? "highlight new members" : "highlight newly-badged people";
-    const titleText = `Complete Feed Helper check: Get bios, check for anomalies, check activity patterns, and ${highlightText}`;
+    const titleText = `Complete Feed Helper check: Check bios and anomalies, check activity patterns, and ${highlightText}`;
 
     const fullCheckButton = $(`<button id="fullCheck" class="button small full-check-btn">🔍 Full Check</button>`);
     // Set the title separately to avoid templating/escaping issues inside the HTML string
@@ -3356,18 +3662,19 @@ class FeedHelper {
     this.showAnomaliesPopup("Starting full Feed Helper check...");
 
     try {
-      // Step 1: Get bios
-      this.debug("WBE: Full Check - Step 1: Getting bios...");
+      // Step 1: Check bios (includes getting bios and checking for anomalies)
+      this.debug("WBE: Full Check - Step 1: Checking bios and anomalies...");
       await this.getBios();
-      // Disable the Get bios button after successful run
+      await this.checkForAnomalies(false); // Don't scroll when called from Full Check
+      // Disable the Check Bios button after successful run
       try {
         const gb = $("#getBios");
-        gb.prop("disabled", true).addClass("disabled").text("Got Bios");
+        gb.prop("disabled", true).addClass("disabled").text("Checked Bios");
       } catch (e) {
         /* ignore if button not present */
       }
 
-      // Small delay to ensure getBios completes
+      // Small delay to ensure bio checking completes
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Step 2: Highlight new members/newly badged people
@@ -3384,20 +3691,8 @@ class FeedHelper {
       // Small delay before next step
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      // Step 3: Check for anomalies
-      this.debug("WBE: Full Check - Step 3: Checking for anomalies...");
-      await this.checkForAnomalies(false); // Don't scroll when called from Full Check
-      // Disable anomalies button
-      try {
-        const ab = $("#anomaliesButton");
-        ab.prop("disabled", true).addClass("disabled").text("Checked Anomalies");
-      } catch (e) {}
-
-      // Small delay before next step
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      // Step 4: Check activity
-      this.debug("WBE: Full Check - Step 4: Checking activity patterns...");
+      // Step 3: Check activity
+      this.debug("WBE: Full Check - Step 3: Checking activity patterns...");
       await this.checkActivity(false); // Don't scroll when called from Full Check
       // Disable activity button
       try {
@@ -3415,15 +3710,17 @@ class FeedHelper {
 
   addGetBiosButton() {
     const getBiosButton = $(
-      `<button id="getBios" title="Get the bios of all these profiles" class="button small">Get Bios</button>`
+      `<button id="getBios" title="Check the bios of all these profiles and look for anomalies" class="button small">Check Bios</button>`
     );
     $(document).on("click", "#getBios", async () => {
       try {
         await this.getBios();
+        // After getting bios, automatically check for anomalies
+        await this.checkForAnomalies(true, false); // Scroll to results, no loader (already shown)
         const btn = $("#getBios");
-        btn.prop("disabled", true).addClass("disabled").text("Got Bios");
+        btn.prop("disabled", true).addClass("disabled").text("Checked Bios");
       } catch (err) {
-        console.error("Error getting bios via button:", err);
+        console.error("Error checking bios via button:", err);
       }
     });
     this.feedHelperButtons.append(getBiosButton);
@@ -3446,13 +3743,32 @@ class FeedHelper {
       this.bioCheckResultsStorageKey,
       this.mergesStorageKey,
       this.memberDataStorageKey,
+      this.anomaliesStorageKey,
       // Removed "pre1700" and "pre1500Recent" to preserve new people highlights
       "excludedNames",
       "warningsShown",
+      // Clear both old and new whitelist keys during transition
+      "feedHelperActivityWhitelist",
+      "FeedHelper-activityWhitelist",
     ];
 
+    // AGGRESSIVE DEBUGGING: Check what's in bioCheckResults before clearing
+    this.debug("WBE: BEFORE CLEAR - bioCheckResultsStorageKey:", this.bioCheckResultsStorageKey);
+    this.debug("WBE: BEFORE CLEAR - localStorage bioCheckResults:", localStorage.getItem(this.bioCheckResultsStorageKey));
+    this.debug("WBE: BEFORE CLEAR - sessionStorage bioCheckResults:", sessionStorage.getItem(this.bioCheckResultsStorageKey));
+    
     keysToRemove.forEach((key) => {
       if (key) {
+        const localValue = localStorage.getItem(key);
+        const sessionValue = sessionStorage.getItem(key);
+        
+        if (localValue && key === this.bioCheckResultsStorageKey) {
+          this.debug(`WBE: CLEARING localStorage[${key}]:`, localValue);
+        }
+        if (sessionValue && key === this.bioCheckResultsStorageKey) {
+          this.debug(`WBE: CLEARING sessionStorage[${key}]:`, sessionValue);
+        }
+        
         sessionStorage.removeItem(key);
         localStorage.removeItem(key);
       }
@@ -3460,19 +3776,31 @@ class FeedHelper {
 
     // Reset internal state
     this.people = null;
+    // Log bio check results being cleared
+    const bioResultsCount = Object.keys(this.bioCheckResults || {}).length;
+    this.debug(`WBE: Clearing ${bioResultsCount} cached bio check results from memory`);
+    if (bioResultsCount > 0) {
+      this.debug("WBE: Memory bioCheckResults before clearing:", JSON.stringify(this.bioCheckResults));
+    }
     this.bioCheckResults = {};
     this.mergesData = null;
     this.memberData = null;
     this.fetchedProfiles = null;
     this.excludedNames = [];
+    
+    // VERIFY THE CLEAR WORKED
+    this.debug("WBE: AFTER CLEAR - localStorage bioCheckResults:", localStorage.getItem(this.bioCheckResultsStorageKey));
+    this.debug("WBE: AFTER CLEAR - sessionStorage bioCheckResults:", sessionStorage.getItem(this.bioCheckResultsStorageKey));
+    this.debug("WBE: AFTER CLEAR - memory bioCheckResults:", JSON.stringify(this.bioCheckResults));
 
     // Remove anomaly classes but preserve "new people" highlighting
     $(".anomaly").removeClass("anomaly");
     $(".highlight").removeClass("highlight");
 
-    // Remove any existing bio buttons and popups
+    // Remove any existing bio buttons, popups, and anomaly divs
     $(".getBio").remove();
     $(".bioPopup").remove();
+    $(".anomalyDiv").remove();
 
     // Also clear activity warnings table and related state
     try {
@@ -3486,15 +3814,13 @@ class FeedHelper {
     // Debug: Log what we cleared
     this.debug("WBE: Cleared Feed Helper data including:", keysToRemove);
     this.debug("WBE: Preserved 'new people' highlighting classes");
+    this.debug("WBE: Bio check cache cleared - fresh anomaly detection will run on next check");
 
     this.showAnomaliesPopup("Feed Helper data cleared! <br>(Preserved 'new people' highlights)");
     // Re-enable core control buttons and restore their labels
     try {
       const gb = $("#getBios");
-      if (gb.length) gb.prop("disabled", false).removeClass("disabled").text("Get Bios");
-
-      const ab = $("#anomaliesButton");
-      if (ab.length) ab.prop("disabled", false).removeClass("disabled").text("Check for Anomalies");
+      if (gb.length) gb.prop("disabled", false).removeClass("disabled").text("Check Bios");
 
       const hb = $("#highlightNewMembersButton");
       if (hb.length) {
@@ -3514,7 +3840,6 @@ class FeedHelper {
     // Add remaining buttons in consistent order for all pages
     this.addFullCheckButton(); // Add the comprehensive button first
     this.addGetBiosButton();
-    this.addAnomaliesButton();
 
     // Skip these buttons on Contributions pages
     if (this.currentConfig.name !== "Contributions") {
@@ -3651,9 +3976,465 @@ class FeedHelper {
       }
     });
 
-    this.bioCheckDebug(`=== autoBioCheck result for ${profileInfo}:`, hasSources, "===");
+    // Check for duplicate birth information
+    const duplicateBirthResult = this.checkForDuplicateBirthInfo(sourcesStr, profileId, profileName, null);
+    this.bioCheckDebug(`Duplicate birth info check result for ${profileInfo}:`, duplicateBirthResult);
 
-    return hasSources;
+    // Bio fails if it has duplicate birth info, even if it has sources
+    const bioCheckPassed = hasSources && !duplicateBirthResult;
+
+    this.bioCheckDebug(
+      `=== autoBioCheck result for ${profileInfo}: hasSources=${hasSources}, hasDuplicateBirthInfo=${!!duplicateBirthResult}, final result=${bioCheckPassed} ===`
+    );
+
+    return bioCheckPassed;
+  }
+
+  /**
+   * Check for duplicate birth information in bios
+   * @param {string} bioText - The biography text to check
+   * @param {string|null} profileId - Optional profile ID for debugging
+   * @param {string|null} profileName - Optional profile name for debugging
+   * @param {string|null} firstName - Optional first name for enhanced detection
+   * @returns {Object|null} - Returns object with details if duplicate birth info found, null otherwise
+   */
+  checkForDuplicateBirthInfo(bioText, profileId = null, profileName = null, firstName = null) {
+    const profileInfo =
+      profileId && profileName
+        ? `${profileName} (ID: ${profileId})`
+        : profileId
+        ? `ID: ${profileId}`
+        : profileName
+        ? `Name: ${profileName}`
+        : "Unknown profile";
+
+    this.bioCheckDebug(`=== Starting checkForDuplicateBirthInfo for ${profileInfo} ===`);
+
+    if (!bioText || typeof bioText !== "string") {
+      this.bioCheckDebug(`No bio content provided for ${profileInfo}, returning false`);
+      return false;
+    }
+
+    // Extract the Biography section (between == Biography == and the next level 2 heading)
+    const biographyMatch = bioText.match(/==\s*Biography\s*==(.*?)(?:\n==\s*[^=].*?==|$)/is);
+    const biographySection = biographyMatch ? biographyMatch[1].trim() : bioText;
+
+    this.bioCheckDebug(`Biography section extracted for ${profileInfo}:`, biographySection.substring(0, 200) + "...");
+
+    // If no Biography section found, fall back to full text
+    let textToCheck = biographySection || bioText;
+    
+    // Remove Notes and Research Notes sections from the text to check
+    // Match various heading levels and wording variations
+    textToCheck = this.removeNotesAndResearchSections(textToCheck);
+    
+    this.bioCheckDebug(`Text after removing Notes/Research sections (first 500 chars):`, textToCheck.substring(0, 500));
+
+    // Use the provided firstName parameter if available
+    if (firstName) {
+      this.bioCheckDebug(`Using provided first name: "${firstName}" for ${profileInfo}`);
+    } else {
+      this.bioCheckDebug(`No first name provided for ${profileInfo}`);
+    }
+
+    // Look for multiple "was born" patterns in the biography section
+    // More precise pattern that looks for actual birth statements
+    const wasBornPattern = /\b\w+\s+was\s+born\s+(?:in|on|before|after|about|abt|circa|c\.)\b/gi;
+    const wasBornMatches = textToCheck.match(wasBornPattern) || [];
+
+    this.bioCheckDebug(`Birth pattern matches for ${profileInfo}:`);
+    this.bioCheckDebug(`- Text being checked (first 500 chars):`, textToCheck.substring(0, 500));
+    this.bioCheckDebug(`- "was born" pattern: ${wasBornMatches.length} matches`, wasBornMatches);
+    
+    // Also log in console for immediate visibility
+    if (wasBornMatches.length >= 2) {
+      console.log(`WBE: POTENTIAL DUPLICATE BIRTH INFO for ${profileInfo}:`);
+      console.log(`WBE: Text being checked:`, textToCheck);
+      console.log(`WBE: Matches found:`, wasBornMatches);
+    }
+
+    if (wasBornMatches.length >= 2) {
+      this.bioCheckDebug(
+        `Found ${wasBornMatches.length} "was born" instances - indicating potential duplicate birth information for ${profileInfo}`
+      );
+      return {
+        detected: true,
+        type: "general",
+        count: wasBornMatches.length,
+        matches: wasBornMatches,
+        message: `Bio contains multiple "was born" statements. This may indicate unmerged bio content.`,
+      };
+    }
+
+    // Additional check if we have a first name: look for multiple instances of "FirstName was born"
+    if (firstName) {
+      // Escape special regex characters in firstName
+      const escapedFirstName = firstName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      // More precise pattern: FirstName followed by "was born" (allowing only minimal words in between)
+      const nameWasBornPattern = new RegExp(`\\b${escapedFirstName}\\s+(?:\\w+\\s+){0,2}was\\s+born\\s+(?:in|on|before|after|about|abt|circa|c\\.)`, "gi");
+      const nameWasBornMatches = textToCheck.match(nameWasBornPattern) || [];
+
+      this.bioCheckDebug(`- "${firstName} was born" pattern: ${nameWasBornMatches.length} matches`, nameWasBornMatches);
+
+      if (nameWasBornMatches.length >= 2) {
+        this.bioCheckDebug(
+          `Found ${nameWasBornMatches.length} "${firstName} was born" instances - indicating duplicate birth information for ${profileInfo}`
+        );
+        return {
+          detected: true,
+          type: "name-specific",
+          count: nameWasBornMatches.length,
+          matches: nameWasBornMatches,
+          firstName: firstName,
+          message: `Bio contains ${nameWasBornMatches.length} "${firstName} was born" instances. This may indicate unmerged bio content.`,
+        };
+      }
+    } else {
+      this.bioCheckDebug(`Could not extract first name for ${profileInfo} - using general birth patterns only`);
+    }
+
+    this.bioCheckDebug(`=== checkForDuplicateBirthInfo result for ${profileInfo}: no duplicates found ===`);
+    return null;
+  }
+
+  /**
+   * Removes Notes and Research Notes sections from text to avoid false positives
+   * Handles various heading levels (==, ===, ====) and wording variations
+   * @param {string} text - The text to process
+   * @returns {string} Text with Notes/Research sections removed
+   */
+  removeNotesAndResearchSections(text) {
+    // Pattern to match Notes or Research Notes sections with various heading levels and wording
+    // Matches from the heading until the next same-level or higher heading, or end of text
+    const notesPatterns = [
+      // Match === Notes === or ===Notes=== or ==== Notes ====, etc. (with or without spaces)
+      /={2,6}\s*Notes?\s*={2,6}[\s\S]*?(?=\n={2,6}\s*[^=\n]+\s*={2,6}|$)/gi,
+      // Match == Research Notes == or ===ResearchNotes=== or === Research Notes ===, etc.
+      /={2,6}\s*Research\s*Notes?\s*={2,6}[\s\S]*?(?=\n={2,6}\s*[^=\n]+\s*={2,6}|$)/gi,
+      // Match variations like "Research Note" (singular) with or without spaces
+      /={2,6}\s*Research\s*Note\s*={2,6}[\s\S]*?(?=\n={2,6}\s*[^=\n]+\s*={2,6}|$)/gi,
+      // Match "Notes and Research" or similar variations (with or without spaces)
+      /={2,6}\s*(?:Notes?\s*(?:and|&)\s*Research|Research\s*(?:and|&)\s*Notes?)\s*={2,6}[\s\S]*?(?=\n={2,6}\s*[^=\n]+\s*={2,6}|$)/gi,
+    ];
+
+    let cleanedText = text;
+    
+    notesPatterns.forEach(pattern => {
+      cleanedText = cleanedText.replace(pattern, '');
+    });
+
+    // Remove any extra whitespace that might have been left
+    cleanedText = cleanedText.replace(/\n\s*\n\s*\n/g, '\n\n').trim();
+    
+    return cleanedText;
+  }
+
+  /**
+   * Stores anomaly data for persistence across page navigation
+   * @param {jQuery} $item - The feed item element
+   * @param {string} profileId - The profile ID with the anomaly
+   * @param {string} anomalyText - The anomaly message text
+   * @param {Object} anomalyData - The full anomaly detection result
+   */
+  getStoredAnomalies() {
+    try {
+      const raw = localStorage.getItem(this.anomaliesStorageKey);
+      if (!raw) {
+        return {};
+      }
+
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") {
+        return {};
+      }
+
+      const needsMigration = Object.values(parsed).some(
+        (entry) => entry && typeof entry === "object" && entry.profileId
+      );
+
+      if (needsMigration) {
+        return this.migrateLegacyAnomalyStorage(parsed);
+      }
+
+      return parsed;
+    } catch (error) {
+      console.error("WBE: Error parsing stored anomalies:", error);
+      return {};
+    }
+  }
+
+  saveStoredAnomalies(anomalyMap) {
+    try {
+      localStorage.setItem(this.anomaliesStorageKey, JSON.stringify(anomalyMap));
+    } catch (error) {
+      console.error("WBE: Error saving anomalies:", error);
+    }
+  }
+
+  migrateLegacyAnomalyStorage(legacyData) {
+    const migrated = {};
+
+    Object.keys(legacyData).forEach((key) => {
+      const entry = legacyData[key];
+      if (entry && entry.profileId) {
+        const profileId = entry.profileId;
+        if (!migrated[profileId]) {
+          migrated[profileId] = {
+            anomalies: [],
+            lastUpdated: entry.timestamp || Date.now(),
+          };
+        }
+
+        migrated[profileId].anomalies.push({
+          anomalyText: entry.anomalyText,
+          anomalyData: entry.anomalyData,
+          timestamp: entry.timestamp || Date.now(),
+          itemText: entry.itemText,
+        });
+
+        migrated[profileId].lastUpdated = Math.max(
+          migrated[profileId].lastUpdated,
+          entry.timestamp || Date.now()
+        );
+      }
+    });
+
+    this.saveStoredAnomalies(migrated);
+    console.log("WBE: Migrated legacy anomaly storage format", Object.keys(migrated).length, "profiles");
+    return migrated;
+  }
+
+  storeAnomalyData($item, profileId, anomalyText, anomalyData) {
+    try {
+      const storedAnomalies = this.getStoredAnomalies();
+      const now = Date.now();
+      const itemText = ($item.text() || "").trim();
+
+      if (!storedAnomalies[profileId]) {
+        storedAnomalies[profileId] = {
+          anomalies: [],
+          lastUpdated: now,
+        };
+      }
+
+      const profileEntry = storedAnomalies[profileId];
+      if (!Array.isArray(profileEntry.anomalies)) {
+        profileEntry.anomalies = [];
+      }
+
+      const existing = profileEntry.anomalies.find((anomaly) => anomaly.anomalyText === anomalyText);
+
+      if (existing) {
+        existing.anomalyData = anomalyData;
+        existing.timestamp = now;
+        existing.itemText = itemText.substring(0, 200);
+      } else {
+        profileEntry.anomalies.push({
+          anomalyText,
+          anomalyData,
+          timestamp: now,
+          itemText: itemText.substring(0, 200),
+        });
+      }
+
+      profileEntry.lastUpdated = now;
+      this.saveStoredAnomalies(storedAnomalies);
+      console.log(
+        `WBE: Stored anomaly for ${profileId}. Total anomalies stored for profile: ${profileEntry.anomalies.length}`
+      );
+    } catch (error) {
+      console.error("WBE: Error storing anomaly data:", error);
+    }
+  }
+
+  /**
+   * Extracts profile IDs referenced by a feed item.
+   * Skips the first link (actor) by default but falls back if none are found.
+   * @param {jQuery} $item - Feed item element
+   * @param {boolean} includeActor - Whether to include the first link
+   * @returns {string[]} Unique profile IDs
+   */
+  getProfileIdsFromHistoryItem($item, includeActor = false) {
+    if (!$item || typeof $item.find !== "function") {
+      return [];
+    }
+
+    const profileLinks = $item.find("a[href*='/wiki/']");
+    if (profileLinks.length === 0) {
+      return [];
+    }
+
+    const ids = [];
+    const seen = new Set();
+
+    const tryAddId = (href) => {
+      if (!href) {
+        return;
+      }
+      const match = href.match(/\/wiki\/([A-Za-z0-9_-]+)/);
+      if (match) {
+        const id = match[1];
+        if (!seen.has(id)) {
+          seen.add(id);
+          ids.push(id);
+        }
+      }
+    };
+
+    profileLinks.each((index, element) => {
+      if (!includeActor && index === 0) {
+        return;
+      }
+      tryAddId($(element).attr("href"));
+    });
+
+    if (ids.length === 0 && !includeActor) {
+      profileLinks.each((_, element) => {
+        tryAddId($(element).attr("href"));
+      });
+    }
+
+    return ids;
+  }
+
+  /**
+   * Restores previously detected anomalies to feed items
+   * @param {jQuery} historyItems - The feed items to check for stored anomalies
+   */
+  restoreStoredAnomalies(historyItems) {
+    try {
+      const storedAnomalies = this.getStoredAnomalies();
+      const now = Date.now();
+      const maxAge = this.sessionTimeoutHours * 60 * 60 * 1000;
+      let restoredCount = 0;
+      let storageChanged = false;
+
+      Object.keys(storedAnomalies).forEach((profileId) => {
+        const profileEntry = storedAnomalies[profileId];
+
+        if (!profileEntry || !Array.isArray(profileEntry.anomalies) || profileEntry.anomalies.length === 0) {
+          delete storedAnomalies[profileId];
+          storageChanged = true;
+          return;
+        }
+
+        const beforeLength = profileEntry.anomalies.length;
+        profileEntry.anomalies = profileEntry.anomalies.filter((anomaly) => {
+          const timestamp = anomaly.timestamp || profileEntry.lastUpdated || 0;
+          return now - timestamp <= maxAge;
+        });
+
+        if (profileEntry.anomalies.length !== beforeLength) {
+          storageChanged = true;
+        }
+
+        if (profileEntry.anomalies.length === 0) {
+          delete storedAnomalies[profileId];
+          storageChanged = true;
+          return;
+        }
+
+        const profileLinkSelector = `a[href*="/wiki/${profileId}"]`;
+
+        historyItems.each((_, element) => {
+          const $item = $(element);
+
+          if ($item.find(profileLinkSelector).length === 0) {
+            return;
+          }
+
+          profileEntry.anomalies.forEach((anomaly) => {
+            const anomalyText = anomaly.anomalyText;
+            if (!anomalyText) {
+              return;
+            }
+
+            if (!$item.hasClass("anomaly")) {
+              $item.addClass("anomaly");
+            }
+
+            let existingTitle = $item.attr("title") || "";
+            if (existingTitle && !existingTitle.includes(anomalyText)) {
+              existingTitle += `\n${anomalyText}`;
+            } else if (!existingTitle) {
+              existingTitle = anomalyText;
+            }
+            $item.attr("title", existingTitle);
+
+            let $anomalyDiv = $item.find(".anomalyDiv");
+            if ($anomalyDiv.length === 0) {
+              $anomalyDiv = $("<div class='anomalyDiv'></div>");
+              $item.append($anomalyDiv);
+            }
+
+            const currentContent = $anomalyDiv.html();
+            if (!currentContent || !currentContent.includes(anomalyText)) {
+              const newContent = currentContent ? `${currentContent}<br>${anomalyText}` : anomalyText;
+              $anomalyDiv.html(newContent);
+            }
+
+            restoredCount++;
+            console.log(`WBE: Restored anomaly for ${profileId}: ${anomalyText}`);
+          });
+        });
+      });
+
+      if (storageChanged) {
+        this.saveStoredAnomalies(storedAnomalies);
+      }
+
+      if (restoredCount > 0) {
+        console.log(`WBE: Restored ${restoredCount} stored anomalies`);
+      }
+    } catch (error) {
+      console.error("WBE: Error restoring anomaly data:", error);
+    }
+  }
+
+  /**
+   * Restores previously stored anomalies on page load by auto-detecting feed items
+   */
+  restoreStoredAnomaliesOnPageLoad() {
+    try {
+      const attemptRestore = (attempt = 0) => {
+        const $historyItems = $('span.feed-item').not('.HISTORY-HIDDEN');
+
+        if ($historyItems.length > 0) {
+          console.log(`WBE: Found ${$historyItems.length} feed items (attempt ${attempt + 1}), checking for stored anomalies`);
+          this.restoreStoredAnomalies($historyItems);
+          return true;
+        }
+
+        if (attempt < 4) {
+          setTimeout(() => attemptRestore(attempt + 1), 500); // retry after 500ms
+        } else {
+          console.log("WBE: No feed items found after multiple attempts; skipping anomaly restoration");
+        }
+
+        return false;
+      };
+
+      attemptRestore();
+      
+    } catch (error) {
+      console.error('WBE: Error restoring anomalies on page load:', error);
+    }
+  }
+
+  /**
+   * Simple hash function for creating unique identifiers from strings
+   * @param {string} str - The string to hash
+   * @returns {string} A hash of the input string
+   */
+  hashString(str) {
+    let hash = 0;
+    if (str.length === 0) return hash.toString();
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return hash.toString();
   }
 
   // Set up localStorage with time-based cleanup
