@@ -370,6 +370,17 @@ registerFeature({
   ],
 });
 
+registerFeature({
+  name: "Watchlist Filter",
+  id: "watchlistFilter",
+  description: "Adds filtering options to the Watchlist.",
+  category: "Other",
+  creators: [{ name: "Steve Harris", wikitreeid: "Harris-5439" }],
+  contributors: [],
+  defaultValue: false,
+  pages: [isSpecialWatchedList],
+});
+
 /*
  * debugging features for development only
  *
