@@ -1518,7 +1518,10 @@ class FeedHelper {
 
                 const profileIds = self.getProfileIdsFromHistoryItem(item);
                 if (profileIds.length === 0) {
-                  self.debug("WBE: Unable to determine profile IDs for date change anomaly", item.text().substring(0, 120));
+                  self.debug(
+                    "WBE: Unable to determine profile IDs for date change anomaly",
+                    item.text().substring(0, 120)
+                  );
                 } else {
                   profileIds.forEach((profileId) => {
                     anomalyEntries.forEach((entry) => {
@@ -2005,20 +2008,20 @@ class FeedHelper {
           if (person && (person.Bio || person.bio)) {
             // Check for duplicate birth information (handle both Bio and bio fields)
             const bioText = person.Bio || person.bio;
-            
+
             // Enhanced debugging for specific profiles
             if (profileId === "Unknown-733548" || profileId === "Haren-154") {
               console.log(`WBE: *** DEBUGGING ${profileId} ***`);
               console.log(`WBE: Bio text length:`, bioText.length);
               console.log(`WBE: Bio text first 500 chars:`, bioText.substring(0, 500));
               console.log(`WBE: Bio text includes "was born":`, bioText.toLowerCase().includes("was born"));
-              
+
               // Test the regex directly
               const testPattern = /\bwas\s+born\s+(?:in|on|before|after)\b/gi;
               const testMatches = bioText.match(testPattern) || [];
               console.log(`WBE: Direct regex test matches:`, testMatches.length, testMatches);
             }
-            
+
             const duplicateBirthResult = self.checkForDuplicateBirthInfo(
               bioText,
               person.Id,
@@ -2033,13 +2036,13 @@ class FeedHelper {
                 `WBE: *** ANOMALY DETECTED *** Adding anomaly class to feed item for ${profileId} - Unmerged profile detected`
               );
               console.log(`WBE: duplicateBirthResult details:`, duplicateBirthResult);
-              
+
               // EXTRA DEBUG FOR HAREN-154
               if (profileId === "Haren-154") {
                 console.log("WBE: *** ERROR *** HAREN-154 IS BEING FLAGGED! This should NOT happen!");
                 console.log("WBE: duplicateBirthResult for Haren-154:", duplicateBirthResult);
               }
-              
+
               // Enhanced debugging for profiles that shouldn't be flagged
               if (profileId === "Unknown-733548" || profileId === "Haren-154") {
                 console.log(`WBE: *** ERROR: ${profileId} should NOT be flagged! ***`);
@@ -2048,14 +2051,14 @@ class FeedHelper {
                 console.log(`WBE: duplicateBirthResult.count:`, duplicateBirthResult.count);
                 console.log(`WBE: This indicates a logic error in checkForDuplicateBirthInfo`);
               }
-              
+
               // Use the duplicate birth result message
               const bioAnomalyText = duplicateBirthResult.message;
               console.log(`WBE: Bio anomaly text: ${bioAnomalyText}`);
 
               // Store anomaly data for persistence
               self.storeAnomalyData($item, profileId, bioAnomalyText, duplicateBirthResult);
-              
+
               $item.addClass("anomaly");
 
               // Add bio anomaly info to title
@@ -3185,7 +3188,7 @@ class FeedHelper {
 
     const storedBioCheckResults = localStorage.getItem(this.bioCheckResultsStorageKey);
     this.bioCheckResults = storedBioCheckResults ? JSON.parse(storedBioCheckResults) : {};
-    
+
     // AGGRESSIVE DEBUG: Show what was loaded from storage
     this.debug("WBE: LOADING BIO CHECK CACHE from localStorage:", storedBioCheckResults);
     if (storedBioCheckResults) {
@@ -3394,7 +3397,7 @@ class FeedHelper {
           $("#mDeathDate").val(person.DeathDate || "0000-00-00");
 
           let autoBioCheckResult;
-          
+
           // AGGRESSIVE DEBUG FOR HAREN-154
           if (person.Id === "154") {
             this.debug("WBE: HAREN-154 DEBUG - Full bioCheckResults cache:", JSON.stringify(this.bioCheckResults));
@@ -3403,12 +3406,12 @@ class FeedHelper {
               this.debug("WBE: HAREN-154 DEBUG - Cached result value:", this.bioCheckResults[person.Id]);
             }
           }
-          
+
           if (this.bioCheckResults[person.Id] !== undefined) {
             // Use stored result
             autoBioCheckResult = this.bioCheckResults[person.Id];
             this.debug(`Using cached Bio Check result for ${person.Id}:`, autoBioCheckResult);
-            
+
             // EXTRA DEBUG FOR HAREN-154
             if (person.Id === "154") {
               this.debug("WBE: HAREN-154 DEBUG - USING CACHED RESULT! This should NOT happen after Clear Data!");
@@ -3418,13 +3421,13 @@ class FeedHelper {
             this.debug(`Running Bio Check for ${person.Id} (${person.Name})`);
             autoBioCheckResult = this.autoBioCheck(person.bio, person.Id, person.Name);
             this.debug(`Bio Check result for ${person.Id}:`, autoBioCheckResult);
-            
+
             // EXTRA DEBUG FOR HAREN-154
             if (person.Id === "154") {
               this.debug("WBE: HAREN-154 DEBUG - FRESH DETECTION RESULT:", autoBioCheckResult);
               this.debug("WBE: HAREN-154 DEBUG - About to check if result === false:", autoBioCheckResult === false);
             }
-            
+
             // Store the result
             this.bioCheckResults[person.Id] = autoBioCheckResult;
             // Update the bioCheckResults in localStorage
@@ -3435,12 +3438,15 @@ class FeedHelper {
           const failedBioCheckClass = autoBioCheckResult === false ? " failedBioCheck" : "";
           const failedBioCheckTitle = autoBioCheckResult === false ? " Bio Check issues" : "";
           const buttonLabel = person.ShortName || person.Name;
-          
+
           // EXTRA DEBUG FOR HAREN-154
           if (person.Id === "154") {
             this.debug("WBE: HAREN-154 DEBUG - failedBioCheckClass:", failedBioCheckClass);
             this.debug("WBE: HAREN-154 DEBUG - autoBioCheckResult === false:", autoBioCheckResult === false);
-            this.debug("WBE: HAREN-154 DEBUG - Will add failedBioCheck class?", failedBioCheckClass === " failedBioCheck");
+            this.debug(
+              "WBE: HAREN-154 DEBUG - Will add failedBioCheck class?",
+              failedBioCheckClass === " failedBioCheck"
+            );
           }
 
           if ($(element).siblings(`button.getBio[data-id="${person.Id}"]`).length === 0) {
@@ -3754,21 +3760,27 @@ class FeedHelper {
 
     // AGGRESSIVE DEBUGGING: Check what's in bioCheckResults before clearing
     this.debug("WBE: BEFORE CLEAR - bioCheckResultsStorageKey:", this.bioCheckResultsStorageKey);
-    this.debug("WBE: BEFORE CLEAR - localStorage bioCheckResults:", localStorage.getItem(this.bioCheckResultsStorageKey));
-    this.debug("WBE: BEFORE CLEAR - sessionStorage bioCheckResults:", sessionStorage.getItem(this.bioCheckResultsStorageKey));
-    
+    this.debug(
+      "WBE: BEFORE CLEAR - localStorage bioCheckResults:",
+      localStorage.getItem(this.bioCheckResultsStorageKey)
+    );
+    this.debug(
+      "WBE: BEFORE CLEAR - sessionStorage bioCheckResults:",
+      sessionStorage.getItem(this.bioCheckResultsStorageKey)
+    );
+
     keysToRemove.forEach((key) => {
       if (key) {
         const localValue = localStorage.getItem(key);
         const sessionValue = sessionStorage.getItem(key);
-        
+
         if (localValue && key === this.bioCheckResultsStorageKey) {
           this.debug(`WBE: CLEARING localStorage[${key}]:`, localValue);
         }
         if (sessionValue && key === this.bioCheckResultsStorageKey) {
           this.debug(`WBE: CLEARING sessionStorage[${key}]:`, sessionValue);
         }
-        
+
         sessionStorage.removeItem(key);
         localStorage.removeItem(key);
       }
@@ -3787,10 +3799,16 @@ class FeedHelper {
     this.memberData = null;
     this.fetchedProfiles = null;
     this.excludedNames = [];
-    
+
     // VERIFY THE CLEAR WORKED
-    this.debug("WBE: AFTER CLEAR - localStorage bioCheckResults:", localStorage.getItem(this.bioCheckResultsStorageKey));
-    this.debug("WBE: AFTER CLEAR - sessionStorage bioCheckResults:", sessionStorage.getItem(this.bioCheckResultsStorageKey));
+    this.debug(
+      "WBE: AFTER CLEAR - localStorage bioCheckResults:",
+      localStorage.getItem(this.bioCheckResultsStorageKey)
+    );
+    this.debug(
+      "WBE: AFTER CLEAR - sessionStorage bioCheckResults:",
+      sessionStorage.getItem(this.bioCheckResultsStorageKey)
+    );
     this.debug("WBE: AFTER CLEAR - memory bioCheckResults:", JSON.stringify(this.bioCheckResults));
 
     // Remove anomaly classes but preserve "new people" highlighting
@@ -4023,11 +4041,11 @@ class FeedHelper {
 
     // If no Biography section found, fall back to full text
     let textToCheck = biographySection || bioText;
-    
+
     // Remove Notes and Research Notes sections from the text to check
     // Match various heading levels and wording variations
     textToCheck = this.removeNotesAndResearchSections(textToCheck);
-    
+
     this.bioCheckDebug(`Text after removing Notes/Research sections (first 500 chars):`, textToCheck.substring(0, 500));
 
     // Use the provided firstName parameter if available
@@ -4045,7 +4063,7 @@ class FeedHelper {
     this.bioCheckDebug(`Birth pattern matches for ${profileInfo}:`);
     this.bioCheckDebug(`- Text being checked (first 500 chars):`, textToCheck.substring(0, 500));
     this.bioCheckDebug(`- "was born" pattern: ${wasBornMatches.length} matches`, wasBornMatches);
-    
+
     // Also log in console for immediate visibility
     if (wasBornMatches.length >= 2) {
       console.log(`WBE: POTENTIAL DUPLICATE BIRTH INFO for ${profileInfo}:`);
@@ -4071,7 +4089,10 @@ class FeedHelper {
       // Escape special regex characters in firstName
       const escapedFirstName = firstName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       // More precise pattern: FirstName followed by "was born" (allowing only minimal words in between)
-      const nameWasBornPattern = new RegExp(`\\b${escapedFirstName}\\s+(?:\\w+\\s+){0,2}was\\s+born\\s+(?:in|on|before|after|about|abt|circa|c\\.)`, "gi");
+      const nameWasBornPattern = new RegExp(
+        `\\b${escapedFirstName}\\s+(?:\\w+\\s+){0,2}was\\s+born\\s+(?:in|on|before|after|about|abt|circa|c\\.)`,
+        "gi"
+      );
       const nameWasBornMatches = textToCheck.match(nameWasBornPattern) || [];
 
       this.bioCheckDebug(`- "${firstName} was born" pattern: ${nameWasBornMatches.length} matches`, nameWasBornMatches);
@@ -4118,14 +4139,14 @@ class FeedHelper {
     ];
 
     let cleanedText = text;
-    
-    notesPatterns.forEach(pattern => {
-      cleanedText = cleanedText.replace(pattern, '');
+
+    notesPatterns.forEach((pattern) => {
+      cleanedText = cleanedText.replace(pattern, "");
     });
 
     // Remove any extra whitespace that might have been left
-    cleanedText = cleanedText.replace(/\n\s*\n\s*\n/g, '\n\n').trim();
-    
+    cleanedText = cleanedText.replace(/\n\s*\n\s*\n/g, "\n\n").trim();
+
     return cleanedText;
   }
 
@@ -4192,10 +4213,7 @@ class FeedHelper {
           itemText: entry.itemText,
         });
 
-        migrated[profileId].lastUpdated = Math.max(
-          migrated[profileId].lastUpdated,
-          entry.timestamp || Date.now()
-        );
+        migrated[profileId].lastUpdated = Math.max(migrated[profileId].lastUpdated, entry.timestamp || Date.now());
       }
     });
 
@@ -4397,10 +4415,12 @@ class FeedHelper {
   restoreStoredAnomaliesOnPageLoad() {
     try {
       const attemptRestore = (attempt = 0) => {
-        const $historyItems = $('span.feed-item').not('.HISTORY-HIDDEN');
+        const $historyItems = $("span.feed-item").not(".HISTORY-HIDDEN");
 
         if ($historyItems.length > 0) {
-          console.log(`WBE: Found ${$historyItems.length} feed items (attempt ${attempt + 1}), checking for stored anomalies`);
+          console.log(
+            `WBE: Found ${$historyItems.length} feed items (attempt ${attempt + 1}), checking for stored anomalies`
+          );
           this.restoreStoredAnomalies($historyItems);
           return true;
         }
@@ -4415,9 +4435,8 @@ class FeedHelper {
       };
 
       attemptRestore();
-      
     } catch (error) {
-      console.error('WBE: Error restoring anomalies on page load:', error);
+      console.error("WBE: Error restoring anomalies on page load:", error);
     }
   }
 
@@ -4431,7 +4450,7 @@ class FeedHelper {
     if (str.length === 0) return hash.toString();
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
     return hash.toString();

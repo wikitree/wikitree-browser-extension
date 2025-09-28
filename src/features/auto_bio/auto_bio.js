@@ -6345,9 +6345,13 @@ export async function getStickersAndBoxes() {
         const newTemplateMatch = currentBio.matchAll(/\{\{[^}]*?\}\}/gs);
 
         for (let match of newTemplateMatch) {
-          const re = new RegExp(aTemplate.name, "gs");
+          // Extract template name from the match, handling parameters after pipe
+          const templateText = match[0];
+          const templateNameMatch = templateText.match(/\{\{([^|}]+)/);
+          const extractedTemplateName = templateNameMatch ? templateNameMatch[1].trim() : "";
 
-          if (match[0].match(re)) {
+          // Direct string comparison instead of regex matching
+          if (extractedTemplateName === aTemplate.name) {
             if (!thingsToAddAfterBioHeading.includes(match[0])) {
               if (beforeHeadingThings.includes(aTemplate.type) || beforeHeadingThings.includes(aTemplate.group)) {
                 thingsToAddBeforeBioHeading.push(match[0]);
@@ -6955,22 +6959,23 @@ async function sortStuffBeforeBio() {
     const stuff = window.sectionsObject["StuffBeforeTheBio"].text;
     stuff.forEach(function (item) {
       const itemName = item.match(/\{\{([^|}]+)/);
+      const extractedName = itemName?.[1]?.trim();
       if (item.startsWith("[[Category:")) {
         tempStuffObject.categories.push(item);
       } else if (item.startsWith("{{Easily Confused")) {
         tempStuffObject.easilyConfused.push(item);
       } else if (
         templatesObject.templates.find(
-          (template) => template.name === itemName?.[1] && template.group === "Research note box"
+          (template) => template.name === extractedName && template.group === "Research note box"
         )
       ) {
         tempStuffObject.researchNoteBoxes.push(item);
       } else if (
-        templatesObject.templates.find((template) => template.name === itemName?.[1] && template.type === "Project Box")
+        templatesObject.templates.find((template) => template.name === extractedName && template.type === "Project Box")
       ) {
         tempStuffObject.projectBoxes.push(item);
       } else if (
-        templatesObject.templates.find((template) => template.name === itemName?.[1] && template.group === "Succession")
+        templatesObject.templates.find((template) => template.name === extractedName && template.group === "Succession")
       ) {
         tempStuffObject.succession.push(item);
       }
