@@ -8,40 +8,25 @@ shouldInitializeFeature("watchlistFilter").then((result) => {
     const table = document.querySelector("table");
     if (!table) return;
 
-    // If partial list (show all or next button visible), don't enable filters
-    const showAllLink = document.querySelector("a[href*='limit=20000']");
-    const nextButton = document.querySelector("a.btn.btn-secondary, a[href*='start=']");
-    if (showAllLink || nextButton) {
-        const notice = document.createElement("div");
-        notice.className = "my-2 m-auto text-center fs-6";
-        notice.innerHTML =
-            '👉 WBE Watchlist filters require all profiles to be loaded. Please use the ' +
-            (showAllLink
-                ? `<a href="${showAllLink.href}">show all</a> link`
-                : `"Show All" option`) +
-            " first.";
-        table.before(notice);
-        return; // bail, don't build filters yet
-    }
-
     // --- Build filter bar ---
+    const nextButton = document.querySelector("a.btn.btn-secondary, a[href*='start=']");
     const filterPanel = document.createElement("div");
     filterPanel.className =
-        "mb-2 p-2 border border-success rounded d-flex flex-wrap gap-4 align-items-center";
+        "mb-2 p-2 border border-success rounded d-flex flex-wrap align-items-center";
     filterPanel.innerHTML = `
-    <div>
+    <div class="me-5">
       <strong>Management:</strong><br>
       <label><input type="radio" name="mgmt" value="all" checked> All</label>
       <label><input type="radio" name="mgmt" value="managed"> Managed</label>
       <label><input type="radio" name="mgmt" value="nonmanaged"> Non-Managed</label>
     </div>
-    <div>
+    <div class="me-5">
       <strong>Gender:</strong><br>
       <label><input type="checkbox" value="male"> Male</label>
       <label><input type="checkbox" value="female"> Female</label>
       <label><input type="checkbox" value="nogender"> No Gender</label>
     </div>
-    <div>
+    <div class="me-5">
       <strong>Content Rank:</strong><br>
       <label><input type="checkbox" value="cr0_3"> 0–3</label>
       <label><input type="checkbox" value="cr4_5"> 4–5</label>
@@ -51,6 +36,15 @@ shouldInitializeFeature("watchlistFilter").then((result) => {
       <label><input type="checkbox" value="crNone"> No CR</label>
     </div>
   `;
+
+    if (nextButton) { 
+        filterPanel.innerHTML += `
+            <div class="small mt-2">
+                <em>* Filtering applies only to the profiles currently loaded on this page. Use "show all" to run the filter on the entire Watchlist.</em>
+            </div>
+        `;
+    }
+
     table.before(filterPanel);
 
     // --- Preprocess rows: tag them with classes ---
