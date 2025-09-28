@@ -6263,7 +6263,7 @@ export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading =
         australianLocations = window.australianLocations;
       }
       const australiaKeys = Object.keys(australianLocations);
-      const birthPlace = window.profilePerso?.BirthLocation;
+      const birthPlace = window.profilePerson?.BirthLocation;
       if (birthPlace) {
         let gotBirthSticker = false;
         australiaKeys.forEach(function (colony) {
