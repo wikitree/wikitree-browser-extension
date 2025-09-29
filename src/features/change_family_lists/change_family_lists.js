@@ -1578,8 +1578,8 @@ function moveFamilyLists() {
     }
     if ($before.length) {
       $nVitals.insertBefore($before);
-    } else {
-      $nVitals.insertAfter(".col-lg-4 #Profile-Data");
+    } else if ($(".col-lg-4 #Profile-Data").length) {
+      $nVitals.insertAfter($(".col-lg-4 #Profile-Data"));
     }
   }
 }
