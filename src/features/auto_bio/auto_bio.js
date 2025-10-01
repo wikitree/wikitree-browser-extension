@@ -2952,6 +2952,8 @@ function updateRelations(household) {
 }
 
 function getNameVariantsAll(name, firstNameVariants) {
+  if (!name) return [name];
+  if (!firstNameVariants) return [name];
   const lower = name.toLowerCase();
   const seenCanonicals = new Set(); // to avoid duplicates
   const seenVariants = new Set();
