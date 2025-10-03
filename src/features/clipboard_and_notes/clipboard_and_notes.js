@@ -16,6 +16,7 @@ import {
   isProfileEdit,
   isWikiEdit,
   isSpecialTrustedList,
+  isMergeEdit,
 } from "../../core/pageType";
 import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
 
@@ -103,7 +104,7 @@ export async function appendClipboardButtons(clipboardButtons = $()) {
 // Update whenever the textarea is interacted with
 function updateLastTextboxSelection() {
   // Place this outside any function, after your lastTextboxSelection declaration.
-  $(document).on("focus click keyup select blur", "#wpTextbox1", function (e) {
+  $(document).on("focus click keyup select blur", "#wpTextbox1, #newUser_mBio", function (e) {
     // For blur: only store if this was the active element
     if (e.type === "blur" || e.type === "focusout") {
       // Defensive: in some browsers, selectionStart/End is still valid on blur, in others it's 0.
@@ -118,7 +119,7 @@ function updateLastTextboxSelection() {
   });
   // Insurance: Save on clipboard button mousedown
   $(document).on("mousedown", ".aClipboardButton", function () {
-    const $t = $("#wpTextbox1");
+    const $t = $("#wpTextbox1, #newUser_mBio");
     if ($t.length) {
       lastTextboxSelection.start = $t[0].selectionStart;
       lastTextboxSelection.end = $t[0].selectionEnd;
@@ -371,7 +372,8 @@ async function copyClippingToClipboard(element) {
     $("body.qa-body-js-on").length ||
     $("h1:contains('Edit Marriage Information')").length ||
     $("#mSources").length ||
-    isSpecialTrustedList
+    isSpecialTrustedList ||
+    isMergeEdit
   ) {
     const box = window.activeFormElement;
     let el = $();
@@ -403,19 +405,51 @@ async function copyClippingToClipboard(element) {
       el = $("#privateMessage-comments");
     } else if (isSpecialTrustedList) {
       el = $("input[name='add_email']");
+    } else if (isMergeEdit && $("#newUser_mBio").length) {
+      el = $("#newUser_mBio");
     } else if ($("#wpTextbox1").length && lastTextboxSelection) {
       el = $("#wpTextbox1");
     } else {
       el = $("#" + box);
     }
     if (el[0]) {
-      if (el.attr("id") === "wpTextbox1" && lastTextboxSelection) {
+      let selStart;
+
+      // Check if we have a meaningful stored selection (not just the default 0,0)
+      const hasMeaningfulSelection =
+        lastTextboxSelection &&
+        (lastTextboxSelection.start !== 0 ||
+          lastTextboxSelection.end !== 0 ||
+          ((el.attr("id") === "wpTextbox1" || el.attr("id") === "newUser_mBio") && el[0] === document.activeElement));
+
+      if ((el.attr("id") === "wpTextbox1" || el.attr("id") === "newUser_mBio") && hasMeaningfulSelection) {
         el[0].focus();
         el[0].selectionStart = lastTextboxSelection.start;
         el[0].selectionEnd = lastTextboxSelection.end;
+        selStart = lastTextboxSelection.start;
+      } else if (el.attr("id") === "newUser_mBio" && isMergeEdit) {
+        // If it's the merge edit textarea but no meaningful selection is stored, paste at the end on a new line
+        el[0].focus();
+        const currentContent = el.val();
+        const textLength = currentContent.length;
+        el[0].selectionStart = el[0].selectionEnd = textLength;
+        selStart = textLength;
+
+        // Add a newline before the content if there's already content and it doesn't end with a newline
+        const textToInsert = decodeHTMLEntities(theText);
+        const needsNewline = currentContent.length > 0 && !currentContent.endsWith("\n");
+        const finalText = currentContent + (needsNewline ? "\n" : "") + textToInsert;
+
+        el.val(finalText);
+
+        // Place cursor after inserted text
+        el[0].selectionStart = el[0].selectionEnd = finalText.length;
+        el[0].focus();
+        return; // Exit early since we've handled the insertion manually
+      } else {
+        selStart = el[0].selectionStart;
       }
 
-      const selStart = el[0].selectionStart;
       const textToInsert = decodeHTMLEntities(theText);
       const before = el.val().substring(0, selStart);
       const after = el.val().substring(selStart);
