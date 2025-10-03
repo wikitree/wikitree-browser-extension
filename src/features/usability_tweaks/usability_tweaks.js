@@ -247,7 +247,7 @@ async function onlyMembers() {
     // Set the button as active first
     $("#onlyMembers").addClass("active");
     // Add a small delay to ensure the table is fully loaded before applying the filter
-    setTimeout(function() {
+    setTimeout(function () {
       $("#Sort-Table tbody tr").each(function () {
         if ($(this).find("a[href*='/wiki/']").length > 0 && $(this).find("span:contains('ACTIVE')").length == 0) {
           $(this).hide();
