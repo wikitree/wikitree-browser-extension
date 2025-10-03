@@ -244,14 +244,16 @@ async function onlyMembers() {
   });
 
   if (Cookies.get("onlyMembers") == 1) {
-    // Set the button as active first, then apply the filter
+    // Set the button as active first
     $("#onlyMembers").addClass("active");
-    // Apply the filter without toggling the button state
-    $("#Sort-Table tbody tr").each(function () {
-      if ($(this).find("a[href*='/wiki/']").length > 0 && $(this).find("span:contains('ACTIVE')").length == 0) {
-        $(this).hide();
-      }
-    });
+    // Add a small delay to ensure the table is fully loaded before applying the filter
+    setTimeout(function() {
+      $("#Sort-Table tbody tr").each(function () {
+        if ($(this).find("a[href*='/wiki/']").length > 0 && $(this).find("span:contains('ACTIVE')").length == 0) {
+          $(this).hide();
+        }
+      });
+    }, 100);
   }
 }
 
