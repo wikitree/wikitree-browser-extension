@@ -562,18 +562,24 @@ export function wrapBackupData(key, data, isDataSubset = false) {
 }
 
 export function getBackupLink(wrappedJsonData) {
+  const filename = wrappedJsonData.id + ".txt";
+  const json = JSON.stringify(wrappedJsonData, null, 2);
+  return getDownloadLink(filename, json);
+}
+
+export function getDownloadLink(filename, data) {
   let link = document.createElement("a");
   link.title = 'Right-click to "Save as..." at specific location on your device.';
-  let json = JSON.stringify(wrappedJsonData, null, 2);
+
   if (navigatorDetect.browser.Safari) {
     // Safari doesn't handle blobs or the download attribute properly
-    link.href = "data:application/octet-stream," + encodeURIComponent(json);
+    link.href = "data:application/octet-stream," + encodeURIComponent(data);
     link.target = "_blank";
     link.title = link.title.replace("Save as...", "Download Linked File As...");
   } else {
-    let blob = new Blob([json], { type: "text/plain" });
+    let blob = new Blob([data], { type: "text/plain" });
     link.href = URL.createObjectURL(blob);
-    link.download = wrappedJsonData.id + ".txt";
+    link.download = filename;
   }
   return link;
 }

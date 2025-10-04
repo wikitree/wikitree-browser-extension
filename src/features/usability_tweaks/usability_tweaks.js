@@ -23,6 +23,7 @@ import "./usability_tweaks.css";
 import { shouldInitializeFeature, getFeatureOptions, checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { getUserWtId, getUserNumId } from "../../core/common";
 import "../../core/common.css";
+import { getDownloadLink } from "../../core/common";
 import { addLoginButton, currentHrefWithoutAuthcode } from "../../core/loginButton";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
@@ -623,6 +624,30 @@ function addNavHomePageLink() {
   }
 }
 
+function addScratchPadDownload() {
+  const downloadButton = document.createElement("button");
+  downloadButton.className = "btn btn-secondary btn-sm";
+  downloadButton.innerText = "Download Scratch Pad";
+
+  let now = new Date();
+  let filename =
+    Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "medium" }) // sv-SE uses ISO format
+      .format(now)
+      .replace(/:/g, "")
+      .replace(/ /g, "_") + "_Scratch_Pad.txt";
+
+  downloadButton.addEventListener("click", () => {
+    const link = getDownloadLink(filename, document.getElementById("wpScratch").value);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    filename;
+  });
+
+  const featureDataButtons = document.getElementById("featureDataButtons");
+  featureDataButtons.append(downloadButton);
+}
+
 // Ignoring the Scratch item, find the first item in parent that wil push the right-hand column height
 // past that of the first item in the left-hand column.
 function findItemByCumulativeSpan($parent) {
@@ -916,6 +941,10 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
 
       if (options.navHomePage) {
         addNavHomePageLink();
+      }
+
+      if (options.addScratchPadDownload) {
+        addScratchPadDownload();
       }
 
       if (options.addApiLoginButton && options.addApiLoginButton != "none") {
