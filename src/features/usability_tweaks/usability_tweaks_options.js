@@ -210,7 +210,7 @@ const usabilityTweaks = {
           id: "addScratchPadDownload",
           type: OptionType.CHECKBOX,
           label: "Add a Download Scatch Pad button below the Scratch Pad.",
-          defaultValue: yes,
+          defaultValue: true,
         },
       ],
     },
