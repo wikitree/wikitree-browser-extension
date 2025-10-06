@@ -1287,7 +1287,7 @@ function connectionFinderTable() {
           reduceRelWords(sW, pW);
           reduceRelWords(sW, cW);
           window.relWords.forEach((r, i) => {
-            if (r[1] > 0) r[2] = (r[1] > 1 ? "great-" : "grand") + r[0];
+            if (r[1] > 0) r[2] = (r[1] > 1 ? "great-grand" : "grand") + r[0];
             if (r[1] > 2) r[2] = ordinal(r[1] - 1) + " " + r[2];
           });
           window.relWords2 = JSON.parse(JSON.stringify(window.relWords));
