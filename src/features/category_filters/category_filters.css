@@ -19,11 +19,18 @@ h2 button.categoryFilterButton.small.active {
   max-width: 30em;
 }
 #categoryFiltersTextFilter,
-#categoryFiltersNotFilter {
+#categoryFiltersNotFilter,
+#dnaUserInput {
   font-size: small !important;
   padding: 2px !important;
   width: 10em;
   margin: 0.2em 0.5em;
+}
+
+#dnaUserInput {
+  margin-left: 5px;
+  vertical-align: middle;
+  width: 12em !important;
 }
 #textFilters label {
   font-size: small;
@@ -35,7 +42,6 @@ h2 button.categoryFilterButton.small.active {
 
 #categoryFilterButtonsContainer {
   text-align: center;
-  max-width: ;
 }
 #categoryFilterButtons {
   display: inline-block;
@@ -52,4 +58,16 @@ h2 button.categoryFilterButton.small.active {
 #categoryFilterRadios label {
   margin: 0 0.1em;
   padding: 0;
+}
+
+/* DNA icon styling */
+.dna-icon {
+  vertical-align: middle;
+  display: inline-block;
+}
+
+.dna-icons-container {
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: middle;
 }
