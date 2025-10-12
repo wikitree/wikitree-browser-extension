@@ -40,7 +40,7 @@ function shouldOpenInNewTab($link, options) {
 
   // Check if this is a navigation button (calculate early)
   const isNavButton = navButton || navText || navListItem || containsNavButton || containsOnlyNavButton;
-  
+
   if (isNavButton) return false;
 
   // 3. Skip button-style links (unless they're navigation buttons which we already handled)
@@ -54,7 +54,7 @@ function shouldOpenInNewTab($link, options) {
   const isEditToolbar = $link.closest("#editToolbarExt").length > 0;
   const isFormButton = $link.closest("form,.cke_dialog,.cke_browser_webkit").length > 0;
   const isMyMenu = $link.closest("#customMenuOptions").length > 0;
-  
+
   if (
     (options.excludeProfileTabs && isProfileTab) ||
     (options.excludeG2GTabs && isG2GTabOrLinks) ||
@@ -84,7 +84,7 @@ function initLinksToNewTabs(options) {
     (event) => {
       // Only handle clicks on actual anchor elements, not nested elements
       if (event.target.tagName !== "A") return;
-      
+
       const anchor = event.target;
       const $anchor = $(anchor);
       if (!shouldOpenInNewTab($anchor, options)) return;
