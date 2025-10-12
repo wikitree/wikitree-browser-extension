@@ -629,22 +629,48 @@ function addScratchPadDownload() {
   downloadButton.className = "btn btn-secondary btn-sm";
   downloadButton.innerText = "Download Scratch Pad";
 
-  let now = new Date();
-  let filename =
-    Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "medium" }) // sv-SE uses ISO format
-      .format(now)
-      .replace(/:/g, "")
-      .replace(/ /g, "_") + "_Scratch_Pad.txt";
+  downloadButton.addEventListener("click", (event) => {
+    event.preventDefault();
 
-  downloadButton.addEventListener("click", () => {
-    const link = getDownloadLink(filename, document.getElementById("wpScratch").value);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    filename;
+    let now = new Date();
+    let filename =
+      Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "medium" }) // sv-SE uses ISO format
+        .format(now)
+        .replace(/:/g, "")
+        .replace(/ /g, "_") + "_Scratch_Pad.txt";
+
+    const content = document.getElementById("wpScratch").value;
+
+    // Create and trigger download
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+
+    // Use different methods based on browser support
+    if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+      // IE fallback
+      window.navigator.msSaveOrOpenBlob(blob, filename);
+    } else {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = filename;
+      link.style.display = "none";
+
+      // Ensure link is in DOM before clicking
+      document.body.appendChild(link);
+
+      // Trigger download
+      link.click();
+
+      // Clean up immediately
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+    }
   });
 
-  const featureDataButtons = document.getElementById("featureDataButtons");
+  const featureDataButtons = $("#featureDataButtons");
   featureDataButtons.append(downloadButton);
 }
 
@@ -873,6 +899,10 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
           addScratchPadButton();
         }
 
+        if (options.addScratchPadDownload) {
+          addScratchPadDownload();
+        }
+
         if (options.scratchPadPosition && options.scratchPadPosition != "false") {
           setTimeout(function () {
             // Find the scratch pad
@@ -941,10 +971,6 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
 
       if (options.navHomePage) {
         addNavHomePageLink();
-      }
-
-      if (options.addScratchPadDownload) {
-        addScratchPadDownload();
       }
 
       if (options.addApiLoginButton && options.addApiLoginButton != "none") {
