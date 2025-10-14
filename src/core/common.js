@@ -267,13 +267,12 @@ oncePerTab((rootWindow) => {
     );
   }
 });
-/*
- * * * * * * * * * * * * * * * * * * * */
+/* * * * * * * * * * * * * * * * * * * * */
 
 const questionIcon = chrome.runtime.getURL("images/question-icon.svg");
 // const fillColor = "#00bfff"; // Default fill color for the WBE icon
 const fillColor = "#25422d"; // Default fill color for the WBE icon
-if ($(".ebWBE").length === 0) {
+if ($(".ebWBE,.noEbWBE").length === 0) {
   $('a img[alt="WikiTree: Where genealogists collaborate"]').parent("a").after(`
   <span class="ebWBE">
     <a style="color: inherit !important; text-decoration: none;"
