@@ -8,6 +8,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { getPeople } from "../dna_table/dna_table";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import { profilePerson } from "../../core/common";
+import { copyToClipboard } from "../../core/clipboard";
 import { mainDomain, isWikiPage, isProfilePage, isSpacePage, isMediaWikiPage } from "../../core/pageType";
 
 shouldInitializeFeature("whatLinksHere").then((result) => {
