@@ -12,6 +12,7 @@ import { ymdFix, showFamilySheet, displayName } from "../familyGroup/familyGroup
 import { showCopyMessage } from "../access_keys/access_keys.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { mainDomain, isProfilePage } from "../../core/pageType";
+import { copyToClipboard } from "../../core/clipboard.js";
 
 const surnameSummariesButton = $(
   "<button id='surnameSummaries' style='margin:0.5em;' class='small button'>Surname summaries</button>"
@@ -519,25 +520,6 @@ function connectionsRelation(relationText) {
   }
   relationshipColour = relationshipColours[relationshipColourNum];
   return [gender, arrow, relationshipColour, mRelationOut];
-}
-
-/**
- * Copy plain text to the clipboard.  Falls back to the older
- * execCommand method for older browsers.
- * @param {string} text
- */
-function copyPlain(text) {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text);
-  } else {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand("copy");
-    document.body.removeChild(ta);
-  }
-  showCopyMessage("relationship sentence to clipboard");
 }
 
 /* ======================================================================
@@ -1389,24 +1371,32 @@ function addConnectionText(num = 0) {
   /* 6) add a small “Copy” button                                       */
   /* ------------------------------------------------------------------ */
   const $copyBtn = $(`
-    <img id="copyRelText" src="https://www.wikitree.com/images/icons/icon-copy.svg" 
-            height:"18" width="18" 
-            class="small wbe"
-            style="margin-left:.5em;" 
-            title="Copy the relationship description" />
-  `).on("click", () => {
-    /* use the Clipboard API when available, fall back otherwise */
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(msg);
-    } else {
+  <img id="copyRelText" src="https://www.wikitree.com/images/icons/icon-copy.svg" 
+       height="18" width="18" 
+       class="small wbe"
+       style="margin-left:.5em;" 
+       title="Copy the relationship description" />
+`).on("click", async () => {
+    try {
+      await copyToClipboard(msg); // background-safe copy
+      showCopyMessage("relationship sentence to clipboard");
+    } catch (err) {
+      console.error("Clipboard copy failed:", err);
+
+      // Optional fallback for older browsers
       const ta = document.createElement("textarea");
       ta.value = msg;
       document.body.appendChild(ta);
       ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
+      try {
+        document.execCommand("copy");
+        showCopyMessage("relationship sentence to clipboard (fallback)");
+      } catch (fallbackErr) {
+        console.error("Fallback copy also failed:", fallbackErr);
+      } finally {
+        document.body.removeChild(ta);
+      }
     }
-    showCopyMessage("relationship sentence to clipboard");
   });
 
   $span.after($copyBtn);
@@ -1569,39 +1559,47 @@ function showHeritageSocietyBox() {
   }
 }
 
-function copyRichTextToClipboard(html) {
-  // Create a contenteditable div and append it to the body
-  var div = document.createElement("div");
+/**
+ * Copy HTML content to the clipboard.
+ * Works in Chrome with ClipboardItem if available, falls back to contenteditable div.
+ * @param {string} html - HTML string to copy
+ */
+export async function copyRichTextToClipboard(html) {
+  // Try modern Clipboard API first (Chrome)
+  try {
+    if (navigator.clipboard && window.ClipboardItem) {
+      const blob = new Blob([html], { type: "text/html" });
+      const item = new ClipboardItem({ "text/html": blob });
+      await navigator.clipboard.write([item]);
+      console.log("Copied HTML via Clipboard API");
+      return;
+    }
+  } catch (err) {
+    console.warn("Clipboard API HTML copy failed, using fallback:", err);
+  }
+
+  // Fallback: contenteditable div + execCommand (works in Firefox & older browsers)
+  const div = document.createElement("div");
   div.contentEditable = true;
   div.innerHTML = html;
+  div.style.position = "fixed"; // prevent scroll jumps
+  div.style.left = "-9999px";
+  div.style.top = "-9999px";
   document.body.appendChild(div);
 
-  // Select the content
-  var range, selection;
-  if (document.body.createTextRange) {
-    range = document.body.createTextRange();
-    range.moveToElementText(div);
-    range.select();
-  } else if (window.getSelection) {
-    selection = window.getSelection();
-    range = document.createRange();
-    range.selectNodeContents(div);
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }
+  const selection = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(div);
+  selection.removeAllRanges();
+  selection.addRange(range);
 
-  // Copy the selection
   try {
-    var successful = document.execCommand("copy");
-    var msg = successful ? "successful" : "unsuccessful";
-    console.log("Copy command was " + msg);
+    const successful = document.execCommand("copy");
+    console.log("Fallback HTML copy command was " + (successful ? "successful" : "unsuccessful"));
   } catch (err) {
-    console.log("Oops, unable to copy");
-  }
-
-  // Clean up
-  document.body.removeChild(div);
-  if (selection) {
+    console.error("Fallback HTML copy failed", err);
+  } finally {
+    document.body.removeChild(div);
     selection.removeAllRanges();
   }
 }

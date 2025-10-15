@@ -63,3 +63,46 @@ chrome.contextMenus.onClicked.addListener(function (info, tab) {
     chrome.tabs.sendMessage(tab.id, { action: "showNotes" });
   }
 });
+
+// Clipboard functions from content script for browsers that don't support navigator.clipboard (i.e. Firefox)
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "copyToClipboard") {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      (async () => {
+        try {
+          await navigator.clipboard.writeText(message.text);
+          sendResponse({ success: true });
+        } catch (err) {
+          sendResponse({ success: false, error: err.toString() });
+        }
+      })();
+      return true;
+    } else if (sender.tab?.id) {
+      chrome.tabs.sendMessage(sender.tab.id, { action: "copyToClipboard_inPage", text: message.text }, (resp) =>
+        sendResponse(resp)
+      );
+      return true;
+    } else {
+      sendResponse({ success: false, error: "No clipboard API available" });
+    }
+  }
+
+  if (message.action === "readFromClipboard") {
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      (async () => {
+        try {
+          const text = await navigator.clipboard.readText();
+          sendResponse({ success: true, text });
+        } catch (err) {
+          sendResponse({ success: false, error: err.toString() });
+        }
+      })();
+      return true;
+    } else if (sender.tab?.id) {
+      chrome.tabs.sendMessage(sender.tab.id, { action: "readFromClipboard_inPage" }, (resp) => sendResponse(resp));
+      return true;
+    } else {
+      sendResponse({ success: false, error: "No clipboard API available" });
+    }
+  }
+});

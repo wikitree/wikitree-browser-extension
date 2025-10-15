@@ -282,16 +282,33 @@ async function whatLinksHereLink() {
   });
 }
 
-export function copyToClipboard3(element, refs = 1) {
+export async function copyToClipboard3(element, refs = 1) {
   const brRegex = /<br\s*[/]?>/gi;
   const ref1 = refs === 1 ? "<ref>" : "";
   const ref2 = refs === 1 ? "</ref>" : "";
 
   const text = ref1 + decodeHTMLEntities(element.innerHTML.replace(brRegex, "\r\n")) + ref2;
 
-  navigator.clipboard.writeText(text).catch((err) => {
-    console.error("Failed to copy text: ", err);
-  });
+  try {
+    await copyToClipboard(text); // background-safe
+    console.log("Text copied successfully");
+  } catch (err) {
+    console.error("Failed to copy text:", err);
+
+    // Optional fallback for legacy browsers
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand("copy");
+      console.log("Text copied using fallback");
+    } catch (fallbackErr) {
+      console.error("Fallback copy also failed:", fallbackErr);
+    } finally {
+      document.body.removeChild(ta);
+    }
+  }
 }
 
 function decodeHTMLEntities(text) {

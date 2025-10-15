@@ -7,6 +7,7 @@ Contributors: Jonathan Duke (Duke-5773)
 import $ from "jquery";
 import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
+import { copyToClipboard, readFromClipboard } from "./clipboard.js";
 import draggable from "jquery-ui/ui/widgets/draggable";
 import {
   mainDomain,
@@ -1945,7 +1946,7 @@ function toggleEnhancedEditor(callback) {
 
 async function replaceWikitableFromClipboard(done) {
   try {
-    const clipboardText = await navigator.clipboard.readText();
+    const clipboardText = await readFromClipboard();
 
     const wikitableRegex = /{\|[\s\S]*?\|}/;
     const currentText = $("#wpTextbox1").val();
@@ -2017,3 +2018,30 @@ if (window.location.href.includes("TrustedList") && window.location.href.include
 }
 
 ////////// End of Notables Project things
+
+/* Clipboard listener */
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "copyToClipboard_inPage") {
+    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+      sendResponse({ success: false, error: "Clipboard API not available in page" });
+      return; // no async work here
+    }
+    navigator.clipboard.writeText(message.text).then(
+      () => sendResponse({ success: true }),
+      (err) => sendResponse({ success: false, error: err.toString() })
+    );
+    return true; // async
+  }
+
+  if (message.action === "readFromClipboard_inPage") {
+    if (!navigator.clipboard || !navigator.clipboard.readText) {
+      sendResponse({ success: false, error: "Clipboard API not available in page" });
+      return;
+    }
+    navigator.clipboard.readText().then(
+      (text) => sendResponse({ success: true, text }),
+      (err) => sendResponse({ success: false, error: err.toString() })
+    );
+    return true; // async
+  }
+});

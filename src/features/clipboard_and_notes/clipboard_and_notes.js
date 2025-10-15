@@ -19,6 +19,7 @@ import {
   isMergeEdit,
 } from "../../core/pageType";
 import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
+import { copyToClipboard } from "../../core/clipboard.js";
 
 let lastTextboxSelection = { start: 0, end: 0 }; // Store the last selection in the text box
 
@@ -350,16 +351,23 @@ async function copyClippingToClipboard(element) {
   }
   // Modern clipboard API with fallback
   try {
-    await navigator.clipboard.writeText(theText);
-    console.log("Copied to clipboard (Clipboard API)");
+    await copyToClipboard(theText); // uses background script
+    console.log("Copied to clipboard (background script)");
   } catch (err) {
-    console.warn("Clipboard API failed, using fallback:", err);
+    console.warn("Background clipboard copy failed, using fallback:", err);
 
+    // Legacy fallback using hidden textarea
     const $temp = $("<textarea>");
     $("body").append($temp);
     $temp.val(theText).trigger("focus").trigger("select");
-    document.execCommand("copy");
-    $temp.remove();
+    try {
+      document.execCommand("copy");
+      console.log("Copied to clipboard (fallback textarea)");
+    } catch (fallbackErr) {
+      console.error("Fallback copy also failed:", fallbackErr);
+    } finally {
+      $temp.remove();
+    }
   }
 
   const enhancedEditorButton = $("#toggleMarkupColor");

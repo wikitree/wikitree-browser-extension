@@ -5,6 +5,7 @@
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { showCopyMessage } from "../access_keys/access_keys.js";
+import { copyToClipboard } from "../../core/clipboard.js";
 
 let options;
 let templateSection;
@@ -34,11 +35,15 @@ function addCopyButtons() {
     const copyButton = $("<button>Copy</button>")
       .addClass("image-template-copy-button")
       .data("clipboard-text", exampleText)
-      .on("click", function () {
+      .on("click", async function () {
         const copiedText = $(this).data("clipboard-text");
-        navigator.clipboard.writeText(copiedText).then(() => {
+        try {
+          await copyToClipboard(copiedText); // background-safe
           showCopyMessage(`\n${copiedText}`);
-        });
+        } catch (err) {
+          console.error("Copy failed:", err);
+          showCopyMessage("Error copying to clipboard");
+        }
       });
 
     $(example).append(copyButton);

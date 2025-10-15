@@ -21,21 +21,27 @@ import {
 } from "../../core/pageType";
 import { profilePerson } from "../../core/common";
 import { showCopyMessage } from "../access_keys/access_keys.js";
+import { copyToClipboard } from "../../core/clipboard.js";
 
 shouldInitializeFeature("scissors").then((result) => {
   if (result) {
     import("./scissors.css");
-    $(document).on("click", ".copy--buttons button", function (e) {
+
+    $(document).on("click", ".copy--buttons button", async function (e) {
       e.preventDefault();
-      copyThingToClipboard($(this).data("copy-text"));
       const text = $(this).data("copy-text");
-      showCopyMessage(text);
+
+      try {
+        await copyToClipboard(text); // background-safe
+        showCopyMessage(text);
+      } catch (err) {
+        console.error("Clipboard copy failed:", err);
+        showCopyMessage("Failed to copy text");
+      }
     });
 
-    if ($("#helpScissors").length == 0) {
+    if ($("#helpScissors").length === 0) {
       helpScissors();
-
-      // setTimeout(removeWhitespaceBeforeCopyUserID, 2000);
     }
   }
 });
@@ -372,21 +378,17 @@ export function addItems(copyItems, copyPosition, options = {}) {
   }
 }
 
-export function copyThingToClipboard(thing) {
-  navigator.clipboard
-    .writeText(thing)
-    .then(() => {
-      console.log("Text copied to clipboard");
-    })
-    .catch((err) => {
-      console.error("Could not copy text: ", err);
-    });
-}
-
 export function attachScissorsEvent() {
-  $(document).on("click", "#g2gScissors button,.g2gScissors button", function (e) {
+  $(document).on("click", "#g2gScissors button,.g2gScissors button", async function (e) {
     e.preventDefault();
-    copyThingToClipboard($(this).attr("data-copy-text"));
-    showCopyMessage($(this).attr("data-copy-text"));
+    const text = $(this).attr("data-copy-text");
+
+    try {
+      await copyToClipboard(text);
+      showCopyMessage(text);
+    } catch (err) {
+      console.error("Clipboard copy failed:", err);
+      showCopyMessage("Failed to copy text");
+    }
   });
 }

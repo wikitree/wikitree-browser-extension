@@ -24,6 +24,7 @@ import {
   removeWorking,
 } from "../auto_bio/auto_bio";
 import { isOK, familyArray } from "../../core/common";
+import { copyToClipboard, readFromClipboard } from "../../core/clipboard";
 
 async function getFamily() {
   let profileID;
@@ -124,27 +125,17 @@ async function getFamily() {
   return;
 }
 
-export function copyToClipboardAPI(text) {
-  navigator.clipboard.writeText(text).then(
-    function () {
-      console.log("Copying to clipboard was successful!");
-    },
-    function (err) {
-      console.error("Could not copy text: ", err);
-    }
-  );
-}
-
 async function pasteResult() {
   const textarea = document.querySelector("#wpTextbox1");
   textarea.focus();
+
   try {
-    const text = await navigator.clipboard.readText();
+    const text = await readFromClipboard(); // use background helper
     const startPos = textarea.selectionStart;
     textarea.value = textarea.value.slice(0, startPos) + text + textarea.value.slice(startPos);
     console.log("Text pasted at cursor position");
   } catch (err) {
-    console.log("Oops, unable to paste");
+    console.error("Oops, unable to paste:", err);
   }
 }
 
@@ -208,7 +199,7 @@ async function getList(functionName) {
     default:
       break;
   }
-  copyToClipboardAPI(result);
+  copyToClipboard(result).catch((err) => console.error("Copy failed:", err));
   if (
     document.querySelector("#toggleMarkupColor").value == "turn on enhanced editor" ||
     document.querySelector("#toggleMarkupColor").value == "Turn On Enhanced Editor" /*toggles once used*/

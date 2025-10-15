@@ -2,7 +2,7 @@
 Created By: Ian Beacall (Beacall-6)
 */
 import $ from "jquery";
-import { copyToClipboardAPI } from "../family_lists/family_lists";
+import { copyToClipboard } from "../../core/clipboard";
 import { showCopyMessage } from "../access_keys/access_keys";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 /**
@@ -70,7 +70,7 @@ function copyBioChangesBit(which) {
   } else {
     str = after.join("\n");
   }
-  copyToClipboardAPI(str);
+  copyToClipboard(str).catch((err) => console.error("Copy failed:", err));
   showCopyMessage("Bio Changes" + (which == "pre" ? " (before)" : " (after)"));
 }
 
