@@ -450,7 +450,7 @@ async function showAnalysisPopup(profileLinks, spaceLinks) {
             Profiles (${profileLinks.length})
           </button>
           <button class="wlh-tab-button" data-tab="spaces">
-            Space Pages (${spaceLinks.length})
+            Other Pages (${spaceLinks.length})
           </button>
         </div>
         <div class="wlh-tab-content">
@@ -477,8 +477,7 @@ async function showAnalysisPopup(profileLinks, spaceLinks) {
               <thead>
                 <tr>
                   <th>Page Name</th>
-                  <th>Type</th>
-                  <th>Link</th>
+                  <th>Edited</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -512,23 +511,79 @@ async function showAnalysisPopup(profileLinks, spaceLinks) {
     }
   });
 
-  // Populate space pages table immediately
-  populateSpacesTable(spaceLinks);
+  // Populate space pages table
+  await populateSpacesTable(spaceLinks);
 
   // Fetch and populate profiles data
   await populateProfilesTable(profileLinks);
 }
 
-function populateSpacesTable(spaceLinks) {
+// Function to fetch multiple space pages information using WikiTree API
+async function fetchSpacePagesInfo(spaceLinks) {
+  try {
+    // Create array of promises for concurrent API calls
+    const fetchPromises = spaceLinks.map(async (link) => {
+      try {
+        const apiUrl = `https://api.wikitree.com/api.php?action=getProfile&key=${encodeURIComponent(link.path)}&fields=Touched`;
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        let touchedDate = "";
+        if (data && data.length > 0 && data[0].profile && data[0].profile.Touched) {
+          const touchedStr = data[0].profile.Touched.toString();
+          if (touchedStr.length >= 8) {
+            // Convert from YYYYMMDDHHMMSS format to YYYY-MM-DD
+            const year = touchedStr.substring(0, 4);
+            const month = touchedStr.substring(4, 6);
+            const day = touchedStr.substring(6, 8);
+            touchedDate = `${year}-${month}-${day}`;
+          }
+        }
+        
+        return {
+          ...link,
+          touchedDate: touchedDate
+        };
+      } catch (error) {
+        console.warn("Error fetching space page info for", link.path, error);
+        return {
+          ...link,
+          touchedDate: ""
+        };
+      }
+    });
+    
+    // Wait for all API calls to complete
+    return await Promise.all(fetchPromises);
+  } catch (error) {
+    console.error("Error fetching space pages info:", error);
+    // Return original links with empty touched dates
+    return spaceLinks.map(link => ({
+      ...link,
+      touchedDate: ""
+    }));
+  }
+}
+
+async function populateSpacesTable(spaceLinks) {
   const tbody = $("#spacesTable tbody");
   tbody.empty();
 
-  spaceLinks.forEach((link) => {
+  // Show loading message
+  const statusDiv = $('<div id="spacesStatus">Loading page information...</div>');
+  $("#spaces-tab").prepend(statusDiv);
+
+  // Fetch touched dates for all space pages
+  const enrichedLinks = await fetchSpacePagesInfo(spaceLinks);
+
+  // Hide status and populate table
+  statusDiv.remove();
+
+  enrichedLinks.forEach((link) => {
     const row = $(`
       <tr>
         <td><a href="${link.href}" target="_blank">${link.name}</a></td>
-        <td>${link.type}</td>
-        <td><a href="${link.href}" target="_blank" class="small-link">View Page</a></td>
+        <td>${link.touchedDate}</td>
       </tr>
     `);
     tbody.append(row);
@@ -540,8 +595,13 @@ function populateSpacesTable(spaceLinks) {
     searching: true,
     ordering: true,
     autoWidth: false,
-    pageLength: 10,
+    pageLength: 100,
+    lengthMenu: [[25, 50, 100, 250, 500, 1000, -1], [25, 50, 100, 250, 500, 1000, "All"]],
     order: [[0, "asc"]],
+    columnDefs: [
+      { width: "70%", targets: 0 }, // Page name
+      { width: "30%", targets: 1 }, // Edited date
+    ],
   });
 }
 
@@ -730,7 +790,8 @@ async function populateProfilesTable(profileLinks) {
         searching: true,
         ordering: true,
         autoWidth: false,
-        pageLength: 25,
+        pageLength: 100,
+        lengthMenu: [[25, 50, 100, 250, 500, 1000, -1], [25, 50, 100, 250, 500, 1000, "All"]],
         order: [[0, "asc"]], // Sort by name (LastNameAtBirth + FirstName)
         columnDefs: [
           {
