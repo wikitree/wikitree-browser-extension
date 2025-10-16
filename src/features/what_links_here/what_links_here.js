@@ -319,9 +319,9 @@ function addAnalysisButtonToWhatLinksHerePage() {
   // Extract page name and range from URL for title
   const urlParams = new URLSearchParams(window.location.search);
   const currentURL = window.location.href;
-  
+
   let pageTitle = "What Links Here";
-  
+
   // Extract the page name from the URL
   if (currentURL.includes("Special:Whatlinkshere/")) {
     const match = currentURL.match(/Special:Whatlinkshere\/([^&?]+)/);
@@ -330,10 +330,10 @@ function addAnalysisButtonToWhatLinksHerePage() {
       pageTitle = `What Links Here: ${pageName}`;
     }
   }
-  
+
   // Add range information if available
-  const limit = urlParams.get('limit');
-  const from = urlParams.get('from');
+  const limit = urlParams.get("limit");
+  const from = urlParams.get("from");
   if (limit) {
     const fromNum = parseInt(from) || 0;
     const toNum = fromNum + parseInt(limit);
@@ -343,21 +343,24 @@ function addAnalysisButtonToWhatLinksHerePage() {
 
   // Update window title and h1 immediately
   document.title = pageTitle;
-  
+
   // Add the analysis button to the h1 on What Links Here pages
   const h1 = $("#firstHeading, h1").first();
   if (h1.length > 0) {
     // Update h1 text while preserving any existing button
     const existingButton = h1.find("#analyzeLinksBtn");
     h1.empty().text(pageTitle);
-    
+
     // Re-add existing button if it was there, otherwise create new one
-    const button = existingButton.length > 0 ? existingButton : $(`
+    const button =
+      existingButton.length > 0
+        ? existingButton
+        : $(`
       <button id="analyzeLinksBtn" class="small btn btn-secondary" style="margin-left: 15px; font-size: 14px;" title="Analyze all links in a sortable table">
        What Links Here Tables
       </button>
     `);
-    
+
     h1.append(button);
 
     // Store cache state
@@ -368,7 +371,7 @@ function addAnalysisButtonToWhatLinksHerePage() {
     if (existingButton.length === 0) {
       button.on("click", function (e) {
         e.preventDefault();
-        
+
         // If we have a cached modal and analysis is complete, just show it
         if (cachedModal && isAnalysisComplete) {
           const restoredModal = cachedModal.clone();
@@ -377,7 +380,7 @@ function addAnalysisButtonToWhatLinksHerePage() {
           setupModalEventHandlers(restoredModal);
           return;
         }
-        
+
         // Otherwise, run the analysis
         analyzeCurrentWhatLinksHerePage(button, (modal) => {
           cachedModal = modal.clone(); // Store a copy of the modal
@@ -433,7 +436,7 @@ async function analyzeCurrentWhatLinksHerePage(button, onComplete) {
 
     // Show popup with tabs and data tables
     const modal = await showAnalysisPopup(profileLinks, spaceLinks);
-    
+
     // Notify completion with the modal reference
     if (onComplete) {
       onComplete(modal);
@@ -512,7 +515,7 @@ async function showAnalysisPopup(profileLinks, spaceLinks) {
 
   // Fetch and populate profiles data
   await populateProfilesTable(profileLinks);
-  
+
   // Return the popup reference for caching
   return popup;
 }
