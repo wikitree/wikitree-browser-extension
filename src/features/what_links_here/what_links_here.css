@@ -32,15 +32,19 @@ div#whatLinksHere > div:first-child {
 
 .wlh-modal-content {
   background-color: #fefefe;
-  margin: 5% auto;
+  margin: 5% auto 5% auto;
   padding: 0;
   border: 1px solid #888;
   border-radius: 5px;
   width: 90%;
   max-width: 1200px;
-  max-height: 80vh;
+  height: 80vh;
+  min-height: 500px;
+  max-height: calc(100vh - 10%);
   overflow: hidden;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .wlh-modal-header {
@@ -101,16 +105,21 @@ div#whatLinksHere > div:first-child {
 /* Tab content */
 .wlh-tab-content {
   padding: 20px;
-  max-height: 60vh;
+  flex: 1;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .wlh-tab-pane {
   display: none;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .wlh-tab-pane.active {
-  display: block;
+  display: flex;
+  flex-direction: column;
 }
 
 /* DataTables styling overrides for the modal */

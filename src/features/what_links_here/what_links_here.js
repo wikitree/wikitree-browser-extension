@@ -316,26 +316,79 @@ export async function copyToClipboard3(element, refs = 1) {
 }
 
 function addAnalysisButtonToWhatLinksHerePage() {
+  // Extract page name and range from URL for title
+  const urlParams = new URLSearchParams(window.location.search);
+  const currentURL = window.location.href;
+  
+  let pageTitle = "What Links Here";
+  
+  // Extract the page name from the URL
+  if (currentURL.includes("Special:Whatlinkshere/")) {
+    const match = currentURL.match(/Special:Whatlinkshere\/([^&?]+)/);
+    if (match) {
+      const pageName = decodeURIComponent(match[1]);
+      pageTitle = `What Links Here: ${pageName}`;
+    }
+  }
+  
+  // Add range information if available
+  const limit = urlParams.get('limit');
+  const from = urlParams.get('from');
+  if (limit) {
+    const fromNum = parseInt(from) || 0;
+    const toNum = fromNum + parseInt(limit);
+    const rangeInfo = ` ${fromNum}–${toNum}`;
+    pageTitle += rangeInfo;
+  }
+
+  // Update window title and h1 immediately
+  document.title = pageTitle;
+  
   // Add the analysis button to the h1 on What Links Here pages
   const h1 = $("#firstHeading, h1").first();
   if (h1.length > 0) {
-    const button = $(`
+    // Update h1 text while preserving any existing button
+    const existingButton = h1.find("#analyzeLinksBtn");
+    h1.empty().text(pageTitle);
+    
+    // Re-add existing button if it was there, otherwise create new one
+    const button = existingButton.length > 0 ? existingButton : $(`
       <button id="analyzeLinksBtn" class="small btn btn-secondary" style="margin-left: 15px; font-size: 14px;" title="Analyze all links in a sortable table">
        What Links Here Tables
       </button>
     `);
+    
     h1.append(button);
 
-    // Add click handler
-    button.on("click", function (e) {
-      e.preventDefault();
-      analyzeCurrentWhatLinksHerePage();
-    });
+    // Store cache state
+    let cachedModal = null;
+    let isAnalysisComplete = false;
+
+    // Add click handler (only if it's a new button)
+    if (existingButton.length === 0) {
+      button.on("click", function (e) {
+        e.preventDefault();
+        
+        // If we have a cached modal and analysis is complete, just show it
+        if (cachedModal && isAnalysisComplete) {
+          const restoredModal = cachedModal.clone();
+          $("body").append(restoredModal);
+          // Re-setup event handlers for the restored modal
+          setupModalEventHandlers(restoredModal);
+          return;
+        }
+        
+        // Otherwise, run the analysis
+        analyzeCurrentWhatLinksHerePage(button, (modal) => {
+          cachedModal = modal.clone(); // Store a copy of the modal
+          isAnalysisComplete = true;
+        });
+      });
+    }
   }
 }
 
-async function analyzeCurrentWhatLinksHerePage() {
-  const button = $("#analyzeLinksBtn");
+async function analyzeCurrentWhatLinksHerePage(button, onComplete) {
   const originalText = button.text();
   button.text("🔄 Loading...");
 
@@ -379,7 +432,12 @@ async function analyzeCurrentWhatLinksHerePage() {
     console.log(`Found ${profileLinks.length} profiles and ${spaceLinks.length} space pages`);
 
     // Show popup with tabs and data tables
-    showAnalysisPopup(profileLinks, spaceLinks);
+    const modal = await showAnalysisPopup(profileLinks, spaceLinks);
+    
+    // Notify completion with the modal reference
+    if (onComplete) {
+      onComplete(modal);
+    }
   } catch (error) {
     console.error("Error analyzing links:", error);
     alert("Error analyzing links. Please try again.");
@@ -389,13 +447,16 @@ async function analyzeCurrentWhatLinksHerePage() {
 }
 
 async function showAnalysisPopup(profileLinks, spaceLinks) {
+  // Get the current page title that was already set
+  const pageTitle = document.title;
+
   // Create modal popup
   const popup = $(`
-    <div id="wlhAnalysisModal" class="wlh-modal">
+    <div id="wlhAnalysisModal" class="wlh-modal wbe-popup">
       <div class="wlh-modal-content">
         <div class="wlh-modal-header">
-          <h3>What Links Here</h3>
-          <span class="wlh-close">&times;</span>
+          <h3>${pageTitle}</h3>
+          <span class="wlh-close close-popup">&times;</span>
         </div>
         <div class="wlh-tabs">
           <button class="wlh-tab-button active" data-tab="profiles">
@@ -440,10 +501,25 @@ async function showAnalysisPopup(profileLinks, spaceLinks) {
     </div>
   `);
 
+  // Add to body first
   $("body").append(popup);
 
-  // Set up tab switching
-  popup.find(".wlh-tab-button").on("click", function () {
+  // Set up event handlers using event delegation to work with cached modals
+  setupModalEventHandlers(popup);
+
+  // Populate space pages table
+  await populateSpacesTable(spaceLinks);
+
+  // Fetch and populate profiles data
+  await populateProfilesTable(profileLinks);
+  
+  // Return the popup reference for caching
+  return popup;
+}
+
+function setupModalEventHandlers(popup) {
+  // Set up tab switching - use off/on to prevent duplicate handlers
+  popup.off("click", ".wlh-tab-button").on("click", ".wlh-tab-button", function () {
     const tabName = $(this).data("tab");
     popup.find(".wlh-tab-button").removeClass("active");
     popup.find(".wlh-tab-pane").removeClass("active");
@@ -451,23 +527,21 @@ async function showAnalysisPopup(profileLinks, spaceLinks) {
     popup.find(`#${tabName}-tab`).addClass("active");
   });
 
-  // Close popup handler
-  popup.find(".wlh-close").on("click", function () {
-    popup.remove();
+  // Close popup handler - use off/on to prevent duplicate handlers
+  popup.off("click", ".close-popup").on("click", ".close-popup", function () {
+    popup.fadeOut(300, function () {
+      popup.remove();
+    });
   });
 
-  // Close on background click
-  popup.on("click", function (e) {
+  // Close on background click - use off/on to prevent duplicate handlers
+  popup.off("click.modal-background").on("click.modal-background", function (e) {
     if (e.target === popup[0]) {
-      popup.remove();
+      popup.fadeOut(300, function () {
+        popup.remove();
+      });
     }
   });
-
-  // Populate space pages table
-  await populateSpacesTable(spaceLinks);
-
-  // Fetch and populate profiles data
-  await populateProfilesTable(profileLinks);
 }
 
 // Function to fetch multiple space pages information using WikiTree API
