@@ -52,6 +52,23 @@ function getPrivacyIcon(privacyLevel) {
   }
 }
 
+// Helper function to get sortable date value (converts decades to midpoint)
+function getSortableDate(date, decade) {
+  if (date && date !== "0000-00-00") {
+    return date;
+  } else if (decade && decade !== "unknown") {
+    // Convert decade like "1950s" to midpoint "1955-01-01"
+    const match = decade.match(/(\d{4})s?/);
+    if (match) {
+      const decadeStart = parseInt(match[1]);
+      const midpoint = decadeStart + 5;
+      return `${midpoint}-01-01`;
+    }
+    return decade;
+  }
+  return "";
+}
+
 shouldInitializeFeature("whatLinksHere").then((result) => {
   if (result) {
     import("../../core/toggleCheckbox.css");
@@ -215,71 +232,6 @@ function addWhatLinksHereLink() {
     );
     newLi.insertAfter(findMatchesLi.parent());
   }
-}
-
-export function doWhatLinksHere(e) {
-  e.preventDefault();
-  const whatLinksHereLink = $(e.currentTarget);
-  whatLinksHereLink.text("Working...");
-  const url = new URL(whatLinksHereLink.attr("href"), "https://" + mainDomain);
-  getWikiTreePage("WhatLinksHereClipboard", url.pathname, url.search).then((data) => {
-    const dLinks = $(data).find("#content ul a[href*='/wiki/']");
-    if (dLinks.length == 0) {
-      whatLinksHereLink.text("Nothing links here yet.");
-      return;
-    }
-    let whatLinksHere = "";
-    const whatLinksHereWikiTreeIDs = [];
-    dLinks.each(function () {
-      if (
-        $(this)
-          .attr("href")
-          .match(/Help:|Docs:|Space:|Category:|Project:|Special:|Template:/) == null
-      ) {
-        whatLinksHereWikiTreeIDs.push($(this).text());
-      } else {
-        const name = $(this).attr("href").split("/wiki/")[1];
-        whatLinksHere += "[[" + (name.startsWith("Category") ? ":" : "") + name + "|" + $(this).text() + "]]\n";
-      }
-    });
-    if (whatLinksHereWikiTreeIDs.length || whatLinksHere !== "") {
-      let profiles = whatLinksHereWikiTreeIDs.join(",");
-      // private profiles will not be returned and displayed
-      getPeople(profiles, 0, 0, 0, 0, 0, "Name,Derived.ShortName", "WBE_what_links_here").then((data) => {
-        if (data.length) {
-          let theKeys = Object.keys(data[0].people);
-          theKeys.sort(function (a, b) {
-            let c = (
-              data[0].people[a]?.Name?.replace(/-\d+$/, "") +
-              "|" +
-              (data[0].people[a]?.LongName ?? data[0].people[a]?.ShortName)
-            ).toLowerCase();
-            let d = (
-              data[0].people[b]?.Name?.replace(/-\d+$/, "") +
-              "|" +
-              (data[0].people[b]?.LongName ?? data[0].people[b]?.ShortName)
-            ).toLowerCase();
-            return c < d ? -1 : c > d ? 1 : 0;
-          });
-          theKeys.forEach(function (aKey) {
-            let person = data[0].people[aKey];
-            if (person.Name) {
-              let thisWikiLink =
-                "[[" + person.Name + "|" + (person.LongName ?? person.ShortName ?? person.Name) + "]]<br>";
-              whatLinksHere += thisWikiLink;
-            }
-          });
-        }
-        if (whatLinksHere !== "") {
-          copyToClipboard3($("<div>" + whatLinksHere + "</div>"), 0);
-          whatLinksHereLink.text("Copied").addClass("copied");
-          setTimeout(function () {
-            whatLinksHereLink.text("What Links Here").removeClass("copied");
-          }, 3000);
-        }
-      });
-    }
-  });
 }
 
 async function whatLinksHereLink() {
@@ -524,10 +476,12 @@ async function fetchSpacePagesInfo(spaceLinks) {
     // Create array of promises for concurrent API calls
     const fetchPromises = spaceLinks.map(async (link) => {
       try {
-        const apiUrl = `https://api.wikitree.com/api.php?action=getProfile&key=${encodeURIComponent(link.path)}&fields=Touched`;
+        const apiUrl = `https://api.wikitree.com/api.php?action=getProfile&key=${encodeURIComponent(
+          link.path
+        )}&fields=Touched`;
         const response = await fetch(apiUrl);
         const data = await response.json();
-        
+
         let touchedDate = "";
         if (data && data.length > 0 && data[0].profile && data[0].profile.Touched) {
           const touchedStr = data[0].profile.Touched.toString();
@@ -539,28 +493,28 @@ async function fetchSpacePagesInfo(spaceLinks) {
             touchedDate = `${year}-${month}-${day}`;
           }
         }
-        
+
         return {
           ...link,
-          touchedDate: touchedDate
+          touchedDate: touchedDate,
         };
       } catch (error) {
         console.warn("Error fetching space page info for", link.path, error);
         return {
           ...link,
-          touchedDate: ""
+          touchedDate: "",
         };
       }
     });
-    
+
     // Wait for all API calls to complete
     return await Promise.all(fetchPromises);
   } catch (error) {
     console.error("Error fetching space pages info:", error);
     // Return original links with empty touched dates
-    return spaceLinks.map(link => ({
+    return spaceLinks.map((link) => ({
       ...link,
-      touchedDate: ""
+      touchedDate: "",
     }));
   }
 }
@@ -583,7 +537,7 @@ async function populateSpacesTable(spaceLinks) {
     const row = $(`
       <tr>
         <td><a href="${link.href}" target="_blank">${link.name}</a></td>
-        <td>${link.touchedDate}</td>
+        <td class="date-column">${link.touchedDate}</td>
       </tr>
     `);
     tbody.append(row);
@@ -596,7 +550,10 @@ async function populateSpacesTable(spaceLinks) {
     ordering: true,
     autoWidth: false,
     pageLength: 100,
-    lengthMenu: [[25, 50, 100, 250, 500, 1000, -1], [25, 50, 100, 250, 500, 1000, "All"]],
+    lengthMenu: [
+      [25, 50, 100, 250, 500, 1000, -1],
+      [25, 50, 100, 250, 500, 1000, "All"],
+    ],
     order: [[0, "asc"]],
     columnDefs: [
       { width: "70%", targets: 0 }, // Page name
@@ -642,6 +599,10 @@ async function populateProfilesTable(profileLinks) {
         // Format dates
         const birthDate = formatProfileDate(person.BirthDate, person.BirthDateDecade);
         const deathDate = formatProfileDate(person.DeathDate, person.DeathDateDecade);
+
+        // Get sortable dates (converts decades to midpoint for sorting)
+        const sortableBirthDate = getSortableDate(person.BirthDate, person.BirthDateDecade);
+        const sortableDeathDate = getSortableDate(person.DeathDate, person.DeathDateDecade);
 
         // Format locations
         const birthLocation = person.BirthLocation || "";
@@ -759,13 +720,13 @@ async function populateProfilesTable(profileLinks) {
         const row = $(`
           <tr class="${genderClass}" data-gender="${dataGender}">
             <td data-order="${sortKey}">${profileLink}</td>
-            <td>${birthDate}</td>
+            <td data-order="${sortableBirthDate}" class="date-column">${birthDate}</td>
             <td>${birthLocation}</td>
-            <td>${deathDate}</td>
+            <td data-order="${sortableDeathDate}" class="date-column">${deathDate}</td>
             <td>${deathLocation}</td>
             <td data-order="${privacyLevel}">${privacy}</td>
             <td>${managersDisplay}</td>
-            <td>${editedDate}</td>
+            <td class="date-column">${editedDate}</td>
           </tr>
         `);
         tbody.append(row);
@@ -791,7 +752,10 @@ async function populateProfilesTable(profileLinks) {
         ordering: true,
         autoWidth: false,
         pageLength: 100,
-        lengthMenu: [[25, 50, 100, 250, 500, 1000, -1], [25, 50, 100, 250, 500, 1000, "All"]],
+        lengthMenu: [
+          [25, 50, 100, 250, 500, 1000, -1],
+          [25, 50, 100, 250, 500, 1000, "All"],
+        ],
         order: [[0, "asc"]], // Sort by name (LastNameAtBirth + FirstName)
         columnDefs: [
           {
@@ -799,7 +763,7 @@ async function populateProfilesTable(profileLinks) {
             targets: 0, // Profile name
             orderDataType: "dom-data-order", // Use data-order attribute for sorting
           },
-          { width: "12%", targets: [1, 3] }, // Birth/Death dates
+          { width: "12%", targets: [1, 3], orderDataType: "dom-data-order", className: "date-column" }, // Birth/Death dates
           { width: "16%", targets: [2, 4] }, // Birth/Death locations
           {
             width: "6%",
@@ -808,7 +772,7 @@ async function populateProfilesTable(profileLinks) {
             orderDataType: "dom-data-order",
           },
           { width: "16%", targets: 6 }, // Managers
-          { width: "13%", targets: 7 }, // Edited date
+          { width: "13%", targets: 7, className: "date-column" }, // Edited date
         ],
       });
     } else {
@@ -833,4 +797,69 @@ function decodeHTMLEntities(text) {
   var textArea = document.createElement("textarea");
   textArea.innerHTML = text;
   return textArea.value;
+}
+
+export function doWhatLinksHere(e) {
+  e.preventDefault();
+  const whatLinksHereLink = $(e.currentTarget);
+  whatLinksHereLink.text("Working...");
+  const url = new URL(whatLinksHereLink.attr("href"), "https://" + mainDomain);
+  getWikiTreePage("WhatLinksHereClipboard", url.pathname, url.search).then((data) => {
+    const dLinks = $(data).find("#content ul a[href*='/wiki/']");
+    if (dLinks.length == 0) {
+      whatLinksHereLink.text("Nothing links here yet.");
+      return;
+    }
+    let whatLinksHere = "";
+    const whatLinksHereWikiTreeIDs = [];
+    dLinks.each(function () {
+      if (
+        $(this)
+          .attr("href")
+          .match(/Help:|Docs:|Space:|Category:|Project:|Special:|Template:/) == null
+      ) {
+        whatLinksHereWikiTreeIDs.push($(this).text());
+      } else {
+        const name = $(this).attr("href").split("/wiki/")[1];
+        whatLinksHere += "[[" + (name.startsWith("Category") ? ":" : "") + name + "|" + $(this).text() + "]]\n";
+      }
+    });
+    if (whatLinksHereWikiTreeIDs.length || whatLinksHere !== "") {
+      let profiles = whatLinksHereWikiTreeIDs.join(",");
+      // private profiles will not be returned and displayed
+      getPeople(profiles, 0, 0, 0, 0, 0, "Name,Derived.ShortName", "WBE_what_links_here").then((data) => {
+        if (data.length) {
+          let theKeys = Object.keys(data[0].people);
+          theKeys.sort(function (a, b) {
+            let c = (
+              data[0].people[a]?.Name?.replace(/-\d+$/, "") +
+              "|" +
+              (data[0].people[a]?.LongName ?? data[0].people[a]?.ShortName)
+            ).toLowerCase();
+            let d = (
+              data[0].people[b]?.Name?.replace(/-\d+$/, "") +
+              "|" +
+              (data[0].people[b]?.LongName ?? data[0].people[b]?.ShortName)
+            ).toLowerCase();
+            return c < d ? -1 : c > d ? 1 : 0;
+          });
+          theKeys.forEach(function (aKey) {
+            let person = data[0].people[aKey];
+            if (person.Name) {
+              let thisWikiLink =
+                "[[" + person.Name + "|" + (person.LongName ?? person.ShortName ?? person.Name) + "]]<br>";
+              whatLinksHere += thisWikiLink;
+            }
+          });
+        }
+        if (whatLinksHere !== "") {
+          copyToClipboard3($("<div>" + whatLinksHere + "</div>"), 0);
+          whatLinksHereLink.text("Copied").addClass("copied");
+          setTimeout(function () {
+            whatLinksHereLink.text("What Links Here").removeClass("copied");
+          }, 3000);
+        }
+      });
+    }
+  });
 }

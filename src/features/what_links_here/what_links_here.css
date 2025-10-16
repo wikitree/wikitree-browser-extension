@@ -194,3 +194,31 @@ div#whatLinksHere > div:first-child {
 .wlh-modal table.dataTable td:nth-child(7) {
   text-align: left; /* Keep location and manager columns left-aligned */
 }
+
+/* Date column styling to prevent wrapping */
+.date-column {
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ensure DataTables date columns don't wrap */
+#profilesTable .date-column,
+#spacesTable .date-column {
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 80px;
+}
+
+/* Center align date columns for better readability */
+#profilesTable th:nth-child(2),
+#profilesTable th:nth-child(4),
+#profilesTable th:nth-child(8),
+#profilesTable td:nth-child(2),
+#profilesTable td:nth-child(4),
+#profilesTable td:nth-child(8),
+#spacesTable th:nth-child(2),
+#spacesTable td:nth-child(2) {
+  text-align: center;
+}
