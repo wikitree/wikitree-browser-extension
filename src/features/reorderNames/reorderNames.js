@@ -190,4 +190,4 @@ shouldInitializeFeature("reorderNames").then((result) => {
       }
     })
     .catch(() => console.warn("WT: vitals not found in time"));
-})();
+});
