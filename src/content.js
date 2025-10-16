@@ -161,6 +161,8 @@ import "./features/what_links_here/what_links_here";
 import "./features/edit_profile_redesign/edit_profile_redesign";
 
 /* MARKER: Default place for new features. Move these to a more appropriate place.*/
+import "./features/reorderNames/reorderNames";
+
 import "./features/activity_feed_filters/activity_feed_filters";
 
 import "./features/collapsible_descendants/collapsible_descendants";
