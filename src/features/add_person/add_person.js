@@ -13,6 +13,7 @@ import {
 } from "../category_management/category_management";
 import { isProfileEdit } from "../../core/pageType";
 import { setSync, getSync } from "../g2g/g2g";
+import { copyToClipboard } from "../../core/clipboard.js";
 
 function addResearchNotesSection() {
   setTimeout(() => {
@@ -754,13 +755,20 @@ function showFindAGraveCitationToolsForBox($box, citationText, targetId) {
   });
 
   // — Copy button logic —
-  $copyBtn.on("click", function () {
-    navigator.clipboard.writeText($textarea.val()).then(() => {
+  $copyBtn.on("click", async function () {
+    try {
+      await copyToClipboard($textarea.val());
       $copyBtn.text("Copied!");
       setTimeout(() => {
         $copyBtn.text("Copy");
       }, 1000);
-    });
+    } catch (err) {
+      console.error("Copy failed:", err);
+      $copyBtn.text("Error");
+      setTimeout(() => {
+        $copyBtn.text("Copy");
+      }, 1000);
+    }
   });
 
   // — Race‐proof state —

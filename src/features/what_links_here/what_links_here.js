@@ -8,15 +8,83 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { getPeople } from "../dna_table/dna_table";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import { profilePerson } from "../../core/common";
-import { mainDomain, isWikiPage, isProfilePage, isSpacePage, isMediaWikiPage } from "../../core/pageType";
+import { copyToClipboard } from "../../core/clipboard";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
+import "datatables.net-dt/css/jquery.dataTables.css";
+import "datatables.net";
+import {
+  mainDomain,
+  isWikiPage,
+  isProfilePage,
+  isSpacePage,
+  isMediaWikiPage,
+  isWhatLinksHere,
+} from "../../core/pageType";
+import { PersonName } from "../auto_bio/person_name";
+
+// Create privacy icon URL map
+const privacyOpenURL = chrome.runtime.getURL("images/privacy_open.png");
+const privacyPublicURL = chrome.runtime.getURL("images/privacy_public.png");
+const privacyPublicTreeURL = chrome.runtime.getURL("images/privacy_public-tree.png");
+const privacyPrivacy35URL = chrome.runtime.getURL("images/privacy_privacy35.png");
+const privacyPublicBioURL = chrome.runtime.getURL("images/privacy_public-bio.png");
+const privacyPrivateURL = chrome.runtime.getURL("images/privacy_private.png");
+const privacyUnlistedURL = chrome.runtime.getURL("images/unlisted.png");
+
+// Function to get privacy icon and title based on privacy level
+function getPrivacyIcon(privacyLevel) {
+  switch (privacyLevel) {
+    case 60:
+      return { src: privacyOpenURL, title: "Open" };
+    case 50:
+      return { src: privacyPublicURL, title: "Public" };
+    case 40:
+      return { src: privacyPublicTreeURL, title: "Private with Public Bio and Tree" };
+    case 35:
+      return { src: privacyPrivacy35URL, title: "Private with Public Tree" };
+    case 30:
+      return { src: privacyPublicBioURL, title: "Private with Public Bio" };
+    case 20:
+      return { src: privacyPrivateURL, title: "Private" };
+    case 10:
+    default:
+      return { src: privacyUnlistedURL, title: "Unlisted" };
+  }
+}
+
+// Helper function to get sortable date value (converts decades to midpoint)
+function getSortableDate(date, decade) {
+  if (date && date !== "0000-00-00") {
+    return date;
+  } else if (decade && decade !== "unknown") {
+    // Convert decade like "1950s" to midpoint "1955-01-01"
+    const match = decade.match(/(\d{4})s?/);
+    if (match) {
+      const decadeStart = parseInt(match[1]);
+      const midpoint = decadeStart + 5;
+      return `${midpoint}-01-01`;
+    }
+    return decade;
+  }
+  return "";
+}
 
 shouldInitializeFeature("whatLinksHere").then((result) => {
-  if (result && $("a.whatLinksHere").length == 0) {
-    const profileWTID = profilePerson?.Name;
-    window.profileWTID = profileWTID;
+  if (result) {
     import("../../core/toggleCheckbox.css");
     import("./what_links_here.css");
-    whatLinksHereLink();
+
+    // If we're on a What Links Here page, add the analysis button
+    if (isWhatLinksHere) {
+      addAnalysisButtonToWhatLinksHerePage();
+    }
+
+    // Original functionality for other pages
+    if ($("a.whatLinksHere").length == 0) {
+      const profileWTID = profilePerson?.Name;
+      window.profileWTID = profileWTID;
+      whatLinksHereLink();
+    }
   }
 });
 
@@ -166,6 +234,571 @@ function addWhatLinksHereLink() {
   }
 }
 
+async function whatLinksHereLink() {
+  addWhatLinksHereLink();
+  // Check the options and add section
+  const options = await getFeatureOptions("whatLinksHere");
+  if (options.whatLinksHereSection && isWikiPage) {
+    const theSection = $(
+      `<h2 id='What_Links_Here'>What Links Here
+        <span class="toggle toggle-whl">
+        <input type="checkbox" id="whatLinksHereMore">
+        <label for="whatLinksHereMore"></label></span></h2>`
+    );
+    if (isProfilePage || isSpacePage) {
+      if ($("#Memories").length) {
+        // if possible, place it below the bio but before the edit link, memories, etc.
+        $("#Memories").before(theSection);
+      } else if ($("div.box.orange.rounded h3")) {
+        // on private pages, put it above the orange box and any stray <br> tags from the memories code
+        $("div.box.orange.rounded h3").last().closest("div.box").before(theSection);
+      } else {
+        $("#content .ten").append(theSection);
+      }
+      // Add a link to the TOC
+      const toclevel1Count = $("#toc ul:first li.toclevel-1").length;
+      const newToclevel1Count = toclevel1Count + 1;
+
+      $("#toc ul:first").append(
+        `<li class="toclevel-1"><a href="#What_Links_Here" title=""><span class="tocnumber">${newToclevel1Count}</span> <span class="toctext">What Links Here</span></a></li>`
+      );
+    } else {
+      $("main div.container h2#What_Links_Here").after(theSection);
+    }
+    $(document).on("change", "#whatLinksHereMore", async function (event) {
+      const checkbox = event.target;
+      if (!checkbox.xWhatLinksHerePopulated) {
+        await fillWhatLinksHereSection();
+        checkbox.xWhatLinksHerePopulated = true;
+      }
+      // Toggle visibility of #whatLinksHere
+      const whatLinksHere = $("h2#What_Links_Here + #whatLinksHere");
+      if (checkbox.checked) {
+        whatLinksHere.css("display", "flex");
+      } else {
+        whatLinksHere.css("display", "none");
+      }
+    });
+  }
+
+  $("a.whatLinksHere").on("contextmenu", function (e) {
+    doWhatLinksHere(e);
+  });
+}
+
+export async function copyToClipboard3(element, refs = 1) {
+  const brRegex = /<br\s*[/]?>/gi;
+  const ref1 = refs === 1 ? "<ref>" : "";
+  const ref2 = refs === 1 ? "</ref>" : "";
+
+  const text = ref1 + decodeHTMLEntities(element.innerHTML.replace(brRegex, "\r\n")) + ref2;
+
+  try {
+    await copyToClipboard(text); // background-safe
+    console.log("Text copied successfully");
+  } catch (err) {
+    console.error("Failed to copy text:", err);
+
+    // Optional fallback for legacy browsers
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand("copy");
+      console.log("Text copied using fallback");
+    } catch (fallbackErr) {
+      console.error("Fallback copy also failed:", fallbackErr);
+    } finally {
+      document.body.removeChild(ta);
+    }
+  }
+}
+
+function addAnalysisButtonToWhatLinksHerePage() {
+  // Add the analysis button to the h1 on What Links Here pages
+  const h1 = $("#firstHeading, h1").first();
+  if (h1.length > 0) {
+    const button = $(`
+      <button id="analyzeLinksBtn" class="small btn btn-secondary" style="margin-left: 15px; font-size: 14px;" title="Analyze all links in a sortable table">
+       What Links Here Tables
+      </button>
+    `);
+    h1.append(button);
+
+    // Add click handler
+    button.on("click", function (e) {
+      e.preventDefault();
+      analyzeCurrentWhatLinksHerePage();
+    });
+  }
+}
+
+async function analyzeCurrentWhatLinksHerePage() {
+  const button = $("#analyzeLinksBtn");
+  const originalText = button.text();
+  button.text("🔄 Loading...");
+
+  try {
+    // Extract all wiki links from the ul lists on the page
+    const dLinks = $("main ul a[href*='/wiki/']");
+
+    if (dLinks.length === 0) {
+      alert("No links found to analyze");
+      return;
+    }
+
+    // Separate profiles from space pages
+    const profileLinks = [];
+    const spaceLinks = [];
+
+    dLinks.each(function () {
+      const href = $(this).attr("href");
+      const linkText = $(this).text();
+
+      // Extract the WikiTree ID from the href (everything after /wiki/)
+      const wikitreeId = href.split("/wiki/")[1];
+
+      if (href.match(/Space:|Category:|Project:|Special:|Template:|Help:|Docs:/) !== null) {
+        spaceLinks.push({
+          name: linkText,
+          href: href,
+          path: wikitreeId,
+          type: wikitreeId.split(":")[0] || "Other",
+        });
+      } else {
+        // This is a profile - use the WikiTree ID (e.g., "Smith-123")
+        profileLinks.push({
+          name: linkText,
+          href: href,
+          wikitreeId: wikitreeId, // This is what we need for getPeople
+        });
+      }
+    });
+
+    console.log(`Found ${profileLinks.length} profiles and ${spaceLinks.length} space pages`);
+
+    // Show popup with tabs and data tables
+    showAnalysisPopup(profileLinks, spaceLinks);
+  } catch (error) {
+    console.error("Error analyzing links:", error);
+    alert("Error analyzing links. Please try again.");
+  } finally {
+    button.text(originalText);
+  }
+}
+
+async function showAnalysisPopup(profileLinks, spaceLinks) {
+  // Create modal popup
+  const popup = $(`
+    <div id="wlhAnalysisModal" class="wlh-modal">
+      <div class="wlh-modal-content">
+        <div class="wlh-modal-header">
+          <h3>What Links Here</h3>
+          <span class="wlh-close">&times;</span>
+        </div>
+        <div class="wlh-tabs">
+          <button class="wlh-tab-button active" data-tab="profiles">
+            Profiles (${profileLinks.length})
+          </button>
+          <button class="wlh-tab-button" data-tab="spaces">
+            Other Pages (${spaceLinks.length})
+          </button>
+        </div>
+        <div class="wlh-tab-content">
+          <div id="profiles-tab" class="wlh-tab-pane active">
+            <div id="profilesAnalysisStatus">Loading profile data...</div>
+            <table id="profilesTable" class="display" style="width:100%; display:none;">
+              <thead>
+                <tr>
+                  <th>Profile</th>
+                  <th>Birth Date</th>
+                  <th>Birth Location</th>
+                  <th>Death Date</th>
+                  <th>Death Location</th>
+                  <th>Privacy</th>
+                  <th>Manager</th>
+                  <th>Edited</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div id="spaces-tab" class="wlh-tab-pane">
+            <table id="spacesTable" class="display" style="width:100%;">
+              <thead>
+                <tr>
+                  <th>Page Name</th>
+                  <th>Edited</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  `);
+
+  $("body").append(popup);
+
+  // Set up tab switching
+  popup.find(".wlh-tab-button").on("click", function () {
+    const tabName = $(this).data("tab");
+    popup.find(".wlh-tab-button").removeClass("active");
+    popup.find(".wlh-tab-pane").removeClass("active");
+    $(this).addClass("active");
+    popup.find(`#${tabName}-tab`).addClass("active");
+  });
+
+  // Close popup handler
+  popup.find(".wlh-close").on("click", function () {
+    popup.remove();
+  });
+
+  // Close on background click
+  popup.on("click", function (e) {
+    if (e.target === popup[0]) {
+      popup.remove();
+    }
+  });
+
+  // Populate space pages table
+  await populateSpacesTable(spaceLinks);
+
+  // Fetch and populate profiles data
+  await populateProfilesTable(profileLinks);
+}
+
+// Function to fetch multiple space pages information using WikiTree API
+async function fetchSpacePagesInfo(spaceLinks) {
+  try {
+    // Create array of promises for concurrent API calls
+    const fetchPromises = spaceLinks.map(async (link) => {
+      try {
+        const apiUrl = `https://api.wikitree.com/api.php?action=getProfile&key=${encodeURIComponent(
+          link.path
+        )}&fields=Touched`;
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+
+        let touchedDate = "";
+        if (data && data.length > 0 && data[0].profile && data[0].profile.Touched) {
+          const touchedStr = data[0].profile.Touched.toString();
+          if (touchedStr.length >= 8) {
+            // Convert from YYYYMMDDHHMMSS format to YYYY-MM-DD
+            const year = touchedStr.substring(0, 4);
+            const month = touchedStr.substring(4, 6);
+            const day = touchedStr.substring(6, 8);
+            touchedDate = `${year}-${month}-${day}`;
+          }
+        }
+
+        return {
+          ...link,
+          touchedDate: touchedDate,
+        };
+      } catch (error) {
+        console.warn("Error fetching space page info for", link.path, error);
+        return {
+          ...link,
+          touchedDate: "",
+        };
+      }
+    });
+
+    // Wait for all API calls to complete
+    return await Promise.all(fetchPromises);
+  } catch (error) {
+    console.error("Error fetching space pages info:", error);
+    // Return original links with empty touched dates
+    return spaceLinks.map((link) => ({
+      ...link,
+      touchedDate: "",
+    }));
+  }
+}
+
+async function populateSpacesTable(spaceLinks) {
+  const tbody = $("#spacesTable tbody");
+  tbody.empty();
+
+  // Show loading message
+  const statusDiv = $('<div id="spacesStatus">Loading page information...</div>');
+  $("#spaces-tab").prepend(statusDiv);
+
+  // Fetch touched dates for all space pages
+  const enrichedLinks = await fetchSpacePagesInfo(spaceLinks);
+
+  // Hide status and populate table
+  statusDiv.remove();
+
+  enrichedLinks.forEach((link) => {
+    const row = $(`
+      <tr>
+        <td><a href="${link.href}" target="_blank">${link.name}</a></td>
+        <td class="date-column">${link.touchedDate}</td>
+      </tr>
+    `);
+    tbody.append(row);
+  });
+
+  // Initialize DataTable for spaces
+  $("#spacesTable").DataTable({
+    paging: true,
+    searching: true,
+    ordering: true,
+    autoWidth: false,
+    pageLength: 100,
+    lengthMenu: [
+      [25, 50, 100, 250, 500, 1000, -1],
+      [25, 50, 100, 250, 500, 1000, "All"],
+    ],
+    order: [[0, "asc"]],
+    columnDefs: [
+      { width: "70%", targets: 0 }, // Page name
+      { width: "30%", targets: 1 }, // Edited date
+    ],
+  });
+}
+
+async function populateProfilesTable(profileLinks) {
+  if (profileLinks.length === 0) {
+    $("#profilesAnalysisStatus").text("No profiles found to analyze.");
+    return;
+  }
+
+  const statusDiv = $("#profilesAnalysisStatus");
+  statusDiv.text(`Fetching data for ${profileLinks.length} profiles...`);
+
+  try {
+    // Create comma-separated list of WikiTree IDs
+    const profileIds = profileLinks.map((link) => link.wikitreeId).join(",");
+
+    console.log("Fetching profile data for:", profileIds);
+
+    // Fetch detailed profile data using getPeople with comprehensive fields
+    // Include additional fields recommended by PersonName class for optimal name construction
+    const fields =
+      "Id,Name,FirstName,LastNameAtBirth,LastNameCurrent,LastNameOther,MiddleName,Nicknames,Prefix,RealName,Suffix,BirthDate,BirthDateDecade,BirthLocation,DeathDate,DeathDateDecade,DeathLocation,Privacy,Managers,Touched,IsLiving,Gender,Derived.LongName,Derived.ShortName,Derived.BirthName,Derived.BirthNamePrivate";
+
+    const data = await getPeople(profileIds, 0, 0, 0, 0, 0, fields, "WBE_what_links_here_analysis");
+
+    const tbody = $("#profilesTable tbody");
+    tbody.empty();
+
+    if (data && data.length > 0 && data[0].people) {
+      const people = data[0].people;
+
+      console.log("Retrieved data for", Object.keys(people).length, "people");
+
+      // Process each profile
+      Object.keys(people).forEach((key) => {
+        const person = people[key];
+
+        // Format dates
+        const birthDate = formatProfileDate(person.BirthDate, person.BirthDateDecade);
+        const deathDate = formatProfileDate(person.DeathDate, person.DeathDateDecade);
+
+        // Get sortable dates (converts decades to midpoint for sorting)
+        const sortableBirthDate = getSortableDate(person.BirthDate, person.BirthDateDecade);
+        const sortableDeathDate = getSortableDate(person.DeathDate, person.DeathDateDecade);
+
+        // Format locations
+        const birthLocation = person.BirthLocation || "";
+        const deathLocation = person.DeathLocation || "";
+
+        // Format privacy with icon
+        const privacyLevel = person.Privacy || 60; // Default to Open if no privacy level
+        const { src: privacyIcon, title: privacyTitle } = getPrivacyIcon(privacyLevel);
+        const privacy = `<img src="${privacyIcon}" title="${privacyTitle}" alt="${privacyTitle}" class="privacy-icon">`;
+
+        // Format managers with links
+        let managersDisplay = "";
+        if (person.Managers && Array.isArray(person.Managers) && person.Managers.length > 0) {
+          const managerLinks = person.Managers.map(
+            (manager) => `<a href="/wiki/${manager.Name}" target="_blank">${manager.Name}</a>`
+          );
+          managersDisplay = managerLinks.join(", ");
+        }
+
+        // Format touched/edited date from YYYYMMDDHHMMSS format
+        let editedDate = "";
+        // Only show edit date for non-private profiles
+        if (person.Privacy !== 10 && person.Touched) {
+          const touchedStr = person.Touched.toString();
+          if (touchedStr.length >= 8) {
+            const year = touchedStr.substring(0, 4);
+            const month = touchedStr.substring(4, 6);
+            const day = touchedStr.substring(6, 8);
+            editedDate = `${year}-${month}-${day}`;
+          }
+        }
+
+        // Create profile link with intelligent name handling using PersonName class
+        let displayName = "";
+
+        try {
+          const personName = new PersonName(person);
+          // For married women, use FullName to show "Jane (Smith) Jones" format
+          displayName = personName.withParts(["FullName"]);
+
+          // If that's empty or invalid, try alternative formats
+          if (!displayName || displayName.includes("Invalid")) {
+            displayName = personName.withParts(["FirstName", "LastNameCurrent"]);
+          }
+
+          if (!displayName || displayName.includes("Invalid")) {
+            displayName = personName.withParts(["PreferredName", "LastName"]);
+          }
+
+          // Still empty? Try just the short name
+          if (!displayName || displayName.includes("Invalid")) {
+            displayName = personName.withParts(["ShortName"]);
+          }
+
+          // Check for private/unlisted profiles
+          if (!displayName || displayName.includes("Invalid") || displayName.trim() === "") {
+            if (person.Privacy === 10) {
+              // Unlisted profiles
+              displayName = "Private";
+            } else if (person.Name) {
+              displayName = person.Name;
+            } else if (person.Id) {
+              // Extract family name from WikiTree ID (e.g., "Smith-123" -> "Smith")
+              const familyName = person.Id.split("-")[0];
+              displayName = familyName || person.Id;
+            } else {
+              displayName = "Private";
+            }
+          }
+        } catch (error) {
+          console.warn("Error constructing name for profile:", person, error);
+          // Fallback logic for private/unlisted profiles
+          if (person.Privacy === 10) {
+            // Unlisted profiles
+            displayName = "Private";
+          } else if (person["Derived.LongName"]) {
+            displayName = person["Derived.LongName"];
+          } else if (person["Derived.ShortName"]) {
+            displayName = person["Derived.ShortName"];
+          } else if (person.FirstName || person.RealName || person.LastNameCurrent || person.LastNameAtBirth) {
+            const firstName = person.FirstName || person.RealName || "";
+            const lastName = person.LastNameCurrent || person.LastNameAtBirth || "";
+            displayName = `${firstName} ${lastName}`.trim();
+          } else if (person.Name) {
+            const familyName = person.Name.split("-")[0];
+            displayName = familyName;
+          } else {
+            displayName = "Private";
+          }
+        }
+
+        // Create the link - always use WikiTree ID for the href, but show the display name
+        const profileLink = displayName
+          ? `<a href="/wiki/${person.Name}" target="_blank">${displayName}</a>`
+          : `<a href="/wiki/${person.Name}" target="_blank">${person.Name}</a>`;
+
+        // Determine gender for row styling
+        const gender = person.Gender || "";
+        let genderClass = "background--gender-no-gender";
+        let dataGender = "unknown";
+
+        if (gender.toLowerCase() === "male") {
+          genderClass = "background--gender-male";
+          dataGender = "Male";
+        } else if (gender.toLowerCase() === "female") {
+          genderClass = "background--gender-female";
+          dataGender = "Female";
+        }
+
+        // Prepare sorting data for LastNameAtBirth + FirstName
+        const sortLastName = person.LastNameAtBirth || person.LastNameCurrent || "";
+        const sortFirstName = person.FirstName || person.RealName || "";
+        const sortKey = `${sortLastName}|${sortFirstName}`.toLowerCase();
+
+        const row = $(`
+          <tr class="${genderClass}" data-gender="${dataGender}">
+            <td data-order="${sortKey}">${profileLink}</td>
+            <td data-order="${sortableBirthDate}" class="date-column">${birthDate}</td>
+            <td>${birthLocation}</td>
+            <td data-order="${sortableDeathDate}" class="date-column">${deathDate}</td>
+            <td>${deathLocation}</td>
+            <td data-order="${privacyLevel}">${privacy}</td>
+            <td>${managersDisplay}</td>
+            <td class="date-column">${editedDate}</td>
+          </tr>
+        `);
+        tbody.append(row);
+      });
+
+      statusDiv.hide();
+      $("#profilesTable").show();
+
+      // Register custom sorting for privacy column
+      $.fn.dataTable.ext.order["dom-data-order"] = function (settings, col) {
+        return this.api()
+          .column(col, { order: "index" })
+          .nodes()
+          .map(function (td, i) {
+            return $(td).attr("data-order") || "0";
+          });
+      };
+
+      // Initialize DataTable for profiles
+      $("#profilesTable").DataTable({
+        paging: true,
+        searching: true,
+        ordering: true,
+        autoWidth: false,
+        pageLength: 100,
+        lengthMenu: [
+          [25, 50, 100, 250, 500, 1000, -1],
+          [25, 50, 100, 250, 500, 1000, "All"],
+        ],
+        order: [[0, "asc"]], // Sort by name (LastNameAtBirth + FirstName)
+        columnDefs: [
+          {
+            width: "25%",
+            targets: 0, // Profile name
+            orderDataType: "dom-data-order", // Use data-order attribute for sorting
+          },
+          { width: "12%", targets: [1, 3], orderDataType: "dom-data-order", className: "date-column" }, // Birth/Death dates
+          { width: "16%", targets: [2, 4] }, // Birth/Death locations
+          {
+            width: "6%",
+            targets: 5, // Privacy column
+            type: "num", // Sort numerically by data-order attribute
+            orderDataType: "dom-data-order",
+          },
+          { width: "16%", targets: 6 }, // Managers
+          { width: "13%", targets: 7, className: "date-column" }, // Edited date
+        ],
+      });
+    } else {
+      statusDiv.text("No profile data could be retrieved from the API.");
+    }
+  } catch (error) {
+    console.error("Error fetching profile data:", error);
+    statusDiv.text("Error fetching profile data. Some profiles may be private or the API may be unavailable.");
+  }
+}
+
+function formatProfileDate(date, decade) {
+  if (date && date !== "0000-00-00") {
+    return date;
+  } else if (decade && decade !== "unknown") {
+    return decade;
+  }
+  return "";
+}
+
+function decodeHTMLEntities(text) {
+  var textArea = document.createElement("textarea");
+  textArea.innerHTML = text;
+  return textArea.value;
+}
+
 export function doWhatLinksHere(e) {
   e.preventDefault();
   const whatLinksHereLink = $(e.currentTarget);
@@ -229,73 +862,4 @@ export function doWhatLinksHere(e) {
       });
     }
   });
-}
-
-async function whatLinksHereLink() {
-  addWhatLinksHereLink();
-  // Check the options and add section
-  const options = await getFeatureOptions("whatLinksHere");
-  if (options.whatLinksHereSection && isWikiPage) {
-    const theSection = $(
-      `<h2 id='What_Links_Here'>What Links Here
-        <span class="toggle toggle-whl">
-        <input type="checkbox" id="whatLinksHereMore">
-        <label for="whatLinksHereMore"></label></span></h2>`
-    );
-    if (isProfilePage || isSpacePage) {
-      if ($("#Memories").length) {
-        // if possible, place it below the bio but before the edit link, memories, etc.
-        $("#Memories").before(theSection);
-      } else if ($("div.box.orange.rounded h3")) {
-        // on private pages, put it above the orange box and any stray <br> tags from the memories code
-        $("div.box.orange.rounded h3").last().closest("div.box").before(theSection);
-      } else {
-        $("#content .ten").append(theSection);
-      }
-      // Add a link to the TOC
-      const toclevel1Count = $("#toc ul:first li.toclevel-1").length;
-      const newToclevel1Count = toclevel1Count + 1;
-
-      $("#toc ul:first").append(
-        `<li class="toclevel-1"><a href="#What_Links_Here" title=""><span class="tocnumber">${newToclevel1Count}</span> <span class="toctext">What Links Here</span></a></li>`
-      );
-    } else {
-      $("main div.container h2#What_Links_Here").after(theSection);
-    }
-    $(document).on("change", "#whatLinksHereMore", async function (event) {
-      const checkbox = event.target;
-      if (!checkbox.xWhatLinksHerePopulated) {
-        await fillWhatLinksHereSection();
-        checkbox.xWhatLinksHerePopulated = true;
-      }
-      // Toggle visibility of #whatLinksHere
-      const whatLinksHere = $("h2#What_Links_Here + #whatLinksHere");
-      if (checkbox.checked) {
-        whatLinksHere.css("display", "flex");
-      } else {
-        whatLinksHere.css("display", "none");
-      }
-    });
-  }
-  $("a.whatLinksHere").on("contextmenu", function (e) {
-    doWhatLinksHere(e);
-  });
-}
-
-export function copyToClipboard3(element, refs = 1) {
-  const brRegex = /<br\s*[/]?>/gi;
-  const ref1 = refs === 1 ? "<ref>" : "";
-  const ref2 = refs === 1 ? "</ref>" : "";
-
-  const text = ref1 + decodeHTMLEntities(element.innerHTML.replace(brRegex, "\r\n")) + ref2;
-
-  navigator.clipboard.writeText(text).catch((err) => {
-    console.error("Failed to copy text: ", err);
-  });
-}
-
-function decodeHTMLEntities(text) {
-  var textArea = document.createElement("textarea");
-  textArea.innerHTML = text;
-  return textArea.value;
 }

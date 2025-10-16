@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 Contributors: Aleš Trtnik (Trtnik-2), Jonathan Duke (Duke-5773)
 */
 
-import { isWikiPage, isWikiEdit } from "../../core/pageType";
+import { isWikiPage, isWikiEdit, isWhatLinksHere } from "../../core/pageType";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 const whatLinksHere = {
@@ -19,7 +19,7 @@ const whatLinksHere = {
     { name: "Jonathan Duke", wikitreeid: "Duke-5773" },
   ],
   defaultValue: true,
-  pages: [isWikiPage, isWikiEdit],
+  pages: [isWikiPage, isWikiEdit, isWhatLinksHere],
   options: [
     {
       id: "whatLinksHereSection",

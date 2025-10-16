@@ -10,6 +10,7 @@ import { analyzeColumns } from "../auto_bio/auto_bio";
 import { stateInfo } from "./us_states.js"; // Import the state information
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { mainDomain } from "../../core/pageType";
+import { readFromClipboard, copyToClipboard } from "../../core/clipboard.js";
 
 const colorNameToHex = import("./html_colors.json");
 const headerItems = [
@@ -868,39 +869,39 @@ function createwikitableWizardModal() {
 
   $("#wikitableWizardPaste")
     .off("click")
-    .on("click", function (e) {
+    .on("click", async function (e) {
       e.preventDefault();
 
-      navigator.clipboard
-        .readText()
-        .then((text) => {
-          if (text && typeof text === "string") {
-            text = text.trim();
-          } else {
-            showCopyMessage("The clipboard is empty...", 1);
-            return;
-          }
+      try {
+        let text = await readFromClipboard(); // background-safe read
 
-          let parsedData;
-          let wikiTableData = null;
+        if (text && typeof text === "string") {
+          text = text.trim();
+        } else {
+          showCopyMessage("The clipboard is empty...", 1);
+          return;
+        }
 
-          // Detect if it's a Wikitable format
-          if (text.includes("{|") && text.includes("|-")) {
-            console.log("Detected Wikitable format.");
-            wikiTableData = parseWikiTableData(text);
-            parsedData = wikiTableData.data.rows.map((row) => row.cells);
-          } else {
-            // Handle CSV, TSV, or space-separated text
-            console.log("Checking for CSV, TSV, or space-separated values.");
-            parsedData = parseDelimitedText(text);
-          }
+        let parsedData;
+        let wikiTableData = null;
 
-          // Render the table with parsed data
-          renderTableFromData(parsedData, wikiTableData);
-        })
-        .catch((err) => {
-          console.log("Error reading clipboard: " + err);
-        });
+        // Detect if it's a Wikitable format
+        if (text.includes("{|") && text.includes("|-")) {
+          console.log("Detected Wikitable format.");
+          wikiTableData = parseWikiTableData(text);
+          parsedData = wikiTableData.data.rows.map((row) => row.cells);
+        } else {
+          // Handle CSV, TSV, or space-separated text
+          console.log("Checking for CSV, TSV, or space-separated values.");
+          parsedData = parseDelimitedText(text);
+        }
+
+        // Render the table with parsed data
+        renderTableFromData(parsedData, wikiTableData);
+      } catch (err) {
+        console.error("Error reading clipboard:", err);
+        showCopyMessage("Failed to read clipboard", 1);
+      }
 
       // Reset the textarea for Wikitable after Paste
       $("#wikitableWizardWikitable").text("").slideUp();
@@ -1049,19 +1050,18 @@ function createwikitableWizardModal() {
 
   $("#wikitableWizardGenerateAndCopyTable")
     .off("click")
-    .on("click", function (e) {
+    .on("click", async function (e) {
       e.preventDefault();
 
       const wikitableContent = generateTable();
 
-      navigator.clipboard
-        .writeText(wikitableContent)
-        .then(() => {
-          showCopyMessage("Wikitable");
-        })
-        .catch((err) => {
-          console.error("Failed to copy table: " + err);
-        });
+      try {
+        await copyToClipboard(wikitableContent); // background-safe
+        showCopyMessage("Wikitable");
+      } catch (err) {
+        console.error("Failed to copy table:", err);
+        showCopyMessage("Failed to copy Wikitable");
+      }
     });
 
   $("#wikitableWizardGenerateAndReplaceTable")
@@ -1627,7 +1627,7 @@ $(document)
     // Click handlers for context menu options
     $(".wikitable-context-option")
       .off("click")
-      .on("click", function (e) {
+      .on("click", async function (e) {
         e.preventDefault();
 
         function addTableStateToStack() {
@@ -1766,25 +1766,23 @@ $(document)
 
         const action = $(this).data("action");
         if (action === "copy") {
-          // Copy the cell value
           const cellValue = currentCell.val();
-          navigator.clipboard.writeText(cellValue).catch((err) => {
+          try {
+            await copyToClipboard(cellValue);
+            console.log("Cell value copied successfully");
+          } catch (err) {
             console.error("Failed to copy text:", err);
-          });
+          }
         } else if (action === "paste") {
           changeStack.push({ type: "paste", content: previousValue, cell: currentCell });
-          // Update Undo button visibility
           toggleUndoButton();
 
-          // Paste the copied value into the cell
-          navigator.clipboard
-            .readText()
-            .then((text) => {
-              currentCell.val(text);
-            })
-            .catch((err) => {
-              console.error("Failed to read clipboard contents:", err);
-            });
+          try {
+            const text = await readFromClipboard();
+            currentCell.val(text);
+          } catch (err) {
+            console.error("Failed to read clipboard contents:", err);
+          }
         } else if (action === "delete-row") {
           // Delete the row
           const row = currentCell.closest("tr");
@@ -2014,21 +2012,21 @@ function selectToLaunchWikiTableWizard() {
               btn.style.zIndex = 1000;
               document.body.appendChild(btn);
 
-              btn.addEventListener("click", function () {
-                navigator.clipboard
-                  .writeText(window.selectedTable)
-                  .then(() => {
-                    if ($("#wikitableWizardModal").length) {
-                      $("#wikitableWizardModal").show();
-                      $("#wikitableWizardPaste").trigger("click");
-                    } else {
-                      createWikitableWizard();
-                    }
-                    document.body.removeChild(btn);
-                  })
-                  .catch((err) => {
-                    console.error("Failed to copy text:", err);
-                  });
+              btn.addEventListener("click", async function () {
+                try {
+                  await copyToClipboard(window.selectedTable); // background-safe copy
+
+                  if ($("#wikitableWizardModal").length) {
+                    $("#wikitableWizardModal").show();
+                    $("#wikitableWizardPaste").trigger("click");
+                  } else {
+                    createWikitableWizard();
+                  }
+
+                  document.body.removeChild(btn);
+                } catch (err) {
+                  console.error("Failed to copy text:", err);
+                }
               });
 
               setTimeout(function () {

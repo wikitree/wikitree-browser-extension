@@ -91,7 +91,8 @@
   body.darkMode .table>:not(caption)>*>*,
   body.darkMode .vertical .nameList li[data-gender],
   body.darkMode .myCustomMenu,
-  body.darkMode input::placeholder {
+  body.darkMode input::placeholder,
+  body.darkMode #comprehensiveTable th {
     background-color: #36393f !important;
     color: #dedecb !important;
   }
@@ -102,6 +103,27 @@
   body.darkMode .qa-c-form *:not(#dummyID) {
     background-color: #cccccc !important;
     color: #36393f !important;
+  }
+
+  body.darkMode .body-text table[border],
+  body.darkMode .body-text table[border] th,
+  body.darkMode .body-text table[border] td,
+  body.darkMode .body-text table[border] tr {
+    border: 1px solid #dedecb !important;
+  }
+
+  body.darkMode
+    a:visited:not(.btn-secondary, .qa-nav-main-link, a.button, a.new, .qa-nav-sub-link, .qa-nav-footer-link, #footer
+      a, .wt.table th a, #editToolbarExt a, #view-container a, .menu-style
+      .dropdown-menu
+      a, .qa-page-next, .qa-page-prev, .qa-page-selected, .qa-page-link, .qa-tag-link, .qa-tag-link:hover, .qa-tag-link:visited, .qa-tag-link:visited:hover, .qa-tag-link:visited, .qa-tag-link:visited:hover) {
+    color: gold !important;
+  }
+
+  body.darkMode #addFSID,
+  body.darkMode #themeTable:not(#dummyID) caption,
+  body.darkMode #comprehensiveTable caption {
+    background-color: #ffee99 !important;
   }
 
   body.darkMode

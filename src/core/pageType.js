@@ -126,6 +126,8 @@ export let isSpecialWatchedList = false;
 export let isSpecialTrustedList = false;
 // MergeEdit
 export let isMergeEdit = false;
+// Whatlinkshere
+export let isWhatLinksHere = false;
 
 // G2G
 export let isG2G = false;
@@ -417,6 +419,8 @@ if (domain.match("apps.wikitree.com")) {
       isMergeEdit = true;
     } else if (uri.match(/Special(:|%3A|%3a)TrustedList/)) {
       isSpecialTrustedList = true;
+    } else if (uri.match(/Special(:|%3A|%3a)Whatlinkshere/)) {
+      isWhatLinksHere = true;
     } else if (uri.match(/Special(:|%3A|%3a)BrowseMatches/)) {
       isBrowseMatches = true;
     }

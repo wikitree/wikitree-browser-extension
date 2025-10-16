@@ -85,6 +85,7 @@ import "./extra_watchlist/extra_watchlist_options";
 import "./family_dropdown/family_dropdown_options";
 import "./family_lists/family_lists_options";
 import "./family_status_sync/family_status_sync_options";
+import "./feed_helper/feed_helper_options";
 import "./g2g/g2g_options";
 import "./genderPredictor/gender_predictor_options";
 import "./help/help_options";
@@ -368,6 +369,17 @@ registerFeature({
       defaultValue: "#d110d1",
     },
   ],
+});
+
+registerFeature({
+  name: "Watchlist Filter",
+  id: "watchlistFilter",
+  description: "Adds filtering options to the Watchlist.",
+  category: "Other",
+  creators: [{ name: "Steve Harris", wikitreeid: "Harris-5439" }],
+  contributors: [],
+  defaultValue: false,
+  pages: [isSpecialWatchedList],
 });
 
 /*

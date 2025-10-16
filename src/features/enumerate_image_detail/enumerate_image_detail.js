@@ -1,12 +1,13 @@
 import $ from "jquery";
 import { showCopyMessage } from "../access_keys/access_keys";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { copyToClipboard } from "../../core/clipboard";
 
 shouldInitializeFeature("enumerateImageDetail").then(async (result) => {
   if (result) {
     await import("./enumerate_image_detail.css");
 
-    $(document).on("click", ".copyButton", function () {
+    $(document).on("click", ".copyButton", async function () {
       let text = "";
       $(this)
         .closest("div")
@@ -17,8 +18,14 @@ shouldInitializeFeature("enumerateImageDetail").then(async (result) => {
           const personID = link.attr("href").split("/wiki/")[1].replace(/_/g, " ");
           text += `# [[${personID}|${personName}]]\n`;
         });
-      navigator.clipboard.writeText(text);
-      showCopyMessage("list");
+
+      try {
+        await copyToClipboard(text);
+        showCopyMessage("list");
+      } catch (err) {
+        console.error("Copy failed:", err);
+        showCopyMessage("error");
+      }
     });
 
     $("ul.STYLED")

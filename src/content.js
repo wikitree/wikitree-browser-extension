@@ -162,6 +162,7 @@ import "./features/edit_profile_redesign/edit_profile_redesign";
 
 /* MARKER: Default place for new features. Move these to a more appropriate place.*/
 import "./features/reorderNames/reorderNames";
+import "./features/feed_helper/feed_helper";
 
 import "./features/activity_feed_filters/activity_feed_filters";
 
@@ -174,6 +175,8 @@ import "./features/highlight_WBE_features/highlight_WBE_features";
 import "./features/image_page_options/image_page_options";
 
 import "./features/links_to_new_tabs/links_to_new_tabs";
+
+import "./features/watchlistFilter/watchlistFilter";
 
 //import "./features/family_status_sync/family_status_sync"; // Disabled for now
 

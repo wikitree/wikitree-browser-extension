@@ -7,6 +7,7 @@ Contributors: Jonathan Duke (Duke-5773)
 import $ from "jquery";
 import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
+import { copyToClipboard, readFromClipboard } from "./clipboard.js";
 import draggable from "jquery-ui/ui/widgets/draggable";
 import {
   mainDomain,
@@ -267,13 +268,12 @@ oncePerTab((rootWindow) => {
     );
   }
 });
-/*
- * * * * * * * * * * * * * * * * * * * */
+/* * * * * * * * * * * * * * * * * * * * */
 
 const questionIcon = chrome.runtime.getURL("images/question-icon.svg");
 // const fillColor = "#00bfff"; // Default fill color for the WBE icon
 const fillColor = "#25422d"; // Default fill color for the WBE icon
-if ($(".ebWBE").length === 0) {
+if ($(".ebWBE,.noEbWBE").length === 0) {
   $('a img[alt="WikiTree: Where genealogists collaborate"]').parent("a").after(`
   <span class="ebWBE">
     <a style="color: inherit !important; text-decoration: none;"
@@ -562,18 +562,24 @@ export function wrapBackupData(key, data, isDataSubset = false) {
 }
 
 export function getBackupLink(wrappedJsonData) {
+  const filename = wrappedJsonData.id + ".txt";
+  const json = JSON.stringify(wrappedJsonData, null, 2);
+  return getDownloadLink(filename, json);
+}
+
+export function getDownloadLink(filename, data) {
   let link = document.createElement("a");
   link.title = 'Right-click to "Save as..." at specific location on your device.';
-  let json = JSON.stringify(wrappedJsonData, null, 2);
+
   if (navigatorDetect.browser.Safari) {
     // Safari doesn't handle blobs or the download attribute properly
-    link.href = "data:application/octet-stream," + encodeURIComponent(json);
+    link.href = "data:application/octet-stream," + encodeURIComponent(data);
     link.target = "_blank";
     link.title = link.title.replace("Save as...", "Download Linked File As...");
   } else {
-    let blob = new Blob([json], { type: "text/plain" });
+    let blob = new Blob([data], { type: "text/plain" });
     link.href = URL.createObjectURL(blob);
-    link.download = wrappedJsonData.id + ".txt";
+    link.download = filename;
   }
   return link;
 }
@@ -1940,7 +1946,7 @@ function toggleEnhancedEditor(callback) {
 
 async function replaceWikitableFromClipboard(done) {
   try {
-    const clipboardText = await navigator.clipboard.readText();
+    const clipboardText = await readFromClipboard();
 
     const wikitableRegex = /{\|[\s\S]*?\|}/;
     const currentText = $("#wpTextbox1").val();
@@ -2012,3 +2018,30 @@ if (window.location.href.includes("TrustedList") && window.location.href.include
 }
 
 ////////// End of Notables Project things
+
+/* Clipboard listener */
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "copyToClipboard_inPage") {
+    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+      sendResponse({ success: false, error: "Clipboard API not available in page" });
+      return; // no async work here
+    }
+    navigator.clipboard.writeText(message.text).then(
+      () => sendResponse({ success: true }),
+      (err) => sendResponse({ success: false, error: err.toString() })
+    );
+    return true; // async
+  }
+
+  if (message.action === "readFromClipboard_inPage") {
+    if (!navigator.clipboard || !navigator.clipboard.readText) {
+      sendResponse({ success: false, error: "Clipboard API not available in page" });
+      return;
+    }
+    navigator.clipboard.readText().then(
+      (text) => sendResponse({ success: true, text }),
+      (err) => sendResponse({ success: false, error: err.toString() })
+    );
+    return true; // async
+  }
+});

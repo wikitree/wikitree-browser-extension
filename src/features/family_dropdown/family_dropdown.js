@@ -1,5 +1,6 @@
 import $ from "jquery";
 import { displayName, getUserNumId, profilePerson } from "../../core/common";
+import { copyToClipboard } from "../../core/clipboard.js";
 import { displayDates } from "../verifyID/verifyID";
 import { getRelatives, getPerson } from "wikitree-js";
 import { shouldInitializeFeature, getFeatureOptions, checkIfFeatureEnabled } from "../../core/options/options_storage";
@@ -432,13 +433,20 @@ async function initFamilyDropdown() {
                 alert("Person not found. Please check the WikiTree ID and try again.");
                 return;
               }
-              const ok = await copyThingToClipboard(obj.wikilink);
-              if (ok) {
+
+              // === Updated clipboard write ===
+              try {
+                await copyToClipboard(obj.wikilink);
+
                 $("#familyDropdown .custom-dropdown-toggle").attr("title", `Copied "${obj.wikilink}" (Paste: Ctrl+V)`);
                 showCopyMessage("Wiki Link");
                 $("#otherPersonLabel").remove();
                 focusWpTextboxIfPresent();
+              } catch (err) {
+                console.error("Clipboard copy failed:", err);
+                alert("Failed to copy WikiLink to clipboard.");
               }
+
               checkIfFeatureEnabled("shareableSources").then((enabled) => {
                 if (enabled && anID) {
                   // Calling initShareableSources with a different ID should also surface shareable sources.
@@ -553,29 +561,30 @@ async function getDataAndMakeWikilink(id) {
  * @returns {Promise<boolean>} True if copy succeeded
  */
 async function copyThingToClipboard(thing) {
-  if (navigator.clipboard && window.isSecureContext) {
-    try {
-      await navigator.clipboard.writeText(thing);
-      return true;
-    } catch (err) {
-      console.error("Clipboard write failed, falling back to legacy method.", err);
-    }
-  }
-  const textArea = document.createElement("textarea");
-  textArea.value = thing;
-  textArea.style.position = "fixed"; // avoid scrolling to bottom
-  textArea.style.left = "-9999px";
-  textArea.style.top = "-9999px";
-  document.body.appendChild(textArea);
-  textArea.focus();
-  textArea.select();
   try {
-    const successful = document.execCommand("copy");
-    document.body.removeChild(textArea);
-    return successful;
+    await copyToClipboard(thing); // goes through background.js
+    return true;
   } catch (err) {
-    console.error("Fallback: Unable to copy", err);
-    document.body.removeChild(textArea);
-    return false;
+    console.error("Background copy failed, trying fallback:", err);
+
+    // Legacy fallback (execCommand)
+    const textArea = document.createElement("textarea");
+    textArea.value = thing;
+    textArea.style.position = "fixed"; // prevent scrolling
+    textArea.style.left = "-9999px";
+    textArea.style.top = "-9999px";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+      const successful = document.execCommand("copy");
+      document.body.removeChild(textArea);
+      return successful;
+    } catch (fallbackErr) {
+      console.error("Fallback: Unable to copy", fallbackErr);
+      document.body.removeChild(textArea);
+      return false;
+    }
   }
 }

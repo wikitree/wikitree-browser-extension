@@ -30,6 +30,8 @@ const user = getUserWtId();
 let familyData;
 // Global variable to track the header toggle state.
 let useAltHeadings = false;
+// Debug flag - set to true to enable console logging for troubleshooting
+const DEBUG_FAMILY_LISTS = false;
 const treePersonBit = $("#nav-familyContent #Family-pane div.tree--person");
 const profilePerson = getProfilePersonInfo(); // from the page
 let profilePersonData; // from API
@@ -380,10 +382,25 @@ function parseInitialData() {
     "[South Africa]",
   ];
   const container = document.querySelector("#nav-familyContent div.tree--person");
+  if (DEBUG_FAMILY_LISTS) console.log("Container found:", container);
+
+  // If the expected container isn't found due to malformed HTML, try broader search
+  let fallbackContainer = null;
+  if (!container) {
+    if (DEBUG_FAMILY_LISTS) console.log("Primary container not found, trying fallback searches...");
+    fallbackContainer =
+      document.querySelector("#nav-familyContent") ||
+      document.querySelector("#Family-pane") ||
+      document.querySelector("body");
+    if (DEBUG_FAMILY_LISTS) console.log("Fallback container:", fallbackContainer);
+  }
+
+  const searchContainer = container || fallbackContainer;
   familyData = newFamilyData();
 
   // Parse parents
-  const parentsBlock = container.querySelector("#Parents");
+  const parentsBlock = searchContainer ? searchContainer.querySelector("#Parents") : null;
+  if (DEBUG_FAMILY_LISTS) console.log("Parents block found:", parentsBlock);
   if (parentsBlock) {
     let parsedParents = parseBlock(parentsBlock, "parent").filter((r) => r.Name && !/^(edit)$/i.test(r.Name));
     const bracketed = parseBracketedUnknownInBlock(parentsBlock).filter((b) => {
@@ -415,7 +432,8 @@ function parseInitialData() {
   }
 
   // Parse siblings
-  const siblingsBlock = container.querySelector("#Siblings");
+  const siblingsBlock = searchContainer ? searchContainer.querySelector("#Siblings") : null;
+  if (DEBUG_FAMILY_LISTS) console.log("Siblings block found:", siblingsBlock);
   if (siblingsBlock) {
     // const parsedSiblings = parseBlock(siblingsBlock, "sibling");.filter(
     const x = parseBlock(siblingsBlock, "sibling");
@@ -449,7 +467,7 @@ function parseInitialData() {
           sibling.halfMarker = `<span class="SMALL" title="${profilePerson.FullName} and sibling share one parent."> [half]</span>`;
         }
       } else {
-        console.log(`Sibling not found in parsedSiblings: ${sibling.FullName}`);
+        if (DEBUG_FAMILY_LISTS) console.log(`Sibling not found in parsedSiblings: ${sibling.FullName}`);
       }
     });
 
@@ -460,8 +478,9 @@ function parseInitialData() {
   }
 
   // Parse spouses
-  const spousesBlock = container.querySelectorAll(".spouse");
-  if (spousesBlock) {
+  const spousesBlock = searchContainer ? searchContainer.querySelectorAll(".spouse") : [];
+  if (DEBUG_FAMILY_LISTS) console.log("Spouses block found:", spousesBlock, "length:", spousesBlock.length);
+  if (spousesBlock && spousesBlock.length > 0) {
     let spouseEntries = parseSpousesBlock(spousesBlock);
     spouseEntries = spouseEntries.filter(
       (r) => r.Name && r.Name.trim() && excludeBrackets.includes(r.Name.trim().toLowerCase()) === false
@@ -487,12 +506,13 @@ function parseInitialData() {
     });
     familyData.spouses = spouseEntries;
   } else {
-    console.log("No spouses block found.");
+    if (DEBUG_FAMILY_LISTS) console.log("No spouses block found.");
     delete familyData.spouses;
   }
 
   // Parse children
-  const childrenBlock = container.querySelector("#Children");
+  const childrenBlock = searchContainer ? searchContainer.querySelector("#Children") : null;
+  if (DEBUG_FAMILY_LISTS) console.log("Children block found:", childrenBlock);
   if (childrenBlock) {
     let parsedChildren = parseBlock(childrenBlock, "children");
     parsedChildren = parsedChildren.filter(
@@ -538,7 +558,7 @@ function buildFamilyListsFromData(familyData) {
   // only show a spouses section if we actually have spouse data
   // or if the original page offered an Add/Edit Spouses link
   if ((familyData.spouses && familyData.spouses.length > 0) || pencils.spouses || pencils.hasAddSpouse) {
-    if (familyData.spouses.length > 0) {
+    if (familyData.spouses && familyData.spouses.length > 0) {
       container.appendChild(buildSpousesSection(familyData.spouses));
     } else {
       // no spouses, but pencils.spouses is truthy → render “[spouse?]”
@@ -1553,34 +1573,79 @@ function addHalfsStyle() {
  * Moves the family lists to a different part of the page based on options.
  */
 function moveFamilyLists() {
-  const $nVitals = $("#nVitals");
-  const sidebarHeading = $nVitals.find(".sidebar-heading");
-  if (window.innerWidth < 992) {
-    sidebarHeading.hide();
-    $nVitals.removeClass("row").appendTo(treePersonBit);
-  } else if (options.moveToRight) {
-    $("body").addClass("familyListsRight");
-    if (options.showSidebarHeading) {
-      sidebarHeading.show();
+  try {
+    const width = window.innerWidth;
+    const t0 = performance.now();
+    const $nVitals = $("#nVitals");
+    if (!$nVitals.length) {
+      console.warn("[changeFamilyLists] moveFamilyLists: #nVitals not found.");
+      return;
     }
-    $nVitals.addClass("row");
-    let $before;
-    if (options.familyListPosition === "beforeManager") {
-      $before = $(".col-lg-4 #Profile-Data");
-    } else if (options.familyListPosition === "beforePhotos") {
-      $before = $(".col-lg-4 #Photos");
-    }
-    if (!$before?.length) {
-      $before = $("#DNA-Connections");
-      if (!$before.length) {
-        $before = $(".col-lg-4 #Research");
+    const sidebarHeading = $nVitals.find(".sidebar-heading");
+    console.log("[changeFamilyLists] moveFamilyLists: start", {
+      width,
+      moveToRightOption: options?.moveToRight,
+      showSidebarHeading: options?.showSidebarHeading,
+      familyListPosition: options?.familyListPosition,
+      isVertical: $nVitals.hasClass("vertical"),
+    });
+
+    if (width < 992) {
+      console.log("[changeFamilyLists] Using mobile layout (width < 992)");
+      sidebarHeading.hide();
+      $nVitals.removeClass("row").appendTo(treePersonBit);
+      console.log("[changeFamilyLists] Appended #nVitals back to treePersonBit (mobile)");
+    } else if (options.moveToRight) {
+      console.log("[changeFamilyLists] Using desktop right-column layout");
+      $("body").addClass("familyListsRight");
+      if (options.showSidebarHeading) {
+        sidebarHeading.show();
+        console.log("[changeFamilyLists] Sidebar heading shown");
+      } else {
+        sidebarHeading.hide();
+        console.log("[changeFamilyLists] Sidebar heading hidden (option disabled)");
       }
-    }
-    if ($before.length) {
-      $nVitals.insertBefore($before);
+      $nVitals.addClass("row");
+
+      let $before;
+      if (options.familyListPosition === "beforeManager") {
+        $before = $(".col-lg-4 #Profile-Data");
+        console.log("[changeFamilyLists] Target position: beforeManager", { found: !!$before.length });
+      } else if (options.familyListPosition === "beforePhotos") {
+        $before = $(".col-lg-4 #Photos");
+        console.log("[changeFamilyLists] Target position: beforePhotos", { found: !!$before.length });
+      }
+
+      if (!$before?.length) {
+        $before = $("#DNA-Connections");
+        if ($before.length) {
+          console.log("[changeFamilyLists] Fallback target: #DNA-Connections");
+        } else {
+          $before = $(".col-lg-4 #Research");
+          if ($before.length) {
+            console.log("[changeFamilyLists] Second fallback target: #Research");
+          }
+        }
+      }
+
+      if ($before.length) {
+        $nVitals.insertBefore($before);
+        console.log("[changeFamilyLists] Inserted #nVitals before target", { targetId: $before.attr("id") });
+      } else if ($(".col-lg-4 #Profile-Data").length) {
+        $nVitals.insertAfter($(".col-lg-4 #Profile-Data"));
+        console.log("[changeFamilyLists] Inserted #nVitals after #Profile-Data (final fallback)");
+      } else {
+        console.warn("[changeFamilyLists] No suitable insertion point found; leaving in place.");
+      }
     } else {
-      $nVitals.insertAfter(".col-lg-4 #Profile-Data");
+      console.log("[changeFamilyLists] moveToRight option disabled; no action for desktop width.");
     }
+
+    console.log("[changeFamilyLists] moveFamilyLists: done", {
+      elapsedMs: (performance.now() - t0).toFixed(1),
+    });
+  } catch (e) {
+    console.error("[changeFamilyLists] moveFamilyLists error:", e);
   }
 }
 
@@ -2151,7 +2216,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   pencils = getInitialPencils();
   moveMetaGender();
   const familyData = parseInitialData();
-  console.log("Family data:", familyData);
+  if (DEBUG_FAMILY_LISTS) console.log("Family data:", familyData);
   const treePerson = $("#Family-pane div.tree--person");
   // Retain only the first .VITALS element.
   treePerson.children().not(":first").remove();
