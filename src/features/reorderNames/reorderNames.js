@@ -254,15 +254,27 @@ shouldInitializeFeature("reorderNames").then((result) => {
       [...primaryFirstNameScripts].some((script) => script !== "latin") ||
       [...primaryLastNameScripts].some((script) => script !== "latin");
 
-    console.log("Debug Ester - primaryHasNonLatin:", primaryHasNonLatin);
+    // Also check quoted nicknames for non-Latin scripts
+    const quotedNicknameScripts = new Set();
+    quotedNicknameFields.forEach((field) => {
+      if (field) {
+        getScriptsInText(field).forEach((script) => quotedNicknameScripts.add(script));
+      }
+    });
 
-    if (!primaryHasNonLatin) {
+    const quotedNicknameHasNonLatin = [...quotedNicknameScripts].some((script) => script !== "latin");
+
+    console.log("Debug Ester - primaryHasNonLatin:", primaryHasNonLatin);
+    console.log("Debug Ester - quotedNicknameHasNonLatin:", quotedNicknameHasNonLatin);
+
+    if (!primaryHasNonLatin && !quotedNicknameHasNonLatin) {
       // Check if non-Latin scripts are only in aka context
       const akaOnlyScripts = matchingScripts.every((script) => {
-        // Check if this script appears in primary names
+        // Check if this script appears in primary names or quoted nicknames
         const inPrimaryFirst = [...primaryFirstNameScripts].includes(script);
         const inPrimaryLast = [...primaryLastNameScripts].includes(script);
-        return !inPrimaryFirst && !inPrimaryLast;
+        const inQuotedNicknames = [...quotedNicknameScripts].includes(script);
+        return !inPrimaryFirst && !inPrimaryLast && !inQuotedNicknames;
       });
 
       console.log("Debug Ester - akaOnlyScripts:", akaOnlyScripts);
