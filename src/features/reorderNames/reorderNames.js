@@ -15,6 +15,7 @@ shouldInitializeFeature("reorderNames").then((result) => {
     gr: /[\u0370-\u03FF\u1F00-\u1FFF]/,
     ko: /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]/,
     zh: /[\u4E00-\u9FFF]/,
+    ja: /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/,
     en: /[A-Za-z]/,
   };
 
@@ -47,19 +48,46 @@ shouldInitializeFeature("reorderNames").then((result) => {
     return Object.keys(langChecks).some((lang) => lang !== "en" && containsLang(text, lang));
   };
 
+  // Helper function to detect specific Japanese scripts
+  const isKanji = (text) => /[\u4E00-\u9FFF]/.test(text);
+  const isHiragana = (text) => /[\u3040-\u309F]/.test(text);
+  const isKatakana = (text) => /[\u30A0-\u30FF]/.test(text);
+  const isKana = (text) => isHiragana(text) || isKatakana(text);
+
+  // Helper function to get specific Japanese script types
+  const getJapaneseScriptType = (text) => {
+    if (isKana(text) && !isKanji(text)) return "kana";
+    if (isKanji(text) && !isKana(text)) return "kanji";
+    if (isKanji(text) && isKana(text)) return "mixed";
+    return "unknown";
+  };
+
   const isHebrew = (text) => containsLang(text, "he");
   const isGreek = (text) => containsLang(text, "gr");
   const isCyrillic = (text) => containsLang(text, "ru");
-  const isCJK = (text) => containsLang(text, "zh");
+  const isChinese = (text) => containsLang(text, "zh");
   const isKorean = (text) => containsLang(text, "ko");
+  const isJapanese = (text) => containsLang(text, "ja");
 
-  const getScriptsInText = (text) => {
+  const getScriptsInText = (text, isJapaneseContext = false) => {
     const scripts = [];
     if (containsLang(text, "he")) scripts.push("hebrew");
     if (containsLang(text, "gr")) scripts.push("greek");
     if (containsLang(text, "ru")) scripts.push("cyrillic");
-    if (containsLang(text, "zh")) scripts.push("cjk");
+
+    // Handle CJK disambiguation
+    if (containsLang(text, "zh")) {
+      if (isJapaneseContext) {
+        // If we know this is Japanese context, treat kanji as Japanese
+        scripts.push("japanese");
+      } else {
+        // Otherwise, treat as Chinese
+        scripts.push("chinese");
+      }
+    }
+
     if (containsLang(text, "ko")) scripts.push("korean");
+    if (containsLang(text, "ja")) scripts.push("japanese");
     if (containsLang(text, "en")) scripts.push("latin");
     return scripts;
   };
@@ -93,6 +121,17 @@ shouldInitializeFeature("reorderNames").then((result) => {
 
     // Extract honorific prefix if present
     const honorificPrefix = clean(vitals.querySelector('[itemprop="honorificPrefix"]')?.textContent || "");
+
+    // Check if this is a Japanese person by looking at birth location
+    const isJapaneseContext = (() => {
+      const birthLocation = document.querySelector('[itemprop="name"][data-cy="birth-location"]');
+      if (birthLocation) {
+        const locationText = clean(birthLocation.textContent);
+        // Check for Japan in various forms
+        return /japan|日本|にっぽん|にほん/i.test(locationText);
+      }
+      return false;
+    })();
 
     // Classify strong elements
     const firstNameStrongs = [];
@@ -186,7 +225,12 @@ shouldInitializeFeature("reorderNames").then((result) => {
         .map((a) => clean(a.textContent)),
     ];
 
-    const allFirstNameFields = [...primaryFirstNameFields, ...quotedNicknameFields, ...firstNameStrongs, ...parentheticalNames];
+    const allFirstNameFields = [
+      ...primaryFirstNameFields,
+      ...quotedNicknameFields,
+      ...firstNameStrongs,
+      ...parentheticalNames,
+    ];
 
     const allLastNameFields = [...primaryLastNameFields, ...lastNameStrongs];
 
@@ -214,14 +258,14 @@ shouldInitializeFeature("reorderNames").then((result) => {
     const allFirstNameScripts = new Set();
     allFirstNameFields.forEach((field) => {
       if (field) {
-        getScriptsInText(field).forEach((script) => allFirstNameScripts.add(script));
+        getScriptsInText(field, isJapaneseContext).forEach((script) => allFirstNameScripts.add(script));
       }
     });
 
     const allLastNameScripts = new Set();
     allLastNameFields.forEach((field) => {
       if (field) {
-        getScriptsInText(field).forEach((script) => allLastNameScripts.add(script));
+        getScriptsInText(field, isJapaneseContext).forEach((script) => allLastNameScripts.add(script));
       }
     });
 
@@ -229,14 +273,14 @@ shouldInitializeFeature("reorderNames").then((result) => {
     const primaryFirstNameScripts = new Set();
     primaryFirstNameFields.forEach((field) => {
       if (field) {
-        getScriptsInText(field).forEach((script) => primaryFirstNameScripts.add(script));
+        getScriptsInText(field, isJapaneseContext).forEach((script) => primaryFirstNameScripts.add(script));
       }
     });
 
     const primaryLastNameScripts = new Set();
     primaryLastNameFields.forEach((field) => {
       if (field) {
-        getScriptsInText(field).forEach((script) => primaryLastNameScripts.add(script));
+        getScriptsInText(field, isJapaneseContext).forEach((script) => primaryLastNameScripts.add(script));
       }
     });
 
@@ -268,7 +312,7 @@ shouldInitializeFeature("reorderNames").then((result) => {
     const quotedNicknameScripts = new Set();
     quotedNicknameFields.forEach((field) => {
       if (field) {
-        getScriptsInText(field).forEach((script) => quotedNicknameScripts.add(script));
+        getScriptsInText(field, isJapaneseContext).forEach((script) => quotedNicknameScripts.add(script));
       }
     });
 
@@ -333,24 +377,45 @@ shouldInitializeFeature("reorderNames").then((result) => {
     // Build English given names - prefer parenthetical Latin alternatives if primary is non-Latin
     const givenName = clean(vitals.querySelector('[itemprop="givenName"]')?.textContent || "");
     const middleName = clean(vitals.querySelector('[itemprop="additionalName"]')?.textContent || "");
-    
+
     let engGiven = given;
-    
+
     // If no Latin given name found and we have parenthetical alternatives, use those
     if (!engGiven && parentheticalNames.length > 0) {
       const latinParentheticals = parentheticalNames
-        .map(p => p.replace(/[()]/g, "").trim())
-        .filter(p => /^[A-Za-z]/.test(p) && !hasNonLatin(p));
+        .map((p) => p.replace(/[()]/g, "").trim())
+        .filter((p) => /^[A-Za-z]/.test(p) && !hasNonLatin(p));
       if (latinParentheticals.length > 0) {
         engGiven = latinParentheticals.join(" ");
       }
     }
-    
+
     // Fallback to original given names only if they're Latin
     if (!engGiven) {
       const givenNames = [givenName, middleName].filter(Boolean).join(" ");
       if (givenNames && /^[A-Za-z]/.test(givenNames) && !hasNonLatin(givenNames)) {
         engGiven = givenNames;
+      }
+    }
+
+    // For Japanese context, add romaji variants from quoted nicknames in brackets
+    if (isJapaneseContext && engGiven) {
+      const romajiVariants = [];
+      quotedNicknameFields.forEach((nickname) => {
+        const cleanNickname = nickname.replace(/["']/g, "").trim();
+        if (cleanNickname.includes(",")) {
+          const parts = cleanNickname.split(",").map((p) => p.trim());
+          parts.forEach((part) => {
+            // Look for romaji variants (contains Latin + diacritics, different from main engGiven)
+            if (/[A-Za-z]/.test(part) && !hasNonLatin(part) && part !== engGiven && !romajiVariants.includes(part)) {
+              romajiVariants.push(part);
+            }
+          });
+        }
+      });
+
+      if (romajiVariants.length > 0) {
+        engGiven += ` [${romajiVariants.join(", ")}]`;
       }
     }
 
@@ -409,7 +474,7 @@ shouldInitializeFeature("reorderNames").then((result) => {
     if (currentSurname) {
       const currentSurnameText = clean(currentSurname.textContent);
       const isCurrentSurnameNonLatin = hasNonLatin(currentSurnameText);
-      const currentSurnameScripts = getScriptsInText(currentSurnameText);
+      const currentSurnameScripts = getScriptsInText(currentSurnameText, isJapaneseContext);
       const currentSurnameInMatchingScript = matchingScripts.some((script) => currentSurnameScripts.includes(script));
 
       // Include current surname in English line only if it's Latin or won't appear in script lines
@@ -435,12 +500,137 @@ shouldInitializeFeature("reorderNames").then((result) => {
 
     // Create lines for each matching non-Latin script
     matchingScripts.forEach((script) => {
+      // Special handling for Japanese - create separate lines for kanji and kana
+      if (script === "japanese" && isJapaneseContext) {
+        // Collect all Japanese names by type
+        const kanjiNames = { first: [], last: [] };
+        const kanaNames = { first: [], last: [] };
+        const romajiVariants = [];
+
+        // Add primary given name if it's kanji
+        const primaryGivenName = clean(vitals.querySelector('[itemprop="givenName"]')?.textContent || "");
+        if (primaryGivenName && getScriptsInText(primaryGivenName, isJapaneseContext).includes("japanese")) {
+          const scriptType = getJapaneseScriptType(primaryGivenName);
+          if (scriptType === "kanji" || scriptType === "mixed") {
+            kanjiNames.first.push(primaryGivenName);
+          }
+          if (scriptType === "kana") {
+            kanaNames.first.push(primaryGivenName);
+          }
+        }
+
+        // Process quoted nicknames carefully - extract individual names
+        quotedNicknameFields.forEach((nickname) => {
+          const cleanNickname = nickname.replace(/["']/g, "").trim();
+          if (cleanNickname.includes(",")) {
+            const parts = cleanNickname.split(",").map((p) => p.trim());
+            parts.forEach((part) => {
+              // Skip if this is romaji (contains Latin characters)
+              if (/[A-Za-z]/.test(part)) {
+                romajiVariants.push(part);
+                return;
+              }
+
+              if (getScriptsInText(part, isJapaneseContext).includes("japanese")) {
+                const scriptType = getJapaneseScriptType(part);
+                if (scriptType === "kanji") {
+                  // Only add if it's not already present and not the primary given name
+                  if (part !== primaryGivenName && !kanjiNames.first.includes(part)) {
+                    kanjiNames.first.push(part);
+                  }
+                } else if (scriptType === "kana") {
+                  if (!kanaNames.first.includes(part)) {
+                    kanaNames.first.push(part);
+                  }
+                }
+              }
+            });
+          }
+        });
+
+        // Add Japanese surnames
+        if (formerlySurname) {
+          const formerlySurnameText = clean(formerlySurname.textContent);
+          if (getScriptsInText(formerlySurnameText, isJapaneseContext).includes("japanese")) {
+            const scriptType = getJapaneseScriptType(formerlySurnameText);
+            if (scriptType === "kanji" || scriptType === "mixed") {
+              kanjiNames.last.push(formerlySurname.outerHTML);
+            }
+          }
+        }
+
+        // Add Japanese aka surnames
+        lastNameStrongs.forEach((name) => {
+          if (name.includes("<a href=")) {
+            const textMatch = name.match(/>([^<]+)</);
+            if (textMatch && getScriptsInText(textMatch[1], isJapaneseContext).includes("japanese")) {
+              const scriptType = getJapaneseScriptType(textMatch[1]);
+              if (scriptType === "kana") {
+                kanaNames.last.push(name); // Keep the HTML link
+              }
+            }
+          } else if (getScriptsInText(name, isJapaneseContext).includes("japanese")) {
+            const scriptType = getJapaneseScriptType(name);
+            if (scriptType === "kana") {
+              kanaNames.last.push(name);
+            }
+          }
+        });
+
+        // Create Japanese line: family name first, then given name, then kana reading in brackets
+        if (
+          kanjiNames.first.length > 0 ||
+          kanjiNames.last.length > 0 ||
+          kanaNames.first.length > 0 ||
+          kanaNames.last.length > 0
+        ) {
+          let japaneseLine = "";
+
+          // Start with kanji family name
+          if (kanjiNames.last.length > 0) {
+            japaneseLine += kanjiNames.last.join(" ");
+          }
+
+          // Add kanji given name
+          if (kanjiNames.first.length > 0) {
+            if (japaneseLine) japaneseLine += " ";
+            japaneseLine += kanjiNames.first.join(" ");
+          }
+
+          // Add kana reading in square brackets
+          if (kanaNames.last.length > 0 || kanaNames.first.length > 0) {
+            let kanaReading = "";
+            if (kanaNames.last.length > 0) {
+              kanaReading += kanaNames.last.join(" ");
+            }
+            if (kanaNames.first.length > 0) {
+              if (kanaReading) kanaReading += " ";
+              kanaReading += kanaNames.first.join(" ");
+            }
+            if (kanaReading) {
+              japaneseLine += ` [${kanaReading}]`;
+            }
+          }
+
+          if (honorificPrefix && japaneseLine.trim()) {
+            japaneseLine = `${honorificPrefix} ${japaneseLine}`;
+          }
+
+          if (japaneseLine.trim()) {
+            lines.push(japaneseLine);
+          }
+        }
+
+        return; // Skip the regular script processing for Japanese
+      }
+
+      // Regular script processing for non-Japanese scripts
       const scriptFirstNames = [];
       const scriptLastNames = [];
 
       // Collect first names for this script
       firstNameStrongs.forEach((name) => {
-        if (getScriptsInText(name).includes(script)) {
+        if (getScriptsInText(name, isJapaneseContext).includes(script)) {
           // For Hebrew, remove parentheses
           if (script === "hebrew") {
             const cleanName = name.replace(/[()]/g, "").trim();
@@ -453,13 +643,21 @@ shouldInitializeFeature("reorderNames").then((result) => {
 
       // Also include primary given name if it matches this script and isn't already included
       const primaryGivenName = clean(vitals.querySelector('[itemprop="givenName"]')?.textContent || "");
-      if (primaryGivenName && getScriptsInText(primaryGivenName).includes(script) && !scriptFirstNames.includes(primaryGivenName)) {
+      if (
+        primaryGivenName &&
+        getScriptsInText(primaryGivenName, isJapaneseContext).includes(script) &&
+        !scriptFirstNames.includes(primaryGivenName)
+      ) {
         scriptFirstNames.push(primaryGivenName);
       }
 
       // Also include additional name (middle name) if it matches this script and isn't already included
       const additionalName = clean(vitals.querySelector('[itemprop="additionalName"]')?.textContent || "");
-      if (additionalName && getScriptsInText(additionalName).includes(script) && !scriptFirstNames.includes(additionalName)) {
+      if (
+        additionalName &&
+        getScriptsInText(additionalName, isJapaneseContext).includes(script) &&
+        !scriptFirstNames.includes(additionalName)
+      ) {
         scriptFirstNames.push(additionalName);
       }
 
@@ -469,12 +667,12 @@ shouldInitializeFeature("reorderNames").then((result) => {
         if (cleanNickname.includes(",")) {
           const parts = cleanNickname.split(",").map((p) => p.trim());
           parts.forEach((part) => {
-            if (getScriptsInText(part).includes(script)) {
+            if (getScriptsInText(part, isJapaneseContext).includes(script)) {
               scriptFirstNames.push(part); // No quotes in script lines
               usedFromQuotedNicknames.add(part);
             }
           });
-        } else if (getScriptsInText(cleanNickname).includes(script)) {
+        } else if (getScriptsInText(cleanNickname, isJapaneseContext).includes(script)) {
           scriptFirstNames.push(cleanNickname); // No quotes in script lines
           usedFromQuotedNicknames.add(cleanNickname);
         }
@@ -483,7 +681,7 @@ shouldInitializeFeature("reorderNames").then((result) => {
       // Collect parenthetical names for this script
       parentheticalNames.forEach((parenthetical) => {
         const cleanParenthetical = parenthetical.replace(/[()]/g, "").trim();
-        if (getScriptsInText(cleanParenthetical).includes(script)) {
+        if (getScriptsInText(cleanParenthetical, isJapaneseContext).includes(script)) {
           scriptFirstNames.push(cleanParenthetical); // No parentheses in script lines
         }
       });
@@ -494,10 +692,10 @@ shouldInitializeFeature("reorderNames").then((result) => {
         if (name.includes("<a href=")) {
           // Extract text from link to check script
           const textMatch = name.match(/>([^<]+)</);
-          if (textMatch && getScriptsInText(textMatch[1]).includes(script)) {
+          if (textMatch && getScriptsInText(textMatch[1], isJapaneseContext).includes(script)) {
             scriptLastNames.push(name);
           }
-        } else if (getScriptsInText(name).includes(script)) {
+        } else if (getScriptsInText(name, isJapaneseContext).includes(script)) {
           // For Hebrew, remove parentheses
           if (script === "hebrew") {
             const cleanName = name.replace(/[()]/g, "").trim();
@@ -511,7 +709,7 @@ shouldInitializeFeature("reorderNames").then((result) => {
       // Also check current surname if it matches this script
       if (currentSurname) {
         const currentSurnameText = clean(currentSurname.textContent);
-        if (getScriptsInText(currentSurnameText).includes(script)) {
+        if (getScriptsInText(currentSurnameText, isJapaneseContext).includes(script)) {
           scriptLastNames.push(currentSurname.outerHTML);
         }
       }
@@ -519,7 +717,7 @@ shouldInitializeFeature("reorderNames").then((result) => {
       // Also check formerly surname if it matches this script
       if (formerlySurname && formerlySurname !== currentSurname) {
         const formerlySurnameText = clean(formerlySurname.textContent);
-        if (getScriptsInText(formerlySurnameText).includes(script)) {
+        if (getScriptsInText(formerlySurnameText, isJapaneseContext).includes(script)) {
           scriptLastNames.push(formerlySurname.outerHTML);
         }
       }
@@ -534,11 +732,11 @@ shouldInitializeFeature("reorderNames").then((result) => {
         if (strongEl.querySelector("a[href*='/genealogy/']") || /^["'].*["']$/.test(text)) return;
 
         const precedingText = getPrecedingText(strongEl);
-        if (precedingText.includes("aka") && getScriptsInText(text).includes(script)) {
+        if (precedingText.includes("aka") && getScriptsInText(text, isJapaneseContext).includes(script)) {
           if (text.includes(",")) {
             const parts = text.split(",").map((p) => p.trim());
             parts.forEach((part) => {
-              if (getScriptsInText(part).includes(script)) {
+              if (getScriptsInText(part, isJapaneseContext).includes(script)) {
                 if (script === "hebrew") {
                   const cleanPart = part.replace(/[()]/g, "").trim();
                   scriptLastNames.push(cleanPart);
@@ -563,7 +761,15 @@ shouldInitializeFeature("reorderNames").then((result) => {
         const firstNamePart = scriptFirstNames.length > 0 ? scriptFirstNames.join(" ") : "";
         const lastNamePart = scriptLastNames.length > 0 ? scriptLastNames.join(" ") : "";
 
-        let scriptLine = [firstNamePart, lastNamePart].filter(Boolean).join(" ");
+        let scriptLine;
+
+        // For East Asian languages (Chinese, Korean, Japanese), put family name first
+        if (script === "chinese" || script === "korean" || script === "japanese") {
+          scriptLine = [lastNamePart, firstNamePart].filter(Boolean).join(" ");
+        } else {
+          // For other scripts, keep given name first
+          scriptLine = [firstNamePart, lastNamePart].filter(Boolean).join(" ");
+        }
 
         // Add honorific prefix if present
         if (honorificPrefix && scriptLine.trim()) {
@@ -593,7 +799,7 @@ shouldInitializeFeature("reorderNames").then((result) => {
         // Build a simple Latin fallback line to replace the complex English line
         // Use parenthetical names as Latin alternatives if available
         let latinGivenName = "";
-        
+
         // Look for Latin names in parenthetical names first
         parentheticalNames.forEach((parenthetical) => {
           const cleanParenthetical = parenthetical.replace(/[()]/g, "").trim();
@@ -601,7 +807,7 @@ shouldInitializeFeature("reorderNames").then((result) => {
             latinGivenName = cleanParenthetical;
           }
         });
-        
+
         // Fallback to engGiven if no parenthetical Latin name found
         if (!latinGivenName) {
           latinGivenName = engGiven
@@ -609,7 +815,7 @@ shouldInitializeFeature("reorderNames").then((result) => {
             .replace(/["']/g, "")
             .trim();
         }
-        
+
         const latinSurnameLink = genealogyLinks.find((a) => /^[A-Za-z]/.test(clean(a.textContent)));
         let engSurnamePiece = null;
         if (latinSurnameLink) {
@@ -619,12 +825,12 @@ shouldInitializeFeature("reorderNames").then((result) => {
         }
 
         let engFallback = [latinGivenName, engSurnamePiece].filter(Boolean).join(" ").trim();
-        
+
         // Add honorific prefix to Latin fallback line
         if (honorificPrefix && engFallback) {
           engFallback = `${honorificPrefix} ${engFallback}`;
         }
-        
+
         if (engFallback) {
           // Replace the first (English) line with the simpler version
           lines[1] = engFallback;
@@ -632,6 +838,19 @@ shouldInitializeFeature("reorderNames").then((result) => {
       }
     }
 
-    vitals.innerHTML = lines.join("<br>\n");
+    // Remove duplicate lines before final output
+    const uniqueLines = [];
+    const seen = new Set();
+
+    lines.forEach((line) => {
+      // Normalize the line for comparison (remove extra whitespace)
+      const normalizedLine = line.replace(/\s+/g, " ").trim();
+      if (!seen.has(normalizedLine)) {
+        seen.add(normalizedLine);
+        uniqueLines.push(line);
+      }
+    });
+
+    vitals.innerHTML = uniqueLines.join("<br>\n");
   });
 });
