@@ -91,10 +91,14 @@ shouldInitializeFeature("reorderNames").then((result) => {
     const givenSpans = Array.from(vitals.querySelectorAll('[itemprop="givenName"]')).map((s) => clean(s.textContent));
     const lnab = clean(vitals.querySelector('meta[itemprop="familyName"]')?.getAttribute("content") || "");
 
+    // Extract honorific prefix if present
+    const honorificPrefix = clean(vitals.querySelector('[itemprop="honorificPrefix"]')?.textContent || "");
+
     // Classify strong elements
     const firstNameStrongs = [];
     const lastNameStrongs = [];
     const quotedNicknameFields = [];
+    const parentheticalNames = []; // For names in parentheses like "(Menachem Mendel)"
 
     const getPrecedingText = (element) => {
       let precedingText = "";
@@ -146,6 +150,12 @@ shouldInitializeFeature("reorderNames").then((result) => {
         return;
       }
 
+      // Check if this is a parenthetical name like "(Menachem Mendel)"
+      if (/^\([^)]+\)$/.test(text)) {
+        parentheticalNames.push(text);
+        return;
+      }
+
       // Classify based on preceding markers
       if (precedingText.includes("formerly") || precedingText.includes("aka")) {
         lastNameStrongs.push(text);
@@ -176,7 +186,7 @@ shouldInitializeFeature("reorderNames").then((result) => {
         .map((a) => clean(a.textContent)),
     ];
 
-    const allFirstNameFields = [...primaryFirstNameFields, ...quotedNicknameFields, ...firstNameStrongs];
+    const allFirstNameFields = [...primaryFirstNameFields, ...quotedNicknameFields, ...firstNameStrongs, ...parentheticalNames];
 
     const allLastNameFields = [...primaryLastNameFields, ...lastNameStrongs];
 
@@ -320,12 +330,29 @@ shouldInitializeFeature("reorderNames").then((result) => {
 
     const given = unique([...givenSpans, ...filteredQuotedNick].filter((t) => /^[A-Za-z"']/.test(t))).join(" ");
 
-    // Build English given names including middle name
+    // Build English given names - prefer parenthetical Latin alternatives if primary is non-Latin
     const givenName = clean(vitals.querySelector('[itemprop="givenName"]')?.textContent || "");
     const middleName = clean(vitals.querySelector('[itemprop="additionalName"]')?.textContent || "");
-    const givenNames = [givenName, middleName].filter(Boolean).join(" ");
-
-    const engGiven = given || givenNames;
+    
+    let engGiven = given;
+    
+    // If no Latin given name found and we have parenthetical alternatives, use those
+    if (!engGiven && parentheticalNames.length > 0) {
+      const latinParentheticals = parentheticalNames
+        .map(p => p.replace(/[()]/g, "").trim())
+        .filter(p => /^[A-Za-z]/.test(p) && !hasNonLatin(p));
+      if (latinParentheticals.length > 0) {
+        engGiven = latinParentheticals.join(" ");
+      }
+    }
+    
+    // Fallback to original given names only if they're Latin
+    if (!engGiven) {
+      const givenNames = [givenName, middleName].filter(Boolean).join(" ");
+      if (givenNames && /^[A-Za-z]/.test(givenNames) && !hasNonLatin(givenNames)) {
+        engGiven = givenNames;
+      }
+    }
 
     // Find current surname (CLN) - could be Latin or non-Latin
     const currentSurname = genealogyLinks.find((a) => {
@@ -375,7 +402,7 @@ shouldInitializeFeature("reorderNames").then((result) => {
     });
 
     // Build English line
-    let engLine = engGiven;
+    let engLine = honorificPrefix ? `${honorificPrefix} ${engGiven}` : engGiven;
     let currentSurnameShownInEnglish = false;
 
     // Only include current surname if it's Latin or if no non-Latin scripts match
@@ -424,6 +451,18 @@ shouldInitializeFeature("reorderNames").then((result) => {
         }
       });
 
+      // Also include primary given name if it matches this script and isn't already included
+      const primaryGivenName = clean(vitals.querySelector('[itemprop="givenName"]')?.textContent || "");
+      if (primaryGivenName && getScriptsInText(primaryGivenName).includes(script) && !scriptFirstNames.includes(primaryGivenName)) {
+        scriptFirstNames.push(primaryGivenName);
+      }
+
+      // Also include additional name (middle name) if it matches this script and isn't already included
+      const additionalName = clean(vitals.querySelector('[itemprop="additionalName"]')?.textContent || "");
+      if (additionalName && getScriptsInText(additionalName).includes(script) && !scriptFirstNames.includes(additionalName)) {
+        scriptFirstNames.push(additionalName);
+      }
+
       // Collect quoted nicknames for this script
       quotedNicknameFields.forEach((nickname) => {
         const cleanNickname = nickname.replace(/["']/g, "").trim();
@@ -438,6 +477,14 @@ shouldInitializeFeature("reorderNames").then((result) => {
         } else if (getScriptsInText(cleanNickname).includes(script)) {
           scriptFirstNames.push(cleanNickname); // No quotes in script lines
           usedFromQuotedNicknames.add(cleanNickname);
+        }
+      });
+
+      // Collect parenthetical names for this script
+      parentheticalNames.forEach((parenthetical) => {
+        const cleanParenthetical = parenthetical.replace(/[()]/g, "").trim();
+        if (getScriptsInText(cleanParenthetical).includes(script)) {
+          scriptFirstNames.push(cleanParenthetical); // No parentheses in script lines
         }
       });
 
@@ -516,7 +563,12 @@ shouldInitializeFeature("reorderNames").then((result) => {
         const firstNamePart = scriptFirstNames.length > 0 ? scriptFirstNames.join(" ") : "";
         const lastNamePart = scriptLastNames.length > 0 ? scriptLastNames.join(" ") : "";
 
-        const scriptLine = [firstNamePart, lastNamePart].filter(Boolean).join(" ");
+        let scriptLine = [firstNamePart, lastNamePart].filter(Boolean).join(" ");
+
+        // Add honorific prefix if present
+        if (honorificPrefix && scriptLine.trim()) {
+          scriptLine = `${honorificPrefix} ${scriptLine}`;
+        }
 
         if (scriptLine.trim()) {
           lines.push(scriptLine);
@@ -539,10 +591,25 @@ shouldInitializeFeature("reorderNames").then((result) => {
         lines.unshift(nonLatinLine);
 
         // Build a simple Latin fallback line to replace the complex English line
-        const engGivenSimple = engGiven
-          .replace(/^["']|["']$/g, "")
-          .replace(/["']/g, "")
-          .trim();
+        // Use parenthetical names as Latin alternatives if available
+        let latinGivenName = "";
+        
+        // Look for Latin names in parenthetical names first
+        parentheticalNames.forEach((parenthetical) => {
+          const cleanParenthetical = parenthetical.replace(/[()]/g, "").trim();
+          if (getScriptsInText(cleanParenthetical).includes("latin") && !hasNonLatin(cleanParenthetical)) {
+            latinGivenName = cleanParenthetical;
+          }
+        });
+        
+        // Fallback to engGiven if no parenthetical Latin name found
+        if (!latinGivenName) {
+          latinGivenName = engGiven
+            .replace(/^["']|["']$/g, "")
+            .replace(/["']/g, "")
+            .trim();
+        }
+        
         const latinSurnameLink = genealogyLinks.find((a) => /^[A-Za-z]/.test(clean(a.textContent)));
         let engSurnamePiece = null;
         if (latinSurnameLink) {
@@ -551,7 +618,13 @@ shouldInitializeFeature("reorderNames").then((result) => {
           engSurnamePiece = akaSurnames.join(", ");
         }
 
-        const engFallback = [engGivenSimple, engSurnamePiece].filter(Boolean).join(" ").trim();
+        let engFallback = [latinGivenName, engSurnamePiece].filter(Boolean).join(" ").trim();
+        
+        // Add honorific prefix to Latin fallback line
+        if (honorificPrefix && engFallback) {
+          engFallback = `${honorificPrefix} ${engFallback}`;
+        }
+        
         if (engFallback) {
           // Replace the first (English) line with the simpler version
           lines[1] = engFallback;
