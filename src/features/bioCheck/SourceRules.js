@@ -166,9 +166,9 @@ class SourceRules {
   #rnb = [];
   // loads from templates, each is name and status
   #navBox = [];
-  // loads from templates
+  // loads from templates, each is name and status
   #projectBox = [];
-  // loads from templates
+  // loads from templates, each is name and status
   #sticker = [];
 
   // recommended HTML tags
@@ -193,8 +193,6 @@ class SourceRules {
     "</sub",
     "<sup",
     "</sup",
-    "<span",
-    "</span",
   ];
   // strings that identify a census source
   // when used by itself or with nothing other than
@@ -264,6 +262,7 @@ class SourceRules {
     "gro death index",
     "online research",
     "own family tree",
+    "parish register",
     "source required",
     "title: marriage",
     "'''see also:'''",
@@ -279,6 +278,8 @@ class SourceRules {
     "internet records",
     "iowa death index",
     "personal records",
+    "parish registers",
+    "scotlands people",
     "research records",
     "various archives",
     "www.ancestry.com",
@@ -318,6 +319,7 @@ class SourceRules {
     "www.myheritage.com",
     "{{citation needed}}",
     "citing this record:",
+    "another family tree",
     "familysearch search",
     "from family records",
     "my heritage records",
@@ -459,6 +461,8 @@ class SourceRules {
     "virginia hanks",
     "teresa a. theodore",
     "michael eneriis",
+    "robert tierney webb",
+    "robert tierney webb ok",
 
 //   12345678901234
     "družinsko drevo",
@@ -512,6 +516,8 @@ class SourceRules {
     ".ftw",
     "replace this citation if there is another source",
     "replace this citation",
+    "family member and primary source",
+    "i am a primary source",
   ];
 
   // anywhere on a line is a valid source
@@ -526,6 +532,7 @@ class SourceRules {
     "added by",
     "entered by",
     "no sources.",
+    "uploaded by",
     "no repo record found",
     "source will be added by",
     "no sour record found",
@@ -551,6 +558,7 @@ class SourceRules {
     "personal knowledge",
     "firsthand knowledge",
     "first hand knowledge",
+    "first hand information",
     "direct knowledge",
     "af fyrstu hendi",
     "kot se spominja",
@@ -825,6 +833,7 @@ class SourceRules {
     "ancestrycom",
     "ancestry.uk",
     "ancestry.ca",
+    "bmd records",
     "bdm records",
     "my heritage",
     "my research",
@@ -842,17 +851,22 @@ class SourceRules {
     "see also",
     "freebmd",
     "hinshaw",
+    "census,",
     "family",
     "census",
     "bible",
+    "bmds,",
+    "bmds",
+    "bdms",
     "ibid",
     "----",
     "bmd",
+    "bdm",
     "---",
 //   1234567890
   ];
 
-    // list of sources not valid Pre1700 that are < 15 characterse
+    // list of sources not valid Pre1700 that are < 15 characters
   #invalidSourceListPre1700Short = [
 //   12345678901234
     "birth record",
@@ -939,14 +953,23 @@ class SourceRules {
           navBox.status = templates[i].status.toLowerCase().trim();
           this.#navBox.push(navBox);
         }
-        //if (templates[i].type.toLowerCase().trim() === 'navigation profile box') {
-          //this.#navBox.push(templates[i].name.toLowerCase().trim());
-        //}
         if (templates[i].type.toLowerCase().trim() === 'project box') {
-          this.#projectBox.push(templates[i].name.toLowerCase().trim());
+          let projectBox = {
+            name: "",
+            status: "",
+          };
+          projectBox.name = templates[i].name.toLowerCase().trim();
+          projectBox.status = templates[i].status.toLowerCase().trim();
+          this.#projectBox.push(projectBox);
         }
         if (templates[i].type.toLowerCase().trim() === 'sticker') {
-          this.#sticker.push(templates[i].name.toLowerCase().trim());
+          let sticker = {
+            name: "",
+            status: "",
+          };
+          sticker.name = templates[i].name.toLowerCase().trim();
+          sticker.status = templates[i].status.toLowerCase().trim();
+          this.#sticker.push(sticker);
         }
       }
       this.#isInit = true;
@@ -1050,11 +1073,48 @@ class SourceRules {
     });
     return stat;
   }
-
+  /**
+   * Return status value for Nav Box
+   * assumes the leading {{ removed and line is lower case
+   * @param {String} line to test
+   * @returns {String} status value or blank if not a nav box
+   */
   getNavBoxStatus(line) {
     let stat = "";
     let isFound = false;
     this.#navBox.find((element) => {
+      if (element.name === line) {
+        stat = element.status;
+      }
+    });
+    return stat;
+  }
+  /**
+   * Return status value for Project Box
+   * assumes the leading {{ removed and line is lower case
+   * @param {String} line to test
+   * @returns {String} status value or blank if not a Project box
+   */
+  getProjectBoxStatus(line) {
+    let stat = "";
+    let isFound = false;
+    this.#projectBox.find((element) => {
+      if (element.name === line) {
+        stat = element.status;
+      }
+    });
+    return stat;
+  }
+  /**
+   * Return status value for Sticker
+   * assumes the leading {{ removed and line is lower case
+   * @param {String} line to test
+   * @returns {String} status value or blank if not a Project box
+   */
+  getStickerStatus(line) {
+    let stat = "";
+    let isFound = false;
+    this.#sticker.find((element) => {
       if (element.name === line) {
         stat = element.status;
       }
@@ -1069,7 +1129,13 @@ class SourceRules {
    * @returns {Boolean} true if research notes box else false
    */
   isProjectBox(line) {
-    return this.#projectBox.includes(line);
+    let isFound = false;
+    this.#projectBox.find((element) => {
+      if (element.name === line) {
+        isFound = true;
+      }
+    });
+    return isFound;
   }
 
   /**
@@ -1079,7 +1145,6 @@ class SourceRules {
    * @returns {Boolean} true if nav box else false
    */
   isNavBox(line) {
-    //return this.#navBox.includes(line);
     let isFound = false;
     this.#navBox.find((element) => {
       if (element.name === line) {
@@ -1096,7 +1161,13 @@ class SourceRules {
    * @returns {Boolean} true if sticker else false
    */
   isSticker(line) {
-    return this.lineStartsWithListEntry(line, this.#sticker);
+    let isFound = false;
+    this.#sticker.find((element) => {
+      if (element.name === line) {
+        isFound = true;
+      }
+    });
+    return isFound;
   }
 
   /** 

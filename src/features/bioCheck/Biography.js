@@ -48,6 +48,9 @@ export class Biography {
   #sourcesHeadingsFound = []; // sources headings found (multi lang)
   #invalidSpanTargetList = []; // target of a span that are not valid
   #refStringList = []; // all the <ref> this </ref> lines
+  #refNamesDefined = new Set();  // all the <ref> with a defined name 
+  #refNamesUsed = new Set();  // all the ref names that are used
+  #refNamesMultiple = new Set();  // all the ref names that are defined > once
   #headings = [];    // collection of heading lines
   #wrongLevelHeadings = [];   // collection of wrong level 2 headings
   #researchNoteBoxes = [];   // what research notes boxes are there?
@@ -137,8 +140,6 @@ export class Biography {
   static #REF_END = "</ref>";
   static #END_BRACKET = ">";
   static #START_BRACKET = "<";
-  static #REF_START_NAMED = "<ref name";
-  static #REF_END_NAMED = "/>";
   static #HEADING_START = "==";
   static #CATEGORY_SYNTAX = "[[";
   static #CATEGORY_START = "[[category";
@@ -295,6 +296,21 @@ export class Biography {
           if (line.includes(Biography.#UNSOURCED)) {
             this.#stats.bioIsMarkedUnsourced = true;
           }
+          // check for a location if profile has any
+          if (thePerson.hasLocation()) {
+            let str = line.replace('category:', '');
+            // don't do this one str = str.replace('us black heritage project, unsourced profiles', '');
+            str = str.replace('unsourced_profiles', '');
+            str = str.replace('[[', '');
+            str = str.replace(']]', '');
+            str = str.replace(',_', '');
+            str = str.trim();
+            if (str.length <=0) {
+              this.#style.bioHasStyleIssues = true;
+              this.#messages.sectionMessages.push('Unsourced category does not have locations');
+            }
+          }
+
         } else {
           let partialLine = '';
           let partialMixedCaseLine = '';
@@ -459,6 +475,10 @@ export class Biography {
               } else {
                 if (this.#sourceRules.isProjectBox(partialLine)) {
                   haveProjectBox = true;
+                  // TODO dig down into the Project Box to see if it has the project WikiTree-id
+                  // then get all the managers and trusted list for the profile and see if that WikiTree-id
+                  // is on the list
+                  // There might be multiple project boxes Adams-35
                   if (haveNavBoxSuccession) {
                     let msg = 'Project: ' + partialMixedCaseLine + ' should be before Succession Navigation Box';
                     this.#messages.styleMessages.push(msg);
@@ -469,7 +489,12 @@ export class Biography {
                       this.#style.bioHasStyleIssues = true;
                     }
                   }
-                  // TODO check status
+                  let stat = this.#sourceRules.getProjectBoxStatus(partialLine);
+                  if ((stat.length > 0) && (stat != 'approved')) {
+                    let msg = 'Project Box: ' + partialMixedCaseLine + ' is ' + stat + ' status';
+                    this.#messages.styleMessages.push(msg);
+                    this.#style.bioHasStyleIssues = true;
+                  }
                 } else {
                   if (this.#sourceRules.isSticker(partialLine)) {
                     if (!haveBiography) {
@@ -477,11 +502,12 @@ export class Biography {
                       this.#messages.styleMessages.push(msg);
                       this.#style.bioHasStyleIssues = true;
                     }
-                    // TODO check status
-                    // TODO else some other type so check status
-                    // and to do all of this, need to save status in SourceRules
-                    // and make sure the name stops at the optional | denoting a parameter
-                    // it does seem to stop at the |
+                    let stat = this.#sourceRules.getStickerStatus(partialLine);
+                    if ((stat.length > 0) && (stat != 'approved')) {
+                      let msg = 'Sticker: ' + partialMixedCaseLine + ' is ' + stat + ' status';
+                      this.#messages.styleMessages.push(msg);
+                      this.#style.bioHasStyleIssues = true;
+                    }
                   }  // end sticker
                 } // end project box 
               } // end research note box
@@ -522,6 +548,17 @@ export class Biography {
     let line = this.#bioInputString.toLowerCase();
     if (line.includes(Biography.#UNSOURCED_TAG) || line.includes(Biography.#UNSOURCED_TAG2)) {
       this.#stats.bioIsMarkedUnsourced = true;
+      // Check for unsourced without location
+      if (thePerson.hasLocation()) {
+        let i = line.indexOf('}');
+        let str = line.substring(0, i);
+        str = str.replace('unsourced', '');
+        str = str.replaceAll(/{|/gi, '');
+        if (str.length <= 0) {
+          this.#style.bioHasStyleIssues = true;
+          this.#messages.styleMessages.push('Unsourced research note box does not have locations');
+        }
+      }
     }
 
     // Get the string that might contain <ref>xxx</ref> pairs
@@ -1197,6 +1234,9 @@ export class Biography {
   /*
    * Find <ref> </ref> pairs 
    * adds contents of ref to refStringList
+   * add name for a defined ref string to refNamesDefined 
+   * add name used as a reference to refNamesUsed 
+   * add name used more than once to refNamesMultiple
    * @param {String} bioLineString string to look in for pairs
    */
   #findRef(bioLineString) {
@@ -1209,8 +1249,8 @@ export class Biography {
      * and there may be multiple char between ref and name
      * or there may be another <ref> before ending
      *
-     * but one thing you don't do is check for a name that wasn't defined
-     * data entry will find this and you never checked for it previously
+     * you are not checking for an extra ending </ref>
+     * but the enhanced editor will find this
      *
      * replace the ref to be lower case for matching
      * even though the Wiki Markup spec is just lower case. Sigh.
@@ -1218,6 +1258,7 @@ export class Biography {
     let line = bioLineString.replaceAll(/ref/gi, 'ref');
     let refArray = line.split('<ref');
     for (let i = 1; i < refArray.length; i++) {
+      let refName = this.#extractRefName(refArray[i]);
       if (refArray[i].indexOf("/>") < 0) {
         let citeStart = refArray[i].indexOf('>') + 1;
         if (refArray[i].indexOf('name') >= 0) {
@@ -1229,9 +1270,52 @@ export class Biography {
         } else {
           let line = refArray[i].substring(citeStart, citeEnd);
           this.#refStringList.push(line);
+          if (refName.length > 0) {
+            if (this.#refNamesDefined.has(refName)) {
+              this.#refNamesMultiple.add(refName); // name defined more than once
+            } else {
+              this.#refNamesDefined.add(refName); // name has citation
+            }
+          }
         }
+      } else {
+        this.#refNamesUsed.add(refName);  // named ref reference
       }
     }
+  }
+  /*
+   * Extract the name from a named <ref>
+   * return extracted name
+  */
+  #extractRefName(str) {
+    let refName = "";
+    str = str.replaceAll(/"/g, '');
+    let nameStart = str.indexOf('name');
+    if (nameStart >= 0) {
+      // name end is first of space > or /
+      let nameEnd = str.indexOf('>');
+      if (nameEnd < 0) {
+        nameEnd = str.indexOf('/');
+        if (nameEnd < 0) { 
+          nameEnd = str.indexOf(' ');
+        }
+        if (nameEnd < 0) {
+          // malformed ref
+          this.#style.hasRefWithoutEnd = true;
+        }
+      }
+      if (nameEnd > nameStart) {
+        refName = str.substring(nameStart, nameEnd);
+      }
+      nameEnd = refName.indexOf('/');
+      if (nameEnd != -1) {
+        refName = refName.substring(0, nameEnd);
+      }
+      refName = refName.replace('name', '');
+      refName = refName.replace('=', '');
+      refName = refName.trim();
+    }
+    return refName;
   }
 
   /*
@@ -1327,6 +1411,17 @@ export class Biography {
       this.#style.bioHasStyleIssues = true;
       this.#messages.sectionMessages.push('Inline <ref> tag after <references >');
     }
+    for (let refName of this.#refNamesMultiple) {
+      this.#style.bioHasStyleIssues = true;
+      this.#messages.sectionMessages.push('Inline <ref> ' + refName + ' defined more than once');
+    }
+    for (let refName of this.#refNamesUsed) {
+      if (!this.#refNamesDefined.has(refName)) {
+        this.#style.bioHasStyleIssues = true;
+        this.#messages.sectionMessages.push('Inline <ref> ' + refName + ' has no citation');
+      }
+    }
+
     if (this.#style.bioHasSpanWithoutEndingSpan) {
       this.#style.bioHasStyleIssues = true;
       this.#messages.sectionMessages.push('Span with no ending span');
