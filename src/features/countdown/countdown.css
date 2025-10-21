@@ -134,17 +134,38 @@
 }
 
 /* Compact style for smaller spaces */
+.wbe-countdown-box.wbe-countdown-compact {
+  padding: 0.5rem 0.8rem !important;
+  min-width: 200px !important;
+  border-radius: 6px !important;
+}
+
+.wbe-countdown-compact .wbe-countdown-label {
+  font-size: 0.9em !important;
+  margin-bottom: 0.3rem !important;
+}
+
 .wbe-countdown-compact .wbe-countdown-time {
-  gap: 0.5rem;
+  gap: 0.2rem !important;
+}
+
+.wbe-countdown-compact .wbe-countdown-segment {
+  min-width: 35px !important;
 }
 
 .wbe-countdown-compact .wbe-countdown-number {
-  font-size: 1.8em;
-  padding: 0.1em 0.2em;
+  font-size: 1.2em !important;
+  padding: 0.1em 0.2em !important;
 }
 
 .wbe-countdown-compact .wbe-countdown-unit {
-  font-size: 0.6em;
+  font-size: 0.5em !important;
+  margin-top: 0.1em !important;
+}
+
+.wbe-countdown-compact .wbe-countdown-separator {
+  font-size: 1em !important;
+  margin: 0 0.1rem !important;
 }
 
 /* Animation for number changes */

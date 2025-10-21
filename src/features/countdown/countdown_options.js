@@ -16,18 +16,15 @@ registerFeature({
   pages: [isSpacePage],
   options: [
     {
-      id: "tickInterval",
-      type: OptionType.NUMBER,
-      label: "Update interval (milliseconds)",
-      defaultValue: 1000,
-      comment: "How often the countdown updates (1000 = every second)",
-    },
-    {
-      id: "showLabels",
-      type: OptionType.CHECKBOX,
-      label: "Show countdown labels",
-      defaultValue: true,
-      comment: "Display the event title above the countdown",
+      id: "updateFrequency",
+      type: OptionType.SELECT,
+      label: "Update frequency",
+      defaultValue: "second",
+      comment: "How often the countdown updates",
+      values: [
+        { value: "second", text: "Every second" },
+        { value: "minute", text: "Every minute" },
+      ],
     },
     {
       id: "padHours",
@@ -47,8 +44,8 @@ registerFeature({
 });
 
 export const countdownDefaults = {
-  tickInterval: 1000,
-  showLabels: true,
+  updateFrequency: "second",
+  showLabels: true, // Always true now, not user-configurable
   padHours: true,
   compactMode: false,
   defaultCompleteText: "Event has arrived!",

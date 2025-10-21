@@ -231,7 +231,7 @@ function formatTimeRemaining(milliseconds, options) {
   };
 }
 
-function createCountdownBox(label, showLabels, isCompact = false, styleData = {}) {
+function createCountdownBox(label, showLabels, isCompact = false, styleData = {}, updateFrequency = "second") {
   const labelHTML =
     label && showLabels ? `<div class="wbe-countdown-label">${$("<div>").text(label).html()}</div>` : "";
 
@@ -248,6 +248,17 @@ function createCountdownBox(label, showLabels, isCompact = false, styleData = {}
 
   // Apply custom CSS class
   const customClass = styleData.cssClass ? ` ${styleData.cssClass}` : "";
+
+  // Conditionally include seconds based on update frequency
+  const showSeconds = updateFrequency === "second";
+  const secondsHTML = showSeconds
+    ? `
+        <div class="wbe-countdown-separator">:</div>
+        <div class="wbe-countdown-segment">
+          <span class="wbe-countdown-number wbe-countdown-seconds">00</span>
+          <span class="wbe-countdown-unit">seconds</span>
+        </div>`
+    : "";
 
   const $box = $(`
     <div class="wbe-countdown-box${compactClass}${themeClass}${customClass}" role="timer" aria-live="polite">
@@ -266,12 +277,7 @@ function createCountdownBox(label, showLabels, isCompact = false, styleData = {}
         <div class="wbe-countdown-segment">
           <span class="wbe-countdown-number wbe-countdown-minutes">00</span>
           <span class="wbe-countdown-unit">minutes</span>
-        </div>
-        <div class="wbe-countdown-separator">:</div>
-        <div class="wbe-countdown-segment">
-          <span class="wbe-countdown-number wbe-countdown-seconds">00</span>
-          <span class="wbe-countdown-unit">seconds</span>
-        </div>
+        </div>${secondsHTML}
       </div>
     </div>
   `);
@@ -340,12 +346,17 @@ function startCountdown($element, targetDate, completeText, options) {
     updateWithAnimation($days, formatted.days);
     updateWithAnimation($hours, formatted.hours);
     updateWithAnimation($minutes, formatted.minutes);
-    updateWithAnimation($seconds, formatted.seconds);
+
+    // Only update seconds if the element exists (when updating every second)
+    if ($seconds.length > 0) {
+      updateWithAnimation($seconds, formatted.seconds);
+    }
   }
 
   // Run immediately, then start interval
   tick();
-  const intervalId = setInterval(tick, options.tickInterval);
+  const tickInterval = options.updateFrequency === "minute" ? 60000 : 1000;
+  const intervalId = setInterval(tick, tickInterval);
   intervalMap.set(element, intervalId);
 }
 
@@ -386,7 +397,7 @@ function initializeCountdownElement(element, options) {
     bgColor: parsed.bgColor,
     cssClass: parsed.cssClass,
   };
-  const $box = createCountdownBox(parsed.label, options.showLabels, options.compactMode, styleData);
+  const $box = createCountdownBox(parsed.label, true, options.compactMode, styleData, options.updateFrequency);
   $el.html($box);
   $el.data("countdown-initialized", true);
 
