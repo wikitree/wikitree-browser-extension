@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Countdown Feature Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .example {
+        background: #f5f5f5;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 5px;
+      }
+      .code {
+        background: #e8e8e8;
+        padding: 10px;
+        font-family: monospace;
+        margin: 5px 0;
+        border-radius: 3px;
+        overflow-x: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>WikiTree Browser Extension - Countdown Feature Test</h1>
+
+    <p>
+      These examples demonstrate how the countdown feature works. The countdowns will only be visible if you have the
+      WikiTree Browser Extension installed and the countdown feature enabled.
+    </p>
+
+    <div class="example">
+      <h3>Example 1: Sandy's 1776 Project - Beautiful Countdown (Recommended)</h3>
+      <div class="code">
+        &lt;span class="wbe-countdown"&gt;American Revolution • 250th Anniversary @ 2026-07-04&lt;/span&gt;
+      </div>
+      <p><strong>Result:</strong></p>
+      <span class="wbe-countdown">American Revolution • 250th Anniversary @ 2026-07-04</span>
+    </div>
+
+    <div class="example">
+      <h3>Example 2: Advanced Format with Timezone and Custom Message</h3>
+      <div class="code">
+        &lt;span class="wbe-countdown"&gt;target=2026-07-04T00:00:00-04:00;label=American Revolution • 250th
+        Anniversary;complete=Happy 250th Anniversary! 🇺🇸&lt;/span&gt;
+      </div>
+      <p><strong>Result:</strong></p>
+      <span class="wbe-countdown"
+        >target=2026-07-04T00:00:00-04:00;label=American Revolution • 250th Anniversary;complete=Happy 250th
+        Anniversary! 🇺🇸</span
+      >
+    </div>
+
+    <div class="example">
+      <h3>Example 3: Short-term Countdown for Testing</h3>
+      <div class="code">&lt;span class="wbe-countdown"&gt;Next Christmas @ 2025-12-25&lt;/span&gt;</div>
+      <p><strong>Result:</strong></p>
+      <span class="wbe-countdown">Next Christmas @ 2025-12-25</span>
+    </div>
+
+    <div class="example">
+      <h3>Example 4: Multiple countdowns</h3>
+      <p>New Year: <span class="wbe-countdown">New Year 2026 @ 2026-01-01</span></p>
+      <p>Valentine's Day: <span class="wbe-countdown">Valentine's Day @ 2026-02-14</span></p>
+    </div>
+
+    <div class="example">
+      <h3>Example 5: Data attributes (still supported)</h3>
+      <div class="code">
+        &lt;span class="wbe-countdown" data-target="2026-07-04" data-label="Independence Day"&gt;&lt;/span&gt;
+      </div>
+      <p><strong>Result:</strong></p>
+      <span class="wbe-countdown" data-target="2026-07-04" data-label="Independence Day"></span>
+    </div>
+
+    <h2>Instructions for Sandy</h2>
+    <p>For the 1776 Project page, simply paste this span where you want the countdown to appear:</p>
+    <div class="code">
+      &lt;span class="wbe-countdown"&gt;American Revolution • 250th Anniversary @ 2026-07-04&lt;/span&gt;
+    </div>
+
+    <p><strong>Features of the beautiful new design:</strong></p>
+    <ul>
+      <li><strong>Professional appearance</strong> - gradient backgrounds, shadows, and animations</li>
+      <li><strong>Large, readable numbers</strong> - easy to see the countdown at a glance</li>
+      <li><strong>Responsive design</strong> - works perfectly on mobile and desktop</li>
+      <li><strong>Graceful fallback</strong> - non-WBE users see readable text instead of nothing</li>
+      <li><strong>Smooth animations</strong> - numbers animate when they change</li>
+      <li><strong>Dark mode support</strong> - automatically adjusts for dark themes</li>
+    </ul>
+
+    <p><strong>Notes:</strong></p>
+    <ul>
+      <li>Only visible to users with WikiTree Browser Extension installed</li>
+      <li>Users without WBE will see nothing (the span will be empty)</li>
+      <li>Works on any WikiTree page: profiles, space pages, projects, G2G posts</li>
+      <li>Updates every second automatically</li>
+      <li>Handles timezones properly (the example uses Eastern Time)</li>
+    </ul>
+  </body>
+</html>

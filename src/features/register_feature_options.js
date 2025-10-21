@@ -71,6 +71,7 @@ import "./collapsible_profiles/collapsible_profiles_options";
 import "./connection_finder/connection_finder_options";
 import "./connector_image/connector_image_options";
 import "./copy_bio_changes/copy_bio_changes_options";
+import "./countdown/countdown_options";
 import "./custom_change_summary_options/custom_change_summary_options_options";
 import "./custom_style/custom_style_options";
 import "./darkMode/darkMode_options";
