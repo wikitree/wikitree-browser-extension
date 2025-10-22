@@ -67,6 +67,7 @@ export class BioCheckPerson {
     privacyLevel: 0,
     isMember: false,
     isOrphan: false,
+    hasLocation: false,
     uncheckedDueToPrivacy: false,
     uncheckedDueToDate: false,
     fatherDnaConfirmed: false,
@@ -159,6 +160,14 @@ export class BioCheckPerson {
         if (profileObj.LastNameAtBirth != null) {
             this.person.lastName = profileObj.LastNameAtBirth;
         }
+      }
+      if ((profileObj.BirthLocation != null) &&
+          (profileObj.BirthLocation.length > 0)) {
+        this.person.hasLocation = true;
+      }
+      if ((profileObj.DeathLocation != null) &&
+          (profileObj.DeathLocation.length > 0)) {
+        this.person.hasLocation = true;
       }
       if (profileObj.DataStatus != null) { 
         if (profileObj.DataStatus.Father != null) {
@@ -298,6 +307,14 @@ export class BioCheckPerson {
   }
 
   /**
+   * Does profile have either birth or death location
+   * @returns {Boolean} true if either location present
+   */
+  hasLocation() {
+    return this.person.hasLocation;
+  }
+
+  /**
    * Get the privacy
    * @returns {Number} numeric privacy level
    */
@@ -380,6 +397,7 @@ export class BioCheckPerson {
     } else {
       this.#hasBirthDate = false;
     }
+
     if (this.#lastDateCheckedEmpty) {
       this.#hasBirthDate = false;
     }
@@ -394,6 +412,12 @@ export class BioCheckPerson {
     }
     // Go ahead and see if pre1500, pre1700 or too old
     this.#checkEarlyDates();
+    let bLoc = document.getElementById("mBirthLocation").value;
+    let dLoc = document.getElementById("mDeathLocation").value;
+    if (((bLoc != null) && (bLoc.length > 0)) ||
+        ((dLoc != null) && (dLoc.length > 0))) {
+      this.person.hasLocation = true;
+    }
 
     // get DNA confirmation status
     let val = document.getElementsByName('mStatus_Father');

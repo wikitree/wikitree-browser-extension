@@ -9,6 +9,7 @@ contexts.
 * Biography.js
 * BioCheckPerson.js
 * SourceRules.js
+
 The Bio Check app and WikiTree Dynamic Tree make use of
 * BioCheckTemplateManager
 
@@ -129,6 +130,12 @@ Is profile an orphan
 
 Returns **[Boolean][7]** true if profile is an orphan
 
+### hasLocation
+
+Does profile have either birth or death location
+
+Returns **[Boolean][7]** true if either location present
+
 ### getPrivacy
 
 Get the privacy
@@ -232,9 +239,9 @@ Send request to load templates from WT+
 
 Returns **any** promise for use with loadTemplates
 
-### loadTemplates
+### loadPromisedTemplates
 
-load Templates - wait for load to complete
+load promised Templates - wait for load to complete
 
 #### Parameters
 
@@ -616,6 +623,39 @@ assumes the leading {{ removed and line is lower case
 *   `line` **[String][8]** to test
 
 Returns **[String][8]** status value or blank if not a research notes box
+
+### getNavBoxStatus
+
+Return status value for Nav Box
+assumes the leading {{ removed and line is lower case
+
+#### Parameters
+
+*   `line` **[String][8]** to test
+
+Returns **[String][8]** status value or blank if not a nav box
+
+### getProjectBoxStatus
+
+Return status value for Project Box
+assumes the leading {{ removed and line is lower case
+
+#### Parameters
+
+*   `line` **[String][8]** to test
+
+Returns **[String][8]** status value or blank if not a Project box
+
+### getStickerStatus
+
+Return status value for Sticker
+assumes the leading {{ removed and line is lower case
+
+#### Parameters
+
+*   `line` **[String][8]** to test
+
+Returns **[String][8]** status value or blank if not a Project box
 
 ### isProjectBox
 
