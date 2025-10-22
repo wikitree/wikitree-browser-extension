@@ -8,7 +8,7 @@ import { isSpacePage, isProjectPage } from "../../core/pageType";
 registerFeature({
   name: "Countdown",
   id: "countdown",
-  description: "Add live countdown timers to space pages using simple HTML.",
+  description: "Add live countdown timers to space pages and project pages using simple HTML.",
   category: "Other",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
