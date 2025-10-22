@@ -1259,27 +1259,30 @@ export class Biography {
     let refArray = line.split('<ref');
     for (let i = 1; i < refArray.length; i++) {
       let refName = this.#extractRefName(refArray[i]);
-      if (refArray[i].indexOf("/>") < 0) {
-        let citeStart = refArray[i].indexOf('>') + 1;
-        if (refArray[i].indexOf('name') >= 0) {
-          citeStart = refArray[i].indexOf('>') + 1;
+      let citeStart = refArray[i].indexOf('>') + 1;
+      let citeEnd = refArray[i].indexOf('</ref', 1);
+
+      let isJustRefName = false;
+      if (refName.length > 0) {
+        let refEnd = refArray[i].indexOf('/>');
+        if (refEnd > 0) {
+          isJustRefName = true;
+          this.#refNamesUsed.add(refName);  // named ref reference
+        } else {
+          if (this.#refNamesDefined.has(refName)) {
+            this.#refNamesMultiple.add(refName); // name defined more than once
+          } else {
+            this.#refNamesDefined.add(refName); // name has citation
+          }
         }
-        let citeEnd = refArray[i].indexOf('</ref', 1);
+      }
+      if (!isJustRefName) {
         if (citeEnd < 0) {
           this.#style.hasRefWithoutEnd = true;
         } else {
           let line = refArray[i].substring(citeStart, citeEnd);
           this.#refStringList.push(line);
-          if (refName.length > 0) {
-            if (this.#refNamesDefined.has(refName)) {
-              this.#refNamesMultiple.add(refName); // name defined more than once
-            } else {
-              this.#refNamesDefined.add(refName); // name has citation
-            }
-          }
         }
-      } else {
-        this.#refNamesUsed.add(refName);  // named ref reference
       }
     }
   }
@@ -1290,30 +1293,33 @@ export class Biography {
   #extractRefName(str) {
     let refName = "";
     str = str.replaceAll(/"/g, '');
+    str = str.toLowerCase();
     let nameStart = str.indexOf('name');
     if (nameStart >= 0) {
-      // name end is first of space > or /
-      let nameEnd = str.indexOf('>');
-      if (nameEnd < 0) {
-        nameEnd = str.indexOf('/');
-        if (nameEnd < 0) { 
-          nameEnd = str.indexOf(' ');
-        }
+      if (str.indexOf('=')) { // must have name =
+        // name end is first of space > or /
+        let nameEnd = str.indexOf('>');
         if (nameEnd < 0) {
-          // malformed ref
-          this.#style.hasRefWithoutEnd = true;
+          nameEnd = str.indexOf('/');
+          if (nameEnd < 0) { 
+            nameEnd = str.indexOf(' ');
+          }
+          if (nameEnd < 0) {
+            // malformed ref
+            this.#style.hasRefWithoutEnd = true;
+          }
         }
+        if (nameEnd > nameStart) {
+          refName = str.substring(nameStart, nameEnd);
+        }
+        nameEnd = refName.indexOf('/');
+        if (nameEnd != -1) {
+          refName = refName.substring(0, nameEnd);
+        }
+        refName = refName.replace('name', '');
+        refName = refName.replace('=', '');
+        refName = refName.trim();
       }
-      if (nameEnd > nameStart) {
-        refName = str.substring(nameStart, nameEnd);
-      }
-      nameEnd = refName.indexOf('/');
-      if (nameEnd != -1) {
-        refName = refName.substring(0, nameEnd);
-      }
-      refName = refName.replace('name', '');
-      refName = refName.replace('=', '');
-      refName = refName.trim();
     }
     return refName;
   }
