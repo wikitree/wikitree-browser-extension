@@ -249,10 +249,12 @@ shouldInitializeFeature("reorderNames").then((result) => {
       }
     });
 
-    console.log("Debug Ester - primaryFirstNameFields:", primaryFirstNameFields);
-    console.log("Debug Ester - primaryLastNameFields:", primaryLastNameFields);
-    console.log("Debug Ester - allFirstNameFields:", allFirstNameFields);
-    console.log("Debug Ester - allLastNameFields:", allLastNameFields);
+    /*
+    console.log("Debug - primaryFirstNameFields:", primaryFirstNameFields);
+    console.log("Debug - primaryLastNameFields:", primaryLastNameFields);
+    console.log("Debug - allFirstNameFields:", allFirstNameFields);
+    console.log("Debug - allLastNameFields:", allLastNameFields);
+    */
 
     // Get all scripts present in ALL name fields (including aka)
     const allFirstNameScripts = new Set();
@@ -289,11 +291,13 @@ shouldInitializeFeature("reorderNames").then((result) => {
       (script) => script !== "latin" && allLastNameScripts.has(script)
     );
 
-    console.log("Debug Ester - allFirstNameScripts:", [...allFirstNameScripts]);
-    console.log("Debug Ester - allLastNameScripts:", [...allLastNameScripts]);
-    console.log("Debug Ester - matchingScripts:", matchingScripts);
-    console.log("Debug Ester - primaryFirstNameScripts:", [...primaryFirstNameScripts]);
-    console.log("Debug Ester - primaryLastNameScripts:", [...primaryLastNameScripts]);
+    /*
+    console.log("Debug - allFirstNameScripts:", [...allFirstNameScripts]);
+    console.log("Debug - allLastNameScripts:", [...allLastNameScripts]);
+    console.log("Debug - matchingScripts:", matchingScripts);
+    console.log("Debug - primaryFirstNameScripts:", [...primaryFirstNameScripts]);
+    console.log("Debug - primaryLastNameScripts:", [...primaryLastNameScripts]);
+    */
 
     // However, don't run if the ONLY non-Latin script is in aka context for surnames
     // (like the Hayim case where Hebrew is only in "aka ביאליק")
@@ -318,8 +322,10 @@ shouldInitializeFeature("reorderNames").then((result) => {
 
     const quotedNicknameHasNonLatin = [...quotedNicknameScripts].some((script) => script !== "latin");
 
+    /*
     console.log("Debug Ester - primaryHasNonLatin:", primaryHasNonLatin);
     console.log("Debug Ester - quotedNicknameHasNonLatin:", quotedNicknameHasNonLatin);
+    */
 
     if (!primaryHasNonLatin && !quotedNicknameHasNonLatin) {
       // Check if non-Latin scripts are only in aka context
@@ -331,10 +337,10 @@ shouldInitializeFeature("reorderNames").then((result) => {
         return !inPrimaryFirst && !inPrimaryLast && !inQuotedNicknames;
       });
 
-      console.log("Debug Ester - akaOnlyScripts:", akaOnlyScripts);
+      //console.log("Debug Ester - akaOnlyScripts:", akaOnlyScripts);
 
       if (akaOnlyScripts) {
-        console.log("Debug Ester - Scripts only in aka context, returning");
+        // console.log("Debug Ester - Scripts only in aka context, returning");
         return; // Don't run - like Hayim case
       }
     }

@@ -2042,7 +2042,7 @@ async function getAncestorConnection(ancestor, user) {
  * Adds sibling and child counts to the DOM.
  */
 function addChildrenSiblingCount() {
-  const isLiving = pagePerson.IsLiving;
+  const isLiving = pagePerson?.IsLiving;
   const hasHad = isLiving ? "has" : "had";
   if ($("#childrenCount").length === 0) {
     const nVitals = $("#nVitals");

@@ -8058,11 +8058,6 @@ export async function generateBio() {
       window.profilePerson.DeathLocation = "";
     }
 
-    // log now
-    console.log("profile person now", logNow(window.profilePerson));
-
-    const originalFormData = getFormData();
-
     let originalFirstName;
     if (window.profilePerson) {
       if (window.profilePerson.FirstName) {
@@ -8106,6 +8101,9 @@ export async function generateBio() {
         window.profilePerson.DeathYear = window.profilePerson?.DeathDate?.split("-")[0];
       }
     }
+
+    // log now
+    console.log("profile person now", logNow(window.profilePerson));
 
     await buildFamilyForPrivateProfiles();
 
