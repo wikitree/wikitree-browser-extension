@@ -27,10 +27,10 @@ Add this HTML:
 <span class="wbe-countdown" style="display:none">Event @ 2026-07-04T15:00:00 EST</span>
 ```
 
-### With Theme
+### With Theme and Centering
 
 ```html
-<span class="wbe-countdown" style="display:none">Event | theme=gold @ 2026-07-04</span>
+<span class="wbe-countdown" style="display:none">Event | theme=gold | center @ 2026-07-04</span>
 ```
 
 ### Advanced Format
@@ -58,11 +58,21 @@ Add this HTML:
 - `color=white` - Text color
 - `bgcolor=#FF0000` - Background color
 
+### Layout Options
+
+- `center` or `centre` - Centers the countdown on the page
+
 ### Other Options
 
 - `complete=Custom message` - Text shown when countdown reaches zero
 
 ## Examples
+
+### Sandy's 1776 Project - Centered Gold Theme
+
+```html
+<span class="wbe-countdown" style="display:none">American Revolution • 250th Anniversary | theme=gold | center @ 2026-07-04</span>
+```
 
 ### Basic Anniversary Countdown
 
@@ -70,14 +80,20 @@ Add this HTML:
 <span class="wbe-countdown" style="display:none">American Revolution 250th Anniversary @ 2026-07-04</span>
 ```
 
-### Gold Theme with Time
+### Centered with Time
 
 ```html
-<span class="wbe-countdown" style="display:none">Independence Day Ceremony | theme=gold @ 2026-07-04T14:00:00 EST</span>
+<span class="wbe-countdown" style="display:none">Independence Day Ceremony | theme=gold | center @ 2026-07-04T14:00:00 EST</span>
 ```
 
 ### Christmas Countdown
 
 ```html
 <span class="wbe-countdown" style="display:none">Christmas 2025 | theme=red @ 2025-12-25</span>
+```
+
+### Centered with Custom Colors
+
+```html
+<span class="wbe-countdown" style="display:none">Special Event | color=white | bgcolor=#333 | centre @ 2026-01-01</span>
 ```
