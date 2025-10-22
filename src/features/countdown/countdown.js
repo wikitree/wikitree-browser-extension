@@ -38,8 +38,9 @@ function parseCountdownElement($el) {
         if (labelParts.length > 1) {
           labelParts.slice(1).forEach((param) => {
             const [key, value] = param.split("=", 2);
-            if (key && value) {
-              styleParams[key.trim().toLowerCase()] = value.trim();
+            if (key) {
+              // If no value provided, use empty string (treats as truthy for center/centre)
+              styleParams[key.trim().toLowerCase()] = value ? value.trim() : "";
             }
           });
         }
@@ -52,6 +53,7 @@ function parseCountdownElement($el) {
           color: styleParams.color,
           bgColor: styleParams.bgcolor || styleParams["bg-color"],
           cssClass: styleParams.class || styleParams.cssclass,
+          center: styleParams.center || styleParams.centre,
         };
       } else if (raw.includes("=")) {
         // Parse key=value pairs
@@ -59,8 +61,9 @@ function parseCountdownElement($el) {
         const data = {};
         pairs.forEach((pair) => {
           const [key, value] = pair.split("=", 2);
-          if (key && value) {
-            data[key.trim().toLowerCase()] = value.trim();
+          if (key) {
+            // If no value provided, use empty string (treats as truthy for center/centre)
+            data[key.trim().toLowerCase()] = value ? value.trim() : "";
           }
         });
         return {
@@ -74,6 +77,7 @@ function parseCountdownElement($el) {
           color: data.color,
           bgColor: data.bgcolor || data["bg-color"],
           cssClass: data.class || data.cssclass,
+          center: data.center || data.centre,
         };
       } else {
         return {
@@ -282,16 +286,18 @@ function createCountdownBox(label, showLabels, isCompact = false, styleData = {}
     </div>
   `);
 
-  // Apply inline styles if specified
-  if (styleData.color || styleData.bgColor) {
-    const styles = {};
-    if (styleData.color) {
-      styles.color = styleData.color;
-    }
-    if (styleData.bgColor) {
-      styles.background = styleData.bgColor;
-      styles.borderColor = styleData.bgColor;
-    }
+  // Apply inline styles if specified (but not centering - that goes on parent)
+  const styles = {};
+  
+  if (styleData.color) {
+    styles.color = styleData.color;
+  }
+  if (styleData.bgColor) {
+    styles.background = styleData.bgColor;
+    styles.borderColor = styleData.bgColor;
+  }
+  
+  if (Object.keys(styles).length > 0) {
     $box.css(styles);
   }
 
@@ -396,10 +402,23 @@ function initializeCountdownElement(element, options) {
     color: parsed.color,
     bgColor: parsed.bgColor,
     cssClass: parsed.cssClass,
+    center: parsed.center,
   };
   const $box = createCountdownBox(parsed.label, true, options.compactMode, styleData, options.updateFrequency);
   $el.html($box);
   $el.data("countdown-initialized", true);
+
+  // Apply centering to parent element if requested (supports both 'center' and 'centre' spellings)
+  if (styleData.center === "true" || styleData.center === "1" || styleData.center === "" ||
+      styleData.centre === "true" || styleData.centre === "1" || styleData.centre === "") {
+    $el.css({
+      display: "block",
+      textAlign: "center"
+    });
+    $box.css({
+      margin: "0 auto"
+    });
+  }
 
   // Start the countdown
   startCountdown($el, targetDate, parsed.completeText, options);
@@ -423,15 +442,35 @@ function unhideCountdownElements($countdowns) {
       style.includes("opacity:0") ||
       style.includes("opacity: 0")
     ) {
+      // Parse the content to check if centering is requested
+      const raw = ($el.text() || "").trim();
+      let needsCentering = false;
+      
+      if (raw.includes("center") || raw.includes("centre")) {
+        // Check for center/centre parameter in either format
+        if (raw.includes("|")) {
+          // @ format: check for center/centre in parameters
+          const atIdx = raw.lastIndexOf("@");
+          if (atIdx > 0) {
+            const labelPart = raw.slice(0, atIdx);
+            needsCentering = /\|\s*(center|centre)(\s*=|\s*$|\s*\|)/i.test(labelPart);
+          }
+        } else if (raw.includes("=")) {
+          // key=value format: check for center/centre parameter
+          needsCentering = /center(=|;|$)|centre(=|;|$)/i.test(raw);
+        }
+      }
+
       // Remove the hiding styles and make it visible
       $el.css({
-        display: "inline-block",
+        display: needsCentering ? "block" : "inline-block",
         visibility: "visible",
         "font-size": "",
         opacity: "1",
+        "text-align": needsCentering ? "center" : "",
       });
 
-      log("Unhid countdown element:", $el.text().substring(0, 50));
+      log("Unhid countdown element" + (needsCentering ? " (centered)" : "") + ":", $el.text().substring(0, 50));
     }
   });
 }
