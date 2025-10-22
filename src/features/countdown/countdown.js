@@ -288,7 +288,7 @@ function createCountdownBox(label, showLabels, isCompact = false, styleData = {}
 
   // Apply inline styles if specified (but not centering - that goes on parent)
   const styles = {};
-  
+
   if (styleData.color) {
     styles.color = styleData.color;
   }
@@ -296,7 +296,7 @@ function createCountdownBox(label, showLabels, isCompact = false, styleData = {}
     styles.background = styleData.bgColor;
     styles.borderColor = styleData.bgColor;
   }
-  
+
   if (Object.keys(styles).length > 0) {
     $box.css(styles);
   }
@@ -409,14 +409,20 @@ function initializeCountdownElement(element, options) {
   $el.data("countdown-initialized", true);
 
   // Apply centering to parent element if requested (supports both 'center' and 'centre' spellings)
-  if (styleData.center === "true" || styleData.center === "1" || styleData.center === "" ||
-      styleData.centre === "true" || styleData.centre === "1" || styleData.centre === "") {
+  if (
+    styleData.center === "true" ||
+    styleData.center === "1" ||
+    styleData.center === "" ||
+    styleData.centre === "true" ||
+    styleData.centre === "1" ||
+    styleData.centre === ""
+  ) {
     $el.css({
       display: "block",
-      textAlign: "center"
+      textAlign: "center",
     });
     $box.css({
-      margin: "0 auto"
+      margin: "0 auto",
     });
   }
 
@@ -445,7 +451,7 @@ function unhideCountdownElements($countdowns) {
       // Parse the content to check if centering is requested
       const raw = ($el.text() || "").trim();
       let needsCentering = false;
-      
+
       if (raw.includes("center") || raw.includes("centre")) {
         // Check for center/centre parameter in either format
         if (raw.includes("|")) {

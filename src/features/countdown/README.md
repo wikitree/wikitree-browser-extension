@@ -71,7 +71,9 @@ Add this HTML:
 ### Sandy's 1776 Project - Centered Gold Theme
 
 ```html
-<span class="wbe-countdown" style="display:none">American Revolution • 250th Anniversary | theme=gold | center @ 2026-07-04</span>
+<span class="wbe-countdown" style="display:none"
+  >American Revolution • 250th Anniversary | theme=gold | center @ 2026-07-04</span
+>
 ```
 
 ### Basic Anniversary Countdown
@@ -83,7 +85,9 @@ Add this HTML:
 ### Centered with Time
 
 ```html
-<span class="wbe-countdown" style="display:none">Independence Day Ceremony | theme=gold | center @ 2026-07-04T14:00:00 EST</span>
+<span class="wbe-countdown" style="display:none"
+  >Independence Day Ceremony | theme=gold | center @ 2026-07-04T14:00:00 EST</span
+>
 ```
 
 ### Christmas Countdown
