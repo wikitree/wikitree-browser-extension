@@ -6,7 +6,7 @@ import { registerFeature, OptionType } from "../../core/options/options_registry
 import { isProfilePage } from "../../core/pageType";
 
 registerFeature({
-  name: "ReorderNames",
+  name: "Reorder Names",
   id: "reorderNames",
   description:
     "Reorders non-Latin alphabet names; each language appears on its own line in the family box. " +
