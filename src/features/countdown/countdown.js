@@ -5,12 +5,18 @@ Created By: Ian Beacall (Beacall-6)
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { countdownDefaults } from "./countdown_options";
 
+// Dev logging flag:
+// To enable logging on a page, add before the countdown markup:
+// <script>window.WBE_COUNTDOWN_DEBUG = true;</script>
+// Logs are off by default.
+const ENABLE_WBE_COUNTDOWN_LOGS = typeof window !== "undefined" && !!window.WBE_COUNTDOWN_DEBUG;
+
 // Keep track of active intervals for cleanup
 const intervalMap = new WeakMap();
 
 function log(...args) {
-  if (countdownDefaults.debug) {
-    console.debug("[WBE countdown]", ...args);
+  if (ENABLE_WBE_COUNTDOWN_LOGS) {
+    console.log("[WBE countdown]", ...args);
   }
 }
 
@@ -54,6 +60,9 @@ function parseCountdownElement($el) {
           bgColor: styleParams.bgcolor || styleParams["bg-color"],
           cssClass: styleParams.class || styleParams.cssclass,
           center: styleParams.center || styleParams.centre,
+          endDate: styleParams.enddate || styleParams["end-date"] || styleParams.end,
+          hideAfter: styleParams.hideafter || styleParams["hide-after"],
+          happening: styleParams.happening,
         };
       } else if (raw.includes("=")) {
         // Parse key=value pairs
@@ -78,6 +87,9 @@ function parseCountdownElement($el) {
           bgColor: data.bgcolor || data["bg-color"],
           cssClass: data.class || data.cssclass,
           center: data.center || data.centre,
+          endDate: data.enddate || data["end-date"] || data.end,
+          hideAfter: data.hideafter || data["hide-after"],
+          happening: data.happening,
         };
       } else {
         return {
@@ -304,7 +316,16 @@ function createCountdownBox(label, showLabels, isCompact = false, styleData = {}
   return $box;
 }
 
-function startCountdown($element, targetDate, completeText, options) {
+function startCountdown(
+  $element,
+  targetDate,
+  completeText,
+  options,
+  label = null,
+  endDate = null,
+  hideAfter = null,
+  happening = null
+) {
   // Clear any existing interval
   const element = $element[0];
   if (intervalMap.has(element)) {
@@ -318,44 +339,208 @@ function startCountdown($element, targetDate, completeText, options) {
   const $minutes = $box.find(".wbe-countdown-minutes");
   const $seconds = $box.find(".wbe-countdown-seconds");
 
+  // Parse endDate if provided
+  let parsedEndDate = null;
+  if (endDate) {
+    parsedEndDate = parseTargetDate(endDate);
+    if (!parsedEndDate) {
+      log("Invalid end date:", endDate);
+    } else {
+      log("Parsed end date:", parsedEndDate.toISOString());
+    }
+  }
+
+  function parseHideAfterMs(hideAfterStr) {
+    if (!hideAfterStr) return null;
+
+    const hideAfterLower = hideAfterStr.toLowerCase();
+    if (hideAfterLower.includes("h")) {
+      const hours = parseInt(hideAfterStr);
+      return !isNaN(hours) ? hours * 60 * 60 * 1000 : null;
+    } else if (hideAfterLower.includes("d")) {
+      const days = parseInt(hideAfterStr);
+      return !isNaN(days) ? days * 24 * 60 * 60 * 1000 : null;
+    } else {
+      const hours = parseInt(hideAfterStr);
+      return !isNaN(hours) ? hours * 60 * 60 * 1000 : null;
+    }
+  }
+
   function tick() {
     const now = Date.now();
-    const timeRemaining = targetDate.getTime() - now;
+    const timeToStart = targetDate.getTime() - now;
+    const timeToEnd = parsedEndDate ? parsedEndDate.getTime() - now : null;
+    const hideAfterMs = parseHideAfterMs(hideAfter);
 
-    if (timeRemaining <= 0) {
-      // Countdown finished - show celebration message
-      $box.removeClass("wbe-countdown-box").addClass("wbe-countdown-done").attr("aria-live", "assertive").html(`
-            <div class="wbe-countdown-celebration">
-              <div class="wbe-countdown-complete-message">${$("<div>").text(completeText).html()}</div>
-              <div class="wbe-countdown-fireworks">🎉 ✨ 🎊</div>
-            </div>
-          `);
+    // Debug logging (stringified so console shows numeric values immediately)
+    log(
+      "Tick debug: " +
+        JSON.stringify({
+          now: new Date(now).toISOString(),
+          startDate: targetDate.toISOString(),
+          endDate: parsedEndDate ? parsedEndDate.toISOString() : "none",
+          timeToStart,
+          timeToEnd,
+          hideAfterMs,
+          label,
+        })
+    );
 
-      // Clean up interval
-      clearInterval(intervalMap.get(element));
-      intervalMap.delete(element);
-      log("Countdown completed for:", completeText);
+    // Phase 1: Countdown to event start
+    if (timeToStart > 0) {
+      const formatted = formatTimeRemaining(timeToStart, options);
+
+      // Update countdown display
+      const updateWithAnimation = ($el, newValue) => {
+        if ($el.text() !== newValue) {
+          $el.addClass("wbe-updating");
+          $el.text(newValue);
+          setTimeout(() => $el.removeClass("wbe-updating"), 200);
+        }
+      };
+
+      updateWithAnimation($days, formatted.days);
+      updateWithAnimation($hours, formatted.hours);
+      updateWithAnimation($minutes, formatted.minutes);
+
+      if ($seconds.length > 0) {
+        updateWithAnimation($seconds, formatted.seconds);
+      }
       return;
     }
 
-    const formatted = formatTimeRemaining(timeRemaining, options);
-
-    // Add animation class and update values
-    const updateWithAnimation = ($el, newValue) => {
-      if ($el.text() !== newValue) {
-        $el.addClass("wbe-updating");
-        $el.text(newValue);
-        setTimeout(() => $el.removeClass("wbe-updating"), 200);
+    // Phase 2: Event is happening (between start and end)
+    if (parsedEndDate && timeToEnd > 0) {
+      // Determine happening text. Support a custom 'happening' parameter with optional {event} placeholder.
+      let eventHappeningText = completeText;
+      if (happening) {
+        // Replace {event} placeholder if present
+        eventHappeningText = happening.replace(/{event}/gi, label || "");
+      } else if (completeText === countdownDefaults.defaultCompleteText && label) {
+        eventHappeningText = `${label} is happening now!`;
       }
-    };
 
-    updateWithAnimation($days, formatted.days);
-    updateWithAnimation($hours, formatted.hours);
-    updateWithAnimation($minutes, formatted.minutes);
+      $box.removeClass("wbe-countdown-box").addClass("wbe-countdown-happening").attr("aria-live", "assertive").html(`
+        <div class="wbe-countdown-celebration">
+          <div class="wbe-countdown-complete-message">${$("<div>").text(eventHappeningText).html()}</div>
+          <div class="wbe-countdown-fireworks">🎉 ✨ 🎊</div>
+        </div>
+      `);
+      return;
+    }
 
-    // Only update seconds if the element exists (when updating every second)
-    if ($seconds.length > 0) {
-      updateWithAnimation($seconds, formatted.seconds);
+    // Phase 3: Event is over
+    if (parsedEndDate && timeToEnd <= 0) {
+      // Check if we should hide the countdown entirely
+      if (hideAfterMs !== null) {
+        const timeSinceEnd = now - parsedEndDate.getTime();
+        log(
+          "Hide check: now= " +
+            new Date(now).toISOString() +
+            ", end= " +
+            new Date(parsedEndDate.getTime()).toISOString() +
+            ", timeSinceEnd=" +
+            timeSinceEnd +
+            ", hideAfterMs=" +
+            hideAfterMs
+        );
+
+        if (timeSinceEnd > hideAfterMs) {
+          log("Hiding countdown because timeSinceEnd > hideAfterMs: " + timeSinceEnd + " > " + hideAfterMs);
+
+          // Render a final "over" message so users don't see a zeroed timer
+          let eventOverTextFallback = completeText;
+          if (completeText === countdownDefaults.defaultCompleteText && label) {
+            eventOverTextFallback = `${label} is over!`;
+          }
+
+          $box
+            .removeClass("wbe-countdown-box wbe-countdown-happening")
+            .addClass("wbe-countdown-done")
+            .attr("aria-live", "assertive").html(`
+              <div class="wbe-countdown-celebration">
+                <div class="wbe-countdown-complete-message">${$("<div>").text(eventOverTextFallback).html()}</div>
+                <div class="wbe-countdown-fireworks">🎊 ✨ 🎊</div>
+              </div>
+            `);
+
+          // Hide after a short delay to ensure users see the final state
+          setTimeout(() => {
+            try {
+              $element.hide();
+            } catch (e) {
+              /* ignore */
+            }
+            if (intervalMap.has(element)) {
+              clearInterval(intervalMap.get(element));
+              intervalMap.delete(element);
+            }
+            log("Countdown hidden after end period for:", label || "unlabeled");
+          }, 1500);
+
+          return;
+        }
+      }
+
+      let eventOverText = completeText;
+      if (completeText === countdownDefaults.defaultCompleteText && label) {
+        eventOverText = `${label} is over!`;
+      }
+
+      $box
+        .removeClass("wbe-countdown-box wbe-countdown-happening")
+        .addClass("wbe-countdown-done")
+        .attr("aria-live", "assertive").html(`
+        <div class="wbe-countdown-celebration">
+          <div class="wbe-countdown-complete-message">${$("<div>").text(eventOverText).html()}</div>
+          <div class="wbe-countdown-fireworks">🎊 ✨ 🎊</div>
+        </div>
+      `);
+
+      // Clean up interval if no hideAfter specified
+      if (hideAfterMs === null) {
+        clearInterval(intervalMap.get(element));
+        intervalMap.delete(element);
+      }
+
+      log("Event completed for:", eventOverText);
+      return;
+    }
+
+    // Phase 4: No end date specified - original behavior (event has arrived)
+    if (!parsedEndDate) {
+      // Check if we should hide the countdown entirely
+      if (hideAfterMs !== null) {
+        const timeSinceStart = now - targetDate.getTime();
+        if (timeSinceStart > hideAfterMs) {
+          $element.hide();
+          clearInterval(intervalMap.get(element));
+          intervalMap.delete(element);
+          log("Countdown hidden after start period for:", label || "unlabeled");
+          return;
+        }
+      }
+
+      let finalCompleteText = completeText;
+      if (completeText === countdownDefaults.defaultCompleteText && label) {
+        finalCompleteText = `${label} has arrived!`;
+      }
+
+      $box.removeClass("wbe-countdown-box").addClass("wbe-countdown-done").attr("aria-live", "assertive").html(`
+        <div class="wbe-countdown-celebration">
+          <div class="wbe-countdown-complete-message">${$("<div>").text(finalCompleteText).html()}</div>
+          <div class="wbe-countdown-fireworks">🎉 ✨ 🎊</div>
+        </div>
+      `);
+
+      // Clean up interval if no hideAfter specified
+      if (hideAfterMs === null) {
+        clearInterval(intervalMap.get(element));
+        intervalMap.delete(element);
+      }
+
+      log("Countdown completed for:", finalCompleteText);
+      return;
     }
   }
 
@@ -370,7 +555,7 @@ function initializeCountdownElement(element, options) {
   const $el = $(element);
 
   // Skip if already initialized
-  if ($el.data("countdown-initialized")) {
+  if ($el.data("countdown-initialized") || $el.attr("data-countdown-initialized") === "1") {
     return;
   }
 
@@ -406,7 +591,10 @@ function initializeCountdownElement(element, options) {
   };
   const $box = createCountdownBox(parsed.label, true, options.compactMode, styleData, options.updateFrequency);
   $el.html($box);
+  // Record initialization both in jQuery data and as a DOM attribute so
+  // re-scans or DOM replacements don't re-initialize the same logical element.
   $el.data("countdown-initialized", true);
+  $el.attr("data-countdown-initialized", "1");
 
   // Apply centering to parent element if requested (supports both 'center' and 'centre' spellings)
   if (
@@ -427,7 +615,16 @@ function initializeCountdownElement(element, options) {
   }
 
   // Start the countdown
-  startCountdown($el, targetDate, parsed.completeText, options);
+  startCountdown(
+    $el,
+    targetDate,
+    parsed.completeText,
+    options,
+    parsed.label,
+    parsed.endDate,
+    parsed.hideAfter,
+    parsed.happening
+  );
   log("Started countdown for:", parsed.label || "unlabeled", "target:", targetDate);
 }
 

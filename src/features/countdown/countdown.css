@@ -84,7 +84,22 @@
   font-weight: 600 !important;
   padding: 1.5rem !important;
   text-align: center !important;
-  animation: celebrate 0.6s ease-in-out !important;
+  /* Disable the celebration animation for the final 'done' state */
+  animation: none !important;
+}
+
+/* Visible styling for "happening now" state */
+.wbe-countdown-happening {
+  background: linear-gradient(135deg, #ffca28 0%, #ffb300 100%) !important;
+  color: #222 !important;
+  box-shadow: 0 4px 20px rgba(255, 202, 40, 0.3) !important;
+  padding: 1.5rem !important;
+  font-weight: 700 !important;
+  border-radius: 12px !important;
+}
+
+.wbe-countdown-happening .wbe-countdown-complete-message {
+  color: #111 !important;
 }
 
 .wbe-countdown-celebration {
@@ -102,7 +117,13 @@
 
 .wbe-countdown-fireworks {
   font-size: 1.5em !important;
+  /* Keep fireworks animation by default, but not when inside .wbe-countdown-done */
   animation: bounce 1s infinite alternate !important;
+}
+
+/* Disable fireworks bounce when inside the done state */
+.wbe-countdown-done .wbe-countdown-fireworks {
+  animation: none !important;
 }
 
 @keyframes celebrate {

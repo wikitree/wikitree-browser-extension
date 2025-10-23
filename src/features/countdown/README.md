@@ -62,6 +62,29 @@ Add this HTML:
 
 - `center` or `centre` - Centers the countdown on the page
 
+### Event Duration Options
+
+- `endDate=2026-07-05` - When the event ends (creates "happening now" phase)
+- `hideAfter=24h` or `hideAfter=7d` - Hide countdown after event ends (hours or days)
+
+### Happening Text
+
+- `happening=Custom text` - Text shown while the event is in progress. You can include the placeholder `{event}` which will be replaced with the event label.
+
+Examples:
+
+```html
+<span class="wbe-countdown" style="display:none"
+  >Conference 2026 | theme=blue | endDate=2026-03-17 | happening={event} is in progress! @ 2026-03-15</span
+>
+```
+
+```html
+<span class="wbe-countdown" style="display:none"
+  >Anniversary | theme=gold | happening=Happy Anniversary! | endDate=2026-06-17 @ 2026-06-15</span
+>
+```
+
 ### Other Options
 
 - `complete=Custom message` - Text shown when countdown reaches zero
@@ -72,8 +95,9 @@ Add this HTML:
 
 ```html
 <span class="wbe-countdown" style="display:none"
-  >American Revolution • 250th Anniversary | theme=gold | center @ 2026-07-04</span
->
+  >American Revolution • 250th Anniversary | theme=gold | center | endDate=2026-07-05 | hideAfter=7d | happening=Happy
+  250th Anniversary to the United States! @ 2026-07-04
+</span>
 ```
 
 ### Basic Anniversary Countdown
@@ -100,4 +124,26 @@ Add this HTML:
 
 ```html
 <span class="wbe-countdown" style="display:none">Special Event | color=white | bgcolor=#333 | centre @ 2026-01-01</span>
+```
+
+### Multi-Day Event with Duration
+
+```html
+<span class="wbe-countdown" style="display:none"
+  >WikiTree Conference 2026 | theme=blue | endDate=2026-03-17 | hideAfter=24h @ 2026-03-15</span
+>
+```
+
+### Wedding Anniversary (3-Day Celebration)
+
+```html
+<span class="wbe-countdown" style="display:none"
+  >Our 50th Anniversary | theme=gold | center | endDate=2026-06-17 | hideAfter=7d @ 2026-06-15</span
+>
+```
+
+### Single-Day Event (No End Date)
+
+```html
+<span class="wbe-countdown" style="display:none">Independence Day | theme=red | hideAfter=12h @ 2026-07-04</span>
 ```
