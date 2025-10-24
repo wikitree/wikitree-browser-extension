@@ -24,8 +24,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* **********************************************************************************
  * *****************************    WARNING    **************************************
  *
- * This class is used in the BioCheck app, in the WikiTree Dynamic Tree and in the 
- * WikiTree Browser Extension. Ensure that any changes do not bring in components 
+ * This class is used in the BioCheck app, in the WikiTree Dynamic Tree and in the
+ * WikiTree Browser Extension. Ensure that any changes do not bring in components
  * that are not supported in each of these environments.
  *
  * **********************************************************************************
@@ -42,10 +42,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * FirstName,RealName,LastNameCurrent,LastNameAtBirth,Mother,Father,DataStatus,Bio
  */
 export class BioCheckPerson {
-
-  #birthDate = null;  // as a Date object
-  #deathDate = null;  // as a Date object
-  #lastDateCheckedEmpty =  false; // HACK
+  #birthDate = null; // as a Date object
+  #deathDate = null; // as a Date object
+  #lastDateCheckedEmpty = false; // HACK
   #birthDateString = ""; // birth date string as from WikiTree API
   #deathDateString = ""; // death date string as from WikiTree API
   #hasBirthDate = true;
@@ -83,8 +82,7 @@ export class BioCheckPerson {
   /**
    * constructor
    */
-  constructor() {
-  }
+  constructor() {}
 
   /**
    * Build person from WikiTree API profile object
@@ -150,7 +148,7 @@ export class BioCheckPerson {
       if (profileObj.FirstName != null) {
         this.person.firstName = profileObj.FirstName;
       } else {
-      if (profileObj.RealName != null) {
+        if (profileObj.RealName != null) {
           this.person.firstName = profileObj.RealName;
         }
       }
@@ -158,18 +156,16 @@ export class BioCheckPerson {
         this.person.lastName = profileObj.LastNameCurrent;
       } else {
         if (profileObj.LastNameAtBirth != null) {
-            this.person.lastName = profileObj.LastNameAtBirth;
+          this.person.lastName = profileObj.LastNameAtBirth;
         }
       }
-      if ((profileObj.BirthLocation != null) &&
-          (profileObj.BirthLocation.length > 0)) {
+      if (profileObj.BirthLocation != null && profileObj.BirthLocation.length > 0) {
         this.person.hasLocation = true;
       }
-      if ((profileObj.DeathLocation != null) &&
-          (profileObj.DeathLocation.length > 0)) {
+      if (profileObj.DeathLocation != null && profileObj.DeathLocation.length > 0) {
         this.person.hasLocation = true;
       }
-      if (profileObj.DataStatus != null) { 
+      if (profileObj.DataStatus != null) {
         if (profileObj.DataStatus.Father != null) {
           if (profileObj.DataStatus.Father == BioCheckPerson.CONF_WITH_DNA_STATUS) {
             this.person.fatherDnaConfirmed = true;
@@ -194,7 +190,7 @@ export class BioCheckPerson {
       if (profileObj.bio == null) {
         canUseThis = false;
       }
-      if ((profileObj.Manager !== null) && (profileObj.Manager === 0)) {
+      if (profileObj.Manager !== null && profileObj.Manager === 0) {
         this.person.isOrphan = true;
       }
       if (mustBeOrphan && !this.person.isOrphan) {
@@ -221,15 +217,15 @@ export class BioCheckPerson {
         }
       }
       // Don't bother with REDIRECT unless you can use the profile anyway
-      if (canUseThis && (profileObj.bio != null)) {
+      if (canUseThis && profileObj.bio != null) {
         this.person.bio = profileObj.bio;
         this.person.hasBio = true;
-        // TODO this is a HACK 
+        // TODO this is a HACK
         // to see if resolveRedirect was not honored by the API
-        // look for a bio content that starts with 
+        // look for a bio content that starts with
         // and if so set hasBio false to force a call to the getBio API
-        if (profileObj.bio.startsWith('#REDIRECT')) {
-          console.log('BioCheck biography starts with #REDIRECT for profile Id ' + profileObj.Id);
+        if (profileObj.bio.startsWith("#REDIRECT")) {
+          console.log("BioCheck biography starts with #REDIRECT for profile Id " + profileObj.Id);
           this.person.hasBio = false;
         }
       }
@@ -290,7 +286,7 @@ export class BioCheckPerson {
   getManagerId() {
     return this.person.managerId;
   }
-  /** 
+  /**
    * Is profile for a member
    * @returns {Boolean} true if profile for a member
    */
@@ -298,7 +294,7 @@ export class BioCheckPerson {
     return this.person.isMember;
   }
 
-  /** 
+  /**
    * Is profile an orphan
    * @returns {Boolean} true if profile is an orphan
    */
@@ -377,7 +373,8 @@ export class BioCheckPerson {
    * mStatusFather, mStatusMother
    */
   build() {
-
+    let bLocField = document.getElementById("mBirthLocation");
+    if (!bLocField) return;
     let bDay = document.getElementById("mBirthDate").value;
     let dDay = document.getElementById("mDeathDate").value;
     this.#birthDate = null;
@@ -414,13 +411,12 @@ export class BioCheckPerson {
     this.#checkEarlyDates();
     let bLoc = document.getElementById("mBirthLocation").value;
     let dLoc = document.getElementById("mDeathLocation").value;
-    if (((bLoc != null) && (bLoc.length > 0)) ||
-        ((dLoc != null) && (dLoc.length > 0))) {
+    if ((bLoc != null && bLoc.length > 0) || (dLoc != null && dLoc.length > 0)) {
       this.person.hasLocation = true;
     }
 
     // get DNA confirmation status
-    let val = document.getElementsByName('mStatus_Father');
+    let val = document.getElementsByName("mStatus_Father");
     for (let radio of val) {
       if (radio.checked) {
         if (radio.value == BioCheckPerson.CONF_WITH_DNA_STATUS) {
@@ -428,7 +424,7 @@ export class BioCheckPerson {
         }
       }
     }
-    val = document.getElementsByName('mStatus_Mother');
+    val = document.getElementsByName("mStatus_Mother");
     for (let radio of val) {
       if (radio.checked) {
         if (radio.value == BioCheckPerson.CONF_WITH_DNA_STATUS) {
@@ -437,7 +433,7 @@ export class BioCheckPerson {
       }
     }
     // Active profile manager has an email address
-    let emailElements = document.getElementsByName('mEmail');
+    let emailElements = document.getElementsByName("mEmail");
     if (emailElements.length > 0) {
       this.person.isMember = true;
     }
@@ -476,19 +472,20 @@ export class BioCheckPerson {
         day = splitString[2];
       }
     } else {
-      if (dateString.includes(",")) {    // mon dd, yyyy
+      if (dateString.includes(",")) {
+        // mon dd, yyyy
         let splitString = dateString.split(" ");
         let len = splitString.length;
-          if (len > 0) {
-            month = splitString[0];
-          }
-          if (len > 1) {
-            day = splitString[1];
-            day = day.replace(",", "");
-          }
-          if (len >= 2) {
-            year = splitString[2];
-          }
+        if (len > 0) {
+          month = splitString[0];
+        }
+        if (len > 1) {
+          day = splitString[1];
+          day = day.replace(",", "");
+        }
+        if (len >= 2) {
+          year = splitString[2];
+        }
       } else {
         let splitString = dateString.split(" ");
         let len = splitString.length;
@@ -617,14 +614,14 @@ export class BioCheckPerson {
 
   /**
    * Get birth date
-   * @returns {Date} birth date 
+   * @returns {Date} birth date
    */
   getBirthDate() {
     return this.#birthDate;
   }
   /**
    * Get death date
-   * @return {Date} death date 
+   * @return {Date} death date
    */
   getDeathDate() {
     return this.#deathDate;
