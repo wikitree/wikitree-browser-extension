@@ -14,7 +14,8 @@
   min-width: 300px !important;
   max-width: 500px !important;
   vertical-align: top !important;
-  white-space: nowrap !important;
+  /* Allow label text to wrap naturally. Use <br> inside the hidden span to force
+    an explicit break where desired. */
 }
 
 .wbe-countdown-label {
@@ -64,6 +65,14 @@
   text-transform: uppercase;
   letter-spacing: 1px;
   opacity: 0.9;
+}
+
+/* Unit variants: show long form by default, short form used on very small screens */
+.wbe-countdown-unit-long {
+  display: block;
+}
+.wbe-countdown-unit-short {
+  display: none;
 }
 
 .wbe-countdown-separator {
@@ -201,20 +210,82 @@
 /* Responsive design */
 @media (max-width: 480px) {
   .wbe-countdown-box {
-    min-width: 280px;
-    padding: 0.8rem 1rem;
+    /* Use nearly full-width on small screens with small gutters */
+    box-sizing: border-box;
+    width: calc(100% - 2rem);
+    max-width: none !important;
+    min-width: unset !important;
+    padding: 0.6rem 0.8rem !important;
+    margin-left: 1rem !important;
+    margin-right: 1rem !important;
+    border-radius: 8px !important;
   }
 
   .wbe-countdown-time {
-    gap: 0.5rem;
+    gap: 0.4rem;
+    justify-content: center;
   }
 
+  /* Tighter sizing for very small screens to keep all segments on one line */
   .wbe-countdown-number {
-    font-size: 2em;
+    font-size: 1.25em;
   }
 
   .wbe-countdown-segment {
-    min-width: 50px;
+    min-width: 28px !important;
+    padding: 0 0.15rem !important;
+  }
+
+  .wbe-countdown-separator {
+    padding-bottom: 0.6em;
+    font-size: 1em !important;
+  }
+
+  /* Prevent the time row from wrapping; shrink spacing if necessary */
+  .wbe-countdown-time {
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .wbe-countdown-label {
+    font-size: 1em !important;
+    margin-bottom: 0.4rem !important;
+    word-break: break-word !important;
+    white-space: normal !important;
+  }
+
+  .wbe-countdown-fireworks {
+    font-size: 1.1em !important;
+  }
+}
+
+/* Shorten unit labels on very small screens for clarity */
+@media (max-width: 420px) {
+  /* Show short unit spans for all units (including days) to keep labels uniform) */
+  .wbe-countdown-unit .wbe-countdown-unit-long {
+    display: none !important;
+  }
+  .wbe-countdown-unit .wbe-countdown-unit-short {
+    display: block !important;
+    font-size: 0.78em;
+    margin-top: 0.18rem;
+    letter-spacing: 0.5px;
+  }
+
+  /* Prevent digits from wrapping inside the number box and ensure segments
+     have enough minimum width to accommodate multi-digit values. */
+  .wbe-countdown-number {
+    font-size: 1.28em !important;
+    white-space: nowrap !important;
+  }
+
+  .wbe-countdown-segment {
+    min-width: 40px !important;
+  }
+
+  .wbe-countdown-separator {
+    padding-bottom: 0.45em;
+    font-size: 0.95em !important;
   }
 }
 

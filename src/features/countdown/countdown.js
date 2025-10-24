@@ -25,25 +25,33 @@ function parseCountdownElement($el) {
   let label = $el.attr("data-label");
   let completeText = $el.attr("data-complete-text") || countdownDefaults.defaultCompleteText;
 
-  // Check if this span contains countdown data in text content
+  // Check if this span contains countdown data in its HTML content.
+  // We prefer innerHTML so authors can include <br> for line breaks. We'll
+  // sanitize parameters but preserve <br> in the returned label.
   if (!dataTarget) {
-    const raw = ($el.text() || "").trim();
+    const rawHtml = ($el.html() || "").trim();
+    const rawText = ($el.text() || "").trim();
 
-    if (raw) {
-      // Parse countdown data from text content
-      if (raw.includes("@")) {
-        const atIdx = raw.lastIndexOf("@");
-        label = label || raw.slice(0, atIdx).trim();
-        const dateStr = raw.slice(atIdx + 1).trim();
+    if (rawHtml) {
+      // Parse countdown data from HTML content
+      if (rawHtml.includes("@")) {
+        const atIdx = rawHtml.lastIndexOf("@");
+        // labelHTML contains possible <br> tags; date text should be stripped of tags
+        const labelHTML = label || rawHtml.slice(0, atIdx).trim();
+        let dateStr = rawHtml.slice(atIdx + 1).trim();
+        // Remove any HTML tags from date portion
+        dateStr = dateStr.replace(/<[^>]*>/g, "").trim();
 
         // Check for style parameters in the label part
-        const labelParts = label.split("|");
+        const labelParts = labelHTML.split("|");
         const actualLabel = labelParts[0].trim();
         const styleParams = {};
 
         if (labelParts.length > 1) {
           labelParts.slice(1).forEach((param) => {
-            const [key, value] = param.split("=", 2);
+            // Strip any accidental HTML from parameters
+            const cleanParam = param.replace(/<[^>]*>/g, "").trim();
+            const [key, value] = cleanParam.split("=", 2);
             if (key) {
               // If no value provided, use empty string (treats as truthy for center/centre)
               styleParams[key.trim().toLowerCase()] = value ? value.trim() : "";
@@ -53,6 +61,7 @@ function parseCountdownElement($el) {
 
         return {
           target: dateStr,
+          // Preserve simple HTML (only <br> allowed) in the label
           label: actualLabel,
           completeText,
           theme: styleParams.theme,
@@ -64,12 +73,13 @@ function parseCountdownElement($el) {
           hideAfter: styleParams.hideafter || styleParams["hide-after"],
           happening: styleParams.happening,
         };
-      } else if (raw.includes("=")) {
-        // Parse key=value pairs
-        const pairs = raw.split(";");
+      } else if (rawHtml.includes("=")) {
+        // Parse key=value pairs (allow HTML but strip tags from keys/values)
+        const pairs = rawHtml.split(";");
         const data = {};
         pairs.forEach((pair) => {
-          const [key, value] = pair.split("=", 2);
+          const cleanPair = pair.replace(/<[^>]*>/g, "").trim();
+          const [key, value] = cleanPair.split("=", 2);
           if (key) {
             // If no value provided, use empty string (treats as truthy for center/centre)
             data[key.trim().toLowerCase()] = value ? value.trim() : "";
@@ -94,7 +104,7 @@ function parseCountdownElement($el) {
       } else {
         return {
           target: null,
-          label: raw,
+          label: rawText,
           completeText,
           error: "Invalid format. Use: Label @ YYYY-MM-DD or key=value format",
         };
@@ -248,8 +258,15 @@ function formatTimeRemaining(milliseconds, options) {
 }
 
 function createCountdownBox(label, showLabels, isCompact = false, styleData = {}, updateFrequency = "second") {
-  const labelHTML =
-    label && showLabels ? `<div class="wbe-countdown-label">${$("<div>").text(label).html()}</div>` : "";
+  let labelHTML = "";
+  if (label && showLabels) {
+    // Allow simple <br> tags in labels. Escape everything else, but restore <br>.
+    const BR_PLACEHOLDER = "WBE_BR_PLACEHOLDER_42";
+    const safelyMarked = label.replace(/<br\s*\/?>/gi, BR_PLACEHOLDER);
+    const escaped = $("<div>").text(safelyMarked).html();
+    const withBr = escaped.replace(new RegExp(BR_PLACEHOLDER, "g"), "<br/>");
+    labelHTML = `<div class="wbe-countdown-label">${withBr}</div>`;
+  }
 
   const compactClass = isCompact ? " wbe-countdown-compact" : "";
 
@@ -272,7 +289,7 @@ function createCountdownBox(label, showLabels, isCompact = false, styleData = {}
         <div class="wbe-countdown-separator">:</div>
         <div class="wbe-countdown-segment">
           <span class="wbe-countdown-number wbe-countdown-seconds">00</span>
-          <span class="wbe-countdown-unit">seconds</span>
+          <span class="wbe-countdown-unit" data-unit="seconds"><span class="wbe-countdown-unit-long">seconds</span><span class="wbe-countdown-unit-short">SECS</span></span>
         </div>`
     : "";
 
@@ -282,17 +299,17 @@ function createCountdownBox(label, showLabels, isCompact = false, styleData = {}
       <div class="wbe-countdown-time">
         <div class="wbe-countdown-segment">
           <span class="wbe-countdown-number wbe-countdown-days">0</span>
-          <span class="wbe-countdown-unit">days</span>
+          <span class="wbe-countdown-unit" data-unit="days"><span class="wbe-countdown-unit-long">days</span><span class="wbe-countdown-unit-short">DAYS</span></span>
         </div>
         <div class="wbe-countdown-separator">:</div>
         <div class="wbe-countdown-segment">
           <span class="wbe-countdown-number wbe-countdown-hours">00</span>
-          <span class="wbe-countdown-unit">hours</span>
+          <span class="wbe-countdown-unit" data-unit="hours"><span class="wbe-countdown-unit-long">hours</span><span class="wbe-countdown-unit-short">HRS</span></span>
         </div>
         <div class="wbe-countdown-separator">:</div>
         <div class="wbe-countdown-segment">
           <span class="wbe-countdown-number wbe-countdown-minutes">00</span>
-          <span class="wbe-countdown-unit">minutes</span>
+          <span class="wbe-countdown-unit" data-unit="minutes"><span class="wbe-countdown-unit-long">minutes</span><span class="wbe-countdown-unit-short">MINS</span></span>
         </div>${secondsHTML}
       </div>
     </div>
