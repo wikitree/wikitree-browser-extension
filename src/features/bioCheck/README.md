@@ -31,8 +31,12 @@ import { Biography } from "./Biography.js";
   if (canUseThis) {
     let biography = new Biography(theSourceRules);
     biography.parse(bioString, thePerson, searchString);
-    let isValid = biography.validate(); 
+    let hasValidSources = biography.validate(); 
+
+    // optionally determine if biography has any problems
+    let hasProblems = biography.hasProblems();
   }
+
 
   // now report from biography (use getters) as desired or just the boolean return 
   // you might want to report any biography that is not valid from the validate()
@@ -58,6 +62,7 @@ Only contains a subset of the complete set of data available.
 Expects the profile to contain the following fields from the API:
 Id,Name,IsLiving,Privacy,Manager,IsMember,
 BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,
+BirthLocation,DeathLocation,
 FirstName,RealName,LastNameCurrent,LastNameAtBirth,Mother,Father,DataStatus,Bio
 
 ### canUse
@@ -298,6 +303,14 @@ used when adding a new person in basic mode.
 *   `thePerson`  {BioCheckPerson} person to check
 
 Returns **[Boolean][7]** true if sources found.
+
+### hasProblems
+
+Does biography have problems.
+problems include: no valid sources, no sources, empty,
+marked unsourced, undated, has style issues
+
+Returns **[Boolean][7]** true if bio has problems
 
 ### isEmpty
 

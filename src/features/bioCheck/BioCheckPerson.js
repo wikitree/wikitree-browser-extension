@@ -39,6 +39,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * Expects the profile to contain the following fields from the API:
  * Id,Name,IsLiving,Privacy,Manager,IsMember,
  * BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,
+ * BirthLocation,DeathLocation,
  * FirstName,RealName,LastNameCurrent,LastNameAtBirth,Mother,Father,DataStatus,Bio
  */
 export class BioCheckPerson {
@@ -99,6 +100,7 @@ export class BioCheckPerson {
   canUse(profileObj, mustBeOpen, mustBeOrphan, ignorePre1500, userId) {
     let canUseThis = false;
     canUseThis = true;
+
     if (profileObj.BirthDate != null) {
       this.#birthDateString = profileObj.BirthDate;
       this.#birthDate = this.#getDateFromString(this.#birthDateString);
@@ -373,8 +375,6 @@ export class BioCheckPerson {
    * mStatusFather, mStatusMother
    */
   build() {
-    let bLocField = document.getElementById("mBirthLocation");
-    if (!bLocField) return;
     let bDay = document.getElementById("mBirthDate").value;
     let dDay = document.getElementById("mDeathDate").value;
     this.#birthDate = null;
@@ -409,9 +409,9 @@ export class BioCheckPerson {
     }
     // Go ahead and see if pre1500, pre1700 or too old
     this.#checkEarlyDates();
-    let bLoc = document.getElementById("mBirthLocation").value;
-    let dLoc = document.getElementById("mDeathLocation").value;
-    if ((bLoc != null && bLoc.length > 0) || (dLoc != null && dLoc.length > 0)) {
+    let bLoc = document.getElementById("mBirthLocation");
+    let dLoc = document.getElementById("mDeathLocation");
+    if ((bLoc != null && bLoc.value.length > 0) || (dLoc != null && dLoc.value.length > 0)) {
       this.person.hasLocation = true;
     }
 
