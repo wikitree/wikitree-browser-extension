@@ -1238,7 +1238,10 @@ function matchesWithoutAccents(sourceText, targetText) {
 }
 
 function isReferenceRelevant(reference, event, spouse) {
-  if (event === "Death" && /Acadian|Wall of Names|sameas=no/i.test(reference.Text)) {
+  if (
+    ["Death", "Death Notice", "Information of Death"].includes(event) &&
+    /Acadian|Wall of Names|sameas=no/i.test(reference.Text)
+  ) {
     return false;
   }
 
@@ -5164,7 +5167,7 @@ export function sourcesArray(bio) {
       const baptismDateMatch = aRef.Text.match(/familysearch.*,.*?baptis.*?\bon\b (.*?\d{4}\b)/i);
       const baptismDateMatch2 = aRef.Text.match(/familysearch.*\),.*(\b(\d{1,2}\s)(\w{3}\s)\d{4}\b);/i);
       const birthDateMatch = aRef.Text.match(/familysearch.*,.*?\bborn\b (.*?\d{4}\b)/i);
-      const baptismLocationMatch = aRef.Text.match(/familysearch.*,.*?\bin\b (.*?)\./i);
+      const baptismLocationMatch = aRef.Text.match(/familysearch.*,.*?\bin|at\b (.*?)\./i);
       const baptismLocationMatch2 = aRef.Text.match(
         /familysearch.*\),.*\b\d{1,2}\s\w{3}\s\d{4}\b;.*Baptism,\s(.*), (United Kingdom|USA|United States|Canada|Australia|New Zealand)/i
       );
@@ -5455,7 +5458,7 @@ export function sourcesArray(bio) {
     }
     if (
       (aRef.Text.match(
-        /NZBDM DEATH|(New Zealand Department.*Death Registration)|Overlijden|[A-Z][a-z]+ Deaths(?!\s&|\sand)|'''Death'''|Death (Index|Record|Reg)|findagrave|Find a Grave|memorial|Cemetery Registers|Death Certificate|^Death -|citing Death|citing.*Burial,|Probate/i
+        /NZBDM DEATH|(New Zealand Department.*Death Registration)|Overlijden|[A-Z][a-z]+ Deaths(?!\s&|\sand)|'''Death'''|Death (Index|Record|Reg)|findagrave|Find a Grave|memorial|Cemetery Registers|Death Certificate|^Death -|citing Death|citing.*Burial,|Probate|Information of Death/i
       ) ||
         aRef["Death Date"]) &&
       aRef.Text.match("Birth of") == null
