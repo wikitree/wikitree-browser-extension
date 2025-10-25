@@ -312,6 +312,32 @@ const projectAccounts = {
   "WikiTree-132": "profiles",
   "WikiTree-139": "notables",
 };
+const bioCheckFields = [
+  "Id",
+  "Name",
+  "Bio",
+  "BirthDate",
+  "DeathDate",
+  "Derived.ShortName",
+  "Gender",
+  "IsLiving",
+  "Privacy",
+  "Manager",
+  "IsMember",
+  "BirthDate",
+  "DeathDate",
+  "BirthDateDecade",
+  "DeathDateDecade",
+  "BirthLocation",
+  "DeathLocation",
+  "FirstName",
+  "RealName",
+  "LastNameCurrent",
+  "LastNameAtBirth",
+  "Mother",
+  "Father",
+  "DataStatus",
+];
 
 // Define the class FeedHelper
 class FeedHelper {
@@ -1037,7 +1063,6 @@ class FeedHelper {
 
     // Filter out already stored IDs
     const newWTIDs = WTIDs.filter((id) => !existingProfiles[id]);
-
     if (fields.length === 0) {
       fields = ["Id", "Name", "FirstName", "BirthDate", "DeathDate", "Derived.ShortName", "Gender", "Bio"];
     }
@@ -1064,7 +1089,7 @@ class FeedHelper {
             );
           }
           // Fetch new data only for IDs not in sessionStorage
-          console.log(`WBE: Making API call with fields:`, fields);
+          //console.log(`WBE: Making API call with fields:`, fields);
           const people = await WikiTreeAPI.getPeople("Rangers", batch, fields, { resolveRedirect: 0 });
 
           console.log(`WBE: API response structure:`, people);
@@ -1951,6 +1976,7 @@ class FeedHelper {
     // Use the people data passed in (now includes Bio field)
     const bioData = people;
 
+    // TODO do we want to leave this log in?
     console.log("WBE: detectBioAnomalies called - checking for unmerged profiles with duplicate birth info");
     console.log("WBE: historyItems:", historyItems.length, "bioData keys:", Object.keys(bioData || {}).length);
 
@@ -1977,6 +2003,7 @@ class FeedHelper {
           const profileId = match[1];
           const person = Object.values(bioData).find((p) => p.Name === profileId);
 
+          // TODO do we want to take this log out?
           console.log(
             `WBE: Checking profileId: ${profileId}, found person:`,
             !!person,
@@ -3048,8 +3075,8 @@ class FeedHelper {
       this.debug(`Making WikiTreeAPI call for ID: ${apiId}`);
       const peopleResponse = await WikiTreeAPI.getPeople(
         "Rangers",
-        [apiId],
-        ["Id", "Name", "Bio", "BirthDate", "DeathDate", "Derived.ShortName", "Gender"],
+        [apiId], 
+        bioCheckFields,
         { bioFormat: "text" }
       );
 
@@ -3117,7 +3144,8 @@ class FeedHelper {
         // Run autoBioCheck and store result
         if (person.bio) {
           this.bioCheckDebug(`Running Bio Check for profile ${bioId}`);
-          const autoBioCheckResult = this.autoBioCheck(person.bio, person.Id, person.Name);
+//          const autoBioCheckResult = this.autoBioCheck(person.bio, person.Id, person.Name);
+          const autoBioCheckResult = this.autoBioCheck(person);
           this.bioCheckDebug(`Bio Check result for ${bioId}:`, autoBioCheckResult);
           if (!this.bioCheckResults) {
             this.bioCheckResults = {};
@@ -3255,7 +3283,7 @@ class FeedHelper {
           const peopleResponse = await WikiTreeAPI.getPeople(
             "Rangers",
             batch,
-            ["Id", "Name", "Bio", "BirthDate", "DeathDate", "Derived.ShortName", "Gender"],
+            bioCheckFields,
             { bioFormat: "text" }
           );
 
@@ -3267,7 +3295,7 @@ class FeedHelper {
             Object.values(peopleResponse[2]).forEach((person) => {
               if (person && person.bio) {
                 // Run autoBioCheck
-                const autoBioCheckResult = this.autoBioCheck(person.bio, person.Id, person.Name);
+                const autoBioCheckResult = this.autoBioCheck(person);
                 // Store the result
                 this.bioCheckResults[person.Id] = autoBioCheckResult;
               }
@@ -3419,7 +3447,7 @@ class FeedHelper {
           } else {
             // Run autoBioCheck
             this.debug(`Running Bio Check for ${person.Id} (${person.Name})`);
-            autoBioCheckResult = this.autoBioCheck(person.bio, person.Id, person.Name);
+            autoBioCheckResult = this.autoBioCheck(person);
             this.debug(`Bio Check result for ${person.Id}:`, autoBioCheckResult);
 
             // EXTRA DEBUG FOR HAREN-154
@@ -3895,116 +3923,30 @@ class FeedHelper {
     }
   }
 
-  autoBioCheck(sourcesStr, profileId = null, profileName = null) {
-    const profileInfo =
-      profileId && profileName
-        ? `${profileName} (ID: ${profileId})`
-        : profileId
-        ? `ID: ${profileId}`
-        : profileName
-        ? `Name: ${profileName}`
-        : "Unknown profile";
-    this.bioCheckDebug(`=== Starting autoBioCheck for ${profileInfo} ===`);
-    this.bioCheckDebug(`Bio content length for ${profileInfo}:`, sourcesStr ? sourcesStr.length : 0);
-    this.bioCheckDebug(
-      `Bio content preview for ${profileInfo}:`,
-      sourcesStr ? sourcesStr.substring(0, 200) + "..." : "No content"
-    );
+  autoBioCheck(person) {
 
-    if (!sourcesStr) {
-      this.bioCheckDebug(`No bio content provided for ${profileInfo}, returning false`);
-      return false;
-    }
+    // an empty biography will be detected, and validate returns false
+    //if (!sourcesStr) {
+    //  this.bioCheckDebug(`No bio content provided for ${profileInfo}, returning false`);
+     // return false;
+    //}
 
-    if ($("#mBirthDate").length == 0) {
-      // Create hidden inputs to store the birthdate and death date
-      $("body").append('<input type="hidden" id="mBirthDate" name="mBirthDate">');
-      $("body").append('<input type="hidden" id="mDeathDate" name="mDeathDate">');
-      this.bioCheckDebug("Created hidden date inputs");
-    }
-
+    let bioCheckPassed = true;
     let thePerson = new BioCheckPerson();
-    thePerson["#isApp"] = true;
-    thePerson.build();
-    this.bioCheckDebug(`BioCheckPerson created and built for ${profileInfo}`);
+    let canUseThis = thePerson.canUse(person, false, false, false, 0);
+    if (canUseThis) {
+      let biography = new Biography(theSourceRules);
+      biography.parse(person.bio, thePerson, "");
+      biography.validate();
 
-    let biography = new Biography(theSourceRules);
-    this.bioCheckDebug(`Biography created with theSourceRules for ${profileInfo}`);
+      // Check for duplicate birth information
+      const duplicateBirthResult = this.checkForDuplicateBirthInfo(person.bio, thePerson.person.profileId, 
+                                   thePerson.person.wikiTreeId, thePerson.person.firstName);
+      //this.bioCheckDebug(`Duplicate birth info check result for ${profileInfo}:`, duplicateBirthResult);
 
-    biography.parse(sourcesStr, thePerson, "");
-    this.bioCheckDebug(`Biography parsed for ${profileInfo}`);
-
-    biography.validate();
-    this.bioCheckDebug(`Biography validated for ${profileInfo}`);
-
-    const hasSources = biography.hasSources();
-    this.bioCheckDebug(`hasSources result for ${profileInfo}:`, hasSources);
-
-    // Additional debugging - check for common source patterns
-    const hasRefTags = /<ref[^>]*>/.test(sourcesStr);
-    const hasSourcesSection = /==\s*sources?\s*==/i.test(sourcesStr);
-    const hasReferencesSection = /==\s*references?\s*==/i.test(sourcesStr);
-    const hasCitations = /\[\d+\]/.test(sourcesStr) || /\{\{[^}]*cite[^}]*\}\}/i.test(sourcesStr);
-    const hasEmptyReferences = /<references\s*\/?>/.test(sourcesStr);
-    const hasUnsourcedTemplate = /\{\{unsourced\}\}/i.test(sourcesStr);
-
-    this.bioCheckDebug(`Manual source pattern checks for ${profileInfo}:`);
-    this.bioCheckDebug("- Has <ref> tags:", hasRefTags);
-    this.bioCheckDebug("- Has Sources section:", hasSourcesSection);
-    this.bioCheckDebug("- Has References section:", hasReferencesSection);
-    this.bioCheckDebug("- Has citations/refs:", hasCitations);
-    this.bioCheckDebug("- Has empty <references />:", hasEmptyReferences);
-    this.bioCheckDebug("- Has {{Unsourced}} template:", hasUnsourcedTemplate);
-
-    // Check biography object for more details
-    this.bioCheckDebug(`Biography object details for ${profileInfo}:`);
-    this.bioCheckDebug("- Sources found by parser:", biography.sources ? biography.sources.length : 0);
-    if (biography.sources && biography.sources.length > 0) {
-      this.bioCheckDebug("- Actual sources:", biography.sources);
+      // Bio fails if it has duplicate birth info, even if it has sources
+      bioCheckPassed = !biography.hasProblems() && !duplicateBirthResult;
     }
-    this.bioCheckDebug("- Validation errors:", biography.errors ? biography.errors.length : 0);
-
-    // Check what Biography.hasSources() is actually checking
-    this.bioCheckDebug("- Biography.sourceList length:", biography.sourceList ? biography.sourceList.length : 0);
-    this.bioCheckDebug("- Biography.refList length:", biography.refList ? biography.refList.length : 0);
-
-    // Let's also check the actual method that determines sources
-    if (biography.sourceList && biography.sourceList.length > 0) {
-      this.bioCheckDebug("- sourceList content:", biography.sourceList);
-    }
-    if (biography.refList && biography.refList.length > 0) {
-      this.bioCheckDebug("- refList content:", biography.refList);
-    }
-    this.bioCheckDebug("- Validation errors:", biography.errors ? biography.errors.length : 0);
-
-    if (biography.errors && biography.errors.length > 0) {
-      this.bioCheckDebug("Validation errors found:", biography.errors);
-    }
-
-    // Let's also inspect the Biography object directly to understand what hasSources() checks
-    this.bioCheckDebug("Biography object inspection:");
-    this.bioCheckDebug("- Biography keys:", Object.keys(biography));
-    this.bioCheckDebug("- hasSources method result:", biography.hasSources());
-
-    // Try to understand what hasSources() actually checks by examining Biography object properties
-    const biographyProperties = ["sources", "sourceList", "refList", "refs", "sourceRefs", "citations"];
-    biographyProperties.forEach((prop) => {
-      if (biography.hasOwnProperty(prop)) {
-        this.bioCheckDebug(`- ${prop}:`, biography[prop]);
-      }
-    });
-
-    // Check for duplicate birth information
-    const duplicateBirthResult = this.checkForDuplicateBirthInfo(sourcesStr, profileId, profileName, null);
-    this.bioCheckDebug(`Duplicate birth info check result for ${profileInfo}:`, duplicateBirthResult);
-
-    // Bio fails if it has duplicate birth info, even if it has sources
-    const bioCheckPassed = hasSources && !duplicateBirthResult;
-
-    this.bioCheckDebug(
-      `=== autoBioCheck result for ${profileInfo}: hasSources=${hasSources}, hasDuplicateBirthInfo=${!!duplicateBirthResult}, final result=${bioCheckPassed} ===`
-    );
-
     return bioCheckPassed;
   }
 
@@ -4067,7 +4009,7 @@ class FeedHelper {
     // Also log in console for immediate visibility
     if (wasBornMatches.length >= 2) {
       console.log(`WBE: POTENTIAL DUPLICATE BIRTH INFO for ${profileInfo}:`);
-      console.log(`WBE: Text being checked:`, textToCheck);
+      console.log(`WBE: Text being checked:`, textToCheck.substring(0, 500));
       console.log(`WBE: Matches found:`, wasBornMatches);
     }
 

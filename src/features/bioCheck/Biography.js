@@ -87,6 +87,7 @@ export class Biography {
       totalBioLines: 0,
       inlineReferencesCount: 0, // number of <ref>
       possibleSourcesLineCount: 0, // number of lines that might contain sources
+      bioHasProblems: false,
     };
   #style = {
       bioHasNonCategoryTextBeforeBiographyHeading: false,
@@ -619,6 +620,11 @@ export class Biography {
     // set the style issues found in validate
     this.#setBioStatisticsAndStyle();
 
+    // set one overall if bio has any problems
+    this.#stats.bioHasProblems = !isValid ||
+                                 this.#stats.bioIsUndated ||
+                                 this.#stats.bioIsMarkedUnsourced ||
+                                 this.#style.bioHasStyleIssues;
     return isValid;
   }
 
@@ -642,6 +648,16 @@ export class Biography {
       this.#sources.sourcesFound = true;
     }
     return isValid;
+  }
+
+  /**
+   * Does biography have problems.
+   * problems include: no valid sources, no sources, empty, 
+   * marked unsourced, undated, has style issues
+   * @returns {Boolean} true if bio has problems
+  */
+  hasProblems() {
+    return this.#stats.bioHasProblems;
   }
 
   /* *********************************************************************
