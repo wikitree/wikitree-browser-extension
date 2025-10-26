@@ -29,7 +29,7 @@ function addDiedYoung() {
   if (window.autoCategoriesOptions.diedYoung) {
     const deathAge = ageAtDeath(window.profilePerson);
     if (typeof deathAge.age !== "") {
-      if (deathAge.age < 17 && currentBio.match("{{Died Young}}") == null) {
+      if (deathAge.age < 17 && !currentBio.includes("{{Died Young}}")) {
         currentBio = currentBio.replace(/==\s?Biography\s?==/i, "== Biography ==\n{{Died Young}}");
       }
     }
@@ -140,7 +140,10 @@ export async function addAutoCategories() {
   const afterBioHeadingThingsArray = afterBioHeadingThings.split("\n");
   const filteredAfterBioHeadingThingsArray = [];
   afterBioHeadingThingsArray.forEach((line) => {
-    if (currentBio.match(line) == null) {
+    // Skip empty lines and use a literal substring check to avoid treating
+    // the line as a RegExp (which can throw for characters like []-|).
+    const normalizedLine = line && line.trim();
+    if (normalizedLine && !currentBio.includes(normalizedLine)) {
       filteredAfterBioHeadingThingsArray.push(line);
     }
   });
