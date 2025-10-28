@@ -18,16 +18,30 @@ export function bioTimelineFacts(marriagesAndCensusesEtc) {
   });
 
   if (window.profilePerson["Baptism Date"]) {
-    if (window.profilePerson["Baptism Date"].match(/[a-z]/i)) {
-      window.profilePerson["Baptism Date"] = getYYYYMMDD(window.profilePerson["Baptism Date"]);
+    const rawBaptism = window.profilePerson["Baptism Date"];
+    if (rawBaptism.match(/[a-z]/i)) {
+      // textual date: see if it contains an explicit day (e.g. "15" or "15th")
+      const hasDay = /\b\d{1,2}(?:st|nd|rd|th)?\b/.test(rawBaptism);
+      const converted = getYYYYMMDD(rawBaptism);
+      bioTimeline.push({
+        // If month+year only (textual with no day), keep the original for display in Event Date
+        "Event Date": hasDay ? converted : rawBaptism,
+        // keep the original textual when month+year only so we can display without a fake day
+        DisplayDate: hasDay ? undefined : rawBaptism,
+        "Event Type": "Baptism",
+        "Event Place": window.profilePerson["Baptism Place"],
+        OrderDate: padNumber(String(converted).replaceAll(/-/g, "")),
+        Year: String(converted).slice(0, 4),
+      });
+    } else {
+      bioTimeline.push({
+        "Event Date": rawBaptism,
+        "Event Type": "Baptism",
+        "Event Place": window.profilePerson["Baptism Place"],
+        OrderDate: padNumber(String(rawBaptism).replaceAll(/-/g, "")),
+        Year: String(rawBaptism).slice(0, 4),
+      });
     }
-    bioTimeline.push({
-      "Event Date": window.profilePerson["Baptism Date"],
-      "Event Type": "Baptism",
-      "Event Place": window.profilePerson["Baptism Place"],
-      OrderDate: padNumber(window.profilePerson["Baptism Date"].replaceAll(/-/g, "")),
-      Year: window.profilePerson["Baptism Date"].slice(0, 4),
-    });
   }
 
   bioTimeline.push({
@@ -39,16 +53,27 @@ export function bioTimelineFacts(marriagesAndCensusesEtc) {
   });
 
   if (window.profilePerson["Burial Date"]) {
-    if (window.profilePerson["Burial Date"].match(/[a-z]/i)) {
-      window.profilePerson["Burial Date"] = getYYYYMMDD(window.profilePerson["Burial Date"]);
+    const rawBurial = window.profilePerson["Burial Date"];
+    if (rawBurial.match(/[a-z]/i)) {
+      const hasDay = /\b\d{1,2}(?:st|nd|rd|th)?\b/.test(rawBurial);
+      const converted = getYYYYMMDD(rawBurial);
+      bioTimeline.push({
+        "Event Date": hasDay ? converted : rawBurial,
+        DisplayDate: hasDay ? undefined : rawBurial,
+        "Event Type": "Burial",
+        "Event Place": window.profilePerson["Burial Place"],
+        OrderDate: padNumber(String(converted).replaceAll(/-/g, "")),
+        Year: String(converted).slice(0, 4),
+      });
+    } else {
+      bioTimeline.push({
+        "Event Date": rawBurial,
+        "Event Type": "Burial",
+        "Event Place": window.profilePerson["Burial Place"],
+        OrderDate: padNumber(String(rawBurial).replaceAll(/-/g, "")),
+        Year: String(rawBurial).slice(0, 4),
+      });
     }
-    bioTimeline.push({
-      "Event Date": window.profilePerson["Burial Date"],
-      "Event Type": "Burial",
-      "Event Place": window.profilePerson["Burial Place"],
-      OrderDate: padNumber(window.profilePerson["Burial Date"].replaceAll(/-/g, "")),
-      Year: window.profilePerson["Burial Date"].slice(0, 4),
-    });
   }
 
   ["Parents", "Siblings", "Spouses", "Children"].forEach(function (aRel) {
@@ -265,9 +290,23 @@ export function buildTimelineTable(bioTimeline) {
           }
         }
       });
-      let formattedEventDate = eventDate.replaceAll(/-00/g, "");
-      if (eventDate.match(/[a-z]/)) {
+      // prefer a stored DisplayDate (preserves month+year without forcing day);
+      // otherwise convert textual dates that include a day, or use the raw/ISO date
+      let formattedEventDate = "";
+      if (aEvent.DisplayDate) {
+        // Run the display date through formatDate for consistency, then strip
+        // a comma between month and year if the original had no day.
+        const cleaned = String(aEvent.DisplayDate).replaceAll(/-00/g, "").trim();
+        let formatted = formatDate(cleaned).replace(/in\s|on\s/g, "");
+        if (/^[A-Za-zÀ-ÿ]+\s+\d{4}$/.test(cleaned)) {
+          formatted = formatted.replace(/,\s*/g, " ");
+        }
+        formattedEventDate = formatted;
+      } else if (typeof eventDate === "string" && eventDate.match(/[a-z]/)) {
+        // textual date — assume it includes a day (if it didn't, DisplayDate would have been set)
         formattedEventDate = getYYYYMMDD(eventDate).replaceAll(/-00/g, "");
+      } else if (eventDate) {
+        formattedEventDate = String(eventDate).replaceAll(/-00/g, "");
       }
       timelineTable += "|" + formattedEventDate + "||" + eventType + "||" + eventLocation + "||" + sources + "\n|-\n";
     }
@@ -352,8 +391,17 @@ export function buildTimelineSA(bioTimeline) {
           }
         });
         let formattedEventDate = "";
-        if (isOK(eventDate)) {
-          formattedEventDate = formatDate(eventDate.replaceAll(/-00/g, "")).replace(/in\s|on\s/, "");
+        // prefer DisplayDate when present so month+year-only dates don't get a fake day
+        const displayDate = aEvent.DisplayDate || eventDate;
+        if (isOK(displayDate)) {
+          const cleaned = String(displayDate).replaceAll(/-00/g, "").trim();
+          let formatted = formatDate(cleaned).replace(/in\s|on\s/g, "");
+          // If the original cleaned value contains only Month Year (no day),
+          // strip a comma that formatDate may have introduced ("August, 1859" -> "August 1859").
+          if (/^[A-Za-zÀ-ÿ]+\s+\d{4}$/.test(cleaned)) {
+            formatted = formatted.replace(/,\s*/g, " ");
+          }
+          formattedEventDate = formatted;
         }
         if (marriageCount > 1 && head == "Marriage") {
           text += `${marriageIndex == 1 ? "" : "\n"}:'''${toOrdinalWord(marriageIndex)} Marriage'''\n`;
