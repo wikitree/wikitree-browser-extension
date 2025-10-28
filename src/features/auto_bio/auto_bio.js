@@ -5164,10 +5164,10 @@ export function sourcesArray(bio) {
       const nameMatch2 = aRef.Text.match(
         /familysearch.*\),\s(.*?),\s\b\d{1,2}\s\w{3}\s\d{4}\b;.*Baptism,\s(.*), (United Kingdom|USA|United States|Canada|Australia|New Zealand)/i
       );
-      const baptismDateMatch = aRef.Text.match(/familysearch.*,.*?baptis.*?\bon\b (.*?\d{4}\b)/i);
+      const baptismDateMatch = aRef.Text.match(/familysearch.*,.*?baptis.*?\b(?:on|in)\b (.*?\d{4}\b)/i);
       const baptismDateMatch2 = aRef.Text.match(/familysearch.*\),.*(\b(\d{1,2}\s)(\w{3}\s)\d{4}\b);/i);
       const birthDateMatch = aRef.Text.match(/familysearch.*,.*?\bborn\b (.*?\d{4}\b)/i);
-      const baptismLocationMatch = aRef.Text.match(/familysearch.*,.*?\b(?:in|at)\b (.*?)\./i);
+      const baptismLocationMatch = aRef.Text.match(/familysearch.*,.*?\b(?:in|at)\b ([^\d]*?)\./i);
       const baptismLocationMatch2 = aRef.Text.match(
         /familysearch.*\),.*\b\d{1,2}\s\w{3}\s\d{4}\b;.*Baptism,\s(.*), (United Kingdom|USA|United States|Canada|Australia|New Zealand)/i
       );
