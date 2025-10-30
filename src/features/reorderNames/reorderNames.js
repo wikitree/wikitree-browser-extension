@@ -396,6 +396,41 @@ shouldInitializeFeature("reorderNames").then((result) => {
       }
     }
 
+    // Ensure we include Latin additionalName (middle name) and any Latin
+    // parenthetical preferred names in the English given-name string when
+    // present. This preserves middle names like "Naumovich" and preferred
+    // names like "(Sholem)" even when an English given name already exists.
+    try {
+      const additionalNameRaw = clean(vitals.querySelector('[itemprop="additionalName"]')?.textContent || "");
+      if (additionalNameRaw) {
+        // If additionalName contains multiple comma-separated parts, treat each part separately.
+        const parts = additionalNameRaw.includes(",")
+          ? additionalNameRaw.split(",").map((p) => p.trim()).filter(Boolean)
+          : [additionalNameRaw];
+
+        parts.forEach((part) => {
+          // If the part is Latin-only, append it to the English given-name string.
+          if (/^[A-Za-z]/.test(part) && !hasNonLatin(part)) {
+            if (!engGiven.includes(part)) {
+              engGiven = engGiven ? `${engGiven} ${part}` : part;
+            }
+          }
+        });
+      }
+
+      // Add Latin parenthetical names (preserve parentheses) if present
+      parentheticalNames.forEach((p) => {
+        const inner = p.replace(/[()]/g, "").trim();
+        if (inner && /^[A-Za-z]/.test(inner) && !hasNonLatin(inner)) {
+          if (!engGiven.includes(inner)) {
+            engGiven = engGiven ? `${engGiven} (${inner})` : `(${inner})`;
+          }
+        }
+      });
+    } catch (e) {
+      // defensive: if DOM queries fail for some reason, don't break feature
+    }
+
     // Fallback to original given names only if they're Latin
     if (!engGiven) {
       const givenNames = [givenName, middleName].filter(Boolean).join(" ");
@@ -404,15 +439,19 @@ shouldInitializeFeature("reorderNames").then((result) => {
       }
     }
 
-    // For Japanese context, add romaji variants from quoted nicknames in brackets
-    if (isJapaneseContext && engGiven) {
+    // For Japanese context, gather romaji variants from quoted nicknames.
+    // If we already have an English given name, append variants in brackets.
+    // If we don't have an English given name, use the romaji variant(s) as the
+    // English given name so the Latin given name appears before the Latin surname
+    // (e.g. "Tetsu Katayama").
+    if (isJapaneseContext) {
       const romajiVariants = [];
       quotedNicknameFields.forEach((nickname) => {
         const cleanNickname = nickname.replace(/["']/g, "").trim();
         if (cleanNickname.includes(",")) {
           const parts = cleanNickname.split(",").map((p) => p.trim());
           parts.forEach((part) => {
-            // Look for romaji variants (contains Latin + diacritics, different from main engGiven)
+            // Look for romaji variants (contains Latin characters and no other script)
             if (/[A-Za-z]/.test(part) && !hasNonLatin(part) && part !== engGiven && !romajiVariants.includes(part)) {
               romajiVariants.push(part);
             }
@@ -421,7 +460,13 @@ shouldInitializeFeature("reorderNames").then((result) => {
       });
 
       if (romajiVariants.length > 0) {
-        engGiven += ` [${romajiVariants.join(", ")}]`;
+        if (engGiven) {
+          engGiven += ` [${romajiVariants.join(", ")}]`;
+        } else {
+          // If there's no English given name, use the romaji(s) directly so the
+          // Latin given name will be shown before the Latin surname.
+          engGiven = romajiVariants.join(" ");
+        }
       }
     }
 
@@ -636,7 +681,21 @@ shouldInitializeFeature("reorderNames").then((result) => {
 
       // Collect first names for this script
       firstNameStrongs.forEach((name) => {
-        if (getScriptsInText(name, isJapaneseContext).includes(script)) {
+        // If the strong contains mixed scripts (e.g., "bat Chaim, בת חיים"),
+        // split into parts and only include the pieces that match this script.
+        if (isMixed(name) && name.includes(",")) {
+          const parts = name.split(",").map((p) => p.trim()).filter(Boolean);
+          parts.forEach((part) => {
+            if (getScriptsInText(part, isJapaneseContext).includes(script)) {
+              if (script === "hebrew") {
+                const cleanPart = part.replace(/[()]/g, "").trim();
+                if (!scriptFirstNames.includes(cleanPart)) scriptFirstNames.push(cleanPart);
+              } else {
+                if (!scriptFirstNames.includes(part)) scriptFirstNames.push(part);
+              }
+            }
+          });
+        } else if (getScriptsInText(name, isJapaneseContext).includes(script)) {
           // For Hebrew, remove parentheses
           if (script === "hebrew") {
             const cleanName = name.replace(/[()]/g, "").trim();
@@ -658,13 +717,26 @@ shouldInitializeFeature("reorderNames").then((result) => {
       }
 
       // Also include additional name (middle name) if it matches this script and isn't already included
-      const additionalName = clean(vitals.querySelector('[itemprop="additionalName"]')?.textContent || "");
-      if (
-        additionalName &&
-        getScriptsInText(additionalName, isJapaneseContext).includes(script) &&
-        !scriptFirstNames.includes(additionalName)
-      ) {
-        scriptFirstNames.push(additionalName);
+      const additionalNameRaw = clean(vitals.querySelector('[itemprop="additionalName"]')?.textContent || "");
+      if (additionalNameRaw) {
+        // If the additional name contains comma-separated parts, check each part
+        // and only add the pieces that match the current script. This prevents
+        // Latin parts like "bat Chaim" from appearing on the non-Latin line.
+        if (additionalNameRaw.includes(",")) {
+          const parts = additionalNameRaw.split(",").map((p) => p.trim()).filter(Boolean);
+          parts.forEach((part) => {
+            if (getScriptsInText(part, isJapaneseContext).includes(script) && !scriptFirstNames.includes(part)) {
+              scriptFirstNames.push(part);
+            }
+          });
+        } else {
+          if (
+            getScriptsInText(additionalNameRaw, isJapaneseContext).includes(script) &&
+            !scriptFirstNames.includes(additionalNameRaw)
+          ) {
+            scriptFirstNames.push(additionalNameRaw);
+          }
+        }
       }
 
       // Collect quoted nicknames for this script
