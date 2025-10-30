@@ -898,9 +898,60 @@ shouldInitializeFeature("reorderNames").then((result) => {
         // Fallback to engGiven if no parenthetical Latin name found
         if (!latinGivenName) {
           latinGivenName = engGiven
-            .replace(/^["']|["']$/g, "")
-            .replace(/["']/g, "")
+            .replace(/^['\"]|['\"]$/g, "")
+            .replace(/['\"]/g, "")
             .trim();
+        } else {
+          // If we found a Latin parenthetical (e.g. "(Isaac)"), prefer it
+          // but append any quoted Latin nicknames (from quotedNicknameFields)
+          // in quotation marks so the English line becomes:
+          // "Isaac "Yitskhok ben Moshe" Rafalo". Avoid re-adding the
+          // parenthetical itself to prevent duplication.
+          const quotedLatinNicknames = [];
+          quotedNicknameFields.forEach((nick) => {
+            const cleaned = nick
+              .replace(/^['\"]|['\"]$/g, "")
+              .replace(/['\"]/g, "")
+              .trim();
+            if (!cleaned) return;
+            if (cleaned.includes(",")) {
+              cleaned
+                .split(",")
+                .map((p) => p.trim())
+                .forEach((part) => {
+                  if (/^[A-Za-z]/.test(part) && !hasNonLatin(part) && !quotedLatinNicknames.includes(part)) {
+                    quotedLatinNicknames.push(part);
+                  }
+                });
+            } else {
+              if (/^[A-Za-z]/.test(cleaned) && !hasNonLatin(cleaned) && !quotedLatinNicknames.includes(cleaned)) {
+                quotedLatinNicknames.push(cleaned);
+              }
+            }
+          });
+
+          if (quotedLatinNicknames.length > 0) {
+            const quotedStr = quotedLatinNicknames.map((n) => `"${n}"`).join(" ");
+            latinGivenName = `${latinGivenName} ${quotedStr}`.trim();
+          }
+
+          // Also append any Latin additionalName (middle name) parts that
+          // should follow the given name (e.g. "Naumovich"). These are
+          // appended without quotes.
+          const additionalNameRaw = clean(vitals.querySelector('[itemprop="additionalName"]')?.textContent || "");
+          if (additionalNameRaw) {
+            const parts = additionalNameRaw.includes(",")
+              ? additionalNameRaw
+                  .split(",")
+                  .map((p) => p.trim())
+                  .filter(Boolean)
+              : [additionalNameRaw];
+            parts.forEach((part) => {
+              if (/^[A-Za-z]/.test(part) && !hasNonLatin(part) && !latinGivenName.includes(part)) {
+                latinGivenName = `${latinGivenName} ${part}`.trim();
+              }
+            });
+          }
         }
 
         const latinSurnameLink = genealogyLinks.find((a) => /^[A-Za-z]/.test(clean(a.textContent)));
