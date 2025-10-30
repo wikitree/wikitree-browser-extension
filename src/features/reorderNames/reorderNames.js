@@ -405,7 +405,10 @@ shouldInitializeFeature("reorderNames").then((result) => {
       if (additionalNameRaw) {
         // If additionalName contains multiple comma-separated parts, treat each part separately.
         const parts = additionalNameRaw.includes(",")
-          ? additionalNameRaw.split(",").map((p) => p.trim()).filter(Boolean)
+          ? additionalNameRaw
+              .split(",")
+              .map((p) => p.trim())
+              .filter(Boolean)
           : [additionalNameRaw];
 
         parts.forEach((part) => {
@@ -684,7 +687,10 @@ shouldInitializeFeature("reorderNames").then((result) => {
         // If the strong contains mixed scripts (e.g., "bat Chaim, בת חיים"),
         // split into parts and only include the pieces that match this script.
         if (isMixed(name) && name.includes(",")) {
-          const parts = name.split(",").map((p) => p.trim()).filter(Boolean);
+          const parts = name
+            .split(",")
+            .map((p) => p.trim())
+            .filter(Boolean);
           parts.forEach((part) => {
             if (getScriptsInText(part, isJapaneseContext).includes(script)) {
               if (script === "hebrew") {
@@ -723,7 +729,10 @@ shouldInitializeFeature("reorderNames").then((result) => {
         // and only add the pieces that match the current script. This prevents
         // Latin parts like "bat Chaim" from appearing on the non-Latin line.
         if (additionalNameRaw.includes(",")) {
-          const parts = additionalNameRaw.split(",").map((p) => p.trim()).filter(Boolean);
+          const parts = additionalNameRaw
+            .split(",")
+            .map((p) => p.trim())
+            .filter(Boolean);
           parts.forEach((part) => {
             if (getScriptsInText(part, isJapaneseContext).includes(script) && !scriptFirstNames.includes(part)) {
               scriptFirstNames.push(part);
