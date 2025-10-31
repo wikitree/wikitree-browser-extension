@@ -384,14 +384,14 @@ shouldInitializeFeature("reorderNames").then((result) => {
     const givenName = clean(vitals.querySelector('[itemprop="givenName"]')?.textContent || "");
     const middleName = clean(vitals.querySelector('[itemprop="additionalName"]')?.textContent || "");
 
-  // Determine whether the primary given name is non-Latin and whether there
-  // are Latin alternatives. Compute early so we can decide whether to attach
-  // aka surnames to the English line or leave them for the Latin fallback.
-  const primaryGivenNameEarly = givenName;
-  const primaryGivenIsNonLatinEarly = hasNonLatin(primaryGivenNameEarly);
-  const hasLatinAlternativesEarly = allFirstNameScripts.has("latin") || allLastNameScripts.has("latin");
+    // Determine whether the primary given name is non-Latin and whether there
+    // are Latin alternatives. Compute early so we can decide whether to attach
+    // aka surnames to the English line or leave them for the Latin fallback.
+    const primaryGivenNameEarly = givenName;
+    const primaryGivenIsNonLatinEarly = hasNonLatin(primaryGivenNameEarly);
+    const hasLatinAlternativesEarly = allFirstNameScripts.has("latin") || allLastNameScripts.has("latin");
 
-  let engGiven = given;
+    let engGiven = given;
 
     // If no Latin given name found and we have parenthetical alternatives, use those
     if (!engGiven && parentheticalNames.length > 0) {
@@ -527,10 +527,10 @@ shouldInitializeFeature("reorderNames").then((result) => {
       }
     });
 
-  // Build English line. If we will run the Latin fallback (primary non-Latin
-  // and Latin alternatives exist), avoid appending aka surnames here to
-  // prevent duplication; they will be handled by the fallback logic.
-  let engLine = honorificPrefix ? `${honorificPrefix} ${engGiven}` : engGiven;
+    // Build English line. If we will run the Latin fallback (primary non-Latin
+    // and Latin alternatives exist), avoid appending aka surnames here to
+    // prevent duplication; they will be handled by the fallback logic.
+    let engLine = honorificPrefix ? `${honorificPrefix} ${engGiven}` : engGiven;
     let currentSurnameShownInEnglish = false;
 
     // Only include current surname if it's Latin or if no non-Latin scripts match
