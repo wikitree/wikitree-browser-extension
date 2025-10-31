@@ -384,7 +384,14 @@ shouldInitializeFeature("reorderNames").then((result) => {
     const givenName = clean(vitals.querySelector('[itemprop="givenName"]')?.textContent || "");
     const middleName = clean(vitals.querySelector('[itemprop="additionalName"]')?.textContent || "");
 
-    let engGiven = given;
+  // Determine whether the primary given name is non-Latin and whether there
+  // are Latin alternatives. Compute early so we can decide whether to attach
+  // aka surnames to the English line or leave them for the Latin fallback.
+  const primaryGivenNameEarly = givenName;
+  const primaryGivenIsNonLatinEarly = hasNonLatin(primaryGivenNameEarly);
+  const hasLatinAlternativesEarly = allFirstNameScripts.has("latin") || allLastNameScripts.has("latin");
+
+  let engGiven = given;
 
     // If no Latin given name found and we have parenthetical alternatives, use those
     if (!engGiven && parentheticalNames.length > 0) {
@@ -520,8 +527,10 @@ shouldInitializeFeature("reorderNames").then((result) => {
       }
     });
 
-    // Build English line
-    let engLine = honorificPrefix ? `${honorificPrefix} ${engGiven}` : engGiven;
+  // Build English line. If we will run the Latin fallback (primary non-Latin
+  // and Latin alternatives exist), avoid appending aka surnames here to
+  // prevent duplication; they will be handled by the fallback logic.
+  let engLine = honorificPrefix ? `${honorificPrefix} ${engGiven}` : engGiven;
     let currentSurnameShownInEnglish = false;
 
     // Only include current surname if it's Latin or if no non-Latin scripts match
@@ -546,7 +555,7 @@ shouldInitializeFeature("reorderNames").then((result) => {
       engLine += ` ${formerlySurname.outerHTML}`;
     }
 
-    if (akaSurnames.length > 0) {
+    if (akaSurnames.length > 0 && !(primaryGivenIsNonLatinEarly && hasLatinAlternativesEarly)) {
       engLine += ` aka ${akaSurnames.join(", ")}`;
     }
 
@@ -963,6 +972,53 @@ shouldInitializeFeature("reorderNames").then((result) => {
         }
 
         let engFallback = [latinGivenName, engSurnamePiece].filter(Boolean).join(" ").trim();
+
+        // If we used a latin surname link but there are additional Latin aka
+        // surnames, append them after the surname link with an "aka" prefix
+        // (excluding any duplicate that matches the link text).
+        if (latinSurnameLink && akaSurnames && akaSurnames.length > 0) {
+          const linkText = clean(latinSurnameLink.textContent || "");
+          const normalize = (str) =>
+            (str || "")
+              .toString()
+              .toLowerCase()
+              .replace(/[^\p{L}\p{N}\s]/gu, "")
+              .replace(/\s+/g, " ")
+              .trim();
+
+          const normLink = normalize(linkText);
+
+          // Filter out aka entries that normalize to the same value as the link.
+          // akaSurnames may contain plain text or HTML link strings; extract
+          // visible text for normalization and deduplicate by normalized text
+          // while preserving the original representation (HTML or text).
+          const extractVisible = (s) => {
+            if (!s) return "";
+            // If it's an HTML link, extract the inner text
+            const match = s.match(/>([^<]+)</);
+            if (match) return match[1].trim();
+            return s.toString().trim();
+          };
+
+          const uniqExtras = [];
+          const seenNorm = new Set();
+          akaSurnames
+            .map((s) => (typeof s === "string" ? s : ""))
+            .filter(Boolean)
+            .forEach((s) => {
+              const visible = extractVisible(s);
+              const n = normalize(visible);
+              if (!n || n === normLink) return;
+              if (seenNorm.has(n)) return;
+              seenNorm.add(n);
+              // preserve original form (HTML link or plain text)
+              uniqExtras.push(s.trim());
+            });
+
+          if (uniqExtras.length > 0) {
+            engFallback = `${engFallback} aka ${uniqExtras.join(", ")}`.trim();
+          }
+        }
 
         // Add honorific prefix to Latin fallback line
         if (honorificPrefix && engFallback) {
