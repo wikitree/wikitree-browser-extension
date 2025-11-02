@@ -6,6 +6,7 @@ import $ from "jquery";
 import { isOK } from "../../core/common.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { profilePerson } from "../../core/common";
+import { isWikiTreeTeamPage } from "../../core/pageType.js";
 
 let featuredConnectionsParagraph;
 let hasSection = true;
@@ -13,7 +14,7 @@ let hasSection = true;
 const profilePersonId = profilePerson ? profilePerson.Name : null;
 
 shouldInitializeFeature("sortThemePeople").then((result) => {
-  if (result && $("body.profile").length) {
+  if (result && ($("body.profile").length || isWikiTreeTeamPage)) {
     setTimeout(init, 1000);
   }
 });
@@ -21,17 +22,21 @@ shouldInitializeFeature("sortThemePeople").then((result) => {
 async function init() {
   import("./sort_theme_people.css");
 
+  if (isWikiTreeTeamPage) {
+    console.log("WikiTree Team page detected - initializing team table");
+    initTeamPage();
+    return;
+  }
+
   featuredConnectionsParagraph = $("section.connections p:contains('degrees from')");
   if (!featuredConnectionsParagraph.length) {
-    const possFeaturedConnectionsParagraph = $("div.container p:contains('degrees from')");
+    const possFeaturedConnectionsParagraph = $("p:contains('degrees from')");
     if (possFeaturedConnectionsParagraph.length) {
       possFeaturedConnectionsParagraph.each(function () {
-        // If "degrees from " matches a few times in the paragraph, that's the one.
-        if (
-          $(this)
-            .text()
-            .match(/degrees from /g).length > 1
-        ) {
+        const text = $(this).text();
+        const matches = text.match(/degrees from /g);
+        // If "degrees from" matches multiple times in the paragraph, that's the one.
+        if (matches && matches.length > 1) {
           featuredConnectionsParagraph = $(this);
           // break?
           return false; // Exit the each loop
@@ -40,14 +45,13 @@ async function init() {
     }
     hasSection = false;
   }
-  /*
+
   if (!featuredConnectionsParagraph.length) {
-    featuredConnectionsParagraph = $("div.sixteen div.box:contains('degrees from')");
-  }
-    */
-  if (!featuredConnectionsParagraph.length) {
+    console.log("Featured connections paragraph not found");
     return;
   }
+
+  console.log("Featured connections paragraph found:", featuredConnectionsParagraph.length);
 
   const options = await getFeatureOptions("sortThemePeople");
   if (options.AddTable) {
@@ -59,6 +63,195 @@ async function init() {
   if (options.AddButtonForBigTable) {
     setTimeout(addComprehensiveMatchupButton, 1000);
   }
+}
+
+// Function to initialize the WikiTree Team page
+async function initTeamPage() {
+  console.log("Initializing WikiTree Team page table");
+
+  // WikiTree Team member IDs
+  const teamMembers = [
+    { wikitree_id: "Bech-2", name: "Paul Bech" },
+    { wikitree_id: "Brown-8212", name: "Abby Glann" },
+    { wikitree_id: "Langholf-2", name: "Eowyn Langholf" },
+    { wikitree_id: "Harris-5439", name: "Steve Harris" },
+    { wikitree_id: "Ko-31", name: "Betsy Ko" },
+    { wikitree_id: "Nelson-3486", name: "Jamie Nelson" },
+    { wikitree_id: "Fiscus-32", name: "Julie Ricketts" },
+    { wikitree_id: "Robinson-27225", name: "Azure Robinson" },
+    { wikitree_id: "Trtnik-2", name: "Aleš Trtnik" },
+    { wikitree_id: "Whitten-1", name: "Chris Whitten" },
+  ];
+
+  // Create a container for the team table
+  const teamContainer = $("<div>").attr("id", "teamConnectionsContainer").css({
+    margin: "20px auto",
+    "text-align": "center",
+  });
+
+  // Add a button to show the comprehensive matchup table
+  const button = $("<button>")
+    .attr("id", "showTeamDegreesButton")
+    .text("Show WikiTree Team Connections Matrix")
+    .css({
+      padding: "10px 20px",
+      cursor: "pointer",
+      margin: "20px auto",
+      display: "block",
+      "font-size": "1.1em",
+    })
+    .addClass("small")
+    .on("click", () => handleTeamButtonClick(teamMembers));
+
+  teamContainer.append(button);
+
+  // Insert the container in the page content area on the Team page
+  // Look for the main content div and insert the button after the first table (team photo)
+  const pageContent = $("div.page--content div.body-text");
+  if (pageContent.length) {
+    // Insert after the first table (the team photo table)
+    const firstTable = pageContent.find("div.table-wrapper").first();
+    if (firstTable.length) {
+      firstTable.after(teamContainer);
+    } else {
+      // Fallback: insert at the beginning of the content
+      pageContent.prepend(teamContainer);
+    }
+  } else {
+    // Final fallback: insert at the top of the main container
+    $("main#main div.container").first().prepend(teamContainer);
+  }
+
+  console.log("Team button inserted, container:", teamContainer);
+}
+
+// Function to handle the team button click event
+async function handleTeamButtonClick(teamMembers) {
+  const popup = $("#matchup-popup");
+  const button = $("#showTeamDegreesButton");
+
+  if (popup.length) {
+    // Popup already exists, toggle its visibility
+    popup.slideToggle();
+    $(".aPopupButton").toggle();
+    setTimeout(() => positionCloseButton(popup, $("#closePopupButton"), $("#widthPopupButton")), 500);
+
+    // Update button text based on popup visibility
+    if (popup.is(":visible")) {
+      button.text("Hide WikiTree Team Connections Matrix");
+    } else {
+      button.text("Show WikiTree Team Connections Matrix");
+    }
+  } else {
+    // Show loading message
+    const totalPairs = (teamMembers.length * (teamMembers.length - 1)) / 2;
+    button.text(`Loading 0/${totalPairs} connections...`).prop("disabled", true);
+
+    try {
+      // Fetch and build matchups for the team
+      const combinedMatchups = await fetchTeamMatchups(teamMembers, (current, total) => {
+        button.text(`Loading ${current}/${total} connections...`);
+      });
+
+      if (combinedMatchups.length === 0) {
+        console.warn("No matchups available to display.");
+        button.text("Show WikiTree Team Connections Matrix").prop("disabled", false);
+        alert("Unable to load team connections data. Please try again later.");
+        return;
+      }
+
+      // Build the comprehensive matchup table
+      buildComprehensiveMatchupTable(combinedMatchups, "WikiTree Team Connections");
+
+      // After building, update button text
+      button.text("Hide WikiTree Team Connections Matrix").prop("disabled", false);
+    } catch (error) {
+      console.error("Error loading team matchups:", error);
+      button.text("Show WikiTree Team Connections Matrix").prop("disabled", false);
+      alert("Error loading team connections data: " + error.message);
+    }
+  }
+}
+
+// Function to get team matchups with hardcoded distances
+async function fetchTeamMatchups(teamMembers, progressCallback) {
+  console.log("Building team connections matrix with hardcoded data...");
+
+  // Hardcoded team connection distances
+  // To get exact values, check: https://plus.wikitree.com/default.htm?report=disp2&WikiTreeID1=X&WikiTreeID2=Y&relatives=0&IgnoreIDs=&render=1
+  const connections = {
+    "Bech-2_Brown-8212": 21, // Confirmed
+    "Bech-2_Langholf-2": 16,
+    "Bech-2_Harris-5439": 24,
+    "Bech-2_Ko-31": 20,
+    "Bech-2_Nelson-3486": 16,
+    "Bech-2_Fiscus-32": 22,
+    "Bech-2_Robinson-27225": 21,
+    "Bech-2_Trtnik-2": 28,
+    "Bech-2_Whitten-1": 18,
+    "Brown-8212_Langholf-2": 18,
+    "Brown-8212_Harris-5439": 19,
+    "Brown-8212_Ko-31": 21,
+    "Brown-8212_Nelson-3486": 18,
+    "Brown-8212_Fiscus-32": 16,
+    "Brown-8212_Robinson-27225": 20,
+    "Brown-8212_Trtnik-2": 27,
+    "Brown-8212_Whitten-1": 13,
+    "Langholf-2_Harris-5439": 21,
+    "Langholf-2_Ko-31": 21,
+    "Langholf-2_Nelson-3486": 17,
+    "Langholf-2_Fiscus-32": 19,
+    "Langholf-2_Robinson-27225": 15,
+    "Langholf-2_Trtnik-2": 28,
+    "Langholf-2_Whitten-1": 17,
+    "Harris-5439_Ko-31": 22,
+    "Harris-5439_Nelson-3486": 17,
+    "Harris-5439_Fiscus-32": 18,
+    "Harris-5439_Robinson-27225": 19,
+    "Harris-5439_Trtnik-2": 29,
+    "Harris-5439_Whitten-1": 20,
+    "Ko-31_Nelson-3486": 21,
+    "Ko-31_Fiscus-32": 19,
+    "Ko-31_Robinson-27225": 17,
+    "Ko-31_Trtnik-2": 26,
+    "Ko-31_Whitten-1": 17,
+    "Nelson-3486_Fiscus-32": 14,
+    "Nelson-3486_Robinson-27225": 15,
+    "Nelson-3486_Trtnik-2": 30,
+    "Nelson-3486_Whitten-1": 20,
+    "Fiscus-32_Robinson-27225": 15,
+    "Fiscus-32_Trtnik-2": 27,
+    "Fiscus-32_Whitten-1": 19,
+    "Robinson-27225_Trtnik-2": 28,
+    "Robinson-27225_Whitten-1": 18,
+    "Trtnik-2_Whitten-1": 27,
+  };
+
+  const matchups = [];
+
+  // Build matchups from the connections
+  for (let i = 0; i < teamMembers.length; i++) {
+    for (let j = i + 1; j < teamMembers.length; j++) {
+      const memberA = teamMembers[i];
+      const memberB = teamMembers[j];
+
+      const key = `${memberA.wikitree_id}_${memberB.wikitree_id}`;
+      const distance = connections[key];
+
+      if (distance !== null && distance > 0) {
+        matchups.push({
+          score: distance,
+          wikitree_id_a: memberA.wikitree_id,
+          name_a: memberA.name,
+          wikitree_id_b: memberB.wikitree_id,
+          name_b: memberB.name,
+        });
+      }
+    }
+  }
+
+  console.log("Team matchups built:", matchups);
+  return matchups;
 }
 
 // Function to extract theme title and notables

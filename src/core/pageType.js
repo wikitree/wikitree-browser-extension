@@ -51,6 +51,8 @@ export let isTemplatePage = false;
 export let isProjectPage = false;
 // Help page
 export let isHelpPage = false;
+// WikiTree Team page
+export let isWikiTreeTeamPage = false;
 // Genealogy page
 export let isGenealogyPage = false;
 // Nav Home Page
@@ -358,6 +360,13 @@ if (domain.match("apps.wikitree.com")) {
     uri.match(/\/index.php\?title=Help(:|%3A|%3a).*/g)
   ) {
     isHelpPage = true;
+    // Check specifically for WikiTree Team page
+    if (
+      path.match(/\/wiki\/Help(:|%3A|%3a)WikiTree(_|%20)Team/g) ||
+      uri.match(/\/index.php\?title=Help(:|%3A|%3a)WikiTree(_|%20)Team/g)
+    ) {
+      isWikiTreeTeamPage = true;
+    }
   } else if (
     // Help History Page https://wikitree.com/index.php?title=Help:Data%20Doctors&action=history
     uri.match(/\/index.php\?title=Help(:|%3A|%3a).*&action=history/g)
