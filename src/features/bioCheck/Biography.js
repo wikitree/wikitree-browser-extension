@@ -1670,9 +1670,12 @@ export class Biography {
     // then any of the parts of the line split on a space could be email
     // then if the part matches the normal email regular expression
     // WITH the addition of spaces that people might put in to avoid email checking
+    // Thanks to Andrew Millard for the regex
 
     let looksLikeEmail = false;
-    let regex = /^[a-z0-9]+@[a-z]+\.[a-z]{2,3}$/;
+    let orig_regex = /^[a-z0-9]+@[a-z]+\.[a-z]{2,3}$/;
+
+    let regex = /[\w\-+\.]+\s*@\s*[\w\-.]+\.[A-Za-z]{2,3}/;
     let sep = line.indexOf('@');
     if (sep >= 0) {
       if (line.match(regex)) {
