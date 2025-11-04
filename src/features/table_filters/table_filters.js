@@ -6,6 +6,7 @@
   * Optionally injects three extra columns — “°”, “Relation”, “Suggestion” —
     and fills them with data from the local distance/relationship IndexedDBs
     and from the remote Suggestions page.
+  * Optionally integrates with CC7 Notes to show notes status in the "°" column
 *============================================================================*/
 
 /* ------------------------------------------------------------------------- */
@@ -24,6 +25,7 @@ import {
   RELATIONSHIP_STORE_NAME,
   initDistanceAndRelationshipDBs,
 } from "../distanceAndRelationship/distanceAndRelationship";
+import { CC7Notes } from "./cc7_notes";
 
 /* ========================================================================= */
 /*  1. Lazy initialisation for extra columns                                 */
@@ -146,14 +148,34 @@ function sortTableRows(table, colIdx, dir, mode) {
  */
 function addDistanceAndRelationColumns(tableElem) {
   /* --- 4.1 collect profile IDs present in the table -------------------- */
+  // We collect them in an array to which we add the additional cilumn data
+  // ids = [{index: rowIdx, id: numericId, distance: "", relationship: "", suggestion: ""}, ...]
   const currentUser = getUserWtId();
   const ids = {};
   const $table = $(tableElem);
   $table.find("tr").each((rowIdx, tr) => {
-    const href = $(tr).find("td a").eq(0).attr("href");
+    const $tr = $(tr);
+    const href = $tr.find("td a").eq(0).attr("href");
     if (!href) return;
-    const id = href.split("/wiki/")[1];
-    if (id) ids[id.replace(/ /g, "_")] = { index: rowIdx };
+
+    const wtId = href.split("/wiki/")[1];
+    if (!wtId) return;
+
+    const cleanId = wtId.replace(/ /g, "_");
+    ids[cleanId] = { index: rowIdx };
+
+    if (!window.tableFiltersOptions.notesIntegration) return;
+
+    // Find the profile numeric id and if present, add it to ids and as a data attribute to the tr
+    const editHref = $tr.find('a[href*="Special:EditPerson"]').attr("href");
+    if (editHref) {
+      const match = editHref.match(/u=(\d+)/);
+      if (match) {
+        const id = match[1];
+        ids[cleanId].id = id;
+        $tr.attr("data-id", id); // add the id as a data attribute to the tr
+      }
+    }
   });
 
   /* --- 4.2 inject header cells ---------------------------------------- */
@@ -167,12 +189,13 @@ function addDistanceAndRelationColumns(tableElem) {
   setTimeout(() => {
     const distancePromises = [];
     const relationshipPromises = [];
+    let idsWithNotes;
 
     /* initialise IndexedDBs ------------------------------------------- */
     const dbReady = new Promise((resolve) => {
       let done = 0;
       const tick = () => {
-        if (++done === 2) resolve();
+        if (++done === 3) resolve();
       };
 
       initDistanceAndRelationshipDBs(
@@ -210,6 +233,16 @@ function addDistanceAndRelationColumns(tableElem) {
           tick();
         }
       );
+
+      // Retrieve who has notes and the note status from the CC7Notes database
+      if (window.tableFiltersOptions.notesIntegration) {
+        CC7Notes.getIdsAndStatus().then((idsAndStatus) => {
+          idsWithNotes = new Map(idsAndStatus);
+          tick();
+        });
+      } else {
+        tick();
+      }
     });
 
     /* suggestions page -------------------------------------------------- */
@@ -245,11 +278,61 @@ function addDistanceAndRelationColumns(tableElem) {
     /* render once everything resolves ---------------------------------- */
     dbReady.then(() =>
       Promise.all([suggestionPromise, datePromise, ...distancePromises, ...relationshipPromises]).then(() => {
+        if (idsWithNotes) {
+          $table.addClass("wbe-cc7-notes-enabled");
+          $(".wbe-cc7-notes-enabled")
+            .off("click.cc7n", "td.degree")
+            .on("click.cc7n", "td.degree", function (event) {
+              CC7Notes.processNoteCellClick($(this));
+            });
+
+          // Add a container where we will store note popups
+          let $notesContainer = $("#cc7-notes-container");
+          if ($notesContainer.length === 0) {
+            $notesContainer = $(`<div id="cc7-notes-container"></div>`);
+            $notesContainer.appendTo("body");
+          }
+          $notesContainer.off("click.cc7n", ".deleteNoteBtn").on("click.cc7n", ".deleteNoteBtn", function (event) {
+            CC7Notes.deleteNote($(this));
+          });
+
+          $notesContainer.off("click.cc7n", ".cancelNoteBtn").on("click.cc7n", ".cancelNoteBtn", function (event) {
+            CC7Notes.cancelNote($(this));
+          });
+
+          $notesContainer.off("click.cc7n", "x").on("click.cc7n", "x", function () {
+            CC7Notes.saveNote($(this).parent());
+          });
+        }
+
         $table.find("tr").each((idx, tr) => {
           const wtid = Object.keys(ids).find((k) => ids[k].index === idx - 1);
           if (!wtid) return;
+
+          const $tr = $(tr);
           const { distance = "", relationship = "", suggestion = "" } = ids[wtid];
-          $(tr).append(`<td style="text-align:center;">${distance}</td><td>${relationship}</td><td>${suggestion}</td>`);
+
+          let degreeCell = "";
+          if (idsWithNotes) {
+            const noteInfo = idsWithNotes.get(wtid);
+            let status = noteInfo ? noteInfo.status : "";
+            if (status != "") status = " " + status;
+
+            const $td = $tr.find("td").first();
+            const gender = $td.hasClass("person--male") ? "male " : $td.hasClass("person--female") ? "female " : "";
+
+            degreeCell =
+              `<td class="${gender}degree${
+                noteInfo ? " hasNote" : ""
+              }${status}" style="text-align:center;" title="Distance. Click to add/edit Notes.">` +
+              `<div class="note-box">${distance}</div></td>`;
+
+            if (!$tr.attr("data-id") && noteInfo) $tr.attr("data-id", noteInfo.id);
+          } else {
+            degreeCell = `<td style="text-align:center;">${distance}</td>`;
+          }
+
+          $tr.append(`${degreeCell}<td>${relationship}</td><td>${suggestion}</td>`);
         });
 
         if ($table.prop("id") === "Sort-Table") addCustomSorters($table.get(0));
@@ -320,14 +403,17 @@ function addFiltersToWikitables(single = null) {
     if (!(e.target instanceof HTMLInputElement) || !e.target.classList.contains("filter-input")) return;
 
     tables.forEach((table) => {
-      const inputs = table.querySelectorAll(".filter-input");
+      const filterCells = table.querySelectorAll(".filter-row th");
       const rows = table.querySelectorAll("tbody tr");
 
       rows.forEach((row, rowIdx) => {
         if (row.querySelector("th") || row.classList.contains("filter-row")) return; // skip header + filter rows
 
         let show = true;
-        inputs.forEach((input, colIdx) => {
+        filterCells.forEach((cell, colIdx) => {
+          const input = cell.querySelector("input");
+          if (!input) return;
+
           const txt = input.value.trim().toLowerCase();
           const cellTxt = row.children[colIdx]?.textContent.toLowerCase() || "";
 

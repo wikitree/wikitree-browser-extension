@@ -12,7 +12,10 @@ const tableFilters = {
     "Adds filters to wikitables and name tables (on Watchlist and Surname Genealogy pages) and adds sortability to each column.",
   category: "Other",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
+  contributors: [
+    { name: "Florian Straub", wikitreeid: "Straub-620" },
+    { name: "Riël Smit", wikitreeid: "Smit-641" },
+  ],
   defaultValue: false,
   pages: [isProfilePage, isSpacePage, isGenealogyPage, isSpecialWatchedList, isSearchPage],
   options: [
@@ -20,6 +23,12 @@ const tableFilters = {
       id: "distanceAndRelationship",
       type: OptionType.CHECKBOX,
       label: "Add Distance and Relationship columns to Watchlist and Surname Genealogy tables",
+      default: false,
+    },
+    {
+      id: "notesIntegration",
+      type: OptionType.CHECKBOX,
+      label: "Enable Notes integration (shows in the Distance column if a note exists for a person)",
       default: false,
     },
   ],

@@ -185,14 +185,16 @@ export async function showFamilySheet(theClicked, profileID) {
       $(this).fadeOut();
       incrementZIndex($(this));
     });
+
+  const familyTableId = createValidId(profileID.replace(" ", "_")) + "_family";
   // If the table already exists, toggle its visibility.
-  if ($("#" + createValidId(profileID.replace(" ", "_")) + "_family").length) {
+  if ($("#" + familyTableId).length) {
     // If profile page, return
     if (isProfilePage) {
       return;
     }
 
-    const thisFamilySheet = $("#" + createValidId(profileID.replace(" ", "_")) + "_family");
+    const thisFamilySheet = $("#" + familyTableId);
     thisFamilySheet.fadeToggle();
     if (isProfilePage) {
       positionTable(theClicked, thisFamilySheet);
@@ -219,7 +221,7 @@ export async function showFamilySheet(theClicked, profileID) {
       if (isProfilePage) {
         familyTable.prependTo("section.tree--FamilyGroup");
       }
-      familyTable.attr("id", createValidId(profileID.replace(" ", "_")) + "_family");
+      familyTable.attr("id", familyTableId);
       if (!isProfilePage) {
         familyTable.draggable();
         setHighestZIndex(familyTable);
