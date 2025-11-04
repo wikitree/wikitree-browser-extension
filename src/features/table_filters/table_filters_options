@@ -28,7 +28,7 @@ const tableFilters = {
     {
       id: "notesIntegration",
       type: OptionType.CHECKBOX,
-      label: "Enable Notes integration (shows in the Distance column if a note exists for a person)",
+      label: "Enable Profile Notes (click in the Distance column to create a note)",
       default: false,
     },
   ],

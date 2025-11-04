@@ -252,7 +252,7 @@ export class CC7Notes {
       `CC7Notes_${loggedInUserWtId}_` +
       new Date().toISOString().replace("T", "_").replaceAll(":", "-").slice(0, 19) +
       ".json";
-    downloadArray(
+    CC7Notes.downloadArray(
       [
         {
           userid: loggedInUserWtId,
@@ -334,7 +334,8 @@ export class CC7Notes {
 
   static async deleteAllNotes() {
     const proceed = confirm(
-      "You are about to delete all the CC7 notes you have associated with profiles. Are you sure?"
+      "You are about to delete all the Profile Notes you have associated with profiles, " +
+        "including those done via the CC7 Views tree app. Are you sure?"
     );
     if (proceed) {
       const userId = CC7Notes.getUserId();
@@ -348,5 +349,25 @@ export class CC7Notes {
 
   static getUserId() {
     return getUserWtId();
+  }
+
+  static downloadArray(array, fileName) {
+    // Convert the JavaScript array to a string
+    const arrayString = JSON.stringify(array);
+
+    // Create a Blob object with the string data
+    const blob = new Blob([arrayString], { type: "text/plain" });
+
+    // Create a link element to trigger the download
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+
+    // Append the link to the DOM and trigger the download
+    document.body.appendChild(link);
+    link.click();
+
+    // Remove the link from the DOM
+    document.body.removeChild(link);
   }
 }
