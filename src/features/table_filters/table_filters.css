@@ -114,6 +114,36 @@ body.watchlist .surnameTableHeaderRow a[title*="by last edit"] + img.sort-arrow 
 .wbe-cc7-notes-enabled .degree.Done .note-box::before {
   border-top: 10px solid rgb(0, 255, 0);
 }
+
+/* === Notes context menu === */
+.cc7notes-context-menu {
+  position: absolute;
+  display: none;
+  background: #fff;
+  border: 1px solid #ccc;
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  padding: 4px 0;
+  z-index: 10000;
+}
+
+.cc7notes-context-menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cc7notes-context-menu li {
+  padding: 6px 8px;
+  margin-bottom: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cc7notes-context-menu li:hover {
+  background-color: #eee;
+}
+
 /* ----------------------------------------------------------- */
 /* Note popup styles */
 /* ----------------------------------------------------------- */

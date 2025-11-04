@@ -308,8 +308,25 @@ function addDistanceAndRelationColumns(tableElem) {
           // Add a container where we will store note popups
           let $notesContainer = $("#cc7-notes-container");
           if ($notesContainer.length === 0) {
-            $notesContainer = $(`<div id="cc7-notes-container"></div>`);
+            $notesContainer = $(
+              `<div id="cc7-notes-container">
+                <div id="notesContextMenu" class="cc7notes-context-menu">
+                  <ul>
+                    <li data-action="backup">Backup Notes</li>
+                    <li data-action="restore">Restore Notes</li>
+                    <li data-action="delete">Delete All Notes</li>
+                  </ul>
+                  <input type="file" id="noteFileInput" style="display: none"/>
+                </div>
+              </div>`
+            );
             $notesContainer.appendTo("body");
+            $("#noteFileInput")
+              .off("change")
+              .on("change", function (e) {
+                CC7Notes.restoreNotes(e);
+                this.value = "";
+              });
           }
           $notesContainer.off("click.cc7n", ".deleteNoteBtn").on("click.cc7n", ".deleteNoteBtn", function (event) {
             CC7Notes.deleteNote($(this));
@@ -321,6 +338,42 @@ function addDistanceAndRelationColumns(tableElem) {
 
           $notesContainer.off("click.cc7n", "x").on("click.cc7n", "x", function () {
             CC7Notes.saveNote($(this).parent());
+          });
+
+          const contextMenu = document.getElementById("notesContextMenu");
+          let currentCell = null;
+
+          document.addEventListener("contextmenu", (e) => {
+            // Only handle right-clicks inside degree cells
+            const degreeCell = e.target.closest("td.degree");
+            if (degreeCell) {
+              e.preventDefault();
+              currentCell = degreeCell;
+
+              // Show context menu at cursor position
+              contextMenu.style.left = e.pageX + "px";
+              contextMenu.style.top = e.pageY + "px";
+              contextMenu.style.display = "block";
+            } else {
+              contextMenu.style.display = "none";
+            }
+          });
+
+          // Handle menu option clicks
+          contextMenu.addEventListener("click", (e) => {
+            const action = e.target.dataset.action;
+            if (!action) return;
+
+            if (action === "backup") CC7Notes.backupNotes();
+            else if (action === "restore") $("#noteFileInput").trigger("click");
+            else if (action === "delete") CC7Notes.deleteAllNotes();
+
+            contextMenu.style.display = "none";
+          });
+
+          // Hide menu when clicking elsewhere
+          document.addEventListener("click", () => {
+            contextMenu.style.display = "none";
           });
         }
 
