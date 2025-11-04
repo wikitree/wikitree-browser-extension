@@ -77,12 +77,31 @@ function addCustomSorters(table) {
     const th = table.querySelector(`#Sort-Table .${className}`);
     if (!th || th.dataset.wbeSortReady) return;
 
+    /* add arrow icon */
+    const img = document.createElement("img");
+    img.src = "/skins/common/images/sort_none.gif";
+    img.alt = "↓";
+    img.className = "sort-arrow";
+    th.appendChild(img);
+
     th.dataset.sortDir = "desc"; // first click gives ascending order
     th.dataset.wbeSortReady = "1";
     th.addEventListener("click", () => {
       const dir = th.dataset.sortDir === "asc" ? "desc" : "asc";
       th.dataset.sortDir = dir;
       sortTableRows(table, th.cellIndex, dir, mode);
+
+      /* update arrow icons for custom sort headers */
+      const customHeaders = table.querySelectorAll(".wbe-sort-deg, .wbe-sort-rel");
+      customHeaders.forEach((h) => {
+        const i = h.querySelector("img.sort-arrow");
+        if (!i) return;
+        if (h === th) {
+          i.src = dir === "asc" ? "/skins/common/images/sort_down.gif" : "/skins/common/images/sort_up.gif";
+        } else {
+          i.src = "/skins/common/images/sort_none.gif";
+        }
+      });
     });
   };
 
@@ -450,7 +469,8 @@ function addSortToTables() {
 
     heads.forEach((th, colIdx) => {
       if ($(th).find("u:contains('CR')").length) return; // skip connection rank
-      if (th.querySelector("img.sort-arrow")) return; // already processed
+      if ($(th).find("img.sort-arrow").length) return; // already processed
+      if (th.classList.contains("wbe-sort-deg") || th.classList.contains("wbe-sort-rel")) return; // skip custom sorters
 
       /* add arrow icon ------------------------------------------------- */
       const img = document.createElement("img");
