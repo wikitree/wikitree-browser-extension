@@ -1,3 +1,6 @@
+//
+// The name, surname table, is obsolete - this feature applies to the result tables on the Search and Watchlist pages
+//
 import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import "./surname_table.css";
@@ -6,35 +9,569 @@ import { initTableFilters } from "../table_filters/table_filters";
 import { getPeople } from "../dna_table/dna_table";
 import Cookies from "js-cookie";
 import { convertDate } from "../auto_bio/auto_bio";
-import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions, checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { showFamilySheet } from "../familyGroup/familyGroup";
 import { getUserNumId } from "../../core/common";
 import { addTableButtonsContainer } from "../remove_from_watchlist/remove_from_watchlist";
+import { kinshipValue } from "../anniversaries_table/anniversaries_table";
+import { distRelDbKeyFor, getUserWtId } from "../../core/common";
+import {
+  CONNECTION_STORE_NAME,
+  RELATIONSHIP_STORE_NAME,
+  initDistanceAndRelationshipDBs,
+} from "../distanceAndRelationship/distanceAndRelationship";
+import { CC7Notes } from "./cc7_notes";
 
+const ExtraColumn = {
+  NOTES: "notes",
+  DIST_REL: "distance",
+  SUGGESTIONS: "suggestions",
+};
+
+export const TargetTable = {
+  SEARCH: "search",
+  WATCHLIST: "watchlist",
+  BOTH: "both",
+  NONE: "none",
+};
+
+function isExtraColEnabled(column) {
+  let optionField;
+  switch (column) {
+    case ExtraColumn.NOTES:
+      optionField = "NotesIntegration";
+      break;
+    case ExtraColumn.DIST_REL:
+      optionField = "DistanceAndRelationship";
+      break;
+    case ExtraColumn.SUGGESTIONS:
+      optionField = "Suggestions";
+      break;
+  }
+  if (!optionField) return false;
+
+  const optionValue = window.surnameTableOptions[optionField];
+
+  return isSearchPage
+    ? optionValue == TargetTable.SEARCH || optionValue == TargetTable.BOTH
+    : isSpecialWatchedList
+    ? optionValue == TargetTable.WATCHLIST || optionValue == TargetTable.BOTH
+    : false;
+}
+
+/* ========================================================================= */
+/*  1. Lazy initialisation for extra columns                                 */
+/* ========================================================================= */
+
+/**
+ * Watch the DOM for the WikiTree result table and call
+ * {@link addAdditionalColumns} the first time one appears.
+ */
+function waitForTableToAdjust(onFound) {
+  if (window._searchOrWatchTablePresent) return;
+
+  // const selector = "body.watchlist table.wt.table, table.wt.table, #Sort-Table";
+  const tryInit = (observer) => {
+    const table = document.querySelector("#Sort-Table");
+    if (!table) return;
+
+    // Do not add distance and relationship to Watchlist Free-Space Profiles
+    if ($(".nav-link.active").text().match("Free-Space Profiles") != null) return;
+
+    window._searchOrWatchTablePresent = true;
+    onFound(table);
+    observer?.disconnect();
+  };
+
+  /* synchronous (cached HTML) */
+  tryInit();
+
+  /* asynchronous (AJAX‑injected HTML) */
+  if (!window._searchOrWatchTablePresent) {
+    const obs = new MutationObserver(() => tryInit(obs));
+    obs.observe(document.body, { childList: true, subtree: true });
+  }
+}
+
+/* ========================================================================= */
+/*  2. Inject extra columns + populate them                                  */
+/* ========================================================================= */
+
+/**
+ * Add “° / Relation / Suggestion” columns to *tableElem* and fill them once
+ * all asynchronous look‑ups finish.
+ *
+ * @param {HTMLTableElement} tableElem Result table detected by the observer.
+ */
+function addAdditionalColumns(tableElem) {
+  /* --- 2.1 collect profile IDs present in the table -------------------- */
+  // We collect them in an array to which we add the additional cilumn data
+  // ids = [{id: numericId, distance: "", relationship: "", suggestion: ""}, ...]
+  const currentUser = getUserWtId();
+  const ids = {};
+  const $table = $(tableElem);
+  $table.find("tr").each((rowIdx, tr) => {
+    const $tr = $(tr);
+
+    // Replace ditto marks with the value from the previous row.
+    // Update any cell that contains a ditto mark (span with title "Same as above")
+    // with the corresponding cell's content from the previous row.
+    $tr.find("td").each(function (i) {
+      const $this = $(this);
+      if ($this.find("span[title='Same as above']").length) {
+        $this.html($tr.prev().find("td").eq(i).html());
+      }
+    });
+
+    const $firstTd = $tr.find("td").first();
+    const href = $firstTd.find("a").first().attr("href");
+    if (!href) return;
+
+    const wtId = href.split("/wiki/")[1];
+    if (!wtId) return;
+
+    const cleanId = wtId.replace(/ /g, "_");
+    $tr.attr("data-wtid", cleanId);
+
+    addFamilyGroupIcon($firstTd, wtId);
+
+    ids[cleanId] = {};
+
+    if (!isExtraColEnabled(ExtraColumn.NOTES)) return;
+
+    //add note cell
+    const gender = $firstTd.hasClass("person--male") ? "male " : $firstTd.hasClass("person--female") ? "female " : "";
+    const noteCell =
+      `<td class="${gender}profile-note" title="Profile Note. Click to add/edit notes.">` +
+      `<div class="note-box" data-wtid="${wtId}"></div></td>`;
+    $firstTd.after(noteCell);
+
+    // Find the profile numeric id and if present, add it to ids and as a data attribute to the tr
+    const editHref = $tr.find('a[href*="Special:EditPerson"]').attr("href");
+    if (editHref) {
+      const match = editHref.match(/u=(\d+)/);
+      if (match) {
+        const id = match[1];
+        ids[cleanId].id = id;
+        $tr.attr("data-id", id); // add the id as a data attribute to the tr
+      }
+    }
+  });
+
+  /* --- 2.2 inject header cells ---------------------------------------- */
+  const $hdrRow = $table.find("tr").first();
+  if (isExtraColEnabled(ExtraColumn.NOTES)) {
+    const firstCol = $hdrRow.find("th").first();
+    firstCol.after(
+      '<th class="profile-note" style="width:2%;text-align:center;cursor:pointer;" title="Profile Notes">N</th>'
+    );
+  }
+
+  if (isExtraColEnabled(ExtraColumn.DIST_REL))
+    $hdrRow.append(`
+      <th class="wbe-sort-deg" style="width:5%;text-align:center;cursor:pointer;">°</th>
+      <th class="wbe-sort-rel" style="width:15%;text-align:center;cursor:pointer;">Relation</th>  
+    `);
+
+  if (isExtraColEnabled(ExtraColumn.SUGGESTIONS))
+    $hdrRow.append(`
+      <th id="suggestions_header" style="width:10%;text-align:center;cursor:pointer;">Suggestion</th>
+    `);
+
+  /* --- 2.3 async look‑ups --------------------------------------------- */
+  setTimeout(() => {
+    const distancePromises = [];
+    const relationshipPromises = [];
+    let idsWithNotes;
+
+    /* IndexedDB lookups ------------------------------------------- */
+    const dbRetrievalsDone = new Promise((resolve) => {
+      let completedTasks = 0;
+      function resolveIfDone() {
+        if (++completedTasks === 3) resolve();
+      }
+
+      function onDistanceSuccess(event) {
+        // The distance table is ready, we can start collecting the distances
+        const dbConnection = event.target.result;
+        const distanceStore = dbConnection
+          .transaction(CONNECTION_STORE_NAME, "readonly")
+          .objectStore(CONNECTION_STORE_NAME);
+        Object.keys(ids).forEach(function (wtid) {
+          distancePromises.push(
+            new Promise((resolve, reject) => {
+              // Request the distance record
+              distanceStore.get(distRelDbKeyFor(wtid, currentUser)).onsuccess = function (event) {
+                const d = event.target?.result?.distance;
+                if (d > 0) {
+                  ids[wtid].distance = `${d}°`;
+                }
+                resolve();
+              };
+            })
+          );
+        });
+        resolveIfDone();
+      }
+
+      function onRelationSuccess(event) {
+        // The relationship table is ready, we can start collecting the relationships
+        const dbRelationship = event.target.result;
+        const relationshipStore = dbRelationship
+          .transaction(RELATIONSHIP_STORE_NAME, "readonly")
+          .objectStore(RELATIONSHIP_STORE_NAME);
+        Object.keys(ids).forEach(function (wtid) {
+          relationshipPromises.push(
+            new Promise((resolve, reject) => {
+              // Request the relationship record
+              relationshipStore.get(distRelDbKeyFor(wtid, currentUser)).onsuccess = function (event) {
+                ids[wtid].relationship = event.target.result?.relationship || "";
+                resolve();
+              };
+            })
+          );
+        });
+        resolveIfDone();
+      }
+
+      if (isExtraColEnabled(ExtraColumn.DIST_REL)) {
+        // Ensure the distance and relationship databases are present/created/upgraded as necessary
+        initDistanceAndRelationshipDBs(onDistanceSuccess, onRelationSuccess);
+      } else {
+        resolveIfDone();
+        resolveIfDone();
+      }
+
+      // Retrieve who has notes and the note status from the CC7Notes database
+      if (isExtraColEnabled(ExtraColumn.NOTES)) {
+        CC7Notes.getIdsAndStatus().then((idsAndStatus) => {
+          idsWithNotes = new Map(idsAndStatus);
+          resolveIfDone();
+        });
+      } else {
+        resolveIfDone();
+      }
+    });
+
+    const [suggestionPromise, datePromise] = isExtraColEnabled(ExtraColumn.SUGGESTIONS)
+      ? [
+          /* suggestions page -------------------------------------------------- */
+          getSuggestions()
+            .then((html) => {
+              const suggestionaDOM = new DOMParser().parseFromString(html, "text/html");
+              let nrSuggestions = 0;
+              const uniqIds = new Set();
+              Object.keys(ids).forEach((wtid) => {
+                $(suggestionaDOM)
+                  .find(`td:contains(${wtid.replace(/_/g, " ")})`)
+                  .each((_, td) => {
+                    const cell =
+                      td.previousElementSibling?.firstElementChild?.tagName === "IMG"
+                        ? null
+                        : td.previousElementSibling ?? td;
+                    if (!cell) return;
+                    ids[wtid].suggestion = ids[wtid].suggestion
+                      ? `${ids[wtid].suggestion}<br>${cell.innerHTML}`
+                      : cell.innerHTML;
+
+                    ++nrSuggestions;
+                    uniqIds.add(wtid);
+                  });
+              });
+              console.log(`${nrSuggestions} suggestions found for ${uniqIds.size} profiles.`);
+            })
+            .catch((err) => {
+              console.warn("Could not retrieve suggestions from WT+:", err);
+              // Returns a resolved promise so Promise.all continues cleanly
+            }),
+
+          /* last update date -------------------------------------------------- */
+          fetch("https://plus.wikitree.com/DataDates.json")
+            .then((r) => r.json())
+            .then((j) => {
+              [suggestYear, suggestMonth, suggestDay] = j.dataDate.split("-");
+              const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+              const suggestionsHelpLink =
+                '<a href="/wiki/Help:Suggestions" title="Click this for an explanation of the suggestions column"><img src="/images/icons/help.gif" border="0" width="11" height="11" alt="Help"></a>';
+              $("#suggestions_header").html(`Sugg. ${suggestionsHelpLink} (${suggestDay} ${months[suggestMonth - 1]})`);
+            })
+            .catch((err) => {
+              console.warn("Could not retrieve WT+ dates:", err);
+              // Returns a resolved promise so Promise.all continues cleanly
+            }),
+        ]
+      : [Promise.resolve(), Promise.resolve()];
+
+    /* render once everything resolves ---------------------------------- */
+    dbRetrievalsDone.then(() =>
+      Promise.all([suggestionPromise, datePromise, ...distancePromises, ...relationshipPromises]).then(() => {
+        if (isExtraColEnabled(ExtraColumn.NOTES)) {
+          $table.addClass("wbe-cc7-notes-enabled");
+          $(".wbe-cc7-notes-enabled")
+            .off("click.cc7n", "td.profile-note")
+            .on("click.cc7n", "td.profile-note", function (event) {
+              CC7Notes.processNoteCellClick($(this));
+            });
+
+          // Add a container where we will store note popups
+          let $notesContainer = $("#cc7-notes-container");
+          if ($notesContainer.length === 0) {
+            $notesContainer = $(
+              `<div id="cc7-notes-container">
+                <div id="notesContextMenu" class="cc7notes-context-menu">
+                  <ul>
+                    <li data-action="backup">Backup Notes</li>
+                    <li data-action="restore">Restore Notes</li>
+                    <li data-action="delete">Delete All Notes</li>
+                  </ul>
+                  <input type="file" id="noteFileInput" style="display: none"/>
+                </div>
+              </div>`
+            );
+            $notesContainer.appendTo("body");
+            $("#noteFileInput")
+              .off("change")
+              .on("change", function (e) {
+                CC7Notes.restoreNotes(e);
+                this.value = "";
+              });
+          }
+          $notesContainer.off("click.cc7n", ".deleteNoteBtn").on("click.cc7n", ".deleteNoteBtn", function (event) {
+            CC7Notes.deleteNote($(this));
+          });
+
+          $notesContainer.off("click.cc7n", ".cancelNoteBtn").on("click.cc7n", ".cancelNoteBtn", function (event) {
+            CC7Notes.cancelNote($(this));
+          });
+
+          $notesContainer.off("click.cc7n", "x").on("click.cc7n", "x", function () {
+            CC7Notes.saveNote($(this).parent());
+          });
+
+          const contextMenu = document.getElementById("notesContextMenu");
+
+          document.addEventListener("contextmenu", (e) => {
+            // Only handle right-clicks inside profile-note cells
+            const noteCell = e.target.closest("td.profile-note");
+            if (noteCell) {
+              e.preventDefault();
+
+              // Show context menu at cursor position
+              contextMenu.style.left = e.pageX + "px";
+              contextMenu.style.top = e.pageY + "px";
+              contextMenu.style.display = "block";
+            } else {
+              contextMenu.style.display = "none";
+            }
+          });
+
+          // Handle menu option clicks
+          contextMenu.addEventListener("click", (e) => {
+            const action = e.target.dataset.action;
+            if (!action) return;
+
+            if (action === "backup") CC7Notes.backupNotes();
+            else if (action === "restore") $("#noteFileInput").trigger("click");
+            else if (action === "delete") CC7Notes.deleteAllNotes();
+
+            contextMenu.style.display = "none";
+          });
+
+          // Hide menu when clicking elsewhere
+          document.addEventListener("click", () => {
+            contextMenu.style.display = "none";
+          });
+        }
+
+        // Populate the new columns
+        if (
+          isExtraColEnabled(ExtraColumn.NOTES) ||
+          isExtraColEnabled(ExtraColumn.DIST_REL) ||
+          isExtraColEnabled(ExtraColumn.SUGGESTIONS)
+        ) {
+          $table.find("tr").each((idx, tr) => {
+            const wtId = $(tr).attr("data-wtid");
+            if (!wtId) return;
+
+            const $tr = $(tr);
+            const { distance = "", relationship = "", suggestion = "" } = ids[wtId];
+
+            if (isExtraColEnabled(ExtraColumn.NOTES)) {
+              const noteInfo = idsWithNotes.get(wtId);
+              let status = noteInfo ? noteInfo.status : "";
+              if (status != "") status = " " + status;
+
+              const $noteCell = $tr.find("td.profile-note");
+              $noteCell.addClass(`${noteInfo ? " hasNote" : ""}${status}`);
+
+              if (!$tr.attr("data-id") && noteInfo) $tr.attr("data-id", noteInfo.id);
+            }
+
+            const distRelCells = isExtraColEnabled(ExtraColumn.DIST_REL)
+              ? `<td style="text-align:center;">${distance}</td><td>${relationship}</td>`
+              : "";
+            const suggestionCell = isExtraColEnabled(ExtraColumn.SUGGESTIONS)
+              ? `<td class="suggestion">${suggestion}</td>`
+              : "";
+            if (distRelCells || suggestionCell) {
+              $tr.append(`${distRelCells}${suggestionCell}`);
+            }
+          });
+        }
+
+        if ($table.prop("id") === "Sort-Table") addCustomSorters($table.get(0));
+      })
+    );
+  }, 0);
+}
+
+/* ========================================================================= */
+/*  3. Custom sort handlers for “°” and “Relation”                            */
+/* ========================================================================= */
+
+/**
+ * Attach click‑to‑sort handlers to the pseudo‑headers we inject into
+ * <table id="Sort-Table"> on the global Search page.
+ *
+ * @param {HTMLTableElement} table  #Sort-Table element.
+ */
+function addCustomSorters(table) {
+  const attach = (className, mode) => {
+    const th = table.querySelector(`#Sort-Table .${className}`);
+    if (!th || th.dataset.wbeSortReady) return;
+
+    /* add arrow icon */
+    const img = document.createElement("img");
+    img.src = "/skins/common/images/sort_none.gif";
+    img.alt = "↓";
+    img.className = "sort-arrow";
+    th.appendChild(img);
+
+    th.dataset.sortDir = "desc"; // first click gives ascending order
+    th.dataset.wbeSortReady = "1";
+    th.addEventListener("click", () => {
+      const dir = th.dataset.sortDir === "asc" ? "desc" : "asc";
+      th.dataset.sortDir = dir;
+      sortTableRows(table, th.cellIndex, dir, mode);
+
+      /* update arrow icons for custom sort headers */
+      const customHeaders = table.querySelectorAll(".wbe-sort-deg, .wbe-sort-rel");
+      customHeaders.forEach((h) => {
+        const i = h.querySelector("img.sort-arrow");
+        if (!i) return;
+        if (h === th) {
+          i.src = dir === "asc" ? "/skins/common/images/sort_down.gif" : "/skins/common/images/sort_up.gif";
+        } else {
+          i.src = "/skins/common/images/sort_none.gif";
+        }
+      });
+    });
+  };
+
+  attach("wbe-sort-deg", "deg");
+  attach("wbe-sort-rel", "rel");
+}
+
+/* ========================================================================= */
+/*  4. Generic sorter for two custom columns                                 */
+/* ========================================================================= */
+
+/**
+ * Re‑order all data rows in *table* by *colIdx*.
+ *
+ * @param {HTMLTableElement} table  Table whose rows will be sorted.
+ * @param {number}           colIdx Zero‑based column index.
+ * @param {"asc"|"desc"}    dir    Sort direction.
+ * @param {"deg"|"rel"}     mode   Comparison mode.
+ */
+function sortTableRows(table, colIdx, dir, mode) {
+  const rows = Array.from(table.querySelectorAll("tbody tr")).filter(
+    (r) => !r.classList.contains("filter-row") && !r.querySelector("th")
+  );
+
+  rows.sort((a, b) => {
+    const A = a.children[colIdx].textContent.trim();
+    const B = b.children[colIdx].textContent.trim();
+
+    /* degree column — blanks last */
+    if (mode === "deg") {
+      const numA = A.endsWith("°") ? parseInt(A, 10) : null;
+      const numB = B.endsWith("°") ? parseInt(B, 10) : null;
+      if (numA === null) return 1;
+      if (numB === null) return -1;
+      return dir === "asc" ? numA - numB : numB - numA;
+    }
+
+    /* relation column — blanks last */
+    if (mode === "rel") {
+      const valA = A ? kinshipValue(A) : null;
+      const valB = B ? kinshipValue(B) : null;
+      if (valA === null) return 1;
+      if (valB === null) return -1;
+      return dir === "asc" ? valA - valB : valB - valA;
+    }
+
+    return 0;
+  });
+
+  const tbody = table.querySelector("tbody");
+  rows.forEach((r) => tbody.appendChild(r));
+}
+
+/* ========================================================================= */
+/*  5. Helper: fetch Suggestions HTML                                        */
+/* ========================================================================= */
+
+/**
+ * Retrieve the raw HTML used to fill the “Suggestion” column.
+ *
+ * @returns {Promise<string>} HTML markup, or an empty string on error.
+ */
+function getSuggestions() {
+  const url = `https://plus.wikitree.com/function/WTWebUser/WBE_TableFilters.htm?UserID=${USER_NUM_ID}`;
+  return fetch(url)
+    .then((r) => r.text())
+    .catch(() => "");
+}
+
+/* ========================================================================= */
 const USER_NUM_ID = getUserNumId();
 let theTable;
 let headerRow;
 let theTbody;
 let theRows;
+let suggestYear = "";
+let suggestMonth = "";
+let suggestDay = "";
+
+// These are the column indexes as in the Sort-Table on the Search and Watchlist pages respectively
+// without WBE present
+const originalCol = {
+  search: {
+    birth: 1,
+    death: 2,
+    manager: 3,
+  },
+  watchList: {
+    birth: 1,
+    death: null,
+    manager: 3,
+  },
+};
 
 /**
- * Replaces ditto marks with the value from the previous row.
- * Iterates over each table row in the tbody and updates any cell that contains
- * a ditto mark (span with title "Same as above") with the corresponding cell's content from the previous row.
- *
- * @returns {Promise<void>} Resolves when the replacement is complete.
+ * @param {*} colName - one of "birth", "death", or "manager"
+ * @returns the column index of the given colName in the Sort-Table.
+ *          If NotesIntegration is true, it is assumed that the notes column will already
+ *          have been already been added.
  */
-async function replaceDittoMarks() {
-  theTable.find("tbody tr").each(function (index) {
-    const row = $(this);
-    $(this)
-      .find("td")
-      .each(function (i) {
-        if ($(this).find("span[title='Same as above']").length) {
-          $(this).html(row.prev().find("td").eq(i).html());
-        }
-      });
-  });
+function indexOf(colName) {
+  const table = isSpecialWatchedList ? originalCol.watchList : originalCol.search;
+  let idx = table[colName];
+  if (idx && window.surnameTableOptions.NotesIntegration) {
+    ++idx;
+  }
+  return idx;
 }
 
 /**
@@ -94,10 +631,11 @@ function tableListeners() {
     });
 
     theTable.on("click.showFamilySheet", "span.home", function (e) {
-      const wtid = $(this).data("wtid");
-      showFamilySheet($(this), wtid);
+      const $this = $(this);
+      const wtid = $this.data("wtid");
+      showFamilySheet($this, wtid);
       // Get a sibling input with id starting with cb_
-      const checkBox = $(this).siblings("input[id^='cb_']");
+      const checkBox = $this.siblings("input[id^='cb_']");
       if (checkBox.length) {
         checkBox.prop("checked", checkBox.prop("checked") ? false : true);
       }
@@ -108,26 +646,25 @@ function tableListeners() {
   });
 }
 
+/* ========================================================================= */
+/*  6. Apply additional anhancements.                                        */
+/* ========================================================================= */
+
 /**
- * Initializes the surname table functionality by setting up event listeners,
+ * Apply the surname table functionality by setting up event listeners,
  * appending UI elements, and initializing other features like table sorting and brick walls.
  *
- * @returns {Promise<void>} Resolves when initialization is complete.
+ * @returns {Promise<void>} Resolves when enhancement is complete.
  */
-async function init() {
+async function applyTableEnhancements() {
   $(function () {
     tableListeners();
   });
 
-  const h1 = $("h1");
-  window.surnameTableOptions = await getFeatureOptions("surnameTable");
-
   headerRow.addClass("surnameTableHeaderRow");
   const moreButton = $("<button id='surnameTableMoreButton' class='small btn btn-secondary'>More (WBE)</button>");
+  $("h1").append(moreButton);
 
-  await replaceDittoMarks();
-
-  h1.append(moreButton);
   moreButton.on("click", function () {
     initSurnameTableSorting();
 
@@ -152,24 +689,15 @@ async function init() {
   }
 }
 
-const homeIconSrc = chrome.runtime.getURL("images/family_group.svg");
+const familyGroupIconSrc = chrome.runtime.getURL("images/family_group.svg");
 /**
- * Adds a home icon (representing the family group) to each row in the table.
- *
- * @returns {Promise<void>} Resolves when the home icons have been added.
+ * Adds a family group icon for the given profile to the given cell in the table.
  */
-async function addHomeIcon() {
-  theTable.find("tr").each(function () {
-    const indexCell = $(this).find("td").eq(0);
-    const thisWTID =
-      $(this).find("input[name='mergeany[]']").val() || $(this).find("a").eq(0).attr("href").split("/")?.[2] || "";
-    let homeIcon = $(
-      `<span data-wtid="${thisWTID}" class='home wbe'  title='See family group'><img height="18" width="18" src="${homeIconSrc}"></span>`
-    );
-    if (thisWTID) {
-      indexCell.append(homeIcon);
-    }
-  });
+function addFamilyGroupIcon($cell, wtId) {
+  const iconSpan = $(
+    `<span data-wtid="${wtId}" class='home wbe'  title='See family group'><img height="18" width="18" src="${familyGroupIconSrc}"></span>`
+  );
+  $cell.append(iconSpan);
 }
 
 /**
@@ -189,10 +717,11 @@ async function dNumbering() {
 
   let j = 1;
   theTable.find("tr").each(function (i) {
-    if (i === 0 || $(this).hasClass("filter-row") || $(this).hasClass("surnameTableHeaderRow")) {
+    const $this = $(this);
+    if (i === 0 || $this.hasClass("filter-row") || $this.hasClass("surnameTableHeaderRow")) {
       return; // Skip the header and filter rows
     }
-    let indexCell = $(this).find("td").eq(0);
+    let indexCell = $this.find("td").first();
     indexCell.css("position", "relative").prepend($("<span class='index'>" + j + "</span>"));
     j++;
   });
@@ -266,15 +795,16 @@ function attachColumnSorter(opts) {
   // Clicking toggles asc <-> desc
   $(`#${linkId}`).on("click", function (e) {
     e.preventDefault();
+    const $this = $(this);
 
     // Highlight
-    $(this).closest("tr").find("th").removeClass("selected");
+    $this.closest("tr").find("th").removeClass("selected");
     $th.addClass("selected");
 
     // Toggle asc/desc
-    let dir = $(this).attr("data-direction");
+    let dir = $this.attr("data-direction");
     dir = dir === "asc" ? "desc" : "asc";
-    $(this).attr("data-direction", dir);
+    $this.attr("data-direction", dir);
 
     // Update arrow
     $(`#${arrowId}`).text(dir === "asc" ? "↓" : "↑");
@@ -340,15 +870,13 @@ async function initSurnameTableSorting() {
   //const rows = theTable.find("tbody > tr");
   const rows = $(theTable).find("tbody").first().children("tr");
   rows.each(function () {
-    let managerTD = $(this).find("td").eq(3);
-    const birthTD = $(this).find("td").eq(1);
-    if (isSpecialWatchedList) {
-      managerTD = $(this).find("td").eq(2);
-    }
+    const $this = $(this);
+    let managerTD = $this.find("td").eq(indexOf("manager"));
+    const birthTD = $this.find("td").eq(indexOf("birth"));
 
     if (managerTD.find("a").length) {
       const dManager = managerTD.find("a").attr("href").split("/wiki/")[1];
-      $(this).attr("data-manager", dManager);
+      $this.attr("data-manager", dManager);
     }
 
     // data-year for potential secondary sorting
@@ -373,7 +901,7 @@ async function initSurnameTableSorting() {
       const yr = (raw || "").match(/\d{3,4}/);
       if (yr) birthYear = yr[0];
     }
-    $(this).attr("data-year", birthYear);
+    $this.attr("data-year", birthYear);
   });
 
   dNumbering();
@@ -382,8 +910,12 @@ async function initSurnameTableSorting() {
   // B) WATCHLIST "DEATH DATE" HEADER
   //////////////////////////////////////////////////////////
   if (isSpecialWatchedList) {
+    // Standard Watchlist does not have a death date column, so we will add one after the birth/death data column
+    // (at this point we have not yet spilt the birth/death data column into separate parts).
+    // Note: here we only add the column in the header row of the watchlist
     const dDateHeader = $("<th>Death Date</th>");
-    dDateHeader.insertAfter(rows.eq(0).find("th").eq(1));
+    // add new death date column after the birth/death column
+    dDateHeader.insertAfter(rows.first().find("th").eq(indexOf("birth")));
   }
 
   //////////////////////////////////////////////////////////
@@ -391,22 +923,23 @@ async function initSurnameTableSorting() {
   //////////////////////////////////////////////////////////
   // Keep your existing specialized manager sorting if isSearchPage is true
   if (isSearchPage) {
-    const managerWord = rows.eq(0).find("th").eq(3);
+    const managerWord = rows.first().find("th").eq(indexOf("manager"));
     managerWord.html(
       "<a id='managerWord' title='Sort by profile manager. Note: Only the results on this page will be sorted.' data-order='za'>Manager</a> <span id='managerWordArrow'>&darr;</span>"
     );
     let listOrder = "za";
     $("#managerWord").on("click", function () {
-      $(this).closest("tr").find("th").removeClass("selected");
-      $(this).closest("th").addClass("selected");
-      if ($(this).attr("data-order") == "za") {
+      const $this = $(this);
+      $this.closest("tr").find("th").removeClass("selected");
+      $this.closest("th").addClass("selected");
+      if ($this.attr("data-order") == "za") {
         listOrder = "az";
         $("#managerWordArrow").html("&#8595;");
-        $(this).attr("data-order", "az");
+        $this.attr("data-order", "az");
       } else {
         listOrder = "za";
         $("#managerWordArrow").html("&#8593;");
-        $(this).attr("data-order", "za");
+        $this.attr("data-order", "za");
       }
       const theseRows = theRows;
       if (theseRows.length) {
@@ -426,8 +959,9 @@ async function initSurnameTableSorting() {
         let lastManager = "Me";
         let tempArr = [lastManager];
         theseRows.each(function (index) {
-          if ($(this).data("manager") == lastManager) {
-            tempArr.push($(this));
+          const $thisRow = $(this);
+          if ($thisRow.data("manager") == lastManager) {
+            tempArr.push($thisRow);
           } else {
             tempArr.sort(function (x, y) {
               if (listOrder == "az") {
@@ -443,9 +977,9 @@ async function initSurnameTableSorting() {
                 item.insertBefore(theseRows.eq(index));
               }
             });
-            tempArr = [$(this)];
+            tempArr = [$thisRow];
           }
-          lastManager = $(this).data("manager");
+          lastManager = $thisRow.data("manager");
         });
       }
       $("#managerWordArrow").show();
@@ -457,11 +991,10 @@ async function initSurnameTableSorting() {
   //////////////////////////////////////////////////////////
   // D) ADD BIRTH & DEATH PLACE COLUMNS
   //////////////////////////////////////////////////////////
-  const birthHeader = headerRow.find("th").eq(1);
-  let deathHeader = headerRow.find("th").eq(2);
-  if (isSpecialWatchedList) {
-    deathHeader = null;
-  }
+  const birthColIdx = indexOf("birth");
+  const deathColIdx = indexOf("death");
+  const birthHeader = headerRow.find("th").eq(birthColIdx);
+  const deathHeader = deathColIdx ? headerRow.find("th").eq(deathColIdx) : null;
 
   birthHeader.attr("id", "birthDate");
 
@@ -473,23 +1006,23 @@ async function initSurnameTableSorting() {
     dLocHeader.insertAfter(deathHeader);
   }
 
-  // Now parse the text from watchlist or normal columns
+  const dateRegex = /((bef|aft|abt)?\s*(\d{1,2}\s)?(\w+\s)?\d{3,4})/i;
+  const datePattern = /((\d+ )?(\w+ )?(<b>)?\d{4}<\/b>)/;
+  const locPattern = /<br>\s*(.+)/;
+
+  // Now parse the text from watchlist or search columns
   theTable.find("tr").each(function () {
-    let birthTD = $(this).find("td").eq(1);
-    let deathTD = $(this).find("td").eq(2);
+    const $this = $(this);
+    const birthTD = $this.find("td").eq(birthColIdx);
+    const deathTD = $this.find("td").eq(deathColIdx);
 
-    if (isSpecialWatchedList) {
-      deathTD = null;
-    }
-
-    let birthText = birthTD.html() || "";
-    let deathText = deathTD ? deathTD.html() : "";
+    const birthText = birthTD.html() || "";
+    const deathText = deathTD ? deathTD.html() : "";
 
     if (isSpecialWatchedList) {
       // Watchlist scenario: combined birth/death in one column
-      const combinedTD = $(this).find("td").eq(1);
+      const combinedTD = birthTD;
       const combinedText = combinedTD.text()?.replace(/\n/g, " ").replace(/\s+/g, " ").trim() || "";
-      const dateRegex = /((bef|aft|abt)?\s*(\d{1,2}\s)?(\w+\s)?\d{3,4})/i;
 
       const parts = combinedText.split(/ ?- /).map((p) => p.trim());
       const birthPart = parts[0];
@@ -522,19 +1055,16 @@ async function initSurnameTableSorting() {
       }
 
       // data-birth-location-small2big / big2small
-      $(this).attr("data-birth-location-small2big", birthLocation.trim());
-      $(this).attr("data-birth-location-big2small", birthLocation.trim().split(/,\s?/).reverse().join(", "));
+      $this.attr("data-birth-location-small2big", birthLocation.trim());
+      $this.attr("data-birth-location-big2small", birthLocation.trim().split(/,\s?/).reverse().join(", "));
 
       // data-death-location-small2big / big2small
       const newlyAddedDeathTD = combinedTD.next().next();
       const deathLocText = newlyAddedDeathTD.text().trim() || "";
-      $(this).attr("data-death-location-small2big", deathLocText);
-      $(this).attr("data-death-location-big2small", deathLocText.split(/,\s?/).reverse().join(", "));
+      $this.attr("data-death-location-small2big", deathLocText);
+      $this.attr("data-death-location-big2small", deathLocText.split(/,\s?/).reverse().join(", "));
     } else {
-      // Normal scenario
-      const datePattern = /((\d+ )?(\w+ )?(<b>)?\d{4}<\/b>)/;
-      const locPattern = /<br>\s*(.+)/;
-
+      // Search scenario
       const bdMatch = birthText.match(datePattern);
       const blMatch = birthText.match(locPattern);
       const ddMatch = deathText ? deathText.match(datePattern) : null;
@@ -542,13 +1072,13 @@ async function initSurnameTableSorting() {
 
       const birthDate = bdMatch ? bdMatch[0] : "";
       const birthLoc = blMatch ? blMatch[1] : "";
-      $(this).attr("data-birth-location-small2big", birthLoc.trim());
-      $(this).attr("data-birth-location-big2small", birthLoc.trim().split(/,\s?/).reverse().join(", "));
+      $this.attr("data-birth-location-small2big", birthLoc.trim());
+      $this.attr("data-birth-location-big2small", birthLoc.trim().split(/,\s?/).reverse().join(", "));
 
       const deathDate = ddMatch ? ddMatch[0] : "";
       const deathLoc = dlMatch ? dlMatch[1] : "";
-      $(this).attr("data-death-location-small2big", deathLoc.trim());
-      $(this).attr("data-death-location-big2small", deathLoc.trim().split(/,\s?/).reverse().join(", "));
+      $this.attr("data-death-location-small2big", deathLoc.trim());
+      $this.attr("data-death-location-big2small", deathLoc.trim().split(/,\s?/).reverse().join(", "));
 
       const bLocTD = $("<td class='birthLocation'></td>").html(birthLoc.trim());
       birthTD.html(birthDate);
@@ -624,16 +1154,17 @@ async function initSurnameTableSorting() {
       // Update displayed text for ALL rows, for BOTH birthLocation & deathLocation cells.
       const $allRows = theTable.find("tbody tr:not(.filter-row,.surnameTableHeaderRow)");
       $allRows.each(function () {
-        const bS = $(this).data("birth-location-small2big") || "";
-        const bB = $(this).data("birth-location-big2small") || "";
-        const dS = $(this).data("death-location-small2big") || "";
-        const dB = $(this).data("death-location-big2small") || "";
+        const $this = $(this);
+        const bS = $this.data("birth-location-small2big") || "";
+        const bB = $this.data("birth-location-big2small") || "";
+        const dS = $this.data("death-location-small2big") || "";
+        const dB = $this.data("death-location-big2small") || "";
 
         const newBirthText = window.locationFlipped ? bB : bS;
         const newDeathText = window.locationFlipped ? dB : dS;
 
-        $(this).find(".birthLocation").text(newBirthText);
-        $(this).find(".deathLocation").text(newDeathText);
+        $this.find(".birthLocation").text(newBirthText);
+        $this.find(".deathLocation").text(newDeathText);
       });
 
       // If the last sorted column was a location column, re-sort it so the new text is in correct order.
@@ -659,10 +1190,14 @@ async function initSurnameTableSorting() {
     });
   }
 
-  // G) Optionally add table filters
-  getFeatureOptions("tableFilters").then((opt) => {
-    if (opt) {
-      setTimeout(initTableFilters, 2000);
+  addFilters(2000);
+}
+
+function addFilters(delay) {
+  checkIfFeatureEnabled("tableFilters").then((result) => {
+    if (result) {
+      console.log("triggering initTableFilters");
+      setTimeout(initTableFilters, delay);
     }
   });
 }
@@ -686,56 +1221,24 @@ async function getBrickWalls() {
   const mWTIDID = USER_NUM_ID;
   const theseKeys = [];
 
-  // Handle input and specific class elements
-  theTbody.find('tr input[name="mergeany[]"], .P-M, .P-F').each(function () {
-    if (theTable.length) {
-      theseKeys.push($(this).val());
-    } else {
-      theseKeys.push("default or error handler");
-    }
+  theRows.each(function () {
+    theseKeys.push($(this).attr("data-wtid"));
   });
 
-  // Handle the first link with "/wiki/" in each row separately
-  if (isSpecialWatchedList) {
-    theRows.each(function () {
-      const firstLink = $(this).find('a[href*="/wiki/"]:first');
-      if (firstLink.length) {
-        theseKeys.push(firstLink.attr("href").split("/")[2]);
-      }
-    });
-  }
   let chunk;
 
   while (theseKeys.length) {
     chunk = theseKeys.splice(0, 50).join(",");
     const fields =
-      "Id,Name,Manager,Mother,Father,Spouses,LastNameAtBirth,LastNameCurrent,Gender,Photo,PhotoData,BirthLocation,DeathLocation,Connected,TrustedList,Privacy";
+      "Id,Name,Manager,Mother,Father,Spouses,LastNameAtBirth,LastNameCurrent,Gender,Photo,PhotoData,BirthLocation,DeathLocation,Connected,TrustedList,Privacy,Touched";
     getPeople(chunk, 0, 0, 0, 0, 0, fields).then((result) => {
       const peopleKeys = Object.keys(result[0].people);
       peopleKeys.forEach((key) => {
         const person = result[0].people[key];
         const thisID = person.Name;
-        let BWtable;
-        let dParentEl;
-        if (theTable.length) {
-          BWtable = true;
-        }
-        if (BWtable) {
-          dParentEl = theTbody
-            .find(`tr input[name="mergeany[]"][value="${thisID}"],tbody tr a[href$="${thisID}"]:first`)
-            .closest("td");
-          if (isSpecialWatchedList) {
-            theRows.each(function () {
-              const firstLink = $(this).find(`a[href$="${thisID}"]:first`);
-              if (firstLink.length) {
-                dParentEl = firstLink.closest("td");
-              }
-            });
-          }
-          dParentEl.css({ position: "relative" });
-        } else {
-          dParentEl = $(`a.P-F[href$="${thisID}"],a.P-M[href$="${thisID}"]`).closest(".P-ITEM");
-        }
+        const $row = theTbody.find(`tr[data-wtid="${thisID}"]`);
+        const dParentEl = $row.find("td").first();
+        dParentEl.css({ position: "relative" });
 
         let hasSpouse = false;
         let birthLocationMatch = null;
@@ -744,7 +1247,6 @@ async function getBrickWalls() {
         let deathLocation = null;
         let isManager = false;
         let isTL = false;
-        let apic = null;
         let lnc = null;
         if (person) {
           if (person["Spouses"]) {
@@ -766,17 +1268,17 @@ async function getBrickWalls() {
 
             if (theTable.length) {
               if (deathLocation != null) {
-                dParentEl.closest("tr").find(".deathLocation").text(deathLocation);
+                $row.find(".deathLocation").text(deathLocation);
                 deathLocation = deathLocation
                   .replaceAll(/,([A-Z])/g, ", $1")
                   .replaceAll(/, ,/g, "")
                   .trim();
-                dParentEl.closest("tr").attr("data-death-location-small2big", deathLocation);
+                $row.attr("data-death-location-small2big", deathLocation);
 
                 const blSplit = deathLocation.split(", ");
                 blSplit.reverse();
                 const deathLocationBig2Small = blSplit.join(", ");
-                dParentEl.closest("tr").attr("data-death-location-big2small", deathLocationBig2Small);
+                $row.attr("data-death-location-big2small", deathLocationBig2Small);
               }
             } else {
               $("<span> " + deathLocation + "</span>").insertBefore(dParentEl.find("small"));
@@ -823,6 +1325,33 @@ async function getBrickWalls() {
           dParentEl.prepend($("<span class='orphan' title='Orphaned profile'>O</span>"));
         }
 
+        if (person["Touched"]) {
+          const touchedYear = person["Touched"].substring(0, 4);
+          const touchedMonth = person["Touched"].substring(4, 6);
+          const touchedDay = person["Touched"].substring(6, 8);
+
+          let wasTouchedAfterSuggestionDate = false;
+
+          if (suggestYear == touchedYear) {
+            if (suggestMonth == touchedMonth) {
+              if (suggestDay <= touchedDay) {
+                wasTouchedAfterSuggestionDate = true;
+              }
+            } else if (suggestMonth < touchedMonth) {
+              wasTouchedAfterSuggestionDate = true;
+            }
+          } else if (suggestYear < touchedYear) {
+            wasTouchedAfterSuggestionDate = true;
+          }
+
+          if (wasTouchedAfterSuggestionDate) {
+            const td = $row.find(".suggestion");
+            td.addClass("stale");
+            td.attr("title", "This information might be stale since the profile was touched after the reporting date.");
+          }
+          // console.log("touched" + person["Touched"] + "=>" + wasTouchedAfterSuggestionDate);
+        }
+
         if (window.surnameTableOptions.ShowYouArePMorTL && !isSpecialWatchedList) {
           const PM = dParentEl.find("span.PM");
           const TL = dParentEl.find("span.TL");
@@ -846,33 +1375,13 @@ async function getBrickWalls() {
 
         if (person.Privacy_IsAtLeastPublic && window.surnameTableOptions.ShowMissingParents) {
           if (person.Mother == "0") {
-            if (BWtable == false) {
-              $("a.P-M[href$='" + thisID + "'],a.P-F[href$='" + thisID + "']").after(pinkBricks.clone(true));
-            } else {
-              if (isSpecialWatchedList) {
-                theTable.find("tr").each(function () {
-                  const firstAnchor = $(this).find(`a[href$="${thisID}"]`).first();
-                  firstAnchor.after(pinkBricks.clone(true));
-                });
-              } else {
-                $(`a[href$="${thisID}"]`).after(pinkBricks.clone(true));
-              }
-            }
+            const firstAnchor = dParentEl.find(`a[href$="${thisID}"]`).first();
+            firstAnchor.after(pinkBricks.clone(true));
           }
 
           if (person.Father == "0") {
-            if (BWtable == false) {
-              $("a.P-M[href$='" + thisID + "'],a.P-F[href$='" + thisID + "']").after(blueBricks.clone(true));
-            } else {
-              if (isSpecialWatchedList) {
-                theTable.find("tr").each(function () {
-                  const firstAnchor = $(this).find(`a[href$="${thisID}"]`).first();
-                  firstAnchor.after(blueBricks.clone(true));
-                });
-              } else {
-                $(`a[href$="${thisID}"]`).after(blueBricks.clone(true));
-              }
-            }
+            const firstAnchor = dParentEl.find(`a[href$="${thisID}"]`).first();
+            firstAnchor.after(blueBricks.clone(true));
           }
         }
 
@@ -921,17 +1430,7 @@ function makeTableWide(dTable) {
     container = $("<div id='tableContainer'></div>");
   }
 
-  // Find all <td> elements with the specific width and align attributes
-  let targetTDs = $("td[width='70%'][align='center'].center");
-
-  // Ensure there are at least two such elements
-  if (targetTDs.length >= 2) {
-    let secondTD = targetTDs.eq(1);
-    let closestTable = secondTD.closest("table");
-    container.insertBefore(closestTable);
-  } else {
-    container.insertAfter($("#tableButtonsContainer"));
-  }
+  container.insertAfter($("#tableButtonsContainer"));
   container.append(dTable);
 
   if ($("#buttonBox").length == 0) {
@@ -1048,32 +1547,79 @@ async function addWideTableButton() {
   });
 }
 
-shouldInitializeFeature("surnameTable").then((result) => {
-  if (result) {
-    import("../familyTimeline/familyTimeline.css");
-    if ($("#Sort-Table").length || $("body.watchlist table.wt.table").length) {
-      theTable = $("#Sort-Table");
-      headerRow = theTable.find("thead tr:first-child");
-      if ($("body.watchlist table.wt.table").length) {
-        theTable = $("body.watchlist table.wt.table");
-        headerRow = theTable.find("tr:first-child");
-      }
-      theTbody = theTable.find("tbody");
-      theRows = theTbody.find("tr");
-    } else {
-      return;
-    }
-    const isFreeSpaceList = $(".nav-link.active").text().match("Free-Space Profiles");
-    if (window.location.href.match(/Special:(Surname|WatchedList|SearchPerson)/) && isFreeSpaceList == null) {
-      init();
-    }
-    if (isSearchPage) {
-      getFeatureOptions("surnameTable").then((options) => {
-        if (options.RememberSearchOptions) {
-          initSearchOptions();
-        }
-      });
-    }
-    addHomeIcon();
+function applyTableModification(table) {
+  // Until WT fixes their bad HTML, we need to fix the width:40 styles on the <th> elements to widht:40%
+  document.querySelectorAll('#Sort-Table th[style*="width:40;"]').forEach((th) => {
+    let style = th.getAttribute("style");
+    // Replace "width:40;" with "width:40%;"
+    style = style.replace(/\bwidth\s*:\s*40\s*;?/i, "width:40%;");
+    th.setAttribute("style", style);
+  });
+
+  addAdditionalColumns(table);
+  $("tr.filter-row").remove();
+  addFilters(5);
+
+  theTable = $(table);
+
+  // #Sort-Table on Search page has a thead which #Sort-Table on Watched List page does not
+  headerRow = theTable.find("thead tr:first-child");
+  if (isSpecialWatchedList) {
+    headerRow = theTable.find("tr:first-child");
   }
+  theTbody = theTable.find("tbody");
+  theRows = theTbody.find("tr");
+
+  const isFreeSpaceList = $(".nav-link.active").text().match("Free-Space Profiles");
+  // if (window.location.href.match(/Special:(Surname|WatchedList|SearchPerson)/) && isFreeSpaceList == null) {
+  if (isFreeSpaceList == null) {
+    applyTableEnhancements();
+  }
+  if (isSearchPage && window.surnameTableOptions.RememberSearchOptions) {
+    initSearchOptions();
+  }
+}
+
+/**
+ * Function to modify tableFilters and surnameTable options for backward compatibility
+ * after the distanceAndRelationship option was moved from tableFilters to surnameTable.
+ */
+async function updateFeatureOptions() {
+  // Get current options for the tableFilters feature
+  const record = await chrome.storage.sync.get("tableFilters_options");
+  const filterOptions = record?.tableFilters_options;
+  if (!filterOptions) return;
+
+  // Check if we've already done the update
+  if (!filterOptions.hasOwnProperty("distanceAndRelationship")) return;
+
+  // If distanceAndRelationship is currently true, modify both features
+  if (filterOptions.distanceAndRelationship === true) {
+    delete filterOptions.distanceAndRelationship;
+    const filtersEnabled = await checkIfFeatureEnabled("tableFilters");
+
+    // If tableFilters is not enabled (implying distanceAndRelationship is not active),
+    // and since surnameTables is enabled (otherwise we wouldn't be here), we need
+    // to disable distanceAndRelationship in surnameTable as well
+    const distRelValue = filtersEnabled ? TargetTable.BOTH : TargetTable.NONE;
+
+    // Get and modify surnameTable options
+    const surnameTableOptions = await getFeatureOptions("surnameTable");
+    surnameTableOptions.DistanceAndRelationship = distRelValue;
+
+    // Save both sets of options
+    // Note: The key format is always "featureId_options"
+    chrome.storage.sync.set({ tableFilters_options: filterOptions });
+    chrome.storage.sync.set({ surnameTable_options: surnameTableOptions });
+  }
+}
+
+// Execute the test function immediately when the module loads
+shouldInitializeFeature("surnameTable").then(async (enabled) => {
+  if (!enabled || window._surnameTableInit) return;
+  window._surnameTableInit = true;
+  await updateFeatureOptions();
+  import("../familyTimeline/familyTimeline.css");
+  window.surnameTableOptions = await getFeatureOptions("surnameTable");
+  waitForTableToAdjust(applyTableModification);
 });

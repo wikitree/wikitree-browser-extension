@@ -18,20 +18,6 @@ const tableFilters = {
   ],
   defaultValue: false,
   pages: [isProfilePage, isSpacePage, isGenealogyPage, isSpecialWatchedList, isSearchPage],
-  options: [
-    {
-      id: "distanceAndRelationship",
-      type: OptionType.CHECKBOX,
-      label: "Add Distance and Relationship columns to Watchlist and Surname Genealogy tables",
-      default: false,
-    },
-    {
-      id: "notesIntegration",
-      type: OptionType.CHECKBOX,
-      label: "Enable Profile Notes (click in the Distance column to create a note)",
-      default: false,
-    },
-  ],
 };
 
 registerFeature(tableFilters);

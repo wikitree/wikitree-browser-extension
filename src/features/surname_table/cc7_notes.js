@@ -32,7 +32,8 @@ export class CC7Notes {
 
   static async processNoteCellClick(jqClicked) {
     const theClickedRow = jqClicked.closest("tr");
-    const wtId = theClickedRow.find("td:first a:first").attr("href").split("/wiki/").pop().replace(/ /g, "_");
+    // const wtId = theClickedRow.find("td:first a:first").attr("href").split("/wiki/").pop().replace(/ /g, "_");
+    const wtId = theClickedRow.attr("data-wtid");
     if (!wtId) return;
 
     let id = theClickedRow.attr("data-id") ? +theClickedRow.attr("data-id") : false;
@@ -62,7 +63,7 @@ export class CC7Notes {
     $note = await CC7Notes.getNoteDisplay(person);
     CC7Notes.attachChangeTracking($note, person.Id);
     $note.attr("id", noteId);
-    CC7Notes.showNote(jqClicked, $note, -400, 40);
+    CC7Notes.showNote(jqClicked, $note, -40, 40);
   }
 
   static showNote(jqClicked, theNote, lOffset, tOffset) {
@@ -207,7 +208,7 @@ export class CC7Notes {
       jqDiv.addClass("instore");
       let theClasses = "hasNote";
       if (status != "") theClasses += ` ${status}`;
-      $(`tr[data-id="${id}"] td.degree`).removeClass("ToDo InProgress Parked Done").addClass(theClasses);
+      $(`tr[data-id="${id}"] td.profile-note`).removeClass("ToDo InProgress Parked Done").addClass(theClasses);
     }
 
     jqDiv.remove();
@@ -221,7 +222,7 @@ export class CC7Notes {
     const loggedInUserWtId = CC7Notes.getUserId();
     const dbh = await CC7Notes.initializeDatabase();
     dbh.deleteItem(CC7Notes.dbStore, `${id}:${loggedInUserWtId}`);
-    $(`tr[data-id="${id}"] td.degree`).removeClass("hasNote ToDo InProgress Parked Done");
+    $(`tr[data-id="${id}"] td.profile-note`).removeClass("hasNote ToDo InProgress Parked Done");
 
     noteDiv.remove();
   }
@@ -319,7 +320,7 @@ export class CC7Notes {
 
   static async repaintNotes() {
     // Clear all existing note tags from the page
-    $(`tr td.degree`).removeClass("hasNote ToDo InProgress Parked Done");
+    $(`tr td.profile-note`).removeClass("hasNote ToDo InProgress Parked Done");
 
     // Retrieve notes from store
     const idsAndStatus = await CC7Notes.getIdsAndStatus();
@@ -328,7 +329,7 @@ export class CC7Notes {
     for (const [wtId, { status: status, id: id }] of idsAndStatus) {
       let theClasses = "hasNote";
       if (status != "") theClasses += ` ${status}`;
-      $(`.wbe-cc7-notes-enabled tr[data-id="${id}"] td.degree`).addClass(theClasses);
+      $(`.wbe-cc7-notes-enabled tr[data-id="${id}"] td.profile-note`).addClass(theClasses);
     }
   }
 
