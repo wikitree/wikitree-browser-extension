@@ -252,30 +252,48 @@ function addAdditionalColumns(tableElem) {
         resolveIfDone();
       }
     });
-
+    function SetOrAdd(wtid, node) {
+      if (ids[wtid].suggestion != undefined) {
+        ids[wtid].suggestion += "<br />" + node.html();
+      } else {
+        ids[wtid].suggestion = node.html();
+      }
+    }
     const [suggestionPromise, datePromise] = isExtraColEnabled(ExtraColumn.SUGGESTIONS)
       ? [
           /* suggestions page -------------------------------------------------- */
           getSuggestions()
             .then((html) => {
-              const suggestionaDOM = new DOMParser().parseFromString(html, "text/html");
+              const suggestionsDOM = new DOMParser().parseFromString(html, "text/html");
               let nrSuggestions = 0;
               const uniqIds = new Set();
-              Object.keys(ids).forEach((wtid) => {
-                $(suggestionaDOM)
-                  .find(`td:contains(${wtid.replace(/_/g, " ")})`)
-                  .each((_, td) => {
-                    const cell =
-                      td.previousElementSibling?.firstElementChild?.tagName === "IMG"
-                        ? null
-                        : td.previousElementSibling ?? td;
-                    if (!cell) return;
-                    ids[wtid].suggestion = ids[wtid].suggestion
-                      ? `${ids[wtid].suggestion}<br>${cell.innerHTML}`
-                      : cell.innerHTML;
-
-                    ++nrSuggestions;
-                    uniqIds.add(wtid);
+              Object.keys(ids).forEach(function (wtid) {
+                $(suggestionsDOM)
+                  .find("td:contains(" + wtid.replaceAll("_", " ") + ")")
+                  .each(function () {
+                    const $this = $(this);
+                    const $prev = $this.prev();
+                    if ($this.contents()[0].nodeName != "A") {
+                      // This id is in the Info column, do nothing
+                    } else if ($prev.length == 0) {
+                      let parentRow = $this.parent();
+                      while (
+                        parentRow.find("td").attr("rowspan") == undefined &&
+                        parentRow.length > 0 &&
+                        parentRow.get(0).tagName == "TR"
+                      ) {
+                        parentRow = parentRow.prev();
+                      }
+                      SetOrAdd(wtid, parentRow.find("td"));
+                      ++nrSuggestions;
+                      uniqIds.add(wtid);
+                    } else if ($prev.get(0).firstChild.tagName == "IMG") {
+                      // This is the WT ID in the manager column
+                    } else {
+                      SetOrAdd(wtid, $prev);
+                      ++nrSuggestions;
+                      uniqIds.add(wtid);
+                    }
                   });
               });
               console.log(`${nrSuggestions} suggestions found for ${uniqIds.size} profiles.`);
@@ -1345,9 +1363,14 @@ async function getBrickWalls() {
           }
 
           if (wasTouchedAfterSuggestionDate) {
-            const td = $row.find(".suggestion");
-            td.addClass("stale");
-            td.attr("title", "This information might be stale since the profile was touched after the reporting date.");
+            const $td = $row.find(".suggestion");
+            if (!$td.is(":empty")) {
+              $td.addClass("stale");
+              $td.attr(
+                "title",
+                "This information might be stale since the profile was touched after the reporting date."
+              );
+            }
           }
           // console.log("touched" + person["Touched"] + "=>" + wasTouchedAfterSuggestionDate);
         }
