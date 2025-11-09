@@ -119,7 +119,7 @@ registerFeature({
           text: "None",
         },
       ],
-      defaultValue: "none",
+      defaultValue: "watchlist",
     },
   ],
 });

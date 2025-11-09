@@ -105,9 +105,11 @@ function addSortToTables() {
     const heads = table.querySelectorAll("tbody tr:first-child th");
 
     heads.forEach((th, colIdx) => {
-      if ($(th).find("u:contains('CR')").length) return; // skip connection rank
-      if ($(th).find("img.sort-arrow").length) return; // already processed
-      if (th.classList.contains("wbe-sort-deg") || th.classList.contains("wbe-sort-rel")) return; // skip custom sorters
+      const $th = $(th);
+      if ($th.find("u:contains('CR')").length) return; // skip connection rank
+      if ($th.find("img.sort-arrow").length) return; // already processed
+      if ($th.hasClass("wbe-sort-deg") || $th.hasClass("wbe-sort-rel")) return; // skip custom sorters
+      if ($th.hasClass("profile-note")) return; // skip the notes column
 
       /* add arrow icon ------------------------------------------------- */
       const img = document.createElement("img");

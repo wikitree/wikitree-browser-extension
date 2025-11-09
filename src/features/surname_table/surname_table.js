@@ -70,7 +70,6 @@ function isExtraColEnabled(column) {
 function waitForTableToAdjust(onFound) {
   if (window._searchOrWatchTablePresent) return;
 
-  // const selector = "body.watchlist table.wt.table, table.wt.table, #Sort-Table";
   const tryInit = (observer) => {
     const table = document.querySelector("#Sort-Table");
     if (!table) return;
@@ -163,7 +162,7 @@ function addAdditionalColumns(tableElem) {
   if (isExtraColEnabled(ExtraColumn.NOTES)) {
     const firstCol = $hdrRow.find("th").first();
     firstCol.after(
-      '<th class="profile-note" style="width:2%;text-align:center;cursor:pointer;" title="Profile Notes">N</th>'
+      '<th class="profile-note" style="width:2%;text-align:center;cursor:pointer;" title="Profile Notes">🗒️</th>'
     );
   }
 
@@ -454,7 +453,7 @@ function addAdditionalColumns(tableElem) {
  * @param {HTMLTableElement} table  #Sort-Table element.
  */
 function addCustomSorters(table) {
-  const attach = (className, mode) => {
+  function attach(className, mode) {
     const th = table.querySelector(`#Sort-Table .${className}`);
     if (!th || th.dataset.wbeSortReady) return;
 
@@ -484,7 +483,7 @@ function addCustomSorters(table) {
         }
       });
     });
-  };
+  }
 
   attach("wbe-sort-deg", "deg");
   attach("wbe-sort-rel", "rel");
