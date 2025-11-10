@@ -13,6 +13,9 @@ button.wikitreeturbo {
   margin-left: -4em;
   margin-top: 0.2em;
 }
+li.mt-1 button.wikitreeturbo {
+  margin-left: -4.5em;
+}
 #Descendants-pane li.tree--person_m .wikitreeturbo,
 #Descendants-pane li.tree--person_f .wikitreeturbo {
   margin-top: 0.9em;
