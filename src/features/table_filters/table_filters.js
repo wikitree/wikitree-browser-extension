@@ -42,7 +42,7 @@ function addFiltersToWikitables(single = null) {
     headerRow.querySelectorAll("th").forEach((th) => {
       const cell = document.createElement("th");
       const txt = th.textContent.trim();
-      if (txt && txt !== "Pos.") {
+      if (txt && txt !== "Pos." && !th.classList.contains("profile-note")) {
         const input = document.createElement("input");
         input.type = "text";
         input.className = "filter-input";
@@ -108,8 +108,7 @@ function addSortToTables() {
       const $th = $(th);
       if ($th.find("u:contains('CR')").length) return; // skip connection rank
       if ($th.find("img.sort-arrow").length) return; // already processed
-      if ($th.hasClass("wbe-sort-deg") || $th.hasClass("wbe-sort-rel")) return; // skip custom sorters
-      if ($th.hasClass("profile-note")) return; // skip the notes column
+      if ($th.hasClass("wbe-sort-deg") || $th.hasClass("wbe-sort-rel") || $th.hasClass("wbe-sort-note")) return; // skip custom sorters
 
       /* add arrow icon ------------------------------------------------- */
       const img = document.createElement("img");

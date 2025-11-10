@@ -65,20 +65,20 @@ function isExtraColEnabled(column) {
 
 /**
  * Watch the DOM for the WikiTree result table and call
- * {@link addAdditionalColumns} the first time one appears.
+ * {@link applyTableModification} the first time one appears.
  */
-function waitForTableToAdjust(onFound) {
+function waitForTableAndModify() {
   if (window._searchOrWatchTablePresent) return;
 
   const tryInit = (observer) => {
-    const table = document.querySelector("#Sort-Table");
-    if (!table) return;
+    const $table = $("#Sort-Table");
+    if (!$table.length) return;
 
     // Do not add distance and relationship to Watchlist Free-Space Profiles
     if ($(".nav-link.active").text().match("Free-Space Profiles") != null) return;
 
     window._searchOrWatchTablePresent = true;
-    onFound(table);
+    applyTableModification($table);
     observer?.disconnect();
   };
 
@@ -97,18 +97,17 @@ function waitForTableToAdjust(onFound) {
 /* ========================================================================= */
 
 /**
- * Add “° / Relation / Suggestion” columns to *tableElem* and fill them once
- * all asynchronous look‑ups finish.
+ * Add “° / Relation / Suggestion” and Notes columns to *$table* as required by
+ * the options and fill them once all asynchronous look‑ups finish.
  *
- * @param {HTMLTableElement} tableElem Result table detected by the observer.
+ * @param $table Result table (a jQuery object) detected by the observer.
  */
-function addAdditionalColumns(tableElem) {
+function addAdditionalColumns($table) {
   /* --- 2.1 collect profile IDs present in the table -------------------- */
   // We collect them in an array to which we add the additional cilumn data
   // ids = [{id: numericId, distance: "", relationship: "", suggestion: ""}, ...]
   const currentUser = getUserWtId();
   const ids = {};
-  const $table = $(tableElem);
   $table.find("tr").each((rowIdx, tr) => {
     const $tr = $(tr);
 
@@ -162,7 +161,7 @@ function addAdditionalColumns(tableElem) {
   if (isExtraColEnabled(ExtraColumn.NOTES)) {
     const firstCol = $hdrRow.find("th").first();
     firstCol.after(
-      '<th class="profile-note" style="width:2%;text-align:center;cursor:pointer;" title="Profile Notes">🗒️</th>'
+      '<th class="profile-note wbe-sort-note" style="width:2%;text-align:center;cursor:pointer;" title="Profile Notes">🗒️</th>'
     );
   }
 
@@ -472,7 +471,7 @@ function addCustomSorters(table) {
       sortTableRows(table, th.cellIndex, dir, mode);
 
       /* update arrow icons for custom sort headers */
-      const customHeaders = table.querySelectorAll(".wbe-sort-deg, .wbe-sort-rel");
+      const customHeaders = table.querySelectorAll(".wbe-sort-deg, .wbe-sort-rel, .wbe-sort-note");
       customHeaders.forEach((h) => {
         const i = h.querySelector("img.sort-arrow");
         if (!i) return;
@@ -485,6 +484,7 @@ function addCustomSorters(table) {
     });
   }
 
+  attach("wbe-sort-note", "note");
   attach("wbe-sort-deg", "deg");
   attach("wbe-sort-rel", "rel");
 }
@@ -499,7 +499,7 @@ function addCustomSorters(table) {
  * @param {HTMLTableElement} table  Table whose rows will be sorted.
  * @param {number}           colIdx Zero‑based column index.
  * @param {"asc"|"desc"}    dir    Sort direction.
- * @param {"deg"|"rel"}     mode   Comparison mode.
+ * @param {"deg"|"rel"|"note"}     mode   Comparison mode.
  */
 function sortTableRows(table, colIdx, dir, mode) {
   const rows = Array.from(table.querySelectorAll("tbody tr")).filter(
@@ -507,6 +507,17 @@ function sortTableRows(table, colIdx, dir, mode) {
   );
 
   rows.sort((a, b) => {
+    if (mode === "note") {
+      const A = a.children[colIdx].classList;
+      const B = b.children[colIdx].classList;
+      const x = A.contains("hasNote") ? 1 : 0;
+      const y = B.contains("hasNote") ? 1 : 0;
+      if (x != 1 || y != 1) return dir === "asc" ? y - x : x - y;
+
+      // both have a note, sort on note status
+      return dir === "asc" ? getRank(A) - getRank(B) : getRank(B) - getRank(A);
+    }
+
     const A = a.children[colIdx].textContent.trim();
     const B = b.children[colIdx].textContent.trim();
 
@@ -535,6 +546,12 @@ function sortTableRows(table, colIdx, dir, mode) {
   rows.forEach((r) => tbody.appendChild(r));
 }
 
+const statusOrder = ["ToDo", "InProgress", "Parked", "Done"];
+function getRank(classList) {
+  const cls = statusOrder.find((c) => classList.contains(c));
+  return cls ? statusOrder.indexOf(cls) + 1 : 0; // 'none' goes first
+}
+
 /* ========================================================================= */
 /*  5. Helper: fetch Suggestions HTML                                        */
 /* ========================================================================= */
@@ -553,10 +570,10 @@ function getSuggestions() {
 
 /* ========================================================================= */
 const USER_NUM_ID = getUserNumId();
-let theTable;
-let headerRow;
-let theTbody;
-let theRows;
+let $theTable;
+let $headerRow;
+let $theTbody;
+let $theRows;
 let suggestYear = "";
 let suggestMonth = "";
 let suggestDay = "";
@@ -643,11 +660,11 @@ function initSearchOptions() {
  */
 function tableListeners() {
   $(function () {
-    theTable.on("click", "th", function () {
+    $theTable.on("click", "th", function () {
       dNumbering();
     });
 
-    theTable.on("click.showFamilySheet", "span.home", function (e) {
+    $theTable.on("click.showFamilySheet", "span.home", function (e) {
       const $this = $(this);
       const wtid = $this.data("wtid");
       showFamilySheet($this, wtid);
@@ -678,7 +695,7 @@ async function applyTableEnhancements() {
     tableListeners();
   });
 
-  headerRow.addClass("surnameTableHeaderRow");
+  $headerRow.addClass("surnameTableHeaderRow");
   const moreButton = $("<button id='surnameTableMoreButton' class='small btn btn-secondary'>More (WBE)</button>");
   $("h1").append(moreButton);
 
@@ -729,11 +746,11 @@ async function dNumbering() {
   }
 
   // Remove existing index spans and home images
-  theTable.find("tr span.index").remove();
-  theTable.find("tr img.home").remove();
+  $theTable.find("tr span.index").remove();
+  $theTable.find("tr img.home").remove();
 
   let j = 1;
-  theTable.find("tr").each(function (i) {
+  $theTable.find("tr").each(function (i) {
     const $this = $(this);
     if (i === 0 || $this.hasClass("filter-row") || $this.hasClass("surnameTableHeaderRow")) {
       return; // Skip the header and filter rows
@@ -827,7 +844,7 @@ function attachColumnSorter(opts) {
     $(`#${arrowId}`).text(dir === "asc" ? "↓" : "↑");
 
     // Sort
-    const $rows = theTable.find("tbody tr:not(.filter-row,.surnameTableHeaderRow)");
+    const $rows = $theTable.find("tbody tr:not(.filter-row,.surnameTableHeaderRow)");
     $rows.sort(function (a, b) {
       let aVal = "";
       let bVal = "";
@@ -848,7 +865,7 @@ function attachColumnSorter(opts) {
       return compareStrings(aVal, bVal, dir);
     });
 
-    $rows.appendTo(theTable.find("tbody"));
+    $rows.appendTo($theTable.find("tbody"));
 
     // Remember which column we just sorted, and the direction
     if (isLocation) {
@@ -874,18 +891,18 @@ function attachColumnSorter(opts) {
 async function initSurnameTableSorting() {
   // Remove old filter row/arrows
   $(".filterInput").off();
-  theTable.find("tr.filter-row").remove();
+  $theTable.find("tr.filter-row").remove();
   $("th .sort-arrow").off().remove();
 
-  if (!theTable.length) return;
+  if (!$theTable.length) return;
 
-  headerRow.attr("data-manager", "");
+  $headerRow.attr("data-manager", "");
 
   //////////////////////////////////////////////////////////
   // A) CREATE data-manager, data-year
   //////////////////////////////////////////////////////////
   //const rows = theTable.find("tbody > tr");
-  const rows = $(theTable).find("tbody").first().children("tr");
+  const rows = $($theTable).find("tbody").first().children("tr");
   rows.each(function () {
     const $this = $(this);
     let managerTD = $this.find("td").eq(indexOf("manager"));
@@ -958,7 +975,7 @@ async function initSurnameTableSorting() {
         $("#managerWordArrow").html("&#8593;");
         $this.attr("data-order", "za");
       }
-      const theseRows = theRows;
+      const theseRows = $theRows;
       if (theseRows.length) {
         theseRows.slice(1);
         theseRows.sort(function (a, b) {
@@ -970,7 +987,7 @@ async function initSurnameTableSorting() {
             return managerB.localeCompare(managerA);
           }
         });
-        theseRows.appendTo(theTbody);
+        theseRows.appendTo($theTbody);
         dNumbering();
 
         let lastManager = "Me";
@@ -1003,15 +1020,15 @@ async function initSurnameTableSorting() {
     });
   }
 
-  headerRow.find("th").css("width", "");
+  $headerRow.find("th").css("width", "");
 
   //////////////////////////////////////////////////////////
   // D) ADD BIRTH & DEATH PLACE COLUMNS
   //////////////////////////////////////////////////////////
   const birthColIdx = indexOf("birth");
   const deathColIdx = indexOf("death");
-  const birthHeader = headerRow.find("th").eq(birthColIdx);
-  const deathHeader = deathColIdx ? headerRow.find("th").eq(deathColIdx) : null;
+  const birthHeader = $headerRow.find("th").eq(birthColIdx);
+  const deathHeader = deathColIdx ? $headerRow.find("th").eq(deathColIdx) : null;
 
   birthHeader.attr("id", "birthDate");
 
@@ -1028,7 +1045,7 @@ async function initSurnameTableSorting() {
   const locPattern = /<br>\s*(.+)/;
 
   // Now parse the text from watchlist or search columns
-  theTable.find("tr").each(function () {
+  $theTable.find("tr").each(function () {
     const $this = $(this);
     const birthTD = $this.find("td").eq(birthColIdx);
     const deathTD = $this.find("td").eq(deathColIdx);
@@ -1148,7 +1165,7 @@ async function initSurnameTableSorting() {
     });
   }
 
-  theTable.addClass("ready");
+  $theTable.addClass("ready");
   dNumbering();
 
   //////////////////////////////////////////////////////////
@@ -1162,14 +1179,14 @@ async function initSurnameTableSorting() {
     const $flipBtn = $(
       `<button id='flipLocationsButton' title="${titleText}" class='btn wbe btn-sm btn-secondary'>Reverse Locations</button>`
     );
-    addTableButtonsContainer(theTable, $flipBtn[0]);
+    addTableButtonsContainer($theTable, $flipBtn[0]);
 
     $flipBtn.on("click", function () {
       // Toggle the global
       window.locationFlipped = !window.locationFlipped;
 
       // Update displayed text for ALL rows, for BOTH birthLocation & deathLocation cells.
-      const $allRows = theTable.find("tbody tr:not(.filter-row,.surnameTableHeaderRow)");
+      const $allRows = $theTable.find("tbody tr:not(.filter-row,.surnameTableHeaderRow)");
       $allRows.each(function () {
         const $this = $(this);
         const bS = $this.data("birth-location-small2big") || "";
@@ -1191,14 +1208,14 @@ async function initSurnameTableSorting() {
         const dataS = isBirth ? "birth-location-small2big" : "death-location-small2big";
         const dataB = isBirth ? "birth-location-big2small" : "death-location-big2small";
 
-        const $rows = theTable.find("tbody tr:not(.filter-row,.surnameTableHeaderRow)");
+        const $rows = $theTable.find("tbody tr:not(.filter-row,.surnameTableHeaderRow)");
         $rows.sort(function (a, b) {
           let aVal = window.locationFlipped ? $(a).data(dataB) : $(a).data(dataS);
           let bVal = window.locationFlipped ? $(b).data(dataB) : $(b).data(dataS);
 
           return compareStrings(aVal || "", bVal || "", dir);
         });
-        $rows.appendTo(theTable.find("tbody"));
+        $rows.appendTo($theTable.find("tbody"));
 
         if (window.surnameTableOptions.NumberTheTable) {
           dNumbering();
@@ -1207,14 +1224,14 @@ async function initSurnameTableSorting() {
     });
   }
 
-  addFilters(2000);
+  addFilters($theTable, 2000);
 }
 
-function addFilters(delay) {
-  checkIfFeatureEnabled("tableFilters").then((result) => {
-    if (result) {
+function addFilters($table, delay) {
+  checkIfFeatureEnabled("tableFilters").then((enabled) => {
+    if (enabled) {
       console.log("triggering initTableFilters");
-      setTimeout(initTableFilters, delay);
+      setTimeout(() => initTableFilters($table.get(0)), delay);
     }
   });
 }
@@ -1238,7 +1255,7 @@ async function getBrickWalls() {
   const mWTIDID = USER_NUM_ID;
   const theseKeys = [];
 
-  theRows.each(function () {
+  $theRows.each(function () {
     theseKeys.push($(this).attr("data-wtid"));
   });
 
@@ -1253,7 +1270,7 @@ async function getBrickWalls() {
       peopleKeys.forEach((key) => {
         const person = result[0].people[key];
         const thisID = person.Name;
-        const $row = theTbody.find(`tr[data-wtid="${thisID}"]`);
+        const $row = $theTbody.find(`tr[data-wtid="${thisID}"]`);
         const dParentEl = $row.find("td").first();
         dParentEl.css({ position: "relative" });
 
@@ -1283,7 +1300,7 @@ async function getBrickWalls() {
               );
             }
 
-            if (theTable.length) {
+            if ($theTable.length) {
               if (deathLocation != null) {
                 $row.find(".deathLocation").text(deathLocation);
                 deathLocation = deathLocation
@@ -1533,7 +1550,7 @@ async function addWideTableButton() {
   const wideTableButton = $("<button class='btn-sm btn wbe btn-secondary wideTableButton'>Wide Table</button>");
 
   if ($(".wideTableButton").length == 0) {
-    addTableButtonsContainer(theTable, wideTableButton[0]);
+    addTableButtonsContainer($theTable, wideTableButton[0]);
   }
 
   // Retrieve the last state from local storage
@@ -1541,10 +1558,10 @@ async function addWideTableButton() {
 
   // Check if there was a saved state and apply it
   if (surnameTableWideTableOption === "true") {
-    makeTableWide(theTable);
+    makeTableWide($theTable);
     wideTableButton.text("Normal Table");
   } else {
-    makeTableNotWide(theTable);
+    makeTableNotWide($theTable);
     wideTableButton.text("Wide Table");
   }
 
@@ -1569,7 +1586,7 @@ async function addWideTableButton() {
   });
 }
 
-function applyTableModification(table) {
+function applyTableModification($table) {
   // Until WT fixes their bad HTML, we need to fix the width:40 styles on the <th> elements to widht:40%
   document.querySelectorAll('#Sort-Table th[style*="width:40;"]').forEach((th) => {
     let style = th.getAttribute("style");
@@ -1578,19 +1595,19 @@ function applyTableModification(table) {
     th.setAttribute("style", style);
   });
 
-  addAdditionalColumns(table);
-  $("tr.filter-row").remove();
-  addFilters(5);
+  addAdditionalColumns($table);
 
-  theTable = $(table);
+  $("tr.filter-row").remove();
+  addFilters($table, 5);
 
   // #Sort-Table on Search page has a thead which #Sort-Table on Watched List page does not
-  headerRow = theTable.find("thead tr:first-child");
+  $headerRow = $table.find("thead tr:first-child");
   if (isSpecialWatchedList) {
-    headerRow = theTable.find("tr:first-child");
+    $headerRow = $table.find("tr:first-child");
   }
-  theTbody = theTable.find("tbody");
-  theRows = theTbody.find("tr");
+  $theTbody = $table.find("tbody");
+  $theRows = $theTbody.find("tr");
+  $theTable = $table;
 
   const isFreeSpaceList = $(".nav-link.active").text().match("Free-Space Profiles");
   // if (window.location.href.match(/Special:(Surname|WatchedList|SearchPerson)/) && isFreeSpaceList == null) {
@@ -1643,5 +1660,5 @@ shouldInitializeFeature("surnameTable").then(async (enabled) => {
   await updateFeatureOptions();
   import("../familyTimeline/familyTimeline.css");
   window.surnameTableOptions = await getFeatureOptions("surnameTable");
-  waitForTableToAdjust(applyTableModification);
+  waitForTableAndModify();
 });
