@@ -10,6 +10,8 @@
 /* ------------------------------------------------------------------------- */
 import $ from "jquery";
 import "./table_filters.css";
+import "select2";
+import "select2/dist/css/select2.css";
 
 import { getYYYYMMDD } from "../auto_bio/auto_bio";
 import { shouldInitializeFeature, getFeatureOptions, checkIfFeatureEnabled } from "../../core/options/options_storage";
@@ -42,7 +44,23 @@ function addFiltersToWikitables(single = null) {
     headerRow.querySelectorAll("th").forEach((th) => {
       const cell = document.createElement("th");
       const txt = th.textContent.trim();
-      if (txt && txt !== "Pos." && !th.classList.contains("profile-note")) {
+      if (th.classList.contains("profile-note")) {
+        const $sel = $("<select id='wbeNotesFilter' title=''></select>");
+        cell.appendChild($sel.get(0));
+        filterRow.appendChild(cell);
+        $sel.select2({
+          data: [...shapeOptions.entries()].map((opt) => ({ id: opt[0], title: opt[1].title })),
+          templateResult: formatNoteOption,
+          templateSelection: formatNoteOption,
+          escapeMarkup: function (markup) {
+            return markup;
+          }, // Allow custom HTML
+          // multiple: true,
+          width: "3em",
+          minimumResultsForSearch: Infinity,
+        });
+        return;
+      } else if (txt && txt !== "Pos.") {
         const input = document.createElement("input");
         input.type = "text";
         input.className = "filter-input";
@@ -57,7 +75,13 @@ function addFiltersToWikitables(single = null) {
   /* global filter handler --------------------------------------------- */
   document.body.addEventListener("input", (e) => {
     if (!(e.target instanceof HTMLInputElement) || !e.target.classList.contains("filter-input")) return;
+    filterTables(tables);
+  });
+  $("#wbeNotesFilter")
+    .off("select2:select")
+    .on("select2:select", () => filterTables(tables));
 
+  function filterTables(tables) {
     tables.forEach((table) => {
       const filterCells = table.querySelectorAll(".filter-row th");
       const rows = table.querySelectorAll("tbody tr");
@@ -67,6 +91,34 @@ function addFiltersToWikitables(single = null) {
 
         let show = true;
         filterCells.forEach((cell, colIdx) => {
+          if (cell.querySelector("#wbeNotesFilter")) {
+            const reqNotes = document.getElementById("wbeNotesFilter").value;
+            if (reqNotes != "clear") {
+              const $cell = $(row.children[colIdx]);
+              if (reqNotes == "none") {
+                show = !$cell.hasClass("hasNote");
+              } else if (reqNotes == "all") {
+                show = $cell.hasClass("hasNote");
+              } else if (reqNotes == "st-none") {
+                show =
+                  $cell.hasClass("hasNote") &&
+                  !$cell.hasClass("ToDo") &&
+                  !$cell.hasClass("InProgress") &&
+                  !$cell.hasClass("Parked") &&
+                  !$cell.hasClass("Done");
+              } else if (reqNotes == "st-todo") {
+                show = $cell.hasClass("ToDo");
+              } else if (reqNotes == "st-busy") {
+                show = $cell.hasClass("InProgress");
+              } else if (reqNotes == "st-parked") {
+                show = $cell.hasClass("Parked");
+              } else if (reqNotes == "st-done") {
+                show = $cell.hasClass("Done");
+              }
+            }
+            return;
+          }
+
           const input = cell.querySelector("input");
           if (!input) return;
 
@@ -86,7 +138,120 @@ function addFiltersToWikitables(single = null) {
         row.style.display = show ? "" : "none";
       });
     });
-  });
+  }
+}
+
+const shapeOptions = new Map([
+  [
+    "clear",
+    {
+      title: "Clear filter",
+      // html: `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+      //    <rect width="80" height="80" fill="white" opacity="0" />
+      //  </svg>`,
+      html: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+         <rect x="1" y="1" width="98" height="98"
+               fill="white" stroke="#ccc" stroke-width="2" />
+       </svg>`, // html: '<svg viewBox="0 0 100 100"><polygon points="10,10 90,90" style="fill:white;"/></svg>',
+    },
+  ],
+  [
+    "none",
+    {
+      title: "No note",
+      html: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+             <rect x="0" y="0" width="100" height="100"
+                   fill="white" stroke="black" stroke-width="4" />
+           </svg>`,
+    },
+  ],
+  [
+    "all",
+    {
+      title: "All notes, regardless of status",
+      html: `<svg viewBox="0 0 100 100">
+                <defs>
+                <linearGradient id="blue-pink-gradient" x1="0%" y1="100%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#1daddd;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#e05c6a;stop-opacity:1" />
+                </linearGradient>
+                </defs>
+                <rect x="0" y="0" width="100" height="100" fill="url(#blue-pink-gradient)" />
+                <polygon points="100,0 100,50 50,0" style="fill:white;" />
+            </svg>`,
+    },
+  ],
+  [
+    "st-none",
+    {
+      title: "Notes with no defined state",
+      html: `<svg viewBox="0 0 100 100">
+                <defs>
+                <linearGradient id="blue-pink-gradient" x1="0%" y1="100%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#1daddd;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#e05c6a;stop-opacity:1" />
+                </linearGradient>
+                </defs>
+                <rect x="0" y="0" width="100" height="100" fill="url(#blue-pink-gradient)" />
+            </svg>`,
+    },
+  ],
+  [
+    "st-todo",
+    {
+      title: "Notes with ToDo state",
+      html: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+               <rect x="0" y="0" width="100" height="100" fill="white" stroke="black" stroke-width="4" />
+               <polygon points="25,10 90,10 90,75" style="fill:red;"/>
+            </svg>`,
+    },
+  ],
+  [
+    "st-busy",
+    {
+      title: "Notes with In Progress state",
+      html: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+               <rect x="0" y="0" width="100" height="100" fill="white" stroke="black" stroke-width="4" />
+               <polygon points="25,10 90,10 90,75" style="fill:rgb(255, 255, 0);"/>
+             </svg>`,
+    },
+  ],
+  [
+    "st-parked",
+    {
+      title: "Notes with Parked state",
+      // html: '<svg viewBox="0 0 100 100"><polygon points="25,10 90,10 90,75" style="fill:rgb(0, 0, 255);"/></svg>',
+      html: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+               <rect x="0" y="0" width="100" height="100" fill="white" stroke="black" stroke-width="4" />
+              <polygon points="25,10 90,10 90,75" style="fill:rgb(0,0,255);" />
+            </svg>`,
+    },
+  ],
+  [
+    "st-done",
+    {
+      id: "st-done",
+      title: "Notes with Done state",
+      html: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+               <rect x="0" y="0" width="100" height="100" fill="white" stroke="black" stroke-width="4" />
+               <polygon points="25,10 90,10 90,75" style="fill:rgb(0, 255, 0);"/>
+            </svg>`,
+    },
+  ],
+]);
+
+function formatNoteOption(data) {
+  // data:
+  // {
+  //     "id": "value attribute" || "option text",
+  //     "text": "label attribute" || "option text",
+  //     "element": HTMLOptionElement
+  // }
+  const option = shapeOptions.get(data.id);
+  if (option) {
+    return $('<span class="wbeNotesFilter-option">' + option.html + "</span>");
+  }
+  return null;
 }
 
 /* ========================================================================= */

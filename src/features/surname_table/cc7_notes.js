@@ -2,8 +2,8 @@ import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { getUserWtId, setHighestZIndex } from "../../core/common.js";
 
-// I named the CC7Notes to indicate that they are related (i.e. use the same source data) as the notes
-// in the CC7 Views tree app. The DB ersion numbers and names below must be kept in sync with that
+// I named the CC7Notes to indicate that they are related (i.e. use the same IndexedDB data) as the notes
+// in the CC7 Views tree app. The DB version numbers and names below must be kept in sync with that
 // of the CC7 Views app
 export class CC7Notes {
   static dbName = "CC7Notes";

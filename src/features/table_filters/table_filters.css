@@ -32,3 +32,22 @@ body.watchlist .surnameTableHeaderRow a[title*="by birth date"] + img.sort-arrow
 body.watchlist .surnameTableHeaderRow a[title*="by last edit"] + img.sort-arrow {
   display: none;
 }
+
+#wbeNotesFilter {
+  min-width: 1em;
+}
+
+.wbeNotesFilter-option svg {
+  width: 15px;
+  height: 15px;
+  vertical-align: middle;
+}
+
+#Sort-Table .filter-row span.select2-selection__rendered {
+  min-width: 2em;
+  padding-left: 4px;
+  padding-right: 15px;
+}
+.select2-results__options {
+  max-height: none !important; /* remove default scroll limit */
+}
