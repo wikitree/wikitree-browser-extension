@@ -617,7 +617,7 @@ function CreateCopyRenameCatLink() {
 
 function CreateBatchCatActivationLinkAndSpan() {
   const buttonEnable = $document.createElement("a");
-  buttonEnable.innerText = "batch categorize";
+  buttonEnable.innerText = isPlusDomain ? "batch categorize / add stickers" : "batch categorize";
   buttonEnable.title = "Change categories of multiple profiles in this category at once";
   buttonEnable.href = "#0";
   buttonEnable.id = "activate_link";
@@ -675,9 +675,28 @@ function CreateCopyRenameCatLinkEditPage(label) {
 
 function ShowCatALot() {
   if (isSearchPage) {
-    AddCatALotControls($document.getElementsByTagName("p")[0]);
-    HackMergeCheckboxes();
-    $document.getElementsByClassName("large")[0].appendChild(CreateSelectAllResultsLink());
+    // redesigned search page: prefer inserting before div.table-responsive
+    const tableResponsive = $document.querySelector("div.table-responsive");
+    if (tableResponsive && tableResponsive.parentNode) {
+      // create a wrapper for controls and insert before the table-responsive block
+      const wrapper = $document.createElement("div");
+      tableResponsive.parentNode.insertBefore(wrapper, tableResponsive);
+      AddCatALotControls(wrapper);
+      HackMergeCheckboxes();
+      // add select-all into the wrapper
+      wrapper.appendChild(CreateSelectAllResultsLink());
+    } else {
+      // fallback to old behavior
+      const p0 = $document.getElementsByTagName("p")[0];
+      if (p0) {
+        AddCatALotControls(p0);
+      }
+      HackMergeCheckboxes();
+      const large = $document.getElementsByClassName("large")[0];
+      if (large) {
+        large.appendChild(CreateSelectAllResultsLink());
+      }
+    }
   } else if (isCategoryPage) {
     AddCheckboxes();
     AddSubcatLinks();
@@ -818,7 +837,49 @@ function AddCatALotControls(elementToAppendTo) {
   catALotDiv.appendChild(inputCatVerified);
   catALotDiv.appendChild(catALotButton);
   elementToAppendTo.appendChild(catALotDiv);
+  // Plus-only: sticker batch controls
+  if (isPlusDomain) {
+    const inputStickerTyped = $document.createElement("input");
+    inputStickerTyped.id = "inputStickerTyped";
+    inputStickerTyped.placeholder = "sticker template e.g. One Name Study|name=Burlinson";
+    inputStickerTyped.title = "Enter a template body (no surrounding {{}} required). Will be inserted after Biography.";
+
+    const stickerALotButton = $document.createElement("input");
+    stickerALotButton.type = "button";
+    stickerALotButton.value = "Sticker a lot";
+    stickerALotButton.id = "stickerALotButton";
+    stickerALotButton.disabled = true;
+    stickerALotButton.addEventListener("click", OnStickerALotClicked);
+
+    inputStickerTyped.addEventListener("input", function () {
+      stickerALotButton.disabled = inputStickerTyped.value.trim() == "";
+    });
+
+    catALotDiv.appendChild(inputStickerTyped);
+    catALotDiv.appendChild(stickerALotButton);
+  }
   inputCatTyped.focus();
+}
+
+function OnStickerALotClicked() {
+  const stickerValue = $document.getElementById("inputStickerTyped").value.trim();
+  if (stickerValue == "") return;
+
+  const baseEditUrl = "https://" + mainDomain + "/index.php?title=Special:EditPerson&w=";
+  const cboxes = $document.getElementsByClassName("profile_selector");
+
+  for (let i = 0; i < cboxes.length; ++i) {
+    if (cboxes[i].checked) {
+      let url = baseEditUrl + cboxes[i].value + "&addSticker=" + encodeURIComponent(stickerValue);
+      let parentToHide = null;
+      if (isSearchPage || isPlusDomain) {
+        parentToHide = cboxes[i].parentNode.parentNode;
+      } else if (isCategoryPage) {
+        parentToHide = cboxes[i].parentNode;
+      }
+      OpenProfileForEditing(url, cboxes[i], parentToHide);
+    }
+  }
 }
 
 function CreateSelectAllResultsLink() {
@@ -1133,6 +1194,56 @@ function AddVerifiedCatLink(cat) {
   $document.getElementById("inputCatTyped").value = cat;
 }
 
+// Insert a sticker template into the biography text.
+// stickerParam can be either the inner template text (e.g. "One Name Study|name=Burlinson")
+// or a full template including {{ }}. Returns the inserted full template string if added, null if skipped.
+function AddSticker(wpTextbox1, stickerParam) {
+  if (!stickerParam) return null;
+  let bio = wpTextbox1.value || "";
+  let sticker = stickerParam.trim();
+  // strip surrounding braces if present
+  if (sticker.startsWith("{{") && sticker.endsWith("}}")) {
+    sticker = sticker.replace(/^\{\{\s*/, "").replace(/\s*\}\}$/, "");
+  }
+
+  const fullTemplate = "{{" + sticker + "}}";
+
+  // detect duplicate by template name (before first |), tolerate spaces/underscores and case-insensitive
+  const templateName = sticker.split("|")[0].trim();
+  const namePattern = templateName.replace(/[_\s]+/g, "[_\\s]+");
+  const duplicateRegex = new RegExp("\\{\\{\\s*" + namePattern + "[\\s\\S]*?\\}\\}", "i");
+  if (duplicateRegex.test(bio)) {
+    return null; // already present
+  }
+
+  // try to insert after the first Biography heading
+  const bioHeadingRegex = /={2,}\s*Biography\s*={2,}/i;
+  const headingMatch = bio.match(bioHeadingRegex);
+  let insertPos = -1;
+  if (headingMatch) {
+    // insert after the heading's line break
+    const idx = bio.indexOf(headingMatch[0]);
+    if (idx > -1) {
+      const afterHeading = bio.indexOf("\n", idx);
+      insertPos = afterHeading >= 0 ? afterHeading + 1 : idx + headingMatch[0].length;
+    }
+  }
+
+  // fallback: after initial templates at top
+  if (insertPos == -1) {
+    const topTemplatesMatch = bio.match(/^(?:\s*\{\{[\s\S]*?\}\}\s*)+/);
+    if (topTemplatesMatch) {
+      insertPos = topTemplatesMatch[0].length;
+    }
+  }
+
+  // final fallback: start of document
+  if (insertPos == -1) insertPos = 0;
+
+  wpTextbox1.value = bio.slice(0, insertPos) + fullTemplate + "\n" + bio.slice(insertPos);
+  return fullTemplate;
+}
+
 function PerformActualProfileChanges() {
   const enhancedEditorOn = DeactivateEnhancedEditorIfPresent();
   let wpTextbox1 = window.document.getElementById("wpTextbox1");
@@ -1187,10 +1298,52 @@ function PerformActualProfileChanges() {
   if (categoryManagementOptions?.customChangeSummary) {
     summary += " " + categoryManagementOptions.customChangeSummary;
   }
+  // handle stickers via URL params: addSticker (single) and addStickers (JSON array)
+  const bHasAddSticker = urlParams.has("addSticker");
+  const bHasAddStickers = urlParams.has("addStickers");
+  let addedStickers = [];
+  if (bHasAddStickers) {
+    try {
+      const stickers = JSON.parse(decodeURIComponent(urlParams.get("addStickers")));
+      if (Array.isArray(stickers)) {
+        stickers.forEach((s) => {
+          const added = AddSticker(wpTextbox1, s);
+          if (added) addedStickers.push(added);
+        });
+      }
+    } catch (e) {
+      // ignore malformed JSON
+    }
+  }
+  if (bHasAddSticker) {
+    const stickerParam = decodeURIComponent(urlParams.get("addSticker"));
+    const added = AddSticker(wpTextbox1, stickerParam);
+    if (added) addedStickers.push(added);
+  }
+
   ReactivateEnhancedEditorIfNeeded(enhancedEditorOn);
 
+  // build final summary. Keep existing category summary but append stickers if any.
+  let finalSummary = "";
   if (bHasAdd || bHasRem || bHasAddCats) {
-    DoSave("Categories: " + summary);
+    finalSummary = "Categories: " + summary;
+  }
+  if (addedStickers.length > 0) {
+    const stickerPart = addedStickers.join(", ");
+    if (finalSummary != "") {
+      finalSummary += "; Stickers: " + stickerPart;
+    } else {
+      // if only a single sticker was added, use the requested concise summary format
+      if (addedStickers.length === 1) {
+        finalSummary = 'Add Sticker: "' + stickerPart + '"';
+      } else {
+        finalSummary = "Stickers: " + stickerPart;
+      }
+    }
+  }
+
+  if (finalSummary !== "") {
+    DoSave(finalSummary);
 
     const currentBio = wpTextbox1.value;
     if (previousBio == currentBio) {
