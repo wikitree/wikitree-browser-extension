@@ -1830,17 +1830,17 @@ export class Biography {
                         if (!this.#isJustThePeerage(line)) {
                           isDnaLine = this.#isDnaSourceLine(line);
                           if (isDnaLine) {
-//console.log('isDnaLine');
                               // if it says confident or suggested instead of confirmed 
                               // it should be neither a DNA nor traditional source
                               this.#isValidDnaConfirmation(line, mixedCaseLine);
-                           // }
                           } else {
                             if (!this.#isJustCombinedLines(line)) {
-                              // TODO is the manager's name a valid source (this is hard)
-                              // TODO add logic to check for just the name followed by grave
-                              // TODO add logic to strip "information from" from the start
-                              isValid = true;
+                              if (!line.includes('{{citation needed}}')) {
+                                // TODO is the manager's name a valid source (this is hard)
+                                // TODO add logic to check for just the name followed by grave
+                                // TODO add logic to strip "information from" from the start
+                                isValid = true;
+                              }
                             }
                           }
                         }
@@ -2619,6 +2619,7 @@ export class Biography {
    * Is this a paternal confirmation
    */
   #isPaternalConf(line) {
+    line = line.replaceAll('grandfather', '');
     return ((line.includes('paternal') || line.includes('father') ||
              line.includes('paternity') || line.includes('parental')) ||
              line.includes(' parents confirm') &&
@@ -2629,6 +2630,7 @@ export class Biography {
    * Is this a maternal confirmation
    */
   #isMaternalConf(line) {
+    line = line.replaceAll('grandmother', '');
     return ((line.includes('maternal') || line.includes('mother') ||
              line.includes('maternity') || line.includes('parental')) ||
              line.includes(' parents confirm') &&
