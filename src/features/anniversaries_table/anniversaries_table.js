@@ -309,7 +309,8 @@ async function updateNames() {
     false,
     false,
     0,
-    "Name,FirstName,LastNameCurrent,LastNameAtBirth"
+    "Name,FirstName,LastNameCurrent,LastNameAtBirth",
+    "WBE_anniversaries_table"
   );
 
   let isUpdated = false;

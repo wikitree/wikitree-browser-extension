@@ -22,7 +22,7 @@ export class CC7Notes {
   }
 
   static async getIdFromApi(wtId) {
-    const person = await WikiTreeAPI.getPerson("WBE_cc7_notes", wtId, ["Id"]);
+    const person = await WikiTreeAPI.getPerson("cc7_notes", wtId, ["Id"]);
     return person?.getId() || null;
   }
 

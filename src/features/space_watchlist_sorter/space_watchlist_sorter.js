@@ -13,7 +13,8 @@ import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
 
 const CryptoJS = require("crypto-js");
 
-const APP_ID = "WBE-SpaceSorter";
+const SS_APP_ID = "SpaceSorter";
+const WBE_SS_APP_ID = "WBE_" + SS_APP_ID;
 const browserAPI = typeof browser !== "undefined" ? browser : chrome;
 
 const spaceWatchlistSorterHTML = `
@@ -110,14 +111,14 @@ async function loadSpaceWatchlist() {
   try {
     // console.log("Checking user login status");
     const userNumId = getUserNumId();
-    if (!userNumId || !(await isLoggedIntoAPI(userNumId, APP_ID))) {
+    if (!userNumId || !(await isLoggedIntoAPI(userNumId, WBE_SS_APP_ID))) {
       showLoginPopup();
       return [];
     }
 
     // The user is logged in at WikiTree and the Apps server - Fetch their space watchlist
     //console.log(`Fetching Watchlist, userWtid=${getUserWtId()}, numId=${userNumId}`);
-    const watchlist = await WikiTreeAPI.getSpaceWatchlist(APP_ID, limit, fields);
+    const watchlist = await WikiTreeAPI.getSpaceWatchlist(SS_APP_ID, limit, fields);
 
     return watchlist || [];
   } catch (error) {
@@ -145,7 +146,7 @@ function showLoginPopup() {
       userId = getUserWtId();
       const userNumId = getUserNumId();
       if (userId && userNumId) {
-        if (await isLoggedIntoAPI(userNumId, APP_ID)) {
+        if (await isLoggedIntoAPI(userNumId, WBE_SS_APP_ID)) {
           $("#login-popup").remove();
           // console.log(`Logged in: userId='${userId}', userNumId='${userNumId}'`);
         } else {
@@ -217,7 +218,7 @@ async function populateInterface() {
       };
     }
     const userNumId = getUserNumId();
-    if (!userNumId || !(await isLoggedIntoAPI(userNumId, APP_ID))) {
+    if (!userNumId || !(await isLoggedIntoAPI(userNumId, WBE_SS_APP_ID))) {
       showLoginPopup();
       return {
         status: false,

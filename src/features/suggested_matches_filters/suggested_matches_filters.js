@@ -10,6 +10,8 @@ import { isOK, WBEHelpIcon } from "../../core/common";
 import { getPeople } from "../dna_table/dna_table";
 import { countries } from "../auto_bio/countries";
 
+const SMF_APP_ID = "suggested_matches_filters";
+const WBE_SMF_APP_ID = "WBE_" + SMF_APP_ID;
 const newPerson = {};
 const suggestedMatches = [];
 let options = {};
@@ -444,9 +446,8 @@ function checkReady() {
 
 async function getLocations(WTID) {
   let relatives;
-  const APP_ID = "WBE_suggested_matches_filters";
   if (WTID) {
-    relatives = await WikiTreeAPI.getRelatives(APP_ID, [WTID], ["BirthLocation,DeathLocation"], {
+    relatives = await WikiTreeAPI.getRelatives(SMF_APP_ID, [WTID], ["BirthLocation,DeathLocation"], {
       getSpouses: true,
       getChildren: true,
       getParents: true,
@@ -550,7 +551,7 @@ async function nameFilter(level) {
       0,
       0,
       "LastNameAtBirth,LastNameCurrent,FirstName,MiddleName",
-      "WBE_suggested_matches_filters"
+      WBE_SMF_APP_ID
     );
   }
   suggestedMatches.forEach(function (person) {
@@ -1065,9 +1066,8 @@ async function initSuggestedMatchesFilters() {
   suggestedMatches.length = 0;
   const WTID = $("h1 button[aria-label='Copy ID']").data("copy-text");
   let relatives;
-  const APP_ID = "WBE_suggested_matches_filters";
   if (WTID) {
-    relatives = await WikiTreeAPI.getRelatives(APP_ID, [WTID], ["BirthLocation,DeathLocation"], {
+    relatives = await WikiTreeAPI.getRelatives(SMF_APP_ID, [WTID], ["BirthLocation,DeathLocation"], {
       getSpouses: true,
       getChildren: true,
       getParents: true,

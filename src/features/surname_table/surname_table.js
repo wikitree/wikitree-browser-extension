@@ -1265,7 +1265,7 @@ async function getBrickWalls() {
     chunk = theseKeys.splice(0, 50).join(",");
     const fields =
       "Id,Name,Manager,Mother,Father,Spouses,LastNameAtBirth,LastNameCurrent,Gender,Photo,PhotoData,BirthLocation,DeathLocation,Connected,TrustedList,Privacy,Touched";
-    getPeople(chunk, 0, 0, 0, 0, 0, fields).then((result) => {
+    getPeople(chunk, 0, 0, 0, 0, 0, fields, "WBE_surname_table").then((result) => {
       const peopleKeys = Object.keys(result[0].people);
       peopleKeys.forEach((key) => {
         const person = result[0].people[key];

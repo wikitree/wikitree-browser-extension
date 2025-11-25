@@ -12,6 +12,9 @@ import { profilePerson } from "../../core/common";
 import { isOK } from "../../core/common";
 import "jquery-ui/ui/widgets/draggable";
 
+const UBT_APP_ID = "unconnected_branch_table";
+const WBE_UBT_APP_ID = "WBE_" + UBT_APP_ID;
+
 async function initUnconnectedBranch() {
   if (isUnconnectedNotables) {
     doNotablesSpace();
@@ -92,7 +95,7 @@ async function doNotablesSpace() {
   });
 
   // Get all the people with getPerson: just Name and Connected
-  const people = await getPeople(ids.join(","), 0, 0, 0, 0, 0, "Name,Connected", "WBE_unconnected_branch");
+  const people = await getPeople(ids.join(","), 0, 0, 0, 0, 0, "Name,Connected", WBE_UBT_APP_ID);
   const oPeople = people[0].people;
   // Add class to rows of any connected people
   if (oPeople) {
@@ -411,9 +414,9 @@ async function unconnectedBranch(event) {
     // As an array
     const fieldsArray = fields.split(",");
 
-    //const people = await getPeople(profileID, 0, 0, 0, 10, 0, fields, "WBE_unconnected_branch");
+    //const people = await getPeople(profileID, 0, 0, 0, 10, 0, fields, WBE_UBT_APP_ID);
 
-    const result = await WikiTreeAPI.getPeople("WBE_unconnected_branch", profileID, fieldsArray, { nuclear: 10 });
+    const result = await WikiTreeAPI.getPeople(UBT_APP_ID, profileID, fieldsArray, { nuclear: 10 });
     people = result[2];
     console.log("People:", people);
     // WikiTree.getPeople(appId, nextIDsToLoad, ["Id", "Name", "LastNameAtBirth"]
