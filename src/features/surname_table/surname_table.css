@@ -126,7 +126,8 @@ body.watchlist table.wt.table span.index {
   background: #ffffff;
   position: absolute;
   top: -0.5em;
-  left: -2em;
+  left: -0.5em;
+  z-index: 1000;
 }
 
 #buttonBox {

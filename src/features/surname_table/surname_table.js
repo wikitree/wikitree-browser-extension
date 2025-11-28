@@ -740,17 +740,20 @@ function addFamilyGroupIcon($cell, wtId) {
  *
  * @returns {Promise<void>} Resolves when numbering is complete.
  */
-async function dNumbering() {
+async function dNumbering(table) {
   if (!window.surnameTableOptions.NumberTheTable) {
     return;
   }
 
+  // Use provided table or fall back to global $theTable
+  const $table = table || $theTable;
+
   // Remove existing index spans and home images
-  $theTable.find("tr span.index").remove();
-  $theTable.find("tr img.home").remove();
+  $table.find("tr span.index").remove();
+  $table.find("tr img.home").remove();
 
   let j = 1;
-  $theTable.find("tr").each(function (i) {
+  $table.find("tr").each(function (i) {
     const $this = $(this);
     if (i === 0 || $this.hasClass("filter-row") || $this.hasClass("surnameTableHeaderRow")) {
       return; // Skip the header and filter rows
@@ -1477,6 +1480,9 @@ function makeTableWide(dTable) {
   } else {
     $("#buttonBox").show();
   }
+
+  // Apply numbering if enabled
+  dNumbering(dTable);
 }
 
 /**
@@ -1504,6 +1510,9 @@ function makeTableNotWide(dTable) {
 
   dTable.insertBefore($("#tableContainer"));
   $("#buttonBox").hide();
+
+  // Apply numbering if enabled
+  dNumbering(dTable);
 }
 
 /**
