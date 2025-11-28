@@ -380,8 +380,6 @@ function makeTableSortable(table) {
   });
 }
 
-const homeIcon = chrome.runtime.getURL("images/Home_icon.png");
-
 async function unconnectedBranch(event) {
   let profileID = profilePerson.Id;
   let littleTree = $(event.target);
@@ -447,7 +445,7 @@ async function unconnectedBranch(event) {
   const branchText = isConnected ? "Connected! Connections" : "Unconnected Branch";
   const realName = profilePerson.FullName;
   const theTable = $(
-    `<div id='unconnectedBranchTable'>
+    `<div id='unconnectedBranchTable' class='wbe-popup'>
     <table>
     <caption>
     <w>↔</w>
@@ -471,6 +469,18 @@ async function unconnectedBranch(event) {
     </div>`
   );
   const theBody = theTable.find("tbody");
+
+  // Add ResizeObserver to caption
+  const caption = theTable.find("caption")[0];
+  if (caption) {
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        const height = entry.borderBoxSize?.[0]?.blockSize || entry.contentRect.height;
+        theTable[0].style.setProperty("--caption-height", `${height}px`);
+      }
+    });
+    resizeObserver.observe(caption);
+  }
   peopleArray.forEach((person) => {
     ["BirthDate", "DeathDate"].forEach((date) => {
       if (person[date]) {
@@ -500,9 +510,7 @@ async function unconnectedBranch(event) {
       person.parentsText += `<a href="https://${mainDomain}/wiki/${parent.Name}" target="_blank">${parent.PersonName?.FullName}</a><br>`;
     });
     // Add each person to the table
-    const homeIconHTML = $(
-      `<img class='showFamilySheet' src="${homeIcon}" alt="Family Group" title="Family Group" width="16" height="16" data-id="${person.Name}">`
-    );
+    const homeIconHTML = $(`<span class='showFamilySheet' title="Family Group" data-id="${person.Name}">🏠</span>`);
     let gender = person.Gender || "";
     if (person.DataStatus?.Gender == "blank") {
       gender = "blank";
@@ -555,7 +563,9 @@ async function unconnectedBranch(event) {
     theRow.find(".homeRow").append(homeIconHTML);
     homeIconHTML.on("click", function (e) {
       const personID = $(this).data("id");
-      showFamilySheet(e.target, personID);
+      if (typeof showFamilySheet === "function") {
+        showFamilySheet(e.target, personID, true);
+      }
     });
   });
 

@@ -113,7 +113,7 @@ export function ymdFix(date) {
   return outDate;
 }
 
-let zIndexCounter = 900; // Initial z-index value
+let zIndexCounter = 5000; // Initial z-index value
 
 /**
  * Increments the global z-index counter and sets it on the given jQuery object.
@@ -167,7 +167,7 @@ function positionTable(theClicked, thisFamilySheet) {
  * @param {string} profileID - The profile identifier.
  * @returns {Promise<void>}
  */
-export async function showFamilySheet(theClicked, profileID) {
+export async function showFamilySheet(theClicked, profileID, forcePopup = false) {
   // Set up event delegation for closing and wrapping the family sheet
   $(document)
     .off("click.wbe")
@@ -190,13 +190,13 @@ export async function showFamilySheet(theClicked, profileID) {
   // If the table already exists, toggle its visibility.
   if ($("#" + familyTableId).length) {
     // If profile page, return
-    if (isProfilePage) {
+    if (isProfilePage && !forcePopup) {
       return;
     }
 
     const thisFamilySheet = $("#" + familyTableId);
     thisFamilySheet.fadeToggle();
-    if (isProfilePage) {
+    if (isProfilePage && !forcePopup) {
       positionTable(theClicked, thisFamilySheet);
     } else {
       setHighestZIndex(thisFamilySheet);
@@ -218,53 +218,80 @@ export async function showFamilySheet(theClicked, profileID) {
       const familyTable = peopleToTable(uPeople);
       // Attach the table to the body, position it and make it draggable and toggleable
       familyTable.prependTo("body");
-      if (isProfilePage) {
+      if (isProfilePage && !forcePopup) {
+        if ($("section.tree--FamilyGroup").length === 0) {
+          // Fallback: prepend to body if section is missing, or maybe we need to create it?
+          // For now, let's just log the error.
+        }
         familyTable.prependTo("section.tree--FamilyGroup");
       }
       familyTable.attr("id", familyTableId);
-      if (!isProfilePage) {
+      if (!isProfilePage || forcePopup) {
         familyTable.draggable();
         setHighestZIndex(familyTable);
       }
       familyTable.fadeIn();
 
       let theLeft;
-      if ($("div.profile--actions").length && !isSearchPage && !isProfilePage) {
+      if ($("div.profile--actions").length && !isSearchPage && !isProfilePage && !forcePopup) {
         theLeft = getOffset($("div.profile--actions")[0]).left;
         familyTable.css({
           top: getOffset(theClicked).top + 50,
           left: theLeft,
         });
-      } else if (!isProfilePage) {
-        theLeft = getOffset(theClicked[0]).left + 50;
-        familyTable.css({
-          top: getOffset(theClicked[0]).top + 50,
-          left: theLeft,
-        });
+      } else if (!isProfilePage || forcePopup) {
+        // Fix for forcePopup/UBT: Position relative to clicked element
+        if (forcePopup) {
+          const clickedEl = theClicked instanceof $ ? theClicked : $(theClicked);
+          const offset = clickedEl.offset();
+          familyTable.appendTo("body");
+          familyTable.addClass("wbe-family-popup");
+          familyTable.css({
+            top: offset.top + clickedEl.outerHeight(),
+            left: offset.left,
+            position: "absolute",
+          });
+        } else {
+          // Standard non-profile page behavior
+          const clickedEl = theClicked instanceof $ ? theClicked[0] : theClicked;
+          theLeft = getOffset(clickedEl).left + 50;
+          familyTable.css({
+            top: getOffset(clickedEl).top + 50,
+            left: theLeft,
+          });
+        }
       }
 
       // Adjust the position of the table on window resize
-      if (!isProfilePage) {
+      if (!isProfilePage || forcePopup) {
         $(window).on("resize", function () {
           if (familyTable.length) {
             let theLeft;
-            if ($("div.ten.columns").length) {
+            if ($("div.ten.columns").length && !forcePopup) {
               theLeft = getOffset($("div.ten.columns")[0]).left;
               familyTable.css({
                 top: getOffset(theClicked).top + 50,
                 left: theLeft,
               });
             } else {
-              if (theClicked[0] != undefined) {
-                theLeft = getOffset(theClicked[0]).left + 50;
+              if (forcePopup) {
                 familyTable.css({
-                  top: getOffset(theClicked[0]).top + 50,
-                  left: theLeft,
+                  top: getOffset(theClicked).top + 40,
+                  left: "10%",
                 });
+              } else {
+                const clickedEl = theClicked instanceof $ ? theClicked[0] : theClicked;
+                if (clickedEl != undefined) {
+                  theLeft = getOffset(clickedEl).left + 50;
+                  familyTable.css({
+                    top: getOffset(clickedEl).top + 50,
+                    left: theLeft,
+                  });
+                }
               }
             }
           }
-          if (isProfilePage) {
+          if (isProfilePage && !forcePopup) {
             positionTable(theClicked, familyTable);
           }
         });
