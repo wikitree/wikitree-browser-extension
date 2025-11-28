@@ -1416,14 +1416,15 @@ async function getBrickWalls() {
         }
 
         if (person.Privacy_IsAtLeastPublic && window.surnameTableOptions.ShowMissingParents) {
+          const theseBricks = $("<span class='bricks'></span>");
+          const firstAnchor = dParentEl.find(`a[href$="${thisID}"]`).first();
+          firstAnchor.after(theseBricks);
           if (person.Mother == "0") {
-            const firstAnchor = dParentEl.find(`a[href$="${thisID}"]`).first();
-            firstAnchor.after(pinkBricks.clone(true));
+            theseBricks.append(pinkBricks.clone(true));
           }
 
           if (person.Father == "0") {
-            const firstAnchor = dParentEl.find(`a[href$="${thisID}"]`).first();
-            firstAnchor.after(blueBricks.clone(true));
+            theseBricks.append(blueBricks.clone(true));
           }
         }
 
