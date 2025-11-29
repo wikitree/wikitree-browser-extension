@@ -1,6 +1,6 @@
 import $ from "jquery";
 import "./unconnected_branch_table.css";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { checkIfFeatureEnabled, shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain, isUnconnectedNotables, isProfilePage } from "../../core/pageType";
 import { getPeople } from "../dna_table/dna_table";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
@@ -172,7 +172,7 @@ function isLessThan24HoursAgo(dateString) {
   }
 }
 
-checkIfFeatureEnabled("unconnectedBranchTable").then((result) => {
+shouldInitializeFeature("unconnectedBranchTable").then((result) => {
   if (result) {
     if (
       $(".x-connections").length == 0 &&
