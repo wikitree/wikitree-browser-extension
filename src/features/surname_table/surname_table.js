@@ -6,7 +6,7 @@ import "jquery-ui/ui/widgets/draggable";
 import "./surname_table.css";
 import { isSearchPage, isSpecialWatchedList } from "../../core/pageType";
 import { initTableFilters } from "../table_filters/table_filters";
-import { getPeople } from "../dna_table/dna_table";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import Cookies from "js-cookie";
 import { convertDate } from "../auto_bio/auto_bio";
 import { shouldInitializeFeature, getFeatureOptions, checkIfFeatureEnabled } from "../../core/options/options_storage";
@@ -1267,11 +1267,12 @@ async function getBrickWalls() {
   while (theseKeys.length) {
     chunk = theseKeys.splice(0, 50).join(",");
     const fields =
-      "Id,Name,Manager,Mother,Father,Spouses,LastNameAtBirth,LastNameCurrent,Gender,Photo,PhotoData,BirthLocation,DeathLocation,Connected,TrustedList,Privacy,Touched";
-    getPeople(chunk, 0, 0, 0, 0, 0, fields, "WBE_surname_table").then((result) => {
-      const peopleKeys = Object.keys(result[0].people);
+      "Id,Name,Manager,Mother,Father,Spouses,LastNameAtBirth,LastNameCurrent,Gender,Photo,PhotoData,BirthLocation,DeathLocation," +
+      "Connected,TrustedList,Privacy,Touched";
+    WikiTreeAPI.getPeople("WBE_surname_table", chunk, fields).then(([, , people]) => {
+      const peopleKeys = Object.keys(people);
       peopleKeys.forEach((key) => {
-        const person = result[0].people[key];
+        const person = people[key];
         const thisID = person.Name;
         const $row = $theTbody.find(`tr[data-wtid="${thisID}"]`);
         const dParentEl = $row.find("td").first();

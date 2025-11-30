@@ -2,18 +2,15 @@ import $ from "jquery";
 import "./unconnected_branch_table.css";
 import { checkIfFeatureEnabled, shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain, isUnconnectedNotables, isProfilePage } from "../../core/pageType";
-import { getPeople } from "../dna_table/dna_table";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { showFamilySheet } from "../familyGroup/familyGroup";
 import { assignPersonNames } from "../auto_bio/auto_bio";
 import { addFiltersToWikitables, repositionFilterRow } from "../table_filters/table_filters";
-import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
 import { profilePerson } from "../../core/common";
 import { isOK } from "../../core/common";
 import "jquery-ui/ui/widgets/draggable";
 
-const UBT_APP_ID = "unconnected_branch_table";
-const WBE_UBT_APP_ID = "WBE_" + UBT_APP_ID;
+const WBE_UBT_APP_ID = "WBE_unconnected_branch_table";
 
 async function initUnconnectedBranch() {
   if (isUnconnectedNotables) {
@@ -21,15 +18,10 @@ async function initUnconnectedBranch() {
     return;
   }
   const profileID = profilePerson.Id;
-  const profile = await getProfile(profileID, "Id,Created,Name", "WBE_UnconnectedBranch");
+  const [, , people] = await WikiTreeAPI.getPeople("WBE_UnconnectedBranch", profileID, "Id,Created,Name");
+  const profile = people[profileID];
   if ((profile && profile.Created) || isUnconnectedNotables) {
     if (profile && !isLessThan24HoursAgo(profile.Created)) {
-      const options = {
-        title: "Display table of unconnected branch",
-        id: "unconnectedBranchButton",
-        text: "Unconnected Branch",
-        url: "#n",
-      };
       if (!isUnconnectedNotables) {
         // Add a button to the profile page
         const $unconnectedButton = $(
@@ -84,32 +76,67 @@ const littleTree = chrome.runtime.getURL("images/tree.jpg");
 async function doNotablesSpace() {
   const $table = $("table.wikitable");
 
-  // Get all ids for getPerson
+  // Get all ids for getPerson and
+  // add a new column to the start of the table
   const ids = [];
-  $table.find("tr:has(a[href*='wiki'])").each(function () {
-    const link = $(this).find("a:first");
-    if (link.length && link.attr("href").includes("wiki/")) {
-      const id = link.attr("href").split("/").pop();
-      ids.push(id);
-    }
+  const rowMap = new Map();
+
+  $table.find("tr").each(function () {
+    // add a new column to the start of the table
+    const td = $(`<td></td>`);
+    $(this).prepend(td);
+
+    const $link = $(this).find("a:first");
+    if (!$link.length) return;
+
+    const href = $link.attr("href") || "";
+    if (!href.includes("/wiki/")) return;
+
+    const id = decodeURIComponent(href.split("/").pop());
+    ids.push(id);
+    rowMap.set(id, $(this));
+
+    // Populate the ne column with an icon for unconnected branch
+    const realName = $link.text();
+    const img = $(`<img src="${littleTree}" title="See Unconnected Branch Table" class="unconnectedBranch">`)
+      .data("id", id)
+      .data("realName", realName);
+    td.append(img);
   });
 
-  // Get all the people with getPerson: just Name and Connected
-  const people = await getPeople(ids.join(","), 0, 0, 0, 0, 0, "Name,Connected", WBE_UBT_APP_ID);
-  const oPeople = people[0].people;
-  // Add class to rows of any connected people
-  if (oPeople) {
-    $table.find("tr").each(function () {
-      const link = $(this).find("a:first");
-      if (link.length && link.attr("href").includes("wiki/")) {
-        const id = link.attr("href").split("/").pop();
-        const person = Object.values(oPeople).find((p) => p.Name == id);
-        if (person?.Connected) {
-          $(this).addClass("connected");
+  function addConnctedClass(id) {
+    const $row = rowMap.get(id);
+    if ($row) {
+      $row.addClass("connected");
+    }
+  }
+  function findAndMarkConnected(people) {
+    if (people) {
+      Object.values(people).forEach((person) => {
+        if (person.Connected) {
+          addConnctedClass(person.Name);
         }
-      }
+      });
+    }
+  }
+
+  // Get all the people with getPeople (just Name and Connected) so we can flag anyone that became connected in the mean time
+  if (ids.length) {
+    // Kick off the initial request while we apply other changes to the table
+    let chunk = ids.splice(0, 1000);
+    console.log(`Retrieiving connected status for ${chunk.length} people (${ids.length} more to go)`);
+    WikiTreeAPI.getPeople(WBE_UBT_APP_ID, chunk, "Name,Connected").then(async ([, , people]) => {
+      // Add the "connected" class to the row of any connected person
+      do {
+        findAndMarkConnected(people);
+        if (!ids.length) break;
+        chunk = ids.splice(0, 1000);
+        console.log(`Retrieiving connected status for ${chunk.length} people (${ids.length} more to go)`);
+        [, , people] = await WikiTreeAPI.getPeople(WBE_UBT_APP_ID, chunk, "Name,Connected");
+      } while (true);
     });
   }
+  rowMap.clear();
 
   setTimeout(function () {
     const content = $("div.body-text").closest("div").parent();
@@ -117,30 +144,17 @@ async function doNotablesSpace() {
     $("section#Manager").closest("aside").prependTo(content);
     content.addClass("theContent");
     // Add style to head to make the table full width
-    $("head").append(`<style>
+    $("head").append(`
+      <style>
       div.theContent {
         width: auto !important;
       }
-        </style>`);
+      </style>`);
 
     content.css("width", "auto");
     $(".x-sidebar").remove();
     $(".x-content").css("width", "auto");
   }, 1000);
-  // Add a new column to the start of the table
-  $table.find("tr").each(function () {
-    const link = $(this).find("a:first");
-    const td = $(`<td></td>`);
-    $(this).prepend(td);
-    if (link.length && link.attr("href").includes("wiki/")) {
-      const id = link.attr("href").split("/").pop();
-      const realName = link.text();
-      const img = $(`<img src="${littleTree}" title="See Unconnected Branch Table" class="unconnectedBranch">`)
-        .data("id", id)
-        .data("realName", realName);
-      td.append(img);
-    }
-  });
 }
 
 function isLessThan24HoursAgo(dateString) {
@@ -387,7 +401,7 @@ async function unconnectedBranch(event) {
   if (event && !isProfilePage) {
     littleTree = $(event.target);
     row = littleTree.closest("tr");
-    profileID = row.find("a").first().attr("href").split("/").pop();
+    profileID = decodeURIComponent(row.find("a").first().attr("href").split("/").pop());
   }
 
   console.log("Profile ID:", profileID);
@@ -408,18 +422,12 @@ async function unconnectedBranch(event) {
   let people = {};
   if (!cachedData || now - cachedData.timestamp > CACHE_TTL) {
     const fields =
-      "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,BirthDate,BirthLocation,DeathDate,DeathLocation,BirthDateDecade,DeathDateDecade,Touched,Created,Gender,Father,Mother,Id,Name,Privacy,DataStatus,ShortName,Derived.BirthNamePrivate,Derived.BirthName,LongNamePrivate,Connected";
-    // As an array
-    const fieldsArray = fields.split(",");
-
-    //const people = await getPeople(profileID, 0, 0, 0, 10, 0, fields, WBE_UBT_APP_ID);
-
-    const result = await WikiTreeAPI.getPeople(UBT_APP_ID, profileID, fieldsArray, { nuclear: 10 });
-    people = result[2];
-    console.log("People:", people);
-    // WikiTree.getPeople(appId, nextIDsToLoad, ["Id", "Name", "LastNameAtBirth"]
+      "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,BirthDate,BirthLocation,DeathDate,DeathLocation," +
+      "BirthDateDecade,DeathDateDecade,Touched,Created,Gender,Father,Mother,Id,Name,Privacy,DataStatus,ShortName,Derived.BirthNamePrivate,Derived.BirthName," +
+      "LongNamePrivate,Connected";
+    [, , people] = await WikiTreeAPI.getPeople(WBE_UBT_APP_ID, profileID, fields, { nuclear: 10 });
+    // console.log("People:", people);
     // Store the data in the cache with timestamp
-    console.log("People:", people);
     window.unconnectedBranch[profileID] = {
       data: people,
       timestamp: now,
@@ -432,15 +440,16 @@ async function unconnectedBranch(event) {
       delete window.unconnectedBranch[oldestProfileID];
     }
   } else {
-    // Optional: Update cache order for LRU policy
+    people = cachedData.data;
+    // Update cache order for LRU policy
     const index = window.unconnectedBranchCacheOrder.indexOf(profileID);
     if (index > -1) {
       window.unconnectedBranchCacheOrder.splice(index, 1);
       window.unconnectedBranchCacheOrder.push(profileID);
     }
   }
-  let peopleArray = Object.values(people);
-  console.log("People array:", peopleArray);
+  const peopleArray = Object.values(people);
+  // console.log("People array:", peopleArray);
   const isConnected = peopleArray[0].Connected;
   const branchText = isConnected ? "Connected! Connections" : "Unconnected Branch";
   const realName = profilePerson.FullName;

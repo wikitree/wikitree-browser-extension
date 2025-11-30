@@ -1,5 +1,5 @@
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { getPeople } from "../dna_table/dna_table";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import $ from "jquery";
 import { mainDomain } from "../../core/pageType";
 import { getUserNumId } from "../../core/common";
@@ -144,7 +144,7 @@ function init() {
 shouldInitializeFeature("removeFromWatchlist").then((result) => {
   if (result) {
     // Watchlist Free-Space Profiles do not have information to be able to remove them
-    if (($(".nav-link.active").text().match("Free-Space Profiles")) == null) {
+    if ($(".nav-link.active").text().match("Free-Space Profiles") == null) {
       setTimeout(init, 3000);
     }
   }
@@ -169,10 +169,10 @@ async function DoOrphan() {
     let chunk = ids.splice(0, 100).join(",");
     promises.push(
       new Promise((resolve, reject) => {
-        getPeople(chunk, 0, 0, 0, 0, 0, "id,PageId,Name,TrustedList", "WBE_orphan_watchlist").then((data) => {
-          let theKeys = Object.keys(data[0].people);
+        WikiTreeAPI.getPeople("WBE_orphan_watchlist", chunk, "Id,PageId,Name,TrustedList").then(([, , people]) => {
+          const theKeys = Object.keys(people);
           theKeys.forEach(function (aKey) {
-            let person = data[0].people[aKey];
+            const person = people[aKey];
             if (person.PageId == undefined) {
               alert(
                 "removing yourself from private profiles requires API login. Please log in, close the TreeApps tab and try again."

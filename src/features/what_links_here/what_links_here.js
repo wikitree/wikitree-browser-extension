@@ -5,7 +5,6 @@ Contributors: Aleš Trtnik (Trtnik-2), Jonathan Duke (Duke-5773)
 
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { getPeople } from "../dna_table/dna_table";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import { profilePerson } from "../../core/common";
 import { copyToClipboard } from "../../core/clipboard";
@@ -21,6 +20,8 @@ import {
   isWhatLinksHere,
 } from "../../core/pageType";
 import { PersonName } from "../auto_bio/person_name";
+
+const WBE_WLH_APP_ID = "WBE_what_links_here";
 
 // Create privacy icon URL map
 const privacyOpenURL = chrome.runtime.getURL("images/privacy_open.png");
@@ -115,8 +116,8 @@ async function fillWhatLinksHereSection() {
     }
 
     dLinks.sort(function (a, b) {
-      let c = $(a).attr("href")?.toLowerCase();
-      let d = $(b).attr("href")?.toLowerCase();
+      const c = $(a).attr("href")?.toLowerCase();
+      const d = $(b).attr("href")?.toLowerCase();
       return c < d ? -1 : c > d ? 1 : 0;
     });
 
@@ -130,30 +131,21 @@ async function fillWhatLinksHereSection() {
     });
 
     if (whatLinksHereWikiTreeIDs.length || whatLinksHerePages.length) {
-      let profiles = whatLinksHereWikiTreeIDs.join(",");
-
-      getPeople(profiles, 0, 0, 0, 0, 0, "Name,Derived.ShortName,Derived.LongName", "WBE_what_links_here").then(
-        (data) => {
-          if (data.length) {
-            let theKeys = Object.keys(data[0].people);
+      const profiles = whatLinksHereWikiTreeIDs.join(",");
+      WikiTreeAPI.getPeople(WBE_WLH_APP_ID, profiles, "Name,Derived.ShortName,Derived.LongName").then(
+        ([, , people]) => {
+          if (people) {
+            const theKeys = Object.keys(people);
             theKeys.sort(function (a, b) {
-              let c = (
-                data[0].people[a]?.Name?.replace(/-\d+$/, "") +
-                "|" +
-                (data[0].people[a]?.LongName ?? data[0].people[a]?.ShortName)
-              ).toLowerCase();
-              let d = (
-                data[0].people[b]?.Name?.replace(/-\d+$/, "") +
-                "|" +
-                (data[0].people[b]?.LongName ?? data[0].people[b]?.ShortName)
-              ).toLowerCase();
+              const c = sortKey(people[a]);
+              const d = sortKey(people[b]);
               return c < d ? -1 : c > d ? 1 : 0;
             });
 
             theKeys.forEach(function (aKey) {
-              let person = data[0].people[aKey];
+              const person = people[aKey];
               if (person.Name) {
-                let thisWikiLink = $("<a></a>")
+                const thisWikiLink = $("<a></a>")
                   .attr("href", "/wiki/" + person.Name)
                   .text(person.LongName ?? person.ShortName ?? person.Name);
                 whatLinksHereProfiles.push(thisWikiLink);
@@ -180,13 +172,13 @@ async function fillWhatLinksHereSection() {
           }
 
           whatLinksHerePages.forEach(function (aLink) {
-            let anLi = $("<li></li>");
+            const anLi = $("<li></li>");
             $("#whatLinksHereLinksPages").append(anLi);
             anLi.append($(aLink));
           });
 
           whatLinksHereProfiles.forEach(function (aLink) {
-            let anLi = $("<li></li>");
+            const anLi = $("<li></li>");
             $("#whatLinksHereLinksProfiles").append(anLi);
             anLi.append($(aLink));
           });
@@ -194,6 +186,10 @@ async function fillWhatLinksHereSection() {
       );
     }
   });
+}
+
+function sortKey(person) {
+  return (person?.Name?.replace(/-\d+$/, "") + "|" + (person?.LongName ?? person?.ShortName)).toLowerCase();
 }
 
 function getWhatLinksHereLink(limit) {
@@ -223,7 +219,7 @@ function getWhatLinksHereLink(limit) {
 
 function addWhatLinksHereLink() {
   // Add link after 'Watchlist' on edit, profile, and space pages
-  const findMatchesLi = $('nav li a[href*="title=Category:Unsourced"]').eq(0);
+  const findMatchesLi = $('nav[aria-label="Main Navigation"] li a[href*="title=Category:Unsourced"]');
   const dLink = getWhatLinksHereLink(1000);
   if (dLink != "") {
     // Add the link
@@ -552,18 +548,24 @@ async function fetchSpacePagesInfo(spaceLinks) {
   try {
     // Create array of promises for concurrent API calls
     const fetchPromises = spaceLinks.map(async (link) => {
+      const isExcluded = /Category:|Project:|Special:|Template:|Help:|Docs:/.test(link.path);
+
+      // If excluded, resolve immediately without API call
+      if (isExcluded) {
+        return {
+          ...link,
+          touchedDate: "",
+        };
+      }
+
+      // Allowed → perform API call
       try {
-        const apiUrl = `https://api.wikitree.com/api.php?action=getProfile&key=${encodeURIComponent(
-          link.path
-        )}&fields=Touched`;
-        const response = await fetch(apiUrl);
-        const data = await response.json();
+        const [profile] = await WikiTreeAPI.getProfile(WBE_WLH_APP_ID, decodeURIComponent(link.path), "Touched");
 
         let touchedDate = "";
-        if (data && data.length > 0 && data[0].profile && data[0].profile.Touched) {
-          const touchedStr = data[0].profile.Touched.toString();
+        if (profile && profile.Touched) {
+          const touchedStr = profile.Touched.toString();
           if (touchedStr.length >= 8) {
-            // Convert from YYYYMMDDHHMMSS format to YYYY-MM-DD
             const year = touchedStr.substring(0, 4);
             const month = touchedStr.substring(4, 6);
             const day = touchedStr.substring(6, 8);
@@ -573,7 +575,7 @@ async function fetchSpacePagesInfo(spaceLinks) {
 
         return {
           ...link,
-          touchedDate: touchedDate,
+          touchedDate,
         };
       } catch (error) {
         console.warn("Error fetching space page info for", link.path, error);
@@ -657,20 +659,19 @@ async function populateProfilesTable(profileLinks) {
     // Fetch detailed profile data using getPeople with comprehensive fields
     // Include additional fields recommended by PersonName class for optimal name construction
     const fields =
-      "Id,Name,FirstName,LastNameAtBirth,LastNameCurrent,LastNameOther,MiddleName,Nicknames,Prefix,RealName,Suffix,BirthDate,BirthDateDecade,BirthLocation,DeathDate,DeathDateDecade,DeathLocation,Privacy,Managers,Touched,IsLiving,Gender,Derived.LongName,Derived.ShortName,Derived.BirthName,Derived.BirthNamePrivate";
-
-    const data = await getPeople(profileIds, 0, 0, 0, 0, 0, fields, "WBE_what_links_here_analysis");
+      "Id,Name,FirstName,LastNameAtBirth,LastNameCurrent,LastNameOther,MiddleName,Nicknames,Prefix,RealName,Suffix,BirthDate,BirthDateDecade,BirthLocation," +
+      "DeathDate,DeathDateDecade,DeathLocation,Privacy,Managers,Touched,IsLiving,Gender,Derived.LongName,Derived.ShortName,Derived.BirthName,Derived.BirthNamePrivate";
+    const [, , people] = await WikiTreeAPI.getPeople(WBE_WLH_APP_ID + "_analysis", profileIds, fields);
 
     const tbody = $("#profilesTable tbody");
     tbody.empty();
 
-    if (data && data.length > 0 && data[0].people) {
-      const people = data[0].people;
-
-      console.log("Retrieved data for", Object.keys(people).length, "people");
+    if (people) {
+      const peopleKeys = Object.keys(people);
+      console.log("Retrieved data for", peopleKeys.length, "people");
 
       // Process each profile
-      Object.keys(people).forEach((key) => {
+      peopleKeys.forEach((key) => {
         const person = people[key];
 
         // Format dates
@@ -902,28 +903,20 @@ export function doWhatLinksHere(e) {
       }
     });
     if (whatLinksHereWikiTreeIDs.length || whatLinksHere !== "") {
-      let profiles = whatLinksHereWikiTreeIDs.join(",");
+      const profiles = whatLinksHereWikiTreeIDs.join(",");
       // private profiles will not be returned and displayed
-      getPeople(profiles, 0, 0, 0, 0, 0, "Name,Derived.ShortName", "WBE_what_links_here").then((data) => {
-        if (data.length) {
-          let theKeys = Object.keys(data[0].people);
+      WikiTreeAPI.getPeople(WBE_WLH_APP_ID, profiles, "Name,Derived.ShortName").then(([, , people]) => {
+        if (people) {
+          const theKeys = Object.keys(people);
           theKeys.sort(function (a, b) {
-            let c = (
-              data[0].people[a]?.Name?.replace(/-\d+$/, "") +
-              "|" +
-              (data[0].people[a]?.LongName ?? data[0].people[a]?.ShortName)
-            ).toLowerCase();
-            let d = (
-              data[0].people[b]?.Name?.replace(/-\d+$/, "") +
-              "|" +
-              (data[0].people[b]?.LongName ?? data[0].people[b]?.ShortName)
-            ).toLowerCase();
+            const c = sortKey(people[a]);
+            const d = sortKey(people[b]);
             return c < d ? -1 : c > d ? 1 : 0;
           });
           theKeys.forEach(function (aKey) {
-            let person = data[0].people[aKey];
+            const person = people[aKey];
             if (person.Name) {
-              let thisWikiLink =
+              const thisWikiLink =
                 "[[" + person.Name + "|" + (person.LongName ?? person.ShortName ?? person.Name) + "]]<br>";
               whatLinksHere += thisWikiLink;
             }

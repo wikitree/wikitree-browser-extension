@@ -2,7 +2,7 @@ import $ from "jquery";
 import dt from "datatables.net-dt";
 import "datatables.net-dt/css/jquery.dataTables.css";
 import "./anniversaries_table.css";
-import { getPeople } from "../dna_table/dna_table";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { distRelDbKeyFor, getUserWtId } from "../../core/common";
 import {
@@ -301,23 +301,18 @@ function generateCSV() {
 async function updateNames() {
   let csvString = generateCSV(); // Get the CSV list
 
-  // Call your getPeople function with the CSV list as the keys
-  let result = await getPeople(
+  // Call getPeople function with the CSV list as the keys
+  const [, , people] = await WikiTreeAPI.getPeople(
+    "WBE_anniversaries_table",
     csvString,
-    false,
-    false,
-    false,
-    false,
-    0,
     "Name,FirstName,LastNameCurrent,LastNameAtBirth",
-    "WBE_anniversaries_table"
+    { getSpouses: 1 }
   );
 
   let isUpdated = false;
 
   // Check if people are returned
-  if (result) {
-    const people = result[0].people;
+  if (people) {
     const peopleKeys = Object.keys(people);
     if (people) {
       // Iterate over each person

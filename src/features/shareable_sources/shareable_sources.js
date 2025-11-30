@@ -20,7 +20,7 @@ import $ from "jquery";
 import { displayName } from "../../core/common.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isProfileEdit, isProfileAddRelative } from "../../core/pageType";
-import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { profilePerson } from "../../core/common";
 
 let enhanced = false;
@@ -107,7 +107,7 @@ export async function initShareableSources(id = theID) {
     }
   }
 
-  const findPerson = await getProfile(id, fields, "WBE_shareable_sources");
+  const [findPerson] = await WikiTreeAPI.getProfile("WBE_shareable_sources", id, fields);
   if (id == theID) {
     window.profilePersonNuclear = findPerson;
   }

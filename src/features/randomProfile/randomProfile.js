@@ -5,12 +5,13 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { getPerson } from "wikitree-js";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { treeImageURL, getUserNumId, isLoggedIntoAPI } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
 import "jquery-ui/ui/widgets/draggable";
 
-const APP_ID = "WBE_randomProfile";
+const WBE_RP_APP_ID = "WBE_randomProfile";
 
 shouldInitializeFeature("randomProfile").then((result) => {
   if (result) {
@@ -74,7 +75,7 @@ export async function goToRandomProfile(ourCountry = false) {
   // Quotation marks may be needed to search WT+.
   const ourCountryStripped = ourCountry.replaceAll('"', "");
   if (okLocations.includes(ourCountryStripped) && parseInt(window.searchedForRandomProfile) < 50) {
-    getPerson(randomProfileID, undefined, { appId: "WBE_randomProfile" })
+    getPerson(randomProfileID, undefined, { appId: WBE_RP_APP_ID })
       .then((person) => {
         // check to see if the profile is Open
         if (person.Privacy_IsOpen) {
@@ -258,16 +259,12 @@ async function fetchRandomSpacePage() {
 
     console.log(res, data);
 
-    const profileData = await postToAPI({
-      action: "getProfile",
-      key: "Space:" + data,
-      appID: "WBE-randomProfile"
-    });
+    const [profile, status, page_name] = await WikiTreeAPI.getProfile(WBE_RP_APP_ID, "Space:" + data);
 
-    console.log(profileData);
+    console.log({ profile, status, page_name });
 
     // Use the specific condition to check if the profile information is sufficient
-    if (profileData?.[0]?.profile?.Privacy_IsAtLeastPublic == true) {
+    if (profile?.Privacy_IsAtLeastPublic == true) {
       // Navigate to the profile page or do whatever you want with the profile data
       window.location.href = `https://${mainDomain}/wiki/Space:${data}`;
       return;
@@ -285,18 +282,6 @@ export async function goToRandomSpacePage() {
     // Navigate to the profile page or do something else
     console.log("Found a good profile:", profileData);
   });
-}
-
-async function postToAPI(postData) {
-  var ajax = $.ajax({
-    url: "https://api.wikitree.com/api.php",
-    xhrFields: { withCredentials: true },
-    type: "POST",
-    dataType: "json",
-    data: postData,
-  });
-
-  return ajax;
 }
 
 export function goAndLogIn(returnURL = null) {
@@ -337,13 +322,13 @@ export async function doLogin() {
   const u = new URLSearchParams(window.location.search);
   const authcode = u?.get("authcode");
   if (typeof authcode != "undefined" && authcode != null && authcode != "") {
-    const postData = { action: "clientLogin", authcode: authcode };
-    await postToAPI(postData);
+    const postData = { appId: WBE_RP_APP_ID, action: "clientLogin", authcode: authcode };
+    await WikiTreeAPI.postToAPI(postData);
     if (u?.doRandomProfile) {
       showWorking();
       goToRandomWatchlistProfile(true);
     }
-  } else if (!(await isLoggedIntoAPI(getUserNumId(), APP_ID))) {
+  } else if (!(await isLoggedIntoAPI(getUserNumId(), WBE_RP_APP_ID))) {
     goAndLogIn();
   }
 }
@@ -376,18 +361,21 @@ export async function goToRandomWatchlistProfile(skipLogin = false) {
     limit = 50;
     fields += "BirthLocation,DeathLocation";
   }
-  const postData = { action: "getWatchlist", fields: fields, limit: limit, getSpace: "0", offset: randomOffset, appID: "WBE-randomProfile" };
-  const randomWatchlistResult = await postToAPI(postData);
-  localStorage.setItem("watchlistCount", randomWatchlistResult?.[0]?.watchlistCount);
-  if (randomWatchlistResult?.[0]?.watchlist?.[0]?.Id) {
-    let theProfileId = randomWatchlistResult[0].watchlist[0].Id;
+  const [watchlist, wlCount] = await WikiTreeAPI.getWatchlist(WBE_RP_APP_ID, fields, {
+    limit: limit,
+    offset: randomOffset,
+    getSpace: 0,
+  });
+  localStorage.setItem("watchlistCount", wlCount);
+  if (watchlist?.[0]?.Id) {
+    let theProfileId = watchlist[0].Id;
     if (localStorage.randomProfileLocation) {
       const ourCountry = localStorage.randomProfileLocation;
       const ourCountryStripped = ourCountry.replaceAll('"', "");
       const locationFields = ["BirthLocation", "DeathLocation"];
       let inOurCountry = false;
       // Loop through the fetched profiles and look for a location match.
-      outerLoop: for (let profile of randomWatchlistResult[0].watchlist) {
+      outerLoop: for (let profile of watchlist) {
         for (let field of locationFields) {
           if (profile[field]) {
             if (profile[field].match(ourCountryStripped)) {

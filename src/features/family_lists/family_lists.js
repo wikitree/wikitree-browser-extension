@@ -1,12 +1,13 @@
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
-import { getPeople } from "../dna_table/dna_table";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { showCopyMessage } from "../access_keys/access_keys";
 import "../../core/common.css";
 import { profilePerson } from "../../core/common";
 import { addLoginButton } from "../../core/loginButton";
 import {
+  WBE_AUTO_BIO_APP_ID,
+  getBiographySpouseParents,
   getFormData,
   buildFamilyForPrivateProfiles,
   assignPersonNames,
@@ -33,12 +34,13 @@ async function getFamily() {
     window.profileID = profileID;
   }
   if (!window.profilePerson) {
-    window.profilePerson = await getProfile(
+    [window.profilePerson] = await WikiTreeAPI.getProfile(
+      WBE_AUTO_BIO_APP_ID,
       profileID,
-      "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix,BirthDate,DeathDate,BirthLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren,NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings",
-      "AutoBio"
+      "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix," +
+        "BirthDate,DeathDate,BirthLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren," +
+        "NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings"
     );
-
     let originalFirstName;
     if (window.profilePerson) {
       if (window.profilePerson.FirstName) {
@@ -88,11 +90,14 @@ async function getFamily() {
       }
     });
     if (!(Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses.length === 0)) {
-      let spouseKeys = Object.keys(window.profilePerson.Spouses);
-      window.biographySpouseParents = await getPeople(spouseKeys.join(","), 0, 0, 0, 1, 1, "*", "WBE_auto_bio");
-      const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
+      const spouseKeys = Object.keys(window.profilePerson.Spouses);
+      const people = await getBiographySpouseParents(spouseKeys, {
+        nuclear: 1,
+        minGeneration: 1,
+      });
+      const biographySpouseParentsKeys = Object.keys(people);
       biographySpouseParentsKeys.forEach(function (key) {
-        const person = window.biographySpouseParents[0].people[key];
+        const person = people[key];
         assignPersonNames(person);
       });
     }

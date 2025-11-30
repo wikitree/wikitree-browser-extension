@@ -1,6 +1,5 @@
 import $ from "jquery";
-import { getPeople } from "../dna_table/dna_table";
-import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { PersonName } from "./person_name.js";
 import { countries } from "./countries.js";
 import { needsCategories } from "./needs.js";
@@ -51,6 +50,8 @@ function logMerge(aRef, res, label) {
   }
   return aRef;
 }
+
+export const WBE_AUTO_BIO_APP_ID = "WBE_auto_bio";
 
 const appalachiaStates = [
   "Alabama",
@@ -8095,11 +8096,13 @@ export async function buildFamilyForPrivateProfiles() {
     "Spouses",
   ];
 
-  let familyProfiles = [];
+  let people, resultByKey;
   if (ids.length > 0) {
     try {
-      familyProfiles = await getPeople(ids.join(","), 0, 0, 0, 0, 0, theFields.join(","), "WBE_auto_bio");
-      if (!familyProfiles || !familyProfiles[0]) {
+      [, resultByKey, people] = await WikiTreeAPI.getPeople(WBE_AUTO_BIO_APP_ID, ids, theFields, {
+        getSpouses: 1,
+      });
+      if (!people) {
         console.error("Failed to fetch family profiles");
       } else {
         // Assign the fetched family profiles data to the respective family lists
@@ -8109,9 +8112,9 @@ export async function buildFamilyForPrivateProfiles() {
             const key = keys[i];
             const person = window.profilePerson[familyList][key];
             if (person.Name) {
-              const thisId = familyProfiles?.[0]?.resultByKey?.[person.Name]?.Id;
-              const thisPerson = familyProfiles?.[0]?.people?.[thisId];
+              const thisPerson = WikiTreeAPI.lookupProfile(person.Name, resultByKey, people);
               if (thisPerson) {
+                const thisId = thisPerson.Id;
                 if (familyList == "Spouses") {
                   thisPerson.Spouses.forEach(function (spouse) {
                     if (spouse.Id == window.profilePerson.Id) {
@@ -8152,8 +8155,8 @@ export async function buildFamilyForPrivateProfiles() {
   // Further Refinement of the Family Tree
   // --------------------------
   for (let i = -10; i < 0; i++) {
-    if (familyProfiles?.[0]?.people[i]) {
-      const thisPerson = familyProfiles[0].people[i];
+    if (people?.[i]) {
+      const thisPerson = people[i];
       if (!thisPerson.BirthDate && thisPerson.BirthDateDecade) {
         thisPerson.tempBirthDate = thisPerson.BirthDateDecade.replace(/s$/, "");
       }
@@ -8290,18 +8293,29 @@ async function getLocationCategories() {
   });
 }
 
+export async function getBiographySpouseParents(keys, options = {}) {
+  const bsp = {};
+  options.getSpouses = 1; // always include spouses
+  [bsp.status, bsp.resultByKey, bsp.people] = await WikiTreeAPI.getPeople(WBE_AUTO_BIO_APP_ID, keys, "*", options);
+  window.biographySpouseParents = [bsp]; // simulate saving the direct api result that was previously done
+  return bsp.people;
+}
+
 async function getSpouseParents() {
   // Get spouse parents
   if (
     window.profilePerson.Spouses &&
     !(Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses?.length === 0)
   ) {
-    let spouseKeys = Object.keys(window.profilePerson.Spouses);
-    window.biographySpouseParents = await getPeople(spouseKeys.join(","), 0, 0, 0, 1, 1, "*", "WBE_auto_bio");
-    if (window.biographySpouseParents[0]?.people) {
-      const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
+    const spouseKeys = Object.keys(window.profilePerson.Spouses);
+    const people = await getBiographySpouseParents(spouseKeys, {
+      nuclear: 1,
+      minGeneration: 1,
+    });
+    if (people) {
+      const biographySpouseParentsKeys = Object.keys(people);
       biographySpouseParentsKeys.forEach(function (key) {
-        const person = window.biographySpouseParents[0].people[key];
+        const person = people[key];
         assignPersonNames(person);
       });
     }
@@ -8311,17 +8325,17 @@ async function getSpouseParents() {
 async function getSpouseParents2() {
   // Get spouse parents
   if (!(Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses?.length === 0)) {
-    let spouseKeys = Object.keys(window.profilePerson.Spouses);
+    const spouseKeys = Object.keys(window.profilePerson.Spouses);
     const parentKeys = [];
     if (spouseKeys) {
       for (let i = 0; i < spouseKeys.length; i++) {
         parentKeys.push(window.profilePerson.Spouses[spouseKeys[i]].Father);
         parentKeys.push(window.profilePerson.Spouses[spouseKeys[i]].Mother);
       }
-      window.biographySpouseParents = await getPeople(parentKeys.join(","), 0, 0, 0, 0, 0, "*", "WBE_auto_bio");
-      const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
+      const people = await getBiographySpouseParents(parentKeys);
+      const biographySpouseParentsKeys = Object.keys(people);
       biographySpouseParentsKeys.forEach(function (key) {
-        const person = window.biographySpouseParents[0].people[key];
+        const person = people[key];
         assignPersonNames(person);
       });
     }
@@ -8465,11 +8479,14 @@ export async function generateBio() {
     window.usedPlaces = [];
     let profileID = profilePerson.Name;
     window.profileID = profileID;
-    window.profilePerson = await getProfile(
+    [window.profilePerson] = await WikiTreeAPI.getProfile(
+      WBE_AUTO_BIO_APP_ID,
       profileID,
-      "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix,BirthDate,DeathDate,BirthLocation,DeathLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren,NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings",
-      "AutoBio"
+      "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix," +
+        "BirthDate,DeathDate,BirthLocation,DeathLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren," +
+        "NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings"
     );
+
     if (window.profilePerson && !window.profilePerson?.DeathLocation) {
       window.profilePerson.DeathLocation = "";
     }
@@ -8505,7 +8522,7 @@ export async function generateBio() {
       window.profilePerson.Name = profileID;
       window.profilePerson.MiddleInitial = "";
       addLoginButton({
-        appId: "WBE_auto_bio",
+        appId: WBE_AUTO_BIO_APP_ID,
         btnId: "appsLoginButton",
         btnTitle: "Log in to the apps server for better Auto Bio results",
         btnContainer: $("#toolbar"),

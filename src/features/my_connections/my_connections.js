@@ -11,7 +11,7 @@ import { ageAtDeath, extractRelatives, htmlEntities, isOK, treeImageURL } from "
 import { addLoginButton } from "../../core/loginButton";
 import { ymdFix, showFamilySheet, displayName } from "../familyGroup/familyGroup";
 import { ancestorType } from "../distanceAndRelationship/distanceAndRelationship";
-import { getPeople } from "../dna_table/dna_table";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { addFiltersToWikitables } from "../table_filters/table_filters";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain } from "../../core/pageType";
@@ -2651,32 +2651,32 @@ function isLeapYear(year) {
   return year % 100 === 0 ? year % 400 === 0 : year % 4 === 0;
 }
 
-async function getPeopleAllPages(keys, fields, appId = "WBE_my_connections_file", pageLimit = 1000) {
-  let start = 0;
-  let people = {};
+// async function getPeopleAllPages(keys, fields, appId = "WBE_my_connections_file", pageLimit = 1000) {
+//   let start = 0;
+//   let people = {};
 
-  while (true) {
-    const page = await getPeople(
-      keys, // keys
-      0,
-      0,
-      0, // siblings/ancestors/descendants flags (not used)
-      1, // nuclear = 1  (brings back parents + spouses IDs)
-      0, // minGeneration
-      fields,
-      appId,
-      start,
-      pageLimit
-    );
+//   while (true) {
+//     const page = await getPeople(
+//       keys, // keys
+//       0,
+//       0,
+//       0, // siblings/ancestors/descendants flags (not used)
+//       1, // nuclear = 1  (brings back parents + spouses IDs)
+//       0, // minGeneration
+//       fields,
+//       appId,
+//       start,
+//       pageLimit
+//     );
 
-    const pagePeople = page?.[0]?.people || {};
-    Object.assign(people, pagePeople);
+//     const pagePeople = page?.[0]?.people || {};
+//     Object.assign(people, pagePeople);
 
-    if (Object.keys(pagePeople).length < pageLimit) break; // last page
-    start += pageLimit;
-  }
-  return people;
-}
+//     if (Object.keys(pagePeople).length < pageLimit) break; // last page
+//     start += pageLimit;
+//   }
+//   return people;
+// }
 
 /*****************************************************************
  *  Build Parent / Child / Sibling / Spouse arrays in-memory
@@ -2774,30 +2774,12 @@ export async function getDegree2WithNuclear(degree2Ids, appId = "WBE_my_connecti
   const keysString = degree2Ids.join(",");
 
   /* ---------- pass 1 : full record for each 2-degree profile ---------- */
-  const fullCall = await getPeople(
-    keysString,
-    0, // siblings
-    0, // ancestors
-    0, // descendants
-    0, // nuclear
-    0, // minGeneration
-    fullFields,
-    appId
-  );
-  const fullPeople = fullCall?.[0]?.people || {};
+  let [, , fullPeople] = await WikiTreeAPI.getPeople(appId, keysString, fullFields);
+  if (!fullPeople) fullPeople = {};
 
   /* ---------- pass 2 : thin nuclear records (parents, spouses, children) */
-  const thinCall = await getPeople(
-    keysString,
-    0,
-    0,
-    0,
-    1, // nuclear = 1
-    0,
-    thinFields,
-    appId
-  );
-  const thinPeople = thinCall?.[0]?.people || {};
+  let [, , thinPeople] = await WikiTreeAPI.getPeople(appId, keysString, thinFields, { nuclear: 1 });
+  if (!thinPeople) thinPeople = {};
 
   /* ---------- merge : thin → full (full data overwrites when duplicate) */
   return { ...thinPeople, ...fullPeople };

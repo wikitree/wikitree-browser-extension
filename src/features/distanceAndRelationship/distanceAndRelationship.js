@@ -8,6 +8,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { mainDomain, isProfileEdit, isProfilePage } from "../../core/pageType";
 import { getProfilePersonInfo } from "../../core/common";
 import { getObjectStores, distRelDbKeyFor, getUserWtId } from "../../core/common";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 
 export const CONNECTION_DB_NAME = "ConnectionFinderWTE";
 export const CONNECTION_DB_VERSION = 2;
@@ -184,29 +185,6 @@ function onRelationsSuccess(event, profileID, userID) {
   getRelationReq.onerror = (error) => {
     console.log("Error while retrieving relationship from DB", error);
   };
-}
-
-export async function getProfile(id, fields = "*", appId = "WBE") {
-  try {
-    const result = await $.ajax({
-      url: "https://api.wikitree.com/api.php",
-      crossDomain: true,
-      xhrFields: { withCredentials: true },
-      type: "POST",
-      dataType: "json",
-      data: {
-        action: "getProfile",
-        key: id,
-        fields: fields,
-        bioFormat: "text",
-        resolveRedirect: 1,
-        appId: appId || "WBE",
-      },
-    });
-    return result[0].profile;
-  } catch (error) {
-    console.error(error);
-  }
 }
 
 // Do it
@@ -656,8 +634,8 @@ function initDistanceAndRelationship(userID, profileID, clicked = false) {
     getDistance();
     doRelationshipText(userID, profileID);
   } else {
-    getProfile(profileID, undefined, "WBE_distanceAndRelationship")
-      .then((person) => {
+    WikiTreeAPI.getProfile("WBE_distanceAndRelationship", profileID, "Privacy,Connected")
+      .then(([person]) => {
         if (person.Privacy > 29 && person.Connected == 1) {
           getDistance();
           doRelationshipText(userID, profileID);

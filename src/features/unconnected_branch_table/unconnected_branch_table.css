@@ -111,8 +111,9 @@
 }
 
 img.unconnectedBranch {
-  width: 2em;
+  width: 1em;
   cursor: pointer;
+  max-width: none;
 }
 
 body.page-Space_Notables_Project_Unconnected_Profiles table.wikitable tr.connected,

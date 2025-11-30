@@ -1,5 +1,5 @@
 import $ from "jquery";
-import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { getFeatureOptions } from "../../core/options/options_storage";
 import { ageAtDeath } from "../../core/common";
 import { profilePerson } from "../../core/common";
@@ -55,10 +55,10 @@ export async function addAutoCategories() {
   const profileId = profilePerson.Name;
 
   // Get the profile of the person based on the profile ID, and await because it's an async operation
-  window.profilePerson = await getProfile(
+  [window.profilePerson] = await WikiTreeAPI.getProfile(
+    "WBE_auto_categories",
     profileId,
-    "Id,Name,Parents,Siblings,Spouses,Children,LastNameAtBirth,MiddleInitial,MiddleName,Derived.BirthName, Derived.BirthNamePrivate,Gender",
-    "WBE_auto_categories"
+    "Id,Name,Parents,Siblings,Spouses,Children,LastNameAtBirth,MiddleInitial,MiddleName,Derived.BirthName,Derived.BirthNamePrivate,Gender"
   );
 
   // Merge the form data into the profilePerson object

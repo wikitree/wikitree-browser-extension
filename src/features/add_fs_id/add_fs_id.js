@@ -1,4 +1,5 @@
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { profilePerson, isOK } from "../../core/common";
 import $ from "jquery";
 
@@ -47,8 +48,7 @@ async function addFamilySearchIDLink() {
 }
 
 //
-// The methods below should should be revisted and getBioPerson probably be replaced with a call
-// to WiokiTreeAPI.getPerson or similar. Also we should check for any of the other person objects being
+// We should check for any of the other person objects (similar to window.BioPerson) being
 // stored in widow but currently formats differ. There's room for consolidation of all these profile
 // objects across WBE.
 //
@@ -223,23 +223,13 @@ async function getBioPerson() {
     const theID = profilePerson?.Name;
     if (theID) {
       try {
-        const data = await $.ajax({
-          url: "https://api.wikitree.com/api.php",
-          crossDomain: true,
-          xhrFields: { withCredentials: true },
-          type: "POST",
-          data: {
-            action: "getProfile",
-            key: theID,
-            fields:
-              "Id,Name,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,BirthDate,BirthLocation,DeathDate,DeathLocation,Gender,Parents,Spouses,Father,Mother",
-            appID: "WBE-add_fs_id",
-          },
-          dataType: "json",
-        });
+        [window.BioPerson] = await WikiTreeAPI.getProfile(
+          "WBE_add_fs_id",
+          theID,
+          "Id,Name,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,BirthDate,BirthLocation,DeathDate,DeathLocation,Gender,Parents,Spouses,Father,Mother"
+        );
 
-        // console.log(data);
-        window.BioPerson = data[0]?.profile;
+        // console.log(window.BioPerson);
         // Parents and Spouses are either empty arrays or objects with the Id as the key
         // Convert them to arrays as .Parent and .Spouse
         if (window.BioPerson) {
