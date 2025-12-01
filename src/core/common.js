@@ -1420,52 +1420,6 @@ export function getUserWtId() {
   }
 }
 
-export async function fetchAPI(args) {
-  const params = {};
-  // Iterate over the args object and add any non-null values to the params object
-  for (const [key, value] of Object.entries(args)) {
-    if (value !== null) {
-      params[key] = value;
-    }
-  }
-
-  // Create a new URLSearchParams object with the updated params object
-  const searchParams = new URLSearchParams(params);
-
-  return fetch("https://api.wikitree.com/api.php", {
-    method: "POST",
-    mode: "cors",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: searchParams,
-  })
-    .then(async (response) => {
-      if (response.status !== 200) {
-        console.log("Looks like there was a problem. Status Code: " + response.status);
-        return null;
-      }
-      const data = await response.json();
-      return data;
-    })
-    .catch((error) => {
-      console.log("Fetch Error:", error);
-      return null;
-    });
-}
-
-// Function to check login status
-export async function isLoggedIntoAPI(userNumId, appId) {
-  if (!userNumId) return false;
-
-  const args = { action: "clientLogin", checkLogin: userNumId, appId: appId };
-  const loginStatus = await fetchAPI(args);
-  console.log("API Login Status: ", loginStatus);
-
-  return loginStatus?.clientLogin?.result == "ok";
-}
-
 /**
  * Do the best effort possible to obtain the requested date of a profile, even if it is approximate and
  * returns {date:, annotation:, display:}.

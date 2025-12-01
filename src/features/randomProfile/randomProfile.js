@@ -7,7 +7,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { getPerson } from "wikitree-js";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
-import { treeImageURL, getUserNumId, isLoggedIntoAPI } from "../../core/common";
+import { treeImageURL, getUserNumId } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
 import "jquery-ui/ui/widgets/draggable";
 
@@ -328,7 +328,7 @@ export async function doLogin() {
       showWorking();
       goToRandomWatchlistProfile(true);
     }
-  } else if (!(await isLoggedIntoAPI(getUserNumId(), WBE_RP_APP_ID))) {
+  } else if (!(await WikiTreeAPI.isLoggedIntoAPI(getUserNumId(), WBE_RP_APP_ID))) {
     goAndLogIn();
   }
 }
