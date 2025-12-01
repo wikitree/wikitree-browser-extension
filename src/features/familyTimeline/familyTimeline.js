@@ -320,7 +320,7 @@ export function timeline(id = false) {
         getChildren: true,
         fields,
       },
-      { appId: "WBE_familyTimeline" }
+      { appId: "WBE_family_timeline" }
     ).then((personData) => {
       const person = personData[0];
       // Adjust dates in the person object

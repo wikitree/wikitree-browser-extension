@@ -11,7 +11,7 @@ import { treeImageURL, getUserNumId, isLoggedIntoAPI } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
 import "jquery-ui/ui/widgets/draggable";
 
-const WBE_RP_APP_ID = "WBE_randomProfile";
+const WBE_RP_APP_ID = "WBE_random_profile";
 
 shouldInitializeFeature("randomProfile").then((result) => {
   if (result) {

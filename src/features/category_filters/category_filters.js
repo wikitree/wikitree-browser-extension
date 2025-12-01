@@ -3,6 +3,9 @@ import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { treeImageURL } from "../../core/common";
 import { addLoginButton } from "../../core/loginButton";
 import { getUserWtId } from "../../core/common";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
+
+const WBE_CATF_APP_ID = "WBE_category_filters";
 
 // Initial filter mode
 let filterMode = "only"; // Default filter mode
@@ -82,7 +85,7 @@ function initCategoryFilters() {
 
   // Add login button if necessary
   addLoginButton({
-    appId: "WBE_category_filters",
+    appId: WBE_CATF_APP_ID,
     btnId: "categoryFiltersLoginButton",
     btnTitle:
       "Log in to the apps server for profiles that you are on the trusted list of to be included in the filtering",
@@ -370,19 +373,20 @@ async function fetchAndSetFilterData() {
     personProfilesh2.append(waitingImage);
     const keysArray = $("div.P-ITEM a")
       .map(function () {
-        return $(this).attr("href").split("/wiki/")[1];
+        return decodeURIComponent($(this).attr("href").split("/wiki/")[1]).replaceAll(" ", "_");
       })
       .get();
     const keys = keysArray.join(",");
-    const fields = "Name,Connected,Managers,Manager,Father,Mother";
-    const appId = "WBE_categoryFilters";
-    const people = await fetchPeople({ keys, fields, appId });
-    filterData = people?.[0]?.people;
+    const [, resultByKey, people] = await WikiTreeAPI.getPeople(
+      WBE_CATF_APP_ID,
+      keys,
+      "Name,Connected,Managers,Manager,Father,Mother"
+    );
 
     // Assign basic data attributes to profiles (non-DNA)
     profiles.each(function () {
-      const key = $(this).attr("href").split("/wiki/")[1].replace(/ /g, "_");
-      const person = Object.values(filterData).find((person) => person.Name === key);
+      const key = decodeURIComponent($(this).attr("href").split("/wiki/")[1].replace(/ /g, "_"));
+      const person = WikiTreeAPI.lookupProfile(key, resultByKey, people);
       if (person) {
         $(this).attr("data-connected", person.Connected);
         const managersArray = person?.Managers?.map((manager) => manager.Name) || [];
@@ -625,43 +629,4 @@ function addDNAIcons(profileLink, dnaTypes) {
     profileLink.after(iconContainer);
     console.log(`Added DNA icons for profile: ${profileLink.attr("href")}`);
   }
-}
-
-// Function to Fetch People Data from API
-export async function fetchPeople(args) {
-  const params = {
-    action: "getPeople",
-  };
-
-  // Iterate over the args object and add any non-null values to the params object
-  for (const [key, value] of Object.entries(args)) {
-    if (value !== null) {
-      params[key] = value;
-    }
-  }
-
-  // Create a new URLSearchParams object with the updated params object
-  const searchParams = new URLSearchParams(params);
-
-  return fetch("https://api.wikitree.com/api.php", {
-    method: "POST",
-    mode: "cors",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: searchParams,
-  })
-    .then(async (response) => {
-      if (response.status !== 200) {
-        console.log("Looks like there was a problem. Status Code: " + response.status);
-        return null;
-      }
-      const data = await response.json();
-      return data;
-    })
-    .catch((error) => {
-      console.log("Fetch Error:", error);
-      return null;
-    });
 }

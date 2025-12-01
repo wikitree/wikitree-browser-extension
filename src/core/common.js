@@ -664,32 +664,6 @@ export function createProfileSubmenuLink(options) {
 }
 
 // Used in familyTimeline, familyGroup, locationsHelper
-export async function getRelatives(id, fields = "*", appId = "WBE") {
-  try {
-    const result = await $.ajax({
-      url: "https://api.wikitree.com/api.php",
-      crossDomain: true,
-      xhrFields: { withCredentials: true },
-      type: "POST",
-      dataType: "json",
-      data: {
-        action: "getRelatives",
-        keys: id,
-        fields: fields,
-        getParents: 1,
-        getSiblings: 1,
-        getSpouses: 1,
-        getChildren: 1,
-        appId: appId || "WBE",
-      },
-    });
-    return result[0].items[0].person;
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Used in familyTimeline, familyGroup, locationsHelper
 // Make the family member arrays easier to handle
 export function extractRelatives(rel, theRelation = false) {
   let people = [];

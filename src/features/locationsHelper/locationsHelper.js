@@ -3,7 +3,8 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { extractRelatives, familyArray, getRelatives } from "../../core/common";
+import { familyArray } from "../../core/common";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { formISODate } from "../date_fixer/date_fixer";
 import { isSpaceEdit, isNewSpace, isImagePage, isAddUnrelatedPerson } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
@@ -347,8 +348,13 @@ async function locationsHelper() {
   dbg("profilePerson Id check", { theID, isSpaceEdit, isNewSpace, isAddUnrelatedPerson, isImagePage });
 
   if (theID) {
-    getRelatives(theID, undefined, "WBE_locationsHelper").then((result) => {
-      const thisFamily = familyArray(result);
+    WikiTreeAPI.getRelatives("WBE_locations_helper", theID, "*", {
+      getParents: 1,
+      getSiblings: 1,
+      getSpouses: 1,
+      getChildren: 1,
+    }).then((items) => {
+      const thisFamily = familyArray(items[0].person);
       window.bdLocations = [];
       thisFamily.forEach(function (aPe) {
         if (aPe.BirthLocation) {

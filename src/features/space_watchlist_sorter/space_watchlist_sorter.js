@@ -13,8 +13,7 @@ import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
 
 const CryptoJS = require("crypto-js");
 
-const SS_APP_ID = "SpaceSorter";
-const WBE_SS_APP_ID = "WBE_" + SS_APP_ID;
+const WBE_SS_APP_ID = "WBE_space_sorter";
 const browserAPI = typeof browser !== "undefined" ? browser : chrome;
 
 const spaceWatchlistSorterHTML = `
@@ -118,7 +117,7 @@ async function loadSpaceWatchlist() {
 
     // The user is logged in at WikiTree and the Apps server - Fetch their space watchlist
     //console.log(`Fetching Watchlist, userWtid=${getUserWtId()}, numId=${userNumId}`);
-    const watchlist = await WikiTreeAPI.getSpaceWatchlist(SS_APP_ID, limit, fields);
+    const watchlist = await WikiTreeAPI.getSpaceWatchlist(WBE_SS_APP_ID, limit, fields);
 
     return watchlist || [];
   } catch (error) {

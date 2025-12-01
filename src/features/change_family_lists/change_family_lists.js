@@ -24,6 +24,9 @@ import { initRelationshipDB, RELATIONSHIP_STORE_NAME } from "../distanceAndRelat
 import { getProfilePersonInfo } from "../../core/common";
 import { mainDomain, isProfileAddRelative } from "../../core/pageType";
 import { autoClickAddPersonOptions } from "../usability_tweaks/usability_tweaks.js";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
+
+const WBE_CFL_APP_ID = "WBE_change_family_lists";
 
 let options;
 const user = getUserWtId();
@@ -1214,20 +1217,23 @@ function buildChildrenUnknown() {
  * @returns {Promise<void>}
  */
 async function getWindowPeople() {
-  const result = await $.ajax({
-    url: "https://api.wikitree.com/api.php",
-    type: "POST",
-    dataType: "json",
-    xhrFields: { withCredentials: true },
-    data: {
-      action: "getPeople",
-      appId: "WBE_changeFamilyLists",
-      keys: profilePerson.Id,
-      fields: getPeopleFields,
-      nuclear: 1,
-    },
+  const [, , people] = await WikiTreeAPI.getPeople(WBE_CFL_APP_ID, profilePerson.Id, getPeopleFields, {
+    nuclear: 1,
   });
-  const people = result[0].people;
+  // const result = await $.ajax({
+  //   url: "https://api.wikitree.com/api.php",
+  //   type: "POST",
+  //   dataType: "json",
+  //   xhrFields: { withCredentials: true },
+  //   data: {
+  //     action: "getPeople",
+  //     appId: "WBE_changeFamilyLists",
+  //     keys: profilePerson.Id,
+  //     fields: getPeopleFields,
+  //     nuclear: 1,
+  //   },
+  // });
+  // const people = result[0].people;
   window.people = new Map(Object.entries(people));
   const arr = Object.values(people);
   window.peopleByWtID = new Map(arr.map((p) => [p.Name, p]));

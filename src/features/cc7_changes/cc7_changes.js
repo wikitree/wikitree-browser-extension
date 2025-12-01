@@ -1,7 +1,7 @@
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import "jquery-ui/ui/widgets/draggable";
-import { fetchPeople } from "../category_filters/category_filters";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import {
   treeImageURL,
   getObjectStores,
@@ -44,7 +44,7 @@ const READWRITE = "readwrite";
 const DATE = "date";
 const CC7_DELTA_CONTAINER = "cc7DeltaContainer";
 const CC7_DELTA_CONTAINER_ID = "#" + CC7_DELTA_CONTAINER;
-const APP_ID = "cc7Changes";
+const WBE_CC7C_APP_ID = "cc7_changes";
 const DB_RETENTION_DAYS = 45; // max nr of days we keep delta records, other than the most recent one, in the db
 const EARLY_CUTOFF = 300; // max nr of names to display for a single delta
 const CUTOFF_GRACE = 5; // if the actual nr in a delta is within this above cutoff, we display all
@@ -332,7 +332,7 @@ function showLoginPopup() {
     const userId = getTheUsersWtId();
     const userNumId = getTheUsersNumId();
     if (userId && userNumId) {
-      if (await isLoggedIntoAPI(userNumId, APP_ID)) {
+      if (await isLoggedIntoAPI(userNumId, WBE_CC7C_APP_ID)) {
         db.setUserIds(userId, userNumId);
         await initializeCC7Tracking();
       } else {
@@ -374,7 +374,7 @@ export async function addCC7ChangesButton() {
 
     if (!TESTING || !USE_TEST_USER) {
       // Check login status
-      const isLoggedIn = await isLoggedIntoAPI(db.userNumId, APP_ID);
+      const isLoggedIn = await isLoggedIntoAPI(db.userNumId, WBE_CC7C_APP_ID);
       if (!isLoggedIn) {
         showLoginPopup();
         // Not logged in, redirect to login
@@ -431,7 +431,7 @@ async function initializeCC7Tracking() {
         return;
       }
 
-      const isLoggedIn = await isLoggedIntoAPI(db.userNumId, APP_ID);
+      const isLoggedIn = await isLoggedIntoAPI(db.userNumId, WBE_CC7C_APP_ID);
       if (!isLoggedIn) {
         // Show login popup if login failed
         showLoginPopup();
@@ -622,8 +622,6 @@ async function fetchCC7FromAPI() {
       let peopleCount = 0;
       let callCount = 0;
       const options = {
-        keys: db.userId,
-        fields: "Id,Name,Meta",
         nuclear: toDegree,
         start: start,
         limit: limit,
@@ -634,9 +632,8 @@ async function fetchCC7FromAPI() {
       while (getMore) {
         ++callCount;
         options.start = start;
-        const apiResult = await fetchPeople(options);
-        if (apiResult == null) return null;
-        const rspStatus = apiResult[0].status || "";
+        const [rspStatus, , people] = await WikiTreeAPI.getPeople(WBE_CC7C_APP_ID, db.userId, "Id,Name,Meta", options);
+        if (rspStatus == null) return null;
         // Check if we're done
         getMore = rspStatus.startsWith("Maximum number of profiles");
         if (!getMore && rspStatus !== "") {
@@ -646,7 +643,6 @@ async function fetchCC7FromAPI() {
           );
           return null;
         }
-        const people = apiResult[0]?.people;
         let restructuredResult;
         if (people) {
           restructuredResult = Object.keys(people).reduce((acc, key) => {
@@ -691,45 +687,44 @@ async function fetchCC7FromAPI() {
   }
 }
 
-async function fetchPeopleDetails(idString) {
-  const fields = [
-    "BirthDate",
-    "BirthDateDecade",
-    "BirthLocation",
-    "Created",
-    "DataStatus",
-    "DeathDate",
-    "DeathDateDecade",
-    "DeathLocation",
-    "Derived.BirthName",
-    "Derived.BirthNamePrivate",
-    "Derived.LongName",
-    "Derived.LongNamePrivate",
-    "Father",
-    "FirstName",
-    "Gender",
-    "Id",
-    "IsLiving",
-    "LastNameAtBirth",
-    "LastNameCurrent",
-    "LastNameOther",
-    "Manager",
-    "Managers",
-    "MiddleName",
-    "Mother",
-    "Name",
-    "Nicknames",
-    "NoChildren",
-    "Prefix",
-    "Privacy",
-    "RealName",
-    "ShortName",
-    "Suffix",
-    "Touched",
-  ].join(",");
+const PEOPLE_FIELDS = [
+  "BirthDate",
+  "BirthDateDecade",
+  "BirthLocation",
+  "Created",
+  "DataStatus",
+  "DeathDate",
+  "DeathDateDecade",
+  "DeathLocation",
+  "Derived.BirthName",
+  "Derived.BirthNamePrivate",
+  "Derived.LongName",
+  "Derived.LongNamePrivate",
+  "Father",
+  "FirstName",
+  "Gender",
+  "Id",
+  "IsLiving",
+  "LastNameAtBirth",
+  "LastNameCurrent",
+  "LastNameOther",
+  "Manager",
+  "Managers",
+  "MiddleName",
+  "Mother",
+  "Name",
+  "Nicknames",
+  "NoChildren",
+  "Prefix",
+  "Privacy",
+  "RealName",
+  "ShortName",
+  "Suffix",
+  "Touched",
+].join(",");
 
-  const apiResult = await fetchPeople({ keys: idString, fields: fields });
-  const people = apiResult?.[0]?.people;
+async function fetchPeopleDetails(idString) {
+  const [, , people] = await WikiTreeAPI.getPeople(WBE_CC7C_APP_ID, idString, PEOPLE_FIELDS);
   if (!people) {
     return [];
   }
