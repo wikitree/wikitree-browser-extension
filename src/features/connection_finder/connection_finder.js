@@ -13,6 +13,9 @@ import { showCopyMessage } from "../access_keys/access_keys.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { mainDomain, isProfilePage } from "../../core/pageType";
 import { copyToClipboard } from "../../core/clipboard.js";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
+
+const WBE_CF_APP_ID = "WBE_connection_finder";
 
 const surnameSummariesButton = $(
   "<button id='surnameSummaries' style='margin:0.5em;' class='small button'>Surname summaries</button>"
@@ -1099,14 +1102,14 @@ function connectionFinderTable() {
       // build the comma-separated list of wiki IDs + collect raw relations
       const IDstring = gatherConnectionIDs();
 
-      // 3) Do the AJAX call
-      $.ajax({
-        url: `https://api.wikitree.com/api.php?action=getRelatives&appID=WBE-connectionFinder&getSpouses=1&getParents=1&getSiblings=1&getChildren=1&keys=${IDstring}`,
-        type: "POST",
-        dataType: "json",
-        xhrFields: { withCredentials: true },
-        success: function (data) {
-          const table = $(`
+      // 3) Do the API call
+      WikiTreeAPI.getRelatives(WBE_CF_APP_ID, IDstring, "", {
+        getSpouses: 1,
+        getParents: 1,
+        getSiblings: 1,
+        getChildren: 1,
+      }).then((people) => {
+        const table = $(`
             <table id="connectionsTable">
               <thead>
                 <tr>
@@ -1131,74 +1134,72 @@ function connectionFinderTable() {
               </tfoot>
             </table>
           `);
-          table.insertAfter("#connectionList");
+        table.insertAfter("#connectionList");
 
-          const people = data[0].items;
+        const connectionBoxes = $("#connectionList .connection-box");
+        connectionList = connectionBoxes; // <— make the global a jQuery set
 
-          const connectionBoxes = $("#connectionList .connection-box");
-          connectionList = connectionBoxes; // <— make the global a jQuery set
+        pNumber = 0;
+        window.heritageSociety = [];
 
-          pNumber = 0;
-          window.heritageSociety = [];
+        /* ───────────────────────────  main loop  ───────────────────────────── */
 
-          /* ───────────────────────────  main loop  ───────────────────────────── */
+        people.forEach((item, i) => {
+          let m = item.person;
 
-          people.forEach((item, i) => {
-            let m = item.person;
+          /* 1 ─ insert any “[private …]” row that comes **before** this person */
+          const privMatch = connectionBoxes
+            .eq(pNumber)
+            .text()
+            .match(/\[private.*?\]/i);
+          if (privMatch) addAPrivate(privMatch); // ← no gender guess
 
-            /* 1 ─ insert any “[private …]” row that comes **before** this person */
-            const privMatch = connectionBoxes
-              .eq(pNumber)
-              .text()
-              .match(/\[private.*?\]/i);
-            if (privMatch) addAPrivate(privMatch); // ← no gender guess
+          /* 2 ─ fetch the relation text by real **row** number, not by `i` */
+          const relTxt = connectionIDs[pNumber][1];
 
-            /* 2 ─ fetch the relation text by real **row** number, not by `i` */
-            const relTxt = connectionIDs[pNumber][1];
+          /* 3 ─ we still need the real profile object – fill blanks if private */
+          if (!m.Name) {
+            const link = connectionList.eq(i).find("a");
+            const parts = link.text().trim().split(" ");
+            m.Name = link.attr("href").replace("/wiki/", "");
+            m.FirstName = parts.shift();
+            m.LastNameAtBirth = m.LastNameCurrent = parts.pop();
+            m.MiddleName = parts.join(" ");
+            m.Privacy = 10;
+          }
 
-            /* 3 ─ we still need the real profile object – fill blanks if private */
-            if (!m.Name) {
-              const link = connectionList.eq(i).find("a");
-              const parts = link.text().trim().split(" ");
-              m.Name = link.attr("href").replace("/wiki/", "");
-              m.FirstName = parts.shift();
-              m.LastNameAtBirth = m.LastNameCurrent = parts.pop();
-              m.MiddleName = parts.join(" ");
-              m.Privacy = 10;
-            }
+          m = addRelArraysToPerson(m); // normalise rel-arrays
 
-            m = addRelArraysToPerson(m); // normalise rel-arrays
+          /* 2. dates / colours ---------------------------------------------- */
+          const { birthRaw, deathRaw, yearColour, textColour, birthLoc, deathLoc } = buildDateBits(m);
 
-            /* 2. dates / colours ---------------------------------------------- */
-            const { birthRaw, deathRaw, yearColour, textColour, birthLoc, deathLoc } = buildDateBits(m);
+          /* 3. marriage details (only if this row is a spouse) -------------- */
+          const { date: marriageDate, place: marriageLoc } = getMarriageDetails(
+            m,
+            relTxt,
+            i > 0 ? connectionIDs[i - 1][0] : ""
+          );
 
-            /* 3. marriage details (only if this row is a spouse) -------------- */
-            const { date: marriageDate, place: marriageLoc } = getMarriageDetails(
-              m,
-              relTxt,
-              i > 0 ? connectionIDs[i - 1][0] : ""
-            );
+          /* 4. privacy icon -------------------------------------------------- */
+          const { src: privacy, title: privacyTitle } = getPrivacyIcon(m);
 
-            /* 4. privacy icon -------------------------------------------------- */
-            const { src: privacy, title: privacyTitle } = getPrivacyIcon(m);
+          /* 5. relation column ---------------------------------------------- */
+          const {
+            arrow,
+            colour: relColour,
+            pronoun,
+            baseWord,
+            corrected,
+          } = buildRelationBits(pNumber, relTxt, prevRowGender, m.Gender);
 
-            /* 5. relation column ---------------------------------------------- */
-            const {
-              arrow,
-              colour: relColour,
-              pronoun,
-              baseWord,
-              corrected,
-            } = buildRelationBits(pNumber, relTxt, prevRowGender, m.Gender);
+          /* 6. timeline / family-sheet icons -------------------------------- */
+          const timelineBtn = `<img data-wtid="${m.Name}" src="${timeLineImg}" class="timelineButton" width="18" height="18" title="View Family Timeline">`;
+          const familySheetBtn = `<span data-wtid="${m.Name}" class="familyHome" title="View Family Group"><img src="${homeImg}" width="18" height="18"></span>`;
 
-            /* 6. timeline / family-sheet icons -------------------------------- */
-            const timelineBtn = `<img data-wtid="${m.Name}" src="${timeLineImg}" class="timelineButton" width="18" height="18" title="View Family Timeline">`;
-            const familySheetBtn = `<span data-wtid="${m.Name}" class="familyHome" title="View Family Group"><img src="${homeImg}" width="18" height="18"></span>`;
+          const arrowHTML = arrow ? `<span class="relationshipArrow">${arrow}</span>` : "";
 
-            const arrowHTML = arrow ? `<span class="relationshipArrow">${arrow}</span>` : "";
-
-            /* 7. assemble & append the table row ------------------------------ */
-            const $row = $(`
+          /* 7. assemble & append the table row ------------------------------ */
+          const $row = $(`
               <tr data-wtid="${m.Name}" class="${m.Gender}">
                 <td>${pNumber}</td>
                 <td class="buttonsCell">
@@ -1219,91 +1220,90 @@ function connectionFinderTable() {
                 <td>${marriageLoc}</td>
               </tr>
             `);
-            $("#connectionsTable tbody").append($row);
+          $("#connectionsTable tbody").append($row);
 
-            /* 8. counters / heritage box -------------------------------------- */
-            pNumber++;
-            const prev = people[i - 1] && people[i - 1].person;
-            prevRowGender = m.Gender;
-            window.heritageSociety.push([m, getSpouse(m, prev)]);
-          });
-          /* ───────────────────────────  end loop  ───────────────────────────── */
+          /* 8. counters / heritage box -------------------------------------- */
+          pNumber++;
+          const prev = people[i - 1] && people[i - 1].person;
+          prevRowGender = m.Gender;
+          window.heritageSociety.push([m, getSpouse(m, prev)]);
+        });
+        /* ───────────────────────────  end loop  ───────────────────────────── */
 
-          connectionNames = [
-            // (re-)capture endpoints *guaranteed* to be correct
-            displayName(people[0].person)[0], //  ↖ first real profile
-            displayName(people[people.length - 1].person)[0], // ↗ last real profile
-          ];
+        connectionNames = [
+          // (re-)capture endpoints *guaranteed* to be correct
+          displayName(people[0].person)[0], //  ↖ first real profile
+          displayName(people[people.length - 1].person)[0], // ↗ last real profile
+        ];
 
-          // — post-processing: collapse/expand text, reductions, buttons, heritage box…
-          window.peopleTablePeople = people;
-          window.relWords = [];
+        // — post-processing: collapse/expand text, reductions, buttons, heritage box…
+        window.peopleTablePeople = people;
+        window.relWords = [];
 
-          $("#connectionsTable td[data-relationship]").each(function () {
-            /* full string carried in the <td>, e.g.  "their father"              */
-            const relFull = ($(this).data("relationship") || "").trim();
+        $("#connectionsTable td[data-relationship]").each(function () {
+          /* full string carried in the <td>, e.g.  "their father"              */
+          const relFull = ($(this).data("relationship") || "").trim();
 
-            /* 1 – strip the pronoun word, whatever its length                    */
-            let relWord = relFull.replace(/^\w+\s+/, ""); // → "father"  (or "")
+          /* 1 – strip the pronoun word, whatever its length                    */
+          let relWord = relFull.replace(/^\w+\s+/, ""); // → "father"  (or "")
 
-            /* 2 – if that left us with NOTHING and this row is a private stub,
-       push an ellipsis so the sentence shows an “unknown” hop            */
-            if (!relWord) {
-              const isPrivateRow = $(this)
-                .closest("tr")
-                .find(".connectionsName")
-                .text()
-                .toLowerCase()
-                .includes("private");
-              if (isPrivateRow) relWord = "…";
-            }
+          /* 2 – if that left us with NOTHING and this row is a private stub,
+                    push an ellipsis so the sentence shows an “unknown” hop            */
+          if (!relWord) {
+            const isPrivateRow = $(this)
+              .closest("tr")
+              .find(".connectionsName")
+              .text()
+              .toLowerCase()
+              .includes("private");
+            if (isPrivateRow) relWord = "…";
+          }
 
-            if (relWord) window.relWords.push([relWord, 0]);
-          });
+          if (relWord) window.relWords.push([relWord, 0]);
+        });
 
-          const pW = /(father)|(mother)/,
-            cW = /(son)|(daughter)/,
-            sW = /(brother)|(sister)/;
-          reduceRelWords(pW);
-          reduceRelWords(cW);
-          reduceRelWords(sW, pW);
-          reduceRelWords(sW, cW);
-          window.relWords.forEach((r, i) => {
-            if (r[1] > 0) r[2] = (r[1] > 1 ? "great-grand" : "grand") + r[0];
-            if (r[1] > 2) r[2] = ordinal(r[1] - 1) + " " + r[2];
-          });
-          window.relWords2 = JSON.parse(JSON.stringify(window.relWords));
-          window.sameGen = ["husband", "wife", "sibling", "brother", "sister", "cousin"];
-          window.upOne = ["father", "mother", "uncle", "aunt"];
-          window.downOne = ["son", "daughter", "nephew", "niece"];
-          window.bloodRels = ["father", "mother", "uncle", "aunt", "niece", "nephew", "son", "daughter"];
-          window.siblingWords = ["brother", "sister"];
-          window.childrenWords = ["son", "daughter"];
-          window.relWords2.forEach((a) => {
-            if (window.upOne.includes(a[0]) || window.downOne.includes(a[0])) a[1]++;
-          });
-          reduceRelWordsMore();
+        const pW = /(father)|(mother)/,
+          cW = /(son)|(daughter)/,
+          sW = /(brother)|(sister)/;
+        reduceRelWords(pW);
+        reduceRelWords(cW);
+        reduceRelWords(sW, pW);
+        reduceRelWords(sW, cW);
+        window.relWords.forEach((r, i) => {
+          if (r[1] > 0) r[2] = (r[1] > 1 ? "great-grand" : "grand") + r[0];
+          if (r[1] > 2) r[2] = ordinal(r[1] - 1) + " " + r[2];
+        });
+        window.relWords2 = JSON.parse(JSON.stringify(window.relWords));
+        window.sameGen = ["husband", "wife", "sibling", "brother", "sister", "cousin"];
+        window.upOne = ["father", "mother", "uncle", "aunt"];
+        window.downOne = ["son", "daughter", "nephew", "niece"];
+        window.bloodRels = ["father", "mother", "uncle", "aunt", "niece", "nephew", "son", "daughter"];
+        window.siblingWords = ["brother", "sister"];
+        window.childrenWords = ["son", "daughter"];
+        window.relWords2.forEach((a) => {
+          if (window.upOne.includes(a[0]) || window.downOne.includes(a[0])) a[1]++;
+        });
+        reduceRelWordsMore();
 
-          addConnectionText(); // insert the summary sentence
-          addWideTableButton(); // existing table buttons
-          $("img.timelineButton").on("click", function (e) {
-            window.pointerY = e.pageY;
-            window.pointerX = e.pageX;
-            cfTimeline($(e.currentTarget));
-          });
-          $("span.familyHome").on("click", function () {
-            showFamilySheet($(this), $(this).data("wtid"));
-          });
-          showHeritageSocietyBox(); // the heritage-society textarea
-          $(".treeImg").remove(); // remove the tree GIF
-          // Smooth scroll to 200px above the table
-          $("html, body").animate(
-            {
-              scrollTop: $("#connectionsTable").offset().top - 200,
-            },
-            500
-          );
-        },
+        addConnectionText(); // insert the summary sentence
+        addWideTableButton(); // existing table buttons
+        $("img.timelineButton").on("click", function (e) {
+          window.pointerY = e.pageY;
+          window.pointerX = e.pageX;
+          cfTimeline($(e.currentTarget));
+        });
+        $("span.familyHome").on("click", function () {
+          showFamilySheet($(this), $(this).data("wtid"));
+        });
+        showHeritageSocietyBox(); // the heritage-society textarea
+        $(".treeImg").remove(); // remove the tree GIF
+        // Smooth scroll to 200px above the table
+        $("html, body").animate(
+          {
+            scrollTop: $("#connectionsTable").offset().top - 200,
+          },
+          500
+        );
       });
 
       // 4) Re-enable "Table" after 20 seconds
@@ -1417,24 +1417,24 @@ function cfTimeline(jq) {
       return;
     }
   }
-  $.ajax({
-    url:
-      "https://api.wikitree.com/api.php?action=getRelatives&appID=WBE-connectionFinder&getSpouses=true&getParents=true&getSiblings=true&getChildren=true&fields=BirthDate,BirthLocation,BirthName,BirthDateDecade,DeathDate,DeathDateDecade,DeathLocation,IsLiving,Father,FirstName,Gender,Id,LastNameAtBirth,LastNameCurrent,Prefix,Suffix,LastNameOther,Derived.LongName,Derived.LongNamePrivate,Manager,MiddleName,Mother,Name,Photo,RealName,ShortName,Touched,DataStatus,Derived.BirthName,Bio&keys=" +
-      ID,
-    crossDomain: true,
-    xhrFields: { withCredentials: true },
-    type: "POST",
-    dataType: "json",
-    success: function (data) {
-      const cfPerson = data[0].items[0].person;
-      window.BioPerson = cfPerson;
-      window.BioSpouses = getRels(cfPerson.Spouses, cfPerson, "Spouse");
-      window.BioChildren = getRels(cfPerson.Children, cfPerson, "Child");
-      window.BioParents = getRels(cfPerson.Parents, cfPerson, "Parent");
-      window.BioSiblings = getRels(cfPerson.Siblings, cfPerson, "Sibling");
+  const fields =
+    "BirthDate,BirthLocation,BirthName,BirthDateDecade,DeathDate,DeathDateDecade,DeathLocation,IsLiving,Father,FirstName,Gender,Id," +
+    "LastNameAtBirth,LastNameCurrent,Prefix,Suffix,LastNameOther,Derived.LongName,Derived.LongNamePrivate,Manager,MiddleName,Mother," +
+    "Name,Photo,RealName,ShortName,Touched,DataStatus,Derived.BirthName,Bio";
+  WikiTreeAPI.getRelatives(WBE_CF_APP_ID, ID, fields, {
+    getSpouses: 1,
+    getParents: 1,
+    getSiblings: 1,
+    getChildren: 1,
+  }).then((people) => {
+    const cfPerson = people[0].person;
+    window.BioPerson = cfPerson;
+    window.BioSpouses = getRels(cfPerson.Spouses, cfPerson, "Spouse");
+    window.BioChildren = getRels(cfPerson.Children, cfPerson, "Child");
+    window.BioParents = getRels(cfPerson.Parents, cfPerson, "Parent");
+    window.BioSiblings = getRels(cfPerson.Siblings, cfPerson, "Sibling");
 
-      timeline(ID);
-    },
+    timeline(ID);
   });
 }
 
@@ -1452,75 +1452,68 @@ function showHeritageSocietyBox() {
       if ($.isEmptyObject(aCouple[1]) == false) {
         pText = hsDetails(aCouple[1]);
 
-        $.ajax({
-          url:
-            "https://api.wikitree.com/api.php?action=getRelatives&appID=WBE-connectionFinder&getParents=true&keys=" +
-            aCouple[1].Name,
-          crossDomain: true,
-          xhrFields: { withCredentials: true },
-          type: "POST",
-          dataType: "json",
-          success: function (data) {
-            const spPerson = data[0].items[0].person;
-            let spF = false;
-            let spM = false;
-            let spPText = "";
-            let spFather = {};
-            let spMother = {};
-            if (spPerson.Father != "0") {
-              spFather = spPerson.Parents[spPerson.Father];
-              spF = true;
-            }
-            if (spPerson.Mother != "0") {
-              spMother = spPerson.Parents[spPerson.Mother];
-              spM = true;
-            }
+        WikiTreeAPI.getRelatives(WBE_CF_APP_ID, aCouple[1].Name, "", {
+          getParents: 1,
+        }).then((items) => {
+          const spPerson = items[0].person;
+          let spF = false;
+          let spM = false;
+          let spPText = "";
+          let spFather = {};
+          let spMother = {};
+          if (spPerson.Father != "0") {
+            spFather = spPerson.Parents[spPerson.Father];
+            spF = true;
+          }
+          if (spPerson.Mother != "0") {
+            spMother = spPerson.Parents[spPerson.Mother];
+            spM = true;
+          }
+          if (spF && spM) {
+            spPText =
+              (spFather?.FirstName + " " + spFather?.MiddleName).trim() +
+              " and " +
+              (spMother?.FirstName + " " + spMother?.MiddleName).trim() +
+              " (" +
+              spMother?.LastNameAtBirth +
+              ") " +
+              spFather?.LastNameCurrent;
+          } else if (spF) {
+            spPText = (spFather?.FirstName + " " + spFather?.MiddleName).trim() + " " + spFather?.LastNameAtBirth;
+          } else if (spM) {
+            spPText =
+              (spMother?.FirstName + " " + spMother?.MiddleName).trim() +
+              " " +
+              " (" +
+              spMother?.LastNameAtBirth +
+              ") " +
+              spMother?.LastNameCurrent;
+          }
+          let anS = "";
+          if (spPText != "") {
             if (spF && spM) {
-              spPText =
-                (spFather?.FirstName + " " + spFather?.MiddleName).trim() +
-                " and " +
-                (spMother?.FirstName + " " + spMother?.MiddleName).trim() +
-                " (" +
-                spMother?.LastNameAtBirth +
-                ") " +
-                spFather?.LastNameCurrent;
-            } else if (spF) {
-              spPText = (spFather?.FirstName + " " + spFather?.MiddleName).trim() + " " + spFather?.LastNameAtBirth;
-            } else if (spM) {
-              spPText =
-                (spMother?.FirstName + " " + spMother?.MiddleName).trim() +
-                " " +
-                " (" +
-                spMother?.LastNameAtBirth +
-                ") " +
-                spMother?.LastNameCurrent;
+              anS = "s";
+            } else {
+              anS = "";
             }
-            let anS = "";
-            if (spPText != "") {
-              if (spF && spM) {
-                anS = "s";
-              } else {
-                anS = "";
+            spPText = "Parent" + anS + ": " + spPText;
+          }
+          if ($("#heritageSocietyTA").length) {
+            const textLines = $("#heritageSocietyTA").val().split("\n");
+            const newTextLines = [];
+            textLines.forEach(function (aLine) {
+              const fName = spPerson.FirstName;
+              const lName = spPerson.LastNameAtBirth;
+              const regEx = new RegExp(fName + ".*" + lName);
+
+              if (aLine.match(regEx) != null) {
+                aLine = aLine + " " + spPText;
               }
-              spPText = "Parent" + anS + ": " + spPText;
-            }
-            if ($("#heritageSocietyTA").length) {
-              const textLines = $("#heritageSocietyTA").val().split("\n");
-              const newTextLines = [];
-              textLines.forEach(function (aLine) {
-                const fName = spPerson.FirstName;
-                const lName = spPerson.LastNameAtBirth;
-                const regEx = new RegExp(fName + ".*" + lName);
 
-                if (aLine.match(regEx) != null) {
-                  aLine = aLine + " " + spPText;
-                }
-
-                newTextLines.push(aLine);
-              });
-              $("#heritageSocietyTA").val(newTextLines.join("\n"));
-            }
-          },
+              newTextLines.push(aLine);
+            });
+            $("#heritageSocietyTA").val(newTextLines.join("\n"));
+          }
         });
 
         oText.push(pText);
@@ -1614,7 +1607,7 @@ shouldInitializeFeature("connectionFinderOptions").then((result) => {
       connectionFinderTable();
       connectionFinderThings();
       addLoginButton({
-        appId: "WBE_connection_finder_options",
+        appId: WBE_CF_APP_ID,
         btnId: "connectionFinderLoginButton",
         btnTitle: "Log in to the apps server for better Connection Finder Table results",
         btnContainer: $("h1:contains('Connection Finder')"),

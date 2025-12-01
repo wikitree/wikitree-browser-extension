@@ -634,7 +634,7 @@ function initDistanceAndRelationship(userID, profileID, clicked = false) {
     getDistance();
     doRelationshipText(userID, profileID);
   } else {
-    WikiTreeAPI.getProfile("WBE_distanceAndRelationship", profileID, "Privacy,Connected")
+    WikiTreeAPI.getProfile("WBE_distance_and_relationship", profileID, "Privacy,Connected")
       .then(([person]) => {
         if (person.Privacy > 29 && person.Connected == 1) {
           getDistance();

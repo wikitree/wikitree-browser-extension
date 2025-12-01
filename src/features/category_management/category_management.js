@@ -387,7 +387,7 @@ export function showResultsOnKeyUp(catTextbox, resultDiv) {
     mainDomain +
     "/index.php?action=ajax&rs=Title%3A%3AajaxCategorySearch&rsargs[]=" +
     typedVal +
-    "&rsargs[]=0&appID=WBE_categoryManagement";
+    "&rsargs[]=0&appID=WBE_category_management";
   let xmlHttp = new XMLHttpRequest();
   xmlHttp.onload = () => {
     PopulateSuggestions(JSON.parse(xmlHttp.responseText), resList, catTextbox);
@@ -1168,11 +1168,11 @@ function ClearCatName(catTyped) {
 function CheckCategoryExists(cat, callbackSuccess) {
   const showError = false;
   let catTyped = ClearCatName(cat);
-  //catUrl = "https://" + mainDomain + "/wiki/Category:" + encodeURI(catTyped) + "?appID=WBE_categoryManagement";
+  //catUrl = "https://" + mainDomain + "/wiki/Category:" + encodeURI(catTyped) + "?appID=WBE_category_management";
   const catUrl =
     "https://apps.wikitree.com/apps/straub620/exists.php?page=Category:" +
     encodeURI(catTyped) +
-    "&appID=WBE_categoryManagement";
+    "&appID=WBE_category_management";
   let xmlHttp = new XMLHttpRequest();
   xmlHttp.addEventListener("load", function () {
     if (xmlHttp.status < 400) {
@@ -1414,7 +1414,7 @@ function CheckWhatLinksHereAndSave() {
     mainDomain +
     "/wiki/Special:Whatlinkshere/Category:" +
     encodeURIComponent(category) +
-    "?appID=WBE_categoryManagement";
+    "?appID=WBE_category_management";
   let xmlHttp = new XMLHttpRequest();
 
   xmlHttp.onload = () => {

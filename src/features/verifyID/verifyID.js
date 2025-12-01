@@ -7,6 +7,7 @@ import "jquery-ui/ui/widgets/draggable";
 import { extractRelatives, displayName } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 
 shouldInitializeFeature("verifyID").then((result) => {
   if (result) {
@@ -130,82 +131,67 @@ async function checkAttachPersonID() {
     if ($(this).val().match(/.+-.+/)) {
       const theKey = $(this).val();
       window.timeoutId = setTimeout(function () {
-        $.ajax({
-          url: "https://api.wikitree.com/api.php",
-          crossDomain: true,
-          xhrFields: { withCredentials: true },
-          type: "POST",
-          dataType: "json",
-          data: {
-            action: "getRelatives",
-            getParents: "1",
-            getSiblings: "0",
-            getSpouses: "0",
-            getChildren: "0",
-            keys: theKey,
-            fields: "*",
-            appId: "WBE_verifyID",
-          },
-          success: function (data) {
-            $("#verification").remove();
-            let ah2 = $("<h3>?</h3>");
-            let aUL = $("<ul></ul>");
-            if (data[0]?.items) {
-              let person = data[0].items[0].person;
-              person = addRelativeArraysToPerson(person);
-              $("#mName").after($(`<div id='verification'><x>x</x><span id="wtid">${person.Name}</span></div>`));
-              $("#verification").draggable();
-              if (person.Created) {
-                ah2 = $(
-                  "<h3><a href='https://" +
-                    mainDomain +
-                    "/wiki/" +
-                    person.Name +
-                    "' target='_blank'>" +
-                    displayName(person)[0] +
-                    " " +
-                    displayDates(person, true) +
-                    "</a></h3>"
-                );
-                if (person.BirthLocation && person.BirthLocation != null) {
-                  aUL.append($("<li>b. " + person.BirthLocation + "</li>"));
-                }
-                if (person.DeathLocation && person.DeathLocation != null) {
-                  aUL.append($("<li>d. " + person.DeathLocation + "</li>"));
-                }
-                const oRels = ["Parent"];
-                oRels.forEach(function (aR) {
-                  let psWord = aR + "s";
-                  if (person[aR].length == 1) {
-                    psWord = aR;
-                  }
-                  if (aR == "Child" && person[aR].length > 1) {
-                    psWord = "Children";
-                  }
-                  if (person[aR].length > 0) {
-                    const newSection = $("<section><h4>" + psWord + "</h4><ul></ul></section>");
-                    person[aR].forEach(function (aP) {
-                      newSection.find("ul").append($("<li>" + displayName(aP)[0] + "</li>"));
-                    });
-                    $("#verification").append(newSection);
-                  }
-                });
-              } else {
-                ah2 = $("<h3>Private</h3>");
-                aUL = $("<ul></ul>");
+        WikiTreeAPI.getRelatives("WBE_verify_id", theKey, "*", {
+          getParents: 1,
+        }).then((items) => {
+          $("#verification").remove();
+          let ah2 = $("<h3>?</h3>");
+          let aUL = $("<ul></ul>");
+          if (items) {
+            let person = items[0].person;
+            person = addRelativeArraysToPerson(person);
+            $("#mName").after($(`<div id='verification'><x>x</x><span id="wtid">${person.Name}</span></div>`));
+            $("#verification").draggable();
+            if (person.Created) {
+              ah2 = $(
+                "<h3><a href='https://" +
+                  mainDomain +
+                  "/wiki/" +
+                  person.Name +
+                  "' target='_blank'>" +
+                  displayName(person)[0] +
+                  " " +
+                  displayDates(person, true) +
+                  "</a></h3>"
+              );
+              if (person.BirthLocation && person.BirthLocation != null) {
+                aUL.append($("<li>b. " + person.BirthLocation + "</li>"));
               }
+              if (person.DeathLocation && person.DeathLocation != null) {
+                aUL.append($("<li>d. " + person.DeathLocation + "</li>"));
+              }
+              const oRels = ["Parent"];
+              oRels.forEach(function (aR) {
+                let psWord = aR + "s";
+                if (person[aR].length == 1) {
+                  psWord = aR;
+                }
+                if (aR == "Child" && person[aR].length > 1) {
+                  psWord = "Children";
+                }
+                if (person[aR].length > 0) {
+                  const newSection = $("<section><h4>" + psWord + "</h4><ul></ul></section>");
+                  person[aR].forEach(function (aP) {
+                    newSection.find("ul").append($("<li>" + displayName(aP)[0] + "</li>"));
+                  });
+                  $("#verification").append(newSection);
+                }
+              });
             } else {
-              ah2 = $("<h3>?</h3>");
+              ah2 = $("<h3>Private</h3>");
               aUL = $("<ul></ul>");
             }
-            $("#verification").prepend(aUL).prepend(ah2);
-            $("#verification").on("dblclick", function () {
-              $(this).fadeOut();
-            });
-            $("#verification x").on("click", function () {
-              $(this).parent().fadeOut();
-            });
-          },
+          } else {
+            ah2 = $("<h3>?</h3>");
+            aUL = $("<ul></ul>");
+          }
+          $("#verification").prepend(aUL).prepend(ah2);
+          $("#verification").on("dblclick", function () {
+            $(this).fadeOut();
+          });
+          $("#verification x").on("click", function () {
+            $(this).parent().fadeOut();
+          });
         });
       }, 500);
     }
