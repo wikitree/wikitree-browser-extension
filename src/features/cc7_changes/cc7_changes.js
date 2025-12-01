@@ -2,15 +2,7 @@ import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import "jquery-ui/ui/widgets/draggable";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
-import {
-  treeImageURL,
-  getObjectStores,
-  cc7DbKeyFor,
-  oncePerTab,
-  getUserNumId,
-  getUserWtId,
-  isLoggedIntoAPI,
-} from "../../core/common";
+import { treeImageURL, getObjectStores, cc7DbKeyFor, oncePerTab, getUserNumId, getUserWtId } from "../../core/common";
 import { currentHrefWithoutAuthcode } from "../../core/loginButton";
 import { PersonName } from "../auto_bio/person_name.js";
 import { displayDates } from "../verifyID/verifyID";
@@ -332,7 +324,7 @@ function showLoginPopup() {
     const userId = getTheUsersWtId();
     const userNumId = getTheUsersNumId();
     if (userId && userNumId) {
-      if (await isLoggedIntoAPI(userNumId, WBE_CC7C_APP_ID)) {
+      if (await WikiTreeAPI.isLoggedIntoAPI(userNumId, WBE_CC7C_APP_ID)) {
         db.setUserIds(userId, userNumId);
         await initializeCC7Tracking();
       } else {
@@ -374,7 +366,7 @@ export async function addCC7ChangesButton() {
 
     if (!TESTING || !USE_TEST_USER) {
       // Check login status
-      const isLoggedIn = await isLoggedIntoAPI(db.userNumId, WBE_CC7C_APP_ID);
+      const isLoggedIn = await WikiTreeAPI.isLoggedIntoAPI(db.userNumId, WBE_CC7C_APP_ID);
       if (!isLoggedIn) {
         showLoginPopup();
         // Not logged in, redirect to login
@@ -431,7 +423,7 @@ async function initializeCC7Tracking() {
         return;
       }
 
-      const isLoggedIn = await isLoggedIntoAPI(db.userNumId, WBE_CC7C_APP_ID);
+      const isLoggedIn = await WikiTreeAPI.isLoggedIntoAPI(db.userNumId, WBE_CC7C_APP_ID);
       if (!isLoggedIn) {
         // Show login popup if login failed
         showLoginPopup();

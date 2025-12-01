@@ -7,7 +7,7 @@ import $ from "jquery";
 import "jquery-ui/ui/widgets/sortable";
 import "jquery-ui/ui/widgets/autocomplete";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
-import { getUserWtId, getUserNumId, isLoggedIntoAPI, setHighestZIndex } from "../../core/common";
+import { getUserWtId, getUserNumId, setHighestZIndex } from "../../core/common";
 import { goAndLogIn } from "../randomProfile/randomProfile";
 import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
 
@@ -110,7 +110,7 @@ async function loadSpaceWatchlist() {
   try {
     // console.log("Checking user login status");
     const userNumId = getUserNumId();
-    if (!userNumId || !(await isLoggedIntoAPI(userNumId, WBE_SS_APP_ID))) {
+    if (!userNumId || !(await WikiTreeAPI.isLoggedIntoAPI(userNumId, WBE_SS_APP_ID))) {
       showLoginPopup();
       return [];
     }
@@ -145,7 +145,7 @@ function showLoginPopup() {
       userId = getUserWtId();
       const userNumId = getUserNumId();
       if (userId && userNumId) {
-        if (await isLoggedIntoAPI(userNumId, WBE_SS_APP_ID)) {
+        if (await WikiTreeAPI.isLoggedIntoAPI(userNumId, WBE_SS_APP_ID)) {
           $("#login-popup").remove();
           // console.log(`Logged in: userId='${userId}', userNumId='${userNumId}'`);
         } else {
@@ -217,7 +217,7 @@ async function populateInterface() {
       };
     }
     const userNumId = getUserNumId();
-    if (!userNumId || !(await isLoggedIntoAPI(userNumId, WBE_SS_APP_ID))) {
+    if (!userNumId || !(await WikiTreeAPI.isLoggedIntoAPI(userNumId, WBE_SS_APP_ID))) {
       showLoginPopup();
       return {
         status: false,

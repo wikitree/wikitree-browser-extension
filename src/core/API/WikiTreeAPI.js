@@ -500,6 +500,19 @@ function condLog(message, ...optionalParams) {
   }
 }
 
+// Function to check login status
+WikiTreeAPI.isLoggedIntoAPI = async function (userNumId, appId = "WBE_check_login") {
+  if (!userNumId) return false;
+  const loginStatus = await WikiTreeAPI.postToAPI({
+    appId: appId,
+    action: "clientLogin",
+    checkLogin: userNumId,
+  });
+  console.log("API Login Status: ", loginStatus);
+
+  return loginStatus?.clientLogin?.result == "ok";
+};
+
 /**
  * This is just a wrapper for JavaScript's fetch() call, sending along necessary options for the WikiTree API.
  *

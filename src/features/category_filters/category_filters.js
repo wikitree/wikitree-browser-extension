@@ -377,7 +377,8 @@ async function fetchAndSetFilterData() {
       })
       .get();
     const keys = keysArray.join(",");
-    const [, resultByKey, people] = await WikiTreeAPI.getPeople(
+    let resultByKey;
+    [, resultByKey, filterData] = await WikiTreeAPI.getPeople(
       WBE_CATF_APP_ID,
       keys,
       "Name,Connected,Managers,Manager,Father,Mother"
@@ -386,7 +387,7 @@ async function fetchAndSetFilterData() {
     // Assign basic data attributes to profiles (non-DNA)
     profiles.each(function () {
       const key = decodeURIComponent($(this).attr("href").split("/wiki/")[1].replace(/ /g, "_"));
-      const person = WikiTreeAPI.lookupProfile(key, resultByKey, people);
+      const person = WikiTreeAPI.lookupProfile(key, resultByKey, filterData);
       if (person) {
         $(this).attr("data-connected", person.Connected);
         const managersArray = person?.Managers?.map((manager) => manager.Name) || [];
@@ -476,28 +477,14 @@ async function fetchDNAData() {
 
 // Function to Fetch DNA Tests for a user
 async function fetchDNATests(userKey) {
-  const params = new URLSearchParams({
+  const params = {
+    appId: WBE_CATF_APP_ID,
     action: "getDNATestsByTestTaker",
     key: userKey,
-  });
+  };
 
   try {
-    const response = await fetch("https://api.wikitree.com/api.php", {
-      method: "POST",
-      mode: "cors",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: params,
-    });
-
-    if (response.status !== 200) {
-      console.log("Error fetching DNA tests. Status Code: " + response.status);
-      return null;
-    }
-
-    const data = await response.json();
+    const data = await WikiTreeAPI.postToAPI(params);
     return data;
   } catch (error) {
     console.log("Fetch DNA Tests Error:", error);
@@ -507,29 +494,15 @@ async function fetchDNATests(userKey) {
 
 // Function to Fetch Connected Profiles by DNA Test
 async function fetchConnectedProfilesByDNATest(userKey, dnaId) {
-  const params = new URLSearchParams({
+  const params = {
+    appId: WBE_CATF_APP_ID,
     action: "getConnectedProfilesByDNATest",
     key: userKey,
     dna_id: dnaId,
-  });
+  };
 
   try {
-    const response = await fetch("https://api.wikitree.com/api.php", {
-      method: "POST",
-      mode: "cors",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: params,
-    });
-
-    if (response.status !== 200) {
-      console.log("Error fetching DNA connections. Status Code: " + response.status);
-      return null;
-    }
-
-    const data = await response.json();
+    const data = await WikiTreeAPI.postToAPI(params);
     return data;
   } catch (error) {
     console.log("Fetch DNA Connections Error:", error);

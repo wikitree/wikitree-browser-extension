@@ -1,5 +1,6 @@
 import $ from "jquery";
-import { getUserNumId, isLoggedIntoAPI } from "./common";
+import { getUserNumId } from "./common";
+import { WikiTreeAPI } from "./API/WikiTreeAPI";
 
 /**
  * Function to add a login button for the WikiTree Apps server.
@@ -19,7 +20,7 @@ export async function addLoginButton(opt) {
   await handleOptionalAuthCode(opt);
 
   const userID = getUserNumId();
-  isLoggedIntoAPI(userID, opt.appId).then((loggedIn) => {
+  WikiTreeAPI.isLoggedIntoAPI(userID, opt.appId).then((loggedIn) => {
     if (!loggedIn) {
       let loginButton = $(`#${opt.btnId}`);
       if (!loginButton || loginButton.length == 0) {
