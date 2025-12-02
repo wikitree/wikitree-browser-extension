@@ -10,6 +10,7 @@
   "permissions": [
     "https://*.wikitree.com/*",
     "https://wikitreebee.com/*",
+    "*://*.findagrave.com/*",
     "storage",
     "clipboardRead",
     "clipboardWrite",
@@ -18,7 +19,7 @@
   ],
   "content_scripts": [
     {
-      "matches": ["https://*.wikitree.com/*", "https://wikitree.sdms.si/*"],
+      "matches": ["https://*.wikitree.com/*", "https://wikitree.sdms.si/*", "*://*.findagrave.com/*"],
       "js": ["js/vendor.js", "js/content.js"]
     }
   ],
