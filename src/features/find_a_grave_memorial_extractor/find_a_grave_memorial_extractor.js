@@ -77,6 +77,10 @@ function addExtractionButton() {
 
   // Insert button after the Search tips div
   searchTipsDiv.parentNode.insertBefore(button, searchTipsDiv.nextSibling);
+
+  // Find the refine search button to place our button after it
+  const refineBtn = document.querySelector("#js--refine-btn");
+  refineBtn.parentNode.insertBefore(button, refineBtn.nextSibling);
 }
 
 // Extract FindAGrave memorial data from a cemetery memorial list page.
@@ -217,7 +221,13 @@ function createCSV(extractedMemorials, useWikiTreeCheck) {
   }
 
   extractedMemorials.forEach((memorial) => {
-    let row = `${memorial.memorialID},${memorial.nameofDeceased},${memorial.birthDate},${memorial.deathDate},${memorial.hasPhoto},${memorial.hasGravePhoto},${memorial.memorialLink}`;
+    // Escape double quotes and wrap in quotes if needed
+    let safeName = memorial.nameofDeceased.replace(/"/g, '""');
+    if (safeName.includes(',') || safeName.includes('"')) {
+        safeName = `"${safeName}"`;
+    }
+
+    let row = `${memorial.memorialID},${safeName},${memorial.birthDate},${memorial.deathDate},${memorial.hasPhoto},${memorial.hasGravePhoto},${memorial.memorialLink}`;
 
     if (useWikiTreeCheck) {
       row += `,${memorial.wikiTreeIDs}`;
