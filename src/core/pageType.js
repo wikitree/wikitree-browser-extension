@@ -163,6 +163,10 @@ export let isPlusProfileTree = false;
 // Notables
 export let isUnconnectedNotables = false;
 
+// Find a Grave
+// Find a Grave Cemetery Memorial List page
+export let isFindAGraveCemeteryList = false;
+
 const domain = decodeURI(window.location.hostname); // path
 
 if (window.location.href.match("Special(:|%3A|%3a)NetworkFeed")) {
@@ -196,6 +200,12 @@ if (domain.match("apps.wikitree.com")) {
     window.location.href.match(/report=srch2/)
   ) {
     isPlusProfileTree = true;
+  }
+} else if (domain.match("findagrave.com")) {
+  // Find a Grave cemetery memorial list page
+  const path = decodeURI(window.location.pathname);
+  if (path.includes("memorial-search")) {
+    isFindAGraveCemeteryList = true;
   }
 } else {
   isMainDomain = true;
