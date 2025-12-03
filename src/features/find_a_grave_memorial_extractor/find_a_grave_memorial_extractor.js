@@ -2,7 +2,8 @@
 Created By: Miyako Jones (Jones-108375)
 */
 
-import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
+import "./find_a_grave_memorial_extractor.css";
 
 // Developer flag for debugging (set to true to enable console logging)
 const DEBUG_MODE = false;
@@ -54,9 +55,8 @@ function addExtractionButton() {
     button.disabled = true;
     button.textContent = "Extracting...";
 
-    // Get feature options
-    const options = await getFeatureOptions("findAGraveMemorialExtractor");
-    const useWikiTreeCheck = options?.useWikiTreeCheck ?? false;
+    // Always use WikiTree matching
+    const useWikiTreeCheck = true;
 
     if (DEBUG_MODE) {
       console.log("FindAGrave Memorial Extractor started");

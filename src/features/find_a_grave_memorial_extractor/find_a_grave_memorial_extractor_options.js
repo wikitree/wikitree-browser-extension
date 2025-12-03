@@ -9,18 +9,10 @@ registerFeature({
   name: "Find A Grave Memorial Extractor",
   id: "findAGraveMemorialExtractor",
   description:
-    "Extracts memorial data from Find a Grave cemetery list pages and downloads as CSV. Optionally matches memorials with WikiTree profiles.",
+    "Extracts memorial data from Find a Grave cemetery list pages and downloads as CSV. Automatically matches memorials with WikiTree profiles.",
   category: "Other",
   creators: [{ name: "Miyako Jones", wikitreeid: "Jones-108375" }],
   contributors: [],
   defaultValue: false,
   pages: [isFindAGraveCemeteryList],
-  options: [
-    {
-      id: "useWikiTreeCheck",
-      type: OptionType.CHECKBOX,
-      label: "Match with WikiTree profiles",
-      defaultValue: false,
-    },
-  ],
 });
