@@ -5,12 +5,14 @@ Created By: Ian Beacall (Beacall-6)
 // Import required modules and components
 import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
-import { getRelatives } from "wikitree-js";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { familyArray, isOK, htmlEntities, setAdjustedDates } from "../../core/common";
 import { mainDomain, isSearchPage, isProfilePage } from "../../core/pageType";
 import { profilePerson, addTab, setHighestZIndex } from "../../core/common";
 
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+
+const WBE_FAMILY_GROUP_APP_ID = "WBE_family_group";
 
 // Initialize the familyGroup feature if enabled and if on a profile page
 shouldInitializeFeature("familyGroup").then((result) => {
@@ -203,17 +205,13 @@ export async function showFamilySheet(theClicked, profileID, forcePopup = false)
     }
   } else {
     // If the table doesn't exist, create it by fetching relatives data.
-    getRelatives(
-      [profileID],
-      {
-        getParents: true,
-        getSiblings: true,
-        getSpouses: true,
-        getChildren: true,
-      },
-      { appId: "WBE_family_group" }
-    ).then((person) => {
-      const uPeople = familyArray(person[0]);
+    WikiTreeAPI.getRelatives(WBE_FAMILY_GROUP_APP_ID, profileID, "", {
+      getParents: 1,
+      getSiblings: 1,
+      getSpouses: 1,
+      getChildren: 1,
+    }).then((people) => {
+      const uPeople = familyArray(people?.[0].person);
       // Create the table using the family data
       const familyTable = peopleToTable(uPeople);
       // Attach the table to the body, position it and make it draggable and toggleable
