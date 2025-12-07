@@ -78,9 +78,9 @@ function addExtractionButton() {
   // Insert button after the Search tips div
   searchTipsDiv.parentNode.insertBefore(button, searchTipsDiv.nextSibling);
 
-  // Find the refine search button to place our button after it
+  // Also find the refine search button to place a button after it
   const refineBtn = document.querySelector("#js--refine-btn");
-  refineBtn.parentNode.insertBefore(button, refineBtn.nextSibling);
+  if (refineBtn != null) refineBtn.parentNode.insertBefore(button, refineBtn.nextSibling);
 }
 
 // Extract FindAGrave memorial data from a cemetery memorial list page.
@@ -153,24 +153,32 @@ async function extractMemorialData(useWikiTreeCheck) {
   }
 
   if (useWikiTreeCheck) {
-    const allMemorialIDs = extractedMemorials.map((memorial) => memorial.memorialID);
-    await findWTMatches(allMemorialIDs).then((wikitreeIDs) => {
-      if (DEBUG_MODE) console.log("WikiTree matches:", wikitreeIDs);
+    const allMemorialIDs = extractedMemorials.map(memorial => memorial.memorialID);
 
-      if (wikitreeIDs != null) {
-        extractedMemorials.forEach((memorial) => {
-          const match = wikitreeIDs.find((item) => item.memorialID.toString() === memorial.memorialID);
-          memorial.wikiTreeIDs = match ? match.wikiTreeID : "";
-        });
+    if (DEBUG_MODE) {
+        console.log('all memorials:');
+        console.log(allMemorialIDs);
+    }
 
-        if (DEBUG_MODE) console.log("Extracted memorials with WikiTree IDs:", extractedMemorials);
-      } else {
-        extractedMemorials.map((memorial) => {
-          memorial.wikiTreeIDs = "";
-        });
-      }
+    await findWTMatchesInBatches(allMemorialIDs).then((wikitreeIDs) => {
+        if (wikitreeIDs.length > 0) {
+            extractedMemorials.forEach((memorial) => {
+                const match = wikitreeIDs.find(item => item.memorialID.toString() === memorial.memorialID);
+                memorial.wikiTreeIDs = match ? match.wikiTreeID : '';
+            });
 
-      createCSV(extractedMemorials, useWikiTreeCheck);
+            if (DEBUG_MODE) {
+                console.log('extracted memorials:');
+                console.log(extractedMemorials);
+            }
+        }
+        else {
+            extractedMemorials.map((memorial) => {
+                memorial.wikiTreeIDs = '';
+            });
+        }
+
+        createCSV(extractedMemorials, useWikiTreeCheck);
     });
   } else {
     createCSV(extractedMemorials, useWikiTreeCheck);
@@ -257,29 +265,27 @@ function createCSV(extractedMemorials, useWikiTreeCheck) {
   }, 1000);
 }
 
-function showErrorPopup(message) {
-  const popup = document.createElement("div");
-  popup.textContent = message;
-  popup.style.width = "375px";
-  popup.style.position = "absolute";
-  popup.style.top = "0";
-  popup.style.right = "10px";
-  popup.style.background = "#FFFFFF";
-  popup.style.color = "#FF0000";
-  popup.style.padding = "12px 24px";
-  popup.style.borderRadius = "8px";
-  popup.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
-  popup.style.zIndex = 9999;
-  document.body.appendChild(popup);
-
-  setTimeout(() => {
-    popup.remove();
-  }, 5500);
-}
-
 const wikiTreeErrorMsg = "Error downloading data from the WikiTree+ server.";
+const wtPlusBatchSize = 1000; // number of memorial IDs to query WikiTree+ for at a time
 
 // Query the WikiTree+ server to find matching profiles for an array of FindAGrave memorial IDs.
+async function findWTMatchesInBatches(memorialIDs) {
+    const batches = chunkArray(memorialIDs, wtPlusBatchSize);
+    let allResults = [];
+    for (const batch of batches) {
+        if (DEBUG_MODE) {
+            console.log("batch:");
+            console.log(batch);
+        }
+
+        const result = await findWTMatches(batch);
+        if (result) {
+            allResults = allResults.concat(result);
+        }
+    }
+    return allResults;
+}
+
 async function findWTMatches(memorialIDs) {
   const params = new URLSearchParams();
   params.append("query", memorialIDs.join(","));
@@ -312,4 +318,32 @@ async function findWTMatches(memorialIDs) {
     if (DEBUG_MODE) console.error("WikiTree API error:", error);
     showErrorPopup(wikiTreeErrorMsg);
   }
+}
+
+function chunkArray(array, size) {
+    const result = [];
+    for (let i = 0; i < array.length; i += size) {
+        result.push(array.slice(i, i + size));
+    }
+    return result;
+}
+
+function showErrorPopup(message) {
+  const popup = document.createElement("div");
+  popup.textContent = message;
+  popup.style.width = "375px";
+  popup.style.position = "absolute";
+  popup.style.top = "0";
+  popup.style.right = "10px";
+  popup.style.background = "#FFFFFF";
+  popup.style.color = "#FF0000";
+  popup.style.padding = "12px 24px";
+  popup.style.borderRadius = "8px";
+  popup.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
+  popup.style.zIndex = 9999;
+  document.body.appendChild(popup);
+
+  setTimeout(() => {
+    popup.remove();
+  }, 5500);
 }
