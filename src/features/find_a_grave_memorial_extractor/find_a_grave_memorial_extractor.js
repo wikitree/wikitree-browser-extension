@@ -6,7 +6,7 @@ import { shouldInitializeFeature } from "../../core/options/options_storage";
 import "./find_a_grave_memorial_extractor.css";
 
 // Developer flag for debugging (set to true to enable console logging)
-const DEBUG_MODE = true;
+const DEBUG_MODE = false;
 
 shouldInitializeFeature("findAGraveMemorialExtractor").then((result) => {
   if (result) {
