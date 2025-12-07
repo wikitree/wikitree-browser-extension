@@ -27,6 +27,8 @@ import {
 import { isOK, familyArray } from "../../core/common";
 import { copyToClipboard, readFromClipboard } from "../../core/clipboard";
 
+const WBE_FAMILY_LISTS_APP_ID = "WBE_family_lists";
+
 async function getFamily() {
   let profileID;
   if (!window.profileID) {
@@ -70,7 +72,7 @@ async function getFamily() {
       window.profilePerson.Name = profileID;
       window.profilePerson.MiddleInitial = "";
       addLoginButton({
-        appId: "WBE_family_lists",
+        appId: WBE_FAMILY_LISTS_APP_ID,
         btnId: "appsLoginButton",
         btnTitle: "Log in to the apps server for better family list results",
         btnContainer: $("#toolbar"),

@@ -11,6 +11,8 @@ import { Biography } from "../bioCheck/Biography.js";
 import { initBioCheck } from "../bioCheck/bioCheck.js";
 import { getUserWtId } from "../../core/common.js";
 
+const WBE_RANGERS_APP_ID = "WBE_rangers";
+
 const rangers = [
   "Ikeler-28",
   "Ivey-1318",
@@ -999,7 +1001,7 @@ class FeedHelper {
                 "center"
               );
             }
-            const people = await WikiTreeAPI.getPeople("Rangers", batch, fields, { resolveRedirect: 0 });
+            const people = await WikiTreeAPI.getPeople(WBE_RANGERS_APP_ID, batch, fields, { resolveRedirect: 0 });
 
             // Merge new data with existing profiles
             if (people && people[2]) {
@@ -1090,7 +1092,7 @@ class FeedHelper {
           }
           // Fetch new data only for IDs not in sessionStorage
           //console.log(`WBE: Making API call with fields:`, fields);
-          const people = await WikiTreeAPI.getPeople("Rangers", batch, fields, { resolveRedirect: 0 });
+          const people = await WikiTreeAPI.getPeople(WBE_RANGERS_APP_ID, batch, fields, { resolveRedirect: 0 });
 
           console.log(`WBE: API response structure:`, people);
           if (people && people[2]) {
@@ -3073,12 +3075,9 @@ class FeedHelper {
     try {
       // Fetch the single bio using WikiTreeAPI
       this.debug(`Making WikiTreeAPI call for ID: ${apiId}`);
-      const peopleResponse = await WikiTreeAPI.getPeople(
-        "Rangers",
-        [apiId], 
-        bioCheckFields,
-        { bioFormat: "text" }
-      );
+      const peopleResponse = await WikiTreeAPI.getPeople(WBE_RANGERS_APP_ID, apiId, bioCheckFields, {
+        bioFormat: "text",
+      });
 
       this.debug(`WikiTreeAPI response for ${bioId}:`, peopleResponse);
 
@@ -3144,7 +3143,7 @@ class FeedHelper {
         // Run autoBioCheck and store result
         if (person.bio) {
           this.bioCheckDebug(`Running Bio Check for profile ${bioId}`);
-//          const autoBioCheckResult = this.autoBioCheck(person.bio, person.Id, person.Name);
+          //          const autoBioCheckResult = this.autoBioCheck(person.bio, person.Id, person.Name);
           const autoBioCheckResult = this.autoBioCheck(person);
           this.bioCheckDebug(`Bio Check result for ${bioId}:`, autoBioCheckResult);
           if (!this.bioCheckResults) {
@@ -3280,12 +3279,9 @@ class FeedHelper {
             );
           }
           // Fetch the bios using the WikiTreeAPI
-          const peopleResponse = await WikiTreeAPI.getPeople(
-            "Rangers",
-            batch,
-            bioCheckFields,
-            { bioFormat: "text" }
-          );
+          const peopleResponse = await WikiTreeAPI.getPeople(WBE_RANGERS_APP_ID, batch, bioCheckFields, {
+            bioFormat: "text",
+          });
 
           // Merge the newly fetched bios into fetchedProfiles
           if (peopleResponse && peopleResponse[2]) {
@@ -3924,11 +3920,10 @@ class FeedHelper {
   }
 
   autoBioCheck(person) {
-
     // an empty biography will be detected, and validate returns false
     //if (!sourcesStr) {
     //  this.bioCheckDebug(`No bio content provided for ${profileInfo}, returning false`);
-     // return false;
+    // return false;
     //}
 
     let bioCheckPassed = true;
@@ -3940,8 +3935,12 @@ class FeedHelper {
       biography.validate();
 
       // Check for duplicate birth information
-      const duplicateBirthResult = this.checkForDuplicateBirthInfo(person.bio, thePerson.person.profileId, 
-                                   thePerson.person.wikiTreeId, thePerson.person.firstName);
+      const duplicateBirthResult = this.checkForDuplicateBirthInfo(
+        person.bio,
+        thePerson.person.profileId,
+        thePerson.person.wikiTreeId,
+        thePerson.person.firstName
+      );
       //this.bioCheckDebug(`Duplicate birth info check result for ${profileInfo}:`, duplicateBirthResult);
 
       // Bio fails if it has duplicate birth info, even if it has sources

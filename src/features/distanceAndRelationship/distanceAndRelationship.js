@@ -20,6 +20,8 @@ let profilePerson;
 let profileID;
 let options = {};
 
+const WBE_DIST_REL_APP_ID = "WBE_distance_and_relationship";
+
 const fixOrdinalSuffix = (text) => {
   const pattern = /(\d+)(?:st|nd|rd|th)\b/g;
   return text.replace(pattern, (_, num) => {
@@ -634,7 +636,7 @@ function initDistanceAndRelationship(userID, profileID, clicked = false) {
     getDistance();
     doRelationshipText(userID, profileID);
   } else {
-    WikiTreeAPI.getProfile("WBE_distance_and_relationship", profileID, "Privacy,Connected")
+    WikiTreeAPI.getProfile(WBE_DIST_REL_APP_ID, profileID, "Privacy,Connected")
       .then(([person]) => {
         if (person.Privacy > 29 && person.Connected == 1) {
           getDistance();

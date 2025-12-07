@@ -6,6 +6,8 @@ import $ from "jquery";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
+const WBE_DNA_TABLE_APP_ID = "WBE_dna_table";
+
 function getBirthplaces() {
   const ids = [];
   const idSpans = $("span.SMALL");
@@ -46,7 +48,7 @@ function getBirthplaces() {
     // Fetch data in chunks of 100
     while (ids.length) {
       let chunk = ids.splice(0, 100).join(",");
-      WikiTreeAPI.getPeople("WBE_dna_table", chunk, "Id,Name,BirthLocation").then(([, , people]) => {
+      WikiTreeAPI.getPeople(WBE_DNA_TABLE_APP_ID, chunk, "Id,Name,BirthLocation").then(([, , people]) => {
         if (people) {
           let theKeys = Object.keys(people);
           theKeys.forEach(function (aKey) {

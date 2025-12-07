@@ -23,6 +23,8 @@ import { isProfileEdit, isProfileAddRelative } from "../../core/pageType";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { profilePerson } from "../../core/common";
 
+const WBE_SHAREABLE_SOURCES_APP_ID = "WBE_shareable_sources";
+
 let enhanced = false;
 let theID;
 let options;
@@ -107,7 +109,7 @@ export async function initShareableSources(id = theID) {
     }
   }
 
-  const [findPerson] = await WikiTreeAPI.getProfile("WBE_shareable_sources", id, fields);
+  const [findPerson] = await WikiTreeAPI.getProfile(WBE_SHAREABLE_SOURCES_APP_ID, id, fields);
   if (id == theID) {
     window.profilePersonNuclear = findPerson;
   }

@@ -4,6 +4,8 @@ import $ from "jquery";
 import { mainDomain } from "../../core/pageType";
 import { getUserNumId } from "../../core/common";
 
+const WBE_ORPHAN_WATCHLIST_APP_ID = "WBE_orphan_watchlist";
+
 // jsdoc
 /**
  * Adds a container for table buttons before the specified table.
@@ -169,7 +171,7 @@ async function DoOrphan() {
     let chunk = ids.splice(0, 100).join(",");
     promises.push(
       new Promise((resolve, reject) => {
-        WikiTreeAPI.getPeople("WBE_orphan_watchlist", chunk, "Id,PageId,Name,TrustedList").then(([, , people]) => {
+        WikiTreeAPI.getPeople(WBE_ORPHAN_WATCHLIST_APP_ID, chunk, "Id,PageId,Name,TrustedList").then(([, , people]) => {
           const theKeys = Object.keys(people);
           theKeys.forEach(function (aKey) {
             const person = people[aKey];
