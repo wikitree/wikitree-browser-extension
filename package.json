@@ -43,7 +43,6 @@
     "sheetjs": "^2.0.0",
     "url": "^0.11.2",
     "util": "^0.12.5",
-    "wikitree-js": "^0.4.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "yargs": "^17.7.2"
   },

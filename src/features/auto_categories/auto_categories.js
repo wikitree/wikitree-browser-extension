@@ -24,6 +24,8 @@ import {
   buildFamilyForPrivateProfiles,
 } from "../auto_bio/auto_bio";
 
+const WBE_AUTO_CAT_APP_ID = "WBE_auto_categories";
+
 function addDiedYoung() {
   let currentBio = $("#wpTextbox1").val();
   if (window.autoCategoriesOptions.diedYoung) {
@@ -56,7 +58,7 @@ export async function addAutoCategories() {
 
   // Get the profile of the person based on the profile ID, and await because it's an async operation
   [window.profilePerson] = await WikiTreeAPI.getProfile(
-    "WBE_auto_categories",
+    WBE_AUTO_CAT_APP_ID,
     profileId,
     "Id,Name,Parents,Siblings,Spouses,Children,LastNameAtBirth,MiddleInitial,MiddleName,Derived.BirthName,Derived.BirthNamePrivate,Gender"
   );

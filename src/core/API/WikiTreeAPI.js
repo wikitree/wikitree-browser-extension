@@ -195,6 +195,12 @@ WikiTreeAPI.Person = class Person {
   getDisplayName() {
     return this._data.BirthName ? this._data.BirthName : this._data.BirthNamePrivate;
   }
+  getFirstName() {
+    return this._data.FirstName;
+  }
+  getLastNameCurrent() {
+    return this._data.LastNameCurrent;
+  }
   getPhotoUrl() {
     if (this._data.PhotoData && this._data.PhotoData["url"]) {
       return this._data.PhotoData["url"];
@@ -212,34 +218,6 @@ WikiTreeAPI.Person = class Person {
     if (this._data.Father && this._data.Parents) {
       return this._data.Parents[this._data.Father];
     }
-  }
-
-  // We use a few "setters". For the parents, we want to update the Parents Person objects as well as the ids themselves.
-  // For TreeViewer we only set the parents and children, so we don't need setters for all the _data elements.
-  setMother(person) {
-    const id = person.getId();
-    const oldId = this._data.Mother;
-    this._data.Mother = id;
-    if (!this._data.Parents) {
-      this._data.Parents = {};
-    } else if (oldId) {
-      delete this._data.Parents[oldId];
-    }
-    this._data.Parents[id] = person;
-  }
-  setFather(person) {
-    const id = person.getId();
-    const oldId = this._data.Father;
-    this._data.Father = id;
-    if (!this._data.Parents) {
-      this._data.Parents = {};
-    } else if (oldId) {
-      delete this._data.Parents[oldId];
-    }
-    this._data.Parents[id] = person;
-  }
-  setChildren(children) {
-    this._data.Children = children;
   }
 }; // End Person class definition
 

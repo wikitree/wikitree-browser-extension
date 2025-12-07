@@ -11,6 +11,8 @@ import {
   initDistanceAndRelationshipDBs,
 } from "../distanceAndRelationship/distanceAndRelationship";
 
+const WBE_ANNV_TBL_APP_ID = "WBE_anniversaries_table";
+
 let tableData = null;
 const shakingTree = $(
   "<img id='anniversariesShakingTree' src='" +
@@ -303,7 +305,7 @@ async function updateNames() {
 
   // Call getPeople function with the CSV list as the keys
   const [, , people] = await WikiTreeAPI.getPeople(
-    "WBE_anniversaries_table",
+    WBE_ANNV_TBL_APP_ID,
     csvString,
     "Name,FirstName,LastNameCurrent,LastNameAtBirth",
     { getSpouses: 1 }

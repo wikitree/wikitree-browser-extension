@@ -5,7 +5,7 @@ Created By: Ian Beacall (Beacall-6)
 // Import required modules and components
 import * as $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
-import { getRelatives } from "wikitree-js";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import {
   ageAtEvent,
   extractRelatives,
@@ -19,6 +19,8 @@ import {
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain, isProfilePage } from "../../core/pageType";
 import { profilePerson } from "../../core/common";
+
+const WBE_FAMILY_TIMELINE_APP_ID = "WBE_family_timeline";
 
 /**
  * Positions the timeline element relative to the current scroll position and header.
@@ -311,18 +313,13 @@ export function timeline(id = false) {
       id = profilePerson.Name;
     }
     // Fetch relatives and profile data for the given id
-    getRelatives(
-      [id],
-      {
-        getParents: true,
-        getSiblings: true,
-        getSpouses: true,
-        getChildren: true,
-        fields,
-      },
-      { appId: "WBE_family_timeline" }
-    ).then((personData) => {
-      const person = personData[0];
+    WikiTreeAPI.getRelatives(WBE_FAMILY_TIMELINE_APP_ID, id, fields, {
+      getParents: 1,
+      getSiblings: 1,
+      getSpouses: 1,
+      getChildren: 1,
+    }).then((people) => {
+      const person = people?.[0].person;
       // Adjust dates in the person object
       setAdjustedDates(person);
       // Extract relatives into separate arrays based on relationship

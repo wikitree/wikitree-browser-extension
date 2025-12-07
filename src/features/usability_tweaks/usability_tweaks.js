@@ -11,27 +11,20 @@ import {
   isSpecialTrustedList,
   isProfilePage,
   isSpecialMyConnections,
-  isSpacePage,
   isPlusDomain,
   isSpaceEdit,
   isCategoryEdit,
   isCategoryPage,
   isHelpPage,
-  isNetworkFeed,
 } from "../../core/pageType";
 import "./usability_tweaks.css";
-import { shouldInitializeFeature, getFeatureOptions, checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { getUserWtId, getUserNumId } from "../../core/common";
 import "../../core/common.css";
-import { getDownloadLink } from "../../core/common";
-import { addLoginButton, currentHrefWithoutAuthcode } from "../../core/loginButton";
-import { getWikiTreePage } from "../../core/API/wwwWikiTree";
-import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
-import { theSourceRules } from "../bioCheck/SourceRules.js";
-import { BioCheckPerson } from "../bioCheck/BioCheckPerson.js";
-import { Biography } from "../bioCheck/Biography.js";
-import { initBioCheck } from "../bioCheck/bioCheck.js";
+import { addLoginButton } from "../../core/loginButton";
 //import draggable from "jquery-ui/ui/widgets/draggable";
+
+const WBE_API_LOGIN_BUTTON_APP_ID = "WBE_api_login_button";
 
 function addSaveSearchFormDataButton() {
   const searchResultsP = $("p:contains('Search Results')").closest(".row");
@@ -976,7 +969,7 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
       if (options.addApiLoginButton && options.addApiLoginButton != "none") {
         setTimeout(function () {
           const buttonOpt = {
-            appId: "WBE_api_login_button",
+            appId: WBE_API_LOGIN_BUTTON_APP_ID,
             btnId: "wbeAppLoginBtn",
             btnTitle: "Log in to the apps server for a better WBE experience",
           };
