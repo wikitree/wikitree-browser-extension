@@ -3,6 +3,8 @@ import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { profilePerson, isOK } from "../../core/common";
 import $ from "jquery";
 
+const WBE_ADD_FS_ID_APP_ID = "WBE_add_fs_id";
+
 shouldInitializeFeature("addFSId").then((result) => {
   if (result) {
     import("./add_fs_id.css");
@@ -224,7 +226,7 @@ async function getBioPerson() {
     if (theID) {
       try {
         [window.BioPerson] = await WikiTreeAPI.getProfile(
-          "WBE_add_fs_id",
+          WBE_ADD_FS_ID_APP_ID,
           theID,
           "Id,Name,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,BirthDate,BirthLocation,DeathDate,DeathLocation,Gender,Parents,Spouses,Father,Mother"
         );

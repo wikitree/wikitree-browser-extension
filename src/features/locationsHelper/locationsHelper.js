@@ -12,6 +12,8 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { profilePerson } from "../../core/common";
 import { normalizeLocation, initLocationTranslations } from "./location_helpers";
 
+const WBE_LOC_HELPER_APP_ID = "WBE_locations_helper";
+
 /* ── logging helpers (silenced) ────────────────────────────────────────── */
 function dbg() {}
 function logIfChanged() {}
@@ -348,7 +350,7 @@ async function locationsHelper() {
   dbg("profilePerson Id check", { theID, isSpaceEdit, isNewSpace, isAddUnrelatedPerson, isImagePage });
 
   if (theID) {
-    WikiTreeAPI.getRelatives("WBE_locations_helper", theID, "*", {
+    WikiTreeAPI.getRelatives(WBE_LOC_HELPER_APP_ID, theID, "*", {
       getParents: 1,
       getSiblings: 1,
       getSpouses: 1,

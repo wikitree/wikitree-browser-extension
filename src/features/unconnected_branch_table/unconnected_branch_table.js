@@ -10,6 +10,7 @@ import { profilePerson } from "../../core/common";
 import { isOK } from "../../core/common";
 import "jquery-ui/ui/widgets/draggable";
 
+const WBE_UB_APP_ID = "WBE_unconnected_branch";
 const WBE_UBT_APP_ID = "WBE_unconnected_branch_table";
 
 async function initUnconnectedBranch() {
@@ -18,7 +19,7 @@ async function initUnconnectedBranch() {
     return;
   }
   const profileID = profilePerson.Id;
-  const [, , people] = await WikiTreeAPI.getPeople("WBE_UnconnectedBranch", profileID, "Id,Created,Name");
+  const [, , people] = await WikiTreeAPI.getPeople(WBE_UB_APP_ID, profileID, "Id,Created,Name");
   const profile = people[profileID];
   if ((profile && profile.Created) || isUnconnectedNotables) {
     if (profile && !isLessThan24HoursAgo(profile.Created)) {

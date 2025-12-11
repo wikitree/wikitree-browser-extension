@@ -22,6 +22,8 @@ import {
 } from "../distanceAndRelationship/distanceAndRelationship";
 import { CC7Notes } from "./cc7_notes";
 
+const WBE_SURNAME_TABLE_APP_ID = "WBE_surname_table";
+
 const ExtraColumn = {
   NOTES: "notes",
   DIST_REL: "distance",
@@ -1269,7 +1271,7 @@ async function getBrickWalls() {
     const fields =
       "Id,Name,Manager,Mother,Father,Spouses,LastNameAtBirth,LastNameCurrent,Gender,Photo,PhotoData,BirthLocation,DeathLocation," +
       "Connected,TrustedList,Privacy,Touched";
-    WikiTreeAPI.getPeople("WBE_surname_table", chunk, fields).then(([, , people]) => {
+    WikiTreeAPI.getPeople(WBE_SURNAME_TABLE_APP_ID, chunk, fields).then(([, , people]) => {
       const peopleKeys = Object.keys(people);
       peopleKeys.forEach((key) => {
         const person = people[key];

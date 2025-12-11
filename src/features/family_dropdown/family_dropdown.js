@@ -2,13 +2,15 @@ import $ from "jquery";
 import { displayName, getUserNumId, profilePerson } from "../../core/common";
 import { copyToClipboard } from "../../core/clipboard.js";
 import { displayDates } from "../verifyID/verifyID";
-import { getRelatives, getPerson } from "wikitree-js";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { shouldInitializeFeature, getFeatureOptions, checkIfFeatureEnabled } from "../../core/options/options_storage";
 import "./family_dropdown_pre.css";
 import { isProfileEdit } from "../../core/pageType";
 import { showCopyMessage } from "../access_keys/access_keys.js";
 import "../../core/common.css";
 import { initShareableSources } from "../shareable_sources/shareable_sources.js";
+
+const WBE_FAMILY_DROPDOWN_APP_ID = "WBE_family_dropdown";
 
 // The current profile’s WikiTree ID (e.g., "Cantrell-922")
 let theID;
@@ -20,6 +22,7 @@ window.profilePersonNuclear = null;
 window.familyDropdownInitialized = false;
 
 // Fields we want from the API when fetching relatives
+// Note: Bio is included to help with the shareable sources feature
 const fields =
   "Name,FirstName,Gender,LastNameAtBirth,LastNameCurrent,Bio,BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,DataStatus,Id";
 
@@ -186,22 +189,16 @@ async function initFamilyDropdown() {
    */
   async function doFamilyDropdown(menu) {
     // Request family data via WikiTree API
-    const result = await getRelatives(
-      [theID],
-      {
-        getSpouses: true,
-        getChildren: true,
-        getParents: true,
-        getSiblings: true,
-        fields: [fields],
-        bioFormat: "text",
-      },
-      { appId: "WBE_family_dropdown" }
-    );
-    if (!result[0]) return;
+    const people = await WikiTreeAPI.getRelatives(WBE_FAMILY_DROPDOWN_APP_ID, theID, fields, {
+      getParents: 1,
+      getSiblings: 1,
+      getSpouses: 1,
+      getChildren: 1,
+    });
+    if (!people[0]) return;
 
-    window.profilePersonNuclear = result[0];
-    const profilePersonNuclear = result[0];
+    const profilePersonNuclear = people[0].person;
+    window.profilePersonNuclear = profilePersonNuclear;
 
     // Group relatives by relationship
     const familyMemberGroups = {
@@ -290,12 +287,12 @@ async function initFamilyDropdown() {
     // Add "Me" option if enabled in familyDropdown options
     if (window.familyDropdownOptions.addMeLink) {
       const userId = getUserNumId();
-      const user = await getPerson(userId, { fields: ["Name", "FirstName", "LastNameCurrent", "Bio"] });
+      const user = await WikiTreeAPI.getPerson(WBE_FAMILY_DROPDOWN_APP_ID, userId, "Name,FirstName,LastNameCurrent");
       if (user) {
         let userName = "Me";
-        if (user.FirstName) userName = user.FirstName;
-        if (user.LastNameCurrent) userName += " " + user.LastNameCurrent;
-        const wikilink = `[[${user.Name}|${userName}]]`;
+        if (user.getFirstName()) userName = user.getFirstName();
+        if (user.getLastNameCurrent()) userName += " " + user.getLastNameCurrent();
+        const wikilink = `[[${user.getName()}|${userName}]]`;
         const liMe = $(`
           <li tabindex="0" data-id="" title="Me" data-wikilink="${wikilink}">
             [Me] ${userName}
@@ -543,12 +540,12 @@ function sortSpousesByMarriageDate(spouses) {
  * @returns {Promise<{wikilink: string, person: Object, userName: string}|boolean>} Wikilink object or false if not found
  */
 async function getDataAndMakeWikilink(id) {
-  const person = await getPerson(id, { fields: ["Name", "FirstName", "LastNameCurrent", "Bio"] });
+  const person = await WikiTreeAPI.getPerson(WBE_FAMILY_DROPDOWN_APP_ID, id, "Name,FirstName,LastNameCurrent");
   if (person) {
     let personName = "";
-    if (person.FirstName) personName = person.FirstName;
-    if (person.LastNameCurrent) personName += " " + person.LastNameCurrent;
-    const wikilink = `[[${person.Name}|${personName}]]`;
+    if (person.getFirstName()) personName = person.getFirstName();
+    if (person.getLastNameCurrent()) personName += " " + person.getLastNameCurrent();
+    const wikilink = `[[${person.getName()}|${personName}]]`;
     return { wikilink, person, userName: personName };
   }
   return false;

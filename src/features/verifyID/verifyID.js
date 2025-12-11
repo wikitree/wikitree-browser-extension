@@ -9,6 +9,8 @@ import { mainDomain } from "../../core/pageType";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 
+const WBE_VERIFY_ID_APP_ID = "WBE_verify_id";
+
 shouldInitializeFeature("verifyID").then((result) => {
   if (result) {
     import("./verifyID.css");
@@ -131,7 +133,7 @@ async function checkAttachPersonID() {
     if ($(this).val().match(/.+-.+/)) {
       const theKey = $(this).val();
       window.timeoutId = setTimeout(function () {
-        WikiTreeAPI.getRelatives("WBE_verify_id", theKey, "*", {
+        WikiTreeAPI.getRelatives(WBE_VERIFY_ID_APP_ID, theKey, "*", {
           getParents: 1,
         }).then((items) => {
           $("#verification").remove();

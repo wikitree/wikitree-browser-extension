@@ -4,7 +4,6 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { getPerson } from "wikitree-js";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { treeImageURL, getUserNumId } from "../../core/common";
@@ -75,8 +74,10 @@ export async function goToRandomProfile(ourCountry = false) {
   // Quotation marks may be needed to search WT+.
   const ourCountryStripped = ourCountry.replaceAll('"', "");
   if (okLocations.includes(ourCountryStripped) && parseInt(window.searchedForRandomProfile) < 50) {
-    getPerson(randomProfileID, undefined, { appId: WBE_RP_APP_ID })
-      .then((person) => {
+    WikiTreeAPI.getPerson(WBE_RP_APP_ID, randomProfileID, "Name,Privacy_IsOpen,BirthLocation,DeathLocation")
+      .then((result) => {
+        // result is a Person object, but here it's easier to just use it's raw data
+        const person = result._data;
         // check to see if the profile is Open
         if (person.Privacy_IsOpen) {
           const link = `https://${mainDomain}/wiki/${randomProfileID}`;

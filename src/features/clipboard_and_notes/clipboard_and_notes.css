@@ -339,3 +339,7 @@ body.edit_spouse .clipboardContainer {
 body.darkMode .clipboardContainer {
   border-bottom: 10px solid inherit;
 }
+
+#privateMessageForm .clipboardContainer {
+  margin-left: 1em;
+}
