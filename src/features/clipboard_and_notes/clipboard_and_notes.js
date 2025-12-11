@@ -13,6 +13,7 @@ import {
   isAddUnrelatedPerson,
   isProfileAddRelative,
   isSpaceEdit,
+  isSpacePage,
   isProfileEdit,
   isWikiEdit,
   isSpecialTrustedList,
@@ -157,7 +158,8 @@ shouldInitializeFeature("clipboardAndNotes").then((result) => {
     window.clipboardClicker = $();
     window.lastClipboardClicker = $();
 
-    if ($("body.Special_EditPerson").length) {
+    console.log("[clipboard_and_notes] Initializing clipboard and notes feature");
+    if ($("body.Special_EditPerson").length || isSpacePage) {
       setTimeout(function () {
         if ($(".clipboardButtons").length == 0) {
           initClipboard();
@@ -624,10 +626,6 @@ async function clipboard(type, e, action = false) {
     const dbh = await initializeDatabase();
     await dbh.openCursor(CB_DB_STORE, (value, key) => {
       if (value.type == type) {
-        // console.log(
-        //   `read key:${cursor.primaryKey} (${typeof cursor.primaryKey}), type:${value.type}, group:${value.group}`,
-        //   value
-        // );
         const group = value.group || "";
         const groupItems = groupedItems.get(group) || [];
         groupItems.push({ key: key, value: value });
@@ -640,7 +638,6 @@ async function clipboard(type, e, action = false) {
   }
 
   // We've collected them all, now render them
-  // console.log("groupedItems", groupedItems);
   if (groupedItems.size > 0) $("#clipboard p").remove();
   for (const group of [...groupedItems.keys()].sort()) {
     // Render a group - the group of non-grouped items are rendered first
@@ -926,23 +923,15 @@ function scrollIfRequired(selectedRow) {
   const elementTopFVT = firstClipStartFVT + elementPos;
   const elementBottomFVT = firstClipStartFVT + elementPos + elementHeight;
 
-  // console.log(`--divScrTop=${divScrollTop},divHeight=${containerHeight}`);
-  // console.log(`tabsTop=${tabsTop},tabsHeight=${tabsHeight}`);
-  // console.log(`1stClipFromViewTop=${firstClipStartFVT}`);
-  // console.log(`elPos=${elementPos},elTopFVT=${elementTopFVT},elHeight=${elementHeight},elBotFVT=${elementBottomFVT}`);
-  // console.log(`overhang=${elementBottomFVT - containerHeight}`);
-
   // Check if the next element is below the bottom of the scrollable div
   if (elementBottomFVT > containerHeight) {
     // Scroll to bring the bottom of the next element into view
     const newScrollTop = divScrollTop + elementBottomFVT - containerHeight;
     $("#clipboard").animate({ scrollTop: newScrollTop }, 50);
-    // console.log(`newScrollTop=${newScrollTop}`);
     $("#clipboard").animate({ scrollTop: newScrollTop }, 50);
   } else if (elementTopFVT < 0) {
     // Scroll to bring the top of the next element into view
     const newScrollTop = elementTopFVT;
-    // console.log(`newScrollTop=${newScrollTop}`);
     $("#clipboard").animate({ scrollTop: newScrollTop }, 50);
   }
 }

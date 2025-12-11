@@ -387,6 +387,12 @@ async function locationsHelper() {
             added_node.classList &&
             added_node.classList.contains("autocomplete-suggestion")
           ) {
+            const rawDataVal = $(added_node).attr("data-val") || "";
+            // Ignore non-location suggestions that carry underscores in their data-val
+            if (rawDataVal.includes("_")) {
+              dbg("skip suggestion with underscore data-val", rawDataVal);
+              return;
+            }
             // Avoid reprocessing when we move the node within its container
             if ($(added_node).data("locHelperProcessed")) {
               dbg("skip already processed suggestion");

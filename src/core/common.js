@@ -17,6 +17,7 @@ import {
   isWikiEdit,
   isProfileEdit,
   isSpaceEdit,
+  isSpacePage,
   isProfileLoggedInUserPage,
   isProfileAddRelative,
   isAddUnrelatedPerson,
@@ -387,6 +388,8 @@ async function checkButtonFeatures() {
         clipboardContainer.css("float", "right");
       } else if (isMergeEdit) {
         $("#toolbar").append(clipboardContainer);
+      } else if ($(".profile--actions").length == 0) {
+        $("#Manager").closest("div").prepend(clipboardContainer);
       } else {
         $(".profile--actions.float-end").append(clipboardContainer);
         const readingModeIcon = $(".profile--actions a.action--reading-mode");
@@ -451,7 +454,6 @@ async function checkButtonFeatures() {
         createButton({ id: "notesButton", aClass: "aNotesButton", title: "Notes", img: notesImg })
       );
       if (isWikiEdit || isG2G) {
-        console.log("Adding clipboard and notes buttons to the toolbar");
         $(".wbe-button-container2").each(function () {
           $(this).append(
             createButton({
