@@ -92,7 +92,7 @@ function addExtractionButton() {
 //   Whether or not there is a photo in general
 //   Whether or not there is a grave photo specifically
 //   Link to the memorial page
-//   A WikiTree ID if a matching profile was found (optional)
+//   Links to all matching WikiTree profiles if any were found
 function processMemorialList(useWikiTreeCheck) {
   if (window.location.hostname.includes("findagrave.com") && window.location.pathname.includes("memorial-search")) {
     let totalPages =
@@ -153,32 +153,44 @@ async function extractMemorialData(useWikiTreeCheck) {
   }
 
   if (useWikiTreeCheck) {
-    const allMemorialIDs = extractedMemorials.map(memorial => memorial.memorialID);
+    const allMemorialIDs = extractedMemorials.map((memorial) => memorial.memorialID);
 
     if (DEBUG_MODE) {
-        console.log('all memorials:');
-        console.log(allMemorialIDs);
+      console.log("all memorials:");
+      console.log(allMemorialIDs);
     }
 
     await findWTMatchesInBatches(allMemorialIDs).then((wikitreeIDs) => {
-        if (wikitreeIDs.length > 0) {
-            extractedMemorials.forEach((memorial) => {
-                const match = wikitreeIDs.find(item => item.memorialID.toString() === memorial.memorialID);
-                memorial.wikiTreeIDs = match ? match.wikiTreeID : '';
-            });
+      if (wikitreeIDs != null) {
+        extractedMemorials.forEach((memorial) => {
+          const memorialMatches = wikitreeIDs[memorial.memorialID];
+
+          if (memorialMatches && memorialMatches.length > 0) {
+            const wikitreeIDsAsUrls = memorialMatches.map(
+              (wikiTreeID) => "https://www.wikitree.com/wiki/" + wikiTreeID
+            );
+            memorial.wikiTreeIDs = wikitreeIDsAsUrls.join(",");
 
             if (DEBUG_MODE) {
-                console.log('extracted memorials:');
-                console.log(extractedMemorials);
+              console.log(wikitreeIDsAsUrls);
+              console.log(memorial.wikiTreeIDs);
             }
-        }
-        else {
-            extractedMemorials.map((memorial) => {
-                memorial.wikiTreeIDs = '';
-            });
-        }
+          } else {
+            memorial.wikiTreeIDs = "";
+          }
+        });
 
-        createCSV(extractedMemorials, useWikiTreeCheck);
+        if (DEBUG_MODE) {
+          console.log("extracted memorials:");
+          console.log(extractedMemorials);
+        }
+      } else {
+        extractedMemorials.map((memorial) => {
+          memorial.wikiTreeIDs = "";
+        });
+      }
+
+      createCSV(extractedMemorials, useWikiTreeCheck);
     });
   } else {
     createCSV(extractedMemorials, useWikiTreeCheck);
@@ -225,14 +237,14 @@ function createCSV(extractedMemorials, useWikiTreeCheck) {
   let csvRows = ["FG ID,Name,Birth Date,Death Date,Has Photo,Has Grave Photo,Memorial Link"];
 
   if (useWikiTreeCheck) {
-    csvRows[0] += ",WikiTree ID";
+    csvRows[0] += ",WikiTree Link";
   }
 
   extractedMemorials.forEach((memorial) => {
     // Escape double quotes and wrap in quotes if needed
     let safeName = memorial.nameofDeceased.replace(/"/g, '""');
-    if (safeName.includes(',') || safeName.includes('"')) {
-        safeName = `"${safeName}"`;
+    if (safeName.includes(",") || safeName.includes('"')) {
+      safeName = `"${safeName}"`;
     }
 
     let row = `${memorial.memorialID},${safeName},${memorial.birthDate},${memorial.deathDate},${memorial.hasPhoto},${memorial.hasGravePhoto},${memorial.memorialLink}`;
@@ -270,20 +282,34 @@ const wtPlusBatchSize = 1000; // number of memorial IDs to query WikiTree+ for a
 
 // Query the WikiTree+ server to find matching profiles for an array of FindAGrave memorial IDs.
 async function findWTMatchesInBatches(memorialIDs) {
-    const batches = chunkArray(memorialIDs, wtPlusBatchSize);
-    let allResults = [];
-    for (const batch of batches) {
-        if (DEBUG_MODE) {
-            console.log("batch:");
-            console.log(batch);
-        }
-
-        const result = await findWTMatches(batch);
-        if (result) {
-            allResults = allResults.concat(result);
-        }
+  const batches = chunkArray(memorialIDs, wtPlusBatchSize);
+  let allResults = [];
+  for (const batch of batches) {
+    if (DEBUG_MODE) {
+      console.log("batch:");
+      console.log(batch);
     }
-    return allResults;
+
+    const result = await findWTMatches(batch);
+    if (result) {
+      allResults = allResults.concat(result);
+    }
+  }
+
+  // re-process just in case there is more than one matching WikiTree ID per memorial ID
+  let allResultsMap = {};
+
+  for (const index in allResults) {
+    const result = allResults[index];
+
+    if (!allResultsMap[result.memorialID]) {
+      allResultsMap[result.memorialID] = [];
+    }
+
+    allResultsMap[result.memorialID].push(result.wikiTreeID);
+  }
+
+  return Object.keys(allResultsMap).length > 0 ? allResultsMap : null;
 }
 
 async function findWTMatches(memorialIDs) {
@@ -321,11 +347,11 @@ async function findWTMatches(memorialIDs) {
 }
 
 function chunkArray(array, size) {
-    const result = [];
-    for (let i = 0; i < array.length; i += size) {
-        result.push(array.slice(i, i + size));
-    }
-    return result;
+  const result = [];
+  for (let i = 0; i < array.length; i += size) {
+    result.push(array.slice(i, i + size));
+  }
+  return result;
 }
 
 function showErrorPopup(message) {
