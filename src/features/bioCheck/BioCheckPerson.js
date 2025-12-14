@@ -226,6 +226,8 @@ export class BioCheckPerson {
         // to see if resolveRedirect was not honored by the API
         // look for a bio content that starts with
         // and if so set hasBio false to force a call to the getBio API
+        // Note that this might happen for check Watchlist, since the
+        // API does not honor resolveRedirect as of Dec 2025
         if (profileObj.bio.startsWith("#REDIRECT")) {
           console.log("BioCheck biography starts with #REDIRECT for profile Id " + profileObj.Id);
           this.person.hasBio = false;
