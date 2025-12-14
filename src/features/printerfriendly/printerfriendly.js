@@ -71,4 +71,8 @@ async function initPrinterFriendly() {
   if (!!options.excludeSources) {
     $("html").addClass("no-print-sources");
   }
+
+  if (!!options.excludeDistanceAndRelationship) {
+    $("html").addClass("no-print-distance-relationship");
+  }
 }

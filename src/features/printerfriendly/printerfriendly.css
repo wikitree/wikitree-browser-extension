@@ -110,13 +110,16 @@
   .print-content-only .x-widget,
   .print-content-only a[target="_map"],
   .print-content-only #searchBar,
+  .print-content-only .problemQuestionLink,
   .print-content-only.no-print-dna *[class*="section-dnaconfirmations"],
   .print-content-only.no-print-dna .section-dnaconfirmations,
   .print-content-only.no-print-research-notes .section-researchnotes,
   .print-content-only.no-print-sources .section-sources,
   .print-content-only.no-print-sources sup.reference,
   .print-content-only.no-print-vitals #nVitals,
-  .print-content-only.no-print-vitals .VITALS {
+  .print-content-only.no-print-vitals .VITALS,
+  .print-content-only.no-print-distance-relationship .distanceFromYou,
+  .print-content-only.no-print-distance-relationship .yourRelationshipText {
     display: none !important;
   }
 }
