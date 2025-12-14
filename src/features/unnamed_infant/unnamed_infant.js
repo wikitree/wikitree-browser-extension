@@ -42,7 +42,7 @@ async function getCreatedDate() {
   const urlParams = new URLSearchParams(window.location.search);
   const profileId = urlParams.get("u");
   const api = WikiTreeAPI;
-  let person = await api.getPerson("WBE_childless", profileId, ["Created"]);
+  let person = await api.getPerson("childless", profileId, ["Created"]);
   person = person._data;
   return person.Created;
 }

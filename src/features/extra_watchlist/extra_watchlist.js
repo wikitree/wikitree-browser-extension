@@ -12,6 +12,7 @@ import "./extra_watchlist.css";
 import { isOK, htmlEntities, getUserWtId, getUserNumId, profilePerson, setHighestZIndex } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 
 const CryptoJS = require("crypto-js");
 
@@ -196,67 +197,11 @@ function formDate(input) {
 // API CALL FUNCTIONS
 // ====================================================================
 
+const WBE_EW_APP_ID = "WBE_extra_watchlist";
+
 const FIELDS =
   "BirthDate,BirthDateDecade,DeathDate,DeathDateDecade,Derived.LongName,Derived.LongNamePrivate,Derived.ShortName," +
   "FirstName,Id,IsLiving,IsSpace,LastNameAtBirth,Name,PageId,RealName,Title,Touched";
-
-const get_Profile = async (id) => {
-  try {
-    const result = await $.ajax({
-      url: "https://api.wikitree.com/api.php",
-      crossDomain: true,
-      xhrFields: { withCredentials: true },
-      type: "POST",
-      dataType: "json",
-      data: {
-        action: "getProfile",
-        key: id,
-        fields: FIELDS,
-        appId: "WBE_extra_watchlist",
-      },
-    });
-    return result;
-  } catch (error) {
-    console.error(error);
-  }
-};
-
-const getPeople = async (
-  keys,
-  siblings,
-  ancestorGenerations,
-  descendantGenerations,
-  nuclear,
-  minGeneration,
-  bioFormat,
-  fields
-) => {
-  try {
-    const result = await $.ajax({
-      url: "https://api.wikitree.com/api.php",
-      crossDomain: true,
-      xhrFields: { withCredentials: true },
-      type: "POST",
-      dataType: "json",
-      data: {
-        action: "getPeople",
-        keys,
-        siblings,
-        ancestors: ancestorGenerations,
-        descendants: descendantGenerations,
-        nuclear,
-        minGeneration,
-        bioFormat,
-        fields,
-        resolveRedirect: 1,
-        appId: "WBE_extra_watchlist",
-      },
-    });
-    return result;
-  } catch (error) {
-    console.error(error);
-  }
-};
 
 function extractPerson(data) {
   let bYear = data?.BirthDate?.substr(0, 4) || "";
@@ -327,13 +272,10 @@ const doExtraWatchlist = () => {
         const handlePersonPages = () => {
           const personPromises = [];
           while (personPages.length) {
-            const splicedArray = personPages.splice(0, 1000);
-            const keys = splicedArray.join(",");
+            const keys = personPages.splice(0, 1000);
             personPromises.push(
-              getPeople(keys, 0, 0, 0, 0, 0, 0, FIELDS).then((data) => {
-                const status = data[0]?.status;
+              WikiTreeAPI.getPeople(WBE_EW_APP_ID, keys, FIELDS).then(([status, , people]) => {
                 if (status !== "") errors.push(status);
-                const people = data[0].people;
                 const extractedData = Object.keys(people).map((aKey) => extractPerson(people[aKey]));
                 ewData.push(...extractedData);
                 redrawPeopleTable();
@@ -348,11 +290,14 @@ const doExtraWatchlist = () => {
           // console.log("spacePages", spacePages);
           const spacePromises = spacePages.map(async (aKey) => {
             //  console.log("aKey", aKey);
-            const fsp = await get_Profile(decodeURIComponent(aKey));
-            const status = fsp[0]?.status;
+            const [profile, status, page_name] = await WikiTreeAPI.getProfile(
+              WBE_EW_APP_ID,
+              decodeURIComponent(aKey),
+              FIELDS
+            );
             if (status != 0) errors.push(status);
-            //  console.log("fsp", fsp[0]);
-            const fspData = extractFSP(fsp[0]);
+            //  console.log("fsp", { profile, status, page_name });
+            const fspData = extractFSP({ profile, status, page_name });
             ewData.push(fspData);
           });
           return Promise.all(spacePromises);
@@ -470,20 +415,22 @@ const extraWatchlist = async () => {
       list.push(currentID);
       //console.log(currentID);
       // console.log(decodeURIComponent(currentID));
-      get_Profile(decodeURIComponent(currentID)).then((response) => {
-        const visible = $("#extraWatchlistWindow").is(":visible");
-        if (response[0].profile?.IsSpace) {
-          const record = extractFSP(response[0]);
-          ewData.push(record);
-          if (visible) spaceTable.row.add(record).draw(false);
-        } else {
-          const record = extractPerson(response[0].profile);
-          ewData.push(record);
-          if (visible) peopleTable.row.add(record).draw(false);
+      WikiTreeAPI.getProfile(WBE_EW_APP_ID, decodeURIComponent(currentID), FIELDS).then(
+        ([profile, status, page_name]) => {
+          const visible = $("#extraWatchlistWindow").is(":visible");
+          if (profile?.IsSpace) {
+            const record = extractFSP({ profile, status, page_name });
+            ewData.push(record);
+            if (visible) spaceTable.row.add(record).draw(false);
+          } else {
+            const record = extractPerson(profile);
+            ewData.push(record);
+            if (visible) peopleTable.row.add(record).draw(false);
+          }
+          saveWatchList(list);
+          setPlusButton();
         }
-        saveWatchList(list);
-        setPlusButton();
-      });
+      );
     }
   });
 };

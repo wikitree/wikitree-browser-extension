@@ -1,6 +1,5 @@
 import $ from "jquery";
-import { getPeople } from "../dna_table/dna_table";
-import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { PersonName } from "./person_name.js";
 import { countries } from "./countries.js";
 import { needsCategories } from "./needs.js";
@@ -23,6 +22,36 @@ import { bioTimelineFacts, buildTimelineTable, buildTimelineSA } from "./timelin
 import { mainDomain, isIansProfile } from "../../core/pageType";
 import { profilePerson } from "../../core/common";
 import ONSjson from "./ONS.json";
+
+// lightweight debug logger and merge helper used across this module
+function wbeLog(level, ...args) {
+  try {
+    if (window && window.autoBioOptions && window.autoBioOptions.debug) {
+      const fn = console[level] || console.log;
+      fn.apply(console, ["[auto_bio]", ...args]);
+    }
+  } catch (e) {
+    // ignore logging errors
+  }
+}
+
+function logMerge(aRef, res, label) {
+  if (!res) return aRef;
+  if (res === aRef) return aRef;
+  try {
+    const before = new Set(Object.keys(aRef || {}));
+    Object.assign(aRef, res);
+    const added = Object.keys(aRef).filter((k) => !before.has(k) && k !== "Text");
+    if (added.length) {
+      wbeLog("debug", `[auto_bio][merge:${label}] added keys:`, added);
+    }
+  } catch (e) {
+    // merging failed — silently continue
+  }
+  return aRef;
+}
+
+export const WBE_AUTO_BIO_APP_ID = "WBE_auto_bio";
 
 const appalachiaStates = [
   "Alabama",
@@ -1732,6 +1761,19 @@ export function buildSpouses(person) {
   }
   let spouseKeys = Object.keys(person.Spouses);
   console.log("[buildSpouses] Found spouse keys:", spouseKeys);
+  console.log("[buildSpouses] window.references count:", window.references ? window.references.length : 0);
+  try {
+    const marriageRefs = (window.references || []).filter(
+      (r) => r && r["Record Type"] && r["Record Type"].includes("Marriage")
+    );
+    console.log(
+      "[buildSpouses] marriage refs:",
+      marriageRefs.length,
+      marriageRefs.map((r) => r.RefName || r.Year || r["Spouse Name"])
+    );
+  } catch (e) {
+    console.debug("[buildSpouses] error listing marriage refs", e);
+  }
   let marriages = [];
   let firstNameAndYear = [];
 
@@ -1774,8 +1816,149 @@ export function buildSpouses(person) {
 
     spouseKeys.forEach(function (key) {
       console.log(`[buildSpouses] Processing spouse key: ${key}`);
+      console.debug(`[buildSpouses] spouse before processing:`, JSON.parse(JSON.stringify(person.Spouses[key] || {})));
       let text = "";
       let spouse = person.Spouses[key];
+      // If API data for this spouse is missing some fields, try to merge parsed citation data
+      try {
+        if (window.references && spouse) {
+          for (const ref of window.references) {
+            // lightweight tracing for each marriage reference checked
+            try {
+              console.debug(
+                "[buildSpouses][checking ref]",
+                ref?.RefName || ref?.Year || ref?.["Spouse Name"],
+                "RecordType:",
+                ref?.["Record Type"]
+              );
+            } catch (e) {}
+            if (!ref || !ref["Record Type"] || !ref["Record Type"].includes("Marriage")) continue;
+            // Prefer structured ref.Spouse if present, otherwise try Person1/Person2
+            let parsed = null;
+            if (ref.Spouse) {
+              console.info("[buildSpouses][merge] ref has structured Spouse", ref.RefName || ref.Year, ref.Spouse);
+              parsed = ref.Spouse;
+            } else if (ref.Person1 || ref.Person2) {
+              // Try to pick the spouse entry (the one whose name doesn't match profile)
+              const p1 = ref.Person1;
+              const p2 = ref.Person2;
+              const profileName = window.profilePerson?.PersonName?.FullName || window.profilePerson?.Name || "";
+              if (p1 && p2) {
+                if (profileName && profileName && p1.Name && profileName.includes(p1.Name)) {
+                  parsed = p2;
+                } else if (profileName && p2.Name && profileName.includes(p2.Name)) {
+                  parsed = p1;
+                } else if (
+                  p2 &&
+                  spouse.PersonName &&
+                  spouse.PersonName.FirstName &&
+                  p2.Name &&
+                  p2.Name.includes(spouse.PersonName.FirstName)
+                ) {
+                  parsed = p2;
+                } else if (
+                  p1 &&
+                  spouse.PersonName &&
+                  spouse.PersonName.FirstName &&
+                  p1.Name &&
+                  p1.Name.includes(spouse.PersonName.FirstName)
+                ) {
+                  parsed = p1;
+                } else {
+                  parsed = p2; // fallback
+                }
+              } else {
+                parsed = p1 || p2 || null;
+              }
+            } else if (ref["Spouse Name"]) {
+              // minimal match on first name
+              const first =
+                spouse.PersonName?.FirstName || spouse.PersonName?.FirstNames || spouse.PersonName?.FullName || "";
+              if (first && ref["Spouse Name"].toLowerCase().includes(first.split(" ")[0].toLowerCase())) {
+                parsed = {
+                  FullName: ref["Spouse Name"],
+                  Parents: ref["Spouse Parents"] || "",
+                  Age: ref["Spouse Age"] || "",
+                };
+              }
+            }
+
+            if (!parsed) continue;
+
+            console.info(`[buildSpouses][merge] selected parsed from ref ${ref.RefName || ref.Year}:`, parsed);
+            try {
+              console.debug("[buildSpouses][merge] spouse before merge", JSON.parse(JSON.stringify(spouse)));
+            } catch (e) {}
+
+            // Match by year if possible
+            const refYear = ref.Year || (ref["Marriage Date"] && ref["Marriage Date"].match(/(\d{4})/)?.[1]);
+            const spouseYear = spouse.marriage_date && spouse.marriage_date.match(/(\d{4})/)?.[1];
+            const nameMatch = (parsed.FullName || parsed.Name || "")
+              .toLowerCase()
+              .includes((spouse.PersonName?.FirstName || "").toLowerCase());
+            if (spouseYear && refYear && spouseYear != refYear && !nameMatch) {
+              continue; // likely not the same event
+            }
+
+            // Merge parsed fields into spouse where missing
+            if (!spouse.Father && parsed.Parents) {
+              // try to split parsed.Parents into father/mother
+              const parts = parsed.Parents.split(/\s*(?:&|and)\s*/i)
+                .map((s) => s.trim())
+                .filter(Boolean);
+              if (parts[0]) spouse.Father = spouse.Father || parts[0];
+              if (parts[1]) spouse.Mother = spouse.Mother || parts[1];
+            }
+            // Also set a generic Parents string if missing (normalize '&' to 'and')
+            if (!spouse.Parents && parsed.Parents) {
+              try {
+                spouse.Parents = parsed.Parents.replace(/\s*&\s*/g, " and ").trim();
+              } catch (e) {
+                spouse.Parents = parsed.Parents;
+              }
+            }
+            // Merge name information if the API spouse lacks it
+            if ((!spouse.PersonName || !spouse.PersonName.FullName) && (parsed.FullName || parsed.Name)) {
+              const full = parsed.FullName || parsed.Name;
+              spouse.PersonName = spouse.PersonName || {};
+              spouse.PersonName.FullName = spouse.PersonName.FullName || full;
+              // try to populate FirstName and LastName conservatively
+              if (!spouse.PersonName.FirstName) {
+                spouse.PersonName.FirstName = full.split(" ").slice(0, -1).join(" ") || full.split(" ")[0] || "";
+              }
+              if (!spouse.LastNameAtBirth) {
+                const parts = full.split(" ");
+                spouse.LastNameAtBirth = spouse.LastNameAtBirth || parts[parts.length - 1] || "";
+              }
+            }
+            if (!spouse.BirthDate && (parsed.BirthYearApprox || parsed.Age)) {
+              const by =
+                parsed.BirthYearApprox || (ref.Year ? parseInt(ref.Year, 10) - parseInt(parsed.Age || "0", 10) : null);
+              if (by) spouse.BirthDate = `${by}-00-00`;
+            }
+            if (!spouse.BirthLocation && ref["Marriage Place"]) {
+              // no reliable birth location, but at least keep marriage place on the parsed spouse for narrative
+              spouse.marriage_location = spouse.marriage_location || ref["Marriage Place"];
+            }
+            // store raw parsed parents if not mapped
+            spouse.ParsedParents = spouse.ParsedParents || parsed.Parents || "";
+            console.info("[buildSpouses][merge] spouse after merge fields:", {
+              FullName: spouse.PersonName?.FullName,
+              FirstName: spouse.PersonName?.FirstName,
+              LastNameAtBirth: spouse.LastNameAtBirth,
+              Parents: spouse.Parents,
+              Father: spouse.Father,
+              Mother: spouse.Mother,
+              BirthDate: spouse.BirthDate,
+              ParsedParents: spouse.ParsedParents,
+            });
+            // break after first reasonable match
+            break;
+          }
+        }
+      } catch (err) {
+        console.error("Error merging parsed citation data into spouse:", err);
+      }
       let marriageAge = "";
       firstNameAndYear.push({ FirstName: spouse.PersonName?.FirstName, Year: spouse.marriage_date?.substring(4) });
       let spouseMarriageAge = "";
@@ -1823,16 +2006,31 @@ export function buildSpouses(person) {
             spouseDetailsB += " of ";
 
             if (spouse.Father) {
-              let spouseFather = window.biographySpouseParents?.[0]?.people[spouse.Father];
-              if (spouseFather) {
-                if (spouseFather.Name) {
-                  spouseDetailsA += "[[" + spouseFather.Name + "|" + spouseFather.PersonName?.FullName + "]]";
-                  spouseDetailsB += "[[" + spouseFather.Name + "|" + spouseFather.PersonName?.FullName + "]]";
+              // Try to resolve numeric WT profile id first; otherwise treat as raw name string
+              let spouseFatherObj = null;
+              try {
+                const peopleMap = window.biographySpouseParents?.[0]?.people;
+                if (peopleMap) {
+                  // If spouse.Father looks like an id (number or numeric string), try lookup
+                  if (Number.isInteger(spouse.Father) || /^\d+$/.test(String(spouse.Father))) {
+                    spouseFatherObj = peopleMap[spouse.Father];
+                  }
                 }
-                if (spouseFather.BirthDate && window.autoBioOptions?.includeSpouseParentsDates) {
-                  spouseDetailsA += " " + formatDates(spouseFather);
-                  spouseDetailsB += " " + formatDates(spouseFather);
+              } catch (e) {
+                spouseFatherObj = null;
+              }
+
+              if (spouseFatherObj && spouseFatherObj.Name) {
+                spouseDetailsA += "[[" + spouseFatherObj.Name + "|" + spouseFatherObj.PersonName?.FullName + "]]";
+                spouseDetailsB += "[[" + spouseFatherObj.Name + "|" + spouseFatherObj.PersonName?.FullName + "]]";
+                if (spouseFatherObj.BirthDate && window.autoBioOptions?.includeSpouseParentsDates) {
+                  spouseDetailsA += " " + formatDates(spouseFatherObj);
+                  spouseDetailsB += " " + formatDates(spouseFatherObj);
                 }
+              } else if (typeof spouse.Father === "string" && spouse.Father.trim()) {
+                // Use the raw parent name from parsed citation when no WT profile exists
+                spouseDetailsA += spouse.Father;
+                spouseDetailsB += spouse.Father;
               } else {
                 spouseDetailsA += "[father]";
                 spouseDetailsB += "[father]";
@@ -1843,16 +2041,30 @@ export function buildSpouses(person) {
               spouseDetailsB += " and ";
             }
             if (spouse.Mother) {
-              let spouseMother = window.biographySpouseParents?.[0]?.people[spouse.Mother];
-              if (spouseMother) {
-                if (spouseMother.Name) {
-                  spouseDetailsA += "[[" + spouseMother.Name + "|" + spouseMother.PersonName?.FullName + "]]";
-                  spouseDetailsB += "[[" + spouseMother.Name + "|" + spouseMother.PersonName?.FullName + "]]";
+              // Try to resolve numeric WT profile id first; otherwise treat as raw name string
+              let spouseMotherObj = null;
+              try {
+                const peopleMap = window.biographySpouseParents?.[0]?.people;
+                if (peopleMap) {
+                  if (Number.isInteger(spouse.Mother) || /^\d+$/.test(String(spouse.Mother))) {
+                    spouseMotherObj = peopleMap[spouse.Mother];
+                  }
                 }
-                if (spouseMother.BirthDate && window.autoBioOptions?.includeSpouseParentsDates) {
-                  spouseDetailsA += " " + formatDates(spouseMother);
-                  spouseDetailsB += " " + formatDates(spouseMother);
+              } catch (e) {
+                spouseMotherObj = null;
+              }
+
+              if (spouseMotherObj && spouseMotherObj.Name) {
+                spouseDetailsA += "[[" + spouseMotherObj.Name + "|" + spouseMotherObj.PersonName?.FullName + "]]";
+                spouseDetailsB += "[[" + spouseMotherObj.Name + "|" + spouseMotherObj.PersonName?.FullName + "]]";
+                if (spouseMotherObj.BirthDate && window.autoBioOptions?.includeSpouseParentsDates) {
+                  spouseDetailsA += " " + formatDates(spouseMotherObj);
+                  spouseDetailsB += " " + formatDates(spouseMotherObj);
                 }
+              } else if (typeof spouse.Mother === "string" && spouse.Mother.trim()) {
+                // Use the raw parent name from parsed citation when no WT profile exists
+                spouseDetailsA += spouse.Mother;
+                spouseDetailsB += spouse.Mother;
               } else {
                 spouseDetailsA += "[mother]";
                 spouseDetailsB += "[mother]";
@@ -1971,7 +2183,8 @@ export function buildSpouses(person) {
         });
         if (foundSpouse == false && thisSpouse) {
           console.log("[buildSpouses] Unmatched reference for spouse:", { thisSpouse, firstNameAndYear });
-          let text = "";
+          let text = ""; // ensure text is defined for later Narrative assembly
+          // compute marriage date and the profile person's age at that marriage
           let marriageDate = "";
           if (reference["Marriage Date"]) {
             marriageDate = getYYYYMMDD(reference["Marriage Date"]);
@@ -1983,17 +2196,134 @@ export function buildSpouses(person) {
           if (isOK(age)) {
             marriageAge = ` (${age})`;
           }
-          text += person.PersonName?.FirstName + marriageAge + " married " + thisSpouse;
-          if (reference["Marriage Place"]) {
-            text += " in " + reference["Marriage Place"];
+          // Build a richer spouse object from parsed citation data when available
+          let spouseFromRef = { FullName: thisSpouse, marriage_date: marriageDate };
+          try {
+            // Prefer structured reference.Spouse
+            let parsed = null;
+            if (reference.Spouse) parsed = reference.Spouse;
+            else if (reference.Person2 || reference.Person1) {
+              // pick the partner who is not the profile person if possible
+              const profName = window.profilePerson?.PersonName?.FullName || window.profilePerson?.Name || "";
+              const p1 = reference.Person1;
+              const p2 = reference.Person2;
+              if (p1 && p2) {
+                if (profName && p1.Name && profName.includes(p1.Name)) parsed = p2;
+                else if (profName && p2.Name && profName.includes(p2.Name)) parsed = p1;
+                else parsed = p2 || p1;
+              } else {
+                parsed = p2 || p1 || null;
+              }
+            }
+
+            if (parsed) {
+              // Initialize spouseFromRef with parsed fields conservatively
+              spouseFromRef = spouseFromRef || {};
+              const full = parsed.FullName || parsed.Name || spouseFromRef.FullName || thisSpouse;
+              spouseFromRef.PersonName = spouseFromRef.PersonName || {};
+              spouseFromRef.PersonName.FullName = spouseFromRef.PersonName.FullName || full;
+              if (!spouseFromRef.PersonName.FirstName) {
+                const parts = full.split(" ");
+                spouseFromRef.PersonName.FirstName = parts.slice(0, -1).join(" ") || parts[0] || "";
+              }
+              if (!spouseFromRef.LastNameAtBirth) {
+                const parts = full.split(" ");
+                spouseFromRef.LastNameAtBirth = parts[parts.length - 1] || "";
+              }
+              // Parents (normalize '&' to 'and' for presentation)
+              if (parsed.Parents) {
+                try {
+                  spouseFromRef.Parents = spouseFromRef.Parents || parsed.Parents.replace(/\s*&\s*/g, " and ").trim();
+                } catch (e) {
+                  spouseFromRef.Parents = spouseFromRef.Parents || parsed.Parents;
+                }
+              }
+              if (!spouseFromRef.Father || !spouseFromRef.Mother) {
+                const parts = (parsed.Parents || "")
+                  .split(/\s*(?:&|and)\s*/i)
+                  .map((s) => s.trim())
+                  .filter(Boolean);
+                if (parts[0]) spouseFromRef.Father = spouseFromRef.Father || parts[0];
+                if (parts[1]) spouseFromRef.Mother = spouseFromRef.Mother || parts[1];
+              }
+              // Birth year/age -> BirthDate
+              if (!spouseFromRef.BirthDate && (parsed.BirthYearApprox || parsed.Age)) {
+                const by =
+                  parsed.BirthYearApprox ||
+                  (reference.Year ? parseInt(reference.Year, 10) - parseInt(parsed.Age || "0", 10) : null);
+                if (by) spouseFromRef.BirthDate = `${by}-00-00`;
+              }
+              // marriage location
+              if (!spouseFromRef.marriage_location && reference["Marriage Place"])
+                spouseFromRef.marriage_location = reference["Marriage Place"];
+              // preserve raw parsed parents
+              spouseFromRef.ParsedParents = spouseFromRef.ParsedParents || parsed.Parents || "";
+            }
+          } catch (err) {
+            console.error("Error building spouse from reference:", err);
           }
-          if (reference["Marriage Date"]) {
-            const showMarriageDate = formatDate(reference["Marriage Date"], "", { needOn: true }).replace(/\s0/, " ");
-            text += " " + showMarriageDate;
+          console.info("[buildSpouses][ref-spouse] spouseFromRef constructed:", spouseFromRef);
+
+          // If we have parsed fields on the constructed spouse, append them
+          // to the narrative so the parsed data from the citation is used
+          // when the API has no matching spouse data.
+          try {
+            let extraDetails = "";
+            // Append parent information if available and option enabled
+            if (
+              window.autoBioOptions?.spouseParentDetails &&
+              (spouseFromRef.Parents || spouseFromRef.Father || spouseFromRef.Mother)
+            ) {
+              let parentsText =
+                spouseFromRef.Parents || [spouseFromRef.Father, spouseFromRef.Mother].filter(Boolean).join(" and ");
+              try {
+                parentsText = parentsText.replace(/\s*&\s*/g, " and ").trim();
+              } catch (e) {}
+              if (parentsText && parentsText.trim()) {
+                const childWord =
+                  spouseFromRef.Gender == "Male" ? "son" : spouseFromRef.Gender == "Female" ? "daughter" : "child";
+                extraDetails +=
+                  " " +
+                  (spouseFromRef.PersonName?.FirstName || spouseFromRef.FullName || "The spouse") +
+                  " was the " +
+                  childWord +
+                  " of " +
+                  parentsText +
+                  ".";
+              }
+            }
+            // (Do not append a 'was born ...' sentence for reference-built spouses; age will be shown inline)
+
+            // After we've built extraDetails (parents etc.), build the main marriage sentence including spouse age
+            let spouseMarriageAge = "";
+            try {
+              if (spouseFromRef.BirthDate && marriageDate && window.autoBioOptions?.includeAgesAtMarriage) {
+                const sAge = getAgeFromISODates(spouseFromRef.BirthDate, marriageDate);
+                if (isOK(sAge)) spouseMarriageAge = ` (${sAge})`;
+              }
+            } catch (e) {}
+
+            // assemble main marriage sentence
+            text = (person.PersonName?.FirstName || "") + marriageAge + " married " + thisSpouse + spouseMarriageAge;
+            if (reference["Marriage Place"]) {
+              text += " in " + reference["Marriage Place"];
+            }
+            if (reference["Marriage Date"]) {
+              const showMarriageDate = formatDate(reference["Marriage Date"], "", { needOn: true }).replace(/\s0/, " ");
+              text += " " + showMarriageDate;
+            }
+            text = text.trim();
+            if (!text.endsWith(".")) text += ".";
+
+            if (extraDetails) {
+              text += " " + extraDetails;
+            }
+          } catch (e) {
+            console.debug("[buildSpouses] error appending parsed spouse details:", e);
           }
-          text += ".";
+
           marriages.push({
-            Spouse: { FullName: thisSpouse, marriage_date: marriageDate },
+            Spouse: spouseFromRef,
             SpouseChildren: "",
             Narrative: `${text}<ref name="ref_${i}">${reference.Text}</ref>`,
             OrderDate: marriageDate?.replaceAll("-", ""),
@@ -5110,25 +5440,25 @@ export function sourcesArray(bio) {
         const table = tableMatch[0];
         aRef.Household = parseFamilyData(table, { format: "wikitable" });
       }
-      aRef = parseSourcerFamilyListWithBRs(aRef);
-      aRef = doHousehold(aRef);
+      logMerge(aRef, parseSourcerFamilyListWithBRs(aRef), "parseSourcerFamilyListWithBRs");
+      logMerge(aRef, doHousehold(aRef), "doHousehold");
     }
     let table = parseWikiTable(aRef);
-    Object.assign(aRef, table);
+    logMerge(aRef, table, "parseWikiTable");
 
     // Parse FreeREG
     if (aRef.Text.match(/freereg.org.uk/)) {
-      aRef = parseFreeReg(aRef);
+      logMerge(aRef, parseFreeReg(aRef), "parseFreeReg");
     }
 
     // Parse FreeCen
     if (aRef.Text.match(/FreeCen Transcription/i)) {
-      aRef = parseFreeCen(aRef);
+      logMerge(aRef, parseFreeCen(aRef), "parseFreeCen");
     }
 
     // Parse NZ BDM
     if (aRef.Text.match(/\bNZ\b/) && aRef.Text.match(/\bBDM\b/)) {
-      aRef = parseNZBDM(aRef);
+      logMerge(aRef, parseNZBDM(aRef), "parseNZBDM");
     }
 
     if (aRef["Record Type"]) {
@@ -5388,6 +5718,54 @@ export function sourcesArray(bio) {
 
       aRef.OrderDate = formatDate(aRef["Marriage Date"], 0, { format: 8 });
       console.log("OrderDate set:", aRef.OrderDate);
+
+      // Additional fallback: simple "Name (age) ... marriage to Name2 (age)" extractor
+      try {
+        const hasSpouseFields = aRef.Spouse || aRef["Spouse Name"] || aRef.Person1 || aRef.Person2;
+        if (!hasSpouseFields && /marriage to/i.test(aRef.Text)) {
+          const simple = aRef.Text.match(
+            /([A-Z][A-Za-z\-\s\.']{1,80}?)\s*\(\s*(\d{1,3})\s*\)[^\.\n]*marriage to\s*([A-Z][A-Za-z\-\s\.']{1,80}?)\s*\(\s*(\d{1,3})\s*\)/i
+          );
+          if (simple) {
+            const p1name = simple[1].trim();
+            const p1age = simple[2] || "";
+            const p2name = simple[3].trim();
+            const p2age = simple[4] || "";
+            const parents1 = aRef.Text.match(/\bson of ([^,]+)/i);
+            const parents2 = aRef.Text.match(/\bdaughter of ([^,]+)/i);
+            const p1parents = parents1 ? parents1[1].trim() : "";
+            const p2parents = parents2 ? parents2[1].trim() : "";
+
+            aRef.Couple = aRef.Couple || [p1name, p2name];
+            aRef.Person1 = aRef.Person1 || { Name: p1name, Age: p1age, Parents: p1parents };
+            aRef.Person2 = aRef.Person2 || { Name: p2name, Age: p2age, Parents: p2parents };
+            aRef["Person1 Age"] = aRef["Person1 Age"] || p1age;
+            aRef["Person2 Age"] = aRef["Person2 Age"] || p2age;
+            aRef["Person1 Parents"] = aRef["Person1 Parents"] || p1parents;
+            aRef["Person2 Parents"] = aRef["Person2 Parents"] || p2parents;
+
+            // Heuristic: decide which is spouse vs profile
+            if (!aRef.Spouse) {
+              const profFirst = window.profilePerson?.PersonName?.FirstName || window.profilePerson?.FirstName || "";
+              if (profFirst && new RegExp(`\\b${profFirst}\\b`, "i").test(p1name)) {
+                aRef.Spouse = { FullName: p2name, Age: p2age, Parents: p2parents };
+                aRef.ProfilePerson = { Name: p1name, Age: p1age, Parents: p1parents };
+              } else {
+                aRef.Spouse = { FullName: p1name, Age: p1age, Parents: p1parents };
+                aRef.ProfilePerson = { Name: p2name, Age: p2age, Parents: p2parents };
+              }
+            }
+            aRef["Spouse Name"] = aRef["Spouse Name"] || aRef.Spouse.FullName;
+            aRef["Spouse Age"] = aRef["Spouse Age"] || aRef.Spouse.Age;
+            aRef["Spouse Parents"] = aRef["Spouse Parents"] || aRef.Spouse.Parents;
+            aRef["Age"] = aRef["Age"] || aRef.ProfilePerson.Age;
+            aRef["Parents"] = aRef["Parents"] || aRef.ProfilePerson.Parents;
+            console.log("Simple marriage parse applied:", aRef.Couple, aRef["Spouse Name"]);
+          }
+        }
+      } catch (e) {
+        console.error("Simple marriage parse failed:", e);
+      }
     }
 
     if (aRef.Text.match(/Divorce Records/) && aRef.Text.match(/Marriage and/) == null) {
@@ -5805,83 +6183,99 @@ function getFamilyFromCitations() {
       if (aRef.Name) {
         refFirstName = aRef.Name?.split(" ")[0];
       }
-      // Find window.profilePerson.Children[...] where key starts with refFirstName
-      const childMatch = Object.keys(window.profilePerson.Children).filter((key) => key.startsWith(refFirstName));
-
-      if (childMatch.length) {
-        window.profilePerson.Children[childMatch[0]].DeathDate = getYYYYMMDD(aRef["Death Date"]);
+      // (Note) previous code here attempted to set aRef.Spouse/ProfilePerson
+      // using variables (p1name/p2name/etc.) that don't exist in this
+      // 'Death of' branch. Remove those erroneous assignments and
+      // proceed defensively below.
+      if (typeof childMatch !== "undefined" && childMatch && window.profilePerson.Children[childMatch[0]]) {
         window.profilePerson.Children[childMatch[0]].DeathLocation = aRef["Death Place"];
       }
     }
-  });
-}
+    // Populate legacy flat fields if not present (use defensive checks)
+    aRef["Spouse Name"] = aRef["Spouse Name"] || (aRef.Spouse && aRef.Spouse.FullName) || "";
+    aRef["Spouse Age"] = aRef["Spouse Age"] || (aRef.Spouse && aRef.Spouse.Age) || "";
+    aRef["Spouse Parents"] = aRef["Spouse Parents"] || (aRef.Spouse && aRef.Spouse.Parents) || "";
+    aRef["Age"] = aRef["Age"] || (aRef.ProfilePerson && aRef.ProfilePerson.Age) || "";
+    aRef["Parents"] = aRef["Parents"] || (aRef.ProfilePerson && aRef.ProfilePerson.Parents) || "";
 
-function addRelationsToSourcerCensuses(censuses) {
-  censuses.forEach(function (aCensus) {
-    if (aCensus.Household) {
-      aCensus.Household.forEach(function (aMember) {
-        if (aMember.Sex) {
-          if (aMember.Sex == "M") {
-            aMember.Gender = "Male";
-          } else if (aMember.Sex == "F") {
-            aMember.Gender = "Female";
-          }
+    // Numeric ages and approximate birth years (use marriage year if available)
+    try {
+      const marriageYear = aRef.Year ? parseInt(aRef.Year, 10) : (aRef["Marriage Date"] || "").match(/(\d{4})/)?.[1];
+      const p1ageNum =
+        typeof p1age !== "undefined"
+          ? parseInt(p1age, 10) || null
+          : aRef.Person1
+          ? parseInt(aRef.Person1.Age, 10) || null
+          : null;
+      const p2ageNum =
+        typeof p2age !== "undefined"
+          ? parseInt(p2age, 10) || null
+          : aRef.Person2
+          ? parseInt(aRef.Person2.Age, 10) || null
+          : null;
+      if (p1ageNum && aRef.Person1) {
+        aRef.Person1.AgeAtMarriage = p1ageNum;
+        aRef["Person1 Age"] = aRef["Person1 Age"] || String(p1ageNum);
+        if (marriageYear) {
+          aRef.Person1.BirthYearApprox = marriageYear - p1ageNum;
+          aRef["Person1 Birth Year"] = aRef["Person1 Birth Year"] || String(aRef.Person1.BirthYearApprox);
         }
-        ["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
-          let oKeys = Object.keys(window.profilePerson[relation]);
-          oKeys.forEach(function (aKey) {
-            let aPerson = window.profilePerson[relation][aKey];
-            let theRelation;
-            if (isSameName(aMember.Name, getNameVariants(aPerson))) {
-              if (aPerson.Gender) {
-                aMember.Gender = aPerson.Gender;
-                if (aMember.Gender == "Male") {
-                  theRelation =
-                    relation == "Parents"
-                      ? "Father"
-                      : relation == "Siblings"
-                      ? "Brother"
-                      : relation == "Spouses"
-                      ? "Husband"
-                      : relation == "Children"
-                      ? "Son"
-                      : "";
-                }
-                if (aMember.Gender == "Female") {
-                  theRelation =
-                    relation == "Parents"
-                      ? "Mother"
-                      : relation == "Siblings"
-                      ? "Sister"
-                      : relation == "Spouses"
-                      ? "Wife"
-                      : relation == "Children"
-                      ? "Daughter"
-                      : "";
-                }
-              }
-              if (isOK(aPerson.BirthDate)) {
-                let memberAge = aMember.Age;
-                if (aMember.Age) {
-                  if (aMember.Age.match(/weeks|months/)) {
-                    memberAge = 0;
-                  }
-                }
-                if (isWithinX(getAgeAtCensus(aPerson, aCensus["Census Year"]), memberAge, 4)) {
-                  aMember.Relation = theRelation;
-                  aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
-                }
-              } else {
-                aMember.Relation = theRelation;
-                aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
-              }
-            }
-          });
-        });
-      });
+      }
+      if (p2ageNum && aRef.Person2) {
+        aRef.Person2.AgeAtMarriage = p2ageNum;
+        aRef["Person2 Age"] = aRef["Person2 Age"] || String(p2ageNum);
+        if (marriageYear) {
+          aRef.Person2.BirthYearApprox = marriageYear - p2ageNum;
+          aRef["Person2 Birth Year"] = aRef["Person2 Birth Year"] || String(aRef.Person2.BirthYearApprox);
+        }
+      }
+
+      // Attach birth year to Spouse/ProfilePerson as well
+      if (aRef.Spouse) {
+        const spouseAgeNum = parseInt(aRef.Spouse.Age, 10) || aRef.Spouse.AgeAtMarriage || null;
+        if (spouseAgeNum && marriageYear) {
+          aRef.Spouse.BirthYearApprox = marriageYear - spouseAgeNum;
+          aRef["Spouse Birth Year"] = aRef["Spouse Birth Year"] || String(aRef.Spouse.BirthYearApprox);
+        }
+      }
+      if (aRef.ProfilePerson) {
+        const profAgeNum = parseInt(aRef.ProfilePerson.Age, 10) || aRef.ProfilePerson.AgeAtMarriage || null;
+        if (profAgeNum && marriageYear) {
+          aRef.ProfilePerson.BirthYearApprox = marriageYear - profAgeNum;
+          aRef["Profile Birth Year"] = aRef["Profile Birth Year"] || String(aRef.ProfilePerson.BirthYearApprox);
+        }
+      }
+    } catch (err) {
+      // ignore calculation errors
     }
+
+    // Split parents into Father/Mother if possible (defensive)
+    try {
+      const splitParents = (pstr) => {
+        if (!pstr) return { Father: "", Mother: "" };
+        const parts = pstr
+          .split(/\s*(?:&|and)\s*/i)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        return { Father: parts[0] || "", Mother: parts[1] || "" };
+      };
+      if (aRef.Spouse) {
+        const sParents = splitParents(aRef.Spouse.Parents || "");
+        aRef.Spouse.Father = aRef.Spouse.Father || sParents.Father;
+        aRef.Spouse.Mother = aRef.Spouse.Mother || sParents.Mother;
+      }
+      if (aRef.ProfilePerson) {
+        const profParents = splitParents(aRef.ProfilePerson.Parents || "");
+        aRef.ProfilePerson.Father = aRef.ProfilePerson.Father || profParents.Father;
+        aRef.ProfilePerson.Mother = aRef.ProfilePerson.Mother || profParents.Mother;
+      }
+    } catch (err) {
+      // ignore parent-splitting errors
+    }
+
+    console.log("Simple marriage parse applied:", aRef.Couple, aRef["Spouse Name"]);
   });
-  return censuses;
+  return;
 }
 
 function logNow(myVar) {
@@ -6034,6 +6428,26 @@ function getSourcerCensuses() {
   }
   censuses.forEach(assignSelf);
   censuses.forEach(processCensus);
+  // Ensure sourcer-style census relations are normalized
+  if (typeof addRelationsToSourcerCensuses !== "function") {
+    // provide a minimal implementation if missing
+    var addRelationsToSourcerCensuses = function (censusesArr) {
+      if (!Array.isArray(censusesArr)) return censusesArr;
+      censusesArr.forEach((c) => {
+        if (Array.isArray(c.Household)) {
+          try {
+            c.Household = updateRelations(c.Household);
+            c.Household.forEach((m) => {
+              if (!m.Relation && m.originalRelation) m.Relation = m.originalRelation;
+            });
+          } catch (e) {
+            // ignore errors
+          }
+        }
+      });
+      return censusesArr;
+    };
+  }
   censuses = addRelationsToSourcerCensuses(censuses);
   return censuses;
 }
@@ -7682,11 +8096,13 @@ export async function buildFamilyForPrivateProfiles() {
     "Spouses",
   ];
 
-  let familyProfiles = [];
+  let people, resultByKey;
   if (ids.length > 0) {
     try {
-      familyProfiles = await getPeople(ids.join(","), 0, 0, 0, 0, 0, theFields.join(","), "WBE_auto_bio");
-      if (!familyProfiles || !familyProfiles[0]) {
+      [, resultByKey, people] = await WikiTreeAPI.getPeople(WBE_AUTO_BIO_APP_ID, ids, theFields, {
+        getSpouses: 1,
+      });
+      if (!people) {
         console.error("Failed to fetch family profiles");
       } else {
         // Assign the fetched family profiles data to the respective family lists
@@ -7696,9 +8112,9 @@ export async function buildFamilyForPrivateProfiles() {
             const key = keys[i];
             const person = window.profilePerson[familyList][key];
             if (person.Name) {
-              const thisId = familyProfiles?.[0]?.resultByKey?.[person.Name]?.Id;
-              const thisPerson = familyProfiles?.[0]?.people?.[thisId];
+              const thisPerson = WikiTreeAPI.lookupProfile(person.Name, resultByKey, people);
               if (thisPerson) {
+                const thisId = thisPerson.Id;
                 if (familyList == "Spouses") {
                   thisPerson.Spouses.forEach(function (spouse) {
                     if (spouse.Id == window.profilePerson.Id) {
@@ -7739,8 +8155,8 @@ export async function buildFamilyForPrivateProfiles() {
   // Further Refinement of the Family Tree
   // --------------------------
   for (let i = -10; i < 0; i++) {
-    if (familyProfiles?.[0]?.people[i]) {
-      const thisPerson = familyProfiles[0].people[i];
+    if (people?.[i]) {
+      const thisPerson = people[i];
       if (!thisPerson.BirthDate && thisPerson.BirthDateDecade) {
         thisPerson.tempBirthDate = thisPerson.BirthDateDecade.replace(/s$/, "");
       }
@@ -7877,18 +8293,29 @@ async function getLocationCategories() {
   });
 }
 
+export async function getBiographySpouseParents(keys, options = {}) {
+  const bsp = {};
+  options.getSpouses = 1; // always include spouses
+  [bsp.status, bsp.resultByKey, bsp.people] = await WikiTreeAPI.getPeople(WBE_AUTO_BIO_APP_ID, keys, "*", options);
+  window.biographySpouseParents = [bsp]; // simulate saving the direct api result that was previously done
+  return bsp.people;
+}
+
 async function getSpouseParents() {
   // Get spouse parents
   if (
     window.profilePerson.Spouses &&
     !(Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses?.length === 0)
   ) {
-    let spouseKeys = Object.keys(window.profilePerson.Spouses);
-    window.biographySpouseParents = await getPeople(spouseKeys.join(","), 0, 0, 0, 1, 1, "*", "WBE_auto_bio");
-    if (window.biographySpouseParents[0]?.people) {
-      const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
+    const spouseKeys = Object.keys(window.profilePerson.Spouses);
+    const people = await getBiographySpouseParents(spouseKeys, {
+      nuclear: 1,
+      minGeneration: 1,
+    });
+    if (people) {
+      const biographySpouseParentsKeys = Object.keys(people);
       biographySpouseParentsKeys.forEach(function (key) {
-        const person = window.biographySpouseParents[0].people[key];
+        const person = people[key];
         assignPersonNames(person);
       });
     }
@@ -7898,17 +8325,17 @@ async function getSpouseParents() {
 async function getSpouseParents2() {
   // Get spouse parents
   if (!(Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses?.length === 0)) {
-    let spouseKeys = Object.keys(window.profilePerson.Spouses);
+    const spouseKeys = Object.keys(window.profilePerson.Spouses);
     const parentKeys = [];
     if (spouseKeys) {
       for (let i = 0; i < spouseKeys.length; i++) {
         parentKeys.push(window.profilePerson.Spouses[spouseKeys[i]].Father);
         parentKeys.push(window.profilePerson.Spouses[spouseKeys[i]].Mother);
       }
-      window.biographySpouseParents = await getPeople(parentKeys.join(","), 0, 0, 0, 0, 0, "*", "WBE_auto_bio");
-      const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
+      const people = await getBiographySpouseParents(parentKeys);
+      const biographySpouseParentsKeys = Object.keys(people);
       biographySpouseParentsKeys.forEach(function (key) {
-        const person = window.biographySpouseParents[0].people[key];
+        const person = people[key];
         assignPersonNames(person);
       });
     }
@@ -8052,11 +8479,14 @@ export async function generateBio() {
     window.usedPlaces = [];
     let profileID = profilePerson.Name;
     window.profileID = profileID;
-    window.profilePerson = await getProfile(
+    [window.profilePerson] = await WikiTreeAPI.getProfile(
+      WBE_AUTO_BIO_APP_ID,
       profileID,
-      "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix,BirthDate,DeathDate,BirthLocation,DeathLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren,NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings",
-      "AutoBio"
+      "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix," +
+        "BirthDate,DeathDate,BirthLocation,DeathLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren," +
+        "NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings"
     );
+
     if (window.profilePerson && !window.profilePerson?.DeathLocation) {
       window.profilePerson.DeathLocation = "";
     }
@@ -8092,7 +8522,7 @@ export async function generateBio() {
       window.profilePerson.Name = profileID;
       window.profilePerson.MiddleInitial = "";
       addLoginButton({
-        appId: "WBE_auto_bio",
+        appId: WBE_AUTO_BIO_APP_ID,
         btnId: "appsLoginButton",
         btnTitle: "Log in to the apps server for better Auto Bio results",
         btnContainer: $("#toolbar"),

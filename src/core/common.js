@@ -17,6 +17,7 @@ import {
   isWikiEdit,
   isProfileEdit,
   isSpaceEdit,
+  isSpacePage,
   isProfileLoggedInUserPage,
   isProfileAddRelative,
   isAddUnrelatedPerson,
@@ -387,6 +388,8 @@ async function checkButtonFeatures() {
         clipboardContainer.css("float", "right");
       } else if (isMergeEdit) {
         $("#toolbar").append(clipboardContainer);
+      } else if ($(".profile--actions").length == 0) {
+        $("#Manager").closest("div").prepend(clipboardContainer);
       } else {
         $(".profile--actions.float-end").append(clipboardContainer);
         const readingModeIcon = $(".profile--actions a.action--reading-mode");
@@ -451,7 +454,6 @@ async function checkButtonFeatures() {
         createButton({ id: "notesButton", aClass: "aNotesButton", title: "Notes", img: notesImg })
       );
       if (isWikiEdit || isG2G) {
-        console.log("Adding clipboard and notes buttons to the toolbar");
         $(".wbe-button-container2").each(function () {
           $(this).append(
             createButton({
@@ -661,32 +663,6 @@ export function createProfileSubmenuLink(options) {
     return $(a).text().localeCompare($(b).text());
   });
   $("#jump-nav").eq(0).append(links);
-}
-
-// Used in familyTimeline, familyGroup, locationsHelper
-export async function getRelatives(id, fields = "*", appId = "WBE") {
-  try {
-    const result = await $.ajax({
-      url: "https://api.wikitree.com/api.php",
-      crossDomain: true,
-      xhrFields: { withCredentials: true },
-      type: "POST",
-      dataType: "json",
-      data: {
-        action: "getRelatives",
-        keys: id,
-        fields: fields,
-        getParents: 1,
-        getSiblings: 1,
-        getSpouses: 1,
-        getChildren: 1,
-        appId: appId || "WBE",
-      },
-    });
-    return result[0].items[0].person;
-  } catch (error) {
-    console.error(error);
-  }
 }
 
 // Used in familyTimeline, familyGroup, locationsHelper
@@ -1444,52 +1420,6 @@ export function getUserWtId() {
     // (Temporary) Fallback to cookies if the menu item is not present
     return Cookies.get("wikitree_wtb_UserName");
   }
-}
-
-export async function fetchAPI(args) {
-  const params = {};
-  // Iterate over the args object and add any non-null values to the params object
-  for (const [key, value] of Object.entries(args)) {
-    if (value !== null) {
-      params[key] = value;
-    }
-  }
-
-  // Create a new URLSearchParams object with the updated params object
-  const searchParams = new URLSearchParams(params);
-
-  return fetch("https://api.wikitree.com/api.php", {
-    method: "POST",
-    mode: "cors",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: searchParams,
-  })
-    .then(async (response) => {
-      if (response.status !== 200) {
-        console.log("Looks like there was a problem. Status Code: " + response.status);
-        return null;
-      }
-      const data = await response.json();
-      return data;
-    })
-    .catch((error) => {
-      console.log("Fetch Error:", error);
-      return null;
-    });
-}
-
-// Function to check login status
-export async function isLoggedIntoAPI(userNumId, appId) {
-  if (!userNumId) return false;
-
-  const args = { action: "clientLogin", checkLogin: userNumId, appId: appId };
-  const loginStatus = await fetchAPI(args);
-  console.log("API Login Status: ", loginStatus);
-
-  return loginStatus?.clientLogin?.result == "ok";
 }
 
 /**

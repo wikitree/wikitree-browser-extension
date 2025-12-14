@@ -24,6 +24,9 @@ import { initRelationshipDB, RELATIONSHIP_STORE_NAME } from "../distanceAndRelat
 import { getProfilePersonInfo } from "../../core/common";
 import { mainDomain, isProfileAddRelative } from "../../core/pageType";
 import { autoClickAddPersonOptions } from "../usability_tweaks/usability_tweaks.js";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
+
+const WBE_CFL_APP_ID = "WBE_change_family_lists";
 
 let options;
 const user = getUserWtId();
@@ -59,6 +62,7 @@ function newPersonRecord() {
     MarriageMapLink: "",
     merge: false, // flag for mergeable records
     halfMarker: false, // contains the complete SMALL span containing [half], if present
+    biological: false, // whether the person was marked [biological] in the original text
   };
 }
 
@@ -92,6 +96,11 @@ function parseItempropElement(el) {
   if (linkEl) {
     record.Link = linkEl.getAttribute("href") || "";
     record.FullName = linkEl.textContent.trim();
+    // Detect and strip trailing [biological]
+    if (/\[biological\]/i.test(record.FullName)) {
+      record.biological = true;
+      record.FullName = record.FullName.replace(/\s*\[biological\]/i, "").trim();
+    }
     const match = record.Link.match(/\/wiki\/([^#]+)/);
     if (match) {
       record.Name = match[1]?.replace(/ /g, "_");
@@ -116,6 +125,11 @@ function parseItempropElement(el) {
     if (bracketMatch) {
       record.UnknownText = bracketMatch[0].trim();
       const inner = bracketMatch[1].trim();
+      // If the bracketed inner text is the biological marker, note it and clear UnknownText
+      if (/^biological$/i.test(inner)) {
+        record.biological = true;
+        record.UnknownText = "";
+      }
       const dateRange = inner.match(/\(([^)]+)\)/);
       if (dateRange) {
         const [b, d] = dateRange[1].split(/\s*-\s*/);
@@ -123,8 +137,17 @@ function parseItempropElement(el) {
         record.DeathDate = d?.trim() || "";
       }
       record.Name = inner.replace(/\s*\([^)]*\)/, "").trim();
+      // Also detect [biological] appended inside the inner text (e.g., "John (1900) [biological]")
+      if (/\[biological\]/i.test(record.Name)) {
+        record.biological = true;
+        record.Name = record.Name.replace(/\s*\[biological\]/i, "").trim();
+      }
     } else {
       record.Name = fullText;
+      if (/\[biological\]/i.test(record.Name)) {
+        record.biological = true;
+        record.Name = record.Name.replace(/\s*\[biological\]/i, "").trim();
+      }
     }
   }
   return record;
@@ -140,14 +163,28 @@ function newPersonFromBracket(bracketText, link = "") {
   const record = newPersonRecord();
   const trimmed = bracketText.trim();
   record.UnknownText = trimmed;
+  // Detect solitary or appended [biological] marker
+  if (/\[biological\]/i.test(record.UnknownText)) {
+    record.biological = true;
+    record.UnknownText = record.UnknownText.replace(/\[biological\]/i, "").trim();
+    if (!record.UnknownText) record.UnknownText = "";
+  }
   const dateRangeMatch = trimmed.match(/\(([^)]+)\)/);
   if (dateRangeMatch && dateRangeMatch[1] != "s") {
     const [b, d] = dateRangeMatch[1].split(/\s*-\s*/);
     record.BirthDate = b?.trim() || "";
     record.DeathDate = d?.trim() || "";
     record.Name = trimmed.replace(/\s*\([^)]*\)/, "").trim();
+    if (/\[biological\]/i.test(record.Name)) {
+      record.biological = true;
+      record.Name = record.Name.replace(/\s*\[biological\]/i, "").trim();
+    }
   } else {
     record.Name = trimmed;
+    if (/\[biological\]/i.test(record.Name)) {
+      record.biological = true;
+      record.Name = record.Name.replace(/\s*\[biological\]/i, "").trim();
+    }
   }
   record.Link = link;
   return record;
@@ -194,7 +231,7 @@ function parseBracketedUnknownInBlock(blockEl) {
       /^\[half\]$/i.test(b) ||
       /^add\b/i.test(b) ||
       /^edit\b/i.test(b) ||
-      ["[uncertain]", "[certain]", "[non-biological]", "[South Africa]"].includes(trimmed)
+      ["[uncertain]", "[certain]", "[non-biological]", "[South Africa]", "[biological]"].includes(trimmed)
     ) {
       return;
     }
@@ -215,6 +252,8 @@ function parseBlock(blockEl, itempropName) {
   const itempropEls = blockEl.querySelectorAll(`[itemprop="${itempropName}"]`);
   itempropEls.forEach((el) => {
     const rec = parseItempropElement(el);
+    // keep a reference to the source element so we can attach standalone markers
+    rec._el = el;
     if (itempropName == "sibling" && !rec.halfMarker) {
       const smallSpan = $(el).next(".SMALL");
       if (smallSpan.length && smallSpan.text().match(/\[half\]/i)) {
@@ -225,6 +264,34 @@ function parseBlock(blockEl, itempropName) {
       records.push(rec);
     }
   });
+  // If we found itemprop elements, also look for standalone bracket markers (e.g. "[biological]")
+  // that appear as text nodes in the block and apply them to the nearest preceding itemprop element.
+  if (records.length > 0) {
+    try {
+      const walker = document.createTreeWalker(blockEl, NodeFilter.SHOW_TEXT, null, false);
+      let node;
+      while ((node = walker.nextNode())) {
+        if (/\[biological\]/i.test(node.nodeValue)) {
+          // find the last itemprop element that precedes this text node
+          let targetEl = null;
+          for (let i = 0; i < itempropEls.length; i++) {
+            const el = itempropEls[i];
+            if (el.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING) {
+              targetEl = el;
+            }
+          }
+          // if none found, fallback to the last record
+          const targetRecord = records.find((r) => r._el === targetEl) || records[records.length - 1];
+          if (targetRecord) {
+            targetRecord.biological = true;
+          }
+        }
+      }
+    } catch (e) {
+      // swallow any issues with TreeWalker on odd DOMs
+      if (DEBUG_FAMILY_LISTS) console.warn("parseBlock: error scanning for standalone markers", e);
+    }
+  }
   // If no itemprop elements found, use bracketed text.
   if (records.length === 0) {
     const bracketed = parseBracketedUnknownInBlock(blockEl);
@@ -306,6 +373,12 @@ function improvedSiblingsArray() {
     rawText = rawText.replace(/\[half\]/gi, "").trim();
     rawText = rawText.replace(/^\[|\]$/g, "").trim();
 
+    // Detect [biological] marker
+    let biological = false;
+    if (/\[biological\]/i.test(rawText)) {
+      biological = true;
+      rawText = rawText.replace(/\s*\[biological\]/i, "").trim();
+    }
     // Assign a unique ID
     siblingsArray.push({
       uniqueId: siblingCounter++,
@@ -313,6 +386,7 @@ function improvedSiblingsArray() {
       half: half,
       BirthDate: BirthDate,
       DeathDate: DeathDate,
+      biological: biological,
     });
   });
 
@@ -333,6 +407,7 @@ function improvedSiblingsArray() {
     "[marriage location?]",
     "[marriage date?]",
     "[half]",
+    "[biological]",
   ]);
   bracketMatches.forEach((bracketText) => {
     const normalized = bracketText.trim().toLowerCase();
@@ -350,6 +425,11 @@ function improvedSiblingsArray() {
       textContent = textContent.replace(/\s*\([^)]*\)/, "").trim();
     }
     let half = /\[half\]/i.test(textContent);
+    let biological = false;
+    if (/\[biological\]/i.test(textContent)) {
+      biological = true;
+      textContent = textContent.replace(/\s*\[biological\]/i, "").trim();
+    }
     textContent = textContent.replace(/\[half\]/gi, "").trim();
     //textContent = textContent.replace(/^\[|\]$/g, "").trim();
     siblingsArray.push({
@@ -358,6 +438,7 @@ function improvedSiblingsArray() {
       half: half,
       BirthDate: BirthDate,
       DeathDate: DeathDate,
+      biological: biological,
     });
   });
 
@@ -380,6 +461,7 @@ function parseInitialData() {
     "[marriage location?]",
     "[marriage date?]",
     "[South Africa]",
+    "[biological]",
   ];
   const container = document.querySelector("#nav-familyContent div.tree--person");
   if (DEBUG_FAMILY_LISTS) console.log("Container found:", container);
@@ -739,7 +821,9 @@ function buildParentsSection(parents) {
         p.relationship || "parent"
       }" itemscope itemtype="https://schema.org/Person"><a ${hrefBit} itemprop="url" title="" aria-label="Parent"><span itemprop="name">${
         p.FullName || p.Name
-      }</span>${status || ""}</a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+      }${p.biological ? ' <span class="biological">[biological]</span>' : ""}</span>${
+        status || ""
+      }</a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
         dates.deathYear || ""
       }">${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
       ol.appendChild(li);
@@ -793,15 +877,19 @@ function buildSiblingsSection(siblings) {
       s.Gender = getGender(s);
       if (isPrivate) {
         li.innerHTML = `<span itemprop="sibling" class="privateSibling" itemtype="https://schema.org/Person">
-          <span itemprop="name">${s.FullName || s.Name} ${
-          s.halfMarker || ""
-        }</span><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
-          dates.deathYear || ""
-        }">${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
+            <span itemprop="name">${s.FullName || s.Name}${
+          s.biological ? ' <span class="biological">[biological]</span>' : ""
+        } ${s.halfMarker || ""}</span><span class="bdDates" data-birth-year="${
+          dates.birthYear || ""
+        }" data-death-year="${dates.deathYear || ""}">${
+          dates.dates ? " " + dates.dates : ""
+        }</span><span class="relAge"></span></span>`;
       } else {
         li.innerHTML = `<span itemprop="sibling" itemscope itemtype="https://schema.org/Person">
           <a href="${s.Link}" itemprop="url" title="" aria-label="Sibling"><span itemprop="name">${
           s.FullName || s.Name
+        }${
+          s.biological ? ' <span class="biological">[biological]</span>' : ""
         }</span></a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
           dates.deathYear || ""
         }">${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
@@ -909,13 +997,15 @@ function buildSpousesSection(spouses) {
       entry.innerHTML = `
         <a href="${spouse.Link}" itemprop="url" class="spouseLink">
           <span itemprop="name" class="spouse-name">
-            ${spouse.FullName || spouse.Name}
+            ${spouse.FullName || spouse.Name}${spouse.biological ? ' <span class="biological">[biological]</span>' : ""}
           </span>
         </a>`;
     } else {
       entry.innerHTML = `
         <span itemprop="name">
-          <strong>${spouse.FullName || spouse.Name}</strong>
+          <strong>${spouse.FullName || spouse.Name}${
+        spouse.biological ? ' <span class="biological">[biological]</span>' : ""
+      }</strong>
         </span>`;
     }
     grid.appendChild(entry);
@@ -1072,15 +1162,19 @@ function buildChildrenSection(children) {
             c.Link.startsWith("http") ? c.Link : "https://" + mainDomain + c.Link
           }" itemprop="url" title="" aria-label="Child" class="childLink"><span itemprop="name">${
         c.FullName || c.Name
+      }${
+        c.biological ? ' <span class="biological">[biological]</span>' : ""
       }</span></a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
         dates.deathYear || ""
       }">
             ${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
     } else {
       li.innerHTML = `<span itemprop="children" class="privateChild" itemtype="https://schema.org/Person">
-            <span itemprop="name">${c.FullName || c.Name}</span><span class="bdDates" data-birth-year="${
-        dates.birthYear || ""
-      }" data-death-year="${dates.deathYear || ""}">
+            <span itemprop="name">${c.FullName || c.Name}${
+        c.biological ? ' <span class="biological">[biological]</span>' : ""
+      }</span><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+        dates.deathYear || ""
+      }">
              ${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
     }
     if (!/^\[.*\?\]$/.test(c.Name)) {
@@ -1123,20 +1217,9 @@ function buildChildrenUnknown() {
  * @returns {Promise<void>}
  */
 async function getWindowPeople() {
-  const result = await $.ajax({
-    url: "https://api.wikitree.com/api.php",
-    type: "POST",
-    dataType: "json",
-    xhrFields: { withCredentials: true },
-    data: {
-      action: "getPeople",
-      appId: "WBE_changeFamilyLists",
-      keys: profilePerson.Id,
-      fields: getPeopleFields,
-      nuclear: 1,
-    },
+  const [, , people] = await WikiTreeAPI.getPeople(WBE_CFL_APP_ID, profilePerson.Id, getPeopleFields, {
+    nuclear: 1,
   });
-  const people = result[0].people;
   window.people = new Map(Object.entries(people));
   const arr = Object.values(people);
   window.peopleByWtID = new Map(arr.map((p) => [p.Name, p]));

@@ -1,0 +1,11 @@
+/* Styles for findAGraveMemorialExtractor feature */
+
+#wbe-fg-extract-btn {
+  background-color: #25422d;
+  color: white;
+}
+
+#wbe-fg-extract-btn:hover,
+#wbe-fg-extract-btn:visited:hover {
+  background-color: green;
+}

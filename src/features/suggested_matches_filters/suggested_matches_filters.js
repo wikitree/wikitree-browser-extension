@@ -7,14 +7,12 @@ import "./suggested_matches_filters.css";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { isOK, WBEHelpIcon } from "../../core/common";
-import { getPeople } from "../dna_table/dna_table";
 import { countries } from "../auto_bio/countries";
 
+const WBE_SMF_APP_ID = "WBE_suggested_matches_filters";
 const newPerson = {};
 const suggestedMatches = [];
 let options = {};
-let continueButtonClickedOnce = false;
-let originalButtonText;
 
 function isCountry(locationString) {
   if (!isOK(locationString)) return false;
@@ -444,9 +442,8 @@ function checkReady() {
 
 async function getLocations(WTID) {
   let relatives;
-  const APP_ID = "WBE_suggested_matches_filters";
   if (WTID) {
-    relatives = await WikiTreeAPI.getRelatives(APP_ID, [WTID], ["BirthLocation,DeathLocation"], {
+    relatives = await WikiTreeAPI.getRelatives(WBE_SMF_APP_ID, WTID, "BirthLocation,DeathLocation", {
       getSpouses: true,
       getChildren: true,
       getParents: true,
@@ -534,34 +531,26 @@ function locationFilter(person, filteredLocations, newPerson) {
 
 const peopleIDs = [];
 async function nameFilter(level) {
-  let peopleData;
+  let people, resultByKey;
   if (peopleIDs.length === 0) {
     suggestedMatches.forEach(function (person) {
       if (person.WTID) {
-        peopleIDs.push(person.WTID);
+        peopleIDs.push(person.WTID.replaceAll(" ", "_"));
       }
     });
-    const keys = peopleIDs.join(",");
-    peopleData = await getPeople(
-      keys,
-      0,
-      0,
-      0,
-      0,
-      0,
-      "LastNameAtBirth,LastNameCurrent,FirstName,MiddleName",
-      "WBE_suggested_matches_filters"
+    [, resultByKey, people] = await WikiTreeAPI.getPeople(
+      WBE_SMF_APP_ID,
+      peopleIDs,
+      "LastNameAtBirth,LastNameCurrent,FirstName,MiddleName"
     );
   }
   suggestedMatches.forEach(function (person) {
-    let thisPerson, thisPersonID;
-    if (peopleData) {
-      thisPersonID = peopleData[0].resultByKey[person.WTID.replaceAll(/_/g, " ")].Id;
-      thisPerson = peopleData[0].people[thisPersonID];
-      person.LastNameAtBirth = thisPerson.LastNameAtBirth;
-      person.LastNameCurrent = thisPerson.LastNameCurrent;
-      person.FirstName = thisPerson.FirstName;
-      person.MiddleName = thisPerson.MiddleName;
+    if (people) {
+      const apiPerson = WikiTreeAPI.lookupProfile(person.WTID, resultByKey, people);
+      person.LastNameAtBirth = apiPerson.LastNameAtBirth;
+      person.LastNameCurrent = apiPerson.LastNameCurrent;
+      person.FirstName = apiPerson.FirstName;
+      person.MiddleName = apiPerson.MiddleName;
     }
     let thisTR = $(`a[href$="${person.WTID}"]`).closest("tr");
     if ($("#mStatus_MiddleName_blank").prop("checked") === true) {
@@ -1065,9 +1054,8 @@ async function initSuggestedMatchesFilters() {
   suggestedMatches.length = 0;
   const WTID = $("h1 button[aria-label='Copy ID']").data("copy-text");
   let relatives;
-  const APP_ID = "WBE_suggested_matches_filters";
   if (WTID) {
-    relatives = await WikiTreeAPI.getRelatives(APP_ID, [WTID], ["BirthLocation,DeathLocation"], {
+    relatives = await WikiTreeAPI.getRelatives(WBE_SMF_APP_ID, WTID, "BirthLocation,DeathLocation", {
       getSpouses: true,
       getChildren: true,
       getParents: true,

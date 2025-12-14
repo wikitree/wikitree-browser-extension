@@ -11,11 +11,13 @@ import { ageAtDeath, extractRelatives, htmlEntities, isOK, treeImageURL } from "
 import { addLoginButton } from "../../core/loginButton";
 import { ymdFix, showFamilySheet, displayName } from "../familyGroup/familyGroup";
 import { ancestorType } from "../distanceAndRelationship/distanceAndRelationship";
-import { getPeople } from "../dna_table/dna_table";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { addFiltersToWikitables } from "../table_filters/table_filters";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain } from "../../core/pageType";
 import { profilePerson } from "../../core/common";
+
+const WBE_MYC_APP_ID = "WBE_my_connections";
 
 const missingFatherSrc = chrome.runtime.getURL("images/blue_bricks.jpg");
 const missingMotherSrc = chrome.runtime.getURL("images/pink_bricks.jpg");
@@ -246,7 +248,7 @@ shouldInitializeFeature("myConnections").then((result) => {
       btnContainer = $("#my-connections h1");
     }
     addLoginButton({
-      appId: "WBE_my_connections",
+      appId: WBE_MYC_APP_ID,
       btnId: "myConnectionsLoginButton",
       btnTitle: "Log in to the apps server for better Missing Connections results",
       btnContainer: btnContainer,
@@ -542,7 +544,7 @@ async function getMoreConnections() {
         resolveRedirect: "1",
         fields:
           "Name,BirthDate,DeathDate,FirstName,LastNameAtBirth,LastNameCurrent,Derived.LongName,RealName,BirthDateDecade,DeathDateDecade",
-        appId: "WBE_my_connections",
+        appId: WBE_MYC_APP_ID,
       },
       type: "POST",
       dataType: "json",
@@ -800,22 +802,22 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
 
     // Perform two API calls and wait for both to complete
     const [firstCall, secondCall] = await Promise.all([
-      getPeople(firstHalf.join(","), false, false, false, 1, 0, fields, "WBE_my_connections_file"),
-      getPeople(secondHalf.join(","), false, false, false, 1, 0, fields, "WBE_my_connections_file"),
+      getPeople(firstHalf.join(","), false, false, false, 1, 0, fields, WBE_MYC_APP_ID),
+      getPeople(secondHalf.join(","), false, false, false, 1, 0, fields, WBE_MYC_APP_ID),
     ]);
 
     // Combine the results from both calls
     combinedPeople = { ...firstCall[0]?.people, ...secondCall[0]?.people };
   } else {
     // If there are 100 or fewer IDs, just make one API call
-    const singleCall = await getPeople(IDstring, false, false, false, 1, 0, fields, "WBE_my_connections_file");
+    const singleCall = await getPeople(IDstring, false, false, false, 1, 0, fields, WBE_MYC_APP_ID);
     combinedPeople = singleCall[0]?.people;
   }
     */
 
   combinedPeople = await getDegree2WithNuclear(
     IDstring.split(","), // degree-2 IDs (array)
-    "WBE_my_connections_file"
+    WBE_MYC_APP_ID
   );
 
   //console.log(JSON.parse(JSON.stringify(combinedPeople)));
@@ -1000,7 +1002,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       return 0;
     });
 
-    console.log("thePeople", thePeople);
+    // console.log("thePeople", thePeople);
     thePeople.forEach(function (mPerson, index) {
       let noBorDdate = false;
       let missingFatherCell = "";
@@ -2651,32 +2653,32 @@ function isLeapYear(year) {
   return year % 100 === 0 ? year % 400 === 0 : year % 4 === 0;
 }
 
-async function getPeopleAllPages(keys, fields, appId = "WBE_my_connections_file", pageLimit = 1000) {
-  let start = 0;
-  let people = {};
+// async function getPeopleAllPages(keys, fields, appId = WBE_MYC_APP_ID, pageLimit = 1000) {
+//   let start = 0;
+//   let people = {};
 
-  while (true) {
-    const page = await getPeople(
-      keys, // keys
-      0,
-      0,
-      0, // siblings/ancestors/descendants flags (not used)
-      1, // nuclear = 1  (brings back parents + spouses IDs)
-      0, // minGeneration
-      fields,
-      appId,
-      start,
-      pageLimit
-    );
+//   while (true) {
+//     const page = await getPeople(
+//       keys, // keys
+//       0,
+//       0,
+//       0, // siblings/ancestors/descendants flags (not used)
+//       1, // nuclear = 1  (brings back parents + spouses IDs)
+//       0, // minGeneration
+//       fields,
+//       appId,
+//       start,
+//       pageLimit
+//     );
 
-    const pagePeople = page?.[0]?.people || {};
-    Object.assign(people, pagePeople);
+//     const pagePeople = page?.[0]?.people || {};
+//     Object.assign(people, pagePeople);
 
-    if (Object.keys(pagePeople).length < pageLimit) break; // last page
-    start += pageLimit;
-  }
-  return people;
-}
+//     if (Object.keys(pagePeople).length < pageLimit) break; // last page
+//     start += pageLimit;
+//   }
+//   return people;
+// }
 
 /*****************************************************************
  *  Build Parent / Child / Sibling / Spouse arrays in-memory
@@ -2742,12 +2744,12 @@ function buildNuclearArrays(people) {
 /**
  * Fetch full data for 2-degree people + thin nuclear data for their relatives.
  * @param {string[]} degree2Ids   – array of WT Ids (numeric or Name-format) that you are going to display
- * @param {string}   appId        – appId to send to the API (default WBE_my_connections_file)
+ * @param {string}   appId        – appId to send to the API (default WBE_my_connections)
  * @returns {Promise<Object>}     – map keyed by person.Id containing:
  *                                    • full records for every 2-degree person
  *                                    • minimal records (Id, Father, Mother, Spouses) for nuclear relatives
  */
-export async function getDegree2WithNuclear(degree2Ids, appId = "WBE_my_connections_file") {
+export async function getDegree2WithNuclear(degree2Ids, appId = WBE_MYC_APP_ID) {
   const fullFields = [
     "FirstName",
     "MiddleName",
@@ -2771,34 +2773,22 @@ export async function getDegree2WithNuclear(degree2Ids, appId = "WBE_my_connecti
 
   const thinFields = "Id,Father,Mother,Spouses";
 
-  const keysString = degree2Ids.join(",");
-
   /* ---------- pass 1 : full record for each 2-degree profile ---------- */
-  const fullCall = await getPeople(
-    keysString,
-    0, // siblings
-    0, // ancestors
-    0, // descendants
-    0, // nuclear
-    0, // minGeneration
-    fullFields,
-    appId
-  );
-  const fullPeople = fullCall?.[0]?.people || {};
+  let [, , fullPeople] = await WikiTreeAPI.getPeople(appId, degree2Ids, fullFields);
+  if (!fullPeople) fullPeople = {};
 
-  /* ---------- pass 2 : thin nuclear records (parents, spouses, children) */
-  const thinCall = await getPeople(
-    keysString,
-    0,
-    0,
-    0,
-    1, // nuclear = 1
-    0,
-    thinFields,
-    appId
-  );
-  const thinPeople = thinCall?.[0]?.people || {};
+  /* ---------- pass 2 : thin nuclear records (parents, spouses, children) chunked to max 100 IDs per call */
+  const thinPeople = {};
+  const chunkSize = 100;
+  for (let i = 0; i < degree2Ids.length; i += chunkSize) {
+    const chunk = degree2Ids.slice(i, i + chunkSize);
 
+    const [, , chunkPeople] = await WikiTreeAPI.getPeople(appId, chunk, thinFields, { nuclear: 1 });
+
+    if (chunkPeople) {
+      Object.assign(thinPeople, chunkPeople);
+    }
+  }
   /* ---------- merge : thin → full (full data overwrites when duplicate) */
   return { ...thinPeople, ...fullPeople };
 }

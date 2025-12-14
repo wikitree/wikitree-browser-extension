@@ -62,7 +62,7 @@ window.wtDate = function (person, fieldName, options = {}) {
 
   tokens = tokenize(options.formatString);
 
-  let prop = person?.[fieldName];
+  const prop = person?.[fieldName];
 
   if (!prop || prop === "0000-00-00") {
     switch (fieldName) {
@@ -75,7 +75,7 @@ window.wtDate = function (person, fieldName, options = {}) {
     }
   }
 
-  let [day, month, year] = prop
+  const [day, month, year] = prop
     .split("-")
     .reverse()
     .map((x) => parseInt(x));
@@ -101,8 +101,7 @@ window.wtDate = function (person, fieldName, options = {}) {
     })
     .filter((token) => token !== null);
 
-  let serialized = tokens.join("");
-  serialized = serialized.replaceAll(" ,", ","); // solves one of many possible issues when the day is unknown
+  const serialized = tokens.join("").replaceAll(" ,", ","); // solves one of many possible issues when the day is unknown
 
   const certainty = options.withCertainty ? `${CERTAINTY_MAP?.[person?.DataStatus[fieldName]] || ""} ` : "";
 
@@ -151,12 +150,12 @@ WikiTreeAPI.Person = class Person {
     this._data = data;
 
     if (data.Parents) {
-      for (var p in data.Parents) {
+      for (const p in data.Parents) {
         this._data.Parents[p] = new WikiTreeAPI.Person(data.Parents[p]);
       }
     }
     if (data.Children) {
-      for (var c in data.Children) {
+      for (const c in data.Children) {
         this._data.Children[c] = new WikiTreeAPI.Person(data.Children[c]);
       }
     }
@@ -196,6 +195,12 @@ WikiTreeAPI.Person = class Person {
   getDisplayName() {
     return this._data.BirthName ? this._data.BirthName : this._data.BirthNamePrivate;
   }
+  getFirstName() {
+    return this._data.FirstName;
+  }
+  getLastNameCurrent() {
+    return this._data.LastNameCurrent;
+  }
   getPhotoUrl() {
     if (this._data.PhotoData && this._data.PhotoData["url"]) {
       return this._data.PhotoData["url"];
@@ -214,45 +219,25 @@ WikiTreeAPI.Person = class Person {
       return this._data.Parents[this._data.Father];
     }
   }
-
-  // We use a few "setters". For the parents, we want to update the Parents Person objects as well as the ids themselves.
-  // For TreeViewer we only set the parents and children, so we don't need setters for all the _data elements.
-  setMother(person) {
-    var id = person.getId();
-    var oldId = this._data.Mother;
-    this._data.Mother = id;
-    if (!this._data.Parents) {
-      this._data.Parents = {};
-    } else if (oldId) {
-      delete this._data.Parents[oldId];
-    }
-    this._data.Parents[id] = person;
-  }
-  setFather(person) {
-    var id = person.getId();
-    var oldId = this._data.Father;
-    this._data.Father = id;
-    if (!this._data.Parents) {
-      this._data.Parents = {};
-    } else if (oldId) {
-      delete this._data.Parents[oldId];
-    }
-    this._data.Parents[id] = person;
-  }
-  setChildren(children) {
-    this._data.Children = children;
-  }
 }; // End Person class definition
 
 /**
+ *
+ * @param {*} input
+ * @returns {string} If the input is a string, return it as is, otherwise, if it is an array, return a comma separated string of its elements
+ */
+function commaSeparatedString(input) {
+  return Array.isArray(input) ? input.join(",") : String(input ?? "");
+}
+
+/**
  * Return a promise for a person object with the given id.
- * An API call is made and the promise will store the result (if successful)
- * in the cache (if enabled) before it is returned.
+ * An API call is made and the promise will construct a Person object from the result (if successful)
  *
  * @param {*} appId An application id (any string). 'WBE-' will be prepended to denotes it as a "Tree App"
  * @param {*} id The WikiTree ID of the person to retrieve
- * @param {*} fields An array of field names to retrieve for the given person
- * @returns a Person object
+ * @param {*} fields an array or comma separated string of field names to return for each profile
+ * @returns a promise that resolves to a Person object
  */
 WikiTreeAPI.getPerson = async function (appId, id, fields) {
   // condLog("getPerson",appId, id, fields);
@@ -260,10 +245,35 @@ WikiTreeAPI.getPerson = async function (appId, id, fields) {
     appId: appId,
     action: "getPerson",
     key: id,
-    fields: fields.join(","),
+    fields: commaSeparatedString(fields),
     resolveRedirect: 1,
   });
   return new WikiTreeAPI.Person(result[0].person);
+};
+
+/**
+ * Return a promise for a profile object with the given id.
+ * An API call is made and the promise will return the profile object from the result (if successful)
+ *
+ * @param {*} appId An application id (any string). 'WBE-' will be prepended to denotes it as a "Tree App"
+ * @param {*} id The WikiTree ID of the person to retrieve
+ * @param {*} fields an array or comma separated string of field names to return for each profile
+ * @param {*} options an option object which can contain these key-value pairs
+ *             - bioFormat	Optional: "wiki", "html", or "both"
+ *             - resolveRedirect Optional. If 1, then requested profiles that are redirections are followed to the final profile (default: 1)
+ * @returns a promise that resolves to an array [profile, status, page_name] as returned in the api.
+ * See https://github.com/wikitree/wikitree-api/blob/main/getProfile.md for more detail
+ */
+WikiTreeAPI.getProfile = async function (appId, id, fields = "", options = {}) {
+  // condLog("getProfile", appId, id, fields, options);
+  const getProfileParameters = { ...options };
+  getProfileParameters.appId = appId;
+  getProfileParameters.action = "getProfile";
+  getProfileParameters.key = id;
+  getProfileParameters.fields = commaSeparatedString(fields);
+
+  const result = await WikiTreeAPI.postToAPI(getProfileParameters);
+  return [result[0].profile, result[0].status, result[0].page_name];
 };
 
 /**
@@ -282,11 +292,11 @@ WikiTreeAPI.getPerson = async function (appId, id, fields) {
  *     --> what you get is the promise object - NOT the array of ancestors you might expect.
  * You HAVE to use the .then() with embedded function, or await, to wait and process the results
  *
- * @param {*} appId An application id (any string). 'WBE-' will be prepended to denotes it as a "Tree App"
- * @param {*} id
- * @param {*} depth
- * @param {*} fields
- * @returns
+ * @param {*} appId An application id (any string). 'WBE_' will be prepended if not present
+ * @param {*} id The WikiTree ID or numerical ID of the person for which to retrieve ancestors
+ * @param {*} depth The number of generations back to follow the parent ids
+ * @param {*} fields an array or comma separated string of fields to return for each profile
+ * @returns An array of ancestor profiles
  */
 WikiTreeAPI.getAncestors = async function (appId, id, depth, fields) {
   const result = await WikiTreeAPI.postToAPI({
@@ -294,7 +304,7 @@ WikiTreeAPI.getAncestors = async function (appId, id, depth, fields) {
     action: "getAncestors",
     key: id,
     depth: depth,
-    fields: fields.join(","),
+    fields: commaSeparatedString(fields),
     resolveRedirect: 1,
   });
   return result[0].ancestors;
@@ -326,9 +336,9 @@ WikiTreeAPI.getAncestors = async function (appId, id, depth, fields) {
  *
  * WARNING:  See note above about what you get if you don't use the .then() ....
  *
- * @param {*} appId An application id (any string). 'WBE-' will be prepended to denotes it as a "Tree App"
- * @param {*} IDs can be a single string, with a single ID or a set of comma separated IDs. OR it can be an array of IDs
- * @param {*} fields an array of fields to return for each profile (same as for getPerson or getProfile)
+ * @param {*} appId An application id (any string). 'WBE_' will be prepended if not present already
+ * @param {*} IDs A string of one or more comma separated IDs, OR an array of (string) IDs.
+ * @param {*} fields an array, or comma separated string of fields to return for each profile (same as for getPerson or getProfile)
  * @param {*} options an option object which can contain these key-value pairs
  *                    - bioFormat	Optional: "wiki", "html", or "both"
  *                    - getParents	If true, the parents are returned
@@ -338,21 +348,13 @@ WikiTreeAPI.getAncestors = async function (appId, id, depth, fields) {
  * @returns a Promise for the JSON in the returned API response
  */
 WikiTreeAPI.getRelatives = async function (appId, IDs, fields, options = {}) {
-  let getRelativesParameters = {
-    appId: appId,
-    action: "getRelatives",
-    keys: IDs.join(","),
-    fields: fields.join(","),
-    resolveRedirect: 1,
-  };
+  const getRelativesParameters = { ...options };
+  getRelativesParameters.appId = appId;
+  getRelativesParameters.action = "getRelatives";
+  getRelativesParameters.keys = commaSeparatedString(IDs);
+  getRelativesParameters.fields = commaSeparatedString(fields);
+  getRelativesParameters.resolveRedirect = 1;
 
-  // go through the options object, and add any of those options to the getRelativesParameters
-  for (const key in options) {
-    if (Object.hasOwnProperty.call(options, key)) {
-      const element = options[key];
-      getRelativesParameters[key] = element;
-    }
-  }
   // condLog("getRelativesParameters: ", getRelativesParameters);
 
   const result = await WikiTreeAPI.postToAPI(getRelativesParameters);
@@ -393,42 +395,27 @@ WikiTreeAPI.getRelatives = async function (appId, IDs, fields, options = {}) {
  * WARNING:  See note above about what you get if you don't use the .then() ....
  *
  * @param {*} appId An application id (any string). 'WBE-' will be prepended to denotes it as a "Tree App"
- * @param {*} IDs can be a single string, with a single ID or a set of comma separated IDs. OR it can be an array of IDs
- * @param {*} fields an array of fields to return for each profile (almost the same as for getPerson or getProfile)
+ * @param {*} IDs A string of one or more comma separated IDs, OR an array of (string) IDs.
+ * @param {*} fields an array, or comma separated string of fields to return for each profile (almost the same as for getPerson or getProfile)
  *       - Can include Mother, Father, Spouses (which will include marriage data), but ignores fields Children,Parents, Siblings --> use options to get those people included
- * @param {*} options an option object which can contain these key-value pairs
+ * @param {*} options an option object which can contain the following key-value pairs
  *                    - bioFormat	Optional: "wiki", "html", or "both"
  *                    - siblings	If 1, then get siblings of profiles, If 0 (default), do not get siblings
  *                    - ancestors	Number of generations of ancestors (parents) to return from the starting id(s). Default 0.
  *                    - descendants Number of generations of descendants (children) to return from the starting id(s). Default 0.
  *                    - nuclear	    Number of generations of nuclear relatives (parents, children, siblings, spouses) to return from the starting id(s). Default 0.
- *                    - minGeneration   Generation number to start at when gathering relatives
+ *                    - minGeneration   Generation number to start at when gathering relatives (default 0)
  *                    - limit       The maximum number of related profiles to return (default 1000)
  *                    - start   	The starting number of the returned page of (limit) profiles (default 0)
  *      See https://github.com/wikitree/wikitree-api/blob/main/getPeople.md for more detail
  * @returns a Promise for the [status, resultByKey , people] JSON items in an array from the returned API response
  */
 WikiTreeAPI.getPeople = async function (appId, IDs, fields, options = {}) {
-  let theKeys = IDs;
-  // condLog("IDs", IDs, typeof IDs);
-  if (typeof IDs == "object" /*  && IDs.indexOf(",") > -1 */) {
-    theKeys = IDs.join(",");
-  }
-  let getPeopleParameters = {
-    appId: appId,
-    action: "getPeople",
-    keys: theKeys,
-    fields: fields.join(","),
-  };
-
-  // go through the options object, and add any of those options to the getPeopleParameters
-  for (const key in options) {
-    if (Object.hasOwnProperty.call(options, key)) {
-      const element = options[key];
-      getPeopleParameters[key] = element;
-    }
-  }
-  // condLog("NEED: getPeopleParameters: ", getPeopleParameters);
+  const getPeopleParameters = { ...options };
+  getPeopleParameters.appId = appId;
+  getPeopleParameters.action = "getPeople";
+  getPeopleParameters.keys = commaSeparatedString(IDs);
+  getPeopleParameters.fields = commaSeparatedString(fields);
 
   const result = await WikiTreeAPI.postToAPI(getPeopleParameters);
   return [result[0].status, result[0].resultByKey, result[0].people];
@@ -446,24 +433,29 @@ WikiTreeAPI.getPeople = async function (appId, IDs, fields, options = {}) {
  *    // where "result" is the JSON that was returned from the API call.
  * });
  *
- * @param {*} appId An application id (any string). 'WBE-' will be prepended to denotes it as a "Tree App"
- * @param {*} limit
- * @param {*} getPerson
- * @param {*} getSpace
- * @param {*} fields
- * @returns
+ * @param {*} appId An application id (any string). 'WBE_' will be prepended if not already present
+ * @param {*} fields Optional an array or comma-separated list of fields to return for each profile
+ * @param {*} options an option object which can contain the following key-value pairs
+ *            - limit Integer value = how many Watchlist items to return. Default = 100
+ *            - offset	Starting offset of returned profiles. Default = 0
+ *            - order	The sort order for the returned profiles: user_id, user_name, user_last_name_current, user_birth_date,
+ *              user_death_date, or page_touched. Default = user_id.
+ *            - getPerson Default = 1. If 1, the person profiles on the watchlist are returned
+ *            - getSpace Default = 1. If 1, the space profiles are returned, otherwise not
+ *            - onlyLiving	If 1, then the person profiles returned are limited to those that are living
+ *            - excludeLiving	If 1, then the person profiles returned are limited to those that are not living
+ *            - bioFormat	Optional: "wiki", "html", or "both"
+ * @returns a Promise for the [profile, status , page_name] JSON items in an array from the returned API response
  */
-WikiTreeAPI.getWatchlist = async function (appId, limit, getPerson, getSpace, fields) {
-  const result = await WikiTreeAPI.postToAPI({
-    appId: appId,
-    action: "getWatchlist",
-    limit: limit,
-    getPerson: getPerson,
-    getSpace: getSpace,
-    fields: fields.join(","),
-    resolveRedirect: 1,
-  });
-  return result[0].watchlist;
+
+WikiTreeAPI.getWatchlist = async function (appId, fields, options = {}) {
+  const parameters = { ...options };
+  parameters.appId = appId;
+  parameters.action = "getWatchlist";
+  if (fields) parameters.fields = commaSeparatedString(fields);
+
+  const result = await WikiTreeAPI.postToAPI(parameters);
+  return [result[0].watchlist, result[0].watchlistCount, result[0].status];
 };
 
 WikiTreeAPI.getSpaceWatchlist = async function (appId, limit, fields) {
@@ -473,7 +465,7 @@ WikiTreeAPI.getSpaceWatchlist = async function (appId, limit, fields) {
     limit: limit,
     getPerson: 0, // Exclude person profiles
     getSpace: 1, // Include space profiles
-    fields: fields.join(","), // Fields to fetch
+    fields: commaSeparatedString(fields),
     resolveRedirect: 1,
   });
   return result[0].watchlist;
@@ -486,6 +478,19 @@ function condLog(message, ...optionalParams) {
   }
 }
 
+// Function to check login status
+WikiTreeAPI.isLoggedIntoAPI = async function (userNumId, appId = "WBE_check_login") {
+  if (!userNumId) return false;
+  const loginStatus = await WikiTreeAPI.postToAPI({
+    appId: appId,
+    action: "clientLogin",
+    checkLogin: userNumId,
+  });
+  console.log("API Login Status: ", loginStatus);
+
+  return loginStatus?.clientLogin?.result == "ok";
+};
+
 /**
  * This is just a wrapper for JavaScript's fetch() call, sending along necessary options for the WikiTree API.
  *
@@ -496,10 +501,17 @@ function condLog(message, ...optionalParams) {
 WikiTreeAPI.postToAPI = async function (postData, signal) {
   condLog(`>>>>> postToAPI ${postData.action} ${postData.key || postData.keys}`, postData);
 
-  let formData = new FormData();
-  for (var key in postData) {
-    // We prepend 'WBE-' to any appId to indicate the app is run as part of the "Tree Apps"
-    const value = key == "appId" ? `WBE-${postData[key]}` : postData[key];
+  const formData = new FormData();
+  for (let key in postData) {
+    // We prepend 'WBE_' to the appId (if it not already there) to indicate the call is part of WBE
+    let value = postData[key];
+    if (key == "appId") {
+      if (typeof value === "string") {
+        value = value.startsWith("WBE") ? value : `WBE_${value}`;
+      } else {
+        value = "WBE";
+      }
+    }
     formData.append(key, value);
   }
 
@@ -509,7 +521,7 @@ WikiTreeAPI.postToAPI = async function (postData, signal) {
   }
 
   // We're POSTing the data, so we don't worry about URL size limits and want JSON back.
-  let options = {
+  const options = {
     method: "POST",
     credentials: "include",
     headers: {
@@ -529,11 +541,34 @@ WikiTreeAPI.postToAPI = async function (postData, signal) {
   return await response.json();
 };
 
+WikiTreeAPI.lookupProfile = function (wtId, resultByKey, people) {
+  let rslt = resultByKey[wtId];
+  if (!rslt) {
+    // If the id in the original api request contained spaces (e.g. "Van der Byl-59"), then resultByKey will typically also have it with a space.
+    // However, when we want to lookup the profile, we don't always have the id with spaces, or vice versa. To save us the trouble of figuring out
+    // what is the case in each situation, we just try both ways here.
+    if (wtId.includes("_")) {
+      rslt = resultByKey[wtId.replace("_", " ")];
+    } else if (wtId.includes(" ")) {
+      rslt = resultByKey[wtId.replace(" ", "_")];
+    }
+  }
+
+  if (rslt) {
+    let id = rslt.Id;
+    if (rslt.status && rslt.status.startsWith("Redirected")) {
+      id = rslt.status.match(/\d+/)[0];
+    }
+    return people[id];
+  }
+  return null;
+};
+
 /**
  * Utility function to get/set cookie data.
  * Adapted from https://github.com/carhartl/jquery-cookie which is obsolete and has been
  * superseded by https://github.com/js-cookie/js-cookie. The latter is a much more complete cookie utility.
- * Here we just want to get and set some simple values in limited circumstances to track an API login.
+ * Here we just want to get and set some simple values in limited circumstances to track e.g. an API login.
  * So we'll use a stripped-down function here and eliminate a prerequisite. This function should not be used
  * in complex circumstances.
  *
@@ -557,7 +592,7 @@ WikiTreeAPI.cookie = function (key, value, options) {
       options.expires = -1;
     }
     if (typeof options.expires === "number") {
-      var days = options.expires;
+      const days = options.expires;
       options.expires = new Date();
       options.expires.setDate(options.expires.getDate() + days);
     }
@@ -574,12 +609,12 @@ WikiTreeAPI.cookie = function (key, value, options) {
   }
 
   // We're not writing/setting the cookie, we're reading a value from it.
-  var cookies = document.cookie.split("; ");
+  let cookies = document.cookie.split("; ");
 
-  var result = key ? null : {};
-  for (var i = 0, l = cookies.length; i < l; i++) {
-    var parts = cookies[i].split("=");
-    var name = parts.shift();
+  let result = key ? null : {};
+  for (let i = 0, l = cookies.length; i < l; i++) {
+    const parts = cookies[i].split("=");
+    let name = parts.shift();
     name = decodeURIComponent(name.replace(/\+/g, " "));
     value = parts.join("=");
     value = decodeURIComponent(value.replace(/\+/g, " "));

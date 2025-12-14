@@ -28,6 +28,11 @@
   font-size: 1.5em;
   font-weight: bold;
   cursor: move;
+  position: sticky;
+  top: 0;
+  background-color: #fff;
+  z-index: 1;
+  padding-left: 2em; /* Avoid clash with expander button */
 }
 
 #unconnectedBranchTable x {
@@ -52,12 +57,6 @@
 #unconnectedBranchTable tr.BioPerson.Death {
   border-bottom: 1px solid forestgreen;
 }
-#unconnectedBranchTable caption {
-  position: sticky;
-  top: 0;
-  background-color: #fff;
-  z-index: 1;
-}
 
 #unconnectedBranchTable x {
   right: 0;
@@ -68,7 +67,7 @@
 
 #unconnectedBranchTable thead {
   position: sticky;
-  top: 30px;
+  top: var(--caption-height, 30px);
   background-color: #fff;
   z-index: 1;
 }
@@ -112,8 +111,9 @@
 }
 
 img.unconnectedBranch {
-  width: 2em;
+  width: 1em;
   cursor: pointer;
+  max-width: none;
 }
 
 body.page-Space_Notables_Project_Unconnected_Profiles table.wikitable tr.connected,
@@ -137,4 +137,24 @@ body.page-Space_Notables_Project_Profiles_Needing_Family_Member table.wikitable 
 
 #unconnectedBranchTable table {
   caption-side: top;
+}
+
+#unconnectedBranchTable .showFamilySheet {
+  font-size: 85%;
+  cursor: pointer;
+  max-width: none;
+  line-height: 1em;
+}
+
+body.profile .familySheet.wbe-family-popup,
+.familySheet.wbe-family-popup {
+  position: absolute !important;
+  z-index: 100000 !important;
+  box-shadow: 1em 1em 1em #ccc !important;
+  width: auto !important;
+  margin: 0 !important;
+}
+
+body.profile .familySheet.wbe-family-popup x {
+  display: block !important;
 }

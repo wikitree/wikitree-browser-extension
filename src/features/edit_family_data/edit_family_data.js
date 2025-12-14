@@ -44,7 +44,7 @@ async function addInfoAboutOtherPerson() {
   const wtid = h1Link.attr("href").split("/").pop();
   const fields = ["Id", "Name", "BirthDate", "BirthLocation", "DeathDate", "DeathLocation"];
   console.log("Fetching person data for wtid:", wtid);
-  WikiTreeAPI.getPerson("WBE_edit_family_data", wtid, fields).then(async (data) => {
+  WikiTreeAPI.getPerson("edit_family_data", wtid, fields).then(async (data) => {
     const efProfile = data._data;
     let efBdate = "";
     let efBlocation = "";

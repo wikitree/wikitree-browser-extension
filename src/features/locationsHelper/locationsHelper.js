@@ -3,13 +3,16 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { extractRelatives, familyArray, getRelatives } from "../../core/common";
+import { familyArray } from "../../core/common";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { formISODate } from "../date_fixer/date_fixer";
 import { isSpaceEdit, isNewSpace, isImagePage, isAddUnrelatedPerson } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 // import { australian_locations } from "./auto_bio/australian_locations";
 import { profilePerson } from "../../core/common";
 import { normalizeLocation, initLocationTranslations } from "./location_helpers";
+
+const WBE_LOC_HELPER_APP_ID = "WBE_locations_helper";
 
 /* ── logging helpers (silenced) ────────────────────────────────────────── */
 function dbg() {}
@@ -347,8 +350,13 @@ async function locationsHelper() {
   dbg("profilePerson Id check", { theID, isSpaceEdit, isNewSpace, isAddUnrelatedPerson, isImagePage });
 
   if (theID) {
-    getRelatives(theID, undefined, "WBE_locationsHelper").then((result) => {
-      const thisFamily = familyArray(result);
+    WikiTreeAPI.getRelatives(WBE_LOC_HELPER_APP_ID, theID, "*", {
+      getParents: 1,
+      getSiblings: 1,
+      getSpouses: 1,
+      getChildren: 1,
+    }).then((items) => {
+      const thisFamily = familyArray(items[0].person);
       window.bdLocations = [];
       thisFamily.forEach(function (aPe) {
         if (aPe.BirthLocation) {
@@ -379,6 +387,12 @@ async function locationsHelper() {
             added_node.classList &&
             added_node.classList.contains("autocomplete-suggestion")
           ) {
+            const rawDataVal = $(added_node).attr("data-val") || "";
+            // Ignore non-location suggestions that carry underscores in their data-val
+            if (rawDataVal.includes("_")) {
+              dbg("skip suggestion with underscore data-val", rawDataVal);
+              return;
+            }
             // Avoid reprocessing when we move the node within its container
             if ($(added_node).data("locHelperProcessed")) {
               dbg("skip already processed suggestion");

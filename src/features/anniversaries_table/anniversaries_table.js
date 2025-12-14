@@ -2,7 +2,7 @@ import $ from "jquery";
 import dt from "datatables.net-dt";
 import "datatables.net-dt/css/jquery.dataTables.css";
 import "./anniversaries_table.css";
-import { getPeople } from "../dna_table/dna_table";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { distRelDbKeyFor, getUserWtId } from "../../core/common";
 import {
@@ -10,6 +10,8 @@ import {
   RELATIONSHIP_STORE_NAME,
   initDistanceAndRelationshipDBs,
 } from "../distanceAndRelationship/distanceAndRelationship";
+
+const WBE_ANNV_TBL_APP_ID = "WBE_anniversaries_table";
 
 let tableData = null;
 const shakingTree = $(
@@ -301,22 +303,18 @@ function generateCSV() {
 async function updateNames() {
   let csvString = generateCSV(); // Get the CSV list
 
-  // Call your getPeople function with the CSV list as the keys
-  let result = await getPeople(
+  // Call getPeople function with the CSV list as the keys
+  const [, , people] = await WikiTreeAPI.getPeople(
+    WBE_ANNV_TBL_APP_ID,
     csvString,
-    false,
-    false,
-    false,
-    false,
-    0,
-    "Name,FirstName,LastNameCurrent,LastNameAtBirth"
+    "Name,FirstName,LastNameCurrent,LastNameAtBirth",
+    { getSpouses: 1 }
   );
 
   let isUpdated = false;
 
   // Check if people are returned
-  if (result) {
-    const people = result[0].people;
+  if (people) {
     const peopleKeys = Object.keys(people);
     if (people) {
       // Iterate over each person

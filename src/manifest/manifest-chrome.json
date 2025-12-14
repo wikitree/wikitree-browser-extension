@@ -1,14 +1,14 @@
 {
   "name": "WikiTree Browser Extension (Preview)",
   "description": "The official WikiTree browser extension.",
-  "version": "2.8.0.3",
+  "version": "2.9.1.6",
   "manifest_version": 3,
   "options_page": "options.html",
   "permissions": ["storage", "clipboardRead", "clipboardWrite", "contextMenus", "activeTab"],
-  "host_permissions": ["https://*.wikitree.com/*"],
+  "host_permissions": ["https://*.wikitree.com/*", "*://*.findagrave.com/*"],
   "content_scripts": [
     {
-      "matches": ["https://*.wikitree.com/*"],
+      "matches": ["https://*.wikitree.com/*", "*://*.findagrave.com/*"],
       "js": ["js/vendor.js", "js/content.js"]
     }
   ],

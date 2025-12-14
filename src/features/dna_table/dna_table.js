@@ -3,7 +3,10 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+
+const WBE_DNA_TABLE_APP_ID = "WBE_dna_table";
 
 function getBirthplaces() {
   const ids = [];
@@ -45,11 +48,11 @@ function getBirthplaces() {
     // Fetch data in chunks of 100
     while (ids.length) {
       let chunk = ids.splice(0, 100).join(",");
-      getPeople(chunk, 0, 0, 0, 0, 0, "Id,Name,BirthLocation", "WBE_dna_table").then((data) => {
-        if (data[0] && data[0].people) {
-          let theKeys = Object.keys(data[0].people);
+      WikiTreeAPI.getPeople(WBE_DNA_TABLE_APP_ID, chunk, "Id,Name,BirthLocation").then(([, , people]) => {
+        if (people) {
+          let theKeys = Object.keys(people);
           theKeys.forEach(function (aKey) {
-            let person = data[0].people[aKey];
+            let person = people[aKey];
             let birthplace = person.BirthLocation || "";
             let reversedBirthPlace = birthplace.split(", ").reverse().join(", ");
 
@@ -108,46 +111,3 @@ shouldInitializeFeature("dnaTable").then((result) => {
     });
   }
 });
-
-export async function getPeople(keys, siblings, ancestors, descendants, nuclear, minGeneration, fields, appId = "WBE") {
-  if (keys.length) {
-    try {
-      const data = {
-        action: "getPeople",
-        keys: keys,
-        siblings: siblings,
-        ancestors: ancestors,
-        descendants: descendants,
-        nuclear: nuclear,
-        minGeneration: minGeneration,
-        fields: fields,
-        getSpouses: 1,
-        appId: appId || "WBE",
-      };
-
-      // Remove all empty values
-      Object.keys(data).forEach((key) => {
-        if (data[key] === undefined || data[key] === null || data[key] === "") {
-          delete data[key];
-        }
-      });
-
-      const result = await $.ajax({
-        url: "https://api.wikitree.com/api.php",
-        crossDomain: true,
-        xhrFields: {
-          withCredentials: true,
-        },
-        type: "POST",
-        dataType: "json",
-        data: data,
-      });
-      return result;
-    } catch (error) {
-      console.error(error);
-      return {};
-    }
-  } else {
-    return {};
-  }
-}

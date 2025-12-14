@@ -249,7 +249,7 @@ async function addGoodShipCats(goodShipCats, needle) {
     mainDomain +
     "/index.php?action=ajax&rs=Title%3A%3AajaxCategorySearch&rsargs[]=" +
     encodeURIComponent(needle) +
-    "&rsargs[]=0&appID=WBE_migrationCategoryHelper";
+    "&rsargs[]=0&appID=WBE_migration_category_helper";
 
   const response = await fetch(catUrl);
   if (response.status == 200) {

@@ -6,7 +6,7 @@ import "jquery-ui/ui/widgets/draggable";
 import "./surname_table.css";
 import { isSearchPage, isSpecialWatchedList } from "../../core/pageType";
 import { initTableFilters } from "../table_filters/table_filters";
-import { getPeople } from "../dna_table/dna_table";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import Cookies from "js-cookie";
 import { convertDate } from "../auto_bio/auto_bio";
 import { shouldInitializeFeature, getFeatureOptions, checkIfFeatureEnabled } from "../../core/options/options_storage";
@@ -21,6 +21,8 @@ import {
   initDistanceAndRelationshipDBs,
 } from "../distanceAndRelationship/distanceAndRelationship";
 import { CC7Notes } from "./cc7_notes";
+
+const WBE_SURNAME_TABLE_APP_ID = "WBE_surname_table";
 
 const ExtraColumn = {
   NOTES: "notes",
@@ -740,17 +742,20 @@ function addFamilyGroupIcon($cell, wtId) {
  *
  * @returns {Promise<void>} Resolves when numbering is complete.
  */
-async function dNumbering() {
+async function dNumbering(table) {
   if (!window.surnameTableOptions.NumberTheTable) {
     return;
   }
 
+  // Use provided table or fall back to global $theTable
+  const $table = table || $theTable;
+
   // Remove existing index spans and home images
-  $theTable.find("tr span.index").remove();
-  $theTable.find("tr img.home").remove();
+  $table.find("tr span.index").remove();
+  $table.find("tr img.home").remove();
 
   let j = 1;
-  $theTable.find("tr").each(function (i) {
+  $table.find("tr").each(function (i) {
     const $this = $(this);
     if (i === 0 || $this.hasClass("filter-row") || $this.hasClass("surnameTableHeaderRow")) {
       return; // Skip the header and filter rows
@@ -1264,11 +1269,12 @@ async function getBrickWalls() {
   while (theseKeys.length) {
     chunk = theseKeys.splice(0, 50).join(",");
     const fields =
-      "Id,Name,Manager,Mother,Father,Spouses,LastNameAtBirth,LastNameCurrent,Gender,Photo,PhotoData,BirthLocation,DeathLocation,Connected,TrustedList,Privacy,Touched";
-    getPeople(chunk, 0, 0, 0, 0, 0, fields).then((result) => {
-      const peopleKeys = Object.keys(result[0].people);
+      "Id,Name,Manager,Mother,Father,Spouses,LastNameAtBirth,LastNameCurrent,Gender,Photo,PhotoData,BirthLocation,DeathLocation," +
+      "Connected,TrustedList,Privacy,Touched";
+    WikiTreeAPI.getPeople(WBE_SURNAME_TABLE_APP_ID, chunk, fields).then(([, , people]) => {
+      const peopleKeys = Object.keys(people);
       peopleKeys.forEach((key) => {
-        const person = result[0].people[key];
+        const person = people[key];
         const thisID = person.Name;
         const $row = $theTbody.find(`tr[data-wtid="${thisID}"]`);
         const dParentEl = $row.find("td").first();
@@ -1413,14 +1419,15 @@ async function getBrickWalls() {
         }
 
         if (person.Privacy_IsAtLeastPublic && window.surnameTableOptions.ShowMissingParents) {
+          const theseBricks = $("<span class='bricks'></span>");
+          const firstAnchor = dParentEl.find(`a[href$="${thisID}"]`).first();
+          firstAnchor.after(theseBricks);
           if (person.Mother == "0") {
-            const firstAnchor = dParentEl.find(`a[href$="${thisID}"]`).first();
-            firstAnchor.after(pinkBricks.clone(true));
+            theseBricks.append(pinkBricks.clone(true));
           }
 
           if (person.Father == "0") {
-            const firstAnchor = dParentEl.find(`a[href$="${thisID}"]`).first();
-            firstAnchor.after(blueBricks.clone(true));
+            theseBricks.append(blueBricks.clone(true));
           }
         }
 
@@ -1477,6 +1484,9 @@ function makeTableWide(dTable) {
   } else {
     $("#buttonBox").show();
   }
+
+  // Apply numbering if enabled
+  dNumbering(dTable);
 }
 
 /**
@@ -1504,6 +1514,9 @@ function makeTableNotWide(dTable) {
 
   dTable.insertBefore($("#tableContainer"));
   $("#buttonBox").hide();
+
+  // Apply numbering if enabled
+  dNumbering(dTable);
 }
 
 /**

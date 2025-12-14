@@ -7,13 +7,13 @@ import $ from "jquery";
 import "jquery-ui/ui/widgets/sortable";
 import "jquery-ui/ui/widgets/autocomplete";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
-import { getUserWtId, getUserNumId, isLoggedIntoAPI, setHighestZIndex } from "../../core/common";
+import { getUserWtId, getUserNumId, setHighestZIndex } from "../../core/common";
 import { goAndLogIn } from "../randomProfile/randomProfile";
 import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
 
 const CryptoJS = require("crypto-js");
 
-const APP_ID = "WBE-SpaceSorter";
+const WBE_SS_APP_ID = "WBE_space_sorter";
 const browserAPI = typeof browser !== "undefined" ? browser : chrome;
 
 const spaceWatchlistSorterHTML = `
@@ -110,14 +110,14 @@ async function loadSpaceWatchlist() {
   try {
     // console.log("Checking user login status");
     const userNumId = getUserNumId();
-    if (!userNumId || !(await isLoggedIntoAPI(userNumId, APP_ID))) {
+    if (!userNumId || !(await WikiTreeAPI.isLoggedIntoAPI(userNumId, WBE_SS_APP_ID))) {
       showLoginPopup();
       return [];
     }
 
     // The user is logged in at WikiTree and the Apps server - Fetch their space watchlist
     //console.log(`Fetching Watchlist, userWtid=${getUserWtId()}, numId=${userNumId}`);
-    const watchlist = await WikiTreeAPI.getSpaceWatchlist(APP_ID, limit, fields);
+    const watchlist = await WikiTreeAPI.getSpaceWatchlist(WBE_SS_APP_ID, limit, fields);
 
     return watchlist || [];
   } catch (error) {
@@ -145,7 +145,7 @@ function showLoginPopup() {
       userId = getUserWtId();
       const userNumId = getUserNumId();
       if (userId && userNumId) {
-        if (await isLoggedIntoAPI(userNumId, APP_ID)) {
+        if (await WikiTreeAPI.isLoggedIntoAPI(userNumId, WBE_SS_APP_ID)) {
           $("#login-popup").remove();
           // console.log(`Logged in: userId='${userId}', userNumId='${userNumId}'`);
         } else {
@@ -217,7 +217,7 @@ async function populateInterface() {
       };
     }
     const userNumId = getUserNumId();
-    if (!userNumId || !(await isLoggedIntoAPI(userNumId, APP_ID))) {
+    if (!userNumId || !(await WikiTreeAPI.isLoggedIntoAPI(userNumId, WBE_SS_APP_ID))) {
       showLoginPopup();
       return {
         status: false,
