@@ -71,7 +71,7 @@ function newPersonRecord() {
  * @returns {Object} A family data object with empty arrays for each relationship.
  */
 function newFamilyData() {
-  return { parents: [], siblings: [], spouses: [], children: [] };
+  return { parents: [], bioParents: [], siblings: [], spouses: [], children: [] };
 }
 
 function getInitialPencils() {
@@ -513,6 +513,39 @@ function parseInitialData() {
     delete familyData.parents;
   }
 
+  // Parse bio parents
+  const bioParentsBlock = searchContainer ? searchContainer.querySelector("#BioParents") : null;
+  if (DEBUG_FAMILY_LISTS) console.log("BioParents block found:", bioParentsBlock);
+  if (bioParentsBlock) {
+    let parsedBioParents = parseBlock(bioParentsBlock, "parent").filter((r) => r.Name && !/^(edit)$/i.test(r.Name));
+    const bracketed = parseBracketedUnknownInBlock(bioParentsBlock).filter((b) => {
+      return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
+    });
+    bracketed.forEach((b) => {
+      if (
+        !parsedBioParents.some((m) => {
+          return (
+            (m.Name && m.Name.toLowerCase() === b.Name.toLowerCase()) ||
+            (m.UnknownText && m.UnknownText.toLowerCase() === b.UnknownText.toLowerCase())
+          );
+        })
+      ) {
+        parsedBioParents.push(b);
+      }
+    });
+    parsedBioParents = parsedBioParents.filter((parent, index, self) => {
+      if (parent.Link) {
+        parent.Link = parent.Link.replace(/ /g, "_");
+        return index === self.findIndex((p) => p.Link === parent.Link);
+      } else {
+        return index === self.findIndex((p) => p.UnknownText === parent.UnknownText);
+      }
+    });
+    familyData.bioParents = parsedBioParents;
+  } else {
+    delete familyData.bioParents;
+  }
+
   // Parse siblings
   const siblingsBlock = searchContainer ? searchContainer.querySelector("#Siblings") : null;
   if (DEBUG_FAMILY_LISTS) console.log("Siblings block found:", siblingsBlock);
@@ -633,6 +666,9 @@ function buildFamilyListsFromData(familyData) {
 
   if (familyData.parents !== undefined) {
     container.appendChild(buildParentsSection(familyData.parents));
+  }
+  if (familyData.bioParents !== undefined) {
+    container.appendChild(buildBioParentsSection(familyData.bioParents));
   }
   if (familyData.siblings !== undefined) {
     container.appendChild(buildSiblingsSection(familyData.siblings));
@@ -842,6 +878,59 @@ function buildParentsSection(parents) {
       li.dataset.gender = getGender(p);
     });
   }
+  container.appendChild(ol);
+  return container;
+}
+
+/**
+ * Builds the Bio Parents section DOM.
+ * @param {Object[]} bioParents - Array of bio parent records.
+ * @returns {HTMLElement} The bio parents section element.
+ */
+function buildBioParentsSection(bioParents) {
+  const container = document.createElement("div");
+  container.className = "VITALS familyList";
+  container.id = "bioParentDetails";
+
+  const headerDiv = document.createElement("div");
+  headerDiv.appendChild(createHeader("Biological Parents: ", "bioParentsHeader", "Biological Parents"));
+  container.appendChild(headerDiv);
+
+  const ol = createListElement("bioParentList");
+  if (bioParents.length === 0) {
+    ol.appendChild(createDefaultLink("bioFather", "[bio father?]"));
+    ol.appendChild(createDefaultLink("bioMother", "[bio mother?]"));
+  } else {
+    bioParents.forEach((p) => {
+      const li = document.createElement("li");
+      li.dataset.parseName = p.Name;
+      const dates = getDatesFromFamilyData(p);
+      const isPrivate = /^\[.*(unknown|private).*?\]$/i.test(p.Name);
+      let hrefBit = `href="${p.Link}"`;
+      if (isPrivate) {
+        hrefBit = "";
+        p.Gender = p.Name.includes("father") || p.relationship === "BioFather" ? "Male" : "Female";
+      } else {
+        p.Gender = p.relationship === "BioFather" ? "Male" : "Female";
+      }
+
+      li.className = p.relationship == "BioFather" ? "parent_1" : "parent_2";
+      if (p.Gender == "Male") {
+        li.classList.add("male");
+        li.dataset.gender = "Male";
+      }
+      if (p.Gender == "Female") {
+        li.classList.add("female");
+        li.dataset.gender = "Female";
+      }
+      li.innerHTML = `<span itemprop="parent" ${
+        p.relationship == "BioFather" ? 'class="parent_1"' : 'class="parent_2"'
+      }><a ${hrefBit} data-gender="${p.Gender}">${p.FullName || p.Name}</a>
+        </span><span class="bdDates">${dates.dates || ""}</span>`;
+      ol.appendChild(li);
+    });
+  }
+
   container.appendChild(ol);
   return container;
 }
