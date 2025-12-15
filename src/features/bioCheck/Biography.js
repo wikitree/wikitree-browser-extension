@@ -233,6 +233,7 @@ export class Biography {
     // so you want to combine them until you find the line with the }}
     // and you also want the line after the {{ and up to the first | or the }} to test
     while (currentIndex < lineCount) {
+      let mixedCaseLine = this.#bioLines[currentIndex].trim();
       let line = this.#bioLines[currentIndex].toLowerCase().trim();
       let linesToSkip = 0;
       if (line.length > 0) {         // something here?
@@ -248,7 +249,7 @@ export class Biography {
         if (this.#checkForEmail(line)) {
           this.#style.bioMightHaveEmail = true;
         }
-        this.#checkRecommendedHtml(line);
+        this.#checkRecommendedHtml(line, mixedCaseLine);
 
         if (this.#bioSearchString.length > 0) {
           if (line.includes(this.#bioSearchString.toLowerCase())) {
@@ -263,7 +264,6 @@ export class Biography {
           // Report category out of order with the last thing reported first so that
           // you only get one reported per category
           // out of order if RNB, Project Box, Nav Box or Biography heading preceeds
-          //if (haveResearchNoteBox || haveNavBox || haveProjectBox || haveBiography || haveTextLine) {
           if (haveResearchNoteBox || haveNavBoxConfused || haveNavBoxSuccession || haveProjectBox || haveBiography || haveTextLine) {
             this.#style.bioCategoryNotAtStart = true;
             if (haveBiography) {
@@ -291,9 +291,6 @@ export class Biography {
             }
           }
           this.#stats.bioHasCategories = true;
-          //if (this.#firstCategoryIndex < 0) {
-          //  this.#firstCategoryIndex = currentIndex;
-          //}
           if (line.includes(Biography.#UNSOURCED)) {
             this.#stats.bioIsMarkedUnsourced = true;
           }
@@ -312,16 +309,14 @@ export class Biography {
             }
           }
 
-        } else {
+        } else { // not a category
           let partialLine = '';
           let partialMixedCaseLine = '';
-          // TODO need to handle the case of multiple templates on the same line
-          // you can see this with profile Haraldsdotter-37
           if (line.startsWith(Biography.#TEMPLATE_START)) {
             // handle case of template on multiple lines
             let j = line.indexOf(Biography.#TEMPLATE_END);
             let combinedLine = line;
-            let combinedLineMixedCase = line;
+            let combinedLineMixedCase = mixedCaseLine;
             let nextIndex = currentIndex + 1;
             let foundEnd = true;
             if (j < 0) {
@@ -351,48 +346,7 @@ export class Biography {
               partialLine = line.substring(2, j).trim().toLowerCase();
               partialMixedCaseLine = this.#bioLines[currentIndex].substring(2, j).trim();
 
-              // Check that none of the template parameters are duplicated
-              /*
-               * remove any external links from the parameters (they may contain |)
-               * find the start of a parameter name following the |
-               * find the end of the parameter name before the =
-               * trim the parameter name * add it to the set of unique names, and complain if its already found 
-               */
-               // you can test using Vandever-161
-
-              combinedLine = this.#swallowLink(combinedLine);
-              combinedLineMixedCase = this.#swallowLink(combinedLineMixedCase);
-              foundEnd = false;
-              let paramEnd = 0;
-              let paramNameSet = new Set();
-              while (!foundEnd) {
-                let paramStart = combinedLine.indexOf('|', paramEnd);
-                if (paramStart < 0) {
-                  foundEnd = true;
-                } else {
-                  paramStart++;
-                  paramEnd = combinedLine.indexOf('=', paramStart);
-                  //paramEnd--;
-                  if (paramEnd > 0) {
-                    let paramName=combinedLine.substring(paramStart, paramEnd).trim();
-                    if (paramNameSet.has(paramName)) {
-                      let dupName = combinedLineMixedCase.substring(paramStart, paramEnd).trim();
-                      let msg = partialMixedCaseLine + ' template has duplicate parameter ' + dupName;
-                      this.#messages.styleMessages.push(msg);
-                      this.#style.bioHasStyleIssues = true;
-                    } else {
-                      paramNameSet.add(paramName);
-                    }
-                    paramEnd++;
-                    if (paramEnd > combinedLine.length) {
-                      foundEnd = true;
-                    }
-                    // check for duplicate 
-                  } else {
-                    foundEnd = true;
-                  }
-                }
-              }
+              this.#checkForDuplicateTemplateParameter(combinedLineMixedCase);
             }
 
             /* 
@@ -1024,21 +978,6 @@ export class Biography {
     }
     return outStr;
   }
-  /*
-   * Swallow external link in style [[ stuff here ]]
-   * @param {String} inStr
-   * @returns {String} string with link removed
-   */
-  #swallowLink(inStr) {
-    // remove anything that is inside link [[ and ]] brackets
-    let startIndex = inStr.indexOf('[[');
-    let endIndex = inStr.indexOf(']]');
-    if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
-      return inStr;
-    }
-    let outStr = inStr.slice(0, startIndex + 2) + inStr.slice(endIndex);
-    return outStr;
-  }
 
   /*
    * Build an array of each line in the bio
@@ -1047,6 +986,10 @@ export class Biography {
    * @param {String} inStr bio string stripped of comments
    */
   #getLines(inStr) {
+    // if the line has the end and start of a template, such as }}{{ then
+    // treat that as two separate lines
+    inStr = inStr.replaceAll('\}\}\{\{', '\}\}\n\{\{');
+    inStr = inStr.replaceAll('\}\} \{\{', '\}\}\n\{\{');
     let splitString = inStr.split("\n");
     let line = "";
     let tmpString = "";
@@ -1057,7 +1000,7 @@ export class Biography {
       // trimming
       tmpString = line.replace("-", " ");
       tmpString = tmpString.trim();
-      // Do NOT ingore empty lines here. Need to check sources
+      // Do NOT ignore empty lines here. Need to check sources
       // Sanity check if the line with <references /> also has text following on same line
       if (tmpString.indexOf(Biography.#REFERENCES_TAG) >= 0) {
         let endOfReferencesTag = tmpString.indexOf(Biography.#END_BRACKET);
@@ -1728,8 +1671,6 @@ export class Biography {
           this.#messages.styleMessages.push('Heading or subheading before Biography');
         }
       }  else {
-        // See https://www.wikitree.com/wiki/Help:Recommended_Tags
-        // this might be too aggressive
         if ((line.startsWith('[[')) && (line.endsWith(']]'))) {
           this.#unexpectedLines.push(line);
         }
@@ -1744,16 +1685,62 @@ export class Biography {
   /*
    * Check for HTML directives that are not recommended
    */
-  #checkRecommendedHtml(line) {
-    if (line.startsWith(Biography.#START_BRACKET)) {
+  #checkRecommendedHtml(line, mixedCaseLine) {
+    // some ancestry citations have <https
+    // you are allowing that plus < followed by a space or digit 
+    // per the Source Rules
+    if (line.includes(Biography.#START_BRACKET)) {
       if (!this.#sourceRules.isRecommendedTag(line)) {
-        let msg = 'Biography contains HTML tag that is not recommended ' + line;
+        let msg = 'Biography contains HTML tag that is not recommended ' + mixedCaseLine;
         if (msg.length > 80) {
           msg = msg.substring(0, 80);
           msg += "...";
         }
         this.#messages.styleMessages.push(msg);
         this.#style.bioHasStyleIssues = true;
+      }
+    }
+    return;
+  }
+
+  /*
+   * Check for duplicate template parameter
+   * remove any external links from the parameters (they may contain |)
+   * find the start of a parameter name following the |
+   * find the end of the parameter name before the =
+   * trim the parameter name * add it to the set of unique names, and complain if its already found 
+   */
+  #checkForDuplicateTemplateParameter(mixedCaseLine) {
+    let line = mixedCaseLine.replace(/\[\[.*?\]\]/g, "");
+    let foundEnd = false;
+    let paramEnd = 0;
+    let paramNameSet = new Set();
+    while (!foundEnd) {
+      let paramStart = line.indexOf('|', paramEnd);
+      if (paramStart < 0) {
+        foundEnd = true;
+      } else {
+        paramStart++;
+        paramEnd = line.indexOf('=', paramStart);
+        if (paramEnd > 0) {
+          let paramName=line.substring(paramStart, paramEnd).trim();
+          let paramNameLower = paramName.toLowerCase();
+          if (paramNameSet.has(paramNameLower)) {
+            // what we want to report is just the template name and param name
+            let templateName = mixedCaseLine.substring(2, mixedCaseLine.indexOf('|'));
+            let msg = templateName + ' template has duplicate parameter ' + paramName;
+            this.#messages.styleMessages.push(msg);
+            this.#style.bioHasStyleIssues = true;
+          } else {
+            paramNameSet.add(paramNameLower);
+          }
+          paramEnd++;
+          if (paramEnd > line.length) {
+            foundEnd = true;
+          }
+        } else {
+          foundEnd = true;
+        }
       }
     }
     return;
@@ -2380,7 +2367,7 @@ export class Biography {
    *
    * If you made a change to be able to compress multiple lines with bullets following
    * that would probably break finding sources that are not DNA confirmations
-   * see Miller-117607 TODO
+   * see Miller-117607 
  */
   #isValidDnaConfirmation(line, mixedCaseLine) {
     let isValidConf = false;
@@ -2875,9 +2862,9 @@ export class Biography {
       */
       let linePart = line.replaceAll(';', ',');
       linePart = this.#sourceRules.removeInvalidSourcePart(linePart);
-      if (this.#tooOldToRemember) {
+      if ((linePart.length > 0) && (this.#tooOldToRemember)) {
         linePart = this.#sourceRules.removeInvalidSourcePartTooOld(linePart);
-        if (this.#isPre1700 || this.#treatAsPre1700) {
+        if ((linePart.length > 0) && (this.#isPre1700 || this.#treatAsPre1700)) {
           linePart = this.#sourceRules.removeInvalidSourcePartPre1700(line);
         }
       }

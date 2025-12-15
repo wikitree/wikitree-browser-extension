@@ -179,6 +179,7 @@ class SourceRules {
     "<br",
     "<center",
     "</center",
+    "<i>",       // not recommended but used a lot
     "<includeonly",
     "</includeonly",
     "<noinclude",
@@ -193,6 +194,18 @@ class SourceRules {
     "</sub",
     "<sup",
     "</sup",
+    "<0",
+    "<1",
+    "<2",
+    "<3",
+    "<4",
+    "<5",
+    "<6",
+    "<7",
+    "<0",
+    "<9",
+    "<http", // some ancestry citations have <https
+    "< ", // okay with spaces
   ];
   // strings that identify a census source
   // when used by itself or with nothing other than
@@ -266,6 +279,7 @@ class SourceRules {
     "source required",
     "title: marriage",
     "'''see also:'''",
+    "well documented",
     "www.ancestry.ca",
     "www.bms2000.org",
     "confirmed by dna",
@@ -280,10 +294,12 @@ class SourceRules {
     "personal records",
     "parish registers",
     "scotlands people",
+    "the renall years",
     "research records",
     "various archives",
     "www.ancestry.com",
     "acknowledgements:",
+    "ash.howison.co.nz",
     "familysearch.com",
     "ancestry research",
     "drouin collection",
@@ -313,10 +329,12 @@ class SourceRules {
     "personal documents",
     "source information",
     "title: death index",
+    "well documented on",
     "wwwfamilysearchorg",
     "www.ancestry.co.uk",
     "www.gencircles.com",
     "www.myheritage.com",
+    "well documented on",
     "{{citation needed}}",
     "citing this record:",
     "another family tree",
@@ -358,6 +376,7 @@ class SourceRules {
     "thanks to family search",
     "geneanet community trees",
     "https://familysearch.org",
+    "information available on",
     "ohio marriages 1800-1958",
     "scotlandspeople database",
     "ancestry tree and sources",
@@ -376,6 +395,7 @@ class SourceRules {
     "social security death index",
     "torrey's marriages database",
     "ftdna confirmation statement",
+    "personal family recollection",
     "sources are on my family tree",
     "ancestry.com familysearch.org",
     "familysearch.org ancestry.com",
@@ -385,18 +405,22 @@ class SourceRules {
     "geneanet community trees index",
     "'''footnotes and citations:'''",
     ":'''footnotes and citations:'''",
+    "cross checking various websites",
     "dna confirmed with ancestrydna:",
     "family search files on internet",
     "other vital statistic documents",
     "victorian death index 1921-1985",
     "california birth index, 1905-1995",
     "california death index, 1940-1997",
+    "https://www.freebmd.org.uk/search",
     "iowa, select marriages, 1809-1992",
     "research on ancestry and wikitree",
+    "well documented in public records",
     "dna confirmed through ancestrydna:",
     "minnesota birth certificates index",
     "personal knowledge , census reports",
     "new zealand, birth index, 1840-1950",
+    "scotland select marriages, 1561-1910",
     "canada births and baptisms, 1661-1959",
     "queensland births, deaths & marriages",
     "maternal relationship is confirmed by:",
@@ -835,8 +859,10 @@ class SourceRules {
     "ancestrycom",
     "ancestry.uk",
     "ancestry.ca",
+    "birth index",
     "bmd records",
     "bdm records",
+    "death index",
     "my heritage",
     "my research",
     "will follow",
@@ -865,6 +891,10 @@ class SourceRules {
     "bmd",
     "bdm",
     "---",
+    "at",
+    "in",
+    "of",
+    "on",
 //   1234567890
   ];
 
@@ -1173,14 +1203,15 @@ class SourceRules {
   }
 
   /** 
-   * Determine if a line starts with an HTML tag
+   * Determine if a line contains with an HTML tag
    * that is recommended for use on WikiTree. 
    * Typically used for a line that starts with <
    * @param {String} line to test
    * @returns {Boolean} true if recommended else false
    */
   isRecommendedTag(line) {
-    return this.lineStartsWithListEntry(line, this.#recommendedTagsStart);
+    return this.lineContainsListEntry(line, this.#recommendedTagsStart);
+    //return this.lineStartsWithListEntry(line, this.#recommendedTagsStart);
   }
 
   /**
