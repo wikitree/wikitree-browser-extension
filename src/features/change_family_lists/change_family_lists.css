@@ -521,7 +521,9 @@ body.darkMode .vertical .nameList li {
 }
 
 .vertical #parentList li.parent_1,
+.vertical #bioParentList li.parent_1,
 body.darkMode .vertical #parentList li.parent_1,
+body.darkMode .vertical #bioParentList li.parent_1,
 .vertical .nameList li.parent_1 span[itemprop="sibling"],
 .vertical .nameList li span[itemprop="children"].parent_1,
 body.darkMode .vertical .nameList span[itemprop="sibling"].parent_1,
@@ -671,6 +673,7 @@ span[itemprop="sibling"]:has(.activeProfile) {
 }
 
 .vertical #parentList,
+.vertical #bioParentList,
 .vertical #siblingsUnknown {
   list-style: none;
   clear: both;
