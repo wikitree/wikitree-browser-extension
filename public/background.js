@@ -149,7 +149,7 @@ ${citationInstructions}
 STRICT CONSTRAINTS:
 1. **NO HALLUCINATIONS / FLUFF**: Do NOT invent details. Do NOT add subjective descriptions like "She was known for her dedication...", "He was a loving father...", "lived a long life", etc. Only include facts found in the Inputs.
 2. **NO EXTRA OUTPUT**: Do NOT output the tags <generated_bio> or *** BASE TEXT ***. Return ONLY the biography text.
-3. **CATEGORIES**: CAUTION: Place ALL \`[[Category:...]]\` tags at the **VERY TOP** of the output, before \`== Biography ==\`. Do NOT move them to the bottom. Output the EXACT category tags found in <generated_bio>.
+3. **CATEGORIES**: CAUTION: Place ALL \`[[Category:...]]\` tags at the **VERY TOP** of the output, before \`== Biography ==\`. Do NOT move them to the bottom. Output **ONLY** the category tags found in <generated_bio>. **STRICTLY PROHIBITED**: Do NOT create new categories. Do NOT use categories from <original_bio>.
 4. **FAMILY LISTS**: Keep the list of children/spouses exactly as is.
 5. **PHRASING**: Use "${diedWord || "died"}" for death events. Ensure this terminology is consistent.
 6. **NO LIVING PEOPLE**: Do not add names of people who are likely still alive (e.g. from "survived by" lists).
@@ -183,6 +183,44 @@ ${dataPayload}`;
     } else {
       throw new Error("Unknown provider: " + provider);
     }
+
+    // --- PROGRAMMATIC CLEANING : CATEGORIES ---
+    // The AI sometimes ignores instructions and adds categories like [[Category: 1917 Births]].
+    // We strictly enforce that ONLY categories present in the input (newBio) are allowed.
+
+    // Helper to normalize category names for comparison (ignore whitespace/case)
+    const normalizeCat = (cat) =>
+      cat
+        .replace(/^\[\[Category:\s*/i, "")
+        .replace(/\s*\]\]$/, "")
+        .trim()
+        .toLowerCase();
+
+    // 1. Extract allowed categories from newBio (Draft)
+    const allowedCategories = new Set((newBio.match(/\[\[Category:[^\]]+\]\]/g) || []).map(normalizeCat));
+
+    // 2. Filter the result
+    /*
+      We find all categories in the result.
+      If a category is NOT in allowedCategories (normalized), we verify if it is in oldBio? 
+      Actually, the user said "It's making up categories". 
+      The safest rule is: If it wasn't in the Auto Bio draft, it shouldn't be in the final result.
+    */
+    if (resultBio) {
+      resultBio = resultBio.replace(/\[\[Category:[^\]]+\]\]/g, (match) => {
+        const normalized = normalizeCat(match);
+        if (allowedCategories.has(normalized)) {
+          return match;
+        } else {
+          // It's a hallucinated or unwanted category. Remove it.
+          return "";
+        }
+      });
+
+      // Clean up empty lines left by removed categories (optional but nice)
+      resultBio = resultBio.replace(/^\s*[\r\n]/gm, "");
+    }
+
     sendResponse({ success: true, bio: resultBio });
   } catch (error) {
     console.error("AI Request Failed:", error);
