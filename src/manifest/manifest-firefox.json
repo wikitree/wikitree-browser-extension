@@ -10,7 +10,6 @@
   "permissions": [
     "https://*.wikitree.com/*",
     "https://wikitreebee.com/*",
-    "https://wikitreebee.com/*",
     "*://*.findagrave.com/*",
     "https://api.openai.com/*",
     "https://generativelanguage.googleapis.com/*",
