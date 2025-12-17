@@ -41,6 +41,12 @@ registerFeature({
   ],
   options: [
     {
+      id: "newLocations",
+      type: OptionType.CHECKBOX,
+      label: "Use Experimental Location Suggestions",
+      defaultValue: false,
+    },
+    {
       id: "correctLocations",
       type: OptionType.CHECKBOX,
       label: "Correct Locations",

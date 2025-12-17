@@ -7,18 +7,12 @@ Contributors: Jonathan Duke (Duke-5773)
 import $ from "jquery";
 import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
-import { copyToClipboard, readFromClipboard } from "./clipboard.js";
-import draggable from "jquery-ui/ui/widgets/draggable";
+import { readFromClipboard } from "./clipboard.js";
 import {
   mainDomain,
   isNavHomePage,
-  isMainDomain,
   isProfilePage,
   isWikiEdit,
-  isProfileEdit,
-  isSpaceEdit,
-  isSpacePage,
-  isProfileLoggedInUserPage,
   isProfileAddRelative,
   isAddUnrelatedPerson,
   isG2G,
@@ -1272,7 +1266,7 @@ async function restoreIndexedDB(dbName, dbData) {
   db.close();
 }
 
-export function writeToDB(db, dbName, requestedStoreName, records) {
+function writeToDB(db, dbName, requestedStoreName, records) {
   // Do some fiddling so we can restore older backups to the new DB versions.
   // CC7, distance, and relationship are the previous versions of those object
   // stores. The new ones are cc7Profiles, distance2 and relationship2 respectively.

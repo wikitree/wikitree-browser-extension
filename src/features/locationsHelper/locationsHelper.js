@@ -11,6 +11,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 // import { australian_locations } from "./auto_bio/australian_locations";
 import { profilePerson } from "../../core/common";
 import { normalizeLocation, initLocationTranslations } from "./location_helpers";
+import { initLocationSuggestions } from "./location_suggestions";
 
 const WBE_LOC_HELPER_APP_ID = "WBE_locations_helper";
 
@@ -47,6 +48,14 @@ shouldInitializeFeature("locationsHelper").then((result) => {
   if (result) {
     import("./locationsHelper.css");
     getFeatureOptions("locationsHelper").then((options) => {
+      if (options?.newLocations) {
+        options.correctLocations = false;
+        options.addUSCounty = false;
+        options.nativeName = false;
+
+        initLocationSuggestions();
+      }
+
       window.locationsHelperOptions = options;
       dbg("feature options", options);
     });
