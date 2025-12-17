@@ -141,19 +141,34 @@ OBJECTIVE:
     - **Religious/Social Affiliations** ("Methodist Church", "Masons")
     - **Exact Dates/Locations** missing from the draft.
   - **PRIVACY WARNING**: Do **NOT** extract names of likely living people (e.g., lists of surviving children, grandchildren, or great-grandchildren from obituaries). Only mention relatives if they are clearly deceased or historical.
-- **CITATIONS**: 
-  - Standardize all citation formats (e.g., "22 aug 2022" -> "22 Aug 2022").
 ${citationInstructions}
 - **IMPROVE**: Improve formatting/clarity, BUT...
 
 STRICT CONSTRAINTS:
 1. **NO HALLUCINATIONS / FLUFF**: Do NOT invent details. Do NOT add subjective descriptions like "She was known for her dedication...", "He was a loving father...", "lived a long life", etc. Only include facts found in the Inputs.
 2. **NO EXTRA OUTPUT**: Do NOT output the tags <generated_bio> or *** BASE TEXT ***. Return ONLY the biography text.
-3. **CATEGORIES**: CAUTION: Place ALL \`[[Category:...]]\` tags at the **VERY TOP** of the output, before \`== Biography ==\`. Do NOT move them to the bottom. Output **ONLY** the category tags found in <generated_bio>. **STRICTLY PROHIBITED**: Do NOT create new categories. Do NOT use categories from <original_bio>.
-4. **FAMILY LISTS**: Keep the list of children/spouses exactly as is.
+3. **CATEGORIES**: STRICTLY PROHIBITED: Do NOT create new categories.
+4. **FAMILY LISTS**: Keep any lists of children/spouses/siblings as they are in <generated_bio>.
 5. **PHRASING**: Use "${diedWord || "died"}" for death events. Ensure this terminology is consistent.
 6. **NO LIVING PEOPLE**: Do not add names of people who are likely still alive (e.g. from "survived by" lists).
 7. **CRITICAL: PRESERVE LISTS**: You MUST copy any **lists of names** (e.g. Census Households, Pallbearers, Survivors) from <original_bio>. Do NOT summarize them (e.g. do NOT say "He lived with his wife and 3 children"). You MUST list the names. Use a Markdown table or bullet points.
+8. **STYLE & FORMATTING (CRITICAL)**:
+   - **NO HTML**: Do NOT use HTML tags (except <ref> and <br>). Use **MediaWiki markup** only (e.g. use '*' for bullets, '#' for numbered lists, "''" for italics, "'''" for bold). EXCEPTION: <ref> tags are allowed.
+   - **SPELLING/GRAMMAR**: Fix definite spelling and punctuation mistakes.
+   - **SECTION ORDER**: You MUST strictly follow this order for sections (omit if not applicable/present):
+     1. [[Categories]]
+     2. {{Easily Confused}}
+     3. {{Research Note Boxes}}
+     4. {{Project Boxes}}
+     5. {{Succession}}
+     6. == Biography ==
+     7. {{Profile Stickers}}
+     8. == Research Notes ==
+     9. == Sources ==
+     10. <references />
+     11. See also:
+     12. == Acknowledgements ==
+   - **REQUIRED SECTIONS**: The final output MUST contain \`== Biography ==\`, \`== Sources ==\`, and \`<references />\`.
 
 EXAMPLE ENRICHMENT:
 Input Draft: "James died on Feb 13, 1972."
@@ -218,7 +233,9 @@ ${dataPayload}`;
       });
 
       // Clean up empty lines left by removed categories (optional but nice)
-      resultBio = resultBio.replace(/^\s*[\r\n]/gm, "");
+      // replace /^\s*[\r\n]/gm was too aggressive and removed valid blank lines between paragraphs
+      // Instead, we just collapse 3+ newlines into 2 (standard paragraph break)
+      resultBio = resultBio.replace(/[\r\n]{3,}/g, "\n\n");
     }
 
     sendResponse({ success: true, bio: resultBio });
@@ -242,7 +259,7 @@ async function callOpenAI(apiKey, model, system, userPrompt) {
         { role: "user", content: userPrompt },
       ],
       temperature: 0.2,
-      max_tokens: 10000,
+      // max_tokens removed to allow full model output
     }),
   });
 
@@ -257,7 +274,7 @@ async function callOpenAI(apiKey, model, system, userPrompt) {
 
 async function callGemini(apiKey, model, system, userPrompt) {
   // Gemini mostly uses 'user' role, 'system' can be simulated or passed as system_instruction in beta
-  const modelId = model || "gemini-2.5-flash";
+  const modelId = model || "gemini-1.5-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
 
   const response = await fetch(url, {
@@ -274,7 +291,7 @@ async function callGemini(apiKey, model, system, userPrompt) {
       ],
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 10000,
+        // maxOutputTokens removed to allow full model output
       },
     }),
   });
@@ -303,7 +320,7 @@ async function callClaude(apiKey, model, system, userPrompt) {
       model: model,
       system: system,
       messages: [{ role: "user", content: userPrompt }],
-      max_tokens: 4096, // Claude max output tokens
+      max_tokens: 8192, // Increased to maximum typical for Sonnet 3.5
       temperature: 0.2,
     }),
   });

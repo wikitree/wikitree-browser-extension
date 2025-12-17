@@ -10223,7 +10223,7 @@ function showAIResult(aiBio, cleanBaseBio, fullOriginalText) {
       .replace(/[\u2018\u2019]/g, "'") // Smart single quotes -> straight
       .replace(/[\u201C\u201D]/g, '"') // Smart double quotes -> straight
       .replace(/[ \t]+$/gm, "") // Kill trailing spaces
-      .replace(/\n{2,}/g, "\n") // Collapse multiple newlines (Diff noise)
+      //.replace(/\n{2,}/g, "\n") // REMOVED: Preserving blank lines for diff visibility
       .replace(/==\s*([^=]+?)\s*==/g, "== $1 ==") // Standardize Header Spacing
       .replace(/\[\[\s*([^|\]]+?)\s*\|\s*([^\]]+?)\s*\]\]/g, "[[$1|$2]]") // Standardize Link Pipe Spacing
       .replace(/\[\[Category:\s*([^\]]+?)\]\]/g, "[[Category: $1]]") // Standardize Category Spacing
@@ -10243,9 +10243,10 @@ function showAIResult(aiBio, cleanBaseBio, fullOriginalText) {
   let rightHtml = "";
 
   diff.forEach(function (part) {
-    const escapedValue = $("<div/>").text(part.value).html();
+    const escapedValue = part.value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
     if (part.added) {
-      rightHtml += `<span style="background-color: #dcfce7; color: #166534; padding: 2px 0;">${escapedValue}</span>`;
+      rightHtml += `<span style="background-color: #dcfce7; text-decoration: none; color: #166534; padding: 2px 0;">${escapedValue}</span>`;
     } else if (part.removed) {
       leftHtml += `<span style="background-color: #fee2e2; text-decoration: line-through; color: #991b1b; padding: 2px 0;">${escapedValue}</span>`;
     } else {
