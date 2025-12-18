@@ -10155,6 +10155,7 @@ async function improveBioWithAI(e) {
     if (provider === "openai") selectedKey = window.autoBioOptions?.openAIKey;
     else if (provider === "gemini") selectedKey = window.autoBioOptions?.geminiKey;
     else if (provider === "claude") selectedKey = window.autoBioOptions?.claudeKey;
+    else if (provider === "perplexity") selectedKey = window.autoBioOptions?.perplexityKey;
 
     const requestPayload = {
       action: "improveBioWithAI", // FIXED: Matches background.js listener

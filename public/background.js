@@ -133,7 +133,7 @@ INPUTS:
 2. <original_bio>: Old, unstructured biography (Source of MISSING details to be merged).
 
 OBJECTIVE:
-- **ENRICHMENT & MERGE**: Your primary goal is to extract **meaningful details** from <original_bio> and weave them into <generated_bio>.
+- **ENRICHMENT & MERGE**: Your primary goal is to extract **meaningful details** from <original_bio> and weave them into <generated_bio> in chronological order.
   - **EXTRACTION TARGETS**: Look specifically for:
     - **Occupations** ("retired farmer", "teacher")
     - **CRITICAL: Cause of Death** (SCAN THE ENTIRE TEXT TO THE END. Specific medical terms like "coronary occlusion" or "arteriosclerosis" often appear in the final paragraphs. PREFER these over "extended illness").
@@ -148,12 +148,14 @@ STRICT CONSTRAINTS:
 1. **NO HALLUCINATIONS / FLUFF**: Do NOT invent details. Do NOT add subjective descriptions like "She was known for her dedication...", "He was a loving father...", "lived a long life", etc. Only include facts found in the Inputs.
 2. **NO EXTRA OUTPUT**: Do NOT output the tags <generated_bio> or *** BASE TEXT ***. Return ONLY the biography text.
 3. **CATEGORIES**: STRICTLY PROHIBITED: Do NOT create new categories.
-4. **FAMILY LISTS**: Keep any lists of children/spouses/siblings as they are in <generated_bio>.
+4. **FAMILY LISTS**: Keep any lists of children/spouses/siblings as they are in <generated_bio>. Add inline citations for any sources in <original_bio> if we are using ref tags. 
 5. **PHRASING**: Use "${diedWord || "died"}" for death events. Ensure this terminology is consistent.
 6. **NO LIVING PEOPLE**: Do not add names of people who are likely still alive (e.g. from "survived by" lists).
 7. **CRITICAL: PRESERVE LISTS**: You MUST copy any **lists of names** (e.g. Census Households, Pallbearers, Survivors) from <original_bio>. Do NOT summarize them (e.g. do NOT say "He lived with his wife and 3 children"). You MUST list the names. Use a Markdown table or bullet points.
 8. **STYLE & FORMATTING (CRITICAL)**:
-   - **NO HTML**: Do NOT use HTML tags (except <ref> and <br>). Use **MediaWiki markup** only (e.g. use '*' for bullets, '#' for numbered lists, "''" for italics, "'''" for bold). EXCEPTION: <ref> tags are allowed.
+   - **Preserve wikiLinks, templates, ref tags, headings, and formatting (line breaks, etc.); 
+   - **NO HTML**: Do NOT use HTML tags except <ref> and <br>. 
+   - **Use MediaWiki markup** only (e.g. use '*' for bullets, '#' for numbered lists, "''" for italics, "'''" for bold). EXCEPTION: <ref> tags are allowed.
    - **SPELLING/GRAMMAR**: Fix definite spelling and punctuation mistakes.
    - **SECTION ORDER**: You MUST strictly follow this order for sections (omit if not applicable/present):
      1. [[Categories]]
@@ -195,6 +197,8 @@ ${dataPayload}`;
       resultBio = await callGemini(key, model || "gemini-2.5-flash", systemRole, prompt);
     } else if (provider === "claude") {
       resultBio = await callClaude(key, model || "claude-sonnet-4-20250514", systemRole, prompt);
+    } else if (provider === "perplexity") {
+      resultBio = await callPerplexity(key, model || "sonar", systemRole, prompt);
     } else {
       throw new Error("Unknown provider: " + provider);
     }
@@ -332,4 +336,30 @@ async function callClaude(apiKey, model, system, userPrompt) {
 
   const data = await response.json();
   return data.content?.[0]?.text || "";
+}
+
+async function callPerplexity(apiKey, model, system, userPrompt) {
+  const response = await fetch("https://api.perplexity.ai/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.2,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error("Perplexity API Error: " + response.status + " " + err);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "";
 }
