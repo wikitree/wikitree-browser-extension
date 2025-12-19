@@ -215,11 +215,11 @@ function getLocaleInfo(location, bio) {
     "Ireland",
   ];
 
-  const frenchLocations = ["france", "québec", "quebec"];
+  const frenchLocations = ["france", "fr", "québec", "quebec", "qc"];
 
   if (englishCountries.some((c) => lastPart.toLowerCase() === c.toLowerCase())) {
     if (lastPart.toLowerCase() === "canada") {
-      const isQuebec = parts.some((p) => p.toLowerCase() === "québec" || p.toLowerCase() === "quebec");
+      const isQuebec = parts.some((p) => ["québec", "quebec", "qc"].includes(p.toLowerCase()));
       if (isQuebec || !isEnglishCanada(bio)) {
         return { isEnglish: false, standardName: "Anonyme" };
       }
@@ -379,8 +379,8 @@ function addDiedYoungSticker(options) {
  * @returns {Promise<void>} Resolves when processing is complete.
  */
 async function doUnnamedInfant() {
-  birthDate = $("#mBirthDate").val();
-  deathDate = $("#mDeathDate").val();
+  birthDate = $("#mBirthDate").val().trim();
+  deathDate = $("#mDeathDate").val().trim();
   const age = findAge();
 
   if (birthDate == "" || deathDate == "") {
@@ -388,17 +388,15 @@ async function doUnnamedInfant() {
   }
 
   const options = await getFeatureOptions("unnamedInfant");
-  const firstName = $("#mFirstName").val();
+  const firstName = $("#mFirstName").val().trim();
   const profileId = new URLSearchParams(window.location.search).get("u");
-
-  const standardName = "Unnamed Infant";
 
   const birthLocation = $("#mBirthLocation").val();
   const bio = $("#wpTextbox1").val();
   const localeInfo = getLocaleInfo(birthLocation, bio);
 
   // Unnamed Infant: if first name matches unnamed/unknown and birthDate equals deathDate, and feature enabled.
-  if (firstName.match(/unnamed|unknown|infant/i) && birthDate == deathDate && options.unnamedInfant) {
+  if (firstName.match(/unnamed|unknown|infant|anonyme/i) && birthDate == deathDate && options.unnamedInfant) {
     if (localeInfo.standardName && firstName != localeInfo.standardName) {
       $("#mFirstName,#mRealName").val(localeInfo.standardName);
       message.push(`First name changed to '${localeInfo.standardName}'`);
