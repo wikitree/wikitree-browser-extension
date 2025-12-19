@@ -113,9 +113,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function handleAIRequest(request, sendResponse) {
-  const { oldBio, newBio, provider, key, model, diedWord, inlineCitations } = request;
+  const {
+    oldBio,
+    newBio,
+    provider,
+    key,
+    model,
+    diedWord,
+    inlineCitations,
+    dateFormat,
+    dateStatusFormat,
+    yearsDateStatusFormat,
+  } = request;
 
   const systemRole = "You are a Fact Merger for WikiTree. You are NOT a creative writer.";
+
+  // Date Format Instructions
+  const dateFormats = {
+    MDY: "Use 'Month DD, YYYY' (e.g., November 24, 1859)",
+    DMY: "Use 'DD Month YYYY' (e.g., 24 November 1859)",
+    sMDY: "Use 'AbbrMonth DD, YYYY' (e.g., Nov 24, 1859)",
+    DsMY: "Use 'DD AbbrMonth YYYY' (e.g., 24 Nov 1859)",
+  };
+  const dateStatusFormats = {
+    words: "Use words 'before', 'after', 'about' for uncertain dates.",
+    abbreviations: "Use abbreviations 'bef.', 'aft.', 'abt.' for uncertain dates.",
+    symbols: "Use symbols '<', '>', '~' for uncertain dates.",
+  };
+  const yearsStatusFormats = {
+    words: "Use words 'before', 'after', 'about' for uncertain years in ranges.",
+    abbreviations: "Use abbreviations 'bef.', 'aft.', 'abt.' for uncertain years in ranges.",
+    symbols: "Use symbols '<', '>', '~' for uncertain years in ranges.",
+  };
+
+  const dateInstructions = `   - **DATE FORMAT**: ${dateFormats[dateFormat] || dateFormats.MDY}
+   - **DATE STATUS**: ${dateStatusFormats[dateStatusFormat] || dateStatusFormats.abbreviations}
+   - **YEAR RANGE STATUS**: ${yearsStatusFormats[yearsDateStatusFormat] || yearsStatusFormats.symbols}`;
 
   let citationInstructions = "";
   if (inlineCitations) {
@@ -133,7 +166,7 @@ INPUTS:
 2. <original_bio>: Old, unstructured biography (Source of MISSING details to be merged).
 
 OBJECTIVE:
-- **ENRICHMENT & MERGE**: Your primary goal is to extract **meaningful details** from <original_bio> and weave them into <generated_bio>.
+- **ENRICHMENT & MERGE**: Your primary goal is to extract **meaningful details** from <original_bio> and weave them into <generated_bio> in chronological order.
   - **EXTRACTION TARGETS**: Look specifically for:
     - **Occupations** ("retired farmer", "teacher")
     - **CRITICAL: Cause of Death** (SCAN THE ENTIRE TEXT TO THE END. Specific medical terms like "coronary occlusion" or "arteriosclerosis" often appear in the final paragraphs. PREFER these over "extended illness").
@@ -148,12 +181,14 @@ STRICT CONSTRAINTS:
 1. **NO HALLUCINATIONS / FLUFF**: Do NOT invent details. Do NOT add subjective descriptions like "She was known for her dedication...", "He was a loving father...", "lived a long life", etc. Only include facts found in the Inputs.
 2. **NO EXTRA OUTPUT**: Do NOT output the tags <generated_bio> or *** BASE TEXT ***. Return ONLY the biography text.
 3. **CATEGORIES**: STRICTLY PROHIBITED: Do NOT create new categories.
-4. **FAMILY LISTS**: Keep any lists of children/spouses/siblings as they are in <generated_bio>.
+4. **FAMILY LISTS**: Keep any lists of children/spouses/siblings as they are in <generated_bio>. Add inline citations for any sources in <original_bio> if we are using ref tags. 
 5. **PHRASING**: Use "${diedWord || "died"}" for death events. Ensure this terminology is consistent.
 6. **NO LIVING PEOPLE**: Do not add names of people who are likely still alive (e.g. from "survived by" lists).
 7. **CRITICAL: PRESERVE LISTS**: You MUST copy any **lists of names** (e.g. Census Households, Pallbearers, Survivors) from <original_bio>. Do NOT summarize them (e.g. do NOT say "He lived with his wife and 3 children"). You MUST list the names. Use a Markdown table or bullet points.
 8. **STYLE & FORMATTING (CRITICAL)**:
-   - **NO HTML**: Do NOT use HTML tags (except <ref> and <br>). Use **MediaWiki markup** only (e.g. use '*' for bullets, '#' for numbered lists, "''" for italics, "'''" for bold). EXCEPTION: <ref> tags are allowed.
+   - **Preserve wikiLinks, templates, ref tags, headings, and formatting (line breaks, etc.); 
+   - **NO HTML**: Do NOT use HTML tags except <ref> and <br>. 
+   - **Use MediaWiki markup** only (e.g. use '*' for bullets, '#' for numbered lists, "''" for italics, "'''" for bold). EXCEPTION: <ref> tags are allowed.
    - **SPELLING/GRAMMAR**: Fix definite spelling and punctuation mistakes.
    - **SECTION ORDER**: You MUST strictly follow this order for sections (omit if not applicable/present):
      1. [[Categories]]
@@ -169,6 +204,8 @@ STRICT CONSTRAINTS:
      11. See also:
      12. == Acknowledgements ==
    - **REQUIRED SECTIONS**: The final output MUST contain \`== Biography ==\`, \`== Sources ==\`, and \`<references />\`.
+9. **DATE STYLE**:
+${dateInstructions}
 
 EXAMPLE ENRICHMENT:
 Input Draft: "James died on Feb 13, 1972."
@@ -195,6 +232,8 @@ ${dataPayload}`;
       resultBio = await callGemini(key, model || "gemini-2.5-flash", systemRole, prompt);
     } else if (provider === "claude") {
       resultBio = await callClaude(key, model || "claude-sonnet-4-20250514", systemRole, prompt);
+    } else if (provider === "perplexity") {
+      resultBio = await callPerplexity(key, model || "sonar", systemRole, prompt);
     } else {
       throw new Error("Unknown provider: " + provider);
     }
@@ -332,4 +371,30 @@ async function callClaude(apiKey, model, system, userPrompt) {
 
   const data = await response.json();
   return data.content?.[0]?.text || "";
+}
+
+async function callPerplexity(apiKey, model, system, userPrompt) {
+  const response = await fetch("https://api.perplexity.ai/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.2,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error("Perplexity API Error: " + response.status + " " + err);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "";
 }

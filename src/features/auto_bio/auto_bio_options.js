@@ -583,6 +583,7 @@ const autoBio = {
             { value: "openai", text: "OpenAI" },
             { value: "gemini", text: "Google Gemini" },
             { value: "claude", text: "Anthropic Claude" },
+            { value: "perplexity", text: "Perplexity AI" },
           ],
           defaultValue: "openai",
         },
@@ -602,6 +603,12 @@ const autoBio = {
           id: "claudeKey",
           type: OptionType.TEXT,
           label: "Claude API Key",
+          defaultValue: "",
+        },
+        {
+          id: "perplexityKey",
+          type: OptionType.TEXT,
+          label: "Perplexity API Key",
           defaultValue: "",
         },
         {

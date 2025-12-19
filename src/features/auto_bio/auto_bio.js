@@ -10155,6 +10155,7 @@ async function improveBioWithAI(e) {
     if (provider === "openai") selectedKey = window.autoBioOptions?.openAIKey;
     else if (provider === "gemini") selectedKey = window.autoBioOptions?.geminiKey;
     else if (provider === "claude") selectedKey = window.autoBioOptions?.claudeKey;
+    else if (provider === "perplexity") selectedKey = window.autoBioOptions?.perplexityKey;
 
     const requestPayload = {
       action: "improveBioWithAI", // FIXED: Matches background.js listener
@@ -10166,6 +10167,9 @@ async function improveBioWithAI(e) {
       diedWord: window.autoBioOptions?.diedWord || "died",
       inlineCitations:
         typeof window.autoBioOptions?.inlineCitations !== "undefined" ? window.autoBioOptions.inlineCitations : true,
+      dateFormat: window.autoBioOptions?.dateFormat || "MDY",
+      dateStatusFormat: window.autoBioOptions?.dateStatusFormat || "abbreviations",
+      yearsDateStatusFormat: window.autoBioOptions?.yearsDateStatusFormat || "symbols",
     };
 
     console.log("Sending to AI:", requestPayload);

@@ -12,6 +12,7 @@ import { tryParseDate, euDateFormats, usDateFormats } from "../date_fixer/date_f
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { saveProfile, hasProfile } from "./idb";
+import USstates from "../locationsHelper/USstates.json";
 
 let birthDate = "";
 let deathDate = "";
@@ -166,8 +167,11 @@ async function offerToCheckBoxes(profileId, options) {
       checkBoxes();
       // Get age at death (if dead).
       const age = findAge();
+      const birthLocation = $("#mBirthLocation").val();
+      const bio = $("#wpTextbox1").val();
+      const localeInfo = getLocaleInfo(birthLocation, bio);
       // Add Died Young sticker if under 16
-      if (age && age.years < 16) {
+      if (age && age.years < 16 && localeInfo.isEnglish) {
         addDiedYoungSticker(options);
       }
 
@@ -179,6 +183,96 @@ async function offerToCheckBoxes(profileId, options) {
     }
     await saveProfile(profileId, dontShowAgain, now);
   });
+}
+
+/**
+ * Detects the locale based on location and biography.
+ *
+ * @param {string} location - The location string.
+ * @param {string} bio - The biography text.
+ * @returns {{isEnglish: boolean, standardName: string|null}} Locale information.
+ */
+function getLocaleInfo(location, bio) {
+  if (!location) return { isEnglish: false, standardName: null };
+  const parts = location.split(",").map((p) => p.trim());
+  const lastPart = parts[parts.length - 1];
+
+  const englishCountries = [
+    "USA",
+    "United States",
+    "US",
+    "U.S.",
+    "United Kingdom",
+    "UK",
+    "U.K.",
+    "England",
+    "Scotland",
+    "Wales",
+    "Northern Ireland",
+    "Canada",
+    "Australia",
+    "New Zealand",
+    "Ireland",
+  ];
+
+  const frenchLocations = ["france", "fr", "québec", "quebec", "qc"];
+
+  if (englishCountries.some((c) => lastPart.toLowerCase() === c.toLowerCase())) {
+    if (lastPart.toLowerCase() === "canada") {
+      const isQuebec = parts.some((p) => ["québec", "quebec", "qc"].includes(p.toLowerCase()));
+      if (isQuebec || !isEnglishCanada(bio)) {
+        return { isEnglish: false, standardName: "Anonyme" };
+      }
+      return { isEnglish: true, standardName: "Unnamed Infant" };
+    }
+    return { isEnglish: true, standardName: "Unnamed Infant" };
+  }
+
+  if (frenchLocations.some((l) => lastPart.toLowerCase() === l.toLowerCase())) {
+    return { isEnglish: false, standardName: "Anonyme" };
+  }
+
+  // Check for US states
+  if (Object.keys(USstates).some((state) => lastPart.toLowerCase() === state.toLowerCase())) {
+    return { isEnglish: true, standardName: "Unnamed Infant" };
+  }
+  if (Object.values(USstates).some((state) => lastPart.toLowerCase() === state.abbreviation.toLowerCase())) {
+    return { isEnglish: true, standardName: "Unnamed Infant" };
+  }
+
+  return { isEnglish: false, standardName: null };
+}
+
+/**
+ * Checks if a biography suggests the profile is from English Canada (vs French Canada).
+ *
+ * @param {string} bio - The biography text.
+ * @returns {boolean} True if the biography seems to be English; otherwise, false.
+ */
+function isEnglishCanada(bio) {
+  if (!bio) return true;
+  const frenchMonths = [
+    "janvier",
+    "février",
+    "mars",
+    "avril",
+    "mai",
+    "juin",
+    "juillet",
+    "août",
+    "septembre",
+    "octobre",
+    "novembre",
+    "décembre",
+  ];
+  const frenchMonthRegex = new RegExp(`\\b(${frenchMonths.join("|")})\\b`, "i");
+  if (frenchMonthRegex.test(bio)) {
+    return false;
+  }
+  if (/\ble\b/i.test(bio)) {
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -285,8 +379,8 @@ function addDiedYoungSticker(options) {
  * @returns {Promise<void>} Resolves when processing is complete.
  */
 async function doUnnamedInfant() {
-  birthDate = $("#mBirthDate").val();
-  deathDate = $("#mDeathDate").val();
+  birthDate = $("#mBirthDate").val().trim();
+  deathDate = $("#mDeathDate").val().trim();
   const age = findAge();
 
   if (birthDate == "" || deathDate == "") {
@@ -294,20 +388,24 @@ async function doUnnamedInfant() {
   }
 
   const options = await getFeatureOptions("unnamedInfant");
-  const firstName = $("#mFirstName").val();
+  const firstName = $("#mFirstName").val().trim();
   const profileId = new URLSearchParams(window.location.search).get("u");
 
-  const standardName = "Unnamed Infant";
+  const birthLocation = $("#mBirthLocation").val();
+  const bio = $("#wpTextbox1").val();
+  const localeInfo = getLocaleInfo(birthLocation, bio);
 
   // Unnamed Infant: if first name matches unnamed/unknown and birthDate equals deathDate, and feature enabled.
-  if (firstName.match(/unnamed|unknown/i) && birthDate == deathDate && options.unnamedInfant) {
-    if (firstName != standardName) {
-      $("#mFirstName,#mRealName").val(standardName);
-      message.push("First name changed to 'Unnamed Infant'");
+  if (firstName.match(/unnamed|unknown|infant|anonyme/i) && birthDate == deathDate && options.unnamedInfant) {
+    if (localeInfo.standardName && firstName != localeInfo.standardName) {
+      $("#mFirstName,#mRealName").val(localeInfo.standardName);
+      message.push(`First name changed to '${localeInfo.standardName}'`);
     }
     if (isProfileEdit) {
       checkBoxes();
-      addDiedYoungSticker(options);
+      if (localeInfo.isEnglish) {
+        addDiedYoungSticker(options);
+      }
     }
     // Show message if any changes were made.
     if (message.length) {
@@ -322,7 +420,9 @@ async function doUnnamedInfant() {
   ) {
     if (isProfileEdit) {
       checkBoxes();
-      addDiedYoungSticker(options);
+      if (localeInfo.isEnglish) {
+        addDiedYoungSticker(options);
+      }
     }
     if (message.length) {
       const messageText = message.join("<br>");
@@ -331,7 +431,9 @@ async function doUnnamedInfant() {
   } else if (options.offerToCheckBoxes && isProfileEdit && isMoreThanSixMonthsOld(await getCreatedDate())) {
     offerToCheckBoxes(profileId, options);
   } else if (age && age.years < 13) {
-    addDiedYoungSticker(options);
+    if (localeInfo.isEnglish) {
+      addDiedYoungSticker(options);
+    }
     if (message.length) {
       const messageText = message.join("<br>");
       showCopyMessage(messageText, true);
