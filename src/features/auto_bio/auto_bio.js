@@ -10167,6 +10167,9 @@ async function improveBioWithAI(e) {
       diedWord: window.autoBioOptions?.diedWord || "died",
       inlineCitations:
         typeof window.autoBioOptions?.inlineCitations !== "undefined" ? window.autoBioOptions.inlineCitations : true,
+      dateFormat: window.autoBioOptions?.dateFormat || "MDY",
+      dateStatusFormat: window.autoBioOptions?.dateStatusFormat || "abbreviations",
+      yearsDateStatusFormat: window.autoBioOptions?.yearsDateStatusFormat || "symbols",
     };
 
     console.log("Sending to AI:", requestPayload);

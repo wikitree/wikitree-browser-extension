@@ -113,9 +113,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function handleAIRequest(request, sendResponse) {
-  const { oldBio, newBio, provider, key, model, diedWord, inlineCitations } = request;
+  const {
+    oldBio,
+    newBio,
+    provider,
+    key,
+    model,
+    diedWord,
+    inlineCitations,
+    dateFormat,
+    dateStatusFormat,
+    yearsDateStatusFormat,
+  } = request;
 
   const systemRole = "You are a Fact Merger for WikiTree. You are NOT a creative writer.";
+
+  // Date Format Instructions
+  const dateFormats = {
+    MDY: "Use 'Month DD, YYYY' (e.g., November 24, 1859)",
+    DMY: "Use 'DD Month YYYY' (e.g., 24 November 1859)",
+    sMDY: "Use 'AbbrMonth DD, YYYY' (e.g., Nov 24, 1859)",
+    DsMY: "Use 'DD AbbrMonth YYYY' (e.g., 24 Nov 1859)",
+  };
+  const dateStatusFormats = {
+    words: "Use words 'before', 'after', 'about' for uncertain dates.",
+    abbreviations: "Use abbreviations 'bef.', 'aft.', 'abt.' for uncertain dates.",
+    symbols: "Use symbols '<', '>', '~' for uncertain dates.",
+  };
+  const yearsStatusFormats = {
+    words: "Use words 'before', 'after', 'about' for uncertain years in ranges.",
+    abbreviations: "Use abbreviations 'bef.', 'aft.', 'abt.' for uncertain years in ranges.",
+    symbols: "Use symbols '<', '>', '~' for uncertain years in ranges.",
+  };
+
+  const dateInstructions = `   - **DATE FORMAT**: ${dateFormats[dateFormat] || dateFormats.MDY}
+   - **DATE STATUS**: ${dateStatusFormats[dateStatusFormat] || dateStatusFormats.abbreviations}
+   - **YEAR RANGE STATUS**: ${yearsStatusFormats[yearsDateStatusFormat] || yearsStatusFormats.symbols}`;
 
   let citationInstructions = "";
   if (inlineCitations) {
@@ -171,6 +204,8 @@ STRICT CONSTRAINTS:
      11. See also:
      12. == Acknowledgements ==
    - **REQUIRED SECTIONS**: The final output MUST contain \`== Biography ==\`, \`== Sources ==\`, and \`<references />\`.
+9. **DATE STYLE**:
+${dateInstructions}
 
 EXAMPLE ENRICHMENT:
 Input Draft: "James died on Feb 13, 1972."
