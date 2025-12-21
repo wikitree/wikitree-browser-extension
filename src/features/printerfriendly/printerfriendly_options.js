@@ -35,6 +35,12 @@ const printerFriendlyFeature = {
       defaultValue: true,
     },
     {
+      id: "excludeDistanceAndRelationship",
+      type: OptionType.CHECKBOX,
+      label: "Do not print distance and relationship information.",
+      defaultValue: false,
+    },
+    {
       id: "excludeDNA",
       type: OptionType.CHECKBOX,
       label: "Do not print DNA confirmations.",

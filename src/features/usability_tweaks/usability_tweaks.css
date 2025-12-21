@@ -27,4 +27,6 @@ body.search-person #onlyMembers.active {
 body.search-person #onlyMembers {
   cursor: pointer;
 }
-
+#catSearch {
+  z-index: 100;
+}

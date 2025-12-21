@@ -570,6 +570,55 @@ const autoBio = {
       ],
       defaultValue: true,
     },
+    {
+      id: "aiGroup",
+      type: OptionType.GROUP,
+      label: "AI Assistance",
+      options: [
+        {
+          id: "aiProvider",
+          type: OptionType.SELECT,
+          label: "AI Provider",
+          values: [
+            { value: "openai", text: "OpenAI" },
+            { value: "gemini", text: "Google Gemini" },
+            { value: "claude", text: "Anthropic Claude" },
+            { value: "perplexity", text: "Perplexity AI" },
+          ],
+          defaultValue: "openai",
+        },
+        {
+          id: "openAIKey",
+          type: OptionType.TEXT,
+          label: "OpenAI API Key",
+          defaultValue: "",
+        },
+        {
+          id: "geminiKey",
+          type: OptionType.TEXT,
+          label: "Gemini API Key",
+          defaultValue: "",
+        },
+        {
+          id: "claudeKey",
+          type: OptionType.TEXT,
+          label: "Claude API Key",
+          defaultValue: "",
+        },
+        {
+          id: "perplexityKey",
+          type: OptionType.TEXT,
+          label: "Perplexity API Key",
+          defaultValue: "",
+        },
+        {
+          id: "aiModel",
+          type: OptionType.TEXT,
+          label: "Model (Override default)",
+          defaultValue: "",
+        },
+      ],
+    },
   ],
 };
 
