@@ -35,6 +35,9 @@ import { Biography } from "./Biography.js";
 
     // optionally determine if biography has any problems
     let hasProblems = biography.hasProblems();
+
+    // optionally get the bioScore
+    let bioScore = biography.getScore();
   }
 
 
@@ -141,6 +144,42 @@ Does profile have either birth or death location
 
 Returns **[Boolean][7]** true if either location present
 
+### hasBirthLocation
+
+Does profile have birth location
+
+Returns **[Boolean][7]** true if birth location
+
+### hasDeathLocation
+
+Does profile have death location
+
+Returns **[Boolean][7]** true if death location
+
+### hasFather
+
+Does profile have father
+
+Returns **[Boolean][7]** true if profile has father
+
+### hasMother
+
+Does profile have mother
+
+Returns **[Boolean][7]** true if profile has mother
+
+### hasFatherStatus
+
+Does profile have father status
+
+Returns **[Boolean][7]** true if profile has father status
+
+### hasMotherStatus
+
+Does profile have mother status
+
+Returns **[Boolean][7]** true if profile has mother status
+
 ### getPrivacy
 
 Get the privacy
@@ -189,6 +228,14 @@ Returns **[Boolean][7]** true if either birth or death date before 1700
 Is the person born > 150 years ago or died > 100 years ago
 
 Returns **[Boolean][7]** true if born > 150 years ago or died > 100 years ago
+
+### hasBirthDate
+
+Does the profile have a birth date
+
+### hasDeathDate
+
+Does the profile have a death date
 
 ### isUndated
 
@@ -291,6 +338,22 @@ Validate contents of bio
 Returns **[Boolean][7]** true if profile looks good, else false.
 Returns false a profile that appears unsourced (is ?), a profile with an empty bio, a profile with no dates,
 or a profile that has an Unsourced Research Notes Box or is in an Unsourced category.
+
+### getScore
+
+Get score value for the profile. This number may be less than 0.
+
+Returns **any** score value for the profile
+
+### getBioSectionLines
+
+Get Biography Section lines
+including each line after the == Biography == heading up through
+the start of the next heading or end of the biography.
+The \n character terminates a line, which are returned in an array.
+Blank lines are included.
+
+Returns **[Array][11]** of bio string lines
 
 ### validateSourcesStr
 
@@ -705,7 +768,7 @@ Returns **[Boolean][7]** true if sticker else false
 
 ### isRecommendedTag
 
-Determine if a line starts with an HTML tag
+Determine if a line contains with an HTML tag
 that is recommended for use on WikiTree.
 Typically used for a line that starts with <
 
