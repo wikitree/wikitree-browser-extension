@@ -304,3 +304,80 @@ ol.star1.green > li::before {
   position: relative;
   top: -0.1em;
 }
+
+#wbe-backup-reminder {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 350px;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000000;
+  display: flex;
+  flex-direction: column;
+}
+
+#wbe-backup-reminder .dialog-header {
+  background-color: #25422d;
+  color: #fff;
+  padding: 8px 12px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#wbe-backup-reminder .dialog-header .close {
+  color: #fff;
+  text-decoration: none;
+  font-size: 18px;
+  order: 2;
+}
+
+#wbe-backup-reminder .dialog-content {
+  padding: 15px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+#wbe-backup-reminder .wbe-feature-list {
+  margin: 10px 0;
+  padding-left: 20px;
+  list-style-type: disc;
+}
+
+#wbe-backup-reminder .wbe-feature-list li {
+  margin-bottom: 4px;
+}
+
+#wbe-backup-reminder .backup-reminder-buttons {
+  margin-top: 15px;
+  display: flex;
+  justify-content: center;
+}
+
+#wbe-backup-reminder button {
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: none;
+  font-weight: bold;
+  font-size: 14px;
+  background-color: #25422d !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.2s;
+}
+
+#wbe-backup-reminder button:hover {
+  background-color: #1a3020 !important;
+  opacity: 1;
+}
+
+#wbe-backup-reminder button:hover {
+  opacity: 0.9;
+}

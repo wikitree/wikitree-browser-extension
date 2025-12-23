@@ -350,6 +350,96 @@ async function checkAnyDataFeature() {
   }
 }
 
+async function checkBackupReminder() {
+  // This is the monthly nag to backup data.
+  const dataFeatures = [
+    "clipboardAndNotes",
+    "customChangeSummaryOptions",
+    "extraWatchlist",
+    "myMenu",
+    "spaceWatchlistSorter",
+    "textExpander",
+    "distanceAndRelationship",
+  ];
+  const promises = dataFeatures.map((feature) => checkIfFeatureEnabled(feature));
+  const results = await Promise.all(promises);
+  const enabledFeatures = dataFeatures.filter((_, index) => results[index]);
+
+  if (enabledFeatures.length === 0) return;
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const testMode = urlParams.get("wbe_test_backup") === "1";
+
+  chrome.storage.local.get(["lastBackupNag"], function (items) {
+    const lastNag = items.lastBackupNag || 0;
+    const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    if (testMode || now - lastNag > thirtyDays) {
+      showBackupReminder(enabledFeatures);
+    }
+  });
+}
+
+function showBackupReminder(enabledFeatures) {
+  if ($("#wbe-backup-reminder").length) return;
+
+  const dataFeatureNames = {
+    clipboardAndNotes: "Clipboard and Notes",
+    customChangeSummaryOptions: "Change Summary Options",
+    extraWatchlist: "Extra Watchlist",
+    myMenu: "My Menu",
+    spaceWatchlistSorter: "Space Watchlist Sorter",
+    textExpander: "Text Expander",
+    distanceAndRelationship: "Distance and Relationship",
+  };
+
+  const featureListHtml = enabledFeatures
+    .map((id) => `<li>${dataFeatureNames[id] || id}</li>`)
+    .sort()
+    .join("");
+
+  const reminder = $(`
+    <div id="wbe-backup-reminder" class="wbe-popup">
+      <div class="dialog-header">
+        <a href="#" class="close" id="wbe-backup-reminder-close" title="Close">&#x2715;</a>
+        WBE Monthly Backup Reminder
+      </div>
+      <div class="dialog-content">
+        <p>It's been a while since your last data backup. We recommend backing up your data monthly to keep it safe.</p>
+        <p>Your backup will include data from:</p>
+        <ul class="wbe-feature-list">
+          ${featureListHtml}
+        </ul>
+        <div class="backup-reminder-buttons">
+          <button id="wbe-backup-reminder-now" class="btn btn-primary btn-sm">Back up WBE Data</button>
+        </div>
+      </div>
+    </div>
+  `);
+
+  $("body").append(reminder);
+
+  $("#wbe-backup-reminder-close").on("click", function (e) {
+    e.preventDefault();
+    $("#wbe-backup-reminder").fadeOut(function () {
+      $(this).remove();
+    });
+    // Set last nag to now so it doesn't pop up again for a month
+    chrome.storage.local.set({ lastBackupNag: Date.now() });
+  });
+
+  $("#wbe-backup-reminder-now").on("click", function (e) {
+    e.preventDefault();
+    downloadFeatureData();
+    $("#wbe-backup-reminder").fadeOut(function () {
+      $(this).remove();
+    });
+    // Update the nag date
+    chrome.storage.local.set({ lastBackupNag: Date.now() });
+  });
+}
+
 async function checkButtonFeatures() {
   const features = [
     "extraWatchlist",
@@ -519,6 +609,7 @@ async function checkButtonFeatures() {
 }
 
 checkButtonFeatures();
+checkBackupReminder();
 
 // Add buttons to download or import the feature data (My Menu, Change Summary Options, Extra Watchlist, Clipboard)
 if (isNavHomePage) {
