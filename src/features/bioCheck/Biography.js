@@ -78,6 +78,9 @@ export class Biography {
   #fatherDnaMarked = false;  // is profile marked as father DNA confirmed?
   #motherDnaMarked = false;  // is profile marked as mother DNA confirmed?
 
+  #bioScore = 0;  // ranking based on bioCheck
+  #bioLineArray = [];  // after == Biography == before Sources
+
   // Hold results of parsing and validating a WikiTree biography
   #stats = {
       bioIsEmpty: false,
@@ -85,9 +88,14 @@ export class Biography {
       bioIsMarkedUnsourced: false,
       bioIsUndated: false,
       totalBioLines: 0,
+      totalBioSectionLines: 0, // number non empty lines in biography
+      totalBioSectionChar: 0, // number characters in bio section 
       inlineReferencesCount: 0, // number of <ref>
       possibleSourcesLineCount: 0, // number of lines that might contain sources
       bioHasProblems: false,
+      numberCategories: 0,
+      numberCategoriesNeeds: 0,
+      numberStickers: 0,
     };
   #style = {
       bioHasNonCategoryTextBeforeBiographyHeading: false,
@@ -196,6 +204,13 @@ export class Biography {
     this.#fatherDnaMarked = thePerson.person.fatherDnaConfirmed;
     this.#motherDnaMarked = thePerson.person.motherDnaConfirmed;
 
+    // update score from the person fields
+    this.#scorePerson(thePerson);
+
+    if (inStr.length > 100000) { //  801 - Big Profile 
+      this.#bioScore = this.#bioScore - 10;
+    }
+
     this.#bioInputString = inStr;
     // Check for empty bio
     if (this.#bioInputString.length === 0) {
@@ -266,6 +281,7 @@ export class Biography {
           // out of order if RNB, Project Box, Nav Box or Biography heading preceeds
           if (haveResearchNoteBox || haveNavBoxConfused || haveNavBoxSuccession || haveProjectBox || haveBiography || haveTextLine) {
             this.#style.bioCategoryNotAtStart = true;
+            this.#bioScore--;
             if (haveBiography) {
               this.#messages.styleMessages.push('Biography heading before ' + this.#bioLines[currentIndex]);
             } else {
@@ -294,6 +310,10 @@ export class Biography {
           if (line.includes(Biography.#UNSOURCED)) {
             this.#stats.bioIsMarkedUnsourced = true;
           }
+          this.#stats.numberCategories++;
+          if (line.includes('needs')) {
+            this.#stats.numberCategoriesNeeds;
+          }
           // check for a location if profile has any
           if (thePerson.hasLocation()) {
             let str = line.replace('category:', '');
@@ -306,6 +326,7 @@ export class Biography {
             if (str.length <=0) {
               this.#style.bioHasStyleIssues = true;
               this.#messages.sectionMessages.push('Unsourced category does not have locations');
+              this.#bioScore--;
             }
           }
 
@@ -367,6 +388,7 @@ export class Biography {
                   let msg = 'Navigation Box: ' + partialMixedCaseLine + ' is ' + stat + ' status';
                   this.#messages.styleMessages.push(msg);
                   this.#style.bioHasStyleIssues = true;
+                  this.#bioScore--;
               } else {
                 if (partialLine.startsWith('easily confused')) {
                   haveNavBoxConfused = true;
@@ -389,6 +411,7 @@ export class Biography {
                     }
                     this.#messages.styleMessages.push(msg);
                     this.#style.bioHasStyleIssues = true;
+                    this.#bioScore--;
                   }
                 }
                 if (partialLine.startsWith('succession')) {
@@ -397,6 +420,7 @@ export class Biography {
                     let msg = 'Navigation Box: ' + partialMixedCaseLine + ' should be before Biography heading';
                     this.#messages.styleMessages.push(msg);
                     this.#style.bioHasStyleIssues = true;
+                    this.#bioScore--;
                   }
                 }
               }
@@ -417,6 +441,7 @@ export class Biography {
                   }
                   this.#messages.styleMessages.push(msg);
                   this.#style.bioHasStyleIssues = true;
+                  this.#bioScore--;
                 }
                 haveResearchNoteBox = true;
                 this.#researchNoteBoxes.push(partialLine);
@@ -426,6 +451,7 @@ export class Biography {
                   let msg = 'Research Note Box: ' + partialMixedCaseLine + ' is ' + stat + ' status';
                   this.#messages.styleMessages.push(msg);
                   this.#style.bioHasStyleIssues = true;
+                  this.#bioScore--;
                 }
               } else {
                 if (this.#sourceRules.isProjectBox(partialLine)) {
@@ -442,6 +468,7 @@ export class Biography {
                       let msg = 'Project: ' + partialMixedCaseLine + ' should be before Biography heading';
                       this.#messages.styleMessages.push(msg);
                       this.#style.bioHasStyleIssues = true;
+                      this.#bioScore--;
                     }
                   }
                   let stat = this.#sourceRules.getProjectBoxStatus(partialLine);
@@ -449,19 +476,23 @@ export class Biography {
                     let msg = 'Project Box: ' + partialMixedCaseLine + ' is ' + stat + ' status';
                     this.#messages.styleMessages.push(msg);
                     this.#style.bioHasStyleIssues = true;
+                    this.#bioScore--;
                   }
                 } else {
                   if (this.#sourceRules.isSticker(partialLine)) {
+                    this.#stats.numberStickers++;
                     if (!haveBiography) {
                       let msg = 'Sticker: ' + partialMixedCaseLine + ' should be after Biography heading';
                       this.#messages.styleMessages.push(msg);
                       this.#style.bioHasStyleIssues = true;
+                      this.#bioScore--;
                     }
                     let stat = this.#sourceRules.getStickerStatus(partialLine);
                     if ((stat.length > 0) && (stat != 'approved')) {
                       let msg = 'Sticker: ' + partialMixedCaseLine + ' is ' + stat + ' status';
                       this.#messages.styleMessages.push(msg);
                       this.#style.bioHasStyleIssues = true;
+                      this.#bioScore--;
                     }
                   }  // end sticker
                 } // end project box 
@@ -512,6 +543,7 @@ export class Biography {
         if (str.length <= 0) {
           this.#style.bioHasStyleIssues = true;
           this.#messages.styleMessages.push('Unsourced research note box does not have locations');
+          this.#bioScore--;
         }
       }
     }
@@ -520,11 +552,21 @@ export class Biography {
     let bioLineString = this.#getBioLineString();
     this.#findRef(bioLineString);
 
+    // Get count before removing lines
+    let trimmedLines = this.#bioLines.filter(line => line && line.trim() !== "");
+    this.#stats.totalBioLines = trimmedLines.length;
+
     // Lose bio lines not considered to contain sources before testing sources
     this.#removeResearchNotes();
     this.#removeAcknowledgements();
     this.#removeAdvanceDirective();
 
+    // Count the number of lines after biography heading
+    // Count the number of characters after biography heading
+    trimmedLines = this.#bioLineArray.filter(line => line && line.trim() !== "");
+    this.#stats.totalBioSectionLines = trimmedLines.length;
+    // don't count the inline ref characters
+    this.#stats.totalBioSectionChar = trimmedLines.join().length - this.#refStringList.join().length;
     return;
   }
 
@@ -579,24 +621,125 @@ export class Biography {
                                  this.#stats.bioIsUndated ||
                                  this.#stats.bioIsMarkedUnsourced ||
                                  this.#style.bioHasStyleIssues;
+    this.#score();
     return isValid;
   }
 
   /**
-   * Validate using just a string of sources. This is typically
-   * used when adding a new person in basic mode.
-   * @param {String} sourcesStr string containing sources
-   * @param thePerson {BioCheckPerson} person to check
-   * @returns {Boolean} true if sources found.
+   * Get score value for the profile. This number may be less than 0.
+   * @returns score value for the profile
    */
-  validateSourcesStr(sourcesStr, thePerson) {
-    // build bioLines from the input sources string then validate
-    this.#getLines(sourcesStr);
-    this.#isPre1500 = thePerson.isPre1500();
-    this.#isPre1700 = thePerson.isPre1700();
-    this.#tooOldToRemember = thePerson.isTooOldToRemember();
-    this.#fatherDnaMarked = thePerson.person.fatherDnaConfirmed;
-    this.#motherDnaMarked = thePerson.person.motherDnaConfirmed;
+  getScore() {
+    return this.#bioScore;
+  }
+  /**
+   * Get Biography Section lines
+   * including each line after the == Biography == heading up through
+   * the start of the next heading or end of the biography.
+   * The \n character terminates a line, which are returned in an array.
+   * Blank lines are included. 
+   * @returns {Array} of bio string lines
+   */
+  getBioSectionLines() {
+    return this.#bioLineArray;  // after == Biography == before Sources
+  }
+
+  /*
+   * The following describes how Bio Check calculates a profile score
+   *
+   * Subtract points:
+   *  -10 if a profile has no dates
+   *  -10 if a profile is marked unsourced
+   *  -10 if a profile is empty 
+   *  -10 if no valid sources found
+   *  -10 if biography is over 100,000 characters
+   *  -10 if there is no Biography section
+   *  -4 if biography Section is empty
+   *  -1 if biography Section is < 60 characters
+   *  -1 for each invalid souce
+   *  -1 for each source that is a span target
+   *  -1 for each style issue
+   *  -1 for number stickers beyond 5
+   *  -1 for each Needs_ category
+   * Add points
+   *  +1 for each sticker to a max of 3
+   *  +1 if 4 stickers
+   *  +1 for number categories, max of 4
+   *  +2 for each valid source inside a <ref>
+   *  +1 for each source following Sources heading
+   *  +1 for each 100 non empty characters in Biography section
+   */
+  /*
+   * Score the profile based on results from parse and validate
+   * First parse, then validate, then score
+   * things that are counts are scored as parsed
+   * @returns a score value
+   */
+  #score() {
+    
+    // Scoring number of non empty lines after Biography heading, before
+    // next heading or end of biography
+    if (this.#stats.totalBioSectionChar == 0) {
+      this.#bioScore = this.#bioScore - 4;
+    } else {
+      if (this.#stats.totalBioSectionChar < 60) {
+        this.#bioScore--;
+      }
+      let lineScore = this.#stats.totalBioSectionChar / 1000;
+      lineScore = Math.trunc(lineScore);
+      this.#bioScore = this.#bioScore + lineScore;
+    }
+
+    if (this.#stats.bioIsMarkedUnsourced) { // can find in > 1 place only count once
+      this.#bioScore = this.#bioScore - 10;
+    }
+    if (this.#stats.bioIsEmpty) {
+      this.#bioScore = this.#bioScore - 10;
+    }
+    if (this.#style.misplacedLineCount > 0) {
+      this.#bioScore--;
+    }
+    this.#bioScore = this.#bioScore - this.#wrongLevelHeadings.length; // should be 3 not 2
+    this.#bioScore = this.#bioScore - this.#refNamesMultiple.size;
+    this.#bioScore = this.#bioScore - this.#invalidSpanTargetList.length;
+    this.#bioScore = this.#bioScore - this.#missingRnb.length;
+    this.#bioScore = this.#bioScore - this.#sources.invalidDnaSourceList.length;
+    this.#bioScore = this.#bioScore + Math.min(this.#stats.numberCategories, 4);
+    this.#bioScore = this.#bioScore - this.#stats.numberCategoriesNeeds;
+    let stickerScore = 0;
+    if (this.#stats.numberStickers > 5) {
+      stickerScore = 5 - this.#stats.numberStickers;
+    } else {
+      if (this.#stats.numberStickers > 3) {
+        stickerScore = 3 - this.#stats.numberStickers;
+      } else {
+        stickerScore = this.#stats.numberStickers;
+      }
+    }
+    this.#bioScore = this.#bioScore + stickerScore;
+    // Scoring that depend on source validation
+    if (this.#sources.validSource.length == 0) {
+      this.#bioScore = this.#bioScore - 10;
+    }
+    this.#bioScore = this.#bioScore - this.#sources.invalidSource.length;
+  }
+
+/**
+ * Validate using just a string of sources. This is typically
+ * used when adding a new person in basic mode.
+ * @param {String} sourcesStr string containing sources
+ * @param thePerson {BioCheckPerson} person to check
+ * @returns {Boolean} true if sources found.
+ */
+validateSourcesStr(sourcesStr, thePerson) {
+  // build bioLines from the input sources string then validate
+  this.#getLines(sourcesStr);
+  this.#isPre1500 = thePerson.isPre1500();
+  this.#isPre1700 = thePerson.isPre1700();
+  this.#tooOldToRemember = thePerson.isTooOldToRemember();
+  this.#fatherDnaMarked = thePerson.person.fatherDnaConfirmed;
+  this.#motherDnaMarked = thePerson.person.motherDnaConfirmed;
+  this.#scorePerson(thePerson);
     let isValid = this.#validateReferenceStrings(false);
     if (isValid) {
       this.#sources.sourcesFound = true;
@@ -954,6 +1097,7 @@ export class Biography {
         }
       } else {
         this.#style.hasEndlessComment = true;
+        this.#bioScore--;
         pos = inStr.length + 1; // its an endless comment, just bail
       }
     }
@@ -975,6 +1119,7 @@ export class Biography {
         ((str.indexOf(Biography.#END_BRACKET) < 0) ||
          (str.indexOf(Biography.#END_BRACKET) < startPos))) {
       this.#style.bioHasBrWithoutEnd = true;
+      this.#bioScore--;
     }
     return outStr;
   }
@@ -1081,6 +1226,7 @@ export class Biography {
         this.#biographyIndex = currentIndex;
         if (this.#advanceDirectiveIndex > 0) {
           this.#style.bioHasSectionAfterAdvanceDirective = true;
+          this.#bioScore--;
         }
       } else {
         if (this.#researchNotesIndex > 0) {
@@ -1095,9 +1241,11 @@ export class Biography {
           if (this.#advanceDirectiveIndex > 0) {
             this.#style.bioHasSectionAfterAdvanceDirective = true;
             this.#advanceDirectiveEndIndex = currentIndex -1;
+            this.#bioScore--;
           }
           if (headingLevel > 2) {
             this.#style.sourcesHeadingHasExtraEqual = true;
+            this.#bioScore--;
           }
           if (this.#sourcesIndex < 0) {
             this.#sourcesIndex = currentIndex;
@@ -1116,9 +1264,11 @@ export class Biography {
             }
             if (headingLevel > 2) {
               this.#style.acknowledgementsHeadingHasExtraEqual = true;
+              this.#bioScore--;
             }
             if (this.#sourcesIndex < 0) {
               this.#style.bioHasAcknowledgementsBeforeSources = true;
+              this.#bioScore--;
             }
             this.#acknowledgementsIndex = currentIndex;
             if (this.#researchNotesIndex > 0 && this.#researchNotesEndIndex < 0) {
@@ -1129,6 +1279,7 @@ export class Biography {
               this.#advanceDirectiveIndex = currentIndex;
               if (headingLevel > 2) {
                 this.#style.advanceDirectiveHeadingHasExtraEqual = true;
+                this.#bioScore--;
               }
             } else {
               if (headingLevel === 2) {
@@ -1173,6 +1324,7 @@ export class Biography {
       endIndex = this.#acknowledgementsIndex;
     }
     startIndex++;
+    this.#bioLineArray = this.#bioLines.slice(startIndex, endIndex);  // metrics
     if (this.#biographyIndex === endIndex) {
       this.#style.bioHeadingWithNoLinesFollowing = true;
     } else {
@@ -1238,6 +1390,7 @@ export class Biography {
       if (!isJustRefName) {
         if (citeEnd < 0) {
           this.#style.hasRefWithoutEnd = true;
+          this.#bioScore--;
         } else {
           let line = refArray[i].substring(citeStart, citeEnd);
           this.#refStringList.push(line);
@@ -1266,6 +1419,7 @@ export class Biography {
           if (nameEnd < 0) {
             // malformed ref
             this.#style.hasRefWithoutEnd = true;
+            this.#bioScore--;
           }
         }
         if (nameEnd > nameStart) {
@@ -1316,6 +1470,7 @@ export class Biography {
     if (this.#biographyIndex < 0) {
       this.#style.bioHasStyleIssues = true;
       this.#style.bioIsMissingBiographyHeading = true;
+      this.#bioScore = this.#bioScore - 10;
       this.#messages.sectionMessages.push('Missing Biography heading');
     } else {
       if (this.#unexpectedLines.length > 0) {
@@ -1335,14 +1490,17 @@ export class Biography {
     if (this.#sourcesIndex < 0) {
       this.#style.bioHasStyleIssues = true;
       this.#style.bioIsMissingSourcesHeading = true;
+      this.#bioScore--;
       this.#messages.sectionMessages.push('Missing Sources heading');
     }
     if (this.#referencesIndex < 0) {
       this.#style.bioHasStyleIssues = true;
       this.#style.bioIsMissingReferencesTag = true;
+      this.#bioScore--;
       this.#messages.sectionMessages.push('Missing <references /> tag');
     }
     if (this.#style.bioHasMultipleReferencesTags) {
+      this.#bioScore--;
       this.#style.bioHasStyleIssues = true;
       this.#messages.sectionMessages.push('Multiple <references /> tag');
     }
@@ -1384,6 +1542,7 @@ export class Biography {
       if (!this.#refNamesDefined.has(refName)) {
         this.#style.bioHasStyleIssues = true;
         this.#messages.sectionMessages.push('Inline <ref> ' + refName + ' has no citation');
+        this.#bioScore--;
       }
     }
 
@@ -1434,6 +1593,7 @@ export class Biography {
       this.#messages.sectionMessages.push('Advance Directive is not at end of profile'); 
     }
     if (this.#style.advanceDirectiveOnNonMemberProfile) {
+      this.#bioScore--;
       this.#style.bioHasStyleIssues = true;
       this.#messages.styleMessages.push('Advance Directive on a non member profile');
     }
@@ -1447,6 +1607,7 @@ export class Biography {
     if (this.#style.bioMightHaveEmail) {
       this.#style.bioHasStyleIssues = true;
       this.#messages.styleMessages.push('Biography may contain email address');
+      this.#bioScore--;
     }
 
     // Report DNA confirmation results.
@@ -1466,18 +1627,22 @@ export class Biography {
     if (this.#fatherDnaMarked && !this.#style.bioHasPaternalDnaConf) {
       this.#style.bioHasStyleIssues = true;
       this.#messages.styleMessages.push("Missing father's DNA confirmation source");
+      this.#bioScore--;
     }
     if (this.#motherDnaMarked && !this.#style.bioHasMaternalDnaConf) {
       this.#style.bioHasStyleIssues = true;
       this.#messages.styleMessages.push("Missing mother's DNA confirmation source");
+      this.#bioScore--;
     }
     if (!this.#fatherDnaMarked && this.#style.bioHasPaternalDnaConf) {
       this.#style.bioHasStyleIssues = true;
       this.#messages.styleMessages.push("Father not marked as Confirmed with DNA");
+      this.#bioScore--;
     }
     if (!this.#motherDnaMarked && this.#style.bioHasMaternalDnaConf) {
       this.#style.bioHasStyleIssues = true;
       this.#messages.styleMessages.push("Mother not marked as Confirmed with DNA");
+      this.#bioScore--;
     }
   }
 
@@ -1493,6 +1658,7 @@ export class Biography {
     if (isBioHeading) {
       if (this.#bioHeadingsFound.includes(line)) {
         this.#style.bioHasMultipleBioHeadings = true;
+        this.#bioScore--;
       } else {
         this.#bioHeadingsFound.push(line);
       }
@@ -1512,6 +1678,7 @@ export class Biography {
     if (isSourcesHeading) {
       if (this.#sourcesHeadingsFound.includes(line)) {
         this.#style.bioHasMultipleSourceHeadings = true;
+        this.#bioScore--;
       } else {
         this.#sourcesHeadingsFound.push(line);
       }
@@ -1663,12 +1830,14 @@ export class Biography {
       this.#messages.styleMessages.push('Horizontal rule before Biography');
       this.#style.bioHasStyleIssues = true;
       this.#headingBeforeBiography = true;
+      this.#bioScore--;
     } else {
       if (line.startsWith(Biography.#HEADING_START)) {
         if (!this.#headingBeforeBiography) {
           this.#style.bioHasStyleIssues = true;
           this.#headingBeforeBiography = true;
           this.#messages.styleMessages.push('Heading or subheading before Biography');
+          this.#bioScore--;
         }
       }  else {
         if ((line.startsWith('[[')) && (line.endsWith(']]'))) {
@@ -1698,6 +1867,7 @@ export class Biography {
         }
         this.#messages.styleMessages.push(msg);
         this.#style.bioHasStyleIssues = true;
+        this.#bioScore--;
       }
     }
     return;
@@ -1731,6 +1901,7 @@ export class Biography {
             let msg = templateName + ' template has duplicate parameter ' + paramName;
             this.#messages.styleMessages.push(msg);
             this.#style.bioHasStyleIssues = true;
+            this.#bioScore--;
           } else {
             paramNameSet.add(paramNameLower);
           }
@@ -1933,6 +2104,7 @@ export class Biography {
           }
         } else {
           if (this.#isValidSource(line)) {
+            this.#bioScore = this.#bioScore + 2;
             if (!isValid) {
               // first one found?
               isValid = true;
@@ -2021,6 +2193,7 @@ export class Biography {
         // Unless all the ref are between Sources and references
         if (line.indexOf("<ref") >= 0 && index > this.#referencesIndex) {
           this.#style.bioHasRefAfterReferences = true;
+          this.#bioScore--;
         }
         // Only count misplaced line if there is a references tag
         if (index < this.#referencesIndex && this.#referencesIndex > 0) {
@@ -2029,6 +2202,7 @@ export class Biography {
         let spanTargetStartPos = mixedCaseLine.indexOf(Biography.#SPAN_TARGET_START);
         if (spanTargetStartPos < 0) {
           if (this.#isValidSource(mixedCaseLine)) {
+            this.#bioScore++;
             if (!isValid) {
               isValid = true; // first one found
             }
@@ -2072,6 +2246,7 @@ export class Biography {
       pos = pos + Biography.#SPAN_TARGET_END.length;
     } else {
       this.#style.bioHasSpanWithoutEndingSpan = true;
+      this.#bioScore--;
       pos = mixedCaseLine.length;
     }
     if (pos < mixedCaseLine.length) {
@@ -2430,10 +2605,8 @@ export class Biography {
         this.#style.bioHasMaternalDnaConf = true;
       }
     } else {
-//console.log('incomplete confirmation ' + line);
-//console.log('detectedType ' + detectedType);
-//console.log(this.#dnaReason);
       this.#style.bioHasIncompleteDNAconfirmation = true;
+      this.#bioScore--;
     }
     // Save for reporting
     let dnaSource = {
@@ -2876,5 +3049,44 @@ export class Biography {
         isJustCombined = true;
       }
     return isJustCombined;
+  }
+
+
+  /* *********************************************************************
+   * ******************* PRIVATE METHODS *********************************
+   * ******************* used for Scoring ********************************
+   * *********************************************************************
+   */
+  /*
+   * Set profile score items from person
+   * @param thePerson {BioCheckPerson} person 
+   */
+  #scorePerson(thePerson) {
+    /*
+    this.#scoreBoolean(thePerson.hasBirthDate());
+    this.#scoreBoolean(thePerson.hasDeathDate());
+    this.#scoreBoolean(thePerson.hasBirthLocation());
+    this.#scoreBoolean(thePerson.hasDeathLocation());
+    this.#scoreBoolean(thePerson.hasFather());
+    this.#scoreBoolean(thePerson.hasMother());
+    this.#scoreBoolean(thePerson.hasFatherStatus());
+    this.#scoreBoolean(thePerson.hasMotherStatus());
+    */
+    if (thePerson.isUndated()) {
+      this.#bioScore = this.#bioScore - 10;
+    }
+  }
+
+  /* 
+   * Score boolean
+   * @param {Boolean} does wanted item exist
+   * if true add 1 else false missing subtract 1
+   */
+  #scoreBoolean(hasItem) {
+    if (hasItem)  {
+      this.#bioScore++;
+    } else {
+      this.#bioScore--;
+    }
   }
 }
