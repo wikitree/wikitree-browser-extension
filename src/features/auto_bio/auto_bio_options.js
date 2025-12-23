@@ -1,5 +1,6 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 import { isProfileEdit, isIansProfile } from "../../core/pageType";
+import aiModels from "./ai_models.json";
 
 const autoBio = {
   name: "Auto Bio",
@@ -594,10 +595,24 @@ const autoBio = {
           defaultValue: "",
         },
         {
+          id: "openAIModel",
+          type: OptionType.SELECT,
+          label: "OpenAI Model",
+          values: aiModels.openai,
+          defaultValue: "gpt-5-mini",
+        },
+        {
           id: "geminiKey",
           type: OptionType.TEXT,
           label: "Gemini API Key",
           defaultValue: "",
+        },
+        {
+          id: "geminiModel",
+          type: OptionType.SELECT,
+          label: "Gemini Model",
+          values: aiModels.gemini,
+          defaultValue: "gemini-3-flash-preview",
         },
         {
           id: "claudeKey",
@@ -606,16 +621,31 @@ const autoBio = {
           defaultValue: "",
         },
         {
+          id: "claudeModel",
+          type: OptionType.SELECT,
+          label: "Claude Model",
+          values: aiModels.claude,
+          defaultValue: "claude-sonnet-4-5",
+        },
+        {
           id: "perplexityKey",
           type: OptionType.TEXT,
           label: "Perplexity API Key",
           defaultValue: "",
         },
         {
+          id: "perplexityModel",
+          type: OptionType.SELECT,
+          label: "Perplexity Model",
+          values: aiModels.perplexity,
+          defaultValue: "sonar",
+        },
+        {
           id: "aiModel",
           type: OptionType.TEXT,
-          label: "Model (Override default)",
+          label: "Custom Model Override (Advanced)",
           defaultValue: "",
+          comment: "If provided, this will override the selection above.",
         },
       ],
     },

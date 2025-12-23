@@ -10042,13 +10042,61 @@ function addAutoBioUI() {
     // Basic AutoBio UI (Delete Old Bio, etc)
     // Removed specific styling to match native look as requested
     const buttonBox = $(
-      "<div id='autoBioButtonBox' style='display: inline-flex; gap: 2px; align-items: center; margin-left: 2px;'></div>"
+      "<div id='autoBioButtonBox' style='display: inline-flex; gap: 2px; align-items: center; margin-left: 2px; position: relative;'></div>"
     );
 
     // AI BUTTON
     const aiButton = $("<button id='improveAI' class='small editToolbarButton'>Improve with AI</button>");
     aiButton.on("click", improveBioWithAI);
     buttonBox.append(aiButton);
+
+    // CUSTOM INSTRUCTIONS UI
+    const customInstructionsBtn = $(
+      "<button id='autoBioCustomInstructionsBtn' class='small editToolbarButton' title='Custom AI Instructions' style='padding: 0 4px;'>⚙️</button>"
+    );
+    buttonBox.append(customInstructionsBtn);
+
+    const customInstructionsPanel = $(
+      `<div id='autoBioCustomInstructions' style='display: none; position: absolute; background: white; border: 1px solid #ccc; padding: 10px; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); width: 300px; top: 35px; right: 0; cursor: default;'>
+        <div id='autoBioCustomInstructionsHeader' style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; cursor: move;'>
+          <span style='font-weight: bold;'>Custom AI Instructions</span>
+          <button id='autoBioCustomInstructionsClose' class='small' style='background: none; border: none; cursor: pointer; font-size: 16px; padding: 0 4px;'>&times;</button>
+        </div>
+        <textarea id='autoBioCustomInstructionsText' style='width: 100%; height: 80px; font-size: 12px; margin-bottom: 5px;' placeholder='e.g., Use "passed away" instead of "died"...'></textarea>
+        <label><input type='checkbox' id='autoBioUseCustomInstructions'> Use these instructions</label>
+      </div>`
+    );
+    buttonBox.append(customInstructionsPanel);
+
+    customInstructionsBtn.on("click", function (e) {
+      e.preventDefault();
+      customInstructionsPanel.toggle();
+    });
+
+    customInstructionsPanel.find("#autoBioCustomInstructionsClose").on("click", function (e) {
+      e.preventDefault();
+      customInstructionsPanel.hide();
+    });
+
+    // Make it draggable if jQuery UI is loaded
+    if (typeof $.fn.draggable === "function") {
+      customInstructionsPanel.draggable({ handle: "#autoBioCustomInstructionsHeader" });
+    }
+
+    // Load from localStorage
+    const savedInstructions = localStorage.getItem("autoBioCustomInstructions") || "";
+    const savedUse = localStorage.getItem("autoBioUseCustomInstructions") === "true";
+
+    customInstructionsPanel.find("#autoBioCustomInstructionsText").val(savedInstructions);
+    customInstructionsPanel.find("#autoBioUseCustomInstructions").prop("checked", savedUse);
+
+    // Save on change
+    customInstructionsPanel
+      .find("#autoBioCustomInstructionsText, #autoBioUseCustomInstructions")
+      .on("change input", function () {
+        localStorage.setItem("autoBioCustomInstructions", $("#autoBioCustomInstructionsText").val());
+        localStorage.setItem("autoBioUseCustomInstructions", $("#autoBioUseCustomInstructions").prop("checked"));
+      });
 
     // Check if we have an "Old Bio" to delete
     if (getBioText().includes("<!-- Old Bio -->") || getBioText().includes("<!--")) {
@@ -10152,10 +10200,21 @@ async function improveBioWithAI(e) {
 
     const provider = window.autoBioOptions?.aiProvider || "openai";
     let selectedKey = "";
-    if (provider === "openai") selectedKey = window.autoBioOptions?.openAIKey;
-    else if (provider === "gemini") selectedKey = window.autoBioOptions?.geminiKey;
-    else if (provider === "claude") selectedKey = window.autoBioOptions?.claudeKey;
-    else if (provider === "perplexity") selectedKey = window.autoBioOptions?.perplexityKey;
+    let selectedModel = window.autoBioOptions?.aiModel || "";
+
+    if (provider === "openai") {
+      selectedKey = window.autoBioOptions?.openAIKey;
+      if (!selectedModel) selectedModel = window.autoBioOptions?.openAIModel || "gpt-5-mini";
+    } else if (provider === "gemini") {
+      selectedKey = window.autoBioOptions?.geminiKey;
+      if (!selectedModel) selectedModel = window.autoBioOptions?.geminiModel || "gemini-3-flash-preview";
+    } else if (provider === "claude") {
+      selectedKey = window.autoBioOptions?.claudeKey;
+      if (!selectedModel) selectedModel = window.autoBioOptions?.claudeModel || "claude-sonnet-4-5";
+    } else if (provider === "perplexity") {
+      selectedKey = window.autoBioOptions?.perplexityKey;
+      if (!selectedModel) selectedModel = window.autoBioOptions?.perplexityModel || "sonar";
+    }
 
     const requestPayload = {
       action: "improveBioWithAI", // FIXED: Matches background.js listener
@@ -10163,13 +10222,17 @@ async function improveBioWithAI(e) {
       newBio: newBio,
       provider: provider,
       key: selectedKey,
-      model: window.autoBioOptions?.aiModel,
+      model: selectedModel,
       diedWord: window.autoBioOptions?.diedWord || "died",
       inlineCitations:
         typeof window.autoBioOptions?.inlineCitations !== "undefined" ? window.autoBioOptions.inlineCitations : true,
       dateFormat: window.autoBioOptions?.dateFormat || "MDY",
       dateStatusFormat: window.autoBioOptions?.dateStatusFormat || "abbreviations",
       yearsDateStatusFormat: window.autoBioOptions?.yearsDateStatusFormat || "symbols",
+      customInstructions:
+        localStorage.getItem("autoBioUseCustomInstructions") === "true"
+          ? localStorage.getItem("autoBioCustomInstructions")
+          : "",
     };
 
     console.log("Sending to AI:", requestPayload);
