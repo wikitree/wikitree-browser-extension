@@ -6,6 +6,7 @@ Feature: Family Status Sync
 import $ from "jquery";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { mainDomain } from "../../core/pageType";
 //import "jquery-ui/themes/base/all.css"; // Optional: Import default theme
 import "jquery-ui/ui/widgets/dialog"; // Import dialog widget
 
@@ -23,10 +24,10 @@ shouldInitializeFeature("familyStatusSync").then((result) => {
 });
 
 function init() {
-  console.log("Initializing Sibling Status Sync feature...");
+  console.log("Initializing Family Status Sync feature...");
 
   // Handle "No more siblings"
-  $("input[name='mNoSiblings']").on("change", async function () {
+  $(document).on("change", "input[name='mNoSiblings']", async function () {
     const isChecked = $(this).is(":checked");
     const userId = getUserIdFromPage();
 
@@ -75,7 +76,7 @@ function init() {
   });
 
   // Handle "No more children"
-  $("input[name='mNoChildren']").on("change", async function () {
+  $(document).on("change", "input[name='mNoChildren']", async function () {
     const isChecked = $(this).is(":checked");
     const userId = getUserIdFromPage();
     if (isChecked) {
@@ -166,16 +167,20 @@ async function updateProfilesSequentially(
   relationship,
   completionMessage // <== new optional param
 ) {
+  console.log(`Starting sequential update for ${profiles.length} ${noMore}...`);
   $("#wpSummary").val(isChecked ? `Checked 'No more ${noMore}'` : `Unchecked 'No more ${noMore}'`);
 
   for (const profile of profiles) {
+    console.log(`Updating profile: ${profile.Id} (${relationship})`);
     try {
       await updateProfilePageWithIframe(profile, isChecked, checkboxName, noMore, relationship);
+      console.log(`Finished updating profile: ${profile.Id}`);
     } catch (error) {
       console.error(`Failed to update ${profile.Id}:`, error);
     }
   }
 
+  console.log(`Sequential update for ${noMore} finished.`);
   // Show a custom "process complete" message or fallback to a default
   const finalText = completionMessage || "Process complete.";
   if ($("#statusSyncNotification").length === 0) {
@@ -194,6 +199,7 @@ async function updateProfilesSequentially(
 async function updateProfilePageWithIframe(profile, isChecked, checkboxName, noMore, relationship) {
   return new Promise((resolve, reject) => {
     const iframeId = `iframe-${profile.Id}`;
+    console.log(`Creating iframe for ${profile.Id}...`);
     const existingIframe = document.getElementById(iframeId);
 
     if (existingIframe) {
@@ -205,77 +211,127 @@ async function updateProfilePageWithIframe(profile, isChecked, checkboxName, noM
     iframe.style.display = "block";
     iframe.style.width = "1px";
     iframe.style.height = "1px";
-    iframe.src = `https://www.wikitree.com/index.php?title=Special:EditPerson&u=${profile.Id}`;
+    iframe.src = `https://${mainDomain}/index.php?title=Special:EditPerson&u=${profile.Id}`;
 
-    let retries = 7;
+    let retries = 10;
+    let isSaving = false;
+    let retryTimeout = null;
 
-    const cleanUpAndReject = (error) => {
+    const cleanUp = () => {
+      console.log(`Cleaning up iframe for ${profile.Id}`);
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+        retryTimeout = null;
+      }
       if (document.body.contains(iframe)) {
         document.body.removeChild(iframe);
       }
+    };
+
+    const cleanUpAndReject = (error) => {
+      cleanUp();
       reject(error);
     };
 
     const processIframe = () => {
-      const iframeDoc = iframe.contentWindow?.document;
-      if (!iframeDoc) {
+      const iframeWindow = iframe.contentWindow;
+      const iframeDoc = iframeWindow?.document;
+      if (!iframeDoc || !iframeWindow) {
+        console.log(`Iframe for ${profile.Id} not fully accessible yet.`);
+        return;
+      }
+
+      // If we are already saving, we should have handled completion in the fetch callback
+      if (isSaving) {
         return;
       }
 
       const checkbox = iframeDoc.querySelector(`input[name='${checkboxName}']`);
       const summaryField = iframeDoc.querySelector("#wpSummary");
       const saveButton = iframeDoc.querySelector("#wpSave");
+      const form = iframeDoc.querySelector("#editform");
 
-      if (checkbox && summaryField && saveButton) {
+      if (form && checkbox && summaryField && saveButton) {
+        console.log(`${profile.Id}: Elements found. Saving via fetch (POST) to bypass beforeunload...`);
+
+        // 1. Mark as saving
+        isSaving = true;
+
+        // 2. Prepare FormData
+        // Note: setting elements in DOM just before new FormData(form) ensures they are included correctly.
         checkbox.checked = isChecked;
-        checkbox.dispatchEvent(new Event("input", { bubbles: true }));
-
         summaryField.value = isChecked ? `Checked 'No more ${noMore}'` : `Unchecked 'No more ${noMore}'`;
-        summaryField.dispatchEvent(new Event("input", { bubbles: true }));
 
-        saveButton.click();
+        const formData = new FormData(form);
+        // Ensure the status checkbox is correctly represented (it might not be if it was just changed via JS)
+        if (isChecked) {
+          formData.set(checkboxName, "1");
+        } else {
+          formData.delete(checkboxName);
+        }
+        formData.set("wpSummary", summaryField.value);
+        formData.set("wpSave", "Save Changes");
 
-        setTimeout(() => {
-          console.log(`${profile.Id} updated successfully.`);
-          if (document.body.contains(iframe)) {
-            document.body.removeChild(iframe);
-          }
+        // 3. Perform the save via fetch
+        // Use getAttribute('action') because there might be an <input name="action"> causing form.action to return the element.
+        const formAction = form.getAttribute("action") || "/index.php";
+        const saveUrl = new URL(formAction, iframeWindow.location.href).href;
 
-          if ($("#statusSyncNotification").length === 0) {
-            $("body").append($("<div></div>").attr("id", "statusSyncNotification"));
-          }
+        fetch(saveUrl, {
+          method: "POST",
+          body: new URLSearchParams(formData),
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+        })
+          .then(async (response) => {
+            console.log(`${profile.Id}: Save via fetch finished. Status: ${response.status}`);
 
-          // Choose a relation label
-          let relation;
-          if (relationship) {
-            if (relationship === "Parent") {
-              // If we've marked them as 'Parent', refine father vs mother
-              if (profile.Id === currentPerson?.Father) {
-                relation = "Father";
-              } else if (profile.Id === currentPerson?.Mother) {
-                relation = "Mother";
+            if (!response.ok) {
+              throw new Error(`Failed to save ${profile.Id}: ${response.status} ${response.statusText}`);
+            }
+
+            // Success notification
+            if ($("#statusSyncNotification").length === 0) {
+              $("body").append($("<div></div>").attr("id", "statusSyncNotification"));
+            }
+
+            let relation;
+            if (relationship) {
+              if (relationship === "Parent") {
+                if (profile.Id === currentPerson?.Father) {
+                  relation = "Father";
+                } else if (profile.Id === currentPerson?.Mother) {
+                  relation = "Mother";
+                } else {
+                  relation = "Parent";
+                }
               } else {
-                // In case it's not actually father or mother
-                relation = "Parent";
+                relation = relationship;
               }
             } else {
-              // "Sibling", "Spouse", "Child", etc.
-              relation = relationship;
+              relation =
+                checkboxName === "mNoSiblings"
+                  ? "Sibling"
+                  : checkboxName === "mNoChildren"
+                  ? "Parent/Child"
+                  : "Profile";
             }
-          } else {
-            // fallback if not provided
-            relation =
-              checkboxName === "mNoSiblings" ? "Sibling" : checkboxName === "mNoChildren" ? "Parent/Child" : "Profile";
-          }
 
-          const displayName = profile.FirstName || profile.RealName || profile.Name;
-          $("#statusSyncNotification").append(`<p>${relation} ${displayName} updated.</p>`);
-          resolve();
-        }, 10000);
+            const displayName = profile.FirstName || profile.RealName || profile.Name;
+            $("#statusSyncNotification").append(`<p>${relation} ${displayName} updated.</p>`);
+
+            cleanUp();
+            resolve();
+          })
+          .catch((err) => {
+            console.error(`${profile.Id}: Save via fetch failed:`, err);
+            cleanUpAndReject(err);
+          });
       } else if (retries > 0) {
         retries -= 1;
         console.log(`Retrying for ${profile.Id}, attempts left: ${retries}`);
-        setTimeout(processIframe, 2000);
+        retryTimeout = setTimeout(processIframe, 2000);
       } else {
         cleanUpAndReject(new Error(`Failed to find required elements for ${profile.Id}`));
       }
@@ -360,6 +416,7 @@ async function handleNoChildrenCheck(userId) {
 
     // 1) Update spouses
     if (spousesToUpdate.length > 0) {
+      console.log(`Updating ${spousesToUpdate.length} spouses...`);
       await updateProfilesSequentially(
         spousesToUpdate,
         true,
@@ -368,9 +425,11 @@ async function handleNoChildrenCheck(userId) {
         "Spouse",
         "Finished updating the spouses (no more children)."
       );
+      console.log("Spouse updates complete.");
     }
 
     // 2) Update children with "No more siblings"
+    console.log(`Updating ${children.length} children...`);
     await updateProfilesSequentially(
       children,
       true,
@@ -379,6 +438,7 @@ async function handleNoChildrenCheck(userId) {
       "Child",
       "Finished updating the children (no more siblings)."
     );
+    console.log("Children updates complete.");
 
     hideShakingTree();
   } catch (error) {
