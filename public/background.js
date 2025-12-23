@@ -205,6 +205,7 @@ STRICT CONSTRAINTS:
      12. == Acknowledgements ==
    - **REQUIRED SECTIONS**: The final output MUST contain \`== Biography ==\`, \`== Sources ==\`, and \`<references />\`.
    - **Profile Stickers** include {{Died Young}}, {{Centenarian}}, etc. based on the information in the old bio.
+   - **Categories and Stickers**: Do not add, move, or remove any of these.
    - **NO <ref> tags under the Sources heading. Precede references with * there.
 9. **DATE STYLE**:
 ${dateInstructions}
