@@ -145,6 +145,15 @@ function init() {
  */
 shouldInitializeFeature("removeFromWatchlist").then((result) => {
   if (result) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const authcode = urlParams.get("authcode");
+    if (authcode) {
+      WikiTreeAPI.postToAPI({
+        appId: WBE_ORPHAN_WATCHLIST_APP_ID,
+        action: "clientLogin",
+        authcode: authcode,
+      });
+    }
     // Watchlist Free-Space Profiles do not have information to be able to remove them
     if ($(".nav-link.active").text().match("Free-Space Profiles") == null) {
       setTimeout(init, 3000);
@@ -171,22 +180,31 @@ async function DoOrphan() {
     let chunk = ids.splice(0, 100).join(",");
     promises.push(
       new Promise((resolve, reject) => {
-        WikiTreeAPI.getPeople(WBE_ORPHAN_WATCHLIST_APP_ID, chunk, "Id,PageId,Name,TrustedList").then(([, , people]) => {
-          const theKeys = Object.keys(people);
-          theKeys.forEach(function (aKey) {
-            const person = people[aKey];
-            if (person.PageId == undefined) {
-              alert(
-                "removing yourself from private profiles requires API login. Please log in, close the TreeApps tab and try again."
-              );
-              window.open("https://api.wikitree.com/api.php");
-              reject();
+        WikiTreeAPI.getPeople(WBE_ORPHAN_WATCHLIST_APP_ID, chunk, "Id,PageId,Name,TrustedList").then(
+          async ([, , people]) => {
+            const theKeys = Object.keys(people);
+            for (const aKey of theKeys) {
+              const person = people[aKey];
+              if (person.PageId == undefined) {
+                const loggedIn = await WikiTreeAPI.isLoggedIntoAPI(getUserNumId(), WBE_ORPHAN_WATCHLIST_APP_ID);
+                if (!loggedIn) {
+                  if (
+                    confirm(
+                      "Removing yourself from private profiles requires API login. Would you like to log in now? You will be returned to this page after logging in."
+                    )
+                  ) {
+                    const returnURL = encodeURIComponent(window.location.href);
+                    window.location.href = `https://api.wikitree.com/api.php?action=clientLogin&appId=${WBE_ORPHAN_WATCHLIST_APP_ID}&returnURL=${returnURL}`;
+                  }
+                  reject();
+                  return;
+                }
+              }
+              addInvisibleInput(form, "idlist[]", person.PageId);
+              resolve();
             }
-            addInvisibleInput(form, "idlist[]", person.PageId);
-            // console.log("promise id " + chunk + " done");
-            resolve();
-          });
-        });
+          }
+        );
       })
     );
   }
