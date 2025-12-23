@@ -10175,9 +10175,7 @@ async function improveBioWithAI(e) {
     console.log("Sending to AI:", requestPayload);
 
     if (!requestPayload.key) {
-      alert(
-        "API Key is missing! Please strictly ensure you have entered your API Key in the WikiTree Browser Extension Options (Auto Bio section)."
-      );
+      alert("API Key is missing! Please ensure you have entered your API Key in the Auto Bio Options.");
       return;
     }
 
