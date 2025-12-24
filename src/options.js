@@ -426,6 +426,18 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
 
       labelElement.appendChild(optionElement);
       optionDivElement.appendChild(labelElement);
+    } else if (option.type == OptionType.TEXTAREA) {
+      optionElement = document.createElement("textarea");
+      optionElement.className = "option-textarea";
+
+      let labelElement = document.createElement("label");
+
+      const textElement = createTextElementForLabel(option, false, true);
+      labelElement.appendChild(textElement);
+      labelElement.appendChild(document.createElement("br"));
+
+      labelElement.appendChild(optionElement);
+      optionDivElement.appendChild(labelElement);
     }
 
     if (optionElement) {

@@ -27,6 +27,7 @@ const OptionType = {
   NUMBER: "number",
   COLOR: "color",
   TEXT: "text",
+  TEXTAREA: "textarea",
 };
 
 function fillDefaultValuesForOptions(defaultValues, options, useTestDefaults) {

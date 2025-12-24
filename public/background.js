@@ -124,6 +124,7 @@ async function handleAIRequest(request, sendResponse) {
     dateFormat,
     dateStatusFormat,
     yearsDateStatusFormat,
+    customInstructions,
   } = request;
 
   const systemRole = "You are a Fact Merger for WikiTree. You are NOT a creative writer.";
@@ -186,11 +187,11 @@ STRICT CONSTRAINTS:
 6. **NO LIVING PEOPLE**: Do not add names of people who are likely still alive (e.g. from "survived by" lists).
 7. **CRITICAL: PRESERVE LISTS**: You MUST copy any **lists of names** (e.g. Census Households, Pallbearers, Survivors) from <original_bio>. Do NOT summarize them (e.g. do NOT say "He lived with his wife and 3 children"). You MUST list the names. Use a Markdown table or bullet points.
 8. **STYLE & FORMATTING (CRITICAL)**:
-   - **Preserve wikiLinks, templates, ref tags, headings, and formatting (line breaks, etc.); 
+   - **Preserve (DO NOT EDIT)references, wikiLinks, templates, ref tags, headings, and formatting (line breaks, etc.);  
    - **NO HTML**: Do NOT use HTML tags except <ref> and <br>. 
    - **Use MediaWiki markup** only (e.g. use '*' for bullets, '#' for numbered lists, "''" for italics, "'''" for bold). EXCEPTION: <ref> tags are allowed.
    - **SPELLING/GRAMMAR**: Fix definite spelling and punctuation mistakes.
-   - **SECTION ORDER**: You MUST strictly follow this order for sections (omit if not applicable/present):
+   - **SECTION ORDER**: You MUST strictly follow this order for sections (omit if not applicable/present). These are the only allowed level 2 headings:
      1. [[Categories]]
      2. {{Easily Confused}}
      3. {{Research Note Boxes}}
@@ -204,13 +205,18 @@ STRICT CONSTRAINTS:
      11. See also:
      12. == Acknowledgements ==
    - **REQUIRED SECTIONS**: The final output MUST contain \`== Biography ==\`, \`== Sources ==\`, and \`<references />\`.
+   - **Profile Stickers** include {{Died Young}}, {{Centenarian}}, etc. based on the information in the old bio.
+   - **Categories and Stickers**: Do not add, move, or remove any of these.
+   - **NO <ref> tags under the Sources heading. Precede references with * there.
 9. **DATE STYLE**:
 ${dateInstructions}
 
 EXAMPLE ENRICHMENT:
 Input Draft: "James died on Feb 13, 1972."
 Input Old Bio: "James M. Sparks, retired farmer, died in Austin Feb. 13, 1972 following an extended illness. Burial in Blue Ridge Cemetery."
-Output: "James M. Sparks, a retired farmer, died on Feb 13, 1972 in Austin, Texas following an extended illness. He was buried in Blue Ridge Cemetery."`;
+Output: "James M. Sparks, a retired farmer, died on Feb 13, 1972 in Austin, Texas following an extended illness. He was buried in Blue Ridge Cemetery."${
+    customInstructions ? `\n\n10. **CUSTOM USER INSTRUCTIONS**:\n${customInstructions}` : ""
+  }`;
 
   const dataPayload = `<original_bio>
 ${oldBio}
@@ -227,11 +233,11 @@ ${dataPayload}`;
   try {
     let resultBio = "";
     if (provider === "openai") {
-      resultBio = await callOpenAI(key, model || "gpt-4o", systemRole, prompt);
+      resultBio = await callOpenAI(key, model || "gpt-5-mini", systemRole, prompt);
     } else if (provider === "gemini") {
-      resultBio = await callGemini(key, model || "gemini-2.5-flash", systemRole, prompt);
+      resultBio = await callGemini(key, model || "gemini-3-flash-preview", systemRole, prompt);
     } else if (provider === "claude") {
-      resultBio = await callClaude(key, model || "claude-sonnet-4-20250514", systemRole, prompt);
+      resultBio = await callClaude(key, model || "claude-sonnet-4-5", systemRole, prompt);
     } else if (provider === "perplexity") {
       resultBio = await callPerplexity(key, model || "sonar", systemRole, prompt);
     } else {

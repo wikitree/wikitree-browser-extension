@@ -68,7 +68,13 @@ export class BioCheckPerson {
     isMember: false,
     isOrphan: false,
     hasLocation: false,
+    hasBirthLocation: false,
+    hasDeathLocation: false,
     uncheckedDueToPrivacy: false,
+    hasFather: false,
+    hasMother: false,
+    hasFatherStatus: false,
+    hasMotherStatus: false,
     uncheckedDueToDate: false,
     fatherDnaConfirmed: false,
     motherDnaConfirmed: false,
@@ -163,17 +169,27 @@ export class BioCheckPerson {
       }
       if (profileObj.BirthLocation != null && profileObj.BirthLocation.length > 0) {
         this.person.hasLocation = true;
+        this.person.hasBirthLocation = true;
       }
       if (profileObj.DeathLocation != null && profileObj.DeathLocation.length > 0) {
         this.person.hasLocation = true;
+        this.person.hasDeathLocation = true;
+      }
+      if (profileObj.Father != null) {
+        this.person.hasFather = true;
+      }
+      if (profileObj.Mother != null) {
+        this.person.hasMother = true;
       }
       if (profileObj.DataStatus != null) {
         if (profileObj.DataStatus.Father != null) {
+          this.person.hasFatherStatus = true;
           if (profileObj.DataStatus.Father == BioCheckPerson.CONF_WITH_DNA_STATUS) {
             this.person.fatherDnaConfirmed = true;
           }
         }
         if (profileObj.DataStatus.Mother != null) {
+          this.person.hasMotherStatus = true;
           if (profileObj.DataStatus.Mother == BioCheckPerson.CONF_WITH_DNA_STATUS) {
             this.person.motherDnaConfirmed = true;
           }
@@ -313,7 +329,48 @@ export class BioCheckPerson {
   hasLocation() {
     return this.person.hasLocation;
   }
-
+  /**
+   * Does profile have birth location
+   * @returns {Boolean} true if birth location
+   */
+  hasBirthLocation() {
+    return this.person.hasBirthLocation;
+  }
+  /**
+   * Does profile have death location
+   * @returns {Boolean} true if death location
+   */
+  hasDeathLocation() {
+    return this.person.hasDeathLocation;
+  }
+  /**
+   * Does profile have father
+   * @returns {Boolean} true if profile has father
+   */
+  hasFather() {
+    return this.person.hasFather;
+  }
+  /**
+   * Does profile have mother
+   * @returns {Boolean} true if profile has mother
+   */
+  hasMother() {
+    return this.person.hasMother;
+  }
+  /**
+   * Does profile have father status
+   * @returns {Boolean} true if profile has father status
+   */
+  hasFatherStatus() {
+    return this.person.hasFatherStatus;
+  }
+  /**
+   * Does profile have mother status
+   * @returns {Boolean} true if profile has mother status
+   */
+  hasMotherStatus() {
+    return this.person.hasMotherStatus;
+  }
   /**
    * Get the privacy
    * @returns {Number} numeric privacy level
@@ -416,11 +473,24 @@ export class BioCheckPerson {
     if ((bLoc != null && bLoc.value.length > 0) || (dLoc != null && dLoc.value.length > 0)) {
       this.person.hasLocation = true;
     }
+    if (bLoc != null && bLoc.value.length > 0) {
+      this.person.hasBirthLocation = true;
+    }
+    if (dLoc != null && dLoc.value.length > 0) {
+      this.person.hasDeathLocation = true;
+    }
+
+    // Determine if has father and has mother
+    let fatherEl = document.querySelector('#Father .tree--person');
+    this.person.hasFather = !!(fatherEl && fatherEl.querySelector('a[href^="/wiki/"]'));
+    let motherEl = document.querySelector('#Mother .tree--person');
+    this.person.hasMother = !!(motherEl && motherEl.querySelector('a[href^="/wiki/"]'));
 
     // get DNA confirmation status
     let val = document.getElementsByName("mStatus_Father");
     for (let radio of val) {
       if (radio.checked) {
+        this.person.hasFatherStatus = true;
         if (radio.value == BioCheckPerson.CONF_WITH_DNA_STATUS) {
           this.person.fatherDnaConfirmed = true;
         }
@@ -429,6 +499,7 @@ export class BioCheckPerson {
     val = document.getElementsByName("mStatus_Mother");
     for (let radio of val) {
       if (radio.checked) {
+        this.person.hasMotherStatus = true;
         if (radio.value == BioCheckPerson.CONF_WITH_DNA_STATUS) {
           this.person.motherDnaConfirmed = true;
         }
@@ -598,6 +669,18 @@ export class BioCheckPerson {
    */
   isTooOldToRemember() {
     return this.#tooOldToRemember;
+  }
+  /**
+   * Does the profile have a birth date
+   */
+  hasBirthDate() {
+    return this.#hasBirthDate;
+  }
+  /**
+   * Does the profile have a death date
+   */
+  hasDeathDate() {
+    return this.#hasDeathDate;
   }
   /**
    * Does the profile lack dates

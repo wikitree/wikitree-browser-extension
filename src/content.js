@@ -182,7 +182,7 @@ import "./features/links_to_new_tabs/links_to_new_tabs";
 
 import "./features/watchlistFilter/watchlistFilter";
 
-//import "./features/family_status_sync/family_status_sync"; // Disabled for now
+import "./features/family_status_sync/family_status_sync";
 
 import "./features/help/help";
 import "./features/pending_merges_filters/pending_merges_filters";
