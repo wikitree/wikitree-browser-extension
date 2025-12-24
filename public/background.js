@@ -291,6 +291,10 @@ ${dataPayload}`;
 }
 
 async function callOpenAI(apiKey, model, system, userPrompt) {
+  // Some models (like gpt-5-mini and o-series) do not support low temperatures or require default (1).
+  const isReasoningModel = model.includes("gpt-5-mini") || model.startsWith("o1") || model.startsWith("o3");
+  const temperature = isReasoningModel ? 1 : 0.2;
+
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -303,7 +307,7 @@ async function callOpenAI(apiKey, model, system, userPrompt) {
         { role: "system", content: system },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.2,
+      temperature: temperature,
       // max_tokens removed to allow full model output
     }),
   });
