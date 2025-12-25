@@ -24,9 +24,10 @@ const CURATED_MODELS = {
   ],
   claude: [
     { value: "claude-sonnet-4-5", text: "Claude 4.5 Sonnet (Latest Premium)" },
+    { value: "claude-sonnet-4-5-20250929", text: "Claude 4.5 Sonnet (2025-09-29)" },
     { value: "claude-haiku-4-5", text: "Claude 4.5 Haiku (Fast/Latest)" },
-    { value: "claude-opus-4-5", text: "Claude 4.5 Opus (Most Robust)" },
-    { value: "claude-sonnet-4", text: "Claude 4 Sonnet (Stable)" },
+    { value: "claude-3-5-sonnet-latest", text: "Claude 3.5 Sonnet (Latest)" },
+    { value: "claude-3-5-sonnet-20241022", text: "Claude 3.5 Sonnet (Oct 2024)" },
   ],
   perplexity: [
     { value: "sonar", text: "Sonar (Fast/Balanced)" },
