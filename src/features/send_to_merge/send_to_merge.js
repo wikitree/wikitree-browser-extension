@@ -53,48 +53,51 @@ function createMergeForm() {
 function initSendToMerge() {
   if (isMergeEdit) {
     moveSources();
-  }
-  // Callback function to execute when mutations are observed
-  const callback = function (mutationsList, observer) {
-    for (let mutation of mutationsList) {
-      if (mutation.type === "childList") {
-        // Use jQuery to select all matching elements
-        const buttons = $("button[data-action='setAsWho'],button[data-action='view']");
-
-        buttons.each(function () {
-          // Check if the new button has already been added
-          if (!$(this).next().hasClass("sendToMerge")) {
-            // Create a new button using jQuery
-            const newButton = $(
-              '<button class="btn btn-secondary sendToMerge efmButton matchActionButton">Send to merge</button>'
-            );
-
-            // Insert the new button after the current button in the loop
-            newButton.insertAfter(this);
-          }
-        });
-
-        // Disconnect the observer after adding the buttons, if needed
-        // observer.disconnect(); // Consider if you want to disconnect after first mutation
+  } else {
+    addSendToMergeButtons();
+    // Callback function to execute when mutations are observed
+    const callback = function (mutationsList, observer) {
+      for (let mutation of mutationsList) {
+        if (mutation.type === "childList") {
+          addSendToMergeButtons();
+        }
       }
+    };
+
+    // Create an observer instance linked to the callback function
+    const observer = new MutationObserver(callback);
+
+    // Options for the observer (which mutations to observe)
+    const config = { childList: true, subtree: true };
+
+    // Start observing the target node for configured mutations
+    observer.observe(document.body, config);
+  }
+}
+
+function addSendToMergeButtons() {
+  // Use jQuery to select all matching elements
+  const buttons = $("button[data-action='setAsWho'],button[data-action='view']");
+
+  buttons.each(function () {
+    // Check if the new button has already been added
+    if (!$(this).next().hasClass("sendToMerge")) {
+      // Create a new button using jQuery
+      const newButton = $(
+        '<button class="btn btn-secondary sendToMerge efmButton matchActionButton">Send to merge</button>'
+      );
+
+      // Insert the new button after the current button in the loop
+      newButton.insertAfter(this);
     }
-  };
-
-  // Create an observer instance linked to the callback function
-  const observer = new MutationObserver(callback);
-
-  // Options for the observer (which mutations to observe)
-  const config = { childList: true, subtree: true };
-
-  // Start observing the target node for configured mutations
-  observer.observe(document.body, config);
+  });
 }
 
 // Add event listener to send to merge buttons
 // Make it delegate to the body so that it works on dynamically added buttons
 $("body").on("click", ".sendToMerge", function () {
   const personObject = buildPersonData();
-  const wikiTreeId = $(this).prev(".efmButton.matchActionButton").data("wikitreeid");
+  const wikiTreeId = $(this).prev(".matchActionButton").data("wikitreeid");
   $("#userName").val(wikiTreeId);
   $("#person").val(JSON.stringify(personObject));
   $("#post-form").submit();
