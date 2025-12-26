@@ -42,9 +42,23 @@ registerFeature({
   options: [
     {
       id: "newLocations",
-      type: OptionType.CHECKBOX,
+      type: OptionType.RADIO,
       label: "Use Experimental Location Suggestions",
-      defaultValue: false,
+      values: [
+        {
+          value: "no",
+          text: "No",
+        },
+        {
+          value: "only",
+          text: "Exclusively",
+        },
+        {
+          value: "augment",
+          text: "Augment existing",
+        },
+      ],
+      defaultValue: "no",
     },
     {
       id: "correctLocations",

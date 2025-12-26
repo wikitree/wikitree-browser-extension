@@ -106,6 +106,18 @@ export async function getAvailableCountries(force = false) {
   return await getAvailableCountriesFromDb();
 }
 
+// returns an array of items:
+//  {
+//    p: path,
+//    o: origin,
+//    c: country,
+//    s: startDate,
+//    e: endDate,
+//    l: lang,
+//    normalisedPath: normalised p (lowercase and diacriticals removed),
+//    normalisedOrigin: normalised o
+//    a: aliases (normalised array),
+//  }
 export async function searchLocations({ startsWith, date, countries }) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
