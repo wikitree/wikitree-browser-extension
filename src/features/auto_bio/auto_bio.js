@@ -10045,58 +10045,91 @@ function addAutoBioUI() {
       "<div id='autoBioButtonBox' style='display: inline-flex; gap: 2px; align-items: center; margin-left: 2px; position: relative;'></div>"
     );
 
-    // AI BUTTON
-    const aiButton = $("<button id='improveAI' class='small editToolbarButton'>Improve with AI</button>");
-    aiButton.on("click", improveBioWithAI);
-    buttonBox.append(aiButton);
+    const hasAIKey = [
+      window.autoBioOptions?.openAIKey,
+      window.autoBioOptions?.geminiKey,
+      window.autoBioOptions?.claudeKey,
+      window.autoBioOptions?.perplexityKey,
+    ].some((key) => typeof key === "string" && key.trim() !== "");
 
-    // CUSTOM INSTRUCTIONS UI
-    const customInstructionsBtn = $(
-      "<button id='autoBioCustomInstructionsBtn' class='small editToolbarButton' title='Custom AI Instructions' style='padding: 0 4px;'>⚙️</button>"
-    );
-    buttonBox.append(customInstructionsBtn);
+    if (hasAIKey) {
+      // AI BUTTON
+      const aiButton = $("<button id='improveAI' class='small editToolbarButton'>Improve with AI</button>");
+      aiButton.on("click", improveBioWithAI);
+      buttonBox.append(aiButton);
 
-    const customInstructionsPanel = $(
-      `<div id='autoBioCustomInstructions' style='display: none; position: absolute; background: white; border: 1px solid #ccc; padding: 10px; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); width: 300px; top: 35px; right: 0; cursor: default;'>
-        <div id='autoBioCustomInstructionsHeader' style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; cursor: move;'>
-          <span style='font-weight: bold;'>Custom AI Instructions</span>
-          <button id='autoBioCustomInstructionsClose' class='small' style='background: none; border: none; cursor: pointer; font-size: 16px; padding: 0 4px;'>&times;</button>
-        </div>
-        <textarea id='autoBioCustomInstructionsText' style='width: 100%; height: 80px; font-size: 12px; margin-bottom: 5px;' placeholder='e.g., Use "passed away" instead of "died"...'></textarea>
-        <label><input type='checkbox' id='autoBioUseCustomInstructions'> Use these instructions</label>
-      </div>`
-    );
-    buttonBox.append(customInstructionsPanel);
+      // CUSTOM INSTRUCTIONS UI
+      const customInstructionsBtn = $(
+        "<button id='autoBioCustomInstructionsBtn' class='small editToolbarButton' title='Custom AI Instructions' style='padding: 0 4px;'>⚙️</button>"
+      );
+      buttonBox.append(customInstructionsBtn);
 
-    customInstructionsBtn.on("click", function (e) {
-      e.preventDefault();
-      customInstructionsPanel.toggle();
-    });
+      const customInstructionsPanel = $(
+        `<div id='autoBioCustomInstructions' style='display: none; position: absolute; background: white; border: 1px solid #ccc; padding: 10px; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); width: 300px; top: 35px; right: 0; cursor: default;'>
+          <div id='autoBioCustomInstructionsHeader' style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; cursor: move;'>
+            <span style='font-weight: bold;'>Custom AI Instructions</span>
+            <button id='autoBioCustomInstructionsClose' class='small' style='background: none; border: none; cursor: pointer; font-size: 16px; padding: 0 4px;'>&times;</button>
+          </div>
+          <textarea id='autoBioCustomInstructionsText' style='width: 100%; height: 80px; font-size: 12px; margin-bottom: 5px;' placeholder='e.g., Use "passed away" instead of "died"...'></textarea>
+          <label><input type='checkbox' id='autoBioUseCustomInstructions'> Use these instructions</label>
+        </div>`
+      );
+      buttonBox.append(customInstructionsPanel);
 
-    customInstructionsPanel.find("#autoBioCustomInstructionsClose").on("click", function (e) {
-      e.preventDefault();
-      customInstructionsPanel.hide();
-    });
+      customInstructionsBtn.on("click", function (e) {
+        e.preventDefault();
+        customInstructionsPanel.toggle();
+      });
 
-    // Make it draggable if jQuery UI is loaded
-    if (typeof $.fn.draggable === "function") {
-      customInstructionsPanel.draggable({ handle: "#autoBioCustomInstructionsHeader" });
+      customInstructionsPanel.find("#autoBioCustomInstructionsClose").on("click", function (e) {
+        e.preventDefault();
+        customInstructionsPanel.hide();
+      });
+
+      // Make it draggable if jQuery UI is loaded
+      if (typeof $.fn.draggable === "function") {
+        customInstructionsPanel.draggable({ handle: "#autoBioCustomInstructionsHeader" });
+      }
+
+      // Load from localStorage
+      const savedInstructions = localStorage.getItem("autoBioCustomInstructions") || "";
+      const savedUse = localStorage.getItem("autoBioUseCustomInstructions") === "true";
+
+      customInstructionsPanel.find("#autoBioCustomInstructionsText").val(savedInstructions);
+      customInstructionsPanel.find("#autoBioUseCustomInstructions").prop("checked", savedUse);
+
+      // Save on change
+      customInstructionsPanel
+        .find("#autoBioCustomInstructionsText, #autoBioUseCustomInstructions")
+        .on("change input", function () {
+          localStorage.setItem("autoBioCustomInstructions", $("#autoBioCustomInstructionsText").val());
+          localStorage.setItem("autoBioUseCustomInstructions", $("#autoBioUseCustomInstructions").prop("checked"));
+        });
     }
 
-    // Load from localStorage
-    const savedInstructions = localStorage.getItem("autoBioCustomInstructions") || "";
-    const savedUse = localStorage.getItem("autoBioUseCustomInstructions") === "true";
-
-    customInstructionsPanel.find("#autoBioCustomInstructionsText").val(savedInstructions);
-    customInstructionsPanel.find("#autoBioUseCustomInstructions").prop("checked", savedUse);
-
-    // Save on change
-    customInstructionsPanel
-      .find("#autoBioCustomInstructionsText, #autoBioUseCustomInstructions")
-      .on("change input", function () {
-        localStorage.setItem("autoBioCustomInstructions", $("#autoBioCustomInstructionsText").val());
-        localStorage.setItem("autoBioUseCustomInstructions", $("#autoBioUseCustomInstructions").prop("checked"));
-      });
+    const removeButton = $("<button id='removeAutoBio' class='small editToolbarButton'>Undo Auto Bio</button>");
+    removeButton.on("click", function (e) {
+      e.preventDefault();
+      if (window.autoBio_originalBio) {
+        setBioText(window.autoBio_originalBio, "replace");
+      } else {
+        // Fallback: Try to extract text AFTER the marker (which is where we put the Old Bio now)
+        let bioNow = getBioText();
+        let oldBio = bioNow.replace(/^.*?--- WikiTree Browser Extension Auto Bio ---[\s\S]+?-->\s*/s, "");
+        // Ensure oldBio (Base) doesn't have the Auto Bio marker/comments causing diff noise on the left side
+        // This handles cases where we fell back to 'lastGenerated' which includes comments
+        // We use a generic comment remover to be absolutely sure no instructions leak into the Diff view.
+        oldBio = oldBio.replace(/<!--[\s\S]*?-->/g, "").trim();
+        setBioText(oldBio, "replace");
+      }
+      removeAutoBioUI();
+      // Clear cached variables to reset state
+      window.autoBio_cleanDraft = null;
+      window.autoBio_commentBlock = null;
+      // window.autoBio_originalBio = null; // Don't clear this immediately? No, we should clear it to allow fresh start.
+      window.autoBio_originalBio = null;
+    });
+    buttonBox.append(removeButton);
 
     // Check if we have an "Old Bio" to delete
     if (getBioText().includes("<!-- Old Bio -->") || getBioText().includes("<!--")) {
@@ -10141,30 +10174,6 @@ function addAutoBioUI() {
       });
       buttonBox.append(deleteButton);
     }
-
-    const removeButton = $("<button id='removeAutoBio' class='small editToolbarButton'>Undo Auto Bio</button>");
-    removeButton.on("click", function (e) {
-      e.preventDefault();
-      if (window.autoBio_originalBio) {
-        setBioText(window.autoBio_originalBio, "replace");
-      } else {
-        // Fallback: Try to extract text AFTER the marker (which is where we put the Old Bio now)
-        let bioNow = getBioText();
-        let oldBio = bioNow.replace(/^.*?--- WikiTree Browser Extension Auto Bio ---[\s\S]+?-->\s*/s, "");
-        // Ensure oldBio (Base) doesn't have the Auto Bio marker/comments causing diff noise on the left side
-        // This handles cases where we fell back to 'lastGenerated' which includes comments
-        // We use a generic comment remover to be absolutely sure no instructions leak into the Diff view.
-        oldBio = oldBio.replace(/<!--[\s\S]*?-->/g, "").trim();
-        setBioText(oldBio, "replace");
-      }
-      removeAutoBioUI();
-      // Clear cached variables to reset state
-      window.autoBio_cleanDraft = null;
-      window.autoBio_commentBlock = null;
-      // window.autoBio_originalBio = null; // Don't clear this immediately? No, we should clear it to allow fresh start.
-      window.autoBio_originalBio = null;
-    });
-    buttonBox.append(removeButton);
 
     if ($("#editToolbarExt").length) {
       $("#editToolbarExt").append(buttonBox);
