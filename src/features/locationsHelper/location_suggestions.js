@@ -340,21 +340,22 @@ function updateCountrySelectors(selections) {
 
 export async function getAugmentedSuggestions(userInput, date, countries) {
   const data = await fetchOrFilterSuggestions(userInput, date, countries);
-  return data?.map((item) => formSuggestionElement(item, userInput));
+  return data?.map((item) => formWTSuggestionElement(item, userInput));
 }
 
-// item structure used:
+// Form a Wikitree suggestion element from the given item and user input.
+// The item structure is expected to contain (field marked with req are required):
 //  {
-//    p: path,
-//    o: origin,
+//    p: path (req.),
+//    o: origin ,
 //    s: startDate,
 //    e: endDate,
-//    normalisedPath: normalised p (lowercase and diacriticals removed),
-//    normalisedOrigin: normalised o
+//    normalisedPath: normalised p (lowercase and diacriticals removed - req.),
+//    normalisedOrigin: normalised o (required if o present),
 //    a: aliases (normalised array),
 //  }
-export function formSuggestionElement(item, userInput) {
-  // We build DOM elements looking like this:
+export function formWTSuggestionElement(item, userInput) {
+  // We build DOM elements that conform to what WT uses in their autocomplete suggestions, i.e. looking like this:
   // <div class="autocomplete-suggestion wbe-injected-suggestion" data-val="Stellenbosch, Cape Colony">
   //   <img src="/images/icons/map.gif">
   //   <span><span class="autocomplete-suggestion-term">Stel</span>lenbosch, Cape Colony</span> (1806-01-19 - 1910-05-30) aka Stellenbosch [ZA-WC]
@@ -390,13 +391,9 @@ export function formSuggestionElement(item, userInput) {
 
 function highlightTerm(normTerm, display, normDisplay) {
   const span = document.createElement("span");
-
-  // const normTerm = normalise(userInput);
-  // const normPath = item.normalisedPath;
   const normIndex = normDisplay.indexOf(normTerm);
 
   if (normIndex !== -1) {
-    // const display = item.p;
     const before = display.slice(0, normIndex);
     const match = display.slice(normIndex, normIndex + normTerm.length);
     const after = display.slice(normIndex + normTerm.length);
@@ -424,6 +421,9 @@ function formatDate(dateStr) {
   return dateStr;
 }
 
+/**
+ * Retrieve suggestions from the WBE location database and return them as label/value pairs
+ */
 async function getWBELocSuggestions(userInput, date, countries) {
   const data = await fetchOrFilterSuggestions(userInput, date, countries);
   return data?.map((item) => ({
@@ -494,7 +494,7 @@ let currentAbortController = null;
 
 async function fetchLocationData(options = {}) {
   try {
-    // searchLocations expects { startsWith, date, countries } (all optional)
+    // searchLocations expects options { startsWith, date, countries } (all optional)
     return await searchLocations(options);
   } catch (e) {
     console.error("IndexedDB search failed", e);

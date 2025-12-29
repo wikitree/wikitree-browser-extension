@@ -15,7 +15,7 @@ import {
   locationFields,
   initLocationSuggestions,
   getAugmentedSuggestions,
-  formSuggestionElement,
+  formWTSuggestionElement,
 } from "./location_suggestions";
 import { normalise } from "./locations_db_helper.js";
 
@@ -47,6 +47,8 @@ const nataliaStart = new Date("1839-01-01");
 const natalColonyStart = new Date("1843-05-04");
 const natalStart = new Date("1856-01-01");
 
+const fieldSelectors = locationFields.map((f) => f.fieldId).join(",");
+
 // Ensure we only initialize observers and bindings once per page load
 window.locationsHelperInitDone = window.locationsHelperInitDone || false;
 
@@ -58,7 +60,6 @@ shouldInitializeFeature("locationsHelper").then((result) => {
       window.locationsHelperOptions = options;
       dbg("feature options", options);
 
-      const fieldSelectors = locationFields.map((f) => f.fieldId).join(",");
       waitForElements(fieldSelectors, 2000)
         .then((el) => {
           if (!el) return;
@@ -69,7 +70,6 @@ shouldInitializeFeature("locationsHelper").then((result) => {
             }
           }
           attachInputListeners();
-          // "#mBirthLocation,#mDeathLocation,#Email[name='mMarriageLocation'],#mLocation,#photo_location";
           dbg("binding focus on selectors", fieldSelectors, $(fieldSelectors).length);
           $(fieldSelectors).on("focus", async function () {
             dbg("focus on", this.id || this.name, "activeEl:", elInfo(document.activeElement));
@@ -98,27 +98,6 @@ shouldInitializeFeature("locationsHelper").then((result) => {
           console.log("LocationSuggestions.", err.message);
         });
     });
-
-    // setTimeout(function () {
-    //   dbg("delayed marriage location focus binding");
-    //   $("#mMarriageLocation").on("focus", async function () {
-    //     dbg("focus on #mMarriageLocation");
-    //     if (!window.locationsHelperInitDone) {
-    //       locationsHelper();
-    //     }
-
-    //     if (window.locationsHelperOptions?.nativeName && !window.nativeMapsReady) {
-    //       try {
-    //         dbg("initLocationTranslations starting (marriage)");
-    //         await initLocationTranslations();
-    //         window.nativeMapsReady = true;
-    //         dbg("translation maps ready");
-    //       } catch (err) {
-    //         console.error("[locHelper] failed to load translations", err);
-    //       }
-    //     }
-    //   });
-    // }, 5000);
   }
 });
 
@@ -251,14 +230,25 @@ function normalizeForFamilyMatch(str) {
   if (!str) return "";
   let s = (str.split("(")[0] || str) // drop anything in parentheses like dates
     .toLowerCase()
+    .replace(/\./g, "") // Strip periods early (handles St., USA, etc.)
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, ""); // remove diacritics
+
+  // Normalize common place name abbreviations
+  s = s.replace(/\bst\b/g, "saint");
+  s = s.replace(/\bmt\b/g, "mount");
+  s = s.replace(/\bft\b/g, "fort");
+  s = s.replace(/\bpt\b/g, "point");
 
   // Normalize United States variants
   s = s.replace(/\bunited states of america\b/g, "united states");
   s = s.replace(/\busa\b/g, "united states");
-  s = s.replace(/\bu\.?s\.?a\.?\b/g, "united states");
-  s = s.replace(/\bu\.?s\.?\b/g, "united states");
+  s = s.replace(/\bus\b/g, "united states");
+
+  // Normalize United Kingdom variants
+  s = s.replace(/\bunited kingdom\b/g, "uk");
+  s = s.replace(/\bgreat britain\b/g, "uk");
+  s = s.replace(/\buk\b/g, "uk");
 
   // Remove administrative suffix tokens that differ by option or region
   s = s.replace(/\b(county|parish|borough|census area|regional municipality|municipality)\b/g, "");
@@ -293,10 +283,57 @@ function normalizeForFamilyMatch(str) {
   return s;
 }
 
-function highlightSearchWords(theLocationText, dText, innerBit) {
-  // const theLocation = $("#" + fieldId);
-  // const theLocationText = theLocation.val();
+/**
+ * Checks if a location suggestion matches any of the profile's family members' locations.
+ *
+ * familyLoc1 (level 1): Strong match (similarity > 0.92). Highlighted in pale lime green (#daf7a6).
+ * familyLoc2 (level 2): Very high confidence or exact match (similarity > 0.98). Highlighted in light green.
+ *
+ * @param {string} dText - The location text to check.
+ * @returns {object} { familyLoc: boolean, familyLoc2: boolean }
+ */
+function checkFamilyMatch(dText) {
+  let familyLoc = false;
+  let familyLoc2 = false;
+  if (window.bdLocations) {
+    const sugNorm = normalizeForFamilyMatch(dText);
+    for (const aLoc of window.bdLocations) {
+      const famNorm = normalizeForFamilyMatch(aLoc);
+      const sim = similarity(famNorm, sugNorm);
 
+      // Logging matching attempts for troubleshooting
+      if (sim > 0.8 || sugNorm.includes(famNorm) || famNorm.includes(sugNorm)) {
+        console.log(
+          `[locHelper] Match check:\n` +
+            `Input:  '${dText}'\n` +
+            `Norm:   '${sugNorm}'\n` +
+            `Family: '${famNorm}'\n` +
+            `Sim:    ${sim.toFixed(4)}\n` +
+            `SubStr: ${sugNorm.includes(famNorm) || famNorm.includes(sugNorm)}`
+        );
+      }
+
+      if (famNorm === sugNorm || sim > 0.92) familyLoc = true;
+      if (famNorm === sugNorm || sim > 0.98) familyLoc2 = true;
+
+      // High resilience: check for substring matches if strings are sufficiently long
+      if (!familyLoc && sugNorm.length > 10 && famNorm.length > 10) {
+        if (sugNorm.includes(famNorm) || famNorm.includes(sugNorm)) {
+          familyLoc = true;
+          // If they are almost the same but one has slightly more/less detail, treat as level 2
+          if (Math.abs(sugNorm.length - famNorm.length) < 10) {
+            familyLoc2 = true;
+          }
+        }
+      }
+
+      if (familyLoc2) break;
+    }
+  }
+  return { familyLoc, familyLoc2 };
+}
+
+function highlightSearchWords(theLocationText, dText, innerBit) {
   // Split on commas and spaces, but keep hyphenated words together
   const theLocationTextMatch = theLocationText
     ?.trim()
@@ -318,7 +355,7 @@ function highlightSearchWords(theLocationText, dText, innerBit) {
         // Escape special regex characters in the word
         const escapedWord = aWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         // Use word boundaries to match whole words only (case insensitive)
-        const wordRegex = new RegExp(`\\b(${escapedWord})\\b`, "gi");
+        const wordRegex = new RegExp(`(${escapedWord})`, "gi");
         textContent = textContent.replace(wordRegex, '<span class="autocomplete-suggestion-term">$1</span>');
       }
     });
@@ -541,7 +578,7 @@ async function locationsHelper() {
       // container.querySelectorAll(".wbe-injected-suggestion").forEach((n) => n.remove());
 
       if (suggestions.length) injectAugmentedSuggestions(container, suggestions);
-      applySuggestionCorrections(container, locationField, userInput, mutations);
+      applySuggestionCorrections(container, locationField, userInput, mutations, suggestions);
     } finally {
       state.injecting = false;
       console.log(`injection done`, {
@@ -565,7 +602,10 @@ async function locationsHelper() {
       }
     });
     dbg(`attachObserverToSuggestions: ${cnt} containers found, attached observers to ${added}`);
-    if (added > 0) console.log(`attachObserverToSuggestions: ${cnt} containers found, attached observers to ${added}`);
+    if (added > 0) {
+      $(fieldSelectors).addClass("wbe-location-ready");
+      console.log(`attachObserverToSuggestions: ${cnt} containers found, attached observers to ${added}`);
+    }
   }
 
   setTimeout(function () {
@@ -577,29 +617,7 @@ async function locationsHelper() {
       pollCount++;
       if (pollCount > 10) clearInterval(poll); // stop after ~10s
     }, 1000);
-    // Intercept selection (mousedown) to guarantee sanitized insertion even if another script sets value first
-    // $(document)
-    //   .off("mousedown.locationsHelper", ".autocomplete-suggestion")
-    //   .on("mousedown.locationsHelper", ".autocomplete-suggestion", function () {
-    //     const val = $(this).attr("data-val") || "";
-    //     const clean = stripLocationDates(val);
-    //     if (clean !== val) {
-    //       $(this).attr("data-val", clean);
-    //       dbg("mousedown sanitize data-val", { before: val, after: clean });
-    //     }
-    //     // Also proactively update the active input (plugin may set after event; use microtask)
-    //     const activeEl = document.activeElement;
-    //     if (activeEl && /Location|photo_location|Email/.test(activeEl.id || activeEl.name || "")) {
-    //       queueMicrotask(() => {
-    //         const before = activeEl.value;
-    //         const after = stripLocationDates(before);
-    //         if (after !== before) {
-    //           activeEl.value = after;
-    //           dbg("microtask sanitize input value", { before, after });
-    //         }
-    //       });
-    //     }
-    //   });
+
     // Mark init complete once we've attached observers
     window.locationsHelperInitDone = true;
   }, 3000);
@@ -642,7 +660,7 @@ function parsePartialDateToRange(str, isStart) {
   return null;
 }
 
-function applySuggestionCorrections(container, locationField, userInput, mutations_list) {
+function applySuggestionCorrections(container, locationField, userInput, mutations_list, augmentedSuggestions) {
   const dateFieldId = locationField.dateId;
   const whichLocation = locationField.name;
 
@@ -653,572 +671,559 @@ function applySuggestionCorrections(container, locationField, userInput, mutatio
   const myYear = inputRange ? inputRange.start.getFullYear() : null;
 
   // console.log("applyCorrections. familiy bd locations", window.bdLocations);
-
-  mutations_list.forEach(function (mutation) {
-    mutation.addedNodes.forEach(async function (added_node) {
-      try {
-        dbg("MutationObserver added node", {
-          nodeType: added_node.nodeType,
-          className: added_node.className,
-          textSample: (added_node.textContent || "").slice(0, 100),
-        });
-        // Only act on actual suggestion elements
-        if (added_node.nodeType !== 1 || !added_node.classList?.contains("autocomplete-suggestion")) {
-          dbg("no .autocomplete-suggestions container found for suggestion; skipping reorder");
-          return;
-        }
-        // const rawDataVal = $(added_node).attr("data-val") || "";
-        // Ignore non-location suggestions that carry underscores in their data-val
-        // if (rawDataVal.includes("_")) {
-        //   dbg("skip suggestion with underscore data-val", rawDataVal);
-        //   return;
-        // }
-
-        // Avoid reprocessing when we move the node within its container
-        if ($(added_node).data("locHelperProcessed")) {
-          dbg("skip already processed suggestion");
-          return;
-        }
-        $(added_node).data("locHelperProcessed", true);
-        dbg("Handling autocomplete-suggestions for", { locationField, whichLocation });
-
-        let dText = added_node.textContent || "";
-        dbg("raw suggestion text", dText.slice(0, 200));
-
-        // Always ensure the value that will be inserted (data-val) is date-free
-        // const baseStrippedVal = stripLocationDates(dText.replace(/\(.*\d{3,4}.*\)/, ""));
-        // $(added_node).attr("data-val", baseStrippedVal.trim());
-        // dbg("sanitized base data-val", { original: dText.slice(0, 120), dataVal: baseStrippedVal });
-
-        dbg("options at runtime", window.locationsHelperOptions);
-        if (window.locationsHelperOptions?.nativeName) {
-          const before = dText;
-          dbg("Normalizing location text for native names");
-          dText = normalizeLocation(dText);
-          logIfChanged("normalizeLocation", before, dText);
-          const innerBitNorm = $(added_node).find("span:first");
-          if (innerBitNorm.length === 0) {
-            dbg("normalize: innerBit 'span:first' not found");
-          }
-          fixText(added_node, userInput, dText, innerBitNorm);
-        }
-
-        let goodDate = true; // default: keep when no dates
-        let familyLoc = false;
-        let familyLoc2 = false;
-
-        if (!inputRange) {
-          goodDate = true; // no usable input date
-          dbg("date window eval - no useable input date");
-        } else {
-          // Match ranges like:
-          // (1801 - 1974)
-          // (1801-03 - 1974-11-02)
-          // ( - 1974)
-          // (1794 - )
-          const yearRangeMatch = (dText || "").match(
-            /\(\s*([0-9]{4}(?:-[0-9]{2})?(?:-[0-9]{2})?)?\s*-\s*([0-9]{4}(?:-[0-9]{2})?(?:-[0-9]{2})?)?\s*\)/
-          );
-
-          if (!yearRangeMatch) {
-            goodDate = true; // no suggestion range
-            dbg("date window eval - no suggestion range");
-          } else {
-            const startStr = yearRangeMatch[1] || "";
-            const endStr = yearRangeMatch[2] || "";
-            const rangeStart = startStr ? parsePartialDateToRange(startStr).start : null;
-            const rangeEnd = endStr ? parsePartialDateToRange(endStr).end : null;
-
-            // Check overlap
-            if (rangeStart && inputRange.end < rangeStart) goodDate = false;
-            if (rangeEnd && inputRange.start > rangeEnd) goodDate = false;
-            dbg("date window eval", { rangeStart, rangeEnd, inputRange, goodDate });
-          }
-        }
-
-        if (window.locationsHelperOptions?.correctLocations || window.locationsHelperOptions?.addUSCounty) {
-          const innerBit = $(added_node).find("span:first");
-          dbg("innerBit 'span:first' count", innerBit.length);
-
-          const theDate = new Date(isoInputDate);
-          dbg("parsed date", {
-            whichLocation,
-            theDateStr,
-            iso: isoInputDate,
-            theDate: isNaN(+theDate) ? null : theDate.toISOString(),
-          });
-
-          let innerBitText = "";
-          if (window.locationsHelperOptions?.correctLocations && goodDate) {
-            const beforeAll = dText;
-
-            // Brisbane
-            dText = dText.replace("Brisbane City, Queensland, Australia", "Brisbane, Queensland, Australia");
-
-            if (dText.match(/Auschwitz-Birkenau/)) {
-              dText =
-                "Konzentrationslager Auschwitz-Birkenau, Bielitz, Oberschlesien, Preußen, Deutsches Reich (1941 - 1945)";
-            } else if (dText.match(/Auschwitz, Auschwitz/)) {
-              dText = "Konzentrationslager Auschwitz, Bielitz, Oberschlesien, Preußen, Deutsches Reich (1941 - 1945)";
-            }
-
-            // Remove Canadian districts
-            if (dText.match(/Canada/)) {
-              const regionalDistricts = [
-                "Greater Vancouver Regional District",
-                "Fraser Valley Regional District",
-                "Capital Regional District",
-                "Metro Vancouver Regional District",
-                "Squamish-Lillooet Regional District",
-                "Central Okanagan Regional District",
-                "Thompson-Nicola Regional District",
-                "Cariboo Regional District",
-                "Bulkley-Nechako Regional District",
-                "Peace River Regional District",
-                "Kitimat-Stikine Regional District",
-                "Northern Rockies Regional Municipality",
-                "Columbia-Shuswap Regional District",
-                "Okanagan-Similkameen Regional District",
-                "North Okanagan Regional District",
-                "Kootenay Boundary Regional District",
-                "Central Kootenay Regional District",
-                "East Kootenay Regional District",
-                "Mount Waddington Regional District",
-                "Comox Valley Regional District",
-                "Cowichan Valley Regional District",
-                "Alberni-Clayoquot Regional District",
-                "Strathcona Regional District",
-                "Sunshine Coast Regional District",
-                "Powell River Regional District",
-              ];
-              regionalDistricts.forEach(function (aDistrict) {
-                dText = dText.replace(aDistrict + ", ", "");
-              });
-            }
-
-            // Germany country names
-            if (myYear < 1806) {
-              dText = dText
-                .replace("Deutsches Reich", "Heiliges Römisches Reich")
-                .replace("Deutschland", "Heiliges Römisches Reich");
-            } else if (myYear < 1815) {
-              dText = dText
-                .replace(", Heiliges Römisches Reich", "")
-                .replace(", Deutschland", "")
-                .replace(", Deutscher Bund", "")
-                .replace(", Deutsches Reich", "");
-            } else if (myYear < 1866) {
-              dText = dText.replace("Deutsches Reich", "Deutscher Bund").replace("Deutschland", "Deutscher Bund");
-            } else if (myYear < 1871) {
-              dText = dText.replace(", Deutsches Reich", "").replace("Deutschland", "");
-            } else if (myYear < 1945) {
-              dText = dText.replace("Deutschland", "Deutsches Reich");
-            } else if (myYear > 1949) {
-              dText = dText.replace("Deutsches Reich", "Deutschland").replace("Deutscher Bund", "Deutschland");
-            }
-
-            // Wallenhorst
-            if (dText.match(/Wallenhorst/)) {
-              const wallenhorstHistory = [
-                {
-                  startDate: null,
-                  endDate: "1802-01-01",
-                  location: "Wallenhorst, Iburg, Osnabrück, Heiliges Römisches Reich",
-                },
-                {
-                  startDate: "1802-01-01",
-                  endDate: "1807-01-01",
-                  location: "Wallenhorst, Iburg, Osnabrück, Hannover, Heiliges Römisches Reich",
-                },
-                {
-                  startDate: "1807-01-01",
-                  endDate: "1811-01-01",
-                  location: "Wallenhorst, Engter, Osnabrück, Weser, Westphalen, Rheinbund",
-                },
-                {
-                  startDate: "1811-01-01",
-                  endDate: "1814-01-01",
-                  location: "Wallenhorst, Wallenhorst, Osnabrück-Land, Osnabrück, Ober-Ems, Frankreich",
-                },
-                {
-                  startDate: "1814-01-01",
-                  endDate: "1817-01-01",
-                  location: "Wallenhorst, Osnabrück, Hannover, Deutscher Bund",
-                },
-                {
-                  startDate: "1817-01-01",
-                  endDate: "1867-01-01",
-                  location: "Wallenhorst, Osnabrück, Hannover, Deutscher Bund",
-                },
-                {
-                  startDate: "1867-01-01",
-                  endDate: "1871-01-01",
-                  location: "Wallenhorst, Osnabrück, Hannover, Preußen, Norddeutscher Bund",
-                },
-                {
-                  startDate: "1871-01-01",
-                  endDate: "1945-01-01",
-                  location: "Wallenhorst, Osnabrück, Hannover, Preußen, Deutsches Reich",
-                },
-                {
-                  startDate: "1945-01-01",
-                  endDate: "1946-10-31",
-                  location: "Wallenhorst, Osnabrück, Hannover, Britische Besatzungszone",
-                },
-                {
-                  startDate: "1946-11-01",
-                  endDate: "1978-01-31",
-                  location: "Wallenhorst, Osnabrück, Niedersachsen, Deutschland",
-                },
-                {
-                  startDate: "1978-02-01",
-                  endDate: "2005-01-01",
-                  location: "Wallenhorst, Osnabrück, Weser-Ems, Niedersachsen, Deutschland",
-                },
-                {
-                  startDate: "2005-01-01",
-                  endDate: null,
-                  location: "Wallenhorst, Osnabrück, Niedersachsen, Deutschland",
-                },
-              ];
-              const record = findLocationByDate(theDate, wallenhorstHistory);
-              dbg("Wallenhorst record", record);
-              addNewSuggestion(added_node, userInput, "Wallenhorst", record);
-            }
-
-            // Massachusetts (and other pre-1776 states)
-            const lastPart = dText.split("(")[0].trim().split(",").pop();
-            const lastPartMatch = lastPart?.match(/[A-z]+/g);
-            if (lastPartMatch != null) {
-              lastPartMatch.forEach(function (aWord) {
-                if (window.USstates[aWord] != undefined) {
-                  const thisState = window.USstates[aWord];
-                  if (thisState.former_name_date_established != undefined) {
-                    if (thisState.former_name_date_established <= myYear && thisState.admissionDate >= myYear) {
-                      if (myYear >= 1776 && thisState.postRevolutionName) {
-                        dText = dText.replace(lastPart, " " + aWord);
-                        innerBitText =
-                          dText + " (" + "1776-07-04" + " - " + thisState.admissionDate.match(/\d{4}/) + ")";
-                      } else {
-                        dText = dText.replace(lastPart, " " + thisState.former_name).replace(/ \(.+\)/, "");
-                        innerBitText =
-                          dText +
-                          " (" +
-                          thisState.former_name_date_established +
-                          " - " +
-                          thisState.admissionDate.match(/\d{4}/) +
-                          ")";
-                      }
-                      dbg("US pre-statehood adjustment", { aWord, myYear, dText, innerBitText });
-                      fixText(added_node, userInput, dText, innerBit, innerBitText);
-                    }
-                  }
-                }
-              });
-            }
-
-            // Alpharetta
-            if (dText.match(/Alpharetta/)) {
-              const alpharettaHistory = [
-                {
-                  startDate: "1831-12-03",
-                  endDate: null,
-                  location: "Alpharetta, Forsyth County, Georgia, United States",
-                },
-              ];
-              const record = findLocationByDate(theDate, alpharettaHistory);
-              dbg("Alpharetta record", record);
-              addNewSuggestion(added_node, userInput, "Alpharetta", record);
-            }
-
-            // Appleton
-            if (dText.match(/Appleton/)) {
-              const appletonHistory = [
-                {
-                  startDate: null,
-                  endDate: "1763-12-31",
-                  variant: "Hull and Appleton",
-                  location: "Hull and Appleton, Great Budworth, Cheshire, England",
-                },
-                {
-                  startDate: "1764-01-01",
-                  endDate: "1800-12-31",
-                  location: "Appleton, Great Budworth, Cheshire, England",
-                },
-                {
-                  startDate: "1801-01-01",
-                  endDate: "1836-12-31",
-                  location: "Appleton, Great Budworth, Cheshire, England, United Kingdom",
-                },
-                {
-                  startDate: "1837-01-01",
-                  endDate: "1974-03-31",
-                  location: "Appleton, Runcorn, Cheshire, England, United Kingdom",
-                },
-                {
-                  startDate: "1974-04-01",
-                  endDate: null,
-                  location: "Appleton, Warrington, Cheshire, England, United Kingdom",
-                },
-              ];
-              const record = findLocationByDate(theDate, appletonHistory);
-              dbg("Appleton record", record);
-              const villages = [
-                "Appleton Cross",
-                "Appleton Thorn",
-                "Broomfield",
-                "The Cobbs",
-                "Dudlows Green",
-                "Hillcliffe",
-                "Lumb Brook",
-                "Wrights Green",
-              ];
-              addNewSuggestion(added_node, userInput, "Appleton", record, villages);
-            }
-
-            // County Durham
-            const beforeDurham = dText;
-            dText = dText.replace("Durham, England", "County Durham, England");
-            logIfChanged("Durham replacement", beforeDurham, dText);
-
-            // Ferintosh
-            if (dText.match(/Ferintosh/)) {
-              const ferintoshHistory = [
-                { startDate: null, endDate: "1800-12-31", location: "Ferintosh, Nairn, Scotland" },
-                {
-                  startDate: "1801-01-01",
-                  endDate: "1891-01-01",
-                  location: "Ferintosh, Nairn, Scotland, United Kingdom",
-                },
-                {
-                  startDate: "1891-01-01",
-                  endDate: null,
-                  location: "Ferintosh, Ross and Cromarty, Scotland, United Kingdom",
-                },
-              ];
-              const record = findLocationByDate(theDate, ferintoshHistory);
-              dbg("Ferintosh record", record);
-              const villages = [
-                "Alcag",
-                "Mulchaich",
-                "Urquhart",
-                "Dunvornie",
-                "Easter Kinkell",
-                "Smithfield",
-                "Logie Wester",
-              ];
-              addNewSuggestion(added_node, userInput, "Ferintosh", record, villages);
-            }
-
-            // Steyning
-            if (dText.match(/Steyning/)) {
-              if ($(added_node).parent().find(".Steyning").length == 0) {
-                dbg("Adding custom Steyning suggestion");
-                addNewSuggestion(added_node, userInput, "Steyning", {
-                  location: "Steyning, Stogursey, Somerset, England",
-                });
-              } else {
-                dbg("Steyning suggestion already present");
-              }
-            }
-
-            // South Africa baseline replacements
-            const beforeSA = dText;
-            dText = dText
-              .replace("Cape Colony, South Africa", "Cape Colony")
-              .replace("Cape of Good Hope, South Africa", "Cabo de Goede Hoop")
-              .replace("Orange River Colony, South Africa", "Oranje Unie");
-            logIfChanged("South Africa base replacements", beforeSA, dText);
-
-            // Cape
-            const beforeCape = dText;
-            if (theDate >= capeColonyStart && theDate < colonyEnd) {
-              dText = dText
-                .replace("Cape Province, South Africa", "Cape Colony")
-                .replace("Cape, Cape Colony", "Cape Colony");
-            } else if ((myYear != "" && theDate < vocEnd) || (theDate >= bataviaStart && theDate < capeColonyStart)) {
-              dText = dText
-                .replace("Cape Province, South Africa", "Cabo de Goede Hoop")
-                .replace("Dutch Cape Colony", "Cabo de Goede Hoop")
-                .replace("Cape Colony", "Cabo de Goede Hoop")
-                .replace("Cape, Cape Colony", "Cabo de Goede Hoop");
-              if (theDate < vocEnd) dText = dText.replace("Cape Town, Cabo de Goede Hoop", "de Caep de Goede Hoop");
-            } else if (theDate >= vocEnd && theDate < bataviaStart) {
-              dText = dText
-                .replace("Cape Province, South Africa", "Cape of Good Hope Colony")
-                .replace("Dutch Cape Colony", "Cape of Good Hope Colony")
-                .replace("Cape of Good Hope", "Cape of Good Hope Colony")
-                .replace("Cabo de Goede Hoop", "Cape of Good Hope Colony")
-                .replace("Cape Colony", "Cape of Good Hope Colony");
-            } else if (theDate >= colonyEnd && theDate < newSAStart) {
-              dText = dText
-                .replace("Cabo de Goede Hoop", "Cape Province, South Africa")
-                .replace("Cape Colony", "Cape Province, South Africa");
-            } else if (theDate >= newSAStart) {
-              dText = dText
-                .replace("Cabo de Goede Hoop", "Western Cape, South Africa")
-                .replace("Cape Colony", "Western Cape, South Africa")
-                .replace("Cape Province, South Africa", "Western Cape, South Africa");
-            }
-            logIfChanged("Cape timeline replacement", beforeCape, dText);
-
-            // Transvaal
-            const beforeTransvaal = dText;
-            if (theDate >= tRepStart && theDate < boerRepStart) {
-              dText = dText
-                .replace("Transvaal, South Africa", "Transvaal Republic")
-                .replace("Tshwane, Gauteng, South Africa", "Transvaal Republic");
-            } else if (theDate >= boerRepStart && theDate < boerColonyStart) {
-              dText = dText
-                .replace("Transvaal, South Africa", "Zuid-Afrikaansche Republic")
-                .replace("Tshwane, Gauteng, South Africa", "Zuid-Afrikaansche Republic");
-            } else if (theDate >= boerColonyStart && theDate < colonyEnd) {
-              dText = dText
-                .replace("Transvaal, South Africa", "Transvaal Colony")
-                .replace("Tshwane, Gauteng, South Africa", "Transvaal Colony");
-            }
-            logIfChanged("Transvaal timeline replacement", beforeTransvaal, dText);
-
-            // Orange Free State
-            const beforeOFS = dText;
-            if (myYear != "" && theDate < boerRepStart) {
-              dText = dText
-                .replace("Orange Free State, South Africa", "Transoranje")
-                .replace("Oranje Unie", "Transoranje");
-            } else if (theDate >= boerRepStart && theDate <= fsColonyStart) {
-              dText = dText
-                .replace("Orange Free State, South Africa", "Oranje Vrijstaat")
-                .replace("Oranje Unie", "Oranje Vrijstaat");
-            } else if (theDate >= fsColonyStart && theDate < boerColonyStart) {
-              dText = dText
-                .replace("Orange Free State, South Africa", "Oranjerivierkolonie")
-                .replace("Oranje Unie", "Oranjerivierkolonie");
-            } else if (theDate >= boerColonyStart && theDate < colonyEnd) {
-              dText = dText.replace("Orange Free State, South Africa", "Oranje Unie");
-            } else if (theDate >= newSAStart) {
-              dText = dText.replace("Orange Free State, South Africa", "Free State, South Africa");
-            }
-            logIfChanged("Orange Free State replacement", beforeOFS, dText);
-
-            // Natal
-            const beforeNatal = dText;
-            if (myYear != "" && theDate < nataliaStart) {
-              dText = dText.replace("Natal, South Africa", "Zululand");
-            } else if (theDate >= nataliaStart && theDate < natalColonyStart) {
-              dText = dText.replace("Natal, South Africa", "Natalia Republic");
-            } else if (theDate >= natalColonyStart && theDate < natalStart) {
-              dText = dText.replace("Natal, South Africa", "Natal Colony");
-            } else if (theDate >= natalStart && theDate < colonyEnd) {
-              dText = dText.replace("Natal, South Africa", "Natal");
-            }
-            logIfChanged("Natal replacement", beforeNatal, dText);
-
-            logIfChanged("correctLocations net change", beforeAll, dText);
-          }
-
-          if (window.locationsHelperOptions?.addUSCounty) {
-            // US counties
-            if (dText.match(/United States/)) {
-              const stateMatch = dText.match(/([^,]+), ([^,]+), United States/);
-              dbg("US county parse", { dTextSnippet: dText.slice(0, 160), stateMatch });
-              if (stateMatch != null) {
-                const countyName = stateMatch[1].trim();
-                const stateName = stateMatch[2].trim();
-                // if (!window.UScounties) {
-                //   try {
-                //     dbg("loading UScounties.json + alaska_endings.json");
-                //     window.UScounties = await import("./UScounties.json");
-                //     window.alaskaEndings = await import("./alaska_endings.json");
-                //     dbg("UScounties loaded", !!window.UScounties, "alaska_endings loaded", !!window.alaskaEndings);
-                //   } catch (e) {
-                //     console.error("[locHelper] failed to load US counties data", e);
-                //   }
-                // }
-
-                if (window.UScounties[stateName] != undefined) {
-                  const thisStateCounties = window.UScounties[stateName];
-                  if (thisStateCounties.includes(countyName)) {
-                    if (stateName == "Alaska") {
-                      const alaskaKeys = Object.keys(window.alaskaEndings);
-                      alaskaKeys.forEach(function (aKey) {
-                        if (window.alaskaEndings[aKey]?.includes(countyName)) {
-                          const before = dText;
-                          dText = dText.replace(countyName, countyName + " " + aKey);
-                          innerBitText = innerBit.text().replace(countyName, countyName + " " + aKey);
-                          logIfChanged("Alaska borough/census-area suffix", before, dText);
-                        }
-                      });
-                    } else if (stateName == "Louisiana") {
-                      if (window.UScounties["Louisiana"].includes(countyName)) {
-                        const before = dText;
-                        dText = dText.replace(countyName + ", " + stateName, countyName + " Parish, " + stateName);
-                        innerBitText = innerBit
-                          .text()
-                          .replace(countyName + ", " + stateName, countyName + " Parish, " + stateName);
-                        logIfChanged("Louisiana Parish name", before, dText);
-                      }
-                    } else {
-                      const before = dText;
-                      dText = dText.replace(countyName + ", " + stateName, countyName + " County, " + stateName);
-                      innerBitText = innerBit
-                        .text()
-                        .replace(countyName + ", " + stateName, countyName + " County, " + stateName);
-                      logIfChanged("US County suffix", before, dText);
-                    }
-                  } else {
-                    dbg("County name not in state's list", { countyName, stateName });
-                  }
-                } else {
-                  dbg("State not found in UScounties", stateName);
-                }
-              }
-            }
-          }
-
-          fixText(added_node, userInput, dText, innerBit, innerBitText);
-        }
-
-        if (window.bdLocations) {
-          const sugNorm = normalizeForFamilyMatch(dText);
-          window.bdLocations.forEach(function (aLoc) {
-            const famNorm = normalizeForFamilyMatch(aLoc);
-            const sim = similarity(famNorm, sugNorm);
-            if (famNorm === sugNorm || sim > 0.92) familyLoc = true;
-            if (famNorm === sugNorm || sim > 0.98) familyLoc2 = true;
-          });
-        }
-        dbg("family location flags", { familyLoc, familyLoc2 });
-
-        // const $container = $(added_node).closest(".autocomplete-suggestions");
-        const $container = $(container);
-        // if (container.length) {
-        // Always highlight the typed text in the suggestion text
-        const $inner = $(added_node).find("span:first");
-        if ($inner.length) {
-          highlightSearchWords(userInput, dText, $inner);
-        }
-
-        if (goodDate === true) {
-          $(added_node).addClass("rightPeriod");
-          if (familyLoc2 === true) {
-            $(added_node).addClass("familyLoc2").prependTo($container);
-            dbg("classified as rightPeriod + familyLoc2 (prepended within container)");
-          } else if (familyLoc === true) {
-            $(added_node).addClass("familyLoc1").prependTo($container);
-            dbg("classified as rightPeriod + familyLoc1 (prepended within container)");
-          } else {
-            dbg("classified as rightPeriod");
-          }
-        } else {
-          $(added_node).addClass("wrongPeriod").appendTo($container);
-          dbg("classified as wrongPeriod (appended within container)");
-        }
-        // }
-      } catch (err) {
-        console.error("[locHelper] observer handler error", err);
+  const suggestionsToProcess = [];
+  mutations_list.forEach((mutation) => {
+    mutation.addedNodes.forEach((node) => {
+      if (node.nodeType === 1 && node.classList?.contains("autocomplete-suggestion")) {
+        suggestionsToProcess.push({ source: "wt", node: node });
       }
     });
   });
+
+  // Also include augmented suggestions that were just injected
+  augmentedSuggestions.forEach((sug) => {
+    suggestionsToProcess.push({ source: "aug", node: sug });
+  });
+
+  suggestionsToProcess.forEach(async function (suggestion) {
+    const added_node = suggestion.node;
+    const isWTSuggestion = suggestion.source === "wt";
+    try {
+      dbg("MutationObserver added node", {
+        nodeType: added_node.nodeType,
+        className: added_node.className,
+        textSample: (added_node.textContent || "").slice(0, 100),
+      });
+
+      // Avoid reprocessing when we move the node within its container
+      if ($(added_node).data("locHelperProcessed")) {
+        dbg("skip already processed suggestion");
+        return;
+      }
+      $(added_node).data("locHelperProcessed", true);
+      dbg("Handling autocomplete-suggestions for", { locationField, whichLocation });
+
+      let dText = (isWTSuggestion ? added_node.textContent : added_node.getAttribute("data-val")) || "";
+      dbg("raw suggestion text", dText.slice(0, 200));
+
+      // ---------------------------------------------------------------------
+      // Use native names for countries
+      // ---------------------------------------------------------------------
+
+      dbg("options at runtime", window.locationsHelperOptions);
+      if (isWTSuggestion && window.locationsHelperOptions?.nativeName) {
+        dText = changeToNativeNames(userInput, dText, added_node);
+      }
+
+      // ---------------------------------------------------------------------
+      // Check if date window matches input date
+      // ---------------------------------------------------------------------
+
+      let dateIsGood = true; // default: keep when no dates
+
+      if (!inputRange) {
+        dateIsGood = true; // no usable input date
+        dbg("date window eval - no useable input date");
+      } else {
+        // Match ranges like:
+        // (1801 - 1974)
+        // (1801-03 - 1974-11-02)
+        // ( - 1974)
+        // (1794 - )
+        const yearRangeMatch = (dText || "").match(
+          /\(\s*([0-9]{4}(?:-[0-9]{2})?(?:-[0-9]{2})?)?\s*-\s*([0-9]{4}(?:-[0-9]{2})?(?:-[0-9]{2})?)?\s*\)/
+        );
+
+        if (!yearRangeMatch) {
+          dateIsGood = true; // no suggestion range
+          dbg("date window eval - no suggestion range");
+        } else {
+          const startStr = yearRangeMatch[1] || "";
+          const endStr = yearRangeMatch[2] || "";
+          const rangeStart = startStr ? parsePartialDateToRange(startStr).start : null;
+          const rangeEnd = endStr ? parsePartialDateToRange(endStr).end : null;
+
+          // Check overlap
+          if (rangeStart && inputRange.end < rangeStart) dateIsGood = false;
+          if (rangeEnd && inputRange.start > rangeEnd) dateIsGood = false;
+          dbg("date window eval", { rangeStart, rangeEnd, inputRange, goodDate: dateIsGood });
+        }
+      }
+
+      // ---------------------------------------------------------------------
+      // Name corrections for time period
+      // ---------------------------------------------------------------------
+
+      if (
+        isWTSuggestion &&
+        (window.locationsHelperOptions?.correctLocations || window.locationsHelperOptions?.addUSCounty)
+      ) {
+        dText = correctLocation(isoInputDate, dateIsGood, myYear, userInput, dText, added_node);
+      }
+
+      // ---------------------------------------------------------------------
+      // Colour-code family-related locations
+      // ---------------------------------------------------------------------
+
+      const { familyLoc, familyLoc2 } = checkFamilyMatch(dText);
+      dbg("family location flags", { familyLoc, familyLoc2 });
+
+      const $container = $(container);
+      if (dateIsGood === true) {
+        $(added_node).addClass("rightPeriod");
+        if (familyLoc2 === true) {
+          $(added_node).addClass("familyLoc2").prependTo($container);
+          dbg("classified as rightPeriod + familyLoc2 (prepended within container)");
+        } else if (familyLoc === true) {
+          $(added_node).addClass("familyLoc1");
+          // Find the last familyLoc2 or the beginning of the container to keep levels separate
+          const $lastFamilyLoc2 = $container.find(".familyLoc2:last");
+          if ($lastFamilyLoc2.length) {
+            $(added_node).insertAfter($lastFamilyLoc2);
+          } else {
+            $(added_node).prependTo($container);
+          }
+          dbg("classified as rightPeriod + familyLoc1 (prepended or inserted after level2)");
+        } else {
+          dbg("classified as rightPeriod");
+        }
+      } else {
+        $(added_node).addClass("wrongPeriod").appendTo($container);
+        dbg("classified as wrongPeriod (appended within container)");
+      }
+    } catch (err) {
+      console.error("[locHelper] observer handler error", err);
+    }
+  });
+}
+
+function changeToNativeNames(userInput, before, added_node) {
+  dbg("Normalizing location text for native names");
+  const dText = normalizeLocation(before);
+  if (dText === before.trim()) return before;
+
+  logIfChanged("normalizeLocation", before, dText);
+  const innerBitNorm = $(added_node).find("span:first");
+  if (innerBitNorm.length === 0) {
+    dbg("normalize: innerBit 'span:first' not found");
+  }
+  fixText(added_node, userInput, dText, innerBitNorm);
+  return dText;
+}
+
+function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, added_node) {
+  const innerBit = $(added_node).find("span:first");
+  dbg("innerBit 'span:first' count", innerBit.length);
+
+  const theDate = new Date(isoInputDate);
+
+  let innerBitText = "";
+  if (window.locationsHelperOptions?.correctLocations && isGoodDate) {
+    const beforeAll = dText;
+
+    // Brisbane
+    dText = dText.replace("Brisbane City, Queensland, Australia", "Brisbane, Queensland, Australia");
+
+    if (dText.match(/Auschwitz-Birkenau/)) {
+      dText = "Konzentrationslager Auschwitz-Birkenau, Bielitz, Oberschlesien, Preußen, Deutsches Reich (1941 - 1945)";
+    } else if (dText.match(/Auschwitz, Auschwitz/)) {
+      dText = "Konzentrationslager Auschwitz, Bielitz, Oberschlesien, Preußen, Deutsches Reich (1941 - 1945)";
+    }
+
+    // Remove Canadian districts
+    if (dText.match(/Canada/)) {
+      const regionalDistricts = [
+        "Greater Vancouver Regional District",
+        "Fraser Valley Regional District",
+        "Capital Regional District",
+        "Metro Vancouver Regional District",
+        "Squamish-Lillooet Regional District",
+        "Central Okanagan Regional District",
+        "Thompson-Nicola Regional District",
+        "Cariboo Regional District",
+        "Bulkley-Nechako Regional District",
+        "Peace River Regional District",
+        "Kitimat-Stikine Regional District",
+        "Northern Rockies Regional Municipality",
+        "Columbia-Shuswap Regional District",
+        "Okanagan-Similkameen Regional District",
+        "North Okanagan Regional District",
+        "Kootenay Boundary Regional District",
+        "Central Kootenay Regional District",
+        "East Kootenay Regional District",
+        "Mount Waddington Regional District",
+        "Comox Valley Regional District",
+        "Cowichan Valley Regional District",
+        "Alberni-Clayoquot Regional District",
+        "Strathcona Regional District",
+        "Sunshine Coast Regional District",
+        "Powell River Regional District",
+      ];
+      regionalDistricts.forEach(function (aDistrict) {
+        dText = dText.replace(aDistrict + ", ", "");
+      });
+    }
+
+    // Germany country names
+    if (myYear < 1806) {
+      dText = dText
+        .replace("Deutsches Reich", "Heiliges Römisches Reich")
+        .replace("Deutschland", "Heiliges Römisches Reich");
+    } else if (myYear < 1815) {
+      dText = dText
+        .replace(", Heiliges Römisches Reich", "")
+        .replace(", Deutschland", "")
+        .replace(", Deutscher Bund", "")
+        .replace(", Deutsches Reich", "");
+    } else if (myYear < 1866) {
+      dText = dText.replace("Deutsches Reich", "Deutscher Bund").replace("Deutschland", "Deutscher Bund");
+    } else if (myYear < 1871) {
+      dText = dText.replace(", Deutsches Reich", "").replace("Deutschland", "");
+    } else if (myYear < 1945) {
+      dText = dText.replace("Deutschland", "Deutsches Reich");
+    } else if (myYear > 1949) {
+      dText = dText.replace("Deutsches Reich", "Deutschland").replace("Deutscher Bund", "Deutschland");
+    }
+
+    // Wallenhorst
+    if (dText.match(/Wallenhorst/)) {
+      const wallenhorstHistory = [
+        {
+          startDate: null,
+          endDate: "1802-01-01",
+          location: "Wallenhorst, Iburg, Osnabrück, Heiliges Römisches Reich",
+        },
+        {
+          startDate: "1802-01-01",
+          endDate: "1807-01-01",
+          location: "Wallenhorst, Iburg, Osnabrück, Hannover, Heiliges Römisches Reich",
+        },
+        {
+          startDate: "1807-01-01",
+          endDate: "1811-01-01",
+          location: "Wallenhorst, Engter, Osnabrück, Weser, Westphalen, Rheinbund",
+        },
+        {
+          startDate: "1811-01-01",
+          endDate: "1814-01-01",
+          location: "Wallenhorst, Wallenhorst, Osnabrück-Land, Osnabrück, Ober-Ems, Frankreich",
+        },
+        {
+          startDate: "1814-01-01",
+          endDate: "1817-01-01",
+          location: "Wallenhorst, Osnabrück, Hannover, Deutscher Bund",
+        },
+        {
+          startDate: "1817-01-01",
+          endDate: "1867-01-01",
+          location: "Wallenhorst, Osnabrück, Hannover, Deutscher Bund",
+        },
+        {
+          startDate: "1867-01-01",
+          endDate: "1871-01-01",
+          location: "Wallenhorst, Osnabrück, Hannover, Preußen, Norddeutscher Bund",
+        },
+        {
+          startDate: "1871-01-01",
+          endDate: "1945-01-01",
+          location: "Wallenhorst, Osnabrück, Hannover, Preußen, Deutsches Reich",
+        },
+        {
+          startDate: "1945-01-01",
+          endDate: "1946-10-31",
+          location: "Wallenhorst, Osnabrück, Hannover, Britische Besatzungszone",
+        },
+        {
+          startDate: "1946-11-01",
+          endDate: "1978-01-31",
+          location: "Wallenhorst, Osnabrück, Niedersachsen, Deutschland",
+        },
+        {
+          startDate: "1978-02-01",
+          endDate: "2005-01-01",
+          location: "Wallenhorst, Osnabrück, Weser-Ems, Niedersachsen, Deutschland",
+        },
+        {
+          startDate: "2005-01-01",
+          endDate: null,
+          location: "Wallenhorst, Osnabrück, Niedersachsen, Deutschland",
+        },
+      ];
+      const record = findLocationByDate(theDate, wallenhorstHistory);
+      dbg("Wallenhorst record", record);
+      addNewSuggestion(added_node, userInput, "Wallenhorst", record);
+    }
+
+    // Massachusetts (and other pre-1776 states)
+    const lastPart = dText.split("(")[0].trim().split(",").pop();
+    const lastPartMatch = lastPart?.match(/[A-z]+/g);
+    if (lastPartMatch != null) {
+      lastPartMatch.forEach(function (aWord) {
+        if (window.USstates[aWord] != undefined) {
+          const thisState = window.USstates[aWord];
+          if (thisState.former_name_date_established != undefined) {
+            if (thisState.former_name_date_established <= myYear && thisState.admissionDate >= myYear) {
+              if (myYear >= 1776 && thisState.postRevolutionName) {
+                dText = dText.replace(lastPart, " " + aWord);
+                innerBitText = dText + " (" + "1776-07-04" + " - " + thisState.admissionDate.match(/\d{4}/) + ")";
+              } else {
+                dText = dText.replace(lastPart, " " + thisState.former_name).replace(/ \(.+\)/, "");
+                innerBitText =
+                  dText +
+                  " (" +
+                  thisState.former_name_date_established +
+                  " - " +
+                  thisState.admissionDate.match(/\d{4}/) +
+                  ")";
+              }
+              dbg("US pre-statehood adjustment", { aWord, myYear, dText, innerBitText });
+              fixText(added_node, userInput, dText, innerBit, innerBitText);
+            }
+          }
+        }
+      });
+    }
+
+    // Alpharetta
+    if (dText.match(/Alpharetta/)) {
+      const alpharettaHistory = [
+        {
+          startDate: "1831-12-03",
+          endDate: null,
+          location: "Alpharetta, Forsyth County, Georgia, United States",
+        },
+      ];
+      const record = findLocationByDate(theDate, alpharettaHistory);
+      dbg("Alpharetta record", record);
+      addNewSuggestion(added_node, userInput, "Alpharetta", record);
+    }
+
+    // Appleton
+    if (dText.match(/Appleton/)) {
+      const appletonHistory = [
+        {
+          startDate: null,
+          endDate: "1763-12-31",
+          variant: "Hull and Appleton",
+          location: "Hull and Appleton, Great Budworth, Cheshire, England",
+        },
+        {
+          startDate: "1764-01-01",
+          endDate: "1800-12-31",
+          location: "Appleton, Great Budworth, Cheshire, England",
+        },
+        {
+          startDate: "1801-01-01",
+          endDate: "1836-12-31",
+          location: "Appleton, Great Budworth, Cheshire, England, United Kingdom",
+        },
+        {
+          startDate: "1837-01-01",
+          endDate: "1974-03-31",
+          location: "Appleton, Runcorn, Cheshire, England, United Kingdom",
+        },
+        {
+          startDate: "1974-04-01",
+          endDate: null,
+          location: "Appleton, Warrington, Cheshire, England, United Kingdom",
+        },
+      ];
+      const record = findLocationByDate(theDate, appletonHistory);
+      dbg("Appleton record", record);
+      const villages = [
+        "Appleton Cross",
+        "Appleton Thorn",
+        "Broomfield",
+        "The Cobbs",
+        "Dudlows Green",
+        "Hillcliffe",
+        "Lumb Brook",
+        "Wrights Green",
+      ];
+      addNewSuggestion(added_node, userInput, "Appleton", record, villages);
+    }
+
+    // County Durham
+    const beforeDurham = dText;
+    dText = dText.replace("Durham, England", "County Durham, England");
+    logIfChanged("Durham replacement", beforeDurham, dText);
+
+    // Ferintosh
+    if (dText.match(/Ferintosh/)) {
+      const ferintoshHistory = [
+        { startDate: null, endDate: "1800-12-31", location: "Ferintosh, Nairn, Scotland" },
+        {
+          startDate: "1801-01-01",
+          endDate: "1891-01-01",
+          location: "Ferintosh, Nairn, Scotland, United Kingdom",
+        },
+        {
+          startDate: "1891-01-01",
+          endDate: null,
+          location: "Ferintosh, Ross and Cromarty, Scotland, United Kingdom",
+        },
+      ];
+      const record = findLocationByDate(theDate, ferintoshHistory);
+      dbg("Ferintosh record", record);
+      const villages = ["Alcag", "Mulchaich", "Urquhart", "Dunvornie", "Easter Kinkell", "Smithfield", "Logie Wester"];
+      addNewSuggestion(added_node, userInput, "Ferintosh", record, villages);
+    }
+
+    // Steyning
+    if (dText.match(/Steyning/)) {
+      if ($(added_node).parent().find(".Steyning").length == 0) {
+        dbg("Adding custom Steyning suggestion");
+        addNewSuggestion(added_node, userInput, "Steyning", {
+          location: "Steyning, Stogursey, Somerset, England",
+        });
+      } else {
+        dbg("Steyning suggestion already present");
+      }
+    }
+
+    // South Africa baseline replacements
+    const beforeSA = dText;
+    dText = dText
+      .replace("Cape Colony, South Africa", "Cape Colony")
+      .replace("Cape of Good Hope, South Africa", "Cabo de Goede Hoop")
+      .replace("Orange River Colony, South Africa", "Oranje Unie");
+    logIfChanged("South Africa base replacements", beforeSA, dText);
+
+    // Cape
+    const beforeCape = dText;
+    if (theDate >= capeColonyStart && theDate < colonyEnd) {
+      dText = dText.replace("Cape Province, South Africa", "Cape Colony").replace("Cape, Cape Colony", "Cape Colony");
+    } else if ((myYear != "" && theDate < vocEnd) || (theDate >= bataviaStart && theDate < capeColonyStart)) {
+      dText = dText
+        .replace("Cape Province, South Africa", "Cabo de Goede Hoop")
+        .replace("Dutch Cape Colony", "Cabo de Goede Hoop")
+        .replace("Cape Colony", "Cabo de Goede Hoop")
+        .replace("Cape, Cape Colony", "Cabo de Goede Hoop");
+      if (theDate < vocEnd) dText = dText.replace("Cape Town, Cabo de Goede Hoop", "de Caep de Goede Hoop");
+    } else if (theDate >= vocEnd && theDate < bataviaStart) {
+      dText = dText
+        .replace("Cape Province, South Africa", "Cape of Good Hope Colony")
+        .replace("Dutch Cape Colony", "Cape of Good Hope Colony")
+        .replace("Cape of Good Hope", "Cape of Good Hope Colony")
+        .replace("Cabo de Goede Hoop", "Cape of Good Hope Colony")
+        .replace("Cape Colony", "Cape of Good Hope Colony");
+    } else if (theDate >= colonyEnd && theDate < newSAStart) {
+      dText = dText
+        .replace("Cabo de Goede Hoop", "Cape Province, South Africa")
+        .replace("Cape Colony", "Cape Province, South Africa");
+    } else if (theDate >= newSAStart) {
+      dText = dText
+        .replace("Cabo de Goede Hoop", "Western Cape, South Africa")
+        .replace("Cape Colony", "Western Cape, South Africa")
+        .replace("Cape Province, South Africa", "Western Cape, South Africa");
+    }
+    logIfChanged("Cape timeline replacement", beforeCape, dText);
+
+    // Transvaal
+    const beforeTransvaal = dText;
+    if (theDate >= tRepStart && theDate < boerRepStart) {
+      dText = dText
+        .replace("Transvaal, South Africa", "Transvaal Republic")
+        .replace("Tshwane, Gauteng, South Africa", "Transvaal Republic");
+    } else if (theDate >= boerRepStart && theDate < boerColonyStart) {
+      dText = dText
+        .replace("Transvaal, South Africa", "Zuid-Afrikaansche Republic")
+        .replace("Tshwane, Gauteng, South Africa", "Zuid-Afrikaansche Republic");
+    } else if (theDate >= boerColonyStart && theDate < colonyEnd) {
+      dText = dText
+        .replace("Transvaal, South Africa", "Transvaal Colony")
+        .replace("Tshwane, Gauteng, South Africa", "Transvaal Colony");
+    }
+    logIfChanged("Transvaal timeline replacement", beforeTransvaal, dText);
+
+    // Orange Free State
+    const beforeOFS = dText;
+    if (myYear != "" && theDate < boerRepStart) {
+      dText = dText.replace("Orange Free State, South Africa", "Transoranje").replace("Oranje Unie", "Transoranje");
+    } else if (theDate >= boerRepStart && theDate <= fsColonyStart) {
+      dText = dText
+        .replace("Orange Free State, South Africa", "Oranje Vrijstaat")
+        .replace("Oranje Unie", "Oranje Vrijstaat");
+    } else if (theDate >= fsColonyStart && theDate < boerColonyStart) {
+      dText = dText
+        .replace("Orange Free State, South Africa", "Oranjerivierkolonie")
+        .replace("Oranje Unie", "Oranjerivierkolonie");
+    } else if (theDate >= boerColonyStart && theDate < colonyEnd) {
+      dText = dText.replace("Orange Free State, South Africa", "Oranje Unie");
+    } else if (theDate >= newSAStart) {
+      dText = dText.replace("Orange Free State, South Africa", "Free State, South Africa");
+    }
+    logIfChanged("Orange Free State replacement", beforeOFS, dText);
+
+    // Natal
+    const beforeNatal = dText;
+    if (myYear != "" && theDate < nataliaStart) {
+      dText = dText.replace("Natal, South Africa", "Zululand");
+    } else if (theDate >= nataliaStart && theDate < natalColonyStart) {
+      dText = dText.replace("Natal, South Africa", "Natalia Republic");
+    } else if (theDate >= natalColonyStart && theDate < natalStart) {
+      dText = dText.replace("Natal, South Africa", "Natal Colony");
+    } else if (theDate >= natalStart && theDate < colonyEnd) {
+      dText = dText.replace("Natal, South Africa", "Natal");
+    }
+    logIfChanged("Natal replacement", beforeNatal, dText);
+
+    logIfChanged("correctLocations net change", beforeAll, dText);
+  }
+
+  if (window.locationsHelperOptions?.addUSCounty) {
+    // US counties
+    if (dText.match(/United States/)) {
+      const parts = dText
+        .split(",")
+        .map((p) => p.trim())
+        .filter(Boolean);
+      const hasUS = (parts[parts.length - 1] || "").toLowerCase() === "united states";
+      // Expect at least <city>, <county>, <state>, United States
+      if (hasUS && parts.length >= 3) {
+        const stateName = parts[parts.length - 2];
+        const countyName = parts[parts.length - 3];
+        dbg("US county parse", { parts, countyName, stateName });
+
+        if (window.UScounties[stateName] != undefined) {
+          const thisStateCounties = window.UScounties[stateName];
+          if (thisStateCounties.includes(countyName)) {
+            if (stateName == "Alaska") {
+              const alaskaKeys = Object.keys(window.alaskaEndings);
+              alaskaKeys.forEach(function (aKey) {
+                if (window.alaskaEndings[aKey]?.includes(countyName)) {
+                  const before = dText;
+                  parts[parts.length - 3] = countyName + " " + aKey;
+                  dText = parts.join(", ");
+                  innerBitText = dText;
+                  logIfChanged("Alaska borough/census-area suffix", before, dText);
+                }
+              });
+            } else if (stateName == "Louisiana") {
+              const before = dText;
+              parts[parts.length - 3] = countyName + " Parish";
+              dText = parts.join(", ");
+              innerBitText = dText;
+              logIfChanged("Louisiana Parish name", before, dText);
+            } else {
+              const before = dText;
+              parts[parts.length - 3] = countyName + " County";
+              dText = parts.join(", ");
+              innerBitText = dText;
+              logIfChanged("US County suffix", before, dText);
+            }
+          } else {
+            dbg("County name not in state's list", { countyName, stateName });
+          }
+        } else {
+          dbg("State not found in UScounties", stateName);
+        }
+      }
+    }
+  }
+
+  fixText(added_node, userInput, dText, innerBit, innerBitText);
+  return dText;
 }
 
 function injectAugmentedSuggestions(container, suggestions) {
@@ -1246,15 +1251,6 @@ function findLocationByDate(dateObj, locationHistory) {
   return null;
 }
 
-//  {
-//    p: path,
-//    o: origin,
-//    s: startDate,
-//    e: endDate,
-//    normalisedPath: normalised p (lowercase and diacriticals removed),
-//    normalisedOrigin: normalised o
-//    a: aliases (normalised array),
-//  }
 function addNewSuggestion(added_node, userInput, term, record, villages = []) {
   dbg("addNewSuggestion", { term, location, hasRecord: !!record, villagesCount: villages.length });
   if (!record) return;
@@ -1276,7 +1272,7 @@ function addNewSuggestion(added_node, userInput, term, record, villages = []) {
     }
     item.p = villageBit + record.location;
     item.normalisedPath = normalise(item.p);
-    const newSuggestion = formSuggestionElement(item, userInput);
+    const newSuggestion = formWTSuggestionElement(item, userInput);
     $(newSuggestion).addClass(term).insertBefore($(added_node));
   }
 }
@@ -1284,30 +1280,30 @@ function addNewSuggestion(added_node, userInput, term, record, villages = []) {
 // Make fixText tolerant of both wrapped and unwrapped suggestion nodes
 // by setting data-val on the added node if it is itself a suggestion.
 // (Placed after function declarations for clarity during maintenance.)
-const originalFixText = fixText;
-fixText = function (added_node, userInput, dText, innerBit, innerBitText) {
-  originalFixText(added_node, userInput, dText, innerBit, innerBitText);
-  try {
-    if (
-      added_node &&
-      added_node.nodeType === 1 &&
-      added_node.classList &&
-      added_node.classList.contains("autocomplete-suggestion")
-    ) {
-      const cleanVal = stripLocationDates((dText || "").trim());
-      $(added_node).attr("data-val", cleanVal);
-    }
-    $(added_node)
-      .find(".autocomplete-suggestion")
-      .each(function () {
-        const before = $(this).attr("data-val") || "";
-        const after = stripLocationDates(before);
-        if (after !== before) {
-          $(this).attr("data-val", after);
-          dbg("post-fixText sanitize nested suggestion", { before, after });
-        }
-      });
-  } catch (e) {
-    // non-fatal
-  }
-};
+// const originalFixText = fixText;
+// fixText = function (added_node, userInput, dText, innerBit, innerBitText) {
+//   originalFixText(added_node, userInput, dText, innerBit, innerBitText);
+//   try {
+//     if (
+//       added_node &&
+//       added_node.nodeType === 1 &&
+//       added_node.classList &&
+//       added_node.classList.contains("autocomplete-suggestion")
+//     ) {
+//       const cleanVal = stripLocationDates((dText || "").trim());
+//       $(added_node).attr("data-val", cleanVal);
+//     }
+//     $(added_node)
+//       .find(".autocomplete-suggestion")
+//       .each(function () {
+//         const before = $(this).attr("data-val") || "";
+//         const after = stripLocationDates(before);
+//         if (after !== before) {
+//           $(this).attr("data-val", after);
+//           dbg("post-fixText sanitize nested suggestion", { before, after });
+//         }
+//       });
+//   } catch (e) {
+//     // non-fatal
+//   }
+// };
