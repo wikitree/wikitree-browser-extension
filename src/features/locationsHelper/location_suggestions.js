@@ -380,23 +380,22 @@ export function formWTSuggestionElement(item, userInput) {
   suggestion.className = "autocomplete-suggestion";
   suggestion.dataset.val = item.p;
 
-  const link = document.createElement("a");
-  link.href = `https://maps.google.com?q=${encodeURIComponent(item.p)}`;
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-
   const img = document.createElement("img");
   img.src = "/images/icons/map.gif";
 
-  link.appendChild(img);
-  const linkSpan = document.createElement("span");
-  linkSpan.className = "autocomplete-suggestion-maplink";
-  linkSpan.appendChild(link);
+  // const link = document.createElement("a");
+  // link.href = `https://maps.google.com?q=${encodeURIComponent(item.p)}`;
+  // link.target = "_blank";
+  // link.rel = "noopener noreferrer";
+  // link.appendChild(img);
+  // const linkSpan = document.createElement("span");
+  // linkSpan.className = "autocomplete-suggestion-maplink";
+  // linkSpan.appendChild(link);
 
   const normTerm = normalise(userInput);
   const termSpan = highlightTerm(normTerm, item.p, item.normalisedPath);
 
-  suggestion.appendChild(linkSpan);
+  suggestion.appendChild(img);
   suggestion.appendChild(termSpan);
 
   // start / end dates
