@@ -36,3 +36,7 @@ input.wbe-location-ready {
   position: absolute !important;
   left: -2.5rem;
 }
+
+.autocomplete-suggestions {
+  width: max-content !important;
+}

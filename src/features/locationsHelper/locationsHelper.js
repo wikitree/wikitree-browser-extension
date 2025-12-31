@@ -3,32 +3,25 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { familyArray } from "../../core/common";
-import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { formISODate } from "../date_fixer/date_fixer";
-import { isSpaceEdit, isNewSpace, isImagePage, isAddUnrelatedPerson } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 // import { australian_locations } from "./auto_bio/australian_locations";
-import { profilePerson } from "../../core/common";
 import { normalizeLocation, initLocationTranslations } from "./location_helpers";
+import {
+  checkFamilyMatch,
+  dbg1,
+  dbg2,
+  elInfo,
+  logIfChanged,
+  normalise,
+  retrieveFamilyBDLocations,
+} from "./locations_common.js";
 import {
   locationFields,
   initLocationSuggestions,
   getAugmentedSuggestions,
   formWTSuggestionElement,
 } from "./location_suggestions";
-import { normalise } from "./locations_db_helper.js";
-
-const WBE_LOC_HELPER_APP_ID = "WBE_locations_helper";
-
-/* ── logging helpers (silenced) ────────────────────────────────────────── */
-function dbg() {}
-function logIfChanged() {}
-function elInfo(el) {
-  if (!el) return "null";
-  return `${el.tagName || ""}#${el.id || ""}.${(el.className || "").toString()}`;
-}
-/* ─────────────────────────────────────────────────────────────────────── */
 
 //Cape
 const vocEnd = new Date("1795-09-17");
@@ -48,17 +41,18 @@ const natalColonyStart = new Date("1843-05-04");
 const natalStart = new Date("1856-01-01");
 
 const fieldSelectors = locationFields.map((f) => f.fieldId).join(",");
+const locationFieldsMap = new Map(locationFields.map((f) => [f.name, f]));
 
 // Ensure we only initialize observers and bindings once per page load
 window.locationsHelperInitDone = window.locationsHelperInitDone || false;
 
 shouldInitializeFeature("locationsHelper").then((result) => {
-  dbg("shouldInitializeFeature ->", result);
+  dbg2("shouldInitializeFeature ->", result);
   if (result) {
     import("./locationsHelper.css");
     getFeatureOptions("locationsHelper").then((options) => {
       window.locationsHelperOptions = options;
-      dbg("feature options", options);
+      dbg2("feature options", options);
 
       waitForElements(fieldSelectors, 2000)
         .then((el) => {
@@ -70,11 +64,11 @@ shouldInitializeFeature("locationsHelper").then((result) => {
             }
           }
           attachInputListeners();
-          dbg("binding focus on selectors", fieldSelectors, $(fieldSelectors).length);
+          dbg2("binding focus on selectors", fieldSelectors, $(fieldSelectors).length);
           $(fieldSelectors).on("focus", async function () {
-            dbg("focus on", this.id || this.name, "activeEl:", elInfo(document.activeElement));
+            dbg2("focus on", this.id || this.name, "activeEl:", elInfo(document.activeElement));
             if (!window.locationsHelperInitDone) {
-              dbg("initializing locationsHelper on first focus");
+              dbg2("initializing locationsHelper on first focus");
               locationsHelper();
 
               /* ── lazy-load the huge translation table ───────────────────── */
@@ -83,10 +77,10 @@ shouldInitializeFeature("locationsHelper").then((result) => {
                 !window.nativeMapsReady // not fetched yet
               ) {
                 try {
-                  dbg("initLocationTranslations starting (focus)");
+                  dbg2("initLocationTranslations starting (focus)");
                   await initLocationTranslations(); // pulls file once
                   window.nativeMapsReady = true;
-                  dbg("translation maps ready");
+                  dbg2("translation maps ready");
                 } catch (err) {
                   console.error("[locHelper] failed to load translations", err);
                 }
@@ -103,8 +97,6 @@ shouldInitializeFeature("locationsHelper").then((result) => {
 
 // Wait for any of the elements with the given IDs to appear in the DOM
 function waitForElements(selectors, timeoutMs = 5000) {
-  // const selector = ids.map((id) => `#${CSS.escape(id.slice(1))}`).join(", ");
-
   return new Promise((resolve, reject) => {
     // 1. Immediate check for any of the fields
     const found = document.querySelector(selectors);
@@ -133,206 +125,6 @@ function waitForElements(selectors, timeoutMs = 5000) {
   });
 }
 
-function editDistance(s1, s2) {
-  s1 = s1.toLowerCase();
-  s2 = s2.toLowerCase();
-  let costs = new Array();
-  for (var i = 0; i <= s1.length; i++) {
-    var lastValue = i;
-    for (var j = 0; j <= s2.length; j++) {
-      if (i == 0) costs[j] = j;
-      else {
-        if (j > 0) {
-          var newValue = costs[j - 1];
-          if (s1.charAt(i - 1) != s2.charAt(j - 1)) newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
-          costs[j - 1] = lastValue;
-          lastValue = newValue;
-        }
-      }
-    }
-    if (i > 0) costs[s2.length] = lastValue;
-  }
-  return costs[s2.length];
-}
-
-function similarity(s1, s2) {
-  s1 = s1.toLowerCase();
-  s2 = s2.toLowerCase();
-  var longer = s1;
-  var shorter = s2;
-  if (s1.length < s2.length) {
-    longer = s2;
-    shorter = s1;
-  }
-  var longerLength = longer.length;
-  if (longerLength == 0) {
-    return 1.0;
-  }
-  return (longerLength - editDistance(longer, shorter)) / parseFloat(longerLength);
-}
-
-// Normalize a location string so family matching is resilient to common variants
-const US_STATE_ABBR_MAP = {
-  al: "alabama",
-  ak: "alaska",
-  az: "arizona",
-  ar: "arkansas",
-  ca: "california",
-  co: "colorado",
-  ct: "connecticut",
-  de: "delaware",
-  fl: "florida",
-  ga: "georgia",
-  hi: "hawaii",
-  id: "idaho",
-  il: "illinois",
-  in: "indiana",
-  ia: "iowa",
-  ks: "kansas",
-  ky: "kentucky",
-  la: "louisiana",
-  me: "maine",
-  md: "maryland",
-  ma: "massachusetts",
-  mi: "michigan",
-  mn: "minnesota",
-  ms: "mississippi",
-  mo: "missouri",
-  mt: "montana",
-  ne: "nebraska",
-  nv: "nevada",
-  nh: "new hampshire",
-  nj: "new jersey",
-  nm: "new mexico",
-  ny: "new york",
-  nc: "north carolina",
-  nd: "north dakota",
-  oh: "ohio",
-  ok: "oklahoma",
-  or: "oregon",
-  pa: "pennsylvania",
-  ri: "rhode island",
-  sc: "south carolina",
-  sd: "south dakota",
-  tn: "tennessee",
-  tx: "texas",
-  ut: "utah",
-  vt: "vermont",
-  va: "virginia",
-  wa: "washington",
-  wv: "west virginia",
-  wi: "wisconsin",
-  wy: "wyoming",
-  dc: "district of columbia",
-};
-
-function normalizeForFamilyMatch(str) {
-  if (!str) return "";
-  let s = (str.split("(")[0] || str) // drop anything in parentheses like dates
-    .toLowerCase()
-    .replace(/\./g, "") // Strip periods early (handles St., USA, etc.)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, ""); // remove diacritics
-
-  // Normalize common place name abbreviations
-  s = s.replace(/\bst\b/g, "saint");
-  s = s.replace(/\bmt\b/g, "mount");
-  s = s.replace(/\bft\b/g, "fort");
-  s = s.replace(/\bpt\b/g, "point");
-
-  // Normalize United States variants
-  s = s.replace(/\bunited states of america\b/g, "united states");
-  s = s.replace(/\busa\b/g, "united states");
-  s = s.replace(/\bus\b/g, "united states");
-
-  // Normalize United Kingdom variants
-  s = s.replace(/\bunited kingdom\b/g, "uk");
-  s = s.replace(/\bgreat britain\b/g, "uk");
-  s = s.replace(/\buk\b/g, "uk");
-
-  // Remove administrative suffix tokens that differ by option or region
-  s = s.replace(/\b(county|parish|borough|census area|regional municipality|municipality)\b/g, "");
-
-  // Cleanup punctuation and whitespace around commas
-  s = s.replace(/\s*,\s*/g, ", ");
-  s = s.replace(/\s{2,}/g, " ").trim();
-
-  // Collapse duplicate commas possibly created by token removal
-  s = s.replace(/,\s*,/g, ", ");
-  // Trim trailing commas
-  s = s.replace(/,\s*$/g, "");
-
-  // Normalize US state abbreviations to full names for better matching
-  // Only do this confidently when it's clearly a US location (contains 'united states')
-  const parts = s
-    .split(",")
-    .map((p) => p.trim())
-    .filter(Boolean);
-  const hasUS = parts.some((p) => p === "united states");
-  if (parts.length) {
-    const newParts = parts.map((p, idx) => {
-      const token = p.replace(/\./g, "");
-      const abbr = token.toLowerCase();
-      if (US_STATE_ABBR_MAP[abbr] && (hasUS || idx >= parts.length - 2)) {
-        return US_STATE_ABBR_MAP[abbr];
-      }
-      return p;
-    });
-    s = newParts.join(", ");
-  }
-  return s;
-}
-
-/**
- * Checks if a location suggestion matches any of the profile's family members' locations.
- *
- * familyLoc1 (level 1): Strong match (similarity > 0.92). Highlighted in pale lime green (#daf7a6).
- * familyLoc2 (level 2): Very high confidence or exact match (similarity > 0.98). Highlighted in light green.
- *
- * @param {string} dText - The location text to check.
- * @returns {object} { familyLoc: boolean, familyLoc2: boolean }
- */
-function checkFamilyMatch(dText) {
-  let familyLoc = false;
-  let familyLoc2 = false;
-  if (window.bdLocations) {
-    const sugNorm = normalizeForFamilyMatch(dText);
-    for (const aLoc of window.bdLocations) {
-      const famNorm = normalizeForFamilyMatch(aLoc);
-      const sim = similarity(famNorm, sugNorm);
-
-      // Logging matching attempts for troubleshooting
-      if (sim > 0.8 || sugNorm.includes(famNorm) || famNorm.includes(sugNorm)) {
-        console.log(
-          `[locHelper] Match check:\n` +
-            `Input:  '${dText}'\n` +
-            `Norm:   '${sugNorm}'\n` +
-            `Family: '${famNorm}'\n` +
-            `Sim:    ${sim.toFixed(4)}\n` +
-            `SubStr: ${sugNorm.includes(famNorm) || famNorm.includes(sugNorm)}`
-        );
-      }
-
-      if (famNorm === sugNorm || sim > 0.92) familyLoc = true;
-      if (famNorm === sugNorm || sim > 0.98) familyLoc2 = true;
-
-      // High resilience: check for substring matches if strings are sufficiently long
-      if (!familyLoc && sugNorm.length > 10 && famNorm.length > 10) {
-        if (sugNorm.includes(famNorm) || famNorm.includes(sugNorm)) {
-          familyLoc = true;
-          // If they are almost the same but one has slightly more/less detail, treat as level 2
-          if (Math.abs(sugNorm.length - famNorm.length) < 10) {
-            familyLoc2 = true;
-          }
-        }
-      }
-
-      if (familyLoc2) break;
-    }
-  }
-  return { familyLoc, familyLoc2 };
-}
-
 function highlightSearchWords(theLocationText, dText, innerBit) {
   // Split on commas and spaces, but keep hyphenated words together
   const theLocationTextMatch = theLocationText
@@ -340,7 +132,7 @@ function highlightSearchWords(theLocationText, dText, innerBit) {
     .split(/[,\s]+/)
     .filter((word) => word.length > 0);
 
-  dbg("highlightSearchWords", {
+  dbg2("highlightSearchWords", {
     inputText: theLocationText,
     words: theLocationTextMatch,
     dTextSnippet: (dText || "").slice(0, 120),
@@ -374,7 +166,7 @@ function fixText(added_node, userInput, dText, innerBit, innerBitText) {
   logIfChanged("fixText: stripped dates", before, cleanText);
 
   if (innerBitText) {
-    dbg("fixText: overriding innerBit text", innerBitText);
+    dbg2("fixText: overriding innerBit text", innerBitText);
     innerBit.text(innerBitText);
   } else {
     const datesMatch = innerBit.text().match(/\(.*\d{3,4}.*\)/g);
@@ -416,136 +208,176 @@ function stripLocationDates(raw) {
   return s.trim();
 }
 
-const latestInputValue = new Map(); // fieldName → string
 function attachInputListeners() {
   for (const f of locationFields) {
     const input = document.querySelector(f.fieldId);
     if (!input) continue;
 
-    input.addEventListener("input", () => {
-      latestInputValue.set(f.name, normalise(input.value));
+    f.latestInput = null;
+    f.inputRevision = 0;
+
+    input.addEventListener("input", (e) => {
+      const val = e.target.value;
+      f.latestInput = {
+        input: val,
+        normalised: normalise(val),
+      };
+      ++f.inputRevision;
     });
   }
 }
 
-const containerState = new WeakMap();
 function getState(container) {
-  let s = containerState.get(container);
-  if (!s) {
-    s = { injecting: false };
-    containerState.set(container, s);
+  if (!container.__wbeState) {
+    container.__wbeState = {
+      injecting: false,
+      fieldName: null, // permanent association
+      renderRevision: null, // number
+    };
   }
-  return s;
+  return container.__wbeState;
+}
+
+function containsTermsInOrder(haystack, terms) {
+  let pos = 0;
+
+  for (const term of terms) {
+    const idx = haystack.indexOf(term, pos);
+    if (idx === -1) return false;
+    pos = idx + term.length;
+  }
+
+  return true;
 }
 
 async function locationsHelper() {
-  dbg("locationsHelper init");
+  dbg2("locationsHelper init");
   // Prevent multiple observers and duplicate init
   if (window.locationsHelperInitDone) {
-    dbg("locationsHelper already initialized; skipping");
+    dbg2("locationsHelper already initialized; skipping");
     return;
   }
   if (!window.USstates) {
-    dbg("loading USstates.json");
+    dbg2("loading USstates.json");
     try {
       window.USstates = await import("./USstates.json");
-      dbg("USstates loaded", !!window.USstates);
+      dbg2("USstates loaded", !!window.USstates);
     } catch (e) {
       console.error("[locHelper] failed to load USstates.json", e);
     }
   }
 
-  let theID;
-  if (!(isSpaceEdit || isNewSpace || isAddUnrelatedPerson || isImagePage)) {
-    theID = profilePerson.Id;
-  }
-  dbg("profilePerson Id check", { theID, isSpaceEdit, isNewSpace, isAddUnrelatedPerson, isImagePage });
+  retrieveFamilyBDLocations();
 
-  if (theID) {
-    WikiTreeAPI.getRelatives(WBE_LOC_HELPER_APP_ID, theID, "*", {
-      getParents: 1,
-      getSiblings: 1,
-      getSpouses: 1,
-      getChildren: 1,
-    }).then((items) => {
-      const thisFamily = familyArray(items[0].person);
-      window.bdLocations = [];
-      thisFamily.forEach(function (aPe) {
-        if (aPe.BirthLocation) {
-          window.bdLocations.push(aPe.BirthLocation);
-        }
-        if (aPe.DeathLocation) {
-          window.bdLocations.push(aPe.DeathLocation);
-        }
-      });
-      dbg("bdLocations built", { count: window.bdLocations.length, sample: window.bdLocations.slice(0, 5) });
-    });
-  } else {
-    dbg("No profilePerson Id; skipping bdLocations");
+  function summariseMutationNodes(nodes) {
+    return Array.from(nodes || []).map((node) => ({
+      nodeType: node.nodeType,
+      nodeName: node.nodeName,
+      className: node.nodeType === Node.ELEMENT_NODE ? node.className : null,
+      textSample: (node.textContent || "").slice(0, 100),
+    }));
   }
-
-  // MutationObserver tells us when the site updated; the corresponding input value tells us why.
-  // Injection/correction is driven by the why, not the when. Therefore:
-  // * MutationObserver ⇒ “the site touched the container”
-  // * Input value change ⇒ “this is a new logical cycle”
 
   const observer2 = new MutationObserver((mutations) => {
     const container = mutations[0].target;
-    console.log(`${mutations.length} mutation groups detected`);
+
+    //----- debugging-----------
+    dbg1(`${mutations.length} mutation groups detected`);
     const mut = mutations.map((m) => ({
       type: m.type,
       target: m.target?.nodeName,
-      addedNodes: Array.from(m.addedNodes || []).map((node) => ({
-        nodeType: node.nodeType,
-        nodeName: node.nodeName,
-        className: node.nodeType === Node.ELEMENT_NODE ? node.className : null,
-        textSample: (node.textContent || "").slice(0, 100),
-      })),
+      addedNodes: summariseMutationNodes(m.addedNodes),
+      removedNodes: summariseMutationNodes(m.removedNodes),
     }));
+    // (we log the above below)
+    //----- end debugging-----------
+
     const state = getState(container);
     mut.state = state;
-    console.log("===> mutations", mut);
+    dbg1("===> mutations", mut);
 
     if (state.injecting) {
-      console.log("mutation ignored (self-injection)");
+      dbg1("mutation ignored (self-injection)");
       return;
     }
 
-    // Extract rendered term from DOM
-    const renderedTerm = normalise(container.querySelector("span.autocomplete-suggestion-term")?.textContent?.trim());
-    console.log(`renderedTerm: '${renderedTerm}'`);
-    if (!renderedTerm) return;
+    // Find first suggestion with terms (needed either to resolve input field -> suggestions container
+    // association or to validate freshness)
+    // const suggestionEl = Array.from(container.querySelectorAll(".autocomplete-suggestion")).find((el) =>
+    //   el.querySelector(".autocomplete-suggestion-term")
+    // );
+    const qsa = container.querySelectorAll(".autocomplete-suggestion");
+    const arr = Array.from(qsa);
+    const suggestionEl = arr.find((el) => el.querySelector(".autocomplete-suggestion-term"));
 
-    // Identify owning field
-    const field = locationFields.find((f) => latestInputValue.get(f.name)?.trim() === renderedTerm);
+    const normalisedTerms = suggestionEl
+      ? Array.from(suggestionEl.querySelectorAll(".autocomplete-suggestion-term"))
+          .map((el) => normalise(el.textContent))
+          .filter(Boolean)
+      : [];
+
+    let field = state.fieldName ? locationFieldsMap.get(state.fieldName) : null;
     if (!field) {
-      // stale render → ignore
-      console.log(`stale render (${renderedTerm}) ignored (can't find field for it)`);
-      console.log(latestInputValue);
-      return;
+      if (!normalisedTerms.length) {
+        dbg1("mutation ignored (could not associate container with input since no term span found");
+        return false;
+      }
+      // Resolve owning field once
+      // Find the field matching these rendered terms
+      field = locationFields.find(
+        (f) => f.latestInput && containsTermsInOrder(f.latestInput.normalised, normalisedTerms)
+      );
+
+      if (!field) {
+        dbg1("mutation ignored (can't find field for rendered terms)", normalisedTerms);
+        return;
+      }
+
+      state.fieldName = field.name;
+      // state.renderRevision = field.inputRevision;
+    }
+
+    // Reset container render revision if user has typed since last snapshot
+    if (state.renderRevision !== field.inputRevision) {
+      state.renderRevision = field.inputRevision;
     }
 
     // Prevent reinjection
     if (container.querySelector(".wbe-injected-suggestion")) {
-      console.log("injection already done; skipping");
+      dbg1("injection already done; skipping");
       return;
     }
 
-    prepareAndInject(container, field, state, renderedTerm, mutations);
+    // Validate freshness
+    const term = field.latestInput.input;
+    if (
+      field.inputRevision !== state.renderRevision ||
+      (normalisedTerms.length && !containsTermsInOrder(field.latestInput.normalised, normalisedTerms))
+    ) {
+      dbg1("mutation ignored (stale render vs input)", {
+        fieldName: field.name,
+        fieldLatestInput: field.latestInput,
+        normalisedTerms: normalisedTerms,
+        revisionFieldInput: field.inputRevision,
+        revisionStateRender: state.renderRevision,
+      });
+      return;
+    }
+
+    prepareAndInject(container, field, state, term, mutations);
   });
 
-  // async function prepareAndInject(container, inputEl, state, gen, mutations) {
   async function prepareAndInject(container, locationField, state, term, mutations) {
-    let userInput = latestInputValue.get(locationField.name);
-    if (term !== userInput.trim()) {
-      console.log(`stale term (${term}) vs input (${userInput}) - ignoring`);
+    let userInput = locationField.latestInput.input;
+    if (term !== userInput) {
+      dbg1(`stale term (${term}) vs input (${userInput}) - ignoring`);
       return; // stale by the time we started
     }
 
     let suggestions = [];
     if (window.locationsHelperOptions?.newLocations !== "no") {
       const date = formISODate(document.querySelector(locationField.dateId)?.value);
-      const countries = document.querySelector(`#${locationField.fieldId.slice(1)}_cntry`)?.value || [];
+      const countries = $(`#${locationField.fieldId.slice(1)}_cntry`)?.val() || [];
 
       suggestions = await getAugmentedSuggestions(userInput, date, countries);
     }
@@ -553,22 +385,22 @@ async function locationsHelper() {
     if (window.locationsHelperOptions?.addUSCounty) {
       if (!window.UScounties) {
         try {
-          dbg("loading UScounties.json + alaska_endings.json");
+          dbg2("loading UScounties.json + alaska_endings.json");
           window.UScounties = await import("./UScounties.json");
           window.alaskaEndings = await import("./alaska_endings.json");
-          dbg("UScounties loaded", !!window.UScounties, "alaska_endings loaded", !!window.alaskaEndings);
+          dbg2("UScounties loaded", !!window.UScounties, "alaska_endings loaded", !!window.alaskaEndings);
         } catch (e) {
           console.error("[locHelper] failed to load US counties data", e);
         }
       }
     }
 
-    // Re-check after await
-    userInput = latestInputValue.get(locationField.name);
-    if (term !== userInput.trim()) return;
+    // Re-check staleness after await
+    userInput = locationField.latestInput.input;
+    if (term !== userInput) return;
 
     state.injecting = true;
-    console.log(`suggestions prepared, injecting`, {
+    dbg1(`suggestions prepared, injecting`, {
       injecting: state.injecting,
       latestInput: userInput,
     });
@@ -581,7 +413,7 @@ async function locationsHelper() {
       applySuggestionCorrections(container, locationField, userInput, mutations, suggestions);
     } finally {
       state.injecting = false;
-      console.log(`injection done`, {
+      dbg1(`injection done`, {
         injecting: state.injecting,
         latestInput: userInput,
       });
@@ -601,10 +433,9 @@ async function locationsHelper() {
         ++added;
       }
     });
-    dbg(`attachObserverToSuggestions: ${cnt} containers found, attached observers to ${added}`);
     if (added > 0) {
       $(fieldSelectors).addClass("wbe-location-ready");
-      console.log(`attachObserverToSuggestions: ${cnt} containers found, attached observers to ${added}`);
+      dbg1(`attachObserverToSuggestions: ${cnt} containers found, attached observers to ${added}`);
     }
   }
 
@@ -670,7 +501,7 @@ function applySuggestionCorrections(container, locationField, userInput, mutatio
   const inputRange = parsePartialDateToRange(isoInputDate);
   const myYear = inputRange ? inputRange.start.getFullYear() : null;
 
-  // console.log("applyCorrections. familiy bd locations", window.bdLocations);
+  // console.log("applyCorrections. familiy bd locations", window.normalisedBDLocations);
   const suggestionsToProcess = [];
   mutations_list.forEach((mutation) => {
     mutation.addedNodes.forEach((node) => {
@@ -689,7 +520,7 @@ function applySuggestionCorrections(container, locationField, userInput, mutatio
     const added_node = suggestion.node;
     const isWTSuggestion = suggestion.source === "wt";
     try {
-      dbg("MutationObserver added node", {
+      dbg2("MutationObserver added node", {
         nodeType: added_node.nodeType,
         className: added_node.className,
         textSample: (added_node.textContent || "").slice(0, 100),
@@ -697,20 +528,20 @@ function applySuggestionCorrections(container, locationField, userInput, mutatio
 
       // Avoid reprocessing when we move the node within its container
       if ($(added_node).data("locHelperProcessed")) {
-        dbg("skip already processed suggestion");
+        dbg2("skip already processed suggestion");
         return;
       }
       $(added_node).data("locHelperProcessed", true);
-      dbg("Handling autocomplete-suggestions for", { locationField, whichLocation });
+      dbg2("Handling autocomplete-suggestions for", { locationField, whichLocation });
 
       let dText = (isWTSuggestion ? added_node.textContent : added_node.getAttribute("data-val")) || "";
-      dbg("raw suggestion text", dText.slice(0, 200));
+      dbg2("raw suggestion text", dText.slice(0, 200));
 
       // ---------------------------------------------------------------------
       // Use native names for countries
       // ---------------------------------------------------------------------
 
-      dbg("options at runtime", window.locationsHelperOptions);
+      dbg2("options at runtime", window.locationsHelperOptions);
       if (isWTSuggestion && window.locationsHelperOptions?.nativeName) {
         dText = changeToNativeNames(userInput, dText, added_node);
       }
@@ -723,7 +554,7 @@ function applySuggestionCorrections(container, locationField, userInput, mutatio
 
       if (!inputRange) {
         dateIsGood = true; // no usable input date
-        dbg("date window eval - no useable input date");
+        dbg2("date window eval - no useable input date");
       } else {
         // Match ranges like:
         // (1801 - 1974)
@@ -736,7 +567,7 @@ function applySuggestionCorrections(container, locationField, userInput, mutatio
 
         if (!yearRangeMatch) {
           dateIsGood = true; // no suggestion range
-          dbg("date window eval - no suggestion range");
+          dbg2("date window eval - no suggestion range");
         } else {
           const startStr = yearRangeMatch[1] || "";
           const endStr = yearRangeMatch[2] || "";
@@ -746,7 +577,7 @@ function applySuggestionCorrections(container, locationField, userInput, mutatio
           // Check overlap
           if (rangeStart && inputRange.end < rangeStart) dateIsGood = false;
           if (rangeEnd && inputRange.start > rangeEnd) dateIsGood = false;
-          dbg("date window eval", { rangeStart, rangeEnd, inputRange, goodDate: dateIsGood });
+          dbg2("date window eval", { rangeStart, rangeEnd, inputRange, goodDate: dateIsGood });
         }
       }
 
@@ -766,14 +597,14 @@ function applySuggestionCorrections(container, locationField, userInput, mutatio
       // ---------------------------------------------------------------------
 
       const { familyLoc, familyLoc2 } = checkFamilyMatch(dText);
-      dbg("family location flags", { familyLoc, familyLoc2 });
+      dbg2("family location flags", { familyLoc, familyLoc2 });
 
       const $container = $(container);
       if (dateIsGood === true) {
         $(added_node).addClass("rightPeriod");
         if (familyLoc2 === true) {
           $(added_node).addClass("familyLoc2").prependTo($container);
-          dbg("classified as rightPeriod + familyLoc2 (prepended within container)");
+          dbg2("classified as rightPeriod + familyLoc2 (prepended within container)");
         } else if (familyLoc === true) {
           $(added_node).addClass("familyLoc1");
           // Find the last familyLoc2 or the beginning of the container to keep levels separate
@@ -783,13 +614,13 @@ function applySuggestionCorrections(container, locationField, userInput, mutatio
           } else {
             $(added_node).prependTo($container);
           }
-          dbg("classified as rightPeriod + familyLoc1 (prepended or inserted after level2)");
+          dbg2("classified as rightPeriod + familyLoc1 (prepended or inserted after level2)");
         } else {
-          dbg("classified as rightPeriod");
+          dbg2("classified as rightPeriod");
         }
       } else {
         $(added_node).addClass("wrongPeriod").appendTo($container);
-        dbg("classified as wrongPeriod (appended within container)");
+        dbg2("classified as wrongPeriod (appended within container)");
       }
     } catch (err) {
       console.error("[locHelper] observer handler error", err);
@@ -798,14 +629,14 @@ function applySuggestionCorrections(container, locationField, userInput, mutatio
 }
 
 function changeToNativeNames(userInput, before, added_node) {
-  dbg("Normalizing location text for native names");
+  dbg2("Normalizing location text for native names");
   const dText = normalizeLocation(before);
   if (dText === before.trim()) return before;
 
   logIfChanged("normalizeLocation", before, dText);
   const innerBitNorm = $(added_node).find("span:first");
   if (innerBitNorm.length === 0) {
-    dbg("normalize: innerBit 'span:first' not found");
+    dbg2("normalize: innerBit 'span:first' not found");
   }
   fixText(added_node, userInput, dText, innerBitNorm);
   return dText;
@@ -813,7 +644,7 @@ function changeToNativeNames(userInput, before, added_node) {
 
 function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, added_node) {
   const innerBit = $(added_node).find("span:first");
-  dbg("innerBit 'span:first' count", innerBit.length);
+  dbg2("innerBit 'span:first' count", innerBit.length);
 
   const theDate = new Date(isoInputDate);
 
@@ -950,7 +781,7 @@ function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, add
         },
       ];
       const record = findLocationByDate(theDate, wallenhorstHistory);
-      dbg("Wallenhorst record", record);
+      dbg2("Wallenhorst record", record);
       addNewSuggestion(added_node, userInput, "Wallenhorst", record);
     }
 
@@ -976,7 +807,7 @@ function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, add
                   thisState.admissionDate.match(/\d{4}/) +
                   ")";
               }
-              dbg("US pre-statehood adjustment", { aWord, myYear, dText, innerBitText });
+              dbg2("US pre-statehood adjustment", { aWord, myYear, dText, innerBitText });
               fixText(added_node, userInput, dText, innerBit, innerBitText);
             }
           }
@@ -994,7 +825,7 @@ function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, add
         },
       ];
       const record = findLocationByDate(theDate, alpharettaHistory);
-      dbg("Alpharetta record", record);
+      dbg2("Alpharetta record", record);
       addNewSuggestion(added_node, userInput, "Alpharetta", record);
     }
 
@@ -1029,7 +860,7 @@ function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, add
         },
       ];
       const record = findLocationByDate(theDate, appletonHistory);
-      dbg("Appleton record", record);
+      dbg2("Appleton record", record);
       const villages = [
         "Appleton Cross",
         "Appleton Thorn",
@@ -1064,7 +895,7 @@ function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, add
         },
       ];
       const record = findLocationByDate(theDate, ferintoshHistory);
-      dbg("Ferintosh record", record);
+      dbg2("Ferintosh record", record);
       const villages = ["Alcag", "Mulchaich", "Urquhart", "Dunvornie", "Easter Kinkell", "Smithfield", "Logie Wester"];
       addNewSuggestion(added_node, userInput, "Ferintosh", record, villages);
     }
@@ -1072,12 +903,12 @@ function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, add
     // Steyning
     if (dText.match(/Steyning/)) {
       if ($(added_node).parent().find(".Steyning").length == 0) {
-        dbg("Adding custom Steyning suggestion");
+        dbg2("Adding custom Steyning suggestion");
         addNewSuggestion(added_node, userInput, "Steyning", {
           location: "Steyning, Stogursey, Somerset, England",
         });
       } else {
-        dbg("Steyning suggestion already present");
+        dbg2("Steyning suggestion already present");
       }
     }
 
@@ -1167,7 +998,6 @@ function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, add
       dText = dText.replace("Natal, South Africa", "Natal");
     }
     logIfChanged("Natal replacement", beforeNatal, dText);
-
     logIfChanged("correctLocations net change", beforeAll, dText);
   }
 
@@ -1183,7 +1013,7 @@ function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, add
       if (hasUS && parts.length >= 3) {
         const stateName = parts[parts.length - 2];
         const countyName = parts[parts.length - 3];
-        dbg("US county parse", { parts, countyName, stateName });
+        dbg2("US county parse", { parts, countyName, stateName });
 
         if (window.UScounties[stateName] != undefined) {
           const thisStateCounties = window.UScounties[stateName];
@@ -1213,10 +1043,10 @@ function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, add
               logIfChanged("US County suffix", before, dText);
             }
           } else {
-            dbg("County name not in state's list", { countyName, stateName });
+            dbg2("County name not in state's list", { countyName, stateName });
           }
         } else {
-          dbg("State not found in UScounties", stateName);
+          dbg2("State not found in UScounties", stateName);
         }
       }
     }
@@ -1238,21 +1068,24 @@ function injectAugmentedSuggestions(container, suggestions) {
 }
 
 function findLocationByDate(dateObj, locationHistory) {
-  dbg("findLocationByDate", { date: isNaN(+dateObj) ? null : dateObj.toISOString(), records: locationHistory?.length });
+  dbg2("findLocationByDate", {
+    date: isNaN(+dateObj) ? null : dateObj.toISOString(),
+    records: locationHistory?.length,
+  });
   for (let record of locationHistory) {
     const startDate = record.startDate ? new Date(record.startDate) : null;
     const endDate = record.endDate ? new Date(record.endDate) : null;
     if ((!startDate || dateObj >= startDate) && (!endDate || dateObj < endDate)) {
-      dbg("findLocationByDate -> match", record);
+      dbg2("findLocationByDate -> match", record);
       return record;
     }
   }
-  dbg("findLocationByDate -> no match");
+  dbg2("findLocationByDate -> no match");
   return null;
 }
 
 function addNewSuggestion(added_node, userInput, term, record, villages = []) {
-  dbg("addNewSuggestion", { term, location, hasRecord: !!record, villagesCount: villages.length });
+  dbg2("addNewSuggestion", { term, location, hasRecord: !!record, villagesCount: villages.length });
   if (!record) return;
   if ($(".autocomplete-suggestion." + term).length) return;
 
@@ -1276,34 +1109,3 @@ function addNewSuggestion(added_node, userInput, term, record, villages = []) {
     $(newSuggestion).addClass(term).insertBefore($(added_node));
   }
 }
-
-// Make fixText tolerant of both wrapped and unwrapped suggestion nodes
-// by setting data-val on the added node if it is itself a suggestion.
-// (Placed after function declarations for clarity during maintenance.)
-// const originalFixText = fixText;
-// fixText = function (added_node, userInput, dText, innerBit, innerBitText) {
-//   originalFixText(added_node, userInput, dText, innerBit, innerBitText);
-//   try {
-//     if (
-//       added_node &&
-//       added_node.nodeType === 1 &&
-//       added_node.classList &&
-//       added_node.classList.contains("autocomplete-suggestion")
-//     ) {
-//       const cleanVal = stripLocationDates((dText || "").trim());
-//       $(added_node).attr("data-val", cleanVal);
-//     }
-//     $(added_node)
-//       .find(".autocomplete-suggestion")
-//       .each(function () {
-//         const before = $(this).attr("data-val") || "";
-//         const after = stripLocationDates(before);
-//         if (after !== before) {
-//           $(this).attr("data-val", after);
-//           dbg("post-fixText sanitize nested suggestion", { before, after });
-//         }
-//       });
-//   } catch (e) {
-//     // non-fatal
-//   }
-// };

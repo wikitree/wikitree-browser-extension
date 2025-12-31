@@ -6,7 +6,8 @@ import "jquery-ui/ui/widgets/autocomplete.js";
 import "jquery-ui/themes/base/autocomplete.css";
 import { formISODate } from "../date_fixer/date_fixer.js";
 import { STORAGE_KEY, saveLocationDefaultsToStorage, getLocationSuggestionDefaults } from "./locations_defaults.js";
-import { getAvailableCountries, normalise, populateDB, searchLocations } from "./locations_db_helper.js";
+import { getAvailableCountries, populateDB, searchLocations } from "./locations_db_helper.js";
+import { checkFamilyMatch, dbg1, dbg2, normalise, retrieveFamilyBDLocations } from "./locations_common.js";
 
 export const locationFields = [
   {
@@ -51,14 +52,7 @@ let select2Selections;
 export async function initLocationSuggestions(suggestionOption) {
   if (suggestionOption === "no") return;
 
-  // const fieldIds = locationFields.map((f) => f.fieldId.slice(1));
-  // try {
-  //   const el = await waitForElements(fieldIds, 2000);
-  //   if (!el) return;
-  //   // console.log("Found element:", el.id);
-  // } catch (err) {
-  //   console.log("LocationSuggestions.", err.message);
-  // }
+  if (suggestionOption === "only") retrieveFamilyBDLocations();
 
   if (!select2Selections) {
     const defaults = await getLocationSuggestionDefaults();
@@ -76,12 +70,12 @@ export async function initLocationSuggestions(suggestionOption) {
     const field = document.querySelector(`${fieldId}:not(.wbe-loc-autocomplete)`);
 
     if (field) {
-      console.log(`Adding country select for ${name} location near: ${fieldId}`);
+      dbg1(`Adding country select for ${name} location near: ${fieldId}`);
       const selectId = fieldId.slice(1) + "_cntry";
       insertCountrySelectAbove(field, selectId);
 
       if (suggestionOption === "only") {
-        console.log(`Adding autocomplete for ${name} location to: ${fieldId}`);
+        dbg1(`Adding autocomplete for ${name} location to: ${fieldId}`);
         // Clone the input to remove attached event listeners
         const newField = field.cloneNode(true);
         newField.setAttribute("autocomplete", "off");
@@ -90,17 +84,38 @@ export async function initLocationSuggestions(suggestionOption) {
         // Replace original
         field.replaceWith(newField);
 
-        $(fieldId).autocomplete({
+        const $ac = $(fieldId).autocomplete({
           minLength: 3,
           delay: 300,
           source: async (request, response) => {
             const date = formISODate($(dateId).val());
             const countries = $(`#${selectId}`).val() || [];
-            // console.log(`Getting suggestions for ${request.term}, ${date}`);
+            dbg1(`Getting suggestions for ${request.term}, ${date}`, countries);
             const suggestions = await getWBELocSuggestions(request.term, date, countries);
+            const rank = (x) => (x.familyLoc2 ? 0 : x.familyLoc ? 1 : 2);
+            suggestions.sort((a, b) => {
+              return rank(a) - rank(b);
+            });
             response(suggestions);
           },
         });
+        $ac.autocomplete("instance")._renderItem = function (ul, item) {
+          const term = this.term; // current user input
+          const matcher = new RegExp("(" + $.ui.autocomplete.escapeRegex(term) + ")", "ig");
+          const highlightedLabel = item.label.replace(matcher, "<span class='autocomplete-suggestion-term'>$1</span>");
+
+          const $li = $("<li>");
+          const $content = $("<div>").html(highlightedLabel);
+          $li.addClass("rightPeriod");
+
+          if (item.familyLoc2 === true) {
+            $li.addClass("familyLoc2");
+          } else if (item.familyLoc === true) {
+            $li.addClass("familyLoc1");
+          }
+
+          return $li.append($content).appendTo(ul);
+        };
       }
     }
   }
@@ -171,7 +186,6 @@ function insertCountrySelectAbove(inputfield, sid) {
   gearBtn.addEventListener("click", function (e) {
     e.stopPropagation();
     e.preventDefault();
-    // console.log("Gear icon clicked");
 
     // Close other popups
     document.querySelectorAll(".wbe-location-popup").forEach((el) => {
@@ -297,7 +311,7 @@ function insertCountrySelectAbove(inputfield, sid) {
     .select2({
       data: select2Selections,
       maximumSelectionLength: 5,
-      placeholder: "Select possible countries",
+      placeholder: select2Selections.length ? "Select possible countries" : "Click gear to load countries",
       width: "80%",
     })
     .on("change", async function (e) {
@@ -343,17 +357,19 @@ export async function getAugmentedSuggestions(userInput, date, countries) {
   return data?.map((item) => formWTSuggestionElement(item, userInput));
 }
 
-// Form a Wikitree suggestion element from the given item and user input.
-// The item structure is expected to contain (field marked with req are required):
-//  {
-//    p: path (req.),
-//    o: origin ,
-//    s: startDate,
-//    e: endDate,
-//    normalisedPath: normalised p (lowercase and diacriticals removed - req.),
-//    normalisedOrigin: normalised o (required if o present),
-//    a: aliases (normalised array),
-//  }
+/**
+ * Form a Wikitree suggestion element (for use in the WT autosuggest container) from the given item and user input.
+ * The item structure is expected to contain (field marked with req are required):
+ *  {
+ *    p: path (req.),
+ *    o: origin ,
+ *    s: startDate,
+ *    e: endDate,
+ *    normalisedPath: normalised p (lowercase and diacriticals removed - req.),
+ *    normalisedOrigin: normalised o (required if o present),
+ *    a: aliases (normalised array),
+ *  }
+ */
 export function formWTSuggestionElement(item, userInput) {
   // We build DOM elements that conform to what WT uses in their autocomplete suggestions, i.e. looking like this:
   // <div class="autocomplete-suggestion wbe-injected-suggestion" data-val="Stellenbosch, Cape Colony">
@@ -364,23 +380,33 @@ export function formWTSuggestionElement(item, userInput) {
   suggestion.className = "autocomplete-suggestion";
   suggestion.dataset.val = item.p;
 
+  const link = document.createElement("a");
+  link.href = `https://maps.google.com?q=${encodeURIComponent(item.p)}`;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+
   const img = document.createElement("img");
   img.src = "/images/icons/map.gif";
 
+  link.appendChild(img);
+  const linkSpan = document.createElement("span");
+  linkSpan.className = "autocomplete-suggestion-maplink";
+  linkSpan.appendChild(link);
+
   const normTerm = normalise(userInput);
-  const span = highlightTerm(normTerm, item.p, item.normalisedPath);
+  const termSpan = highlightTerm(normTerm, item.p, item.normalisedPath);
 
-  suggestion.appendChild(img);
-  suggestion.appendChild(span);
+  suggestion.appendChild(linkSpan);
+  suggestion.appendChild(termSpan);
 
-  /* ---- start / end dates ---- */
-
+  // start / end dates
   const startDate = formatDate(item.s);
   const endDate = formatDate(item.e);
-
   if (startDate || endDate) {
     suggestion.appendChild(document.createTextNode(` (${startDate} - ${endDate})`));
   }
+
+  // AKA
   if (item.o) {
     const aka = highlightTerm(normTerm, " aka " + item.o, " aka " + item.normalisedOrigin);
     suggestion.appendChild(aka);
@@ -423,31 +449,43 @@ function formatDate(dateStr) {
 
 /**
  * Retrieve suggestions from the WBE location database and return them as label/value pairs
+ * for our own autocomplete
  */
 async function getWBELocSuggestions(userInput, date, countries) {
   const data = await fetchOrFilterSuggestions(userInput, date, countries);
-  return data?.map((item) => ({
-    label: `${item.p} (${item.s == "0001-01-01" ? " " : item.s}–${item.e == "9999-12-31" ? " " : item.e}) aka ${
-      item.o
-    }`,
-    value: item.p,
-  }));
+  return data?.map((item) => {
+    const { familyLoc, familyLoc2 } = checkFamilyMatch(item.p);
+    return {
+      label: `${item.p} (${item.s == "0001-01-01" ? " " : item.s}–${item.e == "9999-12-31" ? " " : item.e}) aka ${
+        item.o
+      }`,
+      value: item.p,
+      familyLoc,
+      familyLoc2,
+    };
+  });
 }
 
-// returns an array of items:
-//  {
-//    p: path,
-//    o: origin,
-//    c: country,
-//    s: startDate,
-//    e: endDate,
-//    l: lang,
-//    normalisedPath: normalised p (lowercase and diacriticals removed),
-//    normalisedOrigin: normalised o
-//    a: aliases (normalised array),
-//  }
+/**
+ *
+ * @param {*} entry The user's typed input so far
+ * @param {*} date The associated date
+ * @param {*} countries The countris selected by the user
+ * @returns an array of items looking. like this
+ *  {
+ *    p: path,
+ *    o: origin,
+ *    c: country,
+ *    s: startDate,
+ *    e: endDate,
+ *    l: lang,
+ *    normalisedPath: normalised p (lowercase and diacriticals removed),
+ *    normalisedOrigin: normalised o
+ *    a: aliases (normalised array),
+ *  }
+ */
 async function fetchOrFilterSuggestions(entry, date, countries) {
-  // console.log(`fetchOrFilterSuggestions called, entry:${entry}:, date: ${date}`);
+  dbg2(`fetchOrFilterSuggestions called, entry:${entry}:, date: ${date}`);
   if (entry.length < 3) {
     return [];
   }
@@ -466,7 +504,7 @@ async function fetchOrFilterSuggestions(entry, date, countries) {
           item.a.some((a) => a.startsWith(entryLow))
       );
     }
-    // console.log(`filtered from cache:`, cachedResults, filteredResults);
+    dbg2(`filtered from cache:`, cachedResults, filteredResults);
     return filteredResults || [];
   }
 
@@ -477,7 +515,7 @@ async function fetchOrFilterSuggestions(entry, date, countries) {
       startsWith: entry,
       countries: countries,
     };
-    // console.log(`calling fetchLocationData:`, options);
+    dbg1(`calling fetchLocationData (from DB):`, options);
 
     cachedResults = await fetchLocationData(options);
     if (cachedResults.length > 1) {
@@ -489,8 +527,6 @@ async function fetchOrFilterSuggestions(entry, date, countries) {
   }
   return cachedResults;
 }
-
-let currentAbortController = null;
 
 async function fetchLocationData(options = {}) {
   try {
