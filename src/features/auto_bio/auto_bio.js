@@ -10238,6 +10238,7 @@ async function improveBioWithAI(e) {
       dateFormat: window.autoBioOptions?.dateFormat || "MDY",
       dateStatusFormat: window.autoBioOptions?.dateStatusFormat || "abbreviations",
       yearsDateStatusFormat: window.autoBioOptions?.yearsDateStatusFormat || "symbols",
+      deathPosition: window.autoBioOptions?.deathPosition || false,
       customInstructions:
         localStorage.getItem("autoBioUseCustomInstructions") === "true"
           ? localStorage.getItem("autoBioCustomInstructions")
