@@ -388,6 +388,7 @@ export function formWTSuggestionElement(item, userInput) {
   // link.target = "_blank";
   // link.rel = "noopener noreferrer";
   // link.appendChild(img);
+  // link.addEventListener("click", (e) => e.stopPropagation());
   // const linkSpan = document.createElement("span");
   // linkSpan.className = "autocomplete-suggestion-maplink";
   // linkSpan.appendChild(link);

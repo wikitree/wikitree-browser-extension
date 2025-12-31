@@ -60,36 +60,39 @@ shouldInitializeFeature("locationsHelper").then((result) => {
           if (options?.newLocations !== "no") {
             initLocationSuggestions(options?.newLocations);
             if (options?.newLocations === "only") {
+              $(fieldSelectors).prop("disabled", false).addClass("wbe-location-ready");
               return;
             }
           }
           attachInputListeners();
-          dbg2("binding focus on selectors", fieldSelectors, $(fieldSelectors).length);
-          $(fieldSelectors).on("focus", async function () {
-            dbg2("focus on", this.id || this.name, "activeEl:", elInfo(document.activeElement));
-            if (!window.locationsHelperInitDone) {
-              dbg2("initializing locationsHelper on first focus");
-              locationsHelper();
+          // dbg2("binding focus on selectors", fieldSelectors, $(fieldSelectors).length);
+          // $(fieldSelectors).on("focus", async function () {
+          //   dbg2("focus on", this.id || this.name, "activeEl:", elInfo(document.activeElement));
+          if (!window.locationsHelperInitDone) {
+            dbg2("initializing locationsHelper on first focus");
+            locationsHelper();
 
-              /* ── lazy-load the huge translation table ───────────────────── */
-              if (
-                window.locationsHelperOptions?.nativeName && // option is ON
-                !window.nativeMapsReady // not fetched yet
-              ) {
-                try {
-                  dbg2("initLocationTranslations starting (focus)");
-                  await initLocationTranslations(); // pulls file once
+            /* ── lazy-load the huge translation table ───────────────────── */
+            if (
+              window.locationsHelperOptions?.nativeName && // option is ON
+              !window.nativeMapsReady // not fetched yet
+            ) {
+              try {
+                dbg2("initLocationTranslations starting (focus)");
+                initLocationTranslations().then(() => {
+                  // pulls file once
                   window.nativeMapsReady = true;
                   dbg2("translation maps ready");
-                } catch (err) {
-                  console.error("[locHelper] failed to load translations", err);
-                }
+                });
+              } catch (err) {
+                console.error("[locHelper] failed to load translations", err);
               }
             }
-          });
+          }
+          //   });
         })
         .catch((err) => {
-          console.log("LocationSuggestions.", err.message);
+          console.error("LocationSuggestions.", err.message);
         });
     });
   }
@@ -99,9 +102,13 @@ shouldInitializeFeature("locationsHelper").then((result) => {
 function waitForElements(selectors, timeoutMs = 5000) {
   return new Promise((resolve, reject) => {
     // 1. Immediate check for any of the fields
-    const found = document.querySelector(selectors);
-    if (found) {
-      resolve(found);
+    const foundEls = document.querySelectorAll(selectors);
+    if (foundEls.length > 0) {
+      foundEls.forEach((el) => {
+        $(el).prop("disabled", true);
+      });
+
+      resolve(foundEls);
       return;
     }
 
@@ -113,11 +120,18 @@ function waitForElements(selectors, timeoutMs = 5000) {
 
     // 3. Observe until found
     const observer = new MutationObserver(() => {
-      const el = document.querySelector(selectors);
-      if (el) {
+      const els = document.querySelectorAll(selectors);
+
+      if (els.length > 0) {
         clearTimeout(timer);
         observer.disconnect();
-        resolve(el);
+
+        // Disable the location inputs until we are ready to intervene in the autocompletes
+        els.forEach((el) => {
+          $(el).prop("disabled", true);
+        });
+
+        resolve(els);
       }
     });
 
@@ -434,7 +448,8 @@ async function locationsHelper() {
       }
     });
     if (added > 0) {
-      $(fieldSelectors).addClass("wbe-location-ready");
+      // We are now ready to intervene in autocompletes, so enable the inputs
+      $(fieldSelectors).prop("disabled", false).addClass("wbe-location-ready");
       dbg1(`attachObserverToSuggestions: ${cnt} containers found, attached observers to ${added}`);
     }
   }
