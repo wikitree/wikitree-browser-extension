@@ -40,3 +40,25 @@ input.wbe-location-ready {
 .autocomplete-suggestions {
   width: max-content !important;
 }
+
+.wbe-location-popup {
+  display: none;
+  position: absolute;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  right: 0;
+  width: 600px;
+}
+
+.wbe-loc-status {
+  margin-bottom: 6px;
+  font-size: 0.9em;
+  color: #666;
+}
+.wbe-loc-status.is-red {
+  color: red !important;
+}

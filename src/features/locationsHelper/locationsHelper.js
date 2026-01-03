@@ -11,7 +11,6 @@ import {
   checkFamilyMatch,
   dbg1,
   dbg2,
-  elInfo,
   logIfChanged,
   normalise,
   retrieveFamilyBDLocations,

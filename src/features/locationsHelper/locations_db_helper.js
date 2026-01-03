@@ -1,8 +1,15 @@
 import { normalise } from "./locations_common.js";
 
+export const CLEAR = {
+  NONE: 0,
+  ALL: 1,
+  COUNTRY: 2,
+};
+
 const DB_NAME = "WTLocationSuggestionsDB";
-const DB_VERSION = 1; // Increment version for schema change
-const STORE_NAME = "locations";
+const DB_VERSION = 3; // Increment version for schema change
+const DATASETS_STORE = "datasets";
+const LOCATIONS_STORE = "locations";
 
 export function openDB() {
   return new Promise((resolve, reject) => {
@@ -11,42 +18,148 @@ export function openDB() {
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
 
-      // Delete old store if it exists (schema change)
-      if (db.objectStoreNames.contains(STORE_NAME)) {
-        db.deleteObjectStore(STORE_NAME);
+      // ---- datasets store
+      let datasets;
+      if (!db.objectStoreNames.contains(DATASETS_STORE)) {
+        datasets = db.createObjectStore(DATASETS_STORE, {
+          keyPath: "country",
+        });
+      } else {
+        datasets = event.target.transaction.objectStore(DATASETS_STORE);
       }
 
-      const store = db.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
-      // Indexes removed as we are doing manual full scan search
+      // ---- locations store
+      let locations;
+      if (!db.objectStoreNames.contains(LOCATIONS_STORE)) {
+        locations = db.createObjectStore(LOCATIONS_STORE, {
+          keyPath: "id",
+          autoIncrement: true,
+        });
+      } else {
+        locations = event.target.transaction.objectStore(LOCATIONS_STORE);
+      }
+
+      // ---- indexes (additive only)
+      if (!locations.indexNames.contains("byCountry")) {
+        locations.createIndex("byCountry", "c");
+      }
+      if (!locations.indexNames.contains("byPath")) {
+        locations.createIndex("byPath", "np");
+      }
+      if (!locations.indexNames.contains("byOrigin")) {
+        locations.createIndex("byOrigin", "no");
+      }
+      if (!locations.indexNames.contains("byAlias")) {
+        locations.createIndex("byAlias", "na", { multiEntry: true });
+      }
     };
 
-    request.onsuccess = (event) => {
-      resolve(event.target.result);
-    };
+    request.onsuccess = (event) => resolve(event.target.result);
+    request.onerror = (event) => reject("IndexedDB error: " + event.target.error);
+  });
+}
 
-    request.onerror = (event) => {
-      reject("IndexedDB error: " + event.target.errorCode);
+/*
+  Expected return shape:
+  {
+    GB: { version: "2025.11.10", recordCount: 121004 },
+    US: { version: "2026.01.01", recordCount: 980000 }
+  }
+*/
+export async function readLocalDatasets() {
+  const db = await openDB();
+  const tx = db.transaction([DATASETS_STORE], "readonly");
+  const store = tx.objectStore(DATASETS_STORE);
+
+  return new Promise((resolve, reject) => {
+    const result = {};
+    store.openCursor().onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (!cursor) {
+        resolve(result);
+        return;
+      }
+      result[cursor.value.country] = cursor.value;
+      cursor.continue();
+    };
+    tx.onerror = () => reject("Failed reading datasets store");
+  });
+}
+
+export async function upsertDatasetMetadata(record) {
+  const db = await openDB();
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([DATASETS_STORE], "readwrite");
+    const store = tx.objectStore(DATASETS_STORE);
+
+    store.put(record);
+
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(`Failed updating metadata for ${record.c}`);
+  });
+}
+
+export async function clearAllPlaces() {
+  const db = await openDB();
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([LOCATIONS_STORE, DATASETS_STORE], "readwrite");
+
+    tx.objectStore(LOCATIONS_STORE).clear();
+    tx.objectStore(DATASETS_STORE).clear();
+
+    tx.oncomplete = () => resolve();
+
+    tx.onerror = (event) => {
+      reject("Failed to clear places: " + event.target.error);
     };
   });
 }
 
-export async function populateDB(data, clear = true) {
+export async function clearCountry(country) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
+    const tx = db.transaction([LOCATIONS_STORE], "readwrite");
+    const store = tx.objectStore(LOCATIONS_STORE);
+    const idx = store.index("byCountry");
 
-    // Clear existing data first if requested
-    if (clear) {
-      store.clear();
-    }
+    const range = IDBKeyRange.only(country);
+
+    idx.openCursor(range).onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor) {
+        cursor.delete();
+        cursor.continue();
+      }
+    };
+
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(`Failed clearing ${country}`);
+  });
+}
+
+export async function insertChunk(data) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([LOCATIONS_STORE], "readwrite");
+    const locations = transaction.objectStore(LOCATIONS_STORE);
 
     data.forEach((item) => {
-      store.add(item);
+      const np = normalise(item.p);
+      const no = normalise(item.o || "");
+      const na = (item.a || []).map(normalise);
+      const { a = [], ...withoutA } = item;
+      locations.add({
+        ...withoutA,
+        np,
+        no,
+        na,
+      });
     });
 
     transaction.oncomplete = () => {
-      console.log("IndexedDB populated with " + data.length + " items.");
+      // console.log("IndexedDB populated with " + data.length + " items.");
       resolve(data.length);
     };
 
@@ -59,8 +172,8 @@ export async function populateDB(data, clear = true) {
 export async function isDBEmpty() {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], "readonly");
-    const store = transaction.objectStore(STORE_NAME);
+    const transaction = db.transaction([LOCATIONS_STORE], "readonly");
+    const store = transaction.objectStore(LOCATIONS_STORE);
     const request = store.count();
 
     request.onsuccess = () => {
@@ -73,31 +186,30 @@ export async function isDBEmpty() {
 let countries = null;
 export async function getAvailableCountriesFromDb() {
   const db = await openDB();
+
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], "readonly");
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.openCursor();
-    const countrySet = new Set();
+    const tx = db.transaction(LOCATIONS_STORE, "readonly");
+    const index = tx.objectStore(LOCATIONS_STORE).index("byCountry");
+
+    const result = [];
+    const request = index.openKeyCursor(null, "nextunique");
 
     request.onsuccess = (event) => {
       const cursor = event.target.result;
       if (cursor) {
-        if (cursor.value.c) {
-          countrySet.add(cursor.value.c);
-        }
+        const code = cursor.key; // <-- THIS is the country code
+        result.push({
+          Code: code,
+          Country: countryCodeMap[code] || code,
+        });
         cursor.continue();
       } else {
-        // Convert Set to array of objects
-        countries = Array.from(countrySet)
-          .sort()
-          .map((code) => ({
-            Code: code,
-            Country: countryCodeMap[code] || code,
-          }));
-        resolve(countries);
+        countries = result;
+        resolve(result);
       }
     };
-    request.onerror = (e) => reject(e);
+
+    request.onerror = () => reject(request.error);
   });
 }
 
@@ -108,6 +220,10 @@ export async function getAvailableCountries(force = false) {
   return await getAvailableCountriesFromDb();
 }
 
+function prefixRange(prefix) {
+  return IDBKeyRange.bound(prefix, prefix + "\uffff");
+}
+
 // returns an array of items:
 //  {
 //    p: path,
@@ -116,81 +232,74 @@ export async function getAvailableCountries(force = false) {
 //    s: startDate,
 //    e: endDate,
 //    l: lang,
-//    normalisedPath: normalised p (lowercase and diacriticals removed),
-//    normalisedOrigin: normalised o
-//    a: aliases (normalised array),
+//    np: normalised p (lowercase and diacriticals removed),
+//    no: normalised o
+//    na: aliases (normalised array),
 //  }
 export async function searchLocations({ startsWith, date, countries }) {
   const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], "readonly");
-    const store = transaction.objectStore(STORE_NAME);
-    const results = [];
-    const lowerStartsWith = normalise(startsWith);
+  const lower = normalise(startsWith);
+  const seen = new Set();
+  const results = [];
+  const range = prefixRange(lower);
+  let cnt = 0;
 
-    const request = store.openCursor();
+  function runIndex(index) {
+    return new Promise((resolve, reject) => {
+      const req = index.openCursor(range);
 
-    request.onsuccess = (event) => {
-      const cursor = event.target.result;
-      if (cursor) {
-        const item = cursor.value;
-        item.normalisedPath = normalise(item.p);
-        item.normalisedOrigin = normalise(item.o);
-        item.a = item.a.map(normalise);
-
-        // 1. Check text match (path, origin, or alias starts with startsWith)
-        // Schema: p=path, o=origin, c=country, s=startDate, e=endDate, l=lang, a=aliases
-        const pathMatch = item.normalisedPath.startsWith(lowerStartsWith);
-        const originMatch = item.normalisedOrigin.startsWith(lowerStartsWith);
-        const aliasMatch = item.a.some((a) => a.startsWith(lowerStartsWith));
-
-        if (pathMatch || originMatch || aliasMatch) {
-          let valid = true;
-
-          // 2. Check Country
-          if (countries && countries.length > 0) {
-            // Check item.c
-            if (item.c) {
-              if (!countries.includes(item.c)) {
-                valid = false;
-              }
-            } else {
-              // Assume invalid if c is required
-              valid = false;
-            }
-          }
-
-          // 3. Check Date
-          if (valid && date) {
-            // item.s and item.e
-            if (date < item.s || date > item.e) {
-              valid = false;
-            }
-          }
-
-          if (valid) {
-            results.push(item);
-          }
+      req.onsuccess = (event) => {
+        const cursor = event.target.result;
+        if (!cursor) {
+          resolve();
+          return;
         }
 
-        // if (results.length >= 50) {
-        //      resolve(results); // return early
-        //      return;
-        // }
+        const item = cursor.value;
+        const key = cursor.primaryKey;
+        ++cnt;
+
+        if (seen.has(key)) {
+          cursor.continue();
+          return;
+        }
+
+        if (countries && countries.length > 0 && !countries.includes(item.c)) {
+          cursor.continue();
+          return;
+        }
+
+        if (date && (date < item.s || date > item.e)) {
+          cursor.continue();
+          return;
+        }
+
+        seen.add(key);
+        results.push(item);
 
         cursor.continue();
-      } else {
-        resolve(results);
-      }
-    };
+      };
 
-    request.onerror = (event) => {
-      reject("Error searching DB: " + event.target.error);
-    };
-  });
+      req.onerror = (event) => reject("Search error: " + event.target.error);
+    });
+  }
+
+  const tx = db.transaction([LOCATIONS_STORE], "readonly");
+  const store = tx.objectStore(LOCATIONS_STORE);
+
+  await runIndex(store.index("byPath"));
+  console.log(`scanned ${cnt} byPath for '${startsWith}'`);
+  cnt = 0;
+  await runIndex(store.index("byOrigin"));
+  console.log(`scanned ${cnt} byOrigin for '${startsWith}'`);
+  cnt = 0;
+  await runIndex(store.index("byAlias"));
+  console.log(`scanned ${cnt} byAlias for '${startsWith}'`);
+
+  return results;
 }
 
-const countryCodeMap = {
+export const countryCodeMap = {
   AD: "Andorra",
   AE: "United Arab Emirates",
   AF: "Afghanistan",

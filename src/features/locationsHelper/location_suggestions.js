@@ -6,8 +6,17 @@ import "jquery-ui/ui/widgets/autocomplete.js";
 import "jquery-ui/themes/base/autocomplete.css";
 import { formISODate } from "../date_fixer/date_fixer.js";
 import { STORAGE_KEY, saveLocationDefaultsToStorage, getLocationSuggestionDefaults } from "./locations_defaults.js";
-import { getAvailableCountries, populateDB, searchLocations } from "./locations_db_helper.js";
 import { checkFamilyMatch, dbg1, dbg2, normalise, retrieveFamilyBDLocations } from "./locations_common.js";
+import {
+  clearAllPlaces,
+  clearCountry,
+  countryCodeMap,
+  getAvailableCountries,
+  insertChunk,
+  readLocalDatasets,
+  searchLocations,
+  upsertDatasetMetadata,
+} from "./locations_db_helper.js";
 
 export const locationFields = [
   {
@@ -146,172 +155,266 @@ function insertCountrySelectAbove(inputfield, sid) {
   newRow.innerHTML =
     (labelCol ? `<div class="${labelColClasses}"></div>` : "") +
     `<div class="${colClasses} position-relative">
-        <div class="input-group">
-          <span class="input-group-text" title="Select the countries to which to limit searches for place name suggestions">Country</span>
+        <div class="input-group country-input">
+          <span class="input-group-text" title="Select the countries to which to limit searches for place name suggestions. No selection implies all loaded countries.">Country</span>
           <select id="${sid}" class="form-select wbe-country-select" multiple="multiple"></select>
           <button class="btn btn-outline-secondary wbe-location-gear" type="button" title="Location Data Management">
             <img src="${gearSrc}">
           </button>
         </div>
-        <div class="wbe-location-popup" style="display: none; position: absolute; z-index: 1000; background: white; border: 1px solid #ccc; padding: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); border-radius: 4px; right: 0; min-width: 250px;">
-          <p style="margin-bottom: 5px; font-weight: bold;">Location Data Management</p>
-          <p>You need to load Place Data from files using the buttons below. You can find data files for various countries at
-          <a href="https://github.com/udjeni/wikitree-location-datasets/tree/main/datasets" style="color: #060;" target="_blank">GitHub</a>.
-          If your country is not available, or the data is incomplete, perhaps you can assist to improve the data. See 
-           <a href="https://www.wikitree.com/g2g/1813737/would-you-like-improved-location-suggestions" style="color: #060;" target="_blank">this G2G post</a>.</p>
-          <button type="button" class="wbe-loc-load-btn small button" style="width: 100%; margin-bottom: 5px;"  title="Clear existing place data and load new data."
-          >Clear & Load Place Data</button>
-          <button type="button" class="wbe-loc-add-btn small button" style="width: 100%;" title="Add new place data to the existing place data."
-          >Add Place Data</button>
-          <input type="file" class="wbe-loc-file-input" accept=".json" style="display: none;" />
-          <div class="wbe-loc-status" style="margin-top: 5px; font-size: 0.9em; color: #666;"></div>
-        </div>
       </div>`;
+
   // Alternate gear sybol
   //  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-gear" viewBox="0 0 16 16">
   //    <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/>
   //    <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z"/>
   //  </svg>
+
   row.parentNode.insertBefore(newRow, row);
 
+  // Check if the popup already exists and if not, create it.
+  let popupEl = document.querySelector(".wbe-location-popup");
+  if (!popupEl) {
+    // Select the first element with class 'country-input' to act as the reference
+    const target = document.querySelector("body");
+
+    if (target) {
+      popupEl = document.createElement("div");
+      popupEl.className = "wbe-location-popup";
+      popupEl.innerHTML = `
+        <p style="margin-bottom:6px; font-weight:bold;">
+          Location Data Management
+        </p>
+
+        <div class="wbe-loc-status">
+          Loading available datasets…
+        </div>
+
+        <table class="wbe-loc-table"
+              style="width:100%; border-collapse:collapse; font-size:0.9em;">
+          <thead>
+            <tr>
+              <th></th>
+              <th align="left">Country</th>
+              <th align="left">Loaded</th>
+              <th align="left">Version</th>
+              <th align="left">Status</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <div style="margin-top:8px;">
+          <button class="wbe-loc-clear-load small button"
+                  style="width:100%; margin-bottom:5px;"
+                  title="Clear all existing place data and load new data.">
+            Clear & Load Selected Countries
+          </button>
+          <button class="wbe-loc-load small button"
+                  style="width:100%;"
+                  title="Add new place data to the existing place data. If the dataset already exists, it will be replaced.">
+            Update and/or Load Selected
+          </button>
+        </div>`;
+      target.appendChild(popupEl);
+    } else {
+      console.error("No <body> ???");
+    }
+
+    function getSelectedCountries(popupEl) {
+      return Array.from(popupEl.querySelectorAll("input[type=checkbox]:checked")).map((cb) => cb.dataset.country);
+    }
+
+    popupEl.querySelector(".wbe-loc-clear-load").addEventListener("click", async (e) => {
+      const statusEl = popupEl.querySelector(".wbe-loc-status");
+      const countries = getSelectedCountries(popupEl);
+      if (countries.length) {
+        statusEl.classList.remove("is-red");
+      } else {
+        statusEl.classList.add("is-red");
+        return;
+      }
+
+      if (!confirm("This will remove all existing place data. Continue?")) {
+        return;
+      }
+      statusEl.textContent = "Clearing all local place data and fetching selected countries from GitHub …";
+
+      await clearAllPlaces();
+      for (const c of countries) {
+        await fetchAndLoadCountry(c, statusEl);
+      }
+      updateCountrySelectors();
+      await openLocationDialog(popupEl);
+    });
+
+    popupEl.querySelector(".wbe-loc-load").addEventListener("click", async (e) => {
+      const statusEl = popupEl.querySelector(".wbe-loc-status");
+      const countries = getSelectedCountries(popupEl);
+      if (countries.length) {
+        statusEl.classList.remove("is-red");
+      } else {
+        statusEl.classList.add("is-red");
+        return;
+      }
+
+      statusEl.textContent = "Clearing selected local countries and fetching them from GitHub …";
+
+      for (const c of countries) {
+        await clearCountry(c);
+        await fetchAndLoadCountry(c, statusEl);
+      }
+      updateCountrySelectors();
+      await openLocationDialog(popupEl);
+    });
+  }
+
   const gearBtn = newRow.querySelector(".wbe-location-gear");
-  const popup = newRow.querySelector(".wbe-location-popup");
-  const loadBtn = newRow.querySelector(".wbe-loc-load-btn");
-  const addBtn = newRow.querySelector(".wbe-loc-add-btn");
-  const fileInput = newRow.querySelector(".wbe-loc-file-input");
-  const statusDiv = newRow.querySelector(".wbe-loc-status");
-  let shouldClear = true;
+  // const popup = newRow.querySelector(".wbe-location-popup");
+  // const loadBtn = newRow.querySelector(".wbe-loc-load-btn");
+  // const addBtn = newRow.querySelector(".wbe-loc-add-btn");
+  // const fileInput = newRow.querySelector(".wbe-loc-file-input");
+  // let shouldClear = CLEAR.ALL;
 
   // Use vanilla JS for event listeners to be safer
-  gearBtn.addEventListener("click", function (e) {
+  gearBtn.addEventListener("click", async function (e) {
     e.stopPropagation();
     e.preventDefault();
 
-    // Close other popups
-    document.querySelectorAll(".wbe-location-popup").forEach((el) => {
-      if (el !== popup) el.style.display = "none";
-    });
-
     // Toggle current
-    if (popup.style.display === "none") {
-      statusDiv.textContent = "";
-      popup.style.display = "block";
+    if (popupEl.style.display === "none") {
+      await openLocationDialog(popupEl, e);
     } else {
-      popup.style.display = "none";
+      popupEl.style.display = "none";
     }
   });
 
   // Close popup when clicking outside
   document.addEventListener("click", function (e) {
-    if (!popup.contains(e.target) && !gearBtn.contains(e.target)) {
-      popup.style.display = "none";
+    if (!popupEl.contains(e.target) && !gearBtn.contains(e.target)) {
+      popupEl.style.display = "none";
     }
   });
 
   // Prevent closing when clicking inside popup
-  popup.addEventListener("click", function (e) {
+  popupEl.addEventListener("click", function (e) {
     e.stopPropagation();
   });
 
-  loadBtn.addEventListener("click", function (e) {
-    e.preventDefault();
-    e.stopPropagation();
-    shouldClear = true;
-    fileInput.click(); // Vanilla JS click
-  });
+  // I'm keeping this here for now in case we want to add a "load from local file" button.
+  // A complication would be the versioning of said file.
 
-  addBtn.addEventListener("click", function (e) {
-    e.preventDefault();
-    e.stopPropagation();
-    shouldClear = false;
-    fileInput.click();
-  });
+  // loadBtn.addEventListener("click", function (e) {
+  //   e.preventDefault();
+  //   e.stopPropagation();
+  //   shouldClear = CLEAR.ALL;
+  //   fileInput.click(); // Vanilla JS click
+  // });
 
-  fileInput.addEventListener("change", function (e) {
-    const file = e.target.files[0];
-    if (!file) return;
+  // addBtn.addEventListener("click", function (e) {
+  //   e.preventDefault();
+  //   e.stopPropagation();
+  //   shouldClear = CLEAR.COUNTRY;
+  //   fileInput.click();
+  // });
 
-    const reader = new FileReader();
-    reader.onload = async function (e) {
-      try {
-        const data = JSON.parse(e.target.result);
-        const originalText = shouldClear ? "Clear & Load Place Data" : "Add Place Data";
-        const btn = shouldClear ? loadBtn : addBtn;
+  // fileInput.addEventListener("change", function (e) {
+  //   const file = e.target.files[0];
+  //   if (!file) return;
 
-        btn.disabled = true;
-        btn.textContent = "Loading...";
-        statusDiv.textContent = "Starting load...";
+  //   const reader = new FileReader();
+  //   reader.onload = async function (e) {
+  //     try {
+  //       const data = JSON.parse(e.target.result);
+  //       const country = data[0].c;
+  //       const originalText = shouldClear ? "Clear & Load Place Data" : "Add Place Data";
+  //       const btn = shouldClear ? loadBtn : addBtn;
 
-        const CHUNK_SIZE = 1000;
-        const totalChunks = Math.ceil(data.length / CHUNK_SIZE);
-        let hasError = false;
+  //       btn.disabled = true;
+  //       btn.textContent = "Loading...";
+  //       statusDiv.textContent = "Starting load...";
 
-        for (let i = 0; i < totalChunks; i++) {
-          const start = i * CHUNK_SIZE;
-          const end = start + CHUNK_SIZE;
-          const chunk = data.slice(start, end);
+  //       switch (shouldClear) {
+  //         case CLEAR.COUNTRY:
+  //           console.log(`Clearing country ${country}`);
+  //           await clearCountry(country);
+  //           break;
+  //         case CLEAR.ALL:
+  //         default:
+  //           console.log("Clearing all Place data");
+  //           await clearAllPlaces();
+  //           break;
+  //       }
 
-          // For the first chunk, use the user's requested clear setting.
-          // For subsequent chunks, we must append (clear = false).
-          const chunkClear = i === 0 ? shouldClear : false;
+  //       const CHUNK_SIZE = 4000;
+  //       const totalChunks = Math.ceil(data.length / CHUNK_SIZE);
+  //       let hasError = false;
 
-          statusDiv.textContent = `Loading chunk ${i + 1}/${totalChunks}...`;
+  //       for (let i = 0; i < totalChunks; i++) {
+  //         const start = i * CHUNK_SIZE;
+  //         const end = start + CHUNK_SIZE;
+  //         const chunk = data.slice(start, end);
 
-          try {
-            await populateDB(chunk, chunkClear);
-          } catch (err) {
-            hasError = true;
-            statusDiv.textContent = `Error: ${err}`;
-            alert("Error loading data chunk " + (i + 1) + ": " + err);
-            break;
-          }
-        }
+  //         statusDiv.textContent = `Loading chunk ${i + 1} of ${totalChunks} ...`;
 
-        if (!hasError) {
-          statusDiv.textContent = `Data ${shouldClear ? "loaded" : "added"} successfully!`;
+  //         try {
+  //           await insertChunk(chunk);
+  //         } catch (err) {
+  //           hasError = true;
+  //           statusDiv.textContent = `Error: ${err}`;
+  //           alert("Error loading data chunk " + (i + 1) + ": " + err);
+  //           break;
+  //         }
+  //       }
 
-          // Refresh available countries
-          const countries = await getAvailableCountries(FORCE);
-          const defaults = await getLocationSuggestionDefaults();
+  //       if (!hasError) {
+  //         statusDiv.textContent = `${data.length} ${country} location records ${
+  //           shouldClear ? "loaded" : "added"
+  //         } successfully`;
+  //         console.log(statusDiv.textContent);
 
-          select2Selections = countries.map((c) => ({
-            id: c.Code,
-            text: `${c.Code} - ${c.Country}`,
-            selected: defaults.countries && defaults.countries.includes(c.Code),
-          }));
+  //         // Refresh available countries
+  //         const countries = await getAvailableCountries(FORCE);
+  //         const defaults = await getLocationSuggestionDefaults();
 
-          updateCountrySelectors(select2Selections);
-        }
+  //         select2Selections = countries.map((c) => ({
+  //           id: c.Code,
+  //           text: `${c.Code} - ${c.Country}`,
+  //           selected: defaults.countries && defaults.countries.includes(c.Code),
+  //         }));
 
-        btn.disabled = false;
-        btn.textContent = originalText;
-        fileInput.value = "";
-        setTimeout(() => {
-          popup.style.display = "none";
-        }, 2000);
-      } catch (err) {
-        console.error("JSON Parse error:", err);
-        alert("Invalid JSON file or file too large to parse in memory");
-        fileInput.value = "";
-        statusDiv.textContent = "Parse error";
-        if (shouldClear) {
-          loadBtn.disabled = false;
-          loadBtn.textContent = "Clear & Load Place Data";
-        } else {
-          addBtn.disabled = false;
-          addBtn.textContent = "Add Place Data";
-        }
-      }
-    };
-    reader.readAsText(file);
-  });
+  //         updateCountrySelectors(select2Selections);
+  //       }
+
+  //       btn.disabled = false;
+  //       btn.textContent = originalText;
+  //       fileInput.value = "";
+  //       setTimeout(() => {
+  //         popup.style.display = "none";
+  //       }, 2000);
+  //     } catch (err) {
+  //       console.error("JSON Parse error:", err);
+  //       alert("Invalid JSON file or file too large to parse in memory");
+  //       fileInput.value = "";
+  //       statusDiv.textContent = "Parse error";
+  //       if (shouldClear) {
+  //         loadBtn.disabled = false;
+  //         loadBtn.textContent = "Clear & Load Place Data";
+  //       } else {
+  //         addBtn.disabled = false;
+  //         addBtn.textContent = "Add Place Data";
+  //       }
+  //     }
+  //   };
+  //   reader.readAsText(file);
+  // });
 
   $(newRow)
     .find("select.wbe-country-select")
     .select2({
       data: select2Selections,
       maximumSelectionLength: 5,
-      placeholder: select2Selections.length ? "Select possible countries" : "Click gear to load countries",
+      placeholder: select2Selections.length ? "All loaded countries" : "Click gear to load countries",
       width: "80%",
     })
     .on("change", async function (e) {
@@ -341,11 +444,179 @@ function insertCountrySelectAbove(inputfield, sid) {
   }
 }
 
-function updateCountrySelectors(selections) {
+const DATASET_BASE_URL = "https://raw.githubusercontent.com/udjeni/wikitree-location-datasets/main";
+const MANIFEST_URL = `${DATASET_BASE_URL}/manifest.json`;
+
+let cachedManifest;
+async function fetchRemoteManifest() {
+  const res = await fetch(MANIFEST_URL, { cache: "no-store" });
+  if (!res.ok) throw new Error("Manifest fetch failed");
+  cachedManifest = await res.json();
+  return cachedManifest;
+}
+
+async function openLocationDialog(popupEl, event) {
+  if (event) {
+    const gearElement = event.currentTarget;
+    const rect = gearElement.getBoundingClientRect();
+
+    // Calculate document-relative position
+    const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const gearStyle = window.getComputedStyle(gearElement);
+    // Convert to a number for math (removes "px")
+    const offset = parseFloat(gearStyle.left);
+
+    // Add left offset of the gear to our existing 'left' coordinate so the popup
+    // will align with the country selector
+    const top = rect.bottom + window.scrollY; // Place it just below the button
+    const left = rect.left + window.scrollX - offset; // Align with the left edge of the button
+
+    // Apply coordinates
+    popupEl.style.top = `${top}px`;
+    popupEl.style.left = `${left}px`;
+  }
+
+  const statusEl = popupEl.querySelector(".wbe-loc-status");
+  const tbody = popupEl.querySelector("tbody");
+
+  statusEl.textContent = "Loading available datasets…";
+  popupEl.style.display = "block";
+
+  let manifest;
+  let localDatasets;
+
+  try {
+    manifest = await fetchRemoteManifest();
+    localDatasets = await readLocalDatasets();
+  } catch (err) {
+    statusEl.textContent = "Failed to load dataset information.";
+    console.error(err);
+    return;
+  }
+
+  renderTable(manifest, localDatasets, tbody);
+  statusEl.textContent = "Select countries to load or update.";
+}
+
+function renderTable(manifest, localDatasets, tbody) {
+  tbody.innerHTML = "";
+  Object.entries(manifest.countries).forEach(([country, meta]) => {
+    const local = localDatasets[country];
+    const loaded = Boolean(local);
+    // const upToDate = !loaded || local.version === meta.version;
+    const upToDate = country == "GB" ? false : !loaded || local.version === meta.version;
+    if (country == "GB") meta.version = "2026.01.02.2";
+    const countryName = countryCodeMap[country];
+    const selected = loaded && !upToDate;
+
+    let status;
+    let versionDisplay;
+
+    if (!loaded) {
+      status = "✘ Not loaded";
+      versionDisplay = meta.version;
+    } else if (!upToDate) {
+      status = "❌ Update available";
+      versionDisplay = `${local.version} → ${meta.version}`;
+    } else {
+      status = "✔ Up to date";
+      versionDisplay = meta.version;
+    }
+
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+        <td>
+          <input type="checkbox"
+                data-country="${country}"
+                ${selected ? "checked" : ""}>
+        </td>
+        <td>${countryName}</td>
+        <td>${loaded ? "✅" : "❌"}</td>
+        <td>${versionDisplay}</td>
+        <td>${status}</td>
+      `;
+
+    tbody.appendChild(tr);
+  });
+}
+
+const CHUNK_SIZE = 4000;
+
+async function fetchAndLoadCountry(country, statusEl) {
+  if (!cachedManifest) {
+    statusEl.textContent = "Fetching manifest from GitHub";
+    await fetchRemoteManifest();
+  }
+
+  const meta = cachedManifest.countries[country];
+  if (!meta) {
+    throw new Error(`Country ${country} not found in manifest`);
+  }
+
+  const fileURL = `${DATASET_BASE_URL}/${meta.file}`;
+
+  let data;
+  try {
+    statusEl.textContent = `Fetching ${country} file from GitHub`;
+    const res = await fetch(fileURL, { cache: "no-store" });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    data = await res.json();
+  } catch (err) {
+    throw new Error(`Failed to fetch ${country}: ${err.message}`);
+  }
+
+  if (!Array.isArray(data) || data.length === 0) {
+    throw new Error(`Dataset ${country} is empty or invalid`);
+  }
+
+  // Defensive check: ensure country consistency
+  const datasetCountry = data[0].c;
+  if (datasetCountry !== country) {
+    throw new Error(`Country mismatch: expected ${country}, got ${datasetCountry}`);
+  }
+
+  // Replace country safely
+  await clearCountry(country);
+
+  // Insert in chunks
+  const totalChunks = Math.ceil(data.length / CHUNK_SIZE);
+
+  for (let i = 0; i < totalChunks; i++) {
+    const start = i * CHUNK_SIZE;
+    const end = start + CHUNK_SIZE;
+    const chunk = data.slice(start, end);
+    statusEl.textContent = `Inserting chunk ${i + 1} of ${totalChunks} into the local store...`;
+
+    await insertChunk(chunk);
+  }
+
+  // Record dataset metadata AFTER successful load
+  await upsertDatasetMetadata({
+    country: country,
+    version: meta.version,
+    recordCount: data.length,
+    loadedAt: new Date().toISOString(),
+  });
+}
+
+async function updateCountrySelectors() {
+  // Refresh available countries
+  const countries = await getAvailableCountries(FORCE);
+  const defaults = await getLocationSuggestionDefaults();
+
+  select2Selections = countries.map((c) => ({
+    id: c.Code,
+    text: `${c.Code} - ${c.Country}`,
+    selected: defaults.countries && defaults.countries.includes(c.Code),
+  }));
+
   $(".wbe-country-select").each(function () {
     const $el = $(this);
     $el.empty();
-    selections.forEach((opt) => {
+    select2Selections.forEach((opt) => {
       $el.append(new Option(opt.text, opt.id, opt.selected, opt.selected));
     });
     $el.trigger("change.select2"); // let Select2 refresh
@@ -365,8 +636,8 @@ export async function getAugmentedSuggestions(userInput, date, countries) {
  *    o: origin ,
  *    s: startDate,
  *    e: endDate,
- *    normalisedPath: normalised p (lowercase and diacriticals removed - req.),
- *    normalisedOrigin: normalised o (required if o present),
+ *    np: normalised p (lowercase and diacriticals removed - req.),
+ *    no: normalised o (required if o present),
  *    a: aliases (normalised array),
  *  }
  */
@@ -394,7 +665,7 @@ export function formWTSuggestionElement(item, userInput) {
   // linkSpan.appendChild(link);
 
   const normTerm = normalise(userInput);
-  const termSpan = highlightTerm(normTerm, item.p, item.normalisedPath);
+  const termSpan = highlightTerm(normTerm, item.p, item.np);
 
   suggestion.appendChild(img);
   suggestion.appendChild(termSpan);
@@ -408,7 +679,7 @@ export function formWTSuggestionElement(item, userInput) {
 
   // AKA
   if (item.o) {
-    const aka = highlightTerm(normTerm, " aka " + item.o, " aka " + item.normalisedOrigin);
+    const aka = highlightTerm(normTerm, " aka " + item.o, " aka " + item.no);
     suggestion.appendChild(aka);
   }
 
@@ -479,9 +750,9 @@ async function getWBELocSuggestions(userInput, date, countries) {
  *    s: startDate,
  *    e: endDate,
  *    l: lang,
- *    normalisedPath: normalised p (lowercase and diacriticals removed),
- *    normalisedOrigin: normalised o
- *    a: aliases (normalised array),
+ *    np: normalised p (lowercase and diacriticals removed),
+ *    no: normalised o
+ *    na: aliases (normalised array),
  *  }
  */
 async function fetchOrFilterSuggestions(entry, date, countries) {
@@ -499,9 +770,7 @@ async function fetchOrFilterSuggestions(entry, date, countries) {
     if (cachedResults.length > 0) {
       filteredResults = cachedResults.filter(
         (item) =>
-          item.normalisedPath.startsWith(entryLow) ||
-          item.normalisedOrigin.startsWith(entryLow) ||
-          item.a.some((a) => a.startsWith(entryLow))
+          item.np.startsWith(entryLow) || item.no.startsWith(entryLow) || item.na.some((a) => a.startsWith(entryLow))
       );
     }
     dbg2(`filtered from cache:`, cachedResults, filteredResults);
