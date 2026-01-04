@@ -503,9 +503,10 @@ function renderTable(manifest, localDatasets, tbody) {
   Object.entries(manifest.countries).forEach(([country, meta]) => {
     const local = localDatasets[country];
     const loaded = Boolean(local);
-    // const upToDate = !loaded || local.version === meta.version;
-    const upToDate = country == "GB" ? false : !loaded || local.version === meta.version;
-    if (country == "GB") meta.version = "2026.01.02.2";
+    const upToDate = !loaded || local.version === meta.version;
+    // Testing - update available logic.
+    // const upToDate = country == "GB" ? false : !loaded || local.version === meta.version;
+    // if (country == "GB") meta.version = "2026.01.02.2";
     const countryName = countryCodeMap[country];
     const selected = loaded && !upToDate;
 
