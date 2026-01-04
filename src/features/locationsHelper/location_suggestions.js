@@ -175,12 +175,11 @@ function insertCountrySelectAbove(inputfield, sid) {
   // Check if the popup already exists and if not, create it.
   let popupEl = document.querySelector(".wbe-location-popup");
   if (!popupEl) {
-    // Select the first element with class 'country-input' to act as the reference
     const target = document.querySelector("body");
-
     if (target) {
       popupEl = document.createElement("div");
       popupEl.className = "wbe-location-popup";
+      popupEl.style.display = "none";
       popupEl.innerHTML = `
         <p style="margin-bottom:6px; font-weight:bold;">
           Location Data Management
