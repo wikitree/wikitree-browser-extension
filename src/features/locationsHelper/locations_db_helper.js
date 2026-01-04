@@ -288,13 +288,13 @@ export async function searchLocations({ startsWith, date, countries }) {
   const store = tx.objectStore(LOCATIONS_STORE);
 
   await runIndex(store.index("byPath"));
-  console.log(`scanned ${cnt} byPath for '${startsWith}'`);
-  cnt = 0;
+  // console.log(`scanned ${cnt} byPath for '${startsWith}'`);
+  // cnt = 0;
   await runIndex(store.index("byOrigin"));
-  console.log(`scanned ${cnt} byOrigin for '${startsWith}'`);
-  cnt = 0;
+  // console.log(`scanned ${cnt} byOrigin for '${startsWith}'`);
+  // cnt = 0;
   await runIndex(store.index("byAlias"));
-  console.log(`scanned ${cnt} byAlias for '${startsWith}'`);
+  // console.log(`scanned ${cnt} byAlias for '${startsWith}'`);
 
   return results;
 }

@@ -22,10 +22,15 @@ input[name="mMarriageLocation"] {
   width: 100%;
 }
 
-/* Increase vertical spacing between options */
+/* Reduce vertical spacing between options */
 .select2-results__option {
   padding: 1px 6px; /* vertical | horizontal padding */
   margin-bottom: 0px;
+}
+.country-input .select2-selection__choice {
+  margin-top: 4px !important;
+  margin-bottom: 2px !important;
+  margin-left: 4px !important;
 }
 
 input.wbe-location-ready {
