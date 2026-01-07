@@ -1129,11 +1129,11 @@ function buildSpousesSection(spouses) {
       dt = dt.replace(dateRegex, `<span class="marriage-date">${dm[0].trim()}</span>`);
     }
 
-    // Wrap location
-    const locRegex = /\bin\s+(.+)$/i;
+    // Wrap location (stop before "at age")
+    const locRegex = /\bin\s+(.+?)(?:\s+at age|\s*$)/i;
     const lm = dt.match(locRegex);
     if (lm) {
-      dt = dt.replace(locRegex, `in <span class="marriage-location">${lm[1].trim()}</span>`);
+      dt = dt.replace(/\bin\s+(.+?)(?=\s+at age|\s*$)/i, `in <span class="marriage-location">${lm[1].trim()}</span>`);
     }
 
     details.innerHTML = dt;
