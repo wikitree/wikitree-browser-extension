@@ -33,10 +33,6 @@ input[name="mMarriageLocation"] {
   margin-left: 4px !important;
 }
 
-input.wbe-location-ready {
-  border: #4caf50 3px solid !important;
-}
-
 .wbe-location-gear {
   position: absolute !important;
   left: -2.5rem;

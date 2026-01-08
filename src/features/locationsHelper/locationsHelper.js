@@ -59,7 +59,7 @@ shouldInitializeFeature("locationsHelper").then((result) => {
           if (options?.newLocations !== "no") {
             initLocationSuggestions(options?.newLocations);
             if (options?.newLocations === "only") {
-              $(fieldSelectors).prop("disabled", false).addClass("wbe-location-ready");
+              $(fieldSelectors).prop("disabled", false);
               return;
             }
           }
@@ -103,9 +103,11 @@ function waitForElements(selectors, timeoutMs = 5000) {
     // 1. Immediate check for any of the fields
     const foundEls = document.querySelectorAll(selectors);
     if (foundEls.length > 0) {
-      foundEls.forEach((el) => {
-        $(el).prop("disabled", true);
-      });
+      if (window.locationsHelperOptions?.newLocations !== "no") {
+        foundEls.forEach((el) => {
+          $(el).prop("disabled", true);
+        });
+      }
 
       resolve(foundEls);
       return;
@@ -125,10 +127,13 @@ function waitForElements(selectors, timeoutMs = 5000) {
         clearTimeout(timer);
         observer.disconnect();
 
-        // Disable the location inputs until we are ready to intervene in the autocompletes
-        els.forEach((el) => {
-          $(el).prop("disabled", true);
-        });
+        if (window.locationsHelperOptions?.newLocations !== "no") {
+          // Disable the location inputs until we are ready to intervene in the autocompletes
+          console.log("Disablle location inputs");
+          els.forEach((el) => {
+            $(el).prop("disabled", true);
+          });
+        }
 
         resolve(els);
       }
@@ -448,7 +453,9 @@ async function locationsHelper() {
     });
     if (added > 0) {
       // We are now ready to intervene in autocompletes, so enable the inputs
-      $(fieldSelectors).prop("disabled", false).addClass("wbe-location-ready");
+      if (window.locationsHelperOptions?.newLocations !== "no") {
+        $(fieldSelectors).prop("disabled", false);
+      }
       dbg1(`attachObserverToSuggestions: ${cnt} containers found, attached observers to ${added}`);
     }
   }

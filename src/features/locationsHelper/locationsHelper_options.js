@@ -53,12 +53,12 @@ registerFeature({
           text: "No",
         },
         {
-          value: "only",
-          text: "Exclusively",
-        },
-        {
           value: "augment",
           text: "Augment existing",
+        },
+        {
+          value: "only",
+          text: "Use Exclusively",
         },
       ],
       defaultValue: "no",
