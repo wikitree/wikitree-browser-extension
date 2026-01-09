@@ -236,6 +236,9 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
       if (options.addResearchNotesSection) {
         addResearchNotesSection();
       }
+      if (options.getFullFindAGraveCitations) {
+        initializeFindAGraveHandlers();
+      }
     });
 
     $("#enterBasicDataButton").insertAfter($("#mSources"));
@@ -294,8 +297,6 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
       }, 300);
     });
     //  ||$("#editAction_connectExisting").prop("checked") == true
-
-    initializeFindAGraveHandlers();
   }
 });
 
