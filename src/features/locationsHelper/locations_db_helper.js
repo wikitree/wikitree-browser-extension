@@ -238,65 +238,85 @@ function prefixRange(prefix) {
 //  }
 export async function searchLocations({ startsWith, date, countries }) {
   const db = await openDB();
-  const lower = normalise(startsWith);
-  const seen = new Set();
-  const results = [];
-  const range = prefixRange(lower);
-  let cnt = 0;
+  try {
+    const lower = normalise(startsWith);
+    const range = prefixRange(lower);
 
-  function runIndex(index) {
-    return new Promise((resolve, reject) => {
-      const req = index.openCursor(range);
+    // We'll collect results from all indexes here
+    const allResults = [];
+    // We use a Set to track primary keys (ids) we've already added to avoid duplicates
+    const seenIds = new Set();
 
-      req.onsuccess = (event) => {
-        const cursor = event.target.result;
-        if (!cursor) {
-          resolve();
-          return;
-        }
+    // Helper to run a cursor on a specific index
+    // Returns a promise that resolves with an array of matching items
+    function runIndex(index) {
+      return new Promise((resolve, reject) => {
+        const results = [];
+        const req = index.openCursor(range);
 
-        const item = cursor.value;
-        const key = cursor.primaryKey;
-        ++cnt;
+        req.onsuccess = (event) => {
+          const cursor = event.target.result;
+          if (!cursor) {
+            resolve(results);
+            return;
+          }
 
-        if (seen.has(key)) {
+          const item = cursor.value;
+          const key = cursor.primaryKey;
+
+          // If we haven't seen this ID yet (checked globally later, but could check here if we shared the Set -
+          // but for parallel execution, it's safer/easier to just collect all and dedup at the end
+          // OR checking a shared Set is okay if JS is single threaded?
+          // Yes, JS is single threaded, so checking `seenIds` here is fine IF we populate it immediately.
+          // BUT, since we are doing Promise.all, the cursors might run interleaved.
+          // It's cleaner to collect all valid matches from each index and merge them.
+
+          let match = true;
+
+          if (countries && countries.length > 0 && !countries.includes(item.c)) {
+            match = false;
+          }
+
+          if (match && date && (date < item.s || date > item.e)) {
+            match = false;
+          }
+
+          if (match) {
+            results.push({ item, key });
+          }
+
           cursor.continue();
-          return;
-        }
+        };
 
-        if (countries && countries.length > 0 && !countries.includes(item.c)) {
-          cursor.continue();
-          return;
-        }
+        req.onerror = (event) => reject("Search error: " + event.target.error);
+      });
+    }
 
-        if (date && (date < item.s || date > item.e)) {
-          cursor.continue();
-          return;
-        }
+    const tx = db.transaction([LOCATIONS_STORE], "readonly");
+    const store = tx.objectStore(LOCATIONS_STORE);
 
-        seen.add(key);
-        results.push(item);
+    // Run all index searches in parallel to keep the transaction active
+    // and avoid Safari "UnknownError" with sequential awaits.
+    const [pathResults, originResults, aliasResults] = await Promise.all([
+      runIndex(store.index("byPath")),
+      runIndex(store.index("byOrigin")),
+      runIndex(store.index("byAlias")),
+    ]);
 
-        cursor.continue();
-      };
+    // Merge results
+    const combined = [...pathResults, ...originResults, ...aliasResults];
 
-      req.onerror = (event) => reject("Search error: " + event.target.error);
-    });
+    for (const { item, key } of combined) {
+      if (!seenIds.has(key)) {
+        seenIds.add(key);
+        allResults.push(item);
+      }
+    }
+
+    return allResults;
+  } finally {
+    db.close();
   }
-
-  const tx = db.transaction([LOCATIONS_STORE], "readonly");
-  const store = tx.objectStore(LOCATIONS_STORE);
-
-  await runIndex(store.index("byPath"));
-  // console.log(`scanned ${cnt} byPath for '${startsWith}'`);
-  // cnt = 0;
-  await runIndex(store.index("byOrigin"));
-  // console.log(`scanned ${cnt} byOrigin for '${startsWith}'`);
-  // cnt = 0;
-  await runIndex(store.index("byAlias"));
-  // console.log(`scanned ${cnt} byAlias for '${startsWith}'`);
-
-  return results;
 }
 
 export const countryCodeMap = {
