@@ -195,6 +195,7 @@ function insertCountrySelectAbove(inputfield, sid) {
             <tr>
               <th></th>
               <th align="left">Country</th>
+              <th align="right">Records</th>
               <th align="left">Loaded</th>
               <th align="left">Version</th>
               <th align="left">Status</th>
@@ -532,6 +533,7 @@ function renderTable(manifest, localDatasets, tbody) {
                 ${selected ? "checked" : ""}>
         </td>
         <td>${countryName}</td>
+        <td align="right">${meta.recordCount}</td>
         <td>${loaded ? "✅" : "❌"}</td>
         <td>${versionDisplay}</td>
         <td>${status}</td>
