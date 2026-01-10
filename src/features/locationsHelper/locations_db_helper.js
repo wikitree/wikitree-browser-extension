@@ -11,8 +11,14 @@ const DB_VERSION = 3; // Increment version for schema change
 const DATASETS_STORE = "datasets";
 const LOCATIONS_STORE = "locations";
 
+let dbPromise = null;
+
 export function openDB() {
-  return new Promise((resolve, reject) => {
+  if (dbPromise) {
+    return dbPromise;
+  }
+
+  dbPromise = new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onupgradeneeded = (event) => {
@@ -54,9 +60,30 @@ export function openDB() {
       }
     };
 
-    request.onsuccess = (event) => resolve(event.target.result);
-    request.onerror = (event) => reject("IndexedDB error: " + event.target.error);
+    request.onsuccess = (event) => {
+      const db = event.target.result;
+
+      // If the database connection closes unexpectedly, clear the promise so next call reopens it.
+      db.onclose = () => {
+        dbPromise = null;
+      };
+
+      // Handle version upgrades initiated by other tabs
+      db.onversionchange = () => {
+        db.close();
+        dbPromise = null;
+      };
+
+      resolve(db);
+    };
+
+    request.onerror = (event) => {
+      dbPromise = null;
+      reject("IndexedDB error: " + event.target.error);
+    };
   });
+
+  return dbPromise;
 }
 
 /*
@@ -314,8 +341,11 @@ export async function searchLocations({ startsWith, date, countries }) {
     }
 
     return allResults;
-  } finally {
-    db.close();
+  } catch (error) {
+    // If we hit an error (e.g. transaction closed), allow the next call to try reopening
+    // Check if the error is related to a closed database or transaction
+    // dbPromise could be reset here if needed, but the onclose handler should handle it.
+    throw error;
   }
 }
 
