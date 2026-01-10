@@ -274,11 +274,17 @@ export async function searchLocations({ startsWith, date, countries }) {
     // We use a Set to track primary keys (ids) we've already added to avoid duplicates
     const seenIds = new Set();
 
-    // Helper to run a cursor on a specific index
+    // Helper to run a cursor on a specific index in its OWN transaction
     // Returns a promise that resolves with an array of matching items
-    function runIndex(index) {
+    function runIndex(indexName) {
       return new Promise((resolve, reject) => {
         const results = [];
+        // Create a NEW transaction for each index search to avoid "Unable to open cursor" in Safari
+        // when multiple cursors share a transaction or when transactions are reused improperly.
+        const tx = db.transaction([LOCATIONS_STORE], "readonly");
+        const store = tx.objectStore(LOCATIONS_STORE);
+        const index = store.index(indexName);
+
         const req = index.openCursor(range);
 
         req.onsuccess = (event) => {
@@ -290,13 +296,6 @@ export async function searchLocations({ startsWith, date, countries }) {
 
           const item = cursor.value;
           const key = cursor.primaryKey;
-
-          // If we haven't seen this ID yet (checked globally later, but could check here if we shared the Set -
-          // but for parallel execution, it's safer/easier to just collect all and dedup at the end
-          // OR checking a shared Set is okay if JS is single threaded?
-          // Yes, JS is single threaded, so checking `seenIds` here is fine IF we populate it immediately.
-          // BUT, since we are doing Promise.all, the cursors might run interleaved.
-          // It's cleaner to collect all valid matches from each index and merge them.
 
           let match = true;
 
@@ -319,15 +318,11 @@ export async function searchLocations({ startsWith, date, countries }) {
       });
     }
 
-    const tx = db.transaction([LOCATIONS_STORE], "readonly");
-    const store = tx.objectStore(LOCATIONS_STORE);
-
-    // Run all index searches in parallel to keep the transaction active
-    // and avoid Safari "UnknownError" with sequential awaits.
+    // Run all index searches in parallel, but heavily isolated by separate transactions
     const [pathResults, originResults, aliasResults] = await Promise.all([
-      runIndex(store.index("byPath")),
-      runIndex(store.index("byOrigin")),
-      runIndex(store.index("byAlias")),
+      runIndex("byPath"),
+      runIndex("byOrigin"),
+      runIndex("byAlias"),
     ]);
 
     // Merge results
