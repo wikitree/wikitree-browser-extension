@@ -315,12 +315,12 @@ export async function searchLocations({ startsWith, date, countries }) {
     ]);
 
     // Merge results
-    const combined = [...pathResults, ...originResults, ...aliasResults];
-
-    for (const { item, key } of combined) {
-      if (!seenIds.has(key)) {
-        seenIds.add(key);
-        allResults.push(item);
+    for (const source of [pathResults, originResults, aliasResults]) {
+      for (const { item, key } of source) {
+        if (!seenIds.has(key)) {
+          seenIds.add(key);
+          allResults.push(item);
+        }
       }
     }
 
