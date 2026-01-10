@@ -194,12 +194,12 @@ function insertCountrySelectAbove(inputfield, sid) {
           <thead>
             <tr>
               <th></th>
-              <th align="left">Country</th>
-              <th align="right">Records</th>
-              <th align="left">Loaded</th>
-              <th align="left">Records</th>
-              <th align="left">Version</th>
-              <th align="left">Status</th>
+              <th class="lt-left">Country</th>
+              <th class="lt-right">Records</th>
+              <th class="lt-left">Loaded</th>
+              <th class="lt-centre">Local</th>
+              <th class="lt-left">Version</th>
+              <th class="lt-centre">Status</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -507,22 +507,25 @@ function renderTable(manifest, localDatasets, tbody) {
     const upToDate = !loaded || local.version === meta.version;
     // Testing - update available logic.
     // const upToDate = country == "GB" ? false : !loaded || local.version === meta.version;
-    // if (country == "GB") meta.version = "2026.01.02.2";
+    // if (country == "GB") {
+    //   meta.version = "2026.01.02.2";
+    //   meta.recordCount = 5230;
+    // }
     const countryName = countryCodeMap[country];
     const selected = loaded && !upToDate;
 
     let status;
     let versionDisplay;
-    let localCount = loaded ? local.recordCount : "-";
+    let localCount = loaded ? local.recordCount.toLocaleString() : "–";
 
     if (!loaded) {
-      status = "✘ Not loaded";
+      status = "–";
       versionDisplay = meta.version;
     } else if (!upToDate) {
       status = "❗Update available";
       versionDisplay = `${local.version} → ${meta.version}`;
     } else {
-      status = "✔ Up to date";
+      status = "Up to date";
       versionDisplay = meta.version;
     }
 
@@ -535,11 +538,11 @@ function renderTable(manifest, localDatasets, tbody) {
                 ${selected ? "checked" : ""}>
         </td>
         <td>${countryName}</td>
-        <td align="right">${meta.recordCount}</td>
-        <td>${loaded ? "✅" : "❌"}</td>
-        <td>${localCount}</td>
-        <td>${versionDisplay}</td>
-        <td>${status}</td>
+        <td class="lt-right">${meta.recordCount.toLocaleString()}</td>
+        <td class="lt-centre">${loaded ? "✅" : ""}</td>
+        <td class=${loaded ? "lt-right" : "lt-centre"}>${localCount}</td>
+        <td class=tl-left>${versionDisplay}</td>
+        <td class="lt-centre">${status}</td>
       `;
 
     tbody.appendChild(tr);

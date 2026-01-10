@@ -59,6 +59,19 @@ input[name="mMarriageLocation"] {
   width: auto;
   table-layout: auto;
 }
+.wbe-loc-table th,
+.wbe-loc-table td {
+  padding: 3px;
+}
+.wbe-loc-table .lt-left {
+  text-align: left;
+}
+.wbe-loc-table .lt-right {
+  text-align: right;
+}
+.wbe-loc-table .lt-centre {
+  text-align: center;
+}
 
 .wbe-loc-status {
   margin-bottom: 6px;
