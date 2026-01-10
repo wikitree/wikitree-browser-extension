@@ -52,7 +52,12 @@ input[name="mMarriageLocation"] {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   border-radius: 4px;
   right: 0;
-  width: 600px;
+  width: fit-content;
+  max-width: 90vw;
+}
+.wbe-loc-table {
+  width: auto;
+  table-layout: auto;
 }
 
 .wbe-loc-status {

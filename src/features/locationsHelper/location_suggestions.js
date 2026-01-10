@@ -197,6 +197,7 @@ function insertCountrySelectAbove(inputfield, sid) {
               <th align="left">Country</th>
               <th align="right">Records</th>
               <th align="left">Loaded</th>
+              <th align="left">Records</th>
               <th align="left">Version</th>
               <th align="left">Status</th>
             </tr>
@@ -512,12 +513,13 @@ function renderTable(manifest, localDatasets, tbody) {
 
     let status;
     let versionDisplay;
+    let localCount = loaded ? local.recordCount : "-";
 
     if (!loaded) {
       status = "✘ Not loaded";
       versionDisplay = meta.version;
     } else if (!upToDate) {
-      status = "❌ Update available";
+      status = "❗Update available";
       versionDisplay = `${local.version} → ${meta.version}`;
     } else {
       status = "✔ Up to date";
@@ -535,6 +537,7 @@ function renderTable(manifest, localDatasets, tbody) {
         <td>${countryName}</td>
         <td align="right">${meta.recordCount}</td>
         <td>${loaded ? "✅" : "❌"}</td>
+        <td>${localCount}</td>
         <td>${versionDisplay}</td>
         <td>${status}</td>
       `;

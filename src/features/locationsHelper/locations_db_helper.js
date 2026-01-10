@@ -89,8 +89,8 @@ export function openDB() {
 /*
   Expected return shape:
   {
-    GB: { version: "2025.11.10", recordCount: 121004 },
-    US: { version: "2026.01.01", recordCount: 980000 }
+    GB: {country: 'GB', version: '2026.01.02.1', recordCount: 121004, loadedAt: '2026-01-08T18:30:22.724Z'}
+    ZA: {country: 'ZA', version: '2026.01.02.2', recordCount: 11353, loadedAt: '2026-01-08T18:30:23.628Z'}
   }
 */
 export async function readLocalDatasets() {
