@@ -212,32 +212,21 @@ export async function isDBEmpty() {
 
 let countries = null;
 export async function getAvailableCountriesFromDb() {
-  const db = await openDB();
+  const datasets = await readLocalDatasets();
+  const result = [];
 
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(LOCATIONS_STORE, "readonly");
-    const index = tx.objectStore(LOCATIONS_STORE).index("byCountry");
+  for (const [code, data] of Object.entries(datasets)) {
+    result.push({
+      Code: code,
+      Country: countryCodeMap[code] || code,
+    });
+  }
 
-    const result = [];
-    const request = index.openKeyCursor(null, "nextunique");
+  // Sort by country name for display
+  result.sort((a, b) => a.Country.localeCompare(b.Country));
 
-    request.onsuccess = (event) => {
-      const cursor = event.target.result;
-      if (cursor) {
-        const code = cursor.key; // <-- THIS is the country code
-        result.push({
-          Code: code,
-          Country: countryCodeMap[code] || code,
-        });
-        cursor.continue();
-      } else {
-        countries = result;
-        resolve(result);
-      }
-    };
-
-    request.onerror = () => reject(request.error);
-  });
+  countries = result;
+  return result;
 }
 
 export async function getAvailableCountries(force = false) {
