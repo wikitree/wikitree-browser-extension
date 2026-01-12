@@ -222,6 +222,7 @@ function renderTableFromData(parsedData, wikiTableData = null) {
   // Ensure table is properly rendered and events are attached
   updateHeaderRow();
   setupSorting();
+  updateRowNumberButtonLabel();
 
   // Attach event listeners to the newly added inputs (check for color and boldness)
   $("#wikitableWizardTable input").each(function () {
@@ -495,7 +496,7 @@ function createBasicTable() {
   const theTableHeadRow = $("#wikitableWizardTable thead tr");
   // Add the initial 5 rows and 5 columns back to the table
   for (let i = 0; i < 5; i++) {
-    theTableHeadRow.append(`<th>===</th>`);
+    theTableHeadRow.append(`<th class="wtw-col-handle">===</th>`);
     let rowHtml = `
     <tr>
       ${rowBoldCell}
@@ -533,6 +534,7 @@ function resetTable() {
   toggleUndoButton();
 
   setupSorting();
+  updateRowNumberButtonLabel();
 }
 
 function scrollToElement() {
@@ -801,6 +803,7 @@ function createwikitableWizardModal() {
       <span class="small button" id="wikitableWizardFileDropZone">Drop a file here</span><input type="file" id="wikitableWizardFileInput" style="display:none;">
       <button id="wikitableWizardAddRow" class="small">Add Row</button>
       <button id="wikitableWizardAddColumn" class="small">Add Column</button>
+      <button id="wikitableWizardRowNumbers" class="small" title="Add a row numbers column on the left">Add Row Numbers</button>
       <label for="wikitableWizardHeaderRow">
       <input type="checkbox" id="wikitableWizardHeaderRow">
       Use first row as headers
@@ -832,6 +835,7 @@ function createwikitableWizardModal() {
           <li>Right-clicking in a cell will give you a menu of actions: Copy, Paste, Delete Row, Delete Column, Insert Row Above, Insert Row Below, Insert Column Left, and Insert Column Right.</li>
           <li>The 'sortable' class will make the table sortable.</li>
           <li>The 'wikitable' class will make the table look like a wikitable.  It will also make it available to the WBE's Table Filters and Sorting feature.</li>
+          <li>Use Add Row Numbers to insert an auto-updating number column on the left; click Remove Row Numbers to take it out.</li>
           <li>You can move this popup window by dragging the title bar.</li>
           <li>There are four ways to close this Notes section: ?, Escape, 'x', and double-click.</li>
           </ul>
@@ -855,6 +859,7 @@ function createwikitableWizardModal() {
   }
 
   createBasicTable();
+  updateRowNumberButtonLabel();
 
   const theTable = $("#wikitableWizardTable");
   const theTableBody = $("#wikitableWizardTable tbody");
@@ -1122,6 +1127,20 @@ function createwikitableWizardModal() {
       });
       rowHtml += `</tr>\n`;
       theTableBody.append(rowHtml);
+
+      // Auto-update row numbers if they exist
+      autoUpdateRowNumbers();
+    });
+
+  $("#wikitableWizardRowNumbers")
+    .off("click")
+    .on("click", function (e) {
+      e.preventDefault();
+      if (hasRowNumberColumn()) {
+        removeRowNumbers();
+      } else {
+        addOrUpdateRowNumbers();
+      }
     });
 
   $("#wikitableWizardAddColumn")
@@ -1147,7 +1166,7 @@ function createwikitableWizardModal() {
 
       // Add a new header cell
       const theTableHeadRow = $("#wikitableWizardTable thead tr");
-      theTableHeadRow.append(`<th>===</th>`);
+      theTableHeadRow.append(`<th class="wtw-col-handle">===</th>`);
 
       // Update the header row
       updateHeaderRow();
@@ -1256,6 +1275,7 @@ function createwikitableWizardModal() {
       // Update Undo button visibility
       toggleUndoButton();
       refreshSorting();
+      updateRowNumberButtonLabel();
     });
 
   // Attach the reset function to the Reset button
@@ -1433,6 +1453,9 @@ function setupSorting() {
       });
       // Update Undo button visibility
       toggleUndoButton();
+
+      // Auto-update row numbers after a move
+      autoUpdateRowNumbers();
     },
     start: function (event, ui) {
       // Capture the original index before moving
@@ -1666,11 +1689,23 @@ $(document)
           originalRow.find("td").each(function () {
             const newCell = $("<td></td>");
 
+            // Preserve TD classes (e.g., rowBoldCell, wtw-number-cell)
+            const tdClasses = $(this).attr("class");
+            if (tdClasses) {
+              newCell.attr("class", tdClasses);
+            }
+
             if ($(this).find("input[type='text']").length > 0) {
               const newText = $('<input type="text" class="cell">').css({
                 "font-weight": "normal",
                 "background-color": "#ffffff",
               });
+              // Preserve input classes (e.g., wtw-number-input)
+              const originalInput = $(this).find("input[type='text']");
+              const inputClasses = originalInput.attr("class");
+              if (inputClasses) {
+                newText.attr("class", inputClasses);
+              }
               newCell.append(newText);
             }
 
@@ -1699,6 +1734,9 @@ $(document)
           } else {
             row.after(newRow);
           }
+
+          // Auto-update row numbers if they exist
+          autoUpdateRowNumbers();
         }
 
         function manualCloneColumnAndReset(colIndex) {
@@ -1708,12 +1746,23 @@ $(document)
             const cell = $(this).find("td").eq(colIndex);
             const newCell = $("<td></td>");
 
+            // Preserve TD classes (e.g., wtw-number-cell)
+            const tdClasses = cell.attr("class");
+            if (tdClasses) {
+              newCell.attr("class", tdClasses);
+            }
+
             if (cell.find("input[type='text']").length > 0) {
               const newText = $('<input type="text" class="cell">');
               // Get the CSS properties from the original cell's text input
               const originalText = cell.find("input[type='text']");
               const fontWeight = originalText.css("font-weight");
               const backgroundColor = originalText.css("background-color");
+              // Preserve input classes (e.g., wtw-number-input)
+              const inputClasses = originalText.attr("class");
+              if (inputClasses) {
+                newText.attr("class", inputClasses);
+              }
               // Apply the copied CSS properties to the new text input
               newText.css({
                 "font-weight": fontWeight,
@@ -1756,9 +1805,9 @@ $(document)
           // Add a new header cell
           const theTableHeadRow = $("#wikitableWizardTable thead tr");
           if (leftOrRight === "left") {
-            theTableHeadRow.find("th").eq(colIndex).before(`<th>===</th>`);
+            theTableHeadRow.find("th").eq(colIndex).before(`<th class="wtw-col-handle">===</th>`);
           } else {
-            theTableHeadRow.find("th").eq(colIndex).after(`<th>===</th>`);
+            theTableHeadRow.find("th").eq(colIndex).after(`<th class="wtw-col-handle">===</th>`);
           }
           updateHeaderRow();
           setupSorting();
@@ -1791,6 +1840,9 @@ $(document)
           // Update Undo button visibility
           toggleUndoButton();
           row.remove();
+
+          // Auto-update row numbers if they exist
+          autoUpdateRowNumbers();
         } else if (action === "delete-column") {
           // Delete the column
           const colIndex = currentCell.closest("td").index();
@@ -1844,7 +1896,7 @@ function updateHeaderRow() {
   const theTableHeadTH = theTableHeadRow.find("th");
   theTableHeadTH.slice(2).remove();
   for (let i = 3; i <= columnCount + 2; i++) {
-    theTableHeadRow.append(`<th>===</th>`);
+    theTableHeadRow.append(`<th class="wtw-col-handle">===</th>`);
   }
 
   // Sort the headers
@@ -1856,6 +1908,12 @@ function updateHeaderRow() {
   });
   theTableHeadRow.find("th").slice(2).remove();
   theTableHeadRow.append(headers);
+
+  const numberColIndex = findRowNumberColumnIndex();
+  if (numberColIndex !== -1) {
+    const numberHeader = theTableHeadRow.find("th").eq(numberColIndex);
+    numberHeader.text("#").addClass("wtw-number-header");
+  }
 }
 
 function updateRowColor(el) {
@@ -1870,6 +1928,218 @@ function updateRowBold(el) {
   row
     .find("td:not(:first-child):not(:nth-child(2)) input[type=text]")
     .css("font-weight", isChecked ? "bold" : "normal");
+}
+
+// Identify an existing row-number column (returns the column index or -1)
+function findRowNumberColumnIndex() {
+  const rows = $("#wikitableWizardTable tbody tr");
+  if (rows.length === 0) return -1;
+
+  // Prefer explicit marker classes on header or cells
+  const headerHandles = $("#wikitableWizardTable thead tr th.wtw-number-header");
+  if (headerHandles.length > 0) {
+    return headerHandles.first().index();
+  }
+  const markedCells = $("#wikitableWizardTable tbody tr:first td.wtw-number-cell");
+  if (markedCells.length > 0) {
+    return markedCells.first().index();
+  }
+
+  const hasHeaderRow =
+    $("#wikitableWizardHeaderRow").prop("checked") ||
+    rows.first().hasClass("useHeaderRow") ||
+    rows.first().hasClass("headerRow");
+
+  // Assume all body rows have the same number of cells
+  const columnCount = rows.first().find("td").length;
+  for (let col = 2; col < columnCount; col++) {
+    let isNumberCol = true;
+    // Validate header row (if present) is empty for this column
+    if (hasHeaderRow) {
+      const headerCell = rows.first().find("td").eq(col).find("input[type=text]");
+      if (headerCell.length === 0 || (headerCell.val() || "").trim() !== "") {
+        isNumberCol = false;
+      }
+    }
+
+    if (!isNumberCol) continue;
+
+    // Validate sequential numbering for data rows
+    for (let i = hasHeaderRow ? 1 : 0; i < rows.length; i++) {
+      const expectedNumber = i - (hasHeaderRow ? 1 : 0) + 1;
+      const cell = $(rows[i]).find("td").eq(col).find("input[type=text]");
+      if (cell.length === 0) {
+        isNumberCol = false;
+        break;
+      }
+      const value = (cell.val() || "").trim();
+      if (!matchesRowNumberValue(value, expectedNumber)) {
+        isNumberCol = false;
+        break;
+      }
+    }
+
+    if (isNumberCol) {
+      return col;
+    }
+  }
+
+  return -1;
+}
+
+function hasRowNumberColumn() {
+  return findRowNumberColumnIndex() !== -1;
+}
+
+function formatRowNumberValue(num) {
+  if (num === "" || num === null || num === undefined) return "";
+  return `${num}.`;
+}
+
+function matchesRowNumberValue(value, expectedNumber) {
+  return value === String(expectedNumber) || value === `${expectedNumber}.`;
+}
+
+function updateRowNumberButtonLabel() {
+  const button = $("#wikitableWizardRowNumbers");
+  if (!button.length) return;
+  if (hasRowNumberColumn()) {
+    button.text("Remove Row Numbers").attr("title", "Remove the row numbers column");
+  } else {
+    button.text("Add Row Numbers").attr("title", "Add a row numbers column on the left");
+  }
+}
+
+function removeRowNumbers() {
+  const theTable = $("#wikitableWizardTable");
+  const rows = $("#wikitableWizardTable tbody tr");
+  const numberColIndex = findRowNumberColumnIndex();
+
+  if (rows.length === 0 || numberColIndex === -1) return;
+
+  // Save current table state for undo
+  const currentTableState = theTable.html();
+  changeStack.push({ type: "tableState", content: currentTableState });
+  toggleUndoButton();
+
+  // Remove header cell and column cells
+  $("#wikitableWizardTable thead tr th").eq(numberColIndex).remove();
+  rows.each(function () {
+    $(this).find("td").eq(numberColIndex).remove();
+  });
+
+  updateHeaderRow();
+  setupSorting();
+  updateRowNumberButtonLabel();
+}
+
+// Add or update row numbers in the first data column
+function addOrUpdateRowNumbers() {
+  const theTable = $("#wikitableWizardTable");
+  const rows = $("#wikitableWizardTable tbody tr");
+
+  if (rows.length === 0) return;
+
+  const hasHeaderRow =
+    $("#wikitableWizardHeaderRow").prop("checked") ||
+    rows.first().hasClass("useHeaderRow") ||
+    rows.first().hasClass("headerRow");
+
+  // Save current table state for undo
+  const currentTableState = theTable.html();
+  changeStack.push({ type: "tableState", content: currentTableState });
+  toggleUndoButton();
+
+  const numberColIndex = findRowNumberColumnIndex();
+
+  const styleRowNumberCell = (cell, isBold, bgColor) => {
+    cell.css({
+      "background-color": bgColor,
+      "font-weight": isBold ? "bold" : "normal",
+    });
+    cell.addClass("wtw-number-input");
+    cell.closest("td").addClass("wtw-number-cell");
+  };
+
+  const styleRowNumberHeader = () => {
+    const numberColIndex = findRowNumberColumnIndex();
+    if (numberColIndex === -1) return;
+    const numberHeader = $("#wikitableWizardTable thead tr th").eq(numberColIndex);
+    numberHeader.text("#").addClass("wtw-number-header");
+  };
+
+  if (numberColIndex !== -1) {
+    // Update existing row numbers in the detected column
+    rows.each(function (index) {
+      const cell = $(this).find("td").eq(numberColIndex).find("input[type=text]");
+      const isBold = $(this).find(".rowBold").prop("checked");
+      const bgColor = $(this).find(".rowBgColor").val();
+      if (hasHeaderRow && index === 0) {
+        cell.val("");
+      } else {
+        const displayIndex = hasHeaderRow ? index : index + 1;
+        cell.val(formatRowNumberValue(displayIndex));
+      }
+      styleRowNumberCell(cell, isBold, bgColor);
+    });
+  } else {
+    // Add a new row number column at the beginning
+    rows.each(function (index) {
+      const row = $(this);
+      const isBold = row.find(".rowBold").prop("checked");
+      const bgColor = row.find(".rowBgColor").val();
+      const displayIndex = hasHeaderRow ? (index === 0 ? "" : index) : index + 1;
+      const newCellHtml = `<td class="wtw-number-cell"><input type="text" class="cell wtw-number-input" value="${formatRowNumberValue(
+        displayIndex
+      )}" style="background-color:${bgColor};${isBold ? "font-weight:bold;" : ""};"></td>`;
+      // Insert after the first two UI columns (Bold checkbox and BG color)
+      row.find("td").eq(1).after(newCellHtml);
+    });
+
+    // Add header cell
+    const theTableHeadRow = $("#wikitableWizardTable thead tr");
+    theTableHeadRow.find("th").eq(1).after('<th class="wtw-number-header">#</th>');
+
+    updateHeaderRow();
+    styleRowNumberHeader();
+    setupSorting();
+  }
+
+  styleRowNumberHeader();
+  updateRowNumberButtonLabel();
+}
+
+// Auto-update row numbers when they exist
+function autoUpdateRowNumbers() {
+  const numberColIndex = findRowNumberColumnIndex();
+  if (numberColIndex === -1) return;
+
+  const rows = $("#wikitableWizardTable tbody tr");
+  const hasHeaderRow =
+    $("#wikitableWizardHeaderRow").prop("checked") ||
+    rows.first().hasClass("useHeaderRow") ||
+    rows.first().hasClass("headerRow");
+
+  rows.each(function (index) {
+    const cell = $(this).find("td").eq(numberColIndex).find("input[type=text]");
+    if (cell.length === 0) return;
+    if (hasHeaderRow && index === 0) {
+      cell.val("");
+    } else {
+      const displayIndex = hasHeaderRow ? index : index + 1;
+      cell.val(formatRowNumberValue(displayIndex));
+    }
+    const isBold = $(this).find(".rowBold").prop("checked");
+    const bgColor = $(this).find(".rowBgColor").val();
+    cell.css({
+      "background-color": bgColor,
+      "font-weight": isBold ? "bold" : "normal",
+    });
+    cell.addClass("wtw-number-input");
+    cell.closest("td").addClass("wtw-number-cell");
+  });
+
+  updateRowNumberButtonLabel();
 }
 
 export function createWikitableWizard() {

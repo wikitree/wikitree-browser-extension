@@ -137,6 +137,27 @@
   width: 2em;
 }
 
+#wikitableWizardModal #wikitableWizardTable thead th.wtw-col-handle {
+  text-align: center;
+}
+
+#wikitableWizardModal #wikitableWizardTable th.wtw-number-header {
+  text-align: center;
+  width: 60px;
+  min-width: 40px;
+}
+
+#wikitableWizardModal #wikitableWizardTable td.wtw-number-cell {
+  width: 60px;
+  min-width: 40px;
+}
+
+#wikitableWizardModal #wikitableWizardTable td.wtw-number-cell input.wtw-number-input {
+  text-align: center;
+  width: 100%;
+  min-width: 40px;
+}
+
 a.wikitable-context-option:hover {
   background-color: #f1f1f1;
 }
