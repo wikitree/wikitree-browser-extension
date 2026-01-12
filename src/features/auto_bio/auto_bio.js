@@ -9681,6 +9681,11 @@ export async function getLocationCategory(type, location = null) {
                   ]
                 );
 
+                // Also add "part0 County, part1" pattern for cases like "Houston, Georgia" -> "Houston County, Georgia"
+                if (part0 && part1) {
+                  combinations.push(`${part0} County, ${part1}`);
+                }
+
                 if (combinations.includes(category)) {
                   foundCategory = category;
                 }
