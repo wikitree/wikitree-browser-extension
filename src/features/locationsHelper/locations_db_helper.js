@@ -251,8 +251,9 @@ function prefixRange(prefix) {
 //    np: normalised p (lowercase and diacriticals removed),
 //    no: normalised o
 //    na: aliases (normalised array),
+//    dt: 1/0 (is/is not valid for requested date)
 //  }
-export async function searchLocations({ startsWith, date, countries }) {
+export async function searchLocations({ startsWith, date, countries, allDates }) {
   const db = await openDB();
   try {
     const lower = normalise(startsWith);
@@ -292,11 +293,12 @@ export async function searchLocations({ startsWith, date, countries }) {
             match = false;
           }
 
-          if (match && date && (date < item.s || date > item.e)) {
+          if (!allDates && match && date && (date < item.s || date > item.e)) {
             match = false;
           }
 
           if (match) {
+            item.dt = date ? (date >= item.s && date <= item.e ? 1 : 0) : 1;
             results.push({ item, key });
           }
 

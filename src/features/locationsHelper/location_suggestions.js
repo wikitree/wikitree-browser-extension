@@ -101,9 +101,10 @@ export async function initLocationSuggestions(suggestionOption) {
             const countries = $(`#${selectId}`).val() || [];
             dbg1(`Getting suggestions for ${request.term}, ${date}`, countries);
             const suggestions = await getWBELocSuggestions(request.term, date, countries);
-            const rank = (x) => (x.familyLoc2 ? 0 : x.familyLoc ? 1 : 2);
+            const familyRank = (x) => (x.familyLoc2 ? 0 : x.familyLoc ? 1 : 2);
             suggestions.sort((a, b) => {
-              return rank(a) - rank(b);
+              // sort first on date match, then family location match
+              return b.dt - a.dt || familyRank(a) - familyRank(b);
             });
             response(suggestions);
           },
@@ -115,7 +116,7 @@ export async function initLocationSuggestions(suggestionOption) {
 
           const $li = $("<li>");
           const $content = $("<div>").html(highlightedLabel);
-          $li.addClass("rightPeriod");
+          $li.addClass(item.dt === 1 ? "rightPeriod" : "wrongPeriod");
 
           if (item.familyLoc2 === true) {
             $li.addClass("familyLoc2");
@@ -646,7 +647,8 @@ export async function getAugmentedSuggestions(userInput, date, countries) {
  *    e: endDate,
  *    np: normalised p (lowercase and diacriticals removed - req.),
  *    no: normalised o (required if o present),
- *    a: aliases (normalised array),
+ *    na: aliases (normalised array),
+ *    dt: 0/1 (is valid for requested date) - might not be present
  *  }
  */
 export function formWTSuggestionElement(item, userInput) {
@@ -655,6 +657,8 @@ export function formWTSuggestionElement(item, userInput) {
   //   <img src="/images/icons/map.gif">
   //   <span><span class="autocomplete-suggestion-term">Stel</span>lenbosch, Cape Colony</span> (1806-01-19 - 1910-05-30) aka Stellenbosch [ZA-WC]
   // </div>
+  //
+  // and then return it as {node: suggestion, dt: item.dt (if present)}
   const suggestion = document.createElement("div");
   suggestion.className = "autocomplete-suggestion";
   suggestion.dataset.val = item.p;
@@ -691,7 +695,12 @@ export function formWTSuggestionElement(item, userInput) {
     suggestion.appendChild(aka);
   }
 
-  return suggestion;
+  const sugItem = { node: suggestion };
+  if (item.dt !== undefined) {
+    sugItem.dt = item.dt;
+  }
+
+  return sugItem;
 }
 
 function highlightTerm(normTerm, display, normDisplay) {
@@ -741,6 +750,7 @@ async function getWBELocSuggestions(userInput, date, countries) {
       value: item.p,
       familyLoc,
       familyLoc2,
+      dt: item.dt,
     };
   });
 }
@@ -791,6 +801,7 @@ async function fetchOrFilterSuggestions(entry, date, countries) {
       date: date,
       startsWith: entry,
       countries: countries,
+      allDates: window.locationsHelperOptions?.allDates || false,
     };
     dbg1(`calling fetchLocationData (from DB):`, options);
 

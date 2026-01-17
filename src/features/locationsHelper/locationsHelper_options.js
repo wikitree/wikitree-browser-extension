@@ -64,6 +64,12 @@ registerFeature({
       defaultValue: "no",
     },
     {
+      id: "allDates",
+      type: OptionType.CHECKBOX,
+      label: "Include all date ranges when suggesting experimental locations",
+      defaultValue: false,
+    },
+    {
       id: "correctLocations",
       type: OptionType.CHECKBOX,
       label: "Correct Locations",
