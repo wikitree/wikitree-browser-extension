@@ -923,7 +923,9 @@ export async function showDraftList() {
     <div id='myDrafts' style="display: none;">
       <h2>My Drafts</h2>
       <x>x</x>
-      <table></table>
+      <div id="myDraftsList">
+        <table></table>
+      </div>
     </div>
   `);
 
