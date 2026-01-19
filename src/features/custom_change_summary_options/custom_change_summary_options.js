@@ -4,7 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { isSpaceEdit } from "../../core/pageType";
+import { isSpaceEdit, isCategoryEdit, isProfileEdit } from "../../core/pageType";
 
 /*──────────────────────────────
   1. Default phrases
@@ -20,6 +20,8 @@ const defaultOptions = [
   "Research notes.",
 ];
 
+const spaceDefaultOptions = ["Adding sources.", "Categorization.", "Fixing typos.", "Formatting."];
+
 /*──────────────────────────────
   2. summaryEntries helpers
   ─────────────────────────────*/
@@ -28,6 +30,12 @@ function getSummaryEntries() {
 }
 function setSummaryEntries(list) {
   localStorage.setItem("summaryEntries", JSON.stringify(list));
+}
+
+function getOptionKey() {
+  if (isSpaceEdit) return "LSchangeSummaryOptions_Space";
+  if (isCategoryEdit) return "LSchangeSummaryOptions_Category";
+  return "LSchangeSummaryOptions";
 }
 
 /*──────────────────────────────
@@ -60,14 +68,30 @@ shouldInitializeFeature("customChangeSummaryOptions").then(async (on) => {
   if (!on) return;
   if ($("#summaryOptionsContainer").length) return; // already initialized
   setTimeout(async () => {
-    $("#save").closest("div").prop("id", "saveButtons");
+    $("#save, #wpSave").closest("div").prop("id", "saveButtons");
 
     if (isSpaceEdit) {
       const opt = await getFeatureOptions("customChangeSummaryOptions");
       if (!opt.showOnSpacePages) return;
     }
 
+    if (isCategoryEdit) {
+      const opt = await getFeatureOptions("customChangeSummaryOptions");
+      if (!opt.showOnCategoryPages) return;
+    }
+
     await import("./custom_change_summary_options.css");
+
+    // Migration/Init: If we are on Space and the specific list doesn't exist,
+    // copy from the Profile list (legacy/base) to "double up" initially.
+    // Category pages start empty.
+    const key = getOptionKey();
+    if (isSpaceEdit && !localStorage.getItem(key)) {
+      const baseFn = localStorage.getItem("LSchangeSummaryOptions");
+      if (baseFn) {
+        localStorage.setItem(key, baseFn);
+      }
+    }
 
     localStorage.removeItem("summaryEntries");
     const initTxt = $("#wpSummary").val().trim();
@@ -173,7 +197,11 @@ function buildCheckboxContainer() {
     $("input.summary-suggestion").closest(".form-check, .form-check-inline").hide();
   } else {
     // fallback: append inside #saveButtons if selector ever changes
-    $("#saveButtons").append($box);
+    if ($("#saveButtons").length) {
+      // If we are on a page where saveButtons wraps the inputs (like Category edit),
+      // we might want to put this BEFORE the buttons, not inside/after.
+      $("#saveButtons").before($box);
+    }
   }
 }
 
@@ -219,57 +247,66 @@ function addGearAndPopup() {
   7. Renderers
   ─────────────────────────────*/
 function renderSummaryOptions() {
-  const custom = JSON.parse(localStorage.getItem("LSchangeSummaryOptions")) || [];
-  const items = [...new Set([...defaultOptions, ...custom])].sort((a, b) => a.localeCompare(b));
+  const custom = JSON.parse(localStorage.getItem(getOptionKey())) || [];
+  let baseOptions = [];
+  if (isProfileEdit) {
+    baseOptions = defaultOptions;
+  } else if (isSpaceEdit) {
+    baseOptions = spaceDefaultOptions;
+  }
+  const items = [...new Set([...baseOptions, ...custom])].sort((a, b) => a.localeCompare(b));
 
   const $c = $("#summaryOptionsContainer").empty();
   items.forEach((opt, i) => {
     const checked = getSummaryEntries().some((e) => e.type === "button" && e.text === opt);
-    $c.append(`
-      <label class="form-check-label mr-3" style="cursor:pointer;color:#000;">
+    $c.append(
+      $(`<label class="form-check-label mr-3" style="cursor:pointer;color:#000;">
         <span class="wbe-checkbox"
               role="checkbox"
               tabindex="0"
-              data-option="${opt}"
               aria-checked="${checked}"></span>
         ${opt}
-      </label>
-    `);
+      </label>`)
+        .find(".wbe-checkbox")
+        .data("option", opt)
+        .end()
+    );
   });
 }
 
 function renderCustomOptionsPopup() {
-  const list = JSON.parse(localStorage.getItem("LSchangeSummaryOptions")) || [];
+  const list = JSON.parse(localStorage.getItem(getOptionKey())) || [];
   const $ul = $("#currentOptions").empty();
 
   list
     .sort((a, b) => a.localeCompare(b))
-    .forEach((opt) =>
-      $ul.append(`
-        <li data-option="${opt}" style="color:#000;">
-          ${opt}
-          <a href="#" class="editOption" data-option="${opt}">[edit]</a>
-          <a href="#" class="deleteOption" data-option="${opt}">[x]</a>
-        </li>`)
-    );
+    .forEach((opt) => {
+      const $li = $(`<li style="color:#000;">${opt} </li>`);
+      $li.append($('<a href="#" class="editOption">[edit]</a>').data("option", opt));
+      $li.append(" ");
+      $li.append($('<a href="#" class="deleteOption">[x]</a>').data("option", opt));
+      $ul.append($li);
+    });
 }
 
 /*──────────────────────────────
   8. Custom-option helpers
   ─────────────────────────────*/
 function addCustomOption(txt) {
-  const list = JSON.parse(localStorage.getItem("LSchangeSummaryOptions")) || [];
+  const key = getOptionKey();
+  const list = JSON.parse(localStorage.getItem(key)) || [];
   if (!list.includes(txt)) {
     list.push(txt);
-    localStorage.setItem("LSchangeSummaryOptions", JSON.stringify(list));
+    localStorage.setItem(key, JSON.stringify(list));
   }
   renderCustomOptionsPopup();
   renderSummaryOptions();
 }
 function deleteCustomOption(txt) {
-  let list = JSON.parse(localStorage.getItem("LSchangeSummaryOptions")) || [];
+  const key = getOptionKey();
+  let list = JSON.parse(localStorage.getItem(key)) || [];
   list = list.filter((x) => x !== txt);
-  localStorage.setItem("LSchangeSummaryOptions", JSON.stringify(list));
+  localStorage.setItem(key, JSON.stringify(list));
   removeButtonEntry(txt);
   renderCustomOptionsPopup();
   renderSummaryOptions();

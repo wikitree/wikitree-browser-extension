@@ -1240,6 +1240,8 @@ export function cc7DbKeyFor(profileId, userId) {
 async function backupData(compactMode, sendResponse) {
   const data = {};
   data.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
+  data.changeSummaryOptions_Space = localStorage.LSchangeSummaryOptions_Space;
+  data.changeSummaryOptions_Category = localStorage.LSchangeSummaryOptions_Category;
   data.myMenu = localStorage.customMenu;
   data.extraWatchlist = localStorage.extraWatchlist;
   data.textExpander = localStorage.wbe_text_expander_custom; // Add text expander data
@@ -1330,6 +1332,12 @@ export async function getAllRecords(db, storeName) {
 async function restoreData(data, sendResponse) {
   if (data.changeSummaryOptions) {
     localStorage.setItem("LSchangeSummaryOptions", data.changeSummaryOptions);
+  }
+  if (data.changeSummaryOptions_Space) {
+    localStorage.setItem("LSchangeSummaryOptions_Space", data.changeSummaryOptions_Space);
+  }
+  if (data.changeSummaryOptions_Category) {
+    localStorage.setItem("LSchangeSummaryOptions_Category", data.changeSummaryOptions_Category);
   }
   if (data.myMenu) {
     localStorage.setItem("customMenu", data.myMenu);
