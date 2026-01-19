@@ -534,7 +534,8 @@ function applySuggestionCorrections(container, locationField, userInput, mutatio
 
   // Also include augmented suggestions that were just injected
   augmentedSuggestions.forEach((sug) => {
-    suggestionsToProcess.push({ source: "aug", node: sug });
+    sug.source = "aug";
+    suggestionsToProcess.push(sug);
   });
 
   suggestionsToProcess.forEach(async function (suggestion) {
@@ -576,6 +577,8 @@ function applySuggestionCorrections(container, locationField, userInput, mutatio
       if (!inputRange) {
         dateIsGood = true; // no usable input date
         dbg2("date window eval - no useable input date");
+      } else if (!isWTSuggestion) {
+        dateIsGood = suggestion.dt === 1;
       } else {
         // Match ranges like:
         // (1801 - 1974)
@@ -1080,9 +1083,9 @@ function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, add
 function injectAugmentedSuggestions(container, suggestions) {
   const frag = document.createDocumentFragment();
 
-  for (const node of suggestions) {
-    node.classList.add("wbe-injected-suggestion");
-    frag.appendChild(node);
+  for (const item of suggestions) {
+    item.node.classList.add("wbe-injected-suggestion");
+    frag.appendChild(item.node);
   }
 
   container.prepend(frag);
@@ -1127,6 +1130,6 @@ function addNewSuggestion(added_node, userInput, term, record, villages = []) {
     item.p = villageBit + record.location;
     item.normalisedPath = normalise(item.p);
     const newSuggestion = formWTSuggestionElement(item, userInput);
-    $(newSuggestion).addClass(term).insertBefore($(added_node));
+    $(newSuggestion.node).addClass(term).insertBefore($(added_node));
   }
 }
