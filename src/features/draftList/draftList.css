@@ -25,6 +25,12 @@
   margin: 0.5em;
 }
 
+#myDraftsList {
+  max-height: 60vh;
+  overflow-y: auto;
+  min-width: 200px;
+}
+
 #myDrafts table td {
   padding: 0.5em;
   list-style: none;
