@@ -6,7 +6,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { isSpaceEdit } from "../../core/pageType";
 
 shouldInitializeFeature("saveButtonsStyleOptions").then((result) => {
-  if (result) {
+  if (result && 1 == 0) {
     import("./save_buttons_style_options.css");
     changeLinksToButtons();
     $("#wpSaveDraft").on("click", function () {
