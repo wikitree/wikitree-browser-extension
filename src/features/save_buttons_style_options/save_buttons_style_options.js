@@ -32,7 +32,7 @@ async function changeLinksToButtons() {
   if (isSpaceEdit) {
     container = $("#wpSave").closest("div");
   }
-  
+
   const options = await getFeatureOptions("saveButtonsStyleOptions");
   $("#saveButtons").addClass(options.buttonSize);
 
@@ -40,7 +40,7 @@ async function changeLinksToButtons() {
     // On space pages, style the utility buttons to match the return button styling
     $("a.viewDiffButton").addClass("btn btn-secondary button");
     $("#deleteDraftLinkContainer a").addClass("btn btn-secondary button");
-    
+
     const utilityButtons = $("a.btn-utility");
     // Find the link that contains the text "return to.*" and change it to a button
     let returnToButton = utilityButtons.filter(function () {
@@ -62,7 +62,7 @@ async function changeLinksToButtons() {
     theLinks.forEach((link) => {
       link.find("a").addClass("btn btn-secondary button small");
     });
-    
+
     if ($("#utilityButtons").length == 0) {
       const buttonContainer = $("<div></div>").prop("id", "utilityButtons");
       theLinks.forEach((link) => {

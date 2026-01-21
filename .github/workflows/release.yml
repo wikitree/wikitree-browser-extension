@@ -89,7 +89,7 @@ jobs:
             PROVISIONING_EXT_IOS="$PROVISIONING_PREVIEW_EXT_IOS"
             PROVISIONING_EXT_MACOS="$PROVISIONING_PREVIEW_EXT_MACOS"
           fi
-          
+
           # create variables for temporary files
           DIST_CERT_PATH=$RUNNER_TEMP/dist_certificate.p12
           INST_CERT_PATH=$RUNNER_TEMP/inst_certificate.p12
