@@ -153,7 +153,10 @@ function addListeners() {
         removeButtonEntry(option);
         removeFromSummary(option);
       }
-      $("#wpSave").prop("disabled", $("#wpSummary").val() === "");
+      // Only disable save button on profile edit pages (space and category edits don't require summaries)
+      if (isProfileEdit) {
+        $("#wpSave").prop("disabled", $("#wpSummary").val() === "");
+      }
     });
 
   /* add once, right after the existing .wbe-checkbox handler */
