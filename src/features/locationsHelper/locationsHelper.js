@@ -1032,7 +1032,7 @@ function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, add
         .split(",")
         .map((p) => p.trim())
         .filter(Boolean);
-      const hasUS = (parts[parts.length - 1] || "").toLowerCase() === "united states";
+      const hasUS = (parts[parts.length - 1] || "").toLowerCase().startsWith("united states");
       // Expect at least <city>, <county>, <state>, United States
       if (hasUS && parts.length >= 3) {
         const stateName = parts[parts.length - 2];
