@@ -3154,10 +3154,13 @@ class FeedHelper {
 
           // Update the popup with the actual bio
           const highlightedBio = this.highlightMarkup(person.bio).replace(/\n/g, "<br>");
+          const bioCheckIssues = this.buildBioCheckIssues(person);
           $(`.bioPopup[data-id="${bioId}"]`).html(
             `<x class="closeBioPopup">&times;</x>
-            ${highlightedBio}`
+              ${highlightedBio}
+              ${bioCheckIssues.html}`
           );
+          this.applyBioCheckHighlights($(`.bioPopup[data-id="${bioId}"]`), bioCheckIssues.issues);
         } else {
           // No bio content available
           $(`.bioPopup[data-id="${bioId}"]`).html(
@@ -3508,6 +3511,11 @@ class FeedHelper {
     // Escape HTML characters
     let escapedText = this.escapeHtml(text);
 
+    const extractRefName = (refTag) => {
+      const nameMatch = refTag.match(/name\s*=\s*(?:&quot;|&#039;|["'“”])?([^"'“”&>\s\/]+)(?:&quot;|&#039;|["'“”])?/i);
+      return nameMatch ? nameMatch[1] : "";
+    };
+
     // Highlight headings (== Heading == to ===== Heading =====)
     escapedText = escapedText.replace(/(={2,5})([^=]+)\1/g, function (match, p1, p2) {
       let level = p1.length; // Heading level based on number of '='
@@ -3515,17 +3523,28 @@ class FeedHelper {
     });
 
     // Highlight self-closing <ref/> tags first
-    escapedText = escapedText.replace(/(&lt;ref\b[^&]*?\/&gt;)/gi, function (match) {
-      return '<span class="reference"><span class="ref-tag">' + match + "</span></span>";
+    escapedText = escapedText.replace(/(&lt;ref\b[\s\S]*?\/&gt;)/gi, (match) => {
+      if (match.includes("ref-tag") || match.includes("reference")) {
+        return match;
+      }
+      const refName = extractRefName(match);
+      const refAttr = refName ? ` data-ref-name="${this.escapeHtml(refName)}"` : "";
+      return `<span class="reference"><span class="ref-tag"${refAttr}>${match}</span></span>`;
     });
 
     // Highlight paired <ref>...</ref> tags, ensuring they are matched separately
-    escapedText = escapedText.replace(/(&lt;ref\b[^&]*?&gt;)([\s\S]*?)(&lt;\/ref&gt;)/gi, function (match, p1, p2, p3) {
+    escapedText = escapedText.replace(/(&lt;ref\b[\s\S]*?&gt;)([\s\S]*?)(&lt;\/ref&gt;)/gi, (match, p1, p2, p3) => {
       // Ensure self-closing tags inside p2 are not treated as part of a match
-      if (p2.includes('<span class="ref-tag">')) {
+      if (p2.includes('<span class="ref-tag">') || match.includes("reference") || match.includes("ref-tag")) {
         return match; // Return unchanged if there's already highlighted content
       }
-      return `<span class="reference"><span class="ref-tag">${p1}</span>${p2}<span class="ref-tag">${p3}</span></span>`;
+      // Avoid greedy matches that swallow multiple refs or huge spans
+      if (p2.includes("&lt;ref") || p2.includes('<span class="h') || p2.length > 400) {
+        return match;
+      }
+      const refName = extractRefName(p1);
+      const refAttr = refName ? ` data-ref-name="${this.escapeHtml(refName)}"` : "";
+      return `<span class="reference"><span class="ref-tag"${refAttr}>${p1}</span>${p2}<span class="ref-tag">${p3}</span></span>`;
     });
 
     // Highlight lines starting with '*' in the '== Sources ==' section, including the '*'
@@ -3578,12 +3597,15 @@ class FeedHelper {
 
       if (bio && bio.bio) {
         const highlightedBio = this.highlightMarkup(bio.bio).replace(/\n/g, "<br>");
+        const bioCheckIssues = this.buildBioCheckIssues(bio);
         $("main#main").prepend(
           `<div class="bioPopup" data-id="${bioId}">
             <x class="closeBioPopup">&times;</x>
             ${highlightedBio}
+            ${bioCheckIssues.html}
           </div>`
         );
+        this.applyBioCheckHighlights($(`.bioPopup[data-id="${bioId}"]`), bioCheckIssues.issues);
       } else {
         // Bio content not available, fetch it automatically
         this.debug(`Bio not found in cache for ${bioId}, fetching...`);
@@ -3947,6 +3969,742 @@ class FeedHelper {
       bioCheckPassed = !biography.hasProblems() && !duplicateBirthResult;
     }
     return bioCheckPassed;
+  }
+
+  buildBioCheckIssues(person) {
+    try {
+      if (!person || !person.bio) {
+        return { html: "", issues: [] };
+      }
+
+      const thePerson = new BioCheckPerson();
+      const canUseThis = thePerson.canUse(person, false, false, false, 0);
+      if (!canUseThis) {
+        this.debug("Bio Check: profile not fully usable by BioCheckPerson; proceeding with limited data.");
+      }
+
+      const biography = new Biography(theSourceRules);
+      biography.parse(person.bio, thePerson, "");
+      biography.validate();
+
+      const invalidSources = biography.getInvalidSources() || [];
+      const invalidDnaSources = biography.getInvalidDnaSources() || [];
+      const sectionMessages = biography.getSectionMessages() || [];
+      const styleMessages = biography.getStyleMessages() || [];
+      const duplicateBirthResult = this.checkForDuplicateBirthInfo(
+        person.bio,
+        thePerson.person?.profileId,
+        thePerson.person?.wikiTreeId,
+        thePerson.person?.firstName
+      );
+
+      let issuesHtml = "";
+      const issues = [];
+      const addItem = (text) => {
+        issuesHtml += `<li>${this.escapeHtml(text)}</li>`;
+        issues.push({ type: "message", value: text });
+      };
+
+      const hasProblems = biography.hasProblems() || !!duplicateBirthResult;
+
+      if (!biography.hasSources()) {
+        addItem("Profile may be unsourced");
+      } else {
+        addItem("Profile appears to have sources");
+      }
+
+      if (typeof biography.getScore === "function") {
+        const score = biography.getScore();
+        if (score !== undefined && score !== null) {
+          addItem(`Bio Score: ${score}`);
+        }
+      }
+
+      if (invalidSources.length > 0) {
+        const reliabilityNote = thePerson.isPre1700() ? "reliable or " : "";
+        const sourcesList = invalidSources.map((source) => `<li>${this.escapeHtml(source)}</li>`).join("");
+        issuesHtml += `<li>Bio Check found sources that are not ${reliabilityNote}clearly identified.`;
+        issuesHtml += `<ul class="bio-check-sublist">${sourcesList}</ul></li>`;
+        invalidSources.forEach((source) => issues.push({ type: "source", value: source }));
+      }
+
+      if (invalidDnaSources.length > 0) {
+        const dnaSourcesList = invalidDnaSources.map((source) => `<li>${this.escapeHtml(source)}</li>`).join("");
+        issuesHtml += `<li>Bio Check found DNA sources that may not be complete.`;
+        issuesHtml += `<ul class="bio-check-sublist">${dnaSourcesList}</ul></li>`;
+        invalidDnaSources.forEach((source) => issues.push({ type: "source", value: source }));
+      }
+
+      sectionMessages.forEach((message) => addItem(message));
+      styleMessages.forEach((message) => addItem(message));
+
+      if (duplicateBirthResult && duplicateBirthResult.message) {
+        addItem(duplicateBirthResult.message);
+      }
+
+      if (!issuesHtml && hasProblems) {
+        addItem("Bio Check flagged issues but no detailed messages were generated.");
+      }
+
+      if (!issuesHtml) {
+        return { html: "", issues: [] };
+      }
+
+      return {
+        html: `
+        <div class="bio-check-results">
+          <h3>Bio Check:</h3>
+          <ul>${issuesHtml}</ul>
+        </div>
+      `,
+        issues,
+      };
+    } catch (error) {
+      this.debug("Bio Check issue extraction failed:", error);
+      return { html: "", issues: [] };
+    }
+  }
+
+  applyBioCheckHighlights($popup, issues) {
+    if (!$popup || $popup.length === 0 || !issues || issues.length === 0) {
+      return;
+    }
+
+    const normalize = (text) => String(text).toLowerCase().replace(/\s+/g, " ").trim();
+
+    const normalizeForMatch = (text) =>
+      String(text)
+        .toLowerCase()
+        .replace(/\[\[[^\]|]+\|([^\]]+)\]\]/g, "$1")
+        .replace(/\[\[([^\]]+)\]\]/g, "$1")
+        .replace(/\{\{[^}]+\}\}/g, " ")
+        .replace(/[^a-z0-9]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const extractIds = (text) => {
+      const ids = new Set();
+      if (!text) {
+        return ids;
+      }
+      const matches = String(text).match(/\b[SR]-\d+\b/g);
+      if (matches) {
+        matches.forEach((id) => ids.add(id));
+      }
+      return ids;
+    };
+
+    const stripIdTokens = (text) =>
+      String(text)
+        .replace(/\b[SR]-\d+\b/gi, " ")
+        .replace(/\bspan\b/gi, " ")
+        .replace(/\bid\b/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const matchesSourceText = (lineTextRaw, sourceRaw) => {
+      const lineText = normalize(lineTextRaw);
+      const sourceText = String(sourceRaw || "").trim();
+      if (!sourceText) {
+        return false;
+      }
+      const sourceIds = extractIds(sourceText);
+      if (sourceIds.size > 0) {
+        for (const id of sourceIds) {
+          const idNorm = normalize(id);
+          if (idNorm && lineText.includes(idNorm)) {
+            return true;
+          }
+        }
+      }
+      const urlMatch = sourceText.match(/https?:\/\/[^\s\]\)]+/i);
+      if (urlMatch && urlMatch[0]) {
+        const urlText = normalize(urlMatch[0]);
+        if (urlText && lineText.includes(urlText)) {
+          return true;
+        }
+        return false;
+      }
+      const normalizedSource = normalize(sourceText);
+      if (normalizedSource.length <= 200 && lineText.includes(normalizedSource)) {
+        return true;
+      }
+      if (/^(source|repository)\b/i.test(sourceText)) {
+        const lineMatchStripped = stripIdTokens(normalizeForMatch(lineTextRaw));
+        const sourceMatchStripped = stripIdTokens(normalizeForMatch(sourceText));
+        if (lineMatchStripped && sourceMatchStripped && lineMatchStripped.startsWith(sourceMatchStripped)) {
+          return true;
+        }
+      }
+      const lineMatchText = normalizeForMatch(lineTextRaw);
+      const sourceMatchText = normalizeForMatch(sourceText);
+      if (!sourceMatchText) {
+        return false;
+      }
+      const sourceTokens = sourceMatchText.split(" ").filter((t) => t.length > 3);
+      const lineTokens = lineMatchText.split(" ").filter((t) => t.length > 3);
+      if (sourceTokens.length === 0 || lineTokens.length === 0) {
+        return false;
+      }
+      const phraseTokens = sourceTokens.slice(0, 5);
+      const phrase = phraseTokens.join(" ").trim();
+      const linePrefix = lineTokens.slice(0, 5).join(" ").trim();
+      if (!phrase || !linePrefix || phrase !== linePrefix) {
+        return false;
+      }
+      const tokens = Array.from(new Set(sourceMatchText.split(" ").filter((t) => t.length > 3)));
+      if (tokens.length === 0) {
+        return false;
+      }
+      let matches = 0;
+      let requiredMatches = 0;
+      tokens.forEach((token) => {
+        if (token.length >= 7) {
+          requiredMatches += 1;
+        }
+      });
+      tokens.forEach((token) => {
+        if (lineMatchText.includes(token)) {
+          matches += 1;
+        }
+      });
+      const threshold = Math.max(3, Math.ceil(tokens.length * 0.7));
+      if (matches < threshold) {
+        return false;
+      }
+      if (requiredMatches > 0 && matches < requiredMatches) {
+        return false;
+      }
+      return true;
+    };
+
+    const escapeRegExp = (text) => String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    const matchers = [];
+    issues.forEach((issue) => {
+      if (!issue || !issue.value) {
+        return;
+      }
+      if (issue.type === "source") {
+        matchers.push({ type: "sourceText", value: issue.value });
+        // Also check if this source is an "Entered by" source
+        if (/^Entered by\b/i.test(issue.value)) {
+          matchers.push({ type: "enteredBy", value: issue.value });
+        }
+        return;
+      }
+
+      const message = issue.value;
+      if (/^Entered by\b/i.test(message)) {
+        matchers.push({ type: "enteredBy", value: message });
+      }
+      if (/Acknowledgements subsection instead of section/i.test(message)) {
+        matchers.push({ type: "heading", value: "Acknowledgement" });
+      }
+      const htmlNotRecommendedMatch = message.match(/Biography contains HTML tag that is not recommended\s*(.*)$/i);
+      if (htmlNotRecommendedMatch && htmlNotRecommendedMatch[1]) {
+        const snippet = htmlNotRecommendedMatch[1].trim();
+        if (snippet) {
+          matchers.push({ type: "htmlNotRecommended", value: snippet });
+        }
+      }
+      const refMatch = message.match(/Inline <ref>\s*([^\s]+)\s+has no citation/i);
+      if (refMatch && refMatch[1]) {
+        matchers.push({ type: "ref", value: refMatch[1] });
+      }
+      const refDupMatch = message.match(/Inline <ref>\s*([^\s]+)\s+defined more than once/i);
+      if (refDupMatch && refDupMatch[1]) {
+        matchers.push({ type: "ref", value: refDupMatch[1] });
+      }
+      const refNoEndMatch = message.match(/Inline <ref> tag with no ending/i);
+      if (refNoEndMatch) {
+        matchers.push({ type: "refAny" });
+      }
+      const headingMatch = message.match(/Wrong level heading\s*==\s*([^=]+)\s*==/i);
+      if (headingMatch && headingMatch[1]) {
+        matchers.push({ type: "heading", value: headingMatch[1] });
+      }
+      const missingHeadingMatch = message.match(/Missing\s+([^\n]+?)\s+heading/i);
+      if (missingHeadingMatch && missingHeadingMatch[1]) {
+        matchers.push({ type: "headingMissing", value: missingHeadingMatch[1] });
+      }
+      const multipleHeadingMatch = message.match(/Multiple\s+([^\n]+?)\s+headings/i);
+      if (multipleHeadingMatch && multipleHeadingMatch[1]) {
+        matchers.push({ type: "heading", value: multipleHeadingMatch[1] });
+      }
+      const starIndex = message.indexOf("*");
+      if (starIndex !== -1) {
+        const snippet = message.slice(starIndex + 1).trim();
+        if (snippet) {
+          matchers.push({ type: "snippet", value: snippet });
+        }
+      }
+      const spanIdMatch = message.match(
+        /(?:<|&lt;)span\s+id\s*=\s*(?:&quot;|&#039;|["'“”])?([^"'“”>\s]+)(?:&quot;|&#039;|["'“”])?/i
+      );
+      if (spanIdMatch && spanIdMatch[1]) {
+        matchers.push({ type: "spanId", value: spanIdMatch[1] });
+      }
+      const spanIdPrefixMatch = message.match(/(?:<|&lt;)span\s+id\s*=\s*(?:&quot;|&#039;|["'“”])?([SR]-\d+)/i);
+      if (spanIdPrefixMatch && spanIdPrefixMatch[1]) {
+        matchers.push({ type: "spanIdPrefix", value: spanIdPrefixMatch[1] });
+      }
+
+      const categoryMatch = message.match(/\[\[Category:\s*([^\]]+)\]\]/i);
+      if (categoryMatch && categoryMatch[1]) {
+        const categoryName = categoryMatch[1].trim();
+        matchers.push({ type: "snippet", value: `[[Category: ${categoryName}]]` });
+      }
+
+      const templateMatch = message.match(/Research Note Box:\s*([^\s]+)/i);
+      if (templateMatch && templateMatch[1]) {
+        matchers.push({ type: "template", value: templateMatch[1] });
+      }
+      const navBoxMatch = message.match(/Navigation Box:\s*([^\s]+)/i);
+      if (navBoxMatch && navBoxMatch[1]) {
+        matchers.push({ type: "template", value: navBoxMatch[1] });
+      }
+      const projectBoxMatch = message.match(/Project Box:\s*([^\s]+)/i);
+      if (projectBoxMatch && projectBoxMatch[1]) {
+        matchers.push({ type: "template", value: projectBoxMatch[1] });
+      }
+    });
+
+    // First, try precise element-based matching (id, id-prefix, Entered by) to avoid fuzzy over-highlighting
+    const matchedMatcherIdx = new Set();
+    matchers.forEach((matcher, idx) => {
+      if (!matcher || !matcher.type) return;
+      if (matcher.type === "spanId") {
+        const spanId = String(matcher.value || "").trim();
+        if (!spanId) return;
+        // find element with exact id
+        const $el = $popup.find(`[id='${spanId}']`);
+        let matchedLine = false;
+        if ($el.length) {
+          $el.addClass("bio-check-issue-inline");
+          const $line = $el.closest(".source-line");
+          if ($line.length) {
+            $line.addClass("bio-check-issue-line");
+            $line.find(".bullet").addClass("bio-check-issue-bullet");
+            matchedLine = true;
+          }
+        }
+        if (matchedLine) {
+          matchedMatcherIdx.add(idx);
+        }
+      }
+
+      if (matcher.type === "spanIdPrefix") {
+        const prefix = String(matcher.value || "").trim();
+        if (!prefix) return;
+        // find elements whose id starts with the prefix
+        const $els = $popup.find(`[id^='${prefix}']`);
+        let matchedLine = false;
+        if ($els.length) {
+          $els.each(function () {
+            const $el = $(this);
+            $el.addClass("bio-check-issue-inline");
+            const $line = $el.closest(".source-line");
+            if ($line.length) {
+              $line.addClass("bio-check-issue-line");
+              $line.find(".bullet").addClass("bio-check-issue-bullet");
+              matchedLine = true;
+            }
+          });
+        }
+        if (matchedLine) {
+          matchedMatcherIdx.add(idx);
+        }
+      }
+
+      if (matcher.type === "enteredBy") {
+        // highlight any source-line or reference that contains 'Entered by'
+        const found = [];
+        $popup.find(".source-line, .reference").each(function () {
+          const $el = $(this);
+          const text = normalize($el.text() || "");
+          if (text.includes("entered by")) {
+            if ($el.hasClass("reference")) {
+              $el.addClass("bio-check-issue-reference");
+              $el.find(".ref-tag").addClass("bio-check-issue-ref");
+            } else {
+              $el.addClass("bio-check-issue-line");
+              $el.find(".bullet").addClass("bio-check-issue-bullet");
+              $el.find(".ref-tag").addClass("bio-check-issue-ref");
+            }
+            found.push($el);
+          }
+        });
+        if (found.length) {
+          matchedMatcherIdx.add(idx);
+        }
+      }
+    });
+
+    // Then continue to per-line matching, but skip matchers already handled precisely above
+    const sourceLines = $popup.find(".source-line");
+    sourceLines.each(function () {
+      const $line = $(this);
+      const lineText = normalize($line.text());
+      const lineHtml = $line.html() || "";
+
+      for (let m = 0; m < matchers.length; m++) {
+        if (matchedMatcherIdx.has(m)) continue;
+        const matcher = matchers[m];
+
+        if (matcher.type === "snippet") {
+          const snippetText = normalize(matcher.value);
+          if (snippetText && lineText.includes(snippetText)) {
+            $line.addClass("bio-check-issue-line");
+            $line.find(".bullet").addClass("bio-check-issue-bullet");
+            $line.find(".ref-tag").addClass("bio-check-issue-ref");
+            break;
+          }
+        }
+
+        if (matcher.type === "sourceText") {
+          if (matchesSourceText($line.text(), matcher.value)) {
+            $line.addClass("bio-check-issue-line");
+            $line.find(".bullet").addClass("bio-check-issue-bullet");
+            $line.find(".ref-tag").addClass("bio-check-issue-ref");
+            break;
+          }
+        }
+
+        if (matcher.type === "spanId") {
+          const spanId = matcher.value;
+          const spanIdRegex = new RegExp(`id\\s*=\\s*[\"'“”]?${escapeRegExp(spanId)}[\"'“”]?`, "i");
+          if (spanIdRegex.test(lineHtml)) {
+            $line.addClass("bio-check-issue-line");
+            $line.find(".bullet").addClass("bio-check-issue-bullet");
+            $line.find(".ref-tag").addClass("bio-check-issue-ref");
+            break;
+          }
+        }
+
+        if (matcher.type === "spanIdPrefix") {
+          const spanIdPrefix = String(matcher.value || "").trim();
+          if (!spanIdPrefix) {
+            continue;
+          }
+          const spanIdPrefixRegex = new RegExp(`id\\s*=\\s*[\"'“”]?${escapeRegExp(spanIdPrefix)}`, "i");
+          if (spanIdPrefixRegex.test(lineHtml)) {
+            $line.addClass("bio-check-issue-line");
+            $line.find(".bullet").addClass("bio-check-issue-bullet");
+            $line.find(".ref-tag").addClass("bio-check-issue-ref");
+            break;
+          }
+        }
+
+        if (matcher.type === "ref") {
+          const refName = matcher.value;
+          const refNameNormalized = normalize(refName);
+          const refRegex = new RegExp(`id\\s*=\\s*[\"'“”]?${escapeRegExp(refName)}[\"'“”]?`, "i");
+          const refHashRegex = new RegExp(`#${escapeRegExp(refName)}`, "i");
+          if (refRegex.test(lineHtml) || refHashRegex.test(lineHtml)) {
+            $line.addClass("bio-check-issue-line");
+            $line.find(".bullet").addClass("bio-check-issue-bullet");
+            $line.find(".ref-tag").addClass("bio-check-issue-ref");
+            break;
+          }
+        }
+
+        if (matcher.type === "refAny") {
+          if (/(<ref|&lt;ref)/i.test(lineHtml)) {
+            $line.addClass("bio-check-issue-line");
+            $line.find(".bullet").addClass("bio-check-issue-bullet");
+            $line.find(".ref-tag").addClass("bio-check-issue-ref");
+            break;
+          }
+        }
+      }
+    });
+
+    // Highlight inline <ref>...</ref> blocks that match invalid source text
+    const referenceBlocks = $popup.find(".reference");
+    referenceBlocks.each(function () {
+      const $ref = $(this);
+      const refText = normalize($ref.text());
+      for (const matcher of matchers) {
+        if (matcher.type === "enteredBy") {
+          if (normalize(refText).startsWith("entered by")) {
+            $ref.addClass("bio-check-issue-reference");
+            $ref.find(".ref-tag").addClass("bio-check-issue-ref");
+            break;
+          }
+          continue;
+        }
+        if (matcher.type === "sourceText") {
+          const rawSource = String(matcher.value || "").trim();
+          if (!rawSource) {
+            continue;
+          }
+          const isEnteredBySource = /^entered by\b/i.test(rawSource);
+          if (refText.length > 800) {
+            continue;
+          }
+          if (isEnteredBySource) {
+            if (!refText.startsWith("entered by")) {
+              continue;
+            }
+          }
+          const urlMatch = rawSource.match(/https?:\/\/[^\s\]\)]+/i);
+          if (urlMatch && urlMatch[0]) {
+            const urlText = normalize(urlMatch[0]);
+            if (urlText && refText.includes(urlText)) {
+              $ref.addClass("bio-check-issue-reference");
+              $ref.find(".ref-tag").addClass("bio-check-issue-ref");
+              break;
+            }
+          }
+          const sourceText = normalize(rawSource);
+          if (sourceText.length <= 400 && refText.includes(sourceText)) {
+            $ref.addClass("bio-check-issue-reference");
+            $ref.find(".ref-tag").addClass("bio-check-issue-ref");
+            break;
+          }
+          // Fuzzy matching for longer sources in references
+          const sourceMatchText = normalizeForMatch(rawSource);
+          const refMatchText = normalizeForMatch(refText);
+          if (sourceMatchText && refMatchText && sourceMatchText.length > 20) {
+            const tokens = sourceMatchText.split(" ").filter((t) => t.length > 4);
+            if (tokens.length >= 3) {
+              let matches = 0;
+              tokens.forEach((token) => {
+                if (refMatchText.includes(token)) {
+                  matches += 1;
+                }
+              });
+              const threshold = Math.max(3, Math.ceil(tokens.length * 0.6));
+              if (matches >= threshold) {
+                $ref.addClass("bio-check-issue-reference");
+                $ref.find(".ref-tag").addClass("bio-check-issue-ref");
+                break;
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Highlight plain bullet lines (e.g., See also) that match invalid source text
+    const highlightBulletLines = (html, matcher) => {
+      const lines = html.split(/<br\s*\/?>(?![^<]*>)/i);
+      const updated = lines.map((line) => {
+        if (!line || line.includes("bio-check-issue-line") || line.includes("bio-check-results")) {
+          return line;
+        }
+        const plain = line
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+        const isBullet = plain.startsWith("*");
+        const withoutBullet = isBullet ? plain.replace(/^\*\s*/, "") : plain;
+        if (matcher.type === "sourceText") {
+          const sourceRaw = String(matcher.value || "").trim();
+          if (!sourceRaw) {
+            return line;
+          }
+          const isEnteredBy = /^entered by\b/i.test(sourceRaw);
+          let matched = false;
+          if (!isBullet) {
+            if (isEnteredBy) {
+              const normalizedLine = normalize(withoutBullet);
+              const normalizedSource = normalize(sourceRaw);
+              // For "Entered by" sources, check if the line contains key parts of the message
+              if (
+                normalizedLine.includes("entered by") &&
+                (normalizedLine.includes(normalizedSource.split(" ").slice(0, 3).join(" ")) ||
+                  normalizedLine.includes("entered"))
+              ) {
+                matched = true;
+              } else {
+                return line;
+              }
+            }
+            // For non-entered-by sources, continue to check matchesSourceText even for non-bullets
+          }
+          // Skip highlighting lines that contain references, to avoid over-highlighting when the ref is already highlighted
+          if (line.includes('<span class="reference">') || line.includes("&lt;ref")) {
+            return line;
+          }
+          if (!matched && !matchesSourceText(withoutBullet, sourceRaw)) {
+            return line;
+          }
+        } else if (matcher.type === "htmlNotRecommended") {
+          const snippet = String(matcher.value || "").trim();
+          if (!snippet) {
+            return line;
+          }
+          const normalizedSnippet = normalize(snippet);
+          const normalizedLine = normalize(withoutBullet);
+          const lineHasSpan = /(?:<|&lt;)span[^>]*\bid\s*=/i.test(line);
+          const spanIdPrefixInLine = (line.match(/\bid\s*=\s*(?:&quot;|&#039;|["'“”])?([SR]-\d+)/i) || [])[1];
+          const lineIsSource = normalizedLine.startsWith("source:");
+          const lineIsRepository = normalizedLine.startsWith("repository:");
+          const lineHasDisambiguation = normalizedLine.includes("disambiguation note");
+          if (!lineHasSpan && !lineIsSource && !lineIsRepository && !lineHasDisambiguation) {
+            return line;
+          }
+          if (normalizedSnippet.startsWith("repository:")) {
+            if (!lineIsRepository) {
+              return line;
+            }
+          } else if (normalizedSnippet.startsWith("* repository:")) {
+            if (!lineIsRepository) {
+              return line;
+            }
+          } else if (normalizedSnippet.startsWith("source:")) {
+            if (!lineIsSource) {
+              return line;
+            }
+          } else if (normalizedSnippet.startsWith("* source:")) {
+            if (!lineIsSource) {
+              return line;
+            }
+          }
+
+          if (snippet.includes("span id") || snippet.includes("<span") || snippet.includes("&lt;span")) {
+            const spanIdMatch = snippet.match(
+              /(?:<|&lt;)span\s+id\s*=\s*(?:&quot;|&#039;|["'“”])?([^"'“”>\s]+)(?:&quot;|&#039;|["'“”])?/i
+            );
+            if (spanIdMatch && spanIdMatch[1]) {
+              const spanId = spanIdMatch[1];
+              const spanIdRegex = new RegExp(`id\\s*=\\s*[\"'“”]?${escapeRegExp(spanId)}[\"'“”]?`, "i");
+              if (!spanIdRegex.test(line)) {
+                // If exact match fails, check if it's a source/repository line with any span ID
+                if ((lineIsSource || lineIsRepository) && spanIdPrefixInLine) {
+                  // Accept source/repository lines that have span IDs, even if truncated in snippet
+                } else {
+                  return line;
+                }
+              }
+            } else {
+              // Snippet mentions span but might be truncated; if line has span and is source/repository, accept it
+              if (!lineHasSpan) {
+                return line;
+              }
+              if (!lineIsSource && !lineIsRepository && !spanIdPrefixInLine) {
+                return line;
+              }
+            }
+          } else if (normalizedSnippet.startsWith("<b") || normalizedSnippet.startsWith("b>")) {
+            if (!line.includes("<b") && !line.includes("&lt;b")) {
+              return line;
+            }
+            if (!lineHasDisambiguation) {
+              return line;
+            }
+          } else {
+            return line;
+          }
+        } else if (matcher.type === "spanId") {
+          const spanId = String(matcher.value || "").trim();
+          if (!spanId) {
+            return line;
+          }
+          const spanIdRegex = new RegExp(`id\\s*=\\s*[\"'“”]?${escapeRegExp(spanId)}[\"'“”]?`, "i");
+          if (!spanIdRegex.test(line)) {
+            return line;
+          }
+        } else if (matcher.type === "spanIdPrefix") {
+          const spanIdPrefix = String(matcher.value || "").trim();
+          if (!spanIdPrefix) {
+            return line;
+          }
+          const spanIdPrefixRegex = new RegExp(`id\\s*=\\s*[\"'“”]?${escapeRegExp(spanIdPrefix)}`, "i");
+          if (!spanIdPrefixRegex.test(line)) {
+            return line;
+          }
+        } else if (matcher.type === "snippet") {
+          const snippetText = normalize(matcher.value);
+          const normalizedLine = normalize(withoutBullet);
+          if (!snippetText || !normalizedLine.includes(snippetText)) {
+            return line;
+          }
+        } else {
+          return line;
+        }
+        let updatedLine = line;
+        if (isBullet && !updatedLine.includes("bio-check-issue-bullet")) {
+          updatedLine = updatedLine.replace(/(^|>)(\s*\*)/, `$1<span class="bio-check-issue-bullet">*</span>`);
+        }
+        return `<span class="bio-check-issue-line">${updatedLine}</span>`;
+      });
+      return updated.join("<br>");
+    };
+
+    matchers
+      .filter(
+        (matcher) =>
+          matcher.type === "sourceText" ||
+          matcher.type === "htmlNotRecommended" ||
+          matcher.type === "spanId" ||
+          matcher.type === "spanIdPrefix" ||
+          matcher.type === "snippet"
+      )
+      .forEach((matcher) => {
+        $popup.html((_, html) => highlightBulletLines(html, matcher));
+      });
+
+    // Highlight inline ref tags in the bio for missing citations
+    matchers
+      .filter((matcher) => matcher.type === "ref")
+      .forEach((matcher) => {
+        const refName = matcher.value;
+        const refNameNormalized = normalize(refName);
+        $popup.find(".ref-tag[data-ref-name]").each(function () {
+          const $tag = $(this);
+          const dataName = normalize($tag.data("ref-name") || "");
+          if (dataName && dataName === refNameNormalized) {
+            $tag.addClass("bio-check-issue-ref");
+          }
+        });
+
+        // Fallback for any escaped ref tags that didn't get wrapped
+        const fallbackRegex = new RegExp(
+          `(&lt;ref[\\s\\S]*?name\\s*=\\s*(?:&quot;|&#039;|[\\"'“”])?${escapeRegExp(
+            refName
+          )}(?:&quot;|&#039;|[\\"'“”])?[\\s\\S]*?\\/&gt;)`,
+          "gi"
+        );
+        $popup.html(function (_, html) {
+          return html.replace(fallbackRegex, `<span class="ref-tag bio-check-issue-ref">$1</span>`);
+        });
+      });
+
+    // Highlight headings mentioned in messages
+    matchers
+      .filter((matcher) => matcher.type === "heading")
+      .forEach((matcher) => {
+        const headingText = normalize(matcher.value);
+        $popup.find(".h2, .h3, .h4, .h5").each(function () {
+          const $heading = $(this);
+          const normalizedHeading = normalize($heading.text());
+          // For acknowledgements, match both "acknowledgement" and "acknowledgment" variants
+          let matched = normalizedHeading.includes(headingText);
+          if (!matched && headingText.includes("acknowledgement")) {
+            matched = normalizedHeading.includes("acknowledgment");
+          }
+          if (!matched && headingText.includes("acknowledgment")) {
+            matched = normalizedHeading.includes("acknowledgement");
+          }
+          if (matched) {
+            $heading.addClass("bio-check-issue-line");
+          }
+        });
+      });
+
+    // Highlight template mentions like {{DateGuess}}
+    matchers
+      .filter((matcher) => matcher.type === "template")
+      .forEach((matcher) => {
+        const templateName = matcher.value;
+        const templateRegex = new RegExp(`(\{\{\s*${escapeRegExp(templateName)}[^}]*\}\})`, "gi");
+        $popup.html(function (_, html) {
+          return html.replace(templateRegex, `<span class="bio-check-issue-inline">$1</span>`);
+        });
+      });
   }
 
   /**
