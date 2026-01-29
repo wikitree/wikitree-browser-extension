@@ -165,7 +165,7 @@ function highlightSearchWords(theLocationText, dText, innerBit) {
         // Escape special regex characters in the word
         const escapedWord = aWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         // Use word boundaries to match whole words only (case insensitive)
-        const wordRegex = new RegExp(`(${escapedWord})`, "gi");
+        const wordRegex = new RegExp(`(${escapedWord})(?![^<]*>)`, "gi");
         textContent = textContent.replace(wordRegex, '<span class="autocomplete-suggestion-term">$1</span>');
       }
     });
@@ -195,7 +195,7 @@ function fixText(added_node, userInput, dText, innerBit, innerBitText) {
     }
   }
 
-  $(added_node).find(".autocomplete-suggestion").attr("data-val", cleanText.trim());
+  $(added_node).attr("data-val", cleanText.trim());
   highlightSearchWords(userInput, cleanText, innerBit);
 }
 
@@ -1049,7 +1049,7 @@ function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, add
                   const before = dText;
                   parts[parts.length - 3] = countyName + " " + aKey;
                   dText = parts.join(", ");
-                  innerBitText = dText;
+                  innerBitText = stripLocationDates(dText);
                   logIfChanged("Alaska borough/census-area suffix", before, dText);
                 }
               });
@@ -1057,13 +1057,13 @@ function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, add
               const before = dText;
               parts[parts.length - 3] = countyName + " Parish";
               dText = parts.join(", ");
-              innerBitText = dText;
+              innerBitText = stripLocationDates(dText);
               logIfChanged("Louisiana Parish name", before, dText);
             } else {
               const before = dText;
               parts[parts.length - 3] = countyName + " County";
               dText = parts.join(", ");
-              innerBitText = dText;
+              innerBitText = stripLocationDates(dText);
               logIfChanged("US County suffix", before, dText);
             }
           } else {
