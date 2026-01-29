@@ -70,7 +70,7 @@ export async function initLocationSuggestions(suggestionOption) {
 
     select2Selections = countries.map((c) => ({
       id: c.Code,
-      text: `${c.Code} - ${c.Country}`,
+      text: c.Country,
       selected: defaults.countries && defaults.countries.includes(c.Code),
     }));
   }
@@ -381,7 +381,7 @@ function insertCountrySelectAbove(inputfield, sid) {
 
   //         select2Selections = countries.map((c) => ({
   //           id: c.Code,
-  //           text: `${c.Code} - ${c.Country}`,
+  //           text: c.Country,
   //           selected: defaults.countries && defaults.countries.includes(c.Code),
   //         }));
 
@@ -618,7 +618,7 @@ async function updateCountrySelectors() {
 
   select2Selections = countries.map((c) => ({
     id: c.Code,
-    text: `${c.Code} - ${c.Country}`,
+    text: c.Country,
     selected: defaults.countries && defaults.countries.includes(c.Code),
   }));
 
