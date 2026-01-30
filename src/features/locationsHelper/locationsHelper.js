@@ -165,7 +165,7 @@ function highlightSearchWords(theLocationText, dText, innerBit) {
         // Escape special regex characters in the word
         const escapedWord = aWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         // Use word boundaries to match whole words only (case insensitive)
-        const wordRegex = new RegExp(`(${escapedWord})`, "gi");
+        const wordRegex = new RegExp(`(${escapedWord})(?![^<]*>)`, "gi");
         textContent = textContent.replace(wordRegex, '<span class="autocomplete-suggestion-term">$1</span>');
       }
     });
@@ -175,55 +175,105 @@ function highlightSearchWords(theLocationText, dText, innerBit) {
   }
 }
 
-function fixText(added_node, userInput, dText, innerBit, innerBitText) {
+/**
+ * Update the suggestion node to have corrected text and dates
+ * @param {*} added_node A <div class="autocomplete-suggestion">...</div> element representing a suggestion
+ *            This div typcally has the following form:
+ *              <div class="autocomplete-suggestion" data-val="Hagerstown, Maryland">
+ *                <img src="/images/icons/map.gif">
+ *                <span>
+ *                  <span class="autocomplete-suggestion-term">Hagerstown,</span> Maryland
+ *                </span>
+ *                (1762 - 1776)
+ *              </div>
+ * @param {*} userInput The text that the user has typed into the location field
+ * @param {*} dText The full suggested name. If it is a WT suggestion, it may contain dates at the end.
+ *                  If it is a WBE suggestion, it will not contain the dates. If it does contain dates,
+ *                  these dates should be used in the suggestion, otherwise the dates (if any) after the span
+ *                  in the div should be used
+ */
+function fixText(added_node, userInput, dText) {
   const before = dText;
-  // Strip any trailing parenthetical date ranges e.g. (1837 - 1900), ( - 1974), (c. 1810- ), (bef. 1700 - aft. 1750)
-  // Do an aggressive pass first (legacy behaviour) then a focused cleanup.
-  let cleanText = dText.replace(/\(.*\d{3,4}.*\)/, ""); // legacy (greedy) removal – keeps prior behaviour
-  cleanText = stripLocationDates(cleanText); // modern precise cleanup
-  logIfChanged("fixText: stripped dates", before, cleanText);
 
-  if (innerBitText) {
-    dbg2("fixText: overriding innerBit text", innerBitText);
-    innerBit.text(innerBitText);
-  } else {
-    const datesMatch = innerBit.text().match(/\(.*\d{3,4}.*\)/g);
-    if (datesMatch) {
-      innerBit.text(cleanText + " " + datesMatch[0]);
-    } else {
-      innerBit.text(cleanText);
-    }
+  // Normalize dText: authoritative source for text and authoratitive for dates if it has any
+  const { cleanText: cleanTextFromDText, datePart: dateFromDText } = stripLocationDates(dText);
+
+  logIfChanged("fixText: stripped dates", before, cleanTextFromDText);
+
+  const $node = $(added_node);
+
+  const innerBit = $node.find("span:first");
+  if (innerBit.length === 0) {
+    console.error("fixText: 'span:first' not found");
+    return;
   }
 
-  $(added_node).find(".autocomplete-suggestion").attr("data-val", cleanText.trim());
-  highlightSearchWords(userInput, cleanText, innerBit);
+  // Normalize span text (may already contain dates)
+  const spanText = innerBit.text();
+
+  const { cleanText: cleanSpanText, datePart: dateFromSpan } = stripLocationDates(spanText);
+
+  // Update span text to date-free version
+  innerBit.text(cleanTextFromDText);
+
+  // Remove any trailing date text nodes in the DOM
+  const trailingTextNodes = $node.contents().filter(function () {
+    return this.nodeType === Node.TEXT_NODE && this.textContent.trim().length > 0;
+  });
+  trailingTextNodes.remove();
+
+  // Decide which date to render (dText wins)
+  const finalDatePart = dateFromDText || dateFromSpan;
+  if (finalDatePart) {
+    $node.append(" " + finalDatePart);
+  }
+
+  $node.attr("data-val", cleanTextFromDText.trim());
+  highlightSearchWords(userInput, cleanTextFromDText, innerBit);
 }
 
-// Helper: remove trailing parenthetical segments that look like date ranges or single years.
-// Examples to remove:
-//   Bromborough, Cheshire, England (1837 - 1974)
-//   Bromborough, Cheshire, England ( - 1974)
-//   Bromborough, Cheshire, England (1837 - )
-//   Bromborough, Cheshire, England (c. 1837)
-// Keeps other parenthetical content without digits (rare) intact.
+/**
+ * Helper: remove trailing parenthetical segments that look like date ranges or single years.
+ * Examples to remove:
+ *   Bromborough, Cheshire, England (1837 - 1974)
+ *   Bromborough, Cheshire, England ( - 1974)
+ *   Bromborough, Cheshire, England (1837 - )
+ *   Bromborough, Cheshire, England (c. 1837)
+ * Keeps other parenthetical content without digits (rare) intact.
+ *
+ * @param {*} raw
+ * @returns { cleanText: string, datePart: string }
+ */
 function stripLocationDates(raw) {
-  if (!raw) return "";
+  if (!raw) return { cleanText: "", datePart: "" };
+
   let s = raw;
-  // Iterate in case of multiple trailing date parens accidentally present
-  let changed = false;
-  const dateParenRegex = /\s*\((?:[^)]*\d{3,4}[^)]*)\)\s*$/; // any trailing (...) containing a 3-4 digit number
-  while (dateParenRegex.test(s)) {
+  let removed;
+
+  const dateParenRegex = /\s*\(([^)]*\d{3,4}[^)]*)\)\s*$/; // capture inner content
+
+  // Iterate in case of multiple trailing date parens accidentally present, bbut only
+  // return the first date removed
+  while (true) {
+    const m = s.match(dateParenRegex);
+    if (!m) break;
+
+    if (!removed) {
+      removed = m[0].trim();
+    }
     s = s.replace(dateParenRegex, "");
-    changed = true;
   }
-  if (changed) {
-    s = s
-      .replace(/\s{2,}/g, " ")
-      .trim()
-      .replace(/,\s*,/g, ", ")
-      .replace(/,\s*$/g, "");
-  }
-  return s.trim();
+
+  s = s
+    .replace(/\s{2,}/g, " ")
+    .trim()
+    .replace(/,\s*,/g, ", ")
+    .replace(/,\s*$/g, "");
+
+  return {
+    cleanText: s.trim(),
+    datePart: removed,
+  };
 }
 
 function attachInputListeners() {
@@ -667,9 +717,6 @@ function changeToNativeNames(userInput, before, added_node) {
 }
 
 function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, added_node) {
-  const innerBit = $(added_node).find("span:first");
-  dbg2("innerBit 'span:first' count", innerBit.length);
-
   const theDate = new Date(isoInputDate);
 
   let innerBitText = "";
@@ -817,14 +864,23 @@ function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, add
         if (window.USstates[aWord] != undefined) {
           const thisState = window.USstates[aWord];
           if (thisState.former_name_date_established != undefined) {
-            if (thisState.former_name_date_established <= myYear && thisState.admissionDate >= myYear) {
+            const establishedYear = Number(thisState.former_name_date_established.slice(0, 4));
+            const admissionYear = Number(thisState.admissionDate.slice(0, 4));
+            if (establishedYear <= myYear && admissionYear >= myYear) {
+              const { cleanText: x, datePart: y } = stripLocationDates(dText);
+              dText = x;
+              // if (thisState.former_name_date_established <= myYear && thisState.admissionDate >= myYear) {
               if (myYear >= 1776 && thisState.postRevolutionName) {
-                dText = dText.replace(lastPart, " " + aWord);
-                innerBitText = dText + " (" + "1776-07-04" + " - " + thisState.admissionDate.match(/\d{4}/) + ")";
+                dText =
+                  dText.replace(lastPart, " " + aWord) +
+                  " (" +
+                  "1776-07-04" +
+                  " - " +
+                  thisState.admissionDate.match(/\d{4}/) +
+                  ")";
               } else {
-                dText = dText.replace(lastPart, " " + thisState.former_name).replace(/ \(.+\)/, "");
-                innerBitText =
-                  dText +
+                dText =
+                  dText.replace(lastPart, " " + thisState.former_name) +
                   " (" +
                   thisState.former_name_date_established +
                   " - " +
@@ -832,7 +888,7 @@ function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, add
                   ")";
               }
               dbg2("US pre-statehood adjustment", { aWord, myYear, dText, innerBitText });
-              fixText(added_node, userInput, dText, innerBit, innerBitText);
+              fixText(added_node, userInput, dText);
             }
           }
         }
@@ -1049,7 +1105,6 @@ function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, add
                   const before = dText;
                   parts[parts.length - 3] = countyName + " " + aKey;
                   dText = parts.join(", ");
-                  innerBitText = dText;
                   logIfChanged("Alaska borough/census-area suffix", before, dText);
                 }
               });
@@ -1057,13 +1112,11 @@ function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, add
               const before = dText;
               parts[parts.length - 3] = countyName + " Parish";
               dText = parts.join(", ");
-              innerBitText = dText;
               logIfChanged("Louisiana Parish name", before, dText);
             } else {
               const before = dText;
               parts[parts.length - 3] = countyName + " County";
               dText = parts.join(", ");
-              innerBitText = dText;
               logIfChanged("US County suffix", before, dText);
             }
           } else {
@@ -1076,7 +1129,7 @@ function correctLocation(isoInputDate, isGoodDate, myYear, userInput, dText, add
     }
   }
 
-  fixText(added_node, userInput, dText, innerBit, innerBitText);
+  fixText(added_node, userInput, dText);
   return dText;
 }
 
