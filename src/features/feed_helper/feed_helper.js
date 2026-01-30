@@ -4755,31 +4755,53 @@ class FeedHelper {
     }
 
     // Look for multiple "was born" patterns in the biography section
-    // More precise pattern that looks for actual birth statements
-    const wasBornPattern = /\b\w+\s+was\s+born\s+(?:in|on|before|after|about|abt|circa|c\.)\b/gi;
-    const wasBornMatches = textToCheck.match(wasBornPattern) || [];
+    // More precise pattern that captures the name/subject before "was born"
+    const wasBornPattern = /\b(\w+)\s+was\s+born\s+(?:in|on|before|after|about|abt|circa|c\.)\b/gi;
+    const wasBornMatches = [];
+    const nameOccurrences = {};
+
+    let match;
+    while ((match = wasBornPattern.exec(textToCheck)) !== null) {
+      const fullMatch = match[0];
+      const subjectName = match[1]; // The name/subject before "was born"
+      const normalizedName = subjectName.toLowerCase();
+
+      wasBornMatches.push(fullMatch);
+
+      // Track occurrences per name
+      if (!nameOccurrences[normalizedName]) {
+        nameOccurrences[normalizedName] = [];
+      }
+      nameOccurrences[normalizedName].push(fullMatch);
+    }
 
     this.bioCheckDebug(`Birth pattern matches for ${profileInfo}:`);
     this.bioCheckDebug(`- Text being checked (first 500 chars):`, textToCheck.substring(0, 500));
     this.bioCheckDebug(`- "was born" pattern: ${wasBornMatches.length} matches`, wasBornMatches);
+    this.bioCheckDebug(`- Name occurrences:`, nameOccurrences);
+
+    // Find names that appear multiple times
+    const duplicateNames = Object.entries(nameOccurrences).filter(([name, matches]) => matches.length >= 2);
 
     // Also log in console for immediate visibility
-    if (wasBornMatches.length >= 2) {
-      console.log(`WBE: POTENTIAL DUPLICATE BIRTH INFO for ${profileInfo}:`);
+    if (duplicateNames.length > 0) {
+      console.log(`WBE: DUPLICATE BIRTH INFO DETECTED for ${profileInfo}:`);
       console.log(`WBE: Text being checked:`, textToCheck.substring(0, 500));
-      console.log(`WBE: Matches found:`, wasBornMatches);
+      console.log(`WBE: Duplicate names found:`, duplicateNames);
     }
 
-    if (wasBornMatches.length >= 2) {
+    if (duplicateNames.length > 0) {
+      const [duplicateName, duplicateMatches] = duplicateNames[0];
       this.bioCheckDebug(
-        `Found ${wasBornMatches.length} "was born" instances - indicating potential duplicate birth information for ${profileInfo}`
+        `Found ${duplicateMatches.length} "${duplicateName} was born" instances - indicating duplicate birth information for ${profileInfo}`
       );
       return {
         detected: true,
         type: "general",
-        count: wasBornMatches.length,
-        matches: wasBornMatches,
-        message: `Bio contains multiple "was born" statements. This may indicate unmerged bio content.`,
+        count: duplicateMatches.length,
+        matches: duplicateMatches,
+        duplicateName: duplicateName,
+        message: `Bio contains ${duplicateMatches.length} "${duplicateName} was born" statements. This may indicate unmerged bio content.`,
       };
     }
 
