@@ -209,7 +209,8 @@ function parseBracketedUnknownInBlock(blockEl) {
       text === "[date unknown]" ||
       text === "[location unknown]" ||
       text === "[uncertain]" ||
-      text === "[South Africa]"
+      text === "[South Africa]" ||
+      text === "[Suid Afrika]"
     ) {
       return;
     }
@@ -218,7 +219,12 @@ function parseBracketedUnknownInBlock(blockEl) {
   let raw = blockEl.innerText;
   anchors.forEach((a) => {
     const t = a.textContent.trim();
-    if (/^\[half\]$/i.test(t) || /^add\b/i.test(t) || /^edit\b/i.test(t) || t == "[South Africa]") {
+    if (
+      /^\[half\]$/i.test(t) ||
+      /^add\b/i.test(t) ||
+      /^edit\b/i.test(t) ||
+      ["[South Africa]", "[Suid Afrika]"].includes(t)
+    ) {
       return;
     }
     raw = raw.replace(t, "");
@@ -231,7 +237,9 @@ function parseBracketedUnknownInBlock(blockEl) {
       /^\[half\]$/i.test(b) ||
       /^add\b/i.test(b) ||
       /^edit\b/i.test(b) ||
-      ["[uncertain]", "[certain]", "[non-biological]", "[South Africa]", "[biological]"].includes(trimmed)
+      ["[uncertain]", "[certain]", "[non-biological]", "[South Africa]", "[Suid Afrika]", "[biological]"].includes(
+        trimmed
+      )
     ) {
       return;
     }
@@ -339,7 +347,8 @@ function parseSpousesBlock(spouseEls) {
   );
   bracketed.forEach((b) => {
     if (
-      (!records.some((m) => m.Link === b.Link || m.Name === b.Name) && b.Name.trim() != "[South Africa]") ||
+      (!records.some((m) => m.Link === b.Link || m.Name === b.Name) &&
+        ["[South Africa]", "[Suid Afrika]"].includes(b.Name.trim()) == false) ||
       b.Name.includes("private")
     ) {
       records.push(b);
@@ -461,6 +470,7 @@ function parseInitialData() {
     "[marriage location?]",
     "[marriage date?]",
     "[South Africa]",
+    "[Suid Afrika]",
     "[biological]",
   ];
   const container = document.querySelector("#nav-familyContent div.tree--person");
@@ -615,7 +625,10 @@ function parseInitialData() {
       );
     });
     bracketed.forEach((b) => {
-      if (!spouseEntries.some((m) => m.Link === b.Link || m.Name === b.Name) && b.Name.trim() != "[South Africa]") {
+      if (
+        !spouseEntries.some((m) => m.Link === b.Link || m.Name === b.Name) &&
+        ["[South Africa]", "[Suid Afrika]"].includes(b.Name.trim()) == false
+      ) {
         spouseEntries.push(b);
       }
     });
