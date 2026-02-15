@@ -130,6 +130,7 @@ import "./unnamed_infant/unnamed_infant_options";
 import "./usability_tweaks/usability_tweaks_options";
 import "./what_links_here/what_links_here_options";
 import "./wikitable_wizard/wikitable_wizard_options";
+import "./wikitree_plus_helper/wikitree_plus_helper_options";
 import "./wills/wills_options";
 import "./wtPlus/wtPlus_options";
 
