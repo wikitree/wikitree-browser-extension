@@ -10,11 +10,14 @@ import { isMainDomain, isPlusDomain } from "../../core/pageType";
 import { profilePerson, getUserWtId } from "../../core/common";
 import suggestionsData from "./suggestions.json";
 
+import { esc, normalizeQuotes, collapseWs, maybeQuote, shortenPlaceholder } from "./wikitree_plus_helper_utils";
+import { createFieldDefs } from "./wikitree_plus_helper_fields";
+import { SQL_TEMPLATES } from "./wikitree_plus_helper_sql";
+import { buildPlusUrl, populatePlusForm, extractSuggestionId } from "./wikitree_plus_helper_url";
+
 import "./wikitree_plus_helper.css";
 
 const FEATURE_ID = "wikitreePlusHelper";
-const WTPLUS_BASE = "https://plus.wikitree.com/default.htm";
-const DEFAULT_REPORT = "srch1";
 
 const MAGIC_WORDS_LIST = buildMagicWords();
 
@@ -165,588 +168,11 @@ function buildSuggestionsOptions() {
   return options;
 }
 
-const FIELD_DEFS = [
-  // Raw / magic
-  {
-    id: "__raw__",
-    label: "Raw term",
-    kind: "raw",
-    input: "text",
-    placeholder: "e.g. B1850, 1840s not 1830s, NOT Ontario",
-    group: "General",
-  },
-  {
-    id: "MagicWords",
-    label: "Magic Words",
-    kind: "raw",
-    input: "select",
-    options: MAGIC_WORDS_LIST,
-    group: "General",
-  },
-
-  // Profile Status
-  {
-    id: "ProfileStatus",
-    label: "Profile Status",
-    kind: "raw",
-    input: "select",
-    options: ["Open", "Unsourced", "Unconnected", "Orphan", "Notables"],
-    group: "General",
-  },
-
-  // Dates & Time Periods
-  {
-    id: "BirthYear",
-    label: "Birth Year (specific)",
-    kind: "prefix",
-    prefix: "B",
-    input: "text",
-    placeholder: "e.g. 1850 (builds B1850)",
-    group: "Dates",
-  },
-  {
-    id: "DeathYear",
-    label: "Death Year (specific)",
-    kind: "prefix",
-    prefix: "D",
-    input: "text",
-    placeholder: "e.g. 1920 (builds D1920)",
-    group: "Dates",
-  },
-  {
-    id: "Decade",
-    label: "Decade (custom)",
-    kind: "suffix",
-    suffix: "s",
-    input: "text",
-    placeholder: "e.g. 1780 (builds 1780s)",
-    group: "Dates",
-  },
-
-  // Identity / names (documented in help)
-  {
-    id: "WikiTreeID",
-    label: "WikiTreeID",
-    kind: "index",
-    input: "text",
-    placeholder: "e.g. Darwin-15",
-    group: "Names",
-  },
-  {
-    id: "LastNameAtBirth",
-    label: "LastNameAtBirth",
-    kind: "index",
-    input: "text",
-    placeholder: "e.g. Darwin",
-    group: "Names",
-  },
-  {
-    id: "AllLastNames",
-    label: "AllLastNames",
-    kind: "index",
-    input: "text",
-    placeholder: 'e.g. "Darwin"',
-    group: "Names",
-  },
-  { id: "FirstName", label: "FirstName", kind: "index", input: "text", placeholder: "e.g. John", group: "Names" },
-  { id: "Name", label: "Name (Full)", kind: "index", input: "text", placeholder: 'e.g. "John Smith"', group: "Names" },
-
-  // Locations (simple index=value form)
-  {
-    id: "Location",
-    label: "Location (any B/M/D)",
-    kind: "index",
-    input: "text",
-    placeholder: 'e.g. "Shrewsbury, England"',
-    group: "Locations",
-  },
-  {
-    id: "BirthLocation",
-    label: "BirthLocation",
-    kind: "index",
-    input: "text",
-    placeholder: 'e.g. "Shrewsbury, England"',
-    group: "Locations",
-  },
-  {
-    id: "MarriageLocation",
-    label: "MarriageLocation",
-    kind: "index",
-    input: "text",
-    placeholder: 'e.g. "Shrewsbury, England"',
-    group: "Locations",
-  },
-  {
-    id: "DeathLocation",
-    label: "DeathLocation",
-    kind: "index",
-    input: "text",
-    placeholder: 'e.g. "Manchester England"',
-    group: "Locations",
-  },
-
-  // Location table fields (country/region) - from England Project doc
-  {
-    id: "birthcountry",
-    label: "birthcountry",
-    kind: "index",
-    input: "text",
-    placeholder: 'e.g. "England", "UnknownCountry"',
-    group: "Location Table",
-  },
-  {
-    id: "birthregion",
-    label: "birthregion",
-    kind: "index",
-    input: "text",
-    placeholder: 'e.g. "Shropshire", "UnknownRegion"',
-    group: "Location Table",
-  },
-  {
-    id: "deathcountry",
-    label: "deathcountry",
-    kind: "index",
-    input: "text",
-    placeholder: 'e.g. "England", "UnknownCountry"',
-    group: "Location Table",
-  },
-  {
-    id: "deathregion",
-    label: "deathregion",
-    kind: "index",
-    input: "text",
-    placeholder: 'e.g. "Shropshire", "UnknownRegion"',
-    group: "Location Table",
-  },
-  {
-    id: "marriagecountry",
-    label: "marriagecountry",
-    kind: "index",
-    input: "text",
-    placeholder: 'e.g. "England", "UnknownCountry"',
-    group: "Location Table",
-  },
-  {
-    id: "marriageregion",
-    label: "marriageregion",
-    kind: "index",
-    input: "text",
-    placeholder: 'e.g. "Shropshire", "UnknownRegion"',
-    group: "Location Table",
-  },
-
-  // Other fields
-  { id: "Gender", label: "Gender", kind: "index", input: "select", options: ["male", "female"], group: "General" },
-
-  // Categories & templates (documented)
-  {
-    id: "CategoryFull",
-    label: "CategoryFull",
-    kind: "index",
-    input: "text",
-    placeholder: 'e.g. "Shrewsbury, Shropshire"',
-    group: "Categories, Templates, Suggestions",
-  },
-  {
-    id: "CategoryWord",
-    label: "CategoryWord",
-    kind: "index",
-    input: "text",
-    placeholder: 'e.g. "Elphin"',
-    group: "Categories, Templates, Suggestions",
-  },
-  {
-    id: "TemplateText",
-    label: "TemplateText",
-    kind: "index",
-    input: "text",
-    placeholder: 'e.g. "One Place Study"',
-    group: "Categories, Templates, Suggestions",
-  },
-
-  // Suggestions (DBE codes)
-  {
-    id: "Suggestions",
-    label: "Suggestions",
-    kind: "index",
-    input: "select",
-    options: () => buildSuggestionsOptions(),
-    group: "Categories, Templates, Suggestions",
-  },
-
-  // Management & editing (documented)
-  {
-    id: "Creator_",
-    label: "Creator_",
-    kind: "prefix",
-    prefix: "Creator_",
-    input: "text",
-    placeholder: () => `e.g. ${getUserWtId() || "YourID-123"}`,
-    group: "Management",
-  },
-  {
-    id: "changesmonth",
-    label: "changesmonth",
-    kind: "index",
-    input: "text",
-    placeholder: "e.g. 202501",
-    group: "Management",
-  },
-  {
-    id: "created",
-    label: "created",
-    kind: "index",
-    input: "text",
-    placeholder: "e.g. created_2025",
-    group: "Management",
-  },
-
-  // SQL (must come last within each OR-group)
-  {
-    id: "sql",
-    label: 'sql="..." (wizard)',
-    kind: "sql",
-    input: "wizard",
-    group: "Advanced",
-  },
-];
+// Initialize FIELD_DEFS dynamically using createFieldDefs
+const FIELD_DEFS = createFieldDefs(MAGIC_WORDS_LIST, buildSuggestionsOptions, getUserWtId);
 
 // SQL Wizard templates - organized by category with comprehensive WT+ SQL examples
-const SQL_TEMPLATES = [
-  // Names
-  {
-    category: "Names",
-    id: "first-name-exact",
-    label: "First name equals",
-    description: "Find profiles with exact first name",
-    buildSql: (n) => (n ? `sql="([Default].[First Name].AsString = '${n}')"` : ""),
-    inputs: [{ type: "text", label: "First name", placeholder: "John" }],
-  },
-  {
-    category: "Names",
-    id: "last-name-birth",
-    label: "Last name at birth equals",
-    description: "Find profiles with exact last name at birth",
-    buildSql: (n) => (n ? `sql="([Default].[Last Name at Birth].AsString = '${n.toLowerCase()}')"` : ""),
-    inputs: [{ type: "text", label: "Last name", placeholder: "berkelmans" }],
-  },
-  {
-    category: "Names",
-    id: "current-last-name",
-    label: "Current last name equals",
-    description: "Find profiles with exact current last name",
-    buildSql: (n) => (n ? `sql="([Default].[Current Last Name].AsString = '${n.toLowerCase()}')"` : ""),
-    inputs: [{ type: "text", label: "Last name", placeholder: "whittemore" }],
-  },
-  {
-    category: "Names",
-    id: "no-first-name",
-    label: "No first name",
-    description: "Find profiles without a first name",
-    buildSql: () => "sql=\"([Default].[First Name].AsString = '')\"",
-    inputs: [],
-  },
-  // Dates - Birth
-  {
-    category: "Dates: Birth",
-    id: "birth-before",
-    label: "Born before date",
-    description: "Find profiles born before specified date",
-    buildSql: (d) => {
-      const n = d?.replace(/-/g, "").substr(0, 8);
-      return n ? `sql="([Default].[Birth Date].AsNumber < ${n})"` : "";
-    },
-    inputs: [{ type: "date", label: "Date", placeholder: "1852-01-01" }],
-  },
-  {
-    category: "Dates: Birth",
-    id: "birth-after",
-    label: "Born after date",
-    description: "Find profiles born after specified date",
-    buildSql: (d) => {
-      const n = d?.replace(/-/g, "").substr(0, 8);
-      return n ? `sql="([Default].[Birth Date].AsNumber > ${n})"` : "";
-    },
-    inputs: [{ type: "date", label: "Date", placeholder: "1852-01-01" }],
-  },
-  {
-    category: "Dates: Birth",
-    id: "birth-decade",
-    label: "Born in decade",
-    description: "Find profiles born in a specific decade",
-    buildSql: (d) => {
-      const cleaned = String(d || "").replace(/[^0-9]/g, "");
-      const decade = cleaned.slice(0, 4);
-      if (!/^[0-9]{4}$/.test(decade) || !decade.endsWith("0")) return "";
-      const s = decade + "0000";
-      const e = String(parseInt(decade, 10) + 9) + "9999";
-      return `sql="([Default].[Birth Date].AsNumber In ${s}..${e})"`;
-    },
-    inputs: [{ type: "text", label: "Decade", placeholder: "1950s" }],
-  },
-  {
-    category: "Dates: Birth",
-    id: "birth-no-day",
-    label: "Birth without day",
-    description: "Find profiles where day of birth is not set",
-    buildSql: () => "sql=\"([Default].[Birth Date].AsString Like '*00')\"",
-    inputs: [],
-  },
-  {
-    category: "Dates: Birth",
-    id: "birth-year-only",
-    label: "Birth year only",
-    description: "Find profiles with only year (no month/day)",
-    buildSql: () => "sql=\"([Default].[Birth Date].AsString Like '*0000')\"",
-    inputs: [],
-  },
-  // Dates - Death
-  {
-    category: "Dates: Death",
-    id: "death-before",
-    label: "Died before date",
-    description: "Find profiles who died before specified date",
-    buildSql: (d) => {
-      const n = d?.replace(/-/g, "").substr(0, 8);
-      return n ? `sql="([Default].[Death Date].AsNumber < ${n})"` : "";
-    },
-    inputs: [{ type: "date", label: "Date", placeholder: "1852-01-01" }],
-  },
-  {
-    category: "Dates: Death",
-    id: "long-lived",
-    label: "Lived over 100 years",
-    description: "Find profiles of people who lived more than 100 years",
-    buildSql: () => 'sql="([Default].[Death Age].AsNumber > 100)"',
-    inputs: [],
-  },
-  // Locations
-  {
-    category: "Locations",
-    id: "birth-location",
-    label: "Birth location contains",
-    description: "Find profiles with text in birth location",
-    buildSql: (t) => (t ? `sql="([Default].[Birth Location].AsString Like '*${t}*')"` : ""),
-    inputs: [{ type: "text", label: "Location text", placeholder: "azores" }],
-  },
-  {
-    category: "Locations",
-    id: "death-location",
-    label: "Death location contains",
-    description: "Find profiles with text in death location",
-    buildSql: (t) => (t ? `sql="([Default].[Death Location].AsString Like '*${t}*')"` : ""),
-    inputs: [{ type: "text", label: "Location text", placeholder: "azores" }],
-  },
-  {
-    category: "Locations",
-    id: "death-country",
-    label: "Death country equals",
-    description: "Find profiles by death country",
-    buildSql: (c) => (c ? `sql="([Default].[Death Location Country].AsString = '${c.toLowerCase()}')"` : ""),
-    inputs: [{ type: "text", label: "Country", placeholder: "canada" }],
-  },
-  {
-    category: "Locations",
-    id: "unrecognized-locations",
-    label: "Unrecognized death locations",
-    description: "Find profiles with unrecognized death locations",
-    buildSql: () => "sql=\"(Trim([Default].[Death Location Country, Region, City].AsString) = '')\"",
-    inputs: [],
-  },
-  // Marriage
-  {
-    category: "Marriage",
-    id: "marriage-date-like",
-    label: "Marriage date (exact or wildcard)",
-    description: "Find marriages by date using YYYYMMDD or wildcards",
-    buildSql: (d) => (d ? `sql="([Marriage].[Marriage Date].AsString Like '${d}')"` : ""),
-    inputs: [{ type: "text", label: "Date", placeholder: "19011225 or 190112**" }],
-  },
-  {
-    category: "Marriage",
-    id: "marriage-date-between",
-    label: "Marriage date between",
-    description: "Find marriages between two dates",
-    buildSql: (from, to) => {
-      const f = from?.replace(/-/g, "").slice(0, 8);
-      const t = to?.replace(/-/g, "").slice(0, 8);
-      return f && t ? `sql="([Marriage].[Marriage Date] in ${f}..${t})"` : "";
-    },
-    inputs: [
-      { type: "date", label: "From", placeholder: "1499-12-31" },
-      { type: "date", label: "To", placeholder: "1973-12-31" },
-    ],
-  },
-  {
-    category: "Marriage",
-    id: "marriage-location-like",
-    label: "Marriage location contains phrase",
-    description: "Match exact phrases in marriage location",
-    buildSql: (p) => (p ? `sql=\"([Marriage].[Marriage Location].AsString like '*${p}*')\"` : ""),
-    inputs: [{ type: "text", label: "Phrase", placeholder: "West Sussex" }],
-  },
-  {
-    category: "Marriage",
-    id: "single-marriage",
-    label: "Exactly one marriage",
-    description: "Filter profiles with a single marriage entry",
-    buildSql: () => 'sql="([Marriage].[Marriage Location].LineCount = 1)"',
-    inputs: [],
-  },
-  // Gender
-  {
-    category: "Gender",
-    id: "no-gender",
-    label: "No gender specified",
-    description: "Find profiles without gender",
-    buildSql: () => 'sql="([Default].[Gender].AsNumber = 0)"',
-    inputs: [],
-  },
-  // Relations
-  {
-    category: "Relations",
-    id: "no-father",
-    label: "No father defined",
-    description: "Find profiles without a father link",
-    buildSql: () => 'sql="([Default].[Father id].AsNumber = 0)"',
-    inputs: [],
-  },
-  {
-    category: "Relations",
-    id: "no-mother",
-    label: "No mother defined",
-    description: "Find profiles without a mother link",
-    buildSql: () => 'sql="([Default].[Mother id].AsNumber = 0)"',
-    inputs: [],
-  },
-  {
-    category: "Relations",
-    id: "many-children",
-    label: "More than N children",
-    description: "Find profiles with more than specified children",
-    buildSql: (c) => (c ? `sql="([Children].[User ID].LineCount > ${c})"` : ""),
-    inputs: [{ type: "number", label: "Min children", placeholder: "5" }],
-  },
-  {
-    category: "Relations",
-    id: "many-siblings",
-    label: "More than N siblings",
-    description: "Find profiles with more than specified siblings",
-    buildSql: (c) => (c ? `sql="([Siblings].[User ID].LineCount > ${c})"` : ""),
-    inputs: [{ type: "number", label: "Min siblings", placeholder: "5" }],
-  },
-  {
-    category: "Relations",
-    id: "many-marriages",
-    label: "More than N marriages",
-    description: "Find profiles with more than specified marriages",
-    buildSql: (c) => (c ? `sql="([Marriage].[Marriage Date].LineCount > ${c})"` : ""),
-    inputs: [{ type: "number", label: "Min marriages", placeholder: "2" }],
-  },
-  // Privacy
-  {
-    category: "Privacy",
-    id: "public",
-    label: "Public & open profiles",
-    description: "Find public and open profiles only",
-    buildSql: () => 'sql="([Default].[Privacy].AsNumber > 40)"',
-    inputs: [],
-  },
-  {
-    category: "Privacy",
-    id: "private",
-    label: "Private profiles",
-    description: "Find private profiles only",
-    buildSql: () => 'sql="([Default].[Privacy].AsNumber < 50)"',
-    inputs: [],
-  },
-  // Profile Management
-  {
-    category: "Management",
-    id: "created-after",
-    label: "Created after date",
-    description: "Find profiles created since specified date",
-    buildSql: (d) => {
-      const n = d?.replace(/-/g, "").substr(0, 8);
-      return n ? `sql="([Bio].[Created Date].AsNumber > ${n})"` : "";
-    },
-    inputs: [{ type: "date", label: "Date", placeholder: "2024-01-01" }],
-  },
-  {
-    category: "Management",
-    id: "created-before",
-    label: "Created before date",
-    description: "Find profiles created before specified date",
-    buildSql: (d) => {
-      const n = d?.replace(/-/g, "").substr(0, 8);
-      return n ? `sql="([Bio].[Created Date].AsNumber < ${n})"` : "";
-    },
-    inputs: [{ type: "date", label: "Date", placeholder: "2024-01-01" }],
-  },
-  {
-    category: "Management",
-    id: "edited-range",
-    label: "Edited in date range",
-    description: "Find profiles edited between two dates",
-    buildSql: (s, e) => {
-      const sd = s?.replace(/-/g, "").substr(0, 8);
-      const ed = e?.replace(/-/g, "").substr(0, 8);
-      return sd && ed && new Date(s) < new Date(e) ? `sql="([Bio].[LastEdit Date].AsNumber In ${sd}..${ed})"` : "";
-    },
-    inputs: [
-      { type: "date", label: "Start", placeholder: "2024-01-01" },
-      { type: "date", label: "End", placeholder: "2024-12-31" },
-    ],
-  },
-  {
-    category: "Management",
-    id: "created-year",
-    label: "Created in year",
-    description: "Find profiles created in a specific year",
-    buildSql: (y) => (y ? `sql="([Bio].[Created Year].AsNumber = ${y})"` : ""),
-    inputs: [{ type: "number", label: "Year", placeholder: "2020" }],
-  },
-  {
-    category: "Management",
-    id: "many-errors",
-    label: "Many error suggestions",
-    description: "Find profiles with more than specified errors",
-    buildSql: (c) => (c ? `sql="([Default].[Nr of errors].AsNumber > ${c})"` : ""),
-    inputs: [{ type: "number", label: "Min errors", placeholder: "10" }],
-  },
-  {
-    category: "Management",
-    id: "multiple-managers",
-    label: "Multiple managers",
-    description: "Find profiles with more than one manager",
-    buildSql: () => 'sql="([Manager].[ManagerWikitreeId].LineCount > 1)"',
-    inputs: [],
-  },
-  {
-    category: "Management",
-    id: "no-category",
-    label: "No categories assigned",
-    description: "Find profiles without any category",
-    buildSql: () => 'sql="([Categories].[Category].LineCount = 0)"',
-    inputs: [],
-  },
-  {
-    category: "Management",
-    id: "from-gedcom",
-    label: "Imported from GEDCOM",
-    description: "Find profiles imported using GEDCOM",
-    buildSql: () => "sql=\"([Bio].[GED File].AsString <> '')\"",
-    inputs: [],
-  },
-  {
-    category: "Management",
-    id: "with-heading",
-    label: "Has heading",
-    description: "Find profiles with specific heading",
-    buildSql: (h) => (h ? `sql="([Bio].[Headings].AsString Like '*${h}*')"` : ""),
-    inputs: [{ type: "text", label: "Heading", placeholder: "Acknowledgements" }],
-  },
-];
+// (Imported from wikitree_plus_helper_sql.js)
 
 const GROUP_ORDER = [
   "Names",
@@ -761,104 +187,16 @@ const GROUP_ORDER = [
 
 const MULTI_GROUPS = new Set(GROUP_ORDER);
 
-function esc(s) {
-  return String(s ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
+/* -------------------------
+   Utility functions (imported from wikitree_plus_helper_utils.js)
+   - esc(s)
+   - normalizeQuotes(s)
+   - collapseWs(s)
+   - maybeQuote(val)
+   - shortenPlaceholder(text)
+--------------------------- */
 
-function normalizeQuotes(s) {
-  return String(s ?? "")
-    .replaceAll("\u201C", '"')
-    .replaceAll("\u201D", '"')
-    .replaceAll("\u2018", "'")
-    .replaceAll("\u2019", "'");
-}
-
-function collapseWs(s) {
-  return String(s ?? "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function maybeQuote(val) {
-  const v = collapseWs(normalizeQuotes(val));
-  if (!v) return "";
-  if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) return v;
-  if (/\s/.test(v)) return `"${v}"`;
-  return v;
-}
-
-function buildPlusUrl(query, includeRender = false) {
-  const u = new URL(WTPLUS_BASE);
-  if (state.searchType === "suggestions") {
-    u.searchParams.set("report", "err6");
-    const suggestionId = extractSuggestionId(query);
-    if (suggestionId) {
-      u.searchParams.set("ErrorID", suggestionId);
-      // Remove the suggestions=XXX part from the query string
-      const cleanedQuery = query.replace(/(?:suggestions?|errorid)=\d+\s*/gi, "").trim();
-      if (cleanedQuery) {
-        u.searchParams.set("Query", cleanedQuery);
-      }
-    } else if (query) {
-      u.searchParams.set("Query", query);
-    }
-    u.searchParams.set("MaxErrors", "1000");
-    if (includeRender) {
-      u.searchParams.set("render", "1");
-    }
-  } else {
-    u.searchParams.set("report", DEFAULT_REPORT);
-    u.searchParams.set("Query", query);
-    if (includeRender) {
-      u.searchParams.set("render", "1");
-    }
-  }
-
-  return u.toString();
-}
-
-function extractSuggestionId(query) {
-  const q = String(query || "").trim();
-  if (!q) return "";
-  // Only extract ErrorID if explicitly formatted as "suggestions=123" or "errorid=123"
-  // Plain numbers like "123456" should be treated as profile IDs → Query parameter
-  const match = q.match(/(?:^|\s)(?:suggestions?|errorid)=(\d+)/i);
-  return match ? match[1] : "";
-}
-
-function populatePlusForm(query) {
-  const q = String(query || "").trim();
-  if (!q) return;
-
-  // Set the report type
-  const report = state.searchType === "suggestions" ? "err6" : DEFAULT_REPORT;
-  $("#report").val(report);
-
-  // For suggestions mode with explicit ErrorID, populate that field too
-  if (state.searchType === "suggestions") {
-    const suggestionId = extractSuggestionId(q);
-    if (suggestionId) {
-      $("#ErrorID").val(suggestionId);
-      // Remove the suggestions=XXX part from the query and populate Query field with the rest
-      const cleanedQuery = q.replace(/(?:suggestions?|errorid)=\d+\s*/gi, "").trim();
-      $("#Query").val(cleanedQuery);
-    } else {
-      $("#Query").val(q);
-    }
-    $("#MaxErrors").val("1000");
-    $("#Render").prop("checked", true);
-  } else {
-    // Populate the Query field for text search
-    $("#Query").val(q);
-    // Set Render checkbox for text search
-    $("#Render").prop("checked", true);
-  }
-}
+/* URL Building (imported from wikitree_plus_helper_url.js) */
 
 async function copyText(text) {
   const t = String(text ?? "");
@@ -1219,7 +557,7 @@ function ensureModal() {
       setStatus("SQL-only searches need at least one non-SQL condition.", true);
       return;
     }
-    await copyText(buildPlusUrl(query));
+    await copyText(buildPlusUrl(query, state.searchType));
     setStatus("Copied URL.");
   });
 
@@ -1230,13 +568,39 @@ function ensureModal() {
       return;
     }
     if (query) {
+      // Read the actual radio button selection at time of click
+      const searchType = $("input[name='wbe-wtplus-search-type']:checked").val() || "text";
       if (isPlusDomain) {
-        // If we're on plus.wikitree.com, populate the form directly
-        populatePlusForm(query);
         closeModal();
+        // Populate and submit the correct form based on search type
+        if (searchType === "suggestions") {
+          // Suggestions search - populate #formSuggestionsAll and submit it
+          const $form = $("#formSuggestionsAll");
+          if ($form.length) {
+            const suggestionId = extractSuggestionId(query);
+            const cleanedQuery = query.replace(/(?:suggestions?|errorid)=\d+\s*/gi, "").trim();
+            $form.find("textarea[name='Query']").val(suggestionId ? cleanedQuery : query);
+            if (suggestionId) {
+              $form.find("input[name='ErrorID']").val(suggestionId);
+            }
+            $form.find("input[name='MaxErrors']").val("1000");
+            // Click the submit button in this form
+            $form.find("button[type='submit']").click();
+          }
+        } else {
+          // Text search - populate #formSearchText and submit it
+          const $form = $("#formSearchText");
+          if ($form.length) {
+            $form.find("textarea[name='Query']").val(query);
+            $form.find("input[name='MaxProfiles']").val("500");
+            $form.find("select[name='Format']").val("");
+            // Click the submit button in this form
+            $form.find("button[type='submit']").click();
+          }
+        }
       } else {
         // Otherwise open in new window
-        const u = buildPlusUrl(query, true); // include Render=1 for opening
+        const u = buildPlusUrl(query, searchType, true); // include Render=1 for opening
         window.open(u, "_blank", "noopener,noreferrer");
       }
     }
@@ -1462,16 +826,6 @@ function valueInputHtml(def, value) {
   return `<input class="wbe-wtplus-orqb-value" type="text" value="${esc(v)}" placeholder="${esc(
     shortPlaceholder
   )}"${title}>`;
-}
-
-function shortenPlaceholder(text) {
-  const t = String(text || "").trim();
-  if (!t) return "";
-  let short = t.split(" e.g.")[0].split(" (e.g.")[0].split(" (")[0].trim();
-  if (!short) short = t;
-  const maxLen = 24;
-  if (short.length > maxLen) short = `${short.slice(0, maxLen - 3).trim()}...`;
-  return short;
 }
 
 function renderRows() {
