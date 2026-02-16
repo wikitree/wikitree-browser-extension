@@ -1,0 +1,4555 @@
+{
+  "schema": "wikitree_data_doctors_suggestions_v2",
+  "group_order": [
+    "date",
+    "relationship",
+    "name",
+    "gender",
+    "location",
+    "privacy",
+    "biography",
+    "references_tags",
+    "template",
+    "links",
+    "find_a_grave",
+    "profile_completeness"
+  ],
+  "groups": {
+    "date": {
+      "group_key": "date",
+      "title": "Date",
+      "description": "",
+      "suggestion_ids": [
+        "DBE_101",
+        "DBE_102",
+        "DBE_103",
+        "DBE_104",
+        "DBE_111",
+        "DBE_131",
+        "DBE_132",
+        "DBE_133",
+        "DBE_134",
+        "DBE_205",
+        "DBE_206",
+        "DBE_210",
+        "DBE_301",
+        "DBE_305",
+        "DBE_306",
+        "DBE_307",
+        "DBE_310",
+        "DBE_401",
+        "DBE_404",
+        "DBE_405",
+        "DBE_406",
+        "DBE_407",
+        "DBE_410",
+        "DBE_411",
+        "DBE_412",
+        "DBE_413",
+        "DBE_414",
+        "DBE_415",
+        "DBE_416",
+        "DBE_417"
+      ],
+      "row_count": 30
+    },
+    "relationship": {
+      "group_key": "relationship",
+      "title": "Relationship",
+      "description": "",
+      "suggestion_ids": [
+        "DBE_105",
+        "DBE_106",
+        "DBE_112",
+        "DBE_113",
+        "DBE_201",
+        "DBE_202",
+        "DBE_207",
+        "DBE_208",
+        "DBE_209",
+        "DBE_211",
+        "DBE_213",
+        "DBE_308",
+        "DBE_309",
+        "DBE_311",
+        "DBE_313",
+        "DBE_408",
+        "DBE_409",
+        "DBE_418",
+        "DBE_419",
+        "DBE_420",
+        "DBE_421",
+        "DBE_901",
+        "DBE_902"
+      ],
+      "row_count": 23
+    },
+    "name": {
+      "group_key": "name",
+      "title": "Name",
+      "description": "",
+      "suggestion_ids": [
+        "DBE_511",
+        "DBE_711",
+        "DBE_712",
+        "DBE_713",
+        "DBE_714",
+        "DBE_715",
+        "DBE_717",
+        "DBE_721",
+        "DBE_722",
+        "DBE_723",
+        "DBE_724",
+        "DBE_725",
+        "DBE_727",
+        "DBE_731",
+        "DBE_732",
+        "DBE_733",
+        "DBE_734",
+        "DBE_735",
+        "DBE_737",
+        "DBE_741",
+        "DBE_742",
+        "DBE_743",
+        "DBE_744",
+        "DBE_745",
+        "DBE_747",
+        "DBE_749",
+        "DBE_751",
+        "DBE_752",
+        "DBE_753",
+        "DBE_754",
+        "DBE_755",
+        "DBE_757",
+        "DBE_761",
+        "DBE_762",
+        "DBE_763",
+        "DBE_764",
+        "DBE_765",
+        "DBE_767",
+        "DBE_771",
+        "DBE_772",
+        "DBE_773",
+        "DBE_774",
+        "DBE_775",
+        "DBE_777",
+        "DBE_778",
+        "DBE_781",
+        "DBE_782",
+        "DBE_783",
+        "DBE_784",
+        "DBE_785",
+        "DBE_787",
+        "DBE_788",
+        "DBE_791",
+        "DBE_792",
+        "DBE_793",
+        "DBE_794",
+        "DBE_795",
+        "DBE_797",
+        "DBE_798",
+        "DBE_911",
+        "DBE_912",
+        "DBE_913"
+      ],
+      "row_count": 62
+    },
+    "gender": {
+      "group_key": "gender",
+      "title": "Gender",
+      "description": "",
+      "suggestion_ids": [
+        "DBE_203",
+        "DBE_204",
+        "DBE_303",
+        "DBE_304",
+        "DBE_402",
+        "DBE_403",
+        "DBE_501",
+        "DBE_502",
+        "DBE_503",
+        "DBE_504",
+        "DBE_505",
+        "DBE_506",
+        "DBE_507",
+        "DBE_508",
+        "DBE_509",
+        "DBE_510"
+      ],
+      "row_count": 16
+    },
+    "location": {
+      "group_key": "location",
+      "title": "Location",
+      "description": "",
+      "suggestion_ids": [
+        "DBE_601",
+        "DBE_602",
+        "DBE_603",
+        "DBE_604",
+        "DBE_605",
+        "DBE_607",
+        "DBE_608",
+        "DBE_609",
+        "DBE_610",
+        "DBE_611",
+        "DBE_612",
+        "DBE_613",
+        "DBE_614",
+        "DBE_615",
+        "DBE_616",
+        "DBE_617",
+        "DBE_618",
+        "DBE_631",
+        "DBE_632",
+        "DBE_633",
+        "DBE_634",
+        "DBE_635",
+        "DBE_637",
+        "DBE_638",
+        "DBE_639",
+        "DBE_640",
+        "DBE_641",
+        "DBE_642",
+        "DBE_643",
+        "DBE_644",
+        "DBE_645",
+        "DBE_646",
+        "DBE_647",
+        "DBE_661",
+        "DBE_662",
+        "DBE_663",
+        "DBE_664",
+        "DBE_665",
+        "DBE_667",
+        "DBE_668",
+        "DBE_669",
+        "DBE_670",
+        "DBE_671",
+        "DBE_672",
+        "DBE_673",
+        "DBE_674",
+        "DBE_675",
+        "DBE_676",
+        "DBE_677",
+        "DBE_678"
+      ],
+      "row_count": 50
+    },
+    "privacy": {
+      "group_key": "privacy",
+      "title": "Privacy",
+      "description": "",
+      "suggestion_ids": [
+        "DBE_109",
+        "DBE_110",
+        "DBE_114",
+        "DBE_115",
+        "DBE_118",
+        "DBE_119",
+        "DBE_120",
+        "DBE_121",
+        "DBE_212",
+        "DBE_312"
+      ],
+      "row_count": 0
+    },
+    "biography": {
+      "group_key": "biography",
+      "title": "Biography",
+      "description": "",
+      "suggestion_ids": [
+        "DBE_801",
+        "DBE_802",
+        "DBE_803",
+        "DBE_811",
+        "DBE_821",
+        "DBE_822",
+        "DBE_823",
+        "DBE_824",
+        "DBE_825",
+        "DBE_831",
+        "DBE_835",
+        "DBE_851",
+        "DBE_852",
+        "DBE_853"
+      ],
+      "row_count": 0
+    },
+    "references_tags": {
+      "group_key": "references_tags",
+      "title": "References/Tags",
+      "description": "",
+      "suggestion_ids": [
+        "DBE_861",
+        "DBE_862",
+        "DBE_863",
+        "DBE_864",
+        "DBE_865",
+        "DBE_866",
+        "DBE_867",
+        "DBE_868",
+        "DBE_869",
+        "DBE_870",
+        "DBE_871",
+        "DBE_943",
+        "DBE_944",
+        "DBE_945",
+        "DBE_946"
+      ],
+      "row_count": 0
+    },
+    "template": {
+      "group_key": "template",
+      "title": "Template",
+      "description": "",
+      "suggestion_ids": [
+        "DBE_841",
+        "DBE_842",
+        "DBE_843",
+        "DBE_844",
+        "DBE_845",
+        "DBE_846",
+        "DBE_847",
+        "DBE_848",
+        "DBE_891",
+        "DBE_892",
+        "DBE_893",
+        "DBE_894",
+        "DBE_895",
+        "DBE_896",
+        "DBE_897"
+      ],
+      "row_count": 15
+    },
+    "links": {
+      "group_key": "links",
+      "title": "Links",
+      "description": "",
+      "suggestion_ids": ["DBE_961", "DBE_962", "DBE_965", "DBE_966", "DBE_967", "DBE_971"],
+      "row_count": 6
+    },
+    "find_a_grave": {
+      "group_key": "find_a_grave",
+      "title": "FindAGrave",
+      "description": "",
+      "suggestion_ids": [
+        "DBE_571",
+        "DBE_572",
+        "DBE_573",
+        "DBE_574",
+        "DBE_575",
+        "DBE_576",
+        "DBE_577",
+        "DBE_578",
+        "DBE_579",
+        "DBE_581",
+        "DBE_585",
+        "DBE_586",
+        "DBE_587",
+        "DBE_591",
+        "DBE_592",
+        "DBE_593"
+      ],
+      "row_count": 16
+    },
+    "profile_completeness": {
+      "group_key": "profile_completeness",
+      "title": "Profile Completeness",
+      "description": "",
+      "suggestion_ids": [
+        "DBE_452",
+        "DBE_454",
+        "DBE_455",
+        "DBE_456",
+        "DBE_457",
+        "DBE_458",
+        "DBE_459",
+        "DBE_460",
+        "DBE_461",
+        "DBE_462",
+        "DBE_463",
+        "DBE_464",
+        "DBE_465",
+        "DBE_466",
+        "DBE_467",
+        "DBE_468",
+        "DBE_469",
+        "DBE_470",
+        "DBE_474",
+        "DBE_475",
+        "DBE_477",
+        "DBE_478"
+      ],
+      "row_count": 22
+    }
+  },
+  "suggestions": {
+    "DBE_841": {
+      "id": "DBE_841",
+      "code": 841,
+      "title": "Template doesn't start with double {",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "template",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_841",
+      "description": "A template in the biography of the profile does not start with double curly brackets \"{{\". All WikiTree templates must start with double curly brackets.",
+      "description_raw": "A template in the biography of the profile does not start with double curly brackets \"{{\". All WikiTree templates must start with double curly brackets.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=zZdLSL5KOXQ&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Template_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_842": {
+      "id": "DBE_842",
+      "code": 842,
+      "title": "Template doesn't end with double }",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "template",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_842",
+      "description": "A template in the biography of the profile does not end with double curly brackets \"}}\". All WikiTree templates must end with double curly brackets.",
+      "description_raw": "A template in the biography of the profile does not end with double curly brackets \"}}\". All WikiTree templates must end with double curly brackets.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=zZdLSL5KOXQ&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Template_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_843": {
+      "id": "DBE_843",
+      "code": 843,
+      "title": "Missing template (spelling)",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "template",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_843",
+      "description": "There is an error in a template name in the biography of the profile. It could be a spelling mistake, a template that no longer exists, or not yet created.",
+      "videos": []
+    },
+    "DBE_844": {
+      "id": "DBE_844",
+      "code": 844,
+      "title": "Out of use template",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "template",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_844",
+      "description": "A template in the biography of this profile is being misused, which may mean that the template is a base template and not used directly, the template is no longer active, or the template has been replaced.",
+      "videos": []
+    },
+    "DBE_845": {
+      "id": "DBE_845",
+      "code": 845,
+      "title": "Direct usage of base templates",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "template",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_845",
+      "description": "The biography contains a base project template such as {{Project Box|etc}} or {{Sticker|etc}} that should be replaced with the appropriate specific template.",
+      "see_also": ["/wiki/Help:Templates", "/wiki/Category:Templates"],
+      "videos": []
+    },
+    "DBE_846": {
+      "id": "DBE_846",
+      "code": 846,
+      "title": "Died before template time frame",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "template",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_846",
+      "description": "The template used in the biography has a time constraint. The death date on the profile is prior to the template date range.",
+      "videos": []
+    },
+    "DBE_847": {
+      "id": "DBE_847",
+      "code": 847,
+      "title": "Born after template time frame",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "template",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_847",
+      "description": "The template used in the biography has a time constraint. The birth date on the profile is after the template date range.",
+      "videos": []
+    },
+    "DBE_848": {
+      "id": "DBE_848",
+      "code": 848,
+      "title": "Error in template parameters",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "template",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_848",
+      "description": "A template in the biography has one or more unacceptable values. See the suggestion page for correct values.",
+      "videos": []
+    },
+    "DBE_891": {
+      "id": "DBE_891",
+      "code": 891,
+      "title": "Missing template (system)",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "template",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_891",
+      "description": "Template is missing due to a spelling error, deletion, or it never existed.",
+      "videos": []
+    },
+    "DBE_892": {
+      "id": "DBE_892",
+      "code": 892,
+      "title": "Free-Space Profile page used as template",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "template",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_892",
+      "description": "Free-Space Profile pages cannot be used as templates.",
+      "see_also": ["/wiki/Help:Free-Space_Profile"],
+      "videos": []
+    },
+    "DBE_893": {
+      "id": "DBE_893",
+      "code": 893,
+      "title": "Free-Space Profile page used as transclusion",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "template",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_893",
+      "description": "Free-Space Profile pages cannot be used for transclusion.",
+      "see_also": ["/wiki/Help:Free-Space_Profile", "/wiki/Help:Template_Guidelines#Not_approved:_Content_templates"],
+      "videos": []
+    },
+    "DBE_894": {
+      "id": "DBE_894",
+      "code": 894,
+      "title": "Missing Required parameter in template",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "template",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_894",
+      "description": "Required template parameters are missing.",
+      "videos": []
+    },
+    "DBE_895": {
+      "id": "DBE_895",
+      "code": 895,
+      "title": "Using Deprecated parameter in template",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "template",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_895",
+      "description": "Deprecated template parameters are present and should be removed.",
+      "videos": []
+    },
+    "DBE_896": {
+      "id": "DBE_896",
+      "code": 896,
+      "title": "Unknown parameter in template",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "template",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_896",
+      "description": "Template contains an unknown (often mistyped or removed) parameter.",
+      "videos": []
+    },
+    "DBE_897": {
+      "id": "DBE_897",
+      "code": 897,
+      "title": "Error in template parameters",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "template",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_897",
+      "description": "Template parameters are checked for validity; there is a validity error.",
+      "videos": []
+    },
+    "DBE_961": {
+      "id": "DBE_961",
+      "code": 961,
+      "title": "Invalid domain name in link",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "links",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_961",
+      "description": "Domain name (DNS) in link is not formed correctly; the link leads to nowhere.",
+      "videos": []
+    },
+    "DBE_962": {
+      "id": "DBE_962",
+      "code": 962,
+      "title": "Domain name in the link is not resolved",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "links",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_962",
+      "description": "The URL/domain cannot be resolved to an IP address (often due to typo, spaces in DNS, server removed/changed, or using an IP instead of DNS).",
+      "videos": []
+    },
+    "DBE_965": {
+      "id": "DBE_965",
+      "code": 965,
+      "title": "Link error 404 Not Found",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "links",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_965",
+      "description": "The link points to a page that doesn't exist (typo, moved page, or removed page).",
+      "videos": []
+    },
+    "DBE_966": {
+      "id": "DBE_966",
+      "code": 966,
+      "title": "Link error - various",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "links",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_966",
+      "description": "The link points to a server that doesn't exist; causes vary and can be temporary.",
+      "videos": []
+    },
+    "DBE_967": {
+      "id": "DBE_967",
+      "code": 967,
+      "title": "Link error in domain",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "links",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_967",
+      "description": "The link points to a server that doesn't exist; causes vary and can be temporary.",
+      "videos": []
+    },
+    "DBE_971": {
+      "id": "DBE_971",
+      "code": 971,
+      "title": "Missing image",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "links",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_971",
+      "description": "An image reference in biography/text/template points to a file that doesn't exist (typo, deleted image, or not uploaded).",
+      "videos": []
+    },
+    "DBE_571": {
+      "id": "DBE_571",
+      "code": 571,
+      "title": "FindAGrave - Link without Grave ID",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "find_a_grave",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_571",
+      "description": "Profile links to a Find A Grave memorial but the memorial number is missing.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=HaHuSVXjBjk&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:FindAGrave_Suggestions&utm_campaign=data_doctors"
+        }
+      ]
+    },
+    "DBE_572": {
+      "id": "DBE_572",
+      "code": 572,
+      "title": "FindAGrave - Link without matching Grave",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "find_a_grave",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_572",
+      "description": "Profile is linked to a non-existent Find A Grave memorial (deleted, merged, or never existed).",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=HJa0UEZcD6o&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:FindAGrave_Suggestions&utm_campaign=data_doctors"
+        }
+      ]
+    },
+    "DBE_573": {
+      "id": "DBE_573",
+      "code": 573,
+      "title": "FindAGrave - Empty birth date",
+      "type": "Hint",
+      "difficulty": "Intermediate",
+      "group_key": "find_a_grave",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_573",
+      "description": "Find A Grave memorial has a birth date but the WikiTree profile has no birth date entered.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=ALmntw3itQg&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:FindAGrave_Suggestions&utm_campaign=data_doctors"
+        }
+      ]
+    },
+    "DBE_574": {
+      "id": "DBE_574",
+      "code": 574,
+      "title": "FindAGrave - Imprecise birth date",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "find_a_grave",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_574",
+      "description": "WikiTree has a birth date, but the Find A Grave memorial birth date is more exact.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=Dy4SCsCCDcc&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:FindAGrave_Suggestions&utm_campaign=data_doctors"
+        }
+      ]
+    },
+    "DBE_575": {
+      "id": "DBE_575",
+      "code": 575,
+      "title": "FindAGrave - Different birth date",
+      "type": "Hint",
+      "difficulty": "Intermediate",
+      "group_key": "find_a_grave",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_575",
+      "description": "WikiTree birth date differs from the Find A Grave memorial birth date.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=IG4j2IPUiC4&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:FindAGrave_Suggestions&utm_campaign=data_doctors"
+        }
+      ]
+    },
+    "DBE_576": {
+      "id": "DBE_576",
+      "code": 576,
+      "title": "FindAGrave - Empty death date",
+      "type": "Hint",
+      "difficulty": "Intermediate",
+      "group_key": "find_a_grave",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_576",
+      "description": "Find A Grave memorial has a death date but the WikiTree profile has no death date entered.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=ALmntw3itQg&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:FindAGrave_Suggestions&utm_campaign=data_doctors"
+        }
+      ]
+    },
+    "DBE_577": {
+      "id": "DBE_577",
+      "code": 577,
+      "title": "FindAGrave - Imprecise death date",
+      "type": "Hint",
+      "difficulty": "Intermediate",
+      "group_key": "find_a_grave",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_577",
+      "description": "WikiTree has a death date, but the Find A Grave memorial death date is more exact.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=Dy4SCsCCDcc&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:FindAGrave_Suggestions&utm_campaign=data_doctors"
+        }
+      ]
+    },
+    "DBE_578": {
+      "id": "DBE_578",
+      "code": 578,
+      "title": "FindAGrave - Different death date",
+      "type": "Hint",
+      "difficulty": "Intermediate",
+      "group_key": "find_a_grave",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_578",
+      "description": "WikiTree death date differs from the Find A Grave memorial death date (or death date is missing on WikiTree).",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=IG4j2IPUiC4&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:FindAGrave_Suggestions&utm_campaign=data_doctors"
+        }
+      ]
+    },
+    "DBE_579": {
+      "id": "DBE_579",
+      "code": 579,
+      "title": "FindAGrave - Missing birth location",
+      "type": "Hint",
+      "difficulty": "Intermediate",
+      "group_key": "find_a_grave",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_579",
+      "description": "WikiTree birth location is missing; Find A Grave memorial has a suggested birth location.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=Hu5CI1s22qs&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:FindAGrave_Suggestions&utm_campaign=data_doctors"
+        }
+      ]
+    },
+    "DBE_581": {
+      "id": "DBE_581",
+      "code": 581,
+      "title": "FindAGrave - Missing death location",
+      "type": "Hint",
+      "difficulty": "Intermediate",
+      "group_key": "find_a_grave",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_581",
+      "description": "WikiTree death location is missing; Find A Grave memorial has a suggested death location.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=Hu5CI1s22qs&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:FindAGrave_Suggestions&utm_campaign=data_doctors"
+        }
+      ]
+    },
+    "DBE_585": {
+      "id": "DBE_585",
+      "code": 585,
+      "title": "FindAGrave - Multiple profiles link to same grave ID",
+      "type": "Hint",
+      "difficulty": "Intermediate",
+      "group_key": "find_a_grave",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_585",
+      "description": "Multiple WikiTree profiles link to the same Find A Grave memorial (possible family grouping or duplicate profiles).",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=_qet3U13cwA&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:FindAGrave_Suggestions&utm_campaign=data_doctors"
+        }
+      ]
+    },
+    "DBE_586": {
+      "id": "DBE_586",
+      "code": 586,
+      "title": "FindAGrave - Link to merged Grave ID",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "find_a_grave",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_586",
+      "description": "WikiTree links to a memorial that has been merged into another memorial.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=PxhwpsdjRHU&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:FindAGrave_Suggestions&utm_campaign=data_doctors"
+        }
+      ]
+    },
+    "DBE_587": {
+      "id": "DBE_587",
+      "code": 587,
+      "title": "FindAGrave - Link to nonexistent Grave ID",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "find_a_grave",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_587",
+      "description": "WikiTree links to a memorial that is deleted/merged or otherwise incorrect.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=X6GNmnJqbBw&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:FindAGrave_Suggestions&utm_campaign=data_doctors"
+        }
+      ]
+    },
+    "DBE_591": {
+      "id": "DBE_591",
+      "code": 591,
+      "title": "FindAGrave - Possible father",
+      "type": "Hint",
+      "difficulty": "Intermediate",
+      "group_key": "find_a_grave",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_591",
+      "description": "Possible father suggested from linked memorial; father relationship missing in WikiTree.",
+      "videos": []
+    },
+    "DBE_592": {
+      "id": "DBE_592",
+      "code": 592,
+      "title": "FindAGrave - Possible mother",
+      "type": "Hint",
+      "difficulty": "Intermediate",
+      "group_key": "find_a_grave",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_592",
+      "description": "Possible mother suggested from linked memorial; mother relationship missing in WikiTree.",
+      "videos": []
+    },
+    "DBE_593": {
+      "id": "DBE_593",
+      "code": 593,
+      "title": "FindAGrave - Possible spouse",
+      "type": "Hint",
+      "difficulty": "Intermediate",
+      "group_key": "find_a_grave",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_593",
+      "description": "Possible spouse suggested from linked memorial; spouse relationship missing in WikiTree.",
+      "videos": []
+    },
+    "DBE_452": {
+      "id": "DBE_452",
+      "code": 452,
+      "title": "Profile completeness - Father Status not set",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_452",
+      "description": "Father status was not set when the profile was created where there are children listed.",
+      "videos": []
+    },
+    "DBE_454": {
+      "id": "DBE_454",
+      "code": 454,
+      "title": "Profile completeness - Mother Status not set",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_454",
+      "description": "Mother status is not set where there are children listed.",
+      "videos": []
+    },
+    "DBE_455": {
+      "id": "DBE_455",
+      "code": 455,
+      "title": "Profile completeness - Birth date not set",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_455",
+      "description": "Birthdate field is blank.",
+      "videos": []
+    },
+    "DBE_456": {
+      "id": "DBE_456",
+      "code": 456,
+      "title": "Profile completeness - Birth date Status not set",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_456",
+      "description": "Birthdate status is not set where there is a date in the field.",
+      "videos": []
+    },
+    "DBE_457": {
+      "id": "DBE_457",
+      "code": 457,
+      "title": "Profile completeness - Birth Location not set",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_457",
+      "description": "Birth location field is blank.",
+      "videos": []
+    },
+    "DBE_458": {
+      "id": "DBE_458",
+      "code": 458,
+      "title": "Profile completeness - Birth location Status not set",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_458",
+      "description": "Birth location status is not set where there is a location shown.",
+      "videos": []
+    },
+    "DBE_459": {
+      "id": "DBE_459",
+      "code": 459,
+      "title": "Profile completeness - Birth location Country not recognised",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_459",
+      "description": "Country in the birth location field isn't recognized (possible typo).",
+      "videos": []
+    },
+    "DBE_460": {
+      "id": "DBE_460",
+      "code": 460,
+      "title": "Profile completeness - Birth Location Country not official",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_460",
+      "description": "Location is not entered in the official form for that country.",
+      "videos": []
+    },
+    "DBE_461": {
+      "id": "DBE_461",
+      "code": 461,
+      "title": "Profile completeness - Death date not set",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_461",
+      "description": "Deathdate field is blank.",
+      "videos": []
+    },
+    "DBE_462": {
+      "id": "DBE_462",
+      "code": 462,
+      "title": "Profile completeness - Death date Status not set",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_462",
+      "description": "Deathdate status is not set where there is a date in the field.",
+      "videos": []
+    },
+    "DBE_463": {
+      "id": "DBE_463",
+      "code": 463,
+      "title": "Profile completeness - Death Location not set",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_463",
+      "description": "Death location field is blank.",
+      "videos": []
+    },
+    "DBE_464": {
+      "id": "DBE_464",
+      "code": 464,
+      "title": "Profile completeness - Death location Status not set",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_464",
+      "description": "Death location status is not set where there is a date in the field.",
+      "videos": []
+    },
+    "DBE_465": {
+      "id": "DBE_465",
+      "code": 465,
+      "title": "Profile completeness - Death location Country not recognised",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_465",
+      "description": "Country in the death location field isn't recognized (possible typo).",
+      "videos": []
+    },
+    "DBE_466": {
+      "id": "DBE_466",
+      "code": 466,
+      "title": "Profile completeness - Death location Country not official",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_466",
+      "description": "Location is not entered in the official form for that country.",
+      "videos": []
+    },
+    "DBE_467": {
+      "id": "DBE_467",
+      "code": 467,
+      "title": "Profile completeness - Short Biography <500",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_467",
+      "description": "Less than 500 characters of text in the Biography field.",
+      "videos": []
+    },
+    "DBE_468": {
+      "id": "DBE_468",
+      "code": 468,
+      "title": "Profile completeness - GEDCOM Junk",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_468",
+      "description": "Biography contains GEDCOM sections that should not be on WikiTree (same as 853 but with different limits).",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=yNnIv9JvOQA&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Profile_Completeness_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "see_also": ["/wiki/Help:GEDCOM-Created_Biographies#Sections_you_can_delete", "/wiki/Space:DBE_853"],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_469": {
+      "id": "DBE_469",
+      "code": 469,
+      "title": "Profile completeness - Missing span Anchors",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_469",
+      "description": "Profile uses in-page links that point to nonexistent HTML span anchors (e.g., <span id=\"name\"></span> with links to #name). Same as 944.",
+      "see_also": ["/wiki/Space:DBE_944"],
+      "videos": []
+    },
+    "DBE_470": {
+      "id": "DBE_470",
+      "code": 470,
+      "title": "Profile completeness - Unused Span Anchors",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_470",
+      "description": "Profile has HTML span anchors not used for in-page linking. Same as 945.",
+      "see_also": ["/wiki/Space:DBE_945"],
+      "videos": []
+    },
+    "DBE_474": {
+      "id": "DBE_474",
+      "code": 474,
+      "title": "Profile completeness - Abbreviated Birth location Country not recommended",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_474",
+      "description": "Birth location is abbreviated (exceptions: USA, UK). Same as 616.",
+      "see_also": [
+        "https://plus.wikitree.com/function/WTShowTable/Table.htm?table=Countries&filter=All",
+        "/wiki/Space:DBE_616"
+      ],
+      "videos": []
+    },
+    "DBE_475": {
+      "id": "DBE_475",
+      "code": 475,
+      "title": "Profile completeness - Abbreviated Death location Country not recommended",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_475",
+      "description": "Death location is abbreviated (exceptions: USA, UK). Same as 646.",
+      "see_also": [
+        "https://plus.wikitree.com/function/WTShowTable/Table.htm?table=Countries&filter=All",
+        "/wiki/Space:DBE_646"
+      ],
+      "videos": []
+    },
+    "DBE_477": {
+      "id": "DBE_477",
+      "code": 477,
+      "title": "Profile completeness - Ambiguous Birth location Country not recommended",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_477",
+      "description": "Birth location is ambiguous (often missing comma/incorrect separator). Same as 617.",
+      "see_also": [
+        "https://plus.wikitree.com/function/WTShowTable/Table.htm?table=Countries&filter=All",
+        "/wiki/Space:DBE_617"
+      ],
+      "videos": []
+    },
+    "DBE_478": {
+      "id": "DBE_478",
+      "code": 478,
+      "title": "Profile completeness - Ambiguous Death location Country not recommended",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "profile_completeness",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_478",
+      "description": "Death location is ambiguous (often missing comma/incorrect separator). Same as 647.",
+      "see_also": [
+        "https://plus.wikitree.com/function/WTShowTable/Table.htm?table=Countries&filter=All",
+        "/wiki/Space:DBE_647"
+      ],
+      "videos": []
+    },
+    "DBE_101": {
+      "id": "DBE_101",
+      "code": 101,
+      "title": "Birth in future",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_101",
+      "description": "Birth date is in the future. The most common cause is a typo in the birth date.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_102": {
+      "id": "DBE_102",
+      "code": 102,
+      "title": "Death in future",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_102",
+      "description": "Death date is in the future. The most common cause is a typo in the death date.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_103": {
+      "id": "DBE_103",
+      "code": 103,
+      "title": "Death before birth",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_103",
+      "description": "Death date is prior to the birth date. Common causes are a typo in one of the dates or reversed birth and death dates. This error is checked only on profiles with both birth and death dates entered.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=G8KSOXFGNYI&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Date_Suggestions_Group-1&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_104": {
+      "id": "DBE_104",
+      "code": 104,
+      "title": "Too old",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_104",
+      "description": "The person's age at death is over 110 years. A typo may cause it in the birth or death dates or by incorrect birth or death information. Only profiles with both birth and death dates entered are checked.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_111": {
+      "id": "DBE_111",
+      "code": 111,
+      "title": "Died too young to be parent",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_111",
+      "description": "This person was under ten years old at the death date, but has children without birth dates attached to the profile.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_113": {
+      "id": "DBE_113",
+      "code": 113,
+      "title": "Duplicate in relatives",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_113",
+      "description": "This person has the same relative appearing as two or more relatives on the their profile.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      },
+      "conflicts": [
+        {
+          "incoming_group": "relationship"
+        }
+      ]
+    },
+    "DBE_131": {
+      "id": "DBE_131",
+      "code": 131,
+      "title": "No Dates - No Dates on relatives - Open - Unknown Status",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_131",
+      "description": "Both Birth and death dates are missing on this profile. There are no data on this profile or any attached relation profiles to estimate birth or death dates.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=2bCDdooeuTc&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Date_Suggestions_Group-1&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_132": {
+      "id": "DBE_132",
+      "code": 132,
+      "title": "No Dates - No Dates on relatives - Open - Status Died",
+      "type": "Warning",
+      "difficulty": "Advanced",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_132",
+      "description": "The profile information indicates this person is deceased, but both birth and death dates are missing. There are no data on this profile or any attached relation profiles to estimate birth or death dates.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_133": {
+      "id": "DBE_133",
+      "code": 133,
+      "title": "No Dates - Dates on relatives - Open - Unknown Status",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_133",
+      "description": "Both Birth and death dates are missing on this profile. There may be sufficient data on the attached relation profiles to estimate a birth or death date.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=6WzDRc7S4cc&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Date_Suggestions_Group-1&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_134": {
+      "id": "DBE_134",
+      "code": 134,
+      "title": "No Dates - Dates on relatives - Open - Status Died",
+      "type": "Warning",
+      "difficulty": "Advanced",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_134",
+      "description": "This person is marked as dead, but all birth and death information is missing on this profile. There may be sufficient data on attached relation profiles to estimate a birth or death date.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_205": {
+      "id": "DBE_205",
+      "code": 205,
+      "title": "Father is too young or not born",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_205",
+      "description": "The father was either not born or under ten years old at this person's birth. Either a birth date or the relationship is incorrect.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=uJ-QbN7pj4I&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Date_Suggestions_Group-1&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_206": {
+      "id": "DBE_206",
+      "code": 206,
+      "title": "Father is too old",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_206",
+      "description": "The father is over 99 years old at the birth of this person. Either a birth or death date is incorrect, or the relationship is incorrect.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_210": {
+      "id": "DBE_210",
+      "code": 210,
+      "title": "Father was dead before birth",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_210",
+      "description": "This person's father died before their birth. In most cases, the person's birth date, the father's death date, or the relationship is wrong.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_301": {
+      "id": "DBE_301",
+      "code": 301,
+      "title": "Mother is self",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_301",
+      "description": "This person is their own mother. The relationship should be deleted or replaced with the correct mother.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_305": {
+      "id": "DBE_305",
+      "code": 305,
+      "title": "Mother is too young or not born",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_305",
+      "description": "The mother was either not born or under ten years old at this person's birth. Either a birth date or the relationship is incorrect.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=uJ-QbN7pj4I&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Date_Suggestions_Group-1&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_306": {
+      "id": "DBE_306",
+      "code": 306,
+      "title": "Mother is too old",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_306",
+      "description": "This person's mother was either over 99 years old or deceased at the birth of this person. Either a birth or death date is incorrect, or the relationship is incorrect.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_307": {
+      "id": "DBE_307",
+      "code": 307,
+      "title": "Mother is also a child",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_307",
+      "description": "This person is their own mother. The parent-child relationship should be deleted or replaced with the correct one.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_310": {
+      "id": "DBE_310",
+      "code": 310,
+      "title": "Mother was dead before birth",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_310",
+      "description": "This person's mother died before their birth. The person's birth date, the mother's death date, or the relationship is wrong.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_401": {
+      "id": "DBE_401",
+      "code": 401,
+      "title": "Spouse is self",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_401",
+      "description": "The person is married to him/her self. The marriage relationship should be removed and, if known, replaced with the correct one.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_404": {
+      "id": "DBE_404",
+      "code": 404,
+      "title": "Marriage before birth",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_404",
+      "description": "The person has a marriage date prior to their birth date. Either the birth or marriage dates are wrong, or both, or the relationship is incorrect. Enter the valid marriage or birth date if known. If the relationship is wrong, delete it, or enter the correct relationship.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_405": {
+      "id": "DBE_405",
+      "code": 405,
+      "title": "Marriage too long after birth",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_405",
+      "description": "The person's marriage date is more than 115 years after their birth date.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_406": {
+      "id": "DBE_406",
+      "code": 406,
+      "title": "Marriage after death",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_406",
+      "description": "The person has a marriage date after their death date. Either the death or marriage dates are wrong, or both, or the relationship is incorrect. Enter the valid marriage or death dated if known. If the relationship is wrong, delete it, or enter the correct relationship.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_407": {
+      "id": "DBE_407",
+      "code": 407,
+      "title": "Lived too long after marriage",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_407",
+      "description": "The person lived over 115 years after the marriage date. Either the death or marriage dates are wrong, or the relationship is incorrect. If the correct relationship, death, or marriage date is known, enter it.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_410": {
+      "id": "DBE_410",
+      "code": 410,
+      "title": "Marriage in future",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_410",
+      "description": "Marriage date is in the future. The most common cause is a typo in the birth date.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_411": {
+      "id": "DBE_411",
+      "code": 411,
+      "title": "Marriage End Date in future",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_411",
+      "description": "The marriage end date is in the future. Correct the date if it can be determined from a source.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_412": {
+      "id": "DBE_412",
+      "code": 412,
+      "title": "Marriage End Date before Marriage Date",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_412",
+      "description": "The marriage end date is before the marriage date. One or both dates may be incorrect.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_413": {
+      "id": "DBE_413",
+      "code": 413,
+      "title": "Marriage too long",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_413",
+      "description": "The difference between the marriage date and the marriage end date is more than 115 years.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_414": {
+      "id": "DBE_414",
+      "code": 414,
+      "title": "Marriage End Date before Birth Date",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_414",
+      "description": "The marriage end date is before the person's birth date. If the correct birth or marriage end date can be determined, fix it.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_415": {
+      "id": "DBE_415",
+      "code": 415,
+      "title": "Marriage End Date too late",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_415",
+      "description": "The difference between the person's birth date and their marriage end date is over 115 years.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_416": {
+      "id": "DBE_416",
+      "code": 416,
+      "title": "Marriage End Date after Death Date",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_416",
+      "description": "The marriage end date is after the person's death date. Either the marriage end date or death date is incorrect.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_417": {
+      "id": "DBE_417",
+      "code": 417,
+      "title": "Death Date too long after Marriage End Date",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "date",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_417",
+      "description": "The person's death and marriage end dates indicate that they lived over 115 years after the marriage end. One of these dates is incorrect.",
+      "videos": [],
+      "source": {
+        "packId": "date_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_105": {
+      "id": "DBE_105",
+      "code": 105,
+      "title": "Duplicate sibling",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_105",
+      "description": "Another profile exists with the same full name, parents, birth, and death dates. Unless these two profiles are stillborn unnamed twins, they are probably duplicates and need merging. If you find they are not the same person, you can mark the error as a False Error after looking at both profiles and sources.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_106": {
+      "id": "DBE_106",
+      "code": 106,
+      "title": "Duplicates between the global tree and unconnected",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_106",
+      "description": "An unconnected profile exists with the same full name and birth and death dates as this profile. It is probably a duplicate, and the two profiles need merging. (Orphan profiles are ignored). If you find they are not the same person, you can mark the suggestion as a False Suggestion (do this for both profiles) after looking at both profiles and sources.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_112": {
+      "id": "DBE_112",
+      "code": 112,
+      "title": "Person is father and mother",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_112",
+      "description": "This person is father to some children and mother to others. Parentage should be corrected as appropriate.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_201": {
+      "id": "DBE_201",
+      "code": 201,
+      "title": "Father is self",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_201",
+      "description": "This person is their own father. The relationship should be deleted or replaced with the correct father.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_202": {
+      "id": "DBE_202",
+      "code": 202,
+      "title": "Parents are same",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_202",
+      "description": "This person's mother and father are the same person. The incorrect relationship should be deleted or replaced with the correct one.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_203": {
+      "id": "DBE_203",
+      "code": 203,
+      "title": "Father is Female",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "gender",
+      "suggestion_page": "/wiki/Space:DBE_203",
+      "description": "The gender of the father of this person is female. Correct the gender of the father or replace the current father with the correct one (watch for a possible reversal of mother and father).",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=-_eXuL02CrM&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Gender_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      },
+      "conflicts": [
+        {
+          "incoming_group": "name"
+        }
+      ]
+    },
+    "DBE_207": {
+      "id": "DBE_207",
+      "code": 207,
+      "title": "Father is also a child",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_207",
+      "description": "This person is their own father. The parent-child relationship should be deleted or replaced with the correct one.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_208": {
+      "id": "DBE_208",
+      "code": 208,
+      "title": "Father is also a spouse",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_208",
+      "description": "This person's father is also her husband, but this is rarely true. The relationship should be deleted or replaced with the correct one.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_209": {
+      "id": "DBE_209",
+      "code": 209,
+      "title": "Father is also a sibling",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_209",
+      "description": "This person's father is also their sibling. If there is no 201 error on this profile, the problem is in the mother's children. Correct the mother's children. Type: Error",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_211": {
+      "id": "DBE_211",
+      "code": 211,
+      "title": "Duplicate sibling by Father",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_211",
+      "description": "There is a profile with the same full name, birth, and death dates, and same father, but the mother is different. These two profiles may be duplicates; if so, they need merging.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_213": {
+      "id": "DBE_213",
+      "code": 213,
+      "title": "Missing fathers DNA confirmation",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_213",
+      "description": "Father is marked 'confirmed with DNA', but the words' paternal' and 'confirmed' do not appear in the biography. The DNA Project oversees this suggestion.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_303": {
+      "id": "DBE_303",
+      "code": 303,
+      "title": "Mother is Male",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "gender",
+      "suggestion_page": "/wiki/Space:DBE_303",
+      "description": "The gender of the mother of this person is male. Correct the gender of the mother or replace the current mother with the correct one. (watch for a possible reversal of mother and father) .",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=-_eXuL02CrM&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Gender_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      },
+      "conflicts": [
+        {
+          "incoming_group": "name"
+        }
+      ]
+    },
+    "DBE_308": {
+      "id": "DBE_308",
+      "code": 308,
+      "title": "Mother is also a spouse",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_308",
+      "description": "This person's mother is also his wife, which is rarely true. The relationship should be removed or replaced with the correct spouse.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_309": {
+      "id": "DBE_309",
+      "code": 309,
+      "title": "Mother is also a sibling",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_309",
+      "description": "This person's mother is also their sibling. If there is no 301 error on this profile, the problem is in the father's children. Correct the father's children.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_311": {
+      "id": "DBE_311",
+      "code": 311,
+      "title": "Duplicate sibling by Mother",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_311",
+      "description": "There is a profile with the same full name, birth, and death dates, and same mother, but the mother is different. These two profiles may be duplicates; if so, after careful comparison, they need merging.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_313": {
+      "id": "DBE_313",
+      "code": 313,
+      "title": "Missing mothers DNA confirmation",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_313",
+      "description": "Mother is marked 'confirmed with DNA,' but the words' maternal' and 'confirmed' do not appear in the biography. The DNA Project oversees this suggestion.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_408": {
+      "id": "DBE_408",
+      "code": 408,
+      "title": "Multiple marriages on same day",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_408",
+      "description": "The person married more than one spouse on the same day. If one marriage date is incorrect, fix it, or if the spouses are duplicates, merge them.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_409": {
+      "id": "DBE_409",
+      "code": 409,
+      "title": "Marriage to duplicate person",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_409",
+      "description": "The person married more than one person with the same name. If the spouses are duplicates, merge them.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_418": {
+      "id": "DBE_418",
+      "code": 418,
+      "title": "Spouse is a sibling",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_418",
+      "description": "The person's spouse has one of the same parents, while not impossible, is unlikely. Correct when the problem is determined.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_419": {
+      "id": "DBE_419",
+      "code": 419,
+      "title": "Unmarried parents with no marriages",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_419",
+      "description": "These parents have a common child, but no marriage is recorded for them, usually caused by older faulty gedcom imports. Try to find a marriage record and enter the marriage. If one can't be found, note that in the Research Notes section.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_420": {
+      "id": "DBE_420",
+      "code": 420,
+      "title": "Unmarried parents with other marriages",
+      "type": "Warning",
+      "difficulty": "Advanced",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_420",
+      "description": "These parents have a common child, but no marriage between them is recorded, although other marriages are listed. The common cause is older faulty gedcom imports. Try to find the marriage record and enter the marriage details. Note that in the Research Notes section, if one cannot be found. Merges may be needed for the \"other\" marriage.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_421": {
+      "id": "DBE_421",
+      "code": 421,
+      "title": "Hidden marriage on public or open profiles",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_421",
+      "description": "There is a hidden marriage between the two persons that is not viewable on the profile. That shouldn't be the case on public and opened profiles. The cause is not completely understanding how to use the check box when entering the marriage information. Uncheck the check box on edit marriage page.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_901": {
+      "id": "DBE_901",
+      "code": 901,
+      "title": "Unconnected empty public profile",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_901",
+      "description": "This public profile has no relations - parents, children, and marriage and no birth and death date or location data. This error is Connectors Project-related is not usually part of the Data Doctors work.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_902": {
+      "id": "DBE_902",
+      "code": 902,
+      "title": "Unconnected empty open profile",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "relationship",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_902",
+      "description": "This open profile has no relations - parents, children, and marriage and no birth and death date or location data. This error is Connectors Project-related is not usually part of the Data Doctors work.",
+      "videos": [],
+      "source": {
+        "packId": "relationship_suggestions",
+        "schemaVersion": 1
+      }
+    },
+    "DBE_511": {
+      "id": "DBE_511",
+      "code": 511,
+      "title": "Replaced",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_511",
+      "description": "This suggestion has been replaced by 7x7 suggestions (i.e. 717, 727, etc.) described below. The video applies to the replacement suggestions. Substitute the field referenced for those suggestions.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=SrZjT6Lelck&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Name_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_711": {
+      "id": "DBE_711",
+      "code": 711,
+      "title": "Separator in prefix",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_711",
+      "description": "There is a separator in the prefix field. Examples include \"/\", \"-\", \",\", \"(\" and \")\". Separators should normally not be used in the prefix field. See suggestion description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_712": {
+      "id": "DBE_712",
+      "code": 712,
+      "title": "Number in prefix",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_712",
+      "description": "There is a number in the prefix field. Numbers should not normally be used in the prefix. See suggestion description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_713": {
+      "id": "DBE_713",
+      "code": 713,
+      "title": "Suffix in prefix",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_713",
+      "description": "The contents of the prefix field should normally be in the suffix field. See suggestion description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_714": {
+      "id": "DBE_714",
+      "code": 714,
+      "title": "Wrong word in prefix",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_714",
+      "description": "A word not normally used as a prefix is in the prefix field. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_715": {
+      "id": "DBE_715",
+      "code": 715,
+      "title": "Wrong character in Prefix",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_715",
+      "description": "There is unusual character in the prefix field.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_717": {
+      "id": "DBE_717",
+      "code": 717,
+      "title": "Unique name in Prefix",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_717",
+      "description": "The prefix of this profile is unique on WikiTree which could indicate a misspelled prefix.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=SrZjT6Lelck&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Name_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_721": {
+      "id": "DBE_721",
+      "code": 721,
+      "title": "Separator in first name",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_721",
+      "description": "There is a separator in the first name field. Examples include \"/\", \"-\", \",\", \"(\" and \")\". Separators should normally not be used in the first name field. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_722": {
+      "id": "DBE_722",
+      "code": 722,
+      "title": "Number in first name",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_722",
+      "description": "There is a number in the first name field. Numbers should not normally be used in the first name. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_723": {
+      "id": "DBE_723",
+      "code": 723,
+      "title": "Prefix in first name",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_723",
+      "description": "The first name field contains a term normally considered a prefix. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_724": {
+      "id": "DBE_724",
+      "code": 724,
+      "title": "Wrong word in first name",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_724",
+      "description": "A word not normally used as a name is in the first name field. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_725": {
+      "id": "DBE_725",
+      "code": 725,
+      "title": "Wrong character in first name",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_725",
+      "description": "A character not normally used in a name is in the first name field. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_727": {
+      "id": "DBE_727",
+      "code": 727,
+      "title": "Unique name in First Name",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_727",
+      "description": "First Name of this profile is unique on WikiTree. This could be a misspelled First Name.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=SrZjT6Lelck&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Name_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_731": {
+      "id": "DBE_731",
+      "code": 731,
+      "title": "Separator in preferred name",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_731",
+      "description": "There is a separator in the preferred name field. Examples include \"/\", \"-\", \",\", \"(\" and \")\". Separators should normally not be used in the preferred name field. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_732": {
+      "id": "DBE_732",
+      "code": 732,
+      "title": "Number in preferred name",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_732",
+      "description": "There is a number in the preferred name field. Numbers should not normally be used in the preferred name. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_733": {
+      "id": "DBE_733",
+      "code": 733,
+      "title": "Prefix in preferred name",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_733",
+      "description": "The preferred name field contains a term normally considered a prefix. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_734": {
+      "id": "DBE_734",
+      "code": 734,
+      "title": "Wrong word in preferred name",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_734",
+      "description": "A word not normally used as a name is in the preferred name field. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_735": {
+      "id": "DBE_735",
+      "code": 735,
+      "title": "Wrong character in preferred name",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_735",
+      "description": "A character not normally used in a name is in the preferred name field. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_737": {
+      "id": "DBE_737",
+      "code": 737,
+      "title": "Unique name in Preferred Name",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_737",
+      "description": "The preferred name of this profile is unique on WikiTree which could be a misspelled name.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=SrZjT6Lelck&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Name_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_741": {
+      "id": "DBE_741",
+      "code": 741,
+      "title": "Separator in middle name",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_741",
+      "description": "There is a separator in the middle name field. Examples include \"/\", \"-\", \",\", \"(\" and \")\". Separators should normally not be used in the middle name field. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_742": {
+      "id": "DBE_742",
+      "code": 742,
+      "title": "Number in middle name",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_742",
+      "description": "There is a number in the middle name field. Numbers should not normally be used in the middle name. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_743": {
+      "id": "DBE_743",
+      "code": 743,
+      "title": "Prefix in middle name",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_743",
+      "description": "The middle name field contains a term normally considered a prefix. See suggestion description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_744": {
+      "id": "DBE_744",
+      "code": 744,
+      "title": "Wrong word in middle name",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_744",
+      "description": "A word not normally used as a name is in the middle name field. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_745": {
+      "id": "DBE_745",
+      "code": 745,
+      "title": "Wrong character in middle name",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_745",
+      "description": "A character not normally used in a name is in the middle name field. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_747": {
+      "id": "DBE_747",
+      "code": 747,
+      "title": "Unique name in Middle Name",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_747",
+      "description": "The middle name of this profile is unique on WikiTree which could be a misspelled name.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=SrZjT6Lelck&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Name_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_749": {
+      "id": "DBE_749",
+      "code": 749,
+      "title": "Middle Name used in used in some areas",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_749",
+      "description": "The middle name field contains a name for a person born in a region that doesn't have a concept of a middle name. This is easy for those familiar with those regions and research in that area.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_751": {
+      "id": "DBE_751",
+      "code": 751,
+      "title": "Separator in nicknames",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_751",
+      "description": "There is a separator in the nicknames field. Examples include \"/\", \"-\", \",\", \"(\" and \")\". Separators should normally not be used in the nicknames field. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_752": {
+      "id": "DBE_752",
+      "code": 752,
+      "title": "Number in nicknames",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_752",
+      "description": "There is a number in the nicknames field. Nicknames don't use numbers in the nicknames. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_753": {
+      "id": "DBE_753",
+      "code": 753,
+      "title": "Prefix in nicknames",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_753",
+      "description": "The nicknames field contains a term normally considered a prefix. See suggestion description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_754": {
+      "id": "DBE_754",
+      "code": 754,
+      "title": "Wrong word in nicknames",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_754",
+      "description": "A word not normally used as a name is in the nicknames field. See suggestion description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_755": {
+      "id": "DBE_755",
+      "code": 755,
+      "title": "Wrong character in Nicknames",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_755",
+      "description": "There is an unusual character in the nicknames field.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_757": {
+      "id": "DBE_757",
+      "code": 757,
+      "title": "Unique name in Nicknames",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_757",
+      "description": "Suffix of this profile is unique on WikiTree. This could be a misspelled Suffix.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=SrZjT6Lelck&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Name_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_761": {
+      "id": "DBE_761",
+      "code": 761,
+      "title": "Separator in suffix",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_761",
+      "description": "There is a separator in the suffix field. Examples include \"/\", \"-\", \",\", \"(\" and \")\". Separators should normally not be used in the suffix field. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_762": {
+      "id": "DBE_762",
+      "code": 762,
+      "title": "Number in suffix",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_762",
+      "description": "There is a number in the suffix field. Numbers should not normally be used in the suffix. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_763": {
+      "id": "DBE_763",
+      "code": 763,
+      "title": "Prefix in suffix",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_763",
+      "description": "The suffix field contains a term normally considered a prefix. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_764": {
+      "id": "DBE_764",
+      "code": 764,
+      "title": "Wrong word in suffix",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_764",
+      "description": "A word not normally used as a name is in the suffix field. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_765": {
+      "id": "DBE_765",
+      "code": 765,
+      "title": "Wrong character in suffix",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_765",
+      "description": "In Suffix there is unusual character.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_767": {
+      "id": "DBE_767",
+      "code": 767,
+      "title": "Unique name in Suffix",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_767",
+      "description": "Suffix of this profile is unique on WikiTree. This could be a misspelled Suffix.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=SrZjT6Lelck&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Name_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_771": {
+      "id": "DBE_771",
+      "code": 771,
+      "title": "Separator in last name at birth",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_771",
+      "description": "There is a separator in the last name at birth field. Examples include \"/\", \"-\", \",\", \"(\" and \")\". Separators should normally not be used in the last name at birth field. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_772": {
+      "id": "DBE_772",
+      "code": 772,
+      "title": "Number in Last Name at Birth",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_772",
+      "description": "The last name at birth contains a number.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_773": {
+      "id": "DBE_773",
+      "code": 773,
+      "title": "Prefix in last name at birth",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_773",
+      "description": "The last name at birth field contains a term normally considered a prefix. See suggestion description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_774": {
+      "id": "DBE_774",
+      "code": 774,
+      "title": "Wrong word in last name at birth",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_774",
+      "description": "A word not normally used as a name is in the last name at birth field. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_775": {
+      "id": "DBE_775",
+      "code": 775,
+      "title": "Wrong character in last name at birth",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_775",
+      "description": "A character not normally used in a name is in the last name at birth field. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_777": {
+      "id": "DBE_777",
+      "code": 777,
+      "title": "Unique name in Last Name at Birth",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_777",
+      "description": "Last Name at Birth of this profile is unique on WikiTree. This could be a misspelled Last Name at Birth.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=SrZjT6Lelck&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Name_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_778": {
+      "id": "DBE_778",
+      "code": 778,
+      "title": "Period in the Last Name at Birth",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_778",
+      "description": "Last name at Birth field contains a period which is not allowed by WikiTree guidelines. See suggestion description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_781": {
+      "id": "DBE_781",
+      "code": 781,
+      "title": "Separator in current last name",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_781",
+      "description": "There is a separator in the current last name field. Examples include \"/\", \"-\", \",\", \"(\" and \")\". Separators should normally not be used in the current last name field. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_782": {
+      "id": "DBE_782",
+      "code": 782,
+      "title": "Number in current last name",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_782",
+      "description": "In Current Last name numbers have been found that indicates an error.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_783": {
+      "id": "DBE_783",
+      "code": 783,
+      "title": "Prefix in current last name",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_783",
+      "description": "The current last name field contains a term normally considered a prefix. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_784": {
+      "id": "DBE_784",
+      "code": 784,
+      "title": "Wrong word in current last name",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_784",
+      "description": "A word not normally used as a name is in the current last name field. See suggestion description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_785": {
+      "id": "DBE_785",
+      "code": 785,
+      "title": "Wrong character in current last name",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_785",
+      "description": "A character not normally used in a name is in the current last name field. See suggestion description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_787": {
+      "id": "DBE_787",
+      "code": 787,
+      "title": "Unique name in Current Last Name",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_787",
+      "description": "Current Last Name of this profile is unique on WikiTree. This could be a misspelled Current Last Name.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=SrZjT6Lelck&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Name_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_788": {
+      "id": "DBE_788",
+      "code": 788,
+      "title": "Period in Current Last Name",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_788",
+      "description": "A period is found in the Current Last Name field which is not allowed by WikiTree guidelines. See suggestion description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_791": {
+      "id": "DBE_791",
+      "code": 791,
+      "title": "Separator in last name other",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_791",
+      "description": "There is a separator in the Last Name Other field. Separators should not be used in the Last Name Other field except for a comma between last name variations.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_792": {
+      "id": "DBE_792",
+      "code": 792,
+      "title": "Number in the last name other",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_792",
+      "description": "There is a number in the last name other field. The last name other field contains numbers not normally used in that field. See error description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_793": {
+      "id": "DBE_793",
+      "code": 793,
+      "title": "Prefix in last name other",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_793",
+      "description": "The Last Name Other field has text that should be in prefix/suffix.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_794": {
+      "id": "DBE_794",
+      "code": 794,
+      "title": "Wrong word in last name other",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_794",
+      "description": "A word not normally used as a name is in the last name other field. See suggestion description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_795": {
+      "id": "DBE_795",
+      "code": 795,
+      "title": "Wrong character in last name other",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_795",
+      "description": "A character not normally used in a name is in the last name other field. See suggestion description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_797": {
+      "id": "DBE_797",
+      "code": 797,
+      "title": "Unique name in Last Name Other",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_797",
+      "description": "Last Name Other of this profile is unique on WikiTree. This could be a misspelled Last Name Other.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=SrZjT6Lelck&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Name_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_798": {
+      "id": "DBE_798",
+      "code": 798,
+      "title": "Period in Last Name Other",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_798",
+      "description": "Other Last Names field contains a period which is not allowed by WikiTree guidelines. See suggestion description for details.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_911": {
+      "id": "DBE_911",
+      "code": 911,
+      "title": "Swedish patronym DOTTER for male",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_911",
+      "description": "Profile's gender is male and patronym indicates it should be female. Read more about patronyms .",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_912": {
+      "id": "DBE_912",
+      "code": 912,
+      "title": "Swedish patronym SSON for female",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_912",
+      "description": "",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_913": {
+      "id": "DBE_913",
+      "code": 913,
+      "title": "Swedish patronym DOTTER abbreviated",
+      "type": "Warning",
+      "difficulty": "Advanced",
+      "group_key": "name",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_913",
+      "description": "",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_204": {
+      "id": "DBE_204",
+      "code": 204,
+      "title": "Father has no Gender",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "gender",
+      "suggestion_page": "/wiki/Space:DBE_204",
+      "description": "This person's father doesn't have a gender. Set father's gender.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_304": {
+      "id": "DBE_304",
+      "code": 304,
+      "title": "Mother has no Gender",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "gender",
+      "suggestion_page": "/wiki/Space:DBE_304",
+      "description": "This person's mother doesn't have a gender. Set mother's gender.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_402": {
+      "id": "DBE_402",
+      "code": 402,
+      "title": "Unknown gender of spouse",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "gender",
+      "suggestion_page": "/wiki/Space:DBE_402",
+      "description": "The person's spouse does not have their gender set. If it can be confidently determined, set the spouse's gender for their edit page.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_403": {
+      "id": "DBE_403",
+      "code": 403,
+      "title": "Single-sex marriage",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "gender",
+      "suggestion_page": "/wiki/Space:DBE_403",
+      "description": "Both spouses have the same gender. Same-sex marriage is not uncommon today but it was rare in history. Verify that one of the partners does not have the wrong gender and edit if appropriate.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=9gUrfWOgIbY&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Gender_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_501": {
+      "id": "DBE_501",
+      "code": 501,
+      "title": "Wrong male gender",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "gender",
+      "suggestion_page": "/wiki/Space:DBE_501",
+      "description": "Person with this name is most likely male, but the profile is marked as female. Either gender or name is probably incorrect. Correct gender or name.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=fdO_I3dalsQ&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Gender_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_502": {
+      "id": "DBE_502",
+      "code": 502,
+      "title": "Missing male gender",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "gender",
+      "suggestion_page": "/wiki/Space:DBE_502",
+      "description": "Person with this name is most likely male, but no gender is checked on the profile . Enter the correct gender.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=ByQEaLjprvw&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Gender_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_503": {
+      "id": "DBE_503",
+      "code": 503,
+      "title": "Missing probably male gender",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "gender",
+      "suggestion_page": "/wiki/Space:DBE_503",
+      "description": "Person with this name should statistically be male, but is defined as female. Gender may be wrong or name may be incorrect.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=2YjARa2HoO4&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Gender_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_504": {
+      "id": "DBE_504",
+      "code": 504,
+      "title": "Missing probably male gender",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "gender",
+      "suggestion_page": "/wiki/Space:DBE_504",
+      "description": "Person with this name should statistically be male, but no gender has been set.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=2n66DYGFpcI&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Gender_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_505": {
+      "id": "DBE_505",
+      "code": 505,
+      "title": "Wrong female gender",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "gender",
+      "suggestion_page": "/wiki/Space:DBE_505",
+      "description": "Person with this name is most likely female, but the profile is marked as male. Either gender or name is probably incorrect. Correct gender or name.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=fdO_I3dalsQ&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Gender_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_506": {
+      "id": "DBE_506",
+      "code": 506,
+      "title": "Missing female gender",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "gender",
+      "suggestion_page": "/wiki/Space:DBE_506",
+      "description": "Person with this name is most likely female, but no gender is checked on the profile. Enter the correct gender.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=ByQEaLjprvw&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Gender_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_507": {
+      "id": "DBE_507",
+      "code": 507,
+      "title": "Probably wrong female gender",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "gender",
+      "suggestion_page": "/wiki/Space:DBE_507",
+      "description": "Person with this name should statistically be female, but is defined as male. Gender may be wrong or name may be incorrect.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=2YjARa2HoO4&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Gender_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_508": {
+      "id": "DBE_508",
+      "code": 508,
+      "title": "Missing probably female gender",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "gender",
+      "suggestion_page": "/wiki/Space:DBE_508",
+      "description": "Person with this name should statistically be female, but no gender has been set.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=2n66DYGFpcI&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Gender_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_509": {
+      "id": "DBE_509",
+      "code": 509,
+      "title": "Missing gender",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "gender",
+      "suggestion_page": "/wiki/Space:DBE_509",
+      "description": "Person has no gender set and gender cannot be derived from name.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=BQa3IBEr6ew&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Gender_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_510": {
+      "id": "DBE_510",
+      "code": 510,
+      "title": "Unique name without gender",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "gender",
+      "suggestion_page": "/wiki/Space:DBE_510",
+      "description": "Person has a unique name (only appears once in the database) and no gender defined. Gender cannot be derived from name.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=alufqLmBC6k&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Gender_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_601": {
+      "id": "DBE_601",
+      "code": 601,
+      "title": "Wrong word in birth location",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_601",
+      "description": "The birth location entered is not a valid geographic location. This may include street names which should not be in the location field.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_602": {
+      "id": "DBE_602",
+      "code": 602,
+      "title": "Separators in Birth Location",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_602",
+      "description": "In the Birth Location field no separators should be present except for: a comma , a dot . a space, a dash - , a single quotation mark, ' pairs of parentheses ( ) or pairs of brackets [ ]. All others create this error.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_603": {
+      "id": "DBE_603",
+      "code": 603,
+      "title": "USA too early in birth location",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_603",
+      "description": "Entered as the United States of America (USA) as the country of birth; however, the birth date is before 1776. Location fields should use the name that existed when the event took place.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_604": {
+      "id": "DBE_604",
+      "code": 604,
+      "title": "Birth location too short",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_604",
+      "description": "The birth location field should contain a full description of the location all applicable geopolitical designations up to and including the country. Short forms for States and Countries should not be used.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=jDg42mytJtI&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Location_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_605": {
+      "id": "DBE_605",
+      "code": 605,
+      "title": "Number in birth location",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_605",
+      "description": "There is only a number in the birth location field. The birth location field should contain a full description of all applicable geopolitical designations to and including the country.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_607": {
+      "id": "DBE_607",
+      "code": 607,
+      "title": "Misspelled word in birth location",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_607",
+      "description": "One of the words in the birth location field is misspelled.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_608": {
+      "id": "DBE_608",
+      "code": 608,
+      "title": "Misspelled country in birth location",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_608",
+      "description": "The last word in the birth location field, if it is a country, is misspelled.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_609": {
+      "id": "DBE_609",
+      "code": 609,
+      "title": "Wrong character in birth location",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_609",
+      "description": "There is a character in the birth location field that is normally not used in describing a geopolitical location.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_610": {
+      "id": "DBE_610",
+      "code": 610,
+      "title": "Birth location in uppercase",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_610",
+      "description": "All characters in the birth location are in uppercase. Enter birth locations in title case (The first letter of each word capitalized except words such as \"and\" and \"of.\")",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_611": {
+      "id": "DBE_611",
+      "code": 611,
+      "title": "Birth location in lowercase",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_611",
+      "description": "All characters in the birth location are in lowercase. Enter birth locations in title case (The first letter of each word capitalized except words such as \"and\" and \"of.\")",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_612": {
+      "id": "DBE_612",
+      "code": 612,
+      "title": "Location too early in birth location",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_612",
+      "description": "The country in the birth location did not exist when the birth took place. The birth location should be the name of the location as it existed when the birth took place.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_613": {
+      "id": "DBE_613",
+      "code": 613,
+      "title": "() in birth location",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_613",
+      "description": "Parentheses ( ) are used within the birth location name. Parentheses are not allowed in location fields.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_614": {
+      "id": "DBE_614",
+      "code": 614,
+      "title": "Birth location too long",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_614",
+      "description": "The birth location is too long. This error generally occurs when extraneous information such as the street or hospital name is entered into the birth location. Such information properly belongs in the biography.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_615": {
+      "id": "DBE_615",
+      "code": 615,
+      "title": "Birth Location Country not recognised",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_615",
+      "description": "Possible typo, or the location is not recognized in predefined countries. It could also be just missing in the predefined countries list. This suggestion is calculated only for orphaned profiles.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_616": {
+      "id": "DBE_616",
+      "code": 616,
+      "title": "Abbreviated Birth location Country not recommended",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_616",
+      "description": "Location is abbreviated, which is not recommended location format on Wikitree. Accepted exceptions are USA and UK. This suggestion is calculated only for orphaned profiles .",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_617": {
+      "id": "DBE_617",
+      "code": 617,
+      "title": "Ambiguous Birth location Country not recommended",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_617",
+      "description": "Location is ambiguous, which is not helpful, or a problem with a separator - usually a comma is missing between place and country. This suggestion is calculated only for orphaned profiles.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_618": {
+      "id": "DBE_618",
+      "code": 618,
+      "title": "Birth location Country not preferred by project",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_618",
+      "description": "Location is abreviated or ambiguous, which is not very useful, or a separator issue if a comma is missing between place and country. The location is recognized as the country in predefined countries list, but it is flagged as not recommended form due to ambiguity.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_631": {
+      "id": "DBE_631",
+      "code": 631,
+      "title": "Wrong word in death location",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_631",
+      "description": "The death location entered is not a valid geographic location. Type:Error",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_632": {
+      "id": "DBE_632",
+      "code": 632,
+      "title": "Separators in death location",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_632",
+      "description": "In the Death Location field no separators should be present except for: a comma , a dot . a space, a dash - , a single quotation mark, ' pairs of parentheses ( ) or pairs of brackets [ ]. All others create this error.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_633": {
+      "id": "DBE_633",
+      "code": 633,
+      "title": "USA too early in death location",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_633",
+      "description": "Entered as the United States of America (USA) as the country of death; however, the death date is before 1776. Location fields should use the name that existed when the event took place.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_634": {
+      "id": "DBE_634",
+      "code": 634,
+      "title": "Death location too short",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_634",
+      "description": "The death location field should contain a full description of the location all applicable geopolitical designations up to and including the country. Short forms for States and Countries should not be used.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=jDg42mytJtI&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Location_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_635": {
+      "id": "DBE_635",
+      "code": 635,
+      "title": "Number in death location",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_635",
+      "description": "There is only a number in the death location field. The death location field should contain a full description of all applicable geopolitical designations to and including the country.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_637": {
+      "id": "DBE_637",
+      "code": 637,
+      "title": "Misspelled word in death location",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_637",
+      "description": "One of the words in the death location field is misspelled.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_638": {
+      "id": "DBE_638",
+      "code": 638,
+      "title": "Misspelled country in death location",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_638",
+      "description": "The last word in the death location field, if it is a country, is misspelled. Type:Error",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_639": {
+      "id": "DBE_639",
+      "code": 639,
+      "title": "Wrong character in death location",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_639",
+      "description": "There is a character in the death location field that is normally not used in describing a geopolitical location.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_640": {
+      "id": "DBE_640",
+      "code": 640,
+      "title": "Death location in uppercase",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_640",
+      "description": "All characters in the death location are in uppercase. Enter death locations in title case (the first letter of each word capitalized except words such as \"and\" and \"of\".)",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_641": {
+      "id": "DBE_641",
+      "code": 641,
+      "title": "Death location in lowercase",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_641",
+      "description": "All characters in the death location are in lowercase. Enter death locations in title case (the first letter of each word capitalized except words such as \"and\" and \"of\".)",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_642": {
+      "id": "DBE_642",
+      "code": 642,
+      "title": "Location too early in death location",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_642",
+      "description": "The country in the death location did not exist when the death took place. The death location should be the name of the location as it existed when the death took place.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_643": {
+      "id": "DBE_643",
+      "code": 643,
+      "title": "() in death location",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_643",
+      "description": "Parentheses ( ) are used within the death location name. Parentheses are not allowed in location fields.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_644": {
+      "id": "DBE_644",
+      "code": 644,
+      "title": "Death location too long",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_644",
+      "description": "The death location is too long. This error generally occurs when extraneous information such as the street or hospital name is entered into the death location. Such information properly belongs in the biography.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_645": {
+      "id": "DBE_645",
+      "code": 645,
+      "title": "Death Location Country not recognised",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_645",
+      "description": "Location is abbreviated, which is not recommended location format on Wikitree. Accepted exceptions are USA and UK. This suggestion is calculated only for orphaned profiles.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_646": {
+      "id": "DBE_646",
+      "code": 646,
+      "title": "Abbreviated Death location Country not recommended",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_646",
+      "description": "Location is abbreviated, which is not recommended location format on Wikitree. Accepted exceptions are USA and UK. This suggestion is calculated only for orphaned profiles.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_647": {
+      "id": "DBE_647",
+      "code": 647,
+      "title": "Ambiguous Death location Country not recommended",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_647",
+      "description": "Location is ambiguous, which is not helpful, or a problem with a separator - usually a comma is missing between place and country. This suggestion is calculated only for orphaned profiles.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_678": {
+      "id": "DBE_678",
+      "code": 678,
+      "title": "Marriage location Country not preferred by project",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_678",
+      "description": "Location is abreviated or ambiguous, which is not very useful, or a separator issue if a comma is missing between place and country. The location is recognized as the country in predefined countries list, but it is flagged as not recommended form due to ambiguity.'",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_661": {
+      "id": "DBE_661",
+      "code": 661,
+      "title": "Wrong word in marriage location",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_661",
+      "description": "The marriage location entered is not a valid geographic location.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_662": {
+      "id": "DBE_662",
+      "code": 662,
+      "title": "Y marriage location",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_662",
+      "description": "The field Marriage Place is filled with \"Y\" or \"Y/\" or \"Y;\" or \"Yes\", or begins with \"Y/\" or \"Yes\". These are invalid locations.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_663": {
+      "id": "DBE_663",
+      "code": 663,
+      "title": "USA too early in marriage location",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_663",
+      "description": "Entered United States of America (USA) as the country of marriage; however, the marriage date is before 1776. Location fields should use the name that existed when the event took place.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_664": {
+      "id": "DBE_664",
+      "code": 664,
+      "title": "Marriage location too short",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_664",
+      "description": "The marriage location field should contain a full description of the location all applicable geopolitical designations up to and including the country. Short forms for States and Countries should not be used.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=jDg42mytJtI&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Location_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_665": {
+      "id": "DBE_665",
+      "code": 665,
+      "title": "Number in marriage location",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_665",
+      "description": "There is only a number in the marriage location field. The marriage location field should contain a full description of all applicable geopolitical designations to and including the country.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_667": {
+      "id": "DBE_667",
+      "code": 667,
+      "title": "Misspelled word in marriage location",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_667",
+      "description": "One of the words in the marriage location field is misspelled.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_668": {
+      "id": "DBE_668",
+      "code": 668,
+      "title": "Misspelled country in marriage location",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_668",
+      "description": "The last word in the marriage location field, if it is a country, is misspelled.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_669": {
+      "id": "DBE_669",
+      "code": 669,
+      "title": "Wrong character in marriage location",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_669",
+      "description": "There is a character in the marriage location field that is normally not used in describing a geopolitical location.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_670": {
+      "id": "DBE_670",
+      "code": 670,
+      "title": "Marriage location in uppercase",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_670",
+      "description": "All characters in the marriage location are in uppercase. Enter marriage locations in title case (the first letter of each word capitalized except words such as \"and\" and \"of\".)",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_671": {
+      "id": "DBE_671",
+      "code": 671,
+      "title": "Marriage location in lowercase",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_671",
+      "description": "All characters in the marriage location are in lowercase. Enter marriage locations in title case (First letter of each word capitalized except words such as \"and\" and \"of\".)",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_672": {
+      "id": "DBE_672",
+      "code": 672,
+      "title": "Location too early in marriage location",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_672",
+      "description": "The country in the marriage location did not exist when the marriage took place. The marriage location should be the name of the location as it existed when the marriage took place.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_673": {
+      "id": "DBE_673",
+      "code": 673,
+      "title": "() in marriage location",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_673",
+      "description": "Parentheses ( ) are used within the marriage location name. Parentheses are not allowed in location fields",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_674": {
+      "id": "DBE_674",
+      "code": 674,
+      "title": "Marriage location too long",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_674",
+      "description": "The marriage location is too long. This error generally occurs when extraneous information such as the street or hospital name is entered into the marriage location. Such information properly belongs in the biography.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_675": {
+      "id": "DBE_675",
+      "code": 675,
+      "title": "Marriage Location Country not recognised",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_675",
+      "description": "Possible typo, or the location is not recognized in predefined countries. It could also be just missing in the predefined countries list. This suggestion is calculated only for orphaned profiles.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_676": {
+      "id": "DBE_676",
+      "code": 676,
+      "title": "Abbreviated Marriage location Country not recommended",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_676",
+      "description": "Location is abbreviated, which is not recommended location format on Wikitree. Accepted exceptions are USA and UK. This suggestion is calculated only for orphaned profiles.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_677": {
+      "id": "DBE_677",
+      "code": 677,
+      "title": "Ambiguous Marriage location Country not recommended",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "location",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_677",
+      "description": "Location is ambiguous, which is not helpful, or a problem with a separator - usually a comma is missing between place and country. This suggestion is calculated only for orphaned profiles.",
+      "videos": [],
+      "source": {
+        "from": "html"
+      }
+    },
+    "DBE_109": {
+      "id": "DBE_109",
+      "code": 109,
+      "title": "Profile should be open (birth date)",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "privacy",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_109",
+      "description": "This profile is locked but the birth date is greater than 150 years in the past. Either the profile should be opened or, if wrong, the birth date should be corrected.",
+      "description_raw": "This profile is locked but the birth date is greater than 150 years in the past. Either the profile should be opened or, if wrong, the birth date should be corrected.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=bhhelLj2aZw&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Privacy_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_110": {
+      "id": "DBE_110",
+      "code": 110,
+      "title": "Profile should be open (death date)",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "privacy",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_110",
+      "description": "This profile is locked, but the death date is greater than 100 years in the past. Either the profile should be opened or, if wrong, correct the death date.",
+      "description_raw": "This profile is locked, but the death date is greater than 100 years in the past. Either the profile should be opened or, if wrong, correct the death date.",
+      "videos": [],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_114": {
+      "id": "DBE_114",
+      "code": 114,
+      "title": "Still Living Status with Death Date",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "privacy",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_114",
+      "description": "This profile has a death date entered, but also has the \"still living\" radio button under the death date checked.",
+      "description_raw": "This profile has a death date entered, but also has the \"still living\" radio button under the death date checked.",
+      "videos": [],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_115": {
+      "id": "DBE_115",
+      "code": 115,
+      "title": "Still Living Status and entered death location",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "privacy",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_115",
+      "description": "These profiles have Still living selected and death location entered.",
+      "description_raw": "These profiles have Still living selected and death location entered.",
+      "videos": [],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_118": {
+      "id": "DBE_118",
+      "code": 118,
+      "title": "Still living death location status with death date",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "privacy",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_118",
+      "description": "This profile has a death date entered, but also has the \"intentionally blank because still living\" radio button under the death location checked.",
+      "description_raw": "This profile has a death date entered, but also has the \"intentionally blank because still living\" radio button under the death location checked.",
+      "videos": [],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_119": {
+      "id": "DBE_119",
+      "code": 119,
+      "title": "Still living in death location status with death location",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "privacy",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_119",
+      "description": "This profile has a death location entered, but also has the \"intentionally blank because still living\" radio button under the death location checked.",
+      "description_raw": "This profile has a death location entered, but also has the \"intentionally blank because still living\" radio button under the death location checked.",
+      "videos": [],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_120": {
+      "id": "DBE_120",
+      "code": 120,
+      "title": "Possible still living with death date",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "privacy",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_120",
+      "description": "This profile has a death date entered, but there is some reason within the profile to question the death (such as an active email account.)",
+      "description_raw": "This profile has a death date entered, but there is some reason within the profile to question the death (such as an active email account.)",
+      "videos": [],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_121": {
+      "id": "DBE_121",
+      "code": 121,
+      "title": "Possible still living with death location",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "privacy",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_121",
+      "description": "These profiles have some reason to be marked as living.",
+      "description_raw": "These profiles have some reason to be marked as living.",
+      "videos": [],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_212": {
+      "id": "DBE_212",
+      "code": 212,
+      "title": "Profile should be open (Child birth date)",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "privacy",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_212",
+      "description": "This error is similar to Suggestions 109 and 110 but reported for profiles with no birth and death date, and their children were born more than 135 years ago.",
+      "description_raw": "This error is similar to Suggestions 109 and 110 but reported for profiles with no birth and death date, and their children were born more than 135 years ago.",
+      "videos": [],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_312": {
+      "id": "DBE_312",
+      "code": 312,
+      "title": "Profile should be open (Child birth date)",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "privacy",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_312",
+      "description": "This error is similar to Suggestions 109 and 110 but reported for profiles with no birth and death date, and their children were born more than 135 years ago.",
+      "description_raw": "This error is similar to Suggestions 109 and 110 but reported for profiles with no birth and death date, and their children were born more than 135 years ago.",
+      "videos": [],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_801": {
+      "id": "DBE_801",
+      "code": 801,
+      "title": "Big biography",
+      "type": "Warning",
+      "difficulty": "Advanced",
+      "group_key": "biography",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_801",
+      "description": "The profile's biography is quite large. A big biography isn't necessarily an error. It is just a warning that the biography may be overly wordy.",
+      "description_raw": "The profile's biography is quite large. A big biography isn't necessarily an error. It is just a warning that the biography may be overly wordy.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=92lYc0o4CXw&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Biography_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_802": {
+      "id": "DBE_802",
+      "code": 802,
+      "title": "Empty biography",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "biography",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_802",
+      "description": "The profile's biography is empty. Since the biography contains the sources for the profile, this indicates that the profile is unsourced.",
+      "description_raw": "The profile's biography is empty. Since the biography contains the sources for the profile, this indicates that the profile is unsourced.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=6MIev4RWdTI&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Biography_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_803": {
+      "id": "DBE_803",
+      "code": 803,
+      "title": "Almost empty biography",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "biography",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_803",
+      "description": "The character count in the biography of this profile is fifty letters or less. Since the biography contains the sources for the profile, a short biography may indicate an unsourced profile.",
+      "description_raw": "The character count in the biography of this profile is fifty letters or less. Since the biography contains the sources for the profile, a short biography may indicate an unsourced profile.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=gaZ6puIPfzw&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Biography_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_811": {
+      "id": "DBE_811",
+      "code": 811,
+      "title": "Uncleaned profile after merge",
+      "type": "Warning",
+      "difficulty": "Advanced",
+      "group_key": "biography",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_811",
+      "description": "This profile is the result has been merged, however the biography has not been cleaned up and reorganized. Each biography should have one set of contents and one sources section.",
+      "description_raw": "This profile is the result has been merged, however the biography has not been cleaned up and reorganized. Each biography should have one set of contents and one sources section.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=RhM1tLptVmo&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Biography_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_821": {
+      "id": "DBE_821",
+      "code": 821,
+      "title": "Heading starts with blank",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "biography",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_821",
+      "description": "A caption or a heading in the biography of this profile starts with a blank space. Wikitree biography syntax defines that a new line starting with a \"=\" is a Caption or Heading. Caption and headings must be left justified and start with a \"=\". Additional video: https://www.youtube.com/watch?v=DitEKl_UlGQ&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Biography_Suggestions&utm_campaign=data_doctors",
+      "description_raw": "A caption or a heading in the biography of this profile starts with a blank space. Wikitree biography syntax defines that a new line starting with a \"=\" is a Caption or Heading. Caption and headings must be left justified and start with a \"=\". Additional video: https://www.youtube.com/watch?v=DitEKl_UlGQ&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Biography_Suggestions&utm_campaign=data_doctors",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=sld_N7DWSIc&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Biography_Suggestions&utm_campaign=data_doctors"
+        },
+        {
+          "url": "https://www.youtube.com/watch?v=DitEKl_UlGQ&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Biography_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_822": {
+      "id": "DBE_822",
+      "code": 822,
+      "title": "Heading doesn't end with =",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "biography",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_822",
+      "description": "A caption or a heading in the biography of this profile does not end with \"=\". Wikitree biography syntax defines that a caption or heading must start with one or more \"=\"s and end with the same number of \"=\"s.",
+      "description_raw": "A caption or a heading in the biography of this profile does not end with \"=\". Wikitree biography syntax defines that a caption or heading must start with one or more \"=\"s and end with the same number of \"=\"s.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=VJAlMODLK60&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Biography_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_823": {
+      "id": "DBE_823",
+      "code": 823,
+      "title": "Heading doesn't start with =",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "biography",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_823",
+      "description": "A caption or a heading in the biography of this profile does not start with the same number of \"=\"s as the end set of \"=\"s. Wikitree biography syntax defines that a caption or heading must start with one or more \"=\"s and end with the same number of \"=\"s.",
+      "description_raw": "A caption or a heading in the biography of this profile does not start with the same number of \"=\"s as the end set of \"=\"s. Wikitree biography syntax defines that a caption or heading must start with one or more \"=\"s and end with the same number of \"=\"s.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=kdkgkpQgmGE&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Biography_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_824": {
+      "id": "DBE_824",
+      "code": 824,
+      "title": "Heading different number of =",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "biography",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_824",
+      "description": "A caption or a heading in the biography of this profile does not start with the same number of \"=\"s as the end set of \"=\"s. WikiTree biography syntax defines that a caption or heading must start with one or more \"=\"s and end with the same number of \"=\"s.",
+      "description_raw": "A caption or a heading in the biography of this profile does not start with the same number of \"=\"s as the end set of \"=\"s. WikiTree biography syntax defines that a caption or heading must start with one or more \"=\"s and end with the same number of \"=\"s.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=dLDYzpNpJ1g&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Biography_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_825": {
+      "id": "DBE_825",
+      "code": 825,
+      "title": "Use separator line ----",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "biography",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_825",
+      "description": "The biography in this profile uses four or more \"=\" to simulate a separator line. Wikitree biography syntax uses four minuses (\"-\") on a line to make a separator line. Separator lines should not be built using \"=\"s since this can cause the line to be rendered as a caption or heading.",
+      "description_raw": "The biography in this profile uses four or more \"=\" to simulate a separator line. Wikitree biography syntax uses four minuses (\"-\") on a line to make a separator line. Separator lines should not be built using \"=\"s since this can cause the line to be rendered as a caption or heading.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=MZLfZqLgNCk&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Biography_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_831": {
+      "id": "DBE_831",
+      "code": 831,
+      "title": "Multiple duplicated lines",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "biography",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_831",
+      "description": "The biography in this profile has one or more cases of repeated lines or paragraphs, possibly the result of merging or data imports. Duplicate lines and paragraphs should be deleted.",
+      "description_raw": "The biography in this profile has one or more cases of repeated lines or paragraphs, possibly the result of merging or data imports. Duplicate lines and paragraphs should be deleted.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=jBjPgdVN06o&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Biography_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_835": {
+      "id": "DBE_835",
+      "code": 835,
+      "title": "Local file reference",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "biography",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_835",
+      "description": "The biography in this profile has references to files contained on the author, editor or creators' local computer. These files are not visible on the Internet. See the 835 suggestion page for an example.",
+      "description_raw": "The biography in this profile has references to files contained on the author, editor or creators' local computer. These files are not visible on the Internet. See the 835 suggestion page for an example.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=HUTJnILV5hk&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Biography_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_851": {
+      "id": "DBE_851",
+      "code": 851,
+      "title": "GEDCOM uncleaned Interpret date",
+      "type": "Warning",
+      "difficulty": "Advanced",
+      "group_key": "biography",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_851",
+      "description": "The biography of this profile contains a warning from the GEDCOM import program that a date in the GEDCOM import could not be interpreted. If the correct date is in the indicated field, delete this warning.",
+      "description_raw": "The biography of this profile contains a warning from the GEDCOM import program that a date in the GEDCOM import could not be interpreted. If the correct date is in the indicated field, delete this warning.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=0h9FTMhlIgo&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Biography_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_852": {
+      "id": "DBE_852",
+      "code": 852,
+      "title": "GEDCOM uncleaned Parse Last name",
+      "type": "Warning",
+      "difficulty": "Advanced",
+      "group_key": "biography",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_852",
+      "description": "The biography of this profile contains a warning from the GEDCOM import program that the last name in the GEDCOM import could not be parsed. If the correct name is in the last name field, delete this warning.",
+      "description_raw": "The biography of this profile contains a warning from the GEDCOM import program that the last name in the GEDCOM import could not be parsed. If the correct name is in the last name field, delete this warning.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=Yd40uYr4Nn0&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Biography_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_853": {
+      "id": "DBE_853",
+      "code": 853,
+      "title": "GEDCOM Junk",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "biography",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_853",
+      "description": "The biography contains GEDCOM sections that should not be on WikiTree. See Help:GEDCOM-Created_Biographies#Sections_you_can_delete.",
+      "description_raw": "The biography contains GEDCOM sections that should not be on WikiTree. See Help:GEDCOM-Created_Biographies#Sections_you_can_delete.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=yNnIv9JvOQA&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:Biography_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_861": {
+      "id": "DBE_861",
+      "code": 861,
+      "title": "Inline citation doesn't start with \"<ref>\"",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "references_tags",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_861",
+      "description": "Inline citations must start with \"<ref>\" and end with \"</ref>\". The biography in this profile contains one or more inline citations ending in \"</ref>\", but there is no matching \"<ref>\" sign showing the beginning of the citation.",
+      "description_raw": "Inline citations must start with \"<ref>\" and end with \"</ref>\". The biography in this profile contains one or more inline citations ending in \"</ref>\", but there is no matching \"<ref>\" sign showing the beginning of the citation.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=k5t19dW5v_E&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:References_and_Ref_Tag_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_862": {
+      "id": "DBE_862",
+      "code": 862,
+      "title": "Inline citation doesn't end with </ref>",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "references_tags",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_862",
+      "description": "Inline citations must start with \"<ref>\" and end with \"</ref>\". The biography in this profile contains one or more inline citations beginning with \"<ref>\", but there is no matching \"</ref>\" sign showing the end of the citation.",
+      "description_raw": "Inline citations must start with \"<ref>\" and end with \"</ref>\". The biography in this profile contains one or more inline citations beginning with \"<ref>\", but there is no matching \"</ref>\" sign showing the end of the citation.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=0IdRQlpFTS4&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:References_and_Ref_Tag_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_863": {
+      "id": "DBE_863",
+      "code": 863,
+      "title": "Missing <references /> tag",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "references_tags",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_863",
+      "description": "The biography of this profile does not contain a \"<references/>\" tag. All Wikitree profile biographies should contain a Sources heading and should have a \"<references/>\" tag just below the Sources heading.",
+      "description_raw": "The biography of this profile does not contain a \"<references/>\" tag. All Wikitree profile biographies should contain a Sources heading and should have a \"<references/>\" tag just below the Sources heading.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=6soAy8BtVSo&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:References_and_Ref_Tag_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_864": {
+      "id": "DBE_864",
+      "code": 864,
+      "title": "Almost empty <ref> tag",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "references_tags",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_864",
+      "description": "Profile has almost empty inline citations \"<ref>\"...\"</ref>\".",
+      "description_raw": "Profile has almost empty inline citations \"<ref>\"...\"</ref>\".",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=3jnvibWNHDc&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:References_and_Ref_Tag_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_865": {
+      "id": "DBE_865",
+      "code": 865,
+      "title": "Unchanged <ref>Insert reference here</ref> tag",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "references_tags",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_865",
+      "description": "Inline citation form \"<ref>\"Insert reference here\"</ref>\" was added by the toolbar button but no citation was inserted.",
+      "description_raw": "Inline citation form \"<ref>\"Insert reference here\"</ref>\" was added by the toolbar button but no citation was inserted.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=Pr33V-dni1o&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:References_and_Ref_Tag_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_866": {
+      "id": "DBE_866",
+      "code": 866,
+      "title": "Duplicated <references />",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "references_tags",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_866",
+      "description": "Profile has multiple \"<references />\" tags. One \"<references />\" tag should be located just below the Sources heading.",
+      "description_raw": "Profile has multiple \"<references />\" tags. One \"<references />\" tag should be located just below the Sources heading.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=Og9j06_s_2E&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:References_and_Ref_Tag_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_867": {
+      "id": "DBE_867",
+      "code": 867,
+      "title": "Too many Inline citations",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "references_tags",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_867",
+      "description": "Profile has too many inline citations \"<ref>\"...\"</ref>\".",
+      "description_raw": "Profile has too many inline citations \"<ref>\"...\"</ref>\".",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=QctI5Kz9Ieg&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:References_and_Ref_Tag_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_868": {
+      "id": "DBE_868",
+      "code": 868,
+      "title": "Inline citations after <references /> tag",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "references_tags",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_868",
+      "description": "Profile has inline citations \"<ref>\"...\"</ref>\" after the \"<references/>\" tag that displays them. Such citations are not displayed on the profile.",
+      "description_raw": "Profile has inline citations \"<ref>\"...\"</ref>\" after the \"<references/>\" tag that displays them. Such citations are not displayed on the profile.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=aZwx8j7bccs&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:References_and_Ref_Tag_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_869": {
+      "id": "DBE_869",
+      "code": 869,
+      "title": "Duplicated named Inline citations",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "references_tags",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_869",
+      "description": "Profile has two or more named inline references, where the name is the same.",
+      "description_raw": "Profile has two or more named inline references, where the name is the same.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=xEfuYj0cl38&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:References_and_Ref_Tag_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_870": {
+      "id": "DBE_870",
+      "code": 870,
+      "title": "Missing named Inline citations",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "references_tags",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_870",
+      "description": "Profile is using named inline reference \"<ref name=\\\"SomeName\\\" />\", that is not defined by \"<ref name=\\\"SomeName\\\">\"...\"</ref>\".",
+      "description_raw": "Profile is using named inline reference \"<ref name=\\\"SomeName\\\" />\", that is not defined by \"<ref name=\\\"SomeName\\\">\"...\"</ref>\".",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=2iZcJPpuHwM&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:References_and_Ref_Tag_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_871": {
+      "id": "DBE_871",
+      "code": 871,
+      "title": "Use of angled double quotes in name of citation",
+      "type": "Error",
+      "difficulty": "Easy",
+      "group_key": "references_tags",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_871",
+      "description": "Angled double quotes are used rather that double straight quotes due to editor software changes.",
+      "description_raw": "Angled double quotes are used rather that double straight quotes due to editor software changes.",
+      "videos": [
+        {
+          "url": "https://www.youtube.com/watch?v=q9ZdKPKeygc&list=PLEqK4ICkQWXRxxQj3EBXoOh-3NOS5HH4R&utm_source=wikitree&utm_medium=Space:References_and_Ref_Tag_Suggestions&utm_campaign=data_doctors"
+        }
+      ],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_943": {
+      "id": "DBE_943",
+      "code": 943,
+      "title": "Duplicated SPAN Anchors",
+      "type": "Error",
+      "difficulty": "Intermediate",
+      "group_key": "references_tags",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_943",
+      "description": "The profile has duplicated HTML span anchors. Span anchors are used for inpage links, but each name should be used only once. The span anchor is set by <span id='name'></span>, and links to it are set by [[#name]] or [[#name|link text]], which creates the inpage link.",
+      "description_raw": "The profile has duplicated HTML span anchors. Span anchors are used for inpage links, but each name should be used only once. The span anchor is set by <span id='name'></span>, and links to it are set by [[#name]] or [[#name|link text]], which creates the inpage link.",
+      "videos": [],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_944": {
+      "id": "DBE_944",
+      "code": 944,
+      "title": "Missing SPAN Anchors",
+      "type": "Error",
+      "difficulty": "Advanced",
+      "group_key": "references_tags",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_944",
+      "description": "The profile is using links inpage that point to nonexistent HTML span anchors. The span anchor is set by <span id='name'></span> and links to it are set by [[#name]] or [[#name|link text]].",
+      "description_raw": "The profile is using links inpage that point to nonexistent HTML span anchors. The span anchor is set by <span id='name'></span> and links to it are set by [[#name]] or [[#name|link text]].",
+      "videos": [],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_945": {
+      "id": "DBE_945",
+      "code": 945,
+      "title": "Unused SPAN Anchors",
+      "type": "Warning",
+      "difficulty": "Easy",
+      "group_key": "references_tags",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_945",
+      "description": "The profile has HTML span anchors that are not used for inpage linking. The span anchor is set by <span id='name'></span>, and this warning is for the <span id='name'></span> that does not have a link to a [[#name]] or [[#name|link text]] in the profile.",
+      "description_raw": "The profile has HTML span anchors that are not used for inpage linking. The span anchor is set by <span id='name'></span>, and this warning is for the <span id='name'></span> that does not have a link to a [[#name]] or [[#name|link text]] in the profile.",
+      "videos": [],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_946": {
+      "id": "DBE_946",
+      "code": 946,
+      "title": "Too many inpage links",
+      "type": "Warning",
+      "difficulty": "Advanced",
+      "group_key": "references_tags",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_946",
+      "description": "This warning is generated when the profile has more than 100 inpage links, which is too many, usually caused by old GEDCOM imports.",
+      "description_raw": "This warning is generated when the profile has more than 100 inpage links, which is too many, usually caused by old GEDCOM imports.",
+      "videos": [],
+      "extra": {
+        "data_quality_flags": []
+      }
+    }
+  }
+}
