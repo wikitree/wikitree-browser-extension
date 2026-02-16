@@ -443,7 +443,7 @@ const SQL_TEMPLATES = [
     id: "no-first-name",
     label: "No first name",
     description: "Find profiles without a first name",
-    buildSql: () => 'sql="([Default].[First Name].AsString = \'\')"',
+    buildSql: () => "sql=\"([Default].[First Name].AsString = '')\"",
     inputs: [],
   },
   // Dates - Birth
@@ -489,7 +489,7 @@ const SQL_TEMPLATES = [
     id: "birth-no-day",
     label: "Birth without day",
     description: "Find profiles where day of birth is not set",
-    buildSql: () => 'sql="([Default].[Birth Date].AsString Like \'*00\')"',
+    buildSql: () => "sql=\"([Default].[Birth Date].AsString Like '*00')\"",
     inputs: [],
   },
   {
@@ -497,7 +497,7 @@ const SQL_TEMPLATES = [
     id: "birth-year-only",
     label: "Birth year only",
     description: "Find profiles with only year (no month/day)",
-    buildSql: () => 'sql="([Default].[Birth Date].AsString Like \'*0000\')"',
+    buildSql: () => "sql=\"([Default].[Birth Date].AsString Like '*0000')\"",
     inputs: [],
   },
   // Dates - Death
@@ -550,7 +550,7 @@ const SQL_TEMPLATES = [
     id: "unrecognized-locations",
     label: "Unrecognized death locations",
     description: "Find profiles with unrecognized death locations",
-    buildSql: () => 'sql="(Trim([Default].[Death Location Country, Region, City].AsString) = \'\')"',
+    buildSql: () => "sql=\"(Trim([Default].[Death Location Country, Region, City].AsString) = '')\"",
     inputs: [],
   },
   // Gender
@@ -651,9 +651,7 @@ const SQL_TEMPLATES = [
     buildSql: (s, e) => {
       const sd = s?.replace(/-/g, "").substr(0, 8);
       const ed = e?.replace(/-/g, "").substr(0, 8);
-      return sd && ed && new Date(s) < new Date(e)
-        ? `sql="([Bio].[LastEdit Date].AsNumber In ${sd}..${ed})"`
-        : "";
+      return sd && ed && new Date(s) < new Date(e) ? `sql="([Bio].[LastEdit Date].AsNumber In ${sd}..${ed})"` : "";
     },
     inputs: [
       { type: "date", label: "Start", placeholder: "2024-01-01" },
@@ -697,7 +695,7 @@ const SQL_TEMPLATES = [
     id: "from-gedcom",
     label: "Imported from GEDCOM",
     description: "Find profiles imported using GEDCOM",
-    buildSql: () => 'sql="([Bio].[GED File].AsString <> \'\')"',
+    buildSql: () => "sql=\"([Bio].[GED File].AsString <> '')\"",
     inputs: [],
   },
   {
@@ -844,9 +842,7 @@ function fieldById(id) {
 const state = {
   groups: [
     {
-      rows: [
-        { not: false, fields: {}, multiFields: {}, sqlConditions: [] },
-      ],
+      rows: [{ not: false, fields: {}, multiFields: {}, sqlConditions: [] }],
     },
   ],
   selectedGroupIndex: 0,
@@ -950,7 +946,7 @@ function buildQueryForSuggestions() {
   // Format: Query=value1 value2 value3 OR suggestions=XXX for ErrorID
   const values = [];
   let suggestionId = null;
-  
+
   state.groups.forEach((g) => {
     g.rows.forEach((row) => {
       // Extract values from regular fields
@@ -990,7 +986,7 @@ function buildQueryForSuggestions() {
   if (suggestionId) {
     query = `suggestions=${suggestionId} ${query}`.trim();
   }
-  
+
   return { query, warnings: [], onlySql: false };
 }
 
@@ -1228,7 +1224,6 @@ function ensureModal() {
       renderAll();
     }
   });
-
 }
 
 function setStatus(msg, isErr = false) {
@@ -1280,9 +1275,7 @@ function categorySelectsHtml(rowFields, rowMultiFields) {
     if (!groups[grpName]) return;
 
     if (MULTI_GROUPS.has(grpName)) {
-      const entries = rowMultiFields?.[grpName]?.length
-        ? rowMultiFields[grpName]
-        : [{ fieldId: "", value: "" }];
+      const entries = rowMultiFields?.[grpName]?.length ? rowMultiFields[grpName] : [{ fieldId: "", value: "" }];
 
       const entryHtml = entries
         .map((entry, idx) => {
@@ -1310,9 +1303,11 @@ function categorySelectsHtml(rowFields, rowMultiFields) {
               <div class="wbe-wtplus-orqb-field-input">
                 ${inputHtml}
               </div>
-              ${entry.fieldId || entry.value
-                ? `<button type="button" class="button small wbe-wtplus-orqb-del-multi" title="Remove">×</button>`
-                : ""}
+              ${
+                entry.fieldId || entry.value
+                  ? `<button type="button" class="button small wbe-wtplus-orqb-del-multi" title="Remove">×</button>`
+                  : ""
+              }
             </div>
           `;
         })
@@ -1428,11 +1423,7 @@ function valueInputHtml(def, value) {
 function shortenPlaceholder(text) {
   const t = String(text || "").trim();
   if (!t) return "";
-  let short = t
-    .split(" e.g.")[0]
-    .split(" (e.g.")[0]
-    .split(" (")[0]
-    .trim();
+  let short = t.split(" e.g.")[0].split(" (e.g.")[0].split(" (")[0].trim();
   if (!short) short = t;
   const maxLen = 24;
   if (short.length > maxLen) short = `${short.slice(0, maxLen - 3).trim()}...`;
@@ -1469,7 +1460,11 @@ function renderRows() {
                   (val, idx) => `
                   <div class="wbe-wtplus-orqb-sql-item" data-index="${idx}">
                     <code>${esc(val)}</code>
-                    ${val ? `<button type="button" class="button small wbe-wtplus-orqb-del-sql" title="Remove">×</button>` : ""}
+                    ${
+                      val
+                        ? `<button type="button" class="button small wbe-wtplus-orqb-del-sql" title="Remove">×</button>`
+                        : ""
+                    }
                   </div>
                 `
                 )
@@ -1635,17 +1630,29 @@ function openSqlWizard(currentValue, callback) {
         <div id="wbe-wtplus-sql-templates" style="display: block;">
           <input type="text" id="wbe-wtplus-sql-search" placeholder="Search templates..." style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 12px; box-sizing: border-box;">
           <div id="wbe-wtplus-sql-templates-list" style="max-height: 400px; overflow-y: auto;">
-            ${categories.map((cat) => `
+            ${categories
+              .map(
+                (cat) => `
               <div class="wbe-wtplus-sql-category" data-category="${esc(cat)}">
-                <h4 style="margin: 12px 0 6px 0; padding: 4px 0; border-bottom: 1px solid #ddd; color: #25422d; font-size: 12px; text-transform: uppercase;">${esc(cat)}</h4>
-                ${byCategory[cat].map((t) => `
-                  <div class="wbe-wtplus-sql-template" data-template-id="${esc(t.id)}" style="margin: 6px 0; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
+                <h4 style="margin: 12px 0 6px 0; padding: 4px 0; border-bottom: 1px solid #ddd; color: #25422d; font-size: 12px; text-transform: uppercase;">${esc(
+                  cat
+                )}</h4>
+                ${byCategory[cat]
+                  .map(
+                    (t) => `
+                  <div class="wbe-wtplus-sql-template" data-template-id="${esc(
+                    t.id
+                  )}" style="margin: 6px 0; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
                     <div style="font-weight: 500; color: #25422d;">${esc(t.label)}</div>
                     <div style="font-size: 12px; color: #666;">${esc(t.description)}</div>
                   </div>
-                `).join("")}
+                `
+                  )
+                  .join("")}
               </div>
-            `).join("")}
+            `
+              )
+              .join("")}
           </div>
           <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #ddd;">
             <a href="#" id="wbe-wtplus-sql-wizard-manual" style="color: #0066cc; text-decoration: none; font-size: 13px;">Or enter SQL manually →</a>
@@ -1668,7 +1675,9 @@ function openSqlWizard(currentValue, callback) {
         <div id="wbe-wtplus-sql-manual" style="display: none;">
           <h3 style="margin-top: 0;">Enter SQL manually</h3>
           <p style="font-size: 12px; color: #666; margin: 8px 0;">Paste your WT+ SQL condition. It will be wrapped in sql="..."</p>
-          <textarea id="wbe-wtplus-sql-manual-input" style="width: 100%; height: 120px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; box-sizing: border-box;" placeholder="([Default].[First Name].AsString = '')">${esc(currentValue.replace(/^sql="/, "").replace(/"$/, ""))}</textarea>
+          <textarea id="wbe-wtplus-sql-manual-input" style="width: 100%; height: 120px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; box-sizing: border-box;" placeholder="([Default].[First Name].AsString = '')">${esc(
+            currentValue.replace(/^sql="/, "").replace(/"$/, "")
+          )}</textarea>
           <div style="display: flex; gap: 8px; margin-top: 12px;">
             <button type="button" class="button" id="wbe-wtplus-sql-manual-save" style="flex: 1;">Use This SQL</button>
             <button type="button" class="button" id="wbe-wtplus-sql-manual-back" style="flex: 0;">Back</button>
@@ -1702,17 +1711,17 @@ function openSqlWizard(currentValue, callback) {
   let selectedTemplate = null;
   const $search = $modal.find("#wbe-wtplus-sql-search");
   const $templatesList = $modal.find("#wbe-wtplus-sql-templates-list");
-  
-  $search.on("keyup", function() {
+
+  $search.on("keyup", function () {
     const query = $(this).val().toLowerCase();
-    $templatesList.find(".wbe-wtplus-sql-template").each(function() {
+    $templatesList.find(".wbe-wtplus-sql-template").each(function () {
       const $t = $(this);
       const label = $t.find("div:first").text().toLowerCase();
       const desc = $t.find("div:last").text().toLowerCase();
       const match = label.includes(query) || desc.includes(query) || query === "";
       $t.toggle(match);
     });
-    $templatesList.find(".wbe-wtplus-sql-category").each(function() {
+    $templatesList.find(".wbe-wtplus-sql-category").each(function () {
       const $cat = $(this);
       const visible = $cat.find(".wbe-wtplus-sql-template:visible").length > 0;
       $cat.toggle(visible);
@@ -1733,14 +1742,22 @@ function openSqlWizard(currentValue, callback) {
         closeWizard();
       } else {
         // Show input form with preview
-        const inputHtml = selectedTemplate.inputs.map((inp, idx) => `
+        const inputHtml = selectedTemplate.inputs
+          .map(
+            (inp, idx) => `
           <div style="margin: 10px 0;">
-            <label style="display: block; margin-bottom: 4px; font-weight: 500; font-size: 13px;">${esc(inp.label)}:</label>
+            <label style="display: block; margin-bottom: 4px; font-weight: 500; font-size: 13px;">${esc(
+              inp.label
+            )}:</label>
             <input type="${esc(inp.type)}" class="wbe-wtplus-sql-input" data-index="${idx}" placeholder="${esc(
               shortenPlaceholder(inp.placeholder)
-            )}" title="${esc(inp.placeholder || "")}" style="padding: 6px; border: 1px solid #ccc; border-radius: 3px; width: 100%; box-sizing: border-box;">
+            )}" title="${esc(
+              inp.placeholder || ""
+            )}" style="padding: 6px; border: 1px solid #ccc; border-radius: 3px; width: 100%; box-sizing: border-box;">
           </div>
-        `).join("");
+        `
+          )
+          .join("");
         $modal.find("#wbe-wtplus-sql-input-fields").html(inputHtml);
         $modal.find("#wbe-wtplus-sql-inputs").show();
 
@@ -1753,7 +1770,9 @@ function openSqlWizard(currentValue, callback) {
           if (sql) {
             $modal.find("#wbe-wtplus-sql-preview").text(sql);
           } else {
-            $modal.find("#wbe-wtplus-sql-preview").html("<em style='color: #999;'>Fill in required fields to see preview</em>");
+            $modal
+              .find("#wbe-wtplus-sql-preview")
+              .html("<em style='color: #999;'>Fill in required fields to see preview</em>");
           }
         }
         $modal.on("input", ".wbe-wtplus-sql-input", updatePreview);
