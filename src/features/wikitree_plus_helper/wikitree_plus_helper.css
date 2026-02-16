@@ -21,6 +21,11 @@
   z-index: 999999;
 }
 
+.wbe-wtplus-orqb-modal button {
+  border: 1px solid #ccc !important;
+  padding: 5px 7px !important;
+}
+
 .wbe-wtplus-orqb-window {
   position: absolute;
   top: 6vh;

@@ -553,6 +553,46 @@ const SQL_TEMPLATES = [
     buildSql: () => "sql=\"(Trim([Default].[Death Location Country, Region, City].AsString) = '')\"",
     inputs: [],
   },
+  // Marriage
+  {
+    category: "Marriage",
+    id: "marriage-date-like",
+    label: "Marriage date (exact or wildcard)",
+    description: "Find marriages by date using YYYYMMDD or wildcards",
+    buildSql: (d) => (d ? `sql="([Marriage].[Marriage Date].AsString Like '${d}')"` : ""),
+    inputs: [{ type: "text", label: "Date", placeholder: "19011225 or 190112**" }],
+  },
+  {
+    category: "Marriage",
+    id: "marriage-date-between",
+    label: "Marriage date between",
+    description: "Find marriages between two dates",
+    buildSql: (from, to) => {
+      const f = from?.replace(/-/g, "").slice(0, 8);
+      const t = to?.replace(/-/g, "").slice(0, 8);
+      return f && t ? `sql="([Marriage].[Marriage Date] in ${f}..${t})"` : "";
+    },
+    inputs: [
+      { type: "date", label: "From", placeholder: "1499-12-31" },
+      { type: "date", label: "To", placeholder: "1973-12-31" },
+    ],
+  },
+  {
+    category: "Marriage",
+    id: "marriage-location-like",
+    label: "Marriage location contains phrase",
+    description: "Match exact phrases in marriage location",
+    buildSql: (p) => (p ? `sql=\"([Marriage].[Marriage Location].AsString like '*${p}*')\"` : ""),
+    inputs: [{ type: "text", label: "Phrase", placeholder: "West Sussex" }],
+  },
+  {
+    category: "Marriage",
+    id: "single-marriage",
+    label: "Exactly one marriage",
+    description: "Filter profiles with a single marriage entry",
+    buildSql: () => 'sql="([Marriage].[Marriage Location].LineCount = 1)"',
+    inputs: [],
+  },
   // Gender
   {
     category: "Gender",
@@ -709,9 +749,9 @@ const SQL_TEMPLATES = [
 ];
 
 const GROUP_ORDER = [
+  "Names",
   "General",
   "Dates",
-  "Names",
   "Locations",
   "Location Table",
   "Categories, Templates, Suggestions",
@@ -768,7 +808,9 @@ function buildPlusUrl(query, includeRender = false) {
       u.searchParams.set("Query", query);
     }
     u.searchParams.set("MaxErrors", "1000");
-    // Don't include render for suggestions mode
+    if (includeRender) {
+      u.searchParams.set("render", "1");
+    }
   } else {
     u.searchParams.set("report", DEFAULT_REPORT);
     u.searchParams.set("Query", query);
@@ -809,7 +851,7 @@ function populatePlusForm(query) {
       $("#Query").val(q);
     }
     $("#MaxErrors").val("1000");
-    // Don't check Render for suggestions
+    $("#Render").prop("checked", true);
   } else {
     // Populate the Query field for text search
     $("#Query").val(q);
@@ -902,8 +944,11 @@ function fieldToTerm(fieldId, value) {
   if (def.kind === "sql") {
     // user provides inside of sql="..."
     // normalize to sql="(...)"
-    const inner = rawVal.replace(/^sql\s*=\s*/i, "").replace(/^["']|["']$/g, "");
-    return `sql="${inner}"`;
+    const trimmed = rawVal.trim();
+    const isNot = /^NOT\s+/i.test(trimmed);
+    const cleaned = trimmed.replace(/^NOT\s+/i, "");
+    const inner = cleaned.replace(/^sql\s*=\s*/i, "").replace(/^["']|["']$/g, "");
+    return `${isNot ? "NOT " : ""}sql="${inner}"`;
   }
 
   // index=value
@@ -1094,7 +1139,6 @@ function ensureModal() {
                 </div>
               </div>
 
-              <div class="wbe-wtplus-orqb-subtitle">Output</div>
               <div class="wbe-wtplus-orqb-out">
                 <label>Query</label>
                 <textarea id="wbe-wtplus-orqb-query" rows="3" spellcheck="false"></textarea>
@@ -1609,6 +1653,11 @@ function renderRows() {
 }
 
 function openSqlWizard(currentValue, callback) {
+  const currentRaw = String(currentValue || "").trim();
+  const currentNot = /^NOT\s+/i.test(currentRaw);
+  const currentClean = currentRaw.replace(/^NOT\s+/i, "");
+  const manualSeed = currentClean.replace(/^sql\s*=\s*/i, "").replace(/^["']|["']$/g, "");
+
   // Group templates by category
   const byCategory = {};
   SQL_TEMPLATES.forEach((t) => {
@@ -1623,7 +1672,13 @@ function openSqlWizard(currentValue, callback) {
       <div class="wbe-wtplus-modal-content wbe-wtplus-sql-wizard-content" style="max-width: 700px; max-height: 85vh;">
         <div class="wbe-wtplus-sql-wizard-header">
           <h2 style="margin: 0;">SQL Wizard</h2>
-          <span class="wbe-wtplus-close" title="Close">&times;</span>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <label style="font-size: 12px; color: #444; display: inline-flex; align-items: center; gap: 6px;">
+              <input type="checkbox" id="wbe-wtplus-sql-not">
+              NOT
+            </label>
+            <span class="wbe-wtplus-close" title="Close">&times;</span>
+          </div>
         </div>
         <p style="margin: 0 0 12px 0; font-size: 13px; color: #666;">Choose a template, fill in parameters, and see SQL preview</p>
         
@@ -1676,7 +1731,7 @@ function openSqlWizard(currentValue, callback) {
           <h3 style="margin-top: 0;">Enter SQL manually</h3>
           <p style="font-size: 12px; color: #666; margin: 8px 0;">Paste your WT+ SQL condition. It will be wrapped in sql="..."</p>
           <textarea id="wbe-wtplus-sql-manual-input" style="width: 100%; height: 120px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; box-sizing: border-box;" placeholder="([Default].[First Name].AsString = '')">${esc(
-            currentValue.replace(/^sql="/, "").replace(/"$/, "")
+            manualSeed
           )}</textarea>
           <div style="display: flex; gap: 8px; margin-top: 12px;">
             <button type="button" class="button" id="wbe-wtplus-sql-manual-save" style="flex: 1;">Use This SQL</button>
@@ -1690,6 +1745,9 @@ function openSqlWizard(currentValue, callback) {
   $("body").append(wizardHtml);
   const $modal = $("#wbe-wtplus-sql-wizard-modal");
   const $content = $modal.find(".wbe-wtplus-sql-wizard-content");
+  const $not = $modal.find("#wbe-wtplus-sql-not");
+  if (currentNot) $not.prop("checked", true);
+  const applyNot = (sql) => ($not.is(":checked") ? `NOT ${sql}` : sql);
 
   function closeWizard() {
     $modal.remove();
@@ -1738,7 +1796,7 @@ function openSqlWizard(currentValue, callback) {
       if (selectedTemplate.inputs.length === 0) {
         // No inputs needed, use immediately
         const sql = selectedTemplate.buildSql();
-        callback(sql);
+        callback(applyNot(sql));
         closeWizard();
       } else {
         // Show input form with preview
@@ -1768,7 +1826,8 @@ function openSqlWizard(currentValue, callback) {
           });
           const sql = selectedTemplate.buildSql(...values);
           if (sql) {
-            $modal.find("#wbe-wtplus-sql-preview").text(sql);
+            const previewSql = applyNot(sql);
+            $modal.find("#wbe-wtplus-sql-preview").text(previewSql);
           } else {
             $modal
               .find("#wbe-wtplus-sql-preview")
@@ -1776,6 +1835,7 @@ function openSqlWizard(currentValue, callback) {
           }
         }
         $modal.on("input", ".wbe-wtplus-sql-input", updatePreview);
+        $modal.on("change", "#wbe-wtplus-sql-not", updatePreview);
         updatePreview();
       }
     }
@@ -1789,7 +1849,7 @@ function openSqlWizard(currentValue, callback) {
       });
       const sql = selectedTemplate.buildSql(...values);
       if (sql) {
-        callback(sql);
+        callback(applyNot(sql));
         closeWizard();
       } else {
         alert("Please fill in all required fields.");
@@ -1814,7 +1874,9 @@ function openSqlWizard(currentValue, callback) {
   $modal.find("#wbe-wtplus-sql-manual-save").on("click", function () {
     const manualSql = $modal.find("#wbe-wtplus-sql-manual-input").val().trim();
     if (manualSql) {
-      callback(`sql="${manualSql}"`);
+      const cleaned = manualSql.replace(/^NOT\s+/i, "");
+      const finalSql = $not.is(":checked") ? `NOT ${cleaned}` : cleaned;
+      callback(finalSql);
       closeWizard();
     } else {
       alert("Please enter SQL");
