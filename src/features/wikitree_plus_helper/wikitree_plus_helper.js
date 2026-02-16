@@ -1292,7 +1292,21 @@ function addLauncher() {
     }
   }
 
-  // Fallback button (also useful on plus.wikitree.com)
+  // On plus.wikitree.com, add button after "Show result in new tab" checkbox
+  if (isPlusDomain) {
+    const $newTabCheckbox = $("#NewTab").closest(".checkbox");
+    if ($newTabCheckbox.length && !$("#wbe-wtplus-orqb-plus-button").length) {
+      $newTabCheckbox.after(`
+        <div style="padding: 0px 15px; margin-top: 10px;">
+          <button id="wbe-wtplus-orqb-plus-button" type="button" class="btn btn-primary" title="Build WikiTree+ queries visually">Query Builder (WBE)</button>
+        </div>
+      `);
+      $("#wbe-wtplus-orqb-plus-button").on("click", openModal);
+      return;
+    }
+  }
+
+  // Fallback button (if plus domain button wasn't added)
   if (!$("#wbe-wtplus-orqb-fab").length) {
     $("body").append(`<button id="wbe-wtplus-orqb-fab" type="button" title="WT+ Query Builder">WT+</button>`);
     $("#wbe-wtplus-orqb-fab").on("click", openModal);
