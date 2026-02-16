@@ -87,7 +87,14 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
       group: "Names",
     },
     { id: "FirstName", label: "FirstName", kind: "index", input: "text", placeholder: "e.g. John", group: "Names" },
-    { id: "Name", label: "Name (Full)", kind: "index", input: "text", placeholder: 'e.g. "John Smith"', group: "Names" },
+    {
+      id: "Name",
+      label: "Name (Full)",
+      kind: "index",
+      input: "text",
+      placeholder: 'e.g. "John Smith"',
+      group: "Names",
+    },
 
     // Locations (simple index=value form)
     {

@@ -20,7 +20,9 @@ export function normalizeQuotes(s) {
 }
 
 export function collapseWs(s) {
-  return String(s ?? "").replace(/\s+/g, " ").trim();
+  return String(s ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function maybeQuote(val) {

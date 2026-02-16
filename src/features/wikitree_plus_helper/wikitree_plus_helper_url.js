@@ -63,7 +63,7 @@ export function populatePlusForm(query, searchType, $) {
       const suggestionId = extractSuggestionId(q);
       const $query = $form.find("[name='Query']");
       const $maxErrors = $form.find("[name='MaxErrors']");
-      
+
       if (suggestionId) {
         // Remove the suggestions=XXX part from the query
         const cleanedQuery = q.replace(/(?:suggestions?|errorid)=\d+\s*/gi, "").trim();
@@ -80,11 +80,10 @@ export function populatePlusForm(query, searchType, $) {
       const $query = $form.find("[name='Query']");
       const $maxProfiles = $form.find("[name='MaxProfiles']");
       const $format = $form.find("[name='Format']");
-      
+
       if ($query.length) $query.val(q);
       if ($maxProfiles.length) $maxProfiles.val("500");
-      if ($format.length) $format.val("");  // Default to HTML
+      if ($format.length) $format.val(""); // Default to HTML
     }
   }
 }
-
