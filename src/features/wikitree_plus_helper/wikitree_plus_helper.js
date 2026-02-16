@@ -604,6 +604,8 @@ function ensureModal() {
               <div class="wbe-wtplus-orqb-subtitle">AND conditions</div>
               <div id="wbe-wtplus-orqb-rows"></div>
 
+                <button type="button" class="button wbe-wtplus-orqb-open-primary" id="wbe-wtplus-orqb-open">Open in WT+</button>
+
               <div class="wbe-wtplus-orqb-row-actions">
                 <div class="wbe-wtplus-orqb-row-actions-left">
                   <button type="button" class="button small" id="wbe-wtplus-orqb-add-row">Add condition</button>
@@ -615,7 +617,6 @@ function ensureModal() {
                   <button type="button" class="button small" id="wbe-wtplus-orqb-save">Save Query</button>
                   <button type="button" class="button small" id="wbe-wtplus-orqb-copy-q">Copy query</button>
                   <button type="button" class="button small" id="wbe-wtplus-orqb-copy-u">Copy URL</button>
-                  <button type="button" class="button small" id="wbe-wtplus-orqb-open">Open in WT+</button>
                 </div>
               </div>
 
@@ -1201,9 +1202,7 @@ function openSqlWizard(currentValue, callback) {
   const currentRaw = String(currentValue || "").trim();
   // Check for NOT prefix, not(...), or sql="Not(...)"
   const currentNot =
-    /^NOT\s+/i.test(currentRaw) ||
-    /^not\(/i.test(currentRaw) ||
-    /^sql\s*=\s*["']\s*not\s*\(/i.test(currentRaw);
+    /^NOT\s+/i.test(currentRaw) || /^not\(/i.test(currentRaw) || /^sql\s*=\s*["']\s*not\s*\(/i.test(currentRaw);
   let currentClean = currentRaw.replace(/^NOT\s+/i, "");
   // If wrapped in not(...), extract the inner content
   if (/^not\(/i.test(currentClean)) {
@@ -1307,7 +1306,9 @@ function openSqlWizard(currentValue, callback) {
   const applyNot = (sql) => {
     if (!$not.is(":checked")) return sql;
 
-    const sqlMatch = String(sql || "").trim().match(/^sql\s*=\s*(["'])([\s\S]*)\1$/i);
+    const sqlMatch = String(sql || "")
+      .trim()
+      .match(/^sql\s*=\s*(["'])([\s\S]*)\1$/i);
     if (sqlMatch) {
       const quote = sqlMatch[1];
       const inner = sqlMatch[2].trim();
@@ -1477,6 +1478,9 @@ function updateOutput() {
   } else {
     setStatus("");
   }
+
+  const hasQuery = !!query.trim();
+  $("#wbe-wtplus-orqb-open").prop("disabled", !hasQuery);
 }
 
 function renderAll() {

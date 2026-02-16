@@ -124,7 +124,7 @@
 
 .wbe-wtplus-orqb-group-actions,
 .wbe-wtplus-orqb-row-actions {
-  margin-top: 10px;
+  margin-top: 6px;
   display: flex;
   gap: 10px;
   justify-content: space-between;
@@ -143,6 +143,30 @@
   gap: 10px;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
+}
+
+.wbe-wtplus-orqb-open-primary {
+  background: #25422d;
+  color: #fff;
+  border-color: #25422d;
+  font-weight: 700;
+  padding: 7px 12px;
+  box-shadow: 0 2px 0 rgba(37, 66, 45, 0.25);
+  float: right;
+  margin-top: 0.3em;
+}
+
+.wbe-wtplus-orqb-open-primary:hover {
+  background: #1b3222;
+  border-color: #1b3222;
+}
+
+.wbe-wtplus-orqb-open-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #25422d;
+  border-color: #25422d;
 }
 
 #wbe-wtplus-orqb-rows {

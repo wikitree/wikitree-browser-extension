@@ -3,7 +3,10 @@
  * Organized by category with comprehensive WT+ SQL examples
  */
 
-const normalizeSqlValue = (value) => String(value || "").trim().replace(/\s+/g, "_");
+const normalizeSqlValue = (value) =>
+  String(value || "")
+    .trim()
+    .replace(/\s+/g, "_");
 
 export const SQL_TEMPLATES = [
   // Names
