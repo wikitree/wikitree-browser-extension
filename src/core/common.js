@@ -709,7 +709,7 @@ function addDataButtons() {
   const commonText =
     "of all data associated with features of WikiTree Browser Extension. This includes data for Change Summary " +
     "Options, Clipboard and Notes, Distance and Relationships, Extra Watchlist, My Menu, Space Watchlist " +
-    "Sorter, and Text Expander";
+    "Sorter, Text Expander, and WT+ Query Builder";
   const dataButtons = `
     <div id="featureDataButtons">
       <button id="downloadFeatureData" class="btn btn-secondary btn-sm"
@@ -1222,7 +1222,7 @@ export function isWikiTreeUrl(url) {
   return false;
 }
 
-const WBE_DATABASES_MINIMAL = ["Clipboard", "SpaceWatchlistDB"];
+const WBE_DATABASES_MINIMAL = ["Clipboard", "SpaceWatchlistDB", "WTPlusQueryBuilder"];
 const WBE_DATABASES_ALL = [...WBE_DATABASES_MINIMAL, "CC7Database", "ConnectionFinderWTE", "RelationshipFinderWTE"];
 
 export function distRelDbKeyFor(profileId, userId) {

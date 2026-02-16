@@ -230,7 +230,7 @@
 }
 
 .wbe-wtplus-orqb-input-hint {
-  display: none;
+  display: block;
   font-size: 11px;
   color: #666;
   background: #f9f9f9;
@@ -241,6 +241,10 @@
   font-style: italic;
   line-height: 1.3;
   word-break: break-word;
+}
+
+.wbe-wtplus-orqb-input-hint:empty {
+  display: none;
 }
 
 .wbe-wtplus-orqb-sql-block {

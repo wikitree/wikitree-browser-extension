@@ -21,12 +21,47 @@ const FEATURE_ID = "wikitreePlusHelper";
 const DB_NAME = "WTPlusQueryBuilder";
 const DB_VERSION = 1;
 const STORE_NAME = "savedQueries";
+const STORAGE_KEY = "wbe_wtplus_saved_queries";
 
 /* --------------------------
    IndexedDB Operations
 --------------------------- */
 
 let db = null;
+
+function storageGet(key) {
+  return new Promise((resolve, reject) => {
+    if (!chrome?.storage?.local) {
+      resolve(null);
+      return;
+    }
+    chrome.storage.local.get(key, (result) => {
+      const err = chrome.runtime?.lastError;
+      if (err) {
+        reject(err);
+      } else {
+        resolve(result[key]);
+      }
+    });
+  });
+}
+
+function storageSet(key, value) {
+  return new Promise((resolve, reject) => {
+    if (!chrome?.storage?.local) {
+      resolve();
+      return;
+    }
+    chrome.storage.local.set({ [key]: value }, () => {
+      const err = chrome.runtime?.lastError;
+      if (err) {
+        reject(err);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
 
 function initDB() {
   return new Promise((resolve, reject) => {
@@ -48,55 +83,80 @@ function initDB() {
   });
 }
 
-async function saveQuery(name, state, queryString) {
+async function idbGetAllQueries() {
   if (!db) await initDB();
-  
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
-    
-    const data = {
-      name: name || "Untitled Query",
-      timestamp: Date.now(),
-      state: JSON.parse(JSON.stringify(state)), // Deep clone
-      query: queryString,
-    };
-    
-    const request = store.add(data);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
 
-async function getAllQueries() {
-  if (!db) await initDB();
-  
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([STORE_NAME], "readonly");
     const store = transaction.objectStore(STORE_NAME);
     const request = store.getAll();
-    
-    request.onsuccess = () => {
-      const queries = request.result;
-      // Sort by timestamp descending (newest first)
-      queries.sort((a, b) => b.timestamp - a.timestamp);
-      resolve(queries);
-    };
+
+    request.onsuccess = () => resolve(request.result || []);
     request.onerror = () => reject(request.error);
   });
 }
 
-async function deleteQuery(id) {
-  if (!db) await initDB();
-  
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.delete(id);
-    
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
+async function getStoredQueries() {
+  const store = await storageGet(STORAGE_KEY);
+  if (store && Array.isArray(store.items)) {
+    return store;
+  }
+  return { lastId: 0, items: [] };
+}
+
+async function setStoredQueries(store) {
+  await storageSet(STORAGE_KEY, store);
+}
+
+async function migrateIdbToStorageIfNeeded(store) {
+  if (store.items.length) return store;
+  try {
+    const idbItems = await idbGetAllQueries();
+    if (!idbItems.length) return store;
+
+    const normalized = idbItems.map((q) => ({
+      ...q,
+      id: Number(q.id) || 0,
+    }));
+    const lastId = normalized.reduce((maxId, q) => Math.max(maxId, q.id), 0);
+    const nextStore = { lastId, items: normalized };
+    await setStoredQueries(nextStore);
+    return nextStore;
+  } catch (err) {
+    console.error("Failed to migrate saved queries from IndexedDB:", err);
+    return store;
+  }
+}
+
+async function saveQuery(name, state, queryString) {
+  const store = await getStoredQueries();
+  const id = store.lastId + 1;
+  store.lastId = id;
+  store.items.push({
+    id,
+    name: name || "Untitled Query",
+    timestamp: Date.now(),
+    state: JSON.parse(JSON.stringify(state)),
+    query: queryString,
   });
+  await setStoredQueries(store);
+  return id;
+}
+
+async function getAllQueries() {
+  let store = await getStoredQueries();
+  store = await migrateIdbToStorageIfNeeded(store);
+  const queries = [...store.items];
+  queries.sort((a, b) => b.timestamp - a.timestamp);
+  return queries;
+}
+
+async function deleteQuery(id) {
+  const store = await getStoredQueries();
+  const nextItems = store.items.filter((q) => String(q.id) !== String(id));
+  store.items = nextItems;
+  store.lastId = Math.max(0, ...nextItems.map((q) => Number(q.id) || 0));
+  await setStoredQueries(store);
 }
 
 const MAGIC_WORDS_LIST = buildMagicWords();
@@ -541,7 +601,7 @@ function ensureModal() {
             </div>
 
             <div class="wbe-wtplus-orqb-right">
-              <div class="wbe-wtplus-orqb-subtitle">Selected group (AND conditions)</div>
+              <div class="wbe-wtplus-orqb-subtitle">AND conditions</div>
               <div id="wbe-wtplus-orqb-rows"></div>
 
               <div class="wbe-wtplus-orqb-row-actions">
@@ -765,7 +825,6 @@ function renderGroupsList() {
     const $btn = $(`
       <button type="button" class="wbe-wtplus-orqb-group ${isSel ? "is-selected" : ""}">
         ${esc(label)}
-        <span class="wbe-wtplus-orqb-group-count">${(g.rows || []).length}</span>
       </button>
     `);
 
@@ -1026,20 +1085,22 @@ function renderRows() {
       updateOutput();
     });
 
-// Handle showing/hiding input hints
-  $row.on("focus blur input", ".wbe-wtplus-orqb-value[data-hint]", function (e) {
-    const $input = $(this);
-    const $hint = $input.closest(".wbe-wtplus-orqb-field-input").find(".wbe-wtplus-orqb-input-hint");
-    const hint = $input.attr("data-hint");
-    
-    if (hint && (e.type === "focus" || $input.val().length > 0)) {
-      $hint.text(hint).show();
-    } else if (e.type === "blur" && $input.val().length === 0) {
-      $hint.hide();
-    }
-  });
+    // Always show input hints when available
+    const syncInputHints = ($scope) => {
+      $scope.find(".wbe-wtplus-orqb-input-hint").each(function () {
+        const $hint = $(this);
+        const $input = $hint.closest(".wbe-wtplus-orqb-field-input").find(".wbe-wtplus-orqb-value[data-hint]");
+        const hint = $input.attr("data-hint") || "";
+        if (hint) {
+          $hint.text(hint).show();
+        } else {
+          $hint.text("").hide();
+        }
+      });
+    };
+    syncInputHints($row);
 
-  $row.on("change", ".wbe-wtplus-orqb-field-select", function () {
+    $row.on("change", ".wbe-wtplus-orqb-field-select", function () {
       const $select = $(this);
       const grpName = $select.data("group");
       const idx = $select.data("index");
@@ -1138,14 +1199,21 @@ function renderRows() {
 
 function openSqlWizard(currentValue, callback) {
   const currentRaw = String(currentValue || "").trim();
-  // Check for both "NOT " prefix and "not(...)" wrapper
-  const currentNot = /^NOT\s+/i.test(currentRaw) || /^not\(/i.test(currentRaw);
+  // Check for NOT prefix, not(...), or sql="Not(...)"
+  const currentNot =
+    /^NOT\s+/i.test(currentRaw) ||
+    /^not\(/i.test(currentRaw) ||
+    /^sql\s*=\s*["']\s*not\s*\(/i.test(currentRaw);
   let currentClean = currentRaw.replace(/^NOT\s+/i, "");
   // If wrapped in not(...), extract the inner content
   if (/^not\(/i.test(currentClean)) {
     currentClean = currentClean.replace(/^not\(/i, "").replace(/\)$/, "");
   }
-  const manualSeed = currentClean.replace(/^sql\s*=\s*/i, "").replace(/^["']|["']$/g, "");
+  const manualSeed = currentClean
+    .replace(/^sql\s*=\s*/i, "")
+    .replace(/^["']|["']$/g, "")
+    .replace(/^not\s*\(/i, "")
+    .replace(/\)$/, "");
 
   // Group templates by category
   const byCategory = {};
@@ -1236,7 +1304,21 @@ function openSqlWizard(currentValue, callback) {
   const $content = $modal.find(".wbe-wtplus-sql-wizard-content");
   const $not = $modal.find("#wbe-wtplus-sql-not");
   if (currentNot) $not.prop("checked", true);
-  const applyNot = (sql) => ($not.is(":checked") ? `not(${sql})` : sql);
+  const applyNot = (sql) => {
+    if (!$not.is(":checked")) return sql;
+
+    const sqlMatch = String(sql || "").trim().match(/^sql\s*=\s*(["'])([\s\S]*)\1$/i);
+    if (sqlMatch) {
+      const quote = sqlMatch[1];
+      const inner = sqlMatch[2].trim();
+      if (/^not\s*\(/i.test(inner)) {
+        return `sql=${quote}${inner}${quote}`;
+      }
+      return `sql=${quote}Not (${inner})${quote}`;
+    }
+
+    return `not(${sql})`;
+  };
 
   function closeWizard() {
     $modal.remove();
@@ -1382,7 +1464,7 @@ function updateOutput() {
   const { query, warnings } = buildQuery();
 
   $("#wbe-wtplus-orqb-query").val(query);
-  
+
   // Only populate URL if query has content
   if (query.trim()) {
     $("#wbe-wtplus-orqb-url").val(buildPlusUrl(query, state.searchType));
@@ -1428,7 +1510,9 @@ function customPrompt(message, defaultValue = "") {
             <span class="wbe-wtplus-close" title="Close">&times;</span>
           </div>
           <div style="margin: 16px 0;">
-            <input type="text" id="wbe-wtplus-prompt-input" value="${esc(defaultValue)}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 14px;">
+            <input type="text" id="wbe-wtplus-prompt-input" value="${esc(
+              defaultValue
+            )}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 14px;">
           </div>
           <div style="display: flex; gap: 8px; justify-content: flex-end;">
             <button type="button" class="button" id="wbe-wtplus-prompt-cancel" style="padding: 8px 16px;">Cancel</button>
@@ -1437,34 +1521,34 @@ function customPrompt(message, defaultValue = "") {
         </div>
       </div>
     `;
-    
+
     $("body").append(modalHtml);
     const $modal = $("#wbe-wtplus-prompt-modal");
     const $input = $("#wbe-wtplus-prompt-input");
-    
+
     // Focus and select input
     setTimeout(() => {
       $input.focus().select();
     }, 100);
-    
+
     // Make draggable
     $modal.find(".wbe-wtplus-modal-content").draggable({ handle: ".wbe-wtplus-modal-header", containment: "window" });
-    
+
     const cleanup = (value) => {
       $modal.remove();
       resolve(value);
     };
-    
+
     $modal.on("click", ".wbe-wtplus-close", () => cleanup(null));
     $modal.on("click", "#wbe-wtplus-prompt-cancel", () => cleanup(null));
     $modal.on("click", "#wbe-wtplus-prompt-ok", () => cleanup($input.val()));
-    
+
     // Handle Enter key
     $input.on("keydown", (e) => {
       if (e.key === "Enter") cleanup($input.val());
       if (e.key === "Escape") cleanup(null);
     });
-    
+
     // Close on backdrop click
     $modal.on("click", (e) => {
       if (e.target.id === "wbe-wtplus-prompt-modal") cleanup(null);
@@ -1491,27 +1575,27 @@ function customConfirm(message) {
         </div>
       </div>
     `;
-    
+
     $("body").append(modalHtml);
     const $modal = $("#wbe-wtplus-confirm-modal");
-    
+
     // Make draggable
     $modal.find(".wbe-wtplus-modal-content").draggable({ handle: ".wbe-wtplus-modal-header", containment: "window" });
-    
+
     const cleanup = (value) => {
       $modal.remove();
       resolve(value);
     };
-    
+
     $modal.on("click", ".wbe-wtplus-close", () => cleanup(false));
     $modal.on("click", "#wbe-wtplus-confirm-cancel", () => cleanup(false));
     $modal.on("click", "#wbe-wtplus-confirm-ok", () => cleanup(true));
-    
+
     // Close on backdrop click
     $modal.on("click", (e) => {
       if (e.target.id === "wbe-wtplus-confirm-modal") cleanup(false);
     });
-    
+
     // Handle Escape key
     $(document).one("keydown.wbe-confirm", (e) => {
       if (e.key === "Escape") cleanup(false);
@@ -1522,7 +1606,7 @@ function customConfirm(message) {
 async function showSavedQueriesModal() {
   try {
     const queries = await getAllQueries();
-    
+
     const modalHtml = `
       <div id="wbe-wtplus-saved-queries-modal" class="wbe-wtplus-modal" style="display: flex;">
         <div class="wbe-wtplus-modal-content" style="max-width: 700px; max-height: 85vh;">
@@ -1531,58 +1615,69 @@ async function showSavedQueriesModal() {
             <span class="wbe-wtplus-close" title="Close">&times;</span>
           </div>
           <div id="wbe-wtplus-saved-queries-list" style="max-height: 500px; overflow-y: auto; margin-top: 12px;">
-            ${queries.length === 0 
-              ? '<div style="text-align: center; color: #666; padding: 40px;">No saved queries yet. Save a query to see it here!</div>'
-              : queries.map(q => {
-                  const date = new Date(q.timestamp);
-                  const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-                  return `
-                    <div class="wbe-wtplus-saved-query-item" data-id="${q.id}" style="border: 1px solid #ddd; border-radius: 4px; padding: 12px; margin-bottom: 8px; background: #f9f9f9;">
+            ${
+              queries.length === 0
+                ? '<div style="text-align: center; color: #666; padding: 40px;">No saved queries yet. Save a query to see it here!</div>'
+                : queries
+                    .map((q) => {
+                      const date = new Date(q.timestamp);
+                      const dateStr = date.toLocaleDateString() + " " + date.toLocaleTimeString();
+                      return `
+                    <div class="wbe-wtplus-saved-query-item" data-id="${
+                      q.id
+                    }" style="border: 1px solid #ddd; border-radius: 4px; padding: 12px; margin-bottom: 8px; background: #f9f9f9;">
                       <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
                         <div style="flex: 1;">
                           <div style="font-weight: 500; color: #25422d; margin-bottom: 4px;">${esc(q.name)}</div>
                           <div style="font-size: 12px; color: #666;">${dateStr}</div>
                         </div>
                         <div style="display: flex; gap: 6px;">
-                          <button type="button" class="button small wbe-wtplus-load-query" data-id="${q.id}" style="padding: 4px 8px;">Load</button>
-                          <button type="button" class="button small wbe-wtplus-delete-query" data-id="${q.id}" style="padding: 4px 8px; background: #d32f2f; color: white;">Delete</button>
+                          <button type="button" class="button small wbe-wtplus-load-query" data-id="${
+                            q.id
+                          }" style="padding: 4px 8px;">Load</button>
+                          <button type="button" class="button small wbe-wtplus-delete-query" data-id="${
+                            q.id
+                          }" style="padding: 4px 8px; background: #d32f2f; color: white;">Delete</button>
                         </div>
                       </div>
-                      <div style="font-family: monospace; font-size: 11px; color: #333; background: white; padding: 8px; border-radius: 3px; max-height: 100px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;">${esc(q.query)}</div>
+                      <div style="font-family: monospace; font-size: 11px; color: #333; background: white; padding: 8px; border-radius: 3px; max-height: 100px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;">${esc(
+                        q.query
+                      )}</div>
                     </div>
                   `;
-                }).join('')
+                    })
+                    .join("")
             }
           </div>
         </div>
       </div>
     `;
-    
+
     $("body").append(modalHtml);
     const $modal = $("#wbe-wtplus-saved-queries-modal");
-    
+
     // Make draggable
     $modal.find(".wbe-wtplus-modal-content").draggable({ handle: ".wbe-wtplus-modal-header", containment: "window" });
-    
+
     // Close button
     $modal.on("click", ".wbe-wtplus-close", function () {
       $modal.remove();
     });
-    
+
     // Load query
     $modal.on("click", ".wbe-wtplus-load-query", async function () {
-      const id = Number($(this).data("id"));
+      const id = String($(this).data("id"));
       const queries = await getAllQueries();
-      const query = queries.find(q => q.id === id);
+      const query = queries.find((q) => String(q.id) === id);
       if (query) {
         loadQuery(query);
         $modal.remove();
       }
     });
-    
+
     // Delete query
     $modal.on("click", ".wbe-wtplus-delete-query", async function () {
-      const id = Number($(this).data("id"));
+      const id = String($(this).data("id"));
       const confirmed = await customConfirm("Are you sure you want to delete this saved query?");
       if (confirmed) {
         try {
@@ -1596,7 +1691,6 @@ async function showSavedQueriesModal() {
         }
       }
     });
-    
   } catch (err) {
     console.error("Error showing saved queries:", err);
     // If modal creation fails catastrophically, just log it
@@ -1609,10 +1703,10 @@ function loadQuery(savedQuery) {
   state.groups = JSON.parse(JSON.stringify(savedQuery.state.groups)); // Deep clone
   state.searchType = savedQuery.state.searchType || "text";
   state.selectedGroupIndex = savedQuery.state.selectedGroupIndex || 0;
-  
+
   // Update the radio buttons
   $(`input[name='wbe-wtplus-search-type'][value='${state.searchType}']`).prop("checked", true);
-  
+
   // Re-render everything
   renderAll();
   setStatus(`Loaded: ${savedQuery.name}`);
@@ -1664,7 +1758,7 @@ shouldInitializeFeature(FEATURE_ID).then((enabled) => {
   if (!(isMainDomain || isPlusDomain)) return;
 
   // Initialize IndexedDB
-  initDB().catch(err => console.error("Failed to initialize query database:", err));
+  initDB().catch((err) => console.error("Failed to initialize query database:", err));
 
   addLauncher();
 });

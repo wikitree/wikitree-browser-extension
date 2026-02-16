@@ -3,6 +3,8 @@
  * Organized by category with comprehensive WT+ SQL examples
  */
 
+const normalizeSqlValue = (value) => String(value || "").trim().replace(/\s+/g, "_");
+
 export const SQL_TEMPLATES = [
   // Names
   {
@@ -10,7 +12,10 @@ export const SQL_TEMPLATES = [
     id: "first-name-exact",
     label: "First name equals",
     description: "Find profiles with exact first name",
-    buildSql: (n) => (n ? `sql="([Default].[First Name].AsString = '${n}')"` : ""),
+    buildSql: (n) => {
+      const v = normalizeSqlValue(n);
+      return v ? `sql="([Default].[First Name].AsString = '${v}')"` : "";
+    },
     inputs: [{ type: "text", label: "First name", placeholder: "John" }],
   },
   {
@@ -18,7 +23,10 @@ export const SQL_TEMPLATES = [
     id: "last-name-birth",
     label: "Last name at birth equals",
     description: "Find profiles with exact last name at birth",
-    buildSql: (n) => (n ? `sql="([Default].[Last Name at Birth].AsString = '${n.toLowerCase()}')"` : ""),
+    buildSql: (n) => {
+      const v = normalizeSqlValue(n);
+      return v ? `sql="([Default].[Last Name at Birth].AsString = '${v.toLowerCase()}')"` : "";
+    },
     inputs: [{ type: "text", label: "Last name", placeholder: "berkelmans" }],
   },
   {
@@ -26,7 +34,10 @@ export const SQL_TEMPLATES = [
     id: "current-last-name",
     label: "Current last name equals",
     description: "Find profiles with exact current last name",
-    buildSql: (n) => (n ? `sql="([Default].[Current Last Name].AsString = '${n.toLowerCase()}')"` : ""),
+    buildSql: (n) => {
+      const v = normalizeSqlValue(n);
+      return v ? `sql="([Default].[Current Last Name].AsString = '${v.toLowerCase()}')"` : "";
+    },
     inputs: [{ type: "text", label: "Last name", placeholder: "whittemore" }],
   },
   {
@@ -117,7 +128,10 @@ export const SQL_TEMPLATES = [
     id: "birth-location",
     label: "Birth location contains",
     description: "Find profiles with text in birth location",
-    buildSql: (t) => (t ? `sql="([Default].[Birth Location].AsString Like '*${t}*')"` : ""),
+    buildSql: (t) => {
+      const v = normalizeSqlValue(t);
+      return v ? `sql="([Default].[Birth Location].AsString Like '*${v}*')"` : "";
+    },
     inputs: [{ type: "text", label: "Location text", placeholder: "azores" }],
   },
   {
@@ -125,7 +139,10 @@ export const SQL_TEMPLATES = [
     id: "death-location",
     label: "Death location contains",
     description: "Find profiles with text in death location",
-    buildSql: (t) => (t ? `sql="([Default].[Death Location].AsString Like '*${t}*')"` : ""),
+    buildSql: (t) => {
+      const v = normalizeSqlValue(t);
+      return v ? `sql="([Default].[Death Location].AsString Like '*${v}*')"` : "";
+    },
     inputs: [{ type: "text", label: "Location text", placeholder: "azores" }],
   },
   {
@@ -133,7 +150,10 @@ export const SQL_TEMPLATES = [
     id: "death-country",
     label: "Death country equals",
     description: "Find profiles by death country",
-    buildSql: (c) => (c ? `sql="([Default].[Death Location Country].AsString = '${c.toLowerCase()}')"` : ""),
+    buildSql: (c) => {
+      const v = normalizeSqlValue(c);
+      return v ? `sql="([Default].[Death Location Country].AsString = '${v.toLowerCase()}')"` : "";
+    },
     inputs: [{ type: "text", label: "Country", placeholder: "canada" }],
   },
   {
@@ -173,7 +193,10 @@ export const SQL_TEMPLATES = [
     id: "marriage-location-like",
     label: "Marriage location contains phrase",
     description: "Match exact phrases in marriage location",
-    buildSql: (p) => (p ? `sql=\"([Marriage].[Marriage Location].AsString like '*${p}*')\"` : ""),
+    buildSql: (p) => {
+      const v = normalizeSqlValue(p);
+      return v ? `sql=\"([Marriage].[Marriage Location].AsString like '*${v}*')\"` : "";
+    },
     inputs: [{ type: "text", label: "Phrase", placeholder: "West Sussex" }],
   },
   {
@@ -325,7 +348,95 @@ export const SQL_TEMPLATES = [
     id: "with-heading",
     label: "Has heading",
     description: "Find profiles with specific heading",
-    buildSql: (h) => (h ? `sql="([Bio].[Headings].AsString Like '*${h}*')"` : ""),
+    buildSql: (h) => {
+      const v = normalizeSqlValue(h);
+      return v ? `sql="([Bio].[Headings].AsString Like '*${v}*')"` : "";
+    },
     inputs: [{ type: "text", label: "Heading", placeholder: "Acknowledgements" }],
+  },
+  // Biography / Headings
+  {
+    category: "Biography",
+    id: "bio-missing-sources-after-bio",
+    label: "Missing Sources after Biography",
+    description: "Find profiles without Biography followed by Sources heading",
+    buildSql: () => "sql=\"Not([Bio].[Headings].AsString Like '*B2*S2*')\"",
+    inputs: [],
+  },
+  // Categories
+  {
+    category: "Categories",
+    id: "missing-category",
+    label: "Missing specific category",
+    description: "Find profiles missing a category (uses All Categories)",
+    buildSql: (c) => {
+      const v = normalizeSqlValue(c);
+      return v ? `sql=\"Not ([Default].[All Categories].AsString Like '*${v}*')\"` : "";
+    },
+    inputs: [{ type: "text", label: "Category slug", placeholder: "dombrowken,_strasburg,_westpreussen" }],
+  },
+  // Templates
+  {
+    category: "Templates",
+    id: "template-name-text",
+    label: "Template name + text",
+    description: "Match template name and a phrase in template text",
+    buildSql: (name, text) => {
+      const n = normalizeSqlValue(name);
+      const t = normalizeSqlValue(text);
+      return n && t
+        ? `sql=\"([Templates].[Template name].AsString = '${n}') And ([Templates].[Template text].AsString Like '*${t}*')\"`
+        : "";
+    },
+    inputs: [
+      { type: "text", label: "Template name", placeholder: "Community Event" },
+      { type: "text", label: "Template text", placeholder: "2023" },
+    ],
+  },
+  {
+    category: "Templates",
+    id: "template-text-contains",
+    label: "Template text contains",
+    description: "Find templates with specific parameter text",
+    buildSql: (t) => {
+      const v = normalizeSqlValue(t);
+      return v ? `sql=\"([Templates].[Template text].AsString Like '*${v}*')\"` : "";
+    },
+    inputs: [{ type: "text", label: "Text", placeholder: "=right" }],
+  },
+  // Managers
+  {
+    category: "Managers",
+    id: "managed-only-by",
+    label: "Managed only by",
+    description: "Find profiles managed only by one manager",
+    buildSql: (m) => {
+      const v = normalizeSqlValue(m);
+      return v ? `sql=\"([Default].[All Managers].AsString = '${v}')\"` : "";
+    },
+    inputs: [{ type: "text", label: "Manager ID", placeholder: "guile-361" }],
+  },
+  // DNA
+  {
+    category: "DNA",
+    id: "mt-haplogroup",
+    label: "mtDNA haplogroup contains",
+    description: "Find profiles with mtDNA haplogroup match",
+    buildSql: (h) => {
+      const v = normalizeSqlValue(h);
+      return v ? `sql=\"([Bio].[Replicated DNA mtHaplogroup].AsString Like '*${v}*')\"` : "";
+    },
+    inputs: [{ type: "text", label: "Haplogroup", placeholder: "H1c" }],
+  },
+  {
+    category: "DNA",
+    id: "au-dna-lnabs",
+    label: "auDNA lnabs contains",
+    description: "Find profiles with auDNA lnabs match",
+    buildSql: (t) => {
+      const v = normalizeSqlValue(t);
+      return v ? `sql=\"([bio].[replicated audna lnabs].asstring like '*${v}*')\"` : "";
+    },
+    inputs: [{ type: "text", label: "Text", placeholder: "waldron" }],
   },
 ];
