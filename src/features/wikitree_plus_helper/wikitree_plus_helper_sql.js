@@ -184,14 +184,13 @@ export const SQL_TEMPLATES = [
     buildSql: () => 'sql="([Marriage].[Marriage Location].LineCount = 1)"',
     inputs: [],
   },
-  // Gender
   {
-    category: "Gender",
-    id: "no-gender",
-    label: "No gender specified",
-    description: "Find profiles without gender",
-    buildSql: () => 'sql="([Default].[Gender].AsNumber = 0)"',
-    inputs: [],
+    category: "Marriage",
+    id: "many-marriages",
+    label: "More than N marriages",
+    description: "Find profiles with more than specified marriages",
+    buildSql: (c) => (c ? `sql="([Marriage].[Marriage Date].LineCount > ${c})"` : ""),
+    inputs: [{ type: "number", label: "Min marriages", placeholder: "2" }],
   },
   // Relations
   {
@@ -225,14 +224,6 @@ export const SQL_TEMPLATES = [
     description: "Find profiles with more than specified siblings",
     buildSql: (c) => (c ? `sql="([Siblings].[User ID].LineCount > ${c})"` : ""),
     inputs: [{ type: "number", label: "Min siblings", placeholder: "5" }],
-  },
-  {
-    category: "Relations",
-    id: "many-marriages",
-    label: "More than N marriages",
-    description: "Find profiles with more than specified marriages",
-    buildSql: (c) => (c ? `sql="([Marriage].[Marriage Date].LineCount > ${c})"` : ""),
-    inputs: [{ type: "number", label: "Min marriages", placeholder: "2" }],
   },
   // Privacy
   {

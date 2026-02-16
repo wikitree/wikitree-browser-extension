@@ -226,6 +226,21 @@
 
 .wbe-wtplus-orqb-field-input {
   min-height: 32px;
+  position: relative;
+}
+
+.wbe-wtplus-orqb-input-hint {
+  display: none;
+  font-size: 11px;
+  color: #666;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 4px 6px;
+  margin-bottom: 4px;
+  font-style: italic;
+  line-height: 1.3;
+  word-break: break-word;
 }
 
 .wbe-wtplus-orqb-sql-block {
@@ -334,6 +349,60 @@
 }
 
 /* SQL Wizard Modal Styles */
+.wbe-wtplus-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 9999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wbe-wtplus-modal .wbe-wtplus-modal-content {
+  position: relative;
+  background: #fff;
+  border: 2px solid #25422d;
+  border-radius: 10px;
+  padding: 20px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+}
+
+.wbe-wtplus-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: move;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #ddd;
+}
+
+.wbe-wtplus-close {
+  font-size: 28px;
+  font-weight: bold;
+  color: #999;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.wbe-wtplus-close:hover {
+  color: #333;
+}
+
+/* Legacy selectors for backwards compatibility */
 #wbe-wtplus-sql-wizard-modal {
   position: fixed;
   inset: 0;
