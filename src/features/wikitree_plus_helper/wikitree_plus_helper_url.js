@@ -33,7 +33,8 @@ function createUrl(query, searchType, includeRender) {
     }
     u.searchParams.set("MaxErrors", "1000");
     if (includeRender) {
-      u.searchParams.set("render", "1");
+      // For suggestions, use wbe=1 to trigger auto-submit instead of render=1
+      u.searchParams.set("wbe", "1");
     }
   } else {
     u.searchParams.set("report", DEFAULT_REPORT);
@@ -60,30 +61,53 @@ export function populatePlusForm(query, searchType, $) {
     // Suggestions mode - populate the suggestions form (#formSuggestionsAll)
     const $form = $("#formSuggestionsAll");
     if ($form.length) {
-      const suggestionId = extractSuggestionId(q);
-      const $query = $form.find("[name='Query']");
-      const $maxErrors = $form.find("[name='MaxErrors']");
-
-      if (suggestionId) {
-        // Remove the suggestions=XXX part from the query
-        const cleanedQuery = q.replace(/(?:suggestions?|errorid)=\d+\s*/gi, "").trim();
-        if ($query.length) $query.val(cleanedQuery);
-      } else {
-        if ($query.length) $query.val(q);
+      // Expand the suggestions accordion if collapsed
+      const $accordion = $("a[href='#err-wrapper']");
+      if ($accordion.length && $accordion.hasClass("collapsed")) {
+        $accordion.click();
       }
-      if ($maxErrors.length) $maxErrors.val("1000");
+      
+      // Use setTimeout to ensure accordion is expanded and form is ready
+      setTimeout(() => {
+        const suggestionId = extractSuggestionId(q);
+        const $query = $form.find("[name='Query']");
+        const $errorId = $form.find("select[name='ErrorID'], #ErrorID");
+        const $maxErrors = $form.find("[name='MaxErrors']");
+
+        if (suggestionId) {
+          // Remove the suggestions=XXX part from the query
+          const cleanedQuery = q.replace(/(?:suggestions?|errorid)=\d+\s*/gi, "").trim();
+          if ($query.length) $query.val(cleanedQuery);
+          // ErrorID is a select dropdown - select it and trigger change
+          if ($errorId.length) {
+            $errorId.val(suggestionId).trigger("change");
+          }
+        } else {
+          if ($query.length) $query.val(q);
+        }
+        if ($maxErrors.length) $maxErrors.val("1000");
+      }, 100);
     }
   } else {
     // Text search mode - populate the text search form (#formSearchText)
     const $form = $("#formSearchText");
     if ($form.length) {
-      const $query = $form.find("[name='Query']");
-      const $maxProfiles = $form.find("[name='MaxProfiles']");
-      const $format = $form.find("[name='Format']");
+      // Expand the search accordion if collapsed
+      const $accordion = $("a[href='#srch-wrapper']");
+      if ($accordion.length && $accordion.hasClass("collapsed")) {
+        $accordion.click();
+      }
+      
+      // Use setTimeout to ensure accordion is expanded and form is ready
+      setTimeout(() => {
+        const $query = $form.find("[name='Query']");
+        const $maxProfiles = $form.find("[name='MaxProfiles']");
+        const $format = $form.find("[name='Format']");
 
-      if ($query.length) $query.val(q);
-      if ($maxProfiles.length) $maxProfiles.val("500");
-      if ($format.length) $format.val(""); // Default to HTML
+        if ($query.length) $query.val(q);
+        if ($maxProfiles.length) $maxProfiles.val("500");
+        if ($format.length) $format.val(""); // Default to HTML
+      }, 100);
     }
   }
 }

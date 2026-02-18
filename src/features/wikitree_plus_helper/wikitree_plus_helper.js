@@ -465,47 +465,63 @@ function rowToTerms(row) {
 }
 
 function buildQueryForSuggestions() {
-  // For suggestions mode: extract just values, space-separated
-  // Format: Query=value1 value2 value3 OR suggestions=XXX for ErrorID
-  const values = [];
+  // For suggestions mode: build query using proper field formatting (just like text search)
+  // but also extract suggestion ID if present
   let suggestionId = null;
+  const allTerms = [];
 
   state.groups.forEach((g) => {
-    g.rows.forEach((row) => {
-      // Extract values from regular fields
-      Object.entries(row.fields || {}).forEach(([fieldId, value]) => {
-        const rawVal = collapseWs(normalizeQuotes(value));
-        if (rawVal && fieldId !== "sql") {
-          // Special handling for Suggestions field - format for ErrorID extraction
-          if (fieldId === "Suggestions") {
-            suggestionId = rawVal;
-          } else {
-            values.push(rawVal);
-          }
-        }
-      });
+    const positives = [];
+    const negatives = [];
 
-      // Extract values from multi-fields
+    g.rows.forEach((row) => {
+      // Check for Suggestions field to extract ErrorID
+      if (row.fields?.Suggestions) {
+        const rawVal = collapseWs(normalizeQuotes(row.fields.Suggestions));
+        if (rawVal) {
+          suggestionId = rawVal;
+        }
+      }
       Object.values(row.multiFields || {}).forEach((entries) => {
         entries.forEach((entry) => {
-          if (entry?.value && entry?.fieldId) {
+          if (entry?.fieldId === "Suggestions" && entry?.value) {
             const rawVal = collapseWs(normalizeQuotes(entry.value));
             if (rawVal) {
-              // Special handling for Suggestions field
-              if (entry.fieldId === "Suggestions") {
-                suggestionId = rawVal;
-              } else {
-                values.push(rawVal);
-              }
+              suggestionId = rawVal;
             }
           }
         });
       });
+
+      // Get all formatted terms for this row
+      const terms = rowToTerms(row);
+
+      // Filter out the Suggestions field itself (it's handled via ErrorID parameter)
+      const filteredTerms = terms.filter(
+        (term) => !term.startsWith("Suggestions=") && !term.includes("Suggestions=")
+      );
+
+      // Apply NOT if needed
+      filteredTerms.forEach((term) => {
+        if (row.not) {
+          negatives.push(term);
+        } else {
+          positives.push(term);
+        }
+      });
     });
+
+    // Build the group string
+    let groupStr = "";
+    if (positives.length) groupStr += positives.join(" ");
+    if (negatives.length) groupStr += (groupStr ? " " : "") + negatives.map((t) => `NOT ${t}`).join(" ");
+    if (groupStr) allTerms.push(groupStr);
   });
 
-  // If there's a suggestion ID, format it for extractSuggestionId to recognize
-  let query = values.join(" ");
+  // Join groups with OR
+  let query = allTerms.join(" OR ");
+
+  // If there's a suggestion ID, prepend it for extractSuggestionId to recognize
   if (suggestionId) {
     query = `suggestions=${suggestionId} ${query}`.trim();
   }
@@ -714,33 +730,30 @@ function ensureModal() {
       // Read the actual radio button selection at time of click
       const searchType = $("input[name='wbe-wtplus-search-type']:checked").val() || "text";
       if (isPlusDomain) {
+        // On plus domain, navigate to the URL instead of trying to populate forms
         closeModal();
-        // Populate and submit the correct form based on search type
+        const url = new URL("https://plus.wikitree.com/default.htm");
         if (searchType === "suggestions") {
-          // Suggestions search - populate #formSuggestionsAll and submit it
-          const $form = $("#formSuggestionsAll");
-          if ($form.length) {
-            const suggestionId = extractSuggestionId(query);
+          url.searchParams.set("report", "err6");
+          const suggestionId = extractSuggestionId(query);
+          if (suggestionId) {
+            url.searchParams.set("ErrorID", suggestionId);
             const cleanedQuery = query.replace(/(?:suggestions?|errorid)=\d+\s*/gi, "").trim();
-            $form.find("textarea[name='Query']").val(suggestionId ? cleanedQuery : query);
-            if (suggestionId) {
-              $form.find("input[name='ErrorID']").val(suggestionId);
+            if (cleanedQuery) {
+              url.searchParams.set("Query", cleanedQuery);
             }
-            $form.find("input[name='MaxErrors']").val("1000");
-            // Click the submit button in this form
-            $form.find("button[type='submit']").click();
+          } else if (query) {
+            url.searchParams.set("Query", query);
           }
+          url.searchParams.set("MaxErrors", "1000");
+          // Use wbe=1 to signal auto-submit instead of render=1
+          url.searchParams.set("wbe", "1");
         } else {
-          // Text search - populate #formSearchText and submit it
-          const $form = $("#formSearchText");
-          if ($form.length) {
-            $form.find("textarea[name='Query']").val(query);
-            $form.find("input[name='MaxProfiles']").val("500");
-            $form.find("select[name='Format']").val("");
-            // Click the submit button in this form
-            $form.find("button[type='submit']").click();
-          }
+          url.searchParams.set("report", "srch1");
+          url.searchParams.set("Query", query);
+          url.searchParams.set("render", "1");
         }
+        window.location.href = url.toString();
       } else {
         // Otherwise open in new window
         const u = buildPlusUrl(query, searchType, true); // include Render=1 for opening
@@ -1765,4 +1778,21 @@ shouldInitializeFeature(FEATURE_ID).then((enabled) => {
   initDB().catch((err) => console.error("Failed to initialize query database:", err));
 
   addLauncher();
+
+  // Auto-submit handler for suggestions search from query builder
+  if (isPlusDomain) {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("wbe") === "1" && urlParams.get("report") === "err6") {
+      // Wait for the page to be ready, then submit the form
+      setTimeout(() => {
+        const $form = $("#formSuggestionsAll");
+        if ($form.length) {
+          const $submitBtn = $form.find("button[type='submit']");
+          if ($submitBtn.length) {
+            $submitBtn.click();
+          }
+        }
+      }, 500);
+    }
+  }
 });
