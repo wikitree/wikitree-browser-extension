@@ -608,7 +608,7 @@ function ensureModal() {
 
               <div class="wbe-wtplus-orqb-row-actions">
                 <div class="wbe-wtplus-orqb-row-actions-left">
-                  <button type="button" class="button small" id="wbe-wtplus-orqb-add-row">Add condition</button>
+                  <button type="button" class="button small" id="wbe-wtplus-orqb-add-row">Add AND group</button>
                   <button type="button" class="button small" id="wbe-wtplus-orqb-dup-group">Duplicate group</button>
                   <button type="button" class="button small" id="wbe-wtplus-orqb-del-group">Delete group</button>
                 </div>
