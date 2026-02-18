@@ -576,7 +576,7 @@ function ensureModal() {
     <div id="wbe-wtplus-orqb-modal" class="wbe-wtplus-orqb-modal" style="display:none;">
       <div class="wbe-wtplus-orqb-window">
         <div class="wbe-wtplus-orqb-header">
-          <div class="wbe-wtplus-orqb-title">WT+ Query Builder</div>
+          <div class="wbe-wtplus-orqb-title">WikiTree+ Query Builder</div>
           <button type="button" class="wbe-wtplus-orqb-close" title="Close">×</button>
         </div>
 
