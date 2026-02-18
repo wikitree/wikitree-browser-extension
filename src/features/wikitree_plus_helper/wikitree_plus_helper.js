@@ -411,6 +411,7 @@ const GROUP_ORDER = [
   "Locations",
   "Location Table",
   "Categories and Templates",
+  "Relations",
   "Management",
   "Other",
   "Magic Words",
@@ -425,6 +426,7 @@ const MULTI_GROUPS = new Set([
   "Locations",
   "Location Table",
   "Categories and Templates",
+  "Relations",
   "Management",
   "Other",
 ]);

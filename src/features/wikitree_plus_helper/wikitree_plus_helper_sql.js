@@ -433,6 +433,39 @@ export const SQL_TEMPLATES = [
   },
   {
     category: "DNA",
+    id: "y-haplogroup",
+    label: "yDNA haplogroup contains",
+    description: "Find profiles with yDNA haplogroup match",
+    buildSql: (h) => {
+      const v = normalizeSqlValue(h);
+      return v ? `sql=\"([Bio].[Replicated DNA yHaplogroup].AsString Like '*${v}*')\"` : "";
+    },
+    inputs: [{ type: "text", label: "Haplogroup", placeholder: "R1b" }],
+  },
+  {
+    category: "DNA",
+    id: "gedmatch-id",
+    label: "GedMatch ID contains",
+    description: "Find profiles with GedMatch ID",
+    buildSql: (g) => {
+      const v = normalizeSqlValue(g);
+      return v ? `sql=\"([Bio].[Replicated DNA GedMatchID].AsString Like '*${v}*')\"` : "";
+    },
+    inputs: [{ type: "text", label: "GedMatch ID", placeholder: "T660921" }],
+  },
+  {
+    category: "DNA",
+    id: "mitoy-dna-id",
+    label: "mitoyDNA ID contains",
+    description: "Find profiles with mitoyDNA ID",
+    buildSql: (m) => {
+      const v = normalizeSqlValue(m);
+      return v ? `sql=\"([Bio].[Replicated DNA mitoyDNAID].AsString Like '*${v}*')\"` : "";
+    },
+    inputs: [{ type: "text", label: "mitoyDNA ID", placeholder: "12345" }],
+  },
+  {
+    category: "DNA",
     id: "au-dna-lnabs",
     label: "auDNA lnabs contains",
     description: "Find profiles with auDNA lnabs match",

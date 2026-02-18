@@ -100,14 +100,6 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
       group: "Names",
     },
     { id: "FirstName", label: "FirstName", kind: "index", input: "text", placeholder: "e.g. John", group: "Names" },
-    {
-      id: "Name",
-      label: "Name (Full)",
-      kind: "index",
-      input: "text",
-      placeholder: 'e.g. "John Smith"',
-      group: "Names",
-    },
 
     // Locations (simple index=value form)
     {
@@ -227,6 +219,40 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
       input: "select",
       options: () => buildSuggestionsOptions(),
       group: "Suggestions",
+    },
+
+    // Relations & Tree
+    {
+      id: "Tree",
+      label: "Tree",
+      kind: "index",
+      input: "text",
+      placeholder: "e.g. Tree123 or unconnected",
+      group: "Relations",
+    },
+    {
+      id: "Ancestors",
+      label: "Ancestors",
+      kind: "raw",
+      input: "text",
+      placeholder: 'e.g. Tudor-18 or "Van Veenendaal-20"',
+      group: "Relations",
+    },
+    {
+      id: "Descendants",
+      label: "Descendants",
+      kind: "raw",
+      input: "text",
+      placeholder: 'e.g. Tudor-18 or "Van Hoorn-230"',
+      group: "Relations",
+    },
+    {
+      id: "CC7",
+      label: "CC7",
+      kind: "raw",
+      input: "text",
+      placeholder: 'e.g. Tudor-18 or 13064898',
+      group: "Relations",
     },
 
     // Management & editing (documented)

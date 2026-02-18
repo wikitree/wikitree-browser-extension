@@ -6,6 +6,95 @@
 const WTPLUS_BASE = "https://plus.wikitree.com/default.htm";
 const DEFAULT_REPORT = "srch1";
 
+// Supported fields and magic words for suggestions search
+const SUGGESTIONS_SUPPORTED = {
+  // Extended search field names
+  fields: new Set([
+    "WikiTreeID",
+    "Name",
+    "BirthLocation",
+    "DeathLocation",
+    "MarriageLocation",
+    "Location",
+    "Country",
+    "Manager",
+    "CatTem",
+    "Others",
+    "Stars",
+    "Info",
+  ]),
+  // Magic words (will match with regex for century and star patterns)
+  magicWords: new Set([
+    "IsInWikiData",
+    "Orphan",
+    "Guest",
+    "ProjectManaged",
+  ]),
+};
+
+// Helper to filter query for suggestions search - keep only supported fields/magic words
+function filterQueryForSuggestions(query) {
+  const parts = String(query || "")
+    .split(/\s+/)
+    .map((part) => {
+      // Convert LastNameAtBirth= and AllLastNames= to Name= for suggestions
+      if (/^LastNameAtBirth=/i.test(part)) {
+        return part.replace(/^LastNameAtBirth=/i, "Name=");
+      }
+      if (/^AllLastNames=/i.test(part)) {
+        return part.replace(/^AllLastNames=/i, "Name=");
+      }
+      return part;
+    })
+    .filter((part) => {
+      if (!part) return false;
+      
+      // Check if it's a supported field assignment (field=value)
+      const fieldMatch = part.match(/^([^=]+)=/);
+      if (fieldMatch) {
+        const fieldName = fieldMatch[1];
+        return SUGGESTIONS_SUPPORTED.fields.has(fieldName);
+      }
+      
+      // Check if it's a supported magic word
+      if (SUGGESTIONS_SUPPORTED.magicWords.has(part)) return true;
+      
+      // Check for century patterns (0Cen through 21Cen)
+      if (/^\d{1,2}Cen$/i.test(part)) return true;
+      
+      // Check for star patterns (1star through 5stars)
+      if (/^[1-5]stars?$/i.test(part)) return true;
+      
+      // Check for ERRxxx pattern
+      if (/^ERR\d+$/i.test(part)) return true;
+      
+      // Keep quoted strings and regular text (may be location names, etc.)
+      if (part.startsWith('"') || part.endsWith('"') || !/[=]/.test(part)) {
+        // But filter out known unsupported magic words
+        const knownUnsupported = [
+          "male", "female", "NoGender",
+          "connected", "unconnected", "unlinked", "PublicTree", "PrivateTree",
+          "NoFather", "NoMother", "NoParents", "NoSpouses", "NoChildren",
+          "mtDNA", "yDNA", "auDNA", "noGEDMatchID", "noMitoyDNAID",
+          "Private", "PrivatePB", "PrivatePT", "PrivatePBPT", "Public",
+          "PPP", "NeverEdited", "ApprovedMerge", "PendingMerge", "UnmergedMatch",
+          "GEDCOMJunk", "SourceJunk", "MissingLocation", "UnknownCountry", "UnknownRegion",
+          "Open", "Unsourced", "Unconnected", "Notables",
+        ];
+        if (knownUnsupported.includes(part)) return false;
+        
+        // Filter out Tree=, Ancestors=, Descendants=, CC7=, etc.
+        if (/^(Tree|Ancestors|Descendants|CC7)=/i.test(part)) return false;
+        
+        return true;
+      }
+      
+      return false;
+    });
+  
+  return parts.join(" ").trim();
+}
+
 export function extractSuggestionId(query) {
   const q = String(query || "").trim();
   if (!q) return "";
@@ -34,13 +123,17 @@ function createUrl(query, searchType, includeRender, suggestionId = "") {
     const resolvedSuggestionId = suggestionId || extractSuggestionId(query);
     if (resolvedSuggestionId) {
       u.searchParams.set("ErrorID", resolvedSuggestionId);
-      // Remove the suggestions=XXX part from the query string
-      const cleanedQuery = query.replace(/(?:suggestions?|errorid)=\d+\s*/gi, "").trim();
+      // Remove the suggestions=XXX part from the query string and filter for supported fields
+      let cleanedQuery = query.replace(/(?:suggestions?|errorid)=\d+\s*/gi, "").trim();
+      cleanedQuery = filterQueryForSuggestions(cleanedQuery);
       if (cleanedQuery) {
         u.searchParams.set("Query", cleanedQuery);
       }
     } else if (query) {
-      u.searchParams.set("Query", query);
+      const cleanedQuery = filterQueryForSuggestions(query);
+      if (cleanedQuery) {
+        u.searchParams.set("Query", cleanedQuery);
+      }
     }
     u.searchParams.set("MaxErrors", "1000");
     if (includeRender) {
@@ -86,15 +179,17 @@ export function populatePlusForm(query, searchType, $) {
         const $maxErrors = $form.find("[name='MaxErrors']");
 
         if (suggestionId) {
-          // Remove the suggestions=XXX part from the query
-          const cleanedQuery = q.replace(/(?:suggestions?|errorid)=\d+\s*/gi, "").trim();
+          // Remove the suggestions=XXX part from the query and filter for supported fields
+          let cleanedQuery = q.replace(/(?:suggestions?|errorid)=\d+\s*/gi, "").trim();
+          cleanedQuery = filterQueryForSuggestions(cleanedQuery);
           if ($query.length) $query.val(cleanedQuery);
           // ErrorID is a select dropdown - select it and trigger change
           if ($errorId.length) {
             $errorId.val(suggestionId).trigger("change");
           }
         } else {
-          if ($query.length) $query.val(q);
+          const cleanedQuery = filterQueryForSuggestions(q);
+          if ($query.length) $query.val(cleanedQuery);
         }
         if ($maxErrors.length) $maxErrors.val("1000");
       }, 100);
