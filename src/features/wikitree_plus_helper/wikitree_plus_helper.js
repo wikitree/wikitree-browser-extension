@@ -920,9 +920,10 @@ function ensureModal() {
   });
 
   $("#wbe-wtplus-orqb-copy-q").on("click", async () => {
-    const { query, onlySql } = buildQuery();
-    if (onlySql) {
-      setStatus("SQL-only searches need at least one non-SQL condition.", true);
+    // Use the current value from the textarea (which may have been manually edited)
+    const query = $("#wbe-wtplus-orqb-query").val().trim();
+    if (!query) {
+      setStatus("No query to copy.", true);
       return;
     }
     await copyText(query);
@@ -930,62 +931,64 @@ function ensureModal() {
   });
 
   $("#wbe-wtplus-orqb-copy-u").on("click", async () => {
-    const { query, onlySql, suggestionId } = buildQuery();
-    if (onlySql) {
-      setStatus("SQL-only searches need at least one non-SQL condition.", true);
+    // Use the current value from the textarea (which may have been manually edited)
+    const url = $("#wbe-wtplus-orqb-url").val().trim();
+    if (!url) {
+      setStatus("No URL to copy.", true);
       return;
     }
-    await copyText(buildPlusUrl(query, state.searchType, false, suggestionId));
+    await copyText(url);
     setStatus("Copied URL.");
   });
 
   $("#wbe-wtplus-orqb-open").on("click", () => {
-    const { query, onlySql, suggestionId } = buildQuery();
-    if (onlySql) {
-      setStatus("SQL-only searches need at least one non-SQL condition.", true);
+    // Use the current value from the textarea (which may have been manually edited)
+    const query = $("#wbe-wtplus-orqb-query").val().trim();
+
+    if (!query) {
+      setStatus("No query to open.", true);
       return;
     }
-    if (query) {
-      // Read the actual radio button selection at time of click
-      const searchType = $("input[name='wbe-wtplus-search-type']:checked").val() || "text";
-      if (isPlusDomain) {
-        // On plus domain, navigate to the URL instead of trying to populate forms
-        closeModal();
-        const url = new URL("https://plus.wikitree.com/default.htm");
-        if (searchType === "suggestions") {
-          url.searchParams.set("report", "err6");
-          if (suggestionId) {
-            url.searchParams.set("ErrorID", suggestionId);
-            if (query) {
-              url.searchParams.set("Query", query);
-            }
-          } else if (query) {
+
+    // Check if it's SQL-only by trying to extract suggestion ID from current state
+    const { suggestionId } = buildQuery();
+
+    // Read the actual radio button selection at time of click
+    const searchType = $("input[name='wbe-wtplus-search-type']:checked").val() || "text";
+    if (isPlusDomain) {
+      // On plus domain, navigate to the URL instead of trying to populate forms
+      closeModal();
+      const url = new URL("https://plus.wikitree.com/default.htm");
+      if (searchType === "suggestions") {
+        url.searchParams.set("report", "err6");
+        if (suggestionId) {
+          url.searchParams.set("ErrorID", suggestionId);
+          if (query) {
             url.searchParams.set("Query", query);
           }
-          url.searchParams.set("MaxErrors", "1000");
-          // Use wbe=1 to signal auto-submit instead of render=1
-          url.searchParams.set("wbe", "1");
-        } else {
-          url.searchParams.set("report", "srch1");
+        } else if (query) {
           url.searchParams.set("Query", query);
-          url.searchParams.set("render", "1");
         }
-        window.location.href = url.toString();
+        url.searchParams.set("MaxErrors", "1000");
+        // Use wbe=1 to signal auto-submit instead of render=1
+        url.searchParams.set("wbe", "1");
       } else {
-        // Otherwise open in new window
-        const u = buildPlusUrl(query, searchType, true, suggestionId); // include Render=1 for opening
-        window.open(u, "_blank", "noopener,noreferrer");
+        url.searchParams.set("report", "srch1");
+        url.searchParams.set("Query", query);
+        url.searchParams.set("render", "1");
       }
+      window.location.href = url.toString();
+    } else {
+      // Otherwise open in new window
+      const u = buildPlusUrl(query, searchType, true, suggestionId); // include Render=1 for opening
+      window.open(u, "_blank", "noopener,noreferrer");
     }
   });
 
   $("#wbe-wtplus-orqb-save").on("click", async () => {
-    const { query, onlySql } = buildQuery();
-    if (onlySql) {
-      setStatus("SQL-only searches need at least one non-SQL condition.", true);
-      return;
-    }
-    if (!query.trim()) {
+    // Use the current value from the textarea (which may have been manually edited)
+    const query = $("#wbe-wtplus-orqb-query").val().trim();
+    if (!query) {
       setStatus("Nothing to save - build a query first.", true);
       return;
     }
@@ -1016,8 +1019,10 @@ function ensureModal() {
     const query = $(this).val();
     if (query.trim()) {
       $("#wbe-wtplus-orqb-url").val(buildPlusUrl(query, state.searchType, false, ""));
+      $("#wbe-wtplus-orqb-open").prop("disabled", false);
     } else {
       $("#wbe-wtplus-orqb-url").val("");
+      $("#wbe-wtplus-orqb-open").prop("disabled", true);
     }
   });
 
@@ -1027,6 +1032,7 @@ function ensureModal() {
       const url = new URL(urlStr);
       const query = url.searchParams.get("Query") || "";
       $("#wbe-wtplus-orqb-query").val(query);
+      $("#wbe-wtplus-orqb-open").prop("disabled", !query.trim());
     } catch (e) {
       // Invalid URL, ignore
     }
@@ -2097,10 +2103,29 @@ async function showSavedQueriesModal() {
 }
 
 function loadQuery(savedQuery) {
-  // Restore the state from the saved query
+  // Start by loading the saved state
   state.groups = JSON.parse(JSON.stringify(savedQuery.state.groups)); // Deep clone
   state.searchType = savedQuery.state.searchType || "text";
   state.selectedGroupIndex = savedQuery.state.selectedGroupIndex || 0;
+
+  // Check if the saved query string differs from what the state would generate
+  const { query: stateGeneratedQuery } = buildQuery();
+  const savedQueryTrimmed = (savedQuery.query || "").trim();
+  const stateQueryTrimmed = stateGeneratedQuery.trim();
+
+  // If the queries differ, try to parse the saved query (user may have manually edited it)
+  if (savedQueryTrimmed && savedQueryTrimmed !== stateQueryTrimmed) {
+    try {
+      const parsedState = parseQueryToState(savedQuery.query, state.searchType);
+      // Parsing succeeded, use the parsed state
+      state.groups = parsedState.groups;
+      state.searchType = parsedState.searchType;
+      state.selectedGroupIndex = 0;
+    } catch (err) {
+      console.warn("Could not parse manually edited query, using saved state:", err);
+      // Keep the state we already loaded at the top
+    }
+  }
 
   // Update the radio buttons
   $(`input[name='wbe-wtplus-search-type'][value='${state.searchType}']`).prop("checked", true);
@@ -2108,6 +2133,244 @@ function loadQuery(savedQuery) {
   // Re-render everything
   renderAll();
   setStatus(`Loaded: ${savedQuery.name}`);
+}
+
+function parseQueryToState(queryString, searchType) {
+  // Parse a query string back into state structure
+  const groups = [];
+
+  // Split by OR to get groups
+  const groupStrings = queryString.split(/\s+OR\s+/);
+
+  groupStrings.forEach((groupStr) => {
+    if (!groupStr.trim()) return;
+
+    const row = {
+      not: false,
+      fields: {},
+      multiFields: {},
+      sqlConditions: [],
+    };
+
+    // Tokenize the group string
+    const tokens = tokenizeQuery(groupStr);
+
+    tokens.forEach((token) => {
+      if (token.type === "field-value") {
+        // Check if this field should be in a multi-group
+        const fieldDef = fieldById(token.field);
+        if (fieldDef && fieldDef.group) {
+          const grpName = fieldDef.group;
+          if (MULTI_GROUPS.has(grpName)) {
+            // Add to multiFields
+            if (!row.multiFields[grpName]) {
+              row.multiFields[grpName] = [];
+            }
+            row.multiFields[grpName].push({
+              fieldId: token.field,
+              value: token.value,
+            });
+          } else if (grpName === "Suggestions") {
+            if (!row.multiFields.Suggestions) {
+              row.multiFields.Suggestions = [];
+            }
+            row.multiFields.Suggestions.push({
+              fieldId: "Suggestions",
+              value: token.value,
+            });
+          } else if (grpName === "Profile Status") {
+            if (!row.multiFields["Profile Status"]) {
+              row.multiFields["Profile Status"] = [];
+            }
+            row.multiFields["Profile Status"].push({
+              fieldId: "ProfileStatus",
+              value: token.value,
+            });
+          } else {
+            // Regular field
+            row.fields[token.field] = token.value;
+          }
+        } else {
+          row.fields[token.field] = token.value;
+        }
+      } else if (token.type === "raw") {
+        // Try to identify what kind of raw term this is
+        const identified = identifyRawTerm(token.value);
+        if (identified) {
+          if (identified.group && MULTI_GROUPS.has(identified.group)) {
+            if (!row.multiFields[identified.group]) {
+              row.multiFields[identified.group] = [];
+            }
+            row.multiFields[identified.group].push({
+              fieldId: identified.fieldId,
+              value: identified.value,
+            });
+          } else {
+            row.fields[identified.fieldId] = identified.value;
+          }
+        }
+      } else if (token.type === "sql") {
+        row.sqlConditions.push(token.value);
+      }
+    });
+
+    groups.push({ rows: [row] });
+  });
+
+  // If no groups parsed, create one empty group
+  if (groups.length === 0) {
+    groups.push({ rows: [newRow()] });
+  }
+
+  return {
+    groups,
+    searchType,
+    selectedGroupIndex: 0,
+  };
+}
+
+function tokenizeQuery(str) {
+  const tokens = [];
+  let i = 0;
+
+  while (i < str.length) {
+    // Skip whitespace
+    while (i < str.length && /\s/.test(str[i])) i++;
+    if (i >= str.length) break;
+
+    // Check for NOT
+    let isNot = false;
+    if (str.substr(i, 4) === "NOT ") {
+      isNot = true;
+      i += 4;
+      while (i < str.length && /\s/.test(str[i])) i++;
+    }
+
+    // Check for sql=
+    if (str.substr(i, 4) === "sql=") {
+      i += 4;
+      const sqlValue = readValue(str, i);
+      tokens.push({ type: "sql", value: sqlValue.value, not: isNot });
+      i = sqlValue.endIndex;
+      continue;
+    }
+
+    // Try to read field=value
+    const fieldMatch = str.substr(i).match(/^([A-Za-z_][A-Za-z0-9_]*)=/);
+    if (fieldMatch) {
+      const field = fieldMatch[1];
+      i += fieldMatch[0].length;
+      const valueResult = readValue(str, i);
+      tokens.push({
+        type: "field-value",
+        field,
+        value: valueResult.value,
+        not: isNot,
+      });
+      i = valueResult.endIndex;
+      continue;
+    }
+
+    // Otherwise it's a raw term
+    const rawResult = readRawTerm(str, i);
+    tokens.push({ type: "raw", value: rawResult.value, not: isNot });
+    i = rawResult.endIndex;
+  }
+
+  return tokens;
+}
+
+function readValue(str, startIndex) {
+  let i = startIndex;
+
+  // Check for quoted value
+  if (str[i] === '"' || str[i] === "'") {
+    const quote = str[i];
+    i++;
+    let value = "";
+    while (i < str.length && str[i] !== quote) {
+      if (str[i] === "\\" && i + 1 < str.length) {
+        value += str[i + 1];
+        i += 2;
+      } else {
+        value += str[i];
+        i++;
+      }
+    }
+    if (str[i] === quote) i++;
+    return { value, endIndex: i };
+  }
+
+  // Unquoted value - read until space or end
+  let value = "";
+  while (i < str.length && !/\s/.test(str[i])) {
+    value += str[i];
+    i++;
+  }
+
+  return { value, endIndex: i };
+}
+
+function readRawTerm(str, startIndex) {
+  let i = startIndex;
+  let value = "";
+
+  // Read until space or end
+  while (i < str.length && !/\s/.test(str[i])) {
+    value += str[i];
+    i++;
+  }
+
+  return { value, endIndex: i };
+}
+
+function identifyRawTerm(term) {
+  // Try to identify what field this raw term belongs to
+
+  // Check if it's a magic word
+  for (const group of MAGIC_WORDS_LIST) {
+    if (group.options) {
+      for (const opt of group.options) {
+        if (opt.value === term) {
+          // Found a magic word
+          const fieldId = `MagicWords_${group.label.replace(/\s+/g, "_")}`;
+          return {
+            fieldId,
+            value: term,
+            group: "Magic Words",
+          };
+        }
+      }
+    }
+  }
+
+  // Check if it's a profile status
+  const statusValues = ["Open", "Unsourced", "Unconnected", "Orphan", "Notables"];
+  if (statusValues.includes(term)) {
+    return {
+      fieldId: "ProfileStatus",
+      value: term,
+      group: "Profile Status",
+    };
+  }
+
+  // Check if it matches date patterns (B1850, D1900, pre1500)
+  if (/^B\d+$/.test(term)) {
+    return { fieldId: "BirthYear", value: term.substring(1), group: "Dates" };
+  }
+  if (/^D\d+$/.test(term)) {
+    return { fieldId: "DeathYear", value: term.substring(1), group: "Dates" };
+  }
+  if (term === "pre1500") {
+    return { fieldId: "pre1500", value: "pre1500", group: "Dates" };
+  }
+
+  // If we can't identify it, treat it as a name search term
+  return {
+    fieldId: "LastNameAtBirth",
+    value: term,
+    group: "Names",
+  };
 }
 
 function addLauncher() {
