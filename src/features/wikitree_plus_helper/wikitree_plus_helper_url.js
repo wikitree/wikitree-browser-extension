@@ -24,12 +24,7 @@ const SUGGESTIONS_SUPPORTED = {
     "Info",
   ]),
   // Magic words (will match with regex for century and star patterns)
-  magicWords: new Set([
-    "IsInWikiData",
-    "Orphan",
-    "Guest",
-    "ProjectManaged",
-  ]),
+  magicWords: new Set(["IsInWikiData", "Orphan", "Guest", "ProjectManaged"]),
 };
 
 // Helper to filter query for suggestions search - keep only supported fields/magic words
@@ -48,50 +43,79 @@ function filterQueryForSuggestions(query) {
     })
     .filter((part) => {
       if (!part) return false;
-      
+
       // Check if it's a supported field assignment (field=value)
       const fieldMatch = part.match(/^([^=]+)=/);
       if (fieldMatch) {
         const fieldName = fieldMatch[1];
         return SUGGESTIONS_SUPPORTED.fields.has(fieldName);
       }
-      
+
       // Check if it's a supported magic word
       if (SUGGESTIONS_SUPPORTED.magicWords.has(part)) return true;
-      
+
       // Check for century patterns (0Cen through 21Cen)
       if (/^\d{1,2}Cen$/i.test(part)) return true;
-      
+
       // Check for star patterns (1star through 5stars)
       if (/^[1-5]stars?$/i.test(part)) return true;
-      
+
       // Check for ERRxxx pattern
       if (/^ERR\d+$/i.test(part)) return true;
-      
+
       // Keep quoted strings and regular text (may be location names, etc.)
       if (part.startsWith('"') || part.endsWith('"') || !/[=]/.test(part)) {
         // But filter out known unsupported magic words
         const knownUnsupported = [
-          "male", "female", "NoGender",
-          "connected", "unconnected", "unlinked", "PublicTree", "PrivateTree",
-          "NoFather", "NoMother", "NoParents", "NoSpouses", "NoChildren",
-          "mtDNA", "yDNA", "auDNA", "noGEDMatchID", "noMitoyDNAID",
-          "Private", "PrivatePB", "PrivatePT", "PrivatePBPT", "Public",
-          "PPP", "NeverEdited", "ApprovedMerge", "PendingMerge", "UnmergedMatch",
-          "GEDCOMJunk", "SourceJunk", "MissingLocation", "UnknownCountry", "UnknownRegion",
-          "Open", "Unsourced", "Unconnected", "Notables",
+          "male",
+          "female",
+          "NoGender",
+          "connected",
+          "unconnected",
+          "unlinked",
+          "PublicTree",
+          "PrivateTree",
+          "NoFather",
+          "NoMother",
+          "NoParents",
+          "NoSpouses",
+          "NoChildren",
+          "mtDNA",
+          "yDNA",
+          "auDNA",
+          "noGEDMatchID",
+          "noMitoyDNAID",
+          "Private",
+          "PrivatePB",
+          "PrivatePT",
+          "PrivatePBPT",
+          "Public",
+          "PPP",
+          "NeverEdited",
+          "ApprovedMerge",
+          "PendingMerge",
+          "UnmergedMatch",
+          "GEDCOMJunk",
+          "SourceJunk",
+          "MissingLocation",
+          "UnknownCountry",
+          "UnknownRegion",
+          "Open",
+          "Unsourced",
+          "Unconnected",
+          "Notables",
         ];
         if (knownUnsupported.includes(part)) return false;
-        
+
         // Filter out Tree=, Ancestors=, Descendants=, CC7=, etc.
         if (/^(Tree|Ancestors|Descendants|CC7)=/i.test(part)) return false;
-        
+
         return true;
       }
-      
+
       return false;
     });
-  
+
   return parts.join(" ").trim();
 }
 

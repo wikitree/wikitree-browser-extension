@@ -251,7 +251,7 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
       label: "CC7",
       kind: "raw",
       input: "text",
-      placeholder: 'e.g. Tudor-18 or 13064898',
+      placeholder: "e.g. Tudor-18 or 13064898",
       group: "Relations",
     },
 
