@@ -3,23 +3,36 @@
  */
 
 export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUserWtId) {
+  const magicWordFields = [];
+
+  // Create a field for each magic words category (optgroup)
+  if (Array.isArray(magicWordsList)) {
+    magicWordsList.forEach((group) => {
+      if (group.label && group.options) {
+        magicWordFields.push({
+          id: `MagicWords_${group.label.replace(/\s+/g, "_")}`,
+          label: group.label,
+          kind: "raw",
+          input: "select",
+          options: group.options,
+          group: "Magic Words",
+        });
+      }
+    });
+  }
+
   return [
-    // Raw / magic
+    // Magic Words - category fields
+    ...magicWordFields,
+
+    // Suggestions - special field
     {
-      id: "__raw__",
-      label: "Raw term",
-      kind: "raw",
-      input: "text",
-      placeholder: "e.g. B1850, 1840s not 1830s, NOT Ontario",
-      group: "General",
-    },
-    {
-      id: "MagicWords",
-      label: "Magic Words",
-      kind: "raw",
+      id: "Suggestions",
+      label: "Suggestions",
+      kind: "index",
       input: "select",
-      options: magicWordsList,
-      group: "General",
+      options: buildSuggestionsOptions,
+      group: "Suggestions",
     },
 
     // Profile Status
@@ -29,7 +42,7 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
       kind: "raw",
       input: "select",
       options: ["Open", "Unsourced", "Unconnected", "Orphan", "Notables"],
-      group: "General",
+      group: "Profile Status",
     },
 
     // Dates & Time Periods
@@ -180,9 +193,6 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
       group: "Location Table",
     },
 
-    // Other fields
-    { id: "Gender", label: "Gender", kind: "index", input: "select", options: ["male", "female"], group: "General" },
-
     // Categories & templates (documented)
     {
       id: "CategoryFull",
@@ -190,7 +200,7 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
       kind: "index",
       input: "text",
       placeholder: 'e.g. "Shrewsbury, Shropshire"',
-      group: "Categories, Templates, Suggestions",
+      group: "Categories and Templates",
     },
     {
       id: "CategoryWord",
@@ -198,7 +208,7 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
       kind: "index",
       input: "text",
       placeholder: 'e.g. "Elphin"',
-      group: "Categories, Templates, Suggestions",
+      group: "Categories and Templates",
     },
     {
       id: "TemplateText",
@@ -206,7 +216,7 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
       kind: "index",
       input: "text",
       placeholder: 'e.g. "One Place Study"',
-      group: "Categories, Templates, Suggestions",
+      group: "Categories and Templates",
     },
 
     // Suggestions (DBE codes)
@@ -216,7 +226,7 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
       kind: "index",
       input: "select",
       options: () => buildSuggestionsOptions(),
-      group: "Categories, Templates, Suggestions",
+      group: "Suggestions",
     },
 
     // Management & editing (documented)

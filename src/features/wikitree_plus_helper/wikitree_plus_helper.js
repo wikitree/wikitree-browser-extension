@@ -170,107 +170,197 @@ function buildMagicWords() {
       options: options.map((o) => ({
         value: o.value,
         label: o.label || o.value,
+        description: o.description || "",
       })),
     });
   };
 
   addGroup("Tree & Status", [
-    { value: "connected", label: "connected (tree)" },
-    { value: "Unconnected", label: "Unconnected (magic word)" },
-    { value: "unconnected", label: "unconnected (tree)" },
-    { value: "unlinked", label: "unlinked (tree)" },
-    { value: "PublicTree", label: "PublicTree" },
-    { value: "PrivateTree", label: "PrivateTree" },
-    { value: "TreeXXX", label: "TreeXXX (replace XXX)" },
-    { value: "Open", label: "Open" },
-    { value: "Unsourced", label: "Unsourced" },
-    { value: "Orphan", label: "Orphan" },
-    { value: "Notables", label: "Notables" },
+    { value: "connected", label: "connected (tree)", description: "Profiles connected to the global tree" },
+    {
+      value: "Unconnected",
+      label: "Unconnected (magic word)",
+      description: "Profiles not connected to the global tree",
+    },
+    { value: "unconnected", label: "unconnected (tree)", description: "Profiles not connected to the global tree" },
+    { value: "unlinked", label: "unlinked (tree)", description: "Profiles not connected to any other profile" },
+    { value: "PublicTree", label: "PublicTree", description: "Connected to global tree only with public relations" },
+    { value: "PrivateTree", label: "PrivateTree", description: "Connected to global tree through private relations" },
+    {
+      value: "TreeXXX",
+      label: "TreeXXX (replace XXX)",
+      description: "Profiles in a specific branch. Replace XXX with tree ID",
+    },
+    { value: "Open", label: "Open", description: "Profiles with Open status" },
+    { value: "Unsourced", label: "Unsourced", description: "Profiles with Unsourced status" },
+    { value: "Orphan", label: "Orphan", description: "Profiles with no manager" },
+    { value: "Notables", label: "Notables", description: "Profiles marked as Notable" },
   ]);
 
   addGroup("Gender", [
-    { value: "male", label: "male" },
-    { value: "female", label: "female" },
-    { value: "NoGender", label: "NoGender" },
+    { value: "male", label: "male", description: "Male profiles" },
+    { value: "female", label: "female", description: "Female profiles" },
+    { value: "NoGender", label: "NoGender", description: "Profiles with no gender specified" },
   ]);
 
   addGroup("Locations", [
-    { value: "MissingLocation", label: "MissingLocation" },
-    { value: "UnknownCountry", label: "UnknownCountry" },
-    { value: "UnknownRegion", label: "UnknownRegion" },
-    { value: "UnofficialLocation", label: "UnofficialLocation" },
+    { value: "MissingLocation", label: "MissingLocation", description: "Profiles with missing location data" },
+    { value: "UnknownCountry", label: "UnknownCountry", description: "Profiles with unknown country" },
+    { value: "UnknownRegion", label: "UnknownRegion", description: "Profiles with unknown region" },
+    {
+      value: "UnofficialLocation",
+      label: "UnofficialLocation",
+      description: "Profiles with unofficial location names",
+    },
   ]);
 
   addGroup("Dates (prefix)", [
-    { value: "B0", label: "B0 (missing birth)" },
-    { value: "D0", label: "D0 (missing death)" },
-    { value: "pre1500", label: "pre1500" },
+    { value: "B0", label: "B0 (missing birth)", description: "Profiles missing birth date" },
+    { value: "D0", label: "D0 (missing death)", description: "Profiles missing death date" },
+    { value: "pre1500", label: "pre1500", description: "Profiles born before 1500" },
   ]);
 
   const centuries = [];
   for (let i = 0; i <= 21; i += 1) {
-    centuries.push({ value: `${i}cen`, label: `${i}cen` });
+    const centuryName =
+      i === 0
+        ? "unknown"
+        : i === 1
+        ? "first"
+        : i === 2
+        ? "second"
+        : i === 3
+        ? "third"
+        : i === 21
+        ? "twenty first"
+        : i === 20
+        ? "twentieth"
+        : `${i}th`;
+    const desc =
+      i === 0
+        ? "Profiles with no birth date and date couldn't be estimated based on relatives"
+        : `Profiles born in ${centuryName} century. For profiles without birthdate, estimation is made based on relatives.`;
+    centuries.push({ value: `${i}cen`, label: `${i}cen`, description: desc });
   }
+  centuries.reverse();
   addGroup("Centuries", centuries);
 
   const decades = [];
   for (let y = 0; y <= 2020; y += 10) {
-    decades.push({ value: `${y}s`, label: `${y}s` });
+    const endYear = y + 9;
+    const desc =
+      y >= 2010
+        ? `Profiles with birth and death date that were alive between ${y} to ${endYear}. This includes all living people.`
+        : `Profiles with birth and death date that were alive between ${y} to ${endYear}.`;
+    decades.push({ value: `${y}s`, label: `${y}s`, description: desc });
   }
+  decades.reverse();
   addGroup("Decades", decades);
 
   const ages = [];
   for (let a = 0; a <= 115; a += 1) {
-    ages.push({ value: `age${a}`, label: `age${a}` });
+    const desc =
+      a === 0 ? "Profiles that were less than 1 year old" : `Profiles that were ${a} year${a === 1 ? "" : "s"} old`;
+    ages.push({ value: `age${a}`, label: `age${a}`, description: desc });
   }
   addGroup("Ages", ages);
 
   addGroup("Relations", [
-    { value: "NoFather", label: "NoFather" },
-    { value: "NoMother", label: "NoMother" },
-    { value: "NoParents", label: "NoParents" },
-    { value: "NoSpouses", label: "NoSpouses" },
-    { value: "NoChildren", label: "NoChildren" },
+    { value: "NoFather", label: "NoFather", description: "Profiles with no father" },
+    { value: "NoMother", label: "NoMother", description: "Profiles with no mother" },
+    { value: "NoParents", label: "NoParents", description: "Profiles with no parents" },
+    { value: "NoSpouses", label: "NoSpouses", description: "Profiles with no spouses" },
+    { value: "NoChildren", label: "NoChildren", description: "Profiles with no children" },
+    { value: "relation=father", label: "relation=father (replace)", description: "Replace results with their fathers" },
+    { value: "relation=mother", label: "relation=mother (replace)", description: "Replace results with their mothers" },
+    {
+      value: "relation=parents",
+      label: "relation=parents (replace)",
+      description: "Replace results with their parents",
+    },
+    {
+      value: "relation=spouses",
+      label: "relation=spouses (replace)",
+      description: "Replace results with their spouses",
+    },
+    {
+      value: "relation=children",
+      label: "relation=children (replace)",
+      description: "Replace results with their children",
+    },
+    {
+      value: "relation=siblings",
+      label: "relation=siblings (replace)",
+      description: "Replace results with their siblings",
+    },
+    {
+      value: "relation=nuclear",
+      label: "relation=nuclear (replace)",
+      description: "Replace results with their nuclear family",
+    },
+    { value: "relation=addfather", label: "relation=addfather (add)", description: "Add fathers to results" },
+    { value: "relation=addmother", label: "relation=addmother (add)", description: "Add mothers to results" },
+    { value: "relation=addparents", label: "relation=addparents (add)", description: "Add parents to results" },
+    { value: "relation=addspouses", label: "relation=addspouses (add)", description: "Add spouses to results" },
+    { value: "relation=addchildren", label: "relation=addchildren (add)", description: "Add children to results" },
+    { value: "relation=addsiblings", label: "relation=addsiblings (add)", description: "Add siblings to results" },
+    { value: "relation=addnuclear", label: "relation=addnuclear (add)", description: "Add nuclear family to results" },
   ]);
 
   addGroup("DNA", [
-    { value: "mtDNA", label: "mtDNA" },
-    { value: "yDNA", label: "yDNA" },
-    { value: "auDNA", label: "auDNA" },
-    { value: "noGEDMatchID", label: "noGEDMatchID" },
-    { value: "noMitoyDNAID", label: "noMitoyDNAID" },
+    { value: "mtDNA", label: "mtDNA", description: "Profiles with mtDNA test replicated" },
+    { value: "yDNA", label: "yDNA", description: "Profiles with yDNA test replicated" },
+    { value: "auDNA", label: "auDNA", description: "Profiles with auDNA test replicated" },
+    { value: "noGEDMatchID", label: "noGEDMatchID", description: "Profiles without GEDMatch ID" },
+    { value: "noMitoyDNAID", label: "noMitoyDNAID", description: "Profiles without Mito or yDNA ID" },
   ]);
 
   addGroup("Privacy", [
-    { value: "Private", label: "Private" },
-    { value: "PrivatePB", label: "PrivatePB" },
-    { value: "PrivatePT", label: "PrivatePT" },
-    { value: "PrivatePBPT", label: "PrivatePBPT" },
-    { value: "Public", label: "Public" },
+    { value: "Private", label: "Private", description: "Private profiles" },
+    { value: "PrivatePB", label: "PrivatePB", description: "Profiles private due to birth date" },
+    { value: "PrivatePT", label: "PrivatePT", description: "Profiles private due to privacy toggle" },
+    {
+      value: "PrivatePBPT",
+      label: "PrivatePBPT",
+      description: "Profiles private due to both birth date and privacy toggle",
+    },
+    { value: "Public", label: "Public", description: "Public profiles" },
   ]);
 
   addGroup("Management", [
-    { value: "Guest", label: "Guest" },
-    { value: "ProjectManaged", label: "ProjectManaged" },
-    { value: "PPP", label: "PPP" },
-    { value: "NeverEdited", label: "NeverEdited" },
-    { value: "ApprovedMerge", label: "ApprovedMerge" },
-    { value: "PendingMerge", label: "PendingMerge" },
-    { value: "UnmergedMatch", label: "UnmergedMatch" },
-    { value: "GEDCOMJunk", label: "GEDCOMJunk" },
-    { value: "SourceJunk", label: "SourceJunk" },
-    { value: "IsInWikiData", label: "IsInWikiData" },
+    { value: "Guest", label: "Guest", description: "Profiles that are Guests" },
+    { value: "ProjectManaged", label: "ProjectManaged", description: "Profiles managed by any project" },
+    { value: "PPP", label: "PPP", description: "Project Protected Profiles" },
+    { value: "NeverEdited", label: "NeverEdited", description: "Profiles never edited after creation" },
+    { value: "ApprovedMerge", label: "ApprovedMerge", description: "Profiles waiting to be merged" },
+    { value: "PendingMerge", label: "PendingMerge", description: "Profiles waiting for merge approval" },
+    { value: "UnmergedMatch", label: "UnmergedMatch", description: "Profiles with unmerged matches" },
+    { value: "GEDCOMJunk", label: "GEDCOMJunk", description: "Profiles with captions considered GEDCOM Junk" },
+    { value: "SourceJunk", label: "SourceJunk", description: "Profiles with undesired sources" },
+    { value: "IsInWikiData", label: "IsInWikiData", description: "Profiles linked from WikiData" },
   ]);
 
   const lastEdits = [];
-  for (let y = 2008; y <= 2016; y += 1) {
-    lastEdits.push({ value: `LastEdit${y}`, label: `LastEdit${y}` });
+  for (let y = 2008; y <= 2026; y += 1) {
+    lastEdits.push({
+      value: `LastEdit${y}`,
+      label: `LastEdit${y}`,
+      description: `Profiles not edited since ${y}`,
+    });
   }
   addGroup("Last Edit", lastEdits);
 
   addGroup("Find A Grave", [
-    { value: "fgcem1234", label: "fgcem1234 (example)" },
-    { value: "fgmem1234", label: "fgmem1234 (example)" },
+    {
+      value: "fgcem1234",
+      label: "fgcem1234 (example)",
+      description: "Find profiles linked to cemetery ID. Replace 1234 with cemetery ID",
+    },
+    {
+      value: "fgmem1234",
+      label: "fgmem1234 (example)",
+      description: "Find profile linked to memorial ID. Replace 1234 with memorial ID",
+    },
   ]);
 
   return optgroups;
@@ -316,16 +406,28 @@ const FIELD_DEFS = createFieldDefs(MAGIC_WORDS_LIST, buildSuggestionsOptions, ge
 
 const GROUP_ORDER = [
   "Names",
-  "General",
+  "Profile Status",
   "Dates",
   "Locations",
   "Location Table",
-  "Categories, Templates, Suggestions",
+  "Categories and Templates",
   "Management",
   "Other",
+  "Magic Words",
+  "Suggestions",
 ];
 
-const MULTI_GROUPS = new Set(GROUP_ORDER);
+const MULTI_GROUPS = new Set([
+  "Names",
+  "General",
+  "Magic Words",
+  "Dates",
+  "Locations",
+  "Location Table",
+  "Categories and Templates",
+  "Management",
+  "Other",
+]);
 
 /* -------------------------
    Utility functions (imported from wikitree_plus_helper_utils.js)
@@ -466,20 +568,23 @@ function rowToTerms(row) {
 
 function buildQueryForSuggestions() {
   // For suggestions mode: build query using proper field formatting (just like text search)
-  // but also extract suggestion ID if present
-  let suggestionId = null;
+  // and extract suggestion IDs for ErrorID
+  const suggestionIds = [];
   const allTerms = [];
+
+  // Get list of field IDs in Names group to handle them specially
+  const nameFieldIds = FIELD_DEFS.filter((f) => f.group === "Names").map((f) => f.id);
 
   state.groups.forEach((g) => {
     const positives = [];
     const negatives = [];
 
     g.rows.forEach((row) => {
-      // Check for Suggestions field to extract ErrorID
+      // Check for Suggestions field(s) to extract ErrorID
       if (row.fields?.Suggestions) {
         const rawVal = collapseWs(normalizeQuotes(row.fields.Suggestions));
         if (rawVal) {
-          suggestionId = rawVal;
+          suggestionIds.push(rawVal);
         }
       }
       Object.values(row.multiFields || {}).forEach((entries) => {
@@ -487,22 +592,71 @@ function buildQueryForSuggestions() {
           if (entry?.fieldId === "Suggestions" && entry?.value) {
             const rawVal = collapseWs(normalizeQuotes(entry.value));
             if (rawVal) {
-              suggestionId = rawVal;
+              suggestionIds.push(rawVal);
             }
           }
         });
       });
 
-      // Get all formatted terms for this row
-      const terms = rowToTerms(row);
+      // Process name fields - output just the value without field prefix
+      Object.entries(row.fields || {}).forEach(([fieldId, value]) => {
+        if (nameFieldIds.includes(fieldId) && value) {
+          const rawVal = collapseWs(normalizeQuotes(value));
+          if (rawVal) {
+            if (row.not) {
+              negatives.push(rawVal);
+            } else {
+              positives.push(rawVal);
+            }
+          }
+        }
+      });
 
-      // Filter out the Suggestions field itself (it's handled via ErrorID parameter)
-      const filteredTerms = terms.filter(
-        (term) => !term.startsWith("Suggestions=") && !term.includes("Suggestions=")
-      );
+      // Process name multiFields - output just the value without field prefix
+      if (row.multiFields?.Names) {
+        row.multiFields.Names.forEach((entry) => {
+          if (entry?.fieldId && nameFieldIds.includes(entry.fieldId) && entry.value) {
+            const rawVal = collapseWs(normalizeQuotes(entry.value));
+            if (rawVal) {
+              if (row.not) {
+                negatives.push(rawVal);
+              } else {
+                positives.push(rawVal);
+              }
+            }
+          }
+        });
+      }
+
+      // Create a copy of the row without Suggestions fields and Name fields
+      const rowWithoutSuggestionsAndNames = {
+        not: row.not,
+        fields: {},
+        multiFields: {},
+        sqlConditions: row.sqlConditions,
+      };
+
+      // Copy fields except Suggestions and Names
+      Object.entries(row.fields || {}).forEach(([fieldId, value]) => {
+        if (fieldId !== "Suggestions" && !nameFieldIds.includes(fieldId)) {
+          rowWithoutSuggestionsAndNames.fields[fieldId] = value;
+        }
+      });
+
+      // Copy multiFields except Suggestions and Names
+      Object.entries(row.multiFields || {}).forEach(([groupName, entries]) => {
+        if (groupName !== "Suggestions" && groupName !== "Names") {
+          rowWithoutSuggestionsAndNames.multiFields[groupName] = entries.filter(
+            (entry) => !nameFieldIds.includes(entry?.fieldId)
+          );
+        }
+      });
+
+      // Get all formatted terms for this row (excluding Suggestions and Names)
+      const terms = rowToTerms(rowWithoutSuggestionsAndNames);
 
       // Apply NOT if needed
-      filteredTerms.forEach((term) => {
+      terms.forEach((term) => {
         if (row.not) {
           negatives.push(term);
         } else {
@@ -521,12 +675,11 @@ function buildQueryForSuggestions() {
   // Join groups with OR
   let query = allTerms.join(" OR ");
 
-  // If there's a suggestion ID, prepend it for extractSuggestionId to recognize
-  if (suggestionId) {
-    query = `suggestions=${suggestionId} ${query}`.trim();
-  }
+  const uniqueIds = [...new Set(suggestionIds.filter((id) => id))];
+  const suggestionId = uniqueIds[0] || "";
+  const infoMessage = uniqueIds.length > 1 ? "Suggestions search uses only the first selection as ErrorID." : "";
 
-  return { query, warnings: [], onlySql: false };
+  return { query: query.trim(), warnings: [], onlySql: false, suggestionId, infoMessage };
 }
 
 function buildQuery() {
@@ -541,33 +694,107 @@ function buildQuery() {
       const positives = [];
       const negatives = [];
       const sqls = [];
+      const suggestionPositives = [];
+      const suggestionNegatives = [];
       const sqlNotWarnings = [];
+      const magicWords = []; // Collect magic words separately
 
       g.rows.forEach((row) => {
-        const terms = rowToTerms(row);
-
         if (row.not && (row.sqlConditions || []).length) {
           sqlNotWarnings.push("sql");
         }
 
-        terms.forEach((term) => {
-          // Check if term is SQL (starts with sql=)
-          if (term.startsWith("sql=") || term.startsWith("NOT sql=")) {
+        // Process regular fields
+        Object.entries(row.fields || {}).forEach(([fieldId, value]) => {
+          const term = fieldToTerm(fieldId, value);
+          if (!term) return;
+
+          const isMagicWord = fieldId.startsWith("MagicWords_");
+
+          if (fieldId === "sql") {
             sqls.push(term);
+          } else if (fieldId === "Suggestions") {
+            const rawVal = value.replace(/^"|"$/g, "");
+            if (row.not) {
+              suggestionNegatives.push(rawVal);
+            } else {
+              suggestionPositives.push(rawVal);
+            }
+          } else if (isMagicWord) {
+            if (row.not) {
+              magicWords.push(`NOT ${term}`);
+            } else {
+              magicWords.push(term);
+            }
           } else if (row.not) {
             negatives.push(term);
           } else {
             positives.push(term);
           }
         });
+
+        // Process multi-fields
+        Object.values(row.multiFields || {}).forEach((entries) => {
+          entries.forEach((entry) => {
+            if (!entry?.fieldId) return;
+            const term = fieldToTerm(entry.fieldId, entry.value);
+            if (!term) return;
+
+            const isMagicWord = entry.fieldId.startsWith("MagicWords_");
+
+            if (entry.fieldId === "Suggestions") {
+              const rawVal = entry.value.replace(/^"|"$/g, "");
+              if (row.not) {
+                suggestionNegatives.push(rawVal);
+              } else {
+                suggestionPositives.push(rawVal);
+              }
+            } else if (isMagicWord) {
+              if (row.not) {
+                magicWords.push(`NOT ${term}`);
+              } else {
+                magicWords.push(term);
+              }
+            } else if (row.not) {
+              negatives.push(term);
+            } else {
+              positives.push(term);
+            }
+          });
+        });
+
+        // Process SQL conditions
+        (row.sqlConditions || []).forEach((val) => {
+          const term = fieldToTerm("sql", val);
+          if (term) sqls.push(term);
+        });
       });
+
+      if (suggestionPositives.length > 0) {
+        const uniq = [...new Set(suggestionPositives.filter((v) => v))];
+        if (uniq.length === 1) {
+          positives.push(`Suggestions=${uniq[0]}`);
+        } else if (uniq.length > 1) {
+          positives.push(`Suggestions="${uniq.join(" ")}"`);
+        }
+      }
+
+      if (suggestionNegatives.length > 0) {
+        const uniq = [...new Set(suggestionNegatives.filter((v) => v))];
+        if (uniq.length === 1) {
+          negatives.push(`Suggestions=${uniq[0]}`);
+        } else if (uniq.length > 1) {
+          negatives.push(`Suggestions="${uniq.join(" ")}"`);
+        }
+      }
 
       let s = "";
       if (positives.length) s += positives.join(" ");
       if (negatives.length) s += (s ? " " : "") + negatives.map((t) => `NOT ${t}`).join(" ");
       if (sqls.length) s += (s ? " " : "") + sqls.join(" ");
+      if (magicWords.length) s += (s ? " " : "") + magicWords.join(" ");
 
-      const hasNonSql = positives.length > 0 || negatives.length > 0;
+      const hasNonSql = positives.length > 0 || negatives.length > 0 || magicWords.length > 0;
       const hasSql = sqls.length > 0;
 
       return { text: collapseWs(s), sqlNotWarnings, onlySql: hasSql && !hasNonSql };
@@ -578,7 +805,7 @@ function buildQuery() {
   const warnings = groups.flatMap((g) => g.sqlNotWarnings || []);
   const onlySql = groups.length > 0 && groups.every((g) => g.onlySql);
 
-  return { query, warnings, onlySql };
+  return { query, warnings, onlySql, suggestionId: "", infoMessage: "" };
 }
 
 /* --------------------------
@@ -612,7 +839,7 @@ function ensureModal() {
               <div class="wbe-wtplus-orqb-subtitle">OR groups</div>
               <div id="wbe-wtplus-orqb-groups"></div>
               <div class="wbe-wtplus-orqb-group-actions">
-                <button type="button" class="button small" id="wbe-wtplus-orqb-add-group">Add OR group</button>
+                <button type="button" class="button small" id="wbe-wtplus-orqb-add-group">Add OR Group</button>
               </div>
             </div>
 
@@ -624,14 +851,14 @@ function ensureModal() {
 
               <div class="wbe-wtplus-orqb-row-actions">
                 <div class="wbe-wtplus-orqb-row-actions-left">
-                  <button type="button" class="button small" id="wbe-wtplus-orqb-add-row">Add AND group</button>
-                  <button type="button" class="button small" id="wbe-wtplus-orqb-dup-group">Duplicate group</button>
-                  <button type="button" class="button small" id="wbe-wtplus-orqb-del-group">Delete group</button>
+                  <button type="button" class="button small" id="wbe-wtplus-orqb-add-row">Add AND Group</button>
+                  <button type="button" class="button small" id="wbe-wtplus-orqb-dup-group">Duplicate Group</button>
+                  <button type="button" class="button small" id="wbe-wtplus-orqb-del-group">Delete Group</button>
                 </div>
                 <div class="wbe-wtplus-orqb-row-actions-right">
                   <button type="button" class="button small" id="wbe-wtplus-orqb-saved">Saved Queries</button>
                   <button type="button" class="button small" id="wbe-wtplus-orqb-save">Save Query</button>
-                  <button type="button" class="button small" id="wbe-wtplus-orqb-copy-q">Copy query</button>
+                  <button type="button" class="button small" id="wbe-wtplus-orqb-copy-q">Copy Query</button>
                   <button type="button" class="button small" id="wbe-wtplus-orqb-copy-u">Copy URL</button>
                 </div>
               </div>
@@ -641,19 +868,11 @@ function ensureModal() {
                 <textarea id="wbe-wtplus-orqb-query" rows="3" spellcheck="false"></textarea>
 
                 <label>WT+ URL</label>
-                <textarea id="wbe-wtplus-orqb-url" rows="3" spellcheck="false" readonly></textarea>
+                <textarea id="wbe-wtplus-orqb-url" rows="3" spellcheck="false"></textarea>
 
                 <div id="wbe-wtplus-orqb-status" class="wbe-wtplus-orqb-status"></div>
               </div>
 
-              <div class="wbe-wtplus-orqb-note">
-                Notes:
-                <ul>
-                  <li>Inside each OR group, NOT terms are placed at the end automatically.</li>
-                  <li>SQL terms are placed last in the group.</li>
-                  <li>If you tick NOT on an sql="..." row, you must put the NOT inside the SQL (not(...)).</li>
-                </ul>
-              </div>
             </div>
           </div>
         </div>
@@ -711,17 +930,17 @@ function ensureModal() {
   });
 
   $("#wbe-wtplus-orqb-copy-u").on("click", async () => {
-    const { query, onlySql } = buildQuery();
+    const { query, onlySql, suggestionId } = buildQuery();
     if (onlySql) {
       setStatus("SQL-only searches need at least one non-SQL condition.", true);
       return;
     }
-    await copyText(buildPlusUrl(query, state.searchType));
+    await copyText(buildPlusUrl(query, state.searchType, false, suggestionId));
     setStatus("Copied URL.");
   });
 
   $("#wbe-wtplus-orqb-open").on("click", () => {
-    const { query, onlySql } = buildQuery();
+    const { query, onlySql, suggestionId } = buildQuery();
     if (onlySql) {
       setStatus("SQL-only searches need at least one non-SQL condition.", true);
       return;
@@ -735,12 +954,10 @@ function ensureModal() {
         const url = new URL("https://plus.wikitree.com/default.htm");
         if (searchType === "suggestions") {
           url.searchParams.set("report", "err6");
-          const suggestionId = extractSuggestionId(query);
           if (suggestionId) {
             url.searchParams.set("ErrorID", suggestionId);
-            const cleanedQuery = query.replace(/(?:suggestions?|errorid)=\d+\s*/gi, "").trim();
-            if (cleanedQuery) {
-              url.searchParams.set("Query", cleanedQuery);
+            if (query) {
+              url.searchParams.set("Query", query);
             }
           } else if (query) {
             url.searchParams.set("Query", query);
@@ -756,7 +973,7 @@ function ensureModal() {
         window.location.href = url.toString();
       } else {
         // Otherwise open in new window
-        const u = buildPlusUrl(query, searchType, true); // include Render=1 for opening
+        const u = buildPlusUrl(query, searchType, true, suggestionId); // include Render=1 for opening
         window.open(u, "_blank", "noopener,noreferrer");
       }
     }
@@ -791,6 +1008,27 @@ function ensureModal() {
     } catch (err) {
       console.error("Error showing saved queries:", err);
       setStatus("Failed to open saved queries.", true);
+    }
+  });
+
+  // Sync textareas when user manually edits them
+  $("#wbe-wtplus-orqb-query").on("input", function () {
+    const query = $(this).val();
+    if (query.trim()) {
+      $("#wbe-wtplus-orqb-url").val(buildPlusUrl(query, state.searchType, false, ""));
+    } else {
+      $("#wbe-wtplus-orqb-url").val("");
+    }
+  });
+
+  $("#wbe-wtplus-orqb-url").on("input", function () {
+    try {
+      const urlStr = $(this).val();
+      const url = new URL(urlStr);
+      const query = url.searchParams.get("Query") || "";
+      $("#wbe-wtplus-orqb-query").val(query);
+    } catch (e) {
+      // Invalid URL, ignore
     }
   });
 
@@ -865,9 +1103,91 @@ function categorySelectsHtml(rowFields, rowMultiFields) {
   const groups = fieldsByGroup();
   const groupOrder = GROUP_ORDER;
 
+  const renderMultiSelectGroup = (grpName, fieldId, labelText, selectClass) => {
+    const field = groups[grpName][0];
+    if (!field) return "";
+
+    const entries = rowMultiFields?.[grpName]?.length ? rowMultiFields[grpName] : [{ fieldId, value: "" }];
+    const opts = typeof field.options === "function" ? field.options() : field.options;
+
+    const buildOptionsHtml = (options, currentValue) => {
+      let htmlOptions = '<option value=""></option>';
+      if (!options || !Array.isArray(options)) return htmlOptions;
+
+      options.forEach((item) => {
+        if (item.label && item.options) {
+          const optgroupItems = item.options
+            .map((o) => {
+              const sel = String(o.value) === String(currentValue) ? " selected" : "";
+              const title = o.description ? ` title="${esc(o.description)}"` : "";
+              return `<option value="${esc(o.value)}"${sel}${title}>${esc(o.label)}</option>`;
+            })
+            .join("");
+          htmlOptions += `<optgroup label="${esc(item.label)}">${optgroupItems}</optgroup>`;
+        } else {
+          const optVal = typeof item === "object" && item !== null ? item.value : item;
+          const optLabel = typeof item === "object" && item !== null ? item.label : item;
+          const optDesc = typeof item === "object" && item !== null ? item.description : "";
+          const sel = String(optVal) === String(currentValue) ? " selected" : "";
+          const title = optDesc ? ` title="${esc(optDesc)}"` : "";
+          htmlOptions += `<option value="${esc(optVal)}"${sel}${title}>${esc(optLabel)}</option>`;
+        }
+      });
+
+      return htmlOptions;
+    };
+
+    const entryHtml = entries
+      .map((entry, idx) => {
+        const selectId = `wbe-wtplus-${grpName.toLowerCase()}-${idx}`;
+        const currentValue = entry?.value || "";
+        const htmlOptions = buildOptionsHtml(opts, currentValue);
+
+        const orLabel = idx > 0 ? '<span class="wbe-wtplus-orqb-or">OR</span>' : "";
+        return `
+          <div class="wbe-wtplus-orqb-multi-item" data-index="${idx}">
+            ${orLabel}
+            <select id="${selectId}" class="${selectClass}" data-index="${idx}" aria-label="${labelText}">
+              ${htmlOptions}
+            </select>
+            <button type="button" class="button small wbe-wtplus-orqb-del-multi" title="Remove" ${
+              !currentValue ? 'style="visibility: hidden;"' : ""
+            }>×</button>
+          </div>
+        `;
+      })
+      .join("");
+
+    return `
+      <div class="wbe-wtplus-orqb-field-group wbe-wtplus-orqb-field-group--multi" data-group="${grpName}">
+        <div class="wbe-wtplus-orqb-field-group-header">
+          <label>${labelText}:</label>
+        </div>
+        <div class="wbe-wtplus-orqb-multi-list">
+          ${entryHtml}
+        </div>
+      </div>
+    `;
+  };
+
   let html = "";
   groupOrder.forEach((grpName) => {
     if (!groups[grpName]) return;
+
+    if (grpName === "Suggestions") {
+      html += renderMultiSelectGroup("Suggestions", "Suggestions", "Suggestions", "wbe-wtplus-suggestions-select");
+      return;
+    }
+
+    if (grpName === "Profile Status") {
+      html += renderMultiSelectGroup(
+        "Profile Status",
+        "ProfileStatus",
+        "Profile Status",
+        "wbe-wtplus-profilestatus-select"
+      );
+      return;
+    }
 
     if (MULTI_GROUPS.has(grpName)) {
       const entries = rowMultiFields?.[grpName]?.length ? rowMultiFields[grpName] : [{ fieldId: "", value: "" }];
@@ -896,6 +1216,7 @@ function categorySelectsHtml(rowFields, rowMultiFields) {
                 ${opts}
               </select>
               <div class="wbe-wtplus-orqb-field-input">
+                <div class="wbe-wtplus-orqb-input-hint"></div>
                 ${inputHtml}
               </div>
               ${
@@ -986,7 +1307,8 @@ function valueInputHtml(def, value) {
         const optgroupItems = item.options
           .map((o) => {
             const sel = String(o.value) === String(v) ? " selected" : "";
-            return `<option value="${esc(o.value)}"${sel}>${esc(o.label)}</option>`;
+            const title = o.description ? ` title="${esc(o.description)}"` : "";
+            return `<option value="${esc(o.value)}"${sel}${title}>${esc(o.label)}</option>`;
           })
           .join("");
         optionsHtml += `<optgroup label="${esc(item.label)}">${optgroupItems}</optgroup>`;
@@ -994,8 +1316,10 @@ function valueInputHtml(def, value) {
         // Flat option (string or {value, label})
         const optVal = typeof item === "object" && item !== null ? item.value : item;
         const optLabel = typeof item === "object" && item !== null ? item.label : item;
+        const optDesc = typeof item === "object" && item !== null ? item.description : "";
         const sel = String(optVal) === String(v) ? " selected" : "";
-        optionsHtml += `<option value="${esc(optVal)}"${sel}>${esc(optLabel)}</option>`;
+        const title = optDesc ? ` title="${esc(optDesc)}"` : "";
+        optionsHtml += `<option value="${esc(optVal)}"${sel}${title}>${esc(optLabel)}</option>`;
       }
     });
 
@@ -1013,7 +1337,8 @@ function valueInputHtml(def, value) {
   const shortPlaceholder = shortenPlaceholder(placeholder);
   const title = placeholder ? ` title="${esc(placeholder)}"` : "";
   const dataHint = placeholder ? ` data-hint="${esc(placeholder)}"` : "";
-  return `<input class="wbe-wtplus-orqb-value" type="text" value="${esc(v)}" placeholder="${esc(
+  const inputId = `wbe-wtplus-input-${def.id}-${Math.random().toString(36).substr(2, 9)}`;
+  return `<input id="${inputId}" class="wbe-wtplus-orqb-value" type="text" value="${esc(v)}" placeholder="${esc(
     shortPlaceholder
   )}"${title}${dataHint}>`;
 }
@@ -1078,7 +1403,8 @@ function renderRows() {
         const $value = $group.find(".wbe-wtplus-orqb-value");
 
         if (def.input === "select" && !$value.val()) {
-          const defaultVal = def.options?.[0] || "";
+          const firstOpt = def.options?.[0];
+          const defaultVal = typeof firstOpt === "object" && firstOpt !== null ? firstOpt.value : firstOpt || "";
           $value.val(defaultVal);
 
           if (MULTI_GROUPS.has(grpName) && idx !== undefined) {
@@ -1097,6 +1423,48 @@ function renderRows() {
     $row.on("change", ".wbe-wtplus-orqb-notbox", function () {
       row.not = !!$(this).is(":checked");
       updateOutput();
+    });
+
+    $row.on("change", ".wbe-wtplus-suggestions-select", function () {
+      const idx = Number($(this).data("index"));
+      const val = $(this).val();
+      if (!row.multiFields) row.multiFields = {};
+      if (!row.multiFields.Suggestions) row.multiFields.Suggestions = [];
+      if (!row.multiFields.Suggestions[idx]) {
+        row.multiFields.Suggestions[idx] = { fieldId: "Suggestions", value: "" };
+      }
+
+      row.multiFields.Suggestions[idx].fieldId = "Suggestions";
+      row.multiFields.Suggestions[idx].value = val;
+
+      const lastIdx = row.multiFields.Suggestions.length - 1;
+      if (idx === lastIdx && val) {
+        row.multiFields.Suggestions.push({ fieldId: "Suggestions", value: "" });
+      }
+
+      updateOutput();
+      renderAll();
+    });
+
+    $row.on("change", ".wbe-wtplus-profilestatus-select", function () {
+      const idx = Number($(this).data("index"));
+      const val = $(this).val();
+      if (!row.multiFields) row.multiFields = {};
+      if (!row.multiFields["Profile Status"]) row.multiFields["Profile Status"] = [];
+      if (!row.multiFields["Profile Status"][idx]) {
+        row.multiFields["Profile Status"][idx] = { fieldId: "ProfileStatus", value: "" };
+      }
+
+      row.multiFields["Profile Status"][idx].fieldId = "ProfileStatus";
+      row.multiFields["Profile Status"][idx].value = val;
+
+      const lastIdx = row.multiFields["Profile Status"].length - 1;
+      if (idx === lastIdx && val) {
+        row.multiFields["Profile Status"].push({ fieldId: "ProfileStatus", value: "" });
+      }
+
+      updateOutput();
+      renderAll();
     });
 
     // Always show input hints when available
@@ -1128,7 +1496,13 @@ function renderRows() {
         if (newField) {
           const nd = fieldById(newField);
           row.multiFields[grpName][idx].fieldId = newField;
-          row.multiFields[grpName][idx].value = nd.input === "select" ? nd.options?.[0] || "" : "";
+          if (nd.input === "select") {
+            const firstOpt = nd.options?.[0];
+            const optVal = typeof firstOpt === "object" && firstOpt !== null ? firstOpt.value : firstOpt;
+            row.multiFields[grpName][idx].value = optVal || "";
+          } else {
+            row.multiFields[grpName][idx].value = "";
+          }
           // Auto-add another blank entry when the last entry is used
           if (idx === row.multiFields[grpName].length - 1) {
             row.multiFields[grpName].push({ fieldId: "", value: "" });
@@ -1155,7 +1529,9 @@ function renderRows() {
         const nd = fieldById(newField);
         // Set default value for select inputs
         if (nd.input === "select") {
-          row.fields[newField] = nd.options?.[0] || "";
+          const firstOpt = nd.options?.[0];
+          const optVal = typeof firstOpt === "object" && firstOpt !== null ? firstOpt.value : firstOpt;
+          row.fields[newField] = optVal || "";
         } else {
           row.fields[newField] = "";
         }
@@ -1193,7 +1569,10 @@ function renderRows() {
       if (row.multiFields?.[grpName]) {
         row.multiFields[grpName].splice(idx, 1);
         if (row.multiFields[grpName].length === 0) {
-          row.multiFields[grpName].push({ fieldId: "", value: "" });
+          let defaultFieldId = "";
+          if (grpName === "Suggestions") defaultFieldId = "Suggestions";
+          if (grpName === "Profile Status") defaultFieldId = "ProfileStatus";
+          row.multiFields[grpName].push({ fieldId: defaultFieldId, value: "" });
         }
       }
       renderAll();
@@ -1475,19 +1854,21 @@ function openSqlWizard(currentValue, callback) {
 }
 
 function updateOutput() {
-  const { query, warnings } = buildQuery();
+  const { query, warnings, suggestionId, infoMessage } = buildQuery();
 
   $("#wbe-wtplus-orqb-query").val(query);
 
   // Only populate URL if query has content
   if (query.trim()) {
-    $("#wbe-wtplus-orqb-url").val(buildPlusUrl(query, state.searchType));
+    $("#wbe-wtplus-orqb-url").val(buildPlusUrl(query, state.searchType, false, suggestionId));
   } else {
     $("#wbe-wtplus-orqb-url").val("");
   }
 
   if (warnings.length) {
     setStatus(`NOT on sql rows: put NOT inside SQL (not(...)).`, true);
+  } else if (infoMessage) {
+    setStatus(infoMessage);
   } else {
     setStatus("");
   }

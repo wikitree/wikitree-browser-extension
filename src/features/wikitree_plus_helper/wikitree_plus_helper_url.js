@@ -11,18 +11,29 @@ export function extractSuggestionId(query) {
   if (!q) return "";
   // Only extract ErrorID if explicitly formatted as "suggestions=123" or "errorid=123"
   // Plain numbers like "123456" should be treated as profile IDs → Query parameter
-  const match = q.match(/(?:^|\s)(?:suggestions?|errorid)=(\d+)/i);
-  return match ? match[1] : "";
+  let match = q.match(/(?:^|\s)(?:suggestions?|errorid)=(\d+)/i);
+  if (match) return match[1];
+
+  match = q.match(/Suggestions\s*=\s*(\d+)/i);
+  if (match) return match[1];
+
+  match = q.match(/Suggestions\s*=\s*"([^"]+)"/i);
+  if (match) {
+    const firstId = match[1].trim().split(/\s+/)[0];
+    return firstId || "";
+  }
+
+  return "";
 }
 
 // Internal helper - creates the URL object
-function createUrl(query, searchType, includeRender) {
+function createUrl(query, searchType, includeRender, suggestionId = "") {
   const u = new URL(WTPLUS_BASE);
   if (searchType === "suggestions") {
     u.searchParams.set("report", "err6");
-    const suggestionId = extractSuggestionId(query);
-    if (suggestionId) {
-      u.searchParams.set("ErrorID", suggestionId);
+    const resolvedSuggestionId = suggestionId || extractSuggestionId(query);
+    if (resolvedSuggestionId) {
+      u.searchParams.set("ErrorID", resolvedSuggestionId);
       // Remove the suggestions=XXX part from the query string
       const cleanedQuery = query.replace(/(?:suggestions?|errorid)=\d+\s*/gi, "").trim();
       if (cleanedQuery) {
@@ -47,8 +58,8 @@ function createUrl(query, searchType, includeRender) {
 }
 
 // Exported version that gets searchType from global state (passed from caller)
-export function buildPlusUrl(query, searchType, includeRender = false) {
-  const u = createUrl(query, searchType, includeRender);
+export function buildPlusUrl(query, searchType, includeRender = false, suggestionId = "") {
+  const u = createUrl(query, searchType, includeRender, suggestionId);
   return u.toString();
 }
 
@@ -66,7 +77,7 @@ export function populatePlusForm(query, searchType, $) {
       if ($accordion.length && $accordion.hasClass("collapsed")) {
         $accordion.click();
       }
-      
+
       // Use setTimeout to ensure accordion is expanded and form is ready
       setTimeout(() => {
         const suggestionId = extractSuggestionId(q);
@@ -97,7 +108,7 @@ export function populatePlusForm(query, searchType, $) {
       if ($accordion.length && $accordion.hasClass("collapsed")) {
         $accordion.click();
       }
-      
+
       // Use setTimeout to ensure accordion is expanded and form is ready
       setTimeout(() => {
         const $query = $form.find("[name='Query']");
