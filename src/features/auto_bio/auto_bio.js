@@ -7288,8 +7288,28 @@ function fixSpaces(citation) {
 export function cleanFindAGraveCitation(citation, refText) {
   citation = addHeading(citation, refText);
   //citation = fixDate(citation);
+  citation = addAccessedDate(citation);
   citation = fixDashes(citation);
   citation = fixSpaces(citation);
+  return citation;
+}
+
+function addAccessedDate(citation) {
+  // Add current date to "accessed" if it's missing
+  // Look for patterns like ": accessed)" or "accessed)" with possible whitespace
+  const accessedPattern = /:\s*accessed\s*\)/;
+  console.log("Checking for accessed date in:", citation.substring(0, 200));
+  if (citation.match(accessedPattern)) {
+    console.log("Found accessed pattern, adding date");
+    const today = new Date();
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                    'July', 'August', 'September', 'October', 'November', 'December'];
+    const dateStr = `${months[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
+    citation = citation.replace(accessedPattern, `: accessed ${dateStr})`);
+    console.log("Updated citation:", citation.substring(0, 200));
+  } else {
+    console.log("No accessed pattern found");
+  }
   return citation;
 }
 
@@ -7310,6 +7330,7 @@ export async function getCitations() {
       try {
         let citation = await getCitation(citationLink);
         if (citation) {
+          console.log("Raw citation from server:", citation);
           if (findAGraveLink) {
             const memorialNumber = citationLink.match(/\d{5,}/);
             let findagraveTemplate = "";
@@ -7317,6 +7338,7 @@ export async function getCitations() {
               findagraveTemplate = `<br>{{FindAGrave|${memorialNumber[0]}}}`;
             }
             citation = cleanFindAGraveCitation(citation, aRef.Text) + findagraveTemplate;
+            console.log("Cleaned citation:", citation);
           }
           aRef.Text = citation.trim();
 
