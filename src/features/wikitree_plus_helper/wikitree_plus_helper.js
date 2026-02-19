@@ -8,156 +8,36 @@ import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { addDataMenuAttributes } from "../my_menu/my_menu";
 import { isMainDomain, isPlusDomain } from "../../core/pageType";
 import { profilePerson, getUserWtId } from "../../core/common";
-import suggestionsData from "./suggestions.json";
 
-import { esc, normalizeQuotes, collapseWs, maybeQuote, shortenPlaceholder } from "./wikitree_plus_helper_utils";
+import {
+  esc,
+  normalizeQuotes,
+  collapseWs,
+  maybeQuote,
+  shortenPlaceholder,
+  buildSelectOptions,
+} from "./wikitree_plus_helper_utils";
 import { createFieldDefs } from "./wikitree_plus_helper_fields";
 import { SQL_TEMPLATES } from "./wikitree_plus_helper_sql";
-import { buildPlusUrl, populatePlusForm, extractSuggestionId } from "./wikitree_plus_helper_url";
+import { buildPlusUrl, populatePlusForm } from "./wikitree_plus_helper_url";
+import { saveQuery, getAllQueries, deleteQuery, initDB } from "./wikitree_plus_helper_storage";
+import {
+  SUGGESTIONS_FIELDS,
+  SUGGESTIONS_LOCATION_FIELDS,
+  SUGGESTIONS_MAGIC_WORDS,
+  buildSuggestionsOptions,
+  newSuggestionsRow,
+  defaultSuggestionsState,
+  ensureSuggestionsState,
+  buildSuggestionsQuery,
+  getSuggestionOptions,
+  extractSuggestionId,
+} from "./wikitree_plus_helper_suggestions";
+import { parseQueryToState } from "./wikitree_plus_helper_parser";
 
 import "./wikitree_plus_helper.css";
 
 const FEATURE_ID = "wikitreePlusHelper";
-const DB_NAME = "WTPlusQueryBuilder";
-const DB_VERSION = 1;
-const STORE_NAME = "savedQueries";
-const STORAGE_KEY = "wbe_wtplus_saved_queries";
-
-/* --------------------------
-   IndexedDB Operations
---------------------------- */
-
-let db = null;
-
-function storageGet(key) {
-  return new Promise((resolve, reject) => {
-    if (!chrome?.storage?.local) {
-      resolve(null);
-      return;
-    }
-    chrome.storage.local.get(key, (result) => {
-      const err = chrome.runtime?.lastError;
-      if (err) {
-        reject(err);
-      } else {
-        resolve(result[key]);
-      }
-    });
-  });
-}
-
-function storageSet(key, value) {
-  return new Promise((resolve, reject) => {
-    if (!chrome?.storage?.local) {
-      resolve();
-      return;
-    }
-    chrome.storage.local.set({ [key]: value }, () => {
-      const err = chrome.runtime?.lastError;
-      if (err) {
-        reject(err);
-      } else {
-        resolve();
-      }
-    });
-  });
-}
-
-function initDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => {
-      db = request.result;
-      resolve(db);
-    };
-
-    request.onupgradeneeded = (event) => {
-      const database = event.target.result;
-      if (!database.objectStoreNames.contains(STORE_NAME)) {
-        const objectStore = database.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
-        objectStore.createIndex("timestamp", "timestamp", { unique: false });
-      }
-    };
-  });
-}
-
-async function idbGetAllQueries() {
-  if (!db) await initDB();
-
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], "readonly");
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.getAll();
-
-    request.onsuccess = () => resolve(request.result || []);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-async function getStoredQueries() {
-  const store = await storageGet(STORAGE_KEY);
-  if (store && Array.isArray(store.items)) {
-    return store;
-  }
-  return { lastId: 0, items: [] };
-}
-
-async function setStoredQueries(store) {
-  await storageSet(STORAGE_KEY, store);
-}
-
-async function migrateIdbToStorageIfNeeded(store) {
-  if (store.items.length) return store;
-  try {
-    const idbItems = await idbGetAllQueries();
-    if (!idbItems.length) return store;
-
-    const normalized = idbItems.map((q) => ({
-      ...q,
-      id: Number(q.id) || 0,
-    }));
-    const lastId = normalized.reduce((maxId, q) => Math.max(maxId, q.id), 0);
-    const nextStore = { lastId, items: normalized };
-    await setStoredQueries(nextStore);
-    return nextStore;
-  } catch (err) {
-    console.error("Failed to migrate saved queries from IndexedDB:", err);
-    return store;
-  }
-}
-
-async function saveQuery(name, state, queryString) {
-  const store = await getStoredQueries();
-  const id = store.lastId + 1;
-  store.lastId = id;
-  store.items.push({
-    id,
-    name: name || "Untitled Query",
-    timestamp: Date.now(),
-    state: JSON.parse(JSON.stringify(state)),
-    query: queryString,
-  });
-  await setStoredQueries(store);
-  return id;
-}
-
-async function getAllQueries() {
-  let store = await getStoredQueries();
-  store = await migrateIdbToStorageIfNeeded(store);
-  const queries = [...store.items];
-  queries.sort((a, b) => b.timestamp - a.timestamp);
-  return queries;
-}
-
-async function deleteQuery(id) {
-  const store = await getStoredQueries();
-  const nextItems = store.items.filter((q) => String(q.id) !== String(id));
-  store.items = nextItems;
-  store.lastId = Math.max(0, ...nextItems.map((q) => Number(q.id) || 0));
-  await setStoredQueries(store);
-}
 
 const MAGIC_WORDS_LIST = buildMagicWords();
 
@@ -366,38 +246,6 @@ function buildMagicWords() {
   return optgroups;
 }
 
-// Build suggestions options from the imported JSON data
-function buildSuggestionsOptions() {
-  const options = [];
-  // Group suggestions by category following the group order
-  suggestionsData.group_order?.forEach((groupKey) => {
-    const group = suggestionsData.groups?.[groupKey];
-    if (!group) return;
-
-    const groupLabel = group.title || groupKey;
-    const optgroup = {
-      label: groupLabel,
-      options: [],
-    };
-
-    group.suggestion_ids?.forEach((dbeId) => {
-      const suggestion = suggestionsData.suggestions?.[dbeId];
-      if (suggestion) {
-        optgroup.options.push({
-          value: String(suggestion.code),
-          label: `${suggestion.code} - ${suggestion.title}`,
-        });
-      }
-    });
-
-    if (optgroup.options.length > 0) {
-      options.push(optgroup);
-    }
-  });
-
-  return options;
-}
-
 // Initialize FIELD_DEFS dynamically using createFieldDefs
 const FIELD_DEFS = createFieldDefs(MAGIC_WORDS_LIST, buildSuggestionsOptions, getUserWtId);
 
@@ -471,6 +319,7 @@ const state = {
   ],
   selectedGroupIndex: 0,
   searchType: "text", // "text" or "suggestions"
+  suggestions: defaultSuggestionsState(),
 };
 
 function newRow() {
@@ -568,126 +417,10 @@ function rowToTerms(row) {
   return terms;
 }
 
-function buildQueryForSuggestions() {
-  // For suggestions mode: build query using proper field formatting (just like text search)
-  // and extract suggestion IDs for ErrorID
-  const suggestionIds = [];
-  const allTerms = [];
-
-  // Get list of field IDs in Names group to handle them specially
-  const nameFieldIds = FIELD_DEFS.filter((f) => f.group === "Names").map((f) => f.id);
-
-  state.groups.forEach((g) => {
-    const positives = [];
-    const negatives = [];
-
-    g.rows.forEach((row) => {
-      // Check for Suggestions field(s) to extract ErrorID
-      if (row.fields?.Suggestions) {
-        const rawVal = collapseWs(normalizeQuotes(row.fields.Suggestions));
-        if (rawVal) {
-          suggestionIds.push(rawVal);
-        }
-      }
-      Object.values(row.multiFields || {}).forEach((entries) => {
-        entries.forEach((entry) => {
-          if (entry?.fieldId === "Suggestions" && entry?.value) {
-            const rawVal = collapseWs(normalizeQuotes(entry.value));
-            if (rawVal) {
-              suggestionIds.push(rawVal);
-            }
-          }
-        });
-      });
-
-      // Process name fields - output just the value without field prefix
-      Object.entries(row.fields || {}).forEach(([fieldId, value]) => {
-        if (nameFieldIds.includes(fieldId) && value) {
-          const rawVal = collapseWs(normalizeQuotes(value));
-          if (rawVal) {
-            if (row.not) {
-              negatives.push(rawVal);
-            } else {
-              positives.push(rawVal);
-            }
-          }
-        }
-      });
-
-      // Process name multiFields - output just the value without field prefix
-      if (row.multiFields?.Names) {
-        row.multiFields.Names.forEach((entry) => {
-          if (entry?.fieldId && nameFieldIds.includes(entry.fieldId) && entry.value) {
-            const rawVal = collapseWs(normalizeQuotes(entry.value));
-            if (rawVal) {
-              if (row.not) {
-                negatives.push(rawVal);
-              } else {
-                positives.push(rawVal);
-              }
-            }
-          }
-        });
-      }
-
-      // Create a copy of the row without Suggestions fields and Name fields
-      const rowWithoutSuggestionsAndNames = {
-        not: row.not,
-        fields: {},
-        multiFields: {},
-        sqlConditions: row.sqlConditions,
-      };
-
-      // Copy fields except Suggestions and Names
-      Object.entries(row.fields || {}).forEach(([fieldId, value]) => {
-        if (fieldId !== "Suggestions" && !nameFieldIds.includes(fieldId)) {
-          rowWithoutSuggestionsAndNames.fields[fieldId] = value;
-        }
-      });
-
-      // Copy multiFields except Suggestions and Names
-      Object.entries(row.multiFields || {}).forEach(([groupName, entries]) => {
-        if (groupName !== "Suggestions" && groupName !== "Names") {
-          rowWithoutSuggestionsAndNames.multiFields[groupName] = entries.filter(
-            (entry) => !nameFieldIds.includes(entry?.fieldId)
-          );
-        }
-      });
-
-      // Get all formatted terms for this row (excluding Suggestions and Names)
-      const terms = rowToTerms(rowWithoutSuggestionsAndNames);
-
-      // Apply NOT if needed
-      terms.forEach((term) => {
-        if (row.not) {
-          negatives.push(term);
-        } else {
-          positives.push(term);
-        }
-      });
-    });
-
-    // Build the group string
-    let groupStr = "";
-    if (positives.length) groupStr += positives.join(" ");
-    if (negatives.length) groupStr += (groupStr ? " " : "") + negatives.map((t) => `NOT ${t}`).join(" ");
-    if (groupStr) allTerms.push(groupStr);
-  });
-
-  // Join groups with OR
-  let query = allTerms.join(" OR ");
-
-  const uniqueIds = [...new Set(suggestionIds.filter((id) => id))];
-  const suggestionId = uniqueIds[0] || "";
-  const infoMessage = uniqueIds.length > 1 ? "Suggestions search uses only the first selection as ErrorID." : "";
-
-  return { query: query.trim(), warnings: [], onlySql: false, suggestionId, infoMessage };
-}
-
 function buildQuery() {
-  // For suggestions mode, use simplified comma-separated format
+  // For suggestions mode, use the dedicated suggestions inputs
   if (state.searchType === "suggestions") {
-    return buildQueryForSuggestions();
+    return buildSuggestionsQuery(state);
   }
 
   // For text search mode, use field=value format
@@ -817,22 +550,27 @@ function buildQuery() {
 function ensureModal() {
   if ($("#wbe-wtplus-orqb-modal").length) return;
 
+  ensureSuggestionsState(state);
+  const suggestionOptionsHtml = buildSelectOptions(buildSuggestionsOptions(), state.suggestions.errorId, true);
+
   const html = `
     <div id="wbe-wtplus-orqb-modal" class="wbe-wtplus-orqb-modal" style="display:none;">
       <div class="wbe-wtplus-orqb-window">
         <div class="wbe-wtplus-orqb-header">
           <div class="wbe-wtplus-orqb-title">WikiTree+ Query Builder</div>
+          <div class="wbe-wtplus-orqb-header-actions">
+            <button type="button" class="button small" id="wbe-wtplus-orqb-open" title="Open in WikiTree+">Open in WT+</button>
+            <button type="button" class="button small" id="wbe-wtplus-orqb-saved" title="View saved queries">Saved Queries</button>
+            <button type="button" class="button small" id="wbe-wtplus-orqb-save" title="Save current query">Save Query</button>
+            <button type="button" class="button small" id="wbe-wtplus-orqb-copy-q" title="Copy query to clipboard">Copy Query</button>
+            <button type="button" class="button small" id="wbe-wtplus-orqb-copy-u" title="Copy URL to clipboard">Copy URL</button>
+          </div>
           <button type="button" class="wbe-wtplus-orqb-close" title="Close">×</button>
         </div>
 
-        <div class="wbe-wtplus-orqb-search-type">
-          <label style="font-weight: bold; margin-right: 12px;">Search Type:</label>
-          <label style="margin-right: 16px;">
-            <input type="radio" name="wbe-wtplus-search-type" value="text" checked> Search text
-          </label>
-          <label>
-            <input type="radio" name="wbe-wtplus-search-type" value="suggestions"> Suggestions text search
-          </label>
+        <div class="wbe-wtplus-orqb-tabs" role="tablist" aria-label="Search mode">
+          <button type="button" class="wbe-wtplus-orqb-tab is-active" data-tab="text" role="tab" aria-selected="true">Text Search</button>
+          <button type="button" class="wbe-wtplus-orqb-tab" data-tab="suggestions" role="tab" aria-selected="false">Suggestions</button>
         </div>
 
         <div class="wbe-wtplus-orqb-body">
@@ -846,23 +584,69 @@ function ensureModal() {
             </div>
 
             <div class="wbe-wtplus-orqb-right">
-              <div class="wbe-wtplus-orqb-subtitle">AND conditions</div>
+              <div class="wbe-wtplus-orqb-subtitle wbe-wtplus-orqb-subtitle--and">AND conditions</div>
               <div id="wbe-wtplus-orqb-rows"></div>
 
-                <button type="button" class="button wbe-wtplus-orqb-open-primary" id="wbe-wtplus-orqb-open">Open in WT+</button>
+              <div id="wbe-wtplus-suggestions-panel" class="wbe-wtplus-suggestions-panel">
+                <div class="wbe-wtplus-suggestions-layout">
+                  <div class="wbe-wtplus-suggestions-left">
+                    <div class="wbe-wtplus-orqb-subtitle">OR groups</div>
+                    <div id="wbe-wtplus-suggestions-groups"></div>
+                    <div class="wbe-wtplus-orqb-group-actions">
+                      <button type="button" class="button small" id="wbe-wtplus-suggestions-add-group">Add OR Group</button>
+                    </div>
+                  </div>
+                  <div class="wbe-wtplus-suggestions-right">
+                    <div class="wbe-wtplus-orqb-subtitle">AND conditions</div>
+                    <div id="wbe-wtplus-suggestions-rows"></div>
+                    <div class="wbe-wtplus-orqb-row-actions">
+                      <div class="wbe-wtplus-orqb-row-actions-left">
+                        <button type="button" class="button small" id="wbe-wtplus-suggestions-add-row">Add AND Group</button>
+                        <button type="button" class="button small" id="wbe-wtplus-suggestions-dup-group">Duplicate Group</button>
+                        <button type="button" class="button small" id="wbe-wtplus-suggestions-del-group">Delete Group</button>
+                      </div>
+                    </div>
+
+                    <div class="wbe-wtplus-suggestions-options">
+                      <div class="wbe-wtplus-suggestions-grid">
+                        <div class="wbe-wtplus-suggestions-field">
+                          <label for="wbe-wtplus-suggestions-errorid">Suggestion</label>
+                          <select id="wbe-wtplus-suggestions-errorid" class="wbe-wtplus-orqb-value">
+                            ${suggestionOptionsHtml}
+                          </select>
+                        </div>
+
+                        <div class="wbe-wtplus-suggestions-field">
+                          <label for="wbe-wtplus-suggestions-max">Max Suggestions</label>
+                          <input id="wbe-wtplus-suggestions-max" class="wbe-wtplus-orqb-value" type="number" min="1" step="1">
+                        </div>
+
+                        <div class="wbe-wtplus-suggestions-checks wbe-wtplus-suggestions-field--wide">
+                          <label>
+                            <input type="checkbox" id="wbe-wtplus-suggestions-showhidden">
+                            Show temporarily hidden suggestions
+                          </label>
+                          <label>
+                            <input type="checkbox" id="wbe-wtplus-suggestions-hideactive">
+                            Hide active suggestions
+                          </label>
+                        </div>
+
+                        <div class="wbe-wtplus-suggestions-field wbe-wtplus-suggestions-field--wide">
+                          <div class="wbe-wtplus-suggestions-hint">
+                            Fielded search: WikiTreeID=, Name=, BirthLocation=, DeathLocation=, MarriageLocation=, Location=, Country=, Manager=, CatTem=, Stars=, Info=.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               <div class="wbe-wtplus-orqb-row-actions">
-                <div class="wbe-wtplus-orqb-row-actions-left">
-                  <button type="button" class="button small" id="wbe-wtplus-orqb-add-row">Add AND Group</button>
-                  <button type="button" class="button small" id="wbe-wtplus-orqb-dup-group">Duplicate Group</button>
-                  <button type="button" class="button small" id="wbe-wtplus-orqb-del-group">Delete Group</button>
-                </div>
-                <div class="wbe-wtplus-orqb-row-actions-right">
-                  <button type="button" class="button small" id="wbe-wtplus-orqb-saved">Saved Queries</button>
-                  <button type="button" class="button small" id="wbe-wtplus-orqb-save">Save Query</button>
-                  <button type="button" class="button small" id="wbe-wtplus-orqb-copy-q">Copy Query</button>
-                  <button type="button" class="button small" id="wbe-wtplus-orqb-copy-u">Copy URL</button>
-                </div>
+                <button type="button" class="button small" id="wbe-wtplus-orqb-add-row">Add AND Group</button>
+                <button type="button" class="button small" id="wbe-wtplus-orqb-dup-group">Duplicate Group</button>
+                <button type="button" class="button small" id="wbe-wtplus-orqb-del-group">Delete Group</button>
               </div>
 
               <div class="wbe-wtplus-orqb-out">
@@ -890,9 +674,11 @@ function ensureModal() {
   });
   $(".wbe-wtplus-orqb-close").on("click", closeModal);
 
-  $("input[name='wbe-wtplus-search-type']").on("change", function () {
-    state.searchType = $(this).val();
-    updateOutput();
+  $(".wbe-wtplus-orqb-tab").on("click", function () {
+    state.searchType = $(this).data("tab");
+    localStorage.setItem("wbe-wtplus-last-tab", state.searchType);
+    syncTabUi();
+    renderAll();
   });
 
   $("#wbe-wtplus-orqb-add-group").on("click", () => {
@@ -954,35 +740,12 @@ function ensureModal() {
 
     // Check if it's SQL-only by trying to extract suggestion ID from current state
     const { suggestionId } = buildQuery();
-
-    // Read the actual radio button selection at time of click
-    const searchType = $("input[name='wbe-wtplus-search-type']:checked").val() || "text";
+    const searchType = state.searchType || "text";
+    const u = buildPlusUrl(query, searchType, true, suggestionId, getSuggestionOptions(state));
     if (isPlusDomain) {
-      // On plus domain, navigate to the URL instead of trying to populate forms
       closeModal();
-      const url = new URL("https://plus.wikitree.com/default.htm");
-      if (searchType === "suggestions") {
-        url.searchParams.set("report", "err6");
-        if (suggestionId) {
-          url.searchParams.set("ErrorID", suggestionId);
-          if (query) {
-            url.searchParams.set("Query", query);
-          }
-        } else if (query) {
-          url.searchParams.set("Query", query);
-        }
-        url.searchParams.set("MaxErrors", "1000");
-        // Use wbe=1 to signal auto-submit instead of render=1
-        url.searchParams.set("wbe", "1");
-      } else {
-        url.searchParams.set("report", "srch1");
-        url.searchParams.set("Query", query);
-        url.searchParams.set("render", "1");
-      }
-      window.location.href = url.toString();
+      window.location.href = u;
     } else {
-      // Otherwise open in new window
-      const u = buildPlusUrl(query, searchType, true, suggestionId); // include Render=1 for opening
       window.open(u, "_blank", "noopener,noreferrer");
     }
   });
@@ -1019,8 +782,19 @@ function ensureModal() {
   // Sync textareas when user manually edits them
   $("#wbe-wtplus-orqb-query").on("input", function () {
     const query = $(this).val();
+    if (state.searchType === "suggestions") {
+      ensureSuggestionsState(state);
+      state.suggestions.query = query;
+      const g = state.suggestions.groups[state.suggestions.selectedGroupIndex] || state.suggestions.groups[0];
+      if (g?.rows?.[0]) {
+        g.rows[0].text = query;
+      }
+      renderSuggestionsPanel();
+      updateOutput();
+      return;
+    }
     if (query.trim()) {
-      $("#wbe-wtplus-orqb-url").val(buildPlusUrl(query, state.searchType, false, ""));
+      $("#wbe-wtplus-orqb-url").val(buildPlusUrl(query, state.searchType, false, "", getSuggestionOptions(state)));
       $("#wbe-wtplus-orqb-open").prop("disabled", false);
     } else {
       $("#wbe-wtplus-orqb-url").val("");
@@ -1033,11 +807,289 @@ function ensureModal() {
       const urlStr = $(this).val();
       const url = new URL(urlStr);
       const query = url.searchParams.get("Query") || "";
+      const errorId = url.searchParams.get("ErrorID") || "";
+      const showHidden = url.searchParams.get("ShowHidden") === "1";
+      const hideActive = url.searchParams.get("HideActive") === "1";
+      const maxErrors = url.searchParams.get("MaxErrors") || "1000";
       $("#wbe-wtplus-orqb-query").val(query);
-      $("#wbe-wtplus-orqb-open").prop("disabled", !query.trim());
+      if (state.searchType === "suggestions") {
+        ensureSuggestionsState(state);
+        state.suggestions.query = query;
+        state.suggestions.errorId = errorId;
+        state.suggestions.showHidden = showHidden;
+        state.suggestions.hideActive = hideActive;
+        state.suggestions.maxErrors = maxErrors;
+        const g = state.suggestions.groups[state.suggestions.selectedGroupIndex] || state.suggestions.groups[0];
+        if (g?.rows?.[0]) {
+          g.rows[0].text = query;
+        }
+        renderSuggestionsPanel();
+      }
+      $("#wbe-wtplus-orqb-open").prop("disabled", !query.trim() && !errorId);
     } catch (e) {
       // Invalid URL, ignore
     }
+  });
+
+  $("#wbe-wtplus-suggestions-panel").on("input", ".wbe-wtplus-suggestions-text", function () {
+    ensureSuggestionsState(state);
+    const ridx = Number($(this).data("row"));
+    const g = state.suggestions.groups[state.suggestions.selectedGroupIndex];
+    if (!g?.rows?.[ridx]) return;
+    g.rows[ridx].text = $(this).val();
+    state.suggestions.query = g.rows[0]?.text || "";
+    updateOutput();
+  });
+
+  $("#wbe-wtplus-suggestions-panel").on("change", ".wbe-wtplus-suggestions-not", function () {
+    ensureSuggestionsState(state);
+    const ridx = Number($(this).data("row"));
+    const g = state.suggestions.groups[state.suggestions.selectedGroupIndex];
+    if (!g?.rows?.[ridx]) return;
+    g.rows[ridx].not = $(this).is(":checked");
+    updateOutput();
+  });
+
+  $("#wbe-wtplus-suggestions-panel").on("change", ".wbe-wtplus-suggestions-location-select", function () {
+    ensureSuggestionsState(state);
+    const ridx = Number($(this).data("row"));
+    const lidx = Number($(this).data("index"));
+    const g = state.suggestions.groups[state.suggestions.selectedGroupIndex];
+    if (!g?.rows?.[ridx]) return;
+    const pair = g.rows[ridx].locationPairs[lidx];
+    if (!pair) return;
+    pair.fieldId = $(this).val();
+    updateOutput();
+  });
+
+  $("#wbe-wtplus-suggestions-panel").on("input", ".wbe-wtplus-suggestions-location-input", function () {
+    ensureSuggestionsState(state);
+    const ridx = Number($(this).data("row"));
+    const lidx = Number($(this).data("index"));
+    const g = state.suggestions.groups[state.suggestions.selectedGroupIndex];
+    if (!g?.rows?.[ridx]) return;
+    const pair = g.rows[ridx].locationPairs[lidx];
+    if (!pair) return;
+    pair.value = $(this).val();
+    updateOutput();
+  });
+
+  $("#wbe-wtplus-suggestions-panel").on("change", ".wbe-wtplus-suggestions-location-input", function () {
+    ensureSuggestionsState(state);
+    const ridx = Number($(this).data("row"));
+    const lidx = Number($(this).data("index"));
+    const g = state.suggestions.groups[state.suggestions.selectedGroupIndex];
+    if (!g?.rows?.[ridx]) return;
+    const pair = g.rows[ridx].locationPairs[lidx];
+    if (!pair) return;
+    // Auto-add a new pair when value changes on the last pair (on blur/tab)
+    if (pair.value && lidx === g.rows[ridx].locationPairs.length - 1) {
+      const newPair = { fieldId: "", value: "" };
+      g.rows[ridx].locationPairs.push(newPair);
+
+      // Instead of re-rendering everything, just append the new pair HTML
+      const newIndex = g.rows[ridx].locationPairs.length - 1;
+      const locationOptsHtml = buildSelectOptions(SUGGESTIONS_LOCATION_FIELDS, "", true);
+      const newPairHtml = `
+        <div class="wbe-wtplus-suggestions-location-pair">
+          <select class="wbe-wtplus-orqb-value wbe-wtplus-suggestions-location-select" data-row="${ridx}" data-index="${newIndex}">
+            ${locationOptsHtml}
+          </select>
+          <input
+            class="wbe-wtplus-orqb-value wbe-wtplus-suggestions-location-input"
+            data-row="${ridx}"
+            data-index="${newIndex}"
+            type="text"
+            value=""
+            placeholder="e.g. Shrewsbury">
+          <button type="button" class="button small wbe-wtplus-suggestions-location-remove" title="Remove" data-row="${ridx}" data-index="${newIndex}">×</button>
+        </div>
+      `;
+
+      // Find the container for this row's location pairs and append
+      $(this).closest(".wbe-wtplus-suggestions-row").find(".wbe-wtplus-suggestions-location-pairs").append(newPairHtml);
+
+      // Show the remove button on the previous pair (which is now not the last)
+      $(this).siblings(".wbe-wtplus-suggestions-location-remove").css("visibility", "visible");
+    }
+
+    // Update the query output to include location pairs
+    updateOutput();
+  });
+
+  $("#wbe-wtplus-suggestions-panel").on("click", ".wbe-wtplus-suggestions-location-remove", function () {
+    ensureSuggestionsState(state);
+    const ridx = Number($(this).data("row"));
+    const lidx = Number($(this).data("index"));
+    const g = state.suggestions.groups[state.suggestions.selectedGroupIndex];
+    if (!g?.rows?.[ridx]) return;
+    const arr = g.rows[ridx].locationPairs;
+    if (arr.length > 1) arr.splice(lidx, 1);
+    renderSuggestionsPanel();
+    updateOutput();
+  });
+
+  $("#wbe-wtplus-suggestions-panel").on("input", ".wbe-wtplus-suggestions-text", function () {
+    ensureSuggestionsState(state);
+    const ridx = Number($(this).data("row"));
+    const g = state.suggestions.groups[state.suggestions.selectedGroupIndex];
+    if (!g?.rows?.[ridx]) return;
+    g.rows[ridx].text = $(this).val();
+    state.suggestions.query = g.rows[0]?.text || "";
+    updateOutput();
+  });
+
+  $("#wbe-wtplus-suggestions-panel").on("change", ".wbe-wtplus-suggestions-not", function () {
+    ensureSuggestionsState(state);
+    const ridx = Number($(this).data("row"));
+    const g = state.suggestions.groups[state.suggestions.selectedGroupIndex];
+    if (!g?.rows?.[ridx]) return;
+    g.rows[ridx].not = $(this).is(":checked");
+    updateOutput();
+  });
+
+  $("#wbe-wtplus-suggestions-panel").on("input", ".wbe-wtplus-suggestions-field-input", function () {
+    ensureSuggestionsState(state);
+    const ridx = Number($(this).data("row"));
+    const field = $(this).data("field");
+    const g = state.suggestions.groups[state.suggestions.selectedGroupIndex];
+    if (!g?.rows?.[ridx] || !field) return;
+    g.rows[ridx].fields[field] = $(this).val();
+    updateOutput();
+  });
+
+  $("#wbe-wtplus-suggestions-panel").on("input", ".wbe-wtplus-suggestions-err", function () {
+    ensureSuggestionsState(state);
+    const ridx = Number($(this).data("row"));
+    const g = state.suggestions.groups[state.suggestions.selectedGroupIndex];
+    if (!g?.rows?.[ridx]) return;
+    g.rows[ridx].errCode = $(this).val();
+    updateOutput();
+  });
+
+  $("#wbe-wtplus-suggestions-panel").on("change", ".wbe-wtplus-suggestions-magic-select", function () {
+    ensureSuggestionsState(state);
+    const ridx = Number($(this).data("row"));
+    const idx = Number($(this).data("index"));
+    const val = $(this).val();
+    const g = state.suggestions.groups[state.suggestions.selectedGroupIndex];
+    if (!g?.rows?.[ridx]) return;
+    const row = g.rows[ridx];
+    if (!row.magicWords) row.magicWords = [{ value: "" }];
+    if (!row.magicWords[idx]) row.magicWords[idx] = { value: "" };
+    row.magicWords[idx].value = val;
+
+    const lastIdx = row.magicWords.length - 1;
+    if (idx === lastIdx && val) {
+      row.magicWords.push({ value: "" });
+    }
+
+    renderSuggestionsPanel();
+    updateOutput();
+  });
+
+  $("#wbe-wtplus-suggestions-panel").on("click", ".wbe-wtplus-suggestions-magic-remove", function () {
+    ensureSuggestionsState(state);
+    const ridx = Number($(this).data("row"));
+    const idx = Number($(this).data("index"));
+    const g = state.suggestions.groups[state.suggestions.selectedGroupIndex];
+    if (!g?.rows?.[ridx]) return;
+    const row = g.rows[ridx];
+    if (Array.isArray(row.magicWords)) {
+      row.magicWords.splice(idx, 1);
+      if (!row.magicWords.length) row.magicWords.push({ value: "" });
+      renderSuggestionsPanel();
+      updateOutput();
+    }
+  });
+
+  $("#wbe-wtplus-suggestions-add-row").on("click", () => {
+    ensureSuggestionsState(state);
+    const g = state.suggestions.groups[state.suggestions.selectedGroupIndex];
+    g.rows.push(newSuggestionsRow());
+    renderSuggestionsPanel();
+  });
+
+  $("#wbe-wtplus-suggestions-dup-group").on("click", () => {
+    ensureSuggestionsState(state);
+    const g = state.suggestions.groups[state.suggestions.selectedGroupIndex];
+    state.suggestions.groups.splice(state.suggestions.selectedGroupIndex + 1, 0, clone(g));
+    state.suggestions.selectedGroupIndex += 1;
+    renderSuggestionsPanel();
+  });
+
+  $("#wbe-wtplus-suggestions-del-group").on("click", () => {
+    ensureSuggestionsState(state);
+    if (state.suggestions.groups.length <= 1) return;
+    state.suggestions.groups.splice(state.suggestions.selectedGroupIndex, 1);
+    state.suggestions.selectedGroupIndex = Math.max(0, state.suggestions.selectedGroupIndex - 1);
+    renderSuggestionsPanel();
+  });
+
+  $("#wbe-wtplus-suggestions-add-group").on("click", () => {
+    ensureSuggestionsState(state);
+    state.suggestions.groups.push({ rows: [newSuggestionsRow()] });
+    state.suggestions.selectedGroupIndex = state.suggestions.groups.length - 1;
+    renderSuggestionsPanel();
+  });
+
+  $("#wbe-wtplus-suggestions-panel").on("click", ".wbe-wtplus-suggestions-group", function () {
+    ensureSuggestionsState(state);
+    const idx = Number($(this).data("index"));
+    if (Number.isFinite(idx)) {
+      state.suggestions.selectedGroupIndex = idx;
+      renderSuggestionsPanel();
+    }
+  });
+
+  $("#wbe-wtplus-suggestions-panel").on("click", ".wbe-wtplus-suggestions-del-row", function () {
+    ensureSuggestionsState(state);
+    const ridx = Number($(this).data("row"));
+    const g = state.suggestions.groups[state.suggestions.selectedGroupIndex];
+    if (!g?.rows) return;
+    g.rows.splice(ridx, 1);
+    if (!g.rows.length) g.rows.push(newSuggestionsRow());
+    renderSuggestionsPanel();
+  });
+
+  $("#wbe-wtplus-suggestions-panel").on("click", ".wbe-wtplus-suggestions-magic-remove", function () {
+    ensureSuggestionsState(state);
+    const ridx = Number($(this).data("row"));
+    const idx = Number($(this).data("index"));
+    const g = state.suggestions.groups[state.suggestions.selectedGroupIndex];
+    if (!g?.rows?.[ridx]) return;
+    const row = g.rows[ridx];
+    if (Array.isArray(row.magicWords)) {
+      row.magicWords.splice(idx, 1);
+      if (!row.magicWords.length) row.magicWords.push({ value: "" });
+      renderSuggestionsPanel();
+      updateOutput();
+    }
+  });
+
+  $("#wbe-wtplus-suggestions-errorid").on("change", function () {
+    ensureSuggestionsState(state);
+    state.suggestions.errorId = $(this).val();
+    updateOutput();
+  });
+
+  $("#wbe-wtplus-suggestions-showhidden").on("change", function () {
+    ensureSuggestionsState(state);
+    state.suggestions.showHidden = $(this).is(":checked");
+    updateOutput();
+  });
+
+  $("#wbe-wtplus-suggestions-hideactive").on("change", function () {
+    ensureSuggestionsState(state);
+    state.suggestions.hideActive = $(this).is(":checked");
+    updateOutput();
+  });
+
+  $("#wbe-wtplus-suggestions-max").on("input", function () {
+    ensureSuggestionsState(state);
+    const raw = $(this).val();
+    state.suggestions.maxErrors = raw ? String(raw) : "";
+    updateOutput();
   });
 
   // SQL Wizard add/remove handlers (delegated)
@@ -1118,38 +1170,11 @@ function categorySelectsHtml(rowFields, rowMultiFields) {
     const entries = rowMultiFields?.[grpName]?.length ? rowMultiFields[grpName] : [{ fieldId, value: "" }];
     const opts = typeof field.options === "function" ? field.options() : field.options;
 
-    const buildOptionsHtml = (options, currentValue) => {
-      let htmlOptions = '<option value=""></option>';
-      if (!options || !Array.isArray(options)) return htmlOptions;
-
-      options.forEach((item) => {
-        if (item.label && item.options) {
-          const optgroupItems = item.options
-            .map((o) => {
-              const sel = String(o.value) === String(currentValue) ? " selected" : "";
-              const title = o.description ? ` title="${esc(o.description)}"` : "";
-              return `<option value="${esc(o.value)}"${sel}${title}>${esc(o.label)}</option>`;
-            })
-            .join("");
-          htmlOptions += `<optgroup label="${esc(item.label)}">${optgroupItems}</optgroup>`;
-        } else {
-          const optVal = typeof item === "object" && item !== null ? item.value : item;
-          const optLabel = typeof item === "object" && item !== null ? item.label : item;
-          const optDesc = typeof item === "object" && item !== null ? item.description : "";
-          const sel = String(optVal) === String(currentValue) ? " selected" : "";
-          const title = optDesc ? ` title="${esc(optDesc)}"` : "";
-          htmlOptions += `<option value="${esc(optVal)}"${sel}${title}>${esc(optLabel)}</option>`;
-        }
-      });
-
-      return htmlOptions;
-    };
-
     const entryHtml = entries
       .map((entry, idx) => {
         const selectId = `wbe-wtplus-${grpName.toLowerCase()}-${idx}`;
         const currentValue = entry?.value || "";
-        const htmlOptions = buildOptionsHtml(opts, currentValue);
+        const htmlOptions = buildSelectOptions(opts, currentValue, true);
 
         const orLabel = idx > 0 ? '<span class="wbe-wtplus-orqb-or">OR</span>' : "";
         return `
@@ -1598,6 +1623,165 @@ function renderRows() {
   });
 }
 
+function renderSuggestionsPanel() {
+  ensureSuggestionsState(state);
+  const gidx = state.suggestions.selectedGroupIndex;
+  const g = state.suggestions.groups[gidx];
+  const $groups = $("#wbe-wtplus-suggestions-groups");
+  if ($groups.length) {
+    $groups.empty();
+    state.suggestions.groups.forEach((group, idx) => {
+      const isSel = idx === state.suggestions.selectedGroupIndex;
+      const label = `Group ${idx + 1}`;
+      $groups.append(`
+        <button type="button" class="wbe-wtplus-orqb-group wbe-wtplus-suggestions-group ${
+          isSel ? "is-selected" : ""
+        }" data-index="${idx}">${esc(label)}</button>
+      `);
+    });
+  }
+
+  const $rows = $("#wbe-wtplus-suggestions-rows");
+  if ($rows.length) {
+    $rows.empty();
+    g.rows.forEach((row, ridx) => {
+      const fieldsHtml = SUGGESTIONS_FIELDS.map(
+        (field) => `
+          <div class="wbe-wtplus-suggestions-field">
+            <label for="wbe-wtplus-suggestions-field-${esc(field.id)}-${ridx}">${esc(field.label)}</label>
+            <input
+              id="wbe-wtplus-suggestions-field-${esc(field.id)}-${ridx}"
+              class="wbe-wtplus-orqb-value wbe-wtplus-suggestions-field-input"
+              data-row="${ridx}"
+              data-field="${esc(field.id)}"
+              type="text"
+              value="${esc(row.fields?.[field.id] || "")}"
+              placeholder="${esc(field.placeholder || "")}">
+          </div>
+        `
+      ).join("");
+
+      const magicListHtml = (row.magicWords || [{ value: "" }])
+        .map((entry, midx) => {
+          const optionsHtml = buildSelectOptions(SUGGESTIONS_MAGIC_WORDS, entry?.value || "", true);
+          const hideRemove = !entry?.value && (row.magicWords || []).length === 1;
+          return `
+            <div class="wbe-wtplus-suggestions-magic-item" data-index="${midx}">
+              <select class="wbe-wtplus-orqb-value wbe-wtplus-suggestions-magic-select" data-row="${ridx}" data-index="${midx}">
+                ${optionsHtml}
+              </select>
+              <button type="button" class="button small wbe-wtplus-suggestions-magic-remove" title="Remove" data-row="${ridx}" data-index="${midx}" ${
+            hideRemove ? 'style="visibility:hidden;"' : ""
+          }>×</button>
+            </div>
+          `;
+        })
+        .join("");
+
+      const locationPairsHtml = row.locationPairs
+        .map((pair, lidx) => {
+          const hideRemove =
+            row.locationPairs.length === 1 || (lidx === row.locationPairs.length - 1 && !pair.fieldId && !pair.value);
+          const locationOptsHtml = buildSelectOptions(SUGGESTIONS_LOCATION_FIELDS, pair.fieldId || "", true);
+          return `
+            <div class="wbe-wtplus-suggestions-location-pair">
+              <select class="wbe-wtplus-orqb-value wbe-wtplus-suggestions-location-select" data-row="${ridx}" data-index="${lidx}">
+                ${locationOptsHtml}
+              </select>
+              <input
+                class="wbe-wtplus-orqb-value wbe-wtplus-suggestions-location-input"
+                data-row="${ridx}"
+                data-index="${lidx}"
+                type="text"
+                value="${esc(pair.value || "")}"
+                placeholder="e.g. Shrewsbury">
+              <button type="button" class="button small wbe-wtplus-suggestions-location-remove" title="Remove" data-row="${ridx}" data-index="${lidx}" ${
+            hideRemove ? 'style="visibility:hidden;"' : ""
+          }>×</button>
+            </div>
+          `;
+        })
+        .join("");
+
+      $rows.append(`
+        <div class="wbe-wtplus-suggestions-row">
+          <label class="wbe-wtplus-orqb-not">
+            <input type="checkbox" class="wbe-wtplus-suggestions-not" data-row="${ridx}" ${row.not ? "checked" : ""}>
+            NOT
+          </label>
+          <div class="wbe-wtplus-suggestions-row-main">
+            <div class="wbe-wtplus-suggestions-grid">
+              <div class="wbe-wtplus-suggestions-field wbe-wtplus-suggestions-field--wide">
+                <label for="wbe-wtplus-suggestions-text-${ridx}">Text</label>
+                <input
+                  id="wbe-wtplus-suggestions-text-${ridx}"
+                  class="wbe-wtplus-orqb-value wbe-wtplus-suggestions-text"
+                  data-row="${ridx}"
+                  type="text"
+                  value="${esc(row.text || "")}"
+                  placeholder="e.g. Shrewsbury OR IsInWikiData">
+              </div>
+
+              ${fieldsHtml}
+
+              <div class="wbe-wtplus-suggestions-field wbe-wtplus-suggestions-field--wide">
+                <label>Location</label>
+                <div class="wbe-wtplus-suggestions-location-pairs">
+                  ${locationPairsHtml}
+                </div>
+              </div>
+
+              <div class="wbe-wtplus-suggestions-field">
+                <label for="wbe-wtplus-suggestions-field-Info-${ridx}">Info</label>
+                <input
+                  id="wbe-wtplus-suggestions-field-Info-${ridx}"
+                  class="wbe-wtplus-orqb-value wbe-wtplus-suggestions-field-input"
+                  data-row="${ridx}"
+                  data-field="Info"
+                  type="text"
+                  value="${esc(row.fields?.Info || "")}"
+                  placeholder="e.g. FindAGrave">
+              </div>
+
+              <div class="wbe-wtplus-suggestions-field">
+                <label for="wbe-wtplus-suggestions-err-${ridx}">ERRxxx</label>
+                <input
+                  id="wbe-wtplus-suggestions-err-${ridx}"
+                  class="wbe-wtplus-orqb-value wbe-wtplus-suggestions-err"
+                  data-row="${ridx}"
+                  type="text"
+                  value="${esc(row.errCode || "")}"
+                  placeholder="e.g. ERR608">
+              </div>
+
+              <div class="wbe-wtplus-suggestions-field wbe-wtplus-suggestions-field--wide">
+                <label>Magic words</label>
+                <div class="wbe-wtplus-suggestions-magic-list">
+                  ${magicListHtml}
+                </div>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="button small wbe-wtplus-suggestions-del-row" title="Remove" data-row="${ridx}">×</button>
+        </div>
+      `);
+    });
+  }
+
+  $("#wbe-wtplus-suggestions-errorid").val(state.suggestions.errorId || "");
+  $("#wbe-wtplus-suggestions-showhidden").prop("checked", !!state.suggestions.showHidden);
+  $("#wbe-wtplus-suggestions-hideactive").prop("checked", !!state.suggestions.hideActive);
+  $("#wbe-wtplus-suggestions-max").val(state.suggestions.maxErrors || "");
+}
+
+function syncTabUi() {
+  const isSuggestions = state.searchType === "suggestions";
+  const $modal = $("#wbe-wtplus-orqb-modal");
+  $modal.toggleClass("is-suggestions", isSuggestions);
+  $(".wbe-wtplus-orqb-tab").removeClass("is-active").attr("aria-selected", "false");
+  $(`.wbe-wtplus-orqb-tab[data-tab='${state.searchType}']`).addClass("is-active").attr("aria-selected", "true");
+}
+
 function openSqlWizard(currentValue, callback) {
   const currentRaw = String(currentValue || "").trim();
   // Check for NOT prefix, not(...), or sql="Not(...)"
@@ -1866,9 +2050,11 @@ function updateOutput() {
 
   $("#wbe-wtplus-orqb-query").val(query);
 
-  // Only populate URL if query has content
-  if (query.trim()) {
-    $("#wbe-wtplus-orqb-url").val(buildPlusUrl(query, state.searchType, false, suggestionId));
+  const shouldBuildUrl = query.trim() || (state.searchType === "suggestions" && suggestionId);
+  if (shouldBuildUrl) {
+    $("#wbe-wtplus-orqb-url").val(
+      buildPlusUrl(query, state.searchType, false, suggestionId, getSuggestionOptions(state))
+    );
   } else {
     $("#wbe-wtplus-orqb-url").val("");
   }
@@ -1881,13 +2067,15 @@ function updateOutput() {
     setStatus("");
   }
 
-  const hasQuery = !!query.trim();
+  const hasQuery = !!query.trim() || (state.searchType === "suggestions" && !!suggestionId);
   $("#wbe-wtplus-orqb-open").prop("disabled", !hasQuery);
 }
 
 function renderAll() {
+  syncTabUi();
   renderGroupsList();
   renderRows();
+  renderSuggestionsPanel();
   updateOutput();
 }
 
@@ -1897,6 +2085,12 @@ function renderAll() {
 
 function openModal() {
   ensureModal();
+
+  // Restore last used tab from localStorage
+  const lastTab = localStorage.getItem("wbe-wtplus-last-tab");
+  if (lastTab === "text" || lastTab === "suggestions") {
+    state.searchType = lastTab;
+  }
 
   renderAll();
   $("#wbe-wtplus-orqb-modal").show();
@@ -2028,13 +2222,20 @@ async function showSavedQueriesModal() {
                     .map((q) => {
                       const date = new Date(q.timestamp);
                       const dateStr = date.toLocaleDateString() + " " + date.toLocaleTimeString();
+                      const queryType = q.state?.searchType || "text";
+                      const isSuggestions = queryType === "suggestions";
+                      const typeLabel = isSuggestions ? "Suggestions" : "Text Search";
+                      const typeBadgeColor = isSuggestions ? "#2196F3" : "#4CAF50";
                       return `
                     <div class="wbe-wtplus-saved-query-item" data-id="${
                       q.id
                     }" style="border: 1px solid #ddd; border-radius: 4px; padding: 12px; margin-bottom: 8px; background: #f9f9f9;">
                       <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
                         <div style="flex: 1;">
-                          <div style="font-weight: 500; color: #25422d; margin-bottom: 4px;">${esc(q.name)}</div>
+                          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                            <span style="font-weight: 500; color: #25422d;">${esc(q.name)}</span>
+                            <span style="font-size: 11px; padding: 2px 6px; border-radius: 3px; background: ${typeBadgeColor}; color: white; font-weight: 500;">${typeLabel}</span>
+                          </div>
                           <div style="font-size: 12px; color: #666;">${dateStr}</div>
                         </div>
                         <div style="display: flex; gap: 6px;">
@@ -2109,6 +2310,8 @@ function loadQuery(savedQuery) {
   state.groups = JSON.parse(JSON.stringify(savedQuery.state.groups)); // Deep clone
   state.searchType = savedQuery.state.searchType || "text";
   state.selectedGroupIndex = savedQuery.state.selectedGroupIndex || 0;
+  state.suggestions = savedQuery.state.suggestions || defaultSuggestionsState();
+  ensureSuggestionsState(state);
 
   // Check if the saved query string differs from what the state would generate
   const { query: stateGeneratedQuery } = buildQuery();
@@ -2117,262 +2320,29 @@ function loadQuery(savedQuery) {
 
   // If the queries differ, try to parse the saved query (user may have manually edited it)
   if (savedQueryTrimmed && savedQueryTrimmed !== stateQueryTrimmed) {
-    try {
-      const parsedState = parseQueryToState(savedQuery.query, state.searchType);
-      // Parsing succeeded, use the parsed state
-      state.groups = parsedState.groups;
-      state.searchType = parsedState.searchType;
-      state.selectedGroupIndex = 0;
-    } catch (err) {
-      console.warn("Could not parse manually edited query, using saved state:", err);
-      // Keep the state we already loaded at the top
+    if (state.searchType === "text") {
+      try {
+        const parsedState = parseQueryToState(savedQuery.query, state.searchType);
+        // Parsing succeeded, use the parsed state
+        state.groups = parsedState.groups;
+        state.searchType = parsedState.searchType;
+        state.selectedGroupIndex = 0;
+      } catch (err) {
+        console.warn("Could not parse manually edited query, using saved state:", err);
+        // Keep the state we already loaded at the top
+      }
+    } else {
+      state.suggestions.query = savedQuery.query || "";
+      state.suggestions.errorId = state.suggestions.errorId || extractSuggestionId(savedQuery.query || "");
     }
   }
 
-  // Update the radio buttons
-  $(`input[name='wbe-wtplus-search-type'][value='${state.searchType}']`).prop("checked", true);
+  // Update localStorage to remember this query's tab
+  localStorage.setItem("wbe-wtplus-last-tab", state.searchType);
 
   // Re-render everything
   renderAll();
   setStatus(`Loaded: ${savedQuery.name}`);
-}
-
-function parseQueryToState(queryString, searchType) {
-  // Parse a query string back into state structure
-  const groups = [];
-
-  // Split by OR to get groups
-  const groupStrings = queryString.split(/\s+OR\s+/);
-
-  groupStrings.forEach((groupStr) => {
-    if (!groupStr.trim()) return;
-
-    const row = {
-      not: false,
-      fields: {},
-      multiFields: {},
-      sqlConditions: [],
-    };
-
-    // Tokenize the group string
-    const tokens = tokenizeQuery(groupStr);
-
-    tokens.forEach((token) => {
-      if (token.type === "field-value") {
-        // Check if this field should be in a multi-group
-        const fieldDef = fieldById(token.field);
-        if (fieldDef && fieldDef.group) {
-          const grpName = fieldDef.group;
-          if (MULTI_GROUPS.has(grpName)) {
-            // Add to multiFields
-            if (!row.multiFields[grpName]) {
-              row.multiFields[grpName] = [];
-            }
-            row.multiFields[grpName].push({
-              fieldId: token.field,
-              value: token.value,
-            });
-          } else if (grpName === "Suggestions") {
-            if (!row.multiFields.Suggestions) {
-              row.multiFields.Suggestions = [];
-            }
-            row.multiFields.Suggestions.push({
-              fieldId: "Suggestions",
-              value: token.value,
-            });
-          } else if (grpName === "Profile Status") {
-            if (!row.multiFields["Profile Status"]) {
-              row.multiFields["Profile Status"] = [];
-            }
-            row.multiFields["Profile Status"].push({
-              fieldId: "ProfileStatus",
-              value: token.value,
-            });
-          } else {
-            // Regular field
-            row.fields[token.field] = token.value;
-          }
-        } else {
-          row.fields[token.field] = token.value;
-        }
-      } else if (token.type === "raw") {
-        // Try to identify what kind of raw term this is
-        const identified = identifyRawTerm(token.value);
-        if (identified) {
-          if (identified.group && MULTI_GROUPS.has(identified.group)) {
-            if (!row.multiFields[identified.group]) {
-              row.multiFields[identified.group] = [];
-            }
-            row.multiFields[identified.group].push({
-              fieldId: identified.fieldId,
-              value: identified.value,
-            });
-          } else {
-            row.fields[identified.fieldId] = identified.value;
-          }
-        }
-      } else if (token.type === "sql") {
-        row.sqlConditions.push(token.value);
-      }
-    });
-
-    groups.push({ rows: [row] });
-  });
-
-  // If no groups parsed, create one empty group
-  if (groups.length === 0) {
-    groups.push({ rows: [newRow()] });
-  }
-
-  return {
-    groups,
-    searchType,
-    selectedGroupIndex: 0,
-  };
-}
-
-function tokenizeQuery(str) {
-  const tokens = [];
-  let i = 0;
-
-  while (i < str.length) {
-    // Skip whitespace
-    while (i < str.length && /\s/.test(str[i])) i++;
-    if (i >= str.length) break;
-
-    // Check for NOT
-    let isNot = false;
-    if (str.substr(i, 4) === "NOT ") {
-      isNot = true;
-      i += 4;
-      while (i < str.length && /\s/.test(str[i])) i++;
-    }
-
-    // Check for sql=
-    if (str.substr(i, 4) === "sql=") {
-      i += 4;
-      const sqlValue = readValue(str, i);
-      tokens.push({ type: "sql", value: sqlValue.value, not: isNot });
-      i = sqlValue.endIndex;
-      continue;
-    }
-
-    // Try to read field=value
-    const fieldMatch = str.substr(i).match(/^([A-Za-z_][A-Za-z0-9_]*)=/);
-    if (fieldMatch) {
-      const field = fieldMatch[1];
-      i += fieldMatch[0].length;
-      const valueResult = readValue(str, i);
-      tokens.push({
-        type: "field-value",
-        field,
-        value: valueResult.value,
-        not: isNot,
-      });
-      i = valueResult.endIndex;
-      continue;
-    }
-
-    // Otherwise it's a raw term
-    const rawResult = readRawTerm(str, i);
-    tokens.push({ type: "raw", value: rawResult.value, not: isNot });
-    i = rawResult.endIndex;
-  }
-
-  return tokens;
-}
-
-function readValue(str, startIndex) {
-  let i = startIndex;
-
-  // Check for quoted value
-  if (str[i] === '"' || str[i] === "'") {
-    const quote = str[i];
-    i++;
-    let value = "";
-    while (i < str.length && str[i] !== quote) {
-      if (str[i] === "\\" && i + 1 < str.length) {
-        value += str[i + 1];
-        i += 2;
-      } else {
-        value += str[i];
-        i++;
-      }
-    }
-    if (str[i] === quote) i++;
-    return { value, endIndex: i };
-  }
-
-  // Unquoted value - read until space or end
-  let value = "";
-  while (i < str.length && !/\s/.test(str[i])) {
-    value += str[i];
-    i++;
-  }
-
-  return { value, endIndex: i };
-}
-
-function readRawTerm(str, startIndex) {
-  let i = startIndex;
-  let value = "";
-
-  // Read until space or end
-  while (i < str.length && !/\s/.test(str[i])) {
-    value += str[i];
-    i++;
-  }
-
-  return { value, endIndex: i };
-}
-
-function identifyRawTerm(term) {
-  // Try to identify what field this raw term belongs to
-
-  // Check if it's a magic word
-  for (const group of MAGIC_WORDS_LIST) {
-    if (group.options) {
-      for (const opt of group.options) {
-        if (opt.value === term) {
-          // Found a magic word
-          const fieldId = `MagicWords_${group.label.replace(/\s+/g, "_")}`;
-          return {
-            fieldId,
-            value: term,
-            group: "Magic Words",
-          };
-        }
-      }
-    }
-  }
-
-  // Check if it's a profile status
-  const statusValues = ["Open", "Unsourced", "Unconnected", "Orphan", "Notables"];
-  if (statusValues.includes(term)) {
-    return {
-      fieldId: "ProfileStatus",
-      value: term,
-      group: "Profile Status",
-    };
-  }
-
-  // Check if it matches date patterns (B1850, D1900, pre1500)
-  if (/^B\d+$/.test(term)) {
-    return { fieldId: "BirthYear", value: term.substring(1), group: "Dates" };
-  }
-  if (/^D\d+$/.test(term)) {
-    return { fieldId: "DeathYear", value: term.substring(1), group: "Dates" };
-  }
-  if (term === "pre1500") {
-    return { fieldId: "pre1500", value: "pre1500", group: "Dates" };
-  }
-
-  // If we can't identify it, treat it as a name search term
-  return {
-    fieldId: "LastNameAtBirth",
-    value: term,
-    group: "Names",
-  };
 }
 
 function addLauncher() {

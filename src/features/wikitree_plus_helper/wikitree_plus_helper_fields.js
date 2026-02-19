@@ -211,16 +211,6 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
       group: "Categories and Templates",
     },
 
-    // Suggestions (DBE codes)
-    {
-      id: "Suggestions",
-      label: "Suggestions",
-      kind: "index",
-      input: "select",
-      options: () => buildSuggestionsOptions(),
-      group: "Suggestions",
-    },
-
     // Relations & Tree
     {
       id: "Tree",

@@ -140,10 +140,13 @@ export function extractSuggestionId(query) {
 }
 
 // Internal helper - creates the URL object
-function createUrl(query, searchType, includeRender, suggestionId = "") {
+function createUrl(query, searchType, includeRender, suggestionId = "", suggestionOptions = {}) {
   const u = new URL(WTPLUS_BASE);
   if (searchType === "suggestions") {
     u.searchParams.set("report", "err6");
+    const showHidden = !!suggestionOptions.showHidden;
+    const hideActive = !!suggestionOptions.hideActive;
+    const maxErrors = suggestionOptions.maxErrors || "1000";
     const resolvedSuggestionId = suggestionId || extractSuggestionId(query);
     if (resolvedSuggestionId) {
       u.searchParams.set("ErrorID", resolvedSuggestionId);
@@ -159,7 +162,13 @@ function createUrl(query, searchType, includeRender, suggestionId = "") {
         u.searchParams.set("Query", cleanedQuery);
       }
     }
-    u.searchParams.set("MaxErrors", "1000");
+    u.searchParams.set("MaxErrors", String(maxErrors));
+    if (showHidden) {
+      u.searchParams.set("ShowHidden", "1");
+    }
+    if (hideActive) {
+      u.searchParams.set("HideActive", "1");
+    }
     if (includeRender) {
       // For suggestions, use wbe=1 to trigger auto-submit instead of render=1
       u.searchParams.set("wbe", "1");
@@ -175,13 +184,13 @@ function createUrl(query, searchType, includeRender, suggestionId = "") {
 }
 
 // Exported version that gets searchType from global state (passed from caller)
-export function buildPlusUrl(query, searchType, includeRender = false, suggestionId = "") {
-  const u = createUrl(query, searchType, includeRender, suggestionId);
+export function buildPlusUrl(query, searchType, includeRender = false, suggestionId = "", suggestionOptions = {}) {
+  const u = createUrl(query, searchType, includeRender, suggestionId, suggestionOptions);
   return u.toString();
 }
 
 // Exported version for form population
-export function populatePlusForm(query, searchType, $) {
+export function populatePlusForm(query, searchType, $, suggestionOptions = {}) {
   const q = String(query || "").trim();
   if (!q) return;
 
@@ -201,6 +210,11 @@ export function populatePlusForm(query, searchType, $) {
         const $query = $form.find("[name='Query']");
         const $errorId = $form.find("select[name='ErrorID'], #ErrorID");
         const $maxErrors = $form.find("[name='MaxErrors']");
+        const $showHidden = $form.find("[name='ShowHidden']");
+        const $hideActive = $form.find("[name='HideActive']");
+        const showHidden = !!suggestionOptions.showHidden;
+        const hideActive = !!suggestionOptions.hideActive;
+        const maxErrors = suggestionOptions.maxErrors || "1000";
 
         if (suggestionId) {
           // Remove the suggestions=XXX part from the query and filter for supported fields
@@ -215,7 +229,9 @@ export function populatePlusForm(query, searchType, $) {
           const cleanedQuery = filterQueryForSuggestions(q);
           if ($query.length) $query.val(cleanedQuery);
         }
-        if ($maxErrors.length) $maxErrors.val("1000");
+        if ($maxErrors.length) $maxErrors.val(String(maxErrors));
+        if ($showHidden.length) $showHidden.prop("checked", showHidden);
+        if ($hideActive.length) $hideActive.prop("checked", hideActive);
       }, 100);
     }
   } else {
