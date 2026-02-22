@@ -422,9 +422,11 @@ class FeedHelper {
     this.anomaliesStorageKey = "FeedHelper-anomalies";
     this.activityWarningsStorageKey = "FeedHelper-activity-warnings";
     this.dismissedWarningsStorageKey = "FeedHelper-dismissed-warnings"; // Global dismissed warnings
+    this.hideWhitelistActivityStorageKey = "FeedHelper-hideWhitelistActivity";
     this.lastActiveKey = "FeedHelper-last-active";
     this.sessionTimeoutHours = 2; // Clean up data older than 2 hours
     this.storedActivityWarnings = {}; // Rapid activity alerts restored from storage
+    this.hideWhitelistActivityEnabled = localStorage.getItem(this.hideWhitelistActivityStorageKey) === "true";
 
     // Set up localStorage with time-based cleanup
     this.setupBioStorage();
@@ -718,6 +720,9 @@ class FeedHelper {
       whitelist.push(userID);
       localStorage.setItem("FeedHelper-activityWhitelist", JSON.stringify(whitelist));
       this.debug(`Added ${userID} to activity whitelist`);
+      if (this.hideWhitelistActivityEnabled) {
+        this.applyWhitelistActivityVisibility();
+      }
     }
   }
 
@@ -728,6 +733,7 @@ class FeedHelper {
       whitelist.splice(index, 1);
       localStorage.setItem("FeedHelper-activityWhitelist", JSON.stringify(whitelist));
       this.debug(`Removed ${userID} from activity whitelist`);
+      this.applyWhitelistActivityVisibility();
     }
   }
 
@@ -756,6 +762,88 @@ class FeedHelper {
         $(this).removeClass("highlight");
       }
     });
+  }
+
+  ensureWhitelistActivityHideStyle() {
+    if (document.getElementById("feedHelperWhitelistHideStyle")) {
+      return;
+    }
+
+    const style = document.createElement("style");
+    style.id = "feedHelperWhitelistHideStyle";
+    style.textContent = `.feed-item.feed-helper-whitelist-hidden { display: none !important; }`;
+    document.head.appendChild(style);
+  }
+
+  getFeedItemActorId($item) {
+    if (!$item || typeof $item.find !== "function") {
+      return null;
+    }
+
+    const actorLink = $item.find("a[href*='/wiki/']").first();
+    if (!actorLink || actorLink.length === 0) {
+      return null;
+    }
+
+    const href = actorLink.attr("href") || "";
+    const match = href.match(/\/wiki\/([^/?#]+)/i);
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+
+  updateWhitelistActivityToggleButtonLabel() {
+    const $button = $("#toggleWhitelistActivityButton");
+    if ($button.length === 0) {
+      return;
+    }
+
+    if (this.hideWhitelistActivityEnabled) {
+      $button.text("Show Whitelist Activity");
+      $button.attr("title", "Show feed activity by whitelisted members");
+    } else {
+      $button.text("Hide Whitelist Activity");
+      $button.attr("title", "Hide feed activity by whitelisted members");
+    }
+  }
+
+  applyWhitelistActivityVisibility() {
+    this.ensureWhitelistActivityHideStyle();
+
+    const whitelist = this.getWhitelist();
+    const whitelistSet = new Set(whitelist.map((id) => String(id).toLowerCase()));
+    const hideEnabled = !!this.hideWhitelistActivityEnabled;
+
+    let hiddenCount = 0;
+    $("span.feed-item").each((_, element) => {
+      const $item = $(element);
+
+      if (!hideEnabled || whitelistSet.size === 0) {
+        $item.removeClass("feed-helper-whitelist-hidden");
+        return;
+      }
+
+      const actorId = this.getFeedItemActorId($item);
+      const isWhitelisted = actorId ? whitelistSet.has(String(actorId).toLowerCase()) : false;
+
+      if (isWhitelisted) {
+        $item.addClass("feed-helper-whitelist-hidden");
+        hiddenCount++;
+      } else {
+        $item.removeClass("feed-helper-whitelist-hidden");
+      }
+    });
+
+    this.updateWhitelistActivityToggleButtonLabel();
+    this.debug(
+      `Whitelist activity visibility applied: hideEnabled=${hideEnabled}, whitelistedUsers=${whitelistSet.size}, hiddenItems=${
+        hideEnabled ? hiddenCount : 0
+      }`
+    );
+  }
+
+  toggleWhitelistActivityVisibility() {
+    this.hideWhitelistActivityEnabled = !this.hideWhitelistActivityEnabled;
+    localStorage.setItem(this.hideWhitelistActivityStorageKey, String(this.hideWhitelistActivityEnabled));
+    this.applyWhitelistActivityVisibility();
   }
 
   showWhitelistManager() {
@@ -2795,6 +2883,27 @@ class FeedHelper {
     whitelistButton.on("click", () => this.showWhitelistManager());
   }
 
+  addWhitelistActivityToggleButton() {
+    const existing = $("#toggleWhitelistActivityButton");
+    if (existing.length > 0) {
+      this.updateWhitelistActivityToggleButtonLabel();
+      return;
+    }
+
+    const toggleButton = $(
+      `<button id="toggleWhitelistActivityButton" class="button small" style="float: right;"></button>`
+    );
+
+    this.feedHelperButtons.append(toggleButton);
+    this.updateWhitelistActivityToggleButtonLabel();
+
+    $(document).on("click", "#toggleWhitelistActivityButton", () => {
+      this.toggleWhitelistActivityVisibility();
+    });
+
+    this.applyWhitelistActivityVisibility();
+  }
+
   getCurrentConfig() {
     // Get each item from config and check if its inURL parameter is in the URL
     // Order matters - more specific matches should come first
@@ -3911,6 +4020,7 @@ class FeedHelper {
     }
 
     // Add management buttons on the right
+    this.addWhitelistActivityToggleButton(); // Management button - right side
     this.addClearCacheButton(); // Management button - right side
     this.addWhitelistButton(); // Management button - right side
 
