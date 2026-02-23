@@ -3,7 +3,6 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { getConnectionJSON, getRelationJSON } from "../../core/API/wwwWikiTree";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { mainDomain, isProfileEdit, isProfilePage } from "../../core/pageType";
 import { getProfilePersonInfo } from "../../core/common";
@@ -21,6 +20,8 @@ let profileID;
 let options = {};
 
 const WBE_DIST_REL_APP_ID = "WBE_distance_and_relationship";
+const DIST_REL_REFRESH_INTERVAL_MS = 12 * 60 * 60 * 1000;
+const EN_DASH = "\u2013";
 
 const fixOrdinalSuffix = (text) => {
   const pattern = /(\d+)(?:st|nd|rd|th)\b/g;
@@ -50,11 +51,40 @@ const cleanCommonAncestors = (commonAncestors) => {
   if (!commonAncestors) return [];
   return commonAncestors.map((ancestor) => {
     const { mDerived, ...cleanedAncestor } = ancestor.ancestor;
-    cleanedAncestor.mDerived = { LongNameWithDates: mDerived.LongNameWithDates };
+    cleanedAncestor.mDerived = { LongNameWithDates: normalizeDateRangeDashes(mDerived.LongNameWithDates) };
     return {
       ...ancestor,
       ancestor: cleanedAncestor,
     };
+  });
+};
+
+const normalizeDateRangeDashes = (text) => {
+  if (!text) return text;
+  return text.replace(/(?<=\()([^()]*?)(\d{3,4}s?|unknown|\?)-(\d{3,4}s?|unknown|\?)([^()]*)?(?=\))/gi, (_match, pre, left, right, post = "") => {
+    return `${pre || ""}${left}${EN_DASH}${right}${post || ""}`;
+  });
+};
+
+const sortCommonAncestorsByGender = (commonAncestors) => {
+  if (!Array.isArray(commonAncestors)) return [];
+
+  const genderRank = (gender) => {
+    if (gender === "Male") return 0;
+    if (gender === "Female") return 1;
+    return 2;
+  };
+
+  return [...commonAncestors].sort((left, right) => {
+    const rankDiff =
+      genderRank(left?.ancestor?.mGender || left?.ancestor?.Gender) -
+      genderRank(right?.ancestor?.mGender || right?.ancestor?.Gender);
+
+    if (rankDiff !== 0) return rankDiff;
+
+    const leftName = String(left?.ancestor?.mName || "");
+    const rightName = String(right?.ancestor?.mName || "");
+    return leftName.localeCompare(rightName);
   });
 };
 
@@ -177,9 +207,10 @@ function onRelationsSuccess(event, profileID, userID) {
   getRelationReq.onsuccess = function () {
     if (getRelationReq.result != undefined) {
       if ($(".yourRelationshipText").length < 2) {
+        const sortedAncestors = sortCommonAncestorsByGender(getRelationReq.result.commonAncestors);
         addRelationshipText(
           getRelationReq.result.relationship,
-          cleanCommonAncestors(getRelationReq.result.commonAncestors)
+          cleanCommonAncestors(sortedAncestors)
         );
       }
     }
@@ -207,28 +238,12 @@ function onDistancesSuccess(event, profileID, userID) {
           `<span class='distanceFromYou' title='${profileName} is ${getDistanceReq.result.distance} degrees from you. \nClick to refresh.'>${getDistanceReq.result.distance}°</span>`
         )
       );
-      // Add a big hover text thing
-      $(".distanceFromYou")
-        .on("mouseenter", function () {
-          const offset = $(this).offset();
-          const tooltip = $('<div id="distanceFromYouTooltip">Click to refresh</div>').css({
-            top: offset.top + $(this).outerHeight() + 5,
-            left: offset.left,
-            position: "absolute",
-          });
-          $("body").append(tooltip);
-        })
-        .on("mouseleave", function () {
-          $("#distanceFromYouTooltip").remove();
-        });
+      attachDistanceHandlers(userID, profileID);
 
-      $(".distanceFromYou").on("click", function (e) {
-        e.preventDefault();
-        $("#distanceFromYouTooltip").remove();
-        $(this).fadeOut("slow").remove();
-        $(".yourRelationshipText").fadeOut("slow").remove();
-        initDistanceAndRelationship(userID, profileID, true);
-      });
+      if (isCacheRefreshDue(getDistanceReq.result)) {
+        console.log("Distance/relationship cache is stale, refreshing in background");
+        initDistanceAndRelationship(userID, profileID, false, false);
+      }
     }
   };
 
@@ -311,101 +326,258 @@ function commonAncestorText(commonAncestors) {
   return result;
 }
 
-function doRelationshipText(userID, profileID) {
-  getRelationJSON("DistanceAndRelationship_Relationship", userID, profileID).then(function (data) {
-    if (data) {
-      let relationshipText = "";
-      let hasRelationship = true;
+function isUpPathType(pathType) {
+  return ["parent", "father", "mother"].includes((pathType || "").toLowerCase());
+}
 
-      // Parse the returned HTML
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(data.html, "text/html");
+function isDownPathType(pathType) {
+  return ["child", "son", "daughter"].includes((pathType || "").toLowerCase());
+}
 
-      // Check for "No Relationship Found"
-      const h2Element = doc.querySelector("h2");
-      if (h2Element && h2Element.textContent.trim() === "No Relationship Found") {
-        hasRelationship = false;
-        console.log("No Relationship Found");
+function removedText(removed) {
+  if (removed === 1) return " once removed";
+  if (removed === 2) return " twice removed";
+  return ` ${removed} times removed`;
+}
+
+function longNameWithDatesFromPathPerson(pathPerson) {
+  const firstName = pathPerson.FirstName || "";
+  const lastName = pathPerson.LastNameCurrent || pathPerson.LastNameAtBirth || "";
+  const baseName = [firstName, lastName].filter(Boolean).join(" ").trim() || pathPerson.Name || "Unknown";
+  const birthDecade = pathPerson.BirthDateDecade || "?";
+  const deathDecade = pathPerson.DeathDateDecade || "?";
+  return `${baseName} (${birthDecade}${EN_DASH}${deathDecade})`;
+}
+
+function descendantType(stepsDown, gender) {
+  const childType = gender === "Male" ? "son" : gender === "Female" ? "daughter" : "child";
+  if (stepsDown <= 1) return childType;
+  if (stepsDown === 2) return `grand${childType}`;
+  if (stepsDown === 3) return `great grand${childType}`;
+  return `${ordinal(stepsDown - 2)} great grand${childType}`;
+}
+
+function auntUncleType(stepsUp, gender) {
+  const base = gender === "Male" ? "uncle" : gender === "Female" ? "aunt" : "aunt or uncle";
+  if (stepsUp <= 1) return base;
+  if (stepsUp === 2) return `grand ${base}`;
+  if (stepsUp === 3) return `great grand ${base}`;
+  return `${ordinal(stepsUp - 3)} great grand ${base}`;
+}
+
+function nieceNephewType(stepsDown, gender) {
+  const base = gender === "Male" ? "nephew" : gender === "Female" ? "niece" : "niece or nephew";
+  if (stepsDown <= 1) return base;
+  if (stepsDown === 2) return `grand ${base}`;
+  if (stepsDown === 3) return `great grand ${base}`;
+  return `${ordinal(stepsDown - 3)} great grand ${base}`;
+}
+
+function analyzeAncestorPath(path) {
+  let upSteps = 0;
+  for (let index = 1; index < path.length; index++) {
+    if (isUpPathType(path[index]?.pathType)) {
+      upSteps++;
+    } else {
+      break;
+    }
+  }
+
+  const ancestorIndex = upSteps;
+  let downSteps = 0;
+  for (let index = ancestorIndex + 1; index < path.length; index++) {
+    if (isDownPathType(path[index]?.pathType)) {
+      downSteps++;
+    }
+  }
+
+  return {
+    upSteps,
+    downSteps,
+    ancestorIndex,
+    ancestorNode: path[ancestorIndex],
+  };
+}
+
+function relationshipFromPathAnalysis(pathAnalysis, profileGender) {
+  const { upSteps, downSteps } = pathAnalysis;
+
+  if (upSteps === 0 && downSteps === 0) return "self";
+  if (downSteps === 0) return ancestorType(Math.max(upSteps - 1, 0), profileGender)?.toLowerCase() || "relative";
+  if (upSteps === 0) return descendantType(downSteps, profileGender);
+
+  if (upSteps === 1 && downSteps === 1) {
+    return profileGender === "Male" ? "brother" : profileGender === "Female" ? "sister" : "sibling";
+  }
+  if (upSteps >= 2 && downSteps === 1) {
+    return auntUncleType(upSteps, profileGender);
+  }
+  if (upSteps === 1 && downSteps >= 2) {
+    return nieceNephewType(downSteps, profileGender);
+  }
+
+  const cousinNumber = Math.min(upSteps, downSteps) - 1;
+  let relationship = cousinNumber > 0 ? `${ordinal(cousinNumber)} cousin` : "cousin";
+  const removed = Math.abs(upSteps - downSteps);
+  if (removed > 0) {
+    relationship += removedText(removed);
+  }
+  return relationship;
+}
+
+function asCommonAncestorEntry(person, path1Length, path2Length) {
+  if (!person || !person.Name) return null;
+  return {
+    ancestor_id: person.Id,
+    path1Length,
+    path2Length,
+    ancestor: {
+      mId: person.Id,
+      mName: person.Name,
+      mFirstName: person.FirstName || "",
+      mLastNameCurrent: person.LastNameCurrent || "",
+      mLastNameAtBirth: person.LastNameAtBirth || "",
+      mGender: person.Gender || "",
+      mDerived: {
+        LongNameWithDates: longNameWithDatesFromPathPerson(person),
+      },
+    },
+  };
+}
+
+function commonAncestorsFromPath(path, pathAnalysis) {
+  const ancestor = pathAnalysis.ancestorNode;
+  const entry = asCommonAncestorEntry(ancestor, pathAnalysis.upSteps, pathAnalysis.downSteps);
+  return entry ? [entry] : [];
+}
+
+async function augmentWithOtherParentCommonAncestor(userID, profileID, pathAnalysis, commonAncestors) {
+  if (!(pathAnalysis.upSteps >= 1 && pathAnalysis.downSteps >= 1)) {
+    return commonAncestors;
+  }
+
+  let nextAncestors = commonAncestors;
+
+  if (pathAnalysis.downSteps === 1) {
+    try {
+      const relatives = await WikiTreeAPI.getRelatives(
+        WBE_DIST_REL_APP_ID,
+        [profileID],
+        "Id,Name,Gender,FirstName,LastNameCurrent,LastNameAtBirth,BirthDateDecade,DeathDateDecade",
+        { getParents: true }
+      );
+
+      const person = relatives?.[0]?.person;
+      const parents = person?.Parents ? Object.values(person.Parents) : [];
+      const directAncestorId = Number(pathAnalysis.ancestorNode?.Id);
+      const otherParent = parents.find((parent) => Number(parent?.Id) !== directAncestorId && parent?.Name);
+
+      const otherParentEntry = asCommonAncestorEntry(otherParent, pathAnalysis.upSteps, pathAnalysis.downSteps);
+      if (otherParentEntry) {
+        const alreadyIncluded = nextAncestors.some(
+          (ancestor) => String(ancestor?.ancestor?.mName || "") === String(otherParentEntry.ancestor.mName)
+        );
+        if (!alreadyIncluded) {
+          nextAncestors = [...nextAncestors, otherParentEntry];
+        }
       }
+    } catch (error) {
+      console.log("Could not retrieve second parent for common ancestor display", error);
+    }
+  }
 
-      if (hasRelationship) {
-        const firstP = doc.querySelector("h3");
-        if (firstP) {
-          const firstPText = firstP.textContent.replace(/[\t\n]/g, " ").trim();
-          const lastLink = decodeURIComponent(
-            doc.querySelector("#imageContainer > p > span:last-of-type a")?.href || ""
-          ).replaceAll(" ", "_");
-          const profileFirstName = profilePerson.FirstName;
+  if (nextAncestors.length < 2) {
+    try {
+      const pivotAncestorName = pathAnalysis.ancestorNode?.Name;
+      if (!pivotAncestorName) return nextAncestors;
 
-          if (data.commonAncestors.length === 0) {
-            const bold = doc.querySelector("b");
-            const boldParentHTML = bold?.parentElement.innerHTML || "";
-            relationshipText = bold?.textContent || "";
-            if (boldParentHTML.includes(profileFirstName) && !lastLink.includes(profileID)) {
-              relationshipText = firstPText
-                .replace("(DNA Confirmed)", "")
-                .replace("(Confident)", "")
-                .trim()
-                .toLowerCase();
-            }
-          } else {
-            const profileGender = profilePerson.Gender;
+      const relatives = await WikiTreeAPI.getRelatives(
+        WBE_DIST_REL_APP_ID,
+        [pivotAncestorName],
+        "Id,Name,Gender,FirstName,LastNameCurrent,LastNameAtBirth,BirthDateDecade,DeathDateDecade",
+        { getSpouses: true }
+      );
 
-            if (firstPText.includes("is the")) {
-              relationshipText = firstPText.split("is the ")[1].split(" of")[0];
-            } else if (firstPText.includes(" are ")) {
-              relationshipText = firstPText
-                .split("are ")[1]
-                .replace(/cousins/, "cousin")
-                .replace(/siblings/, "sibling");
-            }
+      const pivotPerson = relatives?.[0]?.person;
+      const spouses = pivotPerson?.Spouses ? Object.values(pivotPerson.Spouses).filter((spouse) => spouse?.Name) : [];
+      if (spouses.length === 0) return nextAncestors;
 
-            if (/nephew|niece/.test(relationshipText)) {
-              if (/(nephew|niece) or (nephew|niece)/.test(relationshipText)) {
-                relationshipText = relationshipText.replace(/nephew/, "uncle").replace(/niece/, "aunt");
-              } else {
-                relationshipText =
-                  profileGender === "Male"
-                    ? relationshipText.replace(/nephew|niece/, "uncle")
-                    : profileGender === "Female"
-                    ? relationshipText.replace(/nephew|niece/, "aunt")
-                    : relationshipText.replace(/nephew|niece/, "uncle or aunt");
-              }
-            }
-
-            const userFirstName =
-              doc
-                .querySelector(`span.ancestor_1`)
-                ?.textContent.replace(/[\t\n ]+/g, " ")
-                .trim()
-                .split(" ")[1] || "";
-
-            if (firstPText.includes(`${userFirstName}'s`)) {
-              relationshipText = firstPText.split(`${userFirstName}'s`)[1].trim();
-            }
-          }
-
-          // Convert ordinal words to numbers
-          let relationshipParts = relationshipText.split(" ");
-          relationshipParts[0] = ordinalWordToNumberAndSuffix(relationshipParts[0]);
-          relationshipText = fixOrdinalSuffix(relationshipParts.join(" "));
-          console.log(relationshipText);
-
-          // The relationship server returns the common ancestors with path lengths equal to the
-          // number of people in the path (start and end included), while CC7 Views calclates the
-          // path lengths (and stores them in RELATIONSHIP_STORE_NAME) as the number of edges in
-          // the path. The following is to make the 2 compatible.
-          data.commonAncestors.forEach((ancestor) => {
-            ancestor.path1Length = reducePathLength(ancestor.path1Length);
-            ancestor.path2Length = reducePathLength(ancestor.path2Length);
-          });
-
-          // Insert relationship text
-          addRelationshipText(relationshipText, cleanCommonAncestors(data.commonAncestors));
+      const pivotGender = pathAnalysis.ancestorNode?.Gender;
+      let spouse = spouses[0];
+      if (pivotGender) {
+        const oppositeGenderSpouse = spouses.find((candidate) => candidate?.Gender && candidate.Gender !== pivotGender);
+        if (oppositeGenderSpouse) {
+          spouse = oppositeGenderSpouse;
         }
       }
 
-      // Save to the database
+      const spouseEntry = asCommonAncestorEntry(spouse, pathAnalysis.upSteps, pathAnalysis.downSteps);
+      if (!spouseEntry) return nextAncestors;
+
+      const alreadyIncluded = nextAncestors.some(
+        (ancestor) => String(ancestor?.ancestor?.mName || "") === String(spouseEntry.ancestor.mName)
+      );
+      return alreadyIncluded ? nextAncestors : [...nextAncestors, spouseEntry];
+    } catch (error) {
+      console.log("Could not retrieve spouse for second common ancestor display", error);
+    }
+  }
+
+  return nextAncestors;
+}
+
+function isCacheRefreshDue(cacheRecord) {
+  const updatedAt = Number(cacheRecord?.updatedAt || 0);
+  if (!Number.isFinite(updatedAt) || updatedAt <= 0) {
+    return true;
+  }
+  return Date.now() - updatedAt >= DIST_REL_REFRESH_INTERVAL_MS;
+}
+
+function attachDistanceHandlers(userID, profileID) {
+  $(".distanceFromYou")
+    .off("mouseenter.distRel mouseleave.distRel click.distRel")
+    .on("mouseenter.distRel", function () {
+      const offset = $(this).offset();
+      const tooltip = $('<div id="distanceFromYouTooltip">Click to refresh</div>').css({
+        top: offset.top + $(this).outerHeight() + 5,
+        left: offset.left,
+        position: "absolute",
+      });
+      $("body").append(tooltip);
+    })
+    .on("mouseleave.distRel", function () {
+      $("#distanceFromYouTooltip").remove();
+    })
+    .on("click.distRel", function (e) {
+      e.preventDefault();
+      $("#distanceFromYouTooltip").remove();
+      $(this).fadeOut("slow").remove();
+      $(".yourRelationshipText").fadeOut("slow").remove();
+      initDistanceAndRelationship(userID, profileID, true);
+    });
+}
+
+function doRelationshipText(userID, profileID) {
+  WikiTreeAPI.getConnections(
+    WBE_DIST_REL_APP_ID,
+    [userID, profileID],
+    "Id,Name,Gender,FirstName,LastNameCurrent,LastNameAtBirth,BirthDateDecade,DeathDateDecade",
+    { relation: 2 }
+  )
+    .then(async function (data) {
+      let relationshipText = "";
+      let commonAncestors = [];
+
+      if (data && Array.isArray(data.path) && data.path.length > 0) {
+        const pathAnalysis = analyzeAncestorPath(data.path);
+        relationshipText = relationshipFromPathAnalysis(pathAnalysis, profilePerson.Gender);
+        commonAncestors = commonAncestorsFromPath(data.path, pathAnalysis);
+        commonAncestors = await augmentWithOtherParentCommonAncestor(userID, profileID, pathAnalysis, commonAncestors);
+        commonAncestors = sortCommonAncestorsByGender(commonAncestors);
+        addRelationshipText(relationshipText, cleanCommonAncestors(commonAncestors));
+      }
+
       initRelationshipDB((event) => {
         const relationshipFinderDB = event.target.result;
         const obj = {
@@ -414,12 +586,15 @@ function doRelationshipText(userID, profileID) {
           id: profileID,
           distance: window.distance,
           relationship: relationshipText,
-          commonAncestors: cleanCommonAncestors(data.commonAncestors),
+          commonAncestors: cleanCommonAncestors(commonAncestors),
+          updatedAt: Date.now(),
         };
         addToDBAndClose(relationshipFinderDB, RELATIONSHIP_STORE_NAME, obj);
       });
-    }
-  });
+    })
+    .catch((error) => {
+      console.log("Error while retrieving relationship from getConnections", error);
+    });
 }
 
 const reducePathLength = (len) => {
@@ -431,39 +606,52 @@ async function addDistance(data) {
   const profileID = profilePerson.Name;
   const userID = getUserWtId();
 
-  if ($(".distanceFromYou").length < 2) {
+  const pathLength = Number(data?.pathLength);
+  if (Number.isFinite(pathLength) && pathLength > 0) {
+    window.distance = pathLength - 1;
+  } else if (Array.isArray(data?.path) && data.path.length > 0) {
     window.distance = data.path.length - 1;
-    const profileName = profilePerson.FirstName;
-    if (window.distance > 0) {
-      $("#person h1").append(
-        $(
-          `<span class='distanceFromYou' title='${profileName} is ${window.distance} degrees from you.'>${window.distance}°</span>`
-        )
-      );
-    }
-    initDistanceDB((event) => {
-      const connectionFinderDB = event.target.result;
-      const obj = {
-        theKey: distRelDbKeyFor(profileID, userID),
-        userId: userID,
-        id: profileID,
-        distance: window.distance,
-      };
-      addToDBAndClose(connectionFinderDB, CONNECTION_STORE_NAME, obj);
-    });
-
-    // Add distance data to RF DB here
-    initRelationshipDB((event) => {
-      const relationshipFinderDB = event.target.result;
-      const obj = {
-        theKey: distRelDbKeyFor(profileID, userID),
-        userId: userID,
-        id: profileID,
-        distance: window.distance,
-      };
-      addToDBAndClose(relationshipFinderDB, RELATIONSHIP_STORE_NAME, obj);
-    });
+  } else {
+    window.distance = -1;
   }
+
+  $(".distanceFromYou").remove();
+  $("#distanceFromYouTooltip").remove();
+
+  const profileName = profilePerson.FirstName;
+  if (window.distance > 0) {
+    $("#person h1").append(
+      $(
+        `<span class='distanceFromYou' title='${profileName} is ${window.distance} degrees from you.'>${window.distance}°</span>`
+      )
+    );
+    attachDistanceHandlers(userID, profileID);
+  }
+
+  initDistanceDB((event) => {
+    const connectionFinderDB = event.target.result;
+    const obj = {
+      theKey: distRelDbKeyFor(profileID, userID),
+      userId: userID,
+      id: profileID,
+      distance: window.distance,
+      updatedAt: Date.now(),
+    };
+    addToDBAndClose(connectionFinderDB, CONNECTION_STORE_NAME, obj);
+  });
+
+  // Add distance data to RF DB here
+  initRelationshipDB((event) => {
+    const relationshipFinderDB = event.target.result;
+    const obj = {
+      theKey: distRelDbKeyFor(profileID, userID),
+      userId: userID,
+      id: profileID,
+      distance: window.distance,
+      updatedAt: Date.now(),
+    };
+    addToDBAndClose(relationshipFinderDB, RELATIONSHIP_STORE_NAME, obj);
+  });
 }
 
 function storeProfileIfCreated() {
@@ -517,7 +705,12 @@ function checkProfileCreationTime(wtId) {
 async function getDistance() {
   const id2 = profileID;
   const id1 = getUserWtId();
-  const data = await getConnectionJSON("DistanceAndRelationship_Distance", id1, id2);
+  const data = await WikiTreeAPI.getConnections(
+    WBE_DIST_REL_APP_ID,
+    [id1, id2],
+    "Id,Name,Gender",
+    { relation: 0 }
+  );
   addDistance(data);
 }
 
@@ -551,7 +744,7 @@ export function ancestorType(generation, gender) {
     relType = "Grand" + relType.toLowerCase();
   }
   if (generation >= 2) {
-    relType = "Great-" + relType.toLowerCase();
+    relType = "Great " + relType.toLowerCase();
   }
   if (generation >= 3) {
     relType = ordinal(generation - 1) + " " + relType;
@@ -629,9 +822,11 @@ export function ordinalWordToNumberAndSuffix(word) {
   return ordinalsMap[word] || word;
 }
 
-function initDistanceAndRelationship(userID, profileID, clicked = false) {
-  $(".distanceFromYou").fadeOut().remove();
-  $(".yourRelationshipText").fadeOut().remove();
+function initDistanceAndRelationship(userID, profileID, clicked = false, clearExisting = true) {
+  if (clearExisting) {
+    $(".distanceFromYou").fadeOut().remove();
+    $(".yourRelationshipText").fadeOut().remove();
+  }
   if (clicked == true) {
     getDistance();
     doRelationshipText(userID, profileID);

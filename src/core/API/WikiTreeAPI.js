@@ -422,6 +422,28 @@ WikiTreeAPI.getPeople = async function (appId, IDs, fields, options = {}) {
 };
 
 /**
+ * Find the connection path between two profiles.
+ *
+ * @param {*} appId An application id (any string). 'WBE_' will be prepended if not present already
+ * @param {*} keys Two IDs as an array or comma-separated string
+ * @param {*} fields Optional fields to include for each visible profile in the path
+ * @param {*} options Optional parameters for getConnections (e.g., relation, ignoreIds, nopath)
+ * @returns The first object in the API response array with status, path/pathLength, etc.
+ */
+WikiTreeAPI.getConnections = async function (appId, keys, fields = [], options = {}) {
+  const parameters = { ...options };
+  parameters.appId = appId;
+  parameters.action = "getConnections";
+  parameters.keys = commaSeparatedString(keys);
+  if (fields && commaSeparatedString(fields) !== "") {
+    parameters.fields = commaSeparatedString(fields);
+  }
+
+  const result = await WikiTreeAPI.postToAPI(parameters);
+  return result[0];
+};
+
+/**
  * To get the Watchlist for the logged in user, we POST to the API's getWatchlist action. When we get a result back,
  * we leave the result as an array of objects
  * Note that postToAPI returns the Promise from JavaScript's fetch() call.
