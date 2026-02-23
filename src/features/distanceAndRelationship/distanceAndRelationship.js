@@ -61,9 +61,12 @@ const cleanCommonAncestors = (commonAncestors) => {
 
 const normalizeDateRangeDashes = (text) => {
   if (!text) return text;
-  return text.replace(/(?<=\()([^()]*?)(\d{3,4}s?|unknown|\?)-(\d{3,4}s?|unknown|\?)([^()]*)?(?=\))/gi, (_match, pre, left, right, post = "") => {
-    return `${pre || ""}${left}${EN_DASH}${right}${post || ""}`;
-  });
+  return text.replace(
+    /(?<=\()([^()]*?)(\d{3,4}s?|unknown|\?)-(\d{3,4}s?|unknown|\?)([^()]*)?(?=\))/gi,
+    (_match, pre, left, right, post = "") => {
+      return `${pre || ""}${left}${EN_DASH}${right}${post || ""}`;
+    }
+  );
 };
 
 const sortCommonAncestorsByGender = (commonAncestors) => {
@@ -208,10 +211,7 @@ function onRelationsSuccess(event, profileID, userID) {
     if (getRelationReq.result != undefined) {
       if ($(".yourRelationshipText").length < 2) {
         const sortedAncestors = sortCommonAncestorsByGender(getRelationReq.result.commonAncestors);
-        addRelationshipText(
-          getRelationReq.result.relationship,
-          cleanCommonAncestors(sortedAncestors)
-        );
+        addRelationshipText(getRelationReq.result.relationship, cleanCommonAncestors(sortedAncestors));
       }
     }
   };
@@ -705,12 +705,7 @@ function checkProfileCreationTime(wtId) {
 async function getDistance() {
   const id2 = profileID;
   const id1 = getUserWtId();
-  const data = await WikiTreeAPI.getConnections(
-    WBE_DIST_REL_APP_ID,
-    [id1, id2],
-    "Id,Name,Gender",
-    { relation: 0 }
-  );
+  const data = await WikiTreeAPI.getConnections(WBE_DIST_REL_APP_ID, [id1, id2], "Id,Name,Gender", { relation: 0 });
   addDistance(data);
 }
 
