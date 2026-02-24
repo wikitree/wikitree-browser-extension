@@ -60,6 +60,7 @@ function newPersonRecord() {
     Link: "",
     MarriageDetails: "",
     MarriageMapLink: "",
+    RelationshipStatus: null,
     merge: false, // flag for mergeable records
     halfMarker: false, // contains the complete SMALL span containing [half], if present
     biological: false, // whether the person was marked [biological] in the original text
@@ -319,6 +320,7 @@ function parseSpousesBlock(spouseEls) {
     const spouseEl = spouse.querySelector('[itemprop="spouse"]');
     if (spouseEl) {
       const rec = parseItempropElement(spouseEl);
+      rec.RelationshipStatus = getRelationshipStatusFromElement(spouse);
       spouseEl.remove();
       let details = spouse.textContent || "";
       details = details.replace(/\s{2,}/g, " ").trim();
@@ -833,61 +835,27 @@ function buildParentsSection(parents) {
         hrefBit = "";
         p.Gender = p.Name.includes("father") ? "Male" : p.Name.includes("mother") ? "Female" : "";
       }
-      let status;
+      let relationshipStatus;
 
       if (profilePersonData?.DataStatus?.Father && p.relationship == "Father") {
-        status = profilePersonData.DataStatus?.Father;
+        relationshipStatus = profilePersonData.DataStatus?.Father;
         p.Gender = "Male";
       } else if (profilePersonData?.DataStatus?.Mother && p.relationship == "Mother") {
-        status = profilePersonData.DataStatus.Mother;
+        relationshipStatus = profilePersonData.DataStatus.Mother;
         p.Gender = "Female";
       }
-      let theStatusWord;
-      if (status) {
-        theStatusWord =
-          status == 5
-            ? "Non-biological"
-            : status == 10
-            ? "Uncertain"
-            : status == 20
-            ? "Certain"
-            : status == 30
-            ? "DNA confirmed"
-            : "";
-        const statusWord =
-          status == 5
-            ? "<span class='icon--dna-none wbe-icon' title='Non-biological'></span>"
-            : status == 10
-            ? "<span class='icon--uncertain wbe-icon' title='Uncertain'></span>"
-            : status == 20
-            ? "<span class='icon--confident wbe-icon' title='Certain'></span>"
-            : status == 30
-            ? "<span class='icon--dna-checked wbe-icon' style='background-size:40px 20px !important; width:40px !important'></span>"
-            : "";
-        status = ` <span class="dataStatus" title="">${statusWord}</span>`;
-      }
+      const statusUi = buildRelationshipStatusUi(relationshipStatus);
       li.innerHTML = `<span itemprop="${
         p.relationship || "parent"
       }" itemscope itemtype="https://schema.org/Person"><a ${hrefBit} itemprop="url" title="" aria-label="Parent"><span itemprop="name">${
         p.FullName || p.Name
       }${p.biological ? ' <span class="biological">[biological]</span>' : ""}</span>${
-        status || ""
+        statusUi.html
       }</a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
         dates.deathYear || ""
       }">${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
       ol.appendChild(li);
-      const tip =
-        status == "5"
-          ? "Non-biological"
-          : status == "10"
-          ? "Uncertain"
-          : status == "20"
-          ? "Certain"
-          : status == "30"
-          ? "DNA confirmed"
-          : "";
-      $(li).data("tooltip", theStatusWord).data("bs-tooltip", tip);
-      li.dataset.bsTooltip = tip;
+      applyRelationshipStatusTooltip(li, statusUi.label);
       li.dataset.gender = getGender(p);
     });
   }
@@ -1037,6 +1005,137 @@ function getGender(person) {
   return isMale && !notShow ? "Male" : isFemale && !notShow ? "Female" : "";
 }
 
+const RELATIONSHIP_STATUS_META = {
+  5: {
+    label: "Non-biological",
+    iconClass: "icon--dna-none",
+    iconHtml: "<span class='icon--dna-none wbe-icon' title='Non-biological'></span>",
+  },
+  10: {
+    label: "Uncertain",
+    iconClass: "icon--uncertain",
+    iconHtml: "<span class='icon--uncertain wbe-icon' title='Uncertain'></span>",
+  },
+  20: {
+    label: "Certain",
+    iconClass: "icon--confident",
+    iconHtml: "<span class='icon--confident wbe-icon' title='Certain'></span>",
+  },
+  30: {
+    label: "DNA confirmed",
+    iconClass: "icon--dna-checked",
+    iconHtml:
+      "<span class='icon--dna-checked wbe-icon' style='background-size:40px 20px !important; width:40px !important'></span>",
+  },
+};
+
+function getRelationshipStatusLabel(status) {
+  const normalizedStatus = Number(status);
+  return RELATIONSHIP_STATUS_META[normalizedStatus]?.label || "";
+}
+
+function getRelationshipStatusMeta(status) {
+  const normalizedStatus = Number(status);
+  return RELATIONSHIP_STATUS_META[normalizedStatus] || null;
+}
+
+function getRelationshipStatusByIconClass(iconClass) {
+  if (!iconClass) return null;
+  const entry = Object.entries(RELATIONSHIP_STATUS_META).find(([, meta]) => meta.iconClass === iconClass);
+  return entry ? Number(entry[0]) : null;
+}
+
+function getRelationshipStatusClassSelector() {
+  const iconClasses = Object.values(RELATIONSHIP_STATUS_META)
+    .map((meta) => `.${meta.iconClass}`)
+    .join(", ");
+  return iconClasses;
+}
+
+function getRelationshipStatusIconClassList() {
+  return Object.values(RELATIONSHIP_STATUS_META).map((meta) => meta.iconClass);
+}
+
+function getRelationshipStatusFromText(indicatorText) {
+  if (!indicatorText) return null;
+  const normalizedText = indicatorText.toLowerCase();
+
+  if (normalizedText.includes("non-biological")) return 5;
+  if (normalizedText.includes("uncertain")) return 10;
+  if (normalizedText.includes("dna confirmed") || normalizedText.includes("confirmed")) return 30;
+  if (/\bcertain\b/.test(normalizedText)) return 20;
+  return null;
+}
+
+function getRelationshipStatusIcon(status) {
+  const meta = getRelationshipStatusMeta(status);
+  if (meta) return meta.iconHtml;
+  return "";
+}
+
+function buildRelationshipStatusUi(status) {
+  const label = getRelationshipStatusLabel(status);
+  const icon = getRelationshipStatusIcon(status);
+  const html = icon ? ` <span class="dataStatus" title="">${icon}</span>` : "";
+  return { label, html };
+}
+
+function applyRelationshipStatusTooltip(li, label) {
+  $(li).data("tooltip", label).data("bs-tooltip", label);
+  li.dataset.bsTooltip = label;
+}
+
+function getRelationshipStatusFromElement(containerEl) {
+  if (!containerEl) return null;
+
+  const statusIcon = containerEl.querySelector(getRelationshipStatusClassSelector());
+  if (statusIcon) {
+    const matchedClass = getRelationshipStatusIconClassList().find((iconClass) =>
+      statusIcon.classList.contains(iconClass)
+    );
+    const status = getRelationshipStatusByIconClass(matchedClass);
+    if (status != null) return status;
+  }
+
+  const relationshipIndicator = containerEl.querySelector(
+    "[data-bs-title*='Relationship'], [title*='Relationship'], [aria-label*='Relationship']"
+  );
+  const indicatorText =
+    relationshipIndicator?.getAttribute("data-bs-title") ||
+    relationshipIndicator?.getAttribute("title") ||
+    relationshipIndicator?.getAttribute("aria-label") ||
+    "";
+
+  const statusFromText = getRelationshipStatusFromText(indicatorText);
+  if (statusFromText != null) return statusFromText;
+
+  return null;
+}
+
+function getChildStatusForProfile(childPerson) {
+  if (!childPerson || !profilePerson?.Id) return null;
+
+  const profileId = String(profilePerson.Id);
+  const fatherId = childPerson.Father != null ? String(childPerson.Father) : "";
+  const motherId = childPerson.Mother != null ? String(childPerson.Mother) : "";
+
+  if (fatherId && fatherId === profileId) {
+    return childPerson.DataStatus?.Father;
+  }
+  if (motherId && motherId === profileId) {
+    return childPerson.DataStatus?.Mother;
+  }
+
+  if (profilePerson?.Gender === "Male") {
+    return childPerson.DataStatus?.Father;
+  }
+  if (profilePerson?.Gender === "Female") {
+    return childPerson.DataStatus?.Mother;
+  }
+
+  return null;
+}
+
 /**
  * Builds the Spouses section DOM.
  * @param {Object[]} spouses - Array of spouse records.
@@ -1095,21 +1194,23 @@ function buildSpousesSection(spouses) {
     entry.setAttribute("data-gender", spouse.Gender);
 
     const isPrivate = spouse.Name.trim().toLowerCase().startsWith("[private");
+    const spouseStatusUi = buildRelationshipStatusUi(spouse.RelationshipStatus);
     if (spouse.Link && !isPrivate) {
       entry.innerHTML = `
         <a href="${spouse.Link}" itemprop="url" class="spouseLink">
           <span itemprop="name" class="spouse-name">
             ${spouse.FullName || spouse.Name}${spouse.biological ? ' <span class="biological">[biological]</span>' : ""}
-          </span>
+          </span>${spouseStatusUi.html}
         </a>`;
     } else {
       entry.innerHTML = `
         <span itemprop="name">
           <strong>${spouse.FullName || spouse.Name}${
         spouse.biological ? ' <span class="biological">[biological]</span>' : ""
-      }</strong>
+      }</strong>${spouseStatusUi.html}
         </span>`;
     }
+    applyRelationshipStatusTooltip(li, spouseStatusUi.label);
     grid.appendChild(entry);
 
     // Birth/death dates
@@ -1258,27 +1359,29 @@ function buildChildrenSection(children) {
     li.dataset.parseName = c.Name;
     const isPrivate = c.FullName.trim().toLowerCase().startsWith("[private");
     c.Gender = getGender(c);
+    const childPerson = c.Name ? getPersonByWtID(c.Name) : null;
+    const childStatus = getChildStatusForProfile(childPerson);
+    const childStatusUi = buildRelationshipStatusUi(childStatus);
     if (c.Link && !isPrivate) {
       li.innerHTML = `<span itemprop="children" itemtype="https://schema.org/Person">
           <a href="${
             c.Link.startsWith("http") ? c.Link : "https://" + mainDomain + c.Link
           }" itemprop="url" title="" aria-label="Child" class="childLink"><span itemprop="name">${
         c.FullName || c.Name
-      }${
-        c.biological ? ' <span class="biological">[biological]</span>' : ""
-      }</span></a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
-        dates.deathYear || ""
-      }">
+      }${c.biological ? ' <span class="biological">[biological]</span>' : ""}</span>${
+        childStatusUi.html
+      }</a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${dates.deathYear || ""}">
             ${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
     } else {
       li.innerHTML = `<span itemprop="children" class="privateChild" itemtype="https://schema.org/Person">
             <span itemprop="name">${c.FullName || c.Name}${
         c.biological ? ' <span class="biological">[biological]</span>' : ""
-      }</span><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+      }</span>${childStatusUi.html}<span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
         dates.deathYear || ""
       }">
              ${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
     }
+    applyRelationshipStatusTooltip(li, childStatusUi.label);
     if (!/^\[.*\?\]$/.test(c.Name)) {
       li.setAttribute("data-gender", c.Gender || "");
     }
