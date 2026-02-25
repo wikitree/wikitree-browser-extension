@@ -7302,8 +7302,20 @@ function addAccessedDate(citation) {
   if (citation.match(accessedPattern)) {
     console.log("Found accessed pattern, adding date");
     const today = new Date();
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 
-                    'July', 'August', 'September', 'October', 'November', 'December'];
+    const months = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
     const dateStr = `${months[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
     citation = citation.replace(accessedPattern, `: accessed ${dateStr})`);
     console.log("Updated citation:", citation.substring(0, 200));
