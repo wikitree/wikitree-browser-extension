@@ -1018,7 +1018,7 @@ function createSiblingListItem(s) {
     li.innerHTML = `<span itemprop="sibling" itemscope itemtype="https://schema.org/Person">
           <a href="${s.Link}" itemprop="url" title="" aria-label="Sibling"><span itemprop="name">${
       s.FullName || s.Name
-    }$${
+    }${
       s.biological ? ' <span class="biological">[biological]</span>' : ""
     }</span></a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
       dates.deathYear || ""
@@ -1581,16 +1581,14 @@ async function getWindowPeople() {
             if (DEBUG_FAMILY_LISTS)
               console.log(
                 "[CFL] merged parent fields into window.people sample",
-                mergedArr
-                  .slice(0, 5)
-                  .map((p) => ({
-                    Id: p.Id,
-                    Name: p.Name,
-                    Father: p.Father,
-                    Mother: p.Mother,
-                    BioFather: p.BioFather,
-                    BioMother: p.BioMother,
-                  }))
+                mergedArr.slice(0, 5).map((p) => ({
+                  Id: p.Id,
+                  Name: p.Name,
+                  Father: p.Father,
+                  Mother: p.Mother,
+                  BioFather: p.BioFather,
+                  BioMother: p.BioMother,
+                }))
               );
           }
         }
