@@ -7,6 +7,10 @@
   max-width: 40em;
 }
 
+#nVitals.vanilla #Spouses {
+  margin-bottom: 0;
+}
+
 #nVitals.vertical #childrenUnknown.vanilla,
 #nVitals.vertical #spousesUnknown.vanilla,
 .spouse.vanilla a {
@@ -520,21 +524,88 @@ body.darkMode .vertical .nameList li {
   border-right-color: #36393f;
 }
 
-.vertical #parentList li.parent_1,
-.vertical #bioParentList li.parent_1,
-body.darkMode .vertical #parentList li.parent_1,
-body.darkMode .vertical #bioParentList li.parent_1,
-.vertical .nameList li.parent_1 span[itemprop="sibling"],
-.vertical .nameList li span[itemprop="children"].parent_1,
-body.darkMode .vertical .nameList span[itemprop="sibling"].parent_1,
-body.darkMode .vertical .nameList span[itemprop="children"].parent_1 {
-  border-right: 3px solid indigo;
+.vertical #parentList li.parent_1:not(.activeProfile):not(#profilePerson),
+body.darkMode .vertical #parentList li.parent_1:not(.activeProfile):not(#profilePerson) {
+  /* Parent list: parent_1 (father) color - stronger blue */
+  border-right: 3px solid #0b62a4;
 }
 
-.vertical .nameList li.parent_2,
-body.darkMode .vertical .nameList li.parent_2,
-body.darkMode .vertical .nameList span.bdDates.parent_2 {
-  border-right: 3px solid orange;
+.vertical #bioParentList li.parent_1:not(.activeProfile):not(#profilePerson),
+body.darkMode .vertical #bioParentList li.parent_1:not(.activeProfile):not(#profilePerson) {
+  /* Bio parent list: parent_1 (bio father) color - purple */
+  border-right: 3px solid #6a0dad;
+}
+
+/* parent_2 (mother) colors for parent list and bio parent list */
+.vertical #parentList li.parent_2:not(.activeProfile):not(#profilePerson),
+body.darkMode .vertical #parentList li.parent_2:not(.activeProfile):not(#profilePerson) {
+  border-right: 3px solid #ff6b6b;
+}
+
+.vertical #bioParentList li.parent_2:not(.activeProfile):not(#profilePerson),
+body.darkMode .vertical #bioParentList li.parent_2:not(.activeProfile):not(#profilePerson) {
+  border-right: 3px solid #ff9800;
+}
+
+/* Support PID-specific classes that include the parent id suffix (parent_1_pid<ID>, parent_2_pid<ID>)
+   so coloured borders appear when those classes are added dynamically. Use substring match to
+   catch any pid suffix. */
+.vertical .nameList li[class*="parent_1_pid"]:not(.activeProfile):not(#profilePerson),
+body.darkMode .vertical .nameList li[class*="parent_1_pid"]:not(.activeProfile):not(#profilePerson) {
+  border-right: 3px solid #0b62a4;
+}
+.vertical .nameList li[class*="parent_2_pid"]:not(.activeProfile):not(#profilePerson),
+body.darkMode .vertical .nameList li[class*="parent_2_pid"]:not(.activeProfile):not(#profilePerson) {
+  border-right: 3px solid #ff6b6b;
+}
+
+/* PID-specific spans (sibling/children) inside lists.
+   Only add a span-level border if the surrounding <li> does NOT already carry
+   the corresponding parent class (avoid double/double-width borders). */
+.vertical .nameList li:not(.parent_1):not([class*="parent_1_pid"]) span[class*="parent_1_pid"]:not(.activeProfile) {
+  border-right: 3px solid #0b62a4;
+}
+.vertical
+  #bioParentList
+  li:not(.parent_1):not([class*="parent_1_pid"])
+  span[class*="parent_1_pid"]:not(.activeProfile) {
+  border-right: 3px solid #6a0dad;
+}
+.vertical .nameList li:not(.parent_2):not([class*="parent_2_pid"]) span[class*="parent_2_pid"]:not(.activeProfile) {
+  border-right: 3px solid #ff6b6b;
+}
+.vertical
+  #bioParentList
+  li:not(.parent_2):not([class*="parent_2_pid"])
+  span[class*="parent_2_pid"]:not(.activeProfile) {
+  border-right: 3px solid #ff9800;
+}
+
+/* Apply parent-specific colouring to sibling/children spans when they carry parent_1/parent_2 classes.
+   Make span colours consistent with the parent list colours so both borders are visually coherent
+   when one border is applied at the li level and the other at the span level. Exclude the profile. */
+/* Default (parent list) mapping: parent_1 -> blue, parent_2 -> green */
+.vertical .nameList li:not(.parent_1):not(.activeProfile) span[itemprop="sibling"].parent_1,
+.vertical .nameList li:not(.parent_1):not(.activeProfile) span[itemprop="children"].parent_1 {
+  border-right: 3px solid #0b62a4;
+}
+
+/*
+.vertical .nameList li:not(.activeProfile) span[itemprop="sibling"].parent_2,
+.vertical .nameList li:not(.activeProfile) span[itemprop="children"].parent_2 {
+  border-right: 3px solid green;
+}
+  */
+
+/* When spans appear inside the bio parent list, use the bio-parent colours so they match
+   the bio-parent li colouring (bio father = indigo, bio mother = orange). */
+.vertical #bioParentList li:not(.parent_1):not(.activeProfile) span[itemprop="sibling"].parent_1,
+.vertical #bioParentList li:not(.parent_1):not(.activeProfile) span[itemprop="children"].parent_1 {
+  border-right: 3px solid #6a0dad;
+}
+.vertical #bioParentList li:not(.parent_2):not(.activeProfile) span[itemprop="sibling"].parent_2,
+.vertical #bioParentList li:not(.parent_2):not(.activeProfile) span[itemprop="children"].parent_2 {
+  border-right: 3px solid #ff9800;
 }
 
 #nVitals.vertical .nameList span.SMALL:not(li[data-parse-name*="private"] span.SMALL) {

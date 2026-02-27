@@ -834,9 +834,9 @@ class FeedHelper {
 
     this.updateWhitelistActivityToggleButtonLabel();
     this.debug(
-      `Whitelist activity visibility applied: hideEnabled=${hideEnabled}, whitelistedUsers=${whitelistSet.size}, hiddenItems=${
-        hideEnabled ? hiddenCount : 0
-      }`
+      `Whitelist activity visibility applied: hideEnabled=${hideEnabled}, whitelistedUsers=${
+        whitelistSet.size
+      }, hiddenItems=${hideEnabled ? hiddenCount : 0}`
     );
   }
 
