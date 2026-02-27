@@ -20,7 +20,8 @@ import { isOK, displayName } from "../../core/common";
 import { displayDates } from "../verifyID/verifyID";
 import { getUserWtId } from "../../core/common";
 import "./change_family_lists.css";
-import { initRelationshipDB, RELATIONSHIP_STORE_NAME } from "../distanceAndRelationship/distanceAndRelationship.js";
+import * as distRel from "../distanceAndRelationship/distanceAndRelationship.js";
+const { initRelationshipDB, RELATIONSHIP_STORE_NAME } = distRel;
 import { getProfilePersonInfo } from "../../core/common";
 import { mainDomain, isProfileAddRelative } from "../../core/pageType";
 import { autoClickAddPersonOptions } from "../usability_tweaks/usability_tweaks.js";
@@ -2093,10 +2094,15 @@ function addHalfsStyle() {
   const uniqueFathers = [...new Set(fathers)];
   const uniqueMothers = [...new Set(mothers)];
 
-  const cond1 = uniqueFathers.length == 1 && uniqueFathers[0] == profilePersonData.Father;
-  const cond2 = uniqueFathers.length == 0 && !profilePersonData.Father;
-  const cond3 = uniqueMothers.length == 1 && uniqueMothers[0] == profilePersonData.Mother;
-  const cond4 = uniqueMothers.length == 0 && !profilePersonData.Mother;
+  if (!profilePersonData) {
+    console.warn("[CFL] addHalfsStyle: profilePersonData is undefined - skipping half-sibling styling");
+    return;
+  }
+
+  const cond1 = uniqueFathers.length == 1 && uniqueFathers[0] == profilePersonData?.Father;
+  const cond2 = uniqueFathers.length == 0 && !profilePersonData?.Father;
+  const cond3 = uniqueMothers.length == 1 && uniqueMothers[0] == profilePersonData?.Mother;
+  const cond4 = uniqueMothers.length == 0 && !profilePersonData?.Mother;
   if ((cond1 || cond2) && (cond3 || cond4)) {
     return;
   }

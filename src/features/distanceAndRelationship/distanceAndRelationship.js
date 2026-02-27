@@ -8,6 +8,7 @@ import { mainDomain, isProfileEdit, isProfilePage } from "../../core/pageType";
 import { getProfilePersonInfo } from "../../core/common";
 import { getObjectStores, distRelDbKeyFor, getUserWtId } from "../../core/common";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
+import { getRelationJSON } from "../../core/API/wwwWikiTree";
 
 export const CONNECTION_DB_NAME = "ConnectionFinderWTE";
 export const CONNECTION_DB_VERSION = 2;
@@ -19,88 +20,22 @@ let profilePerson;
 let profileID;
 let options = {};
 
-const WBE_DIST_REL_APP_ID = "WBE_distance_and_relationship";
-const DIST_REL_REFRESH_INTERVAL_MS = 12 * 60 * 60 * 1000;
-const EN_DASH = "\u2013";
-
-const fixOrdinalSuffix = (text) => {
-  const pattern = /(\d+)(?:st|nd|rd|th)\b/g;
-  return text.replace(pattern, (_, num) => {
-    const numInt = parseInt(num, 10);
-    let suffix = "th";
-
-    if (![11, 12, 13].includes(numInt % 100)) {
-      switch (numInt % 10) {
-        case 1:
-          suffix = "st";
-          break;
-        case 2:
-          suffix = "nd";
-          break;
-        case 3:
-          suffix = "rd";
-          break;
-      }
-    }
-
-    return num + suffix;
-  });
-};
-
-const cleanCommonAncestors = (commonAncestors) => {
-  if (!commonAncestors) return [];
-  return commonAncestors.map((ancestor) => {
-    const { mDerived, ...cleanedAncestor } = ancestor.ancestor;
-    cleanedAncestor.mDerived = { LongNameWithDates: normalizeDateRangeDashes(mDerived.LongNameWithDates) };
-    return {
-      ...ancestor,
-      ancestor: cleanedAncestor,
-    };
-  });
-};
-
-const normalizeDateRangeDashes = (text) => {
-  if (!text) return text;
-  return text.replace(
-    /(?<=\()([^()]*?)(\d{3,4}s?|unknown|\?)-(\d{3,4}s?|unknown|\?)([^()]*)?(?=\))/gi,
-    (_match, pre, left, right, post = "") => {
-      return `${pre || ""}${left}${EN_DASH}${right}${post || ""}`;
-    }
-  );
-};
-
-const sortCommonAncestorsByGender = (commonAncestors) => {
-  if (!Array.isArray(commonAncestors)) return [];
-
-  const genderRank = (gender) => {
-    if (gender === "Male") return 0;
-    if (gender === "Female") return 1;
-    return 2;
-  };
-
-  return [...commonAncestors].sort((left, right) => {
-    const rankDiff =
-      genderRank(left?.ancestor?.mGender || left?.ancestor?.Gender) -
-      genderRank(right?.ancestor?.mGender || right?.ancestor?.Gender);
-
-    if (rankDiff !== 0) return rankDiff;
-
-    const leftName = String(left?.ancestor?.mName || "");
-    const rightName = String(right?.ancestor?.mName || "");
-    return leftName.localeCompare(rightName);
-  });
-};
-
 export function initDistanceDB(onDistanceSuccess) {
   initDb(CONNECTION_DB_NAME, CONNECTION_DB_VERSION, CONNECTION_STORE_NAME, "distance", onDistanceSuccess);
 }
+
 export function initRelationshipDB(onRelationshipSuccess) {
   initDb(RELATIONSHIP_DB_NAME, RELATIONSHIP_DB_VERSION, RELATIONSHIP_STORE_NAME, "relationship", onRelationshipSuccess);
 }
+
 export function initDistanceAndRelationshipDBs(onDistanceSuccess, onRelationshipSuccess) {
   initDistanceDB(onDistanceSuccess);
   initRelationshipDB(onRelationshipSuccess);
 }
+
+const WBE_DIST_REL_APP_ID = "WBE_distance_and_relationship";
+const DIST_REL_REFRESH_INTERVAL_MS = 12 * 60 * 60 * 1000;
+const EN_DASH = "\u2013";
 
 function initDb(dbName, dbVersion, storeName, oldStoreName, onSuccess) {
   const dbOpenReq = window.indexedDB.open(dbName, dbVersion);
@@ -257,11 +192,25 @@ function addRelationshipText(oText, commonAncestors) {
   if (!oText) return;
   const commonAncestorTextResult = commonAncestorText(commonAncestors);
   let commonAncestorTextOut = commonAncestorTextResult.text;
-  const cousinText = $(
-    `<div class='yourRelationshipText' title='Click to refresh' class='relationshipFinder'>Your ${oText}
-    <ul class='yourCommonAncestor' style='white-space:nowrap'>${commonAncestorTextOut}</ul>
-    </div>`
-  );
+  // If the first common ancestor is a direct parent on both sides, render a short single-line label
+  let cousinText;
+  const firstIsDirectParent =
+    Array.isArray(commonAncestors) &&
+    commonAncestors.length > 0 &&
+    Number(commonAncestors[0].path1Length) === 1 &&
+    Number(commonAncestors[0].path2Length) === 1;
+
+  if (firstIsDirectParent) {
+    cousinText = $(
+      `<div class='yourRelationshipText' title='Click to refresh' class='relationshipFinder'>Your ${oText}</div>`
+    );
+  } else {
+    cousinText = $(
+      `<div class='yourRelationshipText' title='Click to refresh' class='relationshipFinder'>Your ${oText}
+      <ul class='yourCommonAncestor' style='white-space:nowrap'>${commonAncestorTextOut}</ul>
+      </div>`
+    );
+  }
   if (options.relationshipBoxPosition == "below") {
     if ($("#person [id='Death']").length > 0) {
       $("#person [id='Death']").first().after(cousinText);
@@ -315,15 +264,62 @@ function commonAncestorText(commonAncestors) {
       commonAncestor.ancestor.mGender
     )?.toLowerCase();
     if (myAncestorType && thisAncestorType && !ancestorsAdded.includes(commonAncestor.ancestor.mName)) {
-      ancestorTextOut += `<li>Your ${myAncestorType},
+      // If this is a direct ancestor for both sides (parent), render a short label like "Your father" only.
+      if (Number(commonAncestor.path1Length) === 1 && Number(commonAncestor.path2Length) === 1) {
+        ancestorTextOut += `<li>Your ${myAncestorType}</li>`;
+      } else {
+        // Prefer explicit profile name when available: "is Ian's father" instead of "is his father"
+        const profileFirstName = profilePerson?.FirstName || "";
+        const profilePossessive = profileFirstName ? `${profileFirstName.replace(/'/g, "\\'")}'s` : possessiveAdj;
+        ancestorTextOut += `<li>Your ${myAncestorType},
       <a href="https://${mainDomain}/wiki/${commonAncestor.ancestor.mName}">${commonAncestor.ancestor.mDerived.LongNameWithDates}</a>,
-      is ${possessiveAdj} ${thisAncestorType}.</li>`;
+      is ${profilePossessive} ${thisAncestorType}.</li>`;
+      }
       ancestorsAdded.push(commonAncestor.ancestor.mName);
     }
   });
   result.text = ancestorTextOut;
   result.count = ancestorsAdded.length;
   return result;
+}
+
+function sortCommonAncestorsByGender(commonAncestors) {
+  if (!Array.isArray(commonAncestors)) return [];
+  return [...commonAncestors].sort((a, b) => {
+    const ga = (a?.ancestor?.mGender || "").toLowerCase();
+    const gb = (b?.ancestor?.mGender || "").toLowerCase();
+    const score = (g) => (g === "male" ? 0 : g === "female" ? 1 : 2);
+    return score(ga) - score(gb);
+  });
+}
+
+function cleanCommonAncestors(commonAncestors) {
+  if (!Array.isArray(commonAncestors)) return [];
+  return commonAncestors.map((ancestor) => {
+    const { ancestor: anc = {}, ...rest } = ancestor || {};
+    const mDerived = { LongNameWithDates: anc?.mDerived?.LongNameWithDates || longNameWithDatesFromPathPerson(anc) };
+    return {
+      ...rest,
+      ancestor: {
+        ...anc,
+        mDerived,
+      },
+    };
+  });
+}
+
+function fixOrdinalSuffix(s) {
+  return s;
+}
+
+function normalizeDateRangeDashes(s) {
+  if (!s || typeof s !== "string") return s;
+  // Replace hyphen/minus/em/en dashes with a single en dash and trim whitespace around it
+  return s.replace(/\s*[–—-]\s*/g, EN_DASH);
+}
+
+function isFiniteNumber(n) {
+  return Number.isFinite(Number(n));
 }
 
 function isUpPathType(pathType) {
@@ -360,17 +356,17 @@ function descendantType(stepsDown, gender) {
 function auntUncleType(stepsUp, gender) {
   const base = gender === "Male" ? "uncle" : gender === "Female" ? "aunt" : "aunt or uncle";
   if (stepsUp <= 1) return base;
-  if (stepsUp === 2) return `grand ${base}`;
-  if (stepsUp === 3) return `great grand ${base}`;
-  return `${ordinal(stepsUp - 3)} great grand ${base}`;
+  if (stepsUp === 2) return `grand${base}`; // e.g. granduncle / grandaunt
+  if (stepsUp === 3) return `great grand${base}`; // e.g. great granduncle
+  return `${ordinal(stepsUp - 2)} great grand${base}`;
 }
 
 function nieceNephewType(stepsDown, gender) {
   const base = gender === "Male" ? "nephew" : gender === "Female" ? "niece" : "niece or nephew";
   if (stepsDown <= 1) return base;
-  if (stepsDown === 2) return `grand ${base}`;
-  if (stepsDown === 3) return `great grand ${base}`;
-  return `${ordinal(stepsDown - 3)} great grand ${base}`;
+  if (stepsDown === 2) return `grand${base}`; // e.g. grandnephew / grandniece
+  if (stepsDown === 3) return `great grand${base}`;
+  return `${ordinal(stepsDown - 2)} great grand${base}`;
 }
 
 function analyzeAncestorPath(path) {
@@ -410,10 +406,10 @@ function relationshipFromPathAnalysis(pathAnalysis, profileGender) {
     return profileGender === "Male" ? "brother" : profileGender === "Female" ? "sister" : "sibling";
   }
   if (upSteps >= 2 && downSteps === 1) {
-    return auntUncleType(upSteps, profileGender);
+    return auntUncleType(Math.max(upSteps - 1, 0), profileGender);
   }
   if (upSteps === 1 && downSteps >= 2) {
-    return nieceNephewType(downSteps, profileGender);
+    return nieceNephewType(Math.max(downSteps - 1, 0), profileGender);
   }
 
   const cousinNumber = Math.min(upSteps, downSteps) - 1;
@@ -445,6 +441,62 @@ function asCommonAncestorEntry(person, path1Length, path2Length) {
   };
 }
 
+function synthesizeCommonAncestorsFromLegacyDoc(doc) {
+  if (!doc) return [];
+  const results = [];
+
+  // Look for paragraphs that say "This makes X the father/mother/... of Y." or similar
+  const paras = Array.from(doc.querySelectorAll("p"));
+  const re = /This makes\s+(.+?)\s+the\s+([a-zA-Z ]+?)\s+of\s+([\s\S]+?)\./i;
+
+  paras.forEach((p) => {
+    const txt = p.textContent.replace(/\s+/g, " ").trim();
+    const m = txt.match(re);
+    if (m) {
+      const ancestorLabel = m[1].trim();
+      const rel = m[2].trim().toLowerCase();
+      const subjectName = m[3].trim();
+
+      // Try to find an option or link that contains the ancestor label to get an Id/Name
+      let id = 0;
+      let slug = ancestorLabel;
+      const opt = Array.from(doc.querySelectorAll("select#trailSelection option, option")).find(
+        (o) => o.textContent && o.textContent.includes(ancestorLabel)
+      );
+      if (opt && opt.value) id = Number(opt.value) || 0;
+      const link = Array.from(p.querySelectorAll("a")).find(
+        (a) => a.textContent && a.textContent.includes(ancestorLabel)
+      );
+      if (link && link.getAttribute("href")) {
+        const href = link.getAttribute("href");
+        const parts = href.split("/");
+        const possible = parts.pop() || parts.pop();
+        if (possible) slug = possible;
+      }
+
+      const role = rel.includes("father") || rel.includes("mother") || rel.includes("parent") ? "parent" : rel;
+
+      const person = {
+        Id: id,
+        Name: slug || ancestorLabel,
+        FirstName: ancestorLabel,
+        LastNameCurrent: "",
+        LastNameAtBirth: "",
+        Gender:
+          role === "parent" && /father/i.test(rel) ? "Male" : role === "parent" && /mother/i.test(rel) ? "Female" : "",
+        BirthDateDecade: "?",
+        DeathDateDecade: "?",
+      };
+
+      // Heuristic: set both sides to 1 (parent) so commonAncestorText renders "Your father" etc.
+      const entry = asCommonAncestorEntry(person, 1, 1);
+      if (entry) results.push(entry);
+    }
+  });
+
+  return results;
+}
+
 function commonAncestorsFromPath(path, pathAnalysis) {
   const ancestor = pathAnalysis.ancestorNode;
   const entry = asCommonAncestorEntry(ancestor, pathAnalysis.upSteps, pathAnalysis.downSteps);
@@ -466,6 +518,7 @@ async function augmentWithOtherParentCommonAncestor(userID, profileID, pathAnaly
         "Id,Name,Gender,FirstName,LastNameCurrent,LastNameAtBirth,BirthDateDecade,DeathDateDecade",
         { getParents: true }
       );
+      console.log("[WBE dist-rel] getRelatives (getParents) response for profile", profileID, relatives);
 
       const person = relatives?.[0]?.person;
       const parents = person?.Parents ? Object.values(person.Parents) : [];
@@ -497,6 +550,7 @@ async function augmentWithOtherParentCommonAncestor(userID, profileID, pathAnaly
         "Id,Name,Gender,FirstName,LastNameCurrent,LastNameAtBirth,BirthDateDecade,DeathDateDecade",
         { getSpouses: true }
       );
+      console.log("[WBE dist-rel] getRelatives (getSpouses) response for pivot", pivotAncestorName, relatives);
 
       const pivotPerson = relatives?.[0]?.person;
       const spouses = pivotPerson?.Spouses ? Object.values(pivotPerson.Spouses).filter((spouse) => spouse?.Name) : [];
@@ -566,6 +620,7 @@ function doRelationshipText(userID, profileID) {
     { relation: 2 }
   )
     .then(async function (data) {
+      console.log("[WBE dist-rel] getConnections (relation=2) response:", data);
       let relationshipText = "";
       let commonAncestors = [];
 
@@ -576,6 +631,210 @@ function doRelationshipText(userID, profileID) {
         commonAncestors = await augmentWithOtherParentCommonAncestor(userID, profileID, pathAnalysis, commonAncestors);
         commonAncestors = sortCommonAncestorsByGender(commonAncestors);
         addRelationshipText(relationshipText, cleanCommonAncestors(commonAncestors));
+      } else {
+        // No modern path returned — try legacy fallback (HTML/JSON Relationship endpoint).
+        console.log("[WBE dist-rel] No path from getConnections; invoking legacy fallback");
+        try {
+          const legacy = await getRelationJSON("DistanceAndRelationship_Relationship", userID, profileID);
+          console.log("[WBE dist-rel] getRelationJSON fallback response:", legacy);
+          if (legacy) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(legacy.html || "", "text/html");
+
+            const h2Element = doc.querySelector("h2");
+            const noRelationship = h2Element && h2Element.textContent.trim() === "No Relationship Found";
+            console.log("[WBE dist-rel] legacy html noRelationship:", noRelationship);
+
+            if (!noRelationship) {
+              const firstP = doc.querySelector("h3");
+              const firstPText = firstP ? firstP.textContent.replace(/\s+/g, " ").trim() : "";
+              console.log("[WBE dist-rel] legacy firstPText:", firstPText);
+
+              let derivedRelationship = "";
+
+              // Try to extract relationship phrases robustly. Examples:
+              // "[Private] is Ian's niece" -> "niece"
+              // "X is the 2nd great grand uncle of Y" -> "2nd great grand uncle"
+              // "X and Y are cousins" -> "cousin"
+              // First, try simple markers
+              if (firstPText.includes("is the")) {
+                derivedRelationship = firstPText.split("is the ")[1].split(" of")[0];
+              } else if (firstPText.includes(" are ")) {
+                derivedRelationship = firstPText
+                  .split("are ")[1]
+                  .replace(/cousins/, "cousin")
+                  .replace(/siblings/, "sibling");
+              } else if (firstPText.includes(" is ")) {
+                derivedRelationship = firstPText.split(" is ")[1].trim();
+              }
+
+              // If above heuristics didn't yield a clean relation, try regex to find relationship keywords
+              if (!derivedRelationship) {
+                const relRegex =
+                  /((?:\d+(?:st|nd|rd|th)|first|second|third|\w+)?\s*(?:great\s+){0,2}(?:grand\s*)?(?:uncle|aunt|nephew|niece|cousin|sibling|brother|sister|father|mother|grandfather|grandmother))/i;
+                const m = firstPText.match(relRegex);
+                if (m) derivedRelationship = m[1];
+              }
+
+              // Normalize possessives like "Ian's niece" -> "niece"
+              if (derivedRelationship) {
+                const possessiveMatch = derivedRelationship.match(/(?:[A-Za-z0-9_]+(?:'s|’s)\s+)?(.+)/);
+                if (possessiveMatch && possessiveMatch[1]) {
+                  derivedRelationship = possessiveMatch[1].trim();
+                }
+
+                // Determine whether the legacy sentence names the user as subject or object.
+                const userDataEl = document.getElementById("userData");
+                const userColloq = (userDataEl && userDataEl.dataset && userDataEl.dataset.mcolloquialname) || "";
+                const splitMatch = firstPText.match(/\s+(is|are)\s+/i);
+                let subject = "";
+                let predicate = firstPText;
+                if (splitMatch) {
+                  const parts = firstPText.split(new RegExp("\\s+(?:is|are)\\s+", "i"));
+                  subject = (parts[0] || "").trim();
+                  predicate = (parts.slice(1).join(" ") || "").trim();
+                }
+                const predicateHasUser = userColloq && predicate.toLowerCase().includes(userColloq.toLowerCase());
+                const subjectHasUser = userColloq && subject.toLowerCase().includes(userColloq.toLowerCase());
+                console.log("[WBE dist-rel] legacy parse debug:", {
+                  userColloq,
+                  subject,
+                  predicate,
+                  subjectHasUser,
+                  predicateHasUser,
+                  profileGender: profilePerson?.Gender,
+                });
+
+                // Only invert nephew/niece -> aunt/uncle when the user is the subject ("Ian is Mary's nephew")
+                if (/nephew|niece/.test(derivedRelationship)) {
+                  if (subjectHasUser) {
+                    const auntUncle =
+                      profilePerson.Gender === "Male"
+                        ? "uncle"
+                        : profilePerson.Gender === "Female"
+                        ? "aunt"
+                        : "uncle or aunt";
+                    if (/(nephew|niece) or (nephew|niece)/.test(derivedRelationship)) {
+                      derivedRelationship = derivedRelationship
+                        .replace(/nephew/, auntUncle)
+                        .replace(/niece/, auntUncle);
+                    } else {
+                      derivedRelationship = derivedRelationship.replace(/nephew|niece/, auntUncle);
+                    }
+                  } else {
+                    // predicateHasUser or neither -> leave niece/nephew as-is (profile is niece/nephew)
+                  }
+                }
+
+                let relationshipParts = derivedRelationship.split(" ");
+                relationshipParts[0] = ordinalWordToNumberAndSuffix(relationshipParts[0]);
+                relationshipText = fixOrdinalSuffix(relationshipParts.join(" "));
+                console.log("[WBE dist-rel] derived relationshipText from legacy:", relationshipText);
+              }
+            }
+
+            // If legacy returned commonAncestors, normalize and use them
+            if (Array.isArray(legacy.commonAncestors) && legacy.commonAncestors.length > 0) {
+              console.log("[WBE dist-rel] legacy commonAncestors raw:", legacy.commonAncestors);
+              console.log("[WBE dist-rel] legacy commonAncestors count:", legacy.commonAncestors.length);
+              commonAncestors = legacy.commonAncestors.map((ca) => {
+                const rawP1 = Number(ca.path1Length);
+                const rawP2 = Number(ca.path2Length);
+                const normP1 = reducePathLength(isFiniteNumber(rawP1) ? rawP1 : 0);
+                const normP2 = reducePathLength(isFiniteNumber(rawP2) ? rawP2 : 0);
+                const mapped = {
+                  ...ca,
+                  rawPath1Length: rawP1,
+                  rawPath2Length: rawP2,
+                  path1Length: normP1,
+                  path2Length: normP2,
+                  ancestor: {
+                    ...ca.ancestor,
+                    mDerived: {
+                      LongNameWithDates: normalizeDateRangeDashes(ca.ancestor.mDerived.LongNameWithDates),
+                    },
+                  },
+                };
+
+                // Emit mapping diagnostics to help debug parent/grandparent off-by-one
+                try {
+                  const myAncestorType = ancestorType(mapped.path1Length - 1, mapped.ancestor.mGender);
+                  const thisAncestorType = ancestorType(mapped.path2Length - 1, mapped.ancestor.mGender);
+                  console.log("[WBE dist-rel] legacy CA mapping:", {
+                    name: mapped.ancestor.mName,
+                    rawP1,
+                    rawP2,
+                    normP1,
+                    normP2,
+                    myAncestorType,
+                    thisAncestorType,
+                  });
+                } catch (e) {
+                  console.log("[WBE dist-rel] error computing CA mapping types", e, ca);
+                }
+
+                return mapped;
+              });
+              console.log("[WBE dist-rel] legacy commonAncestors normalized:", commonAncestors);
+              commonAncestors = sortCommonAncestorsByGender(commonAncestors);
+            }
+
+            // If there were no structured commonAncestors, try to synthesize them
+            if ((!Array.isArray(legacy.commonAncestors) || legacy.commonAncestors.length === 0) && doc) {
+              const synthesized = synthesizeCommonAncestorsFromLegacyDoc(doc);
+              if (synthesized && synthesized.length > 0) {
+                console.log("[WBE dist-rel] synthesized commonAncestors from legacy HTML:", synthesized);
+                // Synthesized entries are already in the 'upSteps/downSteps' convention
+                commonAncestors = synthesized.map((ca) => ({
+                  ...ca,
+                  path1Length: Number(ca.path1Length || 1),
+                  path2Length: Number(ca.path2Length || 1),
+                  ancestor: {
+                    ...ca.ancestor,
+                    mDerived: {
+                      LongNameWithDates: normalizeDateRangeDashes(ca.ancestor.mDerived.LongNameWithDates),
+                    },
+                  },
+                }));
+                commonAncestors = sortCommonAncestorsByGender(commonAncestors);
+
+                // If we don't yet have an overall relationshipText, derive one from the synthesized ancestor
+                if (!relationshipText && Array.isArray(commonAncestors) && commonAncestors.length > 0) {
+                  try {
+                    const first = commonAncestors[0];
+                    relationshipText =
+                      ancestorType(first.path1Length - 1, first.ancestor.mGender)?.toLowerCase() || "relative";
+                    console.log("[WBE dist-rel] synthesized derived relationshipText:", relationshipText);
+
+                    // If distance isn't set by getConnections, synthesize a sensible distance (parent => 1)
+                    if (!Number.isFinite(window.distance) || window.distance <= 0) {
+                      const guessedDistance = Math.max((first.path1Length || 1) - 1, 1);
+                      window.distance = guessedDistance;
+                      // Render distance badge
+                      $(".distanceFromYou").remove();
+                      if (window.distance > 0) {
+                        const profileName = profilePerson?.FirstName || "Profile";
+                        $("#person h1").append(
+                          $(
+                            `<span class='distanceFromYou' title='${profileName} is ${window.distance} degrees from you.'>${window.distance}°</span>`
+                          )
+                        );
+                        attachDistanceHandlers(userID, profileID);
+                      }
+                    }
+                  } catch (e) {
+                    console.log("[WBE dist-rel] error deriving relationshipText from synthesized CA", e);
+                  }
+                }
+              }
+            }
+
+            // Always attempt to display the derived relationshipText even if no commonAncestors
+            addRelationshipText(relationshipText, cleanCommonAncestors(commonAncestors));
+          }
+        } catch (err) {
+          console.log("[WBE dist-rel] legacy fallback error:", err);
+        }
       }
 
       initRelationshipDB((event) => {
@@ -706,6 +965,7 @@ async function getDistance() {
   const id2 = profileID;
   const id1 = getUserWtId();
   const data = await WikiTreeAPI.getConnections(WBE_DIST_REL_APP_ID, [id1, id2], "Id,Name,Gender", { relation: 0 });
+  console.log("[WBE dist-rel] getConnections (relation=0) response:", data);
   addDistance(data);
 }
 
@@ -828,6 +1088,17 @@ function initDistanceAndRelationship(userID, profileID, clicked = false, clearEx
   } else {
     WikiTreeAPI.getProfile(WBE_DIST_REL_APP_ID, profileID, "Privacy,Connected")
       .then(([person]) => {
+        console.log("[WBE dist-rel] getProfile response:", person);
+        // If getProfile returned an empty object (often due to privacy),
+        // proceed anyway so the relationship flow (which includes a legacy
+        // fallback) can attempt to determine relationships.
+        if (!person || Object.keys(person).length === 0) {
+          console.log("[WBE dist-rel] getProfile empty — proceeding to relationship flow (legacy fallback enabled)");
+          getDistance();
+          doRelationshipText(userID, profileID);
+          return;
+        }
+
         if (person.Privacy > 29 && person.Connected == 1) {
           getDistance();
           doRelationshipText(userID, profileID);
