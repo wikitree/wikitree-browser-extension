@@ -15,11 +15,8 @@ import { getUserNumId } from "../../core/common";
 import { addTableButtonsContainer } from "../remove_from_watchlist/remove_from_watchlist";
 import { kinshipValue } from "../anniversaries_table/anniversaries_table";
 import { ageAtDeath, distRelDbKeyFor, getUserWtId } from "../../core/common";
-import {
-  CONNECTION_STORE_NAME,
-  RELATIONSHIP_STORE_NAME,
-  initDistanceAndRelationshipDBs,
-} from "../distanceAndRelationship/distanceAndRelationship";
+import * as distRel from "../distanceAndRelationship/distanceAndRelationship";
+const { CONNECTION_STORE_NAME, RELATIONSHIP_STORE_NAME, initDistanceAndRelationshipDBs } = distRel;
 import { CC7Notes } from "./cc7_notes";
 
 const WBE_SURNAME_TABLE_APP_ID = "WBE_surname_table";
