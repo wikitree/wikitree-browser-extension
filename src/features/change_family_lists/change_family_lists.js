@@ -515,15 +515,13 @@ function parseInitialData() {
       return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
     });
     bracketed.forEach((b) => {
-      if (
-        !parsedParents.some((m) => {
-          return (
-            (m.Name && m.Name.toLowerCase() === b.Name.toLowerCase()) ||
-            (m.UnknownText && m.UnknownText.toLowerCase() === b.UnknownText.toLowerCase())
-          );
-        }) ||
-        (b.Name && b.Name.toLowerCase().includes("private"))
-      ) {
+      const exists = parsedParents.some((m) => {
+        return (
+          (m.Name && b.Name && m.Name.toLowerCase() === b.Name.toLowerCase()) ||
+          (m.UnknownText && b.UnknownText && m.UnknownText.toLowerCase() === b.UnknownText.toLowerCase())
+        );
+      });
+      if (!exists) {
         parsedParents.push(b);
       }
     });
@@ -551,15 +549,13 @@ function parseInitialData() {
       return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
     });
     bracketed.forEach((b) => {
-      if (
-        !parsedBioParents.some((m) => {
-          return (
-            (m.Name && m.Name.toLowerCase() === b.Name.toLowerCase()) ||
-            (m.UnknownText && m.UnknownText.toLowerCase() === b.UnknownText.toLowerCase())
-          );
-        }) ||
-        (b.Name && b.Name.toLowerCase().includes("private"))
-      ) {
+      const exists = parsedBioParents.some((m) => {
+        return (
+          (m.Name && b.Name && m.Name.toLowerCase() === b.Name.toLowerCase()) ||
+          (m.UnknownText && b.UnknownText && m.UnknownText.toLowerCase() === b.UnknownText.toLowerCase())
+        );
+      });
+      if (!exists) {
         parsedBioParents.push(b);
       }
     });
