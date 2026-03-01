@@ -63,8 +63,7 @@
     "webpack-cli": "^4.0.0",
     "webpack-merge": "^5.0.0",
     "webpack-target-webextension": "^0.4.4"
-  }
-  ,
+  },
   "overrides": {
     "serialize-javascript": ">=3.1.0",
     "ssri": ">=6.0.2",

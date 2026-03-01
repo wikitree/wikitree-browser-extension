@@ -707,62 +707,76 @@ function doRelationshipText(userID, profileID) {
                   derivedRelationship = possessiveMatch[1].trim();
                 }
 
-                  // Prefer explicit "This makes X the <rel> of Y." sentence when present
-                  // This helps pick the correct direction for parent/child cases.
-                  try {
-                    const allParaText = Array.from(doc.querySelectorAll("p")).map((p) => p.textContent.replace(/\s+/g, " ").trim()).join(" \n ");
-                    const makesRe = /This makes\s+(.+?)\s+the\s+([a-zA-Z ]+?)\s+of\s+(.+?)\./i;
-                    const makesMatch = allParaText.match(makesRe);
-                    if (makesMatch) {
-                      const makesSubject = makesMatch[1].trim();
-                      const makesRel = makesMatch[2].trim().toLowerCase();
-                      const makesObject = makesMatch[3].trim();
+                // Prefer explicit "This makes X the <rel> of Y." sentence when present
+                // This helps pick the correct direction for parent/child cases.
+                try {
+                  const allParaText = Array.from(doc.querySelectorAll("p"))
+                    .map((p) => p.textContent.replace(/\s+/g, " ").trim())
+                    .join(" \n ");
+                  const makesRe = /This makes\s+(.+?)\s+the\s+([a-zA-Z ]+?)\s+of\s+(.+?)\./i;
+                  const makesMatch = allParaText.match(makesRe);
+                  if (makesMatch) {
+                    const makesSubject = makesMatch[1].trim();
+                    const makesRel = makesMatch[2].trim().toLowerCase();
+                    const makesObject = makesMatch[3].trim();
 
-                      // Build normalized name variants for robust matching (covers private/slug cases)
-                      const userDataEl = document.getElementById("userData");
-                      const userVariants = new Set();
-                      if (userDataEl && userDataEl.dataset) {
-                        if (userDataEl.dataset.mcolloquialname) userVariants.add(normalizeForMatch(userDataEl.dataset.mcolloquialname));
-                        if (userDataEl.dataset.mname) userVariants.add(normalizeForMatch(userDataEl.dataset.mname));
-                        if (userDataEl.dataset.mlastnamecurrent) userVariants.add(normalizeForMatch(userDataEl.dataset.mlastnamecurrent));
-                      }
+                    // Build normalized name variants for robust matching (covers private/slug cases)
+                    const userDataEl = document.getElementById("userData");
+                    const userVariants = new Set();
+                    if (userDataEl && userDataEl.dataset) {
+                      if (userDataEl.dataset.mcolloquialname)
+                        userVariants.add(normalizeForMatch(userDataEl.dataset.mcolloquialname));
+                      if (userDataEl.dataset.mname) userVariants.add(normalizeForMatch(userDataEl.dataset.mname));
+                      if (userDataEl.dataset.mlastnamecurrent)
+                        userVariants.add(normalizeForMatch(userDataEl.dataset.mlastnamecurrent));
+                    }
 
-                      const profileVariants = nameVariantsForProfile(profilePerson, profileID);
+                    const profileVariants = nameVariantsForProfile(profilePerson, profileID);
 
-                      const subjNorm = normalizeForMatch(makesSubject);
-                      const objNorm = normalizeForMatch(makesObject);
+                    const subjNorm = normalizeForMatch(makesSubject);
+                    const objNorm = normalizeForMatch(makesObject);
 
-                      const subjectHasProfile = profileVariants.some((v) => v && subjNorm.includes(v));
-                      const objectHasProfile = profileVariants.some((v) => v && objNorm.includes(v));
-                      const subjectHasUser = [...userVariants].some((v) => v && subjNorm.includes(v));
-                      const objectHasUser = [...userVariants].some((v) => v && objNorm.includes(v));
+                    const subjectHasProfile = profileVariants.some((v) => v && subjNorm.includes(v));
+                    const objectHasProfile = profileVariants.some((v) => v && objNorm.includes(v));
+                    const subjectHasUser = [...userVariants].some((v) => v && subjNorm.includes(v));
+                    const objectHasUser = [...userVariants].some((v) => v && objNorm.includes(v));
 
-                      // If profile appears in subject, the relationship is the makesRel (e.g., Martyn is the father -> profile is father)
-                      if (subjectHasProfile && !objectHasProfile) {
-                        derivedRelationship = makesRel;
-                      } else if (objectHasProfile && !subjectHasProfile) {
-                        // If profile appears in object, invert the relation: father -> child (son/daughter)
-                        const relWord = makesRel.replace(/\s+/g, " ");
-                        if (/father/i.test(relWord) || /mother/i.test(relWord) || /parent/i.test(relWord)) {
-                          // choose child term based on known gender, else generic 'child'
-                          if (profilePerson && profilePerson.Gender === "Male") derivedRelationship = "son";
-                          else if (profilePerson && profilePerson.Gender === "Female") derivedRelationship = "daughter";
-                          else derivedRelationship = "child";
+                    // If profile appears in subject, the relationship is the makesRel (e.g., Martyn is the father -> profile is father)
+                    if (subjectHasProfile && !objectHasProfile) {
+                      derivedRelationship = makesRel;
+                    } else if (objectHasProfile && !subjectHasProfile) {
+                      // If profile appears in object, invert the relation: father -> child (son/daughter)
+                      const relWord = makesRel.replace(/\s+/g, " ");
+                      if (/father/i.test(relWord) || /mother/i.test(relWord) || /parent/i.test(relWord)) {
+                        // choose child term based on known gender, else generic 'child'
+                        if (profilePerson && profilePerson.Gender === "Male") derivedRelationship = "son";
+                        else if (profilePerson && profilePerson.Gender === "Female") derivedRelationship = "daughter";
+                        else derivedRelationship = "child";
+                      } else {
+                        // For other relations like sibling/cousin/nephew/niece, attempt a simple inverse mapping or leave as-is
+                        if (/daughter/i.test(relWord)) {
+                          derivedRelationship =
+                            profilePerson && profilePerson.Gender === "Male"
+                              ? "father"
+                              : profilePerson && profilePerson.Gender === "Female"
+                              ? "mother"
+                              : "parent";
+                        } else if (/son/i.test(relWord)) {
+                          derivedRelationship =
+                            profilePerson && profilePerson.Gender === "Male"
+                              ? "father"
+                              : profilePerson && profilePerson.Gender === "Female"
+                              ? "mother"
+                              : "parent";
                         } else {
-                          // For other relations like sibling/cousin/nephew/niece, attempt a simple inverse mapping or leave as-is
-                          if (/daughter/i.test(relWord)) {
-                            derivedRelationship = profilePerson && profilePerson.Gender === "Male" ? "father" : profilePerson && profilePerson.Gender === "Female" ? "mother" : "parent";
-                          } else if (/son/i.test(relWord)) {
-                            derivedRelationship = profilePerson && profilePerson.Gender === "Male" ? "father" : profilePerson && profilePerson.Gender === "Female" ? "mother" : "parent";
-                          } else {
-                            // fallback: leave derivedRelationship as previously parsed
-                          }
+                          // fallback: leave derivedRelationship as previously parsed
                         }
                       }
                     }
-                  } catch (e) {
-                    console.log("[WBE dist-rel] error parsing 'This makes' sentence", e);
                   }
+                } catch (e) {
+                  console.log("[WBE dist-rel] error parsing 'This makes' sentence", e);
+                }
 
                 // Determine whether the legacy sentence names the user as subject or object.
                 const userDataEl = document.getElementById("userData");
