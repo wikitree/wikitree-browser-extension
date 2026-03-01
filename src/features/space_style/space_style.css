@@ -1,0 +1,25 @@
+/* Styles for spaceStyle feature */
+div.wbe-space-fullwidth {
+  width: auto !important;
+}
+
+/* Profile manager toggle button */
+.wbe-pm-toggle {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: #fff;
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+}
+.wbe-pm-toggle .wbe-pm-arrow {
+  line-height: 1;
+}
