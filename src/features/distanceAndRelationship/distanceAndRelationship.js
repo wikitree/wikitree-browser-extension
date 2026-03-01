@@ -893,16 +893,91 @@ function doRelationshipText(userID, profileID) {
                 }));
                 commonAncestors = sortCommonAncestorsByGender(commonAncestors);
 
-                // If we don't yet have an overall relationshipText, derive one from the synthesized ancestor
+                // If we don't yet have an overall relationshipText, attempt to derive one
+                // from the explicit "This makes X the <rel> of Y." sentence (preferred)
                 if (!relationshipText && Array.isArray(commonAncestors) && commonAncestors.length > 0) {
                   try {
-                    const first = commonAncestors[0];
-                    relationshipText =
-                      ancestorType(first.path1Length - 1, first.ancestor.mGender)?.toLowerCase() || "relative";
-                    console.log("[WBE dist-rel] synthesized derived relationshipText:", relationshipText);
+                    // Try to find the explicit "This makes ... the <rel> of ..." sentence
+                    const allParaText = Array.from(doc.querySelectorAll("p"))
+                      .map((p) => p.textContent.replace(/\s+/g, " ").trim())
+                      .join(" \n ");
+                    const makesRe = /This makes\s+(.+?)\s+the\s+([a-zA-Z ]+?)\s+of\s+(.+?)\./i;
+                    const makesMatch = allParaText.match(makesRe);
+                    if (makesMatch) {
+                      const makesSubject = makesMatch[1].trim();
+                      const makesRel = makesMatch[2].trim().toLowerCase();
+                      const makesObject = makesMatch[3].trim();
+
+                      // Build normalized name variants for robust matching
+                      const userDataEl = document.getElementById("userData");
+                      const userVariants = new Set();
+                      if (userDataEl && userDataEl.dataset) {
+                        if (userDataEl.dataset.mcolloquialname)
+                          userVariants.add(normalizeForMatch(userDataEl.dataset.mcolloquialname));
+                        if (userDataEl.dataset.mname) userVariants.add(normalizeForMatch(userDataEl.dataset.mname));
+                        if (userDataEl.dataset.mlastnamecurrent)
+                          userVariants.add(normalizeForMatch(userDataEl.dataset.mlastnamecurrent));
+                      }
+
+                      const profileVariants = nameVariantsForProfile(profilePerson, profileID);
+
+                      const subjNorm = normalizeForMatch(makesSubject);
+                      const objNorm = normalizeForMatch(makesObject);
+
+                      const subjectHasProfile = profileVariants.some((v) => v && subjNorm.includes(v));
+                      const objectHasProfile = profileVariants.some((v) => v && objNorm.includes(v));
+                      const subjectHasUser = [...userVariants].some((v) => v && subjNorm.includes(v));
+                      const objectHasUser = [...userVariants].some((v) => v && objNorm.includes(v));
+
+                      // Only use the explicit "This makes..." sentence when it links
+                      // the profile and the current user. Otherwise it often describes
+                      // relationships to intermediate ancestors and is not relevant.
+                      const linksProfileToUser =
+                        (subjectHasProfile && objectHasUser) || (objectHasProfile && subjectHasUser);
+
+                      if (linksProfileToUser) {
+                        // If profile appears in subject and user in object, profile is ancestor
+                        if (subjectHasProfile && objectHasUser) {
+                          relationshipText = makesRel;
+                        } else if (objectHasProfile && subjectHasUser) {
+                          // If profile appears in object and user in subject, invert parent -> child
+                          const relWord = makesRel.replace(/\s+/g, " ");
+                          if (/father/i.test(relWord) || /mother/i.test(relWord) || /parent/i.test(relWord)) {
+                            if (profilePerson && profilePerson.Gender === "Male") relationshipText = "son";
+                            else if (profilePerson && profilePerson.Gender === "Female") relationshipText = "daughter";
+                            else relationshipText = "child";
+                          } else if (/son/i.test(relWord) || /daughter/i.test(relWord)) {
+                            if (profilePerson && profilePerson.Gender === "Male") relationshipText = "father";
+                            else if (profilePerson && profilePerson.Gender === "Female") relationshipText = "mother";
+                            else relationshipText = "parent";
+                          } else {
+                            relationshipText = relWord;
+                          }
+                        }
+                      } else {
+                        // Ambiguous or unrelated makes-sentence: fall back to ancestor-based guess
+                        const first = commonAncestors[0];
+                        relationshipText =
+                          ancestorType(first.path1Length - 1, first.ancestor.mGender)?.toLowerCase() || "relative";
+                      }
+
+                      // Normalize ordinal words etc.
+                      if (relationshipText) {
+                        let relationshipParts = relationshipText.split(" ");
+                        relationshipParts[0] = ordinalWordToNumberAndSuffix(relationshipParts[0]);
+                        relationshipText = fixOrdinalSuffix(relationshipParts.join(" "));
+                        console.log("[WBE dist-rel] synthesized derived relationshipText:", relationshipText);
+                      }
+                    } else {
+                      // No explicit makes sentence; fall back to ancestor-based guess
+                      const first = commonAncestors[0];
+                      relationshipText =
+                        ancestorType(first.path1Length - 1, first.ancestor.mGender)?.toLowerCase() || "relative";
+                    }
 
                     // If distance isn't set by getConnections, synthesize a sensible distance (parent => 1)
                     if (!Number.isFinite(window.distance) || window.distance <= 0) {
+                      const first = commonAncestors[0];
                       const guessedDistance = Math.max((first.path1Length || 1) - 1, 1);
                       window.distance = guessedDistance;
                       // Render distance badge
