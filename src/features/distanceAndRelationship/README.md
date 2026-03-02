@@ -1,65 +1,60 @@
-This feature computes and displays the relationship and "degrees of separation" between the current WikiTree user and the profile being viewed.
+This feature shows the distance (degrees) and relationship between the logged-in user and the profile being viewed.
 
-Behavior overview
+## How it works
 
-- Primary data flow:
+1. **Primary path (modern API)**
 
-  - Try modern API: call `WikiTreeAPI.getConnections(..., { relation: 2 })` to get a computed path between the two people. If this returns a valid `path`, the code analyzes the path and derives:
-    - `window.distance` (degrees = path.length - 1)
-    - `relationship` (human-friendly label derived from ancestor/descendant steps)
-    - `commonAncestors` (one or more ancestor entries synthesized from the path)
-  - Fallback to legacy endpoint: if `getConnections` returns no usable path (often due to privacy restrictions), call `getRelationJSON("DistanceAndRelationship_Relationship", userID, profileID)` which returns `html` and sometimes a structured `commonAncestors` array. The feature then:
-    - Parses the returned HTML to extract the primary relationship sentence (e.g., "Ian and [Private] are siblings"), any `<p>` paragraphs, and any `commonAncestors` returned by the legacy endpoint.
-    - If legacy `commonAncestors` are present, they are normalized and used.
-    - If the legacy `commonAncestors` array is empty but the HTML contains explicit sentences like "This makes X the father of Y.", the feature will attempt to synthesize minimal `commonAncestors` entries. BEFORE using such synthesized sentences to produce the final label, the code verifies that the sentence actually links the profile and the current user (i.e., one side matches the profile and the other matches the user). If the sentence does not link the two people (it refers to intermediate ancestors), it is ignored for direct relationship derivation.
+   - Calls `WikiTreeAPI.getConnections(..., { relation: 2 })`.
+   - If a valid path is returned, it derives:
+     - `distance` from path length,
+     - relationship text from path analysis,
+     - common ancestor entries from the path.
+   - It may enrich common ancestors (for example, second parent/spouse where available).
 
-- Relationship derivation heuristics:
+2. **Fallback path (legacy endpoint)**
+   - If modern `getConnections` does not return a usable path (common with privacy limits), it calls:
+     - `getRelationJSON("DistanceAndRelationship_Relationship", userID, profileID)`.
 
-  - When a modern `path` is available, `analyzeAncestorPath()` computes up/down steps and `relationshipFromPathAnalysis()` maps those steps to labels (e.g., parent, grandparent, cousin, aunt/uncle, niece/nephew, etc.).
-  - When using legacy HTML:
-    - Simple heuristics extract words after "is the" / "is" / "are" and regexes are used to find relationship keywords.
-    - Possessives ("Ian's niece") are normalized to the bare relationship word.
-    - For explicit "This makes X the <rel> of Y." sentences, the code determines which side is the `profile` and which side is the `user` using name variants and dataset fields (page `userData` attributes when available). Only if the sentence links profile↔user is the sentence used to derive the displayed relationship. Otherwise it is treated as describing relationships to intermediate ancestors and ignored.
-    - Inversions: when the sentence indicates the profile is the object (e.g., "Martyn is the father of Tanya") and the profile is indeed the object, the code will invert the parent relation to a child term (son/daughter/child) based on the profile's known gender.
+- The fallback then uses the **stable parser behavior** with safety guards:
+  - parses `h3` text first (preferred source of direct relationship),
+  - if `h3` is generic (e.g. `Grandson`), derives from explicit `This makes ... the <rel> of ...` text,
+  - uses `bold` / `ancestor_1` legacy patterns when needed,
+  - orients the parsed relationship to the **profile perspective** by checking whether the logged-in user name
+    (from `#userData[data-mcolloquialname]`) is sentence subject or object,
+  - inverts only when needed (e.g. `Ian is the grandson of X` => profile shown as grandparent,
+    with gender-aware `grandfather`/`grandmother`),
+  - preserves headline relations like sibling/cousin/nephew where applicable,
+  - uses legacy `commonAncestors` if present.
+- Legacy `commonAncestors` path lengths are normalized via `reducePathLength` for compatibility with extension-side relationship rendering.
+- If modern distance is unavailable in fallback cases, distance is estimated from the resolved relationship text
+  (and then cached/rendered), so privacy-only fallback pages can still show a degree badge.
 
-- Name matching and normalization:
+## Caching
 
-  - The code builds `nameVariantsForProfile()` from `profilePerson` fields (FirstName, LastNameCurrent, LastNameAtBirth, profile `Name`), and normalizes strings (removing "[Private]", punctuation, extra whitespace, case).
-  - For the current user it also reads `document.getElementById('userData')` dataset fields (when available) to create variants for matching.
-  - These variants are used to decide whether a legacy sentence's subject/object refers to the profile or the viewer.
+- Distance cache: IndexedDB `ConnectionFinderWTE` / `distance2`.
+- Relationship cache: IndexedDB `RelationshipFinderWTE` / `relationship2`.
+- Cache key: `distRelDbKeyFor(profileID, userID)`.
+- TTL refresh: `DIST_REL_REFRESH_INTERVAL_MS` (12 hours), with manual refresh on click.
 
-- Common-ancestor enrichment:
-  - When a common ancestor entry indicates a direct parent on one side, the code will attempt to fetch the other parent or a pivot spouse using `getRelatives()` to present two common-ancestor lines when available.
+## UI behavior
 
-Caching and UI
+- Shows distance badge (e.g. `1°`) near the profile heading.
+- Shows relationship box (`Your cousin`, `Your daughter`, etc.) and common ancestor lines when available.
+- Clicking distance or relationship triggers refresh.
 
-- Storage: results are cached in IndexedDB stores:
-  - `ConnectionFinderWTE` / store `distance2` for distance records
-  - `RelationshipFinderWTE` / store `relationship2` for relationship records
-  - Keys are generated with `distRelDbKeyFor(profileID, userID)`.
-- TTL: cached entries have a 12-hour refresh interval (`DIST_REL_REFRESH_INTERVAL_MS`) after which a background refresh is scheduled; users can also force-refresh by clicking the distance badge or relationship box.
-- UI rendering:
-  - Shows a distance badge like `1°` next to the profile name.
-  - Shows a relationship box `Your daughter` / `Your cousin` etc. For direct parent relations (both path lengths == 1) a single-line short label is rendered.
+## Debug logs
 
-Debugging and diagnostics
+Useful console logs include:
 
-- The feature emits detailed console logs to help debug privacy-edge cases and parsing heuristics, including:
-  - Modern API outputs: `[WBE dist-rel] getConnections (relation=2) response:`
-  - Legacy fallback HTML and parsing: `[WBE dist-rel] getRelationJSON fallback response:` and `[WBE dist-rel] legacy firstPText:`
-  - Normalized `commonAncestors` diagnostics: `[WBE dist-rel] legacy commonAncestors raw:` and `[WBE dist-rel] legacy commonAncestors normalized:`
-  - When synthesizing common ancestors: `[WBE dist-rel] synthesized commonAncestors from legacy HTML:` and `[WBE dist-rel] synthesized derived relationshipText:`
-  - Mapping diagnostics that show raw vs normalized path lengths: `[WBE dist-rel] legacy CA mapping:`
+- `[WBE dist-rel] getConnections (relation=2) response:`
+- `[WBE dist-rel] No path from getConnections; invoking legacy fallback`
+- `[WBE dist-rel] getRelationJSON fallback response:`
+- `[WBE dist-rel] legacy firstPText:`
+- `[WBE dist-rel] legacy commonAncestors raw:` / `normalized:`
+- `[WBE dist-rel] derived relationshipText from legacy:`
+- `[WBE dist-rel] estimated distance from legacy relationship:`
 
-Guidance for troubleshooting incorrect labels
+## Notes
 
-- If you see an incorrect label (for example "Your father" when you expect "Your daughter"):
-
-1.  Open the developer console on the profile page and look for the debug messages listed above.
-2.  If a `synthesized commonAncestors` entry was used, check whether the `This makes...` sentence actually names both the profile and the current user. If it does not, that sentence will be ignored and the code will fall back to ancestor heuristics.
-3.  Provide the exact console logs (especially the `legacy firstPText`, `synthesized commonAncestors`, and `legacy CA mapping`) and we can refine name-variant matching or the inversion logic.
-
-Notes and limitations
-
-- Legacy HTML contents vary widely across cases (private profiles, truncated names, intermediate ancestor descriptions). The code uses heuristics and conservative checks to avoid mis-applying unrelated sentences; however, edge-cases remain where additional name-variant matching or fuzzy matching would improve results.
-- Logging is intentionally verbose for debugging — consider reducing or gating debug output before publishing to a wider audience.
+- `getConnections` remains the primary source of truth.
+- Fallback is intentionally conservative for privacy-blocked cases and now includes orientation + inversion safeguards.
