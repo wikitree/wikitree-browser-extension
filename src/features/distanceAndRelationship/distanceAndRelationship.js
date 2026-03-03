@@ -880,11 +880,29 @@ function doRelationshipText(userID, profileID) {
                 /^[A-Za-z ]+$/.test(firstPText) &&
                 !/\b(is|are)\b/i.test(firstPText)
               ) {
-                const makesRel = allParaText.match(/This makes[\s\S]*?\bthe\s+([A-Za-z ]+?)\s+of\b/i);
-                if (makesRel && makesRel[1]) {
-                  derivedRelationship = makesRel[1].trim().toLowerCase();
+                const makesRel = allParaText.match(/This makes\s+(.+?)\s+the\s+([A-Za-z ]+?)\s+of\s+(.+?)\./i);
+                if (makesRel && makesRel[2]) {
+                  const makesSubject = normalizeForMatch(makesRel[1]);
+                  const makesRelationship = normalizeLegacyRelationLabel(makesRel[2]);
+                  const userColloq = normalizeForMatch(
+                    document.getElementById("userData")?.dataset?.mcolloquialname || ""
+                  );
+                  const userWtId = normalizeForMatch(getUserWtId() || "");
+
+                  // If the logged-in user is the subject in "This makes ...",
+                  // invert to profile perspective.
+                  if (
+                    (userColloq && makesSubject.includes(userColloq)) ||
+                    (userWtId && makesSubject.includes(userWtId))
+                  ) {
+                    derivedRelationship = invertRelationshipForProfile(makesRelationship, profilePerson?.Gender);
+                  } else {
+                    derivedRelationship = makesRelationship;
+                  }
+
                   console.log("[WBE dist-rel] generic h3 -> using 'This makes' relation:", {
                     firstPText,
+                    makesSubject,
                     derivedRelationship,
                   });
                 }
@@ -956,19 +974,30 @@ function doRelationshipText(userID, profileID) {
               // daughter/son/child from the viewer's perspective.
               try {
                 const userWtId = String(getUserWtId() || "").toLowerCase();
+                const userColloq = String(document.getElementById("userData")?.dataset?.mcolloquialname || "")
+                  .trim()
+                  .toLowerCase();
                 const h3Html = firstP?.innerHTML || "";
                 const parentRelMatch = h3Html.match(
-                  /is\s+(?:the\s+)?([a-z0-9\-\s]+?)\s+of\s+<a[^>]*href=["']([^"']+)["']/i
+                  /is\s+(?:the\s+)?([a-z0-9\-\s]+?)\s+of\s+<a[^>]*href=["']([^"']+)["'][^>]*>([^<]*)<\/a>/i
                 );
                 if (parentRelMatch) {
                   const rel = normalizeLegacyRelationLabel(parentRelMatch[1]);
                   const href = decodeURIComponent(parentRelMatch[2] || "");
+                  const linkText = String(parentRelMatch[3] || "")
+                    .trim()
+                    .toLowerCase();
                   const hrefWtId = (href.split("/").pop() || "").replace(/[?#].*$/, "").toLowerCase();
-                  if (hrefWtId && userWtId && hrefWtId === userWtId) {
+                  if (
+                    rel &&
+                    ((hrefWtId && userWtId && hrefWtId === userWtId) ||
+                      (userColloq && linkText && (linkText === userColloq || linkText.startsWith(`${userColloq} `))))
+                  ) {
                     derivedRelationship = rel;
                     console.log("[WBE dist-rel] legacy parent-link override:", {
                       userWtId,
                       hrefWtId,
+                      linkText,
                       derivedRelationship,
                     });
                   }
