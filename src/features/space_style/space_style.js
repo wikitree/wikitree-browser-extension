@@ -17,6 +17,17 @@ function init(options) {
   applyInitialSidebarState(options);
   moveProfileManager();
   addProfileManagerToggle();
+  $("aside.footnote #Manager div").removeClass("align-items-center").addClass("wbe-pm-content");
+}
+
+function movePhotos(visible) {
+  const photos = $("section#Photos");
+  if (!photos.length) return;
+  if (visible) {
+    $("aside.footnote").after(photos);
+  } else {
+    $("#Collaboration").before(photos);
+  }
 }
 
 function setSidebarVisible(visible) {
@@ -28,6 +39,7 @@ function setSidebarVisible(visible) {
     $(".page--content").addClass("wbe-space-fullwidth");
   }
   moveProfileManager();
+  movePhotos($(".x-sidebar").is(":visible"));
 }
 
 function toggleSidebar() {

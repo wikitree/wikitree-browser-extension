@@ -9,7 +9,7 @@ registerFeature({
   name: "Space Style",
   id: "spaceStyle",
   description:
-    "On space pages, this feature removes the right sidebar and moves the profile manager box to the main content area.",
+    "On space pages, this feature removes the right sidebar, moves the profile manager box to the main content area, and moves the photos to the bottom.",
   category: "Global/Style",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],

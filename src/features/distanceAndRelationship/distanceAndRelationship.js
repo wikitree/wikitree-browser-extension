@@ -354,35 +354,81 @@ function escapeRegExp(text) {
 }
 
 function invertRelationshipForProfile(relationship, profileGender) {
-  const rel = String(relationship || "").trim().toLowerCase();
+  const rel = String(relationship || "")
+    .trim()
+    .toLowerCase();
   if (!rel) return rel;
 
   const asParent = profileGender === "Male" ? "father" : profileGender === "Female" ? "mother" : "parent";
   const asChild = profileGender === "Male" ? "son" : profileGender === "Female" ? "daughter" : "child";
-  const asAuntUncle =
-    profileGender === "Male" ? "uncle" : profileGender === "Female" ? "aunt" : "aunt or uncle";
-  const asNieceNephew =
-    profileGender === "Male" ? "nephew" : profileGender === "Female" ? "niece" : "niece or nephew";
+  const asAuntUncle = profileGender === "Male" ? "uncle" : profileGender === "Female" ? "aunt" : "aunt or uncle";
+  const asNieceNephew = profileGender === "Male" ? "nephew" : profileGender === "Female" ? "niece" : "niece or nephew";
 
   const replacements = [
-    [/(^|\s)grandson$/i, `$1${profileGender === "Male" ? "grandfather" : profileGender === "Female" ? "grandmother" : "grandparent"}`],
-    [/(^|\s)granddaughter$/i, `$1${profileGender === "Male" ? "grandfather" : profileGender === "Female" ? "grandmother" : "grandparent"}`],
-    [/(^|\s)grandchild$/i, `$1${profileGender === "Male" ? "grandfather" : profileGender === "Female" ? "grandmother" : "grandparent"}`],
-    [/(^|\s)grandfather$/i, `$1${profileGender === "Male" ? "grandson" : profileGender === "Female" ? "granddaughter" : "grandchild"}`],
-    [/(^|\s)grandmother$/i, `$1${profileGender === "Male" ? "grandson" : profileGender === "Female" ? "granddaughter" : "grandchild"}`],
-    [/(^|\s)grandparent$/i, `$1${profileGender === "Male" ? "grandson" : profileGender === "Female" ? "granddaughter" : "grandchild"}`],
+    [
+      /(^|\s)grandson$/i,
+      `$1${profileGender === "Male" ? "grandfather" : profileGender === "Female" ? "grandmother" : "grandparent"}`,
+    ],
+    [
+      /(^|\s)granddaughter$/i,
+      `$1${profileGender === "Male" ? "grandfather" : profileGender === "Female" ? "grandmother" : "grandparent"}`,
+    ],
+    [
+      /(^|\s)grandchild$/i,
+      `$1${profileGender === "Male" ? "grandfather" : profileGender === "Female" ? "grandmother" : "grandparent"}`,
+    ],
+    [
+      /(^|\s)grandfather$/i,
+      `$1${profileGender === "Male" ? "grandson" : profileGender === "Female" ? "granddaughter" : "grandchild"}`,
+    ],
+    [
+      /(^|\s)grandmother$/i,
+      `$1${profileGender === "Male" ? "grandson" : profileGender === "Female" ? "granddaughter" : "grandchild"}`,
+    ],
+    [
+      /(^|\s)grandparent$/i,
+      `$1${profileGender === "Male" ? "grandson" : profileGender === "Female" ? "granddaughter" : "grandchild"}`,
+    ],
     [/(^|\s)son$/i, `$1${asParent}`],
     [/(^|\s)daughter$/i, `$1${asParent}`],
     [/(^|\s)child$/i, `$1${asParent}`],
     [/(^|\s)father$/i, `$1${asChild}`],
     [/(^|\s)mother$/i, `$1${asChild}`],
     [/(^|\s)parent$/i, `$1${asChild}`],
-    [/(^|\s)grandnephew$/i, `$1${profileGender === "Male" ? "granduncle" : profileGender === "Female" ? "grandaunt" : "granduncle or grandaunt"}`],
-    [/(^|\s)grandniece$/i, `$1${profileGender === "Male" ? "granduncle" : profileGender === "Female" ? "grandaunt" : "granduncle or grandaunt"}`],
+    [
+      /(^|\s)grandnephew$/i,
+      `$1${
+        profileGender === "Male" ? "granduncle" : profileGender === "Female" ? "grandaunt" : "granduncle or grandaunt"
+      }`,
+    ],
+    [
+      /(^|\s)grandniece$/i,
+      `$1${
+        profileGender === "Male" ? "granduncle" : profileGender === "Female" ? "grandaunt" : "granduncle or grandaunt"
+      }`,
+    ],
     [/(^|\s)nephew$/i, `$1${asAuntUncle}`],
     [/(^|\s)niece$/i, `$1${asAuntUncle}`],
-    [/(^|\s)granduncle$/i, `$1${profileGender === "Male" ? "grandnephew" : profileGender === "Female" ? "grandniece" : "grandniece or grandnephew"}`],
-    [/(^|\s)grandaunt$/i, `$1${profileGender === "Male" ? "grandnephew" : profileGender === "Female" ? "grandniece" : "grandniece or grandnephew"}`],
+    [
+      /(^|\s)granduncle$/i,
+      `$1${
+        profileGender === "Male"
+          ? "grandnephew"
+          : profileGender === "Female"
+          ? "grandniece"
+          : "grandniece or grandnephew"
+      }`,
+    ],
+    [
+      /(^|\s)grandaunt$/i,
+      `$1${
+        profileGender === "Male"
+          ? "grandnephew"
+          : profileGender === "Female"
+          ? "grandniece"
+          : "grandniece or grandnephew"
+      }`,
+    ],
     [/(^|\s)uncle$/i, `$1${asNieceNephew}`],
     [/(^|\s)aunt$/i, `$1${asNieceNephew}`],
   ];
@@ -398,7 +444,9 @@ function invertRelationshipForProfile(relationship, profileGender) {
 
 function orientLegacyRelationshipToProfile(relationship, firstPText, userColloq, profileGender) {
   const rel = String(relationship || "").trim();
-  const text = String(firstPText || "").replace(/\s+/g, " ").trim();
+  const text = String(firstPText || "")
+    .replace(/\s+/g, " ")
+    .trim();
   const user = String(userColloq || "").trim();
   if (!rel || !text || !user) return rel;
 
@@ -469,6 +517,15 @@ function estimateDistanceFromRelationship(relationshipText) {
   }
 
   return null;
+}
+
+function normalizeLegacyRelationLabel(rel) {
+  return String(rel || "")
+    .replace(/\.$/, "")
+    .replace(/^\s*the\s+/i, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 function isUpPathType(pathType) {
@@ -817,7 +874,12 @@ function doRelationshipText(userID, profileID) {
 
               // Safety rule for generic heading-only h3 values like "Grandson":
               // when h3 has no names/grammar, prefer explicit "This makes ... the <rel> of ..." relation.
-              if (!derivedRelationship && firstPText && /^[A-Za-z ]+$/.test(firstPText) && !/\b(is|are)\b/i.test(firstPText)) {
+              if (
+                !derivedRelationship &&
+                firstPText &&
+                /^[A-Za-z ]+$/.test(firstPText) &&
+                !/\b(is|are)\b/i.test(firstPText)
+              ) {
                 const makesRel = allParaText.match(/This makes[\s\S]*?\bthe\s+([A-Za-z ]+?)\s+of\b/i);
                 if (makesRel && makesRel[1]) {
                   derivedRelationship = makesRel[1].trim().toLowerCase();
@@ -839,7 +901,12 @@ function doRelationshipText(userID, profileID) {
                 if (!derivedRelationship) {
                   derivedRelationship = (bold?.textContent || "").trim();
                 }
-                if (!derivedRelationship && boldParentHTML.includes(profileFirstName) && profileID && !lastLink.includes(profileID)) {
+                if (
+                  !derivedRelationship &&
+                  boldParentHTML.includes(profileFirstName) &&
+                  profileID &&
+                  !lastLink.includes(profileID)
+                ) {
                   derivedRelationship = firstPText
                     .replace("(DNA Confirmed)", "")
                     .replace("(Confident)", "")
@@ -891,10 +958,10 @@ function doRelationshipText(userID, profileID) {
                 const userWtId = String(getUserWtId() || "").toLowerCase();
                 const h3Html = firstP?.innerHTML || "";
                 const parentRelMatch = h3Html.match(
-                  /is\s+the\s+(daughter|son|child)\s+of\s+<a[^>]*href=["']([^"']+)["']/i
+                  /is\s+(?:the\s+)?([a-z0-9\-\s]+?)\s+of\s+<a[^>]*href=["']([^"']+)["']/i
                 );
                 if (parentRelMatch) {
-                  const rel = parentRelMatch[1].toLowerCase();
+                  const rel = normalizeLegacyRelationLabel(parentRelMatch[1]);
                   const href = decodeURIComponent(parentRelMatch[2] || "");
                   const hrefWtId = (href.split("/").pop() || "").replace(/[?#].*$/, "").toLowerCase();
                   if (hrefWtId && userWtId && hrefWtId === userWtId) {
@@ -908,6 +975,43 @@ function doRelationshipText(userID, profileID) {
                 }
               } catch (e) {
                 console.log("[WBE dist-rel] legacy parent-link override parse error", e);
+              }
+
+              // Private-profile variant:
+              // relation often appears in span.ancestor_1 like:
+              // "[Private] is the daughter of <a href='/wiki/Person-123'>Test Person</a>"
+              // If that linked WTID is the logged-in user, relation is taken from that phrase.
+              try {
+                const userWtId = String(getUserWtId() || "").toLowerCase();
+                const userColloq = String(document.getElementById("userData")?.dataset?.mcolloquialname || "")
+                  .trim()
+                  .toLowerCase();
+                const anc1Html = doc.querySelector("span.ancestor_1")?.innerHTML || "";
+                const relLinkMatch = anc1Html.match(
+                  /is\s+(?:the\s+)?([a-z0-9\-\s]+?)\s+of\s+<a[^>]*href=["'][^"']*\/wiki\/([^"'\/?#]+)[^"']*["'][^>]*>([^<]*)<\/a>/i
+                );
+                if (relLinkMatch) {
+                  const rel = normalizeLegacyRelationLabel(relLinkMatch[1]);
+                  const hrefWtId = String(relLinkMatch[2] || "").toLowerCase();
+                  const linkText = String(relLinkMatch[3] || "")
+                    .trim()
+                    .toLowerCase();
+                  if (
+                    rel &&
+                    ((userWtId && hrefWtId === userWtId) ||
+                      (userColloq && linkText && (linkText === userColloq || linkText.startsWith(`${userColloq} `))))
+                  ) {
+                    derivedRelationship = rel;
+                    console.log("[WBE dist-rel] legacy ancestor_1 user-link override:", {
+                      userWtId,
+                      hrefWtId,
+                      linkText,
+                      derivedRelationship,
+                    });
+                  }
+                }
+              } catch (e) {
+                console.log("[WBE dist-rel] legacy ancestor_1 user-link override parse error", e);
               }
 
               // Minimal no-link override:
