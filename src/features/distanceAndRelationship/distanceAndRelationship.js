@@ -930,6 +930,45 @@ function doRelationshipText(userID, profileID) {
                   .replace(/siblings/, "sibling");
               }
 
+              // Deterministic orientation for explicit sentence headlines:
+              // "X is the <rel> of Y".
+              // If X is the logged-in user, invert to profile perspective.
+              // If Y is the logged-in user, keep relation as-is.
+              try {
+                const sentenceMatch = firstPText.match(/^(.+?)\s+is\s+the\s+([a-z0-9\-\s]+?)\s+of\s+(.+)$/i);
+                if (sentenceMatch) {
+                  const subject = normalizeForMatch(sentenceMatch[1]);
+                  const rel = normalizeLegacyRelationLabel(sentenceMatch[2]);
+                  const object = normalizeForMatch(sentenceMatch[3]);
+                  const userColloq = normalizeForMatch(
+                    document.getElementById("userData")?.dataset?.mcolloquialname || ""
+                  );
+                  const userWtId = normalizeForMatch(getUserWtId() || "");
+
+                  const partMatchesUser = (part) =>
+                    (userColloq && part.includes(userColloq)) || (userWtId && part.includes(userWtId));
+
+                  const subjectIsUser = partMatchesUser(subject);
+                  const objectIsUser = partMatchesUser(object);
+
+                  if (rel && subjectIsUser && !objectIsUser) {
+                    derivedRelationship = invertRelationshipForProfile(rel, profilePerson?.Gender);
+                    console.log("[WBE dist-rel] explicit sentence orientation -> user is subject (inverted):", {
+                      firstPText,
+                      derivedRelationship,
+                    });
+                  } else if (rel && objectIsUser && !subjectIsUser) {
+                    derivedRelationship = rel;
+                    console.log("[WBE dist-rel] explicit sentence orientation -> user is object (kept):", {
+                      firstPText,
+                      derivedRelationship,
+                    });
+                  }
+                }
+              } catch (e) {
+                console.log("[WBE dist-rel] explicit sentence orientation parse error", e);
+              }
+
               // Safety rule for generic heading-only h3 values like "Grandson":
               // when h3 has no names/grammar, prefer explicit "This makes ... the <rel> of ..." relation.
               if (
