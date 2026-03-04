@@ -537,7 +537,9 @@ function isUpPathType(pathType) {
     // 1 -> up/parent (heuristic mapping)
     return n === 1;
   }
-  return ["parent", "father", "mother"].includes(String(pathType || "").toLowerCase());
+  const s = String(pathType || "").toLowerCase();
+  // Match exact tokens or substrings like 'bioparent' or 'adoptive parent'
+  return s.includes("parent") || s.includes("father") || s.includes("mother");
 }
 
 function isDownPathType(pathType) {
@@ -548,7 +550,8 @@ function isDownPathType(pathType) {
     // 2 -> down/child (heuristic mapping)
     return n === 2;
   }
-  return ["child", "son", "daughter"].includes(String(pathType || "").toLowerCase());
+  const s = String(pathType || "").toLowerCase();
+  return s.includes("child") || s.includes("son") || s.includes("daughter");
 }
 
 function removedText(removed) {
@@ -842,6 +845,16 @@ function doRelationshipText(userID, profileID) {
   )
     .then(async function (data) {
       console.log("[WBE dist-rel] getConnections (relation=2) response:", data);
+      try {
+        if (data && Array.isArray(data.path)) {
+          console.log(
+            "[WBE dist-rel] raw path types:",
+            data.path.map((n) => ({ Id: n.Id, Name: n.Name, pathType: n.pathType }))
+          );
+        }
+      } catch (e) {
+        console.log("[WBE dist-rel] error logging raw path types:", e);
+      }
       let relationshipText = "";
       let commonAncestors = [];
 
