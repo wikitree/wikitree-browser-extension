@@ -529,11 +529,26 @@ function normalizeLegacyRelationLabel(rel) {
 }
 
 function isUpPathType(pathType) {
-  return ["parent", "father", "mother"].includes((pathType || "").toLowerCase());
+  // Accept both string pathType values (e.g. 'parent') and numeric codes (e.g. 1)
+  if (pathType === null || pathType === undefined) return false;
+  // Numeric codes returned by newer API variants
+  if (typeof pathType === "number" || String(pathType).match(/^\d+$/)) {
+    const n = Number(pathType);
+    // 1 -> up/parent (heuristic mapping)
+    return n === 1;
+  }
+  return ["parent", "father", "mother"].includes(String(pathType || "").toLowerCase());
 }
 
 function isDownPathType(pathType) {
-  return ["child", "son", "daughter"].includes((pathType || "").toLowerCase());
+  // Accept both string pathType values (e.g. 'child') and numeric codes (e.g. 2)
+  if (pathType === null || pathType === undefined) return false;
+  if (typeof pathType === "number" || String(pathType).match(/^\d+$/)) {
+    const n = Number(pathType);
+    // 2 -> down/child (heuristic mapping)
+    return n === 2;
+  }
+  return ["child", "son", "daughter"].includes(String(pathType || "").toLowerCase());
 }
 
 function removedText(removed) {
@@ -831,7 +846,37 @@ function doRelationshipText(userID, profileID) {
       let commonAncestors = [];
 
       if (data && Array.isArray(data.path) && data.path.length > 0) {
-        const pathAnalysis = analyzeAncestorPath(data.path);
+            // If path entries are present but the per-node pathType is missing for
+            // simple two-node paths, attempt to infer parent/child direction from
+            // the API (this avoids incorrectly treating the relation as 'self').
+            if (Array.isArray(data.path) && data.path.length === 2 && !data.path[1].pathType) {
+              try {
+                const pivot = data.path[1]; // index 1 is the profile in getConnections(user, profile)
+                // Ask the API for relatives of the profile to determine if the
+                // first node (user) is a parent or child.
+                const rels = await WikiTreeAPI.getRelatives(
+                  WBE_DIST_REL_APP_ID,
+                  [pivot.Name || pivot.Id || profileID],
+                  "Id,Name,Gender",
+                  { getParents: true, getChildren: true }
+                );
+                const person = rels?.[0]?.person || {};
+                const parents = person?.Parents ? Object.values(person.Parents).map((p) => Number(p.Id)) : [];
+                const children = person?.Children ? Object.values(person.Children).map((c) => Number(c.Id)) : [];
+                const otherId = Number(data.path[0].Id);
+                if (parents.includes(otherId)) {
+                  // Other is a parent of pivot -> pivot is child of other
+                  data.path[1].pathType = "child";
+                } else if (children.includes(otherId)) {
+                  // Other is a child of pivot -> pivot is parent of other
+                  data.path[1].pathType = "parent";
+                }
+              } catch (err) {
+                console.log("Could not infer missing pathType for two-node path", err);
+              }
+            }
+
+            const pathAnalysis = analyzeAncestorPath(data.path);
         relationshipText = relationshipFromPathAnalysis(pathAnalysis, profilePerson.Gender);
         commonAncestors = commonAncestorsFromPath(data.path, pathAnalysis);
         commonAncestors = await augmentWithOtherParentCommonAncestor(userID, profileID, pathAnalysis, commonAncestors);
