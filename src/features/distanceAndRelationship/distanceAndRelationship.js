@@ -872,87 +872,39 @@ function doRelationshipText(userID, profileID) {
                   .replace(/siblings/, "sibling");
               }
 
-              // Deterministic orientation for explicit sentence headlines:
-              // "X is the <rel> of Y".
-              // If X is the logged-in user, invert to profile perspective.
-              // If Y is the logged-in user, keep relation as-is.
-              try {
-                const sentenceMatch = firstPText.match(/^(.+?)\s+is\s+the\s+([a-z0-9\-\s]+?)\s+of\s+(.+)$/i);
-                if (sentenceMatch) {
-                  const subject = normalizeForMatch(sentenceMatch[1]);
-                  const rel = normalizeLegacyRelationLabel(sentenceMatch[2]);
-                  const object = normalizeForMatch(sentenceMatch[3]);
-                  const userColloq = normalizeForMatch(
-                    document.getElementById("userData")?.dataset?.mcolloquialname || ""
-                  );
-                  const userWtId = normalizeForMatch(getUserWtId() || "");
-
-                  const partMatchesUser = (part) =>
-                    (userColloq && part.includes(userColloq)) || (userWtId && part.includes(userWtId));
-
-                  const subjectIsUser = partMatchesUser(subject);
-                  const objectIsUser = partMatchesUser(object);
-
-                  if (rel && subjectIsUser && !objectIsUser) {
-                    derivedRelationship = invertRelationshipForProfile(rel, profilePerson?.Gender);
-                    console.log("[WBE dist-rel] explicit sentence orientation -> user is subject (inverted):", {
-                      firstPText,
-                      derivedRelationship,
-                    });
-                  } else if (rel && objectIsUser && !subjectIsUser) {
-                    derivedRelationship = rel;
-                    console.log("[WBE dist-rel] explicit sentence orientation -> user is object (kept):", {
-                      firstPText,
-                      derivedRelationship,
-                    });
-                  }
-                }
-              } catch (e) {
-                console.log("[WBE dist-rel] explicit sentence orientation parse error", e);
-              }
-
               // Safety rule for generic heading-only h3 values like "Grandson":
-              // prefer the heading relation itself first (it's already profile-facing),
-              // and only fall back to "This makes ..." extraction if heading parsing fails.
+              // when h3 has no names/grammar, prefer explicit "This makes ... the <rel> of ..." relation.
               if (
                 !derivedRelationship &&
                 firstPText &&
                 /^[A-Za-z ]+$/.test(firstPText) &&
                 !/\b(is|are)\b/i.test(firstPText)
               ) {
-                derivedRelationship = normalizeLegacyRelationLabel(firstPText);
-                console.log("[WBE dist-rel] generic h3 -> using heading relation:", {
-                  firstPText,
-                  derivedRelationship,
-                });
+                const makesRel = allParaText.match(/This makes\s+(.+?)\s+the\s+([A-Za-z ]+?)\s+of\s+(.+?)\./i);
+                if (makesRel && makesRel[2]) {
+                  const makesSubject = normalizeForMatch(makesRel[1]);
+                  const makesRelationship = normalizeLegacyRelationLabel(makesRel[2]);
+                  const userColloq = normalizeForMatch(
+                    document.getElementById("userData")?.dataset?.mcolloquialname || ""
+                  );
+                  const userWtId = normalizeForMatch(getUserWtId() || "");
 
-                if (!derivedRelationship) {
-                  const makesRel = allParaText.match(/This makes\s+(.+?)\s+the\s+([A-Za-z ]+?)\s+of\s+(.+?)\./i);
-                  if (makesRel && makesRel[2]) {
-                    const makesSubject = normalizeForMatch(makesRel[1]);
-                    const makesRelationship = normalizeLegacyRelationLabel(makesRel[2]);
-                    const userColloq = normalizeForMatch(
-                      document.getElementById("userData")?.dataset?.mcolloquialname || ""
-                    );
-                    const userWtId = normalizeForMatch(getUserWtId() || "");
-
-                    // If the logged-in user is the subject in "This makes ...",
-                    // invert to profile perspective.
-                    if (
-                      (userColloq && makesSubject.includes(userColloq)) ||
-                      (userWtId && makesSubject.includes(userWtId))
-                    ) {
-                      derivedRelationship = invertRelationshipForProfile(makesRelationship, profilePerson?.Gender);
-                    } else {
-                      derivedRelationship = makesRelationship;
-                    }
-
-                    console.log("[WBE dist-rel] generic h3 -> fallback to 'This makes' relation:", {
-                      firstPText,
-                      makesSubject,
-                      derivedRelationship,
-                    });
+                  // If the logged-in user is the subject in "This makes ...",
+                  // invert to profile perspective.
+                  if (
+                    (userColloq && makesSubject.includes(userColloq)) ||
+                    (userWtId && makesSubject.includes(userWtId))
+                  ) {
+                    derivedRelationship = invertRelationshipForProfile(makesRelationship, profilePerson?.Gender);
+                  } else {
+                    derivedRelationship = makesRelationship;
                   }
+
+                  console.log("[WBE dist-rel] generic h3 -> using 'This makes' relation:", {
+                    firstPText,
+                    makesSubject,
+                    derivedRelationship,
+                  });
                 }
               }
 
@@ -1096,17 +1048,11 @@ function doRelationshipText(userID, profileID) {
               // then the relationship shown should be from the profile to the user,
               // i.e. father/mother/parent (based on profile gender).
               try {
-                const headlineIsDirectParentChild =
-                  /\bis\s+the\s+(son|daughter|child|father|mother|parent)\b/i.test(firstPText) ||
-                  /^(son|daughter|child)$/i.test(String(firstPText || "").trim());
-                const headlineIsNonDirectFamily =
-                  /\b(niece|nephew|aunt|uncle|sibling|brother|sister|cousin)\b/i.test(firstPText);
+                const headlineIsSiblingOrCousin = /\bare\s+(siblings?|cousins?)\b/i.test(firstPText);
+                const headlineIsDirectParentChild = /\bis\s+the\s+(son|daughter|child|father|mother|parent)\b/i.test(
+                  firstPText
+                );
                 const userColloq = String(document.getElementById("userData")?.dataset?.mcolloquialname || "")
-                  .trim()
-                  .toLowerCase();
-                const userFirstName = userColloq.split(/\s+/)[0] || "";
-                const userWtIdFirst = String(getUserWtId() || "")
-                  .split("-")[0]
                   .trim()
                   .toLowerCase();
                 const ancestorLine =
@@ -1121,14 +1067,10 @@ function doRelationshipText(userID, profileID) {
                     .trim()
                     .toLowerCase();
                   const sentenceRel = String(m[2] || "").toLowerCase();
-                  const subjectMatchesUser =
-                    subject === userColloq ||
-                    (userFirstName && (subject === userFirstName || subject.startsWith(`${userFirstName} `))) ||
-                    (userWtIdFirst && (subject === userWtIdFirst || subject.startsWith(`${userWtIdFirst} `)));
                   if (
+                    !headlineIsSiblingOrCousin &&
                     headlineIsDirectParentChild &&
-                    !headlineIsNonDirectFamily &&
-                    subjectMatchesUser &&
+                    subject === userColloq &&
                     /^(daughter|son|child)$/i.test(sentenceRel)
                   ) {
                     derivedRelationship =
