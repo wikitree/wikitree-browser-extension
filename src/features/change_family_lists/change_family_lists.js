@@ -584,12 +584,28 @@ function parseInitialData() {
     const bracketed = parseBracketedUnknownInBlock(siblingsBlock).filter((b) => {
       return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
     });
+    // Build a count map of private entries already in parsedSiblings to avoid doubling
+    // when parseBlock's internal fallback and this explicit call find the same entries.
+    const existingPrivateSiblingCounts = {};
+    parsedSiblings.forEach((p) => {
+      const name = (p.Name || "").toLowerCase();
+      if (name.includes("private")) {
+        existingPrivateSiblingCounts[name] = (existingPrivateSiblingCounts[name] || 0) + 1;
+      }
+    });
     bracketed.forEach((b) => {
-      if (
-        !parsedSiblings.some((m) => m.Link === b.Link || m.Name === b.Name) ||
-        (b.Name && b.Name.toLowerCase().includes("private"))
-      ) {
-        parsedSiblings.push(b);
+      const bName = (b.Name || "").toLowerCase();
+      const isPrivate = bName.includes("private");
+      if (isPrivate) {
+        if (existingPrivateSiblingCounts[bName] > 0) {
+          existingPrivateSiblingCounts[bName]--;
+        } else {
+          parsedSiblings.push(b);
+        }
+      } else {
+        if (!parsedSiblings.some((m) => m.Link === b.Link || m.Name === b.Name)) {
+          parsedSiblings.push(b);
+        }
       }
     });
     // name in siblingsArray == FullName in parsedSiblings
@@ -670,14 +686,31 @@ function parseInitialData() {
     const bracketed = parseBracketedUnknownInBlock(childrenBlock).filter((b) => {
       return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
     });
+    // Build a count map of private entries already in parsedChildren (these may have come from
+    // parseBlock's internal parseBracketedUnknownInBlock fallback when no itemprop elements exist).
+    // This prevents doubling when both parseBlock and the explicit call below find the same entries.
+    const existingPrivateCounts = {};
+    parsedChildren.forEach((p) => {
+      const name = (p.Name || "").toLowerCase();
+      if (name.includes("private")) {
+        existingPrivateCounts[name] = (existingPrivateCounts[name] || 0) + 1;
+      }
+    });
     bracketed.forEach((b) => {
-      // Include bracketed entries even if they indicate private children.
-      // Allow duplicate bracketed private entries to be preserved.
-      if (
-        !parsedChildren.some((m) => m.Link === b.Link || m.Name === b.Name) ||
-        (b.Name && b.Name.toLowerCase().includes("private"))
-      ) {
-        parsedChildren.push(b);
+      const bName = (b.Name || "").toLowerCase();
+      const isPrivate = bName.includes("private");
+      if (isPrivate) {
+        // Only add if not already accounted for from parseBlock's internal fallback.
+        // Decrement the count to allow genuinely new additional private entries through.
+        if (existingPrivateCounts[bName] > 0) {
+          existingPrivateCounts[bName]--;
+        } else {
+          parsedChildren.push(b);
+        }
+      } else {
+        if (!parsedChildren.some((m) => m.Link === b.Link || m.Name === b.Name)) {
+          parsedChildren.push(b);
+        }
       }
     });
     familyData.children = parsedChildren;

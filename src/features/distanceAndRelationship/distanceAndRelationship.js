@@ -529,11 +529,29 @@ function normalizeLegacyRelationLabel(rel) {
 }
 
 function isUpPathType(pathType) {
-  return ["parent", "father", "mother"].includes((pathType || "").toLowerCase());
+  // Accept both string pathType values (e.g. 'parent') and numeric codes (e.g. 1)
+  if (pathType === null || pathType === undefined) return false;
+  // Numeric codes returned by newer API variants
+  if (typeof pathType === "number" || String(pathType).match(/^\d+$/)) {
+    const n = Number(pathType);
+    // 1 -> up/parent (heuristic mapping)
+    return n === 1;
+  }
+  const s = String(pathType || "").toLowerCase();
+  // Match exact tokens or substrings like 'bioparent' or 'adoptive parent'
+  return s.includes("parent") || s.includes("father") || s.includes("mother");
 }
 
 function isDownPathType(pathType) {
-  return ["child", "son", "daughter"].includes((pathType || "").toLowerCase());
+  // Accept both string pathType values (e.g. 'child') and numeric codes (e.g. 2)
+  if (pathType === null || pathType === undefined) return false;
+  if (typeof pathType === "number" || String(pathType).match(/^\d+$/)) {
+    const n = Number(pathType);
+    // 2 -> down/child (heuristic mapping)
+    return n === 2;
+  }
+  const s = String(pathType || "").toLowerCase();
+  return s.includes("child") || s.includes("son") || s.includes("daughter");
 }
 
 function removedText(removed) {
@@ -827,10 +845,50 @@ function doRelationshipText(userID, profileID) {
   )
     .then(async function (data) {
       console.log("[WBE dist-rel] getConnections (relation=2) response:", data);
+      try {
+        if (data && Array.isArray(data.path)) {
+          console.log(
+            "[WBE dist-rel] raw path types:",
+            data.path.map((n) => ({ Id: n.Id, Name: n.Name, pathType: n.pathType }))
+          );
+        }
+      } catch (e) {
+        console.log("[WBE dist-rel] error logging raw path types:", e);
+      }
       let relationshipText = "";
       let commonAncestors = [];
 
       if (data && Array.isArray(data.path) && data.path.length > 0) {
+        // If path entries are present but the per-node pathType is missing for
+        // simple two-node paths, attempt to infer parent/child direction from
+        // the API (this avoids incorrectly treating the relation as 'self').
+        if (Array.isArray(data.path) && data.path.length === 2 && !data.path[1].pathType) {
+          try {
+            const pivot = data.path[1]; // index 1 is the profile in getConnections(user, profile)
+            // Ask the API for relatives of the profile to determine if the
+            // first node (user) is a parent or child.
+            const rels = await WikiTreeAPI.getRelatives(
+              WBE_DIST_REL_APP_ID,
+              [pivot.Name || pivot.Id || profileID],
+              "Id,Name,Gender",
+              { getParents: true, getChildren: true }
+            );
+            const person = rels?.[0]?.person || {};
+            const parents = person?.Parents ? Object.values(person.Parents).map((p) => Number(p.Id)) : [];
+            const children = person?.Children ? Object.values(person.Children).map((c) => Number(c.Id)) : [];
+            const otherId = Number(data.path[0].Id);
+            if (parents.includes(otherId)) {
+              // Other is a parent of pivot -> pivot is child of other
+              data.path[1].pathType = "child";
+            } else if (children.includes(otherId)) {
+              // Other is a child of pivot -> pivot is parent of other
+              data.path[1].pathType = "parent";
+            }
+          } catch (err) {
+            console.log("Could not infer missing pathType for two-node path", err);
+          }
+        }
+
         const pathAnalysis = analyzeAncestorPath(data.path);
         relationshipText = relationshipFromPathAnalysis(pathAnalysis, profilePerson.Gender);
         commonAncestors = commonAncestorsFromPath(data.path, pathAnalysis);
@@ -872,6 +930,45 @@ function doRelationshipText(userID, profileID) {
                   .replace(/siblings/, "sibling");
               }
 
+              // Deterministic orientation for explicit sentence headlines:
+              // "X is the <rel> of Y".
+              // If X is the logged-in user, invert to profile perspective.
+              // If Y is the logged-in user, keep relation as-is.
+              try {
+                const sentenceMatch = firstPText.match(/^(.+?)\s+is\s+the\s+([a-z0-9\-\s]+?)\s+of\s+(.+)$/i);
+                if (sentenceMatch) {
+                  const subject = normalizeForMatch(sentenceMatch[1]);
+                  const rel = normalizeLegacyRelationLabel(sentenceMatch[2]);
+                  const object = normalizeForMatch(sentenceMatch[3]);
+                  const userColloq = normalizeForMatch(
+                    document.getElementById("userData")?.dataset?.mcolloquialname || ""
+                  );
+                  const userWtId = normalizeForMatch(getUserWtId() || "");
+
+                  const partMatchesUser = (part) =>
+                    (userColloq && part.includes(userColloq)) || (userWtId && part.includes(userWtId));
+
+                  const subjectIsUser = partMatchesUser(subject);
+                  const objectIsUser = partMatchesUser(object);
+
+                  if (rel && subjectIsUser && !objectIsUser) {
+                    derivedRelationship = invertRelationshipForProfile(rel, profilePerson?.Gender);
+                    console.log("[WBE dist-rel] explicit sentence orientation -> user is subject (inverted):", {
+                      firstPText,
+                      derivedRelationship,
+                    });
+                  } else if (rel && objectIsUser && !subjectIsUser) {
+                    derivedRelationship = rel;
+                    console.log("[WBE dist-rel] explicit sentence orientation -> user is object (kept):", {
+                      firstPText,
+                      derivedRelationship,
+                    });
+                  }
+                }
+              } catch (e) {
+                console.log("[WBE dist-rel] explicit sentence orientation parse error", e);
+              }
+
               // Safety rule for generic heading-only h3 values like "Grandson":
               // when h3 has no names/grammar, prefer explicit "This makes ... the <rel> of ..." relation.
               if (
@@ -880,11 +977,29 @@ function doRelationshipText(userID, profileID) {
                 /^[A-Za-z ]+$/.test(firstPText) &&
                 !/\b(is|are)\b/i.test(firstPText)
               ) {
-                const makesRel = allParaText.match(/This makes[\s\S]*?\bthe\s+([A-Za-z ]+?)\s+of\b/i);
-                if (makesRel && makesRel[1]) {
-                  derivedRelationship = makesRel[1].trim().toLowerCase();
+                const makesRel = allParaText.match(/This makes\s+(.+?)\s+the\s+([A-Za-z ]+?)\s+of\s+(.+?)\./i);
+                if (makesRel && makesRel[2]) {
+                  const makesSubject = normalizeForMatch(makesRel[1]);
+                  const makesRelationship = normalizeLegacyRelationLabel(makesRel[2]);
+                  const userColloq = normalizeForMatch(
+                    document.getElementById("userData")?.dataset?.mcolloquialname || ""
+                  );
+                  const userWtId = normalizeForMatch(getUserWtId() || "");
+
+                  // If the logged-in user is the subject in "This makes ...",
+                  // invert to profile perspective.
+                  if (
+                    (userColloq && makesSubject.includes(userColloq)) ||
+                    (userWtId && makesSubject.includes(userWtId))
+                  ) {
+                    derivedRelationship = invertRelationshipForProfile(makesRelationship, profilePerson?.Gender);
+                  } else {
+                    derivedRelationship = makesRelationship;
+                  }
+
                   console.log("[WBE dist-rel] generic h3 -> using 'This makes' relation:", {
                     firstPText,
+                    makesSubject,
                     derivedRelationship,
                   });
                 }
@@ -956,19 +1071,30 @@ function doRelationshipText(userID, profileID) {
               // daughter/son/child from the viewer's perspective.
               try {
                 const userWtId = String(getUserWtId() || "").toLowerCase();
+                const userColloq = String(document.getElementById("userData")?.dataset?.mcolloquialname || "")
+                  .trim()
+                  .toLowerCase();
                 const h3Html = firstP?.innerHTML || "";
                 const parentRelMatch = h3Html.match(
-                  /is\s+(?:the\s+)?([a-z0-9\-\s]+?)\s+of\s+<a[^>]*href=["']([^"']+)["']/i
+                  /is\s+(?:the\s+)?([a-z0-9\-\s]+?)\s+of\s+<a[^>]*href=["']([^"']+)["'][^>]*>([^<]*)<\/a>/i
                 );
                 if (parentRelMatch) {
                   const rel = normalizeLegacyRelationLabel(parentRelMatch[1]);
                   const href = decodeURIComponent(parentRelMatch[2] || "");
+                  const linkText = String(parentRelMatch[3] || "")
+                    .trim()
+                    .toLowerCase();
                   const hrefWtId = (href.split("/").pop() || "").replace(/[?#].*$/, "").toLowerCase();
-                  if (hrefWtId && userWtId && hrefWtId === userWtId) {
+                  if (
+                    rel &&
+                    ((hrefWtId && userWtId && hrefWtId === userWtId) ||
+                      (userColloq && linkText && (linkText === userColloq || linkText.startsWith(`${userColloq} `))))
+                  ) {
                     derivedRelationship = rel;
                     console.log("[WBE dist-rel] legacy parent-link override:", {
                       userWtId,
                       hrefWtId,
+                      linkText,
                       derivedRelationship,
                     });
                   }
