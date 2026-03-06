@@ -487,7 +487,7 @@ $(document).on("keydown.shareableSourcesPopup", function (e) {
   // If the family dropdown is still open, it gets first dibs.
   if ($("#familyDropdown .custom-dropdown-menu").is(":visible")) return;
   const activeButton = $(":focus");
-  let activeButtonIsInline = activeButton.length && activeButton.get(0).className.includes("nline");
+  let activeButtonIsInline = activeButton.length && activeButton.get(0).className?.includes("nline");
   if (e.key === "Escape") {
     let popups = $("div.referenceBox, #relativeBiography, #otherPersonLabel").filter(function () {
       return $(this).css("display") !== "none";
