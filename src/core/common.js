@@ -1510,11 +1510,19 @@ export function getUserWtId() {
   let m;
   if (href) {
     m = href.match(/who=([^&]+)/);
-    return m ? m[1] : null;
-  } else {
-    // (Temporary) Fallback to cookies if the menu item is not present
-    return Cookies.get("wikitree_wtb_UserName");
+    if (m && m[1]) {
+      return decodeURIComponent(m[1]);
+    }
   }
+
+  // Robust fallback: #userData is present on WT pages and carries the logged-in user's WTID.
+  const userDataWtId = $("#userData").data("mname");
+  if (userDataWtId) {
+    return String(userDataWtId);
+  }
+
+  // (Temporary) Fallback to cookies if neither the nav menu nor #userData is available.
+  return Cookies.get("wikitree_wtb_UserName") || null;
 }
 
 /**
