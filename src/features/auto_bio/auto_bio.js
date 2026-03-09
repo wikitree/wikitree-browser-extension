@@ -9591,6 +9591,57 @@ function generateCombinations(location) {
   return array;
 }
 
+// Generate fallback place strings by dropping interior jurisdictions.
+// Example: "Drachten, Smallingerland, Friesland, Nederland" ->
+// "Drachten, Friesland, Nederland" and "Drachten, Friesland"
+function generateJurisdictionFallbacks(location) {
+  if (!location || typeof location !== "string") {
+    return [];
+  }
+
+  const parts = location
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const fallbacks = new Set();
+
+  function addWithOptionalNoCountry(variant) {
+    if (!variant) {
+      return;
+    }
+    fallbacks.add(variant);
+
+    // Also try a no-country form because many categories omit the country.
+    const variantParts = variant
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (variantParts.length >= 3) {
+      fallbacks.add(variantParts.slice(0, -1).join(", "));
+    }
+  }
+
+  // Remove one interior segment at a time, preserving first and last.
+  // This must run for 3+ parts because countries are often removed earlier,
+  // leaving strings like "Town, District, County".
+  if (parts.length >= 3) {
+    for (let i = 1; i < parts.length - 1; i++) {
+      const variant = parts.filter((_, index) => index !== i).join(", ");
+      addWithOptionalNoCountry(variant);
+    }
+  }
+
+  // Common fallback: first place + penultimate + country.
+  // Useful when a municipality is present in the profile but absent in category names.
+  if (parts.length >= 3) {
+    const compactVariant = [parts[0], parts[parts.length - 2], parts[parts.length - 1]].join(", ");
+    addWithOptionalNoCountry(compactVariant);
+  }
+
+  return Array.from(fallbacks);
+}
+
 // Function to check and replace the county name before 'Ireland'
 function addCountyForIreland(locations) {
   return locations.map((location) => {
@@ -9753,7 +9804,11 @@ export async function getLocationCategory(type, location = null) {
     }
   }
 
-  let searchLocationsSet = generateCombinations(searchLocation);
+  let searchLocationsSet = new Set(generateCombinations(searchLocation));
+  const jurisdictionFallbacks = generateJurisdictionFallbacks(searchLocation);
+  jurisdictionFallbacks.forEach((fallbackLocation) => {
+    generateCombinations(fallbackLocation).forEach((combination) => searchLocationsSet.add(combination));
+  });
   const searchLocationsArray = addCountyForIreland(Array.from(searchLocationsSet));
   if (cemeteryVariants.length > 0) {
     searchLocationsArray.push(...cemeteryVariants);
@@ -9812,23 +9867,48 @@ export async function getLocationCategory(type, location = null) {
             if (!aCat.topLevel) {
               let category = aCat.category;
               if (type !== "Cemetery" || sameState(window.profilePerson.DeathLocation, aCat.location)) {
-                const [part0, part1, part2] = locationSplit;
-                const suffixes = [thisState, part2];
-                const combinations = [`${part0}, ${part1}`, `${part1}, ${part2}`, `${part0}, ${part2}`].flatMap(
-                  (pattern) => [
-                    pattern,
-                    `${pattern} County`,
-                    ...suffixes.map((suffix) => `${pattern}, ${suffix}`),
-                    ...suffixes.map((suffix) => `${pattern} County, ${suffix}`),
-                  ]
-                );
+                const parts = locationSplit.map((part) => part.trim()).filter(Boolean);
+                const part0 = parts[0];
+                const part1 = parts[1];
+                const penultimate = parts[parts.length - 2];
+                const last = parts[parts.length - 1];
 
-                // Also add "part0 County, part1" pattern for cases like "Houston, Georgia" -> "Houston County, Georgia"
-                if (part0 && part1) {
-                  combinations.push(`${part0} County, ${part1}`);
+                const basePatterns = new Set();
+
+                // Adjacent pairs (e.g. Town, District and District, County)
+                for (let i = 0; i < parts.length - 1; i++) {
+                  basePatterns.add(`${parts[i]}, ${parts[i + 1]}`);
                 }
 
-                if (combinations.includes(category)) {
+                // Common direct fallbacks used by categories.
+                if (part0 && penultimate) {
+                  basePatterns.add(`${part0}, ${penultimate}`);
+                }
+                if (part0 && last) {
+                  basePatterns.add(`${part0}, ${last}`);
+                }
+                if (penultimate && last) {
+                  basePatterns.add(`${penultimate}, ${last}`);
+                }
+
+                const suffixes = Array.from(new Set([thisState, penultimate, last].filter(Boolean)));
+                const combinations = new Set();
+
+                basePatterns.forEach((pattern) => {
+                  combinations.add(pattern);
+                  combinations.add(`${pattern} County`);
+                  suffixes.forEach((suffix) => {
+                    combinations.add(`${pattern}, ${suffix}`);
+                    combinations.add(`${pattern} County, ${suffix}`);
+                  });
+                });
+
+                // Cases like "Houston, Georgia" -> "Houston County, Georgia"
+                if (part0 && part1) {
+                  combinations.add(`${part0} County, ${part1}`);
+                }
+
+                if (combinations.has(category)) {
                   foundCategory = category;
                 }
               }
