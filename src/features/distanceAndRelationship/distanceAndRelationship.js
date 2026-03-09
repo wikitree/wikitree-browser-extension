@@ -8,7 +8,7 @@ import { mainDomain, isProfileEdit, isProfilePage } from "../../core/pageType";
 import { getProfilePersonInfo } from "../../core/common";
 import { getObjectStores, distRelDbKeyFor, getUserWtId } from "../../core/common";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
-import { getRelationJSON } from "../../core/API/wwwWikiTree";
+import { getConnectionJSON, getRelationJSON } from "../../core/API/wwwWikiTree";
 
 export const CONNECTION_DB_NAME = "ConnectionFinderWTE";
 export const CONNECTION_DB_VERSION = 2;
@@ -141,52 +141,102 @@ shouldInitializeFeature("distanceAndRelationship").then(async (result) => {
 
 function onRelationsSuccess(event, profileID, userID) {
   const db = event.target.result;
-  const getRelationReq = db
-    .transaction(RELATIONSHIP_STORE_NAME, "readonly")
-    .objectStore(RELATIONSHIP_STORE_NAME)
-    .get(distRelDbKeyFor(profileID, userID));
-  getRelationReq.onsuccess = function () {
-    if (getRelationReq.result != undefined) {
+  getDistRelCacheRecord(db, RELATIONSHIP_STORE_NAME, profileID, userID, (relationRecord) => {
+    if (relationRecord != undefined) {
       if ($(".yourRelationshipText").length < 2) {
-        const sortedAncestors = sortCommonAncestorsByGender(getRelationReq.result.commonAncestors);
-        addRelationshipText(getRelationReq.result.relationship, cleanCommonAncestors(sortedAncestors));
+        const sortedAncestors = sortCommonAncestorsByGender(relationRecord.commonAncestors);
+        addRelationshipText(relationRecord.relationship, cleanCommonAncestors(sortedAncestors));
       }
     }
-  };
-  getRelationReq.onerror = (error) => {
-    console.log("Error while retrieving relationship from DB", error);
-  };
+  });
 }
 
 // Do it
 function onDistancesSuccess(event, profileID, userID) {
   const db = event.target.result;
-  const getDistanceReq = db
-    .transaction(CONNECTION_STORE_NAME, "readonly")
-    .objectStore(CONNECTION_STORE_NAME)
-    .get(distRelDbKeyFor(profileID, userID));
-
-  getDistanceReq.onsuccess = function () {
-    if (getDistanceReq.result == undefined || getDistanceReq.result?.distance < 0) {
+  getDistRelCacheRecord(db, CONNECTION_STORE_NAME, profileID, userID, (distanceRecord) => {
+    if (distanceRecord == undefined || distanceRecord?.distance < 0) {
       initDistanceAndRelationship(userID, profileID);
     } else {
       const profileName = profilePerson.FirstName;
       $("#person h1").append(
         $(
-          `<span class='distanceFromYou' title='${profileName} is ${getDistanceReq.result.distance} degrees from you. \nClick to refresh.'>${getDistanceReq.result.distance}°</span>`
+          `<span class='distanceFromYou' title='${profileName} is ${distanceRecord.distance} degrees from you. \nClick to refresh.'>${distanceRecord.distance}°</span>`
         )
       );
       attachDistanceHandlers(userID, profileID);
 
-      if (isCacheRefreshDue(getDistanceReq.result)) {
+      if (isCacheRefreshDue(distanceRecord)) {
         console.log("Distance/relationship cache is stale, refreshing in background");
         initDistanceAndRelationship(userID, profileID, false, false);
       }
     }
+  });
+}
+
+function normalizeWtIdForLookup(wtId) {
+  return String(wtId || "")
+    .trim()
+    .toLowerCase();
+}
+
+function getDistRelCacheRecord(db, storeName, profileID, userID, onRecord) {
+  const transaction = db.transaction(storeName, "readonly");
+  const objectStore = transaction.objectStore(storeName);
+  const exactKey = distRelDbKeyFor(profileID, userID);
+  const getReq = objectStore.get(exactKey);
+
+  getReq.onsuccess = () => {
+    if (getReq.result != undefined) {
+      onRecord(getReq.result);
+      return;
+    }
+
+    // If exact key misses, fall back to matching by profile ID. This keeps cached values visible
+    // when a user ID is temporarily unavailable (for example, apps-server auth/session mismatch).
+    const profileIdNorm = String(profileID || "").trim();
+    const userIdNorm = normalizeWtIdForLookup(userID);
+    let latestAnyUserMatch;
+    let latestSameUserMatch;
+    const cursorReq = objectStore.openCursor();
+
+    cursorReq.onsuccess = (event) => {
+      const cursor = event.target.result;
+      if (!cursor) {
+        onRecord(latestSameUserMatch || latestAnyUserMatch);
+        return;
+      }
+
+      const value = cursor.value;
+      if (String(value?.id || "").trim() === profileIdNorm) {
+        const currentUpdatedAt = Number(value?.updatedAt || 0);
+
+        if (!latestAnyUserMatch || currentUpdatedAt > Number(latestAnyUserMatch?.updatedAt || 0)) {
+          latestAnyUserMatch = value;
+        }
+
+        if (userIdNorm) {
+          const valueUserIdNorm = normalizeWtIdForLookup(value?.userId);
+          if (valueUserIdNorm && valueUserIdNorm === userIdNorm) {
+            if (!latestSameUserMatch || currentUpdatedAt > Number(latestSameUserMatch?.updatedAt || 0)) {
+              latestSameUserMatch = value;
+            }
+          }
+        }
+      }
+
+      cursor.continue();
+    };
+
+    cursorReq.onerror = (error) => {
+      console.log(`Error while scanning ${storeName} DB for fallback cache record`, error);
+      onRecord(undefined);
+    };
   };
 
-  getDistanceReq.onerror = (error) => {
-    console.log("Error while retrieving distance from DB", error);
+  getReq.onerror = (error) => {
+    console.log(`Error while retrieving ${storeName} from DB`, error);
+    onRecord(undefined);
   };
 }
 
@@ -353,6 +403,16 @@ function escapeRegExp(text) {
   return String(text || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function phraseMatchesAnyVariant(phrase, variants) {
+  const p = normalizeForMatch(phrase);
+  if (!p || !Array.isArray(variants) || variants.length === 0) return false;
+  return variants.some((variant) => {
+    const v = normalizeForMatch(variant);
+    if (!v) return false;
+    return p === v || p.startsWith(`${v} `) || p.endsWith(` ${v}`) || p.includes(` ${v} `);
+  });
+}
+
 function invertRelationshipForProfile(relationship, profileGender) {
   const rel = String(relationship || "")
     .trim()
@@ -442,7 +502,7 @@ function invertRelationshipForProfile(relationship, profileGender) {
   return rel;
 }
 
-function orientLegacyRelationshipToProfile(relationship, firstPText, userColloq, profileGender) {
+function orientLegacyRelationshipToProfile(relationship, firstPText, userColloq, profileGender, profileVariants = []) {
   const rel = String(relationship || "").trim();
   const text = String(firstPText || "")
     .replace(/\s+/g, " ")
@@ -451,10 +511,15 @@ function orientLegacyRelationshipToProfile(relationship, firstPText, userColloq,
   if (!rel || !text || !user) return rel;
 
   const userEsc = escapeRegExp(user);
+  const profileIsSubject = phraseMatchesAnyVariant(text.replace(/\s+(?:is|are)\s+[\s\S]*$/i, ""), profileVariants);
   const userIsSubject = new RegExp(`^${userEsc}\\b\\s+(?:is|are)\\b`, "i").test(text);
   const userIsObject =
     new RegExp(`\\b(?:of\\s+${userEsc}\\b|${userEsc}'s\\b|${userEsc}’s\\b)`, "i").test(text) ||
     new RegExp(`\\band\\s+${userEsc}\\b\\s+(?:are|is)\\b`, "i").test(text);
+
+  if (profileIsSubject && userIsObject) {
+    return rel;
+  }
 
   if (userIsSubject && !userIsObject) {
     return invertRelationshipForProfile(rel, profileGender);
@@ -914,6 +979,7 @@ function doRelationshipText(userID, profileID) {
               console.log("[WBE dist-rel] legacy firstPText:", firstPText);
 
               let derivedRelationship = "";
+              let relationshipAlreadyOriented = false;
               const legacyCommonAncestors = Array.isArray(legacy.commonAncestors) ? legacy.commonAncestors : [];
               const allParaText = Array.from(doc.querySelectorAll("p"))
                 .map((p) => p.textContent.replace(/[\t\n ]+/g, " ").trim())
@@ -944,21 +1010,28 @@ function doRelationshipText(userID, profileID) {
                     document.getElementById("userData")?.dataset?.mcolloquialname || ""
                   );
                   const userWtId = normalizeForMatch(getUserWtId() || "");
+                  const profileVariants = nameVariantsForProfile(profilePerson, profileID);
 
                   const partMatchesUser = (part) =>
-                    (userColloq && part.includes(userColloq)) || (userWtId && part.includes(userWtId));
+                    (userColloq && phraseMatchesAnyVariant(part, [userColloq])) ||
+                    (userWtId && phraseMatchesAnyVariant(part, [userWtId]));
+                  const partMatchesProfile = (part) => phraseMatchesAnyVariant(part, profileVariants);
 
                   const subjectIsUser = partMatchesUser(subject);
                   const objectIsUser = partMatchesUser(object);
+                  const subjectIsProfile = partMatchesProfile(subject);
+                  const objectIsProfile = partMatchesProfile(object);
 
-                  if (rel && subjectIsUser && !objectIsUser) {
+                  if (rel && ((subjectIsUser && !objectIsUser) || objectIsProfile)) {
                     derivedRelationship = invertRelationshipForProfile(rel, profilePerson?.Gender);
+                    relationshipAlreadyOriented = true;
                     console.log("[WBE dist-rel] explicit sentence orientation -> user is subject (inverted):", {
                       firstPText,
                       derivedRelationship,
                     });
-                  } else if (rel && objectIsUser && !subjectIsUser) {
+                  } else if (rel && ((objectIsUser && !subjectIsUser) || subjectIsProfile)) {
                     derivedRelationship = rel;
+                    relationshipAlreadyOriented = true;
                     console.log("[WBE dist-rel] explicit sentence orientation -> user is object (kept):", {
                       firstPText,
                       derivedRelationship,
@@ -980,22 +1053,27 @@ function doRelationshipText(userID, profileID) {
                 const makesRel = allParaText.match(/This makes\s+(.+?)\s+the\s+([A-Za-z ]+?)\s+of\s+(.+?)\./i);
                 if (makesRel && makesRel[2]) {
                   const makesSubject = normalizeForMatch(makesRel[1]);
+                  const makesObject = normalizeForMatch(makesRel[3]);
                   const makesRelationship = normalizeLegacyRelationLabel(makesRel[2]);
                   const userColloq = normalizeForMatch(
                     document.getElementById("userData")?.dataset?.mcolloquialname || ""
                   );
                   const userWtId = normalizeForMatch(getUserWtId() || "");
+                  const profileVariants = nameVariantsForProfile(profilePerson, profileID);
+                  const subjectIsProfile = phraseMatchesAnyVariant(makesSubject, profileVariants);
+                  const objectIsProfile = phraseMatchesAnyVariant(makesObject, profileVariants);
+                  const subjectIsUser =
+                    (userColloq && phraseMatchesAnyVariant(makesSubject, [userColloq])) ||
+                    (userWtId && phraseMatchesAnyVariant(makesSubject, [userWtId]));
 
                   // If the logged-in user is the subject in "This makes ...",
                   // invert to profile perspective.
-                  if (
-                    (userColloq && makesSubject.includes(userColloq)) ||
-                    (userWtId && makesSubject.includes(userWtId))
-                  ) {
+                  if ((subjectIsUser && !subjectIsProfile) || objectIsProfile) {
                     derivedRelationship = invertRelationshipForProfile(makesRelationship, profilePerson?.Gender);
                   } else {
                     derivedRelationship = makesRelationship;
                   }
+                  relationshipAlreadyOriented = true;
 
                   console.log("[WBE dist-rel] generic h3 -> using 'This makes' relation:", {
                     firstPText,
@@ -1055,12 +1133,15 @@ function doRelationshipText(userID, profileID) {
               // Orient relation from profile perspective using user first name from #userData.
               try {
                 const userColloq = String(document.getElementById("userData")?.dataset?.mcolloquialname || "").trim();
-                derivedRelationship = orientLegacyRelationshipToProfile(
-                  derivedRelationship,
-                  firstPText,
-                  userColloq,
-                  profilePerson?.Gender
-                );
+                if (!relationshipAlreadyOriented) {
+                  derivedRelationship = orientLegacyRelationshipToProfile(
+                    derivedRelationship,
+                    firstPText,
+                    userColloq,
+                    profilePerson?.Gender,
+                    nameVariantsForProfile(profilePerson, profileID)
+                  );
+                }
               } catch (e) {
                 console.log("[WBE dist-rel] legacy orientation parse error", e);
               }
@@ -1289,18 +1370,29 @@ async function addDistance(data) {
     window.distance = -1;
   }
 
+  // Privacy-blocked or otherwise unavailable distance results should not clobber
+  // existing cached values (or remove currently rendered UI).
+  if (!(window.distance > 0)) {
+    console.log("[WBE dist-rel] Distance unavailable; preserving existing cache/UI", {
+      profileID,
+      userID,
+      status: data?.status,
+      pathLength: data?.pathLength,
+      pathSize: Array.isArray(data?.path) ? data.path.length : null,
+    });
+    return;
+  }
+
   $(".distanceFromYou").remove();
   $("#distanceFromYouTooltip").remove();
 
   const profileName = profilePerson.FirstName;
-  if (window.distance > 0) {
-    $("#person h1").append(
-      $(
-        `<span class='distanceFromYou' title='${profileName} is ${window.distance} degrees from you.'>${window.distance}°</span>`
-      )
-    );
-    attachDistanceHandlers(userID, profileID);
-  }
+  $("#person h1").append(
+    $(
+      `<span class='distanceFromYou' title='${profileName} is ${window.distance} degrees from you.'>${window.distance}°</span>`
+    )
+  );
+  attachDistanceHandlers(userID, profileID);
 
   initDistanceDB((event) => {
     const connectionFinderDB = event.target.result;
@@ -1379,9 +1471,33 @@ function checkProfileCreationTime(wtId) {
 async function getDistance() {
   const id2 = profileID;
   const id1 = getUserWtId();
-  const data = await WikiTreeAPI.getConnections(WBE_DIST_REL_APP_ID, [id1, id2], "Id,Name,Gender", { relation: 0 });
-  console.log("[WBE dist-rel] getConnections (relation=0) response:", data);
-  addDistance(data);
+
+  const hasUsablePath = (result) => {
+    const pathLength = Number(result?.pathLength);
+    return (Number.isFinite(pathLength) && pathLength > 0) || (Array.isArray(result?.path) && result.path.length > 0);
+  };
+
+  let data;
+  try {
+    data = await WikiTreeAPI.getConnections(WBE_DIST_REL_APP_ID, [id1, id2], "Id,Name,Gender", { relation: 0 });
+    console.log("[WBE dist-rel] getConnections (relation=0) response:", data);
+  } catch (error) {
+    console.log("[WBE dist-rel] getConnections (relation=0) error; trying legacy getConnectionJSON", error);
+  }
+
+  if (!hasUsablePath(data)) {
+    try {
+      const legacyData = await getConnectionJSON("DistanceAndRelationship_Distance", id1, id2);
+      console.log("[WBE dist-rel] getConnectionJSON fallback response:", legacyData);
+      if (hasUsablePath(legacyData)) {
+        data = legacyData;
+      }
+    } catch (error) {
+      console.log("[WBE dist-rel] getConnectionJSON fallback error:", error);
+    }
+  }
+
+  addDistance(data || {});
 }
 
 export function ordinal(i) {
