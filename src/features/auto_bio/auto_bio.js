@@ -6762,7 +6762,7 @@ export async function getStickersAndBoxes() {
   try {
     templatesObject.templates.forEach(function (aTemplate) {
       if (templatesToAdd.includes(aTemplate.type)) {
-        const newTemplateMatch = currentBio.matchAll(/\{\{[^}]*?\}\}/gs);
+        const newTemplateMatch = currentBio.matchAll(/\{\{[\s\S]*?\}\}/g);
 
         for (let match of newTemplateMatch) {
           // Extract template name from the match, handling parameters after pipe
@@ -6773,7 +6773,10 @@ export async function getStickersAndBoxes() {
           // Direct string comparison instead of regex matching
           if (extractedTemplateName === aTemplate.name) {
             if (!thingsToAddAfterBioHeading.includes(match[0])) {
-              if (beforeHeadingThings.includes(aTemplate.type) || beforeHeadingThings.includes(aTemplate.group)) {
+              if (
+                beforeHeadingThings.some((thing) => thing.toLowerCase() === aTemplate.type?.toLowerCase()) ||
+                beforeHeadingThings.some((thing) => thing.toLowerCase() === aTemplate.group?.toLowerCase())
+              ) {
                 thingsToAddBeforeBioHeading.push(match[0]);
               } else {
                 thingsToAddAfterBioHeading.push(match[0]);
@@ -6785,7 +6788,18 @@ export async function getStickersAndBoxes() {
     });
 
     thingsToAddBeforeBioHeading.forEach(function (box) {
-      if (!window.sectionsObject.StuffBeforeTheBio.text.includes(box)) {
+      // Extract template name from the box
+      const boxNameMatch = box.match(/\{\{([^|}]+)/);
+      const boxTemplateName = boxNameMatch ? boxNameMatch[1].trim() : "";
+
+      // Check if this template name is already in StuffBeforeTheBio (to avoid duplicates)
+      const alreadyExists = window.sectionsObject.StuffBeforeTheBio.text.some((item) => {
+        const itemNameMatch = item.match(/\{\{([^|}]+)/);
+        const itemTemplateName = itemNameMatch ? itemNameMatch[1].trim() : "";
+        return itemTemplateName === boxTemplateName;
+      });
+
+      if (!alreadyExists) {
         window.sectionsObject.StuffBeforeTheBio.text.push(box);
       }
     });
@@ -6906,6 +6920,48 @@ function getFamilySearchFacts() {
   window.familySearchFacts = filteredData;
 }
 
+function normalizeTemplatesInSectionArray(textArray) {
+  const normalized = [];
+  let currentTemplate = "";
+
+  for (let item of textArray) {
+    // Check if this item is already a complete template (single-line)
+    if (item.startsWith("{{") && item.includes("}}")) {
+      // Complete template, add it directly
+      if (currentTemplate) {
+        // Finish any pending template first
+        normalized.push(currentTemplate);
+        currentTemplate = "";
+      }
+      normalized.push(item);
+    } else if (item.startsWith("{{")) {
+      // Start of a multi-line template
+      if (currentTemplate) {
+        normalized.push(currentTemplate);
+      }
+      currentTemplate = item;
+    } else if (currentTemplate && item.endsWith("}}")) {
+      // End of multi-line template
+      currentTemplate += " " + item;
+      normalized.push(currentTemplate);
+      currentTemplate = "";
+    } else if (currentTemplate) {
+      // Middle of multi-line template
+      currentTemplate += " " + item;
+    } else {
+      // Standalone item (category, text, etc.)
+      normalized.push(item);
+    }
+  }
+
+  // If there's an unclosed template, add it anyway
+  if (currentTemplate) {
+    normalized.push(currentTemplate);
+  }
+
+  return normalized;
+}
+
 export function splitBioIntoSections() {
   const wikiText = $("#wpTextbox1").val();
   let lines = [];
@@ -7013,7 +7069,22 @@ export function splitBioIntoSections() {
     }
   }
 
-  console.log("Bio sections", JSON.parse(JSON.stringify(sections)));
+  // Normalize all multi-line templates to single-line in all sections
+  for (let sectionName in sections) {
+    if (sections[sectionName].text && Array.isArray(sections[sectionName].text)) {
+      sections[sectionName].text = normalizeTemplatesInSectionArray(sections[sectionName].text);
+    }
+    if (sections[sectionName].subsections) {
+      for (let subsectionName in sections[sectionName].subsections) {
+        if (sections[sectionName].subsections[subsectionName].text) {
+          sections[sectionName].subsections[subsectionName].text = normalizeTemplatesInSectionArray(
+            sections[sectionName].subsections[subsectionName].text
+          );
+        }
+      }
+    }
+  }
+
   if (sections.Sources) {
     let shouldStartWithAsterisk = true;
     sections.Sources.text.forEach(function (line, i) {
@@ -7416,20 +7487,24 @@ async function sortStuffBeforeBio() {
       const extractedName = itemName?.[1]?.trim();
       if (item.startsWith("[[Category:")) {
         tempStuffObject.categories.push(item);
-      } else if (item.startsWith("{{Easily Confused")) {
+      } else if (item.toLowerCase().startsWith("{{easily confused")) {
         tempStuffObject.easilyConfused.push(item);
       } else if (
         templatesObject.templates.find(
-          (template) => template.name === extractedName && template.group === "Research note box"
+          (template) => template.name === extractedName && template.group?.toLowerCase() === "research note box"
         )
       ) {
         tempStuffObject.researchNoteBoxes.push(item);
       } else if (
-        templatesObject.templates.find((template) => template.name === extractedName && template.type === "Project Box")
+        templatesObject.templates.find(
+          (template) => template.name === extractedName && template.type?.toLowerCase() === "project box"
+        )
       ) {
         tempStuffObject.projectBoxes.push(item);
       } else if (
-        templatesObject.templates.find((template) => template.name === extractedName && template.group === "Succession")
+        templatesObject.templates.find(
+          (template) => template.name === extractedName && template.group?.toLowerCase() === "succession"
+        )
       ) {
         tempStuffObject.succession.push(item);
       }
@@ -8498,19 +8573,52 @@ export async function generateBio() {
     if (allStuffBeforeTheBio) {
       textBeforeTheBio = allStuffBeforeTheBio[1].trim();
     }
-    const stuffBeforeTheBioArray = textBeforeTheBio.split("\n");
-    let stuffBeforeTheBioArray2 = [];
-    stuffBeforeTheBioArray.forEach(function (aBit) {
-      if (aBit.match(/^\[\[.*\]\]$/) == null && aBit.match(/^\{\{.*\}\}$/) == null && aBit) {
-        stuffBeforeTheBioArray2.push(aBit);
-      }
-    });
 
-    textBeforeTheBio = stuffBeforeTheBioArray2.join("\n");
+    // Remove all templates (both single-line and multi-line) and categories from textBeforeTheBio
+    // since they're already being handled by StuffBeforeTheBio.text
+    let lines = textBeforeTheBio.split("\n");
+    let filteredLines = [];
+    let inTemplate = false;
+
+    for (let line of lines) {
+      if (line.startsWith("{{")) {
+        inTemplate = true;
+      }
+
+      // Skip lines that are part of a template or are categories
+      if (!inTemplate && !line.match(/^\[\[.*\]\]$/)) {
+        filteredLines.push(line);
+      }
+
+      if (line.endsWith("}}")) {
+        inTemplate = false;
+      }
+    }
+
+    // Filter out empty lines and rejoin
+    textBeforeTheBio = filteredLines.filter((line) => line.trim() !== "").join("\n");
     window.textBeforeTheBio = textBeforeTheBio;
 
     // Split the current bio into sections
     window.sectionsObject = splitBioIntoSections();
+
+    // Normalize all multi-line templates to single-line
+    for (let sectionName in window.sectionsObject) {
+      if (window.sectionsObject[sectionName].text && Array.isArray(window.sectionsObject[sectionName].text)) {
+        window.sectionsObject[sectionName].text = normalizeTemplatesInSectionArray(
+          window.sectionsObject[sectionName].text
+        );
+      }
+      if (window.sectionsObject[sectionName].subsections) {
+        for (let subsectionName in window.sectionsObject[sectionName].subsections) {
+          if (window.sectionsObject[sectionName].subsections[subsectionName].text) {
+            window.sectionsObject[sectionName].subsections[subsectionName].text = normalizeTemplatesInSectionArray(
+              window.sectionsObject[sectionName].subsections[subsectionName].text
+            );
+          }
+        }
+      }
+    }
 
     window.usedPlaces = [];
     let profileID = profilePerson.Name;
