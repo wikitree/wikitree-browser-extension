@@ -625,13 +625,40 @@ function removedText(removed) {
   return ` ${removed} times removed`;
 }
 
+function yearFromDate(value) {
+  const text = String(value || "").trim();
+  if (!text || text === "0000-00-00") return "";
+  const match = text.match(/^(\d{4})/);
+  if (!match) return "";
+  return match[1] === "0000" ? "" : match[1];
+}
+
+function yearFromDecade(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const match = text.match(/^(\d{3})0s$/);
+  return match ? `${match[1]}0` : "";
+}
+
+function certaintyPrefixFromDataStatus(pathPerson, fieldName) {
+  const status = String(pathPerson?.DataStatus?.[fieldName] || "")
+    .trim()
+    .toLowerCase();
+  if (status === "guess") return "abt. ";
+  if (status === "before") return "bef. ";
+  if (status === "after") return "aft. ";
+  return "";
+}
+
 function longNameWithDatesFromPathPerson(pathPerson) {
   const firstName = pathPerson.FirstName || "";
   const lastName = pathPerson.LastNameCurrent || pathPerson.LastNameAtBirth || "";
   const baseName = [firstName, lastName].filter(Boolean).join(" ").trim() || pathPerson.Name || "Unknown";
-  const birthDecade = pathPerson.BirthDateDecade || "?";
-  const deathDecade = pathPerson.DeathDateDecade || "?";
-  return `${baseName} (${birthDecade}${EN_DASH}${deathDecade})`;
+  const birthYear = yearFromDate(pathPerson.BirthDate) || yearFromDecade(pathPerson.BirthDateDecade) || "?";
+  const deathYear = yearFromDate(pathPerson.DeathDate) || yearFromDecade(pathPerson.DeathDateDecade) || "?";
+  const birthPrefix = birthYear !== "?" ? certaintyPrefixFromDataStatus(pathPerson, "BirthDate") : "";
+  const deathPrefix = deathYear !== "?" ? certaintyPrefixFromDataStatus(pathPerson, "DeathDate") : "";
+  return `${baseName} (${birthPrefix}${birthYear}${EN_DASH}${deathPrefix}${deathYear})`;
 }
 
 function descendantType(stepsDown, gender) {
@@ -792,7 +819,97 @@ function commonAncestorsFromPath(path, pathAnalysis) {
   return entry ? [entry] : [];
 }
 
-async function augmentWithOtherParentCommonAncestor(userID, profileID, pathAnalysis, commonAncestors) {
+function pathTypeToken(node) {
+  return String(node?.pathType || "")
+    .trim()
+    .toLowerCase();
+}
+
+function pathStatusToken(node) {
+  const status = node?.pathStatus;
+  return Number.isFinite(Number(status)) ? Number(status) : String(status || "");
+}
+
+function pathsMatchExceptAncestor(firstPath, secondPath, ancestorIndex) {
+  if (!Array.isArray(firstPath) || !Array.isArray(secondPath)) return false;
+  if (firstPath.length !== secondPath.length) return false;
+  if (ancestorIndex < 0 || ancestorIndex >= firstPath.length) return false;
+
+  for (let index = 0; index < firstPath.length; index++) {
+    if (index === ancestorIndex) continue;
+
+    const a = firstPath[index] || {};
+    const b = secondPath[index] || {};
+
+    if (Number(a?.Id) !== Number(b?.Id)) {
+      return false;
+    }
+
+    if (pathTypeToken(a) !== pathTypeToken(b)) {
+      return false;
+    }
+
+    if (pathStatusToken(a) !== pathStatusToken(b)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+async function getOtherMostRecentCommonAncestor(userID, profileID, firstData, firstPathAnalysis) {
+  const ignoredAncestorId = Number(firstPathAnalysis?.ancestorNode?.Id);
+  if (!Number.isFinite(ignoredAncestorId) || ignoredAncestorId <= 0) {
+    return null;
+  }
+
+  try {
+    const secondData = await WikiTreeAPI.getConnections(
+      WBE_DIST_REL_APP_ID,
+      [userID, profileID],
+      "Id,Name,Gender,FirstName,LastNameCurrent,LastNameAtBirth,BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,DataStatus",
+      { relation: 2, ignoreIds: [ignoredAncestorId] }
+    );
+    console.log("[WBE dist-rel] getConnections (relation=2, ignoreIds) response:", {
+      ignoredAncestorId,
+      secondData,
+    });
+
+    if (!Array.isArray(secondData?.path) || secondData.path.length === 0) {
+      return null;
+    }
+
+    const secondPathAnalysis = analyzeAncestorPath(secondData.path);
+
+    const samePathShape =
+      secondPathAnalysis.upSteps === firstPathAnalysis.upSteps &&
+      secondPathAnalysis.downSteps === firstPathAnalysis.downSteps &&
+      secondPathAnalysis.ancestorIndex === firstPathAnalysis.ancestorIndex;
+    if (!samePathShape) {
+      return null;
+    }
+
+    if (!pathsMatchExceptAncestor(firstData.path, secondData.path, firstPathAnalysis.ancestorIndex)) {
+      return null;
+    }
+
+    const secondAncestor = secondPathAnalysis.ancestorNode;
+    if (!secondAncestor?.Name) {
+      return null;
+    }
+
+    if (Number(secondAncestor?.Id) === ignoredAncestorId) {
+      return null;
+    }
+
+    return secondAncestor;
+  } catch (error) {
+    console.log("Could not retrieve second MRCA using ignoreIds", error);
+    return null;
+  }
+}
+
+async function augmentWithOtherParentCommonAncestor(userID, profileID, data, pathAnalysis, commonAncestors) {
   if (!(pathAnalysis.upSteps >= 1 && pathAnalysis.downSteps >= 1)) {
     return commonAncestors;
   }
@@ -804,7 +921,7 @@ async function augmentWithOtherParentCommonAncestor(userID, profileID, pathAnaly
       const relatives = await WikiTreeAPI.getRelatives(
         WBE_DIST_REL_APP_ID,
         [profileID],
-        "Id,Name,Gender,FirstName,LastNameCurrent,LastNameAtBirth,BirthDateDecade,DeathDateDecade",
+        "Id,Name,Gender,FirstName,LastNameCurrent,LastNameAtBirth,BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,DataStatus",
         { getParents: true }
       );
       console.log("[WBE dist-rel] getRelatives (getParents) response for profile", profileID, relatives);
@@ -829,40 +946,17 @@ async function augmentWithOtherParentCommonAncestor(userID, profileID, pathAnaly
   }
 
   if (nextAncestors.length < 2) {
-    try {
-      const pivotAncestorName = pathAnalysis.ancestorNode?.Name;
-      if (!pivotAncestorName) return nextAncestors;
-
-      const relatives = await WikiTreeAPI.getRelatives(
-        WBE_DIST_REL_APP_ID,
-        [pivotAncestorName],
-        "Id,Name,Gender,FirstName,LastNameCurrent,LastNameAtBirth,BirthDateDecade,DeathDateDecade",
-        { getSpouses: true }
-      );
-      console.log("[WBE dist-rel] getRelatives (getSpouses) response for pivot", pivotAncestorName, relatives);
-
-      const pivotPerson = relatives?.[0]?.person;
-      const spouses = pivotPerson?.Spouses ? Object.values(pivotPerson.Spouses).filter((spouse) => spouse?.Name) : [];
-      if (spouses.length === 0) return nextAncestors;
-
-      const pivotGender = pathAnalysis.ancestorNode?.Gender;
-      let spouse = spouses[0];
-      if (pivotGender) {
-        const oppositeGenderSpouse = spouses.find((candidate) => candidate?.Gender && candidate.Gender !== pivotGender);
-        if (oppositeGenderSpouse) {
-          spouse = oppositeGenderSpouse;
+    const otherMrca = await getOtherMostRecentCommonAncestor(userID, profileID, data, pathAnalysis);
+    if (otherMrca) {
+      const otherMrcaEntry = asCommonAncestorEntry(otherMrca, pathAnalysis.upSteps, pathAnalysis.downSteps);
+      if (otherMrcaEntry) {
+        const alreadyIncluded = nextAncestors.some(
+          (ancestor) => String(ancestor?.ancestor?.mName || "") === String(otherMrcaEntry.ancestor.mName)
+        );
+        if (!alreadyIncluded) {
+          return [...nextAncestors, otherMrcaEntry];
         }
       }
-
-      const spouseEntry = asCommonAncestorEntry(spouse, pathAnalysis.upSteps, pathAnalysis.downSteps);
-      if (!spouseEntry) return nextAncestors;
-
-      const alreadyIncluded = nextAncestors.some(
-        (ancestor) => String(ancestor?.ancestor?.mName || "") === String(spouseEntry.ancestor.mName)
-      );
-      return alreadyIncluded ? nextAncestors : [...nextAncestors, spouseEntry];
-    } catch (error) {
-      console.log("Could not retrieve spouse for second common ancestor display", error);
     }
   }
 
@@ -905,7 +999,7 @@ function doRelationshipText(userID, profileID) {
   WikiTreeAPI.getConnections(
     WBE_DIST_REL_APP_ID,
     [userID, profileID],
-    "Id,Name,Gender,FirstName,LastNameCurrent,LastNameAtBirth,BirthDateDecade,DeathDateDecade",
+    "Id,Name,Gender,FirstName,LastNameCurrent,LastNameAtBirth,BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,DataStatus",
     { relation: 2 }
   )
     .then(async function (data) {
@@ -957,7 +1051,13 @@ function doRelationshipText(userID, profileID) {
         const pathAnalysis = analyzeAncestorPath(data.path);
         relationshipText = relationshipFromPathAnalysis(pathAnalysis, profilePerson.Gender);
         commonAncestors = commonAncestorsFromPath(data.path, pathAnalysis);
-        commonAncestors = await augmentWithOtherParentCommonAncestor(userID, profileID, pathAnalysis, commonAncestors);
+        commonAncestors = await augmentWithOtherParentCommonAncestor(
+          userID,
+          profileID,
+          data,
+          pathAnalysis,
+          commonAncestors
+        );
         commonAncestors = sortCommonAncestorsByGender(commonAncestors);
         addRelationshipText(relationshipText, cleanCommonAncestors(commonAncestors));
       } else {

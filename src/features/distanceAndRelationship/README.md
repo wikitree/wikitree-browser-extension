@@ -9,7 +9,10 @@ This feature shows the distance (degrees) and relationship between the logged-in
      - `distance` from path length,
      - relationship text from path analysis,
      - common ancestor entries from the path.
-   - It may enrich common ancestors (for example, second parent/spouse where available).
+  - It may enrich common ancestors:
+    - second parent for direct-parent paths,
+    - second MRCA via `getConnections(..., { relation: 2, ignoreIds: [firstMrcaId] })` when the returned path matches the first path except at the MRCA node.
+  - If the `ignoreIds` call returns no usable path or a different path shape, it does **not** assume a spouse as second MRCA.
 
 2. **Fallback path (legacy endpoint)**
    - If modern `getConnections` does not return a usable path (common with privacy limits), it calls:
