@@ -66,6 +66,7 @@ import "./category_tables/category_tables_options";
 import "./categoryDisplay/categoryDisplay_options";
 import "./cc7_changes/cc7_changes_options";
 import "./change_family_lists/change_family_lists_options";
+import "./chat/chat_options";
 import "./collapsible_descendants/collapsible_descendants_options";
 import "./collapsible_profiles/collapsible_profiles_options";
 import "./connection_finder/connection_finder_options";

@@ -161,6 +161,8 @@ import "./features/what_links_here/what_links_here";
 import "./features/edit_profile_redesign/edit_profile_redesign";
 
 /* MARKER: Default place for new features. Move these to a more appropriate place.*/
+import "./features/chat/chat";
+
 import "./features/space_style/space_style";
 
 import "./features/wikitree_plus_helper/wikitree_plus_helper";

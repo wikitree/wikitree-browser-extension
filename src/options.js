@@ -41,6 +41,70 @@ $("h1")
 
 const textField = document.getElementById("optionSearch");
 
+const SHARED_AI_OPTIONS_KEY = "sharedAI_options";
+const SHARED_AI_FEATURES = ["autoBio", "chat"];
+const SHARED_AI_OPTION_IDS = [
+  "aiProvider",
+  "openAIKey",
+  "openAIModel",
+  "geminiKey",
+  "geminiModel",
+  "claudeKey",
+  "claudeModel",
+  "perplexityKey",
+  "perplexityModel",
+  "aiModel",
+];
+
+function isSharedAiFeature(featureId) {
+  return SHARED_AI_FEATURES.includes(featureId);
+}
+
+function getSharedAiOptionStorageKeys() {
+  return SHARED_AI_FEATURES.map((featureId) => `${featureId}_options`);
+}
+
+function extractSharedAiOptions(options = {}) {
+  const extracted = {};
+  SHARED_AI_OPTION_IDS.forEach((optionId) => {
+    const value = options?.[optionId];
+    if (value !== undefined && value !== null && value !== "") {
+      extracted[optionId] = value;
+    }
+  });
+  return extracted;
+}
+
+function collectLegacySharedAiOptions(storageItems = {}) {
+  return getSharedAiOptionStorageKeys().reduce((merged, itemKey) => {
+    return { ...merged, ...extractSharedAiOptions(storageItems?.[itemKey] || {}) };
+  }, {});
+}
+
+function splitSharedAiOptions(optionsData) {
+  const featureOptions = { ...optionsData };
+  const sharedAiOptions = {};
+
+  SHARED_AI_OPTION_IDS.forEach((optionId) => {
+    if (featureOptions.hasOwnProperty(optionId)) {
+      sharedAiOptions[optionId] = featureOptions[optionId];
+      delete featureOptions[optionId];
+    }
+  });
+
+  return { featureOptions, sharedAiOptions };
+}
+
+function mergeSharedAiOptions(featureId, optionsData, storageItems) {
+  if (!isSharedAiFeature(featureId)) {
+    return optionsData;
+  }
+
+  const sharedOptions = storageItems?.[SHARED_AI_OPTIONS_KEY] || {};
+  const legacySharedOptions = collectLegacySharedAiOptions(storageItems);
+  return { ...optionsData, ...legacySharedOptions, ...sharedOptions };
+}
+
 function checkText() {
   const textToCheck = textField.value.trim().toLowerCase();
   const categorySections = document.querySelectorAll(".section.category");
@@ -149,6 +213,19 @@ function saveFeatureOptions(feature) {
   fillOptionsDataFromUiElements(feature, feature.options, optionsData);
 
   const storageName = feature.id + "_options";
+
+  if (isSharedAiFeature(feature.id)) {
+    const { featureOptions, sharedAiOptions } = splitSharedAiOptions(optionsData);
+    chrome.storage.sync.get(SHARED_AI_OPTIONS_KEY, (items) => {
+      const currentShared = items?.[SHARED_AI_OPTIONS_KEY] || {};
+      chrome.storage.sync.set({
+        [storageName]: featureOptions,
+        [SHARED_AI_OPTIONS_KEY]: { ...currentShared, ...sharedAiOptions },
+      });
+    });
+    return;
+  }
+
   chrome.storage.sync.set({
     [storageName]: optionsData,
   });
@@ -166,6 +243,8 @@ function restoreFeatureOptions(feature, storageItems) {
   if (storageItems.hasOwnProperty(storageName)) {
     optionsData = storageItems[storageName];
   }
+
+  optionsData = mergeSharedAiOptions(feature.id, optionsData, storageItems);
 
   setUiElementsFromOptionsData(feature, feature.options, optionsData);
 }
@@ -243,8 +322,19 @@ function reset_options(preserveFeatureOptions, callback) {
         features.forEach((feature) => {
           items[feature.id] = !!feature.defaultValue;
           if (feature.options) {
-            let optionsData = (items[feature.id + "_options"] = {});
+            let optionsData = {};
             fillOptionsDataFromUiElements(feature, feature.options, optionsData);
+
+            if (isSharedAiFeature(feature.id)) {
+              const { featureOptions, sharedAiOptions } = splitSharedAiOptions(optionsData);
+              items[feature.id + "_options"] = featureOptions;
+              items[SHARED_AI_OPTIONS_KEY] = {
+                ...(items[SHARED_AI_OPTIONS_KEY] || {}),
+                ...sharedAiOptions,
+              };
+            } else {
+              items[feature.id + "_options"] = optionsData;
+            }
           }
         });
         chrome.storage.sync.set(items, callback);

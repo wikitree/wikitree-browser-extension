@@ -110,7 +110,202 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     handleAIRequest(message, sendResponse);
     return true; // Keep channel open for async response
   }
+
+  if (message.action === "chatWithAI") {
+    handleChatRequest(message, sendResponse);
+    return true; // Keep channel open for async response
+  }
 });
+
+async function callAIProvider(provider, key, model, systemRole, prompt) {
+  if (provider === "openai") {
+    return callOpenAI(key, model || "gpt-5-mini", systemRole, prompt);
+  } else if (provider === "gemini") {
+    return callGemini(key, model || "gemini-3-flash-preview", systemRole, prompt);
+  } else if (provider === "claude") {
+    return callClaude(key, model || "claude-sonnet-4-5", systemRole, prompt);
+  } else if (provider === "perplexity") {
+    return callPerplexity(key, model || "sonar", systemRole, prompt);
+  }
+
+  throw new Error("Unknown provider: " + provider);
+}
+
+const WT_API_DOC_REPO_BASE = "https://raw.githubusercontent.com/wikitree/wikitree-api/main/";
+const WT_API_DOC_FILES = [
+  "README.md",
+  "getPeople.md",
+  "getPerson.md",
+  "getRelatives.md",
+  "getConnections.md",
+  "searchPerson.md",
+  "getAncestors.md",
+  "getDescendants.md",
+  "authentication.md",
+];
+const WT_API_DOC_DEFAULT_MAX_CHARS = 5000;
+const WT_API_DOC_MAX_FILES = 3;
+const WT_API_DOC_CACHE_TTL_MS = 30 * 60 * 1000;
+const wtApiDocCache = new Map();
+
+function withTimeout(timeoutMs, task) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  return task(controller.signal).finally(() => clearTimeout(timeoutId));
+}
+
+function normalizeWhitespace(value) {
+  return String(value || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function scoreApiDocFile(fileName, query) {
+  const q = String(query || "").toLowerCase();
+  if (!q) {
+    return fileName === "README.md" ? 1 : 0;
+  }
+
+  const keywordGroups = [
+    {
+      files: ["getPeople.md"],
+      words: [
+        "getpeople",
+        "nuclear",
+        "ancestors",
+        "descendants",
+        "mingeneration",
+        "limit",
+        "start",
+        "cc7",
+        "cc6",
+        "cc5",
+      ],
+    },
+    { files: ["getConnections.md"], words: ["connection", "distance", "path", "relation", "ignoreids", "nopath"] },
+    { files: ["searchPerson.md"], words: ["search", "find", "lookup", "person", "realname", "lastname"] },
+    { files: ["getRelatives.md"], words: ["siblings", "parents", "children", "spouses", "relatives"] },
+    { files: ["getPerson.md"], words: ["profile", "person", "resolve", "redirect", "fields"] },
+    { files: ["getAncestors.md"], words: ["ancestor", "grandparent", "generation"] },
+    { files: ["getDescendants.md"], words: ["descendant", "children", "generation"] },
+    { files: ["authentication.md"], words: ["login", "auth", "private", "trusted", "session", "cookie"] },
+  ];
+
+  let score = fileName === "README.md" ? 1 : 0;
+  keywordGroups.forEach((group) => {
+    if (!group.files.includes(fileName)) {
+      return;
+    }
+    group.words.forEach((word) => {
+      if (q.includes(word)) {
+        score += 3;
+      }
+    });
+  });
+
+  return score;
+}
+
+async function fetchWikiTreeApiDocFile(fileName) {
+  const cached = wtApiDocCache.get(fileName);
+  const now = Date.now();
+  if (cached && now - cached.fetchedAt < WT_API_DOC_CACHE_TTL_MS) {
+    return cached.text;
+  }
+
+  const url = `${WT_API_DOC_REPO_BASE}${fileName}`;
+  const response = await withTimeout(5000, (signal) => fetch(url, { method: "GET", signal }));
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${fileName}: ${response.status}`);
+  }
+
+  const text = await response.text();
+  wtApiDocCache.set(fileName, {
+    text,
+    fetchedAt: now,
+  });
+  return text;
+}
+
+function extractRelevantDocExcerpt(fileName, text, query, maxChars) {
+  const normalized = normalizeWhitespace(text);
+  if (!normalized) {
+    return "";
+  }
+
+  const queryWords = String(query || "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length > 2);
+  const lines = normalized.split("\n");
+
+  // Prefer lines around key sections and query terms.
+  const picked = [];
+  const mustInclude = [/^#\s+/, /^##\s+(Parameters|Results|Examples)/i, /^\|\s*Param\s*\|/i];
+
+  lines.forEach((line, index) => {
+    if (mustInclude.some((pattern) => pattern.test(line))) {
+      picked.push(index);
+      return;
+    }
+    if (queryWords.some((word) => line.toLowerCase().includes(word))) {
+      picked.push(index);
+    }
+  });
+
+  const lineIndexes = new Set();
+  picked.forEach((idx) => {
+    for (let i = Math.max(0, idx - 1); i <= Math.min(lines.length - 1, idx + 1); i += 1) {
+      lineIndexes.add(i);
+    }
+  });
+
+  const excerptLines = (
+    lineIndexes.size
+      ? Array.from(lineIndexes)
+          .sort((a, b) => a - b)
+          .map((i) => lines[i])
+      : lines
+  ).filter((line) => !/^```/.test(line));
+
+  const excerpt = normalizeWhitespace(excerptLines.join("\n"));
+  const clipped = excerpt.length > maxChars ? `${excerpt.slice(0, Math.max(200, maxChars - 3))}...` : excerpt;
+  return `Source: ${fileName}\n${clipped}`;
+}
+
+async function buildWikiTreeApiDocContext(query, maxChars = WT_API_DOC_DEFAULT_MAX_CHARS) {
+  const budget = Math.max(1200, Math.min(12000, Number(maxChars) || WT_API_DOC_DEFAULT_MAX_CHARS));
+  const rankedFiles = WT_API_DOC_FILES.map((fileName) => ({ fileName, score: scoreApiDocFile(fileName, query) }))
+    .sort((left, right) => right.score - left.score)
+    .filter((entry, index) => entry.score > 0 || index < 2)
+    .slice(0, WT_API_DOC_MAX_FILES)
+    .map((entry) => entry.fileName);
+
+  const perFileBudget = Math.max(500, Math.floor(budget / Math.max(1, rankedFiles.length)));
+  const snippets = [];
+
+  for (const fileName of rankedFiles) {
+    try {
+      const text = await fetchWikiTreeApiDocFile(fileName);
+      const snippet = extractRelevantDocExcerpt(fileName, text, query, perFileBudget);
+      if (snippet) {
+        snippets.push(snippet);
+      }
+    } catch (error) {
+      // Keep chat resilient if docs are temporarily unavailable.
+      console.warn(`WikiTree API doc fetch skipped for ${fileName}:`, error?.message || error);
+    }
+  }
+
+  const merged = snippets.join("\n\n");
+  if (!merged) {
+    return "";
+  }
+
+  return merged.length > budget ? `${merged.slice(0, budget - 3)}...` : merged;
+}
 
 // For Auto Bio: Handle AI requests
 async function handleAIRequest(request, sendResponse) {
@@ -274,18 +469,7 @@ ${newBio}
 ${dataPayload}`;
 
   try {
-    let resultBio = "";
-    if (provider === "openai") {
-      resultBio = await callOpenAI(key, model || "gpt-5-mini", systemRole, prompt);
-    } else if (provider === "gemini") {
-      resultBio = await callGemini(key, model || "gemini-3-flash-preview", systemRole, prompt);
-    } else if (provider === "claude") {
-      resultBio = await callClaude(key, model || "claude-sonnet-4-5", systemRole, prompt);
-    } else if (provider === "perplexity") {
-      resultBio = await callPerplexity(key, model || "sonar", systemRole, prompt);
-    } else {
-      throw new Error("Unknown provider: " + provider);
-    }
+    let resultBio = await callAIProvider(provider, key, model, systemRole, prompt);
 
     // --- PROGRAMMATIC CLEANING : CATEGORIES ---
     // The AI sometimes ignores instructions and adds categories like [[Category: 1917 Births]].
@@ -329,6 +513,51 @@ ${dataPayload}`;
     sendResponse({ success: true, bio: resultBio });
   } catch (error) {
     console.error("AI Request Failed:", error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+async function handleChatRequest(request, sendResponse) {
+  const { prompt, provider, key, model, pageContext, includeApiDocContext, apiDocUserQuery, apiDocMaxChars } = request;
+
+  if (!prompt || typeof prompt !== "string") {
+    sendResponse({ success: false, error: "No prompt provided." });
+    return;
+  }
+
+  if (!key) {
+    sendResponse({ success: false, error: "API key is missing." });
+    return;
+  }
+
+  const systemRole =
+    "You are a genealogy assistant for WikiTree Browser Extension. " +
+    "Be concise, factual, and explicit about uncertainty. " +
+    "Do not invent profile data. If data is missing, say what is needed next.";
+
+  const contextBlock = pageContext
+    ? `\n\nPage context:\n- URL: ${pageContext.url || ""}\n- Title: ${pageContext.title || ""}`
+    : "";
+
+  let apiDocsBlock = "";
+  if (includeApiDocContext) {
+    const apiContext = await buildWikiTreeApiDocContext(apiDocUserQuery || prompt, apiDocMaxChars);
+    if (apiContext) {
+      apiDocsBlock = `\n\nRelevant WikiTree API docs excerpts (from wikitree/wikitree-api):\n${apiContext}`;
+    }
+  }
+
+  try {
+    const responseText = await callAIProvider(
+      provider,
+      key,
+      model,
+      systemRole,
+      `${prompt}${contextBlock}${apiDocsBlock}`
+    );
+    sendResponse({ success: true, response: responseText || "No response text returned." });
+  } catch (error) {
+    console.error("Chat AI Request Failed:", error);
     sendResponse({ success: false, error: error.message });
   }
 }

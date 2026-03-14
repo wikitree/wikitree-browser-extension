@@ -422,6 +422,65 @@ WikiTreeAPI.getPeople = async function (appId, IDs, fields, options = {}) {
 };
 
 /**
+ * Search person profiles using API filters similar to Special:SearchPerson.
+ *
+ * @param {*} appId An application id (any string). 'WBE_' will be prepended if not present already
+ * @param {*} searchParams Object containing search filters (e.g. FirstName, LastName, RealName, BirthDate)
+ * @param {*} fields Optional array or comma separated string of fields to return for matches
+ * @param {*} options Optional search options (e.g. dateInclude, dateSpread, sort, limit, start)
+ * @returns a Promise for [status, matches, total, start, limit]
+ */
+WikiTreeAPI.searchPerson = async function (appId, searchParams = {}, fields = "", options = {}) {
+  const VALID_SEARCH_ARGS = new Set([
+    "FirstName",
+    "LastName",
+    "BirthDate",
+    "DeathDate",
+    "RealName",
+    "LastNameCurrent",
+    "BirthLocation",
+    "DeathLocation",
+    "Gender",
+    "fatherFirstName",
+    "fatherLastName",
+    "motherFirstName",
+    "motherLastName",
+    "watchlist",
+    "dateInclude",
+    "dateSpread",
+    "centuryTypo",
+    "isLiving",
+    "skipVariants",
+    "lastNameMatch",
+    "sort",
+    "secondarySort",
+    "limit",
+    "start",
+  ]);
+
+  const parameters = { ...options };
+  parameters.appId = appId;
+  parameters.action = "searchPerson";
+
+  Object.entries(searchParams || {}).forEach(([key, value]) => {
+    if (!VALID_SEARCH_ARGS.has(key)) {
+      return;
+    }
+    if (value === undefined || value === null || value === "") {
+      return;
+    }
+    parameters[key] = value;
+  });
+
+  if (fields && commaSeparatedString(fields) !== "") {
+    parameters.fields = commaSeparatedString(fields);
+  }
+
+  const result = await WikiTreeAPI.postToAPI(parameters);
+  return [result[0].status, result[0].matches || [], result[0].total || 0, result[0].start || 0, result[0].limit || 0];
+};
+
+/**
  * Find the connection path between two profiles.
  *
  * @param {*} appId An application id (any string). 'WBE_' will be prepended if not present already
