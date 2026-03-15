@@ -16,6 +16,27 @@ import "datatables.net";
 import "jquery-ui/ui/widgets/draggable";
 import "jquery-ui/ui/widgets/resizable";
 import "./chat.css";
+import { formatDate, getRelationColour, getYearColour } from "../../core/formatting";
+import { escapeHtml } from "../../core/lib/diff_utils";
+import {
+  setPopupPositionAndSize,
+  positionPopupForOpen,
+  clampPopupToViewport,
+  positionPopupFixed,
+  getPopupResizeLimits as uiGetPopupResizeLimits,
+  showChatShaky,
+  hideChatShaky,
+  showConnectionsPopup,
+} from "./ui";
+import { buildResultsTableHtml } from "./tables";
+import {
+  makeProfileLink,
+  withDerivedRowFields,
+  cloneResultWithRows,
+  makeStandardProfileTable,
+  makeWatchlistTable,
+  makeAncestorAgeTable,
+} from "./tables";
 
 // Debug: indicate the chat feature script has been loaded
 console.debug("wbe: chat.js loaded");
@@ -33,6 +54,7 @@ const CHAT_CLEAR_ID = "wbe-chat-clear";
 const CHAT_SESSION_KEY = `wbe_chat_history_${window.location.pathname}`;
 const CHAT_LAST_CONNECTION_KEY = `${CHAT_SESSION_KEY}_lastConnection`;
 const CHAT_LAST_STRUCTURED_KEY = `${CHAT_SESSION_KEY}_lastStructured`;
+const CHAT_LAST_BIO_KEY = `${CHAT_SESSION_KEY}_lastBio`;
 const WBE_CHAT_APP_ID = "chat";
 const CC7_CACHE_MS = 5 * 60 * 1000;
 const CHAT_RESULTS_POPUP_ID = "wbe-chat-results-popup";
@@ -58,167 +80,11 @@ let cc7Cache = {
   profiles: [],
 };
 
+let lastConnectionPopupResult = null;
+let lastStructuredResult = null;
+let lastBioPopupId = null;
+let lastBioPopupProfile = null;
 
-// Date formatting helper (from connection_finder)
-function formatDate(date) {
-  if (!date || date === "0000-00-00") return "";
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const parts = String(date || "").split("-");
-  if (parts[0] === "0000") return "";
-  if (parts[1] === "00") return parts[0];
-  if (parts[2] === "00") return months[parseInt(parts[1], 10) - 1] + " " + parts[0];
-  return parseInt(parts[2], 10) + " " + months[parseInt(parts[1], 10) - 1] + " " + parts[0];
-}
-
-// Colour coding helpers
-const relationshipColours = [
-  "#90EE90",
-  "#ADDBE6",
-  "#FFC0CB",
-  "#D3D3D3",
-  "#FFA500",
-  "#FF6B94",
-  "#FFD700",
-  "#FA8072",
-  "#98FB98",
-  "#f9e",
-  "#cbc3e3",
-  "#fff",
-  "#d0ece7",
-  "#c6f0fd",
-  "#d0d0d0",
-  "#fad347",
-  "#e6b0aa",
-  "#c4a484",
-  "#afeeee",
-  "#fffdd0",
-  "#ffee5b",
-  "#aa98a9",
-  "#87ceeb",
-  "#ecf0f1",
-];
-
-function getRelationColour(relation) {
-  const rels = ["parent", "child", "sibling", "spouse", "ancestor", "descendant", "other"];
-  const idx = rels.indexOf(String(relation || "").toLowerCase());
-  return idx >= 0 ? relationshipColours[idx % relationshipColours.length] : "#fff";
-}
-
-function getYearColour(date) {
-  if (!date || date === "0000-00-00") return "#fff";
-  const year = parseInt(String(date || "").split("-")[0], 10);
-  if (!year || isNaN(year)) return "#fff";
-  const base = 1800;
-  const idx = Math.max(0, Math.min(relationshipColours.length - 1, Math.floor((year - base) / 10)));
-  return relationshipColours[idx];
-}
-
-// Render getConnections result as a formatted popup
-function showConnectionsPopup(connectionsResult) {
-  if (!Array.isArray(connectionsResult) || !connectionsResult.length) return;
-  const conn = connectionsResult[0];
-  const path = conn.path || [];
-  lastConnectionPopupResult = connectionsResult;
-
-  // Remove any existing popup before showing a new one
-  document.getElementById("wbe-connections-popup")?.remove();
-
-  const popup = document.createElement("div");
-  popup.className = "wbe-popup chat-popup ui-draggable";
-  popup.id = "wbe-connections-popup";
-  popup.style.display = "block";
-  popup.innerHTML = `
-    <div class="chat-popup-header ui-draggable-handle">
-      <strong>Connections Path</strong>
-      <div class="chat-popup-controls">
-        <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
-      </div>
-    </div>
-    <div class="chat-popup-body">
-      <table class="connections-table" style="width:100%; border-collapse:collapse;">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Relation</th>
-            <th>Birth Date</th>
-            <th>Birth Location</th>
-            <th>Death Date</th>
-            <th>Death Location</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${path
-            .map((person) => {
-              const name = `${person.FirstName || ""} ${person.LastNameCurrent || ""}`.trim();
-              const relation = person.pathType || "";
-              const birthDate = formatDate(person.BirthDate);
-              const birthLoc = person.BirthLocation || "";
-              const deathDate = formatDate(person.DeathDate);
-              const deathLoc = person.DeathLocation || "";
-              return `
-                <tr>
-                  <td><a href="https://www.wikitree.com/wiki/${person.Name}" target="_blank">${escapeHtml(name)}</a></td>
-                  <td style="background:${getRelationColour(relation)}">${escapeHtml(relation)}</td>
-                  <td style="background:${getYearColour(person.BirthDate)}">${escapeHtml(birthDate)}</td>
-                  <td>${escapeHtml(birthLoc)}</td>
-                  <td style="background:${getYearColour(person.DeathDate)}">${escapeHtml(deathDate)}</td>
-                  <td>${escapeHtml(deathLoc)}</td>
-                </tr>`;
-            })
-            .join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
-
-  document.body.appendChild(popup);
-  setPopupPositionAndSize(popup, Math.round((window.innerWidth - popup.getBoundingClientRect().width) / 2), 110);
-  popup.querySelector(".close-popup")?.addEventListener("click", () => popup.remove());
-  setHighestZIndex(popup);
-  $(popup).draggable({
-    handle: ".chat-popup-header",
-    containment: "window",
-    scroll: false,
-    start: () => {
-      popup.style.right = "auto";
-      popup.style.transform = "none";
-    },
-  });
-
-  addConnectionsButton();
-}
-
-// Add persistent Connections button
-function addConnectionsButton() {
-  // Remove existing button if present
-  document.getElementById("wbe-connections-button")?.remove();
-  if (!lastConnectionPopupResult) return;
-  const btn = document.createElement("button");
-  btn.id = "wbe-connections-button";
-  btn.type = "button";
-  btn.textContent = "Connections";
-  btn.style.position = "fixed";
-  btn.style.bottom = "18px";
-  btn.style.right = "18px";
-  btn.style.zIndex = "99999";
-  btn.style.background = "#4caf50";
-  btn.style.color = "#fff";
-  btn.style.border = "none";
-  btn.style.borderRadius = "6px";
-  btn.style.padding = "8px 16px";
-  btn.style.boxShadow = "0 2px 6px rgba(0,0,0,0.15)";
-  btn.style.cursor = "pointer";
-  btn.title = "Show last connection path";
-  btn.addEventListener("click", () => {
-    showConnectionsPopup(lastConnectionPopupResult);
-  });
-  document.body.appendChild(btn);
-}
-
-
-function closeConnectionsPopup() {
-  document.getElementById("wbe-connections-popup")?.remove();
-}
 
 function toggleConnectionsPopup() {
   const el = document.getElementById("wbe-connections-popup");
@@ -230,219 +96,47 @@ function toggleConnectionsPopup() {
 }
 
 // Small shaky-tree loader for chat (re-uses wbe-shaky-tree CSS)
-function showChatShaky(label = "Finding connection...", position = "center") {
-  let $existing = $("#wbeShakyTree");
-  const treeUrl = chrome?.runtime?.getURL ? chrome.runtime.getURL("images/tree.gif") : "images/tree.gif";
-  // showChatShaky called
-  if ($existing.length === 0) {
-    const html = `
-      <div id="wbeShakyTree" class="wbe-shaky-tree" style="display:none">
-        <div class="wbe-shaky-image"><img src="${treeUrl}" alt="loading" /></div>
-        <div class="wbe-shaky-messages">
-          <div class="wbe-shaky-label">${label}</div>
-        </div>
-      </div>
-      `;
-    $(document.body).append(html);
-    $existing = $("#wbeShakyTree");
-  } else {
-    const $msgs = $existing.find(".wbe-shaky-messages");
-    const $new = $(`<div class="wbe-shaky-label">${label}</div>`);
-    $msgs.append($new);
-    const children = $msgs.children(".wbe-shaky-label");
-    if (children.length > 6) children.first().remove();
-  }
-  if (position === "center") $existing.addClass("center");
-  else $existing.removeClass("center");
-  // showing shaky element
-  if (position === "center") {
-    $existing.css({
-      position: "fixed",
-      left: "50%",
-      top: "50%",
-      transform: "translate(-50%, -50%)",
-      right: "auto",
-      bottom: "auto",
-      zIndex: 10060,
-      pointerEvents: "none",
-    });
-  }
-  $existing.stop(true, true).fadeIn(180);
-}
-
-function hideChatShaky() {
-  const $el = $("#wbeShakyTree");
-  // hideChatShaky called
-  if ($el.length) {
-    $el.stop(true, true).fadeOut(150, function () {
-      $(this).removeClass("center");
-      // Remove any inline centering styles we applied
-      $(this).css({ position: "", left: "", top: "", transform: "", right: "", bottom: "", zIndex: "", pointerEvents: "" });
-    });
-  }
-}
+// Shaky-tree loader moved to `src/features/chat/ui.js`.
 // Centralized popup positioning and resizing helper
-function setPopupPositionAndSize(popup, preferredLeft = null, preferredTop = null, margin = 10) {
-  if (!popup) return;
-  const rect = popup.getBoundingClientRect();
-  const maxWidth = Math.max(320, window.innerWidth - margin * 2);
-  const maxHeight = Math.max(260, window.innerHeight - margin * 2);
-  const minWidth = Math.min(400, maxWidth);
-  popup.style.minWidth = `${minWidth}px`;
-  popup.style.maxWidth = `${maxWidth}px`;
-  popup.style.maxHeight = `${maxHeight}px`;
-  if (rect.width > maxWidth) popup.style.width = `${maxWidth}px`;
-  if (rect.height > maxHeight) popup.style.height = `${maxHeight}px`;
-  const updated = popup.getBoundingClientRect();
-  const left =
-    preferredLeft !== null ? clamp(preferredLeft, margin, window.innerWidth - updated.width - margin) : updated.left;
-  const top =
-    preferredTop !== null ? clamp(preferredTop, margin, window.innerHeight - updated.height - margin) : updated.top;
-  popup.style.position = "fixed";
-  popup.style.left = `${left}px`;
-  popup.style.top = `${top}px`;
-  popup.style.right = "auto";
-  popup.style.transform = "none";
-}
+// Popup positioning and sizing helpers moved to `src/features/chat/ui.js`.
 
-// Consolidated message formatting/rendering helper
-function renderChatMessage(role, text, options = {}) {
-  const messages = getMessageList();
-  if (!messages) return;
-  const item = document.createElement("div");
-  item.className = `chat-message chat-message-${role}`;
-  const label = document.createElement("div");
-  label.className = "chat-message-label";
-  label.textContent = role === "user" ? "You" : "Chat";
-  const body = document.createElement("div");
-  body.className = "chat-message-body";
-  const messageText = role === "assistant" ? softenFailureMessage(text) : text;
-  body.innerHTML = formatChatMessageBody(messageText, options.inlineMore);
-  body.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    const inlineMoreLink = target.closest(".chat-inline-show-more");
-    if (!inlineMoreLink) return;
-    event.preventDefault();
-    if (options.inlineMore?.text) {
-      const container = inlineMoreLink.closest(".chat-inline-more-container");
-      if (!container) return;
-      const expanded = document.createElement("span");
-      expanded.className = "chat-inline-more-expanded";
-      expanded.innerHTML = `<br>${formatChatMessageBody(options.inlineMore.text)}`;
-      container.replaceWith(expanded);
-      messages.scrollTop = messages.scrollHeight;
-      return;
-    }
-    if (typeof options.action?.onClick === "function") {
-      options.action.onClick();
-      return;
-    }
-    if (lastStructuredResult?.rows?.length) {
-      openResultsTable(lastStructuredResult);
-    }
-  });
-  item.appendChild(label);
-  item.appendChild(body);
-  if (options.action?.label && typeof options.action.onClick === "function") {
-    const actions = document.createElement("div");
-    actions.className = "chat-message-actions";
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "chat-message-action";
-    button.textContent = options.action.label;
-    button.addEventListener("click", options.action.onClick);
-    actions.appendChild(button);
-    item.appendChild(actions);
-  }
-  messages.appendChild(item);
-  messages.scrollTop = messages.scrollHeight;
-}
+// Message rendering is handled by `appendMessage`; `renderChatMessage` removed as unused.
 
-// Normalized table rendering helper
-function renderResultsTable(result) {
-  if (!result?.rows?.length || !result?.columns?.length) return "";
-  const headers = result.columns
-    .map((column) => {
-      const headerClass = column?.cellClass ? ` class="${escapeHtml(column.cellClass)}"` : "";
-      return `<th${headerClass}>${escapeHtml(column.title)}</th>`;
-    })
-    .join("");
-  const rows = result.rows
-    .map((row) => {
-      const normalizedGender = normalizeText(row?.gender);
-      let rowClass = "background--gender-no-gender";
-      if (normalizedGender === "male") rowClass = "background--gender-male";
-      else if (normalizedGender === "female") rowClass = "background--gender-female";
-      const cells = result.columns
-        .map((column) => {
-          const rawValue = typeof column.render === "function" ? column.render(row) : row?.[column.key];
-          const cellValue =
-            rawValue == null || rawValue === ""
-              ? ""
-              : typeof column.render === "function"
-              ? rawValue
-              : escapeHtml(rawValue);
-          const cellClass = column?.cellClass ? ` class="${escapeHtml(column.cellClass)}"` : "";
-          return `<td${cellClass}>${cellValue}</td>`;
-        })
-        .join("");
-      return `<tr class="${rowClass}">${cells}</tr>`;
-    })
-    .join("");
-  return `\n    <table id="${CHAT_RESULTS_TABLE_ID}" class="display chat-results-table">\n      <thead><tr>${headers}</tr></thead>\n      <tbody>${rows}</tbody>\n    </table>\n  `;
-}
+// Removed unused helper `renderResultsTable` — `buildResultsTableHtml` is used instead.
+
+// NOTE: `renderResultsTable` is unused; `buildResultsTableHtml` is used instead.
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function positionPopupFixed(popup, preferredLeft, preferredTop) {
-  const rect = popup.getBoundingClientRect();
-  const maxLeft = Math.max(10, window.innerWidth - rect.width - 10);
-  const maxTop = Math.max(10, window.innerHeight - rect.height - 10);
-  popup.style.position = "fixed";
-  popup.style.left = `${clamp(preferredLeft, 10, maxLeft)}px`;
-  popup.style.top = `${clamp(preferredTop, 10, maxTop)}px`;
-  popup.style.right = "auto";
-  popup.style.transform = "none";
-}
+// Popup positioning helpers moved to `src/features/chat/ui.js`.
 
-function clampPopupToViewport(popup, margin = 10) {
-  if (!popup) {
-    return;
-  }
-
-  const maxWidth = Math.max(320, window.innerWidth - margin * 2);
-  const maxHeight = Math.max(260, window.innerHeight - margin * 2);
-  const minWidth = Math.min(400, maxWidth);
-  const minHeight = Math.min(320, maxHeight);
-
-  popup.style.minWidth = `${minWidth}px`;
-  popup.style.minHeight = `${minHeight}px`;
-  popup.style.maxWidth = `${maxWidth}px`;
-  popup.style.maxHeight = `${maxHeight}px`;
-
-  const rect = popup.getBoundingClientRect();
-  if (rect.width > maxWidth) {
-    popup.style.width = `${maxWidth}px`;
-  }
-  if (rect.height > maxHeight) {
-    popup.style.height = `${maxHeight}px`;
-  }
-
-  const updated = popup.getBoundingClientRect();
-  const nextLeft = clamp(updated.left, margin, Math.max(margin, window.innerWidth - updated.width - margin));
-  const nextTop = clamp(updated.top, margin, Math.max(margin, window.innerHeight - updated.height - margin));
-  popup.style.left = `${nextLeft}px`;
-  popup.style.top = `${nextTop}px`;
-  popup.style.right = "auto";
-  popup.style.transform = "none";
-}
+// Popup viewport clamping moved to `src/features/chat/ui.js`.
 
 // Show a popup with both wiki and HTML bio for a given profile id
 async function showBioPopupForId(id, opts = { bioFormat: "both" }) {
+  // If a recent relation lookup had partial failures, suppress the first
+  // auto-open to avoid popping an unexpected bio when some fetches failed.
+  if (window.wbeSuppressAutoBioOpen) {
+    try {
+      appendMessage("assistant", "Auto-opening of a biography was suppressed due to partial profile fetch failures.", {
+        shouldPersist: false,
+      });
+    } catch (e) {
+      /* ignore */
+    }
+    window.wbeSuppressAutoBioOpen = false;
+    return;
+  }
   if (!id) return;
+  // Defensive: resolve numeric or ambiguous ids to canonical WTID (profile.Name)
+  try {
+    const resolved = await resolveToWTID(id);
+    if (resolved) id = resolved;
+  } catch (e) {
+    /* ignore resolution failure and proceed with original id */
+  }
   try {
     showChatShaky("Loading biography...");
     const [profile, status, page_name] = await WikiTreeAPI.getProfile(
@@ -462,64 +156,93 @@ async function showBioPopupForId(id, opts = { bioFormat: "both" }) {
       return;
     }
 
-    // Try multiple possible fields for wiki and html bio content (API sometimes uses lowercase keys)
-    const wikiBio =
-      profile.Bio || profile.BioText || profile.BioWiki || profile.Biography || profile.bio || profile.bioText || profile.biography || "";
-    const htmlBio =
-      profile.BioHtml || profile.BioHTML || profile.Bio_Html || profile.BioHtmlText || profile.bioHTML || profile.bioHtml || profile.bio_html || "";
+    const { wikiBio, htmlBio } = extractProfileBios(profile);
+    // If there is no wiki text and no HTML bio, do not open an empty popup.
+    if (!wikiBio && !htmlBio) {
+      console.info("wbe: showBioPopupForId - profile has no biography content", { id, profile });
+      appendMessage("assistant", `No biography content found for ${profile?.Name || id}.`);
+      return;
+    }
 
-    // Remove any existing bio popup
-    document.getElementById("wbe-bio-popup")?.remove();
-
-    const popup = document.createElement("div");
-    popup.className = "wbe-popup chat-popup ui-draggable";
-    popup.id = "wbe-bio-popup";
-    popup.style.display = "block";
+    // Remove any existing bio popup and create with jQuery
+    $("#wbe-bio-popup").remove();
     const popupWidth = Math.max(520, Math.floor(window.innerWidth * 0.85));
-    popup.style.width = popupWidth + "px";
-    popup.style.left = Math.floor((window.innerWidth - popupWidth) / 2) + "px";
-    popup.innerHTML = `
-      <div class="chat-popup-header ui-draggable-handle">
-        <strong>Biography: ${escapeHtml(profile.Name || id)}</strong>
-        <div class="chat-popup-controls">
-          <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+    const $popup = $(
+      `<div id="wbe-bio-popup" class="wbe-popup chat-popup ui-draggable" style="display:block;width:${popupWidth}px;left:${Math.floor(
+        (window.innerWidth - popupWidth) / 2
+      )}px">
+        <div class="chat-popup-header ui-draggable-handle">
+          <strong>Biography: ${escapeHtml(profile.Name || id)}</strong>
+          <div class="chat-popup-controls">
+            <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+          </div>
         </div>
-      </div>
-      <div class="chat-popup-body" style="display:flex; gap:12px;">
-        <div style="flex:1; min-width:200px; overflow:auto; padding:8px; border-right:1px solid #ddd">
-          <h4>Wiki Text</h4>
-          <pre style="white-space:pre-wrap;">${escapeHtml(wikiBio || "(no wiki text returned)")}</pre>
+        <div class="chat-popup-body chat-popup-body--columns">
+          <div class="bio-column bio-column--wiki">
+            <h4>Wiki Text</h4>
+            <pre class="bio-wiki-pre">${escapeHtml(wikiBio || "(no wiki text returned)")}</pre>
+          </div>
+          <div class="bio-column">
+            <h4>HTML</h4>
+            <div class="bio-html-container">${sanitizeHtmlForPopup(htmlBio) || "<i>(no html returned)</i>"}</div>
+          </div>
         </div>
-        <div style="flex:1; min-width:200px; overflow:auto; padding:8px;">
-          <h4>HTML</h4>
-          <div class="bio-html-container">${htmlBio || "<i>(no html returned)</i>"}</div>
-        </div>
-      </div>
-    `;
-
-    document.body.appendChild(popup);
-    setPopupPositionAndSize(popup, Math.round((window.innerWidth - popup.getBoundingClientRect().width) / 2), 110);
-    popup.querySelector(".close-popup")?.addEventListener("click", () => popup.remove());
-    setHighestZIndex(popup);
-    $(popup).draggable({
+      </div>`
+    ).appendTo(document.body);
+    setPopupPositionAndSize(
+      $popup.get(0),
+      Math.round((window.innerWidth - $popup.get(0).getBoundingClientRect().width) / 2),
+      110
+    );
+    $popup.find(".close-popup").on("click", () => $popup.remove());
+    setHighestZIndex($popup.get(0));
+    $popup.draggable({
       handle: ".chat-popup-header",
       containment: "window",
       scroll: false,
       start: () => {
-        popup.style.right = "auto";
-        popup.style.transform = "none";
+        $popup.get(0).style.right = "auto";
+        $popup.get(0).style.transform = "none";
       },
     });
-    $(popup).resizable({ handles: "n,e,s,w,se,sw,ne,nw", minWidth: 520, minHeight: 260 });
+    $popup.resizable({ handles: "n,e,s,w,se,sw,ne,nw", minWidth: 520, minHeight: 260 });
+    // Persist canonical last shown bio id (use WTID Name when available)
+    const canonicalId = profile?.Name || (profile?.Id != null ? String(profile.Id) : id);
+    lastBioPopupId = canonicalId;
+    lastBioPopupProfile = profile;
+    try {
+      sessionStorage.setItem(CHAT_LAST_BIO_KEY, JSON.stringify({ id: canonicalId }));
+    } catch (e) {
+      /* ignore */
+    }
+    addBioButton();
   } catch (err) {
     hideChatShaky();
+    hideChatShaky();
     console.error("Error loading profile:", err);
-    appendMessage("assistant", "Failed to load biography. See console for details.");
+    try {
+      const em = String(err?.message || err || "unknown error");
+      appendMessage("assistant", `Failed to load biography: ${em}`);
+    } catch (e) {
+      appendMessage("assistant", "Failed to load biography.");
+    }
   }
 }
 
 function closeBioPopup() {
   document.getElementById("wbe-bio-popup")?.remove();
+}
+
+// Ensure addBioButton exists. Historically this injected a persistent button
+// into the page actions; we intentionally do not re-add a persistent UI
+// element. This safe no-op cleans up any leftovers and prevents runtime
+// errors from callers.
+function addBioButton() {
+  try {
+    $("#wbe-bio-button").remove();
+  } catch (e) {
+    /* ignore */
+  }
 }
 
 // Expose helper for quick manual testing from console
@@ -530,12 +253,10 @@ async function listSpousesForId(id) {
   if (!id) return;
   try {
     showChatShaky("Loading spouses...");
-    const [profile] = await WikiTreeAPI.getProfile(
-      WBE_CHAT_APP_ID,
-      id,
-      "Spouses,Name,RealName,Id",
-      { getSpouses: 1, resolveRedirect: 1 }
-    );
+    const [profile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, id, "Spouses,Name,RealName,Id", {
+      getSpouses: 1,
+      resolveRedirect: 1,
+    });
     console.debug("wbe: listSpousesForId fetched profile", { id, profile });
     hideChatShaky();
     const spousesObj = profile?.Spouses || {};
@@ -556,49 +277,52 @@ async function listSpousesForId(id) {
       return;
     }
 
-    // Build a small popup with a list of spouses and buttons
-    document.getElementById("wbe-spouses-popup")?.remove();
-    const popup = document.createElement("div");
-    popup.className = "wbe-popup chat-popup ui-draggable";
-    popup.id = "wbe-spouses-popup";
-    popup.style.display = "block";
+    // Build a small popup with a list of spouses using jQuery
+    $("#wbe-spouses-popup").remove();
     const popupWidth = Math.max(360, Math.floor(window.innerWidth * 0.4));
-    popup.style.width = popupWidth + "px";
-    popup.style.left = Math.floor((window.innerWidth - popupWidth) / 2) + "px";
-    popup.innerHTML = `
-      <div class="chat-popup-header ui-draggable-handle">
-        <strong>Spouses of ${escapeHtml(profile?.Name || id)}</strong>
-        <div class="chat-popup-controls">
-          <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+    const $popup = $(
+      `<div id="wbe-spouses-popup" class="wbe-popup chat-popup ui-draggable" style="display:block;width:${popupWidth}px;left:${Math.floor(
+        (window.innerWidth - popupWidth) / 2
+      )}px">
+        <div class="chat-popup-header ui-draggable-handle">
+          <strong>Spouses of ${escapeHtml(profile?.Name || id)}</strong>
+          <div class="chat-popup-controls">
+            <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+          </div>
         </div>
-      </div>
-      <div class="chat-popup-body" style="padding:8px;">
-        <ul class="spouse-list" style="list-style:none; padding:0; margin:0;">
-          ${spouses
-            .map(
-              (s) =>
-                `<li style="margin:6px 0; display:flex; justify-content:space-between; align-items:center;"><span>${escapeHtml(
-                  s.displayName
-                )} (${escapeHtml(s.wtid)})</span><button class="open-bio" data-wtid="${escapeHtml(s.wtid)}">Open Bio</button></li>`
-            )
-            .join("")}
-        </ul>
-      </div>
-    `;
-    document.body.appendChild(popup);
-    popup.querySelector(".close-popup")?.addEventListener("click", () => popup.remove());
-    popup.querySelectorAll(".open-bio").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const wtid = e.currentTarget.getAttribute("data-wtid");
-        if (wtid) showBioPopupForId(wtid);
-      });
+        <div class="chat-popup-body chat-popup-body--compact">
+          <ul class="spouse-list">
+            ${spouses
+              .map(
+                (s) =>
+                  `<li><span>${escapeHtml(s.displayName)} (${escapeHtml(
+                    s.wtid
+                  )})</span><button class="open-bio" data-wtid="${escapeHtml(s.wtid)}">Open Bio</button></li>`
+              )
+              .join("")}
+          </ul>
+        </div>
+      </div>`
+    ).appendTo(document.body);
+    $popup.find(".close-popup").on("click", () => $popup.remove());
+    $popup.find(".open-bio").on("click", async (e) => {
+      const raw = $(e.currentTarget).attr("data-wtid");
+      if (!raw) return;
+      const resolved = await resolveToWTID(raw);
+      if (resolved) showBioPopupForId(resolved);
     });
-    setHighestZIndex(popup);
-    $(popup).draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
+    setHighestZIndex($popup.get(0));
+    $popup.draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
   } catch (err) {
     hideChatShaky();
+    hideChatShaky();
     console.error("Error listing spouses:", err);
-    appendMessage("assistant", "Failed to list spouses; see console for details.");
+    try {
+      const em = String(err?.message || err || "unknown error");
+      appendMessage("assistant", `Failed to list spouses: ${em}`);
+    } catch (e) {
+      appendMessage("assistant", "Failed to list spouses.");
+    }
   }
 }
 
@@ -609,17 +333,13 @@ window.wbeListSpouses = listSpousesForId;
 function findSpouseProfileIdsFromDOM() {
   const ids = new Set();
   // Common profile link selectors on WikiTree profile pages
-  const selectors = [
-    '.spouse a',
-    '[itemprop="spouse"] a',
-    '.spouse-name a',
-    '.page--content a[href*="/wiki/"]',
-    'a[href*="/wiki/"]',
-  ];
+  const selectors = ['a[href*="/wiki/"]'];
+  const spouseSelectors = [".spouse a", '[itemprop="spouse"] a', ".spouse-name a"];
+  selectors.push(...spouseSelectors);
   for (const sel of selectors) {
-    document.querySelectorAll(sel).forEach((a) => {
+    $(sel).each((i, a) => {
       try {
-        const href = a.getAttribute("href") || "";
+        const href = $(a).attr("href") || "";
         const m = href.match(/\/wiki\/(.+)$/);
         if (m && m[1]) {
           const candidate = decodeURIComponent(m[1]).trim();
@@ -635,6 +355,92 @@ function findSpouseProfileIdsFromDOM() {
 
 // Expose DOM helper for console testing
 window.wbeFindSpouseLinks = findSpouseProfileIdsFromDOM;
+
+// Try to find children profile IDs from the current profile page DOM
+function findChildrenProfileIdsFromDOM() {
+  const ids = new Set();
+  const selectors = [
+    'a[itemprop="children"][href*="/wiki/"]',
+    'a[itemprop="child"][href*="/wiki/"]',
+    '.children a[href*="/wiki/"]',
+    '.child a[href*="/wiki/"]',
+    'a[href*="/wiki/"] .child, .child a[href*="/wiki/"]',
+  ];
+  for (const sel of selectors) {
+    $(sel).each((i, a) => {
+      try {
+        const href = $(a).attr("href") || "";
+        const m = href.match(/\/wiki\/(.+)$/);
+        if (m && m[1]) {
+          const candidate = decodeURIComponent(m[1]).trim();
+          if (/^[A-Za-z\-0-9_]+$/.test(candidate)) ids.add(candidate);
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    });
+  }
+  return Array.from(ids);
+}
+
+// Try to find sibling profile IDs from the current profile page DOM
+function findSiblingProfileIdsFromDOM() {
+  const ids = new Set();
+  const selectors = [
+    'a[itemprop="sibling"][href*="/wiki/"]',
+    '.siblings a[href*="/wiki/"]',
+    '.sibling a[href*="/wiki/"]',
+    '#Siblings a[href*="/wiki/"]',
+  ];
+  for (const sel of selectors) {
+    $(sel).each((i, a) => {
+      try {
+        const href = $(a).attr("href") || "";
+        const m = href.match(/\/wiki\/(.+)$/);
+        if (m && m[1]) {
+          const candidate = decodeURIComponent(m[1]).trim();
+          if (/^[A-Za-z\-0-9_]+$/.test(candidate)) ids.add(candidate);
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    });
+  }
+  return Array.from(ids);
+}
+
+// Expose DOM helpers for console testing
+window.wbeFindChildLinks = findChildrenProfileIdsFromDOM;
+window.wbeFindSiblingLinks = findSiblingProfileIdsFromDOM;
+
+// Try to find parent profile IDs from the current profile page DOM
+function findParentProfileIdsFromDOM() {
+  const ids = new Set();
+  const selectors = [
+    'span[itemprop="parent"] a[href*="/wiki/"]',
+    'a[itemprop="parent"][href*="/wiki/"]',
+    '#Father a[href*="/wiki/"], #Mother a[href*="/wiki/"]',
+    '.parent a[href*="/wiki/"]',
+  ];
+  for (const sel of selectors) {
+    $(sel).each((i, a) => {
+      try {
+        const href = $(a).attr("href") || "";
+        const m = href.match(/\/wiki\/(.+)$/);
+        if (m && m[1]) {
+          const candidate = decodeURIComponent(m[1]).trim();
+          if (/^[A-Za-z\-0-9_]+$/.test(candidate)) ids.add(candidate);
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    });
+  }
+  return Array.from(ids);
+}
+
+// Expose DOM helper for console testing
+window.wbeFindParentLinks = findParentProfileIdsFromDOM;
 
 // Dump raw profile data for debugging (exposed for console)
 async function dumpProfileForId(id) {
@@ -657,36 +463,365 @@ async function dumpProfileForId(id) {
     const privacy = profile?.Privacy ?? null;
     const spouses = profile?.Spouses ? Object.keys(profile.Spouses).length : 0;
     console.info("wbe: dumpProfileForId result", { id, hasProfile, privacy, spouses });
-    appendMessage("assistant", `Profile fetched: present=${hasProfile}, privacy=${privacy}, spouses=${spouses} — see console for full object`);
+    appendMessage("assistant", `Profile fetched: present=${hasProfile}, privacy=${privacy}, spouses=${spouses}.`, {
+      shouldPersist: false,
+    });
   } catch (err) {
     hideChatShaky();
     console.error("wbe: dumpProfileForId error", err);
-    appendMessage("assistant", "Failed to fetch profile — see console.");
+    try {
+      const em = String(err?.message || err || "unknown error");
+      appendMessage("assistant", `Failed to fetch profile: ${em}`);
+    } catch (e) {
+      appendMessage("assistant", "Failed to fetch profile.");
+    }
   }
 }
 
 window.wbeDumpProfile = dumpProfileForId;
 
-function getPopupResizeLimits(margin = 10) {
-  const maxWidth = Math.max(320, window.innerWidth - margin * 2);
-  const maxHeight = Math.max(260, window.innerHeight - margin * 2);
-  return {
-    minWidth: Math.min(400, maxWidth),
-    minHeight: Math.min(320, maxHeight),
-    maxWidth,
-    maxHeight,
-  };
+// Small popup to list multiple bios with Open buttons
+function showBioListPopup(title, entries = []) {
+  try {
+    $("#wbe-bio-list-popup").remove();
+    const popupWidth = Math.max(360, Math.floor(window.innerWidth * 0.4));
+
+    const listItems = (entries || [])
+      .map(
+        (e) =>
+          `<li><span>${escapeHtml(e.displayName || e.wtid || "")} (${escapeHtml(
+            e.wtid || ""
+          )})</span> <button class="open-bio" data-wtid="${escapeHtml(e.wtid || "")}">Open Bio</button></li>`
+      )
+      .join("");
+
+    const html = `
+      <div id="wbe-bio-list-popup" class="wbe-popup chat-popup ui-draggable" style="display:block;width:${popupWidth}px;left:${Math.floor(
+      (window.innerWidth - popupWidth) / 2
+    )}px">
+        <div class="chat-popup-header ui-draggable-handle">
+          <strong>${escapeHtml(title || "Profiles")}</strong>
+          <div class="chat-popup-controls">
+            <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+          </div>
+        </div>
+        <div class="chat-popup-body chat-popup-body--compact">
+          <ul class="spouse-list">
+            ${listItems}
+          </ul>
+          <div class="bio-list-actions" style="margin-top:8px;">
+            <button class="open-all-tiled small">Open All (Tiled)</button>
+          </div>
+        </div>
+      </div>`;
+
+    const $popup = $(html).appendTo(document.body);
+    $popup.find(".close-popup").on("click", () => $popup.remove());
+    $popup.find(".open-all-tiled").on("click", () => {
+      const ids = entries.map((e) => e.wtid).filter(Boolean);
+      if (ids.length) showTiledBioPopups(ids.slice(0, 12));
+    });
+    $popup.find(".open-bio").on("click", async (e) => {
+      const raw = $(e.currentTarget).attr("data-wtid");
+      if (!raw) return;
+      const resolved = await resolveToWTID(raw);
+      if (resolved) showBioPopupForId(resolved);
+    });
+    setHighestZIndex($popup.get(0));
+    $popup.draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
+    // Do not auto-open the first bio to avoid unexpected popups when profile
+    // fetches fail or return empty content. Require the user to click an entry.
+  } catch (e) {
+    console.error("wbe: showBioListPopup error", e);
+  }
 }
 
-function positionPopupForOpen(popup) {
-  if (!popup) {
+window.wbeShowBioList = showBioListPopup;
+
+// Open multiple bio popups tiled on screen. Creates individual popups per profile id.
+async function showTiledBioPopups(ids = []) {
+  if (!Array.isArray(ids) || !ids.length) return;
+  const max = Math.min(ids.length, 12);
+  const toOpen = ids.slice(0, max);
+  const profiles = await fetchProfilesForIds(toOpen, "Bio,BioHtml,BioText,Biography,Name,RealName,Id", {
+    bioFormat: "both",
+    resolveRedirect: 1,
+  });
+  // If all fetched profiles are null/empty, avoid opening empty popups and notify the user.
+  const anyValid = Array.isArray(profiles) && profiles.some((p) => p && Object.keys(p).length > 0);
+  if (!anyValid) {
+    try {
+      appendMessage("assistant", "Could not load any biographies (server errors or no data). No popups were opened.", {
+        shouldPersist: false,
+      });
+    } catch (e) {
+      /* ignore */
+    }
     return;
   }
+  // Layout: up to 4 columns depending on count
+  const cols = Math.min(3, Math.max(1, Math.floor(Math.sqrt(toOpen.length))));
+  const width = Math.floor((window.innerWidth - 40) / cols);
+  let left = 10;
+  let top = 80;
+  let col = 0;
+  for (let i = 0; i < toOpen.length; i += 1) {
+    const id = toOpen[i];
+    const profile = profiles[i] || null;
+    if (!profile) continue; // skip failed fetches
+    const { wikiBio, htmlBio } = extractProfileBios(profile);
+    // Skip profiles that have no biography content to avoid empty popups
+    if (!wikiBio && !htmlBio) continue;
+    const name = (profile && (profile.RealName || profile.Name)) || id;
+    const pid = `wbe-bio-popup-${encodeURIComponent(id)}`;
+    $(`#${pid}`).remove();
+    const $p = $(
+      `<div id="${pid}" class="wbe-popup chat-popup ui-draggable" style="display:block;width:${width}px;left:${left}px;top:${top}px">
+        <div class="chat-popup-header ui-draggable-handle">
+          <strong>Biography: ${escapeHtml(name)}</strong>
+          <div class="chat-popup-controls"><button type="button" class="small close-popup" title="Close">×</button></div>
+        </div>
+        <div class="chat-popup-body chat-popup-body--columns" style="height:320px;overflow:auto;">
+          <div class="bio-column bio-column--wiki">
+            <pre class="bio-wiki-pre">${escapeHtml(wikiBio || "(no wiki text)")}</pre>
+          </div>
+          <div class="bio-column">
+            <div class="bio-html-container">${sanitizeHtmlForPopup(htmlBio) || "<i>(no html)</i>"}</div>
+          </div>
+        </div>
+      </div>`
+    ).appendTo(document.body);
+    $p.find(".close-popup").on("click", () => $p.remove());
+    setHighestZIndex($p.get(0));
+    $p.draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
+    // Advance grid position for next tiled popup
+    if (!Number.isFinite(col)) col = 0;
+    col += 1;
+    if (col >= cols) {
+      col = 0;
+      left = 10;
+      top += 340;
+    } else {
+      left += width + 10;
+    }
+  }
 
-  const rect = popup.getBoundingClientRect();
-  positionPopupFixed(popup, Math.round((window.innerWidth - rect.width) / 2), 10);
-  clampPopupToViewport(popup);
+  return;
 }
+
+// Fetch sibling WTIDs for a profile id, using API then DOM fallback
+async function fetchSiblingIdsForId(id) {
+  if (!id) return [];
+  try {
+    showChatShaky("Loading siblings...");
+    try {
+      const relatives = await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, id, "Id,Name,RealName", { getSiblings: 1 });
+      const [peopleResult] = relatives || [];
+      const profile = peopleResult?.person || {};
+      const siblingsObj = profile?.Siblings || {};
+      const siblings = Object.values(siblingsObj || []).map((s) => s?.Name || (s?.Id ? String(s.Id) : null)).filter(Boolean);
+      if (siblings.length) {
+        hideChatShaky();
+        return siblings;
+      }
+    } catch (e) {
+      // ignore and fall back to getProfile/DOM
+    }
+    const [profile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, id, "Siblings,Name,Id", {
+      getSiblings: 1,
+      resolveRedirect: 1,
+    });
+    hideChatShaky();
+    const siblingsObj = profile?.Siblings || {};
+    let siblings = Object.values(siblingsObj || []).map((s) => s.Name).filter(Boolean);
+    if (siblings.length) return siblings;
+    // DOM fallback
+    const domCandidates = findSiblingProfileIdsFromDOM();
+    if (!domCandidates.length) return [];
+    const profiles = await fetchProfilesForIds(domCandidates, "Name,Id", { resolveRedirect: 1 });
+    return profiles.map((p, i) => (p ? domCandidates[i] : null)).filter(Boolean);
+  } catch (err) {
+    hideChatShaky();
+    console.error("wbe: fetchSiblingIdsForId error", err);
+    return [];
+  }
+}
+
+// Fetch children WTIDs for a profile id, using API then DOM fallback
+async function fetchChildrenIdsForId(id) {
+  if (!id) return [];
+  try {
+    showChatShaky("Loading children...");
+    try {
+      const relatives = await WikiTreeAPI.getRelatives(
+        WBE_CHAT_APP_ID,
+        id,
+        "Id,Name,RealName",
+        { getChildren: 1 }
+      );
+      const [peopleResult] = relatives || [];
+      const profile = peopleResult?.person || {};
+      const childrenObj = profile?.Children || {};
+      const children = Object.values(childrenObj || []).map((c) => c?.Name || (c?.Id ? String(c.Id) : null)).filter(Boolean);
+      if (children.length) {
+        hideChatShaky();
+        return children;
+      }
+    } catch (e) {
+      // ignore and fall back to getProfile/DOM
+    }
+    const [profile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, id, "Children,Name,Id", {
+      getChildren: 1,
+      resolveRedirect: 1,
+    });
+    hideChatShaky();
+    const childrenObj2 = profile?.Children || {};
+    let children2 = Object.values(childrenObj2 || []).map((c) => c.Name).filter(Boolean);
+    if (children2.length) return children2;
+    // DOM fallback: find WTIDs on page and validate by fetching profile
+    const domCandidates = findChildrenProfileIdsFromDOM();
+    if (!domCandidates.length) return [];
+    const candidateProfiles = await fetchProfilesForIds(domCandidates, "Name,Id", { resolveRedirect: 1 });
+    return candidateProfiles.map((p, i) => (p ? domCandidates[i] : null)).filter(Boolean);
+  } catch (err) {
+    hideChatShaky();
+    console.error("wbe: fetchChildrenIdsForId error", err);
+    return [];
+  }
+}
+
+// Batch-fetch profiles for an array of WTIDs, preserving order. Returns array of profile objects or nulls.
+async function fetchProfilesForIds(ids = [], fields = "Name,Id", opts = {}) {
+  if (!Array.isArray(ids) || !ids.length) return [];
+  try {
+    showChatShaky("Fetching profiles...");
+    const errors = [];
+    const results = await Promise.all(
+      ids.map(async (id) => {
+        if (!id) return null;
+        try {
+          const [profile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, id, fields, opts || { resolveRedirect: 1 });
+          return profile || null;
+        } catch (e) {
+          console.debug("wbe: fetchProfilesForIds individual fetch failed", { id, e });
+          errors.push({ id, message: String(e?.message || e) });
+          return null;
+        }
+      })
+    );
+    hideChatShaky();
+    if (errors.length) {
+      try {
+        const summary = errors
+          .slice(0, 10)
+          .map((er) => `${er.id} (${er.message.replace(/\n/g, " ")})`)
+          .join(", ");
+        const extra = errors.length > 10 ? ` and ${errors.length - 10} more` : "";
+        appendMessage(
+          "assistant",
+          `Failed to load some profiles: ${summary}${extra}. Partial results are shown where available.`,
+          { shouldPersist: false }
+        );
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    return results;
+  } catch (err) {
+    hideChatShaky();
+    console.error("wbe: fetchProfilesForIds error", err);
+    return ids.map(() => null);
+  }
+}
+
+// Expose for console testing
+window.wbeFetchProfiles = fetchProfilesForIds;
+window.wbeFetchChildren = fetchChildrenIdsForId;
+window.wbeFetchSiblings = fetchSiblingIdsForId;
+// Paged getPeople helper: accumulates pages into a single people map.
+async function fetchPeoplePaged(appId, rootKey, fields, options = {}) {
+  const limit = Number(options.limit) || 1000;
+  let start = Number(options.start) || 0;
+  let fetchMore = true;
+  let lastStatus = "";
+  let totalCount = null;
+  const aggregated = {};
+
+  while (fetchMore) {
+    const pageOpts = { ...(options || {}), start, limit };
+    const [status, total, people] = await WikiTreeAPI.getPeople(appId, rootKey, fields, pageOpts);
+    if (status == null) {
+      throw new Error("No status returned from getPeople while paging results.");
+    }
+    lastStatus = status;
+    if (Number.isFinite(Number(total))) totalCount = Number(total);
+
+    const pageProfiles = Object.values(people || {});
+    pageProfiles.forEach((profile) => {
+      if (!profile) return;
+      const key = profile?.Id != null ? String(profile.Id) : profile?.Name || null;
+      if (key) aggregated[key] = profile;
+    });
+
+    fetchMore = typeof status === "string" && status.startsWith("Maximum number of profiles");
+    if (!fetchMore) break;
+    // advance to next page
+    start += limit;
+  }
+
+  return [lastStatus, totalCount, aggregated];
+}
+
+// Expose for console testing
+window.wbeFetchPeoplePaged = fetchPeoplePaged;
+
+// Resolve an identifier (numeric id or WTID) to a WTID (profile.Name) if possible.
+async function resolveToWTID(candidate) {
+  if (!candidate) return null;
+  const str = String(candidate || "").trim();
+  // If it already looks like a WTID (contains a dash), return as-is
+  if (/-/.test(str)) return str;
+  // Otherwise try to fetch the profile and return the Name field
+  try {
+    const [profile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, str, "Id,Name", { resolveRedirect: 1 });
+    if (profile && profile.Name) return profile.Name;
+  } catch (e) {
+    console.debug("wbe: resolveToWTID failed to resolve", { candidate: str, e });
+  }
+  return str; // fallback to original
+}
+
+window.wbeResolveToWTID = resolveToWTID;
+
+// Sanitize profile HTML for insertion into popups to avoid CSP inline-script execution.
+function sanitizeHtmlForPopup(html) {
+  try {
+    if (!html) return "";
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(String(html), "text/html");
+    // Remove script tags
+    doc.querySelectorAll("script").forEach((s) => s.remove());
+    // Remove inline event handler attributes (on*) and javascript: src/href
+    const all = doc.querySelectorAll("*");
+    all.forEach((el) => {
+      Array.from(el.attributes).forEach((attr) => {
+        const name = String(attr.name || "");
+        const val = String(attr.value || "");
+        if (/^on/i.test(name)) {
+          el.removeAttribute(name);
+        }
+        if ((name === "src" || name === "href") && /^javascript:/i.test(val)) {
+          el.removeAttribute(name);
+        }
+      });
+    });
+    return doc.body.innerHTML || "";
+  } catch (e) {
+    return "";
+  }
+}
+
+// positionPopupForOpen moved to `src/features/chat/ui.js`.
 
 function formatSubjectLabel(subject) {
   if (!subject) {
@@ -705,7 +840,7 @@ function formatSubjectLabel(subject) {
 }
 
 function getMessageList() {
-  return document.getElementById(CHAT_MESSAGES_ID);
+  return $(`#${CHAT_MESSAGES_ID}`);
 }
 
 function saveHistory() {
@@ -721,36 +856,63 @@ function loadHistory() {
     chatHistory = [];
     lastNonRetryUserPrompt = "";
   }
-  // Restore persisted connection/table state
+  // Sanitize any legacy inlineMore entries (drop zero counts or non-objects)
+  try {
+    chatHistory = (chatHistory || []).map((entry) => {
+      if (!entry) return entry;
+      const im = entry.inlineMore;
+      if (!im) return entry;
+      // If inlineMore is a plain number (legacy), convert to object without count
+      if (typeof im === "number") {
+        entry.inlineMore = { text: null };
+        return entry;
+      }
+      if (typeof im === "object") {
+        // Remove zero counts
+        if (Number.isFinite(Number(im.count)) && Number(Number(im.count)) === 0) {
+          delete entry.inlineMore.count;
+        }
+        // If no useful text or positive count remains, drop inlineMore
+        if (!entry.inlineMore.text && !Number.isFinite(Number(entry.inlineMore.count))) {
+          delete entry.inlineMore;
+        }
+      }
+      return entry;
+    });
+  } catch (e) {
+    /* ignore sanitize errors */
+  }
+  // Restore persisted connection/table/state
   try {
     const connRaw = sessionStorage.getItem(CHAT_LAST_CONNECTION_KEY);
     if (connRaw) lastConnectionPopupResult = JSON.parse(connRaw);
   } catch (e) {
     lastConnectionPopupResult = lastConnectionPopupResult || null;
   }
+
   try {
     const structRaw = sessionStorage.getItem(CHAT_LAST_STRUCTURED_KEY);
     if (structRaw) lastStructuredResult = JSON.parse(structRaw);
   } catch (e) {
     lastStructuredResult = lastStructuredResult || null;
   }
-}
 
-function clearHistory() {
-  chatHistory = [];
-  lastNonRetryUserPrompt = "";
-  pendingDisambiguationContext = null;
-  saveHistory();
   try {
-    sessionStorage.removeItem(CHAT_LAST_CONNECTION_KEY);
-    sessionStorage.removeItem(CHAT_LAST_STRUCTURED_KEY);
+    const bioRaw = sessionStorage.getItem(CHAT_LAST_BIO_KEY);
+    if (bioRaw) {
+      const parsed = JSON.parse(bioRaw);
+      lastBioPopupId = parsed?.id || lastBioPopupId;
+    }
   } catch (e) {
     /* ignore */
   }
   const messages = getMessageList();
-  if (messages) {
-    messages.innerHTML = "";
+  if (messages && messages.length) {
+    messages.empty();
   }
+  // Remove persistent buttons
+  $("#wbe-connections-button").remove();
+  $("#wbe-bio-button").remove();
 }
 
 function isRetryPrompt(prompt) {
@@ -833,45 +995,32 @@ function appendMessage(role, text, options = {}) {
   const shouldPersist = typeof options === "boolean" ? options : options.shouldPersist !== false;
   const action = typeof options === "object" ? options.action : null;
   const inlineMore = typeof options === "object" ? options.inlineMore : null;
-  const messages = getMessageList();
-  if (!messages) {
-    return;
-  }
+  const $messages = $(`#${CHAT_MESSAGES_ID}`);
+  if ($messages.length === 0) return;
 
-  const item = document.createElement("div");
-  item.className = `chat-message chat-message-${role}`;
-
-  const label = document.createElement("div");
-  label.className = "chat-message-label";
-  label.textContent = role === "user" ? "You" : "Chat";
-
-  const body = document.createElement("div");
-  body.className = "chat-message-body";
   const messageText = role === "assistant" ? softenFailureMessage(text) : text;
-  body.innerHTML = formatChatMessageBody(messageText, inlineMore);
-  body.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof Element)) {
-      return;
-    }
 
-    const inlineMoreLink = target.closest(".chat-inline-show-more");
-    if (!inlineMoreLink) {
-      return;
-    }
+  const $item = $("<div>").addClass(`chat-message chat-message-${role}`);
+  const $label = $("<div>")
+    .addClass("chat-message-label")
+    .text(role === "user" ? "You" : "Chat");
+  const $body = $("<div>").addClass("chat-message-body").html(formatChatMessageBody(messageText, inlineMore));
+
+  $body.on("click", (event) => {
+    const $target = $(event.target || event.currentTarget);
+    const $inlineMoreLink = $target.closest(".chat-inline-show-more");
+    if (!$inlineMoreLink.length) return;
 
     event.preventDefault();
     if (inlineMore?.text) {
-      const container = inlineMoreLink.closest(".chat-inline-more-container");
-      if (!container) {
-        return;
-      }
-
-      const expanded = document.createElement("span");
-      expanded.className = "chat-inline-more-expanded";
-      expanded.innerHTML = `<br>${formatChatMessageBody(inlineMore.text)}`;
-      container.replaceWith(expanded);
-      messages.scrollTop = messages.scrollHeight;
+      const $container = $inlineMoreLink.closest(".chat-inline-more-container");
+      if (!$container.length) return;
+      const $expanded = $("<span>")
+        .addClass("chat-inline-more-expanded")
+        .html(`<br>${formatChatMessageBody(inlineMore.text)}`);
+      $container.replaceWith($expanded);
+      const messagesEl = $messages.get(0);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
       return;
     }
 
@@ -885,38 +1034,31 @@ function appendMessage(role, text, options = {}) {
     }
   });
 
-  item.appendChild(label);
-  item.appendChild(body);
+  $item.append($label, $body);
 
   if (action?.label && typeof action.onClick === "function") {
-    const actions = document.createElement("div");
-    actions.className = "chat-message-actions";
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "chat-message-action";
-    button.textContent = action.label;
-    button.addEventListener("click", action.onClick);
-    actions.appendChild(button);
-    item.appendChild(actions);
+    const $actions = $("<div>").addClass("chat-message-actions");
+    const $button = $("<button>").attr("type", "button").addClass("chat-message-action").text(action.label);
+    $button.on("click", action.onClick);
+    $actions.append($button);
+    $item.append($actions);
   }
 
-  messages.appendChild(item);
-  messages.scrollTop = messages.scrollHeight;
+  $messages.append($item);
+  const messagesEl = $messages.get(0);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
 
   if (shouldPersist) {
-      const historyEntry = { role, text: role === "assistant" ? messageText : text };
+    const historyEntry = { role, text: role === "assistant" ? messageText : text };
     if (inlineMore?.text) {
-      historyEntry.inlineMore = {
-        count: Number.isFinite(Number(inlineMore.count)) ? Number(inlineMore.count) : null,
-        text: inlineMore.text,
-      };
-    }
-      // Persist action label if present so we can restore buttons after reopening
-      if (action?.label) {
-        historyEntry.actionLabel = action.label;
+      const countValue = Number.isFinite(Number(inlineMore.count)) ? Number(inlineMore.count) : null;
+      historyEntry.inlineMore = { text: inlineMore.text };
+      if (Number.isFinite(countValue) && countValue > 0) {
+        historyEntry.inlineMore.count = countValue;
       }
-      if (inlineMore?.count) historyEntry.inlineMore = inlineMore;
-      chatHistory.push(historyEntry);
+    }
+    if (action?.label) historyEntry.actionLabel = action.label;
+    chatHistory.push(historyEntry);
     saveHistory();
   }
 }
@@ -941,12 +1083,66 @@ function formatChatMessageBody(text, inlineMore = null) {
   return `${formattedBody}<span class="chat-inline-more-container"><br>...and <a href="#" class="chat-results-link chat-inline-show-more">${moreLabel}</a>.</span>`;
 }
 
-function renderHistory() {
-  const messages = getMessageList();
-  if (!messages) {
-    return;
+// Normalize extraction of wiki and html bio fields from profile objects
+function extractProfileBios(profile) {
+  if (!profile || typeof profile !== "object") return { wikiBio: "", htmlBio: "" };
+  const wikiBio =
+    profile.Bio ||
+    profile.BioText ||
+    profile.BioWiki ||
+    profile.Biography ||
+    profile.bio ||
+    profile.bioText ||
+    profile.biography ||
+    "";
+  const htmlBio =
+    profile.BioHtml ||
+    profile.BioHTML ||
+    profile.Bio_Html ||
+    profile.BioHtmlText ||
+    profile.bioHTML ||
+    profile.bioHtml ||
+    profile.bio_html ||
+    "";
+  return { wikiBio, htmlBio };
+}
+
+// Handle short pronoun follow-ups like "their bios?" referring to lastStructuredResult
+async function tryHandlePronounFollowup(prompt) {
+  if (!prompt || typeof prompt !== "string") return null;
+  const normalized = prompt.trim().toLowerCase();
+  if (
+    !/^(?:their|them|those)\b.*\b(?:bio|bios|biographies|biography)\??$/.test(normalized) &&
+    !/^their\s*bio\??$/.test(normalized)
+  ) {
+    return null;
   }
-  messages.innerHTML = "";
+  if (!lastStructuredResult || !Array.isArray(lastStructuredResult.rows) || !lastStructuredResult.rows.length) {
+    return "I don't have a recent result set to pull 'their bios' from. Ask for a list or table first.";
+  }
+
+  // Collect WTIDs from lastStructuredResult
+  const wtids = Array.from(
+    new Set(lastStructuredResult.rows.map((r) => String(r.wtid || r.WTID || "").trim()).filter(Boolean))
+  );
+  if (!wtids.length) return "I couldn't find profile identifiers in the last result set to fetch bios.";
+
+  // Fetch profiles in batch
+  const profiles = await fetchProfilesForIds(wtids, "Bio,BioHtml,BioText,Biography,Name,RealName,Id", {
+    bioFormat: "both",
+    resolveRedirect: 1,
+  });
+
+  const entries = wtids.map((wtid, i) => ({ wtid, displayName: profiles[i]?.RealName || profiles[i]?.Name || wtid }));
+  // Show a small popup with buttons and auto-open the first bio
+  showBioListPopup(`Bios from last results (${entries.length})`, entries.slice(0, 25));
+  return { message: `Opened bio popup for ${entries[0].displayName} and listed others.` };
+}
+
+function renderHistory() {
+  const $messages = getMessageList();
+  if (!$messages || $messages.length === 0) return;
+  $messages.empty();
   chatHistory.forEach((message) => {
     const opts = { shouldPersist: false, inlineMore: message.inlineMore || null };
     if (message.actionLabel) {
@@ -963,81 +1159,68 @@ function renderHistory() {
             if (lastStructuredResult) openResultsTable(lastStructuredResult);
           },
         };
+      } else if (message.actionLabel === "Show Bio") {
+        opts.action = {
+          label: "Show Bio",
+          onClick: async () => {
+            if (lastBioPopupId) {
+              const w = await resolveToWTID(lastBioPopupId);
+              showBioPopupForId(w).catch(() => {});
+            } else appendMessage("assistant", "No saved biography available to show.");
+          },
+        };
       }
     }
     appendMessage(message.role, message.text, opts);
   });
 }
 
-function setPendingState(isPending) {
-  const input = document.getElementById(CHAT_INPUT_ID);
-  const sendButton = document.getElementById(CHAT_SEND_ID);
-  if (input) {
-    input.disabled = isPending;
+function clearHistory() {
+  chatHistory = [];
+  lastNonRetryUserPrompt = "";
+  lastConnectionPopupResult = null;
+  lastStructuredResult = null;
+  lastBioPopupId = null;
+  lastBioPopupProfile = null;
+  pendingDisambiguationContext = null;
+  lastConnectionCandidates = [];
+  lastConnectionRankedMatches = [];
+  cc7Cache = { rootKey: null, nuclear: 7, fetchedAt: 0, profiles: [] };
+  try {
+    sessionStorage.removeItem(CHAT_SESSION_KEY);
+    sessionStorage.removeItem(CHAT_LAST_CONNECTION_KEY);
+    sessionStorage.removeItem(CHAT_LAST_STRUCTURED_KEY);
+    sessionStorage.removeItem(CHAT_LAST_BIO_KEY);
+  } catch (e) {
+    /* ignore storage errors */
   }
-  if (sendButton) {
-    sendButton.disabled = isPending;
-    sendButton.textContent = isPending ? "Sending..." : "Send";
+  loadHistory();
+  renderHistory();
+  try {
+    appendMessage("assistant", "Chat cleared.", { shouldPersist: false });
+  } catch (e) {
+    /* ignore */
   }
 }
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+function setPendingState(isPending) {
+  const $input = $(`#${CHAT_INPUT_ID}`);
+  const $sendButton = $(`#${CHAT_SEND_ID}`);
+  if ($input.length) $input.prop("disabled", isPending);
+  if ($sendButton.length) {
+    $sendButton.prop("disabled", isPending);
+    $sendButton.text(isPending ? "Sending..." : "Send");
+  }
 }
+
+// `escapeHtml` imported from `src/core/lib/diff_utils.js`
 
 function closeResultsPopup() {
   const table = $(`#${CHAT_RESULTS_TABLE_ID}`);
   if (table.length && $.fn.DataTable.isDataTable(table)) {
     table.DataTable().destroy();
   }
-  document.getElementById(CHAT_RESULTS_POPUP_ID)?.remove();
-}
-
-function buildResultsTableHtml(result) {
-  const headers = result.columns
-    .map((column) => {
-      const headerClass = column?.cellClass ? ` class="${escapeHtml(column.cellClass)}"` : "";
-      return `<th${headerClass}>${escapeHtml(column.title)}</th>`;
-    })
-    .join("");
-  const rows = result.rows
-    .map((row) => {
-      const normalizedGender = normalizeText(row?.gender);
-      let rowClass = "background--gender-no-gender";
-      if (normalizedGender === "male") {
-        rowClass = "background--gender-male";
-      } else if (normalizedGender === "female") {
-        rowClass = "background--gender-female";
-      }
-
-      const cells = result.columns
-        .map((column) => {
-          const rawValue = typeof column.render === "function" ? column.render(row) : row?.[column.key];
-          const cellValue =
-            rawValue == null || rawValue === ""
-              ? ""
-              : typeof column.render === "function"
-              ? rawValue
-              : escapeHtml(rawValue);
-          const cellClass = column?.cellClass ? ` class="${escapeHtml(column.cellClass)}"` : "";
-          return `<td${cellClass}>${cellValue}</td>`;
-        })
-        .join("");
-      return `<tr class="${rowClass}">${cells}</tr>`;
-    })
-    .join("");
-
-  return `
-    <table id="${CHAT_RESULTS_TABLE_ID}" class="display chat-results-table">
-      <thead><tr>${headers}</tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-  `;
+  $(`#${CHAT_RESULTS_POPUP_ID}`).remove();
 }
 
 function openResultsTable(result = lastStructuredResult) {
@@ -1047,34 +1230,35 @@ function openResultsTable(result = lastStructuredResult) {
 
   closeResultsPopup();
 
-  const popup = document.createElement("div");
-  popup.id = CHAT_RESULTS_POPUP_ID;
-  popup.className = "wbe-popup chat-results-popup";
-  popup.innerHTML = `
-    <div class="chat-results-header">
-      <strong>${escapeHtml(result.title || "Chat Results")}</strong>
-      <button type="button" class="small close-popup" aria-label="Close" title="Close">&times;</button>
-    </div>
-    <div class="chat-results-body">
-      ${buildResultsTableHtml(result)}
-    </div>
-  `;
-
-  document.body.appendChild(popup);
-  positionPopupFixed(popup, Math.round((window.innerWidth - popup.getBoundingClientRect().width) / 2), 110);
-  popup.querySelector(".close-popup")?.addEventListener("click", closeResultsPopup);
-  setHighestZIndex(popup);
-  $(popup).draggable({
+  const $popup = $(
+    `<div id="${CHAT_RESULTS_POPUP_ID}" class="wbe-popup chat-results-popup">
+      <div class="chat-results-header">
+        <strong>${escapeHtml(result.title || "Chat Results")}</strong>
+        <button type="button" class="small close-popup" aria-label="Close" title="Close">&times;</button>
+      </div>
+      <div class="chat-results-body">
+        ${buildResultsTableHtml(result)}
+      </div>
+    </div>`
+  ).appendTo(document.body);
+  positionPopupFixed(
+    $popup.get(0),
+    Math.round((window.innerWidth - $popup.get(0).getBoundingClientRect().width) / 2),
+    110
+  );
+  $popup.find(".close-popup").on("click", closeResultsPopup);
+  setHighestZIndex($popup.get(0));
+  $popup.draggable({
     handle: ".chat-results-header",
     containment: "window",
     scroll: false,
     start: () => {
-      popup.style.right = "auto";
-      popup.style.transform = "none";
+      $popup.get(0).style.right = "auto";
+      $popup.get(0).style.transform = "none";
     },
   });
 
-  $(popup).resizable({
+  $popup.resizable({
     handles: "n,e,s,w,se,sw,ne,nw",
     minWidth: 520,
     minHeight: 260,
@@ -1144,7 +1328,8 @@ async function handleChatResult(result) {
 
   if (result.table) {
     const options = await getChatOptions();
-    const shouldAutoOpen = result.autoOpen || options.showResultsInTable || (result.table?.rows?.length || 0) >= AUTO_OPEN_TABLE_MIN_ROWS;
+    const shouldAutoOpen =
+      result.autoOpen || options.showResultsInTable || (result.table?.rows?.length || 0) >= AUTO_OPEN_TABLE_MIN_ROWS;
     if (shouldAutoOpen) {
       openResultsTable(result.table);
     }
@@ -1152,12 +1337,10 @@ async function handleChatResult(result) {
 }
 
 async function sendChatPrompt() {
-  const input = document.getElementById(CHAT_INPUT_ID);
-  if (!input) {
-    return;
-  }
+  const $input = $(`#${CHAT_INPUT_ID}`);
+  if ($input.length === 0) return;
 
-  const rawPrompt = input.value.trim();
+  const rawPrompt = String($input.val() || "").trim();
   if (!rawPrompt) {
     return;
   }
@@ -1168,7 +1351,7 @@ async function sendChatPrompt() {
   if (retryRequested) {
     if (!lastNonRetryUserPrompt) {
       appendMessage("assistant", "No earlier request to retry yet. Ask a question first.");
-      input.value = "";
+      $input.val("");
       return;
     }
     prompt = lastNonRetryUserPrompt;
@@ -1179,7 +1362,7 @@ async function sendChatPrompt() {
   if (!retryRequested) {
     lastNonRetryUserPrompt = rawPrompt;
   }
-  input.value = "";
+  $input.val("");
   setPendingState(true);
   // Show global chat loader while processing
   try {
@@ -1217,6 +1400,37 @@ async function sendChatPrompt() {
         typeof correctionResponse === "string" ? { message: correctionResponse } : correctionResponse
       );
       return;
+    }
+
+    // Intercept spouse-bio style prompts early so short follow-ups (e.g., "Dona's bio?")
+    // can be resolved against recent structured results or DOM before normal routing.
+    try {
+      // Early pronoun follow-up handler (e.g., "Their bios?") that uses lastStructuredResult
+      try {
+        const pronounEarly = await tryHandlePronounFollowup(prompt);
+        if (pronounEarly) {
+          if (typeof pronounEarly === "string") {
+            await handleChatResult({ message: pronounEarly });
+          } else {
+            await handleChatResult(pronounEarly);
+          }
+          return;
+        }
+      } catch (e) {
+        /* ignore pronoun handler errors */
+      }
+
+      const spouseEarly = await tryHandlePersonBioPrompt(prompt);
+      if (spouseEarly) {
+        if (typeof spouseEarly === "string") {
+          await handleChatResult({ message: spouseEarly });
+        } else {
+          await handleChatResult(spouseEarly);
+        }
+        return;
+      }
+    } catch (e) {
+      /* ignore early spouse handler errors */
     }
 
     const chatOptions = await getChatOptions();
@@ -1305,13 +1519,13 @@ async function sendChatPrompt() {
   } catch (error) {
     appendMessage("assistant", `Error: ${error?.message || "AI request failed."}`);
   } finally {
-      setPendingState(false);
-      try {
-        hideChatShaky();
-      } catch (e) {
-        /* ignore */
-      }
-      input.focus();
+    setPendingState(false);
+    try {
+      hideChatShaky();
+    } catch (e) {
+      /* ignore */
+    }
+    $input.focus();
   }
 }
 
@@ -1333,10 +1547,10 @@ async function executeRoutedIntent(routed, prompt) {
     return await tryHandleRelationCountPrompt(routed.params, prompt);
   }
   if (routed.intent === ChatIntent.CONNECTION_LOOKUP) {
-    // Intercept spouse-bio style prompts ("X's wife's bio", "bio of X's wife", etc.)
-    const spouseBioAttempt = await tryHandleSpouseBioPrompt(prompt);
+    // Intercept person/relation-bio style prompts ("Ivy's parents bios", "Their bios", "Dona's bio", etc.)
+    const spouseBioAttempt = await tryHandlePersonBioPrompt(prompt);
     if (spouseBioAttempt) {
-      console.info('wbe: executeRoutedIntent spouseBioAttempt resolved', { prompt, spouseBioAttempt });
+      console.info("wbe: executeRoutedIntent spouseBioAttempt resolved", { prompt, spouseBioAttempt });
       return spouseBioAttempt;
     }
 
@@ -1465,9 +1679,18 @@ async function tryHandleSpouseBioIntent(params = {}, prompt = "") {
 
   if (!target) {
     if (!allowLookup) {
-    const reply = `I don't have the wife's name or bio from the single page context you gave (${getProfilePersonInfo()?.Name || "unknown"}). I can't invent or assume her profile.\n\nTell me one of these and I'll fetch and return her bio:\n- The wife's WikiTree profile ID or URL (for example: Surname-1234), or\n- Her full name as shown on ${getProfilePersonInfo()?.Name || "the profile"}, or\n- Permission to look up ${getProfilePersonInfo()?.Name || "the profile owner"} and fetch their spouse's bio.`;
-    console.debug('wbe: tryHandleSpouseBioPrompt no targetRaw - asking user for clarification', { profileContext: getProfilePersonInfo()?.Name, reply });
-    return reply;
+      const reply = `I don't have the wife's name or bio from the single page context you gave (${
+        getProfilePersonInfo()?.Name || "unknown"
+      }). I can't invent or assume her profile.\n\nTell me one of these and I'll fetch and return her bio:\n- The wife's WikiTree profile ID or URL (for example: Surname-1234), or\n- Her full name as shown on ${
+        getProfilePersonInfo()?.Name || "the profile"
+      }, or\n- Permission to look up ${
+        getProfilePersonInfo()?.Name || "the profile owner"
+      } and fetch their spouse's bio.`;
+      console.debug("wbe: tryHandleSpouseBioPrompt no targetRaw - asking user for clarification", {
+        profileContext: getProfilePersonInfo()?.Name,
+        reply,
+      });
+      return reply;
     }
     // Use profileRoot Name as target
     params.target = profileRoot.Name;
@@ -1482,7 +1705,10 @@ async function tryHandleSpouseBioIntent(params = {}, prompt = "") {
   const personKey = resolved.Id || resolved.Name;
   try {
     showChatShaky("Looking up spouse(s)...");
-    const [profile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, personKey, "", { getSpouses: 1, resolveRedirect: 1 });
+    const [profile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, personKey, "", {
+      getSpouses: 1,
+      resolveRedirect: 1,
+    });
     hideChatShaky();
     const spousesObj = profile?.Spouses || {};
     const spouses = Object.values(spousesObj || []);
@@ -1505,10 +1731,17 @@ async function tryHandleSpouseBioIntent(params = {}, prompt = "") {
               );
               hideChatShaky();
               console.debug("wbe: spouse profile fetched via DOM fallback", { spouseId, spProfile });
+              const { wikiBio: domWiki } = extractProfileBios(spProfile);
               return {
                 message: `Biography for ${spProfile?.Name || spouseId}:`,
-                action: { label: "Show Bio", onClick: () => showBioPopupForId(spouseId) },
-                inlineMore: { text: spProfile?.Bio || spProfile?.BioText || "" },
+                action: {
+                  label: "Show Bio",
+                  onClick: async () => {
+                    const wtid = await resolveToWTID(spouseId);
+                    showBioPopupForId(wtid).catch(() => {});
+                  },
+                },
+                inlineMore: { text: domWiki },
               };
             } catch (err) {
               hideChatShaky();
@@ -1519,10 +1752,13 @@ async function tryHandleSpouseBioIntent(params = {}, prompt = "") {
           // multiple
           return {
             message: `Found spouse links on the page for ${resolved.RealName || resolved.Name}. Click to open one.`,
-            action: { label: "Spouses", onClick: () => {
-              // show a list using the existing helper
-              listSpousesForId(resolved.Name);
-            } },
+            action: {
+              label: "Spouses",
+              onClick: () => {
+                // show a list using the existing helper
+                listSpousesForId(resolved.Name);
+              },
+            },
           };
         }
       } catch (e) {
@@ -1545,12 +1781,15 @@ async function tryHandleSpouseBioIntent(params = {}, prompt = "") {
       const htmlBio = spProfile?.BioHtml || spProfile?.BioHTML || "";
       return {
         message: `Biography for ${spProfile?.Name || spouseId}:`,
-        action: { label: "Show Bio", onClick: () => showBioPopupForId(spouseId) },
+        action: { label: "Show Bio", onClick: async () => { const wtid = await resolveToWTID(spouseId); showBioPopupForId(wtid).catch(()=>{}); } },
         inlineMore: { text: wikiBio },
       };
     }
     const preview = spouses.map((s) => `- ${s.RealName || s.Name} (${s.Name})`).join("\n");
-    return { message: `Multiple spouses found for ${resolved.RealName || resolved.Name}:\n${preview}`, action: { label: "Spouses", onClick: () => listSpousesForId(personKey) } };
+    return {
+      message: `Multiple spouses found for ${resolved.RealName || resolved.Name}:\n${preview}`,
+      action: { label: "Spouses", onClick: () => listSpousesForId(personKey) },
+    };
   } catch (err) {
     hideChatShaky();
     console.error("wbe: tryHandleSpouseBioIntent error", err);
@@ -2417,23 +2656,6 @@ async function getCc7ProfilesForUser(userNumId) {
   return await getCcProfilesForUser(userNumId, 7);
 }
 
-function makeProfileLink(wtId, label) {
-  if (!wtId) {
-    return escapeHtml(label || "");
-  }
-  const href = `https://www.wikitree.com/wiki/${encodeURIComponent(wtId)}`;
-  const text = escapeHtml(label || wtId);
-  return `<a class="chat-results-link" href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
-}
-
-function extractCountryFromLocation(location) {
-  const parts = String(location || "")
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  return parts.length ? parts[parts.length - 1] : "";
-}
-
 function normalizeText(value) {
   return String(value || "")
     .trim()
@@ -2700,26 +2922,6 @@ function summarizeStructuredRows(rows, maxToShow = 12) {
   return `${shown.join("\n")}${extra}`;
 }
 
-function withDerivedRowFields(row) {
-  return {
-    ...row,
-    country:
-      row.country ||
-      extractCountryFromLocation(row.birthLocation) ||
-      extractCountryFromLocation(row.deathLocation) ||
-      "",
-  };
-}
-
-function cloneResultWithRows(result, title, rows, defaultOrder = result?.defaultOrder || []) {
-  return {
-    ...result,
-    title,
-    defaultOrder,
-    rows: rows.map((row) => withDerivedRowFields(row)),
-  };
-}
-
 function compareResultRows(left, right, field, direction) {
   let leftValue;
   let rightValue;
@@ -2885,70 +3087,27 @@ async function tryHandleLastResultOperation(params) {
   return null;
 }
 
-function makeStandardProfileTable(title, rows, defaultOrder = [[2, "asc"]]) {
-  return {
-    title,
-    defaultOrder,
-    columns: [
-      {
-        title: "WT ID",
-        key: "wtid",
-        render: (row) => makeProfileLink(row.wtid, row.wtid),
-      },
-      { title: "First Name", key: "firstName" },
-      { title: "LNAB", key: "lnab" },
-      { title: "Current Last", key: "lastNameCurrent" },
-      { title: "°", key: "degrees" },
-      { title: "Birth", key: "birth", cellClass: "chat-date-cell" },
-      { title: "Death", key: "death", cellClass: "chat-date-cell" },
-      { title: "Birth Location", key: "birthLocation" },
-      { title: "Death Location", key: "deathLocation" },
-    ],
-    rows: rows.map((row) => withDerivedRowFields(row)),
-  };
-}
-
-function makeWatchlistTable(title, rows, defaultOrder = [[0, "asc"]]) {
-  return {
-    title,
-    defaultOrder,
-    columns: [
-      {
-        title: "WT ID",
-        key: "wtid",
-        render: (row) => makeProfileLink(row.wtid, row.wtid),
-      },
-      { title: "First Name", key: "firstName" },
-      { title: "LNAB", key: "lnab" },
-      { title: "Current Last", key: "lastNameCurrent" },
-      { title: "Birth", key: "birth", cellClass: "chat-date-cell" },
-      { title: "Death", key: "death", cellClass: "chat-date-cell" },
-      { title: "Birth Location", key: "birthLocation" },
-      { title: "Death Location", key: "deathLocation" },
-    ],
-    rows: rows.map((row) => withDerivedRowFields(row)),
-  };
-}
-
 function getCc7RowsFromPage() {
-  return Array.from(document.querySelectorAll("table tr[data-wtid]"));
+  return $("table tr[data-wtid]").toArray();
 }
 
 function getPersonNameFromRow(row, fallbackWtId) {
-  const firstProfileLink = row.querySelector('a[href*="/wiki/"]');
-  if (firstProfileLink?.textContent?.trim()) {
-    return firstProfileLink.textContent.trim();
+  const $row = $(row);
+  const $firstProfileLink = $row.find('a[href*="/wiki/"]').first();
+  if ($firstProfileLink.length && $firstProfileLink.text().trim()) {
+    return $firstProfileLink.text().trim();
   }
   return fallbackWtId;
 }
 
 function getBirthLocationFromRow(row) {
-  const birthCell = row.querySelector("td.birthLocation");
-  if (birthCell?.textContent) {
-    return birthCell.textContent.trim();
+  const $row = $(row);
+  const $birthCell = $row.find("td.birthLocation").first();
+  if ($birthCell.length && $birthCell.text()) {
+    return $birthCell.text().trim();
   }
 
-  const dataAttr = row.getAttribute("data-birth-location-small2big");
+  const dataAttr = $row.attr("data-birth-location-small2big");
   return dataAttr ? dataAttr.trim() : "";
 }
 
@@ -3181,7 +3340,7 @@ async function tryHandleProfileSearchPrompt(params) {
       return `I couldn't find profile matches for \"${query}\".`;
     }
 
-    const [, , people] = await WikiTreeAPI.getPeople(
+    const [, , people] = await fetchPeoplePaged(
       WBE_CHAT_APP_ID,
       profileIds,
       "Id,Name,FirstName,RealName,Derived.ShortName,BirthDate,DeathDate,BirthLocation,DeathLocation,LastNameAtBirth,LastNameCurrent,Gender",
@@ -3688,30 +3847,6 @@ async function resolveDescendantSubjectRoot(prompt) {
   return userRoot;
 }
 
-function makeAncestorAgeTable(title, rows) {
-  return {
-    title,
-    defaultOrder: [[5, "desc"]],
-    columns: [
-      {
-        title: "WT ID",
-        key: "wtid",
-        render: (row) => makeProfileLink(row.wtid, row.wtid),
-      },
-      {
-        title: "Name",
-        key: "displayName",
-        render: (row) => makeProfileLink(row.wtid, row.displayName),
-      },
-      { title: "Birth", key: "birth", cellClass: "chat-date-cell" },
-      { title: "Death", key: "death", cellClass: "chat-date-cell" },
-      { title: "LNAB", key: "lnab" },
-      { title: "Age At Death", key: "ageAtDeath" },
-    ],
-    rows,
-  };
-}
-
 async function tryHandleSpouseListPrompt(params, prompt = "") {
   const genderFilter = params?.gender || null;
   const relationshipLabel = String(params?.relationshipLabel || "spouses").trim();
@@ -3927,7 +4062,7 @@ async function tryHandleAncestorAverageAgePrompt(params, prompt = "") {
   const subjectLabel = formatSubjectLabel(rootPerson);
 
   try {
-    const [, , people] = await WikiTreeAPI.getPeople(
+    const [, , people] = await fetchPeoplePaged(
       WBE_CHAT_APP_ID,
       rootPerson.key,
       "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,BirthDate,DeathDate,Meta",
@@ -4068,47 +4203,16 @@ async function tryHandleAncestorListPrompt(params, prompt = "") {
 
   try {
     const collectedPeople = {};
-    const pageLimit = 1000;
-    let start = 0;
-    let fetchMore = true;
+    const [, , peopleMap] = await fetchPeoplePaged(
+      WBE_CHAT_APP_ID,
+      rootPerson.key,
+      "Id,Name,FirstName,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender,Meta",
+      { ancestors: generation, minGeneration: includeUpTo ? 1 : generation, limit: 1000 }
+    );
 
-    while (fetchMore) {
-      const [status, , people] = await WikiTreeAPI.getPeople(
-        WBE_CHAT_APP_ID,
-        rootPerson.key,
-        "Id,Name,FirstName,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender,Meta",
-        {
-          ancestors: generation,
-          minGeneration: includeUpTo ? 1 : generation,
-          limit: pageLimit,
-          start,
-        }
-      );
-
-      if (status == null) {
-        throw new Error("No status returned from getPeople while loading ancestors.");
-      }
-
-      fetchMore = typeof status === "string" && status.startsWith("Maximum number of profiles");
-      if (!fetchMore && status !== "") {
-        throw new Error(`Unexpected getPeople status: ${status}`);
-      }
-
-      const pagePeople = Object.values(people || {});
-      pagePeople.forEach((profile) => {
-        if (profile?.Id != null) {
-          collectedPeople[String(profile.Id)] = profile;
-        }
-      });
-
-      if (!pagePeople.length) {
-        break;
-      }
-
-      if (fetchMore) {
-        start += pageLimit;
-      }
-    }
+    Object.values(peopleMap || {}).forEach((profile) => {
+      if (profile?.Id != null) collectedPeople[String(profile.Id)] = profile;
+    });
 
     const allAncestors = Object.values(collectedPeople)
       .filter((profile) => {
@@ -4248,53 +4352,24 @@ async function tryHandleDescendantListPrompt(params, prompt = "") {
 
   try {
     const collectedPeople = {};
-    const pageLimit = 1000;
-    let start = 0;
-    let fetchMore = true;
+    const [, , peopleMap] = await fetchPeoplePaged(
+      WBE_CHAT_APP_ID,
+      rootPerson.key,
+      "Id,Name,FirstName,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender,Meta",
+      { descendants: generation, minGeneration: includeUpTo ? 1 : generation, limit: 1000 }
+    );
 
-    while (fetchMore) {
-      const [status, , people] = await WikiTreeAPI.getPeople(
-        WBE_CHAT_APP_ID,
-        rootPerson.key,
-        "Id,Name,FirstName,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender,Meta",
-        {
-          descendants: generation,
-          minGeneration: includeUpTo ? 1 : generation,
-          limit: pageLimit,
-          start,
-        }
-      );
-
-      if (status == null) {
-        throw new Error("No status returned from getPeople while loading descendants.");
+    Object.values(peopleMap || {}).forEach((profile) => {
+      const profileId = String(profile?.Id ?? "");
+      const profileWtId = String(profile?.Name || "");
+      if (
+        profile?.Id != null &&
+        profileId !== String(rootPerson.key) &&
+        profileWtId !== String(rootPerson.wtId || "")
+      ) {
+        collectedPeople[profileId] = profile;
       }
-
-      fetchMore = typeof status === "string" && status.startsWith("Maximum number of profiles");
-      if (!fetchMore && status !== "") {
-        throw new Error(`Unexpected getPeople status: ${status}`);
-      }
-
-      const pagePeople = Object.values(people || {});
-      pagePeople.forEach((profile) => {
-        const profileId = String(profile?.Id ?? "");
-        const profileWtId = String(profile?.Name || "");
-        if (
-          profile?.Id != null &&
-          profileId !== String(rootPerson.key) &&
-          profileWtId !== String(rootPerson.wtId || "")
-        ) {
-          collectedPeople[profileId] = profile;
-        }
-      });
-
-      if (!pagePeople.length) {
-        break;
-      }
-
-      if (fetchMore) {
-        start += pageLimit;
-      }
-    }
+    });
 
     const descendants = Object.values(collectedPeople)
       .filter((profile) => {
@@ -4703,8 +4778,7 @@ function toRelationTableRows(people = []) {
 }
 
 function isAppsLoginButtonPresent() {
-  const button = document.getElementById("wbeAppLoginBtn");
-  return Boolean(button);
+  return $("#wbeAppLoginBtn").length > 0;
 }
 
 function hasAppsLoginHintAlready() {
@@ -4717,8 +4791,54 @@ function hasAppsLoginHintAlready() {
 }
 
 async function fetchParentIds(personKey) {
-  const person = await WikiTreeAPI.getPerson("Chat", personKey, "Id,Name,Father,Mother");
-  return [person?.Father, person?.Mother].filter((id) => Number(id) > 0);
+  // Prefer getRelatives to obtain Parent objects that include Name (WTID)
+  try {
+    const relatives = await WikiTreeAPI.getRelatives(
+      WBE_CHAT_APP_ID,
+      personKey,
+      "Id,Name,RealName",
+      { getParents: 1 }
+    );
+    const [peopleResult] = relatives || [];
+    const profile = peopleResult?.person || {};
+    const parentsObj = profile?.Parents || {};
+    const parentNames = Object.values(parentsObj || [])
+      .map((p) => p?.Name || (p?.Id ? String(p.Id) : null))
+      .filter(Boolean);
+    if (parentNames.length) return parentNames;
+  } catch (e) {
+    /* ignore getRelatives errors and fall back */
+  }
+
+  // Fallback: use getPerson to read numeric Father/Mother ids
+  try {
+    const person = await WikiTreeAPI.getPerson("Chat", personKey, "Id,Name,Father,Mother");
+    const parents = [person?.Father, person?.Mother].filter((id) => Number(id) > 0);
+    if (parents.length) return parents;
+  } catch (e) {
+    /* ignore */
+  }
+
+  // DOM fallback: try to read parent links from profile HTML and validate
+  try {
+    const domParents = findParentProfileIdsFromDOM();
+    if (domParents && domParents.length) {
+      const numericIds = [];
+      for (const wtid of domParents) {
+        try {
+          const [p] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, wtid, "Id,Name", { resolveRedirect: 1 });
+          if (p && Number(p.Id) > 0) numericIds.push(Number(p.Id));
+        } catch (e) {
+          /* ignore individual failures */
+        }
+      }
+      if (numericIds.length) return numericIds;
+      return domParents; // return raw WTIDs if numeric ids unavailable
+    }
+  } catch (e) {
+    /* ignore DOM fallback errors */
+  }
+  return [];
 }
 
 async function fetchGrandparentIds(personKey) {
@@ -4727,7 +4847,7 @@ async function fetchGrandparentIds(personKey) {
     return [];
   }
 
-  const [, , parentPeople] = await WikiTreeAPI.getPeople("Chat", parentIds, "Id,Father,Mother", {});
+  const [, , parentPeople] = await fetchPeoplePaged("Chat", parentIds, "Id,Father,Mother", {});
   const grandparentIds = new Set();
   Object.values(parentPeople || {}).forEach((parent) => {
     if (Number(parent?.Father) > 0) {
@@ -4747,13 +4867,13 @@ async function fetchAncestorIdsForGeneration(personKey, generation) {
   }
 
   try {
-    const [, , people] = await WikiTreeAPI.getPeople(WBE_CHAT_APP_ID, personKey, "Id,Meta", {
+    const [, , peopleMap] = await fetchPeoplePaged(WBE_CHAT_APP_ID, personKey, "Id,Meta", {
       ancestors: targetGeneration,
       minGeneration: targetGeneration,
       limit: 64,
     });
 
-    const ids = Object.values(people || {})
+    const ids = Object.values(peopleMap || {})
       .map((profile) => Number(profile?.Id))
       .filter((id) => Number.isFinite(id) && id > 0);
     return Array.from(new Set(ids));
@@ -4839,14 +4959,38 @@ async function collectRelationPeople(personKey, relationSpec) {
     const [entry] = await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, personKey, `${RELATION_PERSON_FIELDS},Siblings`, {
       getSiblings: 1,
     });
-    return Object.values(entry?.person?.Siblings || {});
+    const siblings = Object.values(entry?.person?.Siblings || {});
+    if (siblings && siblings.length) return siblings;
+    // Fallback: try DOM-based sibling WTIDs and batch-fetch profiles
+    try {
+      const domIds = await fetchSiblingIdsForId(personKey);
+      if (domIds && domIds.length) {
+        const profiles = await fetchProfilesForIds(domIds, RELATION_PERSON_FIELDS, { resolveRedirect: 1 });
+        return profiles.filter(Boolean);
+      }
+    } catch (e) {
+      /* ignore fallback errors */
+    }
+    return [];
   }
 
   if (relationSpec.group === "children") {
     const [entry] = await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, personKey, `${RELATION_PERSON_FIELDS},Children`, {
       getChildren: 1,
     });
-    return Object.values(entry?.person?.Children || {});
+    const children = Object.values(entry?.person?.Children || {});
+    if (children && children.length) return children;
+    // Fallback: try DOM-based children WTIDs and batch-fetch profiles
+    try {
+      const domIds = await fetchChildrenIdsForId(personKey);
+      if (domIds && domIds.length) {
+        const profiles = await fetchProfilesForIds(domIds, RELATION_PERSON_FIELDS, { resolveRedirect: 1 });
+        return profiles.filter(Boolean);
+      }
+    } catch (e) {
+      /* ignore fallback errors */
+    }
+    return [];
   }
 
   if (relationSpec.group === "spouses") {
@@ -4861,8 +5005,8 @@ async function collectRelationPeople(personKey, relationSpec) {
     if (!parentIds.length) {
       return [];
     }
-    const [, , people] = await WikiTreeAPI.getPeople("Chat", parentIds, RELATION_PERSON_FIELDS, {});
-    return Object.values(people || {});
+    const [, , peopleMap] = await fetchPeoplePaged("Chat", parentIds, RELATION_PERSON_FIELDS, {});
+    return Object.values(peopleMap || {});
   }
 
   if (relationSpec.group === "grandparents") {
@@ -4870,8 +5014,8 @@ async function collectRelationPeople(personKey, relationSpec) {
     if (!grandparentIds.length) {
       return [];
     }
-    const [, , people] = await WikiTreeAPI.getPeople("Chat", grandparentIds, RELATION_PERSON_FIELDS, {});
-    return Object.values(people || {});
+    const [, , peopleMap] = await fetchPeoplePaged("Chat", grandparentIds, RELATION_PERSON_FIELDS, {});
+    return Object.values(peopleMap || {});
   }
 
   if (relationSpec.group === "parentSiblings" || relationSpec.group === "grandparentSiblings") {
@@ -5012,11 +5156,27 @@ async function tryHandleRelationCountPrompt(params, prompt = "") {
     }
 
     if (mode === "list") {
+      const wantsBio = /\bbio(?:s|graphy|graphies)?\b/i.test(prompt || relationRaw);
       const lines = relatives
         .slice(0, 20)
         .map((person) => formatRelationPreviewLine(person))
         .join("\n");
       const extra = relatives.length > 20 ? `\n...and ${relatives.length - 20} more.` : "";
+      if (wantsBio) {
+        // Build entries and show bio list popup (auto-open first)
+        const entries = relatives.map((person) => ({
+          wtid: person?.Name || person?.Id || "",
+          displayName: toDisplayName(person),
+        }));
+        showBioListPopup(
+          subject.isUser ? `Your ${noun} bios` : `${noun} bios for ${subject.label}`,
+          entries.slice(0, 50)
+        );
+        return {
+          message: subject.isUser ? `Opened bios for your ${noun}.` : `Opened bios for ${noun} of ${subject.label}.`,
+        };
+      }
+
       return {
         message: subject.isUser
           ? `Here are your ${noun} (${count} found):\n${lines}${extra}`
@@ -5086,7 +5246,12 @@ async function tryHandleConnectionPrompt(prompt, targetOverride = "") {
     }
 
     const { data, relationCode } = await getConnectionDataWithFallback(sourceKey, targetWtId);
-    console.debug("wbe: tryHandleConnectionPrompt getConnections result", { sourceKey, targetWtId, relationCode, data });
+    console.debug("wbe: tryHandleConnectionPrompt getConnections result", {
+      sourceKey,
+      targetWtId,
+      relationCode,
+      data,
+    });
     const pathLength = Number(data?.pathLength);
     const hasPath =
       (Number.isFinite(pathLength) && pathLength > 0) || (Array.isArray(data?.path) && data.path.length > 0);
@@ -5165,8 +5330,12 @@ async function tryHandleConnectionPrompt(prompt, targetOverride = "") {
 
     const messageText =
       sourceRoot.subjectType === "user"
-        ? `Connection found: ${displayName} (${targetWtId}) is ${distance} step${distance === 1 ? "" : "s"} away from you.${relationshipSuffix}`
-        : `Connection found: ${displayName} (${targetWtId}) is ${distance} step${distance === 1 ? "" : "s"} away from ${sourceRoot.displayName} (${sourceRoot.wtId}).${relationshipSuffix}`;
+        ? `Connection found: ${displayName} (${targetWtId}) is ${distance} step${
+            distance === 1 ? "" : "s"
+          } away from you.${relationshipSuffix}`
+        : `Connection found: ${displayName} (${targetWtId}) is ${distance} step${distance === 1 ? "" : "s"} away from ${
+            sourceRoot.displayName
+          } (${sourceRoot.wtId}).${relationshipSuffix}`;
 
     // Show the connections popup (the human-readable 'connection between X and Y' table)
     try {
@@ -5190,112 +5359,555 @@ async function tryHandleConnectionPrompt(prompt, targetOverride = "") {
 }
 
 // Try to detect prompts asking for a spouse's bio and fetch it directly
-async function tryHandleSpouseBioPrompt(prompt) {
-  console.info("wbe: tryHandleSpouseBioPrompt called", { prompt });
-  if (!prompt || !/\b(wife|husband|spouse)\b/i.test(prompt) || !/\b(bio|biography|profile)\b/i.test(prompt)) {
-    console.info("wbe: tryHandleSpouseBioPrompt - pattern did not match, ignoring", { prompt });
+async function tryHandlePersonBioPrompt(prompt) {
+  console.info("wbe: tryHandlePersonBioPrompt called", { prompt });
+
+  // Detect possessive relation patterns: "Ivy's parents", "Dona's bio", "bio of X's wife", etc.
+  const str = String(prompt || "").trim();
+  let targetRaw = null;
+  let relationRaw = null;
+
+  let m = str.match(/^\s*(.+?)'s\s+([a-zA-Z]+s?)\??$/i);
+  if (m) {
+    targetRaw = (m[1] || "").trim();
+    relationRaw = (m[2] || "").trim().toLowerCase();
+  } else {
+    // "bio(s) of X", "profile of X"
+    m = str.match(/^\s*bio(?:graphy|s)?\s+of\s+(.+?)\??$/i) || str.match(/^\s*profile(?:s)?\s+of\s+(.+?)\??$/i);
+    if (m) {
+      targetRaw = (m[1] || "").trim();
+      relationRaw = "self";
+    }
+    // "X's bio(s)"
+    if (!targetRaw) {
+      m = str.match(/^\s*(.+?)'s\s+bio(?:graphy|s)?\??$/i);
+      if (m) {
+        targetRaw = (m[1] || "").trim();
+        relationRaw = "self";
+      }
+    }
+  }
+
+  // If nothing matched and the prompt doesn't ask for a bio, ignore
+  if (!targetRaw && !/\b(bio|biography|profile|bios)\b/i.test(str)) {
+    console.info("wbe: tryHandlePersonBioPrompt - pattern did not match and no bio keyword, ignoring", { prompt });
     return null;
   }
 
-  // Try patterns: "X's wife", "wife of X", "bio of X's wife" etc.
-  let m = String(prompt || "").match(/^\s*(.+?)'s\s+(?:wife|husband|spouse)/i);
-  if (!m) m = String(prompt || "").match(/(?:wife|husband|spouse)\s+of\s+(.+?)\??$/i);
-  if (!m) m = String(prompt || "").match(/bio\s+of\s+(.+?)'s\s+(?:wife|husband|spouse)/i);
-  const targetRaw = m?.[1] ? m[1].trim() : null;
-  if (!targetRaw) {
-    // Not enough to identify target person — ask user permission to look up current profile's spouse
-    return `I don't have the wife's name or bio from the single page context you gave (${getProfilePersonInfo()?.Name || "unknown"}). I can't invent or assume her profile.\n\nTell me one of these and I'll fetch and return her bio:\n- The wife's WikiTree profile ID or URL (for example: Surname-1234), or\n- Her full name as shown on ${getProfilePersonInfo()?.Name || "the profile"}, or\n- Permission to look up ${getProfilePersonInfo()?.Name || "the profile owner"} and fetch their spouse's bio.`;
+  console.info("wbe: tryHandlePersonBioPrompt parsed", { prompt, targetRaw, relationRaw });
+
+  // If the relation explicitly mentions ancestors or descendants, don't intercept here;
+  // let the main router handle those multi-step relation queries so tables/results are returned.
+  if (relationRaw && /(ancest|descend)/i.test(String(relationRaw))) {
+    console.info("wbe: tryHandlePersonBioPrompt - ancestor/descendant relation detected, deferring to main router", {
+      relationRaw,
+    });
+    return null;
   }
 
-  console.info("wbe: tryHandleSpouseBioPrompt targetRaw", { prompt, targetRaw });
+  // Map relation words to relation groups used elsewhere
+  const relMap = {
+    wife: "spouses",
+    husband: "spouses",
+    spouse: "spouses",
+    spouses: "spouses",
+    parent: "parents",
+    parents: "parents",
+    mother: "parents",
+    father: "parents",
+    child: "children",
+    children: "children",
+    son: "children",
+    daughter: "children",
+    sibling: "siblings",
+    siblings: "siblings",
+    brother: "siblings",
+    sister: "siblings",
+    self: "self",
+  };
 
-  // Resolve the target person
-  const resolved = await resolveConnectionTargetPerson(targetRaw, prompt);
-  console.info("wbe: tryHandleSpouseBioPrompt resolved target", { resolved });
-  if (!resolved?.Name && !resolved?.Id) {
-    console.info("wbe: tryHandleSpouseBioPrompt - could not resolve target", { targetRaw });
-    return `I couldn't identify which profile you meant by "${targetRaw}". Try a WikiTree ID like Name-1234, or a more specific name.`;
-  }
+  const wantsBioPlural = /\bbios?\b/i.test(str) || /\bprofiles?\b/i.test(str);
 
-  const personKey = resolved.Id || resolved.Name;
-  // Fetch profile with spouses
+  // Resolve the target person; attempt fallbacks if direct resolution fails
+  let resolved = null;
+  if (targetRaw) resolved = await resolveConnectionTargetPerson(targetRaw, prompt);
+  console.info("wbe: tryHandlePersonBioPrompt resolved target", { resolved });
+  // If resolution produced the page/profile context (or a generic result), prefer
+  // any strong match from the last structured result (previous table) when the
+  // user asked a short follow-up name (e.g., "Dona"). This helps follow-ups
+  // refer to recently shown rows instead of defaulting to the page person.
   try {
-    showChatShaky("Looking up spouse(s)...");
-    console.info("wbe: tryHandleSpouseBioPrompt calling getRelatives", { personKey });
-    const relativesResult = await WikiTreeAPI.getRelatives(
-      WBE_CHAT_APP_ID,
-      personKey,
-      "Id,Name,RealName,Derived.ShortName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender",
-      { getSpouses: 1 }
-    );
-    hideChatShaky();
-    const [peopleResult] = relativesResult;
-    const profile = peopleResult?.person || {};
-    console.info("wbe: tryHandleSpouseBioPrompt relatives result", { personKey, peopleResult });
+    const needle = String(targetRaw || "")
+      .trim()
+      .toLowerCase();
+    if (needle && lastStructuredResult?.rows?.length) {
+      const normNeedle = needle;
+      const tokenMatch = (text) => {
+        if (!text) return false;
+        const low = String(text).toLowerCase();
+        if (low === normNeedle) return true;
+        if (low.startsWith(normNeedle + " ") || low.startsWith(normNeedle)) return true;
+        // tokenized match: any space-separated token equals needle
+        const parts = low.split(/\s+/).filter(Boolean);
+        if (parts.includes(normNeedle)) return true;
+        return false;
+      };
 
-    const spousesObj = profile?.Spouses || {};
-    const spouses = Object.values(spousesObj || []);
-    if (!spouses.length) {
-      const msg = `No spouse information found for ${resolved.RealName || resolved.Name} (${resolved.Name}).`;
-      console.info("wbe: tryHandleSpouseBioPrompt - no spouses found", { resolved, profile });
-      return msg;
+      const pagePerson = getProfilePersonInfo();
+      for (const row of lastStructuredResult.rows) {
+        // Prefer rows that are not the current page person to avoid resolving to the page itself
+        const candidateId = String(row.wtid || row.wtId || row.id || "").trim();
+        if (pagePerson && candidateId && (candidateId === pagePerson.Name || candidateId === pagePerson.Id)) {
+          continue; // skip the page person
+        }
+        const display = String(row.displayName || row.wtid || row.wtId || "").trim();
+        const firstName = String(row.firstName || display.split(/\s+/)[0] || "").trim();
+        if (
+          tokenMatch(firstName) ||
+          tokenMatch(display) ||
+          tokenMatch(row.wtid) ||
+          tokenMatch(row.wtId) ||
+          tokenMatch(row.id)
+        ) {
+          resolved = { Name: candidateId || null, RealName: row.displayName || row.wtid };
+          console.info("wbe: tryHandlePersonBioPrompt overridden by lastStructuredResult match", { resolved, needle });
+          break;
+        }
+      }
+    }
+  } catch (e) {
+    /* ignore */
+  }
+
+  if (!resolved?.Name && !resolved?.Id) {
+    // Try to find a matching row in lastStructuredResult (e.g., from a previous spouse table)
+    try {
+      const needle = String(targetRaw || "")
+        .trim()
+        .toLowerCase();
+      if (lastStructuredResult?.rows?.length) {
+        const pagePerson = getProfilePersonInfo();
+        for (const row of lastStructuredResult.rows) {
+          const candidateId = String(row.wtid || row.wtId || row.id || "").trim();
+          if (pagePerson && candidateId && (candidateId === pagePerson.Name || candidateId === pagePerson.Id)) {
+            continue;
+          }
+          const name = String(row.displayName || row.wtid || "").toLowerCase();
+          if (name.startsWith(needle) || name === needle) {
+            resolved = { Name: candidateId || null, RealName: row.displayName || row.wtid };
+            console.info("wbe: tryHandlePersonBioPrompt resolved from lastStructuredResult", { resolved, needle });
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  // If still unresolved, try matching against recent connection candidates (if any)
+  if (!resolved?.Name && !resolved?.Id) {
+    try {
+      const needle = String(targetRaw || "")
+        .trim()
+        .toLowerCase();
+      if (needle && lastConnectionCandidates?.length) {
+        const pagePerson = getProfilePersonInfo();
+        for (const c of lastConnectionCandidates) {
+          const candidateId = String(c?.Name || c?.wtid || c?.id || "").trim();
+          if (pagePerson && candidateId && (candidateId === pagePerson.Name || candidateId === pagePerson.Id)) {
+            continue;
+          }
+          const name = String(c?.RealName || c?.Derived?.ShortName || c?.Name || c?.displayName || "").toLowerCase();
+          const first = String(c?.FirstName || name.split(/\s+/)[0] || "").toLowerCase();
+          if (!name) continue;
+          if (name === needle || name.startsWith(needle) || first === needle) {
+            resolved = { Name: candidateId || null, RealName: c.RealName || c.displayName || c.Name };
+            console.info("wbe: tryHandlePersonBioPrompt resolved from lastConnectionCandidates", { resolved, needle });
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  if (!resolved?.Name && !resolved?.Id) {
+    // DOM fallback: search for spouse entries matching the name
+    try {
+      const needle = String(targetRaw || "")
+        .trim()
+        .toLowerCase();
+      const domSpouseEls = Array.from(
+        document.querySelectorAll(
+          "a.spouseLink[href*='/wiki/'], a[itemprop=\"spouse\"][href*='/wiki/'], .spouseEntry a[href*='/wiki/']"
+        )
+      );
+      const pagePerson = getProfilePersonInfo();
+      for (const el of domSpouseEls) {
+        const nameText = (el.textContent || "").trim();
+        const realName = nameText || (el.querySelector(".spouse-name")?.textContent || "").trim();
+        if (realName && realName.toLowerCase().startsWith(needle)) {
+          const href = el.getAttribute("href") || "";
+          const m = href.match(/\/wiki\/([^#?\/]+)/);
+          const id = m ? decodeURIComponent(m[1]) : null;
+          if (id) {
+            // Skip the current page person if it appears in relation links
+            if (pagePerson && (id === pagePerson.Name || id === pagePerson.Id)) {
+              continue;
+            }
+            resolved = { Name: id, RealName: realName };
+            console.info("wbe: tryHandlePersonBioPrompt resolved from DOM by name", { resolved, needle });
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  if (!resolved?.Name && !resolved?.Id) {
+    // Attempt AI-assisted disambiguation using conversation context, structured results and DOM candidates
+    try {
+      const hasKey = await hasAnyApiKey();
+      if (hasKey) {
+        showChatShaky("Asking AI to resolve the name...");
+        const conversationContext = buildRecentConversationForAi();
+        const candidates = [];
+        if (lastStructuredResult?.rows?.length) {
+          for (const row of lastStructuredResult.rows.slice(0, 50)) {
+            candidates.push(`${row.displayName || row.wtid || ""} (ID: ${row.wtid || row.wtId || row.id || ""})`);
+          }
+        }
+        if (lastConnectionCandidates?.length) {
+          for (const c of lastConnectionCandidates.slice(0, 50)) {
+            candidates.push(`${c.displayName || c.Name || c.name || ""} (ID: ${c.Name || c.wtid || c.id || ""})`);
+          }
+        }
+        const domEls = Array.from(
+          document.querySelectorAll("a.spouseLink[href*='/wiki/'], .spouseEntry a[href*='/wiki/']")
+        );
+        for (const el of domEls.slice(0, 50)) {
+          const href = el.getAttribute("href") || "";
+          const m = href.match(/\/wiki\/([^#?\/]+)/);
+          const id = m ? decodeURIComponent(m[1]) : null;
+          const label = (el.textContent || "").trim();
+          if (id && label) candidates.push(`${label} (ID: ${id})`);
+        }
+
+        const aiPrompt = [
+          `You are given a short person name to match to a list of candidate WikiTree profiles.`,
+          candidates.length ? `Candidates:\n${candidates.join("\n")}` : "No explicit candidates available.",
+          conversationContext ? `Recent conversation:\n${conversationContext}` : "",
+          `Which candidate best matches the name \"${targetRaw}\"? Reply ONLY with the WikiTree ID (e.g. Name-123) or NO_ID if none match.`,
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+
+        // Try to call a generic AI helper if available; otherwise skip AI step
+        try {
+          let aiResult = null;
+          if (typeof window.callAiModel === "function") {
+            aiResult = await window.callAiModel(aiPrompt);
+          }
+          if (aiResult) {
+            const match = String(aiResult || "").trim();
+            if (match && match !== "NO_ID") {
+              resolved = { Name: match, RealName: targetRaw };
+              console.info("wbe: tryHandlePersonBioPrompt resolved by AI", { resolved, aiText: aiResult });
+            } else {
+              console.info("wbe: tryHandlePersonBioPrompt AI returned NO_ID", { aiText: aiResult });
+            }
+          }
+        } catch (e) {
+          console.info("wbe: tryHandlePersonBioPrompt AI fallback failed", { e });
+        }
+        hideChatShaky();
+      }
+    } catch (e) {
+      hideChatShaky();
+    }
+  }
+
+  const personKey = resolved?.Id || resolved?.Name;
+  // Track any profile fetch failures for the relation lookup so we can avoid
+  // auto-opening a single bio when some fetches failed.
+  let relationFetchFailedIds = [];
+  try {
+    if (!personKey) {
+      return `I couldn't identify which profile you meant by "${targetRaw}". Try a WikiTree ID like Name-123, or a more specific name.`;
     }
 
-    if (spouses.length === 1) {
-      // fetch spouse profile and show bio
-      const spouse = spouses[0];
-      const spouseId = spouse.Name;
-      try {
-        showChatShaky("Loading spouse bio...");
-        console.info("wbe: fetching spouse profile", { spouseId });
-        const [spProfile] = await WikiTreeAPI.getProfile(
-          WBE_CHAT_APP_ID,
-          spouseId,
-          "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
-          { bioFormat: "both", resolveRedirect: 1 }
-        );
-        hideChatShaky();
-        console.info("wbe: spouse profile fetched", { spouseId, hasProfile: !!spProfile, keys: spProfile ? Object.keys(spProfile) : [] });
-        // Prefer bio fields available (accept lowercase variants too)
-        const wikiBio =
-          spProfile?.Bio || spProfile?.BioText || spProfile?.Biography || spProfile?.bio || spProfile?.bioText || spProfile?.biography || "";
-        const htmlBio = spProfile?.BioHtml || spProfile?.BioHTML || spProfile?.bioHTML || spProfile?.bioHtml || "";
-        if (!wikiBio && !htmlBio) {
-          console.info("wbe: spouse profile returned but no bio fields present", { spouseId });
+    // If relationRaw maps to "self" or no explicit relation, show the person's own bio
+    const mapped = relationRaw ? relMap[relationRaw.toLowerCase()] : null;
+    const relationType = mapped || null;
+
+    if (!relationType || relationType === "self") {
+      // Fetch and show the subject's own bio
+      showChatShaky("Loading biography...");
+      console.info("wbe: tryHandlePersonBioPrompt fetching profile for self", { personKey });
+      const [profile] = await WikiTreeAPI.getProfile(
+        WBE_CHAT_APP_ID,
+        personKey,
+        "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
+        {
+          bioFormat: "both",
+          resolveRedirect: 1,
         }
-        const inlineMore = { text: wikiBio };
-        const message = `Biography for ${spProfile?.Name || spouseId}:`;
-        // Show chat message with action to open side-by-side bio popup
-        const result = {
-          message,
-          action: {
-            label: "Show Bio",
-            onClick: () => showBioPopupForId(spouseId),
-          },
-          inlineMore,
-        };
-        console.info("wbe: tryHandleSpouseBioPrompt returning result", { result });
-        return result;
-      } catch (err) {
-        hideChatShaky();
-        console.error("wbe: error fetching spouse profile", err);
-        return `Failed to fetch spouse profile for ${spouseId}.`;
+      );
+      hideChatShaky();
+      if (!profile) return `No profile data found for ${personKey}.`;
+      const inlineMore = { text: profile?.Bio || profile?.BioText || null };
+      const result = {
+        message: `Biography for ${profile?.Name || personKey}:`,
+        action: { label: "Show Bio", onClick: async () => { const w = await resolveToWTID(profile?.Name || personKey); showBioPopupForId(w).catch(()=>{}); } },
+        inlineMore,
+      };
+      showBioPopupForId(profile?.Name || personKey).catch(() => {});
+      return result;
+    }
+
+    // For relatives, attempt API-first and DOM fallbacks per relation
+    let entries = [];
+    if (relationType === "spouses") {
+      showChatShaky("Looking up spouse(s)...");
+      console.info("wbe: tryHandlePersonBioPrompt calling getRelatives for spouses", { personKey });
+      const relativesResult = await WikiTreeAPI.getRelatives(
+        WBE_CHAT_APP_ID,
+        personKey,
+        "Id,Name,RealName,Derived.ShortName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender",
+        { getSpouses: 1 }
+      );
+      hideChatShaky();
+      const [peopleResult] = relativesResult;
+      const profile = peopleResult?.person || {};
+      entries = Object.values(profile?.Spouses || {}).map((s) => ({ wtid: s.Name, displayName: s.RealName || s.Name }));
+      if (!entries.length) {
+        try {
+          const domSpouseEls = Array.from(
+            document.querySelectorAll(
+              "a.spouseLink[href*='/wiki/'], a[itemprop=\"spouse\"][href*='/wiki/'], .spouseEntry a[href*='/wiki/']"
+            )
+          );
+          const pagePerson = getProfilePersonInfo();
+          const domSpouses = domSpouseEls
+            .map((el) => {
+              const href = el.getAttribute("href") || "";
+              const m = href.match(/\/wiki\/([^#?\/]+)/);
+              const id = m ? decodeURIComponent(m[1]) : null;
+              const nameText = (el.textContent || "").trim();
+              return id ? { wtid: id, displayName: nameText || id } : null;
+            })
+            .filter(Boolean)
+            .filter((s) => {
+              if (!s || !s.wtid) return false;
+              if (pagePerson && (s.wtid === pagePerson.Name || s.wtid === pagePerson.Id)) return false;
+              return true;
+            });
+          if (domSpouses.length) entries = domSpouses;
+        } catch (e) {
+          console.info("wbe: tryHandlePersonBioPrompt spouse DOM fallback failed", { e });
+        }
+      }
+    } else if (relationType === "children") {
+      const ids = await fetchChildrenIdsForId(personKey);
+      if (ids && ids.length) {
+        const failed = [];
+        entries = [];
+        const allNumeric = ids.every((x) => Number.isFinite(Number(x)) && Number(x) > 0);
+        // For small numeric lists (typical parent lists of 1-2), prefer per-id getProfile
+        // so we map numeric Id -> WikiTree Name reliably. Use fetchPeoplePaged for
+        // larger batches for efficiency.
+        if (allNumeric && ids.length > 4) {
+          const [, , peopleMap] = await fetchPeoplePaged(
+            "Chat",
+            ids,
+            "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
+            {}
+          );
+          for (const id of ids) {
+            const key = String(id);
+            const p = peopleMap[key];
+            if (p && Object.keys(p).length)
+              entries.push({ wtid: p.Name || id, displayName: p.RealName || p.Name || id });
+            else failed.push(id);
+          }
+        } else {
+          const profiles = await fetchProfilesForIds(ids, "Bio,BioHtml,BioText,Biography,Name,RealName,Id", {
+            bioFormat: "both",
+            resolveRedirect: 1,
+          });
+          for (let i = 0; i < ids.length; i += 1) {
+            const p = profiles[i];
+            if (p && Object.keys(p).length)
+              entries.push({ wtid: p.Name || ids[i], displayName: p.RealName || p.Name || ids[i] });
+            else failed.push(ids[i]);
+          }
+        }
+        relationFetchFailedIds = failed.slice();
+        if (!entries.length && failed.length) {
+          return `Failed to load child profiles: ${failed.join(
+            ", "
+          )} — server errors or no data. No popups were opened.`;
+        }
+        if (relationFetchFailedIds.length) window.wbeSuppressAutoBioOpen = true;
+      }
+    } else if (relationType === "siblings") {
+      const ids = await fetchSiblingIdsForId(personKey);
+      if (ids && ids.length) {
+        const failed = [];
+        entries = [];
+        const allNumeric = ids.every((x) => Number.isFinite(Number(x)) && Number(x) > 0);
+        if (allNumeric) {
+          const [, , peopleMap] = await fetchPeoplePaged(
+            "Chat",
+            ids,
+            "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
+            {}
+          );
+          for (const id of ids) {
+            const key = String(id);
+            const p = peopleMap[key];
+            if (p && Object.keys(p).length) entries.push({ wtid: id, displayName: p.RealName || p.Name || id });
+            else failed.push(id);
+          }
+        } else {
+          const profiles = await fetchProfilesForIds(ids, "Bio,BioHtml,BioText,Biography,Name,RealName,Id", {
+            bioFormat: "both",
+            resolveRedirect: 1,
+          });
+          for (let i = 0; i < ids.length; i += 1) {
+            const p = profiles[i];
+            if (p && Object.keys(p).length) entries.push({ wtid: ids[i], displayName: p.RealName || p.Name || ids[i] });
+            else failed.push(ids[i]);
+          }
+        }
+        relationFetchFailedIds = failed.slice();
+        if (!entries.length && failed.length) {
+          return `Failed to load sibling profiles: ${failed.join(
+            ", "
+          )} — server errors or no data. No popups were opened.`;
+        }
+        if (relationFetchFailedIds.length) window.wbeSuppressAutoBioOpen = true;
+      }
+    } else if (relationType === "parents") {
+      const ids = await fetchParentIds(personKey);
+      if (ids && ids.length) {
+        const failed = [];
+        entries = [];
+        const allNumeric = ids.every((x) => Number.isFinite(Number(x)) && Number(x) > 0);
+        if (allNumeric) {
+          const [, , peopleMap] = await fetchPeoplePaged(
+            "Chat",
+            ids,
+            "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
+            {}
+          );
+          for (const id of ids) {
+            const key = String(id);
+            const p = peopleMap[key];
+            if (p && Object.keys(p).length) entries.push({ wtid: id, displayName: p.RealName || p.Name || id });
+            else failed.push(id);
+          }
+        } else {
+          const profiles = await fetchProfilesForIds(ids, "Bio,BioHtml,BioText,Biography,Name,RealName,Id", {
+            bioFormat: "both",
+            resolveRedirect: 1,
+          });
+          for (let i = 0; i < ids.length; i += 1) {
+            const p = profiles[i];
+            if (p && Object.keys(p).length) entries.push({ wtid: ids[i], displayName: p.RealName || p.Name || ids[i] });
+            else failed.push(ids[i]);
+          }
+        }
+        relationFetchFailedIds = failed.slice();
+        if (!entries.length && failed.length) {
+          return `Failed to load parent profiles: ${failed.join(
+            ", "
+          )} — server errors or no data. No popups were opened.`;
+        }
+        if (relationFetchFailedIds.length) window.wbeSuppressAutoBioOpen = true;
       }
     }
 
-    // Multiple spouses — present summary and let user pick
-    const preview = spouses.map((s) => `- ${s.RealName || s.Name} (${s.Name})`).join("\n");
+    if (!entries.length) {
+      return `No ${relationType} information found for ${resolved?.RealName || resolved?.Name || personKey}.`;
+    }
+
+    // If single entry, auto-open only when there were no profile-fetch failures
+    if (entries.length === 1) {
+      const singleId = entries[0].wtid;
+      if (Array.isArray(relationFetchFailedIds) && relationFetchFailedIds.length) {
+        // Some fetches failed; avoid auto-opening the single bio to prevent
+        // popping an incomplete view. Show the list and inform the user.
+        showBioListPopup(
+          `${relationType} for ${resolved?.RealName || resolved?.Name || personKey}`,
+          entries.slice(0, 50)
+        );
+        return {
+          message: `Found ${entries.length} ${relationType} for ${
+            resolved?.RealName || resolved?.Name || personKey
+          }, but some profiles failed to load (${relationFetchFailedIds.join(
+            ", "
+          )}). Open the list to view available entries.`,
+          action: {
+            label: "Open List",
+            onClick: () =>
+              showBioListPopup(
+                `${relationType} for ${resolved?.RealName || resolved?.Name || personKey}`,
+                entries.slice(0, 50)
+              ),
+          },
+        };
+      }
+      try {
+        const resolvedWtid = await resolveToWTID(singleId);
+        showBioPopupForId(resolvedWtid).catch(() => {});
+        return {
+          message: `Opened bio for ${entries[0].displayName || resolvedWtid}.`,
+          action: { label: "Show Bio", onClick: async () => { const w = await resolveToWTID(singleId); showBioPopupForId(w).catch(()=>{}); } },
+        };
+      } catch (err) {
+        return `Failed to open bio for ${entries[0].displayName || singleId}.`;
+      }
+    }
+
+    // Multiple entries — if user explicitly asked for bios (plural), open tiled popups and show list
+    if (wantsBioPlural) {
+      const ids = entries.map((e) => e.wtid).filter(Boolean);
+      try {
+        showBioListPopup(
+          `${relationType} bios for ${resolved?.RealName || resolved?.Name || personKey}`,
+          entries.slice(0, 50)
+        );
+        showTiledBioPopups(ids.slice(0, 9)); // limit to 9 tiled popups by default
+        return {
+          message: `Opened ${Math.min(ids.length, 9)} bios for ${resolved?.RealName || resolved?.Name || personKey}.`,
+        };
+      } catch (e) {
+        console.error("wbe: tryHandlePersonBioPrompt failed to open tiled bios", e);
+      }
+    }
+
+    // Default: show bio list popup and return a message/action
+    showBioListPopup(`${relationType} for ${resolved?.RealName || resolved?.Name || personKey}`, entries.slice(0, 50));
     return {
-      message: `Multiple spouses found for ${resolved.RealName || resolved.Name}:\n${preview}`,
+      message: `Found ${entries.length} ${relationType} for ${resolved?.RealName || resolved?.Name || personKey}.`,
       action: {
-        label: "Spouses",
-        onClick: () => listSpousesForId(personKey),
+        label: "Open List",
+        onClick: () =>
+          showBioListPopup(
+            `${relationType} for ${resolved?.RealName || resolved?.Name || personKey}`,
+            entries.slice(0, 50)
+          ),
       },
     };
   } catch (err) {
     hideChatShaky();
-    console.error("wbe: tryHandleSpouseBioPrompt error", err);
-    return `Failed to lookup spouse information for ${resolved.RealName || resolved.Name}.`;
+    console.error("wbe: tryHandlePersonBioPrompt error", err);
+    return `Failed to lookup information for ${resolved?.RealName || resolved?.Name || targetRaw}.`;
   }
 }
 
@@ -5317,67 +5929,62 @@ async function hasAnyApiKey() {
 }
 
 function ensureButtonContainer() {
-  let container = document.querySelector(".clipboardContainer");
-  if (container) {
-    return container;
-  }
+  const $existing = $(".clipboardContainer");
+  if ($existing.length) return $existing.get(0);
 
-  const profileActions = document.querySelector(".profile--actions.float-end");
-  if (profileActions) {
-    container = document.createElement("span");
-    container.className = "clipboardContainer";
-    const readingMode = profileActions.querySelector("a.action--reading-mode");
-    if (readingMode) {
-      profileActions.insertBefore(container, readingMode);
+  const $profileActions = $(".profile--actions.float-end");
+  if ($profileActions.length) {
+    const $container = $("<span>").addClass("clipboardContainer");
+    const $readingMode = $profileActions.find("a.action--reading-mode");
+    if ($readingMode.length) {
+      $readingMode.first().before($container);
     } else {
-      profileActions.appendChild(container);
+      $profileActions.append($container);
     }
-    return container;
+    return $container.get(0);
   }
 
-  const managerBox = document.querySelector("#Manager")?.closest("div");
-  if (managerBox) {
-    container = document.createElement("span");
-    container.className = "clipboardContainer";
-    managerBox.prepend(container);
-    return container;
+  const $managerBox = $("#Manager").closest("div");
+  if ($managerBox.length) {
+    const $container = $("<span>").addClass("clipboardContainer");
+    $managerBox.prepend($container);
+    return $container.get(0);
   }
 
   return null;
 }
 
 function closePopup() {
-  document.getElementById(CHAT_POPUP_ID)?.remove();
+  $(`#${CHAT_POPUP_ID}`).remove();
 }
 
 function openPopup() {
-  let popup = document.getElementById(CHAT_POPUP_ID);
-  if (!popup) {
-    popup = document.createElement("div");
-    popup.id = CHAT_POPUP_ID;
-    popup.className = "wbe-popup chat-popup";
-    popup.innerHTML = `
-      <div class="chat-popup-header">
-        <strong>Chat</strong>
-        <div class="chat-popup-controls">
-          <button id="${CHAT_CLEAR_ID}" type="button" class="small" title="Clear chat">Clear</button>
-          <button type="button" class="small close-popup" aria-label="Close" title="Close">&times;</button>
+  let $popup = $(`#${CHAT_POPUP_ID}`);
+  if ($popup.length === 0) {
+    $popup = $(
+      `<div id="${CHAT_POPUP_ID}" class="wbe-popup chat-popup">
+        <div class="chat-popup-header">
+          <strong>Chat</strong>
+          <div class="chat-popup-controls">
+            <button id="${CHAT_CLEAR_ID}" type="button" class="small" title="Clear chat">Clear</button>
+            <button type="button" class="small close-popup" aria-label="Close" title="Close">&times;</button>
+          </div>
         </div>
-      </div>
-      <div class="chat-popup-body">
-        <div id="${CHAT_MESSAGES_ID}" class="chat-messages"></div>
-        <div class="chat-input-row">
-          <textarea id="${CHAT_INPUT_ID}" rows="2" placeholder="Ask something"></textarea>
-          <button id="${CHAT_SEND_ID}" type="button" class="small">Send</button>
+        <div class="chat-popup-body">
+          <div id="${CHAT_MESSAGES_ID}" class="chat-messages"></div>
+          <div class="chat-input-row">
+            <textarea id="${CHAT_INPUT_ID}" rows="2" placeholder="Ask something"></textarea>
+            <button id="${CHAT_SEND_ID}" type="button" class="small">Send</button>
+          </div>
         </div>
-      </div>
-    `;
-    document.body.appendChild(popup);
-    positionPopupForOpen(popup);
-    popup.querySelector(".close-popup")?.addEventListener("click", closePopup);
-    popup.querySelector(`#${CHAT_CLEAR_ID}`)?.addEventListener("click", clearHistory);
-    popup.querySelector(`#${CHAT_SEND_ID}`)?.addEventListener("click", sendChatPrompt);
-    popup.querySelector(`#${CHAT_INPUT_ID}`)?.addEventListener("keydown", (event) => {
+      </div>`
+    ).appendTo(document.body);
+
+    positionPopupForOpen($popup.get(0));
+    $popup.find(".close-popup").on("click", closePopup);
+    $popup.find(`#${CHAT_CLEAR_ID}`).on("click", clearHistory);
+    $popup.find(`#${CHAT_SEND_ID}`).on("click", sendChatPrompt);
+    $popup.find(`#${CHAT_INPUT_ID}`).on("keydown", (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
         closePopup();
@@ -5397,55 +6004,52 @@ function openPopup() {
       appendMessage("assistant", CHAT_APPS_LOGIN_HINT);
     }
 
-    $(popup).draggable({
+    $popup.draggable({
       handle: ".chat-popup-header",
       containment: "window",
       scroll: false,
       start: () => {
-        popup.style.right = "auto";
-        popup.style.transform = "none";
+        $popup.get(0).style.right = "auto";
+        $popup.get(0).style.transform = "none";
       },
       drag: () => {
-        clampPopupToViewport(popup);
+        clampPopupToViewport($popup.get(0));
       },
       stop: () => {
-        clampPopupToViewport(popup);
+        clampPopupToViewport($popup.get(0));
       },
+    });
+    // Bring popup to front when clicked or focused
+    $popup.on("mousedown focusin", () => {
+      try {
+        setHighestZIndex($popup.get(0));
+      } catch (e) {
+        /* ignore */
+      }
     });
   }
 
-  popup.style.display = "block";
-  positionPopupForOpen(popup);
-  setHighestZIndex(popup);
-  popup.querySelector(`#${CHAT_INPUT_ID}`)?.focus();
+  $popup.show();
+  positionPopupForOpen($popup.get(0));
+  setHighestZIndex($popup.get(0));
+  $popup.find(`#${CHAT_INPUT_ID}`).focus();
 }
 
 function ensureChatButton() {
-  if (document.getElementById(CHAT_BUTTON_ID)) {
-    return;
-  }
-
+  if (document.getElementById(CHAT_BUTTON_ID)) return;
   const container = ensureButtonContainer();
-  if (!container) {
-    return;
-  }
-
+  if (!container) return;
   const iconUrl = chrome.runtime.getURL("images/chat.svg");
-  const button = document.createElement("a");
-  button.id = CHAT_BUTTON_ID;
-  button.href = "#";
-  button.className = "wbe-button";
-  button.setAttribute("data-tooltip", "Chat");
-  button.setAttribute("data-bs-title", "Chat");
-  button.setAttribute("data-bs-toggle", "tooltip");
-  button.setAttribute("title", "Open Chat");
-  button.innerHTML = `<span class="icon--chat" style="background-image:url(${iconUrl})"></span>`;
-  button.addEventListener("click", (e) => {
+  const $button = $(
+    `<a id="${CHAT_BUTTON_ID}" href="#" class="wbe-button" data-tooltip="Chat" data-bs-title="Chat" data-bs-toggle="tooltip" title="Open Chat"><span class="icon--chat" style="background-image:url(${iconUrl})"></span></a>`
+  );
+  $button.on("click", (e) => {
     e.preventDefault();
     openPopup();
   });
-  container.appendChild(button);
+  $(container).append($button);
 }
+ 
 
 function hideChatButtonAndPopup() {
   document.getElementById(CHAT_BUTTON_ID)?.remove();
@@ -5463,6 +6067,13 @@ async function syncChatVisibilityToKeys() {
 function init() {
   syncChatVisibilityToKeys();
 
+  // Restore persisted chat state (history, last structured/table, last bio)
+  try {
+    loadHistory();
+  } catch (e) {
+    /* ignore load errors */
+  }
+
   window.addEventListener("resize", () => {
     const popup = document.getElementById(CHAT_POPUP_ID);
     if (!popup) {
@@ -5471,7 +6082,7 @@ function init() {
 
     try {
       if ($(popup).hasClass("ui-resizable")) {
-        $(popup).resizable("option", getPopupResizeLimits());
+        $(popup).resizable("option", uiGetPopupResizeLimits());
       }
     } catch (error) {
       // Ignore if resizable has not been initialized yet.

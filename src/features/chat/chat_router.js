@@ -725,6 +725,16 @@ function parseSpousePrompt(prompt) {
     };
   }
 
+  // Possessive forms: "X's wife", "X's husband", "X's spouse"
+  const possessiveMatch = normalized.match(/^\s*(.+?)'s\s+(?:wives|wife|husbands|husband|spouses|spouse)\??$/i);
+  if (possessiveMatch?.[1]) {
+    return {
+      gender: null,
+      target: possessiveMatch[1].trim(),
+      relationshipLabel: "spouses",
+    };
+  }
+
   return null;
 }
 
