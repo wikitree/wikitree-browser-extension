@@ -91,7 +91,7 @@ export function cloneResultWithRows(result, title, rows, defaultOrder = result?.
   };
 }
 
-export function makeStandardProfileTable(title, rows, defaultOrder = [[2, "asc"]]) {
+export function makeStandardProfileTable(title, rows, defaultOrder = [[3, "asc"]]) {
   return {
     title,
     defaultOrder,
@@ -102,8 +102,30 @@ export function makeStandardProfileTable(title, rows, defaultOrder = [[2, "asc"]
         render: (row) => makeProfileLink(row.wtid, row.wtid),
       },
       { title: "First Name", key: "firstName" },
+      { title: "Middle Name", key: "middleName" },
       { title: "LNAB", key: "lnab", cellClass: "nowrap-cell" },
       { title: "Current Last", key: "lastNameCurrent", cellClass: "nowrap-cell" },
+      {
+        title: "Spouse",
+        key: "spouse",
+        render: (row) => {
+          try {
+            const list = row?.spouseList || [];
+            if (Array.isArray(list) && list.length) {
+              return list
+                .map((s) => {
+                  const label = [s.firstName || s.display || "", s.lnab || ""].filter(Boolean).join(" ");
+                  return makeProfileLink(s.wtid, label || s.wtid || "");
+                })
+                .join(", ");
+            }
+            // fallback to plain string
+            return escapeHtml(row?.spouse || "");
+          } catch (e) {
+            return escapeHtml(row?.spouse || "");
+          }
+        },
+      },
       { title: "°", key: "degrees" },
       { title: "Birth", key: "birth", cellClass: "chat-date-cell" },
       { title: "Death", key: "death", cellClass: "chat-date-cell" },

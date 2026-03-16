@@ -1895,22 +1895,47 @@ $(document).on("click", ".wbe-popup,#editorExpanderFixedDiv", function (e) {
 });
 
 export function setHighestZIndex(el) {
-  // Only consider visible elements with a z-index
-  const zIndex = Math.max(
-    ...Array.from(document.querySelectorAll("*"))
-      .filter((el) => {
-        const style = getComputedStyle(el);
-        return (
-          style.display !== "none" &&
-          style.visibility !== "hidden" &&
-          !["largeImagePopup", "pagePreview"].includes(el.id) &&
-          !el.classList.contains("dropdown-menu")
-        );
-      })
-      .map((el) => parseFloat(getComputedStyle(el).zIndex) || 0)
-  );
+  // Compute max z-index across visible elements and set target to one higher.
+  const allElems = Array.from(document.querySelectorAll("*")).filter((e) => {
+    try {
+      const style = getComputedStyle(e);
+      return style.display !== "none" && style.visibility !== "hidden";
+    } catch (ee) {
+      return false;
+    }
+  });
 
-  $(el).css("z-index", zIndex + 1);
+  const allZ = allElems.map((e) => parseFloat(getComputedStyle(e).zIndex) || 0);
+  const rawMax = allZ.length ? Math.max(...allZ) : 0;
+
+  try {
+    // Log the top 10 elements by z-index for diagnostics
+    const elems = allElems
+      .map((e) => {
+        try {
+          const z = parseFloat(getComputedStyle(e).zIndex) || 0;
+          const tag = (e.tagName || "").toLowerCase();
+          const id = e.id ? `#${e.id}` : "";
+          const cls =
+            e.className && typeof e.className === "string"
+              ? `.${e.className.trim().split(/\s+/).slice(0, 4).join(".")}`
+              : "";
+          const desc = `${tag}${id}${cls}`.slice(0, 120);
+          return { z, desc };
+        } catch (ee) {
+          return { z: 0, desc: "<error>" };
+        }
+      })
+      .sort((a, b) => b.z - a.z)
+      .slice(0, 10);
+    console.debug("wbe: top z-index elements", elems);
+  } catch (logErr) {
+    /* ignore logging errors */
+  }
+
+  // Set the element to one more than the current maximum z-index
+  const targetZ = rawMax + 1;
+  $(el).css("z-index", targetZ);
 }
 
 //////////////////// For Notables Project

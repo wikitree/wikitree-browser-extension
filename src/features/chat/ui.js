@@ -229,3 +229,198 @@ window.wbeUi = window.wbeUi || {};
 window.wbeUi.showChatShaky = showChatShaky;
 window.wbeUi.hideChatShaky = hideChatShaky;
 window.wbeUi.showConnectionsPopup = showConnectionsPopup;
+
+// Sanitize profile HTML for insertion into popups to avoid CSP inline-script execution.
+export function sanitizeHtmlForPopup(html) {
+  try {
+    if (!html) return "";
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(String(html), "text/html");
+    // Remove script tags
+    doc.querySelectorAll("script").forEach((s) => s.remove());
+    // Remove inline event handler attributes (on*) and javascript: src/href
+    const all = doc.querySelectorAll("*");
+    all.forEach((el) => {
+      Array.from(el.attributes).forEach((attr) => {
+        const name = String(attr.name || "");
+        const val = String(attr.value || "");
+        if (/^on/i.test(name)) {
+          el.removeAttribute(name);
+        }
+        if ((name === "src" || name === "href") && /^javascript:/i.test(val)) {
+          el.removeAttribute(name);
+        }
+      });
+    });
+    return doc.body.innerHTML || "";
+  } catch (e) {
+    return "";
+  }
+}
+
+// Normalize extraction of wiki and html bio fields from profile objects
+export function extractProfileBios(profile) {
+  if (!profile || typeof profile !== "object") return { wikiBio: "", htmlBio: "" };
+  const wikiBio =
+    profile.Bio ||
+    profile.BioText ||
+    profile.BioWiki ||
+    profile.Biography ||
+    profile.bio ||
+    profile.bioText ||
+    profile.biography ||
+    "";
+  const htmlBio =
+    profile.BioHtml ||
+    profile.BioHTML ||
+    profile.Bio_Html ||
+    profile.BioHtmlText ||
+    profile.bioHTML ||
+    profile.bioHtml ||
+    profile.bio_html ||
+    "";
+  return { wikiBio, htmlBio };
+}
+
+// Small popup to list multiple bios with Open buttons
+export function showBioListPopup(title, entries = [], onOpenTiled) {
+  try {
+    $("#wbe-bio-list-popup").remove();
+    const popupWidth = Math.max(360, Math.floor(window.innerWidth * 0.4));
+
+    const listItems = (entries || [])
+      .map(
+        (e) =>
+          `<li><span>${escapeHtml(e.displayName || e.wtid || "")} (${escapeHtml(
+            e.wtid || ""
+          )})</span> <button class="open-bio" data-wtid="${escapeHtml(e.wtid || "")}">Open Bio</button></li>`
+      )
+      .join("");
+
+    const html = `
+      <div id="wbe-bio-list-popup" class="wbe-popup chat-popup ui-draggable" style="display:block;width:${popupWidth}px;left:${Math.floor(
+      (window.innerWidth - popupWidth) / 2
+    )}px">
+        <div class="chat-popup-header ui-draggable-handle">
+          <strong>${escapeHtml(title || "Profiles")}</strong>
+          <div class="chat-popup-controls">
+            <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+          </div>
+        </div>
+        <div class="chat-popup-body chat-popup-body--compact">
+          <ul class="spouse-list">
+            ${listItems}
+          </ul>
+          <div class="bio-list-actions" style="margin-top:8px;">
+            <button class="open-all-tiled small">Open All (Tiled)</button>
+          </div>
+        </div>
+      </div>`;
+
+    const $popup = $(html).appendTo(document.body);
+    $popup.find(".close-popup").on("click", () => $popup.remove());
+    $popup.find(".open-all-tiled").on("click", () => {
+      const ids = entries.map((e) => e.wtid).filter(Boolean);
+      if (ids.length && typeof onOpenTiled === "function") onOpenTiled(ids.slice(0, 12));
+    });
+    $popup.find(".open-bio").on("click", async (e) => {
+      const raw = $(e.currentTarget).attr("data-wtid");
+      if (!raw) return;
+      // callers should resolve WTID before opening; provide raw back via attribute
+      $popup.remove();
+      if (typeof onOpenTiled === "function") onOpenTiled([raw]);
+    });
+    setHighestZIndex($popup.get(0));
+    $popup.draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
+    // Do not auto-open the first bio to avoid unexpected popups when profile
+    // fetches fail or return empty content. Require the user to click an entry.
+  } catch (e) {
+    console.error("wbe: showBioListPopup error", e);
+  }
+}
+
+// Open multiple bio popups tiled on screen. Creates individual popups per profile id.
+export function showTiledBioPopups(ids = [], fetchProfilesFn) {
+  if (!Array.isArray(ids) || !ids.length) return;
+  const max = Math.min(ids.length, 12);
+  const toOpen = ids.slice(0, max);
+  // fetchProfilesFn should be provided by caller (chat module) to perform API fetch
+  if (typeof fetchProfilesFn !== "function") {
+    console.error("showTiledBioPopups requires a fetchProfilesFn callback");
+    return;
+  }
+  return (async () => {
+    const profiles = await fetchProfilesFn(toOpen);
+    const anyValid = Array.isArray(profiles) && profiles.some((p) => p && Object.keys(p).length > 0);
+    if (!anyValid) {
+      try {
+        // fallback: let caller append a message
+        return { opened: 0, error: true };
+      } catch (e) {
+        return { opened: 0, error: true };
+      }
+    }
+    // Layout: up to 4 columns depending on count
+    const cols = Math.min(3, Math.max(1, Math.floor(Math.sqrt(toOpen.length))));
+    const width = Math.floor((window.innerWidth - 40) / cols);
+    let left = 10;
+    let top = 80;
+    let col = 0;
+    let opened = 0;
+    for (let i = 0; i < toOpen.length; i += 1) {
+      const id = toOpen[i];
+      const profile = profiles[i] || null;
+      if (!profile) continue; // skip failed fetches
+      const { wikiBio, htmlBio } = extractProfileBios(profile);
+      // Skip profiles that have no biography content to avoid empty popups
+      if (!wikiBio && !htmlBio) continue;
+      const name = (profile && (profile.RealName || profile.Name)) || id;
+      const pid = `wbe-bio-popup-${encodeURIComponent(id)}`;
+      $(`#${pid}`).remove();
+      const $p = $(
+        `<div id="${pid}" class="wbe-popup chat-popup ui-draggable" style="display:block;width:${width}px;left:${left}px;top:${top}px">
+          <div class="chat-popup-header ui-draggable-handle">
+            <strong>Biography: ${escapeHtml(name)}</strong>
+            <div class="chat-popup-controls"><button type="button" class="small close-popup" title="Close">×</button></div>
+          </div>
+          <div class="chat-popup-body chat-popup-body--columns" style="height:320px;overflow:auto;">
+            <div class="bio-column bio-column--wiki">
+              <pre class="bio-wiki-pre">${escapeHtml(wikiBio || "(no wiki text)")}</pre>
+            </div>
+            <div class="bio-column">
+              <div class="bio-html-container">${sanitizeHtmlForPopup(htmlBio) || "<i>(no html)</i>"}</div>
+            </div>
+          </div>
+        </div>`
+      ).appendTo(document.body);
+      $p.find(".close-popup").on("click", () => $p.remove());
+      setHighestZIndex($p.get(0));
+      $p.draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
+      // advance grid position for next tiled popup
+      if (!Number.isFinite(col)) col = 0;
+      col += 1;
+      if (col >= cols) {
+        col = 0;
+        left = 10;
+        top += 340;
+      } else {
+        left += width + 10;
+      }
+      opened += 1;
+    }
+    return { opened, error: false };
+  })();
+}
+
+export function closeBioPopup() {
+  document.getElementById("wbe-bio-popup")?.remove();
+}
+
+// Safe no-op to satisfy callers; removes any leftover persistent button if present.
+export function addBioButton() {
+  try {
+    $("#wbe-bio-button").remove();
+  } catch (e) {
+    /* ignore */
+  }
+}

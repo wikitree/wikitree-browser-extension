@@ -476,6 +476,13 @@ WikiTreeAPI.searchPerson = async function (appId, searchParams = {}, fields = ""
     parameters.fields = commaSeparatedString(fields);
   }
 
+  // Debug: log the exact parameters we'll send to the API for troubleshooting
+  try {
+    console.debug("wbe: WikiTreeAPI.searchPerson parameters", parameters);
+  } catch (e) {
+    /* ignore */
+  }
+
   const result = await WikiTreeAPI.postToAPI(parameters);
   return [result[0].status, result[0].matches || [], result[0].total || 0, result[0].start || 0, result[0].limit || 0];
 };
@@ -579,6 +586,9 @@ WikiTreeAPI.isLoggedIntoAPI = async function (userNumId, appId = "WBE_check_logi
  * @param {*} signal (optional) The AbortController.signal to listen on for aborting the call
  * @returns
  */
+// Map of in-flight requests so identical concurrent requests can be de-duped.
+const inflightRequests = new Map();
+
 WikiTreeAPI.postToAPI = async function (postData, signal) {
   condLog(`>>>>> postToAPI ${postData.action} ${postData.key || postData.keys}`, postData);
 
@@ -614,12 +624,38 @@ WikiTreeAPI.postToAPI = async function (postData, signal) {
     options["signal"] = signal;
   }
 
-  const response = await fetch(API_URL, options);
-  if (!response.ok) {
-    // condLog(" ${response.status}: ${response.statusText} ");
-    throw new Error(`HTTP error! Status: ${response.status}: ${response.statusText}`);
+  // Debug: log the outgoing body being sent to the API (key=value string)
+  let bodyParams;
+  try {
+    bodyParams = new URLSearchParams(formData);
+    console.debug("wbe: postToAPI outgoing body", bodyParams.toString());
+  } catch (e) {
+    /* ignore logging errors */
   }
-  return await response.json();
+
+  // Build a dedupe key based on action/appId and the encoded body. If an identical request is already
+  // in-flight, return the same promise instead of issuing a duplicate fetch.
+  const bodyKey = `${postData.action || ""}|${postData.appId || ""}|${(bodyParams && bodyParams.toString()) || ""}`;
+  if (inflightRequests.has(bodyKey)) {
+    console.debug("wbe: postToAPI dedupe - returning existing in-flight request", bodyKey);
+    return inflightRequests.get(bodyKey);
+  }
+
+  const fetchPromise = (async () => {
+    const response = await fetch(API_URL, options);
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}: ${response.statusText}`);
+    }
+    return await response.json();
+  })();
+
+  inflightRequests.set(bodyKey, fetchPromise);
+  try {
+    const result = await fetchPromise;
+    return result;
+  } finally {
+    inflightRequests.delete(bodyKey);
+  }
 };
 
 WikiTreeAPI.lookupProfile = function (wtId, resultByKey, people) {

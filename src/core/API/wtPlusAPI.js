@@ -39,7 +39,17 @@ export const wtAPIProfileSearch = (callerID, query, params) => {
     s += "&MaxProfiles=" + (params.maxProfiles || 10000);
     if (params.pageSize) s += "&pageSize=" + params.pageSize;
     if (params.pageIdx) s += "&pageIdx=" + params.pageIdx;
+
+    // Append any other provided params directly to the query string
+    Object.keys(params).forEach((k) => {
+      if (["maxProfiles", "pageSize", "pageIdx"].includes(k)) return;
+      const v = params[k];
+      if (v === undefined || v === null || v === "") return;
+      // Use the key as provided (API expects specific param names)
+      s += `&${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`;
+    });
   }
+
   return wtAPICall(`WTWebProfileSearch/apiWBE_${callerID}.json?Query=${query}${s}`);
 };
 

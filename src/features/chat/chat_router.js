@@ -43,6 +43,8 @@ const RESULT_FIELD_ALIASES = {
   "death location": "deathLocation",
 };
 
+import { getProfilePersonInfo } from "../../core/common";
+
 function parseCc7LocationPrompt(prompt) {
   const compactBorn = prompt.match(/^(?:my\s+)?cc(\d+)\s+born\s+in\s+(.+?)\??$/i);
   if (compactBorn?.[2]) {
@@ -230,6 +232,231 @@ function extractConnectionTarget(prompt) {
     return "";
   }
   return toMatch[1].trim();
+}
+
+// Additional utility helpers (moved from chat.js)
+export function normalizePersonText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+export function splitPersonName(value) {
+  const cleaned = String(value || "")
+    .trim()
+    .replace(/[?.!]+$/, "");
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+  return {
+    firstName: parts[0] || "",
+    lastName: parts.length > 1 ? parts[parts.length - 1] : "",
+  };
+}
+
+export function normalizeConnectionTargetForSearch(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[?.!]+$/, "")
+    .replace(/\b(?:the\s+)?(?:actor|actress|singer|musician|writer|poet|politician|comedian|mp|sir|dame)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function isConnectionCorrectionPrompt(prompt) {
+  return /^(?:he\s*'?s\s+not|she\s*'?s\s+not|that\s*'?s\s+not|not\s+him|not\s+her|wrong\s+person|not\s+the\s+right\s+person)/i.test(
+    String(prompt || "").trim()
+  );
+}
+
+export function extractCorrectionTarget(prompt) {
+  const normalized = String(prompt || "").trim();
+  const match = normalized.match(/(?:not|wrong\s+person\s*[:,]?)(?:\s+the\s+)?\s+(.+?)\??$/i);
+  if (!match?.[1]) return "";
+  return normalizeConnectionTargetForSearch(match[1]);
+}
+
+export function isWikiTreeId(value) {
+  return /^[A-Za-z][A-Za-z0-9_]+-\d+$/i.test(String(value || "").trim());
+}
+
+export function extractWikiTreeIdFromHref(href) {
+  const value = String(href || "").trim();
+  if (!value) return "";
+  try {
+    const resolved = new URL(value, window.location.origin);
+    const match = resolved.pathname.match(/\/wiki\/([^/?#]+)/i);
+    const wikiId = decodeURIComponent(match?.[1] || "").trim();
+    return isWikiTreeId(wikiId) ? wikiId : "";
+  } catch (error) {
+    return "";
+  }
+}
+
+export function extractYearFromDate(value) {
+  const match = String(value || "").match(/^(\d{4})/);
+  if (!match || match[1] === "0000") return null;
+  const year = Number(match[1]);
+  return Number.isFinite(year) ? year : null;
+}
+
+export function scorePageContextCandidate(target, targetParts, candidate) {
+  const normalizedTarget = normalizePersonText(target);
+  if (!normalizedTarget) return 0;
+
+  const targetFirst = normalizePersonText(targetParts.firstName);
+  const targetLast = normalizePersonText(targetParts.lastName);
+  const name = normalizePersonText(candidate.displayName);
+  const title = normalizePersonText(candidate.title);
+  const wtId = normalizePersonText(candidate.wtId || "");
+  const haystacks = [name, title, wtId].filter(Boolean);
+  let score = 0;
+
+  haystacks.forEach((haystack) => {
+    if (haystack === normalizedTarget) score = Math.max(score, 500);
+    else if (haystack.startsWith(`${normalizedTarget} `) || haystack.endsWith(` ${normalizedTarget}`))
+      score = Math.max(score, 360);
+    else if (haystack.includes(normalizedTarget)) score = Math.max(score, 240);
+  });
+
+  if (targetFirst && targetLast) {
+    const firstMatches = haystacks.some(
+      (haystack) => haystack.startsWith(`${targetFirst} `) || haystack.includes(` ${targetFirst} `)
+    );
+    const lastMatches = haystacks.some(
+      (haystack) =>
+        haystack.endsWith(` ${targetLast}`) || haystack.includes(` ${targetLast} `) || haystack === targetLast
+    );
+    if (firstMatches) score += 80;
+    if (lastMatches) score += 140;
+  }
+
+  return score;
+}
+
+export function findPageContextPersonCandidate(target) {
+  const cleanedTarget = normalizeConnectionTargetForSearch(target);
+  const normalizedTarget = normalizePersonText(cleanedTarget);
+  if (!normalizedTarget) return null;
+
+  const targetParts = splitPersonName(cleanedTarget);
+  const deduped = new Map();
+
+  const profilePerson = getProfilePersonInfo();
+  if (profilePerson?.Name) {
+    const profileCandidate = {
+      wtId: profilePerson.Name,
+      displayName:
+        profilePerson.FullName || `${profilePerson.FirstName || ""} ${profilePerson.LastNameAtBirth || ""}`.trim(),
+      title: document.title || "",
+    };
+    const score = scorePageContextCandidate(cleanedTarget, targetParts, profileCandidate);
+    if (score > 0) deduped.set(profileCandidate.wtId, { ...profileCandidate, score });
+  }
+
+  document.querySelectorAll('a[href*="/wiki/"]').forEach((anchor) => {
+    const wtId = extractWikiTreeIdFromHref(anchor.getAttribute("href") || anchor.href || "");
+    if (!wtId) return;
+    const candidate = {
+      wtId,
+      displayName: String(anchor.textContent || "").trim(),
+      title: String(anchor.getAttribute("title") || "").trim(),
+    };
+    const score = scorePageContextCandidate(cleanedTarget, targetParts, candidate);
+    if (score < 320) return;
+    const existing = deduped.get(wtId);
+    if (!existing || score > existing.score) deduped.set(wtId, { ...candidate, score });
+  });
+
+  const ranked = Array.from(deduped.values()).sort((l, r) => r.score - l.score);
+  return ranked[0] || null;
+}
+
+export function mergeConnectionMatches(matchLists) {
+  const merged = new Map();
+  (matchLists || []).forEach((list) => {
+    (list || []).forEach((match) => {
+      const key = String(match?.Name || match?.Id || "").trim();
+      if (!key) return;
+      if (!merged.has(key)) merged.set(key, match);
+    });
+  });
+  return Array.from(merged.values());
+}
+
+export function rankConnectionMatches(target, matches, targetParts = {}) {
+  if (!Array.isArray(matches) || !matches.length) return [];
+  const normalizedTarget = normalizePersonText(target);
+  const normalizedFirst = normalizePersonText(targetParts.firstName);
+  const normalizedLast = normalizePersonText(targetParts.lastName);
+  const ranked = matches.map((match) => {
+    const name = match?.Name || "";
+    const realName = match?.RealName || match?.Derived?.ShortName || "";
+    const lastCurrent = match?.LastNameCurrent || "";
+    const lastBirth = match?.LastNameAtBirth || "";
+    const profileFirst = match?.FirstName || "";
+    let score = 0;
+
+    if (normalizePersonText(name) === normalizedTarget) score += 100;
+    if (normalizePersonText(realName) === normalizedTarget) score += 120;
+    if (
+      normalizePersonText(realName).includes(normalizedTarget) ||
+      normalizedTarget.includes(normalizePersonText(realName))
+    )
+      score += 35;
+
+    if (normalizedLast) {
+      if (normalizePersonText(lastCurrent) === normalizedLast || normalizePersonText(lastBirth) === normalizedLast)
+        score += 140;
+      else score -= 120;
+    }
+
+    if (normalizedFirst) {
+      if (normalizePersonText(profileFirst) === normalizedFirst) score += 80;
+      else if (normalizePersonText(realName).startsWith(`${normalizedFirst} `)) score += 40;
+    }
+
+    if (name) score += 5;
+    const idx = Number(match?.index);
+    if (Number.isFinite(idx)) score += Math.max(0, 25 - idx);
+    return { match, score };
+  });
+  ranked.sort((l, r) => r.score - l.score);
+  return ranked;
+}
+
+export function shouldUseAiForConnectionDisambiguation(targetParts, rankedMatches) {
+  if (!rankedMatches.length) return false;
+  if (rankedMatches.length === 1) return false;
+  const top = rankedMatches[0];
+  const second = rankedMatches[1];
+  if (!top?.match || !second?.match) return false;
+  const closeScore = Math.abs((top.score || 0) - (second.score || 0)) < 45;
+  const topBirthYear = extractYearFromDate(top.match.BirthDate);
+  const secondBirthYear = extractYearFromDate(second.match.BirthDate);
+  const highlyDifferentEra =
+    Number.isFinite(topBirthYear) && Number.isFinite(secondBirthYear) && Math.abs(topBirthYear - secondBirthYear) > 80;
+  const hasFullNameTarget = Boolean(targetParts.firstName && targetParts.lastName);
+  return hasFullNameTarget && (closeScore || highlyDifferentEra);
+}
+
+export function pause(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function getCommonAliasExpansion(target) {
+  const normalized = String(target || "")
+    .trim()
+    .toLowerCase();
+  const aliases = {
+    qe2: { searchName: "Elizabeth Windsor", birthYear: 1926 },
+    "queen elizabeth ii": { searchName: "Elizabeth Windsor", birthYear: 1926 },
+    "queen elizabeth 2": { searchName: "Elizabeth Windsor", birthYear: 1926 },
+    jfk: { searchName: "John F Kennedy", birthYear: 1917 },
+    "john f. kennedy": { searchName: "John Fitzgerald Kennedy", birthYear: 1917 },
+    mlk: { searchName: "Martin Luther King Jr", birthYear: 1929 },
+    "martin luther king": { searchName: "Martin Luther King Jr", birthYear: 1929 },
+  };
+  return aliases[normalized] || null;
 }
 
 function parseProfileSearchPrompt(prompt) {

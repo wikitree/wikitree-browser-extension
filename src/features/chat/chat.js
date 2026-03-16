@@ -10,7 +10,25 @@ import { getRelationJSON } from "../../core/API/wwwWikiTree";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { getUserWtId, getUserNumId, getProfilePersonInfo } from "../../core/common";
 import { setHighestZIndex } from "../../core/common";
-import { routeChatPrompt, ChatIntent } from "./chat_router";
+import {
+  routeChatPrompt,
+  ChatIntent,
+  normalizePersonText,
+  splitPersonName,
+  normalizeConnectionTargetForSearch,
+  isConnectionCorrectionPrompt,
+  extractCorrectionTarget,
+  isWikiTreeId,
+  extractWikiTreeIdFromHref,
+  scorePageContextCandidate,
+  findPageContextPersonCandidate,
+  mergeConnectionMatches,
+  rankConnectionMatches,
+  shouldUseAiForConnectionDisambiguation,
+  pause,
+  getCommonAliasExpansion,
+  extractYearFromDate,
+} from "./chat_router";
 import "datatables.net-dt/css/jquery.dataTables.css";
 import "datatables.net";
 import "jquery-ui/ui/widgets/draggable";
@@ -27,6 +45,12 @@ import {
   showChatShaky,
   hideChatShaky,
   showConnectionsPopup,
+  sanitizeHtmlForPopup,
+  extractProfileBios,
+  showBioListPopup,
+  showTiledBioPopups,
+  closeBioPopup,
+  addBioButton,
 } from "./ui";
 import { buildResultsTableHtml } from "./tables";
 import {
@@ -85,7 +109,6 @@ let lastStructuredResult = null;
 let lastBioPopupId = null;
 let lastBioPopupProfile = null;
 
-
 function toggleConnectionsPopup() {
   const el = document.getElementById("wbe-connections-popup");
   if (el) {
@@ -93,6 +116,61 @@ function toggleConnectionsPopup() {
   } else if (lastConnectionPopupResult) {
     showConnectionsPopup(lastConnectionPopupResult);
   }
+}
+
+// Validate/sanitize AI parse results so we only accept known keys and simple values
+function sanitizeAiParse(aiParse) {
+  if (!aiParse || typeof aiParse !== "object") return {};
+  const allowed = new Set([
+    "BirthDateStart",
+    "BirthDateEnd",
+    "DeathDateStart",
+    "DeathDateEnd",
+    "BirthLocation",
+    "DeathLocation",
+    "fatherFirstName",
+    "fatherLastName",
+    "motherFirstName",
+    "motherLastName",
+    "spouseQuery",
+    "skipVariants",
+    "watchlist",
+    "FirstName",
+    "LastName",
+    "RealName",
+    "noVariants",
+    "bornBefore",
+    "bornAfter",
+    "diedBefore",
+    "diedAfter",
+  ]);
+  const out = {};
+  for (const k of Object.keys(aiParse)) {
+    if (!allowed.has(k)) continue;
+    const v = aiParse[k];
+    if (v === undefined || v === null) continue;
+    // only accept primitives (string/number/boolean)
+    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") out[k] = v;
+  }
+  return out;
+}
+
+// Parse a simple space-separated key=value string (supports quoted values)
+function parseKeyValueParams(s) {
+  const out = {};
+  if (!s || typeof s !== "string") return out;
+  const re = /([A-Za-z]+)=((?:"[^"]*")|(?:'[^']*')|[^\s]+)/g;
+  let m;
+  while ((m = re.exec(s))) {
+    let k = m[1];
+    let v = m[2];
+    if (!v) continue;
+    if ((v.startsWith("\"") && v.endsWith("\"")) || (v.startsWith("'") && v.endsWith("'"))) {
+      v = v.slice(1, -1);
+    }
+    out[k] = v;
+  }
+  return out;
 }
 
 // Small shaky-tree loader for chat (re-uses wbe-shaky-tree CSS)
@@ -120,7 +198,7 @@ async function showBioPopupForId(id, opts = { bioFormat: "both" }) {
   // auto-open to avoid popping an unexpected bio when some fetches failed.
   if (window.wbeSuppressAutoBioOpen) {
     try {
-      appendMessage("assistant", "Auto-opening of a biography was suppressed due to partial profile fetch failures.", {
+      appendMessage("assistant", "Could not load some biographies. Partial results may be shown.", {
         shouldPersist: false,
       });
     } catch (e) {
@@ -229,21 +307,7 @@ async function showBioPopupForId(id, opts = { bioFormat: "both" }) {
   }
 }
 
-function closeBioPopup() {
-  document.getElementById("wbe-bio-popup")?.remove();
-}
-
-// Ensure addBioButton exists. Historically this injected a persistent button
-// into the page actions; we intentionally do not re-add a persistent UI
-// element. This safe no-op cleans up any leftovers and prevents runtime
-// errors from callers.
-function addBioButton() {
-  try {
-    $("#wbe-bio-button").remove();
-  } catch (e) {
-    /* ignore */
-  }
-}
+// `closeBioPopup` and `addBioButton` are provided by `ui.js`.
 
 // Expose helper for quick manual testing from console
 window.wbeShowBioPopup = showBioPopupForId;
@@ -480,133 +544,51 @@ async function dumpProfileForId(id) {
 
 window.wbeDumpProfile = dumpProfileForId;
 
-// Small popup to list multiple bios with Open buttons
-function showBioListPopup(title, entries = []) {
-  try {
-    $("#wbe-bio-list-popup").remove();
-    const popupWidth = Math.max(360, Math.floor(window.innerWidth * 0.4));
-
-    const listItems = (entries || [])
-      .map(
-        (e) =>
-          `<li><span>${escapeHtml(e.displayName || e.wtid || "")} (${escapeHtml(
-            e.wtid || ""
-          )})</span> <button class="open-bio" data-wtid="${escapeHtml(e.wtid || "")}">Open Bio</button></li>`
-      )
-      .join("");
-
-    const html = `
-      <div id="wbe-bio-list-popup" class="wbe-popup chat-popup ui-draggable" style="display:block;width:${popupWidth}px;left:${Math.floor(
-      (window.innerWidth - popupWidth) / 2
-    )}px">
-        <div class="chat-popup-header ui-draggable-handle">
-          <strong>${escapeHtml(title || "Profiles")}</strong>
-          <div class="chat-popup-controls">
-            <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
-          </div>
-        </div>
-        <div class="chat-popup-body chat-popup-body--compact">
-          <ul class="spouse-list">
-            ${listItems}
-          </ul>
-          <div class="bio-list-actions" style="margin-top:8px;">
-            <button class="open-all-tiled small">Open All (Tiled)</button>
-          </div>
-        </div>
-      </div>`;
-
-    const $popup = $(html).appendTo(document.body);
-    $popup.find(".close-popup").on("click", () => $popup.remove());
-    $popup.find(".open-all-tiled").on("click", () => {
-      const ids = entries.map((e) => e.wtid).filter(Boolean);
-      if (ids.length) showTiledBioPopups(ids.slice(0, 12));
-    });
-    $popup.find(".open-bio").on("click", async (e) => {
-      const raw = $(e.currentTarget).attr("data-wtid");
-      if (!raw) return;
-      const resolved = await resolveToWTID(raw);
-      if (resolved) showBioPopupForId(resolved);
-    });
-    setHighestZIndex($popup.get(0));
-    $popup.draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
-    // Do not auto-open the first bio to avoid unexpected popups when profile
-    // fetches fail or return empty content. Require the user to click an entry.
-  } catch (e) {
-    console.error("wbe: showBioListPopup error", e);
-  }
-}
-
+// Bio list / tiled popup UI functions live in `ui.js`; use the exported
+// implementations. Expose the UI function on the window for console testing.
 window.wbeShowBioList = showBioListPopup;
 
-// Open multiple bio popups tiled on screen. Creates individual popups per profile id.
-async function showTiledBioPopups(ids = []) {
-  if (!Array.isArray(ids) || !ids.length) return;
-  const max = Math.min(ids.length, 12);
-  const toOpen = ids.slice(0, max);
-  const profiles = await fetchProfilesForIds(toOpen, "Bio,BioHtml,BioText,Biography,Name,RealName,Id", {
-    bioFormat: "both",
-    resolveRedirect: 1,
-  });
-  // If all fetched profiles are null/empty, avoid opening empty popups and notify the user.
-  const anyValid = Array.isArray(profiles) && profiles.some((p) => p && Object.keys(p).length > 0);
-  if (!anyValid) {
-    try {
-      appendMessage("assistant", "Could not load any biographies (server errors or no data). No popups were opened.", {
-        shouldPersist: false,
-      });
-    } catch (e) {
-      /* ignore */
-    }
-    return;
-  }
-  // Layout: up to 4 columns depending on count
-  const cols = Math.min(3, Math.max(1, Math.floor(Math.sqrt(toOpen.length))));
-  const width = Math.floor((window.innerWidth - 40) / cols);
-  let left = 10;
-  let top = 80;
-  let col = 0;
-  for (let i = 0; i < toOpen.length; i += 1) {
-    const id = toOpen[i];
-    const profile = profiles[i] || null;
-    if (!profile) continue; // skip failed fetches
-    const { wikiBio, htmlBio } = extractProfileBios(profile);
-    // Skip profiles that have no biography content to avoid empty popups
-    if (!wikiBio && !htmlBio) continue;
-    const name = (profile && (profile.RealName || profile.Name)) || id;
-    const pid = `wbe-bio-popup-${encodeURIComponent(id)}`;
-    $(`#${pid}`).remove();
-    const $p = $(
-      `<div id="${pid}" class="wbe-popup chat-popup ui-draggable" style="display:block;width:${width}px;left:${left}px;top:${top}px">
-        <div class="chat-popup-header ui-draggable-handle">
-          <strong>Biography: ${escapeHtml(name)}</strong>
-          <div class="chat-popup-controls"><button type="button" class="small close-popup" title="Close">×</button></div>
-        </div>
-        <div class="chat-popup-body chat-popup-body--columns" style="height:320px;overflow:auto;">
-          <div class="bio-column bio-column--wiki">
-            <pre class="bio-wiki-pre">${escapeHtml(wikiBio || "(no wiki text)")}</pre>
-          </div>
-          <div class="bio-column">
-            <div class="bio-html-container">${sanitizeHtmlForPopup(htmlBio) || "<i>(no html)</i>"}</div>
-          </div>
-        </div>
-      </div>`
-    ).appendTo(document.body);
-    $p.find(".close-popup").on("click", () => $p.remove());
-    setHighestZIndex($p.get(0));
-    $p.draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
-    // Advance grid position for next tiled popup
-    if (!Number.isFinite(col)) col = 0;
-    col += 1;
-    if (col >= cols) {
-      col = 0;
-      left = 10;
-      top += 340;
-    } else {
-      left += width + 10;
-    }
-  }
+// Tiled bio UI uses the implementation in `ui.js`. Provide a small helper
+// that delegates to the UI function and supplies our API fetch helper.
+async function showTiledViaApi(ids = []) {
+  return showTiledBioPopups(ids, (toOpen) =>
+    fetchProfilesForIds(toOpen, "Bio,BioHtml,BioText,Biography,Name,RealName,Id", {
+      bioFormat: "both",
+      resolveRedirect: 1,
+    })
+  );
+}
+window.wbeShowTiled = showTiledViaApi;
 
-  return;
+// Handle 'Open' requests from the bio list UI. Accepts an array of raw ids
+// (could be numeric Id or WTID). Single-item arrays open a single bio;
+// multiple ids open tiled popups (limited to a reasonable max).
+async function handleOpenFromBioList(ids = []) {
+  if (!Array.isArray(ids) || !ids.length) return;
+  const toOpen = ids.slice(0, 12);
+  try {
+    if (toOpen.length === 1) {
+      const raw = toOpen[0];
+      const wtid = await resolveToWTID(raw);
+      if (wtid) await showBioPopupForId(wtid).catch(() => {});
+      return;
+    }
+    // Resolve each id to a WTID where possible, skipping failures.
+    const resolved = [];
+    for (const raw of toOpen) {
+      try {
+        const w = await resolveToWTID(raw);
+        if (w) resolved.push(w);
+      } catch (e) {
+        console.warn("wbe: handleOpenFromBioList resolve failed", raw, e);
+      }
+    }
+    if (resolved.length) {
+      await showTiledViaApi(resolved);
+    }
+  } catch (e) {
+    console.error("wbe: handleOpenFromBioList error", e);
+  }
 }
 
 // Fetch sibling WTIDs for a profile id, using API then DOM fallback
@@ -619,7 +601,9 @@ async function fetchSiblingIdsForId(id) {
       const [peopleResult] = relatives || [];
       const profile = peopleResult?.person || {};
       const siblingsObj = profile?.Siblings || {};
-      const siblings = Object.values(siblingsObj || []).map((s) => s?.Name || (s?.Id ? String(s.Id) : null)).filter(Boolean);
+      const siblings = Object.values(siblingsObj || [])
+        .map((s) => s?.Name || (s?.Id ? String(s.Id) : null))
+        .filter(Boolean);
       if (siblings.length) {
         hideChatShaky();
         return siblings;
@@ -633,7 +617,9 @@ async function fetchSiblingIdsForId(id) {
     });
     hideChatShaky();
     const siblingsObj = profile?.Siblings || {};
-    let siblings = Object.values(siblingsObj || []).map((s) => s.Name).filter(Boolean);
+    let siblings = Object.values(siblingsObj || [])
+      .map((s) => s.Name)
+      .filter(Boolean);
     if (siblings.length) return siblings;
     // DOM fallback
     const domCandidates = findSiblingProfileIdsFromDOM();
@@ -653,16 +639,13 @@ async function fetchChildrenIdsForId(id) {
   try {
     showChatShaky("Loading children...");
     try {
-      const relatives = await WikiTreeAPI.getRelatives(
-        WBE_CHAT_APP_ID,
-        id,
-        "Id,Name,RealName",
-        { getChildren: 1 }
-      );
+      const relatives = await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, id, "Id,Name,RealName", { getChildren: 1 });
       const [peopleResult] = relatives || [];
       const profile = peopleResult?.person || {};
       const childrenObj = profile?.Children || {};
-      const children = Object.values(childrenObj || []).map((c) => c?.Name || (c?.Id ? String(c.Id) : null)).filter(Boolean);
+      const children = Object.values(childrenObj || [])
+        .map((c) => c?.Name || (c?.Id ? String(c.Id) : null))
+        .filter(Boolean);
       if (children.length) {
         hideChatShaky();
         return children;
@@ -676,7 +659,9 @@ async function fetchChildrenIdsForId(id) {
     });
     hideChatShaky();
     const childrenObj2 = profile?.Children || {};
-    let children2 = Object.values(childrenObj2 || []).map((c) => c.Name).filter(Boolean);
+    let children2 = Object.values(childrenObj2 || [])
+      .map((c) => c.Name)
+      .filter(Boolean);
     if (children2.length) return children2;
     // DOM fallback: find WTIDs on page and validate by fetching profile
     const domCandidates = findChildrenProfileIdsFromDOM();
@@ -741,11 +726,50 @@ window.wbeFetchSiblings = fetchSiblingIdsForId;
 // Paged getPeople helper: accumulates pages into a single people map.
 async function fetchPeoplePaged(appId, rootKey, fields, options = {}) {
   const limit = Number(options.limit) || 1000;
-  let start = Number(options.start) || 0;
-  let fetchMore = true;
+  const aggregated = {};
   let lastStatus = "";
   let totalCount = null;
-  const aggregated = {};
+
+  // If rootKey is a list of specific IDs (array or comma-separated string),
+  // call getPeople in chunks of `limit` keys rather than using start/limit
+  // paging (which can behave oddly when explicit keys are provided).
+  const keysArray = Array.isArray(rootKey)
+    ? rootKey.slice()
+    : typeof rootKey === "string" && rootKey.includes(",")
+    ? String(rootKey).split(",").map((s) => s.trim()).filter(Boolean)
+    : null;
+
+  if (keysArray && keysArray.length) {
+    totalCount = keysArray.length;
+    for (let i = 0; i < keysArray.length; i += limit) {
+      const chunk = keysArray.slice(i, i + limit);
+      try {
+        // Do not pass start/limit when requesting a specific set of keys.
+        const chunkOpts = { ...(options || {}) };
+        delete chunkOpts.start;
+        delete chunkOpts.limit;
+        console.debug("wbe: fetchPeoplePaged requesting chunk", { chunkSize: chunk.length });
+        const [status, resultByKey, people] = await WikiTreeAPI.getPeople(appId, chunk, fields, chunkOpts);
+        lastStatus = status || lastStatus;
+        const pageProfiles = Object.values(people || {});
+        console.debug("wbe: fetchPeoplePaged chunk result", { chunkSize: chunk.length, returned: pageProfiles.length });
+        pageProfiles.forEach((profile) => {
+          if (!profile) return;
+          const key = profile?.Id != null ? String(profile.Id) : profile?.Name || null;
+          if (key) aggregated[key] = profile;
+        });
+      } catch (e) {
+        console.debug("wbe: fetchPeoplePaged chunk getPeople failed", { e, chunkSize: chunk.length });
+        // continue on error for resilience
+      }
+    }
+
+    return [lastStatus, totalCount, aggregated];
+  }
+
+  // Fallback: use start/limit paging when no explicit keys array is provided.
+  let start = Number(options.start) || 0;
+  let fetchMore = true;
 
   while (fetchMore) {
     const pageOpts = { ...(options || {}), start, limit };
@@ -775,6 +799,33 @@ async function fetchPeoplePaged(appId, rootKey, fields, options = {}) {
 // Expose for console testing
 window.wbeFetchPeoplePaged = fetchPeoplePaged;
 
+// Paged searchPerson helper: accumulates matches across pages into a single array of match objects.
+async function fetchSearchPersonPaged(appId, searchParams, fields, options = {}) {
+  const pageLimit = Number(options.limit) || 100;
+  const maxToFetch = Number(options.max) || 2000;
+  let start = Number(options.start) || 0;
+  let allMatches = [];
+  let lastStatus = null;
+
+  while (true) {
+    const [status, matches, total] = await WikiTreeAPI.searchPerson(appId, searchParams, fields, { limit: pageLimit, start });
+    lastStatus = status;
+    if (!Array.isArray(matches) || !matches.length) break;
+    allMatches.push(...matches);
+    // stop when we've collected all reported results
+    if (Number.isFinite(Number(total)) && allMatches.length >= Number(total)) break;
+    // stop if we've reached our safe cap
+    if (allMatches.length >= maxToFetch) break;
+    // stop if this page was smaller than requested
+    if (matches.length < pageLimit) break;
+    start += pageLimit;
+  }
+
+  return [lastStatus, allMatches, allMatches.length];
+}
+
+window.wbeFetchSearchPersonPaged = fetchSearchPersonPaged;
+
 // Resolve an identifier (numeric id or WTID) to a WTID (profile.Name) if possible.
 async function resolveToWTID(candidate) {
   if (!candidate) return null;
@@ -794,32 +845,7 @@ async function resolveToWTID(candidate) {
 window.wbeResolveToWTID = resolveToWTID;
 
 // Sanitize profile HTML for insertion into popups to avoid CSP inline-script execution.
-function sanitizeHtmlForPopup(html) {
-  try {
-    if (!html) return "";
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(String(html), "text/html");
-    // Remove script tags
-    doc.querySelectorAll("script").forEach((s) => s.remove());
-    // Remove inline event handler attributes (on*) and javascript: src/href
-    const all = doc.querySelectorAll("*");
-    all.forEach((el) => {
-      Array.from(el.attributes).forEach((attr) => {
-        const name = String(attr.name || "");
-        const val = String(attr.value || "");
-        if (/^on/i.test(name)) {
-          el.removeAttribute(name);
-        }
-        if ((name === "src" || name === "href") && /^javascript:/i.test(val)) {
-          el.removeAttribute(name);
-        }
-      });
-    });
-    return doc.body.innerHTML || "";
-  } catch (e) {
-    return "";
-  }
-}
+// moved to ui.js
 
 // positionPopupForOpen moved to `src/features/chat/ui.js`.
 
@@ -1084,28 +1110,7 @@ function formatChatMessageBody(text, inlineMore = null) {
 }
 
 // Normalize extraction of wiki and html bio fields from profile objects
-function extractProfileBios(profile) {
-  if (!profile || typeof profile !== "object") return { wikiBio: "", htmlBio: "" };
-  const wikiBio =
-    profile.Bio ||
-    profile.BioText ||
-    profile.BioWiki ||
-    profile.Biography ||
-    profile.bio ||
-    profile.bioText ||
-    profile.biography ||
-    "";
-  const htmlBio =
-    profile.BioHtml ||
-    profile.BioHTML ||
-    profile.Bio_Html ||
-    profile.BioHtmlText ||
-    profile.bioHTML ||
-    profile.bioHtml ||
-    profile.bio_html ||
-    "";
-  return { wikiBio, htmlBio };
-}
+// moved to ui.js
 
 // Handle short pronoun follow-ups like "their bios?" referring to lastStructuredResult
 async function tryHandlePronounFollowup(prompt) {
@@ -1134,8 +1139,8 @@ async function tryHandlePronounFollowup(prompt) {
   });
 
   const entries = wtids.map((wtid, i) => ({ wtid, displayName: profiles[i]?.RealName || profiles[i]?.Name || wtid }));
-  // Show a small popup with buttons and auto-open the first bio
-  showBioListPopup(`Bios from last results (${entries.length})`, entries.slice(0, 25));
+  // Show a small popup with buttons and allow the UI to call back to open
+  showBioListPopup(`Bios from last results (${entries.length})`, entries.slice(0, 25), handleOpenFromBioList);
   return { message: `Opened bio popup for ${entries[0].displayName} and listed others.` };
 }
 
@@ -1578,7 +1583,7 @@ async function executeRoutedIntent(routed, prompt) {
     return await tryHandleSpouseBioIntent(routed.params || {}, prompt);
   }
   if (routed.intent === ChatIntent.PROFILE_SEARCH) {
-    return await tryHandleProfileSearchPrompt(routed.params);
+    return await tryHandleProfileSearchPrompt(routed.params, prompt);
   }
   if (routed.intent === ChatIntent.LAST_RESULT_OPERATION) {
     return await tryHandleLastResultOperation(routed.params);
@@ -1781,7 +1786,13 @@ async function tryHandleSpouseBioIntent(params = {}, prompt = "") {
       const htmlBio = spProfile?.BioHtml || spProfile?.BioHTML || "";
       return {
         message: `Biography for ${spProfile?.Name || spouseId}:`,
-        action: { label: "Show Bio", onClick: async () => { const wtid = await resolveToWTID(spouseId); showBioPopupForId(wtid).catch(()=>{}); } },
+        action: {
+          label: "Show Bio",
+          onClick: async () => {
+            const wtid = await resolveToWTID(spouseId);
+            showBioPopupForId(wtid).catch(() => {});
+          },
+        },
         inlineMore: { text: wikiBio },
       };
     }
@@ -1819,348 +1830,6 @@ function extractConnectionTarget(prompt) {
     return "";
   }
   return toMatch[1].trim();
-}
-
-function normalizePersonText(value) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
-function splitPersonName(value) {
-  const cleaned = String(value || "")
-    .trim()
-    .replace(/[?.!]+$/, "");
-  const parts = cleaned.split(/\s+/).filter(Boolean);
-  return {
-    firstName: parts[0] || "",
-    lastName: parts.length > 1 ? parts[parts.length - 1] : "",
-  };
-}
-
-function normalizeConnectionTargetForSearch(value) {
-  return String(value || "")
-    .trim()
-    .replace(/[?.!]+$/, "")
-    .replace(/\b(?:the\s+)?(?:actor|actress|singer|musician|writer|poet|politician|comedian|mp|sir|dame)\b/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function isConnectionCorrectionPrompt(prompt) {
-  return /^(?:he\s*'?s\s+not|she\s*'?s\s+not|that\s*'?s\s+not|not\s+him|not\s+her|wrong\s+person|not\s+the\s+right\s+person)/i.test(
-    String(prompt || "").trim()
-  );
-}
-
-function extractCorrectionTarget(prompt) {
-  const normalized = String(prompt || "").trim();
-  const match = normalized.match(/(?:not|wrong\s+person\s*[:,]?)(?:\s+the\s+)?\s+(.+?)\??$/i);
-  if (!match?.[1]) {
-    return "";
-  }
-  return normalizeConnectionTargetForSearch(match[1]);
-}
-
-function extractYearFromDate(value) {
-  const match = String(value || "").match(/^(\d{4})/);
-  if (!match || match[1] === "0000") {
-    return null;
-  }
-  const year = Number(match[1]);
-  return Number.isFinite(year) ? year : null;
-}
-
-function isWikiTreeId(value) {
-  return /^[A-Za-z][A-Za-z0-9_]+-\d+$/i.test(String(value || "").trim());
-}
-
-function extractWikiTreeIdFromHref(href) {
-  const value = String(href || "").trim();
-  if (!value) {
-    return "";
-  }
-
-  try {
-    const resolved = new URL(value, window.location.origin);
-    const match = resolved.pathname.match(/\/wiki\/([^/?#]+)/i);
-    const wikiId = decodeURIComponent(match?.[1] || "").trim();
-    return isWikiTreeId(wikiId) ? wikiId : "";
-  } catch (error) {
-    return "";
-  }
-}
-
-function scorePageContextCandidate(target, targetParts, candidate) {
-  const normalizedTarget = normalizePersonText(target);
-  if (!normalizedTarget) {
-    return 0;
-  }
-
-  const targetFirst = normalizePersonText(targetParts.firstName);
-  const targetLast = normalizePersonText(targetParts.lastName);
-  const name = normalizePersonText(candidate.displayName);
-  const title = normalizePersonText(candidate.title);
-  const wtId = normalizePersonText(candidate.wtId);
-  const haystacks = [name, title, wtId].filter(Boolean);
-  let score = 0;
-
-  haystacks.forEach((haystack) => {
-    if (haystack === normalizedTarget) {
-      score = Math.max(score, 500);
-    } else if (haystack.startsWith(`${normalizedTarget} `) || haystack.endsWith(` ${normalizedTarget}`)) {
-      score = Math.max(score, 360);
-    } else if (haystack.includes(normalizedTarget)) {
-      score = Math.max(score, 240);
-    }
-  });
-
-  if (targetFirst && targetLast) {
-    const firstMatches = haystacks.some(
-      (haystack) => haystack.startsWith(`${targetFirst} `) || haystack.includes(` ${targetFirst} `)
-    );
-    const lastMatches = haystacks.some(
-      (haystack) =>
-        haystack.endsWith(` ${targetLast}`) || haystack.includes(` ${targetLast} `) || haystack === targetLast
-    );
-    if (firstMatches) {
-      score += 80;
-    }
-    if (lastMatches) {
-      score += 140;
-    }
-  }
-
-  return score;
-}
-
-function findPageContextPersonCandidate(target) {
-  const cleanedTarget = normalizeConnectionTargetForSearch(target);
-  const normalizedTarget = normalizePersonText(cleanedTarget);
-  if (!normalizedTarget) {
-    return null;
-  }
-
-  const targetParts = splitPersonName(cleanedTarget);
-  const deduped = new Map();
-
-  const profilePerson = getProfilePersonInfo();
-  if (profilePerson?.Name) {
-    const profileCandidate = {
-      wtId: profilePerson.Name,
-      displayName:
-        profilePerson.FullName || `${profilePerson.FirstName || ""} ${profilePerson.LastNameAtBirth || ""}`.trim(),
-      title: document.title || "",
-    };
-    const score = scorePageContextCandidate(cleanedTarget, targetParts, profileCandidate);
-    if (score > 0) {
-      deduped.set(profileCandidate.wtId, { ...profileCandidate, score });
-    }
-  }
-
-  document.querySelectorAll('a[href*="/wiki/"]').forEach((anchor) => {
-    const wtId = extractWikiTreeIdFromHref(anchor.getAttribute("href") || anchor.href || "");
-    if (!wtId) {
-      return;
-    }
-
-    const candidate = {
-      wtId,
-      displayName: String(anchor.textContent || "").trim(),
-      title: String(anchor.getAttribute("title") || "").trim(),
-    };
-    const score = scorePageContextCandidate(cleanedTarget, targetParts, candidate);
-    if (score < 320) {
-      return;
-    }
-
-    const existing = deduped.get(wtId);
-    if (!existing || score > existing.score) {
-      deduped.set(wtId, { ...candidate, score });
-    }
-  });
-
-  const ranked = Array.from(deduped.values()).sort((left, right) => right.score - left.score);
-  return ranked[0] || null;
-}
-
-function rankConnectionMatches(target, matches, targetParts = {}) {
-  if (!Array.isArray(matches) || !matches.length) {
-    return [];
-  }
-
-  const normalizedTarget = normalizePersonText(target);
-  const normalizedFirst = normalizePersonText(targetParts.firstName);
-  const normalizedLast = normalizePersonText(targetParts.lastName);
-  const ranked = matches.map((match) => {
-    const name = match?.Name || "";
-    const realName = match?.RealName || match?.Derived?.ShortName || "";
-    const lastCurrent = match?.LastNameCurrent || "";
-    const lastBirth = match?.LastNameAtBirth || "";
-    const profileFirst = match?.FirstName || "";
-    let score = 0;
-
-    if (normalizePersonText(name) === normalizedTarget) {
-      score += 100;
-    }
-    if (normalizePersonText(realName) === normalizedTarget) {
-      score += 120;
-    }
-    if (
-      normalizePersonText(realName).includes(normalizedTarget) ||
-      normalizedTarget.includes(normalizePersonText(realName))
-    ) {
-      score += 35;
-    }
-
-    if (normalizedLast) {
-      if (normalizePersonText(lastCurrent) === normalizedLast || normalizePersonText(lastBirth) === normalizedLast) {
-        score += 140;
-      } else {
-        score -= 120;
-      }
-    }
-
-    if (normalizedFirst) {
-      if (normalizePersonText(profileFirst) === normalizedFirst) {
-        score += 80;
-      } else if (normalizePersonText(realName).startsWith(`${normalizedFirst} `)) {
-        score += 40;
-      }
-    }
-
-    if (name) {
-      score += 5;
-    }
-
-    // lower index means higher relevance from searchPerson.
-    const idx = Number(match?.index);
-    if (Number.isFinite(idx)) {
-      score += Math.max(0, 25 - idx);
-    }
-
-    return { match, score };
-  });
-
-  ranked.sort((left, right) => right.score - left.score);
-  return ranked;
-}
-
-function shouldUseAiForConnectionDisambiguation(targetParts, rankedMatches) {
-  if (!rankedMatches.length) {
-    return false;
-  }
-
-  if (rankedMatches.length === 1) {
-    return false;
-  }
-
-  const top = rankedMatches[0];
-  const second = rankedMatches[1];
-  if (!top?.match || !second?.match) {
-    return false;
-  }
-
-  const closeScore = Math.abs((top.score || 0) - (second.score || 0)) < 45;
-
-  const topBirthYear = extractYearFromDate(top.match.BirthDate);
-  const secondBirthYear = extractYearFromDate(second.match.BirthDate);
-  const highlyDifferentEra =
-    Number.isFinite(topBirthYear) && Number.isFinite(secondBirthYear) && Math.abs(topBirthYear - secondBirthYear) > 80;
-
-  const hasFullNameTarget = Boolean(targetParts.firstName && targetParts.lastName);
-  return hasFullNameTarget && (closeScore || highlyDifferentEra);
-}
-
-function pause(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function tryAiExpandConnectionTarget(target, prompt = "") {
-  const chatOptions = await getChatOptions();
-  if (!chatOptions.allowAiFallback) {
-    return null;
-  }
-
-  const { provider, key, model } = await getChatAiConfig();
-  if (!key) {
-    return null;
-  }
-
-  const aiPrompt = [
-    "You map a likely real-world person name or alias to better WikiTree search hints.",
-    'Return strict JSON only: {"searchName":"...","birthYear":1933,"reason":"..."}.',
-    "If no better hint exists, return {}.",
-    "Common aliases to know: QE2='Queen Elizabeth II'='Elizabeth Windsor', JFK='John F Kennedy', MLK='Martin Luther King Jr', etc.",
-    `Original target: ${target}`,
-    prompt ? `User prompt: ${prompt}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  const response = await chrome.runtime.sendMessage({
-    action: "chatWithAI",
-    prompt: aiPrompt,
-    provider,
-    key,
-    model,
-    pageContext: {
-      url: window.location.href,
-      title: document.title,
-    },
-  });
-
-  if (!response?.success || !response.response) {
-    return null;
-  }
-
-  const parsed = parsePlannerJson(response.response);
-  if (!parsed || typeof parsed !== "object") {
-    return null;
-  }
-
-  const searchName = String(parsed.searchName || "").trim();
-  const birthYear = Number(parsed.birthYear);
-
-  return {
-    searchName: searchName || "",
-    birthYear: Number.isFinite(birthYear) ? birthYear : null,
-  };
-}
-
-function getCommonAliasExpansion(target) {
-  const normalized = String(target || "")
-    .trim()
-    .toLowerCase();
-
-  const aliases = {
-    qe2: { searchName: "Elizabeth Windsor", birthYear: 1926 },
-    "queen elizabeth ii": { searchName: "Elizabeth Windsor", birthYear: 1926 },
-    "queen elizabeth 2": { searchName: "Elizabeth Windsor", birthYear: 1926 },
-    jfk: { searchName: "John F Kennedy", birthYear: 1917 },
-    "john f. kennedy": { searchName: "John Fitzgerald Kennedy", birthYear: 1917 },
-    mlk: { searchName: "Martin Luther King Jr", birthYear: 1929 },
-    "martin luther king": { searchName: "Martin Luther King Jr", birthYear: 1929 },
-  };
-
-  return aliases[normalized] || null;
-}
-
-function mergeConnectionMatches(matchLists) {
-  const merged = new Map();
-  (matchLists || []).forEach((list) => {
-    (list || []).forEach((match) => {
-      const key = String(match?.Name || match?.Id || "").trim();
-      if (!key) {
-        return;
-      }
-      if (!merged.has(key)) {
-        merged.set(key, match);
-      }
-    });
-  });
-  return Array.from(merged.values());
 }
 
 async function tryAiDisambiguateConnectionTarget(target, rankedMatches) {
@@ -2659,7 +2328,10 @@ async function getCc7ProfilesForUser(userNumId) {
 function normalizeText(value) {
   return String(value || "")
     .trim()
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function normalizeDateForSort(value) {
@@ -2735,13 +2407,39 @@ function mapApiPersonToStandardRow(person = {}, options = {}) {
   const lastNameCurrent = person.LastNameCurrent || "";
   const surnamePreference = options.surnamePreference === "currentFirst" ? "currentFirst" : "birthFirst";
   const surname = surnamePreference === "currentFirst" ? lastNameCurrent || lnab || "" : lnab || lastNameCurrent || "";
+  // Build a compact spouse display if spouse data is present
+  let spouse = "";
+  let spouseList = [];
+  try {
+    if (person.Spouses && Array.isArray(person.Spouses) && person.Spouses.length) {
+      spouseList = person.Spouses.map((s) => {
+        const first = String(s?.FirstName || s?.RealName || "").trim();
+        const lnab = String(s?.LastNameAtBirth || s?.LastNameCurrent || s?.LastNameOther || "").trim();
+        return {
+          wtid: s?.Name || "",
+          firstName: first,
+          lnab,
+          display: first || String(s?.RealName || s?.Name || "").trim(),
+        };
+      });
+      const parts = spouseList
+        .map((p) => [p.firstName, p.lnab].filter(Boolean).join(" "))
+        .filter(Boolean);
+      spouse = parts.join(", ");
+    }
+  } catch (e) {
+    spouse = "";
+  }
 
   return {
     displayName: options.displayName || person.RealName || person?.Derived?.ShortName || wtId,
     wtid: wtId,
     firstName: person.FirstName || "",
+    middleName: person.MiddleName || "",
     lnab,
     lastNameCurrent,
+    spouse,
+    spouseList,
     degrees: options.degrees ?? "",
     gender: person.Gender || "",
     birth: normalizeKnownDate(person.BirthDate),
@@ -3327,15 +3025,382 @@ async function tryHandleCcSummaryPrompt(params, prompt = "") {
   }
 }
 
-async function tryHandleProfileSearchPrompt(params) {
-  const query = params?.query?.trim();
-  if (!query) {
-    return null;
-  }
+async function tryHandleProfileSearchPrompt(params, originalPrompt) {
+  const rawQuery = String(originalPrompt || params?.query || "").trim();
+  if (!rawQuery) return null;
+  // Detect explicit 'no variants' style modifiers and remove them from the working query
+  // so they don't become part of spouse or name tokens. Keep a flag for later.
+  let sanitizedQuery = rawQuery;
+  const noVariantsRegex = /\b(no[-\s]?variants|skip[-\s]?variants)\b/gi;
+  const hadExplicitNoVariants = noVariantsRegex.test(sanitizedQuery);
+  if (hadExplicitNoVariants) sanitizedQuery = sanitizedQuery.replace(noVariantsRegex, "").replace(/\s{2,}/g, " ").trim();
+  const query = sanitizedQuery;
 
   try {
-    const lookup = await wtAPIProfileSearch("Chat", encodeURIComponent(query), { maxProfiles: 40 });
-    const profileIds = (lookup?.response?.profiles || []).slice(0, 20);
+    // Support queries with a spouse specifier, e.g. "George Beacall, spouse Jane Dicken"
+    let mainQuery = query;
+    let spouseQuery = null;
+    const spouseMatch = query.match(/^(.*?)\s*(?:,|-)??\s*(?:spouse|wife|husband|married to)\s*[:\-]?\s*(.+)$/i);
+    if (spouseMatch) {
+      mainQuery = (spouseMatch[1] || "").trim() || query;
+      spouseQuery = (spouseMatch[2] || "").trim();
+    }
+
+    console.debug("wbe: tryHandleProfileSearchPrompt initial", { query, spouseMatch, mainQueryBeforeNormalize: mainQuery, spouseQuery });
+
+    // Normalize mainQuery: remove leading command words like 'search', 'find', 'look up'
+    mainQuery = String(mainQuery || "").replace(/^\s*(?:search:?|find|look(?:\s+up)?)\s+/i, "").trim();
+
+    console.debug("wbe: tryHandleProfileSearchPrompt after strip command", { mainQuery });
+
+    // If mainQuery is only a single token but the original query contains more (e.g., 'Search George Beacall...'),
+    // recover by taking the first two tokens from the original query (after stripping command words).
+    try {
+      const mqTokens = (mainQuery || "").split(/\s+/).filter(Boolean);
+      if (mqTokens.length === 1) {
+        const originalTokens = String(query || "").replace(/^\s*(?:search:?|find|look(?:\s+up)?)\s+/i, "").trim().split(/\s+/).filter(Boolean);
+        if (originalTokens.length >= 2) {
+          mainQuery = `${originalTokens[0]} ${originalTokens[1]}`;
+        }
+      }
+    } catch (e) {
+      /* ignore tokenization errors */
+    }
+
+    console.debug("wbe: tryHandleProfileSearchPrompt after recovery", { mainQuery });
+
+    // If the incoming mainQuery looks like a key=value param string (e.g. FirstName=George LastName=Beacall),
+    // parse that into modifiers and normalize the `mainQuery` to a readable name to avoid passing raw param strings
+    // into `RealName` or other search fields.
+    let kvParams = {};
+    if (/\w+=/.test(mainQuery)) {
+      kvParams = parseKeyValueParams(mainQuery);
+      if (kvParams.FirstName || kvParams.LastName) {
+        mainQuery = `${kvParams.FirstName || ""} ${kvParams.LastName || ""}`.trim();
+      } else if (kvParams.RealName) {
+        mainQuery = kvParams.RealName;
+      }
+      if (kvParams.Spouse) spouseQuery = spouseQuery || kvParams.Spouse;
+      console.debug("wbe: tryHandleProfileSearchPrompt parsed key=val params", kvParams);
+    }
+
+    // Detect quoted phrases (double, single, or Unicode quotes). Quoted => no-variants.
+    const quoteRegex = /(?:("[^"]+")|('[^']+')|[“”][^“”]+[“”]|[‘’][^‘’]+[‘’])/;
+    // Check both the original raw query and the working mainQuery because earlier
+    // normalization may have removed surrounding quotes.
+    const hadQuotedPhrase = quoteRegex.test(String(rawQuery || "")) || quoteRegex.test(mainQuery);
+
+    // Parse advanced modifiers (dates, quoted exact names, watchlist, no-variants)
+    // Use the cleaned mainQuery (without spouse spec) so modifiers don't accidentally include spouse text.
+    const parsed = parseSearchModifiers(mainQuery);
+    if (hadQuotedPhrase || hadExplicitNoVariants) {
+      parsed.modifiers = parsed.modifiers || {};
+      parsed.modifiers.noVariants = true;
+    }
+    console.debug("wbe: tryHandleProfileSearchPrompt parsed modifiers", { parsed });
+    // Do NOT let the parser overwrite the full `mainQuery` (keep full name).
+    // Use only the modifiers returned by the parser.
+    const modifiers = parsed.modifiers || {};
+
+    // Helper: strip surrounding quotes (double, single, or Unicode) from a string.
+    function stripSurroundingQuotes(s) {
+      if (!s && s !== "") return s;
+      let str = String(s).trim();
+      const m = str.match(/^["“”'‘’]?([\s\S]*?)["“”'‘’]?$/);
+      if (m) return m[1].trim();
+      return str;
+    }
+
+    // Use a cleaned main query that strips obvious date/qualifier tokens from the
+    // original mainQuery so we don't send qualifiers like "born before 1700"
+    // as part of the RealName to the API. Prefer removing tokens from the
+    // original text rather than trusting the parser's `mainQuery` which may
+    // sometimes collapse tokens.
+    function stripDateQualifiersFromText(s) {
+      if (!s) return s;
+      let out = String(s);
+      const dateTokenRegexLocal = /(\b(?:born|b|died|d)\b)\s*[:=]?\s*([^,;]+)/gi;
+      out = out.replace(dateTokenRegexLocal, "");
+      // free-standing ranges like "1900-1950"
+      out = out.replace(/(\d{4}(?:-\d{2}(?:-\d{2})?)?)\s*[\-–]\s*(\d{4}(?:-\d{2}(?:-\d{2})?)?)/g, "");
+      // remove explicit no-variants / skip-variants if present
+      out = out.replace(/\b(no[-\s]?variants|skip[-\s]?variants)\b/gi, "");
+      out = out.replace(/\bsearch\s+watchlist\b/gi, "");
+      return out.trim();
+    }
+
+    // NOTE: `hasDateModifiers` and `effectiveMainQuery` are computed later
+    // after possible AI-parse merging into `modifiers` so they reflect any
+    // augmented fields. (Previously these were computed before AI merge,
+    // causing date flags from AI to be ignored.)
+
+    // Merge any explicit key=value parameters parsed above into modifiers (kvParams should win)
+    if (kvParams && Object.keys(kvParams).length) {
+      try {
+        if (kvParams.FirstName) modifiers.firstName = kvParams.FirstName;
+        if (kvParams.LastName) modifiers.lastName = kvParams.LastName;
+        if (kvParams.RealName) modifiers.realName = kvParams.RealName;
+        if (kvParams.skipVariants === "1" || kvParams.skipVariants === "true") modifiers.noVariants = true;
+        if (kvParams.watchlist === "1" || kvParams.watchlist === "true") modifiers.useWatchlist = true;
+        if (kvParams.Spouse) spouseQuery = spouseQuery || kvParams.Spouse;
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
+    // Allow AI parsing to augment/override deterministic modifiers when enabled
+    try {
+      const hasKey = await hasAnyApiKey();
+      const options = await getChatOptions();
+      console.debug("wbe: AI parse gate", { hasKey, allowAiFallback: options?.allowAiFallback, forceAiParse: options?.forceAiParse });
+      // Allow forcing AI parse via options.forceAiParse (dev/test only).
+      if ((hasKey && options?.allowAiFallback) || options?.forceAiParse) {
+        showChatShaky("Asking AI to parse search query...");
+        console.debug("wbe: calling callAiParseQuery for", query);
+        const aiParseRaw = await callAiParseQuery(query);
+        console.debug("wbe: aiParseRaw", aiParseRaw);
+        const aiParse = sanitizeAiParse(aiParseRaw);
+        if (aiParse && typeof aiParse === "object" && Object.keys(aiParse).length) {
+          // Merge AI-parsed fields into modifiers (AI wins for explicit fields)
+          Object.keys(aiParse).forEach((k) => {
+            try {
+              const v = aiParse[k];
+              if (v === undefined || v === null || v === "") return;
+              // Map AI keys into our modifiers where appropriate
+              if (k === "BirthDateStart") modifiers.bornAfter = v;
+              else if (k === "BirthDateEnd") modifiers.bornBefore = v;
+              else if (k === "DeathDateStart") modifiers.diedAfter = v;
+              else if (k === "DeathDateEnd") modifiers.diedBefore = v;
+              else if (k === "BirthLocation") modifiers.birthLocation = v;
+              else if (k === "DeathLocation") modifiers.deathLocation = v;
+              else if (k === "fatherFirstName") modifiers.fatherFirstName = v;
+              else if (k === "fatherLastName") modifiers.fatherLastName = v;
+              else if (k === "motherFirstName") modifiers.motherFirstName = v;
+              else if (k === "motherLastName") modifiers.motherLastName = v;
+              else if (k === "spouseQuery") spouseQuery = spouseQuery || v;
+              else if (k === "skipVariants" || k === "noVariants") {
+                // Do not allow AI to unset an explicit user-specified noVariants; only set when truthy
+                if (v) modifiers.noVariants = true;
+              }
+              else if (k === "watchlist") modifiers.useWatchlist = !!v;
+              else if (k === "FirstName") modifiers.firstName = v;
+              else if (k === "LastName") modifiers.lastName = v;
+              else if (k === "RealName") modifiers.realName = v;
+            } catch (e) {
+              /* ignore malformed fields */
+            }
+          });
+        }
+        hideChatShaky();
+      }
+    } catch (e) {
+      /* ignore AI parse errors */
+    }
+
+    // Compute date flags and effectiveMainQuery now that AI parse may have
+    // merged fields into `modifiers`. This ensures AI-provided date filters
+    // are respected when we strip qualifiers from the main query.
+    const hasDateModifiers = Boolean(
+      modifiers?.bornBefore || modifiers?.bornAfter || modifiers?.diedBefore || modifiers?.diedAfter || modifiers?.bornRange || modifiers?.diedRange
+    );
+    const effectiveMainQuery = (hasDateModifiers || modifiers?.noVariants || hadExplicitNoVariants)
+      ? (stripDateQualifiersFromText(mainQuery) || mainQuery)
+      : mainQuery;
+
+    // Prepare a canonical exact-match query to use for no-variants/quoted matching.
+    // Prefer an explicitly quoted substring when available; fall back to the
+    // unquoted effectiveMainQuery.
+    let exactMatchQuery = null;
+
+    // Build API params from modifiers where possible so the server can apply filters
+    const apiParams = { maxProfiles: 10000 };
+    // quoted / no-variants -> prefer exact RealName or set skipVariants
+    if (modifiers?.noVariants) {
+      apiParams.skipVariants = 1;
+      // Prefer tokenized FirstName/LastName derived from the cleaned effective query
+      const uq = stripSurroundingQuotes(effectiveMainQuery) || "";
+      // use the unquoted cleaned value as the default exact-match query
+      exactMatchQuery = uq || exactMatchQuery;
+      const uqTokens = (uq || "").trim().split(/\s+/).filter(Boolean);
+      if (uqTokens.length === 1) {
+        apiParams.LastName = uqTokens[0];
+      } else if (uqTokens.length >= 2) {
+        apiParams.FirstName = uqTokens[0];
+        apiParams.LastName = uqTokens[uqTokens.length - 1];
+      }
+    }
+    // If the user used quotes to indicate an exact name, split that quoted name
+    // into FirstName (first token) and LastName (last token) so the API gets
+    // concrete name fields. Do not overwrite explicit modifier-provided names.
+    if (hadQuotedPhrase) {
+      try {
+        // Prefer extracting the quoted substring itself (handles quoted tokens
+        // embedded within a larger query, e.g. '"Beacall" married Jane?').
+        function extractQuotedSubstring(s) {
+          if (!s) return null;
+          const rx = /(?:"([^"]+)")|(?:'([^']+)')|(?:[“”]([^“”]+)[“”])|(?:[‘’]([^‘’]+)[‘’])/;
+          const m = String(s).match(rx);
+          if (!m) return null;
+          return m[1] || m[2] || m[3] || m[4] || null;
+        }
+
+        const quotedInner = extractQuotedSubstring(rawQuery) || extractQuotedSubstring(effectiveMainQuery) || stripSurroundingQuotes(effectiveMainQuery);
+        const qt = (quotedInner || "").trim().replace(/[?!.]+$/g, "").split(/\s+/).filter(Boolean);
+        if (qt.length >= 1) {
+          // If the quoted substring is a single token, treat it as a surname
+          // (LastName only). For multi-token quotes, set FirstName and LastName.
+          if (qt.length === 1) {
+            if (!apiParams.LastName) apiParams.LastName = qt[0];
+          } else {
+            if (!apiParams.FirstName) apiParams.FirstName = qt[0];
+            if (!apiParams.LastName) apiParams.LastName = qt[qt.length - 1];
+          }
+          // Prefer the explicit quoted substring for exact RealName matching
+          // (over a broader RealName derived from the whole query).
+          if (quotedInner) {
+            // prefer quoted inner string as the canonical exact-match query
+            exactMatchQuery = quotedInner;
+            const qi = String(quotedInner || "").trim();
+            const qiTokens = (qi || "").split(/\s+/).filter(Boolean);
+            if (qiTokens.length === 1) {
+              if (!apiParams.LastName) apiParams.LastName = qiTokens[0];
+            } else if (qiTokens.length >= 2) {
+              if (!apiParams.FirstName) apiParams.FirstName = qiTokens[0];
+              if (!apiParams.LastName) apiParams.LastName = qiTokens[qiTokens.length - 1];
+            }
+          }
+          apiParams.skipVariants = 1;
+        }
+      } catch (e) {
+        /* ignore quoted-splitting errors */
+      }
+    }
+    if (modifiers?.useWatchlist) {
+      apiParams.watchlist = 1;
+    }
+
+    // parents
+    if (modifiers?.fatherFirstName) apiParams.fatherFirstName = modifiers.fatherFirstName;
+    if (modifiers?.fatherLastName) apiParams.fatherLastName = modifiers.fatherLastName;
+    if (modifiers?.motherFirstName) apiParams.motherFirstName = modifiers.motherFirstName;
+    if (modifiers?.motherLastName) apiParams.motherLastName = modifiers.motherLastName;
+
+    // Use an unquoted version of the effective main query for tokenization and RealName
+    const unquotedMain = stripSurroundingQuotes(effectiveMainQuery);
+    // If the user provided a quoted name, normalize `mainQuery` to the unquoted form
+    // so later logging and UI use the cleaned value.
+    if (hadQuotedPhrase) mainQuery = unquotedMain;
+    // If we don't yet have an explicit exactMatchQuery, use the unquoted main
+    // query as a fallback for no-variants comparisons.
+    if (!exactMatchQuery) exactMatchQuery = unquotedMain;
+    // If mainQuery looks like "First Last" supply FirstName/LastName to the API.
+    // Always supply FirstName/LastName when possible so the API has concrete fields
+    // to match against, even when RealName is used for exact matching.
+    const qTokens = (unquotedMain || "").trim().split(/\s+/).filter(Boolean);
+    if (qTokens.length === 2) {
+      // If AI/kv parsing provided an explicit last name, avoid assuming
+      // the first token is a FirstName (prevents treating a family name
+      // as the FirstName in single-token/ambiguous queries).
+      if (!apiParams.FirstName && !modifiers?.lastName) apiParams.FirstName = qTokens[0];
+      if (!apiParams.LastName) apiParams.LastName = qTokens[1];
+    }
+
+    // Use WikiTree API's searchPerson (not WT+) to find matching profiles.
+    const searchParams = {};
+    // Prefer explicit tokenized fields instead of RealName strings
+    if (apiParams.FirstName) searchParams.FirstName = apiParams.FirstName;
+    if (apiParams.LastName) searchParams.LastName = apiParams.LastName;
+    // If AI or KV parsing provided explicit first/last name modifiers, prefer them.
+    if (modifiers?.firstName) searchParams.FirstName = modifiers.firstName;
+    if (modifiers?.lastName) searchParams.LastName = modifiers.lastName;
+    if (apiParams.skipVariants) searchParams.skipVariants = 1;
+    if (apiParams.watchlist) searchParams.watchlist = 1;
+    if (apiParams.fatherFirstName) searchParams.fatherFirstName = apiParams.fatherFirstName;
+    if (apiParams.fatherLastName) searchParams.fatherLastName = apiParams.fatherLastName;
+    if (apiParams.motherFirstName) searchParams.motherFirstName = apiParams.motherFirstName;
+    if (apiParams.motherLastName) searchParams.motherLastName = apiParams.motherLastName;
+    // Also map birth/death location modifiers if present
+    if (modifiers?.birthLocation) searchParams.BirthLocation = modifiers.birthLocation;
+    if (modifiers?.deathLocation) searchParams.DeathLocation = modifiers.deathLocation;
+
+    // If date modifiers exist prefer deriving concrete FirstName/LastName from
+    // a cleaned version of the main query so the API receives tokenized name
+    // fields rather than a RealName string that may still contain qualifiers.
+    const cleanedForName = hasDateModifiers ? stripDateQualifiersFromText(unquotedMain) || unquotedMain : unquotedMain;
+    console.debug("wbe: effective name for API", { cleanedForName, hasDateModifiers });
+    const cleanedTokens = (cleanedForName || "").trim().split(/\s+/).filter(Boolean);
+    if (cleanedTokens.length >= 2) {
+      // Respect explicit modifier-provided first/last names: do not infer
+      // a FirstName when AI/kv parsing only supplied a LastName.
+      if (!searchParams.FirstName && !modifiers?.lastName) searchParams.FirstName = cleanedTokens[0];
+      if (!searchParams.LastName) searchParams.LastName = cleanedTokens[cleanedTokens.length - 1];
+    }
+    // Only set RealName fallback when we don't have tokenized name fields.
+    if (!searchParams.FirstName && !searchParams.LastName && unquotedMain) {
+      const tokens = String(unquotedMain || "")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+      if (tokens.length === 1) {
+        searchParams.LastName = tokens[0];
+      } else if (tokens.length >= 2) {
+        searchParams.FirstName = tokens[0];
+        searchParams.LastName = tokens[tokens.length - 1];
+      }
+    }
+
+    // Debug: show computed modifiers and apiParams
+    try {
+      console.debug("wbe: computed modifiers & apiParams", { modifiers, apiParams });
+    } catch (e) {
+      /* ignore logging errors */
+    }
+
+    // Ensure quoted/no-variants explicitly set the search `skipVariants` flag
+    // and prefer the quoted mainQuery as RealName for exact matching.
+    if (modifiers?.noVariants) {
+      console.debug("wbe: forcing skipVariants due to noVariants", { mainQuery });
+      searchParams.skipVariants = 1;
+      if (!searchParams.FirstName && !searchParams.LastName && unquotedMain) {
+        const tokens = String(unquotedMain || "").trim().split(/\s+/).filter(Boolean);
+        if (tokens.length === 1) searchParams.LastName = tokens[0];
+        else if (tokens.length >= 2) {
+          searchParams.FirstName = tokens[0];
+          searchParams.LastName = tokens[tokens.length - 1];
+        }
+      }
+    }
+
+    console.debug("wbe: searchPerson call", { mainQuery, searchParams });
+    // If date filters are present — or we will post-filter by spouse locally —
+    // page through searchPerson results to collect all candidate profiles
+    // (otherwise we only get the API's limited first page, often 100 results).
+    const needPaging =
+      modifiers?.bornBefore || modifiers?.bornAfter || modifiers?.diedBefore || modifiers?.diedAfter ||
+      modifiers?.bornRange || modifiers?.diedRange || Boolean(spouseQuery);
+
+    let profileIds = [];
+    if (needPaging) {
+      const [status, matches] = await fetchSearchPersonPaged("Chat", searchParams, "Id,Name", { limit: 100, max: 2000 });
+      const ids = (Array.isArray(matches) ? matches : []).map((m) => (m?.Id ? m.Id : m?.Name ? m.Name : null)).filter(Boolean);
+      profileIds = ids.slice(0, 10000);
+      console.debug("wbe: paged searchPerson result", { status, profileIdsSample: profileIds.slice(0, 50), totalMatches: profileIds.length });
+    } else {
+      // Use a safe max `limit` supported by the API (100)
+      const [spStatus, spMatches] = await WikiTreeAPI.searchPerson("Chat", searchParams, "Id,Name", { limit: 100 });
+      profileIds = (Array.isArray(spMatches) ? spMatches : [])
+        .map((m) => {
+          if (!m) return null;
+          if (typeof m === "number") return m;
+          if (m.Id) return m.Id;
+          if (m.Name) return m.Name;
+          return null;
+        })
+        .filter(Boolean)
+        .slice(0, 10000);
+      console.debug("wbe: searchPerson result", { spStatus, profileIdsSample: profileIds.slice(0, 50), totalMatches: profileIds.length });
+    }
+
     if (!profileIds.length) {
       return `I couldn't find profile matches for \"${query}\".`;
     }
@@ -3343,26 +3408,289 @@ async function tryHandleProfileSearchPrompt(params) {
     const [, , people] = await fetchPeoplePaged(
       WBE_CHAT_APP_ID,
       profileIds,
-      "Id,Name,FirstName,RealName,Derived.ShortName,BirthDate,DeathDate,BirthLocation,DeathLocation,LastNameAtBirth,LastNameCurrent,Gender",
+      "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,BirthDate,DeathDate,BirthLocation,DeathLocation,LastNameAtBirth,LastNameCurrent,Gender",
       {}
     );
+    const peopleCount = Object.keys(people || {}).length;
+    console.debug("wbe: fetchPeoplePaged result", {
+      profileIdsCount: (profileIds || []).length,
+      peopleCount,
+      sample: Object.values(people || {}).slice(0, 10).map((p) => ({ Id: p?.Id, Name: p?.Name, RealName: p?.RealName })),
+    });
 
-    const matchedPeople = Object.values(people || {});
+    let matchedPeople = Object.values(people || {});
+
+    // Apply post-filters for date ranges and exact/no-variants matching when requested
+    if (modifiers) {
+      // date filters
+      matchedPeople = matchedPeople.filter((p) => {
+        try {
+          const birth = normalizeKnownDate(p.BirthDate) || "";
+          const death = normalizeKnownDate(p.DeathDate) || "";
+
+          if (modifiers.bornRange) {
+            if (!birth) return false;
+            if (birth < modifiers.bornRange.start || birth > modifiers.bornRange.end) return false;
+          }
+          if (modifiers.diedRange) {
+            if (!death) return false;
+            if (death < modifiers.diedRange.start || death > modifiers.diedRange.end) return false;
+          }
+          if (modifiers.bornBefore && birth && birth >= modifiers.bornBefore) return false;
+          if (modifiers.bornAfter && birth && birth <= modifiers.bornAfter) return false;
+          if (modifiers.diedBefore && death && death >= modifiers.diedBefore) return false;
+          if (modifiers.diedAfter && death && death <= modifiers.diedAfter) return false;
+
+          // noVariants / quoted exact name: require exact match of full name when specified.
+          // Build several canonical full-name candidates from the profile and
+          // require one to exactly equal the query (after normalization).
+          if (modifiers.noVariants && (exactMatchQuery || mainQuery)) {
+            const q = normalizeText(String(exactMatchQuery || mainQuery || "").trim());
+            const candidates = new Set();
+            if (p.RealName) candidates.add(normalizeText(String(p.RealName)));
+            if (p.Derived && p.Derived.ShortName) candidates.add(normalizeText(String(p.Derived.ShortName)));
+            if (p.FirstName) {
+              const ln = p.LastNameCurrent || p.LastNameAtBirth || "";
+              if (ln) candidates.add(normalizeText(`${p.FirstName} ${ln}`));
+            }
+            // Try composed name from Name (WTID) by replacing hyphen with space and dropping numeric suffix
+            if (p.Name) {
+              const nameFromWtid = String(p.Name).replace(/-/g, " ").replace(/\s+\d+$/g, "");
+              if (nameFromWtid) candidates.add(normalizeText(nameFromWtid));
+            }
+            // Also include explicit last-name only combos
+            if (p.LastNameCurrent) candidates.add(normalizeText(String(p.LastNameCurrent)));
+            if (p.LastNameAtBirth) candidates.add(normalizeText(String(p.LastNameAtBirth)));
+
+            if (![...candidates].some((c) => c === q)) return false;
+          }
+
+          return true;
+        } catch (e) {
+          return true;
+        }
+      });
+    }
     const mappedRows = matchedPeople.map((person) =>
       mapApiPersonToStandardRow(person, {
         surnamePreference: "birthFirst",
       })
     );
-    const rows = mappedRows.slice(0, 10).map((person) => {
-      const birth = person.birth || "?";
-      const death = person.death || "?";
-      return `- ${person.displayName} (${person.wtid}) [${birth} - ${death}]`;
+    console.debug("wbe: mappedRows sample", {
+      mappedCount: mappedRows.length,
+      sample: mappedRows.slice(0, 10).map((r) => ({ displayName: r.displayName, wtid: r.wtid, birth: r.birth, death: r.death })),
     });
 
-    const extra = profileIds.length > 10 ? `\n...and ${profileIds.length - 10} more.` : "";
+    // If a spouse query was given, filter matched profiles by whether any spouse matches
+    let finalRows = mappedRows;
+    let spouseMatchedInfo = null;
+    if (spouseQuery) {
+      showChatShaky(`Checking spouses for \"${spouseQuery}\"...`);
+      const normSpouse = normalizeText(spouseQuery);
+      const spouseTokens = (normSpouse || "").split(/\s+/).filter(Boolean);
+      const spouseHadQuoted = quoteRegex.test(String(spouseQuery || ""));
+      console.debug("wbe: tryHandleProfileSearchPrompt spouse filter", {
+        mainQuery,
+        spouseQuery,
+        normSpouse,
+        spouseTokens,
+        profileIdsSample: profileIds.slice(0, 50),
+        matchedPeopleCount: matchedPeople.length,
+      });
+
+      const matches = [];
+      // Batch get spouse info via getPeople to reduce per-profile API calls.
+      const keys = matchedPeople.map((p) => p?.Name || p?.Id).filter(Boolean);
+      const CHUNK = 30;
+      for (let k = 0; k < keys.length; k += CHUNK) {
+        const chunkKeys = keys.slice(k, k + CHUNK);
+        try {
+          const [, resultByKey, peopleData] = await WikiTreeAPI.getPeople(
+            WBE_CHAT_APP_ID,
+            chunkKeys,
+            "Spouses,Name,RealName,Id,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther",
+            { getSpouses: 1, resolveRedirect: 1 }
+          );
+
+          for (let ci = 0; ci < chunkKeys.length; ci++) {
+            const key = chunkKeys[ci];
+            // Find the original index in matchedPeople to map back to mappedRows
+            const origIdx = matchedPeople.findIndex((p) => (p?.Name || p?.Id) === key);
+            if (origIdx === -1) continue;
+            const apiPerson = WikiTreeAPI.lookupProfile(key, resultByKey, peopleData);
+            const spousesObj = apiPerson?.Spouses || {};
+            const spouses = Object.values(spousesObj || []);
+            const spouseSummaries = spouses.map((s) => ({
+              Name: s?.Name,
+              RealName: s?.RealName,
+              Id: s?.Id,
+              FirstName: s?.FirstName,
+              MiddleName: s?.MiddleName,
+              LastNameAtBirth: s?.LastNameAtBirth,
+              LastNameCurrent: s?.LastNameCurrent,
+              LastNameOther: s?.LastNameOther,
+            }));
+            console.debug("wbe: spouse candidates for", { key, spouseSummaries });
+
+            let found = null;
+            const allCandidates = [];
+            for (const s of spouses) {
+              const firstNameParts = [s?.RealName, s?.FirstName, s?.MiddleName, s?.Name]
+                .filter(Boolean)
+                .map((v) => normalizeText(String(v)));
+              const lastNameParts = [s?.LastNameAtBirth, s?.LastNameCurrent, s?.LastNameOther, s?.Name]
+                .filter(Boolean)
+                .map((v) => normalizeText(String(v)));
+
+              let isMatch = false;
+              if (spouseTokens.length >= 2) {
+                const lastQuery = spouseTokens[spouseTokens.length - 1];
+                const firstQuery = spouseTokens.slice(0, spouseTokens.length - 1).join(" ");
+                const firstNorm = normalizeText(firstQuery);
+                const lastNorm = normalizeText(lastQuery);
+
+                const firstMatch = firstNameParts.some((n) => n.includes(firstNorm));
+                const lastMatch = lastNameParts.some((n) => n.includes(lastNorm));
+                if (firstMatch && lastMatch) isMatch = true;
+              }
+
+              const candidates = [];
+              if (s?.RealName) candidates.push(String(s.RealName));
+              if (s?.Name) candidates.push(String(s.Name).replace(/[-_]/g, " "));
+              if (s?.FirstName || s?.LastNameCurrent)
+                candidates.push([s.FirstName || "", s.LastNameCurrent || ""].join(" ").trim());
+              if (s?.MiddleName) candidates.push(String(s.MiddleName));
+              if (s?.LastNameCurrent) candidates.push(String(s.LastNameCurrent));
+              if (s?.LastNameAtBirth) candidates.push(String(s.LastNameAtBirth));
+              if (s?.LastNameOther) candidates.push(String(s.LastNameOther));
+
+              const candNormalized = candidates.filter(Boolean).map((c) => normalizeText(c));
+              allCandidates.push({ key, candNormalized, raw: candidates });
+
+              if (!isMatch) {
+                if (spouseHadQuoted) {
+                  if (candNormalized.includes(normSpouse)) isMatch = true;
+                  if (!isMatch) {
+                    for (const tok of candNormalized) {
+                      const tokParts = tok.split(/\s+/).filter(Boolean);
+                      if (tokParts.includes(normSpouse)) {
+                        isMatch = true;
+                        break;
+                      }
+                    }
+                  }
+                } else {
+                  if (candNormalized.some((c) => c.includes(normSpouse))) isMatch = true;
+                  if (!isMatch && spouseTokens.length && spouseTokens.every((t) => candNormalized.some((c) => c.includes(t))))
+                    isMatch = true;
+                }
+              }
+
+              if (isMatch) {
+                found = s;
+                break;
+              }
+            }
+
+            console.debug("wbe: spouse match result", { key, found: found ? { Name: found.Name, RealName: found.RealName, Id: found.Id } : null });
+            if (!found) {
+              // Log normalized candidate names to help debug why spouse didn't match
+              try {
+                console.debug("wbe: spouse match debug candidates", { key, allCandidates });
+              } catch (e) {
+                /* ignore logging errors */
+              }
+            }
+            if (found) {
+              const spouseEntry = {
+                wtid: found?.Name || "",
+                firstName: found?.FirstName || found?.RealName || "",
+                lnab: found?.LastNameAtBirth || found?.LastNameCurrent || found?.LastNameOther || "",
+                display: found?.RealName || found?.Name || "",
+              };
+              matches.push({ row: mappedRows[origIdx], spouseName: found.RealName || found.Name || "", spouseEntry });
+            }
+          }
+        } catch (e) {
+          // swallow errors per chunk and continue
+          console.debug("wbe: getPeople chunk failed", e);
+        }
+      }
+      hideChatShaky();
+
+      if (!matches.length) {
+        return `I found no profile matches for "${mainQuery}" with a spouse matching "${spouseQuery}".`;
+      }
+
+      finalRows = matches.map((m) => {
+        const base = { ...m.row, matchedSpouse: m.spouseName, spouse: m.spouseName || m.row?.spouse || "" };
+        if (m.spouseEntry) {
+          // prefer to show the matched spouse as a linked entry in the spouseList
+          base.spouseList = [m.spouseEntry];
+        }
+        return base;
+      });
+      spouseMatchedInfo = matches.map((m) => ({ wtid: m.row.wtid, spouse: m.spouseName }));
+    }
+
+    // Build preview lines including birth/death dates and locations where available
+    const previewLimit = 10;
+    const previewRows = finalRows.slice(0, previewLimit);
+    const remainingRows = finalRows.slice(previewLimit);
+
+    const formatLocation = (row) => {
+      const parts = [];
+      if (row.birthLocation) parts.push(row.birthLocation);
+      if (row.deathLocation) parts.push(`died: ${row.deathLocation}`);
+      return parts.length ? ` - ${parts.join(" | ")}` : "";
+    };
+
+    const previewLines = previewRows.map((person) => {
+      const birth = person.birth || "?";
+      const death = person.death || "?";
+      const spouseSuffix = person.matchedSpouse ? ` — spouse: ${person.matchedSpouse}` : "";
+      return `- ${person.displayName} (${person.wtid}) [${birth} - ${death}]${formatLocation(person)}${spouseSuffix}`;
+    });
+
+    const inlineMore = remainingRows.length
+      ? {
+          count: remainingRows.length,
+          text: remainingRows
+            .map((person) => {
+              const birth = person.birth || "?";
+              const death = person.death || "?";
+              const spouseSuffix = person.matchedSpouse ? ` — spouse: ${person.matchedSpouse}` : "";
+              return `- ${person.displayName} (${person.wtid}) [${birth} - ${death}]${formatLocation(person)}${spouseSuffix}`;
+            })
+            .join("\n"),
+        }
+      : null;
+
+    // Remove any totally-empty rows (defensive): rows without a wtid or displayName
+    const beforeCount = (finalRows || []).length;
+    finalRows = (finalRows || []).filter((r) => {
+      try {
+        return Boolean((r && (r.wtid || r.displayName || r.firstName || r.lastNameCurrent)));
+      } catch (e) {
+        return false;
+      }
+    });
+    const removed = beforeCount - finalRows.length;
+    if (removed) console.debug("wbe: removed empty rows before rendering table", { beforeCount, removed });
+
+    // Build the table but remove the degrees column for search results
+    const table = makeStandardProfileTable(`Profile search: ${query}`, finalRows, [[0, "asc"]]);
+    table.columns = (table.columns || []).filter((c) => c.key !== "degrees");
+    // If the user did not ask to filter by spouse, omit the Spouse column
+    // to avoid showing an empty spouse column in results.
+    if (!spouseQuery) {
+      table.columns = (table.columns || []).filter((c) => c.key !== "spouse");
+    }
+
     return {
-      message: `Here are profile matches for \"${query}\":\n${rows.join("\n")}${extra}`,
-      table: makeStandardProfileTable(`Profile search: ${query}`, mappedRows, [[0, "asc"]]),
+      message: `Here are profile matches for "${query}":\n${previewLines.join("\n")}`,
+      inlineMore,
+      table,
     };
   } catch (error) {
     return `I couldn't complete that search for \"${query}\". Error: ${error?.message || "unknown error"}`;
@@ -3485,6 +3813,238 @@ function normalizeSurname(value) {
     .replace(/\s+family$/i, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+}
+
+// Parse advanced search modifiers from a free-text query.
+// Returns { mainQuery, modifiers }
+function parseSearchModifiers(query) {
+  const orig = String(query || "").trim();
+  let working = orig;
+  const modifiers = {
+    noVariants: false,
+    useWatchlist: false,
+    bornBefore: null,
+    bornAfter: null,
+    diedBefore: null,
+    diedAfter: null,
+    bornRange: null,
+    diedRange: null,
+  };
+
+  // Quoted phrase => exact / no variants
+  const quoteMatch = working.match(/"([^"]+)"/);
+  if (quoteMatch) {
+    modifiers.noVariants = true;
+    working = working.replace(quoteMatch[0], quoteMatch[1]);
+  }
+
+  // search watchlist
+  if (/\bsearch\s+watchlist\b/i.test(working)) {
+    modifiers.useWatchlist = true;
+    working = working.replace(/\bsearch\s+watchlist\b/i, "");
+  }
+
+  // no variants explicit
+  if (/\bno\s+variants\b/i.test(working)) {
+    modifiers.noVariants = true;
+    working = working.replace(/\bno\s+variants\b/i, "");
+  }
+
+  // born / b / died / d qualifiers (comparisons and ranges)
+  // Examples: born:1900-1950, b:1900-1950, b<1900, died>1950, bef 1900, after:1900
+  const dateTokenRegex = /(born|b|died|d)\s*[:=]?\s*([^,;]+)/ig;
+  let dtMatch;
+  while ((dtMatch = dateTokenRegex.exec(working))) {
+    const key = (dtMatch[1] || "").toLowerCase();
+    const raw = (dtMatch[2] || "").trim();
+    // remove the token from working
+    working = working.replace(dtMatch[0], "");
+
+    // range with hyphen or en dash
+    const rangeMatch = raw.match(/^(\d{4}(?:-\d{2}(?:-\d{2})?)?)\s*[\-–]\s*(\d{4}(?:-\d{2}(?:-\d{2})?)?)$/);
+    if (rangeMatch) {
+      const start = normalizeDateToIsoStart(rangeMatch[1]);
+      const end = normalizeDateToIsoEnd(rangeMatch[2]);
+      if (key.startsWith("b")) modifiers.bornRange = { start, end };
+      else modifiers.diedRange = { start, end };
+      continue;
+    }
+
+    // comparisons: <, >, bef, aft, before, after
+    const compMatch = raw.match(/^([<>]|bef|aft|before|after)\s*(\d{4}(?:-\d{2}(?:-\d{2})?)?)$/i);
+    if (compMatch) {
+      const op = compMatch[1].toLowerCase();
+      const date = compMatch[2];
+      if (key.startsWith("b")) {
+        if (op === "<" || /^bef/i.test(op) || /^before/i.test(op)) modifiers.bornBefore = normalizeDateToIsoStart(date);
+        else modifiers.bornAfter = normalizeDateToIsoEnd(date);
+      } else {
+        if (op === "<" || /^bef/i.test(op) || /^before/i.test(op)) modifiers.diedBefore = normalizeDateToIsoStart(date);
+        else modifiers.diedAfter = normalizeDateToIsoEnd(date);
+      }
+      continue;
+    }
+
+    // single date/year
+    const singleMatch = raw.match(/^(\d{4}(?:-\d{2}(?:-\d{2})?)?)$/);
+    if (singleMatch) {
+      const sd = singleMatch[1];
+      if (key.startsWith("b")) {
+        modifiers.bornAfter = normalizeDateToIsoStart(sd);
+        modifiers.bornBefore = normalizeDateToIsoEnd(sd);
+      } else {
+        modifiers.diedAfter = normalizeDateToIsoStart(sd);
+        modifiers.diedBefore = normalizeDateToIsoEnd(sd);
+      }
+    }
+  }
+
+  // father/mother qualifiers
+  const parentRegex = /(father|dad|fatherFirstName|fatherFirst|fatherLast|fatherLastName)\s*[:=]?\s*([A-Za-z'\-]+)/i;
+  const motherRegex = /(mother|mum|motherFirstName|motherFirst|motherLast|motherLastName)\s*[:=]?\s*([A-Za-z'\-]+)/i;
+  const pMatch = working.match(parentRegex);
+  if (pMatch) {
+    const pKey = (pMatch[1] || "").toLowerCase();
+    const pVal = (pMatch[2] || "").trim();
+    if (/last/i.test(pKey)) modifiers.fatherLastName = pVal;
+    else modifiers.fatherFirstName = pVal;
+    working = working.replace(pMatch[0], "");
+  }
+  const mMatch2 = working.match(motherRegex);
+  if (mMatch2) {
+    const mKey = (mMatch2[1] || "").toLowerCase();
+    const mVal = (mMatch2[2] || "").trim();
+    if (/last/i.test(mKey)) modifiers.motherLastName = mVal;
+    else modifiers.motherFirstName = mVal;
+    working = working.replace(mMatch2[0], "");
+  }
+
+  // Also support free-standing ranges like "1900-1950" outside tokens
+  const freeRange = working.match(/(\d{4}(?:-\d{2}(?:-\d{2})?)?)\s*[\-–]\s*(\d{4}(?:-\d{2}(?:-\d{2})?)?)/);
+  if (freeRange) {
+    const start = normalizeDateToIsoStart(freeRange[1]);
+    const end = normalizeDateToIsoEnd(freeRange[2]);
+    // default to birth range
+    modifiers.bornRange = { start, end };
+    working = working.replace(freeRange[0], "");
+  }
+
+  return { mainQuery: working.trim(), modifiers };
+}
+
+function normalizeDateToIsoStart(input) {
+  if (!input) return null;
+  const s = String(input || "").trim();
+  const yMatch = s.match(/^(\d{4})$/);
+  if (yMatch) return `${yMatch[1]}-01-01`;
+  const mMatch = s.match(/^(\d{4})-(\d{2})$/);
+  if (mMatch) return `${mMatch[1]}-${mMatch[2]}-01`;
+  const dMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dMatch) return `${dMatch[1]}-${dMatch[2]}-${dMatch[3]}`;
+  return null;
+}
+
+function normalizeDateToIsoEnd(input) {
+  if (!input) return null;
+  const s = String(input || "").trim();
+  const yMatch = s.match(/^(\d{4})$/);
+  if (yMatch) return `${yMatch[1]}-12-31`;
+  const mMatch = s.match(/^(\d{4})-(\d{2})$/);
+  if (mMatch) {
+    const year = Number(mMatch[1]);
+    const month = Number(mMatch[2]);
+    // compute last day of month
+    const last = new Date(year, month, 0).getDate();
+    return `${mMatch[1]}-${mMatch[2]}-${String(last).padStart(2, "0")}`;
+  }
+  const dMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dMatch) return `${dMatch[1]}-${dMatch[2]}-${dMatch[3]}`;
+  return null;
+}
+
+async function callAiParseQuery(rawQuery) {
+  try {
+    const options = await getChatOptions();
+    if (!options?.allowAiFallback) return null;
+
+    const { provider, key, model } = await getChatAiConfig();
+    if (!key) return null;
+
+    const system = `You are a parser that converts a user's short search query into a JSON object with the following optional keys: FirstName, LastName, RealName, BirthDateStart, BirthDateEnd, DeathDateStart, DeathDateEnd, BirthLocation, DeathLocation, fatherFirstName, fatherLastName, motherFirstName, motherLastName, spouseQuery, skipVariants (true/false), watchlist (true/false). Only output valid JSON and nothing else.`;
+    const user = `Parse this search query into JSON: "${String(rawQuery || "").trim()}"`;
+
+    let aiResult = null;
+    // Prefer a global helper if available
+    if (typeof window.callAiModel === "function") {
+      aiResult = await window.callAiModel(`${system}\n\n${user}`);
+    } else {
+      // Route requests to the background script which already implements
+      // provider-specific callers (openai, gemini, claude, perplexity).
+      // Use chrome.runtime.sendMessage and allow a couple retries for transient failures.
+      const payload = {
+        action: "chatWithAI",
+        provider,
+        key,
+        model,
+        prompt: `${system}\n\n${user}`,
+        includeApiDocContext: false,
+      };
+
+      const sendToBg = (pl) =>
+        new Promise((resolve) => {
+          try {
+            chrome.runtime.sendMessage(pl, (resp) => {
+              // In some contexts runtime.lastError is set instead of a response
+              if (chrome.runtime.lastError) {
+                resolve({ success: false, error: chrome.runtime.lastError.message });
+                return;
+              }
+              resolve(resp || { success: false, error: "no-response" });
+            });
+          } catch (e) {
+            resolve({ success: false, error: String(e?.message || e) });
+          }
+        });
+
+      let attempts = 0;
+      const maxAttempts = 3;
+      let lastErr = null;
+      while (attempts < maxAttempts) {
+        attempts += 1;
+        // eslint-disable-next-line no-await-in-loop
+        const resp = await sendToBg(payload);
+        if (resp && resp.success && typeof resp.response === "string") {
+          aiResult = resp.response;
+          break;
+        }
+        lastErr = resp?.error || `no response (attempt ${attempts})`;
+        // small backoff
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((r) => setTimeout(r, 250 * attempts));
+      }
+      if (!aiResult) {
+        console.info("wbe: callAiParseQuery background call failed", { error: lastErr });
+        return null;
+      }
+    }
+
+    if (!aiResult) return null;
+
+    // Try to extract JSON from the AI response
+    const txt = String(aiResult || "");
+    const jsonMatch = txt.match(/\{[\s\S]*\}/);
+    const jsonText = jsonMatch ? jsonMatch[0] : txt;
+    try {
+      const parsed = JSON.parse(jsonText);
+      return parsed;
+    } catch (e) {
+      console.info("wbe: callAiParseQuery JSON parse failed", { err: e, text: jsonText });
+      return null;
+    }
+  } catch (e) {
+    console.info("wbe: callAiParseQuery failed", { e });
+    return null;
+  }
 }
 
 function getProfileRootPerson() {
@@ -4793,12 +5353,7 @@ function hasAppsLoginHintAlready() {
 async function fetchParentIds(personKey) {
   // Prefer getRelatives to obtain Parent objects that include Name (WTID)
   try {
-    const relatives = await WikiTreeAPI.getRelatives(
-      WBE_CHAT_APP_ID,
-      personKey,
-      "Id,Name,RealName",
-      { getParents: 1 }
-    );
+    const relatives = await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, personKey, "Id,Name,RealName", { getParents: 1 });
     const [peopleResult] = relatives || [];
     const profile = peopleResult?.person || {};
     const parentsObj = profile?.Parents || {};
@@ -5170,7 +5725,8 @@ async function tryHandleRelationCountPrompt(params, prompt = "") {
         }));
         showBioListPopup(
           subject.isUser ? `Your ${noun} bios` : `${noun} bios for ${subject.label}`,
-          entries.slice(0, 50)
+          entries.slice(0, 50),
+          handleOpenFromBioList
         );
         return {
           message: subject.isUser ? `Opened bios for your ${noun}.` : `Opened bios for ${noun} of ${subject.label}.`,
@@ -5362,29 +5918,50 @@ async function tryHandleConnectionPrompt(prompt, targetOverride = "") {
 async function tryHandlePersonBioPrompt(prompt) {
   console.info("wbe: tryHandlePersonBioPrompt called", { prompt });
 
-  // Detect possessive relation patterns: "Ivy's parents", "Dona's bio", "bio of X's wife", etc.
+  // Detect possessive relation patterns and handle nested possessives robustly.
+  // Examples: "Ivy's parents", "Dona's bio", "bio of X", "Bethia's parents' bios".
   const str = String(prompt || "").trim();
   let targetRaw = null;
   let relationRaw = null;
 
-  let m = str.match(/^\s*(.+?)'s\s+([a-zA-Z]+s?)\??$/i);
+  // First try: "bio(s) of X" or "profile of X"
+  let m = str.match(/^\s*bio(?:graphy|s)?\s+of\s+(.+?)\??$/i) || str.match(/^\s*profile(?:s)?\s+of\s+(.+?)\??$/i);
   if (m) {
     targetRaw = (m[1] || "").trim();
-    relationRaw = (m[2] || "").trim().toLowerCase();
-  } else {
-    // "bio(s) of X", "profile of X"
-    m = str.match(/^\s*bio(?:graphy|s)?\s+of\s+(.+?)\??$/i) || str.match(/^\s*profile(?:s)?\s+of\s+(.+?)\??$/i);
+    relationRaw = "self";
+  }
+
+  // Next: possessive forms like "X's Y" including nested possessives
+  if (!targetRaw) {
+    m = str.match(/^\s*([^']+?)'s\s+(.+?)\??$/i);
+    if (m) {
+      targetRaw = (m[1] || "").trim();
+      // relation part may include nested possessives, e.g. "parents' bios"
+      let relPart = (m[2] || "").trim();
+      // remove any trailing possessive markers ("'" or "'s") and surrounding punctuation
+      relPart = relPart
+        .replace(/\b's\b/g, "")
+        .replace(/\b'\b/g, "")
+        .replace(/[\?\.!,;:]*/g, "")
+        .trim();
+      // relation is typically the first word (parents, spouse, bio, etc.)
+      const relMatch = relPart.match(/^([a-zA-Z]+s?)\b/i);
+      if (relMatch) {
+        relationRaw = (relMatch[1] || "").trim().toLowerCase();
+      }
+      // special-case "X's bio(s)"
+      if (!relationRaw && /\bbio(?:graphy|s)?\b/i.test(str)) {
+        relationRaw = "self";
+      }
+    }
+  }
+
+  // Fallback: "X's bio(s)" simple pattern
+  if (!targetRaw) {
+    m = str.match(/^\s*(.+?)'s\s+bio(?:graphy|s)?\??$/i);
     if (m) {
       targetRaw = (m[1] || "").trim();
       relationRaw = "self";
-    }
-    // "X's bio(s)"
-    if (!targetRaw) {
-      m = str.match(/^\s*(.+?)'s\s+bio(?:graphy|s)?\??$/i);
-      if (m) {
-        targetRaw = (m[1] || "").trim();
-        relationRaw = "self";
-      }
     }
   }
 
@@ -5662,7 +6239,13 @@ async function tryHandlePersonBioPrompt(prompt) {
       const inlineMore = { text: profile?.Bio || profile?.BioText || null };
       const result = {
         message: `Biography for ${profile?.Name || personKey}:`,
-        action: { label: "Show Bio", onClick: async () => { const w = await resolveToWTID(profile?.Name || personKey); showBioPopupForId(w).catch(()=>{}); } },
+        action: {
+          label: "Show Bio",
+          onClick: async () => {
+            const w = await resolveToWTID(profile?.Name || personKey);
+            showBioPopupForId(w).catch(() => {});
+          },
+        },
         inlineMore,
       };
       showBioPopupForId(profile?.Name || personKey).catch(() => {});
@@ -5844,7 +6427,8 @@ async function tryHandlePersonBioPrompt(prompt) {
         // popping an incomplete view. Show the list and inform the user.
         showBioListPopup(
           `${relationType} for ${resolved?.RealName || resolved?.Name || personKey}`,
-          entries.slice(0, 50)
+          entries.slice(0, 50),
+          handleOpenFromBioList
         );
         return {
           message: `Found ${entries.length} ${relationType} for ${
@@ -5857,7 +6441,8 @@ async function tryHandlePersonBioPrompt(prompt) {
             onClick: () =>
               showBioListPopup(
                 `${relationType} for ${resolved?.RealName || resolved?.Name || personKey}`,
-                entries.slice(0, 50)
+                entries.slice(0, 50),
+                handleOpenFromBioList
               ),
           },
         };
@@ -5867,7 +6452,13 @@ async function tryHandlePersonBioPrompt(prompt) {
         showBioPopupForId(resolvedWtid).catch(() => {});
         return {
           message: `Opened bio for ${entries[0].displayName || resolvedWtid}.`,
-          action: { label: "Show Bio", onClick: async () => { const w = await resolveToWTID(singleId); showBioPopupForId(w).catch(()=>{}); } },
+          action: {
+            label: "Show Bio",
+            onClick: async () => {
+              const w = await resolveToWTID(singleId);
+              showBioPopupForId(w).catch(() => {});
+            },
+          },
         };
       } catch (err) {
         return `Failed to open bio for ${entries[0].displayName || singleId}.`;
@@ -5880,11 +6471,21 @@ async function tryHandlePersonBioPrompt(prompt) {
       try {
         showBioListPopup(
           `${relationType} bios for ${resolved?.RealName || resolved?.Name || personKey}`,
-          entries.slice(0, 50)
+          entries.slice(0, 50),
+          handleOpenFromBioList
         );
-        showTiledBioPopups(ids.slice(0, 9)); // limit to 9 tiled popups by default
+        await showTiledViaApi(ids.slice(0, 9)); // limit to 9 tiled popups by default
         return {
           message: `Opened ${Math.min(ids.length, 9)} bios for ${resolved?.RealName || resolved?.Name || personKey}.`,
+          action: {
+            label: "Open List",
+            onClick: () =>
+              showBioListPopup(
+                `${relationType} bios for ${resolved?.RealName || resolved?.Name || personKey}`,
+                entries.slice(0, 50),
+                handleOpenFromBioList
+              ),
+          },
         };
       } catch (e) {
         console.error("wbe: tryHandlePersonBioPrompt failed to open tiled bios", e);
@@ -5892,7 +6493,11 @@ async function tryHandlePersonBioPrompt(prompt) {
     }
 
     // Default: show bio list popup and return a message/action
-    showBioListPopup(`${relationType} for ${resolved?.RealName || resolved?.Name || personKey}`, entries.slice(0, 50));
+    showBioListPopup(
+      `${relationType} for ${resolved?.RealName || resolved?.Name || personKey}`,
+      entries.slice(0, 50),
+      handleOpenFromBioList
+    );
     return {
       message: `Found ${entries.length} ${relationType} for ${resolved?.RealName || resolved?.Name || personKey}.`,
       action: {
@@ -5900,7 +6505,8 @@ async function tryHandlePersonBioPrompt(prompt) {
         onClick: () =>
           showBioListPopup(
             `${relationType} for ${resolved?.RealName || resolved?.Name || personKey}`,
-            entries.slice(0, 50)
+            entries.slice(0, 50),
+            handleOpenFromBioList
           ),
       },
     };
@@ -6019,14 +6625,9 @@ function openPopup() {
         clampPopupToViewport($popup.get(0));
       },
     });
-    // Bring popup to front when clicked or focused
-    $popup.on("mousedown focusin", () => {
-      try {
-        setHighestZIndex($popup.get(0));
-      } catch (e) {
-        /* ignore */
-      }
-    });
+    // Rely on the global `.wbe-popup` click handler in `common.js` to
+    // raise popups; avoid adding per-popup listeners here to prevent
+    // duplicate invocations of `setHighestZIndex`.
   }
 
   $popup.show();
@@ -6049,7 +6650,6 @@ function ensureChatButton() {
   });
   $(container).append($button);
 }
- 
 
 function hideChatButtonAndPopup() {
   document.getElementById(CHAT_BUTTON_ID)?.remove();
@@ -6073,6 +6673,10 @@ function init() {
   } catch (e) {
     /* ignore load errors */
   }
+
+  // Note: chat popup mousedown/click handlers are registered when the popup
+  // is opened; avoid a delegated document-level handler to prevent duplicate
+  // invocations of `setHighestZIndex`.
 
   window.addEventListener("resize", () => {
     const popup = document.getElementById(CHAT_POPUP_ID);
