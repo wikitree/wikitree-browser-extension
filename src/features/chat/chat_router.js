@@ -196,7 +196,7 @@ function parseRelationPrompt(prompt) {
   return null;
 }
 
-function extractConnectionTarget(prompt) {
+export function extractConnectionTarget(prompt) {
   const fromMeMatch = prompt.match(
     /(?:what(?:'s|\s+is)\s+)?(?:the\s+)?(?:connection|distance)(?:\s+or\s+connection|\s+or\s+distance)?\s+from\s+me\s+to\s+(.+?)\??$/i
   );
