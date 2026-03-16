@@ -83,6 +83,7 @@ const WBE_CHAT_APP_ID = "chat";
 const CC7_CACHE_MS = 5 * 60 * 1000;
 const CHAT_RESULTS_POPUP_ID = "wbe-chat-results-popup";
 const CHAT_RESULTS_TABLE_ID = "wbe-chat-results-table";
+let chatResultsCounter = 0;
 const CHAT_SHOW_MORE_TOKEN_PREFIX = "__WBE_SHOW_MORE__:";
 const AUTO_OPEN_TABLE_MIN_ROWS = 8;
 const CHAT_AI_HISTORY_MAX_MESSAGES = 12;
@@ -90,6 +91,7 @@ const CHAT_AI_MESSAGE_MAX_CHARS = 500;
 const CHAT_APPS_LOGIN_HINT = "Log in to the apps server for better results. Use the Apps Login button on this page.";
 const RELATION_PERSON_FIELDS =
   "Id,Name,Gender,RealName,Derived.ShortName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation";
+const PROFILE_PERSON_INFO = getProfilePersonInfo();
 
 let chatHistory = [];
 let lastNonRetryUserPrompt = "";
@@ -165,7 +167,7 @@ function parseKeyValueParams(s) {
     let k = m[1];
     let v = m[2];
     if (!v) continue;
-    if ((v.startsWith("\"") && v.endsWith("\"")) || (v.startsWith("'") && v.endsWith("'"))) {
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
       v = v.slice(1, -1);
     }
     out[k] = v;
@@ -197,6 +199,9 @@ async function showBioPopupForId(id, opts = { bioFormat: "both" }) {
   // If a recent relation lookup had partial failures, suppress the first
   // auto-open to avoid popping an unexpected bio when some fetches failed.
   if (window.wbeSuppressAutoBioOpen) {
+    // Declare categoryName in outer scope so it's safe to reference below
+    let categoryName = null;
+
     try {
       appendMessage("assistant", "Could not load some biographies. Partial results may be shown.", {
         shouldPersist: false,
@@ -736,7 +741,10 @@ async function fetchPeoplePaged(appId, rootKey, fields, options = {}) {
   const keysArray = Array.isArray(rootKey)
     ? rootKey.slice()
     : typeof rootKey === "string" && rootKey.includes(",")
-    ? String(rootKey).split(",").map((s) => s.trim()).filter(Boolean)
+    ? String(rootKey)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
     : null;
 
   if (keysArray && keysArray.length) {
@@ -808,7 +816,10 @@ async function fetchSearchPersonPaged(appId, searchParams, fields, options = {})
   let lastStatus = null;
 
   while (true) {
-    const [status, matches, total] = await WikiTreeAPI.searchPerson(appId, searchParams, fields, { limit: pageLimit, start });
+    const [status, matches, total] = await WikiTreeAPI.searchPerson(appId, searchParams, fields, {
+      limit: pageLimit,
+      start,
+    });
     lastStatus = status;
     if (!Array.isArray(matches) || !matches.length) break;
     allMatches.push(...matches);
@@ -1026,7 +1037,7 @@ function appendMessage(role, text, options = {}) {
 
   const messageText = role === "assistant" ? softenFailureMessage(text) : text;
 
-  const $item = $("<div>").addClass(`chat-message chat-message-${role}`);
+  const $item = $("<div>").addClass(`chat-message chat-message-${role} chat-message--new`);
   const $label = $("<div>")
     .addClass("chat-message-label")
     .text(role === "user" ? "You" : "Chat");
@@ -1084,6 +1095,15 @@ function appendMessage(role, text, options = {}) {
       }
     }
     if (action?.label) historyEntry.actionLabel = action.label;
+    // Persist per-message structured table if present so past messages' Table
+    // buttons open the correct snapshot instead of the most-recent table.
+    if (action?.table) {
+      try {
+        historyEntry.structured = action.table;
+      } catch (e) {
+        /* ignore */
+      }
+    }
     chatHistory.push(historyEntry);
     saveHistory();
   }
@@ -1148,7 +1168,7 @@ function renderHistory() {
   const $messages = getMessageList();
   if (!$messages || $messages.length === 0) return;
   $messages.empty();
-  chatHistory.forEach((message) => {
+  chatHistory.forEach((message, msgIndex) => {
     const opts = { shouldPersist: false, inlineMore: message.inlineMore || null };
     if (message.actionLabel) {
       // Reconstruct known actions
@@ -1161,7 +1181,24 @@ function renderHistory() {
         opts.action = {
           label: "Table",
           onClick: () => {
-            if (lastStructuredResult) openResultsTable(lastStructuredResult);
+            const toOpen = message.structured || lastStructuredResult;
+            if (!toOpen) return;
+            const popupId = `${CHAT_RESULTS_POPUP_ID}-msg-${msgIndex}`;
+            const tableId = `${CHAT_RESULTS_TABLE_ID}-msg-${msgIndex}`;
+            const existing = document.getElementById(popupId);
+            if (existing) {
+              try {
+                const $t = $(existing).find("table");
+                if ($t.length && $.fn.DataTable.isDataTable($t)) {
+                  $t.DataTable().destroy();
+                }
+              } catch (e) {
+                /* ignore */
+              }
+              existing.remove();
+              return;
+            }
+            openResultsTable(toOpen, { popupId, tableId });
           },
         };
       } else if (message.actionLabel === "Show Bio") {
@@ -1228,30 +1265,55 @@ function closeResultsPopup() {
   $(`#${CHAT_RESULTS_POPUP_ID}`).remove();
 }
 
-function openResultsTable(result = lastStructuredResult) {
+function openResultsTable(result = lastStructuredResult, opts = {}) {
   if (!result?.rows?.length || !result?.columns?.length) {
     return;
   }
 
-  closeResultsPopup();
+  // Allow caller to request specific popup/table ids (used for toggling a
+  // per-history-message table). Otherwise generate a unique id.
+  let popupId, tableId;
+  if (opts && opts.popupId && opts.tableId) {
+    popupId = opts.popupId;
+    tableId = opts.tableId;
+  } else {
+    chatResultsCounter += 1;
+    const uid = String(chatResultsCounter);
+    popupId = `${CHAT_RESULTS_POPUP_ID}-${uid}`;
+    tableId = `${CHAT_RESULTS_TABLE_ID}-${uid}`;
+  }
 
-  const $popup = $(
-    `<div id="${CHAT_RESULTS_POPUP_ID}" class="wbe-popup chat-results-popup">
+  // Build the popup HTML; ensure the inner table uses the unique id.
+  const popupHtml = `
+    <div id="${popupId}" class="wbe-popup chat-results-popup">
       <div class="chat-results-header">
         <strong>${escapeHtml(result.title || "Chat Results")}</strong>
         <button type="button" class="small close-popup" aria-label="Close" title="Close">&times;</button>
       </div>
       <div class="chat-results-body">
-        ${buildResultsTableHtml(result)}
+        ${buildResultsTableHtml(result, { tableId })}
       </div>
-    </div>`
-  ).appendTo(document.body);
+    </div>`;
+
+  const $popup = $(popupHtml).appendTo(document.body);
   positionPopupFixed(
     $popup.get(0),
     Math.round((window.innerWidth - $popup.get(0).getBoundingClientRect().width) / 2),
     110
   );
-  $popup.find(".close-popup").on("click", closeResultsPopup);
+  // Per-popup close handler: destroy the DataTable for this popup and remove.
+  $popup.find(".close-popup").on("click", () => {
+    try {
+      const $t = $popup.find("table");
+      if ($t.length && $.fn.DataTable.isDataTable($t)) {
+        $t.DataTable().destroy();
+      }
+    } catch (e) {
+      /* ignore */
+    }
+    $popup.remove();
+  });
+
   setHighestZIndex($popup.get(0));
   $popup.draggable({
     handle: ".chat-results-header",
@@ -1269,7 +1331,23 @@ function openResultsTable(result = lastStructuredResult) {
     minHeight: 260,
   });
 
-  $(`#${CHAT_RESULTS_TABLE_ID}`).DataTable({
+  // Some page or widget code (or jQuery UI) may change z-index after
+  // initialization. Schedule a short delayed re-raise so the results popup
+  // reliably ends up above other WBE popups when opened.
+  try {
+    setTimeout(() => {
+      try {
+        console.debug("wbe: re-raising results popup after init");
+        setHighestZIndex($popup.get(0));
+      } catch (e) {
+        /* ignore */
+      }
+    }, 50);
+  } catch (e) {
+    /* ignore */
+  }
+
+  $(`#${tableId}`).DataTable({
     paging: true,
     searching: true,
     ordering: true,
@@ -1320,11 +1398,15 @@ async function handleChatResult(result) {
     }
   }
 
+  // If the result includes a table, capture a snapshot of the table on the
+  // action object so it can be persisted with the chat history. This avoids
+  // later Table buttons all referencing the global `lastStructuredResult`.
   const action = result.action
     ? result.action
     : result.table
     ? {
         label: "Table",
+        table: result.table,
         onClick: () => openResultsTable(result.table),
       }
     : null;
@@ -1339,6 +1421,16 @@ async function handleChatResult(result) {
       openResultsTable(result.table);
     }
   }
+}
+
+function extractNamesFromPrompt(prompt) {
+  if (!prompt || typeof prompt !== "string") return [];
+  // Look for capitalized words that could be names, allowing for simple possessive forms (e.g., "Dona's bio")
+  const nameMatches = prompt.match(/\b[A-Z][a-zA-Z0-9_]*(?:['’]s)?\b/g) || [];
+  // Clean up matches by removing possessive "'s" and trimming whitespace
+  const cleanedNames = nameMatches.map((name) => name.replace(/['’]s$/, "").trim());
+  // Return unique names
+  return Array.from(new Set(cleanedNames));
 }
 
 async function sendChatPrompt() {
@@ -1397,6 +1489,102 @@ async function sendChatPrompt() {
         // Not a disambiguation reply — clear context and fall through to normal routing
         pendingDisambiguationContext = null;
       }
+    }
+    // If user selected AI mode explicitly when starting with 'Search', short-circuit to AI chat
+    try {
+      console.debug("wbe: checking chat mode for prompt", { prompt });
+      const $inputEl = $(`#${CHAT_INPUT_ID}`);
+      const $popup = $inputEl.closest("#" + CHAT_POPUP_ID);
+      const $m = $popup.find("#wbe-chat-mode-controls");
+      if ($m.length && $m.is(":visible")) {
+        const mode = $m.find('input[name="wbe-chat-mode"]:checked').val();
+        if (mode === "ai") {
+          // Direct AI chat path
+          const { provider, key, model } = await getChatAiConfig();
+          if (!key) {
+            appendMessage("assistant", "No API key configured for AI chat.");
+            return;
+          }
+          const conversationContext = buildRecentConversationForAi();
+          // Find any names in the prompt. Remove "'s", commas, etc. to get cleaner candidates for the AI to use as profile context.
+          const nameCandidates = extractNamesFromPrompt(prompt);
+          // PROFILE_PERSON_INFO may be a single profile object on profile pages, or
+          // an array in other contexts. Support both forms and match against
+          // common name fields (`Name`, `RealName`, `FullName`, `displayName`).
+          nameCandidates.forEach((name) => {
+            let profile = null;
+            const pinfo = PROFILE_PERSON_INFO;
+            const needle = String(name || "").toLowerCase();
+            if (Array.isArray(pinfo)) {
+              profile = pinfo.find((p) => {
+                const check = String(p?.displayName || p?.RealName || p?.Name || p?.FullName || "").toLowerCase();
+                return check.includes(needle);
+              });
+            } else if (pinfo && typeof pinfo === "object") {
+              const check = String(
+                pinfo.displayName || pinfo.RealName || pinfo.Name || pinfo.FullName || ""
+              ).toLowerCase();
+              if (check.includes(needle)) profile = pinfo;
+            }
+
+            if (profile) {
+              const displayName =
+                profile.displayName || profile.RealName || profile.Name || profile.FullName || "unknown";
+              // Send the entire profile JSON stringified for AI context
+              conversationContext += `\n\nContext on ${displayName}:\n${JSON.stringify(profile, null, 2)}`;
+            }
+          });
+
+          const response = await chrome.runtime.sendMessage({
+            action: "chatWithAI",
+            prompt: [
+              "You are assisting inside the WikiTree Browser Extension chat.",
+              conversationContext ? `Recent conversation:\n${conversationContext}` : "",
+              `Current user request: ${prompt}`,
+            ]
+              .filter(Boolean)
+              .join("\n\n"),
+            provider,
+            key,
+            model,
+            includeApiDocContext: true,
+            apiDocUserQuery: prompt,
+            apiDocMaxChars: 4500,
+            pageContext: {
+              url: window.location.href,
+              title: document.title,
+            },
+          });
+          if (response?.success) {
+            appendMessage("assistant", response.response || "No response text returned.");
+          } else {
+            appendMessage("assistant", `Error: ${response?.error || "AI request failed."}`);
+          }
+          return;
+        }
+        // If mode is 'wt', strip the leading 'Search' so local routing treats it as a normal search
+        if (mode === "wt") {
+          prompt = String(prompt || "")
+            .replace(/^\s*search[:\s]+/i, "")
+            .trim();
+          try {
+            const searchResult = await tryHandleProfileSearchPrompt(null, prompt);
+            if (searchResult) {
+              if (typeof searchResult === "string") {
+                await handleChatResult({ message: searchResult });
+              } else {
+                await handleChatResult(searchResult);
+              }
+              return;
+            }
+          } catch (wtErr) {
+            console.debug("wbe: wt search handler failed", wtErr);
+          }
+        }
+        // if mode == 'wtplus' do nothing (default WT+ behavior)
+      }
+    } catch (modeErr) {
+      console.debug("wbe: chat mode handling failed", modeErr);
     }
 
     const correctionResponse = await tryHandleConnectionCorrectionPrompt(prompt);
@@ -1492,18 +1680,136 @@ async function sendChatPrompt() {
       return;
     }
 
+    // Begin detailed logging for form submission and AI mode
+    console.log("wbe: chat form submitted", { prompt });
+    const chatMode = document.getElementById("wbe-chat-mode")?.value || "ai";
+    console.log("wbe: detected chat mode", { chatMode });
     const conversationContext = buildRecentConversationForAi();
+    let profileContextText = null;
+    try {
+      const textPrompt = String(prompt || "");
+      // Extract capitalized name candidates
+      const nameCandidates = textPrompt.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/g) || [];
+      console.log("wbe: extracted name candidates from prompt", { nameCandidates, prompt: textPrompt });
+      // 1) Direct profile key like Beacall-156
+      let profileKeyMatch = textPrompt.match(/\b([A-Za-z][A-Za-z0-9_\-]+-\d{1,6})\b/);
+      let profileKey = profileKeyMatch?.[1];
+      console.log("wbe: direct profile key match", { profileKey });
+      // 2) Last structured result contains match
+      if (!profileKey && lastStructuredResult && Array.isArray(lastStructuredResult.rows)) {
+        const candidate = nameCandidates.find((t) => t && t.length > 2);
+        const found = (lastStructuredResult.rows || []).find((r) =>
+          String(r.displayName || "")
+            .toLowerCase()
+            .includes(String(candidate).toLowerCase())
+        );
+        if (found) {
+          profileKey = found.wtid || found.Name || null;
+          console.log("wbe: resolved profileKey from lastStructuredResult", { candidate, profileKey });
+        }
+      }
+      // 3) Quick search by RealName
+      if (!profileKey && nameCandidates.length) {
+        let nameCandidate = nameCandidates.sort((a, b) => b.split(" ").length - a.split(" ").length)[0];
+        if (nameCandidate) {
+          try {
+            console.log("wbe: attempting searchPerson for nameCandidate", { nameCandidate });
+            const [status, matches, total] = await WikiTreeAPI.searchPerson(
+              WBE_CHAT_APP_ID,
+              { RealName: nameCandidate },
+              "Id,Name",
+              { limit: 5 }
+            );
+            console.log("wbe: searchPerson result", { status, matches, total });
+            if (Array.isArray(matches) && matches.length === 1) {
+              profileKey = matches[0].Name || matches[0].user_name || null;
+              console.log("wbe: searchPerson resolved single match for", { nameCandidate, profileKey });
+            } else {
+              console.log("wbe: searchPerson returned multiple or no matches", { nameCandidate, total });
+            }
+          } catch (sErr) {
+            console.log("wbe: searchPerson error", sErr);
+          }
+        }
+      }
+      // 4) Fallback: check getProfilePersonInfo for name match
+      if (!profileKey && nameCandidates.length) {
+        try {
+          const { getProfilePersonInfo } = await import("../../core/common");
+          const personInfo = getProfilePersonInfo && getProfilePersonInfo();
+          let nameCandidate = nameCandidates.sort((a, b) => b.split(" ").length - a.split(" ").length)[0];
+          console.log("wbe: fallback DOM profile match attempt", {
+            nameCandidate,
+            personInfo,
+            fullName: personInfo && personInfo.FullName,
+            prompt: textPrompt,
+          });
+          if (
+            personInfo &&
+            personInfo.FullName &&
+            nameCandidate &&
+            personInfo.FullName.toLowerCase().includes(nameCandidate.toLowerCase())
+          ) {
+            profileKey = personInfo.Name;
+            console.log("wbe: fallback DOM profile match found", { nameCandidate, personInfo });
+          }
+        } catch (domErr) {
+          console.log("wbe: DOM profile context detection error", domErr);
+        }
+      }
+      // Fetch profile data if profileKey found
+      if (profileKey) {
+        try {
+          const fields = "Bio,Sources,Notes,Categories";
+          console.log("wbe: fetching profile for AI context", { profileKey });
+          const [profile, status, page_name] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, profileKey, fields, {
+            bioFormat: "wiki",
+            resolveRedirect: 1,
+          });
+          console.log("wbe: fetched profile for AI context", { profile, status, page_name });
+          const bio = profile?.Bio || "";
+          const sources = (profile?.Sources && Array.isArray(profile.Sources) ? profile.Sources : [])
+            .map((s) => (typeof s === "string" ? s : JSON.stringify(s)))
+            .join("\n");
+          const notes = (profile?.Notes && Array.isArray(profile.Notes) ? profile.Notes : [])
+            .map((n) => (typeof n === "string" ? n : JSON.stringify(n)))
+            .join("\n");
+          const categories = profile?.Categories ? String(profile.Categories) : "";
+          profileContextText = [
+            `Profile ${profileKey} (page: ${page_name || "unknown"}):`,
+            "BIO:",
+            bio,
+            "SOURCES:",
+            sources,
+            "NOTES:",
+            notes,
+            "CATEGORIES:",
+            categories,
+          ]
+            .filter(Boolean)
+            .join("\n\n");
+          console.log("wbe: included profile context for AI", { profileKey, page_name });
+        } catch (pErr) {
+          console.log("wbe: getProfile failed for AI context", pErr);
+          profileContextText = `Note: failed to fetch profile ${profileKey} for additional context (not logged in or API error).`;
+        }
+      }
+    } catch (ctxErr) {
+      console.log("wbe: profile context detection error", ctxErr);
+    }
+    // ...existing code...
+
+    const aiPromptParts = [
+      "You are assisting inside the WikiTree Browser Extension chat.",
+      conversationContext ? `Recent conversation:\n${conversationContext}` : "",
+      localFailureForAi ? `Local tool attempt failed with: ${localFailureForAi}` : "",
+    ];
+    if (profileContextText) aiPromptParts.push(profileContextText);
+    aiPromptParts.push(`Current user request: ${prompt}`);
 
     const response = await chrome.runtime.sendMessage({
       action: "chatWithAI",
-      prompt: [
-        "You are assisting inside the WikiTree Browser Extension chat.",
-        conversationContext ? `Recent conversation:\n${conversationContext}` : "",
-        localFailureForAi ? `Local tool attempt failed with: ${localFailureForAi}` : "",
-        `Current user request: ${prompt}`,
-      ]
-        .filter(Boolean)
-        .join("\n\n"),
+      prompt: aiPromptParts.filter(Boolean).join("\n\n"),
       provider,
       key,
       model,
@@ -1904,6 +2210,75 @@ async function tryAiDisambiguateConnectionTarget(target, rankedMatches) {
   }
 
   return null;
+}
+
+async function tryAiParseCategoryName(detectedCategory, originalPrompt) {
+  const options = await getChatOptions();
+  if (!options?.allowAiFallback) return null;
+
+  const { provider, key, model } = await getChatAiConfig();
+  if (!key) return null;
+
+  const prompt = [
+    "You are a helper that extracts a canonical WikiTree+ category query value from a user's chat prompt.",
+    "Given an example user prompt and a detected fragment, return a JSON object with two keys:",
+    '{"category":"<cleaned category name>", "categoryFullQuery":"CategoryFull=<value>"}',
+    "Only return valid JSON (no markdown).",
+    `Original prompt: ${originalPrompt}`,
+    `Detected fragment: ${detectedCategory}`,
+    "Rules:",
+    "- Remove leading command words like 'search', 'find', 'look up'.",
+    "- Prefer underscores for separators and encode commas/spaces as underscores (e.g. 'Wem, Shropshire' -> 'Wem__Shropshire').",
+    "- Return the cleaned category name (no surrounding quotes) as `category` and the exact Query Builder string as `categoryFullQuery`.",
+  ].join("\n");
+
+  const response = await chrome.runtime.sendMessage({
+    action: "chatWithAI",
+    prompt,
+    provider,
+    key,
+    model,
+    pageContext: { url: window.location.href, title: document.title },
+  });
+
+  if (!response?.success || !response.response) return null;
+  const parsed = parsePlannerJson(response.response) || null;
+  return parsed;
+}
+
+async function tryAiExpandConnectionTarget(target, prompt) {
+  const options = await getChatOptions();
+  if (!options?.allowAiFallback) return null;
+
+  const { provider, key, model } = await getChatAiConfig();
+  if (!key) return null;
+
+  const aiPrompt = [
+    "You are a helper for a genealogy extension.",
+    "Given a user-provided target (name fragment) and the full user prompt, return a JSON object with one of these shapes:",
+    '{"searchName":"<alternate search name>"} OR {"wtId":"Name-123"} OR {"none":true}',
+    "Only return valid JSON (no markdown).",
+    `Target: ${target}`,
+    `Prompt: ${prompt}`,
+  ].join("\n\n");
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: "chatWithAI",
+      prompt: aiPrompt,
+      provider,
+      key,
+      model,
+      pageContext: { url: window.location.href, title: document.title },
+    });
+
+    if (!response?.success || !response.response) return null;
+    const parsed = parsePlannerJson(response.response) || null;
+    return parsed;
+  } catch (err) {
+    console.debug("wbe: tryAiExpandConnectionTarget error", err);
+    return null;
+  }
 }
 
 async function resolveConnectionTargetPerson(target, prompt = "", options = {}) {
@@ -2422,9 +2797,7 @@ function mapApiPersonToStandardRow(person = {}, options = {}) {
           display: first || String(s?.RealName || s?.Name || "").trim(),
         };
       });
-      const parts = spouseList
-        .map((p) => [p.firstName, p.lnab].filter(Boolean).join(" "))
-        .filter(Boolean);
+      const parts = spouseList.map((p) => [p.firstName, p.lnab].filter(Boolean).join(" ")).filter(Boolean);
       spouse = parts.join(", ");
     }
   } catch (e) {
@@ -3033,7 +3406,11 @@ async function tryHandleProfileSearchPrompt(params, originalPrompt) {
   let sanitizedQuery = rawQuery;
   const noVariantsRegex = /\b(no[-\s]?variants|skip[-\s]?variants)\b/gi;
   const hadExplicitNoVariants = noVariantsRegex.test(sanitizedQuery);
-  if (hadExplicitNoVariants) sanitizedQuery = sanitizedQuery.replace(noVariantsRegex, "").replace(/\s{2,}/g, " ").trim();
+  if (hadExplicitNoVariants)
+    sanitizedQuery = sanitizedQuery
+      .replace(noVariantsRegex, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
   const query = sanitizedQuery;
 
   try {
@@ -3046,10 +3423,30 @@ async function tryHandleProfileSearchPrompt(params, originalPrompt) {
       spouseQuery = (spouseMatch[2] || "").trim();
     }
 
-    console.debug("wbe: tryHandleProfileSearchPrompt initial", { query, spouseMatch, mainQueryBeforeNormalize: mainQuery, spouseQuery });
+    console.debug("wbe: tryHandleProfileSearchPrompt initial", {
+      query,
+      spouseMatch,
+      mainQueryBeforeNormalize: mainQuery,
+      spouseQuery,
+    });
+
+    // If the user explicitly used a command-like phrase (search/find/look) and mentioned 'category',
+    // prefer running category detection against the original raw query to avoid normalization stripping useful tokens.
+    try {
+      if (/^\s*(?:search:?|find|look(?:\s+up)?)\b/i.test(rawQuery) && /\bcategory\b/i.test(rawQuery)) {
+        console.debug("wbe: explicit search+category detected — preserving rawQuery for category detection", {
+          rawQuery,
+        });
+        mainQuery = rawQuery;
+      }
+    } catch (e) {
+      /* ignore */
+    }
 
     // Normalize mainQuery: remove leading command words like 'search', 'find', 'look up'
-    mainQuery = String(mainQuery || "").replace(/^\s*(?:search:?|find|look(?:\s+up)?)\s+/i, "").trim();
+    mainQuery = String(mainQuery || "")
+      .replace(/^\s*(?:search:?|find|look(?:\s+up)?)\s+/i, "")
+      .trim();
 
     console.debug("wbe: tryHandleProfileSearchPrompt after strip command", { mainQuery });
 
@@ -3058,7 +3455,11 @@ async function tryHandleProfileSearchPrompt(params, originalPrompt) {
     try {
       const mqTokens = (mainQuery || "").split(/\s+/).filter(Boolean);
       if (mqTokens.length === 1) {
-        const originalTokens = String(query || "").replace(/^\s*(?:search:?|find|look(?:\s+up)?)\s+/i, "").trim().split(/\s+/).filter(Boolean);
+        const originalTokens = String(query || "")
+          .replace(/^\s*(?:search:?|find|look(?:\s+up)?)\s+/i, "")
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean);
         if (originalTokens.length >= 2) {
           mainQuery = `${originalTokens[0]} ${originalTokens[1]}`;
         }
@@ -3098,6 +3499,116 @@ async function tryHandleProfileSearchPrompt(params, originalPrompt) {
       parsed.modifiers.noVariants = true;
     }
     console.debug("wbe: tryHandleProfileSearchPrompt parsed modifiers", { parsed });
+
+    // Simple WT+ category search support (start small):
+    // Ensure `categoryName` is declared in this scope before detection.
+    let categoryName = null;
+    // Detect prompts like "Search Wem, Shropshire category" or "Category:Wem, Shropshire"
+    try {
+      const detectCategoryName = (raw) => {
+        if (!raw) return null;
+        // Helper to strip surrounding quotes and whitespace
+        const stripQuotes = (s) => (s || "").replace(/^["“”'‘’\s\[]+|["“”'‘’\s\]]+$/g, "").trim();
+        const rRaw = String(raw).trim();
+        const r = stripQuotes(rRaw);
+        // Category:Name format
+        let m = r.match(/^Category:\s*(.+)$/i);
+        if (m) return stripQuotes(m[1]);
+        // end-with 'category' => "Wem, Shropshire category"
+        m = r.match(/^(.+?)\s+category\s*$/i);
+        if (m) return stripQuotes(m[1]);
+        // 'category: Name' or 'category Name'
+        m = r.match(/\bcategory\s*[:\-]?\s*(.+)$/i);
+        if (m) return stripQuotes(m[1]);
+        // As a last resort, look for quoted phrase before the word 'category' in the original raw string
+        m = rRaw.match(/['"“”'‘’]([^'"“”'‘’]+)['"“”'‘’]\s+category/i);
+        if (m) return stripQuotes(m[1]);
+        return null;
+      };
+
+      const detRaw = detectCategoryName(rawQuery);
+      const detMain = detectCategoryName(mainQuery);
+      const detQuery = detectCategoryName(query);
+      categoryName = detRaw || detMain || detQuery;
+      console.debug("wbe: detectCategoryName result", {
+        rawQuery,
+        mainQuery,
+        query,
+        detRaw,
+        detMain,
+        detQuery,
+        categoryName,
+      });
+      // If a category was detected, only use the WT+ deterministic CategoryFull
+      // pathway when the chat mode is NOT the plain 'wt' search mode. When the
+      // user explicitly chose 'wt', prefer the normal WT search flow instead
+      // of forcing a WT+ category search.
+      const chatMode = document.getElementById("wbe-chat-mode")?.value || null;
+      if (categoryName && chatMode !== "wt") {
+        showChatShaky(`Looking up category "${categoryName}" via WT+...`);
+        try {
+          // Build deterministic CategoryFull value and call WTWebProfileSearch directly.
+          // Steps: strip surrounding quotes, drop leading 'Search', map ", " -> "__", then spaces -> "_".
+          let chosenCategory = stripSurroundingQuotes(categoryName);
+          chosenCategory = String(chosenCategory || "")
+            .replace(/^\s*Search\s+[:\-]?\s*/i, "")
+            .trim();
+
+          // map comma+space to double-underscore, then remaining spaces to single underscore
+          let catVal = chosenCategory.replace(/,\s+/g, "__");
+          catVal = catVal.replace(/\s+/g, "_");
+
+          const qb = `CategoryFull=${catVal}`;
+          const encodedQ = encodeURIComponent(qb);
+          const debugUrl = `https://plus.wikitree.com/function/WTWebProfileSearch/apiWBE_ChatCategory.json?Query=${encodedQ}&MaxProfiles=500&Format=JSON`;
+          console.debug("wbe: WT+ deterministic CategoryFull", { chosenCategory, catVal, qb, encodedQ, debugUrl });
+
+          const resp = await wtAPIProfileSearch("ChatCategory", encodedQ, { maxProfiles: 500 });
+          const profiles = resp?.response?.profiles || [];
+          if (!profiles.length) {
+            console.debug("wbe: wtAPIProfileSearch returned no profiles", { qb, resp });
+            hideChatShaky();
+            return `I couldn't find any profiles for Category:${chosenCategory} via WT+.`;
+          }
+
+          const uniqueIds = [...new Set(profiles.map((p) => String(p)))].slice(0, 200);
+
+          showChatShaky(`Fetching ${uniqueIds.length} profiles...`);
+          // Fetch profiles from WikiTree API
+          const fields =
+            "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,RealName,BirthDate,BirthLocation,DeathDate,DeathLocation,Gender,Id,Name";
+          const [, resultByKey, peopleData] = await WikiTreeAPI.getPeople(WBE_CHAT_APP_ID, uniqueIds, fields, {
+            resolveRedirect: 1,
+          });
+
+          const people = uniqueIds.map((k) => WikiTreeAPI.lookupProfile(k, resultByKey, peopleData)).filter(Boolean);
+          const rows = people.map((p) => mapApiPersonToStandardRow(p, { wtId: p?.Name }));
+
+          const table = makeStandardProfileTable(`Category: ${chosenCategory}`, rows, [[0, "asc"]]);
+          table.columns = (table.columns || []).filter((c) => !["degrees", "spouse", "spouseList"].includes(c.key));
+          hideChatShaky();
+          return {
+            message: `Found ${rows.length} profiles in Category:${chosenCategory}`,
+            table,
+          };
+        } catch (e) {
+          hideChatShaky();
+          console.debug("wbe: category search failed", e);
+          return `I couldn't complete the category lookup for "${categoryName}". Error: ${e?.message || e}`;
+        }
+      } else if (categoryName && chatMode === "wt") {
+        // Detected a category, but user selected plain WT search; skip WT+ deterministic
+        // category flow and allow the normal WT search handlers to run below.
+        console.debug("wbe: category detected but chat mode is 'wt' — skipping WT+ flow", { categoryName });
+      }
+    } catch (e) {
+      /* ignore category-detection errors and continue to other handlers */
+      console.debug("wbe: category detection error", e);
+    }
+    // If we got here and didn't detect a category, log that explicitly for debugging.
+    if (!categoryName) {
+      console.debug("wbe: no category detected; continuing main handlers", { rawQuery, mainQuery, query, parsed });
+    }
     // Do NOT let the parser overwrite the full `mainQuery` (keep full name).
     // Use only the modifiers returned by the parser.
     const modifiers = parsed.modifiers || {};
@@ -3152,7 +3663,11 @@ async function tryHandleProfileSearchPrompt(params, originalPrompt) {
     try {
       const hasKey = await hasAnyApiKey();
       const options = await getChatOptions();
-      console.debug("wbe: AI parse gate", { hasKey, allowAiFallback: options?.allowAiFallback, forceAiParse: options?.forceAiParse });
+      console.debug("wbe: AI parse gate", {
+        hasKey,
+        allowAiFallback: options?.allowAiFallback,
+        forceAiParse: options?.forceAiParse,
+      });
       // Allow forcing AI parse via options.forceAiParse (dev/test only).
       if ((hasKey && options?.allowAiFallback) || options?.forceAiParse) {
         showChatShaky("Asking AI to parse search query...");
@@ -3181,8 +3696,7 @@ async function tryHandleProfileSearchPrompt(params, originalPrompt) {
               else if (k === "skipVariants" || k === "noVariants") {
                 // Do not allow AI to unset an explicit user-specified noVariants; only set when truthy
                 if (v) modifiers.noVariants = true;
-              }
-              else if (k === "watchlist") modifiers.useWatchlist = !!v;
+              } else if (k === "watchlist") modifiers.useWatchlist = !!v;
               else if (k === "FirstName") modifiers.firstName = v;
               else if (k === "LastName") modifiers.lastName = v;
               else if (k === "RealName") modifiers.realName = v;
@@ -3201,11 +3715,17 @@ async function tryHandleProfileSearchPrompt(params, originalPrompt) {
     // merged fields into `modifiers`. This ensures AI-provided date filters
     // are respected when we strip qualifiers from the main query.
     const hasDateModifiers = Boolean(
-      modifiers?.bornBefore || modifiers?.bornAfter || modifiers?.diedBefore || modifiers?.diedAfter || modifiers?.bornRange || modifiers?.diedRange
+      modifiers?.bornBefore ||
+        modifiers?.bornAfter ||
+        modifiers?.diedBefore ||
+        modifiers?.diedAfter ||
+        modifiers?.bornRange ||
+        modifiers?.diedRange
     );
-    const effectiveMainQuery = (hasDateModifiers || modifiers?.noVariants || hadExplicitNoVariants)
-      ? (stripDateQualifiersFromText(mainQuery) || mainQuery)
-      : mainQuery;
+    const effectiveMainQuery =
+      hasDateModifiers || modifiers?.noVariants || hadExplicitNoVariants
+        ? stripDateQualifiersFromText(mainQuery) || mainQuery
+        : mainQuery;
 
     // Prepare a canonical exact-match query to use for no-variants/quoted matching.
     // Prefer an explicitly quoted substring when available; fall back to the
@@ -3244,8 +3764,15 @@ async function tryHandleProfileSearchPrompt(params, originalPrompt) {
           return m[1] || m[2] || m[3] || m[4] || null;
         }
 
-        const quotedInner = extractQuotedSubstring(rawQuery) || extractQuotedSubstring(effectiveMainQuery) || stripSurroundingQuotes(effectiveMainQuery);
-        const qt = (quotedInner || "").trim().replace(/[?!.]+$/g, "").split(/\s+/).filter(Boolean);
+        const quotedInner =
+          extractQuotedSubstring(rawQuery) ||
+          extractQuotedSubstring(effectiveMainQuery) ||
+          stripSurroundingQuotes(effectiveMainQuery);
+        const qt = (quotedInner || "")
+          .trim()
+          .replace(/[?!.]+$/g, "")
+          .split(/\s+/)
+          .filter(Boolean);
         if (qt.length >= 1) {
           // If the quoted substring is a single token, treat it as a surname
           // (LastName only). For multi-token quotes, set FirstName and LastName.
@@ -3362,7 +3889,10 @@ async function tryHandleProfileSearchPrompt(params, originalPrompt) {
       console.debug("wbe: forcing skipVariants due to noVariants", { mainQuery });
       searchParams.skipVariants = 1;
       if (!searchParams.FirstName && !searchParams.LastName && unquotedMain) {
-        const tokens = String(unquotedMain || "").trim().split(/\s+/).filter(Boolean);
+        const tokens = String(unquotedMain || "")
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean);
         if (tokens.length === 1) searchParams.LastName = tokens[0];
         else if (tokens.length >= 2) {
           searchParams.FirstName = tokens[0];
@@ -3376,15 +3906,29 @@ async function tryHandleProfileSearchPrompt(params, originalPrompt) {
     // page through searchPerson results to collect all candidate profiles
     // (otherwise we only get the API's limited first page, often 100 results).
     const needPaging =
-      modifiers?.bornBefore || modifiers?.bornAfter || modifiers?.diedBefore || modifiers?.diedAfter ||
-      modifiers?.bornRange || modifiers?.diedRange || Boolean(spouseQuery);
+      modifiers?.bornBefore ||
+      modifiers?.bornAfter ||
+      modifiers?.diedBefore ||
+      modifiers?.diedAfter ||
+      modifiers?.bornRange ||
+      modifiers?.diedRange ||
+      Boolean(spouseQuery);
 
     let profileIds = [];
     if (needPaging) {
-      const [status, matches] = await fetchSearchPersonPaged("Chat", searchParams, "Id,Name", { limit: 100, max: 2000 });
-      const ids = (Array.isArray(matches) ? matches : []).map((m) => (m?.Id ? m.Id : m?.Name ? m.Name : null)).filter(Boolean);
+      const [status, matches] = await fetchSearchPersonPaged("Chat", searchParams, "Id,Name", {
+        limit: 100,
+        max: 2000,
+      });
+      const ids = (Array.isArray(matches) ? matches : [])
+        .map((m) => (m?.Id ? m.Id : m?.Name ? m.Name : null))
+        .filter(Boolean);
       profileIds = ids.slice(0, 10000);
-      console.debug("wbe: paged searchPerson result", { status, profileIdsSample: profileIds.slice(0, 50), totalMatches: profileIds.length });
+      console.debug("wbe: paged searchPerson result", {
+        status,
+        profileIdsSample: profileIds.slice(0, 50),
+        totalMatches: profileIds.length,
+      });
     } else {
       // Use a safe max `limit` supported by the API (100)
       const [spStatus, spMatches] = await WikiTreeAPI.searchPerson("Chat", searchParams, "Id,Name", { limit: 100 });
@@ -3398,7 +3942,11 @@ async function tryHandleProfileSearchPrompt(params, originalPrompt) {
         })
         .filter(Boolean)
         .slice(0, 10000);
-      console.debug("wbe: searchPerson result", { spStatus, profileIdsSample: profileIds.slice(0, 50), totalMatches: profileIds.length });
+      console.debug("wbe: searchPerson result", {
+        spStatus,
+        profileIdsSample: profileIds.slice(0, 50),
+        totalMatches: profileIds.length,
+      });
     }
 
     if (!profileIds.length) {
@@ -3415,7 +3963,9 @@ async function tryHandleProfileSearchPrompt(params, originalPrompt) {
     console.debug("wbe: fetchPeoplePaged result", {
       profileIdsCount: (profileIds || []).length,
       peopleCount,
-      sample: Object.values(people || {}).slice(0, 10).map((p) => ({ Id: p?.Id, Name: p?.Name, RealName: p?.RealName })),
+      sample: Object.values(people || {})
+        .slice(0, 10)
+        .map((p) => ({ Id: p?.Id, Name: p?.Name, RealName: p?.RealName })),
     });
 
     let matchedPeople = Object.values(people || {});
@@ -3455,7 +4005,9 @@ async function tryHandleProfileSearchPrompt(params, originalPrompt) {
             }
             // Try composed name from Name (WTID) by replacing hyphen with space and dropping numeric suffix
             if (p.Name) {
-              const nameFromWtid = String(p.Name).replace(/-/g, " ").replace(/\s+\d+$/g, "");
+              const nameFromWtid = String(p.Name)
+                .replace(/-/g, " ")
+                .replace(/\s+\d+$/g, "");
               if (nameFromWtid) candidates.add(normalizeText(nameFromWtid));
             }
             // Also include explicit last-name only combos
@@ -3478,7 +4030,9 @@ async function tryHandleProfileSearchPrompt(params, originalPrompt) {
     );
     console.debug("wbe: mappedRows sample", {
       mappedCount: mappedRows.length,
-      sample: mappedRows.slice(0, 10).map((r) => ({ displayName: r.displayName, wtid: r.wtid, birth: r.birth, death: r.death })),
+      sample: mappedRows
+        .slice(0, 10)
+        .map((r) => ({ displayName: r.displayName, wtid: r.wtid, birth: r.birth, death: r.death })),
     });
 
     // If a spouse query was given, filter matched profiles by whether any spouse matches
@@ -3581,7 +4135,11 @@ async function tryHandleProfileSearchPrompt(params, originalPrompt) {
                   }
                 } else {
                   if (candNormalized.some((c) => c.includes(normSpouse))) isMatch = true;
-                  if (!isMatch && spouseTokens.length && spouseTokens.every((t) => candNormalized.some((c) => c.includes(t))))
+                  if (
+                    !isMatch &&
+                    spouseTokens.length &&
+                    spouseTokens.every((t) => candNormalized.some((c) => c.includes(t)))
+                  )
                     isMatch = true;
                 }
               }
@@ -3592,7 +4150,10 @@ async function tryHandleProfileSearchPrompt(params, originalPrompt) {
               }
             }
 
-            console.debug("wbe: spouse match result", { key, found: found ? { Name: found.Name, RealName: found.RealName, Id: found.Id } : null });
+            console.debug("wbe: spouse match result", {
+              key,
+              found: found ? { Name: found.Name, RealName: found.RealName, Id: found.Id } : null,
+            });
             if (!found) {
               // Log normalized candidate names to help debug why spouse didn't match
               try {
@@ -3660,7 +4221,9 @@ async function tryHandleProfileSearchPrompt(params, originalPrompt) {
               const birth = person.birth || "?";
               const death = person.death || "?";
               const spouseSuffix = person.matchedSpouse ? ` — spouse: ${person.matchedSpouse}` : "";
-              return `- ${person.displayName} (${person.wtid}) [${birth} - ${death}]${formatLocation(person)}${spouseSuffix}`;
+              return `- ${person.displayName} (${person.wtid}) [${birth} - ${death}]${formatLocation(
+                person
+              )}${spouseSuffix}`;
             })
             .join("\n"),
         }
@@ -3670,7 +4233,7 @@ async function tryHandleProfileSearchPrompt(params, originalPrompt) {
     const beforeCount = (finalRows || []).length;
     finalRows = (finalRows || []).filter((r) => {
       try {
-        return Boolean((r && (r.wtid || r.displayName || r.firstName || r.lastNameCurrent)));
+        return Boolean(r && (r.wtid || r.displayName || r.firstName || r.lastNameCurrent));
       } catch (e) {
         return false;
       }
@@ -3680,7 +4243,7 @@ async function tryHandleProfileSearchPrompt(params, originalPrompt) {
 
     // Build the table but remove the degrees column for search results
     const table = makeStandardProfileTable(`Profile search: ${query}`, finalRows, [[0, "asc"]]);
-    table.columns = (table.columns || []).filter((c) => c.key !== "degrees");
+    table.columns = (table.columns || []).filter((c) => !["degrees", "spouse", "spouseList"].includes(c.key));
     // If the user did not ask to filter by spouse, omit the Spouse column
     // to avoid showing an empty spouse column in results.
     if (!spouseQuery) {
@@ -3852,7 +4415,7 @@ function parseSearchModifiers(query) {
 
   // born / b / died / d qualifiers (comparisons and ranges)
   // Examples: born:1900-1950, b:1900-1950, b<1900, died>1950, bef 1900, after:1900
-  const dateTokenRegex = /(born|b|died|d)\s*[:=]?\s*([^,;]+)/ig;
+  const dateTokenRegex = /(born|b|died|d)\s*[:=]?\s*([^,;]+)/gi;
   let dtMatch;
   while ((dtMatch = dateTokenRegex.exec(working))) {
     const key = (dtMatch[1] || "").toLowerCase();
@@ -5768,7 +6331,34 @@ async function tryHandleRelationCountPrompt(params, prompt = "") {
 async function tryHandleConnectionPrompt(prompt, targetOverride = "") {
   const target = targetOverride || extractConnectionTarget(prompt);
   console.debug("wbe: tryHandleConnectionPrompt start", { prompt, targetOverride, target });
-  if (!target) {
+  // If no explicit target extracted, but the user is on a profile page and
+  // the prompt references that person's name (e.g., "Alfred's connection to me"),
+  // prefer the page profile as the target to avoid resolving to an unrelated match.
+  let resolvedTarget = target;
+  if (!resolvedTarget) {
+    try {
+      const pagePerson = getProfilePersonInfo();
+      if (pagePerson && pagePerson.Name) {
+        const escape = (s) => String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const first = pagePerson.FirstName || "";
+        const full = pagePerson.FullName || "";
+        const pats = [];
+        if (first) pats.push(`\\b${escape(first)}(?:'s|\b)`);
+        if (full) pats.push(`\\b${escape(full)}(?:'s|\b)`);
+        // Also match the WTID or display name directly
+        pats.push(`\\b${escape(pagePerson.Name)}\\b`);
+        const re = new RegExp(pats.join("|"), "i");
+        if (re.test(String(prompt || ""))) {
+          resolvedTarget = pagePerson.Name;
+          console.debug("wbe: tryHandleConnectionPrompt using page profile as target", { resolvedTarget });
+        }
+      }
+    } catch (e) {
+      /* ignore page-detection errors */
+    }
+  }
+
+  if (!resolvedTarget) {
     return null;
   }
 
@@ -5918,6 +6508,84 @@ async function tryHandleConnectionPrompt(prompt, targetOverride = "") {
 async function tryHandlePersonBioPrompt(prompt) {
   console.info("wbe: tryHandlePersonBioPrompt called", { prompt });
 
+  // Early intercept: catch prompts like "Search \"Wem, Shropshire\" category" or "Category:Wem, Shropshire"
+  try {
+    const detectCategoryEarly = (s) => {
+      if (!s) return null;
+      const str0 = String(s).trim();
+      // quoted phrase before 'category'
+      let m = str0.match(/['"“”'‘’]([^'"“”'‘’]+)['"“”'‘’]\s+category/i);
+      if (m) return m[1].trim();
+      // starts with 'search' ... 'category'
+      m = str0.match(/^\s*search\s+['"“”'‘’]?(.*?)['"“”'‘’]?\s+category\??$/i);
+      if (m) return m[1].trim();
+      // Category:Name or category: Name
+      m = str0.match(/\bcategory\s*[:\-]?\s*(.+)$/i);
+      if (m) return m[1].trim();
+      return null;
+    };
+
+    console.debug("wbe: early category detection start", { prompt });
+    const earlyCategory = detectCategoryEarly(prompt);
+    console.debug("wbe: early category detection result", { earlyCategory });
+    if (earlyCategory) {
+      // Deterministic CategoryFull construction: comma+space -> __, spaces -> _
+      showChatShaky(`Looking up category "${earlyCategory}" via WT+...`);
+      try {
+        let chosenCategory = earlyCategory.replace(/^\s*Search\s+[:\-]?\s*/i, "").trim();
+        let catVal = chosenCategory.replace(/,\s+/g, "__");
+        catVal = catVal.replace(/\s+/g, "_");
+        const qb = `CategoryFull=${catVal}`;
+        const encodedQ = encodeURIComponent(qb);
+        console.debug("wbe: WT+ early CategoryFull", { earlyCategory, catVal, qb, encodedQ });
+
+        console.debug("wbe: wtAPIProfileSearch calling", { qb, encodedQ });
+        let resp;
+        try {
+          resp = await wtAPIProfileSearch("ChatCategory", encodedQ, { maxProfiles: 500 });
+        } catch (apiErr) {
+          console.debug("wbe: wtAPIProfileSearch threw", { qb, apiErr });
+          hideChatShaky();
+          return `WT+ profile search failed for Category:${chosenCategory}. Error: ${apiErr?.message || apiErr}`;
+        }
+        const profiles = resp?.response?.profiles || [];
+        console.debug("wbe: wtAPIProfileSearch response", {
+          found: resp?.response?.found,
+          profilesLength: profiles.length,
+        });
+        if (!profiles.length) {
+          console.debug("wbe: wtAPIProfileSearch returned no profiles for early category", { qb, resp });
+          hideChatShaky();
+          return `I couldn't find any profiles for Category:${chosenCategory} via WT+.`;
+        }
+
+        const uniqueIds = [...new Set(profiles.map((p) => String(p)))].slice(0, 200);
+        showChatShaky(`Fetching ${uniqueIds.length} profiles...`);
+        const fields =
+          "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,RealName,BirthDate,BirthLocation,DeathDate,DeathLocation,Gender,Id,Name";
+        const [, resultByKey, peopleData] = await WikiTreeAPI.getPeople(WBE_CHAT_APP_ID, uniqueIds, fields, {
+          resolveRedirect: 1,
+        });
+
+        const people = uniqueIds.map((k) => WikiTreeAPI.lookupProfile(k, resultByKey, peopleData)).filter(Boolean);
+        const rows = people.map((p) => mapApiPersonToStandardRow(p, { wtId: p?.Name }));
+
+        const table = makeStandardProfileTable(`Category: ${chosenCategory}`, rows, [[0, "asc"]]);
+        table.columns = (table.columns || []).filter((c) => !["degrees", "spouse", "spouseList"].includes(c.key));
+        hideChatShaky();
+        return {
+          message: `Found ${rows.length} profiles in Category:${chosenCategory}`,
+          table,
+        };
+      } catch (e) {
+        hideChatShaky();
+        console.debug("wbe: early category search failed", e);
+        return `I couldn't complete the category lookup for "${earlyCategory}". Error: ${e?.message || e}`;
+      }
+    }
+  } catch (err) {
+    console.debug("wbe: early category detection error", err);
+  }
   // Detect possessive relation patterns and handle nested possessives robustly.
   // Examples: "Ivy's parents", "Dona's bio", "bio of X", "Bethia's parents' bios".
   const str = String(prompt || "").trim();
@@ -6224,6 +6892,12 @@ async function tryHandlePersonBioPrompt(prompt) {
     if (!relationType || relationType === "self") {
       // Fetch and show the subject's own bio
       showChatShaky("Loading biography...");
+      try {
+        const popup = document.getElementById("wbe-shaky-tree-popup");
+        if (popup) setHighestZIndex(popup);
+      } catch (e) {
+        /* ignore */
+      }
       console.info("wbe: tryHandlePersonBioPrompt fetching profile for self", { personKey });
       const [profile] = await WikiTreeAPI.getProfile(
         WBE_CHAT_APP_ID,
@@ -6578,9 +7252,16 @@ function openPopup() {
         </div>
         <div class="chat-popup-body">
           <div id="${CHAT_MESSAGES_ID}" class="chat-messages"></div>
-          <div class="chat-input-row">
-            <textarea id="${CHAT_INPUT_ID}" rows="2" placeholder="Ask something"></textarea>
-            <button id="${CHAT_SEND_ID}" type="button" class="small">Send</button>
+          <div class="chat-input-row" style="display:flex;align-items:flex-start;gap:8px;">
+            <textarea id="${CHAT_INPUT_ID}" rows="2" placeholder="Ask something" style="flex:1;min-height:48px"></textarea>
+            <div id="wbe-chat-mode-controls" style="display:none;margin-left:6px;font-size:12px;line-height:1">
+              <label style="display:block;margin-bottom:6px;font-size:12px"><input type="radio" name="wbe-chat-mode" value="wt" style="width:14px;height:14px;margin-right:6px;vertical-align:middle" />WT</label>
+              <label style="display:block;margin-bottom:6px;font-size:12px"><input type="radio" name="wbe-chat-mode" value="wtplus" checked style="width:14px;height:14px;margin-right:6px;vertical-align:middle" />WT+</label>
+              <label style="display:block;margin-bottom:0;font-size:12px"><input type="radio" name="wbe-chat-mode" value="ai" style="width:14px;height:14px;margin-right:6px;vertical-align:middle" />AI</label>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-start">
+              <button id="${CHAT_SEND_ID}" type="button" class="small">Send</button>
+            </div>
           </div>
         </div>
       </div>`
@@ -6599,6 +7280,20 @@ function openPopup() {
       if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();
         sendChatPrompt();
+      }
+    });
+    // Show mode controls when user types a query starting with 'Search'
+    $popup.find(`#${CHAT_INPUT_ID}`).on("input", (ev) => {
+      try {
+        const v = String($popup.find(`#${CHAT_INPUT_ID}`).val() || "").trimStart();
+        const $m = $popup.find("#wbe-chat-mode-controls");
+        if (/^search\b/i.test(v)) {
+          $m.show();
+        } else {
+          $m.hide();
+        }
+      } catch (e) {
+        /* ignore */
       }
     });
     loadHistory();

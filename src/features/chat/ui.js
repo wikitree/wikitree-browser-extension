@@ -209,7 +209,9 @@ export function showChatShaky(label = "Finding connection...", position = "cente
   else $existing.removeClass("center");
   $existing.stop(true, true).fadeIn(180);
   try {
-    setHighestZIndex($existing.get(0));
+    setTimeout(() => {
+      setHighestZIndex($existing.get(0));
+    }, 10);
   } catch (e) {
     /* ignore */
   }

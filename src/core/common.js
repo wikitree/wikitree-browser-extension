@@ -1928,14 +1928,41 @@ export function setHighestZIndex(el) {
       })
       .sort((a, b) => b.z - a.z)
       .slice(0, 10);
-    console.debug("wbe: top z-index elements", elems);
   } catch (logErr) {
     /* ignore logging errors */
   }
 
-  // Set the element to one more than the current maximum z-index
+  // If the target element already has the highest z-index (or ties for it),
+  // do nothing. This avoids continuously increasing z-index values on
+  // repeated clicks.
+  const elZ = (() => {
+    try {
+      return parseFloat(getComputedStyle(el).zIndex) || 0;
+    } catch (e) {
+      return 0;
+    }
+  })();
+
+  if (elZ > rawMax) {
+    // Already strictly above the current maximum; no-op.
+    console.debug("wbe: setHighestZIndex no-op; already strictly top", { elZ, rawMax });
+    return;
+  }
+
+  // Set the element to one more than the current maximum z-index.
+  // Use an inline style with `important` to reliably override stylesheet
+  // rules that may also use `!important` for z-index.
   const targetZ = rawMax + 1;
-  $(el).css("z-index", targetZ);
+  try {
+    if (el && el.style && el.style.setProperty) {
+      el.style.setProperty("z-index", String(targetZ), "important");
+    } else {
+      $(el).css("z-index", targetZ);
+    }
+  } catch (e) {
+    // Fallback to jQuery assignment if setProperty fails for any reason
+    $(el).css("z-index", targetZ);
+  }
 }
 
 //////////////////// For Notables Project

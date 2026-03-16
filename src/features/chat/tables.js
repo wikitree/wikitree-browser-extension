@@ -8,7 +8,8 @@ function normalizeText(value) {
     .toLowerCase();
 }
 
-export function buildResultsTableHtml(result) {
+export function buildResultsTableHtml(result, opts = {}) {
+  const tableId = (opts && opts.tableId) || CHAT_RESULTS_TABLE_ID;
   const headers = result.columns
     .map((column) => {
       const headerClass = column?.cellClass ? ` class="${escapeHtml(column.cellClass)}"` : "";
@@ -43,7 +44,7 @@ export function buildResultsTableHtml(result) {
     .join("");
 
   return `
-    <table id="${CHAT_RESULTS_TABLE_ID}" class="display chat-results-table">
+    <table id="${tableId}" class="display chat-results-table">
       <thead><tr>${headers}</tr></thead>
       <tbody>${rows}</tbody>
     </table>

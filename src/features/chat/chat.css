@@ -74,13 +74,13 @@
 .chat-popup,
 .chat-results-popup,
 .chat-connections-popup {
-  z-index: 2147483000 !important;
+  z-index: 99990 !important;
 }
 
 /* Shaky tree loader should also appear above other elements */
 #wbeShakyTree,
 .wbe-shaky-tree {
-  z-index: 2147483001 !important;
+  z-index: 99991 !important;
 }
 
 .chat-popup .ui-resizable-handle {
