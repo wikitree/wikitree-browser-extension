@@ -45,6 +45,21 @@ const RESULT_FIELD_ALIASES = {
 
 import { getProfilePersonInfo } from "../../core/common";
 
+const MAX_ANCESTOR_GENERATIONS = 10;
+
+function withDateConstraint(base, dateField, dateDirection, dateValue) {
+  if (!base || !dateField || !dateDirection || !dateValue) {
+    return base;
+  }
+
+  return {
+    ...base,
+    dateField,
+    dateDirection,
+    dateValue: String(dateValue || "").trim(),
+  };
+}
+
 function parseCc7LocationPrompt(prompt) {
   const compactBorn = prompt.match(/^(?:my\s+)?cc(\d+)\s+born\s+in\s+(.+?)\??$/i);
   if (compactBorn?.[2]) {
@@ -590,8 +605,119 @@ function parsePersonAgeAtDeathPrompt(prompt) {
 }
 
 function parseAncestorListPrompt(prompt) {
-  const normalized = String(prompt || "").trim();
-  const defaultAncestorGeneration = 20;
+  const normalized = String(prompt || "")
+    .trim()
+    .replace(/[.!?]+$/g, "")
+    .trim();
+  const defaultAncestorGeneration = MAX_ANCESTOR_GENERATIONS;
+
+  const bornInBeforeMatch = normalized.match(
+    /^(.*?\bancestors?)\s+born\s+in\s+(.+?)\s+before\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i
+  );
+  if (bornInBeforeMatch?.[1] && bornInBeforeMatch?.[2] && bornInBeforeMatch?.[3]) {
+    const base = parseAncestorListPrompt(bornInBeforeMatch[1].trim());
+    if (base) {
+      return withDateConstraint(
+        {
+          ...base,
+          location: bornInBeforeMatch[2].trim(),
+          locationField: "BirthLocation",
+        },
+        "BirthDate",
+        "before",
+        bornInBeforeMatch[3]
+      );
+    }
+  }
+
+  const bornInAfterMatch = normalized.match(
+    /^(.*?\bancestors?)\s+born\s+in\s+(.+?)\s+after\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i
+  );
+  if (bornInAfterMatch?.[1] && bornInAfterMatch?.[2] && bornInAfterMatch?.[3]) {
+    const base = parseAncestorListPrompt(bornInAfterMatch[1].trim());
+    if (base) {
+      return withDateConstraint(
+        {
+          ...base,
+          location: bornInAfterMatch[2].trim(),
+          locationField: "BirthLocation",
+        },
+        "BirthDate",
+        "after",
+        bornInAfterMatch[3]
+      );
+    }
+  }
+
+  const diedInBeforeMatch = normalized.match(
+    /^(.*?\bancestors?)\s+died\s+in\s+(.+?)\s+before\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i
+  );
+  if (diedInBeforeMatch?.[1] && diedInBeforeMatch?.[2] && diedInBeforeMatch?.[3]) {
+    const base = parseAncestorListPrompt(diedInBeforeMatch[1].trim());
+    if (base) {
+      return withDateConstraint(
+        {
+          ...base,
+          location: diedInBeforeMatch[2].trim(),
+          locationField: "DeathLocation",
+        },
+        "DeathDate",
+        "before",
+        diedInBeforeMatch[3]
+      );
+    }
+  }
+
+  const diedInAfterMatch = normalized.match(
+    /^(.*?\bancestors?)\s+died\s+in\s+(.+?)\s+after\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i
+  );
+  if (diedInAfterMatch?.[1] && diedInAfterMatch?.[2] && diedInAfterMatch?.[3]) {
+    const base = parseAncestorListPrompt(diedInAfterMatch[1].trim());
+    if (base) {
+      return withDateConstraint(
+        {
+          ...base,
+          location: diedInAfterMatch[2].trim(),
+          locationField: "DeathLocation",
+        },
+        "DeathDate",
+        "after",
+        diedInAfterMatch[3]
+      );
+    }
+  }
+
+  const bornBeforeMatch = normalized.match(/^(.*?\bancestors?)\s+born\s+before\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i);
+  if (bornBeforeMatch?.[1] && bornBeforeMatch?.[2]) {
+    const base = parseAncestorListPrompt(bornBeforeMatch[1].trim());
+    if (base) {
+      return withDateConstraint(base, "BirthDate", "before", bornBeforeMatch[2]);
+    }
+  }
+
+  const bornAfterMatch = normalized.match(/^(.*?\bancestors?)\s+born\s+after\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i);
+  if (bornAfterMatch?.[1] && bornAfterMatch?.[2]) {
+    const base = parseAncestorListPrompt(bornAfterMatch[1].trim());
+    if (base) {
+      return withDateConstraint(base, "BirthDate", "after", bornAfterMatch[2]);
+    }
+  }
+
+  const diedBeforeMatch = normalized.match(/^(.*?\bancestors?)\s+died\s+before\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i);
+  if (diedBeforeMatch?.[1] && diedBeforeMatch?.[2]) {
+    const base = parseAncestorListPrompt(diedBeforeMatch[1].trim());
+    if (base) {
+      return withDateConstraint(base, "DeathDate", "before", diedBeforeMatch[2]);
+    }
+  }
+
+  const diedAfterMatch = normalized.match(/^(.*?\bancestors?)\s+died\s+after\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i);
+  if (diedAfterMatch?.[1] && diedAfterMatch?.[2]) {
+    const base = parseAncestorListPrompt(diedAfterMatch[1].trim());
+    if (base) {
+      return withDateConstraint(base, "DeathDate", "after", diedAfterMatch[2]);
+    }
+  }
 
   const bornInMatch = normalized.match(/^(.*?\bancestors?)\s+born\s+in\s+(.+?)\??$/i);
   if (bornInMatch?.[1] && bornInMatch?.[2]) {
@@ -633,7 +759,21 @@ function parseAncestorListPrompt(prompt) {
     /(?:show|list|display|give\s+me)?\s*(\d+)\s+generations?\s+(?:of\s+)?(?:my|the|our|his|her|their)?\s*ancestors?\b/i
   );
   if (ancestorsGenerationsMatch?.[1]) {
-    const generation = Number(ancestorsGenerationsMatch[1]);
+    const generation = Math.min(Number(ancestorsGenerationsMatch[1]), MAX_ANCESTOR_GENERATIONS);
+    if (Number.isFinite(generation) && generation >= 1) {
+      return {
+        generation,
+        relationshipLabel: `${generation} generations of ancestors`,
+        includeUpTo: true,
+      };
+    }
+  }
+
+  const trailingAncestorsGenerationsMatch = normalized.match(
+    /(?:show|list|display|give\s+me)?\s*(?:all\s+|the\s+)?(?:.+?'s\s+|ancestors?\s+(?:of|for)\s+.+?\s+|my\s+|our\s+|his\s+|her\s+|their\s+)?ancestors?\s+(\d+)\s+generations?\b/i
+  );
+  if (trailingAncestorsGenerationsMatch?.[1]) {
+    const generation = Math.min(Number(trailingAncestorsGenerationsMatch[1]), MAX_ANCESTOR_GENERATIONS);
     if (Number.isFinite(generation) && generation >= 1) {
       return {
         generation,
@@ -709,8 +849,155 @@ function parseAncestorListPrompt(prompt) {
 }
 
 function parseDescendantListPrompt(prompt) {
-  const normalized = String(prompt || "").trim();
+  const normalized = String(prompt || "")
+    .trim()
+    .replace(/[.!?]+$/g, "")
+    .trim();
   const defaultDescendantGeneration = 10;
+
+  const bornInBeforeMatch = normalized.match(
+    /^(.*?\bdescendants?)\s+born\s+in\s+(.+?)\s+before\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i
+  );
+  if (bornInBeforeMatch?.[1] && bornInBeforeMatch?.[2] && bornInBeforeMatch?.[3]) {
+    const base = parseDescendantListPrompt(bornInBeforeMatch[1].trim());
+    if (base) {
+      return withDateConstraint(
+        {
+          ...base,
+          location: bornInBeforeMatch[2].trim(),
+          locationField: "BirthLocation",
+        },
+        "BirthDate",
+        "before",
+        bornInBeforeMatch[3]
+      );
+    }
+  }
+
+  const bornInAfterMatch = normalized.match(
+    /^(.*?\bdescendants?)\s+born\s+in\s+(.+?)\s+after\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i
+  );
+  if (bornInAfterMatch?.[1] && bornInAfterMatch?.[2] && bornInAfterMatch?.[3]) {
+    const base = parseDescendantListPrompt(bornInAfterMatch[1].trim());
+    if (base) {
+      return withDateConstraint(
+        {
+          ...base,
+          location: bornInAfterMatch[2].trim(),
+          locationField: "BirthLocation",
+        },
+        "BirthDate",
+        "after",
+        bornInAfterMatch[3]
+      );
+    }
+  }
+
+  const diedInBeforeMatch = normalized.match(
+    /^(.*?\bdescendants?)\s+died\s+in\s+(.+?)\s+before\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i
+  );
+  if (diedInBeforeMatch?.[1] && diedInBeforeMatch?.[2] && diedInBeforeMatch?.[3]) {
+    const base = parseDescendantListPrompt(diedInBeforeMatch[1].trim());
+    if (base) {
+      return withDateConstraint(
+        {
+          ...base,
+          location: diedInBeforeMatch[2].trim(),
+          locationField: "DeathLocation",
+        },
+        "DeathDate",
+        "before",
+        diedInBeforeMatch[3]
+      );
+    }
+  }
+
+  const diedInAfterMatch = normalized.match(
+    /^(.*?\bdescendants?)\s+died\s+in\s+(.+?)\s+after\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i
+  );
+  if (diedInAfterMatch?.[1] && diedInAfterMatch?.[2] && diedInAfterMatch?.[3]) {
+    const base = parseDescendantListPrompt(diedInAfterMatch[1].trim());
+    if (base) {
+      return withDateConstraint(
+        {
+          ...base,
+          location: diedInAfterMatch[2].trim(),
+          locationField: "DeathLocation",
+        },
+        "DeathDate",
+        "after",
+        diedInAfterMatch[3]
+      );
+    }
+  }
+
+  const bornBeforeMatch = normalized.match(/^(.*?\bdescendants?)\s+born\s+before\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i);
+  if (bornBeforeMatch?.[1] && bornBeforeMatch?.[2]) {
+    const base = parseDescendantListPrompt(bornBeforeMatch[1].trim());
+    if (base) {
+      return withDateConstraint(base, "BirthDate", "before", bornBeforeMatch[2]);
+    }
+  }
+
+  const bornAfterMatch = normalized.match(/^(.*?\bdescendants?)\s+born\s+after\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i);
+  if (bornAfterMatch?.[1] && bornAfterMatch?.[2]) {
+    const base = parseDescendantListPrompt(bornAfterMatch[1].trim());
+    if (base) {
+      return withDateConstraint(base, "BirthDate", "after", bornAfterMatch[2]);
+    }
+  }
+
+  const diedBeforeMatch = normalized.match(/^(.*?\bdescendants?)\s+died\s+before\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i);
+  if (diedBeforeMatch?.[1] && diedBeforeMatch?.[2]) {
+    const base = parseDescendantListPrompt(diedBeforeMatch[1].trim());
+    if (base) {
+      return withDateConstraint(base, "DeathDate", "before", diedBeforeMatch[2]);
+    }
+  }
+
+  const diedAfterMatch = normalized.match(/^(.*?\bdescendants?)\s+died\s+after\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i);
+  if (diedAfterMatch?.[1] && diedAfterMatch?.[2]) {
+    const base = parseDescendantListPrompt(diedAfterMatch[1].trim());
+    if (base) {
+      return withDateConstraint(base, "DeathDate", "after", diedAfterMatch[2]);
+    }
+  }
+
+  const bornInMatch = normalized.match(/^(.*?\bdescendants?)\s+born\s+in\s+(.+?)\??$/i);
+  if (bornInMatch?.[1] && bornInMatch?.[2]) {
+    const base = parseDescendantListPrompt(bornInMatch[1].trim());
+    if (base) {
+      return {
+        ...base,
+        location: bornInMatch[2].trim(),
+        locationField: "BirthLocation",
+      };
+    }
+  }
+
+  const diedInMatch = normalized.match(/^(.*?\bdescendants?)\s+died\s+in\s+(.+?)\??$/i);
+  if (diedInMatch?.[1] && diedInMatch?.[2]) {
+    const base = parseDescendantListPrompt(diedInMatch[1].trim());
+    if (base) {
+      return {
+        ...base,
+        location: diedInMatch[2].trim(),
+        locationField: "DeathLocation",
+      };
+    }
+  }
+
+  const genericInMatch = normalized.match(/^(.*?\bdescendants?)\s+in\s+(.+?)\??$/i);
+  if (genericInMatch?.[1] && genericInMatch?.[2]) {
+    const base = parseDescendantListPrompt(genericInMatch[1].trim());
+    if (base) {
+      return {
+        ...base,
+        location: genericInMatch[2].trim(),
+        locationField: "AnyLocation",
+      };
+    }
+  }
 
   const ordinalGreatGrandchildrenMatch = normalized.match(
     /(\d+)(?:st|nd|rd|th)?\s+great\s*-?\s*grand\s*-?\s*children?/i
@@ -757,6 +1044,20 @@ function parseDescendantListPrompt(prompt) {
   );
   if (descendantsGenerationsMatch?.[1]) {
     const generation = Number(descendantsGenerationsMatch[1]);
+    if (Number.isFinite(generation) && generation >= 1) {
+      return {
+        generation,
+        relationshipLabel: `${generation} generations of descendants`,
+        includeUpTo: true,
+      };
+    }
+  }
+
+  const trailingDescendantsGenerationsMatch = normalized.match(
+    /(?:show|list|display|give\s+me)?\s*(?:all\s+|the\s+)?(?:.+?'s\s+|descendants?\s+(?:of|for)\s+.+?\s+|my\s+|our\s+|his\s+|her\s+|their\s+)?descendants?\s+(\d+)\s+generations?\b/i
+  );
+  if (trailingDescendantsGenerationsMatch?.[1]) {
+    const generation = Number(trailingDescendantsGenerationsMatch[1]);
     if (Number.isFinite(generation) && generation >= 1) {
       return {
         generation,

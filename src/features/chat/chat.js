@@ -80,6 +80,7 @@ import {
   withDerivedRowFields,
   cloneResultWithRows,
   makeStandardProfileTable,
+  makeAncestorProfileTable,
   makeWatchlistTable,
   makeAncestorAgeTable,
 } from "./tables";
@@ -123,6 +124,13 @@ let lastConnectionPopupResult = null;
 let lastStructuredResult = null;
 let lastBioPopupId = null;
 let lastBioPopupProfile = null;
+
+function getCurrentChatMode() {
+  const checked = document.querySelector('input[name="wbe-chat-mode"]:checked');
+  return String(checked?.value || "wt")
+    .trim()
+    .toLowerCase();
+}
 
 function raiseChatActionPopupsAboveChat() {
   const popupSelectors = [
@@ -261,6 +269,7 @@ const tryHandleProfileSearchPrompt = createProfileSearchHandler({
   fetchPeoplePaged,
   mapApiPersonToStandardRow,
   makeStandardProfileTable,
+  makeAncestorProfileTable,
   normalizeText,
   normalizeKnownDate,
   showChatShaky,
@@ -387,6 +396,7 @@ const {
   fetchPeoplePaged,
   mapApiPersonToStandardRow,
   makeStandardProfileTable,
+  makeAncestorProfileTable,
   makeAncestorAgeTable,
   withDerivedRowFields,
   normalizeText,
@@ -396,6 +406,7 @@ const {
   isPartialDate,
   getCc7ProfilesForUser,
   getLastStructuredResult: () => lastStructuredResult,
+  getCurrentChatMode,
 });
 
 function toggleConnectionsPopup() {
@@ -893,6 +904,8 @@ async function sendChatPrompt() {
       const modeResult = await handleExplicitSearchMode({
         prompt,
         chatPopupId: CHAT_POPUP_ID,
+        ChatIntent,
+        routeChatPrompt,
         buildRecentConversationForAi,
         getChatAiConfig,
         appendMessage,
@@ -948,8 +961,21 @@ async function sendChatPrompt() {
 
     const chatOptions = await getChatOptions();
     const routed = routeChatPrompt(prompt);
-    const shouldPreferDeterministicRoute =
-      routed?.intent === ChatIntent.CC7_LOCATION_FILTER || routed?.intent === ChatIntent.CC_SUMMARY;
+    const deterministicIntentSet = new Set([
+      ChatIntent.CC7_LOCATION_FILTER,
+      ChatIntent.CC_SUMMARY,
+      ChatIntent.RELATION_COUNT,
+      ChatIntent.CONNECTION_LOOKUP,
+      ChatIntent.PROFILE_FAMILY_CONNECTION,
+      ChatIntent.ANCESTOR_AVG_AGE_AT_DEATH,
+      ChatIntent.PERSON_AGE_AT_DEATH,
+      ChatIntent.ANCESTOR_LIST,
+      ChatIntent.DESCENDANT_LIST,
+      ChatIntent.SPOUSE_LIST,
+      ChatIntent.SPOUSE_BIO,
+      ChatIntent.LAST_RESULT_OPERATION,
+    ]);
+    const shouldPreferDeterministicRoute = deterministicIntentSet.has(routed?.intent);
     if (chatOptions.allowAiFallback && !shouldPreferDeterministicRoute) {
       const plannedToolResponse = await tryHandleAiPlannedIntent(prompt);
       if (plannedToolResponse) {
@@ -1313,12 +1339,28 @@ function normalizeKnownDate(value) {
   return value && value !== "0000-00-00" ? value : "";
 }
 
+function normalizeKnownDecade(value) {
+  return value && value !== "unknown" ? String(value) : "";
+}
+
 function mapApiPersonToStandardRow(person = {}, options = {}) {
   const wtId = String(options.wtId ?? person.Name ?? "").trim();
+  const privateLongName =
+    person.LongNamePrivate ||
+    person?.Derived?.LongNamePrivate ||
+    person?.Derived?.BirthNamePrivate ||
+    person.BirthNamePrivate ||
+    "";
+  const isPrivatePlaceholder = Number(person?.Id) < 0 && !wtId;
   const lnab = person.LastNameAtBirth || "";
   const lastNameCurrent = person.LastNameCurrent || "";
   const surnamePreference = options.surnamePreference === "currentFirst" ? "currentFirst" : "birthFirst";
   const surname = surnamePreference === "currentFirst" ? lastNameCurrent || lnab || "" : lnab || lastNameCurrent || "";
+  const birthValue = normalizeKnownDate(person.BirthDate) || normalizeKnownDecade(person.BirthDateDecade);
+  const deathValue = normalizeKnownDate(person.DeathDate) || normalizeKnownDecade(person.DeathDateDecade);
+  const displayName = isPrivatePlaceholder
+    ? "Private"
+    : options.displayName || person.RealName || person?.Derived?.ShortName || privateLongName || wtId;
   // Build a compact spouse display if spouse data is present
   let spouse = "";
   let spouseList = [];
@@ -1342,9 +1384,9 @@ function mapApiPersonToStandardRow(person = {}, options = {}) {
   }
 
   return {
-    displayName: options.displayName || person.RealName || person?.Derived?.ShortName || wtId,
+    displayName,
     wtid: wtId,
-    firstName: person.FirstName || "",
+    firstName: person.FirstName || (isPrivatePlaceholder ? displayName : ""),
     middleName: person.MiddleName || "",
     lnab,
     lastNameCurrent,
@@ -1352,8 +1394,8 @@ function mapApiPersonToStandardRow(person = {}, options = {}) {
     spouseList,
     degrees: options.degrees ?? "",
     gender: person.Gender || "",
-    birth: normalizeKnownDate(person.BirthDate),
-    death: normalizeKnownDate(person.DeathDate),
+    birth: birthValue,
+    death: deathValue,
     birthLocation: person.BirthLocation || "",
     deathLocation: person.DeathLocation || "",
     surname,
@@ -1594,15 +1636,18 @@ function openPopup() {
         </div>
         <div class="chat-popup-body">
           <div id="${CHAT_MESSAGES_ID}" class="chat-messages"></div>
-          <div class="chat-input-row" style="display:flex;align-items:flex-start;gap:8px;">
+          <div class="chat-input-row">
             <textarea id="${CHAT_INPUT_ID}" rows="2" placeholder="Ask something" style="flex:1;min-height:48px"></textarea>
-            <div id="wbe-chat-mode-controls" style="display:none;margin-left:6px;font-size:12px;line-height:1">
-              <label style="display:block;margin-bottom:6px;font-size:12px"><input type="radio" name="wbe-chat-mode" value="wt" style="width:14px;height:14px;margin-right:6px;vertical-align:middle" />WT</label>
-              <label style="display:block;margin-bottom:6px;font-size:12px"><input type="radio" name="wbe-chat-mode" value="wtplus" checked style="width:14px;height:14px;margin-right:6px;vertical-align:middle" />WT+</label>
-              <label style="display:block;margin-bottom:0;font-size:12px"><input type="radio" name="wbe-chat-mode" value="ai" style="width:14px;height:14px;margin-right:6px;vertical-align:middle" />AI</label>
-            </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-start">
-              <button id="${CHAT_SEND_ID}" type="button" class="small">Send</button>
+            <div class="chat-input-actions">
+              <div id="wbe-chat-mode-controls" class="chat-mode-controls" aria-label="Chat mode">
+                <div class="chat-mode-controls-title">Mode</div>
+                <label class="chat-mode-option"><input type="radio" name="wbe-chat-mode" value="wt" checked /><span>WT</span></label>
+                <label class="chat-mode-option"><input type="radio" name="wbe-chat-mode" value="wtplus" /><span>WT+</span></label>
+                <label class="chat-mode-option"><input type="radio" name="wbe-chat-mode" value="ai" /><span>AI</span></label>
+              </div>
+              <div class="chat-send-column">
+                <button id="${CHAT_SEND_ID}" type="button" class="small">Send</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1622,20 +1667,6 @@ function openPopup() {
       if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();
         sendChatPrompt();
-      }
-    });
-    // Show mode controls when user types a query starting with 'Search'
-    $popup.find(`#${CHAT_INPUT_ID}`).on("input", (ev) => {
-      try {
-        const v = String($popup.find(`#${CHAT_INPUT_ID}`).val() || "").trimStart();
-        const $m = $popup.find("#wbe-chat-mode-controls");
-        if (/^search\b/i.test(v)) {
-          $m.show();
-        } else {
-          $m.hide();
-        }
-      } catch (e) {
-        /* ignore */
       }
     });
     loadHistory();

@@ -141,9 +141,48 @@ function getVisibleSearchMode(chatPopupId) {
   return checked?.value || null;
 }
 
+function shouldUseExplicitSearchMode(prompt, mode) {
+  const normalizedPrompt = String(prompt || "").trim();
+  if (!normalizedPrompt || !mode) {
+    return false;
+  }
+
+  return ["wt", "wtplus", "ai"].includes(String(mode).trim().toLowerCase());
+}
+
+function isWtPlusOnlyPrompt(prompt) {
+  const normalizedPrompt = String(prompt || "").trim();
+  if (!normalizedPrompt) {
+    return false;
+  }
+
+  return [
+    /(?:^|\b)category\s*[:\-]?/i,
+    /\b.+?\s+category\b/i,
+    /(?:^|\b)template\s*[:\-]?/i,
+    /\bnotables\b/i,
+    /\bsticker\b/i,
+    /\bcategory\s+word\b/i,
+    /\bcategoryfull\s*=|\bcategoryword\s*=|\btemplatetext\s*=|\btree\s*=|\bancestors\s*=|\bdescendants\s*=|\bcc7\s*=/i,
+  ].some((pattern) => pattern.test(normalizedPrompt));
+}
+
+function getEffectiveExplicitMode(prompt, selectedMode) {
+  const normalizedMode = String(selectedMode || "")
+    .trim()
+    .toLowerCase();
+  if (normalizedMode === "wt" && isWtPlusOnlyPrompt(prompt)) {
+    return "wtplus";
+  }
+
+  return normalizedMode;
+}
+
 export async function handleExplicitSearchMode({
   prompt,
   chatPopupId,
+  ChatIntent,
+  routeChatPrompt,
   buildRecentConversationForAi,
   getChatAiConfig,
   appendMessage,
@@ -151,8 +190,9 @@ export async function handleExplicitSearchMode({
   handleChatResult,
 }) {
   console.debug("wbe: checking chat mode for prompt", { prompt });
-  const mode = getVisibleSearchMode(chatPopupId);
-  if (!mode) {
+  const selectedMode = getVisibleSearchMode(chatPopupId);
+  const mode = getEffectiveExplicitMode(prompt, selectedMode);
+  if (!mode || !shouldUseExplicitSearchMode(prompt, mode)) {
     return { handled: false, prompt };
   }
 
@@ -204,12 +244,35 @@ export async function handleExplicitSearchMode({
     return { handled: true, prompt };
   }
 
-  if (mode === "wt") {
+  if (mode === "wt" || mode === "wtplus") {
     const normalizedPrompt = String(prompt || "")
       .replace(/^\s*search[:\s]+/i, "")
       .trim();
+
+    if (mode === "wt") {
+      const routed = typeof routeChatPrompt === "function" ? routeChatPrompt(normalizedPrompt) : null;
+      const deterministicWtIntentSet = new Set([
+        ChatIntent?.CC7_LOCATION_FILTER,
+        ChatIntent?.CC_SUMMARY,
+        ChatIntent?.RELATION_COUNT,
+        ChatIntent?.CONNECTION_LOOKUP,
+        ChatIntent?.PROFILE_FAMILY_CONNECTION,
+        ChatIntent?.ANCESTOR_AVG_AGE_AT_DEATH,
+        ChatIntent?.PERSON_AGE_AT_DEATH,
+        ChatIntent?.ANCESTOR_LIST,
+        ChatIntent?.DESCENDANT_LIST,
+        ChatIntent?.SPOUSE_LIST,
+        ChatIntent?.SPOUSE_BIO,
+        ChatIntent?.LAST_RESULT_OPERATION,
+      ]);
+
+      if (deterministicWtIntentSet.has(routed?.intent)) {
+        return { handled: false, prompt: normalizedPrompt };
+      }
+    }
+
     try {
-      const searchResult = await tryHandleProfileSearchPrompt(null, normalizedPrompt);
+      const searchResult = await tryHandleProfileSearchPrompt({ chatModeOverride: mode }, normalizedPrompt);
       if (searchResult) {
         if (typeof searchResult === "string") {
           await handleChatResult({ message: searchResult });

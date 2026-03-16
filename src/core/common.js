@@ -1905,8 +1905,18 @@ export function setHighestZIndex(el) {
     }
   });
 
-  const allZ = allElems.map((e) => parseFloat(getComputedStyle(e).zIndex) || 0);
-  const rawMax = allZ.length ? Math.max(...allZ) : 0;
+  let rawMax = 0;
+  for (const node of allElems) {
+    let z = 0;
+    try {
+      z = parseFloat(getComputedStyle(node).zIndex) || 0;
+    } catch (ee) {
+      z = 0;
+    }
+    if (z > rawMax) {
+      rawMax = z;
+    }
+  }
 
   try {
     // Log the top 10 elements by z-index for diagnostics

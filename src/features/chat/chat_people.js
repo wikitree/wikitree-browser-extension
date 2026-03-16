@@ -12,6 +12,7 @@ export function createChatPeopleHandlers({
   fetchPeoplePaged,
   mapApiPersonToStandardRow,
   makeStandardProfileTable,
+  makeAncestorProfileTable,
   makeAncestorAgeTable,
   withDerivedRowFields,
   normalizeText,
@@ -21,6 +22,7 @@ export function createChatPeopleHandlers({
   isPartialDate,
   getCc7ProfilesForUser,
   getLastStructuredResult,
+  getCurrentChatMode,
 }) {
   function filterCachedKinRows({
     intent,
@@ -29,6 +31,9 @@ export function createChatPeopleHandlers({
     includeUpTo,
     locationField = "AnyLocation",
     normalizedLocation = "",
+    dateField = "",
+    dateDirection = "",
+    dateValue = "",
   }) {
     const lastStructuredResult = getLastStructuredResult();
     if (!lastStructuredResult?.rows?.length) {
@@ -37,6 +42,16 @@ export function createChatPeopleHandlers({
 
     const meta = lastStructuredResult._chatMeta;
     if (!meta || meta.intent !== intent) {
+      return null;
+    }
+
+    const currentMode = String(getCurrentChatMode?.() || "wt")
+      .trim()
+      .toLowerCase();
+    const cachedMode = String(meta.mode || "")
+      .trim()
+      .toLowerCase();
+    if (cachedMode && cachedMode !== currentMode) {
       return null;
     }
 
@@ -56,6 +71,26 @@ export function createChatPeopleHandlers({
 
     if (normalizeText(meta.location || "")) {
       return null;
+    }
+
+    const cachedDateField = String(meta.dateField || "").trim();
+    const cachedDateDirection = String(meta.dateDirection || "")
+      .trim()
+      .toLowerCase();
+    const cachedDateValue = String(meta.dateValue || "").trim();
+    const requestedDateField = String(dateField || "").trim();
+    const requestedDateDirection = String(dateDirection || "")
+      .trim()
+      .toLowerCase();
+    const requestedDateValue = String(dateValue || "").trim();
+    if (cachedDateField || cachedDateDirection || cachedDateValue) {
+      if (
+        cachedDateField !== requestedDateField ||
+        cachedDateDirection !== requestedDateDirection ||
+        cachedDateValue !== requestedDateValue
+      ) {
+        return null;
+      }
     }
 
     const totalCandidates = lastStructuredResult.rows.filter((row) => {
@@ -142,17 +177,25 @@ export function createChatPeopleHandlers({
     subjectLabel,
     rootDisplayName,
     includeUpTo,
+    tableFactory,
     chatMeta,
   }) {
+    const enrichedChatMeta = chatMeta
+      ? {
+          ...chatMeta,
+          mode: String(chatMeta.mode || getCurrentChatMode?.() || "wt")
+            .trim()
+            .toLowerCase(),
+        }
+      : null;
     const { preview, inlineMore } = buildPeoplePreviewAndInlineMore(rows);
-    const table = makeStandardProfileTable(
-      `${displayRelationshipLabel} for ${rootDisplayName}`,
-      rows,
-      includeUpTo ? [[4, "asc"]] : [[1, "asc"]]
-    );
+    const makeTable = typeof tableFactory === "function" ? tableFactory : makeStandardProfileTable;
+    const defaultOrder =
+      makeTable === makeAncestorProfileTable ? [[0, "asc"]] : includeUpTo ? [[4, "asc"]] : [[1, "asc"]];
+    const table = makeTable(`${displayRelationshipLabel} for ${rootDisplayName}`, rows, defaultOrder);
 
-    if (chatMeta) {
-      table._chatMeta = chatMeta;
+    if (enrichedChatMeta) {
+      table._chatMeta = enrichedChatMeta;
     }
 
     return {
@@ -170,6 +213,246 @@ export function createChatPeopleHandlers({
       return "death location";
     }
     return "birth or death location";
+  }
+
+  function getDateConstraintLabel(dateField = "", dateDirection = "", dateValue = "") {
+    const value = String(dateValue || "").trim();
+    if (!value) {
+      return "";
+    }
+
+    const verb = dateField === "DeathDate" ? "died" : "born";
+    const direction = String(dateDirection || "")
+      .trim()
+      .toLowerCase();
+    if (direction === "before" || direction === "after") {
+      return `${verb} ${direction} ${value}`;
+    }
+
+    return "";
+  }
+
+  function expandComparableDateRange(value) {
+    const text = String(value || "").trim();
+    if (!text || text === "0000-00-00" || text === "unknown") {
+      return null;
+    }
+
+    const decadeMatch = text.match(/^(\d{4})s$/);
+    if (decadeMatch) {
+      const decade = Number(decadeMatch[1]);
+      return {
+        start: `${decade}-01-01`,
+        end: `${decade + 9}-12-31`,
+      };
+    }
+
+    const dayMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dayMatch) {
+      const year = dayMatch[1];
+      const month = dayMatch[2];
+      const day = dayMatch[3];
+      if (month === "00") {
+        return { start: `${year}-01-01`, end: `${year}-12-31` };
+      }
+      if (day === "00") {
+        return { start: `${year}-${month}-01`, end: `${year}-${month}-31` };
+      }
+      return { start: text, end: text };
+    }
+
+    const monthMatch = text.match(/^(\d{4})-(\d{2})$/);
+    if (monthMatch) {
+      return { start: `${monthMatch[1]}-${monthMatch[2]}-01`, end: `${monthMatch[1]}-${monthMatch[2]}-31` };
+    }
+
+    const yearMatch = text.match(/^(\d{4})$/);
+    if (yearMatch) {
+      return { start: `${yearMatch[1]}-01-01`, end: `${yearMatch[1]}-12-31` };
+    }
+
+    return null;
+  }
+
+  function matchesDateConstraint(value, dateDirection = "", dateValue = "") {
+    if (!dateDirection || !dateValue) {
+      return true;
+    }
+
+    const rowRange = expandComparableDateRange(value);
+    const targetRange = expandComparableDateRange(dateValue);
+    if (!rowRange || !targetRange) {
+      return false;
+    }
+
+    if (dateDirection === "before") {
+      return rowRange.end < targetRange.start;
+    }
+    if (dateDirection === "after") {
+      return rowRange.start > targetRange.end;
+    }
+
+    return true;
+  }
+
+  function filterRowsByLocationAndDate(
+    rows,
+    { normalizedLocation = "", locationField = "AnyLocation", dateField = "", dateDirection = "", dateValue = "" } = {}
+  ) {
+    return (rows || []).filter((row) => {
+      if (normalizedLocation) {
+        const birthLocation = normalizeText(row?.birthLocation);
+        const deathLocation = normalizeText(row?.deathLocation);
+        if (locationField === "BirthLocation" && !birthLocation.includes(normalizedLocation)) {
+          return false;
+        }
+        if (locationField === "DeathLocation" && !deathLocation.includes(normalizedLocation)) {
+          return false;
+        }
+        if (
+          locationField === "AnyLocation" &&
+          !birthLocation.includes(normalizedLocation) &&
+          !deathLocation.includes(normalizedLocation)
+        ) {
+          return false;
+        }
+      }
+
+      if (dateField === "BirthDate") {
+        return matchesDateConstraint(row?.birth, dateDirection, dateValue);
+      }
+      if (dateField === "DeathDate") {
+        return matchesDateConstraint(row?.death, dateDirection, dateValue);
+      }
+      return true;
+    });
+  }
+
+  function isEffectivelyBlankKinRow(row) {
+    if (!row || typeof row !== "object") {
+      return true;
+    }
+
+    return ![
+      row.wtid,
+      row.displayName,
+      row.firstName,
+      row.middleName,
+      row.lnab,
+      row.lastNameCurrent,
+      row.birth,
+      row.death,
+      row.birthLocation,
+      row.deathLocation,
+      row.spouse,
+    ].some((value) => String(value || "").trim());
+  }
+
+  function getLinkedAncestorLabel(profile, fallbackId = "") {
+    if (!profile && !fallbackId) {
+      return { name: "", wtid: "" };
+    }
+
+    const wtid = String(profile?.Name || "").trim();
+    const isPrivatePlaceholder = Number(profile?.Id ?? fallbackId) < 0 && !wtid;
+    const name =
+      profile?.RealName ||
+      profile?.Derived?.ShortName ||
+      profile?.LongNamePrivate ||
+      profile?.Derived?.LongNamePrivate ||
+      profile?.BirthNamePrivate ||
+      profile?.Derived?.BirthNamePrivate ||
+      (isPrivatePlaceholder ? "Private" : wtid || String(fallbackId || ""));
+
+    return {
+      name: String(name || "").trim(),
+      wtid,
+    };
+  }
+
+  function getGenerationFromAhnen(ahnen) {
+    const numericAhnen = Number(ahnen);
+    if (!Number.isFinite(numericAhnen) || numericAhnen < 2) {
+      return 0;
+    }
+
+    return Math.floor(Math.log2(numericAhnen));
+  }
+
+  function buildAncestorRowsFromPeopleMap(rootProfile, peopleMap = {}, generation = 1, includeUpTo = false) {
+    const peopleById = { ...(peopleMap || {}) };
+    const ahnenById = new Map();
+    const queue = [];
+
+    const fatherId = String(rootProfile?.Father ?? "").trim();
+    const motherId = String(rootProfile?.Mother ?? "").trim();
+    if (fatherId) {
+      queue.push({ id: fatherId, ahnen: 2 });
+    }
+    if (motherId) {
+      queue.push({ id: motherId, ahnen: 3 });
+    }
+
+    while (queue.length) {
+      const current = queue.shift();
+      const currentId = String(current?.id || "").trim();
+      const currentAhnen = Number(current?.ahnen);
+      if (!currentId || !Number.isFinite(currentAhnen) || ahnenById.has(currentId)) {
+        continue;
+      }
+
+      ahnenById.set(currentId, currentAhnen);
+
+      const profile = peopleById[currentId];
+      if (!profile) {
+        continue;
+      }
+
+      const nextFatherId = String(profile?.Father ?? "").trim();
+      const nextMotherId = String(profile?.Mother ?? "").trim();
+      if (nextFatherId) {
+        queue.push({ id: nextFatherId, ahnen: currentAhnen * 2 });
+      }
+      if (nextMotherId) {
+        queue.push({ id: nextMotherId, ahnen: currentAhnen * 2 + 1 });
+      }
+    }
+
+    return Object.values(peopleById)
+      .filter((profile) => {
+        const id = String(profile?.Id ?? "").trim();
+        const ahnen = ahnenById.get(id);
+        const derivedGeneration = getGenerationFromAhnen(ahnen);
+        if (!id || !ahnenById.has(id)) {
+          return false;
+        }
+        if (includeUpTo) {
+          return derivedGeneration >= 1 && derivedGeneration <= generation;
+        }
+        return derivedGeneration === generation;
+      })
+      .map((profile) => {
+        const ahnen = ahnenById.get(String(profile?.Id ?? "")) ?? "";
+        const derivedGeneration = getGenerationFromAhnen(ahnen);
+        const row = mapApiPersonToStandardRow(profile, {
+          degrees: derivedGeneration || "",
+          surnamePreference: "birthFirst",
+        });
+
+        const parentFatherId = String(profile?.Father ?? "").trim();
+        const parentMotherId = String(profile?.Mother ?? "").trim();
+        const father = getLinkedAncestorLabel(peopleById[parentFatherId], parentFatherId);
+        const mother = getLinkedAncestorLabel(peopleById[parentMotherId], parentMotherId);
+
+        return {
+          ...row,
+          ahnen,
+          fatherName: father.name,
+          fatherWtid: father.wtid,
+          motherName: mother.name,
+          motherWtid: mother.wtid,
+        };
+      });
   }
 
   function extractNamedSubjectForAncestorPrompt(prompt) {
@@ -268,6 +551,13 @@ export function createChatPeopleHandlers({
 
     const namedSubject = extractNamedSubjectForAncestorPrompt(normalizedPrompt);
     if (namedSubject) {
+      if (/^(?:his|her|their)$/i.test(namedSubject)) {
+        const profileRoot = getProfileSubjectRoot();
+        if (profileRoot) {
+          return profileRoot;
+        }
+      }
+
       const resolved = await resolveConnectionTargetPerson(namedSubject, normalizedPrompt);
       if (!resolved?.Name && !resolved?.Id) {
         return {
@@ -313,6 +603,13 @@ export function createChatPeopleHandlers({
 
     const namedSubject = extractNamedSubjectForDescendantPrompt(normalizedPrompt);
     if (namedSubject) {
+      if (/^(?:his|her|their)$/i.test(namedSubject)) {
+        const profileRoot = getProfileSubjectRoot();
+        if (profileRoot) {
+          return profileRoot;
+        }
+      }
+
       const resolved = await resolveConnectionTargetPerson(namedSubject, normalizedPrompt);
       if (!resolved?.Name && !resolved?.Id) {
         return {
@@ -566,10 +863,16 @@ export function createChatPeopleHandlers({
     const normalizedPrompt = String(prompt || "").toLowerCase();
     const location = String(params?.location || "").trim();
     const locationField = String(params?.locationField || "").trim() || "AnyLocation";
+    const dateField = String(params?.dateField || "").trim();
+    const dateDirection = String(params?.dateDirection || "")
+      .trim()
+      .toLowerCase();
+    const dateValue = String(params?.dateValue || "").trim();
     const normalizedLocation = normalizeText(location);
     const usedDefaultGeneration = Boolean(params?.defaultGeneration);
     const includeUpTo =
-      Boolean(params?.includeUpTo) || /\b\d+\s+generations?\b.*\bancestors?\b/i.test(normalizedPrompt);
+      Boolean(params?.includeUpTo) ||
+      /(?:\b\d+\s+generations?\b.*\bancestors?\b|\bancestors?\b.*\b\d+\s+generations?\b)/i.test(normalizedPrompt);
     const relationshipLabel = usedDefaultGeneration
       ? "ancestors"
       : includeUpTo
@@ -585,8 +888,10 @@ export function createChatPeopleHandlers({
         ? `died in ${location}`
         : `in ${location}`
       : "";
-    const displayRelationshipLabel = locationPhrase
-      ? `${baseDisplayRelationshipLabel} ${locationPhrase}`
+    const datePhrase = getDateConstraintLabel(dateField, dateDirection, dateValue);
+    const filterPhrase = [locationPhrase, datePhrase].filter(Boolean).join(" ");
+    const displayRelationshipLabel = filterPhrase
+      ? `${baseDisplayRelationshipLabel} ${filterPhrase}`
       : baseDisplayRelationshipLabel;
     const rootPerson = await resolveAncestorSubjectRoot(prompt);
     if (rootPerson?.unresolvedName) {
@@ -605,45 +910,78 @@ export function createChatPeopleHandlers({
       includeUpTo,
       locationField,
       normalizedLocation,
+      dateField,
+      dateDirection,
+      dateValue,
     });
 
     if (cachedAncestorRows) {
-      const ancestors = sortKinRows(cachedAncestorRows.rows, includeUpTo);
+      const ancestors = sortKinRows(
+        filterRowsByLocationAndDate(cachedAncestorRows.rows, {
+          normalizedLocation,
+          locationField,
+          dateField,
+          dateDirection,
+          dateValue,
+        }),
+        includeUpTo
+      );
+      const ancestorCacheMissingAhnens = ancestors.some(
+        (row) => row?.ahnen === undefined || row?.fatherName === undefined || row?.motherName === undefined
+      );
 
-      if (!ancestors.length) {
-        if (normalizedLocation && cachedAncestorRows.totalCandidates) {
-          return `I searched ${
-            cachedAncestorRows.totalCandidates
-          } ${baseDisplayRelationshipLabel} for ${subjectLabel} from previously loaded data, but none matched ${locationPhrase}. ${
-            cachedAncestorRows.missingLocationCount
-          } had no ${getLocationFieldLabel(locationField)} in that data.`;
-        }
-        return `I found no ${displayRelationshipLabel} for ${subjectLabel} in previously loaded data.`;
-      }
-
-      return buildKinListResult({
-        rows: ancestors,
-        displayRelationshipLabel,
-        subjectLabel,
-        rootDisplayName: rootPerson.displayName,
-        includeUpTo,
-        chatMeta: {
-          intent: ChatIntent.ANCESTOR_LIST,
-          rootKey: String(rootPerson.key || ""),
+      if (ancestorCacheMissingAhnens) {
+        console.debug("wbe: ancestor cache missing ahnen/parent data; bypassing cache", {
+          prompt,
+          rootKey: rootPerson.key,
           generation,
           includeUpTo,
-          location: location || "",
-          locationField,
-        },
-      });
+          cachedRowCount: ancestors.length,
+        });
+      } else {
+        if (!ancestors.length) {
+          if (normalizedLocation && cachedAncestorRows.totalCandidates) {
+            return `I searched ${
+              cachedAncestorRows.totalCandidates
+            } ${baseDisplayRelationshipLabel} for ${subjectLabel} from previously loaded data, but none matched ${locationPhrase}. ${
+              cachedAncestorRows.missingLocationCount
+            } had no ${getLocationFieldLabel(locationField)} in that data.`;
+          }
+          return `I found no ${displayRelationshipLabel} for ${subjectLabel} in previously loaded data.`;
+        }
+
+        return buildKinListResult({
+          rows: ancestors,
+          displayRelationshipLabel,
+          subjectLabel,
+          rootDisplayName: rootPerson.displayName,
+          includeUpTo,
+          tableFactory: makeAncestorProfileTable,
+          chatMeta: {
+            intent: ChatIntent.ANCESTOR_LIST,
+            rootKey: String(rootPerson.key || ""),
+            generation,
+            includeUpTo,
+            location: location || "",
+            locationField,
+            dateField,
+            dateDirection,
+            dateValue,
+          },
+        });
+      }
     }
 
     try {
       const collectedPeople = {};
+      const [, , rootPeopleMap] = await fetchPeoplePaged(WBE_CHAT_APP_ID, rootPerson.key, "Id,Father,Mother", {
+        limit: 1,
+      });
+      const rootProfile = Object.values(rootPeopleMap || {})[0] || null;
       const [, , peopleMap] = await fetchPeoplePaged(
         WBE_CHAT_APP_ID,
         rootPerson.key,
-        "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender,Meta",
+        "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,LastNameAtBirth,LastNameCurrent,Father,Mother,BirthDate,BirthDateDecade,DeathDate,DeathDateDecade,BirthLocation,DeathLocation,Gender,Meta",
         { ancestors: generation, minGeneration: includeUpTo ? 1 : generation, limit: 1000 }
       );
 
@@ -651,38 +989,32 @@ export function createChatPeopleHandlers({
         if (profile?.Id != null) collectedPeople[String(profile.Id)] = profile;
       });
 
-      const allAncestors = Object.values(collectedPeople)
-        .filter((profile) => {
-          const degree = Number(profile?.Meta?.Degrees);
-          if (!Number.isFinite(degree)) {
-            return true;
-          }
-          if (includeUpTo) {
-            return degree >= 1 && degree <= generation;
-          }
-          return degree === generation;
-        })
-        .map((profile) =>
-          mapApiPersonToStandardRow(profile, {
-            degrees: Number.isFinite(Number(profile?.Meta?.Degrees)) ? Number(profile.Meta.Degrees) : "",
-            surnamePreference: "birthFirst",
-          })
-        );
+      const allAncestors = rootProfile
+        ? buildAncestorRowsFromPeopleMap(rootProfile, collectedPeople, generation, includeUpTo)
+        : Object.values(collectedPeople)
+            .filter((profile) => {
+              const degree = Number(profile?.Meta?.Degrees);
+              if (!Number.isFinite(degree)) {
+                return true;
+              }
+              if (includeUpTo) {
+                return degree >= 1 && degree <= generation;
+              }
+              return degree === generation;
+            })
+            .map((profile) =>
+              mapApiPersonToStandardRow(profile, {
+                degrees: Number.isFinite(Number(profile?.Meta?.Degrees)) ? Number(profile.Meta.Degrees) : "",
+                surnamePreference: "birthFirst",
+              })
+            );
 
-      const ancestors = allAncestors.filter((profile) => {
-        if (!normalizedLocation) {
-          return true;
-        }
-
-        const birthLocation = normalizeText(profile.birthLocation);
-        const deathLocation = normalizeText(profile.deathLocation);
-        if (locationField === "BirthLocation") {
-          return birthLocation.includes(normalizedLocation);
-        }
-        if (locationField === "DeathLocation") {
-          return deathLocation.includes(normalizedLocation);
-        }
-        return birthLocation.includes(normalizedLocation) || deathLocation.includes(normalizedLocation);
+      const ancestors = filterRowsByLocationAndDate(allAncestors, {
+        normalizedLocation,
+        locationField,
+        dateField,
+        dateDirection,
+        dateValue,
       });
       const sortedAncestors = sortKinRows(ancestors, includeUpTo);
 
@@ -719,6 +1051,7 @@ export function createChatPeopleHandlers({
         subjectLabel,
         rootDisplayName: rootPerson.displayName,
         includeUpTo,
+        tableFactory: makeAncestorProfileTable,
         chatMeta: {
           intent: ChatIntent.ANCESTOR_LIST,
           rootKey: String(rootPerson.key || ""),
@@ -726,6 +1059,9 @@ export function createChatPeopleHandlers({
           includeUpTo,
           location: location || "",
           locationField,
+          dateField,
+          dateDirection,
+          dateValue,
         },
       });
     } catch (error) {
@@ -740,17 +1076,38 @@ export function createChatPeopleHandlers({
     }
 
     const normalizedPrompt = String(prompt || "").toLowerCase();
+    const location = String(params?.location || "").trim();
+    const locationField = String(params?.locationField || "").trim() || "AnyLocation";
+    const dateField = String(params?.dateField || "").trim();
+    const dateDirection = String(params?.dateDirection || "")
+      .trim()
+      .toLowerCase();
+    const dateValue = String(params?.dateValue || "").trim();
+    const normalizedLocation = normalizeText(location);
     const usedDefaultGeneration = Boolean(params?.defaultGeneration);
     const includeUpTo =
-      Boolean(params?.includeUpTo) || /\b\d+\s+generations?\b.*\bdescendants?\b/i.test(normalizedPrompt);
+      Boolean(params?.includeUpTo) ||
+      /(?:\b\d+\s+generations?\b.*\bdescendants?\b|\bdescendants?\b.*\b\d+\s+generations?\b)/i.test(normalizedPrompt);
     const relationshipLabel = usedDefaultGeneration
       ? "descendants"
       : includeUpTo
       ? `${generation} generations of descendants`
       : String(params?.relationshipLabel || `${generation} generations down`).trim();
-    const displayRelationshipLabel = usedDefaultGeneration
+    const baseDisplayRelationshipLabel = usedDefaultGeneration
       ? `descendants within ${generation} generations`
       : relationshipLabel;
+    const locationPhrase = location
+      ? locationField === "BirthLocation"
+        ? `born in ${location}`
+        : locationField === "DeathLocation"
+        ? `died in ${location}`
+        : `in ${location}`
+      : "";
+    const datePhrase = getDateConstraintLabel(dateField, dateDirection, dateValue);
+    const filterPhrase = [locationPhrase, datePhrase].filter(Boolean).join(" ");
+    const displayRelationshipLabel = filterPhrase
+      ? `${baseDisplayRelationshipLabel} ${filterPhrase}`
+      : baseDisplayRelationshipLabel;
     const rootPerson = await resolveDescendantSubjectRoot(prompt);
     if (rootPerson?.unresolvedName) {
       return `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123, or a more specific name.`;
@@ -766,29 +1123,59 @@ export function createChatPeopleHandlers({
       rootKey: rootPerson.key,
       generation,
       includeUpTo,
+      locationField,
+      normalizedLocation,
+      dateField,
+      dateDirection,
+      dateValue,
     });
 
     if (cachedDescendantRows) {
-      const descendants = sortKinRows(cachedDescendantRows.rows, includeUpTo);
-      if (!descendants.length) {
-        return `I found no ${displayRelationshipLabel} for ${subjectLabel} in previously loaded data.`;
-      }
-
-      return buildKinListResult({
-        rows: descendants,
-        displayRelationshipLabel,
-        subjectLabel,
-        rootDisplayName: rootPerson.displayName,
-        includeUpTo,
-        chatMeta: {
-          intent: ChatIntent.DESCENDANT_LIST,
-          rootKey: String(rootPerson.key || ""),
+      const descendants = sortKinRows(
+        filterRowsByLocationAndDate(cachedDescendantRows.rows, {
+          normalizedLocation,
+          locationField,
+          dateField,
+          dateDirection,
+          dateValue,
+        }),
+        includeUpTo
+      );
+      const cachedBlankRows = descendants.filter((row) => isEffectivelyBlankKinRow(row));
+      if (cachedBlankRows.length) {
+        console.debug("wbe: descendant cache contained blank rows; bypassing cache", {
+          prompt,
+          rootKey: rootPerson.key,
           generation,
           includeUpTo,
-          location: "",
-          locationField: "AnyLocation",
-        },
-      });
+          cachedRowCount: descendants.length,
+          cachedBlankRowCount: cachedBlankRows.length,
+          cachedBlankRowSamples: cachedBlankRows.slice(0, 25),
+        });
+      } else {
+        if (!descendants.length) {
+          return `I found no ${displayRelationshipLabel} for ${subjectLabel} in previously loaded data.`;
+        }
+
+        return buildKinListResult({
+          rows: descendants,
+          displayRelationshipLabel,
+          subjectLabel,
+          rootDisplayName: rootPerson.displayName,
+          includeUpTo,
+          chatMeta: {
+            intent: ChatIntent.DESCENDANT_LIST,
+            rootKey: String(rootPerson.key || ""),
+            generation,
+            includeUpTo,
+            location: location || "",
+            locationField,
+            dateField,
+            dateDirection,
+            dateValue,
+          },
+        });
+      }
     }
 
     try {
@@ -796,7 +1183,7 @@ export function createChatPeopleHandlers({
       const [, , peopleMap] = await fetchPeoplePaged(
         WBE_CHAT_APP_ID,
         rootPerson.key,
-        "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender,Meta",
+        "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,LastNameAtBirth,LastNameCurrent,BirthDate,BirthDateDecade,DeathDate,DeathDateDecade,BirthLocation,DeathLocation,Gender,Meta",
         { descendants: generation, minGeneration: includeUpTo ? 1 : generation, limit: 1000 }
       );
 
@@ -812,24 +1199,73 @@ export function createChatPeopleHandlers({
         }
       });
 
-      const descendants = Object.values(collectedPeople)
-        .filter((profile) => {
-          const degree = Number(profile?.Meta?.Degrees);
-          if (!Number.isFinite(degree)) {
-            return true;
-          }
-          if (includeUpTo) {
-            return degree >= 1 && degree <= generation;
-          }
-          return degree === generation;
+      const descendantProfiles = Object.values(collectedPeople).filter((profile) => {
+        const degree = Number(profile?.Meta?.Degrees);
+        if (!Number.isFinite(degree)) {
+          return true;
+        }
+        if (includeUpTo) {
+          return degree >= 1 && degree <= generation;
+        }
+        return degree === generation;
+      });
+
+      const descendants = descendantProfiles.map((profile) =>
+        mapApiPersonToStandardRow(profile, {
+          degrees: Number.isFinite(Number(profile?.Meta?.Degrees)) ? Number(profile.Meta.Degrees) : "",
+          surnamePreference: "birthFirst",
         })
-        .map((profile) =>
-          mapApiPersonToStandardRow(profile, {
-            degrees: Number.isFinite(Number(profile?.Meta?.Degrees)) ? Number(profile.Meta.Degrees) : "",
-            surnamePreference: "birthFirst",
-          })
-        );
-      const sortedDescendants = sortKinRows(descendants, includeUpTo);
+      );
+
+      const blankRowSamples = descendantProfiles
+        .map((profile, index) => ({
+          raw: {
+            Id: profile?.Id ?? "",
+            Name: profile?.Name || "",
+            FirstName: profile?.FirstName || "",
+            RealName: profile?.RealName || "",
+            ShortName: profile?.Derived?.ShortName || "",
+            LongNamePrivate: profile?.LongNamePrivate || profile?.Derived?.LongNamePrivate || "",
+            BirthNamePrivate: profile?.BirthNamePrivate || profile?.Derived?.BirthNamePrivate || "",
+            LastNameAtBirth: profile?.LastNameAtBirth || "",
+            LastNameCurrent: profile?.LastNameCurrent || "",
+            BirthDate: profile?.BirthDate || "",
+            BirthDateDecade: profile?.BirthDateDecade || "",
+            DeathDate: profile?.DeathDate || "",
+            DeathDateDecade: profile?.DeathDateDecade || "",
+            BirthLocation: profile?.BirthLocation || "",
+            DeathLocation: profile?.DeathLocation || "",
+            Gender: profile?.Gender || "",
+            Degrees: profile?.Meta?.Degrees ?? "",
+          },
+          row: descendants[index],
+        }))
+        .filter((entry) => isEffectivelyBlankKinRow(entry.row))
+        .slice(0, 25);
+
+      console.debug("wbe: descendant API result summary", {
+        prompt,
+        rootKey: rootPerson.key,
+        rootWtId: rootPerson.wtId || "",
+        generation,
+        includeUpTo,
+        rawReturnedCount: Object.keys(peopleMap || {}).length,
+        collectedCount: Object.keys(collectedPeople).length,
+        filteredCount: descendantProfiles.length,
+        blankRowCount: blankRowSamples.length,
+        blankRowSamples,
+      });
+
+      const sortedDescendants = sortKinRows(
+        filterRowsByLocationAndDate(descendants, {
+          normalizedLocation,
+          locationField,
+          dateField,
+          dateDirection,
+          dateValue,
+        }),
+        includeUpTo
+      );
 
       if (!sortedDescendants.length) {
         return `I found no ${displayRelationshipLabel} for ${subjectLabel} in accessible API data.`;
@@ -846,8 +1282,11 @@ export function createChatPeopleHandlers({
           rootKey: String(rootPerson.key || ""),
           generation,
           includeUpTo,
-          location: "",
-          locationField: "AnyLocation",
+          location: location || "",
+          locationField,
+          dateField,
+          dateDirection,
+          dateValue,
         },
       });
     } catch (error) {

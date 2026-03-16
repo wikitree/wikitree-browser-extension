@@ -1,6 +1,7 @@
 import { wtAPICatCIBSearch, wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { dataTables, dataTablesLoad } from "../../core/API/wtPlusData";
+import { getProfilePersonInfo, getUserWtId } from "../../core/common";
 
 export function createProfileSearchHandler({
   WBE_CHAT_APP_ID,
@@ -11,6 +12,7 @@ export function createProfileSearchHandler({
   fetchPeoplePaged,
   mapApiPersonToStandardRow,
   makeStandardProfileTable,
+  makeAncestorProfileTable,
   normalizeText,
   normalizeKnownDate,
   showChatShaky,
@@ -18,6 +20,7 @@ export function createProfileSearchHandler({
 }) {
   const WT_PLUS_MAX_PROFILES = 20000;
   const WT_PLUS_GET_PEOPLE_CHUNK = 1000;
+  const WT_ANCESTOR_GRAPH_GENERATIONS = 10;
   const WT_PLUS_FIELD_NAMES = new Set([
     "ProfileStatus",
     "WikiTreeID",
@@ -411,13 +414,13 @@ export function createProfileSearchHandler({
       addTerm(`D${match[1]}`, `died in ${match[1]}`);
     });
 
-    consume(/\bborn\s+in\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+    consume(/\bborn\s+in\s+(.+?)(?=$|\b(?:and|or|before|after)\b)/i, (match) => {
       const value = stripSurroundingQuotes(match[1]);
       if (value && !/^\d{4}s?$/i.test(value)) {
         addTerm(normalizeWtPlusFieldTerm("BirthLocation", value), `born in ${value}`);
       }
     });
-    consume(/\bdied\s+in\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+    consume(/\bdied\s+in\s+(.+?)(?=$|\b(?:and|or|before|after)\b)/i, (match) => {
       const value = stripSurroundingQuotes(match[1]);
       if (value && !/^\d{4}$/i.test(value)) {
         addTerm(normalizeWtPlusFieldTerm("DeathLocation", value), `died in ${value}`);
@@ -446,20 +449,38 @@ export function createProfileSearchHandler({
     });
 
     consume(/^ancestors\s+of\s+(.+)$/i, (match) => {
-      const value = stripSurroundingQuotes(match[1]);
+      const value = resolveWtPlusContextFieldValue("Ancestors", match[1]);
       addTerm(normalizeWtPlusFieldTerm("Ancestors", value), `ancestors of ${value}`);
     });
+    consume(/\bancestors\b/i, () => {
+      const root = getDefaultWtPlusRoot();
+      if (root?.wtId) {
+        addTerm(normalizeWtPlusFieldTerm("Ancestors", root.wtId), `ancestors of ${root.displayName}`);
+      }
+    });
     consume(/^descendants\s+of\s+(.+)$/i, (match) => {
-      const value = stripSurroundingQuotes(match[1]);
+      const value = resolveWtPlusContextFieldValue("Descendants", match[1]);
       addTerm(normalizeWtPlusFieldTerm("Descendants", value), `descendants of ${value}`);
     });
+    consume(/\bdescendants\b/i, () => {
+      const root = getDefaultWtPlusRoot();
+      if (root?.wtId) {
+        addTerm(normalizeWtPlusFieldTerm("Descendants", root.wtId), `descendants of ${root.displayName}`);
+      }
+    });
     consume(/^cc7\s+(?:of\s+)?(.+)$/i, (match) => {
-      const value = stripSurroundingQuotes(match[1]);
+      const value = resolveWtPlusContextFieldValue("CC7", match[1]);
       addTerm(normalizeWtPlusFieldTerm("CC7", value), `cc7 of ${value}`);
     });
     consume(/\bin\s+tree\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
       const value = stripSurroundingQuotes(match[1]);
       addTerm(normalizeWtPlusFieldTerm("Tree", value), `tree ${value}`);
+    });
+    consume(/\b(?:in|from)\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+      const value = stripSurroundingQuotes(match[1]);
+      if (value) {
+        addTerm(normalizeWtPlusFieldTerm("Location", value), `location ${value}`);
+      }
     });
 
     let remainder = cleanWtPlusGroupRemainder(working);
@@ -467,15 +488,24 @@ export function createProfileSearchHandler({
       const tokens = remainder.split(/\s+/).filter(Boolean);
       if (tokens.length === 1) {
         const token = stripSurroundingQuotes(tokens[0]);
-        addTerm(normalizeWtPlusFieldTerm("LastNameAtBirth", token), `last name ${token}`);
-      } else if (tokens.length >= 2) {
-        const possibleSurname = stripSurroundingQuotes(tokens.shift());
-        const possibleLocation = stripSurroundingQuotes(tokens.join(" "));
-        if (possibleSurname) {
-          addTerm(normalizeWtPlusFieldTerm("LastNameAtBirth", possibleSurname), `last name ${possibleSurname}`);
+        if (token && !/^(?:in|from)$/i.test(token)) {
+          addTerm(normalizeWtPlusFieldTerm("LastNameAtBirth", token), `last name ${token}`);
         }
-        if (possibleLocation) {
-          addTerm(normalizeWtPlusFieldTerm("Location", possibleLocation), `location ${possibleLocation}`);
+      } else if (tokens.length >= 2) {
+        if (/^(?:in|from)$/i.test(tokens[0])) {
+          const possibleLocation = stripSurroundingQuotes(tokens.slice(1).join(" "));
+          if (possibleLocation) {
+            addTerm(normalizeWtPlusFieldTerm("Location", possibleLocation), `location ${possibleLocation}`);
+          }
+        } else {
+          const possibleSurname = stripSurroundingQuotes(tokens.shift());
+          const possibleLocation = stripSurroundingQuotes(tokens.join(" "));
+          if (possibleSurname) {
+            addTerm(normalizeWtPlusFieldTerm("LastNameAtBirth", possibleSurname), `last name ${possibleSurname}`);
+          }
+          if (possibleLocation) {
+            addTerm(normalizeWtPlusFieldTerm("Location", possibleLocation), `location ${possibleLocation}`);
+          }
         }
       }
     }
@@ -494,6 +524,7 @@ export function createProfileSearchHandler({
   function parseCombinedNaturalLanguageWtPlusQuery(queryText) {
     const text = String(queryText || "").trim();
     if (!text) return null;
+    if (!/\s+OR\s+/i.test(text)) return null;
 
     const groups = text
       .split(/\s+OR\s+/i)
@@ -522,6 +553,173 @@ export function createProfileSearchHandler({
 
   function getSelectedChatMode() {
     return document.querySelector('input[name="wbe-chat-mode"]:checked')?.value || null;
+  }
+
+  function getCurrentProfileWtPlusRoot() {
+    const profile = getProfilePersonInfo();
+    if (!profile || Array.isArray(profile)) {
+      return null;
+    }
+
+    const wtId = String(profile?.Name || profile?.wtid || "").trim();
+    const displayName = String(profile?.displayName || profile?.RealName || profile?.FullName || wtId || "").trim();
+    if (!wtId) {
+      return null;
+    }
+
+    return { wtId, displayName };
+  }
+
+  function getDefaultWtPlusRoot() {
+    const profileRoot = getCurrentProfileWtPlusRoot();
+    if (profileRoot?.wtId) {
+      return profileRoot;
+    }
+
+    const userWtId = String(getUserWtId() || "").trim();
+    if (!userWtId) {
+      return null;
+    }
+
+    return {
+      wtId: userWtId,
+      displayName: userWtId,
+    };
+  }
+
+  function resolveWtPlusSubjectRoot(rawSubject) {
+    const subject = stripSurroundingQuotes(rawSubject);
+    if (!subject) {
+      return null;
+    }
+
+    if (/^(?:his|her|their|the\s*profile\s*person|current\s*profile|this\s*profile|profile\s*person)$/i.test(subject)) {
+      return getCurrentProfileWtPlusRoot();
+    }
+
+    if (/^(?:logged\s*in\s*user|current\s*user|me|myself)$/i.test(subject)) {
+      return getDefaultWtPlusRoot();
+    }
+
+    return {
+      wtId: subject,
+      displayName: subject,
+    };
+  }
+
+  function resolveWtPlusContextFieldValue(fieldName, rawValue) {
+    const field = String(fieldName || "").trim();
+    const value = stripSurroundingQuotes(rawValue);
+    if (!value) {
+      return "";
+    }
+
+    if (["Ancestors", "Descendants", "CC7"].includes(field)) {
+      const resolved = resolveWtPlusSubjectRoot(value) || getDefaultWtPlusRoot();
+      return String(resolved?.wtId || value).trim();
+    }
+
+    return value;
+  }
+
+  function resolveWtPlusContextPlaceholders(queryText) {
+    const text = String(queryText || "").trim();
+    if (!text) {
+      return text;
+    }
+
+    return text.replace(
+      /\b(Ancestors|Descendants|CC7)=((?:"[^"]*")|(?:'[^']*')|[^\s]+)/gi,
+      (full, fieldName, rawValue) => {
+        const resolvedValue = resolveWtPlusContextFieldValue(fieldName, rawValue);
+        const normalizedTerm = normalizeWtPlusFieldTerm(fieldName, resolvedValue);
+        return normalizedTerm || full;
+      }
+    );
+  }
+
+  function inferWtPlusFamilyFieldFromRawQuery(rawQuery) {
+    const normalizedText = String(rawQuery || "")
+      .trim()
+      .replace(/^\s*(?:search(?:\s+for)?|find|show|list|get|look(?:\s+up)?)\s+/i, "")
+      .replace(/^\s*(?:me\s+)?/i, "")
+      .replace(/[.!?]+$/g, "")
+      .trim();
+    if (!normalizedText) {
+      return null;
+    }
+
+    const bareAncestorMatch = normalizedText.match(/^ancestors\b/i);
+    if (bareAncestorMatch) {
+      const root = getDefaultWtPlusRoot();
+      if (root?.wtId) {
+        return { fieldName: "Ancestors", wtId: root.wtId, displayName: root.displayName };
+      }
+    }
+
+    const bareDescendantMatch = normalizedText.match(/^descendants\b/i);
+    if (bareDescendantMatch) {
+      const root = getDefaultWtPlusRoot();
+      if (root?.wtId) {
+        return { fieldName: "Descendants", wtId: root.wtId, displayName: root.displayName };
+      }
+    }
+
+    const ancestorOfMatch = normalizedText.match(
+      /^ancestors\s+of\s+(.+?)(?=\s+(?:born|died|married|in|before|after)\b|$)/i
+    );
+    if (ancestorOfMatch?.[1]) {
+      const root = resolveWtPlusSubjectRoot(ancestorOfMatch[1]);
+      if (root?.wtId) {
+        return { fieldName: "Ancestors", wtId: root.wtId, displayName: root.displayName };
+      }
+    }
+
+    const descendantOfMatch = normalizedText.match(
+      /^descendants\s+of\s+(.+?)(?=\s+(?:born|died|married|in|before|after)\b|$)/i
+    );
+    if (descendantOfMatch?.[1]) {
+      const root = resolveWtPlusSubjectRoot(descendantOfMatch[1]);
+      if (root?.wtId) {
+        return { fieldName: "Descendants", wtId: root.wtId, displayName: root.displayName };
+      }
+    }
+
+    const possessiveAncestorMatch = normalizedText.match(/^(.+?)'s\s+ancestors\b/i);
+    if (possessiveAncestorMatch?.[1]) {
+      const root = resolveWtPlusSubjectRoot(possessiveAncestorMatch[1]);
+      if (root?.wtId) {
+        return { fieldName: "Ancestors", wtId: root.wtId, displayName: root.displayName };
+      }
+    }
+
+    const possessiveDescendantMatch = normalizedText.match(/^(.+?)'s\s+descendants\b/i);
+    if (possessiveDescendantMatch?.[1]) {
+      const root = resolveWtPlusSubjectRoot(possessiveDescendantMatch[1]);
+      if (root?.wtId) {
+        return { fieldName: "Descendants", wtId: root.wtId, displayName: root.displayName };
+      }
+    }
+
+    return null;
+  }
+
+  function ensureWtPlusFamilyField(rawQuery, queryText) {
+    const normalizedQuery = String(queryText || "").trim();
+    if (!normalizedQuery) {
+      return normalizedQuery;
+    }
+    if (/\b(?:Ancestors|Descendants)=/i.test(normalizedQuery)) {
+      return normalizedQuery;
+    }
+
+    const inferredFamilyField = inferWtPlusFamilyFieldFromRawQuery(rawQuery);
+    if (!inferredFamilyField?.fieldName || !inferredFamilyField?.wtId) {
+      return normalizedQuery;
+    }
+
+    const familyTerm = normalizeWtPlusFieldTerm(inferredFamilyField.fieldName, inferredFamilyField.wtId);
+    return familyTerm ? `${familyTerm} ${normalizedQuery}`.trim() : normalizedQuery;
   }
 
   function parseExplicitWtPlusQuery(queryText) {
@@ -851,28 +1049,84 @@ export function createProfileSearchHandler({
       }
     }
 
+    if (/^ancestors$/i.test(normalizedText)) {
+      const ancestorRoot = getDefaultWtPlusRoot();
+      if (ancestorRoot?.wtId) {
+        return {
+          query: `Ancestors=${quoteWtPlusValue(ancestorRoot.wtId)}`,
+          title: `WT+ Ancestors: ${ancestorRoot.displayName}`,
+          description: `Ancestors=${ancestorRoot.wtId}`,
+        };
+      }
+    }
+
     match = normalizedText.match(/^ancestors\s+of\s+(.+)$/i);
     if (match?.[1]) {
-      const ancestorRoot = stripSurroundingQuotes(match[1]);
-      if (ancestorRoot) {
+      const ancestorRoot = resolveWtPlusSubjectRoot(match[1]);
+      if (ancestorRoot?.wtId) {
         return {
-          query: `Ancestors=${quoteWtPlusValue(ancestorRoot)}`,
-          title: `WT+ Ancestors: ${ancestorRoot}`,
-          description: `Ancestors=${ancestorRoot}`,
+          query: `Ancestors=${quoteWtPlusValue(ancestorRoot.wtId)}`,
+          title: `WT+ Ancestors: ${ancestorRoot.displayName}`,
+          description: `Ancestors=${ancestorRoot.wtId}`,
+        };
+      }
+    }
+
+    match = normalizedText.match(/^(.+?)'s\s+ancestors$/i);
+    if (match?.[1]) {
+      const ancestorRoot = resolveWtPlusSubjectRoot(match[1]);
+      if (ancestorRoot?.wtId) {
+        return {
+          query: `Ancestors=${quoteWtPlusValue(ancestorRoot.wtId)}`,
+          title: `WT+ Ancestors: ${ancestorRoot.displayName}`,
+          description: `Ancestors=${ancestorRoot.wtId}`,
+        };
+      }
+    }
+
+    if (/^descendants$/i.test(normalizedText)) {
+      const descendantRoot = getDefaultWtPlusRoot();
+      if (descendantRoot?.wtId) {
+        return {
+          query: `Descendants=${quoteWtPlusValue(descendantRoot.wtId)}`,
+          title: `WT+ Descendants: ${descendantRoot.displayName}`,
+          description: `Descendants=${descendantRoot.wtId}`,
         };
       }
     }
 
     match = normalizedText.match(/^descendants\s+of\s+(.+)$/i);
     if (match?.[1]) {
-      const descendantRoot = stripSurroundingQuotes(match[1]);
-      if (descendantRoot) {
+      const descendantRoot = resolveWtPlusSubjectRoot(match[1]);
+      if (descendantRoot?.wtId) {
         return {
-          query: `Descendants=${quoteWtPlusValue(descendantRoot)}`,
-          title: `WT+ Descendants: ${descendantRoot}`,
-          description: `Descendants=${descendantRoot}`,
+          query: `Descendants=${quoteWtPlusValue(descendantRoot.wtId)}`,
+          title: `WT+ Descendants: ${descendantRoot.displayName}`,
+          description: `Descendants=${descendantRoot.wtId}`,
         };
       }
+    }
+
+    match = normalizedText.match(/^(.+?)'s\s+descendants$/i);
+    if (match?.[1]) {
+      const descendantRoot = resolveWtPlusSubjectRoot(match[1]);
+      if (descendantRoot?.wtId) {
+        return {
+          query: `Descendants=${quoteWtPlusValue(descendantRoot.wtId)}`,
+          title: `WT+ Descendants: ${descendantRoot.displayName}`,
+          description: `Descendants=${descendantRoot.wtId}`,
+        };
+      }
+    }
+
+    const groupedQuery = parseNaturalLanguageWtPlusGroup(normalizedText);
+    if (groupedQuery?.query) {
+      return {
+        query: groupedQuery.query,
+        title: `WT+ search: ${groupedQuery.understood || normalizedText}`,
+        description: groupedQuery.understood || normalizedText,
+        understood: groupedQuery.understood || normalizedText,
+      };
     }
 
     match = normalizedText.match(/^cc7\s+(?:of\s+)?(.+)$/i);
@@ -909,12 +1163,15 @@ export function createProfileSearchHandler({
         "Only use those allowed fields and tokens.",
         "Use sql= only for date-boundary conditions like born before/after or died before/after.",
         "Quote values that contain spaces or commas.",
+        'If the request mentions "ancestors" or "descendants", preserve that in the query with Ancestors=<WikiTreeID> or Descendants=<WikiTreeID> and do not drop the family-root part.',
+        'For bare prompts like "Ancestors ..." or "Descendants ...", assume the current profile person if available; otherwise use the logged-in user as the family root.',
         'Treat "Notables" primarily as a category/template concept, such as CategoryFull="Notables Project", CategoryFull="Living Notables Project", CategoryWord=Notables, or TemplateText="Notables Sticker", not as a raw status token.',
         "If the prompt is ambiguous, choose the most likely WT+ interpretation and summarize it in understood.",
         "Examples:",
         '{"understood":"unsourced profiles born in Devon","query":"Unsourced BirthLocation="Devon, England""}',
         '{"understood":"people in category Puritan Great Migration","query":"CategoryFull="Puritan Great Migration""}',
         '{"understood":"Charles Darwin descendants","query":"Descendants=Darwin-15"}',
+        '{"understood":"current profile descendants born in Newfoundland before 1900","query":"Descendants=CurrentProfile BirthLocation=Newfoundland sql="([Default].[Birth Date].AsNumber < 19000000)""}',
         '{"understood":"Smith in Liverpool born before 1800","query":"LastNameAtBirth=Smith Location=Liverpool sql="([Default].[Birth Date].AsNumber < 18000000)""}',
       ].join("\n");
       const user = `Translate this into a WT+ query: "${String(rawQuery || "").trim()}"`;
@@ -971,7 +1228,8 @@ export function createProfileSearchHandler({
         return null;
       }
 
-      const normalizedQuery = normalizeWtPlusQueryString(parsed?.query || "");
+      const completedQuery = ensureWtPlusFamilyField(rawQuery, parsed?.query || "");
+      const normalizedQuery = normalizeWtPlusQueryString(completedQuery || "");
       if (!normalizedQuery) {
         console.info("wbe: callAiParseWtPlusQuery returned invalid query", { parsed });
         return null;
@@ -988,9 +1246,22 @@ export function createProfileSearchHandler({
     }
   }
 
+  function shouldPreferAiWtPlusQuery(queryText) {
+    const text = String(queryText || "").trim();
+    if (!text) {
+      return false;
+    }
+
+    const hasFamilyRoot = /\b(?:ancestors|descendants)\b/i.test(text);
+    const hasBoundaryDate = /\b(?:before|after)\s+\d{4}(?:-\d{2}(?:-\d{2})?)?\b/i.test(text);
+    const hasLocationOrLifeEvent = /\b(?:born|died|married)\b/i.test(text);
+    return hasFamilyRoot && hasBoundaryDate && hasLocationOrLifeEvent;
+  }
+
   async function runWtPlusProfileQuery(wtPlusQuery, title, interpretation = null) {
     const templateCanonicalQuery = await canonicalizeWtPlusTemplateTerms(wtPlusQuery);
-    const { query: canonicalQuery, categoryMatches } = await canonicalizeWtPlusCategoryTerms(templateCanonicalQuery);
+    const contextCanonicalQuery = resolveWtPlusContextPlaceholders(templateCanonicalQuery);
+    const { query: canonicalQuery, categoryMatches } = await canonicalizeWtPlusCategoryTerms(contextCanonicalQuery);
     const encodedQuery = encodeURIComponent(canonicalQuery);
     console.debug("wbe: WT+ direct query", {
       wtPlusQuery,
@@ -1013,18 +1284,24 @@ export function createProfileSearchHandler({
       const uniqueIds = [...new Set(profiles.map((value) => String(value)))];
       showChatShaky(`Fetching ${uniqueIds.length} WT+ matches...`);
       const fields =
-        "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,RealName,BirthDate,BirthLocation,DeathDate,DeathLocation,Gender,Id,Name";
+        "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,Father,Mother,BirthDate,BirthDateDecade,BirthLocation,DeathDate,DeathDateDecade,DeathLocation,Gender,Id,Name";
       const [, , peopleById] = await fetchPeoplePaged(WBE_CHAT_APP_ID, uniqueIds, fields, {
         resolveRedirect: 1,
         limit: WT_PLUS_GET_PEOPLE_CHUNK,
       });
 
       const people = uniqueIds.map((key) => peopleById?.[String(key)]).filter(Boolean);
-      const rows = people.map((person) => mapApiPersonToStandardRow(person, { wtId: person?.Name }));
-      const table = makeStandardProfileTable(title || `WT+ search: ${wtPlusQuery}`, rows, [[0, "asc"]]);
-      table.columns = (table.columns || []).filter(
-        (column) => !["degrees", "spouse", "spouseList"].includes(column.key)
-      );
+      const ancestorRootWtId = extractWtPlusAncestorsRoot(canonicalQuery);
+      const rows = ancestorRootWtId
+        ? await buildWtPlusAncestorRows(ancestorRootWtId, uniqueIds, fields)
+        : people.map((person) => mapApiPersonToStandardRow(person, { wtId: person?.Name }));
+      const tableFactory = ancestorRootWtId ? makeAncestorProfileTable : makeStandardProfileTable;
+      const table = tableFactory(title || `WT+ search: ${wtPlusQuery}`, rows, [[0, "asc"]]);
+      if (!ancestorRootWtId) {
+        table.columns = (table.columns || []).filter(
+          (column) => !["degrees", "spouse", "spouseList"].includes(column.key)
+        );
+      }
       hideChatShaky();
 
       const categoryNote = (categoryMatches || [])
@@ -1047,6 +1324,126 @@ export function createProfileSearchHandler({
       hideChatShaky();
       return `I couldn't complete the WT+ query "${canonicalQuery}". Error: ${error?.message || error}`;
     }
+  }
+
+  function extractWtPlusAncestorsRoot(query) {
+    const normalizedQuery = normalizeWtPlusQueryString(query);
+    if (!normalizedQuery) {
+      return "";
+    }
+
+    const ancestorTerms = Array.from(
+      normalizedQuery.matchAll(/(?:^|\s)Ancestors=((?:"[^"]+")|(?:'[^']+')|(?:[^\s]+))/gi)
+    );
+    if (ancestorTerms.length !== 1) {
+      return "";
+    }
+
+    const nonAncestorText = normalizedQuery.replace(ancestorTerms[0][0], " ").trim();
+    if (nonAncestorText) {
+      return "";
+    }
+
+    return stripSurroundingQuotes(ancestorTerms[0][1]);
+  }
+
+  function getGenerationFromAhnen(ahnen) {
+    const numericAhnen = Number(ahnen);
+    if (!Number.isFinite(numericAhnen) || numericAhnen < 2) {
+      return 0;
+    }
+
+    return Math.floor(Math.log2(numericAhnen));
+  }
+
+  function buildAncestorRowsFromPeopleMap(rootProfile, peopleMap = {}, includedIds = null) {
+    const peopleById = { ...(peopleMap || {}) };
+    const ahnenById = new Map();
+    const queue = [];
+
+    const fatherId = String(rootProfile?.Father ?? "").trim();
+    const motherId = String(rootProfile?.Mother ?? "").trim();
+    if (fatherId) {
+      queue.push({ id: fatherId, ahnen: 2 });
+    }
+    if (motherId) {
+      queue.push({ id: motherId, ahnen: 3 });
+    }
+
+    while (queue.length) {
+      const current = queue.shift();
+      const currentId = String(current?.id || "").trim();
+      const currentAhnen = Number(current?.ahnen);
+      if (!currentId || !Number.isFinite(currentAhnen) || ahnenById.has(currentId)) {
+        continue;
+      }
+
+      ahnenById.set(currentId, currentAhnen);
+
+      const profile = peopleById[currentId];
+      if (!profile) {
+        continue;
+      }
+
+      const nextFatherId = String(profile?.Father ?? "").trim();
+      const nextMotherId = String(profile?.Mother ?? "").trim();
+      if (nextFatherId) {
+        queue.push({ id: nextFatherId, ahnen: currentAhnen * 2 });
+      }
+      if (nextMotherId) {
+        queue.push({ id: nextMotherId, ahnen: currentAhnen * 2 + 1 });
+      }
+    }
+
+    return Object.values(peopleById)
+      .filter((profile) => {
+        const id = String(profile?.Id ?? "").trim();
+        if (!id || !ahnenById.has(id)) {
+          return false;
+        }
+        if (includedIds && !includedIds.has(id)) {
+          return false;
+        }
+        return true;
+      })
+      .map((profile) => {
+        const ahnen = ahnenById.get(String(profile?.Id ?? "")) ?? "";
+        const derivedGeneration = getGenerationFromAhnen(ahnen);
+        return {
+          ...mapApiPersonToStandardRow(profile, {
+            wtId: profile?.Name,
+            degrees: derivedGeneration || "",
+            surnamePreference: "birthFirst",
+          }),
+          ahnen,
+        };
+      })
+      .sort((left, right) => Number(left?.ahnen || 0) - Number(right?.ahnen || 0));
+  }
+
+  async function buildWtPlusAncestorRows(rootWtId, matchedIds, fields) {
+    const includedIds = new Set((matchedIds || []).map((value) => String(value || "").trim()).filter(Boolean));
+    if (!includedIds.size) {
+      return [];
+    }
+
+    const [, , rootPeopleMap] = await fetchPeoplePaged(WBE_CHAT_APP_ID, rootWtId, "Id,Name,Father,Mother", {
+      resolveRedirect: 1,
+      limit: 1,
+    });
+    const rootProfile = Object.values(rootPeopleMap || {})[0] || null;
+    if (!rootProfile) {
+      return [];
+    }
+
+    const [, , ancestorPeopleMap] = await fetchPeoplePaged(WBE_CHAT_APP_ID, rootProfile.Name || rootWtId, fields, {
+      ancestors: WT_ANCESTOR_GRAPH_GENERATIONS,
+      minGeneration: 1,
+      resolveRedirect: 1,
+      limit: 1000,
+    });
+
+    return buildAncestorRowsFromPeopleMap(rootProfile, ancestorPeopleMap || {}, includedIds);
   }
 
   function sanitizeAiParse(aiParse) {
@@ -1375,13 +1772,17 @@ export function createProfileSearchHandler({
 
       console.debug("wbe: tryHandleProfileSearchPrompt after recovery", { mainQuery });
 
-      const chatMode = getSelectedChatMode();
+      const chatMode = String(params?.chatModeOverride || getSelectedChatMode() || "")
+        .trim()
+        .toLowerCase();
       if (chatMode === "wtplus") {
-        const wtPlusQuery =
+        const explicitWtPlusQuery =
           parseExplicitWtPlusQuery(mainQuery) ||
-          parseExplicitWtPlusQuery(rawQuery.replace(/^\s*(?:search:?|find|look(?:\s+up)?)\s+/i, "")) ||
-          parseCombinedNaturalLanguageWtPlusQuery(mainQuery) ||
-          parseNaturalLanguageWtPlusQuery(mainQuery);
+          parseExplicitWtPlusQuery(rawQuery.replace(/^\s*(?:search:?|find|look(?:\s+up)?)\s+/i, ""));
+        const preferAiWtPlusQuery = !explicitWtPlusQuery && shouldPreferAiWtPlusQuery(mainQuery);
+        const localWtPlusQuery =
+          parseNaturalLanguageWtPlusQuery(mainQuery) || parseCombinedNaturalLanguageWtPlusQuery(mainQuery);
+        const wtPlusQuery = preferAiWtPlusQuery ? explicitWtPlusQuery : explicitWtPlusQuery || localWtPlusQuery;
 
         if (wtPlusQuery?.query) {
           return await runWtPlusProfileQuery(wtPlusQuery.query, wtPlusQuery.title);
@@ -1392,6 +1793,10 @@ export function createProfileSearchHandler({
         hideChatShaky();
         if (aiWtPlusQuery?.query) {
           return await runWtPlusProfileQuery(aiWtPlusQuery.query, aiWtPlusQuery.title, aiWtPlusQuery);
+        }
+
+        if (preferAiWtPlusQuery && localWtPlusQuery?.query) {
+          return await runWtPlusProfileQuery(localWtPlusQuery.query, localWtPlusQuery.title, localWtPlusQuery);
         }
       }
 
