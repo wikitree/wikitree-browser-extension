@@ -17,7 +17,7 @@ export function createChatRelationHandlers({
   fetchProfilesForIds,
   fetchChildrenIdsForId,
   fetchSiblingIdsForId,
-  findParentProfileIdsFromDOM,
+  fetchParentIds,
   isAppsLoginButtonPresent,
 }) {
   function parseRelationType(rawRelation) {
@@ -338,52 +338,6 @@ export function createChatRelationHandlers({
       deathLocation: person?.DeathLocation || "",
       surname: person?.LastNameAtBirth || person?.LastNameCurrent || "",
     }));
-  }
-
-  async function fetchParentIds(personKey) {
-    try {
-      const relatives = await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, personKey, "Id,Name,RealName", {
-        getParents: 1,
-      });
-      const [peopleResult] = relatives || [];
-      const profile = peopleResult?.person || {};
-      const parentsObj = profile?.Parents || {};
-      const parentNames = Object.values(parentsObj || [])
-        .map((p) => p?.Name || (p?.Id ? String(p.Id) : null))
-        .filter(Boolean);
-      if (parentNames.length) return parentNames;
-    } catch (error) {
-      /* ignore getRelatives errors and fall back */
-    }
-
-    try {
-      const person = await WikiTreeAPI.getPerson("Chat", personKey, "Id,Name,Father,Mother");
-      const parents = [person?.Father, person?.Mother].filter((id) => Number(id) > 0);
-      if (parents.length) return parents;
-    } catch (error) {
-      /* ignore */
-    }
-
-    try {
-      const domParents = findParentProfileIdsFromDOM();
-      if (domParents && domParents.length) {
-        const numericIds = [];
-        for (const wtid of domParents) {
-          try {
-            const [p] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, wtid, "Id,Name", { resolveRedirect: 1 });
-            if (p && Number(p.Id) > 0) numericIds.push(Number(p.Id));
-          } catch (error) {
-            /* ignore individual failures */
-          }
-        }
-        if (numericIds.length) return numericIds;
-        return domParents;
-      }
-    } catch (error) {
-      /* ignore DOM fallback errors */
-    }
-
-    return [];
   }
 
   async function fetchGrandparentIds(personKey) {

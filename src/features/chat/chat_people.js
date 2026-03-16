@@ -366,7 +366,7 @@ export function createChatPeopleHandlers({
       const result = await WikiTreeAPI.getRelatives(
         WBE_CHAT_APP_ID,
         personKey,
-        "Id,Name,RealName,Derived.ShortName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender",
+        "Id,Name,RealName,Derived.ShortName,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender",
         { getSpouses: 1 }
       );
       const [peopleResult] = result;
@@ -643,7 +643,7 @@ export function createChatPeopleHandlers({
       const [, , peopleMap] = await fetchPeoplePaged(
         WBE_CHAT_APP_ID,
         rootPerson.key,
-        "Id,Name,FirstName,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender,Meta",
+        "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender,Meta",
         { ancestors: generation, minGeneration: includeUpTo ? 1 : generation, limit: 1000 }
       );
 
@@ -796,7 +796,7 @@ export function createChatPeopleHandlers({
       const [, , peopleMap] = await fetchPeoplePaged(
         WBE_CHAT_APP_ID,
         rootPerson.key,
-        "Id,Name,FirstName,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender,Meta",
+        "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender,Meta",
         { descendants: generation, minGeneration: includeUpTo ? 1 : generation, limit: 1000 }
       );
 

@@ -38,7 +38,7 @@ export function createChatCcHandlers({
       const [status, , people] = await WikiTreeAPI.getPeople(
         WBE_CHAT_APP_ID,
         userNumId,
-        "Id,Name,FirstName,BirthLocation,DeathLocation,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,Gender,Meta",
+        "Id,Name,FirstName,MiddleName,BirthLocation,DeathLocation,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,Gender,Meta",
         options
       );
 

@@ -151,10 +151,13 @@ Current implementation note:
 - `ui.js`: popup and loader UI
 - `tables.js`: normalized tabular output
 - `chat_options.js`: settings
+- `chat_bio.js`: biography popups, spouse/relative bio flows, and family lookup helpers used by bio prompts
+- `chat_history.js`: chat history persistence, retry tracking, message rendering, and action-button reconstruction for prior messages
 - `chat_dom_lookup.js`: profile-page DOM ID extraction for spouses/children/siblings/parents
 - `chat_cc.js`: CC fetch/cache handlers and watchlist flow (`CC` summary/location + watchlist table/list output)
 - `chat_last_result.js`: result-operation refinements (`table`, `count`, `countBy`, `sort`, `filter`)
 - `chat_relations.js`: deterministic relation handlers (`siblings`, `parents`, `children`, `spouses`, `aunts/uncles`, `grand*` relations, relation-chain parsing/list/count)
+- `chat_planner.js`: AI-assisted intent planning and disambiguation — `parsePlannerJson`, `tryHandleAiPlannedIntent`, `tryAiDisambiguateConnectionTarget`, `tryAiParseCategoryName`, `tryAiExpandConnectionTarget`
 
 ## Immediate Refactor Rules
 
@@ -195,3 +198,9 @@ Last-result refinement logic now lives in `chat_last_result.js` and is wired fro
 Relation query execution now also lives in `chat_relations.js` and is wired from `chat.js` via a dependency-injected factory.
 
 Deterministic people-query execution now also lives in `chat_people.js`, including ancestor/descendant list handling, spouse-list handling, age-at-death summaries, and profile-family CC matching.
+
+Biography popup and relative-bio execution now also lives in `chat_bio.js`, including direct bio prompts, spouse-bio flows, tiled/list bio opening, and shared child/sibling/parent lookup helpers.
+
+Chat history persistence and message rendering now also lives in `chat_history.js`, including session restore/clear, retry-request tracking, inline "show more" expansion, and reconstruction of saved Connections/Table/Show Bio actions.
+
+AI-assisted planning and disambiguation now also lives in `chat_planner.js`. This includes `parsePlannerJson` (JSON extraction from AI responses), `tryHandleAiPlannedIntent` (sends the full planner prompt and routes the parsed intent), `tryAiDisambiguateConnectionTarget` (AI-ranked candidate resolution for connection targets), `tryAiParseCategoryName` (canonical category-query extraction), and `tryAiExpandConnectionTarget` (alternate search-name / WikiTree ID suggestion). All five are wired into `chat.js` via `createChatAiPlannerHandlers`. Note that `executeRoutedIntent` is injected as a thunk because it is defined after the factory call.

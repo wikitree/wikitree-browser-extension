@@ -1,3 +1,4 @@
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { getProfilePersonInfo } from "../../core/common";
 
 function extractNamesFromPrompt(prompt) {
@@ -7,12 +8,84 @@ function extractNamesFromPrompt(prompt) {
   return Array.from(new Set(cleanedNames));
 }
 
-function appendProfileContextForCandidates(conversationContext, prompt) {
+async function appendProfileContextForCandidates(conversationContext, prompt) {
   let nextContext = String(conversationContext || "");
   const nameCandidates = extractNamesFromPrompt(prompt);
   const profilePersonInfo = getProfilePersonInfo();
+  const seenProfileKeys = new Set();
 
-  nameCandidates.forEach((name) => {
+  async function appendProfileContext(profile, label = "") {
+    if (!profile || typeof profile !== "object") {
+      return;
+    }
+
+    const displayName = profile.displayName || profile.RealName || profile.Name || profile.FullName || "unknown";
+    const profileKey = String(profile.Name || profile.Id || "").trim();
+    nextContext += `\n\nContext on ${label || displayName}:\n${JSON.stringify(profile, null, 2)}`;
+
+    if (!profileKey || seenProfileKeys.has(profileKey)) {
+      return;
+    }
+    seenProfileKeys.add(profileKey);
+
+    try {
+      console.debug("wbe: explicit AI mode fetching profile context", { profileKey, displayName, label });
+      const [fullProfile, status, pageName] = await WikiTreeAPI.getProfile(
+        "Chat",
+        profileKey,
+        "Bio,Sources,Notes,Categories,Name,RealName,Id",
+        {
+          bioFormat: "wiki",
+          resolveRedirect: 1,
+        }
+      );
+      if (fullProfile) {
+        const bio = fullProfile?.Bio || "";
+        const sources = (Array.isArray(fullProfile?.Sources) ? fullProfile.Sources : [])
+          .map((entry) => (typeof entry === "string" ? entry : JSON.stringify(entry)))
+          .join("\n");
+        const notes = (Array.isArray(fullProfile?.Notes) ? fullProfile.Notes : [])
+          .map((entry) => (typeof entry === "string" ? entry : JSON.stringify(entry)))
+          .join("\n");
+        const categories = fullProfile?.Categories ? String(fullProfile.Categories) : "";
+        const rawProfileJson = JSON.stringify(fullProfile, null, 2);
+        nextContext += [
+          `\n\nFull profile context for ${fullProfile.RealName || fullProfile.Name || displayName} (${
+            pageName || profileKey
+          }):`,
+          bio ? `BIO:\n${bio}` : "",
+          sources ? `SOURCES:\n${sources}` : "",
+          notes ? `NOTES:\n${notes}` : "",
+          categories ? `CATEGORIES:\n${categories}` : "",
+          rawProfileJson ? `GETPROFILE_JSON:\n${rawProfileJson}` : "",
+          status ? `PROFILE STATUS: ${status}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+        console.debug("wbe: explicit AI mode included full profile context", {
+          profileKey,
+          pageName,
+          bioLength: bio.length,
+          sourcesLength: sources.length,
+          notesLength: notes.length,
+          categoriesLength: categories.length,
+          rawProfileLength: rawProfileJson.length,
+        });
+      }
+    } catch (error) {
+      console.debug("wbe: explicit AI mode failed to fetch full profile context", {
+        profileKey,
+        error,
+      });
+      nextContext += `\n\nNote: failed to fetch full bio context for ${displayName} (${profileKey}).`;
+    }
+  }
+
+  if (profilePersonInfo && !Array.isArray(profilePersonInfo)) {
+    await appendProfileContext(profilePersonInfo, "current page profile");
+  }
+
+  for (const name of nameCandidates) {
     let profile = null;
     const needle = String(name || "").toLowerCase();
     if (Array.isArray(profilePersonInfo)) {
@@ -36,10 +109,9 @@ function appendProfileContextForCandidates(conversationContext, prompt) {
     }
 
     if (profile) {
-      const displayName = profile.displayName || profile.RealName || profile.Name || profile.FullName || "unknown";
-      nextContext += `\n\nContext on ${displayName}:\n${JSON.stringify(profile, null, 2)}`;
+      await appendProfileContext(profile);
     }
-  });
+  }
 
   return nextContext;
 }
@@ -92,17 +164,26 @@ export async function handleExplicitSearchMode({
     }
 
     let conversationContext = buildRecentConversationForAi();
-    conversationContext = appendProfileContextForCandidates(conversationContext, prompt);
+    conversationContext = await appendProfileContextForCandidates(conversationContext, prompt);
+
+    const aiPrompt = [
+      "You are assisting inside the WikiTree Browser Extension chat.",
+      conversationContext ? `Recent conversation:\n${conversationContext}` : "",
+      `Current user request: ${prompt}`,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    console.debug("wbe: explicit AI mode outbound prompt", {
+      prompt,
+      aiPrompt,
+      hasProfileBio: aiPrompt.includes("BIO:"),
+      promptLength: aiPrompt.length,
+    });
 
     const response = await chrome.runtime.sendMessage({
       action: "chatWithAI",
-      prompt: [
-        "You are assisting inside the WikiTree Browser Extension chat.",
-        conversationContext ? `Recent conversation:\n${conversationContext}` : "",
-        `Current user request: ${prompt}`,
-      ]
-        .filter(Boolean)
-        .join("\n\n"),
+      prompt: aiPrompt,
       provider,
       key,
       model,

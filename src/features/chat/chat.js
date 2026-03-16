@@ -41,6 +41,9 @@ import { createChatCcHandlers } from "./chat_cc";
 import { createLastResultOperationHandler } from "./chat_last_result";
 import { createChatRelationHandlers } from "./chat_relations";
 import { createChatPeopleHandlers } from "./chat_people";
+import { createChatBioHandlers } from "./chat_bio";
+import { createChatHistoryHandlers } from "./chat_history";
+import { createChatAiPlannerHandlers } from "./chat_planner";
 import {
   shouldOfferDisambiguation,
   buildDisambiguationMessage,
@@ -106,9 +109,10 @@ const CHAT_SHOW_MORE_TOKEN_PREFIX = "__WBE_SHOW_MORE__:";
 const AUTO_OPEN_TABLE_MIN_ROWS = 8;
 const CHAT_AI_HISTORY_MAX_MESSAGES = 12;
 const CHAT_AI_MESSAGE_MAX_CHARS = 500;
+const CHAT_PERSISTED_STRUCTURED_ROWS_MAX = 250;
 const CHAT_APPS_LOGIN_HINT = "Log in to the apps server for better results. Use the Apps Login button on this page.";
 const RELATION_PERSON_FIELDS =
-  "Id,Name,Gender,RealName,Derived.ShortName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation";
+  "Id,Name,Gender,RealName,Derived.ShortName,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation";
 let chatHistory = [];
 let lastNonRetryUserPrompt = "";
 let lastConnectionContext = null;
@@ -119,6 +123,108 @@ let lastConnectionPopupResult = null;
 let lastStructuredResult = null;
 let lastBioPopupId = null;
 let lastBioPopupProfile = null;
+
+function raiseChatActionPopupsAboveChat() {
+  const popupSelectors = [
+    "#wbe-connections-popup",
+    "#wbe-bio-popup",
+    "#wbe-bio-list-popup",
+    "#wbe-spouses-popup",
+    '[id^="wbe-bio-popup-"]',
+    ".chat-results-popup",
+  ];
+
+  const raiseOpenPopups = () => {
+    popupSelectors.forEach((selector) => {
+      document.querySelectorAll(selector).forEach((element) => {
+        if (!(element instanceof HTMLElement)) {
+          return;
+        }
+        try {
+          setHighestZIndex(element);
+        } catch (error) {
+          /* ignore */
+        }
+      });
+    });
+  };
+
+  window.setTimeout(raiseOpenPopups, 40);
+  window.setTimeout(raiseOpenPopups, 120);
+}
+
+const {
+  appendMessage,
+  clearHistory,
+  hasAppsLoginHintAlready,
+  isRetryPrompt,
+  loadHistory,
+  renderHistory,
+  shouldEscalateLocalFailureToAi,
+} = createChatHistoryHandlers({
+  chatMessagesId: CHAT_MESSAGES_ID,
+  chatSessionKey: CHAT_SESSION_KEY,
+  chatLastConnectionKey: CHAT_LAST_CONNECTION_KEY,
+  chatLastStructuredKey: CHAT_LAST_STRUCTURED_KEY,
+  chatLastBioKey: CHAT_LAST_BIO_KEY,
+  chatResultsPopupId: CHAT_RESULTS_POPUP_ID,
+  chatResultsTableId: CHAT_RESULTS_TABLE_ID,
+  getChatHistory: () => chatHistory,
+  setChatHistory: (value) => {
+    chatHistory = value;
+  },
+  getLastNonRetryUserPrompt: () => lastNonRetryUserPrompt,
+  setLastNonRetryUserPrompt: (value) => {
+    lastNonRetryUserPrompt = value;
+  },
+  getLastConnectionPopupResult: () => lastConnectionPopupResult,
+  setLastConnectionPopupResult: (value) => {
+    lastConnectionPopupResult = value;
+  },
+  getLastStructuredResult: () => lastStructuredResult,
+  setLastStructuredResult: (value) => {
+    lastStructuredResult = value;
+  },
+  getLastBioPopupId: () => lastBioPopupId,
+  setLastBioPopupState: ({ id, profile }) => {
+    lastBioPopupId = id;
+    lastBioPopupProfile = profile;
+  },
+  toggleConnectionsPopup: () => toggleConnectionsPopup(),
+  openResultsTable: (result, opts) => openResultsTable(result, opts),
+  resolveToWTID: (candidate) => resolveToWTID(candidate),
+  showBioPopupForId: (wtid) => showBioPopupForId(wtid),
+  afterActionClick: () => raiseChatActionPopupsAboveChat(),
+  resetTransientState: () => {
+    pendingDisambiguationContext = null;
+    lastConnectionCandidates = [];
+    lastConnectionRankedMatches = [];
+  },
+});
+
+const { buildRecentConversationForAi, getChatAiConfig, hasAnyApiKey } = createChatAiHelpers({
+  getChatOptions,
+  getChatHistory: () => chatHistory,
+  chatAiMessageMaxChars: CHAT_AI_MESSAGE_MAX_CHARS,
+  chatAiHistoryMaxMessages: CHAT_AI_HISTORY_MAX_MESSAGES,
+  sharedAiOptionsKey: SHARED_AI_OPTIONS_KEY,
+  autoBioOptionsKey: AUTO_BIO_OPTIONS_KEY,
+  aiKeyFields: AI_KEY_FIELDS,
+});
+
+const {
+  parsePlannerJson,
+  tryHandleAiPlannedIntent,
+  tryAiDisambiguateConnectionTarget,
+  tryAiParseCategoryName,
+  tryAiExpandConnectionTarget,
+} = createChatAiPlannerHandlers({
+  getChatAiConfig,
+  getChatOptions,
+  buildRecentConversationForAi,
+  ChatIntent,
+  executeRoutedIntent: (routed, prompt) => executeRoutedIntent(routed, prompt),
+});
 
 const { resolveConnectionTargetPerson, tryHandleConnectionCorrectionPrompt, tryHandleConnectionPrompt } =
   createChatConnectionHandlers({
@@ -145,16 +251,6 @@ const { resolveConnectionTargetPerson, tryHandleConnectionCorrectionPrompt, tryH
       lastConnectionPopupResult = value;
     },
   });
-
-const { buildRecentConversationForAi, getChatAiConfig, hasAnyApiKey } = createChatAiHelpers({
-  getChatOptions,
-  getChatHistory: () => chatHistory,
-  chatAiMessageMaxChars: CHAT_AI_MESSAGE_MAX_CHARS,
-  chatAiHistoryMaxMessages: CHAT_AI_HISTORY_MAX_MESSAGES,
-  sharedAiOptionsKey: SHARED_AI_OPTIONS_KEY,
-  autoBioOptionsKey: AUTO_BIO_OPTIONS_KEY,
-  aiKeyFields: AI_KEY_FIELDS,
-});
 
 const tryHandleProfileSearchPrompt = createProfileSearchHandler({
   WBE_CHAT_APP_ID,
@@ -195,6 +291,55 @@ const tryHandleLastResultOperation = createLastResultOperationHandler({
   extractCountryFromLocation,
 });
 
+const {
+  showBioPopupForId,
+  listSpousesForId,
+  dumpProfileForId,
+  showTiledViaApi,
+  handleOpenFromBioList,
+  fetchSiblingIdsForId,
+  fetchChildrenIdsForId,
+  fetchParentIds,
+  tryHandleSpouseBioIntent,
+  tryHandlePersonBioPrompt,
+} = createChatBioHandlers({
+  WBE_CHAT_APP_ID,
+  CHAT_LAST_BIO_KEY,
+  wtAPIProfileSearch,
+  WikiTreeAPI,
+  getProfilePersonInfo,
+  getProfileRootPerson,
+  setHighestZIndex,
+  escapeHtml,
+  setPopupPositionAndSize,
+  showChatShaky,
+  hideChatShaky,
+  sanitizeHtmlForPopup,
+  extractProfileBios,
+  showBioListPopup,
+  showTiledBioPopups,
+  addBioButton,
+  appendMessage,
+  resolveToWTID,
+  fetchProfilesForIds,
+  fetchPeoplePaged,
+  mapApiPersonToStandardRow,
+  makeStandardProfileTable,
+  resolveConnectionTargetPerson,
+  hasAnyApiKey,
+  buildRecentConversationForAi,
+  getLastStructuredResult: () => lastStructuredResult,
+  getLastConnectionCandidates: () => lastConnectionCandidates,
+  findSpouseProfileIdsFromDOM,
+  findChildrenProfileIdsFromDOM,
+  findSiblingProfileIdsFromDOM,
+  findParentProfileIdsFromDOM,
+  setLastBioPopupState: ({ id, profile }) => {
+    lastBioPopupId = id;
+    lastBioPopupProfile = profile;
+  },
+});
+
 const { tryHandleRelationCountPrompt } = createChatRelationHandlers({
   WikiTreeAPI,
   WBE_CHAT_APP_ID,
@@ -214,7 +359,7 @@ const { tryHandleRelationCountPrompt } = createChatRelationHandlers({
   fetchProfilesForIds,
   fetchChildrenIdsForId,
   fetchSiblingIdsForId,
-  findParentProfileIdsFromDOM,
+  fetchParentIds,
   isAppsLoginButtonPresent,
 });
 
@@ -281,385 +426,19 @@ function clamp(value, min, max) {
 
 // Popup viewport clamping moved to `src/features/chat/ui.js`.
 
-// Show a popup with both wiki and HTML bio for a given profile id
-async function showBioPopupForId(id, opts = { bioFormat: "both" }) {
-  // If a recent relation lookup had partial failures, suppress the first
-  // auto-open to avoid popping an unexpected bio when some fetches failed.
-  if (window.wbeSuppressAutoBioOpen) {
-    try {
-      appendMessage("assistant", "Could not load some biographies. Partial results may be shown.", {
-        shouldPersist: false,
-      });
-    } catch (e) {
-      /* ignore */
-    }
-    window.wbeSuppressAutoBioOpen = false;
-    return;
-  }
-  if (!id) return;
-  // Defensive: resolve numeric or ambiguous ids to canonical WTID (profile.Name)
-  try {
-    const resolved = await resolveToWTID(id);
-    if (resolved) id = resolved;
-  } catch (e) {
-    /* ignore resolution failure and proceed with original id */
-  }
-  try {
-    showChatShaky("Loading biography...");
-    const [profile, status, page_name] = await WikiTreeAPI.getProfile(
-      WBE_CHAT_APP_ID,
-      id,
-      "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
-      {
-        bioFormat: opts.bioFormat,
-        resolveRedirect: 1,
-      }
-    );
-    console.debug("wbe: showBioPopupForId fetched profile", { id, status, page_name, profile });
-    hideChatShaky();
-    if (!profile || Object.keys(profile).length === 0) {
-      console.info("wbe: showBioPopupForId - no profile data or private", { id, profile });
-      appendMessage("assistant", "No profile data returned or profile is private.");
-      return;
-    }
-
-    const { wikiBio, htmlBio } = extractProfileBios(profile);
-    // If there is no wiki text and no HTML bio, do not open an empty popup.
-    if (!wikiBio && !htmlBio) {
-      console.info("wbe: showBioPopupForId - profile has no biography content", { id, profile });
-      appendMessage("assistant", `No biography content found for ${profile?.Name || id}.`);
-      return;
-    }
-
-    // Remove any existing bio popup and create with jQuery
-    $("#wbe-bio-popup").remove();
-    const popupWidth = Math.max(520, Math.floor(window.innerWidth * 0.85));
-    const $popup = $(
-      `<div id="wbe-bio-popup" class="wbe-popup chat-popup ui-draggable" style="display:block;width:${popupWidth}px;left:${Math.floor(
-        (window.innerWidth - popupWidth) / 2
-      )}px">
-        <div class="chat-popup-header ui-draggable-handle">
-          <strong>Biography: ${escapeHtml(profile.Name || id)}</strong>
-          <div class="chat-popup-controls">
-            <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
-          </div>
-        </div>
-        <div class="chat-popup-body chat-popup-body--columns">
-          <div class="bio-column bio-column--wiki">
-            <h4>Wiki Text</h4>
-            <pre class="bio-wiki-pre">${escapeHtml(wikiBio || "(no wiki text returned)")}</pre>
-          </div>
-          <div class="bio-column">
-            <h4>HTML</h4>
-            <div class="bio-html-container">${sanitizeHtmlForPopup(htmlBio) || "<i>(no html returned)</i>"}</div>
-          </div>
-        </div>
-      </div>`
-    ).appendTo(document.body);
-    setPopupPositionAndSize(
-      $popup.get(0),
-      Math.round((window.innerWidth - $popup.get(0).getBoundingClientRect().width) / 2),
-      110
-    );
-    $popup.find(".close-popup").on("click", () => $popup.remove());
-    setHighestZIndex($popup.get(0));
-    $popup.draggable({
-      handle: ".chat-popup-header",
-      containment: "window",
-      scroll: false,
-      start: () => {
-        $popup.get(0).style.right = "auto";
-        $popup.get(0).style.transform = "none";
-      },
-    });
-    $popup.resizable({ handles: "n,e,s,w,se,sw,ne,nw", minWidth: 520, minHeight: 260 });
-    // Persist canonical last shown bio id (use WTID Name when available)
-    const canonicalId = profile?.Name || (profile?.Id != null ? String(profile.Id) : id);
-    lastBioPopupId = canonicalId;
-    lastBioPopupProfile = profile;
-    try {
-      sessionStorage.setItem(CHAT_LAST_BIO_KEY, JSON.stringify({ id: canonicalId }));
-    } catch (e) {
-      /* ignore */
-    }
-    addBioButton();
-  } catch (err) {
-    hideChatShaky();
-    hideChatShaky();
-    console.error("Error loading profile:", err);
-    try {
-      const em = String(err?.message || err || "unknown error");
-      appendMessage("assistant", `Failed to load biography: ${em}`);
-    } catch (e) {
-      appendMessage("assistant", "Failed to load biography.");
-    }
-  }
-}
+// Bio workflow handlers now live in `chat_bio.js`.
 
 // `closeBioPopup` and `addBioButton` are provided by `ui.js`.
 
-// Expose helper for quick manual testing from console
 window.wbeShowBioPopup = showBioPopupForId;
-
-// List spouses for a given profile id and show quick actions to open their bios
-async function listSpousesForId(id) {
-  if (!id) return;
-  try {
-    showChatShaky("Loading spouses...");
-    const [profile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, id, "Spouses,Name,RealName,Id", {
-      getSpouses: 1,
-      resolveRedirect: 1,
-    });
-    console.debug("wbe: listSpousesForId fetched profile", { id, profile });
-    hideChatShaky();
-    const spousesObj = profile?.Spouses || {};
-    const spouses = Object.values(spousesObj || []).map((s) => ({
-      wtid: s.Name,
-      displayName: s.RealName || (s.Derived && s.Derived.ShortName) || s.Name,
-    }));
-
-    if (!spouses.length) {
-      console.info("wbe: listSpousesForId - no spouses", { id, profile });
-      appendMessage("assistant", `No spouses found for ${profile?.Name || id}.`);
-      return;
-    }
-
-    // If single spouse, open their bio immediately
-    if (spouses.length === 1) {
-      showBioPopupForId(spouses[0].wtid);
-      return;
-    }
-
-    // Build a small popup with a list of spouses using jQuery
-    $("#wbe-spouses-popup").remove();
-    const popupWidth = Math.max(360, Math.floor(window.innerWidth * 0.4));
-    const $popup = $(
-      `<div id="wbe-spouses-popup" class="wbe-popup chat-popup ui-draggable" style="display:block;width:${popupWidth}px;left:${Math.floor(
-        (window.innerWidth - popupWidth) / 2
-      )}px">
-        <div class="chat-popup-header ui-draggable-handle">
-          <strong>Spouses of ${escapeHtml(profile?.Name || id)}</strong>
-          <div class="chat-popup-controls">
-            <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
-          </div>
-        </div>
-        <div class="chat-popup-body chat-popup-body--compact">
-          <ul class="spouse-list">
-            ${spouses
-              .map(
-                (s) =>
-                  `<li><span>${escapeHtml(s.displayName)} (${escapeHtml(
-                    s.wtid
-                  )})</span><button class="open-bio" data-wtid="${escapeHtml(s.wtid)}">Open Bio</button></li>`
-              )
-              .join("")}
-          </ul>
-        </div>
-      </div>`
-    ).appendTo(document.body);
-    $popup.find(".close-popup").on("click", () => $popup.remove());
-    $popup.find(".open-bio").on("click", async (e) => {
-      const raw = $(e.currentTarget).attr("data-wtid");
-      if (!raw) return;
-      const resolved = await resolveToWTID(raw);
-      if (resolved) showBioPopupForId(resolved);
-    });
-    setHighestZIndex($popup.get(0));
-    $popup.draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
-  } catch (err) {
-    hideChatShaky();
-    hideChatShaky();
-    console.error("Error listing spouses:", err);
-    try {
-      const em = String(err?.message || err || "unknown error");
-      appendMessage("assistant", `Failed to list spouses: ${em}`);
-    } catch (e) {
-      appendMessage("assistant", "Failed to list spouses.");
-    }
-  }
-}
-
-// Expose for console testing
 window.wbeListSpouses = listSpousesForId;
-
-// Expose DOM helper for console testing
 window.wbeFindSpouseLinks = findSpouseProfileIdsFromDOM;
-
-// Expose DOM helpers for console testing
 window.wbeFindChildLinks = findChildrenProfileIdsFromDOM;
 window.wbeFindSiblingLinks = findSiblingProfileIdsFromDOM;
-
-// Expose DOM helper for console testing
 window.wbeFindParentLinks = findParentProfileIdsFromDOM;
-
-// Dump raw profile data for debugging (exposed for console)
-async function dumpProfileForId(id) {
-  if (!id) return;
-  try {
-    showChatShaky("Fetching profile for debug...");
-    const [profile, status, page_name] = await WikiTreeAPI.getProfile(
-      WBE_CHAT_APP_ID,
-      id,
-      "Bio,BioHtml,BioText,Biography,Spouses,Name,RealName,Id",
-      {
-        bioFormat: "both",
-        getSpouses: 1,
-        resolveRedirect: 1,
-      }
-    );
-    hideChatShaky();
-    console.log("wbe: profile dump", { id, profile, status, page_name });
-    const hasProfile = profile && Object.keys(profile).length > 0;
-    const privacy = profile?.Privacy ?? null;
-    const spouses = profile?.Spouses ? Object.keys(profile.Spouses).length : 0;
-    console.info("wbe: dumpProfileForId result", { id, hasProfile, privacy, spouses });
-    appendMessage("assistant", `Profile fetched: present=${hasProfile}, privacy=${privacy}, spouses=${spouses}.`, {
-      shouldPersist: false,
-    });
-  } catch (err) {
-    hideChatShaky();
-    console.error("wbe: dumpProfileForId error", err);
-    try {
-      const em = String(err?.message || err || "unknown error");
-      appendMessage("assistant", `Failed to fetch profile: ${em}`);
-    } catch (e) {
-      appendMessage("assistant", "Failed to fetch profile.");
-    }
-  }
-}
-
 window.wbeDumpProfile = dumpProfileForId;
-
-// Bio list / tiled popup UI functions live in `ui.js`; use the exported
-// implementations. Expose the UI function on the window for console testing.
 window.wbeShowBioList = showBioListPopup;
-
-// Tiled bio UI uses the implementation in `ui.js`. Provide a small helper
-// that delegates to the UI function and supplies our API fetch helper.
-async function showTiledViaApi(ids = []) {
-  return showTiledBioPopups(ids, (toOpen) =>
-    fetchProfilesForIds(toOpen, "Bio,BioHtml,BioText,Biography,Name,RealName,Id", {
-      bioFormat: "both",
-      resolveRedirect: 1,
-    })
-  );
-}
 window.wbeShowTiled = showTiledViaApi;
-
-// Handle 'Open' requests from the bio list UI. Accepts an array of raw ids
-// (could be numeric Id or WTID). Single-item arrays open a single bio;
-// multiple ids open tiled popups (limited to a reasonable max).
-async function handleOpenFromBioList(ids = []) {
-  if (!Array.isArray(ids) || !ids.length) return;
-  const toOpen = ids.slice(0, 12);
-  try {
-    if (toOpen.length === 1) {
-      const raw = toOpen[0];
-      const wtid = await resolveToWTID(raw);
-      if (wtid) await showBioPopupForId(wtid).catch(() => {});
-      return;
-    }
-    // Resolve each id to a WTID where possible, skipping failures.
-    const resolved = [];
-    for (const raw of toOpen) {
-      try {
-        const w = await resolveToWTID(raw);
-        if (w) resolved.push(w);
-      } catch (e) {
-        console.warn("wbe: handleOpenFromBioList resolve failed", raw, e);
-      }
-    }
-    if (resolved.length) {
-      await showTiledViaApi(resolved);
-    }
-  } catch (e) {
-    console.error("wbe: handleOpenFromBioList error", e);
-  }
-}
-
-// Fetch sibling WTIDs for a profile id, using API then DOM fallback
-async function fetchSiblingIdsForId(id) {
-  if (!id) return [];
-  try {
-    showChatShaky("Loading siblings...");
-    try {
-      const relatives = await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, id, "Id,Name,RealName", { getSiblings: 1 });
-      const [peopleResult] = relatives || [];
-      const profile = peopleResult?.person || {};
-      const siblingsObj = profile?.Siblings || {};
-      const siblings = Object.values(siblingsObj || [])
-        .map((s) => s?.Name || (s?.Id ? String(s.Id) : null))
-        .filter(Boolean);
-      if (siblings.length) {
-        hideChatShaky();
-        return siblings;
-      }
-    } catch (e) {
-      // ignore and fall back to getProfile/DOM
-    }
-    const [profile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, id, "Siblings,Name,Id", {
-      getSiblings: 1,
-      resolveRedirect: 1,
-    });
-    hideChatShaky();
-    const siblingsObj = profile?.Siblings || {};
-    let siblings = Object.values(siblingsObj || [])
-      .map((s) => s.Name)
-      .filter(Boolean);
-    if (siblings.length) return siblings;
-    // DOM fallback
-    const domCandidates = findSiblingProfileIdsFromDOM();
-    if (!domCandidates.length) return [];
-    const profiles = await fetchProfilesForIds(domCandidates, "Name,Id", { resolveRedirect: 1 });
-    return profiles.map((p, i) => (p ? domCandidates[i] : null)).filter(Boolean);
-  } catch (err) {
-    hideChatShaky();
-    console.error("wbe: fetchSiblingIdsForId error", err);
-    return [];
-  }
-}
-
-// Fetch children WTIDs for a profile id, using API then DOM fallback
-async function fetchChildrenIdsForId(id) {
-  if (!id) return [];
-  try {
-    showChatShaky("Loading children...");
-    try {
-      const relatives = await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, id, "Id,Name,RealName", { getChildren: 1 });
-      const [peopleResult] = relatives || [];
-      const profile = peopleResult?.person || {};
-      const childrenObj = profile?.Children || {};
-      const children = Object.values(childrenObj || [])
-        .map((c) => c?.Name || (c?.Id ? String(c.Id) : null))
-        .filter(Boolean);
-      if (children.length) {
-        hideChatShaky();
-        return children;
-      }
-    } catch (e) {
-      // ignore and fall back to getProfile/DOM
-    }
-    const [profile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, id, "Children,Name,Id", {
-      getChildren: 1,
-      resolveRedirect: 1,
-    });
-    hideChatShaky();
-    const childrenObj2 = profile?.Children || {};
-    let children2 = Object.values(childrenObj2 || [])
-      .map((c) => c.Name)
-      .filter(Boolean);
-    if (children2.length) return children2;
-    // DOM fallback: find WTIDs on page and validate by fetching profile
-    const domCandidates = findChildrenProfileIdsFromDOM();
-    if (!domCandidates.length) return [];
-    const candidateProfiles = await fetchProfilesForIds(domCandidates, "Name,Id", { resolveRedirect: 1 });
-    return candidateProfiles.map((p, i) => (p ? domCandidates[i] : null)).filter(Boolean);
-  } catch (err) {
-    hideChatShaky();
-    console.error("wbe: fetchChildrenIdsForId error", err);
-    return [];
-  }
-}
 
 // Batch-fetch profiles for an array of WTIDs, preserving order. Returns array of profile objects or nulls.
 async function fetchProfilesForIds(ids = [], fields = "Name,Id", opts = {}) {
@@ -857,235 +636,6 @@ function formatSubjectLabel(subject) {
   return labelCore;
 }
 
-function getMessageList() {
-  return $(`#${CHAT_MESSAGES_ID}`);
-}
-
-function saveHistory() {
-  sessionStorage.setItem(CHAT_SESSION_KEY, JSON.stringify(chatHistory));
-}
-
-function loadHistory() {
-  try {
-    const raw = sessionStorage.getItem(CHAT_SESSION_KEY);
-    chatHistory = raw ? JSON.parse(raw) : [];
-    refreshLastNonRetryUserPrompt();
-  } catch (error) {
-    chatHistory = [];
-    lastNonRetryUserPrompt = "";
-  }
-  // Sanitize any legacy inlineMore entries (drop zero counts or non-objects)
-  try {
-    chatHistory = (chatHistory || []).map((entry) => {
-      if (!entry) return entry;
-      const im = entry.inlineMore;
-      if (!im) return entry;
-      // If inlineMore is a plain number (legacy), convert to object without count
-      if (typeof im === "number") {
-        entry.inlineMore = { text: null };
-        return entry;
-      }
-      if (typeof im === "object") {
-        // Remove zero counts
-        if (Number.isFinite(Number(im.count)) && Number(Number(im.count)) === 0) {
-          delete entry.inlineMore.count;
-        }
-        // If no useful text or positive count remains, drop inlineMore
-        if (!entry.inlineMore.text && !Number.isFinite(Number(entry.inlineMore.count))) {
-          delete entry.inlineMore;
-        }
-      }
-      return entry;
-    });
-  } catch (e) {
-    /* ignore sanitize errors */
-  }
-  // Restore persisted connection/table/state
-  try {
-    const connRaw = sessionStorage.getItem(CHAT_LAST_CONNECTION_KEY);
-    if (connRaw) lastConnectionPopupResult = JSON.parse(connRaw);
-  } catch (e) {
-    lastConnectionPopupResult = lastConnectionPopupResult || null;
-  }
-
-  try {
-    const structRaw = sessionStorage.getItem(CHAT_LAST_STRUCTURED_KEY);
-    if (structRaw) lastStructuredResult = JSON.parse(structRaw);
-  } catch (e) {
-    lastStructuredResult = lastStructuredResult || null;
-  }
-
-  try {
-    const bioRaw = sessionStorage.getItem(CHAT_LAST_BIO_KEY);
-    if (bioRaw) {
-      const parsed = JSON.parse(bioRaw);
-      lastBioPopupId = parsed?.id || lastBioPopupId;
-    }
-  } catch (e) {
-    /* ignore */
-  }
-  const messages = getMessageList();
-  if (messages && messages.length) {
-    messages.empty();
-  }
-  // Remove persistent buttons
-  $("#wbe-connections-button").remove();
-  $("#wbe-bio-button").remove();
-}
-
-function isRetryPrompt(prompt) {
-  const value = String(prompt || "").trim();
-  if (!value) {
-    return false;
-  }
-  return /^(?:try\s+again[a-z]*|retry|re-try|again|one\s+more\s+time|rerun|re-run)\W*$/i.test(value);
-}
-
-function refreshLastNonRetryUserPrompt() {
-  lastNonRetryUserPrompt = "";
-  for (let i = chatHistory.length - 1; i >= 0; i -= 1) {
-    const message = chatHistory[i];
-    if (message?.role !== "user") {
-      continue;
-    }
-    if (!isRetryPrompt(message.text)) {
-      lastNonRetryUserPrompt = String(message.text || "").trim();
-      return;
-    }
-  }
-}
-
-function softenFailureMessage(text) {
-  const original = String(text ?? "");
-  if (!/^\s*I could(?: not|n't)\b/i.test(original)) {
-    return original;
-  }
-
-  let message = original
-    .replace(/^\s*I could not\b/i, "I'm sorry, I could not")
-    .replace(/^\s*I couldn't\b/i, "I'm sorry, I couldn't")
-    .trim();
-
-  if (!/[?]$/.test(message)) {
-    const hasAdviceAlready = /\b(try|please|refresh|restate|set it|log in)\b/i.test(message);
-    message += hasAdviceAlready
-      ? " What would you like to try next?"
-      : " Could you try a more specific name or a WikiTree ID?";
-  }
-
-  return message;
-}
-
-function shouldEscalateLocalFailureToAi(result) {
-  const message = typeof result === "string" ? result : result?.message;
-  if (!message) {
-    return false;
-  }
-
-  return /^\s*(?:I'm\s+sorry,\s*)?I\s+could(?:\s+not|n't)\b/i.test(String(message));
-}
-
-function appendMessage(role, text, options = {}) {
-  const shouldPersist = typeof options === "boolean" ? options : options.shouldPersist !== false;
-  const action = typeof options === "object" ? options.action : null;
-  const inlineMore = typeof options === "object" ? options.inlineMore : null;
-  const $messages = $(`#${CHAT_MESSAGES_ID}`);
-  if ($messages.length === 0) return;
-
-  const messageText = role === "assistant" ? softenFailureMessage(text) : text;
-
-  const $item = $("<div>").addClass(`chat-message chat-message-${role} chat-message--new`);
-  const $label = $("<div>")
-    .addClass("chat-message-label")
-    .text(role === "user" ? "You" : "Chat");
-  const $body = $("<div>").addClass("chat-message-body").html(formatChatMessageBody(messageText, inlineMore));
-
-  $body.on("click", (event) => {
-    const $target = $(event.target || event.currentTarget);
-    const $inlineMoreLink = $target.closest(".chat-inline-show-more");
-    if (!$inlineMoreLink.length) return;
-
-    event.preventDefault();
-    if (inlineMore?.text) {
-      const $container = $inlineMoreLink.closest(".chat-inline-more-container");
-      if (!$container.length) return;
-      const $expanded = $("<span>")
-        .addClass("chat-inline-more-expanded")
-        .html(`<br>${formatChatMessageBody(inlineMore.text)}`);
-      $container.replaceWith($expanded);
-      const messagesEl = $messages.get(0);
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-      return;
-    }
-
-    if (typeof action?.onClick === "function") {
-      action.onClick();
-      return;
-    }
-
-    if (lastStructuredResult?.rows?.length) {
-      openResultsTable(lastStructuredResult);
-    }
-  });
-
-  $item.append($label, $body);
-
-  if (action?.label && typeof action.onClick === "function") {
-    const $actions = $("<div>").addClass("chat-message-actions");
-    const $button = $("<button>").attr("type", "button").addClass("chat-message-action").text(action.label);
-    $button.on("click", action.onClick);
-    $actions.append($button);
-    $item.append($actions);
-  }
-
-  $messages.append($item);
-  const messagesEl = $messages.get(0);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-
-  if (shouldPersist) {
-    const historyEntry = { role, text: role === "assistant" ? messageText : text };
-    if (inlineMore?.text) {
-      const countValue = Number.isFinite(Number(inlineMore.count)) ? Number(inlineMore.count) : null;
-      historyEntry.inlineMore = { text: inlineMore.text };
-      if (Number.isFinite(countValue) && countValue > 0) {
-        historyEntry.inlineMore.count = countValue;
-      }
-    }
-    if (action?.label) historyEntry.actionLabel = action.label;
-    // Persist per-message structured table if present so past messages' Table
-    // buttons open the correct snapshot instead of the most-recent table.
-    if (action?.table) {
-      try {
-        historyEntry.structured = action.table;
-      } catch (e) {
-        /* ignore */
-      }
-    }
-    chatHistory.push(historyEntry);
-    saveHistory();
-  }
-}
-
-function formatChatMessageBody(text, inlineMore = null) {
-  const escaped = escapeHtml(text).replace(/\n/g, "<br>");
-  const withWikiTreeLinks = escaped.replace(/\b([A-Z][A-Za-z0-9_]+-\d+)\b/g, (full, wtId) => {
-    const href = `https://www.wikitree.com/wiki/${encodeURIComponent(wtId)}`;
-    return `<a class="chat-results-link" href="${href}" target="_blank" rel="noopener noreferrer">${wtId}</a>`;
-  });
-
-  const formattedBody = withWikiTreeLinks.replace(/__WBE_SHOW_MORE__:(\d+)/g, (full, count) => {
-    return `<a href="#" class="chat-results-link chat-inline-show-more">${count} more</a>`;
-  });
-
-  if (!inlineMore?.text) {
-    return formattedBody;
-  }
-
-  const count = Number.isFinite(Number(inlineMore.count)) ? Number(inlineMore.count) : null;
-  const moreLabel = count == null ? "more" : `${count} more`;
-  return `${formattedBody}<span class="chat-inline-more-container"><br>...and <a href="#" class="chat-results-link chat-inline-show-more">${moreLabel}</a>.</span>`;
-}
-
 // Normalize extraction of wiki and html bio fields from profile objects
 // moved to ui.js
 
@@ -1119,86 +669,6 @@ async function tryHandlePronounFollowup(prompt) {
   // Show a small popup with buttons and allow the UI to call back to open
   showBioListPopup(`Bios from last results (${entries.length})`, entries.slice(0, 25), handleOpenFromBioList);
   return { message: `Opened bio popup for ${entries[0].displayName} and listed others.` };
-}
-
-function renderHistory() {
-  const $messages = getMessageList();
-  if (!$messages || $messages.length === 0) return;
-  $messages.empty();
-  chatHistory.forEach((message, msgIndex) => {
-    const opts = { shouldPersist: false, inlineMore: message.inlineMore || null };
-    if (message.actionLabel) {
-      // Reconstruct known actions
-      if (message.actionLabel === "Connections") {
-        opts.action = {
-          label: "Connections",
-          onClick: () => toggleConnectionsPopup(),
-        };
-      } else if (message.actionLabel === "Table") {
-        opts.action = {
-          label: "Table",
-          onClick: () => {
-            const toOpen = message.structured || lastStructuredResult;
-            if (!toOpen) return;
-            const popupId = `${CHAT_RESULTS_POPUP_ID}-msg-${msgIndex}`;
-            const tableId = `${CHAT_RESULTS_TABLE_ID}-msg-${msgIndex}`;
-            const existing = document.getElementById(popupId);
-            if (existing) {
-              try {
-                const $t = $(existing).find("table");
-                if ($t.length && $.fn.DataTable.isDataTable($t)) {
-                  $t.DataTable().destroy();
-                }
-              } catch (e) {
-                /* ignore */
-              }
-              existing.remove();
-              return;
-            }
-            openResultsTable(toOpen, { popupId, tableId });
-          },
-        };
-      } else if (message.actionLabel === "Show Bio") {
-        opts.action = {
-          label: "Show Bio",
-          onClick: async () => {
-            if (lastBioPopupId) {
-              const w = await resolveToWTID(lastBioPopupId);
-              showBioPopupForId(w).catch(() => {});
-            } else appendMessage("assistant", "No saved biography available to show.");
-          },
-        };
-      }
-    }
-    appendMessage(message.role, message.text, opts);
-  });
-}
-
-function clearHistory() {
-  chatHistory = [];
-  lastNonRetryUserPrompt = "";
-  lastConnectionPopupResult = null;
-  lastStructuredResult = null;
-  lastBioPopupId = null;
-  lastBioPopupProfile = null;
-  pendingDisambiguationContext = null;
-  lastConnectionCandidates = [];
-  lastConnectionRankedMatches = [];
-  try {
-    sessionStorage.removeItem(CHAT_SESSION_KEY);
-    sessionStorage.removeItem(CHAT_LAST_CONNECTION_KEY);
-    sessionStorage.removeItem(CHAT_LAST_STRUCTURED_KEY);
-    sessionStorage.removeItem(CHAT_LAST_BIO_KEY);
-  } catch (e) {
-    /* ignore storage errors */
-  }
-  loadHistory();
-  renderHistory();
-  try {
-    appendMessage("assistant", "Chat cleared.", { shouldPersist: false });
-  } catch (e) {
-    /* ignore */
-  }
 }
 
 function setPendingState(isPending) {
@@ -1325,7 +795,12 @@ async function handleChatResult(result) {
   if (Object.prototype.hasOwnProperty.call(result, "table")) {
     lastStructuredResult = result.table || null;
     try {
-      sessionStorage.setItem(CHAT_LAST_STRUCTURED_KEY, JSON.stringify(lastStructuredResult));
+      const rowCount = Array.isArray(lastStructuredResult?.rows) ? lastStructuredResult.rows.length : 0;
+      if (rowCount > 0 && rowCount <= CHAT_PERSISTED_STRUCTURED_ROWS_MAX) {
+        sessionStorage.setItem(CHAT_LAST_STRUCTURED_KEY, JSON.stringify(lastStructuredResult));
+      } else {
+        sessionStorage.removeItem(CHAT_LAST_STRUCTURED_KEY);
+      }
     } catch (e) {
       /* ignore */
     }
@@ -1473,7 +948,9 @@ async function sendChatPrompt() {
 
     const chatOptions = await getChatOptions();
     const routed = routeChatPrompt(prompt);
-    if (chatOptions.allowAiFallback) {
+    const shouldPreferDeterministicRoute =
+      routed?.intent === ChatIntent.CC7_LOCATION_FILTER || routed?.intent === ChatIntent.CC_SUMMARY;
+    if (chatOptions.allowAiFallback && !shouldPreferDeterministicRoute) {
       const plannedToolResponse = await tryHandleAiPlannedIntent(prompt);
       if (plannedToolResponse) {
         if (typeof plannedToolResponse === "string") {
@@ -1620,6 +1097,7 @@ async function sendChatPrompt() {
             .map((n) => (typeof n === "string" ? n : JSON.stringify(n)))
             .join("\n");
           const categories = profile?.Categories ? String(profile.Categories) : "";
+          const rawProfileJson = profile ? JSON.stringify(profile, null, 2) : "";
           profileContextText = [
             `Profile ${profileKey} (page: ${page_name || "unknown"}):`,
             "BIO:",
@@ -1630,10 +1108,17 @@ async function sendChatPrompt() {
             notes,
             "CATEGORIES:",
             categories,
+            rawProfileJson ? "GETPROFILE_JSON:" : "",
+            rawProfileJson,
           ]
             .filter(Boolean)
             .join("\n\n");
-          console.log("wbe: included profile context for AI", { profileKey, page_name });
+          console.log("wbe: included profile context for AI", {
+            profileKey,
+            page_name,
+            bioLength: bio.length,
+            rawProfileLength: rawProfileJson.length,
+          });
         } catch (pErr) {
           console.log("wbe: getProfile failed for AI context", pErr);
           profileContextText = `Note: failed to fetch profile ${profileKey} for additional context (not logged in or API error).`;
@@ -1652,9 +1137,18 @@ async function sendChatPrompt() {
     if (profileContextText) aiPromptParts.push(profileContextText);
     aiPromptParts.push(`Current user request: ${prompt}`);
 
+    const aiPrompt = aiPromptParts.filter(Boolean).join("\n\n");
+    console.debug("wbe: general AI fallback outbound prompt", {
+      prompt,
+      aiPrompt,
+      hasProfileBio: aiPrompt.includes("BIO:"),
+      hasProfileContext: Boolean(profileContextText),
+      promptLength: aiPrompt.length,
+    });
+
     const response = await chrome.runtime.sendMessage({
       action: "chatWithAI",
-      prompt: aiPromptParts.filter(Boolean).join("\n\n"),
+      prompt: aiPrompt,
       provider,
       key,
       model,
@@ -1741,365 +1235,6 @@ async function executeRoutedIntent(routed, prompt) {
   }
 
   return null;
-}
-
-function parsePlannerJson(rawText) {
-  if (!rawText) {
-    return null;
-  }
-
-  const text = String(rawText).trim();
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-  const candidate = fenced?.[1] ? fenced[1].trim() : text;
-
-  try {
-    return JSON.parse(candidate);
-  } catch (error) {
-    return null;
-  }
-}
-
-async function tryHandleAiPlannedIntent(prompt) {
-  const { provider, key, model } = await getChatAiConfig();
-  if (!key) {
-    return null;
-  }
-
-  const conversationContext = buildRecentConversationForAi();
-
-  const plannerPrompt = [
-    "You are a planning layer for a WikiTree browser extension.",
-    "Map the user's prompt to one local intent and parameters.",
-    'Return JSON only (no markdown): {"intent":"...","params":{...}}',
-    "Allowed intents:",
-    `- ${ChatIntent.CC7_LOCATION_FILTER} with params {\"mode\":\"list|count\",\"location\":\"...\",\"field\":\"BirthLocation|DeathLocation|AnyLocation\"}`,
-    `- ${ChatIntent.CC_SUMMARY} with params {\"mode\":\"summary\",\"nuclear\":7}`,
-    `- ${ChatIntent.WATCHLIST} with params {\"mode\":\"list\",\"limit\":100}`,
-    `- ${ChatIntent.RELATION_COUNT} with params {"mode":"count|list", "relationRaw":"siblings|parents|children|spouses|aunts|uncles|grandparents|granduncles|grandaunts", "subjectMode":"user|named", "subjectName":"optional when named"}`,
-    `- ${ChatIntent.CONNECTION_LOOKUP} with params {\"target\":\"person name or WikiTree ID\"}`,
-    `- ${ChatIntent.PROFILE_FAMILY_CONNECTION} with params {\"familyName\":\"...\",\"root\":\"profile\"}`,
-    `- ${ChatIntent.ANCESTOR_AVG_AGE_AT_DEATH} with params {\"generation\":5,\"relationshipLabel\":\"3x great-grandparents\"}`,
-    `- ${ChatIntent.ANCESTOR_LIST} with params {\"generation\":5,\"relationshipLabel\":\"3rd great-grandparents\",\"location\":\"optional place\",\"locationField\":\"BirthLocation|DeathLocation|AnyLocation\"}`,
-    `- ${ChatIntent.DESCENDANT_LIST} with params {\"generation\":5,\"relationshipLabel\":\"5 generations of descendants\",\"includeUpTo\":true}`,
-    `- ${ChatIntent.PROFILE_SEARCH} with params {\"query\":\"...\"}`,
-    `- ${ChatIntent.LAST_RESULT_OPERATION} with params for table/count/countBy/sort/filter`,
-    `- ${ChatIntent.FALLBACK_AI} with params {}`,
-    "If unsure, return fallbackAi.",
-    conversationContext ? `Recent conversation:\n${conversationContext}` : "",
-    `User prompt: ${prompt}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  // Include spouse-bio planner hint
-  // Example: {"intent":"spouseBio","params":{"target":"Jacob Daniels","bioFormat":"both","allowLookup":true}}
-
-  const response = await chrome.runtime.sendMessage({
-    action: "chatWithAI",
-    prompt: plannerPrompt,
-    provider,
-    key,
-    model,
-    includeApiDocContext: true,
-    apiDocUserQuery: prompt,
-    apiDocMaxChars: 5000,
-    pageContext: {
-      url: window.location.href,
-      title: document.title,
-    },
-  });
-
-  if (!response?.success || !response.response) {
-    return null;
-  }
-
-  const planned = parsePlannerJson(response.response);
-  if (!planned?.intent || planned.intent === ChatIntent.FALLBACK_AI) {
-    return null;
-  }
-
-  return await executeRoutedIntent(
-    {
-      intent: planned.intent,
-      params: planned.params || {},
-    },
-    prompt
-  );
-}
-
-// Handle planner-invoked spouseBio intent parameters
-async function tryHandleSpouseBioIntent(params = {}, prompt = "") {
-  const target = String(params?.target || "").trim();
-  const bioFormat = String(params?.bioFormat || "both").toLowerCase();
-  const allowLookup = params?.allowLookup !== undefined ? Boolean(params.allowLookup) : true;
-
-  if (!target) {
-    if (!allowLookup) {
-      const reply = `I don't have the wife's name or bio from the single page context you gave (${
-        getProfilePersonInfo()?.Name || "unknown"
-      }). I can't invent or assume her profile.\n\nTell me one of these and I'll fetch and return her bio:\n- The wife's WikiTree profile ID or URL (for example: Surname-1234), or\n- Her full name as shown on ${
-        getProfilePersonInfo()?.Name || "the profile"
-      }, or\n- Permission to look up ${
-        getProfilePersonInfo()?.Name || "the profile owner"
-      } and fetch their spouse's bio.`;
-      console.debug("wbe: tryHandleSpouseBioPrompt no targetRaw - asking user for clarification", {
-        profileContext: getProfilePersonInfo()?.Name,
-        reply,
-      });
-      return reply;
-    }
-    // Use profileRoot Name as target
-    params.target = profileRoot.Name;
-  }
-
-  // Reuse existing flow: resolve target and fetch spouse(s)
-  const resolved = await resolveConnectionTargetPerson(params.target || target, prompt);
-  if (!resolved?.Name && !resolved?.Id) {
-    return `I couldn't identify which profile you meant by "${params.target || target}".`;
-  }
-
-  const personKey = resolved.Id || resolved.Name;
-  try {
-    showChatShaky("Looking up spouse(s)...");
-    const [profile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, personKey, "", {
-      getSpouses: 1,
-      resolveRedirect: 1,
-    });
-    hideChatShaky();
-    const spousesObj = profile?.Spouses || {};
-    const spouses = Object.values(spousesObj || []);
-    if (!spouses.length) {
-      // Try DOM fallback: scan the profile page for spouse links
-      try {
-        const domIds = findSpouseProfileIdsFromDOM();
-        console.debug("wbe: tryHandleSpouseBioPrompt DOM fallback ids", { domIds });
-        if (domIds && domIds.length) {
-          // If multiple, show list; if one, fetch directly
-          if (domIds.length === 1) {
-            const spouseId = domIds[0];
-            try {
-              showChatShaky("Loading spouse bio from page link...");
-              const [spProfile] = await WikiTreeAPI.getProfile(
-                WBE_CHAT_APP_ID,
-                spouseId,
-                "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
-                { bioFormat: "both", resolveRedirect: 1 }
-              );
-              hideChatShaky();
-              console.debug("wbe: spouse profile fetched via DOM fallback", { spouseId, spProfile });
-              const { wikiBio: domWiki } = extractProfileBios(spProfile);
-              return {
-                message: `Biography for ${spProfile?.Name || spouseId}:`,
-                action: {
-                  label: "Show Bio",
-                  onClick: async () => {
-                    const wtid = await resolveToWTID(spouseId);
-                    showBioPopupForId(wtid).catch(() => {});
-                  },
-                },
-                inlineMore: { text: domWiki },
-              };
-            } catch (err) {
-              hideChatShaky();
-              console.error("wbe: error fetching spouse profile via DOM fallback", err);
-              return `Failed to fetch spouse profile found on the page (${spouseId}).`;
-            }
-          }
-          // multiple
-          return {
-            message: `Found spouse links on the page for ${resolved.RealName || resolved.Name}. Click to open one.`,
-            action: {
-              label: "Spouses",
-              onClick: () => {
-                // show a list using the existing helper
-                listSpousesForId(resolved.Name);
-              },
-            },
-          };
-        }
-      } catch (e) {
-        console.error("wbe: DOM fallback error", e);
-      }
-
-      return `No spouse information found for ${resolved.RealName || resolved.Name} (${resolved.Name}).`;
-    }
-    if (spouses.length === 1) {
-      const spouseId = spouses[0].Name;
-      showChatShaky("Loading spouse bio...");
-      const [spProfile] = await WikiTreeAPI.getProfile(
-        WBE_CHAT_APP_ID,
-        spouseId,
-        "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
-        { bioFormat, resolveRedirect: 1 }
-      );
-      hideChatShaky();
-      const wikiBio = spProfile?.Bio || spProfile?.BioText || spProfile?.Biography || "";
-      const htmlBio = spProfile?.BioHtml || spProfile?.BioHTML || "";
-      return {
-        message: `Biography for ${spProfile?.Name || spouseId}:`,
-        action: {
-          label: "Show Bio",
-          onClick: async () => {
-            const wtid = await resolveToWTID(spouseId);
-            showBioPopupForId(wtid).catch(() => {});
-          },
-        },
-        inlineMore: { text: wikiBio },
-      };
-    }
-    const preview = spouses.map((s) => `- ${s.RealName || s.Name} (${s.Name})`).join("\n");
-    return {
-      message: `Multiple spouses found for ${resolved.RealName || resolved.Name}:\n${preview}`,
-      action: { label: "Spouses", onClick: () => listSpousesForId(personKey) },
-    };
-  } catch (err) {
-    hideChatShaky();
-    console.error("wbe: tryHandleSpouseBioIntent error", err);
-    return `Failed to lookup spouse information for ${resolved.RealName || resolved.Name}.`;
-  }
-}
-
-async function tryAiDisambiguateConnectionTarget(target, rankedMatches) {
-  const chatOptions = await getChatOptions();
-  if (!chatOptions.allowAiFallback || !rankedMatches?.length) {
-    return null;
-  }
-
-  const { provider, key, model } = await getChatAiConfig();
-  if (!key) {
-    return null;
-  }
-
-  const candidates = rankedMatches.slice(0, 8).map((entry, index) => ({
-    rank: index + 1,
-    score: entry.score,
-    Id: entry.match?.Id,
-    Name: entry.match?.Name,
-    RealName: entry.match?.RealName || entry.match?.Derived?.ShortName || "",
-    BirthDate: entry.match?.BirthDate || "",
-    DeathDate: entry.match?.DeathDate || "",
-    LastNameAtBirth: entry.match?.LastNameAtBirth || "",
-    LastNameCurrent: entry.match?.LastNameCurrent || "",
-  }));
-
-  const prompt = [
-    "You disambiguate intended people for a genealogy extension.",
-    "Given a user target and candidate WikiTree profiles, choose the best person.",
-    "If none look right, suggest an alternate search name (e.g. stage-name/legal-name mapping).",
-    "Return strict JSON only:",
-    '{"action":"chooseCandidate","wtId":"Name-123"} OR {"action":"searchName","searchName":"..."} OR {"action":"none"}',
-    `Target: ${target}`,
-    `Candidates: ${JSON.stringify(candidates)}`,
-  ].join("\n");
-
-  const response = await chrome.runtime.sendMessage({
-    action: "chatWithAI",
-    prompt,
-    provider,
-    key,
-    model,
-    pageContext: {
-      url: window.location.href,
-      title: document.title,
-    },
-  });
-
-  if (!response?.success || !response.response) {
-    return null;
-  }
-
-  const planned = parsePlannerJson(response.response);
-  if (!planned?.action) {
-    return null;
-  }
-
-  if (planned.action === "chooseCandidate") {
-    const wtId = String(planned.wtId || "").trim();
-    if (!wtId) {
-      return null;
-    }
-    const chosen = rankedMatches.find((entry) => entry.match?.Name === wtId);
-    return chosen?.match || null;
-  }
-
-  if (planned.action === "searchName") {
-    const searchName = String(planned.searchName || "").trim();
-    if (!searchName) {
-      return null;
-    }
-    return { _alternateSearchName: searchName };
-  }
-
-  return null;
-}
-
-async function tryAiParseCategoryName(detectedCategory, originalPrompt) {
-  const options = await getChatOptions();
-  if (!options?.allowAiFallback) return null;
-
-  const { provider, key, model } = await getChatAiConfig();
-  if (!key) return null;
-
-  const prompt = [
-    "You are a helper that extracts a canonical WikiTree+ category query value from a user's chat prompt.",
-    "Given an example user prompt and a detected fragment, return a JSON object with two keys:",
-    '{"category":"<cleaned category name>", "categoryFullQuery":"CategoryFull=<value>"}',
-    "Only return valid JSON (no markdown).",
-    `Original prompt: ${originalPrompt}`,
-    `Detected fragment: ${detectedCategory}`,
-    "Rules:",
-    "- Remove leading command words like 'search', 'find', 'look up'.",
-    "- Prefer underscores for separators and encode commas/spaces as underscores (e.g. 'Wem, Shropshire' -> 'Wem__Shropshire').",
-    "- Return the cleaned category name (no surrounding quotes) as `category` and the exact Query Builder string as `categoryFullQuery`.",
-  ].join("\n");
-
-  const response = await chrome.runtime.sendMessage({
-    action: "chatWithAI",
-    prompt,
-    provider,
-    key,
-    model,
-    pageContext: { url: window.location.href, title: document.title },
-  });
-
-  if (!response?.success || !response.response) return null;
-  const parsed = parsePlannerJson(response.response) || null;
-  return parsed;
-}
-
-async function tryAiExpandConnectionTarget(target, prompt) {
-  const options = await getChatOptions();
-  if (!options?.allowAiFallback) return null;
-
-  const { provider, key, model } = await getChatAiConfig();
-  if (!key) return null;
-
-  const aiPrompt = [
-    "You are a helper for a genealogy extension.",
-    "Given a user-provided target (name fragment) and the full user prompt, return a JSON object with one of these shapes:",
-    '{"searchName":"<alternate search name>"} OR {"wtId":"Name-123"} OR {"none":true}',
-    "Only return valid JSON (no markdown).",
-    `Target: ${target}`,
-    `Prompt: ${prompt}`,
-  ].join("\n\n");
-
-  try {
-    const response = await chrome.runtime.sendMessage({
-      action: "chatWithAI",
-      prompt: aiPrompt,
-      provider,
-      key,
-      model,
-      pageContext: { url: window.location.href, title: document.title },
-    });
-
-    if (!response?.success || !response.response) return null;
-    const parsed = parsePlannerJson(response.response) || null;
-    return parsed;
-  } catch (err) {
-    console.debug("wbe: tryAiExpandConnectionTarget error", err);
-    return null;
-  }
 }
 
 function normalizeText(value) {
@@ -2413,702 +1548,6 @@ async function resolveConnectionSourceRoot(prompt, targetWtId = "") {
 
 function isAppsLoginButtonPresent() {
   return $("#wbeAppLoginBtn").length > 0;
-}
-
-function hasAppsLoginHintAlready() {
-  return chatHistory.some((message) => {
-    if (message?.role !== "assistant") {
-      return false;
-    }
-    return String(message.text || "").includes("apps server for better results");
-  });
-}
-
-// Try to detect prompts asking for a spouse's bio and fetch it directly
-async function tryHandlePersonBioPrompt(prompt) {
-  console.info("wbe: tryHandlePersonBioPrompt called", { prompt });
-
-  // Early intercept: catch prompts like "Search \"Wem, Shropshire\" category" or "Category:Wem, Shropshire"
-  try {
-    const detectCategoryEarly = (s) => {
-      if (!s) return null;
-      const str0 = String(s).trim();
-      // quoted phrase before 'category'
-      let m = str0.match(/['"“”'‘’]([^'"“”'‘’]+)['"“”'‘’]\s+category/i);
-      if (m) return m[1].trim();
-      // starts with 'search' ... 'category'
-      m = str0.match(/^\s*search\s+['"“”'‘’]?(.*?)['"“”'‘’]?\s+category\??$/i);
-      if (m) return m[1].trim();
-      // Category:Name or category: Name
-      m = str0.match(/\bcategory\s*[:\-]?\s*(.+)$/i);
-      if (m) return m[1].trim();
-      return null;
-    };
-
-    console.debug("wbe: early category detection start", { prompt });
-    const earlyCategory = detectCategoryEarly(prompt);
-    console.debug("wbe: early category detection result", { earlyCategory });
-    if (earlyCategory) {
-      // Deterministic CategoryFull construction: comma+space -> __, spaces -> _
-      showChatShaky(`Looking up category "${earlyCategory}" via WT+...`);
-      try {
-        let chosenCategory = earlyCategory.replace(/^\s*Search\s+[:\-]?\s*/i, "").trim();
-        let catVal = chosenCategory.replace(/,\s+/g, "__");
-        catVal = catVal.replace(/\s+/g, "_");
-        const qb = `CategoryFull=${catVal}`;
-        const encodedQ = encodeURIComponent(qb);
-        console.debug("wbe: WT+ early CategoryFull", { earlyCategory, catVal, qb, encodedQ });
-
-        console.debug("wbe: wtAPIProfileSearch calling", { qb, encodedQ });
-        let resp;
-        try {
-          resp = await wtAPIProfileSearch("ChatCategory", encodedQ, { maxProfiles: 500 });
-        } catch (apiErr) {
-          console.debug("wbe: wtAPIProfileSearch threw", { qb, apiErr });
-          hideChatShaky();
-          return `WT+ profile search failed for Category:${chosenCategory}. Error: ${apiErr?.message || apiErr}`;
-        }
-        const profiles = resp?.response?.profiles || [];
-        console.debug("wbe: wtAPIProfileSearch response", {
-          found: resp?.response?.found,
-          profilesLength: profiles.length,
-        });
-        if (!profiles.length) {
-          console.debug("wbe: wtAPIProfileSearch returned no profiles for early category", { qb, resp });
-          hideChatShaky();
-          return `I couldn't find any profiles for Category:${chosenCategory} via WT+.`;
-        }
-
-        const uniqueIds = [...new Set(profiles.map((p) => String(p)))].slice(0, 200);
-        showChatShaky(`Fetching ${uniqueIds.length} profiles...`);
-        const fields =
-          "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,RealName,BirthDate,BirthLocation,DeathDate,DeathLocation,Gender,Id,Name";
-        const [, resultByKey, peopleData] = await WikiTreeAPI.getPeople(WBE_CHAT_APP_ID, uniqueIds, fields, {
-          resolveRedirect: 1,
-        });
-
-        const people = uniqueIds.map((k) => WikiTreeAPI.lookupProfile(k, resultByKey, peopleData)).filter(Boolean);
-        const rows = people.map((p) => mapApiPersonToStandardRow(p, { wtId: p?.Name }));
-
-        const table = makeStandardProfileTable(`Category: ${chosenCategory}`, rows, [[0, "asc"]]);
-        table.columns = (table.columns || []).filter((c) => !["degrees", "spouse", "spouseList"].includes(c.key));
-        hideChatShaky();
-        return {
-          message: `Found ${rows.length} profiles in Category:${chosenCategory}`,
-          table,
-        };
-      } catch (e) {
-        hideChatShaky();
-        console.debug("wbe: early category search failed", e);
-        return `I couldn't complete the category lookup for "${earlyCategory}". Error: ${e?.message || e}`;
-      }
-    }
-  } catch (err) {
-    console.debug("wbe: early category detection error", err);
-  }
-  // Detect possessive relation patterns and handle nested possessives robustly.
-  // Examples: "Ivy's parents", "Dona's bio", "bio of X", "Bethia's parents' bios".
-  const str = String(prompt || "").trim();
-  let targetRaw = null;
-  let relationRaw = null;
-
-  // First try: "bio(s) of X" or "profile of X"
-  let m = str.match(/^\s*bio(?:graphy|s)?\s+of\s+(.+?)\??$/i) || str.match(/^\s*profile(?:s)?\s+of\s+(.+?)\??$/i);
-  if (m) {
-    targetRaw = (m[1] || "").trim();
-    relationRaw = "self";
-  }
-
-  // Next: possessive forms like "X's Y" including nested possessives
-  if (!targetRaw) {
-    m = str.match(/^\s*([^']+?)'s\s+(.+?)\??$/i);
-    if (m) {
-      targetRaw = (m[1] || "").trim();
-      // relation part may include nested possessives, e.g. "parents' bios"
-      let relPart = (m[2] || "").trim();
-      // remove any trailing possessive markers ("'" or "'s") and surrounding punctuation
-      relPart = relPart
-        .replace(/\b's\b/g, "")
-        .replace(/\b'\b/g, "")
-        .replace(/[\?\.!,;:]*/g, "")
-        .trim();
-      // relation is typically the first word (parents, spouse, bio, etc.)
-      const relMatch = relPart.match(/^([a-zA-Z]+s?)\b/i);
-      if (relMatch) {
-        relationRaw = (relMatch[1] || "").trim().toLowerCase();
-      }
-      // special-case "X's bio(s)"
-      if (!relationRaw && /\bbio(?:graphy|s)?\b/i.test(str)) {
-        relationRaw = "self";
-      }
-    }
-  }
-
-  // Fallback: "X's bio(s)" simple pattern
-  if (!targetRaw) {
-    m = str.match(/^\s*(.+?)'s\s+bio(?:graphy|s)?\??$/i);
-    if (m) {
-      targetRaw = (m[1] || "").trim();
-      relationRaw = "self";
-    }
-  }
-
-  // If nothing matched and the prompt doesn't ask for a bio, ignore
-  if (!targetRaw && !/\b(bio|biography|profile|bios)\b/i.test(str)) {
-    console.info("wbe: tryHandlePersonBioPrompt - pattern did not match and no bio keyword, ignoring", { prompt });
-    return null;
-  }
-
-  console.info("wbe: tryHandlePersonBioPrompt parsed", { prompt, targetRaw, relationRaw });
-
-  // If the relation explicitly mentions ancestors or descendants, don't intercept here;
-  // let the main router handle those multi-step relation queries so tables/results are returned.
-  if (relationRaw && /(ancest|descend)/i.test(String(relationRaw))) {
-    console.info("wbe: tryHandlePersonBioPrompt - ancestor/descendant relation detected, deferring to main router", {
-      relationRaw,
-    });
-    return null;
-  }
-
-  // Map relation words to relation groups used elsewhere
-  const relMap = {
-    wife: "spouses",
-    husband: "spouses",
-    spouse: "spouses",
-    spouses: "spouses",
-    parent: "parents",
-    parents: "parents",
-    mother: "parents",
-    father: "parents",
-    child: "children",
-    children: "children",
-    son: "children",
-    daughter: "children",
-    sibling: "siblings",
-    siblings: "siblings",
-    brother: "siblings",
-    sister: "siblings",
-    self: "self",
-  };
-
-  const wantsBioPlural = /\bbios?\b/i.test(str) || /\bprofiles?\b/i.test(str);
-
-  // Resolve the target person; attempt fallbacks if direct resolution fails
-  let resolved = null;
-  if (targetRaw) resolved = await resolveConnectionTargetPerson(targetRaw, prompt);
-  console.info("wbe: tryHandlePersonBioPrompt resolved target", { resolved });
-  // If resolution produced the page/profile context (or a generic result), prefer
-  // any strong match from the last structured result (previous table) when the
-  // user asked a short follow-up name (e.g., "Dona"). This helps follow-ups
-  // refer to recently shown rows instead of defaulting to the page person.
-  try {
-    const needle = String(targetRaw || "")
-      .trim()
-      .toLowerCase();
-    if (needle && lastStructuredResult?.rows?.length) {
-      const normNeedle = needle;
-      const tokenMatch = (text) => {
-        if (!text) return false;
-        const low = String(text).toLowerCase();
-        if (low === normNeedle) return true;
-        if (low.startsWith(normNeedle + " ") || low.startsWith(normNeedle)) return true;
-        // tokenized match: any space-separated token equals needle
-        const parts = low.split(/\s+/).filter(Boolean);
-        if (parts.includes(normNeedle)) return true;
-        return false;
-      };
-
-      const pagePerson = getProfilePersonInfo();
-      for (const row of lastStructuredResult.rows) {
-        // Prefer rows that are not the current page person to avoid resolving to the page itself
-        const candidateId = String(row.wtid || row.wtId || row.id || "").trim();
-        if (pagePerson && candidateId && (candidateId === pagePerson.Name || candidateId === pagePerson.Id)) {
-          continue; // skip the page person
-        }
-        const display = String(row.displayName || row.wtid || row.wtId || "").trim();
-        const firstName = String(row.firstName || display.split(/\s+/)[0] || "").trim();
-        if (
-          tokenMatch(firstName) ||
-          tokenMatch(display) ||
-          tokenMatch(row.wtid) ||
-          tokenMatch(row.wtId) ||
-          tokenMatch(row.id)
-        ) {
-          resolved = { Name: candidateId || null, RealName: row.displayName || row.wtid };
-          console.info("wbe: tryHandlePersonBioPrompt overridden by lastStructuredResult match", { resolved, needle });
-          break;
-        }
-      }
-    }
-  } catch (e) {
-    /* ignore */
-  }
-
-  if (!resolved?.Name && !resolved?.Id) {
-    // Try to find a matching row in lastStructuredResult (e.g., from a previous spouse table)
-    try {
-      const needle = String(targetRaw || "")
-        .trim()
-        .toLowerCase();
-      if (lastStructuredResult?.rows?.length) {
-        const pagePerson = getProfilePersonInfo();
-        for (const row of lastStructuredResult.rows) {
-          const candidateId = String(row.wtid || row.wtId || row.id || "").trim();
-          if (pagePerson && candidateId && (candidateId === pagePerson.Name || candidateId === pagePerson.Id)) {
-            continue;
-          }
-          const name = String(row.displayName || row.wtid || "").toLowerCase();
-          if (name.startsWith(needle) || name === needle) {
-            resolved = { Name: candidateId || null, RealName: row.displayName || row.wtid };
-            console.info("wbe: tryHandlePersonBioPrompt resolved from lastStructuredResult", { resolved, needle });
-            break;
-          }
-        }
-      }
-    } catch (e) {
-      /* ignore */
-    }
-  }
-
-  // If still unresolved, try matching against recent connection candidates (if any)
-  if (!resolved?.Name && !resolved?.Id) {
-    try {
-      const needle = String(targetRaw || "")
-        .trim()
-        .toLowerCase();
-      if (needle && lastConnectionCandidates?.length) {
-        const pagePerson = getProfilePersonInfo();
-        for (const c of lastConnectionCandidates) {
-          const candidateId = String(c?.Name || c?.wtid || c?.id || "").trim();
-          if (pagePerson && candidateId && (candidateId === pagePerson.Name || candidateId === pagePerson.Id)) {
-            continue;
-          }
-          const name = String(c?.RealName || c?.Derived?.ShortName || c?.Name || c?.displayName || "").toLowerCase();
-          const first = String(c?.FirstName || name.split(/\s+/)[0] || "").toLowerCase();
-          if (!name) continue;
-          if (name === needle || name.startsWith(needle) || first === needle) {
-            resolved = { Name: candidateId || null, RealName: c.RealName || c.displayName || c.Name };
-            console.info("wbe: tryHandlePersonBioPrompt resolved from lastConnectionCandidates", { resolved, needle });
-            break;
-          }
-        }
-      }
-    } catch (e) {
-      /* ignore */
-    }
-  }
-
-  if (!resolved?.Name && !resolved?.Id) {
-    // DOM fallback: search for spouse entries matching the name
-    try {
-      const needle = String(targetRaw || "")
-        .trim()
-        .toLowerCase();
-      const domSpouseEls = Array.from(
-        document.querySelectorAll(
-          "a.spouseLink[href*='/wiki/'], a[itemprop=\"spouse\"][href*='/wiki/'], .spouseEntry a[href*='/wiki/']"
-        )
-      );
-      const pagePerson = getProfilePersonInfo();
-      for (const el of domSpouseEls) {
-        const nameText = (el.textContent || "").trim();
-        const realName = nameText || (el.querySelector(".spouse-name")?.textContent || "").trim();
-        if (realName && realName.toLowerCase().startsWith(needle)) {
-          const href = el.getAttribute("href") || "";
-          const m = href.match(/\/wiki\/([^#?\/]+)/);
-          const id = m ? decodeURIComponent(m[1]) : null;
-          if (id) {
-            // Skip the current page person if it appears in relation links
-            if (pagePerson && (id === pagePerson.Name || id === pagePerson.Id)) {
-              continue;
-            }
-            resolved = { Name: id, RealName: realName };
-            console.info("wbe: tryHandlePersonBioPrompt resolved from DOM by name", { resolved, needle });
-            break;
-          }
-        }
-      }
-    } catch (e) {
-      /* ignore */
-    }
-  }
-
-  if (!resolved?.Name && !resolved?.Id) {
-    // Attempt AI-assisted disambiguation using conversation context, structured results and DOM candidates
-    try {
-      const hasKey = await hasAnyApiKey();
-      if (hasKey) {
-        showChatShaky("Asking AI to resolve the name...");
-        const conversationContext = buildRecentConversationForAi();
-        const candidates = [];
-        if (lastStructuredResult?.rows?.length) {
-          for (const row of lastStructuredResult.rows.slice(0, 50)) {
-            candidates.push(`${row.displayName || row.wtid || ""} (ID: ${row.wtid || row.wtId || row.id || ""})`);
-          }
-        }
-        if (lastConnectionCandidates?.length) {
-          for (const c of lastConnectionCandidates.slice(0, 50)) {
-            candidates.push(`${c.displayName || c.Name || c.name || ""} (ID: ${c.Name || c.wtid || c.id || ""})`);
-          }
-        }
-        const domEls = Array.from(
-          document.querySelectorAll("a.spouseLink[href*='/wiki/'], .spouseEntry a[href*='/wiki/']")
-        );
-        for (const el of domEls.slice(0, 50)) {
-          const href = el.getAttribute("href") || "";
-          const m = href.match(/\/wiki\/([^#?\/]+)/);
-          const id = m ? decodeURIComponent(m[1]) : null;
-          const label = (el.textContent || "").trim();
-          if (id && label) candidates.push(`${label} (ID: ${id})`);
-        }
-
-        const aiPrompt = [
-          `You are given a short person name to match to a list of candidate WikiTree profiles.`,
-          candidates.length ? `Candidates:\n${candidates.join("\n")}` : "No explicit candidates available.",
-          conversationContext ? `Recent conversation:\n${conversationContext}` : "",
-          `Which candidate best matches the name \"${targetRaw}\"? Reply ONLY with the WikiTree ID (e.g. Name-123) or NO_ID if none match.`,
-        ]
-          .filter(Boolean)
-          .join("\n\n");
-
-        // Try to call a generic AI helper if available; otherwise skip AI step
-        try {
-          let aiResult = null;
-          if (typeof window.callAiModel === "function") {
-            aiResult = await window.callAiModel(aiPrompt);
-          }
-          if (aiResult) {
-            const match = String(aiResult || "").trim();
-            if (match && match !== "NO_ID") {
-              resolved = { Name: match, RealName: targetRaw };
-              console.info("wbe: tryHandlePersonBioPrompt resolved by AI", { resolved, aiText: aiResult });
-            } else {
-              console.info("wbe: tryHandlePersonBioPrompt AI returned NO_ID", { aiText: aiResult });
-            }
-          }
-        } catch (e) {
-          console.info("wbe: tryHandlePersonBioPrompt AI fallback failed", { e });
-        }
-        hideChatShaky();
-      }
-    } catch (e) {
-      hideChatShaky();
-    }
-  }
-
-  const personKey = resolved?.Id || resolved?.Name;
-  // Track any profile fetch failures for the relation lookup so we can avoid
-  // auto-opening a single bio when some fetches failed.
-  let relationFetchFailedIds = [];
-  try {
-    if (!personKey) {
-      return `I couldn't identify which profile you meant by "${targetRaw}". Try a WikiTree ID like Name-123, or a more specific name.`;
-    }
-
-    // If relationRaw maps to "self" or no explicit relation, show the person's own bio
-    const mapped = relationRaw ? relMap[relationRaw.toLowerCase()] : null;
-    const relationType = mapped || null;
-
-    if (!relationType || relationType === "self") {
-      // Fetch and show the subject's own bio
-      showChatShaky("Loading biography...");
-      try {
-        const popup = document.getElementById("wbe-shaky-tree-popup");
-        if (popup) setHighestZIndex(popup);
-      } catch (e) {
-        /* ignore */
-      }
-      console.info("wbe: tryHandlePersonBioPrompt fetching profile for self", { personKey });
-      const [profile] = await WikiTreeAPI.getProfile(
-        WBE_CHAT_APP_ID,
-        personKey,
-        "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
-        {
-          bioFormat: "both",
-          resolveRedirect: 1,
-        }
-      );
-      hideChatShaky();
-      if (!profile) return `No profile data found for ${personKey}.`;
-      const inlineMore = { text: profile?.Bio || profile?.BioText || null };
-      const result = {
-        message: `Biography for ${profile?.Name || personKey}:`,
-        action: {
-          label: "Show Bio",
-          onClick: async () => {
-            const w = await resolveToWTID(profile?.Name || personKey);
-            showBioPopupForId(w).catch(() => {});
-          },
-        },
-        inlineMore,
-      };
-      showBioPopupForId(profile?.Name || personKey).catch(() => {});
-      return result;
-    }
-
-    // For relatives, attempt API-first and DOM fallbacks per relation
-    let entries = [];
-    if (relationType === "spouses") {
-      showChatShaky("Looking up spouse(s)...");
-      console.info("wbe: tryHandlePersonBioPrompt calling getRelatives for spouses", { personKey });
-      const relativesResult = await WikiTreeAPI.getRelatives(
-        WBE_CHAT_APP_ID,
-        personKey,
-        "Id,Name,RealName,Derived.ShortName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender",
-        { getSpouses: 1 }
-      );
-      hideChatShaky();
-      const [peopleResult] = relativesResult;
-      const profile = peopleResult?.person || {};
-      entries = Object.values(profile?.Spouses || {}).map((s) => ({ wtid: s.Name, displayName: s.RealName || s.Name }));
-      if (!entries.length) {
-        try {
-          const domSpouseEls = Array.from(
-            document.querySelectorAll(
-              "a.spouseLink[href*='/wiki/'], a[itemprop=\"spouse\"][href*='/wiki/'], .spouseEntry a[href*='/wiki/']"
-            )
-          );
-          const pagePerson = getProfilePersonInfo();
-          const domSpouses = domSpouseEls
-            .map((el) => {
-              const href = el.getAttribute("href") || "";
-              const m = href.match(/\/wiki\/([^#?\/]+)/);
-              const id = m ? decodeURIComponent(m[1]) : null;
-              const nameText = (el.textContent || "").trim();
-              return id ? { wtid: id, displayName: nameText || id } : null;
-            })
-            .filter(Boolean)
-            .filter((s) => {
-              if (!s || !s.wtid) return false;
-              if (pagePerson && (s.wtid === pagePerson.Name || s.wtid === pagePerson.Id)) return false;
-              return true;
-            });
-          if (domSpouses.length) entries = domSpouses;
-        } catch (e) {
-          console.info("wbe: tryHandlePersonBioPrompt spouse DOM fallback failed", { e });
-        }
-      }
-    } else if (relationType === "children") {
-      const ids = await fetchChildrenIdsForId(personKey);
-      if (ids && ids.length) {
-        const failed = [];
-        entries = [];
-        const allNumeric = ids.every((x) => Number.isFinite(Number(x)) && Number(x) > 0);
-        // For small numeric lists (typical parent lists of 1-2), prefer per-id getProfile
-        // so we map numeric Id -> WikiTree Name reliably. Use fetchPeoplePaged for
-        // larger batches for efficiency.
-        if (allNumeric && ids.length > 4) {
-          const [, , peopleMap] = await fetchPeoplePaged(
-            "Chat",
-            ids,
-            "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
-            {}
-          );
-          for (const id of ids) {
-            const key = String(id);
-            const p = peopleMap[key];
-            if (p && Object.keys(p).length)
-              entries.push({ wtid: p.Name || id, displayName: p.RealName || p.Name || id });
-            else failed.push(id);
-          }
-        } else {
-          const profiles = await fetchProfilesForIds(ids, "Bio,BioHtml,BioText,Biography,Name,RealName,Id", {
-            bioFormat: "both",
-            resolveRedirect: 1,
-          });
-          for (let i = 0; i < ids.length; i += 1) {
-            const p = profiles[i];
-            if (p && Object.keys(p).length)
-              entries.push({ wtid: p.Name || ids[i], displayName: p.RealName || p.Name || ids[i] });
-            else failed.push(ids[i]);
-          }
-        }
-        relationFetchFailedIds = failed.slice();
-        if (!entries.length && failed.length) {
-          return `Failed to load child profiles: ${failed.join(
-            ", "
-          )} — server errors or no data. No popups were opened.`;
-        }
-        if (relationFetchFailedIds.length) window.wbeSuppressAutoBioOpen = true;
-      }
-    } else if (relationType === "siblings") {
-      const ids = await fetchSiblingIdsForId(personKey);
-      if (ids && ids.length) {
-        const failed = [];
-        entries = [];
-        const allNumeric = ids.every((x) => Number.isFinite(Number(x)) && Number(x) > 0);
-        if (allNumeric) {
-          const [, , peopleMap] = await fetchPeoplePaged(
-            "Chat",
-            ids,
-            "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
-            {}
-          );
-          for (const id of ids) {
-            const key = String(id);
-            const p = peopleMap[key];
-            if (p && Object.keys(p).length) entries.push({ wtid: id, displayName: p.RealName || p.Name || id });
-            else failed.push(id);
-          }
-        } else {
-          const profiles = await fetchProfilesForIds(ids, "Bio,BioHtml,BioText,Biography,Name,RealName,Id", {
-            bioFormat: "both",
-            resolveRedirect: 1,
-          });
-          for (let i = 0; i < ids.length; i += 1) {
-            const p = profiles[i];
-            if (p && Object.keys(p).length) entries.push({ wtid: ids[i], displayName: p.RealName || p.Name || ids[i] });
-            else failed.push(ids[i]);
-          }
-        }
-        relationFetchFailedIds = failed.slice();
-        if (!entries.length && failed.length) {
-          return `Failed to load sibling profiles: ${failed.join(
-            ", "
-          )} — server errors or no data. No popups were opened.`;
-        }
-        if (relationFetchFailedIds.length) window.wbeSuppressAutoBioOpen = true;
-      }
-    } else if (relationType === "parents") {
-      const ids = await fetchParentIds(personKey);
-      if (ids && ids.length) {
-        const failed = [];
-        entries = [];
-        const allNumeric = ids.every((x) => Number.isFinite(Number(x)) && Number(x) > 0);
-        if (allNumeric) {
-          const [, , peopleMap] = await fetchPeoplePaged(
-            "Chat",
-            ids,
-            "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
-            {}
-          );
-          for (const id of ids) {
-            const key = String(id);
-            const p = peopleMap[key];
-            if (p && Object.keys(p).length) entries.push({ wtid: id, displayName: p.RealName || p.Name || id });
-            else failed.push(id);
-          }
-        } else {
-          const profiles = await fetchProfilesForIds(ids, "Bio,BioHtml,BioText,Biography,Name,RealName,Id", {
-            bioFormat: "both",
-            resolveRedirect: 1,
-          });
-          for (let i = 0; i < ids.length; i += 1) {
-            const p = profiles[i];
-            if (p && Object.keys(p).length) entries.push({ wtid: ids[i], displayName: p.RealName || p.Name || ids[i] });
-            else failed.push(ids[i]);
-          }
-        }
-        relationFetchFailedIds = failed.slice();
-        if (!entries.length && failed.length) {
-          return `Failed to load parent profiles: ${failed.join(
-            ", "
-          )} — server errors or no data. No popups were opened.`;
-        }
-        if (relationFetchFailedIds.length) window.wbeSuppressAutoBioOpen = true;
-      }
-    }
-
-    if (!entries.length) {
-      return `No ${relationType} information found for ${resolved?.RealName || resolved?.Name || personKey}.`;
-    }
-
-    // If single entry, auto-open only when there were no profile-fetch failures
-    if (entries.length === 1) {
-      const singleId = entries[0].wtid;
-      if (Array.isArray(relationFetchFailedIds) && relationFetchFailedIds.length) {
-        // Some fetches failed; avoid auto-opening the single bio to prevent
-        // popping an incomplete view. Show the list and inform the user.
-        showBioListPopup(
-          `${relationType} for ${resolved?.RealName || resolved?.Name || personKey}`,
-          entries.slice(0, 50),
-          handleOpenFromBioList
-        );
-        return {
-          message: `Found ${entries.length} ${relationType} for ${
-            resolved?.RealName || resolved?.Name || personKey
-          }, but some profiles failed to load (${relationFetchFailedIds.join(
-            ", "
-          )}). Open the list to view available entries.`,
-          action: {
-            label: "Open List",
-            onClick: () =>
-              showBioListPopup(
-                `${relationType} for ${resolved?.RealName || resolved?.Name || personKey}`,
-                entries.slice(0, 50),
-                handleOpenFromBioList
-              ),
-          },
-        };
-      }
-      try {
-        const resolvedWtid = await resolveToWTID(singleId);
-        showBioPopupForId(resolvedWtid).catch(() => {});
-        return {
-          message: `Opened bio for ${entries[0].displayName || resolvedWtid}.`,
-          action: {
-            label: "Show Bio",
-            onClick: async () => {
-              const w = await resolveToWTID(singleId);
-              showBioPopupForId(w).catch(() => {});
-            },
-          },
-        };
-      } catch (err) {
-        return `Failed to open bio for ${entries[0].displayName || singleId}.`;
-      }
-    }
-
-    // Multiple entries — if user explicitly asked for bios (plural), open tiled popups and show list
-    if (wantsBioPlural) {
-      const ids = entries.map((e) => e.wtid).filter(Boolean);
-      try {
-        showBioListPopup(
-          `${relationType} bios for ${resolved?.RealName || resolved?.Name || personKey}`,
-          entries.slice(0, 50),
-          handleOpenFromBioList
-        );
-        await showTiledViaApi(ids.slice(0, 9)); // limit to 9 tiled popups by default
-        return {
-          message: `Opened ${Math.min(ids.length, 9)} bios for ${resolved?.RealName || resolved?.Name || personKey}.`,
-          action: {
-            label: "Open List",
-            onClick: () =>
-              showBioListPopup(
-                `${relationType} bios for ${resolved?.RealName || resolved?.Name || personKey}`,
-                entries.slice(0, 50),
-                handleOpenFromBioList
-              ),
-          },
-        };
-      } catch (e) {
-        console.error("wbe: tryHandlePersonBioPrompt failed to open tiled bios", e);
-      }
-    }
-
-    // Default: show bio list popup and return a message/action
-    showBioListPopup(
-      `${relationType} for ${resolved?.RealName || resolved?.Name || personKey}`,
-      entries.slice(0, 50),
-      handleOpenFromBioList
-    );
-    return {
-      message: `Found ${entries.length} ${relationType} for ${resolved?.RealName || resolved?.Name || personKey}.`,
-      action: {
-        label: "Open List",
-        onClick: () =>
-          showBioListPopup(
-            `${relationType} for ${resolved?.RealName || resolved?.Name || personKey}`,
-            entries.slice(0, 50),
-            handleOpenFromBioList
-          ),
-      },
-    };
-  } catch (err) {
-    hideChatShaky();
-    console.error("wbe: tryHandlePersonBioPrompt error", err);
-    return `Failed to lookup information for ${resolved?.RealName || resolved?.Name || targetRaw}.`;
-  }
 }
 
 function ensureButtonContainer() {

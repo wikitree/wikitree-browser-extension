@@ -99,6 +99,11 @@ export function createChatConnectionHandlers({
     const fields =
       "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender";
     let aiExpansion = await tryAiExpandConnectionTarget(cleanedTarget, prompt);
+    console.debug("wbe: resolveConnectionTargetPerson ai expansion", {
+      cleanedTarget,
+      prompt,
+      aiExpansion,
+    });
 
     if (!aiExpansion?.searchName) {
       const commonAlias = getCommonAliasExpansion(cleanedTarget);
@@ -108,6 +113,13 @@ export function createChatConnectionHandlers({
     }
 
     const expandedParts = splitPersonName(aiExpansion?.searchName || "");
+    const birthYearSearchParams = Number.isFinite(Number(aiExpansion?.birthYear))
+      ? {
+          BirthDate: `${Number(aiExpansion.birthYear)}-01-01`,
+          dateSpread: 2,
+          sort: "birth",
+        }
+      : null;
 
     let strictMatches = [];
     if (firstName && lastName) {
@@ -164,6 +176,24 @@ export function createChatConnectionHandlers({
       expandedNameMatches = expandedMatches || [];
     }
 
+    let expandedBirthYearMatches = [];
+    if (
+      birthYearSearchParams &&
+      aiExpansion?.searchName &&
+      normalizePersonText(aiExpansion.searchName) !== normalizePersonText(cleanedTarget)
+    ) {
+      const [, searchMatches] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          RealName: aiExpansion.searchName,
+          limit: 20,
+          ...birthYearSearchParams,
+        },
+        fields
+      );
+      expandedBirthYearMatches = searchMatches || [];
+    }
+
     let expandedStrictMatches = [];
     if (expandedParts.firstName && expandedParts.lastName) {
       const [, searchMatches] = await WikiTreeAPI.searchPerson(
@@ -180,7 +210,26 @@ export function createChatConnectionHandlers({
       expandedStrictMatches = searchMatches || [];
     }
 
+    let expandedBirthYearStrictMatches = [];
+    if (birthYearSearchParams && expandedParts.firstName && expandedParts.lastName) {
+      const [, searchMatches] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: expandedParts.firstName,
+          LastName: expandedParts.lastName,
+          skipVariants: 1,
+          lastNameMatch: "strict",
+          limit: 20,
+          ...birthYearSearchParams,
+        },
+        fields
+      );
+      expandedBirthYearStrictMatches = searchMatches || [];
+    }
+
     const matches = mergeConnectionMatches([
+      expandedBirthYearStrictMatches,
+      expandedBirthYearMatches,
       expandedStrictMatches,
       strictMatches,
       expandedNameMatches,
@@ -188,7 +237,13 @@ export function createChatConnectionHandlers({
       realNameMatches,
     ]);
 
-    let rankedMatches = rankConnectionMatches(cleanedTarget, matches, { firstName, lastName });
+    const hasExpandedSearchName =
+      Boolean(aiExpansion?.searchName) &&
+      normalizePersonText(aiExpansion.searchName) !== normalizePersonText(cleanedTarget);
+    const rankingTarget = hasExpandedSearchName ? aiExpansion.searchName : cleanedTarget;
+    const rankingParts = hasExpandedSearchName ? expandedParts : { firstName, lastName };
+
+    let rankedMatches = rankConnectionMatches(rankingTarget, matches, rankingParts);
 
     if (expandedParts.lastName && rankedMatches.length) {
       const normalizedExpandedLast = normalizePersonText(expandedParts.lastName);
@@ -214,13 +269,19 @@ export function createChatConnectionHandlers({
           let score = entry.score;
           if (Number.isFinite(candidateBirthYear)) {
             const gap = Math.abs(candidateBirthYear - aiExpansion.birthYear);
-            if (gap <= 2) {
-              score += 70;
+            if (gap === 0) {
+              score += 220;
+            } else if (gap <= 1) {
+              score += 140;
+            } else if (gap <= 2) {
+              score += 80;
             } else if (gap <= 8) {
               score += 35;
             } else if (gap >= 35) {
-              score -= 25;
+              score -= 60;
             }
+          } else {
+            score -= 25;
           }
           return { ...entry, score };
         })

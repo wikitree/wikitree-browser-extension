@@ -93,46 +93,76 @@ export function cloneResultWithRows(result, title, rows, defaultOrder = result?.
 }
 
 export function makeStandardProfileTable(title, rows, defaultOrder = [[3, "asc"]]) {
+  const baseColumns = [
+    {
+      title: "WT ID",
+      key: "wtid",
+      render: (row) => makeProfileLink(row.wtid, row.wtid),
+    },
+    { title: "First Name", key: "firstName" },
+    { title: "Middle Name", key: "middleName" },
+    { title: "LNAB", key: "lnab", cellClass: "nowrap-cell" },
+    { title: "Current Last", key: "lastNameCurrent", cellClass: "nowrap-cell" },
+    {
+      title: "Spouse",
+      key: "spouse",
+      render: (row) => {
+        try {
+          const list = row?.spouseList || [];
+          if (Array.isArray(list) && list.length) {
+            return list
+              .map((s) => {
+                const label = [s.firstName || s.display || "", s.lnab || ""].filter(Boolean).join(" ");
+                return makeProfileLink(s.wtid, label || s.wtid || "");
+              })
+              .join(", ");
+          }
+          return escapeHtml(row?.spouse || "");
+        } catch (e) {
+          return escapeHtml(row?.spouse || "");
+        }
+      },
+    },
+    { title: "°", key: "degrees" },
+    { title: "Birth", key: "birth", cellClass: "chat-date-cell" },
+    { title: "Death", key: "death", cellClass: "chat-date-cell" },
+    { title: "Birth Location", key: "birthLocation" },
+    { title: "Death Location", key: "deathLocation" },
+  ];
+
+  const optionalColumnKeys = new Set(["middleName", "spouse"]);
+  const columns = baseColumns.filter((column) => {
+    if (!optionalColumnKeys.has(column.key)) {
+      return true;
+    }
+
+    return rows.some((row) => {
+      if (column.key === "spouse") {
+        return (Array.isArray(row?.spouseList) && row.spouseList.length) || String(row?.spouse || "").trim();
+      }
+      return String(row?.[column.key] || "").trim();
+    });
+  });
+
+  const indexMap = new Map();
+  baseColumns.forEach((column, index) => {
+    const newIndex = columns.findIndex((entry) => entry.key === column.key);
+    if (newIndex >= 0) {
+      indexMap.set(index, newIndex);
+    }
+  });
+
+  const normalizedOrder = (defaultOrder || [])
+    .map(([index, direction]) => {
+      const mappedIndex = indexMap.get(index);
+      return mappedIndex == null ? null : [mappedIndex, direction];
+    })
+    .filter(Boolean);
+
   return {
     title,
-    defaultOrder,
-    columns: [
-      {
-        title: "WT ID",
-        key: "wtid",
-        render: (row) => makeProfileLink(row.wtid, row.wtid),
-      },
-      { title: "First Name", key: "firstName" },
-      { title: "Middle Name", key: "middleName" },
-      { title: "LNAB", key: "lnab", cellClass: "nowrap-cell" },
-      { title: "Current Last", key: "lastNameCurrent", cellClass: "nowrap-cell" },
-      {
-        title: "Spouse",
-        key: "spouse",
-        render: (row) => {
-          try {
-            const list = row?.spouseList || [];
-            if (Array.isArray(list) && list.length) {
-              return list
-                .map((s) => {
-                  const label = [s.firstName || s.display || "", s.lnab || ""].filter(Boolean).join(" ");
-                  return makeProfileLink(s.wtid, label || s.wtid || "");
-                })
-                .join(", ");
-            }
-            // fallback to plain string
-            return escapeHtml(row?.spouse || "");
-          } catch (e) {
-            return escapeHtml(row?.spouse || "");
-          }
-        },
-      },
-      { title: "°", key: "degrees" },
-      { title: "Birth", key: "birth", cellClass: "chat-date-cell" },
-      { title: "Death", key: "death", cellClass: "chat-date-cell" },
-      { title: "Birth Location", key: "birthLocation" },
-      { title: "Death Location", key: "deathLocation" },
-    ],
+    defaultOrder: normalizedOrder.length ? normalizedOrder : [[0, "asc"]],
+    columns,
     rows: rows.map((row) => withDerivedRowFields(row)),
   };
 }

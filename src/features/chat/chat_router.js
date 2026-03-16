@@ -101,17 +101,37 @@ function parseCc7LocationPrompt(prompt) {
 }
 
 function parseCcSummaryPrompt(prompt) {
-  const summaryMatch = String(prompt || "").match(
-    /^\s*(?:show|list|what(?:'s|\s+is)|give\s+me)?\s*(?:my\s+)?cc(\d+)\s*\??\s*$/i
-  );
-  if (!summaryMatch?.[1]) {
-    return null;
+  const normalized = String(prompt || "").trim();
+
+  const summaryMatch = normalized.match(/^\s*(?:show|list|what(?:'s|\s+is)|give\s+me)?\s*(?:my\s+)?cc(\d+)\s*\??\s*$/i);
+  if (summaryMatch?.[1]) {
+    return {
+      mode: "summary",
+      nuclear: Number(summaryMatch[1]),
+    };
   }
 
-  return {
-    mode: "summary",
-    nuclear: Number(summaryMatch[1]),
-  };
+  const possessiveMatch = normalized.match(
+    /^\s*(?:show|list|what(?:'s|\s+is)|give\s+me)?\s*(.+?)'s\s+cc(\d+)\s*\??\s*$/i
+  );
+  if (possessiveMatch?.[2]) {
+    return {
+      mode: "summary",
+      nuclear: Number(possessiveMatch[2]),
+    };
+  }
+
+  const forMatch = normalized.match(
+    /^\s*(?:show|list|what(?:'s|\s+is)|give\s+me)?\s*cc(\d+)\s+(?:for|of)\s+.+?\??\s*$/i
+  );
+  if (forMatch?.[1]) {
+    return {
+      mode: "summary",
+      nuclear: Number(forMatch[1]),
+    };
+  }
+
+  return null;
 }
 
 function parseWatchlistPrompt(prompt) {
@@ -197,6 +217,13 @@ function parseRelationPrompt(prompt) {
 }
 
 export function extractConnectionTarget(prompt) {
+  const possessiveToMeMatch = prompt.match(
+    /^\s*(.+?)'s\s+(?:connection(?:\s+or\s+distance)?|distance(?:\s+or\s+connection)?)\s+to\s+me\??\s*$/i
+  );
+  if (possessiveToMeMatch?.[1]) {
+    return possessiveToMeMatch[1].trim();
+  }
+
   const fromMeMatch = prompt.match(
     /(?:what(?:'s|\s+is)\s+)?(?:the\s+)?(?:connection|distance)(?:\s+or\s+connection|\s+or\s+distance)?\s+from\s+me\s+to\s+(.+?)\??$/i
   );
