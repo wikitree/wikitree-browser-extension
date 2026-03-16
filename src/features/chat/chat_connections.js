@@ -44,6 +44,19 @@ function parseLegacyRelationshipLabel(legacy) {
   return "";
 }
 
+function normalizeConnectionBirthDate(value) {
+  const text = String(value || "").trim();
+  const match = text.match(/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?$/);
+  if (!match || match[1] === "0000") {
+    return "";
+  }
+
+  const year = match[1];
+  const month = match[2] || "00";
+  const day = match[3] || "00";
+  return `${year}-${month}-${day}`;
+}
+
 export function createChatConnectionHandlers({
   WBE_CHAT_APP_ID,
   CHAT_LAST_CONNECTION_KEY,
@@ -113,7 +126,14 @@ export function createChatConnectionHandlers({
     }
 
     const expandedParts = splitPersonName(aiExpansion?.searchName || "");
-    const birthYearSearchParams = Number.isFinite(Number(aiExpansion?.birthYear))
+    const normalizedBirthDate = normalizeConnectionBirthDate(aiExpansion?.birthDate);
+    const birthDateSearchParams = normalizedBirthDate
+      ? {
+          BirthDate: normalizedBirthDate,
+          dateSpread: 0,
+          sort: "birth",
+        }
+      : Number.isFinite(Number(aiExpansion?.birthYear))
       ? {
           BirthDate: `${Number(aiExpansion.birthYear)}-01-01`,
           dateSpread: 2,
@@ -178,7 +198,7 @@ export function createChatConnectionHandlers({
 
     let expandedBirthYearMatches = [];
     if (
-      birthYearSearchParams &&
+      birthDateSearchParams &&
       aiExpansion?.searchName &&
       normalizePersonText(aiExpansion.searchName) !== normalizePersonText(cleanedTarget)
     ) {
@@ -187,7 +207,7 @@ export function createChatConnectionHandlers({
         {
           RealName: aiExpansion.searchName,
           limit: 20,
-          ...birthYearSearchParams,
+          ...birthDateSearchParams,
         },
         fields
       );
@@ -211,7 +231,7 @@ export function createChatConnectionHandlers({
     }
 
     let expandedBirthYearStrictMatches = [];
-    if (birthYearSearchParams && expandedParts.firstName && expandedParts.lastName) {
+    if (birthDateSearchParams && expandedParts.firstName && expandedParts.lastName) {
       const [, searchMatches] = await WikiTreeAPI.searchPerson(
         "Chat",
         {
@@ -220,7 +240,7 @@ export function createChatConnectionHandlers({
           skipVariants: 1,
           lastNameMatch: "strict",
           limit: 20,
-          ...birthYearSearchParams,
+          ...birthDateSearchParams,
         },
         fields
       );
@@ -262,12 +282,23 @@ export function createChatConnectionHandlers({
         .sort((left, right) => right.score - left.score);
     }
 
-    if (aiExpansion?.birthYear && rankedMatches.length) {
+    if ((normalizedBirthDate || aiExpansion?.birthYear) && rankedMatches.length) {
       rankedMatches = rankedMatches
         .map((entry) => {
+          const candidateBirthDate = normalizeConnectionBirthDate(entry.match?.BirthDate);
           const candidateBirthYear = extractYearFromDate(entry.match?.BirthDate);
           let score = entry.score;
-          if (Number.isFinite(candidateBirthYear)) {
+          if (normalizedBirthDate && candidateBirthDate) {
+            if (candidateBirthDate === normalizedBirthDate) {
+              score += 320;
+            } else if (candidateBirthDate.slice(0, 7) === normalizedBirthDate.slice(0, 7)) {
+              score += 220;
+            } else if (candidateBirthDate.slice(0, 4) === normalizedBirthDate.slice(0, 4)) {
+              score += 120;
+            } else {
+              score -= 40;
+            }
+          } else if (Number.isFinite(candidateBirthYear) && Number.isFinite(Number(aiExpansion?.birthYear))) {
             const gap = Math.abs(candidateBirthYear - aiExpansion.birthYear);
             if (gap === 0) {
               score += 220;

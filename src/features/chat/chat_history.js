@@ -23,6 +23,7 @@ export function createChatHistoryHandlers({
   openResultsTable,
   resolveToWTID,
   showBioPopupForId,
+  openWtPlusQuery,
   afterActionClick,
   resetTransientState,
 }) {
@@ -262,9 +263,119 @@ export function createChatHistoryHandlers({
     return `${formattedBody}<span class="chat-inline-more-container"><br>...and <a href="#" class="chat-results-link chat-inline-show-more">${moreLabel}</a>.</span>`;
   }
 
+  function normalizeActions(options) {
+    if (!options || typeof options !== "object") {
+      return [];
+    }
+
+    if (Array.isArray(options.actions)) {
+      return options.actions.filter(Boolean);
+    }
+
+    if (options.action) {
+      return [options.action].filter(Boolean);
+    }
+
+    return [];
+  }
+
+  function serializeAction(action) {
+    if (!action?.label) {
+      return null;
+    }
+
+    const serialized = { label: action.label };
+    if (action.actionType) serialized.actionType = action.actionType;
+    if (action.wtPlusQuery) serialized.wtPlusQuery = action.wtPlusQuery;
+    if (action.wtPlusSearchType) serialized.wtPlusSearchType = action.wtPlusSearchType;
+    if (action.wtPlusSuggestionId) serialized.wtPlusSuggestionId = action.wtPlusSuggestionId;
+    return serialized;
+  }
+
+  function hydrateAction(actionEntry, message, msgIndex) {
+    if (!actionEntry?.label) {
+      return null;
+    }
+
+    const actionType = actionEntry.actionType || actionEntry.label;
+    if (actionType === "Connections" || actionEntry.label === "Connections") {
+      return {
+        label: "Connections",
+        actionType: "Connections",
+        onClick: () => toggleConnectionsPopup(),
+      };
+    }
+
+    if (actionType === "table" || actionEntry.label === "Table") {
+      return {
+        label: "Table",
+        actionType: "table",
+        onClick: () => {
+          const toOpen = message.structured || getLastStructuredResult?.();
+          if (!toOpen) return;
+          const popupId = `${chatResultsPopupId}-msg-${msgIndex}`;
+          const tableId = `${chatResultsTableId}-msg-${msgIndex}`;
+          const existing = document.getElementById(popupId);
+          if (existing) {
+            try {
+              const $table = $(existing).find("table");
+              if ($table.length && $.fn.DataTable.isDataTable($table)) {
+                $table.DataTable().destroy();
+              }
+            } catch (e) {
+              /* ignore */
+            }
+            existing.remove();
+            return;
+          }
+          openResultsTable(toOpen, { popupId, tableId });
+        },
+      };
+    }
+
+    if (actionType === "Show Bio" || actionEntry.label === "Show Bio") {
+      return {
+        label: "Show Bio",
+        actionType: "Show Bio",
+        onClick: async () => {
+          const lastBioPopupId = getLastBioPopupId?.();
+          if (lastBioPopupId) {
+            const wtid = await resolveToWTID(lastBioPopupId);
+            showBioPopupForId(wtid).catch(() => {});
+          } else {
+            appendMessage("assistant", "No saved biography available to show.", { shouldPersist: false });
+          }
+        },
+      };
+    }
+
+    if (actionType === "wtplus-open" || actionEntry.label === "Open in WT+") {
+      if (!actionEntry.wtPlusQuery) {
+        return null;
+      }
+
+      return {
+        label: "Open in WT+",
+        actionType: "wtplus-open",
+        wtPlusQuery: actionEntry.wtPlusQuery,
+        wtPlusSearchType: actionEntry.wtPlusSearchType || "text",
+        wtPlusSuggestionId: actionEntry.wtPlusSuggestionId || "",
+        onClick: () =>
+          openWtPlusQuery(
+            actionEntry.wtPlusQuery,
+            actionEntry.wtPlusSearchType || "text",
+            actionEntry.wtPlusSuggestionId || ""
+          ),
+      };
+    }
+
+    return null;
+  }
+
   function appendMessage(role, text, options = {}) {
     const shouldPersist = typeof options === "boolean" ? options : options.shouldPersist !== false;
-    const action = typeof options === "object" ? options.action : null;
+    const actions = normalizeActions(options);
+    const primaryAction = actions.find((action) => typeof action?.onClick === "function") || null;
     const inlineMore = typeof options === "object" ? options.inlineMore : null;
     const $messages = getMessageList();
     if ($messages.length === 0) return;
@@ -295,8 +406,8 @@ export function createChatHistoryHandlers({
         return;
       }
 
-      if (typeof action?.onClick === "function") {
-        invokeChatAction(action);
+      if (typeof primaryAction?.onClick === "function") {
+        invokeChatAction(primaryAction);
         return;
       }
 
@@ -307,11 +418,16 @@ export function createChatHistoryHandlers({
 
     $item.append($label, $body);
 
-    if (action?.label && typeof action.onClick === "function") {
+    if (actions.length) {
       const $actions = $("<div>").addClass("chat-message-actions");
-      const $button = $("<button>").attr("type", "button").addClass("chat-message-action").text(action.label);
-      $button.on("click", () => invokeChatAction(action));
-      $actions.append($button);
+      actions.forEach((action) => {
+        if (!action?.label || typeof action.onClick !== "function") {
+          return;
+        }
+        const $button = $("<button>").attr("type", "button").addClass("chat-message-action").text(action.label);
+        $button.on("click", () => invokeChatAction(action));
+        $actions.append($button);
+      });
       $item.append($actions);
     }
 
@@ -329,10 +445,17 @@ export function createChatHistoryHandlers({
           historyEntry.inlineMore.count = countValue;
         }
       }
-      if (action?.label) historyEntry.actionLabel = action.label;
-      if (action?.table && shouldPersistStructuredTable(action.table)) {
+      const serializedActions = actions.map(serializeAction).filter(Boolean);
+      if (serializedActions.length) {
+        historyEntry.actions = serializedActions;
+        if (serializedActions.length === 1) {
+          historyEntry.actionLabel = serializedActions[0].label;
+        }
+      }
+      const actionWithTable = actions.find((action) => action?.table);
+      if (actionWithTable?.table && shouldPersistStructuredTable(actionWithTable.table)) {
         try {
-          historyEntry.structured = action.table;
+          historyEntry.structured = actionWithTable.table;
         } catch (e) {
           /* ignore */
         }
@@ -353,50 +476,16 @@ export function createChatHistoryHandlers({
     $messages.empty();
     getHistory().forEach((message, msgIndex) => {
       const opts = { shouldPersist: false, inlineMore: message.inlineMore || null };
-      if (message.actionLabel) {
-        if (message.actionLabel === "Connections") {
-          opts.action = {
-            label: "Connections",
-            onClick: () => toggleConnectionsPopup(),
-          };
-        } else if (message.actionLabel === "Table") {
-          opts.action = {
-            label: "Table",
-            onClick: () => {
-              const toOpen = message.structured || getLastStructuredResult?.();
-              if (!toOpen) return;
-              const popupId = `${chatResultsPopupId}-msg-${msgIndex}`;
-              const tableId = `${chatResultsTableId}-msg-${msgIndex}`;
-              const existing = document.getElementById(popupId);
-              if (existing) {
-                try {
-                  const $table = $(existing).find("table");
-                  if ($table.length && $.fn.DataTable.isDataTable($table)) {
-                    $table.DataTable().destroy();
-                  }
-                } catch (e) {
-                  /* ignore */
-                }
-                existing.remove();
-                return;
-              }
-              openResultsTable(toOpen, { popupId, tableId });
-            },
-          };
-        } else if (message.actionLabel === "Show Bio") {
-          opts.action = {
-            label: "Show Bio",
-            onClick: async () => {
-              const lastBioPopupId = getLastBioPopupId?.();
-              if (lastBioPopupId) {
-                const wtid = await resolveToWTID(lastBioPopupId);
-                showBioPopupForId(wtid).catch(() => {});
-              } else {
-                appendMessage("assistant", "No saved biography available to show.", { shouldPersist: false });
-              }
-            },
-          };
-        }
+      const actionEntries = Array.isArray(message.actions)
+        ? message.actions
+        : message.actionLabel
+        ? [{ label: message.actionLabel }]
+        : [];
+      const hydratedActions = actionEntries
+        .map((actionEntry) => hydrateAction(actionEntry, message, msgIndex))
+        .filter(Boolean);
+      if (hydratedActions.length) {
+        opts.actions = hydratedActions;
       }
       appendMessage(message.role, message.text, opts);
     });

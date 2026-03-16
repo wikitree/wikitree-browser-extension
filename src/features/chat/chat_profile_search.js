@@ -2,6 +2,7 @@ import { wtAPICatCIBSearch, wtAPIProfileSearch } from "../../core/API/wtPlusAPI"
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { dataTables, dataTablesLoad } from "../../core/API/wtPlusData";
 import { getProfilePersonInfo, getUserWtId } from "../../core/common";
+import { extractSuggestionId } from "../wikitree_plus_helper/wikitree_plus_helper_url";
 
 export function createProfileSearchHandler({
   WBE_CHAT_APP_ID,
@@ -374,10 +375,13 @@ export function createProfileSearchHandler({
       addTerm(status, `${status.toLowerCase()} profiles`);
     });
 
-    consume(/\b(?:in\s+)?category\s*[:=]?\s*(.+)$/i, (match) => {
-      const category = stripSurroundingQuotes(match[1]);
-      addTerm(normalizeWtPlusFieldTerm("CategoryFull", category), `category ${category}`);
-    });
+    consume(
+      /\b(?:in\s+)?category\s*[:=]?\s*(?!born\b|died\b|married\b|with\b|ancestors?\b|descendants?\b|cc7\b|in\s+tree\b)(.+)$/i,
+      (match) => {
+        const category = stripSurroundingQuotes(match[1]);
+        addTerm(normalizeWtPlusFieldTerm("CategoryFull", category), `category ${category}`);
+      }
+    );
     consume(/\bcategory\s+word\s*[:=]?\s*(.+)$/i, (match) => {
       const categoryWord = stripSurroundingQuotes(match[1]);
       addTerm(normalizeWtPlusFieldTerm("CategoryWord", categoryWord), `category word ${categoryWord}`);
@@ -555,6 +559,11 @@ export function createProfileSearchHandler({
     return document.querySelector('input[name="wbe-chat-mode"]:checked')?.value || null;
   }
 
+  function isNonPersonPageName(value) {
+    const name = String(value || "").trim();
+    return !name || name.includes(":");
+  }
+
   function getCurrentProfileWtPlusRoot() {
     const profile = getProfilePersonInfo();
     if (!profile || Array.isArray(profile)) {
@@ -563,7 +572,7 @@ export function createProfileSearchHandler({
 
     const wtId = String(profile?.Name || profile?.wtid || "").trim();
     const displayName = String(profile?.displayName || profile?.RealName || profile?.FullName || wtId || "").trim();
-    if (!wtId) {
+    if (!wtId || isNonPersonPageName(wtId)) {
       return null;
     }
 
@@ -763,7 +772,9 @@ export function createProfileSearchHandler({
       .replace(/^\s*(?:me\s+)?/i, "")
       .trim();
 
-    let match = normalizedText.match(/^(?:profiles?|people)\s+(?:in\s+)?category\s*[:=]?\s*(.+)$/i);
+    let match = normalizedText.match(
+      /^(?:profiles?|people)\s+(?:in\s+)?category\s*[:=]?\s*(?!born\b|died\b|married\b|with\b|ancestors?\b|descendants?\b|cc7\b|in\s+tree\b)(.+)$/i
+    );
     if (match?.[1]) {
       const category = stripSurroundingQuotes(match[1]);
       if (category) {
@@ -775,7 +786,9 @@ export function createProfileSearchHandler({
       }
     }
 
-    match = normalizedText.match(/^(?:in\s+)?category\s*[:=]?\s*(.+)$/i);
+    match = normalizedText.match(
+      /^(?:in\s+)?category\s*[:=]?\s*(?!born\b|died\b|married\b|with\b|ancestors?\b|descendants?\b|cc7\b|in\s+tree\b)(.+)$/i
+    );
     if (match?.[1]) {
       const category = stripSurroundingQuotes(match[1]);
       if (category) {
@@ -1170,6 +1183,7 @@ export function createProfileSearchHandler({
         "Examples:",
         '{"understood":"unsourced profiles born in Devon","query":"Unsourced BirthLocation="Devon, England""}',
         '{"understood":"people in category Puritan Great Migration","query":"CategoryFull="Puritan Great Migration""}',
+        '{"understood":"notables born in Liverpool","query":"CategoryWord=Notables BirthLocation=Liverpool"}',
         '{"understood":"Charles Darwin descendants","query":"Descendants=Darwin-15"}',
         '{"understood":"current profile descendants born in Newfoundland before 1900","query":"Descendants=CurrentProfile BirthLocation=Newfoundland sql="([Default].[Birth Date].AsNumber < 19000000)""}',
         '{"understood":"Smith in Liverpool born before 1800","query":"LastNameAtBirth=Smith Location=Liverpool sql="([Default].[Birth Date].AsNumber < 18000000)""}',
@@ -1255,7 +1269,10 @@ export function createProfileSearchHandler({
     const hasFamilyRoot = /\b(?:ancestors|descendants)\b/i.test(text);
     const hasBoundaryDate = /\b(?:before|after)\s+\d{4}(?:-\d{2}(?:-\d{2})?)?\b/i.test(text);
     const hasLocationOrLifeEvent = /\b(?:born|died|married)\b/i.test(text);
-    return hasFamilyRoot && hasBoundaryDate && hasLocationOrLifeEvent;
+    const hasCategoryConcept = /\b(?:category|notables?|template|sticker)\b/i.test(text);
+    return (
+      (hasFamilyRoot && hasBoundaryDate && hasLocationOrLifeEvent) || (hasCategoryConcept && hasLocationOrLifeEvent)
+    );
   }
 
   async function runWtPlusProfileQuery(wtPlusQuery, title, interpretation = null) {
@@ -1308,6 +1325,7 @@ export function createProfileSearchHandler({
         .filter((match) => match?.category && match.requested && match.category !== match.requested)
         .map((match) => `used closest category "${match.category}" for "${match.requested}"`)
         .join("; ");
+      const suggestionId = extractSuggestionId(canonicalQuery);
 
       return {
         message: interpretation?.understood
@@ -1317,6 +1335,15 @@ export function createProfileSearchHandler({
           : `Found ${rows.length} profile${rows.length === 1 ? "" : "s"} for WT+ query: ${canonicalQuery}${
               categoryNote ? `. Also ${categoryNote}.` : ""
             }`,
+        actions: [
+          {
+            label: "Open in WT+",
+            actionType: "wtplus-open",
+            wtPlusQuery: canonicalQuery,
+            wtPlusSearchType: suggestionId ? "suggestions" : "text",
+            wtPlusSuggestionId: suggestionId || "",
+          },
+        ],
         table,
         autoOpen: true,
       };

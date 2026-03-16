@@ -56,7 +56,9 @@ import {
   findParentProfileIdsFromDOM,
 } from "./chat_dom_lookup";
 import { formatDate, getRelationColour, getYearColour } from "../../core/formatting";
+import { isPlusDomain } from "../../core/pageType";
 import { escapeHtml } from "../../core/lib/diff_utils";
+import { buildPlusUrl } from "../wikitree_plus_helper/wikitree_plus_helper_url";
 import {
   setPopupPositionAndSize,
   positionPopupForOpen,
@@ -161,6 +163,16 @@ function raiseChatActionPopupsAboveChat() {
   window.setTimeout(raiseOpenPopups, 120);
 }
 
+function openWtPlusQuery(query, searchType = "text", suggestionId = "") {
+  const url = buildPlusUrl(query, searchType, true, suggestionId, {});
+  if (isPlusDomain) {
+    window.location.href = url;
+    return;
+  }
+
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
 const {
   appendMessage,
   clearHistory,
@@ -202,6 +214,7 @@ const {
   openResultsTable: (result, opts) => openResultsTable(result, opts),
   resolveToWTID: (candidate) => resolveToWTID(candidate),
   showBioPopupForId: (wtid) => showBioPopupForId(wtid),
+  openWtPlusQuery,
   afterActionClick: () => raiseChatActionPopupsAboveChat(),
   resetTransientState: () => {
     pendingDisambiguationContext = null;
@@ -820,17 +833,41 @@ async function handleChatResult(result) {
   // If the result includes a table, capture a snapshot of the table on the
   // action object so it can be persisted with the chat history. This avoids
   // later Table buttons all referencing the global `lastStructuredResult`.
-  const action = result.action
-    ? result.action
-    : result.table
-    ? {
-        label: "Table",
-        table: result.table,
-        onClick: () => openResultsTable(result.table),
+  const explicitActions = (Array.isArray(result.actions) ? result.actions : result.action ? [result.action] : [])
+    .filter(Boolean)
+    .map((action) => {
+      if (typeof action?.onClick === "function") {
+        return action;
       }
-    : null;
 
-  appendMessage("assistant", result.message, { action, inlineMore: result.inlineMore || null });
+      if ((action?.actionType === "wtplus-open" || action?.label === "Open in WT+") && action?.wtPlusQuery) {
+        return {
+          ...action,
+          onClick: () =>
+            openWtPlusQuery(action.wtPlusQuery, action.wtPlusSearchType || "text", action.wtPlusSuggestionId || ""),
+        };
+      }
+
+      return action;
+    });
+  const hasTableAction = explicitActions.some(
+    (action) => action?.actionType === "table" || action?.label === "Table" || action?.table
+  );
+  const actions = [
+    ...(result.table && !hasTableAction
+      ? [
+          {
+            label: "Table",
+            actionType: "table",
+            table: result.table,
+            onClick: () => openResultsTable(result.table),
+          },
+        ]
+      : []),
+    ...explicitActions,
+  ];
+
+  appendMessage("assistant", result.message, { actions, inlineMore: result.inlineMore || null });
 
   if (result.table) {
     const options = await getChatOptions();
@@ -1411,9 +1448,14 @@ function normalizeSurname(value) {
     .trim();
 }
 
+function isNonPersonPageName(value) {
+  const name = String(value || "").trim();
+  return !name || name.includes(":");
+}
+
 function getProfileRootPerson() {
   const person = getProfilePersonInfo();
-  if (!person?.Name) {
+  if (!person?.Name || isNonPersonPageName(person.Name)) {
     return null;
   }
 
