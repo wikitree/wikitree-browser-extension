@@ -6762,7 +6762,7 @@ export async function getStickersAndBoxes() {
   try {
     templatesObject.templates.forEach(function (aTemplate) {
       if (templatesToAdd.includes(aTemplate.type)) {
-        const newTemplateMatch = currentBio.matchAll(/\{\{[^}]*?\}\}/gs);
+        const newTemplateMatch = currentBio.matchAll(/\{\{[\s\S]*?\}\}/g);
 
         for (let match of newTemplateMatch) {
           // Extract template name from the match, handling parameters after pipe
@@ -6773,7 +6773,10 @@ export async function getStickersAndBoxes() {
           // Direct string comparison instead of regex matching
           if (extractedTemplateName === aTemplate.name) {
             if (!thingsToAddAfterBioHeading.includes(match[0])) {
-              if (beforeHeadingThings.includes(aTemplate.type) || beforeHeadingThings.includes(aTemplate.group)) {
+              if (
+                beforeHeadingThings.some((thing) => thing.toLowerCase() === aTemplate.type?.toLowerCase()) ||
+                beforeHeadingThings.some((thing) => thing.toLowerCase() === aTemplate.group?.toLowerCase())
+              ) {
                 thingsToAddBeforeBioHeading.push(match[0]);
               } else {
                 thingsToAddAfterBioHeading.push(match[0]);
@@ -6785,7 +6788,18 @@ export async function getStickersAndBoxes() {
     });
 
     thingsToAddBeforeBioHeading.forEach(function (box) {
-      if (!window.sectionsObject.StuffBeforeTheBio.text.includes(box)) {
+      // Extract template name from the box
+      const boxNameMatch = box.match(/\{\{([^|}]+)/);
+      const boxTemplateName = boxNameMatch ? boxNameMatch[1].trim() : "";
+
+      // Check if this template name is already in StuffBeforeTheBio (to avoid duplicates)
+      const alreadyExists = window.sectionsObject.StuffBeforeTheBio.text.some((item) => {
+        const itemNameMatch = item.match(/\{\{([^|}]+)/);
+        const itemTemplateName = itemNameMatch ? itemNameMatch[1].trim() : "";
+        return itemTemplateName === boxTemplateName;
+      });
+
+      if (!alreadyExists) {
         window.sectionsObject.StuffBeforeTheBio.text.push(box);
       }
     });
@@ -6906,6 +6920,48 @@ function getFamilySearchFacts() {
   window.familySearchFacts = filteredData;
 }
 
+function normalizeTemplatesInSectionArray(textArray) {
+  const normalized = [];
+  let currentTemplate = "";
+
+  for (let item of textArray) {
+    // Check if this item is already a complete template (single-line)
+    if (item.startsWith("{{") && item.includes("}}")) {
+      // Complete template, add it directly
+      if (currentTemplate) {
+        // Finish any pending template first
+        normalized.push(currentTemplate);
+        currentTemplate = "";
+      }
+      normalized.push(item);
+    } else if (item.startsWith("{{")) {
+      // Start of a multi-line template
+      if (currentTemplate) {
+        normalized.push(currentTemplate);
+      }
+      currentTemplate = item;
+    } else if (currentTemplate && item.endsWith("}}")) {
+      // End of multi-line template
+      currentTemplate += " " + item;
+      normalized.push(currentTemplate);
+      currentTemplate = "";
+    } else if (currentTemplate) {
+      // Middle of multi-line template
+      currentTemplate += " " + item;
+    } else {
+      // Standalone item (category, text, etc.)
+      normalized.push(item);
+    }
+  }
+
+  // If there's an unclosed template, add it anyway
+  if (currentTemplate) {
+    normalized.push(currentTemplate);
+  }
+
+  return normalized;
+}
+
 export function splitBioIntoSections() {
   const wikiText = $("#wpTextbox1").val();
   let lines = [];
@@ -7013,7 +7069,22 @@ export function splitBioIntoSections() {
     }
   }
 
-  console.log("Bio sections", JSON.parse(JSON.stringify(sections)));
+  // Normalize all multi-line templates to single-line in all sections
+  for (let sectionName in sections) {
+    if (sections[sectionName].text && Array.isArray(sections[sectionName].text)) {
+      sections[sectionName].text = normalizeTemplatesInSectionArray(sections[sectionName].text);
+    }
+    if (sections[sectionName].subsections) {
+      for (let subsectionName in sections[sectionName].subsections) {
+        if (sections[sectionName].subsections[subsectionName].text) {
+          sections[sectionName].subsections[subsectionName].text = normalizeTemplatesInSectionArray(
+            sections[sectionName].subsections[subsectionName].text
+          );
+        }
+      }
+    }
+  }
+
   if (sections.Sources) {
     let shouldStartWithAsterisk = true;
     sections.Sources.text.forEach(function (line, i) {
@@ -7083,18 +7154,43 @@ export function splitBioIntoSections() {
   // Split the things before the bio up into separate items
   if (sections.StuffBeforeTheBio.text?.length > 0) {
     const pattern = /(\{\{.*?\}\}|\[\[.*?\]\])/g;
+    const categoryOnlyPattern = /^\[\[Category:[^\]]+\]\]$/i;
+    const htmlCommentPattern = /^<!--.*-->$/;
 
     for (let i = 0; i < sections.StuffBeforeTheBio.text.length; i++) {
-      const matches = sections.StuffBeforeTheBio.text[i].match(pattern);
+      const line = sections.StuffBeforeTheBio.text[i];
+      const matches = Array.from(line.matchAll(pattern));
 
-      if (matches) {
-        // Add the first match to the current array element
-        sections.StuffBeforeTheBio.text[i] = matches[0];
+      if (matches.length > 0) {
+        const splitItems = [];
 
-        // If there are additional matches, add them to the array after the current element
-        if (matches?.length > 1) {
-          const additionalMatches = matches.slice(1);
-          sections.StuffBeforeTheBio.text.splice(i + 1, 0, ...additionalMatches);
+        for (let j = 0; j < matches.length; j++) {
+          const token = matches[j][0];
+          splitItems.push(token);
+
+          const tokenEnd = matches[j].index + token.length;
+          const nextTokenStart = j < matches.length - 1 ? matches[j + 1].index : line.length;
+          const trailingText = line.slice(tokenEnd, nextTokenStart).trim();
+
+          // Keep inline HTML comments near categories as their own adjacent item.
+          if (categoryOnlyPattern.test(token) && trailingText && htmlCommentPattern.test(trailingText)) {
+            splitItems.push(trailingText);
+          }
+        }
+
+        // Keep a standalone next-line HTML comment near its category.
+        const lastToken = matches[matches.length - 1][0];
+        if (categoryOnlyPattern.test(lastToken)) {
+          const nextLine = sections.StuffBeforeTheBio.text[i + 1]?.trim();
+          if (nextLine && htmlCommentPattern.test(nextLine)) {
+            splitItems.push(nextLine);
+            sections.StuffBeforeTheBio.text.splice(i + 1, 1);
+          }
+        }
+
+        sections.StuffBeforeTheBio.text[i] = splitItems[0];
+        if (splitItems.length > 1) {
+          sections.StuffBeforeTheBio.text.splice(i + 1, 0, ...splitItems.slice(1));
         }
       }
       const gedcomMatch = sections.StuffBeforeTheBio.text[i].match(/\.ged\s/);
@@ -7411,25 +7507,33 @@ async function sortStuffBeforeBio() {
   };
   if (window.sectionsObject["StuffBeforeTheBio"]) {
     const stuff = window.sectionsObject["StuffBeforeTheBio"].text;
-    stuff.forEach(function (item) {
+    stuff.forEach(function (item, index) {
       const itemName = item.match(/\{\{([^|}]+)/);
       const extractedName = itemName?.[1]?.trim();
+      const previousItem = index > 0 ? stuff[index - 1] : "";
       if (item.startsWith("[[Category:")) {
         tempStuffObject.categories.push(item);
-      } else if (item.startsWith("{{Easily Confused")) {
+      } else if (/^<!--.*-->$/.test(item) && previousItem.startsWith("[[Category:")) {
+        // Preserve category-adjacent comments in output while keeping categories plain for matching.
+        tempStuffObject.categories.push(item);
+      } else if (item.toLowerCase().startsWith("{{easily confused")) {
         tempStuffObject.easilyConfused.push(item);
       } else if (
         templatesObject.templates.find(
-          (template) => template.name === extractedName && template.group === "Research note box"
+          (template) => template.name === extractedName && template.group?.toLowerCase() === "research note box"
         )
       ) {
         tempStuffObject.researchNoteBoxes.push(item);
       } else if (
-        templatesObject.templates.find((template) => template.name === extractedName && template.type === "Project Box")
+        templatesObject.templates.find(
+          (template) => template.name === extractedName && template.type?.toLowerCase() === "project box"
+        )
       ) {
         tempStuffObject.projectBoxes.push(item);
       } else if (
-        templatesObject.templates.find((template) => template.name === extractedName && template.group === "Succession")
+        templatesObject.templates.find(
+          (template) => template.name === extractedName && template.group?.toLowerCase() === "succession"
+        )
       ) {
         tempStuffObject.succession.push(item);
       }
@@ -7452,7 +7556,20 @@ export async function getStuffBeforeTheBioText() {
   const sortedStuff = await sortStuffBeforeBio();
   const filteredStuff = sortedStuff.filter((item) => item !== "");
   if (filteredStuff.length > 0) {
-    stuffBeforeTheBioText += filteredStuff.join("\n") + "\n";
+    const outputLines = [];
+    for (let i = 0; i < filteredStuff.length; i++) {
+      const item = filteredStuff[i];
+      const nextItem = filteredStuff[i + 1];
+
+      // Keep category-adjacent HTML comments on the same line in final output.
+      if (item.startsWith("[[Category:") && nextItem && /^<!--.*-->$/.test(nextItem)) {
+        outputLines.push(`${item}${nextItem}`);
+        i++;
+      } else {
+        outputLines.push(item);
+      }
+    }
+    stuffBeforeTheBioText += outputLines.join("\n") + "\n";
   }
   if (window.textBeforeTheBio) {
     stuffBeforeTheBioText += window.textBeforeTheBio + "\n";
@@ -8498,19 +8615,61 @@ export async function generateBio() {
     if (allStuffBeforeTheBio) {
       textBeforeTheBio = allStuffBeforeTheBio[1].trim();
     }
-    const stuffBeforeTheBioArray = textBeforeTheBio.split("\n");
-    let stuffBeforeTheBioArray2 = [];
-    stuffBeforeTheBioArray.forEach(function (aBit) {
-      if (aBit.match(/^\[\[.*\]\]$/) == null && aBit.match(/^\{\{.*\}\}$/) == null && aBit) {
-        stuffBeforeTheBioArray2.push(aBit);
-      }
-    });
 
-    textBeforeTheBio = stuffBeforeTheBioArray2.join("\n");
+    // Remove all templates (both single-line and multi-line) and categories from textBeforeTheBio
+    // since they're already being handled by StuffBeforeTheBio.text
+    let lines = textBeforeTheBio.split("\n");
+    let filteredLines = [];
+    let inTemplate = false;
+    let previousLineWasCategory = false;
+
+    for (let line of lines) {
+      const trimmedLine = line.trim();
+
+      if (trimmedLine.startsWith("{{")) {
+        inTemplate = true;
+      }
+
+      const isCategoryLine = /^\[\[Category:[^\]]+\]\](\s*<!--.*-->)?$/i.test(trimmedLine);
+      const isCommentLine = /^<!--.*-->$/.test(trimmedLine);
+      const isCommentForPreviousCategory = previousLineWasCategory && isCommentLine;
+
+      // Skip lines that are part of a template or are categories
+      if (!inTemplate && !isCategoryLine && !isCommentForPreviousCategory) {
+        filteredLines.push(line);
+      }
+
+      if (trimmedLine.endsWith("}}")) {
+        inTemplate = false;
+      }
+
+      previousLineWasCategory = isCategoryLine;
+    }
+
+    // Filter out empty lines and rejoin
+    textBeforeTheBio = filteredLines.filter((line) => line.trim() !== "").join("\n");
     window.textBeforeTheBio = textBeforeTheBio;
 
     // Split the current bio into sections
     window.sectionsObject = splitBioIntoSections();
+
+    // Normalize all multi-line templates to single-line
+    for (let sectionName in window.sectionsObject) {
+      if (window.sectionsObject[sectionName].text && Array.isArray(window.sectionsObject[sectionName].text)) {
+        window.sectionsObject[sectionName].text = normalizeTemplatesInSectionArray(
+          window.sectionsObject[sectionName].text
+        );
+      }
+      if (window.sectionsObject[sectionName].subsections) {
+        for (let subsectionName in window.sectionsObject[sectionName].subsections) {
+          if (window.sectionsObject[sectionName].subsections[subsectionName].text) {
+            window.sectionsObject[sectionName].subsections[subsectionName].text = normalizeTemplatesInSectionArray(
+              window.sectionsObject[sectionName].subsections[subsectionName].text
+            );
+          }
+        }
+      }
+    }
 
     window.usedPlaces = [];
     let profileID = profilePerson.Name;
@@ -9483,6 +9642,57 @@ function generateCombinations(location) {
   return array;
 }
 
+// Generate fallback place strings by dropping interior jurisdictions.
+// Example: "Drachten, Smallingerland, Friesland, Nederland" ->
+// "Drachten, Friesland, Nederland" and "Drachten, Friesland"
+function generateJurisdictionFallbacks(location) {
+  if (!location || typeof location !== "string") {
+    return [];
+  }
+
+  const parts = location
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const fallbacks = new Set();
+
+  function addWithOptionalNoCountry(variant) {
+    if (!variant) {
+      return;
+    }
+    fallbacks.add(variant);
+
+    // Also try a no-country form because many categories omit the country.
+    const variantParts = variant
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (variantParts.length >= 3) {
+      fallbacks.add(variantParts.slice(0, -1).join(", "));
+    }
+  }
+
+  // Remove one interior segment at a time, preserving first and last.
+  // This must run for 3+ parts because countries are often removed earlier,
+  // leaving strings like "Town, District, County".
+  if (parts.length >= 3) {
+    for (let i = 1; i < parts.length - 1; i++) {
+      const variant = parts.filter((_, index) => index !== i).join(", ");
+      addWithOptionalNoCountry(variant);
+    }
+  }
+
+  // Common fallback: first place + penultimate + country.
+  // Useful when a municipality is present in the profile but absent in category names.
+  if (parts.length >= 3) {
+    const compactVariant = [parts[0], parts[parts.length - 2], parts[parts.length - 1]].join(", ");
+    addWithOptionalNoCountry(compactVariant);
+  }
+
+  return Array.from(fallbacks);
+}
+
 // Function to check and replace the county name before 'Ireland'
 function addCountyForIreland(locations) {
   return locations.map((location) => {
@@ -9645,7 +9855,11 @@ export async function getLocationCategory(type, location = null) {
     }
   }
 
-  let searchLocationsSet = generateCombinations(searchLocation);
+  let searchLocationsSet = new Set(generateCombinations(searchLocation));
+  const jurisdictionFallbacks = generateJurisdictionFallbacks(searchLocation);
+  jurisdictionFallbacks.forEach((fallbackLocation) => {
+    generateCombinations(fallbackLocation).forEach((combination) => searchLocationsSet.add(combination));
+  });
   const searchLocationsArray = addCountyForIreland(Array.from(searchLocationsSet));
   if (cemeteryVariants.length > 0) {
     searchLocationsArray.push(...cemeteryVariants);
@@ -9704,23 +9918,48 @@ export async function getLocationCategory(type, location = null) {
             if (!aCat.topLevel) {
               let category = aCat.category;
               if (type !== "Cemetery" || sameState(window.profilePerson.DeathLocation, aCat.location)) {
-                const [part0, part1, part2] = locationSplit;
-                const suffixes = [thisState, part2];
-                const combinations = [`${part0}, ${part1}`, `${part1}, ${part2}`, `${part0}, ${part2}`].flatMap(
-                  (pattern) => [
-                    pattern,
-                    `${pattern} County`,
-                    ...suffixes.map((suffix) => `${pattern}, ${suffix}`),
-                    ...suffixes.map((suffix) => `${pattern} County, ${suffix}`),
-                  ]
-                );
+                const parts = locationSplit.map((part) => part.trim()).filter(Boolean);
+                const part0 = parts[0];
+                const part1 = parts[1];
+                const penultimate = parts[parts.length - 2];
+                const last = parts[parts.length - 1];
 
-                // Also add "part0 County, part1" pattern for cases like "Houston, Georgia" -> "Houston County, Georgia"
-                if (part0 && part1) {
-                  combinations.push(`${part0} County, ${part1}`);
+                const basePatterns = new Set();
+
+                // Adjacent pairs (e.g. Town, District and District, County)
+                for (let i = 0; i < parts.length - 1; i++) {
+                  basePatterns.add(`${parts[i]}, ${parts[i + 1]}`);
                 }
 
-                if (combinations.includes(category)) {
+                // Common direct fallbacks used by categories.
+                if (part0 && penultimate) {
+                  basePatterns.add(`${part0}, ${penultimate}`);
+                }
+                if (part0 && last) {
+                  basePatterns.add(`${part0}, ${last}`);
+                }
+                if (penultimate && last) {
+                  basePatterns.add(`${penultimate}, ${last}`);
+                }
+
+                const suffixes = Array.from(new Set([thisState, penultimate, last].filter(Boolean)));
+                const combinations = new Set();
+
+                basePatterns.forEach((pattern) => {
+                  combinations.add(pattern);
+                  combinations.add(`${pattern} County`);
+                  suffixes.forEach((suffix) => {
+                    combinations.add(`${pattern}, ${suffix}`);
+                    combinations.add(`${pattern} County, ${suffix}`);
+                  });
+                });
+
+                // Cases like "Houston, Georgia" -> "Houston County, Georgia"
+                if (part0 && part1) {
+                  combinations.add(`${part0} County, ${part1}`);
+                }
+
+                if (combinations.has(category)) {
                   foundCategory = category;
                 }
               }
