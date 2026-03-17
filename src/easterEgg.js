@@ -122,7 +122,7 @@ async function getEggConfig() {
   }
 
   try {
-    const response = await fetch(CONFIG_URL);
+    const response = await fetch(CONFIG_URL, { cache: "no-cache" });
     if (!response.ok) {
       eggLog("Config fetch failed", { status: response.status, statusText: response.statusText });
       return null;
@@ -143,6 +143,18 @@ function getNormalizedList(values) {
   return values.map((value) => String(value || "").trim()).filter(Boolean);
 }
 
+function getWtIdFromWikiHref(href) {
+  if (!href) return "";
+
+  try {
+    const url = new URL(href, window.location.origin);
+    const match = url.pathname.match(/^\/wiki\/([^/?#]+)/);
+    return match ? decodeURIComponent(match[1]).trim() : "";
+  } catch {
+    return "";
+  }
+}
+
 function getProfileManagers() {
   const dataAside = document.querySelector("aside#Profile-Data");
   if (!dataAside) return [];
@@ -155,9 +167,16 @@ function getProfileManagers() {
   const row = managerLabel.closest("p");
   if (!row) return [];
 
-  return Array.from(row.querySelectorAll('a[href^="/wiki/"]'))
-    .map((link) => (link.textContent || "").trim())
-    .filter(Boolean);
+  const matches = new Set();
+
+  Array.from(row.querySelectorAll('a[href*="/wiki/"]')).forEach((link) => {
+    const name = String(link.textContent || "").trim();
+    const wtId = getWtIdFromWikiHref(link.getAttribute("href") || "");
+    if (name) matches.add(name);
+    if (wtId) matches.add(wtId);
+  });
+
+  return Array.from(matches);
 }
 
 function getProfileCategories() {
