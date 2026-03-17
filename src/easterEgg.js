@@ -3,6 +3,8 @@ import { isProfilePage } from "./core/pageType";
 const CONFIG_URL = "https://wikitreebee.com/easter-egg/config.json";
 const CODE_URL = "https://wikitreebee.com/easter-egg/serve.php";
 const CACHE_KEY = "easterEggConfig";
+const VISITED_PAGES_KEY = "easterEggVisitedPages";
+const VISIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 const EGG_ID = "wt-easter-egg";
 const MODAL_ID = "wt-egg-modal";
 const STYLES_ID = "wt-easter-egg-styles";
@@ -27,6 +29,88 @@ function safeJsonParse(value) {
     return JSON.parse(value);
   } catch {
     return null;
+  }
+}
+
+function getPageVisitKey() {
+  const path = String(window.location.pathname || "/").replace(/\/+$/, "") || "/";
+  return `${window.location.origin}${path}`;
+}
+
+function pruneVisitedPages(pages, nowMs) {
+  const cutoff = nowMs - VISIT_WINDOW_MS;
+  const pruned = {};
+
+  Object.entries(pages).forEach(([page, visitedAt]) => {
+    const timestamp = Number(visitedAt);
+    if (!Number.isFinite(timestamp)) return;
+    if (timestamp < cutoff) return;
+    pruned[page] = timestamp;
+  });
+
+  return pruned;
+}
+
+function getVisitedPages() {
+  const parsed = safeJsonParse(localStorage.getItem(VISITED_PAGES_KEY));
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return {};
+  }
+  return parsed;
+}
+
+function saveVisitedPages(pages) {
+  localStorage.setItem(VISITED_PAGES_KEY, JSON.stringify(pages));
+}
+
+function debugLogVisitedPagesState(pages, nowMs) {
+  if (!isDebugEnabled()) return;
+
+  const entries = Object.entries(pages)
+    .map(([page, visitedAt]) => {
+      const timestamp = Number(visitedAt);
+      const remainingMs = Math.max(0, timestamp + VISIT_WINDOW_MS - nowMs);
+      const remainingMinutes = Math.floor(remainingMs / (60 * 1000));
+      return {
+        page,
+        visitedAtIso: new Date(timestamp).toISOString(),
+        remainingMinutes,
+      };
+    })
+    .sort((a, b) => a.page.localeCompare(b.page));
+
+  eggLog("Visited-page gate state", {
+    key: VISITED_PAGES_KEY,
+    activeEntryCount: entries.length,
+    entries,
+  });
+}
+
+function shouldSkipRollForVisitedPage() {
+  const nowMs = Date.now();
+  const pageKey = getPageVisitKey();
+
+  try {
+    const pages = getVisitedPages();
+    const prunedPages = pruneVisitedPages(pages, nowMs);
+    const alreadyVisited = Number.isFinite(Number(prunedPages[pageKey]));
+
+    if (!alreadyVisited) {
+      prunedPages[pageKey] = nowMs;
+      eggLog("Tracked first relevant visit for page", { pageKey, visitedAt: new Date(nowMs).toISOString() });
+    } else {
+      eggLog("Skip roll: relevant page already visited in last 24 hours", {
+        pageKey,
+        visitedAt: new Date(Number(prunedPages[pageKey])).toISOString(),
+      });
+    }
+
+    saveVisitedPages(prunedPages);
+    debugLogVisitedPagesState(prunedPages, nowMs);
+    return alreadyVisited;
+  } catch {
+    eggLog("Visited-page tracking unavailable; proceeding without visit gate");
+    return false;
   }
 }
 
@@ -485,6 +569,10 @@ async function initEasterEgg() {
   const match = pageMatchesConfig(config);
   if (!match.matches) {
     eggLog("Exit: page did not match manager/category rules", match);
+    return;
+  }
+  if (shouldSkipRollForVisitedPage()) {
+    eggLog("Exit: page already used for egg roll in last 24 hours");
     return;
   }
   if (!rollForEgg(config.percentage)) {
