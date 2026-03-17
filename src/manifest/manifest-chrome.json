@@ -1,12 +1,13 @@
 {
   "name": "WikiTree Browser Extension (Preview)",
   "description": "The official WikiTree browser extension.",
-  "version": "2.12.3.0",
+  "version": "2.12.3.1",
   "manifest_version": 3,
   "options_page": "options.html",
   "permissions": ["storage", "clipboardRead", "clipboardWrite", "contextMenus", "activeTab"],
   "host_permissions": [
     "https://*.wikitree.com/*",
+    "https://wikitreebee.com/*",
     "*://*.findagrave.com/*",
     "https://api.openai.com/*",
     "https://generativelanguage.googleapis.com/*",

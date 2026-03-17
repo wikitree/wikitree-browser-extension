@@ -7154,18 +7154,43 @@ export function splitBioIntoSections() {
   // Split the things before the bio up into separate items
   if (sections.StuffBeforeTheBio.text?.length > 0) {
     const pattern = /(\{\{.*?\}\}|\[\[.*?\]\])/g;
+    const categoryOnlyPattern = /^\[\[Category:[^\]]+\]\]$/i;
+    const htmlCommentPattern = /^<!--.*-->$/;
 
     for (let i = 0; i < sections.StuffBeforeTheBio.text.length; i++) {
-      const matches = sections.StuffBeforeTheBio.text[i].match(pattern);
+      const line = sections.StuffBeforeTheBio.text[i];
+      const matches = Array.from(line.matchAll(pattern));
 
-      if (matches) {
-        // Add the first match to the current array element
-        sections.StuffBeforeTheBio.text[i] = matches[0];
+      if (matches.length > 0) {
+        const splitItems = [];
 
-        // If there are additional matches, add them to the array after the current element
-        if (matches?.length > 1) {
-          const additionalMatches = matches.slice(1);
-          sections.StuffBeforeTheBio.text.splice(i + 1, 0, ...additionalMatches);
+        for (let j = 0; j < matches.length; j++) {
+          const token = matches[j][0];
+          splitItems.push(token);
+
+          const tokenEnd = matches[j].index + token.length;
+          const nextTokenStart = j < matches.length - 1 ? matches[j + 1].index : line.length;
+          const trailingText = line.slice(tokenEnd, nextTokenStart).trim();
+
+          // Keep inline HTML comments near categories as their own adjacent item.
+          if (categoryOnlyPattern.test(token) && trailingText && htmlCommentPattern.test(trailingText)) {
+            splitItems.push(trailingText);
+          }
+        }
+
+        // Keep a standalone next-line HTML comment near its category.
+        const lastToken = matches[matches.length - 1][0];
+        if (categoryOnlyPattern.test(lastToken)) {
+          const nextLine = sections.StuffBeforeTheBio.text[i + 1]?.trim();
+          if (nextLine && htmlCommentPattern.test(nextLine)) {
+            splitItems.push(nextLine);
+            sections.StuffBeforeTheBio.text.splice(i + 1, 1);
+          }
+        }
+
+        sections.StuffBeforeTheBio.text[i] = splitItems[0];
+        if (splitItems.length > 1) {
+          sections.StuffBeforeTheBio.text.splice(i + 1, 0, ...splitItems.slice(1));
         }
       }
       const gedcomMatch = sections.StuffBeforeTheBio.text[i].match(/\.ged\s/);
@@ -7482,10 +7507,14 @@ async function sortStuffBeforeBio() {
   };
   if (window.sectionsObject["StuffBeforeTheBio"]) {
     const stuff = window.sectionsObject["StuffBeforeTheBio"].text;
-    stuff.forEach(function (item) {
+    stuff.forEach(function (item, index) {
       const itemName = item.match(/\{\{([^|}]+)/);
       const extractedName = itemName?.[1]?.trim();
+      const previousItem = index > 0 ? stuff[index - 1] : "";
       if (item.startsWith("[[Category:")) {
+        tempStuffObject.categories.push(item);
+      } else if (/^<!--.*-->$/.test(item) && previousItem.startsWith("[[Category:")) {
+        // Preserve category-adjacent comments in output while keeping categories plain for matching.
         tempStuffObject.categories.push(item);
       } else if (item.toLowerCase().startsWith("{{easily confused")) {
         tempStuffObject.easilyConfused.push(item);
@@ -7527,7 +7556,20 @@ export async function getStuffBeforeTheBioText() {
   const sortedStuff = await sortStuffBeforeBio();
   const filteredStuff = sortedStuff.filter((item) => item !== "");
   if (filteredStuff.length > 0) {
-    stuffBeforeTheBioText += filteredStuff.join("\n") + "\n";
+    const outputLines = [];
+    for (let i = 0; i < filteredStuff.length; i++) {
+      const item = filteredStuff[i];
+      const nextItem = filteredStuff[i + 1];
+
+      // Keep category-adjacent HTML comments on the same line in final output.
+      if (item.startsWith("[[Category:") && nextItem && /^<!--.*-->$/.test(nextItem)) {
+        outputLines.push(`${item}${nextItem}`);
+        i++;
+      } else {
+        outputLines.push(item);
+      }
+    }
+    stuffBeforeTheBioText += outputLines.join("\n") + "\n";
   }
   if (window.textBeforeTheBio) {
     stuffBeforeTheBioText += window.textBeforeTheBio + "\n";
@@ -8579,20 +8621,29 @@ export async function generateBio() {
     let lines = textBeforeTheBio.split("\n");
     let filteredLines = [];
     let inTemplate = false;
+    let previousLineWasCategory = false;
 
     for (let line of lines) {
-      if (line.startsWith("{{")) {
+      const trimmedLine = line.trim();
+
+      if (trimmedLine.startsWith("{{")) {
         inTemplate = true;
       }
 
+      const isCategoryLine = /^\[\[Category:[^\]]+\]\](\s*<!--.*-->)?$/i.test(trimmedLine);
+      const isCommentLine = /^<!--.*-->$/.test(trimmedLine);
+      const isCommentForPreviousCategory = previousLineWasCategory && isCommentLine;
+
       // Skip lines that are part of a template or are categories
-      if (!inTemplate && !line.match(/^\[\[.*\]\]$/)) {
+      if (!inTemplate && !isCategoryLine && !isCommentForPreviousCategory) {
         filteredLines.push(line);
       }
 
-      if (line.endsWith("}}")) {
+      if (trimmedLine.endsWith("}}")) {
         inTemplate = false;
       }
+
+      previousLineWasCategory = isCategoryLine;
     }
 
     // Filter out empty lines and rejoin
