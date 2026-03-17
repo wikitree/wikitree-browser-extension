@@ -191,6 +191,7 @@ import "./features/family_status_sync/family_status_sync";
 import "./features/help/help";
 import "./features/pending_merges_filters/pending_merges_filters";
 import "./features/enumerate_image_detail/enumerate_image_detail.js";
+import "./easterEgg";
 /*
  * debugging features for development only
  *
