@@ -6,7 +6,8 @@ import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { addDataMenuAttributes } from "../my_menu/my_menu";
-import { isMainDomain, isPlusDomain } from "../../core/pageType";
+import { isMainDomain, isPlusDomain, mainDomain } from "../../core/pageType";
+import { dataTables, dataTablesLoad } from "../../core/API/wtPlusData";
 import { profilePerson, getUserWtId } from "../../core/common";
 
 import {
@@ -666,6 +667,11 @@ function ensureModal() {
       </div>
     </div>
   `;
+  // Datalist elements for autocomplete (appended to body so they are globally available)
+  $(`
+    <datalist id="wbe-wtplus-datalist-templates"></datalist>
+    <datalist id="wbe-wtplus-datalist-categories"></datalist>
+  `).appendTo("body");
 
   $("body").append(html);
 
@@ -1092,6 +1098,20 @@ function ensureModal() {
     updateOutput();
   });
 
+  // Load template names for TemplateText autocomplete
+  dataTablesLoad("wtPlusHelper").then(() => {
+    populateTemplateDatalist();
+  });
+
+  // Live category search for CategoryFull and CategoryWord
+  $(document).on(
+    "input",
+    '#wbe-wtplus-orqb-rows [data-field="CategoryFull"], #wbe-wtplus-orqb-rows [data-field="CategoryWord"]',
+    function () {
+      queueCategorySearch($(this).val());
+    }
+  );
+
   // SQL Wizard add/remove handlers (delegated)
   $(document).on("click", ".wbe-wtplus-orqb-add-sql", function () {
     const $row = $(this).closest(".wbe-wtplus-orqb-row");
@@ -1321,6 +1341,36 @@ function categorySelectsHtml(rowFields, rowMultiFields) {
   return html;
 }
 
+// --- Autocomplete helpers ---
+
+let _categorySearchTimer = null;
+
+function queueCategorySearch(term) {
+  clearTimeout(_categorySearchTimer);
+  if (!term || term.length < 2) return;
+  _categorySearchTimer = setTimeout(() => {
+    fetch(
+      `https://${mainDomain}/index.php?action=ajax&rs=Title::ajaxCategorySearch&rsargs[]=${encodeURIComponent(
+        term
+      )}&rsargs[]=1`
+    )
+      .then((r) => r.json())
+      .then((cats) => {
+        if (!Array.isArray(cats)) return;
+        const dl = document.getElementById("wbe-wtplus-datalist-categories");
+        if (!dl) return;
+        dl.innerHTML = cats.map((c) => `<option value="${esc(c)}">`).join("");
+      })
+      .catch(() => {});
+  }, 300);
+}
+
+function populateTemplateDatalist() {
+  const dl = document.getElementById("wbe-wtplus-datalist-templates");
+  if (!dl || !dataTables?.templates?.length) return;
+  dl.innerHTML = dataTables.templates.map((t) => `<option value="${esc(t.name)}">`).join("");
+}
+
 function valueInputHtml(def, value) {
   const v = value ?? "";
 
@@ -1371,9 +1421,16 @@ function valueInputHtml(def, value) {
   const title = placeholder ? ` title="${esc(placeholder)}"` : "";
   const dataHint = placeholder ? ` data-hint="${esc(placeholder)}"` : "";
   const inputId = `wbe-wtplus-input-${def.id}-${Math.random().toString(36).substr(2, 9)}`;
-  return `<input id="${inputId}" class="wbe-wtplus-orqb-value" type="text" value="${esc(v)}" placeholder="${esc(
+  const listId =
+    def.id === "TemplateText"
+      ? "wbe-wtplus-datalist-templates"
+      : def.id === "CategoryFull" || def.id === "CategoryWord"
+      ? "wbe-wtplus-datalist-categories"
+      : "";
+  const listAttr = listId ? ` list="${listId}"` : "";
+  return `<input id="${inputId}" data-field="${esc(def.id)}" class="wbe-wtplus-orqb-value" type="text" value="${esc(v)}" placeholder="${esc(
     shortPlaceholder
-  )}"${title}${dataHint}>`;
+  )}"${title}${dataHint}${listAttr}>`;
 }
 
 function renderRows() {
