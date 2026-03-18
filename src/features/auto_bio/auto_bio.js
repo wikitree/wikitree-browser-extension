@@ -6962,6 +6962,55 @@ function normalizeTemplatesInSectionArray(textArray) {
   return normalized;
 }
 
+function extractCategoryName(categoryText) {
+  if (!categoryText) {
+    return null;
+  }
+
+  const match = categoryText.match(/^\[\[Category:\s*([^\]]+?)\s*\]\]/i);
+  return match ? match[1].trim() : null;
+}
+
+function hasEquivalentCategory(categoryText, categoryItems = []) {
+  const categoryName = extractCategoryName(categoryText);
+  if (!categoryName) {
+    return false;
+  }
+
+  return categoryItems.some((item) => extractCategoryName(item) === categoryName);
+}
+
+function textContainsEquivalentCategory(text, categoryText) {
+  const categoryName = extractCategoryName(categoryText);
+  if (!categoryName || !text) {
+    return false;
+  }
+
+  return text.split("\n").some((line) => extractCategoryName(line.trim()) === categoryName);
+}
+
+function addUniqueCategoryToStuffBeforeTheBio(categoryText) {
+  if (!categoryText) {
+    return false;
+  }
+
+  const stuffBeforeTheBio = window.sectionsObject?.StuffBeforeTheBio?.text;
+  if (!Array.isArray(stuffBeforeTheBio)) {
+    return false;
+  }
+
+  if (hasEquivalentCategory(categoryText, stuffBeforeTheBio)) {
+    return false;
+  }
+
+  if (textContainsEquivalentCategory(window.textBeforeTheBio, categoryText)) {
+    return false;
+  }
+
+  stuffBeforeTheBio.push(categoryText);
+  return true;
+}
+
 export function splitBioIntoSections() {
   const wikiText = $("#wpTextbox1").val();
   let lines = [];
@@ -7474,25 +7523,7 @@ export async function getCitations() {
 export function addLocationCategoryToStuffBeforeTheBio(location) {
   if (location) {
     const theCategory = "[[Category: " + location + "]]";
-    const theCategoryWithoutSpace = "[[Category:" + location + "]]";
-    // const excludedCategories = ["Acadie"];
-
-    let notInTextBeforeTheBio = true;
-    if (window.textBeforeTheBio) {
-      if (window.textBeforeTheBio.includes(theCategory)) {
-        notInTextBeforeTheBio = false;
-      } else if (window.textBeforeTheBio.includes(theCategoryWithoutSpace)) {
-        notInTextBeforeTheBio = false;
-      }
-    }
-
-    if (
-      !window.sectionsObject["StuffBeforeTheBio"].text?.includes(theCategory) &&
-      !window.sectionsObject["StuffBeforeTheBio"].text?.includes(theCategoryWithoutSpace) &&
-      notInTextBeforeTheBio
-    ) {
-      window.sectionsObject["StuffBeforeTheBio"].text.push(theCategory);
-    }
+    addUniqueCategoryToStuffBeforeTheBio(theCategory);
   }
 }
 
@@ -7885,9 +7916,7 @@ export function addUnsourced(feature = "autoBio") {
         if (addCategory) {
           USstates.forEach(function (aState) {
             unsourcedCategory = `[[Category: ${unsourcedCategories[aState]}]]`;
-            if (!window.sectionsObject["StuffBeforeTheBio"].text?.includes(unsourcedCategory)) {
-              window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
-            }
+            addUniqueCategoryToStuffBeforeTheBio(unsourcedCategory);
           });
         } else {
           const statesString = USstates.join("|");
@@ -7912,9 +7941,7 @@ export function addUnsourced(feature = "autoBio") {
             ) {
               if (addCategory) {
                 unsourcedCategory = `[[Category: ${unsourcedCategories[aPlace]}]]`;
-                if (!window.sectionsObject["StuffBeforeTheBio"].text?.includes(unsourcedCategory)) {
-                  window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
-                }
+                addUniqueCategoryToStuffBeforeTheBio(unsourcedCategory);
               } else if (found == false) {
                 if (!unsourcedTemplateString.includes(aPlace)) {
                   unsourcedTemplateString += `|${aPlace}`;
@@ -7939,9 +7966,7 @@ export function addUnsourced(feature = "autoBio") {
       surnames.forEach(function (aSurname) {
         if (unsourcedCategories[aSurname + " Name Study"]) {
           unsourcedCategory = `[[Category: ${unsourcedCategories[aSurname + " Name Study"]}]]`;
-          if (!window.sectionsObject["StuffBeforeTheBio"].text?.includes(unsourcedCategory)) {
-            window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
-          }
+          addUniqueCategoryToStuffBeforeTheBio(unsourcedCategory);
         }
       });
       if (!unsourcedCategory && !unsourcedTemplate) {
@@ -8009,7 +8034,7 @@ export function addOccupationCategories(feature = "autoBio") {
         }
       }
       if (occupationCategory && !window.sectionsObject["StuffBeforeTheBio"].text.includes(occupationCategory)) {
-        window.sectionsObject["StuffBeforeTheBio"].text.push(occupationCategory);
+        addUniqueCategoryToStuffBeforeTheBio(occupationCategory);
       }
     }
   });
@@ -9256,8 +9281,8 @@ export async function generateBio() {
               }
             }
           });
-          if (needsCategory && !window.sectionsObject["StuffBeforeTheBio"].text?.includes(needsCategory)) {
-            window.sectionsObject["StuffBeforeTheBio"].text.push(needsCategory + "\n");
+          if (needsCategory) {
+            addUniqueCategoryToStuffBeforeTheBio(needsCategory);
           }
         }
       }
@@ -9762,9 +9787,7 @@ async function appalachiaCategory(location, thisState) {
   }
 
   const tag = `[[Category: ${thisState} Appalachians]]`;
-  if (!stuff.includes(tag)) {
-    stuff.push(tag);
-  }
+  addUniqueCategoryToStuffBeforeTheBio(tag);
 }
 
 export async function getLocationCategory(type, location = null) {
