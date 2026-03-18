@@ -59,9 +59,11 @@ function buildSuggestionsOptions() {
     group.suggestion_ids?.forEach((dbeId) => {
       const suggestion = suggestionsData.suggestions?.[dbeId];
       if (!suggestion) return;
+      const numPart = dbeId.replace(/^DBE_/i, "");
+      const name = suggestion.title || suggestion.name || dbeId;
       optgroup.options.push({
         value: dbeId,
-        label: suggestion.name || dbeId,
+        label: `${numPart} ${name}`,
         description: suggestion.description || "",
       });
     });
@@ -207,7 +209,9 @@ function buildSuggestionsQuery(state) {
   });
 
   const query = groups.filter((g) => g).join(" OR ");
-  const suggestionId = String(state.suggestions.errorId || "").trim();
+  const rawId = String(state.suggestions.errorId || "").trim();
+  const numMatch = rawId.match(/(\d+)$/);
+  const suggestionId = rawId ? (numMatch ? numMatch[1] : rawId) : "";
   return { query, warnings: [], onlySql: false, suggestionId, infoMessage: "" };
 }
 
