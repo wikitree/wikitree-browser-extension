@@ -1075,6 +1075,8 @@ export function createProfileSearchHandler({
     }
 
     const terms = [];
+    let stripped = text;
+    let hasSuggestionsField = false;
     for (const match of matches) {
       const fieldName = String(match[1] || "").trim();
       const rawValue = String(match[2] || "").trim();
@@ -1085,10 +1087,28 @@ export function createProfileSearchHandler({
       if (!quotedValue) {
         return null;
       }
+      if (fieldName === "Suggestions") {
+        hasSuggestionsField = true;
+      }
       terms.push(`${fieldName}=${quotedValue}`);
+      stripped = stripped.replace(match[0], " ");
     }
 
     const yearTokens = text.match(/\b(?:B\d{4}|D\d{4}|\d{4}s)\b/g) || [];
+    let remainder = stripped
+      .replace(/\b(?:OR|NOT)\b/gi, " ")
+      .replace(/\b(?:B\d{4}|D\d{4}|\d{4}s)\b/g, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+
+    if (remainder) {
+      if (hasSuggestionsField) {
+        terms.push(remainder);
+      } else {
+        return null;
+      }
+    }
+
     return {
       query: [...terms, ...yearTokens].join(" ").trim(),
       title: `WT+ search: ${text}`,
@@ -1108,11 +1128,18 @@ export function createProfileSearchHandler({
     if (isLikelySuggestionsPrompt(normalizedText)) {
       const suggestionParse = translateSuggestionsFreeTextToQuery(normalizedText);
       if (suggestionParse?.query) {
+        const hasSuggestionContextTerms =
+          !!suggestionParse.suggestionId &&
+          !!String(suggestionParse.query)
+            .replace(/(?:^|\s)Suggestions=\d+\b/i, " ")
+            .replace(/\s{2,}/g, " ")
+            .trim();
+        const suggestionSearchType = hasSuggestionContextTerms ? "text" : "suggestions";
         return {
           query: suggestionParse.query,
           title: `WT+ Suggestions: ${suggestionParse.understood || suggestionParse.query}`,
           description: suggestionParse.understood || suggestionParse.query,
-          searchType: "suggestions",
+          searchType: suggestionSearchType,
           suggestionId: suggestionParse.suggestionId || "",
           suggestionOptions: suggestionParse.options || {},
         };
@@ -1623,13 +1650,17 @@ export function createProfileSearchHandler({
     );
   }
 
+  function extractInlineSuggestionIdFromWtPlusTextQuery(queryText) {
+    return extractSuggestionId(queryText);
+  }
+
   async function runWtPlusProfileQuery(wtPlusQuery, title, interpretation = null, runOptions = {}) {
     const templateCanonicalQuery = await canonicalizeWtPlusTemplateTerms(wtPlusQuery);
     const contextCanonicalQuery = resolveWtPlusContextPlaceholders(templateCanonicalQuery);
     const { query: canonicalQuery, categoryMatches } = await canonicalizeWtPlusCategoryTerms(contextCanonicalQuery);
-    const suggestionId = runOptions?.suggestionId || extractSuggestionId(canonicalQuery);
+    const suggestionId = runOptions?.suggestionId || "";
     const suggestionOptions = runOptions?.suggestionOptions || {};
-    const isSuggestionsSearch = runOptions?.searchType === "suggestions" || !!suggestionId;
+    const isSuggestionsSearch = runOptions?.searchType === "suggestions";
 
     if (isSuggestionsSearch) {
       recordWtPlusParseTelemetry("queryRan");
@@ -1696,6 +1727,27 @@ export function createProfileSearchHandler({
         .filter((match) => match?.category && match.requested && match.category !== match.requested)
         .map((match) => `used closest category "${match.category}" for "${match.requested}"`)
         .join("; ");
+      const inlineSuggestionId = extractInlineSuggestionIdFromWtPlusTextQuery(canonicalQuery);
+      const actions = [
+        {
+          label: "Open in WT+",
+          actionType: "wtplus-open",
+          wtPlusQuery: canonicalQuery,
+          wtPlusSearchType: "text",
+          wtPlusSuggestionId: suggestionId || "",
+          wtPlusSuggestionOptions: suggestionOptions,
+        },
+      ];
+      if (inlineSuggestionId) {
+        actions.push({
+          label: "Open Suggestions Search in WT+",
+          actionType: "wtplus-open",
+          wtPlusQuery: canonicalQuery,
+          wtPlusSearchType: "suggestions",
+          wtPlusSuggestionId: inlineSuggestionId,
+          wtPlusSuggestionOptions: suggestionOptions,
+        });
+      }
       return {
         message: interpretation?.understood
           ? `AI interpreted this as "${interpretation.understood}" and ran WT+ query: ${canonicalQuery}. Found ${
@@ -1704,16 +1756,7 @@ export function createProfileSearchHandler({
           : `Found ${rows.length} profile${rows.length === 1 ? "" : "s"} for WT+ query: ${canonicalQuery}${
               categoryNote ? `. Also ${categoryNote}.` : ""
             }`,
-        actions: [
-          {
-            label: "Open in WT+",
-            actionType: "wtplus-open",
-            wtPlusQuery: canonicalQuery,
-            wtPlusSearchType: suggestionId ? "suggestions" : "text",
-            wtPlusSuggestionId: suggestionId || "",
-            wtPlusSuggestionOptions: suggestionOptions,
-          },
-        ],
+        actions,
         table,
         autoOpen: true,
       };

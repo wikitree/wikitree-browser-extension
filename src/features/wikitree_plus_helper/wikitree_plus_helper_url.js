@@ -127,31 +127,28 @@ export function extractSuggestionId(query) {
   let match = q.match(/(?:^|\s)(?:suggestions?|errorid)=(\d+)/i);
   if (match) return match[1];
 
-  match = q.match(/Suggestions\s*=\s*(\d+)/i);
-  if (match) return match[1];
-
-  match = q.match(/Suggestions\s*=\s*"([^"]+)"/i);
-  if (match) {
-    const firstId = match[1].trim().split(/\s+/)[0];
-    return firstId || "";
-  }
-
   return "";
 }
 
 // Internal helper - creates the URL object
 function createUrl(query, searchType, includeRender, suggestionId = "", suggestionOptions = {}) {
   const u = new URL(WTPLUS_BASE);
-  if (searchType === "suggestions") {
+  const hintedSuggestionId = suggestionId || extractSuggestionId(query);
+  const effectiveSearchType = searchType === "suggestions" ? "suggestions" : searchType;
+
+  if (effectiveSearchType === "suggestions") {
     u.searchParams.set("report", "err6");
     const showHidden = !!suggestionOptions.showHidden;
     const hideActive = !!suggestionOptions.hideActive;
     const maxErrors = suggestionOptions.maxErrors || "1000";
-    const resolvedSuggestionId = suggestionId || extractSuggestionId(query);
+    const resolvedSuggestionId = hintedSuggestionId;
     if (resolvedSuggestionId) {
       u.searchParams.set("ErrorID", resolvedSuggestionId);
       // Remove the suggestions=XXX part from the query string and filter for supported fields
-      let cleanedQuery = query.replace(/(?:suggestions?|errorid)=\d+\s*/gi, "").trim();
+      let cleanedQuery = query
+        .replace(/(?:^|\s)(?:suggestions?|errorid)\s*=\s*\d+\s*/gi, " ")
+        .replace(/\s{2,}/g, " ")
+        .trim();
       cleanedQuery = filterQueryForSuggestions(cleanedQuery);
       if (cleanedQuery) {
         u.searchParams.set("Query", cleanedQuery);
@@ -218,7 +215,10 @@ export function populatePlusForm(query, searchType, $, suggestionOptions = {}) {
 
         if (suggestionId) {
           // Remove the suggestions=XXX part from the query and filter for supported fields
-          let cleanedQuery = q.replace(/(?:suggestions?|errorid)=\d+\s*/gi, "").trim();
+          let cleanedQuery = q
+            .replace(/(?:^|\s)(?:suggestions?|errorid)\s*=\s*\d+\s*/gi, " ")
+            .replace(/\s{2,}/g, " ")
+            .trim();
           cleanedQuery = filterQueryForSuggestions(cleanedQuery);
           if ($query.length) $query.val(cleanedQuery);
           // ErrorID is a select dropdown - select it and trigger change

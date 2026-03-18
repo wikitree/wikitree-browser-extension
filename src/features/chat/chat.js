@@ -1669,6 +1669,33 @@ function closePopup() {
   $(`#${CHAT_POPUP_ID}`).remove();
 }
 
+function bindOutsideClickToCloseChat() {
+  $(document)
+    .off("mousedown.wbeChatOutsideClose")
+    .on("mousedown.wbeChatOutsideClose", (event) => {
+      const popup = document.getElementById(CHAT_POPUP_ID);
+      if (!popup) {
+        return;
+      }
+
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (popup.contains(target)) {
+        return;
+      }
+
+      const chatButton = document.getElementById(CHAT_BUTTON_ID);
+      if (chatButton && chatButton.contains(target)) {
+        return;
+      }
+
+      closePopup();
+    });
+}
+
 function openPopup() {
   let $popup = $(`#${CHAT_POPUP_ID}`);
   if ($popup.length === 0) {
@@ -1781,6 +1808,7 @@ async function syncChatVisibilityToKeys() {
 
 function init() {
   syncChatVisibilityToKeys();
+  bindOutsideClickToCloseChat();
 
   // Restore persisted chat state (history, last structured/table, last bio)
   try {

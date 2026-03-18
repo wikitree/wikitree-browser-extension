@@ -363,7 +363,7 @@ export function createChatHistoryHandlers({
       }
 
       return {
-        label: "Open in WT+",
+        label: actionEntry.label || "Open in WT+",
         actionType: "wtplus-open",
         wtPlusQuery: actionEntry.wtPlusQuery,
         wtPlusSearchType: actionEntry.wtPlusSearchType || "text",
