@@ -450,7 +450,7 @@ function buildQuery() {
           if (fieldId === "sql") {
             sqls.push(term);
           } else if (fieldId === "Suggestions") {
-            const rawVal = value.replace(/^"|"$/g, "");
+            const rawVal = value.replace(/^"|"$/g, "").replace(/\bDBE_/gi, "");
             if (row.not) {
               suggestionNegatives.push(rawVal);
             } else {
@@ -479,7 +479,7 @@ function buildQuery() {
             const isMagicWord = entry.fieldId.startsWith("MagicWords_");
 
             if (entry.fieldId === "Suggestions") {
-              const rawVal = entry.value.replace(/^"|"$/g, "");
+              const rawVal = entry.value.replace(/^"|"$/g, "").replace(/\bDBE_/gi, "");
               if (row.not) {
                 suggestionNegatives.push(rawVal);
               } else {
@@ -1428,9 +1428,9 @@ function valueInputHtml(def, value) {
       ? "wbe-wtplus-datalist-categories"
       : "";
   const listAttr = listId ? ` list="${listId}"` : "";
-  return `<input id="${inputId}" data-field="${esc(def.id)}" class="wbe-wtplus-orqb-value" type="text" value="${esc(v)}" placeholder="${esc(
-    shortPlaceholder
-  )}"${title}${dataHint}${listAttr}>`;
+  return `<input id="${inputId}" data-field="${esc(def.id)}" class="wbe-wtplus-orqb-value" type="text" value="${esc(
+    v
+  )}" placeholder="${esc(shortPlaceholder)}"${title}${dataHint}${listAttr}>`;
 }
 
 function renderRows() {
