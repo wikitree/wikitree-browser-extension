@@ -289,6 +289,14 @@ export function createChatHistoryHandlers({
     if (action.wtPlusQuery) serialized.wtPlusQuery = action.wtPlusQuery;
     if (action.wtPlusSearchType) serialized.wtPlusSearchType = action.wtPlusSearchType;
     if (action.wtPlusSuggestionId) serialized.wtPlusSuggestionId = action.wtPlusSuggestionId;
+    if (action.wtPlusSuggestionOptions && typeof action.wtPlusSuggestionOptions === "object") {
+      const opts = action.wtPlusSuggestionOptions;
+      serialized.wtPlusSuggestionOptions = {
+        showHidden: !!opts.showHidden,
+        hideActive: !!opts.hideActive,
+        maxErrors: opts.maxErrors ? String(opts.maxErrors) : "",
+      };
+    }
     return serialized;
   }
 
@@ -360,11 +368,13 @@ export function createChatHistoryHandlers({
         wtPlusQuery: actionEntry.wtPlusQuery,
         wtPlusSearchType: actionEntry.wtPlusSearchType || "text",
         wtPlusSuggestionId: actionEntry.wtPlusSuggestionId || "",
+        wtPlusSuggestionOptions: actionEntry.wtPlusSuggestionOptions || {},
         onClick: () =>
           openWtPlusQuery(
             actionEntry.wtPlusQuery,
             actionEntry.wtPlusSearchType || "text",
-            actionEntry.wtPlusSuggestionId || ""
+            actionEntry.wtPlusSuggestionId || "",
+            actionEntry.wtPlusSuggestionOptions || {}
           ),
       };
     }

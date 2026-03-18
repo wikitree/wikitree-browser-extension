@@ -163,8 +163,8 @@ function raiseChatActionPopupsAboveChat() {
   window.setTimeout(raiseOpenPopups, 120);
 }
 
-function openWtPlusQuery(query, searchType = "text", suggestionId = "") {
-  const url = buildPlusUrl(query, searchType, true, suggestionId, {});
+function openWtPlusQuery(query, searchType = "text", suggestionId = "", suggestionOptions = {}) {
+  const url = buildPlusUrl(query, searchType, true, suggestionId, suggestionOptions || {});
   if (isPlusDomain) {
     window.location.href = url;
     return;
@@ -844,7 +844,12 @@ async function handleChatResult(result) {
         return {
           ...action,
           onClick: () =>
-            openWtPlusQuery(action.wtPlusQuery, action.wtPlusSearchType || "text", action.wtPlusSuggestionId || ""),
+            openWtPlusQuery(
+              action.wtPlusQuery,
+              action.wtPlusSearchType || "text",
+              action.wtPlusSuggestionId || "",
+              action.wtPlusSuggestionOptions || {}
+            ),
         };
       }
 

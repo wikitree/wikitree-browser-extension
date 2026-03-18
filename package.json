@@ -10,6 +10,7 @@
     "build-and-run-firefox-windows": "npm run build-firefox-dev && \"C:\\Program Files\\Mozilla Firefox\\firefox.exe\" \"about:debugging#/runtime/this-firefox\"",
     "build-firefox-dev": "webpack --config webpack/webpack.dev.js --env browser=firefox",
     "test": "jest",
+    "test:wtplus": "jest src/features/chat/wt_plus_query_grammar.test.js src/features/chat/wt_plus_sql_edge_corpus.test.js",
     "clean": "rimraf dist",
     "download-templates": "node download-templates.js",
     "update-test-pages": "node src/testing/update_test_pages.js",

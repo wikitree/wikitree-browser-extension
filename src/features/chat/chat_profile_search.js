@@ -3,6 +3,13 @@ import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { dataTables, dataTablesLoad } from "../../core/API/wtPlusData";
 import { getProfilePersonInfo, getUserWtId } from "../../core/common";
 import { extractSuggestionId } from "../wikitree_plus_helper/wikitree_plus_helper_url";
+import {
+  WT_PLUS_ALLOWED_FIELDS,
+  canonicalizeWtPlusRawToken as grammarCanonicalizeWtPlusRawToken,
+  isLikelySuggestionsPrompt,
+  translateSuggestionsFreeTextToQuery,
+  validateAndRepairWtPlusQuery,
+} from "./wt_plus_query_grammar";
 
 export function createProfileSearchHandler({
   WBE_CHAT_APP_ID,
@@ -22,37 +29,26 @@ export function createProfileSearchHandler({
   const WT_PLUS_MAX_PROFILES = 20000;
   const WT_PLUS_GET_PEOPLE_CHUNK = 1000;
   const WT_ANCESTOR_GRAPH_GENERATIONS = 10;
-  const WT_PLUS_FIELD_NAMES = new Set([
-    "ProfileStatus",
-    "WikiTreeID",
-    "LastNameAtBirth",
-    "AllLastNames",
-    "FirstName",
-    "Location",
-    "BirthLocation",
-    "MarriageLocation",
-    "DeathLocation",
-    "birthcountry",
-    "birthregion",
-    "deathcountry",
-    "deathregion",
-    "marriagecountry",
-    "marriageregion",
-    "CategoryFull",
-    "CategoryWord",
-    "TemplateText",
-    "Tree",
-    "Ancestors",
-    "Descendants",
-    "CC7",
-    "Creator_",
-    "changesmonth",
-    "created",
-    "Suggestions",
-    "sql",
-  ]);
+  const WT_PLUS_FIELD_NAMES = new Set(WT_PLUS_ALLOWED_FIELDS);
   const WT_PLUS_STATUS_TOKENS = new Set(["Open", "Unsourced", "Unconnected", "Orphan"]);
   let wtPlusTemplateCatalogPromise = null;
+  const wtPlusParseTelemetry = {
+    parsedLocal: 0,
+    parsedAi: 0,
+    parsedSuggestions: 0,
+    parseRejected: 0,
+    queryRan: 0,
+    queryZeroResults: 0,
+  };
+
+  function recordWtPlusParseTelemetry(eventName) {
+    if (!eventName || !Object.prototype.hasOwnProperty.call(wtPlusParseTelemetry, eventName)) return;
+    wtPlusParseTelemetry[eventName] += 1;
+    const total = wtPlusParseTelemetry.queryRan + wtPlusParseTelemetry.parseRejected + wtPlusParseTelemetry.parsedAi;
+    if (total > 0 && total % 20 === 0) {
+      console.info("wbe: WT+ parse telemetry", { ...wtPlusParseTelemetry });
+    }
+  }
 
   function normalizeWtPlusCategoryText(value) {
     return String(value || "")
@@ -143,6 +139,13 @@ export function createProfileSearchHandler({
     return /\s|,/.test(text) ? `"${text.replace(/"/g, '\\"')}"` : text;
   }
 
+  function escapeWtPlusSqlLiteral(value, withUnderscores = false) {
+    const normalized = stripSurroundingQuotes(value);
+    if (!normalized) return "";
+    const squashed = withUnderscores ? normalized.replace(/\s+/g, "_") : normalized;
+    return squashed.replace(/'/g, "''");
+  }
+
   async function ensureWtPlusTemplateCatalogLoaded() {
     if (!wtPlusTemplateCatalogPromise) {
       wtPlusTemplateCatalogPromise = dataTablesLoad("ChatWTPlus").catch((error) => {
@@ -224,30 +227,22 @@ export function createProfileSearchHandler({
   }
 
   function canonicalizeWtPlusRawToken(token) {
-    const text = stripSurroundingQuotes(token);
-    if (!text) return null;
-
-    if (/^creator_/i.test(text) && text.length > "Creator_".length) {
-      return text;
-    }
-
-    if (/^B\d{4}$/i.test(text) || /^D\d{4}$/i.test(text) || /^\d{4}s$/i.test(text)) {
-      return text;
-    }
-
-    for (const status of WT_PLUS_STATUS_TOKENS) {
-      if (status.toLowerCase() === text.toLowerCase()) {
-        return status;
-      }
-    }
-
-    return null;
+    return grammarCanonicalizeWtPlusRawToken(token);
   }
 
   function normalizeWtPlusFieldTerm(fieldName, value) {
     const field = String(fieldName || "").trim();
     if (!WT_PLUS_FIELD_NAMES.has(field)) {
       return null;
+    }
+
+    if (field.toLowerCase() === "sql") {
+      const inner = String(value || "")
+        .trim()
+        .replace(/^sql\s*=\s*/i, "")
+        .replace(/^"|"$/g, "")
+        .replace(/^'|'$/g, "");
+      return inner ? `sql="${inner.replace(/"/g, "'")}"` : null;
     }
 
     const quotedValue = quoteWtPlusValue(value);
@@ -262,35 +257,13 @@ export function createProfileSearchHandler({
     const text = String(queryText || "").trim();
     if (!text) return null;
 
-    const fieldRegex = /([A-Za-z_]+)=((?:"[^"]*")|(?:'[^']*')|[^\s]+)/g;
-    const fieldTerms = [];
-    let stripped = text;
-    let match;
-
-    while ((match = fieldRegex.exec(text)) !== null) {
-      const normalizedFieldTerm = normalizeWtPlusFieldTerm(match[1], match[2]);
-      if (!normalizedFieldTerm) {
-        return null;
-      }
-      fieldTerms.push(normalizedFieldTerm);
-      stripped = stripped.replace(match[0], " ");
+    const repaired = validateAndRepairWtPlusQuery(text);
+    if (!repaired?.isValid) {
+      recordWtPlusParseTelemetry("parseRejected");
+      return null;
     }
 
-    const rawTokens = stripped
-      .split(/\s+/)
-      .map((token) => token.trim())
-      .filter(Boolean);
-    const normalizedRawTokens = [];
-    for (const token of rawTokens) {
-      const normalizedToken = canonicalizeWtPlusRawToken(token);
-      if (!normalizedToken) {
-        return null;
-      }
-      normalizedRawTokens.push(normalizedToken);
-    }
-
-    const normalized = [...fieldTerms, ...normalizedRawTokens].join(" ").trim();
-    return normalized || null;
+    return repaired.normalizedQuery || null;
   }
 
   function normalizeWtPlusBoundaryDate(rawValue, direction) {
@@ -375,6 +348,79 @@ export function createProfileSearchHandler({
       addTerm(status, `${status.toLowerCase()} profiles`);
     });
 
+    consume(/\b(public\s+tree|private\s+tree|connected|unlinked|private|public)\b/i, (match) => {
+      const map = {
+        "public tree": "PublicTree",
+        "private tree": "PrivateTree",
+        connected: "connected",
+        unlinked: "unlinked",
+        private: "Private",
+        public: "Public",
+      };
+      const key = String(match[1] || "").toLowerCase();
+      const token = map[key];
+      addTerm(token, token);
+    });
+
+    consume(/\b(?:male|female|no\s+gender)\b/i, (match) => {
+      const key = String(match[0] || "").toLowerCase();
+      const token = key.includes("no") ? "NoGender" : key;
+      addTerm(token, token.toLowerCase());
+    });
+
+    consume(
+      /\b(?:project\s+managed|guest|ppp|never\s+edited|approved\s+merge|pending\s+merge|unmerged\s+match|gedcom\s+junk|source\s+junk|wikidata)\b/i,
+      (match) => {
+        const map = {
+          "project managed": "ProjectManaged",
+          guest: "Guest",
+          ppp: "PPP",
+          "never edited": "NeverEdited",
+          "approved merge": "ApprovedMerge",
+          "pending merge": "PendingMerge",
+          "unmerged match": "UnmergedMatch",
+          "gedcom junk": "GEDCOMJunk",
+          "source junk": "SourceJunk",
+          wikidata: "IsInWikiData",
+        };
+        const key = String(match[0] || "").toLowerCase();
+        const token = map[key];
+        addTerm(token, token);
+      }
+    );
+
+    consume(/\b(?:mt\s*dna|y\s*dna|au\s*dna)\b/i, (match) => {
+      const key = String(match[0] || "")
+        .toLowerCase()
+        .replace(/\s+/g, "");
+      const token = key === "mtdna" ? "mtDNA" : key === "ydna" ? "yDNA" : "auDNA";
+      addTerm(token, token);
+    });
+
+    consume(/\b(?:no\s+father|without\s+father)\b/i, () => {
+      addTerm("NoFather", "no father");
+    });
+    consume(/\b(?:no\s+mother|without\s+mother)\b/i, () => {
+      addTerm("NoMother", "no mother");
+    });
+    consume(/\b(?:no\s+parents|without\s+parents)\b/i, () => {
+      addTerm("NoParents", "no parents");
+    });
+    consume(/\b(?:no\s+spouses?|without\s+spouses?)\b/i, () => {
+      addTerm("NoSpouses", "no spouses");
+    });
+    consume(/\b(?:no\s+children|without\s+children)\b/i, () => {
+      addTerm("NoChildren", "no children");
+    });
+
+    consume(/\bpublic\s+(?:and\s+open\s+)?profiles?\b/i, () => {
+      addSqlTerm(buildWtPlusSqlTerm("([Default].[Privacy].AsNumber > 40)"), "public and open profiles");
+    });
+
+    consume(/\bprivate\s+profiles?\b/i, () => {
+      addSqlTerm(buildWtPlusSqlTerm("([Default].[Privacy].AsNumber < 50)"), "private profiles");
+    });
+
     consume(
       /\b(?:in\s+)?category\s*[:=]?\s*(?!born\b|died\b|married\b|with\b|ancestors?\b|descendants?\b|cc7\b|in\s+tree\b)(.+)$/i,
       (match) => {
@@ -408,8 +454,251 @@ export function createProfileSearchHandler({
       addSqlTerm(buildWtPlusSqlTerm(`([Default].[Death Date].AsNumber > ${boundary})`), `died after ${match[1]}`);
     });
 
+    consume(/\blived\s+over\s+(\d{1,3})\s+years?\b/i, (match) => {
+      const years = Number.parseInt(match[1], 10);
+      if (Number.isFinite(years)) {
+        addSqlTerm(buildWtPlusSqlTerm(`([Default].[Death Age].AsNumber > ${years})`), `lived over ${years} years`);
+      }
+    });
+
+    consume(/\b(?:birth\s+without\s+day|born\s+without\s+day)\b/i, () => {
+      addSqlTerm(buildWtPlusSqlTerm("([Default].[Birth Date].AsString Like '*00')"), "birth without day");
+    });
+
+    consume(/\b(?:birth\s+year\s+only|born\s+year\s+only)\b/i, () => {
+      addSqlTerm(buildWtPlusSqlTerm("([Default].[Birth Date].AsString Like '*0000')"), "birth year only");
+    });
+
+    consume(/\b(?:no\s+first\s+name|missing\s+first\s+name)\b/i, () => {
+      addSqlTerm(buildWtPlusSqlTerm("([Default].[First Name].AsString = '')"), "no first name");
+    });
+
+    consume(/\b(?:more\s+than|over)\s+(\d+)\s+children\b/i, (match) => {
+      const n = Number.parseInt(match[1], 10);
+      if (Number.isFinite(n)) {
+        addSqlTerm(buildWtPlusSqlTerm(`([Children].[User ID].LineCount > ${n})`), `more than ${n} children`);
+      }
+    });
+
+    consume(/\b(?:more\s+than|over)\s+(\d+)\s+siblings\b/i, (match) => {
+      const n = Number.parseInt(match[1], 10);
+      if (Number.isFinite(n)) {
+        addSqlTerm(buildWtPlusSqlTerm(`([Siblings].[User ID].LineCount > ${n})`), `more than ${n} siblings`);
+      }
+    });
+
+    consume(/\b(?:more\s+than|over)\s+(\d+)\s+marriages\b/i, (match) => {
+      const n = Number.parseInt(match[1], 10);
+      if (Number.isFinite(n)) {
+        addSqlTerm(buildWtPlusSqlTerm(`([Marriage].[Marriage Date].LineCount > ${n})`), `more than ${n} marriages`);
+      }
+    });
+
+    consume(/\b(?:exactly\s+one|single)\s+marriage\b/i, () => {
+      addSqlTerm(buildWtPlusSqlTerm("([Marriage].[Marriage Location].LineCount = 1)"), "exactly one marriage");
+    });
+
+    consume(/\b(?:no\s+categor(?:y|ies)|without\s+categor(?:y|ies))\b/i, () => {
+      addSqlTerm(buildWtPlusSqlTerm("([Categories].[Category].LineCount = 0)"), "no categories");
+    });
+
+    consume(/\b(?:imported\s+from\s+gedcom|from\s+gedcom)\b/i, () => {
+      addSqlTerm(buildWtPlusSqlTerm("([Bio].[GED File].AsString <> '')"), "imported from GEDCOM");
+    });
+
+    consume(/\bcreated\s+after\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i, (match) => {
+      const boundary = normalizeWtPlusBoundaryDate(match[1], "after");
+      addSqlTerm(buildWtPlusSqlTerm(`([Bio].[Created Date].AsNumber > ${boundary})`), `created after ${match[1]}`);
+    });
+
+    consume(/\bcreated\s+before\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i, (match) => {
+      const boundary = normalizeWtPlusBoundaryDate(match[1], "before");
+      addSqlTerm(buildWtPlusSqlTerm(`([Bio].[Created Date].AsNumber < ${boundary})`), `created before ${match[1]}`);
+    });
+
+    consume(
+      /\bedited\s+between\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\s+(?:and|to)\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i,
+      (match) => {
+        const start = normalizeWtPlusBoundaryDate(match[1], "before");
+        const end = normalizeWtPlusBoundaryDate(match[2], "after");
+        addSqlTerm(
+          buildWtPlusSqlTerm(`([Bio].[LastEdit Date].AsNumber In ${start}..${end})`),
+          `edited between ${match[1]} and ${match[2]}`
+        );
+      }
+    );
+
+    consume(/\bcreated\s+in\s+(\d{4})\b/i, (match) => {
+      addSqlTerm(buildWtPlusSqlTerm(`([Bio].[Created Year].AsNumber = ${match[1]})`), `created in ${match[1]}`);
+    });
+
+    consume(/\b(?:many|more\s+than|over)\s+(\d+)\s+errors?\b/i, (match) => {
+      const n = Number.parseInt(match[1], 10);
+      if (Number.isFinite(n)) {
+        addSqlTerm(buildWtPlusSqlTerm(`([Default].[Nr of errors].AsNumber > ${n})`), `more than ${n} errors`);
+      }
+    });
+
+    consume(/\bmultiple\s+managers\b/i, () => {
+      addSqlTerm(buildWtPlusSqlTerm("([Manager].[ManagerWikitreeId].LineCount > 1)"), "multiple managers");
+    });
+
+    consume(/\bmissing\s+sources?\s+after\s+biograph(?:y|ies)\b/i, () => {
+      addSqlTerm(
+        buildWtPlusSqlTerm("Not([Bio].[Headings].AsString Like '*B2*S2*')"),
+        "missing sources after biography"
+      );
+    });
+
+    consume(/\bmissing\s+category\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+      const category = escapeWtPlusSqlLiteral(match[1], true);
+      if (category) {
+        addSqlTerm(
+          buildWtPlusSqlTerm(`Not ([Default].[All Categories].AsString Like '*${category}*')`),
+          `missing category ${stripSurroundingQuotes(match[1])}`
+        );
+      }
+    });
+
+    consume(/\btemplate\s+name\s+(.+?)\s+with\s+text\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+      const templateName = escapeWtPlusSqlLiteral(match[1], true);
+      const templateText = escapeWtPlusSqlLiteral(match[2], true);
+      if (templateName && templateText) {
+        addSqlTerm(
+          buildWtPlusSqlTerm(
+            `([Templates].[Template name].AsString = '${templateName}') And ([Templates].[Template text].AsString Like '*${templateText}*')`
+          ),
+          `template ${stripSurroundingQuotes(match[1])} with text ${stripSurroundingQuotes(match[2])}`
+        );
+      }
+    });
+
+    consume(/\btemplate\s+text\s+contains\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+      const templateText = escapeWtPlusSqlLiteral(match[1], true);
+      if (templateText) {
+        addSqlTerm(
+          buildWtPlusSqlTerm(`([Templates].[Template text].AsString Like '*${templateText}*')`),
+          `template text contains ${stripSurroundingQuotes(match[1])}`
+        );
+      }
+    });
+
+    consume(/\bmanaged\s+only\s+by\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+      const managerId = escapeWtPlusSqlLiteral(match[1], true);
+      if (managerId) {
+        addSqlTerm(
+          buildWtPlusSqlTerm(`([Default].[All Managers].AsString = '${managerId}')`),
+          `managed only by ${stripSurroundingQuotes(match[1])}`
+        );
+      }
+    });
+
+    consume(/\bmtdna\s+haplogroup\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+      const value = escapeWtPlusSqlLiteral(match[1], true);
+      if (value) {
+        addSqlTerm(
+          buildWtPlusSqlTerm(`([Bio].[Replicated DNA mtHaplogroup].AsString Like '*${value}*')`),
+          `mtDNA haplogroup ${stripSurroundingQuotes(match[1])}`
+        );
+      }
+    });
+
+    consume(/\bydna\s+haplogroup\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+      const value = escapeWtPlusSqlLiteral(match[1], true);
+      if (value) {
+        addSqlTerm(
+          buildWtPlusSqlTerm(`([Bio].[Replicated DNA yHaplogroup].AsString Like '*${value}*')`),
+          `yDNA haplogroup ${stripSurroundingQuotes(match[1])}`
+        );
+      }
+    });
+
+    consume(/\bgedmatch\s+id\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+      const value = escapeWtPlusSqlLiteral(match[1], true);
+      if (value) {
+        addSqlTerm(
+          buildWtPlusSqlTerm(`([Bio].[Replicated DNA GedMatchID].AsString Like '*${value}*')`),
+          `GedMatch ID ${stripSurroundingQuotes(match[1])}`
+        );
+      }
+    });
+
+    consume(/\bmitoydna\s+id\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+      const value = escapeWtPlusSqlLiteral(match[1], true);
+      if (value) {
+        addSqlTerm(
+          buildWtPlusSqlTerm(`([Bio].[Replicated DNA mitoyDNAID].AsString Like '*${value}*')`),
+          `mitoyDNA ID ${stripSurroundingQuotes(match[1])}`
+        );
+      }
+    });
+
+    consume(/\baudna\s+lnabs\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+      const value = escapeWtPlusSqlLiteral(match[1], true);
+      if (value) {
+        addSqlTerm(
+          buildWtPlusSqlTerm(`([bio].[replicated audna lnabs].asstring like '*${value}*')`),
+          `auDNA lnabs ${stripSurroundingQuotes(match[1])}`
+        );
+      }
+    });
+
+    consume(
+      /\bmarriage\s+date\s+between\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\s+(?:and|to)\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i,
+      (match) => {
+        const from = normalizeWtPlusBoundaryDate(match[1], "before");
+        const to = normalizeWtPlusBoundaryDate(match[2], "after");
+        addSqlTerm(
+          buildWtPlusSqlTerm(`([Marriage].[Marriage Date] in ${from}..${to})`),
+          `marriage date between ${match[1]} and ${match[2]}`
+        );
+      }
+    );
+
+    consume(/\bmarriage\s+date\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+      const pattern = stripSurroundingQuotes(match[1]).replace(/-/g, "").replace(/\s+/g, "");
+      if (pattern) {
+        addSqlTerm(
+          buildWtPlusSqlTerm(`([Marriage].[Marriage Date].AsString Like '${pattern}')`),
+          `marriage date ${stripSurroundingQuotes(match[1])}`
+        );
+      }
+    });
+
+    consume(/\bmarriage\s+location\s+contains\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+      const value = escapeWtPlusSqlLiteral(match[1], true);
+      if (value) {
+        addSqlTerm(
+          buildWtPlusSqlTerm(`([Marriage].[Marriage Location].AsString like '*${value}*')`),
+          `marriage location contains ${stripSurroundingQuotes(match[1])}`
+        );
+      }
+    });
+
+    consume(/\bwith\s+heading\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+      const heading = escapeWtPlusSqlLiteral(match[1], true);
+      if (heading) {
+        addSqlTerm(
+          buildWtPlusSqlTerm(`([Bio].[Headings].AsString Like '*${heading}*')`),
+          `with heading ${stripSurroundingQuotes(match[1])}`
+        );
+      }
+    });
+
     consume(/\bborn\s+in\s+(\d{4})s\b/i, (match) => {
       addTerm(`${match[1]}s`, `born in ${match[1]}s`);
+    });
+    consume(/\bborn\s+in\s+(\d{1,2})(?:st|nd|rd|th)?\s+century\b/i, (match) => {
+      const n = Number.parseInt(match[1], 10);
+      if (Number.isFinite(n) && n >= 0 && n <= 21) {
+        addTerm(`${n}Cen`, `born in ${n} century`);
+      }
+    });
+    consume(/\b(?:age|aged)\s*(\d{1,3})\b/i, (match) => {
+      const n = Number.parseInt(match[1], 10);
+      if (Number.isFinite(n)) {
+        addTerm(`age${n}`, `age ${n}`);
+      }
     });
     consume(/\bborn\s+in\s+(\d{4})\b/i, (match) => {
       addTerm(`B${match[1]}`, `born in ${match[1]}`);
@@ -438,6 +727,15 @@ export function createProfileSearchHandler({
     consume(/\bwith\s+first\s+name\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
       const value = stripSurroundingQuotes(match[1]);
       addTerm(normalizeWtPlusFieldTerm("FirstName", value), `first name ${value}`);
+    });
+    consume(/\bcurrent\s+last\s+name\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+      const value = escapeWtPlusSqlLiteral(match[1], true);
+      if (value) {
+        addSqlTerm(
+          buildWtPlusSqlTerm(`([Default].[Current Last Name].AsString = '${value.toLowerCase()}')`),
+          `current last name ${stripSurroundingQuotes(match[1])}`
+        );
+      }
     });
     consume(/\bwith\s+(?:last\s+name\s+at\s+birth|lnab|surname|last\s+name)\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
       const value = stripSurroundingQuotes(match[1]);
@@ -478,13 +776,39 @@ export function createProfileSearchHandler({
     });
     consume(/\bin\s+tree\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
       const value = stripSurroundingQuotes(match[1]);
-      addTerm(normalizeWtPlusFieldTerm("Tree", value), `tree ${value}`);
+      if (/^\d+$/.test(value)) {
+        addTerm(`Tree${value}`, `tree ${value}`);
+      } else {
+        addTerm(normalizeWtPlusFieldTerm("Tree", value), `tree ${value}`);
+      }
+    });
+    consume(/\b(?:find\s*a\s*grave\s+cemetery|fg\s*cemetery)\s*(\d+)\b/i, (match) => {
+      addTerm(`fgcem${match[1]}`, `find a grave cemetery ${match[1]}`);
+    });
+    consume(/\b(?:find\s*a\s*grave\s+memorial|fg\s*memorial)\s*(\d+)\b/i, (match) => {
+      addTerm(`fgmem${match[1]}`, `find a grave memorial ${match[1]}`);
     });
     consume(/\b(?:in|from)\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
       const value = stripSurroundingQuotes(match[1]);
       if (value) {
         addTerm(normalizeWtPlusFieldTerm("Location", value), `location ${value}`);
       }
+    });
+    consume(/\bdeath\s+country\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+      const value = escapeWtPlusSqlLiteral(match[1], true);
+      if (value) {
+        addSqlTerm(
+          buildWtPlusSqlTerm(`([Default].[Death Location Country].AsString = '${value.toLowerCase()}')`),
+          `death country ${stripSurroundingQuotes(match[1])}`
+        );
+      }
+    });
+
+    consume(/\bunrecognized\s+death\s+locations?\b/i, () => {
+      addSqlTerm(
+        buildWtPlusSqlTerm("(Trim([Default].[Death Location Country, Region, City].AsString) = '')"),
+        "unrecognized death locations"
+      );
     });
 
     let remainder = cleanWtPlusGroupRemainder(working);
@@ -735,6 +1059,15 @@ export function createProfileSearchHandler({
     const text = String(queryText || "").trim();
     if (!text) return null;
 
+    const normalizedWholeQuery = normalizeWtPlusQueryString(text);
+    if (normalizedWholeQuery) {
+      return {
+        query: normalizedWholeQuery,
+        title: `WT+ search: ${text}`,
+        description: text,
+      };
+    }
+
     const fieldRegex = /([A-Za-z_]+)=((?:"[^"]*")|(?:'[^']*')|[^\s]+)/g;
     const matches = Array.from(text.matchAll(fieldRegex));
     if (!matches.length) {
@@ -771,6 +1104,20 @@ export function createProfileSearchHandler({
       .replace(/^\s*(?:search(?:\s+for)?|find|show|list|get|look(?:\s+up)?)\s+/i, "")
       .replace(/^\s*(?:me\s+)?/i, "")
       .trim();
+
+    if (isLikelySuggestionsPrompt(normalizedText)) {
+      const suggestionParse = translateSuggestionsFreeTextToQuery(normalizedText);
+      if (suggestionParse?.query) {
+        return {
+          query: suggestionParse.query,
+          title: `WT+ Suggestions: ${suggestionParse.understood || suggestionParse.query}`,
+          description: suggestionParse.understood || suggestionParse.query,
+          searchType: "suggestions",
+          suggestionId: suggestionParse.suggestionId || "",
+          suggestionOptions: suggestionParse.options || {},
+        };
+      }
+    }
 
     let match = normalizedText.match(
       /^(?:profiles?|people)\s+(?:in\s+)?category\s*[:=]?\s*(?!born\b|died\b|married\b|with\b|ancestors?\b|descendants?\b|cc7\b|in\s+tree\b)(.+)$/i
@@ -1172,9 +1519,10 @@ export function createProfileSearchHandler({
         "Allowed field=value fields:",
         "WikiTreeID, LastNameAtBirth, AllLastNames, FirstName, Location, BirthLocation, MarriageLocation, DeathLocation, birthcountry, birthregion, deathcountry, deathregion, marriagecountry, marriageregion, CategoryFull, CategoryWord, TemplateText, Tree, Ancestors, Descendants, CC7, Creator_, changesmonth, created, Suggestions, sql.",
         "Allowed raw tokens:",
-        "Open, Unsourced, Unconnected, Orphan, B1850, D1912, 1850s, Creator_Name-123.",
+        "Open, Unsourced, Unconnected, Orphan, Notables, connected, unlinked, PublicTree, PrivateTree, male, female, NoGender, B0, D0, pre1500, NoFather, NoMother, NoParents, NoSpouses, NoChildren, mtDNA, yDNA, auDNA, noGEDMatchID, noMitoyDNAID, Private, Public, ProjectManaged, PPP, NeverEdited, ApprovedMerge, PendingMerge, UnmergedMatch, GEDCOMJunk, SourceJunk, IsInWikiData, relation=father/mother/parents/spouses/children/siblings/nuclear/addfather/addmother/addparents/addspouses/addchildren/addsiblings/addnuclear, B1850, D1912, 1850s, 20Cen, age42, LastEdit2020, Tree123, fgcem1234, fgmem5678, ERR123.",
+        "OR and NOT operators are allowed between terms.",
         "Only use those allowed fields and tokens.",
-        "Use sql= only for date-boundary conditions like born before/after or died before/after.",
+        "Use sql= for filters that are not easily represented as simple field=value, including date boundaries, line counts, and heading/category checks.",
         "Quote values that contain spaces or commas.",
         'If the request mentions "ancestors" or "descendants", preserve that in the query with Ancestors=<WikiTreeID> or Descendants=<WikiTreeID> and do not drop the family-root part.',
         'For bare prompts like "Ancestors ..." or "Descendants ...", assume the current profile person if available; otherwise use the logged-in user as the family root.',
@@ -1275,10 +1623,31 @@ export function createProfileSearchHandler({
     );
   }
 
-  async function runWtPlusProfileQuery(wtPlusQuery, title, interpretation = null) {
+  async function runWtPlusProfileQuery(wtPlusQuery, title, interpretation = null, runOptions = {}) {
     const templateCanonicalQuery = await canonicalizeWtPlusTemplateTerms(wtPlusQuery);
     const contextCanonicalQuery = resolveWtPlusContextPlaceholders(templateCanonicalQuery);
     const { query: canonicalQuery, categoryMatches } = await canonicalizeWtPlusCategoryTerms(contextCanonicalQuery);
+    const suggestionId = runOptions?.suggestionId || extractSuggestionId(canonicalQuery);
+    const suggestionOptions = runOptions?.suggestionOptions || {};
+    const isSuggestionsSearch = runOptions?.searchType === "suggestions" || !!suggestionId;
+
+    if (isSuggestionsSearch) {
+      recordWtPlusParseTelemetry("queryRan");
+      return {
+        message: `WT+ Suggestions queries are opened directly in WT+ (no JSON API result set available in chat). Query: ${canonicalQuery}`,
+        actions: [
+          {
+            label: "Open in WT+",
+            actionType: "wtplus-open",
+            wtPlusQuery: canonicalQuery,
+            wtPlusSearchType: "suggestions",
+            wtPlusSuggestionId: suggestionId || "",
+            wtPlusSuggestionOptions: suggestionOptions,
+          },
+        ],
+      };
+    }
+
     const encodedQuery = encodeURIComponent(canonicalQuery);
     console.debug("wbe: WT+ direct query", {
       wtPlusQuery,
@@ -1291,9 +1660,11 @@ export function createProfileSearchHandler({
 
     showChatShaky(`Running WT+ query: ${canonicalQuery}`);
     try {
+      recordWtPlusParseTelemetry("queryRan");
       const response = await wtAPIProfileSearch("ChatWTPlus", encodedQuery, { maxProfiles: WT_PLUS_MAX_PROFILES });
       const profiles = response?.response?.profiles || [];
       if (!profiles.length) {
+        recordWtPlusParseTelemetry("queryZeroResults");
         hideChatShaky();
         return `I couldn't find any profiles for WT+ query: ${canonicalQuery}`;
       }
@@ -1325,8 +1696,6 @@ export function createProfileSearchHandler({
         .filter((match) => match?.category && match.requested && match.category !== match.requested)
         .map((match) => `used closest category "${match.category}" for "${match.requested}"`)
         .join("; ");
-      const suggestionId = extractSuggestionId(canonicalQuery);
-
       return {
         message: interpretation?.understood
           ? `AI interpreted this as "${interpretation.understood}" and ran WT+ query: ${canonicalQuery}. Found ${
@@ -1342,6 +1711,7 @@ export function createProfileSearchHandler({
             wtPlusQuery: canonicalQuery,
             wtPlusSearchType: suggestionId ? "suggestions" : "text",
             wtPlusSuggestionId: suggestionId || "",
+            wtPlusSuggestionOptions: suggestionOptions,
           },
         ],
         table,
@@ -1812,13 +2182,23 @@ export function createProfileSearchHandler({
         const wtPlusQuery = preferAiWtPlusQuery ? explicitWtPlusQuery : explicitWtPlusQuery || localWtPlusQuery;
 
         if (wtPlusQuery?.query) {
-          return await runWtPlusProfileQuery(wtPlusQuery.query, wtPlusQuery.title);
+          if (wtPlusQuery.searchType === "suggestions") {
+            recordWtPlusParseTelemetry("parsedSuggestions");
+          } else {
+            recordWtPlusParseTelemetry("parsedLocal");
+          }
+          return await runWtPlusProfileQuery(wtPlusQuery.query, wtPlusQuery.title, null, {
+            searchType: wtPlusQuery.searchType,
+            suggestionId: wtPlusQuery.suggestionId,
+            suggestionOptions: wtPlusQuery.suggestionOptions,
+          });
         }
 
         showChatShaky("Asking AI to interpret this as a WT+ query...");
         const aiWtPlusQuery = await callAiParseWtPlusQuery(rawQuery);
         hideChatShaky();
         if (aiWtPlusQuery?.query) {
+          recordWtPlusParseTelemetry("parsedAi");
           return await runWtPlusProfileQuery(aiWtPlusQuery.query, aiWtPlusQuery.title, aiWtPlusQuery);
         }
 
