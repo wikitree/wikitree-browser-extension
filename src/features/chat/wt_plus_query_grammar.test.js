@@ -25,7 +25,7 @@ describe("wt_plus_query_grammar raw token canonicalization", () => {
     ["LastEdit2020", "LastEdit2020"],
     ["tree123", "Tree123"],
     ["FGCEM999", "fgcem999"],
-    ["err123", "ERR123"],
+    ["err123", null], // ERRxxx is not valid in text search (srch1); use Suggestions=123 instead
     ["3star", "3stars"],
     ["Creator_smith-1", "Creator_smith-1"],
   ];
@@ -46,7 +46,13 @@ describe("wt_plus_query_grammar query validation and repair", () => {
     ["tree123", "Tree123"],
     ["20cen", "20Cen"],
     ["fgmem1234", "fgmem1234"],
+    ["LastNameatBirth=Smith", "LastNameAtBirth=Smith"],
     ["Suggestions=123", "Suggestions=123"],
+    ["Manager=Athey-67", "Manager=Athey-67"],
+    ["BirthCountry=England DeathCountry=UnknownCountry", "BirthCountry=England DeathCountry=UnknownCountry"],
+    ["Created=Creator_Trtnik-2", "Created=Creator_Trtnik-2"],
+    ["heading=biography", "heading=biography"],
+    ["Template=unsourced", "Template=unsourced"],
     ['sql="([Default].[Birth Date].AsNumber < 19000000)"', 'sql="([Default].[Birth Date].AsNumber < 19000000)"'],
     [
       "sql=\"([Templates].[Template text].AsString Like '*project_box*')\"",

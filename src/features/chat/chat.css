@@ -55,7 +55,7 @@
   position: fixed;
   top: 90px;
   left: 20px;
-  width: min(560px, calc(100vw - 32px));
+  width: min(620px, calc(100vw - 32px));
   max-width: calc(100vw - 32px);
   min-width: min(400px, calc(100vw - 20px));
   max-height: calc(100vh - 20px);
@@ -223,6 +223,33 @@
   border: 1px solid #dde4dd;
 }
 
+.chat-query-row {
+  margin-bottom: 0.3rem;
+}
+
+.chat-query-box {
+  display: block;
+  margin: 0.2rem 0 0.25rem;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid #cfd8cf;
+  border-radius: 6px;
+  background: #f4f7f4;
+}
+
+.chat-query-code {
+  display: block;
+  font-family: Menlo, Consolas, Monaco, monospace;
+  font-size: 0.83rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  color: #263126;
+}
+
+.chat-query-note {
+  margin-top: 0.2rem;
+}
+
 .chat-input-row {
   display: flex;
   gap: 0.45rem;
@@ -297,6 +324,29 @@
   font: inherit;
 }
 
+.chat-wtplus-suggestion-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.chat-wtplus-suggestion-picker label {
+  font-size: 0.72rem;
+  color: #5f6c63;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.chat-wtplus-suggestion-picker select {
+  width: 100%;
+  border: 1px solid #bfc8bf;
+  border-radius: 6px;
+  padding: 0.35rem 0.45rem;
+  font: inherit;
+  background: #fff;
+}
+
 .chat-input-row button {
   min-width: 74px;
 }
@@ -331,6 +381,10 @@
   }
 
   .chat-input-row button {
+    width: 100%;
+  }
+
+  .chat-wtplus-suggestion-picker {
     width: 100%;
   }
 

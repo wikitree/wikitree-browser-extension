@@ -7,9 +7,11 @@ import {
   WT_PLUS_ALLOWED_FIELDS,
   canonicalizeWtPlusRawToken as grammarCanonicalizeWtPlusRawToken,
   isLikelySuggestionsPrompt,
+  normalizeWtPlusFieldName as grammarNormalizeWtPlusFieldName,
   translateSuggestionsFreeTextToQuery,
   validateAndRepairWtPlusQuery,
 } from "./wt_plus_query_grammar";
+import wtPlusProjectsCatalog from "./wtplus_projects.json";
 
 export function createProfileSearchHandler({
   WBE_CHAT_APP_ID,
@@ -29,9 +31,11 @@ export function createProfileSearchHandler({
   const WT_PLUS_MAX_PROFILES = 20000;
   const WT_PLUS_GET_PEOPLE_CHUNK = 1000;
   const WT_ANCESTOR_GRAPH_GENERATIONS = 10;
+  const WT_PLUS_PROJECTS_URL = "https://wikitreebee.com/notables_notes_api/json/projects.json";
   const WT_PLUS_FIELD_NAMES = new Set(WT_PLUS_ALLOWED_FIELDS);
   const WT_PLUS_STATUS_TOKENS = new Set(["Open", "Unsourced", "Unconnected", "Orphan"]);
   let wtPlusTemplateCatalogPromise = null;
+  let wtPlusProjectAccountsPromise = null;
   const wtPlusParseTelemetry = {
     parsedLocal: 0,
     parsedAi: 0,
@@ -226,12 +230,218 @@ export function createProfileSearchHandler({
     };
   }
 
+  function normalizeWtPlusProjectLookupKey(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  async function ensureWtPlusProjectAccountCatalogLoaded() {
+    if (!wtPlusProjectAccountsPromise) {
+      wtPlusProjectAccountsPromise = (async () => {
+        let data =
+          wtPlusProjectsCatalog &&
+          typeof wtPlusProjectsCatalog === "object" &&
+          Object.keys(wtPlusProjectsCatalog).length
+            ? wtPlusProjectsCatalog
+            : null;
+
+        if (!data) {
+          try {
+            const response = await fetch(WT_PLUS_PROJECTS_URL, {
+              method: "GET",
+              credentials: "omit",
+              cache: "no-cache",
+            });
+            if (response?.ok) {
+              const remoteData = await response.json();
+              if (remoteData && typeof remoteData === "object") {
+                data = remoteData;
+              }
+            }
+          } catch (error) {
+            /* ignore */
+          }
+        }
+
+        if (!data || typeof data !== "object") {
+          return new Map();
+        }
+
+        const map = new Map();
+        Object.entries(data).forEach(([managerId, details]) => {
+          const managerText = String(managerId || "").trim();
+          if (!managerText) {
+            return;
+          }
+
+          const projectName = String(details?.Project || "").trim();
+          const normalizedProjectName = normalizeWtPlusProjectLookupKey(projectName);
+          const normalizedManagerId = normalizeWtPlusProjectLookupKey(managerText);
+          if (normalizedProjectName) {
+            map.set(normalizedProjectName, managerText);
+            if (normalizedProjectName.endsWith(" project")) {
+              map.set(normalizedProjectName.replace(/\s+project$/, "").trim(), managerText);
+            } else {
+              map.set(`${normalizedProjectName} project`.trim(), managerText);
+            }
+          }
+          if (normalizedManagerId) {
+            map.set(normalizedManagerId, managerText);
+          }
+        });
+
+        return map;
+      })().catch((error) => {
+        console.info("wbe: failed to load WT+ project manager catalog", { error });
+        return new Map();
+      });
+    }
+
+    return wtPlusProjectAccountsPromise;
+  }
+
+  function resolveWtPlusProjectManagerId(rawManagerValue, projectCatalog) {
+    const managerValue = stripSurroundingQuotes(rawManagerValue);
+    if (!managerValue) {
+      return "";
+    }
+
+    if (/^WikiTree-\d+$/i.test(managerValue)) {
+      return managerValue.replace(/^wikitree-/i, "WikiTree-");
+    }
+    if (/^[A-Za-z][A-Za-z0-9_-]+-\d+$/i.test(managerValue)) {
+      return managerValue;
+    }
+
+    const normalized = normalizeWtPlusProjectLookupKey(managerValue);
+    if (!normalized) {
+      return "";
+    }
+
+    const direct = projectCatalog.get(normalized);
+    if (direct) {
+      return direct;
+    }
+
+    const withoutProject = normalized.replace(/\s+project$/, "").trim();
+    if (withoutProject && projectCatalog.get(withoutProject)) {
+      return projectCatalog.get(withoutProject) || "";
+    }
+
+    const withProject = `${normalized} project`.trim();
+    if (withProject && projectCatalog.get(withProject)) {
+      return projectCatalog.get(withProject) || "";
+    }
+
+    return "";
+  }
+
+  async function canonicalizeWtPlusManagerTerms(queryText) {
+    const text = String(queryText || "").trim();
+    if (!/\bManager=/.test(text) && !/\[Default\]\.\[All Managers\]\.AsString/i.test(text)) {
+      return { query: text, managerMatches: [] };
+    }
+
+    const projectCatalog = await ensureWtPlusProjectAccountCatalogLoaded();
+    if (!(projectCatalog instanceof Map) || projectCatalog.size === 0) {
+      return { query: text, managerMatches: [] };
+    }
+
+    const managerMatches = [];
+    let nextQuery = text;
+    const managerRegex = /Manager=((?:"[^"]*")|(?:'[^']*')|[^\s]+)/g;
+    const matches = Array.from(text.matchAll(managerRegex));
+
+    for (const match of matches) {
+      const rawValue = match[1];
+      const requestedManager = stripSurroundingQuotes(rawValue);
+      const resolvedManager = resolveWtPlusProjectManagerId(requestedManager, projectCatalog);
+      if (!resolvedManager || resolvedManager === requestedManager) {
+        continue;
+      }
+
+      managerMatches.push({ requested: requestedManager, managerId: resolvedManager });
+      nextQuery = nextQuery.replace(match[0], `Manager=${quoteWtPlusValue(resolvedManager)}`);
+
+      const escapedRequested = escapeWtPlusSqlLiteral(requestedManager, true);
+      if (escapedRequested) {
+        nextQuery = nextQuery.replace(
+          /\(\s*\[Default\]\.\[All Managers\]\.AsString\s*=\s*'([^']*)'\s*\)/gi,
+          (fullMatch, managerSqlValue) => {
+            const normalizedSqlValue = String(managerSqlValue || "").trim();
+            if (!normalizedSqlValue) {
+              return fullMatch;
+            }
+            const sameManager =
+              normalizedSqlValue.toLowerCase() === escapedRequested.toLowerCase() ||
+              normalizedSqlValue.toLowerCase() === requestedManager.toLowerCase();
+            if (!sameManager) {
+              return fullMatch;
+            }
+            return `([Default].[All Managers].AsString = '${escapeWtPlusSqlLiteral(resolvedManager, true)}')`;
+          }
+        );
+      }
+    }
+
+    return {
+      query: nextQuery,
+      managerMatches,
+    };
+  }
+
+  function canonicalizeWtPlusSqlDateRanges(queryText) {
+    const text = String(queryText || "").trim();
+    if (!text || !/\bsql\s*=\s*"/i.test(text)) {
+      return text;
+    }
+
+    // WT+ accepts In start..end more reliably than >= ... AND <= ... for
+    // same-field AsNumber date constraints.
+    return text.replace(/sql="([^"]*)"/gi, (fullMatch, sqlInner) => {
+      let inner = String(sqlInner || "");
+
+      inner = inner.replace(
+        /\(\s*(\[[^\]]+\]\.\[[^\]]+\]\.AsNumber)\s*>=\s*(\d{8})\s+AND\s+\1\s*<=\s*(\d{8})\s*\)/gi,
+        (m, fieldExpr, from, to) => `(${fieldExpr} In ${from}..${to})`
+      );
+      inner = inner.replace(
+        /\(\s*(\[[^\]]+\]\.\[[^\]]+\]\.AsNumber)\s*<=\s*(\d{8})\s+AND\s+\1\s*>=\s*(\d{8})\s*\)/gi,
+        (m, fieldExpr, to, from) => `(${fieldExpr} In ${from}..${to})`
+      );
+
+      return `sql="${inner}"`;
+    });
+  }
+
+  function canonicalizeWtPlusSqlLogicalOperators(queryText) {
+    const text = String(queryText || "").trim();
+    if (!text || !/\bsql\s*=\s*"/i.test(text)) {
+      return text;
+    }
+
+    // WT+ can mis-handle all-caps logical operators in some sql fragments.
+    // Normalize to WT+ examples style: And / Or / Not.
+    return text.replace(/sql="([^"]*)"/gi, (fullMatch, sqlInner) => {
+      let inner = String(sqlInner || "");
+      inner = inner
+        .replace(/\bAND\b/g, "And")
+        .replace(/\bOR\b/g, "Or")
+        .replace(/\bNOT\b/g, "Not");
+      return `sql="${inner}"`;
+    });
+  }
+
   function canonicalizeWtPlusRawToken(token) {
     return grammarCanonicalizeWtPlusRawToken(token);
   }
 
   function normalizeWtPlusFieldTerm(fieldName, value) {
-    const field = String(fieldName || "").trim();
+    const rawField = String(fieldName || "").trim();
+    const field = grammarNormalizeWtPlusFieldName(rawField) || rawField;
     if (!WT_PLUS_FIELD_NAMES.has(field)) {
       return null;
     }
@@ -253,17 +463,194 @@ export function createProfileSearchHandler({
     return `${field}=${quotedValue}`;
   }
 
+  function canonicalizeWtPlusErrTokenAssignments(queryText) {
+    const text = String(queryText || "").trim();
+    if (!text) return text;
+
+    // ERRxxx tokens are for the suggestions report (err6), NOT for the text search (srch1).
+    // In text search mode (which the chat uses via wtAPIProfileSearch), suggestion numbers
+    // must be written as Suggestions=NNN.
+    // Convert AI-generated TemplateText="err678" forms and bare ERR678 tokens to Suggestions=NNN.
+    return text
+      .replace(/\bTemplateText\s*=\s*"\s*err\s*(\d+)\s*"/gi, " Suggestions=$1 ")
+      .replace(/\bTemplateText\s*=\s*'\s*err\s*(\d+)\s*'/gi, " Suggestions=$1 ")
+      .replace(/\bTemplateText\s*=\s*err\s*(\d+)\b/gi, " Suggestions=$1 ")
+      .replace(/\bERR(\d+)\b/gi, " Suggestions=$1 ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
+
   function normalizeWtPlusQueryString(queryText) {
     const text = String(queryText || "").trim();
     if (!text) return null;
 
-    const repaired = validateAndRepairWtPlusQuery(text);
+    const normalizedErrTokens = canonicalizeWtPlusErrTokenAssignments(text);
+    const repaired = validateAndRepairWtPlusQuery(normalizedErrTokens);
     if (!repaired?.isValid) {
       recordWtPlusParseTelemetry("parseRejected");
       return null;
     }
 
     return repaired.normalizedQuery || null;
+  }
+
+  const WT_PLUS_PRIMARY_SCOPE_FIELDS = new Set([
+    "WikiTreeID",
+    "FirstName",
+    "LastNameAtBirth",
+    "AllLastNames",
+    "CurrentLastName",
+    "FullName",
+    "Location",
+    "BirthLocation",
+    "DeathLocation",
+    "MarriageLocation",
+    "Country",
+    "BirthCountry",
+    "DeathCountry",
+    "MarriageCountry",
+    "Region",
+    "BirthRegion",
+    "DeathRegion",
+    "MarriageRegion",
+    "Manager",
+    "Tree",
+    "Ancestors",
+    "Descendants",
+    "CC7",
+    "CategoryFull",
+    "CategoryWord",
+    "TemplateText",
+    "Template",
+    "TemplateFull",
+  ]);
+
+  function tokenizeWtPlusQueryText(queryText) {
+    const text = String(queryText || "").trim();
+    if (!text) return [];
+    const tokens = [];
+    const re = /[^\s=]+=(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\s]+)|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\s]+/g;
+    let match;
+    while ((match = re.exec(text)) !== null) {
+      tokens.push(match[0]);
+    }
+    return tokens;
+  }
+
+  function hasPrimaryScopeTermInWtPlusGroup(groupText) {
+    const tokens = tokenizeWtPlusQueryText(groupText);
+    if (!tokens.length) return false;
+
+    for (const rawToken of tokens) {
+      const token = String(rawToken || "").trim();
+      if (!token || /^(?:OR|NOT)$/i.test(token)) {
+        continue;
+      }
+
+      const eqIndex = token.indexOf("=");
+      if (eqIndex > 0) {
+        const rawFieldName = token.slice(0, eqIndex);
+        const fieldName = grammarNormalizeWtPlusFieldName(rawFieldName) || rawFieldName;
+        if (WT_PLUS_PRIMARY_SCOPE_FIELDS.has(fieldName)) {
+          return true;
+        }
+        continue;
+      }
+
+      const canonicalRaw = canonicalizeWtPlusRawToken(token);
+      if (canonicalRaw) {
+        // Raw tokens (magic words, date tokens, status tokens) are filters, not base scope.
+        continue;
+      }
+
+      if (stripSurroundingQuotes(token)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function hasPrimaryScopeTermInWtPlusQuery(queryText) {
+    const groups = String(queryText || "")
+      .split(/\s+OR\s+/i)
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (!groups.length) return false;
+    return groups.every((group) => hasPrimaryScopeTermInWtPlusGroup(group));
+  }
+
+  function extractPrimaryScopeTermsFromWtPlusGroup(groupText) {
+    const tokens = tokenizeWtPlusQueryText(groupText);
+    if (!tokens.length) return [];
+
+    const primaryTerms = [];
+    const seenTerms = new Set();
+    const addPrimaryTerm = (term) => {
+      const normalized = String(term || "").trim();
+      if (!normalized || seenTerms.has(normalized)) {
+        return;
+      }
+      primaryTerms.push(normalized);
+      seenTerms.add(normalized);
+    };
+
+    for (const rawToken of tokens) {
+      const token = String(rawToken || "").trim();
+      if (!token || /^(?:OR|NOT)$/i.test(token)) {
+        continue;
+      }
+
+      const eqIndex = token.indexOf("=");
+      if (eqIndex > 0) {
+        const rawFieldName = token.slice(0, eqIndex);
+        const fieldName = grammarNormalizeWtPlusFieldName(rawFieldName) || rawFieldName;
+        if (WT_PLUS_PRIMARY_SCOPE_FIELDS.has(fieldName)) {
+          addPrimaryTerm(token);
+        }
+        continue;
+      }
+
+      const canonicalRaw = canonicalizeWtPlusRawToken(token);
+      if (canonicalRaw) {
+        continue;
+      }
+
+      if (stripSurroundingQuotes(token)) {
+        addPrimaryTerm(token);
+      }
+    }
+
+    return primaryTerms;
+  }
+
+  function inheritPrimaryScopeTermsAcrossWtPlusOrBranches(parsedGroups = []) {
+    if (!Array.isArray(parsedGroups) || !parsedGroups.length) {
+      return parsedGroups;
+    }
+
+    let inheritedPrimaryTerms = [];
+    return parsedGroups.map((group) => {
+      const groupQuery = String(group?.query || "").trim();
+      if (!groupQuery) {
+        return group;
+      }
+
+      const ownPrimaryTerms = extractPrimaryScopeTermsFromWtPlusGroup(groupQuery);
+      if (ownPrimaryTerms.length) {
+        inheritedPrimaryTerms = ownPrimaryTerms;
+        return group;
+      }
+
+      if (!inheritedPrimaryTerms.length) {
+        return group;
+      }
+
+      return {
+        ...group,
+        query: `${inheritedPrimaryTerms.join(" ")} ${groupQuery}`.trim(),
+      };
+    });
   }
 
   function normalizeWtPlusBoundaryDate(rawValue, direction) {
@@ -297,6 +684,7 @@ export function createProfileSearchHandler({
         /\b(?:people|profiles?|show|find|list|get|look(?:\s+up)?|search(?:\s+for)?|with|who|that|are|is|me|for)\b/gi,
         " "
       )
+      .replace(/\b(?:and|or)\b/gi, " ")
       .replace(/[,:;]+/g, " ")
       .replace(/\s{2,}/g, " ")
       .trim();
@@ -319,6 +707,34 @@ export function createProfileSearchHandler({
       sqlTerms.push(term);
       if (summary) understood.push(summary);
     };
+    const combineSqlTerms = () => {
+      if (!sqlTerms.length) {
+        return "";
+      }
+      if (sqlTerms.length === 1) {
+        return sqlTerms[0];
+      }
+
+      const expressions = sqlTerms
+        .map((term) => {
+          const raw = String(term || "").trim();
+          if (!raw) {
+            return "";
+          }
+          const match = raw.match(/^sql="([\s\S]*)"$/i);
+          const expr = String(match?.[1] || raw)
+            .trim()
+            .replace(/^\(|\)$/g, "");
+          return expr ? `(${expr})` : "";
+        })
+        .filter(Boolean);
+
+      if (!expressions.length) {
+        return "";
+      }
+
+      return buildWtPlusSqlTerm(expressions.join(" And "));
+    };
     const consume = (regex, handler) => {
       const match = working.match(regex);
       if (!match) return false;
@@ -329,6 +745,25 @@ export function createProfileSearchHandler({
         .trim();
       return true;
     };
+
+    // Parse manager constraints before category/notables terms so phrases like
+    // "managed by Living Notables project" don't get split into fallback name/location tokens.
+    consume(/\bmanaged\s+only\s+by\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+      const managerText = stripSurroundingQuotes(match[1]);
+      const managerId = escapeWtPlusSqlLiteral(managerText, true);
+      addTerm(normalizeWtPlusFieldTerm("Manager", managerText), `manager ${managerText}`);
+      if (managerId) {
+        addSqlTerm(
+          buildWtPlusSqlTerm(`([Default].[All Managers].AsString = '${managerId}')`),
+          `managed only by ${managerText}`
+        );
+      }
+    });
+
+    consume(/\bmanaged\s+by\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+      const managerText = stripSurroundingQuotes(match[1]);
+      addTerm(normalizeWtPlusFieldTerm("Manager", managerText), `manager ${managerText}`);
+    });
 
     consume(/\bliving\s+notables?\s+project\b/i, () => {
       addTerm(normalizeWtPlusFieldTerm("CategoryFull", "Living Notables Project"), "living notables project");
@@ -445,6 +880,17 @@ export function createProfileSearchHandler({
       const boundary = normalizeWtPlusBoundaryDate(match[1], "after");
       addSqlTerm(buildWtPlusSqlTerm(`([Default].[Birth Date].AsNumber > ${boundary})`), `born after ${match[1]}`);
     });
+    consume(
+      /\bborn\s+between\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\s+(?:and|to)\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i,
+      (match) => {
+        const start = normalizeWtPlusBoundaryDate(match[1], "before");
+        const end = normalizeWtPlusBoundaryDate(match[2], "after");
+        addSqlTerm(
+          buildWtPlusSqlTerm(`([Default].[Birth Date].AsNumber In ${start}..${end})`),
+          `born between ${match[1]} and ${match[2]}`
+        );
+      }
+    );
     consume(/\bdied\s+before\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i, (match) => {
       const boundary = normalizeWtPlusBoundaryDate(match[1], "before");
       addSqlTerm(buildWtPlusSqlTerm(`([Default].[Death Date].AsNumber < ${boundary})`), `died before ${match[1]}`);
@@ -583,16 +1029,6 @@ export function createProfileSearchHandler({
       }
     });
 
-    consume(/\bmanaged\s+only\s+by\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
-      const managerId = escapeWtPlusSqlLiteral(match[1], true);
-      if (managerId) {
-        addSqlTerm(
-          buildWtPlusSqlTerm(`([Default].[All Managers].AsString = '${managerId}')`),
-          `managed only by ${stripSurroundingQuotes(match[1])}`
-        );
-      }
-    });
-
     consume(/\bmtdna\s+haplogroup\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
       const value = escapeWtPlusSqlLiteral(match[1], true);
       if (value) {
@@ -707,21 +1143,33 @@ export function createProfileSearchHandler({
       addTerm(`D${match[1]}`, `died in ${match[1]}`);
     });
 
-    consume(/\bborn\s+in\s+(.+?)(?=$|\b(?:and|or|before|after)\b)/i, (match) => {
-      const value = stripSurroundingQuotes(match[1]);
-      if (value && !/^\d{4}s?$/i.test(value)) {
-        addTerm(normalizeWtPlusFieldTerm("BirthLocation", value), `born in ${value}`);
+    consume(
+      /\bborn\s+in\s+(.+?)(?=$|\b(?:and|or|before|after|between|to|profiles?|people|members?|unrecognized|unknown)\b)/i,
+      (match) => {
+        const raw = stripSurroundingQuotes(match[1])
+          .replace(/\s+(?:profiles?|people|members?)\s*$/i, "")
+          .trim();
+        if (raw && !/^\d{4}s?$/i.test(raw)) {
+          addTerm(normalizeWtPlusFieldTerm("BirthLocation", raw), `born in ${raw}`);
+        }
       }
-    });
-    consume(/\bdied\s+in\s+(.+?)(?=$|\b(?:and|or|before|after)\b)/i, (match) => {
-      const value = stripSurroundingQuotes(match[1]);
-      if (value && !/^\d{4}$/i.test(value)) {
-        addTerm(normalizeWtPlusFieldTerm("DeathLocation", value), `died in ${value}`);
+    );
+    consume(
+      /\bdied\s+in\s+(.+?)(?=$|\b(?:and|or|before|after|profiles?|people|members?|unrecognized|unknown)\b)/i,
+      (match) => {
+        const raw = stripSurroundingQuotes(match[1])
+          .replace(/\s+(?:profiles?|people|members?)\s*$/i, "")
+          .trim();
+        if (raw && !/^\d{4}$/i.test(raw)) {
+          addTerm(normalizeWtPlusFieldTerm("DeathLocation", raw), `died in ${raw}`);
+        }
       }
-    });
-    consume(/\bmarried\s+in\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
-      const value = stripSurroundingQuotes(match[1]);
-      addTerm(normalizeWtPlusFieldTerm("MarriageLocation", value), `married in ${value}`);
+    );
+    consume(/\bmarried\s+in\s+(.+?)(?=$|\b(?:and|or|profiles?|people|members?|unrecognized|unknown)\b)/i, (match) => {
+      const raw = stripSurroundingQuotes(match[1])
+        .replace(/\s+(?:profiles?|people|members?)\s*$/i, "")
+        .trim();
+      if (raw) addTerm(normalizeWtPlusFieldTerm("MarriageLocation", raw), `married in ${raw}`);
     });
 
     consume(/\bwith\s+first\s+name\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
@@ -804,30 +1252,68 @@ export function createProfileSearchHandler({
       }
     });
 
-    consume(/\bunrecognized\s+death\s+locations?\b/i, () => {
-      addSqlTerm(
-        buildWtPlusSqlTerm("(Trim([Default].[Death Location Country, Region, City].AsString) = '')"),
-        "unrecognized death locations"
-      );
+    consume(/\b(?:unrecognized|unknown)\s+death(?:\s+locations?)?\b/i, () => {
+      addTerm(normalizeWtPlusFieldTerm("DeathCountry", "UnknownCountry"), "unrecognized death locations");
     });
 
     let remainder = cleanWtPlusGroupRemainder(working);
     if (remainder) {
-      const tokens = remainder.split(/\s+/).filter(Boolean);
-      if (tokens.length === 1) {
-        const token = stripSurroundingQuotes(tokens[0]);
-        if (token && !/^(?:in|from)$/i.test(token)) {
-          addTerm(normalizeWtPlusFieldTerm("LastNameAtBirth", token), `last name ${token}`);
+      const tokens = remainder
+        .split(/\s+/)
+        .map((token) => String(token || "").trim())
+        .filter(Boolean)
+        .filter((token) => !/^(?:and|or)$/i.test(token));
+      const isDateMagicToken = (token) => /^(?:B\d{4}|D\d{4}|\d{4}s|\d{1,2}Cen)$/i.test(String(token || "").trim());
+      const extractedDateTokens = [];
+      const extractedRawTokens = [];
+      const remainderTokens = [];
+      tokens.forEach((token) => {
+        const normalizedToken = stripSurroundingQuotes(token);
+        if (isDateMagicToken(normalizedToken)) {
+          extractedDateTokens.push(normalizedToken);
+          return;
         }
-      } else if (tokens.length >= 2) {
-        if (/^(?:in|from)$/i.test(tokens[0])) {
-          const possibleLocation = stripSurroundingQuotes(tokens.slice(1).join(" "));
+
+        const canonicalRawToken = canonicalizeWtPlusRawToken(normalizedToken);
+        if (canonicalRawToken && !/^(?:OR|NOT)$/i.test(canonicalRawToken)) {
+          extractedRawTokens.push(canonicalRawToken);
+        } else {
+          remainderTokens.push(token);
+        }
+      });
+      extractedDateTokens.forEach((token) => {
+        addTerm(token, token);
+      });
+      extractedRawTokens.forEach((token) => {
+        addTerm(token, token);
+      });
+
+      const hasNameScopedTerm = terms.some((term) => /^(?:LastNameAtBirth|AllLastNames|WikiTreeID)=/.test(term));
+      if (remainderTokens.length === 1) {
+        const token = stripSurroundingQuotes(remainderTokens[0]);
+        if (token && !/^(?:in|from)$/i.test(token)) {
+          if (/^[A-Za-z][A-Za-z0-9_-]+-\d+$/i.test(token)) {
+            addTerm(normalizeWtPlusFieldTerm("WikiTreeID", token), `WikiTree ID ${token}`);
+          } else if (!hasNameScopedTerm && extractedDateTokens.length > 0) {
+            addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
+          } else if (!hasNameScopedTerm && extractedRawTokens.length > 0) {
+            addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
+          } else if (!hasNameScopedTerm && sqlTerms.length > 0) {
+            addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
+          } else {
+            addTerm(normalizeWtPlusFieldTerm("LastNameAtBirth", token), `last name ${token}`);
+          }
+        }
+      } else if (remainderTokens.length >= 2) {
+        if (/^(?:in|from)$/i.test(remainderTokens[0])) {
+          const possibleLocation = stripSurroundingQuotes(remainderTokens.slice(1).join(" "));
           if (possibleLocation) {
             addTerm(normalizeWtPlusFieldTerm("Location", possibleLocation), `location ${possibleLocation}`);
           }
         } else {
-          const possibleSurname = stripSurroundingQuotes(tokens.shift());
-          const possibleLocation = stripSurroundingQuotes(tokens.join(" "));
+          const splitTokens = remainderTokens.slice();
+          const possibleSurname = stripSurroundingQuotes(splitTokens.shift());
+          const possibleLocation = stripSurroundingQuotes(splitTokens.join(" "));
           if (possibleSurname) {
             addTerm(normalizeWtPlusFieldTerm("LastNameAtBirth", possibleSurname), `last name ${possibleSurname}`);
           }
@@ -838,7 +1324,8 @@ export function createProfileSearchHandler({
       }
     }
 
-    const allTerms = [...terms, ...sqlTerms].filter(Boolean);
+    const mergedSqlTerm = combineSqlTerms();
+    const allTerms = [...terms, ...(mergedSqlTerm ? [mergedSqlTerm] : [])].filter(Boolean);
     if (!allTerms.length) {
       return null;
     }
@@ -865,8 +1352,10 @@ export function createProfileSearchHandler({
       return null;
     }
 
-    const query = parsedGroups.map((group) => group.query).join(" OR ");
-    const understood = parsedGroups
+    const normalizedGroups = inheritPrimaryScopeTermsAcrossWtPlusOrBranches(parsedGroups);
+
+    const query = normalizedGroups.map((group) => group.query).join(" OR ");
+    const understood = normalizedGroups
       .map((group) => group.understood)
       .filter(Boolean)
       .join(" OR ");
@@ -1113,6 +1602,8 @@ export function createProfileSearchHandler({
       query: [...terms, ...yearTokens].join(" ").trim(),
       title: `WT+ search: ${text}`,
       description: text,
+      // Flag for AI preference when Suggestions field has ambiguous remainder (e.g., "Middlesex Suggestions=803")
+      hasSuggestionsWithAmbiguousRemainder: hasSuggestionsField && remainder,
     };
   }
 
@@ -1128,18 +1619,14 @@ export function createProfileSearchHandler({
     if (isLikelySuggestionsPrompt(normalizedText)) {
       const suggestionParse = translateSuggestionsFreeTextToQuery(normalizedText);
       if (suggestionParse?.query) {
-        const hasSuggestionContextTerms =
-          !!suggestionParse.suggestionId &&
-          !!String(suggestionParse.query)
-            .replace(/(?:^|\s)Suggestions=\d+\b/i, " ")
-            .replace(/\s{2,}/g, " ")
-            .trim();
-        const suggestionSearchType = hasSuggestionContextTerms ? "text" : "suggestions";
+        // In chat mode, execute suggestions prompts as text search so we can
+        // show a people table when WT+ can return matches, and still offer the
+        // dedicated Suggestions button via suggestionId metadata.
         return {
           query: suggestionParse.query,
           title: `WT+ Suggestions: ${suggestionParse.understood || suggestionParse.query}`,
           description: suggestionParse.understood || suggestionParse.query,
-          searchType: suggestionSearchType,
+          searchType: "text",
           suggestionId: suggestionParse.suggestionId || "",
           suggestionOptions: suggestionParse.options || {},
         };
@@ -1544,17 +2031,20 @@ export function createProfileSearchHandler({
         "Return JSON only and nothing else.",
         'Format: {"understood":"short summary","query":"WT+ query string"}',
         "Allowed field=value fields:",
-        "WikiTreeID, LastNameAtBirth, AllLastNames, FirstName, Location, BirthLocation, MarriageLocation, DeathLocation, birthcountry, birthregion, deathcountry, deathregion, marriagecountry, marriageregion, CategoryFull, CategoryWord, TemplateText, Tree, Ancestors, Descendants, CC7, Creator_, changesmonth, created, Suggestions, sql.",
+        `${WT_PLUS_ALLOWED_FIELDS.join(", ")}.`,
         "Allowed raw tokens:",
-        "Open, Unsourced, Unconnected, Orphan, Notables, connected, unlinked, PublicTree, PrivateTree, male, female, NoGender, B0, D0, pre1500, NoFather, NoMother, NoParents, NoSpouses, NoChildren, mtDNA, yDNA, auDNA, noGEDMatchID, noMitoyDNAID, Private, Public, ProjectManaged, PPP, NeverEdited, ApprovedMerge, PendingMerge, UnmergedMatch, GEDCOMJunk, SourceJunk, IsInWikiData, relation=father/mother/parents/spouses/children/siblings/nuclear/addfather/addmother/addparents/addspouses/addchildren/addsiblings/addnuclear, B1850, D1912, 1850s, 20Cen, age42, LastEdit2020, Tree123, fgcem1234, fgmem5678, ERR123.",
+        "Open, Unsourced, Unconnected, Orphan, Notables, connected, unlinked, PublicTree, PrivateTree, male, female, NoGender, B0, D0, pre1500, NoFather, NoMother, NoParents, NoSpouses, NoChildren, mtDNA, yDNA, auDNA, noGEDMatchID, noMitoyDNAID, Private, Public, ProjectManaged, PPP, NeverEdited, ApprovedMerge, PendingMerge, UnmergedMatch, GEDCOMJunk, SourceJunk, IsInWikiData, relation=father/mother/parents/spouses/children/siblings/nuclear/addfather/addmother/addparents/addspouses/addchildren/addsiblings/addnuclear, B1850, D1912, 1850s, 20Cen, age42, LastEdit2020, Tree123, fgcem1234, fgmem5678." +
+          " Note: ERRxxx is NOT valid here. For suggestion number filters use Suggestions=NNN (e.g. Suggestions=678).",
         "OR and NOT operators are allowed between terms.",
         "Only use those allowed fields and tokens.",
         "Use sql= for filters that are not easily represented as simple field=value, including date boundaries, line counts, and heading/category checks.",
+        "For date ranges in sql=, use WT+ range syntax: ([...].AsNumber In 19000101..19301231). Avoid >= ... AND <= ... patterns.",
         "Quote values that contain spaces or commas.",
         'If the request mentions "ancestors" or "descendants", preserve that in the query with Ancestors=<WikiTreeID> or Descendants=<WikiTreeID> and do not drop the family-root part.',
         'For bare prompts like "Ancestors ..." or "Descendants ...", assume the current profile person if available; otherwise use the logged-in user as the family root.',
         'Treat "Notables" primarily as a category/template concept, such as CategoryFull="Notables Project", CategoryFull="Living Notables Project", CategoryWord=Notables, or TemplateText="Notables Sticker", not as a raw status token.',
         "If the prompt is ambiguous, choose the most likely WT+ interpretation and summarize it in understood.",
+        "When a single token could be either a surname or a place (for example 'Shropshire'), prefer Location=<token> if there are geography/life-event hints; otherwise make your best judgment and reflect that choice in understood.",
         "Examples:",
         '{"understood":"unsourced profiles born in Devon","query":"Unsourced BirthLocation="Devon, England""}',
         '{"understood":"people in category Puritan Great Migration","query":"CategoryFull="Puritan Great Migration""}',
@@ -1641,10 +2131,116 @@ export function createProfileSearchHandler({
       return false;
     }
 
+    if (isLikelySuggestionsPrompt(text)) {
+      const suggestionsParsed = translateSuggestionsFreeTextToQuery(text);
+      const suggestionTail = String(suggestionsParsed?.query || "")
+        .replace(/(?:^|\s)Suggestions=\d+\b/i, " ")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+      const hasAmbiguousSuggestionsTail = !!suggestionTail && !/\b[A-Za-z_]+=/.test(suggestionTail);
+      if (hasAmbiguousSuggestionsTail) {
+        return true;
+      }
+    }
+
+    const normalizedBareText = text
+      .replace(/^\s*(?:search(?:\s+for)?|find|show|list|get|look(?:\s+up)?)\s+/i, "")
+      .replace(/^\s*(?:me\s+)?/i, "")
+      .trim();
+
+    const bareTokens = normalizedBareText
+      .split(/\s+/)
+      .map((token) => String(token || "").trim())
+      .filter(Boolean)
+      .filter((token) => !/^(?:and|or|with|who|that|are|is|profiles?|people|members?)$/i.test(token));
+    const isDateMagicToken = (token) => /^(?:B\d{4}|D\d{4}|\d{4}s|\d{1,2}Cen)$/i.test(String(token || "").trim());
+    const isRawStatusOrQualifierToken = (token) =>
+      /^(?:open|unsourced|unconnected|orphan|notables|connected|unlinked|publictree|privatetree|male|female|nogender|private|public|projectmanaged|ppp|neveredited|approvedmerge|pendingmerge|unmergedmatch|gedcomjunk|sourcejunk|isinwikidata|nofather|nomother|noparents|nospouses|nochildren|mtdna|ydna|audna)$/i.test(
+        String(token || "").trim()
+      );
+    const ambiguousWordTokens = bareTokens.filter(
+      (token) =>
+        /^[A-Za-z][A-Za-z'\-]{1,}$/.test(token) && !isDateMagicToken(token) && !isRawStatusOrQualifierToken(token)
+    );
+
     const hasFamilyRoot = /\b(?:ancestors|descendants)\b/i.test(text);
     const hasBoundaryDate = /\b(?:before|after)\s+\d{4}(?:-\d{2}(?:-\d{2})?)?\b/i.test(text);
+    const hasBetweenDateRange =
+      /\bbetween\s+\d{4}(?:-\d{2}(?:-\d{2})?)?\s+(?:and|to)\s+\d{4}(?:-\d{2}(?:-\d{2})?)?\b/i.test(text);
     const hasLocationOrLifeEvent = /\b(?:born|died|married)\b/i.test(text);
     const hasCategoryConcept = /\b(?:category|notables?|template|sticker)\b/i.test(text);
+    const hasStatusConcept = /\b(?:open|unsourced|unconnected|orphan|public|private|connected|unlinked)\b/i.test(text);
+    const hasManagerConstraint = /\b(?:managed\s+only\s+by|multiple\s+managers)\b/i.test(text);
+    const hasAnomalyConstraint =
+      /\b(?:unrecognized|unknown|missing|without|no\s+first\s+name|no\s+father|no\s+mother|no\s+parents|no\s+spouses|no\s+children)\b/i.test(
+        text
+      );
+    const hasGeneticConstraint = /\b(?:mt\s*dna|y\s*dna|au\s*dna|haplogroup|gedmatch|mitoydna)\b/i.test(text);
+    const hasAmbiguousSqlConstraint =
+      /\b(?:no\s+first\s+name|missing\s+first\s+name|born\s+before|born\s+after|died\s+before|died\s+after)\b/i.test(
+        text
+      );
+    const hasExplicitField = /\b[A-Za-z_]+=/.test(text);
+    const startsWithScopePrefix = /^\s*(?:in|from)\b/i.test(text);
+    const hasConjunction = /\b(?:and|or|with)\b/i.test(text);
+    const tokenCount = text.split(/\s+/).filter(Boolean).length;
+    const repeatedLifeEventCount = (text.match(/\b(?:born|died|married)\b/gi) || []).length;
+    const explicitLocationOrSurnameHint =
+      /\b(?:born\s+in|died\s+in|married\s+in|\bin\s+tree\b|\bfrom\b|\bin\b|lnab|surname|last\s+name|location|birth\s+location|death\s+location)\b/i.test(
+        text
+      );
+    const looksLikeWtId = /^[A-Za-z][A-Za-z0-9_-]+-\d+$/i.test(normalizedBareText);
+    const looksLikeSingleWordNameOrPlace = bareTokens.length === 1 && /^[A-Za-z][A-Za-z'\-]{1,}$/.test(bareTokens[0]);
+    const isKnownRawToken =
+      bareTokens.length === 1 && /^(?:open|unsourced|unconnected|orphan|notables)$/i.test(bareTokens[0]);
+    const hasQualifierToken = bareTokens.some((token) => isDateMagicToken(token) || isRawStatusOrQualifierToken(token));
+    const semanticClauseCount = [
+      hasFamilyRoot,
+      hasBoundaryDate || hasBetweenDateRange,
+      hasLocationOrLifeEvent,
+      hasCategoryConcept,
+      hasStatusConcept,
+      hasManagerConstraint,
+      hasAnomalyConstraint,
+      hasGeneticConstraint,
+    ].filter(Boolean).length;
+
+    if (hasExplicitField) {
+      return false;
+    }
+
+    // Single bare token prompts (e.g., "Shropshire") are often truly ambiguous
+    // between surname and location. Let AI arbitrate only in this narrow case.
+    if (
+      looksLikeSingleWordNameOrPlace &&
+      !looksLikeWtId &&
+      !isKnownRawToken &&
+      !explicitLocationOrSurnameHint &&
+      semanticClauseCount === 0
+    ) {
+      return true;
+    }
+
+    // Two-word bare prompts can also be surname/location ambiguous (e.g. "Shropshire Beacall").
+    // If qualifiers are present but there is still no explicit location/surname cue, let AI decide order.
+    if (ambiguousWordTokens.length === 2 && hasQualifierToken && !explicitLocationOrSurnameHint && !hasExplicitField) {
+      return true;
+    }
+
+    if (hasAmbiguousSqlConstraint && !hasExplicitField && !startsWithScopePrefix) {
+      return true;
+    }
+    if (hasBetweenDateRange && hasLocationOrLifeEvent && !hasExplicitField) {
+      return true;
+    }
+    if (
+      !startsWithScopePrefix &&
+      semanticClauseCount >= 3 &&
+      (hasConjunction || repeatedLifeEventCount >= 2) &&
+      tokenCount >= 6
+    ) {
+      return true;
+    }
     return (
       (hasFamilyRoot && hasBoundaryDate && hasLocationOrLifeEvent) || (hasCategoryConcept && hasLocationOrLifeEvent)
     );
@@ -1654,13 +2250,30 @@ export function createProfileSearchHandler({
     return extractSuggestionId(queryText);
   }
 
+  function isWtPlusExecutionFailure(result) {
+    const text = typeof result === "string" ? result : result?.message;
+    return /couldn't complete the WT\+ query/i.test(String(text || ""));
+  }
+
   async function runWtPlusProfileQuery(wtPlusQuery, title, interpretation = null, runOptions = {}) {
     const templateCanonicalQuery = await canonicalizeWtPlusTemplateTerms(wtPlusQuery);
     const contextCanonicalQuery = resolveWtPlusContextPlaceholders(templateCanonicalQuery);
-    const { query: canonicalQuery, categoryMatches } = await canonicalizeWtPlusCategoryTerms(contextCanonicalQuery);
+    const rangeCanonicalQuery = canonicalizeWtPlusSqlDateRanges(contextCanonicalQuery);
+    const logicalCanonicalQuery = canonicalizeWtPlusSqlLogicalOperators(rangeCanonicalQuery);
+    const { query: managerCanonicalQuery, managerMatches } = await canonicalizeWtPlusManagerTerms(
+      logicalCanonicalQuery
+    );
+    const { query: canonicalQuery, categoryMatches } = await canonicalizeWtPlusCategoryTerms(managerCanonicalQuery);
     const suggestionId = runOptions?.suggestionId || "";
     const suggestionOptions = runOptions?.suggestionOptions || {};
     const isSuggestionsSearch = runOptions?.searchType === "suggestions";
+
+    if (!isSuggestionsSearch && !hasPrimaryScopeTermInWtPlusQuery(canonicalQuery)) {
+      return {
+        message:
+          "WT+ query needs a base search term in each OR branch (for example Location, name, Manager, Tree, Category, or WikiTreeID). Magic words like ProjectManaged/PPP and sql filters can refine results, but they cannot be the only terms.",
+      };
+    }
 
     if (isSuggestionsSearch) {
       recordWtPlusParseTelemetry("queryRan");
@@ -1683,6 +2296,7 @@ export function createProfileSearchHandler({
     console.debug("wbe: WT+ direct query", {
       wtPlusQuery,
       canonicalQuery,
+      managerMatches,
       categoryMatches,
       encodedQuery,
       title,
@@ -1693,9 +2307,55 @@ export function createProfileSearchHandler({
     try {
       recordWtPlusParseTelemetry("queryRan");
       const response = await wtAPIProfileSearch("ChatWTPlus", encodedQuery, { maxProfiles: WT_PLUS_MAX_PROFILES });
+      const searchLog = String(response?.response?.searchLog || response?.searchLog || "");
+      const tooManyMatch = searchLog.match(/Too many profiles!!!\s*(\d+)?/i);
+      const sqlStartIssue = /search\s+should\s+not\s+be\s+start\s+with\s+sql/i.test(searchLog);
+      console.debug("wbe: WT+ searchLog analyzed", {
+        canonicalQuery,
+        found: response?.response?.found,
+        hasTooManyProfilesMarker: !!tooManyMatch,
+        hasSqlStartIssue: sqlStartIssue,
+        searchLog,
+      });
+      if (sqlStartIssue) {
+        hideChatShaky();
+        console.info("wbe: WT+ sql parser issue detected", {
+          canonicalQuery,
+          searchLog,
+        });
+        return `I couldn't complete the WT+ query "${canonicalQuery}". WT+ reported a SQL parse issue ("search should not be start with sql").`;
+      }
+      if (tooManyMatch) {
+        hideChatShaky();
+        const matchedCount = tooManyMatch?.[1] ? Number.parseInt(tooManyMatch[1], 10) : NaN;
+        console.info("wbe: WT+ query exceeded profile cap", {
+          canonicalQuery,
+          matchedCount: Number.isFinite(matchedCount) ? matchedCount : null,
+          searchLog,
+        });
+        const countText = Number.isFinite(matchedCount) ? `${matchedCount.toLocaleString()}+` : "too many";
+        return {
+          message: `WT+ reported ${countText} profiles for query: ${canonicalQuery}. Please narrow the search (for example add a date range, category, manager, or a more specific location).`,
+          actions: [
+            {
+              label: "Open in WT+",
+              actionType: "wtplus-open",
+              wtPlusQuery: canonicalQuery,
+              wtPlusSearchType: "text",
+              wtPlusSuggestionId: suggestionId || "",
+              wtPlusSuggestionOptions: suggestionOptions,
+            },
+          ],
+        };
+      }
       const profiles = response?.response?.profiles || [];
       if (!profiles.length) {
         recordWtPlusParseTelemetry("queryZeroResults");
+        console.info("wbe: WT+ returned zero profiles", {
+          canonicalQuery,
+          found: response?.response?.found,
+          searchLog,
+        });
         hideChatShaky();
         return `I couldn't find any profiles for WT+ query: ${canonicalQuery}`;
       }
@@ -2219,21 +2879,42 @@ export function createProfileSearchHandler({
         const explicitWtPlusQuery =
           parseExplicitWtPlusQuery(mainQuery) ||
           parseExplicitWtPlusQuery(rawQuery.replace(/^\s*(?:search:?|find|look(?:\s+up)?)\s+/i, ""));
-        const preferAiWtPlusQuery = !explicitWtPlusQuery && shouldPreferAiWtPlusQuery(mainQuery);
+        const preferAiWtPlusQuery = shouldPreferAiWtPlusQuery(mainQuery);
         const localWtPlusQuery =
-          parseNaturalLanguageWtPlusQuery(mainQuery) || parseCombinedNaturalLanguageWtPlusQuery(mainQuery);
-        const wtPlusQuery = preferAiWtPlusQuery ? explicitWtPlusQuery : explicitWtPlusQuery || localWtPlusQuery;
+          explicitWtPlusQuery ||
+          parseNaturalLanguageWtPlusQuery(mainQuery) ||
+          parseCombinedNaturalLanguageWtPlusQuery(mainQuery);
 
-        if (wtPlusQuery?.query) {
-          if (wtPlusQuery.searchType === "suggestions") {
+        console.info("wbe: WT+ routing decision", {
+          rawQuery,
+          mainQuery,
+          preferAiWtPlusQuery,
+          hasExplicitWtPlusQuery: Boolean(explicitWtPlusQuery?.query),
+          explicitWtPlusQuery: explicitWtPlusQuery?.query || "",
+          hasLocalWtPlusQuery: Boolean(localWtPlusQuery?.query),
+          localWtPlusQuery: localWtPlusQuery?.query || "",
+          localSearchType: localWtPlusQuery?.searchType || "",
+        });
+
+        // If explicit query has Suggestions field with ambiguous remainder (e.g., "Middlesex Suggestions=803"),
+        // prefer AI to interpret the context
+        const hasSuggestionsWithAmbiguousRemainder = explicitWtPlusQuery?.hasSuggestionsWithAmbiguousRemainder;
+        const shouldPreferAiForAmbiguousSuggestions = hasSuggestionsWithAmbiguousRemainder || preferAiWtPlusQuery;
+
+        if (!shouldPreferAiForAmbiguousSuggestions && localWtPlusQuery?.query) {
+          console.info("wbe: WT+ using deterministic local parser query", {
+            query: localWtPlusQuery.query,
+            searchType: localWtPlusQuery.searchType || "text",
+          });
+          if (localWtPlusQuery.searchType === "suggestions") {
             recordWtPlusParseTelemetry("parsedSuggestions");
           } else {
             recordWtPlusParseTelemetry("parsedLocal");
           }
-          return await runWtPlusProfileQuery(wtPlusQuery.query, wtPlusQuery.title, null, {
-            searchType: wtPlusQuery.searchType,
-            suggestionId: wtPlusQuery.suggestionId,
-            suggestionOptions: wtPlusQuery.suggestionOptions,
+          return await runWtPlusProfileQuery(localWtPlusQuery.query, localWtPlusQuery.title, null, {
+            searchType: localWtPlusQuery.searchType,
+            suggestionId: localWtPlusQuery.suggestionId,
+            suggestionOptions: localWtPlusQuery.suggestionOptions,
           });
         }
 
@@ -2241,11 +2922,30 @@ export function createProfileSearchHandler({
         const aiWtPlusQuery = await callAiParseWtPlusQuery(rawQuery);
         hideChatShaky();
         if (aiWtPlusQuery?.query) {
+          console.info("wbe: WT+ using AI parsed query", {
+            rawQuery,
+            aiQuery: aiWtPlusQuery.query,
+          });
           recordWtPlusParseTelemetry("parsedAi");
-          return await runWtPlusProfileQuery(aiWtPlusQuery.query, aiWtPlusQuery.title, aiWtPlusQuery);
+          const aiRunResult = await runWtPlusProfileQuery(aiWtPlusQuery.query, aiWtPlusQuery.title, aiWtPlusQuery);
+          if (isWtPlusExecutionFailure(aiRunResult) && localWtPlusQuery?.query) {
+            console.info("wbe: WT+ AI query failed; retrying deterministic parser query", {
+              rawQuery,
+              aiQuery: aiWtPlusQuery.query,
+              localQuery: localWtPlusQuery.query,
+            });
+            recordWtPlusParseTelemetry("parsedLocal");
+            return await runWtPlusProfileQuery(localWtPlusQuery.query, localWtPlusQuery.title, localWtPlusQuery);
+          }
+          return aiRunResult;
         }
 
-        if (preferAiWtPlusQuery && localWtPlusQuery?.query) {
+        if (shouldPreferAiForAmbiguousSuggestions && localWtPlusQuery?.query) {
+          console.info("wbe: WT+ AI parse unavailable; falling back to deterministic parser query", {
+            rawQuery,
+            localQuery: localWtPlusQuery.query,
+            localSearchType: localWtPlusQuery.searchType || "text",
+          });
           return await runWtPlusProfileQuery(localWtPlusQuery.query, localWtPlusQuery.title, localWtPlusQuery);
         }
       }

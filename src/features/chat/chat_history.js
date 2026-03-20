@@ -243,16 +243,67 @@ export function createChatHistoryHandlers({
     return /^\s*(?:I'm\s+sorry,\s*)?I\s+could(?:\s+not|n't)\b/i.test(String(message));
   }
 
-  function formatChatMessageBody(text, inlineMore = null) {
+  function tryFormatWtPlusQueryMessage(text) {
+    const normalized = String(text || "").trim();
+    const foundMatch = normalized.match(
+      /^Found\s+(\d+)\s+profile(?:s)?\s+for\s+WT\+\s+query:\s+(.+?)(?:\.\s+Also\s+(.+))?\.?$/i
+    );
+    if (!foundMatch) {
+      const noResultsMatch = normalized.match(
+        /^I'm\s+sorry,\s+I\s+couldn't\s+find\s+any\s+profiles\s+for\s+WT\+\s+query:\s+(.+?)(?:\s+Could\s+you\s+try\s+a\s+more\s+specific\s+name\s+or\s+a\s+WikiTree\s+ID\?)?$/i
+      );
+      if (!noResultsMatch) {
+        return null;
+      }
+
+      const noResultsQuery = String(noResultsMatch[1] || "").trim();
+      if (!noResultsQuery) {
+        return null;
+      }
+
+      const escapedNoResultsQuery = escapeHtml(noResultsQuery);
+      return [
+        '<div class="chat-query-row">No profiles found for WT+ query:</div>',
+        '<div class="chat-query-box">',
+        `<code class="chat-query-code">${escapedNoResultsQuery}</code>`,
+        "</div>",
+        '<div class="chat-query-note">Could you try a more specific name or a WikiTree ID?</div>',
+      ].join("");
+    }
+
+    const profileCount = foundMatch[1];
+    const queryText = String(foundMatch[2] || "").trim();
+    const optionalNote = String(foundMatch[3] || "").trim();
+    if (!queryText) {
+      return null;
+    }
+
+    const escapedQuery = escapeHtml(queryText);
+    const escapedCount = escapeHtml(profileCount);
+    const escapedNote = optionalNote ? escapeHtml(optionalNote) : "";
+    return [
+      `<div class="chat-query-row">Found ${escapedCount} profiles for WT+ query:</div>`,
+      `<div class="chat-query-box">`,
+      `<code class="chat-query-code">${escapedQuery}</code>`,
+      `</div>`,
+      escapedNote ? `<div class="chat-query-note">Also ${escapedNote}.</div>` : "",
+    ].join("");
+  }
+
+  function formatStandardChatMessageBody(text) {
     const escaped = escapeHtml(text).replace(/\n/g, "<br>");
     const withWikiTreeLinks = escaped.replace(/\b([A-Z][A-Za-z0-9_]+-\d+)\b/g, (full, wtId) => {
       const href = `https://www.wikitree.com/wiki/${encodeURIComponent(wtId)}`;
       return `<a class="chat-results-link" href="${href}" target="_blank" rel="noopener noreferrer">${wtId}</a>`;
     });
 
-    const formattedBody = withWikiTreeLinks.replace(/__WBE_SHOW_MORE__:(\d+)/g, (full, count) => {
+    return withWikiTreeLinks.replace(/__WBE_SHOW_MORE__:(\d+)/g, (full, count) => {
       return `<a href="#" class="chat-results-link chat-inline-show-more">${count} more</a>`;
     });
+  }
+
+  function formatChatMessageBody(text, inlineMore = null) {
+    const formattedBody = tryFormatWtPlusQueryMessage(text) || formatStandardChatMessageBody(text);
 
     if (!inlineMore?.text) {
       return formattedBody;
@@ -320,7 +371,19 @@ export function createChatHistoryHandlers({
         actionType: "table",
         onClick: () => {
           const toOpen = message.structured || getLastStructuredResult?.();
-          if (!toOpen) return;
+          if (!toOpen) {
+            console.info("wbe: table action unavailable after restore", {
+              messageIndex: msgIndex,
+              hasStructuredSnapshot: !!message.structured,
+              hasLastStructuredResult: !!getLastStructuredResult?.(),
+            });
+            appendMessage(
+              "assistant",
+              "This table is not available after refresh because the full result set was too large to cache. Re-run the query or use Open in WT+.",
+              { shouldPersist: false }
+            );
+            return;
+          }
           const popupId = `${chatResultsPopupId}-msg-${msgIndex}`;
           const tableId = `${chatResultsTableId}-msg-${msgIndex}`;
           const existing = document.getElementById(popupId);
@@ -455,21 +518,35 @@ export function createChatHistoryHandlers({
           historyEntry.inlineMore.count = countValue;
         }
       }
-      const serializedActions = actions.map(serializeAction).filter(Boolean);
+      const actionWithTable = actions.find((action) => action?.table);
+      const canPersistStructuredTable = !!(
+        actionWithTable?.table && shouldPersistStructuredTable(actionWithTable.table)
+      );
+      if (canPersistStructuredTable) {
+        try {
+          historyEntry.structured = actionWithTable.table;
+        } catch (e) {
+          /* ignore */
+        }
+      } else if (actionWithTable?.table) {
+        const rowCount = Array.isArray(actionWithTable.table?.rows) ? actionWithTable.table.rows.length : 0;
+        console.info("wbe: skipping persisted Table action for oversized result", {
+          rowCount,
+          maxPersistedRows: MAX_PERSISTED_STRUCTURED_ROWS,
+        });
+      }
+
+      const serializedActions = actions
+        .map(serializeAction)
+        .filter(Boolean)
+        .filter((action) => !(action.actionType === "table" && !canPersistStructuredTable));
       if (serializedActions.length) {
         historyEntry.actions = serializedActions;
         if (serializedActions.length === 1) {
           historyEntry.actionLabel = serializedActions[0].label;
         }
       }
-      const actionWithTable = actions.find((action) => action?.table);
-      if (actionWithTable?.table && shouldPersistStructuredTable(actionWithTable.table)) {
-        try {
-          historyEntry.structured = actionWithTable.table;
-        } catch (e) {
-          /* ignore */
-        }
-      }
+
       history.push(historyEntry);
       setChatHistory(history);
       const saved = saveHistory();

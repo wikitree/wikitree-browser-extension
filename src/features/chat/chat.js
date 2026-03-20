@@ -59,6 +59,8 @@ import { formatDate, getRelationColour, getYearColour } from "../../core/formatt
 import { isPlusDomain } from "../../core/pageType";
 import { escapeHtml } from "../../core/lib/diff_utils";
 import { buildPlusUrl } from "../wikitree_plus_helper/wikitree_plus_helper_url";
+import { buildSuggestionsOptions } from "../wikitree_plus_helper/wikitree_plus_helper_suggestions";
+import { buildSelectOptions } from "../wikitree_plus_helper/wikitree_plus_helper_utils";
 import {
   setPopupPositionAndSize,
   positionPopupForOpen,
@@ -99,10 +101,13 @@ const CHAT_MESSAGES_ID = "wbe-chat-messages";
 const CHAT_INPUT_ID = "wbe-chat-input";
 const CHAT_SEND_ID = "wbe-chat-send";
 const CHAT_CLEAR_ID = "wbe-chat-clear";
+const CHAT_WTPLUS_SUGGESTION_PICKER_ID = "wbe-chat-wtplus-suggestion-picker";
+const CHAT_WTPLUS_SUGGESTION_SELECT_ID = "wbe-chat-wtplus-suggestion-select";
 const CHAT_SESSION_KEY = `wbe_chat_history_${window.location.pathname}`;
 const CHAT_LAST_CONNECTION_KEY = `${CHAT_SESSION_KEY}_lastConnection`;
 const CHAT_LAST_STRUCTURED_KEY = `${CHAT_SESSION_KEY}_lastStructured`;
 const CHAT_LAST_BIO_KEY = `${CHAT_SESSION_KEY}_lastBio`;
+const CHAT_MODE_STORAGE_KEY = "chat_mode";
 const WBE_CHAT_APP_ID = "chat";
 const CC7_CACHE_MS = 5 * 60 * 1000;
 const CHAT_RESULTS_POPUP_ID = "wbe-chat-results-popup";
@@ -126,12 +131,211 @@ let lastConnectionPopupResult = null;
 let lastStructuredResult = null;
 let lastBioPopupId = null;
 let lastBioPopupProfile = null;
+let wtPlusSuggestionOptionsHtml = "";
+
+function getWtPlusSuggestionOptionsHtml() {
+  if (wtPlusSuggestionOptionsHtml) {
+    return wtPlusSuggestionOptionsHtml;
+  }
+
+  try {
+    wtPlusSuggestionOptionsHtml = buildSelectOptions(buildSuggestionsOptions(), "", true);
+  } catch (error) {
+    console.info("wbe: unable to build WT+ suggestion options", { error });
+    wtPlusSuggestionOptionsHtml = '<option value=""></option>';
+  }
+
+  return wtPlusSuggestionOptionsHtml;
+}
+
+function isWtPlusSuggestionPrompt(text) {
+  const normalized = String(text || "").trim();
+  if (!normalized) {
+    return false;
+  }
+
+  return /(?:^|\s)(?:suggestions?|sug\w*|dbe\w*)\b/i.test(normalized);
+}
+
+function parseSuggestionNumberFromPrompt(prompt) {
+  const original = String(prompt || "");
+  if (!original.trim()) {
+    return original;
+  }
+
+  // Match patterns like "dbe803", "sug803", "suggestion803", "suggestions803"
+  // with optional "=" like "dbe=803", "sug=803"
+  const compactMatch = /(?:^|\s)(suggestions?|sug\w*|dbe)(?:\s*=?\s*)(\d+)\b/i.exec(original);
+  if (compactMatch) {
+    const [fullMatch, keyword, number] = compactMatch;
+    // Replace the matched pattern with normalized format
+    return original.replace(fullMatch, (match) => {
+      // If match starts with whitespace, preserve the leading space
+      if (fullMatch[0] === " " || /\s/.test(fullMatch[0])) {
+        return ` Suggestions=${number}`;
+      }
+      return `Suggestions=${number}`;
+    });
+  }
+
+  return original;
+}
+
+function upsertSuggestionInPrompt(prompt, suggestionNumber) {
+  const nextSuggestionTerm = `Suggestions=${suggestionNumber}`;
+  const original = String(prompt || "");
+
+  if (!original.trim()) {
+    return nextSuggestionTerm;
+  }
+
+  // Replace existing Suggestions=NNN format
+  if (/\bSuggestions\s*=\s*\d+\b/i.test(original)) {
+    return original.replace(/\bSuggestions\s*=\s*\d+\b/i, nextSuggestionTerm);
+  }
+
+  // Replace trigger keywords: "suggestion(s)", "sug*", or "dbe*"
+  const triggerPattern = /(?:^|\s)(?:suggestions?|sug\w*|dbe\w*)\b/i;
+  if (triggerPattern.test(original)) {
+    return original.replace(triggerPattern, (match) => {
+      // If match starts with whitespace (not at start of string), preserve the space
+      if (match[0] === " " || /\s/.test(match[0])) {
+        return " " + nextSuggestionTerm;
+      }
+      return nextSuggestionTerm;
+    });
+  }
+
+  return `${original.trim()} ${nextSuggestionTerm}`.trim();
+}
+
+function updateWtPlusSuggestionPickerState($popup) {
+  const $picker = $popup.find(`#${CHAT_WTPLUS_SUGGESTION_PICKER_ID}`);
+  if (!$picker.length) {
+    return;
+  }
+
+  const currentMode = getCurrentChatMode();
+  const inputValue = String($popup.find(`#${CHAT_INPUT_ID}`).val() || "");
+  const shouldShow = currentMode === "wtplus" && isWtPlusSuggestionPrompt(inputValue);
+  $picker.toggle(shouldShow);
+}
+
+function bindWtPlusSuggestionPicker($popup) {
+  const $input = $popup.find(`#${CHAT_INPUT_ID}`);
+  const $picker = $popup.find(`#${CHAT_WTPLUS_SUGGESTION_PICKER_ID}`);
+  const $select = $popup.find(`#${CHAT_WTPLUS_SUGGESTION_SELECT_ID}`);
+  if (!$input.length || !$picker.length || !$select.length) {
+    return;
+  }
+
+  $select.html(getWtPlusSuggestionOptionsHtml());
+
+  $input.on("input", () => {
+    updateWtPlusSuggestionPickerState($popup);
+  });
+
+  $popup.find('input[name="wbe-chat-mode"]').on("change", () => {
+    updateWtPlusSuggestionPickerState($popup);
+  });
+
+  $select.on("change", () => {
+    const selectedValue = String($select.val() || "").trim();
+    const suggestionNumberMatch = selectedValue.match(/(\d+)/);
+    const suggestionNumber = suggestionNumberMatch?.[1] || "";
+    if (!suggestionNumber) {
+      return;
+    }
+
+    const currentPrompt = String($input.val() || "");
+    const nextPrompt = upsertSuggestionInPrompt(currentPrompt, suggestionNumber);
+    $input.val(nextPrompt);
+    updateWtPlusSuggestionPickerState($popup);
+    $input.trigger("focus");
+  });
+
+  updateWtPlusSuggestionPickerState($popup);
+}
+
+function refreshWtPlusSuggestionPickerForCurrentPopup() {
+  const $popup = $(`#${CHAT_POPUP_ID}`);
+  if (!$popup.length) {
+    return;
+  }
+
+  updateWtPlusSuggestionPickerState($popup);
+}
 
 function getCurrentChatMode() {
   const checked = document.querySelector('input[name="wbe-chat-mode"]:checked');
   return String(checked?.value || "wt")
     .trim()
     .toLowerCase();
+}
+
+function normalizeChatMode(mode) {
+  const normalized = String(mode || "")
+    .trim()
+    .toLowerCase();
+  return ["wt", "wtplus", "ai"].includes(normalized) ? normalized : "wt";
+}
+
+function applyChatModeToPopup($popup, mode) {
+  const normalizedMode = normalizeChatMode(mode);
+  const selector = `input[name="wbe-chat-mode"][value="${normalizedMode}"]`;
+  const radio = $popup.find(selector).get(0);
+  if (radio) {
+    radio.checked = true;
+  }
+}
+
+function getStoredChatModeFromLocalStorage() {
+  try {
+    return normalizeChatMode(window.localStorage.getItem(CHAT_MODE_STORAGE_KEY) || "wt");
+  } catch (error) {
+    return "wt";
+  }
+}
+
+function persistChatMode(mode) {
+  const normalizedMode = normalizeChatMode(mode);
+
+  try {
+    window.localStorage.setItem(CHAT_MODE_STORAGE_KEY, normalizedMode);
+  } catch (error) {
+    console.info("wbe: unable to persist chat mode to localStorage", { error });
+  }
+
+  try {
+    chrome.storage.local.set({ [CHAT_MODE_STORAGE_KEY]: normalizedMode });
+  } catch (error) {
+    console.info("wbe: unable to persist chat mode", { error });
+  }
+}
+
+function restoreChatMode($popup) {
+  applyChatModeToPopup($popup, getStoredChatModeFromLocalStorage());
+
+  try {
+    chrome.storage.local.get([CHAT_MODE_STORAGE_KEY], (stored) => {
+      if (chrome.runtime?.lastError) {
+        return;
+      }
+      const popupEl = $popup?.get?.(0);
+      if (!popupEl || !document.body.contains(popupEl)) {
+        return;
+      }
+      const restoredMode = normalizeChatMode(stored?.[CHAT_MODE_STORAGE_KEY] || getStoredChatModeFromLocalStorage());
+      applyChatModeToPopup($popup, restoredMode);
+      try {
+        window.localStorage.setItem(CHAT_MODE_STORAGE_KEY, restoredMode);
+      } catch (error) {
+        console.info("wbe: unable to mirror restored chat mode to localStorage", { error });
+      }
+    });
+  } catch (error) {
+    console.info("wbe: unable to restore chat mode", { error });
+  }
 }
 
 function raiseChatActionPopupsAboveChat() {
@@ -893,24 +1097,29 @@ async function sendChatPrompt() {
     return;
   }
 
-  let prompt = rawPrompt;
+  // Normalize compact suggestion formats like "dbe803" to "Suggestions=803"
+  const normalizedPrompt = parseSuggestionNumberFromPrompt(rawPrompt);
+
+  let prompt = normalizedPrompt;
   const retryRequested = isRetryPrompt(rawPrompt);
 
   if (retryRequested) {
     if (!lastNonRetryUserPrompt) {
       appendMessage("assistant", "No earlier request to retry yet. Ask a question first.");
       $input.val("");
+      refreshWtPlusSuggestionPickerForCurrentPopup();
       return;
     }
     prompt = lastNonRetryUserPrompt;
     appendMessage("assistant", `Retrying your previous request: ${prompt}`, { shouldPersist: false });
   }
 
-  appendMessage("user", rawPrompt);
+  appendMessage("user", normalizedPrompt);
   if (!retryRequested) {
     lastNonRetryUserPrompt = rawPrompt;
   }
   $input.val("");
+  refreshWtPlusSuggestionPickerForCurrentPopup();
   setPendingState(true);
   // Show global chat loader while processing
   try {
@@ -1670,6 +1879,8 @@ function closePopup() {
 }
 
 function bindOutsideClickToCloseChat() {
+  const chatPopupSurfaceSelector = ".chat-popup, .chat-results-popup, #wbeShakyTree, #wbe-shaky-tree-popup";
+
   $(document)
     .off("mousedown.wbeChatOutsideClose")
     .on("mousedown.wbeChatOutsideClose", (event) => {
@@ -1684,6 +1895,11 @@ function bindOutsideClickToCloseChat() {
       }
 
       if (popup.contains(target)) {
+        return;
+      }
+
+      const targetElement = target instanceof Element ? target : target.parentElement;
+      if (targetElement?.closest(chatPopupSurfaceSelector)) {
         return;
       }
 
@@ -1712,6 +1928,10 @@ function openPopup() {
           <div id="${CHAT_MESSAGES_ID}" class="chat-messages"></div>
           <div class="chat-input-row">
             <textarea id="${CHAT_INPUT_ID}" rows="2" placeholder="Ask something" style="flex:1;min-height:48px"></textarea>
+            <div id="${CHAT_WTPLUS_SUGGESTION_PICKER_ID}" class="chat-wtplus-suggestion-picker" style="display:none">
+              <label for="${CHAT_WTPLUS_SUGGESTION_SELECT_ID}">WT+ suggestion</label>
+              <select id="${CHAT_WTPLUS_SUGGESTION_SELECT_ID}"></select>
+            </div>
             <div class="chat-input-actions">
               <div id="wbe-chat-mode-controls" class="chat-mode-controls" aria-label="Chat mode">
                 <div class="chat-mode-controls-title">Mode</div>
@@ -1732,6 +1952,9 @@ function openPopup() {
     $popup.find(".close-popup").on("click", closePopup);
     $popup.find(`#${CHAT_CLEAR_ID}`).on("click", clearHistory);
     $popup.find(`#${CHAT_SEND_ID}`).on("click", sendChatPrompt);
+    $popup.find('input[name="wbe-chat-mode"]').on("change", (event) => {
+      persistChatMode(event?.target?.value || getCurrentChatMode());
+    });
     $popup.find(`#${CHAT_INPUT_ID}`).on("keydown", (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -1745,6 +1968,7 @@ function openPopup() {
     });
     loadHistory();
     renderHistory();
+    bindWtPlusSuggestionPicker($popup);
     if (!chatHistory.length) {
       appendMessage("assistant", "Chat is ready. Ask a question to begin.");
     }
@@ -1773,6 +1997,7 @@ function openPopup() {
   }
 
   $popup.show();
+  restoreChatMode($popup);
   positionPopupForOpen($popup.get(0));
   setHighestZIndex($popup.get(0));
   $popup.find(`#${CHAT_INPUT_ID}`).focus();
