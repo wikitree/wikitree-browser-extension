@@ -245,6 +245,32 @@ export function createChatHistoryHandlers({
 
   function tryFormatWtPlusQueryMessage(text) {
     const normalized = String(text || "").trim();
+    const interpretedMatch = normalized.match(
+      /^AI\s+interpreted\s+this\s+as\s+"(.+?)"\s+and\s+ran\s+WT\+\s+query:\s+(.+?)\.\s+Found\s+(\d+)\s+profile(?:s)?(?:\.\s+Also\s+(.+))?\.?$/i
+    );
+    if (interpretedMatch) {
+      const interpretedText = String(interpretedMatch[1] || "").trim();
+      const queryText = String(interpretedMatch[2] || "").trim();
+      const profileCount = String(interpretedMatch[3] || "").trim();
+      const optionalNote = String(interpretedMatch[4] || "").trim();
+      if (!queryText) {
+        return null;
+      }
+
+      const escapedInterpreted = escapeHtml(interpretedText);
+      const escapedQuery = escapeHtml(queryText);
+      const escapedCount = escapeHtml(profileCount);
+      const escapedNote = optionalNote ? escapeHtml(optionalNote) : "";
+      return [
+        `<div class="chat-query-row">AI interpreted this as "${escapedInterpreted}" and ran WT+ query:</div>`,
+        '<div class="chat-query-box">',
+        `<code class="chat-query-code">${escapedQuery}</code>`,
+        "</div>",
+        `<div class="chat-query-note">Found ${escapedCount} profiles.</div>`,
+        escapedNote ? `<div class="chat-query-note">Also ${escapedNote}.</div>` : "",
+      ].join("");
+    }
+
     const foundMatch = normalized.match(
       /^Found\s+(\d+)\s+profile(?:s)?\s+for\s+WT\+\s+query:\s+(.+?)(?:\.\s+Also\s+(.+))?\.?$/i
     );

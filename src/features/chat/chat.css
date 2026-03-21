@@ -399,6 +399,32 @@
   gap: 0.4rem;
 }
 
+.chat-wtplus-magic-ref {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.chat-wtplus-magic-ref-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #5f6c63;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.chat-wtplus-magic-ref-select {
+  width: 100%;
+  border: 1px solid #bfc8bf;
+  border-radius: 6px;
+  padding: 0.3rem 0.4rem;
+  font: inherit;
+  font-size: 0.85rem;
+  background: #f7faf7;
+  cursor: pointer;
+}
+
 .chat-message-action {
   border: 1px solid #bcc8bc;
   background: #f2f7f2;

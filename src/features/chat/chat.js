@@ -103,6 +103,20 @@ const CHAT_SEND_ID = "wbe-chat-send";
 const CHAT_CLEAR_ID = "wbe-chat-clear";
 const CHAT_WTPLUS_SUGGESTION_PICKER_ID = "wbe-chat-wtplus-suggestion-picker";
 const CHAT_WTPLUS_SUGGESTION_SELECT_ID = "wbe-chat-wtplus-suggestion-select";
+const CHAT_WTPLUS_MAGIC_WORDS_GROUPS = [
+  { label: "Status", words: ["Open", "Unsourced", "Unconnected", "Orphan", "Notables"] },
+  { label: "Tree", words: ["connected", "unlinked", "PublicTree", "PrivateTree"] },
+  { label: "Gender", words: ["male", "female", "NoGender"] },
+  { label: "Dates", words: ["B0", "D0", "pre1500", "B1850 (pattern)", "D1912 (pattern)", "1850s (pattern)", "20Cen (pattern)"] },
+  { label: "Location", words: ["MissingLocation", "UnknownCountry", "UnknownRegion", "UnofficialLocation"] },
+  { label: "Family", words: ["NoFather", "NoMother", "NoParents", "NoSpouses", "NoChildren"] },
+  { label: "DNA", words: ["mtDNA", "yDNA", "auDNA", "noGEDMatchID", "noMitoyDNAID"] },
+  { label: "Privacy", words: ["Private", "PrivatePB", "PrivatePT", "PrivatePBPT", "Public", "Guest"] },
+  { label: "Management", words: ["ProjectManaged", "PPP", "NeverEdited", "ApprovedMerge", "PendingMerge", "UnmergedMatch", "GEDCOMJunk", "SourceJunk", "IsInWikiData"] },
+  { label: "Relation", words: ["relation=father", "relation=mother", "relation=parents", "relation=spouses", "relation=children", "relation=siblings", "relation=nuclear"] },
+  { label: "Stars", words: ["1star", "2stars", "3stars", "4stars", "5stars"] },
+  { label: "Other", words: ["age42 (pattern)", "LastEdit2020 (pattern)", "Tree123 (pattern)", "fgcem1234 (pattern)", "fgmem1234 (pattern)"] },
+];
 const CHAT_SESSION_KEY = `wbe_chat_history_${window.location.pathname}`;
 const CHAT_LAST_CONNECTION_KEY = `${CHAT_SESSION_KEY}_lastConnection`;
 const CHAT_LAST_STRUCTURED_KEY = `${CHAT_SESSION_KEY}_lastStructured`;
@@ -1077,6 +1091,35 @@ async function handleChatResult(result) {
   ];
 
   appendMessage("assistant", result.message, { actions, inlineMore: result.inlineMore || null });
+
+  if (result.showMagicWordsRef) {
+    const $messages = $(`#${CHAT_MESSAGES_ID}`);
+    const $lastMsg = $messages.find(".chat-message").last();
+    if ($lastMsg.length) {
+      const optgroupsHtml = CHAT_WTPLUS_MAGIC_WORDS_GROUPS.map(
+        ({ label, words }) =>
+          `<optgroup label="${label}">${words.map((w) => `<option value="${w}">${w}</option>`).join("")}</optgroup>`
+      ).join("");
+      const $widget = $(`<div class="chat-wtplus-magic-ref">
+          <label class="chat-wtplus-magic-ref-label">Magic Words reference</label>
+          <select class="chat-wtplus-magic-ref-select">
+            <option value="" disabled selected>— browse magic words —</option>
+            ${optgroupsHtml}
+          </select>
+        </div>`);
+      $widget.find("select").on("change", function () {
+        const raw = String($(this).val() || "");
+        const word = raw.replace(/\s*\(pattern\)\s*$/i, "");
+        if (!word) return;
+        const $input = $(`#${CHAT_INPUT_ID}`);
+        const current = String($input.val() || "").trimEnd();
+        $input.val(current ? `${current} ${word}` : word);
+        $input.trigger("input").focus();
+        $(this).val("").prop("selectedIndex", 0);
+      });
+      $lastMsg.append($widget);
+    }
+  }
 
   if (result.table) {
     const options = await getChatOptions();

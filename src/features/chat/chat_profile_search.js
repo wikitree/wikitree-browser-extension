@@ -746,6 +746,48 @@ export function createProfileSearchHandler({
       return true;
     };
 
+    // Unknown first and/or last name — must come before the name-marker rule so
+    // "last name" in these phrases isn't mis-captured as a surname marker.
+    // The optional leading "with (a|an|any)" is consumed so it doesn't contaminate
+    // the subsequent location token collection.
+    consume(
+      /\b(?:with\s+(?:a|an|any)\s+)?(?:unknown|missing)\s+first\s+(?:or|and)\s+(?:last|last\s+name(?:\s+at\s+birth)?)\s*(?:name)?\b/i,
+      () => {
+        addSqlTerm(
+          buildWtPlusSqlTerm(
+            "(([Default].[First Name] = '') Or ([Default].[Last Name At Birth] = ''))"
+          ),
+          "unknown first or last name"
+        );
+      }
+    );
+    consume(
+      /\b(?:with\s+(?:a|an|any)\s+)?(?:unknown|missing)\s+(?:last|last\s+name(?:\s+at\s+birth)?|surname|lnab)\s*(?:name)?\b/i,
+      () => {
+        addSqlTerm(
+          buildWtPlusSqlTerm("([Default].[Last Name At Birth] = '')"),
+          "unknown last name"
+        );
+      }
+    );
+    consume(/\b(?:with\s+(?:a|an|any)\s+)?(?:unknown|missing)\s+first\s*(?:name)?\b/i, () => {
+      addSqlTerm(buildWtPlusSqlTerm("([Default].[First Name] = '')"), "unknown first name");
+    });
+
+    // Explicit family-name marker: use the next word as surname and leave the
+    // remainder (if any) for location/date parsing.
+    // Negative lookahead prevents reserved words (conjunctions, prepositions,
+    // life-event verbs, anomaly words) from being mis-captured as a surname.
+    consume(
+      /\b(?:name|surname|lnab|last\s+name)\s+(?!(?:between|and|or|in|from|to|before|after|with|of|the|a\b|an\b|born|died|married|unknown|missing|first|last|but|if|for|on|at|near|by)\b)([A-Za-z][A-Za-z'\-]*)\b/i,
+      (match) => {
+        const surname = stripSurroundingQuotes(match[1]);
+        if (surname) {
+          addTerm(normalizeWtPlusFieldTerm("AllLastNames", surname), `family name ${surname}`);
+        }
+      }
+    );
+
     // Parse manager constraints before category/notables terms so phrases like
     // "managed by Living Notables project" don't get split into fallback name/location tokens.
     consume(/\bmanaged\s+only\s+by\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
@@ -802,6 +844,9 @@ export function createProfileSearchHandler({
       const token = key.includes("no") ? "NoGender" : key;
       addTerm(token, token.toLowerCase());
     });
+    // Colloquial gender words → WT+ tokens
+    consume(/\b(?:women|woman|ladies|lady|girls?)\b/i, () => addTerm("female", "female"));
+    consume(/\b(?:men|man|gentlemen?|boys?)\b/i, () => addTerm("male", "male"));
 
     consume(
       /\b(?:project\s+managed|guest|ppp|never\s+edited|approved\s+merge|pending\s+merge|unmerged\s+match|gedcom\s+junk|source\s+junk|wikidata)\b/i,
@@ -883,12 +928,48 @@ export function createProfileSearchHandler({
     consume(
       /\bborn\s+between\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\s+(?:and|to)\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i,
       (match) => {
-        const start = normalizeWtPlusBoundaryDate(match[1], "before");
-        const end = normalizeWtPlusBoundaryDate(match[2], "after");
-        addSqlTerm(
-          buildWtPlusSqlTerm(`([Default].[Birth Date].AsNumber In ${start}..${end})`),
-          `born between ${match[1]} and ${match[2]}`
-        );
+        const y1 = Number.parseInt(match[1], 10);
+        const y2 = Number.parseInt(match[2], 10);
+        const startYear = Math.min(y1, y2);
+        const endYear = Math.max(y1, y2);
+        const cenStart = Math.floor(startYear / 100);
+        const cenEnd = Math.floor(endYear / 100);
+        if (cenStart === cenEnd) {
+          const cenNum = cenStart + 1;
+          addTerm(`${cenNum}Cen`, `born in ${cenNum}th century`);
+        } else {
+          const start = normalizeWtPlusBoundaryDate(match[1], "before");
+          const end = normalizeWtPlusBoundaryDate(match[2], "after");
+          addSqlTerm(
+            buildWtPlusSqlTerm(`([Default].[Birth Date].AsNumber In ${start}..${end})`),
+            `born between ${match[1]} and ${match[2]}`
+          );
+        }
+      }
+    );
+    // Bare "between Y1 and Y2" (without "born") — treat as a birth year range.
+    // When both years fall in the same century use the NCen magic token so the
+    // filter is applied natively rather than via a potentially-fragile sql= term.
+    consume(
+      /\bbetween\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\s+(?:and|to)\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i,
+      (match) => {
+        const y1 = Number.parseInt(match[1], 10);
+        const y2 = Number.parseInt(match[2], 10);
+        const startYear = Math.min(y1, y2);
+        const endYear = Math.max(y1, y2);
+        const cenStart = Math.floor(startYear / 100);
+        const cenEnd = Math.floor(endYear / 100);
+        if (cenStart === cenEnd) {
+          const cenNum = cenStart + 1;
+          addTerm(`${cenNum}Cen`, `born in ${cenNum}th century`);
+        } else {
+          const start = normalizeWtPlusBoundaryDate(match[1], "before");
+          const end = normalizeWtPlusBoundaryDate(match[2], "after");
+          addSqlTerm(
+            buildWtPlusSqlTerm(`([Default].[Birth Date].AsNumber In ${start}..${end})`),
+            `between ${match[1]} and ${match[2]}`
+          );
+        }
       }
     );
     consume(/\bdied\s+before\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i, (match) => {
@@ -916,7 +997,7 @@ export function createProfileSearchHandler({
     });
 
     consume(/\b(?:no\s+first\s+name|missing\s+first\s+name)\b/i, () => {
-      addSqlTerm(buildWtPlusSqlTerm("([Default].[First Name].AsString = '')"), "no first name");
+      addSqlTerm(buildWtPlusSqlTerm("([Default].[First Name] = '')"), "no first name");
     });
 
     consume(/\b(?:more\s+than|over)\s+(\d+)\s+children\b/i, (match) => {
@@ -1124,7 +1205,7 @@ export function createProfileSearchHandler({
     consume(/\bborn\s+in\s+(\d{4})s\b/i, (match) => {
       addTerm(`${match[1]}s`, `born in ${match[1]}s`);
     });
-    consume(/\bborn\s+in\s+(\d{1,2})(?:st|nd|rd|th)?\s+century\b/i, (match) => {
+    consume(/\bborn\s+in\s+(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+century\b/i, (match) => {
       const n = Number.parseInt(match[1], 10);
       if (Number.isFinite(n) && n >= 0 && n <= 21) {
         addTerm(`${n}Cen`, `born in ${n} century`);
@@ -1136,11 +1217,46 @@ export function createProfileSearchHandler({
         addTerm(`age${n}`, `age ${n}`);
       }
     });
+    consume(
+      /\bborn\s+in\s+(\d{4})\s+(?:in|from)\s+(.+?)(?=$|\b(?:and|or|before|after|between|to|profiles?|people|members?|unrecognized|unknown)\b)/i,
+      (match) => {
+        const year = String(match[1] || "").trim();
+        const raw = stripSurroundingQuotes(match[2])
+          .replace(/\s+(?:profiles?|people|members?)\s*$/i, "")
+          .trim();
+        if (year) {
+          addTerm(`B${year}`, `born in ${year}`);
+        }
+        if (raw) {
+          addTerm(normalizeWtPlusFieldTerm("BirthLocation", raw), `born in ${raw}`);
+        }
+      }
+    );
     consume(/\bborn\s+in\s+(\d{4})\b/i, (match) => {
       addTerm(`B${match[1]}`, `born in ${match[1]}`);
     });
     consume(/\bdied\s+in\s+(\d{4})\b/i, (match) => {
       addTerm(`D${match[1]}`, `died in ${match[1]}`);
+    });
+
+    consume(/\bborn\s+in\s+(.+?)\s+but\s+marr(?:y|ies|ied)\s+elsewhere\b/i, (match) => {
+      const raw = stripSurroundingQuotes(match[1])
+        .replace(/\s+(?:profiles?|people|members?)\s*$/i, "")
+        .trim();
+      if (!raw || /^\d{4}s?$/i.test(raw)) {
+        return;
+      }
+
+      const escaped = escapeWtPlusSqlLiteral(raw, true);
+      addTerm(normalizeWtPlusFieldTerm("BirthLocation", raw), `born in ${raw}`);
+      if (escaped) {
+        addSqlTerm(
+          buildWtPlusSqlTerm(
+            `([Marriage].[Marriage Location].AsString <> '') And ([Marriage].[Marriage Location].AsString Not Like '*${escaped}*')`
+          ),
+          `married elsewhere than ${raw}`
+        );
+      }
     });
 
     consume(
@@ -1294,6 +1410,12 @@ export function createProfileSearchHandler({
         if (token && !/^(?:in|from)$/i.test(token)) {
           if (/^[A-Za-z][A-Za-z0-9_-]+-\d+$/i.test(token)) {
             addTerm(normalizeWtPlusFieldTerm("WikiTreeID", token), `WikiTree ID ${token}`);
+          } else if (hasNameScopedTerm && extractedDateTokens.length > 0) {
+            addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
+          } else if (hasNameScopedTerm && extractedRawTokens.length > 0) {
+            addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
+          } else if (hasNameScopedTerm && sqlTerms.length > 0) {
+            addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
           } else if (!hasNameScopedTerm && extractedDateTokens.length > 0) {
             addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
           } else if (!hasNameScopedTerm && extractedRawTokens.length > 0) {
@@ -1307,6 +1429,11 @@ export function createProfileSearchHandler({
       } else if (remainderTokens.length >= 2) {
         if (/^(?:in|from)$/i.test(remainderTokens[0])) {
           const possibleLocation = stripSurroundingQuotes(remainderTokens.slice(1).join(" "));
+          if (possibleLocation) {
+            addTerm(normalizeWtPlusFieldTerm("Location", possibleLocation), `location ${possibleLocation}`);
+          }
+        } else if (hasNameScopedTerm) {
+          const possibleLocation = stripSurroundingQuotes(remainderTokens.join(" "));
           if (possibleLocation) {
             addTerm(normalizeWtPlusFieldTerm("Location", possibleLocation), `location ${possibleLocation}`);
           }
@@ -1786,6 +1913,21 @@ export function createProfileSearchHandler({
       };
     }
 
+    match = normalizedText.match(
+      /^(?:scottish\s+)?(?:profiles?|people)?\s*born\s+in\s+(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+century$/i
+    );
+    if (match?.[1]) {
+      const n = Number.parseInt(match[1], 10);
+      if (Number.isFinite(n) && n >= 0 && n <= 21) {
+        const query = /^\s*scottish\b/i.test(normalizedText) ? `BirthCountry=Scotland ${n}Cen` : `${n}Cen`;
+        return {
+          query,
+          title: `WT+ Birth Century: ${n}Cen`,
+          description: query,
+        };
+      }
+    }
+
     match = normalizedText.match(/^(?:profiles?\s+)?born\s+in\s+(\d{4})$/i);
     if (match?.[1]) {
       return {
@@ -2018,7 +2160,7 @@ export function createProfileSearchHandler({
     return null;
   }
 
-  async function callAiParseWtPlusQuery(rawQuery) {
+  async function callAiParseWtPlusQuery(rawQuery, reparseContext = null) {
     try {
       const options = await getChatOptions();
       if (!options?.allowAiFallback) return null;
@@ -2038,7 +2180,11 @@ export function createProfileSearchHandler({
         "OR and NOT operators are allowed between terms.",
         "Only use those allowed fields and tokens.",
         "Use sql= for filters that are not easily represented as simple field=value, including date boundaries, line counts, and heading/category checks.",
+        "Prefer WT+ date magic tokens (BYYYY, DYYYY, YYYYs, NCen) as PRIMARY filters before sql=.",
+        "For a whole-century query ('born in the 18th century') use 18Cen alone — no sql= needed.",
+        "For a sub-century date range (e.g. 'between 1800 and 1810'): ALWAYS emit the NCen magic token for that century FIRST, then add the sql= range to narrow within it. Example: 19Cen sql=\"([Default].[Birth Date].AsNumber In 18000101..18101231)\".",
         "For date ranges in sql=, use WT+ range syntax: ([...].AsNumber In 19000101..19301231). Avoid >= ... AND <= ... patterns.",
+        "For empty/unknown name checks in sql=, use direct default-field comparisons: ([Default].[First Name] = '') and ([Default].[Last Name At Birth] = ''). Avoid IS NULL.",
         "Quote values that contain spaces or commas.",
         'If the request mentions "ancestors" or "descendants", preserve that in the query with Ancestors=<WikiTreeID> or Descendants=<WikiTreeID> and do not drop the family-root part.',
         'For bare prompts like "Ancestors ..." or "Descendants ...", assume the current profile person if available; otherwise use the logged-in user as the family root.',
@@ -2052,8 +2198,21 @@ export function createProfileSearchHandler({
         '{"understood":"Charles Darwin descendants","query":"Descendants=Darwin-15"}',
         '{"understood":"current profile descendants born in Newfoundland before 1900","query":"Descendants=CurrentProfile BirthLocation=Newfoundland sql="([Default].[Birth Date].AsNumber < 19000000)""}',
         '{"understood":"Smith in Liverpool born before 1800","query":"LastNameAtBirth=Smith Location=Liverpool sql="([Default].[Birth Date].AsNumber < 18000000)""}',
+        "Example sub-century range with anomaly: 'women in Scotland unknown first or last name between 1800 and 1810' => female BirthCountry=Scotland 19Cen sql=\"([Default].[Birth Date].AsNumber In 18000101..18101231) And (([Default].[First Name] = '') Or ([Default].[Last Name At Birth] = ''))\"",
+        "Do not treat command words as surname/location values (e.g., search, find, show, list, get, name) unless clearly quoted or explicitly assigned.",
+        "For patterns like '<surname> born in <location> between <year> and <year>', map surname to AllLastNames (or LastNameAtBirth when clearly LNAB), map the place phrase after 'in' to BirthLocation/Location, emit NCen for that century, and keep the narrower date range in sql=.",
       ].join("\n");
-      const user = `Translate this into a WT+ query: "${String(rawQuery || "").trim()}"`;
+      const previousQuery = String(reparseContext?.previousQuery || "").trim();
+      const isReparse = !!reparseContext?.reparseFromZeroResults;
+      const user = [
+        `Translate this into a WT+ query: "${String(rawQuery || "").trim()}"`,
+        isReparse
+          ? "Reparse mode: a previous deterministic parse returned zero profiles. Prefer the most likely surname/location interpretation."
+          : "",
+        isReparse && previousQuery ? `Previous zero-result query: "${previousQuery}"` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
       const prompt = `${system}\n\n${user}`;
 
       console.debug("wbe: callAiParseWtPlusQuery outbound prompt", { rawQuery, prompt });
@@ -2230,15 +2389,19 @@ export function createProfileSearchHandler({
     if (hasAmbiguousSqlConstraint && !hasExplicitField && !startsWithScopePrefix) {
       return true;
     }
-    if (hasBetweenDateRange && hasLocationOrLifeEvent && !hasExplicitField) {
+    // Any between-date range in natural language is better handled by AI — drop
+    // the old requirement that a life-event word (born/died/married) also appear.
+    if (hasBetweenDateRange && !hasExplicitField) {
       return true;
     }
-    if (
-      !startsWithScopePrefix &&
-      semanticClauseCount >= 3 &&
-      (hasConjunction || repeatedLifeEventCount >= 2) &&
-      tokenCount >= 6
-    ) {
+    // Anomaly / missing-data constraints (unknown name, no father, etc.) benefit
+    // from AI interpretation so we don't have to hard-code every phrasing.
+    if (hasAnomalyConstraint && !hasExplicitField) {
+      return true;
+    }
+    // Any query with two or more distinct semantic clauses is complex enough that
+    // AI parse is preferred over the deterministic fallback.
+    if (!startsWithScopePrefix && semanticClauseCount >= 2 && tokenCount >= 4) {
       return true;
     }
     return (
@@ -2253,6 +2416,46 @@ export function createProfileSearchHandler({
   function isWtPlusExecutionFailure(result) {
     const text = typeof result === "string" ? result : result?.message;
     return /couldn't complete the WT\+ query/i.test(String(text || ""));
+  }
+
+  function isWtPlusZeroResults(result) {
+    const text = typeof result === "string" ? result : result?.message;
+    return /couldn't find any profiles for WT\+ query:/i.test(String(text || ""));
+  }
+
+  function buildDeterministicZeroResultRetry(rawQuery) {
+    const text = String(rawQuery || "")
+      .replace(/^\s*(?:search(?:\s+for)?|find|show|list|get|look(?:\s+up)?)\s+/i, "")
+      .trim();
+    if (!text) return null;
+
+    const match = text.match(
+      /^(?:name|surname|last\s+name|lnab)\s+([A-Za-z][A-Za-z'\-]+)\s+(.+?)\s+between\s+(\d{4})(?:-\d{2}(?:-\d{2})?)?\s+(?:and|to)\s+(\d{4})(?:-\d{2}(?:-\d{2})?)?$/i
+    );
+    if (!match) return null;
+
+    const surname = String(match[1] || "").trim();
+    const location = String(match[2] || "")
+      .replace(/^\s*(?:in|from)\s+/i, "")
+      .trim();
+    const yearA = Number.parseInt(match[3], 10);
+    const yearB = Number.parseInt(match[4], 10);
+    if (!surname || !location || !Number.isFinite(yearA) || !Number.isFinite(yearB)) {
+      return null;
+    }
+
+    const startYear = Math.min(yearA, yearB);
+    const endYear = Math.max(yearA, yearB);
+    const query =
+      `AllLastNames=${quoteWtPlusValue(surname)} ` +
+      `Location=${quoteWtPlusValue(location)} ` +
+      `sql="([Default].[Birth Date].AsNumber In ${startYear}0101..${endYear}1231)"`;
+    const understood = `people with surname ${surname} in ${location} born between ${startYear} and ${endYear}`;
+    return {
+      query,
+      understood,
+      title: `WT+ search: ${understood}`,
+    };
   }
 
   async function runWtPlusProfileQuery(wtPlusQuery, title, interpretation = null, runOptions = {}) {
@@ -2272,6 +2475,7 @@ export function createProfileSearchHandler({
       return {
         message:
           "WT+ query needs a base search term in each OR branch (for example Location, name, Manager, Tree, Category, or WikiTreeID). Magic words like ProjectManaged/PPP and sql filters can refine results, but they cannot be the only terms.",
+        showMagicWordsRef: true,
       };
     }
 
@@ -2911,11 +3115,48 @@ export function createProfileSearchHandler({
           } else {
             recordWtPlusParseTelemetry("parsedLocal");
           }
-          return await runWtPlusProfileQuery(localWtPlusQuery.query, localWtPlusQuery.title, null, {
+          const localRunResult = await runWtPlusProfileQuery(localWtPlusQuery.query, localWtPlusQuery.title, null, {
             searchType: localWtPlusQuery.searchType,
             suggestionId: localWtPlusQuery.suggestionId,
             suggestionOptions: localWtPlusQuery.suggestionOptions,
           });
+          const canTryAiReparse = localWtPlusQuery.searchType !== "suggestions" && isWtPlusZeroResults(localRunResult);
+          if (canTryAiReparse) {
+            const deterministicRetry = buildDeterministicZeroResultRetry(rawQuery);
+            const normalizedLocalQuery = normalizeWtPlusQueryString(localWtPlusQuery.query);
+            const normalizedDeterministicRetry = normalizeWtPlusQueryString(deterministicRetry?.query || "");
+            if (normalizedDeterministicRetry && normalizedDeterministicRetry !== normalizedLocalQuery) {
+              console.info("wbe: WT+ zero-result local parse; retrying deterministic surname/location rewrite", {
+                rawQuery,
+                localQuery: localWtPlusQuery.query,
+                deterministicRetryQuery: deterministicRetry.query,
+              });
+              recordWtPlusParseTelemetry("parsedLocal");
+              return await runWtPlusProfileQuery(
+                deterministicRetry.query,
+                deterministicRetry.title,
+                deterministicRetry
+              );
+            }
+
+            showChatShaky("No local WT+ matches. Asking AI to reinterpret this query...");
+            const aiRetryQuery = await callAiParseWtPlusQuery(rawQuery, {
+              reparseFromZeroResults: true,
+              previousQuery: localWtPlusQuery.query,
+            });
+            hideChatShaky();
+            const normalizedAiRetry = normalizeWtPlusQueryString(aiRetryQuery?.query || "");
+            if (normalizedAiRetry && normalizedAiRetry !== normalizedLocalQuery) {
+              console.info("wbe: WT+ zero-result local parse; retrying with AI interpretation", {
+                rawQuery,
+                localQuery: localWtPlusQuery.query,
+                aiRetryQuery: aiRetryQuery.query,
+              });
+              recordWtPlusParseTelemetry("parsedAi");
+              return await runWtPlusProfileQuery(aiRetryQuery.query, aiRetryQuery.title, aiRetryQuery);
+            }
+          }
+          return localRunResult;
         }
 
         showChatShaky("Asking AI to interpret this as a WT+ query...");
