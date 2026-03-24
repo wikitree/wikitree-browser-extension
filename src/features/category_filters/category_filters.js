@@ -7,11 +7,19 @@ import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 
 const WBE_CATF_APP_ID = "WBE_category_filters";
 
+const UNCONNECTED_FILTER_STATES = {
+  inactive: "inactive",
+  unconnected: "unconnected",
+  connected: "connected",
+};
+
 // Initial filter mode
 let filterMode = "only"; // Default filter mode
 
 // Array to store active filter button IDs
 let activeFilters = [];
+
+let unconnectedFilterState = UNCONNECTED_FILTER_STATES.inactive;
 
 // Variable to store fetched filter data
 let filterData = null;
@@ -150,6 +158,12 @@ function initCategoryFilters() {
     e.preventDefault();
     const buttonID = $(this).attr("id");
 
+    if (buttonID === "unconnectedButton") {
+      cycleUnconnectedButton($(this));
+      applyFilters();
+      return;
+    }
+
     // Toggle active state of the button
     if ($(this).hasClass("active")) {
       $(this).removeClass("active");
@@ -203,6 +217,56 @@ function initCategoryFilters() {
       currentDNAUser = newDNAUser;
     }
   });
+}
+
+function cycleUnconnectedButton(button) {
+  const wasInactive = unconnectedFilterState === UNCONNECTED_FILTER_STATES.inactive;
+
+  if (unconnectedFilterState === UNCONNECTED_FILTER_STATES.inactive) {
+    if (filterMode === "only") {
+      $(".categoryFilterButton").removeClass("active");
+      activeFilters = [];
+      $("#categoryFiltersTextFilter").val("");
+      $("#categoryFiltersNotFilter").val("");
+    }
+    unconnectedFilterState = UNCONNECTED_FILTER_STATES.unconnected;
+  } else if (unconnectedFilterState === UNCONNECTED_FILTER_STATES.unconnected) {
+    unconnectedFilterState = UNCONNECTED_FILTER_STATES.connected;
+  } else {
+    unconnectedFilterState = UNCONNECTED_FILTER_STATES.inactive;
+  }
+
+  if (unconnectedFilterState === UNCONNECTED_FILTER_STATES.inactive) {
+    button.removeClass("active");
+    activeFilters = activeFilters.filter((filterID) => filterID !== "unconnectedButton");
+  } else {
+    button.addClass("active");
+    if (wasInactive && !activeFilters.includes("unconnectedButton")) {
+      activeFilters.push("unconnectedButton");
+    }
+  }
+
+  syncUnconnectedButtonState(button);
+}
+
+function syncUnconnectedButtonState(button = $("#unconnectedButton")) {
+  const buttonStateConfig = {
+    [UNCONNECTED_FILTER_STATES.inactive]: {
+      title: "Show only unconnected profiles",
+      text: "Unconnected",
+    },
+    [UNCONNECTED_FILTER_STATES.unconnected]: {
+      title: "Show only connected profiles",
+      text: "Unconnected",
+    },
+    [UNCONNECTED_FILTER_STATES.connected]: {
+      title: "Clear connected/unconnected filter",
+      text: "Connected",
+    },
+  };
+
+  const { title, text } = buttonStateConfig[unconnectedFilterState];
+  button.attr("title", title).text(text);
 }
 
 // Function to clear DNA markers and reset data attributes
@@ -317,12 +381,17 @@ async function applyFilters() {
 
 // Helper Function to Evaluate Button Filters
 function shouldShowButtonFilter(filterID, profileElement) {
-  const isConnected = $(profileElement).attr("data-connected") == 0;
+  const isUnconnected = $(profileElement).attr("data-connected") == 0;
   const isOrphaned = $(profileElement).attr("data-managers") === "none";
   const isMissingParent = $(profileElement).attr("data-missing-parent") === "true";
   const isDNAConnected = $(profileElement).attr("data-dna-connected") === "true";
 
-  if (filterID === "unconnectedButton") return isConnected;
+  if (filterID === "unconnectedButton") {
+    if (unconnectedFilterState === UNCONNECTED_FILTER_STATES.connected) {
+      return !isUnconnected;
+    }
+    return isUnconnected;
+  }
   if (filterID === "orphanedButton") return isOrphaned;
   if (filterID === "missingParentButton") return isMissingParent;
   if (filterID === "dnaConnectedButton") return isDNAConnected;
