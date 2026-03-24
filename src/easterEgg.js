@@ -11,7 +11,7 @@ const STYLES_ID = "wt-easter-egg-styles";
 const DEBUG_PARAM = "wbeEggDebug";
 
 function isDebugEnabled() {
-  return true;
+  return false;
 }
 
 function eggLog(message, details) {
@@ -360,20 +360,47 @@ function buildEggSvg() {
   return svg;
 }
 
-function getCandidateParagraphs() {
-  const selectors = [
-    "#bioText p",
-    ".x-profile-biography p",
-    ".WikiTree-Profile p",
-    "#Biography p",
-    "#view-container p",
-    "main p",
-  ];
+const BIOGRAPHY_HEADING_IDS = [
+  "Biography",
+  "Biographie",
+  "Biografia",
+  "Biografie",
+  "Biografía",
+  "Biografi",
+  "Biograafia",
+  "Biografija",
+  "Levensschets",
+  "Levensloop",
+];
 
-  const allParagraphs = Array.from(document.querySelectorAll(selectors.join(",")))
-    .filter((paragraph) => paragraph && !paragraph.closest("#" + MODAL_ID))
-    .filter((paragraph) => !paragraph.closest("aside, nav, footer, #comments, .comment, .x-sidebar"))
-    .filter((paragraph) => (paragraph.textContent || "").trim().split(/\s+/).length > 6);
+function getBiographyContainer() {
+  const selector = BIOGRAPHY_HEADING_IDS.map((id) => `h2#${CSS.escape(id)}`).join(",");
+  const heading = document.querySelector(selector);
+  if (!heading) {
+    eggLog("Biography heading not found", { headingIds: BIOGRAPHY_HEADING_IDS });
+    return null;
+  }
+
+  const container = heading.parentElement;
+  if (!(container instanceof HTMLDivElement)) {
+    eggLog("Biography heading parent is not a div", { tagName: container?.tagName || null });
+    return null;
+  }
+
+  return container;
+}
+
+function getCandidateParagraphs() {
+  const biographyContainer = getBiographyContainer();
+  if (!biographyContainer) {
+    return [];
+  }
+
+  const allParagraphs = Array.from(biographyContainer.querySelectorAll("p, li"))
+    .filter((element) => element && !element.closest("#" + MODAL_ID))
+    .filter((element) => !element.closest(".orange"))
+    .filter((element) => !element.closest("aside, nav, footer, #comments, .comment, .x-sidebar"))
+    .filter((element) => (element.textContent || "").trim().split(/\s+/).length > 6);
 
   if (!allParagraphs.length) {
     return [];
