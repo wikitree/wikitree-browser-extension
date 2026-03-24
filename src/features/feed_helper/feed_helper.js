@@ -2274,7 +2274,7 @@ class FeedHelper {
 
     // Diagnostic log: trace when the table creation function is invoked
     try {
-      console.debug("WBE: showActivityWarningsTable called, existingTable length=", existingTable.length);
+      // console.debug("WBE: showActivityWarningsTable called, existingTable length=", existingTable.length);
     } catch (e) {
       /* swallow in environments without console */
     }
@@ -2503,6 +2503,7 @@ class FeedHelper {
    */
   addWarningToTable(userID, message, historyItemsToHighlight = [], sequenceKey = null) {
     // Diagnostic log: trace call and parameters
+    /*
     try {
       console.debug("WBE: addWarningToTable called", {
         userID,
@@ -2510,6 +2511,7 @@ class FeedHelper {
         messageSnippet: (message || "").slice(0, 80),
       });
     } catch (e) {}
+    */
 
     const table = this.showActivityWarningsTable();
     // Locate tbody within the created table to avoid selecting nothing if the global
@@ -2733,7 +2735,7 @@ class FeedHelper {
       count = 0;
     }
     try {
-      console.debug("WBE: updateWarningsCount", { count });
+      //console.debug("WBE: updateWarningsCount", { count });
     } catch (e) {}
 
     // Update visible badges only if elements exist

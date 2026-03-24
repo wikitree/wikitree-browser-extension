@@ -11,7 +11,7 @@ const STYLES_ID = "wt-easter-egg-styles";
 const DEBUG_PARAM = "wbeEggDebug";
 
 function isDebugEnabled() {
-  return true;
+  return false;
 }
 
 function eggLog(message, details) {
