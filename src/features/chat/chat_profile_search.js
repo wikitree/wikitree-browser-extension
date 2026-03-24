@@ -754,9 +754,7 @@ export function createProfileSearchHandler({
       /\b(?:with\s+(?:a|an|any)\s+)?(?:unknown|missing)\s+first\s+(?:or|and)\s+(?:last|last\s+name(?:\s+at\s+birth)?)\s*(?:name)?\b/i,
       () => {
         addSqlTerm(
-          buildWtPlusSqlTerm(
-            "(([Default].[First Name] = '') Or ([Default].[Last Name At Birth] = ''))"
-          ),
+          buildWtPlusSqlTerm("(([Default].[First Name] = '') Or ([Default].[Last Name At Birth] = ''))"),
           "unknown first or last name"
         );
       }
@@ -764,10 +762,7 @@ export function createProfileSearchHandler({
     consume(
       /\b(?:with\s+(?:a|an|any)\s+)?(?:unknown|missing)\s+(?:last|last\s+name(?:\s+at\s+birth)?|surname|lnab)\s*(?:name)?\b/i,
       () => {
-        addSqlTerm(
-          buildWtPlusSqlTerm("([Default].[Last Name At Birth] = '')"),
-          "unknown last name"
-        );
+        addSqlTerm(buildWtPlusSqlTerm("([Default].[Last Name At Birth] = '')"), "unknown last name");
       }
     );
     consume(/\b(?:with\s+(?:a|an|any)\s+)?(?:unknown|missing)\s+first\s*(?:name)?\b/i, () => {
@@ -950,28 +945,25 @@ export function createProfileSearchHandler({
     // Bare "between Y1 and Y2" (without "born") — treat as a birth year range.
     // When both years fall in the same century use the NCen magic token so the
     // filter is applied natively rather than via a potentially-fragile sql= term.
-    consume(
-      /\bbetween\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\s+(?:and|to)\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i,
-      (match) => {
-        const y1 = Number.parseInt(match[1], 10);
-        const y2 = Number.parseInt(match[2], 10);
-        const startYear = Math.min(y1, y2);
-        const endYear = Math.max(y1, y2);
-        const cenStart = Math.floor(startYear / 100);
-        const cenEnd = Math.floor(endYear / 100);
-        if (cenStart === cenEnd) {
-          const cenNum = cenStart + 1;
-          addTerm(`${cenNum}Cen`, `born in ${cenNum}th century`);
-        } else {
-          const start = normalizeWtPlusBoundaryDate(match[1], "before");
-          const end = normalizeWtPlusBoundaryDate(match[2], "after");
-          addSqlTerm(
-            buildWtPlusSqlTerm(`([Default].[Birth Date].AsNumber In ${start}..${end})`),
-            `between ${match[1]} and ${match[2]}`
-          );
-        }
+    consume(/\bbetween\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\s+(?:and|to)\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i, (match) => {
+      const y1 = Number.parseInt(match[1], 10);
+      const y2 = Number.parseInt(match[2], 10);
+      const startYear = Math.min(y1, y2);
+      const endYear = Math.max(y1, y2);
+      const cenStart = Math.floor(startYear / 100);
+      const cenEnd = Math.floor(endYear / 100);
+      if (cenStart === cenEnd) {
+        const cenNum = cenStart + 1;
+        addTerm(`${cenNum}Cen`, `born in ${cenNum}th century`);
+      } else {
+        const start = normalizeWtPlusBoundaryDate(match[1], "before");
+        const end = normalizeWtPlusBoundaryDate(match[2], "after");
+        addSqlTerm(
+          buildWtPlusSqlTerm(`([Default].[Birth Date].AsNumber In ${start}..${end})`),
+          `between ${match[1]} and ${match[2]}`
+        );
       }
-    );
+    });
     consume(/\bdied\s+before\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i, (match) => {
       const boundary = normalizeWtPlusBoundaryDate(match[1], "before");
       addSqlTerm(buildWtPlusSqlTerm(`([Default].[Death Date].AsNumber < ${boundary})`), `died before ${match[1]}`);

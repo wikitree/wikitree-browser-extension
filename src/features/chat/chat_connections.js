@@ -72,6 +72,7 @@ export function createChatConnectionHandlers({
   setLastConnectionCandidates,
   setLastConnectionRankedMatches,
   setLastConnectionPopupResult,
+  onResolvedPerson,
 }) {
   async function resolveConnectionTargetPerson(target, prompt = "", options = {}) {
     const cleanedTarget = normalizeConnectionTargetForSearch(target);
@@ -453,6 +454,9 @@ export function createChatConnectionHandlers({
         .map((candidate) => candidate?.Name)
         .filter(Boolean),
     });
+    if (typeof onResolvedPerson === "function") {
+      onResolvedPerson(matchedPerson, [baseTarget]);
+    }
 
     if (!hasPath) {
       return `I retried with ${displayName} (${targetWtId}), but no connection path was returned.`;
@@ -589,6 +593,9 @@ export function createChatConnectionHandlers({
           .map((candidate) => candidate?.Name)
           .filter(Boolean),
       });
+      if (typeof onResolvedPerson === "function") {
+        onResolvedPerson(matchedPerson, [lookupTarget]);
+      }
 
       setLastConnectionPopupResult([data]);
       try {

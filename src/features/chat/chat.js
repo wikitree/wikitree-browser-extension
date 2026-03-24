@@ -107,20 +107,57 @@ const CHAT_WTPLUS_MAGIC_WORDS_GROUPS = [
   { label: "Status", words: ["Open", "Unsourced", "Unconnected", "Orphan", "Notables"] },
   { label: "Tree", words: ["connected", "unlinked", "PublicTree", "PrivateTree"] },
   { label: "Gender", words: ["male", "female", "NoGender"] },
-  { label: "Dates", words: ["B0", "D0", "pre1500", "B1850 (pattern)", "D1912 (pattern)", "1850s (pattern)", "20Cen (pattern)"] },
+  {
+    label: "Dates",
+    words: ["B0", "D0", "pre1500", "B1850 (pattern)", "D1912 (pattern)", "1850s (pattern)", "20Cen (pattern)"],
+  },
   { label: "Location", words: ["MissingLocation", "UnknownCountry", "UnknownRegion", "UnofficialLocation"] },
   { label: "Family", words: ["NoFather", "NoMother", "NoParents", "NoSpouses", "NoChildren"] },
   { label: "DNA", words: ["mtDNA", "yDNA", "auDNA", "noGEDMatchID", "noMitoyDNAID"] },
   { label: "Privacy", words: ["Private", "PrivatePB", "PrivatePT", "PrivatePBPT", "Public", "Guest"] },
-  { label: "Management", words: ["ProjectManaged", "PPP", "NeverEdited", "ApprovedMerge", "PendingMerge", "UnmergedMatch", "GEDCOMJunk", "SourceJunk", "IsInWikiData"] },
-  { label: "Relation", words: ["relation=father", "relation=mother", "relation=parents", "relation=spouses", "relation=children", "relation=siblings", "relation=nuclear"] },
+  {
+    label: "Management",
+    words: [
+      "ProjectManaged",
+      "PPP",
+      "NeverEdited",
+      "ApprovedMerge",
+      "PendingMerge",
+      "UnmergedMatch",
+      "GEDCOMJunk",
+      "SourceJunk",
+      "IsInWikiData",
+    ],
+  },
+  {
+    label: "Relation",
+    words: [
+      "relation=father",
+      "relation=mother",
+      "relation=parents",
+      "relation=spouses",
+      "relation=children",
+      "relation=siblings",
+      "relation=nuclear",
+    ],
+  },
   { label: "Stars", words: ["1star", "2stars", "3stars", "4stars", "5stars"] },
-  { label: "Other", words: ["age42 (pattern)", "LastEdit2020 (pattern)", "Tree123 (pattern)", "fgcem1234 (pattern)", "fgmem1234 (pattern)"] },
+  {
+    label: "Other",
+    words: [
+      "age42 (pattern)",
+      "LastEdit2020 (pattern)",
+      "Tree123 (pattern)",
+      "fgcem1234 (pattern)",
+      "fgmem1234 (pattern)",
+    ],
+  },
 ];
 const CHAT_SESSION_KEY = `wbe_chat_history_${window.location.pathname}`;
 const CHAT_LAST_CONNECTION_KEY = `${CHAT_SESSION_KEY}_lastConnection`;
 const CHAT_LAST_STRUCTURED_KEY = `${CHAT_SESSION_KEY}_lastStructured`;
 const CHAT_LAST_BIO_KEY = `${CHAT_SESSION_KEY}_lastBio`;
+const CHAT_PERSON_MEMORY_KEY = `${CHAT_SESSION_KEY}_personMemory`;
 const CHAT_MODE_STORAGE_KEY = "chat_mode";
 const WBE_CHAT_APP_ID = "chat";
 const CC7_CACHE_MS = 5 * 60 * 1000;
@@ -132,6 +169,8 @@ const AUTO_OPEN_TABLE_MIN_ROWS = 8;
 const CHAT_AI_HISTORY_MAX_MESSAGES = 12;
 const CHAT_AI_MESSAGE_MAX_CHARS = 500;
 const CHAT_PERSISTED_STRUCTURED_ROWS_MAX = 250;
+const CHAT_PERSON_MEMORY_MAX_ENTRIES = 100;
+const CHAT_PERSON_MEMORY_AI_CONTEXT_MAX = 10;
 const CHAT_APPS_LOGIN_HINT = "Log in to the apps server for better results. Use the Apps Login button on this page.";
 const RELATION_PERSON_FIELDS =
   "Id,Name,Gender,RealName,Derived.ShortName,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation";
@@ -146,6 +185,358 @@ let lastStructuredResult = null;
 let lastBioPopupId = null;
 let lastBioPopupProfile = null;
 let wtPlusSuggestionOptionsHtml = "";
+let resolvedPeopleByWtId = {};
+let resolvedPersonAliasToWtId = {};
+let resolvedPersonOrderCounter = 0;
+let resolvedPersonMemoryLoaded = false;
+
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizePersonMemoryToken(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s'\-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractAliasCandidates(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return [];
+  }
+
+  const candidates = new Set();
+  candidates.add(normalized);
+  normalized
+    .split(/\s+/)
+    .map((part) => part.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, ""))
+    .filter((part) => part.length >= 3)
+    .forEach((part) => candidates.add(part));
+
+  return Array.from(candidates);
+}
+
+function persistResolvedPersonMemory() {
+  try {
+    const payload = {
+      peopleByWtId: resolvedPeopleByWtId,
+      aliasToWtId: resolvedPersonAliasToWtId,
+      orderCounter: resolvedPersonOrderCounter,
+    };
+    sessionStorage.setItem(CHAT_PERSON_MEMORY_KEY, JSON.stringify(payload));
+  } catch (error) {
+    console.debug("wbe: failed to persist chat person memory", { error });
+  }
+}
+
+function loadResolvedPersonMemory() {
+  resolvedPeopleByWtId = {};
+  resolvedPersonAliasToWtId = {};
+  resolvedPersonOrderCounter = 0;
+
+  try {
+    const raw = sessionStorage.getItem(CHAT_PERSON_MEMORY_KEY);
+    if (!raw) {
+      return;
+    }
+    const parsed = JSON.parse(raw);
+    const peopleByWtId = parsed?.peopleByWtId;
+    const aliasToWtId = parsed?.aliasToWtId;
+    const orderCounter = Number(parsed?.orderCounter);
+
+    if (peopleByWtId && typeof peopleByWtId === "object") {
+      resolvedPeopleByWtId = peopleByWtId;
+    }
+    if (aliasToWtId && typeof aliasToWtId === "object") {
+      resolvedPersonAliasToWtId = aliasToWtId;
+    }
+    if (Number.isFinite(orderCounter) && orderCounter >= 0) {
+      resolvedPersonOrderCounter = orderCounter;
+    }
+  } catch (error) {
+    console.debug("wbe: failed to load chat person memory", { error });
+  }
+}
+
+function ensureResolvedPersonMemoryLoaded() {
+  if (resolvedPersonMemoryLoaded) {
+    return;
+  }
+  loadResolvedPersonMemory();
+  resolvedPersonMemoryLoaded = true;
+}
+
+function clearResolvedPersonMemory() {
+  resolvedPeopleByWtId = {};
+  resolvedPersonAliasToWtId = {};
+  resolvedPersonOrderCounter = 0;
+  try {
+    sessionStorage.removeItem(CHAT_PERSON_MEMORY_KEY);
+  } catch (error) {
+    /* ignore */
+  }
+}
+
+function rememberResolvedPerson({ wtId, displayName, aliases = [] }) {
+  ensureResolvedPersonMemoryLoaded();
+
+  const normalizedWtId = String(wtId || "").trim();
+  if (!normalizedWtId || !/-\d+$/i.test(normalizedWtId)) {
+    return;
+  }
+
+  const existing = resolvedPeopleByWtId[normalizedWtId] || {
+    wtId: normalizedWtId,
+    displayName: "",
+    aliases: [],
+    seenOrder: 0,
+  };
+
+  const cleanedDisplay = String(displayName || "").trim();
+  if (cleanedDisplay && (!existing.displayName || existing.displayName.length < cleanedDisplay.length)) {
+    existing.displayName = cleanedDisplay;
+  }
+  if (!existing.displayName) {
+    existing.displayName = normalizedWtId;
+  }
+
+  const mergedAliases = new Set(Array.isArray(existing.aliases) ? existing.aliases : []);
+  extractAliasCandidates(existing.displayName).forEach((alias) => mergedAliases.add(alias));
+  extractAliasCandidates(normalizedWtId).forEach((alias) => mergedAliases.add(alias));
+  (Array.isArray(aliases) ? aliases : []).forEach((alias) => {
+    extractAliasCandidates(alias).forEach((candidate) => mergedAliases.add(candidate));
+  });
+
+  existing.aliases = Array.from(mergedAliases).slice(0, 25);
+  existing.seenOrder = ++resolvedPersonOrderCounter;
+  resolvedPeopleByWtId[normalizedWtId] = existing;
+
+  existing.aliases.forEach((alias) => {
+    const normalizedAlias = normalizePersonMemoryToken(alias);
+    if (!normalizedAlias || normalizedAlias.length < 3) {
+      return;
+    }
+    resolvedPersonAliasToWtId[normalizedAlias] = normalizedWtId;
+  });
+
+  const entries = Object.values(resolvedPeopleByWtId).sort((a, b) => Number(b?.seenOrder || 0) - Number(a?.seenOrder || 0));
+  if (entries.length > CHAT_PERSON_MEMORY_MAX_ENTRIES) {
+    const keep = new Set(entries.slice(0, CHAT_PERSON_MEMORY_MAX_ENTRIES).map((entry) => entry.wtId));
+    resolvedPeopleByWtId = entries
+      .filter((entry) => keep.has(entry.wtId))
+      .reduce((acc, entry) => {
+        acc[entry.wtId] = entry;
+        return acc;
+      }, {});
+    resolvedPersonAliasToWtId = Object.entries(resolvedPersonAliasToWtId).reduce((acc, [alias, mappedWtId]) => {
+      if (keep.has(mappedWtId)) {
+        acc[alias] = mappedWtId;
+      }
+      return acc;
+    }, {});
+  }
+
+  persistResolvedPersonMemory();
+}
+
+function rememberResolvedPersonFromMatch(person, aliases = []) {
+  const wtId = String(person?.Name || person?.wtId || "").trim();
+  const displayName =
+    person?.RealName || person?.displayName || person?.Derived?.ShortName || person?.FirstName || person?.Name || "";
+  if (!wtId) {
+    return;
+  }
+
+  rememberResolvedPerson({
+    wtId,
+    displayName,
+    aliases,
+  });
+}
+
+function rememberResolvedPeopleFromMessage(text) {
+  const sourceText = String(text || "");
+  if (!sourceText) {
+    return;
+  }
+
+  const pattern = /([A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ' .-]{1,60}?)\s*\(([A-Za-z][A-Za-z0-9_-]+-\d{1,7})\)/g;
+  let match;
+  while ((match = pattern.exec(sourceText)) !== null) {
+    const displayName = String(match[1] || "").trim();
+    const wtId = String(match[2] || "").trim();
+    if (!wtId) {
+      continue;
+    }
+    rememberResolvedPerson({ wtId, displayName, aliases: [displayName] });
+  }
+}
+
+function rememberResolvedPeopleFromTable(table) {
+  if (!Array.isArray(table?.rows)) {
+    return;
+  }
+
+  table.rows.slice(0, 25).forEach((row) => {
+    const wtId = String(row?.wtid || row?.WTID || row?.Name || "").trim();
+    const displayName = String(row?.displayName || row?.name || "").trim();
+    if (!wtId || !/-\d+$/i.test(wtId)) {
+      return;
+    }
+    rememberResolvedPerson({ wtId, displayName, aliases: [displayName] });
+  });
+}
+
+function resolvePromptAlias(prompt) {
+  ensureResolvedPersonMemoryLoaded();
+
+  const normalizedPrompt = ` ${normalizePersonMemoryToken(prompt)} `;
+  if (!normalizedPrompt.trim()) {
+    return null;
+  }
+
+  let bestAlias = "";
+  let bestWtId = "";
+  Object.entries(resolvedPersonAliasToWtId).forEach(([aliasKey, wtId]) => {
+    if (!aliasKey || aliasKey.length < 3 || !wtId) {
+      return;
+    }
+    if (!normalizedPrompt.includes(` ${aliasKey} `)) {
+      return;
+    }
+    if (aliasKey.length > bestAlias.length) {
+      bestAlias = aliasKey;
+      bestWtId = wtId;
+    }
+  });
+
+  if (!bestWtId) {
+    return null;
+  }
+
+  const person = resolvedPeopleByWtId[bestWtId];
+  if (!person) {
+    return null;
+  }
+
+  return {
+    aliasKey: bestAlias,
+    person,
+  };
+}
+
+function applyResolvedPersonAliasesToPrompt(prompt) {
+  const aliasResolution = resolvePromptAlias(prompt);
+  if (!aliasResolution?.person) {
+    return { prompt, changed: false, matchedAlias: "", person: null };
+  }
+
+  const person = aliasResolution.person;
+  const wtId = String(person.wtId || "").trim();
+  const replacement = String(person.displayName || "").trim();
+  if (!wtId || !replacement) {
+    return { prompt, changed: false, matchedAlias: "", person: null };
+  }
+
+  const sourcePrompt = String(prompt || "");
+  if (!sourcePrompt.trim()) {
+    return { prompt: sourcePrompt, changed: false, matchedAlias: "", person: null };
+  }
+
+  if (new RegExp(`\\b${escapeRegExp(wtId)}\\b`, "i").test(sourcePrompt)) {
+    return { prompt: sourcePrompt, changed: false, matchedAlias: "", person };
+  }
+
+  const aliasVariants = Array.isArray(person.aliases) ? person.aliases.slice() : [];
+  aliasVariants.sort((left, right) => String(right || "").length - String(left || "").length);
+
+  for (const alias of aliasVariants) {
+    const cleanedAlias = String(alias || "").trim();
+    if (!cleanedAlias || cleanedAlias.length < 3) {
+      continue;
+    }
+    const aliasRegex = new RegExp(`\\b${escapeRegExp(cleanedAlias)}\\b`, "i");
+    if (!aliasRegex.test(sourcePrompt)) {
+      continue;
+    }
+    const nextPrompt = sourcePrompt.replace(aliasRegex, replacement);
+    if (nextPrompt !== sourcePrompt) {
+      return { prompt: nextPrompt, changed: true, matchedAlias: cleanedAlias, person };
+    }
+  }
+
+  return { prompt: sourcePrompt, changed: false, matchedAlias: "", person };
+}
+
+function buildResolvedPeopleContextForAi() {
+  ensureResolvedPersonMemoryLoaded();
+
+  const entries = Object.values(resolvedPeopleByWtId)
+    .sort((a, b) => Number(b?.seenOrder || 0) - Number(a?.seenOrder || 0))
+    .slice(0, CHAT_PERSON_MEMORY_AI_CONTEXT_MAX);
+  if (!entries.length) {
+    return "";
+  }
+
+  const lines = entries.map((entry) => {
+    const displayName = String(entry?.displayName || entry?.wtId || "").trim();
+    const wtId = String(entry?.wtId || "").trim();
+    const aliases = (Array.isArray(entry?.aliases) ? entry.aliases : [])
+      .filter((alias) => alias && normalizePersonMemoryToken(alias) !== normalizePersonMemoryToken(displayName))
+      .slice(0, 4)
+      .join(", ");
+    return aliases
+      ? `- ${displayName} (${wtId}); aliases: ${aliases}`
+      : `- ${displayName} (${wtId})`;
+  });
+
+  return `Known people from this chat:\n${lines.join("\n")}`;
+}
+
+function maybeCoerceFollowupConnectionPrompt(prompt) {
+  const raw = String(prompt || "").trim();
+  if (!raw) {
+    return { prompt: raw, changed: false, reason: "" };
+  }
+
+  if (/\b(connection|distance|related|relationship|cousin|ancestor|descendant|spouse|siblings?)\b/i.test(raw)) {
+    return { prompt: raw, changed: false, reason: "" };
+  }
+
+  const andMatch = raw.match(/^\s*(.+?)\s+and\s+(.+?)\s*\??\s*$/i);
+  if (!andMatch?.[1] || !andMatch?.[2]) {
+    return { prompt: raw, changed: false, reason: "" };
+  }
+
+  const left = andMatch[1].trim();
+  const right = andMatch[2].trim();
+  if (!left || !right) {
+    return { prompt: raw, changed: false, reason: "" };
+  }
+
+  const leftAlias = resolvePromptAlias(left);
+  const rightAlias = resolvePromptAlias(right);
+  const leftResolved = applyResolvedPersonAliasesToPrompt(left);
+  const rightResolved = applyResolvedPersonAliasesToPrompt(right);
+  const leftSource = String(leftAlias?.person?.wtId || leftResolved.prompt || left).trim();
+  const rightTarget = String(rightAlias?.person?.wtId || rightResolved.prompt || right).trim();
+
+  const hasRememberedSide = Boolean(leftAlias?.person?.wtId || rightAlias?.person?.wtId);
+  if (!hasRememberedSide && !leftResolved.changed && !rightResolved.changed) {
+    return { prompt: raw, changed: false, reason: "" };
+  }
+
+  return {
+    prompt: `connection from ${leftSource} to ${rightTarget}`,
+    changed: true,
+    reason: hasRememberedSide ? "followup_and_pair_with_memory" : "followup_and_pair",
+  };
+}
 
 function getWtPlusSuggestionOptionsHtml() {
   if (wtPlusSuggestionOptionsHtml) {
@@ -438,6 +829,7 @@ const {
     pendingDisambiguationContext = null;
     lastConnectionCandidates = [];
     lastConnectionRankedMatches = [];
+    clearResolvedPersonMemory();
   },
 });
 
@@ -488,6 +880,9 @@ const { resolveConnectionTargetPerson, tryHandleConnectionCorrectionPrompt, tryH
     },
     setLastConnectionPopupResult: (value) => {
       lastConnectionPopupResult = value;
+    },
+    onResolvedPerson: (person, aliases = []) => {
+      rememberResolvedPersonFromMatch(person, aliases);
     },
   });
 
@@ -1034,8 +1429,11 @@ async function handleChatResult(result) {
     return;
   }
 
+  rememberResolvedPeopleFromMessage(result.message);
+
   if (Object.prototype.hasOwnProperty.call(result, "table")) {
     lastStructuredResult = result.table || null;
+    rememberResolvedPeopleFromTable(result.table);
     try {
       const rowCount = Array.isArray(lastStructuredResult?.rows) ? lastStructuredResult.rows.length : 0;
       if (rowCount > 0 && rowCount <= CHAT_PERSISTED_STRUCTURED_ROWS_MAX) {
@@ -1155,6 +1553,27 @@ async function sendChatPrompt() {
     }
     prompt = lastNonRetryUserPrompt;
     appendMessage("assistant", `Retrying your previous request: ${prompt}`, { shouldPersist: false });
+  }
+
+  ensureResolvedPersonMemoryLoaded();
+  const aliasRewrite = applyResolvedPersonAliasesToPrompt(prompt);
+  if (aliasRewrite.changed) {
+    prompt = aliasRewrite.prompt;
+    console.debug("wbe: resolved prompt alias from chat memory", {
+      originalPrompt: normalizedPrompt,
+      rewrittenPrompt: prompt,
+      matchedAlias: aliasRewrite.matchedAlias,
+      resolvedWtId: aliasRewrite.person?.wtId || "",
+    });
+  }
+  const coercedConnectionPrompt = maybeCoerceFollowupConnectionPrompt(prompt);
+  if (coercedConnectionPrompt.changed) {
+    prompt = coercedConnectionPrompt.prompt;
+    console.debug("wbe: coerced follow-up prompt to connection lookup", {
+      originalPrompt: normalizedPrompt,
+      rewrittenPrompt: prompt,
+      reason: coercedConnectionPrompt.reason,
+    });
   }
 
   appendMessage("user", normalizedPrompt);
@@ -1327,9 +1746,11 @@ async function sendChatPrompt() {
     const chatMode = document.getElementById("wbe-chat-mode")?.value || "ai";
     console.log("wbe: detected chat mode", { chatMode });
     const conversationContext = buildRecentConversationForAi();
+    const resolvedPeopleContext = buildResolvedPeopleContextForAi();
     let profileContextText = null;
     try {
       const textPrompt = String(prompt || "");
+      const rememberedPromptPerson = resolvePromptAlias(textPrompt)?.person || null;
       // Extract capitalized name candidates
       const nameCandidates = textPrompt.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/g) || [];
       console.log("wbe: extracted name candidates from prompt", { nameCandidates, prompt: textPrompt });
@@ -1337,6 +1758,9 @@ async function sendChatPrompt() {
       let profileKeyMatch = textPrompt.match(/\b([A-Za-z][A-Za-z0-9_\-]+-\d{1,6})\b/);
       let profileKey = profileKeyMatch?.[1];
       console.log("wbe: direct profile key match", { profileKey });
+      if (!profileKey && rememberedPromptPerson?.wtId) {
+        profileKey = rememberedPromptPerson.wtId;
+      }
       // 2) Last structured result contains match
       if (!profileKey && lastStructuredResult && Array.isArray(lastStructuredResult.rows)) {
         const candidate = nameCandidates.find((t) => t && t.length > 2);
@@ -1365,6 +1789,7 @@ async function sendChatPrompt() {
             console.log("wbe: searchPerson result", { status, matches, total });
             if (Array.isArray(matches) && matches.length === 1) {
               profileKey = matches[0].Name || matches[0].user_name || null;
+              rememberResolvedPersonFromMatch(matches[0], [nameCandidate]);
               console.log("wbe: searchPerson resolved single match for", { nameCandidate, profileKey });
             } else {
               console.log("wbe: searchPerson returned multiple or no matches", { nameCandidate, total });
@@ -1418,6 +1843,7 @@ async function sendChatPrompt() {
             .join("\n");
           const categories = profile?.Categories ? String(profile.Categories) : "";
           const rawProfileJson = profile ? JSON.stringify(profile, null, 2) : "";
+          rememberResolvedPersonFromMatch(profile || { Name: profileKey }, [profileKey]);
           profileContextText = [
             `Profile ${profileKey} (page: ${page_name || "unknown"}):`,
             "BIO:",
@@ -1452,6 +1878,7 @@ async function sendChatPrompt() {
     const aiPromptParts = [
       "You are assisting inside the WikiTree Browser Extension chat.",
       conversationContext ? `Recent conversation:\n${conversationContext}` : "",
+      resolvedPeopleContext,
       localFailureForAi ? `Local tool attempt failed with: ${localFailureForAi}` : "",
     ];
     if (profileContextText) aiPromptParts.push(profileContextText);
@@ -1482,6 +1909,7 @@ async function sendChatPrompt() {
     });
 
     if (response?.success) {
+      rememberResolvedPeopleFromMessage(response.response || "");
       appendMessage("assistant", response.response || "No response text returned.");
     } else {
       appendMessage("assistant", localFailureForAi || `Error: ${response?.error || "AI request failed."}`);
@@ -2010,6 +2438,7 @@ function openPopup() {
       }
     });
     loadHistory();
+    ensureResolvedPersonMemoryLoaded();
     renderHistory();
     bindWtPlusSuggestionPicker($popup);
     if (!chatHistory.length) {
