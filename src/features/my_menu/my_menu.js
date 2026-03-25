@@ -393,6 +393,15 @@ function addCustomMenu() {
     e.preventDefault();
     showDraftList();
   });
+
+  $(document).on("click", ".myCustomMenu li a:contains('WT+ Query Builder')", (e) => {
+    e.preventDefault();
+    // Trigger the click on the original link in the Find menu if it exists
+    const $originalLink = $("#wbe-wtplus-orqb-link");
+    if ($originalLink.length) {
+      $originalLink.trigger("click");
+    }
+  });
 }
 
 // Store custom menu items in localStorage

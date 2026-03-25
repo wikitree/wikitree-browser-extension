@@ -306,6 +306,12 @@ export function goAndLogIn(returnURL = null) {
     value: returnUrlToUse,
   });
 
+  const $appIdEl = $("<input>", {
+    type: "hidden",
+    name: "appId",
+    value: WBE_RP_APP_ID,
+  });
+
   const $submitButton = $("<input>", {
     type: "submit",
     class: "btn btn-primary btn-sm",
@@ -313,7 +319,7 @@ export function goAndLogIn(returnURL = null) {
   });
 
   // Append elements to form and form to body
-  $form.append($inputAction, $inputReturnURL, $submitButton).appendTo("body");
+  $form.append($appIdEl, $inputAction, $inputReturnURL, $submitButton).appendTo("body");
 
   // Automatically submit the form
   $form.trigger("submit");

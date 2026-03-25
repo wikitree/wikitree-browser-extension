@@ -325,7 +325,10 @@ export function timeline(id = false) {
       // Extract relatives into separate arrays based on relationship
       const parents = extractRelatives(person.Parents, "Parent");
       const siblings = extractRelatives(person.Siblings, "Sibling");
-      const spouses = extractRelatives(person.Spouses, "Spouse");
+      const spouses = (extractRelatives(person.Spouses, "Spouse") || []).filter((spouse) => {
+        const doNotDisplay = spouse?.do_not_display ?? spouse?.DoNotDisplay;
+        return !(doNotDisplay === "1" || doNotDisplay === 1 || doNotDisplay === true);
+      });
       const children = extractRelatives(person.Children, "Child");
       const family = [person];
       const familyArr = [parents, siblings, spouses, children];
@@ -337,6 +340,7 @@ export function timeline(id = false) {
           }
         }
       });
+      //console.log(family, "Family members for timeline");
       let familyFacts = [];
       // Define the basic events to capture (Birth, Death, marriage)
       const bmdEvents = ["Birth", "Death", "marriage"];

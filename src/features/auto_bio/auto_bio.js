@@ -6762,7 +6762,7 @@ export async function getStickersAndBoxes() {
   try {
     templatesObject.templates.forEach(function (aTemplate) {
       if (templatesToAdd.includes(aTemplate.type)) {
-        const newTemplateMatch = currentBio.matchAll(/\{\{[^}]*?\}\}/gs);
+        const newTemplateMatch = currentBio.matchAll(/\{\{[\s\S]*?\}\}/g);
 
         for (let match of newTemplateMatch) {
           // Extract template name from the match, handling parameters after pipe
@@ -6773,7 +6773,10 @@ export async function getStickersAndBoxes() {
           // Direct string comparison instead of regex matching
           if (extractedTemplateName === aTemplate.name) {
             if (!thingsToAddAfterBioHeading.includes(match[0])) {
-              if (beforeHeadingThings.includes(aTemplate.type) || beforeHeadingThings.includes(aTemplate.group)) {
+              if (
+                beforeHeadingThings.some((thing) => thing.toLowerCase() === aTemplate.type?.toLowerCase()) ||
+                beforeHeadingThings.some((thing) => thing.toLowerCase() === aTemplate.group?.toLowerCase())
+              ) {
                 thingsToAddBeforeBioHeading.push(match[0]);
               } else {
                 thingsToAddAfterBioHeading.push(match[0]);
@@ -6785,7 +6788,18 @@ export async function getStickersAndBoxes() {
     });
 
     thingsToAddBeforeBioHeading.forEach(function (box) {
-      if (!window.sectionsObject.StuffBeforeTheBio.text.includes(box)) {
+      // Extract template name from the box
+      const boxNameMatch = box.match(/\{\{([^|}]+)/);
+      const boxTemplateName = boxNameMatch ? boxNameMatch[1].trim() : "";
+
+      // Check if this template name is already in StuffBeforeTheBio (to avoid duplicates)
+      const alreadyExists = window.sectionsObject.StuffBeforeTheBio.text.some((item) => {
+        const itemNameMatch = item.match(/\{\{([^|}]+)/);
+        const itemTemplateName = itemNameMatch ? itemNameMatch[1].trim() : "";
+        return itemTemplateName === boxTemplateName;
+      });
+
+      if (!alreadyExists) {
         window.sectionsObject.StuffBeforeTheBio.text.push(box);
       }
     });
@@ -6906,6 +6920,97 @@ function getFamilySearchFacts() {
   window.familySearchFacts = filteredData;
 }
 
+function normalizeTemplatesInSectionArray(textArray) {
+  const normalized = [];
+  let currentTemplate = "";
+
+  for (let item of textArray) {
+    // Check if this item is already a complete template (single-line)
+    if (item.startsWith("{{") && item.includes("}}")) {
+      // Complete template, add it directly
+      if (currentTemplate) {
+        // Finish any pending template first
+        normalized.push(currentTemplate);
+        currentTemplate = "";
+      }
+      normalized.push(item);
+    } else if (item.startsWith("{{")) {
+      // Start of a multi-line template
+      if (currentTemplate) {
+        normalized.push(currentTemplate);
+      }
+      currentTemplate = item;
+    } else if (currentTemplate && item.endsWith("}}")) {
+      // End of multi-line template
+      currentTemplate += " " + item;
+      normalized.push(currentTemplate);
+      currentTemplate = "";
+    } else if (currentTemplate) {
+      // Middle of multi-line template
+      currentTemplate += " " + item;
+    } else {
+      // Standalone item (category, text, etc.)
+      normalized.push(item);
+    }
+  }
+
+  // If there's an unclosed template, add it anyway
+  if (currentTemplate) {
+    normalized.push(currentTemplate);
+  }
+
+  return normalized;
+}
+
+function extractCategoryName(categoryText) {
+  if (!categoryText) {
+    return null;
+  }
+
+  const match = categoryText.match(/^\[\[Category:\s*([^\]]+?)\s*\]\]/i);
+  return match ? match[1].trim() : null;
+}
+
+function hasEquivalentCategory(categoryText, categoryItems = []) {
+  const categoryName = extractCategoryName(categoryText);
+  if (!categoryName) {
+    return false;
+  }
+
+  return categoryItems.some((item) => extractCategoryName(item) === categoryName);
+}
+
+function textContainsEquivalentCategory(text, categoryText) {
+  const categoryName = extractCategoryName(categoryText);
+  if (!categoryName || !text) {
+    return false;
+  }
+
+  return text.split("\n").some((line) => extractCategoryName(line.trim()) === categoryName);
+}
+
+function addUniqueCategoryToStuffBeforeTheBio(categoryText) {
+  if (!categoryText) {
+    return false;
+  }
+
+  const stuffBeforeTheBio = window.sectionsObject?.StuffBeforeTheBio?.text;
+  if (!Array.isArray(stuffBeforeTheBio)) {
+    return false;
+  }
+
+  if (hasEquivalentCategory(categoryText, stuffBeforeTheBio)) {
+    return false;
+  }
+
+  if (textContainsEquivalentCategory(window.textBeforeTheBio, categoryText)) {
+    return false;
+  }
+
+  stuffBeforeTheBio.push(categoryText);
+  return true;
+}
+
 export function splitBioIntoSections() {
   const wikiText = $("#wpTextbox1").val();
   let lines = [];
@@ -7013,7 +7118,22 @@ export function splitBioIntoSections() {
     }
   }
 
-  console.log("Bio sections", JSON.parse(JSON.stringify(sections)));
+  // Normalize all multi-line templates to single-line in all sections
+  for (let sectionName in sections) {
+    if (sections[sectionName].text && Array.isArray(sections[sectionName].text)) {
+      sections[sectionName].text = normalizeTemplatesInSectionArray(sections[sectionName].text);
+    }
+    if (sections[sectionName].subsections) {
+      for (let subsectionName in sections[sectionName].subsections) {
+        if (sections[sectionName].subsections[subsectionName].text) {
+          sections[sectionName].subsections[subsectionName].text = normalizeTemplatesInSectionArray(
+            sections[sectionName].subsections[subsectionName].text
+          );
+        }
+      }
+    }
+  }
+
   if (sections.Sources) {
     let shouldStartWithAsterisk = true;
     sections.Sources.text.forEach(function (line, i) {
@@ -7083,18 +7203,43 @@ export function splitBioIntoSections() {
   // Split the things before the bio up into separate items
   if (sections.StuffBeforeTheBio.text?.length > 0) {
     const pattern = /(\{\{.*?\}\}|\[\[.*?\]\])/g;
+    const categoryOnlyPattern = /^\[\[Category:[^\]]+\]\]$/i;
+    const htmlCommentPattern = /^<!--.*-->$/;
 
     for (let i = 0; i < sections.StuffBeforeTheBio.text.length; i++) {
-      const matches = sections.StuffBeforeTheBio.text[i].match(pattern);
+      const line = sections.StuffBeforeTheBio.text[i];
+      const matches = Array.from(line.matchAll(pattern));
 
-      if (matches) {
-        // Add the first match to the current array element
-        sections.StuffBeforeTheBio.text[i] = matches[0];
+      if (matches.length > 0) {
+        const splitItems = [];
 
-        // If there are additional matches, add them to the array after the current element
-        if (matches?.length > 1) {
-          const additionalMatches = matches.slice(1);
-          sections.StuffBeforeTheBio.text.splice(i + 1, 0, ...additionalMatches);
+        for (let j = 0; j < matches.length; j++) {
+          const token = matches[j][0];
+          splitItems.push(token);
+
+          const tokenEnd = matches[j].index + token.length;
+          const nextTokenStart = j < matches.length - 1 ? matches[j + 1].index : line.length;
+          const trailingText = line.slice(tokenEnd, nextTokenStart).trim();
+
+          // Keep inline HTML comments near categories as their own adjacent item.
+          if (categoryOnlyPattern.test(token) && trailingText && htmlCommentPattern.test(trailingText)) {
+            splitItems.push(trailingText);
+          }
+        }
+
+        // Keep a standalone next-line HTML comment near its category.
+        const lastToken = matches[matches.length - 1][0];
+        if (categoryOnlyPattern.test(lastToken)) {
+          const nextLine = sections.StuffBeforeTheBio.text[i + 1]?.trim();
+          if (nextLine && htmlCommentPattern.test(nextLine)) {
+            splitItems.push(nextLine);
+            sections.StuffBeforeTheBio.text.splice(i + 1, 1);
+          }
+        }
+
+        sections.StuffBeforeTheBio.text[i] = splitItems[0];
+        if (splitItems.length > 1) {
+          sections.StuffBeforeTheBio.text.splice(i + 1, 0, ...splitItems.slice(1));
         }
       }
       const gedcomMatch = sections.StuffBeforeTheBio.text[i].match(/\.ged\s/);
@@ -7288,8 +7433,40 @@ function fixSpaces(citation) {
 export function cleanFindAGraveCitation(citation, refText) {
   citation = addHeading(citation, refText);
   //citation = fixDate(citation);
+  citation = addAccessedDate(citation);
   citation = fixDashes(citation);
   citation = fixSpaces(citation);
+  return citation;
+}
+
+function addAccessedDate(citation) {
+  // Add current date to "accessed" if it's missing
+  // Look for patterns like ": accessed)" or "accessed)" with possible whitespace
+  const accessedPattern = /:\s*accessed\s*\)/;
+  console.log("Checking for accessed date in:", citation.substring(0, 200));
+  if (citation.match(accessedPattern)) {
+    console.log("Found accessed pattern, adding date");
+    const today = new Date();
+    const months = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+    const dateStr = `${months[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
+    citation = citation.replace(accessedPattern, `: accessed ${dateStr})`);
+    console.log("Updated citation:", citation.substring(0, 200));
+  } else {
+    console.log("No accessed pattern found");
+  }
   return citation;
 }
 
@@ -7310,6 +7487,7 @@ export async function getCitations() {
       try {
         let citation = await getCitation(citationLink);
         if (citation) {
+          console.log("Raw citation from server:", citation);
           if (findAGraveLink) {
             const memorialNumber = citationLink.match(/\d{5,}/);
             let findagraveTemplate = "";
@@ -7317,6 +7495,7 @@ export async function getCitations() {
               findagraveTemplate = `<br>{{FindAGrave|${memorialNumber[0]}}}`;
             }
             citation = cleanFindAGraveCitation(citation, aRef.Text) + findagraveTemplate;
+            console.log("Cleaned citation:", citation);
           }
           aRef.Text = citation.trim();
 
@@ -7344,25 +7523,7 @@ export async function getCitations() {
 export function addLocationCategoryToStuffBeforeTheBio(location) {
   if (location) {
     const theCategory = "[[Category: " + location + "]]";
-    const theCategoryWithoutSpace = "[[Category:" + location + "]]";
-    // const excludedCategories = ["Acadie"];
-
-    let notInTextBeforeTheBio = true;
-    if (window.textBeforeTheBio) {
-      if (window.textBeforeTheBio.includes(theCategory)) {
-        notInTextBeforeTheBio = false;
-      } else if (window.textBeforeTheBio.includes(theCategoryWithoutSpace)) {
-        notInTextBeforeTheBio = false;
-      }
-    }
-
-    if (
-      !window.sectionsObject["StuffBeforeTheBio"].text?.includes(theCategory) &&
-      !window.sectionsObject["StuffBeforeTheBio"].text?.includes(theCategoryWithoutSpace) &&
-      notInTextBeforeTheBio
-    ) {
-      window.sectionsObject["StuffBeforeTheBio"].text.push(theCategory);
-    }
+    addUniqueCategoryToStuffBeforeTheBio(theCategory);
   }
 }
 
@@ -7377,25 +7538,33 @@ async function sortStuffBeforeBio() {
   };
   if (window.sectionsObject["StuffBeforeTheBio"]) {
     const stuff = window.sectionsObject["StuffBeforeTheBio"].text;
-    stuff.forEach(function (item) {
+    stuff.forEach(function (item, index) {
       const itemName = item.match(/\{\{([^|}]+)/);
       const extractedName = itemName?.[1]?.trim();
+      const previousItem = index > 0 ? stuff[index - 1] : "";
       if (item.startsWith("[[Category:")) {
         tempStuffObject.categories.push(item);
-      } else if (item.startsWith("{{Easily Confused")) {
+      } else if (/^<!--.*-->$/.test(item) && previousItem.startsWith("[[Category:")) {
+        // Preserve category-adjacent comments in output while keeping categories plain for matching.
+        tempStuffObject.categories.push(item);
+      } else if (item.toLowerCase().startsWith("{{easily confused")) {
         tempStuffObject.easilyConfused.push(item);
       } else if (
         templatesObject.templates.find(
-          (template) => template.name === extractedName && template.group === "Research note box"
+          (template) => template.name === extractedName && template.group?.toLowerCase() === "research note box"
         )
       ) {
         tempStuffObject.researchNoteBoxes.push(item);
       } else if (
-        templatesObject.templates.find((template) => template.name === extractedName && template.type === "Project Box")
+        templatesObject.templates.find(
+          (template) => template.name === extractedName && template.type?.toLowerCase() === "project box"
+        )
       ) {
         tempStuffObject.projectBoxes.push(item);
       } else if (
-        templatesObject.templates.find((template) => template.name === extractedName && template.group === "Succession")
+        templatesObject.templates.find(
+          (template) => template.name === extractedName && template.group?.toLowerCase() === "succession"
+        )
       ) {
         tempStuffObject.succession.push(item);
       }
@@ -7418,7 +7587,20 @@ export async function getStuffBeforeTheBioText() {
   const sortedStuff = await sortStuffBeforeBio();
   const filteredStuff = sortedStuff.filter((item) => item !== "");
   if (filteredStuff.length > 0) {
-    stuffBeforeTheBioText += filteredStuff.join("\n") + "\n";
+    const outputLines = [];
+    for (let i = 0; i < filteredStuff.length; i++) {
+      const item = filteredStuff[i];
+      const nextItem = filteredStuff[i + 1];
+
+      // Keep category-adjacent HTML comments on the same line in final output.
+      if (item.startsWith("[[Category:") && nextItem && /^<!--.*-->$/.test(nextItem)) {
+        outputLines.push(`${item}${nextItem}`);
+        i++;
+      } else {
+        outputLines.push(item);
+      }
+    }
+    stuffBeforeTheBioText += outputLines.join("\n") + "\n";
   }
   if (window.textBeforeTheBio) {
     stuffBeforeTheBioText += window.textBeforeTheBio + "\n";
@@ -7734,9 +7916,7 @@ export function addUnsourced(feature = "autoBio") {
         if (addCategory) {
           USstates.forEach(function (aState) {
             unsourcedCategory = `[[Category: ${unsourcedCategories[aState]}]]`;
-            if (!window.sectionsObject["StuffBeforeTheBio"].text?.includes(unsourcedCategory)) {
-              window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
-            }
+            addUniqueCategoryToStuffBeforeTheBio(unsourcedCategory);
           });
         } else {
           const statesString = USstates.join("|");
@@ -7761,9 +7941,7 @@ export function addUnsourced(feature = "autoBio") {
             ) {
               if (addCategory) {
                 unsourcedCategory = `[[Category: ${unsourcedCategories[aPlace]}]]`;
-                if (!window.sectionsObject["StuffBeforeTheBio"].text?.includes(unsourcedCategory)) {
-                  window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
-                }
+                addUniqueCategoryToStuffBeforeTheBio(unsourcedCategory);
               } else if (found == false) {
                 if (!unsourcedTemplateString.includes(aPlace)) {
                   unsourcedTemplateString += `|${aPlace}`;
@@ -7788,9 +7966,7 @@ export function addUnsourced(feature = "autoBio") {
       surnames.forEach(function (aSurname) {
         if (unsourcedCategories[aSurname + " Name Study"]) {
           unsourcedCategory = `[[Category: ${unsourcedCategories[aSurname + " Name Study"]}]]`;
-          if (!window.sectionsObject["StuffBeforeTheBio"].text?.includes(unsourcedCategory)) {
-            window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
-          }
+          addUniqueCategoryToStuffBeforeTheBio(unsourcedCategory);
         }
       });
       if (!unsourcedCategory && !unsourcedTemplate) {
@@ -7858,7 +8034,7 @@ export function addOccupationCategories(feature = "autoBio") {
         }
       }
       if (occupationCategory && !window.sectionsObject["StuffBeforeTheBio"].text.includes(occupationCategory)) {
-        window.sectionsObject["StuffBeforeTheBio"].text.push(occupationCategory);
+        addUniqueCategoryToStuffBeforeTheBio(occupationCategory);
       }
     }
   });
@@ -8464,19 +8640,61 @@ export async function generateBio() {
     if (allStuffBeforeTheBio) {
       textBeforeTheBio = allStuffBeforeTheBio[1].trim();
     }
-    const stuffBeforeTheBioArray = textBeforeTheBio.split("\n");
-    let stuffBeforeTheBioArray2 = [];
-    stuffBeforeTheBioArray.forEach(function (aBit) {
-      if (aBit.match(/^\[\[.*\]\]$/) == null && aBit.match(/^\{\{.*\}\}$/) == null && aBit) {
-        stuffBeforeTheBioArray2.push(aBit);
-      }
-    });
 
-    textBeforeTheBio = stuffBeforeTheBioArray2.join("\n");
+    // Remove all templates (both single-line and multi-line) and categories from textBeforeTheBio
+    // since they're already being handled by StuffBeforeTheBio.text
+    let lines = textBeforeTheBio.split("\n");
+    let filteredLines = [];
+    let inTemplate = false;
+    let previousLineWasCategory = false;
+
+    for (let line of lines) {
+      const trimmedLine = line.trim();
+
+      if (trimmedLine.startsWith("{{")) {
+        inTemplate = true;
+      }
+
+      const isCategoryLine = /^\[\[Category:[^\]]+\]\](\s*<!--.*-->)?$/i.test(trimmedLine);
+      const isCommentLine = /^<!--.*-->$/.test(trimmedLine);
+      const isCommentForPreviousCategory = previousLineWasCategory && isCommentLine;
+
+      // Skip lines that are part of a template or are categories
+      if (!inTemplate && !isCategoryLine && !isCommentForPreviousCategory) {
+        filteredLines.push(line);
+      }
+
+      if (trimmedLine.endsWith("}}")) {
+        inTemplate = false;
+      }
+
+      previousLineWasCategory = isCategoryLine;
+    }
+
+    // Filter out empty lines and rejoin
+    textBeforeTheBio = filteredLines.filter((line) => line.trim() !== "").join("\n");
     window.textBeforeTheBio = textBeforeTheBio;
 
     // Split the current bio into sections
     window.sectionsObject = splitBioIntoSections();
+
+    // Normalize all multi-line templates to single-line
+    for (let sectionName in window.sectionsObject) {
+      if (window.sectionsObject[sectionName].text && Array.isArray(window.sectionsObject[sectionName].text)) {
+        window.sectionsObject[sectionName].text = normalizeTemplatesInSectionArray(
+          window.sectionsObject[sectionName].text
+        );
+      }
+      if (window.sectionsObject[sectionName].subsections) {
+        for (let subsectionName in window.sectionsObject[sectionName].subsections) {
+          if (window.sectionsObject[sectionName].subsections[subsectionName].text) {
+            window.sectionsObject[sectionName].subsections[subsectionName].text = normalizeTemplatesInSectionArray(
+              window.sectionsObject[sectionName].subsections[subsectionName].text
+            );
+          }
+        }
+      }
+    }
 
     window.usedPlaces = [];
     let profileID = profilePerson.Name;
@@ -9063,8 +9281,8 @@ export async function generateBio() {
               }
             }
           });
-          if (needsCategory && !window.sectionsObject["StuffBeforeTheBio"].text?.includes(needsCategory)) {
-            window.sectionsObject["StuffBeforeTheBio"].text.push(needsCategory + "\n");
+          if (needsCategory) {
+            addUniqueCategoryToStuffBeforeTheBio(needsCategory);
           }
         }
       }
@@ -9449,6 +9667,57 @@ function generateCombinations(location) {
   return array;
 }
 
+// Generate fallback place strings by dropping interior jurisdictions.
+// Example: "Drachten, Smallingerland, Friesland, Nederland" ->
+// "Drachten, Friesland, Nederland" and "Drachten, Friesland"
+function generateJurisdictionFallbacks(location) {
+  if (!location || typeof location !== "string") {
+    return [];
+  }
+
+  const parts = location
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const fallbacks = new Set();
+
+  function addWithOptionalNoCountry(variant) {
+    if (!variant) {
+      return;
+    }
+    fallbacks.add(variant);
+
+    // Also try a no-country form because many categories omit the country.
+    const variantParts = variant
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (variantParts.length >= 3) {
+      fallbacks.add(variantParts.slice(0, -1).join(", "));
+    }
+  }
+
+  // Remove one interior segment at a time, preserving first and last.
+  // This must run for 3+ parts because countries are often removed earlier,
+  // leaving strings like "Town, District, County".
+  if (parts.length >= 3) {
+    for (let i = 1; i < parts.length - 1; i++) {
+      const variant = parts.filter((_, index) => index !== i).join(", ");
+      addWithOptionalNoCountry(variant);
+    }
+  }
+
+  // Common fallback: first place + penultimate + country.
+  // Useful when a municipality is present in the profile but absent in category names.
+  if (parts.length >= 3) {
+    const compactVariant = [parts[0], parts[parts.length - 2], parts[parts.length - 1]].join(", ");
+    addWithOptionalNoCountry(compactVariant);
+  }
+
+  return Array.from(fallbacks);
+}
+
 // Function to check and replace the county name before 'Ireland'
 function addCountyForIreland(locations) {
   return locations.map((location) => {
@@ -9518,9 +9787,7 @@ async function appalachiaCategory(location, thisState) {
   }
 
   const tag = `[[Category: ${thisState} Appalachians]]`;
-  if (!stuff.includes(tag)) {
-    stuff.push(tag);
-  }
+  addUniqueCategoryToStuffBeforeTheBio(tag);
 }
 
 export async function getLocationCategory(type, location = null) {
@@ -9611,7 +9878,11 @@ export async function getLocationCategory(type, location = null) {
     }
   }
 
-  let searchLocationsSet = generateCombinations(searchLocation);
+  let searchLocationsSet = new Set(generateCombinations(searchLocation));
+  const jurisdictionFallbacks = generateJurisdictionFallbacks(searchLocation);
+  jurisdictionFallbacks.forEach((fallbackLocation) => {
+    generateCombinations(fallbackLocation).forEach((combination) => searchLocationsSet.add(combination));
+  });
   const searchLocationsArray = addCountyForIreland(Array.from(searchLocationsSet));
   if (cemeteryVariants.length > 0) {
     searchLocationsArray.push(...cemeteryVariants);
@@ -9670,18 +9941,48 @@ export async function getLocationCategory(type, location = null) {
             if (!aCat.topLevel) {
               let category = aCat.category;
               if (type !== "Cemetery" || sameState(window.profilePerson.DeathLocation, aCat.location)) {
-                const [part0, part1, part2] = locationSplit;
-                const suffixes = [thisState, part2];
-                const combinations = [`${part0}, ${part1}`, `${part1}, ${part2}`, `${part0}, ${part2}`].flatMap(
-                  (pattern) => [
-                    pattern,
-                    `${pattern} County`,
-                    ...suffixes.map((suffix) => `${pattern}, ${suffix}`),
-                    ...suffixes.map((suffix) => `${pattern} County, ${suffix}`),
-                  ]
-                );
+                const parts = locationSplit.map((part) => part.trim()).filter(Boolean);
+                const part0 = parts[0];
+                const part1 = parts[1];
+                const penultimate = parts[parts.length - 2];
+                const last = parts[parts.length - 1];
 
-                if (combinations.includes(category)) {
+                const basePatterns = new Set();
+
+                // Adjacent pairs (e.g. Town, District and District, County)
+                for (let i = 0; i < parts.length - 1; i++) {
+                  basePatterns.add(`${parts[i]}, ${parts[i + 1]}`);
+                }
+
+                // Common direct fallbacks used by categories.
+                if (part0 && penultimate) {
+                  basePatterns.add(`${part0}, ${penultimate}`);
+                }
+                if (part0 && last) {
+                  basePatterns.add(`${part0}, ${last}`);
+                }
+                if (penultimate && last) {
+                  basePatterns.add(`${penultimate}, ${last}`);
+                }
+
+                const suffixes = Array.from(new Set([thisState, penultimate, last].filter(Boolean)));
+                const combinations = new Set();
+
+                basePatterns.forEach((pattern) => {
+                  combinations.add(pattern);
+                  combinations.add(`${pattern} County`);
+                  suffixes.forEach((suffix) => {
+                    combinations.add(`${pattern}, ${suffix}`);
+                    combinations.add(`${pattern} County, ${suffix}`);
+                  });
+                });
+
+                // Cases like "Houston, Georgia" -> "Houston County, Georgia"
+                if (part0 && part1) {
+                  combinations.add(`${part0} County, ${part1}`);
+                }
+
+                if (combinations.has(category)) {
                   foundCategory = category;
                 }
               }
@@ -10042,13 +10343,94 @@ function addAutoBioUI() {
     // Basic AutoBio UI (Delete Old Bio, etc)
     // Removed specific styling to match native look as requested
     const buttonBox = $(
-      "<div id='autoBioButtonBox' style='display: inline-flex; gap: 2px; align-items: center; margin-left: 2px;'></div>"
+      "<div id='autoBioButtonBox' style='display: inline-flex; gap: 2px; align-items: center; margin-left: 2px; position: relative;'></div>"
     );
 
-    // AI BUTTON
-    const aiButton = $("<button id='improveAI' class='small editToolbarButton'>Improve with AI</button>");
-    aiButton.on("click", improveBioWithAI);
-    buttonBox.append(aiButton);
+    const hasAIKey = [
+      window.autoBioOptions?.openAIKey,
+      window.autoBioOptions?.geminiKey,
+      window.autoBioOptions?.claudeKey,
+      window.autoBioOptions?.perplexityKey,
+    ].some((key) => typeof key === "string" && key.trim() !== "");
+
+    if (hasAIKey) {
+      // AI BUTTON
+      const aiButton = $("<button id='improveAI' class='small editToolbarButton'>Improve with AI</button>");
+      aiButton.on("click", improveBioWithAI);
+      buttonBox.append(aiButton);
+
+      // CUSTOM INSTRUCTIONS UI
+      const customInstructionsBtn = $(
+        "<button id='autoBioCustomInstructionsBtn' class='small editToolbarButton' title='Custom AI Instructions' style='padding: 0 4px;'>⚙️</button>"
+      );
+      buttonBox.append(customInstructionsBtn);
+
+      const customInstructionsPanel = $(
+        `<div id='autoBioCustomInstructions' style='display: none; position: absolute; background: white; border: 1px solid #ccc; padding: 10px; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); width: 300px; top: 35px; right: 0; cursor: default;'>
+          <div id='autoBioCustomInstructionsHeader' style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; cursor: move;'>
+            <span style='font-weight: bold;'>Custom AI Instructions</span>
+            <button id='autoBioCustomInstructionsClose' class='small' style='background: none; border: none; cursor: pointer; font-size: 16px; padding: 0 4px;'>&times;</button>
+          </div>
+          <textarea id='autoBioCustomInstructionsText' style='width: 100%; height: 80px; font-size: 12px; margin-bottom: 5px;' placeholder='e.g., Use "passed away" instead of "died"...'></textarea>
+          <label><input type='checkbox' id='autoBioUseCustomInstructions'> Use these instructions</label>
+        </div>`
+      );
+      buttonBox.append(customInstructionsPanel);
+
+      customInstructionsBtn.on("click", function (e) {
+        e.preventDefault();
+        customInstructionsPanel.toggle();
+      });
+
+      customInstructionsPanel.find("#autoBioCustomInstructionsClose").on("click", function (e) {
+        e.preventDefault();
+        customInstructionsPanel.hide();
+      });
+
+      // Make it draggable if jQuery UI is loaded
+      if (typeof $.fn.draggable === "function") {
+        customInstructionsPanel.draggable({ handle: "#autoBioCustomInstructionsHeader" });
+      }
+
+      // Load from localStorage
+      const savedInstructions = localStorage.getItem("autoBioCustomInstructions") || "";
+      const savedUse = localStorage.getItem("autoBioUseCustomInstructions") === "true";
+
+      customInstructionsPanel.find("#autoBioCustomInstructionsText").val(savedInstructions);
+      customInstructionsPanel.find("#autoBioUseCustomInstructions").prop("checked", savedUse);
+
+      // Save on change
+      customInstructionsPanel
+        .find("#autoBioCustomInstructionsText, #autoBioUseCustomInstructions")
+        .on("change input", function () {
+          localStorage.setItem("autoBioCustomInstructions", $("#autoBioCustomInstructionsText").val());
+          localStorage.setItem("autoBioUseCustomInstructions", $("#autoBioUseCustomInstructions").prop("checked"));
+        });
+    }
+
+    const removeButton = $("<button id='removeAutoBio' class='small editToolbarButton'>Undo Auto Bio</button>");
+    removeButton.on("click", function (e) {
+      e.preventDefault();
+      if (window.autoBio_originalBio) {
+        setBioText(window.autoBio_originalBio, "replace");
+      } else {
+        // Fallback: Try to extract text AFTER the marker (which is where we put the Old Bio now)
+        let bioNow = getBioText();
+        let oldBio = bioNow.replace(/^.*?--- WikiTree Browser Extension Auto Bio ---[\s\S]+?-->\s*/s, "");
+        // Ensure oldBio (Base) doesn't have the Auto Bio marker/comments causing diff noise on the left side
+        // This handles cases where we fell back to 'lastGenerated' which includes comments
+        // We use a generic comment remover to be absolutely sure no instructions leak into the Diff view.
+        oldBio = oldBio.replace(/<!--[\s\S]*?-->/g, "").trim();
+        setBioText(oldBio, "replace");
+      }
+      removeAutoBioUI();
+      // Clear cached variables to reset state
+      window.autoBio_cleanDraft = null;
+      window.autoBio_commentBlock = null;
+      // window.autoBio_originalBio = null; // Don't clear this immediately? No, we should clear it to allow fresh start.
+      window.autoBio_originalBio = null;
+    });
+    buttonBox.append(removeButton);
 
     // Check if we have an "Old Bio" to delete
     if (getBioText().includes("<!-- Old Bio -->") || getBioText().includes("<!--")) {
@@ -10094,30 +10476,6 @@ function addAutoBioUI() {
       buttonBox.append(deleteButton);
     }
 
-    const removeButton = $("<button id='removeAutoBio' class='small editToolbarButton'>Undo Auto Bio</button>");
-    removeButton.on("click", function (e) {
-      e.preventDefault();
-      if (window.autoBio_originalBio) {
-        setBioText(window.autoBio_originalBio, "replace");
-      } else {
-        // Fallback: Try to extract text AFTER the marker (which is where we put the Old Bio now)
-        let bioNow = getBioText();
-        let oldBio = bioNow.replace(/^.*?--- WikiTree Browser Extension Auto Bio ---[\s\S]+?-->\s*/s, "");
-        // Ensure oldBio (Base) doesn't have the Auto Bio marker/comments causing diff noise on the left side
-        // This handles cases where we fell back to 'lastGenerated' which includes comments
-        // We use a generic comment remover to be absolutely sure no instructions leak into the Diff view.
-        oldBio = oldBio.replace(/<!--[\s\S]*?-->/g, "").trim();
-        setBioText(oldBio, "replace");
-      }
-      removeAutoBioUI();
-      // Clear cached variables to reset state
-      window.autoBio_cleanDraft = null;
-      window.autoBio_commentBlock = null;
-      // window.autoBio_originalBio = null; // Don't clear this immediately? No, we should clear it to allow fresh start.
-      window.autoBio_originalBio = null;
-    });
-    buttonBox.append(removeButton);
-
     if ($("#editToolbarExt").length) {
       $("#editToolbarExt").append(buttonBox);
     } else {
@@ -10152,10 +10510,21 @@ async function improveBioWithAI(e) {
 
     const provider = window.autoBioOptions?.aiProvider || "openai";
     let selectedKey = "";
-    if (provider === "openai") selectedKey = window.autoBioOptions?.openAIKey;
-    else if (provider === "gemini") selectedKey = window.autoBioOptions?.geminiKey;
-    else if (provider === "claude") selectedKey = window.autoBioOptions?.claudeKey;
-    else if (provider === "perplexity") selectedKey = window.autoBioOptions?.perplexityKey;
+    let selectedModel = window.autoBioOptions?.aiModel || "";
+
+    if (provider === "openai") {
+      selectedKey = window.autoBioOptions?.openAIKey;
+      if (!selectedModel) selectedModel = window.autoBioOptions?.openAIModel || "gpt-5-mini";
+    } else if (provider === "gemini") {
+      selectedKey = window.autoBioOptions?.geminiKey;
+      if (!selectedModel) selectedModel = window.autoBioOptions?.geminiModel || "gemini-3-flash-preview";
+    } else if (provider === "claude") {
+      selectedKey = window.autoBioOptions?.claudeKey;
+      if (!selectedModel) selectedModel = window.autoBioOptions?.claudeModel || "claude-sonnet-4-5";
+    } else if (provider === "perplexity") {
+      selectedKey = window.autoBioOptions?.perplexityKey;
+      if (!selectedModel) selectedModel = window.autoBioOptions?.perplexityModel || "sonar";
+    }
 
     const requestPayload = {
       action: "improveBioWithAI", // FIXED: Matches background.js listener
@@ -10163,21 +10532,24 @@ async function improveBioWithAI(e) {
       newBio: newBio,
       provider: provider,
       key: selectedKey,
-      model: window.autoBioOptions?.aiModel,
+      model: selectedModel,
       diedWord: window.autoBioOptions?.diedWord || "died",
       inlineCitations:
         typeof window.autoBioOptions?.inlineCitations !== "undefined" ? window.autoBioOptions.inlineCitations : true,
       dateFormat: window.autoBioOptions?.dateFormat || "MDY",
       dateStatusFormat: window.autoBioOptions?.dateStatusFormat || "abbreviations",
       yearsDateStatusFormat: window.autoBioOptions?.yearsDateStatusFormat || "symbols",
+      deathPosition: window.autoBioOptions?.deathPosition || false,
+      customInstructions:
+        localStorage.getItem("autoBioUseCustomInstructions") === "true"
+          ? localStorage.getItem("autoBioCustomInstructions")
+          : "",
     };
 
     console.log("Sending to AI:", requestPayload);
 
     if (!requestPayload.key) {
-      alert(
-        "API Key is missing! Please strictly ensure you have entered your API Key in the WikiTree Browser Extension Options (Auto Bio section)."
-      );
+      alert("API Key is missing! Please ensure you have entered your API Key in the Auto Bio Options.");
       return;
     }
 

@@ -5,11 +5,8 @@ import "./anniversaries_table.css";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { distRelDbKeyFor, getUserWtId } from "../../core/common";
-import {
-  CONNECTION_STORE_NAME,
-  RELATIONSHIP_STORE_NAME,
-  initDistanceAndRelationshipDBs,
-} from "../distanceAndRelationship/distanceAndRelationship";
+import * as distRel from "../distanceAndRelationship/distanceAndRelationship";
+const { CONNECTION_STORE_NAME, RELATIONSHIP_STORE_NAME, initDistanceAndRelationshipDBs } = distRel;
 
 const WBE_ANNV_TBL_APP_ID = "WBE_anniversaries_table";
 

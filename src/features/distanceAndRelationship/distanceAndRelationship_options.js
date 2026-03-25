@@ -29,5 +29,11 @@ registerFeature({
       ],
       defaultValue: "below",
     },
+    {
+      id: "alignImageAndCopyButtonsToTop",
+      type: OptionType.CHECKBOX,
+      label: "Align profile image and copy buttons with the name.",
+      defaultValue: true,
+    },
   ],
 });

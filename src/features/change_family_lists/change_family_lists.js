@@ -20,7 +20,8 @@ import { isOK, displayName } from "../../core/common";
 import { displayDates } from "../verifyID/verifyID";
 import { getUserWtId } from "../../core/common";
 import "./change_family_lists.css";
-import { initRelationshipDB, RELATIONSHIP_STORE_NAME } from "../distanceAndRelationship/distanceAndRelationship.js";
+import * as distRel from "../distanceAndRelationship/distanceAndRelationship.js";
+const { initRelationshipDB, RELATIONSHIP_STORE_NAME } = distRel;
 import { getProfilePersonInfo } from "../../core/common";
 import { mainDomain, isProfileAddRelative } from "../../core/pageType";
 import { autoClickAddPersonOptions } from "../usability_tweaks/usability_tweaks.js";
@@ -39,11 +40,24 @@ const treePersonBit = $("#nav-familyContent #Family-pane div.tree--person");
 const profilePerson = getProfilePersonInfo(); // from the page
 let profilePersonData; // from API
 let pencils;
+let nativeParentDNA = { BioFather: false, BioMother: false };
+
+function captureNativeParentDNA() {
+  try {
+    // In the native DOM, the DNA icon sits in a sibling <a> after the parent span.
+    const bf = treePersonBit.find("#BioFather");
+    const bm = treePersonBit.find("#BioMother");
+    nativeParentDNA.BioFather = bf.length && bf.nextAll("a:has(.icon--dna-checked)").length > 0;
+    nativeParentDNA.BioMother = bm.length && bm.nextAll("a:has(.icon--dna-checked)").length > 0;
+  } catch (e) {
+    if (DEBUG_FAMILY_LISTS) console.warn("captureNativeParentDNA error", e);
+  }
+}
 
 const getPeopleFields =
   "BirthDate,BirthDateDecade,BirthLocation,BirthName,Connected,DataStatus,DeathDate,DeathDateDecade,DeathLocation," +
-  "Derived.BirthNamePrivate,Derived.LongName,Derived.LongNamePrivate,Father,FirstName,Gender,Id,IsLiving," +
-  "LastNameAtBirth,LastNameCurrent,LastNameOther,Manager,MiddleName,Mother,Name,Prefix,RealName,ShortName," +
+  "Derived.BirthNamePrivate,Derived.LongName,Derived.LongNamePrivate,Father,BioFather,FirstName,Gender,Id,IsLiving," +
+  "LastNameAtBirth,LastNameCurrent,LastNameOther,Manager,MiddleName,Mother,BioMother,Name,Prefix,RealName,ShortName," +
   "Spouses,Suffix,TrustedList";
 
 /**
@@ -60,6 +74,7 @@ function newPersonRecord() {
     Link: "",
     MarriageDetails: "",
     MarriageMapLink: "",
+    RelationshipStatus: null,
     merge: false, // flag for mergeable records
     halfMarker: false, // contains the complete SMALL span containing [half], if present
     biological: false, // whether the person was marked [biological] in the original text
@@ -209,7 +224,8 @@ function parseBracketedUnknownInBlock(blockEl) {
       text === "[date unknown]" ||
       text === "[location unknown]" ||
       text === "[uncertain]" ||
-      text === "[South Africa]"
+      text === "[South Africa]" ||
+      text === "[Suid Afrika]"
     ) {
       return;
     }
@@ -218,7 +234,12 @@ function parseBracketedUnknownInBlock(blockEl) {
   let raw = blockEl.innerText;
   anchors.forEach((a) => {
     const t = a.textContent.trim();
-    if (/^\[half\]$/i.test(t) || /^add\b/i.test(t) || /^edit\b/i.test(t) || t == "[South Africa]") {
+    if (
+      /^\[half\]$/i.test(t) ||
+      /^add\b/i.test(t) ||
+      /^edit\b/i.test(t) ||
+      ["[South Africa]", "[Suid Afrika]"].includes(t)
+    ) {
       return;
     }
     raw = raw.replace(t, "");
@@ -231,7 +252,9 @@ function parseBracketedUnknownInBlock(blockEl) {
       /^\[half\]$/i.test(b) ||
       /^add\b/i.test(b) ||
       /^edit\b/i.test(b) ||
-      ["[uncertain]", "[certain]", "[non-biological]", "[South Africa]", "[biological]"].includes(trimmed)
+      ["[uncertain]", "[certain]", "[non-biological]", "[South Africa]", "[Suid Afrika]", "[biological]"].includes(
+        trimmed
+      )
     ) {
       return;
     }
@@ -311,6 +334,7 @@ function parseSpousesBlock(spouseEls) {
     const spouseEl = spouse.querySelector('[itemprop="spouse"]');
     if (spouseEl) {
       const rec = parseItempropElement(spouseEl);
+      rec.RelationshipStatus = getRelationshipStatusFromElement(spouse);
       spouseEl.remove();
       let details = spouse.textContent || "";
       details = details.replace(/\s{2,}/g, " ").trim();
@@ -339,7 +363,8 @@ function parseSpousesBlock(spouseEls) {
   );
   bracketed.forEach((b) => {
     if (
-      (!records.some((m) => m.Link === b.Link || m.Name === b.Name) && b.Name.trim() != "[South Africa]") ||
+      (!records.some((m) => m.Link === b.Link || m.Name === b.Name) &&
+        ["[South Africa]", "[Suid Afrika]"].includes(b.Name.trim()) == false) ||
       b.Name.includes("private")
     ) {
       records.push(b);
@@ -461,6 +486,7 @@ function parseInitialData() {
     "[marriage location?]",
     "[marriage date?]",
     "[South Africa]",
+    "[Suid Afrika]",
     "[biological]",
   ];
   const container = document.querySelector("#nav-familyContent div.tree--person");
@@ -489,14 +515,13 @@ function parseInitialData() {
       return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
     });
     bracketed.forEach((b) => {
-      if (
-        !parsedParents.some((m) => {
-          return (
-            (m.Name && m.Name.toLowerCase() === b.Name.toLowerCase()) ||
-            (m.UnknownText && m.UnknownText.toLowerCase() === b.UnknownText.toLowerCase())
-          );
-        })
-      ) {
+      const exists = parsedParents.some((m) => {
+        return (
+          (m.Name && b.Name && m.Name.toLowerCase() === b.Name.toLowerCase()) ||
+          (m.UnknownText && b.UnknownText && m.UnknownText.toLowerCase() === b.UnknownText.toLowerCase())
+        );
+      });
+      if (!exists) {
         parsedParents.push(b);
       }
     });
@@ -505,6 +530,8 @@ function parseInitialData() {
         parent.Link = parent.Link.replace(/ /g, "_");
         return index === self.findIndex((p) => p.Link === parent.Link);
       } else {
+        // Allow multiple bracketed private entries (e.g., [private daughter ...]) to be preserved
+        if (/(?:private)/i.test(parent.UnknownText || parent.Name || "")) return true;
         return index === self.findIndex((p) => p.UnknownText === parent.UnknownText);
       }
     });
@@ -522,14 +549,13 @@ function parseInitialData() {
       return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
     });
     bracketed.forEach((b) => {
-      if (
-        !parsedBioParents.some((m) => {
-          return (
-            (m.Name && m.Name.toLowerCase() === b.Name.toLowerCase()) ||
-            (m.UnknownText && m.UnknownText.toLowerCase() === b.UnknownText.toLowerCase())
-          );
-        })
-      ) {
+      const exists = parsedBioParents.some((m) => {
+        return (
+          (m.Name && b.Name && m.Name.toLowerCase() === b.Name.toLowerCase()) ||
+          (m.UnknownText && b.UnknownText && m.UnknownText.toLowerCase() === b.UnknownText.toLowerCase())
+        );
+      });
+      if (!exists) {
         parsedBioParents.push(b);
       }
     });
@@ -538,6 +564,8 @@ function parseInitialData() {
         parent.Link = parent.Link.replace(/ /g, "_");
         return index === self.findIndex((p) => p.Link === parent.Link);
       } else {
+        // Allow multiple bracketed private entries to be preserved
+        if (/(?:private)/i.test(parent.UnknownText || parent.Name || "")) return true;
         return index === self.findIndex((p) => p.UnknownText === parent.UnknownText);
       }
     });
@@ -556,9 +584,28 @@ function parseInitialData() {
     const bracketed = parseBracketedUnknownInBlock(siblingsBlock).filter((b) => {
       return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
     });
+    // Build a count map of private entries already in parsedSiblings to avoid doubling
+    // when parseBlock's internal fallback and this explicit call find the same entries.
+    const existingPrivateSiblingCounts = {};
+    parsedSiblings.forEach((p) => {
+      const name = (p.Name || "").toLowerCase();
+      if (name.includes("private")) {
+        existingPrivateSiblingCounts[name] = (existingPrivateSiblingCounts[name] || 0) + 1;
+      }
+    });
     bracketed.forEach((b) => {
-      if (!parsedSiblings.some((m) => m.Link === b.Link || m.Name === b.Name)) {
-        parsedSiblings.push(b);
+      const bName = (b.Name || "").toLowerCase();
+      const isPrivate = bName.includes("private");
+      if (isPrivate) {
+        if (existingPrivateSiblingCounts[bName] > 0) {
+          existingPrivateSiblingCounts[bName]--;
+        } else {
+          parsedSiblings.push(b);
+        }
+      } else {
+        if (!parsedSiblings.some((m) => m.Link === b.Link || m.Name === b.Name)) {
+          parsedSiblings.push(b);
+        }
       }
     });
     // name in siblingsArray == FullName in parsedSiblings
@@ -615,7 +662,10 @@ function parseInitialData() {
       );
     });
     bracketed.forEach((b) => {
-      if (!spouseEntries.some((m) => m.Link === b.Link || m.Name === b.Name) && b.Name.trim() != "[South Africa]") {
+      if (
+        !spouseEntries.some((m) => m.Link === b.Link || m.Name === b.Name) &&
+        ["[South Africa]", "[Suid Afrika]"].includes(b.Name.trim()) == false
+      ) {
         spouseEntries.push(b);
       }
     });
@@ -636,9 +686,31 @@ function parseInitialData() {
     const bracketed = parseBracketedUnknownInBlock(childrenBlock).filter((b) => {
       return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
     });
+    // Build a count map of private entries already in parsedChildren (these may have come from
+    // parseBlock's internal parseBracketedUnknownInBlock fallback when no itemprop elements exist).
+    // This prevents doubling when both parseBlock and the explicit call below find the same entries.
+    const existingPrivateCounts = {};
+    parsedChildren.forEach((p) => {
+      const name = (p.Name || "").toLowerCase();
+      if (name.includes("private")) {
+        existingPrivateCounts[name] = (existingPrivateCounts[name] || 0) + 1;
+      }
+    });
     bracketed.forEach((b) => {
-      if (!parsedChildren.some((m) => m.Link === b.Link || m.Name === b.Name) && !b.Name.includes("private")) {
-        parsedChildren.push(b);
+      const bName = (b.Name || "").toLowerCase();
+      const isPrivate = bName.includes("private");
+      if (isPrivate) {
+        // Only add if not already accounted for from parseBlock's internal fallback.
+        // Decrement the count to allow genuinely new additional private entries through.
+        if (existingPrivateCounts[bName] > 0) {
+          existingPrivateCounts[bName]--;
+        } else {
+          parsedChildren.push(b);
+        }
+      } else {
+        if (!parsedChildren.some((m) => m.Link === b.Link || m.Name === b.Name)) {
+          parsedChildren.push(b);
+        }
       }
     });
     familyData.children = parsedChildren;
@@ -820,61 +892,27 @@ function buildParentsSection(parents) {
         hrefBit = "";
         p.Gender = p.Name.includes("father") ? "Male" : p.Name.includes("mother") ? "Female" : "";
       }
-      let status;
+      let relationshipStatus;
 
       if (profilePersonData?.DataStatus?.Father && p.relationship == "Father") {
-        status = profilePersonData.DataStatus?.Father;
+        relationshipStatus = profilePersonData.DataStatus?.Father;
         p.Gender = "Male";
       } else if (profilePersonData?.DataStatus?.Mother && p.relationship == "Mother") {
-        status = profilePersonData.DataStatus.Mother;
+        relationshipStatus = profilePersonData.DataStatus.Mother;
         p.Gender = "Female";
       }
-      let theStatusWord;
-      if (status) {
-        theStatusWord =
-          status == 5
-            ? "Non-biological"
-            : status == 10
-            ? "Uncertain"
-            : status == 20
-            ? "Certain"
-            : status == 30
-            ? "DNA confirmed"
-            : "";
-        const statusWord =
-          status == 5
-            ? "<span class='icon--dna-none wbe-icon' title='Non-biological'></span>"
-            : status == 10
-            ? "<span class='icon--uncertain wbe-icon' title='Uncertain'></span>"
-            : status == 20
-            ? "<span class='icon--confident wbe-icon' title='Certain'></span>"
-            : status == 30
-            ? "<span class='icon--dna-checked wbe-icon' style='background-size:40px 20px !important; width:40px !important'></span>"
-            : "";
-        status = ` <span class="dataStatus" title="">${statusWord}</span>`;
-      }
+      const statusUi = buildRelationshipStatusUi(relationshipStatus);
       li.innerHTML = `<span itemprop="${
         p.relationship || "parent"
       }" itemscope itemtype="https://schema.org/Person"><a ${hrefBit} itemprop="url" title="" aria-label="Parent"><span itemprop="name">${
         p.FullName || p.Name
       }${p.biological ? ' <span class="biological">[biological]</span>' : ""}</span>${
-        status || ""
+        statusUi.html
       }</a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
         dates.deathYear || ""
       }">${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
       ol.appendChild(li);
-      const tip =
-        status == "5"
-          ? "Non-biological"
-          : status == "10"
-          ? "Uncertain"
-          : status == "20"
-          ? "Certain"
-          : status == "30"
-          ? "DNA confirmed"
-          : "";
-      $(li).data("tooltip", theStatusWord).data("bs-tooltip", tip);
-      li.dataset.bsTooltip = tip;
+      applyRelationshipStatusTooltip(li, statusUi.label);
       li.dataset.gender = getGender(p);
     });
   }
@@ -901,7 +939,23 @@ function buildBioParentsSection(bioParents) {
     ol.appendChild(createDefaultLink("bioFather", "[bio father?]"));
     ol.appendChild(createDefaultLink("bioMother", "[bio mother?]"));
   } else {
+    // Ensure father appears before mother when present
+    bioParents = bioParents.slice().sort((a, b) => {
+      if (a.relationship === b.relationship) return 0;
+      if (a.relationship === "BioFather") return -1;
+      if (b.relationship === "BioFather") return 1;
+      if (a.relationship === "BioMother") return -1;
+      if (b.relationship === "BioMother") return 1;
+      // fallback to gender: male first
+      if ((a.Gender || "").toLowerCase() === "male" && (b.Gender || "").toLowerCase() !== "male") return -1;
+      if ((b.Gender || "").toLowerCase() === "male" && (a.Gender || "").toLowerCase() !== "male") return 1;
+      return 0;
+    });
+
     bioParents.forEach((p) => {
+      // sanitize names: remove any leading conjunctions like 'and' or '&'
+      if (p.FullName) p.FullName = p.FullName.replace(/^\s*(?:and|&|,)\s+/i, "").trim();
+      if (p.Name) p.Name = p.Name.replace(/^\s*(?:and|&|,)\s+/i, "").trim();
       const li = document.createElement("li");
       li.dataset.parseName = p.Name;
       const dates = getDatesFromFamilyData(p);
@@ -914,7 +968,11 @@ function buildBioParentsSection(bioParents) {
         p.Gender = p.relationship === "BioFather" ? "Male" : "Female";
       }
 
-      li.className = p.relationship == "BioFather" ? "parent_1" : "parent_2";
+      const _pid_for_class = p.Id || p.Name || "unknown";
+      const _pid_safe = String(_pid_for_class).replace(/[^a-zA-Z0-9_-]/g, "_");
+      li.dataset.id = _pid_for_class;
+      li.className =
+        p.relationship == "BioFather" ? `parent_1 parent_1_pid${_pid_safe}` : `parent_2 parent_2_pid${_pid_safe}`;
       if (p.Gender == "Male") {
         li.classList.add("male");
         li.dataset.gender = "Male";
@@ -924,7 +982,9 @@ function buildBioParentsSection(bioParents) {
         li.dataset.gender = "Female";
       }
       li.innerHTML = `<span itemprop="parent" ${
-        p.relationship == "BioFather" ? 'class="parent_1"' : 'class="parent_2"'
+        p.relationship == "BioFather"
+          ? `class="parent_1 parent_1_pid${_pid_safe}"`
+          : `class="parent_2 parent_2_pid${_pid_safe}"`
       }><a ${hrefBit} data-gender="${p.Gender}">${p.FullName || p.Name}</a>
         </span><span class="bdDates">${dates.dates || ""}</span>`;
       ol.appendChild(li);
@@ -957,45 +1017,52 @@ function buildSiblingsSection(siblings) {
     ol.appendChild(createDefaultLink("sibling", "[siblings?]"));
   } else {
     siblings.forEach((s) => {
-      const li = document.createElement("li");
-      li.dataset.parseName = s.Name;
-      const dates = getDatesFromFamilyData(s);
-      s.Name = s.Name?.trim() || "";
-      s.FullName = s.FullName?.trim() || "";
-      const isPrivate = s.Name?.toLowerCase()?.startsWith("[private");
-      s.Gender = getGender(s);
-      if (isPrivate) {
-        li.innerHTML = `<span itemprop="sibling" class="privateSibling" itemtype="https://schema.org/Person">
-            <span itemprop="name">${s.FullName || s.Name}${
-          s.biological ? ' <span class="biological">[biological]</span>' : ""
-        } ${s.halfMarker || ""}</span><span class="bdDates" data-birth-year="${
-          dates.birthYear || ""
-        }" data-death-year="${dates.deathYear || ""}">${
-          dates.dates ? " " + dates.dates : ""
-        }</span><span class="relAge"></span></span>`;
-      } else {
-        li.innerHTML = `<span itemprop="sibling" itemscope itemtype="https://schema.org/Person">
-          <a href="${s.Link}" itemprop="url" title="" aria-label="Sibling"><span itemprop="name">${
-          s.FullName || s.Name
-        }${
-          s.biological ? ' <span class="biological">[biological]</span>' : ""
-        }</span></a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
-          dates.deathYear || ""
-        }">${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
-
-        if (s.halfMarker) {
-          $(li).find(".bdDates").before(s.halfMarker);
-        }
-
-        if (s.Father) li.setAttribute("data-father", s.Father);
-        if (s.Mother) li.setAttribute("data-mother", s.Mother);
-      }
-      li.setAttribute("data-gender", s.Gender || "");
-      ol.appendChild(li);
+      ol.appendChild(createSiblingListItem(s));
     });
   }
   container.appendChild(ol);
   return container;
+}
+
+/**
+ * Creates a sibling <li> element from a sibling record.
+ * @param {Object} s - Sibling record
+ * @returns {HTMLElement} li element
+ */
+function createSiblingListItem(s) {
+  const li = document.createElement("li");
+  li.dataset.parseName = s.Name;
+  const dates = getDatesFromFamilyData(s);
+  s.Name = s.Name?.trim() || "";
+  s.FullName = s.FullName?.trim() || "";
+  const isPrivate = s.Name?.toLowerCase()?.startsWith("[private");
+  s.Gender = getGender(s);
+  if (isPrivate) {
+    li.innerHTML = `<span itemprop="sibling" class="privateSibling" itemtype="https://schema.org/Person">
+            <span itemprop="name">${s.FullName || s.Name}${
+      s.biological ? ' <span class="biological">[biological]</span>' : ""
+    } ${s.halfMarker || ""}</span><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+      dates.deathYear || ""
+    }">${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
+  } else {
+    li.innerHTML = `<span itemprop="sibling" itemscope itemtype="https://schema.org/Person">
+          <a href="${s.Link}" itemprop="url" title="" aria-label="Sibling"><span itemprop="name">${
+      s.FullName || s.Name
+    }${
+      s.biological ? ' <span class="biological">[biological]</span>' : ""
+    }</span></a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+      dates.deathYear || ""
+    }">${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
+
+    if (s.halfMarker) {
+      $(li).find(".bdDates").before(s.halfMarker);
+    }
+
+    if (s.Father) li.setAttribute("data-father", s.Father);
+    if (s.Mother) li.setAttribute("data-mother", s.Mother);
+  }
+  li.setAttribute("data-gender", s.Gender || "");
+  return li;
 }
 
 function getGender(person) {
@@ -1022,6 +1089,137 @@ function getGender(person) {
   const notShow = person.DataStatus?.Gender == "blank";
 
   return isMale && !notShow ? "Male" : isFemale && !notShow ? "Female" : "";
+}
+
+const RELATIONSHIP_STATUS_META = {
+  5: {
+    label: "Non-biological",
+    iconClass: "icon--dna-none",
+    iconHtml: "<span class='icon--dna-none wbe-icon' title='Non-biological'></span>",
+  },
+  10: {
+    label: "Uncertain",
+    iconClass: "icon--uncertain",
+    iconHtml: "<span class='icon--uncertain wbe-icon' title='Uncertain'></span>",
+  },
+  20: {
+    label: "Certain",
+    iconClass: "icon--confident",
+    iconHtml: "<span class='icon--confident wbe-icon' title='Certain'></span>",
+  },
+  30: {
+    label: "DNA confirmed",
+    iconClass: "icon--dna-checked",
+    iconHtml:
+      "<span class='icon--dna-checked wbe-icon' style='background-size:40px 20px !important; width:40px !important'></span>",
+  },
+};
+
+function getRelationshipStatusLabel(status) {
+  const normalizedStatus = Number(status);
+  return RELATIONSHIP_STATUS_META[normalizedStatus]?.label || "";
+}
+
+function getRelationshipStatusMeta(status) {
+  const normalizedStatus = Number(status);
+  return RELATIONSHIP_STATUS_META[normalizedStatus] || null;
+}
+
+function getRelationshipStatusByIconClass(iconClass) {
+  if (!iconClass) return null;
+  const entry = Object.entries(RELATIONSHIP_STATUS_META).find(([, meta]) => meta.iconClass === iconClass);
+  return entry ? Number(entry[0]) : null;
+}
+
+function getRelationshipStatusClassSelector() {
+  const iconClasses = Object.values(RELATIONSHIP_STATUS_META)
+    .map((meta) => `.${meta.iconClass}`)
+    .join(", ");
+  return iconClasses;
+}
+
+function getRelationshipStatusIconClassList() {
+  return Object.values(RELATIONSHIP_STATUS_META).map((meta) => meta.iconClass);
+}
+
+function getRelationshipStatusFromText(indicatorText) {
+  if (!indicatorText) return null;
+  const normalizedText = indicatorText.toLowerCase();
+
+  if (normalizedText.includes("non-biological")) return 5;
+  if (normalizedText.includes("uncertain")) return 10;
+  if (normalizedText.includes("dna confirmed") || normalizedText.includes("confirmed")) return 30;
+  if (/\bcertain\b/.test(normalizedText)) return 20;
+  return null;
+}
+
+function getRelationshipStatusIcon(status) {
+  const meta = getRelationshipStatusMeta(status);
+  if (meta) return meta.iconHtml;
+  return "";
+}
+
+function buildRelationshipStatusUi(status) {
+  const label = getRelationshipStatusLabel(status);
+  const icon = getRelationshipStatusIcon(status);
+  const html = icon ? ` <span class="dataStatus" title="">${icon}</span>` : "";
+  return { label, html };
+}
+
+function applyRelationshipStatusTooltip(li, label) {
+  $(li).data("tooltip", label).data("bs-tooltip", label);
+  li.dataset.bsTooltip = label;
+}
+
+function getRelationshipStatusFromElement(containerEl) {
+  if (!containerEl) return null;
+
+  const statusIcon = containerEl.querySelector(getRelationshipStatusClassSelector());
+  if (statusIcon) {
+    const matchedClass = getRelationshipStatusIconClassList().find((iconClass) =>
+      statusIcon.classList.contains(iconClass)
+    );
+    const status = getRelationshipStatusByIconClass(matchedClass);
+    if (status != null) return status;
+  }
+
+  const relationshipIndicator = containerEl.querySelector(
+    "[data-bs-title*='Relationship'], [title*='Relationship'], [aria-label*='Relationship']"
+  );
+  const indicatorText =
+    relationshipIndicator?.getAttribute("data-bs-title") ||
+    relationshipIndicator?.getAttribute("title") ||
+    relationshipIndicator?.getAttribute("aria-label") ||
+    "";
+
+  const statusFromText = getRelationshipStatusFromText(indicatorText);
+  if (statusFromText != null) return statusFromText;
+
+  return null;
+}
+
+function getChildStatusForProfile(childPerson) {
+  if (!childPerson || !profilePerson?.Id) return null;
+
+  const profileId = String(profilePerson.Id);
+  const fatherId = childPerson.Father != null ? String(childPerson.Father) : "";
+  const motherId = childPerson.Mother != null ? String(childPerson.Mother) : "";
+
+  if (fatherId && fatherId === profileId) {
+    return childPerson.DataStatus?.Father;
+  }
+  if (motherId && motherId === profileId) {
+    return childPerson.DataStatus?.Mother;
+  }
+
+  if (profilePerson?.Gender === "Male") {
+    return childPerson.DataStatus?.Father;
+  }
+  if (profilePerson?.Gender === "Female") {
+    return childPerson.DataStatus?.Mother;
+  }
+
+  return null;
 }
 
 /**
@@ -1082,21 +1280,23 @@ function buildSpousesSection(spouses) {
     entry.setAttribute("data-gender", spouse.Gender);
 
     const isPrivate = spouse.Name.trim().toLowerCase().startsWith("[private");
+    const spouseStatusUi = buildRelationshipStatusUi(spouse.RelationshipStatus);
     if (spouse.Link && !isPrivate) {
       entry.innerHTML = `
         <a href="${spouse.Link}" itemprop="url" class="spouseLink">
           <span itemprop="name" class="spouse-name">
             ${spouse.FullName || spouse.Name}${spouse.biological ? ' <span class="biological">[biological]</span>' : ""}
-          </span>
+          </span>${spouseStatusUi.html}
         </a>`;
     } else {
       entry.innerHTML = `
         <span itemprop="name">
           <strong>${spouse.FullName || spouse.Name}${
         spouse.biological ? ' <span class="biological">[biological]</span>' : ""
-      }</strong>
+      }</strong>${spouseStatusUi.html}
         </span>`;
     }
+    applyRelationshipStatusTooltip(li, spouseStatusUi.label);
     grid.appendChild(entry);
 
     // Birth/death dates
@@ -1129,11 +1329,11 @@ function buildSpousesSection(spouses) {
       dt = dt.replace(dateRegex, `<span class="marriage-date">${dm[0].trim()}</span>`);
     }
 
-    // Wrap location
-    const locRegex = /\bin\s+(.+)$/i;
+    // Wrap location (stop before "at age")
+    const locRegex = /\bin\s+(.+?)(?:\s+at age|\s*$)/i;
     const lm = dt.match(locRegex);
     if (lm) {
-      dt = dt.replace(locRegex, `in <span class="marriage-location">${lm[1].trim()}</span>`);
+      dt = dt.replace(/\bin\s+(.+?)(?=\s+at age|\s*$)/i, `in <span class="marriage-location">${lm[1].trim()}</span>`);
     }
 
     details.innerHTML = dt;
@@ -1143,6 +1343,7 @@ function buildSpousesSection(spouses) {
     if (spouse.MarriageMapLink) {
       const mapLink = document.createElement("a");
       mapLink.style.position = "relative";
+      mapLink.style.marginLeft = "4px";
       mapLink.href = spouse.MarriageMapLink;
       mapLink.setAttribute("data-bs-toggle", "tooltip");
       mapLink.setAttribute("data-bs-title", "Marriage Location on Map");
@@ -1151,7 +1352,18 @@ function buildSpousesSection(spouses) {
       img.src = "/images/icons/icon-map-pin.svg";
       img.alt = "map icon";
       mapLink.appendChild(img);
-      details.appendChild(mapLink);
+      const ageTextNode = Array.from(details.childNodes).find(
+        (n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim().startsWith("at age")
+      );
+      const locationSpan = details.querySelector(".marriage-location");
+      if (locationSpan) {
+        // Keep the map pin attached to the location and before any age text.
+        locationSpan.insertAdjacentElement("afterend", mapLink);
+      } else if (ageTextNode) {
+        details.insertBefore(mapLink, ageTextNode);
+      } else {
+        details.appendChild(mapLink);
+      }
     }
 
     // Placeholder edit styling
@@ -1240,51 +1452,71 @@ function buildChildrenSection(children) {
 
   const ol = createListElement("childrenList", "nameList hasRelAge");
   children.forEach((c) => {
-    const dates = getDatesFromFamilyData(c);
-    const li = document.createElement("li");
-    li.dataset.parseName = c.Name;
-    const isPrivate = c.FullName.trim().toLowerCase().startsWith("[private");
-    c.Gender = getGender(c);
-    if (c.Link && !isPrivate) {
-      li.innerHTML = `<span itemprop="children" itemtype="https://schema.org/Person">
-          <a href="${
-            c.Link.startsWith("http") ? c.Link : "https://" + mainDomain + c.Link
-          }" itemprop="url" title="" aria-label="Child" class="childLink"><span itemprop="name">${
-        c.FullName || c.Name
-      }${
-        c.biological ? ' <span class="biological">[biological]</span>' : ""
-      }</span></a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
-        dates.deathYear || ""
-      }">
-            ${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
-    } else {
-      li.innerHTML = `<span itemprop="children" class="privateChild" itemtype="https://schema.org/Person">
-            <span itemprop="name">${c.FullName || c.Name}${
-        c.biological ? ' <span class="biological">[biological]</span>' : ""
-      }</span><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
-        dates.deathYear || ""
-      }">
-             ${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
-    }
-    if (!/^\[.*\?\]$/.test(c.Name)) {
-      li.setAttribute("data-gender", c.Gender || "");
-    }
-    if (c.Father) li.setAttribute("data-father", c.Father);
-    if (c.Mother) li.setAttribute("data-mother", c.Mother);
-    if (c.Link?.includes("EditFamily")) {
-      li.classList.add("editAction");
-      li.setAttribute("data-gender", "");
-      // Remove all classes that start with "spouse_"
-      li.classList.forEach((className) => {
-        if (className.startsWith("spouse_")) {
-          li.classList.remove(className);
-        }
-      });
-    }
-    ol.appendChild(li);
+    ol.appendChild(createChildListItem(c));
   });
   container.appendChild(ol);
   return container;
+}
+
+/**
+ * Creates a child <li> element from a child record.
+ * @param {Object} c - Child record
+ * @returns {HTMLElement} li element
+ */
+function createChildListItem(c) {
+  const dates = getDatesFromFamilyData(c);
+  const li = document.createElement("li");
+  li.dataset.parseName = c.Name;
+  const isPrivate = c.FullName.trim().toLowerCase().startsWith("[private");
+  c.Gender = getGender(c);
+  const childPerson = c.Name ? getPersonByWtID(c.Name) : null;
+  let childStatus = getChildStatusForProfile(childPerson);
+  // If API provides no status, fall back to the original DOM element's icon/text
+  if ((childStatus === null || childStatus === undefined) && c._el) {
+    try {
+      const domStatus = getRelationshipStatusFromElement(c._el);
+      if (domStatus != null) childStatus = domStatus;
+    } catch (e) {
+      if (DEBUG_FAMILY_LISTS) console.warn("[CFL] child DOM status fallback error", e);
+    }
+  }
+  const childStatusUi = buildRelationshipStatusUi(childStatus);
+  if (c.Link && !isPrivate) {
+    li.innerHTML = `<span itemprop="children" itemtype="https://schema.org/Person">
+          <a href="${
+            c.Link.startsWith("http") ? c.Link : "https://" + mainDomain + c.Link
+          }" itemprop="url" title="" aria-label="Child" class="childLink"><span itemprop="name">${
+      c.FullName || c.Name
+    }${c.biological ? ' <span class="biological">[biological]</span>' : ""}</span>${
+      childStatusUi.html
+    }</a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${dates.deathYear || ""}">${
+      dates.dates ? " " + dates.dates : ""
+    }</span><span class="relAge"></span></span>`;
+  } else {
+    li.innerHTML = `<span itemprop="children" class="privateChild" itemtype="https://schema.org/Person">
+            <span itemprop="name">${c.FullName || c.Name}${
+      c.biological ? ' <span class="biological">[biological]</span>' : ""
+    }</span>${childStatusUi.html}<span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+      dates.deathYear || ""
+    }">${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
+  }
+  applyRelationshipStatusTooltip(li, childStatusUi.label);
+  if (!/^\[.*\?\]$/.test(c.Name)) {
+    li.setAttribute("data-gender", c.Gender || "");
+  }
+  if (c.Father) li.setAttribute("data-father", c.Father);
+  if (c.Mother) li.setAttribute("data-mother", c.Mother);
+  if (c.Link?.includes("EditFamily")) {
+    li.classList.add("editAction");
+    li.setAttribute("data-gender", "");
+    // Remove all classes that start with "spouse_"
+    li.classList.forEach((className) => {
+      if (className.startsWith("spouse_")) {
+        li.classList.remove(className);
+      }
+    });
+  }
+  return li;
 }
 
 /**
@@ -1309,10 +1541,193 @@ async function getWindowPeople() {
   const [, , people] = await WikiTreeAPI.getPeople(WBE_CFL_APP_ID, profilePerson.Id, getPeopleFields, {
     nuclear: 1,
   });
+  if (DEBUG_FAMILY_LISTS) {
+    try {
+      console.log("[CFL] getWindowPeople API response keys:", Object.keys(people || {}));
+      console.log(
+        "[CFL] getWindowPeople API sample:",
+        Object.values(people || {})
+          .slice(0, 5)
+          .map((p) => ({
+            Id: p.Id,
+            Name: p.Name,
+            Father: p.Father,
+            Mother: p.Mother,
+            BioFather: p.BioFather,
+            BioMother: p.BioMother,
+            DataStatus: p.DataStatus,
+          }))
+      );
+    } catch (e) {
+      console.warn("[CFL] logging people failed", e);
+    }
+  }
   window.people = new Map(Object.entries(people));
   const arr = Object.values(people);
   window.peopleByWtID = new Map(arr.map((p) => [p.Name, p]));
   profilePersonData = people[profilePerson.Id];
+
+  // If returned person objects lack explicit Father/Mother fields, request them explicitly for all returned WTIDs
+  try {
+    const sample = arr[0] || {};
+    const hasParentFields = typeof sample.Father !== "undefined" || typeof sample.Mother !== "undefined";
+    if (!hasParentFields) {
+      if (DEBUG_FAMILY_LISTS)
+        console.log("[CFL] parent fields missing from initial response — fetching parent fields explicitly");
+      const wtids = arr
+        .map((p) => p.Name)
+        .filter(Boolean)
+        .join(",");
+      if (wtids) {
+        const [, , parentFieldsPeople] = await WikiTreeAPI.getPeople(
+          WBE_CFL_APP_ID,
+          wtids,
+          "Id,Name,Father,Mother,BioFather,BioMother",
+          { nuclear: 1 }
+        );
+        if (parentFieldsPeople) {
+          if (DEBUG_FAMILY_LISTS)
+            console.log("[CFL] explicit parent fields fetch keys:", Object.keys(parentFieldsPeople));
+          Object.entries(parentFieldsPeople).forEach(([k, v]) => {
+            // merge parent ids into existing window.people entries
+            const existing = window.people.get(String(k)) || window.peopleByWtID.get(v.Name);
+            if (existing) {
+              existing.Father = v.Father ?? existing.Father;
+              existing.Mother = v.Mother ?? existing.Mother;
+              existing.BioFather = v.BioFather ?? existing.BioFather;
+              existing.BioMother = v.BioMother ?? existing.BioMother;
+              // update maps
+              window.people.set(String(existing.Id || k), existing);
+              if (existing.Name) window.peopleByWtID.set(existing.Name, existing);
+            } else {
+              // add new entry
+              window.people.set(String(k), v);
+              if (v.Name) window.peopleByWtID.set(v.Name, v);
+            }
+          });
+          // rebuild arr
+          const mergedArr = Array.from(window.people.values());
+          if (mergedArr.length) {
+            if (DEBUG_FAMILY_LISTS)
+              console.log(
+                "[CFL] merged parent fields into window.people sample",
+                mergedArr.slice(0, 5).map((p) => ({
+                  Id: p.Id,
+                  Name: p.Name,
+                  Father: p.Father,
+                  Mother: p.Mother,
+                  BioFather: p.BioFather,
+                  BioMother: p.BioMother,
+                }))
+              );
+          }
+        }
+      }
+    }
+  } catch (e) {
+    if (DEBUG_FAMILY_LISTS) console.warn("[CFL] explicit parent fields fetch failed", e);
+  }
+  // Fallbacks: try several heuristics to locate the profile person in the API results
+  if (!profilePersonData) {
+    try {
+      // 1) Exact WTID match (Name)
+      if (profilePerson?.Name && window.peopleByWtID?.has(profilePerson.Name)) {
+        profilePersonData = window.peopleByWtID.get(profilePerson.Name);
+      }
+      // 2) Exact FullName match
+      if (!profilePersonData && profilePerson?.FullName) {
+        const full = String(profilePerson.FullName).trim();
+        profilePersonData = arr.find((p) => (p.FullName || "").replace(/_/g, " ") === full);
+      }
+      // 3) Exact displayName match
+      if (!profilePersonData) {
+        const display = (displayName(profilePerson) || [""])[0];
+        if (display) {
+          profilePersonData = arr.find(
+            (p) => (p.FullName || "").replace(/_/g, " ") === display || (p.Name || "").replace(/_/g, " ") === display
+          );
+        }
+      }
+      // 4) Token-based contains match (given and family parts)
+      if (!profilePersonData) {
+        const tokens = [];
+        if (profilePerson?.FullName) tokens.push(...profilePerson.FullName.split(/\s+/));
+        else if (profilePerson?.Name) tokens.push(...profilePerson.Name.split(/[^A-Za-z0-9]+/));
+        const normTokens = tokens.map((t) => t.toLowerCase()).filter(Boolean);
+        if (normTokens.length) {
+          profilePersonData = arr.find((p) => {
+            const check = (p.FullName || p.Name || "").replace(/_/g, " ").toLowerCase();
+            return normTokens.every((tok) => check.includes(tok));
+          });
+        }
+      }
+    } catch (e) {
+      if (DEBUG_FAMILY_LISTS) console.warn("[CFL] getWindowPeople fallback error", e);
+    }
+    if (DEBUG_FAMILY_LISTS) console.log("[CFL] getWindowPeople fallback result", { found: !!profilePersonData });
+  }
+  // Final explicit fallback: call API using the profile's WTID/name if we still don't have profilePersonData
+  if (!profilePersonData && profilePerson?.Name) {
+    try {
+      if (DEBUG_FAMILY_LISTS) console.log(`[CFL] attempting explicit API fetch for WTID ${profilePerson.Name}`);
+      // Request non-nuclear to ensure the profile record itself is returned
+      const [, , morePeople] = await WikiTreeAPI.getPeople(WBE_CFL_APP_ID, profilePerson.Name, getPeopleFields, {
+        nuclear: 0,
+      });
+      // Merge returned people into window.people
+      if (morePeople) {
+        if (DEBUG_FAMILY_LISTS) {
+          try {
+            console.log("[CFL] explicit API fetch keys:", Object.keys(morePeople || {}));
+            console.log(
+              "[CFL] explicit API fetch sample:",
+              Object.values(morePeople || {})
+                .slice(0, 5)
+                .map((p) => ({
+                  Id: p.Id,
+                  Name: p.Name,
+                  Father: p.Father,
+                  Mother: p.Mother,
+                  BioFather: p.BioFather,
+                  BioMother: p.BioMother,
+                  DataStatus: p.DataStatus,
+                }))
+            );
+          } catch (e) {
+            console.warn("[CFL] logging morePeople failed", e);
+          }
+        }
+        Object.entries(morePeople).forEach(([k, v]) => {
+          window.people.set(String(k), v);
+        });
+        const arr2 = Object.values(Object.assign({}, morePeople));
+        arr2.forEach((p) => {
+          if (p && p.Name) window.peopleByWtID.set(p.Name, p);
+        });
+        profilePersonData = morePeople[profilePerson?.Id] || morePeople[profilePerson.Name] || profilePersonData;
+        if (!profilePersonData) {
+          // try to find by Name in the newly fetched set
+          profilePersonData = Object.values(morePeople).find(
+            (p) =>
+              (p.Name || "") === profilePerson.Name ||
+              (p.FullName || "").replace(/_/g, " ") === (profilePerson.FullName || "")
+          );
+        }
+        if (DEBUG_FAMILY_LISTS)
+          console.log("[CFL] explicit API fetch result", {
+            found: !!profilePersonData,
+            profilePersonData: profilePersonData ? { Id: profilePersonData.Id, Name: profilePersonData.Name } : null,
+          });
+      }
+    } catch (e) {
+      if (DEBUG_FAMILY_LISTS) console.warn("[CFL] explicit API fetch failed", e);
+    }
+  }
+  if (DEBUG_FAMILY_LISTS)
+    console.log(
+      "[CFL] profilePersonData set to",
+      profilePersonData ? { Id: profilePersonData.Id, Name: profilePersonData.Name } : null
+    );
 }
 
 /**
@@ -1572,18 +1987,21 @@ function addMarriageAges() {
           spouseFromApi && isOK(spouseFromApi.BirthDate)
             ? getMarriageAge(spouseFromApi.BirthDate, marData.MarriageDate, spouseFromApi)
             : "";
-        let profileAgeText = profileMarriageAge ? pagePerson.FirstName + " (" + profileMarriageAge + ")" : "";
-        let spouseAgeText = spouseMarriageAge ? spouseFromApi.FirstName + " (" + spouseMarriageAge + ")" : "";
-        if (profileAgeText && spouseAgeText) {
-          spouseAgeText = "; " + spouseAgeText;
-        }
+        const marriageDetailsSpan = marriageDiv.find(".marriageDetails");
+        const detailsHasNativeAge = marriageDetailsSpan.length
+          ? /at age\s*\d+/i.test(marriageDetailsSpan.text())
+          : /at age\s*\d+/i.test(marriageDiv.text());
+        let profileAgeText =
+          !detailsHasNativeAge && profileMarriageAge ? `${pagePerson.FirstName}, ${profileMarriageAge}` : "";
+        let spouseAgeText = spouseMarriageAge ? `${spouseFromApi.FirstName}, ${spouseMarriageAge}` : "";
+        const agesParts = [profileAgeText, spouseAgeText].filter(Boolean);
+        const agesText = agesParts.length ? (detailsHasNativeAge ? ". (" : " (") + agesParts.join("; ") + ")" : "";
         let marriageAgesSpan = marriageDiv.find(".marriageAges");
         if (!marriageAgesSpan.length) {
           marriageAgesSpan = $("<span class='marriageAges'></span>");
           marriageDiv.append(marriageAgesSpan);
         }
-        marriageAgesSpan.text(profileAgeText + spouseAgeText);
-        let marriageDetailsSpan = marriageDiv.find(".marriageDetails");
+        marriageAgesSpan.text(agesText);
         if (marriageDetailsSpan.length) {
           let html = marriageDetailsSpan.html();
           html = html.replace(
@@ -1680,6 +2098,16 @@ function assignSpouseAndChildClasses() {
 /**
  * Adds half-sibling CSS classes if parents differ.
  */
+function addParentClassIfNotActive($el, className) {
+  if (!$el || !$el.length) return;
+  $el.each(function () {
+    const $this = $(this);
+    if ($this.find(".activeProfile").length === 0 && !$this.hasClass("activeProfile")) {
+      $this.addClass(className);
+    }
+  });
+}
+
 function addHalfsStyle() {
   const siblings = $("#siblingList li");
   const fathers = siblings
@@ -1695,10 +2123,15 @@ function addHalfsStyle() {
   const uniqueFathers = [...new Set(fathers)];
   const uniqueMothers = [...new Set(mothers)];
 
-  const cond1 = uniqueFathers.length == 1 && uniqueFathers[0] == profilePersonData.Father;
-  const cond2 = uniqueFathers.length == 0 && !profilePersonData.Father;
-  const cond3 = uniqueMothers.length == 1 && uniqueMothers[0] == profilePersonData.Mother;
-  const cond4 = uniqueMothers.length == 0 && !profilePersonData.Mother;
+  if (!profilePersonData) {
+    console.warn("[CFL] addHalfsStyle: profilePersonData is undefined - skipping half-sibling styling");
+    return;
+  }
+
+  const cond1 = uniqueFathers.length == 1 && uniqueFathers[0] == profilePersonData?.Father;
+  const cond2 = uniqueFathers.length == 0 && !profilePersonData?.Father;
+  const cond3 = uniqueMothers.length == 1 && uniqueMothers[0] == profilePersonData?.Mother;
+  const cond4 = uniqueMothers.length == 0 && !profilePersonData?.Mother;
   if ((cond1 || cond2) && (cond3 || cond4)) {
     return;
   }
@@ -1708,36 +2141,75 @@ function addHalfsStyle() {
   // Grab the <li> elements for father and mother based on data-gender
   const fatherLi = pList.filter('[data-gender="Male"]').first();
   const motherLi = pList.filter('[data-gender="Female"]').first();
+  // Compute parent IDs and classes when available (allow one or both parents)
+  const fatherID = fatherLi.length ? fatherLi.attr("data-id") : null;
+  const motherID = motherLi.length ? motherLi.attr("data-id") : null;
+  const _fatherSafe = fatherID ? String(fatherID).replace(/[^a-zA-Z0-9_-]/g, "_") : null;
+  const _motherSafe = motherID ? String(motherID).replace(/[^a-zA-Z0-9_-]/g, "_") : null;
+  const fatherClass = _fatherSafe ? `parent_1 parent_1_pid${_fatherSafe}` : "parent_1";
+  const motherClass = _motherSafe ? `parent_2 parent_2_pid${_motherSafe}` : "parent_2";
 
-  if (fatherLi.length && motherLi.length) {
-    const fatherID = fatherLi.attr("data-id");
-    const motherID = motherLi.attr("data-id");
+  if (fatherLi.length) addParentClassIfNotActive(fatherLi, fatherClass);
+  if (motherLi.length) addParentClassIfNotActive(motherLi, motherClass);
 
-    // Assign classes to the parent <li> elements
-    fatherLi.addClass("parent_1");
-    motherLi.addClass("parent_2");
-
-    // Go through siblings and see who shares father/mother
-    $("#siblingList li").each(function () {
-      const theirFather = String($(this).attr("data-father") || "");
-      const theirMother = String($(this).attr("data-mother") || "");
-      if (theirFather === fatherID) {
-        $(this).addClass("parent_1");
-      }
-      if (theirMother === motherID) {
-        $(this).addClass("parent_2");
-      }
-      if ($(this).text().includes("[half]")) {
-        $(this).addClass("fl-half-tooltip").attr("data-title", "[half]");
-      }
-    });
-
-    // If there are multiple .spouse elements, assign them spouse_1, spouse_2, etc.
-    if ($("#nVitals .spouse").length > 1) {
-      $("#nVitals .spouse").each(function (index) {
-        $(this).addClass("spouse_" + (index + 1));
-      });
+  // Assign parent classes to siblings (each sibling may get both classes if applicable)
+  $("#siblingList li").each(function () {
+    const $sib = $(this);
+    const theirFather = String($sib.attr("data-father") || "");
+    const theirMother = String($sib.attr("data-mother") || "");
+    // Apply father class to the sibling <li> and mother class to the inner span[itemprop='sibling']
+    // Do not apply classes to elements that contain the active profile marker.
+    if (fatherID && theirFather === fatherID) {
+      addParentClassIfNotActive($sib, fatherClass);
     }
+    if (motherID && theirMother === motherID) {
+      try {
+        const $sSpan = $sib.find("span[itemprop='sibling']");
+        addParentClassIfNotActive($sSpan, motherClass);
+      } catch (e) {}
+    }
+    if ($sib.text().includes("[half]")) {
+      $sib.addClass("fl-half-tooltip").attr("data-title", "[half]");
+    }
+  });
+
+  // Also assign parent classes to children list so parent colours reflect on children items
+  $("#childrenList li").each(function () {
+    const $child = $(this);
+    const childFather = String($child.attr("data-father") || "");
+    const childMother = String($child.attr("data-mother") || "");
+    if (fatherID && childFather === fatherID) {
+      addParentClassIfNotActive($child, fatherClass);
+    }
+    if (motherID && childMother === motherID) {
+      try {
+        const $cSpan = $child.find("span[itemprop='children']");
+        addParentClassIfNotActive($cSpan, motherClass);
+      } catch (e) {}
+    }
+  });
+
+  // Also apply parent-specific classes to children so they inherit the same colored border
+  $("#childrenList li").each(function () {
+    const $c = $(this);
+    const cFather = String($c.attr("data-father") || "");
+    const cMother = String($c.attr("data-mother") || "");
+    if (fatherID && cFather === fatherID) addParentClassIfNotActive($c, fatherClass);
+    if (motherID && cMother === motherID) addParentClassIfNotActive($c, motherClass);
+    try {
+      const $span = $c.find("span[itemprop='children']");
+      if ($span.length) {
+        if (fatherID && cFather === fatherID) addParentClassIfNotActive($span, fatherClass);
+        if (motherID && cMother === motherID) addParentClassIfNotActive($span, motherClass);
+      }
+    } catch (e) {}
+  });
+
+  // If there are multiple .spouse elements, assign them spouse_1, spouse_2, etc.
+  if ($("#nVitals .spouse").length > 1) {
+    $("#nVitals .spouse").each(function (index) {
+      $(this).addClass("spouse_" + (index + 1));
+    });
   }
 }
 
@@ -1750,42 +2222,45 @@ function moveFamilyLists() {
     const t0 = performance.now();
     const $nVitals = $("#nVitals");
     if (!$nVitals.length) {
-      console.warn("[changeFamilyLists] moveFamilyLists: #nVitals not found.");
+      if (DEBUG_FAMILY_LISTS) console.warn("[changeFamilyLists] moveFamilyLists: #nVitals not found.");
       return;
     }
     const sidebarHeading = $nVitals.find(".sidebar-heading");
-    console.log("[changeFamilyLists] moveFamilyLists: start", {
-      width,
-      moveToRightOption: options?.moveToRight,
-      showSidebarHeading: options?.showSidebarHeading,
-      familyListPosition: options?.familyListPosition,
-      isVertical: $nVitals.hasClass("vertical"),
-    });
+    if (DEBUG_FAMILY_LISTS)
+      console.log("[changeFamilyLists] moveFamilyLists: start", {
+        width,
+        moveToRightOption: options?.moveToRight,
+        showSidebarHeading: options?.showSidebarHeading,
+        familyListPosition: options?.familyListPosition,
+        isVertical: $nVitals.hasClass("vertical"),
+      });
 
     if (width < 992) {
-      console.log("[changeFamilyLists] Using mobile layout (width < 992)");
+      if (DEBUG_FAMILY_LISTS) console.log("[changeFamilyLists] Using mobile layout (width < 992)");
       sidebarHeading.hide();
       $nVitals.removeClass("row").appendTo(treePersonBit);
-      console.log("[changeFamilyLists] Appended #nVitals back to treePersonBit (mobile)");
+      if (DEBUG_FAMILY_LISTS) console.log("[changeFamilyLists] Appended #nVitals back to treePersonBit (mobile)");
     } else if (options.moveToRight) {
-      console.log("[changeFamilyLists] Using desktop right-column layout");
+      if (DEBUG_FAMILY_LISTS) console.log("[changeFamilyLists] Using desktop right-column layout");
       $("body").addClass("familyListsRight");
       if (options.showSidebarHeading) {
         sidebarHeading.show();
-        console.log("[changeFamilyLists] Sidebar heading shown");
+        if (DEBUG_FAMILY_LISTS) console.log("[changeFamilyLists] Sidebar heading shown");
       } else {
         sidebarHeading.hide();
-        console.log("[changeFamilyLists] Sidebar heading hidden (option disabled)");
+        if (DEBUG_FAMILY_LISTS) console.log("[changeFamilyLists] Sidebar heading hidden (option disabled)");
       }
       $nVitals.addClass("row");
 
       let $before;
       if (options.familyListPosition === "beforeManager") {
         $before = $(".col-lg-4 #Profile-Data");
-        console.log("[changeFamilyLists] Target position: beforeManager", { found: !!$before.length });
+        if (DEBUG_FAMILY_LISTS)
+          console.log("[changeFamilyLists] Target position: beforeManager", { found: !!$before.length });
       } else if (options.familyListPosition === "beforePhotos") {
         $before = $(".col-lg-4 #Photos");
-        console.log("[changeFamilyLists] Target position: beforePhotos", { found: !!$before.length });
+        if (DEBUG_FAMILY_LISTS)
+          console.log("[changeFamilyLists] Target position: beforePhotos", { found: !!$before.length });
       }
 
       if (!$before?.length) {
@@ -1802,22 +2277,26 @@ function moveFamilyLists() {
 
       if ($before.length) {
         $nVitals.insertBefore($before);
-        console.log("[changeFamilyLists] Inserted #nVitals before target", { targetId: $before.attr("id") });
+        if (DEBUG_FAMILY_LISTS)
+          console.log("[changeFamilyLists] Inserted #nVitals before target", { targetId: $before.attr("id") });
       } else if ($(".col-lg-4 #Profile-Data").length) {
         $nVitals.insertAfter($(".col-lg-4 #Profile-Data"));
-        console.log("[changeFamilyLists] Inserted #nVitals after #Profile-Data (final fallback)");
+        if (DEBUG_FAMILY_LISTS)
+          console.log("[changeFamilyLists] Inserted #nVitals after #Profile-Data (final fallback)");
       } else {
-        console.warn("[changeFamilyLists] No suitable insertion point found; leaving in place.");
+        if (DEBUG_FAMILY_LISTS)
+          console.warn("[changeFamilyLists] No suitable insertion point found; leaving in place.");
       }
     } else {
-      console.log("[changeFamilyLists] moveToRight option disabled; no action for desktop width.");
+      if (DEBUG_FAMILY_LISTS)
+        console.log("[changeFamilyLists] moveToRight option disabled; no action for desktop width.");
     }
-
-    console.log("[changeFamilyLists] moveFamilyLists: done", {
-      elapsedMs: (performance.now() - t0).toFixed(1),
-    });
+    if (DEBUG_FAMILY_LISTS)
+      console.log("[changeFamilyLists] moveFamilyLists: done", {
+        elapsedMs: (performance.now() - t0).toFixed(1),
+      });
   } catch (e) {
-    console.error("[changeFamilyLists] moveFamilyLists error:", e);
+    if (DEBUG_FAMILY_LISTS) console.error("[changeFamilyLists] moveFamilyLists error:", e);
   }
 }
 
@@ -1862,6 +2341,13 @@ export function changeFamilyHeaders(setIt = false) {
       female: `Mother ${ofText} `,
       neutral: `Parent ${ofText} `,
     },
+    {
+      sel: "#bioParentsHeader",
+      alt: "Biological Parents: ",
+      male: `Biological son ${ofText} `,
+      female: `Biological daughter ${ofText} `,
+      neutral: `Biological child ${ofText} `,
+    },
   ];
   const p = getPerson(profilePerson.Id) || profilePerson;
   if (!p.Gender) {
@@ -1876,6 +2362,11 @@ export function changeFamilyHeaders(setIt = false) {
   headings.forEach((obj) => {
     const el = document.querySelector(obj.sel);
     if (!el) return;
+    // Special-case bioParents to use singular 'Parent' when only one exists
+    if (obj.sel === "#bioParentsHeader") {
+      const count = document.querySelectorAll("#bioParentList li").length;
+      obj.alt = count === 1 ? "Biological Parent: " : "Biological Parents: ";
+    }
     if (useAltHeadings) {
       el.textContent = gen === "male" ? obj.male : gen === "female" ? obj.female : obj.neutral;
     } else {
@@ -1897,7 +2388,7 @@ export function changeFamilyHeaders(setIt = false) {
  * Attaches click event handlers to header elements.
  */
 function attachHeadingEvents() {
-  const headingIds = ["parentsHeader", "siblingsHeader", "spousesHeader", "childrenHeader"];
+  const headingIds = ["parentsHeader", "siblingsHeader", "spousesHeader", "childrenHeader", "bioParentsHeader"];
   headingIds.forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -2050,10 +2541,19 @@ function insertInSibList() {
     $("#siblingList").append(inserter);
   }
   if ($(".parent_1").length) {
-    $("#profilePerson span[itemprop='sibling']").addClass("parent_1");
+    // Avoid adding parent classes to the profile person (activeProfile)
+    $("#profilePerson span[itemprop='sibling']")
+      .filter(function () {
+        return $(this).find(".activeProfile").length === 0 && !$(this).hasClass("activeProfile");
+      })
+      .addClass("parent_1");
   }
   if ($(".parent_2").length) {
-    $("#profilePerson").addClass("parent_2");
+    $("#profilePerson")
+      .filter(function () {
+        return $(this).find(".activeProfile").length === 0 && !$(this).hasClass("activeProfile");
+      })
+      .addClass("parent_2");
   }
   if (pPerson?.Gender) {
     const genderLabel = pPerson.Gender === "Male" ? "male" : pPerson.Gender === "Female" ? "female" : "";
@@ -2318,9 +2818,13 @@ function fixVanilla() {
       $header.text(headerText.replace(":", ""));
     }
   });
-  formatListItems("#nVitals span[itemprop='parent'],#nVitals span[itemprop='Father'],#nVitals span[itemprop='Mother']");
-  formatListItems("#nVitals span[itemprop='sibling']");
-  formatListItems("#nVitals span[itemprop='children']");
+  // Format lists separately per section to avoid cross-section 'and' insertion
+  formatListItems(
+    "#nVitals #parentList span[itemprop='parent'],#nVitals #parentList span[itemprop='Father'],#nVitals #parentList span[itemprop='Mother']"
+  );
+  formatListItems("#nVitals #bioParentList span[itemprop='parent']");
+  formatListItems("#nVitals #siblingList span[itemprop='sibling']");
+  formatListItems("#nVitals #childrenList span[itemprop='children']");
   formatListItems("#nVitals li.spouse", "inside");
 }
 
@@ -2334,37 +2838,339 @@ function moveMetaGender() {
 
 function addDNAConfirmedToFamily() {
   if (!window.people || !(window.people instanceof Map)) {
-    console.warn("window.people is not a Map or is missing.");
+    if (DEBUG_FAMILY_LISTS) console.warn("window.people is not a Map or is missing.");
     return;
   }
+
+  const dnaStatuses = new Set(["30", "40", "50"]);
+  const isDNAStatus = (val) => val && dnaStatuses.has(String(val));
 
   const parentId = profilePersonData?.Id;
   const parentPerson = window.people.get(String(parentId));
 
   if (!parentPerson) {
-    console.warn(`No person found in window.people for ID: ${parentId}`);
+    if (DEBUG_FAMILY_LISTS) console.warn(`No person found in window.people for ID: ${parentId}`);
     return;
   }
 
   for (const person of window.people.values()) {
     let addDNAconfirmed = false;
 
-    if (person.Mother == parentId && person.DataStatus?.Mother == "30") {
+    const isMother = person.Mother == parentId || person.BioMother == parentId;
+    const isFather = person.Father == parentId || person.BioFather == parentId;
+    const isBioParentView = person.BioMother == parentId || person.BioFather == parentId;
+
+    const motherStatus = person.DataStatus?.BioMother ?? person.DataStatus?.Mother;
+    const fatherStatus = person.DataStatus?.BioFather ?? person.DataStatus?.Father;
+
+    if (isMother && motherStatus == "30") {
       addDNAconfirmed = true;
-    } else if (person.Father == parentId && person.DataStatus?.Father == "30") {
+    } else if (isFather && fatherStatus == "30") {
       addDNAconfirmed = true;
     }
 
-    if (addDNAconfirmed) {
-      const name = person.Name;
-      const nameWithSpaces = name?.replace(/_/g, " ");
-
-      $(`.VITALS a[href$="${name}"],.VITALS a[href$="${nameWithSpaces}"]`).append(
-        $(
-          `<span class='icon--dna-checked wbe-icon' title='Confirmed with DNA testing' style='background-size:40px 20px !important; width:40px !important'></span>`
-        )
-      );
+    if (DEBUG_FAMILY_LISTS) {
+      try {
+        console.log("[CFL] person check:", {
+          Id: person.Id,
+          Name: person.Name,
+          Father: person.Father,
+          Mother: person.Mother,
+          BioFather: person.BioFather,
+          BioMother: person.BioMother,
+          DataStatus: person.DataStatus,
+          isMother,
+          isFather,
+          isBioParentView,
+          motherStatus,
+          fatherStatus,
+          addDNAconfirmed,
+        });
+      } catch (e) {
+        console.warn("[CFL] person debug log error", e);
+      }
     }
+
+    const name = person.Name;
+    const nameWithSpaces = name?.replace(/_/g, " ");
+    const $links = $(`.VITALS a[href$="${name}"],.VITALS a[href$="${nameWithSpaces}"]`);
+
+    if (isBioParentView && $links.length) {
+      // Remove erroneous non-bio indicators when viewing the biological parent's profile.
+      $links.find(".icon--dna-none").remove();
+      $links.closest("li").removeAttr("data-bs-tooltip");
+      $links
+        .find(".dataStatus")
+        .filter(function () {
+          return $(this).children().length === 0;
+        })
+        .remove();
+    }
+
+    if (addDNAconfirmed && $links.length) {
+      // Only append if there isn't already a DNA-checked icon present
+      $links.each(function () {
+        const $this = $(this);
+        if ($this.find(".icon--dna-checked").length === 0) {
+          $this.append(
+            $(
+              `<span class='icon--dna-checked wbe-icon' title='Confirmed with DNA testing' style='background-size:40px 20px !important; width:40px !important'></span>`
+            )
+          );
+        }
+      });
+      // If we added a DNA badge for a child, drop redundant [biological] markers.
+      $links.find(".biological").remove();
+      $links.find("span:contains('[biological]')").each(function () {
+        const txt = $(this)
+          .text()
+          .replace(/\[biological\]/i, "");
+        $(this).text(txt);
+      });
+      if (DEBUG_FAMILY_LISTS) console.log(`[CFL] added DNA badge to links for ${name || person.Name}`);
+    }
+  }
+
+  // Add DNA badge to BioFather/BioMother entries for the profile when confirmed.
+  const parentTargets = [
+    {
+      id: profilePersonData?.BioFather,
+      status:
+        parentPerson?.DataStatus?.BioFather ??
+        (profilePersonData?.BioFather && profilePersonData?.BioFather === profilePersonData?.Father
+          ? parentPerson?.DataStatus?.Father
+          : undefined),
+      fallbackIcon: nativeParentDNA.BioFather,
+      selectorFallback: "#BioFather a[itemprop='url']",
+      label: "BioFather",
+    },
+    {
+      id: profilePersonData?.BioMother,
+      status:
+        parentPerson?.DataStatus?.BioMother ??
+        (profilePersonData?.BioMother && profilePersonData?.BioMother === profilePersonData?.Mother
+          ? parentPerson?.DataStatus?.Mother
+          : undefined),
+      fallbackIcon: nativeParentDNA.BioMother,
+      selectorFallback: "#BioMother a[itemprop='url']",
+      label: "BioMother",
+    },
+  ];
+
+  if (DEBUG_FAMILY_LISTS) {
+    console.log("[CFL] DNA debug -> parentTargets", parentTargets);
+    console.log(
+      "[CFL] profilePersonData",
+      profilePersonData
+        ? { Id: profilePersonData.Id, Name: profilePersonData.Name, DataStatus: profilePersonData.DataStatus }
+        : null
+    );
+    console.log(
+      "[CFL] window.people sample",
+      Array.from(window.people.values()).map((p) => ({
+        Id: p.Id,
+        Name: p.Name,
+        BioFather: p.BioFather,
+        BioMother: p.BioMother,
+        DataStatus: p.DataStatus,
+      }))
+    );
+  }
+
+  parentTargets.forEach((p) => {
+    const parObj = p.id ? getPerson(p.id) : null;
+    const name = parObj?.Name || p.id;
+    const nameWithSpaces = name?.replace(/_/g, " ");
+    let $links = name ? $(`.VITALS a[href$="${name}"],.VITALS a[href$="${nameWithSpaces}"]`) : $();
+    if (!$links.length && p.selectorFallback) {
+      $links = $(p.selectorFallback);
+    }
+    const dnaNeeded = isDNAStatus(p.status) || p.fallbackIcon;
+    if (DEBUG_FAMILY_LISTS) {
+      console.log("[CFL] parent target:", {
+        label: p.label,
+        id: p.id,
+        parObj: parObj ? { Id: parObj.Id, Name: parObj.Name, DataStatus: parObj.DataStatus } : null,
+        status: p.status,
+        fallbackIcon: p.fallbackIcon,
+        selectorFallback: p.selectorFallback,
+        name,
+        linksFound: $links.length,
+        dnaNeeded,
+      });
+    }
+    // If we don't have an explicit id/name match but DataStatus indicates DNA, try positional DOM fallbacks
+    if (!dnaNeeded) return;
+    if (!$links.length && !p.id) {
+      try {
+        const idx = p.label === "BioFather" ? 0 : 1;
+        const $bioLi = $("#bioParentList li").eq(idx);
+        if ($bioLi.length) {
+          const $a = $bioLi.find("a");
+          if ($a.length) {
+            $links = $a;
+            if (DEBUG_FAMILY_LISTS) console.log(`[CFL] fallback found via #bioParentList for ${p.label}`);
+          }
+        }
+        if (!$links.length) {
+          const $parentLi = $("#parentList li").eq(idx);
+          if ($parentLi.length) {
+            const $a2 = $parentLi.find("a");
+            if ($a2.length) {
+              $links = $a2;
+              if (DEBUG_FAMILY_LISTS) console.log(`[CFL] fallback found via #parentList for ${p.label}`);
+            }
+          }
+        }
+      } catch (e) {
+        if (DEBUG_FAMILY_LISTS) console.warn("[CFL] parent fallback error", e);
+      }
+    }
+    if (!$links.length) return;
+    // Append only if no existing dna-checked icon is present
+    $links.each(function () {
+      const $this = $(this);
+      if ($this.find(".icon--dna-checked").length === 0) {
+        $this.append(
+          $(
+            `<span class='icon--dna-checked wbe-icon' title='Confirmed with DNA testing' style='background-size:40px 20px !important; width:40px !important'></span>`
+          )
+        );
+      }
+    });
+    if (DEBUG_FAMILY_LISTS) console.log(`[CFL] added DNA badge to parent ${p.label} (${name})`);
+  });
+  // Cleanup: ensure no anchor has more than one DNA-checked icon
+  try {
+    $("#nVitals a").each(function () {
+      const $a = $(this);
+      const icons = $a.find(".icon--dna-checked");
+      if (icons.length > 1) {
+        icons.slice(1).remove();
+      }
+    });
+  } catch (e) {
+    if (DEBUG_FAMILY_LISTS) console.warn("[CFL] cleanup duplicate DNA icons error", e);
+  }
+}
+
+/**
+ * Reconcile children list DOM with API data in window.people.
+ * Ensures data-id/data-father/data-mother are set and updates DNA icons
+ * based on each child's DataStatus relative to the profile person.
+ */
+function reconcileChildrenWithAPI() {
+  if (!window.people || !profilePersonData) return;
+  try {
+    // Derive parent IDs from the rendered parent list as a fallback when profilePersonData is not set
+    let domFatherId = null;
+    let domMotherId = null;
+    try {
+      const $fatherLi = $("#parentList li").filter('[data-gender="Male"]').first();
+      const $motherLi = $("#parentList li").filter('[data-gender="Female"]').first();
+      if ($fatherLi.length) domFatherId = $fatherLi.attr("data-id");
+      if ($motherLi.length) domMotherId = $motherLi.attr("data-id");
+    } catch (e) {
+      if (DEBUG_FAMILY_LISTS) console.warn("[CFL] derive parent ids error", e);
+    }
+
+    $("#childrenList li").each(function () {
+      const $li = $(this);
+      let personObj = null;
+      const liId = $li.attr("data-id");
+      if (liId && window.people.has(String(liId))) {
+        personObj = window.people.get(String(liId));
+      }
+      if (!personObj) {
+        const $a = $li.find("a[itemprop='url'], a.childLink").first();
+        const href = $a.attr("href") || "";
+        let wtName = null;
+        const m = href.match(/\/wiki\/([^#?]+)/);
+        if (m) wtName = m[1];
+        if (wtName && window.peopleByWtID && window.peopleByWtID.has(wtName)) {
+          personObj = window.peopleByWtID.get(wtName);
+        }
+        if (!personObj) {
+          const linkText = $a.text().trim();
+          personObj = Array.from(window.people.values()).find(
+            (p) =>
+              (p.FullName && linkText.includes((p.FullName || "").replace(/_/g, " "))) ||
+              (p.Name && linkText.includes((p.Name || "").replace(/_/g, " ")))
+          );
+        }
+      }
+      if (!personObj) return;
+      // set canonical ids on li
+      $li.attr("data-id", personObj.Id);
+      if (personObj.Father) $li.attr("data-father", personObj.Father);
+      if (personObj.Mother) $li.attr("data-mother", personObj.Mother);
+
+      const fatherConfirmed = personObj.DataStatus?.BioFather === "30" || personObj.DataStatus?.Father === "30";
+      const motherConfirmed = personObj.DataStatus?.BioMother === "30" || personObj.DataStatus?.Mother === "30";
+
+      // Determine whether parent in DOM corresponds to this child's father/mother
+      const childFatherId = personObj.BioFather || personObj.Father;
+      const childMotherId = personObj.BioMother || personObj.Mother;
+
+      // If DOM has father and child's DataStatus shows confirmed to that father, show checked icon
+      if (domFatherId && String(childFatherId) === String(domFatherId) && fatherConfirmed) {
+        $li.find(".icon--dna-none").remove();
+        if ($li.find(".icon--dna-checked").length === 0) {
+          $li
+            .find("a")
+            .append(
+              `<span class='icon--dna-checked wbe-icon' title='Confirmed with DNA testing' style='background-size:40px 20px !important; width:40px !important'></span>`
+            );
+        }
+      }
+      // If DOM has mother and child's DataStatus shows confirmed to that mother, show checked icon
+      if (domMotherId && String(childMotherId) === String(domMotherId) && motherConfirmed) {
+        $li.find(".icon--dna-none").remove();
+        if ($li.find(".icon--dna-checked").length === 0) {
+          $li
+            .find("a")
+            .append(
+              `<span class='icon--dna-checked wbe-icon' title='Confirmed with DNA testing' style='background-size:40px 20px !important; width:40px !important'></span>`
+            );
+        }
+      }
+      // If child's DataStatus explicitly indicates BioFather or BioMother confirmed, add badge regardless
+      try {
+        if (personObj.DataStatus?.BioFather === "30") {
+          if ($li.find(".icon--dna-checked").length === 0) {
+            $li.find(".icon--dna-none").remove();
+            $li
+              .find("a")
+              .append(
+                `<span class='icon--dna-checked wbe-icon' title='Confirmed with DNA testing' style='background-size:40px 20px !important; width:40px !important'></span>`
+              );
+            if (DEBUG_FAMILY_LISTS)
+              console.log(
+                `[CFL] reconcileChildrenWithAPI: added BioFather DNA badge for ${personObj.Name || personObj.Id}`
+              );
+          }
+        }
+        if (personObj.DataStatus?.BioMother === "30") {
+          if ($li.find(".icon--dna-checked").length === 0) {
+            $li.find(".icon--dna-none").remove();
+            $li
+              .find("a")
+              .append(
+                `<span class='icon--dna-checked wbe-icon' title='Confirmed with DNA testing' style='background-size:40px 20px !important; width:40px !important'></span>`
+              );
+            if (DEBUG_FAMILY_LISTS)
+              console.log(
+                `[CFL] reconcileChildrenWithAPI: added BioMother DNA badge for ${personObj.Name || personObj.Id}`
+              );
+          }
+        }
+      } catch (e) {
+        if (DEBUG_FAMILY_LISTS) console.warn("[CFL] reconcileChildrenWithAPI add explicit Bio badge error", e);
+      }
+    });
+    if (DEBUG_FAMILY_LISTS) console.log("[CFL] reconcileChildrenWithAPI: completed");
+  } catch (e) {
+    if (DEBUG_FAMILY_LISTS) console.warn("[CFL] reconcileChildrenWithAPI error", e);
   }
 }
 
@@ -2386,6 +3192,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   }
 
   pencils = getInitialPencils();
+  captureNativeParentDNA();
   moveMetaGender();
   const familyData = parseInitialData();
   if (DEBUG_FAMILY_LISTS) console.log("Family data:", familyData);
@@ -2464,6 +3271,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   // Set the family relationship headers to the right option
   const setHeaders = options.changeHeaders ? "Y" : "N";
   changeFamilyHeaders(setHeaders);
+  reconcileChildrenWithAPI();
   addDNAConfirmedToFamily();
 
   // Wait until Distance and Relationship feature has loaded (hopefully)

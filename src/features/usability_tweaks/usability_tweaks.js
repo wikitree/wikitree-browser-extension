@@ -1003,6 +1003,10 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
       if (options.makeTableOverflowVisible) {
         makeTableOverflowVisible();
       }
+
+      if (isWalesVictoriaCrossPage()) {
+        injectWalesVcContentRankColumn();
+      }
     }); //getFeatureOptions
   }
 });
@@ -1070,3 +1074,291 @@ function acceptPMs() {
 }
 
 setTimeout(acceptPMs, 1000);
+
+// Wales Victoria Cross Content Rank Injection
+
+const WALES_VC_SPACE_PATH = "/wiki/Space:Wales_-_Victoria_Cross_Recipients";
+const WALES_VC_RANK_SOURCE_URL =
+  "https://plus.wikitree.com/function/WTWebProfileSearch/Profiles.htm?Query=CategoryWord%3D%22Victoria+Cross%22+Country%3DWales&MaxProfiles=500&pagesize=500&pageIdx=0&Format=";
+const WALES_VC_CACHE_KEY = "wbe_wales_vc_rank_cache_v1";
+const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
+
+function isWalesVictoriaCrossPage() {
+  return window.location.pathname === WALES_VC_SPACE_PATH;
+}
+
+function getWalesVcTable() {
+  const tables = Array.from(document.querySelectorAll("table"));
+  // Pick the table that has a header containing Name and CR, and more than one row (data).
+  const candidate = tables
+    .filter((table) => table.rows && table.rows.length > 1)
+    .find((table) => {
+      const headerCells = Array.from(table.querySelectorAll("tr:first-child th"));
+      const headerText = headerCells.map((cell) => cell.textContent.trim().toLowerCase());
+      return headerText.includes("name") && headerText.some((text) => text === "cr");
+    });
+
+  if (candidate) {
+    console.info("WBE Wales VC: using table with rows", candidate.rows.length);
+  } else {
+    console.warn("WBE Wales VC: no matching table found");
+  }
+
+  return candidate;
+}
+
+function parseRankRow(row) {
+  const idLink = row.querySelector("a[href*='wikitree.com/wiki/']");
+  if (!idLink) {
+    return null;
+  }
+
+  const pathParts = new URL(idLink.href).pathname.split("/wiki/");
+  const wikitreeId = pathParts.length > 1 ? decodeURIComponent(pathParts[1]) : null;
+  const normalizedId = wikitreeId ? wikitreeId.toLowerCase() : null;
+
+  const aidLink = row.querySelector("a[href*='userid=']");
+  const personId = aidLink ? new URL(aidLink.href).searchParams.get("userid") : null;
+
+  const match = row.textContent.match(/Rank:\s*(\d+)\s*\(([^)]*)\)/i);
+  if (!match || !wikitreeId) {
+    return null;
+  }
+
+  return {
+    wikitreeId,
+    key: normalizedId,
+    personId,
+    rank: match[1],
+    details: match[2].trim(),
+  };
+}
+
+async function fetchWalesVcRanks() {
+  try {
+    const response = await fetch(WALES_VC_RANK_SOURCE_URL, { credentials: "omit" });
+    if (!response.ok) {
+      return null;
+    }
+
+    const html = await response.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const rankMap = new Map();
+
+    Array.from(doc.querySelectorAll("table tr")).forEach((row) => {
+      const parsed = parseRankRow(row);
+      if (parsed && parsed.key) {
+        rankMap.set(parsed.key, parsed);
+      }
+    });
+
+    console.info("WBE Wales VC: fetched rank rows", rankMap.size);
+
+    return rankMap;
+  } catch (error) {
+    console.error("WBE: failed to fetch Wales VC content ranks", error);
+    return null;
+  }
+}
+
+function loadCachedWalesVcRanks() {
+  try {
+    const raw = localStorage.getItem(WALES_VC_CACHE_KEY);
+    if (!raw) return { map: null, fetchedAt: null };
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.ranks || !Array.isArray(parsed.ranks)) return { map: null, fetchedAt: null };
+    const map = new Map(parsed.ranks);
+    return { map, fetchedAt: parsed.fetchedAt ? new Date(parsed.fetchedAt) : null };
+  } catch (e) {
+    console.warn("WBE Wales VC: failed to read cache", e);
+    return { map: null, fetchedAt: null };
+  }
+}
+
+function saveCachedWalesVcRanks(rankMap) {
+  try {
+    const payload = {
+      fetchedAt: new Date().toISOString(),
+      ranks: Array.from(rankMap.entries()),
+    };
+    localStorage.setItem(WALES_VC_CACHE_KEY, JSON.stringify(payload));
+  } catch (e) {
+    console.warn("WBE Wales VC: failed to write cache", e);
+  }
+}
+
+function shouldRefreshWalesVcRanks(cached) {
+  const now = new Date();
+  const dow = now.getDay(); // 0=Sun,1=Mon,2=Tue,3=Wed
+  const hasCache = cached && cached.map && cached.map.size > 0;
+  const fetchedAt = cached && cached.fetchedAt ? cached.fetchedAt.getTime() : 0;
+  const ageMs = fetchedAt ? now.getTime() - fetchedAt : Number.POSITIVE_INFINITY;
+
+  const isMonToWed = dow >= 1 && dow <= 3;
+
+  if (!hasCache) {
+    return true; // no cache: fetch whenever
+  }
+
+  if (isMonToWed) {
+    return ageMs > TWELVE_HOURS_MS; // during Mon-Wed, refresh at most twice a day
+  }
+
+  // Thu-Sun: keep cache unless missing
+  return false;
+}
+
+async function getWalesVcRankMapWithCache() {
+  const cached = loadCachedWalesVcRanks();
+
+  if (!shouldRefreshWalesVcRanks(cached)) {
+    if (cached.map) {
+      console.info("WBE Wales VC: using cached ranks", cached.map.size);
+      return cached.map;
+    }
+  }
+
+  const fresh = await fetchWalesVcRanks();
+  if (fresh && fresh.size > 0) {
+    saveCachedWalesVcRanks(fresh);
+    return fresh;
+  }
+
+  // Fallback to cache if fetch failed
+  if (cached.map && cached.map.size > 0) {
+    console.info("WBE Wales VC: fetch failed, using stale cache", cached.map.size);
+    return cached.map;
+  }
+
+  return null;
+}
+
+function buildContentRankButton(rankInfo) {
+  const wrapper = document.createElement("span");
+  wrapper.title = `Open details about the Content Rank for ${rankInfo.wikitreeId}`;
+
+  const button = document.createElement("button");
+  button.type = "button";
+  if (rankInfo.personId) {
+    button.dataset.personid = rankInfo.personId;
+  }
+  button.dataset.cy = "cr-details-button";
+  button.dataset.bsToggle = "tooltip";
+  button.dataset.bsTitle = "Content Rank Details";
+  const tooltipDetails = rankInfo.details ? ` (${rankInfo.details})` : "";
+  button.setAttribute(
+    "data-bs-original-title",
+    `Content Rank: ${rankInfo.rank}; open more information in a new window${
+      tooltipDetails ? ` - ${tooltipDetails}` : ""
+    }`
+  );
+  const rankNum = parseInt(rankInfo.rank, 10);
+  let colorClass = "green";
+  if (rankNum <= 3) {
+    colorClass = "red";
+  } else if (rankNum <= 5) {
+    colorClass = "yellow";
+  } else if (rankNum <= 7) {
+    colorClass = "orange";
+  } else if (rankNum <= 9) {
+    colorClass = "lightgreen";
+  } else {
+    colorClass = "green";
+  }
+  button.className = `badge ${colorClass} new cr-details`;
+  button.style.border = "0";
+  button.textContent = `CR:${rankInfo.rank}`;
+
+  wrapper.appendChild(button);
+  return wrapper;
+}
+
+function applyWalesVcContentRanks(rankMap) {
+  const table = getWalesVcTable();
+  if (!table || table.dataset.wbeCrInjected === "1") {
+    return;
+  }
+
+  const headerRow = table.querySelector("tr");
+  if (!headerRow) {
+    return;
+  }
+
+  const headerCells = Array.from(headerRow.cells);
+  let crIndex = headerCells.findIndex((cell) => cell.textContent.trim().toLowerCase() === "cr");
+
+  // If the CR header is missing, add it at the end.
+  if (crIndex === -1) {
+    const newHeader = document.createElement("th");
+    newHeader.textContent = "Content Rank";
+    newHeader.style.textAlign = "center";
+    const sampleHeader = headerRow.cells[headerRow.cells.length - 1];
+    if (sampleHeader) {
+      newHeader.style.backgroundColor = getComputedStyle(sampleHeader).backgroundColor;
+    }
+    headerRow.appendChild(newHeader);
+    crIndex = headerRow.cells.length - 1;
+  }
+
+  const dataRows = Array.from(table.rows).slice(1);
+  let matched = 0;
+  let missing = 0;
+  const misses = [];
+
+  dataRows.forEach((row) => {
+    const nameCell = row.cells[0];
+    const profileLink = nameCell
+      ? Array.from(nameCell.querySelectorAll("a[href]")).find((a) => {
+          const href = a.getAttribute("href");
+          return href && href.includes("/wiki/") && !href.includes("wikipedia.org/wiki/");
+        })
+      : null;
+    const wikitreeId = profileLink ? decodeURIComponent(profileLink.getAttribute("href").split("/wiki/")[1]) : null;
+    const normalizedId = wikitreeId ? wikitreeId.toLowerCase() : null;
+
+    // Ensure the CR cell exists at the target index.
+    while (row.cells.length <= crIndex) {
+      row.appendChild(document.createElement("th"));
+    }
+    const cell = row.cells[crIndex];
+    cell.innerHTML = "";
+    cell.style.textAlign = "center";
+    const sampleCell = row.cells[0];
+    if (sampleCell) {
+      cell.style.backgroundColor = getComputedStyle(sampleCell).backgroundColor;
+    }
+
+    if (normalizedId && rankMap && rankMap.has(normalizedId)) {
+      const rankInfo = rankMap.get(normalizedId);
+      cell.appendChild(buildContentRankButton(rankInfo));
+      matched += 1;
+    } else {
+      cell.textContent = "—";
+      missing += 1;
+      misses.push({ wikitreeId, reason: normalizedId ? "not-in-map" : "no-id" });
+    }
+  });
+
+  console.info("WBE Wales VC: applied ranks", { matched, missing, total: dataRows.length });
+  if (missing > 0) {
+    console.debug("WBE Wales VC missing", misses.slice(0, 10));
+  }
+
+  table.dataset.wbeCrInjected = "1";
+}
+
+async function injectWalesVcContentRankColumn(retries = 2) {
+  const table = getWalesVcTable();
+  if (!table) {
+    if (retries > 0) {
+      setTimeout(() => injectWalesVcContentRankColumn(retries - 1), 500);
+    }
+    return;
+  }
+
+  const rankMap = await getWalesVcRankMapWithCache();
+  if (rankMap && rankMap.size > 0) {
+    applyWalesVcContentRanks(rankMap);
+  }
+}

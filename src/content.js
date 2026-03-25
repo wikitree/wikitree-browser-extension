@@ -103,7 +103,7 @@ import "./features/my_menu/my_menu";
 import "./features/printerfriendly/printerfriendly";
 import "./features/redir_ext_links/redir_ext_links";
 import "./features/scissors/scissors";
-// import "./features/send_to_merge/send_to_merge";
+import "./features/send_to_merge/send_to_merge";
 import "./features/shareable_sources/shareable_sources";
 import "./features/show_suggestions/show_suggestions";
 import "./features/sortBadges/sortBadges";
@@ -161,6 +161,10 @@ import "./features/what_links_here/what_links_here";
 import "./features/edit_profile_redesign/edit_profile_redesign";
 
 /* MARKER: Default place for new features. Move these to a more appropriate place.*/
+import "./features/space_style/space_style";
+
+import "./features/wikitree_plus_helper/wikitree_plus_helper";
+
 import "./features/find_a_grave_memorial_extractor/find_a_grave_memorial_extractor";
 
 import "./features/countdown/countdown";
@@ -182,11 +186,12 @@ import "./features/links_to_new_tabs/links_to_new_tabs";
 
 import "./features/watchlistFilter/watchlistFilter";
 
-//import "./features/family_status_sync/family_status_sync"; // Disabled for now
+import "./features/family_status_sync/family_status_sync";
 
 import "./features/help/help";
 import "./features/pending_merges_filters/pending_merges_filters";
 import "./features/enumerate_image_detail/enumerate_image_detail.js";
+import "./easterEgg";
 /*
  * debugging features for development only
  *

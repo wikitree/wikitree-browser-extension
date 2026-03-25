@@ -302,7 +302,7 @@ shouldInitializeFeature("reorderNames").then((result) => {
     // However, don't run if the ONLY non-Latin script is in aka context for surnames
     // (like the Hayim case where Hebrew is only in "aka ביאליק")
     if (matchingScripts.length === 0) {
-      console.log("Debug Ester - No matching scripts, returning");
+      // console.log("Debug Ester - No matching scripts, returning");
       return; // Don't run the feature
     }
 

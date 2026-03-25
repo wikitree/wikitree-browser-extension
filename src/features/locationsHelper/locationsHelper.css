@@ -21,3 +21,63 @@
 input[name="mMarriageLocation"] {
   width: 100%;
 }
+
+/* Reduce vertical spacing between options */
+.select2-results__option {
+  padding: 1px 6px; /* vertical | horizontal padding */
+  margin-bottom: 0px;
+}
+.country-input .select2-selection__choice {
+  margin-top: 4px !important;
+  margin-bottom: 2px !important;
+  margin-left: 4px !important;
+}
+
+.wbe-location-gear {
+  position: absolute !important;
+  left: -2.5rem;
+}
+
+.autocomplete-suggestions {
+  width: max-content !important;
+}
+
+.wbe-location-popup {
+  display: none;
+  position: absolute;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  right: 0;
+  width: fit-content;
+  max-width: 90vw;
+}
+.wbe-loc-table {
+  width: auto;
+  table-layout: auto;
+}
+.wbe-loc-table th,
+.wbe-loc-table td {
+  padding: 3px;
+}
+.wbe-loc-table .lt-left {
+  text-align: left;
+}
+.wbe-loc-table .lt-right {
+  text-align: right;
+}
+.wbe-loc-table .lt-centre {
+  text-align: center;
+}
+
+.wbe-loc-status {
+  margin-bottom: 6px;
+  font-size: 0.9em;
+  color: #666;
+}
+.wbe-loc-status.is-red {
+  color: red !important;
+}

@@ -100,3 +100,17 @@
 #returnToButton.large {
   padding: 1em 2em;
 }
+
+/* Space page utility buttons styling */
+a.viewDiffButton.button,
+#deleteDraftLinkContainer a.button {
+  display: block;
+  width: 100%;
+  margin: 1em auto;
+  padding: 0.5em 1em;
+  border-radius: 0.5em;
+}
+a.viewDiffButton.button.large,
+#deleteDraftLinkContainer a.button.large {
+  padding: 1em 2em;
+}

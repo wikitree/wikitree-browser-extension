@@ -121,10 +121,11 @@ x.closeBioPopup {
 }
 
 /* Highlighted <ref> tags */
+/* Default references/source lines should not be highlighted */
 .bioPopup .reference,
 .bioPopup .source-line {
-  background-color: yellow;
-  font-weight: bold;
+  background-color: transparent;
+  font-weight: normal;
 }
 
 /* Highlighted headings */
@@ -155,9 +156,58 @@ x.closeBioPopup {
 /* Highlighted ref tags */
 .bioPopup .ref-tag,
 .bioPopup .bullet {
-  background-color: orange;
-  color: black;
+  background-color: transparent;
+  color: inherit;
+  font-weight: normal;
+}
+
+.bioPopup .bio-check-results {
+  border: 2px solid #f39c12;
+  border-radius: 6px;
+  padding: 0.6em 0.8em;
+  margin: 1em 0 0.5em;
+  background-color: #fff8ee;
+}
+
+.bioPopup .bio-check-results h3 {
+  margin: 0 0 0.5em;
+  color: #d35400;
+}
+
+.bioPopup .bio-check-issue-line {
+  background-color: #ffe1b3;
+  border-left: 4px solid #f39c12;
+  padding-left: 0.35em;
+}
+
+.bioPopup .bio-check-issue-ref {
+  background-color: #ffe1b3;
+  border-radius: 3px;
+  padding: 0 0.2em;
   font-weight: bold;
+  border: 1px solid #f39c12;
+}
+
+.bioPopup .bio-check-issue-bullet {
+  background-color: #f39c12;
+  color: #1f1400;
+  border-radius: 3px;
+  padding: 0 0.2em;
+  font-weight: bold;
+}
+
+.bioPopup .bio-check-issue-reference {
+  background-color: #ffe1b3;
+  border-radius: 4px;
+  padding: 0.1em 0.25em;
+  border: 1px solid #f39c12;
+}
+
+.bioPopup .bio-check-issue-inline {
+  background-color: #ffe1b3;
+  border-radius: 3px;
+  padding: 0 0.2em;
+  border: 1px solid #f39c12;
 }
 .getBio.failedBioCheck {
   background-color: #ffcccc !important;

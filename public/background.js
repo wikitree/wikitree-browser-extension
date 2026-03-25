@@ -112,6 +112,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+// For Auto Bio: Handle AI requests
 async function handleAIRequest(request, sendResponse) {
   const {
     oldBio,
@@ -120,20 +121,21 @@ async function handleAIRequest(request, sendResponse) {
     key,
     model,
     diedWord,
+    deathPosition,
     inlineCitations,
     dateFormat,
     dateStatusFormat,
     yearsDateStatusFormat,
+    customInstructions,
   } = request;
 
   const systemRole = "You are a Fact Merger for WikiTree. You are NOT a creative writer.";
 
-  // Date Format Instructions
   const dateFormats = {
-    MDY: "Use 'Month DD, YYYY' (e.g., November 24, 1859)",
-    DMY: "Use 'DD Month YYYY' (e.g., 24 November 1859)",
-    sMDY: "Use 'AbbrMonth DD, YYYY' (e.g., Nov 24, 1859)",
-    DsMY: "Use 'DD AbbrMonth YYYY' (e.g., 24 Nov 1859)",
+    MDY: "Use 'Month DD, YYYY' (e.g., November 24, 1859).",
+    DMY: "Use 'DD Month YYYY' (e.g., 24 November 1859).",
+    sMDY: "Use 'AbbrMonth DD, YYYY' (e.g., Nov 24, 1859).",
+    DsMY: "Use 'DD AbbrMonth YYYY' (e.g., 24 Nov 1859).",
   };
   const dateStatusFormats = {
     words: "Use words 'before', 'after', 'about' for uncertain dates.",
@@ -152,67 +154,112 @@ async function handleAIRequest(request, sendResponse) {
 
   let citationInstructions = "";
   if (inlineCitations) {
-    citationInstructions = `   - Use inline <ref> tags for citations.
-   - **SMART DEDUPLICATION**: If you use a source as an inline citation (e.g. <ref>Census...</ref>), **REMOVE** it from the "Sources" or "See also" list at the bottom. Do not list it twice.
-   - **IMPORTANT**: If a source cannot be inline cited, KEEP it under "See also:". Format "See also:" as a plain line, **NOT** a header (\`== See also ==\`).`;
+    citationInstructions = `CITATIONS:
+- Use inline <ref> tags for citations in the body text.
+- Do NOT put <ref> tags under the == Sources == heading.
+- If a source is cited inline, you may remove an exact duplicate of the same source from == Sources == or See also:, but ONLY if the source still appears at least once in the final output.
+- If a source cannot be inline cited, keep it under See also: as a plain line (NOT a header: do not use "== See also ==").
+- SMART DEDUPLICATION: remove only exact duplicates (same URL/record/template/citation text).`;
   } else {
-    citationInstructions = `   - **NO INLINE CITATIONS**: Do NOT use <ref> tags in the body text.
-   - Ensure **ALL** sources are listed clearly under "Sources" or "See also". Format "See also:" as a plain line, **NOT** a header (\`== See also ==\`).`;
+    citationInstructions = `CITATIONS:
+- **NO INLINE CITATIONS**: Do NOT use <ref> tags in the body text.
+- Ensure ALL sources appear as bullet points under == Sources == or under See also: (plain line, NOT a header).
+- Remove only exact duplicates (same URL/record/template/citation text).`;
   }
 
-  const userInstructions = `You are performing a "Smart Fact Merge".
-INPUTS:
-1. <generated_bio>: Structured draft biography (Needs formatting cleanup and fact enrichment).
-2. <original_bio>: Old, unstructured biography (Source of MISSING details to be merged).
+  const deathPlacementInstruction = deathPosition
+    ? "- **DEATH SENTENCE POSITION**: Keep the death sentence immediately after the birth details and before marriages/census narratives as in <generated_bio>. Do not move it later.\n"
+    : "- **DEATH SENTENCE POSITION**: Keep the death sentence after the marriages/census narratives as in <generated_bio>. Do not move it earlier.\n";
 
-OBJECTIVE:
-- **ENRICHMENT & MERGE**: Your primary goal is to extract **meaningful details** from <original_bio> and weave them into <generated_bio> in chronological order.
-  - **EXTRACTION TARGETS**: Look specifically for:
-    - **Occupations** ("retired farmer", "teacher")
-    - **CRITICAL: Cause of Death** (SCAN THE ENTIRE TEXT TO THE END. Specific medical terms like "coronary occlusion" or "arteriosclerosis" often appear in the final paragraphs. PREFER these over "extended illness").
-    - **Burial Details** (Full Cemetery Name, Location, and pallbearers).
-    - **Religious/Social Affiliations** ("Methodist Church", "Masons")
-    - **Exact Dates/Locations** missing from the draft.
-  - **PRIVACY WARNING**: Do **NOT** extract names of likely living people (e.g., lists of surviving children, grandchildren, or great-grandchildren from obituaries). Only mention relatives if they are clearly deceased or historical.
+  const userInstructions = `You are performing a "Smart Fact Addition" for WikiTree.
+
+INPUTS:
+1. <generated_bio>: Structured draft biography (BASE TEXT).
+2. <original_bio>: Old, unstructured biography (source of missing details).
+
+OUTPUT:
+- Return ONLY the final biography text in MediaWiki markup.
+- Do NOT mention <generated_bio>, <original_bio>, “generated bio”, “old bio”, or any comparison between them.
+
+PRIMARY GOAL:
+- Use <generated_bio> as the base and improve it by INSERTING missing factual details from <original_bio> in chronological order.
+- Preserve good content already in <generated_bio>. Do not remove it.
+
+BASE TEXT RULE (PRESERVE + SURGICAL REPAIR):
+- Preserve the structure, headings, tables, templates, wikiLinks, ref tags, and line breaks from <generated_bio>.
+- You MAY make minimal repairs ONLY when text is clearly broken/mangled, e.g.:
+  - sentence fragments ("John lived with.")
+  - garbled phrases ("lived in Ancestry Census...")
+  - duplicated/concatenated text, broken punctuation
+- Repairs must be the smallest change needed to make the sentence grammatical and factual.
+- If a broken passage cannot be repaired without guessing, leave it as-is and add a brief factual note in == Research Notes ==.
+
+EXTRACTION TARGETS (from <original_bio>):
+- Occupations/roles
+- Cause of death (specific medical terms if stated)
+- Burial details (cemetery + location)
+- Religious/social affiliations
+- Military service details (branch, rank, unit, wars/conflicts)
+- Missing exact dates/locations explicitly stated
+- Other concrete facts suitable for a WikiTree biography
+
+PRIVACY / LIVING PEOPLE:
+- Do NOT add names of likely living people (e.g., “survived by” lists, grandchildren, great-grandchildren).
+- If <original_bio> contains such lists, omit them silently (no commentary).
+
 ${citationInstructions}
-- **IMPROVE**: Improve formatting/clarity, BUT...
 
 STRICT CONSTRAINTS:
-1. **NO HALLUCINATIONS / FLUFF**: Do NOT invent details. Do NOT add subjective descriptions like "She was known for her dedication...", "He was a loving father...", "lived a long life", etc. Only include facts found in the Inputs.
-2. **NO EXTRA OUTPUT**: Do NOT output the tags <generated_bio> or *** BASE TEXT ***. Return ONLY the biography text.
-3. **CATEGORIES**: STRICTLY PROHIBITED: Do NOT create new categories.
-4. **FAMILY LISTS**: Keep any lists of children/spouses/siblings as they are in <generated_bio>. Add inline citations for any sources in <original_bio> if we are using ref tags. 
-5. **PHRASING**: Use "${diedWord || "died"}" for death events. Ensure this terminology is consistent.
-6. **NO LIVING PEOPLE**: Do not add names of people who are likely still alive (e.g. from "survived by" lists).
-7. **CRITICAL: PRESERVE LISTS**: You MUST copy any **lists of names** (e.g. Census Households, Pallbearers, Survivors) from <original_bio>. Do NOT summarize them (e.g. do NOT say "He lived with his wife and 3 children"). You MUST list the names. Use a Markdown table or bullet points.
-8. **STYLE & FORMATTING (CRITICAL)**:
-   - **Preserve wikiLinks, templates, ref tags, headings, and formatting (line breaks, etc.); 
-   - **NO HTML**: Do NOT use HTML tags except <ref> and <br>. 
-   - **Use MediaWiki markup** only (e.g. use '*' for bullets, '#' for numbered lists, "''" for italics, "'''" for bold). EXCEPTION: <ref> tags are allowed.
-   - **SPELLING/GRAMMAR**: Fix definite spelling and punctuation mistakes.
-   - **SECTION ORDER**: You MUST strictly follow this order for sections (omit if not applicable/present):
-     1. [[Categories]]
-     2. {{Easily Confused}}
-     3. {{Research Note Boxes}}
-     4. {{Project Boxes}}
-     5. {{Succession}}
-     6. == Biography ==
-     7. {{Profile Stickers}}
-     8. == Research Notes ==
-     9. == Sources ==
-     10. <references />
-     11. See also:
-     12. == Acknowledgements ==
-   - **REQUIRED SECTIONS**: The final output MUST contain \`== Biography ==\`, \`== Sources ==\`, and \`<references />\`.
-   - **Profile Stickers** include {{Died Young}}, {{Centenarian}}, etc. based on the information in the old bio.
-   - **NO <ref> tags under the Sources heading. Precede references with * there.
-9. **DATE STYLE**:
+${deathPlacementInstruction}
+1. NO HALLUCINATIONS / NO FLUFF:
+   - Do NOT invent details or infer facts not stated in the inputs.
+   - Do NOT add subjective or sentimental statements ("loved by all", "dedicated", etc.).
+2. CATEGORIES & STICKERS:
+   - Do NOT create new categories.
+   - Do not add, remove, or reorder existing Categories or Profile Stickers.
+   - You may add a sticker ONLY if <original_bio> explicitly supports it AND a sticker section already exists in <generated_bio>.
+3. FAMILY LISTS (LOCKED):
+   - Preserve any lists of children/spouses/siblings already in <generated_bio>.
+   - Do NOT create new family/survivor lists from <original_bio>.
+4. LISTS OF NAMES (CONTROLLED):
+   - Preserve named lists already present in <generated_bio> (census households, etc.).
+   - Copy additional named lists from <original_bio> ONLY if they are clearly historical AND do not appear to include living people.
+   - Never add meta text like “plus many others” or “still living”.
+5. PHRASING:
+   - Use "${diedWord || "died"}" consistently for death events.
+6. NO DATE INFERENCE:
+   - Do NOT infer exact dates from quarters/years/indexes.
+   - Keep the granularity already in <generated_bio> (month/year/quarter) unless an exact date is explicitly stated in the inputs with a supporting source.
+7. PRESERVE PARENTHETICALS:
+   - Do NOT remove or shorten parenthetical details already in <generated_bio> (e.g., spouse parents, birthplaces, ages).
+8. STYLE & FORMATTING:
+   - MediaWiki markup only: *, #, '', ''', == Heading ==, tables, templates, wikiLinks.
+   - NO HTML except <ref> and <br>.
+   - Fix definite spelling/punctuation mistakes.
+9. REQUIRED SECTIONS:
+   - The final output MUST contain: == Biography ==, == Sources ==, and <references />.
+   - Preserve the existing heading structure from <generated_bio>.
+10. SOURCE RETENTION GUARANTEE (NON-NEGOTIABLE):
+   - Do NOT delete sources. Every source in either input must appear somewhere in the final output, either:
+     - inline as <ref>…</ref>, or
+     - as a bullet under == Sources ==, or
+     - as a bullet under See also: (plain line, NOT a header).
+   - You may remove only exact duplicates (same URL/record/template/citation text), but at least one copy must remain.
+
+JUNK SOURCE HANDLING (GEDCOM-STYLE BLOBS):
+- Treat entries like the following as “junk formatting” (do NOT delete them):
+  - Lines starting with "Source: S-" and/or containing "Repository: #R-", "Certainty:", "CRE", repeated concatenated fields (e.g., multiple "Birth date:" fragments).
+- Move these junk blobs (verbatim) to the end under See also: as bullet points.
+- Do NOT invent or guess missing URLs or citation details. If a clean citation already exists elsewhere in the inputs, keep that clean citation in == Sources == and keep the junk blob under See also:.
+
+DATE STYLE:
 ${dateInstructions}
 
-EXAMPLE ENRICHMENT:
-Input Draft: "James died on Feb 13, 1972."
-Input Old Bio: "James M. Sparks, retired farmer, died in Austin Feb. 13, 1972 following an extended illness. Burial in Blue Ridge Cemetery."
-Output: "James M. Sparks, a retired farmer, died on Feb 13, 1972 in Austin, Texas following an extended illness. He was buried in Blue Ridge Cemetery."`;
+${
+  customInstructions
+    ? `\nCUSTOM USER INSTRUCTIONS (take priority over previous instructions if they conflict):\n${customInstructions}`
+    : ""
+}`;
 
   const dataPayload = `<original_bio>
 ${oldBio}
@@ -229,11 +276,11 @@ ${dataPayload}`;
   try {
     let resultBio = "";
     if (provider === "openai") {
-      resultBio = await callOpenAI(key, model || "gpt-4o", systemRole, prompt);
+      resultBio = await callOpenAI(key, model || "gpt-5-mini", systemRole, prompt);
     } else if (provider === "gemini") {
-      resultBio = await callGemini(key, model || "gemini-2.5-flash", systemRole, prompt);
+      resultBio = await callGemini(key, model || "gemini-3-flash-preview", systemRole, prompt);
     } else if (provider === "claude") {
-      resultBio = await callClaude(key, model || "claude-sonnet-4-20250514", systemRole, prompt);
+      resultBio = await callClaude(key, model || "claude-sonnet-4-5", systemRole, prompt);
     } else if (provider === "perplexity") {
       resultBio = await callPerplexity(key, model || "sonar", systemRole, prompt);
     } else {
@@ -287,6 +334,10 @@ ${dataPayload}`;
 }
 
 async function callOpenAI(apiKey, model, system, userPrompt) {
+  // Some models (like gpt-5-mini, gpt-5.2, and o-series) do not support low temperatures or require default (1).
+  const isReasoningModel = model.includes("gpt-5") || model.startsWith("o1") || model.startsWith("o3");
+  const temperature = isReasoningModel ? 1 : 0.2;
+
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -299,7 +350,7 @@ async function callOpenAI(apiKey, model, system, userPrompt) {
         { role: "system", content: system },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.2,
+      temperature: temperature,
       // max_tokens removed to allow full model output
     }),
   });

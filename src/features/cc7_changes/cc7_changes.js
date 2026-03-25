@@ -995,7 +995,7 @@ shouldInitializeFeature("cc7Changes").then(async (result) => {
       return;
     }
     oncePerTab((rootWindow) => {
-      console.log("Initialising CC7 Changes.");
+      // console.log("Initialising CC7 Changes.");
       db = new Database(userId, userNumId);
       db.initializeDB(initializeCC7Tracking);
       import("./cc7_changes.css");

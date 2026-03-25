@@ -158,7 +158,7 @@ shouldInitializeFeature("clipboardAndNotes").then((result) => {
     window.clipboardClicker = $();
     window.lastClipboardClicker = $();
 
-    console.log("[clipboard_and_notes] Initializing clipboard and notes feature");
+    //console.log("[clipboard_and_notes] Initializing clipboard and notes feature");
     if ($("body.Special_EditPerson").length || isSpacePage) {
       setTimeout(function () {
         if ($(".clipboardButtons").length == 0) {

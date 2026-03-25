@@ -14,15 +14,29 @@ import { showFamilySheet } from "../familyGroup/familyGroup";
 import { getUserNumId } from "../../core/common";
 import { addTableButtonsContainer } from "../remove_from_watchlist/remove_from_watchlist";
 import { kinshipValue } from "../anniversaries_table/anniversaries_table";
-import { distRelDbKeyFor, getUserWtId } from "../../core/common";
-import {
-  CONNECTION_STORE_NAME,
-  RELATIONSHIP_STORE_NAME,
-  initDistanceAndRelationshipDBs,
-} from "../distanceAndRelationship/distanceAndRelationship";
+import { ageAtDeath, distRelDbKeyFor, getUserWtId } from "../../core/common";
+import * as distRel from "../distanceAndRelationship/distanceAndRelationship";
+const { CONNECTION_STORE_NAME, RELATIONSHIP_STORE_NAME, initDistanceAndRelationshipDBs } = distRel;
 import { CC7Notes } from "./cc7_notes";
 
 const WBE_SURNAME_TABLE_APP_ID = "WBE_surname_table";
+
+const diedYoungImageMap = {
+  Default: "https://www.wikitree.com/apps/views/cc7/images/diedYoung.png",
+  Ribbon: "https://www.wikitree.com/apps/views/cc7/images/pink-and-blue-ribbon.png",
+  Cradle: "https://www.wikitree.com/apps/views/cc7/images/Remember_the_Children-27.png",
+  Swing: "https://www.wikitree.com/apps/views/cc7/images/50px-Remember_the_Children-26.png",
+  Candle: "https://www.wikitree.com/apps/views/cc7/images/candle-light-icon.png",
+  Babyfeet: "https://www.wikitree.com/apps/views/cc7/images/RTC_-_Pictures-6.png",
+  Butterfly1: "https://www.wikitree.com/apps/views/cc7/images/butterfly-icon.png",
+  Butterfly2: "https://www.wikitree.com/apps/views/cc7/images/butterfly-icon.png",
+  Marigold: "https://www.wikitree.com/apps/views/cc7/images/flower-plant-icon.png",
+  Bluebirds: "https://www.wikitree.com/apps/views/cc7/images/Remember_the_Children-21.png",
+  Feethands: "https://www.wikitree.com/apps/views/cc7/images/RTC_-_Pictures-6.png",
+  Lotusbutterfly: "https://www.wikitree.com/apps/views/cc7/images/butterfly-icon.png",
+};
+
+const dateRegex = /((bef|aft|abt)?\s*(\d{1,2}\s)?(\w+\s)?\d{3,4})/i;
 
 const ExtraColumn = {
   NOTES: "notes",
@@ -110,8 +124,9 @@ function addAdditionalColumns($table) {
   // ids = [{id: numericId, distance: "", relationship: "", suggestion: ""}, ...]
   const currentUser = getUserWtId();
   const ids = {};
-  $table.find("tr").each((rowIdx, tr) => {
-    const $tr = $(tr);
+  const rows = $table.find("tr").toArray();
+  for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
+    const $tr = $(rows[rowIdx]);
 
     // Replace ditto marks with the value from the previous row.
     // Update any cell that contains a ditto mark (span with title "Same as above")
@@ -125,28 +140,78 @@ function addAdditionalColumns($table) {
 
     const $firstTd = $tr.find("td").first();
     const href = $firstTd.find("a").first().attr("href");
-    if (!href) return;
+    if (!href) continue;
 
     const wtId = href.split("/wiki/")[1];
-    if (!wtId) return;
+    if (!wtId) continue;
 
     const cleanId = wtId.replace(/ /g, "_");
     $tr.attr("data-wtid", cleanId);
 
     addFamilyGroupIcon($firstTd, wtId);
-
     ids[cleanId] = {};
 
-    if (!isExtraColEnabled(ExtraColumn.NOTES)) return;
+    // 1. Add Note Cell if enabled
+    if (isExtraColEnabled(ExtraColumn.NOTES)) {
+      const gender = $firstTd.hasClass("person--male") ? "male " : $firstTd.hasClass("person--female") ? "female " : "";
+      const noteCell =
+        `<td class="${gender}profile-note" title="Profile Note. Click to add/edit notes.">` +
+        `<div class="note-box" data-wtid="${wtId}"></div></td>`;
+      $firstTd.after(noteCell);
+    }
 
-    //add note cell
-    const gender = $firstTd.hasClass("person--male") ? "male " : $firstTd.hasClass("person--female") ? "female " : "";
-    const noteCell =
-      `<td class="${gender}profile-note" title="Profile Note. Click to add/edit notes.">` +
-      `<div class="note-box" data-wtid="${wtId}"></div></td>`;
-    $firstTd.after(noteCell);
+    // 2. Died Young logic
+    if (window.surnameTableOptions.diedYoungIcon) {
+      const birthColIdx = indexOf("birth");
+      const deathColIdx = indexOf("death");
+      const birthTD = $tr.find("td").eq(birthColIdx);
+      const deathTD = deathColIdx !== null ? $tr.find("td").eq(deathColIdx) : null;
 
-    // Find the profile numeric id and if present, add it to ids and as a data attribute to the tr
+      let birthDate = "";
+      let deathDate = "";
+
+      if (isSpecialWatchedList) {
+        const combinedText = birthTD.text()?.replace(/\n/g, " ").replace(/\s+/g, " ").trim() || "";
+        const parts = combinedText.split(/ ?- /).map((p) => p.trim());
+        const birthPart = parts[0];
+        const deathPart = parts[1] || "";
+
+        if (combinedText.startsWith("-")) {
+          const ddMatch = deathPart.match(dateRegex);
+          deathDate = ddMatch ? ddMatch[0] : "";
+        } else {
+          const bdMatch = birthPart.match(dateRegex);
+          birthDate = bdMatch ? bdMatch[0] : "";
+          const ddMatch = deathPart.match(dateRegex);
+          deathDate = ddMatch ? ddMatch[0] : "";
+        }
+      } else {
+        const birthText = birthTD.text() || "";
+        const deathText = deathTD ? deathTD.text() : "";
+        const bdMatch = birthText.match(dateRegex);
+        birthDate = bdMatch ? bdMatch[0] : "";
+        const ddMatch = deathText.match(dateRegex);
+        deathDate = ddMatch ? ddMatch[0] : "";
+      }
+
+      if (birthDate && deathDate) {
+        const normalizedBirth = birthDate.replace(/(bef|aft|abt)\s+/i, "").trim();
+        const normalizedDeath = deathDate.replace(/(bef|aft|abt)\s+/i, "").trim();
+
+        const birthISO = convertDate(normalizedBirth, "ISO");
+        const deathISO = convertDate(normalizedDeath, "ISO");
+
+        if (birthISO && deathISO) {
+          const ageObj = ageAtDeath({ BirthDate: birthISO, DeathDate: deathISO });
+
+          if (ageObj.age !== "" && ageObj.age < 16) {
+            addDiedYoungIcon($firstTd, ageObj.age, ageObj.annotatedAge);
+          }
+        }
+      }
+    }
+
+    // 3. Find the profile numeric id and if present, add it to ids and as a data attribute to the tr
     const editHref = $tr.find('a[href*="Special:EditPerson"]').attr("href");
     if (editHref) {
       const match = editHref.match(/u=(\d+)/);
@@ -156,7 +221,7 @@ function addAdditionalColumns($table) {
         $tr.attr("data-id", id); // add the id as a data attribute to the tr
       }
     }
-  });
+  }
 
   /* --- 2.2 inject header cells ---------------------------------------- */
   const $hdrRow = $table.find("tr").first();
@@ -604,7 +669,7 @@ const originalCol = {
 function indexOf(colName) {
   const table = isSpecialWatchedList ? originalCol.watchList : originalCol.search;
   let idx = table[colName];
-  if (idx && window.surnameTableOptions.NotesIntegration) {
+  if (idx && isExtraColEnabled(ExtraColumn.NOTES)) {
     ++idx;
   }
   return idx;
@@ -734,6 +799,22 @@ function addFamilyGroupIcon($cell, wtId) {
     `<span data-wtid="${wtId}" class='home wbe'  title='See family group'><img height="18" width="18" src="${familyGroupIconSrc}"></span>`
   );
   $cell.append(iconSpan);
+}
+
+/**
+ * Adds a "Died Young" icon if the person died under age 16.
+ */
+function addDiedYoungIcon($cell, age, annotatedAge) {
+  let image = "Default";
+  if (age < 5) {
+    image = window.surnameTableOptions?.diedYoungVeryYoungImage || "Default";
+  } else {
+    image = window.surnameTableOptions?.diedYoungYoungImage || "Default";
+  }
+  let src = diedYoungImageMap[image] || diedYoungImageMap.Default;
+
+  const $img = $(`<img class="died-young-icon" src="${src}" title="Died young (age ${annotatedAge})" />`);
+  $cell.append($img);
 }
 
 /**
@@ -1673,5 +1754,6 @@ shouldInitializeFeature("surnameTable").then(async (enabled) => {
   await updateFeatureOptions();
   import("../familyTimeline/familyTimeline.css");
   window.surnameTableOptions = await getFeatureOptions("surnameTable");
+  window.autoBioOptions = await getFeatureOptions("autoBio");
   waitForTableAndModify();
 });

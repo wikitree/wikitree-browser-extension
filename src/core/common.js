@@ -7,18 +7,12 @@ Contributors: Jonathan Duke (Duke-5773)
 import $ from "jquery";
 import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
-import { copyToClipboard, readFromClipboard } from "./clipboard.js";
-import draggable from "jquery-ui/ui/widgets/draggable";
+import { readFromClipboard } from "./clipboard.js";
 import {
   mainDomain,
   isNavHomePage,
-  isMainDomain,
   isProfilePage,
   isWikiEdit,
-  isProfileEdit,
-  isSpaceEdit,
-  isSpacePage,
-  isProfileLoggedInUserPage,
   isProfileAddRelative,
   isAddUnrelatedPerson,
   isG2G,
@@ -350,6 +344,96 @@ async function checkAnyDataFeature() {
   }
 }
 
+async function checkBackupReminder() {
+  // This is the monthly nag to backup data.
+  const dataFeatures = [
+    "clipboardAndNotes",
+    "customChangeSummaryOptions",
+    "extraWatchlist",
+    "myMenu",
+    "spaceWatchlistSorter",
+    "textExpander",
+    "distanceAndRelationship",
+  ];
+  const promises = dataFeatures.map((feature) => checkIfFeatureEnabled(feature));
+  const results = await Promise.all(promises);
+  const enabledFeatures = dataFeatures.filter((_, index) => results[index]);
+
+  if (enabledFeatures.length === 0) return;
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const testMode = urlParams.get("wbe_test_backup") === "1";
+
+  chrome.storage.local.get(["lastBackupNag"], function (items) {
+    const lastNag = items.lastBackupNag || 0;
+    const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    if (testMode || now - lastNag > thirtyDays) {
+      showBackupReminder(enabledFeatures);
+    }
+  });
+}
+
+function showBackupReminder(enabledFeatures) {
+  if ($("#wbe-backup-reminder").length) return;
+
+  const dataFeatureNames = {
+    clipboardAndNotes: "Clipboard and Notes",
+    customChangeSummaryOptions: "Change Summary Options",
+    extraWatchlist: "Extra Watchlist",
+    myMenu: "My Menu",
+    spaceWatchlistSorter: "Space Watchlist Sorter",
+    textExpander: "Text Expander",
+    distanceAndRelationship: "Distance and Relationship",
+  };
+
+  const featureListHtml = enabledFeatures
+    .map((id) => `<li>${dataFeatureNames[id] || id}</li>`)
+    .sort()
+    .join("");
+
+  const reminder = $(`
+    <div id="wbe-backup-reminder" class="wbe-popup">
+      <div class="dialog-header">
+        <a href="#" class="close" id="wbe-backup-reminder-close" title="Close">&#x2715;</a>
+        WBE Monthly Backup Reminder
+      </div>
+      <div class="dialog-content">
+        <p>It's been a while since your last data backup. We recommend backing up your data monthly to keep it safe.</p>
+        <p>Your backup will include data from:</p>
+        <ul class="wbe-feature-list">
+          ${featureListHtml}
+        </ul>
+        <div class="backup-reminder-buttons">
+          <button id="wbe-backup-reminder-now" class="btn btn-primary btn-sm">Back up WBE Data</button>
+        </div>
+      </div>
+    </div>
+  `);
+
+  $("body").append(reminder);
+
+  $("#wbe-backup-reminder-close").on("click", function (e) {
+    e.preventDefault();
+    $("#wbe-backup-reminder").fadeOut(function () {
+      $(this).remove();
+    });
+    // Set last nag to now so it doesn't pop up again for a month
+    chrome.storage.local.set({ lastBackupNag: Date.now() });
+  });
+
+  $("#wbe-backup-reminder-now").on("click", function (e) {
+    e.preventDefault();
+    downloadFeatureData();
+    $("#wbe-backup-reminder").fadeOut(function () {
+      $(this).remove();
+    });
+    // Update the nag date
+    chrome.storage.local.set({ lastBackupNag: Date.now() });
+  });
+}
+
 async function checkButtonFeatures() {
   const features = [
     "extraWatchlist",
@@ -519,6 +603,7 @@ async function checkButtonFeatures() {
 }
 
 checkButtonFeatures();
+checkBackupReminder();
 
 // Add buttons to download or import the feature data (My Menu, Change Summary Options, Extra Watchlist, Clipboard)
 if (isNavHomePage) {
@@ -624,7 +709,7 @@ function addDataButtons() {
   const commonText =
     "of all data associated with features of WikiTree Browser Extension. This includes data for Change Summary " +
     "Options, Clipboard and Notes, Distance and Relationships, Extra Watchlist, My Menu, Space Watchlist " +
-    "Sorter, and Text Expander";
+    "Sorter, Text Expander, and WT+ Query Builder";
   const dataButtons = `
     <div id="featureDataButtons">
       <button id="downloadFeatureData" class="btn btn-secondary btn-sm"
@@ -832,7 +917,9 @@ export async function showDraftList() {
     <div id='myDrafts' style="display: none;">
       <h2>My Drafts</h2>
       <x>x</x>
-      <table></table>
+      <div id="myDraftsList">
+        <table></table>
+      </div>
     </div>
   `);
 
@@ -1135,7 +1222,7 @@ export function isWikiTreeUrl(url) {
   return false;
 }
 
-const WBE_DATABASES_MINIMAL = ["Clipboard", "SpaceWatchlistDB"];
+const WBE_DATABASES_MINIMAL = ["Clipboard", "SpaceWatchlistDB", "WTPlusQueryBuilder"];
 const WBE_DATABASES_ALL = [...WBE_DATABASES_MINIMAL, "CC7Database", "ConnectionFinderWTE", "RelationshipFinderWTE"];
 
 export function distRelDbKeyFor(profileId, userId) {
@@ -1149,6 +1236,8 @@ export function cc7DbKeyFor(profileId, userId) {
 async function backupData(compactMode, sendResponse) {
   const data = {};
   data.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
+  data.changeSummaryOptions_Space = localStorage.LSchangeSummaryOptions_Space;
+  data.changeSummaryOptions_Category = localStorage.LSchangeSummaryOptions_Category;
   data.myMenu = localStorage.customMenu;
   data.extraWatchlist = localStorage.extraWatchlist;
   data.textExpander = localStorage.wbe_text_expander_custom; // Add text expander data
@@ -1240,6 +1329,12 @@ async function restoreData(data, sendResponse) {
   if (data.changeSummaryOptions) {
     localStorage.setItem("LSchangeSummaryOptions", data.changeSummaryOptions);
   }
+  if (data.changeSummaryOptions_Space) {
+    localStorage.setItem("LSchangeSummaryOptions_Space", data.changeSummaryOptions_Space);
+  }
+  if (data.changeSummaryOptions_Category) {
+    localStorage.setItem("LSchangeSummaryOptions_Category", data.changeSummaryOptions_Category);
+  }
   if (data.myMenu) {
     localStorage.setItem("customMenu", data.myMenu);
   }
@@ -1272,7 +1367,7 @@ async function restoreIndexedDB(dbName, dbData) {
   db.close();
 }
 
-export function writeToDB(db, dbName, requestedStoreName, records) {
+function writeToDB(db, dbName, requestedStoreName, records) {
   // Do some fiddling so we can restore older backups to the new DB versions.
   // CC7, distance, and relationship are the previous versions of those object
   // stores. The new ones are cc7Profiles, distance2 and relationship2 respectively.
@@ -1415,11 +1510,19 @@ export function getUserWtId() {
   let m;
   if (href) {
     m = href.match(/who=([^&]+)/);
-    return m ? m[1] : null;
-  } else {
-    // (Temporary) Fallback to cookies if the menu item is not present
-    return Cookies.get("wikitree_wtb_UserName");
+    if (m && m[1]) {
+      return decodeURIComponent(m[1]);
+    }
   }
+
+  // Robust fallback: #userData is present on WT pages and carries the logged-in user's WTID.
+  const userDataWtId = $("#userData").data("mname");
+  if (userDataWtId) {
+    return String(userDataWtId);
+  }
+
+  // (Temporary) Fallback to cookies if neither the nav menu nor #userData is available.
+  return Cookies.get("wikitree_wtb_UserName") || null;
 }
 
 /**

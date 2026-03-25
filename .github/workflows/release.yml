@@ -6,7 +6,7 @@ on:
 jobs:
   latest-release:
     name: "Latest Release"
-    runs-on: macos-15
+    runs-on: macos-latest
 
     steps:
       - name: Check out code
@@ -14,7 +14,7 @@ jobs:
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: "16.4"
+          xcode-version: latest-stable
       - name: Show SDKs & runtimes
         run: |
           xcodebuild -showsdks
@@ -48,28 +48,48 @@ jobs:
           zip -r ../dist-chrome.zip *
           cd ..
       - name: Prepare Xcode environment
-        env:
-          X_SAFARI_NAME: ${{ env.X_BUILD_MONIKER == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension Preview' }}
-          X_SAFARI_PROJECT: xcode/${{ env.X_BUILD_MONIKER == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension Preview' }}/${{ env.X_BUILD_MONIKER == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension Preview' }}.xcodeproj
         run: |
-          echo "X_SAFARI_NAME=${{ env.X_SAFARI_NAME }}" >> $GITHUB_ENV
-          echo "X_SAFARI_PROJECT=${{ env.X_SAFARI_PROJECT }}" >> $GITHUB_ENV
-          mv -f "${{ env.X_SAFARI_PROJECT }}/project.pbxproj" "${{ env.X_SAFARI_PROJECT }}/project.pbxproj.tmp"
-          sed -E 's/MARKETING_VERSION[ ]*=[ ]*[0-9.]+/MARKETING_VERSION = ${{ env.X_SAFARI_VERSION }}/Ig' "${{ env.X_SAFARI_PROJECT }}/project.pbxproj.tmp" > "${{ env.X_SAFARI_PROJECT }}/project.pbxproj"
-          mv -f "${{ env.X_SAFARI_PROJECT }}/project.pbxproj" "${{ env.X_SAFARI_PROJECT }}/project.pbxproj.tmp"
-          sed -E 's/CURRENT_PROJECT_VERSION[ ]*=[ ]*[0-9.]+/CURRENT_PROJECT_VERSION = ${{ env.X_SAFARI_BUILD }}/Ig' "${{ env.X_SAFARI_PROJECT }}/project.pbxproj.tmp" > "${{ env.X_SAFARI_PROJECT }}/project.pbxproj"
+          if [ "${{ env.X_BUILD_MONIKER }}" = "stable" ]; then
+            X_SAFARI_NAME="WikiTree Browser Extension"
+          else
+            X_SAFARI_NAME="WikiTree Browser Extension Preview"
+          fi
+          X_SAFARI_PROJECT="xcode/$X_SAFARI_NAME/$X_SAFARI_NAME.xcodeproj"
+          echo "X_SAFARI_NAME=$X_SAFARI_NAME" >> $GITHUB_ENV
+          echo "X_SAFARI_PROJECT=$X_SAFARI_PROJECT" >> $GITHUB_ENV
+          mv -f "$X_SAFARI_PROJECT/project.pbxproj" "$X_SAFARI_PROJECT/project.pbxproj.tmp"
+          sed -E "s/MARKETING_VERSION[ ]*=[ ]*[0-9.]+/MARKETING_VERSION = ${{ env.X_SAFARI_VERSION }}/Ig" "$X_SAFARI_PROJECT/project.pbxproj.tmp" > "$X_SAFARI_PROJECT/project.pbxproj"
+          mv -f "$X_SAFARI_PROJECT/project.pbxproj" "$X_SAFARI_PROJECT/project.pbxproj.tmp"
+          sed -E "s/CURRENT_PROJECT_VERSION[ ]*=[ ]*[0-9.]+/CURRENT_PROJECT_VERSION = ${{ env.X_SAFARI_BUILD }}/Ig" "$X_SAFARI_PROJECT/project.pbxproj.tmp" > "$X_SAFARI_PROJECT/project.pbxproj"
       - name: Install the Apple certificates and provisioning profiles
         if: vars.APPLE_SIGNING_ENABLED == 'true'
         env:
           P12_DISTRIBUTION: ${{ secrets.P12_DISTRIBUTION }}
           P12_INSTALLATION: ${{ secrets.P12_INSTALLATION }}
           P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-          PROVISIONING_APP_IOS: ${{ env.X_BUILD_MONIKER == 'stable' && secrets.PROVISIONING_STABLE_APP_IOS || secrets.PROVISIONING_PREVIEW_APP_IOS }}
-          PROVISIONING_APP_MACOS: ${{ env.X_BUILD_MONIKER == 'stable' && secrets.PROVISIONING_STABLE_APP_MACOS || secrets.PROVISIONING_PREVIEW_APP_MACOS }}
-          PROVISIONING_EXT_IOS: ${{ env.X_BUILD_MONIKER == 'stable' && secrets.PROVISIONING_STABLE_EXT_IOS || secrets.PROVISIONING_PREVIEW_EXT_IOS }}
-          PROVISIONING_EXT_MACOS: ${{ env.X_BUILD_MONIKER == 'stable' && secrets.PROVISIONING_STABLE_EXT_MACOS || secrets.PROVISIONING_PREVIEW_EXT_MACOS }}
+          PROVISIONING_STABLE_APP_IOS: ${{ secrets.PROVISIONING_STABLE_APP_IOS }}
+          PROVISIONING_PREVIEW_APP_IOS: ${{ secrets.PROVISIONING_PREVIEW_APP_IOS }}
+          PROVISIONING_STABLE_APP_MACOS: ${{ secrets.PROVISIONING_STABLE_APP_MACOS }}
+          PROVISIONING_PREVIEW_APP_MACOS: ${{ secrets.PROVISIONING_PREVIEW_APP_MACOS }}
+          PROVISIONING_STABLE_EXT_IOS: ${{ secrets.PROVISIONING_STABLE_EXT_IOS }}
+          PROVISIONING_PREVIEW_EXT_IOS: ${{ secrets.PROVISIONING_PREVIEW_EXT_IOS }}
+          PROVISIONING_STABLE_EXT_MACOS: ${{ secrets.PROVISIONING_STABLE_EXT_MACOS }}
+          PROVISIONING_PREVIEW_EXT_MACOS: ${{ secrets.PROVISIONING_PREVIEW_EXT_MACOS }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
+          # Select the correct provisioning profiles based on build moniker
+          if [ "${{ env.X_BUILD_MONIKER }}" = "stable" ]; then
+            PROVISIONING_APP_IOS="$PROVISIONING_STABLE_APP_IOS"
+            PROVISIONING_APP_MACOS="$PROVISIONING_STABLE_APP_MACOS"
+            PROVISIONING_EXT_IOS="$PROVISIONING_STABLE_EXT_IOS"
+            PROVISIONING_EXT_MACOS="$PROVISIONING_STABLE_EXT_MACOS"
+          else
+            PROVISIONING_APP_IOS="$PROVISIONING_PREVIEW_APP_IOS"
+            PROVISIONING_APP_MACOS="$PROVISIONING_PREVIEW_APP_MACOS"
+            PROVISIONING_EXT_IOS="$PROVISIONING_PREVIEW_EXT_IOS"
+            PROVISIONING_EXT_MACOS="$PROVISIONING_PREVIEW_EXT_MACOS"
+          fi
+
           # create variables for temporary files
           DIST_CERT_PATH=$RUNNER_TEMP/dist_certificate.p12
           INST_CERT_PATH=$RUNNER_TEMP/inst_certificate.p12
@@ -107,14 +127,16 @@ jobs:
       - name: Build signed version for Safari (iOS)
         if: vars.APPLE_SIGNING_ENABLED == 'true'
         run: |
+          EXPORT_PLIST="xcode/ExportOptions.$([ "${{ env.X_BUILD_MONIKER }}" = "stable" ] && echo "stable" || echo "preview").ios.plist"
           xcodebuild clean archive -quiet -project "${{ env.X_SAFARI_PROJECT }}" -scheme "${{ env.X_SAFARI_NAME }} (iOS)" -configuration Release -destination generic/platform=iOS -archivePath xcode/build-ios
-          xcodebuild -exportArchive -archivePath xcode/build-ios.xcarchive -exportPath xcode/build-ios.xcexport -exportOptionsPlist xcode/ExportOptions.${{ env.X_BUILD_MONIKER == 'stable' && 'stable' || 'preview' }}.ios.plist
+          xcodebuild -exportArchive -archivePath xcode/build-ios.xcarchive -exportPath xcode/build-ios.xcexport -exportOptionsPlist "$EXPORT_PLIST"
           cp "xcode/build-ios.xcexport/${{ env.X_SAFARI_NAME }}.ipa" dist-safari-ios.ipa
       - name: Build signed version for Safari (macOS)
         if: vars.APPLE_SIGNING_ENABLED == 'true'
         run: |
+          EXPORT_PLIST="xcode/ExportOptions.$([ "${{ env.X_BUILD_MONIKER }}" = "stable" ] && echo "stable" || echo "preview").macos.plist"
           xcodebuild clean archive -quiet -project "${{ env.X_SAFARI_PROJECT }}" -scheme "${{ env.X_SAFARI_NAME }} (macOS)" -configuration Release -destination generic/platform=macOS -archivePath xcode/build-macos
-          xcodebuild -exportArchive -archivePath xcode/build-macos.xcarchive -exportPath xcode/build-macos.xcexport -exportOptionsPlist xcode/ExportOptions.${{ env.X_BUILD_MONIKER == 'stable' && 'stable' || 'preview' }}.macos.plist
+          xcodebuild -exportArchive -archivePath xcode/build-macos.xcarchive -exportPath xcode/build-macos.xcexport -exportOptionsPlist "$EXPORT_PLIST"
           cp "xcode/build-macos.xcexport/${{ env.X_SAFARI_NAME }}.pkg" dist-safari-macos.pkg
       # if signing is disabled or not configured, build the unsigned version for macOS only (iOS requires signing)
       - name: Build unsigned version for Safari (macOS)
