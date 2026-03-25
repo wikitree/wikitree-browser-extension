@@ -2,6 +2,7 @@ import $ from "jquery";
 import { formatDate, getRelationColour, getYearColour } from "../../core/formatting";
 import { escapeHtml } from "../../core/lib/diff_utils";
 import { setHighestZIndex } from "../../core/common";
+import { PersonName } from "../auto_bio/person_name";
 
 /**
  * Normalize simple text for comparisons.
@@ -12,6 +13,21 @@ function normalizeText(value) {
   return String(value || "")
     .trim()
     .toLowerCase();
+}
+
+function formatConnectionPersonName(person) {
+  try {
+    const personName = new PersonName(person || {});
+    const pedigreeName = personName.withParts(["PedigreeName"]);
+    if (typeof pedigreeName === "string" && pedigreeName.trim() && !pedigreeName.startsWith("Invalid name part")) {
+      return pedigreeName.trim();
+    }
+  } catch (error) {
+    // Ignore formatting errors and use a simple fallback
+  }
+
+  const fallbackName = `${person?.FirstName || ""} ${person?.LastNameCurrent || person?.LastNameAtBirth || ""}`.trim();
+  return fallbackName || person?.RealName || person?.Name || "";
 }
 
 /**
@@ -140,7 +156,7 @@ export function showConnectionsPopup(connectionsResult) {
         <tbody>
           ${path
             .map((person) => {
-              const name = `${person.FirstName || ""} ${person.LastNameCurrent || ""}`.trim();
+              const name = formatConnectionPersonName(person);
               const relation = person.pathType || "";
               const birthDate = formatDate(person.BirthDate);
               const birthLoc = person.BirthLocation || "";

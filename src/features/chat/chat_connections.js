@@ -390,7 +390,7 @@ export function createChatConnectionHandlers({
       const data = await WikiTreeAPI.getConnections(
         "Chat",
         [sourceKey, targetWtId],
-        "Id,Name,Gender,RealName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,BirthLocation,DeathDate,DeathLocation,pathType",
+        "Id,Name,Gender,RealName,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,Nicknames,Prefix,Suffix,BirthName,BirthNamePrivate,BirthDate,BirthLocation,DeathDate,DeathLocation,pathType",
         {
           relation: relationCode,
         }
