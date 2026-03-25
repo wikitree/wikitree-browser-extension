@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2025 Kathryn J Knight
+Copyright (c) 2026 Kathryn J Knight
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -309,6 +309,7 @@ class SourceRules {
     "family tree files",
     "family search lds",
     "fellow researcher",
+    "legacy nfs source",
     "my family records",
     "on going research",
     "scotland's people",
@@ -441,6 +442,7 @@ class SourceRules {
     "u.s., new england marriages prior to 1700",
     "geneanet community trees index on ancestry",
     "marriage records and ancestry.com research",
+    "england select deaths and burials 1538-1991",
     "north carolina, marriage records, 1741-2011",
     "illinois statewide marriage index, 1763–1900",
     "maternal relationship confirmed by dna match",
@@ -456,6 +458,7 @@ class SourceRules {
     "from behind the ancestry.com subscription wall:",
     "personal knowledge, newspaper and bible records",
     "us and international marriage records 1560-1900", 
+    "england select births and christenings 1538-1975",
     "massachusetts, town and vital records, 1620-1988",
     "paternal & maternal relationship is confirmed by:",
     "replace this citation if there is another source",
@@ -472,6 +475,7 @@ class SourceRules {
     "us federal census mortality schedules index 1850-1880",
     "u.s., world war i draft registration cards, 1917-1918",
     "u.s., civil war draft registrations records, 1863-1865",
+    "england & wales civil registration death index 1837-1915",
     "u.s., new england marriages prior to 1700 (ancestry.com)",
     "maternal relationship is confirmed by dna as described above",
     "paternal relationship is confirmed by dna as described above",
@@ -844,6 +848,7 @@ class SourceRules {
     "family member",
     "family papers",
     "family search",
+    "kmm genealogy",
     "needs sources",
     ":source list:",
     "source needed",
