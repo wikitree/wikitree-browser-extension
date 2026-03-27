@@ -61,6 +61,31 @@ function showBasicData() {
   //}
 }
 
+function assignAccessKey() {
+  const config = { attributes: false, childList: true, subtree: true };
+  const observer = new MutationObserver((mutationList, observer) => {
+    for (const mutation of mutationList) {
+      mutation.addedNodes.forEach((node) => {
+        console.debug("observed " + node.tagName + " id: " + node.id + " class:" + node.className);
+
+        if (node.id == "enterBasicDataButton") {
+          node.tabIndex = 0;
+          node.accessKey = "s";
+        }
+
+        if (node.id == "matchesContainer") {
+          const dismissMatches = document.getElementById("dismissMatchesButton");
+          if (dismissMatches) {
+            dismissMatches.tabIndex = 0;
+            dismissMatches.accessKey = "s";
+          }
+        }
+      });
+    }
+  });
+  observer.observe(document.body, config);
+}
+
 /* 
 When #enterBasicDataButton is clicked, make sure the #basicDataSection remains visible. 
 */
@@ -209,6 +234,10 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
       }
       if (options.tabbingOptions) {
         showTabbingOptions();
+      }
+
+      if (options.accessKey) {
+        assignAccessKey();
       }
     });
   } else if (result && $("h1:contains('Edit Marriage')").length == 0) {

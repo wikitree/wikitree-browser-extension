@@ -47,6 +47,12 @@ const addPersonRedesign = {
       defaultValue: false,
     },
     {
+      id: "accessKey",
+      type: OptionType.CHECKBOX,
+      label: "Assign access key 's' to 'Create Person' and 'Continue' button",
+      defaultValue: true,
+    },
+    {
       id: "addResearchNotesSection",
       type: OptionType.CHECKBOX,
       label: "Add a Research Notes section (in 'Advanced' mode)",
