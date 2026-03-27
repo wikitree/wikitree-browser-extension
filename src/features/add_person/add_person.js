@@ -66,7 +66,7 @@ function assignAccessKey() {
   const observer = new MutationObserver((mutationList, observer) => {
     for (const mutation of mutationList) {
       mutation.addedNodes.forEach((node) => {
-        console.debug("observed " + node.tagName + " id: " + node.id + " class:" + node.className);
+        //console.debug("observed 1 " + node.tagName + " id: " + node.id + " class:" + node.className);
 
         if (node.id == "enterBasicDataButton") {
           node.tabIndex = 0;
@@ -235,14 +235,11 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
       if (options.tabbingOptions) {
         showTabbingOptions();
       }
-
-      if (options.accessKey) {
-        assignAccessKey();
-      }
     });
   } else if (result && $("h1:contains('Edit Marriage')").length == 0) {
     import("./add_person.css");
     moveSourcesParts();
+    assignAccessKey();
     keepBasicDataSectionVisible();
     $("#continueToSourcesButton").text("Create New Profile");
     getFeatureOptions("addPersonRedesign").then((options) => {
