@@ -806,6 +806,7 @@ class FeedHelper {
       whitelistActivity: false,
       allProfiles: false,
       profilesNotManagedBy: false,
+      profilesManagedBy: false,
       spacePages: false,
       g2g: false,
     };
@@ -830,9 +831,10 @@ class FeedHelper {
       whitelistActivity: parsed.whitelistActivity !== undefined ? !!parsed.whitelistActivity : !!legacyWhitelistState,
     };
 
-    // This filter requires an API/WT+ lookup; start disabled on each page load
+    // These filters require an API lookup; start disabled on each page load
     // and only load data after an explicit button click.
     states.profilesNotManagedBy = false;
+    states.profilesManagedBy = false;
 
     return states;
   }
@@ -871,6 +873,19 @@ class FeedHelper {
     return `Profiles Not Managed by ${managerId}`;
   }
 
+  getProfilesManagedLabel() {
+    const managerId = this.watchlistOwnerWtId;
+    if (!managerId) {
+      return "Profiles Managed";
+    }
+
+    if (this.currentUserWtId && String(this.currentUserWtId).toLowerCase() === String(managerId).toLowerCase()) {
+      return "Profiles Managed by Me";
+    }
+
+    return `Profiles Managed by ${managerId}`;
+  }
+
   isWatchlistFeedPage() {
     const url = new URL(window.location.href);
     const title = url.searchParams.get("title") || "";
@@ -881,13 +896,18 @@ class FeedHelper {
     return this.isWatchlistFeedPage() && !!this.watchlistOwnerWtId;
   }
 
+  isManagedByFilterActive() {
+    const states = this.hideFilterStates || {};
+    return !!states.profilesNotManagedBy || !!states.profilesManagedBy;
+  }
+
   async ensureManagedProfilesSet(allowFetch = false) {
     if (!this.isProfilesNotManagedFilterAvailable()) {
       this.managedProfilesSet = new Set();
       return this.managedProfilesSet;
     }
 
-    if (!this.hideFilterStates?.profilesNotManagedBy) {
+    if (!this.isManagedByFilterActive()) {
       // Guard against any non-button/background invocation.
       return null;
     }
@@ -1137,6 +1157,20 @@ class FeedHelper {
         managedByButton.attr("title", `Hide profiles not managed by ${this.watchlistOwnerWtId}`);
       }
     }
+
+    const managedByTargetButton = $("#hideProfilesManagedByButton");
+    if (managedByTargetButton.length > 0) {
+      const managedLabel = this.getProfilesManagedLabel();
+      managedByTargetButton.text(managedLabel);
+      const available = this.isProfilesNotManagedFilterAvailable();
+      managedByTargetButton.prop("disabled", !available);
+      managedByTargetButton.toggleClass("disabled", !available);
+      if (!available) {
+        managedByTargetButton.attr("title", "This filter is available on watchlist activity feed pages only");
+      } else {
+        managedByTargetButton.attr("title", `Hide profiles managed by ${this.watchlistOwnerWtId}`);
+      }
+    }
   }
 
   async applyFeedFilters() {
@@ -1147,7 +1181,7 @@ class FeedHelper {
     const activeFilters = this.hideFilterStates || this.getDefaultHideFilterStates();
 
     let managedProfileSet = null;
-    if (activeFilters.profilesNotManagedBy && this.isProfilesNotManagedFilterAvailable()) {
+    if (this.isProfilesNotManagedFilterAvailable() && (activeFilters.profilesNotManagedBy || activeFilters.profilesManagedBy)) {
       managedProfileSet = this.managedProfilesSet;
     }
 
@@ -1188,6 +1222,24 @@ class FeedHelper {
             managedProfileSet.has(String(profileId).toLowerCase())
           );
           if (!hasManagedProfile) {
+            shouldHide = true;
+          }
+        }
+      }
+
+      if (
+        !shouldHide &&
+        activeFilters.profilesManagedBy &&
+        this.isProfilesNotManagedFilterAvailable() &&
+        $item.data("feedHelperHasProfileActivity") &&
+        managedProfileSet
+      ) {
+        const profileIds = $item.data("feedHelperProfileIds") || [];
+        if (profileIds.length > 0) {
+          const hasManagedProfile = profileIds.some((profileId) =>
+            managedProfileSet.has(String(profileId).toLowerCase())
+          );
+          if (hasManagedProfile) {
             shouldHide = true;
           }
         }
@@ -3267,6 +3319,7 @@ class FeedHelper {
         <button type="button" class="button small feed-helper-filter-btn" data-filter-key="whitelistActivity" aria-pressed="false" title="Hide activity by whitelisted users">Whitelist Activity</button>
         <button type="button" class="button small feed-helper-filter-btn" data-filter-key="allProfiles" aria-pressed="false" title="Hide profile activity">All Profiles</button>
         <button type="button" id="hideProfilesNotManagedByButton" class="button small feed-helper-filter-btn" data-filter-key="profilesNotManagedBy" aria-pressed="false"></button>
+        <button type="button" id="hideProfilesManagedByButton" class="button small feed-helper-filter-btn" data-filter-key="profilesManagedBy" aria-pressed="false"></button>
         <button type="button" class="button small feed-helper-filter-btn" data-filter-key="spacePages" aria-pressed="false" title="Hide space page activity">Space Pages</button>
         <button type="button" class="button small feed-helper-filter-btn" data-filter-key="g2g" aria-pressed="false" title="Hide G2G items">G2G</button>
       </div>`
@@ -4177,14 +4230,21 @@ class FeedHelper {
     $(document).on("click", "#feedHelperHideFilters .feed-helper-filter-btn", async (event) => {
       const button = $(event.currentTarget);
       const filterKey = button.data("filter-key");
-      if (!filterKey || (filterKey === "profilesNotManagedBy" && !this.isProfilesNotManagedFilterAvailable())) {
+      const isManagedFilter = filterKey === "profilesNotManagedBy" || filterKey === "profilesManagedBy";
+      if (!filterKey || (isManagedFilter && !this.isProfilesNotManagedFilterAvailable())) {
         return;
       }
 
       const nextValue = !this.hideFilterStates[filterKey];
+
+      if (isManagedFilter && nextValue) {
+        const oppositeFilterKey = filterKey === "profilesNotManagedBy" ? "profilesManagedBy" : "profilesNotManagedBy";
+        this.setHideFilterState(oppositeFilterKey, false);
+      }
+
       this.setHideFilterState(filterKey, nextValue);
 
-      if (filterKey === "profilesNotManagedBy" && nextValue) {
+      if (isManagedFilter && nextValue) {
         this.userInitiatedManagedProfilesFetch = true;
         try {
           await this.ensureManagedProfilesSet(true);
