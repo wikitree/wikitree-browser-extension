@@ -423,10 +423,21 @@ class FeedHelper {
     this.activityWarningsStorageKey = "FeedHelper-activity-warnings";
     this.dismissedWarningsStorageKey = "FeedHelper-dismissed-warnings"; // Global dismissed warnings
     this.hideWhitelistActivityStorageKey = "FeedHelper-hideWhitelistActivity";
+    this.hideFilterStatesStorageKey = "FeedHelper-hideFilterStates";
+    this.managedProfilesCacheStorageKey = "FeedHelper-managedProfilesCache";
+    this.managedProfilesCacheHours = 1;
     this.lastActiveKey = "FeedHelper-last-active";
     this.sessionTimeoutHours = 2; // Clean up data older than 2 hours
     this.storedActivityWarnings = {}; // Rapid activity alerts restored from storage
-    this.hideWhitelistActivityEnabled = localStorage.getItem(this.hideWhitelistActivityStorageKey) === "true";
+    this.hideFilterStates = this.getStoredHideFilterStates();
+    this.hideWhitelistActivityEnabled = !!this.hideFilterStates.whitelistActivity;
+    this.watchlistOwnerWtId = this.getWatchlistOwnerWtId();
+    this.currentUserWtId = getUserWtId();
+    this.activeManagerLabel = this.getProfilesNotManagedLabel();
+    this.managedProfilesSet = null;
+    this.managedProfilesFetchPromise = null;
+    this.userInitiatedManagedProfilesFetch = false;
+    this.isFeedItemMetadataPrepared = false;
 
     // Set up localStorage with time-based cleanup
     this.setupBioStorage();
@@ -771,7 +782,7 @@ class FeedHelper {
 
     const style = document.createElement("style");
     style.id = "feedHelperWhitelistHideStyle";
-    style.textContent = `.feed-item.feed-helper-whitelist-hidden { display: none !important; }`;
+    style.textContent = `.feed-item.feed-helper-whitelist-hidden, .feed-item.feed-helper-filter-hidden { display: none !important; }`;
     document.head.appendChild(style);
   }
 
@@ -790,60 +801,415 @@ class FeedHelper {
     return match ? decodeURIComponent(match[1]) : null;
   }
 
-  updateWhitelistActivityToggleButtonLabel() {
-    const $button = $("#toggleWhitelistActivityButton");
-    if ($button.length === 0) {
-      return;
+  getDefaultHideFilterStates() {
+    return {
+      whitelistActivity: false,
+      allProfiles: false,
+      profilesNotManagedBy: false,
+      spacePages: false,
+      g2g: false,
+    };
+  }
+
+  getStoredHideFilterStates() {
+    const defaults = this.getDefaultHideFilterStates();
+    let parsed = {};
+    const raw = localStorage.getItem(this.hideFilterStatesStorageKey);
+    if (raw) {
+      try {
+        parsed = JSON.parse(raw) || {};
+      } catch (error) {
+        console.error("FeedHelper: Unable to parse hide filter states", error);
+      }
     }
 
-    if (this.hideWhitelistActivityEnabled) {
-      $button.text("Show Whitelist Activity");
-      $button.attr("title", "Show feed activity by whitelisted members");
-    } else {
-      $button.text("Hide Whitelist Activity");
-      $button.attr("title", "Hide feed activity by whitelisted members");
+    const legacyWhitelistState = localStorage.getItem(this.hideWhitelistActivityStorageKey) === "true";
+    const states = {
+      ...defaults,
+      ...parsed,
+      whitelistActivity: parsed.whitelistActivity !== undefined ? !!parsed.whitelistActivity : !!legacyWhitelistState,
+    };
+
+    // This filter requires an API/WT+ lookup; start disabled on each page load
+    // and only load data after an explicit button click.
+    states.profilesNotManagedBy = false;
+
+    return states;
+  }
+
+  persistHideFilterStates() {
+    localStorage.setItem(this.hideFilterStatesStorageKey, JSON.stringify(this.hideFilterStates));
+    localStorage.setItem(this.hideWhitelistActivityStorageKey, String(!!this.hideFilterStates.whitelistActivity));
+  }
+
+  setHideFilterState(filterKey, value) {
+    this.hideFilterStates[filterKey] = !!value;
+    this.hideWhitelistActivityEnabled = !!this.hideFilterStates.whitelistActivity;
+    this.persistHideFilterStates();
+  }
+
+  getWatchlistOwnerWtId() {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("watchlist")) {
+      return null;
+    }
+
+    const who = url.searchParams.get("who");
+    return who ? decodeURIComponent(who) : null;
+  }
+
+  getProfilesNotManagedLabel() {
+    const managerId = this.watchlistOwnerWtId;
+    if (!managerId) {
+      return "Profiles Not Managed";
+    }
+
+    if (this.currentUserWtId && String(this.currentUserWtId).toLowerCase() === String(managerId).toLowerCase()) {
+      return "Profiles Not Managed by Me";
+    }
+
+    return `Profiles Not Managed by ${managerId}`;
+  }
+
+  isWatchlistFeedPage() {
+    const url = new URL(window.location.href);
+    const title = url.searchParams.get("title") || "";
+    return title.includes("Special:NetworkFeed") && url.searchParams.get("watchlist") === "1";
+  }
+
+  isProfilesNotManagedFilterAvailable() {
+    return this.isWatchlistFeedPage() && !!this.watchlistOwnerWtId;
+  }
+
+  async ensureManagedProfilesSet(allowFetch = false) {
+    if (!this.isProfilesNotManagedFilterAvailable()) {
+      this.managedProfilesSet = new Set();
+      return this.managedProfilesSet;
+    }
+
+    if (!this.hideFilterStates?.profilesNotManagedBy) {
+      // Guard against any non-button/background invocation.
+      return null;
+    }
+
+    if (!allowFetch && !this.managedProfilesSet) {
+      // Defensive guard: never fetch manager data implicitly.
+      return null;
+    }
+
+    if (allowFetch && !this.userInitiatedManagedProfilesFetch && !this.managedProfilesSet) {
+      // Hard guard: fetches must originate from explicit user interaction.
+      return null;
+    }
+
+    if (this.managedProfilesSet) {
+      return this.managedProfilesSet;
+    }
+
+    if (this.managedProfilesFetchPromise) {
+      return this.managedProfilesFetchPromise;
+    }
+
+    this.managedProfilesFetchPromise = this.loadManagedProfilesSet().finally(() => {
+      this.managedProfilesFetchPromise = null;
+    });
+
+    return this.managedProfilesFetchPromise;
+  }
+
+  getManagedProfilesCache() {
+    const raw = localStorage.getItem(this.managedProfilesCacheStorageKey);
+    if (!raw) {
+      return {};
+    }
+
+    try {
+      return JSON.parse(raw) || {};
+    } catch (error) {
+      console.error("FeedHelper: Unable to parse managed profiles cache", error);
+      return {};
     }
   }
 
-  applyWhitelistActivityVisibility() {
-    this.ensureWhitelistActivityHideStyle();
+  setManagedProfilesCache(cache) {
+    localStorage.setItem(this.managedProfilesCacheStorageKey, JSON.stringify(cache));
+  }
 
-    const whitelist = this.getWhitelist();
-    const whitelistSet = new Set(whitelist.map((id) => String(id).toLowerCase()));
-    const hideEnabled = !!this.hideWhitelistActivityEnabled;
+  getManagedProfilesCacheKey(managerId) {
+    if (!managerId) {
+      return null;
+    }
+    return `${String(managerId).toLowerCase()}::${this.getCurrentPageIdentifier()}`;
+  }
+
+  getCachedManagedProfileSet(managerId) {
+    if (!managerId) {
+      return null;
+    }
+
+    const cache = this.getManagedProfilesCache();
+    const cacheKey = this.getManagedProfilesCacheKey(managerId);
+    const cachedEntry = cache[cacheKey];
+
+    if (!cachedEntry || !Array.isArray(cachedEntry.names) || !cachedEntry.expiresAt) {
+      return null;
+    }
+
+    if (Date.now() > cachedEntry.expiresAt) {
+      delete cache[cacheKey];
+      this.setManagedProfilesCache(cache);
+      return null;
+    }
+
+    return new Set(cachedEntry.names.map((name) => String(name).toLowerCase()));
+  }
+
+  cacheManagedProfileSet(managerId, profileSet, source) {
+    if (!managerId || !(profileSet instanceof Set)) {
+      return;
+    }
+
+    const cache = this.getManagedProfilesCache();
+    const cacheKey = this.getManagedProfilesCacheKey(managerId);
+    cache[cacheKey] = {
+      source,
+      names: Array.from(profileSet),
+      expiresAt: Date.now() + this.managedProfilesCacheHours * 60 * 60 * 1000,
+    };
+    this.setManagedProfilesCache(cache);
+  }
+
+  normalizeManagersCollection(managers) {
+    if (!managers) {
+      return [];
+    }
+
+    if (Array.isArray(managers)) {
+      return managers;
+    }
+
+    if (typeof managers === "object") {
+      return Object.values(managers);
+    }
+
+    return [managers];
+  }
+
+  isProfileManagedBy(managerId, managers) {
+    if (!managerId) {
+      return false;
+    }
+
+    const managerLookup = String(managerId).toLowerCase();
+    return this.normalizeManagersCollection(managers).some((managerEntry) => {
+      const managerName =
+        typeof managerEntry === "string"
+          ? managerEntry
+          : managerEntry?.Name || managerEntry?.name || managerEntry?.WikiTreeId || managerEntry?.WikiTreeID;
+      return managerName && String(managerName).toLowerCase() === managerLookup;
+    });
+  }
+
+  getFeedProfileIdsForManagedCheck() {
+    this.prepareFeedItemsForFiltering();
+    const ids = new Set();
+
+    $("span.feed-item").each((_, element) => {
+      const $item = $(element);
+      const profileIds = $item.data("feedHelperProfileIds") || [];
+      profileIds.forEach((profileId) => {
+        if (profileId) {
+          ids.add(String(profileId));
+        }
+      });
+    });
+
+    return Array.from(ids);
+  }
+
+  async fetchManagedProfilesFromFeedProfiles(managerId) {
+    const profileIds = this.getFeedProfileIdsForManagedCheck();
+    if (profileIds.length === 0) {
+      return new Set();
+    }
+
+    const managedProfiles = new Set();
+    const batchSize = 1000;
+    for (let i = 0; i < profileIds.length; i += batchSize) {
+      const batch = profileIds.slice(i, i + batchSize);
+      const peopleResponse = await WikiTreeAPI.getPeople(WBE_RANGERS_APP_ID, batch, ["Name", "Managers"], {
+        resolveRedirect: 0,
+      });
+      const people = peopleResponse?.[2] || {};
+
+      Object.values(people).forEach((person) => {
+        if (person?.Name && this.isProfileManagedBy(managerId, person.Managers)) {
+          managedProfiles.add(String(person.Name).toLowerCase());
+        }
+      });
+    }
+
+    return managedProfiles;
+  }
+
+  async loadManagedProfilesSet() {
+    if (!this.userInitiatedManagedProfilesFetch && !this.managedProfilesSet) {
+      return null;
+    }
+
+    const managerId = this.watchlistOwnerWtId;
+    const cachedSet = this.getCachedManagedProfileSet(managerId);
+    if (cachedSet) {
+      this.managedProfilesSet = cachedSet;
+      return cachedSet;
+    }
+
+    let managedProfiles = new Set();
+    const isOwnWatchlist =
+      this.currentUserWtId && String(this.currentUserWtId).toLowerCase() === String(managerId).toLowerCase();
+
+    try {
+      this.showShaky(`Loading managed profiles for ${this.activeManagerLabel.toLowerCase()}...`, "corner");
+      managedProfiles = await this.fetchManagedProfilesFromFeedProfiles(managerId);
+      this.cacheManagedProfileSet(managerId, managedProfiles, isOwnWatchlist ? "feed-profiles-me" : "feed-profiles");
+    } catch (error) {
+      console.error("FeedHelper: Unable to fetch managed profiles", error);
+      managedProfiles = new Set();
+    } finally {
+      this.hideShaky();
+    }
+
+    this.managedProfilesSet = managedProfiles;
+    return managedProfiles;
+  }
+
+  prepareFeedItemsForFiltering() {
+    if (this.isFeedItemMetadataPrepared) {
+      return;
+    }
+
+    $("span.feed-item").each((_, element) => {
+      const $item = $(element);
+      const itemText = ($item.text() || "").toLowerCase();
+      const hasSpaceLink =
+        $item.find("a[href*='/wiki/Space:'], a[href*='/wiki/Space%3A'], a[href*='/wiki/Space%3a']").length > 0;
+      const hasG2GLink = $item.find("a[href*='/g2g/']").length > 0;
+      const isG2G = hasG2GLink && (itemText.includes("asked a question") || itemText.includes("answered a question"));
+
+      const profileIds = this.getProfileIdsFromHistoryItem($item)
+        .map((id) => String(id))
+        .filter((id) => id && !id.toLowerCase().startsWith("space:"));
+
+      const hasProfileActivity = !hasSpaceLink;
+      const hasSpaceActivity = hasSpaceLink;
+
+      $item.data("feedHelperHasProfileActivity", hasProfileActivity);
+      $item.data("feedHelperHasSpaceActivity", hasSpaceActivity);
+      $item.data("feedHelperIsG2G", isG2G);
+      $item.data("feedHelperProfileIds", profileIds);
+
+      // Preserve old classes to support existing styles/logic.
+      $item.toggleClass("feed-item--space", hasSpaceActivity).toggleClass("feed-item--profile", hasProfileActivity);
+    });
+
+    this.isFeedItemMetadataPrepared = true;
+  }
+
+  updateHideFilterButtons() {
+    const filterButtons = $("#feedHelperHideFilters .feed-helper-filter-btn");
+    filterButtons.each((_, element) => {
+      const $button = $(element);
+      const filterKey = $button.data("filter-key");
+      const isEnabled = !!this.hideFilterStates[filterKey];
+      $button.toggleClass("active", isEnabled);
+      $button.attr("aria-pressed", isEnabled ? "true" : "false");
+    });
+
+    const managedByButton = $("#hideProfilesNotManagedByButton");
+    if (managedByButton.length > 0) {
+      managedByButton.text(this.activeManagerLabel);
+      const available = this.isProfilesNotManagedFilterAvailable();
+      managedByButton.prop("disabled", !available);
+      managedByButton.toggleClass("disabled", !available);
+      if (!available) {
+        managedByButton.attr("title", "This filter is available on watchlist activity feed pages only");
+      } else {
+        managedByButton.attr("title", `Hide profiles not managed by ${this.watchlistOwnerWtId}`);
+      }
+    }
+  }
+
+  async applyFeedFilters() {
+    this.ensureWhitelistActivityHideStyle();
+    this.prepareFeedItemsForFiltering();
+
+    const whitelistSet = new Set(this.getWhitelist().map((id) => String(id).toLowerCase()));
+    const activeFilters = this.hideFilterStates || this.getDefaultHideFilterStates();
+
+    let managedProfileSet = null;
+    if (activeFilters.profilesNotManagedBy && this.isProfilesNotManagedFilterAvailable()) {
+      managedProfileSet = this.managedProfilesSet;
+    }
 
     let hiddenCount = 0;
     $("span.feed-item").each((_, element) => {
       const $item = $(element);
+      let shouldHide = false;
 
-      if (!hideEnabled || whitelistSet.size === 0) {
-        $item.removeClass("feed-helper-whitelist-hidden");
-        return;
+      if (activeFilters.whitelistActivity && whitelistSet.size > 0) {
+        const actorId = this.getFeedItemActorId($item);
+        if (actorId && whitelistSet.has(String(actorId).toLowerCase())) {
+          shouldHide = true;
+        }
       }
 
-      const actorId = this.getFeedItemActorId($item);
-      const isWhitelisted = actorId ? whitelistSet.has(String(actorId).toLowerCase()) : false;
+      if (!shouldHide && activeFilters.allProfiles && $item.data("feedHelperHasProfileActivity")) {
+        shouldHide = true;
+      }
 
-      if (isWhitelisted) {
-        $item.addClass("feed-helper-whitelist-hidden");
+      if (!shouldHide && activeFilters.spacePages && $item.data("feedHelperHasSpaceActivity")) {
+        shouldHide = true;
+      }
+
+      if (!shouldHide && activeFilters.g2g && $item.data("feedHelperIsG2G")) {
+        shouldHide = true;
+      }
+
+      if (
+        !shouldHide &&
+        activeFilters.profilesNotManagedBy &&
+        this.isProfilesNotManagedFilterAvailable() &&
+        $item.data("feedHelperHasProfileActivity") &&
+        managedProfileSet
+      ) {
+        const profileIds = $item.data("feedHelperProfileIds") || [];
+        if (profileIds.length > 0) {
+          const hasManagedProfile = profileIds.some((profileId) =>
+            managedProfileSet.has(String(profileId).toLowerCase())
+          );
+          if (!hasManagedProfile) {
+            shouldHide = true;
+          }
+        }
+      }
+
+      $item.toggleClass("feed-helper-filter-hidden", shouldHide);
+      if (shouldHide) {
         hiddenCount++;
-      } else {
-        $item.removeClass("feed-helper-whitelist-hidden");
       }
     });
 
-    this.updateWhitelistActivityToggleButtonLabel();
-    this.debug(
-      `Whitelist activity visibility applied: hideEnabled=${hideEnabled}, whitelistedUsers=${
-        whitelistSet.size
-      }, hiddenItems=${hideEnabled ? hiddenCount : 0}`
-    );
+    this.updateHideFilterButtons();
+    this.debug(`Feed filters applied: hiddenItems=${hiddenCount}`);
+  }
+
+  applyWhitelistActivityVisibility() {
+    this.applyFeedFilters();
   }
 
   toggleWhitelistActivityVisibility() {
-    this.hideWhitelistActivityEnabled = !this.hideWhitelistActivityEnabled;
-    localStorage.setItem(this.hideWhitelistActivityStorageKey, String(this.hideWhitelistActivityEnabled));
-    this.applyWhitelistActivityVisibility();
+    this.setHideFilterState("whitelistActivity", !this.hideFilterStates.whitelistActivity);
+    this.applyFeedFilters();
   }
 
   showWhitelistManager() {
@@ -2886,24 +3252,29 @@ class FeedHelper {
   }
 
   addWhitelistActivityToggleButton() {
-    const existing = $("#toggleWhitelistActivityButton");
-    if (existing.length > 0) {
-      this.updateWhitelistActivityToggleButtonLabel();
+    this.addHideFiltersSection();
+  }
+
+  addHideFiltersSection() {
+    if ($("#feedHelperHideFilters").length > 0) {
+      this.updateHideFilterButtons();
       return;
     }
 
-    const toggleButton = $(
-      `<button id="toggleWhitelistActivityButton" class="button small" style="float: right;"></button>`
+    const hideFilterSection = $(
+      `<div id="feedHelperHideFilters" class="feed-helper-hide-filters" aria-label="Feed helper hide filters">
+        <span class="feed-helper-hide-label">Hide:</span>
+        <button type="button" class="button small feed-helper-filter-btn" data-filter-key="whitelistActivity" aria-pressed="false" title="Hide activity by whitelisted users">Whitelist Activity</button>
+        <button type="button" class="button small feed-helper-filter-btn" data-filter-key="allProfiles" aria-pressed="false" title="Hide profile activity">All Profiles</button>
+        <button type="button" id="hideProfilesNotManagedByButton" class="button small feed-helper-filter-btn" data-filter-key="profilesNotManagedBy" aria-pressed="false"></button>
+        <button type="button" class="button small feed-helper-filter-btn" data-filter-key="spacePages" aria-pressed="false" title="Hide space page activity">Space Pages</button>
+        <button type="button" class="button small feed-helper-filter-btn" data-filter-key="g2g" aria-pressed="false" title="Hide G2G items">G2G</button>
+      </div>`
     );
 
-    this.feedHelperButtons.append(toggleButton);
-    this.updateWhitelistActivityToggleButtonLabel();
-
-    $(document).on("click", "#toggleWhitelistActivityButton", () => {
-      this.toggleWhitelistActivityVisibility();
-    });
-
-    this.applyWhitelistActivityVisibility();
+    this.feedHelperButtons.append(hideFilterSection);
+    this.updateHideFilterButtons();
+    this.applyFeedFilters();
   }
 
   getCurrentConfig() {
@@ -3802,6 +4173,28 @@ class FeedHelper {
         }
       }
     });
+
+    $(document).on("click", "#feedHelperHideFilters .feed-helper-filter-btn", async (event) => {
+      const button = $(event.currentTarget);
+      const filterKey = button.data("filter-key");
+      if (!filterKey || (filterKey === "profilesNotManagedBy" && !this.isProfilesNotManagedFilterAvailable())) {
+        return;
+      }
+
+      const nextValue = !this.hideFilterStates[filterKey];
+      this.setHideFilterState(filterKey, nextValue);
+
+      if (filterKey === "profilesNotManagedBy" && nextValue) {
+        this.userInitiatedManagedProfilesFetch = true;
+        try {
+          await this.ensureManagedProfilesSet(true);
+        } finally {
+          this.userInitiatedManagedProfilesFetch = false;
+        }
+      }
+
+      this.applyFeedFilters();
+    });
   }
 
   addFullCheckButton() {
@@ -3907,6 +4300,7 @@ class FeedHelper {
       this.mergesStorageKey,
       this.memberDataStorageKey,
       this.anomaliesStorageKey,
+      this.managedProfilesCacheStorageKey,
       // Removed "pre1700" and "pre1500Recent" to preserve new people highlights
       "excludedNames",
       "warningsShown",
@@ -3945,6 +4339,9 @@ class FeedHelper {
 
     // Reset internal state
     this.people = null;
+    this.managedProfilesSet = null;
+    this.managedProfilesFetchPromise = null;
+    this.isFeedItemMetadataPrepared = false;
     // Log bio check results being cleared
     const bioResultsCount = Object.keys(this.bioCheckResults || {}).length;
     this.debug(`WBE: Clearing ${bioResultsCount} cached bio check results from memory`);
