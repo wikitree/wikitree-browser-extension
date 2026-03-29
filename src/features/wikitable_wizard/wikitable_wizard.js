@@ -834,6 +834,23 @@ function renderTableFromData(parsedData, wikiTableData = null) {
         headerRow[parseInt(value)] = formattedKey;
       }
 
+      // Determine the maximum number of columns
+      const maxColumns = Math.max(headerRow.length, ...parsedData.map((row) => row.length));
+
+      // Normalize all rows to have equal cell counts
+      parsedData = parsedData.map((row) => {
+        if (row.length < maxColumns) {
+          // Pad row with empty strings to match max columns
+          return [...row, ...new Array(maxColumns - row.length).fill("")];
+        }
+        return row;
+      });
+
+      // Ensure header row also has the correct number of columns
+      if (headerRow.length < maxColumns) {
+        headerRow = [...headerRow, ...new Array(maxColumns - headerRow.length).fill("")];
+      }
+
       // Check if headers should be generated
       if ($("#addGeneratedHeaders").prop("checked") && includesAtLeastN(headerItems, headerRow, 3)) {
         $("#addGeneratedHeadersLabel").show();
@@ -1109,9 +1126,12 @@ function detectDelimiter(data) {
   // Define how many lines you want to check for consistency
   const linesToCheck = 3;
 
-  // Check if the first few lines have a consistent number of tabs
+  // Check if lines with tabs have a consistent number of tabs.
+  // Ignore heading lines that have no delimiter so mixed list/table input still parses.
   const tabCounts = lines.slice(0, linesToCheck).map((line) => (line.match(/\t/g) || []).length);
-  const allTabsConsistent = tabCounts.every((count) => count === tabCounts[0] && count > 0);
+  const tabCountsWithDelimiter = tabCounts.filter((count) => count > 0);
+  const allTabsConsistent =
+    tabCountsWithDelimiter.length >= 1 && tabCountsWithDelimiter.every((count) => count === tabCountsWithDelimiter[0]);
 
   if (allTabsConsistent) {
     console.log("Detected tab delimiter");
@@ -1130,9 +1150,12 @@ function detectDelimiter(data) {
   }
 
   // Check if the first few lines have a consistent number of parts when split by sequences of 4 spaces
-  const fourSpaceCounts = lines.slice(0, linesToCheck).map(countPartsAfterSplitting);
+  const fourSpaceCounts = lines.slice(0, linesToCheck).map((line) => countPartsAfterSplitting(line) - 1);
   console.log(`Four-space counts for the first ${linesToCheck} lines:`, fourSpaceCounts);
-  const allFourSpacesConsistent = fourSpaceCounts.every((count) => count === fourSpaceCounts[0] && count > 1);
+  const fourSpaceCountsWithDelimiter = fourSpaceCounts.filter((count) => count > 0);
+  const allFourSpacesConsistent =
+    fourSpaceCountsWithDelimiter.length >= 1 &&
+    fourSpaceCountsWithDelimiter.every((count) => count === fourSpaceCountsWithDelimiter[0]);
   console.log(`All four-space counts consistent: ${allFourSpacesConsistent}`);
 
   if (allFourSpacesConsistent) {
@@ -1157,6 +1180,22 @@ function detectDelimiter(data) {
   return null; // Fallback in case no clear delimiter is found
 }
 
+function detectLineDelimiter(line) {
+  if ((line.match(/\t/g) || []).length > 0) {
+    return "\t";
+  }
+
+  if ((line.match(/(?:\u00A0| ) {3,}|\u00A0{4}/g) || []).length > 0 || /(?:\u00A0| ) {3,}/.test(line)) {
+    return "    ";
+  }
+
+  if ((line.match(/,/g) || []).length > 0) {
+    return ",";
+  }
+
+  return null;
+}
+
 function parseLine(line, delimiter) {
   console.log(`Parsing line with delimiter '${delimiter}': ${line}`);
   line = line.replace(/^[:*#]+/, ""); // Remove any leading colons, asterisks, or hash characters
@@ -1164,8 +1203,8 @@ function parseLine(line, delimiter) {
   if (!delimiter) return [line];
   let fields;
   if (delimiter === "    ") {
-    // Special case for four-space delimiter: split by exactly four spaces or non-breaking spaces
-    fields = line.split(/[\s\u00A0]{4}/);
+    // Preserve leading indentation so an indented row starts with an empty first cell.
+    fields = line.split(/[ \u00A0]{4,}/);
   } else {
     fields = line.split(delimiter);
   }
@@ -1175,8 +1214,7 @@ function parseLine(line, delimiter) {
 }
 
 function parseDelimitedText(data) {
-  const firstLine = data.split("\n")[0];
-  const delimiter = detectDelimiter(firstLine);
+  const delimiter = detectDelimiter(data);
   console.log(`Detected delimiter: ${delimiter}`);
 
   if (delimiter === "\t") {
@@ -1189,7 +1227,7 @@ function parseDelimitedText(data) {
     const parsedData = data
       .split("\n")
       .filter((line) => typeof line === "string" && line.trim() !== "")
-      .map((line) => parseLine(line, delimiter));
+      .map((line) => parseLine(line, delimiter || detectLineDelimiter(line)));
     console.log(`Parsed delimited data:`, parsedData);
     return parsedData;
   }
@@ -1287,6 +1325,7 @@ function createwikitableWizardModal() {
       <fieldset id='classes'>Classes:
         <label><input type="checkbox" id="wikitableWizardSortable"> sortable</label>
         <label><input type="checkbox" id="wikitableWizardWikitableClass"> wikitable</label>
+        <small>Right-click in a cell for more actions</small>
       </fieldset>  
       <div id="wikitableWizardHelp">
       <x>x</x>
