@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2025 Kathryn J Knight
+Copyright (c) 2026 Kathryn J Knight
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -40,7 +40,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * Id,Name,IsLiving,Privacy,Manager,IsMember,
  * BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,
  * BirthLocation,DeathLocation,
- * FirstName,RealName,LastNameCurrent,LastNameAtBirth,Mother,Father,DataStatus,Bio
+ * FirstName,RealName,LastNameCurrent,LastNameAtBirth,DataStatus,Bio
  */
 export class BioCheckPerson {
   #birthDate = null; // as a Date object
@@ -71,10 +71,6 @@ export class BioCheckPerson {
     hasBirthLocation: false,
     hasDeathLocation: false,
     uncheckedDueToPrivacy: false,
-    hasFather: false,
-    hasMother: false,
-    hasFatherStatus: false,
-    hasMotherStatus: false,
     uncheckedDueToDate: false,
     fatherDnaConfirmed: false,
     motherDnaConfirmed: false,
@@ -175,25 +171,15 @@ export class BioCheckPerson {
         this.person.hasLocation = true;
         this.person.hasDeathLocation = true;
       }
-      if (profileObj.Father != null) {
-        this.person.hasFather = true;
+
+      // To check for DNA status use Bio parent if not null else default to just parent
+      if ((profileObj.DataStatus.BioFather == BioCheckPerson.CONF_WITH_DNA_STATUS) ||
+          (profileObj.DataStatus.Father == BioCheckPerson.CONF_WITH_DNA_STATUS)) {
+        this.person.fatherDnaConfirmed = true;
       }
-      if (profileObj.Mother != null) {
-        this.person.hasMother = true;
-      }
-      if (profileObj.DataStatus != null) {
-        if (profileObj.DataStatus.Father != null) {
-          this.person.hasFatherStatus = true;
-          if (profileObj.DataStatus.Father == BioCheckPerson.CONF_WITH_DNA_STATUS) {
-            this.person.fatherDnaConfirmed = true;
-          }
-        }
-        if (profileObj.DataStatus.Mother != null) {
-          this.person.hasMotherStatus = true;
-          if (profileObj.DataStatus.Mother == BioCheckPerson.CONF_WITH_DNA_STATUS) {
-            this.person.motherDnaConfirmed = true;
-          }
-        }
+      if ((profileObj.DataStatus.BioMother == BioCheckPerson.CONF_WITH_DNA_STATUS) ||
+          (profileObj.DataStatus.Mother == BioCheckPerson.CONF_WITH_DNA_STATUS)) {
+        this.person.motherDnaConfirmed = true;
       }
       // can use if logged in user is the same as Manager
       if (this.person.privacyLevel < BioCheckPerson.MIN_PRIVACY) {
@@ -344,34 +330,6 @@ export class BioCheckPerson {
     return this.person.hasDeathLocation;
   }
   /**
-   * Does profile have father
-   * @returns {Boolean} true if profile has father
-   */
-  hasFather() {
-    return this.person.hasFather;
-  }
-  /**
-   * Does profile have mother
-   * @returns {Boolean} true if profile has mother
-   */
-  hasMother() {
-    return this.person.hasMother;
-  }
-  /**
-   * Does profile have father status
-   * @returns {Boolean} true if profile has father status
-   */
-  hasFatherStatus() {
-    return this.person.hasFatherStatus;
-  }
-  /**
-   * Does profile have mother status
-   * @returns {Boolean} true if profile has mother status
-   */
-  hasMotherStatus() {
-    return this.person.hasMotherStatus;
-  }
-  /**
    * Get the privacy
    * @returns {Number} numeric privacy level
    */
@@ -480,17 +438,27 @@ export class BioCheckPerson {
       this.person.hasDeathLocation = true;
     }
 
-    // Determine if has father and has mother
-    let fatherEl = document.querySelector('#Father .tree--person');
-    this.person.hasFather = !!(fatherEl && fatherEl.querySelector('a[href^="/wiki/"]'));
-    let motherEl = document.querySelector('#Mother .tree--person');
-    this.person.hasMother = !!(motherEl && motherEl.querySelector('a[href^="/wiki/"]'));
-
     // get DNA confirmation status
-    let val = document.getElementsByName("mStatus_Father");
+    let val = document.getElementsByName("mStatus_BioFather");
     for (let radio of val) {
       if (radio.checked) {
-        this.person.hasFatherStatus = true;
+        if (radio.value == BioCheckPerson.CONF_WITH_DNA_STATUS) {
+          this.person.fatherDnaConfirmed = true;
+        }
+      }
+    }
+    val = document.getElementsByName("mStatus_BioMother");
+    for (let radio of val) {
+      if (radio.checked) {
+        this.person.hasMotherStatus = true;
+        if (radio.value == BioCheckPerson.CONF_WITH_DNA_STATUS) {
+          this.person.motherDnaConfirmed = true;
+        }
+      }
+    }
+    val = document.getElementsByName("mStatus_Father");
+    for (let radio of val) {
+      if (radio.checked) {
         if (radio.value == BioCheckPerson.CONF_WITH_DNA_STATUS) {
           this.person.fatherDnaConfirmed = true;
         }
