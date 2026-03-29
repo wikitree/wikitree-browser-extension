@@ -75,7 +75,10 @@ function normalizeWikiCell(cell) {
 }
 
 function parseWikiCellSegment(segment, marker) {
-  const trimmedSegment = segment.trim().replace(new RegExp(`^\\${marker}`), "").trim();
+  const trimmedSegment = segment
+    .trim()
+    .replace(new RegExp(`^\\${marker}`), "")
+    .trim();
   const pipeIndex = trimmedSegment.indexOf("|");
   let text = trimmedSegment;
   let attributes = "";
@@ -156,9 +159,11 @@ function hasCellSpan(cell) {
 }
 
 function tableHasMergedCells() {
-  return $(
-    `#wikitableWizardTable tbody td.${mergedPlaceholderClass}, #wikitableWizardTable tbody td[colspan], #wikitableWizardTable tbody td[rowspan]`
-  ).length > 0;
+  return (
+    $(
+      `#wikitableWizardTable tbody td.${mergedPlaceholderClass}, #wikitableWizardTable tbody td[colspan], #wikitableWizardTable tbody td[rowspan]`
+    ).length > 0
+  );
 }
 
 function getDataCellAt(rowIndex, columnIndex) {
@@ -477,7 +482,10 @@ function unmergeCell(cell) {
 
       const targetCell = getDataCellAt(rowIndex + rowOffset, dataColumnIndex + colOffset);
       restoreEditableCell(targetCell, targetRow);
-      targetCell.find("input[type=text]").val(distributedValues[valueIndex] || "").trigger("change");
+      targetCell
+        .find("input[type=text]")
+        .val(distributedValues[valueIndex] || "")
+        .trigger("change");
       valueIndex++;
     }
   }
@@ -601,7 +609,12 @@ function parseWikiTableData(data) {
         ...row,
         cells: normalizedCells.map((cell) => ({
           ...cell,
-          text: isBoldRow ? cell.text.replace(/^\s*'''/, "").replace(/'''\s*$/, "").trim() : cell.text,
+          text: isBoldRow
+            ? cell.text
+                .replace(/^\s*'''/, "")
+                .replace(/'''\s*$/, "")
+                .trim()
+            : cell.text,
         })),
         isBold: isBoldRow,
         isFullWidth,
