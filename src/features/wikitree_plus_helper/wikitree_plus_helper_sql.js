@@ -612,8 +612,8 @@ export const SQL_TEMPLATES = [
   {
     category: "Biography",
     id: "bio-missing-sources-after-bio",
-    label: "Missing Sources after Biography",
-    description: "Find profiles without Biography followed by Sources heading",
+    label: "Missing or misplaced Biography or Sources heading",
+    description: "Find profiles without both Biography and Sources heading (in that order)",
     buildSql: () => "sql=\"Not([Bio].[Headings].AsString Like '*B2*S2*')\"",
     inputs: [],
   },
