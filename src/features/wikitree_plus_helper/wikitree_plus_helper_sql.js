@@ -8,6 +8,56 @@ const normalizeSqlValue = (value) =>
     .trim()
     .replace(/\s+/g, "_");
 
+function parseDatePatternInput(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  // Preferred format: dd/mm/yyyy, with ? wildcard support.
+  let m = raw.match(/^([\d?*]{2})\/([\d?*]{2})\/([\d?*]{4})$/);
+  let pattern;
+
+  if (m) {
+    const day = m[1].replace(/\*/g, "?");
+    const month = m[2].replace(/\*/g, "?");
+    const year = m[3].replace(/\*/g, "?");
+    pattern = `${year}${month}${day}`;
+  } else {
+    m = raw.match(/^([\d?*]{4})-([\d?*]{2})-([\d?*]{2})$/);
+    if (!m) return "";
+    const year = m[1].replace(/\*/g, "?");
+    const month = m[2].replace(/\*/g, "?");
+    const day = m[3].replace(/\*/g, "?");
+    pattern = `${year}${month}${day}`;
+  }
+
+  if (!pattern.includes("?")) {
+    const year = Number(pattern.slice(0, 4));
+    const month = Number(pattern.slice(4, 6));
+    const day = Number(pattern.slice(6, 8));
+    const probe = new Date(Date.UTC(year, month - 1, day));
+    if (probe.getUTCFullYear() !== year || probe.getUTCMonth() + 1 !== month || probe.getUTCDate() !== day) {
+      return "";
+    }
+  }
+
+  return pattern;
+}
+
+function getDateBounds(value) {
+  const pattern = parseDatePatternInput(value);
+  if (!pattern) {
+    return "";
+  }
+
+  return {
+    pattern,
+    exact: pattern,
+    min: pattern.replace(/\?/g, "0"),
+    max: pattern.replace(/\?/g, "9"),
+    hasWildcard: pattern.includes("?"),
+  };
+}
+
 export const SQL_TEMPLATES = [
   // Names
   {
@@ -54,14 +104,28 @@ export const SQL_TEMPLATES = [
   // Dates - Birth
   {
     category: "Dates: Birth",
+    id: "birth-on",
+    label: "Born on date",
+    description: "Find profiles born on specified date",
+    buildSql: (d) => {
+      const b = getDateBounds(d);
+      if (!b) return "";
+      return b.hasWildcard
+        ? `sql="([Default].[Birth Date].AsString Like '${b.pattern}')"`
+        : `sql="([Default].[Birth Date].AsNumber = ${b.exact})"`;
+    },
+    inputs: [{ type: "text", label: "Date", placeholder: "dd/mm/yyyy" }],
+  },
+  {
+    category: "Dates: Birth",
     id: "birth-before",
     label: "Born before date",
     description: "Find profiles born before specified date",
     buildSql: (d) => {
-      const n = d?.replace(/-/g, "").substr(0, 8);
-      return n ? `sql="([Default].[Birth Date].AsNumber < ${n})"` : "";
+      const b = getDateBounds(d);
+      return b ? `sql="([Default].[Birth Date].AsNumber < ${b.max})"` : "";
     },
-    inputs: [{ type: "date", label: "Date", placeholder: "1852-01-01" }],
+    inputs: [{ type: "text", label: "Date", placeholder: "dd/mm/yyyy" }],
   },
   {
     category: "Dates: Birth",
@@ -69,10 +133,25 @@ export const SQL_TEMPLATES = [
     label: "Born after date",
     description: "Find profiles born after specified date",
     buildSql: (d) => {
-      const n = d?.replace(/-/g, "").substr(0, 8);
-      return n ? `sql="([Default].[Birth Date].AsNumber > ${n})"` : "";
+      const b = getDateBounds(d);
+      return b ? `sql="([Default].[Birth Date].AsNumber > ${b.min})"` : "";
     },
-    inputs: [{ type: "date", label: "Date", placeholder: "1852-01-01" }],
+    inputs: [{ type: "text", label: "Date", placeholder: "dd/mm/yyyy" }],
+  },
+  {
+    category: "Dates: Birth",
+    id: "birth-between",
+    label: "Born between dates",
+    description: "Find profiles born between two dates",
+    buildSql: (s, e) => {
+      const sb = getDateBounds(s);
+      const eb = getDateBounds(e);
+      return sb && eb && sb.min <= eb.max ? `sql="([Default].[Birth Date].AsNumber In ${sb.min}..${eb.max})"` : "";
+    },
+    inputs: [
+      { type: "text", label: "Start", placeholder: "dd/mm/yyyy" },
+      { type: "text", label: "End", placeholder: "dd/mm/yyyy" },
+    ],
   },
   {
     category: "Dates: Birth",
@@ -108,14 +187,85 @@ export const SQL_TEMPLATES = [
   // Dates - Death
   {
     category: "Dates: Death",
+    id: "death-on",
+    label: "Died on date",
+    description: "Find profiles who died on specified date",
+    buildSql: (d) => {
+      const b = getDateBounds(d);
+      if (!b) return "";
+      return b.hasWildcard
+        ? `sql="([Default].[Death Date].AsString Like '${b.pattern}')"`
+        : `sql="([Default].[Death Date].AsNumber = ${b.exact})"`;
+    },
+    inputs: [{ type: "text", label: "Date", placeholder: "dd/mm/yyyy" }],
+  },
+  {
+    category: "Dates: Death",
     id: "death-before",
     label: "Died before date",
     description: "Find profiles who died before specified date",
     buildSql: (d) => {
-      const n = d?.replace(/-/g, "").substr(0, 8);
-      return n ? `sql="([Default].[Death Date].AsNumber < ${n})"` : "";
+      const b = getDateBounds(d);
+      return b ? `sql="([Default].[Death Date].AsNumber < ${b.max})"` : "";
     },
-    inputs: [{ type: "date", label: "Date", placeholder: "1852-01-01" }],
+    inputs: [{ type: "text", label: "Date", placeholder: "dd/mm/yyyy" }],
+  },
+  {
+    category: "Dates: Death",
+    id: "death-after",
+    label: "Died after date",
+    description: "Find profiles who died after specified date",
+    buildSql: (d) => {
+      const b = getDateBounds(d);
+      return b ? `sql="([Default].[Death Date].AsNumber > ${b.min})"` : "";
+    },
+    inputs: [{ type: "text", label: "Date", placeholder: "dd/mm/yyyy" }],
+  },
+  {
+    category: "Dates: Death",
+    id: "death-between",
+    label: "Died between dates",
+    description: "Find profiles who died between two dates",
+    buildSql: (s, e) => {
+      const sb = getDateBounds(s);
+      const eb = getDateBounds(e);
+      return sb && eb && sb.min <= eb.max ? `sql="([Default].[Death Date].AsNumber In ${sb.min}..${eb.max})"` : "";
+    },
+    inputs: [
+      { type: "text", label: "Start", placeholder: "dd/mm/yyyy" },
+      { type: "text", label: "End", placeholder: "dd/mm/yyyy" },
+    ],
+  },
+  {
+    category: "Dates: Death",
+    id: "death-decade",
+    label: "Died in decade",
+    description: "Find profiles who died in a specific decade",
+    buildSql: (d) => {
+      const cleaned = String(d || "").replace(/[^0-9]/g, "");
+      const decade = cleaned.slice(0, 4);
+      if (!/^[0-9]{4}$/.test(decade) || !decade.endsWith("0")) return "";
+      const s = decade + "0000";
+      const e = String(parseInt(decade, 10) + 9) + "9999";
+      return `sql="([Default].[Death Date].AsNumber In ${s}..${e})"`;
+    },
+    inputs: [{ type: "text", label: "Decade", placeholder: "1950s" }],
+  },
+  {
+    category: "Dates: Death",
+    id: "death-no-day",
+    label: "Death without day",
+    description: "Find profiles where day of death is not set",
+    buildSql: () => "sql=\"([Default].[Death Date].AsString Like '*00')\"",
+    inputs: [],
+  },
+  {
+    category: "Dates: Death",
+    id: "death-year-only",
+    label: "Death year only",
+    description: "Find profiles with only death year (no month/day)",
+    buildSql: () => "sql=\"([Default].[Death Date].AsString Like '*0000')\"",
+    inputs: [],
   },
   {
     category: "Dates: Death",
@@ -150,6 +300,25 @@ export const SQL_TEMPLATES = [
   },
   {
     category: "Locations",
+    id: "birth-country",
+    label: "Birth country equals",
+    description: "Find profiles by birth country",
+    buildSql: (c) => {
+      const v = normalizeSqlValue(c);
+      return v ? `sql="([Default].[Birth Location Country].AsString = '${v.toLowerCase()}')"` : "";
+    },
+    inputs: [{ type: "text", label: "Country", placeholder: "canada" }],
+  },
+  {
+    category: "Locations",
+    id: "birth-unrecognized-locations",
+    label: "Unrecognized birth locations",
+    description: "Find profiles with unrecognized birth locations",
+    buildSql: () => "sql=\"(Trim([Default].[Birth Location Country, Region, City].AsString) = '')\"",
+    inputs: [],
+  },
+  {
+    category: "Locations",
     id: "death-country",
     label: "Death country equals",
     description: "Find profiles by death country",
@@ -170,11 +339,39 @@ export const SQL_TEMPLATES = [
   // Marriage
   {
     category: "Marriage",
-    id: "marriage-date-like",
-    label: "Marriage date (exact or wildcard)",
-    description: "Find marriages by date using YYYYMMDD or wildcards",
-    buildSql: (d) => (d ? `sql="([Marriage].[Marriage Date].AsString Like '${d}')"` : ""),
-    inputs: [{ type: "text", label: "Date", placeholder: "19011225 or 190112**" }],
+    id: "marriage-on",
+    label: "Married on date",
+    description: "Find marriages on specified date",
+    buildSql: (d) => {
+      const b = getDateBounds(d);
+      if (!b) return "";
+      return b.hasWildcard
+        ? `sql="([Marriage].[Marriage Date].AsString Like '${b.pattern}')"`
+        : `sql="([Marriage].[Marriage Date].AsNumber = ${b.exact})"`;
+    },
+    inputs: [{ type: "text", label: "Date", placeholder: "dd/mm/yyyy" }],
+  },
+  {
+    category: "Marriage",
+    id: "marriage-before",
+    label: "Married before date",
+    description: "Find marriages before specified date",
+    buildSql: (d) => {
+      const b = getDateBounds(d);
+      return b ? `sql="([Marriage].[Marriage Date].AsNumber < ${b.max})"` : "";
+    },
+    inputs: [{ type: "text", label: "Date", placeholder: "dd/mm/yyyy" }],
+  },
+  {
+    category: "Marriage",
+    id: "marriage-after",
+    label: "Married after date",
+    description: "Find marriages after specified date",
+    buildSql: (d) => {
+      const b = getDateBounds(d);
+      return b ? `sql="([Marriage].[Marriage Date].AsNumber > ${b.min})"` : "";
+    },
+    inputs: [{ type: "text", label: "Date", placeholder: "dd/mm/yyyy" }],
   },
   {
     category: "Marriage",
@@ -182,14 +379,45 @@ export const SQL_TEMPLATES = [
     label: "Marriage date between",
     description: "Find marriages between two dates",
     buildSql: (from, to) => {
-      const f = from?.replace(/-/g, "").slice(0, 8);
-      const t = to?.replace(/-/g, "").slice(0, 8);
-      return f && t ? `sql="([Marriage].[Marriage Date] in ${f}..${t})"` : "";
+      const fb = getDateBounds(from);
+      const tb = getDateBounds(to);
+      return fb && tb && fb.min <= tb.max ? `sql="([Marriage].[Marriage Date] in ${fb.min}..${tb.max})"` : "";
     },
     inputs: [
-      { type: "date", label: "From", placeholder: "1499-12-31" },
-      { type: "date", label: "To", placeholder: "1973-12-31" },
+      { type: "text", label: "From", placeholder: "dd/mm/yyyy" },
+      { type: "text", label: "To", placeholder: "dd/mm/yyyy" },
     ],
+  },
+  {
+    category: "Marriage",
+    id: "marriage-decade",
+    label: "Married in decade",
+    description: "Find marriages in a specific decade",
+    buildSql: (d) => {
+      const cleaned = String(d || "").replace(/[^0-9]/g, "");
+      const decade = cleaned.slice(0, 4);
+      if (!/^[0-9]{4}$/.test(decade) || !decade.endsWith("0")) return "";
+      const s = decade + "0000";
+      const e = String(parseInt(decade, 10) + 9) + "9999";
+      return `sql="([Marriage].[Marriage Date].AsNumber In ${s}..${e})"`;
+    },
+    inputs: [{ type: "text", label: "Decade", placeholder: "1950s" }],
+  },
+  {
+    category: "Marriage",
+    id: "marriage-no-day",
+    label: "Marriage without day",
+    description: "Find marriages where day is not set",
+    buildSql: () => "sql=\"([Marriage].[Marriage Date].AsString Like '*00')\"",
+    inputs: [],
+  },
+  {
+    category: "Marriage",
+    id: "marriage-year-only",
+    label: "Marriage year only",
+    description: "Find marriages with only year (no month/day)",
+    buildSql: () => "sql=\"([Marriage].[Marriage Date].AsString Like '*0000')\"",
+    inputs: [],
   },
   {
     category: "Marriage",
@@ -204,11 +432,34 @@ export const SQL_TEMPLATES = [
   },
   {
     category: "Marriage",
-    id: "single-marriage",
-    label: "Exactly one marriage",
-    description: "Filter profiles with a single marriage entry",
-    buildSql: () => 'sql="([Marriage].[Marriage Location].LineCount = 1)"',
+    id: "marriage-unrecognized-locations",
+    label: "Unrecognized marriage locations",
+    description: "Find marriages with empty location",
+    buildSql: () => "sql=\"(Trim([Marriage].[Marriage Location].AsString) = '')\"",
     inputs: [],
+  },
+  {
+    category: "Marriage",
+    id: "marriage-country",
+    label: "Marriage country equals",
+    description: "Find marriages by country text at end of location",
+    buildSql: (c) => {
+      const v = normalizeSqlValue(c).toLowerCase();
+      return v ? `sql="([Marriage].[Marriage Location].AsString Like '*${v}')"` : "";
+    },
+    inputs: [{ type: "text", label: "Country", placeholder: "canada" }],
+  },
+  {
+    category: "Marriage",
+    id: "single-marriage",
+    label: "Exactly N marriage(s)",
+    description: "Filter profiles with exactly N marriage entries",
+    buildSql: (c) => {
+      const n = Number.parseInt(c, 10);
+      const target = Number.isFinite(n) && n > 0 ? n : 1;
+      return `sql="([Marriage].[Marriage Location].LineCount = ${target})"`;
+    },
+    inputs: [{ type: "number", label: "Exact marriages", placeholder: "1" }],
   },
   {
     category: "Marriage",
@@ -275,10 +526,10 @@ export const SQL_TEMPLATES = [
     label: "Created after date",
     description: "Find profiles created since specified date",
     buildSql: (d) => {
-      const n = d?.replace(/-/g, "").substr(0, 8);
-      return n ? `sql="([Bio].[Created Date].AsNumber > ${n})"` : "";
+      const b = getDateBounds(d);
+      return b ? `sql="([Bio].[Created Date].AsNumber > ${b.min})"` : "";
     },
-    inputs: [{ type: "date", label: "Date", placeholder: "2024-01-01" }],
+    inputs: [{ type: "text", label: "Date", placeholder: "dd/mm/yyyy" }],
   },
   {
     category: "Management",
@@ -286,10 +537,10 @@ export const SQL_TEMPLATES = [
     label: "Created before date",
     description: "Find profiles created before specified date",
     buildSql: (d) => {
-      const n = d?.replace(/-/g, "").substr(0, 8);
-      return n ? `sql="([Bio].[Created Date].AsNumber < ${n})"` : "";
+      const b = getDateBounds(d);
+      return b ? `sql="([Bio].[Created Date].AsNumber < ${b.max})"` : "";
     },
-    inputs: [{ type: "date", label: "Date", placeholder: "2024-01-01" }],
+    inputs: [{ type: "text", label: "Date", placeholder: "dd/mm/yyyy" }],
   },
   {
     category: "Management",
@@ -297,13 +548,13 @@ export const SQL_TEMPLATES = [
     label: "Edited in date range",
     description: "Find profiles edited between two dates",
     buildSql: (s, e) => {
-      const sd = s?.replace(/-/g, "").substr(0, 8);
-      const ed = e?.replace(/-/g, "").substr(0, 8);
-      return sd && ed && new Date(s) < new Date(e) ? `sql="([Bio].[LastEdit Date].AsNumber In ${sd}..${ed})"` : "";
+      const sb = getDateBounds(s);
+      const eb = getDateBounds(e);
+      return sb && eb && sb.min <= eb.max ? `sql="([Bio].[LastEdit Date].AsNumber In ${sb.min}..${eb.max})"` : "";
     },
     inputs: [
-      { type: "date", label: "Start", placeholder: "2024-01-01" },
-      { type: "date", label: "End", placeholder: "2024-12-31" },
+      { type: "text", label: "Start", placeholder: "dd/mm/yyyy" },
+      { type: "text", label: "End", placeholder: "dd/mm/yyyy" },
     ],
   },
   {
