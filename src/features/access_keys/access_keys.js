@@ -5,7 +5,15 @@ Keeps original letters/numbers you used for native accesskey.
 */
 
 import $ from "jquery";
-import { mainDomain, isCategoryPage, isWikiEdit, isProfileEdit, isSpaceEdit } from "../../core/pageType";
+import {
+  mainDomain,
+  isCategoryPage,
+  isWikiEdit,
+  isProfileEdit,
+  isSpaceEdit,
+  isProfileAddRelative,
+  isAddUnrelatedPerson,
+} from "../../core/pageType";
 import { setHighestZIndex } from "../../core/common";
 import { shouldInitializeFeature, getFeatureOptions, checkIfFeatureEnabled } from "../../core/options/options_storage";
 
@@ -16,9 +24,14 @@ shouldInitializeFeature("accessKeys").then((result) => {
 });
 
 export function startSyntheticHotkeys(options) {
-  const PREFIX = "w";
-  const TIMEOUT = 1000;
+  const PREFIX = String(options?.PrefixKey || "w").toLowerCase();
+  const configuredTimeout = Number(options?.SequenceTimeoutMs);
+  const TIMEOUT = Number.isFinite(configuredTimeout) ? Math.max(500, Math.min(5000, configuredTimeout)) : 1800;
   const DEBUG = false; // Debugging disabled
+  const SYNTHETIC_ENABLED = options?.EnableSyntheticHotkeys !== false;
+  const CHEATSHEET_TOGGLE_ENABLED = options?.EnableCheatSheetToggle !== false;
+  const JUMP_ENABLED = !!options?.JumpNav;
+  const SHOW_JUMP_HINTS = !!options?.JumpNavHints;
 
   // Hidden anchor (as in original)
   $("body").append(`<a style="display:none;" id="G2Grecent" href="https://${mainDomain}/g2g/activity"></a>`);
@@ -38,6 +51,7 @@ export function startSyntheticHotkeys(options) {
   // Use simple timing like the old code
   setTimeout(() => {
     applyAccessKeysSimple(actions, PREFIX, options);
+    setAddPersonAccessKeys(options);
   }, 1000);
 
   // Cheatsheet
@@ -52,7 +66,19 @@ export function startSyntheticHotkeys(options) {
   // Additional longer delay for elements that load slowly
   setTimeout(() => {
     applyAccessKeysSimple(actions, PREFIX, options);
+    setAddPersonAccessKeys(options);
   }, 3000);
+
+  // On add-person pages, watch for #dismissMatchesButton appearing/disappearing.
+  // When visible it gets accesskey 's'; when not visible, give it to #enterBasicDataButton.
+  if (
+    (options.DismissMatches || options.EnterBasicData) &&
+    options.EnableBrowserAccessKeys &&
+    (isProfileAddRelative || isAddUnrelatedPerson)
+  ) {
+    const observer = new MutationObserver(() => setAddPersonAccessKeys(options));
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
 
   // Key sequence state
   let awaitingSecond = false;
@@ -87,10 +113,21 @@ export function startSyntheticHotkeys(options) {
       }
 
       // Cheatsheet toggle: Shift+?
-      if (!e.ctrlKey && !e.metaKey && !e.altKey && e.shiftKey && (e.key === "?" || e.key === "/")) {
+      if (
+        CHEATSHEET_TOGGLE_ENABLED &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        e.shiftKey &&
+        (e.key === "?" || e.key === "/")
+      ) {
         toggleCheatSheet();
         e.preventDefault();
         e.stopImmediatePropagation();
+        return;
+      }
+
+      if (!SYNTHETIC_ENABLED) {
         return;
       }
 
@@ -213,6 +250,29 @@ function buildActions(options, DEBUG = false) {
       () => runEditSmart(options),
       null,
       () => true
+    );
+  }
+
+  // Add Relative / Add Unrelated Person: s
+  // #dismissMatchesButton and #enterBasicDataButton may both be in DOM, but only one is visible at a time.
+  // Trigger whichever one is currently visible.
+  if (options.DismissMatches || options.EnterBasicData) {
+    reg(
+      "s",
+      "Dismiss Matches / Enter Basic Data",
+      () => {
+        const dismiss = document.querySelector("#dismissMatchesButton");
+        const enter = document.querySelector("#enterBasicDataButton");
+
+        // Check which one is visible (offsetParent !== null means visible)
+        if (dismiss && dismiss.offsetParent !== null && options.DismissMatches) {
+          dismiss.click();
+        } else if (enter && enter.offsetParent !== null && options.EnterBasicData) {
+          enter.click();
+        }
+      },
+      "#dismissMatchesButton, #enterBasicDataButton",
+      () => isProfileAddRelative || isAddUnrelatedPerson
     );
   }
 
@@ -633,6 +693,32 @@ function jumpToDigit(digit) {
 /* ============================
    Legacy native Jump Nav accesskeys
    ============================ */
+// Set accesskey on Add Person page buttons based on visibility
+// #dismissMatchesButton gets 's' when visible; #enterBasicDataButton gets 's' when visible
+function setAddPersonAccessKeys(options) {
+  if (!(isProfileAddRelative || isAddUnrelatedPerson)) return;
+
+  const dismiss = document.querySelector("#dismissMatchesButton");
+  const enter = document.querySelector("#enterBasicDataButton");
+  const dismissVisible = !!(dismiss && dismiss.offsetParent !== null);
+  const enterVisible = !!(enter && enter.offsetParent !== null);
+
+  if (dismiss) dismiss.accessKey = "";
+  if (enter) enter.accessKey = "";
+
+  if (!options.EnableBrowserAccessKeys) return;
+
+  // Set accesskey on whichever is visible
+  if (dismissVisible && options.DismissMatches) {
+    dismiss.accessKey = "s";
+  } else if (enterVisible && options.EnterBasicData) {
+    enter.accessKey = "s";
+  }
+}
+
+/* ============================
+   Legacy native Jump Nav accesskeys
+   ============================ */
 // Re-applies numeric accesskey attributes (1–9) to #jump-nav links for browsers' native shortcuts.
 // Skips 1 if already used for Home when NavHomePage option is active (mirrors previous behavior).
 // Adds <sup class="accessKeyHint">n</sup> hints if JumpNavHints option enabled (persistent style).
@@ -642,28 +728,15 @@ function setJumpNavAccessKeys(options, retryCount = 0) {
   let currentAccessKey = options.NavHomePage ? 2 : 1;
   const jumpNavigation = document.getElementById("jump-nav");
 
-  if (!jumpNavigation) {
-    if (options.DebugAccessKeys) {
-      console.debug("[WBE AccessKeys] jump-nav element not found");
-    }
-    return;
-  }
+  if (!jumpNavigation) return;
 
   const aTags = jumpNavigation.getElementsByTagName("a");
-
-  if (options.DebugAccessKeys) {
-    console.debug(`[WBE AccessKeys] Setting jump nav access keys for ${aTags.length} elements`);
-  }
 
   for (let i = 0; i < aTags.length && currentAccessKey < 10; i++) {
     if (aTags[i].querySelector("span:not(.badge)") === null) {
       // Only set browser access key if EnableBrowserAccessKeys is enabled and element doesn't already have one
       if (options.EnableBrowserAccessKeys && !aTags[i].accessKey) {
         aTags[i].accessKey = "" + currentAccessKey;
-
-        if (options.DebugAccessKeys) {
-          console.debug(`[WBE AccessKeys] Set jump nav accesskey '${currentAccessKey}' on element:`, aTags[i]);
-        }
       }
 
       if (isProfileEdit || isSpaceEdit) {

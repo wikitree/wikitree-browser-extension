@@ -53,7 +53,6 @@ import {
 
 /* MARKER: Default place for registering feature options */
 import "./access_keys/access_keys_options";
-import "./activity_feed_filters/activity_feed_filters_options";
 import "./add_person/add_person_options";
 import "./add_search_boxes/add_search_boxes_options";
 import "./agc/agc_options";

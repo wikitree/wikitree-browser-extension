@@ -1855,9 +1855,53 @@ function openSqlWizard(currentValue, callback) {
     .replace(/^not\s*\(/i, "")
     .replace(/\)$/, "");
 
+  const templatesById = Object.fromEntries(SQL_TEMPLATES.map((t) => [t.id, t]));
+  const eventTemplateGroups = {
+    birth: [
+      "birth-on",
+      "birth-before",
+      "birth-after",
+      "birth-between",
+      "birth-decade",
+      "birth-no-day",
+      "birth-year-only",
+      "birth-location",
+      "birth-unrecognized-locations",
+      "birth-country",
+    ],
+    marriage: [
+      "marriage-on",
+      "marriage-before",
+      "marriage-after",
+      "marriage-date-between",
+      "marriage-decade",
+      "marriage-no-day",
+      "marriage-year-only",
+      "marriage-location-like",
+      "marriage-unrecognized-locations",
+      "marriage-country",
+      "single-marriage",
+      "many-marriages",
+    ],
+    death: [
+      "death-on",
+      "death-before",
+      "death-after",
+      "death-between",
+      "death-decade",
+      "death-no-day",
+      "death-year-only",
+      "death-location",
+      "unrecognized-locations",
+      "death-country",
+    ],
+  };
+  const eventTemplateIds = new Set(Object.values(eventTemplateGroups).flat());
+
   // Group templates by category
   const byCategory = {};
   SQL_TEMPLATES.forEach((t) => {
+    if (eventTemplateIds.has(t.id)) return;
     if (!byCategory[t.category]) byCategory[t.category] = [];
     byCategory[t.category].push(t);
   });
@@ -1882,6 +1926,36 @@ function openSqlWizard(currentValue, callback) {
         <div id="wbe-wtplus-sql-templates" style="display: block;">
           <input type="text" id="wbe-wtplus-sql-search" placeholder="Search templates..." style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 12px; box-sizing: border-box;">
           <div id="wbe-wtplus-sql-templates-list" style="max-height: 400px; overflow-y: auto;">
+            <div id="wbe-wtplus-sql-events-panel" style="margin: 0 0 14px 0; padding: 10px; border: 1px solid #d7e6db; border-radius: 6px; background: #f7fbf8;">
+              <h4 style="margin: 0 0 8px 0; color: #25422d; font-size: 12px; text-transform: uppercase;">Events</h4>
+              <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <button type="button" class="wbe-wtplus-sql-event-tab" data-event="birth" style="padding: 6px 10px; border: 1px solid #b8ccbe; border-radius: 4px; background: #eaf4ee; color: #25422d; cursor: pointer; font-size: 12px;">Birth</button>
+                <button type="button" class="wbe-wtplus-sql-event-tab" data-event="marriage" style="padding: 6px 10px; border: 1px solid #b8ccbe; border-radius: 4px; background: #fff; color: #25422d; cursor: pointer; font-size: 12px;">Marriage</button>
+                <button type="button" class="wbe-wtplus-sql-event-tab" data-event="death" style="padding: 6px 10px; border: 1px solid #b8ccbe; border-radius: 4px; background: #fff; color: #25422d; cursor: pointer; font-size: 12px;">Death</button>
+              </div>
+              <div id="wbe-wtplus-sql-event-templates">
+                ${Object.entries(eventTemplateGroups)
+                  .map(([eventName, templateIds]) =>
+                    templateIds
+                      .map((id) => templatesById[id])
+                      .filter(Boolean)
+                      .map(
+                        (t) => `
+                  <div class="wbe-wtplus-sql-template wbe-wtplus-sql-event-template" data-event="${esc(
+                    eventName
+                  )}" data-template-id="${esc(
+                          t.id
+                        )}" style="margin: 6px 0; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
+                    <div style="font-weight: 500; color: #25422d;">${esc(t.label)}</div>
+                    <div style="font-size: 12px; color: #666;">${esc(t.description)}</div>
+                  </div>
+                `
+                      )
+                      .join("")
+                  )
+                  .join("")}
+              </div>
+            </div>
             ${categories
               .map(
                 (cat) => `
@@ -1980,24 +2054,55 @@ function openSqlWizard(currentValue, callback) {
 
   // Search templates
   let selectedTemplate = null;
+  let selectedEvent = "birth";
   const $search = $modal.find("#wbe-wtplus-sql-search");
   const $templatesList = $modal.find("#wbe-wtplus-sql-templates-list");
 
-  $search.on("keyup", function () {
-    const query = $(this).val().toLowerCase();
+  function updateEventTabState() {
+    $modal.find(".wbe-wtplus-sql-event-tab").each(function () {
+      const isActive = $(this).data("event") === selectedEvent;
+      $(this).css({
+        background: isActive ? "#eaf4ee" : "#fff",
+        borderColor: isActive ? "#9bb9a4" : "#b8ccbe",
+        fontWeight: isActive ? 600 : 500,
+      });
+    });
+  }
+
+  function filterTemplates() {
+    const query = String($search.val() || "").toLowerCase();
     $templatesList.find(".wbe-wtplus-sql-template").each(function () {
       const $t = $(this);
       const label = $t.find("div:first").text().toLowerCase();
       const desc = $t.find("div:last").text().toLowerCase();
       const match = label.includes(query) || desc.includes(query) || query === "";
-      $t.toggle(match);
+
+      if ($t.hasClass("wbe-wtplus-sql-event-template")) {
+        const eventMatch = String($t.data("event")) === selectedEvent;
+        $t.toggle(match && eventMatch);
+      } else {
+        $t.toggle(match);
+      }
     });
+
     $templatesList.find(".wbe-wtplus-sql-category").each(function () {
       const $cat = $(this);
       const visible = $cat.find(".wbe-wtplus-sql-template:visible").length > 0;
       $cat.toggle(visible);
     });
+
+    const hasVisibleEventTemplates = $templatesList.find(".wbe-wtplus-sql-event-template:visible").length > 0;
+    $modal.find("#wbe-wtplus-sql-events-panel").toggle(hasVisibleEventTemplates || query === "");
+  }
+
+  $search.on("keyup", filterTemplates);
+  $modal.on("click", ".wbe-wtplus-sql-event-tab", function () {
+    selectedEvent = String($(this).data("event") || "birth");
+    updateEventTabState();
+    filterTemplates();
   });
+  updateEventTabState();
+  filterTemplates();
 
   // Template selection
   $modal.on("click", ".wbe-wtplus-sql-template", function () {
@@ -2014,8 +2119,28 @@ function openSqlWizard(currentValue, callback) {
       } else {
         // Show input form with preview
         const inputHtml = selectedTemplate.inputs
-          .map(
-            (inp, idx) => `
+          .map((inp, idx) => {
+            const isSplitDate = String(inp.placeholder || "").toLowerCase() === "dd/mm/yyyy";
+            if (isSplitDate) {
+              return `
+          <div style="margin: 10px 0;">
+            <label style="display: block; margin-bottom: 4px; font-weight: 500; font-size: 13px;">${esc(
+              inp.label
+            )}:</label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <input type="text" class="wbe-wtplus-sql-date-part" data-index="${idx}" data-part="day" inputmode="text" maxlength="2" placeholder="dd" title="Day (01-31, ? wildcard)" style="padding: 6px; border: 1px solid #ccc; border-radius: 3px; width: 56px; box-sizing: border-box;">
+              <span style="color: #777;">/</span>
+              <input type="text" class="wbe-wtplus-sql-date-part" data-index="${idx}" data-part="month" inputmode="text" maxlength="2" placeholder="mm" title="Month (01-12, ? wildcard)" style="padding: 6px; border: 1px solid #ccc; border-radius: 3px; width: 56px; box-sizing: border-box;">
+              <span style="color: #777;">/</span>
+              <input type="text" class="wbe-wtplus-sql-date-part" data-index="${idx}" data-part="year" inputmode="text" maxlength="4" placeholder="yyyy" title="Year (e.g. 1859, ? wildcard)" style="padding: 6px; border: 1px solid #ccc; border-radius: 3px; width: 88px; box-sizing: border-box;">
+            </div>
+            <div style="margin-top: 4px; font-size: 11px; color: #999;">? for wildcard</div>
+            <input type="hidden" class="wbe-wtplus-sql-input" data-index="${idx}" value="">
+          </div>
+        `;
+            }
+
+            return `
           <div style="margin: 10px 0;">
             <label style="display: block; margin-bottom: 4px; font-weight: 500; font-size: 13px;">${esc(
               inp.label
@@ -2026,8 +2151,8 @@ function openSqlWizard(currentValue, callback) {
               inp.placeholder || ""
             )}" style="padding: 6px; border: 1px solid #ccc; border-radius: 3px; width: 100%; box-sizing: border-box;">
           </div>
-        `
-          )
+        `;
+          })
           .join("");
         $modal.find("#wbe-wtplus-sql-input-fields").html(inputHtml);
         $modal.find("#wbe-wtplus-sql-inputs").show();
@@ -2047,6 +2172,114 @@ function openSqlWizard(currentValue, callback) {
               .html("<em style='color: #999;'>Fill in required fields to see preview</em>");
           }
         }
+        $modal.on("input", ".wbe-wtplus-sql-date-part", function () {
+          const $part = $(this);
+          const idx = $part.data("index");
+          const part = $part.data("part");
+          const currentYear = new Date().getFullYear();
+          const max = part === "year" ? 4 : 2;
+          const cleaned = String($part.val() || "")
+            .replace(/\*/g, "?")
+            .replace(/[^\d?]/g, "")
+            .slice(0, max);
+          let normalized = cleaned;
+
+          // Apply numeric constraints when no wildcard is used.
+          if (!normalized.includes("?") && normalized.length > 0) {
+            const n = Number(normalized);
+            if (Number.isFinite(n)) {
+              if (part === "day" && normalized.length === 2 && n > 31) {
+                normalized = "31";
+              } else if (part === "month" && normalized.length === 2 && n > 12) {
+                normalized = "12";
+              } else if (part === "year" && n > currentYear) {
+                normalized = String(currentYear).slice(0, 4);
+              }
+            }
+          }
+
+          if ($part.val() !== normalized) {
+            $part.val(normalized);
+          }
+
+          if ((part === "day" || part === "month") && normalized.length === 2) {
+            const nextPart = part === "day" ? "month" : "year";
+            $modal.find(`.wbe-wtplus-sql-date-part[data-index="${idx}"][data-part="${nextPart}"]`).trigger("focus");
+          }
+
+          const day = String(
+            $modal.find(`.wbe-wtplus-sql-date-part[data-index="${idx}"][data-part="day"]`).val() || ""
+          );
+          const month = String(
+            $modal.find(`.wbe-wtplus-sql-date-part[data-index="${idx}"][data-part="month"]`).val() || ""
+          );
+          const year = String(
+            $modal.find(`.wbe-wtplus-sql-date-part[data-index="${idx}"][data-part="year"]`).val() || ""
+          );
+          const full = day.length === 2 && month.length === 2 && year.length === 4 ? `${day}/${month}/${year}` : "";
+          $modal.find(`.wbe-wtplus-sql-input[data-index="${idx}"]`).val(full);
+
+          updatePreview();
+        });
+        $modal.on(
+          "blur",
+          ".wbe-wtplus-sql-date-part[data-part='day'], .wbe-wtplus-sql-date-part[data-part='month']",
+          function () {
+            const $part = $(this);
+            const idx = $part.data("index");
+            const part = $part.data("part");
+            const raw = String($part.val() || "").trim();
+            const isSingleDigitNumber = /^\d$/.test(raw);
+
+            if (isSingleDigitNumber) {
+              $part.val(`0${raw}`);
+              const nextPart = part === "day" ? "month" : "year";
+              const $next = $modal.find(`.wbe-wtplus-sql-date-part[data-index="${idx}"][data-part="${nextPart}"]`);
+              if ($next.length) {
+                $next.trigger("focus");
+              }
+            }
+
+            const day = String(
+              $modal.find(`.wbe-wtplus-sql-date-part[data-index="${idx}"][data-part="day"]`).val() || ""
+            );
+            const month = String(
+              $modal.find(`.wbe-wtplus-sql-date-part[data-index="${idx}"][data-part="month"]`).val() || ""
+            );
+            const year = String(
+              $modal.find(`.wbe-wtplus-sql-date-part[data-index="${idx}"][data-part="year"]`).val() || ""
+            );
+            const full = day.length === 2 && month.length === 2 && year.length === 4 ? `${day}/${month}/${year}` : "";
+            $modal.find(`.wbe-wtplus-sql-input[data-index="${idx}"]`).val(full);
+            updatePreview();
+          }
+        );
+        $modal.on("blur", ".wbe-wtplus-sql-date-part[data-part='year']", function () {
+          const $part = $(this);
+          const idx = $part.data("index");
+          const raw = String($part.val() || "").trim();
+          const currentYear = new Date().getFullYear();
+
+          if (/^\d+$/.test(raw)) {
+            const y = Number(raw);
+            if (Number.isFinite(y) && y > currentYear) {
+              $part.val(String(currentYear));
+            }
+          }
+
+          const day = String(
+            $modal.find(`.wbe-wtplus-sql-date-part[data-index="${idx}"][data-part="day"]`).val() || ""
+          );
+          const month = String(
+            $modal.find(`.wbe-wtplus-sql-date-part[data-index="${idx}"][data-part="month"]`).val() || ""
+          );
+          const year = String(
+            $modal.find(`.wbe-wtplus-sql-date-part[data-index="${idx}"][data-part="year"]`).val() || ""
+          );
+          const full = day.length === 2 && month.length === 2 && year.length === 4 ? `${day}/${month}/${year}` : "";
+          $modal.find(`.wbe-wtplus-sql-input[data-index="${idx}"]`).val(full);
+          updatePreview();
+        });
         $modal.on("input", ".wbe-wtplus-sql-input", updatePreview);
         $modal.on("change", "#wbe-wtplus-sql-not", updatePreview);
         updatePreview();

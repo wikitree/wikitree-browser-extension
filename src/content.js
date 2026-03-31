@@ -174,8 +174,6 @@ import "./features/countdown/countdown";
 import "./features/reorderNames/reorderNames";
 import "./features/feed_helper/feed_helper";
 
-import "./features/activity_feed_filters/activity_feed_filters";
-
 import "./features/collapsible_descendants/collapsible_descendants";
 
 import "./features/disable_GIFs/disable_GIFs";

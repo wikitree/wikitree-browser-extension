@@ -5,7 +5,7 @@ Created By: Kay Knight (Sands-1865)
 /*
 The MIT License (MIT)
 
-Copyright (c) 2025 Kathryn J Knight
+Copyright (c) 2026 Kathryn J Knight
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -710,10 +710,13 @@ export class Biography {
     if (this.#stats.numberStickers > 5) {
       stickerScore = 5 - this.#stats.numberStickers;
     } else {
-      if (this.#stats.numberStickers > 3) {
-        stickerScore = 3 - this.#stats.numberStickers;
+      stickerScore = this.#stats.numberStickers;
+      if (this.#stats.numberStickers == 4) {
+        stickerScore = 1;
       } else {
-        stickerScore = this.#stats.numberStickers;
+        if (this.#stats.numberStickers == 5) { 
+          stickerScore = 0;
+        }
       }
     }
     this.#bioScore = this.#bioScore + stickerScore;
@@ -2560,7 +2563,7 @@ validateSourcesStr(sourcesStr, thePerson) {
           line = line.replace(/ancestry\s(dna)?/, "");
           
           let mrcaStartIndex = this.#getMrcaStartIndex(line);
-          let wikiTreeIdCount = this.#lineWikiTreeIdCount(line, mrcaStartIndex);  // guess how many WikiTree IDs are found
+          let wikiTreeIdCount = this.#lineWikiTreeIdCount(line, mrcaStartIndex);  
           if (wikiTreeIdCount > 0) {
             let cM = this.#getCm(line);
             if (this.#isTriangulation(line)) {
@@ -2782,6 +2785,7 @@ validateSourcesStr(sourcesStr, thePerson) {
     line = line.replaceAll('grandfather', '');
     return ((line.includes('paternal') || line.includes('father') ||
              line.includes('paternity') || line.includes('parental')) ||
+             line.includes('patrilineal') ||
              line.includes(' parents confirm') &&
             (line.includes('relation') || line.includes('descent') ||
              line.includes('line')));
@@ -2793,6 +2797,7 @@ validateSourcesStr(sourcesStr, thePerson) {
     line = line.replaceAll('grandmother', '');
     return ((line.includes('maternal') || line.includes('mother') ||
              line.includes('maternity') || line.includes('parental')) ||
+             line.includes('matrilineal') ||
              line.includes(' parents confirm') &&
             (line.includes('relation') || line.includes('descent') ||
              line.includes('line')));
@@ -2818,6 +2823,8 @@ validateSourcesStr(sourcesStr, thePerson) {
 
   /*
    * Does line appear to have a WikiTree-ID 
+   * Handle the case where the LNAB itself has the - character
+   * You need the count to check for autosomal without MRCA
    */
   #lineWikiTreeIdCount(line, mrcaStartIndex) {
     line = line.replace('y-chromosome', 'y chromosome');
@@ -2833,11 +2840,11 @@ validateSourcesStr(sourcesStr, thePerson) {
     let bigParts = line.split(/[,;|\[\]]/);
     for (let i = 0; i < bigParts.length; i++) {
       if (bigParts[i].includes('-')) {
-        let littleParts = bigParts[i].split('-');
-        if (littleParts.length === 2) {
-          if (this.#looksLikeWikiTreeId(littleParts[0].trim(), littleParts[1].trim())) {
-            idCount++;
-          }
+        let dashAt = bigParts[i].lastIndexOf('-');
+        let namePart = bigParts[i].substring(0, dashAt);
+        let numberPart = bigParts[i].substring(dashAt);
+        if (this.#looksLikeWikiTreeId(namePart.trim(), numberPart.trim())) {
+          idCount++;
         }
       }
     }
@@ -2852,7 +2859,7 @@ validateSourcesStr(sourcesStr, thePerson) {
   #looksLikeWikiTreeId(namePart, numberPart) {
 
     namePart = namePart.replace('https://www.wikitree.com/wiki/', '');
-    let isAlpha = /^[a-zA-Z\u00C0-\u017F_]+$/.test(namePart);
+    let isAlpha = /^[a-zA-Z\u00C0-\u017F_\-]+$/.test(namePart);
 
     let numbers = numberPart.split(' ', 1);
     let isNumeric = /\d/.test(numbers[0]);
@@ -3062,16 +3069,6 @@ validateSourcesStr(sourcesStr, thePerson) {
    * @param thePerson {BioCheckPerson} person 
    */
   #scorePerson(thePerson) {
-    /*
-    this.#scoreBoolean(thePerson.hasBirthDate());
-    this.#scoreBoolean(thePerson.hasDeathDate());
-    this.#scoreBoolean(thePerson.hasBirthLocation());
-    this.#scoreBoolean(thePerson.hasDeathLocation());
-    this.#scoreBoolean(thePerson.hasFather());
-    this.#scoreBoolean(thePerson.hasMother());
-    this.#scoreBoolean(thePerson.hasFatherStatus());
-    this.#scoreBoolean(thePerson.hasMotherStatus());
-    */
     if (thePerson.isUndated()) {
       this.#bioScore = this.#bioScore - 10;
     }

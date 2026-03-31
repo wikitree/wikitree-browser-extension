@@ -1756,8 +1756,8 @@ export function minimalPlace(place) {
 
 export function buildSpouses(person) {
   console.log("[buildSpouses] Called for person:", person?.PersonName?.FullName || person);
-  if (!isObject(person.Spouses)) {
-    console.warn("[buildSpouses] person.Spouses is not an object. Exiting.");
+  if (!person?.Spouses || (typeof person.Spouses !== "object" && !Array.isArray(person.Spouses))) {
+    console.warn("[buildSpouses] person.Spouses is missing or invalid. Exiting.");
     return;
   }
   let spouseKeys = Object.keys(person.Spouses);
@@ -8293,7 +8293,10 @@ export async function buildFamilyForPrivateProfiles() {
               if (thisPerson) {
                 const thisId = thisPerson.Id;
                 if (familyList == "Spouses") {
-                  thisPerson.Spouses.forEach(function (spouse) {
+                  const spousesArray = Array.isArray(thisPerson.Spouses)
+                    ? thisPerson.Spouses
+                    : Object.values(thisPerson.Spouses || {});
+                  spousesArray.forEach(function (spouse) {
                     if (spouse.Id == window.profilePerson.Id) {
                       thisPerson.marriage_date = spouse?.marriage_date;
                       thisPerson.marriage_location = spouse?.marriage_location;
@@ -8484,8 +8487,16 @@ async function getSpouseParents() {
     window.profilePerson.Spouses &&
     !(Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses?.length === 0)
   ) {
-    const spouseKeys = Object.keys(window.profilePerson.Spouses);
-    const people = await getBiographySpouseParents(spouseKeys, {
+    const spouseList = Array.isArray(window.profilePerson.Spouses)
+      ? window.profilePerson.Spouses.filter(Boolean)
+      : Object.values(window.profilePerson.Spouses).filter(Boolean);
+    const spouseIds = spouseList
+      .map((spouse) => spouse?.Id || spouse?.Name)
+      .filter((id) => id !== undefined && id !== null && `${id}`.trim() !== "");
+    if (spouseIds.length === 0) {
+      return;
+    }
+    const people = await getBiographySpouseParents(spouseIds, {
       nuclear: 1,
       minGeneration: 1,
     });
@@ -8501,15 +8512,26 @@ async function getSpouseParents() {
 
 async function getSpouseParents2() {
   // Get spouse parents
-  if (!(Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses?.length === 0)) {
-    const spouseKeys = Object.keys(window.profilePerson.Spouses);
+  if (
+    window.profilePerson.Spouses &&
+    !(Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses?.length === 0)
+  ) {
+    const spouseList = Array.isArray(window.profilePerson.Spouses)
+      ? window.profilePerson.Spouses.filter(Boolean)
+      : Object.values(window.profilePerson.Spouses).filter(Boolean);
     const parentKeys = [];
-    if (spouseKeys) {
-      for (let i = 0; i < spouseKeys.length; i++) {
-        parentKeys.push(window.profilePerson.Spouses[spouseKeys[i]].Father);
-        parentKeys.push(window.profilePerson.Spouses[spouseKeys[i]].Mother);
+    if (spouseList.length) {
+      for (let i = 0; i < spouseList.length; i++) {
+        parentKeys.push(spouseList[i]?.Father);
+        parentKeys.push(spouseList[i]?.Mother);
       }
-      const people = await getBiographySpouseParents(parentKeys);
+      const validParentKeys = parentKeys
+        .filter((key) => key !== undefined && key !== null && `${key}`.trim() !== "")
+        .filter((key, idx, arr) => arr.indexOf(key) === idx);
+      if (validParentKeys.length === 0) {
+        return;
+      }
+      const people = await getBiographySpouseParents(validParentKeys);
       const biographySpouseParentsKeys = Object.keys(people);
       biographySpouseParentsKeys.forEach(function (key) {
         const person = people[key];
@@ -9808,10 +9830,12 @@ export async function getLocationCategory(type, location = null) {
   }
 
   if ("Marriage" === type) {
-    if (!Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses) {
-      const keys = Object.keys(window.profilePerson.Spouses);
-      const spouse = window.profilePerson.Spouses[keys[0]];
-      if (spouse.marriage_location) {
+    if (window.profilePerson.Spouses) {
+      const spouseList = Array.isArray(window.profilePerson.Spouses)
+        ? window.profilePerson.Spouses.filter(Boolean)
+        : Object.values(window.profilePerson.Spouses).filter(Boolean);
+      const spouse = spouseList.find((s) => s?.marriage_location) || spouseList[0];
+      if (spouse?.marriage_location) {
         location = spouse.marriage_location;
       } else {
         return;
