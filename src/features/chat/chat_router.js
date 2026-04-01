@@ -25,8 +25,18 @@ export const ChatIntent = {
 const RESULT_FIELD_ALIASES = {
   name: "displayName",
   names: "displayName",
+  firstname: "firstName",
+  "first name": "firstName",
+  givenname: "firstName",
+  "given name": "firstName",
+  forename: "firstName",
+  "fore name": "firstName",
+  "christian name": "firstName",
   surname: "surname",
   surnames: "surname",
+  lnab: "lnab",
+  "last name at birth": "lnab",
+  "birth surname": "lnab",
   degree: "degrees",
   degrees: "degrees",
   gender: "gender",
@@ -229,9 +239,7 @@ function parseRelationPrompt(prompt) {
   }
 
   // Possessive: "Who are Nathan's children?" / "Show Nathan's parents" / "List Mary's siblings"
-  const genitivePossessiveMatch = normalized.match(
-    /^(?:who\s+are|what\s+are|list|show)\s+(.+?)'s\s+(.+?)\??$/i
-  );
+  const genitivePossessiveMatch = normalized.match(/^(?:who\s+are|what\s+are|list|show)\s+(.+?)'s\s+(.+?)\??$/i);
   if (genitivePossessiveMatch?.[1] && genitivePossessiveMatch?.[2]) {
     return {
       mode: "list",
@@ -1145,11 +1153,41 @@ function normalizeFieldName(value) {
 function parseLastResultPrompt(prompt, options = {}) {
   const allowConversationalFollowups = Boolean(options?.allowConversationalFollowups);
   const normalizedPrompt = String(prompt || "").trim();
+  const connectiveNormalizedPrompt = allowConversationalFollowups
+    ? normalizedPrompt.replace(/^(?:and|also|plus|then)\s+/i, "").trim()
+    : normalizedPrompt;
+  const promptForMatch = connectiveNormalizedPrompt || normalizedPrompt;
   if (!normalizedPrompt) {
     return null;
   }
 
-  const tableMatch = prompt.match(
+  if (allowConversationalFollowups) {
+    const orNameFilterMatch = normalizedPrompt.match(/^or\s+(?:name\s*(?:is|=)?|named?\s+|called\s+)(.+?)\??$/i);
+    if (orNameFilterMatch?.[1]) {
+      return {
+        action: "filter",
+        filter: {
+          kind: "name",
+          value: orNameFilterMatch[1].trim(),
+          operator: "or",
+        },
+      };
+    }
+
+    const orFollowupMatch = normalizedPrompt.match(/^or\s+(.+?)\??$/i);
+    if (orFollowupMatch?.[1]) {
+      return {
+        action: "filter",
+        filter: {
+          kind: "text",
+          value: orFollowupMatch[1].trim(),
+          operator: "or",
+        },
+      };
+    }
+  }
+
+  const tableMatch = promptForMatch.match(
     /^(?:show|open)(?:\s+(?:that|the|last|latest|results?))?(?:\s+in)?\s+a?\s*table\??$/i
   );
   if (tableMatch) {
@@ -1158,13 +1196,15 @@ function parseLastResultPrompt(prompt, options = {}) {
 
   if (
     /^(?:can\s+you\s+)?(?:count\s+(?:them|results?)|how\s+many\s+(?:are\s+there|results?\s+are\s+there|of\s+them\s+are\s+there))\??$/i.test(
-      prompt
+      promptForMatch
     )
   ) {
     return { action: "count" };
   }
 
-  const countByMatch = prompt.match(/^(?:can\s+you\s+)?(?:count|group)\s+(?:them|the\s+results|results)?\s*by\s+(.+?)\??$/i);
+  const countByMatch = promptForMatch.match(
+    /^(?:can\s+you\s+)?(?:count|group)\s+(?:them|the\s+results|results)?\s*by\s+(.+?)\??$/i
+  );
   if (countByMatch?.[1]) {
     const field = normalizeFieldName(countByMatch[1]);
     if (field) {
@@ -1172,7 +1212,7 @@ function parseLastResultPrompt(prompt, options = {}) {
     }
   }
 
-  const sortMatch = prompt.match(
+  const sortMatch = promptForMatch.match(
     /^(?:can\s+you\s+)?(?:sort|order)\s+(?:them|the\s+results|results)?\s*by\s+(.+?)(?:\s+(ascending|descending|asc|desc))?\??$/i
   );
   if (sortMatch?.[1]) {
@@ -1186,7 +1226,7 @@ function parseLastResultPrompt(prompt, options = {}) {
     }
   }
 
-  const genderMatch = prompt.match(
+  const genderMatch = promptForMatch.match(
     /^(?:show|list|keep|filter(?:\s+(?:to|for))?)\s+(?:only\s+)?(females|female|women|males|male|men)\??$/i
   );
   if (genderMatch?.[1]) {
@@ -1199,7 +1239,7 @@ function parseLastResultPrompt(prompt, options = {}) {
     };
   }
 
-  const surnameMatch = prompt.match(
+  const surnameMatch = promptForMatch.match(
     /^(?:show|list|keep|filter(?:\s+(?:to|for))?)\s+(?:only\s+)?(?:the\s+)?(.+?)\s+family\??$/i
   );
   if (surnameMatch?.[1]) {
@@ -1212,7 +1252,7 @@ function parseLastResultPrompt(prompt, options = {}) {
     };
   }
 
-  const bornInMatch = prompt.match(
+  const bornInMatch = promptForMatch.match(
     /^(?:show|list|keep|filter(?:\s+(?:to|for))?)\s+(?:only\s+)?(?:people\s+)?born\s+in\s+(.+?)\??$/i
   );
   if (bornInMatch?.[1]) {
@@ -1226,7 +1266,7 @@ function parseLastResultPrompt(prompt, options = {}) {
   }
 
   if (allowConversationalFollowups) {
-    const followupBornInMatch = normalizedPrompt.match(/^(?:only\s+)?(?:those|them|people)?\s*born\s+in\s+(.+?)\??$/i);
+    const followupBornInMatch = promptForMatch.match(/^(?:only\s+)?(?:those|them|people)?\s*born\s+in\s+(.+?)\??$/i);
     if (followupBornInMatch?.[1]) {
       return {
         action: "filter",
@@ -1238,7 +1278,21 @@ function parseLastResultPrompt(prompt, options = {}) {
     }
   }
 
-  const diedInMatch = prompt.match(
+  const bornBeforeAfterMatch = promptForMatch.match(
+    /^(?:show|list|keep|filter(?:\s+(?:to|for))?)?\s*(?:only\s+)?(?:those|them|people)?\s*born\s+(before|after)\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i
+  );
+  if (bornBeforeAfterMatch?.[1] && bornBeforeAfterMatch?.[2]) {
+    return {
+      action: "filter",
+      filter: {
+        kind: "birthDate",
+        direction: String(bornBeforeAfterMatch[1]).toLowerCase(),
+        value: bornBeforeAfterMatch[2].trim(),
+      },
+    };
+  }
+
+  const diedInMatch = promptForMatch.match(
     /^(?:show|list|keep|filter(?:\s+(?:to|for))?)\s+(?:only\s+)?(?:people\s+)?died\s+in\s+(.+?)\??$/i
   );
   if (diedInMatch?.[1]) {
@@ -1252,7 +1306,7 @@ function parseLastResultPrompt(prompt, options = {}) {
   }
 
   if (allowConversationalFollowups) {
-    const followupDiedInMatch = normalizedPrompt.match(/^(?:only\s+)?(?:those|them|people)?\s*died\s+in\s+(.+?)\??$/i);
+    const followupDiedInMatch = promptForMatch.match(/^(?:only\s+)?(?:those|them|people)?\s*died\s+in\s+(.+?)\??$/i);
     if (followupDiedInMatch?.[1]) {
       return {
         action: "filter",
@@ -1264,8 +1318,22 @@ function parseLastResultPrompt(prompt, options = {}) {
     }
   }
 
+  const diedBeforeAfterMatch = promptForMatch.match(
+    /^(?:show|list|keep|filter(?:\s+(?:to|for))?)?\s*(?:only\s+)?(?:those|them|people)?\s*died\s+(before|after)\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i
+  );
+  if (diedBeforeAfterMatch?.[1] && diedBeforeAfterMatch?.[2]) {
+    return {
+      action: "filter",
+      filter: {
+        kind: "deathDate",
+        direction: String(diedBeforeAfterMatch[1]).toLowerCase(),
+        value: diedBeforeAfterMatch[2].trim(),
+      },
+    };
+  }
+
   if (allowConversationalFollowups) {
-    const followupFromMatch = normalizedPrompt.match(
+    const followupFromMatch = promptForMatch.match(
       /^(?:only\s+)?(?:those|them|people)?\s*(?:who\s+are\s+|who\s+were\s+|that\s+are\s+|that\s+were\s+)?from\s+(.+?)\??$/i
     );
     if (followupFromMatch?.[1]) {
@@ -1281,7 +1349,7 @@ function parseLastResultPrompt(prompt, options = {}) {
   }
 
   if (allowConversationalFollowups) {
-    const followupInMatch = normalizedPrompt.match(/^(?:only\s+)?(?:those|them|people)?\s*in\s+(.+?)\??$/i);
+    const followupInMatch = promptForMatch.match(/^(?:only\s+)?(?:those|them|people)?\s*in\s+(.+?)\??$/i);
     if (followupInMatch?.[1]) {
       return {
         action: "filter",
@@ -1294,7 +1362,7 @@ function parseLastResultPrompt(prompt, options = {}) {
     }
   }
 
-  const countryMatch = prompt.match(
+  const countryMatch = promptForMatch.match(
     /^(?:show|list|keep|filter(?:\s+(?:to|for))?)\s+(?:only\s+)?(?:people\s+)?in\s+(.+?)\??$/i
   );
   if (countryMatch?.[1]) {
@@ -1307,10 +1375,23 @@ function parseLastResultPrompt(prompt, options = {}) {
     };
   }
 
+  const nameFilterMatch = promptForMatch.match(
+    /^(?:show|list|keep|filter(?:\s+(?:to|for))?)?\s*(?:only\s+)?(?:those|them|people)?\s*(?:name\s*(?:is|=)?|named?|called)\s+(.+?)\??$/i
+  );
+  if (nameFilterMatch?.[1]) {
+    return {
+      action: "filter",
+      filter: {
+        kind: "name",
+        value: nameFilterMatch[1].trim(),
+      },
+    };
+  }
+
   // Conversational catch-all: "Only George?", "Only those named George?", "Only Jones?"
   // Must come after all specific location/gender/born-in patterns so those take priority.
   if (allowConversationalFollowups) {
-    const followupTextMatch = normalizedPrompt.match(
+    const followupTextMatch = promptForMatch.match(
       /^only\s+(?:(?:those|them|people)\s+)?(?:named?\s+|called\s+)?(.+?)\??$/i
     );
     if (followupTextMatch?.[1]) {
@@ -1324,7 +1405,7 @@ function parseLastResultPrompt(prompt, options = {}) {
     }
   }
 
-  const textFilterMatch = prompt.match(/^(?:show|list|keep|filter(?:\s+(?:to|for))?)\s+(?:only\s+)?(.+?)\??$/i);
+  const textFilterMatch = promptForMatch.match(/^(?:show|list|keep|filter(?:\s+(?:to|for))?)\s+(?:only\s+)?(.+?)\??$/i);
   if (textFilterMatch?.[1]) {
     return {
       action: "filter",

@@ -16,6 +16,12 @@ export function buildResultsTableHtml(result, opts = {}) {
       return `<th${headerClass}>${escapeHtml(column.title)}</th>`;
     })
     .join("");
+  const filterInputs = result.columns
+    .map((column, index) => {
+      const columnKey = escapeHtml(String(column?.key || ""));
+      return `<th><input type="text" class="chat-col-filter-input" data-col-index="${index}" data-col-key="${columnKey}" placeholder="Filter" /></th>`;
+    })
+    .join("");
   const rows = result.rows
     .map((row) => {
       const normalizedGender = normalizeText(row?.gender);
@@ -45,7 +51,10 @@ export function buildResultsTableHtml(result, opts = {}) {
 
   return `
     <table id="${tableId}" class="display chat-results-table">
-      <thead><tr>${headers}</tr></thead>
+      <thead>
+        <tr>${headers}</tr>
+        <tr class="chat-results-filter-row">${filterInputs}</tr>
+      </thead>
       <tbody>${rows}</tbody>
     </table>
   `;

@@ -178,6 +178,269 @@ function getEffectiveExplicitMode(prompt, selectedMode) {
   return normalizedMode;
 }
 
+function stripSurroundingQuotes(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^['"\s]+|['"\s]+$/g, "")
+    .trim();
+}
+
+function quoteWtPlusValue(value) {
+  const text = stripSurroundingQuotes(value);
+  if (!text) return "";
+  return /\s|,/.test(text) ? `"${text.replace(/"/g, '\\"')}"` : text;
+}
+
+function extractWtPlusFieldValue(queryText, fieldName) {
+  const escapedField = String(fieldName || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`${escapedField}=((?:"[^"]*")|(?:'[^']*')|(?:[^\\s]+))`, "i");
+  const match = String(queryText || "").match(re);
+  return stripSurroundingQuotes(match?.[1] || "");
+}
+
+function buildWtPlusOrFollowupBranch(prompt, previousWtPlusQuery) {
+  const normalizedPrompt = String(prompt || "").trim();
+  const previousQuery = String(previousWtPlusQuery || "").trim();
+  if (!normalizedPrompt || !previousQuery) {
+    return "";
+  }
+
+  const orBody = normalizedPrompt
+    .replace(/^or\b[\s,:-]*/i, "")
+    .replace(/[?.!]+$/g, "")
+    .trim();
+  if (!orBody) {
+    return "";
+  }
+
+  const birthLocation = extractWtPlusFieldValue(previousQuery, "BirthLocation");
+  const deathLocation = extractWtPlusFieldValue(previousQuery, "DeathLocation");
+  const hasBirthYearContext = /\bB\d{4}\b/i.test(previousQuery) || Boolean(birthLocation);
+  const hasDeathYearContext = /\bD\d{4}\b/i.test(previousQuery) || Boolean(deathLocation);
+
+  const yearOnlyMatch = orBody.match(/^(\d{4})$/);
+  if (yearOnlyMatch?.[1]) {
+    const year = yearOnlyMatch[1];
+    if (hasBirthYearContext && !hasDeathYearContext) {
+      return [birthLocation ? `BirthLocation=${quoteWtPlusValue(birthLocation)}` : "", `B${year}`]
+        .filter(Boolean)
+        .join(" ");
+    }
+    if (hasDeathYearContext && !hasBirthYearContext) {
+      return [deathLocation ? `DeathLocation=${quoteWtPlusValue(deathLocation)}` : "", `D${year}`]
+        .filter(Boolean)
+        .join(" ");
+    }
+    // If ambiguous, default to birth-year interpretation.
+    return [birthLocation ? `BirthLocation=${quoteWtPlusValue(birthLocation)}` : "", `B${year}`]
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  const inYearOnlyMatch = orBody.match(/^in\s+(\d{4})$/i);
+  if (inYearOnlyMatch?.[1]) {
+    const year = inYearOnlyMatch[1];
+    if (hasBirthYearContext && !hasDeathYearContext) {
+      return [birthLocation ? `BirthLocation=${quoteWtPlusValue(birthLocation)}` : "", `B${year}`]
+        .filter(Boolean)
+        .join(" ");
+    }
+    if (hasDeathYearContext && !hasBirthYearContext) {
+      return [deathLocation ? `DeathLocation=${quoteWtPlusValue(deathLocation)}` : "", `D${year}`]
+        .filter(Boolean)
+        .join(" ");
+    }
+    return [birthLocation ? `BirthLocation=${quoteWtPlusValue(birthLocation)}` : "", `B${year}`]
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  const bornInYearMatch = orBody.match(/^born\s+in\s+(\d{4})$/i);
+  if (bornInYearMatch?.[1]) {
+    const year = bornInYearMatch[1];
+    return [birthLocation ? `BirthLocation=${quoteWtPlusValue(birthLocation)}` : "", `B${year}`]
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  const diedInYearMatch = orBody.match(/^died\s+in\s+(\d{4})$/i);
+  if (diedInYearMatch?.[1]) {
+    const year = diedInYearMatch[1];
+    return [deathLocation ? `DeathLocation=${quoteWtPlusValue(deathLocation)}` : "", `D${year}`]
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  return "";
+}
+
+function mergeStructuredRows(baseResult, additiveResult, mergedTitle) {
+  const baseRows = Array.isArray(baseResult?.rows) ? baseResult.rows : [];
+  const extraRows = Array.isArray(additiveResult?.rows) ? additiveResult.rows : [];
+
+  const mergedByKey = new Map();
+  const makeKey = (row) => String(row?.wtid || row?.WTID || row?.Id || row?.id || row?.displayName || "").trim();
+
+  baseRows.forEach((row) => {
+    const key = makeKey(row);
+    if (!key) return;
+    mergedByKey.set(key, row);
+  });
+
+  extraRows.forEach((row) => {
+    const key = makeKey(row);
+    if (!key) return;
+    if (!mergedByKey.has(key)) {
+      mergedByKey.set(key, row);
+    }
+  });
+
+  return {
+    ...baseResult,
+    title: mergedTitle || baseResult?.title || "Chat Results",
+    rows: Array.from(mergedByKey.values()),
+  };
+}
+
+function shouldTryAiFollowupIntentInWtPlus(prompt) {
+  const normalized = String(prompt || "").trim();
+  if (!normalized) {
+    return false;
+  }
+
+  // Obvious continuation/refinement phrasing.
+  if (/^(?:and|also|then|plus|but)\b/i.test(normalized)) {
+    return true;
+  }
+  if (/^(?:only|just|filter|count|group|sort|order|keep|show|list|exclude|without|not)\b/i.test(normalized)) {
+    return true;
+  }
+
+  // Reference to existing result set.
+  if (/\b(?:them|those|these|results?|current\s+result\s+set)\b/i.test(normalized)) {
+    return true;
+  }
+
+  // Short, context-dependent follow-ups are usually refinements.
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  return tokens.length <= 7;
+}
+
+function isLikelyPersonCentricPrompt(prompt) {
+  const normalized = String(prompt || "").trim();
+  if (!normalized) {
+    return false;
+  }
+
+  if (/\b[A-Za-z][A-Za-z0-9_]+-\d+\b/.test(normalized)) {
+    return true;
+  }
+
+  if (
+    /\b(my|me|ancestors?|descendants?|children|parents?|siblings?|spouses?|husband|wife|connection|relationship|cc\d+)\b/i.test(
+      normalized
+    )
+  ) {
+    return true;
+  }
+
+  if (/^(?:who\s+is|find|look\s+up|search\s+for)\s+/i.test(normalized)) {
+    return true;
+  }
+
+  return false;
+}
+
+function extractPersonListCommandPrompt(prompt) {
+  const text = String(prompt || "").trim();
+  if (!text) {
+    return null;
+  }
+
+  const match = text.match(
+    /^\s*(?:person\s+list|people\s+list|candidate\s+list)(?:\s+(ai|wikidata|hybrid))?\s*[:\-]\s*([\s\S]+)$/i
+  );
+  if (!match?.[2]) {
+    return null;
+  }
+
+  const promptText = String(match[2] || "").trim();
+  if (!promptText) {
+    return null;
+  }
+
+  return {
+    strategy: String(match[1] || "ai")
+      .trim()
+      .toLowerCase(),
+    prompt: promptText,
+  };
+}
+
+async function shouldAutoRouteWtPromptToWtPlus({ prompt, getChatAiConfig, buildRecentUserMessagesForAi }) {
+  const normalizedPrompt = String(prompt || "").trim();
+  if (!normalizedPrompt) {
+    return false;
+  }
+
+  if (isWtPlusOnlyPrompt(normalizedPrompt)) {
+    return true;
+  }
+
+  if (isLikelyPersonCentricPrompt(normalizedPrompt)) {
+    return false;
+  }
+
+  const { provider, key, model } = await getChatAiConfig();
+  if (!key) {
+    return false;
+  }
+
+  const recentUserMessages = buildRecentUserMessagesForAi?.(3) || "";
+  const classifierPrompt = [
+    "Classify whether this WikiTree chat request should run in WT mode or WT+ mode.",
+    'Return STRICT JSON only: {"targetMode":"wt"|"wtplus","confidence":0..1,"reason":"..."}.',
+    "Use wtplus when the query is broad/filter-like (locations, categories, templates, stickers, status slices, date+place constraints) and does not identify a specific person.",
+    "Use wt when the query is about a specific person, relationship, CC/ancestor/descendant list, or profile lookup.",
+    recentUserMessages ? `Recent user messages:\n${recentUserMessages}` : "",
+    `Request: ${normalizedPrompt}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: "chatWithAI",
+      prompt: classifierPrompt,
+      provider,
+      key,
+      model,
+      includeApiDocContext: false,
+      pageContext: {
+        url: window.location.href,
+        title: document.title,
+      },
+    });
+
+    if (!response?.success || !response?.response) {
+      return false;
+    }
+
+    const raw = String(response.response || "").trim();
+    const jsonTextMatch = raw.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonTextMatch ? jsonTextMatch[0] : raw);
+    const targetMode = String(parsed?.targetMode || "")
+      .trim()
+      .toLowerCase();
+    const confidence = Number(parsed?.confidence);
+
+    return targetMode === "wtplus" && Number.isFinite(confidence) && confidence >= 0.55;
+  } catch (error) {
+    console.debug("wbe: ai WT/WT+ classifier failed", error);
+    return false;
+  }
+}
+
 export async function handleExplicitSearchMode({
   prompt,
   chatPopupId,
@@ -194,12 +457,44 @@ export async function handleExplicitSearchMode({
   extractFollowupTableFilterText,
   openResultsTable,
   tryHandleAiPlannedIntent,
+  setExplicitMode,
 }) {
   console.debug("wbe: checking chat mode for prompt", { prompt });
   const selectedMode = getVisibleSearchMode(chatPopupId);
   const mode = getEffectiveExplicitMode(prompt, selectedMode);
   if (!mode || !shouldUseExplicitSearchMode(prompt, mode)) {
     return { handled: false, prompt };
+  }
+
+  const forcedPersonListCommand = extractPersonListCommandPrompt(prompt);
+  if (forcedPersonListCommand?.prompt) {
+    try {
+      const searchResult = await tryHandleProfileSearchPrompt(
+        {
+          chatModeOverride: "ai",
+          forceAiCandidateDiscovery: true,
+          aiCandidateDiscoveryStrategy: forcedPersonListCommand.strategy || "ai",
+        },
+        forcedPersonListCommand.prompt
+      );
+      if (searchResult) {
+        await handleChatResult(typeof searchResult === "string" ? { message: searchResult } : searchResult);
+        return { handled: true, prompt: forcedPersonListCommand.prompt };
+      }
+
+      appendMessage(
+        "assistant",
+        "Person list completed, but no displayable result was returned. Please try again with a smaller count or narrower criteria."
+      );
+      return { handled: true, prompt: forcedPersonListCommand.prompt };
+    } catch (forcedListErr) {
+      console.debug("wbe: forced person list pipeline failed", forcedListErr);
+      appendMessage(
+        "assistant",
+        "I couldn't complete the Person list request. Try a narrower criteria phrase after 'Person list:'."
+      );
+      return { handled: true, prompt: forcedPersonListCommand.prompt };
+    }
   }
 
   if (mode === "ai") {
@@ -257,6 +552,60 @@ export async function handleExplicitSearchMode({
       .replace(/^\s*search[:\s]+/i, "")
       .trim();
 
+    if (mode === "wtplus" && hasStructuredResult) {
+      const structuredResult = typeof getLastStructuredResult === "function" ? getLastStructuredResult() : null;
+      const previousWtPlusQuery = String(structuredResult?.wtPlusQuery || "").trim();
+      if (/^or\b/i.test(normalizedPrompt) && previousWtPlusQuery) {
+        const additiveBranch = buildWtPlusOrFollowupBranch(normalizedPrompt, previousWtPlusQuery);
+        if (additiveBranch) {
+          try {
+            const additiveResult = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, additiveBranch);
+            if (additiveResult?.table?.rows?.length) {
+              const mergedTable = mergeStructuredRows(
+                structuredResult,
+                {
+                  ...additiveResult.table,
+                  wtPlusQuery: `${previousWtPlusQuery} OR ${additiveBranch}`,
+                },
+                `${structuredResult?.title || "WT+ results"} OR ${additiveBranch}`
+              );
+              mergedTable.wtPlusQuery = `${previousWtPlusQuery} OR ${additiveBranch}`;
+              mergedTable.wtPlusSearchType = "text";
+
+              await handleChatResult({
+                message: `Added OR branch "${additiveBranch}" and merged results: ${
+                  structuredResult?.rows?.length || 0
+                } + ${additiveResult.table.rows.length} -> ${mergedTable.rows.length} unique rows.`,
+                table: mergedTable,
+                actions: [
+                  {
+                    label: "Open in WT+",
+                    actionType: "wtplus-open",
+                    wtPlusQuery: mergedTable.wtPlusQuery,
+                    wtPlusSearchType: "text",
+                  },
+                ],
+                autoOpen: true,
+              });
+              return { handled: true, prompt: normalizedPrompt };
+            }
+          } catch (orBranchErr) {
+            console.debug("wbe: wtplus OR follow-up merge failed", orBranchErr);
+          }
+        }
+      }
+    }
+
+    if (hasStructuredResult && typeof routeChatPrompt === "function") {
+      const followupRoute = routeChatPrompt(normalizedPrompt, { hasStructuredResult: true });
+      if (followupRoute?.intent === ChatIntent?.LAST_RESULT_OPERATION) {
+        // Let the main deterministic router execute this so conversational
+        // follow-ups like "And died in Yorkshire?" refine the current
+        // in-chat result set instead of launching a fresh global search.
+        return { handled: false, prompt: normalizedPrompt };
+      }
+    }
+
     if (mode === "wt") {
       const routed =
         typeof routeChatPrompt === "function"
@@ -290,11 +639,60 @@ export async function handleExplicitSearchMode({
         try {
           const aiPlannedResult = await tryHandleAiPlannedIntent(normalizedPrompt);
           if (aiPlannedResult) {
-            await handleChatResult(typeof aiPlannedResult === "string" ? { message: aiPlannedResult } : aiPlannedResult);
+            await handleChatResult(
+              typeof aiPlannedResult === "string" ? { message: aiPlannedResult } : aiPlannedResult
+            );
             return { handled: true, prompt: normalizedPrompt };
           }
         } catch (aiPlanErr) {
           console.debug("wbe: wt mode AI planner attempt failed", aiPlanErr);
+        }
+      }
+
+      const shouldSwitchToWtPlus = await shouldAutoRouteWtPromptToWtPlus({
+        prompt: normalizedPrompt,
+        getChatAiConfig,
+        buildRecentUserMessagesForAi,
+      });
+
+      if (shouldSwitchToWtPlus) {
+        if (typeof setExplicitMode === "function") {
+          setExplicitMode("wtplus", { notice: "Auto-switched to WT+" });
+        }
+
+        try {
+          const wtPlusResult = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, normalizedPrompt);
+          if (wtPlusResult) {
+            if (typeof wtPlusResult === "string") {
+              await handleChatResult({
+                message: `Switched to WT+ mode for this query.\n${wtPlusResult}`,
+              });
+            } else {
+              await handleChatResult({
+                ...wtPlusResult,
+                message: `Switched to WT+ mode for this query.\n${wtPlusResult.message || ""}`.trim(),
+              });
+            }
+            return { handled: true, prompt: normalizedPrompt };
+          }
+        } catch (wtPlusErr) {
+          console.debug("wbe: auto WT+ handoff failed", wtPlusErr);
+        }
+      }
+    }
+
+    if (mode === "wtplus" && hasStructuredResult && typeof tryHandleAiPlannedIntent === "function") {
+      if (shouldTryAiFollowupIntentInWtPlus(normalizedPrompt)) {
+        try {
+          const aiPlannedResult = await tryHandleAiPlannedIntent(normalizedPrompt);
+          if (aiPlannedResult) {
+            await handleChatResult(
+              typeof aiPlannedResult === "string" ? { message: aiPlannedResult } : aiPlannedResult
+            );
+            return { handled: true, prompt: normalizedPrompt };
+          }
+        } catch (aiPlanErr) {
+          console.debug("wbe: wtplus mode AI planner attempt failed", aiPlanErr);
         }
       }
     }

@@ -7,30 +7,13 @@ import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getFeatureOptions } from "../../core/options/options_storage";
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
-import { getRelationJSON } from "../../core/API/wwwWikiTree";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { getUserWtId, getUserNumId, getProfilePersonInfo } from "../../core/common";
 import { setHighestZIndex } from "../../core/common";
-import {
-  routeChatPrompt,
-  ChatIntent,
-  normalizePersonText,
-  splitPersonName,
-  normalizeConnectionTargetForSearch,
-  isConnectionCorrectionPrompt,
-  extractCorrectionTarget,
-  extractWikiTreeIdFromHref,
-  scorePageContextCandidate,
-  findPageContextPersonCandidate,
-  mergeConnectionMatches,
-  rankConnectionMatches,
-  shouldUseAiForConnectionDisambiguation,
-  pause,
-  getCommonAliasExpansion,
-  extractConnectionTarget,
-} from "./chat_router";
+import { routeChatPrompt, ChatIntent, pause } from "./chat_router";
 import "datatables.net-dt/css/jquery.dataTables.css";
 import "datatables.net";
+import * as XLSX from "xlsx";
 import "jquery-ui/ui/widgets/draggable";
 import "jquery-ui/ui/widgets/resizable";
 import "./chat.css";
@@ -56,7 +39,6 @@ import {
   findSiblingProfileIdsFromDOM,
   findParentProfileIdsFromDOM,
 } from "./chat_dom_lookup";
-import { formatDate, getRelationColour, getYearColour } from "../../core/formatting";
 import { isPlusDomain } from "../../core/pageType";
 import { escapeHtml } from "../../core/lib/diff_utils";
 import { buildPlusUrl } from "../wikitree_plus_helper/wikitree_plus_helper_url";
@@ -165,7 +147,106 @@ const CC7_CACHE_MS = 5 * 60 * 1000;
 const CHAT_RESULTS_POPUP_ID = "wbe-chat-results-popup";
 const CHAT_RESULTS_TABLE_ID = "wbe-chat-results-table";
 let chatResultsCounter = 0;
-const CHAT_SHOW_MORE_TOKEN_PREFIX = "__WBE_SHOW_MORE__:";
+let chatModeNoticeTimer = null;
+const tableColumnFilterState = new Map();
+
+function parseFlexibleDateValue(value) {
+  const normalized = String(value || "").trim();
+  const match = normalized.match(/^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/);
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2] || "0");
+  const day = Number(match[3] || "0");
+  if (!Number.isFinite(year)) {
+    return null;
+  }
+
+  return year * 10000 + month * 100 + day;
+}
+
+function parseColumnFilterExpression(rawInput) {
+  let expression = String(rawInput || "").trim();
+  if (!expression) {
+    return { empty: true };
+  }
+
+  let negate = false;
+  if (expression.startsWith("!")) {
+    negate = true;
+    expression = expression.slice(1).trim();
+  }
+
+  const opMatch = expression.match(/^([<>])\s*(.+)$/);
+  if (opMatch?.[1] && opMatch?.[2]) {
+    return {
+      empty: false,
+      negate,
+      operator: opMatch[1],
+      value: opMatch[2].trim(),
+    };
+  }
+
+  return {
+    empty: false,
+    negate,
+    operator: "contains",
+    value: expression,
+  };
+}
+
+if (!$.fn.dataTable.ext.search.some((fn) => fn.__wbeColumnFilter === true)) {
+  const predicate = function (settings, rowData) {
+    const tableId = settings?.nTable?.id || "";
+    const state = tableColumnFilterState.get(tableId);
+    if (!state || !Array.isArray(state.filters) || !state.filters.some((entry) => !entry?.empty)) {
+      return true;
+    }
+
+    for (let colIndex = 0; colIndex < state.filters.length; colIndex += 1) {
+      const filter = state.filters[colIndex];
+      if (!filter || filter.empty) {
+        continue;
+      }
+
+      const cellText = String(rowData?.[colIndex] || "").trim();
+      const normalizedCell = cellText.toLowerCase();
+      const normalizedFilterValue = String(filter.value || "").toLowerCase();
+      let matches = false;
+
+      if (filter.operator === "<" || filter.operator === ">") {
+        if (state.dateColumnIndexes.has(colIndex)) {
+          const rowDate = parseFlexibleDateValue(cellText);
+          const compareDate = parseFlexibleDateValue(filter.value);
+          if (rowDate != null && compareDate != null) {
+            matches = filter.operator === "<" ? rowDate < compareDate : rowDate > compareDate;
+          } else {
+            matches = false;
+          }
+        } else {
+          matches = normalizedCell.includes(normalizedFilterValue);
+        }
+      } else {
+        matches = normalizedCell.includes(normalizedFilterValue);
+      }
+
+      if (filter.negate) {
+        matches = !matches;
+      }
+
+      if (!matches) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  predicate.__wbeColumnFilter = true;
+  $.fn.dataTable.ext.search.push(predicate);
+}
 const AUTO_OPEN_TABLE_MIN_ROWS = 8;
 const CHAT_AI_HISTORY_MAX_MESSAGES = 12;
 const CHAT_AI_MESSAGE_MAX_CHARS = 500;
@@ -325,7 +406,9 @@ function rememberResolvedPerson({ wtId, displayName, aliases = [] }) {
     resolvedPersonAliasToWtId[normalizedAlias] = normalizedWtId;
   });
 
-  const entries = Object.values(resolvedPeopleByWtId).sort((a, b) => Number(b?.seenOrder || 0) - Number(a?.seenOrder || 0));
+  const entries = Object.values(resolvedPeopleByWtId).sort(
+    (a, b) => Number(b?.seenOrder || 0) - Number(a?.seenOrder || 0)
+  );
   if (entries.length > CHAT_PERSON_MEMORY_MAX_ENTRIES) {
     const keep = new Set(entries.slice(0, CHAT_PERSON_MEMORY_MAX_ENTRIES).map((entry) => entry.wtId));
     resolvedPeopleByWtId = entries
@@ -491,9 +574,7 @@ function buildResolvedPeopleContextForAi() {
       .filter((alias) => alias && normalizePersonMemoryToken(alias) !== normalizePersonMemoryToken(displayName))
       .slice(0, 4)
       .join(", ");
-    return aliases
-      ? `- ${displayName} (${wtId}); aliases: ${aliases}`
-      : `- ${displayName} (${wtId})`;
+    return aliases ? `- ${displayName} (${wtId}); aliases: ${aliases}` : `- ${displayName} (${wtId})`;
   });
 
   return `Known people from this chat:\n${lines.join("\n")}`;
@@ -587,6 +668,11 @@ function parseSuggestionNumberFromPrompt(prompt) {
   return original;
 }
 
+function sanitizeRetriedPrompt(prompt) {
+  const text = String(prompt || "").trim();
+  return text;
+}
+
 function upsertSuggestionInPrompt(prompt, suggestionNumber) {
   const nextSuggestionTerm = `Suggestions=${suggestionNumber}`;
   const original = String(prompt || "");
@@ -670,6 +756,57 @@ function refreshWtPlusSuggestionPickerForCurrentPopup() {
   }
 
   updateWtPlusSuggestionPickerState($popup);
+}
+
+function clearChatModeNotice($popup) {
+  if (!$popup?.length) {
+    return;
+  }
+
+  if (chatModeNoticeTimer) {
+    clearTimeout(chatModeNoticeTimer);
+    chatModeNoticeTimer = null;
+  }
+
+  const $notice = $popup.find("#wbe-chat-mode-notice");
+  $notice.removeClass("is-visible").text("");
+}
+
+function showChatModeNotice($popup, text) {
+  if (!$popup?.length) {
+    return;
+  }
+
+  clearChatModeNotice($popup);
+
+  const label = String(text || "").trim();
+  if (!label) {
+    return;
+  }
+
+  const $notice = $popup.find("#wbe-chat-mode-notice");
+  $notice.text(label).addClass("is-visible");
+  chatModeNoticeTimer = setTimeout(() => {
+    $notice.removeClass("is-visible").text("");
+    chatModeNoticeTimer = null;
+  }, 5500);
+}
+
+function setCurrentChatMode(mode, options = {}) {
+  const $popup = $(`#${CHAT_POPUP_ID}`);
+  if (!$popup.length) {
+    return;
+  }
+
+  applyChatModeToPopup($popup, mode);
+  persistChatMode(mode);
+  updateWtPlusSuggestionPickerState($popup);
+
+  if (options?.notice) {
+    showChatModeNotice($popup, options.notice);
+  } else if (!options?.preserveNotice) {
+    clearChatModeNotice($popup);
+  }
 }
 
 function getCurrentChatMode() {
@@ -836,13 +973,13 @@ const {
 
 const { buildRecentConversationForAi, buildRecentUserMessagesForAi, getChatAiConfig, hasAnyApiKey } =
   createChatAiHelpers({
-  getChatOptions,
-  getChatHistory: () => chatHistory,
-  chatAiMessageMaxChars: CHAT_AI_MESSAGE_MAX_CHARS,
-  chatAiHistoryMaxMessages: CHAT_AI_HISTORY_MAX_MESSAGES,
-  sharedAiOptionsKey: SHARED_AI_OPTIONS_KEY,
-  autoBioOptionsKey: AUTO_BIO_OPTIONS_KEY,
-  aiKeyFields: AI_KEY_FIELDS,
+    getChatOptions,
+    getChatHistory: () => chatHistory,
+    chatAiMessageMaxChars: CHAT_AI_MESSAGE_MAX_CHARS,
+    chatAiHistoryMaxMessages: CHAT_AI_HISTORY_MAX_MESSAGES,
+    sharedAiOptionsKey: SHARED_AI_OPTIONS_KEY,
+    autoBioOptionsKey: AUTO_BIO_OPTIONS_KEY,
+    aiKeyFields: AI_KEY_FIELDS,
   });
 
 const {
@@ -1329,6 +1466,9 @@ function closeResultsPopup() {
   if (table.length && $.fn.DataTable.isDataTable(table)) {
     table.DataTable().destroy();
   }
+  if (table.length) {
+    tableColumnFilterState.delete(String(table.attr("id") || ""));
+  }
   $(`#${CHAT_RESULTS_POPUP_ID}`).remove();
 }
 
@@ -1348,11 +1488,201 @@ function extractFollowupTableFilterText(prompt) {
   for (const pattern of patterns) {
     const match = normalized.match(pattern);
     if (match?.[1]) {
-      return String(match[1]).replace(/^['"\s]+|['"\s]+$/g, "").trim();
+      return String(match[1])
+        .replace(/^['"\s]+|['"\s]+$/g, "")
+        .trim();
     }
   }
 
   return "";
+}
+
+function toExportCell(value) {
+  if (value == null) return "";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => toExportCell(entry)).join("; ");
+  }
+  try {
+    return JSON.stringify(value);
+  } catch (e) {
+    return String(value);
+  }
+}
+
+function getExportMatrix(result) {
+  const headers = (result?.columns || []).map((column) => String(column?.title || column?.key || "").trim());
+  const keys = (result?.columns || []).map((column) => String(column?.key || "").trim());
+  const rows = (result?.rows || []).map((row) => keys.map((key) => toExportCell(row?.[key])));
+  return { headers, rows };
+}
+
+function sanitizeExportFileBaseName(title) {
+  return (
+    String(title || "chat-results")
+      .toLowerCase()
+      .replace(/[^a-z0-9\-\s_]+/g, "")
+      .trim()
+      .replace(/[\s_]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "") || "chat-results"
+  );
+}
+
+function downloadBlob(filename, blob) {
+  const url = URL.createObjectURL(blob);
+  try {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+}
+
+function exportResultAsCsv(result) {
+  const { headers, rows } = getExportMatrix(result);
+  const csvEscape = (value) => `"${String(value || "").replace(/"/g, '""')}"`;
+  const lines = [headers.map(csvEscape).join(",")].concat(rows.map((row) => row.map(csvEscape).join(",")));
+  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  downloadBlob(`${sanitizeExportFileBaseName(result?.title)}.csv`, blob);
+}
+
+function exportResultAsJson(result) {
+  const payload = {
+    title: result?.title || "Chat Results",
+    columns: (result?.columns || []).map((column) => ({
+      title: String(column?.title || ""),
+      key: String(column?.key || ""),
+    })),
+    rows: (result?.rows || []).map((row) => ({ ...row })),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+  downloadBlob(`${sanitizeExportFileBaseName(result?.title)}.json`, blob);
+}
+
+function exportResultAsXlsx(result) {
+  const { headers, rows } = getExportMatrix(result);
+  const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Results");
+  XLSX.writeFile(workbook, `${sanitizeExportFileBaseName(result?.title)}.xlsx`);
+}
+
+function exportResultAsWikitable(result) {
+  const { headers, rows } = getExportMatrix(result);
+
+  const convertUrlsToWikilinks = (value) => {
+    const text = String(value || "");
+
+    return text.replace(/https?:\/\/[^\s\]|<>"]+/g, (match, offset, fullText) => {
+      // Avoid re-wrapping URLs that are already inside external wikilinks.
+      if (offset > 0 && fullText[offset - 1] === "[") {
+        return match;
+      }
+
+      let url = match;
+      let trailing = "";
+      while (/[),.;!?]$/.test(url)) {
+        trailing = url.slice(-1) + trailing;
+        url = url.slice(0, -1);
+      }
+
+      try {
+        const parsed = new URL(url);
+        const hostname = String(parsed.hostname || "").toLowerCase();
+
+        if (/(^|\.)wikipedia\.org$/.test(hostname) && /^\/wiki\//.test(parsed.pathname)) {
+          const pageName = decodeURIComponent(parsed.pathname.replace(/^\/wiki\//, ""))
+            .replace(/_/g, " ")
+            .trim();
+          if (pageName) {
+            return `[[Wikipedia:${pageName}]]${trailing}`;
+          }
+        }
+
+        const label = hostname.replace(/^www\./, "") || "link";
+        return `[${url} ${label}]${trailing}`;
+      } catch (e) {
+        return `${url}${trailing}`;
+      }
+    });
+  };
+
+  const wikiEscape = (value) => {
+    const text = String(value || "")
+      .replace(/\|/g, "{{!}}")
+      .replace(/\n/g, "<br />");
+    return convertUrlsToWikilinks(text);
+  };
+
+  // Find the WT ID column index
+  const wtIdColumnIndex = (result?.columns || []).findIndex(
+    (col) =>
+      String(col?.key || "")
+        .trim()
+        .toLowerCase() === "wtid"
+  );
+
+  const lines = [
+    '{| class="wikitable sortable" border=1',
+    "|-",
+    `! ${headers.map((header) => wikiEscape(header)).join(" !! ")}`,
+  ];
+
+  rows.forEach((row) => {
+    lines.push("|-");
+    const cells = row.map((cell, cellIndex) => {
+      // If this is the WT ID column, wrap in wikilink
+      if (cellIndex === wtIdColumnIndex && cell) {
+        return `[[${cell}]]`;
+      }
+      return wikiEscape(cell);
+    });
+    lines.push(`| ${cells.join(" || ")}`);
+  });
+  lines.push("|}");
+
+  const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+  downloadBlob(`${sanitizeExportFileBaseName(result?.title)}.wikitable.txt`, blob);
+}
+
+function injectResultsExportButtons($popup, tableId, result) {
+  const $wrapper = $popup.find(`#${tableId}_wrapper`);
+  if (!$wrapper.length) return;
+  if ($wrapper.find(".wbe-chat-export-controls").length) return;
+
+  const $length = $wrapper.find(".dataTables_length").first();
+  const $filter = $wrapper.find(".dataTables_filter").first();
+  if (!$length.length || !$filter.length) return;
+
+  const $controls = $(
+    '<div class="wbe-chat-export-controls" style="display:inline-flex;align-items:center;gap:6px;margin:0 12px;vertical-align:middle;">' +
+      '<span style="font-size:12px;color:#555;">Export:</span>' +
+      '<button type="button" class="small wbe-chat-export-btn" data-format="csv">CSV</button>' +
+      '<button type="button" class="small wbe-chat-export-btn" data-format="xlsx">XLSX</button>' +
+      '<button type="button" class="small wbe-chat-export-btn" data-format="json">JSON</button>' +
+      '<button type="button" class="small wbe-chat-export-btn" data-format="wikitable">Wikitable</button>' +
+      "</div>"
+  );
+
+  $controls.insertAfter($length);
+  $controls.on("click", ".wbe-chat-export-btn", function () {
+    const format = String($(this).attr("data-format") || "").toLowerCase();
+    try {
+      if (format === "csv") exportResultAsCsv(result);
+      else if (format === "xlsx") exportResultAsXlsx(result);
+      else if (format === "json") exportResultAsJson(result);
+      else if (format === "wikitable") exportResultAsWikitable(result);
+    } catch (error) {
+      console.info("wbe: export failed", { format, error });
+    }
+  });
 }
 
 function openResultsTable(result = lastStructuredResult, opts = {}) {
@@ -1398,6 +1728,9 @@ function openResultsTable(result = lastStructuredResult, opts = {}) {
       if ($t.length && $.fn.DataTable.isDataTable($t)) {
         $t.DataTable().destroy();
       }
+      if ($t.length) {
+        tableColumnFilterState.delete(String($t.attr("id") || ""));
+      }
     } catch (e) {
       /* ignore */
     }
@@ -1441,9 +1774,41 @@ function openResultsTable(result = lastStructuredResult, opts = {}) {
     paging: true,
     searching: true,
     ordering: true,
+    orderCellsTop: true,
     autoWidth: false,
     pageLength: 25,
     order: result.defaultOrder || [],
+  });
+
+  injectResultsExportButtons($popup, tableId, result);
+
+  const dateColumnIndexes = new Set();
+  (result.columns || []).forEach((column, index) => {
+    const key = String(column?.key || "").toLowerCase();
+    if (key === "birth" || key === "death" || key.endsWith("date")) {
+      dateColumnIndexes.add(index);
+    }
+  });
+
+  tableColumnFilterState.set(tableId, {
+    filters: (result.columns || []).map(() => ({ empty: true })),
+    dateColumnIndexes,
+  });
+
+  $popup.find(".chat-col-filter-input").on("input change", function () {
+    const colIndex = Number($(this).attr("data-col-index"));
+    if (!Number.isFinite(colIndex)) {
+      return;
+    }
+
+    const state = tableColumnFilterState.get(tableId);
+    if (!state || !Array.isArray(state.filters)) {
+      return;
+    }
+
+    state.filters[colIndex] = parseColumnFilterExpression($(this).val());
+    tableColumnFilterState.set(tableId, state);
+    dataTable.draw();
   });
 
   const initialSearch = String(opts?.initialSearch || "").trim();
@@ -1486,6 +1851,14 @@ async function handleChatResult(result) {
     .map((action) => {
       if (typeof action?.onClick === "function") {
         return action;
+      }
+
+      if (action?.table) {
+        return {
+          ...action,
+          actionType: action.actionType || "table",
+          onClick: () => openResultsTable(action.table),
+        };
       }
 
       if ((action?.actionType === "wtplus-open" || action?.label === "Open in WT+") && action?.wtPlusQuery) {
@@ -1583,7 +1956,9 @@ async function sendChatPrompt() {
       refreshWtPlusSuggestionPickerForCurrentPopup();
       return;
     }
-    prompt = lastNonRetryUserPrompt;
+    // A retry should replay the previous request verbatim, not answer a stale disambiguation prompt.
+    pendingDisambiguationContext = null;
+    prompt = sanitizeRetriedPrompt(lastNonRetryUserPrompt);
     appendMessage("assistant", `Retrying your previous request: ${prompt}`, { shouldPersist: false });
   }
 
@@ -1662,6 +2037,7 @@ async function sendChatPrompt() {
         extractFollowupTableFilterText,
         openResultsTable,
         tryHandleAiPlannedIntent,
+        setExplicitMode: setCurrentChatMode,
       });
       prompt = modeResult.prompt;
       if (modeResult.handled) {
@@ -2131,6 +2507,7 @@ function mapApiPersonToStandardRow(person = {}, options = {}) {
   const isPrivatePlaceholder = Number(person?.Id) < 0 && !wtId;
   const lnab = person.LastNameAtBirth || "";
   const lastNameCurrent = person.LastNameCurrent || "";
+  const lastNameOther = person.LastNameOther || "";
   const surnamePreference = options.surnamePreference === "currentFirst" ? "currentFirst" : "birthFirst";
   const surname = surnamePreference === "currentFirst" ? lastNameCurrent || lnab || "" : lnab || lastNameCurrent || "";
   const birthValue = normalizeKnownDate(person.BirthDate) || normalizeKnownDecade(person.BirthDateDecade);
@@ -2167,6 +2544,7 @@ function mapApiPersonToStandardRow(person = {}, options = {}) {
     middleName: person.MiddleName || "",
     lnab,
     lastNameCurrent,
+    lastNameOther,
     spouse,
     spouseList,
     degrees: options.degrees ?? "",
@@ -2461,6 +2839,7 @@ function openPopup() {
             <div class="chat-input-actions">
               <div id="wbe-chat-mode-controls" class="chat-mode-controls" aria-label="Chat mode">
                 <div class="chat-mode-controls-title">Mode</div>
+                <span id="wbe-chat-mode-notice" class="chat-mode-notice" aria-live="polite"></span>
                 <label class="chat-mode-option"><input type="radio" name="wbe-chat-mode" value="wt" checked /><span>WT</span></label>
                 <label class="chat-mode-option"><input type="radio" name="wbe-chat-mode" value="wtplus" /><span>WT+</span></label>
                 <label class="chat-mode-option"><input type="radio" name="wbe-chat-mode" value="ai" /><span>AI</span></label>
@@ -2480,6 +2859,7 @@ function openPopup() {
     $popup.find(`#${CHAT_SEND_ID}`).on("click", sendChatPrompt);
     $popup.find('input[name="wbe-chat-mode"]').on("change", (event) => {
       persistChatMode(event?.target?.value || getCurrentChatMode());
+      clearChatModeNotice($popup);
     });
     $popup.find(`#${CHAT_INPUT_ID}`).on("keydown", (event) => {
       if (event.key === "Escape") {

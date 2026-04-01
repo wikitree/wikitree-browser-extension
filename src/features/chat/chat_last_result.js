@@ -8,6 +8,81 @@ export function createLastResultOperationHandler({
   normalizeSurname,
   extractCountryFromLocation,
 }) {
+  function extractYear(value) {
+    const match = String(value || "")
+      .trim()
+      .match(/^(\d{4})/);
+    const year = Number(match?.[1]);
+    return Number.isFinite(year) && year > 0 ? year : null;
+  }
+
+  function describeFilter(filter) {
+    const kind = String(filter?.kind || "text");
+    const rawValue = String(filter?.value || "").trim();
+    const value = rawValue || "(empty)";
+
+    if (kind === "gender") {
+      return `gender is ${value}`;
+    }
+    if (kind === "surname") {
+      return `surname is ${value}`;
+    }
+    if (kind === "birthLocation") {
+      return `birth location contains ${value}`;
+    }
+    if (kind === "deathLocation") {
+      return `death location contains ${value}`;
+    }
+    if (kind === "country") {
+      return `country contains ${value}`;
+    }
+    if (kind === "name") {
+      return `name matches ${value}`;
+    }
+    if (kind === "birthDate") {
+      const direction = String(filter?.direction || "before").toLowerCase() === "after" ? "after" : "before";
+      return `birth date is ${direction} ${value}`;
+    }
+    if (kind === "deathDate") {
+      const direction = String(filter?.direction || "before").toLowerCase() === "after" ? "after" : "before";
+      return `death date is ${direction} ${value}`;
+    }
+    return `text contains ${value}`;
+  }
+
+  function describeFilterForTitle(filter) {
+    const kind = String(filter?.kind || "text");
+    const value = String(filter?.value || "").trim() || "(empty)";
+
+    if (kind === "gender") {
+      return `gender=${value}`;
+    }
+    if (kind === "surname") {
+      return `surname=${value}`;
+    }
+    if (kind === "birthLocation") {
+      return `birth location=${value}`;
+    }
+    if (kind === "deathLocation") {
+      return `death location=${value}`;
+    }
+    if (kind === "country") {
+      return `country=${value}`;
+    }
+    if (kind === "name") {
+      return `name=${value}`;
+    }
+    if (kind === "birthDate") {
+      const direction = String(filter?.direction || "before").toLowerCase() === "after" ? "after" : "before";
+      return `birth ${direction} ${value}`;
+    }
+    if (kind === "deathDate") {
+      const direction = String(filter?.direction || "before").toLowerCase() === "after" ? "after" : "before";
+      return `death ${direction} ${value}`;
+    }
+    return `contains=${value}`;
+  }
+
   function getRowCountry(row) {
     return (
       row.country ||
@@ -63,6 +138,91 @@ export function createLastResultOperationHandler({
       return direction === "desc" ? -1 : 1;
     }
     return normalizeText(left.displayName).localeCompare(normalizeText(right.displayName));
+  }
+
+  function resolveEffectiveFilter(filter, lastStructuredResult) {
+    const nextFilter = {
+      ...(filter || {}),
+      kind: String(filter?.kind || "text"),
+      value: String(filter?.value || "").trim(),
+      operator: String(filter?.operator || "and").toLowerCase(),
+    };
+
+    if (
+      nextFilter.operator === "or" &&
+      nextFilter.kind === "text" &&
+      String(lastStructuredResult?.filterContext?.kind || "")
+    ) {
+      nextFilter.kind = String(lastStructuredResult.filterContext.kind);
+    }
+
+    return nextFilter;
+  }
+
+  function rowMatchesFilter(row, filter) {
+    const value = normalizeText(filter?.value);
+    if (!value) {
+      return true;
+    }
+
+    if (filter.kind === "gender") {
+      return normalizeText(row.gender) === normalizeText(filter.value);
+    }
+    if (filter.kind === "surname") {
+      return normalizeSurname(row.surname) === normalizeSurname(filter.value);
+    }
+    if (filter.kind === "birthLocation") {
+      return normalizeText(row.birthLocation).includes(value);
+    }
+    if (filter.kind === "deathLocation") {
+      return normalizeText(row.deathLocation).includes(value);
+    }
+    if (filter.kind === "country") {
+      return normalizeText(getRowCountry(row)).includes(value);
+    }
+    if (filter.kind === "birthDate" || filter.kind === "deathDate") {
+      const filterYear = extractYear(filter.value);
+      if (!filterYear) {
+        return true;
+      }
+
+      const rowDate = filter.kind === "birthDate" ? row.birth : row.death;
+      const rowYear = extractYear(rowDate);
+      if (!rowYear) {
+        return false;
+      }
+
+      const direction = String(filter.direction || "before").toLowerCase();
+      return direction === "after" ? rowYear > filterYear : rowYear < filterYear;
+    }
+    if (filter.kind === "name") {
+      const nameFields = [row.firstName, row.middleName, row.lnab, row.lastNameCurrent, row.lastNameOther, row.surname]
+        .map((part) => normalizeText(part))
+        .filter(Boolean);
+
+      if (!nameFields.length) {
+        return false;
+      }
+
+      if (!value.includes(" ")) {
+        return nameFields.some((fieldValue) => fieldValue.split(" ").includes(value));
+      }
+
+      return nameFields.some((fieldValue) => fieldValue === value || fieldValue.includes(value));
+    }
+
+    const haystack = [
+      row.displayName,
+      row.wtid,
+      row.surname,
+      row.birthLocation,
+      row.deathLocation,
+      row.gender,
+      getRowCountry(row),
+    ]
+      .map((part) => normalizeText(part))
+      .join(" ");
+    return haystack.includes(value);
   }
 
   return async function tryHandleLastResultOperation(params) {
@@ -162,51 +322,60 @@ export function createLastResultOperationHandler({
     }
 
     if (params.action === "filter") {
-      const filteredRows = dataResult.rows.filter((row) => {
-        const value = normalizeText(params.filter?.value);
-        if (!value) {
-          return true;
-        }
+      const effectiveFilter = resolveEffectiveFilter(params.filter, lastStructuredResult);
+      const filterSummary = describeFilter(effectiveFilter);
+      const filterTitle = describeFilterForTitle(effectiveFilter);
+      const isOrFilter = effectiveFilter.operator === "or";
 
-        if (params.filter.kind === "gender") {
-          return normalizeText(row.gender) === normalizeText(params.filter.value);
-        }
-        if (params.filter.kind === "surname") {
-          return normalizeSurname(row.surname) === normalizeSurname(params.filter.value);
-        }
-        if (params.filter.kind === "birthLocation") {
-          return normalizeText(row.birthLocation).includes(value);
-        }
-        if (params.filter.kind === "deathLocation") {
-          return normalizeText(row.deathLocation).includes(value);
-        }
-        if (params.filter.kind === "country") {
-          return normalizeText(getRowCountry(row)).includes(value);
-        }
+      const filterBaseResult =
+        isOrFilter && lastStructuredResult?.filterContext?.baseResult
+          ? cloneResultWithRows(
+              lastStructuredResult.filterContext.baseResult,
+              lastStructuredResult.filterContext.baseResult.title || "Chat Results",
+              lastStructuredResult.filterContext.baseResult.rows || []
+            )
+          : dataResult;
 
-        const haystack = [
-          row.displayName,
-          row.wtid,
-          row.surname,
-          row.birthLocation,
-          row.deathLocation,
-          row.gender,
-          getRowCountry(row),
-        ]
-          .map((part) => normalizeText(part))
-          .join(" ");
-        return haystack.includes(value);
-      });
+      const directMatches = filterBaseResult.rows.filter((row) => rowMatchesFilter(row, effectiveFilter));
+      let filteredRows = directMatches;
 
-      if (!filteredRows.length) {
-        return "No rows matched that filter in the current result set.";
+      if (isOrFilter) {
+        const byKey = new Map();
+        const getKey = (row) => String(row?.wtid || row?.WTID || row?.Id || row?.id || row?.displayName || "").trim();
+        const priorRows = Array.isArray(lastStructuredResult?.rows) ? lastStructuredResult.rows : [];
+        priorRows.forEach((row) => {
+          const key = getKey(row);
+          if (key) byKey.set(key, row);
+        });
+        directMatches.forEach((row) => {
+          const key = getKey(row);
+          if (key && !byKey.has(key)) byKey.set(key, row);
+        });
+        filteredRows = Array.from(byKey.values());
       }
 
-      const filteredResult = cloneResultWithRows(dataResult, `${dataResult.title} filtered`, filteredRows);
+      if (!filteredRows.length) {
+        return `No rows matched this filter in the current result set: ${filterSummary}.`;
+      }
+
+      const filteredResult = cloneResultWithRows(
+        dataResult,
+        `${dataResult.title} filtered (${filterTitle})`,
+        filteredRows
+      );
+      filteredResult.filterContext = {
+        kind: effectiveFilter.kind,
+        value: String(effectiveFilter.value || ""),
+        operator: isOrFilter ? "or" : "and",
+        baseResult:
+          lastStructuredResult?.filterContext?.baseResult ||
+          cloneResultWithRows(dataResult, dataResult.title || "Chat Results", dataResult.rows),
+      };
+
       return {
-        message: `Filtered the current result set down to ${filteredRows.length} row${
-          filteredRows.length === 1 ? "" : "s"
-        }.\n${summarizeStructuredRows(filteredRows)}`,
+        message: `${isOrFilter ? "Expanded" : "Filtered"} the current result set ${isOrFilter ? "to" : "down to"} ${
+          filteredRows.length
+        } row${filteredRows.length === 1 ? "" : "s"} using ${filterSummary}.\n${summarizeStructuredRows(filteredRows)}`,
         table: filteredResult,
       };
     }

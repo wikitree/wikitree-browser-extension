@@ -48,9 +48,7 @@ export function createChatAiHelpers({
       return "";
     }
 
-    return recentUserMessages
-      .map((message, index) => `${index + 1}. ${truncateForAi(message?.text)}`)
-      .join("\n");
+    return recentUserMessages.map((message, index) => `${index + 1}. ${truncateForAi(message?.text)}`).join("\n");
   }
 
   async function getChatAiConfig() {

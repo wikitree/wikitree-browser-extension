@@ -16,6 +16,7 @@
     "https://api.anthropic.com/*",
     "https://api.perplexity.ai/*",
     "https://raw.githubusercontent.com/*",
+    "https://query.wikidata.org/*",
     "storage",
     "clipboardRead",
     "clipboardWrite",

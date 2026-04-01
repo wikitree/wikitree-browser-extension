@@ -44,6 +44,7 @@ export function createProfileSearchHandler({
     queryRan: 0,
     queryZeroResults: 0,
   };
+  let wikidataTimeoutBackoffUntil = 0;
 
   function recordWtPlusParseTelemetry(eventName) {
     if (!eventName || !Object.prototype.hasOwnProperty.call(wtPlusParseTelemetry, eventName)) return;
@@ -135,6 +136,525 @@ export function createProfileSearchHandler({
       .trim()
       .replace(/^["“”'‘’\s\[]+|["“”'‘’\s\]]+$/g, "")
       .trim();
+  }
+
+  function splitYearFromLocationPhrase(rawValue) {
+    const cleaned = stripSurroundingQuotes(rawValue)
+      .replace(/\s+(?:profiles?|people|members?)\s*$/i, "")
+      .trim();
+    if (!cleaned) {
+      return { location: "", year: "" };
+    }
+
+    const yearMatch = cleaned.match(/\b(1[5-9]\d{2}|20\d{2})\b/);
+    const year = yearMatch?.[1] || "";
+    const location = cleaned
+      .replace(/\b(1[5-9]\d{2}|20\d{2})\b/g, " ")
+      .replace(/\s*,\s*/g, ", ")
+      .replace(/\s{2,}/g, " ")
+      .replace(/^[,\s]+|[,\s]+$/g, "")
+      .trim();
+
+    return { location, year };
+  }
+
+  function sanitizeWtPlusLocationYearTerms(queryText) {
+    let query = String(queryText || "").trim();
+    if (!query) {
+      return { query, changed: false };
+    }
+
+    const existingDateTokens = new Set(
+      (query.match(/\b(?:B\d{4}|D\d{4})\b/gi) || []).map((token) => token.toUpperCase())
+    );
+    const dateTokensToAdd = [];
+    let changed = false;
+
+    query = query.replace(
+      /\b(BirthLocation|DeathLocation|Location)=((?:"[^"]*"|'[^']*'|[^\s]+))/gi,
+      (full, field, rawValue) => {
+        const { location, year } = splitYearFromLocationPhrase(rawValue);
+        if (!year) {
+          return full;
+        }
+
+        changed = true;
+        if (/^BirthLocation$/i.test(field)) {
+          const token = `B${year}`;
+          if (!existingDateTokens.has(token.toUpperCase()) && !dateTokensToAdd.includes(token)) {
+            dateTokensToAdd.push(token);
+          }
+        } else if (/^DeathLocation$/i.test(field)) {
+          const token = `D${year}`;
+          if (!existingDateTokens.has(token.toUpperCase()) && !dateTokensToAdd.includes(token)) {
+            dateTokensToAdd.push(token);
+          }
+        }
+
+        if (!location) {
+          return "";
+        }
+
+        return `${field}=${quoteWtPlusValue(location)}`;
+      }
+    );
+
+    query = query.replace(/\s{2,}/g, " ").trim();
+    if (dateTokensToAdd.length) {
+      query = `${query} ${dateTokensToAdd.join(" ")}`.trim();
+      changed = true;
+    }
+
+    return { query, changed };
+  }
+
+  function buildScopedWtPlusQueryFromSqlOnly(queryText) {
+    const normalized = String(queryText || "").trim();
+    const sqlOnlyMatch = normalized.match(/^sql\s*=\s*"([\s\S]*)"$/i);
+    if (!sqlOnlyMatch?.[1]) {
+      return "";
+    }
+
+    const sqlExpression = String(sqlOnlyMatch[1] || "").trim();
+    const events = ["Birth", "Marriage", "Death"];
+    const branches = [];
+
+    events.forEach((eventName) => {
+      const locationMatch = sqlExpression.match(
+        new RegExp(`\\[Default\\]\\.\\[${eventName} Location\\]\\s*=\\s*'([^']+)'`, "i")
+      );
+      if (!locationMatch?.[1]) {
+        return;
+      }
+
+      const locationValue = String(locationMatch[1] || "")
+        .replace(/''/g, "'")
+        .trim();
+      if (!locationValue) {
+        return;
+      }
+
+      const inRangeMatch = sqlExpression.match(
+        new RegExp(`\\[Default\\]\\.\\[${eventName} Date\\]\\.AsNumber\\s+In\\s+([0-9]{4,8}\\.\\.[0-9]{4,8})`, "i")
+      );
+      const compareMatch = sqlExpression.match(
+        new RegExp(`\\[Default\\]\\.\\[${eventName} Date\\]\\.AsNumber\\s*([<>]=?)\\s*([0-9]{4,8})`, "i")
+      );
+
+      const scopeField = `${eventName}Location`;
+      const scopeTerm = `${scopeField}=${quoteWtPlusValue(locationValue)}`;
+      const sqlTerm = inRangeMatch?.[1]
+        ? buildWtPlusSqlTerm(`([Default].[${eventName} Date].AsNumber In ${inRangeMatch[1]})`)
+        : compareMatch?.[1] && compareMatch?.[2]
+        ? buildWtPlusSqlTerm(`([Default].[${eventName} Date].AsNumber ${compareMatch[1]} ${compareMatch[2]})`)
+        : "";
+
+      branches.push([scopeTerm, sqlTerm].filter(Boolean).join(" "));
+    });
+
+    if (!branches.length) {
+      return "";
+    }
+
+    return branches.join(" OR ");
+  }
+
+  function extractCommonLocationFromSqlOnlyQuery(queryText) {
+    const normalized = String(queryText || "").trim();
+    const sqlOnlyMatch = normalized.match(/^sql\s*=\s*"([\s\S]*)"$/i);
+    const sqlExpression = String(sqlOnlyMatch?.[1] || "").trim();
+    if (!sqlExpression) {
+      return "";
+    }
+
+    const locationMatches = Array.from(
+      sqlExpression.matchAll(/\[Default\]\.\[(?:Birth|Marriage|Death)\s+(?:Location|Place)\]\s*=\s*'([^']+)'/gi)
+    )
+      .map((match) =>
+        String(match?.[1] || "")
+          .replace(/''/g, "'")
+          .trim()
+      )
+      .filter(Boolean);
+
+    if (!locationMatches.length) {
+      return "";
+    }
+
+    const normalizedSet = new Set(locationMatches.map((value) => value.toLowerCase()));
+    if (normalizedSet.size !== 1) {
+      return "";
+    }
+
+    return locationMatches[0];
+  }
+
+  function buildLocationScopedDateOnlySqlQuery(queryText) {
+    const commonLocation = extractCommonLocationFromSqlOnlyQuery(queryText);
+    if (!commonLocation) {
+      return "";
+    }
+
+    const normalized = String(queryText || "").trim();
+    const sqlOnlyMatch = normalized.match(/^sql\s*=\s*"([\s\S]*)"$/i);
+    const sqlExpression = String(sqlOnlyMatch?.[1] || "").trim();
+    if (!sqlExpression) {
+      return "";
+    }
+
+    const eventDefinitions = [
+      {
+        key: "Birth",
+        patterns: [
+          /\[(?:Default|Birth)\]\.\[Birth Date\]\.AsNumber\s*(?:In\s+[0-9]{4,8}\.\.[0-9]{4,8}|[<>]=?\s*[0-9]{4,8})/gi,
+        ],
+      },
+      {
+        key: "Marriage",
+        patterns: [
+          /\[(?:Default|Marriage)\]\.\[Marriage Date\]\.AsNumber\s*(?:In\s+[0-9]{4,8}\.\.[0-9]{4,8}|[<>]=?\s*[0-9]{4,8})/gi,
+        ],
+      },
+      {
+        key: "Death",
+        patterns: [
+          /\[(?:Default|Death)\]\.\[Death Date\]\.AsNumber\s*(?:In\s+[0-9]{4,8}\.\.[0-9]{4,8}|[<>]=?\s*[0-9]{4,8})/gi,
+        ],
+      },
+    ];
+
+    const normalizeEventPredicateNamespace = (eventKey, predicate) => {
+      if (!predicate) return "";
+      if (eventKey === "Marriage") {
+        return predicate.replace(/\[(?:Default|Marriage)\]\.\[Marriage Date\]/gi, "[Marriage].[Marriage Date]");
+      }
+      if (eventKey === "Birth") {
+        return predicate.replace(/\[(?:Default|Birth)\]\.\[Birth Date\]/gi, "[Default].[Birth Date]");
+      }
+      if (eventKey === "Death") {
+        return predicate.replace(/\[(?:Default|Death)\]\.\[Death Date\]/gi, "[Default].[Death Date]");
+      }
+      return predicate;
+    };
+
+    const branchQueries = [];
+    eventDefinitions.forEach((eventDef) => {
+      const predicateSet = new Set();
+      eventDef.patterns.forEach((pattern) => {
+        for (const match of sqlExpression.matchAll(pattern)) {
+          const predicate = normalizeEventPredicateNamespace(eventDef.key, String(match?.[0] || "").trim());
+          if (predicate) {
+            predicateSet.add(predicate);
+          }
+        }
+      });
+
+      if (!predicateSet.size) {
+        return;
+      }
+
+      const eventSqlTerm = buildWtPlusSqlTerm(
+        Array.from(predicateSet)
+          .map((predicate) => `(${predicate})`)
+          .join(" Or ")
+      );
+
+      if (!eventSqlTerm) {
+        return;
+      }
+
+      branchQueries.push(`Location=${quoteWtPlusValue(commonLocation)} ${eventSqlTerm}`);
+    });
+
+    if (!branchQueries.length) {
+      return "";
+    }
+
+    return branchQueries.join(" OR ");
+  }
+
+  function applyLeadingScopeToEachOrBranch(queryText, scopeTerm) {
+    const normalizedQuery = String(queryText || "").trim();
+    const normalizedScope = String(scopeTerm || "").trim();
+    if (!normalizedQuery || !normalizedScope) {
+      return normalizedQuery;
+    }
+
+    const branches = normalizedQuery
+      .split(/\s+OR\s+/i)
+      .map((branch) => String(branch || "").trim())
+      .filter(Boolean);
+    if (!branches.length) {
+      return normalizedQuery;
+    }
+
+    return branches
+      .map((branch) => (/\bSuggestions\s*=\s*\d+\b/i.test(branch) ? branch : `${normalizedScope} ${branch}`))
+      .join(" OR ");
+  }
+
+  function splitWtPlusTopLevelOrGroups(queryText) {
+    const text = String(queryText || "").trim();
+    if (!text) {
+      return [];
+    }
+
+    const groups = [];
+    let start = 0;
+    let inSingle = false;
+    let inDouble = false;
+
+    for (let i = 0; i < text.length; i += 1) {
+      const ch = text[i];
+      if (ch === '"' && !inSingle) {
+        inDouble = !inDouble;
+        continue;
+      }
+      if (ch === "'" && !inDouble) {
+        inSingle = !inSingle;
+        continue;
+      }
+      if (inSingle || inDouble) {
+        continue;
+      }
+
+      const maybeOr = text.slice(i, i + 4);
+      if (/^\sor\s$/i.test(maybeOr)) {
+        const group = text.slice(start, i).trim();
+        if (group) {
+          groups.push(group);
+        }
+        start = i + 4;
+        i += 3;
+      }
+    }
+
+    const tail = text.slice(start).trim();
+    if (tail) {
+      groups.push(tail);
+    }
+
+    return groups;
+  }
+
+  function canonicalizeWtPlusBranchTermOrder(queryText) {
+    const groups = splitWtPlusTopLevelOrGroups(queryText);
+    if (!groups.length) {
+      return String(queryText || "").trim();
+    }
+
+    const suggestionsByGroup = groups.map((group) => {
+      const tokens = tokenizeWtPlusQueryText(group);
+      return tokens
+        .filter((token) => /^Suggestions\s*=\s*\d+$/i.test(String(token || "").trim()))
+        .map((token) => String(token || "").trim());
+    });
+    const uniqueSuggestions = Array.from(new Set(suggestionsByGroup.flat().map((token) => token.toLowerCase())));
+    const sharedSuggestion = uniqueSuggestions.length === 1 ? suggestionsByGroup.flat()[0] : "";
+
+    const normalizedGroups = groups.map((group, index) => {
+      const tokens = tokenizeWtPlusQueryText(group);
+      if (!tokens.length) {
+        return group;
+      }
+
+      const nonSql = [];
+      const sql = [];
+      let hasSuggestion = false;
+
+      tokens.forEach((rawToken) => {
+        const token = String(rawToken || "").trim();
+        if (!token) return;
+        if (/^Suggestions\s*=\s*\d+$/i.test(token)) {
+          hasSuggestion = true;
+          return;
+        }
+        if (/^sql\s*=/i.test(token)) {
+          sql.push(token);
+          return;
+        }
+        nonSql.push(token);
+      });
+
+      if (!hasSuggestion && sharedSuggestion && groups.length > 1) {
+        nonSql.push(sharedSuggestion);
+      } else if (hasSuggestion) {
+        const ownSuggestion = suggestionsByGroup[index]?.[0];
+        if (ownSuggestion) {
+          nonSql.push(ownSuggestion);
+        }
+      }
+
+      const rebuilt = [...nonSql, ...sql].join(" ").trim();
+      return rebuilt || group;
+    });
+
+    return normalizedGroups.join(" OR ");
+  }
+
+  function normalizeWtPlusEventScopeWithDisjunctiveSql(queryText) {
+    const text = String(queryText || "").trim();
+    if (!text || /\s+OR\s+/i.test(text)) {
+      return text;
+    }
+
+    const tokens = tokenizeWtPlusQueryText(text);
+    if (!tokens.length) {
+      return text;
+    }
+
+    let birthLocationTerm = "";
+    let marriageLocationTerm = "";
+    let deathLocationTerm = "";
+    let suggestionsTerm = "";
+    let sqlToken = "";
+
+    tokens.forEach((rawToken) => {
+      const token = String(rawToken || "").trim();
+      if (!token) return;
+      if (/^BirthLocation=/i.test(token)) {
+        birthLocationTerm = token;
+      } else if (/^MarriageLocation=/i.test(token)) {
+        marriageLocationTerm = token;
+      } else if (/^DeathLocation=/i.test(token)) {
+        deathLocationTerm = token;
+      } else if (/^Suggestions\s*=\s*\d+$/i.test(token)) {
+        suggestionsTerm = token;
+      } else if (/^sql\s*=/i.test(token)) {
+        sqlToken = token;
+      }
+    });
+
+    const hasMultipleEventScopes =
+      [birthLocationTerm, marriageLocationTerm, deathLocationTerm].filter(Boolean).length >= 2;
+    if (!hasMultipleEventScopes || !sqlToken) {
+      return text;
+    }
+
+    const sqlMatch = sqlToken.match(/^sql\s*=\s*"([\s\S]*)"$/i);
+    const sqlInner = String(sqlMatch?.[1] || "").trim();
+    if (!sqlInner) {
+      return text;
+    }
+
+    const pickPredicates = (pattern, eventKey) => {
+      const results = new Set();
+      for (const match of sqlInner.matchAll(pattern)) {
+        let predicate = String(match?.[0] || "").trim();
+        if (!predicate) continue;
+        if (eventKey === "Marriage") {
+          predicate = predicate.replace(/\[(?:Default|Marriage)\]\.\[Marriage Date\]/gi, "[Marriage].[Marriage Date]");
+        } else if (eventKey === "Birth") {
+          predicate = predicate.replace(/\[(?:Default|Birth)\]\.\[Birth Date\]/gi, "[Default].[Birth Date]");
+        } else if (eventKey === "Death") {
+          predicate = predicate.replace(/\[(?:Default|Death)\]\.\[Death Date\]/gi, "[Default].[Death Date]");
+        }
+        results.add(predicate);
+      }
+      return Array.from(results);
+    };
+
+    const birthPredicates = pickPredicates(
+      /\[(?:Default|Birth)\]\.\[Birth Date\]\.AsNumber\s*(?:In\s+[0-9]{4,8}\.\.[0-9]{4,8}|[<>]=?\s*[0-9]{4,8})/gi,
+      "Birth"
+    );
+    const marriagePredicates = pickPredicates(
+      /\[(?:Default|Marriage)\]\.\[Marriage Date\]\.AsNumber\s*(?:In\s+[0-9]{4,8}\.\.[0-9]{4,8}|[<>]=?\s*[0-9]{4,8})/gi,
+      "Marriage"
+    );
+    const deathPredicates = pickPredicates(
+      /\[(?:Default|Death)\]\.\[Death Date\]\.AsNumber\s*(?:In\s+[0-9]{4,8}\.\.[0-9]{4,8}|[<>]=?\s*[0-9]{4,8})/gi,
+      "Death"
+    );
+
+    const branches = [];
+    const pushBranch = (locationTerm, predicates) => {
+      if (!locationTerm || !Array.isArray(predicates) || !predicates.length) return;
+      const sqlTerm = buildWtPlusSqlTerm(predicates.map((predicate) => `(${predicate})`).join(" Or "));
+      if (!sqlTerm) return;
+      branches.push([locationTerm, suggestionsTerm, sqlTerm].filter(Boolean).join(" "));
+    };
+
+    pushBranch(birthLocationTerm, birthPredicates);
+    pushBranch(marriageLocationTerm, marriagePredicates);
+    pushBranch(deathLocationTerm, deathPredicates);
+
+    if (!branches.length) {
+      return text;
+    }
+
+    return canonicalizeWtPlusBranchTermOrder(branches.join(" OR "));
+  }
+
+  function tryBuildSuggestionsDisjunctiveLifeEventQuery(rawQuery, suggestionId) {
+    const text = String(rawQuery || "")
+      .replace(/\bSuggestions\s*=\s*\d+\b/gi, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    if (!text || !String(suggestionId || "").trim()) {
+      return "";
+    }
+
+    const hasDisjunctiveLifeEvents =
+      /\bborn\b/i.test(text) && /\bmarried\b/i.test(text) && /\bdied\b/i.test(text) && /\b(?:or|and)\b/i.test(text);
+    if (!hasDisjunctiveLifeEvents) {
+      return "";
+    }
+
+    const locationAndYearMatch = text.match(/\bin\s+(.+?)\s+before\s+(\d{4})\b/i);
+    const locationText = String(locationAndYearMatch?.[1] || "")
+      .replace(/[,.]+$/g, "")
+      .trim();
+    const yearText = String(locationAndYearMatch?.[2] || "").trim();
+    if (!locationText || !yearText) {
+      return "";
+    }
+
+    const yearBoundary = `${yearText}0101`;
+    const eventBranches = [
+      `BirthLocation=${quoteWtPlusValue(locationText)} ${buildWtPlusSqlTerm(
+        `([Default].[Birth Date].AsNumber < ${yearBoundary})`
+      )}`,
+      `MarriageLocation=${quoteWtPlusValue(locationText)} ${buildWtPlusSqlTerm(
+        `([Marriage].[Marriage Date].AsNumber < ${yearBoundary})`
+      )}`,
+      `DeathLocation=${quoteWtPlusValue(locationText)} ${buildWtPlusSqlTerm(
+        `([Default].[Death Date].AsNumber < ${yearBoundary})`
+      )}`,
+    ];
+
+    const suggestionScope = `Suggestions=${String(suggestionId || "").trim()}`;
+    return canonicalizeWtPlusBranchTermOrder(
+      applyLeadingScopeToEachOrBranch(eventBranches.join(" OR "), suggestionScope)
+    );
+  }
+
+  function tryRepairAmbiguousSuggestionsFallback(rawQuery, localWtPlusQuery) {
+    const localQueryText = String(localWtPlusQuery?.query || "").trim();
+    if (!localQueryText) {
+      return null;
+    }
+
+    const suggestionMatch =
+      localQueryText.match(/\bSuggestions\s*=\s*(\d+)\b/i) ||
+      String(rawQuery || "").match(/\bSuggestions\s*=\s*(\d+)\b/i);
+    const suggestionId = String(suggestionMatch?.[1] || "").trim();
+    if (!suggestionId) {
+      return null;
+    }
+
+    const repairedQuery = tryBuildSuggestionsDisjunctiveLifeEventQuery(rawQuery, suggestionId);
+    if (!repairedQuery) {
+      return null;
+    }
+
+    const normalizedQuery = normalizeWtPlusQueryString(repairedQuery) || repairedQuery;
+    return {
+      query: normalizedQuery,
+      title: localWtPlusQuery?.title || `WT+ search: ${String(rawQuery || "").trim()}`,
+      description: localWtPlusQuery?.description || String(rawQuery || "").trim(),
+      understood: localWtPlusQuery?.understood || String(rawQuery || "").trim(),
+    };
   }
 
   function quoteWtPlusValue(value) {
@@ -694,6 +1214,15 @@ export function createProfileSearchHandler({
     let working = String(groupText || "").trim();
     if (!working) return null;
 
+    // Disjunctive life-event prompts (e.g., "born, married, or died in X before Y")
+    // are too nuanced for the deterministic parser and should be handled by AI.
+    if (
+      /\b(?:born|married|died)\b[\s,]*(?:,\s*)?(?:or|and)\s*(?:born|married|died)\b/i.test(working) ||
+      /\bborn\s*,\s*married\s*,\s*or\s*died\b/i.test(working)
+    ) {
+      return null;
+    }
+
     const terms = [];
     const sqlTerms = [];
     const understood = [];
@@ -1232,21 +1761,22 @@ export function createProfileSearchHandler({
     });
 
     consume(/\bborn\s+in\s+(.+?)\s+but\s+marr(?:y|ies|ied)\s+elsewhere\b/i, (match) => {
-      const raw = stripSurroundingQuotes(match[1])
-        .replace(/\s+(?:profiles?|people|members?)\s*$/i, "")
-        .trim();
-      if (!raw || /^\d{4}s?$/i.test(raw)) {
+      const { location, year } = splitYearFromLocationPhrase(match[1]);
+      if (year) {
+        addTerm(`B${year}`, `born in ${year}`);
+      }
+      if (!location) {
         return;
       }
 
-      const escaped = escapeWtPlusSqlLiteral(raw, true);
-      addTerm(normalizeWtPlusFieldTerm("BirthLocation", raw), `born in ${raw}`);
+      const escaped = escapeWtPlusSqlLiteral(location, true);
+      addTerm(normalizeWtPlusFieldTerm("BirthLocation", location), `born in ${location}`);
       if (escaped) {
         addSqlTerm(
           buildWtPlusSqlTerm(
             `([Marriage].[Marriage Location].AsString <> '') And ([Marriage].[Marriage Location].AsString Not Like '*${escaped}*')`
           ),
-          `married elsewhere than ${raw}`
+          `married elsewhere than ${location}`
         );
       }
     });
@@ -1254,22 +1784,24 @@ export function createProfileSearchHandler({
     consume(
       /\bborn\s+in\s+(.+?)(?=$|\b(?:and|or|before|after|between|to|profiles?|people|members?|unrecognized|unknown)\b)/i,
       (match) => {
-        const raw = stripSurroundingQuotes(match[1])
-          .replace(/\s+(?:profiles?|people|members?)\s*$/i, "")
-          .trim();
-        if (raw && !/^\d{4}s?$/i.test(raw)) {
-          addTerm(normalizeWtPlusFieldTerm("BirthLocation", raw), `born in ${raw}`);
+        const { location, year } = splitYearFromLocationPhrase(match[1]);
+        if (year) {
+          addTerm(`B${year}`, `born in ${year}`);
+        }
+        if (location) {
+          addTerm(normalizeWtPlusFieldTerm("BirthLocation", location), `born in ${location}`);
         }
       }
     );
     consume(
       /\bdied\s+in\s+(.+?)(?=$|\b(?:and|or|before|after|profiles?|people|members?|unrecognized|unknown)\b)/i,
       (match) => {
-        const raw = stripSurroundingQuotes(match[1])
-          .replace(/\s+(?:profiles?|people|members?)\s*$/i, "")
-          .trim();
-        if (raw && !/^\d{4}$/i.test(raw)) {
-          addTerm(normalizeWtPlusFieldTerm("DeathLocation", raw), `died in ${raw}`);
+        const { location, year } = splitYearFromLocationPhrase(match[1]);
+        if (year) {
+          addTerm(`D${year}`, `died in ${year}`);
+        }
+        if (location) {
+          addTerm(normalizeWtPlusFieldTerm("DeathLocation", location), `died in ${location}`);
         }
       }
     );
@@ -1949,8 +2481,22 @@ export function createProfileSearchHandler({
 
     match = normalizedText.match(/^(?:profiles?|people)\s+born\s+in\s+(.+)$/i);
     if (match?.[1]) {
-      const location = stripSurroundingQuotes(match[1]);
-      if (location && !/^\d{4}s?$/i.test(location)) {
+      const { location, year } = splitYearFromLocationPhrase(match[1]);
+      if (year && location) {
+        return {
+          query: `BirthLocation=${quoteWtPlusValue(location)} B${year}`,
+          title: `WT+ Birth Place + Year: ${location}, ${year}`,
+          description: `BirthLocation=${location} B${year}`,
+        };
+      }
+      if (year && !location) {
+        return {
+          query: `B${year}`,
+          title: `WT+ Birth Year: ${year}`,
+          description: `B${year}`,
+        };
+      }
+      if (location) {
         return {
           query: `BirthLocation=${quoteWtPlusValue(location)}`,
           title: `WT+ Birth Location: ${location}`,
@@ -1961,8 +2507,22 @@ export function createProfileSearchHandler({
 
     match = normalizedText.match(/^(?:profiles?|people)\s+died\s+in\s+(.+)$/i);
     if (match?.[1]) {
-      const location = stripSurroundingQuotes(match[1]);
-      if (location && !/^\d{4}$/i.test(location)) {
+      const { location, year } = splitYearFromLocationPhrase(match[1]);
+      if (year && location) {
+        return {
+          query: `DeathLocation=${quoteWtPlusValue(location)} D${year}`,
+          title: `WT+ Death Place + Year: ${location}, ${year}`,
+          description: `DeathLocation=${location} D${year}`,
+        };
+      }
+      if (year && !location) {
+        return {
+          query: `D${year}`,
+          title: `WT+ Death Year: ${year}`,
+          description: `D${year}`,
+        };
+      }
+      if (location) {
         return {
           query: `DeathLocation=${quoteWtPlusValue(location)}`,
           title: `WT+ Death Location: ${location}`,
@@ -2193,6 +2753,7 @@ export function createProfileSearchHandler({
         "Example sub-century range with anomaly: 'women in Scotland unknown first or last name between 1800 and 1810' => female BirthCountry=Scotland 19Cen sql=\"([Default].[Birth Date].AsNumber In 18000101..18101231) And (([Default].[First Name] = '') Or ([Default].[Last Name At Birth] = ''))\"",
         "Do not treat command words as surname/location values (e.g., search, find, show, list, get, name) unless clearly quoted or explicitly assigned.",
         "For patterns like '<surname> born in <location> between <year> and <year>', map surname to AllLastNames (or LastNameAtBirth when clearly LNAB), map the place phrase after 'in' to BirthLocation/Location, emit NCen for that century, and keep the narrower date range in sql=.",
+        "For disjunctive life-event prompts like 'born, married, or died in <place> before <year>', prefer an OR query that applies the same place/date constraint to each relevant event (birth/marriage/death) rather than treating words like 'born' as names or locations.",
       ].join("\n");
       const previousQuery = String(reparseContext?.previousQuery || "").trim();
       const isReparse = !!reparseContext?.reparseFromZeroResults;
@@ -2259,9 +2820,10 @@ export function createProfileSearchHandler({
       }
 
       const completedQuery = ensureWtPlusFamilyField(rawQuery, parsed?.query || "");
-      const normalizedQuery = normalizeWtPlusQueryString(completedQuery || "");
+      const repairedQuery = canonicalizeWtPlusBranchTermOrder(completedQuery || "");
+      const normalizedQuery = normalizeWtPlusQueryString(repairedQuery || completedQuery || "");
       if (!normalizedQuery) {
-        console.info("wbe: callAiParseWtPlusQuery returned invalid query", { parsed });
+        console.info("wbe: callAiParseWtPlusQuery returned invalid query", { parsed, completedQuery, repairedQuery });
         return null;
       }
 
@@ -2355,6 +2917,31 @@ export function createProfileSearchHandler({
       hasAnomalyConstraint,
       hasGeneticConstraint,
     ].filter(Boolean).length;
+
+    // Natural-language event+place+year phrasing is easy to misparse with local regex
+    // (for example: "people born in Yorkshire in 1850"), so prefer AI translation.
+    const hasLifeEventLocationYearPhrase =
+      /\b(?:born|died|married)\s+in\s+.+\s+in\s+(?:\d{4}(?:-\d{2}(?:-\d{2})?)?|\d{4}s|(?:the\s+)?\d{1,2}(?:st|nd|rd|th)?\s+century)\b/i.test(
+        text
+      );
+    if (hasLifeEventLocationYearPhrase && !hasExplicitField) {
+      return true;
+    }
+
+    const hasApproximateLifeEventPhrase =
+      /\b(?:born|died|married)\b.*\b(?:around|about|circa|c\.?\s*|approx(?:\.|imately)?)\b.*\b\d{4}\b/i.test(text) ||
+      /\b(?:born|died|married)\b.*\b(?:near|close\s+to)\b.*\b(?:before|after|around|about)?\s*\d{4}\b/i.test(text) ||
+      /\b(?:births?|deaths?|marriages?)\b.*\b(?:around|about|near)\b.*\b\d{4}\b/i.test(text);
+    if (hasApproximateLifeEventPhrase && !hasExplicitField) {
+      return true;
+    }
+
+    const hasDisjunctiveLifeEventPhrase =
+      /\b(?:born|married|died)\b[\s,]*(?:,\s*)?(?:or|and)\s*(?:born|married|died)\b/i.test(text) ||
+      /\bborn\s*,\s*married\s*,\s*or\s*died\b/i.test(text);
+    if (hasDisjunctiveLifeEventPhrase && !hasExplicitField) {
+      return true;
+    }
 
     if (hasExplicitField) {
       return false;
@@ -2458,7 +3045,62 @@ export function createProfileSearchHandler({
     const { query: managerCanonicalQuery, managerMatches } = await canonicalizeWtPlusManagerTerms(
       logicalCanonicalQuery
     );
-    const { query: canonicalQuery, categoryMatches } = await canonicalizeWtPlusCategoryTerms(managerCanonicalQuery);
+    const { query: canonicalQueryRaw, categoryMatches } = await canonicalizeWtPlusCategoryTerms(managerCanonicalQuery);
+    const { query: sanitizedQuery } = sanitizeWtPlusLocationYearTerms(canonicalQueryRaw);
+    let canonicalQuery = normalizeWtPlusEventScopeWithDisjunctiveSql(sanitizedQuery);
+
+    // WT+ rejects queries that start with sql=. AI sometimes emits sql-only
+    // constraints for complex prompts. Prefer a single scoped query form.
+    const suggestionSqlMatch = canonicalQuery.match(/^(Suggestions\s*=\s*\d+)\s+(sql\s*=\s*"[\s\S]*")$/i);
+    if (suggestionSqlMatch?.[1] && suggestionSqlMatch?.[2]) {
+      const suggestionScope = String(suggestionSqlMatch[1] || "").trim();
+      const sqlOnlyPart = String(suggestionSqlMatch[2] || "").trim();
+      const normalizedSqlBranches = buildLocationScopedDateOnlySqlQuery(sqlOnlyPart);
+      if (normalizedSqlBranches) {
+        canonicalQuery = applyLeadingScopeToEachOrBranch(normalizedSqlBranches, suggestionScope);
+        console.info("wbe: normalized Suggestions+sql WT+ query to per-branch Suggestions scope", {
+          originalQuery: sanitizedQuery,
+          normalizedQuery: canonicalQuery,
+        });
+      }
+    }
+
+    if (/^sql\s*=\s*"/i.test(canonicalQuery)) {
+      const dateOnlyScopedQuery = buildLocationScopedDateOnlySqlQuery(canonicalQuery);
+      if (dateOnlyScopedQuery) {
+        canonicalQuery = dateOnlyScopedQuery;
+        console.info("wbe: normalized sql-first WT+ query to Location + date-only sql", {
+          originalQuery: sanitizedQuery,
+          normalizedQuery: canonicalQuery,
+        });
+      } else {
+        const commonLocation = extractCommonLocationFromSqlOnlyQuery(canonicalQuery);
+        if (commonLocation) {
+          canonicalQuery = `Location=${quoteWtPlusValue(commonLocation)} ${canonicalQuery}`;
+          console.info("wbe: normalized sql-first WT+ query by prepending Location scope", {
+            originalQuery: sanitizedQuery,
+            normalizedQuery: canonicalQuery,
+          });
+        } else {
+          const scopedQuery = buildScopedWtPlusQueryFromSqlOnly(canonicalQuery);
+          if (scopedQuery) {
+            canonicalQuery = scopedQuery;
+            console.info("wbe: normalized sql-first WT+ query by deriving scoped OR branches", {
+              originalQuery: sanitizedQuery,
+              normalizedQuery: canonicalQuery,
+            });
+          } else {
+            canonicalQuery = `Open ${canonicalQuery}`;
+            console.info("wbe: normalized sql-first WT+ query by prepending Open", {
+              originalQuery: sanitizedQuery,
+              normalizedQuery: canonicalQuery,
+            });
+          }
+        }
+      }
+    }
+
+    canonicalQuery = canonicalizeWtPlusBranchTermOrder(canonicalQuery);
     const suggestionId = runOptions?.suggestionId || "";
     const suggestionOptions = runOptions?.suggestionOptions || {};
     const isSuggestionsSearch = runOptions?.searchType === "suggestions";
@@ -2572,6 +3214,8 @@ export function createProfileSearchHandler({
         : people.map((person) => mapApiPersonToStandardRow(person, { wtId: person?.Name }));
       const tableFactory = ancestorRootWtId ? makeAncestorProfileTable : makeStandardProfileTable;
       const table = tableFactory(title || `WT+ search: ${wtPlusQuery}`, rows, [[0, "asc"]]);
+      table.wtPlusQuery = canonicalQuery;
+      table.wtPlusSearchType = "text";
       if (!ancestorRootWtId) {
         table.columns = (table.columns || []).filter(
           (column) => !["degrees", "spouse", "spouseList"].includes(column.key)
@@ -2775,6 +3419,1352 @@ export function createProfileSearchHandler({
       if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") out[k] = v;
     }
     return out;
+  }
+
+  function shouldUseAiCandidateDiscovery(queryText) {
+    const text = String(queryText || "").trim();
+    if (!text || /\w+=/.test(text)) {
+      return false;
+    }
+
+    const hasPeopleCue = /\b(?:people|persons?|figures|individuals)\b/i.test(text);
+    const hasCriteriaCue = /\b(?:who|that|which)\b/i.test(text);
+    const hasListCommandCue =
+      /^(?:make|create|build|generate|compile)\s+(?:me\s+)?(?:a\s+)?list\b/i.test(text) ||
+      /^list\b/i.test(text) ||
+      /\bperson\s+list\s*[:\-]/i.test(text);
+    const hasDateOrPlaceCue = /\b(?:born|died|between|before|after|in|from)\b/i.test(text);
+    const isLikelySinglePersonLookup = text.split(/\s+/).filter(Boolean).length <= 4;
+    if (isLikelySinglePersonLookup) {
+      return false;
+    }
+
+    return hasPeopleCue && (hasCriteriaCue || hasListCommandCue) && hasDateOrPlaceCue;
+  }
+
+  function normalizeYearValue(value) {
+    const match = String(value || "").match(/\b(1[0-9]{3}|20[0-9]{2})\b/);
+    return match?.[1] || "";
+  }
+
+  function dedupeCandidatesByName(candidates = [], limit = 200) {
+    const seen = new Set();
+    const output = [];
+    candidates.forEach((candidate) => {
+      const name = String(candidate?.name || "").trim();
+      if (!name) return;
+      const key = normalizeText(name);
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      output.push(candidate);
+    });
+    return output.slice(0, Math.max(1, Math.min(500, Number(limit) || 200)));
+  }
+
+  function parseCandidateDiscoveryConstraints(rawQuery) {
+    const text = String(rawQuery || "").trim();
+    const countMatch = text.match(
+      /\b(?:list\s+of|about|around|approximately|approx\.?|up\s+to)?\s*(\d{1,3})(?:\s+\w+){0,3}\s+(?:people|persons?|figures|individuals)\b/i
+    );
+    const targetCount = Math.max(1, Math.min(200, Number.parseInt(countMatch?.[1] || "25", 10) || 25));
+
+    const betweenMatch = text.match(/\b(?:born|died|birth|death)?\s*between\s*(\d{4})\s+(?:and|to)\s*(\d{4})\b/i);
+    const yearA = Number.parseInt(betweenMatch?.[1] || "", 10);
+    const yearB = Number.parseInt(betweenMatch?.[2] || "", 10);
+    const yearMin = Number.isFinite(yearA) && Number.isFinite(yearB) ? Math.min(yearA, yearB) : null;
+    const yearMax = Number.isFinite(yearA) && Number.isFinite(yearB) ? Math.max(yearA, yearB) : null;
+
+    const bornAndDiedInMatch = text.match(
+      /\bborn\s+and\s+died\s+in\s+(.+?)(?=\s+between\s+\d{4}\s+(?:and|to)\s+\d{4}\b|(?:\bwho\b|\bwith\b|\bthat\b|\bborn\b|\bdied\b|,|\.|$))/i
+    );
+    const sharedLocationRaw = String(bornAndDiedInMatch?.[1] || "").trim();
+    const sharedLocationNeedle = normalizeText(sharedLocationRaw);
+
+    const mustBeBornInScotland =
+      /\bborn\s+in\s+scotland\b/i.test(text) ||
+      /\bbirth(?:place|\s+location)?\s+in\s+scotland\b/i.test(text) ||
+      sharedLocationNeedle.includes("scotland") ||
+      /\bborn\s+and\s+died\s+in\s+scotland\b/i.test(text);
+    const mustDieInScotland =
+      /\bdied\s+in\s+scotland\b/i.test(text) ||
+      /\bdeath(?:place|\s+location)?\s+in\s+scotland\b/i.test(text) ||
+      sharedLocationNeedle.includes("scotland") ||
+      /\bborn\s+and\s+died\s+in\s+scotland\b/i.test(text);
+
+    const womenShareMatch = text.match(/\b(\d{1,3})\s*%\s*women\b/i);
+    const requestedWomenShare = Number.parseInt(womenShareMatch?.[1] || "", 10);
+
+    return {
+      targetCount,
+      yearMin,
+      yearMax,
+      mustBeBornInScotland,
+      mustDieInScotland,
+      requiredBirthLocationNeedle: sharedLocationNeedle || "",
+      requiredDeathLocationNeedle: sharedLocationNeedle || "",
+      requestedWomenShare: Number.isFinite(requestedWomenShare)
+        ? Math.max(0, Math.min(100, requestedWomenShare))
+        : null,
+    };
+  }
+
+  async function queryWikidataCandidatePeople(constraints = {}, genderEntityId = "", options = {}) {
+    const targetCount = Math.max(1, Math.min(200, Number.parseInt(constraints?.targetCount, 10) || 25));
+    const requireWikipediaArticle = options?.requireWikipediaArticle !== false;
+    const requestTimeoutMs = Math.max(4000, Math.min(30000, Number(options?.timeoutMs) || 12000));
+    const yearMin = Number.isFinite(constraints?.yearMin) ? constraints.yearMin : 1700;
+    const yearMax = Number.isFinite(constraints?.yearMax) ? constraints.yearMax : 1799;
+    const birthStart = `${yearMin}-01-01T00:00:00Z`;
+    const birthEndExclusive = `${yearMax + 1}-01-01T00:00:00Z`;
+    const deathStart = `${yearMin}-01-01T00:00:00Z`;
+    const deathEndExclusive = `${yearMax + 1}-01-01T00:00:00Z`;
+
+    const genderClause = genderEntityId ? `?person wdt:P21 wd:${genderEntityId} .` : "";
+    const sparql = [
+      "PREFIX wd: <http://www.wikidata.org/entity/>",
+      "PREFIX wdt: <http://www.wikidata.org/prop/direct/>",
+      "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>",
+      "PREFIX schema: <http://schema.org/>",
+      `SELECT DISTINCT ?person ?personLabel ?personDescription ?birthDate ?deathDate ?birthPlaceLabel ?deathPlaceLabel ${
+        requireWikipediaArticle ? "?article" : ""
+      } WHERE {`,
+      "  ?person wdt:P31 wd:Q5 .",
+      genderClause,
+      "  ?person wdt:P569 ?birthDate .",
+      "  ?person wdt:P570 ?deathDate .",
+      "  ?person wdt:P19 ?birthPlace .",
+      "  ?person wdt:P20 ?deathPlace .",
+      `  FILTER(?birthDate >= \"${birthStart}\"^^xsd:dateTime && ?birthDate < \"${birthEndExclusive}\"^^xsd:dateTime)`,
+      `  FILTER(?deathDate >= \"${deathStart}\"^^xsd:dateTime && ?deathDate < \"${deathEndExclusive}\"^^xsd:dateTime)`,
+      "  ?birthPlace (wdt:P131*) wd:Q22 .",
+      "  ?deathPlace (wdt:P131*) wd:Q22 .",
+      requireWikipediaArticle ? "  ?article schema:about ?person ; schema:isPartOf <https://en.wikipedia.org/> ." : "",
+      '  SERVICE wikibase:label { bd:serviceParam wikibase:language "en" . }',
+      "}",
+      `LIMIT ${targetCount}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const fetchViaBackground = () =>
+      new Promise((resolve) => {
+        try {
+          chrome.runtime.sendMessage(
+            {
+              action: "fetchWikidataSparql",
+              query: sparql,
+              timeoutMs: requestTimeoutMs,
+            },
+            (resp) => {
+              if (chrome.runtime.lastError) {
+                resolve({ success: false, error: chrome.runtime.lastError.message });
+                return;
+              }
+              resolve(resp || { success: false, error: "no-response" });
+            }
+          );
+        } catch (error) {
+          resolve({ success: false, error: String(error?.message || error) });
+        }
+      });
+
+    let json = null;
+    const backgroundResp = await fetchViaBackground();
+    if (backgroundResp?.success && backgroundResp?.json) {
+      json = backgroundResp.json;
+    } else {
+      console.info("wbe: queryWikidataCandidatePeople background fetch unavailable", {
+        error: backgroundResp?.error || "unknown-error",
+        genderEntityId,
+        requireWikipediaArticle,
+      });
+      throw new Error(`WikiData background fetch failed: ${String(backgroundResp?.error || "unknown-error")}`);
+    }
+
+    if (!json) {
+      throw new Error("WikiData query returned no JSON payload");
+    }
+
+    const bindings = Array.isArray(json?.results?.bindings) ? json.results.bindings : [];
+    return bindings
+      .map((binding) => {
+        const name = String(binding?.personLabel?.value || "").trim();
+        if (!name) return null;
+        const birthYear = normalizeYearValue(binding?.birthDate?.value);
+        const deathYear = normalizeYearValue(binding?.deathDate?.value);
+        return {
+          name,
+          birthYear,
+          deathYear,
+          birthLocation: String(binding?.birthPlaceLabel?.value || "").trim(),
+          deathLocation: String(binding?.deathPlaceLabel?.value || "").trim(),
+          whyNotable: String(binding?.personDescription?.value || "Wikipedia-listed notable person").trim(),
+          source: String(binding?.article?.value || binding?.person?.value || "").trim(),
+        };
+      })
+      .filter(Boolean);
+  }
+
+  async function queryWikidataCandidatePeopleWithRetry(constraints = {}, genderEntityId = "") {
+    if (Date.now() < wikidataTimeoutBackoffUntil) {
+      console.info("wbe: queryWikidataCandidatePeople skipped due to timeout backoff", {
+        retryAfterMs: wikidataTimeoutBackoffUntil - Date.now(),
+      });
+      return [];
+    }
+
+    try {
+      return await queryWikidataCandidatePeople(constraints, genderEntityId, {
+        requireWikipediaArticle: true,
+        timeoutMs: 9000,
+      });
+    } catch (firstError) {
+      const firstErrorText = String(firstError?.message || firstError || "");
+      console.info("wbe: queryWikidataCandidatePeople retrying relaxed query", {
+        error: firstErrorText,
+        genderEntityId,
+      });
+      if (/wikidata-timeout/i.test(firstErrorText)) {
+        wikidataTimeoutBackoffUntil = Date.now() + 5 * 60 * 1000;
+        // Skip a second network attempt when the first request already timed out.
+        return [];
+      }
+      const reducedTarget = Math.max(1, Math.min(100, Number.parseInt(constraints?.targetCount, 10) || 25));
+      return await queryWikidataCandidatePeople({ ...constraints, targetCount: reducedTarget }, genderEntityId, {
+        requireWikipediaArticle: false,
+        timeoutMs: 7000,
+      });
+    }
+  }
+
+  async function callWikidataGenerateCandidatePeople(rawQuery, constraints = {}) {
+    try {
+      const targetCount = Math.max(1, Math.min(200, Number.parseInt(constraints?.targetCount, 10) || 25));
+      const womenShare = Number.isFinite(constraints?.requestedWomenShare) ? constraints.requestedWomenShare : null;
+      // Gender-split queries double SPARQL load and are prone to endpoint timeouts.
+      // Prefer a single, reliable query path; hybrid mode can still balance via AI candidates.
+      const useGenderSplit = false;
+
+      let candidates = [];
+      if (useGenderSplit) {
+        const femaleTarget = Math.max(1, Math.round((targetCount * womenShare) / 100));
+        const maleTarget = Math.max(1, targetCount - femaleTarget);
+        const settled = await Promise.allSettled([
+          queryWikidataCandidatePeopleWithRetry({ ...constraints, targetCount: femaleTarget }, "Q6581072"),
+          queryWikidataCandidatePeopleWithRetry({ ...constraints, targetCount: maleTarget }, "Q6581097"),
+        ]);
+        const female = settled[0]?.status === "fulfilled" ? settled[0].value : [];
+        const male = settled[1]?.status === "fulfilled" ? settled[1].value : [];
+        if (settled[0]?.status === "rejected" || settled[1]?.status === "rejected") {
+          console.info("wbe: callWikidataGenerateCandidatePeople partial gender-split failure", {
+            femaleStatus: settled[0]?.status,
+            maleStatus: settled[1]?.status,
+            femaleReason: settled[0]?.status === "rejected" ? String(settled[0]?.reason || "") : "",
+            maleReason: settled[1]?.status === "rejected" ? String(settled[1]?.reason || "") : "",
+          });
+        }
+        candidates = dedupeCandidatesByName([...(female || []), ...(male || [])], targetCount);
+      } else {
+        if (womenShare != null) {
+          console.info("wbe: callWikidataGenerateCandidatePeople skipping gender split for reliability", {
+            womenShare,
+            targetCount,
+          });
+        }
+        candidates = dedupeCandidatesByName(await queryWikidataCandidatePeopleWithRetry(constraints), targetCount);
+      }
+
+      if (!candidates.length) {
+        return null;
+      }
+
+      return {
+        understood: `WikiData candidates for: ${String(rawQuery || "").trim()}`,
+        candidates,
+      };
+    } catch (error) {
+      console.info("wbe: callWikidataGenerateCandidatePeople failed", { error });
+      return null;
+    }
+  }
+
+  function personMatchesDiscoveryConstraints(person, constraints) {
+    if (!person || !constraints) return true;
+
+    const birthYear = Number.parseInt(normalizeYearValue(person?.BirthDate), 10);
+    const deathYear = Number.parseInt(normalizeYearValue(person?.DeathDate), 10);
+
+    if (Number.isFinite(constraints.yearMin) && Number.isFinite(constraints.yearMax)) {
+      if (Number.isFinite(birthYear) && (birthYear < constraints.yearMin || birthYear > constraints.yearMax)) {
+        return false;
+      }
+      if (Number.isFinite(deathYear) && (deathYear < constraints.yearMin || deathYear > constraints.yearMax)) {
+        return false;
+      }
+    }
+
+    const birthLocation = normalizeText(String(person?.BirthLocation || ""));
+    const deathLocation = normalizeText(String(person?.DeathLocation || ""));
+    if (
+      constraints.requiredBirthLocationNeedle &&
+      birthLocation &&
+      !birthLocation.includes(constraints.requiredBirthLocationNeedle)
+    ) {
+      return false;
+    }
+    if (
+      constraints.requiredDeathLocationNeedle &&
+      deathLocation &&
+      !deathLocation.includes(constraints.requiredDeathLocationNeedle)
+    ) {
+      return false;
+    }
+    if (constraints.mustBeBornInScotland && birthLocation && !birthLocation.includes("scotland")) {
+      return false;
+    }
+    if (constraints.mustDieInScotland && deathLocation && !deathLocation.includes("scotland")) {
+      return false;
+    }
+
+    return true;
+  }
+
+  function splitCandidateName(fullName) {
+    const raw = String(fullName || "").trim();
+    const principalRaw = raw.includes(",") ? raw.split(",")[0].trim() : raw;
+
+    const clean = String(principalRaw || raw)
+      .replace(/\([^)]*\)/g, " ")
+      .replace(/\b(?:lord|lady|sir|dame|dr|rev|prof)\.?\b/gi, " ")
+      .replace(/[,]/g, " ")
+      .replace(/\s+/g, " ")
+      .replace(/[.,;:!?]+$/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!clean) {
+      return { firstName: "", lastName: "", fullName: "" };
+    }
+
+    const parts = clean.split(" ").filter(Boolean);
+    if (parts.length === 1) {
+      return { firstName: "", lastName: parts[0], fullName: clean };
+    }
+
+    return {
+      firstName: parts[0],
+      lastName: parts[parts.length - 1],
+      fullName: clean,
+    };
+  }
+
+  function candidateMatchScore(candidate, match) {
+    const candidateName = normalizeText(String(candidate?.name || ""));
+    const matchNames = [
+      match?.RealName,
+      match?.BirthName,
+      match?.FirstName && (match?.LastNameAtBirth || match?.LastNameCurrent)
+        ? `${match.FirstName} ${match.LastNameAtBirth || match.LastNameCurrent}`
+        : "",
+      match?.Name
+        ? String(match.Name)
+            .replace(/-/g, " ")
+            .replace(/\s+\d+$/g, "")
+        : "",
+    ]
+      .map((value) => normalizeText(String(value || "")))
+      .filter(Boolean);
+
+    let score = 0;
+    if (candidateName && matchNames.some((nameValue) => nameValue === candidateName)) {
+      score += 6;
+    }
+    if (candidateName && matchNames.some((nameValue) => nameValue.includes(candidateName))) {
+      score += 2;
+    }
+
+    const candidateBirthYear = normalizeYearValue(candidate?.birthYear);
+    const candidateDeathYear = normalizeYearValue(candidate?.deathYear);
+    const matchBirthYear = normalizeYearValue(match?.BirthDate);
+    const matchDeathYear = normalizeYearValue(match?.DeathDate);
+    if (candidateBirthYear && matchBirthYear) {
+      const yearDelta = Math.abs(Number(candidateBirthYear) - Number(matchBirthYear));
+      if (yearDelta === 0) score += 3;
+      else if (yearDelta <= 2) score += 1;
+      else score -= 4;
+    } else if (candidateBirthYear && !matchBirthYear) {
+      score -= 2;
+    }
+
+    if (candidateDeathYear && matchDeathYear) {
+      const yearDelta = Math.abs(Number(candidateDeathYear) - Number(matchDeathYear));
+      if (yearDelta === 0) score += 3;
+      else if (yearDelta <= 2) score += 1;
+      else score -= 4;
+    } else if (candidateDeathYear && !matchDeathYear) {
+      score -= 2;
+    }
+
+    const birthLocationNeedle = normalizeText(String(candidate?.birthLocation || ""));
+    const deathLocationNeedle = normalizeText(String(candidate?.deathLocation || ""));
+    const matchBirthLocation = normalizeText(String(match?.BirthLocation || ""));
+    const matchDeathLocation = normalizeText(String(match?.DeathLocation || ""));
+    if (birthLocationNeedle && matchBirthLocation && matchBirthLocation.includes(birthLocationNeedle)) score += 1;
+    if (deathLocationNeedle && matchDeathLocation && matchDeathLocation.includes(deathLocationNeedle)) score += 1;
+
+    return score;
+  }
+
+  function candidateDateEvidenceScore(candidate, match) {
+    const candidateBirthYear = normalizeYearValue(candidate?.birthYear);
+    const candidateDeathYear = normalizeYearValue(candidate?.deathYear);
+    const matchBirthYear = normalizeYearValue(match?.BirthDate);
+    const matchDeathYear = normalizeYearValue(match?.DeathDate);
+
+    let score = 0;
+    if (candidateBirthYear && matchBirthYear) {
+      const delta = Math.abs(Number(candidateBirthYear) - Number(matchBirthYear));
+      if (delta === 0) score += 3;
+      else if (delta <= 2) score += 1;
+      else score -= 3;
+    } else if (candidateBirthYear && !matchBirthYear) {
+      score -= 2;
+    }
+
+    if (candidateDeathYear && matchDeathYear) {
+      const delta = Math.abs(Number(candidateDeathYear) - Number(matchDeathYear));
+      if (delta === 0) score += 3;
+      else if (delta <= 2) score += 1;
+      else score -= 3;
+    } else if (candidateDeathYear && !matchDeathYear) {
+      score -= 2;
+    }
+
+    return score;
+  }
+
+  function locationMatchesNeedle(locationValue, needleValue) {
+    const location = normalizeText(String(locationValue || ""));
+    const needle = normalizeText(String(needleValue || ""));
+    if (!needle) return true;
+    if (!location) return false;
+
+    const splitCommaParts = (value) =>
+      String(value || "")
+        .split(",")
+        .map((part) => normalizeText(part))
+        .map((part) =>
+          part
+            .replace(/\b(the|county|shire|city|town)\b/g, "")
+            .replace(/\s+/g, " ")
+            .trim()
+        )
+        .filter(Boolean);
+
+    const locationParts = splitCommaParts(location);
+    const needleParts = splitCommaParts(needle);
+
+    // If we have multiple parts in needle, require >= 2 matches (but be lenient if one is country-level)
+    if (locationParts.length && needleParts.length) {
+      const commonPartCount = needleParts.filter((part) =>
+        locationParts.some((locPart) => locPart === part || locPart.includes(part) || part.includes(locPart))
+      ).length;
+
+      // If needle has country + city, accept match if city matches (allow missing country in location)
+      const isCountryLevelPart = (part) => /^(scotland|england|wales|ireland|usa|uk|france|germany|italy)$/i.test(part);
+      const needleHasCountry = needleParts.some(isCountryLevelPart);
+      const commonNonCountryParts = needleParts
+        .filter((part) => !isCountryLevelPart(part))
+        .filter((part) =>
+          locationParts.some((locPart) => locPart === part || locPart.includes(part) || part.includes(locPart))
+        ).length;
+
+      if (needleHasCountry && commonNonCountryParts >= 1) {
+        return true; // City matched, country mismatch is acceptable
+      }
+
+      if (commonPartCount >= 2) {
+        return true;
+      }
+    }
+
+    if (location.includes(needle) || needle.includes(location)) {
+      return true;
+    }
+
+    const locationTokens = new Set(location.split(/\s+/).filter(Boolean));
+    const needleTokens = needle.split(/\s+/).filter((token) => token.length > 1);
+    if (!needleTokens.length) {
+      return true;
+    }
+
+    return needleTokens.every((token) => locationTokens.has(token));
+  }
+
+  function getCandidateMatchIncompatibilityReason(candidate, match, constraints = {}) {
+    if (!match || typeof match !== "object") {
+      return "No match object returned";
+    }
+
+    const candidateBirthYear = normalizeYearValue(candidate?.birthYear);
+    const candidateDeathYear = normalizeYearValue(candidate?.deathYear);
+    const matchBirthYear = normalizeYearValue(match?.BirthDate);
+    const matchDeathYear = normalizeYearValue(match?.DeathDate);
+
+    let evidenceChecks = 0;
+    let evidenceMatches = 0;
+
+    if (candidateBirthYear && matchBirthYear) {
+      evidenceChecks += 1;
+      if (Math.abs(Number(candidateBirthYear) - Number(matchBirthYear)) > 2) {
+        return `Birth year mismatch: candidate ${candidateBirthYear}, match ${matchBirthYear}`;
+      }
+      evidenceMatches += 1;
+    }
+
+    if (candidateDeathYear && matchDeathYear) {
+      evidenceChecks += 1;
+      if (Math.abs(Number(candidateDeathYear) - Number(matchDeathYear)) > 2) {
+        return `Death year mismatch: candidate ${candidateDeathYear}, match ${matchDeathYear}`;
+      }
+      evidenceMatches += 1;
+    }
+
+    const matchBirthLocation = String(match?.BirthLocation || "");
+    const matchDeathLocation = String(match?.DeathLocation || "");
+    const candidateBirthLocationNeedle = String(candidate?.birthLocation || "").trim();
+    if (candidateBirthLocationNeedle && matchBirthLocation) {
+      evidenceChecks += 1;
+      if (!locationMatchesNeedle(matchBirthLocation, candidateBirthLocationNeedle)) {
+        return `Birth location mismatch: candidate "${candidateBirthLocationNeedle}" vs match "${matchBirthLocation}"`;
+      }
+      evidenceMatches += 1;
+    }
+
+    const candidateDeathLocationNeedle = String(candidate?.deathLocation || "").trim();
+    if (candidateDeathLocationNeedle && matchDeathLocation) {
+      evidenceChecks += 1;
+      if (!locationMatchesNeedle(matchDeathLocation, candidateDeathLocationNeedle)) {
+        return `Death location mismatch: candidate "${candidateDeathLocationNeedle}" vs match "${matchDeathLocation}"`;
+      }
+      evidenceMatches += 1;
+    }
+
+    if (!locationMatchesNeedle(matchBirthLocation, constraints?.requiredBirthLocationNeedle || "")) {
+      return "Birth location does not satisfy query location constraint";
+    }
+    if (!locationMatchesNeedle(matchDeathLocation, constraints?.requiredDeathLocationNeedle || "")) {
+      return "Death location does not satisfy query location constraint";
+    }
+
+    if (
+      constraints?.mustBeBornInScotland &&
+      normalizeText(matchBirthLocation) &&
+      !normalizeText(matchBirthLocation).includes("scotland")
+    ) {
+      return `Birth location not in Scotland: "${matchBirthLocation}"`;
+    }
+    if (
+      constraints?.mustDieInScotland &&
+      normalizeText(matchDeathLocation) &&
+      !normalizeText(matchDeathLocation).includes("scotland")
+    ) {
+      return `Death location not in Scotland: "${matchDeathLocation}"`;
+    }
+
+    const constraintHasBirthLocationNeedle = String(constraints?.requiredBirthLocationNeedle || "").trim();
+    if (constraintHasBirthLocationNeedle && matchBirthLocation) {
+      evidenceChecks += 1;
+      evidenceMatches += 1;
+    }
+
+    const constraintHasDeathLocationNeedle = String(constraints?.requiredDeathLocationNeedle || "").trim();
+    if (constraintHasDeathLocationNeedle && matchDeathLocation) {
+      evidenceChecks += 1;
+      evidenceMatches += 1;
+    }
+
+    if (constraints?.mustBeBornInScotland && matchBirthLocation) {
+      evidenceChecks += 1;
+      evidenceMatches += 1;
+    }
+
+    if (constraints?.mustDieInScotland && matchDeathLocation) {
+      evidenceChecks += 1;
+      evidenceMatches += 1;
+    }
+
+    if (evidenceChecks > 0 && evidenceMatches === 0) {
+      return "No supporting date/location evidence";
+    }
+
+    return "";
+  }
+
+  function isCandidateMatchCompatible(candidate, match, constraints = {}) {
+    return !getCandidateMatchIncompatibilityReason(candidate, match, constraints);
+  }
+
+  function buildCandidateSearchParamVariants(candidate) {
+    const nameParts = splitCandidateName(candidate?.name || "");
+    const firstName = String(nameParts?.firstName || "").trim();
+    const lastName = String(nameParts?.lastName || "").trim();
+    const birthYear = Number.parseInt(normalizeYearValue(candidate?.birthYear), 10);
+    const deathYear = Number.parseInt(normalizeYearValue(candidate?.deathYear), 10);
+    const birthDate = Number.isFinite(birthYear) ? `${birthYear}-01-01` : "";
+    const deathDate = Number.isFinite(deathYear) ? `${deathYear}-01-01` : "";
+
+    // User-requested strict mode: a single Birth+Death date search only.
+    if (!firstName || !lastName || !birthDate || !deathDate) {
+      return [];
+    }
+
+    return [
+      {
+        FirstName: firstName,
+        LastName: lastName,
+        BirthDate: birthDate,
+        DeathDate: deathDate,
+        dateSpread: 2,
+        dateInclude: "both",
+        skipVariants: 1,
+        lastNameMatch: "all",
+      },
+    ];
+  }
+
+  function buildLastNameMatchFallbackVariants(baseVariants = []) {
+    return [];
+  }
+
+  async function callAiGenerateCandidatePeople(rawQuery, constraints = {}) {
+    try {
+      const options = await getChatOptions();
+      if (!options?.allowAiFallback) return null;
+
+      const { provider, key, model } = await getChatAiConfig();
+      if (!key) return null;
+
+      const targetCount = Math.max(1, Math.min(100, Number.parseInt(constraints?.targetCount, 10) || 25));
+      const system = [
+        "You extract candidate historical people from a genealogy prompt.",
+        "Return JSON only and nothing else.",
+        'Format: {"understood":"short summary","candidates":[{"name":"...","birthYear":"YYYY(optional)","deathYear":"YYYY(optional)","birthLocation":"optional","deathLocation":"optional","whyNotable":"one-line reason","source":"URL or citation"}]}.',
+        "Rules:",
+        `- Provide exactly ${targetCount} candidates when possible; if uncertain, still return as many as you can without adding filler.`,
+        "- Use real, recognizable people when possible.",
+        "- Do not invent dates you are unsure about; omit unknown fields.",
+        "- Keep names in normal human form, not WikiTree IDs.",
+        "- Include whyNotable and source for each candidate whenever possible.",
+        "- Prefer people notable for adult achievements; avoid entries notable only because they died young unless there is clear historical significance.",
+      ].join("\n");
+      const user = `Generate candidate people for this request: \"${String(rawQuery || "").trim()}\"`;
+      const prompt = `${system}\n\n${user}`;
+
+      let aiResult = null;
+      if (typeof window.callAiModel === "function") {
+        aiResult = await window.callAiModel(prompt);
+      } else {
+        const payload = {
+          action: "chatWithAI",
+          provider,
+          key,
+          model,
+          prompt,
+          includeApiDocContext: false,
+        };
+
+        const sendToBg = (pl) =>
+          new Promise((resolve) => {
+            try {
+              chrome.runtime.sendMessage(pl, (resp) => {
+                if (chrome.runtime.lastError) {
+                  resolve({ success: false, error: chrome.runtime.lastError.message });
+                  return;
+                }
+                resolve(resp || { success: false, error: "no-response" });
+              });
+            } catch (error) {
+              resolve({ success: false, error: String(error?.message || error) });
+            }
+          });
+
+        const resp = await sendToBg(payload);
+        if (!resp?.success || typeof resp.response !== "string") {
+          return null;
+        }
+        aiResult = resp.response;
+      }
+
+      const requireDateRange = Number.isFinite(constraints?.yearMin) && Number.isFinite(constraints?.yearMax);
+      const normalizeCandidates = (candidateArray) =>
+        (Array.isArray(candidateArray) ? candidateArray : [])
+          .map((candidate) => {
+            const name = String(candidate?.name || candidate?.fullName || candidate?.person || "").trim();
+            if (!name) return null;
+            const birthYear = normalizeYearValue(candidate?.birthYear || candidate?.birth || candidate?.birthDate);
+            const deathYear = normalizeYearValue(candidate?.deathYear || candidate?.death || candidate?.deathDate);
+            if (requireDateRange && (!birthYear || !deathYear)) {
+              return null;
+            }
+            const whyNotable = String(candidate?.whyNotable || candidate?.note || "").trim();
+            const source = String(candidate?.source || candidate?.sourceUrl || "").trim();
+            return {
+              name,
+              birthYear,
+              deathYear,
+              birthLocation: String(candidate?.birthLocation || "").trim(),
+              deathLocation: String(candidate?.deathLocation || "").trim(),
+              whyNotable,
+              source,
+            };
+          })
+          .filter(Boolean)
+          .slice(0, Math.max(5, Math.min(200, Number.parseInt(constraints?.targetCount, 10) || 25)));
+
+      const tryParseCandidates = (textValue) => {
+        const txt = String(textValue || "").trim();
+        if (!txt) return [];
+
+        const objectMatch = txt.match(/\{[\s\S]*\}/);
+        if (objectMatch) {
+          try {
+            const parsedObject = JSON.parse(objectMatch[0]);
+            const objectCandidates =
+              parsedObject?.candidates || parsedObject?.people || parsedObject?.persons || parsedObject?.results || [];
+            const normalized = normalizeCandidates(objectCandidates);
+            if (normalized.length) return normalized;
+          } catch (e) {
+            /* continue */
+          }
+        }
+
+        const arrayMatch = txt.match(/\[[\s\S]*\]/);
+        if (arrayMatch) {
+          try {
+            const parsedArray = JSON.parse(arrayMatch[0]);
+            const normalized = normalizeCandidates(parsedArray);
+            if (normalized.length) return normalized;
+          } catch (e) {
+            /* continue */
+          }
+        }
+
+        return [];
+      };
+
+      let normalizedCandidates = tryParseCandidates(aiResult);
+
+      if (!normalizedCandidates.length) {
+        const simpleSystem = [
+          "Return JSON only.",
+          `Format: {\"candidates\":[{\"name\":\"...\",\"birthYear\":\"YYYY\",\"deathYear\":\"YYYY\",\"whyNotable\":\"...\",\"source\":\"URL or citation\"}]}`,
+          `Provide up to ${Math.min(40, targetCount)} real historical people matching the request.`,
+          "Always include whyNotable and source for every candidate.",
+        ].join("\n");
+        const simplePrompt = `${simpleSystem}\n\nRequest: \"${String(rawQuery || "").trim()}\"`;
+
+        let simpleResult = null;
+        if (typeof window.callAiModel === "function") {
+          simpleResult = await window.callAiModel(simplePrompt);
+        } else {
+          const simpleResp = await new Promise((resolve) => {
+            try {
+              chrome.runtime.sendMessage(
+                {
+                  action: "chatWithAI",
+                  provider,
+                  key,
+                  model,
+                  prompt: simplePrompt,
+                  includeApiDocContext: false,
+                },
+                (resp) => {
+                  if (chrome.runtime.lastError) {
+                    resolve({ success: false, error: chrome.runtime.lastError.message });
+                    return;
+                  }
+                  resolve(resp || { success: false, error: "no-response" });
+                }
+              );
+            } catch (error) {
+              resolve({ success: false, error: String(error?.message || error) });
+            }
+          });
+          if (simpleResp?.success && typeof simpleResp.response === "string") {
+            simpleResult = simpleResp.response;
+          }
+        }
+
+        normalizedCandidates = tryParseCandidates(simpleResult);
+      }
+
+      if (!normalizedCandidates.length) {
+        return null;
+      }
+
+      return {
+        understood: String(rawQuery || "").trim(),
+        candidates: normalizedCandidates,
+      };
+    } catch (error) {
+      console.info("wbe: callAiGenerateCandidatePeople failed", { error });
+      return null;
+    }
+  }
+
+  async function tryHandleAiCandidateDiscovery(rawQuery, options = {}) {
+    const constraints = parseCandidateDiscoveryConstraints(rawQuery);
+    const requestedStrategy = String(options?.strategy || "ai")
+      .trim()
+      .toLowerCase();
+    const strategy = "ai";
+
+    if (requestedStrategy === "wikidata" || requestedStrategy === "hybrid") {
+      console.info("wbe: Wikidata candidate discovery temporarily disabled; using AI-only strategy", {
+        requestedStrategy,
+      });
+    }
+
+    let aiCandidates = null;
+    if (strategy === "ai") {
+      showChatShaky("Asking AI for candidate people...");
+      aiCandidates = await callAiGenerateCandidatePeople(rawQuery, constraints);
+      if (aiCandidates?.candidates?.length) {
+        showChatShaky(`Searching WikiTree for ${aiCandidates.candidates.length} candidates...`);
+      }
+    }
+
+    if (!aiCandidates?.candidates?.length) {
+      const reducedTargetCount = Math.max(10, Math.min(40, Number.parseInt(constraints?.targetCount, 10) || 25));
+      const relaxedConstraints = {
+        ...constraints,
+        targetCount: reducedTargetCount,
+      };
+      const relaxedPrompt = String(rawQuery || "")
+        .replace(/\b(?:around|about|approximately|approx\.?|roughly)\s*\d{1,3}\s*%\s*women\b/gi, "")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+
+      console.info("wbe: candidate discovery attempting relaxed fallback", {
+        strategy,
+        reducedTargetCount,
+        hadPromptRewrite: relaxedPrompt !== String(rawQuery || ""),
+      });
+
+      showChatShaky("Retrying candidate discovery with a relaxed pass...");
+      const relaxedAiCandidates = await callAiGenerateCandidatePeople(relaxedPrompt || rawQuery, relaxedConstraints);
+      if (relaxedAiCandidates?.candidates?.length) {
+        aiCandidates = {
+          understood: `Relaxed fallback candidate list for: ${String(rawQuery || "").trim()}`,
+          candidates: relaxedAiCandidates.candidates,
+        };
+        showChatShaky(`Searching WikiTree for ${aiCandidates.candidates.length} candidates...`);
+      }
+    }
+
+    if (!aiCandidates?.candidates?.length) {
+      hideChatShaky();
+      return null;
+    }
+
+    const candidateMatches = [];
+    const notFoundCandidates = [];
+    const filteredOutCandidates = [];
+
+    const addNotFoundCandidate = (candidate) => {
+      const name = String(candidate?.name || "").trim();
+      if (!name) return;
+      if (!notFoundCandidates.includes(name)) {
+        notFoundCandidates.push(name);
+      }
+    };
+
+    const addFilteredOutCandidate = (candidate, topMatch, incompatibilityReason = "") => {
+      const name = String(candidate?.name || "").trim();
+      if (!name) return;
+      if (filteredOutCandidates.some((entry) => String(entry?.fullName || "").trim() === name)) {
+        return;
+      }
+      filteredOutCandidates.push({
+        fullName: name,
+        birthYear: String(candidate?.birthYear || "").trim(),
+        deathYear: String(candidate?.deathYear || "").trim(),
+        birthLocation: String(candidate?.birthLocation || "").trim(),
+        deathLocation: String(candidate?.deathLocation || "").trim(),
+        whyNotable: String(candidate?.whyNotable || "").trim(),
+        source: String(candidate?.source || "").trim(),
+        topMatchWtid: String(topMatch?.Name || "").trim(),
+        topMatchBirthDate: String(topMatch?.BirthDate || "").trim(),
+        topMatchDeathDate: String(topMatch?.DeathDate || "").trim(),
+        topMatchBirthLocation: String(topMatch?.BirthLocation || "").trim(),
+        topMatchDeathLocation: String(topMatch?.DeathLocation || "").trim(),
+        incompatibilityReason: String(incompatibilityReason || "").trim(),
+      });
+    };
+
+    for (let candidateIndex = 0; candidateIndex < aiCandidates.candidates.length; candidateIndex += 1) {
+      const candidate = aiCandidates.candidates[candidateIndex];
+      const candidateName = String(candidate?.name || "").trim() || "(unknown)";
+      showChatShaky(`Searching WikiTree (${candidateIndex + 1}/${aiCandidates.candidates.length}): ${candidateName}`);
+      const nameParts = splitCandidateName(candidate.name);
+      if (!nameParts.lastName) {
+        addNotFoundCandidate(candidate);
+        showChatShaky(
+          `No last name parsed (${candidateIndex + 1}/${aiCandidates.candidates.length}): ${candidateName}`
+        );
+        continue;
+      }
+
+      const rawMatches = [];
+      const matchKeys = new Set();
+      const allSearchParamVariants = buildCandidateSearchParamVariants(candidate);
+      const candidateHasDateHint = Boolean(
+        normalizeYearValue(candidate?.birthYear) || normalizeYearValue(candidate?.deathYear)
+      );
+      const datedSearchParamVariants = allSearchParamVariants.filter((params) =>
+        Boolean(params?.BirthDate || params?.DeathDate)
+      );
+      const searchParamVariants =
+        candidateHasDateHint && datedSearchParamVariants.length ? datedSearchParamVariants : allSearchParamVariants;
+      const variantDiagnostics = [];
+      for (const searchParams of searchParamVariants) {
+        const hasDateFilter = Boolean(searchParams?.BirthDate || searchParams?.DeathDate);
+        const [, matches] = await fetchSearchPersonPaged(
+          "Chat",
+          {
+            ...searchParams,
+            ...(hasDateFilter ? { sort: "birth", secondarySort: "last" } : null),
+          },
+          "Id,Name,FirstName,LastNameAtBirth,LastNameCurrent,RealName,BirthDate,DeathDate,BirthLocation,DeathLocation",
+          { limit: hasDateFilter ? 100 : 50, max: hasDateFilter ? 1200 : 300 }
+        );
+        variantDiagnostics.push({
+          params: searchParams,
+          returned: Array.isArray(matches) ? matches.length : 0,
+          hasDateFilter,
+        });
+
+        (Array.isArray(matches) ? matches : []).forEach((match) => {
+          const key = String(match?.Name || match?.Id || "").trim();
+          if (!key || matchKeys.has(key)) return;
+          matchKeys.add(key);
+          rawMatches.push(match);
+        });
+
+        if (rawMatches.length >= 40) {
+          break;
+        }
+      }
+
+      if (rawMatches.length < 12) {
+        const fallbackVariants = buildLastNameMatchFallbackVariants(searchParamVariants);
+        for (const searchParams of fallbackVariants) {
+          const hasDateFilter = Boolean(searchParams?.BirthDate || searchParams?.DeathDate);
+          const [, matches] = await fetchSearchPersonPaged(
+            "Chat",
+            {
+              ...searchParams,
+              ...(hasDateFilter ? { sort: "birth", secondarySort: "last" } : null),
+            },
+            "Id,Name,FirstName,LastNameAtBirth,LastNameCurrent,RealName,BirthDate,DeathDate,BirthLocation,DeathLocation",
+            { limit: hasDateFilter ? 100 : 50, max: hasDateFilter ? 800 : 250 }
+          );
+          variantDiagnostics.push({
+            params: searchParams,
+            returned: Array.isArray(matches) ? matches.length : 0,
+            hasDateFilter,
+            fallback: true,
+          });
+
+          (Array.isArray(matches) ? matches : []).forEach((match) => {
+            const key = String(match?.Name || match?.Id || "").trim();
+            if (!key || matchKeys.has(key)) return;
+            matchKeys.add(key);
+            rawMatches.push(match);
+          });
+
+          if (rawMatches.length >= 40) {
+            break;
+          }
+        }
+      }
+
+      const candidateMatchIds = rawMatches
+        .map((match) => String(match?.Id || match?.Name || "").trim())
+        .filter(Boolean)
+        .slice(0, 40);
+
+      let enrichedMatches = rawMatches;
+      if (candidateMatchIds.length) {
+        try {
+          const [, , candidatePeopleById] = await fetchPeoplePaged(
+            WBE_CHAT_APP_ID,
+            candidateMatchIds,
+            "Id,Name,FirstName,LastNameAtBirth,LastNameCurrent,RealName,BirthDate,DeathDate,BirthLocation,DeathLocation",
+            { resolveRedirect: 1, limit: 1000 }
+          );
+          const people = Object.values(candidatePeopleById || {}).filter(Boolean);
+          if (people.length) {
+            enrichedMatches = people;
+          }
+        } catch (enrichErr) {
+          console.debug("wbe: candidate match enrichment failed", { candidate: candidate?.name, enrichErr });
+        }
+      }
+
+      const scoredMatches = enrichedMatches
+        .map((match) => ({ match, score: candidateMatchScore(candidate, match) }))
+        .sort((left, right) => right.score - left.score);
+
+      let compatibleMatches = scoredMatches.filter((entry) =>
+        isCandidateMatchCompatible(candidate, entry?.match, constraints)
+      );
+
+      if (compatibleMatches.length > 1) {
+        compatibleMatches = compatibleMatches.sort((left, right) => {
+          const rightDateEvidence = candidateDateEvidenceScore(candidate, right?.match);
+          const leftDateEvidence = candidateDateEvidenceScore(candidate, left?.match);
+          if (rightDateEvidence !== leftDateEvidence) return rightDateEvidence - leftDateEvidence;
+          return Number(right?.score || 0) - Number(left?.score || 0);
+        });
+      }
+      const best = compatibleMatches[0];
+      if (best?.match && best.score >= 2) {
+        const id = String(best.match?.Id || best.match?.Name || "").trim();
+        const nameKey = String(best.match?.Name || "").trim();
+        if (id || nameKey) {
+          candidateMatches.push({
+            id: id || nameKey,
+            nameKey,
+            candidate,
+            score: best.score,
+          });
+          showChatShaky(
+            `Matched (${candidateIndex + 1}/${aiCandidates.candidates.length}): ${candidateName} -> ${nameKey || id}`
+          );
+        }
+      } else {
+        const topScored = scoredMatches.slice(0, 5).map((entry) => ({
+          name: entry?.match?.Name || "",
+          realName: entry?.match?.RealName || "",
+          birthDate: entry?.match?.BirthDate || "",
+          deathDate: entry?.match?.DeathDate || "",
+          score: Number(entry?.score || 0),
+          dateEvidence: candidateDateEvidenceScore(candidate, entry?.match),
+          compatible: isCandidateMatchCompatible(candidate, entry?.match, constraints),
+        }));
+        console.info("wbe: candidate match miss diagnostics", {
+          candidate: {
+            name: candidate?.name || "",
+            birthYear: candidate?.birthYear || "",
+            deathYear: candidate?.deathYear || "",
+            birthLocation: candidate?.birthLocation || "",
+            deathLocation: candidate?.deathLocation || "",
+          },
+          searchVariantCount: searchParamVariants.length,
+          variantDiagnostics,
+          rawMatchCount: rawMatches.length,
+          compatibleCount: compatibleMatches.length,
+          topScored,
+        });
+        if (rawMatches.length > 0 && compatibleMatches.length === 0) {
+          const topMatch = scoredMatches?.[0]?.match || null;
+          const incompatibilityReason = topMatch
+            ? getCandidateMatchIncompatibilityReason(candidate, topMatch, constraints)
+            : "No compatible match identified";
+          addFilteredOutCandidate(candidate, topMatch, incompatibilityReason);
+          showChatShaky(
+            `Filtered by constraints (${candidateIndex + 1}/${aiCandidates.candidates.length}): ${candidateName}`
+          );
+        } else {
+          addNotFoundCandidate(candidate);
+          showChatShaky(`No match (${candidateIndex + 1}/${aiCandidates.candidates.length}): ${candidateName}`);
+        }
+      }
+    }
+
+    const uniqueIds = [
+      ...new Set(candidateMatches.map((entry) => String(entry.id || "").trim()).filter(Boolean)),
+    ].slice(0, 200);
+    if (!uniqueIds.length) {
+      return {
+        message:
+          `AI proposed ${aiCandidates.candidates.length} candidates, but none were validated after compatibility checks. ` +
+          `Not found: ${notFoundCandidates.length} (${notFoundCandidates.join(", ") || "none"}). ` +
+          `Found but filtered out by constraints: ${filteredOutCandidates.length} (${
+            filteredOutCandidates.map((entry) => entry.fullName).join(", ") || "none"
+          }).`,
+      };
+    }
+
+    showChatShaky(`Validating ${uniqueIds.length} candidates on WikiTree...`);
+    const [, , peopleById] = await fetchPeoplePaged(
+      WBE_CHAT_APP_ID,
+      uniqueIds,
+      "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,BirthDate,DeathDate,BirthLocation,DeathLocation,LastNameAtBirth,LastNameCurrent,Gender,Father,Mother,Spouses,HasChildren",
+      { resolveRedirect: 1, limit: 1000 }
+    );
+    hideChatShaky();
+
+    const matchesById = candidateMatches.reduce((acc, entry) => {
+      const key = String(entry?.id || "").trim();
+      if (!key) return acc;
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(entry);
+      return acc;
+    }, {});
+
+    const matchesByNameKey = candidateMatches.reduce((acc, entry) => {
+      const key = String(entry?.nameKey || "").trim();
+      if (!key) return acc;
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(entry);
+      return acc;
+    }, {});
+
+    const hasLinkedId = (value) => {
+      const text = String(value ?? "").trim();
+      return !!text && text !== "0" && text.toLowerCase() !== "null";
+    };
+
+    const foundWithLinkedRelatives = [];
+    const foundWithoutLinkedRelatives = [];
+    const foundPeople = [];
+    const excludedByConstraints = [];
+    const seenProfileNames = new Set();
+    const representativeCandidateByWtId = {};
+
+    uniqueIds.forEach((id) => {
+      const person = peopleById?.[String(id)];
+      if (!person) {
+        (matchesById[String(id)] || []).forEach((entry) => addNotFoundCandidate(entry?.candidate));
+        return;
+      }
+
+      const personNameKey = String(person?.Name || "").trim();
+      const dedupeKey = personNameKey || String(person?.Id || id).trim();
+      if (seenProfileNames.has(dedupeKey)) {
+        return;
+      }
+      seenProfileNames.add(dedupeKey);
+
+      const hasParent = hasLinkedId(person?.Father) || hasLinkedId(person?.Mother);
+      const spousesRaw = person?.Spouses;
+      const hasSpouse =
+        (Array.isArray(spousesRaw) && spousesRaw.length > 0) ||
+        (!!spousesRaw && typeof spousesRaw === "object" && Object.keys(spousesRaw).length > 0);
+      const hasChildrenRaw = person?.HasChildren;
+      const hasChildren =
+        hasChildrenRaw === true ||
+        hasChildrenRaw === 1 ||
+        String(hasChildrenRaw || "")
+          .trim()
+          .toLowerCase() === "1" ||
+        String(hasChildrenRaw || "")
+          .trim()
+          .toLowerCase() === "true";
+      const hasLinkedRelative = hasParent || hasSpouse || hasChildren;
+
+      const fallbackName =
+        String(person?.RealName || person?.Derived?.ShortName || person?.Name || "")
+          .replace(/-/g, " ")
+          .trim() || String(id);
+      const representativeEntries = [
+        ...(matchesById[String(id)] || []),
+        ...(matchesByNameKey[String(personNameKey)] || []),
+      ].sort((left, right) => Number(right?.score || 0) - Number(left?.score || 0));
+      const representativeCandidate = representativeEntries[0]?.candidate || null;
+      if (personNameKey && representativeCandidate) {
+        representativeCandidateByWtId[personNameKey] = representativeCandidate;
+      }
+      const representativeCandidateName = String(representativeCandidate?.name || fallbackName).trim();
+      const summaryDisplayName = personNameKey
+        ? `${representativeCandidateName} (${personNameKey})`
+        : representativeCandidateName;
+
+      if (!personMatchesDiscoveryConstraints(person, constraints)) {
+        excludedByConstraints.push(representativeCandidateName);
+        return;
+      }
+
+      foundPeople.push(person);
+
+      if (hasLinkedRelative) {
+        foundWithLinkedRelatives.push(summaryDisplayName);
+      } else {
+        foundWithoutLinkedRelatives.push(summaryDisplayName);
+      }
+    });
+
+    const rows = foundPeople.map((person) => mapApiPersonToStandardRow(person, { surnamePreference: "birthFirst" }));
+
+    if (!rows.length) {
+      return {
+        message:
+          `AI generated candidates, but none of the WikiTree matches satisfied your constraints after validation. ` +
+          `Try broadening the criteria or lowering the requested count.`,
+      };
+    }
+
+    const formatNameBucket = (items) => {
+      const unique = [...new Set((items || []).map((item) => String(item || "").trim()).filter(Boolean))];
+      if (!unique.length) return "none";
+      return unique.join(", ");
+    };
+
+    const notFoundSet = new Set(notFoundCandidates.map((name) => String(name || "").trim()).filter(Boolean));
+    const notFoundRows = (aiCandidates?.candidates || [])
+      .filter((candidate) => notFoundSet.has(String(candidate?.name || "").trim()))
+      .map((candidate, index) => ({
+        index: index + 1,
+        fullName: String(candidate?.name || "").trim(),
+        birthYear: String(candidate?.birthYear || "").trim(),
+        deathYear: String(candidate?.deathYear || "").trim(),
+        birthLocation: String(candidate?.birthLocation || "").trim(),
+        deathLocation: String(candidate?.deathLocation || "").trim(),
+        whyNotable: String(candidate?.whyNotable || "").trim(),
+        source: String(candidate?.source || "").trim(),
+      }));
+
+    const notFoundTable = notFoundRows.length
+      ? {
+          title: `AI candidates not found on WikiTree: ${rawQuery}`,
+          defaultOrder: [[0, "asc"]],
+          columns: [
+            { title: "#", key: "index" },
+            { title: "Name", key: "fullName" },
+            { title: "Birth Year", key: "birthYear" },
+            { title: "Death Year", key: "deathYear" },
+            { title: "Birth Location", key: "birthLocation" },
+            { title: "Death Location", key: "deathLocation" },
+            { title: "Why Notable", key: "whyNotable" },
+            { title: "Source", key: "source" },
+          ],
+          rows: notFoundRows,
+        }
+      : null;
+
+    const filteredOutRows = filteredOutCandidates.map((entry, index) => ({
+      index: index + 1,
+      ...entry,
+    }));
+
+    const filteredOutTable = filteredOutRows.length
+      ? {
+          title: `AI candidates filtered out after WikiTree match: ${rawQuery}`,
+          defaultOrder: [[0, "asc"]],
+          columns: [
+            { title: "#", key: "index" },
+            { title: "Name", key: "fullName" },
+            { title: "Birth Year", key: "birthYear" },
+            { title: "Death Year", key: "deathYear" },
+            { title: "Birth Location", key: "birthLocation" },
+            { title: "Death Location", key: "deathLocation" },
+            { title: "Top WikiTree Match", key: "topMatchWtid" },
+            { title: "Top Match Birth", key: "topMatchBirthDate" },
+            { title: "Top Match Death", key: "topMatchDeathDate" },
+            { title: "Top Match Birth Location", key: "topMatchBirthLocation" },
+            { title: "Top Match Death Location", key: "topMatchDeathLocation" },
+            { title: "Filtered Reason", key: "incompatibilityReason" },
+            { title: "Why Notable", key: "whyNotable" },
+            { title: "Source", key: "source" },
+          ],
+          rows: filteredOutRows,
+        }
+      : null;
+
+    const notMatchedRows = [
+      ...notFoundRows.map((row) => ({
+        ...row,
+        matchStatus: "Not found",
+        topMatchWtid: "",
+        topMatchBirthDate: "",
+        topMatchDeathDate: "",
+        topMatchBirthLocation: "",
+        topMatchDeathLocation: "",
+        incompatibilityReason: "No WikiTree match found",
+      })),
+      ...filteredOutRows.map((row) => ({
+        ...row,
+        matchStatus: "Filtered out",
+      })),
+    ].map((row, index) => ({ index: index + 1, ...row }));
+
+    const notMatchedTable = notMatchedRows.length
+      ? {
+          title: `AI candidates not matched on WikiTree: ${rawQuery}`,
+          defaultOrder: [[0, "asc"]],
+          columns: [
+            { title: "#", key: "index" },
+            { title: "Status", key: "matchStatus" },
+            { title: "Name", key: "fullName" },
+            { title: "Birth Year", key: "birthYear" },
+            { title: "Death Year", key: "deathYear" },
+            { title: "Birth Location", key: "birthLocation" },
+            { title: "Death Location", key: "deathLocation" },
+            { title: "Top WikiTree Match", key: "topMatchWtid" },
+            { title: "Top Match Birth", key: "topMatchBirthDate" },
+            { title: "Top Match Death", key: "topMatchDeathDate" },
+            { title: "Top Match Birth Location", key: "topMatchBirthLocation" },
+            { title: "Top Match Death Location", key: "topMatchDeathLocation" },
+            { title: "Reason", key: "incompatibilityReason" },
+            { title: "Why Notable", key: "whyNotable" },
+            { title: "Source", key: "source" },
+          ],
+          rows: notMatchedRows,
+        }
+      : null;
+
+    const enrichedRows = rows.map((row) => {
+      const candidate = representativeCandidateByWtId[String(row?.wtid || "").trim()] || {};
+      return {
+        ...row,
+        whyNotable: String(candidate?.whyNotable || "").trim(),
+        source: String(candidate?.source || "").trim(),
+      };
+    });
+
+    const table = makeStandardProfileTable(`AI candidates validated on WikiTree: ${rawQuery}`, enrichedRows, [
+      [0, "asc"],
+    ]);
+    table.columns = (table.columns || []).filter((column) => column?.key !== "degrees");
+    table.columns.push({ title: "Why Notable", key: "whyNotable" });
+    table.columns.push({ title: "Source", key: "source" });
+    return {
+      message:
+        `AI proposed ${aiCandidates.candidates.length} candidates and validated ${rows.length} on WikiTree via searchPerson after applying your constraints. ` +
+        `Found with linked parent/spouse/child: ${foundWithLinkedRelatives.length} (${formatNameBucket(
+          foundWithLinkedRelatives
+        )}). ` +
+        `Found with no linked parent/spouse/child: ${foundWithoutLinkedRelatives.length} (${formatNameBucket(
+          foundWithoutLinkedRelatives
+        )}). ` +
+        `Not found on WikiTree: ${notFoundCandidates.length} (${formatNameBucket(notFoundCandidates)}). ` +
+        `Found but filtered by compatibility constraints: ${filteredOutCandidates.length} (${formatNameBucket(
+          filteredOutCandidates.map((entry) => entry.fullName)
+        )}). ` +
+        `Excluded by your date/location constraints: ${excludedByConstraints.length} (${formatNameBucket(
+          excludedByConstraints
+        )}).`,
+      actions: [
+        {
+          label: `Matched (${rows.length})`,
+          actionType: "table",
+          table,
+        },
+        ...(notMatchedTable
+          ? [
+              {
+                label: `Not Matched (${notMatchedRows.length})`,
+                actionType: "table",
+                table: notMatchedTable,
+              },
+            ]
+          : []),
+      ],
+      table,
+      autoOpen: true,
+    };
   }
 
   function parseKeyValueParams(s) {
@@ -3005,7 +4995,12 @@ export function createProfileSearchHandler({
   }
 
   return async function tryHandleProfileSearchPrompt(params, originalPrompt) {
-    const rawQuery = String(originalPrompt || params?.query || "").trim();
+    const rawInput = String(originalPrompt || params?.query || "").trim();
+    if (!rawInput) return null;
+    const personListCommandMatch = rawInput.match(
+      /^\s*(?:person\s+list|people\s+list|candidate\s+list)(?:\s+(ai|wikidata|hybrid))?\s*[:\-]\s*([\s\S]+)$/i
+    );
+    const rawQuery = String(personListCommandMatch?.[2] || rawInput).trim();
     if (!rawQuery) return null;
     let sanitizedQuery = rawQuery;
     const noVariantsRegex = /\b(no[-\s]?variants|skip[-\s]?variants)\b/gi;
@@ -3071,6 +5066,21 @@ export function createProfileSearchHandler({
       const chatMode = String(params?.chatModeOverride || getSelectedChatMode() || "")
         .trim()
         .toLowerCase();
+
+      const forcedStrategy = String(params?.aiCandidateDiscoveryStrategy || personListCommandMatch?.[1] || "ai")
+        .trim()
+        .toLowerCase();
+      const forceAiCandidateDiscovery = Boolean(params?.forceAiCandidateDiscovery || personListCommandMatch?.[2]);
+      if (chatMode === "ai" && (forceAiCandidateDiscovery || shouldUseAiCandidateDiscovery(rawQuery))) {
+        const aiDiscoveryResult = await tryHandleAiCandidateDiscovery(rawQuery, { strategy: forcedStrategy });
+        if (aiDiscoveryResult) {
+          return aiDiscoveryResult;
+        }
+        if (forceAiCandidateDiscovery) {
+          return "I couldn't generate a candidate person list from that request. Please try a shorter 'Person list:' criteria sentence.";
+        }
+      }
+
       if (chatMode === "wtplus") {
         const explicitWtPlusQuery =
           parseExplicitWtPlusQuery(mainQuery) ||
@@ -3162,6 +5172,13 @@ export function createProfileSearchHandler({
           recordWtPlusParseTelemetry("parsedAi");
           const aiRunResult = await runWtPlusProfileQuery(aiWtPlusQuery.query, aiWtPlusQuery.title, aiWtPlusQuery);
           if (isWtPlusExecutionFailure(aiRunResult) && localWtPlusQuery?.query) {
+            if (shouldPreferAiForAmbiguousSuggestions) {
+              console.info("wbe: WT+ AI query failed; skipping deterministic fallback because AI path was preferred", {
+                rawQuery,
+                aiQuery: aiWtPlusQuery.query,
+              });
+              return aiRunResult;
+            }
             console.info("wbe: WT+ AI query failed; retrying deterministic parser query", {
               rawQuery,
               aiQuery: aiWtPlusQuery.query,
@@ -3174,6 +5191,18 @@ export function createProfileSearchHandler({
         }
 
         if (shouldPreferAiForAmbiguousSuggestions && localWtPlusQuery?.query) {
+          const repairedSuggestionsFallback = tryRepairAmbiguousSuggestionsFallback(rawQuery, localWtPlusQuery);
+          if (repairedSuggestionsFallback?.query) {
+            console.info("wbe: WT+ AI parse unavailable; using repaired Suggestions fallback query", {
+              rawQuery,
+              repairedQuery: repairedSuggestionsFallback.query,
+            });
+            return await runWtPlusProfileQuery(
+              repairedSuggestionsFallback.query,
+              repairedSuggestionsFallback.title,
+              repairedSuggestionsFallback
+            );
+          }
           console.info("wbe: WT+ AI parse unavailable; falling back to deterministic parser query", {
             rawQuery,
             localQuery: localWtPlusQuery.query,

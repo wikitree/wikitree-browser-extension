@@ -318,7 +318,7 @@ export function createChatHistoryHandlers({
 
   function formatStandardChatMessageBody(text) {
     const escaped = escapeHtml(text).replace(/\n/g, "<br>");
-    const withWikiTreeLinks = escaped.replace(/\b([A-Z][A-Za-z0-9_]+-\d+)\b/g, (full, wtId) => {
+    const withWikiTreeLinks = escaped.replace(/\b([A-Z][A-Za-z0-9_-]+-\d+)\b/g, (full, wtId) => {
       const href = `https://www.wikitree.com/wiki/${encodeURIComponent(wtId)}`;
       return `<a class="chat-results-link" href="${href}" target="_blank" rel="noopener noreferrer">${wtId}</a>`;
     });
@@ -363,6 +363,9 @@ export function createChatHistoryHandlers({
 
     const serialized = { label: action.label };
     if (action.actionType) serialized.actionType = action.actionType;
+    if (action.table && shouldPersistStructuredTable(action.table)) {
+      serialized.table = action.table;
+    }
     if (action.wtPlusQuery) serialized.wtPlusQuery = action.wtPlusQuery;
     if (action.wtPlusSearchType) serialized.wtPlusSearchType = action.wtPlusSearchType;
     if (action.wtPlusSuggestionId) serialized.wtPlusSuggestionId = action.wtPlusSuggestionId;
@@ -393,10 +396,10 @@ export function createChatHistoryHandlers({
 
     if (actionType === "table" || actionEntry.label === "Table") {
       return {
-        label: "Table",
+        label: actionEntry.label || "Table",
         actionType: "table",
         onClick: () => {
-          const toOpen = message.structured || getLastStructuredResult?.();
+          const toOpen = actionEntry.table || message.structured || getLastStructuredResult?.();
           if (!toOpen) {
             console.info("wbe: table action unavailable after restore", {
               messageIndex: msgIndex,
@@ -565,7 +568,7 @@ export function createChatHistoryHandlers({
       const serializedActions = actions
         .map(serializeAction)
         .filter(Boolean)
-        .filter((action) => !(action.actionType === "table" && !canPersistStructuredTable));
+        .filter((action) => !(action.actionType === "table" && !action.table && !canPersistStructuredTable));
       if (serializedActions.length) {
         historyEntry.actions = serializedActions;
         if (serializedActions.length === 1) {

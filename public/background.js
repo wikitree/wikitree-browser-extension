@@ -115,6 +115,47 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     handleChatRequest(message, sendResponse);
     return true; // Keep channel open for async response
   }
+
+  if (message.action === "fetchWikidataSparql") {
+    (async () => {
+      try {
+        const query = String(message?.query || "").trim();
+        if (!query) {
+          sendResponse({ success: false, error: "missing-query" });
+          return;
+        }
+
+        const timeoutMs = Math.max(2000, Math.min(30000, Number(message?.timeoutMs) || 15000));
+        const endpoint = `https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(query)}`;
+        const response = await withTimeout(timeoutMs, (signal) =>
+          fetch(endpoint, {
+            method: "GET",
+            headers: { Accept: "application/sparql-results+json" },
+            cache: "no-cache",
+            signal,
+          })
+        );
+
+        if (!response.ok) {
+          sendResponse({ success: false, error: `wikidata-http-${response.status}` });
+          return;
+        }
+
+        const json = await response.json();
+        sendResponse({ success: true, json });
+      } catch (error) {
+        const isAbort =
+          error?.name === "AbortError" ||
+          /abort/i.test(String(error?.message || "")) ||
+          /aborted/i.test(String(error || ""));
+        sendResponse({
+          success: false,
+          error: isAbort ? "wikidata-timeout" : String(error?.message || error || "wikidata-fetch-failed"),
+        });
+      }
+    })();
+    return true;
+  }
 });
 
 async function callAIProvider(provider, key, model, systemRole, prompt) {
