@@ -181,13 +181,19 @@ function getEffectiveExplicitMode(prompt, selectedMode) {
 export async function handleExplicitSearchMode({
   prompt,
   chatPopupId,
+  hasStructuredResult,
+  getLastStructuredResult,
   ChatIntent,
   routeChatPrompt,
   buildRecentConversationForAi,
+  buildRecentUserMessagesForAi,
   getChatAiConfig,
   appendMessage,
   tryHandleProfileSearchPrompt,
   handleChatResult,
+  extractFollowupTableFilterText,
+  openResultsTable,
+  tryHandleAiPlannedIntent,
 }) {
   console.debug("wbe: checking chat mode for prompt", { prompt });
   const selectedMode = getVisibleSearchMode(chatPopupId);
@@ -204,10 +210,12 @@ export async function handleExplicitSearchMode({
     }
 
     let conversationContext = buildRecentConversationForAi();
+    const recentUserMessages = buildRecentUserMessagesForAi?.(4) || "";
     conversationContext = await appendProfileContextForCandidates(conversationContext, prompt);
 
     const aiPrompt = [
       "You are assisting inside the WikiTree Browser Extension chat.",
+      recentUserMessages ? `Recent user messages:\n${recentUserMessages}` : "",
       conversationContext ? `Recent conversation:\n${conversationContext}` : "",
       `Current user request: ${prompt}`,
     ]
@@ -250,7 +258,10 @@ export async function handleExplicitSearchMode({
       .trim();
 
     if (mode === "wt") {
-      const routed = typeof routeChatPrompt === "function" ? routeChatPrompt(normalizedPrompt) : null;
+      const routed =
+        typeof routeChatPrompt === "function"
+          ? routeChatPrompt(normalizedPrompt, { hasStructuredResult: Boolean(hasStructuredResult) })
+          : null;
       const deterministicWtIntentSet = new Set([
         ChatIntent?.CC7_LOCATION_FILTER,
         ChatIntent?.CC_SUMMARY,
@@ -269,10 +280,44 @@ export async function handleExplicitSearchMode({
       if (deterministicWtIntentSet.has(routed?.intent)) {
         return { handled: false, prompt: normalizedPrompt };
       }
+
+      // When a structured result exists, try the AI planner before falling
+      // back to profile search. Natural language follow-ups like "Can you
+      // count them by country?" or "Only the women" map cleanly to
+      // LAST_RESULT_OPERATION via the AI planner (which already has
+      // structured result context), rather than being misrouted as profile searches.
+      if (hasStructuredResult && typeof tryHandleAiPlannedIntent === "function") {
+        try {
+          const aiPlannedResult = await tryHandleAiPlannedIntent(normalizedPrompt);
+          if (aiPlannedResult) {
+            await handleChatResult(typeof aiPlannedResult === "string" ? { message: aiPlannedResult } : aiPlannedResult);
+            return { handled: true, prompt: normalizedPrompt };
+          }
+        } catch (aiPlanErr) {
+          console.debug("wbe: wt mode AI planner attempt failed", aiPlanErr);
+        }
+      }
     }
 
     try {
       const searchResult = await tryHandleProfileSearchPrompt({ chatModeOverride: mode }, normalizedPrompt);
+      const followupFilterText =
+        typeof extractFollowupTableFilterText === "function" ? extractFollowupTableFilterText(normalizedPrompt) : "";
+      const structuredResult = typeof getLastStructuredResult === "function" ? getLastStructuredResult() : null;
+      const hasStructuredRows = Boolean(structuredResult?.rows?.length);
+      const isNoProfileMatchMessage =
+        typeof searchResult === "string" && /couldn't\s+find\s+profile\s+matches/i.test(searchResult);
+
+      if (isNoProfileMatchMessage && hasStructuredRows && followupFilterText) {
+        if (typeof openResultsTable === "function") {
+          openResultsTable(structuredResult, { initialSearch: followupFilterText });
+        }
+        await handleChatResult({
+          message: `I treated that as a follow-up on the current result set and opened the table filtered for \"${followupFilterText}\".`,
+        });
+        return { handled: true, prompt: normalizedPrompt };
+      }
+
       if (searchResult) {
         if (typeof searchResult === "string") {
           await handleChatResult({ message: searchResult });

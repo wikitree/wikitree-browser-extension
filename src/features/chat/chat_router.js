@@ -228,6 +228,19 @@ function parseRelationPrompt(prompt) {
     };
   }
 
+  // Possessive: "Who are Nathan's children?" / "Show Nathan's parents" / "List Mary's siblings"
+  const genitivePossessiveMatch = normalized.match(
+    /^(?:who\s+are|what\s+are|list|show)\s+(.+?)'s\s+(.+?)\??$/i
+  );
+  if (genitivePossessiveMatch?.[1] && genitivePossessiveMatch?.[2]) {
+    return {
+      mode: "list",
+      relationRaw: genitivePossessiveMatch[2].trim(),
+      subjectMode: "named",
+      subjectName: genitivePossessiveMatch[1].trim(),
+    };
+  }
+
   return null;
 }
 
@@ -1129,7 +1142,13 @@ function normalizeFieldName(value) {
   return RESULT_FIELD_ALIASES[key] || "";
 }
 
-function parseLastResultPrompt(prompt) {
+function parseLastResultPrompt(prompt, options = {}) {
+  const allowConversationalFollowups = Boolean(options?.allowConversationalFollowups);
+  const normalizedPrompt = String(prompt || "").trim();
+  if (!normalizedPrompt) {
+    return null;
+  }
+
   const tableMatch = prompt.match(
     /^(?:show|open)(?:\s+(?:that|the|last|latest|results?))?(?:\s+in)?\s+a?\s*table\??$/i
   );
@@ -1138,14 +1157,14 @@ function parseLastResultPrompt(prompt) {
   }
 
   if (
-    /^(?:count\s+(?:them|results?)|how\s+many\s+(?:are\s+there|results?\s+are\s+there|of\s+them\s+are\s+there))\??$/i.test(
+    /^(?:can\s+you\s+)?(?:count\s+(?:them|results?)|how\s+many\s+(?:are\s+there|results?\s+are\s+there|of\s+them\s+are\s+there))\??$/i.test(
       prompt
     )
   ) {
     return { action: "count" };
   }
 
-  const countByMatch = prompt.match(/^(?:count|group)\s+(?:them|the\s+results|results)?\s*by\s+(.+?)\??$/i);
+  const countByMatch = prompt.match(/^(?:can\s+you\s+)?(?:count|group)\s+(?:them|the\s+results|results)?\s*by\s+(.+?)\??$/i);
   if (countByMatch?.[1]) {
     const field = normalizeFieldName(countByMatch[1]);
     if (field) {
@@ -1154,7 +1173,7 @@ function parseLastResultPrompt(prompt) {
   }
 
   const sortMatch = prompt.match(
-    /^(?:sort|order)\s+(?:them|the\s+results|results)?\s*by\s+(.+?)(?:\s+(ascending|descending|asc|desc))?\??$/i
+    /^(?:can\s+you\s+)?(?:sort|order)\s+(?:them|the\s+results|results)?\s*by\s+(.+?)(?:\s+(ascending|descending|asc|desc))?\??$/i
   );
   if (sortMatch?.[1]) {
     const field = normalizeFieldName(sortMatch[1]);
@@ -1206,6 +1225,19 @@ function parseLastResultPrompt(prompt) {
     };
   }
 
+  if (allowConversationalFollowups) {
+    const followupBornInMatch = normalizedPrompt.match(/^(?:only\s+)?(?:those|them|people)?\s*born\s+in\s+(.+?)\??$/i);
+    if (followupBornInMatch?.[1]) {
+      return {
+        action: "filter",
+        filter: {
+          kind: "birthLocation",
+          value: followupBornInMatch[1].trim(),
+        },
+      };
+    }
+  }
+
   const diedInMatch = prompt.match(
     /^(?:show|list|keep|filter(?:\s+(?:to|for))?)\s+(?:only\s+)?(?:people\s+)?died\s+in\s+(.+?)\??$/i
   );
@@ -1219,6 +1251,49 @@ function parseLastResultPrompt(prompt) {
     };
   }
 
+  if (allowConversationalFollowups) {
+    const followupDiedInMatch = normalizedPrompt.match(/^(?:only\s+)?(?:those|them|people)?\s*died\s+in\s+(.+?)\??$/i);
+    if (followupDiedInMatch?.[1]) {
+      return {
+        action: "filter",
+        filter: {
+          kind: "deathLocation",
+          value: followupDiedInMatch[1].trim(),
+        },
+      };
+    }
+  }
+
+  if (allowConversationalFollowups) {
+    const followupFromMatch = normalizedPrompt.match(
+      /^(?:only\s+)?(?:those|them|people)?\s*(?:who\s+are\s+|who\s+were\s+|that\s+are\s+|that\s+were\s+)?from\s+(.+?)\??$/i
+    );
+    if (followupFromMatch?.[1]) {
+      return {
+        action: "filter",
+        filter: {
+          // In conversational follow-ups, "from X" is interpreted as birthplace unless explicit death wording is used.
+          kind: "birthLocation",
+          value: followupFromMatch[1].trim(),
+        },
+      };
+    }
+  }
+
+  if (allowConversationalFollowups) {
+    const followupInMatch = normalizedPrompt.match(/^(?:only\s+)?(?:those|them|people)?\s*in\s+(.+?)\??$/i);
+    if (followupInMatch?.[1]) {
+      return {
+        action: "filter",
+        filter: {
+          // Keep this broad so city/place refinements match across name/location columns.
+          kind: "text",
+          value: followupInMatch[1].trim(),
+        },
+      };
+    }
+  }
+
   const countryMatch = prompt.match(
     /^(?:show|list|keep|filter(?:\s+(?:to|for))?)\s+(?:only\s+)?(?:people\s+)?in\s+(.+?)\??$/i
   );
@@ -1230,6 +1305,23 @@ function parseLastResultPrompt(prompt) {
         value: countryMatch[1].trim(),
       },
     };
+  }
+
+  // Conversational catch-all: "Only George?", "Only those named George?", "Only Jones?"
+  // Must come after all specific location/gender/born-in patterns so those take priority.
+  if (allowConversationalFollowups) {
+    const followupTextMatch = normalizedPrompt.match(
+      /^only\s+(?:(?:those|them|people)\s+)?(?:named?\s+|called\s+)?(.+?)\??$/i
+    );
+    if (followupTextMatch?.[1]) {
+      return {
+        action: "filter",
+        filter: {
+          kind: "text",
+          value: followupTextMatch[1].trim(),
+        },
+      };
+    }
   }
 
   const textFilterMatch = prompt.match(/^(?:show|list|keep|filter(?:\s+(?:to|for))?)\s+(?:only\s+)?(.+?)\??$/i);
@@ -1293,7 +1385,8 @@ function parseSpousePrompt(prompt) {
   return null;
 }
 
-export function routeChatPrompt(prompt) {
+export function routeChatPrompt(prompt, options = {}) {
+  const hasStructuredResult = Boolean(options?.hasStructuredResult);
   const cc7Parsed = parseCc7LocationPrompt(prompt);
   if (cc7Parsed) {
     return {
@@ -1382,6 +1475,18 @@ export function routeChatPrompt(prompt) {
     };
   }
 
+  if (hasStructuredResult) {
+    const conversationalLastResultPrompt = parseLastResultPrompt(prompt, {
+      allowConversationalFollowups: true,
+    });
+    if (conversationalLastResultPrompt) {
+      return {
+        intent: ChatIntent.LAST_RESULT_OPERATION,
+        params: conversationalLastResultPrompt,
+      };
+    }
+  }
+
   const profileQuery = parseProfileSearchPrompt(prompt);
   if (profileQuery) {
     return {
@@ -1390,7 +1495,9 @@ export function routeChatPrompt(prompt) {
     };
   }
 
-  const lastResultPrompt = parseLastResultPrompt(prompt);
+  const lastResultPrompt = parseLastResultPrompt(prompt, {
+    allowConversationalFollowups: hasStructuredResult,
+  });
   if (lastResultPrompt) {
     return {
       intent: ChatIntent.LAST_RESULT_OPERATION,

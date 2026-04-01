@@ -34,6 +34,25 @@ export function createChatAiHelpers({
       .join("\n");
   }
 
+  function buildRecentUserMessagesForAi(maxMessages = 4) {
+    const history = Array.isArray(getChatHistory?.()) ? getChatHistory() : [];
+    if (!history.length) {
+      return "";
+    }
+
+    const recentUserMessages = history
+      .filter((message) => message?.role === "user" && String(message?.text || "").trim())
+      .slice(-Math.max(1, maxMessages));
+
+    if (!recentUserMessages.length) {
+      return "";
+    }
+
+    return recentUserMessages
+      .map((message, index) => `${index + 1}. ${truncateForAi(message?.text)}`)
+      .join("\n");
+  }
+
   async function getChatAiConfig() {
     const options = (await getChatOptions?.()) || {};
     const provider = options.aiProvider || "openai";
@@ -77,6 +96,7 @@ export function createChatAiHelpers({
   return {
     truncateForAi,
     buildRecentConversationForAi,
+    buildRecentUserMessagesForAi,
     getChatAiConfig,
     hasAnyApiKey,
   };

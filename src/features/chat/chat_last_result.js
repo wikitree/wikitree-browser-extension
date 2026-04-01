@@ -81,6 +81,14 @@ export function createLastResultOperationHandler({
       lastStructuredResult.rows
     );
 
+    // For countBy/filter/sort, operate on person rows — not on a previously-grouped summary.
+    // If the current result was produced by countBy, it has a sourceResult with the real rows.
+    const dataSource = lastStructuredResult.sourceResult || lastStructuredResult;
+    const dataResult =
+      dataSource === lastStructuredResult
+        ? baseResult
+        : cloneResultWithRows(dataSource, dataSource.title || "Chat Results", dataSource.rows);
+
     if (params.action === "table") {
       openResultsTable(baseResult);
       return {
@@ -98,7 +106,7 @@ export function createLastResultOperationHandler({
 
     if (params.action === "countBy") {
       const buckets = new Map();
-      baseResult.rows.forEach((row) => {
+      dataResult.rows.forEach((row) => {
         let bucketValue = "Unknown";
         if (params.field === "country") {
           bucketValue = getRowCountry(row) || "Unknown";
@@ -128,8 +136,9 @@ export function createLastResultOperationHandler({
           groupedRows.length > 12 ? `\n...and ${groupedRows.length - 12} more.` : ""
         }`,
         table: {
-          title: `${baseResult.title} by ${params.field}`,
+          title: `${dataResult.title} by ${params.field}`,
           defaultOrder: [[1, "desc"]],
+          sourceResult: dataSource,
           columns: [
             { title: params.field === "country" ? "Country" : "Value", key: "label" },
             { title: "Count", key: "count" },
@@ -140,10 +149,10 @@ export function createLastResultOperationHandler({
     }
 
     if (params.action === "sort") {
-      const sortedRows = [...baseResult.rows].sort((left, right) =>
+      const sortedRows = [...dataResult.rows].sort((left, right) =>
         compareResultRows(left, right, params.field, params.direction)
       );
-      const sortedResult = cloneResultWithRows(baseResult, `${baseResult.title} sorted by ${params.field}`, sortedRows);
+      const sortedResult = cloneResultWithRows(dataResult, `${dataResult.title} sorted by ${params.field}`, sortedRows);
       return {
         message: `Sorted the current results by ${params.field} (${params.direction}).\n${summarizeStructuredRows(
           sortedRows
@@ -153,7 +162,7 @@ export function createLastResultOperationHandler({
     }
 
     if (params.action === "filter") {
-      const filteredRows = baseResult.rows.filter((row) => {
+      const filteredRows = dataResult.rows.filter((row) => {
         const value = normalizeText(params.filter?.value);
         if (!value) {
           return true;
@@ -193,7 +202,7 @@ export function createLastResultOperationHandler({
         return "No rows matched that filter in the current result set.";
       }
 
-      const filteredResult = cloneResultWithRows(baseResult, `${baseResult.title} filtered`, filteredRows);
+      const filteredResult = cloneResultWithRows(dataResult, `${dataResult.title} filtered`, filteredRows);
       return {
         message: `Filtered the current result set down to ${filteredRows.length} row${
           filteredRows.length === 1 ? "" : "s"

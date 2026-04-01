@@ -60,6 +60,7 @@ chrome.storage.sync.get(["customStyle_options"], (result) => {
   }
 });
 
+import "./core/userTimingCompat";
 import "./features/register_feature_options";
 
 // First are loaded modules that change the wikitree appearence by altering css style

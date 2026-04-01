@@ -13,15 +13,19 @@
  * @param {function(): Promise<object>} deps.getChatAiConfig
  * @param {function(): Promise<object>} deps.getChatOptions
  * @param {function(): string} deps.buildRecentConversationForAi
+ * @param {function(number=): string} deps.buildRecentUserMessagesForAi
  * @param {object} deps.ChatIntent
  * @param {function(object, string): Promise<any>} deps.executeRoutedIntent
+ * @param {function(): object|null} [deps.getLastStructuredResult]
  */
 export function createChatAiPlannerHandlers({
   getChatAiConfig,
   getChatOptions,
   buildRecentConversationForAi,
+  buildRecentUserMessagesForAi,
   ChatIntent,
   executeRoutedIntent,
+  getLastStructuredResult,
 }) {
   function parsePlannerJson(rawText) {
     if (!rawText) {
@@ -46,11 +50,23 @@ export function createChatAiPlannerHandlers({
     }
 
     const conversationContext = buildRecentConversationForAi();
+    const recentUserMessages = buildRecentUserMessagesForAi?.(4) || "";
+
+    // Build a one-line structured result summary so the AI knows what the last
+    // result set was (e.g. ancestor list) and can recognise follow-up filters.
+    const lastResult = typeof getLastStructuredResult === "function" ? getLastStructuredResult() : null;
+    const structuredResultSummary = (() => {
+      if (!lastResult?.rows?.length) return "";
+      const count = lastResult.rows.length;
+      const title = lastResult.title || "results";
+      return `Current loaded result: "${title}" with ${count} rows. If the user's prompt is refining/filtering this result (e.g. "only from X", "only in X", "only those born in X", "only women", "sort by birth"), use ${ChatIntent.LAST_RESULT_OPERATION}.`;
+    })();
 
     const plannerPrompt = [
       "You are a planning layer for a WikiTree browser extension.",
       "Map the user's prompt to one local intent and parameters.",
       'Return JSON only (no markdown): {"intent":"...","params":{...}}',
+      structuredResultSummary,
       "Allowed intents:",
       `- ${ChatIntent.CC7_LOCATION_FILTER} with params {\"mode\":\"list|count\",\"location\":\"...\",\"field\":\"BirthLocation|DeathLocation|AnyLocation\"}`,
       `- ${ChatIntent.CC_SUMMARY} with params {\"mode\":\"summary\",\"nuclear\":7}`,
@@ -61,10 +77,19 @@ export function createChatAiPlannerHandlers({
       `- ${ChatIntent.ANCESTOR_AVG_AGE_AT_DEATH} with params {\"generation\":5,\"relationshipLabel\":\"3x great-grandparents\"}`,
       `- ${ChatIntent.ANCESTOR_LIST} with params {\"generation\":5,\"relationshipLabel\":\"3rd great-grandparents\",\"location\":\"optional place\",\"locationField\":\"BirthLocation|DeathLocation|AnyLocation\"}`,
       `- ${ChatIntent.DESCENDANT_LIST} with params {\"generation\":5,\"relationshipLabel\":\"5 generations of descendants\",\"includeUpTo\":true}`,
-      `- ${ChatIntent.PROFILE_SEARCH} with params {\"query\":\"...\"}`,
-      `- ${ChatIntent.LAST_RESULT_OPERATION} with params for table/count/countBy/sort/filter`,
+      `- ${ChatIntent.PROFILE_SEARCH} with params {\"query\":\"...\"} — use for looking up a specific named person, NOT for filtering an existing result set`,
+      `- ${ChatIntent.LAST_RESULT_OPERATION} with params:`,
+      `    table: {"action":"table"}`,
+      `    count: {"action":"count"}`,
+      `    countBy field: {"action":"countBy","field":"birth|death|gender|country|birthLocation|surname"}`,
+      `    sort: {"action":"sort","field":"birth|death|name|surname|degrees","direction":"asc|desc"}`,
+      `    filter by birth location: {"action":"filter","filter":{"kind":"birthLocation","value":"place name"}}`,
+      `    filter by death location: {"action":"filter","filter":{"kind":"deathLocation","value":"place name"}}`,
+      `    filter by gender: {"action":"filter","filter":{"kind":"gender","value":"Male|Female"}}`,
+      `    filter by text (broad search across all columns): {"action":"filter","filter":{"kind":"text","value":"search term"}}`,
       `- ${ChatIntent.FALLBACK_AI} with params {}`,
       "If unsure, return fallbackAi.",
+      recentUserMessages ? `Recent user messages:\n${recentUserMessages}` : "",
       conversationContext ? `Recent conversation:\n${conversationContext}` : "",
       `User prompt: ${prompt}`,
     ]

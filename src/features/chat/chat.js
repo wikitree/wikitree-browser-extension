@@ -2,6 +2,7 @@
 Created By: Ian Beacall (Beacall-6)
 */
 
+import "../../core/userTimingCompat";
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getFeatureOptions } from "../../core/options/options_storage";
@@ -833,7 +834,8 @@ const {
   },
 });
 
-const { buildRecentConversationForAi, getChatAiConfig, hasAnyApiKey } = createChatAiHelpers({
+const { buildRecentConversationForAi, buildRecentUserMessagesForAi, getChatAiConfig, hasAnyApiKey } =
+  createChatAiHelpers({
   getChatOptions,
   getChatHistory: () => chatHistory,
   chatAiMessageMaxChars: CHAT_AI_MESSAGE_MAX_CHARS,
@@ -841,7 +843,7 @@ const { buildRecentConversationForAi, getChatAiConfig, hasAnyApiKey } = createCh
   sharedAiOptionsKey: SHARED_AI_OPTIONS_KEY,
   autoBioOptionsKey: AUTO_BIO_OPTIONS_KEY,
   aiKeyFields: AI_KEY_FIELDS,
-});
+  });
 
 const {
   parsePlannerJson,
@@ -853,8 +855,10 @@ const {
   getChatAiConfig,
   getChatOptions,
   buildRecentConversationForAi,
+  buildRecentUserMessagesForAi,
   ChatIntent,
   executeRoutedIntent: (routed, prompt) => executeRoutedIntent(routed, prompt),
+  getLastStructuredResult: () => lastStructuredResult,
 });
 
 const { resolveConnectionTargetPerson, tryHandleConnectionCorrectionPrompt, tryHandleConnectionPrompt } =
@@ -1328,6 +1332,29 @@ function closeResultsPopup() {
   $(`#${CHAT_RESULTS_POPUP_ID}`).remove();
 }
 
+function extractFollowupTableFilterText(prompt) {
+  const normalized = String(prompt || "").trim();
+  if (!normalized) {
+    return "";
+  }
+
+  const patterns = [
+    /^(?:only\s+)?(?:those|them|people)?\s*(?:who\s+are\s+|who\s+were\s+|that\s+are\s+|that\s+were\s+)?from\s+(.+?)\??$/i,
+    /^(?:only\s+)?(?:those|them|people)?\s*born\s+in\s+(.+?)\??$/i,
+    /^(?:only\s+)?(?:those|them|people)?\s*died\s+in\s+(.+?)\??$/i,
+    /^(?:only\s+)?(?:those|them|people)?\s*in\s+(.+?)\??$/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (match?.[1]) {
+      return String(match[1]).replace(/^['"\s]+|['"\s]+$/g, "").trim();
+    }
+  }
+
+  return "";
+}
+
 function openResultsTable(result = lastStructuredResult, opts = {}) {
   if (!result?.rows?.length || !result?.columns?.length) {
     return;
@@ -1410,7 +1437,7 @@ function openResultsTable(result = lastStructuredResult, opts = {}) {
     /* ignore */
   }
 
-  $(`#${tableId}`).DataTable({
+  const dataTable = $(`#${tableId}`).DataTable({
     paging: true,
     searching: true,
     ordering: true,
@@ -1418,6 +1445,11 @@ function openResultsTable(result = lastStructuredResult, opts = {}) {
     pageLength: 25,
     order: result.defaultOrder || [],
   });
+
+  const initialSearch = String(opts?.initialSearch || "").trim();
+  if (initialSearch) {
+    dataTable.search(initialSearch).draw();
+  }
 }
 
 async function getChatOptions() {
@@ -1617,13 +1649,19 @@ async function sendChatPrompt() {
       const modeResult = await handleExplicitSearchMode({
         prompt,
         chatPopupId: CHAT_POPUP_ID,
+        hasStructuredResult: Boolean(lastStructuredResult?.rows?.length),
+        getLastStructuredResult: () => lastStructuredResult,
         ChatIntent,
         routeChatPrompt,
         buildRecentConversationForAi,
+        buildRecentUserMessagesForAi,
         getChatAiConfig,
         appendMessage,
         tryHandleProfileSearchPrompt,
         handleChatResult,
+        extractFollowupTableFilterText,
+        openResultsTable,
+        tryHandleAiPlannedIntent,
       });
       prompt = modeResult.prompt;
       if (modeResult.handled) {
@@ -1673,7 +1711,9 @@ async function sendChatPrompt() {
     }
 
     const chatOptions = await getChatOptions();
-    const routed = routeChatPrompt(prompt);
+    const routed = routeChatPrompt(prompt, {
+      hasStructuredResult: Boolean(lastStructuredResult?.rows?.length),
+    });
     const deterministicIntentSet = new Set([
       ChatIntent.CC7_LOCATION_FILTER,
       ChatIntent.CC_SUMMARY,
@@ -1746,6 +1786,7 @@ async function sendChatPrompt() {
     const chatMode = document.getElementById("wbe-chat-mode")?.value || "ai";
     console.log("wbe: detected chat mode", { chatMode });
     const conversationContext = buildRecentConversationForAi();
+    const recentUserMessages = buildRecentUserMessagesForAi(4);
     const resolvedPeopleContext = buildResolvedPeopleContextForAi();
     let profileContextText = null;
     try {
@@ -1877,6 +1918,7 @@ async function sendChatPrompt() {
 
     const aiPromptParts = [
       "You are assisting inside the WikiTree Browser Extension chat.",
+      recentUserMessages ? `Recent user messages:\n${recentUserMessages}` : "",
       conversationContext ? `Recent conversation:\n${conversationContext}` : "",
       resolvedPeopleContext,
       localFailureForAi ? `Local tool attempt failed with: ${localFailureForAi}` : "",
@@ -1976,7 +2018,20 @@ async function executeRoutedIntent(routed, prompt) {
     return await tryHandleSpouseBioIntent(routed.params || {}, prompt);
   }
   if (routed.intent === ChatIntent.PROFILE_SEARCH) {
-    return await tryHandleProfileSearchPrompt(routed.params, prompt);
+    const profileSearchResult = await tryHandleProfileSearchPrompt(routed.params, prompt);
+    const followupFilterText = extractFollowupTableFilterText(prompt);
+    const hasStructuredRows = Boolean(lastStructuredResult?.rows?.length);
+    const isNoProfileMatchMessage =
+      typeof profileSearchResult === "string" && /couldn't\s+find\s+profile\s+matches/i.test(profileSearchResult);
+
+    if (isNoProfileMatchMessage && hasStructuredRows && followupFilterText) {
+      openResultsTable(lastStructuredResult, { initialSearch: followupFilterText });
+      return {
+        message: `I treated that as a follow-up on the current result set and opened the table filtered for \"${followupFilterText}\".`,
+      };
+    }
+
+    return profileSearchResult;
   }
   if (routed.intent === ChatIntent.LAST_RESULT_OPERATION) {
     return await tryHandleLastResultOperation(routed.params);
