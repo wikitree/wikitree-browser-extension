@@ -3230,7 +3230,9 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     await getWindowPeople();
     newVitals = buildFamilyListsFromData(familyData);
   } catch (error) {
-    const errorType = isLikelyFamilyListApiAccessError(error) ? "likely CORS/network error" : "API initialization error";
+    const errorType = isLikelyFamilyListApiAccessError(error)
+      ? "likely CORS/network error"
+      : "API initialization error";
     console.warn(`[CFL] Leaving native family lists in place due to ${errorType}.`, error);
     return;
   }
