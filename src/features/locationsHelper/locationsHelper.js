@@ -50,6 +50,9 @@ shouldInitializeFeature("locationsHelper").then((result) => {
   if (result) {
     import("./locationsHelper.css");
     getFeatureOptions("locationsHelper").then((options) => {
+      if (options?.newLocations === "augment" && $("#userOptions").data("disableLocationSuggestions")) {
+        options.newLocations = "only";
+      }
       window.locationsHelperOptions = options;
       dbg2("feature options", options);
 

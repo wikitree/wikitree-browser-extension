@@ -1533,14 +1533,42 @@ function buildChildrenUnknown() {
   return container;
 }
 
+function isLikelyFamilyListApiAccessError(error) {
+  const message = String(error?.message || error || "").toLowerCase();
+  return (
+    error?.name === "TypeError" ||
+    message.includes("failed to fetch") ||
+    message.includes("load failed") ||
+    message.includes("networkerror") ||
+    message.includes("cors") ||
+    message.includes("cross-origin")
+  );
+}
+
 /**
  * Retrieves people data from the API and stores it in global Maps.
  * @returns {Promise<void>}
  */
 async function getWindowPeople() {
-  const [, , people] = await WikiTreeAPI.getPeople(WBE_CFL_APP_ID, profilePerson.Id, getPeopleFields, {
-    nuclear: 1,
-  });
+  let people;
+  try {
+    [, , people] = await WikiTreeAPI.getPeople(WBE_CFL_APP_ID, profilePerson.Id, getPeopleFields, {
+      nuclear: 1,
+    });
+  } catch (error) {
+    window.people = new Map();
+    window.peopleByWtID = new Map();
+    profilePersonData = undefined;
+    throw error;
+  }
+
+  if (!people || typeof people !== "object") {
+    window.people = new Map();
+    window.peopleByWtID = new Map();
+    profilePersonData = undefined;
+    throw new Error("Family lists API response did not include people data.");
+  }
+
   if (DEBUG_FAMILY_LISTS) {
     try {
       console.log("[CFL] getWindowPeople API response keys:", Object.keys(people || {}));
@@ -3193,15 +3221,25 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
 
   pencils = getInitialPencils();
   captureNativeParentDNA();
-  moveMetaGender();
   const familyData = parseInitialData();
   if (DEBUG_FAMILY_LISTS) console.log("Family data:", familyData);
   const treePerson = $("#Family-pane div.tree--person");
+
+  let newVitals;
+  try {
+    await getWindowPeople();
+    newVitals = buildFamilyListsFromData(familyData);
+  } catch (error) {
+    const errorType = isLikelyFamilyListApiAccessError(error)
+      ? "likely CORS/network error"
+      : "API initialization error";
+    console.warn(`[CFL] Leaving native family lists in place due to ${errorType}.`, error);
+    return;
+  }
+
+  moveMetaGender();
   // Retain only the first .VITALS element.
   treePerson.children().not(":first").remove();
-
-  await getWindowPeople();
-  const newVitals = buildFamilyListsFromData(familyData);
   treePersonBit.append(newVitals);
   attachApiData();
   window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];

@@ -166,6 +166,33 @@ function tableHasMergedCells() {
   );
 }
 
+function syncMergedCellInputHeights() {
+  const tableBody = $("#wikitableWizardTable tbody");
+
+  // Clear stale inline heights left behind after unmerge operations.
+  tableBody.find("td input[type=text]").css("height", "");
+
+  const mergedCells = tableBody.find("td.wtw-merged-cell");
+
+  mergedCells.each(function () {
+    const cell = $(this);
+    const input = cell.find("input[type=text]").first();
+    if (!input.length) {
+      return;
+    }
+
+    if (getCellRowSpan(cell) > 1) {
+      input.css("height", `${Math.max(cell.innerHeight(), 0)}px`);
+    }
+  });
+}
+
+function scheduleMergedCellInputSync() {
+  window.requestAnimationFrame(() => {
+    syncMergedCellInputHeights();
+  });
+}
+
 function getDataCellAt(rowIndex, columnIndex) {
   return $("#wikitableWizardTable tbody tr")
     .eq(rowIndex)
@@ -378,6 +405,7 @@ function mergeCellRight(cell) {
   }
 
   setCellSpan(cell, currentColSpan + adjacentColSpan, currentRowSpan);
+  scheduleMergedCellInputSync();
   return true;
 }
 
@@ -417,6 +445,7 @@ function mergeCellDown(cell) {
   }
 
   setCellSpan(cell, currentColSpan, currentRowSpan + adjacentRowSpan);
+  scheduleMergedCellInputSync();
   return true;
 }
 
@@ -490,6 +519,7 @@ function unmergeCell(cell) {
     }
   }
 
+  scheduleMergedCellInputSync();
   return true;
 }
 
@@ -598,30 +628,28 @@ function parseWikiTableData(data) {
     tableData.rows.push(currentRow);
   }
 
-  tableData.rows = tableData.rows
-    .map((row) => {
-      const normalizedCells = row.cells.map(normalizeWikiCell);
-      const isBoldRow = normalizedCells.every(
-        (cell) => cell.text.trim() === "" || (/^\s*'''/.test(cell.text) && /'''\s*$/.test(cell.text))
-      );
+  tableData.rows = tableData.rows.map((row) => {
+    const normalizedCells = row.cells.map(normalizeWikiCell);
+    const isBoldRow = normalizedCells.every(
+      (cell) => cell.text.trim() === "" || (/^\s*'''/.test(cell.text) && /'''\s*$/.test(cell.text))
+    );
 
-      return {
-        ...row,
-        cells: normalizedCells.map((cell) => ({
-          ...cell,
-          text: isBoldRow
-            ? cell.text
-                .replace(/^\s*'''/, "")
-                .replace(/'''\s*$/, "")
-                .trim()
-            : cell.text,
-        })),
-        isBold: isBoldRow,
-        isFullWidth,
-        styles: tableData.styles,
-      };
-    })
-    .filter((row) => row.cells.some((cell) => cell.text.trim() !== "" || cell.colspan > 1 || cell.rowspan > 1));
+    return {
+      ...row,
+      cells: normalizedCells.map((cell) => ({
+        ...cell,
+        text: isBoldRow
+          ? cell.text
+              .replace(/^\s*'''/, "")
+              .replace(/'''\s*$/, "")
+              .trim()
+          : cell.text,
+      })),
+      isBold: isBoldRow,
+      isFullWidth,
+      styles: tableData.styles,
+    };
+  });
 
   const hasMergedCells = tableData.rows.some((row) => row.cells.some((cell) => cell.colspan > 1 || cell.rowspan > 1));
   if (!hasMergedCells) {
@@ -877,6 +905,7 @@ function renderTableFromData(parsedData, wikiTableData = null) {
   // Ensure table is properly rendered and events are attached
   updateHeaderRow();
   setupSorting();
+  scheduleMergedCellInputSync();
   updateRowNumberButtonLabel();
 
   // Attach event listeners to the newly added inputs (check for color and boldness)
@@ -1505,20 +1534,6 @@ function createwikitableWizardModal() {
       if (isCaptionBold) formattedContent += "''' ";
     }
 
-    // Identify empty columns for regular tables only. Merged grids need fixed positions.
-    const emptyColumns = new Set(Array.from({ length: data[0].length }, (_, i) => i));
-    if (!hasMergedCells) {
-      data.forEach((row) => {
-        row.forEach((cell, index) => {
-          if ((cell.text + " ").trim() !== "") {
-            emptyColumns.delete(index);
-          }
-        });
-      });
-    } else {
-      emptyColumns.clear();
-    }
-
     // Find the last non-empty row index
     let lastNonEmptyRowIndex = data.length - 1;
     while (lastNonEmptyRowIndex >= 0) {
@@ -1553,8 +1568,7 @@ function createwikitableWizardModal() {
       }
 
       if (isHeaderRow && rowIndex === 0) {
-        row.forEach((cell, cellIndex) => {
-          if (emptyColumns.has(cellIndex)) return;
+        row.forEach((cell) => {
           const cellText = style.isBold && cell.text ? `'''${cell.text}'''` : cell.text;
           const cellAttributes = [];
           if (cell.colspan > 1) {
@@ -1567,8 +1581,7 @@ function createwikitableWizardModal() {
           formattedContent += `\n! ${cellAttributes.join(" ")}${cellAttributes.length ? " | " : ""}${cellText}`;
         });
       } else {
-        row.forEach((cell, cellIndex) => {
-          if (emptyColumns.has(cellIndex)) return;
+        row.forEach((cell) => {
           const cellText = style.isBold && cell.text ? `'''${cell.text}'''` : cell.text;
           const cellAttributes = [];
           if (cell.colspan > 1) {
@@ -2154,6 +2167,7 @@ function refreshSorting() {
 
   // Re-initialize sorting, dragging, and dropping
   setupSorting();
+  scheduleMergedCellInputSync();
 }
 
 // Create custom context menu
