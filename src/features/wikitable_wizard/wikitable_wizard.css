@@ -203,6 +203,14 @@
 
 #wikitableWizardModal #wikitableWizardTable td.wtw-merged-cell {
   vertical-align: middle;
+  padding: 0;
+}
+
+#wikitableWizardModal #wikitableWizardTable td.wtw-merged-cell > input[type="text"] {
+  display: block;
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
 }
 
 #wikitableWizardModal #wikitableWizardTable td.wtw-merged-placeholder {
