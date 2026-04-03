@@ -254,6 +254,10 @@ const CHAT_PERSISTED_STRUCTURED_ROWS_MAX = 250;
 const CHAT_PERSON_MEMORY_MAX_ENTRIES = 100;
 const CHAT_PERSON_MEMORY_AI_CONTEXT_MAX = 10;
 const CHAT_APPS_LOGIN_HINT = "Log in to the apps server for better results. Use the Apps Login button on this page.";
+const CHAT_JSON_BATCH_TRIGGER = /^\s*(?:search\s+)?person(?:s)?\s+from\s+json\s*:?\s*/i;
+const CHAT_JSON_BATCH_MAX_CHOICES = 6;
+const CHAT_JSON_BATCH_ENTRY_PAUSE_MS = 80;
+const CHAT_JSON_BATCH_MAX_BIRTH_YEAR = 1800;
 const RELATION_PERSON_FIELDS =
   "Id,Name,Gender,RealName,Derived.ShortName,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation";
 let chatHistory = [];
@@ -1652,6 +1656,420 @@ function exportResultAsWikitable(result) {
   downloadBlob(`${sanitizeExportFileBaseName(result?.title)}.wikitable.txt`, blob);
 }
 
+function stripJsonCodeFence(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return "";
+
+  const fencedMatch = raw.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fencedMatch?.[1]) {
+    return String(fencedMatch[1] || "").trim();
+  }
+
+  return raw;
+}
+
+function extractJsonBatchPayload(prompt) {
+  const source = String(prompt || "");
+  if (!CHAT_JSON_BATCH_TRIGGER.test(source)) {
+    return null;
+  }
+
+  const withoutTrigger = source.replace(CHAT_JSON_BATCH_TRIGGER, "").trim();
+  const cleaned = stripJsonCodeFence(withoutTrigger);
+  if (cleaned) {
+    return cleaned;
+  }
+
+  return "";
+}
+
+function parseFlexibleYear(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const match = text.match(/^(\d{4})/);
+  return match?.[1] || "";
+}
+
+function normalizeBirthDateForSearch(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return { birthDate: "", dateSpread: null, precision: "unknown" };
+  }
+
+  const full = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (full) {
+    const year = full[1];
+    const month = full[2];
+    const day = full[3];
+    if (month === "00") {
+      return { birthDate: `${year}-01-01`, dateSpread: 370, precision: "year" };
+    }
+    if (day === "00") {
+      return { birthDate: `${year}-${month}-15`, dateSpread: 20, precision: "month" };
+    }
+    return { birthDate: text, dateSpread: 0, precision: "day" };
+  }
+
+  const yearOnly = text.match(/^(\d{4})$/);
+  if (yearOnly) {
+    return { birthDate: `${yearOnly[1]}-01-01`, dateSpread: 370, precision: "year" };
+  }
+
+  return { birthDate: "", dateSpread: null, precision: "unknown" };
+}
+
+function candidatePassesJsonBirthYearCutoff(candidate, cutoffYear = CHAT_JSON_BATCH_MAX_BIRTH_YEAR) {
+  const birthDate = String(candidate?.BirthDate || "").trim();
+  const birthYear = Number(parseFlexibleYear(birthDate));
+
+  if (!Number.isFinite(birthYear) || birthYear <= 0) {
+    return true;
+  }
+
+  return birthYear <= Number(cutoffYear);
+}
+
+function parseIndexNameParts(indexName) {
+  const text = String(indexName || "").trim();
+  if (!text) return { firstName: "", lastName: "" };
+
+  const commaMatch = text.match(/^([^,]+),\s*(.+)$/);
+  if (commaMatch?.[1] && commaMatch?.[2]) {
+    const lastName = String(commaMatch[1] || "").trim();
+    const firstSegment = String(commaMatch[2] || "")
+      .replace(
+        /\b(Captain|Capt\.?|Rev\.?|Dr\.?|Sir|Lady|Lord|Col\.?|Major|Lt\.?|Lieutenant|Mrs\.?|Ms\.?|Mr\.?)\b/gi,
+        " "
+      )
+      .replace(/\s+/g, " ")
+      .trim();
+    const firstName = firstSegment.split(/\s+/).filter(Boolean)[0] || "";
+    return { firstName, lastName };
+  }
+
+  const parts = text.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return { firstName: parts[0], lastName: parts[parts.length - 1] };
+  }
+
+  return { firstName: parts[0] || "", lastName: "" };
+}
+
+function deriveJsonBatchNameHints(entry) {
+  const wtGuess = entry?.wtGuess || {};
+  const fromIndex = parseIndexNameParts(entry?.indexName || "");
+
+  const firstName = String(wtGuess?.FirstName || fromIndex.firstName || "").trim();
+  const lastName = String(wtGuess?.LastNameAtBirth || wtGuess?.CurrentLastName || fromIndex.lastName || "").trim();
+  const birthRaw = String(entry?.canonical?.birth || "").trim();
+  const birthSearch = normalizeBirthDateForSearch(birthRaw);
+
+  return {
+    firstName,
+    lastName,
+    birthRaw,
+    birthDate: birthSearch.birthDate,
+    dateSpread: birthSearch.dateSpread,
+    birthPrecision: birthSearch.precision,
+  };
+}
+
+function scoreJsonBatchCandidate(candidate, hints) {
+  const firstName = String(hints?.firstName || "")
+    .trim()
+    .toLowerCase();
+  const lastName = String(hints?.lastName || "")
+    .trim()
+    .toLowerCase();
+  const birthYear = parseFlexibleYear(hints?.birthRaw || hints?.birthDate || "");
+
+  const cFirst = String(candidate?.FirstName || "")
+    .trim()
+    .toLowerCase();
+  const cLastBirth = String(candidate?.LastNameAtBirth || "")
+    .trim()
+    .toLowerCase();
+  const cLastCurrent = String(candidate?.LastNameCurrent || "")
+    .trim()
+    .toLowerCase();
+  const cBirth = String(candidate?.BirthDate || "").trim();
+  const cBirthYear = parseFlexibleYear(cBirth);
+
+  let score = 0;
+  if (firstName && cFirst === firstName) score += 40;
+  if (lastName && (cLastBirth === lastName || cLastCurrent === lastName)) score += 40;
+  if (birthYear && cBirthYear === birthYear) score += 25;
+  if (hints?.birthRaw && cBirth === hints.birthRaw) score += 15;
+
+  return score;
+}
+
+async function runJsonBatchEntrySearch(entry) {
+  const hints = deriveJsonBatchNameHints(entry);
+  const fields = "Id,Name,RealName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate";
+  const attempts = [];
+
+  const { firstName, lastName, birthDate, dateSpread } = hints;
+  if (firstName && lastName && birthDate) {
+    attempts.push({
+      label: "strict-name-plus-birth",
+      params: {
+        FirstName: firstName,
+        LastName: lastName,
+        BirthDate: birthDate,
+        dateSpread: Number.isFinite(Number(dateSpread)) ? Number(dateSpread) : 0,
+        skipVariants: 1,
+        lastNameMatch: "strict",
+        limit: 20,
+        sort: "birth",
+      },
+    });
+  }
+
+  if (firstName && lastName) {
+    attempts.push({
+      label: "strict-name",
+      params: {
+        FirstName: firstName,
+        LastName: lastName,
+        skipVariants: 1,
+        lastNameMatch: "strict",
+        limit: 20,
+        sort: "birth",
+      },
+    });
+  }
+
+  if (firstName && lastName) {
+    attempts.push({
+      label: "relaxed-name",
+      params: {
+        FirstName: firstName,
+        LastName: lastName,
+        limit: 20,
+        sort: "birth",
+      },
+    });
+  }
+
+  if (firstName && lastName && birthDate) {
+    attempts.push({
+      label: "relaxed-name-plus-birth",
+      params: {
+        FirstName: firstName,
+        LastName: lastName,
+        BirthDate: birthDate,
+        dateSpread: Number.isFinite(Number(dateSpread)) ? Number(dateSpread) : 0,
+        limit: 20,
+        sort: "birth",
+      },
+    });
+  }
+
+  const realNameQuery = [firstName, lastName].filter(Boolean).join(" ").trim() || String(entry?.indexName || "").trim();
+  if (realNameQuery) {
+    attempts.push({
+      label: "realname-fallback",
+      params: {
+        RealName: realNameQuery,
+        limit: 20,
+      },
+    });
+  }
+
+  const seen = new Set();
+  const combinedMatches = [];
+
+  for (const attempt of attempts) {
+    try {
+      const [, matches] = await WikiTreeAPI.searchPerson(WBE_CHAT_APP_ID, attempt.params, fields);
+      (Array.isArray(matches) ? matches : []).forEach((candidate) => {
+        if (!candidatePassesJsonBirthYearCutoff(candidate)) {
+          return;
+        }
+
+        const wtId = String(candidate?.Name || "").trim();
+        if (!wtId || seen.has(wtId)) {
+          return;
+        }
+        seen.add(wtId);
+        combinedMatches.push({
+          candidate,
+          sourceAttempt: attempt.label,
+          score: scoreJsonBatchCandidate(candidate, hints),
+        });
+      });
+    } catch (error) {
+      console.debug("wbe: json batch search attempt failed", {
+        attempt: attempt.label,
+        entryName: entry?.indexName,
+        error,
+      });
+    }
+  }
+
+  combinedMatches.sort((left, right) => {
+    const scoreDelta = Number(right.score || 0) - Number(left.score || 0);
+    if (scoreDelta !== 0) return scoreDelta;
+    const leftDate = String(left?.candidate?.BirthDate || "");
+    const rightDate = String(right?.candidate?.BirthDate || "");
+    return leftDate.localeCompare(rightDate);
+  });
+
+  const choices = combinedMatches.slice(0, CHAT_JSON_BATCH_MAX_CHOICES).map((item) => ({
+    wtId: String(item?.candidate?.Name || "").trim() || null,
+    displayName: String(item?.candidate?.RealName || item?.candidate?.Name || "").trim() || null,
+    birth: String(item?.candidate?.BirthDate || "").trim() || null,
+    death: String(item?.candidate?.DeathDate || "").trim() || null,
+    score: Number(item?.score || 0),
+    sourceAttempt: item?.sourceAttempt || null,
+  }));
+
+  const selectedWtId = choices.length === 1 ? choices[0].wtId : null;
+  const status = !choices.length ? "no-match" : selectedWtId ? "single" : "multiple";
+
+  return {
+    hints,
+    status,
+    selectedWtId,
+    choices,
+  };
+}
+
+async function tryHandleJsonPeopleBatchPrompt(prompt) {
+  const payload = extractJsonBatchPayload(prompt);
+  if (payload == null) {
+    return null;
+  }
+
+  if (!payload) {
+    return {
+      message:
+        "I detected the JSON batch command, but no JSON payload was found. Paste JSON after 'Search people from JSON:' and try again.",
+    };
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(payload);
+  } catch (error) {
+    return {
+      message: `I couldn't parse that JSON payload: ${error?.message || "Invalid JSON"}`,
+    };
+  }
+
+  const entries = Array.isArray(parsed?.entries) ? parsed.entries : null;
+  if (!entries) {
+    return {
+      message: "JSON payload parsed, but it does not contain an entries array at the top level.",
+    };
+  }
+
+  const updated = {
+    ...parsed,
+    entries: [...entries],
+    processing: {
+      ...(parsed?.processing || {}),
+      updatedAt: new Date().toISOString(),
+      mode: "chat-search-people-json",
+      maxChoicesPerEntry: CHAT_JSON_BATCH_MAX_CHOICES,
+      maxBirthYear: CHAT_JSON_BATCH_MAX_BIRTH_YEAR,
+      notes: [
+        "searchPerson used FirstName + LastName + BirthDate when available, then fallback attempts.",
+        `Candidates with known birth year after ${CHAT_JSON_BATCH_MAX_BIRTH_YEAR} were ignored.`,
+        "choices contains possible WT matches for manual review when results are ambiguous.",
+      ],
+    },
+  };
+
+  let countSingle = 0;
+  let countMultiple = 0;
+  let countNoMatch = 0;
+
+  for (let index = 0; index < updated.entries.length; index += 1) {
+    const entry = updated.entries[index];
+    const searchResult = await runJsonBatchEntrySearch(entry);
+
+    const nextCanonical = {
+      ...(entry?.canonical || {}),
+      wtId: searchResult.selectedWtId || entry?.canonical?.wtId || null,
+    };
+    if (searchResult.selectedWtId && searchResult.choices[0]) {
+      nextCanonical.displayName = nextCanonical.displayName || searchResult.choices[0].displayName || null;
+      nextCanonical.birth = nextCanonical.birth || searchResult.choices[0].birth || null;
+      nextCanonical.death = nextCanonical.death || searchResult.choices[0].death || null;
+    }
+
+    updated.entries[index] = {
+      ...entry,
+      canonical: nextCanonical,
+      wtSearch: {
+        input: {
+          FirstName: searchResult.hints.firstName || null,
+          LastName: searchResult.hints.lastName || null,
+          BirthDate: searchResult.hints.birthRaw || null,
+        },
+        normalizedInput: {
+          BirthDateForSearch: searchResult.hints.birthDate || null,
+          DateSpread: Number.isFinite(Number(searchResult.hints.dateSpread))
+            ? Number(searchResult.hints.dateSpread)
+            : null,
+          BirthPrecision: searchResult.hints.birthPrecision || null,
+        },
+        status: searchResult.status,
+        selectedWtId: searchResult.selectedWtId,
+        choices: searchResult.choices,
+      },
+      needsReview: searchResult.status !== "single" || Boolean(entry?.needsReview),
+    };
+
+    if (searchResult.status === "single") countSingle += 1;
+    else if (searchResult.status === "multiple") countMultiple += 1;
+    else countNoMatch += 1;
+
+    if (CHAT_JSON_BATCH_ENTRY_PAUSE_MS > 0) {
+      await pause(CHAT_JSON_BATCH_ENTRY_PAUSE_MS);
+    }
+  }
+
+  const ambiguousExamples = updated.entries
+    .filter((entry) => String(entry?.wtSearch?.status || "") === "multiple")
+    .slice(0, 8)
+    .map((entry) => {
+      const name = String(entry?.indexName || entry?.wtGuess?.FirstName || "Unknown entry").trim();
+      const top = (entry?.wtSearch?.choices || [])
+        .slice(0, 3)
+        .map((choice) => `${choice.displayName || choice.wtId || "Unknown"} (${choice.wtId || "no-id"})`)
+        .join("; ");
+      return `- ${name}: ${top || "no choices recorded"}`;
+    });
+
+  const titleBase =
+    String(parsed?.book?.title || "people-search")
+      .trim()
+      .slice(0, 80) || "people-search";
+  const fileBaseName = sanitizeExportFileBaseName(`${titleBase}-matched`);
+  const updatedJsonText = JSON.stringify(updated, null, 2);
+
+  window.wbeLastJsonPeopleSearchResult = updated;
+
+  return {
+    message:
+      `Processed ${updated.entries.length} entries. ` +
+      `Single match: ${countSingle}. Multiple possible matches: ${countMultiple}. No match: ${countNoMatch}.` +
+      (ambiguousExamples.length ? `\n\nExamples with multiple possible results:\n${ambiguousExamples.join("\n")}` : ""),
+    actions: [
+      {
+        label: "Download updated JSON",
+        onClick: () => {
+          const blob = new Blob([updatedJsonText], { type: "application/json;charset=utf-8" });
+          downloadBlob(`${fileBaseName}.json`, blob);
+        },
+      },
+    ],
+  };
+}
+
 function injectResultsExportButtons($popup, tableId, result) {
   const $wrapper = $popup.find(`#${tableId}_wrapper`);
   if (!$wrapper.length) return;
@@ -1998,6 +2416,19 @@ async function sendChatPrompt() {
   }
 
   try {
+    const jsonBatchPayload = extractJsonBatchPayload(prompt);
+    if (jsonBatchPayload !== null) {
+      appendMessage("assistant", "Detected JSON batch mode. Processing people from the pasted JSON...", {
+        shouldPersist: false,
+      });
+    }
+
+    const jsonBatchResponseEarly = await tryHandleJsonPeopleBatchPrompt(prompt);
+    if (jsonBatchResponseEarly) {
+      await handleChatResult(jsonBatchResponseEarly);
+      return;
+    }
+
     // Handle pending disambiguation: user is replying to a "which one did you mean?" prompt
     if (pendingDisambiguationContext) {
       const ctx = pendingDisambiguationContext;
