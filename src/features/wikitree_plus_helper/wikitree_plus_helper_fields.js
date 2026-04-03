@@ -231,7 +231,7 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
     {
       id: "Ancestors",
       label: "Ancestors",
-      kind: "raw",
+      kind: "index",
       input: "text",
       placeholder: 'e.g. Tudor-18 or "Van Veenendaal-20"',
       group: "Relations",
@@ -239,7 +239,7 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
     {
       id: "Descendants",
       label: "Descendants",
-      kind: "raw",
+      kind: "index",
       input: "text",
       placeholder: 'e.g. Tudor-18 or "Van Hoorn-230"',
       group: "Relations",
@@ -247,7 +247,7 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
     {
       id: "CC7",
       label: "CC7",
-      kind: "raw",
+      kind: "index",
       input: "text",
       placeholder: "e.g. Tudor-18 or 13064898",
       group: "Relations",
