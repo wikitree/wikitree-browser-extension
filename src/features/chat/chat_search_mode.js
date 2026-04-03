@@ -167,6 +167,34 @@ function isWtPlusOnlyPrompt(prompt) {
   ].some((pattern) => pattern.test(normalizedPrompt));
 }
 
+function isLikelyWtPlusFilterPrompt(prompt) {
+  const normalizedPrompt = String(prompt || "").trim();
+  if (!normalizedPrompt) {
+    return false;
+  }
+
+  const hasAgeConstraint = /\bage\s*(?:=|is|of)?\s*\d{1,3}\b/i.test(normalizedPrompt);
+  const hasConnectedFilter = /\bconnected\b|\bdna\b/i.test(normalizedPrompt);
+  const hasExplicitLocationCue =
+    /\b(?:in|from|at|near|around|location|place|town|city|county|state|country|region|village)\b/i.test(
+      normalizedPrompt
+    );
+
+  // Prompts like "Liverpool age 42" are ambiguous (place vs surname).
+  // Let the AI classifier resolve ambiguity instead of forcing WT+.
+  const ambiguousLeadingNameLike =
+    hasAgeConstraint &&
+    !hasExplicitLocationCue &&
+    /^[A-Z][A-Za-z'\-]+(?:\s+[A-Z][A-Za-z'\-]+){0,2}\s+age\b/.test(normalizedPrompt);
+  if (ambiguousLeadingNameLike) {
+    return false;
+  }
+
+  return (
+    (hasAgeConstraint && hasExplicitLocationCue) || (hasConnectedFilter && (hasAgeConstraint || hasExplicitLocationCue))
+  );
+}
+
 function getEffectiveExplicitMode(prompt, selectedMode) {
   const normalizedMode = String(selectedMode || "")
     .trim()
@@ -387,6 +415,10 @@ async function shouldAutoRouteWtPromptToWtPlus({ prompt, getChatAiConfig, buildR
     return true;
   }
 
+  if (isLikelyWtPlusFilterPrompt(normalizedPrompt)) {
+    return true;
+  }
+
   if (isLikelyPersonCentricPrompt(normalizedPrompt)) {
     return false;
   }
@@ -462,6 +494,7 @@ export async function handleExplicitSearchMode({
   console.debug("wbe: checking chat mode for prompt", { prompt });
   const selectedMode = getVisibleSearchMode(chatPopupId);
   const mode = getEffectiveExplicitMode(prompt, selectedMode);
+  console.debug("wbe: mode detection", { selectedMode, mode, prompt: prompt.substring(0, 60) });
   if (!mode || !shouldUseExplicitSearchMode(prompt, mode)) {
     return { handled: false, prompt };
   }
@@ -551,7 +584,7 @@ export async function handleExplicitSearchMode({
     const normalizedPrompt = String(prompt || "")
       .replace(/^\s*search[:\s]+/i, "")
       .trim();
-
+    let shouldSkipFinalSearch = false;
     if (mode === "wtplus" && hasStructuredResult) {
       const structuredResult = typeof getLastStructuredResult === "function" ? getLastStructuredResult() : null;
       const previousWtPlusQuery = String(structuredResult?.wtPlusQuery || "").trim();
@@ -607,10 +640,12 @@ export async function handleExplicitSearchMode({
     }
 
     if (mode === "wt") {
+      console.debug("wbe: entering wt mode block", { normalizedPrompt: normalizedPrompt.substring(0, 60) });
       const routed =
         typeof routeChatPrompt === "function"
           ? routeChatPrompt(normalizedPrompt, { hasStructuredResult: Boolean(hasStructuredResult) })
           : null;
+      console.debug("wbe: wt mode routing decision", { intent: routed?.intent, hasStructuredResult });
       const deterministicWtIntentSet = new Set([
         ChatIntent?.CC7_LOCATION_FILTER,
         ChatIntent?.CC_SUMMARY,
@@ -627,6 +662,19 @@ export async function handleExplicitSearchMode({
       ]);
 
       if (deterministicWtIntentSet.has(routed?.intent)) {
+        console.debug("wbe: explicit wt mode deferring deterministic intent to main flow", {
+          intent: routed?.intent,
+          prompt: normalizedPrompt.substring(0, 60),
+        });
+        return { handled: false, prompt: normalizedPrompt };
+      }
+
+      // Do not execute explicit WT search when prompt is clearly WT+-only.
+      // Let the main router run once so we avoid double-rendering during auto-route.
+      if (isWtPlusOnlyPrompt(normalizedPrompt)) {
+        console.debug("wbe: explicit wt mode deferring WT+-only prompt to main flow", {
+          prompt: normalizedPrompt.substring(0, 60),
+        });
         return { handled: false, prompt: normalizedPrompt };
       }
 
@@ -656,28 +704,9 @@ export async function handleExplicitSearchMode({
       });
 
       if (shouldSwitchToWtPlus) {
-        if (typeof setExplicitMode === "function") {
-          setExplicitMode("wtplus", { notice: "Auto-switched to WT+" });
-        }
-
-        try {
-          const wtPlusResult = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, normalizedPrompt);
-          if (wtPlusResult) {
-            if (typeof wtPlusResult === "string") {
-              await handleChatResult({
-                message: `Switched to WT+ mode for this query.\n${wtPlusResult}`,
-              });
-            } else {
-              await handleChatResult({
-                ...wtPlusResult,
-                message: `Switched to WT+ mode for this query.\n${wtPlusResult.message || ""}`.trim(),
-              });
-            }
-            return { handled: true, prompt: normalizedPrompt };
-          }
-        } catch (wtPlusErr) {
-          console.debug("wbe: auto WT+ handoff failed", wtPlusErr);
-        }
+        console.debug("wbe: auto-routing WT query to WT+ (in wt block)", { prompt: normalizedPrompt.substring(0, 60) });
+        shouldSkipFinalSearch = true;
+        return { handled: false, prompt: normalizedPrompt };
       }
     }
 
@@ -698,6 +727,16 @@ export async function handleExplicitSearchMode({
     }
 
     try {
+      if (shouldSkipFinalSearch) {
+        console.debug("wbe: skipping final search (flag set)", { mode, prompt: normalizedPrompt.substring(0, 60) });
+        return { handled: false, prompt: normalizedPrompt };
+      }
+
+      console.debug("wbe: executing final search in handleExplicitSearchMode", {
+        mode,
+        prompt: normalizedPrompt.substring(0, 60),
+        shouldSkipFinalSearch,
+      });
       const searchResult = await tryHandleProfileSearchPrompt({ chatModeOverride: mode }, normalizedPrompt);
       const followupFilterText =
         typeof extractFollowupTableFilterText === "function" ? extractFollowupTableFilterText(normalizedPrompt) : "";
@@ -722,11 +761,19 @@ export async function handleExplicitSearchMode({
         } else {
           await handleChatResult(searchResult);
         }
+        console.debug("wbe: explicit mode handled final search result", {
+          mode,
+          prompt: normalizedPrompt.substring(0, 60),
+        });
         return { handled: true, prompt: normalizedPrompt };
       }
     } catch (wtErr) {
       console.debug("wbe: wt search handler failed", wtErr);
     }
+    console.debug("wbe: explicit mode final search returned no result", {
+      mode,
+      prompt: normalizedPrompt.substring(0, 60),
+    });
     return { handled: false, prompt: normalizedPrompt };
   }
 

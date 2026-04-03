@@ -245,7 +245,9 @@ export function createChatHistoryHandlers({
 
   function tryFormatWtPlusQueryMessage(text) {
     const normalized = String(text || "").trim();
-    const interpretedMatch = normalized.match(
+    const hasWtPlusModePrefix = /^WT\+\s+mode\.\s*/i.test(normalized);
+    const normalizedBody = hasWtPlusModePrefix ? normalized.replace(/^WT\+\s+mode\.\s*/i, "").trim() : normalized;
+    const interpretedMatch = normalizedBody.match(
       /^AI\s+interpreted\s+this\s+as\s+"(.+?)"\s+and\s+ran\s+WT\+\s+query:\s+(.+?)\.\s+Found\s+(\d+)\s+profile(?:s)?(?:\.\s+Also\s+(.+))?\.?$/i
     );
     if (interpretedMatch) {
@@ -262,6 +264,7 @@ export function createChatHistoryHandlers({
       const escapedCount = escapeHtml(profileCount);
       const escapedNote = optionalNote ? escapeHtml(optionalNote) : "";
       return [
+        hasWtPlusModePrefix ? '<div class="chat-query-note">WT+ mode.</div>' : "",
         `<div class="chat-query-row">AI interpreted this as "${escapedInterpreted}" and ran WT+ query:</div>`,
         '<div class="chat-query-box">',
         `<code class="chat-query-code">${escapedQuery}</code>`,
@@ -271,11 +274,11 @@ export function createChatHistoryHandlers({
       ].join("");
     }
 
-    const foundMatch = normalized.match(
+    const foundMatch = normalizedBody.match(
       /^Found\s+(\d+)\s+profile(?:s)?\s+for\s+WT\+\s+query:\s+(.+?)(?:\.\s+Also\s+(.+))?\.?$/i
     );
     if (!foundMatch) {
-      const noResultsMatch = normalized.match(
+      const noResultsMatch = normalizedBody.match(
         /^I'm\s+sorry,\s+I\s+couldn't\s+find\s+any\s+profiles\s+for\s+WT\+\s+query:\s+(.+?)(?:\s+Could\s+you\s+try\s+a\s+more\s+specific\s+name\s+or\s+a\s+WikiTree\s+ID\?)?$/i
       );
       if (!noResultsMatch) {
@@ -289,6 +292,7 @@ export function createChatHistoryHandlers({
 
       const escapedNoResultsQuery = escapeHtml(noResultsQuery);
       return [
+        hasWtPlusModePrefix ? '<div class="chat-query-note">WT+ mode.</div>' : "",
         '<div class="chat-query-row">No profiles found for WT+ query:</div>',
         '<div class="chat-query-box">',
         `<code class="chat-query-code">${escapedNoResultsQuery}</code>`,
@@ -308,6 +312,7 @@ export function createChatHistoryHandlers({
     const escapedCount = escapeHtml(profileCount);
     const escapedNote = optionalNote ? escapeHtml(optionalNote) : "";
     return [
+      hasWtPlusModePrefix ? '<div class="chat-query-note">WT+ mode.</div>' : "",
       `<div class="chat-query-row">Found ${escapedCount} profiles for WT+ query:</div>`,
       `<div class="chat-query-box">`,
       `<code class="chat-query-code">${escapedQuery}</code>`,

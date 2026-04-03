@@ -628,7 +628,13 @@ WikiTreeAPI.postToAPI = async function (postData, signal) {
   let bodyParams;
   try {
     bodyParams = new URLSearchParams(formData);
-    console.debug("wbe: postToAPI outgoing body", bodyParams.toString());
+    const bodyText = bodyParams.toString();
+    const maxLogChars = 320;
+    const preview =
+      bodyText.length > maxLogChars
+        ? `${bodyText.slice(0, maxLogChars)}... [truncated ${bodyText.length - maxLogChars} chars]`
+        : bodyText;
+    console.debug("wbe: postToAPI outgoing body", preview);
   } catch (e) {
     /* ignore logging errors */
   }

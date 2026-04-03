@@ -2768,7 +2768,7 @@ export function createProfileSearchHandler({
         .join("\n");
       const prompt = `${system}\n\n${user}`;
 
-      console.debug("wbe: callAiParseWtPlusQuery outbound prompt", { rawQuery, prompt });
+      console.debug("wbe: callAiParseWtPlusQuery outbound", { rawQuery, promptLength: prompt.length, isReparse });
 
       let aiResult = null;
       if (typeof window.callAiModel === "function") {
@@ -5067,6 +5067,49 @@ export function createProfileSearchHandler({
         .trim()
         .toLowerCase();
 
+      const explicitWtPlusQueryCandidate =
+        parseExplicitWtPlusQuery(mainQuery) ||
+        parseExplicitWtPlusQuery(rawQuery.replace(/^\s*(?:search:?|find|look(?:\s+up)?)\s+/i, ""));
+      const localWtPlusQueryCandidate =
+        parseNaturalLanguageWtPlusQuery(mainQuery) || parseCombinedNaturalLanguageWtPlusQuery(mainQuery);
+      const preferAiWtPlusQueryCandidate = shouldPreferAiWtPlusQuery(mainQuery);
+      const wtPlusOnlyConstraintRegex =
+        /\b(?:category|template|suggestions?\s*=|sql\s*=|project\s*managed|managed\s*(?:only\s*)?by|manager\s*=|unsourced|unconnected|orphan)\b/i;
+      const looksWtPlusOnly = wtPlusOnlyConstraintRegex.test(rawQuery) || wtPlusOnlyConstraintRegex.test(mainQuery);
+      const shouldAutoRouteToWtPlus =
+        chatMode !== "wtplus" &&
+        Boolean(
+          explicitWtPlusQueryCandidate?.query ||
+            (localWtPlusQueryCandidate?.query && looksWtPlusOnly) ||
+            (preferAiWtPlusQueryCandidate && looksWtPlusOnly)
+        );
+      const effectiveChatMode = shouldAutoRouteToWtPlus ? "wtplus" : chatMode;
+      console.debug("wbe: auto-route detection in profile-search", {
+        mainQuery: mainQuery.substring(0, 60),
+        shouldAutoRouteToWtPlus,
+        effectiveChatMode,
+        looksWtPlusOnly,
+      });
+      const annotateAutoRoutedWtPlusResult = (result) => {
+        if (!shouldAutoRouteToWtPlus || !result) {
+          return result;
+        }
+
+        if (typeof result === "string") {
+          return {
+            message: result,
+            switchToMode: "wtplus",
+            switchModeChatMessage: "WT+ mode.",
+          };
+        }
+
+        return {
+          ...result,
+          switchToMode: "wtplus",
+          switchModeChatMessage: "WT+ mode.",
+        };
+      };
+
       const forcedStrategy = String(params?.aiCandidateDiscoveryStrategy || personListCommandMatch?.[1] || "ai")
         .trim()
         .toLowerCase();
@@ -5081,7 +5124,7 @@ export function createProfileSearchHandler({
         }
       }
 
-      if (chatMode === "wtplus") {
+      if (effectiveChatMode === "wtplus") {
         const explicitWtPlusQuery =
           parseExplicitWtPlusQuery(mainQuery) ||
           parseExplicitWtPlusQuery(rawQuery.replace(/^\s*(?:search:?|find|look(?:\s+up)?)\s+/i, ""));
@@ -5134,10 +5177,8 @@ export function createProfileSearchHandler({
                 deterministicRetryQuery: deterministicRetry.query,
               });
               recordWtPlusParseTelemetry("parsedLocal");
-              return await runWtPlusProfileQuery(
-                deterministicRetry.query,
-                deterministicRetry.title,
-                deterministicRetry
+              return annotateAutoRoutedWtPlusResult(
+                await runWtPlusProfileQuery(deterministicRetry.query, deterministicRetry.title, deterministicRetry)
               );
             }
 
@@ -5155,10 +5196,12 @@ export function createProfileSearchHandler({
                 aiRetryQuery: aiRetryQuery.query,
               });
               recordWtPlusParseTelemetry("parsedAi");
-              return await runWtPlusProfileQuery(aiRetryQuery.query, aiRetryQuery.title, aiRetryQuery);
+              return annotateAutoRoutedWtPlusResult(
+                await runWtPlusProfileQuery(aiRetryQuery.query, aiRetryQuery.title, aiRetryQuery)
+              );
             }
           }
-          return localRunResult;
+          return annotateAutoRoutedWtPlusResult(localRunResult);
         }
 
         showChatShaky("Asking AI to interpret this as a WT+ query...");
@@ -5185,9 +5228,11 @@ export function createProfileSearchHandler({
               localQuery: localWtPlusQuery.query,
             });
             recordWtPlusParseTelemetry("parsedLocal");
-            return await runWtPlusProfileQuery(localWtPlusQuery.query, localWtPlusQuery.title, localWtPlusQuery);
+            return annotateAutoRoutedWtPlusResult(
+              await runWtPlusProfileQuery(localWtPlusQuery.query, localWtPlusQuery.title, localWtPlusQuery)
+            );
           }
-          return aiRunResult;
+          return annotateAutoRoutedWtPlusResult(aiRunResult);
         }
 
         if (shouldPreferAiForAmbiguousSuggestions && localWtPlusQuery?.query) {
@@ -5197,10 +5242,12 @@ export function createProfileSearchHandler({
               rawQuery,
               repairedQuery: repairedSuggestionsFallback.query,
             });
-            return await runWtPlusProfileQuery(
-              repairedSuggestionsFallback.query,
-              repairedSuggestionsFallback.title,
-              repairedSuggestionsFallback
+            return annotateAutoRoutedWtPlusResult(
+              await runWtPlusProfileQuery(
+                repairedSuggestionsFallback.query,
+                repairedSuggestionsFallback.title,
+                repairedSuggestionsFallback
+              )
             );
           }
           console.info("wbe: WT+ AI parse unavailable; falling back to deterministic parser query", {
@@ -5208,7 +5255,9 @@ export function createProfileSearchHandler({
             localQuery: localWtPlusQuery.query,
             localSearchType: localWtPlusQuery.searchType || "text",
           });
-          return await runWtPlusProfileQuery(localWtPlusQuery.query, localWtPlusQuery.title, localWtPlusQuery);
+          return annotateAutoRoutedWtPlusResult(
+            await runWtPlusProfileQuery(localWtPlusQuery.query, localWtPlusQuery.title, localWtPlusQuery)
+          );
         }
       }
 
@@ -5265,7 +5314,7 @@ export function createProfileSearchHandler({
           detQuery,
           categoryName,
         });
-        if (categoryName && chatMode !== "wt") {
+        if (categoryName && effectiveChatMode !== "wt") {
           showChatShaky(`Looking up category "${categoryName}" via WT+...`);
           try {
             let chosenCategory = stripSurroundingQuotes(categoryName);
@@ -5305,16 +5354,18 @@ export function createProfileSearchHandler({
             const table = makeStandardProfileTable(`Category: ${chosenCategory}`, rows, [[0, "asc"]]);
             table.columns = (table.columns || []).filter((c) => !["degrees", "spouse", "spouseList"].includes(c.key));
             hideChatShaky();
-            return {
+            return annotateAutoRoutedWtPlusResult({
               message: `Found ${rows.length} profiles in Category:${chosenCategory}`,
               table,
-            };
+            });
           } catch (error) {
             hideChatShaky();
             console.debug("wbe: category search failed", error);
-            return `I couldn't complete the category lookup for "${categoryName}". Error: ${error?.message || error}`;
+            return annotateAutoRoutedWtPlusResult(
+              `I couldn't complete the category lookup for "${categoryName}". Error: ${error?.message || error}`
+            );
           }
-        } else if (categoryName && chatMode === "wt") {
+        } else if (categoryName && effectiveChatMode === "wt") {
           console.debug("wbe: category detected but chat mode is 'wt' — skipping WT+ flow", { categoryName });
         }
       } catch (error) {

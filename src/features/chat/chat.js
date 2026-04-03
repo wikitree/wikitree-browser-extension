@@ -2244,7 +2244,16 @@ async function handleChatResult(result) {
     return;
   }
 
-  rememberResolvedPeopleFromMessage(result.message);
+  if (result?.switchToMode === "wtplus") {
+    setCurrentChatMode("wtplus");
+  }
+
+  const messageText =
+    result?.switchToMode === "wtplus" && result?.switchModeChatMessage
+      ? `${String(result.switchModeChatMessage).trim()}\n${String(result.message || "").trim()}`.trim()
+      : result.message;
+
+  rememberResolvedPeopleFromMessage(messageText);
 
   if (Object.prototype.hasOwnProperty.call(result, "table")) {
     lastStructuredResult = result.table || null;
@@ -2311,8 +2320,6 @@ async function handleChatResult(result) {
     ...explicitActions,
   ];
 
-  appendMessage("assistant", result.message, { actions, inlineMore: result.inlineMore || null });
-
   if (result.showMagicWordsRef) {
     const $messages = $(`#${CHAT_MESSAGES_ID}`);
     const $lastMsg = $messages.find(".chat-message").last();
@@ -2350,6 +2357,7 @@ async function handleChatResult(result) {
       openResultsTable(result.table);
     }
   }
+  appendMessage("assistant", messageText, { actions, inlineMore: result.inlineMore || null });
 }
 
 async function sendChatPrompt() {
@@ -2471,6 +2479,10 @@ async function sendChatPrompt() {
         setExplicitMode: setCurrentChatMode,
       });
       prompt = modeResult.prompt;
+      console.debug("wbe: explicit mode result", {
+        handled: Boolean(modeResult?.handled),
+        prompt: String(prompt || "").substring(0, 60),
+      });
       if (modeResult.handled) {
         return;
       }
@@ -2825,7 +2837,18 @@ async function executeRoutedIntent(routed, prompt) {
     return await tryHandleSpouseBioIntent(routed.params || {}, prompt);
   }
   if (routed.intent === ChatIntent.PROFILE_SEARCH) {
+    console.debug("wbe: executeRoutedIntent PROFILE_SEARCH", { prompt: String(prompt).substring(0, 60) });
     const profileSearchResult = await tryHandleProfileSearchPrompt(routed.params, prompt);
+    console.debug("wbe: PROFILE_SEARCH result from main flow", {
+      hasResult: Boolean(profileSearchResult),
+      switchToMode: profileSearchResult?.switchToMode,
+    });
+    const shouldSwitchToWtPlus =
+      profileSearchResult && typeof profileSearchResult === "object" && profileSearchResult.switchToMode === "wtplus";
+    if (shouldSwitchToWtPlus) {
+      setCurrentChatMode("wtplus");
+    }
+
     const followupFilterText = extractFollowupTableFilterText(prompt);
     const hasStructuredRows = Boolean(lastStructuredResult?.rows?.length);
     const isNoProfileMatchMessage =
