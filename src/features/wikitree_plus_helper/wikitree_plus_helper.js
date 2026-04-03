@@ -221,16 +221,6 @@ function buildMagicWords() {
     { value: "IsInWikiData", label: "IsInWikiData", description: "Profiles linked from WikiData" },
   ]);
 
-  const lastEdits = [];
-  for (let y = 2008; y <= 2026; y += 1) {
-    lastEdits.push({
-      value: `LastEdit${y}`,
-      label: `LastEdit${y}`,
-      description: `Profiles not edited since ${y}`,
-    });
-  }
-  addGroup("Last Edit", lastEdits);
-
   addGroup("Find A Grave", [
     {
       value: "fgcem1234",
@@ -1422,7 +1412,7 @@ function valueInputHtml(def, value) {
   const dataHint = placeholder ? ` data-hint="${esc(placeholder)}"` : "";
   const inputId = `wbe-wtplus-input-${def.id}-${Math.random().toString(36).substr(2, 9)}`;
   const listId =
-    def.id === "TemplateText"
+    def.id === "TemplateText" || def.id === "TemplateFull"
       ? "wbe-wtplus-datalist-templates"
       : def.id === "CategoryFull" || def.id === "CategoryWord"
       ? "wbe-wtplus-datalist-categories"
