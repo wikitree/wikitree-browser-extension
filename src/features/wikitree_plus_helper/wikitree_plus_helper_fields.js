@@ -210,6 +210,14 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
       placeholder: 'e.g. "One Place Study"',
       group: "Categories and Templates",
     },
+    {
+      id: "TemplateFull",
+      label: "TemplateFull",
+      kind: "index",
+      input: "text",
+      placeholder: 'e.g. "One Place Study/Nantwich, Cheshire"',
+      group: "Categories and Templates",
+    },
 
     // Relations & Tree
     {
