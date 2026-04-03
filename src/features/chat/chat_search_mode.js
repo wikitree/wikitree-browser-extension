@@ -160,6 +160,7 @@ function isWtPlusOnlyPrompt(prompt) {
     /(?:^|\b)category\s*[:\-]?/i,
     /\b.+?\s+category\b/i,
     /(?:^|\b)template\s*[:\-]?/i,
+    /\bsuggestions?\s*=/i,
     /\bnotables\b/i,
     /\bsticker\b/i,
     /\bcategory\s+word\b/i,
@@ -174,25 +175,145 @@ function isLikelyWtPlusFilterPrompt(prompt) {
   }
 
   const hasAgeConstraint = /\bage\s*(?:=|is|of)?\s*\d{1,3}\b/i.test(normalizedPrompt);
+  const hasYearConstraint =
+    /\b(?:born|died|b\.|d\.)\s+(?:before|after|in|around)?\s*\d{4}\b|\b\d{4}\s*(?:birth|death)\b/i.test(
+      normalizedPrompt
+    );
   const hasConnectedFilter = /\bconnected\b|\bdna\b/i.test(normalizedPrompt);
   const hasExplicitLocationCue =
     /\b(?:in|from|at|near|around|location|place|town|city|county|state|country|region|village)\b/i.test(
       normalizedPrompt
     );
 
-  // Prompts like "Liverpool age 42" are ambiguous (place vs surname).
-  // Let the AI classifier resolve ambiguity instead of forcing WT+.
-  const ambiguousLeadingNameLike =
-    hasAgeConstraint &&
-    !hasExplicitLocationCue &&
-    /^[A-Z][A-Za-z'\-]+(?:\s+[A-Z][A-Za-z'\-]+){0,2}\s+age\b/.test(normalizedPrompt);
-  if (ambiguousLeadingNameLike) {
-    return false;
+  const hasTemporalConstraint = hasAgeConstraint || hasYearConstraint;
+
+  // temporal + connected combination is a strong WT+ filter signal.
+  if (hasTemporalConstraint && hasConnectedFilter) {
+    return true;
   }
 
   return (
-    (hasAgeConstraint && hasExplicitLocationCue) || (hasConnectedFilter && (hasAgeConstraint || hasExplicitLocationCue))
+    (hasTemporalConstraint && hasExplicitLocationCue) ||
+    (hasConnectedFilter && (hasAgeConstraint || hasExplicitLocationCue))
   );
+}
+
+function isLikelyRelationshipBioPrompt(prompt) {
+  const normalizedPrompt = String(prompt || "").trim();
+  if (!normalizedPrompt) {
+    return false;
+  }
+
+  const hasBioCue = /\b(?:bio|bios|biography|biographies)\b/i.test(normalizedPrompt);
+  const hasRelationshipCue =
+    /\b(?:husband|wife|spouse|parent|parents|father|mother|child|children|sibling|siblings|ancestor|ancestors|descendant|descendants)\b/i.test(
+      normalizedPrompt
+    );
+  const hasPossessiveChain =
+    /['’]s\s+(?:husband|wife|spouse|parent|parents|father|mother|child|children|sibling|siblings)\b/i.test(
+      normalizedPrompt
+    );
+
+  return (hasBioCue && hasRelationshipCue) || (hasBioCue && hasPossessiveChain);
+}
+
+function hasMinimumWtSearchIdentifiers(prompt) {
+  /**
+   * Check if a query has the minimum identifiers needed for WT API search.
+   * WT search requires either:
+   * 1. A surname (recognizable name, 2+ letters, capitalized)
+   * 2. A WT ID (WikiTree ID format)
+   * 3. A numeric ID (bare digits)
+   *
+   * If NONE are present, the query cannot be resolved by WT API directly.
+   * Temporal filters like "born before 1650" without a surname are meaningless
+   * to WT search, so they should route to WT+ instead.
+   */
+  const normalizedPrompt = String(prompt || "").trim();
+  if (!normalizedPrompt) {
+    return false;
+  }
+
+  // Check for WT ID (format: Letter+Number+Letter+Number, or just ID= syntax)
+  if (/\b(?:wtid|wikitree\s+id|profile\s+id|id)\s*[=:]?\s*([A-Z]\d+[A-Z]\d+)/i.test(normalizedPrompt)) {
+    return true;
+  }
+
+  // Check for bare numeric ID (e.g., just a number like "12345")
+  if (/\b\d{5,}\b/.test(normalizedPrompt)) {
+    return true;
+  }
+
+  // Check for recognizable surnames/names (capitalized words, 2+ letters, not common words)
+  const commonWords = new Set([
+    "the",
+    "and",
+    "or",
+    "born",
+    "died",
+    "from",
+    "with",
+    "have",
+    "who",
+    "was",
+    "are",
+    "been",
+    "been",
+    "has",
+    "had",
+    "his",
+    "her",
+    "but",
+    "not",
+    "all",
+    "one",
+    "two",
+    "three",
+    "more",
+    "some",
+    "any",
+    "only",
+    "very",
+    "no",
+    "yes",
+    "this",
+    "that",
+    "what",
+    "when",
+    "where",
+    "why",
+    "how",
+    "which",
+    "in",
+    "at",
+    "by",
+    "to",
+    "of",
+    "for",
+    "before",
+    "after",
+    "between",
+    "during",
+    "around",
+    "near",
+    "devon",
+    "england",
+    "london",
+    "unknown",
+  ]);
+
+  // Extract capitalized words (potential surnames)
+  const capitalizedWords = (normalizedPrompt.match(/\b[A-Z][a-z]{1,}\b/g) || [])
+    .map((w) => w.toLowerCase())
+    .filter((w) => w.length >= 2 && !commonWords.has(w));
+
+  // If we found at least one recognizable surname/name, it's valid for WT search
+  if (capitalizedWords.length > 0) {
+    return true;
+  }
+
+  // No identifiers found
+  return false;
 }
 
 function getEffectiveExplicitMode(prompt, selectedMode) {
@@ -669,12 +790,71 @@ export async function handleExplicitSearchMode({
         return { handled: false, prompt: normalizedPrompt };
       }
 
+      // Relationship-bio prompts (for example "Rebecca's husband's parents' bios")
+      // are better handled by dedicated bio/relationship handlers in main flow.
+      if (isLikelyRelationshipBioPrompt(normalizedPrompt)) {
+        if (typeof tryHandleAiPlannedIntent === "function") {
+          try {
+            const aiPlannedResult = await tryHandleAiPlannedIntent(normalizedPrompt);
+            if (aiPlannedResult) {
+              await handleChatResult(
+                typeof aiPlannedResult === "string" ? { message: aiPlannedResult } : aiPlannedResult
+              );
+              return { handled: true, prompt: normalizedPrompt };
+            }
+          } catch (aiPlanErr) {
+            console.debug("wbe: relationship-bio AI planner attempt failed", aiPlanErr);
+          }
+        }
+        console.debug("wbe: explicit wt mode deferring relationship-bio prompt to main flow", {
+          prompt: normalizedPrompt.substring(0, 60),
+        });
+        return { handled: false, prompt: normalizedPrompt };
+      }
+
       // Do not execute explicit WT search when prompt is clearly WT+-only.
       // Let the main router run once so we avoid double-rendering during auto-route.
       if (isWtPlusOnlyPrompt(normalizedPrompt)) {
         console.debug("wbe: explicit wt mode deferring WT+-only prompt to main flow", {
           prompt: normalizedPrompt.substring(0, 60),
         });
+        return { handled: false, prompt: normalizedPrompt };
+      }
+
+      // When in WT mode and query looks like a filter prompt (age + location/connected),
+      // handle it directly via WT+ profile search so AI can interpret and transform to WT+ syntax.
+      if (isLikelyWtPlusFilterPrompt(normalizedPrompt)) {
+        console.debug("wbe: explicit wt mode detected filter-like prompt, routing to WT+ with AI interpretation", {
+          prompt: normalizedPrompt.substring(0, 60),
+        });
+        const filterSearchResult = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, normalizedPrompt);
+        if (filterSearchResult) {
+          await handleChatResult(
+            typeof filterSearchResult === "string" ? { message: filterSearchResult } : filterSearchResult
+          );
+          return { handled: true, prompt: normalizedPrompt };
+        }
+        return { handled: false, prompt: normalizedPrompt };
+      }
+
+      // If in WT mode but query lacks minimum identifiers (name/WT ID/numeric ID),
+      // it cannot be resolved by WT API. Route to WT+ instead for AI filtering.
+      if (mode === "wt" && !hasMinimumWtSearchIdentifiers(normalizedPrompt)) {
+        console.debug("wbe: explicit wt mode but query lacks minimum identifiers, routing to WT+", {
+          prompt: normalizedPrompt.substring(0, 60),
+        });
+        const noIdentifierSearchResult = await tryHandleProfileSearchPrompt(
+          { chatModeOverride: "wtplus" },
+          normalizedPrompt
+        );
+        if (noIdentifierSearchResult) {
+          await handleChatResult(
+            typeof noIdentifierSearchResult === "string"
+              ? { message: noIdentifierSearchResult }
+              : noIdentifierSearchResult
+          );
+          return { handled: true, prompt: normalizedPrompt };
+        }
         return { handled: false, prompt: normalizedPrompt };
       }
 

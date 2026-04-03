@@ -24,6 +24,8 @@ export function createChatHistoryHandlers({
   resolveToWTID,
   showBioPopupForId,
   openWtPlusQuery,
+  tryHandleProfileSearchPrompt,
+  handleChatResult,
   afterActionClick,
   resetTransientState,
 }) {
@@ -473,6 +475,34 @@ export function createChatHistoryHandlers({
             actionEntry.wtPlusSuggestionId || "",
             actionEntry.wtPlusSuggestionOptions || {}
           ),
+      };
+    }
+
+    if (actionType === "fetch-wtplus-results" || actionEntry.label === "Fetch results again") {
+      if (!actionEntry.wtPlusQuery) {
+        return null;
+      }
+
+      return {
+        label: actionEntry.label || "Fetch results again",
+        actionType: "fetch-wtplus-results",
+        wtPlusQuery: actionEntry.wtPlusQuery,
+        wtPlusSearchType: actionEntry.wtPlusSearchType || "text",
+        wtPlusSuggestionId: actionEntry.wtPlusSuggestionId || "",
+        wtPlusSuggestionOptions: actionEntry.wtPlusSuggestionOptions || {},
+        onClick: async () => {
+          if (typeof reRunSavedWtPlusQuery === "function") {
+            const result = await reRunSavedWtPlusQuery(
+              actionEntry.wtPlusQuery,
+              actionEntry.wtPlusSearchType || "text",
+              actionEntry.wtPlusSuggestionId || "",
+              actionEntry.wtPlusSuggestionOptions || {}
+            );
+            if (typeof handleChatResult === "function") {
+              await handleChatResult(typeof result === "string" ? { message: result } : result);
+            }
+          }
+        },
       };
     }
 

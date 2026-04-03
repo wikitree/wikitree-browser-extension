@@ -28,7 +28,7 @@ export function createProfileSearchHandler({
   showChatShaky,
   hideChatShaky,
 }) {
-  const WT_PLUS_MAX_PROFILES = 20000;
+  const WT_PLUS_MAX_PROFILES = 30000;
   const WT_PLUS_GET_PEOPLE_CHUNK = 1000;
   const WT_ANCESTOR_GRAPH_GENERATIONS = 10;
   const WT_PLUS_PROJECTS_URL = "https://wikitreebee.com/notables_notes_api/json/projects.json";
@@ -951,6 +951,51 @@ export function createProfileSearchHandler({
         .replace(/\bAND\b/g, "And")
         .replace(/\bOR\b/g, "Or")
         .replace(/\bNOT\b/g, "Not");
+      return `sql="${inner}"`;
+    });
+  }
+
+  function canonicalizeWtPlusSqlFamilyLineCounts(queryText) {
+    const text = String(queryText || "").trim();
+    if (!text || !/\bsql\s*=\s*"/i.test(text)) {
+      return text;
+    }
+
+    // Normalize common AI aliases to WT+ help-page supported relation fields.
+    return text.replace(/sql="([^"]*)"/gi, (fullMatch, sqlInner) => {
+      let inner = String(sqlInner || "");
+
+      // Children
+      inner = inner
+        .replace(/\[\s*Family\s*\]\.\[\s*Number\s+Of\s+Children\s*\]/gi, "[Children].[User ID].LineCount")
+        .replace(/\[\s*Children\s*\]\.\[\s*Count\s*\]/gi, "[Children].[User ID].LineCount")
+        .replace(/\[\s*Children\s*\]\s*\.\s*Count\b/gi, "[Children].[User ID].LineCount")
+        .replace(/\[\s*Default\s*\]\.\[\s*Number\s+Of\s+Children\s*\]/gi, "[Children].[User ID].LineCount")
+        .replace(/\[\s*Default\s*\]\.\[\s*Children\s+Count\s*\]/gi, "[Children].[User ID].LineCount")
+        .replace(/\[\s*Default\s*\]\.\[\s*Children\s*\]\s*\.\s*Count\b/gi, "[Children].[User ID].LineCount")
+        .replace(/\[\s*Family\s*\]\.\[\s*Children\s+Count\s*\]/gi, "[Children].[User ID].LineCount")
+        .replace(/\[\s*Relations\s*\]\.\[\s*Children\s*\]\s*\.\s*\[\s*Count\s*\]/gi, "[Children].[User ID].LineCount")
+        .replace(/\[\s*Relations\s*\]\.\[\s*Children\s*\]\s*\.\s*Count\b/gi, "[Children].[User ID].LineCount")
+        .replace(/\[\s*Relations\s*\]\.\[\s*Children\s+Count\s*\]/gi, "[Children].[User ID].LineCount");
+
+      // Siblings
+      inner = inner
+        .replace(/\[\s*Family\s*\]\.\[\s*Number\s+Of\s+Siblings\s*\]/gi, "[Siblings].[User ID].LineCount")
+        .replace(/\[\s*Siblings\s*\]\.\[\s*Count\s*\]/gi, "[Siblings].[User ID].LineCount")
+        .replace(/\[\s*Siblings\s*\]\s*\.\s*Count\b/gi, "[Siblings].[User ID].LineCount")
+        .replace(/\[\s*Default\s*\]\.\[\s*Number\s+Of\s+Siblings\s*\]/gi, "[Siblings].[User ID].LineCount")
+        .replace(/\[\s*Default\s*\]\.\[\s*Siblings\s+Count\s*\]/gi, "[Siblings].[User ID].LineCount")
+        .replace(/\[\s*Default\s*\]\.\[\s*Siblings\s*\]\s*\.\s*Count\b/gi, "[Siblings].[User ID].LineCount")
+        .replace(/\[\s*Family\s*\]\.\[\s*Siblings\s+Count\s*\]/gi, "[Siblings].[User ID].LineCount")
+        .replace(/\[\s*Relations\s*\]\.\[\s*Siblings\s*\]\s*\.\s*\[\s*Count\s*\]/gi, "[Siblings].[User ID].LineCount")
+        .replace(/\[\s*Relations\s*\]\.\[\s*Siblings\s*\]\s*\.\s*Count\b/gi, "[Siblings].[User ID].LineCount")
+        .replace(/\[\s*Relations\s*\]\.\[\s*Siblings\s+Count\s*\]/gi, "[Siblings].[User ID].LineCount");
+
+      // WT+ relation LineCount fields are numeric counters already; do not append .AsNumber.
+      inner = inner
+        .replace(/\[\s*Children\s*\]\.\[\s*User\s+ID\s*\]\.LineCount\.AsNumber\b/gi, "[Children].[User ID].LineCount")
+        .replace(/\[\s*Siblings\s*\]\.\[\s*User\s+ID\s*\]\.LineCount\.AsNumber\b/gi, "[Siblings].[User ID].LineCount");
+
       return `sql="${inner}"`;
     });
   }
@@ -3002,6 +3047,54 @@ export function createProfileSearchHandler({
     return /couldn't find any profiles for WT\+ query:/i.test(String(text || ""));
   }
 
+  function shouldForceAiForSuspiciousLocalWtPlusQuery(localWtPlusQuery) {
+    const searchType = String(localWtPlusQuery?.searchType || "text")
+      .trim()
+      .toLowerCase();
+    const query = String(localWtPlusQuery?.query || "").trim();
+    if (!query || searchType === "suggestions") {
+      return false;
+    }
+
+    const fieldAssignments = Array.from(query.matchAll(/\b([A-Za-z_][A-Za-z0-9_.]*)\s*=\s*("[^"]*"|'[^']*'|[^\s]+)/g));
+    if (!fieldAssignments.length) {
+      return false;
+    }
+
+    const locationFieldRegex = /(?:^|\.)(?:Location|BirthLocation|DeathLocation|MarriageLocation)$/i;
+    const familyTokenRegex =
+      /\b(?:children?|child|sons?|daughters?|spouses?|wives?|husbands?|parents?|mother|father|siblings?|brothers?|sisters?|profiles?|people)\b/i;
+    const comparisonTokenRegex =
+      /\b(?:more|less|than|over|under|least|most|minimum|max(?:imum)?|at\s+least|at\s+most|fewer)\b/i;
+    const numericWordRegex = /\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b/i;
+
+    for (const assignment of fieldAssignments) {
+      const field = String(assignment?.[1] || "").trim();
+      if (!locationFieldRegex.test(field)) {
+        continue;
+      }
+
+      const rawValue = String(assignment?.[2] || "").trim();
+      const value = stripSurroundingQuotes(rawValue).trim();
+      if (!value) {
+        continue;
+      }
+
+      const startsWithComparison = /^(?:than|more|less|over|under|fewer)\b/i.test(value);
+      const hasFamilyToken = familyTokenRegex.test(value);
+      const hasComparisonToken = comparisonTokenRegex.test(value);
+      const hasNumericWord = numericWordRegex.test(value);
+
+      // Guard against malformed deterministic parse fragments such as
+      // Location="than six children" before hitting WT+.
+      if (startsWithComparison || (hasFamilyToken && (hasComparisonToken || hasNumericWord))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   function buildDeterministicZeroResultRetry(rawQuery) {
     const text = String(rawQuery || "")
       .replace(/^\s*(?:search(?:\s+for)?|find|show|list|get|look(?:\s+up)?)\s+/i, "")
@@ -3042,8 +3135,9 @@ export function createProfileSearchHandler({
     const contextCanonicalQuery = resolveWtPlusContextPlaceholders(templateCanonicalQuery);
     const rangeCanonicalQuery = canonicalizeWtPlusSqlDateRanges(contextCanonicalQuery);
     const logicalCanonicalQuery = canonicalizeWtPlusSqlLogicalOperators(rangeCanonicalQuery);
+    const relationCountCanonicalQuery = canonicalizeWtPlusSqlFamilyLineCounts(logicalCanonicalQuery);
     const { query: managerCanonicalQuery, managerMatches } = await canonicalizeWtPlusManagerTerms(
-      logicalCanonicalQuery
+      relationCountCanonicalQuery
     );
     const { query: canonicalQueryRaw, categoryMatches } = await canonicalizeWtPlusCategoryTerms(managerCanonicalQuery);
     const { query: sanitizedQuery } = sanitizeWtPlusLocationYearTerms(canonicalQueryRaw);
@@ -3146,11 +3240,26 @@ export function createProfileSearchHandler({
       recordWtPlusParseTelemetry("queryRan");
       const response = await wtAPIProfileSearch("ChatWTPlus", encodedQuery, { maxProfiles: WT_PLUS_MAX_PROFILES });
       const searchLog = String(response?.response?.searchLog || response?.searchLog || "");
+      const foundCount = Number(response?.response?.found);
+      const searchLogResultMatch = searchLog.match(/\bResult:\s*(\d+)\b/i);
+      const searchLogCachedMatch = searchLog.match(/\bCached:\s*(\d+)\b/i);
+      const resultCountFromLog = searchLogResultMatch?.[1] ? Number.parseInt(searchLogResultMatch[1], 10) : NaN;
+      const cachedCountFromLog = searchLogCachedMatch?.[1] ? Number.parseInt(searchLogCachedMatch[1], 10) : NaN;
+      const effectiveLogCount = Number.isFinite(resultCountFromLog)
+        ? resultCountFromLog
+        : Number.isFinite(cachedCountFromLog)
+        ? cachedCountFromLog
+        : NaN;
       const tooManyMatch = searchLog.match(/Too many profiles!!!\s*(\d+)?/i);
       const sqlStartIssue = /search\s+should\s+not\s+be\s+start\s+with\s+sql/i.test(searchLog);
+      const cappedByMaxProfiles = Number.isFinite(effectiveLogCount) && effectiveLogCount > WT_PLUS_MAX_PROFILES;
       console.debug("wbe: WT+ searchLog analyzed", {
         canonicalQuery,
         found: response?.response?.found,
+        resultCountFromLog: Number.isFinite(resultCountFromLog) ? resultCountFromLog : null,
+        cachedCountFromLog: Number.isFinite(cachedCountFromLog) ? cachedCountFromLog : null,
+        effectiveLogCount: Number.isFinite(effectiveLogCount) ? effectiveLogCount : null,
+        cappedByMaxProfiles,
         hasTooManyProfilesMarker: !!tooManyMatch,
         hasSqlStartIssue: sqlStartIssue,
         searchLog,
@@ -3202,10 +3311,31 @@ export function createProfileSearchHandler({
       showChatShaky(`Fetching ${uniqueIds.length} WT+ matches...`);
       const fields =
         "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,Father,Mother,BirthDate,BirthDateDecade,BirthLocation,DeathDate,DeathDateDecade,DeathLocation,Gender,Id,Name";
-      const [, , peopleById] = await fetchPeoplePaged(WBE_CHAT_APP_ID, uniqueIds, fields, {
+      let [, , peopleById] = await fetchPeoplePaged(WBE_CHAT_APP_ID, uniqueIds, fields, {
         resolveRedirect: 1,
         limit: WT_PLUS_GET_PEOPLE_CHUNK,
       });
+      peopleById = peopleById || {};
+
+      let missingProfileIds = uniqueIds.filter((key) => !peopleById?.[String(key)]);
+      if (missingProfileIds.length) {
+        const retryLimit = Math.max(200, Math.floor(WT_PLUS_GET_PEOPLE_CHUNK / 2));
+        console.info("wbe: WT+ missing profiles after initial getPeople; retrying missing ids", {
+          canonicalQuery,
+          initialMissing: missingProfileIds.length,
+          retryLimit,
+        });
+        showChatShaky(`Retrying ${missingProfileIds.length.toLocaleString()} profiles after transient API errors...`);
+        const [, , retryPeopleById] = await fetchPeoplePaged(WBE_CHAT_APP_ID, missingProfileIds, fields, {
+          resolveRedirect: 1,
+          limit: retryLimit,
+        });
+        peopleById = {
+          ...peopleById,
+          ...(retryPeopleById || {}),
+        };
+        missingProfileIds = uniqueIds.filter((key) => !peopleById?.[String(key)]);
+      }
 
       const people = uniqueIds.map((key) => peopleById?.[String(key)]).filter(Boolean);
       const ancestorRootWtId = extractWtPlusAncestorsRoot(canonicalQuery);
@@ -3227,6 +3357,12 @@ export function createProfileSearchHandler({
         .filter((match) => match?.category && match.requested && match.category !== match.requested)
         .map((match) => `used closest category "${match.category}" for "${match.requested}"`)
         .join("; ");
+      const truncationNote = cappedByMaxProfiles
+        ? `WT+ matched ${effectiveLogCount.toLocaleString()} profiles; chat can load only the first ${WT_PLUS_MAX_PROFILES.toLocaleString()} due to API limits.`
+        : "";
+      const missingProfilesNote = missingProfileIds.length
+        ? `${missingProfileIds.length.toLocaleString()} profile(s) could not be loaded after retry due to transient API/network errors (for example connection reset).`
+        : "";
       const inlineSuggestionId = extractInlineSuggestionIdFromWtPlusTextQuery(canonicalQuery);
       const actions = [
         {
@@ -3252,10 +3388,12 @@ export function createProfileSearchHandler({
         message: interpretation?.understood
           ? `AI interpreted this as "${interpretation.understood}" and ran WT+ query: ${canonicalQuery}. Found ${
               rows.length
-            } profile${rows.length === 1 ? "" : "s"}.${categoryNote ? ` Also ${categoryNote}.` : ""}`
+            } profile${rows.length === 1 ? "" : "s"}.${categoryNote ? ` Also ${categoryNote}.` : ""}${
+              truncationNote ? ` ${truncationNote}` : ""
+            }${missingProfilesNote ? ` ${missingProfilesNote}` : ""}`
           : `Found ${rows.length} profile${rows.length === 1 ? "" : "s"} for WT+ query: ${canonicalQuery}${
               categoryNote ? `. Also ${categoryNote}.` : ""
-            }`,
+            }${truncationNote ? ` ${truncationNote}` : ""}${missingProfilesNote ? ` ${missingProfilesNote}` : ""}`,
         actions,
         table,
         autoOpen: true,
@@ -4994,7 +5132,7 @@ export function createProfileSearchHandler({
     }
   }
 
-  return async function tryHandleProfileSearchPrompt(params, originalPrompt) {
+  async function tryHandleProfileSearchPrompt(params, originalPrompt) {
     const rawInput = String(originalPrompt || params?.query || "").trim();
     if (!rawInput) return null;
     const personListCommandMatch = rawInput.match(
@@ -5016,7 +5154,8 @@ export function createProfileSearchHandler({
       let mainQuery = query;
       let spouseQuery = null;
       const spouseMatch = query.match(/^(.*?)\s*(?:,|-)??\s*(?:spouse|wife|husband|married to)\s*[:\-]?\s*(.+)$/i);
-      if (spouseMatch) {
+      const spouseMatchLooksLikePossessiveChain = /^\s*['’]s\b/i.test(String(spouseMatch?.[2] || ""));
+      if (spouseMatch && !spouseMatchLooksLikePossessiveChain) {
         mainQuery = (spouseMatch[1] || "").trim() || query;
         spouseQuery = (spouseMatch[2] || "").trim();
       }
@@ -5149,8 +5288,19 @@ export function createProfileSearchHandler({
         // prefer AI to interpret the context
         const hasSuggestionsWithAmbiguousRemainder = explicitWtPlusQuery?.hasSuggestionsWithAmbiguousRemainder;
         const shouldPreferAiForAmbiguousSuggestions = hasSuggestionsWithAmbiguousRemainder || preferAiWtPlusQuery;
+        const shouldForceAiForSuspiciousLocalQuery =
+          !explicitWtPlusQuery?.query && shouldForceAiForSuspiciousLocalWtPlusQuery(localWtPlusQuery);
+        const shouldUseAiFirst = shouldPreferAiForAmbiguousSuggestions || shouldForceAiForSuspiciousLocalQuery;
 
-        if (!shouldPreferAiForAmbiguousSuggestions && localWtPlusQuery?.query) {
+        if (shouldForceAiForSuspiciousLocalQuery && localWtPlusQuery?.query) {
+          console.info("wbe: suspicious deterministic local WT+ parse detected; forcing AI parse first", {
+            rawQuery,
+            mainQuery,
+            localQuery: localWtPlusQuery.query,
+          });
+        }
+
+        if (!shouldUseAiFirst && localWtPlusQuery?.query) {
           console.info("wbe: WT+ using deterministic local parser query", {
             query: localWtPlusQuery.query,
             searchType: localWtPlusQuery.searchType || "text",
@@ -5215,11 +5365,15 @@ export function createProfileSearchHandler({
           recordWtPlusParseTelemetry("parsedAi");
           const aiRunResult = await runWtPlusProfileQuery(aiWtPlusQuery.query, aiWtPlusQuery.title, aiWtPlusQuery);
           if (isWtPlusExecutionFailure(aiRunResult) && localWtPlusQuery?.query) {
-            if (shouldPreferAiForAmbiguousSuggestions) {
-              console.info("wbe: WT+ AI query failed; skipping deterministic fallback because AI path was preferred", {
-                rawQuery,
-                aiQuery: aiWtPlusQuery.query,
-              });
+            if (shouldUseAiFirst) {
+              console.info(
+                "wbe: WT+ AI query failed; skipping deterministic fallback because AI-first path was required",
+                {
+                  rawQuery,
+                  aiQuery: aiWtPlusQuery.query,
+                  reason: shouldForceAiForSuspiciousLocalQuery ? "suspicious-local-query" : "ambiguous-suggestions",
+                }
+              );
               return aiRunResult;
             }
             console.info("wbe: WT+ AI query failed; retrying deterministic parser query", {
@@ -5233,6 +5387,23 @@ export function createProfileSearchHandler({
             );
           }
           return annotateAutoRoutedWtPlusResult(aiRunResult);
+        }
+
+        if (shouldForceAiForSuspiciousLocalQuery && localWtPlusQuery?.query) {
+          return {
+            message:
+              "I couldn't safely re-interpret that query for WT+. The deterministic parse looked malformed, so I skipped running it. Please rephrase with explicit fields (for example: LastNameAtBirth=More MarriageLocation=Yorkshire).",
+            actions: [
+              {
+                label: "Open in WT+",
+                actionType: "wtplus-open",
+                wtPlusQuery: localWtPlusQuery.query,
+                wtPlusSearchType: localWtPlusQuery.searchType || "text",
+                wtPlusSuggestionId: localWtPlusQuery.suggestionId || "",
+                wtPlusSuggestionOptions: localWtPlusQuery.suggestionOptions || {},
+              },
+            ],
+          };
         }
 
         if (shouldPreferAiForAmbiguousSuggestions && localWtPlusQuery?.query) {
@@ -5726,6 +5897,27 @@ export function createProfileSearchHandler({
 
       let finalRows = mappedRows;
       if (spouseQuery) {
+        const normalizedSpouseQuery = normalizeText(String(spouseQuery || ""))
+          .replace(/['’]/g, "")
+          .trim();
+        const hasRelationshipTerms =
+          /\b(?:bio|bios|parent|parents|father|mother|child|children|sibling|siblings|ancestor|ancestors|descendant|descendants|husband|wife|spouse)\b/i.test(
+            normalizedSpouseQuery
+          );
+        const startsWithPossessiveChain = /^\s*['’]s\b/i.test(String(spouseQuery || ""));
+        const looksLikeName = /\b[A-Za-z][A-Za-z'\-]+\b/.test(String(spouseQuery || ""));
+        const shouldApplySpouseFilter = !startsWithPossessiveChain && !hasRelationshipTerms && looksLikeName;
+
+        if (!shouldApplySpouseFilter) {
+          console.debug("wbe: skipping spouse filter; spouseQuery does not look like a spouse name", {
+            spouseQuery,
+            normalizedSpouseQuery,
+          });
+          spouseQuery = null;
+        }
+      }
+
+      if (spouseQuery) {
         showChatShaky(`Checking spouses for \"${spouseQuery}\"...`);
         const normSpouse = normalizeText(spouseQuery);
         const spouseTokens = (normSpouse || "").split(/\s+/).filter(Boolean);
@@ -5897,10 +6089,8 @@ export function createProfileSearchHandler({
       if (removed) console.debug("wbe: removed empty rows before rendering table", { beforeCount, removed });
 
       const table = makeStandardProfileTable(`Profile search: ${query}`, finalRows, [[0, "asc"]]);
-      table.columns = (table.columns || []).filter((c) => !["degrees", "spouse", "spouseList"].includes(c.key));
-      if (!spouseQuery) {
-        table.columns = (table.columns || []).filter((c) => c.key !== "spouse");
-      }
+      const hiddenColumnKeys = spouseQuery ? ["degrees", "spouseList"] : ["degrees", "spouse", "spouseList"];
+      table.columns = (table.columns || []).filter((c) => !hiddenColumnKeys.includes(c.key));
 
       return {
         message: `Here are profile matches for "${query}":\n${previewLines.join("\n")}`,
@@ -5910,5 +6100,26 @@ export function createProfileSearchHandler({
     } catch (error) {
       return `I couldn't complete that search for \"${query}\". Error: ${error?.message || "unknown error"}`;
     }
+  }
+
+  /**
+   * Re-run a saved WT+ query directly without re-parsing.
+   * Used by "Fetch results again" button to skip AI interpretation step.
+   */
+  async function reRunSavedWtPlusQuery(wtPlusQuery, searchType = "text", suggestionId = "", suggestionOptions = {}) {
+    if (!wtPlusQuery) {
+      return `No WT+ query available to re-run.`;
+    }
+
+    return runWtPlusProfileQuery(wtPlusQuery, null, null, {
+      searchType,
+      suggestionId,
+      suggestionOptions,
+    });
+  }
+
+  return {
+    tryHandleProfileSearchPrompt,
+    reRunSavedWtPlusQuery,
   };
 }

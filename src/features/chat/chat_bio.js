@@ -626,6 +626,7 @@ export function createChatBioHandlers({
     const str = String(prompt || "").trim();
     let targetRaw = null;
     let relationRaw = null;
+    let intermediateRelations = [];
 
     let match = str.match(/^\s*bio(?:graphy|s)?\s+of\s+(.+?)\??$/i) || str.match(/^\s*profile(?:s)?\s+of\s+(.+?)\??$/i);
     if (match) {
@@ -637,15 +638,35 @@ export function createChatBioHandlers({
       match = str.match(/^\s*([^']+?)'s\s+(.+?)\??$/i);
       if (match) {
         targetRaw = (match[1] || "").trim();
-        let relPart = (match[2] || "").trim();
-        relPart = relPart
-          .replace(/\b's\b/g, "")
-          .replace(/\b'\b/g, "")
-          .replace(/[\?\.!,:;]*/g, "")
-          .trim();
-        const relMatch = relPart.match(/^([a-zA-Z]+s?)\b/i);
-        if (relMatch) {
-          relationRaw = (relMatch[1] || "").trim().toLowerCase();
+        const relPart = (match[2] || "").trim();
+        // Split on possessive markers to detect multi-hop chains
+        // e.g. "husband's parents' bios" → ["husband", "parents", "bios"]
+        const bioTerms = new Set(["bio", "bios", "biography", "profile", "profiles"]);
+        const chainSegments = relPart
+          .split(/'s?\s+/)
+          .map((s) =>
+            s
+              .replace(/[?.,!;:]/g, "")
+              .trim()
+              .toLowerCase()
+          )
+          .filter((s) => s);
+        const relChain = chainSegments.filter((s) => !bioTerms.has(s));
+        if (relChain.length > 1) {
+          // Multi-hop: e.g. ["husband", "parents"] for "husband's parents' bios"
+          intermediateRelations = relChain.slice(0, -1);
+          relationRaw = relChain[relChain.length - 1];
+        } else {
+          // Single-hop: original logic
+          const singlePart = relPart
+            .replace(/\b's\b/g, "")
+            .replace(/\b'\b/g, "")
+            .replace(/[\?\.!,:;]*/g, "")
+            .trim();
+          const relMatch = singlePart.match(/^([a-zA-Z]+s?)\b/i);
+          if (relMatch) {
+            relationRaw = (relMatch[1] || "").trim().toLowerCase();
+          }
         }
         if (!relationRaw && /\bbio(?:graphy|s)?\b/i.test(str)) {
           relationRaw = "self";
@@ -917,7 +938,46 @@ export function createChatBioHandlers({
       }
     }
 
-    const personKey = resolved?.Id || resolved?.Name;
+    let personKey = resolved?.Id || resolved?.Name;
+
+    // Walk intermediate relation hops (e.g. "husband" in "Rebecca's husband's parents' bios")
+    if (intermediateRelations.length && personKey) {
+      for (const hop of intermediateRelations) {
+        const hopType = relMap[hop.toLowerCase()];
+        if (!hopType) {
+          console.info("wbe: tryHandlePersonBioPrompt unknown intermediate hop, stopping chain", { hop });
+          break;
+        }
+        let nextKey = null;
+        if (hopType === "spouses") {
+          showChatShaky(`Looking up ${hop}...`);
+          const result = await WikiTreeAPI.getRelatives(
+            WBE_CHAT_APP_ID,
+            personKey,
+            "Id,Name,RealName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,Gender",
+            { getSpouses: 1 }
+          );
+          hideChatShaky();
+          const [pr] = result;
+          const spouseMap = pr?.person?.Spouses || {};
+          const spouses = Object.values(spouseMap).filter((s) => s?.Name);
+          if (spouses.length) nextKey = spouses[0].Name;
+        } else if (hopType === "parents") {
+          const ids = await fetchParentIds(personKey);
+          if (ids?.length) nextKey = String(ids[0]);
+        } else if (hopType === "children") {
+          const ids = await fetchChildrenIdsForId(personKey);
+          if (ids?.length) nextKey = String(ids[0]);
+        } else if (hopType === "siblings") {
+          const ids = await fetchSiblingIdsForId(personKey);
+          if (ids?.length) nextKey = String(ids[0]);
+        }
+        console.info("wbe: tryHandlePersonBioPrompt intermediate hop resolved", { hop, hopType, nextKey });
+        if (!nextKey) break;
+        personKey = nextKey;
+      }
+    }
+
     let relationFetchFailedIds = [];
     try {
       if (!personKey) {

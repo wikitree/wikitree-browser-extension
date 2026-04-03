@@ -966,6 +966,9 @@ const {
   resolveToWTID: (candidate) => resolveToWTID(candidate),
   showBioPopupForId: (wtid) => showBioPopupForId(wtid),
   openWtPlusQuery,
+  tryHandleProfileSearchPrompt: (...args) => tryHandleProfileSearchPrompt?.(...args),
+  reRunSavedWtPlusQuery: (...args) => reRunSavedWtPlusQuery?.(...args),
+  handleChatResult: (result) => handleChatResult(result),
   afterActionClick: () => raiseChatActionPopupsAboveChat(),
   resetTransientState: () => {
     pendingDisambiguationContext = null;
@@ -1031,7 +1034,7 @@ const { resolveConnectionTargetPerson, tryHandleConnectionCorrectionPrompt, tryH
     },
   });
 
-const tryHandleProfileSearchPrompt = createProfileSearchHandler({
+const profileSearchHandlers = createProfileSearchHandler({
   WBE_CHAT_APP_ID,
   hasAnyApiKey,
   getChatOptions,
@@ -1046,6 +1049,9 @@ const tryHandleProfileSearchPrompt = createProfileSearchHandler({
   showChatShaky,
   hideChatShaky,
 });
+
+const tryHandleProfileSearchPrompt = profileSearchHandlers.tryHandleProfileSearchPrompt;
+const reRunSavedWtPlusQuery = profileSearchHandlers.reRunSavedWtPlusQuery;
 
 const { getCc7ProfilesForUser, tryHandleCc7LocationPrompt, tryHandleCcSummaryPrompt, tryHandleWatchlistPrompt } =
   createChatCcHandlers({
@@ -1310,7 +1316,31 @@ async function fetchPeoplePaged(appId, rootKey, fields, options = {}) {
         });
       } catch (e) {
         console.debug("wbe: fetchPeoplePaged chunk getPeople failed", { e, chunkSize: chunk.length });
-        // continue on error for resilience
+        // Retry once for transient failures (for example ERR_CONNECTION_RESET).
+        try {
+          const retryOpts = { ...(options || {}) };
+          delete retryOpts.start;
+          delete retryOpts.limit;
+          console.debug("wbe: fetchPeoplePaged retrying failed chunk", { chunkSize: chunk.length });
+          const [retryStatus, , retryPeople] = await WikiTreeAPI.getPeople(appId, chunk, fields, retryOpts);
+          lastStatus = retryStatus || lastStatus;
+          const retryProfiles = Object.values(retryPeople || {});
+          console.debug("wbe: fetchPeoplePaged retry chunk result", {
+            chunkSize: chunk.length,
+            returned: retryProfiles.length,
+          });
+          retryProfiles.forEach((profile) => {
+            if (!profile) return;
+            const key = profile?.Id != null ? String(profile.Id) : profile?.Name || null;
+            if (key) aggregated[key] = profile;
+          });
+        } catch (retryError) {
+          console.debug("wbe: fetchPeoplePaged retry chunk failed", {
+            retryError,
+            chunkSize: chunk.length,
+          });
+          // continue on error for resilience
+        }
       }
     }
 
@@ -2306,6 +2336,11 @@ async function handleChatResult(result) {
   const hasTableAction = explicitActions.some(
     (action) => action?.actionType === "table" || action?.label === "Table" || action?.table
   );
+
+  // If table has too many rows to persist and came from WT+, add a "Fetch results again" button
+  const rowCount = Array.isArray(result.table?.rows) ? result.table.rows.length : 0;
+  const isLargeWtPlusResult = result.table && result.table.wtPlusQuery && rowCount > CHAT_PERSISTED_STRUCTURED_ROWS_MAX;
+
   const actions = [
     ...(result.table && !hasTableAction
       ? [
@@ -2314,6 +2349,18 @@ async function handleChatResult(result) {
             actionType: "table",
             table: result.table,
             onClick: () => openResultsTable(result.table),
+          },
+        ]
+      : []),
+    ...(isLargeWtPlusResult
+      ? [
+          {
+            label: "Fetch results again",
+            actionType: "fetch-wtplus-results",
+            wtPlusQuery: result.table.wtPlusQuery,
+            wtPlusSearchType: result.table.wtPlusSearchType || "text",
+            wtPlusSuggestionId: result.table.wtPlusSuggestionId || "",
+            wtPlusSuggestionOptions: result.table.wtPlusSuggestionOptions || {},
           },
         ]
       : []),
