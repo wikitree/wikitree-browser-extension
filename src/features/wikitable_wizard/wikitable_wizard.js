@@ -1568,7 +1568,7 @@ function createwikitableWizardModal() {
       }
 
       if (isHeaderRow && rowIndex === 0) {
-        row.forEach((cell) => {
+        const headerCells = row.map((cell) => {
           const cellText = style.isBold && cell.text ? `'''${cell.text}'''` : cell.text;
           const cellAttributes = [];
           if (cell.colspan > 1) {
@@ -1577,11 +1577,11 @@ function createwikitableWizardModal() {
           if (cell.rowspan > 1) {
             cellAttributes.push(`rowspan="${cell.rowspan}"`);
           }
-
-          formattedContent += `\n! ${cellAttributes.join(" ")}${cellAttributes.length ? " | " : ""}${cellText}`;
+          return `${cellAttributes.join(" ")}${cellAttributes.length ? " | " : ""}${cellText}`;
         });
+        formattedContent += `\n! ${headerCells.join(" !! ")}`;
       } else {
-        row.forEach((cell) => {
+        const dataCells = row.map((cell) => {
           const cellText = style.isBold && cell.text ? `'''${cell.text}'''` : cell.text;
           const cellAttributes = [];
           if (cell.colspan > 1) {
@@ -1590,9 +1590,9 @@ function createwikitableWizardModal() {
           if (cell.rowspan > 1) {
             cellAttributes.push(`rowspan="${cell.rowspan}"`);
           }
-
-          formattedContent += `\n| ${cellAttributes.join(" ")}${cellAttributes.length ? " | " : ""}${cellText}`;
+          return `${cellAttributes.join(" ")}${cellAttributes.length ? " | " : ""}${cellText}`;
         });
+        formattedContent += `\n| ${dataCells.join(" || ")}`;
       }
     });
 
