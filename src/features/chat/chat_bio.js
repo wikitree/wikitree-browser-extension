@@ -290,7 +290,7 @@ export function createChatBioHandlers({
     }
   }
 
-  async function fetchSiblingIdsForId(id) {
+  async function fetchSiblingIdsForId(id, { skipDomFallback = false } = {}) {
     if (!id) return [];
     try {
       showChatShaky("Loading siblings...");
@@ -320,6 +320,7 @@ export function createChatBioHandlers({
         .filter(Boolean);
       if (siblings.length) return siblings;
 
+      if (skipDomFallback) return [];
       const domCandidates = findSiblingProfileIdsFromDOM();
       if (!domCandidates.length) return [];
       const profiles = await fetchProfilesForIds(domCandidates, "Name,Id", { resolveRedirect: 1 });
@@ -939,42 +940,79 @@ export function createChatBioHandlers({
     }
 
     let personKey = resolved?.Id || resolved?.Name;
+    let subjectDisplayName = resolved?.RealName || resolved?.Name || personKey;
+    let cameFromHops = false;
 
     // Walk intermediate relation hops (e.g. "husband" in "Rebecca's husband's parents' bios")
     if (intermediateRelations.length && personKey) {
+      let hopFailed = false;
       for (const hop of intermediateRelations) {
         const hopType = relMap[hop.toLowerCase()];
         if (!hopType) {
-          console.info("wbe: tryHandlePersonBioPrompt unknown intermediate hop, stopping chain", { hop });
+          console.info("wbe: tryHandlePersonBioPrompt unknown intermediate hop, stopping chain", { hop, personKey });
+          hopFailed = true;
           break;
         }
         let nextKey = null;
-        if (hopType === "spouses") {
-          showChatShaky(`Looking up ${hop}...`);
-          const result = await WikiTreeAPI.getRelatives(
-            WBE_CHAT_APP_ID,
-            personKey,
-            "Id,Name,RealName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,Gender",
-            { getSpouses: 1 }
-          );
-          hideChatShaky();
-          const [pr] = result;
-          const spouseMap = pr?.person?.Spouses || {};
-          const spouses = Object.values(spouseMap).filter((s) => s?.Name);
-          if (spouses.length) nextKey = spouses[0].Name;
-        } else if (hopType === "parents") {
-          const ids = await fetchParentIds(personKey);
-          if (ids?.length) nextKey = String(ids[0]);
-        } else if (hopType === "children") {
-          const ids = await fetchChildrenIdsForId(personKey);
-          if (ids?.length) nextKey = String(ids[0]);
-        } else if (hopType === "siblings") {
-          const ids = await fetchSiblingIdsForId(personKey);
-          if (ids?.length) nextKey = String(ids[0]);
+        try {
+          if (hopType === "spouses") {
+            showChatShaky(`Looking up ${hop}...`);
+            const result = await WikiTreeAPI.getRelatives(
+              WBE_CHAT_APP_ID,
+              personKey,
+              "Id,Name,RealName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,Gender",
+              { getSpouses: 1 }
+            );
+            hideChatShaky();
+            const [pr] = result;
+            const spouseMap = pr?.person?.Spouses || {};
+            const spouses = Object.values(spouseMap).filter((s) => s?.Name);
+            if (spouses.length) nextKey = spouses[0].Name;
+          } else if (hopType === "parents") {
+            const ids = await fetchParentIds(personKey);
+            if (ids?.length) nextKey = String(ids[0]);
+          } else if (hopType === "children") {
+            const ids = await fetchChildrenIdsForId(personKey);
+            if (ids?.length) nextKey = String(ids[0]);
+          } else if (hopType === "siblings") {
+            const ids = await fetchSiblingIdsForId(personKey, { skipDomFallback: true });
+            if (ids?.length) nextKey = String(ids[0]);
+          }
+        } catch (hopError) {
+          console.info("wbe: tryHandlePersonBioPrompt hop threw", { hop, hopType, personKey, hopError });
         }
-        console.info("wbe: tryHandlePersonBioPrompt intermediate hop resolved", { hop, hopType, nextKey });
-        if (!nextKey) break;
+        console.info("wbe: tryHandlePersonBioPrompt intermediate hop resolved", {
+          hop,
+          hopType,
+          fromKey: personKey,
+          nextKey,
+        });
+        if (!nextKey) {
+          console.info("wbe: tryHandlePersonBioPrompt hop could not resolve next person", { hop, hopType, personKey });
+          hopFailed = true;
+          break;
+        }
         personKey = nextKey;
+      }
+      if (hopFailed) {
+        hideChatShaky();
+        return `I couldn't follow the full relationship chain in "${prompt}". I stopped at "${
+          intermediateRelations.find((_, i) => !intermediateRelations[i + 1] || true) || "?"
+        }".`;
+      }
+      cameFromHops = true;
+      // Fetch the display name of the final intermediate person for accurate labelling
+      if (personKey !== (resolved?.Id || resolved?.Name)) {
+        try {
+          const [hopProfile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, personKey, "Id,Name,RealName", {
+            resolveRedirect: 1,
+          });
+          if (hopProfile?.RealName || hopProfile?.Name) {
+            subjectDisplayName = hopProfile.RealName || hopProfile.Name;
+          }
+        } catch (error) {
+          /* ignore, fallback to ID */
+        }
       }
     }
 
@@ -1114,7 +1152,7 @@ export function createChatBioHandlers({
           if (relationFetchFailedIds.length) window.wbeSuppressAutoBioOpen = true;
         }
       } else if (relationType === "siblings") {
-        const ids = await fetchSiblingIdsForId(personKey);
+        const ids = await fetchSiblingIdsForId(personKey, { skipDomFallback: cameFromHops });
         if (ids && ids.length) {
           const failed = [];
           entries = [];
@@ -1254,18 +1292,18 @@ export function createChatBioHandlers({
         const ids = entries.map((entry) => entry.wtid).filter(Boolean);
         try {
           showBioListPopup(
-            `${relationType} bios for ${resolved?.RealName || resolved?.Name || personKey}`,
+            `${relationType} bios for ${subjectDisplayName}`,
             entries.slice(0, 50),
             handleOpenFromBioList
           );
           await showTiledViaApi(ids.slice(0, 9));
           return {
-            message: `Opened ${Math.min(ids.length, 9)} bios for ${resolved?.RealName || resolved?.Name || personKey}.`,
+            message: `Opened ${Math.min(ids.length, 9)} bios for ${subjectDisplayName}.`,
             action: {
               label: "Open List",
               onClick: () =>
                 showBioListPopup(
-                  `${relationType} bios for ${resolved?.RealName || resolved?.Name || personKey}`,
+                  `${relationType} bios for ${subjectDisplayName}`,
                   entries.slice(0, 50),
                   handleOpenFromBioList
                 ),
@@ -1276,21 +1314,13 @@ export function createChatBioHandlers({
         }
       }
 
-      showBioListPopup(
-        `${relationType} for ${resolved?.RealName || resolved?.Name || personKey}`,
-        entries.slice(0, 50),
-        handleOpenFromBioList
-      );
+      showBioListPopup(`${relationType} for ${subjectDisplayName}`, entries.slice(0, 50), handleOpenFromBioList);
       return {
-        message: `Found ${entries.length} ${relationType} for ${resolved?.RealName || resolved?.Name || personKey}.`,
+        message: `Found ${entries.length} ${relationType} for ${subjectDisplayName}.`,
         action: {
           label: "Open List",
           onClick: () =>
-            showBioListPopup(
-              `${relationType} for ${resolved?.RealName || resolved?.Name || personKey}`,
-              entries.slice(0, 50),
-              handleOpenFromBioList
-            ),
+            showBioListPopup(`${relationType} for ${subjectDisplayName}`, entries.slice(0, 50), handleOpenFromBioList),
         },
       };
     } catch (err) {
