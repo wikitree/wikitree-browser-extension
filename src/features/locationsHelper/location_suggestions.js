@@ -209,13 +209,13 @@ function insertCountrySelectAbove(inputfield, sid) {
         <div style="margin-top:8px;">
           <button class="wbe-loc-clear-load small button"
                   style="width:100%; margin-bottom:5px;"
-                  title="Clear all existing place data and load new data.">
-            Clear & Load Selected Countries
+                  title="Clear all locally stored place data and load the selected new datasets.">
+            Clear ALL loaded datasets & replace with selected
           </button>
           <button class="wbe-loc-load small button"
                   style="width:100%;"
-                  title="Add new place data to the existing place data. If the dataset already exists, it will be replaced.">
-            Update and/or Load Selected
+                  title="Add new place data to the existing local place data. If the dataset already exists, it will be replaced.">
+            Update and/or load selected datasets
           </button>
         </div>`;
       target.appendChild(popupEl);
