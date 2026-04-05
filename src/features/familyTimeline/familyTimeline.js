@@ -633,9 +633,11 @@ export function timeline(id = false) {
         aTimeline.draggable();
       }
       // Hide the timeline on double-click with an animation
-      aTimeline.on("dblclick", function () {
-        $(this).slideUp("swing");
-      });
+      if (!isProfilePage) {
+        aTimeline.on("dblclick", function () {
+          $(this).slideUp("swing");
+        });
+      }
       // Add a timeline class for potential further styling
       aTimeline.addClass("timeline");
     });
