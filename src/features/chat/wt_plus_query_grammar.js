@@ -246,6 +246,15 @@ function validateAndRepairWtPlusQuery(queryText) {
     if (token.includes("=")) {
       const normalizedField = normalizeWtPlusFieldAssignment(token);
       if (!normalizedField) {
+        // Check if the LHS is a known raw token — AI sometimes emits RawToken=value
+        // instead of the bare token (e.g. ProjectManaged="England Project" → ProjectManaged).
+        const lhs = token.slice(0, token.indexOf("=")).trim();
+        const canonicalRaw = lhs ? canonicalizeWtPlusRawToken(lhs) : null;
+        if (canonicalRaw && !/^(?:OR|NOT)$/i.test(canonicalRaw)) {
+          normalizedTokens.push(canonicalRaw);
+          diagnostics.push(`repaired-raw-as-field:${token}`);
+          continue;
+        }
         diagnostics.push(`invalid-field:${token}`);
         return { isValid: false, normalizedQuery: "", diagnostics };
       }

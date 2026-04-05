@@ -25,6 +25,7 @@ export function createChatHistoryHandlers({
   showBioPopupForId,
   openWtPlusQuery,
   tryHandleProfileSearchPrompt,
+  reRunSavedWtPlusQuery,
   handleChatResult,
   afterActionClick,
   resetTransientState,
@@ -249,7 +250,16 @@ export function createChatHistoryHandlers({
     const normalized = String(text || "").trim();
     const hasWtPlusModePrefix = /^WT\+\s+mode\.\s*/i.test(normalized);
     const normalizedBody = hasWtPlusModePrefix ? normalized.replace(/^WT\+\s+mode\.\s*/i, "").trim() : normalized;
-    const interpretedMatch = normalizedBody.match(
+    // Split on newlines: first line holds the structured query prefix; subsequent
+    // lines are secondary notices (truncation, missing profiles, etc.) that should
+    // appear below the code box, not inside it.
+    const bodyLines = normalizedBody.split("\n");
+    const mainLine = bodyLines[0].trim();
+    const extraNoteLines = bodyLines
+      .slice(1)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const interpretedMatch = mainLine.match(
       /^AI\s+interpreted\s+this\s+as\s+"(.+?)"\s+and\s+ran\s+WT\+\s+query:\s+(.+?)\.\s+Found\s+(\d+)\s+profile(?:s)?(?:\.\s+Also\s+(.+))?\.?$/i
     );
     if (interpretedMatch) {
@@ -267,16 +277,17 @@ export function createChatHistoryHandlers({
       const escapedNote = optionalNote ? escapeHtml(optionalNote) : "";
       return [
         hasWtPlusModePrefix ? '<div class="chat-query-note">WT+ mode.</div>' : "",
-        `<div class="chat-query-row">AI interpreted this as "${escapedInterpreted}" and ran WT+ query:</div>`,
+        `<div class="chat-query-row">AI interpreted this as "${escapedInterpreted}", and I ran this WT+ query:</div>`,
         '<div class="chat-query-box">',
         `<code class="chat-query-code">${escapedQuery}</code>`,
         "</div>",
         `<div class="chat-query-note">Found ${escapedCount} profiles.</div>`,
         escapedNote ? `<div class="chat-query-note">Also ${escapedNote}.</div>` : "",
+        ...extraNoteLines.map((l) => `<div class="chat-query-note">${escapeHtml(l)}</div>`),
       ].join("");
     }
 
-    const foundMatch = normalizedBody.match(
+    const foundMatch = mainLine.match(
       /^Found\s+(\d+)\s+profile(?:s)?\s+for\s+WT\+\s+query:\s+(.+?)(?:\.\s+Also\s+(.+))?\.?$/i
     );
     if (!foundMatch) {
@@ -320,6 +331,7 @@ export function createChatHistoryHandlers({
       `<code class="chat-query-code">${escapedQuery}</code>`,
       `</div>`,
       escapedNote ? `<div class="chat-query-note">Also ${escapedNote}.</div>` : "",
+      ...extraNoteLines.map((l) => `<div class="chat-query-note">${escapeHtml(l)}</div>`),
     ].join("");
   }
 

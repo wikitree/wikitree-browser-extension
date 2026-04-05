@@ -13,7 +13,8 @@ export function buildResultsTableHtml(result, opts = {}) {
   const headers = result.columns
     .map((column) => {
       const headerClass = column?.cellClass ? ` class="${escapeHtml(column.cellClass)}"` : "";
-      return `<th${headerClass}>${escapeHtml(column.title)}</th>`;
+      const headerTitle = column?.headerTitle ? ` title="${escapeHtml(column.headerTitle)}"` : "";
+      return `<th${headerClass}${headerTitle}>${escapeHtml(column.title)}</th>`;
     })
     .join("");
   const filterInputs = result.columns
@@ -110,7 +111,7 @@ export function makeStandardProfileTable(title, rows, defaultOrder = [[3, "asc"]
     },
     { title: "First Name", key: "firstName" },
     { title: "Middle Name", key: "middleName" },
-    { title: "LNAB", key: "lnab", cellClass: "nowrap-cell" },
+    { title: "Last Name", key: "lnab", cellClass: "nowrap-cell", headerTitle: "Last name at birth" },
     { title: "Current Last", key: "lastNameCurrent", cellClass: "nowrap-cell" },
     {
       title: "Spouse",
@@ -186,7 +187,7 @@ export function makeAncestorProfileTable(title, rows, defaultOrder = [[0, "asc"]
     },
     { title: "First Name", key: "firstName" },
     { title: "Middle Name", key: "middleName" },
-    { title: "LNAB", key: "lnab", cellClass: "nowrap-cell" },
+    { title: "Last Name", key: "lnab", cellClass: "nowrap-cell", headerTitle: "Last name at birth" },
     { title: "Current Last", key: "lastNameCurrent", cellClass: "nowrap-cell" },
     { title: "Birth", key: "birth", cellClass: "chat-date-cell" },
     { title: "Death", key: "death", cellClass: "chat-date-cell" },
@@ -235,7 +236,7 @@ export function makeWatchlistTable(title, rows, defaultOrder = [[0, "asc"]]) {
         render: (row) => makeProfileLink(row.wtid, row.wtid),
       },
       { title: "First Name", key: "firstName" },
-      { title: "LNAB", key: "lnab", cellClass: "nowrap-cell" },
+      { title: "Last Name", key: "lnab", cellClass: "nowrap-cell", headerTitle: "Last name at birth" },
       { title: "Current Last", key: "lastNameCurrent", cellClass: "nowrap-cell" },
       { title: "Birth", key: "birth", cellClass: "chat-date-cell" },
       { title: "Death", key: "death", cellClass: "chat-date-cell" },
@@ -263,7 +264,7 @@ export function makeAncestorAgeTable(title, rows) {
       },
       { title: "Birth", key: "birth", cellClass: "chat-date-cell" },
       { title: "Death", key: "death", cellClass: "chat-date-cell" },
-      { title: "LNAB", key: "lnab" },
+      { title: "Last Name", key: "lnab", headerTitle: "Last name at birth" },
       { title: "Age At Death", key: "ageAtDeath" },
     ],
     rows,

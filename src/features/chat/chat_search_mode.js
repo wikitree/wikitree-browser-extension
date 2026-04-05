@@ -838,24 +838,78 @@ export async function handleExplicitSearchMode({
       }
 
       // If in WT mode but query lacks minimum identifiers (name/WT ID/numeric ID),
-      // it cannot be resolved by WT API. Route to WT+ instead for AI filtering.
+      // it cannot be resolved by WT API. Route to WT+ or local filter depending on
+      // whether the current result set came from WT+.
       if (mode === "wt" && !hasMinimumWtSearchIdentifiers(normalizedPrompt)) {
         console.debug("wbe: explicit wt mode but query lacks minimum identifiers, routing to WT+", {
           prompt: normalizedPrompt.substring(0, 60),
         });
-        const noIdentifierSearchResult = await tryHandleProfileSearchPrompt(
-          { chatModeOverride: "wtplus" },
-          normalizedPrompt
-        );
-        if (noIdentifierSearchResult) {
-          await handleChatResult(
-            typeof noIdentifierSearchResult === "string"
-              ? { message: noIdentifierSearchResult }
-              : noIdentifierSearchResult
+        const noIdStructuredResult = typeof getLastStructuredResult === "function" ? getLastStructuredResult() : null;
+        const noIdPreviousWtPlusQuery = String(noIdStructuredResult?.wtPlusQuery || "").trim();
+        const noIdCleanedPrompt = normalizedPrompt.replace(/^(?:and|also|plus|then)\s+/i, "").trim();
+        // If previous result was from WT+, refine it (prepend previous query if no base term).
+        // Otherwise fall through to AI planner so natural follow-ups filter the in-memory result.
+        if (noIdPreviousWtPlusQuery) {
+          const noIdPromptHasBaseTerm =
+            /\b[A-Za-z_]+=/.test(noIdCleanedPrompt) ||
+            /\b(?!(?:\d{1,2}[Cc]en|\d{4}s|B\d{4}|D\d{4}|pre1500|NoFather|NoMother|NoParents|NoSpouses|NoChildren|NoGender|mtDNA|yDNA|auDNA|PPP|ProjectManaged|NeverEdited|GEDCOMJunk|SourceJunk|IsInWikiData|male|female|and|or|not)\b)[A-Z][A-Za-z]{2,}/.test(
+              noIdCleanedPrompt
+            );
+          const noIdEffectivePrompt = noIdPromptHasBaseTerm
+            ? noIdCleanedPrompt
+            : `${noIdPreviousWtPlusQuery} ${noIdCleanedPrompt}`;
+          const noIdentifierSearchResult = await tryHandleProfileSearchPrompt(
+            { chatModeOverride: "wtplus" },
+            noIdEffectivePrompt
           );
-          return { handled: true, prompt: normalizedPrompt };
+          if (noIdentifierSearchResult) {
+            await handleChatResult(
+              typeof noIdentifierSearchResult === "string"
+                ? { message: noIdentifierSearchResult }
+                : noIdentifierSearchResult
+            );
+            return { handled: true, prompt: normalizedPrompt };
+          }
         }
-        return { handled: false, prompt: normalizedPrompt };
+        // No previous WT+ result — fall through so AI planner can handle as local filter.
+      }
+
+      // If the prompt contains WT+ magic tokens or natural temporal phrases (ordinal
+      // centuries like "19th century", year ranges like "1800-1900"), treat it as a
+      // WT+ search rather than letting the AI planner misread it as a last-result filter.
+      // ONLY route to WT+ if the current result was itself from WT+ (so we can refine it)
+      // or the prompt has its own base term. For non-WT+ results (ancestor lists etc.)
+      // fall through so the AI planner can handle it as a local birthYearRange filter.
+      const wtMagicOrTemporalRegex =
+        /\b(?:\d{1,2}[Cc]en|\d{4}s|B\d{4}|D\d{4}|pre1500|NoFather|NoMother|NoParents|NoSpouses|NoChildren|NoGender|mtDNA|yDNA|auDNA|PPP|ProjectManaged|NeverEdited|GEDCOMJunk|SourceJunk|IsInWikiData|fg(?:cem|mem)\d+)\b|\b\d{1,2}(?:st|nd|rd|th)\s+century\b|\b\d{4}\s*[-\u2013]\s*\d{4}\b|\bfind\s+a\s+grave\s+(?:cemetery|cem)\s+\d+\b|\bfg\s+(?:cemetery|cem)\s+\d+\b/i;
+      if (hasStructuredResult && wtMagicOrTemporalRegex.test(normalizedPrompt)) {
+        const structuredResultForWt = typeof getLastStructuredResult === "function" ? getLastStructuredResult() : null;
+        const previousWtPlusQueryForWt = String(structuredResultForWt?.wtPlusQuery || "").trim();
+        if (previousWtPlusQueryForWt) {
+          const wtPromptHasBaseTerm =
+            /\b[A-Za-z_]+=/.test(normalizedPrompt) ||
+            /\b(?!(?:\d{1,2}[Cc]en|\d{4}s|B\d{4}|D\d{4}|pre1500|NoFather|NoMother|NoParents|NoSpouses|NoChildren|NoGender|mtDNA|yDNA|auDNA|PPP|ProjectManaged|NeverEdited|GEDCOMJunk|SourceJunk|IsInWikiData|male|female|and|or|not)\b)[A-Z][A-Za-z]{2,}/.test(
+              normalizedPrompt
+            );
+          const wtEffectivePrompt = wtPromptHasBaseTerm
+            ? normalizedPrompt
+            : `${previousWtPlusQueryForWt} ${normalizedPrompt}`;
+          console.debug("wbe: wt mode detected WT+ magic tokens with WT+ result, routing as fresh WT+ search", {
+            prompt: normalizedPrompt.substring(0, 60),
+            wtEffectivePrompt: wtEffectivePrompt.substring(0, 80),
+          });
+          const freshWtPlusResult = await tryHandleProfileSearchPrompt(
+            { chatModeOverride: "wtplus" },
+            wtEffectivePrompt
+          );
+          if (freshWtPlusResult) {
+            await handleChatResult(
+              typeof freshWtPlusResult === "string" ? { message: freshWtPlusResult } : freshWtPlusResult
+            );
+            return { handled: true, prompt: normalizedPrompt };
+          }
+        }
+        // No previous WT+ result — fall through to AI planner for local filter.
       }
 
       // When a structured result exists, try the AI planner before falling
@@ -885,12 +939,47 @@ export async function handleExplicitSearchMode({
 
       if (shouldSwitchToWtPlus) {
         console.debug("wbe: auto-routing WT query to WT+ (in wt block)", { prompt: normalizedPrompt.substring(0, 60) });
+        const wtPlusResult = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, normalizedPrompt);
+        if (wtPlusResult) {
+          await handleChatResult(typeof wtPlusResult === "string" ? { message: wtPlusResult } : wtPlusResult);
+          return { handled: true, prompt: normalizedPrompt };
+        }
         shouldSkipFinalSearch = true;
         return { handled: false, prompt: normalizedPrompt };
       }
     }
 
     if (mode === "wtplus" && hasStructuredResult && typeof tryHandleAiPlannedIntent === "function") {
+      // If the prompt contains WT+ magic tokens or natural temporal phrases, bypass
+      // the AI planner (which would misread them as last-result filter terms).
+      // Only route to WT+ if the result was itself from WT+; for non-WT+ results
+      // fall through so the AI planner can apply a local birthYearRange filter.
+      const hasMagicOrTemporal =
+        /\b(?:\d{1,2}[Cc]en|\d{4}s|B\d{4}|D\d{4}|pre1500|NoFather|NoMother|NoParents|NoSpouses|NoChildren|NoGender|mtDNA|yDNA|auDNA|PPP|ProjectManaged|NeverEdited|GEDCOMJunk|SourceJunk|IsInWikiData|fg(?:cem|mem)\d+)\b|\b\d{1,2}(?:st|nd|rd|th)\s+century\b|\b\d{4}\s*[-\u2013]\s*\d{4}\b|\bfind\s+a\s+grave\s+(?:cemetery|cem)\s+\d+\b|\bfg\s+(?:cemetery|cem)\s+\d+\b/i.test(
+          normalizedPrompt
+        );
+      if (hasMagicOrTemporal) {
+        const structuredResult = typeof getLastStructuredResult === "function" ? getLastStructuredResult() : null;
+        const previousWtPlusQuery = String(structuredResult?.wtPlusQuery || "").trim();
+        if (previousWtPlusQuery) {
+          const promptHasBaseTerm =
+            /\b[A-Za-z_]+=/.test(normalizedPrompt) ||
+            /\b(?!(?:\d{1,2}[Cc]en|\d{4}s|B\d{4}|D\d{4}|pre1500|NoFather|NoMother|NoParents|NoSpouses|NoChildren|NoGender|mtDNA|yDNA|auDNA|PPP|ProjectManaged|NeverEdited|GEDCOMJunk|SourceJunk|IsInWikiData|male|female|and|or|not)\b)[A-Z][A-Za-z]{2,}/.test(
+              normalizedPrompt
+            );
+          const effectivePrompt = promptHasBaseTerm ? normalizedPrompt : `${previousWtPlusQuery} ${normalizedPrompt}`;
+          console.debug("wbe: wtplus mode detected WT+ magic tokens with WT+ result, routing as fresh WT+ search", {
+            prompt: normalizedPrompt.substring(0, 60),
+            effectivePrompt: effectivePrompt.substring(0, 80),
+          });
+          const magicResult = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, effectivePrompt);
+          if (magicResult) {
+            await handleChatResult(typeof magicResult === "string" ? { message: magicResult } : magicResult);
+            return { handled: true, prompt: normalizedPrompt };
+          }
+        }
+        // No previous WT+ result — fall through to AI planner for local filter.
+      }
       if (shouldTryAiFollowupIntentInWtPlus(normalizedPrompt)) {
         try {
           const aiPlannedResult = await tryHandleAiPlannedIntent(normalizedPrompt);

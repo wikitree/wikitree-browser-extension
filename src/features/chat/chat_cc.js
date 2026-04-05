@@ -38,7 +38,7 @@ export function createChatCcHandlers({
       const [status, , people] = await WikiTreeAPI.getPeople(
         WBE_CHAT_APP_ID,
         userNumId,
-        "Id,Name,FirstName,MiddleName,BirthLocation,DeathLocation,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,Gender,Meta",
+        "Id,Name,FirstName,MiddleName,BirthLocation,DeathLocation,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,LastNameOther,BirthDate,DeathDate,Gender,Meta",
         options
       );
 
@@ -357,7 +357,7 @@ export function createChatCcHandlers({
         const pageLimit = Math.min(pageSize, maxRowsToFetch - allEntries.length);
         const [watchlist, totalCount, status] = await WikiTreeAPI.getWatchlist(
           WBE_CHAT_APP_ID,
-          "Id,Name,FirstName,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender",
+          "Id,Name,FirstName,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,LastNameOther,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender",
           {
             limit: pageLimit,
             offset,

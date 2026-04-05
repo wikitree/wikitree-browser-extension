@@ -59,7 +59,8 @@ export function createChatAiPlannerHandlers({
       if (!lastResult?.rows?.length) return "";
       const count = lastResult.rows.length;
       const title = lastResult.title || "results";
-      return `Current loaded result: "${title}" with ${count} rows. If the user's prompt is refining/filtering this result (e.g. "only from X", "only in X", "only those born in X", "only women", "sort by birth"), use ${ChatIntent.LAST_RESULT_OPERATION}.`;
+      const wtPlusHint = lastResult.wtPlusQuery ? ` (WT+ query: "${lastResult.wtPlusQuery}")` : "";
+      return `Current loaded result: "${title}"${wtPlusHint} with ${count} rows. If the user's prompt is refining/filtering this result (e.g. "only from X", "only in X", "only those born in X", "only women", "born in the 19th century", "1800-1900", "sort by birth"), use ${ChatIntent.LAST_RESULT_OPERATION}.`;
     })();
 
     const plannerPrompt = [
@@ -86,6 +87,8 @@ export function createChatAiPlannerHandlers({
       `    filter by birth location: {"action":"filter","filter":{"kind":"birthLocation","value":"place name"}}`,
       `    filter by death location: {"action":"filter","filter":{"kind":"deathLocation","value":"place name"}}`,
       `    filter by gender: {"action":"filter","filter":{"kind":"gender","value":"Male|Female"}}`,
+      `    filter by birth year range: {"action":"filter","filter":{"kind":"birthYearRange","start":1800,"end":1899}} — use for century phrases (e.g. "19th century" -> start:1800,end:1899; "20th century" -> start:1900,end:1999), decade phrases ("1850s" -> start:1850,end:1859), or year ranges ("1800-1900" -> start:1800,end:1900)`,
+      `    filter by death year range: {"action":"filter","filter":{"kind":"deathYearRange","start":1800,"end":1899}}`,
       `    filter by text (broad search across all columns): {"action":"filter","filter":{"kind":"text","value":"search term"}}`,
       `- ${ChatIntent.FALLBACK_AI} with params {}`,
       "If unsure, return fallbackAi.",

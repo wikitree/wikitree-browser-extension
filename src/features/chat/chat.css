@@ -284,6 +284,11 @@
   letter-spacing: 0.02em;
 }
 
+.chat-context-controls {
+  border-left: 1px solid #d8e0d8;
+  padding-left: 0.6rem;
+}
+
 .chat-mode-notice {
   display: none;
   margin-right: 0.2rem;

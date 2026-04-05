@@ -981,7 +981,7 @@ export function createChatPeopleHandlers({
       const [, , peopleMap] = await fetchPeoplePaged(
         WBE_CHAT_APP_ID,
         rootPerson.key,
-        "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,LastNameAtBirth,LastNameCurrent,Father,Mother,BirthDate,BirthDateDecade,DeathDate,DeathDateDecade,BirthLocation,DeathLocation,Gender,Meta",
+        "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,LastNameAtBirth,LastNameCurrent,LastNameOther,Father,Mother,BirthDate,BirthDateDecade,DeathDate,DeathDateDecade,BirthLocation,DeathLocation,Gender,Meta",
         { ancestors: generation, minGeneration: includeUpTo ? 1 : generation, limit: 1000 }
       );
 
@@ -1183,7 +1183,7 @@ export function createChatPeopleHandlers({
       const [, , peopleMap] = await fetchPeoplePaged(
         WBE_CHAT_APP_ID,
         rootPerson.key,
-        "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,LastNameAtBirth,LastNameCurrent,BirthDate,BirthDateDecade,DeathDate,DeathDateDecade,BirthLocation,DeathLocation,Gender,Meta",
+        "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,LastNameAtBirth,LastNameCurrent,LastNameOther,BirthDate,BirthDateDecade,DeathDate,DeathDateDecade,BirthLocation,DeathLocation,Gender,Meta",
         { descendants: generation, minGeneration: includeUpTo ? 1 : generation, limit: 1000 }
       );
 

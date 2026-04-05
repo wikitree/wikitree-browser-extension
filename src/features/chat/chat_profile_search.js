@@ -913,6 +913,26 @@ export function createProfileSearchHandler({
     };
   }
 
+  function canonicalizeWtPlusSqlFieldNames(queryText) {
+    const text = String(queryText || "").trim();
+    if (!text || !/\bsql\s*=\s*"/i.test(text)) {
+      return text;
+    }
+
+    // AI sometimes drops " Date" from two-word field names inside sql=.
+    // Repair the most common cases to avoid silent wrong-field lookups.
+    return text.replace(/sql="([^"]*)"/gi, (fullMatch, sqlInner) => {
+      let inner = String(sqlInner || "");
+      inner = inner
+        .replace(/\[Bio\]\.\[Created\]\.AsNumber/gi, "[Bio].[Created Date].AsNumber")
+        .replace(/\[Bio\]\.\[LastEdit\]\.AsNumber/gi, "[Bio].[LastEdit Date].AsNumber")
+        .replace(/\[Bio\]\.\[Last\s*Edit\]\.AsNumber/gi, "[Bio].[LastEdit Date].AsNumber")
+        .replace(/\[Bio\]\.\[Birth\s*Date\]\.AsNumber/gi, "[Default].[Birth Date].AsNumber")
+        .replace(/\[Bio\]\.\[Death\s*Date\]\.AsNumber/gi, "[Default].[Death Date].AsNumber");
+      return `sql="${inner}"`;
+    });
+  }
+
   function canonicalizeWtPlusSqlDateRanges(queryText) {
     const text = String(queryText || "").trim();
     if (!text || !/\bsql\s*=\s*"/i.test(text)) {
@@ -1222,6 +1242,47 @@ export function createProfileSearchHandler({
     const text = String(rawValue || "").trim();
     if (!text) return "";
 
+    // Parse natural-language month dates: "Jan 1 2026", "1 Jan 2026", "January 2026", etc.
+    const MONTH_MAP = {
+      jan: 1,
+      feb: 2,
+      mar: 3,
+      apr: 4,
+      may: 5,
+      jun: 6,
+      jul: 7,
+      aug: 8,
+      sep: 9,
+      oct: 10,
+      nov: 11,
+      dec: 12,
+    };
+    const monthNames =
+      "jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?";
+    const mdyMatch = text.match(new RegExp(`^(${monthNames})\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(\\d{4})$`, "i"));
+    if (mdyMatch) {
+      const m = MONTH_MAP[mdyMatch[1].slice(0, 3).toLowerCase()];
+      const d = Number(mdyMatch[2]);
+      const y = Number(mdyMatch[3]);
+      if (m && d && y) return `${y}${String(m).padStart(2, "0")}${String(d).padStart(2, "0")}`;
+    }
+    const dmyMatch = text.match(new RegExp(`^(\\d{1,2})(?:st|nd|rd|th)?\\s+(${monthNames})\\s+(\\d{4})$`, "i"));
+    if (dmyMatch) {
+      const d = Number(dmyMatch[1]);
+      const m = MONTH_MAP[dmyMatch[2].slice(0, 3).toLowerCase()];
+      const y = Number(dmyMatch[3]);
+      if (m && d && y) return `${y}${String(m).padStart(2, "0")}${String(d).padStart(2, "0")}`;
+    }
+    const myMatch = text.match(new RegExp(`^(${monthNames})\\s+(\\d{4})$`, "i"));
+    if (myMatch) {
+      const m = MONTH_MAP[myMatch[1].slice(0, 3).toLowerCase()];
+      const y = Number(myMatch[2]);
+      if (m && y) {
+        const mm = String(m).padStart(2, "0");
+        return direction === "after" ? `${y}${mm}99` : `${y}${mm}00`;
+      }
+    }
+
     if (/^\d{4}$/.test(text)) {
       return direction === "after" ? `${text}9999` : `${text}0000`;
     }
@@ -1359,22 +1420,28 @@ export function createProfileSearchHandler({
 
     // Parse manager constraints before category/notables terms so phrases like
     // "managed by Living Notables project" don't get split into fallback name/location tokens.
-    consume(/\bmanaged\s+only\s+by\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
-      const managerText = stripSurroundingQuotes(match[1]);
-      const managerId = escapeWtPlusSqlLiteral(managerText, true);
-      addTerm(normalizeWtPlusFieldTerm("Manager", managerText), `manager ${managerText}`);
-      if (managerId) {
-        addSqlTerm(
-          buildWtPlusSqlTerm(`([Default].[All Managers].AsString = '${managerId}')`),
-          `managed only by ${managerText}`
-        );
+    consume(
+      /\bmanaged\s+only\s+by\s+(.+?)(?=$|\b(?:and|or|PPP|ProjectManaged|NeverEdited|GEDCOMJunk|SourceJunk|IsInWikiData|ApprovedMerge|PendingMerge|UnmergedMatch|mtDNA|yDNA|auDNA|NoFather|NoMother|NoParents|NoSpouses|NoChildren|NoGender|male|female|pre1500|B0|D0)\b|\b\d{1,2}[Cc]en\b|\b\d{4}s\b|\bB\d{4}\b|\bD\d{4}\b)/i,
+      (match) => {
+        const managerText = stripSurroundingQuotes(match[1]);
+        const managerId = escapeWtPlusSqlLiteral(managerText, true);
+        addTerm(normalizeWtPlusFieldTerm("Manager", managerText), `manager ${managerText}`);
+        if (managerId) {
+          addSqlTerm(
+            buildWtPlusSqlTerm(`([Default].[All Managers].AsString = '${managerId}')`),
+            `managed only by ${managerText}`
+          );
+        }
       }
-    });
+    );
 
-    consume(/\bmanaged\s+by\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
-      const managerText = stripSurroundingQuotes(match[1]);
-      addTerm(normalizeWtPlusFieldTerm("Manager", managerText), `manager ${managerText}`);
-    });
+    consume(
+      /\bmanaged\s+by\s+(.+?)(?=$|\b(?:and|or|PPP|ProjectManaged|NeverEdited|GEDCOMJunk|SourceJunk|IsInWikiData|ApprovedMerge|PendingMerge|UnmergedMatch|mtDNA|yDNA|auDNA|NoFather|NoMother|NoParents|NoSpouses|NoChildren|NoGender|male|female|pre1500|B0|D0)\b|\b\d{1,2}[Cc]en\b|\b\d{4}s\b|\bB\d{4}\b|\bD\d{4}\b)/i,
+      (match) => {
+        const managerText = stripSurroundingQuotes(match[1]);
+        addTerm(normalizeWtPlusFieldTerm("Manager", managerText), `manager ${managerText}`);
+      }
+    );
 
     consume(/\bliving\s+notables?\s+project\b/i, () => {
       addTerm(normalizeWtPlusFieldTerm("CategoryFull", "Living Notables Project"), "living notables project");
@@ -1599,12 +1666,24 @@ export function createProfileSearchHandler({
       addSqlTerm(buildWtPlusSqlTerm("([Bio].[GED File].AsString <> '')"), "imported from GEDCOM");
     });
 
-    consume(/\bcreated\s+after\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i, (match) => {
+    const naturalDateCapture =
+      "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)" +
+      "(?:\\s+\\d{1,2}(?:st|nd|rd|th)?,?)?\\s+\\d{4}|\\d{1,2}(?:st|nd|rd|th)?\\s+" +
+      "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)" +
+      "\\s+\\d{4}";
+    const naturalDateRe = new RegExp(
+      `\\bcreated\\s+after\\s+(\\d{4}(?:-\\d{2}(?:-\\d{2})?)?|${naturalDateCapture})\\b`,
+      "i"
+    );
+    consume(naturalDateRe, (match) => {
       const boundary = normalizeWtPlusBoundaryDate(match[1], "after");
       addSqlTerm(buildWtPlusSqlTerm(`([Bio].[Created Date].AsNumber > ${boundary})`), `created after ${match[1]}`);
     });
-
-    consume(/\bcreated\s+before\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i, (match) => {
+    const naturalDateReBefore = new RegExp(
+      `\\bcreated\\s+before\\s+(\\d{4}(?:-\\d{2}(?:-\\d{2})?)?|${naturalDateCapture})\\b`,
+      "i"
+    );
+    consume(naturalDateReBefore, (match) => {
       const boundary = normalizeWtPlusBoundaryDate(match[1], "before");
       addSqlTerm(buildWtPlusSqlTerm(`([Bio].[Created Date].AsNumber < ${boundary})`), `created before ${match[1]}`);
     });
@@ -1915,10 +1994,10 @@ export function createProfileSearchHandler({
         addTerm(normalizeWtPlusFieldTerm("Tree", value), `tree ${value}`);
       }
     });
-    consume(/\b(?:find\s*a\s*grave\s+cemetery|fg\s*cemetery)\s*(\d+)\b/i, (match) => {
+    consume(/\b(?:find\s*a\s*grave\s+(?:cemetery|cem)|fg\s*(?:cemetery|cem))\s*(\d+)\b/i, (match) => {
       addTerm(`fgcem${match[1]}`, `find a grave cemetery ${match[1]}`);
     });
-    consume(/\b(?:find\s*a\s*grave\s+memorial|fg\s*memorial)\s*(\d+)\b/i, (match) => {
+    consume(/\b(?:find\s*a\s*grave\s+(?:memorial|mem)|fg\s*(?:memorial|mem))\s*(\d+)\b/i, (match) => {
       addTerm(`fgmem${match[1]}`, `find a grave memorial ${match[1]}`);
     });
     consume(/\b(?:in|from)\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
@@ -1956,6 +2035,12 @@ export function createProfileSearchHandler({
         const normalizedToken = stripSurroundingQuotes(token);
         if (isDateMagicToken(normalizedToken)) {
           extractedDateTokens.push(normalizedToken);
+          return;
+        }
+
+        // A bare 4-digit year is always a birth year, never a location or surname.
+        if (/^\d{4}$/.test(normalizedToken)) {
+          addTerm(`B${normalizedToken}`, `born in ${normalizedToken}`);
           return;
         }
 
@@ -2799,6 +2884,11 @@ export function createProfileSearchHandler({
         "Do not treat command words as surname/location values (e.g., search, find, show, list, get, name) unless clearly quoted or explicitly assigned.",
         "For patterns like '<surname> born in <location> between <year> and <year>', map surname to AllLastNames (or LastNameAtBirth when clearly LNAB), map the place phrase after 'in' to BirthLocation/Location, emit NCen for that century, and keep the narrower date range in sql=.",
         "For disjunctive life-event prompts like 'born, married, or died in <place> before <year>', prefer an OR query that applies the same place/date constraint to each relevant event (birth/marriage/death) rather than treating words like 'born' as names or locations.",
+        "CRITICAL: Raw tokens (ProjectManaged, PPP, NeverEdited, GEDCOMJunk, SourceJunk, IsInWikiData, ApprovedMerge, PendingMerge, UnmergedMatch, mtDNA, yDNA, auDNA, NoFather, NoMother, NoParents, NoSpouses, NoChildren, NoGender, male, female, Open, Unsourced, Unconnected, Orphan, pre1500, B0, D0, etc.) are ALWAYS bare standalone tokens. NEVER write them as field=value (e.g. 'ProjectManaged=\"England Project\"' is ALWAYS wrong). Use them as bare words only.",
+        "For 'managed by <project> PPP': the manager name ends before the first standalone raw token. Example: 'managed by england project ppp' => Manager=\"England Project\" PPP (NOT ProjectManaged=\"England Project\")",
+        "For mixed parent-presence constraints: 'no father' → NoFather; 'no mother' → NoMother; 'with a mother' / 'has a mother' / 'has mother' → NOT NoMother; 'with a father' / 'has a father' → NOT NoFather. Example: 'Beacall with a mother but no father' => {\"understood\":\"Beacall surname — mother linked but no father\",\"query\":\"AllLastNames=Beacall NoFather NOT NoMother\"}",
+        "For Find a Grave cemetery references: raw token fgcem{N} (e.g. fgcem104742) or phrases like 'find a grave cemetery 104742', 'fg cemetery 104742', 'Find a Grave cem 104742', 'fg cem 104742' all map to the token fgcem{N}. Similarly fgmem{N} for memorials. Example: 'Illinois fgcem104742' => {\"understood\":\"Illinois profiles in Find a Grave cemetery 104742\",\"query\":\"AllLastNames=Illinois fgcem104742\"}",
+        'For \'created after/before\' constraints, use sql= with the EXACT field name [Bio].[Created Date].AsNumber (NOT [Bio].[Created].AsNumber — the space and \'Date\' are required). Similarly use [Bio].[LastEdit Date].AsNumber for last-edit filters. Example: \'Shropshire created after Jan 1 2026\' => {"understood":"Shropshire profiles created after 2026-01-01","query":"Location=Shropshire sql=\\"([Bio].[Created Date].AsNumber > 20260101)\\""}',
       ].join("\n");
       const previousQuery = String(reparseContext?.previousQuery || "").trim();
       const isReparse = !!reparseContext?.reparseFromZeroResults;
@@ -2924,7 +3014,9 @@ export function createProfileSearchHandler({
     const hasFamilyRoot = /\b(?:ancestors|descendants)\b/i.test(text);
     const hasBoundaryDate = /\b(?:before|after)\s+\d{4}(?:-\d{2}(?:-\d{2})?)?\b/i.test(text);
     const hasBetweenDateRange =
-      /\bbetween\s+\d{4}(?:-\d{2}(?:-\d{2})?)?\s+(?:and|to)\s+\d{4}(?:-\d{2}(?:-\d{2})?)?\b/i.test(text);
+      /\bbetween\s+\d{4}(?:-\d{2}(?:-\d{2})?)?\s+(?:and|to)\s+\d{4}(?:-\d{2}(?:-\d{2})?)?\b/i.test(text) ||
+      /\b\d{4}\s*[-\u2013]\s*\d{4}\b/.test(text) ||
+      /\b\d{1,2}(?:st|nd|rd|th)\s+century\b/i.test(text);
     const hasLocationOrLifeEvent = /\b(?:born|died|married)\b/i.test(text);
     const hasCategoryConcept = /\b(?:category|notables?|template|sticker)\b/i.test(text);
     const hasStatusConcept = /\b(?:open|unsourced|unconnected|orphan|public|private|connected|unlinked)\b/i.test(text);
@@ -3085,9 +3177,26 @@ export function createProfileSearchHandler({
       const hasComparisonToken = comparisonTokenRegex.test(value);
       const hasNumericWord = numericWordRegex.test(value);
 
+      // Location value contains "born" — almost certainly a parsing artifact where the
+      // "born in X" phrase got absorbed into the location field rather than becoming a date.
+      const hasBornInValue = /\bborn\b/i.test(value);
+
+      // Location value is far too long to be a real place name (natural-language fragment).
+      const wordCount = value.split(/\s+/).filter(Boolean).length;
+      const isTooLong = wordCount > 6;
+
+      // Relative temporal expression embedded in the location value.
+      const hasRelativeTime = /\b(?:a\s+)?(?:week|month|year|day)s?\s+(?:before|after|earlier|later)\b/i.test(value);
+
       // Guard against malformed deterministic parse fragments such as
-      // Location="than six children" before hitting WT+.
-      if (startsWithComparison || (hasFamilyToken && (hasComparisonToken || hasNumericWord))) {
+      // Location="than six children" or Location="England born a week before ..." before hitting WT+.
+      if (
+        startsWithComparison ||
+        (hasFamilyToken && (hasComparisonToken || hasNumericWord)) ||
+        hasBornInValue ||
+        isTooLong ||
+        hasRelativeTime
+      ) {
         return true;
       }
     }
@@ -3134,7 +3243,8 @@ export function createProfileSearchHandler({
     const templateCanonicalQuery = await canonicalizeWtPlusTemplateTerms(wtPlusQuery);
     const contextCanonicalQuery = resolveWtPlusContextPlaceholders(templateCanonicalQuery);
     const rangeCanonicalQuery = canonicalizeWtPlusSqlDateRanges(contextCanonicalQuery);
-    const logicalCanonicalQuery = canonicalizeWtPlusSqlLogicalOperators(rangeCanonicalQuery);
+    const fieldNameCanonicalQuery = canonicalizeWtPlusSqlFieldNames(rangeCanonicalQuery);
+    const logicalCanonicalQuery = canonicalizeWtPlusSqlLogicalOperators(fieldNameCanonicalQuery);
     const relationCountCanonicalQuery = canonicalizeWtPlusSqlFamilyLineCounts(logicalCanonicalQuery);
     const { query: managerCanonicalQuery, managerMatches } = await canonicalizeWtPlusManagerTerms(
       relationCountCanonicalQuery
@@ -3310,7 +3420,7 @@ export function createProfileSearchHandler({
       const uniqueIds = [...new Set(profiles.map((value) => String(value)))];
       showChatShaky(`Fetching ${uniqueIds.length} WT+ matches...`);
       const fields =
-        "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,Father,Mother,BirthDate,BirthDateDecade,BirthLocation,DeathDate,DeathDateDecade,DeathLocation,Gender,Id,Name";
+        "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,Father,Mother,BirthDate,BirthDateDecade,BirthLocation,DeathDate,DeathDateDecade,DeathLocation,Gender,Id,Name";
       let [, , peopleById] = await fetchPeoplePaged(WBE_CHAT_APP_ID, uniqueIds, fields, {
         resolveRedirect: 1,
         limit: WT_PLUS_GET_PEOPLE_CHUNK,
@@ -3384,16 +3494,19 @@ export function createProfileSearchHandler({
           wtPlusSuggestionOptions: suggestionOptions,
         });
       }
+      const extraNotes = [categoryNote ? `Also ${categoryNote}.` : "", truncationNote || "", missingProfilesNote || ""]
+        .filter(Boolean)
+        .join(" ");
       return {
         message: interpretation?.understood
-          ? `AI interpreted this as "${interpretation.understood}" and ran WT+ query: ${canonicalQuery}. Found ${
-              rows.length
-            } profile${rows.length === 1 ? "" : "s"}.${categoryNote ? ` Also ${categoryNote}.` : ""}${
-              truncationNote ? ` ${truncationNote}` : ""
-            }${missingProfilesNote ? ` ${missingProfilesNote}` : ""}`
-          : `Found ${rows.length} profile${rows.length === 1 ? "" : "s"} for WT+ query: ${canonicalQuery}${
-              categoryNote ? `. Also ${categoryNote}.` : ""
-            }${truncationNote ? ` ${truncationNote}` : ""}${missingProfilesNote ? ` ${missingProfilesNote}` : ""}`,
+          ? `AI interpreted this as "${
+              interpretation.understood
+            }", and I ran this WT+ query: ${canonicalQuery}. Found ${rows.length} profile${
+              rows.length === 1 ? "" : "s"
+            }.${extraNotes ? `\n${extraNotes}` : ""}`
+          : `Found ${rows.length} profile${rows.length === 1 ? "" : "s"} for WT+ query: ${canonicalQuery}.${
+              extraNotes ? `\n${extraNotes}` : ""
+            }`,
         actions,
         table,
         autoOpen: true,
@@ -5213,7 +5326,7 @@ export function createProfileSearchHandler({
         parseNaturalLanguageWtPlusQuery(mainQuery) || parseCombinedNaturalLanguageWtPlusQuery(mainQuery);
       const preferAiWtPlusQueryCandidate = shouldPreferAiWtPlusQuery(mainQuery);
       const wtPlusOnlyConstraintRegex =
-        /\b(?:category|template|suggestions?\s*=|sql\s*=|project\s*managed|managed\s*(?:only\s*)?by|manager\s*=|unsourced|unconnected|orphan)\b/i;
+        /\b(?:category|template|suggestions?\s*=|sql\s*=|project\s*managed|managed\s*(?:only\s*)?by|manager\s*=|unsourced|unconnected|orphan|no\s+father|no\s+mother|no\s+parents|no\s+spouses|no\s+children|without\s+(?:father|mother|parents|spouses|children)|with\s+a\s+(?:father|mother)|\d{1,2}(?:st|nd|rd|th)\s+century|fg(?:cem|mem)\d+|find\s*a\s*grave\s+(?:cemetery|cem)|fg\s+(?:cemetery|cem))\b/i;
       const looksWtPlusOnly = wtPlusOnlyConstraintRegex.test(rawQuery) || wtPlusOnlyConstraintRegex.test(mainQuery);
       const shouldAutoRouteToWtPlus =
         chatMode !== "wtplus" &&
@@ -5337,7 +5450,6 @@ export function createProfileSearchHandler({
               reparseFromZeroResults: true,
               previousQuery: localWtPlusQuery.query,
             });
-            hideChatShaky();
             const normalizedAiRetry = normalizeWtPlusQueryString(aiRetryQuery?.query || "");
             if (normalizedAiRetry && normalizedAiRetry !== normalizedLocalQuery) {
               console.info("wbe: WT+ zero-result local parse; retrying with AI interpretation", {
@@ -5356,7 +5468,6 @@ export function createProfileSearchHandler({
 
         showChatShaky("Asking AI to interpret this as a WT+ query...");
         const aiWtPlusQuery = await callAiParseWtPlusQuery(rawQuery);
-        hideChatShaky();
         if (aiWtPlusQuery?.query) {
           console.info("wbe: WT+ using AI parsed query", {
             rawQuery,
@@ -5513,7 +5624,7 @@ export function createProfileSearchHandler({
 
             showChatShaky(`Fetching ${uniqueIds.length} profiles...`);
             const fields =
-              "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,RealName,BirthDate,BirthLocation,DeathDate,DeathLocation,Gender,Id,Name";
+              "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,BirthDate,BirthLocation,DeathDate,DeathLocation,Gender,Id,Name";
             const [, , peopleById] = await fetchPeoplePaged(WBE_CHAT_APP_ID, uniqueIds, fields, {
               resolveRedirect: 1,
               limit: WT_PLUS_GET_PEOPLE_CHUNK,
@@ -5823,7 +5934,7 @@ export function createProfileSearchHandler({
       const [, , people] = await fetchPeoplePaged(
         WBE_CHAT_APP_ID,
         profileIds,
-        "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,BirthDate,DeathDate,BirthLocation,DeathLocation,LastNameAtBirth,LastNameCurrent,Gender",
+        "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,BirthDate,DeathDate,BirthLocation,DeathLocation,LastNameAtBirth,LastNameCurrent,LastNameOther,Gender",
         {}
       );
       const peopleCount = Object.keys(people || {}).length;

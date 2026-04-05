@@ -47,6 +47,12 @@ export function createLastResultOperationHandler({
       const direction = String(filter?.direction || "before").toLowerCase() === "after" ? "after" : "before";
       return `death date is ${direction} ${value}`;
     }
+    if (kind === "birthYearRange") {
+      return `birth year ${filter.start ?? "?"}–${filter.end ?? "?"}`;
+    }
+    if (kind === "deathYearRange") {
+      return `death year ${filter.start ?? "?"}–${filter.end ?? "?"}`;
+    }
     return `text contains ${value}`;
   }
 
@@ -79,6 +85,12 @@ export function createLastResultOperationHandler({
     if (kind === "deathDate") {
       const direction = String(filter?.direction || "before").toLowerCase() === "after" ? "after" : "before";
       return `death ${direction} ${value}`;
+    }
+    if (kind === "birthYearRange") {
+      return `birth ${filter.start ?? "?"}-${filter.end ?? "?"}`;
+    }
+    if (kind === "deathYearRange") {
+      return `death ${filter.start ?? "?"}-${filter.end ?? "?"}`;
     }
     return `contains=${value}`;
   }
@@ -160,6 +172,15 @@ export function createLastResultOperationHandler({
   }
 
   function rowMatchesFilter(row, filter) {
+    // Year-range filters don't use a value field — handle before the empty-value guard.
+    if (filter.kind === "birthYearRange" || filter.kind === "deathYearRange") {
+      const rowDate = filter.kind === "birthYearRange" ? row.birth : row.death;
+      const rowYear = extractYear(rowDate);
+      if (!rowYear) return false;
+      const start = Number(filter.start);
+      const end = Number(filter.end);
+      return (!Number.isFinite(start) || rowYear >= start) && (!Number.isFinite(end) || rowYear <= end);
+    }
     const value = normalizeText(filter?.value);
     if (!value) {
       return true;
@@ -215,6 +236,8 @@ export function createLastResultOperationHandler({
       row.displayName,
       row.wtid,
       row.surname,
+      row.birth,
+      row.death,
       row.birthLocation,
       row.deathLocation,
       row.gender,
@@ -322,7 +345,33 @@ export function createLastResultOperationHandler({
     }
 
     if (params.action === "filter") {
-      const effectiveFilter = resolveEffectiveFilter(params.filter, lastStructuredResult);
+      // Support multi-filter (compound AND) via params.filters array.
+      const filtersArray =
+        Array.isArray(params.filters) && params.filters.length >= 2
+          ? params.filters.map((f) => resolveEffectiveFilter(f, lastStructuredResult))
+          : null;
+      const effectiveFilter = filtersArray ? null : resolveEffectiveFilter(params.filter, lastStructuredResult);
+
+      if (filtersArray) {
+        const filterSummary = filtersArray.map((f) => describeFilter(f)).join(" and ");
+        const filterTitle = filtersArray.map((f) => describeFilterForTitle(f)).join("+");
+        const filteredRows = dataResult.rows.filter((row) => filtersArray.every((f) => rowMatchesFilter(row, f)));
+        if (!filteredRows.length) {
+          return `No rows matched this filter in the current result set: ${filterSummary}.`;
+        }
+        const filteredResult = cloneResultWithRows(
+          dataResult,
+          `${dataResult.title} filtered (${filterTitle})`,
+          filteredRows
+        );
+        return {
+          message: `Filtered the current result set down to ${filteredRows.length} row${
+            filteredRows.length === 1 ? "" : "s"
+          } using ${filterSummary}.\n${summarizeStructuredRows(filteredRows)}`,
+          table: filteredResult,
+        };
+      }
+
       const filterSummary = describeFilter(effectiveFilter);
       const filterTitle = describeFilterForTitle(effectiveFilter);
       const isOrFilter = effectiveFilter.operator === "or";

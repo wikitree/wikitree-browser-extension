@@ -86,6 +86,7 @@ const CHAT_SEND_ID = "wbe-chat-send";
 const CHAT_CLEAR_ID = "wbe-chat-clear";
 const CHAT_WTPLUS_SUGGESTION_PICKER_ID = "wbe-chat-wtplus-suggestion-picker";
 const CHAT_WTPLUS_SUGGESTION_SELECT_ID = "wbe-chat-wtplus-suggestion-select";
+const CHAT_CONTEXT_CONTROLS_ID = "wbe-chat-context-controls";
 const CHAT_WTPLUS_MAGIC_WORDS_GROUPS = [
   { label: "Status", words: ["Open", "Unsourced", "Unconnected", "Orphan", "Notables"] },
   { label: "Tree", words: ["connected", "unlinked", "PublicTree", "PrivateTree"] },
@@ -179,6 +180,18 @@ function parseColumnFilterExpression(rawInput) {
     expression = expression.slice(1).trim();
   }
 
+  // Year range: "1847-1849" or "1847–1849" (en-dash) — only for date columns
+  const rangeMatch = expression.match(/^(\d{4})\s*[-\u2013]\s*(\d{4})$/);
+  if (rangeMatch?.[1] && rangeMatch?.[2]) {
+    return {
+      empty: false,
+      negate,
+      operator: "range",
+      from: rangeMatch[1].trim(),
+      to: rangeMatch[2].trim(),
+    };
+  }
+
   const opMatch = expression.match(/^([<>])\s*(.+)$/);
   if (opMatch?.[1] && opMatch?.[2]) {
     return {
@@ -218,16 +231,24 @@ if (!$.fn.dataTable.ext.search.some((fn) => fn.__wbeColumnFilter === true)) {
 
       if (filter.operator === "<" || filter.operator === ">") {
         if (state.dateColumnIndexes.has(colIndex)) {
-          const rowDate = parseFlexibleDateValue(cellText);
           const compareDate = parseFlexibleDateValue(filter.value);
-          if (rowDate != null && compareDate != null) {
-            matches = filter.operator === "<" ? rowDate < compareDate : rowDate > compareDate;
-          } else {
-            matches = false;
+          if (compareDate == null) {
+            // Incomplete date expression — don't filter until we have at least a year
+            continue;
           }
+          const rowDate = parseFlexibleDateValue(cellText);
+          matches = rowDate != null && (filter.operator === "<" ? rowDate < compareDate : rowDate > compareDate);
         } else {
           matches = normalizedCell.includes(normalizedFilterValue);
         }
+      } else if (filter.operator === "range" && state.dateColumnIndexes.has(colIndex)) {
+        const fromDate = parseFlexibleDateValue(filter.from);
+        const toDate = parseFlexibleDateValue(filter.to + "-12-31");
+        if (fromDate == null || toDate == null) {
+          continue;
+        }
+        const rowDate = parseFlexibleDateValue(cellText);
+        matches = rowDate != null && rowDate >= fromDate && rowDate <= toDate;
       } else {
         matches = normalizedCell.includes(normalizedFilterValue);
       }
@@ -711,9 +732,8 @@ function updateWtPlusSuggestionPickerState($popup) {
     return;
   }
 
-  const currentMode = getCurrentChatMode();
   const inputValue = String($popup.find(`#${CHAT_INPUT_ID}`).val() || "");
-  const shouldShow = currentMode === "wtplus" && isWtPlusSuggestionPrompt(inputValue);
+  const shouldShow = isWtPlusSuggestionPrompt(inputValue);
   $picker.toggle(shouldShow);
 }
 
@@ -824,7 +844,9 @@ function normalizeChatMode(mode) {
   const normalized = String(mode || "")
     .trim()
     .toLowerCase();
-  return ["wt", "wtplus", "ai"].includes(normalized) ? normalized : "wt";
+  // "wtplus" stored from the old three-mode UI maps to "wt" (Search mode).
+  if (normalized === "wtplus") return "wt";
+  return ["wt", "ai"].includes(normalized) ? normalized : "wt";
 }
 
 function applyChatModeToPopup($popup, mode) {
@@ -955,6 +977,7 @@ const {
   getLastStructuredResult: () => lastStructuredResult,
   setLastStructuredResult: (value) => {
     lastStructuredResult = value;
+    updateContextPickerVisibility();
   },
   getLastBioPopupId: () => lastBioPopupId,
   setLastBioPopupState: ({ id, profile }) => {
@@ -1483,6 +1506,15 @@ async function tryHandlePronounFollowup(prompt) {
   return { message: `Opened bio popup for ${entries[0].displayName} and listed others.` };
 }
 
+function updateContextPickerVisibility() {
+  const hasResult = Boolean(lastStructuredResult?.rows?.length);
+  $(`#${CHAT_CONTEXT_CONTROLS_ID}`).toggle(hasResult);
+  if (!hasResult) {
+    const $radio = document.querySelector('input[name="wbe-chat-context"][value="followup"]');
+    if ($radio) $radio.checked = true;
+  }
+}
+
 function setPendingState(isPending) {
   const $input = $(`#${CHAT_INPUT_ID}`);
   const $sendButton = $(`#${CHAT_SEND_ID}`);
@@ -1588,13 +1620,30 @@ function exportResultAsCsv(result) {
 }
 
 function exportResultAsJson(result) {
+  const columnKeys = (result?.columns || []).map((c) => String(c?.key || "").trim()).filter(Boolean);
+  const rows = (result?.rows || []).map((row) => {
+    const obj = {};
+    for (const key of columnKeys) {
+      const val = row?.[key];
+      if (Array.isArray(val)) {
+        if (val.length) obj[key] = val;
+      } else if (val !== "" && val != null) {
+        obj[key] = val;
+      }
+    }
+    // Supplement with lastNameOther if non-empty (not a visible column but useful in JSON export)
+    if (!obj.lastNameOther && row?.lastNameOther) {
+      obj.lastNameOther = row.lastNameOther;
+    }
+    return obj;
+  });
   const payload = {
     title: result?.title || "Chat Results",
     columns: (result?.columns || []).map((column) => ({
       title: String(column?.title || ""),
       key: String(column?.key || ""),
     })),
-    rows: (result?.rows || []).map((row) => ({ ...row })),
+    rows,
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
   downloadBlob(`${sanitizeExportFileBaseName(result?.title)}.json`, blob);
@@ -2274,10 +2323,6 @@ async function handleChatResult(result) {
     return;
   }
 
-  if (result?.switchToMode === "wtplus") {
-    setCurrentChatMode("wtplus");
-  }
-
   const messageText =
     result?.switchToMode === "wtplus" && result?.switchModeChatMessage
       ? `${String(result.switchModeChatMessage).trim()}\n${String(result.message || "").trim()}`.trim()
@@ -2287,6 +2332,7 @@ async function handleChatResult(result) {
 
   if (Object.prototype.hasOwnProperty.call(result, "table")) {
     lastStructuredResult = result.table || null;
+    updateContextPickerVisibility();
     rememberResolvedPeopleFromTable(result.table);
     try {
       const rowCount = Array.isArray(lastStructuredResult?.rows) ? lastStructuredResult.rows.length : 0;
@@ -2454,6 +2500,12 @@ async function sendChatPrompt() {
       rewrittenPrompt: prompt,
       reason: coercedConnectionPrompt.reason,
     });
+  }
+
+  // If the user chose "New search", discard previous result context before routing
+  const newQueryContext = document.querySelector('input[name="wbe-chat-context"]:checked')?.value === "new";
+  if (newQueryContext) {
+    lastStructuredResult = null;
   }
 
   appendMessage("user", normalizedPrompt);
@@ -2831,6 +2883,10 @@ async function sendChatPrompt() {
     } catch (e) {
       /* ignore */
     }
+    // Reset context picker to "Continue" after each send
+    const $contextFollowup = document.querySelector('input[name="wbe-chat-context"][value="followup"]');
+    if ($contextFollowup) $contextFollowup.checked = true;
+    updateContextPickerVisibility();
     $input.focus();
   }
 }
@@ -2890,12 +2946,6 @@ async function executeRoutedIntent(routed, prompt) {
       hasResult: Boolean(profileSearchResult),
       switchToMode: profileSearchResult?.switchToMode,
     });
-    const shouldSwitchToWtPlus =
-      profileSearchResult && typeof profileSearchResult === "object" && profileSearchResult.switchToMode === "wtplus";
-    if (shouldSwitchToWtPlus) {
-      setCurrentChatMode("wtplus");
-    }
-
     const followupFilterText = extractFollowupTableFilterText(prompt);
     const hasStructuredRows = Boolean(lastStructuredResult?.rows?.length);
     const isNoProfileMatchMessage =
@@ -3341,9 +3391,13 @@ function openPopup() {
               <div id="wbe-chat-mode-controls" class="chat-mode-controls" aria-label="Chat mode">
                 <div class="chat-mode-controls-title">Mode</div>
                 <span id="wbe-chat-mode-notice" class="chat-mode-notice" aria-live="polite"></span>
-                <label class="chat-mode-option"><input type="radio" name="wbe-chat-mode" value="wt" checked /><span>WT</span></label>
-                <label class="chat-mode-option"><input type="radio" name="wbe-chat-mode" value="wtplus" /><span>WT+</span></label>
-                <label class="chat-mode-option"><input type="radio" name="wbe-chat-mode" value="ai" /><span>AI</span></label>
+                <label class="chat-mode-option"><input type="radio" name="wbe-chat-mode" value="wt" checked /><span>Search</span></label>
+                <label class="chat-mode-option"><input type="radio" name="wbe-chat-mode" value="ai" /><span>Chat</span></label>
+              </div>
+              <div id="${CHAT_CONTEXT_CONTROLS_ID}" class="chat-mode-controls chat-context-controls" aria-label="Next query context" style="display:none">
+                <div class="chat-mode-controls-title">Next</div>
+                <label class="chat-mode-option"><input type="radio" name="wbe-chat-context" value="followup" checked /><span>Continue</span></label>
+                <label class="chat-mode-option"><input type="radio" name="wbe-chat-context" value="new" /><span>New</span></label>
               </div>
               <div class="chat-send-column">
                 <button id="${CHAT_SEND_ID}" type="button" class="small">Send</button>

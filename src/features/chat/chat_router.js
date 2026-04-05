@@ -1150,6 +1150,85 @@ function normalizeFieldName(value) {
   return RESULT_FIELD_ALIASES[key] || "";
 }
 
+/**
+ * Try to parse a natural-language phrase as a compound AND filter.
+ * Recognises combinations of gender, century, decade, year-range, and WT+ Ncen tokens.
+ * Returns { action:"filter", filters:[...] } with 2+ items, or null.
+ */
+function parseCompoundLastResultFilter(promptText) {
+  let remaining = String(promptText || "")
+    .replace(/^(?:and\s+|only\s+|just\s+|show\s+(?:only\s+)?|filter\s+(?:to\s+|for\s+)?(?:only\s+)?)/i, "")
+    .replace(/\?+$/, "")
+    .trim();
+
+  const filters = [];
+
+  // Gender
+  const genderRx = /\b(females?|women|males?|men)\b/i;
+  const genderM = remaining.match(genderRx);
+  if (genderM) {
+    filters.push({ kind: "gender", value: /female|women/i.test(genderM[1]) ? "Female" : "Male" });
+    remaining = remaining.replace(genderM[0], "").trim().replace(/\s+/g, " ");
+  }
+
+  // Ordinal century: "19th century"
+  const cenRx = /\b(?:born\s+)?(?:in\s+)?(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)\s+century\b/i;
+  const cenM = remaining.match(cenRx);
+  if (cenM) {
+    const n = Number(cenM[1]);
+    if (Number.isFinite(n) && n >= 1 && n <= 22) {
+      filters.push({ kind: "birthYearRange", start: (n - 1) * 100, end: (n - 1) * 100 + 99 });
+      remaining = remaining.replace(cenM[0], "").trim().replace(/\s+/g, " ");
+    }
+  }
+
+  // WT+ NCen token: "19Cen" / "19cen"
+  if (!cenM) {
+    const wtCenM = remaining.match(/\b(\d{1,2})[Cc]en\b/);
+    if (wtCenM) {
+      const n = Number(wtCenM[1]);
+      if (Number.isFinite(n) && n >= 1 && n <= 22) {
+        filters.push({ kind: "birthYearRange", start: (n - 1) * 100, end: (n - 1) * 100 + 99 });
+        remaining = remaining.replace(wtCenM[0], "").trim().replace(/\s+/g, " ");
+      }
+    }
+  }
+
+  // Decade: "1850s"
+  const decadeM = remaining.match(/\b(\d{4})s\b/);
+  if (decadeM && !cenM) {
+    const d = Number(decadeM[1]);
+    if (Number.isFinite(d)) {
+      filters.push({ kind: "birthYearRange", start: d, end: d + 9 });
+      remaining = remaining.replace(decadeM[0], "").trim().replace(/\s+/g, " ");
+    }
+  }
+
+  // Year range: "1800-1900" / "1800 to 1900"
+  if (!cenM && !decadeM) {
+    const rangeM = remaining.match(/\b(?:born\s+)?(?:between\s+)?(\d{4})\s*(?:[-\u2013]|to|and)\s*(\d{4})\b/i);
+    if (rangeM) {
+      filters.push({ kind: "birthYearRange", start: Number(rangeM[1]), end: Number(rangeM[2]) });
+      remaining = remaining.replace(rangeM[0], "").trim().replace(/\s+/g, " ");
+    }
+  }
+
+  // Strip dangling connectors
+  remaining = remaining
+    .replace(/^(?:and|,)\s*/i, "")
+    .replace(/\s*(?:and|,)$/i, "")
+    .trim();
+
+  if (filters.length >= 2 && !remaining) {
+    return { action: "filter", filters };
+  }
+  // Single filter from compound parse (e.g. only a century token with no other qualifiers)
+  if (filters.length === 1 && !remaining) {
+    return { action: "filter", filter: filters[0] };
+  }
+  return null;
+}
+
 function parseLastResultPrompt(prompt, options = {}) {
   const allowConversationalFollowups = Boolean(options?.allowConversationalFollowups);
   const normalizedPrompt = String(prompt || "").trim();
@@ -1159,6 +1238,13 @@ function parseLastResultPrompt(prompt, options = {}) {
   const promptForMatch = connectiveNormalizedPrompt || normalizedPrompt;
   if (!normalizedPrompt) {
     return null;
+  }
+
+  // Try compound filter parse first (e.g. "19th century female", "male 1800-1900").
+  // This runs before any individual-pattern checks so combinations are handled in one step.
+  const compoundFilter = parseCompoundLastResultFilter(promptForMatch);
+  if (compoundFilter) {
+    return compoundFilter;
   }
 
   if (allowConversationalFollowups) {
@@ -1256,25 +1342,43 @@ function parseLastResultPrompt(prompt, options = {}) {
     /^(?:show|list|keep|filter(?:\s+(?:to|for))?)\s+(?:only\s+)?(?:people\s+)?born\s+in\s+(.+?)\??$/i
   );
   if (bornInMatch?.[1]) {
-    return {
-      action: "filter",
-      filter: {
-        kind: "birthLocation",
-        value: bornInMatch[1].trim(),
-      },
-    };
+    const bornInValue = bornInMatch[1].trim();
+    const exactYearBorn = bornInValue.match(/^(\d{4})$/);
+    const decadeBorn = bornInValue.match(/^(\d{3}0)s$/);
+    if (exactYearBorn) {
+      return {
+        action: "filter",
+        filter: { kind: "birthYearRange", start: Number(exactYearBorn[1]), end: Number(exactYearBorn[1]) },
+      };
+    }
+    if (decadeBorn) {
+      return {
+        action: "filter",
+        filter: { kind: "birthYearRange", start: Number(decadeBorn[1]), end: Number(decadeBorn[1]) + 9 },
+      };
+    }
+    return { action: "filter", filter: { kind: "birthLocation", value: bornInValue } };
   }
 
   if (allowConversationalFollowups) {
     const followupBornInMatch = promptForMatch.match(/^(?:only\s+)?(?:those|them|people)?\s*born\s+in\s+(.+?)\??$/i);
     if (followupBornInMatch?.[1]) {
-      return {
-        action: "filter",
-        filter: {
-          kind: "birthLocation",
-          value: followupBornInMatch[1].trim(),
-        },
-      };
+      const bornVal = followupBornInMatch[1].trim();
+      const exactYear = bornVal.match(/^(\d{4})$/);
+      const decadeVal = bornVal.match(/^(\d{3}0)s$/);
+      if (exactYear) {
+        return {
+          action: "filter",
+          filter: { kind: "birthYearRange", start: Number(exactYear[1]), end: Number(exactYear[1]) },
+        };
+      }
+      if (decadeVal) {
+        return {
+          action: "filter",
+          filter: { kind: "birthYearRange", start: Number(decadeVal[1]), end: Number(decadeVal[1]) + 9 },
+        };
+      }
+      return { action: "filter", filter: { kind: "birthLocation", value: bornVal } };
     }
   }
 
@@ -1290,6 +1394,53 @@ function parseLastResultPrompt(prompt, options = {}) {
         value: bornBeforeAfterMatch[2].trim(),
       },
     };
+  }
+
+  // "born in the 19th century" / "19th century" / "the 19th century" / "in the 19th century"
+  const centuryMatch = promptForMatch.match(
+    /^(?:(?:show|list|keep|filter(?:\s+(?:to|for))?)\s+(?:only\s+)?(?:people\s+)?)?(?:born\s+)?(?:in\s+)?(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)\s+century\??$/i
+  );
+  if (centuryMatch?.[1]) {
+    const n = Number(centuryMatch[1]);
+    if (Number.isFinite(n) && n >= 1 && n <= 22) {
+      return { action: "filter", filter: { kind: "birthYearRange", start: (n - 1) * 100, end: (n - 1) * 100 + 99 } };
+    }
+  }
+
+  // "1800-1900" / "1800 to 1900" / "born 1800-1900" / "born between 1800 and 1900"
+  const yearRangeMatch = promptForMatch.match(
+    /^(?:(?:show|list|keep|filter(?:\s+(?:to|for))?)\s+(?:only\s+)?(?:people\s+)?)?(?:born\s+)?(?:between\s+)?(\d{4})\s*(?:[-\u2013]|to|and)\s*(\d{4})\??$/i
+  );
+  if (yearRangeMatch?.[1] && yearRangeMatch?.[2]) {
+    return {
+      action: "filter",
+      filter: { kind: "birthYearRange", start: Number(yearRangeMatch[1]), end: Number(yearRangeMatch[2]) },
+    };
+  }
+
+  if (allowConversationalFollowups) {
+    // "the 19th century?" / "19th century?"
+    const followupCenturyMatch = promptForMatch.match(/^(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)\s+century\??$/i);
+    if (followupCenturyMatch?.[1]) {
+      const n = Number(followupCenturyMatch[1]);
+      if (Number.isFinite(n) && n >= 1 && n <= 22) {
+        return { action: "filter", filter: { kind: "birthYearRange", start: (n - 1) * 100, end: (n - 1) * 100 + 99 } };
+      }
+    }
+    // "1800-1900" / "born between 1800 and 1900" conversational
+    const followupYearRangeMatch = promptForMatch.match(
+      /^(?:born\s+)?(?:between\s+)?(\d{4})\s*(?:[-\u2013]|to|and)\s*(\d{4})\??$/i
+    );
+    if (followupYearRangeMatch?.[1] && followupYearRangeMatch?.[2]) {
+      return {
+        action: "filter",
+        filter: {
+          kind: "birthYearRange",
+          start: Number(followupYearRangeMatch[1]),
+          end: Number(followupYearRangeMatch[2]),
+        },
+      };
+    }
   }
 
   const diedInMatch = promptForMatch.match(
@@ -1351,14 +1502,22 @@ function parseLastResultPrompt(prompt, options = {}) {
   if (allowConversationalFollowups) {
     const followupInMatch = promptForMatch.match(/^(?:only\s+)?(?:those|them|people)?\s*in\s+(.+?)\??$/i);
     if (followupInMatch?.[1]) {
-      return {
-        action: "filter",
-        filter: {
-          // Keep this broad so city/place refinements match across name/location columns.
-          kind: "text",
-          value: followupInMatch[1].trim(),
-        },
-      };
+      const inVal = followupInMatch[1].trim();
+      const exactYearIn = inVal.match(/^(\d{4})$/);
+      const decadeIn = inVal.match(/^(\d{3}0)s$/);
+      if (exactYearIn) {
+        return {
+          action: "filter",
+          filter: { kind: "birthYearRange", start: Number(exactYearIn[1]), end: Number(exactYearIn[1]) },
+        };
+      }
+      if (decadeIn) {
+        return {
+          action: "filter",
+          filter: { kind: "birthYearRange", start: Number(decadeIn[1]), end: Number(decadeIn[1]) + 9 },
+        };
+      }
+      return { action: "filter", filter: { kind: "text", value: inVal } };
     }
   }
 
