@@ -20,6 +20,18 @@ let profilePerson;
 let profileID;
 let options = {};
 
+// For testing: set testAs to a WT ID (e.g. "Geer-1686") to view pages as that person. Set to null to use the real logged-in user.
+const testAs = null;
+function getEffectiveUserId() {
+  return testAs || getUserWtId();
+}
+
+// When true, manual click refreshes use the legacy getConnectionJSON/getRelationJSON endpoints
+// instead of the WikiTreeAPI.getConnections path, and the result is stored with source:"legacy"
+// so it is never silently overwritten by a stale API result.
+// Set to false once the WikiTree getConnections path-computation bug is fixed.
+const PREFER_LEGACY_ON_MANUAL_REFRESH = true;
+
 export function initDistanceDB(onDistanceSuccess) {
   initDb(CONNECTION_DB_NAME, CONNECTION_DB_VERSION, CONNECTION_STORE_NAME, "distance", onDistanceSuccess);
 }
@@ -124,7 +136,7 @@ shouldInitializeFeature("distanceAndRelationship").then(async (result) => {
     return;
   }
 
-  const userID = getUserWtId();
+  const userID = getEffectiveUserId();
 
   if (result && isProfilePage && profileID != userID && profileID != "") {
     import("./distanceAndRelationship.css");
@@ -281,7 +293,7 @@ function addRelationshipText(oText, commonAncestors) {
   }
   $(".yourRelationshipText").on("click", function (e) {
     e.stopPropagation();
-    let id1 = getUserWtId();
+    let id1 = getEffectiveUserId();
     let id2 = profilePerson.Name;
     initDistanceAndRelationship(id1, id2, true);
   });
@@ -964,6 +976,9 @@ async function augmentWithOtherParentCommonAncestor(userID, profileID, data, pat
 }
 
 function isCacheRefreshDue(cacheRecord) {
+  // Never silently overwrite a result that was obtained via the legacy endpoint;
+  // the user explicitly chose that result with a manual refresh.
+  if (cacheRecord?.source === "legacy") return false;
   const updatedAt = Number(cacheRecord?.updatedAt || 0);
   if (!Number.isFinite(updatedAt) || updatedAt <= 0) {
     return true;
@@ -995,13 +1010,19 @@ function attachDistanceHandlers(userID, profileID) {
     });
 }
 
-function doRelationshipText(userID, profileID) {
-  WikiTreeAPI.getConnections(
-    WBE_DIST_REL_APP_ID,
-    [userID, profileID],
-    "Id,Name,Gender,FirstName,LastNameCurrent,LastNameAtBirth,BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,DataStatus",
-    { relation: 2 }
-  )
+function doRelationshipText(userID, profileID, source = "api") {
+  // When source is "legacy", skip the getConnections API entirely and let the
+  // legacy getRelationJSON fallback handle the full response.
+  const connectionPromise =
+    source === "legacy"
+      ? Promise.resolve(null)
+      : WikiTreeAPI.getConnections(
+          WBE_DIST_REL_APP_ID,
+          [userID, profileID],
+          "Id,Name,Gender,FirstName,LastNameCurrent,LastNameAtBirth,BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,DataStatus",
+          { relation: 2 }
+        );
+  connectionPromise
     .then(async function (data) {
       console.log("[WBE dist-rel] getConnections (relation=2) response:", data);
       try {
@@ -1109,7 +1130,7 @@ function doRelationshipText(userID, profileID) {
                   const userColloq = normalizeForMatch(
                     document.getElementById("userData")?.dataset?.mcolloquialname || ""
                   );
-                  const userWtId = normalizeForMatch(getUserWtId() || "");
+                  const userWtId = normalizeForMatch(getEffectiveUserId() || "");
                   const profileVariants = nameVariantsForProfile(profilePerson, profileID);
 
                   const partMatchesUser = (part) =>
@@ -1158,7 +1179,7 @@ function doRelationshipText(userID, profileID) {
                   const userColloq = normalizeForMatch(
                     document.getElementById("userData")?.dataset?.mcolloquialname || ""
                   );
-                  const userWtId = normalizeForMatch(getUserWtId() || "");
+                  const userWtId = normalizeForMatch(getEffectiveUserId() || "");
                   const profileVariants = nameVariantsForProfile(profilePerson, profileID);
                   const subjectIsProfile = phraseMatchesAnyVariant(makesSubject, profileVariants);
                   const objectIsProfile = phraseMatchesAnyVariant(makesObject, profileVariants);
@@ -1251,7 +1272,7 @@ function doRelationshipText(userID, profileID) {
               // points to the current user, then the profile relationship should be
               // daughter/son/child from the viewer's perspective.
               try {
-                const userWtId = String(getUserWtId() || "").toLowerCase();
+                const userWtId = String(getEffectiveUserId() || "").toLowerCase();
                 const userColloq = String(document.getElementById("userData")?.dataset?.mcolloquialname || "")
                   .trim()
                   .toLowerCase();
@@ -1289,7 +1310,7 @@ function doRelationshipText(userID, profileID) {
               // "[Private] is the daughter of <a href='/wiki/Person-123'>Test Person</a>"
               // If that linked WTID is the logged-in user, relation is taken from that phrase.
               try {
-                const userWtId = String(getUserWtId() || "").toLowerCase();
+                const userWtId = String(getEffectiveUserId() || "").toLowerCase();
                 const userColloq = String(document.getElementById("userData")?.dataset?.mcolloquialname || "")
                   .trim()
                   .toLowerCase();
@@ -1442,6 +1463,7 @@ function doRelationshipText(userID, profileID) {
           distance: window.distance,
           relationship: relationshipText,
           commonAncestors: cleanCommonAncestors(commonAncestors),
+          source,
           updatedAt: Date.now(),
         };
         addToDBAndClose(relationshipFinderDB, RELATIONSHIP_STORE_NAME, obj);
@@ -1457,9 +1479,9 @@ const reducePathLength = (len) => {
   return len;
 };
 
-async function addDistance(data) {
+async function addDistance(data, source = "api") {
   const profileID = profilePerson.Name;
-  const userID = getUserWtId();
+  const userID = getEffectiveUserId();
 
   const pathLength = Number(data?.pathLength);
   if (Number.isFinite(pathLength) && pathLength > 0) {
@@ -1501,6 +1523,7 @@ async function addDistance(data) {
       userId: userID,
       id: profileID,
       distance: window.distance,
+      source,
       updatedAt: Date.now(),
     };
     addToDBAndClose(connectionFinderDB, CONNECTION_STORE_NAME, obj);
@@ -1514,6 +1537,7 @@ async function addDistance(data) {
       userId: userID,
       id: profileID,
       distance: window.distance,
+      source,
       updatedAt: Date.now(),
     };
     addToDBAndClose(relationshipFinderDB, RELATIONSHIP_STORE_NAME, obj);
@@ -1568,9 +1592,9 @@ function checkProfileCreationTime(wtId) {
   return false; // Profile was not created within the last 30 minutes
 }
 
-async function getDistance() {
+async function getDistance(source = "api") {
   const id2 = profileID;
-  const id1 = getUserWtId();
+  const id1 = getEffectiveUserId();
 
   const hasUsablePath = (result) => {
     const pathLength = Number(result?.pathLength);
@@ -1578,11 +1602,13 @@ async function getDistance() {
   };
 
   let data;
-  try {
-    data = await WikiTreeAPI.getConnections(WBE_DIST_REL_APP_ID, [id1, id2], "Id,Name,Gender", { relation: 0 });
-    console.log("[WBE dist-rel] getConnections (relation=0) response:", data);
-  } catch (error) {
-    console.log("[WBE dist-rel] getConnections (relation=0) error; trying legacy getConnectionJSON", error);
+  if (source !== "legacy") {
+    try {
+      data = await WikiTreeAPI.getConnections(WBE_DIST_REL_APP_ID, [id1, id2], "Id,Name,Gender", { relation: 0 });
+      console.log("[WBE dist-rel] getConnections (relation=0) response:", data);
+    } catch (error) {
+      console.log("[WBE dist-rel] getConnections (relation=0) error; trying legacy getConnectionJSON", error);
+    }
   }
 
   if (!hasUsablePath(data)) {
@@ -1597,7 +1623,7 @@ async function getDistance() {
     }
   }
 
-  addDistance(data || {});
+  addDistance(data || {}, source);
 }
 
 export function ordinal(i) {
@@ -1714,8 +1740,9 @@ function initDistanceAndRelationship(userID, profileID, clicked = false, clearEx
     $(".yourRelationshipText").fadeOut().remove();
   }
   if (clicked == true) {
-    getDistance();
-    doRelationshipText(userID, profileID);
+    const source = PREFER_LEGACY_ON_MANUAL_REFRESH ? "legacy" : "api";
+    getDistance(source);
+    doRelationshipText(userID, profileID, source);
   } else {
     WikiTreeAPI.getProfile(WBE_DIST_REL_APP_ID, profileID, "Privacy,Connected")
       .then(([person]) => {
