@@ -1,3 +1,76 @@
+/* Connections diagram view */
+.conn-diag-scroll {
+  overflow: auto;
+  max-height: calc(100vh - 180px);
+  padding: 4px;
+}
+.conn-diag-canvas {
+  position: relative;
+}
+.conn-diag-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.conn-diag-card {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 3px solid #ccc;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  font-size: 0.78em;
+  line-height: 1.3;
+  box-sizing: border-box;
+}
+.conn-diag-avatar {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1em;
+  color: #444;
+  align-self: flex-start;
+  margin-top: 2px;
+  overflow: hidden;
+}
+.conn-diag-avatar--photo {
+  display: block;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+.conn-diag-body {
+  min-width: 0;
+}
+.conn-diag-name {
+  font-weight: 600;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.conn-diag-years {
+  color: #555;
+  white-space: nowrap;
+}
+.conn-diag-rel {
+  color: #777;
+  font-style: italic;
+  white-space: nowrap;
+}
+
 /* Connections table column spacing */
 /* Connections table cell spacing and border */
 .connections-table td,
@@ -14,6 +87,35 @@
 /* Ensure connections table fills popup width when used inside chat popups */
 .connections-table {
   width: 100%;
+}
+
+/* Step number column */
+.connections-step-cell {
+  text-align: center;
+  font-weight: bold;
+  white-space: nowrap;
+  min-width: 1.8em;
+}
+
+/* Colour key below connections table */
+.connections-colour-key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 4px 4px;
+  font-size: 0.82em;
+}
+.connections-colour-key-label {
+  font-weight: bold;
+  margin-right: 2px;
+}
+.connections-colour-key-swatch {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+  white-space: nowrap;
 }
 
 /* Gender colouring for connections table (match chat-results styles) */

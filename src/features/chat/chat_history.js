@@ -534,7 +534,7 @@ export function createChatHistoryHandlers({
     const $item = $("<div>").addClass(`chat-message chat-message-${role} chat-message--new`);
     const $label = $("<div>")
       .addClass("chat-message-label")
-      .text(role === "user" ? "You" : "Chat");
+      .text(role === "user" ? "You" : "Muse");
     const $body = $("<div>").addClass("chat-message-body").html(formatChatMessageBody(messageText, inlineMore));
 
     $body.on("click", (event) => {

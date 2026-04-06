@@ -1,5 +1,5 @@
 import $ from "jquery";
-import { formatDate, getRelationColour, getYearColour } from "../../core/formatting";
+import { formatDate, getRelationColour, getYearColour, familyColours } from "../../core/formatting";
 import { escapeHtml } from "../../core/lib/diff_utils";
 import { setHighestZIndex } from "../../core/common";
 import { PersonName } from "../auto_bio/person_name";
@@ -119,6 +119,222 @@ export function positionPopupForOpen(popup) {
 }
 
 /**
+ * Return a directional arrow prefix for a pathType string.
+ * Used by both the table and diagram views.
+ */
+function getConnectionDirectionArrow(pathType) {
+  const rel = String(pathType || "")
+    .trim()
+    .toLowerCase();
+  if (rel.includes("parent") || rel.includes("father") || rel.includes("mother")) return "↑ ";
+  if (rel.includes("child") || rel.includes("son") || rel.includes("daughter")) return "↓ ";
+  if (
+    rel.includes("sibling") ||
+    rel.includes("brother") ||
+    rel.includes("sister") ||
+    rel.includes("spouse") ||
+    rel.includes("husband") ||
+    rel.includes("wife")
+  )
+    return "↔ ";
+  return "";
+}
+
+/**
+ * Build the HTML for the card-based diagram view of a connection path.
+ *
+ * Layout: Y-axis = generation level (parents above, children below, same row
+ * for spouses/siblings). X-axis = column within each generation level, assigned
+ * in order of first appearance. Each step has a unique (col, genRow) cell so
+ * cards never overlap. Bezier SVG connectors link consecutive steps.
+ *
+ * @param {Array}  path      – the path array from the connections result
+ * @param {Array}  stepMeta  – parallel array of { step, branchIndex, branchColour }
+ */
+function buildConnectionsDiagramHtml(path, stepMeta) {
+  const CARD_W = 180;
+  const CARD_H = 112;
+  const H_GAP = 36; // gap between columns
+  const V_GAP = 40; // gap between generation rows
+  const PAD = 20;
+  const COL_STEP = CARD_W + H_GAP;
+  const ROW_STEP = CARD_H + V_GAP;
+
+  // 1. Compute generation level for each step.
+  //    parent → go up (gen - 1), child → go down (gen + 1), else same.
+  const gens = [0];
+  for (let i = 1; i < path.length; i++) {
+    const rel = normalizeText(path[i].pathType || "");
+    if (rel.includes("parent") || rel.includes("father") || rel.includes("mother")) {
+      gens.push(gens[i - 1] - 1);
+    } else if (rel.includes("child") || rel.includes("son") || rel.includes("daughter")) {
+      gens.push(gens[i - 1] + 1);
+    } else {
+      gens.push(gens[i - 1]);
+    }
+  }
+
+  // 2. Assign column: parent/child steps inherit the previous card's column so
+  //    the connector goes straight up or down. Sibling/spouse steps advance to
+  //    the next unused column rightward. If inheriting would collide with an
+  //    already-placed card, fall back to a new column.
+  const usedCells = new Set(); // "gen,col"
+  let maxCol = 0;
+  const cols = [];
+  for (let i = 0; i < path.length; i++) {
+    let col;
+    if (i === 0) {
+      col = 0;
+    } else {
+      const rel = normalizeText(path[i].pathType || "");
+      const isVertical =
+        rel.includes("parent") ||
+        rel.includes("father") ||
+        rel.includes("mother") ||
+        rel.includes("child") ||
+        rel.includes("son") ||
+        rel.includes("daughter");
+      if (isVertical) {
+        const preferred = cols[i - 1];
+        col = usedCells.has(`${gens[i]},${preferred}`) ? maxCol + 1 : preferred;
+      } else {
+        col = maxCol + 1;
+      }
+    }
+    cols.push(col);
+    usedCells.add(`${gens[i]},${col}`);
+    if (col > maxCol) maxCol = col;
+  }
+
+  // 3. Map generation levels → visual row indices (sorted ascending so
+  //    lower gen numbers = higher on screen = earlier ancestors).
+  const uniqueGens = [...new Set(gens)].sort((a, b) => a - b);
+  const genToRow = new Map(uniqueGens.map((g, idx) => [g, idx]));
+  const maxRow = uniqueGens.length - 1;
+  const totalW = PAD * 2 + (maxCol + 1) * COL_STEP - H_GAP;
+  const totalH = PAD * 2 + (maxRow + 1) * ROW_STEP - V_GAP;
+
+  // 4. Pixel rectangles for each card.
+  const pos = path.map((_, i) => {
+    const left = PAD + cols[i] * COL_STEP;
+    const top = PAD + genToRow.get(gens[i]) * ROW_STEP;
+    return {
+      left,
+      top,
+      right: left + CARD_W,
+      bottom: top + CARD_H,
+      cx: left + CARD_W / 2,
+      cy: top + CARD_H / 2,
+    };
+  });
+
+  // 5. SVG bezier connectors between consecutive steps.
+  let svgPaths = "";
+  for (let i = 1; i < path.length; i++) {
+    const a = pos[i - 1];
+    const b = pos[i];
+    const aRow = genToRow.get(gens[i - 1]);
+    const bRow = genToRow.get(gens[i]);
+    const sameRow = aRow === bRow;
+    let x1, y1, x2, y2, cpx1, cpy1, cpx2, cpy2;
+    if (sameRow) {
+      // Horizontal connector: right → left
+      x1 = a.right;
+      y1 = a.cy;
+      x2 = b.left;
+      y2 = b.cy;
+      const mx = (x1 + x2) / 2;
+      cpx1 = mx;
+      cpy1 = y1;
+      cpx2 = mx;
+      cpy2 = y2;
+    } else if (bRow < aRow) {
+      // Going UP (parent): top of a → bottom of b
+      x1 = a.cx;
+      y1 = a.top;
+      x2 = b.cx;
+      y2 = b.bottom;
+      const my = (y1 + y2) / 2;
+      cpx1 = x1;
+      cpy1 = my;
+      cpx2 = x2;
+      cpy2 = my;
+    } else {
+      // Going DOWN (child): bottom of a → top of b
+      x1 = a.cx;
+      y1 = a.bottom;
+      x2 = b.cx;
+      y2 = b.top;
+      const my = (y1 + y2) / 2;
+      cpx1 = x1;
+      cpy1 = my;
+      cpx2 = x2;
+      cpy2 = my;
+    }
+    svgPaths += `<path d="M${x1},${y1} C${cpx1},${cpy1} ${cpx2},${cpy2} ${x2},${y2}" stroke="#999" stroke-width="1.5" fill="none" marker-end="url(#conn-arr)"/>`;
+  }
+
+  // 6. Person cards.
+  let cardsHtml = "";
+  path.forEach((person, i) => {
+    const { branchColour } = stepMeta[i];
+    const p = pos[i];
+    const name = formatConnectionPersonName(person);
+    const initial = String(name[0] || "?").toUpperCase();
+    const byRaw = (person.BirthDate || "").split("-")[0];
+    const dyRaw = (person.DeathDate || "").split("-")[0];
+    const by = byRaw && byRaw !== "0000" ? byRaw : "?";
+    const dy = dyRaw && dyRaw !== "0000" ? dyRaw : "?";
+    const rel = i === 0 ? "" : person.pathType || "";
+    const arrow = i === 0 ? "" : getConnectionDirectionArrow(rel);
+    const gender = normalizeText(person.Gender || "");
+    const avatarBg = gender === "male" ? "#c8d8f0" : gender === "female" ? "#f5d0d4" : "#c8e6c9";
+    const birthLoc = person.BirthLocation ? `Born: ${person.BirthLocation}` : "";
+    const deathLoc = person.DeathLocation ? `Died: ${person.DeathLocation}` : "";
+    const tooltip = [name, birthLoc, deathLoc].filter(Boolean).join(" · ");
+
+    // Profile photo: Photo field gives a path like "photos/a/ab/Name-1/img.jpg".
+    // Fall back to the initials avatar if no photo or image fails to load.
+    const photoUrl =
+      person.Photo && person.PhotoData?.url && !person.PhotoData.url.match(".pdf")
+        ? `https://wikitree.com${person.PhotoData.url}`
+        : null;
+    const avatarHtml = photoUrl
+      ? `<img class="conn-diag-avatar conn-diag-avatar--photo" src="${escapeHtml(photoUrl)}" alt="${escapeHtml(
+          initial
+        )}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+         <div class="conn-diag-avatar" style="background:${avatarBg};display:none">${escapeHtml(initial)}</div>`
+      : `<div class="conn-diag-avatar" style="background:${avatarBg}">${escapeHtml(initial)}</div>`;
+
+    cardsHtml += `<div class="conn-diag-card" title="${escapeHtml(tooltip)}"
+      style="left:${p.left}px;top:${p.top}px;width:${CARD_W}px;min-height:${CARD_H}px;border-color:${branchColour}">
+      ${avatarHtml}
+      <div class="conn-diag-body">
+        <div class="conn-diag-name"><a href="https://www.wikitree.com/wiki/${escapeHtml(
+          person.Name || ""
+        )}" target="_blank" rel="noopener">${escapeHtml(name)}</a></div>
+        <div class="conn-diag-years">${escapeHtml(by)} – ${escapeHtml(dy)}</div>
+        ${rel ? `<div class="conn-diag-rel">${arrow}${escapeHtml(rel)}</div>` : ""}
+      </div>
+    </div>`;
+  });
+
+  return `<div class="conn-diag-scroll">
+    <div class="conn-diag-canvas" style="width:${totalW}px;height:${totalH}px;">
+      <svg class="conn-diag-svg" width="${totalW}" height="${totalH}">
+        <defs>
+          <marker id="conn-arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#999"/>
+          </marker>
+        </defs>
+        ${svgPaths}
+      </svg>
+      ${cardsHtml}
+    </div>
+  </div>`;
+}
+
+/**
  * Show a connections popup for a getConnections-style result.
  * This function is UI-only and does not mutate external module state.
  */
@@ -127,6 +343,31 @@ export function showConnectionsPopup(connectionsResult) {
   const conn = connectionsResult[0];
   const path = conn.path || [];
 
+  // Pre-compute branch index and colour for every step.
+  // A new branch starts each time a spouse step is encountered.
+  let branchIndex = 0;
+  const stepMeta = path.map((person, i) => {
+    if (i > 0) {
+      const rel = normalizeText(person.pathType || "");
+      if (rel === "spouse") {
+        branchIndex = (branchIndex + 1) % familyColours.length;
+      }
+    }
+    return { step: i, branchIndex, branchColour: familyColours[branchIndex] };
+  });
+
+  // Collect unique branches actually used (in order of first appearance).
+  const usedBranches = [];
+  stepMeta.forEach(({ branchIndex: bi, branchColour }) => {
+    if (!usedBranches.some((b) => b.index === bi)) {
+      usedBranches.push({ index: bi, colour: branchColour });
+    }
+  });
+
+  function getDirectionArrow(pathType) {
+    return getConnectionDirectionArrow(pathType);
+  }
+
   // Remove any existing popup before showing a new one
   $("#wbe-connections-popup").remove();
 
@@ -134,59 +375,120 @@ export function showConnectionsPopup(connectionsResult) {
   popup.className = "wbe-popup chat-popup ui-draggable chat-connections-popup";
   popup.id = "wbe-connections-popup";
   popup.style.display = "block";
+
+  const rowsHtml = path
+    .map((person, i) => {
+      const { step, branchColour } = stepMeta[i];
+      const name = formatConnectionPersonName(person);
+      const relation = person.pathType || "";
+      const arrow = getDirectionArrow(relation);
+      const birthDate = formatDate(person.BirthDate);
+      const birthLoc = person.BirthLocation || "";
+      const deathDate = formatDate(person.DeathDate);
+      const deathLoc = person.DeathLocation || "";
+      const normalizedGender = normalizeText(person.Gender);
+      let rowClass = "background--gender-no-gender";
+      if (normalizedGender === "male") rowClass = "background--gender-male";
+      else if (normalizedGender === "female") rowClass = "background--gender-female";
+      const stepCell =
+        step === 0
+          ? `<td class="connections-step-cell"></td>`
+          : `<td class="connections-step-cell" style="background:${branchColour}">${step}</td>`;
+      return `
+        <tr class="${rowClass}">
+          ${stepCell}
+          <td class="name-cell"><a href="https://www.wikitree.com/wiki/${person.Name}" target="_blank">${escapeHtml(
+        name
+      )}</a></td>
+          <td style="background:${getRelationColour(relation)}">${arrow}${escapeHtml(relation)}</td>
+          <td style="background:${getYearColour(person.BirthDate)}">${escapeHtml(birthDate)}</td>
+          <td class="birth-location-cell">${escapeHtml(birthLoc)}</td>
+          <td style="background:${getYearColour(person.DeathDate)}">${escapeHtml(deathDate)}</td>
+          <td class="death-location-cell">${escapeHtml(deathLoc)}</td>
+        </tr>`;
+    })
+    .join("");
+
+  const keyHtml =
+    usedBranches.length > 1
+      ? `<div class="connections-colour-key">
+          <span class="connections-colour-key-label">Branch colours:</span>
+          ${usedBranches
+            .map(
+              ({ index, colour }) =>
+                `<span class="connections-colour-key-swatch" style="background:${colour}">Branch ${index + 1}</span>`
+            )
+            .join("")}
+        </div>`
+      : "";
+
+  // Year colour key — 50-year buckets starting 1800 (matches getYearColour).
+  const yearKeyRanges = [
+    { label: "Before 1850", colour: getYearColour("1800-01-01") },
+    { label: "1850–1899", colour: getYearColour("1850-01-01") },
+    { label: "1900–1949", colour: getYearColour("1900-01-01") },
+    { label: "1950–1999", colour: getYearColour("1950-01-01") },
+    { label: "2000+", colour: getYearColour("2000-01-01") },
+  ];
+  const yearKeyHtml = `<div class="connections-colour-key">
+    <span class="connections-colour-key-label">Date colours (50-year groups):</span>
+    ${yearKeyRanges
+      .map(
+        ({ label, colour }) =>
+          `<span class="connections-colour-key-swatch" style="background:${colour}">${label}</span>`
+      )
+      .join("")}
+  </div>`;
+
+  const diagramHtml = buildConnectionsDiagramHtml(path, stepMeta);
+
   popup.innerHTML = `
     <div class="chat-popup-header ui-draggable-handle">
       <strong>Connections Path</strong>
       <div class="chat-popup-controls">
+        <button type="button" class="small" id="wbe-conn-view-toggle" title="Switch to diagram view">Diagram</button>
         <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
       </div>
     </div>
     <div class="chat-popup-body">
-      <table class="connections-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Relation</th>
-            <th>Birth Date</th>
-            <th>Birth Location</th>
-            <th>Death Date</th>
-            <th>Death Location</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${path
-            .map((person) => {
-              const name = formatConnectionPersonName(person);
-              const relation = person.pathType || "";
-              const birthDate = formatDate(person.BirthDate);
-              const birthLoc = person.BirthLocation || "";
-              const deathDate = formatDate(person.DeathDate);
-              const deathLoc = person.DeathLocation || "";
-              const normalizedGender = normalizeText(person.Gender);
-              let rowClass = "background--gender-no-gender";
-              if (normalizedGender === "male") rowClass = "background--gender-male";
-              else if (normalizedGender === "female") rowClass = "background--gender-female";
-              return `
-                <tr class="${rowClass}">
-                  <td><a href="https://www.wikitree.com/wiki/${person.Name}" target="_blank">${escapeHtml(
-                name
-              )}</a></td>
-                  <td style="background:${getRelationColour(relation)}">${escapeHtml(relation)}</td>
-                  <td style="background:${getYearColour(person.BirthDate)}">${escapeHtml(birthDate)}</td>
-                  <td>${escapeHtml(birthLoc)}</td>
-                  <td style="background:${getYearColour(person.DeathDate)}">${escapeHtml(deathDate)}</td>
-                  <td>${escapeHtml(deathLoc)}</td>
-                </tr>`;
-            })
-            .join("")}
-        </tbody>
-      </table>
+      <div id="wbe-conn-table-view">
+        <table class="connections-table">
+          <thead>
+            <tr>
+              <th class="connections-step-cell">#</th>
+              <th>Name</th>
+              <th>Relation</th>
+              <th>Birth Date</th>
+              <th>Birth Location</th>
+              <th>Death Date</th>
+              <th>Death Location</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+        ${keyHtml}
+        ${yearKeyHtml}
+      </div>
+      <div id="wbe-conn-diagram-view" style="display:none">
+        ${diagramHtml}
+        ${keyHtml}
+      </div>
     </div>
   `;
 
   document.body.appendChild(popup);
   setPopupPositionAndSize(popup, Math.round((window.innerWidth - popup.getBoundingClientRect().width) / 2), 110);
   popup.querySelector(".close-popup")?.addEventListener("click", () => popup.remove());
+  popup.querySelector("#wbe-conn-view-toggle")?.addEventListener("click", () => {
+    const tableView = popup.querySelector("#wbe-conn-table-view");
+    const diagramView = popup.querySelector("#wbe-conn-diagram-view");
+    const btn = popup.querySelector("#wbe-conn-view-toggle");
+    const isDiagramVisible = diagramView.style.display !== "none";
+    tableView.style.display = isDiagramVisible ? "" : "none";
+    diagramView.style.display = isDiagramVisible ? "none" : "";
+    btn.textContent = isDiagramVisible ? "Diagram" : "Table";
+    btn.title = isDiagramVisible ? "Switch to diagram view" : "Switch to table view";
+  });
   setHighestZIndex(popup);
   $(popup).draggable({
     handle: ".chat-popup-header",

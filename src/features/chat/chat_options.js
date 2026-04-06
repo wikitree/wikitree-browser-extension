@@ -7,15 +7,33 @@ import { isMainDomain } from "../../core/pageType";
 import aiModels from "../auto_bio/ai_models.json";
 
 registerFeature({
-  name: "Chat",
+  name: "Muse",
   id: "chat",
-  description: "AI-assisted chat for WikiTree and WikiTree+ queries.",
+  description:
+    "Muse gives you two ways to explore WikiTree. Search mode lets you use simple keywords and filters to find profiles and run WikiTree+ queries. Chat mode connects to your preferred AI to answer questions about the profile you're viewing, WikiTree in general, or anything else.",
   category: "Global",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
   pages: [isMainDomain],
   options: [
+    {
+      id: "defaultModeGroup",
+      type: OptionType.GROUP,
+      label: "Default Mode",
+      options: [
+        {
+          id: "defaultMode",
+          type: OptionType.SELECT,
+          label: "Start in",
+          values: [
+            { value: "wt", text: "Search — find profiles with keywords and filters" },
+            { value: "ai", text: "Chat — ask your AI about this page or WikiTree" },
+          ],
+          defaultValue: "wt",
+        },
+      ],
+    },
     {
       id: "aiGroup",
       type: OptionType.GROUP,

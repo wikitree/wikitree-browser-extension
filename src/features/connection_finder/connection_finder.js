@@ -10,6 +10,7 @@ import { timeline } from "../familyTimeline/familyTimeline.js";
 import { addWideTableButton } from "../my_connections/my_connections.js";
 import { ymdFix, showFamilySheet, displayName } from "../familyGroup/familyGroup";
 import { showCopyMessage } from "../access_keys/access_keys.js";
+import { familyColours } from "../../core/formatting";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { mainDomain, isProfilePage } from "../../core/pageType";
 import { copyToClipboard } from "../../core/clipboard.js";
@@ -91,32 +92,6 @@ const yearColours = [
   "#868A08",
 ];
 const colourArr = [...yearColours].reverse(); // Reverse the yearColours array for use in the timeline
-const familyColours = [
-  "#90EE90", // lightgreen
-  "#ADD8E6", // lightblue
-  "#FFC0CB", // pink
-  "#D3D3D3", // lightgray
-  "#FFA500", // orange
-  "#FF69B4", // hotpink
-  "#FFD700", // gold
-  "#FA8072", // salmon
-  "#98FF98", // mint
-  "#fe9", // yellowFamily (#fe9 is shorthand for #ffee99)
-  "#cbc3e3", // purpleFamily
-  "#fff", // whiteFamily
-  "#d0ece7", // green2Family
-  "#c6f0fd", // blue2Family
-  "#d0d0d0", // grey2Family
-  "#fad347", // orange2Family
-  "#e6b0aa", // red2Family
-  "#c4a484", // brownFamily
-  "#afeeee", // turquoiseFamily
-  "#fffdd0", // creamFamily
-  "#ffe5b4", // peachFamily
-  "#aa98a9", // lilacFamily
-  "#87ceeb", // skyblueFamily
-  "#ecf0f1", // grey3Family
-];
 
 let relationshipColourNum = 0;
 let relationshipColour;

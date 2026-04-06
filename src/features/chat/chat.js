@@ -894,13 +894,35 @@ function restoreChatMode($popup) {
       if (!popupEl || !document.body.contains(popupEl)) {
         return;
       }
-      const restoredMode = normalizeChatMode(stored?.[CHAT_MODE_STORAGE_KEY] || getStoredChatModeFromLocalStorage());
-      applyChatModeToPopup($popup, restoredMode);
-      try {
-        window.localStorage.setItem(CHAT_MODE_STORAGE_KEY, restoredMode);
-      } catch (error) {
-        console.info("wbe: unable to mirror restored chat mode to localStorage", { error });
+
+      // If there is an explicit stored mode, apply it directly.
+      if (stored?.[CHAT_MODE_STORAGE_KEY]) {
+        const restoredMode = normalizeChatMode(stored[CHAT_MODE_STORAGE_KEY]);
+        applyChatModeToPopup($popup, restoredMode);
+        try {
+          window.localStorage.setItem(CHAT_MODE_STORAGE_KEY, restoredMode);
+        } catch (error) {
+          console.info("wbe: unable to mirror restored chat mode to localStorage", { error });
+        }
+        return;
       }
+
+      // No stored session choice — fall back to the defaultMode option setting.
+      getChatOptions()
+        .then((options) => {
+          const popupEl2 = $popup?.get?.(0);
+          if (!popupEl2 || !document.body.contains(popupEl2)) {
+            return;
+          }
+          const defaultMode = normalizeChatMode(options?.defaultMode || "wt");
+          applyChatModeToPopup($popup, defaultMode);
+          try {
+            window.localStorage.setItem(CHAT_MODE_STORAGE_KEY, defaultMode);
+          } catch (error) {
+            console.info("wbe: unable to mirror default chat mode to localStorage", { error });
+          }
+        })
+        .catch(() => {});
     });
   } catch (error) {
     console.info("wbe: unable to restore chat mode", { error });
@@ -3373,7 +3395,7 @@ function openPopup() {
     $popup = $(
       `<div id="${CHAT_POPUP_ID}" class="wbe-popup chat-popup">
         <div class="chat-popup-header">
-          <strong>Chat</strong>
+          <strong>Muse</strong>
           <div class="chat-popup-controls">
             <button id="${CHAT_CLEAR_ID}" type="button" class="small" title="Clear chat">Clear</button>
             <button type="button" class="small close-popup" aria-label="Close" title="Close">&times;</button>
@@ -3432,7 +3454,7 @@ function openPopup() {
     renderHistory();
     bindWtPlusSuggestionPicker($popup);
     if (!chatHistory.length) {
-      appendMessage("assistant", "Chat is ready. Ask a question to begin.");
+      appendMessage("assistant", "Muse is ready. Ask a question to begin.");
     }
     if (isAppsLoginButtonPresent() && !hasAppsLoginHintAlready()) {
       appendMessage("assistant", CHAT_APPS_LOGIN_HINT);
@@ -3471,7 +3493,7 @@ function ensureChatButton() {
   if (!container) return;
   const iconUrl = chrome.runtime.getURL("images/chat.svg");
   const $button = $(
-    `<a id="${CHAT_BUTTON_ID}" href="#" class="wbe-button" data-tooltip="Chat" data-bs-title="Chat" data-bs-toggle="tooltip" title="Open Chat"><span class="icon--chat" style="background-image:url(${iconUrl})"></span></a>`
+    `<a id="${CHAT_BUTTON_ID}" href="#" class="wbe-button" data-tooltip="Muse" data-bs-title="Muse" data-bs-toggle="tooltip" title="Open Muse"><span class="icon--chat" style="background-image:url(${iconUrl})"></span></a>`
   );
   $button.on("click", (e) => {
     e.preventDefault();
