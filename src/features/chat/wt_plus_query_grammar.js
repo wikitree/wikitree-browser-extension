@@ -1,3 +1,5 @@
+import suggestionsData from "../wikitree_plus_helper/suggestions.json";
+
 const WT_PLUS_ALLOWED_FIELDS = [
   "ProfileStatus",
   "WikiTreeID",
@@ -26,7 +28,6 @@ const WT_PLUS_ALLOWED_FIELDS = [
   "Country",
   "Region",
   "Dates",
-  "IsLiving",
   "DNA",
   "Relation",
   "Gender",
@@ -280,12 +281,134 @@ function validateAndRepairWtPlusQuery(queryText) {
   return { isValid: true, normalizedQuery, diagnostics };
 }
 
+// Words that appear in suggestion titles as absence/negation qualifiers.
+// When a title has one (e.g. "Empty biography"), the matching query must also
+// contain at least one absence synonym.
+const TITLE_ABSENCE_ADJECTIVES = new Set([
+  "empty", "missing", "no", "blank", "absent", "without", "expired",
+  "unbalanced", "unclosed", "unused", "unknown", "unrecognized",
+  "incorrect", "wrong", "short", "duplicate", "duplicated",
+]);
+
+const QUERY_ABSENCE_QUALIFIERS_RE =
+  /\b(?:no|not|none|missing|empty|blank|without|expired|absent|lacking|zero|unrecognized|incorrect|wrong|duplicate|duplicated|short|unused|unbalanced|unclosed)\b/i;
+
+const SUGGESTION_STOP_WORDS = new Set([
+  "the", "and", "or", "a", "an", "in", "of", "is", "on", "at", "to", "for",
+  "with", "by", "are", "has", "have", "this", "that", "which", "where",
+  "when", "was", "been", "be", "use", "using", "used", "also", "too",
+  "very", "can", "will", "may", "its", "it", "if", "as", "from", "but",
+  "than", "so", "all", "about", "into", "only", "same",
+]);
+
+let _suggestionKeywordIndex = null;
+
+function buildSuggestionKeywordIndex() {
+  if (_suggestionKeywordIndex) return _suggestionKeywordIndex;
+
+  const index = [];
+  const allSuggestions = suggestionsData?.suggestions || {};
+
+  for (const [dbeId, suggestion] of Object.entries(allSuggestions)) {
+    const code = String(suggestion.code || "").trim();
+    if (!code) continue;
+
+    const rawTitle = String(suggestion.title || "");
+    // Strip leading group prefix such as "Profile completeness - " or "FindAGrave - "
+    const cleanTitle = rawTitle.replace(/^[^-]+-\s*/, "").trim().toLowerCase();
+
+    const titleWords = cleanTitle
+      .split(/\s+/)
+      .map((w) => w.replace(/[^a-z0-9]/g, ""))
+      .filter((w) => w.length >= 3);
+
+    const absenceWords = titleWords.filter((w) => TITLE_ABSENCE_ADJECTIVES.has(w));
+    const contentWords = titleWords.filter(
+      (w) => !TITLE_ABSENCE_ADJECTIVES.has(w) && !SUGGESTION_STOP_WORDS.has(w)
+    );
+
+    if (contentWords.length === 0) continue;
+
+    index.push({
+      code,
+      dbeId,
+      cleanTitle,
+      contentWords,
+      hasAbsenceWords: absenceWords.length > 0,
+    });
+  }
+
+  _suggestionKeywordIndex = index;
+  return index;
+}
+
+/**
+ * Try to match a free-text query against suggestion titles using keyword
+ * analysis.  Returns { code, dbeId, cleanTitle } or null.
+ *
+ * Matching rules:
+ * - For titles with absence adjectives ("empty", "missing", "no", …):
+ *   require an absence synonym in the query AND at least one content word
+ *   (≥ 5 chars) present in the query.
+ * - For other titles: require ALL content words present in the query.
+ *
+ * Ties are broken by the total character length of matched content words
+ * (longer words → more specific match).
+ */
+function matchSuggestionByNaturalLanguage(queryText) {
+  // Skip if the query already carries an explicit Suggestions= term.
+  if (/\bSuggestions\s*=\s*\d+\b/i.test(String(queryText || ""))) return null;
+
+  const text = String(queryText || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (text.length < 3) return null;
+
+  const index = buildSuggestionKeywordIndex();
+  let bestMatch = null;
+  let bestScore = 0;
+
+  for (const entry of index) {
+    const { contentWords, hasAbsenceWords } = entry;
+    const matchedContent = contentWords.filter((w) => text.includes(w));
+
+    if (matchedContent.length === 0) continue;
+
+    if (hasAbsenceWords) {
+      // Require an absence qualifier in the query.
+      if (!QUERY_ABSENCE_QUALIFIERS_RE.test(text)) continue;
+      // Require at least one distinctive content word (≥ 5 chars).
+      if (!matchedContent.some((w) => w.length >= 5)) continue;
+    } else {
+      // Require all content words.
+      if (matchedContent.length < contentWords.length) continue;
+    }
+
+    // Score: favour more / longer matched words.
+    const score =
+      matchedContent.length * 10 + matchedContent.reduce((s, w) => s + w.length, 0);
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = entry;
+    }
+  }
+
+  return bestMatch;
+}
+
 function isLikelySuggestionsPrompt(queryText) {
   const text = String(queryText || "").toLowerCase();
-  return (
+  if (
     /\b(?:suggestion|suggestions|error\s*id|errorid|err\d+)\b/.test(text) ||
     /\b(?:show\s+hidden|hide\s+active|max\s+errors?)\b/.test(text)
-  );
+  ) {
+    return true;
+  }
+  // Also return true when the text appears to describe a known suggestion type
+  // (e.g. "no biography", "gedcom junk") even without the word "suggestion".
+  return matchSuggestionByNaturalLanguage(queryText) !== null;
 }
 
 function translateSuggestionsFreeTextToQuery(queryText) {
@@ -293,7 +416,15 @@ function translateSuggestionsFreeTextToQuery(queryText) {
   if (!text) return null;
 
   const suggestionIdMatch = text.match(/(?:suggestions?|error\s*id|errorid|err)\s*[:=#-]?\s*(\d{1,6})/i);
-  const suggestionId = suggestionIdMatch?.[1] || "";
+  let suggestionId = suggestionIdMatch?.[1] || "";
+
+  // If no explicit ID, try natural-language title matching.
+  if (!suggestionId) {
+    const nlMatch = matchSuggestionByNaturalLanguage(text);
+    if (nlMatch) {
+      suggestionId = String(nlMatch.code);
+    }
+  }
 
   const showHidden = /\bshow\s+hidden\b/i.test(text);
   const hideActive = /\bhide\s+active\b/i.test(text);
@@ -341,5 +472,6 @@ export {
   tokenizeWtPlusQuery,
   validateAndRepairWtPlusQuery,
   isLikelySuggestionsPrompt,
+  matchSuggestionByNaturalLanguage,
   translateSuggestionsFreeTextToQuery,
 };

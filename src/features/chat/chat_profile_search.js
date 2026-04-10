@@ -3,15 +3,41 @@ import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { dataTables, dataTablesLoad } from "../../core/API/wtPlusData";
 import { getProfilePersonInfo, getUserWtId } from "../../core/common";
 import { extractSuggestionId } from "../wikitree_plus_helper/wikitree_plus_helper_url";
+import suggestionsData from "../wikitree_plus_helper/suggestions.json";
 import {
   WT_PLUS_ALLOWED_FIELDS,
   canonicalizeWtPlusRawToken as grammarCanonicalizeWtPlusRawToken,
   isLikelySuggestionsPrompt,
+  matchSuggestionByNaturalLanguage,
   normalizeWtPlusFieldName as grammarNormalizeWtPlusFieldName,
   translateSuggestionsFreeTextToQuery,
   validateAndRepairWtPlusQuery,
 } from "./wt_plus_query_grammar";
 import wtPlusProjectsCatalog from "./wtplus_projects.json";
+
+// Build a compact one-line catalog of suggestion codes and titles for the AI
+// system prompt.  Lazily computed and cached.
+let _compactSuggestionCatalog = null;
+function getCompactSuggestionCatalog() {
+  if (_compactSuggestionCatalog) return _compactSuggestionCatalog;
+  const lines = [];
+  const order = suggestionsData?.group_order || [];
+  for (const groupKey of order) {
+    const group = suggestionsData?.groups?.[groupKey];
+    if (!group?.suggestion_ids) continue;
+    for (const dbeId of group.suggestion_ids) {
+      const s = suggestionsData?.suggestions?.[dbeId];
+      if (!s) continue;
+      const code = String(s.code || "").trim();
+      if (!code) continue;
+      // Strip group prefix like "Profile completeness - "
+      const title = String(s.title || "").replace(/^[^-]+-\s*/, "").trim();
+      lines.push(`${code}: ${title}`);
+    }
+  }
+  _compactSuggestionCatalog = lines.join(" | ");
+  return _compactSuggestionCatalog;
+}
 
 export function createProfileSearchHandler({
   WBE_CHAT_APP_ID,
@@ -2885,10 +2911,19 @@ export function createProfileSearchHandler({
         "For patterns like '<surname> born in <location> between <year> and <year>', map surname to AllLastNames (or LastNameAtBirth when clearly LNAB), map the place phrase after 'in' to BirthLocation/Location, emit NCen for that century, and keep the narrower date range in sql=.",
         "For disjunctive life-event prompts like 'born, married, or died in <place> before <year>', prefer an OR query that applies the same place/date constraint to each relevant event (birth/marriage/death) rather than treating words like 'born' as names or locations.",
         "CRITICAL: Raw tokens (ProjectManaged, PPP, NeverEdited, GEDCOMJunk, SourceJunk, IsInWikiData, ApprovedMerge, PendingMerge, UnmergedMatch, mtDNA, yDNA, auDNA, NoFather, NoMother, NoParents, NoSpouses, NoChildren, NoGender, male, female, Open, Unsourced, Unconnected, Orphan, pre1500, B0, D0, etc.) are ALWAYS bare standalone tokens. NEVER write them as field=value (e.g. 'ProjectManaged=\"England Project\"' is ALWAYS wrong). Use them as bare words only.",
+        "IMPORTANT: Do NOT use IsLiving or IsLiving=anything. The IsLiving field is not supported by WT+ and will return no results. Ignore any request to filter by living/not-living status.",
         "For 'managed by <project> PPP': the manager name ends before the first standalone raw token. Example: 'managed by england project ppp' => Manager=\"England Project\" PPP (NOT ProjectManaged=\"England Project\")",
         "For mixed parent-presence constraints: 'no father' → NoFather; 'no mother' → NoMother; 'with a mother' / 'has a mother' / 'has mother' → NOT NoMother; 'with a father' / 'has a father' → NOT NoFather. Example: 'Beacall with a mother but no father' => {\"understood\":\"Beacall surname — mother linked but no father\",\"query\":\"AllLastNames=Beacall NoFather NOT NoMother\"}",
         "For Find a Grave cemetery references: raw token fgcem{N} (e.g. fgcem104742) or phrases like 'find a grave cemetery 104742', 'fg cemetery 104742', 'Find a Grave cem 104742', 'fg cem 104742' all map to the token fgcem{N}. Similarly fgmem{N} for memorials. Example: 'Illinois fgcem104742' => {\"understood\":\"Illinois profiles in Find a Grave cemetery 104742\",\"query\":\"AllLastNames=Illinois fgcem104742\"}",
         'For \'created after/before\' constraints, use sql= with the EXACT field name [Bio].[Created Date].AsNumber (NOT [Bio].[Created].AsNumber — the space and \'Date\' are required). Similarly use [Bio].[LastEdit Date].AsNumber for last-edit filters. Example: \'Shropshire created after Jan 1 2026\' => {"understood":"Shropshire profiles created after 2026-01-01","query":"Location=Shropshire sql=\\"([Bio].[Created Date].AsNumber > 20260101)\\""}',
+        // Only include the full suggestion catalog when the query appears to
+        // describe a data-quality issue — keeps prompt size small for normal queries.
+        ...(isLikelySuggestionsPrompt(rawQuery)
+          ? [
+              "Data-quality suggestion codes — when the prompt describes a data quality issue in plain English, identify the nearest suggestion code and emit Suggestions=<code> in the query. Examples: 'no biography' or 'empty biography' → Suggestions=802; 'no sources section' or 'missing sources' → Suggestions=803; 'GEDCOM junk' → Suggestions=853. Full code list:",
+              getCompactSuggestionCatalog(),
+            ]
+          : []),
       ].join("\n");
       const previousQuery = String(reparseContext?.previousQuery || "").trim();
       const isReparse = !!reparseContext?.reparseFromZeroResults;
@@ -2977,6 +3012,13 @@ export function createProfileSearchHandler({
     const text = String(queryText || "").trim();
     if (!text) {
       return false;
+    }
+
+    // If the prompt describes a suggestion type in natural language (e.g. "no
+    // biography", "gedcom junk"), prefer AI so the catalog context in the system
+    // prompt can produce an accurate Suggestions=NNN term.
+    if (matchSuggestionByNaturalLanguage(text)) {
+      return true;
     }
 
     if (isLikelySuggestionsPrompt(text)) {
@@ -5327,7 +5369,10 @@ export function createProfileSearchHandler({
       const preferAiWtPlusQueryCandidate = shouldPreferAiWtPlusQuery(mainQuery);
       const wtPlusOnlyConstraintRegex =
         /\b(?:category|template|suggestions?\s*=|sql\s*=|project\s*managed|managed\s*(?:only\s*)?by|manager\s*=|unsourced|unconnected|orphan|no\s+father|no\s+mother|no\s+parents|no\s+spouses|no\s+children|without\s+(?:father|mother|parents|spouses|children)|with\s+a\s+(?:father|mother)|\d{1,2}(?:st|nd|rd|th)\s+century|fg(?:cem|mem)\d+|find\s*a\s*grave\s+(?:cemetery|cem)|fg\s+(?:cemetery|cem))\b/i;
-      const looksWtPlusOnly = wtPlusOnlyConstraintRegex.test(rawQuery) || wtPlusOnlyConstraintRegex.test(mainQuery);
+      const looksWtPlusOnly =
+        wtPlusOnlyConstraintRegex.test(rawQuery) ||
+        wtPlusOnlyConstraintRegex.test(mainQuery) ||
+        Boolean(matchSuggestionByNaturalLanguage(mainQuery));
       const shouldAutoRouteToWtPlus =
         chatMode !== "wtplus" &&
         Boolean(

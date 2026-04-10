@@ -295,7 +295,10 @@
         "DBE_943",
         "DBE_944",
         "DBE_945",
-        "DBE_946"
+        "DBE_946",
+        "DBE_951",
+        "DBE_952",
+        "DBE_981"
       ],
       "row_count": 0
     },
@@ -4546,6 +4549,48 @@
       "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_946",
       "description": "This warning is generated when the profile has more than 100 inpage links, which is too many, usually caused by old GEDCOM imports.",
       "description_raw": "This warning is generated when the profile has more than 100 inpage links, which is too many, usually caused by old GEDCOM imports.",
+      "videos": [],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_951": {
+      "id": "DBE_951",
+      "code": 951,
+      "title": "Not recommended tag SPAN CLASS=",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "references_tags",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_951",
+      "description": "The biography contains a SPAN CLASS= tag which is not recommended on WikiTree.",
+      "videos": [],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_952": {
+      "id": "DBE_952",
+      "code": 952,
+      "title": "Not recommended tag SPAN STYLE=",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "references_tags",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_952",
+      "description": "The biography contains a SPAN STYLE= tag which is not recommended on WikiTree.",
+      "videos": [],
+      "extra": {
+        "data_quality_flags": []
+      }
+    },
+    "DBE_981": {
+      "id": "DBE_981",
+      "code": 981,
+      "title": "Expired - Sources will be added by",
+      "type": "Warning",
+      "difficulty": "Intermediate",
+      "group_key": "references_tags",
+      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_981",
+      "description": "The biography contains an expired \"Sources will be added by\" placeholder that should be replaced with actual sources.",
       "videos": [],
       "extra": {
         "data_quality_flags": []
