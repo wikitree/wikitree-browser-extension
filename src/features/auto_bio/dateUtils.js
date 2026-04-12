@@ -5,6 +5,7 @@
 
 import { capitalizeFirstLetter } from "./textUtils.js";
 import { isOK } from "../../core/common";
+import { getAge } from "../change_family_lists/change_family_lists";
 
 /**
  * Convert a month string or number between formats
@@ -191,6 +192,119 @@ export function convertDate(dateString, outputFormat, status = "") {
   outputDate = outputDate.replace(/(\w+),/, "$1"); // Remove comma if there's a month but no day
 
   return outputDate;
+}
+
+export function getYYYYMMDD(dateString) {
+  if (!dateString) {
+    return "";
+  } else {
+    dateString = dateString.replace(/(abt|about|before|bef|after|aft|between|bet|and|calculated|cal)/i, "").trim();
+  }
+
+  function parseDate(dateStr) {
+    if (!dateStr) {
+      return null;
+    }
+    const splitter = dateStr.includes("-") ? "-" : dateStr.includes(".") ? "." : " ";
+    const dateParts = dateStr.split(splitter);
+    if (dateParts?.length === 3) {
+      let year;
+      let day;
+      if (dateParts[0].length == 4) {
+        year = dateParts[0];
+        day = `0${dateParts[2]}`.slice(-2);
+      } else {
+        year = dateParts[2];
+        day = `0${dateParts[0]}`.slice(-2);
+      }
+      const month = `${convertMonth(dateParts[1])}`.padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    } else if (dateParts?.length == 2) {
+      if (dateParts[0].match(/\w/)) {
+        const year = dateParts[1];
+        const month = `${convertMonth(dateParts[0].slice(0, 3))}`.padStart(2, "0");
+        return `${year}-${month}-15`;
+      }
+    } else if (dateParts?.length === 1 && dateParts[0]?.length === 4) {
+      const year = dateParts[0];
+      return `${year}-07-02`;
+    } else {
+      return null;
+    }
+  }
+
+  const parsedDate = parseDate(dateString);
+  if (parsedDate) {
+    return parsedDate;
+  }
+
+  const fallbackDateStr = `02 July ${dateString} UTC`;
+  return parseDate(fallbackDateStr);
+}
+
+export function isWithinX(num1, num2, within) {
+  return Math.abs(num1 - num2) <= within;
+}
+
+export function getAgeFromISODates(birth, date) {
+  if (!birth || !date) {
+    return "";
+  }
+  let [year1, month1, day1] = birth.split("-");
+  let [year2, month2, day2] = date.split("-");
+  let age = getAge({
+    start: { year: year1, month: month1, date: day1 },
+    end: { year: year2, month: month2, date: day2 },
+  });
+  return age[0];
+}
+
+export function getAgeAtCensus(person, censusYear) {
+  if (!person.BirthDate) {
+    return;
+  }
+  let day, month, year;
+  if (person["BirthDate"].match("-")) {
+    [year, month, day] = person["BirthDate"].split("-");
+  } else if (person["BirthDate"].match(/^\d{4}$/)) {
+    year = person["BirthDate"];
+  } else {
+    [day, month, year] = person["BirthDate"].split(" ");
+  }
+  if (!day) {
+    day = 15;
+  }
+  if (!month) {
+    month = 7;
+  }
+  let age = getAge({
+    start: { year: year, month: isNaN(month) ? abbrevToNum(month) : month, date: day },
+    end: { year: censusYear, month: 7, date: 2 },
+  });
+  if (age[0]) {
+    return age[0];
+  } else {
+    return false;
+  }
+}
+
+function abbrevToNum(abbrev) {
+  const monthMap = {
+    Jan: 1,
+    Feb: 2,
+    Mar: 3,
+    Apr: 4,
+    May: 5,
+    Jun: 6,
+    Jul: 7,
+    Aug: 8,
+    Sep: 9,
+    Oct: 10,
+    Nov: 11,
+    Dec: 12,
+  };
+
+  return monthMap[abbrev];
 }
 
 /**
