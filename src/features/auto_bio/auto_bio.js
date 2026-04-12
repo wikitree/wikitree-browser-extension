@@ -3363,8 +3363,7 @@ function findRelation(person) {
                     : oGender == "Female"
                     ? "Wife"
                     : "Spouse"
-                  : relationSingular;
-            }
+                  : relationSingular;            }
           }
         });
       }
@@ -5610,7 +5609,9 @@ export function sourcesArray(bio) {
 
       const detailsMatch = aRef.Text.match(/(\d{4}\),\s)(.+?),\s(\d+\s\w+\s\d+)/);
       const detailsMatch2 = aRef.Text.match(/\(http.*?\)(.*?image.*?;\s)(.*?)\./);
-      const detailsMatch3 = aRef.Text.match(/[>;)]([A-z\s-]*) marriage to\s(.*?)\s\bon\b\s(.*?)\s\bin\b\s(.*)\./);
+      const detailsMatch3 = aRef.Text.match(
+        /[>;)](.*?) marriage to\s(.*?)\s\bon\b\s(.*?)\s\bin\b\s(.*?)\s*(?=\.?'{2}|Added by|\.$)/
+      );
       const entryForMatch = aRef.Text.match(/in entry for/);
 
       if (detailsMatch2) {
@@ -5655,18 +5656,15 @@ export function sourcesArray(bio) {
         }
       } else if (detailsMatch3) {
         aRef.Couple = [];
-        let person1AgeMatch = detailsMatch3[1].match(/\d{1,2}( years)?/);
+        const person1Text = detailsMatch3[1].replaceAll(/^.*''/g, "").trim();
+        let person1AgeMatch = person1Text.match(/\d{1,2}( years)?/);
         let person1Age = "";
         if (person1AgeMatch) {
           person1Age = person1AgeMatch[0];
         }
         console.log("Person 1 Age:", person1Age);
 
-        const person1 = detailsMatch3[1]
-          .replaceAll(/\(.*?\)/g, "")
-          .trim()
-          .replaceAll(/^.*''/g, "")
-          .trim();
+        const person1 = person1Text.replaceAll(/\(.*?\)/g, "").trim();
 
         let person2AgeMatch = detailsMatch3[2].match(/\d{1,2}( years)?/);
         let person2Age = "";
@@ -5691,23 +5689,56 @@ export function sourcesArray(bio) {
           aRef.Year = "";
           console.log("Year not found in detailsMatch3, set to empty string.");
         }
-        aRef["Marriage Place"] = detailsMatch3[4].trim();
+        aRef["Marriage Place"] = detailsMatch3[4].trim().replace(/\.+$/, "");
         console.log("Marriage Place set from detailsMatch3:", aRef["Marriage Place"]);
 
-        if (window.profilePerson?.NameVariants?.length > 0) {
-          window.profilePerson.NameVariants.forEach((name) => {
-            if (name == aRef.Couple[0]) {
+        // Build profile person first-name variants for fuzzy matching
+        let profileFirstNameVariants = [window.profilePerson.PersonName?.FirstName || window.profilePerson.FirstName];
+        const profFirstName = window.profilePerson.PersonName?.FirstName || window.profilePerson.FirstName;
+        if (profFirstName && firstNameVariants[profFirstName]) {
+          profileFirstNameVariants = firstNameVariants[profFirstName];
+        }
+
+        // Extract first names from couple to enable accurate matching
+        const couple1FirstName = aRef.Couple[0].split(/\s+/)[0];
+        const couple2FirstName = aRef.Couple[1].split(/\s+/)[0];
+
+        // Use isSameName for fuzzy matching of first names (with lower threshold for spelling variants)
+        let profilePersonFound = false;
+        if (isSameName(couple1FirstName, profileFirstNameVariants, 0.85)) {
+          aRef["Spouse Name"] = aRef.Couple[1];
+          aRef["Spouse Age"] = person2Age;
+          aRef["Age"] = person1Age;
+          profilePersonFound = true;
+          console.log("Spouse Name and Age set (Couple[0] matches profile):", aRef["Spouse Name"], aRef["Spouse Age"]);
+        } else if (isSameName(couple2FirstName, profileFirstNameVariants, 0.85)) {
+          aRef["Spouse Name"] = aRef.Couple[0];
+          aRef["Spouse Age"] = person1Age;
+          aRef["Age"] = person2Age;
+          profilePersonFound = true;
+          console.log("Spouse Name and Age set (Couple[1] matches profile):", aRef["Spouse Name"], aRef["Spouse Age"]);
+        }
+        if (!profilePersonFound) {
+          console.log("Profile person not matched in couple using first-name variants. Trying full NameVariants.");
+          // Fallback: check window.profilePerson.NameVariants if available
+          if (window.profilePerson?.NameVariants?.length > 0) {
+            if (window.profilePerson.NameVariants.some(name => isSameName(name, [couple1FirstName]))) {
               aRef["Spouse Name"] = aRef.Couple[1];
               aRef["Spouse Age"] = person2Age;
               aRef["Age"] = person1Age;
-              console.log("Spouse Name and Age set:", aRef["Spouse Name"], aRef["Spouse Age"]);
-            } else if (name == aRef.Couple[1]) {
+              profilePersonFound = true;
+              console.log("Spouse Name and Age set via NameVariants (Couple[0]):", aRef["Spouse Name"], aRef["Spouse Age"]);
+            } else if (window.profilePerson.NameVariants.some(name => isSameName(name, [couple2FirstName]))) {
               aRef["Spouse Name"] = aRef.Couple[0];
               aRef["Spouse Age"] = person1Age;
               aRef["Age"] = person2Age;
-              console.log("Spouse Name and Age set:", aRef["Spouse Name"], aRef["Spouse Age"]);
+              profilePersonFound = true;
+              console.log("Spouse Name and Age set via NameVariants (Couple[1]):", aRef["Spouse Name"], aRef["Spouse Age"]);
             }
-          });
+          }
+        }
+        if (!profilePersonFound) {
+          console.log("Profile person not matched in couple. Values not set.");
         }
       } else if (aRef.Text.match(/GRO Reference.*?(\d{4}).*\bin\b\s(.*)Volume/)) {
         const details = aRef.Text.match(/GRO Reference.*?(\d{4}).*\bin\b\s(.*)Volume/);
