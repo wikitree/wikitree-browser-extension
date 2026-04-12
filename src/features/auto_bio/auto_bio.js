@@ -5,890 +5,50 @@ import { PersonName } from "./person_name.js";
 import { countries } from "./countries.js";
 import { needsCategories } from "./needs.js";
 import { occupationCategories } from "./occupations.js";
-import { occupationList } from "./occupation_list";
-import { occupationList2 } from "./occupation_list_2";
 import { unsourcedCategories } from "./unsourced_categories.js";
 import { firstNameVariants } from "./first_name_variants.js";
-import { ageAtDeath, familyArray, isOK, treeImageURL } from "../../core/common";
+import { ageAtDeath, familyArray, isOK } from "../../core/common";
 import { addLoginButton } from "../../core/loginButton";
-import { getAge } from "../change_family_lists/change_family_lists";
 import { titleCase } from "../familyTimeline/familyTimeline";
 import { wtAPICatCIBSearch } from "../../core/API/wtPlusAPI";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { theSourceRules } from "../bioCheck/SourceRules.js";
-import { BioCheckPerson } from "../bioCheck/BioCheckPerson.js";
-import { Biography } from "../bioCheck/Biography.js";
+import { promiseWithTimeout } from "./asyncUtils.js";
+import { autoBioCheck, unsourced } from "./bioValidationUtils.js";
+import { analyzeColumns, EnglandCounties, parseFamilyDataLines, UKMetropolitanCities } from "./columnAnalysisUtils.js";
+import {
+  convertDate,
+  convertMonth,
+  getAgeAtCensus,
+  getAgeFromISODates,
+  getYYYYMMDD,
+  isWithinX,
+  padNumberStart,
+  formatDate,
+  formatDates,
+  dataStatusWord,
+} from "./dateUtils.js";
+import { logMerge } from "./debugUtils.js";
+import { minimalPlace, nameLink } from "./displayUtils.js";
+import { addWorking, getBioText, removeWorking, setBioText } from "./editorUtils.js";
+import {
+  appalachiaStates,
+  findUSState as findUSStateInStates,
+  fixUSLocation as fixUSLocationInStates,
+  irishCounties,
+  isSameDateOrAfter,
+} from "./locationUtils.js";
+import { getNameVariantsAll, getSimilarity, isSameName } from "./nameUtils.js";
+import { findBestMatch, searchName, topOfLineOnlyCondition } from "./onsUtils.js";
+import { getFormData, getPronouns } from "./profileUtils.js";
+import { capitalizeFirstLetter } from "./textUtils.js";
 import { initBioCheck } from "../bioCheck/bioCheck.js";
 import { bioTimelineFacts, buildTimelineTable, buildTimelineSA } from "./timeline";
 import { mainDomain, isIansProfile } from "../../core/pageType";
 import { profilePerson } from "../../core/common";
-import ONSjson from "./ONS.json";
-
-// lightweight debug logger and merge helper used across this module
-function wbeLog(level, ...args) {
-  try {
-    if (window && window.autoBioOptions && window.autoBioOptions.debug) {
-      const fn = console[level] || console.log;
-      fn.apply(console, ["[auto_bio]", ...args]);
-    }
-  } catch (e) {
-    // ignore logging errors
-  }
-}
-
-function logMerge(aRef, res, label) {
-  if (!res) return aRef;
-  if (res === aRef) return aRef;
-  try {
-    const before = new Set(Object.keys(aRef || {}));
-    Object.assign(aRef, res);
-    const added = Object.keys(aRef).filter((k) => !before.has(k) && k !== "Text");
-    if (added.length) {
-      wbeLog("debug", `[auto_bio][merge:${label}] added keys:`, added);
-    }
-  } catch (e) {
-    // merging failed — silently continue
-  }
-  return aRef;
-}
 
 export const WBE_AUTO_BIO_APP_ID = "WBE_auto_bio";
 
-const appalachiaStates = [
-  "Alabama",
-  "Georgia",
-  "Kentucky",
-  "Maryland",
-  "Mississippi",
-  "New York",
-  "North Carolina",
-  "Ohio",
-  "Pennsylvania",
-  "South Carolina",
-  "Tennessee",
-  "Virginia",
-  "West Virginia",
-];
-
-const irishCounties = [
-  "Antrim",
-  "Armagh",
-  "Carlow",
-  "Cavan",
-  "Clare",
-  "Cork",
-  "Londonderry",
-  "Donegal",
-  "Down",
-  "Dublin",
-  "Fermanagh",
-  "Galway",
-  "Kerry",
-  "Kildare",
-  "Kilkenny",
-  "Laois",
-  "Leitrim",
-  "Limerick",
-  "Longford",
-  "Louth",
-  "Mayo",
-  "Meath",
-  "Monaghan",
-  "Offaly",
-  "Roscommon",
-  "Sligo",
-  "Tipperary",
-  "Tyrone",
-  "Waterford",
-  "Westmeath",
-  "Wexford",
-  "Wicklow",
-];
-
 let bugReportMore = "";
-
-/**
-Returns a status word based on the input status and optional needOnIn parameter, with an optional ISO date string parameter.
-@function
-@param {string} status - The status of the data. Possible values are "before", "after", "guess", "certain", "on", "", and undefined.
-@param {string} [ISOdate] - Parameter to specify the date string in ISO format (yyyy-mm-dd).
-@param {boolean} [needOnIn=false] - Optional parameter to specify whether the output should include "on" or "in" for certain status values. Default is false.
-@returns {string} - The status word based on the input status and optional needOnIn parameter. Possible values include "before", "aft.", "about", "on", "in", and "".
-*/
-function dataStatusWord(status, ISOdate, options = { needOnIn: false, onlyYears: false }) {
-  const needOnIn = options.needOnIn;
-  const onlyYears = options.onlyYears;
-  let day = ISOdate.slice(8, 10);
-  if (day == "00") {
-    day = "";
-  }
-  let statusOut =
-    status == "before"
-      ? "before"
-      : status == "after"
-      ? "after"
-      : status == "guess"
-      ? "about"
-      : status == "certain" || status == "on" || status == undefined || status == ""
-      ? day
-        ? "on"
-        : "in"
-      : "";
-
-  const thisStatusFormat = onlyYears
-    ? window.autoBioOptions?.yearsDateStatusFormat
-    : window.autoBioOptions?.dateStatusFormat || "abbreviations";
-
-  if (thisStatusFormat == "abbreviations") {
-    statusOut = statusOut ? statusOut.replace("before", "bef.").replace("after", "aft.").replace("about", "abt.") : "";
-  } else if (thisStatusFormat == "symbols") {
-    statusOut = statusOut ? statusOut.replace("before", "<").replace("after", ">").replace("about", "~") : "";
-  }
-  if (needOnIn == false && ["on", "in"].includes(statusOut)) {
-    return "";
-  } else {
-    return statusOut;
-  }
-}
-
-/**
- * Try to identify a U S state in the last 1–2 comma-separated tokens of a
- * place string.
- *
- *   "Lexington, Kentucky, USA"     → "Kentucky"
- *   "Berkeley County, Virginia"    → "Virginia"
- *   "Fort Loudoun, VA"             → "Virginia"
- *   "Boston, Massachusetts Bay"    → null   (no state match)
- *
- * @param {string} location
- * @return {string|null}  canonical state name or null if none found
- */
-function findUSState(location) {
-  if (!location) return null;
-
-  // Comma-separated tokens, trimmed & lower-cased
-  const parts = location.split(",").map((p) => p.trim().toLowerCase());
-
-  // Country tokens we should ignore if we hit them
-  const usCountryNames = new Set(["united states", "united states of america", "usa", "u.s.a.", "u.s.", "us"]);
-
-  // Look at the last token, then (if needed) the one before it
-  for (let i = parts.length - 1; i >= 0 && i >= parts.length - 2; i--) {
-    const token = parts[i];
-
-    // Skip “USA”, “United States”, etc.
-    if (usCountryNames.has(token)) continue;
-
-    // Match against state name or two-letter abbreviation
-    const match = USstatesObjArray.find(
-      (s) => s.name.toLowerCase() === token || s.abbreviation.toLowerCase() === token
-    );
-
-    if (match) return match.name;
-  }
-
-  return null; // nothing recognised
-}
-
-function autoBioCheck(sourcesStr) {
-  let thePerson = new BioCheckPerson();
-  thePerson.build();
-  let biography = new Biography(theSourceRules);
-  biography.parse(sourcesStr, thePerson, "");
-  biography.validate();
-  const hasSources = biography.hasSources();
-  return hasSources;
-}
-const unsourced =
-  /^\n*?\s*?((^Also:$)|(^See also:$)|(Unsourced)|(Personal (recollection)|(information))|(Firsthand knowledge)|(Sources? will be added)|(Add\s\[\[sources\]\]\shere$)|(created.*?through\sthe\simport\sof\s.*?\.ged)|(FamilySearch(\.com)?$)|(ancestry\.com$)|(family records$)|(Ancestry family trees$))/im;
-
-// Function to get the person's data from the form fields
-export function getFormData() {
-  let formData = {};
-  $("#editform input[id]").each(function () {
-    if ($(this).attr("type") === "radio") {
-      if ($(this).is(":checked")) {
-        formData[$(this).attr("name")] = $(this).val();
-      }
-    } else {
-      if (["mBirthDate", "mMarriageDate", "mDeathDate"].includes($(this).attr("id"))) {
-        if ($(this).val().length > 4) {
-          let date = convertDate($(this).val(), "YMD");
-          if (date.length == 8) {
-            date += "00";
-          }
-          formData[$(this).attr("id")?.substring(1)] = date;
-        } else {
-          formData[$(this).attr("id")?.substring(1)] = $(this).val();
-        }
-      } else {
-        formData[$(this).attr("id")?.substring(1)] = $(this).val();
-      }
-    }
-  });
-  return formData;
-}
-
-function isSameDateOrAfter(dateStr1, dateStr2) {
-  const date1 = new Date(dateStr1);
-  const date2 = new Date(dateStr2);
-  return date1 >= date2;
-}
-
-function getPossibleLocationNames(event, state) {
-  const lastLocationBit = event.Location.split(",")
-    .map((str) => str.trim())
-    .pop();
-  if (state.former_names) {
-    // state.former_names is an object with keys of the former name and values of the start and end dates
-    let possibleFormerNames = [];
-    const formerNames = Object.keys(state.former_names);
-    if (formerNames) {
-      formerNames.forEach(function (name) {
-        const startDate = state.former_names[name].start;
-        const endDate = state.former_names[name].end;
-        if (isSameDateOrAfter(event.Date, startDate) && (!endDate || !isSameDateOrAfter(event.Date, endDate))) {
-          possibleFormerNames.push(name);
-        }
-      });
-    }
-    if (possibleFormerNames.length == 1) {
-      event.Location = event?.Location ? event.Location.replace(lastLocationBit, possibleFormerNames[0]) : "";
-    } else if (possibleFormerNames.length > 1) {
-      // If there are multiple possible former names, don't change the location and add a note
-      const note = "Possible correct locations for " + event.Event + " are: " + possibleFormerNames.join(", ");
-      window.autoBioNotes?.push(note);
-    }
-  }
-  return event;
-}
-
-function fixUSLocation(event) {
-  if (!event.Location) {
-    console.log("No location found in event.");
-    return;
-  }
-
-  let locationBits = event.Location.split(",");
-  locationBits = locationBits.map((str) => str.trim());
-  const lastLocationBit = locationBits[locationBits.length - 1];
-  if (
-    locationBits.length == 1 &&
-    ["US", "USA", "United States of America", "United States", "U.S.A.", "U.S."].includes(lastLocationBit)
-  ) {
-    if (window.autoBioOptions?.changeUS) {
-      event.Location = "United States";
-    }
-  } else if (locationBits.length == 1 && ["UK"].includes(lastLocationBit)) {
-    if (window.autoBioOptions?.checkUK) {
-      event.Location = "United Kingdom";
-    }
-  } else {
-    USstatesObjArray.forEach(function (state) {
-      if (state.abbreviation == lastLocationBit || state.name == lastLocationBit) {
-        event.Location = locationBits.slice(0, locationBits.length - 1).join(", ") + ", " + state.name;
-        if (isSameDateOrAfter(event.Date, state.admissionDate)) {
-          event.Location += ", " + "United States";
-        } else if (
-          state.admissionDate &&
-          state.former_name &&
-          window.autoBioOptions?.changeUS &&
-          !(isSameDateOrAfter(event.Date, "1776-07-04") && state.postRevolutionName)
-        ) {
-          event = getPossibleLocationNames(event, state, lastLocationBit);
-        }
-      } else if (["US", "USA", "United States of America", "United States", "U.S.A."].includes(lastLocationBit)) {
-        const theState = locationBits[locationBits.length - 2];
-        if (state.abbreviation == theState || state.name == theState) {
-          if (window.autoBioOptions?.expandStates) {
-            event.Location = locationBits.slice(0, locationBits.length - 2).join(", ") + ", " + state.name;
-          } else {
-            event.Location = locationBits.slice(0, locationBits.length - 2).join(", ") + ", " + theState;
-          }
-          if (isSameDateOrAfter(event.Date, state.admissionDate)) {
-            if (window.autoBioOptions?.changeUS) {
-              event.Location += ", " + "United States";
-            } else {
-              event.Location += ", " + lastLocationBit;
-            }
-          } else if (state.admissionDate && state.former_name && window.autoBioOptions?.changeUS) {
-            event = getPossibleLocationNames(event, state, lastLocationBit);
-          }
-        }
-      }
-    });
-  }
-
-  // Special case for Maine, which was part of Massachusetts until 1820
-  if (event.Location.includes("Massachusetts") && isSameDateOrAfter(event.Date, "1776-07-04")) {
-    event.Location = event.Location.replace(/Massachusetts.*/, "Massachusetts, United States");
-  }
-
-  return event;
-}
-
-async function fixLocations() {
-  const birth = {
-    Date: document.getElementById("mBirthDate").value,
-    Location: document.getElementById("mBirthLocation").value,
-    ID: "mBirthLocation",
-    Event: "birth",
-  };
-  const death = {
-    Date: document.getElementById("mDeathDate").value,
-    Location: document.getElementById("mDeathLocation").value,
-    ID: "mDeathLocation",
-    Event: "death",
-  };
-  [birth, death].forEach(async function (event) {
-    // Look for space before country name and add a comma if found
-    const countryArray = ["US", "USA", "U.S.A.", "UK", "U.K.", "United States of America"];
-    // Countries that may have a north, south, etc.
-    const excludeCountries = [
-      "Australia",
-      "Bosnia and Herzegovina",
-      "Canada", // Upper Canada, Lower Canada
-      "France", // New France
-      "Guinea",
-      "Islands",
-      "Marshall Islands",
-      "Papua New Guinea",
-      "Seychelles",
-      "Solomon Islands",
-      "Spain", // New Spain
-      "Tonga",
-      "Trinidad and Tobago",
-    ];
-    countries.forEach(function (country) {
-      if (!excludeCountries.includes(country.name)) {
-        countryArray.push(country.name);
-      }
-    });
-    countryArray.forEach(function (country) {
-      const spaceCountryPattern = new RegExp(`(\\w)\\s${country}$`);
-      const thisMatch = event?.Location.match(spaceCountryPattern);
-      if (thisMatch) {
-        event.Location = event?.Location ? event.Location.replace(thisMatch[0], thisMatch[1] + ", " + country) : "";
-      }
-    });
-
-    let locationBits = event?.Location.split(",");
-    locationBits = locationBits.map((str) => str.trim());
-    const lastLocationBit = locationBits[locationBits.length - 1];
-
-    if (window.autoBioOptions?.checkUS && isOK(event?.Date)) {
-      event = fixUSLocation(event);
-    }
-
-    if (window.autoBioOptions?.checkAustralia && isOK(event?.Date)) {
-      let australianLocations;
-      if (!window.australianLocations) {
-        australianLocations = await import("./australian_locations.json");
-      } else {
-        australianLocations = window.australianLocations;
-      }
-      const locationKeys = Object.keys(australianLocations);
-      let foundLocationMatch = false;
-      let matchedKey = null;
-      let originalMatched = false;
-
-      for (let i = 0; i < locationKeys.length; i++) {
-        let key = locationKeys[i];
-
-        const addedAustralia = lastLocationBit + ", Australia";
-
-        if (event.Location.includes(key)) {
-          matchedKey = key;
-          originalMatched = true;
-        } else if (addedAustralia == key) {
-          matchedKey = key;
-          originalMatched = false;
-        }
-
-        if (matchedKey) {
-          const startDate = australianLocations[key]["startDate"];
-          const endDate = australianLocations[key]["endDate"];
-          const afterStart = isSameDateOrAfter(event.Date, startDate);
-          const beforeEnd = endDate ? !isSameDateOrAfter(event.Date, endDate) : true;
-
-          if (afterStart && beforeEnd) {
-            foundLocationMatch = true;
-            break;
-          } else if (!afterStart && "previousName" in australianLocations[key]) {
-            foundLocationMatch = true;
-            matchedKey = key; // keep the original key
-            break;
-          }
-        }
-      }
-      if (foundLocationMatch) {
-        const startDate = australianLocations[matchedKey]["startDate"];
-        const afterStart = isSameDateOrAfter(event.Date, startDate);
-
-        if (!afterStart && australianLocations[matchedKey]["previousName"]) {
-          // Use previousName if the event date is before the start date of the matched location
-          if (originalMatched) {
-            // cope with "Australian Colonies"
-            const matchedKeyPattern = new RegExp(matchedKey + ".*");
-            event.Location = event?.Location
-              ? event.Location.replace(matchedKeyPattern, australianLocations[matchedKey]["previousName"])
-              : "";
-          } else {
-            event.Location = event?.Location
-              ? event.Location.replace(lastLocationBit, australianLocations[matchedKey]["previousName"])
-              : "";
-          }
-        } else if (!originalMatched && matchedKey && event?.Location) {
-          // If the location match was found with the addedAustralia search and the event date is within the appropriate timeframe, add matchedKey to the location.
-          event.Location = event.Location.replace(lastLocationBit, matchedKey);
-        } else if (!australianLocations[matchedKey]["previousName"]) {
-          console.log("No previousName defined for matchedKey:", matchedKey);
-        }
-      }
-    }
-
-    if (window.autoBioOptions?.checkUK && isOK(event?.Date)) {
-      if (["England", "Scotland", "Wales"].includes(lastLocationBit) && isSameDateOrAfter(event.Date, "1801-01-01")) {
-        event.Location += ", United Kingdom";
-      } else if (["United Kingdom", "UK"].includes(lastLocationBit) && !isSameDateOrAfter(event.Date, "1801-01-01")) {
-        event.Location = locationBits.slice(0, locationBits.length - 1).join(", ");
-      } else if (lastLocationBit == "UK" && isSameDateOrAfter(event.Date, "1801-01-01")) {
-        event.Location = locationBits.slice(0, locationBits.length - 1).join(", ") + ", United Kingdom";
-      }
-    }
-    if (
-      !["United States", "United Kingdom", "New Zealand"].includes(lastLocationBit) &&
-      (window.autoBioOptions?.checkOtherCountries || window.autoBioOptions?.nativeNames)
-    ) {
-      const excludeFromThisBit = ["Ireland", "Northern Ireland", "Georgia"];
-
-      countries.forEach(function (country) {
-        if (country.name == lastLocationBit) {
-          let aNote;
-          if (window.autoBioOptions?.nativeNames) {
-            if (country.name != country.nativeName && !excludeFromThisBit.includes(country.name)) {
-              if (locationBits.length == 1) {
-                event.Location = country.nativeName;
-              } else {
-                event.Location = locationBits.slice(0, locationBits.length - 1).join(", ") + ", " + country.nativeName;
-              }
-            }
-          } else {
-            if (country.name != country.nativeName && !excludeFromThisBit.includes(country.name)) {
-              aNote =
-                "The native name for the country of " +
-                event.Event +
-                ", " +
-                country.name +
-                ", is " +
-                country.nativeName +
-                ".";
-              window.autoBioNotes?.push(aNote);
-            }
-          }
-          if (!isSameDateOrAfter(event.Date, country.date) && country.name != "Ireland") {
-            aNote =
-              "The country of " +
-              event.Event +
-              ", " +
-              country.name +
-              ", was not yet a country (in its present form) at the time of " +
-              window.profilePerson.PersonName?.FirstName +
-              "'s " +
-              event.Event +
-              ".";
-            window.autoBioNotes?.push(aNote);
-          }
-        }
-      });
-    }
-    if (event) {
-      event.Location = event?.Location ? event.Location.replace(/^, /g, "") : "";
-    }
-    if (document.getElementById(event?.ID)?.value != event?.Location) {
-      const changeNote =
-        "Changed " +
-        event.Event +
-        " location from '" +
-        document.getElementById(event.ID).value +
-        "' to '" +
-        event.Location +
-        "'.";
-      window.autoBioNotes?.push(changeNote);
-      const toUpdate = event?.ID ? event.ID.replace(/^m/, "") : "";
-      window.profilePerson[toUpdate] = event.Location;
-    }
-    if (document.getElementById(event?.ID)) {
-      document.getElementById(event?.ID).value = event?.Location;
-    }
-  });
-}
-
-export function convertDate(dateString, outputFormat, status = "") {
-  if (!dateString) {
-    return "";
-  }
-  dateString = dateString.replaceAll(/-00/g, "");
-  // Split the input date string into components
-
-  let components = dateString.split(/[\s,-]+/);
-
-  // Determine the format of the input date string
-  let inputFormat;
-  if (components.length == 1 && /^\d{4}$/.test(components[0])) {
-    // Year-only format (e.g. "2023")
-    inputFormat = "Y";
-  } else if (components.length == 2 && /^[A-Za-z]{3}$/.test(components[0]) && !/^[A-Za-z]{4,}$/.test(components[0])) {
-    // Short month and year format (e.g. "Jul 2023")
-    inputFormat = "MY";
-  } else if (components.length == 2 && /^[A-Za-z]+/.test(components[0])) {
-    // Long month and year format (e.g. "July 2023")
-    inputFormat = "MDY";
-  } else if (components.length == 3 && /^[A-Za-z]+/.test(components[0])) {
-    // Long month, day, and year format (e.g. "July 23, 2023")
-    inputFormat = "MDY";
-  } else if (components.length == 3 && /^[A-Za-z]{3}$/.test(components[1]) && !/^[A-Za-z]{4,}$/.test(components[1])) {
-    // Short month, day, and year format (e.g. "23 Jul 2023")
-    inputFormat = "DMY";
-  } else if (components.length == 3 && /^[A-Za-z]+/.test(components[1])) {
-    // Day, long month, and year format (e.g. "10 July 1936")
-    inputFormat = "DMY";
-  } else if (components.length == 3 && /^\d{2}$/.test(components[1]) && /^\d{2}$/.test(components[2])) {
-    // ISO format with no day (e.g. "2023-07-23")
-    inputFormat = "ISO";
-  } else if (components.length == 2 && /^\d{4}$/.test(components[0]) && /^\d{2}$/.test(components[1])) {
-    // NEW: Year and month format with no day (e.g. "1910-10")
-    inputFormat = "ISO";
-    components.push("00");
-  } else {
-    // Invalid input format
-    return null;
-  }
-
-  // Convert the input date components to a standard format (YYYY-MM-DD)
-  let year,
-    month = 0,
-    day = 0;
-  try {
-    if (inputFormat == "Y") {
-      year = parseInt(components[0]);
-      outputFormat = "Y";
-    } else if (inputFormat == "MY") {
-      year = parseInt(components[1]);
-      month = convertMonth(components[0]);
-      if (!outputFormat) {
-        outputFormat = "MY";
-      }
-    } else if (inputFormat == "MDY") {
-      year = parseInt(components[components.length - 1]);
-      month = convertMonth(components[0]);
-      day = parseInt(components[1]);
-    } else if (inputFormat == "DMY") {
-      year = parseInt(components[2]);
-      month = convertMonth(components[1]);
-      day = parseInt(components[0]);
-    } else if (inputFormat == "ISO") {
-      year = parseInt(components[0]);
-      month = parseInt(components[1]);
-      day = parseInt(components[2]);
-    }
-  } catch (err) {
-    console.error("Error during conversion:", err);
-    return null;
-  }
-
-  // Convert the date components to the output format
-  let outputDate;
-
-  const ISOdate = year.toString() + "-" + padNumberStart(month || 0) + "-" + padNumberStart(day || 0);
-
-  if (outputFormat == "Y") {
-    outputDate = year.toString();
-  } else if (outputFormat == "MY") {
-    outputDate = convertMonth(month) + " " + year.toString();
-  } else if (outputFormat == "MDY") {
-    outputDate = convertMonth(month, "long") + " " + day + ", " + year.toString();
-  } else if (outputFormat == "DMY") {
-    outputDate = day + " " + convertMonth(month, "long") + " " + year.toString();
-  } else if (outputFormat == "sMDY") {
-    outputDate = convertMonth(month, "short");
-    if (day !== 0) {
-      outputDate += " " + day + ",";
-    }
-    outputDate += " " + year.toString();
-  } else if (outputFormat == "DsMY") {
-    outputDate = "";
-    if (day !== 0) {
-      outputDate += day + " ";
-    }
-    outputDate += convertMonth(month).slice(0, 3) + " " + year.toString();
-  } else if (outputFormat == "YMD" || outputFormat == "ISO") {
-    outputDate = ISOdate;
-  } else {
-    // Invalid output format
-    return null;
-  }
-
-  if (status) {
-    let onlyYears = false;
-    if (outputFormat == "Y") {
-      onlyYears = true;
-    }
-    let statusOut = "";
-    try {
-      statusOut = dataStatusWord(status, ISOdate, { needInOn: true, onlyYears: onlyYears });
-      // Check if the statusOut is a symbol, and if so, don't add space
-    } catch (error) {
-      console.log("dataStatusWord error:", error);
-    }
-    if (["<", ">", "~"].includes(statusOut.trim())) {
-      outputDate = statusOut + outputDate.trim();
-    } else {
-      outputDate = statusOut + " " + outputDate;
-    }
-  }
-
-  if (!outputDate) {
-    return "";
-  }
-
-  outputDate = outputDate.replace(/\s?\b00/, ""); // Remove 00 as a day or month
-  outputDate = outputDate.replace(/(\w+),/, "$1"); // Remove comma if there's a month but no day
-  //outputDate = outputDate.replace(/^,/, ""); // Remove random comma at the beginning
-
-  return outputDate;
-}
-
-function convertMonth(monthString, outputFormat = "short") {
-  // Convert a month string to a numeric month value
-  var shortNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
-  var longNames = [
-    "january",
-    "february",
-    "march",
-    "april",
-    "may",
-    "june",
-    "july",
-    "august",
-    "september",
-    "october",
-    "november",
-    "december",
-  ];
-  let index;
-  if (!isNaN(monthString)) {
-    index = monthString - 1;
-    let month = shortNames[index];
-    if (outputFormat == "long") {
-      month = longNames[index];
-    }
-    return capitalizeFirstLetter(month);
-  } else {
-    index = shortNames.indexOf(monthString?.toLowerCase());
-    if (index == -1) {
-      index = longNames.indexOf(monthString?.toLowerCase());
-    }
-    return index + 1;
-  }
-}
-
-function padNumberStart(number) {
-  // Add leading zeros to a single-digit number
-  return (number < 10 ? "0" : "") + number.toString();
-}
-
-// Function to use the appropriate pronouns and possessive adjectives
-export function getPronouns(person) {
-  let gender = person.Gender;
-  if (gender == "Female") {
-    return {
-      subject: "she",
-      possessiveAdjective: "her",
-    };
-  } else if (gender == "Male") {
-    return {
-      subject: "he",
-      possessiveAdjective: "his",
-    };
-  } else {
-    return {
-      subject: "they",
-      possessiveAdjective: "their",
-    };
-  }
-}
-
-export function formatDates(person) {
-  let birthDate = " ";
-  if (isOK(person.BirthDate)) {
-    birthDate = person.BirthDate.substring(0, 4) || " ";
-  } else if (isOK(person.BirthDateDecade)) {
-    birthDate = person.BirthDateDecade.substring(0, 3) + "5";
-  }
-  let deathDate = " ";
-  if (isOK(person.DeathDate)) {
-    deathDate = person.DeathDate.substring(0, 4) || " ";
-  } else if (isOK(person.DeathDateDecade)) {
-    deathDate = person.DeathDateDecade.substring(0, 3) + "5";
-  }
-  if (birthDate === "0000") birthDate = " ";
-  if (deathDate === "0000") deathDate = " ";
-
-  if (birthDate === " " && deathDate === " ") return "";
-
-  if (birthDate !== " ") {
-    const birthStatus = !person?.BirthDate ? "guess" : person?.DataStatus?.BirthDate;
-    const status = dataStatusWord(birthStatus, birthDate, { needOnIn: false, onlyYears: true });
-    if (status) {
-      birthDate = status + " " + birthDate;
-      if (window.autoBioOptions?.yearsDateStatusFormat == "symbols") {
-        birthDate = birthDate.replace(/\s/g, "");
-      }
-    }
-  }
-
-  if (deathDate !== " ") {
-    const deathStatus = !person?.DeathDate ? "guess" : person?.DataStatus?.DeathDate;
-    const status = dataStatusWord(deathStatus, birthDate, { needOnIn: false, onlyYears: true });
-    if (status) {
-      deathDate = status + " " + deathDate;
-      if (window.autoBioOptions?.yearsDateStatusFormat == "symbols") {
-        deathDate = deathDate.replace(/\s/g, "");
-      }
-    }
-  }
-
-  return `(${birthDate}–${deathDate})`;
-}
-
-export function formatDate(date, status, options = { format: "", needOn: false }) {
-  // Ensure that the 'date' parameter is a string
-  if (typeof date !== "string") return "";
-  let format;
-  if (options.format) {
-    format = options.format;
-  } else if (window.autoBioOptions?.dateFormat && format !== 8) {
-    // Use the global date format if available and format is not 8
-    format = window.autoBioOptions?.dateFormat;
-  } else {
-    format = "MDY";
-  }
-
-  let needOn = false;
-  if (options.needOn) {
-    needOn = true;
-  }
-
-  const months = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
-
-  if (!date) return "";
-  let year;
-  let month;
-  let day;
-
-  // Check if date uses hyphens, slashes, or dots
-  date = date.replace(/\./g, "-");
-  if (date.match(/[-/]/)) {
-    [year, month, day] = date.split(/[-/]/);
-    year = parseInt(year);
-    month = parseInt(month);
-    day = parseInt(day);
-  } else if (date) {
-    const split = date.split(" ");
-    split.forEach(function (bit) {
-      if (/\d{4}/.test(bit)) {
-        year = bit;
-      } else if (/[A-z]/i.test(bit)) {
-        month = getMonthNumber(bit);
-      } else {
-        day = bit;
-      }
-    });
-  } else {
-    return;
-  }
-
-  function getStatusOut(status, day) {
-    switch (status) {
-      case "before":
-        return "before";
-      case "after":
-        return "after";
-      case "guess":
-        return "about";
-      case "certain":
-      case "on":
-      case undefined:
-      case "":
-      case "null":
-      case null:
-        if (needOn == true) {
-          if (day) return "on";
-          else return "in";
-        } else return "";
-      default:
-        return "";
-    }
-  }
-
-  const statusOut = getStatusOut(status, day);
-
-  if (format === 8) {
-    const outDate = `${year}${month ? `0${month}`.slice(-2) : "00"}${day ? `0${day}`.slice(-2) : "00"}`;
-    return outDate;
-  } else {
-    let dateString;
-    if (day) {
-      day = day.toString().replace(/^0/, "");
-    }
-    if (format == "sMDY") {
-      dateString =
-        statusOut +
-        " " +
-        `${
-          day ? `${months[month - 1].slice(0, 3)} ${day}, ` : month ? `${months[month - 1].slice(0, 3)}, ` : ``
-        }${year}`;
-    } else if (format == "DsMY") {
-      dateString =
-        statusOut +
-        " " +
-        `${day ? `${day} ${months[month - 1].slice(0, 3)} ` : month ? `${months[month - 1].slice(0, 3)} ` : ``}${year}`;
-    } else if (format == "DMY") {
-      dateString =
-        statusOut + " " + `${day ? `${day} ${months[month - 1]} ` : month ? `${months[month - 1]} ` : ``}${year}`;
-    } else {
-      dateString =
-        statusOut + " " + `${day ? `${months[month - 1]} ${day}, ` : month ? `${months[month - 1]}, ` : ``}${year}`;
-    }
-    return dateString.trim();
-  }
-}
-
-export function nameLink(person) {
-  let theName = person.PersonName?.BirthName;
-  if (window.autoBioOptions?.fullNameOrBirthName == "FullName") {
-    theName = person.PersonName?.FullName;
-  }
-  if (person.Name) {
-    return "[[" + person.Name + "|" + (theName || person.FullName) + "]]";
-  } else {
-    return theName || person.FullName;
-  }
-}
 
 function personDates(person) {
   let theDates = formatDates(person);
@@ -1240,6 +400,19 @@ function addReferences(event, spouse = false) {
     window.references.forEach(function (reference) {
       if (isReferenceRelevant(reference, event, spouse) && !reference.Relation) {
         refCount++;
+        const shouldStripHouseholdTableFromRef =
+          window.autoBioOptions?.householdTable &&
+          reference["Record Type"]?.includes("Census") &&
+          ((typeof reference.Text === "string" && reference.Text.match(/\{\|/)) ||
+            (typeof reference.List === "string" && reference.List.match(/\{\|/)) ||
+            reference.OriginalTable ||
+            (Array.isArray(reference.OriginalTables) && reference.OriginalTables.length > 0));
+        const refText = shouldStripHouseholdTableFromRef
+          ? reference.Text.replace(/\{\|[^]+?\|\}/g, "").replace(/\n{3,}/g, "\n\n").trim()
+          : reference.Text;
+        const refList = shouldStripHouseholdTableFromRef
+          ? (reference.List || "").replace(/\{\|[^]+?\|\}/g, "").replace(/\n{3,}/g, "\n\n").trim()
+          : reference.List;
         if (reference.Used || window.refNames.includes(reference.RefName)) {
           text += `<ref name="${reference.RefName}" /> `;
         } else {
@@ -1247,8 +420,8 @@ function addReferences(event, spouse = false) {
             reference.RefName = event + "_" + refCount;
           }
           reference.Used = true;
-          text += `<ref name="${reference.RefName}">${reference.Text}${
-            reference.List ? "\n" + reference.List : ""
+          text += `<ref name="${reference.RefName}">${refText}${
+            refList ? "\n" + refList : ""
           }</ref> `;
           window.refNames.push(reference.RefName);
         }
@@ -1725,33 +898,6 @@ export function buildParents(person) {
   }
 
   return text;
-}
-
-export function minimalPlace(place) {
-  if (window.autoBioOptions?.fullLocations == true || !place) {
-    return place;
-  }
-  if (!window.usedPlaces) {
-    window.usedPlaces = [];
-  }
-  const placeSplit = place.split(",");
-  let showPlace = [];
-  let used = 0;
-  placeSplit.forEach(function (place, index) {
-    place = place.trim();
-    if (window.usedPlaces.includes(place)) {
-      used++;
-    }
-    if (index == 0) {
-      showPlace.push(place);
-    } else if (!window.usedPlaces.includes(place) || used < 2) {
-      showPlace.push(place);
-      window.usedPlaces.push(place);
-    } else {
-      return showPlace.join(", ");
-    }
-  });
-  return showPlace.join(", ");
 }
 
 export function buildSpouses(person) {
@@ -2364,157 +1510,6 @@ export function buildSpouses(person) {
 
   console.log("[buildSpouses] Final marriages array:", marriages);
   return marriages;
-}
-
-function getAgeFromISODates(birth, date) {
-  if (!birth || !date) {
-    return "";
-  }
-  let [year1, month1, day1] = birth.split("-");
-  let [year2, month2, day2] = date.split("-");
-  let age = getAge({
-    start: { year: year1, month: month1, date: day1 },
-    end: { year: year2, month: month2, date: day2 },
-  });
-  return age[0];
-}
-
-function getAgeAtCensus(person, censusYear) {
-  if (!person.BirthDate) {
-    return;
-  }
-  let day, month, year;
-  if (person["BirthDate"].match("-")) {
-    [year, month, day] = person["BirthDate"].split("-");
-  } else if (person["BirthDate"].match(/^\d{4}$/)) {
-    year = person["BirthDate"];
-  } else {
-    [day, month, year] = person["BirthDate"].split(" ");
-  }
-  if (!day) {
-    day = 15;
-  }
-  if (!month) {
-    month = 7;
-  }
-  let age = getAge({
-    start: { year: year, month: isNaN(month) ? abbrevToNum(month) : month, date: day },
-    end: { year: censusYear, month: 7, date: 2 },
-  });
-  if (age[0]) {
-    return age[0];
-  } else {
-    return false;
-  }
-}
-
-function getMonthNumber(month) {
-  const regex = /^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)/i;
-  const match = month.match(regex);
-
-  if (!match) {
-    return null; // Invalid month input
-  }
-  let monthAbbreviation = match[0].slice(0, 3).toUpperCase();
-
-  switch (monthAbbreviation) {
-    case "JAN":
-      return "01";
-    case "FEB":
-      return "02";
-    case "MAR":
-      return "03";
-    case "APR":
-      return "04";
-    case "MAY":
-      return "05";
-    case "JUN":
-      return "06";
-    case "JUL":
-      return "07";
-    case "AUG":
-      return "08";
-    case "SEP":
-      return "09";
-    case "OCT":
-      return 10;
-    case "NOV":
-      return 11;
-    case "DEC":
-      return 12;
-    default:
-      return null; // Should never reach this point
-  }
-}
-
-export function getYYYYMMDD(dateString) {
-  if (!dateString) {
-    return "";
-  } else {
-    dateString = dateString.replace(/(abt|about|before|bef|after|aft|between|bet|and|calculated|cal)/i, "").trim();
-  }
-  function parseDate(dateStr) {
-    if (!dateStr) {
-      return null;
-    }
-    const splitter = dateStr.includes("-") ? "-" : dateStr.includes(".") ? "." : " ";
-    const dateParts = dateStr.split(splitter);
-    if (dateParts?.length === 3) {
-      let year;
-      let day;
-      if (dateParts[0].length == 4) {
-        year = dateParts[0];
-        day = `0${dateParts[2]}`.slice(-2);
-      } else {
-        year = dateParts[2];
-        day = `0${dateParts[0]}`.slice(-2);
-      }
-      const month = getMonthNumber(dateParts[1]);
-      return `${year}-${month}-${day}`;
-    } else if (dateParts?.length == 2) {
-      if (dateParts[0].match(/\w/)) {
-        const year = dateParts[1];
-        const month = getMonthNumber(dateParts[0].slice(0, 3));
-        return `${year}-${month}-15`;
-      }
-    } else if (dateParts?.length === 1 && dateParts[0]?.length === 4) {
-      const year = dateParts[0];
-      return `${year}-07-02`;
-    } else {
-      return null;
-    }
-  }
-
-  let parsedDate = parseDate(dateString);
-  if (parsedDate) {
-    return parsedDate;
-  } else {
-    const fallbackDateStr = `02 July ${dateString} UTC`;
-    return parseDate(fallbackDateStr);
-  }
-}
-
-export function isWithinX(num1, num2, within) {
-  return Math.abs(num1 - num2) <= within;
-}
-
-function abbrevToNum(abbrev) {
-  const monthMap = {
-    Jan: 1,
-    Feb: 2,
-    Mar: 3,
-    Apr: 4,
-    May: 5,
-    Jun: 6,
-    Jul: 7,
-    Aug: 8,
-    Sep: 9,
-    Oct: 10,
-    Nov: 11,
-    Dec: 12,
-  };
-
-  return monthMap[abbrev];
 }
 
 function sourcerCensusWithNoTable(reference, nameMatchPattern) {
@@ -3285,28 +2280,6 @@ function updateRelations(household) {
   return data;
 }
 
-function getNameVariantsAll(name, firstNameVariants) {
-  if (!name) return [name];
-  if (!firstNameVariants) return [name];
-  const lower = name.toLowerCase();
-  const seenCanonicals = new Set(); // to avoid duplicates
-  const seenVariants = new Set();
-
-  // scan every bucket that contains the spelling (case-insensitive)
-  for (const [canonical, variants] of Object.entries(firstNameVariants)) {
-    if (canonical.toLowerCase() === lower || variants.some((v) => v.toLowerCase() === lower)) {
-      seenCanonicals.add(canonical);
-      variants.forEach((v) => seenVariants.add(v));
-    }
-  }
-
-  // if we found nothing, just return the name itself
-  if (!seenCanonicals.size && !seenVariants.size) return [name];
-
-  // build the final list: all canonicals + all variants, deduped
-  return [...new Set([...seenCanonicals, ...seenVariants])];
-}
-
 function findRelation(person) {
   let relationWord;
   if (!person.FirstName) {
@@ -3363,8 +2336,7 @@ function findRelation(person) {
                     : oGender == "Female"
                     ? "Wife"
                     : "Spouse"
-                  : relationSingular;
-            }
+                  : relationSingular;            }
           }
         });
       }
@@ -3381,420 +2353,6 @@ function findRelation(person) {
     }
   }
   return relationWord;
-}
-
-function convertOneLineCase(lines) {
-  const newLines = [];
-  lines.forEach((line) => {
-    /* Convert this into tab separated lines.
-      The usual case is Name, Age, originalRelation.
-      Sometimes, there may be other fields, too.
-      We can't just split on spaces, because the name may have spaces in it.
-      First, find the age, and split on that.
-      */
-    const ageMatch = line.match(/\s\d{1,3}/);
-    if (ageMatch) {
-      const age = ageMatch[0].trim();
-      const parts = line.split(age);
-      const name = parts[0].trim();
-      let relation = "";
-      if (parts[1]) {
-        relation = parts[1].trim();
-      }
-      newLines.push(`${name}\t${age}\t${relation}`);
-    }
-  });
-  return newLines;
-}
-
-function standardizeRelation(relation) {
-  return relation.replace(/^(?:.*\s+)?([A-Za-z]+)\s*(?:-)?\s*in\s*(?:-)?\s*law\b.*/gi, (match, p1) => {
-    return p1.charAt(0).toUpperCase() + p1.slice(1)?.toLowerCase() + "-in-law";
-  });
-}
-
-const EnglandCounties = [
-  "Bedfordshire",
-  "Berkshire",
-  "Bristol",
-  "Buckinghamshire",
-  "Cambridgeshire",
-  "Cheshire",
-  "Cornwall",
-  "Cumbria",
-  "Derbyshire",
-  "Devon",
-  "Dorset",
-  "Durham",
-  "East Riding of Yorkshire",
-  "East Sussex",
-  "Essex",
-  "Gloucestershire",
-  "Greater London",
-  "Greater Manchester",
-  "Hampshire",
-  "Herefordshire",
-  "Hertfordshire",
-  "Isle of Wight",
-  "Kent",
-  "Lancashire",
-  "Leicestershire",
-  "Lincolnshire",
-  "Merseyside",
-  "Norfolk",
-  "North Yorkshire",
-  "Northamptonshire",
-  "Northumberland",
-  "Nottinghamshire",
-  "Oxfordshire",
-  "Rutland",
-  "Shropshire",
-  "Somerset",
-  "South Yorkshire",
-  "Staffordshire",
-  "Suffolk",
-  "Surrey",
-  "Tyne and Wear",
-  "Warwickshire",
-  "West Midlands",
-  "West Sussex",
-  "West Yorkshire",
-  "Wiltshire",
-  "Worcestershire",
-];
-
-const EnglandHistoricCounties = [
-  "Middlesex",
-  "Westmorland",
-  "Cumberland",
-  "Rutland",
-  "Huntingdonshire",
-  "Monmouthshire",
-  "Sutherland",
-  "Breconshire",
-  "Montgomeryshire",
-  "Radnorshire",
-  "West Riding of Yorkshire",
-];
-
-EnglandCounties.push(...EnglandHistoricCounties);
-
-const UKMetropolitanCities = [
-  // UK Metropolitan Cities
-  "London",
-  "Birmingham",
-  "Glasgow",
-  "Liverpool",
-  "Leeds",
-  "Sheffield",
-  "Edinburgh",
-  "Bristol",
-  "Manchester",
-  "Leicester",
-  "Coventry",
-  "Kingston upon Hull",
-  "Bradford",
-  "Cardiff",
-  "Belfast",
-  "Stoke-on-Trent",
-  "Wolverhampton",
-  "Nottingham",
-  "Plymouth",
-  "Southampton",
-  "Reading",
-  "Derby",
-  "Dudley",
-  "Newcastle upon Tyne",
-  "Northampton",
-  "Portsmouth",
-  "Luton",
-  "Preston",
-  "Aberdeen",
-  "Milton Keynes",
-  "Sunderland",
-  "Norwich",
-  "Walsall",
-  "Swansea",
-  "Bournemouth",
-  "Southend-on-Sea",
-  "Swindon",
-  "Dundee",
-  "Huddersfield",
-  "Poole",
-  "Oxford",
-  "Middlesbrough",
-  "Blackpool",
-  "Bolton",
-  "Ipswich",
-  "Telford",
-  "York",
-  "West Bromwich",
-  "Peterborough",
-  "Stockport",
-  "Brighton",
-  "Slough",
-  "Gloucester",
-  "Watford",
-  "Rotherham",
-  "Newport",
-  "Cambridge",
-  "Exeter",
-  "Eastbourne",
-  "Sutton Coldfield",
-  "Blackburn",
-  "Colchester",
-  "Oldham",
-  "St Helens",
-  "Woking",
-  "Crawley",
-  "Chelmsford",
-  "Basildon",
-  "Gillingham",
-  "Worthing",
-  "Solihull",
-  "Rochdale",
-  "Birkenhead",
-  "Wigan",
-  "Wakefield",
-  "Cardiff",
-  "Preston",
-  "Sale",
-  "Newcastle-under-Lyme",
-];
-
-const citiesCountiesStates = [
-  // US States
-  "Alabama",
-  "Alaska",
-  "Arizona",
-  "Arkansas",
-  "California",
-  "Colorado",
-  "Connecticut",
-  "Delaware",
-  "Florida",
-  "Georgia",
-  "Hawaii",
-  "Idaho",
-  "Illinois",
-  "Indiana",
-  "Iowa",
-  "Kansas",
-  "Kentucky",
-  "Louisiana",
-  "Maine",
-  "Maryland",
-  "Massachusetts",
-  "Michigan",
-  "Minnesota",
-  "Mississippi",
-  "Missouri",
-  "Montana",
-  "Nebraska",
-  "Nevada",
-  "New Hampshire",
-  "New Jersey",
-  "New Mexico",
-  "New York",
-  "North Carolina",
-  "North Dakota",
-  "Ohio",
-  "Oklahoma",
-  "Oregon",
-  "Pennsylvania",
-  "Rhode Island",
-  "South Carolina",
-  "South Dakota",
-  "Tennessee",
-  "Texas",
-  "Utah",
-  "Vermont",
-  "Virginia",
-  "Washington",
-  "West Virginia",
-  "Wisconsin",
-  "Wyoming",
-
-  // Canadian Provinces
-  "Alberta",
-  "British Columbia",
-  "Manitoba",
-  "New Brunswick",
-  "Newfoundland and Labrador",
-  "Northwest Territories",
-  "Nova Scotia",
-  "Nunavut",
-  "Ontario",
-  "Prince Edward Island",
-  "Quebec",
-  "Saskatchewan",
-  "Yukon",
-
-  // Australian States
-  "Australian Capital Territory",
-  "New South Wales",
-  "Northern Territory",
-  "Queensland",
-  "South Australia",
-  "Tasmania",
-  "Victoria",
-  "Western Australia",
-];
-
-// Add UK Counties and  Metropolitan Cities to the list of citiesCountiesStates
-citiesCountiesStates.push(...EnglandCounties);
-citiesCountiesStates.push(...UKMetropolitanCities);
-
-const placeNameRegExp =
-  /\w+(land|shire|mere|acres|bay|beach|bluffs|center|corner|cove|crest|crossing|falls|farms|fields|flats|fork|gardens|gate|glen|green|grove|harbor|heights|hills|hollow|inlet|key|knolls|landing|light|manor|mesa|mills|mount|mountain|orchard|park|passage|pines|point|ranch|ridge|river|runway|shores|sky|springs|terrace|trace|view|village|vista|woods|basin|cape|canyon|delta|forest|glacier|gulf|island|isthmus|lake|mesa|oasis|plain|plateau|prairie|sea|shore|sound|swamp|trail|valley|waterfall|peak|ridge|summit|pass|range|butte|knob|dome|spit|shoals|rapids|falls|bend|junction|spur|switch|fork|cross|field|estate|parkway|boulevard|circle|court|place|avenue|plaza|path|way|alley|borough|city|county|district|municipality|parish|town|township|village|territory|region|state|province|shire|ton|ham|don|wick|ford|bury|port|stadt|stede|burg|burgh|by|ville|beck|dale|holme|hurts|mead|wold|boro|chester|heath|hill|vale|wyke)\b/gi;
-
-export function analyzeColumns(lines) {
-  const columns = {};
-
-  lines.forEach((lineOrParts) => {
-    let parts;
-    if (Array.isArray(lineOrParts)) {
-      parts = lineOrParts;
-    } else {
-      lineOrParts = lineOrParts.replace(/\|\|/g, "\t"); // convert double pipes to tabs
-      parts = lineOrParts.split(/ {4}|\t/);
-    }
-
-    parts.forEach((part, index) => {
-      // Check if the part exists and is a string before trimming
-      if (typeof part === "string") {
-        part = part.trim(); // Trim whitespace
-      } else {
-        part = ""; // Assign empty string to avoid further issues if part is undefined
-      }
-      if (!columns[index]) {
-        columns[index] = {
-          Name: 0,
-          Gender: 0,
-          originalRelation: 0,
-          Age: 0,
-          BirthPlace: 0,
-          Occupation: 0,
-          MaritalStatus: 0,
-          Link: 0,
-          BurialPlace: 0,
-        };
-      }
-      let matched = false;
-
-      // RegExp of cities, counties, states
-      const bigPlacesMatch = new RegExp("\\b" + citiesCountiesStates.join("|") + "\\b", "i");
-      const occupationMatch = new RegExp(
-        "\\b" + occupationList.join("|") + "|" + occupationList2.join("|") + "\\b",
-        "i"
-      );
-
-      // Name and Date recognition with support for non-Latin scripts
-      const nameAndDatePattern = /^[\p{L}\p{M}\s]+ \(\d{4}-\d{4}\)$/u; // Match name and date in any script
-      const isValidName = /[\p{L}\p{M}]{2}/u.test(part) && !/^\d+$/.test(part); // At least 2 letters in any script, not only numbers
-
-      if (index === 0 && part.match(nameAndDatePattern)) {
-        columns[index].Name++;
-        matched = true;
-      }
-
-      // Check if it's likely to be a valid name (not just a number, at least two characters in any script)
-      if (index === 0 && !matched && isValidName) {
-        columns[index].Name++;
-        matched = true;
-      }
-
-      if (!matched && part.match(/(?:M|F|Male|Female)\b/i)) {
-        columns[index].Gender++;
-        matched = true;
-      }
-
-      if (!matched && part.match(/married|widowed|single/i)) {
-        columns[index].MaritalStatus++;
-        matched = true;
-      }
-
-      if (
-        !matched &&
-        part.match(
-          /\b(Head|Wife|Son|Daughter|Mother|Father|Brother|Sister|Grand(?:mother|father)|Uncle|Aunt|Niece|Nephew|Cousin|(Father|Mother|Brother|Sister|Son|Daughter)-in-law|Step(?:son|daughter|brother|sister|mother|father)|Visitor|Lodger|Boarder)\b/i
-        )
-      ) {
-        columns[index].originalRelation++;
-        matched = true;
-      }
-
-      const ageMatch = part.match(/^(\d{1,3})( ?y| ?years| ?months| ?mo\.)?$/);
-      if (ageMatch && Number(ageMatch[1]) < 130) {
-        columns[index].Age++;
-        matched = true;
-      }
-
-      if (part.match(/,/) || part.match(bigPlacesMatch) || part.match(placeNameRegExp)) {
-        columns[index].BirthPlace++;
-        matched = true;
-      }
-      if (part.match(occupationMatch)) {
-        columns[index].Occupation++;
-        matched = true;
-      }
-
-      if (!matched && part.match(/Plot|Buried|Churchyard/i)) {
-        columns[index].BurialPlace++;
-        matched = true;
-      }
-
-      if (!matched && part.match(/https?:\/\/www.wikitree.com/i)) {
-        columns[index].Link++;
-        matched = true;
-      }
-
-      // If nothing else matched, assume it's a place name
-      if (!matched && part !== "") {
-        columns[index].BirthPlace++;
-      }
-    });
-  });
-
-  // Prioritize columns by these common headers
-  const columnPriority = [
-    "Name",
-    "Gender",
-    "originalRelation",
-    "Age",
-    "BirthPlace",
-    "Occupation",
-    "MaritalStatus",
-    "Link",
-    "BurialPlace",
-  ];
-  const assignedColumnNames = new Set();
-  const columnMapping = {};
-
-  for (const columnName of columnPriority) {
-    let maxScore = 0;
-    let maxScoreIndex = null;
-
-    for (const [index, column] of Object.entries(columns)) {
-      if (!Object.values(columnMapping).includes(index) && column) {
-        const score = column[columnName];
-        if (!assignedColumnNames.has(columnName) && score > maxScore) {
-          maxScore = score;
-          maxScoreIndex = index;
-        }
-      }
-    }
-
-    // Minimum matches required to consider a column as being mapped
-    const minCount = lines.length <= 2 ? 1 : 2; // For 1-2 rows, allow column assignment with a single match
-
-    if (maxScoreIndex !== null && maxScore >= minCount) {
-      columnMapping[columnName] = maxScoreIndex;
-      assignedColumnNames.add(columnName);
-    }
-  }
-
-  return columnMapping;
 }
 
 function extractHouseholdMembers(row) {
@@ -3854,40 +2412,7 @@ function parseFamilyData(familyData, options = { format: "list", year: "" }) {
     return parseCensusWikitable(familyData);
   }
 
-  const oneLineCase = Array.isArray(familyData);
-  let lines = oneLineCase ? familyData : familyData.split("\n");
-  if (oneLineCase) {
-    lines = convertOneLineCase(lines);
-  }
-  const columnMapping = analyzeColumns(lines, oneLineCase);
-  const result = lines.map((line) => {
-    // Update the line parsing based on the list case
-    const lineRegex = /\s{4}|\t/;
-    const parts = line.split(lineRegex);
-    const person = {};
-
-    Object.keys(columnMapping).forEach((key) => {
-      const part = parts[columnMapping[key]];
-
-      if (key === "Name") {
-        person[key] = part.replace(/^[*#:]+/, "").trim();
-      } else if (key === "Gender") {
-        person[key] = part === "M" ? "Male" : "Female";
-      } else {
-        person[key] = part;
-      }
-
-      if (options.year && key === "Age") {
-        person.BirthYear = parseInt(options.year - person[key]);
-      }
-    });
-
-    if (person.originalRelation) {
-      person.originalRelation = standardizeRelation(person.originalRelation);
-    }
-    return person;
-  });
-  return result;
+  return parseFamilyDataLines(familyData, options);
 }
 
 function parseCensusData(censusData) {
@@ -4078,20 +2603,25 @@ function parseSourcerFamilyListWithBRs(reference) {
 }
 
 function buildCensusNarratives() {
-  const yearRegex = /\b(1[789]\d{2})\b/;
   // getCensusesFromCensusSection();
   window.references.forEach(function (reference) {
+    const isCensusReference = reference.Text.match(/census|1939( England and Wales)? Register/i);
+    if (isCensusReference) {
+      attachPreservedTablesToCensusReference(reference);
+    }
     if (reference.SourcerNarrative) {
       return;
     }
 
     let text = "";
-    if (reference.Text.match(/census|1939( England and Wales)? Register/i)) {
+    if (isCensusReference) {
       reference["Event Type"] = "Census";
-      let match = reference.Text.match(yearRegex);
-      if (match) {
-        if (!reference["Census Year"]) {
-          reference["Census Year"] = match[1];
+      const resolvedCensusYear = resolveCensusYearForReference(reference);
+
+      if (resolvedCensusYear) {
+        reference["Census Year"] = resolvedCensusYear;
+        if (!reference.Year) {
+          reference.Year = resolvedCensusYear;
         }
         if (!reference.Household) {
           reference = parseSourcerFamilyListWithBRs(reference);
@@ -4139,19 +2669,6 @@ function buildCensusNarratives() {
             }
             reference = assignSelf(reference);
           }
-        }
-        if (window.sourcerCensuses) {
-          window.sourcerCensuses.forEach(function (sourcerReference) {
-            if (sourcerReference["Census Year"] == reference["Census Year"]) {
-              const { Text, Residence, ...rest } = sourcerReference;
-              // Use the spread operator to copy the remaining properties to the target object
-              Object.assign(reference, rest);
-              reference.sourcerText = sourcerReference.Text;
-              if (!reference.Residence) {
-                reference.Residence = sourcerReference.Residence;
-              }
-            }
-          });
         }
       }
 
@@ -4555,6 +3072,107 @@ function createFamilyNarrative(familyMembers) {
     .replace(/\s{2,}/, " ");
 }
 
+function buildHouseholdTableFromHousehold(household) {
+  if (!Array.isArray(household) || household.length === 0) {
+    return "";
+  }
+
+  const ignoredKeys = new Set([
+    "isMain",
+    "HasProfile",
+    "LastNameAtBirth",
+    "FirstName",
+    "MiddleName",
+    "Census",
+    "censusRelation",
+  ]);
+  const preferredOrder = [
+    "Name",
+    "Relation",
+    "Status",
+    "MaritalStatus",
+    "Sex",
+    "Gender",
+    "Age",
+    "Occupation",
+    "Birth Place",
+    "Birthplace",
+    "Residence",
+    "BurialPlace",
+    "Link",
+  ];
+  const headers = [];
+
+  household.forEach((person) => {
+    Object.keys(person || {}).forEach((key) => {
+      if (ignoredKeys.has(key)) {
+        return;
+      }
+      if (key === "originalRelation") {
+        if (!headers.includes("Relation") && !headers.includes("originalRelation")) {
+          headers.push("Relation");
+        }
+        return;
+      }
+      if (key === "Gender" && headers.includes("Sex")) {
+        return;
+      }
+      if (key === "Birthplace" && headers.includes("Birth Place")) {
+        return;
+      }
+      if (!headers.includes(key)) {
+        headers.push(key);
+      }
+    });
+  });
+
+  if (headers.length === 0) {
+    return "";
+  }
+
+  headers.sort((left, right) => {
+    const leftIndex = preferredOrder.indexOf(left);
+    const rightIndex = preferredOrder.indexOf(right);
+    if (leftIndex === -1 && rightIndex === -1) {
+      return left.localeCompare(right);
+    }
+    if (leftIndex === -1) {
+      return 1;
+    }
+    if (rightIndex === -1) {
+      return -1;
+    }
+    return leftIndex - rightIndex;
+  });
+
+  const tableLines = ["{| border=\"1\" cellpadding=\"4\"", "|- bgcolor=#E1F0B4", `| ${headers.join(" || ")}`];
+
+  household.forEach((person) => {
+    const highlightRow = person?.isMain || person?.Relation === "Self";
+    const row = headers.map((header) => {
+      let value = "";
+      if (header === "Relation") {
+        value = person.Relation === "Self" ? person.originalRelation || person.Relation || "" : person.Relation || person.originalRelation || "";
+      } else if (header === "Sex") {
+        value = person.Sex || (person.Gender === "Male" ? "M" : person.Gender === "Female" ? "F" : person.Gender || "");
+      } else if (header === "Birth Place") {
+        value = person["Birth Place"] || person.Birthplace || "";
+      } else {
+        value = person[header] || "";
+      }
+
+      const cleanValue = `${value}`.replace(/\n+/g, " ").trim();
+      return highlightRow && cleanValue ? `'''${cleanValue}'''` : cleanValue;
+    });
+
+    tableLines.push("|-");
+    tableLines.push(`| ${row.join(" || ")}`);
+  });
+
+  tableLines.push("|}");
+  return tableLines.join("\n");
+}
+
 function doHousehold(aRef) {
   if (!aRef.Household) {
     return aRef;
@@ -4926,56 +3544,6 @@ function assignSelf(data) {
   return data;
 }
 
-function getEditDistance(string1, string2) {
-  string1 = string1?.toLowerCase();
-  string2 = string2?.toLowerCase();
-
-  if (!string1 || !string2) {
-    return false;
-  }
-
-  const costs = [];
-  for (let i = 0; i <= string1.length; i++) {
-    let lastValue = i;
-    for (let j = 0; j <= string2.length; j++) {
-      if (i === 0) costs[j] = j;
-      else {
-        if (j > 0) {
-          let newValue = costs[j - 1];
-          if (string1[i - 1] !== string2[j - 1]) {
-            newValue = Math.min(newValue, lastValue, costs[j]) + 1;
-          }
-          costs[j - 1] = lastValue;
-          lastValue = newValue;
-        }
-      }
-    }
-    if (i > 0) costs[string2.length] = lastValue;
-  }
-  return costs[string2.length];
-}
-
-function getSimilarity(string1, string2) {
-  if (!string1 || !string2) return 0;
-  string1 = string1?.toLowerCase();
-  string2 = string2?.toLowerCase();
-  const longer = Math.max(string1.length, string2.length);
-  if (longer === 0) return 1;
-  return (longer - getEditDistance(string1, string2)) / longer;
-}
-
-function isSameName(name, nameVariants, strength = 0.9) {
-  let sameName = false;
-  nameVariants.forEach(function (nv) {
-    if (nv && name) {
-      if (getSimilarity(nv?.toLowerCase(), name?.toLowerCase()) > strength) {
-        sameName = true;
-      }
-    }
-  });
-  return sameName;
-}
-
 function getNameVariantsB(person, firstNameVariant) {
   let nameVariants = [];
   let middleInitial = person.MiddleName ? person.MiddleName.charAt(0) : "";
@@ -5047,10 +3615,6 @@ export function getNameVariants(person) {
 
   const uniqueArray = [...new Set(nameVariants)];
   return uniqueArray;
-}
-
-function capitalizeFirstLetter(string) {
-  return `${string.charAt(0).toUpperCase()}${string.slice(1)}`;
 }
 
 function addMilitaryRecord(aRef, type) {
@@ -5610,7 +4174,9 @@ export function sourcesArray(bio) {
 
       const detailsMatch = aRef.Text.match(/(\d{4}\),\s)(.+?),\s(\d+\s\w+\s\d+)/);
       const detailsMatch2 = aRef.Text.match(/\(http.*?\)(.*?image.*?;\s)(.*?)\./);
-      const detailsMatch3 = aRef.Text.match(/[>;)]([A-z\s-]*) marriage to\s(.*?)\s\bon\b\s(.*?)\s\bin\b\s(.*)\./);
+      const detailsMatch3 = aRef.Text.match(
+        /[>;)](.*?) marriage to\s(.*?)\s\bon\b\s(.*?)\s\bin\b\s(.*?)\s*(?=\.?'{2}|Added by|\.$)/
+      );
       const entryForMatch = aRef.Text.match(/in entry for/);
 
       if (detailsMatch2) {
@@ -5655,18 +4221,15 @@ export function sourcesArray(bio) {
         }
       } else if (detailsMatch3) {
         aRef.Couple = [];
-        let person1AgeMatch = detailsMatch3[1].match(/\d{1,2}( years)?/);
+        const person1Text = detailsMatch3[1].replaceAll(/^.*''/g, "").trim();
+        let person1AgeMatch = person1Text.match(/\d{1,2}( years)?/);
         let person1Age = "";
         if (person1AgeMatch) {
           person1Age = person1AgeMatch[0];
         }
         console.log("Person 1 Age:", person1Age);
 
-        const person1 = detailsMatch3[1]
-          .replaceAll(/\(.*?\)/g, "")
-          .trim()
-          .replaceAll(/^.*''/g, "")
-          .trim();
+        const person1 = person1Text.replaceAll(/\(.*?\)/g, "").trim();
 
         let person2AgeMatch = detailsMatch3[2].match(/\d{1,2}( years)?/);
         let person2Age = "";
@@ -5691,23 +4254,56 @@ export function sourcesArray(bio) {
           aRef.Year = "";
           console.log("Year not found in detailsMatch3, set to empty string.");
         }
-        aRef["Marriage Place"] = detailsMatch3[4].trim();
+        aRef["Marriage Place"] = detailsMatch3[4].trim().replace(/\.+$/, "");
         console.log("Marriage Place set from detailsMatch3:", aRef["Marriage Place"]);
 
-        if (window.profilePerson?.NameVariants?.length > 0) {
-          window.profilePerson.NameVariants.forEach((name) => {
-            if (name == aRef.Couple[0]) {
+        // Build profile person first-name variants for fuzzy matching
+        let profileFirstNameVariants = [window.profilePerson.PersonName?.FirstName || window.profilePerson.FirstName];
+        const profFirstName = window.profilePerson.PersonName?.FirstName || window.profilePerson.FirstName;
+        if (profFirstName && firstNameVariants[profFirstName]) {
+          profileFirstNameVariants = firstNameVariants[profFirstName];
+        }
+
+        // Extract first names from couple to enable accurate matching
+        const couple1FirstName = aRef.Couple[0].split(/\s+/)[0];
+        const couple2FirstName = aRef.Couple[1].split(/\s+/)[0];
+
+        // Use isSameName for fuzzy matching of first names (with lower threshold for spelling variants)
+        let profilePersonFound = false;
+        if (isSameName(couple1FirstName, profileFirstNameVariants, 0.85)) {
+          aRef["Spouse Name"] = aRef.Couple[1];
+          aRef["Spouse Age"] = person2Age;
+          aRef["Age"] = person1Age;
+          profilePersonFound = true;
+          console.log("Spouse Name and Age set (Couple[0] matches profile):", aRef["Spouse Name"], aRef["Spouse Age"]);
+        } else if (isSameName(couple2FirstName, profileFirstNameVariants, 0.85)) {
+          aRef["Spouse Name"] = aRef.Couple[0];
+          aRef["Spouse Age"] = person1Age;
+          aRef["Age"] = person2Age;
+          profilePersonFound = true;
+          console.log("Spouse Name and Age set (Couple[1] matches profile):", aRef["Spouse Name"], aRef["Spouse Age"]);
+        }
+        if (!profilePersonFound) {
+          console.log("Profile person not matched in couple using first-name variants. Trying full NameVariants.");
+          // Fallback: check window.profilePerson.NameVariants if available
+          if (window.profilePerson?.NameVariants?.length > 0) {
+            if (window.profilePerson.NameVariants.some(name => isSameName(name, [couple1FirstName]))) {
               aRef["Spouse Name"] = aRef.Couple[1];
               aRef["Spouse Age"] = person2Age;
               aRef["Age"] = person1Age;
-              console.log("Spouse Name and Age set:", aRef["Spouse Name"], aRef["Spouse Age"]);
-            } else if (name == aRef.Couple[1]) {
+              profilePersonFound = true;
+              console.log("Spouse Name and Age set via NameVariants (Couple[0]):", aRef["Spouse Name"], aRef["Spouse Age"]);
+            } else if (window.profilePerson.NameVariants.some(name => isSameName(name, [couple2FirstName]))) {
               aRef["Spouse Name"] = aRef.Couple[0];
               aRef["Spouse Age"] = person1Age;
               aRef["Age"] = person2Age;
-              console.log("Spouse Name and Age set:", aRef["Spouse Name"], aRef["Spouse Age"]);
+              profilePersonFound = true;
+              console.log("Spouse Name and Age set via NameVariants (Couple[1]):", aRef["Spouse Name"], aRef["Spouse Age"]);
             }
-          });
+          }
+        }
+        if (!profilePersonFound) {
+          console.log("Profile person not matched in couple. Values not set.");
         }
       } else if (aRef.Text.match(/GRO Reference.*?(\d{4}).*\bin\b\s(.*)Volume/)) {
         const details = aRef.Text.match(/GRO Reference.*?(\d{4}).*\bin\b\s(.*)Volume/);
@@ -6279,18 +4875,236 @@ function getFamilyFromCitations() {
   return;
 }
 
-function logNow(myVar) {
-  return JSON.parse(JSON.stringify(myVar));
-}
-
-function getSourcerCensuses() {
-  let censuses = [];
+function getOriginalBioTextWithoutRefs() {
   const thisBio = document.getElementById("wpTextbox1").value.replace(/<ref[^>]*\/>/g, "");
   const dummy = document.createElement("div");
   dummy.innerHTML = thisBio;
   const refs = dummy.querySelectorAll("ref");
   refs.forEach((ref) => ref.remove());
-  const text = dummy.innerHTML;
+  return dummy.innerHTML;
+}
+
+function findClosestCensusYearForTable(text, tableStart, tableEnd) {
+  const contextStart = Math.max(0, tableStart - 800);
+  const contextEnd = Math.min(text.length, tableEnd + 250);
+  const context = text.slice(contextStart, contextEnd);
+  const yearRegex =
+    /(?:In the\s+)?(?:''')?(1[789]\d{2}|1939)(?:''')?\s+(?:England and Wales\s+)?(?:census|register)|(?:census|register)[^.\n]{0,80}(?:''')?(1[789]\d{2}|1939)(?:''')?/gi;
+  let bestYear = "";
+  let bestDistance = Infinity;
+
+  for (const match of context.matchAll(yearRegex)) {
+    const year = match[1] || match[2];
+    if (!year) {
+      continue;
+    }
+    const absoluteIndex = contextStart + match.index;
+    const distance = Math.min(Math.abs(absoluteIndex - tableStart), Math.abs(absoluteIndex - tableEnd));
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestYear = year;
+    }
+  }
+
+  return bestYear;
+}
+
+function tableHasExplicitSelfRow(table) {
+  return table
+    .split("\n")
+    .some((line) => /^\|/.test(line) && !/^\|[-+}]/.test(line) && /(?:^|\|\|)\s*Self\s*(?:\|\||$)/i.test(line));
+}
+
+function getProfileFirstNameVariantsForMatching() {
+  const firstName = window.profilePerson.PersonName?.FirstName || window.profilePerson.FirstName;
+  return getNameVariantsAll(firstName, firstNameVariants).filter(Boolean);
+}
+
+function scorePreservedCensusRow(member, censusYear) {
+  if (!member?.Name) {
+    return 0;
+  }
+
+  const expectedAge = censusYear ? getAgeAtCensus(window.profilePerson, censusYear) : "";
+  const memberAge = member.Age || member.age || "";
+  const memberFirstName = member.Name.split(/\s+/)[0];
+  const fullNameMatch = isSameName(member.Name, window.profilePerson.NameVariants, 0.88);
+  const firstNameMatch = memberFirstName
+    ? isSameName(memberFirstName, getProfileFirstNameVariantsForMatching(), 0.88)
+    : false;
+  const tightAgeMatch = expectedAge && memberAge ? isWithinX(expectedAge, memberAge, 2) : false;
+  const looseAgeMatch = expectedAge && memberAge ? isWithinX(expectedAge, memberAge, 5) : false;
+
+  if (fullNameMatch && tightAgeMatch) {
+    return 120;
+  }
+  if (fullNameMatch && looseAgeMatch) {
+    return 95;
+  }
+  if (fullNameMatch) {
+    return 70;
+  }
+  if (firstNameMatch && tightAgeMatch) {
+    return 55;
+  }
+  if (firstNameMatch && looseAgeMatch) {
+    return 35;
+  }
+  if (firstNameMatch) {
+    return 10;
+  }
+
+  return 0;
+}
+
+function scorePreservedCensusTable(candidate) {
+  if (!Array.isArray(candidate.Household)) {
+    return 0;
+  }
+
+  const explicitSelfRow = tableHasExplicitSelfRow(candidate.OriginalTable || "");
+  const bestRowScore = candidate.Household.reduce(
+    (highestScore, member) => Math.max(highestScore, scorePreservedCensusRow(member, candidate["Census Year"] || candidate.Year)),
+    0
+  );
+
+  let score = bestRowScore;
+  if (explicitSelfRow && bestRowScore >= 70) {
+    score += 40;
+  } else if (explicitSelfRow) {
+    score += 10;
+  }
+
+  return score;
+}
+
+function getPreservedCensusTables() {
+  const text = getOriginalBioTextWithoutRefs();
+  const preservedTables = [];
+
+  for (const match of text.matchAll(/\{\|[^]+?\|\}/g)) {
+    const table = match[0];
+    if (!/\bName\b/i.test(table) && !/\bNames\b/i.test(table)) {
+      continue;
+    }
+    if (!/\bAge\b/i.test(table) && !/\bRelation\b/i.test(table)) {
+      continue;
+    }
+
+    const household = parseFamilyData(table, { format: "wikitable" });
+    if (!Array.isArray(household) || household.length === 0) {
+      continue;
+    }
+
+    const candidate = {
+      "Census Year": findClosestCensusYearForTable(text, match.index, match.index + table.length),
+      Year: findClosestCensusYearForTable(text, match.index, match.index + table.length),
+      OriginalTable: table,
+      Household: household,
+      Used: false,
+    };
+    candidate.MatchScore = scorePreservedCensusTable(candidate);
+    preservedTables.push(candidate);
+  }
+
+  return preservedTables;
+}
+
+function getPreservedCensusTablesForReference(reference) {
+  if (!Array.isArray(window.preservedCensusTables)) {
+    return [];
+  }
+
+  const censusYear = String(reference["Census Year"] || reference.Year || "");
+  if (!censusYear) {
+    return [];
+  }
+
+  const matches = window.preservedCensusTables
+    .filter((candidate) => String(candidate["Census Year"] || candidate.Year || "") === censusYear)
+    .map((candidate) => ({
+      candidate,
+      score: (candidate.MatchScore || 0) - (candidate.Used ? 5 : 0),
+    }))
+    .filter((candidateMatch) => candidateMatch.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  matches.forEach((match) => {
+    match.candidate.Used = true;
+  });
+
+  return matches.map((match) => match.candidate);
+}
+
+function resolveCensusYearForReference(reference) {
+  const yearRegex = /\b(1[789]\d{2})\b/;
+  const textYearMatch = reference.Text.match(yearRegex);
+  const eventDateYearMatch = String(reference["Event Date"] || "").match(yearRegex);
+  return reference["Census Year"] || reference.Year || reference["Event Year"] || eventDateYearMatch?.[1] || textYearMatch?.[1];
+}
+
+function attachPreservedTablesToCensusReference(reference) {
+  reference["Event Type"] = "Census";
+  const resolvedCensusYear = resolveCensusYearForReference(reference);
+
+  if (!resolvedCensusYear) {
+    return;
+  }
+
+  reference["Census Year"] = resolvedCensusYear;
+  if (!reference.Year) {
+    reference.Year = resolvedCensusYear;
+  }
+
+  if (window.sourcerCensuses) {
+    window.sourcerCensuses.forEach(function (sourcerReference) {
+      if (sourcerReference["Census Year"] == reference["Census Year"]) {
+        const { Text, Residence, ...rest } = sourcerReference;
+        Object.assign(reference, rest);
+        if (!reference.OriginalTable && sourcerReference.OriginalTable) {
+          reference.OriginalTable = sourcerReference.OriginalTable;
+        }
+        if (sourcerReference.OriginalTable) {
+          attachOriginalTableToReference(reference, sourcerReference.OriginalTable, sourcerReference.Household);
+        }
+        reference.sourcerText = sourcerReference.Text;
+        if (!reference.Residence) {
+          reference.Residence = Residence;
+        }
+      }
+    });
+  }
+
+  getPreservedCensusTablesForReference(reference).forEach((candidate) => {
+    attachOriginalTableToReference(reference, candidate.OriginalTable, candidate.Household);
+  });
+}
+
+function attachOriginalTableToReference(reference, tableText, household) {
+  if (!tableText) {
+    return;
+  }
+
+  if (!Array.isArray(reference.OriginalTables)) {
+    reference.OriginalTables = [];
+  }
+  if (!reference.OriginalTables.includes(tableText)) {
+    reference.OriginalTables.push(tableText);
+  }
+  if (!reference.OriginalTable) {
+    reference.OriginalTable = tableText;
+  }
+  if ((!reference.List || !reference.List.match(/\{\|/)) && tableText.match(/\{\|/)) {
+    reference.List = tableText;
+  }
+  if (!reference.Household && Array.isArray(household)) {
+    reference.Household = household;
+  }
+}
+
+function getSourcerCensuses() {
+  let censuses = [];
+  const text = getOriginalBioTextWithoutRefs();
 
   //const regexWikitable = /(\d{4}) census[^]+?(\{\|[^]+?\|\})(?![^]*\{\|[^]+?\|\})/g;
 
@@ -6349,6 +5163,7 @@ function getSourcerCensuses() {
       Text: censusData[key].description,
       Year: key,
       List: censusData[key].table,
+      OriginalTable: censusData[key].table,
       RefName: "Census_" + key,
       Household: household,
     };
@@ -6472,6 +5287,7 @@ function processCensusSubsections(censuses) {
     } else if (tableStarted) {
       if (line.match(/^\|\}/)) {
         tableStarted = false;
+        currentCensus.OriginalTable = currentCensus.Text;
         censuses.push(currentCensus);
       }
       currentCensus.Text += line + "\n";
@@ -7608,117 +6424,6 @@ export async function getStuffBeforeTheBioText() {
   return stuffBeforeTheBioText;
 }
 
-export function addWorking() {
-  //try {
-  const working = $(
-    "<img id='working' style='position:absolute; margin-top:3em; margin-left: 300px' src='" +
-      // eslint-disable-next-line no-undef
-      treeImageURL +
-      "'>"
-  );
-  $("#wpTextbox1").before(working);
-  // } catch (error) {
-  //   extensionContextInvalidatedCheck(error);
-  // }
-}
-export function removeWorking() {
-  $("#working").remove();
-}
-
-function findBestMatch(surname, birthLocation, deathLocation, categories) {
-  let birthLocArray = [];
-  if (birthLocation) {
-    birthLocArray = birthLocation.split(",").map((item) => item.trim());
-  }
-  let deathLocArray = [];
-  if (deathLocation) {
-    deathLocArray = deathLocation.split(",").map((item) => item.trim());
-  }
-
-  let checkMatch = (locationArray, category) => {
-    let categoryWithoutSurname = category.replace(`, ${surname} Name Study`, "");
-    let categoryParts = categoryWithoutSurname.split(",").map((item) => item.trim());
-
-    // Check if all categoryParts are in locationArray (with or without 'County')
-    return categoryParts.every((catPart) => {
-      let catPartNoCounty = catPart.replace(/ County$/, "");
-      return locationArray.some((locPart) => locPart === catPart || locPart === catPartNoCounty);
-    });
-  };
-
-  let bestMatch = null;
-  let bestMatchSpecificity = -1;
-
-  for (let category of categories) {
-    if (checkMatch(birthLocArray, category.category) || checkMatch(deathLocArray, category.category)) {
-      let categorySpecificity = category.category.split(",").length - 1;
-      if (categorySpecificity > bestMatchSpecificity) {
-        bestMatch = category.category;
-        bestMatchSpecificity = categorySpecificity;
-      }
-    }
-  }
-
-  // If no match found, try to find general 'Surname Name Study' category
-  if (!bestMatch) {
-    let generalNameStudy = categories.find((category) => category.category === surname + " Name Study");
-
-    if (generalNameStudy) {
-      bestMatch = generalNameStudy.category;
-    }
-  }
-
-  return bestMatch;
-}
-
-const topOfLineOnly = ["Slade", "French", "Welch"];
-
-export function topOfLineOnlyCondition(surname) {
-  const isTopOfLineOnly = topOfLineOnly.some((item) => item === surname);
-
-  // Normalize Parents to an array whether it's initially an object or an array
-  let parentsArray = [];
-  const parents = window.profilePerson?.Parents;
-  if (Array.isArray(parents)) {
-    parentsArray = parents;
-  } else if (typeof parents === "object" && parents !== null) {
-    parentsArray = Object.values(parents);
-  }
-
-  // Check if the person has a parent with the same surname
-  const hasParentWithSameSurname = parentsArray.some(
-    (parent) => parent.PersonName?.LastNameAtBirth === surname || parent.PersonName?.LastNameCurrent === surname
-  );
-
-  return isTopOfLineOnly && hasParentWithSameSurname;
-}
-
-// Helper function to add timeout to a promise
-async function promiseWithTimeout(promise, ms, label = "") {
-  let timeoutId;
-
-  // Wrap the original promise so that if it rejects on its own, we still tag the Error
-  const guarded = Promise.resolve(promise).catch((err) => {
-    // annotate the Error
-    err.timedOut = false;
-    err.promise = promise;
-    err.label = label;
-    throw err;
-  });
-
-  const timeoutPromise = new Promise((_, reject) => {
-    timeoutId = setTimeout(() => {
-      const err = new Error(`Promise${label ? ` (“${label}”)` : ""} timed out after ${ms} ms`);
-      err.timedOut = true;
-      err.promise = promise;
-      err.label = label;
-      reject(err);
-    }, ms);
-  });
-
-  return Promise.race([guarded, timeoutPromise]).finally(() => clearTimeout(timeoutId));
-}
-
 export async function getONSstickers() {
   const excludedSurnames = [
     "Beasley",
@@ -7834,11 +6539,11 @@ export async function getONSstickers() {
           } else {
             ONSresult = `{{One Name Study|name=${aSurname}}}`;
           }
-          if (ONSresult && isOnONSlist && !topOfLineOnlyCondition(aSurname)) {
+          if (ONSresult && isOnONSlist && !topOfLineOnlyCondition(aSurname, window.profilePerson)) {
             return ONSresult;
           }
         }
-      } else if (isOnONSlist && !topOfLineOnlyCondition(aSurname)) {
+      } else if (isOnONSlist && !topOfLineOnlyCondition(aSurname, window.profilePerson)) {
         const ONSresult = `{{One Name Study|name=${aSurname}}}`;
         return ONSresult;
       }
@@ -7983,20 +6688,6 @@ export function addUnsourced(feature = "autoBio") {
       }
     }
   }
-}
-
-function searchName(searchTerm) {
-  const data = ONSjson;
-  for (let i = 0; i < data.length; i++) {
-    const nameObj = data[i];
-    const name = nameObj.Name;
-    const nameVariants = nameObj.NameVariants;
-
-    if (nameVariants?.includes(searchTerm) || name === searchTerm) {
-      return name;
-    }
-  }
-  return null;
 }
 
 export function addOccupationCategories(feature = "autoBio") {
@@ -8573,6 +7264,14 @@ async function getTemplates() {
 let templatesObject = {};
 let USstatesObjArray;
 
+function findUSState(location) {
+  return findUSStateInStates(location, USstatesObjArray);
+}
+
+function fixUSLocation(event) {
+  return fixUSLocationInStates(event, USstatesObjArray, window.autoBioOptions, window.autoBioNotes);
+}
+
 function addUniqueRefNames(records) {
   const refNameCounter = {};
   let genericRefCounter = 1;
@@ -8628,6 +7327,188 @@ function addUniqueRefNames(records) {
         record.RefName = refName;
         genericRefCounter++;
       }
+    }
+  });
+}
+
+async function fixLocations() {
+  const birth = {
+    Date: document.getElementById("mBirthDate").value,
+    Location: document.getElementById("mBirthLocation").value,
+    ID: "mBirthLocation",
+    Event: "birth",
+  };
+  const death = {
+    Date: document.getElementById("mDeathDate").value,
+    Location: document.getElementById("mDeathLocation").value,
+    ID: "mDeathLocation",
+    Event: "death",
+  };
+  [birth, death].forEach(async function (event) {
+    // Look for space before country name and add a comma if found
+    const countryArray = ["US", "USA", "U.S.A.", "UK", "U.K.", "United States of America"];
+    // Countries that may have a north, south, etc.
+    const excludeCountries = [
+      "Australia",
+      "Bosnia and Herzegovina",
+      "Canada", // Upper Canada, Lower Canada
+      "France", // New France
+      "Guinea",
+      "Islands",
+      "Marshall Islands",
+      "Papua New Guinea",
+      "Seychelles",
+      "Solomon Islands",
+      "Spain", // New Spain
+      "Tonga",
+      "Trinidad and Tobago",
+    ];
+    countries.forEach(function (country) {
+      if (!excludeCountries.includes(country.name)) {
+        countryArray.push(country.name);
+      }
+    });
+    countryArray.forEach(function (country) {
+      const spaceCountryPattern = new RegExp(`(\\w)\\s${country}$`);
+      const thisMatch = event?.Location.match(spaceCountryPattern);
+      if (thisMatch) {
+        event.Location = event?.Location ? event.Location.replace(thisMatch[0], thisMatch[1] + ", " + country) : "";
+      }
+    });
+
+    let locationBits = event?.Location.split(",");
+    locationBits = locationBits.map((str) => str.trim());
+    const lastLocationBit = locationBits[locationBits.length - 1];
+
+    if (window.autoBioOptions?.checkUS && isOK(event?.Date)) {
+      event = fixUSLocation(event);
+    }
+
+    if (window.autoBioOptions?.checkAustralia && isOK(event?.Date)) {
+      let australianLocations;
+      if (!window.australianLocations) {
+        australianLocations = await import("./australian_locations.json");
+      } else {
+        australianLocations = window.australianLocations;
+      }
+      const locationKeys = Object.keys(australianLocations);
+      let foundLocationMatch = false;
+      let matchedKey = null;
+      let originalMatched = false;
+
+      for (let i = 0; i < locationKeys.length; i++) {
+        let key = locationKeys[i];
+
+        const addedAustralia = lastLocationBit + ", Australia";
+
+        if (event.Location.includes(key)) {
+          matchedKey = key;
+          originalMatched = true;
+        } else if (addedAustralia == key) {
+          matchedKey = key;
+          originalMatched = false;
+        }
+
+        if (matchedKey) {
+          const startDate = australianLocations[key]["startDate"];
+          const endDate = australianLocations[key]["endDate"];
+          const afterStart = isSameDateOrAfter(event.Date, startDate);
+          const beforeEnd = endDate ? !isSameDateOrAfter(event.Date, endDate) : true;
+
+          if (afterStart && beforeEnd) {
+            foundLocationMatch = true;
+            break;
+          } else if (!afterStart && "previousName" in australianLocations[key]) {
+            foundLocationMatch = true;
+            matchedKey = key; // keep the original key
+            break;
+          }
+        }
+      }
+      if (foundLocationMatch) {
+        const startDate = australianLocations[matchedKey]["startDate"];
+        const afterStart = isSameDateOrAfter(event.Date, startDate);
+
+        if (!afterStart && australianLocations[matchedKey]["previousName"]) {
+          // Use previousName if the event date is before the start date of the matched location
+          if (originalMatched) {
+            // cope with "Australian Colonies"
+            const matchedKeyPattern = new RegExp(matchedKey + ".*");
+            event.Location = event?.Location
+              ? event.Location.replace(matchedKeyPattern, australianLocations[matchedKey]["previousName"])
+              : "";
+          } else {
+            event.Location = event?.Location
+              ? event.Location.replace(lastLocationBit, australianLocations[matchedKey]["previousName"])
+              : "";
+          }
+        } else if (!originalMatched && matchedKey && event?.Location) {
+          // If the location match was found with the addedAustralia search and the event date is within the appropriate timeframe, add matchedKey to the location.
+          event.Location = event.Location.replace(lastLocationBit, matchedKey);
+        } else if (!australianLocations[matchedKey]["previousName"]) {
+          console.log("No previousName defined for matchedKey:", matchedKey);
+        }
+      }
+    }
+
+    if (window.autoBioOptions?.checkUK && isOK(event?.Date)) {
+      if (["England", "Scotland", "Wales"].includes(lastLocationBit) && isSameDateOrAfter(event.Date, "1801-01-01")) {
+        event.Location += ", United Kingdom";
+      } else if (["United Kingdom", "UK"].includes(lastLocationBit) && !isSameDateOrAfter(event.Date, "1801-01-01")) {
+        event.Location = locationBits.slice(0, locationBits.length - 1).join(", ");
+      } else if (lastLocationBit == "UK" && isSameDateOrAfter(event.Date, "1801-01-01")) {
+        event.Location = locationBits.slice(0, locationBits.length - 1).join(", ") + ", United Kingdom";
+      }
+    }
+    if (
+      !["United States", "United Kingdom", "New Zealand"].includes(lastLocationBit) &&
+      (window.autoBioOptions?.checkOtherCountries || window.autoBioOptions?.nativeNames)
+    ) {
+      const excludeFromThisBit = ["Ireland", "Northern Ireland", "Georgia"];
+
+      countries.forEach(function (country) {
+        if (country.name == lastLocationBit) {
+          let aNote;
+          if (window.autoBioOptions?.nativeNames) {
+            if (country.name != country.nativeName && !excludeFromThisBit.includes(country.name)) {
+              if (locationBits.length == 1) {
+                event.Location = country.nativeName;
+              } else {
+                event.Location = locationBits.slice(0, locationBits.length - 1).join(", ") + ", " + country.nativeName;
+              }
+            }
+          } else {
+            if (country.name != country.nativeName && !excludeFromThisBit.includes(country.name)) {
+              aNote =
+                "The native name for the country of " +
+                event.Event +
+                " is " +
+                country.nativeName +
+                ". Would you like to update the location?";
+              window.autoBioNotes?.push(aNote);
+            }
+          }
+        }
+      });
+    }
+    if (event) {
+      event.Location = event?.Location ? event.Location.replace(/^, /g, "") : "";
+    }
+    if (document.getElementById(event?.ID)?.value != event?.Location) {
+      const changeNote =
+        "Changed " +
+        event.Event +
+        " location from '" +
+        document.getElementById(event.ID).value +
+        "' to '" +
+        event.Location +
+        "'.";
+      window.autoBioNotes?.push(changeNote);
+      const toUpdate = event?.ID ? event.ID.replace(/^m/, "") : "";
+      window.profilePerson[toUpdate] = event.Location;
+    }
+    if (document.getElementById(event?.ID)) {
+      document.getElementById(event?.ID).value = event?.Location;
     }
   });
 }
@@ -8777,9 +7658,6 @@ export async function generateBio() {
       }
     }
 
-    // log now
-    console.log("profile person now", logNow(window.profilePerson));
-
     await buildFamilyForPrivateProfiles();
 
     const nuclearFamily = familyArray(window.profilePerson);
@@ -8827,16 +7705,15 @@ export async function generateBio() {
     }
     window.profilePerson.Pronouns = getPronouns(window.profilePerson);
     window.profilePerson.NameVariants = getNameVariants(window.profilePerson);
+    window.preservedCensusTables = getPreservedCensusTables();
     // Handle census data created with Sourcer
     window.sourcerCensuses = getSourcerCensuses();
-    console.log("sourcerCensuses", window.sourcerCensuses);
 
     // Create the references array
     if (window.sectionsObject.Sources) {
       window.sourcesSection = window.sectionsObject.Sources;
     }
     sourcesArray(currentBio);
-    console.log("references", JSON.parse(JSON.stringify(window.references)));
 
     // Update references with Find A Grave citations
     await getCitations();
@@ -9046,6 +7923,35 @@ export async function generateBio() {
             } else if (anEvent.sourcerText) {
               listText = "\n" + anEvent.sourcerText;
             }
+            let householdTableText = "";
+            const originalTables = Array.isArray(anEvent.OriginalTables)
+              ? anEvent.OriginalTables.filter((table) => table?.match(/\{\|/))
+              : anEvent.OriginalTable?.match(/\{\|/)
+                ? [anEvent.OriginalTable]
+                : [];
+            if (window.autoBioOptions?.householdTable && originalTables.length > 0) {
+              householdTableText = originalTables.map((table) => "\n" + table).join("\n");
+            } else if (window.autoBioOptions?.householdTable && listText.match(/\{\|/)) {
+              householdTableText = listText;
+            }
+            if (!householdTableText.match(/\{\|/) && !listText.match(/\{\|/) && window.autoBioOptions?.householdTable) {
+              const generatedHouseholdTable = buildHouseholdTableFromHousehold(anEvent.Household);
+              if (generatedHouseholdTable) {
+                householdTableText = "\n" + generatedHouseholdTable;
+              }
+            }
+            const renderedTables = window.autoBioOptions?.householdTable
+              ? householdTableText.match(/\{\|[^]+?\|\}/g) || []
+              : [];
+            const stripRenderedTablesFromRefText = (refText) => {
+              if (!refText || renderedTables.length === 0) {
+                return refText;
+              }
+
+              let cleanedRefText = refText.replace(/\{\|[^]+?\|\}/g, "");
+
+              return cleanedRefText.replace(/\n{3,}/g, "\n\n").trim();
+            };
             let refNameBit = ""; // separate variable for reference name
             let refsText = ""; // separate string for references
             if (anEvent.Texts) {
@@ -9054,7 +7960,8 @@ export async function generateBio() {
                 if (text.Used == true) {
                   refsText += ` <ref${refNameBit} />`;
                 } else {
-                  refsText += ` <ref${refNameBit}>${text.Text}</ref>`;
+                  const cleanedText = stripRenderedTablesFromRefText(text.Text);
+                  refsText += ` <ref${refNameBit}>${cleanedText || text.Text}</ref>`;
                   text.Used = true;
                   marriagesAndCensusesEtc.forEach(function (event) {
                     if (event.RefName && event.RefName == text.RefName) {
@@ -9068,15 +7975,16 @@ export async function generateBio() {
               if (anEvent.Used == true) {
                 refsText += ` <ref${refNameBit} />`;
               } else {
-                refsText += ` <ref${refNameBit}>${anEvent.Text}</ref>`;
+                const cleanedText = stripRenderedTablesFromRefText(anEvent.Text);
+                refsText += ` <ref${refNameBit}>${cleanedText || anEvent.Text}</ref>`;
                 anEvent.Used = true;
               }
             }
 
             marriagesAndCensusesText += refsText; // append references
 
-            if (window.autoBioOptions?.householdTable && listText.match(/\{\|/)) {
-              marriagesAndCensusesText += listText; // append household table only once
+            if (window.autoBioOptions?.householdTable && householdTableText.match(/\{\|/)) {
+              marriagesAndCensusesText += householdTableText; // append original table when available, otherwise fallback
             }
 
             marriagesAndCensusesText += "\n\n";
@@ -10513,6 +9421,8 @@ async function improveBioWithAI(e) {
   const btn = $(this);
   const originalText = btn.text();
   btn.text("Thinking...").prop("disabled", true);
+  removeWorking();
+  addWorking();
 
   try {
     // 1. REFRESH OPTIONS
@@ -10604,6 +9514,7 @@ async function improveBioWithAI(e) {
     console.error(error);
     alert("Error: " + error.message);
   } finally {
+    removeWorking();
     btn.text(originalText).prop("disabled", false);
   }
 }
@@ -10763,35 +9674,10 @@ $(function () {
   }
 });
 
-function setBioText(text, position = "top") {
-  let enhanced = false;
-  let enhancedEditorButton = $("#toggleMarkupColor");
-  if (enhancedEditorButton.attr("value") == "Turn Off Enhanced Editor") {
-    enhancedEditorButton.trigger("click");
-    enhanced = true;
-  }
-
-  // Add the text to the textarea and switch back to the enhanced editor if it was on
-  if (position === "top") {
-    $("#wpTextbox1").val(text + $("#wpTextbox1").val());
-  } else {
-    $("#wpTextbox1").val(text);
-  }
-  if (enhanced == true) {
-    enhancedEditorButton.trigger("click");
-  }
-}
-
-function getBioText() {
-  let enhanced = false;
-  let enhancedEditorButton = $("#toggleMarkupColor");
-  if (enhancedEditorButton.attr("value") == "Turn Off Enhanced Editor") {
-    enhancedEditorButton.trigger("click");
-    enhanced = true;
-  }
-  let bioText = $("#wpTextbox1").val();
-  if (enhanced == true) {
-    enhancedEditorButton.trigger("click");
-  }
-  return bioText;
-}
+// Re-export utility functions for backwards compatibility
+export { convertDate, convertMonth, getYYYYMMDD, isWithinX, padNumberStart, formatDate, formatDates, dataStatusWord } from "./dateUtils.js";
+export { analyzeColumns } from "./columnAnalysisUtils.js";
+export { addWorking, removeWorking } from "./editorUtils.js";
+export { minimalPlace, nameLink } from "./displayUtils.js";
+export { getFormData, getPronouns } from "./profileUtils.js";
+export { capitalizeFirstLetter } from "./textUtils.js";
