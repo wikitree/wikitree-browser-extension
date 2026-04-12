@@ -27,7 +27,7 @@ import {
   formatDates,
   dataStatusWord,
 } from "./dateUtils.js";
-import { logMerge, wbeLog } from "./debugUtils.js";
+import { logMerge } from "./debugUtils.js";
 import { minimalPlace, nameLink } from "./displayUtils.js";
 import { addWorking, getBioText, removeWorking, setBioText } from "./editorUtils.js";
 import {
@@ -2670,13 +2670,6 @@ function buildCensusNarratives() {
             reference = assignSelf(reference);
           }
         }
-      } else {
-        wbeLog("debug", "[census-table][match] missing census year", {
-          text: reference.Text,
-          eventDate: reference["Event Date"] || "",
-          eventYear: reference["Event Year"] || "",
-          year: reference.Year || "",
-        });
       }
 
       let residenceBits = [];
@@ -4882,10 +4875,6 @@ function getFamilyFromCitations() {
   return;
 }
 
-function logNow(myVar) {
-  return JSON.parse(JSON.stringify(myVar));
-}
-
 function getOriginalBioTextWithoutRefs() {
   const thisBio = document.getElementById("wpTextbox1").value.replace(/<ref[^>]*\/>/g, "");
   const dummy = document.createElement("div");
@@ -4929,17 +4918,6 @@ function tableHasExplicitSelfRow(table) {
 function getProfileFirstNameVariantsForMatching() {
   const firstName = window.profilePerson.PersonName?.FirstName || window.profilePerson.FirstName;
   return getNameVariantsAll(firstName, firstNameVariants).filter(Boolean);
-}
-
-function summarizeHouseholdForLog(household) {
-  if (!Array.isArray(household)) {
-    return [];
-  }
-  return household.map((member) => ({
-    Name: member.Name || "",
-    Age: member.Age || member.age || "",
-    Relation: member.Relation || member.originalRelation || "",
-  }));
 }
 
 function scorePreservedCensusRow(member, censusYear) {
@@ -5026,16 +5004,8 @@ function getPreservedCensusTables() {
       Used: false,
     };
     candidate.MatchScore = scorePreservedCensusTable(candidate);
-    wbeLog("debug", "[census-table][preserve] candidate", {
-      year: candidate["Census Year"] || candidate.Year,
-      matchScore: candidate.MatchScore,
-      explicitSelfRow: tableHasExplicitSelfRow(candidate.OriginalTable || ""),
-      rows: summarizeHouseholdForLog(candidate.Household),
-    });
     preservedTables.push(candidate);
   }
-
-  wbeLog("debug", "[census-table][preserve] total", preservedTables.length);
 
   return preservedTables;
 }
@@ -5059,17 +5029,6 @@ function getPreservedCensusTablesForReference(reference) {
     .filter((candidateMatch) => candidateMatch.score > 0)
     .sort((a, b) => b.score - a.score);
 
-  wbeLog("debug", "[census-table][match] reference", {
-    censusYear,
-    eventType: reference["Event Type"],
-    narrative: reference.Narrative || "",
-    candidates: matches.map((match) => ({
-      year: match.candidate["Census Year"] || match.candidate.Year,
-      score: match.score,
-      rows: summarizeHouseholdForLog(match.candidate.Household),
-    })),
-  });
-
   matches.forEach((match) => {
     match.candidate.Used = true;
   });
@@ -5089,12 +5048,6 @@ function attachPreservedTablesToCensusReference(reference) {
   const resolvedCensusYear = resolveCensusYearForReference(reference);
 
   if (!resolvedCensusYear) {
-    wbeLog("debug", "[census-table][match] missing census year", {
-      text: reference.Text,
-      eventDate: reference["Event Date"] || "",
-      eventYear: reference["Event Year"] || "",
-      year: reference.Year || "",
-    });
     return;
   }
 
@@ -5147,14 +5100,6 @@ function attachOriginalTableToReference(reference, tableText, household) {
   if (!reference.Household && Array.isArray(household)) {
     reference.Household = household;
   }
-
-  wbeLog("debug", "[census-table][attach]", {
-    censusYear: reference["Census Year"] || reference.Year || "",
-    eventType: reference["Event Type"],
-    originalTableCount: reference.OriginalTables?.length || 0,
-    rows: summarizeHouseholdForLog(household || reference.Household),
-    tablePreview: tableText.slice(0, 120),
-  });
 }
 
 function getSourcerCensuses() {
@@ -7713,9 +7658,6 @@ export async function generateBio() {
       }
     }
 
-    // log now
-    console.log("profile person now", logNow(window.profilePerson));
-
     await buildFamilyForPrivateProfiles();
 
     const nuclearFamily = familyArray(window.profilePerson);
@@ -7766,15 +7708,12 @@ export async function generateBio() {
     window.preservedCensusTables = getPreservedCensusTables();
     // Handle census data created with Sourcer
     window.sourcerCensuses = getSourcerCensuses();
-    console.log("preservedCensusTables", window.preservedCensusTables);
-    console.log("sourcerCensuses", window.sourcerCensuses);
 
     // Create the references array
     if (window.sectionsObject.Sources) {
       window.sourcesSection = window.sectionsObject.Sources;
     }
     sourcesArray(currentBio);
-    console.log("references", JSON.parse(JSON.stringify(window.references)));
 
     // Update references with Find A Grave citations
     await getCitations();
@@ -8013,16 +7952,6 @@ export async function generateBio() {
 
               return cleanedRefText.replace(/\n{3,}/g, "\n\n").trim();
             };
-            if (anEvent["Event Type"] === "Census") {
-              wbeLog("debug", "[census-table][render]", {
-                censusYear: anEvent["Census Year"] || anEvent.Year || "",
-                originalTableCount: originalTables.length,
-                listHasTable: !!listText.match(/\{\|/),
-                renderedTableCount: (householdTableText.match(/\{\|/g) || []).length,
-                hasHousehold: Array.isArray(anEvent.Household) ? anEvent.Household.length : 0,
-                narrative: anEvent.Narrative || "",
-              });
-            }
             let refNameBit = ""; // separate variable for reference name
             let refsText = ""; // separate string for references
             if (anEvent.Texts) {
@@ -9492,6 +9421,8 @@ async function improveBioWithAI(e) {
   const btn = $(this);
   const originalText = btn.text();
   btn.text("Thinking...").prop("disabled", true);
+  removeWorking();
+  addWorking();
 
   try {
     // 1. REFRESH OPTIONS
@@ -9583,6 +9514,7 @@ async function improveBioWithAI(e) {
     console.error(error);
     alert("Error: " + error.message);
   } finally {
+    removeWorking();
     btn.text(originalText).prop("disabled", false);
   }
 }

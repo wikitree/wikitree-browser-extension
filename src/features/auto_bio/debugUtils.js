@@ -1,10 +1,6 @@
 export function wbeLog(level, ...args) {
   try {
-    const debugEnabled =
-      window &&
-      (window.WBE_AUTO_BIO_DEBUG === true || window.WBE_AUTO_BIO_DEBUG === 1 || window.autoBioOptions?.debug === true);
-
-    if (debugEnabled) {
+    if (window && window.autoBioOptions && window.autoBioOptions.debug) {
       const fn = console[level] || console.log;
       fn.apply(console, ["[auto_bio]", ...args]);
     }
