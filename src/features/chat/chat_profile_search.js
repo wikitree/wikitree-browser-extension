@@ -31,7 +31,9 @@ function getCompactSuggestionCatalog() {
       const code = String(s.code || "").trim();
       if (!code) continue;
       // Strip group prefix like "Profile completeness - "
-      const title = String(s.title || "").replace(/^[^-]+-\s*/, "").trim();
+      const title = String(s.title || "")
+        .replace(/^[^-]+-\s*/, "")
+        .trim();
       lines.push(`${code}: ${title}`);
     }
   }

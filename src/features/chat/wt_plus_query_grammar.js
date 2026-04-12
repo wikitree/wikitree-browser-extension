@@ -285,20 +285,76 @@ function validateAndRepairWtPlusQuery(queryText) {
 // When a title has one (e.g. "Empty biography"), the matching query must also
 // contain at least one absence synonym.
 const TITLE_ABSENCE_ADJECTIVES = new Set([
-  "empty", "missing", "no", "blank", "absent", "without", "expired",
-  "unbalanced", "unclosed", "unused", "unknown", "unrecognized",
-  "incorrect", "wrong", "short", "duplicate", "duplicated",
+  "empty",
+  "missing",
+  "no",
+  "blank",
+  "absent",
+  "without",
+  "expired",
+  "unbalanced",
+  "unclosed",
+  "unused",
+  "unknown",
+  "unrecognized",
+  "incorrect",
+  "wrong",
+  "short",
+  "duplicate",
+  "duplicated",
 ]);
 
 const QUERY_ABSENCE_QUALIFIERS_RE =
   /\b(?:no|not|none|missing|empty|blank|without|expired|absent|lacking|zero|unrecognized|incorrect|wrong|duplicate|duplicated|short|unused|unbalanced|unclosed)\b/i;
 
 const SUGGESTION_STOP_WORDS = new Set([
-  "the", "and", "or", "a", "an", "in", "of", "is", "on", "at", "to", "for",
-  "with", "by", "are", "has", "have", "this", "that", "which", "where",
-  "when", "was", "been", "be", "use", "using", "used", "also", "too",
-  "very", "can", "will", "may", "its", "it", "if", "as", "from", "but",
-  "than", "so", "all", "about", "into", "only", "same",
+  "the",
+  "and",
+  "or",
+  "a",
+  "an",
+  "in",
+  "of",
+  "is",
+  "on",
+  "at",
+  "to",
+  "for",
+  "with",
+  "by",
+  "are",
+  "has",
+  "have",
+  "this",
+  "that",
+  "which",
+  "where",
+  "when",
+  "was",
+  "been",
+  "be",
+  "use",
+  "using",
+  "used",
+  "also",
+  "too",
+  "very",
+  "can",
+  "will",
+  "may",
+  "its",
+  "it",
+  "if",
+  "as",
+  "from",
+  "but",
+  "than",
+  "so",
+  "all",
+  "about",
+  "into",
+  "only",
+  "same",
 ]);
 
 let _suggestionKeywordIndex = null;
@@ -315,7 +371,10 @@ function buildSuggestionKeywordIndex() {
 
     const rawTitle = String(suggestion.title || "");
     // Strip leading group prefix such as "Profile completeness - " or "FindAGrave - "
-    const cleanTitle = rawTitle.replace(/^[^-]+-\s*/, "").trim().toLowerCase();
+    const cleanTitle = rawTitle
+      .replace(/^[^-]+-\s*/, "")
+      .trim()
+      .toLowerCase();
 
     const titleWords = cleanTitle
       .split(/\s+/)
@@ -323,9 +382,7 @@ function buildSuggestionKeywordIndex() {
       .filter((w) => w.length >= 3);
 
     const absenceWords = titleWords.filter((w) => TITLE_ABSENCE_ADJECTIVES.has(w));
-    const contentWords = titleWords.filter(
-      (w) => !TITLE_ABSENCE_ADJECTIVES.has(w) && !SUGGESTION_STOP_WORDS.has(w)
-    );
+    const contentWords = titleWords.filter((w) => !TITLE_ABSENCE_ADJECTIVES.has(w) && !SUGGESTION_STOP_WORDS.has(w));
 
     if (contentWords.length === 0) continue;
 
@@ -387,8 +444,7 @@ function matchSuggestionByNaturalLanguage(queryText) {
     }
 
     // Score: favour more / longer matched words.
-    const score =
-      matchedContent.length * 10 + matchedContent.reduce((s, w) => s + w.length, 0);
+    const score = matchedContent.length * 10 + matchedContent.reduce((s, w) => s + w.length, 0);
     if (score > bestScore) {
       bestScore = score;
       bestMatch = entry;
