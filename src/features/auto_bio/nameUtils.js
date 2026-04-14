@@ -59,6 +59,75 @@ export function getSimilarity(string1, string2) {
   return (longer - getEditDistance(string1, string2)) / longer;
 }
 
+function getComparableNameString(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  return value.PersonName?.FullName || value.PersonName?.BirthName || value.FullName || value.Name || "";
+}
+
+const nonDecomposingLetterFallbacks = {
+  ß: "ss",
+  æ: "ae",
+  œ: "oe",
+  ø: "o",
+  đ: "d",
+  ł: "l",
+  þ: "th",
+};
+
+const nonDecomposingLetterPattern = /[ßæœøđłþ]/g;
+
+function normalizeNamePart(value) {
+  return getComparableNameString(value)
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(nonDecomposingLetterPattern, (char) => nonDecomposingLetterFallbacks[char] || char)
+    .replace(/[^a-z]/g, "");
+}
+
+function getComparableFirstAndLastNames(value) {
+  const parts = getComparableNameString(value)
+    .trim()
+    .split(/\s+/)
+    .map((part) => normalizeNamePart(part))
+    .filter(Boolean);
+
+  return {
+    firstName: parts[0] || "",
+    lastName: parts[parts.length - 1] || "",
+  };
+}
+
+function firstNamesLikelyMatch(leftFirstName, rightFirstName) {
+  if (!leftFirstName || !rightFirstName) return false;
+  if (leftFirstName === rightFirstName) return true;
+
+  const similarity = getSimilarity(leftFirstName, rightFirstName);
+  if (similarity >= 0.8) {
+    return true;
+  }
+
+  const sharedPrefixLength = Math.min(3, leftFirstName.length, rightFirstName.length);
+  return (
+    sharedPrefixLength >= 3 &&
+    leftFirstName.slice(0, sharedPrefixLength) === rightFirstName.slice(0, sharedPrefixLength) &&
+    similarity >= 2 / 3
+  );
+}
+
+export function namesMatchByFirstAndLast(leftName, rightName) {
+  const left = getComparableFirstAndLastNames(leftName);
+  const right = getComparableFirstAndLastNames(rightName);
+
+  if (!left.firstName || !left.lastName || !right.firstName || !right.lastName) {
+    return false;
+  }
+
+  return left.lastName === right.lastName && firstNamesLikelyMatch(left.firstName, right.firstName);
+}
+
 export function isSameName(name, nameVariants, strength = 0.9) {
   let sameName = false;
   nameVariants.forEach(function (variant) {

@@ -37,7 +37,7 @@ import {
   irishCounties,
   isSameDateOrAfter,
 } from "./locationUtils.js";
-import { getNameVariantsAll, getSimilarity, isSameName } from "./nameUtils.js";
+import { getNameVariantsAll, getSimilarity, isSameName, namesMatchByFirstAndLast } from "./nameUtils.js";
 import { findBestMatch, searchName, topOfLineOnlyCondition } from "./onsUtils.js";
 import { getFormData, getPronouns } from "./profileUtils.js";
 import { capitalizeFirstLetter } from "./textUtils.js";
@@ -408,10 +408,15 @@ function addReferences(event, spouse = false) {
             reference.OriginalTable ||
             (Array.isArray(reference.OriginalTables) && reference.OriginalTables.length > 0));
         const refText = shouldStripHouseholdTableFromRef
-          ? reference.Text.replace(/\{\|[^]+?\|\}/g, "").replace(/\n{3,}/g, "\n\n").trim()
+          ? reference.Text.replace(/\{\|[^]+?\|\}/g, "")
+              .replace(/\n{3,}/g, "\n\n")
+              .trim()
           : reference.Text;
         const refList = shouldStripHouseholdTableFromRef
-          ? (reference.List || "").replace(/\{\|[^]+?\|\}/g, "").replace(/\n{3,}/g, "\n\n").trim()
+          ? (reference.List || "")
+              .replace(/\{\|[^]+?\|\}/g, "")
+              .replace(/\n{3,}/g, "\n\n")
+              .trim()
           : reference.List;
         if (reference.Used || window.refNames.includes(reference.RefName)) {
           text += `<ref name="${reference.RefName}" /> `;
@@ -420,9 +425,7 @@ function addReferences(event, spouse = false) {
             reference.RefName = event + "_" + refCount;
           }
           reference.Used = true;
-          text += `<ref name="${reference.RefName}">${refText}${
-            refList ? "\n" + refList : ""
-          }</ref> `;
+          text += `<ref name="${reference.RefName}">${refText}${refList ? "\n" + refList : ""}</ref> `;
           window.refNames.push(reference.RefName);
         }
       }
@@ -1107,7 +1110,11 @@ export function buildSpouses(person) {
         console.error("Error merging parsed citation data into spouse:", err);
       }
       let marriageAge = "";
-      firstNameAndYear.push({ FirstName: spouse.PersonName?.FirstName, Year: spouse.marriage_date?.substring(4) });
+      firstNameAndYear.push({
+        FullName:
+          spouse.PersonName?.FullName || spouse.PersonName?.BirthName || spouse.LongName || spouse.RealName || "",
+        Year: spouse.marriage_date?.substring(0, 4),
+      });
       let spouseMarriageAge = "";
 
       if (
@@ -1320,12 +1327,10 @@ export function buildSpouses(person) {
         let foundSpouse = false;
         const thisSpouse = reference["Spouse Name"] || reference.Spouse || "";
         firstNameAndYear.forEach(function (obj) {
-          if (obj.Year == reference.Year) {
+          if (thisSpouse && obj.FullName && namesMatchByFirstAndLast(thisSpouse, obj.FullName)) {
             foundSpouse = true;
-          } else if (thisSpouse) {
-            if (thisSpouse.split(" ")[0] == obj.FirstName) {
-              foundSpouse = true;
-            }
+          } else if (!thisSpouse && obj.Year == reference.Year) {
+            foundSpouse = true;
           }
         });
         if (foundSpouse == false && thisSpouse) {
@@ -1485,7 +1490,19 @@ export function buildSpouses(person) {
           reference.RefName = "ref_" + i;
           console.info("[buildSpouses] Processed reference-based spouse:", reference);
 
-          addToNeedsProfilesCreated({ Name: thisSpouse, MarriageDate: marriageDate, Relation: "Spouse" });
+          console.log("person", person, "thisSpouse", thisSpouse);
+          // Compare thisSpouse to person.Spouses. If no match, add to needsProfiles for potential later profile creation
+          let matchFound = false;
+          if (person.Spouses) {
+            Object.values(person.Spouses).forEach((s) => {
+              if (thisSpouse && namesMatchByFirstAndLast(s, thisSpouse)) {
+                matchFound = true;
+              }
+            });
+          }
+          if (!matchFound) {
+            addToNeedsProfilesCreated({ Name: thisSpouse, MarriageDate: marriageDate, Relation: "Spouse" });
+          }
         }
       }
     });
@@ -2336,7 +2353,8 @@ function findRelation(person) {
                     : oGender == "Female"
                     ? "Wife"
                     : "Spouse"
-                  : relationSingular;            }
+                  : relationSingular;
+            }
           }
         });
       }
@@ -3145,14 +3163,17 @@ function buildHouseholdTableFromHousehold(household) {
     return leftIndex - rightIndex;
   });
 
-  const tableLines = ["{| border=\"1\" cellpadding=\"4\"", "|- bgcolor=#E1F0B4", `| ${headers.join(" || ")}`];
+  const tableLines = ['{| border="1" cellpadding="4"', "|- bgcolor=#E1F0B4", `| ${headers.join(" || ")}`];
 
   household.forEach((person) => {
     const highlightRow = person?.isMain || person?.Relation === "Self";
     const row = headers.map((header) => {
       let value = "";
       if (header === "Relation") {
-        value = person.Relation === "Self" ? person.originalRelation || person.Relation || "" : person.Relation || person.originalRelation || "";
+        value =
+          person.Relation === "Self"
+            ? person.originalRelation || person.Relation || ""
+            : person.Relation || person.originalRelation || "";
       } else if (header === "Sex") {
         value = person.Sex || (person.Gender === "Male" ? "M" : person.Gender === "Female" ? "F" : person.Gender || "");
       } else if (header === "Birth Place") {
@@ -4287,18 +4308,26 @@ export function sourcesArray(bio) {
           console.log("Profile person not matched in couple using first-name variants. Trying full NameVariants.");
           // Fallback: check window.profilePerson.NameVariants if available
           if (window.profilePerson?.NameVariants?.length > 0) {
-            if (window.profilePerson.NameVariants.some(name => isSameName(name, [couple1FirstName]))) {
+            if (window.profilePerson.NameVariants.some((name) => isSameName(name, [couple1FirstName]))) {
               aRef["Spouse Name"] = aRef.Couple[1];
               aRef["Spouse Age"] = person2Age;
               aRef["Age"] = person1Age;
               profilePersonFound = true;
-              console.log("Spouse Name and Age set via NameVariants (Couple[0]):", aRef["Spouse Name"], aRef["Spouse Age"]);
-            } else if (window.profilePerson.NameVariants.some(name => isSameName(name, [couple2FirstName]))) {
+              console.log(
+                "Spouse Name and Age set via NameVariants (Couple[0]):",
+                aRef["Spouse Name"],
+                aRef["Spouse Age"]
+              );
+            } else if (window.profilePerson.NameVariants.some((name) => isSameName(name, [couple2FirstName]))) {
               aRef["Spouse Name"] = aRef.Couple[0];
               aRef["Spouse Age"] = person1Age;
               aRef["Age"] = person2Age;
               profilePersonFound = true;
-              console.log("Spouse Name and Age set via NameVariants (Couple[1]):", aRef["Spouse Name"], aRef["Spouse Age"]);
+              console.log(
+                "Spouse Name and Age set via NameVariants (Couple[1]):",
+                aRef["Spouse Name"],
+                aRef["Spouse Age"]
+              );
             }
           }
         }
@@ -4964,7 +4993,8 @@ function scorePreservedCensusTable(candidate) {
 
   const explicitSelfRow = tableHasExplicitSelfRow(candidate.OriginalTable || "");
   const bestRowScore = candidate.Household.reduce(
-    (highestScore, member) => Math.max(highestScore, scorePreservedCensusRow(member, candidate["Census Year"] || candidate.Year)),
+    (highestScore, member) =>
+      Math.max(highestScore, scorePreservedCensusRow(member, candidate["Census Year"] || candidate.Year)),
     0
   );
 
@@ -5040,7 +5070,13 @@ function resolveCensusYearForReference(reference) {
   const yearRegex = /\b(1[789]\d{2})\b/;
   const textYearMatch = reference.Text.match(yearRegex);
   const eventDateYearMatch = String(reference["Event Date"] || "").match(yearRegex);
-  return reference["Census Year"] || reference.Year || reference["Event Year"] || eventDateYearMatch?.[1] || textYearMatch?.[1];
+  return (
+    reference["Census Year"] ||
+    reference.Year ||
+    reference["Event Year"] ||
+    eventDateYearMatch?.[1] ||
+    textYearMatch?.[1]
+  );
 }
 
 function attachPreservedTablesToCensusReference(reference) {
@@ -7927,8 +7963,8 @@ export async function generateBio() {
             const originalTables = Array.isArray(anEvent.OriginalTables)
               ? anEvent.OriginalTables.filter((table) => table?.match(/\{\|/))
               : anEvent.OriginalTable?.match(/\{\|/)
-                ? [anEvent.OriginalTable]
-                : [];
+              ? [anEvent.OriginalTable]
+              : [];
             if (window.autoBioOptions?.householdTable && originalTables.length > 0) {
               householdTableText = originalTables.map((table) => "\n" + table).join("\n");
             } else if (window.autoBioOptions?.householdTable && listText.match(/\{\|/)) {
@@ -9675,7 +9711,16 @@ $(function () {
 });
 
 // Re-export utility functions for backwards compatibility
-export { convertDate, convertMonth, getYYYYMMDD, isWithinX, padNumberStart, formatDate, formatDates, dataStatusWord } from "./dateUtils.js";
+export {
+  convertDate,
+  convertMonth,
+  getYYYYMMDD,
+  isWithinX,
+  padNumberStart,
+  formatDate,
+  formatDates,
+  dataStatusWord,
+} from "./dateUtils.js";
 export { analyzeColumns } from "./columnAnalysisUtils.js";
 export { addWorking, removeWorking } from "./editorUtils.js";
 export { minimalPlace, nameLink } from "./displayUtils.js";
