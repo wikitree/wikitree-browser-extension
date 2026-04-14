@@ -1,5 +1,9 @@
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { getProfilePersonInfo } from "../../core/common";
+import { isLikelyMarriedNoChildrenPrompt } from "./chat_married_no_children_filter";
+import { isLikelyParentAgeAtBirthPrompt } from "./chat_parent_age_filter";
+import { isLikelySiblingBirthGapPrompt } from "./chat_sibling_birth_gap_filter";
+import { isLikelySpousalAgeGapPrompt } from "./chat_spouse_age_gap_filter";
 
 function extractNamesFromPrompt(prompt) {
   if (!prompt || typeof prompt !== "string") return [];
@@ -172,6 +176,22 @@ function isLikelyWtPlusFilterPrompt(prompt) {
   const normalizedPrompt = String(prompt || "").trim();
   if (!normalizedPrompt) {
     return false;
+  }
+
+  if (isLikelyParentAgeAtBirthPrompt(normalizedPrompt)) {
+    return true;
+  }
+
+  if (isLikelySpousalAgeGapPrompt(normalizedPrompt)) {
+    return true;
+  }
+
+  if (isLikelyMarriedNoChildrenPrompt(normalizedPrompt)) {
+    return true;
+  }
+
+  if (isLikelySiblingBirthGapPrompt(normalizedPrompt)) {
+    return true;
   }
 
   const hasAgeConstraint = /\bage\s*(?:=|is|of)?\s*\d{1,3}\b/i.test(normalizedPrompt);
@@ -554,6 +574,7 @@ async function shouldAutoRouteWtPromptToWtPlus({ prompt, getChatAiConfig, buildR
     "Classify whether this WikiTree chat request should run in WT mode or WT+ mode.",
     'Return STRICT JSON only: {"targetMode":"wt"|"wtplus","confidence":0..1,"reason":"..."}.',
     "Use wtplus when the query is broad/filter-like (locations, categories, templates, stickers, status slices, date+place constraints) and does not identify a specific person.",
+    "Also use wtplus for kinship anomaly filters such as siblings born within X months of each other, parent age at a child's birth, large spouse age gaps, or married-but-no-children slices.",
     "Use wt when the query is about a specific person, relationship, CC/ancestor/descendant list, or profile lookup.",
     recentUserMessages ? `Recent user messages:\n${recentUserMessages}` : "",
     `Request: ${normalizedPrompt}`,

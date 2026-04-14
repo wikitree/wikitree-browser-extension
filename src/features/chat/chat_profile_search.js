@@ -13,6 +13,22 @@ import {
   translateSuggestionsFreeTextToQuery,
   validateAndRepairWtPlusQuery,
 } from "./wt_plus_query_grammar";
+import { parseMarriedNoChildrenPrompt } from "./chat_married_no_children_filter";
+import {
+  buildParentAgeAtBirthMatches,
+  formatParentAgeAtBirthBounds,
+  parseParentAgeAtBirthPrompt,
+} from "./chat_parent_age_filter";
+import {
+  buildSiblingBirthGapMatches,
+  formatSiblingBirthGapThreshold,
+  parseSiblingBirthGapPrompt,
+} from "./chat_sibling_birth_gap_filter";
+import {
+  buildSpousalAgeGapMatches,
+  formatSpousalAgeGapThreshold,
+  parseSpousalAgeGapPrompt,
+} from "./chat_spouse_age_gap_filter";
 import wtPlusProjectsCatalog from "./wtplus_projects.json";
 
 // Build a compact one-line catalog of suggestion codes and titles for the AI
@@ -2442,6 +2458,159 @@ export function createProfileSearchHandler({
       }
     }
 
+    const parentAgeAtBirthPrompt = parseParentAgeAtBirthPrompt(normalizedText);
+    if (parentAgeAtBirthPrompt) {
+      const queryTerms = [];
+      if (parentAgeAtBirthPrompt.locationText) {
+        queryTerms.push(`BirthLocation=${quoteWtPlusValue(parentAgeAtBirthPrompt.locationText)}`);
+      }
+
+      if (Number.isFinite(parentAgeAtBirthPrompt.startYear) && Number.isFinite(parentAgeAtBirthPrompt.endYear)) {
+        const startYear = Math.min(parentAgeAtBirthPrompt.startYear, parentAgeAtBirthPrompt.endYear);
+        const endYear = Math.max(parentAgeAtBirthPrompt.startYear, parentAgeAtBirthPrompt.endYear);
+        const centuryStart = Math.floor(startYear / 100);
+        const centuryEnd = Math.floor(endYear / 100);
+        if (centuryStart === centuryEnd) {
+          queryTerms.push(`${centuryStart + 1}Cen`);
+        }
+        queryTerms.push(buildWtPlusSqlTerm(`([Default].[Birth Date].AsNumber In ${startYear}0101..${endYear}1231)`));
+      }
+
+      const query = queryTerms.filter(Boolean).join(" ").trim();
+      if (!query) {
+        return null;
+      }
+
+      return {
+        query,
+        title: `WT+ search: ${parentAgeAtBirthPrompt.understood}`,
+        description: parentAgeAtBirthPrompt.understood,
+        understood: parentAgeAtBirthPrompt.understood,
+        searchType: "parentAgeAtBirth",
+        customFilter: parentAgeAtBirthPrompt,
+      };
+    }
+
+    const spousalAgeGapPrompt = parseSpousalAgeGapPrompt(normalizedText);
+    if (spousalAgeGapPrompt) {
+      const queryTerms = [];
+      if (spousalAgeGapPrompt.locationText) {
+        queryTerms.push(`BirthLocation=${quoteWtPlusValue(spousalAgeGapPrompt.locationText)}`);
+      }
+
+      if (Number.isFinite(spousalAgeGapPrompt.startYear) && Number.isFinite(spousalAgeGapPrompt.endYear)) {
+        const startYear = Math.min(spousalAgeGapPrompt.startYear, spousalAgeGapPrompt.endYear);
+        const endYear = Math.max(spousalAgeGapPrompt.startYear, spousalAgeGapPrompt.endYear);
+        const isDecade = endYear === startYear + 9 && startYear % 10 === 0;
+        if (isDecade) {
+          queryTerms.push(`${startYear}s`);
+        } else {
+          const centuryStart = Math.floor(startYear / 100);
+          const centuryEnd = Math.floor(endYear / 100);
+          if (centuryStart === centuryEnd) {
+            queryTerms.push(`${centuryStart + 1}Cen`);
+          }
+          queryTerms.push(buildWtPlusSqlTerm(`([Default].[Birth Date].AsNumber In ${startYear}0101..${endYear}1231)`));
+        }
+      }
+
+      const query = queryTerms.filter(Boolean).join(" ").trim();
+      if (!query) {
+        return null;
+      }
+
+      return {
+        query,
+        title: `WT+ search: ${spousalAgeGapPrompt.understood}`,
+        description: spousalAgeGapPrompt.understood,
+        understood: spousalAgeGapPrompt.understood,
+        searchType: "spousalAgeGap",
+        customFilter: spousalAgeGapPrompt,
+      };
+    }
+
+    const marriedNoChildrenPrompt = parseMarriedNoChildrenPrompt(normalizedText);
+    if (marriedNoChildrenPrompt) {
+      const queryTerms = [];
+      if (marriedNoChildrenPrompt.locationText) {
+        queryTerms.push(`BirthLocation=${quoteWtPlusValue(marriedNoChildrenPrompt.locationText)}`);
+      }
+
+      if (Number.isFinite(marriedNoChildrenPrompt.startYear) && Number.isFinite(marriedNoChildrenPrompt.endYear)) {
+        const startYear = Math.min(marriedNoChildrenPrompt.startYear, marriedNoChildrenPrompt.endYear);
+        const endYear = Math.max(marriedNoChildrenPrompt.startYear, marriedNoChildrenPrompt.endYear);
+        const isDecade = endYear === startYear + 9 && startYear % 10 === 0;
+        if (isDecade) {
+          queryTerms.push(`${startYear}s`);
+        } else {
+          const centuryStart = Math.floor(startYear / 100);
+          const centuryEnd = Math.floor(endYear / 100);
+          if (centuryStart === centuryEnd) {
+            queryTerms.push(`${centuryStart + 1}Cen`);
+          }
+          queryTerms.push(buildWtPlusSqlTerm(`([Default].[Birth Date].AsNumber In ${startYear}0101..${endYear}1231)`));
+        }
+      }
+
+      queryTerms.push("NoChildren");
+      queryTerms.push(
+        buildWtPlusSqlTerm(
+          "(([Marriage].[Marriage Date].LineCount > 0) Or ([Marriage].[Marriage Location].LineCount > 0))"
+        )
+      );
+
+      const query = queryTerms.filter(Boolean).join(" ").trim();
+      if (!query) {
+        return null;
+      }
+
+      return {
+        query,
+        title: `WT+ search: ${marriedNoChildrenPrompt.understood}`,
+        description: marriedNoChildrenPrompt.understood,
+        understood: marriedNoChildrenPrompt.understood,
+        searchType: "marriedNoChildren",
+      };
+    }
+
+    const siblingBirthGapPrompt = parseSiblingBirthGapPrompt(normalizedText);
+    if (siblingBirthGapPrompt) {
+      const queryTerms = [];
+      if (siblingBirthGapPrompt.locationText) {
+        queryTerms.push(`BirthLocation=${quoteWtPlusValue(siblingBirthGapPrompt.locationText)}`);
+      }
+
+      if (Number.isFinite(siblingBirthGapPrompt.startYear) && Number.isFinite(siblingBirthGapPrompt.endYear)) {
+        const startYear = Math.min(siblingBirthGapPrompt.startYear, siblingBirthGapPrompt.endYear);
+        const endYear = Math.max(siblingBirthGapPrompt.startYear, siblingBirthGapPrompt.endYear);
+        const isDecade = endYear === startYear + 9 && startYear % 10 === 0;
+        if (isDecade) {
+          queryTerms.push(`${startYear}s`);
+        } else {
+          const centuryStart = Math.floor(startYear / 100);
+          const centuryEnd = Math.floor(endYear / 100);
+          if (centuryStart === centuryEnd) {
+            queryTerms.push(`${centuryStart + 1}Cen`);
+          }
+          queryTerms.push(buildWtPlusSqlTerm(`([Default].[Birth Date].AsNumber In ${startYear}0101..${endYear}1231)`));
+        }
+      }
+
+      const query = queryTerms.filter(Boolean).join(" ").trim();
+      if (!query) {
+        return null;
+      }
+
+      return {
+        query,
+        title: `WT+ search: ${siblingBirthGapPrompt.understood}`,
+        description: siblingBirthGapPrompt.understood,
+        understood: siblingBirthGapPrompt.understood,
+        searchType: "siblingBirthGap",
+        customFilter: siblingBirthGapPrompt,
+      };
+    }
+
     let match = normalizedText.match(
       /^(?:profiles?|people)\s+(?:in\s+)?category\s*[:=]?\s*(?!born\b|died\b|married\b|with\b|ancestors?\b|descendants?\b|cc7\b|in\s+tree\b)(.+)$/i
     );
@@ -2881,7 +3050,7 @@ export function createProfileSearchHandler({
       const system = [
         "You translate plain-English genealogy searches into WikiTree+ profile-search queries.",
         "Return JSON only and nothing else.",
-        'Format: {"understood":"short summary","query":"WT+ query string"}',
+        'Format: {"understood":"short summary","query":"WT+ query string","routePrompt":"optional canonical phrasing for extension-supported custom routes"}',
         "Allowed field=value fields:",
         `${WT_PLUS_ALLOWED_FIELDS.join(", ")}.`,
         "Allowed raw tokens:",
@@ -2901,6 +3070,8 @@ export function createProfileSearchHandler({
         'Treat "Notables" primarily as a category/template concept, such as CategoryFull="Notables Project", CategoryFull="Living Notables Project", CategoryWord=Notables, or TemplateText="Notables Sticker", not as a raw status token.',
         "If the prompt is ambiguous, choose the most likely WT+ interpretation and summarize it in understood.",
         "When a single token could be either a surname or a place (for example 'Shropshire'), prefer Location=<token> if there are geography/life-event hints; otherwise make your best judgment and reflect that choice in understood.",
+        "Some anomaly prompts are handled by extension-supported custom routes instead of raw WT+ relation SQL. For these, set routePrompt to a canonical phrasing the extension can parse, and do not invent unsupported relation-comparison SQL.",
+        "Current custom-route families include: siblings born within X months of each other; children born when parent was under/over a given age; large spousal age gaps; and married but no children listed.",
         "Examples:",
         '{"understood":"unsourced profiles born in Devon","query":"Unsourced BirthLocation="Devon, England""}',
         '{"understood":"people in category Puritan Great Migration","query":"CategoryFull="Puritan Great Migration""}',
@@ -2908,6 +3079,7 @@ export function createProfileSearchHandler({
         '{"understood":"Charles Darwin descendants","query":"Descendants=Darwin-15"}',
         '{"understood":"current profile descendants born in Newfoundland before 1900","query":"Descendants=CurrentProfile BirthLocation=Newfoundland sql="([Default].[Birth Date].AsNumber < 19000000)""}',
         '{"understood":"Smith in Liverpool born before 1800","query":"LastNameAtBirth=Smith Location=Liverpool sql="([Default].[Birth Date].AsNumber < 18000000)""}',
+        '{"understood":"Flintshire 1900s profiles with siblings born within 5 months of each other","query":"BirthLocation=Flintshire 1900s","routePrompt":"Flintshire 1900s siblings born within 5 months of each other"}',
         "Example sub-century range with anomaly: 'women in Scotland unknown first or last name between 1800 and 1810' => female BirthCountry=Scotland 19Cen sql=\"([Default].[Birth Date].AsNumber In 18000101..18101231) And (([Default].[First Name] = '') Or ([Default].[Last Name At Birth] = ''))\"",
         "Do not treat command words as surname/location values (e.g., search, find, show, list, get, name) unless clearly quoted or explicitly assigned.",
         "For patterns like '<surname> born in <location> between <year> and <year>', map surname to AllLastNames (or LastNameAtBirth when clearly LNAB), map the place phrase after 'in' to BirthLocation/Location, emit NCen for that century, and keep the narrower date range in sql=.",
@@ -2989,6 +3161,14 @@ export function createProfileSearchHandler({
       } catch (error) {
         console.info("wbe: callAiParseWtPlusQuery JSON parse failed", { error, text: jsonText });
         return null;
+      }
+
+      const routePrompt = String(parsed?.routePrompt || "").trim();
+      if (routePrompt) {
+        const routedQuery = parseNaturalLanguageWtPlusQuery(routePrompt);
+        if (routedQuery?.query && routedQuery?.searchType) {
+          return routedQuery;
+        }
       }
 
       const completedQuery = ensureWtPlusFamilyField(rawQuery, parsed?.query || "");
@@ -3173,6 +3353,74 @@ export function createProfileSearchHandler({
     return extractSuggestionId(queryText);
   }
 
+  function makeParentAgeAtBirthTable(title, rows) {
+    const table = makeStandardProfileTable(title, rows, [[0, "asc"]]);
+    table.columns = (table.columns || []).filter((column) => !["degrees", "spouse", "spouseList"].includes(column.key));
+
+    const birthIndex = table.columns.findIndex((column) => column.key === "birth");
+    const parentColumns = [
+      { title: "Parent Role", key: "parentRole" },
+      { title: "Parent WT ID", key: "parentWtid" },
+      { title: "Parent Birth Year", key: "parentBirthYear" },
+      { title: "Child Birth Year", key: "childBirthYear" },
+      { title: "Parent Age @ Birth", key: "parentAgeAtBirth" },
+      { title: "Matched Rule", key: "matchedThreshold" },
+    ];
+
+    if (birthIndex >= 0) {
+      table.columns.splice(birthIndex + 1, 0, ...parentColumns);
+    } else {
+      table.columns.push(...parentColumns);
+    }
+
+    return table;
+  }
+
+  function makeSpousalAgeGapTable(title, rows) {
+    const table = makeStandardProfileTable(title, rows, [[0, "asc"]]);
+    table.columns = (table.columns || []).filter((column) => !["degrees", "spouse", "spouseList"].includes(column.key));
+
+    const birthIndex = table.columns.findIndex((column) => column.key === "birth");
+    const gapColumns = [
+      { title: "Profile Birth Year", key: "profileBirthYear" },
+      { title: "Spouse WT ID", key: "spouseWtid" },
+      { title: "Spouse Birth Year", key: "spouseBirthYear" },
+      { title: "Age Gap", key: "spousalAgeGap" },
+      { title: "Older Partner", key: "olderPartner" },
+      { title: "Matched Rule", key: "matchedThreshold" },
+    ];
+
+    if (birthIndex >= 0) {
+      table.columns.splice(birthIndex + 1, 0, ...gapColumns);
+    } else {
+      table.columns.push(...gapColumns);
+    }
+
+    return table;
+  }
+
+  function makeSiblingBirthGapTable(title, rows) {
+    const table = makeStandardProfileTable(title, rows, [[0, "asc"]]);
+    table.columns = (table.columns || []).filter((column) => !["degrees", "spouse", "spouseList"].includes(column.key));
+
+    const birthIndex = table.columns.findIndex((column) => column.key === "birth");
+    const siblingColumns = [
+      { title: "Sibling WT ID", key: "siblingWtid" },
+      { title: "Sibling Birth Date", key: "siblingBirthDate" },
+      { title: "Shared Parent", key: "sharedParent" },
+      { title: "Birth Gap Days", key: "birthGapDays" },
+      { title: "Matched Rule", key: "matchedThreshold" },
+    ];
+
+    if (birthIndex >= 0) {
+      table.columns.splice(birthIndex + 1, 0, ...siblingColumns);
+    } else {
+      table.columns.push(...siblingColumns);
+    }
+
+    return table;
+  }
+
   function isWtPlusExecutionFailure(result) {
     const text = typeof result === "string" ? result : result?.message;
     return /couldn't complete the WT\+ query/i.test(String(text || ""));
@@ -3351,7 +3599,18 @@ export function createProfileSearchHandler({
     canonicalQuery = canonicalizeWtPlusBranchTermOrder(canonicalQuery);
     const suggestionId = runOptions?.suggestionId || "";
     const suggestionOptions = runOptions?.suggestionOptions || {};
-    const isSuggestionsSearch = runOptions?.searchType === "suggestions";
+    const effectiveSearchType = runOptions?.searchType || interpretation?.searchType || "text";
+    const isSuggestionsSearch = effectiveSearchType === "suggestions";
+    const parentAgeAtBirthFilter =
+      effectiveSearchType === "parentAgeAtBirth"
+        ? runOptions?.customFilter || interpretation?.customFilter || null
+        : null;
+    const siblingBirthGapFilter =
+      effectiveSearchType === "siblingBirthGap"
+        ? runOptions?.customFilter || interpretation?.customFilter || null
+        : null;
+    const spousalAgeGapFilter =
+      effectiveSearchType === "spousalAgeGap" ? runOptions?.customFilter || interpretation?.customFilter || null : null;
 
     if (!isSuggestionsSearch && !hasPrimaryScopeTermInWtPlusQuery(canonicalQuery)) {
       return {
@@ -3464,10 +3723,12 @@ export function createProfileSearchHandler({
       const uniqueIds = [...new Set(profiles.map((value) => String(value)))];
       showChatShaky(`Fetching ${uniqueIds.length} WT+ matches...`);
       const fields =
-        "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,Father,Mother,BirthDate,BirthDateDecade,BirthLocation,DeathDate,DeathDateDecade,DeathLocation,Gender,Id,Name";
+        "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,Father,Mother,BirthDate,BirthDateDecade,BirthLocation,DeathDate,DeathDateDecade,DeathLocation,Gender,Id,Name" +
+        (spousalAgeGapFilter ? ",Spouses" : "");
       let [, , peopleById] = await fetchPeoplePaged(WBE_CHAT_APP_ID, uniqueIds, fields, {
         resolveRedirect: 1,
         limit: WT_PLUS_GET_PEOPLE_CHUNK,
+        ...(spousalAgeGapFilter ? { getSpouses: 1 } : {}),
       });
       peopleById = peopleById || {};
 
@@ -3483,6 +3744,7 @@ export function createProfileSearchHandler({
         const [, , retryPeopleById] = await fetchPeoplePaged(WBE_CHAT_APP_ID, missingProfileIds, fields, {
           resolveRedirect: 1,
           limit: retryLimit,
+          ...(spousalAgeGapFilter ? { getSpouses: 1 } : {}),
         });
         peopleById = {
           ...peopleById,
@@ -3492,6 +3754,177 @@ export function createProfileSearchHandler({
       }
 
       const people = uniqueIds.map((key) => peopleById?.[String(key)]).filter(Boolean);
+      if (siblingBirthGapFilter) {
+        const profileRowsById = new Map(
+          people.map((person) => [String(person?.Id || ""), mapApiPersonToStandardRow(person, { wtId: person?.Name })])
+        );
+        const siblingMatches = buildSiblingBirthGapMatches(people, siblingBirthGapFilter);
+        const thresholdLabel = formatSiblingBirthGapThreshold(
+          siblingBirthGapFilter.maxMonths,
+          siblingBirthGapFilter.inclusive
+        );
+
+        if (!siblingMatches.length) {
+          hideChatShaky();
+          return `I ran WT+ query: ${canonicalQuery}, then compared matched siblings sharing the same mother. I found no sibling pairs with birth dates ${thresholdLabel}.`;
+        }
+
+        const rows = siblingMatches.map((match) => ({
+          ...(profileRowsById.get(match.profileId) || {}),
+          siblingWtid: match.siblingWtId || match.siblingId,
+          siblingBirthDate: match.siblingBirthDate,
+          sharedParent: match.sharedParent,
+          birthGapDays: String(match.gapDays),
+          matchedThreshold: match.matchedThreshold,
+        }));
+        const table = makeSiblingBirthGapTable(
+          title || `Sibling birth gaps: ${siblingBirthGapFilter.understood || canonicalQuery}`,
+          rows
+        );
+        hideChatShaky();
+
+        return {
+          message: `I ran WT+ query: ${canonicalQuery}, then compared matched siblings sharing the same mother. Found ${
+            siblingMatches.length
+          } sibling pair${siblingMatches.length === 1 ? "" : "s"} with birth dates ${thresholdLabel}.`,
+          table,
+          autoOpen: true,
+        };
+      }
+
+      if (spousalAgeGapFilter) {
+        const spouseIds = [
+          ...new Set(
+            people
+              .flatMap((person) =>
+                Object.entries(person?.Spouses || {}).map(([spouseKey, spouseRef]) =>
+                  String(spouseRef?.Id || spouseKey || "").trim()
+                )
+              )
+              .filter((value) => value && value !== "0")
+          ),
+        ];
+
+        let spousePeopleById = {};
+        if (spouseIds.length) {
+          showChatShaky(`Comparing spouse birth years for ${people.length.toLocaleString()} profile matches...`);
+          const [, , fetchedSpouses] = await fetchPeoplePaged(WBE_CHAT_APP_ID, spouseIds, "Id,Name,BirthDate", {
+            resolveRedirect: 1,
+            limit: WT_PLUS_GET_PEOPLE_CHUNK,
+          });
+          spousePeopleById = fetchedSpouses || {};
+        }
+
+        const profileRowsById = new Map(
+          people.map((person) => [String(person?.Id || ""), mapApiPersonToStandardRow(person, { wtId: person?.Name })])
+        );
+        const spouseAgeGapMatches = buildSpousalAgeGapMatches(people, spousePeopleById, spousalAgeGapFilter);
+        const thresholdLabel = formatSpousalAgeGapThreshold(
+          spousalAgeGapFilter.minGapYears,
+          spousalAgeGapFilter.inclusive
+        );
+
+        if (!spouseAgeGapMatches.length) {
+          hideChatShaky();
+          return `I ran WT+ query: ${canonicalQuery}, then compared linked spouse birth years. I found no spouse pairs with age gaps ${thresholdLabel}.`;
+        }
+
+        const rows = spouseAgeGapMatches.map((match) => ({
+          ...(profileRowsById.get(match.profileId) || {}),
+          profileBirthYear: String(match.profileBirthYear),
+          spouseWtid: match.spouseWtId || match.spouseId,
+          spouseBirthYear: String(match.spouseBirthYear),
+          spousalAgeGap: String(match.ageGap),
+          olderPartner: match.olderPartner,
+          matchedThreshold: match.matchedThreshold,
+        }));
+        const table = makeSpousalAgeGapTable(
+          title || `Spousal age gaps: ${spousalAgeGapFilter.understood || canonicalQuery}`,
+          rows
+        );
+        hideChatShaky();
+
+        return {
+          message: `I ran WT+ query: ${canonicalQuery}, then compared linked spouse birth years. Found ${
+            spouseAgeGapMatches.length
+          } spouse pair${spouseAgeGapMatches.length === 1 ? "" : "s"} with age gaps ${thresholdLabel}.`,
+          table,
+          autoOpen: true,
+        };
+      }
+
+      if (parentAgeAtBirthFilter) {
+        const roleKeys =
+          Array.isArray(parentAgeAtBirthFilter.roleKeys) && parentAgeAtBirthFilter.roleKeys.length
+            ? parentAgeAtBirthFilter.roleKeys
+            : ["Father", "Mother"];
+        const parentIds = [
+          ...new Set(
+            people
+              .flatMap((person) => roleKeys.map((roleKey) => String(person?.[roleKey] || "").trim()))
+              .filter((value) => value && value !== "0")
+          ),
+        ];
+
+        let parentPeopleById = {};
+        if (parentIds.length) {
+          showChatShaky(`Comparing linked parent birth years for ${people.length.toLocaleString()} child matches...`);
+          const [, , fetchedParents] = await fetchPeoplePaged(WBE_CHAT_APP_ID, parentIds, "Id,Name,BirthDate", {
+            resolveRedirect: 1,
+            limit: WT_PLUS_GET_PEOPLE_CHUNK,
+          });
+          parentPeopleById = fetchedParents || {};
+        }
+
+        const childRowsById = new Map(
+          people.map((person) => [String(person?.Id || ""), mapApiPersonToStandardRow(person, { wtId: person?.Name })])
+        );
+        const parentAgeMatches = buildParentAgeAtBirthMatches(people, parentPeopleById, parentAgeAtBirthFilter);
+        const boundsLabel = formatParentAgeAtBirthBounds(
+          parentAgeAtBirthFilter.underAge,
+          parentAgeAtBirthFilter.overAge
+        );
+        const subjectLabel =
+          parentAgeAtBirthFilter.role === "father"
+            ? "father"
+            : parentAgeAtBirthFilter.role === "mother"
+            ? "mother"
+            : "parent";
+
+        if (!parentAgeMatches.length) {
+          hideChatShaky();
+          return `I ran WT+ query: ${canonicalQuery}, then compared linked ${subjectLabel} birth years. I found no children where a ${subjectLabel} was ${boundsLabel} at the child's birth.`;
+        }
+
+        const rows = parentAgeMatches.map((match) => ({
+          ...(childRowsById.get(match.childId) || {}),
+          parentRole: match.parentRole,
+          parentWtid: match.parentWtId || match.parentId,
+          parentBirthYear: String(match.parentBirthYear),
+          childBirthYear: String(match.childBirthYear),
+          parentAgeAtBirth: String(match.parentAgeAtBirth),
+          matchedThreshold: match.matchedThreshold,
+        }));
+        const table = makeParentAgeAtBirthTable(
+          title || `Parent age at birth: ${parentAgeAtBirthFilter.understood || canonicalQuery}`,
+          rows
+        );
+        hideChatShaky();
+
+        const uniqueChildCount = new Set(parentAgeMatches.map((match) => match.childId)).size;
+        return {
+          message: `I ran WT+ query: ${canonicalQuery}, then compared linked ${subjectLabel} birth years. Found ${
+            parentAgeMatches.length
+          } matching parent-child pair${
+            parentAgeMatches.length === 1 ? "" : "s"
+          } across ${uniqueChildCount} child profile${
+            uniqueChildCount === 1 ? "" : "s"
+          } where a ${subjectLabel} was ${boundsLabel} at the child's birth.`,
+          table,
+          autoOpen: true,
+        };
+      }
+
       const ancestorRootWtId = extractWtPlusAncestorsRoot(canonicalQuery);
       const rows = ancestorRootWtId
         ? await buildWtPlusAncestorRows(ancestorRootWtId, uniqueIds, fields)
@@ -5374,7 +5807,10 @@ export function createProfileSearchHandler({
       const looksWtPlusOnly =
         wtPlusOnlyConstraintRegex.test(rawQuery) ||
         wtPlusOnlyConstraintRegex.test(mainQuery) ||
-        Boolean(matchSuggestionByNaturalLanguage(mainQuery));
+        Boolean(matchSuggestionByNaturalLanguage(mainQuery)) ||
+        ["parentAgeAtBirth", "spousalAgeGap", "marriedNoChildren", "siblingBirthGap"].includes(
+          localWtPlusQueryCandidate?.searchType
+        );
       const shouldAutoRouteToWtPlus =
         chatMode !== "wtplus" &&
         Boolean(
@@ -5450,7 +5886,15 @@ export function createProfileSearchHandler({
         const shouldPreferAiForAmbiguousSuggestions = hasSuggestionsWithAmbiguousRemainder || preferAiWtPlusQuery;
         const shouldForceAiForSuspiciousLocalQuery =
           !explicitWtPlusQuery?.query && shouldForceAiForSuspiciousLocalWtPlusQuery(localWtPlusQuery);
-        const shouldUseAiFirst = shouldPreferAiForAmbiguousSuggestions || shouldForceAiForSuspiciousLocalQuery;
+        const isCustomDeterministicQuery = [
+          "parentAgeAtBirth",
+          "spousalAgeGap",
+          "marriedNoChildren",
+          "siblingBirthGap",
+        ].includes(localWtPlusQuery?.searchType);
+        const shouldUseAiFirst =
+          !isCustomDeterministicQuery &&
+          (shouldPreferAiForAmbiguousSuggestions || shouldForceAiForSuspiciousLocalQuery);
 
         if (shouldForceAiForSuspiciousLocalQuery && localWtPlusQuery?.query) {
           console.info("wbe: suspicious deterministic local WT+ parse detected; forcing AI parse first", {
@@ -5472,6 +5916,7 @@ export function createProfileSearchHandler({
           }
           const localRunResult = await runWtPlusProfileQuery(localWtPlusQuery.query, localWtPlusQuery.title, null, {
             searchType: localWtPlusQuery.searchType,
+            customFilter: localWtPlusQuery.customFilter,
             suggestionId: localWtPlusQuery.suggestionId,
             suggestionOptions: localWtPlusQuery.suggestionOptions,
           });
