@@ -4,6 +4,8 @@ This keeps prompt classification in one place so API adapters can be expanded
 without growing chat.js into a single large file.
 */
 
+import { parseCousinRelationRequest } from "./chat_cousin_helpers";
+
 export const ChatIntent = {
   CC7_LOCATION_FILTER: "cc7LocationFilter",
   CC_SUMMARY: "ccSummary",
@@ -39,6 +41,9 @@ const RESULT_FIELD_ALIASES = {
   "birth surname": "lnab",
   degree: "degrees",
   degrees: "degrees",
+  removed: "removed",
+  removal: "removed",
+  removals: "removed",
   gender: "gender",
   birth: "birth",
   birthdate: "birth",
@@ -190,63 +195,156 @@ function parseRelationPrompt(prompt) {
     return null;
   }
 
+  const withCousinParams = (baseParams, parsed) => {
+    if (!parsed) {
+      return baseParams;
+    }
+
+    return {
+      ...baseParams,
+      relationRaw: parsed.relationLabel,
+      ...(Number.isFinite(Number(parsed.cousinDegree)) ? { cousinDegree: Number(parsed.cousinDegree) } : {}),
+      ...(parsed.allCousins ? { allCousins: true, maxAncestorGeneration: parsed.maxAncestorGeneration } : {}),
+      location: parsed.location,
+      locationField: parsed.locationField,
+    };
+  };
+
+  const isSupportedBareRelationPhrase = (text) => {
+    const cleaned = String(text || "")
+      .trim()
+      .replace(/[.!?]+$/g, "")
+      .trim();
+    if (!cleaned) {
+      return false;
+    }
+    if (parseCousinRelationRequest(cleaned)) {
+      return true;
+    }
+    return /^(?:grand\s*aunts?|grand\s*uncles?|grand\s*mothers?|grand\s*fathers?|grand\s*parents?|aunts?|uncles?|mothers?|moms?|fathers?|dads?|parents?|daughters?|sons?|children|kids?|wives|wife|husbands?|spouses?|brothers?|sisters?|siblings?)$/i.test(
+      cleaned
+    );
+  };
+
+  const withRelationExtras = (baseParams) => {
+    const relationRaw = String(baseParams?.relationRaw || "").trim();
+    if (!relationRaw) {
+      return baseParams;
+    }
+
+    const cousinParsed = parseCousinRelationRequest(relationRaw);
+    if (!cousinParsed) {
+      return baseParams;
+    }
+
+    return withCousinParams(baseParams, cousinParsed);
+  };
+
   const meMatch = normalized.match(/^how\s+many\s+(.+?)\s+do\s+i\s+have\??$/i);
   if (meMatch?.[1]) {
-    return {
+    return withRelationExtras({
       mode: "count",
       relationRaw: meMatch[1].trim(),
       subjectMode: "user",
-    };
+    });
   }
 
   const namedMatch = normalized.match(/^how\s+many\s+(.+?)\s+does\s+(.+?)\s+have\??$/i);
   if (namedMatch?.[1] && namedMatch?.[2]) {
-    return {
+    return withRelationExtras({
       mode: "count",
       relationRaw: namedMatch[1].trim(),
       subjectMode: "named",
       subjectName: namedMatch[2].trim(),
-    };
+    });
   }
 
   const listMyMatch = normalized.match(/^(?:who\s+are|list|show)\s+my\s+(.+?)\??$/i);
   if (listMyMatch?.[1]) {
-    return {
+    return withRelationExtras({
       mode: "list",
       relationRaw: listMyMatch[1].trim(),
       subjectMode: "user",
+    });
+  }
+
+  const bareMyCousinMatch = normalized.match(/^my\s+(.+?)\??$/i);
+  if (bareMyCousinMatch?.[1]) {
+    const parsed = parseCousinRelationRequest(bareMyCousinMatch[1]);
+    if (parsed) {
+      return withCousinParams(
+        {
+          mode: "list",
+          subjectMode: "user",
+        },
+        parsed
+      );
+    }
+  }
+
+  const barePossessiveCousinMatch = normalized.match(/^(.+?)'s\s+(.+?)\??$/i);
+  if (barePossessiveCousinMatch?.[1] && barePossessiveCousinMatch?.[2]) {
+    const parsed = parseCousinRelationRequest(barePossessiveCousinMatch[2]);
+    if (parsed) {
+      return withCousinParams(
+        {
+          mode: "list",
+          subjectMode: "named",
+          subjectName: barePossessiveCousinMatch[1].trim(),
+        },
+        parsed
+      );
+    }
+  }
+
+  if (isSupportedBareRelationPhrase(normalized)) {
+    const parsed = parseCousinRelationRequest(normalized);
+    if (parsed) {
+      return withCousinParams(
+        {
+          mode: "list",
+          subjectMode: "contextual",
+        },
+        parsed
+      );
+    }
+
+    return {
+      mode: "list",
+      relationRaw: normalized.replace(/[.!?]+$/g, "").trim(),
+      subjectMode: "contextual",
     };
   }
 
   const listNamedMatch = normalized.match(/^(?:who\s+are|list|show)\s+(.+?)\s+of\s+(.+?)\??$/i);
   if (listNamedMatch?.[1] && listNamedMatch?.[2]) {
-    return {
+    return withRelationExtras({
       mode: "list",
       relationRaw: listNamedMatch[1].trim(),
       subjectMode: "named",
       subjectName: listNamedMatch[2].trim(),
-    };
+    });
   }
 
   const listPossessiveMatch = normalized.match(/^(?:who\s+are|list|show)\s+(.+?)\s+for\s+(.+?)\??$/i);
   if (listPossessiveMatch?.[1] && listPossessiveMatch?.[2]) {
-    return {
+    return withRelationExtras({
       mode: "list",
       relationRaw: listPossessiveMatch[1].trim(),
       subjectMode: "named",
       subjectName: listPossessiveMatch[2].trim(),
-    };
+    });
   }
 
   // Possessive: "Who are Nathan's children?" / "Show Nathan's parents" / "List Mary's siblings"
   const genitivePossessiveMatch = normalized.match(/^(?:who\s+are|what\s+are|list|show)\s+(.+?)'s\s+(.+?)\??$/i);
   if (genitivePossessiveMatch?.[1] && genitivePossessiveMatch?.[2]) {
-    return {
+    return withRelationExtras({
       mode: "list",
       relationRaw: genitivePossessiveMatch[2].trim(),
       subjectMode: "named",
       subjectName: genitivePossessiveMatch[1].trim(),
-    };
+    });
   }
 
   return null;

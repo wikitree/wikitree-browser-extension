@@ -102,7 +102,7 @@ export function cloneResultWithRows(result, title, rows, defaultOrder = result?.
   };
 }
 
-export function makeStandardProfileTable(title, rows, defaultOrder = [[3, "asc"]]) {
+export function makeStandardProfileTable(title, rows, defaultOrder = [[0, "asc"]]) {
   const baseColumns = [
     {
       title: "WT ID",
@@ -134,13 +134,14 @@ export function makeStandardProfileTable(title, rows, defaultOrder = [[3, "asc"]
       },
     },
     { title: "°", key: "degrees" },
+    { title: "Removed", key: "removed" },
     { title: "Birth", key: "birth", cellClass: "chat-date-cell" },
     { title: "Death", key: "death", cellClass: "chat-date-cell" },
     { title: "Birth Location", key: "birthLocation" },
     { title: "Death Location", key: "deathLocation" },
   ];
 
-  const optionalColumnKeys = new Set(["middleName", "spouse"]);
+  const optionalColumnKeys = new Set(["middleName", "spouse", "removed"]);
   const columns = baseColumns.filter((column) => {
     if (!optionalColumnKeys.has(column.key)) {
       return true;
@@ -150,7 +151,8 @@ export function makeStandardProfileTable(title, rows, defaultOrder = [[3, "asc"]
       if (column.key === "spouse") {
         return (Array.isArray(row?.spouseList) && row.spouseList.length) || String(row?.spouse || "").trim();
       }
-      return String(row?.[column.key] || "").trim();
+      const value = row?.[column.key];
+      return value != null && String(value).trim() !== "";
     });
   });
 
@@ -173,6 +175,40 @@ export function makeStandardProfileTable(title, rows, defaultOrder = [[3, "asc"]
     title,
     defaultOrder: normalizedOrder.length ? normalizedOrder : [[0, "asc"]],
     columns,
+    rows: rows.map((row) => withDerivedRowFields(row)),
+  };
+}
+
+export function makeCousinProfileTable(
+  title,
+  rows,
+  defaultOrder = [
+    [4, "asc"],
+    [5, "asc"],
+    [2, "asc"],
+    [1, "asc"],
+    [0, "asc"],
+  ]
+) {
+  return {
+    title,
+    defaultOrder,
+    columns: [
+      {
+        title: "WT ID",
+        key: "wtid",
+        render: (row) => makeProfileLink(row.wtid, row.wtid),
+      },
+      { title: "First Name", key: "firstName" },
+      { title: "Last Name", key: "lnab", cellClass: "nowrap-cell", headerTitle: "Last name at birth" },
+      { title: "Current Last", key: "lastNameCurrent", cellClass: "nowrap-cell" },
+      { title: "#", key: "cousinOrdinal" },
+      { title: "Removed", key: "removed" },
+      { title: "Birth", key: "birth", cellClass: "chat-date-cell" },
+      { title: "Death", key: "death", cellClass: "chat-date-cell" },
+      { title: "Birth Location", key: "birthLocation" },
+      { title: "Death Location", key: "deathLocation" },
+    ],
     rows: rows.map((row) => withDerivedRowFields(row)),
   };
 }

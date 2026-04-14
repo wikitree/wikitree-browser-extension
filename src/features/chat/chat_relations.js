@@ -1,3 +1,14 @@
+import {
+  DEFAULT_ALL_COUSIN_ANCESTOR_GENERATION,
+  MAX_COUSIN_ANCESTOR_GENERATION,
+  MAX_SUPPORTED_COUSIN_DEGREE,
+  formatCousinLabel,
+  parseCousinRelationRequest,
+  selectPeopleAtMinimalSharedGeneration,
+} from "./chat_cousin_helpers";
+
+const MAX_COUSIN_REMOVED = 3;
+
 export function createChatRelationHandlers({
   WikiTreeAPI,
   WBE_CHAT_APP_ID,
@@ -10,7 +21,9 @@ export function createChatRelationHandlers({
   getUserWtId,
   getUserNumId,
   getLoggedInRootPerson,
+  getProfileSubjectRoot,
   makeStandardProfileTable,
+  makeCousinProfileTable = makeStandardProfileTable,
   showBioListPopup,
   handleOpenFromBioList,
   fetchPeoplePaged,
@@ -296,14 +309,51 @@ export function createChatRelationHandlers({
     return Array.from(deduped.values());
   }
 
+  function getPrivateLongName(person) {
+    return String(
+      person?.LongNamePrivate ||
+        person?.Derived?.LongNamePrivate ||
+        person?.BirthNamePrivate ||
+        person?.Derived?.BirthNamePrivate ||
+        ""
+    ).trim();
+  }
+
+  function isPrivatePlaceholder(person) {
+    return Number(person?.Id) < 0 && !String(person?.Name || "").trim();
+  }
+
+  function getRelationFirstName(person) {
+    const firstName = String(person?.FirstName || "").trim();
+    if (firstName) {
+      return firstName;
+    }
+
+    const realName = String(person?.RealName || person?.Derived?.ShortName || "").trim();
+    if (realName) {
+      return realName;
+    }
+
+    const privateLongName = getPrivateLongName(person);
+    if (privateLongName) {
+      return privateLongName;
+    }
+
+    return isPrivatePlaceholder(person) ? "Private" : "";
+  }
+
   function toDisplayName(person) {
     const fallbackSurname = String(person?.LastNameCurrent || person?.LastNameAtBirth || "").trim();
-    let preferred = String(person?.RealName || person?.Derived?.ShortName || "").trim();
+    let preferred = String(person?.RealName || person?.Derived?.ShortName || getPrivateLongName(person) || "").trim();
     if (preferred) {
       if (!/\s/.test(preferred) && fallbackSurname) {
         preferred = `${preferred} ${fallbackSurname}`;
       }
       return preferred;
+    }
+
+    if (isPrivatePlaceholder(person)) {
+      return "Private";
     }
 
     const composed = String([person?.FirstName || "", fallbackSurname].filter(Boolean).join(" ")).trim();
@@ -312,6 +362,9 @@ export function createChatRelationHandlers({
 
   function formatRelationPreviewLine(person) {
     const details = [];
+    if (Number.isFinite(Number(person?.removed))) {
+      details.push(`${Number(person.removed)} removed`);
+    }
     if (person?.BirthDate && person.BirthDate !== "0000-00-00") {
       details.push(`b. ${person.BirthDate}`);
     }
@@ -323,14 +376,139 @@ export function createChatRelationHandlers({
     return `- ${toDisplayName(person)} (${person?.Name || person?.Id || "unknown"})${detailSuffix}`;
   }
 
-  function toRelationTableRows(people = []) {
+  function compareRelationText(left, right) {
+    return normalizeText(left).localeCompare(normalizeText(right), undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+  }
+
+  function sortCousinsForDisplay(people = []) {
+    return people.slice().sort((left, right) => {
+      const leftDegree = getCousinDegree(left);
+      const rightDegree = getCousinDegree(right);
+      const normalizedLeftDegree = Number.isFinite(leftDegree) ? leftDegree : Number.MAX_SAFE_INTEGER;
+      const normalizedRightDegree = Number.isFinite(rightDegree) ? rightDegree : Number.MAX_SAFE_INTEGER;
+      if (normalizedLeftDegree !== normalizedRightDegree) {
+        return normalizedLeftDegree - normalizedRightDegree;
+      }
+
+      const leftRemoved = Number.isFinite(Number(left?.removed)) ? Number(left.removed) : Number.MAX_SAFE_INTEGER;
+      const rightRemoved = Number.isFinite(Number(right?.removed)) ? Number(right.removed) : Number.MAX_SAFE_INTEGER;
+      if (leftRemoved !== rightRemoved) {
+        return leftRemoved - rightRemoved;
+      }
+
+      const surnameDelta = compareRelationText(
+        left?.LastNameAtBirth || left?.LastNameCurrent,
+        right?.LastNameAtBirth || right?.LastNameCurrent
+      );
+      if (surnameDelta !== 0) {
+        return surnameDelta;
+      }
+
+      const firstNameDelta = compareRelationText(
+        getRelationFirstName(left) || toDisplayName(left),
+        getRelationFirstName(right) || toDisplayName(right)
+      );
+      if (firstNameDelta !== 0) {
+        return firstNameDelta;
+      }
+
+      const displayNameDelta = compareRelationText(toDisplayName(left), toDisplayName(right));
+      if (displayNameDelta !== 0) {
+        return displayNameDelta;
+      }
+
+      return compareRelationText(left?.Name || left?.Id || "", right?.Name || right?.Id || "");
+    });
+  }
+
+  function formatCousinPreviewLine(person) {
+    const details = [];
+    if (person?.BirthDate && person.BirthDate !== "0000-00-00") {
+      details.push(`b. ${person.BirthDate}`);
+    }
+    if (person?.DeathDate && person.DeathDate !== "0000-00-00") {
+      details.push(`d. ${person.DeathDate}`);
+    }
+
+    const cousinOrdinal = formatCousinOrdinal(getCousinDegree(person));
+    const removedValue = Number(person?.removed);
+    const removedLabel = Number.isFinite(removedValue) ? `${removedValue} removed` : null;
+    const relationLabel = [cousinOrdinal ? `${cousinOrdinal} cousin` : "cousin", removedLabel]
+      .filter(Boolean)
+      .join(", ");
+    const detailSuffix = details.length ? ` - ${details.join(", ")}` : "";
+
+    return `- ${relationLabel}: ${toDisplayName(person)} (${person?.Name || person?.Id || "unknown"})${detailSuffix}`;
+  }
+
+  function buildRelationPreviewAndInlineMore(people, previewLimit = 20) {
+    const previewPeople = people.slice(0, previewLimit);
+    const remainingPeople = people.slice(previewLimit);
+    return {
+      preview: previewPeople.map((person) => formatRelationPreviewLine(person)).join("\n"),
+      inlineMore: remainingPeople.length
+        ? {
+            count: remainingPeople.length,
+            text: remainingPeople.map((person) => formatRelationPreviewLine(person)).join("\n"),
+          }
+        : null,
+    };
+  }
+
+  function buildCousinPreviewAndInlineMore(people, previewLimit = 20) {
+    const previewPeople = people.slice(0, previewLimit);
+    const remainingPeople = people.slice(previewLimit);
+    return {
+      preview: previewPeople.map((person) => formatCousinPreviewLine(person)).join("\n"),
+      inlineMore: remainingPeople.length
+        ? {
+            count: remainingPeople.length,
+            text: remainingPeople.map((person) => formatCousinPreviewLine(person)).join("\n"),
+          }
+        : null,
+    };
+  }
+
+  function getCousinDegree(person) {
+    const directDegree = Number(person?.cousinDegree);
+    if (Number.isFinite(directDegree) && directDegree >= 1) {
+      return directDegree;
+    }
+
+    const descendantGeneration = Number(person?.Meta?.Degrees);
+    const removed = Number(person?.removed);
+    if (!Number.isFinite(descendantGeneration) || descendantGeneration < 2) {
+      return null;
+    }
+
+    const safeRemoved = Number.isFinite(removed) && removed >= 0 ? removed : 0;
+    const derivedDegree = descendantGeneration - safeRemoved - 1;
+    return Number.isFinite(derivedDegree) && derivedDegree >= 1 ? derivedDegree : null;
+  }
+
+  function formatCousinOrdinal(degree) {
+    const numericDegree = Number(degree);
+    if (!Number.isFinite(numericDegree) || numericDegree < 1) {
+      return "";
+    }
+
+    return formatCousinLabel(numericDegree, false).replace(/\s+cousin$/i, "");
+  }
+
+  function toRelationTableRows(people = [], options = {}) {
+    const includeCousinOrdinal = !!options.includeCousinOrdinal;
     return people.map((person) => ({
       displayName: toDisplayName(person),
       wtid: person?.Name || "",
-      firstName: person?.FirstName || "",
+      firstName: getRelationFirstName(person),
       lnab: person?.LastNameAtBirth || "",
       lastNameCurrent: person?.LastNameCurrent || "",
+      ...(includeCousinOrdinal ? { cousinOrdinal: formatCousinOrdinal(getCousinDegree(person)) } : {}),
       degrees: "",
+      removed: person?.removed ?? "",
       gender: person?.Gender || "",
       birth: person?.BirthDate && person.BirthDate !== "0000-00-00" ? person.BirthDate : "",
       death: person?.DeathDate && person.DeathDate !== "0000-00-00" ? person.DeathDate : "",
@@ -338,6 +516,323 @@ export function createChatRelationHandlers({
       deathLocation: person?.DeathLocation || "",
       surname: person?.LastNameAtBirth || person?.LastNameCurrent || "",
     }));
+  }
+
+  function getLocationFieldLabel(locationField = "AnyLocation") {
+    if (locationField === "BirthLocation") {
+      return "birth location";
+    }
+    if (locationField === "DeathLocation") {
+      return "death location";
+    }
+    return "birth or death location";
+  }
+
+  function filterPeopleByLocation(people = [], location = "", locationField = "AnyLocation") {
+    const normalizedLocation = normalizeText(location);
+    if (!normalizedLocation) {
+      return uniquePeopleById(people);
+    }
+
+    return uniquePeopleById(people).filter((person) => {
+      const birthLocation = normalizeText(person?.BirthLocation || "");
+      const deathLocation = normalizeText(person?.DeathLocation || "");
+      if (locationField === "BirthLocation") {
+        return birthLocation.includes(normalizedLocation);
+      }
+      if (locationField === "DeathLocation") {
+        return deathLocation.includes(normalizedLocation);
+      }
+      return birthLocation.includes(normalizedLocation) || deathLocation.includes(normalizedLocation);
+    });
+  }
+
+  function getCousinExcludedKeys(subject) {
+    return Array.isArray(subject?.userKeys) && subject.userKeys.length
+      ? subject.userKeys
+      : [subject?.key, subject?.wtId];
+  }
+
+  async function collectCousinGenerationBuckets(subject, maxAncestorGeneration = MAX_COUSIN_ANCESTOR_GENERATION) {
+    const maxGeneration = Number(maxAncestorGeneration);
+    if (!Number.isFinite(maxGeneration) || maxGeneration < 2) {
+      return [];
+    }
+
+    const subjectKey = subject?.key;
+    if (!subjectKey) {
+      return [];
+    }
+
+    const [, , ancestorPeopleMap] = await fetchPeoplePaged(WBE_CHAT_APP_ID, subjectKey, "Id,Name,Meta", {
+      ancestors: maxGeneration,
+      minGeneration: 1,
+      limit: 1000,
+    });
+
+    const ancestorsByGeneration = new Map();
+    Object.values(ancestorPeopleMap || {}).forEach((profile) => {
+      const generation = Number(profile?.Meta?.Degrees);
+      const ancestorId = Number(profile?.Id);
+      if (!Number.isFinite(generation) || generation < 2 || generation > maxGeneration) {
+        return;
+      }
+      if (!Number.isFinite(ancestorId) || ancestorId <= 0) {
+        return;
+      }
+      const bucket = ancestorsByGeneration.get(generation) || [];
+      bucket.push(ancestorId);
+      ancestorsByGeneration.set(generation, bucket);
+    });
+
+    const generationBuckets = [];
+    for (let generation = 2; generation <= maxGeneration; generation += 1) {
+      const ancestorIds = Array.from(new Set(ancestorsByGeneration.get(generation) || [])).filter((id) => id > 0);
+      if (!ancestorIds.length) {
+        continue;
+      }
+
+      const [, , descendantPeopleMap] = await fetchPeoplePaged(
+        WBE_CHAT_APP_ID,
+        ancestorIds,
+        `${RELATION_PERSON_FIELDS},Meta`,
+        {
+          descendants: Math.min(MAX_COUSIN_ANCESTOR_GENERATION, generation + MAX_COUSIN_REMOVED),
+          minGeneration: generation,
+          limit: 100,
+        }
+      );
+
+      generationBuckets.push({
+        generation,
+        people: Object.values(descendantPeopleMap || {}),
+      });
+    }
+
+    return generationBuckets;
+  }
+
+  async function collectNthCousins(subject, cousinDegree) {
+    const degree = Number(cousinDegree);
+    if (!Number.isFinite(degree) || degree < 1) {
+      return [];
+    }
+
+    const sharedAncestorGeneration = degree + 1;
+    if (sharedAncestorGeneration > MAX_COUSIN_ANCESTOR_GENERATION) {
+      throw new Error(
+        "getPeople currently supports cousin degrees up to 9 generations through ancestor/descendant expansion"
+      );
+    }
+
+    const generationBuckets = await collectCousinGenerationBuckets(subject, sharedAncestorGeneration);
+    const excludedKeys = getCousinExcludedKeys(subject);
+
+    return uniquePeopleById(
+      selectPeopleAtMinimalSharedGeneration(
+        generationBuckets,
+        sharedAncestorGeneration,
+        excludedKeys,
+        MAX_COUSIN_REMOVED
+      )
+    );
+  }
+
+  async function collectAllCousins(subject, maxAncestorGeneration = DEFAULT_ALL_COUSIN_ANCESTOR_GENERATION) {
+    const requestedGeneration = Number(maxAncestorGeneration);
+    const safeAncestorGeneration =
+      Number.isFinite(requestedGeneration) && requestedGeneration >= 2
+        ? Math.min(requestedGeneration, MAX_COUSIN_ANCESTOR_GENERATION)
+        : DEFAULT_ALL_COUSIN_ANCESTOR_GENERATION;
+    const generationBuckets = await collectCousinGenerationBuckets(subject, maxAncestorGeneration);
+    const excludedKeys = getCousinExcludedKeys(subject);
+    const cousins = [];
+
+    for (
+      let sharedAncestorGeneration = 2;
+      sharedAncestorGeneration <= safeAncestorGeneration;
+      sharedAncestorGeneration += 1
+    ) {
+      cousins.push(
+        ...selectPeopleAtMinimalSharedGeneration(
+          generationBuckets,
+          sharedAncestorGeneration,
+          excludedKeys,
+          MAX_COUSIN_REMOVED
+        )
+      );
+    }
+
+    return uniquePeopleById(cousins);
+  }
+
+  async function tryHandleCousinPrompt(params, prompt = "", mode = "list", forceUserSubject = false) {
+    const wantsAllCousins = !!params?.allCousins;
+    const cousinDegree = Number(params?.cousinDegree);
+    if (!wantsAllCousins && (!Number.isFinite(cousinDegree) || cousinDegree < 1)) {
+      return null;
+    }
+
+    let subject = null;
+    if (!forceUserSubject && params?.subjectMode === "named") {
+      const subjectName = String(params?.subjectName || "").trim();
+      if (!subjectName) {
+        return "I couldn't tell which person you meant. Could you include a name or WikiTree ID?";
+      }
+      const resolved = await resolveConnectionTargetPerson(subjectName, prompt);
+      if (!resolved?.Name && !resolved?.Id) {
+        return `I couldn't identify which profile you meant by "${subjectName}". Try a WikiTree ID like Name-123, or a more specific name.`;
+      }
+      subject = {
+        key: resolved.Id || resolved.Name,
+        label: `${resolved.RealName || resolved?.Derived?.ShortName || resolved.Name} (${
+          resolved.Name || resolved.Id
+        })`,
+        isUser: false,
+        userKeys: Array.from(
+          new Set([resolved.Id, resolved.Name].map((value) => String(value || "").trim()).filter(Boolean))
+        ),
+      };
+    } else {
+      const profileRoot =
+        !forceUserSubject && typeof getProfileSubjectRoot === "function" ? getProfileSubjectRoot() : null;
+      if (profileRoot?.key) {
+        subject = {
+          key: profileRoot.key,
+          label: `${profileRoot.displayName || profileRoot.wtId || profileRoot.key}${
+            profileRoot.wtId ? ` (${profileRoot.wtId})` : ""
+          }`,
+          isUser: false,
+          wtId: String(profileRoot.wtId || ""),
+          userKeys: Array.from(
+            new Set([profileRoot.key, profileRoot.wtId].map((value) => String(value || "").trim()).filter(Boolean))
+          ),
+          subjectType: "profile",
+        };
+      } else {
+        const directUserWtId = String(getUserWtId() || "").trim();
+        const directUserNumId = getUserNumId();
+        const directUserKey = directUserWtId || directUserNumId;
+        if (!directUserKey) {
+          return "I could not detect your logged-in WikiTree ID. Please make sure you are logged in on WikiTree.";
+        }
+
+        const me = await getLoggedInRootPerson();
+        const userKeys = Array.from(
+          new Set(
+            [directUserNumId, directUserWtId, me?.key, me?.wtId, me?.Id, me?.Name]
+              .map((value) => String(value || "").trim())
+              .filter(Boolean)
+          )
+        );
+        subject = {
+          key: directUserKey,
+          label: "you",
+          isUser: true,
+          wtId: directUserWtId || String(me?.wtId || ""),
+          userKeys,
+        };
+      }
+    }
+
+    const maxAncestorGeneration = wantsAllCousins
+      ? Math.min(
+          Number.isFinite(Number(params?.maxAncestorGeneration))
+            ? Number(params.maxAncestorGeneration)
+            : DEFAULT_ALL_COUSIN_ANCESTOR_GENERATION,
+          MAX_COUSIN_ANCESTOR_GENERATION
+        )
+      : null;
+    const maxCousinDegree = wantsAllCousins ? Math.max(1, maxAncestorGeneration - 1) : null;
+    const relationLabel = wantsAllCousins ? "cousins" : formatCousinLabel(cousinDegree, true);
+    const resultLabel = wantsAllCousins
+      ? `cousins (through ${formatCousinLabel(maxCousinDegree, true)} and up to ${MAX_COUSIN_REMOVED} removed)`
+      : `${relationLabel} (and up to ${MAX_COUSIN_REMOVED} removed)`;
+    const location = String(params?.location || "").trim();
+    const locationField = String(params?.locationField || "").trim() || "AnyLocation";
+    const locationPhrase = location
+      ? locationField === "BirthLocation"
+        ? `born in ${location}`
+        : locationField === "DeathLocation"
+        ? `died in ${location}`
+        : `in ${location}`
+      : "";
+
+    try {
+      const allCousins = wantsAllCousins
+        ? await collectAllCousins(subject, maxAncestorGeneration)
+        : await collectNthCousins(subject, cousinDegree);
+      const cousins = sortCousinsForDisplay(filterPeopleByLocation(allCousins, location, locationField));
+      const cousinRows = toRelationTableRows(cousins, { includeCousinOrdinal: true });
+
+      if (!cousins.length) {
+        const appsLoginHint =
+          subject.isUser && isAppsLoginButtonPresent()
+            ? " If you see the Apps Login button, click it and try again so Chat can use full app-server access."
+            : "";
+        if (location && allCousins.length) {
+          const missingLocationCount = allCousins.filter((person) => {
+            const birth = normalizeText(person?.BirthLocation || "");
+            const death = normalizeText(person?.DeathLocation || "");
+            if (locationField === "BirthLocation") {
+              return !birth;
+            }
+            if (locationField === "DeathLocation") {
+              return !death;
+            }
+            return !birth && !death;
+          }).length;
+          return `I searched ${allCousins.length} ${resultLabel} for ${
+            subject.label
+          }, but none matched ${locationPhrase}. ${missingLocationCount} had no ${getLocationFieldLabel(
+            locationField
+          )} in accessible API data.${appsLoginHint}`;
+        }
+        return subject.isUser
+          ? `I couldn't find any ${resultLabel} in currently accessible family data yet.${appsLoginHint}`
+          : `I couldn't find any ${resultLabel} for ${subject.label} in currently accessible family data yet.${appsLoginHint}`;
+      }
+
+      if (mode === "count") {
+        const sample = cousins
+          .slice(0, 6)
+          .map((person) => toDisplayName(person))
+          .join(", ");
+        const suffix = cousins.length > 6 ? ", ..." : "";
+        return {
+          message: subject.isUser
+            ? `You have ${cousins.length} ${resultLabel}${
+                locationPhrase ? ` ${locationPhrase}` : ""
+              } in currently accessible data. ${sample}${suffix}`
+            : `${subject.label} has ${cousins.length} ${resultLabel}${
+                locationPhrase ? ` ${locationPhrase}` : ""
+              } in currently accessible data. ${sample}${suffix}`,
+          table: makeCousinProfileTable(
+            subject.isUser ? `Your ${resultLabel}` : `${resultLabel} for ${subject.label}`,
+            cousinRows
+          ),
+        };
+      }
+
+      const { preview, inlineMore } = buildCousinPreviewAndInlineMore(cousins);
+
+      return {
+        message: subject.isUser
+          ? `Here are your ${resultLabel}${locationPhrase ? ` ${locationPhrase}` : ""} (${
+              cousins.length
+            } found):\n${preview}`
+          : `Here are ${resultLabel}${locationPhrase ? ` ${locationPhrase}` : ""} for ${subject.label} (${
+              cousins.length
+            } found):\n${preview}`,
+        inlineMore,
+        table: makeCousinProfileTable(
+          subject.isUser ? `Your ${resultLabel}` : `${resultLabel} for ${subject.label}`,
+          cousinRows
+        ),
+      };
+    } catch (error) {
+      return `I could not calculate ${relationLabel}. Error: ${error?.message || "unknown error"}`;
+    }
   }
 
   async function fetchGrandparentIds(personKey) {
@@ -561,6 +1056,42 @@ export function createChatRelationHandlers({
     const mode = params?.mode === "list" ? "list" : "count";
     const forceUserSubject = promptRefersToUser(prompt);
 
+    const parsedCousin =
+      Number.isFinite(Number(params?.cousinDegree)) || params?.allCousins
+        ? {
+            ...(Number.isFinite(Number(params?.cousinDegree)) ? { cousinDegree: Number(params.cousinDegree) } : {}),
+            ...(params?.allCousins
+              ? {
+                  allCousins: true,
+                  maxAncestorGeneration: Number(params?.maxAncestorGeneration),
+                }
+              : {}),
+            relationLabel: relationRaw,
+            location: String(params?.location || "").trim(),
+            locationField: String(params?.locationField || "").trim(),
+          }
+        : parseCousinRelationRequest(relationRaw);
+    if (parsedCousin?.cousinDegree || parsedCousin?.allCousins) {
+      return await tryHandleCousinPrompt(
+        {
+          ...params,
+          cousinDegree: parsedCousin.cousinDegree,
+          ...(parsedCousin.allCousins
+            ? {
+                allCousins: true,
+                maxAncestorGeneration: parsedCousin.maxAncestorGeneration,
+              }
+            : {}),
+          relationRaw: parsedCousin.relationLabel || relationRaw,
+          location: parsedCousin.location || params?.location || "",
+          locationField: parsedCousin.locationField || params?.locationField || "",
+        },
+        prompt,
+        mode,
+        forceUserSubject
+      );
+    }
+
     const relationSteps = await resolveRelationChain(relationRaw);
     if (!relationSteps.length) {
       return `I couldn't match "${relationRaw}" to a supported relation type yet. Try siblings, parents, children, spouses, aunts, uncles, grandparents, granduncles, or grandaunts.`;
@@ -585,29 +1116,46 @@ export function createChatRelationHandlers({
         isUser: false,
       };
     } else {
-      const directUserWtId = String(getUserWtId() || "").trim();
-      const directUserNumId = getUserNumId();
-      const directUserKey = directUserWtId || directUserNumId;
+      const profileRoot =
+        !forceUserSubject && typeof getProfileSubjectRoot === "function" ? getProfileSubjectRoot() : null;
+      if (profileRoot?.key) {
+        subject = {
+          key: profileRoot.key,
+          label: `${profileRoot.displayName || profileRoot.wtId || profileRoot.key}${
+            profileRoot.wtId ? ` (${profileRoot.wtId})` : ""
+          }`,
+          isUser: false,
+          wtId: String(profileRoot.wtId || ""),
+          userKeys: Array.from(
+            new Set([profileRoot.key, profileRoot.wtId].map((value) => String(value || "").trim()).filter(Boolean))
+          ),
+          subjectType: "profile",
+        };
+      } else {
+        const directUserWtId = String(getUserWtId() || "").trim();
+        const directUserNumId = getUserNumId();
+        const directUserKey = directUserWtId || directUserNumId;
 
-      if (!directUserKey) {
-        return "I could not detect your logged-in WikiTree ID. Please make sure you are logged in on WikiTree.";
+        if (!directUserKey) {
+          return "I could not detect your logged-in WikiTree ID. Please make sure you are logged in on WikiTree.";
+        }
+
+        const me = await getLoggedInRootPerson();
+        const userKeys = Array.from(
+          new Set(
+            [directUserNumId, directUserWtId, me?.key, me?.wtId, me?.Id, me?.Name]
+              .map((value) => String(value || "").trim())
+              .filter(Boolean)
+          )
+        );
+        subject = {
+          key: directUserKey,
+          label: "you",
+          isUser: true,
+          wtId: directUserWtId || String(me?.wtId || ""),
+          userKeys,
+        };
       }
-
-      const me = await getLoggedInRootPerson();
-      const userKeys = Array.from(
-        new Set(
-          [directUserNumId, directUserWtId, me?.key, me?.wtId, me?.Id, me?.Name]
-            .map((value) => String(value || "").trim())
-            .filter(Boolean)
-        )
-      );
-      subject = {
-        key: directUserKey,
-        label: "you",
-        isUser: true,
-        wtId: directUserWtId || String(me?.wtId || ""),
-        userKeys,
-      };
     }
 
     try {
@@ -655,11 +1203,7 @@ export function createChatRelationHandlers({
 
       if (mode === "list") {
         const wantsBio = /\bbio(?:s|graphy|graphies)?\b/i.test(prompt || relationRaw);
-        const lines = relatives
-          .slice(0, 20)
-          .map((person) => formatRelationPreviewLine(person))
-          .join("\n");
-        const extra = relatives.length > 20 ? `\n...and ${relatives.length - 20} more.` : "";
+        const { preview, inlineMore } = buildRelationPreviewAndInlineMore(relatives);
         if (wantsBio) {
           const entries = relatives.map((person) => ({
             wtid: person?.Name || person?.Id || "",
@@ -677,12 +1221,13 @@ export function createChatRelationHandlers({
 
         return {
           message: subject.isUser
-            ? `Here are your ${noun} (${count} found):\n${lines}${extra}`
-            : `Here are ${noun} for ${subject.label} (${count} found):\n${lines}${extra}`,
+            ? `Here are your ${noun} (${count} found):\n${preview}`
+            : `Here are ${noun} for ${subject.label} (${count} found):\n${preview}`,
+          inlineMore,
           table: makeStandardProfileTable(
             subject.isUser ? `Your ${noun}` : `${noun} for ${subject.label}`,
             toRelationTableRows(relatives),
-            [[1, "asc"]]
+            [[0, "asc"]]
           ),
         };
       }
@@ -699,7 +1244,7 @@ export function createChatRelationHandlers({
         table: makeStandardProfileTable(
           subject.isUser ? `Your ${noun}` : `${noun} for ${subject.label}`,
           toRelationTableRows(relatives),
-          [[1, "asc"]]
+          [[0, "asc"]]
         ),
       };
     } catch (error) {

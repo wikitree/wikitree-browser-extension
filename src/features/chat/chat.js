@@ -66,6 +66,7 @@ import {
   extractCountryFromLocation,
   withDerivedRowFields,
   cloneResultWithRows,
+  makeCousinProfileTable,
   makeStandardProfileTable,
   makeAncestorProfileTable,
   makeWatchlistTable,
@@ -280,7 +281,7 @@ const CHAT_JSON_BATCH_MAX_CHOICES = 6;
 const CHAT_JSON_BATCH_ENTRY_PAUSE_MS = 80;
 const CHAT_JSON_BATCH_MAX_BIRTH_YEAR = 1800;
 const RELATION_PERSON_FIELDS =
-  "Id,Name,Gender,RealName,Derived.ShortName,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation";
+  "Id,Name,Gender,RealName,Derived.ShortName,LongNamePrivate,BirthNamePrivate,Derived.LongNamePrivate,Derived.BirthNamePrivate,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation";
 let chatHistory = [];
 let lastNonRetryUserPrompt = "";
 let lastConnectionContext = null;
@@ -998,8 +999,7 @@ const {
   },
   getLastStructuredResult: () => lastStructuredResult,
   setLastStructuredResult: (value) => {
-    lastStructuredResult = value;
-    updateContextPickerVisibility();
+    setPersistedLastStructuredResult(value);
   },
   getLastBioPopupId: () => lastBioPopupId,
   setLastBioPopupState: ({ id, profile }) => {
@@ -1113,6 +1113,7 @@ const { getCc7ProfilesForUser, tryHandleCc7LocationPrompt, tryHandleCcSummaryPro
 
 const tryHandleLastResultOperation = createLastResultOperationHandler({
   getLastStructuredResult: () => lastStructuredResult,
+  setLastStructuredResult: (value) => setPersistedLastStructuredResult(value),
   openResultsTable,
   cloneResultWithRows,
   normalizeText,
@@ -1183,7 +1184,9 @@ const { tryHandleRelationCountPrompt } = createChatRelationHandlers({
   getUserWtId,
   getUserNumId,
   getLoggedInRootPerson,
+  getProfileSubjectRoot,
   makeStandardProfileTable,
+  makeCousinProfileTable,
   showBioListPopup,
   handleOpenFromBioList,
   fetchPeoplePaged,
@@ -1558,6 +1561,22 @@ function closeResultsPopup() {
     tableColumnFilterState.delete(String(table.attr("id") || ""));
   }
   $(`#${CHAT_RESULTS_POPUP_ID}`).remove();
+}
+
+function setPersistedLastStructuredResult(value) {
+  lastStructuredResult = value || null;
+  updateContextPickerVisibility();
+
+  try {
+    const rowCount = Array.isArray(lastStructuredResult?.rows) ? lastStructuredResult.rows.length : 0;
+    if (rowCount > 0 && rowCount <= CHAT_PERSISTED_STRUCTURED_ROWS_MAX) {
+      sessionStorage.setItem(CHAT_LAST_STRUCTURED_KEY, JSON.stringify(lastStructuredResult));
+    } else {
+      sessionStorage.removeItem(CHAT_LAST_STRUCTURED_KEY);
+    }
+  } catch (e) {
+    /* ignore */
+  }
 }
 
 function extractFollowupTableFilterText(prompt) {
@@ -2330,6 +2349,27 @@ function openResultsTable(result = lastStructuredResult, opts = {}) {
     dataTable.draw();
   });
 
+  const initialColumnFilters = Array.isArray(opts?.initialColumnFilters)
+    ? opts.initialColumnFilters
+    : Array.isArray(result?.columnFilterContext?.filters)
+    ? result.columnFilterContext.filters
+    : [];
+  initialColumnFilters.forEach((filter) => {
+    const key = String(filter?.key || "").trim();
+    const value = String(filter?.value || "").trim();
+    if (!key || !value) {
+      return;
+    }
+
+    const $input = $popup
+      .find(".chat-col-filter-input")
+      .filter((_, element) => String($(element).attr("data-col-key") || "").trim() === key)
+      .first();
+    if ($input.length) {
+      $input.val(value).trigger("input");
+    }
+  });
+
   const initialSearch = String(opts?.initialSearch || "").trim();
   if (initialSearch) {
     dataTable.search(initialSearch).draw();
@@ -2353,19 +2393,8 @@ async function handleChatResult(result) {
   rememberResolvedPeopleFromMessage(messageText);
 
   if (Object.prototype.hasOwnProperty.call(result, "table")) {
-    lastStructuredResult = result.table || null;
-    updateContextPickerVisibility();
+    setPersistedLastStructuredResult(result.table || null);
     rememberResolvedPeopleFromTable(result.table);
-    try {
-      const rowCount = Array.isArray(lastStructuredResult?.rows) ? lastStructuredResult.rows.length : 0;
-      if (rowCount > 0 && rowCount <= CHAT_PERSISTED_STRUCTURED_ROWS_MAX) {
-        sessionStorage.setItem(CHAT_LAST_STRUCTURED_KEY, JSON.stringify(lastStructuredResult));
-      } else {
-        sessionStorage.removeItem(CHAT_LAST_STRUCTURED_KEY);
-      }
-    } catch (e) {
-      /* ignore */
-    }
   }
 
   // If the result includes a table, capture a snapshot of the table on the
@@ -2472,7 +2501,11 @@ async function handleChatResult(result) {
       openResultsTable(result.table);
     }
   }
-  appendMessage("assistant", messageText, { actions, inlineMore: result.inlineMore || null });
+  appendMessage("assistant", messageText, {
+    actions,
+    inlineMore: result.inlineMore || null,
+    trailingText: result.trailingText || "",
+  });
 }
 
 async function sendChatPrompt() {
@@ -2527,7 +2560,7 @@ async function sendChatPrompt() {
   // If the user chose "New search", discard previous result context before routing
   const newQueryContext = document.querySelector('input[name="wbe-chat-context"]:checked')?.value === "new";
   if (newQueryContext) {
-    lastStructuredResult = null;
+    setPersistedLastStructuredResult(null);
   }
 
   appendMessage("user", normalizedPrompt);
@@ -3113,7 +3146,7 @@ function mapApiPersonToStandardRow(person = {}, options = {}) {
   return {
     displayName,
     wtid: wtId,
-    firstName: person.FirstName || (isPrivatePlaceholder ? displayName : ""),
+    firstName: person.FirstName || person.RealName || (isPrivatePlaceholder ? displayName : ""),
     middleName: person.MiddleName || "",
     lnab,
     lastNameCurrent,

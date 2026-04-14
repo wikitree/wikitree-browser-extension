@@ -612,7 +612,7 @@ export function createChatConnectionHandlers({
 
       const rows = (data.path || []).map((person) => ({
         wtid: person.Name || "",
-        firstName: person.FirstName || "",
+        firstName: person.FirstName || person.RealName || "",
         lnab: person.LastNameAtBirth || "",
         lastNameCurrent: person.LastNameCurrent || "",
         birth: formatDate(person.BirthDate),
@@ -620,7 +620,9 @@ export function createChatConnectionHandlers({
         birthLocation: person.BirthLocation || "",
         deathLocation: person.DeathLocation || "",
         gender: person.Gender || "",
-        displayName: `${person.FirstName || ""} ${person.LastNameCurrent || ""}`.trim(),
+        displayName:
+          person.RealName ||
+          `${person.FirstName || ""} ${person.LastNameCurrent || person.LastNameAtBirth || ""}`.trim(),
       }));
       void rows;
 

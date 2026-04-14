@@ -1,5 +1,6 @@
 export function createLastResultOperationHandler({
   getLastStructuredResult,
+  setLastStructuredResult,
   openResultsTable,
   cloneResultWithRows,
   normalizeText,
@@ -104,25 +105,146 @@ export function createLastResultOperationHandler({
     );
   }
 
+  function buildPreviewAndInlineMore(lines, maxToShow = 12) {
+    const shown = (lines || []).slice(0, maxToShow);
+    const remaining = (lines || []).slice(maxToShow);
+    return {
+      preview: shown.join("\n"),
+      inlineMore: remaining.length
+        ? {
+            count: remaining.length,
+            text: remaining.join("\n"),
+          }
+        : null,
+    };
+  }
+
   function summarizeStructuredRows(rows, maxToShow = 12) {
-    const shown = rows.slice(0, maxToShow).map((row) => {
+    const lines = rows.map((row) => {
       const bits = [`${row.displayName || row.wtid || "Unknown"} (${row.wtid || "no-id"})`];
       if (row.degrees !== "" && row.degrees !== undefined) {
         bits.push(`degree ${row.degrees}`);
       }
+      if (row.removed !== "" && row.removed !== undefined) {
+        bits.push(`removed ${row.removed}`);
+      }
       if (row.birth) {
         bits.push(`born ${row.birth}`);
-      }
-      if (row.surname) {
-        bits.push(`surname ${row.surname}`);
       }
       if (row.gender) {
         bits.push(row.gender);
       }
       return `- ${bits.join(" | ")}`;
     });
-    const extra = rows.length > maxToShow ? `\n...and ${rows.length - maxToShow} more.` : "";
-    return `${shown.join("\n")}${extra}`;
+    return buildPreviewAndInlineMore(lines, maxToShow);
+  }
+
+  function resolveColumnFilterRequest(result, filter) {
+    const columnKeys = new Set(
+      (result?.columns || []).map((column) => String(column?.key || "").trim()).filter(Boolean)
+    );
+    const filterKind = String(filter?.kind || "").trim();
+    const rawValue = String(filter?.value || "").trim();
+
+    if (!filterKind || !result?.columns?.length) {
+      return null;
+    }
+
+    if (columnKeys.has(filterKind) && rawValue) {
+      const matchingColumn = result.columns.find((column) => String(column?.key || "").trim() === filterKind);
+      return {
+        key: filterKind,
+        value: rawValue,
+        label: String(matchingColumn?.title || filterKind),
+      };
+    }
+
+    if ((filterKind === "birthDate" || filterKind === "deathDate") && rawValue) {
+      const key = filterKind === "birthDate" ? "birth" : "death";
+      if (!columnKeys.has(key)) {
+        return null;
+      }
+      const matchingColumn = result.columns.find((column) => String(column?.key || "").trim() === key);
+      const direction = String(filter?.direction || "before").toLowerCase() === "after" ? ">" : "<";
+      return {
+        key,
+        value: `${direction} ${rawValue}`,
+        label: String(matchingColumn?.title || key),
+      };
+    }
+
+    if (filterKind === "birthYearRange" || filterKind === "deathYearRange") {
+      const key = filterKind === "birthYearRange" ? "birth" : "death";
+      if (!columnKeys.has(key)) {
+        return null;
+      }
+      const start = String(filter?.start ?? "").trim();
+      const end = String(filter?.end ?? "").trim();
+      if (!start && !end) {
+        return null;
+      }
+      const matchingColumn = result.columns.find((column) => String(column?.key || "").trim() === key);
+      return {
+        key,
+        value: `${start}-${end}`.replace(/^-|-$/g, ""),
+        label: String(matchingColumn?.title || key),
+      };
+    }
+
+    return null;
+  }
+
+  function buildColumnFilterMessage(filterRequests) {
+    if (!filterRequests.length) {
+      return "I opened the current result set in a table.";
+    }
+
+    if (filterRequests.length === 1) {
+      const filter = filterRequests[0];
+      return `I opened the current result set in a table with the ${filter.label} column filter set to "${filter.value}".`;
+    }
+
+    const summary = filterRequests.map((filter) => `${filter.label} = "${filter.value}"`).join(" and ");
+    return `I opened the current result set in a table with column filters set to ${summary}.`;
+  }
+
+  function getStoredColumnFilters(result) {
+    return Array.isArray(result?.columnFilterContext?.filters)
+      ? result.columnFilterContext.filters.filter(
+          (filter) => String(filter?.key || "").trim() && String(filter?.value || "").trim()
+        )
+      : [];
+  }
+
+  function mergeColumnFilters(existingFilters = [], incomingFilters = []) {
+    const merged = new Map();
+
+    [...existingFilters, ...incomingFilters].forEach((filter) => {
+      const key = String(filter?.key || "").trim();
+      const value = String(filter?.value || "").trim();
+      if (!key || !value) {
+        return;
+      }
+
+      merged.set(key, {
+        key,
+        value,
+        label: String(filter?.label || key),
+      });
+    });
+
+    return Array.from(merged.values());
+  }
+
+  function openTableWithMergedColumnFilters(result, incomingFilters = []) {
+    const mergedFilters = mergeColumnFilters(getStoredColumnFilters(result), incomingFilters);
+    const nextResult = cloneResultWithRows(result, result?.title || "Chat Results", result?.rows || []);
+    nextResult.columnFilterContext = { filters: mergedFilters };
+    if (typeof setLastStructuredResult === "function") {
+      setLastStructuredResult(nextResult);
+    }
+    openResultsTable(nextResult, { initialColumnFilters: mergedFilters });
+    return mergedFilters;
   }
 
   function compareResultRows(left, right, field, direction) {
@@ -132,7 +254,7 @@ export function createLastResultOperationHandler({
     if (field === "birth" || field === "death") {
       leftValue = normalizeDateForSort(left[field]);
       rightValue = normalizeDateForSort(right[field]);
-    } else if (field === "degrees") {
+    } else if (field === "degrees" || field === "removed") {
       leftValue = normalizeNumberForSort(left[field]);
       rightValue = normalizeNumberForSort(right[field]);
     } else if (field === "country") {
@@ -241,6 +363,7 @@ export function createLastResultOperationHandler({
       row.birthLocation,
       row.deathLocation,
       row.gender,
+      row.removed,
       getRowCountry(row),
     ]
       .map((part) => normalizeText(part))
@@ -273,7 +396,7 @@ export function createLastResultOperationHandler({
         : cloneResultWithRows(dataSource, dataSource.title || "Chat Results", dataSource.rows);
 
     if (params.action === "table") {
-      openResultsTable(baseResult);
+      openResultsTable(baseResult, { initialColumnFilters: getStoredColumnFilters(baseResult) });
       return {
         message: `Opened the last result set in a table (${baseResult.rows.length} row${
           baseResult.rows.length === 1 ? "" : "s"
@@ -309,15 +432,12 @@ export function createLastResultOperationHandler({
             right.count - left.count || normalizeText(left.label).localeCompare(normalizeText(right.label))
         );
 
-      const summary = groupedRows
-        .slice(0, 12)
-        .map((row) => `- ${row.label}: ${row.count}`)
-        .join("\n");
+      const summary = groupedRows.map((row) => `- ${row.label}: ${row.count}`);
+      const { preview, inlineMore } = buildPreviewAndInlineMore(summary, 12);
 
       return {
-        message: `Grouped the current results by ${params.field}:\n${summary}${
-          groupedRows.length > 12 ? `\n...and ${groupedRows.length - 12} more.` : ""
-        }`,
+        message: `Grouped the current results by ${params.field}:\n${preview}`,
+        inlineMore,
         table: {
           title: `${dataResult.title} by ${params.field}`,
           defaultOrder: [[1, "desc"]],
@@ -336,10 +456,10 @@ export function createLastResultOperationHandler({
         compareResultRows(left, right, params.field, params.direction)
       );
       const sortedResult = cloneResultWithRows(dataResult, `${dataResult.title} sorted by ${params.field}`, sortedRows);
+      const { preview, inlineMore } = summarizeStructuredRows(sortedRows);
       return {
-        message: `Sorted the current results by ${params.field} (${params.direction}).\n${summarizeStructuredRows(
-          sortedRows
-        )}`,
+        message: `Sorted the current results by ${params.field} (${params.direction}).\n${preview}`,
+        inlineMore,
         table: sortedResult,
       };
     }
@@ -353,6 +473,25 @@ export function createLastResultOperationHandler({
       const effectiveFilter = filtersArray ? null : resolveEffectiveFilter(params.filter, lastStructuredResult);
 
       if (filtersArray) {
+        const columnFilters = filtersArray.map((filter) => resolveColumnFilterRequest(dataResult, filter));
+        const allColumnFiltersSupported = columnFilters.length > 0 && columnFilters.every(Boolean);
+        if (allColumnFiltersSupported) {
+          const mergedFilters = openTableWithMergedColumnFilters(dataResult, columnFilters);
+          return {
+            message: buildColumnFilterMessage(mergedFilters),
+          };
+        }
+      } else if (effectiveFilter?.operator !== "or") {
+        const columnFilter = resolveColumnFilterRequest(dataResult, effectiveFilter);
+        if (columnFilter) {
+          const mergedFilters = openTableWithMergedColumnFilters(dataResult, [columnFilter]);
+          return {
+            message: buildColumnFilterMessage(mergedFilters),
+          };
+        }
+      }
+
+      if (filtersArray) {
         const filterSummary = filtersArray.map((f) => describeFilter(f)).join(" and ");
         const filterTitle = filtersArray.map((f) => describeFilterForTitle(f)).join("+");
         const filteredRows = dataResult.rows.filter((row) => filtersArray.every((f) => rowMatchesFilter(row, f)));
@@ -364,10 +503,12 @@ export function createLastResultOperationHandler({
           `${dataResult.title} filtered (${filterTitle})`,
           filteredRows
         );
+        const { preview, inlineMore } = summarizeStructuredRows(filteredRows);
         return {
           message: `Filtered the current result set down to ${filteredRows.length} row${
             filteredRows.length === 1 ? "" : "s"
-          } using ${filterSummary}.\n${summarizeStructuredRows(filteredRows)}`,
+          } using ${filterSummary}.\n${preview}`,
+          inlineMore,
           table: filteredResult,
         };
       }
@@ -420,11 +561,13 @@ export function createLastResultOperationHandler({
           lastStructuredResult?.filterContext?.baseResult ||
           cloneResultWithRows(dataResult, dataResult.title || "Chat Results", dataResult.rows),
       };
+      const { preview, inlineMore } = summarizeStructuredRows(filteredRows);
 
       return {
         message: `${isOrFilter ? "Expanded" : "Filtered"} the current result set ${isOrFilter ? "to" : "down to"} ${
           filteredRows.length
-        } row${filteredRows.length === 1 ? "" : "s"} using ${filterSummary}.\n${summarizeStructuredRows(filteredRows)}`,
+        } row${filteredRows.length === 1 ? "" : "s"} using ${filterSummary}.\n${preview}`,
+        inlineMore,
         table: filteredResult,
       };
     }

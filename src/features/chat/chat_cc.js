@@ -1,5 +1,7 @@
 import $ from "jquery";
 
+import { buildTreeAppRecommendations } from "./chat_tree_apps";
+
 export function createChatCcHandlers({
   WikiTreeAPI,
   WBE_CHAT_APP_ID,
@@ -17,6 +19,17 @@ export function createChatCcHandlers({
     fetchedAt: 0,
     profiles: [],
   };
+
+  function buildTreeAppActions(kind, wtId) {
+    return buildTreeAppRecommendations(kind, wtId).map((recommendation) => ({
+      label: recommendation.label,
+      actionType: "external-link",
+      url: recommendation.url,
+      onClick: () => {
+        window.open(recommendation.url, "_blank", "noopener,noreferrer");
+      },
+    }));
+  }
 
   function normalizeCcNuclear(value, fallback = 7) {
     const numeric = Number(value);
@@ -219,12 +232,20 @@ export function createChatCcHandlers({
     }
 
     if (parsed.mode === "count") {
+      const defaultOrder = matches.some((person) => person?.degrees !== "" && person?.degrees !== undefined)
+        ? [
+            [6, "asc"],
+            [0, "asc"],
+          ]
+        : [[0, "asc"]];
+      const treeAppActions = nuclear === 7 ? buildTreeAppActions("cc7", subjectRoot.wtId) : [];
       const countFieldLabel =
         parsed.field === "DeathLocation" ? "died in" : parsed.field === "BirthLocation" ? "born in" : "in";
       return {
         message: `I found ${matches.length} ${ccLabel} profile${matches.length === 1 ? "" : "s"} ${countFieldLabel} ${
           parsed.location
         } for ${subjectLabel} (from ${dataSource}).`,
+        trailingText: treeAppActions.length ? "Recommended Tree Apps are available below." : "",
         table: matches.length
           ? makeStandardProfileTable(
               `${ccLabel} profiles in ${parsed.location} for ${subjectRoot.displayName}`,
@@ -241,9 +262,11 @@ export function createChatCcHandlers({
                 birthLocation: person.birthLocation,
                 deathLocation: person.deathLocation,
                 surname: person.surname || "",
-              }))
+              })),
+              defaultOrder
             )
           : null,
+        actions: treeAppActions,
       };
     }
 
@@ -262,11 +285,19 @@ export function createChatCcHandlers({
     const extra = matches.length > maxToShow ? `\n...and ${matches.length - maxToShow} more.` : "";
     const fieldLabel =
       parsed.field === "DeathLocation" ? "died in" : parsed.field === "BirthLocation" ? "born in" : "in";
+    const defaultOrder = matches.some((person) => person?.degrees !== "" && person?.degrees !== undefined)
+      ? [
+          [6, "asc"],
+          [0, "asc"],
+        ]
+      : [[0, "asc"]];
+    const treeAppActions = nuclear === 7 ? buildTreeAppActions("cc7", subjectRoot.wtId) : [];
 
     return {
       message: `Here are the ${ccLabel} profiles ${fieldLabel} ${
         parsed.location
       } for ${subjectLabel} (from ${dataSource}):\n${lines.join("\n")}${extra}`,
+      trailingText: treeAppActions.length ? "Recommended Tree Apps are available below." : "",
       table: makeStandardProfileTable(
         `${ccLabel} profiles ${fieldLabel} ${parsed.location} for ${subjectRoot.displayName}`,
         matches.map((person) => ({
@@ -282,8 +313,10 @@ export function createChatCcHandlers({
           birthLocation: person.birthLocation,
           deathLocation: person.deathLocation,
           surname: person.surname || "",
-        }))
+        })),
+        defaultOrder
       ),
+      actions: treeAppActions,
     };
   }
 
@@ -325,12 +358,18 @@ export function createChatCcHandlers({
         .map((person) => `- ${person.displayName} (${person.wtid}), degree ${person.degrees}`)
         .join("\n");
       const extra = rows.length > 15 ? `\n...and ${rows.length - 15} more.` : "";
+      const treeAppActions = nuclear === 7 ? buildTreeAppActions("cc7", subjectRoot.wtId) : [];
 
       return {
         message: `${subjectLabel === "you" ? "Your" : `${subjectLabel}'s`} ${ccLabel} includes ${rows.length} profile${
           rows.length === 1 ? "" : "s"
         }.\n${preview}${extra}`,
-        table: makeStandardProfileTable(`${ccLabel} for ${subjectRoot.displayName}`, rows, [[4, "asc"]]),
+        trailingText: treeAppActions.length ? "Recommended Tree Apps are available below." : "",
+        table: makeStandardProfileTable(`${ccLabel} for ${subjectRoot.displayName}`, rows, [
+          [6, "asc"],
+          [0, "asc"],
+        ]),
+        actions: treeAppActions,
       };
     } catch (error) {
       return `I couldn't fetch ${ccLabel} for ${subjectLabel}. Error: ${error?.message || "unknown error"}`;

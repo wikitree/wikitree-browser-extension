@@ -347,16 +347,19 @@ export function createChatHistoryHandlers({
     });
   }
 
-  function formatChatMessageBody(text, inlineMore = null) {
+  function formatChatMessageBody(text, inlineMore = null, trailingText = "") {
     const formattedBody = tryFormatWtPlusQueryMessage(text) || formatStandardChatMessageBody(text);
+    const formattedTrailingText = trailingText
+      ? `<span class="chat-message-trailing-text"><br>${formatStandardChatMessageBody(trailingText)}</span>`
+      : "";
 
     if (!inlineMore?.text) {
-      return formattedBody;
+      return `${formattedBody}${formattedTrailingText}`;
     }
 
     const count = Number.isFinite(Number(inlineMore.count)) ? Number(inlineMore.count) : null;
     const moreLabel = count == null ? "more" : `${count} more`;
-    return `${formattedBody}<span class="chat-inline-more-container"><br>...and <a href="#" class="chat-results-link chat-inline-show-more">${moreLabel}</a>.</span>`;
+    return `${formattedBody}<span class="chat-inline-more-container"><br>...and <a href="#" class="chat-results-link chat-inline-show-more">${moreLabel}</a>.</span>${formattedTrailingText}`;
   }
 
   function normalizeActions(options) {
@@ -388,6 +391,7 @@ export function createChatHistoryHandlers({
     if (action.wtPlusQuery) serialized.wtPlusQuery = action.wtPlusQuery;
     if (action.wtPlusSearchType) serialized.wtPlusSearchType = action.wtPlusSearchType;
     if (action.wtPlusSuggestionId) serialized.wtPlusSuggestionId = action.wtPlusSuggestionId;
+    if (action.url) serialized.url = action.url;
     if (action.wtPlusSuggestionOptions && typeof action.wtPlusSuggestionOptions === "object") {
       const opts = action.wtPlusSuggestionOptions;
       serialized.wtPlusSuggestionOptions = {
@@ -518,6 +522,17 @@ export function createChatHistoryHandlers({
       };
     }
 
+    if (actionType === "external-link" && actionEntry.url) {
+      return {
+        label: actionEntry.label,
+        actionType: "external-link",
+        url: actionEntry.url,
+        onClick: () => {
+          window.open(actionEntry.url, "_blank", "noopener,noreferrer");
+        },
+      };
+    }
+
     return null;
   }
 
@@ -526,6 +541,7 @@ export function createChatHistoryHandlers({
     const actions = normalizeActions(options);
     const primaryAction = actions.find((action) => typeof action?.onClick === "function") || null;
     const inlineMore = typeof options === "object" ? options.inlineMore : null;
+    const trailingText = typeof options?.trailingText === "string" ? options.trailingText.trim() : "";
     const $messages = getMessageList();
     if ($messages.length === 0) return;
 
@@ -535,7 +551,9 @@ export function createChatHistoryHandlers({
     const $label = $("<div>")
       .addClass("chat-message-label")
       .text(role === "user" ? "You" : "Muse");
-    const $body = $("<div>").addClass("chat-message-body").html(formatChatMessageBody(messageText, inlineMore));
+    const $body = $("<div>")
+      .addClass("chat-message-body")
+      .html(formatChatMessageBody(messageText, inlineMore, trailingText));
 
     $body.on("click", (event) => {
       const $target = $(event.target || event.currentTarget);
@@ -587,6 +605,9 @@ export function createChatHistoryHandlers({
     if (shouldPersist) {
       const history = getHistory();
       const historyEntry = { role, text: role === "assistant" ? messageText : text };
+      if (trailingText) {
+        historyEntry.trailingText = trailingText;
+      }
       if (inlineMore?.text) {
         const countValue = Number.isFinite(Number(inlineMore.count)) ? Number(inlineMore.count) : null;
         historyEntry.inlineMore = { text: inlineMore.text };
@@ -638,7 +659,11 @@ export function createChatHistoryHandlers({
     if (!$messages || $messages.length === 0) return;
     $messages.empty();
     getHistory().forEach((message, msgIndex) => {
-      const opts = { shouldPersist: false, inlineMore: message.inlineMore || null };
+      const opts = {
+        shouldPersist: false,
+        inlineMore: message.inlineMore || null,
+        trailingText: typeof message.trailingText === "string" ? message.trailingText : "",
+      };
       const actionEntries = Array.isArray(message.actions)
         ? message.actions
         : message.actionLabel

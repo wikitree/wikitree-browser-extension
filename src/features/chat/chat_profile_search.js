@@ -108,6 +108,45 @@ export function createProfileSearchHandler({
       .trim();
   }
 
+  function hasWtPlusOrphanStatusHint(value) {
+    return /\b(?:orphan(?:ed)?|no\s+managers?|has\s+no\s+managers?|with\s+no\s+managers?|without\s+(?:a\s+|any\s+)?managers?)\b/i.test(
+      String(value || "")
+    );
+  }
+
+  function normalizeWtPlusStatusAliases(value) {
+    const text = String(value || "");
+    if (!text) {
+      return "";
+    }
+
+    return text
+      .replace(/\borphaned\b/gi, "orphan")
+      .replace(
+        /\b(?:no\s+managers?|has\s+no\s+managers?|with\s+no\s+managers?|without\s+(?:a\s+|any\s+)?managers?)\b/gi,
+        "orphan"
+      )
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
+
+  function coerceWtPlusOrphanQueryFromPrompt(rawQuery, queryText) {
+    const query = String(queryText || "").trim();
+    if (!query || !hasWtPlusOrphanStatusHint(rawQuery)) {
+      return query;
+    }
+
+    let nextQuery = query.replace(/\bNOT\s+ProjectManaged\b/gi, "Orphan").replace(/\bProjectManaged\b/gi, "Orphan");
+    if (!/\bOrphan\b/i.test(nextQuery)) {
+      nextQuery = `${nextQuery} Orphan`.trim();
+    }
+
+    return nextQuery
+      .replace(/\bOrphan(?:\s+Orphan)+\b/gi, "Orphan")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
+
   function scoreWtPlusCategoryCandidate(requestedCategory, candidate) {
     const requested = normalizeWtPlusCategoryText(requestedCategory);
     const actual = normalizeWtPlusCategoryText(candidate?.category || "");
@@ -1361,7 +1400,7 @@ export function createProfileSearchHandler({
   }
 
   function parseNaturalLanguageWtPlusGroup(groupText) {
-    let working = String(groupText || "").trim();
+    let working = normalizeWtPlusStatusAliases(groupText);
     if (!working) return null;
 
     // Disjunctive life-event prompts (e.g., "born, married, or died in X before Y")
@@ -2103,6 +2142,7 @@ export function createProfileSearchHandler({
       });
 
       const hasNameScopedTerm = terms.some((term) => /^(?:LastNameAtBirth|AllLastNames|WikiTreeID)=/.test(term));
+      const hasConsumedStandaloneTerm = terms.some((term) => !/=/.test(String(term || "").trim()));
       if (remainderTokens.length === 1) {
         const token = stripSurroundingQuotes(remainderTokens[0]);
         if (token && !/^(?:in|from)$/i.test(token)) {
@@ -2112,11 +2152,15 @@ export function createProfileSearchHandler({
             addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
           } else if (hasNameScopedTerm && extractedRawTokens.length > 0) {
             addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
+          } else if (hasNameScopedTerm && hasConsumedStandaloneTerm) {
+            addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
           } else if (hasNameScopedTerm && sqlTerms.length > 0) {
             addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
           } else if (!hasNameScopedTerm && extractedDateTokens.length > 0) {
             addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
           } else if (!hasNameScopedTerm && extractedRawTokens.length > 0) {
+            addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
+          } else if (!hasNameScopedTerm && hasConsumedStandaloneTerm) {
             addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
           } else if (!hasNameScopedTerm && sqlTerms.length > 0) {
             addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
@@ -2162,7 +2206,7 @@ export function createProfileSearchHandler({
   }
 
   function parseCombinedNaturalLanguageWtPlusQuery(queryText) {
-    const text = String(queryText || "").trim();
+    const text = normalizeWtPlusStatusAliases(queryText);
     if (!text) return null;
     if (!/\s+OR\s+/i.test(text)) return null;
 
@@ -2433,7 +2477,7 @@ export function createProfileSearchHandler({
   }
 
   function parseNaturalLanguageWtPlusQuery(queryText) {
-    const text = String(queryText || "").trim();
+    const text = normalizeWtPlusStatusAliases(queryText);
     if (!text) return null;
 
     const normalizedText = text
@@ -3047,6 +3091,7 @@ export function createProfileSearchHandler({
       const { provider, key, model } = await getChatAiConfig();
       if (!key) return null;
 
+      const normalizedRawQuery = normalizeWtPlusStatusAliases(rawQuery);
       const system = [
         "You translate plain-English genealogy searches into WikiTree+ profile-search queries.",
         "Return JSON only and nothing else.",
@@ -3087,6 +3132,7 @@ export function createProfileSearchHandler({
         "CRITICAL: Raw tokens (ProjectManaged, PPP, NeverEdited, GEDCOMJunk, SourceJunk, IsInWikiData, ApprovedMerge, PendingMerge, UnmergedMatch, mtDNA, yDNA, auDNA, NoFather, NoMother, NoParents, NoSpouses, NoChildren, NoGender, male, female, Open, Unsourced, Unconnected, Orphan, pre1500, B0, D0, etc.) are ALWAYS bare standalone tokens. NEVER write them as field=value (e.g. 'ProjectManaged=\"England Project\"' is ALWAYS wrong). Use them as bare words only.",
         "IMPORTANT: Do NOT use IsLiving or IsLiving=anything. The IsLiving field is not supported by WT+ and will return no results. Ignore any request to filter by living/not-living status.",
         "For 'managed by <project> PPP': the manager name ends before the first standalone raw token. Example: 'managed by england project ppp' => Manager=\"England Project\" PPP (NOT ProjectManaged=\"England Project\")",
+        "For 'no manager', 'with no manager', 'without a manager', or 'orphaned', use the bare token Orphan. Do NOT translate those to NOT ProjectManaged.",
         "For mixed parent-presence constraints: 'no father' → NoFather; 'no mother' → NoMother; 'with a mother' / 'has a mother' / 'has mother' → NOT NoMother; 'with a father' / 'has a father' → NOT NoFather. Example: 'Beacall with a mother but no father' => {\"understood\":\"Beacall surname — mother linked but no father\",\"query\":\"AllLastNames=Beacall NoFather NOT NoMother\"}",
         "For Find a Grave cemetery references: raw token fgcem{N} (e.g. fgcem104742) or phrases like 'find a grave cemetery 104742', 'fg cemetery 104742', 'Find a Grave cem 104742', 'fg cem 104742' all map to the token fgcem{N}. Similarly fgmem{N} for memorials. Example: 'Illinois fgcem104742' => {\"understood\":\"Illinois profiles in Find a Grave cemetery 104742\",\"query\":\"AllLastNames=Illinois fgcem104742\"}",
         'For \'created after/before\' constraints, use sql= with the EXACT field name [Bio].[Created Date].AsNumber (NOT [Bio].[Created].AsNumber — the space and \'Date\' are required). Similarly use [Bio].[LastEdit Date].AsNumber for last-edit filters. Example: \'Shropshire created after Jan 1 2026\' => {"understood":"Shropshire profiles created after 2026-01-01","query":"Location=Shropshire sql=\\"([Bio].[Created Date].AsNumber > 20260101)\\""}',
@@ -3102,7 +3148,7 @@ export function createProfileSearchHandler({
       const previousQuery = String(reparseContext?.previousQuery || "").trim();
       const isReparse = !!reparseContext?.reparseFromZeroResults;
       const user = [
-        `Translate this into a WT+ query: "${String(rawQuery || "").trim()}"`,
+        `Translate this into a WT+ query: "${normalizedRawQuery}"`,
         isReparse
           ? "Reparse mode: a previous deterministic parse returned zero profiles. Prefer the most likely surname/location interpretation."
           : "",
@@ -3171,7 +3217,8 @@ export function createProfileSearchHandler({
         }
       }
 
-      const completedQuery = ensureWtPlusFamilyField(rawQuery, parsed?.query || "");
+      const coercedQuery = coerceWtPlusOrphanQueryFromPrompt(rawQuery, parsed?.query || "");
+      const completedQuery = ensureWtPlusFamilyField(rawQuery, coercedQuery);
       const repairedQuery = canonicalizeWtPlusBranchTermOrder(completedQuery || "");
       const normalizedQuery = normalizeWtPlusQueryString(repairedQuery || completedQuery || "");
       if (!normalizedQuery) {
@@ -3191,7 +3238,7 @@ export function createProfileSearchHandler({
   }
 
   function shouldPreferAiWtPlusQuery(queryText) {
-    const text = String(queryText || "").trim();
+    const text = normalizeWtPlusStatusAliases(queryText);
     if (!text) {
       return false;
     }

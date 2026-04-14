@@ -1,3 +1,5 @@
+import { buildTreeAppRecommendations } from "./chat_tree_apps";
+
 export function createChatPeopleHandlers({
   ChatIntent,
   WBE_CHAT_APP_ID,
@@ -176,8 +178,10 @@ export function createChatPeopleHandlers({
     displayRelationshipLabel,
     subjectLabel,
     rootDisplayName,
+    rootWtId,
     includeUpTo,
     tableFactory,
+    treeAppKind,
     chatMeta,
   }) {
     const enrichedChatMeta = chatMeta
@@ -190,9 +194,28 @@ export function createChatPeopleHandlers({
       : null;
     const { preview, inlineMore } = buildPeoplePreviewAndInlineMore(rows);
     const makeTable = typeof tableFactory === "function" ? tableFactory : makeStandardProfileTable;
+    const hasDegreeValues = rows.some(
+      (row) => row?.degrees !== "" && row?.degrees !== undefined && row?.degrees !== null
+    );
     const defaultOrder =
-      makeTable === makeAncestorProfileTable ? [[0, "asc"]] : includeUpTo ? [[4, "asc"]] : [[1, "asc"]];
+      makeTable === makeAncestorProfileTable
+        ? [[0, "asc"]]
+        : hasDegreeValues
+        ? [
+            [6, "asc"],
+            [0, "asc"],
+          ]
+        : [[0, "asc"]];
     const table = makeTable(`${displayRelationshipLabel} for ${rootDisplayName}`, rows, defaultOrder);
+    const treeAppActions = buildTreeAppRecommendations(treeAppKind, rootWtId).map((recommendation) => ({
+      label: recommendation.label,
+      actionType: "external-link",
+      url: recommendation.url,
+      onClick: () => {
+        window.open(recommendation.url, "_blank", "noopener,noreferrer");
+      },
+    }));
+    const recommendationSuffix = treeAppActions.length ? "\nRecommended Tree Apps are available below." : "";
 
     if (enrichedChatMeta) {
       table._chatMeta = enrichedChatMeta;
@@ -201,7 +224,9 @@ export function createChatPeopleHandlers({
     return {
       message: `Here are ${displayRelationshipLabel} for ${subjectLabel} (${rows.length} found):\n${preview}`,
       inlineMore,
+      trailingText: recommendationSuffix.trim(),
       table,
+      actions: treeAppActions,
     };
   }
 
@@ -683,7 +708,7 @@ export function createChatPeopleHandlers({
         .map((spouse) => ({
           displayName: spouse.RealName || spouse?.Derived?.ShortName || spouse.Name,
           wtid: spouse.Name,
-          firstName: spouse.FirstName || "",
+          firstName: spouse.FirstName || spouse.RealName || "",
           lnab: spouse.LastNameAtBirth || "",
           lastNameCurrent: spouse.LastNameCurrent || "",
           gender: spouse.Gender || "",
@@ -727,7 +752,7 @@ export function createChatPeopleHandlers({
 
       return {
         message: `Here are ${relationshipLabel} for ${personLabel} (${spouses.length} found):\n${preview}${extra}`,
-        table: makeStandardProfileTable(`${relationshipLabel} for ${rootProfile.Name}`, spouses, [[1, "asc"]]),
+        table: makeStandardProfileTable(`${relationshipLabel} for ${rootProfile.Name}`, spouses, [[0, "asc"]]),
       };
     } catch (error) {
       return `I couldn't list ${relationshipLabel} for ${personLabel}. Error: ${error?.message || "unknown error"}`;
@@ -955,8 +980,10 @@ export function createChatPeopleHandlers({
           displayRelationshipLabel,
           subjectLabel,
           rootDisplayName: rootPerson.displayName,
+          rootWtId: rootPerson.wtId,
           includeUpTo,
           tableFactory: makeAncestorProfileTable,
+          treeAppKind: "ancestors",
           chatMeta: {
             intent: ChatIntent.ANCESTOR_LIST,
             rootKey: String(rootPerson.key || ""),
@@ -1050,8 +1077,10 @@ export function createChatPeopleHandlers({
         displayRelationshipLabel,
         subjectLabel,
         rootDisplayName: rootPerson.displayName,
+        rootWtId: rootPerson.wtId,
         includeUpTo,
         tableFactory: makeAncestorProfileTable,
+        treeAppKind: "ancestors",
         chatMeta: {
           intent: ChatIntent.ANCESTOR_LIST,
           rootKey: String(rootPerson.key || ""),
@@ -1162,7 +1191,9 @@ export function createChatPeopleHandlers({
           displayRelationshipLabel,
           subjectLabel,
           rootDisplayName: rootPerson.displayName,
+          rootWtId: rootPerson.wtId,
           includeUpTo,
+          treeAppKind: "descendants",
           chatMeta: {
             intent: ChatIntent.DESCENDANT_LIST,
             rootKey: String(rootPerson.key || ""),
@@ -1276,7 +1307,9 @@ export function createChatPeopleHandlers({
         displayRelationshipLabel,
         subjectLabel,
         rootDisplayName: rootPerson.displayName,
+        rootWtId: rootPerson.wtId,
         includeUpTo,
+        treeAppKind: "descendants",
         chatMeta: {
           intent: ChatIntent.DESCENDANT_LIST,
           rootKey: String(rootPerson.key || ""),
