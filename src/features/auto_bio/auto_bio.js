@@ -30,6 +30,8 @@ import {
 import { logMerge } from "./debugUtils.js";
 import { minimalPlace, nameLink } from "./displayUtils.js";
 import { addWorking, getBioText, removeWorking, setBioText } from "./editorUtils.js";
+import { assignPersonNames, setOrderBirthDate } from "./auto_bio_person.js";
+import { getFindAGraveLink, getCitation, cleanFindAGraveCitation } from "./auto_bio_citations.js";
 import {
   appalachiaStates,
   findUSState as findUSStateInStates,
@@ -49,6 +51,16 @@ import { profilePerson } from "../../core/common";
 export const WBE_AUTO_BIO_APP_ID = "WBE_auto_bio";
 
 let bugReportMore = "";
+let templatesObject;
+let USstatesObjArray;
+
+function findUSState(location) {
+  return findUSStateInStates(location, USstatesObjArray);
+}
+
+function fixUSLocation(event) {
+  return fixUSLocationInStates(event, USstatesObjArray, window.autoBioOptions, window.autoBioNotes);
+}
 
 function personDates(person) {
   let theDates = formatDates(person);
@@ -6125,108 +6137,6 @@ export function splitBioIntoSections() {
   return sections;
 }
 
-export function assignPersonNames(person) {
-  // Add personName to person
-  function assignPersonNamesB(personB) {
-    const aName = new PersonName(personB);
-    personB.PersonName = {};
-    personB.PersonName.FullName = aName.withParts(["FullName"]); // FullName
-    personB.PersonName.FirstName = aName.withParts(["PreferredName"]); // theFirstName
-    personB.PersonName.FirstNames = aName.withParts(["FirstNames"]); // FirstNames
-    personB.PersonName.BirthName = aName.withParts(["FirstNames", "MiddleNames", "LastNameAtBirth"]); // BirthName
-    personB.PersonName.LastNameAtBirth = aName.withParts(["LastNameAtBirth"]); // LastNameAtBirth
-    // LastNameCurrent
-    personB.PersonName.LastNameCurrent = aName.withParts(["LastNameCurrent"]);
-  }
-  assignPersonNamesB(person);
-  ["Parents", "Spouses", "Children", "Siblings"].forEach(function (rel) {
-    if (person[rel] && !Array.isArray(person[rel])) {
-      const keys = Object.keys(person[rel]);
-      keys.forEach(function (key) {
-        assignPersonNamesB(person[rel][key]);
-      });
-    }
-  });
-}
-
-/*
-Set OrderBirthDate.  If person has a BirthDate, use that; if they have a BirthDecade use July 2nd in the 5th year of that decade.
-*/
-export function setOrderBirthDate(person) {
-  function setOrderBirthDateB(personB) {
-    if (personB.BirthDate) {
-      personB.OrderBirthDate = personB.BirthDate;
-    } else if (personB.BirthDateDecade) {
-      personB.OrderBirthDate = personB.BirthDateDecade.slice(0, 3) + "5-07-02";
-    }
-  }
-  setOrderBirthDateB(person);
-  ["Parents", "Spouses", "Children", "Siblings"].forEach(function (rel) {
-    if (person[rel] && !Array.isArray(person[rel])) {
-      const keys = Object.keys(person[rel]);
-      keys.forEach(function (key) {
-        setOrderBirthDateB(person[rel][key]);
-      });
-    }
-  });
-}
-
-// This function is used to find a link to a find a grave page. It can parse input from the following formats:
-// 1. https://www.findagrave.com/memorial/123456789
-// 2. [https://www.findagrave.com/memorial/123456789]
-// 3. {{FindAGrave|123456789}}
-// 4. Find a Grave #123456789
-// 5. Find a Grave memorial #123456789
-// Note that if the input is in format 3, it will not parse if the link contains the text "database and images" (the link will be ignored).
-
-export function getFindAGraveLink(text) {
-  // Define the regexes to be used to find the link
-  const match1 = /(https?:\/\/www\.findagrave.com[^\s);.,<]+)/;
-  const match2 = /\[(https?:\/\/www\.findagrave.com[^\s]+)(\s([^\]]+))?\]/;
-  const match3 = /\{\{\s?FindAGrave\s?\|\s?(\d+)(\|.*?)?\s?\}\}/;
-  const match4 = /database and images/;
-  const match5 = /^\s?Find a Grave:?( memorial)? #?(\d+)\.?$/i;
-  const sourcerMatch = /'''.+<br(.*)?>.+<br(.*)?>/;
-
-  // Check for sourcerMatch
-  if (!text.match(sourcerMatch)) {
-    // Check each match case and log the outcome
-    if (text.match(match1)) {
-      return text.match(match1)[1];
-    } else if (text.match(match2)) {
-      return text.match(match2)[1];
-    } else if (text.match(match3) && text.match(match4) == null && text.match(match3)[0].match(/samesas=no/) == null) {
-      return "https://www.findagrave.com/memorial/" + text.match(match3)[1];
-    } else if (text.match(match5) && text.match(match5)[0].match(/samesas=no/) == null) {
-      return "https://www.findagrave.com/memorial/" + text.match(match5)[2];
-    } else {
-      return null;
-    }
-  } else {
-    return null;
-  }
-}
-
-export async function getCitation(link) {
-  if (link.match("cgi-bin/fg.cgi") && link.match("id=")) {
-    let memorial = link.split("id=")[1];
-    link = "https://www.findagrave.com/memorial/" + memorial;
-  }
-  const encodedLink = encodeGuid(link);
-  try {
-    let result = await $.ajax({
-      url: "https://wikitreebee.com/citation",
-      type: "GET",
-      data: { link: encodedLink },
-      dataType: "text",
-    });
-    return result;
-  } catch (error) {
-    console.error("Error fetching citation:", error);
-    return null;
-  }
-}
-
 function getMatriculaLink(text) {
   // Define the regex to match Matricula links
   const matriculaMatch = /(?:\* ?|\r ? )?(?:\[[^\]]* ?)?(https?:\/\/data\.matricula-online\.eu[^\s]+)(?:[^\]]* ?\])?/;
@@ -6248,78 +6158,6 @@ function getNewBrunswickLink(text) {
   } else {
     return null;
   }
-}
-
-function encodeGuid(url) {
-  const urlObj = new URL(url);
-  if (urlObj.hostname === "archives.gnb.ca") {
-    const guid = urlObj.searchParams.get("guid");
-    if (guid) {
-      urlObj.searchParams.set("guid", encodeURIComponent(guid));
-      return urlObj.href;
-    }
-  }
-  return url;
-}
-
-function addHeading(citation, text) {
-  citation = citation.replace(/Find a Grave/, "''Find a Grave''");
-  const boldHeadingMatch = text.match(/'''(Memorial|Death|Burial)'''/);
-  if (boldHeadingMatch) {
-    citation = boldHeadingMatch[0] + ": " + citation;
-  }
-  return citation;
-}
-
-function fixDashes(citation) {
-  citation = citation.replace("&ndash;", "–");
-  return citation;
-}
-
-function fixSpaces(citation) {
-  citation = citation.replaceAll(/\s+/g, " ");
-  citation = citation.replace(" )", ")");
-  return citation;
-}
-
-export function cleanFindAGraveCitation(citation, refText) {
-  citation = addHeading(citation, refText);
-  //citation = fixDate(citation);
-  citation = addAccessedDate(citation);
-  citation = fixDashes(citation);
-  citation = fixSpaces(citation);
-  return citation;
-}
-
-function addAccessedDate(citation) {
-  // Add current date to "accessed" if it's missing
-  // Look for patterns like ": accessed)" or "accessed)" with possible whitespace
-  const accessedPattern = /:\s*accessed\s*\)/;
-  console.log("Checking for accessed date in:", citation.substring(0, 200));
-  if (citation.match(accessedPattern)) {
-    console.log("Found accessed pattern, adding date");
-    const today = new Date();
-    const months = [
-      "January",
-      "February",
-      "March",
-      "April",
-      "May",
-      "June",
-      "July",
-      "August",
-      "September",
-      "October",
-      "November",
-      "December",
-    ];
-    const dateStr = `${months[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
-    citation = citation.replace(accessedPattern, `: accessed ${dateStr})`);
-    console.log("Updated citation:", citation.substring(0, 200));
-  } else {
-    console.log("No accessed pattern found");
-  }
-  return citation;
 }
 
 export async function getCitations() {
@@ -6377,6 +6215,17 @@ export function addLocationCategoryToStuffBeforeTheBio(location) {
     const theCategory = "[[Category: " + location + "]]";
     addUniqueCategoryToStuffBeforeTheBio(theCategory);
   }
+}
+
+async function getTemplates() {
+  if (templatesObject) {
+    return templatesObject;
+  }
+
+  const templatesJSON = chrome.runtime.getURL("features/wtPlus/templatesExp.json");
+  const response = await fetch(templatesJSON);
+  templatesObject = await response.json();
+  return templatesObject;
 }
 
 async function sortStuffBeforeBio() {
@@ -7266,46 +7115,6 @@ async function getSpouseParents2() {
       });
     }
   }
-}
-
-function getStorageData(key) {
-  return new Promise((resolve, reject) => {
-    chrome.storage.local.get([key], function (result) {
-      if (chrome.runtime.lastError) {
-        // If there's an error, reject the promise
-        reject(chrome.runtime.lastError);
-      } else {
-        // Resolve the promise with the result
-        resolve(result[key]);
-      }
-    });
-  });
-}
-
-export async function getData(key) {
-  return await getStorageData(key);
-}
-
-async function getTemplates() {
-  let templatesObject = await getData("alltemplates");
-  if (!templatesObject) {
-    // Check if templatesObject is null, undefined, or otherwise falsy
-    const templatesJSON = chrome.runtime.getURL("features/wtPlus/templatesExp.json");
-    const response = await fetch(templatesJSON);
-    templatesObject = await response.json(); // Assuming the fetched data is JSON and needs to be parsed
-  }
-  return templatesObject;
-}
-
-let templatesObject = {};
-let USstatesObjArray;
-
-function findUSState(location) {
-  return findUSStateInStates(location, USstatesObjArray);
-}
-
-function fixUSLocation(event) {
-  return fixUSLocationInStates(event, USstatesObjArray, window.autoBioOptions, window.autoBioNotes);
 }
 
 function addUniqueRefNames(records) {
@@ -8433,18 +8242,22 @@ export async function generateBio() {
     console.log(error);
     removeWorking();
     if ($("#errorDiv").length == 0) {
-      // Prepare the error message
-      let errorMessage =
-        "Hi Ian,\n\nI've found a bug for you to fix.\n\nProfile ID: " +
-        window.profileID +
-        (bugReportMore || "") +
-        "\n\nError Message: " +
-        error.message +
-        "\n\nStack Trace:\n" +
-        error.stack;
+      const isAppsServerAccessError = WikiTreeAPI.isLikelyAppsServerAccessError(error);
 
-      // Save the error message to localStorage
-      localStorage.setItem("error_message", errorMessage);
+      if (!isAppsServerAccessError) {
+        // Prepare the error message
+        let errorMessage =
+          "Hi Ian,\n\nI've found a bug for you to fix.\n\nProfile ID: " +
+          window.profileID +
+          (bugReportMore || "") +
+          "\n\nError Message: " +
+          error.message +
+          "\n\nStack Trace:\n" +
+          error.stack;
+
+        // Save the error message to localStorage
+        localStorage.setItem("error_message", errorMessage);
+      }
 
       let errorDiv = $("<div id='errorDiv'>");
       let errorExtraMessage = "";
@@ -8453,24 +8266,32 @@ export async function generateBio() {
           errorExtraMessage += extra + "<br>";
         });
       }
-      let errorText = $(
-        `<p><b>Whoops! 🙈</b> Something went wrong with the Auto Bio. <br>
-        If you've just created this profile, <br>
-        please try again in a few minutes <br>
-        (it may be a temporary issue).<br>
-        If not, please let us know about it. <br>
-          ${errorExtraMessage}
-          Thank you!</p>`
-      );
+      const errorText = WikiTreeAPI.isLikelyAppsServerAccessError(error)
+        ? $(
+            `<p><b>Auto Bio is temporarily unavailable.</b><br>
+            ${WikiTreeAPI.getAppsServerAccessErrorMessage("Auto Bio")}<br>
+            ${errorExtraMessage}</p>`
+          )
+        : $(
+            `<p><b>Whoops! 🙈</b> Something went wrong with the Auto Bio. <br>
+            If you've just created this profile, <br>
+            please try again in a few minutes <br>
+            (it may be a temporary issue).<br>
+            If not, please let us know about it. <br>
+              ${errorExtraMessage}
+              Thank you!</p>`
+          );
       errorDiv.append(errorText);
 
-      let errorButton = $("<button id='reportBugButton'>📧 Report bug</button>");
-      errorButton.on("click", function () {
-        errorDiv.remove();
-        window.open("https://" + mainDomain + "/wiki/Beacall-6", "_blank");
-      });
+      if (!isAppsServerAccessError) {
+        let errorButton = $("<button id='reportBugButton'>📧 Report bug</button>");
+        errorButton.on("click", function () {
+          errorDiv.remove();
+          window.open("https://" + mainDomain + "/wiki/Beacall-6", "_blank");
+        });
 
-      errorDiv.append(errorButton);
+        errorDiv.append(errorButton);
+      }
 
       let errorClose = $("<button id='closeErrorMessageButton'>X</button>");
       errorClose.on("click", function () {
@@ -9726,3 +9547,5 @@ export { addWorking, removeWorking } from "./editorUtils.js";
 export { minimalPlace, nameLink } from "./displayUtils.js";
 export { getFormData, getPronouns } from "./profileUtils.js";
 export { capitalizeFirstLetter } from "./textUtils.js";
+export { assignPersonNames, setOrderBirthDate } from "./auto_bio_person.js";
+export { getFindAGraveLink, getCitation, cleanFindAGraveCitation } from "./auto_bio_citations.js";

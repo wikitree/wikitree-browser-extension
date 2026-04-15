@@ -14,6 +14,7 @@ if (typeof API_URL === "undefined") {
 }
 
 const dateTokenCache = {};
+const apiLoginStatusCache = new Map();
 
 /**
  * Serializes WikiTree fuzzy date using formatting string
@@ -422,72 +423,6 @@ WikiTreeAPI.getPeople = async function (appId, IDs, fields, options = {}) {
 };
 
 /**
- * Search person profiles using API filters similar to Special:SearchPerson.
- *
- * @param {*} appId An application id (any string). 'WBE_' will be prepended if not present already
- * @param {*} searchParams Object containing search filters (e.g. FirstName, LastName, RealName, BirthDate)
- * @param {*} fields Optional array or comma separated string of fields to return for matches
- * @param {*} options Optional search options (e.g. dateInclude, dateSpread, sort, limit, start)
- * @returns a Promise for [status, matches, total, start, limit]
- */
-WikiTreeAPI.searchPerson = async function (appId, searchParams = {}, fields = "", options = {}) {
-  const VALID_SEARCH_ARGS = new Set([
-    "FirstName",
-    "LastName",
-    "BirthDate",
-    "DeathDate",
-    "RealName",
-    "LastNameCurrent",
-    "BirthLocation",
-    "DeathLocation",
-    "Gender",
-    "fatherFirstName",
-    "fatherLastName",
-    "motherFirstName",
-    "motherLastName",
-    "watchlist",
-    "dateInclude",
-    "dateSpread",
-    "centuryTypo",
-    "isLiving",
-    "skipVariants",
-    "lastNameMatch",
-    "sort",
-    "secondarySort",
-    "limit",
-    "start",
-  ]);
-
-  const parameters = { ...options };
-  parameters.appId = appId;
-  parameters.action = "searchPerson";
-
-  Object.entries(searchParams || {}).forEach(([key, value]) => {
-    if (!VALID_SEARCH_ARGS.has(key)) {
-      return;
-    }
-    if (value === undefined || value === null || value === "") {
-      return;
-    }
-    parameters[key] = value;
-  });
-
-  if (fields && commaSeparatedString(fields) !== "") {
-    parameters.fields = commaSeparatedString(fields);
-  }
-
-  // Debug: log the exact parameters we'll send to the API for troubleshooting
-  try {
-    console.debug("wbe: WikiTreeAPI.searchPerson parameters", parameters);
-  } catch (e) {
-    /* ignore */
-  }
-
-  const result = await WikiTreeAPI.postToAPI(parameters);
-  return [result[0].status, result[0].matches || [], result[0].total || 0, result[0].start || 0, result[0].limit || 0];
-};
-
-/**
  * Find the connection path between two profiles.
  *
  * @param {*} appId An application id (any string). 'WBE_' will be prepended if not present already
@@ -566,75 +501,54 @@ function condLog(message, ...optionalParams) {
   }
 }
 
-// Apps-server login is cookie-based for the current user, so we can cache the
-// result once per user for the lifetime of the page load and reuse it across
-// all WBE features regardless of appId.
-const apiLoginStatusCache = new Map();
+WikiTreeAPI.isLikelyAppsServerAccessError = function (error) {
+  const message = String(error?.message || error || "").toLowerCase();
+  return (
+    error?.name === "TypeError" ||
+    message.includes("failed to fetch") ||
+    message.includes("load failed") ||
+    message.includes("networkerror") ||
+    message.includes("cors") ||
+    message.includes("cross-origin") ||
+    message.includes("http error! status: 403")
+  );
+};
 
-function normalizeApiLoginCacheKey(userNumId) {
-  const normalized = String(userNumId || "").trim();
-  return normalized || null;
-}
+WikiTreeAPI.getAppsServerAccessErrorMessage = function (featureName = "This feature") {
+  return `${featureName} is unavailable because the apps server appears to be rejecting or blocking requests from this browser or IP address. Please try again later.`;
+};
 
 WikiTreeAPI.setCachedApiLoginStatus = function (userNumId, loggedIn) {
-  const cacheKey = normalizeApiLoginCacheKey(userNumId);
-  if (!cacheKey) {
-    return;
-  }
-
-  const value = Boolean(loggedIn);
-  apiLoginStatusCache.set(cacheKey, {
-    value,
-    promise: Promise.resolve(value),
-  });
+  if (!userNumId) return;
+  apiLoginStatusCache.set(String(userNumId), Promise.resolve(Boolean(loggedIn)));
 };
 
 WikiTreeAPI.clearCachedApiLoginStatus = function (userNumId) {
-  const cacheKey = normalizeApiLoginCacheKey(userNumId);
-  if (!cacheKey) {
-    apiLoginStatusCache.clear();
-    return;
-  }
-
-  apiLoginStatusCache.delete(cacheKey);
+  if (!userNumId) return;
+  apiLoginStatusCache.delete(String(userNumId));
 };
 
 // Function to check login status
-WikiTreeAPI.isLoggedIntoAPI = async function (userNumId, appId = "WBE_check_login", options = {}) {
-  const cacheKey = normalizeApiLoginCacheKey(userNumId);
-  if (!cacheKey) return false;
-
-  const forceRefresh = Boolean(options?.forceRefresh);
-  const cached = !forceRefresh ? apiLoginStatusCache.get(cacheKey) : null;
-  if (cached && Object.prototype.hasOwnProperty.call(cached, "value")) {
-    return cached.value;
+WikiTreeAPI.isLoggedIntoAPI = async function (userNumId, appId = "WBE_check_login") {
+  if (!userNumId) return false;
+  const cacheKey = String(userNumId);
+  if (!apiLoginStatusCache.has(cacheKey)) {
+    apiLoginStatusCache.set(
+      cacheKey,
+      WikiTreeAPI.postToAPI({
+        appId: appId,
+        action: "clientLogin",
+        checkLogin: userNumId,
+      })
+        .then((loginStatus) => loginStatus?.clientLogin?.result == "ok")
+        .catch((error) => {
+          apiLoginStatusCache.delete(cacheKey);
+          throw error;
+        })
+    );
   }
 
-  if (cached?.promise) {
-    return cached.promise;
-  }
-
-  const loginPromise = WikiTreeAPI.postToAPI({
-    appId: appId,
-    action: "clientLogin",
-    checkLogin: cacheKey,
-  })
-    .then((loginStatus) => {
-      console.log("API Login Status: ", loginStatus);
-      const isLoggedIn = loginStatus?.clientLogin?.result == "ok";
-      apiLoginStatusCache.set(cacheKey, {
-        value: isLoggedIn,
-        promise: Promise.resolve(isLoggedIn),
-      });
-      return isLoggedIn;
-    })
-    .catch((error) => {
-      apiLoginStatusCache.delete(cacheKey);
-      throw error;
-    });
-
-  apiLoginStatusCache.set(cacheKey, { promise: loginPromise });
-  return loginPromise;
+  return await apiLoginStatusCache.get(cacheKey);
 };
 
 /**
@@ -644,9 +558,6 @@ WikiTreeAPI.isLoggedIntoAPI = async function (userNumId, appId = "WBE_check_logi
  * @param {*} signal (optional) The AbortController.signal to listen on for aborting the call
  * @returns
  */
-// Map of in-flight requests so identical concurrent requests can be de-duped.
-const inflightRequests = new Map();
-
 WikiTreeAPI.postToAPI = async function (postData, signal) {
   condLog(`>>>>> postToAPI ${postData.action} ${postData.key || postData.keys}`, postData);
 
@@ -682,44 +593,12 @@ WikiTreeAPI.postToAPI = async function (postData, signal) {
     options["signal"] = signal;
   }
 
-  // Debug: log the outgoing body being sent to the API (key=value string)
-  let bodyParams;
-  try {
-    bodyParams = new URLSearchParams(formData);
-    const bodyText = bodyParams.toString();
-    const maxLogChars = 320;
-    const preview =
-      bodyText.length > maxLogChars
-        ? `${bodyText.slice(0, maxLogChars)}... [truncated ${bodyText.length - maxLogChars} chars]`
-        : bodyText;
-    console.debug("wbe: postToAPI outgoing body", preview);
-  } catch (e) {
-    /* ignore logging errors */
+  const response = await fetch(API_URL, options);
+  if (!response.ok) {
+    // condLog(" ${response.status}: ${response.statusText} ");
+    throw new Error(`HTTP error! Status: ${response.status}: ${response.statusText}`);
   }
-
-  // Build a dedupe key based on action/appId and the encoded body. If an identical request is already
-  // in-flight, return the same promise instead of issuing a duplicate fetch.
-  const bodyKey = `${postData.action || ""}|${postData.appId || ""}|${(bodyParams && bodyParams.toString()) || ""}`;
-  if (inflightRequests.has(bodyKey)) {
-    console.debug("wbe: postToAPI dedupe - returning existing in-flight request", bodyKey);
-    return inflightRequests.get(bodyKey);
-  }
-
-  const fetchPromise = (async () => {
-    const response = await fetch(API_URL, options);
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}: ${response.statusText}`);
-    }
-    return await response.json();
-  })();
-
-  inflightRequests.set(bodyKey, fetchPromise);
-  try {
-    const result = await fetchPromise;
-    return result;
-  } finally {
-    inflightRequests.delete(bodyKey);
-  }
+  return await response.json();
 };
 
 WikiTreeAPI.lookupProfile = function (wtId, resultByKey, people) {

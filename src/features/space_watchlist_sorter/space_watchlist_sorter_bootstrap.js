@@ -1,6 +1,6 @@
 import { isFeatureEnabledForPage } from "../../core/options/feature_bootstrap";
 
-const FEATURE_ID = "wikitreePlusHelper";
+const FEATURE_ID = "spaceWatchlistSorter";
 
 isFeatureEnabledForPage(FEATURE_ID).then((enabled) => {
   if (!enabled) {
@@ -8,9 +8,9 @@ isFeatureEnabledForPage(FEATURE_ID).then((enabled) => {
   }
 
   import(
-    /* webpackChunkName: "wikitree-plus-helper" */
-    "./wikitree_plus_helper"
+    /* webpackChunkName: "space-watchlist-sorter" */
+    "./space_watchlist_sorter"
   ).catch((error) => {
-    console.error("wbe: failed to lazy-load WT+ Query Builder", error);
+    console.error("wbe: failed to lazy-load Space Watchlist Sorter", error);
   });
 });

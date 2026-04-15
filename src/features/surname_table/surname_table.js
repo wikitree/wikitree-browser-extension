@@ -8,7 +8,7 @@ import { isSearchPage, isSpecialWatchedList } from "../../core/pageType";
 import { initTableFilters } from "../table_filters/table_filters";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import Cookies from "js-cookie";
-import { convertDate } from "../auto_bio/auto_bio";
+import { convertDate } from "../auto_bio/dateUtils";
 import { shouldInitializeFeature, getFeatureOptions, checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { showFamilySheet } from "../familyGroup/familyGroup";
 import { getUserNumId } from "../../core/common";

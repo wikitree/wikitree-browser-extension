@@ -4,7 +4,17 @@ const CopyPlugin = require("copy-webpack-plugin");
 const WebExtension = require("webpack-target-webextension");
 const srcDir = path.join(__dirname, "..", "src");
 const buildInfo = { buildDate: new Date(Date.now()).toISOString() };
-const lazyFeatureChunks = new Set(["muse", "feed-helper", "wikitree-plus-helper"]);
+const lazyFeatureChunks = new Set([
+  "auto-bio",
+  "auto-categories",
+  "family-lists",
+  "wikitable-wizard",
+  "feed-helper",
+  "wikitree-plus-helper",
+  "image-table",
+  "change-family-lists",
+  "space-watchlist-sorter",
+]);
 
 try {
   const gitOutput = require("child_process").execSync('git log -1 --pretty="%h %H"').toString();

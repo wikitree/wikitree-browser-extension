@@ -84,7 +84,7 @@ import "./features/anniversaries_table/anniversaries_table";
 import "./features/categoryDisplay/categoryDisplay";
 import "./features/categoryFinderPins/categoryFinderPins";
 import "./features/connector_image/connector_image";
-import "./features/change_family_lists/change_family_lists";
+import "./features/change_family_lists/change_family_lists_bootstrap";
 import "./features/clipboard_and_notes/clipboard_and_notes";
 import "./features/confirm_thank_yous/confirm_thank_yous";
 import "./features/connection_finder/connection_finder";
@@ -94,7 +94,6 @@ import "./features/dna_table/dna_table";
 import "./features/extra_watchlist/extra_watchlist";
 import "./features/familyGroup/familyGroup";
 import "./features/family_dropdown/family_dropdown";
-import "./features/family_lists/family_lists";
 import "./features/familyTimeline/familyTimeline";
 import "./features/g2g/g2g";
 import "./features/hide_my_contributions/hide_my_contributions";
@@ -121,8 +120,7 @@ import "./features/wills/wills";
 // Edit mode addons are towards the end
 import "./features/wtPlus/wtPlus";
 import "./features/agc/agc_content";
-import "./features/auto_bio/auto_bio";
-import "./features/auto_categories/auto_categories";
+import "./features/auto_bio/auto_bio_bootstrap";
 import "./features/custom_change_summary_options/custom_change_summary_options";
 import "./features/date_fixer/date_fixer";
 import "./features/language_setting/language_setting";
@@ -134,7 +132,7 @@ import "./features/save_buttons_style_options/save_buttons_style_options"; // Di
 import "./features/show_edits/show_edits";
 import "./features/space_drafts/space_drafts";
 import "./features/sticky_toolbar/sticky_toolbar";
-import "./features/wikitable_wizard/wikitable_wizard";
+import "./features/wikitable_wizard/wikitable_wizard_bootstrap";
 // BioCheck needs to load later than custom_change_summary_options
 import "./features/bioCheck/bioCheck";
 
@@ -154,9 +152,9 @@ import "./features/cc7_changes/cc7_changes";
 import "./features/edit_family_data/edit_family_data";
 import "./features/editor_expander/editor_expander";
 import "./features/draftList/draftList";
-import "./features/image_table/image_table";
+import "./features/image_table/image_table_bootstrap";
 import "./features/randomProfile/randomProfile";
-import "./features/space_watchlist_sorter/space_watchlist_sorter";
+import "./features/space_watchlist_sorter/space_watchlist_sorter_bootstrap";
 import "./features/text_expander/text_expander";
 import "./features/what_links_here/what_links_here";
 import "./features/edit_profile_redesign/edit_profile_redesign";

@@ -1,12 +1,34 @@
 /*
 Created By: Aleš Trtnik (Trtnik-2)
 */
-import { generateBio } from "../../features/auto_bio/auto_bio";
-import { addAutoCategories } from "../../features/auto_categories/auto_categories";
-import { getFamilyList } from "../../features/family_lists/family_lists";
 import { wtPlus } from "../../features/wtPlus/wtPlus";
+import { createWikitableWizard } from "../../features/wikitable_wizard/wikitable_wizard_loader";
 import { editToolbarApp, editToolbarWiki } from "./editToolbar";
-import { createWikitableWizard } from "../../features/wikitable_wizard/wikitable_wizard";
+
+async function generateBio(params) {
+  const module = await import(
+    /* webpackChunkName: "auto-bio" */
+    "../../features/auto_bio/auto_bio"
+  );
+  return module.generateBio?.(params);
+}
+
+async function addAutoCategories(params) {
+  const module = await import(
+    /* webpackChunkName: "auto-categories" */
+    "../../features/auto_categories/auto_categories"
+  );
+  return module.addAutoCategories?.(params);
+}
+
+async function getFamilyList(params) {
+  const module = await import(
+    /* webpackChunkName: "family-lists" */
+    "../../features/family_lists/family_lists"
+  );
+  return module.getFamilyList?.(params);
+}
+
 export default [
   {
     button: "Sources",
