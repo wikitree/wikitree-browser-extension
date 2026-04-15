@@ -4,7 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { getCitation, cleanFindAGraveCitation } from "../auto_bio/auto_bio.js";
+import { getCitation, cleanFindAGraveCitation } from "../auto_bio/auto_bio_citations.js";
 import {
   CreateAutoSuggestionDiv,
   showResultsOnKeyUp,

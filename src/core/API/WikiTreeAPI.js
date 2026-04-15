@@ -14,6 +14,7 @@ if (typeof API_URL === "undefined") {
 }
 
 const dateTokenCache = {};
+const apiLoginStatusCache = new Map();
 
 /**
  * Serializes WikiTree fuzzy date using formatting string
@@ -500,17 +501,54 @@ function condLog(message, ...optionalParams) {
   }
 }
 
+WikiTreeAPI.isLikelyAppsServerAccessError = function (error) {
+  const message = String(error?.message || error || "").toLowerCase();
+  return (
+    error?.name === "TypeError" ||
+    message.includes("failed to fetch") ||
+    message.includes("load failed") ||
+    message.includes("networkerror") ||
+    message.includes("cors") ||
+    message.includes("cross-origin") ||
+    message.includes("http error! status: 403")
+  );
+};
+
+WikiTreeAPI.getAppsServerAccessErrorMessage = function (featureName = "This feature") {
+  return `${featureName} is unavailable because the apps server appears to be rejecting or blocking requests from this browser or IP address. Please try again later.`;
+};
+
+WikiTreeAPI.setCachedApiLoginStatus = function (userNumId, loggedIn) {
+  if (!userNumId) return;
+  apiLoginStatusCache.set(String(userNumId), Promise.resolve(Boolean(loggedIn)));
+};
+
+WikiTreeAPI.clearCachedApiLoginStatus = function (userNumId) {
+  if (!userNumId) return;
+  apiLoginStatusCache.delete(String(userNumId));
+};
+
 // Function to check login status
 WikiTreeAPI.isLoggedIntoAPI = async function (userNumId, appId = "WBE_check_login") {
   if (!userNumId) return false;
-  const loginStatus = await WikiTreeAPI.postToAPI({
-    appId: appId,
-    action: "clientLogin",
-    checkLogin: userNumId,
-  });
-  console.log("API Login Status: ", loginStatus);
+  const cacheKey = String(userNumId);
+  if (!apiLoginStatusCache.has(cacheKey)) {
+    apiLoginStatusCache.set(
+      cacheKey,
+      WikiTreeAPI.postToAPI({
+        appId: appId,
+        action: "clientLogin",
+        checkLogin: userNumId,
+      })
+        .then((loginStatus) => loginStatus?.clientLogin?.result == "ok")
+        .catch((error) => {
+          apiLoginStatusCache.delete(cacheKey);
+          throw error;
+        })
+    );
+  }
 
-  return loginStatus?.clientLogin?.result == "ok";
+  return await apiLoginStatusCache.get(cacheKey);
 };
 
 /**

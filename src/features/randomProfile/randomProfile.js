@@ -331,6 +331,10 @@ export async function doLogin() {
   if (typeof authcode != "undefined" && authcode != null && authcode != "") {
     const postData = { appId: WBE_RP_APP_ID, action: "clientLogin", authcode: authcode };
     await WikiTreeAPI.postToAPI(postData);
+    const userNumId = getUserNumId();
+    if (userNumId) {
+      WikiTreeAPI.setCachedApiLoginStatus(userNumId, true);
+    }
     if (u?.doRandomProfile) {
       showWorking();
       goToRandomWatchlistProfile(true);

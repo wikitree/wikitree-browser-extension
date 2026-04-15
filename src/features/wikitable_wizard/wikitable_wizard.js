@@ -6,7 +6,7 @@ import "./wikitable_wizard.css";
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
 import { showCopyMessage } from "../access_keys/access_keys";
-import { analyzeColumns } from "../auto_bio/auto_bio";
+import { analyzeColumns } from "../auto_bio/columnAnalysisUtils";
 import { stateInfo } from "./us_states.js"; // Import the state information
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { mainDomain } from "../../core/pageType";

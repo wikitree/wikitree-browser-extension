@@ -5,31 +5,25 @@ import { showCopyMessage } from "../access_keys/access_keys";
 import "../../core/common.css";
 import { profilePerson } from "../../core/common";
 import { addLoginButton } from "../../core/loginButton";
-import {
-  WBE_AUTO_BIO_APP_ID,
-  getBiographySpouseParents,
-  getFormData,
-  buildFamilyForPrivateProfiles,
-  assignPersonNames,
-  setOrderBirthDate,
-  convertDate,
-  buildBirth,
-  buildDeath,
-  buildSpouses,
-  siblingList,
-  getNameVariants,
-  getPronouns,
-  sourcesArray,
-  splitBioIntoSections,
-  addWorking,
-  removeWorking,
-} from "../auto_bio/auto_bio";
+import { loadAutoBioModule } from "../auto_bio/auto_bio_loader";
 import { isOK, familyArray } from "../../core/common";
 import { copyToClipboard, readFromClipboard } from "../../core/clipboard";
 
 const WBE_FAMILY_LISTS_APP_ID = "WBE_family_lists";
 
 async function getFamily() {
+  const {
+    WBE_AUTO_BIO_APP_ID,
+    getBiographySpouseParents,
+    getFormData,
+    buildFamilyForPrivateProfiles,
+    assignPersonNames,
+    setOrderBirthDate,
+    convertDate,
+    getNameVariants,
+    getPronouns,
+  } = await loadAutoBioModule();
+
   let profileID;
   if (!window.profileID) {
     profileID = profilePerson.Name;
@@ -147,6 +141,17 @@ async function pasteResult() {
 }
 
 async function getList(functionName) {
+  const {
+    splitBioIntoSections,
+    sourcesArray,
+    addWorking,
+    removeWorking,
+    buildBirth,
+    buildDeath,
+    buildSpouses,
+    siblingList,
+  } = await loadAutoBioModule();
+
   await getFamily();
   let result;
   let message;
@@ -218,7 +223,15 @@ async function getList(functionName) {
 }
 export async function getFamilyList(args) {
   if (args.functionName) {
-    getList(args.functionName);
+    try {
+      return await getList(args.functionName);
+    } catch (error) {
+      if (WikiTreeAPI.isLikelyAppsServerAccessError(error)) {
+        showCopyMessage(WikiTreeAPI.getAppsServerAccessErrorMessage("Family Lists"), true);
+        return;
+      }
+      throw error;
+    }
   }
 }
 

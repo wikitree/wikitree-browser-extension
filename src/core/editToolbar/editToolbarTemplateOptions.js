@@ -4,7 +4,7 @@ Created By: Aleš Trtnik (Trtnik-2)
 
 import { wtPlus } from "../../features/wtPlus/wtPlus";
 import { editToolbarApp, editToolbarWiki } from "./editToolbar";
-import { createWikitableWizard } from "../../features/wikitable_wizard/wikitable_wizard";
+import { createWikitableWizard } from "../../features/wikitable_wizard/wikitable_wizard_loader";
 export default [
   {
     button: "Templates",

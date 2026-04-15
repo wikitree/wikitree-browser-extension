@@ -68,6 +68,10 @@ async function handleOptionalAuthCode(opt) {
     const data = await response.json();
 
     if (data?.clientLogin?.result === "Success") {
+      const userNumId = getUserNumId();
+      if (userNumId) {
+        WikiTreeAPI.setCachedApiLoginStatus(userNumId, true);
+      }
       $(`#${opt.btnId}`).hide();
     } else {
       // console.error(`Login with auth code ${authcode} failed:`, data);
