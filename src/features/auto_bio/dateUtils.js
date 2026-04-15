@@ -5,7 +5,7 @@
 
 import { capitalizeFirstLetter } from "./textUtils.js";
 import { isOK } from "../../core/common";
-import { getAge } from "../change_family_lists/change_family_lists";
+import { getAge } from "../change_family_lists/change_family_lists_age";
 
 /**
  * Convert a month string or number between formats
