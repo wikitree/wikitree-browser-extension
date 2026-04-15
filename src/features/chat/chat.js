@@ -39,7 +39,7 @@ import {
   findSiblingProfileIdsFromDOM,
   findParentProfileIdsFromDOM,
 } from "./chat_dom_lookup";
-import { isPlusDomain } from "../../core/pageType";
+import { isNavHomePage, isPlusDomain, isProfilePage } from "../../core/pageType";
 import { escapeHtml } from "../../core/lib/diff_utils";
 import { buildPlusUrl } from "../wikitree_plus_helper/wikitree_plus_helper_url";
 import { buildSuggestionsOptions } from "../wikitree_plus_helper/wikitree_plus_helper_suggestions";
@@ -148,6 +148,7 @@ const WBE_CHAT_APP_ID = "chat";
 const CC7_CACHE_MS = 5 * 60 * 1000;
 const CHAT_RESULTS_POPUP_ID = "wbe-chat-results-popup";
 const CHAT_RESULTS_TABLE_ID = "wbe-chat-results-table";
+const CHAT_APPS_LOGIN_BUTTON_APP_ID = "WBE_api_login_button";
 let chatResultsCounter = 0;
 let chatModeNoticeTimer = null;
 const tableColumnFilterState = new Map();
@@ -2495,8 +2496,11 @@ async function handleChatResult(result) {
 
   if (result.table) {
     const options = await getChatOptions();
+    const rowCount = result.table?.rows?.length || 0;
+    const isVeryLargeWtPlusTable = Boolean(result.table?.wtPlusQuery) && rowCount > CHAT_PERSISTED_STRUCTURED_ROWS_MAX;
     const shouldAutoOpen =
-      result.autoOpen || options.showResultsInTable || (result.table?.rows?.length || 0) >= AUTO_OPEN_TABLE_MIN_ROWS;
+      !isVeryLargeWtPlusTable &&
+      (result.autoOpen || options.showResultsInTable || rowCount >= AUTO_OPEN_TABLE_MIN_ROWS);
     if (shouldAutoOpen) {
       openResultsTable(result.table);
     }
@@ -3358,6 +3362,53 @@ function isAppsLoginButtonPresent() {
   return $("#wbeAppLoginBtn").length > 0;
 }
 
+function shouldExpectAppsLoginButton(addApiLoginButton = "all") {
+  if (addApiLoginButton === "all") {
+    return isProfilePage || isNavHomePage;
+  }
+
+  if (addApiLoginButton === "navOnly") {
+    return isNavHomePage;
+  }
+
+  return false;
+}
+
+async function shouldOfferAppsLoginHint() {
+  if (hasAppsLoginHintAlready()) {
+    return false;
+  }
+
+  const usabilityOptions = (await getFeatureOptions("usabilityTweaks")) || {};
+  const addApiLoginButton = usabilityOptions.addApiLoginButton || "all";
+  if (!shouldExpectAppsLoginButton(addApiLoginButton)) {
+    return false;
+  }
+
+  if (isAppsLoginButtonPresent()) {
+    return true;
+  }
+
+  const userNumId = getUserNumId();
+  if (!userNumId) {
+    return false;
+  }
+
+  try {
+    const isLoggedIntoAppsServer = await WikiTreeAPI.isLoggedIntoAPI(userNumId, CHAT_APPS_LOGIN_BUTTON_APP_ID);
+    return !isLoggedIntoAppsServer;
+  } catch (error) {
+    console.debug("wbe: apps login hint check failed", error);
+    return false;
+  }
+}
+
+async function maybeAppendAppsLoginHint() {
+  if (await shouldOfferAppsLoginHint()) {
+    appendMessage("assistant", CHAT_APPS_LOGIN_HINT);
+  }
+}
+
 function ensureButtonContainer() {
   const $existing = $(".clipboardContainer");
   if ($existing.length) return $existing.get(0);
@@ -3489,9 +3540,7 @@ function openPopup() {
     if (!chatHistory.length) {
       appendMessage("assistant", "Muse is ready. Ask a question to begin.");
     }
-    if (isAppsLoginButtonPresent() && !hasAppsLoginHintAlready()) {
-      appendMessage("assistant", CHAT_APPS_LOGIN_HINT);
-    }
+    void maybeAppendAppsLoginHint();
 
     $popup.draggable({
       handle: ".chat-popup-header",
@@ -3518,6 +3567,10 @@ function openPopup() {
   positionPopupForOpen($popup.get(0));
   setHighestZIndex($popup.get(0));
   $popup.find(`#${CHAT_INPUT_ID}`).focus();
+}
+
+export function openChatPopup() {
+  openPopup();
 }
 
 function ensureChatButton() {

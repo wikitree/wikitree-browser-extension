@@ -4,6 +4,7 @@ const CopyPlugin = require("copy-webpack-plugin");
 const WebExtension = require("webpack-target-webextension");
 const srcDir = path.join(__dirname, "..", "src");
 const buildInfo = { buildDate: new Date(Date.now()).toISOString() };
+const lazyFeatureChunks = new Set(["muse", "feed-helper", "wikitree-plus-helper"]);
 
 try {
   const gitOutput = require("child_process").execSync('git log -1 --pretty="%h %H"').toString();
@@ -28,6 +29,7 @@ module.exports = (env) => ({
     path: path.join(__dirname, "../dist/js"),
     publicPath: "js/",
     filename: "[name].js",
+    chunkFilename: "[name].js",
     environment: {
       dynamicImport: true,
     },
@@ -36,7 +38,7 @@ module.exports = (env) => ({
     splitChunks: {
       name: "vendor",
       chunks(chunk) {
-        return true;
+        return !lazyFeatureChunks.has(chunk.name);
       },
     },
   },

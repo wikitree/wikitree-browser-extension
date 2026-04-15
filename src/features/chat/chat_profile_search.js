@@ -13,6 +13,11 @@ import {
   translateSuggestionsFreeTextToQuery,
   validateAndRepairWtPlusQuery,
 } from "./wt_plus_query_grammar";
+import {
+  buildCreatedRecentlyMatches,
+  formatCompactCreatedDate,
+  parseCreatedRecentlyPrompt,
+} from "./chat_created_recently_filter";
 import { parseMarriedNoChildrenPrompt } from "./chat_married_no_children_filter";
 import {
   buildParentAgeAtBirthMatches,
@@ -2535,6 +2540,32 @@ export function createProfileSearchHandler({
       };
     }
 
+    const createdRecentlyPrompt = parseCreatedRecentlyPrompt(normalizedText);
+    if (createdRecentlyPrompt) {
+      const scopeTerm = createdRecentlyPrompt.locationText
+        ? `Location=${quoteWtPlusValue(createdRecentlyPrompt.locationText)}`
+        : "";
+      const createdDateSql = buildWtPlusSqlTerm(
+        `([Bio].[Created Date].AsNumber In ${createdRecentlyPrompt.startDateNumber}..${createdRecentlyPrompt.endDateNumber})`
+      );
+      const query = (createdRecentlyPrompt.yearNumbers || [])
+        .map((year) => [scopeTerm, `Created=Created_${year}`, createdDateSql].filter(Boolean).join(" "))
+        .join(" OR ")
+        .trim();
+      if (!query) {
+        return null;
+      }
+
+      return {
+        query,
+        title: `WT+ search: ${createdRecentlyPrompt.understood}`,
+        description: createdRecentlyPrompt.understood,
+        understood: createdRecentlyPrompt.understood,
+        searchType: "createdRecently",
+        customFilter: createdRecentlyPrompt,
+      };
+    }
+
     const spousalAgeGapPrompt = parseSpousalAgeGapPrompt(normalizedText);
     if (spousalAgeGapPrompt) {
       const queryTerms = [];
@@ -3116,7 +3147,7 @@ export function createProfileSearchHandler({
         "If the prompt is ambiguous, choose the most likely WT+ interpretation and summarize it in understood.",
         "When a single token could be either a surname or a place (for example 'Shropshire'), prefer Location=<token> if there are geography/life-event hints; otherwise make your best judgment and reflect that choice in understood.",
         "Some anomaly prompts are handled by extension-supported custom routes instead of raw WT+ relation SQL. For these, set routePrompt to a canonical phrasing the extension can parse, and do not invent unsupported relation-comparison SQL.",
-        "Current custom-route families include: siblings born within X months of each other; children born when parent was under/over a given age; large spousal age gaps; and married but no children listed.",
+        "Current custom-route families include: siblings born within X months of each other; children born when parent was under/over a given age; large spousal age gaps; married but no children listed; and recently created/added profiles that must be filtered using the Created field from getPeople.",
         "Examples:",
         '{"understood":"unsourced profiles born in Devon","query":"Unsourced BirthLocation="Devon, England""}',
         '{"understood":"people in category Puritan Great Migration","query":"CategoryFull="Puritan Great Migration""}',
@@ -3125,6 +3156,7 @@ export function createProfileSearchHandler({
         '{"understood":"current profile descendants born in Newfoundland before 1900","query":"Descendants=CurrentProfile BirthLocation=Newfoundland sql="([Default].[Birth Date].AsNumber < 19000000)""}',
         '{"understood":"Smith in Liverpool born before 1800","query":"LastNameAtBirth=Smith Location=Liverpool sql="([Default].[Birth Date].AsNumber < 18000000)""}',
         '{"understood":"Flintshire 1900s profiles with siblings born within 5 months of each other","query":"BirthLocation=Flintshire 1900s","routePrompt":"Flintshire 1900s siblings born within 5 months of each other"}',
+        '{"understood":"Devon profiles created in the last six months","query":"Location=Devon Created=Created_2025 sql="([Bio].[Created Date].AsNumber In 20251016..20260415)" OR Location=Devon Created=Created_2026 sql="([Bio].[Created Date].AsNumber In 20251016..20260415)"","routePrompt":"Devon created in the last 6 months"}',
         "Example sub-century range with anomaly: 'women in Scotland unknown first or last name between 1800 and 1810' => female BirthCountry=Scotland 19Cen sql=\"([Default].[Birth Date].AsNumber In 18000101..18101231) And (([Default].[First Name] = '') Or ([Default].[Last Name At Birth] = ''))\"",
         "Do not treat command words as surname/location values (e.g., search, find, show, list, get, name) unless clearly quoted or explicitly assigned.",
         "For patterns like '<surname> born in <location> between <year> and <year>', map surname to AllLastNames (or LastNameAtBirth when clearly LNAB), map the place phrase after 'in' to BirthLocation/Location, emit NCen for that century, and keep the narrower date range in sql=.",
@@ -3136,6 +3168,7 @@ export function createProfileSearchHandler({
         "For mixed parent-presence constraints: 'no father' → NoFather; 'no mother' → NoMother; 'with a mother' / 'has a mother' / 'has mother' → NOT NoMother; 'with a father' / 'has a father' → NOT NoFather. Example: 'Beacall with a mother but no father' => {\"understood\":\"Beacall surname — mother linked but no father\",\"query\":\"AllLastNames=Beacall NoFather NOT NoMother\"}",
         "For Find a Grave cemetery references: raw token fgcem{N} (e.g. fgcem104742) or phrases like 'find a grave cemetery 104742', 'fg cemetery 104742', 'Find a Grave cem 104742', 'fg cem 104742' all map to the token fgcem{N}. Similarly fgmem{N} for memorials. Example: 'Illinois fgcem104742' => {\"understood\":\"Illinois profiles in Find a Grave cemetery 104742\",\"query\":\"AllLastNames=Illinois fgcem104742\"}",
         'For \'created after/before\' constraints, use sql= with the EXACT field name [Bio].[Created Date].AsNumber (NOT [Bio].[Created].AsNumber — the space and \'Date\' are required). Similarly use [Bio].[LastEdit Date].AsNumber for last-edit filters. Example: \'Shropshire created after Jan 1 2026\' => {"understood":"Shropshire profiles created after 2026-01-01","query":"Location=Shropshire sql=\\"([Bio].[Created Date].AsNumber > 20260101)\\""}',
+        'For recent-created windows that span one or more years, use Created=Created_YYYY as the base narrowing term in each OR branch, then use [Bio].[Created Date].AsNumber sql= for the exact date window. Example: \'Devon created in the last six months\' => {"understood":"Devon profiles created in the last six months","query":"Location=Devon Created=Created_2025 sql=\\"([Bio].[Created Date].AsNumber In 20251016..20260415)\\" OR Location=Devon Created=Created_2026 sql=\\"([Bio].[Created Date].AsNumber In 20251016..20260415)\\"","routePrompt":"Devon created in the last 6 months"}',
         // Only include the full suggestion catalog when the query appears to
         // describe a data-quality issue — keeps prompt size small for normal queries.
         ...(isLikelySuggestionsPrompt(rawQuery)
@@ -3344,6 +3377,15 @@ export function createProfileSearchHandler({
       return true;
     }
 
+    const hasRelativeCreatedPhrase =
+      /\b(?:created|added)\b.*\b(?:this\s+week|last\s+week)\b/i.test(text) ||
+      /\b(?:created|added)\b.*\b(?:in|within|over)\s+(?:the\s+)?(?:last|past)\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(?:days?|weeks?|months?)\b/i.test(
+        text
+      );
+    if (hasRelativeCreatedPhrase && !hasExplicitField) {
+      return true;
+    }
+
     const hasDisjunctiveLifeEventPhrase =
       /\b(?:born|married|died)\b[\s,]*(?:,\s*)?(?:or|and)\s*(?:born|married|died)\b/i.test(text) ||
       /\bborn\s*,\s*married\s*,\s*or\s*died\b/i.test(text);
@@ -3463,6 +3505,22 @@ export function createProfileSearchHandler({
       table.columns.splice(birthIndex + 1, 0, ...siblingColumns);
     } else {
       table.columns.push(...siblingColumns);
+    }
+
+    return table;
+  }
+
+  function makeCreatedRecentlyTable(title, rows) {
+    const table = makeStandardProfileTable(title, rows, [[0, "desc"]]);
+    table.columns = (table.columns || []).filter((column) => !["degrees", "spouse", "spouseList"].includes(column.key));
+
+    const birthIndex = table.columns.findIndex((column) => column.key === "birth");
+    const createdColumns = [{ title: "Created", key: "createdDate" }];
+
+    if (birthIndex >= 0) {
+      table.columns.splice(birthIndex + 1, 0, ...createdColumns);
+    } else {
+      table.columns.push(...createdColumns);
     }
 
     return table;
@@ -3652,6 +3710,10 @@ export function createProfileSearchHandler({
       effectiveSearchType === "parentAgeAtBirth"
         ? runOptions?.customFilter || interpretation?.customFilter || null
         : null;
+    const createdRecentlyFilter =
+      effectiveSearchType === "createdRecently"
+        ? runOptions?.customFilter || interpretation?.customFilter || null
+        : null;
     const siblingBirthGapFilter =
       effectiveSearchType === "siblingBirthGap"
         ? runOptions?.customFilter || interpretation?.customFilter || null
@@ -3771,6 +3833,7 @@ export function createProfileSearchHandler({
       showChatShaky(`Fetching ${uniqueIds.length} WT+ matches...`);
       const fields =
         "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,Father,Mother,BirthDate,BirthDateDecade,BirthLocation,DeathDate,DeathDateDecade,DeathLocation,Gender,Id,Name" +
+        (createdRecentlyFilter ? ",Created" : "") +
         (spousalAgeGapFilter ? ",Spouses" : "");
       let [, , peopleById] = await fetchPeoplePaged(WBE_CHAT_APP_ID, uniqueIds, fields, {
         resolveRedirect: 1,
@@ -3801,6 +3864,37 @@ export function createProfileSearchHandler({
       }
 
       const people = uniqueIds.map((key) => peopleById?.[String(key)]).filter(Boolean);
+      if (createdRecentlyFilter) {
+        const profileRowsById = new Map(
+          people.map((person) => [String(person?.Id || ""), mapApiPersonToStandardRow(person, { wtId: person?.Name })])
+        );
+        const createdMatches = buildCreatedRecentlyMatches(people, createdRecentlyFilter);
+        if (!createdMatches.length) {
+          hideChatShaky();
+          return `I ran WT+ query: ${canonicalQuery}, then filtered by Created date between ${createdRecentlyFilter.startDateLabel} and ${createdRecentlyFilter.endDateLabel}. I found no profiles created ${createdRecentlyFilter.windowLabel}.`;
+        }
+
+        const rows = createdMatches.map((match) => ({
+          ...(profileRowsById.get(match.profileId) || {}),
+          createdDate: match.createdDate || formatCompactCreatedDate(match.createdDateNumber),
+        }));
+        const table = makeCreatedRecentlyTable(
+          title || `Recently created profiles: ${createdRecentlyFilter.understood || canonicalQuery}`,
+          rows
+        );
+        hideChatShaky();
+
+        return {
+          message: `I ran WT+ query: ${canonicalQuery}, then filtered by Created date between ${
+            createdRecentlyFilter.startDateLabel
+          } and ${createdRecentlyFilter.endDateLabel}. Found ${createdMatches.length} profile${
+            createdMatches.length === 1 ? "" : "s"
+          } created ${createdRecentlyFilter.windowLabel}.`,
+          table,
+          autoOpen: true,
+        };
+      }
+
       if (siblingBirthGapFilter) {
         const profileRowsById = new Map(
           people.map((person) => [String(person?.Id || ""), mapApiPersonToStandardRow(person, { wtId: person?.Name })])
@@ -5855,7 +5949,7 @@ export function createProfileSearchHandler({
         wtPlusOnlyConstraintRegex.test(rawQuery) ||
         wtPlusOnlyConstraintRegex.test(mainQuery) ||
         Boolean(matchSuggestionByNaturalLanguage(mainQuery)) ||
-        ["parentAgeAtBirth", "spousalAgeGap", "marriedNoChildren", "siblingBirthGap"].includes(
+        ["parentAgeAtBirth", "createdRecently", "spousalAgeGap", "marriedNoChildren", "siblingBirthGap"].includes(
           localWtPlusQueryCandidate?.searchType
         );
       const shouldAutoRouteToWtPlus =
@@ -5935,6 +6029,7 @@ export function createProfileSearchHandler({
           !explicitWtPlusQuery?.query && shouldForceAiForSuspiciousLocalWtPlusQuery(localWtPlusQuery);
         const isCustomDeterministicQuery = [
           "parentAgeAtBirth",
+          "createdRecently",
           "spousalAgeGap",
           "marriedNoChildren",
           "siblingBirthGap",

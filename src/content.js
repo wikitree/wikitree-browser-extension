@@ -162,18 +162,18 @@ import "./features/what_links_here/what_links_here";
 import "./features/edit_profile_redesign/edit_profile_redesign";
 
 /* MARKER: Default place for new features. Move these to a more appropriate place.*/
-import "./features/chat/chat";
+import "./features/chat/chat_bootstrap";
 
 import "./features/space_style/space_style";
 
-import "./features/wikitree_plus_helper/wikitree_plus_helper";
+import "./features/wikitree_plus_helper/wikitree_plus_helper_bootstrap";
 
 import "./features/find_a_grave_memorial_extractor/find_a_grave_memorial_extractor";
 
 import "./features/countdown/countdown";
 
 import "./features/reorderNames/reorderNames";
-import "./features/feed_helper/feed_helper";
+import "./features/feed_helper/feed_helper_bootstrap";
 
 import "./features/collapsible_descendants/collapsible_descendants";
 

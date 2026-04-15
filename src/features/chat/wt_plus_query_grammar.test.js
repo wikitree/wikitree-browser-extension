@@ -51,6 +51,7 @@ describe("wt_plus_query_grammar query validation and repair", () => {
     ["Manager=Athey-67", "Manager=Athey-67"],
     ["BirthCountry=England DeathCountry=UnknownCountry", "BirthCountry=England DeathCountry=UnknownCountry"],
     ["Created=Creator_Trtnik-2", "Created=Creator_Trtnik-2"],
+    ["Created=Created_2024", "Created=Created_2024"],
     ["heading=biography", "heading=biography"],
     ["Template=unsourced", "Template=unsourced"],
     ['sql="([Default].[Birth Date].AsNumber < 19000000)"', 'sql="([Default].[Birth Date].AsNumber < 19000000)"'],

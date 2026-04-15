@@ -566,17 +566,75 @@ function condLog(message, ...optionalParams) {
   }
 }
 
+// Apps-server login is cookie-based for the current user, so we can cache the
+// result once per user for the lifetime of the page load and reuse it across
+// all WBE features regardless of appId.
+const apiLoginStatusCache = new Map();
+
+function normalizeApiLoginCacheKey(userNumId) {
+  const normalized = String(userNumId || "").trim();
+  return normalized || null;
+}
+
+WikiTreeAPI.setCachedApiLoginStatus = function (userNumId, loggedIn) {
+  const cacheKey = normalizeApiLoginCacheKey(userNumId);
+  if (!cacheKey) {
+    return;
+  }
+
+  const value = Boolean(loggedIn);
+  apiLoginStatusCache.set(cacheKey, {
+    value,
+    promise: Promise.resolve(value),
+  });
+};
+
+WikiTreeAPI.clearCachedApiLoginStatus = function (userNumId) {
+  const cacheKey = normalizeApiLoginCacheKey(userNumId);
+  if (!cacheKey) {
+    apiLoginStatusCache.clear();
+    return;
+  }
+
+  apiLoginStatusCache.delete(cacheKey);
+};
+
 // Function to check login status
-WikiTreeAPI.isLoggedIntoAPI = async function (userNumId, appId = "WBE_check_login") {
-  if (!userNumId) return false;
-  const loginStatus = await WikiTreeAPI.postToAPI({
+WikiTreeAPI.isLoggedIntoAPI = async function (userNumId, appId = "WBE_check_login", options = {}) {
+  const cacheKey = normalizeApiLoginCacheKey(userNumId);
+  if (!cacheKey) return false;
+
+  const forceRefresh = Boolean(options?.forceRefresh);
+  const cached = !forceRefresh ? apiLoginStatusCache.get(cacheKey) : null;
+  if (cached && Object.prototype.hasOwnProperty.call(cached, "value")) {
+    return cached.value;
+  }
+
+  if (cached?.promise) {
+    return cached.promise;
+  }
+
+  const loginPromise = WikiTreeAPI.postToAPI({
     appId: appId,
     action: "clientLogin",
-    checkLogin: userNumId,
-  });
-  console.log("API Login Status: ", loginStatus);
+    checkLogin: cacheKey,
+  })
+    .then((loginStatus) => {
+      console.log("API Login Status: ", loginStatus);
+      const isLoggedIn = loginStatus?.clientLogin?.result == "ok";
+      apiLoginStatusCache.set(cacheKey, {
+        value: isLoggedIn,
+        promise: Promise.resolve(isLoggedIn),
+      });
+      return isLoggedIn;
+    })
+    .catch((error) => {
+      apiLoginStatusCache.delete(cacheKey);
+      throw error;
+    });
 
-  return loginStatus?.clientLogin?.result == "ok";
+  apiLoginStatusCache.set(cacheKey, { promise: loginPromise });
+  return loginPromise;
 };
 
 /**
