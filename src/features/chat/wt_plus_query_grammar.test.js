@@ -89,6 +89,8 @@ describe("wt_plus_query_grammar suggestions free text", () => {
   test("detects suggestions prompts", () => {
     expect(isLikelySuggestionsPrompt("suggestions 123 in devon")).toBe(true);
     expect(isLikelySuggestionsPrompt("error id 456 show hidden")).toBe(true);
+    expect(isLikelySuggestionsPrompt("profiles managed by england project with no project box")).toBe(true);
+    expect(isLikelySuggestionsPrompt("show me gedcom junk profiles")).toBe(true);
     expect(isLikelySuggestionsPrompt("born in devon")).toBe(false);
   });
 
@@ -112,5 +114,79 @@ describe("wt_plus_query_grammar suggestions free text", () => {
   test("returns null for empty suggestions parse", () => {
     const result = translateSuggestionsFreeTextToQuery(" ");
     expect(result).toBeNull();
+  });
+
+  test("maps project managed without project box phrasing to Suggestions=931", () => {
+    const result = translateSuggestionsFreeTextToQuery(
+      "profiles managed by england project but missing project box in bio"
+    );
+    expect(result).not.toBeNull();
+    expect(result.searchType).toBe("suggestions");
+    expect(result.suggestionId).toBe("931");
+    expect(result.query.startsWith("Suggestions=931")).toBe(true);
+  });
+
+  test("maps empty biography phrasing to Suggestions=802", () => {
+    const result = translateSuggestionsFreeTextToQuery("find profiles with no biography");
+    expect(result).not.toBeNull();
+    expect(result.searchType).toBe("suggestions");
+    expect(result.suggestionId).toBe("802");
+    expect(result.query.startsWith("Suggestions=802")).toBe(true);
+  });
+
+  test("maps almost empty biography phrasing to Suggestions=803", () => {
+    const result = translateSuggestionsFreeTextToQuery("show short biographies");
+    expect(result).not.toBeNull();
+    expect(result.searchType).toBe("suggestions");
+    expect(result.suggestionId).toBe("803");
+    expect(result.query.startsWith("Suggestions=803")).toBe(true);
+  });
+
+  test("maps GEDCOM junk phrasing to Suggestions=853", () => {
+    const result = translateSuggestionsFreeTextToQuery("find unclean gedcom profiles");
+    expect(result).not.toBeNull();
+    expect(result.searchType).toBe("suggestions");
+    expect(result.suggestionId).toBe("853");
+    expect(result.query.startsWith("Suggestions=853")).toBe(true);
+  });
+
+  test("maps unconnected empty public profile phrasing to Suggestions=901", () => {
+    const result = translateSuggestionsFreeTextToQuery("show unconnected empty public profiles");
+    expect(result).not.toBeNull();
+    expect(result.searchType).toBe("suggestions");
+    expect(result.suggestionId).toBe("901");
+    expect(result.query.startsWith("Suggestions=901")).toBe(true);
+  });
+
+  test("maps unconnected empty open profile phrasing to Suggestions=902", () => {
+    const result = translateSuggestionsFreeTextToQuery("find empty unconnected open profile");
+    expect(result).not.toBeNull();
+    expect(result.searchType).toBe("suggestions");
+    expect(result.suggestionId).toBe("902");
+    expect(result.query.startsWith("Suggestions=902")).toBe(true);
+  });
+
+  test("maps missing gender phrasing to Suggestions=509", () => {
+    const result = translateSuggestionsFreeTextToQuery("profiles with missing gender");
+    expect(result).not.toBeNull();
+    expect(result.searchType).toBe("suggestions");
+    expect(result.suggestionId).toBe("509");
+    expect(result.query.startsWith("Suggestions=509")).toBe(true);
+  });
+
+  test("maps uncleaned after merge phrasing to Suggestions=811", () => {
+    const result = translateSuggestionsFreeTextToQuery("show profiles with merge cleanup needed");
+    expect(result).not.toBeNull();
+    expect(result.searchType).toBe("suggestions");
+    expect(result.suggestionId).toBe("811");
+    expect(result.query.startsWith("Suggestions=811")).toBe(true);
+  });
+
+  test("maps duplicate lines phrasing to Suggestions=831", () => {
+    const result = translateSuggestionsFreeTextToQuery("biographies with duplicate lines");
+    expect(result).not.toBeNull();
+    expect(result.searchType).toBe("suggestions");
+    expect(result.suggestionId).toBe("831");
+    expect(result.query.startsWith("Suggestions=831")).toBe(true);
   });
 });

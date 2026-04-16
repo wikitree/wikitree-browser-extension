@@ -222,12 +222,20 @@ export function createChatHistoryHandlers({
       return original;
     }
 
+    const isWtPlusZeroResults =
+      /\bcould(?:\s+not|n't)\s+find\s+any\s+profiles\s+for\s+WT\+/i.test(original) &&
+      /\bWT\+\s+query\s*:/i.test(original);
+
     let message = original
       .replace(/^\s*I could not\b/i, "I'm sorry, I could not")
       .replace(/^\s*I couldn't\b/i, "I'm sorry, I couldn't")
       .trim();
 
     if (!/[?]$/.test(message)) {
+      if (isWtPlusZeroResults) {
+        message += " No results were found for this filter.";
+        return message;
+      }
       const hasAdviceAlready = /\b(try|please|refresh|restate|set it|log in)\b/i.test(message);
       message += hasAdviceAlready
         ? " What would you like to try next?"
@@ -310,7 +318,7 @@ export function createChatHistoryHandlers({
         '<div class="chat-query-box">',
         `<code class="chat-query-code">${escapedNoResultsQuery}</code>`,
         "</div>",
-        '<div class="chat-query-note">Could you try a more specific name or a WikiTree ID?</div>',
+        '<div class="chat-query-note">No results were found for this filter.</div>',
       ].join("");
     }
 

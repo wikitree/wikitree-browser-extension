@@ -359,6 +359,119 @@ const SUGGESTION_STOP_WORDS = new Set([
 
 let _suggestionKeywordIndex = null;
 
+const SUGGESTION_PHRASE_ALIASES = [
+  {
+    code: "931",
+    patterns: [
+      /\bproject\s*managed\b.*\b(?:with\s+no|missing|without)\b.*\bproject\s*box\b/i,
+      /\bmanaged\s+by\b.*\b(?:with\s+no|missing|without)\b.*\bproject\s*box\b/i,
+      /\bno\b.*\bproject\s*box\b.*\bproject\s*managed\b/i,
+    ],
+    titleHint: "Project managed but no project box",
+  },
+  {
+    code: "802",
+    patterns: [/\b(?:empty|blank|no)\b.*\bbiograph(?:y|ies)\b/i, /\bno\b.*\bbio\b/i],
+    titleHint: "Empty biography",
+  },
+  {
+    code: "803",
+    patterns: [
+      /\b(?:almost|near(?:ly)?)\b.*\bempty\b.*\bbiograph(?:y|ies)\b/i,
+      /\bshort\b.*\bbiograph(?:y|ies)\b/i,
+      /\bthin\b.*\bbio\b/i,
+    ],
+    titleHint: "Almost empty biography",
+  },
+  {
+    code: "853",
+    patterns: [/\bgedcom\b.*\bjunk\b/i, /\bgedcom\b.*\bunclean(?:ed)?\b/i, /\bunclean(?:ed)?\b.*\bgedcom\b/i],
+    titleHint: "GEDCOM Junk",
+  },
+  {
+    code: "891",
+    patterns: [/\bmissing\b.*\btemplate\b/i, /\btemplate\b.*\b(?:missing|doesn\s*'?t\s+exist|not\s+found)\b/i],
+    titleHint: "Missing template (system)",
+  },
+  {
+    code: "901",
+    patterns: [
+      /\bunconnected\b.*\bempty\b.*\bpublic\b.*\bprofile\b/i,
+      /\bempty\b.*\bunconnected\b.*\bpublic\b.*\bprofile\b/i,
+    ],
+    titleHint: "Unconnected empty public profile",
+  },
+  {
+    code: "902",
+    patterns: [
+      /\bunconnected\b.*\bempty\b.*\bopen\b.*\bprofile\b/i,
+      /\bempty\b.*\bunconnected\b.*\bopen\b.*\bprofile\b/i,
+    ],
+    titleHint: "Unconnected empty open profile",
+  },
+  {
+    code: "509",
+    patterns: [/\bmissing\b.*\bgender\b/i, /\bno\b.*\bgender\b/i, /\bgender\b.*\b(?:missing|unknown|blank|unset)\b/i],
+    titleHint: "Missing gender",
+  },
+  {
+    code: "811",
+    patterns: [
+      /\bunclean(?:ed)?\b.*\bprofile\b.*\bafter\b.*\bmerge\b/i,
+      /\bmerge\b.*\bcleanup\b/i,
+      /\bbiograph(?:y|ies)\b.*\bnot\b.*\bclean(?:ed|up)\b.*\bmerge\b/i,
+    ],
+    titleHint: "Uncleaned profile after merge",
+  },
+  {
+    code: "825",
+    patterns: [
+      /\bseparator\s+line\b.*\b={4,}\b/i,
+      /\buse\b.*\bseparator\s+line\b.*\b----\b/i,
+      /\bheading\b.*\bseparator\b.*\bequals\b/i,
+    ],
+    titleHint: "Use separator line ----",
+  },
+  {
+    code: "831",
+    patterns: [
+      /\bduplicate(?:d)?\b.*\bline(?:s)?\b/i,
+      /\bduplicate(?:d)?\b.*\bparagraph(?:s)?\b/i,
+      /\bmultiple\b.*\bduplicated\b.*\bline(?:s)?\b/i,
+    ],
+    titleHint: "Multiple duplicated lines",
+  },
+];
+
+function normalizeSuggestionFreeText(queryText) {
+  return String(queryText || "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function matchSuggestionByPhraseAlias(queryText) {
+  if (/\bSuggestions\s*=\s*\d+\b/i.test(String(queryText || ""))) return null;
+
+  const text = normalizeSuggestionFreeText(queryText);
+  if (!text) return null;
+
+  for (const alias of SUGGESTION_PHRASE_ALIASES) {
+    if (!Array.isArray(alias?.patterns) || !alias?.code) continue;
+    if (alias.patterns.some((pattern) => pattern.test(text))) {
+      return {
+        code: String(alias.code),
+        dbeId: `DBE_${alias.code}`,
+        cleanTitle: String(alias.titleHint || "").toLowerCase(),
+      };
+    }
+  }
+
+  return null;
+}
+
 function buildSuggestionKeywordIndex() {
   if (_suggestionKeywordIndex) return _suggestionKeywordIndex;
 
@@ -416,11 +529,10 @@ function matchSuggestionByNaturalLanguage(queryText) {
   // Skip if the query already carries an explicit Suggestions= term.
   if (/\bSuggestions\s*=\s*\d+\b/i.test(String(queryText || ""))) return null;
 
-  const text = String(queryText || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  const aliasMatch = matchSuggestionByPhraseAlias(queryText);
+  if (aliasMatch) return aliasMatch;
+
+  const text = normalizeSuggestionFreeText(queryText);
   if (text.length < 3) return null;
 
   const index = buildSuggestionKeywordIndex();

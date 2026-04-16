@@ -564,7 +564,20 @@ async function shouldAutoRouteWtPromptToWtPlus({ prompt, getChatAiConfig, buildR
     return false;
   }
 
-  const { provider, key, model } = await getChatAiConfig();
+  let provider = "";
+  let key = "";
+  let model = "";
+  try {
+    const aiConfig = (await getChatAiConfig()) || {};
+    provider = aiConfig.provider || "";
+    key = aiConfig.key || "";
+    model = aiConfig.model || "";
+  } catch (error) {
+    console.debug("wbe: WT/WT+ auto-route classifier config unavailable", {
+      error: String(error?.message || error),
+    });
+    return false;
+  }
   if (!key) {
     return false;
   }

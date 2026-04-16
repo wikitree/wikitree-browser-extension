@@ -34,6 +34,7 @@ import {
   formatSpousalAgeGapThreshold,
   parseSpousalAgeGapPrompt,
 } from "./chat_spouse_age_gap_filter";
+import { parseProjectMissingBoxPrompt } from "./chat_project_missing_box_filter";
 import wtPlusProjectsCatalog from "./wtplus_projects.json";
 
 // Build a compact one-line catalog of suggestion codes and titles for the AI
@@ -222,7 +223,7 @@ export function createProfileSearchHandler({
     if (value == null) return "";
     return String(value)
       .trim()
-      .replace(/^["“”'‘’\s\[]+|["“”'‘’\s\]]+$/g, "")
+      .replace(/^["“”'‘’`\s\[]+|["“”'‘’`\s\]]+$/g, "")
       .trim();
   }
 
@@ -768,32 +769,69 @@ export function createProfileSearchHandler({
     return wtPlusTemplateCatalogPromise;
   }
 
-  function findCanonicalWtPlusTemplateName(templateText) {
+  function normalizeWtPlusTemplateName(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function findCanonicalWtPlusTemplateName(templateText, options = {}) {
     const needle = stripSurroundingQuotes(templateText).toLowerCase().replace(/\s+/g, " ").trim();
     if (!needle) return null;
 
     const templates = Array.isArray(dataTables.templates) ? dataTables.templates : [];
     if (!templates.length) return null;
 
-    const normalize = (value) =>
-      String(value || "")
-        .toLowerCase()
-        .replace(/\s+/g, " ")
-        .trim();
+    const projectBoxOnly = options?.projectBoxOnly === true;
+    const candidates = projectBoxOnly
+      ? templates.filter((entry) => normalizeWtPlusTemplateName(entry?.type) === "project box")
+      : templates;
+    if (!candidates.length) return null;
 
-    const exact = templates.find((entry) => normalize(entry?.name) === needle);
+    const normalize = normalizeWtPlusTemplateName;
+
+    const exact = candidates.find((entry) => normalize(entry?.name) === needle);
     if (exact?.name) return exact.name;
 
-    const exactWithoutTemplateWord = templates.find(
+    const exactWithoutTemplateWord = candidates.find(
       (entry) => normalize(entry?.name).replace(/\s+template$/i, "") === needle.replace(/\s+template$/i, "")
     );
     if (exactWithoutTemplateWord?.name) return exactWithoutTemplateWord.name;
 
-    const startsWith = templates.find((entry) => normalize(entry?.name).startsWith(needle));
+    const startsWith = candidates.find((entry) => normalize(entry?.name).startsWith(needle));
     if (startsWith?.name) return startsWith.name;
 
-    const contains = templates.find((entry) => normalize(entry?.name).includes(needle));
+    const contains = candidates.find((entry) => normalize(entry?.name).includes(needle));
     if (contains?.name) return contains.name;
+
+    return null;
+  }
+
+  function findCanonicalWtPlusProjectBoxTemplateName(projectText) {
+    const normalizedProjectText = stripSurroundingQuotes(projectText).replace(/\s+/g, " ").trim();
+    if (!normalizedProjectText) {
+      return null;
+    }
+
+    const variants = new Set();
+    variants.add(normalizedProjectText);
+
+    const withoutProject = normalizedProjectText.replace(/\s+project$/i, "").trim();
+    if (withoutProject) {
+      variants.add(withoutProject);
+    }
+
+    if (!/\s+project$/i.test(normalizedProjectText)) {
+      variants.add(`${normalizedProjectText} Project`);
+    }
+
+    for (const variant of variants) {
+      const canonical = findCanonicalWtPlusTemplateName(variant, { projectBoxOnly: true });
+      if (canonical) {
+        return canonical;
+      }
+    }
 
     return null;
   }
@@ -806,7 +844,8 @@ export function createProfileSearchHandler({
 
     return text.replace(/TemplateText=((?:"[^"]*")|(?:'[^']*')|[^\s]+)/g, (full, rawValue) => {
       const templateValue = stripSurroundingQuotes(rawValue);
-      const canonical = findCanonicalWtPlusTemplateName(templateValue);
+      const canonical =
+        findCanonicalWtPlusTemplateName(templateValue) || findCanonicalWtPlusProjectBoxTemplateName(templateValue);
       return canonical ? `TemplateText=${quoteWtPlusValue(canonical)}` : full;
     });
   }
@@ -2148,11 +2187,15 @@ export function createProfileSearchHandler({
 
       const hasNameScopedTerm = terms.some((term) => /^(?:LastNameAtBirth|AllLastNames|WikiTreeID)=/.test(term));
       const hasConsumedStandaloneTerm = terms.some((term) => !/=/.test(String(term || "").trim()));
+      const hasDnaStandaloneTerm = terms.some((term) => /^(?:mtDNA|yDNA|auDNA)$/i.test(String(term || "").trim()));
       if (remainderTokens.length === 1) {
         const token = stripSurroundingQuotes(remainderTokens[0]);
         if (token && !/^(?:in|from)$/i.test(token)) {
           if (/^[A-Za-z][A-Za-z0-9_-]+-\d+$/i.test(token)) {
             addTerm(normalizeWtPlusFieldTerm("WikiTreeID", token), `WikiTree ID ${token}`);
+          } else if (hasDnaStandaloneTerm && !hasNameScopedTerm) {
+            // With DNA prompts, a lone ambiguous token is usually intended as a family name.
+            addTerm(normalizeWtPlusFieldTerm("LastNameAtBirth", token), `last name ${token}`);
           } else if (hasNameScopedTerm && extractedDateTokens.length > 0) {
             addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
           } else if (hasNameScopedTerm && extractedRawTokens.length > 0) {
@@ -2485,10 +2528,12 @@ export function createProfileSearchHandler({
     const text = normalizeWtPlusStatusAliases(queryText);
     if (!text) return null;
 
-    const normalizedText = text
-      .replace(/^\s*(?:search(?:\s+for)?|find|show|list|get|look(?:\s+up)?)\s+/i, "")
-      .replace(/^\s*(?:me\s+)?/i, "")
-      .trim();
+    const normalizedText = stripSurroundingQuotes(
+      text
+        .replace(/^\s*(?:search(?:\s+for)?|find|show|list|get|look(?:\s+up)?)\s+/i, "")
+        .replace(/^\s*(?:me\s+)?/i, "")
+        .trim()
+    );
 
     if (isLikelySuggestionsPrompt(normalizedText)) {
       const suggestionParse = translateSuggestionsFreeTextToQuery(normalizedText);
@@ -2505,6 +2550,19 @@ export function createProfileSearchHandler({
           suggestionOptions: suggestionParse.options || {},
         };
       }
+    }
+
+    const projectMissingBoxPrompt = parseProjectMissingBoxPrompt(normalizedText);
+    if (projectMissingBoxPrompt) {
+      const managerText = projectMissingBoxPrompt.projectName;
+      const query = `Manager=${quoteWtPlusValue(managerText)} Suggestions=931`;
+      return {
+        query,
+        title: `WT+ search: ${projectMissingBoxPrompt.understood}`,
+        description: projectMissingBoxPrompt.understood,
+        understood: projectMissingBoxPrompt.understood,
+        searchType: "projectMissingBox",
+      };
     }
 
     const parentAgeAtBirthPrompt = parseParentAgeAtBirthPrompt(normalizedText);
@@ -3256,6 +3314,15 @@ export function createProfileSearchHandler({
       const normalizedQuery = normalizeWtPlusQueryString(repairedQuery || completedQuery || "");
       if (!normalizedQuery) {
         console.info("wbe: callAiParseWtPlusQuery returned invalid query", { parsed, completedQuery, repairedQuery });
+        return null;
+      }
+
+      const malformedEmptyField = normalizedQuery.match(/\b([A-Za-z_][A-Za-z0-9_.]*)\s*=\s*(?:""|'')\b/);
+      if (malformedEmptyField?.[1]) {
+        console.info("wbe: callAiParseWtPlusQuery rejected malformed empty-value field", {
+          field: malformedEmptyField[1],
+          normalizedQuery,
+        });
         return null;
       }
 
@@ -5949,9 +6016,14 @@ export function createProfileSearchHandler({
         wtPlusOnlyConstraintRegex.test(rawQuery) ||
         wtPlusOnlyConstraintRegex.test(mainQuery) ||
         Boolean(matchSuggestionByNaturalLanguage(mainQuery)) ||
-        ["parentAgeAtBirth", "createdRecently", "spousalAgeGap", "marriedNoChildren", "siblingBirthGap"].includes(
-          localWtPlusQueryCandidate?.searchType
-        );
+        [
+          "parentAgeAtBirth",
+          "createdRecently",
+          "spousalAgeGap",
+          "marriedNoChildren",
+          "siblingBirthGap",
+          "projectMissingBox",
+        ].includes(localWtPlusQueryCandidate?.searchType);
       const shouldAutoRouteToWtPlus =
         chatMode !== "wtplus" &&
         Boolean(
@@ -6004,11 +6076,12 @@ export function createProfileSearchHandler({
         const explicitWtPlusQuery =
           parseExplicitWtPlusQuery(mainQuery) ||
           parseExplicitWtPlusQuery(rawQuery.replace(/^\s*(?:search:?|find|look(?:\s+up)?)\s+/i, ""));
-        const preferAiWtPlusQuery = shouldPreferAiWtPlusQuery(mainQuery);
         const localWtPlusQuery =
           explicitWtPlusQuery ||
           parseNaturalLanguageWtPlusQuery(mainQuery) ||
           parseCombinedNaturalLanguageWtPlusQuery(mainQuery);
+        const preferAiWtPlusQuery =
+          localWtPlusQuery?.searchType === "projectMissingBox" ? false : shouldPreferAiWtPlusQuery(mainQuery);
 
         console.info("wbe: WT+ routing decision", {
           rawQuery,
@@ -6033,6 +6106,7 @@ export function createProfileSearchHandler({
           "spousalAgeGap",
           "marriedNoChildren",
           "siblingBirthGap",
+          "projectMissingBox",
         ].includes(localWtPlusQuery?.searchType);
         const shouldUseAiFirst =
           !isCustomDeterministicQuery &&

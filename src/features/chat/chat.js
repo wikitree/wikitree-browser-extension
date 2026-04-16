@@ -2378,7 +2378,14 @@ function openResultsTable(result = lastStructuredResult, opts = {}) {
 }
 
 async function getChatOptions() {
-  return (await getFeatureOptions("chat")) || {};
+  try {
+    return (await getFeatureOptions("chat")) || {};
+  } catch (error) {
+    console.info("wbe: getChatOptions failed; using defaults", {
+      error: String(error?.message || error),
+    });
+    return {};
+  }
 }
 
 async function handleChatResult(result) {
@@ -2497,10 +2504,11 @@ async function handleChatResult(result) {
   if (result.table) {
     const options = await getChatOptions();
     const rowCount = result.table?.rows?.length || 0;
-    const isVeryLargeWtPlusTable = Boolean(result.table?.wtPlusQuery) && rowCount > CHAT_PERSISTED_STRUCTURED_ROWS_MAX;
     const shouldAutoOpen =
-      !isVeryLargeWtPlusTable &&
-      (result.autoOpen || options.showResultsInTable || rowCount >= AUTO_OPEN_TABLE_MIN_ROWS);
+      result.autoOpen ||
+      options.showResultsInTable ||
+      rowCount >= AUTO_OPEN_TABLE_MIN_ROWS ||
+      Boolean(result.table?.wtPlusQuery);
     if (shouldAutoOpen) {
       openResultsTable(result.table);
     }
@@ -3379,7 +3387,15 @@ async function shouldOfferAppsLoginHint() {
     return false;
   }
 
-  const usabilityOptions = (await getFeatureOptions("usabilityTweaks")) || {};
+  let usabilityOptions = {};
+  try {
+    usabilityOptions = (await getFeatureOptions("usabilityTweaks")) || {};
+  } catch (error) {
+    console.debug("wbe: usability options unavailable for apps login hint; using defaults", {
+      error: String(error?.message || error),
+    });
+  }
+
   const addApiLoginButton = usabilityOptions.addApiLoginButton || "all";
   if (!shouldExpectAppsLoginButton(addApiLoginButton)) {
     return false;
@@ -3399,7 +3415,8 @@ async function shouldOfferAppsLoginHint() {
     return !isLoggedIntoAppsServer;
   } catch (error) {
     console.debug("wbe: apps login hint check failed", error);
-    return false;
+    // If the status check fails transiently, still offer the hint when the button is expected but missing.
+    return true;
   }
 }
 
