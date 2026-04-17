@@ -2229,6 +2229,22 @@ function openResultsTable(result = lastStructuredResult, opts = {}) {
     return;
   }
 
+  const formatResultsPopupTitle = (rawTitle, rowCount) => {
+    const titleText = String(rawTitle || "Chat Results").trim() || "Chat Results";
+    const count = Number.isFinite(Number(rowCount)) ? Number(rowCount) : 0;
+    if (count <= 0) {
+      return titleText;
+    }
+
+    if (/\(\s*\d+\s+results?\s*\)$/i.test(titleText)) {
+      return titleText;
+    }
+
+    return `${titleText} (${count} ${count === 1 ? "result" : "results"})`;
+  };
+
+  const popupTitle = formatResultsPopupTitle(result.title, Array.isArray(result.rows) ? result.rows.length : 0);
+
   // Allow caller to request specific popup/table ids (used for toggling a
   // per-history-message table). Otherwise generate a unique id.
   let popupId, tableId;
@@ -2246,7 +2262,7 @@ function openResultsTable(result = lastStructuredResult, opts = {}) {
   const popupHtml = `
     <div id="${popupId}" class="wbe-popup chat-results-popup">
       <div class="chat-results-header">
-        <strong>${escapeHtml(result.title || "Chat Results")}</strong>
+        <strong>${escapeHtml(popupTitle)}</strong>
         <button type="button" class="small close-popup" aria-label="Close" title="Close">&times;</button>
       </div>
       <div class="chat-results-body">
@@ -3407,7 +3423,7 @@ async function shouldOfferAppsLoginHint() {
 
   const userNumId = getUserNumId();
   if (!userNumId) {
-    return false;
+    return true;
   }
 
   try {

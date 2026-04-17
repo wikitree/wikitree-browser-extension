@@ -877,6 +877,519 @@ export function createProfileSearchHandler({
     };
   }
 
+  function normalizeWtPlusCategorySearchSeed(value) {
+    return String(value || "")
+      .replace(/^\s*(?:search(?:\s+for)?|find|show|list|get|look(?:\s+up)?)\s+/i, "")
+      .replace(/\b(?:profiles?|people|members?)\b/gi, " ")
+      .replace(/\bcategory\b/gi, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
+
+  function toWtPlusCategorySearchTextFromCategoryFull(value) {
+    const normalized = String(value || "")
+      .replace(/__+/g, ", ")
+      .replace(/_/g, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    return normalizeWtPlusCategorySearchSeed(normalized);
+  }
+
+  function toWtPlusCategoryFullValueFromCategoryName(value) {
+    const normalized = String(value || "")
+      .replace(/_+/g, " ")
+      .replace(/\s*,\s*/g, ", ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    if (!normalized) return "";
+    return normalized.replace(/,\s+/g, "__").replace(/\s+/g, "_");
+  }
+
+  function extractSingleWtPlusCategoryToken(queryText) {
+    const normalizedQuery = String(queryText || "").trim();
+    if (!normalizedQuery || /\s+OR\s+/i.test(normalizedQuery)) {
+      return null;
+    }
+
+    const tokens = tokenizeWtPlusQueryText(normalizedQuery);
+    if (!tokens.length) {
+      return null;
+    }
+
+    const categoryTokens = tokens.filter((token) => /^(?:CategoryFull|CategoryWord)=/i.test(String(token || "").trim()));
+    if (categoryTokens.length !== 1) {
+      return null;
+    }
+
+    const categoryToken = String(categoryTokens[0] || "").trim();
+    const eqIdx = categoryToken.indexOf("=");
+    const field = categoryToken.slice(0, eqIdx);
+    const rawValue = categoryToken.slice(eqIdx + 1);
+    const categoryValue = stripSurroundingQuotes(rawValue);
+    const baseQuery = tokens
+      .filter((token) => String(token || "").trim() !== categoryToken)
+      .join(" ")
+      .trim();
+
+    return {
+      field,
+      categoryValue,
+      baseQuery,
+    };
+  }
+
+  function extractWtPlusFieldValueFromQuery(queryText, fieldName) {
+    const escapedField = String(fieldName || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`${escapedField}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s]+))`, "i");
+    const match = String(queryText || "").match(regex);
+    if (!match) return "";
+    return stripSurroundingQuotes(match[1] || match[2] || match[3] || "");
+  }
+
+  const WT_PLUS_KNOWN_COUNTRY_NAMES = [
+    "England",
+    "Scotland",
+    "Wales",
+    "Ireland",
+    "United States",
+    "Canada",
+    "Australia",
+    "New Zealand",
+    "Germany",
+    "Portugal",
+    "France",
+    "Spain",
+    "Italy",
+    "Netherlands",
+    "Belgium",
+    "Sweden",
+    "Norway",
+    "Denmark",
+    "Finland",
+    "Poland",
+    "Czech Republic",
+    "Austria",
+    "Switzerland",
+  ];
+
+  function findKnownCountryInText(value) {
+    const text = String(value || "").trim();
+    if (!text) return "";
+    const normalized = text.toLowerCase();
+    const match = WT_PLUS_KNOWN_COUNTRY_NAMES.find((country) =>
+      new RegExp(`(^|\\b)${country.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}(\\b|$)`, "i").test(normalized)
+    );
+    return match || "";
+  }
+
+  function scoreWtPlusLocationCandidate(requestedLocation, candidate) {
+    const requested = normalizeWtPlusCategoryText(requestedLocation);
+    if (!requested) return -1;
+
+    const parts = [candidate?.category, candidate?.location, candidate?.name, candidate?.parent, candidate?.locationParent]
+      .map((value) => normalizeWtPlusCategoryText(value))
+      .filter(Boolean);
+    if (!parts.length) return -1;
+
+    let score = 0;
+    parts.forEach((part) => {
+      if (part === requested) score += 300;
+      if (part.startsWith(requested) || requested.startsWith(part)) score += 120;
+      if (part.includes(requested) || requested.includes(part)) score += 80;
+    });
+    return score;
+  }
+
+  function extractCountryScopeFromLocationCandidate(candidate) {
+    const fields = [candidate?.locationParent, candidate?.parent, candidate?.gParent, candidate?.ggParent, candidate?.location];
+    for (const field of fields) {
+      const country = findKnownCountryInText(field);
+      if (country) {
+        return country;
+      }
+    }
+    return "";
+  }
+
+  async function inferCountryScopeFromLocationText(locationText) {
+    const location = stripSurroundingQuotes(locationText);
+    if (!location) {
+      return "";
+    }
+
+    const directCountry = findKnownCountryInText(location);
+    if (directCountry) {
+      return directCountry;
+    }
+
+    try {
+      const response = await wtAPICatCIBSearch("ChatWTPlusCountryScope", "location", location);
+      const categories = Array.isArray(response?.response?.categories) ? response.response.categories : [];
+      if (!categories.length) {
+        return "";
+      }
+
+      const ranked = categories
+        .map((entry) => ({ entry, score: scoreWtPlusLocationCandidate(location, entry) }))
+        .sort((left, right) => right.score - left.score);
+
+      for (const rankedEntry of ranked) {
+        const country = extractCountryScopeFromLocationCandidate(rankedEntry?.entry);
+        if (country) {
+          return country;
+        }
+      }
+    } catch (error) {
+      console.info("wbe: country-scope location lookup failed", { location, error });
+    }
+
+    return "";
+  }
+
+  async function inferCountryScopeFromWtPlusQuery(queryText) {
+    const fields = ["Location", "BirthLocation", "DeathLocation", "MarriageLocation"];
+    for (const field of fields) {
+      const locationValue = extractWtPlusFieldValueFromQuery(queryText, field);
+      if (!locationValue) continue;
+      const country = await inferCountryScopeFromLocationText(locationValue);
+      if (country) {
+        return country;
+      }
+    }
+    return "";
+  }
+
+  function buildWtPlusCategorySearchSeeds({
+    aiSeed,
+    fallbackSeed,
+    seedFromCategory,
+    parsedCategory,
+    rawPrompt,
+    countryScope,
+  }) {
+    const seeds = [];
+    const pushSeed = (value) => {
+      const normalized = normalizeWtPlusCategorySearchSeed(value);
+      if (!normalized) return;
+      if (seeds.some((existing) => existing.toLowerCase() === normalized.toLowerCase())) return;
+      seeds.push(normalized);
+    };
+
+    const categoryLabel = stripSurroundingQuotes(
+      /^CategoryWord$/i.test(parsedCategory?.field || "")
+        ? parsedCategory?.categoryValue || ""
+        : toWtPlusCategorySearchTextFromCategoryFull(seedFromCategory)
+    );
+
+    if (countryScope && categoryLabel) {
+      pushSeed(`${countryScope}, ${categoryLabel}`);
+      pushSeed(`${countryScope} ${categoryLabel}`);
+    }
+
+    pushSeed(aiSeed);
+    pushSeed(fallbackSeed);
+    pushSeed(seedFromCategory);
+
+    const categoryWord = /^CategoryWord$/i.test(parsedCategory?.field || "")
+      ? stripSurroundingQuotes(parsedCategory?.categoryValue || "")
+      : "";
+    const locationFromBase = extractWtPlusFieldValueFromQuery(parsedCategory?.baseQuery || "", "Location");
+    if (locationFromBase && categoryWord) {
+      pushSeed(`${locationFromBase}, ${categoryWord}`);
+      pushSeed(`${locationFromBase} ${categoryWord}`);
+    }
+
+    // If user typed two words (e.g., "Yorkshire miners"), also try a comma form
+    // used by WT+ category-name search examples ("Yorkshire, miners").
+    const promptText = normalizeWtPlusCategorySearchSeed(rawPrompt);
+    const promptTokens = promptText.split(/\s+/).filter(Boolean);
+    if (promptTokens.length >= 2) {
+      pushSeed(`${promptTokens[0]}, ${promptTokens.slice(1).join(" ")}`);
+    }
+
+    return seeds;
+  }
+
+  async function wtAPISearchCategoryNamesByText(searchText, hierarchy = 1) {
+    const query = normalizeWtPlusCategorySearchSeed(searchText);
+    if (!query) {
+      return [];
+    }
+
+    const normalizedHierarchy = Number.isFinite(Number(hierarchy)) ? Number(hierarchy) : 10;
+    const url = `https://plus.wikitree.com/function/wtCatSearch/WBE_Muse.json?query=${encodeURIComponent(
+      query
+    )}&hierarchy=${encodeURIComponent(String(normalizedHierarchy))}`;
+    const response = await fetch(url, {
+      method: "GET",
+      credentials: "omit",
+      cache: "no-cache",
+    });
+    if (!response?.ok) {
+      throw new Error(`WT+ category text search failed: ${response?.status || "unknown"}`);
+    }
+
+    const payload = await response.json();
+    const categories = Array.isArray(payload?.response?.categories) ? payload.response.categories : [];
+    return categories;
+  }
+
+  async function collectRecursiveWtPlusCategoryNames(searchText, options = {}) {
+    const maxDepth = Number.isFinite(options?.maxDepth) ? Math.max(0, Number(options.maxDepth)) : 2;
+    const maxRequests = Number.isFinite(options?.maxRequests) ? Math.max(1, Number(options.maxRequests)) : 14;
+    const maxCategories = Number.isFinite(options?.maxCategories) ? Math.max(1, Number(options.maxCategories)) : 60;
+    const hierarchy = Number.isFinite(Number(options?.hierarchy)) ? Number(options.hierarchy) : 10;
+
+    const seenQueries = new Set();
+    const seenCategories = new Set();
+    const categoryNames = [];
+    const queue = [{ text: normalizeWtPlusCategorySearchSeed(searchText), depth: 0 }];
+    let requestCount = 0;
+
+    while (queue.length && requestCount < maxRequests && categoryNames.length < maxCategories) {
+      const current = queue.shift();
+      const text = normalizeWtPlusCategorySearchSeed(current?.text || "");
+      const depth = Number.isFinite(current?.depth) ? Number(current.depth) : 0;
+      if (!text) continue;
+      const queryKey = text.toLowerCase();
+      if (seenQueries.has(queryKey)) continue;
+      seenQueries.add(queryKey);
+
+      let matches = [];
+      try {
+        requestCount += 1;
+        matches = await wtAPISearchCategoryNamesByText(text, hierarchy);
+      } catch (error) {
+        console.info("wbe: WT+ recursive category text search failed", { text, depth, error });
+        continue;
+      }
+
+      for (const entry of matches) {
+        const categoryName = String(entry?.Name || entry?.category || "").trim();
+        if (!categoryName) continue;
+        const categoryKey = categoryName.toLowerCase();
+        if (!seenCategories.has(categoryKey)) {
+          seenCategories.add(categoryKey);
+          categoryNames.push(categoryName);
+        }
+
+        if (depth >= maxDepth || categoryNames.length >= maxCategories) {
+          continue;
+        }
+
+        const childSearchSeed = normalizeWtPlusCategorySearchSeed(categoryName.replace(/_+/g, " "));
+        if (childSearchSeed) {
+          queue.push({ text: childSearchSeed, depth: depth + 1 });
+        }
+      }
+    }
+
+    return {
+      categoryNames,
+      requestCount,
+    };
+  }
+
+  async function callAiInferCategoryExpansionSeed(rawPrompt, currentQuery, fallbackSeed) {
+    try {
+      const options = await getChatOptions();
+      if (!options?.allowAiFallback) return "";
+
+      const { provider, key, model } = await getChatAiConfig();
+      if (!key) return "";
+
+      const prompt = [
+        "You normalize a category text-search seed for WikiTree+ category-name search.",
+        "Return strict JSON only and nothing else.",
+        '{"categorySearchText":"<seed text>"}',
+        "The seed should target broad category names (for report=srch5), while leaving profile filters such as Location in the WT+ query.",
+        "Prefer canonical geography in category names when needed (for example Yorkshire -> England where appropriate).",
+        "Use plain words separated by spaces; no field=value syntax.",
+        `Prompt: ${String(rawPrompt || "").trim()}`,
+        `Current WT+ query: ${String(currentQuery || "").trim()}`,
+        `Fallback seed: ${String(fallbackSeed || "").trim()}`,
+      ].join("\n");
+
+      let aiResult = null;
+      if (typeof window.callAiModel === "function") {
+        aiResult = await window.callAiModel(prompt);
+      } else {
+        const payload = {
+          action: "chatWithAI",
+          provider,
+          key,
+          model,
+          prompt,
+          includeApiDocContext: false,
+        };
+
+        const sendToBg = (pl) =>
+          new Promise((resolve) => {
+            try {
+              chrome.runtime.sendMessage(pl, (resp) => {
+                if (chrome.runtime.lastError) {
+                  resolve({ success: false, error: chrome.runtime.lastError.message });
+                  return;
+                }
+                resolve(resp || { success: false, error: "no-response" });
+              });
+            } catch (error) {
+              resolve({ success: false, error: String(error?.message || error) });
+            }
+          });
+
+        const resp = await sendToBg(payload);
+        if (!resp?.success || typeof resp.response !== "string") {
+          return "";
+        }
+        aiResult = resp.response;
+      }
+
+      const txt = String(aiResult || "");
+      const jsonMatch = txt.match(/\{[\s\S]*\}/);
+      const jsonText = jsonMatch ? jsonMatch[0] : txt;
+      const parsed = JSON.parse(jsonText);
+      return normalizeWtPlusCategorySearchSeed(parsed?.categorySearchText || "");
+    } catch (error) {
+      console.info("wbe: AI category-seed inference failed", { error });
+      return "";
+    }
+  }
+
+  async function maybeExpandWtPlusCategoryTreeQuery(queryText, runOptions = {}) {
+    const query = String(queryText || "").trim();
+    if (!query || /\s+OR\s+/i.test(query)) {
+      return null;
+    }
+
+    const parsedCategory = extractSingleWtPlusCategoryToken(query);
+    if (!parsedCategory?.categoryValue) {
+      return null;
+    }
+
+    const rawPrompt = String(runOptions?.rawPrompt || "").trim();
+    const seedFromCategory =
+      /^CategoryFull$/i.test(parsedCategory.field)
+        ? toWtPlusCategorySearchTextFromCategoryFull(parsedCategory.categoryValue)
+        : normalizeWtPlusCategorySearchSeed(parsedCategory.categoryValue);
+    const fallbackSeed = normalizeWtPlusCategorySearchSeed(rawPrompt) || seedFromCategory;
+    if (!fallbackSeed) {
+      return null;
+    }
+
+    const countryScope = await inferCountryScopeFromWtPlusQuery(parsedCategory.baseQuery || query);
+    const categoryWord = /^CategoryWord$/i.test(parsedCategory.field || "")
+      ? stripSurroundingQuotes(parsedCategory.categoryValue)
+      : "";
+    const aiSeed = await callAiInferCategoryExpansionSeed(rawPrompt, query, fallbackSeed);
+    const effectiveSeed = aiSeed || fallbackSeed;
+    const seedsToTry = buildWtPlusCategorySearchSeeds({
+      aiSeed,
+      fallbackSeed,
+      seedFromCategory,
+      parsedCategory,
+      rawPrompt,
+      countryScope,
+    });
+
+    let categoryNames = [];
+    let requestCount = 0;
+    let usedSeed = "";
+    for (const seed of seedsToTry) {
+      const result = await collectRecursiveWtPlusCategoryNames(seed, {
+        maxDepth: 2,
+        maxRequests: 14,
+        maxCategories: 48,
+        hierarchy: 10,
+      });
+      requestCount += Number(result?.requestCount || 0);
+      if (Array.isArray(result?.categoryNames) && result.categoryNames.length) {
+        categoryNames = result.categoryNames;
+        usedSeed = seed;
+        break;
+      }
+    }
+
+    if (!Array.isArray(categoryNames) || !categoryNames.length) {
+      console.info("wbe: WT+ category-tree expansion found no category-name matches", {
+        originalQuery: query,
+        effectiveSeed,
+        seedsTried: seedsToTry,
+        countryScope,
+      });
+      return null;
+    }
+
+    const normalizedCountryScope = String(countryScope || "").trim().toLowerCase();
+    const normalizedCategoryWord = String(categoryWord || "").trim().toLowerCase();
+    const filteredCategoryNames = categoryNames.filter((categoryName) => {
+      if (!normalizedCountryScope) {
+        return true;
+      }
+
+      const plainName = String(categoryName || "")
+        .replace(/_+/g, " ")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+      if (!plainName) {
+        return false;
+      }
+
+      const countryMention = findKnownCountryInText(plainName);
+      if (countryMention && String(countryMention).toLowerCase() !== normalizedCountryScope) {
+        return false;
+      }
+
+      // Drop unscoped generic root categories when a scoped country root is known.
+      if (normalizedCategoryWord && plainName.toLowerCase() === normalizedCategoryWord) {
+        return false;
+      }
+
+      return true;
+    });
+
+    const categoryValues = [];
+    const seenValues = new Set();
+    const addCategoryValue = (value) => {
+      const normalizedValue = String(value || "").trim();
+      if (!normalizedValue) return;
+      const key = normalizedValue.toLowerCase();
+      if (seenValues.has(key)) return;
+      seenValues.add(key);
+      categoryValues.push(normalizedValue);
+    };
+
+    // Keep the scoped seed category first, then append discovered hierarchy categories.
+    const anchoredRootCategory = countryScope && categoryWord ? `${countryScope}, ${categoryWord}` : seedFromCategory;
+    addCategoryValue(toWtPlusCategoryFullValueFromCategoryName(anchoredRootCategory));
+    filteredCategoryNames.forEach((name) => addCategoryValue(toWtPlusCategoryFullValueFromCategoryName(name)));
+
+    if (categoryValues.length <= 1) {
+      return null;
+    }
+
+    const baseQuery = String(parsedCategory.baseQuery || "").trim();
+    const expandedBranches = categoryValues
+      .map((categoryValue) =>
+        [baseQuery, `CategoryFull=${quoteWtPlusValue(categoryValue)}`]
+          .filter(Boolean)
+          .join(" ")
+          .trim()
+      )
+      .filter(Boolean);
+    if (expandedBranches.length <= 1) {
+      return null;
+    }
+
+    return {
+      expandedQuery: canonicalizeWtPlusBranchTermOrder(expandedBranches.join(" OR ")),
+      seed: usedSeed || effectiveSeed,
+      categoryValues,
+      requestCount,
+      countryScope,
+    };
+  }
+
   function normalizeWtPlusProjectLookupKey(value) {
     return String(value || "")
       .toLowerCase()
@@ -3219,6 +3732,7 @@ export function createProfileSearchHandler({
         "Do not treat command words as surname/location values (e.g., search, find, show, list, get, name) unless clearly quoted or explicitly assigned.",
         "For patterns like '<surname> born in <location> between <year> and <year>', map surname to AllLastNames (or LastNameAtBirth when clearly LNAB), map the place phrase after 'in' to BirthLocation/Location, emit NCen for that century, and keep the narrower date range in sql=.",
         "For disjunctive life-event prompts like 'born, married, or died in <place> before <year>', prefer an OR query that applies the same place/date constraint to each relevant event (birth/marriage/death) rather than treating words like 'born' as names or locations.",
+        "For shorthand prompts like '<place> <group/occupation>' (for example 'Yorkshire miners'), treat this as a likely category intent: keep location as a profile filter (for example Location=Yorkshire) and prefer category terms (CategoryWord/CategoryFull) over interpreting the group word as a surname.",
         "CRITICAL: Raw tokens (ProjectManaged, PPP, NeverEdited, GEDCOMJunk, SourceJunk, IsInWikiData, ApprovedMerge, PendingMerge, UnmergedMatch, mtDNA, yDNA, auDNA, NoFather, NoMother, NoParents, NoSpouses, NoChildren, NoGender, male, female, Open, Unsourced, Unconnected, Orphan, pre1500, B0, D0, etc.) are ALWAYS bare standalone tokens. NEVER write them as field=value (e.g. 'ProjectManaged=\"England Project\"' is ALWAYS wrong). Use them as bare words only.",
         "IMPORTANT: Do NOT use IsLiving or IsLiving=anything. The IsLiving field is not supported by WT+ and will return no results. Ignore any request to filter by living/not-living status.",
         "For 'managed by <project> PPP': the manager name ends before the first standalone raw token. Example: 'managed by england project ppp' => Manager=\"England Project\" PPP (NOT ProjectManaged=\"England Project\")",
@@ -3414,6 +3928,11 @@ export function createProfileSearchHandler({
     const looksLikeSingleWordNameOrPlace = bareTokens.length === 1 && /^[A-Za-z][A-Za-z'\-]{1,}$/.test(bareTokens[0]);
     const isKnownRawToken =
       bareTokens.length === 1 && /^(?:open|unsourced|unconnected|orphan|notables)$/i.test(bareTokens[0]);
+    const looksLikePlacePlusGroupHint =
+      bareTokens.length >= 2 &&
+      bareTokens.length <= 4 &&
+      /^[A-Za-z][A-Za-z'\-]{2,}$/.test(String(bareTokens[0] || "")) &&
+      /(?:ers|ors|ists|ians|men|women|people|project|projects|families)$/i.test(String(bareTokens[bareTokens.length - 1] || ""));
     const hasQualifierToken = bareTokens.some((token) => isDateMagicToken(token) || isRawStatusOrQualifierToken(token));
     const semanticClauseCount = [
       hasFamilyRoot,
@@ -3473,6 +3992,10 @@ export function createProfileSearchHandler({
       !explicitLocationOrSurnameHint &&
       semanticClauseCount === 0
     ) {
+      return true;
+    }
+
+    if (looksLikePlacePlusGroupHint && !looksLikeWtId && !hasExplicitField) {
       return true;
     }
 
@@ -3773,6 +4296,7 @@ export function createProfileSearchHandler({
     const suggestionOptions = runOptions?.suggestionOptions || {};
     const effectiveSearchType = runOptions?.searchType || interpretation?.searchType || "text";
     const isSuggestionsSearch = effectiveSearchType === "suggestions";
+    const rawPromptForRun = String(runOptions?.rawPrompt || "").trim();
     const parentAgeAtBirthFilter =
       effectiveSearchType === "parentAgeAtBirth"
         ? runOptions?.customFilter || interpretation?.customFilter || null
@@ -3787,6 +4311,30 @@ export function createProfileSearchHandler({
         : null;
     const spousalAgeGapFilter =
       effectiveSearchType === "spousalAgeGap" ? runOptions?.customFilter || interpretation?.customFilter || null : null;
+
+    if (effectiveSearchType === "text") {
+      try {
+        const categoryExpansion = await maybeExpandWtPlusCategoryTreeQuery(canonicalQuery, {
+          rawPrompt: rawPromptForRun,
+        });
+        if (categoryExpansion?.expandedQuery && categoryExpansion.expandedQuery !== canonicalQuery) {
+          console.info("wbe: expanded WT+ category query via recursive category-name search", {
+            originalQuery: canonicalQuery,
+            expandedQuery: categoryExpansion.expandedQuery,
+            seed: categoryExpansion.seed,
+            categoryCount: categoryExpansion.categoryValues?.length || 0,
+            requestCount: categoryExpansion.requestCount || 0,
+          });
+          canonicalQuery = categoryExpansion.expandedQuery;
+        }
+      } catch (error) {
+        console.info("wbe: WT+ category-tree expansion failed; using canonical query", {
+          canonicalQuery,
+          rawPromptForRun,
+          error,
+        });
+      }
+    }
 
     if (!isSuggestionsSearch && !hasPrimaryScopeTermInWtPlusQuery(canonicalQuery)) {
       return {
@@ -6135,6 +6683,7 @@ export function createProfileSearchHandler({
             customFilter: localWtPlusQuery.customFilter,
             suggestionId: localWtPlusQuery.suggestionId,
             suggestionOptions: localWtPlusQuery.suggestionOptions,
+            rawPrompt: rawQuery,
           });
           const canTryAiReparse = localWtPlusQuery.searchType !== "suggestions" && isWtPlusZeroResults(localRunResult);
           if (canTryAiReparse) {
@@ -6149,7 +6698,9 @@ export function createProfileSearchHandler({
               });
               recordWtPlusParseTelemetry("parsedLocal");
               return annotateAutoRoutedWtPlusResult(
-                await runWtPlusProfileQuery(deterministicRetry.query, deterministicRetry.title, deterministicRetry)
+                await runWtPlusProfileQuery(deterministicRetry.query, deterministicRetry.title, deterministicRetry, {
+                  rawPrompt: rawQuery,
+                })
               );
             }
 
@@ -6167,7 +6718,9 @@ export function createProfileSearchHandler({
               });
               recordWtPlusParseTelemetry("parsedAi");
               return annotateAutoRoutedWtPlusResult(
-                await runWtPlusProfileQuery(aiRetryQuery.query, aiRetryQuery.title, aiRetryQuery)
+                await runWtPlusProfileQuery(aiRetryQuery.query, aiRetryQuery.title, aiRetryQuery, {
+                  rawPrompt: rawQuery,
+                })
               );
             }
           }
@@ -6182,7 +6735,9 @@ export function createProfileSearchHandler({
             aiQuery: aiWtPlusQuery.query,
           });
           recordWtPlusParseTelemetry("parsedAi");
-          const aiRunResult = await runWtPlusProfileQuery(aiWtPlusQuery.query, aiWtPlusQuery.title, aiWtPlusQuery);
+          const aiRunResult = await runWtPlusProfileQuery(aiWtPlusQuery.query, aiWtPlusQuery.title, aiWtPlusQuery, {
+            rawPrompt: rawQuery,
+          });
           if (isWtPlusExecutionFailure(aiRunResult) && localWtPlusQuery?.query) {
             if (shouldUseAiFirst) {
               console.info(
@@ -6202,7 +6757,9 @@ export function createProfileSearchHandler({
             });
             recordWtPlusParseTelemetry("parsedLocal");
             return annotateAutoRoutedWtPlusResult(
-              await runWtPlusProfileQuery(localWtPlusQuery.query, localWtPlusQuery.title, localWtPlusQuery)
+              await runWtPlusProfileQuery(localWtPlusQuery.query, localWtPlusQuery.title, localWtPlusQuery, {
+                rawPrompt: rawQuery,
+              })
             );
           }
           return annotateAutoRoutedWtPlusResult(aiRunResult);
@@ -6236,7 +6793,10 @@ export function createProfileSearchHandler({
               await runWtPlusProfileQuery(
                 repairedSuggestionsFallback.query,
                 repairedSuggestionsFallback.title,
-                repairedSuggestionsFallback
+                repairedSuggestionsFallback,
+                {
+                  rawPrompt: rawQuery,
+                }
               )
             );
           }
@@ -6246,7 +6806,9 @@ export function createProfileSearchHandler({
             localSearchType: localWtPlusQuery.searchType || "text",
           });
           return annotateAutoRoutedWtPlusResult(
-            await runWtPlusProfileQuery(localWtPlusQuery.query, localWtPlusQuery.title, localWtPlusQuery)
+            await runWtPlusProfileQuery(localWtPlusQuery.query, localWtPlusQuery.title, localWtPlusQuery, {
+              rawPrompt: rawQuery,
+            })
           );
         }
       }

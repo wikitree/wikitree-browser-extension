@@ -715,7 +715,11 @@ export function createChatHistoryHandlers({
   }
 
   function hasAppsLoginHintAlready() {
-    return getHistory().some((message) => {
+    const recentAssistantMessages = getHistory()
+      .filter((message) => message?.role === "assistant")
+      .slice(-8);
+
+    return recentAssistantMessages.some((message) => {
       if (message?.role !== "assistant") {
         return false;
       }
