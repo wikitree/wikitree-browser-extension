@@ -8237,6 +8237,8 @@ export async function generateBio() {
     setBioText(finalOutput);
     removeWorking();
 
+    console.log("references", window.references);
+
     addAutoBioUI(); // Add the Auto Bio UI buttons
   } catch (error) {
     console.log(error);

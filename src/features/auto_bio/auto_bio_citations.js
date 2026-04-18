@@ -7,8 +7,9 @@ export function getFindAGraveLink(text) {
   const match4 = /database and images/;
   const match5 = /^\s?Find a Grave:?( memorial)? #?(\d+)\.?$/i;
   const sourcerMatch = /'''.+<br(.*)?>.+<br(.*)?>/;
+  const familySearchFindAGraveMatch = /"Find a Grave Index"/;
 
-  if (!text.match(sourcerMatch)) {
+  if (!text.match(sourcerMatch) || text.match(familySearchFindAGraveMatch)) {
     if (text.match(match1)) {
       return text.match(match1)[1];
     } else if (text.match(match2)) {
