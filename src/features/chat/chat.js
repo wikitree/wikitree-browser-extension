@@ -3641,6 +3641,9 @@ function init() {
   // Restore persisted chat state (history, last structured/table, last bio)
   try {
     loadHistory();
+    if (document.getElementById(CHAT_POPUP_ID)) {
+      renderHistory();
+    }
   } catch (e) {
     /* ignore load errors */
   }

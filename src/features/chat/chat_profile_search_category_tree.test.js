@@ -11,6 +11,7 @@ jest.mock("../../core/common", () => ({
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { wtAPICatCIBSearch } from "../../core/API/wtPlusAPI";
 import { createProfileSearchHandler } from "./chat_profile_search";
+import { makeStandardProfileTable } from "./tables";
 
 function makeHandler(overrides = {}) {
   return createProfileSearchHandler({
@@ -113,7 +114,7 @@ describe("chat_profile_search category tree expansion", () => {
       }
       return JSON.stringify({
         understood: "Yorkshire miners category search",
-        query: 'Location=Yorkshire CategoryWord=Miners',
+        query: "Location=Yorkshire CategoryWord=Miners",
       });
     });
   });
@@ -134,6 +135,7 @@ describe("chat_profile_search category tree expansion", () => {
     expect(executedQuery).toContain("Location=Yorkshire CategoryFull=England__Miners");
     expect(executedQuery).toContain("Location=Yorkshire CategoryFull=England__Coal_Miners");
     expect(executedQuery).toContain("Location=Yorkshire CategoryFull=England__Tin_Miners");
+    expect(executedQuery).not.toContain("Location=Yorkshire CategoryFull=Miners");
     expect(executedQuery).not.toContain("CategoryWord=Miners");
 
     expect(result.message).toContain("WT+ query");
@@ -194,8 +196,201 @@ describe("chat_profile_search category tree expansion", () => {
 
     const executedQuery = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
     expect(executedQuery).toContain("Location=Staffordshire CategoryFull=England__Potters");
-    expect(executedQuery).toContain("Location=Staffordshire CategoryFull=Potters__St_Helens__Lancashire_One_Place_Study");
+    expect(executedQuery).toContain(
+      "Location=Staffordshire CategoryFull=Potters__St_Helens__Lancashire_One_Place_Study"
+    );
     expect(executedQuery).not.toContain("Australia__Potters");
     expect(executedQuery).not.toContain("Germany__Potters");
+  });
+
+  test("matches fetched person categories to the expanded military WT+ categories", async () => {
+    wtAPICatCIBSearch.mockResolvedValue({
+      response: {
+        categories: [{ category: "Yorkshire", locationParent: "England", parent: "England" }],
+      },
+    });
+
+    global.fetch = jest.fn(async (url) => {
+      const parsed = new URL(String(url));
+      const categoryQuery = String(parsed.searchParams.get("query") || "");
+
+      if (/British Armed Forces/i.test(categoryQuery) || /England, Armed Forces/i.test(categoryQuery)) {
+        return {
+          ok: true,
+          json: async () => ({
+            response: {
+              categories: [
+                {
+                  Name: "British_Armed_Forces",
+                  Children: "British_Army\r\nBritish_Army,_World_War_II\r\nBritish_Royal_Navy\r\nRoyal_Air_Force",
+                },
+                { Name: "British_Armed_Forces,_Millward_Name_Study", Children: "" },
+              ],
+            },
+          }),
+        };
+      }
+
+      if (/Armed Forces/i.test(categoryQuery)) {
+        return {
+          ok: true,
+          json: async () => ({
+            response: {
+              categories: [{ Name: "Denmark,_Armed_Forces" }, { Name: "Egyptian_Armed_Forces" }],
+            },
+          }),
+        };
+      }
+
+      return {
+        ok: true,
+        json: async () => ({ response: { categories: [] } }),
+      };
+    });
+
+    window.callAiModel = jest.fn(async (prompt) => {
+      const text = String(prompt || "");
+      if (text.includes("normalize a category text-search seed for WikiTree+ category-name search")) {
+        return JSON.stringify({ categorySearchText: "military" });
+      }
+      return JSON.stringify({
+        understood: "Yorkshire military category search",
+        query: "Location=Yorkshire CategoryWord=military",
+      });
+    });
+
+    const fetchPeoplePaged = jest.fn(async () => [
+      null,
+      null,
+      {
+        1: {
+          Id: 1,
+          Name: "Soldier-1",
+          FirstName: "Alice",
+          LastNameAtBirth: "Soldier",
+          BirthLocation: "Yorkshire",
+          Categories: ["British Armed Forces", "British Army, World War II", "Some Other Category"],
+        },
+      },
+    ]);
+
+    const { tryHandleProfileSearchPrompt } = makeHandler({
+      fetchPeoplePaged,
+      makeStandardProfileTable,
+    });
+    const result = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Yorkshire military");
+
+    const executedQuery = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
+    expect(executedQuery).toContain("Location=Yorkshire CategoryFull=British_Armed_Forces");
+    expect(executedQuery).toContain("Location=Yorkshire CategoryFull=British_Army");
+    expect(executedQuery).toContain("Location=Yorkshire CategoryFull=British_Army__World_War_II");
+    expect(executedQuery).toContain("Location=Yorkshire CategoryFull=British_Royal_Navy");
+    expect(executedQuery).toContain("Location=Yorkshire CategoryFull=Royal_Air_Force");
+    expect(executedQuery).not.toContain("Location=Yorkshire CategoryFull=England__Armed_Forces");
+    expect(executedQuery).not.toContain("Denmark__Armed_Forces");
+    expect(executedQuery).not.toContain("Egyptian_Armed_Forces");
+    expect(executedQuery).not.toContain("Millward_Name_Study");
+    expect(fetchPeoplePaged.mock.calls[0][2]).toContain("Categories");
+    expect(result.table.columns.some((column) => column.key === "categoryDisplay")).toBe(true);
+    expect(result.table.rows[0].categoryDisplay).toBe("British Army, World War II");
+    expect(result.table.rows[0].categoryPageName).toBe("British_Army,_World_War_II");
+  });
+
+  test("broadens US city military searches to a United States Armed Forces root before falling back", async () => {
+    wtAPICatCIBSearch.mockImplementation(async (_callerId, cibType, query) => {
+      if (cibType !== "location") {
+        return { response: { categories: [] } };
+      }
+
+      if (/new orleans/i.test(String(query || ""))) {
+        return {
+          response: {
+            categories: [
+              {
+                category: "New Orleans, Louisiana",
+                parent: "Orleans Parish, Louisiana",
+                gParent: "Louisiana",
+              },
+            ],
+          },
+        };
+      }
+
+      if (/louisiana/i.test(String(query || ""))) {
+        return {
+          response: {
+            categories: [
+              {
+                category: "Louisiana",
+                parent: "United States of America",
+              },
+            ],
+          },
+        };
+      }
+
+      return { response: { categories: [] } };
+    });
+
+    global.fetch = jest.fn(async (url) => {
+      const parsed = new URL(String(url));
+      const categoryQuery = String(parsed.searchParams.get("query") || "");
+
+      if (/United States Armed Forces/i.test(categoryQuery) || /American Armed Forces/i.test(categoryQuery)) {
+        return {
+          ok: true,
+          json: async () => ({
+            response: {
+              categories: [
+                {
+                  Name: "United_States_Armed_Forces",
+                  Children: "United_States_Army\r\nUnited_States_Navy\r\nUnited_States_Marine_Corps",
+                },
+              ],
+            },
+          }),
+        };
+      }
+
+      if (/Armed Forces/i.test(categoryQuery)) {
+        return {
+          ok: true,
+          json: async () => ({
+            response: {
+              categories: [
+                { Name: "Greek_Armed_Forces", Children: "" },
+                { Name: "Wounded_in_Action,_Greece", Children: "" },
+              ],
+            },
+          }),
+        };
+      }
+
+      return {
+        ok: true,
+        json: async () => ({ response: { categories: [] } }),
+      };
+    });
+
+    window.callAiModel = jest.fn(async (prompt) => {
+      const text = String(prompt || "");
+      if (text.includes("normalize a category text-search seed for WikiTree+ category-name search")) {
+        return JSON.stringify({ categorySearchText: "military" });
+      }
+      return JSON.stringify({
+        understood: "New Orleans military category search",
+        query: 'Location="New Orleans" CategoryWord=Military',
+      });
+    });
+
+    const { tryHandleProfileSearchPrompt } = makeHandler();
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "New Orleans military");
+
+    const executedQuery = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
+    expect(executedQuery).toContain('Location="New Orleans" CategoryFull=United_States_Armed_Forces');
+    expect(executedQuery).toContain('Location="New Orleans" CategoryFull=United_States_Army');
+    expect(executedQuery).toContain('Location="New Orleans" CategoryFull=United_States_Navy');
+    expect(executedQuery).not.toContain("Greek_Armed_Forces");
+    expect(executedQuery).not.toContain("Wounded_in_Action__Greece");
   });
 });

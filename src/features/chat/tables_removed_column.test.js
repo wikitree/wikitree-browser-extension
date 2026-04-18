@@ -96,6 +96,31 @@ describe("makeStandardProfileTable removed column", () => {
     expect(table.columns.some((column) => column.key === "removed")).toBe(true);
   });
 
+  test("shows a linked category column when rows include matched categories", () => {
+    const table = makeStandardProfileTable("Relatives", [
+      {
+        wtid: "Soldier-1",
+        firstName: "Alice",
+        lnab: "Example",
+        lastNameCurrent: "",
+        degrees: "",
+        birth: "",
+        death: "",
+        birthLocation: "Yorkshire",
+        deathLocation: "",
+        categoryDisplay: "British Army, World War II",
+        categoryPageName: "British_Army,_World_War_II",
+      },
+    ]);
+
+    const categoryColumn = table.columns.find((column) => column.key === "categoryDisplay");
+    expect(categoryColumn).toBeTruthy();
+    expect(categoryColumn.render(table.rows[0])).toContain(
+      "https://www.wikitree.com/wiki/Category:British_Army%2C_World_War_II"
+    );
+    expect(categoryColumn.render(table.rows[0])).toContain("British Army, World War II");
+  });
+
   test("uses a cousin ordinal column and omits the degrees column for cousin tables", () => {
     const table = makeCousinProfileTable("Cousins", [
       {
@@ -139,5 +164,6 @@ describe("makeStandardProfileTable removed column", () => {
     ]);
 
     expect(table.columns.some((column) => column.key === "removed")).toBe(false);
+    expect(table.columns.some((column) => column.key === "categoryDisplay")).toBe(false);
   });
 });

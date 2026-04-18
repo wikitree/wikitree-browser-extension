@@ -74,6 +74,18 @@ export function makeProfileLink(wtId, label) {
   return `<a class="chat-results-link" href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
 }
 
+export function makeCategoryLink(categoryPageName, label) {
+  if (!label) {
+    return "";
+  }
+  if (!categoryPageName) {
+    return escapeHtml(label);
+  }
+  const href = `https://www.wikitree.com/wiki/Category:${encodeURIComponent(categoryPageName)}`;
+  const text = escapeHtml(label);
+  return `<a class="chat-results-link" href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+}
+
 export function extractCountryFromLocation(location) {
   const parts = String(location || "")
     .split(",")
@@ -139,9 +151,14 @@ export function makeStandardProfileTable(title, rows, defaultOrder = [[0, "asc"]
     { title: "Death", key: "death", cellClass: "chat-date-cell" },
     { title: "Birth Location", key: "birthLocation" },
     { title: "Death Location", key: "deathLocation" },
+    {
+      title: "Category",
+      key: "categoryDisplay",
+      render: (row) => makeCategoryLink(row?.categoryPageName, row?.categoryDisplay),
+    },
   ];
 
-  const optionalColumnKeys = new Set(["middleName", "spouse", "removed"]);
+  const optionalColumnKeys = new Set(["middleName", "spouse", "removed", "categoryDisplay"]);
   const columns = baseColumns.filter((column) => {
     if (!optionalColumnKeys.has(column.key)) {
       return true;
@@ -150,6 +167,9 @@ export function makeStandardProfileTable(title, rows, defaultOrder = [[0, "asc"]
     return rows.some((row) => {
       if (column.key === "spouse") {
         return (Array.isArray(row?.spouseList) && row.spouseList.length) || String(row?.spouse || "").trim();
+      }
+      if (column.key === "categoryDisplay") {
+        return String(row?.categoryDisplay || "").trim();
       }
       const value = row?.[column.key];
       return value != null && String(value).trim() !== "";

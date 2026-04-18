@@ -54,6 +54,7 @@ describe("wt_plus_query_grammar query validation and repair", () => {
     ["Created=Created_2024", "Created=Created_2024"],
     ["heading=biography", "heading=biography"],
     ["Template=unsourced", "Template=unsourced"],
+    ['Unsourced BirthLocation=\\"Shropshire, England\\" 1820s', 'Unsourced BirthLocation="Shropshire, England" 1820s'],
     ['sql="([Default].[Birth Date].AsNumber < 19000000)"', 'sql="([Default].[Birth Date].AsNumber < 19000000)"'],
     [
       "sql=\"([Templates].[Template text].AsString Like '*project_box*')\"",

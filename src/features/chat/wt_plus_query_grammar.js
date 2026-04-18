@@ -234,8 +234,13 @@ function normalizeWtPlusFieldAssignment(token) {
   return `${fieldName}=${value}`;
 }
 
+function normalizeAiEscapedWtPlusQuotes(queryText) {
+  return String(queryText || "").replace(/\\+(["'])/g, "$1");
+}
+
 function validateAndRepairWtPlusQuery(queryText) {
-  const tokens = tokenizeWtPlusQuery(queryText);
+  const normalizedInput = normalizeAiEscapedWtPlusQuotes(queryText);
+  const tokens = tokenizeWtPlusQuery(normalizedInput);
   if (!tokens.length) {
     return { isValid: false, normalizedQuery: "", diagnostics: ["empty-query"] };
   }

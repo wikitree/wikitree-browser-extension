@@ -581,6 +581,63 @@ export function createProfileSearchHandler({
     return normalizedGroups.join(" OR ");
   }
 
+  function canonicalizeWtPlusExactBirthDecadeRanges(queryText) {
+    const groups = splitWtPlusTopLevelOrGroups(queryText);
+    if (!groups.length) {
+      return String(queryText || "").trim();
+    }
+
+    const normalizedGroups = groups.map((group) => {
+      const tokens = tokenizeWtPlusQueryText(group);
+      if (!tokens.length) {
+        return group;
+      }
+
+      const sqlToken = tokens.find((token) => /^sql\s*=/i.test(String(token || "").trim()));
+      const sqlMatch = String(sqlToken || "").match(
+        /^sql\s*=\s*"\(\[Default\]\.\[Birth Date\]\.AsNumber In (\d{4})0101\.\.(\d{4})1231\)"$/i
+      );
+      if (!sqlMatch?.[1] || !sqlMatch?.[2]) {
+        return group;
+      }
+
+      const startYear = Number.parseInt(sqlMatch[1], 10);
+      const endYear = Number.parseInt(sqlMatch[2], 10);
+      const isExactDecade =
+        Number.isFinite(startYear) && Number.isFinite(endYear) && endYear === startYear + 9 && startYear % 10 === 0;
+      if (!isExactDecade) {
+        return group;
+      }
+
+      const centuryToken = `${Math.floor(startYear / 100) + 1}Cen`;
+      const decadeToken = `${startYear}s`;
+      const nextTokens = [];
+      let hasDecadeToken = false;
+
+      tokens.forEach((rawToken) => {
+        const token = String(rawToken || "").trim();
+        if (!token) {
+          return;
+        }
+        if (token === sqlToken || token.toLowerCase() === centuryToken.toLowerCase()) {
+          return;
+        }
+        if (token.toLowerCase() === decadeToken.toLowerCase()) {
+          hasDecadeToken = true;
+        }
+        nextTokens.push(token);
+      });
+
+      if (!hasDecadeToken) {
+        nextTokens.push(decadeToken);
+      }
+
+      return nextTokens.join(" ").trim() || group;
+    });
+
+    return normalizedGroups.join(" OR ");
+  }
+
   function normalizeWtPlusEventScopeWithDisjunctiveSql(queryText) {
     const text = String(queryText || "").trim();
     if (!text || /\s+OR\s+/i.test(text)) {
@@ -905,6 +962,130 @@ export function createProfileSearchHandler({
     return normalized.replace(/,\s+/g, "__").replace(/\s+/g, "_");
   }
 
+  function normalizeWtCategoryComparableKey(value) {
+    const decoded = String(value || "")
+      .replace(/^Category:/i, "")
+      .replace(/%2C/gi, ",")
+      .trim();
+    if (!decoded) {
+      return "";
+    }
+
+    return toWtPlusCategoryFullValueFromCategoryName(toWtPlusCategorySearchTextFromCategoryFull(decoded));
+  }
+
+  function formatWtCategoryDisplayLabel(value) {
+    const decoded = String(value || "")
+      .replace(/^Category:/i, "")
+      .replace(/%2C/gi, ",")
+      .trim();
+    return toWtPlusCategorySearchTextFromCategoryFull(decoded);
+  }
+
+  function toWikiTreeCategoryPageName(value) {
+    const comparableKey = normalizeWtCategoryComparableKey(value);
+    return comparableKey ? comparableKey.replace(/__+/g, ",_") : "";
+  }
+
+  function extractWtPlusCategoryFullValues(queryText) {
+    const matches = Array.from(String(queryText || "").matchAll(/\bCategoryFull=((?:"[^"]*")|(?:'[^']*')|[^\s]+)/g));
+    const seen = new Set();
+    const categories = [];
+
+    matches.forEach((match, index) => {
+      const rawValue = stripSurroundingQuotes(match?.[1] || "");
+      const key = normalizeWtCategoryComparableKey(rawValue);
+      if (!key || seen.has(key)) {
+        return;
+      }
+
+      seen.add(key);
+      categories.push({
+        rawValue,
+        key,
+        display: formatWtCategoryDisplayLabel(rawValue),
+        pageName: toWikiTreeCategoryPageName(rawValue),
+        index,
+      });
+    });
+
+    return categories;
+  }
+
+  function extractProfileCategoryLabels(categoriesValue) {
+    const entries = Array.isArray(categoriesValue)
+      ? categoriesValue
+      : categoriesValue && typeof categoriesValue === "object"
+      ? Object.values(categoriesValue)
+      : typeof categoriesValue === "string" && categoriesValue.trim()
+      ? [categoriesValue]
+      : [];
+
+    return entries
+      .map((entry) => {
+        if (typeof entry === "string") {
+          return entry.trim();
+        }
+        if (entry && typeof entry === "object") {
+          return String(
+            entry.Name ||
+              entry.name ||
+              entry.category ||
+              entry.Category ||
+              entry.title ||
+              entry.Title ||
+              entry.label ||
+              entry.Label ||
+              ""
+          ).trim();
+        }
+        return "";
+      })
+      .filter(Boolean);
+  }
+
+  function matchRelevantProfileCategory(personCategories, queryCategories) {
+    if (!Array.isArray(queryCategories) || !queryCategories.length) {
+      return null;
+    }
+
+    const queryCategoryByKey = new Map(queryCategories.map((category) => [category.key, category]));
+    const matches = extractProfileCategoryLabels(personCategories)
+      .map((categoryLabel) => {
+        const key = normalizeWtCategoryComparableKey(categoryLabel);
+        const queryCategory = queryCategoryByKey.get(key);
+        if (!queryCategory) {
+          return null;
+        }
+
+        return {
+          key,
+          queryCategory,
+          rawLabel: categoryLabel,
+          display: formatWtCategoryDisplayLabel(categoryLabel),
+          pageName: toWikiTreeCategoryPageName(categoryLabel) || queryCategory.pageName,
+          score: key.length * 10 - queryCategory.index,
+        };
+      })
+      .filter(Boolean)
+      .sort((left, right) => right.score - left.score);
+
+    return matches[0] || null;
+  }
+
+  function withMatchedWtPlusCategoryRow(row, person, queryCategories) {
+    const match = matchRelevantProfileCategory(person?.Categories, queryCategories);
+    if (!match) {
+      return row;
+    }
+
+    return {
+      ...row,
+      categoryDisplay: match.display,
+      categoryPageName: match.pageName,
+    };
+  }
+
   function extractSingleWtPlusCategoryToken(queryText) {
     const normalizedQuery = String(queryText || "").trim();
     if (!normalizedQuery || /\s+OR\s+/i.test(normalizedQuery)) {
@@ -916,7 +1097,9 @@ export function createProfileSearchHandler({
       return null;
     }
 
-    const categoryTokens = tokens.filter((token) => /^(?:CategoryFull|CategoryWord)=/i.test(String(token || "").trim()));
+    const categoryTokens = tokens.filter((token) =>
+      /^(?:CategoryFull|CategoryWord)=/i.test(String(token || "").trim())
+    );
     if (categoryTokens.length !== 1) {
       return null;
     }
@@ -972,6 +1155,36 @@ export function createProfileSearchHandler({
     "Switzerland",
   ];
 
+  const WT_PLUS_COUNTRY_ADJECTIVE_MAP = {
+    England: "British",
+    Scotland: "Scottish",
+    Wales: "Welsh",
+    Ireland: "Irish",
+    "United States": "American",
+    Canada: "Canadian",
+    Australia: "Australian",
+    "New Zealand": "New Zealand",
+    Germany: "German",
+    Portugal: "Portuguese",
+    France: "French",
+    Spain: "Spanish",
+    Italy: "Italian",
+    Netherlands: "Dutch",
+    Belgium: "Belgian",
+    Sweden: "Swedish",
+    Norway: "Norwegian",
+    Denmark: "Danish",
+    Finland: "Finnish",
+    Poland: "Polish",
+    "Czech Republic": "Czech",
+    Austria: "Austrian",
+    Switzerland: "Swiss",
+    Egypt: "Egyptian",
+    Thailand: "Thai",
+    Britain: "British",
+    "United Kingdom": "British",
+  };
+
   function findKnownCountryInText(value) {
     const text = String(value || "").trim();
     if (!text) return "";
@@ -986,7 +1199,13 @@ export function createProfileSearchHandler({
     const requested = normalizeWtPlusCategoryText(requestedLocation);
     if (!requested) return -1;
 
-    const parts = [candidate?.category, candidate?.location, candidate?.name, candidate?.parent, candidate?.locationParent]
+    const parts = [
+      candidate?.category,
+      candidate?.location,
+      candidate?.name,
+      candidate?.parent,
+      candidate?.locationParent,
+    ]
       .map((value) => normalizeWtPlusCategoryText(value))
       .filter(Boolean);
     if (!parts.length) return -1;
@@ -1001,7 +1220,13 @@ export function createProfileSearchHandler({
   }
 
   function extractCountryScopeFromLocationCandidate(candidate) {
-    const fields = [candidate?.locationParent, candidate?.parent, candidate?.gParent, candidate?.ggParent, candidate?.location];
+    const fields = [
+      candidate?.locationParent,
+      candidate?.parent,
+      candidate?.gParent,
+      candidate?.ggParent,
+      candidate?.location,
+    ];
     for (const field of fields) {
       const country = findKnownCountryInText(field);
       if (country) {
@@ -1011,22 +1236,326 @@ export function createProfileSearchHandler({
     return "";
   }
 
-  async function inferCountryScopeFromLocationText(locationText) {
+  function extractGeoScopeFromLocationCandidate(candidate, requestedLocation = "") {
+    const requestedNormalized = normalizeWtPlusCategoryText(requestedLocation);
+    const fieldCandidates = [
+      candidate?.locationParent,
+      candidate?.parent,
+      candidate?.location,
+      candidate?.name,
+      candidate?.category,
+    ];
+
+    for (const value of fieldCandidates) {
+      const text = String(value || "").trim();
+      if (!text) continue;
+      const normalized = normalizeWtPlusCategoryText(text);
+      if (!normalized || normalized === requestedNormalized) continue;
+      if (findKnownCountryInText(text)) continue;
+      return text;
+    }
+
+    return "";
+  }
+
+  function extractBroaderLocationSearchTerms(candidate, requestedLocation = "") {
+    const requestedNormalized = normalizeLocationScopeLabel(requestedLocation).toLowerCase();
+    const seen = new Set();
+    const broaderTerms = [];
+    const push = (value) => {
+      const normalized = normalizeLocationScopeLabel(value);
+      if (!normalized) return;
+      const key = normalized.toLowerCase();
+      if (key === requestedNormalized || seen.has(key)) return;
+      seen.add(key);
+      broaderTerms.push(normalized);
+    };
+
+    [
+      candidate?.gParent,
+      candidate?.gParent1,
+      candidate?.ggParent,
+      candidate?.ggParent1,
+      candidate?.parent,
+      candidate?.parent1,
+      candidate?.locationParent,
+    ].forEach((value) => push(value));
+
+    return broaderTerms;
+  }
+
+  function normalizeLocationScopeLabel(value) {
+    return String(value || "")
+      .replace(/_+/g, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
+
+  function isMilitaryCategoryLikeText(value) {
+    return /\b(?:military|armed\s*forces?|army|navy|air\s*force|airforce|soldiers?)\b/i.test(String(value || ""));
+  }
+
+  function isLikelyMilitaryArmedForcesCategoryName(categoryName, context = {}) {
+    const plainName = String(categoryName || "")
+      .replace(/_+/g, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    if (!plainName) {
+      return false;
+    }
+
+    // Exclude common off-target branches returned by broad text matching.
+    if (/\b(?:name\s+study|potters?\s+field|cemetery|asylum)\b/i.test(plainName)) {
+      return false;
+    }
+
+    const militaryPattern =
+      /\b(?:armed\s*forces?|military|army|navy|air\s*force|airforce|marines?|ordnance|killed\s+in\s+action|wounded\s+in\s+action|missing\s+in\s+action|prisoners?\s+of\s+war|died\s+in\s+military\s+service|died\s+of\s+wounds|died\s+of\s+disease|died\s+while\s+prisoner\s+of\s+war|world\s+war|war\b)\b/i;
+    if (!militaryPattern.test(plainName)) {
+      return false;
+    }
+
+    const countryScope = String(context?.countryScope || "").trim();
+    if (!countryScope) {
+      return true;
+    }
+
+    const countryAdjective = resolveAdjectiveForScope(countryScope);
+    const contextPatternParts = [countryScope, countryAdjective]
+      .filter(Boolean)
+      .map((value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    // UK military categories frequently use British/Great Britain/United Kingdom qualifiers.
+    if (/^england|scotland|wales|united\s+kingdom|britain$/i.test(countryScope)) {
+      contextPatternParts.push("British", "Great\\s+Britain", "United\\s+Kingdom");
+    }
+
+    if (!contextPatternParts.length) {
+      return true;
+    }
+
+    const contextRegex = new RegExp(`\\b(?:${contextPatternParts.join("|")})\\b`, "i");
+    if (contextRegex.test(plainName)) {
+      return true;
+    }
+
+    // Keep well-known military branches that are often country-implicit.
+    if (
+      /\b(?:royal\s+air\s+force|royal\s+navy|royal\s+marines|royal\s+military\s+police|royal\s+ordnance)\b/i.test(
+        plainName
+      )
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function resolveAdjectiveForScope(scopeLabel) {
+    const text = normalizeLocationScopeLabel(scopeLabel);
+    if (!text) return "";
+
+    const direct = WT_PLUS_COUNTRY_ADJECTIVE_MAP[text];
+    if (direct) return direct;
+
+    const commaParts = text
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    for (const part of commaParts.reverse()) {
+      const mapped = WT_PLUS_COUNTRY_ADJECTIVE_MAP[part];
+      if (mapped) return mapped;
+    }
+
+    return "";
+  }
+
+  async function inferCountryScopeFromBroaderLocationText(locationText, options = {}) {
+    const normalizedLocation = normalizeLocationScopeLabel(locationText);
+    if (!normalizedLocation) {
+      return "";
+    }
+
+    const depth = Number.isFinite(options?.depth) ? Number(options.depth) : 0;
+    const maxDepth = Number.isFinite(options?.maxDepth) ? Math.max(0, Number(options.maxDepth)) : 2;
+    const seen = options?.seen instanceof Set ? options.seen : new Set();
+    const seenKey = normalizedLocation.toLowerCase();
+    if (seen.has(seenKey) || depth > maxDepth) {
+      return "";
+    }
+    seen.add(seenKey);
+
+    const directCountry = findKnownCountryInText(normalizedLocation);
+    if (directCountry) {
+      return directCountry;
+    }
+
+    try {
+      const response = await wtAPICatCIBSearch("ChatWTPlusCountryScope", "location", normalizedLocation);
+      const categories = Array.isArray(response?.response?.categories) ? response.response.categories : [];
+      if (!categories.length) {
+        return "";
+      }
+
+      const ranked = categories
+        .map((entry) => ({ entry, score: scoreWtPlusLocationCandidate(normalizedLocation, entry) }))
+        .sort((left, right) => right.score - left.score)
+        .slice(0, 3);
+
+      for (const rankedEntry of ranked) {
+        const country = extractCountryScopeFromLocationCandidate(rankedEntry?.entry);
+        if (country) {
+          return country;
+        }
+
+        const broaderTerms = extractBroaderLocationSearchTerms(rankedEntry?.entry, normalizedLocation);
+        for (const broaderTerm of broaderTerms) {
+          const nestedCountry = await inferCountryScopeFromBroaderLocationText(broaderTerm, {
+            depth: depth + 1,
+            maxDepth,
+            seen,
+          });
+          if (nestedCountry) {
+            return nestedCountry;
+          }
+        }
+      }
+    } catch (error) {
+      console.info("wbe: broader country-scope location lookup failed", { normalizedLocation, error });
+    }
+
+    return "";
+  }
+
+  function buildMilitaryArmedForcesSeeds({ geoScope, countryScope }) {
+    const seeds = [];
+    const push = (value) => {
+      const normalized = normalizeWtPlusCategorySearchSeed(value);
+      if (!normalized) return;
+      if (seeds.some((entry) => entry.toLowerCase() === normalized.toLowerCase())) return;
+      seeds.push(normalized);
+    };
+
+    // Prefer country roots first because WT+ military trees are usually national, not city/county scoped.
+    const scopes = [normalizeLocationScopeLabel(countryScope), normalizeLocationScopeLabel(geoScope)].filter(Boolean);
+    scopes.forEach((scope) => {
+      push(`${scope}, Armed Forces`);
+      push(`${scope} Armed Forces`);
+      const adjective = resolveAdjectiveForScope(scope);
+      if (adjective) {
+        push(`${adjective} Armed Forces`);
+      }
+    });
+
+    push("Armed Forces");
+    return seeds;
+  }
+
+  function splitWtPlusCategoryChildren(value) {
+    return String(value || "")
+      .split(/\r?\n/)
+      .map((entry) => String(entry || "").trim())
+      .filter(Boolean);
+  }
+
+  function getMilitaryContextPatternParts(countryScope = "", geoScope = "") {
+    const parts = [];
+    const push = (value) => {
+      const normalized = String(value || "").trim();
+      if (!normalized) return;
+      if (parts.some((entry) => entry.toLowerCase() === normalized.toLowerCase())) return;
+      parts.push(normalized);
+    };
+
+    push(countryScope);
+    push(geoScope);
+    push(resolveAdjectiveForScope(countryScope));
+    push(resolveAdjectiveForScope(geoScope));
+
+    if (/^england|scotland|wales|united\s+kingdom|britain$/i.test(String(countryScope || ""))) {
+      push("British");
+      push("Great Britain");
+      push("United Kingdom");
+    }
+
+    return parts;
+  }
+
+  function scoreMilitaryRootCategoryEntry(entry, context = {}) {
+    const name = String(entry?.Name || entry?.category || "").trim();
+    if (!name) {
+      return -1;
+    }
+
+    const plainName = toWtPlusCategorySearchTextFromCategoryFull(name);
+    if (!/\barmed\s*forces\b/i.test(plainName)) {
+      return -1;
+    }
+    if (/\bname\s+study\b/i.test(plainName)) {
+      return -1;
+    }
+
+    let score = 0;
+    const childCount = splitWtPlusCategoryChildren(entry?.Children).length;
+    if (childCount) score += 500;
+    if (childCount >= 5) score += 100;
+
+    const contextParts = getMilitaryContextPatternParts(context?.countryScope, context?.geoScope);
+    contextParts.forEach((part) => {
+      if (new RegExp(`\\b${part.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\b`, "i").test(plainName)) {
+        score += 80;
+      }
+    });
+
+    // Prefer exact-style roots over longer descriptive variants.
+    if (/^[A-Za-z ,]+Armed Forces$/i.test(plainName)) score += 120;
+    score -= plainName.length / 20;
+    return score;
+  }
+
+  function findBestMilitaryRootCategoryEntry(entries = [], context = {}) {
+    if (!Array.isArray(entries) || !entries.length) {
+      return null;
+    }
+
+    const ranked = entries
+      .map((entry) => ({ entry, score: scoreMilitaryRootCategoryEntry(entry, context) }))
+      .filter((entry) => entry.score >= 0)
+      .sort((left, right) => right.score - left.score);
+
+    return ranked[0]?.entry || null;
+  }
+
+  async function inferLocationScopesFromLocationText(locationText) {
     const location = stripSurroundingQuotes(locationText);
     if (!location) {
-      return "";
+      return { countryScope: "", geoScope: "" };
     }
 
     const directCountry = findKnownCountryInText(location);
     if (directCountry) {
-      return directCountry;
+      return { countryScope: directCountry, geoScope: "" };
+    }
+
+    let fallbackGeoScope = "";
+    const commaParts = String(location || "")
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (commaParts.length >= 2) {
+      const maybeScope = commaParts[commaParts.length - 1];
+      if (maybeScope && !findKnownCountryInText(maybeScope)) {
+        fallbackGeoScope = maybeScope;
+      }
     }
 
     try {
       const response = await wtAPICatCIBSearch("ChatWTPlusCountryScope", "location", location);
       const categories = Array.isArray(response?.response?.categories) ? response.response.categories : [];
       if (!categories.length) {
-        return "";
+        const inferredCountry = fallbackGeoScope
+          ? await inferCountryScopeFromBroaderLocationText(fallbackGeoScope)
+          : "";
+        return { countryScope: inferredCountry, geoScope: fallbackGeoScope };
       }
 
       const ranked = categories
@@ -1035,28 +1564,54 @@ export function createProfileSearchHandler({
 
       for (const rankedEntry of ranked) {
         const country = extractCountryScopeFromLocationCandidate(rankedEntry?.entry);
-        if (country) {
-          return country;
+        const geoScope = extractGeoScopeFromLocationCandidate(rankedEntry?.entry, location);
+        if (country || geoScope) {
+          const resolvedGeoScope = geoScope || fallbackGeoScope;
+          if (country) {
+            return {
+              countryScope: country || "",
+              geoScope: resolvedGeoScope,
+            };
+          }
+
+          const broaderTerms = [
+            resolvedGeoScope,
+            ...extractBroaderLocationSearchTerms(rankedEntry?.entry, location),
+          ].filter(Boolean);
+          for (const broaderTerm of broaderTerms) {
+            const inferredCountry = await inferCountryScopeFromBroaderLocationText(broaderTerm);
+            if (inferredCountry) {
+              return {
+                countryScope: inferredCountry,
+                geoScope: resolvedGeoScope,
+              };
+            }
+          }
+
+          return {
+            countryScope: "",
+            geoScope: resolvedGeoScope,
+          };
         }
       }
     } catch (error) {
       console.info("wbe: country-scope location lookup failed", { location, error });
     }
 
-    return "";
+    return { countryScope: "", geoScope: fallbackGeoScope };
   }
 
-  async function inferCountryScopeFromWtPlusQuery(queryText) {
+  async function inferLocationScopesFromWtPlusQuery(queryText) {
     const fields = ["Location", "BirthLocation", "DeathLocation", "MarriageLocation"];
     for (const field of fields) {
       const locationValue = extractWtPlusFieldValueFromQuery(queryText, field);
       if (!locationValue) continue;
-      const country = await inferCountryScopeFromLocationText(locationValue);
-      if (country) {
-        return country;
+      const scopes = await inferLocationScopesFromLocationText(locationValue);
+      if (scopes?.countryScope || scopes?.geoScope) {
+        return scopes;
       }
     }
-    return "";
+    return { countryScope: "", geoScope: "" };
   }
 
   function buildWtPlusCategorySearchSeeds({
@@ -1066,6 +1621,8 @@ export function createProfileSearchHandler({
     parsedCategory,
     rawPrompt,
     countryScope,
+    geoScope,
+    militaryMode,
   }) {
     const seeds = [];
     const pushSeed = (value) => {
@@ -1081,9 +1638,19 @@ export function createProfileSearchHandler({
         : toWtPlusCategorySearchTextFromCategoryFull(seedFromCategory)
     );
 
-    if (countryScope && categoryLabel) {
+    if (militaryMode) {
+      const militarySeeds = buildMilitaryArmedForcesSeeds({ geoScope, countryScope });
+      militarySeeds.forEach((seed) => pushSeed(seed));
+    }
+
+    if (countryScope && categoryLabel && !militaryMode) {
       pushSeed(`${countryScope}, ${categoryLabel}`);
       pushSeed(`${countryScope} ${categoryLabel}`);
+    }
+
+    if (geoScope && categoryLabel && !militaryMode) {
+      pushSeed(`${geoScope}, ${categoryLabel}`);
+      pushSeed(`${geoScope} ${categoryLabel}`);
     }
 
     pushSeed(aiSeed);
@@ -1268,19 +1835,19 @@ export function createProfileSearchHandler({
     }
 
     const rawPrompt = String(runOptions?.rawPrompt || "").trim();
-    const seedFromCategory =
-      /^CategoryFull$/i.test(parsedCategory.field)
-        ? toWtPlusCategorySearchTextFromCategoryFull(parsedCategory.categoryValue)
-        : normalizeWtPlusCategorySearchSeed(parsedCategory.categoryValue);
+    const seedFromCategory = /^CategoryFull$/i.test(parsedCategory.field)
+      ? toWtPlusCategorySearchTextFromCategoryFull(parsedCategory.categoryValue)
+      : normalizeWtPlusCategorySearchSeed(parsedCategory.categoryValue);
     const fallbackSeed = normalizeWtPlusCategorySearchSeed(rawPrompt) || seedFromCategory;
     if (!fallbackSeed) {
       return null;
     }
 
-    const countryScope = await inferCountryScopeFromWtPlusQuery(parsedCategory.baseQuery || query);
+    const { countryScope, geoScope } = await inferLocationScopesFromWtPlusQuery(parsedCategory.baseQuery || query);
     const categoryWord = /^CategoryWord$/i.test(parsedCategory.field || "")
       ? stripSurroundingQuotes(parsedCategory.categoryValue)
       : "";
+    const militaryMode = isMilitaryCategoryLikeText(categoryWord) || isMilitaryCategoryLikeText(rawPrompt);
     const aiSeed = await callAiInferCategoryExpansionSeed(rawPrompt, query, fallbackSeed);
     const effectiveSeed = aiSeed || fallbackSeed;
     const seedsToTry = buildWtPlusCategorySearchSeeds({
@@ -1290,24 +1857,58 @@ export function createProfileSearchHandler({
       parsedCategory,
       rawPrompt,
       countryScope,
+      geoScope,
+      militaryMode,
     });
 
     let categoryNames = [];
     let requestCount = 0;
     let usedSeed = "";
+    let bestMilitaryMatch = null;
     for (const seed of seedsToTry) {
-      const result = await collectRecursiveWtPlusCategoryNames(seed, {
-        maxDepth: 2,
-        maxRequests: 14,
-        maxCategories: 48,
-        hierarchy: 10,
-      });
-      requestCount += Number(result?.requestCount || 0);
-      if (Array.isArray(result?.categoryNames) && result.categoryNames.length) {
-        categoryNames = result.categoryNames;
-        usedSeed = seed;
-        break;
+      if (militaryMode) {
+        let entries = [];
+        try {
+          requestCount += 1;
+          entries = await wtAPISearchCategoryNamesByText(seed, 10);
+        } catch (error) {
+          console.info("wbe: WT+ military category search failed", { seed, error });
+          continue;
+        }
+
+        const rootEntry = findBestMilitaryRootCategoryEntry(entries, { countryScope, geoScope });
+        if (rootEntry) {
+          const score = scoreMilitaryRootCategoryEntry(rootEntry, { countryScope, geoScope });
+          if (!bestMilitaryMatch || score > bestMilitaryMatch.score) {
+            bestMilitaryMatch = {
+              score,
+              seed,
+              rootEntry,
+            };
+          }
+        }
+      } else {
+        const result = await collectRecursiveWtPlusCategoryNames(seed, {
+          maxDepth: 2,
+          maxRequests: 14,
+          maxCategories: 48,
+          hierarchy: 10,
+        });
+        requestCount += Number(result?.requestCount || 0);
+        if (Array.isArray(result?.categoryNames) && result.categoryNames.length) {
+          categoryNames = result.categoryNames;
+          usedSeed = seed;
+          break;
+        }
       }
+    }
+
+    if (militaryMode && bestMilitaryMatch?.rootEntry) {
+      categoryNames = [
+        String(bestMilitaryMatch.rootEntry?.Name || bestMilitaryMatch.rootEntry?.category || "").trim(),
+        ...splitWtPlusCategoryChildren(bestMilitaryMatch.rootEntry?.Children),
+      ].filter(Boolean);
+      usedSeed = bestMilitaryMatch.seed;
     }
 
     if (!Array.isArray(categoryNames) || !categoryNames.length) {
@@ -1316,13 +1917,23 @@ export function createProfileSearchHandler({
         effectiveSeed,
         seedsTried: seedsToTry,
         countryScope,
+        geoScope,
+        militaryMode,
       });
       return null;
     }
 
-    const normalizedCountryScope = String(countryScope || "").trim().toLowerCase();
-    const normalizedCategoryWord = String(categoryWord || "").trim().toLowerCase();
+    const normalizedCountryScope = String(countryScope || "")
+      .trim()
+      .toLowerCase();
+    const normalizedCategoryWord = String(categoryWord || "")
+      .trim()
+      .toLowerCase();
     const filteredCategoryNames = categoryNames.filter((categoryName) => {
+      if (militaryMode) {
+        return isLikelyMilitaryArmedForcesCategoryName(categoryName, { countryScope, geoScope });
+      }
+
       if (!normalizedCountryScope) {
         return true;
       }
@@ -1359,25 +1970,20 @@ export function createProfileSearchHandler({
       categoryValues.push(normalizedValue);
     };
 
-    // Keep the scoped seed category first, then append discovered hierarchy categories.
-    const anchoredRootCategory = countryScope && categoryWord ? `${countryScope}, ${categoryWord}` : seedFromCategory;
-    addCategoryValue(toWtPlusCategoryFullValueFromCategoryName(anchoredRootCategory));
+    // Only categories returned by wtCatSearch should be expanded into the WT+ query.
     filteredCategoryNames.forEach((name) => addCategoryValue(toWtPlusCategoryFullValueFromCategoryName(name)));
 
-    if (categoryValues.length <= 1) {
+    if (!categoryValues.length) {
       return null;
     }
 
     const baseQuery = String(parsedCategory.baseQuery || "").trim();
     const expandedBranches = categoryValues
       .map((categoryValue) =>
-        [baseQuery, `CategoryFull=${quoteWtPlusValue(categoryValue)}`]
-          .filter(Boolean)
-          .join(" ")
-          .trim()
+        [baseQuery, `CategoryFull=${quoteWtPlusValue(categoryValue)}`].filter(Boolean).join(" ").trim()
       )
       .filter(Boolean);
-    if (expandedBranches.length <= 1) {
+    if (!expandedBranches.length) {
       return null;
     }
 
@@ -3707,6 +4313,7 @@ export function createProfileSearchHandler({
         "Only use those allowed fields and tokens.",
         "Use sql= for filters that are not easily represented as simple field=value, including date boundaries, line counts, and heading/category checks.",
         "Prefer WT+ date magic tokens (BYYYY, DYYYY, YYYYs, NCen) as PRIMARY filters before sql=.",
+        "For exact decade birth prompts (for example 'born 1820s'), use the raw decade token directly (1820s). Do NOT rewrite a single exact decade as NCen + sql=.",
         "For a whole-century query ('born in the 18th century') use 18Cen alone — no sql= needed.",
         "For a sub-century date range (e.g. 'between 1800 and 1810'): ALWAYS emit the NCen magic token for that century FIRST, then add the sql= range to narrow within it. Example: 19Cen sql=\"([Default].[Birth Date].AsNumber In 18000101..18101231)\".",
         "For date ranges in sql=, use WT+ range syntax: ([...].AsNumber In 19000101..19301231). Avoid >= ... AND <= ... patterns.",
@@ -3824,7 +4431,9 @@ export function createProfileSearchHandler({
 
       const coercedQuery = coerceWtPlusOrphanQueryFromPrompt(rawQuery, parsed?.query || "");
       const completedQuery = ensureWtPlusFamilyField(rawQuery, coercedQuery);
-      const repairedQuery = canonicalizeWtPlusBranchTermOrder(completedQuery || "");
+      const repairedQuery = canonicalizeWtPlusBranchTermOrder(
+        canonicalizeWtPlusExactBirthDecadeRanges(completedQuery || "")
+      );
       const normalizedQuery = normalizeWtPlusQueryString(repairedQuery || completedQuery || "");
       if (!normalizedQuery) {
         console.info("wbe: callAiParseWtPlusQuery returned invalid query", { parsed, completedQuery, repairedQuery });
@@ -3904,6 +4513,7 @@ export function createProfileSearchHandler({
       /\b\d{1,2}(?:st|nd|rd|th)\s+century\b/i.test(text);
     const hasLocationOrLifeEvent = /\b(?:born|died|married)\b/i.test(text);
     const hasCategoryConcept = /\b(?:category|notables?|template|sticker)\b/i.test(text);
+    const hasMilitaryCategoryIntent = /\b(?:military|armed\s*forces?|army|navy|air\s*force|airforce)\b/i.test(text);
     const hasStatusConcept = /\b(?:open|unsourced|unconnected|orphan|public|private|connected|unlinked)\b/i.test(text);
     const hasManagerConstraint = /\b(?:managed\s+only\s+by|multiple\s+managers)\b/i.test(text);
     const hasAnomalyConstraint =
@@ -3932,7 +4542,9 @@ export function createProfileSearchHandler({
       bareTokens.length >= 2 &&
       bareTokens.length <= 4 &&
       /^[A-Za-z][A-Za-z'\-]{2,}$/.test(String(bareTokens[0] || "")) &&
-      /(?:ers|ors|ists|ians|men|women|people|project|projects|families)$/i.test(String(bareTokens[bareTokens.length - 1] || ""));
+      /(?:ers|ors|ists|ians|men|women|people|project|projects|families)$/i.test(
+        String(bareTokens[bareTokens.length - 1] || "")
+      );
     const hasQualifierToken = bareTokens.some((token) => isDateMagicToken(token) || isRawStatusOrQualifierToken(token));
     const semanticClauseCount = [
       hasFamilyRoot,
@@ -3981,6 +4593,10 @@ export function createProfileSearchHandler({
 
     if (hasExplicitField) {
       return false;
+    }
+
+    if (hasMilitaryCategoryIntent) {
+      return true;
     }
 
     // Single bare token prompts (e.g., "Shropshire") are often truly ambiguous
@@ -4409,17 +5025,27 @@ export function createProfileSearchHandler({
         });
         return `I couldn't complete the WT+ query "${canonicalQuery}". WT+ reported a SQL parse issue ("search should not be start with sql").`;
       }
-      if (tooManyMatch) {
+      if (tooManyMatch || cappedByMaxProfiles) {
         hideChatShaky();
         const matchedCount = tooManyMatch?.[1] ? Number.parseInt(tooManyMatch[1], 10) : NaN;
+        const overCapCount = Number.isFinite(matchedCount)
+          ? matchedCount
+          : Number.isFinite(effectiveLogCount)
+          ? effectiveLogCount
+          : NaN;
         console.info("wbe: WT+ query exceeded profile cap", {
           canonicalQuery,
+          effectiveLogCount: Number.isFinite(effectiveLogCount) ? effectiveLogCount : null,
           matchedCount: Number.isFinite(matchedCount) ? matchedCount : null,
           searchLog,
         });
-        const countText = Number.isFinite(matchedCount) ? `${matchedCount.toLocaleString()}+` : "too many";
+        const countText = Number.isFinite(overCapCount)
+          ? overCapCount.toLocaleString()
+          : Number.isFinite(foundCount) && foundCount >= WT_PLUS_MAX_PROFILES
+          ? `${foundCount.toLocaleString()}+`
+          : "too many";
         return {
-          message: `WT+ reported ${countText} profiles for query: ${canonicalQuery}. Please narrow the search (for example add a date range, category, manager, or a more specific location).`,
+          message: `WT+ found ${countText} profiles for query: ${canonicalQuery}. That is too many for Muse to load usefully. Muse can display up to ${WT_PLUS_MAX_PROFILES.toLocaleString()} results, but fewer results will load faster. Please narrow the search (for example add a date range, category, manager, or a more specific location).`,
           actions: [
             {
               label: "Open in WT+",
@@ -4447,7 +5073,7 @@ export function createProfileSearchHandler({
       const uniqueIds = [...new Set(profiles.map((value) => String(value)))];
       showChatShaky(`Fetching ${uniqueIds.length} WT+ matches...`);
       const fields =
-        "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,Father,Mother,BirthDate,BirthDateDecade,BirthLocation,DeathDate,DeathDateDecade,DeathLocation,Gender,Id,Name" +
+        "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,Father,Mother,BirthDate,BirthDateDecade,BirthLocation,DeathDate,DeathDateDecade,DeathLocation,Gender,Id,Name,Categories" +
         (createdRecentlyFilter ? ",Created" : "") +
         (spousalAgeGapFilter ? ",Spouses" : "");
       let [, , peopleById] = await fetchPeoplePaged(WBE_CHAT_APP_ID, uniqueIds, fields, {
@@ -4479,10 +5105,15 @@ export function createProfileSearchHandler({
       }
 
       const people = uniqueIds.map((key) => peopleById?.[String(key)]).filter(Boolean);
-      if (createdRecentlyFilter) {
-        const profileRowsById = new Map(
-          people.map((person) => [String(person?.Id || ""), mapApiPersonToStandardRow(person, { wtId: person?.Name })])
+      const queryCategories = extractWtPlusCategoryFullValues(canonicalQuery);
+      const mapWtPlusPersonRow = (person) =>
+        withMatchedWtPlusCategoryRow(
+          mapApiPersonToStandardRow(person, { wtId: person?.Name }),
+          person,
+          queryCategories
         );
+      if (createdRecentlyFilter) {
+        const profileRowsById = new Map(people.map((person) => [String(person?.Id || ""), mapWtPlusPersonRow(person)]));
         const createdMatches = buildCreatedRecentlyMatches(people, createdRecentlyFilter);
         if (!createdMatches.length) {
           hideChatShaky();
@@ -4511,9 +5142,7 @@ export function createProfileSearchHandler({
       }
 
       if (siblingBirthGapFilter) {
-        const profileRowsById = new Map(
-          people.map((person) => [String(person?.Id || ""), mapApiPersonToStandardRow(person, { wtId: person?.Name })])
-        );
+        const profileRowsById = new Map(people.map((person) => [String(person?.Id || ""), mapWtPlusPersonRow(person)]));
         const siblingMatches = buildSiblingBirthGapMatches(people, siblingBirthGapFilter);
         const thresholdLabel = formatSiblingBirthGapThreshold(
           siblingBirthGapFilter.maxMonths,
@@ -4571,9 +5200,7 @@ export function createProfileSearchHandler({
           spousePeopleById = fetchedSpouses || {};
         }
 
-        const profileRowsById = new Map(
-          people.map((person) => [String(person?.Id || ""), mapApiPersonToStandardRow(person, { wtId: person?.Name })])
-        );
+        const profileRowsById = new Map(people.map((person) => [String(person?.Id || ""), mapWtPlusPersonRow(person)]));
         const spouseAgeGapMatches = buildSpousalAgeGapMatches(people, spousePeopleById, spousalAgeGapFilter);
         const thresholdLabel = formatSpousalAgeGapThreshold(
           spousalAgeGapFilter.minGapYears,
@@ -4632,9 +5259,7 @@ export function createProfileSearchHandler({
           parentPeopleById = fetchedParents || {};
         }
 
-        const childRowsById = new Map(
-          people.map((person) => [String(person?.Id || ""), mapApiPersonToStandardRow(person, { wtId: person?.Name })])
-        );
+        const childRowsById = new Map(people.map((person) => [String(person?.Id || ""), mapWtPlusPersonRow(person)]));
         const parentAgeMatches = buildParentAgeAtBirthMatches(people, parentPeopleById, parentAgeAtBirthFilter);
         const boundsLabel = formatParentAgeAtBirthBounds(
           parentAgeAtBirthFilter.underAge,
@@ -4684,7 +5309,7 @@ export function createProfileSearchHandler({
       const ancestorRootWtId = extractWtPlusAncestorsRoot(canonicalQuery);
       const rows = ancestorRootWtId
         ? await buildWtPlusAncestorRows(ancestorRootWtId, uniqueIds, fields)
-        : people.map((person) => mapApiPersonToStandardRow(person, { wtId: person?.Name }));
+        : people.map((person) => mapWtPlusPersonRow(person));
       const tableFactory = ancestorRootWtId ? makeAncestorProfileTable : makeStandardProfileTable;
       const table = tableFactory(title || `WT+ search: ${wtPlusQuery}`, rows, [[0, "asc"]]);
       table.wtPlusQuery = canonicalQuery;
@@ -4701,7 +5326,7 @@ export function createProfileSearchHandler({
         .map((match) => `used closest category "${match.category}" for "${match.requested}"`)
         .join("; ");
       const truncationNote = cappedByMaxProfiles
-        ? `WT+ matched ${effectiveLogCount.toLocaleString()} profiles; chat can load only the first ${WT_PLUS_MAX_PROFILES.toLocaleString()} due to API limits.`
+        ? `WT+ matched ${effectiveLogCount.toLocaleString()} profiles; Muse can display up to ${WT_PLUS_MAX_PROFILES.toLocaleString()} results, and fewer results will load faster.`
         : "";
       const missingProfilesNote = missingProfileIds.length
         ? `${missingProfileIds.length.toLocaleString()} profile(s) could not be loaded after retry due to transient API/network errors (for example connection reset).`
@@ -6960,6 +7585,8 @@ export function createProfileSearchHandler({
         }
       }
 
+      let aiParseAppliedNameFields = false;
+      let aiParseAppliedLocationFields = false;
       try {
         const hasKey = await hasAnyApiKey();
         const options = await getChatOptions();
@@ -6983,9 +7610,13 @@ export function createProfileSearchHandler({
                 else if (k === "BirthDateEnd") modifiers.bornBefore = v;
                 else if (k === "DeathDateStart") modifiers.diedAfter = v;
                 else if (k === "DeathDateEnd") modifiers.diedBefore = v;
-                else if (k === "BirthLocation") modifiers.birthLocation = v;
-                else if (k === "DeathLocation") modifiers.deathLocation = v;
-                else if (k === "fatherFirstName") modifiers.fatherFirstName = v;
+                else if (k === "BirthLocation") {
+                  modifiers.birthLocation = v;
+                  aiParseAppliedLocationFields = true;
+                } else if (k === "DeathLocation") {
+                  modifiers.deathLocation = v;
+                  aiParseAppliedLocationFields = true;
+                } else if (k === "fatherFirstName") modifiers.fatherFirstName = v;
                 else if (k === "fatherLastName") modifiers.fatherLastName = v;
                 else if (k === "motherFirstName") modifiers.motherFirstName = v;
                 else if (k === "motherLastName") modifiers.motherLastName = v;
@@ -6993,9 +7624,16 @@ export function createProfileSearchHandler({
                 else if (k === "skipVariants" || k === "noVariants") {
                   if (v) modifiers.noVariants = true;
                 } else if (k === "watchlist") modifiers.useWatchlist = !!v;
-                else if (k === "FirstName") modifiers.firstName = v;
-                else if (k === "LastName") modifiers.lastName = v;
-                else if (k === "RealName") modifiers.realName = v;
+                else if (k === "FirstName") {
+                  modifiers.firstName = v;
+                  aiParseAppliedNameFields = true;
+                } else if (k === "LastName") {
+                  modifiers.lastName = v;
+                  aiParseAppliedNameFields = true;
+                } else if (k === "RealName") {
+                  modifiers.realName = v;
+                  aiParseAppliedNameFields = true;
+                }
               } catch (error) {
                 /* ignore malformed fields */
               }
@@ -7006,6 +7644,15 @@ export function createProfileSearchHandler({
       } catch (error) {
         /* ignore AI parse errors */
       }
+
+      const shouldInferNameFromPrompt = !(
+        effectiveChatMode === "wt" &&
+        aiParseAppliedLocationFields &&
+        !aiParseAppliedNameFields &&
+        !modifiers?.firstName &&
+        !modifiers?.lastName &&
+        !modifiers?.realName
+      );
 
       const hasDateModifiers = Boolean(
         modifiers?.bornBefore ||
@@ -7027,11 +7674,13 @@ export function createProfileSearchHandler({
         const uq = stripSurroundingQuotes(effectiveMainQuery) || "";
         exactMatchQuery = uq || exactMatchQuery;
         const uqTokens = (uq || "").trim().split(/\s+/).filter(Boolean);
-        if (uqTokens.length === 1) {
-          apiParams.LastName = uqTokens[0];
-        } else if (uqTokens.length >= 2) {
-          apiParams.FirstName = uqTokens[0];
-          apiParams.LastName = uqTokens[uqTokens.length - 1];
+        if (shouldInferNameFromPrompt) {
+          if (uqTokens.length === 1) {
+            apiParams.LastName = uqTokens[0];
+          } else if (uqTokens.length >= 2) {
+            apiParams.FirstName = uqTokens[0];
+            apiParams.LastName = uqTokens[uqTokens.length - 1];
+          }
         }
       }
       if (hadQuotedPhrase) {
@@ -7090,7 +7739,7 @@ export function createProfileSearchHandler({
       if (hadQuotedPhrase) mainQuery = unquotedMain;
       if (!exactMatchQuery) exactMatchQuery = unquotedMain;
       const qTokens = (unquotedMain || "").trim().split(/\s+/).filter(Boolean);
-      if (qTokens.length === 2) {
+      if (shouldInferNameFromPrompt && qTokens.length === 2) {
         if (!apiParams.FirstName && !modifiers?.lastName) apiParams.FirstName = qTokens[0];
         if (!apiParams.LastName) apiParams.LastName = qTokens[1];
       }
@@ -7112,13 +7761,13 @@ export function createProfileSearchHandler({
       const cleanedForName = hasDateModifiers
         ? stripDateQualifiersFromText(unquotedMain) || unquotedMain
         : unquotedMain;
-      console.debug("wbe: effective name for API", { cleanedForName, hasDateModifiers });
+      console.debug("wbe: effective name for API", { cleanedForName, hasDateModifiers, shouldInferNameFromPrompt });
       const cleanedTokens = (cleanedForName || "").trim().split(/\s+/).filter(Boolean);
-      if (cleanedTokens.length >= 2) {
+      if (shouldInferNameFromPrompt && cleanedTokens.length >= 2) {
         if (!searchParams.FirstName && !modifiers?.lastName) searchParams.FirstName = cleanedTokens[0];
         if (!searchParams.LastName) searchParams.LastName = cleanedTokens[cleanedTokens.length - 1];
       }
-      if (!searchParams.FirstName && !searchParams.LastName && unquotedMain) {
+      if (shouldInferNameFromPrompt && !searchParams.FirstName && !searchParams.LastName && unquotedMain) {
         const tokens = String(unquotedMain || "")
           .trim()
           .split(/\s+/)
@@ -7140,7 +7789,7 @@ export function createProfileSearchHandler({
       if (modifiers?.noVariants) {
         console.debug("wbe: forcing skipVariants due to noVariants", { mainQuery });
         searchParams.skipVariants = 1;
-        if (!searchParams.FirstName && !searchParams.LastName && unquotedMain) {
+        if (shouldInferNameFromPrompt && !searchParams.FirstName && !searchParams.LastName && unquotedMain) {
           const tokens = String(unquotedMain || "")
             .trim()
             .split(/\s+/)

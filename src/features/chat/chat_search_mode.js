@@ -196,7 +196,7 @@ function isLikelyWtPlusFilterPrompt(prompt) {
 
   const hasAgeConstraint = /\bage\s*(?:=|is|of)?\s*\d{1,3}\b/i.test(normalizedPrompt);
   const hasYearConstraint =
-    /\b(?:born|died|b\.|d\.)\s+(?:before|after|in|around)?\s*\d{4}\b|\b\d{4}\s*(?:birth|death)\b/i.test(
+    /\b(?:born|died|b\.|d\.)\s+(?:before|after|in|around)?\s*\d{4}\b|\b\d{4}\s*(?:birth|death)\b|\b(?:pre|post)[-\s]?\d{4}\b|\b(?:before|after)\s+\d{4}\b/i.test(
       normalizedPrompt
     );
   const hasConnectedFilter = /\bconnected\b|\bdna\b/i.test(normalizedPrompt);
@@ -204,6 +204,7 @@ function isLikelyWtPlusFilterPrompt(prompt) {
     /\b(?:in|from|at|near|around|location|place|town|city|county|state|country|region|village)\b/i.test(
       normalizedPrompt
     );
+  const hasAggregateEventCue = /\b(?:births|deaths|burials|marriages)\b/i.test(normalizedPrompt);
 
   const hasTemporalConstraint = hasAgeConstraint || hasYearConstraint;
 
@@ -213,6 +214,7 @@ function isLikelyWtPlusFilterPrompt(prompt) {
   }
 
   return (
+    (hasTemporalConstraint && hasAggregateEventCue) ||
     (hasTemporalConstraint && hasExplicitLocationCue) ||
     (hasConnectedFilter && (hasAgeConstraint || hasExplicitLocationCue))
   );
