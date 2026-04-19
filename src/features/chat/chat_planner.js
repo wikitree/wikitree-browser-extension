@@ -250,18 +250,35 @@ export function createChatAiPlannerHandlers({
     const { provider, key, model } = await getChatAiConfig();
     if (!key) return null;
 
+    const normalizedTarget = String(target || "")
+      .trim()
+      .toLowerCase();
+    const currentDate = new Date().toISOString().slice(0, 10);
+    const roleTitleContext = /^(?:the\s+)?pope$/i.test(normalizedTarget)
+      ? [
+          `Current date: ${currentDate}`,
+          'For role titles like "the Pope", resolve the office holder on that date, not a former holder.',
+        ]
+      : [];
+
     const aiPrompt = [
       "You are a helper for a genealogy extension.",
-      "Given a user-provided target (name fragment) and the full user prompt, infer the most likely canonical person name for WikiTree lookup.",
-      "If the target is ambiguous but a famous or strongly implied historical person is the obvious interpretation from normal human context, return that full canonical name.",
-      "Include a likely full birth date in YYYY-MM-DD format when it helps disambiguate the person. If you only know the year, return birthYear instead.",
+      "Given a user-provided target (name fragment) and the full user prompt, infer the most likely WikiTree lookup identity.",
+      "Return lookup fields, not a display label: use the given name in FirstName and the searchable surname in LastName.",
+      "Do not include middle names, suffixes, honorifics, titles, or nicknames in FirstName or LastName.",
+      "If the target is ambiguous but a famous or strongly implied historical person is the obvious interpretation from normal human context, return the lookup fields for that person.",
+      ...roleTitleContext,
+      "Include BirthDate when it helps disambiguate the person. Use YYYY-MM-DD when known, or YYYY if you only know the year.",
+      "Include DeathDate when known. Use YYYY-MM-DD when known, YYYY if you only know the year, and an empty string if the person is living or no death date is known.",
+      "Include isLiving as true when the person is living, false when the person is deceased, and omit it only if you are genuinely uncertain.",
       "Return a JSON object with one of these shapes:",
-      '{"searchName":"<canonical full name>","birthDate":"1801-12-05"} OR {"searchName":"<canonical full name>","birthYear":1809} OR {"searchName":"<alternate search name>"} OR {"wtId":"Name-123"} OR {"none":true}',
+      '{"FirstName":"<given name>","LastName":"<WikiTree-search surname>","BirthDate":"1801-12-05","DeathDate":"1882-04-19","isLiving":false} OR {"FirstName":"<given name>","LastName":"<WikiTree-search surname>","BirthDate":"1809","DeathDate":"1882","isLiving":false} OR {"FirstName":"<given name>","LastName":"<WikiTree-search surname>","BirthDate":"1962-07-03","DeathDate":"","isLiving":true} OR {"wtId":"Name-123"} OR {"none":true}',
       "Only return valid JSON (no markdown).",
       "Examples:",
-      '- Target: "Disney" -> {"searchName":"Walter Elias Disney","birthDate":"1901-12-05"}',
-      '- Target: "Darwin" with prompt about a famous naturalist -> {"searchName":"Charles Darwin","birthDate":"1809-02-12"}',
-      '- Target: "JFK" -> {"searchName":"John Fitzgerald Kennedy","birthDate":"1917-05-29"}',
+      '- Target: "Disney" -> {"FirstName":"Walter","LastName":"Disney","BirthDate":"1901-12-05","DeathDate":"1966-12-15","isLiving":false}',
+      '- Target: "Darwin" with prompt about a famous naturalist -> {"FirstName":"Charles","LastName":"Darwin","BirthDate":"1809-02-12","DeathDate":"1882-04-19","isLiving":false}',
+      '- Target: "JFK" -> {"FirstName":"John","LastName":"Kennedy","BirthDate":"1917-05-29","DeathDate":"1963-11-22","isLiving":false}',
+      '- Target: "Tom Cruise" -> {"FirstName":"Thomas","LastName":"Mapother","BirthDate":"1962-07-03","DeathDate":"","isLiving":true}',
       `Target: ${target}`,
       `Prompt: ${prompt}`,
     ].join("\n\n");

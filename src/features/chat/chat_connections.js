@@ -57,6 +57,163 @@ function normalizeConnectionBirthDate(value) {
   return `${year}-${month}-${day}`;
 }
 
+function normalizeConnectionAiBoolean(value) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  const normalizedValue = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (!normalizedValue) {
+    return null;
+  }
+
+  if (["true", "1", "yes", "alive", "living"].includes(normalizedValue)) {
+    return true;
+  }
+  if (["false", "0", "no", "dead", "deceased"].includes(normalizedValue)) {
+    return false;
+  }
+
+  return null;
+}
+
+function scoreExactConnectionNameEvidence(match, firstName, lastName) {
+  let score = 0;
+
+  if (firstName) {
+    const normalizedFirstName = normalizePersonText(firstName);
+    const normalizedProfileFirst = normalizePersonText(match?.FirstName);
+    const normalizedRealNameFirst = normalizePersonText(
+      String(match?.RealName || match?.Derived?.ShortName || "")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)[0]
+    );
+
+    if (normalizedProfileFirst === normalizedFirstName) {
+      score += 90;
+    } else if (normalizedRealNameFirst === normalizedFirstName) {
+      score += 130;
+    }
+  }
+
+  if (lastName) {
+    const normalizedLastName = normalizePersonText(lastName);
+    const normalizedCurrentLast = normalizePersonText(match?.LastNameCurrent);
+    const normalizedBirthLast = normalizePersonText(match?.LastNameAtBirth);
+
+    if (normalizedCurrentLast === normalizedLastName) {
+      score += 150;
+    } else if (normalizedBirthLast === normalizedLastName) {
+      score += 80;
+    }
+  }
+
+  if (firstName && lastName && hasExactConnectionFullName(match, firstName, lastName)) {
+    score += 180;
+  }
+
+  return score;
+}
+
+function hasExactConnectionSurname(match, surname) {
+  const normalizedSurname = normalizePersonText(surname);
+  if (!normalizedSurname) {
+    return false;
+  }
+
+  return (
+    normalizePersonText(match?.LastNameAtBirth) === normalizedSurname ||
+    normalizePersonText(match?.LastNameCurrent) === normalizedSurname
+  );
+}
+
+function hasExactConnectionFirstName(match, firstName) {
+  const normalizedFirstName = normalizePersonText(firstName);
+  if (!normalizedFirstName) {
+    return false;
+  }
+
+  const normalizedProfileFirst = normalizePersonText(match?.FirstName);
+  if (normalizedProfileFirst === normalizedFirstName) {
+    return true;
+  }
+
+  const realNameFirstToken = String(match?.RealName || match?.Derived?.ShortName || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)[0];
+
+  return normalizePersonText(realNameFirstToken) === normalizedFirstName;
+}
+
+function hasExactConnectionFullName(match, firstName, lastName) {
+  return hasExactConnectionFirstName(match, firstName) && hasExactConnectionSurname(match, lastName);
+}
+
+function isSparseConnectionMatch(match) {
+  if (!match?.Id) {
+    return false;
+  }
+
+  return !match?.Name && !match?.RealName && !match?.FirstName && !match?.LastNameAtBirth && !match?.LastNameCurrent;
+}
+
+function normalizeResolvedConnectionPerson(person) {
+  if (!person) {
+    return null;
+  }
+
+  const rawPerson = person?._data && typeof person._data === "object" ? person._data : person;
+  if (!rawPerson || typeof rawPerson !== "object") {
+    return rawPerson;
+  }
+
+  if (rawPerson.ShortName && !rawPerson?.Derived?.ShortName) {
+    return {
+      ...rawPerson,
+      Derived: {
+        ...(rawPerson.Derived || {}),
+        ShortName: rawPerson.ShortName,
+      },
+    };
+  }
+
+  return rawPerson;
+}
+
+function normalizeConnectionAiExpansion(expansion) {
+  if (!expansion || typeof expansion !== "object") {
+    return expansion || null;
+  }
+
+  const normalizedFirstName = String(expansion?.FirstName || expansion?.firstName || "").trim();
+  const normalizedLastName = String(expansion?.LastName || expansion?.lastName || "").trim();
+  const normalizedBirthDate = String(expansion?.BirthDate || expansion?.birthDate || "").trim();
+  const normalizedDeathDate = String(expansion?.DeathDate || expansion?.deathDate || "").trim();
+  const isLiving = normalizeConnectionAiBoolean(expansion?.IsLiving ?? expansion?.isLiving);
+  const rawBirthYear = expansion?.BirthYear ?? expansion?.birthYear;
+  const birthYear = Number.isFinite(Number(rawBirthYear)) ? Number(rawBirthYear) : null;
+  const wtId = String(expansion?.wtId || expansion?.WtId || "").trim();
+  const searchName =
+    String(expansion?.searchName || expansion?.SearchName || "").trim() ||
+    [normalizedFirstName, normalizedLastName].filter(Boolean).join(" ").trim();
+
+  return {
+    ...expansion,
+    wtId,
+    searchName,
+    firstName: normalizedFirstName,
+    lastName: normalizedLastName,
+    birthDate: normalizedBirthDate,
+    deathDate: normalizedDeathDate,
+    isLiving,
+    birthYear,
+  };
+}
+
 export function createChatConnectionHandlers({
   WBE_CHAT_APP_ID,
   CHAT_LAST_CONNECTION_KEY,
@@ -86,10 +243,12 @@ export function createChatConnectionHandlers({
 
     const pageContextCandidate = findPageContextPersonCandidate(cleanedTarget);
     if (pageContextCandidate?.wtId && !excludedWtIds.has(pageContextCandidate.wtId)) {
-      const contextMatch = await WikiTreeAPI.getPerson(
-        "Chat",
-        pageContextCandidate.wtId,
-        "Id,Name,RealName,Derived.ShortName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate"
+      const contextMatch = normalizeResolvedConnectionPerson(
+        await WikiTreeAPI.getPerson(
+          "Chat",
+          pageContextCandidate.wtId,
+          "Id,Name,RealName,Derived.ShortName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate"
+        )
       );
       if (contextMatch?.Name || contextMatch?.Id) {
         return contextMatch;
@@ -102,32 +261,59 @@ export function createChatConnectionHandlers({
     }
 
     if (isWikiTreeId(cleanedTarget)) {
-      return await WikiTreeAPI.getPerson(
-        "Chat",
-        cleanedTarget,
-        "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender"
+      return normalizeResolvedConnectionPerson(
+        await WikiTreeAPI.getPerson(
+          "Chat",
+          cleanedTarget,
+          "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender"
+        )
       );
     }
 
     const { firstName, lastName } = splitPersonName(cleanedTarget);
     const fields =
-      "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender";
-    let aiExpansion = await tryAiExpandConnectionTarget(cleanedTarget, prompt);
+      "Id,Name,RealName,Derived.ShortName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender";
+    const commonAlias = normalizeConnectionAiExpansion(getCommonAliasExpansion(cleanedTarget));
+    let aiExpansion = commonAlias;
+    if (!aiExpansion) {
+      aiExpansion = normalizeConnectionAiExpansion(await tryAiExpandConnectionTarget(cleanedTarget, prompt));
+    }
     console.debug("wbe: resolveConnectionTargetPerson ai expansion", {
       cleanedTarget,
       prompt,
       aiExpansion,
     });
 
-    if (!aiExpansion?.searchName) {
-      const commonAlias = getCommonAliasExpansion(cleanedTarget);
-      if (commonAlias) {
-        aiExpansion = commonAlias;
-      }
+    if (!aiExpansion?.searchName && commonAlias) {
+      aiExpansion = commonAlias;
     }
 
-    const expandedParts = splitPersonName(aiExpansion?.searchName || "");
+    if (isWikiTreeId(aiExpansion?.wtId || "")) {
+      return normalizeResolvedConnectionPerson(
+        await WikiTreeAPI.getPerson(
+          "Chat",
+          aiExpansion.wtId,
+          "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender"
+        )
+      );
+    }
+
+    const expandedParts =
+      aiExpansion?.firstName || aiExpansion?.lastName
+        ? {
+            firstName: aiExpansion.firstName || "",
+            lastName: aiExpansion.lastName || "",
+          }
+        : splitPersonName(aiExpansion?.searchName || "");
     const normalizedBirthDate = normalizeConnectionBirthDate(aiExpansion?.birthDate);
+    const normalizedDeathDate = normalizeConnectionBirthDate(aiExpansion?.deathDate);
+    const targetBirthYear = extractYearFromDate(normalizedBirthDate) || Number(aiExpansion?.birthYear) || null;
+    const aiSaysLiving = aiExpansion?.isLiving === true;
+    const likelyLivingTarget =
+      aiSaysLiving ||
+      (!normalizedDeathDate &&
+        Number.isFinite(Number(targetBirthYear)) &&
+        Number(targetBirthYear) >= new Date().getFullYear() - 110);
     const birthDateSearchParams = normalizedBirthDate
       ? {
           BirthDate: normalizedBirthDate,
@@ -157,6 +343,22 @@ export function createChatConnectionHandlers({
         fields
       );
       strictMatches = searchMatches || [];
+    }
+
+    let currentLastStrictMatches = [];
+    if (firstName && lastName) {
+      const [, searchMatches] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: firstName,
+          LastNameCurrent: lastName,
+          skipVariants: 1,
+          limit: 15,
+          sort: "birth",
+        },
+        fields
+      );
+      currentLastStrictMatches = searchMatches || [];
     }
 
     let relaxedMatches = [];
@@ -231,6 +433,21 @@ export function createChatConnectionHandlers({
       expandedStrictMatches = searchMatches || [];
     }
 
+    let expandedCurrentLastStrictMatches = [];
+    if (expandedParts.firstName && expandedParts.lastName) {
+      const [, searchMatches] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: expandedParts.firstName,
+          LastNameCurrent: expandedParts.lastName,
+          skipVariants: 1,
+          limit: 20,
+        },
+        fields
+      );
+      expandedCurrentLastStrictMatches = searchMatches || [];
+    }
+
     let expandedBirthYearStrictMatches = [];
     if (birthDateSearchParams && expandedParts.firstName && expandedParts.lastName) {
       const [, searchMatches] = await WikiTreeAPI.searchPerson(
@@ -248,11 +465,19 @@ export function createChatConnectionHandlers({
       expandedBirthYearStrictMatches = searchMatches || [];
     }
 
+    const exactOriginalMatches = mergeConnectionMatches([strictMatches, currentLastStrictMatches]);
+    const sparseExactOriginalMatch =
+      firstName && lastName && exactOriginalMatches.length === 1 && isSparseConnectionMatch(exactOriginalMatches[0])
+        ? exactOriginalMatches[0]
+        : null;
+
     const matches = mergeConnectionMatches([
       expandedBirthYearStrictMatches,
       expandedBirthYearMatches,
       expandedStrictMatches,
+      expandedCurrentLastStrictMatches,
       strictMatches,
+      currentLastStrictMatches,
       expandedNameMatches,
       relaxedMatches,
       realNameMatches,
@@ -262,7 +487,10 @@ export function createChatConnectionHandlers({
       Boolean(aiExpansion?.searchName) &&
       normalizePersonText(aiExpansion.searchName) !== normalizePersonText(cleanedTarget);
     const rankingTarget = hasExpandedSearchName ? aiExpansion.searchName : cleanedTarget;
-    const rankingParts = hasExpandedSearchName ? expandedParts : { firstName, lastName };
+    const rankingParts =
+      hasExpandedSearchName || aiExpansion?.firstName || aiExpansion?.lastName
+        ? expandedParts
+        : { firstName, lastName };
 
     let rankedMatches = rankConnectionMatches(rankingTarget, matches, rankingParts);
 
@@ -312,6 +540,8 @@ export function createChatConnectionHandlers({
             } else if (gap >= 35) {
               score -= 60;
             }
+          } else if (likelyLivingTarget) {
+            score += 10;
           } else {
             score -= 25;
           }
@@ -320,8 +550,84 @@ export function createChatConnectionHandlers({
         .sort((left, right) => right.score - left.score);
     }
 
+    if ((firstName && lastName && hasExpandedSearchName) || normalizedDeathDate || likelyLivingTarget) {
+      rankedMatches = rankedMatches
+        .map((entry) => {
+          const candidateDeathDate = normalizeConnectionBirthDate(entry.match?.DeathDate);
+          let score = entry.score;
+
+          if (hasExpandedSearchName && firstName && lastName) {
+            score += scoreExactConnectionNameEvidence(entry.match, firstName, lastName);
+          }
+
+          if (normalizedDeathDate) {
+            if (candidateDeathDate) {
+              if (candidateDeathDate === normalizedDeathDate) {
+                score += 260;
+              } else if (candidateDeathDate.slice(0, 4) === normalizedDeathDate.slice(0, 4)) {
+                score += 120;
+              } else {
+                score -= 70;
+              }
+            } else {
+              score -= 25;
+            }
+          } else if (likelyLivingTarget) {
+            if (candidateDeathDate) {
+              score -= 140;
+            } else {
+              score += 20;
+            }
+          }
+
+          return { ...entry, score };
+        })
+        .sort((left, right) => right.score - left.score);
+    }
+
+    const targetDiffersFromExpandedName =
+      Boolean(firstName && lastName && expandedParts.firstName && expandedParts.lastName) &&
+      (normalizePersonText(firstName) !== normalizePersonText(expandedParts.firstName) ||
+        normalizePersonText(lastName) !== normalizePersonText(expandedParts.lastName));
+    const exactOriginalAliasMatches =
+      firstName && lastName && rankedMatches.length
+        ? rankedMatches.filter((entry) => hasExactConnectionFullName(entry.match, firstName, lastName))
+        : [];
+
+    if (rankingParts.firstName && rankingParts.lastName && rankedMatches.length) {
+      const exactFullNameMatches = rankedMatches.filter((entry) =>
+        hasExactConnectionFullName(entry.match, rankingParts.firstName, rankingParts.lastName)
+      );
+      const shouldPreferOriginalAliasMatches = targetDiffersFromExpandedName && exactOriginalAliasMatches.length;
+      if (exactFullNameMatches.length && !shouldPreferOriginalAliasMatches) {
+        rankedMatches = exactFullNameMatches;
+      } else {
+        rankedMatches = shouldPreferOriginalAliasMatches ? exactOriginalAliasMatches : [];
+      }
+    }
+
+    if (hasExpandedSearchName && firstName && lastName && rankedMatches.length) {
+      const exactOriginalAliasMatchesWithinFiltered = rankedMatches.filter((entry) =>
+        hasExactConnectionFullName(entry.match, firstName, lastName)
+      );
+      if (exactOriginalAliasMatchesWithinFiltered.length) {
+        rankedMatches = exactOriginalAliasMatchesWithinFiltered;
+      }
+    }
+
+    if (aiSaysLiving && rankedMatches.length) {
+      const livingOnlyMatches = rankedMatches.filter((entry) => !normalizeConnectionBirthDate(entry.match?.DeathDate));
+      if (livingOnlyMatches.length) {
+        rankedMatches = livingOnlyMatches;
+      }
+    }
+
     if (excludedWtIds.size) {
       rankedMatches = rankedMatches.filter((entry) => !excludedWtIds.has(String(entry?.match?.Name || "")));
+    }
+
+    if (!rankedMatches.length && sparseExactOriginalMatch) {
+      return sparseExactOriginalMatch;
     }
 
     setLastConnectionCandidates(rankedMatches.map((entry) => entry.match).filter(Boolean));
@@ -361,6 +667,10 @@ export function createChatConnectionHandlers({
 
     let bestMatch = rankedMatches[0]?.match || null;
 
+    if (!bestMatch?.Name && rankingParts.firstName && rankingParts.lastName) {
+      return null;
+    }
+
     if (!bestMatch?.Name) {
       const lookup = await wtAPIProfileSearch("Chat", encodeURIComponent(cleanedTarget), { maxProfiles: 25 });
       const profiles = lookup?.response?.profiles || [];
@@ -375,7 +685,9 @@ export function createChatConnectionHandlers({
     }
 
     if (!bestMatch?.Name && bestMatch?.Id) {
-      return await WikiTreeAPI.getPerson("Chat", bestMatch.Id, "Id,Name,RealName,LastNameAtBirth,LastNameCurrent");
+      return normalizeResolvedConnectionPerson(
+        await WikiTreeAPI.getPerson("Chat", bestMatch.Id, "Id,Name,RealName,LastNameAtBirth,LastNameCurrent")
+      );
     }
 
     return bestMatch;
@@ -510,18 +822,23 @@ export function createChatConnectionHandlers({
       const matchedPerson = await resolveConnectionTargetPerson(lookupTarget, prompt, { excludeWtIds: [] });
       console.debug("wbe: tryHandleConnectionPrompt resolved matchedPerson", { matchedPerson });
       if (!matchedPerson) {
-        return `I could not find a WikiTree profile match for \"${lookupTarget}\".`;
+        return `I could not find a WikiTree profile match for \"${lookupTarget}\". If that profile is private, Muse may not be able to compute the connection at all because WikiTree may not expose a stable WikiTree ID.`;
       }
 
       const targetWtId = matchedPerson?.Name;
       if (!targetWtId) {
-        return `I found candidate matches for \"${lookupTarget}\", but could not resolve a WikiTree ID.`;
+        return `I found candidate matches for \"${lookupTarget}\", but could not resolve a WikiTree ID. If that profile is private, Muse cannot compute the connection because WikiTree did not expose a stable WikiTree ID.`;
       }
 
       const sourceRoot = await resolveConnectionSourceRoot(prompt, targetWtId);
       console.debug("wbe: tryHandleConnectionPrompt sourceRoot", { sourceRoot });
       if (sourceRoot?.unresolvedName) {
-        return `I couldn't identify which source profile you meant by "${sourceRoot.unresolvedName}". Try a WikiTree ID like Name-123, or a more specific name.`;
+        return `I couldn't identify which source profile you meant by "${sourceRoot.unresolvedName}". If that profile is private, Muse may not be able to compute the connection because WikiTree may not expose a stable WikiTree ID.`;
+      }
+      if (sourceRoot?.subjectType === "named" && !sourceRoot?.wtId) {
+        return `I found a possible source match for "${
+          sourceRoot.displayName || "that person"
+        }", but WikiTree did not provide a stable WikiTree ID for it. If that profile is private, Muse cannot compute the connection from it.`;
       }
       if (!sourceRoot?.wtId && !sourceRoot?.key) {
         if (promptRefersToUser(prompt)) {

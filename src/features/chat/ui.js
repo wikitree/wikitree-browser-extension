@@ -16,6 +16,15 @@ function normalizeText(value) {
 }
 
 function formatConnectionPersonName(person) {
+  const privateLongName = String(
+    person?.LongNamePrivate ||
+      person?.Derived?.LongNamePrivate ||
+      person?.BirthNamePrivate ||
+      person?.Derived?.BirthNamePrivate ||
+      ""
+  ).trim();
+  const isPrivatePlaceholder = Number(person?.Id) < 0 && !String(person?.Name || "").trim();
+
   try {
     const personName = new PersonName(person || {});
     const pedigreeName = personName.withParts(["PedigreeName"]);
@@ -27,7 +36,26 @@ function formatConnectionPersonName(person) {
   }
 
   const fallbackName = `${person?.FirstName || ""} ${person?.LastNameCurrent || person?.LastNameAtBirth || ""}`.trim();
-  return fallbackName || person?.RealName || person?.Name || "";
+  return (
+    fallbackName ||
+    person?.RealName ||
+    person?.Derived?.ShortName ||
+    privateLongName ||
+    person?.Name ||
+    (isPrivatePlaceholder ? "Private" : "")
+  );
+}
+
+function renderConnectionPersonLink(person, label) {
+  const name = String(label || "").trim();
+  const wtId = String(person?.Name || "").trim();
+  if (!wtId) {
+    return escapeHtml(name);
+  }
+
+  return `<a href="https://www.wikitree.com/wiki/${escapeHtml(wtId)}" target="_blank" rel="noopener">${escapeHtml(
+    name
+  )}</a>`;
 }
 
 /**
@@ -310,9 +338,7 @@ function buildConnectionsDiagramHtml(path, stepMeta) {
       style="left:${p.left}px;top:${p.top}px;width:${CARD_W}px;min-height:${CARD_H}px;border-color:${branchColour}">
       ${avatarHtml}
       <div class="conn-diag-body">
-        <div class="conn-diag-name"><a href="https://www.wikitree.com/wiki/${escapeHtml(
-          person.Name || ""
-        )}" target="_blank" rel="noopener">${escapeHtml(name)}</a></div>
+        <div class="conn-diag-name">${renderConnectionPersonLink(person, name)}</div>
         <div class="conn-diag-years">${escapeHtml(by)} – ${escapeHtml(dy)}</div>
         ${rel ? `<div class="conn-diag-rel">${arrow}${escapeHtml(rel)}</div>` : ""}
       </div>
@@ -397,9 +423,7 @@ export function showConnectionsPopup(connectionsResult) {
       return `
         <tr class="${rowClass}">
           ${stepCell}
-          <td class="name-cell"><a href="https://www.wikitree.com/wiki/${person.Name}" target="_blank">${escapeHtml(
-        name
-      )}</a></td>
+          <td class="name-cell">${renderConnectionPersonLink(person, name)}</td>
           <td style="background:${getRelationColour(relation)}">${arrow}${escapeHtml(relation)}</td>
           <td style="background:${getYearColour(person.BirthDate)}">${escapeHtml(birthDate)}</td>
           <td class="birth-location-cell">${escapeHtml(birthLoc)}</td>

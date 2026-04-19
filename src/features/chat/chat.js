@@ -3152,23 +3152,49 @@ function mapApiPersonToStandardRow(person = {}, options = {}) {
   // Build a compact spouse display if spouse data is present
   let spouse = "";
   let spouseList = [];
+  let marriageDate = "";
+  let marriageLocation = "";
   try {
-    if (person.Spouses && Array.isArray(person.Spouses) && person.Spouses.length) {
-      spouseList = person.Spouses.map((s) => {
+    const rawSpouses = person?.Spouses;
+    const spouseEntries = Array.isArray(rawSpouses)
+      ? rawSpouses
+      : rawSpouses && typeof rawSpouses === "object"
+      ? Object.values(rawSpouses)
+      : [];
+
+    if (spouseEntries.length) {
+      spouseList = spouseEntries.map((s) => {
         const first = String(s?.FirstName || s?.RealName || "").trim();
         const lnab = String(s?.LastNameAtBirth || s?.LastNameCurrent || s?.LastNameOther || "").trim();
+        const spouseMarriageDate =
+          normalizeKnownDate(s?.MarriageDate) ||
+          normalizeKnownDate(s?.marriage_date) ||
+          normalizeKnownDate(s?.marriageDate) ||
+          "";
+        const spouseMarriageLocation = String(
+          s?.MarriageLocation || s?.marriage_location || s?.marriageLocation || ""
+        ).trim();
         return {
           wtid: s?.Name || "",
           firstName: first,
           lnab,
           display: first || String(s?.RealName || s?.Name || "").trim(),
+          marriageDate: spouseMarriageDate,
+          marriageLocation: spouseMarriageLocation,
         };
       });
       const parts = spouseList.map((p) => [p.firstName, p.lnab].filter(Boolean).join(" ")).filter(Boolean);
       spouse = parts.join(", ");
+
+      const uniqueMarriageDates = [...new Set(spouseList.map((p) => p.marriageDate).filter(Boolean))];
+      const uniqueMarriageLocations = [...new Set(spouseList.map((p) => p.marriageLocation).filter(Boolean))];
+      marriageDate = uniqueMarriageDates.join("; ");
+      marriageLocation = uniqueMarriageLocations.join("; ");
     }
   } catch (e) {
     spouse = "";
+    marriageDate = "";
+    marriageLocation = "";
   }
 
   return {
@@ -3181,6 +3207,8 @@ function mapApiPersonToStandardRow(person = {}, options = {}) {
     lastNameOther,
     spouse,
     spouseList,
+    marriageDate,
+    marriageLocation,
     degrees: options.degrees ?? "",
     gender: person.Gender || "",
     birth: birthValue,
@@ -3362,7 +3390,7 @@ async function resolveConnectionSourceRoot(prompt, targetWtId = "") {
   const namedSource = extractConnectionSourceName(normalizedPrompt);
   if (namedSource) {
     const resolved = await resolveConnectionTargetPerson(namedSource, normalizedPrompt);
-    if (!resolved?.Name && !resolved?.Id) {
+    if (!resolved?.Name) {
       return { unresolvedName: namedSource };
     }
 
@@ -3374,7 +3402,7 @@ async function resolveConnectionSourceRoot(prompt, targetWtId = "") {
     return {
       key: resolved.Id || resolved.Name,
       wtId: sourceWtId,
-      displayName: resolved.RealName || resolved?.Derived?.ShortName || resolved.Name,
+      displayName: resolved.RealName || resolved?.Derived?.ShortName || resolved.Name || namedSource,
       subjectType: "named",
     };
   }

@@ -2174,7 +2174,9 @@ export function createProfileSearchHandler({
         .replace(/\[Bio\]\.\[LastEdit\]\.AsNumber/gi, "[Bio].[LastEdit Date].AsNumber")
         .replace(/\[Bio\]\.\[Last\s*Edit\]\.AsNumber/gi, "[Bio].[LastEdit Date].AsNumber")
         .replace(/\[Bio\]\.\[Birth\s*Date\]\.AsNumber/gi, "[Default].[Birth Date].AsNumber")
-        .replace(/\[Bio\]\.\[Death\s*Date\]\.AsNumber/gi, "[Default].[Death Date].AsNumber");
+        .replace(/\[Bio\]\.\[Death\s*Date\]\.AsNumber/gi, "[Default].[Death Date].AsNumber")
+        .replace(/\[(?:Family|Default)\]\.\[Marriage\s*Date\]/gi, "[Marriage].[Marriage Date]")
+        .replace(/\[(?:Family|Default)\]\.\[Marriage\s*Location\]/gi, "[Marriage].[Marriage Location]");
       return `sql="${inner}"`;
     });
   }
@@ -2233,12 +2235,18 @@ export function createProfileSearchHandler({
 
       // Children
       inner = inner
+        .replace(/\[\s*(?:Default|Bio|Family)\s*\]\.\[\s*Lineage\s+Children\s*\]\.AsNumber/gi, "[Children].[User ID].LineCount")
+        .replace(/\[\s*(?:Default|Bio|Family)\s*\]\.\[\s*Lineage\s+Children\s*\]/gi, "[Children].[User ID].LineCount")
+        .replace(/\[\s*Bio\s*\]\.\[\s*Children\s+Count\s*\]\.AsNumber/gi, "[Children].[User ID].LineCount")
+        .replace(/\[\s*Bio\s*\]\.\[\s*Children\s+Count\s*\]/gi, "[Children].[User ID].LineCount")
         .replace(/\[\s*Family\s*\]\.\[\s*Number\s+Of\s+Children\s*\]/gi, "[Children].[User ID].LineCount")
         .replace(/\[\s*Children\s*\]\.\[\s*Count\s*\]/gi, "[Children].[User ID].LineCount")
         .replace(/\[\s*Children\s*\]\s*\.\s*Count\b/gi, "[Children].[User ID].LineCount")
         .replace(/\[\s*Default\s*\]\.\[\s*Number\s+Of\s+Children\s*\]/gi, "[Children].[User ID].LineCount")
+        .replace(/\[\s*Default\s*\]\.\[\s*Children\s+Count\s*\]\.AsNumber/gi, "[Children].[User ID].LineCount")
         .replace(/\[\s*Default\s*\]\.\[\s*Children\s+Count\s*\]/gi, "[Children].[User ID].LineCount")
         .replace(/\[\s*Default\s*\]\.\[\s*Children\s*\]\s*\.\s*Count\b/gi, "[Children].[User ID].LineCount")
+        .replace(/\[\s*Family\s*\]\.\[\s*Children\s+Count\s*\]\.AsNumber/gi, "[Children].[User ID].LineCount")
         .replace(/\[\s*Family\s*\]\.\[\s*Children\s+Count\s*\]/gi, "[Children].[User ID].LineCount")
         .replace(/\[\s*Relations\s*\]\.\[\s*Children\s*\]\s*\.\s*\[\s*Count\s*\]/gi, "[Children].[User ID].LineCount")
         .replace(/\[\s*Relations\s*\]\.\[\s*Children\s*\]\s*\.\s*Count\b/gi, "[Children].[User ID].LineCount")
@@ -2246,12 +2254,16 @@ export function createProfileSearchHandler({
 
       // Siblings
       inner = inner
+        .replace(/\[\s*Bio\s*\]\.\[\s*Siblings\s+Count\s*\]\.AsNumber/gi, "[Siblings].[User ID].LineCount")
+        .replace(/\[\s*Bio\s*\]\.\[\s*Siblings\s+Count\s*\]/gi, "[Siblings].[User ID].LineCount")
         .replace(/\[\s*Family\s*\]\.\[\s*Number\s+Of\s+Siblings\s*\]/gi, "[Siblings].[User ID].LineCount")
         .replace(/\[\s*Siblings\s*\]\.\[\s*Count\s*\]/gi, "[Siblings].[User ID].LineCount")
         .replace(/\[\s*Siblings\s*\]\s*\.\s*Count\b/gi, "[Siblings].[User ID].LineCount")
         .replace(/\[\s*Default\s*\]\.\[\s*Number\s+Of\s+Siblings\s*\]/gi, "[Siblings].[User ID].LineCount")
+        .replace(/\[\s*Default\s*\]\.\[\s*Siblings\s+Count\s*\]\.AsNumber/gi, "[Siblings].[User ID].LineCount")
         .replace(/\[\s*Default\s*\]\.\[\s*Siblings\s+Count\s*\]/gi, "[Siblings].[User ID].LineCount")
         .replace(/\[\s*Default\s*\]\.\[\s*Siblings\s*\]\s*\.\s*Count\b/gi, "[Siblings].[User ID].LineCount")
+        .replace(/\[\s*Family\s*\]\.\[\s*Siblings\s+Count\s*\]\.AsNumber/gi, "[Siblings].[User ID].LineCount")
         .replace(/\[\s*Family\s*\]\.\[\s*Siblings\s+Count\s*\]/gi, "[Siblings].[User ID].LineCount")
         .replace(/\[\s*Relations\s*\]\.\[\s*Siblings\s*\]\s*\.\s*\[\s*Count\s*\]/gi, "[Siblings].[User ID].LineCount")
         .replace(/\[\s*Relations\s*\]\.\[\s*Siblings\s*\]\s*\.\s*Count\b/gi, "[Siblings].[User ID].LineCount")
@@ -2550,6 +2562,107 @@ export function createProfileSearchHandler({
     return `sql="${inner.replace(/"/g, "'")}"`;
   }
 
+  const WT_PLUS_CENTURY_WORD_TO_NUMBER = new Map([
+    ["first", 1],
+    ["second", 2],
+    ["third", 3],
+    ["fourth", 4],
+    ["fifth", 5],
+    ["sixth", 6],
+    ["seventh", 7],
+    ["eighth", 8],
+    ["ninth", 9],
+    ["tenth", 10],
+    ["eleventh", 11],
+    ["twelfth", 12],
+    ["thirteenth", 13],
+    ["fourteenth", 14],
+    ["fifteenth", 15],
+    ["sixteenth", 16],
+    ["seventeenth", 17],
+    ["eighteenth", 18],
+    ["nineteenth", 19],
+    ["twentieth", 20],
+    ["twenty first", 21],
+  ]);
+  const WT_PLUS_CENTURY_VALUE_PATTERN =
+    "(?:\\d{1,2}(?:st|nd|rd|th)?|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|thirteenth|fourteenth|fifteenth|sixteenth|seventeenth|eighteenth|nineteenth|twentieth|twenty(?:-|\\s+)first)";
+  const WT_PLUS_SMALL_NUMBER_WORD_TO_NUMBER = new Map([
+    ["zero", 0],
+    ["one", 1],
+    ["two", 2],
+    ["three", 3],
+    ["four", 4],
+    ["five", 5],
+    ["six", 6],
+    ["seven", 7],
+    ["eight", 8],
+    ["nine", 9],
+    ["ten", 10],
+    ["eleven", 11],
+    ["twelve", 12],
+    ["thirteen", 13],
+    ["fourteen", 14],
+    ["fifteen", 15],
+    ["sixteen", 16],
+    ["seventeen", 17],
+    ["eighteen", 18],
+    ["nineteen", 19],
+    ["twenty", 20],
+  ]);
+  const WT_PLUS_SMALL_NUMBER_VALUE_PATTERN =
+    "(?:\\d+|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)";
+
+  function parseWtPlusCenturyValue(rawValue) {
+    const normalized = String(rawValue || "")
+      .trim()
+      .toLowerCase()
+      .replace(/-/g, " ")
+      .replace(/\s+/g, " ");
+    if (!normalized) {
+      return null;
+    }
+
+    const numericMatch = normalized.match(/^(\d{1,2})(?:st|nd|rd|th)?$/i);
+    if (numericMatch?.[1]) {
+      const n = Number.parseInt(numericMatch[1], 10);
+      return Number.isFinite(n) && n >= 0 && n <= 21 ? n : null;
+    }
+
+    return WT_PLUS_CENTURY_WORD_TO_NUMBER.get(normalized) || null;
+  }
+
+  function parseWtPlusSmallIntegerValue(rawValue) {
+    const normalized = String(rawValue || "")
+      .trim()
+      .toLowerCase()
+      .replace(/-/g, " ")
+      .replace(/\s+/g, " ");
+    if (!normalized) {
+      return null;
+    }
+
+    if (/^\d+$/.test(normalized)) {
+      const n = Number.parseInt(normalized, 10);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    return WT_PLUS_SMALL_NUMBER_WORD_TO_NUMBER.get(normalized) ?? null;
+  }
+
+  function looksLikeMarriageLocationText(rawValue) {
+    const value = stripSurroundingQuotes(rawValue)
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    if (!value || /\d/.test(value)) {
+      return false;
+    }
+
+    return !/\b(?:more|over|under|less|than|exactly|single|double|triple|one|two|three|four|five|six|seven|eight|nine|ten|kids?|children|sons?|daughters?)\b/i.test(
+      value
+    );
+  }
+
   function cleanWtPlusGroupRemainder(text) {
     return String(text || "")
       .replace(
@@ -2578,6 +2691,7 @@ export function createProfileSearchHandler({
     const terms = [];
     const sqlTerms = [];
     const understood = [];
+    let searchType = "";
     const addTerm = (term, summary) => {
       if (!term) return;
       terms.push(term);
@@ -2615,6 +2729,25 @@ export function createProfileSearchHandler({
       }
 
       return buildWtPlusSqlTerm(expressions.join(" And "));
+    };
+    const markSearchType = (value) => {
+      if (!searchType && value) {
+        searchType = value;
+      }
+    };
+    const addMarriageCenturySqlTerm = (centuryValue, summary) => {
+      const n = parseWtPlusCenturyValue(centuryValue);
+      if (!Number.isFinite(n) || n < 1 || n > 21) {
+        return;
+      }
+
+      const startYear = (n - 1) * 100;
+      const endYear = startYear + 99;
+      addSqlTerm(
+        buildWtPlusSqlTerm(`([Marriage].[Marriage Date].AsNumber In ${String(startYear).padStart(4, "0")}0101..${String(endYear).padStart(4, "0")}1231)`),
+        summary || `married in ${n} century`
+      );
+      markSearchType("marriageDateScope");
     };
     const consume = (regex, handler) => {
       const match = working.match(regex);
@@ -2879,22 +3012,22 @@ export function createProfileSearchHandler({
       addSqlTerm(buildWtPlusSqlTerm("([Default].[First Name] = '')"), "no first name");
     });
 
-    consume(/\b(?:more\s+than|over)\s+(\d+)\s+children\b/i, (match) => {
-      const n = Number.parseInt(match[1], 10);
+    consume(new RegExp(`\\b(?:more\\s+than|over)\\s+(${WT_PLUS_SMALL_NUMBER_VALUE_PATTERN})\\s+(?:children|kids?)\\b`, "i"), (match) => {
+      const n = parseWtPlusSmallIntegerValue(match[1]);
       if (Number.isFinite(n)) {
         addSqlTerm(buildWtPlusSqlTerm(`([Children].[User ID].LineCount > ${n})`), `more than ${n} children`);
       }
     });
 
-    consume(/\b(?:more\s+than|over)\s+(\d+)\s+siblings\b/i, (match) => {
-      const n = Number.parseInt(match[1], 10);
+    consume(new RegExp(`\\b(?:more\\s+than|over)\\s+(${WT_PLUS_SMALL_NUMBER_VALUE_PATTERN})\\s+siblings\\b`, "i"), (match) => {
+      const n = parseWtPlusSmallIntegerValue(match[1]);
       if (Number.isFinite(n)) {
         addSqlTerm(buildWtPlusSqlTerm(`([Siblings].[User ID].LineCount > ${n})`), `more than ${n} siblings`);
       }
     });
 
-    consume(/\b(?:more\s+than|over)\s+(\d+)\s+marriages\b/i, (match) => {
-      const n = Number.parseInt(match[1], 10);
+    consume(new RegExp(`\\b(?:more\\s+than|over)\\s+(${WT_PLUS_SMALL_NUMBER_VALUE_PATTERN})\\s+marriages\\b`, "i"), (match) => {
+      const n = parseWtPlusSmallIntegerValue(match[1]);
       if (Number.isFinite(n)) {
         addSqlTerm(buildWtPlusSqlTerm(`([Marriage].[Marriage Date].LineCount > ${n})`), `more than ${n} marriages`);
       }
@@ -2950,12 +3083,35 @@ export function createProfileSearchHandler({
       addSqlTerm(buildWtPlusSqlTerm(`([Bio].[Created Year].AsNumber = ${match[1]})`), `created in ${match[1]}`);
     });
 
-    consume(/\b(?:many|more\s+than|over)\s+(\d+)\s+errors?\b/i, (match) => {
-      const n = Number.parseInt(match[1], 10);
+    consume(new RegExp(`\\b(?:many|more\\s+than|over)\\s+(${WT_PLUS_SMALL_NUMBER_VALUE_PATTERN})\\s+errors?\\b`, "i"), (match) => {
+      const n = parseWtPlusSmallIntegerValue(match[1]);
       if (Number.isFinite(n)) {
         addSqlTerm(buildWtPlusSqlTerm(`([Default].[Nr of errors].AsNumber > ${n})`), `more than ${n} errors`);
       }
     });
+
+    consume(
+      /(?:^|,)\s*([^,]+?)\s*,\s*(?:married|marriage(?:\s+date)?)\s+(before|after)\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i,
+      (match) => {
+        const raw = stripSurroundingQuotes(match[1])
+          .replace(/^(?:in|from)\s+/i, "")
+          .replace(/\s+(?:profiles?|people|members?)\s*$/i, "")
+          .trim();
+        if (looksLikeMarriageLocationText(raw)) {
+          addTerm(normalizeWtPlusFieldTerm("MarriageLocation", raw), `married in ${raw}`);
+        }
+
+        const direction = String(match[2] || "").trim().toLowerCase();
+        const dateText = String(match[3] || "").trim();
+        const boundary = normalizeWtPlusBoundaryDate(dateText, direction === "after" ? "after" : "before");
+        const operator = direction === "after" ? ">" : "<";
+        markSearchType("marriageDateScope");
+        addSqlTerm(
+          buildWtPlusSqlTerm(`([Marriage].[Marriage Date].AsNumber ${operator} ${boundary})`),
+          `married ${direction} ${dateText}`
+        );
+      }
+    );
 
     consume(/\bmultiple\s+managers\b/i, () => {
       addSqlTerm(buildWtPlusSqlTerm("([Manager].[ManagerWikitreeId].LineCount > 1)"), "multiple managers");
@@ -3056,12 +3212,79 @@ export function createProfileSearchHandler({
       (match) => {
         const from = normalizeWtPlusBoundaryDate(match[1], "before");
         const to = normalizeWtPlusBoundaryDate(match[2], "after");
+        markSearchType("marriageDateScope");
         addSqlTerm(
           buildWtPlusSqlTerm(`([Marriage].[Marriage Date] in ${from}..${to})`),
           `marriage date between ${match[1]} and ${match[2]}`
         );
       }
     );
+
+    consume(
+      new RegExp(
+        `^(.+?)\\s+marriages?\\s+in\\s+(?:the\\s+)?(${WT_PLUS_CENTURY_VALUE_PATTERN})\\s+century\\b`,
+        "i"
+      ),
+      (match) => {
+        const raw = stripSurroundingQuotes(match[1])
+          .replace(/\\s+(?:profiles?|people|members?)\\s*$/i, "")
+          .trim();
+        if (looksLikeMarriageLocationText(raw)) {
+          addTerm(normalizeWtPlusFieldTerm("MarriageLocation", raw), `married in ${raw}`);
+        }
+        addMarriageCenturySqlTerm(match[2], `married in ${stripSurroundingQuotes(match[2])} century`);
+      }
+    );
+
+    consume(
+      new RegExp(
+        `\\bmarriages?\\s+in\\s+(.+?)\\s+in\\s+(?:the\\s+)?(${WT_PLUS_CENTURY_VALUE_PATTERN})\\s+century\\b`,
+        "i"
+      ),
+      (match) => {
+        const raw = stripSurroundingQuotes(match[1])
+          .replace(/\\s+(?:profiles?|people|members?)\\s*$/i, "")
+          .trim();
+        if (looksLikeMarriageLocationText(raw)) {
+          addTerm(normalizeWtPlusFieldTerm("MarriageLocation", raw), `married in ${raw}`);
+        }
+        addMarriageCenturySqlTerm(match[2], `married in ${stripSurroundingQuotes(match[2])} century`);
+      }
+    );
+
+    consume(
+      new RegExp(
+        `\\bmarried\\s+in\\s+(.+?)\\s+in\\s+(?:the\\s+)?(${WT_PLUS_CENTURY_VALUE_PATTERN})\\s+century\\b`,
+        "i"
+      ),
+      (match) => {
+        const raw = stripSurroundingQuotes(match[1])
+          .replace(/\\s+(?:profiles?|people|members?)\\s*$/i, "")
+          .trim();
+        if (looksLikeMarriageLocationText(raw)) {
+          addTerm(normalizeWtPlusFieldTerm("MarriageLocation", raw), `married in ${raw}`);
+        }
+        addMarriageCenturySqlTerm(match[2], `married in ${stripSurroundingQuotes(match[2])} century`);
+      }
+    );
+
+    consume(/\b(?:married|marriage(?:\s+date)?)\s+before\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i, (match) => {
+      const boundary = normalizeWtPlusBoundaryDate(match[1], "before");
+      markSearchType("marriageDateScope");
+      addSqlTerm(
+        buildWtPlusSqlTerm(`([Marriage].[Marriage Date].AsNumber < ${boundary})`),
+        `married before ${match[1]}`
+      );
+    });
+
+    consume(/\b(?:married|marriage(?:\s+date)?)\s+after\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i, (match) => {
+      const boundary = normalizeWtPlusBoundaryDate(match[1], "after");
+      markSearchType("marriageDateScope");
+      addSqlTerm(
+        buildWtPlusSqlTerm(`([Marriage].[Marriage Date].AsNumber > ${boundary})`),
+        `married after ${match[1]}`
+      );
+    });
 
     consume(/\bmarriage\s+date\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
       const pattern = stripSurroundingQuotes(match[1]).replace(/-/g, "").replace(/\s+/g, "");
@@ -3096,10 +3319,16 @@ export function createProfileSearchHandler({
     consume(/\bborn\s+in\s+(\d{4})s\b/i, (match) => {
       addTerm(`${match[1]}s`, `born in ${match[1]}s`);
     });
-    consume(/\bborn\s+in\s+(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+century\b/i, (match) => {
-      const n = Number.parseInt(match[1], 10);
+    consume(new RegExp(`\\bborn\\s+in\\s+(?:the\\s+)?(${WT_PLUS_CENTURY_VALUE_PATTERN})\\s+century\\b`, "i"), (match) => {
+      const n = parseWtPlusCenturyValue(match[1]);
       if (Number.isFinite(n) && n >= 0 && n <= 21) {
         addTerm(`${n}Cen`, `born in ${n} century`);
+      }
+    });
+    consume(new RegExp(`\\b(?:in\\s+)?(?:the\\s+)?(${WT_PLUS_CENTURY_VALUE_PATTERN})\\s+century\\b`, "i"), (match) => {
+      const n = parseWtPlusCenturyValue(match[1]);
+      if (Number.isFinite(n) && n >= 0 && n <= 21) {
+        addTerm(`${n}Cen`, `${n} century`);
       }
     });
     consume(/\b(?:age|aged)\s*(\d{1,3})\b/i, (match) => {
@@ -3173,6 +3402,32 @@ export function createProfileSearchHandler({
         if (location) {
           addTerm(normalizeWtPlusFieldTerm("DeathLocation", location), `died in ${location}`);
         }
+      }
+    );
+    consume(
+      new RegExp(
+        `^(.+?)\\s+marriages?\\b(?=$|\\s+(?:in\\b|with\\b|before\\b|after\\b|between\\b|${WT_PLUS_CENTURY_VALUE_PATTERN}\\s+century|\\d{4}s\\b))`,
+        "i"
+      ),
+      (match) => {
+        const raw = stripSurroundingQuotes(match[1])
+          .replace(/\s+(?:profiles?|people|members?)\s*$/i, "")
+          .trim();
+        if (looksLikeMarriageLocationText(raw)) {
+          addTerm(normalizeWtPlusFieldTerm("MarriageLocation", raw), `married in ${raw}`);
+        }
+      }
+    );
+    consume(
+      new RegExp(
+        `\\bmarriages?\\s+in\\s+(.+?)(?=$|\\b(?:and|or|with|before|after|between|to|profiles?|people|members?|unrecognized|unknown|${WT_PLUS_CENTURY_VALUE_PATTERN}\\s+century|\\d{4}s)\\b)`,
+        "i"
+      ),
+      (match) => {
+        const raw = stripSurroundingQuotes(match[1])
+          .replace(/\s+(?:profiles?|people|members?)\s*$/i, "")
+          .trim();
+        if (raw) addTerm(normalizeWtPlusFieldTerm("MarriageLocation", raw), `married in ${raw}`);
       }
     );
     consume(/\bmarried\s+in\s+(.+?)(?=$|\b(?:and|or|profiles?|people|members?|unrecognized|unknown)\b)/i, (match) => {
@@ -3369,6 +3624,7 @@ export function createProfileSearchHandler({
     return {
       query: allTerms.join(" "),
       understood: understood.join(", "),
+      searchType,
     };
   }
 
@@ -4273,6 +4529,7 @@ export function createProfileSearchHandler({
         title: `WT+ search: ${groupedQuery.understood || normalizedText}`,
         description: groupedQuery.understood || normalizedText,
         understood: groupedQuery.understood || normalizedText,
+        ...(groupedQuery.searchType ? { searchType: groupedQuery.searchType } : {}),
       };
     }
 
@@ -4311,10 +4568,12 @@ export function createProfileSearchHandler({
           " Note: ERRxxx is NOT valid here. For suggestion number filters use Suggestions=NNN (e.g. Suggestions=678).",
         "OR and NOT operators are allowed between terms.",
         "Only use those allowed fields and tokens.",
+        "Ancestors, Descendants, and CC7 are fields, not raw tokens. Only emit them as field=value, and only when the prompt explicitly asks for ancestor, descendant, or CC7/root-scope results.",
         "Use sql= for filters that are not easily represented as simple field=value, including date boundaries, line counts, and heading/category checks.",
         "Prefer WT+ date magic tokens (BYYYY, DYYYY, YYYYs, NCen) as PRIMARY filters before sql=.",
         "For exact decade birth prompts (for example 'born 1820s'), use the raw decade token directly (1820s). Do NOT rewrite a single exact decade as NCen + sql=.",
         "For a whole-century query ('born in the 18th century') use 18Cen alone — no sql= needed.",
+        "For marriage-scoped century queries (for example 'marriages in Cheshire in the twentieth century'), do NOT use 20Cen or any other birth-century token. Use MarriageLocation plus [Marriage].[Marriage Date].AsNumber sql= for the exact century range, such as sql=\"([Marriage].[Marriage Date].AsNumber In 19000101..19991231)\".",
         "For a sub-century date range (e.g. 'between 1800 and 1810'): ALWAYS emit the NCen magic token for that century FIRST, then add the sql= range to narrow within it. Example: 19Cen sql=\"([Default].[Birth Date].AsNumber In 18000101..18101231)\".",
         "For date ranges in sql=, use WT+ range syntax: ([...].AsNumber In 19000101..19301231). Avoid >= ... AND <= ... patterns.",
         "For empty/unknown name checks in sql=, use direct default-field comparisons: ([Default].[First Name] = '') and ([Default].[Last Name At Birth] = ''). Avoid IS NULL.",
@@ -4333,6 +4592,7 @@ export function createProfileSearchHandler({
         '{"understood":"Charles Darwin descendants","query":"Descendants=Darwin-15"}',
         '{"understood":"current profile descendants born in Newfoundland before 1900","query":"Descendants=CurrentProfile BirthLocation=Newfoundland sql="([Default].[Birth Date].AsNumber < 19000000)""}',
         '{"understood":"Smith in Liverpool born before 1800","query":"LastNameAtBirth=Smith Location=Liverpool sql="([Default].[Birth Date].AsNumber < 18000000)""}',
+        '{"understood":"Cheshire marriages in the twentieth century with more than 6 children","query":"MarriageLocation=Cheshire sql="([Marriage].[Marriage Date].AsNumber In 19000101..19991231) And ([Children].[User ID].LineCount > 6)""}',
         '{"understood":"Flintshire 1900s profiles with siblings born within 5 months of each other","query":"BirthLocation=Flintshire 1900s","routePrompt":"Flintshire 1900s siblings born within 5 months of each other"}',
         '{"understood":"Devon profiles created in the last six months","query":"Location=Devon Created=Created_2025 sql="([Bio].[Created Date].AsNumber In 20251016..20260415)" OR Location=Devon Created=Created_2026 sql="([Bio].[Created Date].AsNumber In 20251016..20260415)"","routePrompt":"Devon created in the last 6 months"}',
         "Example sub-century range with anomaly: 'women in Scotland unknown first or last name between 1800 and 1810' => female BirthCountry=Scotland 19Cen sql=\"([Default].[Birth Date].AsNumber In 18000101..18101231) And (([Default].[First Name] = '') Or ([Default].[Last Name At Birth] = ''))\"",
@@ -4842,6 +5102,18 @@ export function createProfileSearchHandler({
     };
   }
 
+  function shouldIncludeMarriageDetails(query) {
+    const text = String(query || "");
+    if (!text) return false;
+    return (
+      /\bmarriage\b/i.test(text) ||
+      /\bmarried\b/i.test(text) ||
+      /\bMarriageLocation\s*=\s*/i.test(text) ||
+      /\bMarriageDate\s*=\s*/i.test(text) ||
+      /\[Marriage\]\.\[(?:Marriage Date|Marriage Location)\]/i.test(text)
+    );
+  }
+
   async function runWtPlusProfileQuery(wtPlusQuery, title, interpretation = null, runOptions = {}) {
     const templateCanonicalQuery = await canonicalizeWtPlusTemplateTerms(wtPlusQuery);
     const contextCanonicalQuery = resolveWtPlusContextPlaceholders(templateCanonicalQuery);
@@ -5072,14 +5344,15 @@ export function createProfileSearchHandler({
 
       const uniqueIds = [...new Set(profiles.map((value) => String(value)))];
       showChatShaky(`Fetching ${uniqueIds.length} WT+ matches...`);
+      const includeMarriageDetails = shouldIncludeMarriageDetails(canonicalQuery);
       const fields =
         "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,Father,Mother,BirthDate,BirthDateDecade,BirthLocation,DeathDate,DeathDateDecade,DeathLocation,Gender,Id,Name,Categories" +
         (createdRecentlyFilter ? ",Created" : "") +
-        (spousalAgeGapFilter ? ",Spouses" : "");
+        (spousalAgeGapFilter || includeMarriageDetails ? ",Spouses" : "");
       let [, , peopleById] = await fetchPeoplePaged(WBE_CHAT_APP_ID, uniqueIds, fields, {
         resolveRedirect: 1,
         limit: WT_PLUS_GET_PEOPLE_CHUNK,
-        ...(spousalAgeGapFilter ? { getSpouses: 1 } : {}),
+        ...(spousalAgeGapFilter || includeMarriageDetails ? { getSpouses: 1 } : {}),
       });
       peopleById = peopleById || {};
 
@@ -5095,7 +5368,7 @@ export function createProfileSearchHandler({
         const [, , retryPeopleById] = await fetchPeoplePaged(WBE_CHAT_APP_ID, missingProfileIds, fields, {
           resolveRedirect: 1,
           limit: retryLimit,
-          ...(spousalAgeGapFilter ? { getSpouses: 1 } : {}),
+          ...(spousalAgeGapFilter || includeMarriageDetails ? { getSpouses: 1 } : {}),
         });
         peopleById = {
           ...peopleById,
@@ -5315,9 +5588,10 @@ export function createProfileSearchHandler({
       table.wtPlusQuery = canonicalQuery;
       table.wtPlusSearchType = "text";
       if (!ancestorRootWtId) {
-        table.columns = (table.columns || []).filter(
-          (column) => !["degrees", "spouse", "spouseList"].includes(column.key)
-        );
+        const hiddenColumnKeys = includeMarriageDetails
+          ? ["degrees", "spouseList"]
+          : ["degrees", "spouse", "spouseList", "marriageDate", "marriageLocation"];
+        table.columns = (table.columns || []).filter((column) => !hiddenColumnKeys.includes(column.key));
       }
       hideChatShaky();
 
@@ -7276,6 +7550,7 @@ export function createProfileSearchHandler({
         const isCustomDeterministicQuery = [
           "parentAgeAtBirth",
           "createdRecently",
+          "marriageDateScope",
           "spousalAgeGap",
           "marriedNoChildren",
           "siblingBirthGap",
@@ -7355,9 +7630,12 @@ export function createProfileSearchHandler({
         showChatShaky("Asking AI to interpret this as a WT+ query...");
         const aiWtPlusQuery = await callAiParseWtPlusQuery(rawQuery);
         if (aiWtPlusQuery?.query) {
+          const normalizedAiLogQuery = canonicalizeWtPlusSqlFamilyLineCounts(
+            canonicalizeWtPlusSqlFieldNames(aiWtPlusQuery.query)
+          );
           console.info("wbe: WT+ using AI parsed query", {
             rawQuery,
-            aiQuery: aiWtPlusQuery.query,
+            aiQuery: normalizedAiLogQuery,
           });
           recordWtPlusParseTelemetry("parsedAi");
           const aiRunResult = await runWtPlusProfileQuery(aiWtPlusQuery.query, aiWtPlusQuery.title, aiWtPlusQuery, {
@@ -7369,7 +7647,7 @@ export function createProfileSearchHandler({
                 "wbe: WT+ AI query failed; skipping deterministic fallback because AI-first path was required",
                 {
                   rawQuery,
-                  aiQuery: aiWtPlusQuery.query,
+                  aiQuery: normalizedAiLogQuery,
                   reason: shouldForceAiForSuspiciousLocalQuery ? "suspicious-local-query" : "ambiguous-suggestions",
                 }
               );
@@ -7377,7 +7655,7 @@ export function createProfileSearchHandler({
             }
             console.info("wbe: WT+ AI query failed; retrying deterministic parser query", {
               rawQuery,
-              aiQuery: aiWtPlusQuery.query,
+              aiQuery: normalizedAiLogQuery,
               localQuery: localWtPlusQuery.query,
             });
             recordWtPlusParseTelemetry("parsedLocal");

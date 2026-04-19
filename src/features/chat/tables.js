@@ -151,6 +151,8 @@ export function makeStandardProfileTable(title, rows, defaultOrder = [[0, "asc"]
     { title: "Death", key: "death", cellClass: "chat-date-cell" },
     { title: "Birth Location", key: "birthLocation" },
     { title: "Death Location", key: "deathLocation" },
+    { title: "Marriage Date", key: "marriageDate", cellClass: "chat-date-cell" },
+    { title: "Marriage Location", key: "marriageLocation" },
     {
       title: "Category",
       key: "categoryDisplay",
@@ -158,7 +160,14 @@ export function makeStandardProfileTable(title, rows, defaultOrder = [[0, "asc"]
     },
   ];
 
-  const optionalColumnKeys = new Set(["middleName", "spouse", "removed", "categoryDisplay"]);
+  const optionalColumnKeys = new Set([
+    "middleName",
+    "spouse",
+    "marriageDate",
+    "marriageLocation",
+    "removed",
+    "categoryDisplay",
+  ]);
   const columns = baseColumns.filter((column) => {
     if (!optionalColumnKeys.has(column.key)) {
       return true;

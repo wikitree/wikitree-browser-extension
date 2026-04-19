@@ -533,12 +533,46 @@ export function findPageContextPersonCandidate(target) {
 }
 
 export function mergeConnectionMatches(matchLists) {
+  const mergeNonEmptyFields = (existing = {}, incoming = {}) => {
+    const merged = { ...existing };
+
+    Object.entries(incoming || {}).forEach(([key, value]) => {
+      if (key === "Derived" && value && typeof value === "object") {
+        const derived = { ...(existing?.Derived || {}) };
+        Object.entries(value).forEach(([derivedKey, derivedValue]) => {
+          if (derivedValue !== undefined && derivedValue !== null && derivedValue !== "") {
+            derived[derivedKey] = derivedValue;
+          }
+        });
+        if (Object.keys(derived).length) {
+          merged.Derived = derived;
+        }
+        return;
+      }
+
+      if (value !== undefined && value !== null && value !== "") {
+        merged[key] = value;
+      }
+    });
+
+    const existingIndex = Number(existing?.index);
+    const incomingIndex = Number(incoming?.index);
+    if (Number.isFinite(existingIndex) && Number.isFinite(incomingIndex)) {
+      merged.index = Math.min(existingIndex, incomingIndex);
+    } else if (!Number.isFinite(existingIndex) && Number.isFinite(incomingIndex)) {
+      merged.index = incomingIndex;
+    }
+
+    return merged;
+  };
+
   const merged = new Map();
   (matchLists || []).forEach((list) => {
     (list || []).forEach((match) => {
       const key = String(match?.Name || match?.Id || "").trim();
       if (!key) return;
-      if (!merged.has(key)) merged.set(key, match);
+      const existing = merged.get(key);
+      merged.set(key, existing ? mergeNonEmptyFields(existing, match) : match);
     });
   });
   return Array.from(merged.values());
@@ -608,6 +642,7 @@ export function getCommonAliasExpansion(target) {
   const normalized = String(target || "")
     .trim()
     .toLowerCase();
+  const currentDate = new Date().toISOString().slice(0, 10);
   const aliases = {
     qe2: { searchName: "Elizabeth Windsor", birthYear: 1926 },
     "queen elizabeth ii": { searchName: "Elizabeth Windsor", birthYear: 1926 },
@@ -616,7 +651,18 @@ export function getCommonAliasExpansion(target) {
     "john f. kennedy": { searchName: "John Fitzgerald Kennedy", birthYear: 1917 },
     mlk: { searchName: "Martin Luther King Jr", birthYear: 1929 },
     "martin luther king": { searchName: "Martin Luther King Jr", birthYear: 1929 },
+    "pope leo xiv": { wtId: "Prevost-1162", searchName: "Robert Francis Prevost", birthDate: "1955-09-14" },
+    "leo xiv": { wtId: "Prevost-1162", searchName: "Robert Francis Prevost", birthDate: "1955-09-14" },
   };
+  if (normalized === "the pope" || normalized === "pope") {
+    if (currentDate >= "2025-05-08") {
+      return { wtId: "Prevost-1162", searchName: "Robert Francis Prevost", birthDate: "1955-09-14" };
+    }
+
+    if (currentDate >= "2013-03-13") {
+      return { searchName: "Jorge Mario Bergoglio", birthDate: "1936-12-17" };
+    }
+  }
   return aliases[normalized] || null;
 }
 

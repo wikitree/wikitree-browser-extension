@@ -205,11 +205,27 @@ function isLikelyWtPlusFilterPrompt(prompt) {
       normalizedPrompt
     );
   const hasAggregateEventCue = /\b(?:births|deaths|burials|marriages)\b/i.test(normalizedPrompt);
+  const hasRelationCountCue =
+    /\b(?:more\s+than|over|under|less\s+than|fewer\s+than|exactly|at\s+least|at\s+most)\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+(?:children|kids?|siblings?|marriages?)\b/i.test(
+      normalizedPrompt
+    );
+  const hasMarriageTemporalCue =
+    /\b(?:married|marriage(?:\s+date)?)\s+(?:before|after|between)\s+\d{4}\b/i.test(normalizedPrompt);
+  const hasCommaScopedMarriageCue =
+    /(?:^|,)\s*[^,]{2,40}\s*,\s*(?:married|marriage(?:\s+date)?)\s+(?:before|after|between)\b/i.test(
+      normalizedPrompt
+    );
 
   const hasTemporalConstraint = hasAgeConstraint || hasYearConstraint;
 
   // temporal + connected combination is a strong WT+ filter signal.
   if (hasTemporalConstraint && hasConnectedFilter) {
+    return true;
+  }
+
+  // Comma-separated prompts like "more than six children, Cheshire, married after 1899"
+  // are broad WT+ filters even though the location is implied rather than introduced by "in/from".
+  if (hasRelationCountCue && hasMarriageTemporalCue && (hasExplicitLocationCue || hasCommaScopedMarriageCue)) {
     return true;
   }
 

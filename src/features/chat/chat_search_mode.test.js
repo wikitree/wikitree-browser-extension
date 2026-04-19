@@ -70,4 +70,40 @@ describe("chat_search_mode explicit routing", () => {
     expect(handleChatResult).toHaveBeenCalledWith({ message: "wtplus:Lincolnshire births, post-1850" });
     expect(result).toEqual({ handled: true, prompt: "Lincolnshire births, post-1850" });
   });
+
+  test("routes comma-scoped marriage filter prompts to WT+ even when WT mode is selected", async () => {
+    const tryHandleProfileSearchPrompt = jest.fn(async (options, prompt) => ({
+      message: `${options.chatModeOverride}:${prompt}`,
+    }));
+    const handleChatResult = jest.fn(async () => {});
+
+    const result = await handleExplicitSearchMode({
+      prompt: "more than six children, Cheshire, married after 1899",
+      chatPopupId: "chat-popup",
+      hasStructuredResult: false,
+      getLastStructuredResult: jest.fn(() => null),
+      ChatIntent: {},
+      routeChatPrompt: jest.fn(() => ({ intent: "fallbackAi" })),
+      buildRecentConversationForAi: jest.fn(() => ""),
+      buildRecentUserMessagesForAi: jest.fn(() => ""),
+      getChatAiConfig: jest.fn(async () => ({ provider: "openai", key: "test", model: "gpt-test" })),
+      appendMessage: jest.fn(),
+      tryHandleProfileSearchPrompt,
+      handleChatResult,
+      extractFollowupTableFilterText: jest.fn(() => ""),
+      openResultsTable: jest.fn(),
+      tryHandleAiPlannedIntent: jest.fn(async () => null),
+      setExplicitMode: jest.fn(),
+    });
+
+    expect(tryHandleProfileSearchPrompt).toHaveBeenCalledTimes(1);
+    expect(tryHandleProfileSearchPrompt).toHaveBeenCalledWith(
+      { chatModeOverride: "wtplus" },
+      "more than six children, Cheshire, married after 1899"
+    );
+    expect(handleChatResult).toHaveBeenCalledWith({
+      message: "wtplus:more than six children, Cheshire, married after 1899",
+    });
+    expect(result).toEqual({ handled: true, prompt: "more than six children, Cheshire, married after 1899" });
+  });
 });
