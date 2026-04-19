@@ -557,9 +557,9 @@ export function mergeConnectionMatches(matchLists) {
 
     const existingIndex = Number(existing?.index);
     const incomingIndex = Number(incoming?.index);
-    if (Number.isFinite(existingIndex) && Number.isFinite(incomingIndex)) {
-      merged.index = Math.min(existingIndex, incomingIndex);
-    } else if (!Number.isFinite(existingIndex) && Number.isFinite(incomingIndex)) {
+    if (Number.isFinite(existingIndex)) {
+      merged.index = existingIndex;
+    } else if (Number.isFinite(incomingIndex)) {
       merged.index = incomingIndex;
     }
 
@@ -589,6 +589,10 @@ export function rankConnectionMatches(target, matches, targetParts = {}) {
     const lastCurrent = match?.LastNameCurrent || "";
     const lastBirth = match?.LastNameAtBirth || "";
     const profileFirst = match?.FirstName || "";
+    const realNameFirstToken = String(realName || "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)[0];
     let score = 0;
 
     if (normalizePersonText(name) === normalizedTarget) score += 100;
@@ -606,7 +610,11 @@ export function rankConnectionMatches(target, matches, targetParts = {}) {
     }
 
     if (normalizedFirst) {
-      if (normalizePersonText(profileFirst) === normalizedFirst) score += 80;
+      if (
+        normalizePersonText(profileFirst) === normalizedFirst ||
+        normalizePersonText(realNameFirstToken) === normalizedFirst
+      )
+        score += 80;
       else if (normalizePersonText(realName).startsWith(`${normalizedFirst} `)) score += 40;
     }
 

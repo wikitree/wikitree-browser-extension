@@ -79,6 +79,28 @@ function normalizeConnectionAiBoolean(value) {
   return null;
 }
 
+function normalizeConnectionAiGender(value) {
+  const normalizedValue = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (!normalizedValue) {
+    return "";
+  }
+
+  if (["male", "man", "m"].includes(normalizedValue)) {
+    return "Male";
+  }
+  if (["female", "woman", "f"].includes(normalizedValue)) {
+    return "Female";
+  }
+
+  return "";
+}
+
+function normalizeConnectionAiNamePart(value) {
+  return String(value ?? "").trim();
+}
+
 function scoreExactConnectionNameEvidence(match, firstName, lastName) {
   let score = 0;
 
@@ -193,10 +215,15 @@ function normalizeConnectionAiExpansion(expansion) {
   const normalizedLastName = String(expansion?.LastName || expansion?.lastName || "").trim();
   const normalizedBirthDate = String(expansion?.BirthDate || expansion?.birthDate || "").trim();
   const normalizedDeathDate = String(expansion?.DeathDate || expansion?.deathDate || "").trim();
+  const normalizedGender = normalizeConnectionAiGender(expansion?.Gender ?? expansion?.gender);
   const isLiving = normalizeConnectionAiBoolean(expansion?.IsLiving ?? expansion?.isLiving);
   const rawBirthYear = expansion?.BirthYear ?? expansion?.birthYear;
   const birthYear = Number.isFinite(Number(rawBirthYear)) ? Number(rawBirthYear) : null;
   const wtId = String(expansion?.wtId || expansion?.WtId || "").trim();
+  const fatherFirstName = normalizeConnectionAiNamePart(expansion?.fatherFirstName || expansion?.FatherFirstName);
+  const fatherLastName = normalizeConnectionAiNamePart(expansion?.fatherLastName || expansion?.FatherLastName);
+  const motherFirstName = normalizeConnectionAiNamePart(expansion?.motherFirstName || expansion?.MotherFirstName);
+  const motherLastName = normalizeConnectionAiNamePart(expansion?.motherLastName || expansion?.MotherLastName);
   const searchName =
     String(expansion?.searchName || expansion?.SearchName || "").trim() ||
     [normalizedFirstName, normalizedLastName].filter(Boolean).join(" ").trim();
@@ -209,8 +236,13 @@ function normalizeConnectionAiExpansion(expansion) {
     lastName: normalizedLastName,
     birthDate: normalizedBirthDate,
     deathDate: normalizedDeathDate,
+    gender: normalizedGender,
     isLiving,
     birthYear,
+    fatherFirstName,
+    fatherLastName,
+    motherFirstName,
+    motherLastName,
   };
 }
 
@@ -274,6 +306,7 @@ export function createChatConnectionHandlers({
     const fields =
       "Id,Name,RealName,Derived.ShortName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender";
     const commonAlias = normalizeConnectionAiExpansion(getCommonAliasExpansion(cleanedTarget));
+    const trustedAliasWtId = isWikiTreeId(commonAlias?.wtId || "") ? String(commonAlias.wtId).trim() : "";
     let aiExpansion = commonAlias;
     if (!aiExpansion) {
       aiExpansion = normalizeConnectionAiExpansion(await tryAiExpandConnectionTarget(cleanedTarget, prompt));
@@ -288,15 +321,16 @@ export function createChatConnectionHandlers({
       aiExpansion = commonAlias;
     }
 
-    if (isWikiTreeId(aiExpansion?.wtId || "")) {
+    if (trustedAliasWtId) {
       return normalizeResolvedConnectionPerson(
         await WikiTreeAPI.getPerson(
           "Chat",
-          aiExpansion.wtId,
+          trustedAliasWtId,
           "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender"
         )
       );
     }
+    const aiSuggestedWtId = isWikiTreeId(aiExpansion?.wtId || "") ? String(aiExpansion.wtId).trim() : "";
 
     const expandedParts =
       aiExpansion?.firstName || aiExpansion?.lastName
@@ -305,15 +339,24 @@ export function createChatConnectionHandlers({
             lastName: aiExpansion.lastName || "",
           }
         : splitPersonName(aiExpansion?.searchName || "");
+    const hasExpandedStructuredName =
+      Boolean(expandedParts.firstName && expandedParts.lastName) &&
+      (!firstName ||
+        !lastName ||
+        normalizePersonText(expandedParts.firstName) !== normalizePersonText(firstName) ||
+        normalizePersonText(expandedParts.lastName) !== normalizePersonText(lastName));
     const normalizedBirthDate = normalizeConnectionBirthDate(aiExpansion?.birthDate);
     const normalizedDeathDate = normalizeConnectionBirthDate(aiExpansion?.deathDate);
     const targetBirthYear = extractYearFromDate(normalizedBirthDate) || Number(aiExpansion?.birthYear) || null;
+    const aiGender = String(aiExpansion?.gender || "").trim();
     const aiSaysLiving = aiExpansion?.isLiving === true;
     const likelyLivingTarget =
       aiSaysLiving ||
       (!normalizedDeathDate &&
         Number.isFinite(Number(targetBirthYear)) &&
         Number(targetBirthYear) >= new Date().getFullYear() - 110);
+    const exactMatchSearchLimit = likelyLivingTarget ? 100 : 20;
+    const broadMatchSearchLimit = likelyLivingTarget ? 40 : 20;
     const birthDateSearchParams = normalizedBirthDate
       ? {
           BirthDate: normalizedBirthDate,
@@ -327,6 +370,49 @@ export function createChatConnectionHandlers({
           sort: "birth",
         }
       : null;
+    const optionalHintSearchParams = {
+      ...(aiGender ? { Gender: aiGender } : {}),
+      ...(aiExpansion?.fatherFirstName ? { fatherFirstName: aiExpansion.fatherFirstName } : {}),
+      ...(aiExpansion?.fatherLastName ? { fatherLastName: aiExpansion.fatherLastName } : {}),
+      ...(aiExpansion?.motherFirstName ? { motherFirstName: aiExpansion.motherFirstName } : {}),
+      ...(aiExpansion?.motherLastName ? { motherLastName: aiExpansion.motherLastName } : {}),
+    };
+    const hasOptionalSearchHints = Object.keys(optionalHintSearchParams).length > 0;
+
+    let strictHintMatches = [];
+    if (hasOptionalSearchHints && firstName && lastName) {
+      const [, searchMatches] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: firstName,
+          LastName: lastName,
+          skipVariants: 1,
+          lastNameMatch: "strict",
+          limit: exactMatchSearchLimit,
+          sort: "birth",
+          ...optionalHintSearchParams,
+        },
+        fields
+      );
+      strictHintMatches = searchMatches || [];
+    }
+
+    let currentLastStrictHintMatches = [];
+    if (hasOptionalSearchHints && firstName && lastName) {
+      const [, searchMatches] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: firstName,
+          LastNameCurrent: lastName,
+          skipVariants: 1,
+          limit: exactMatchSearchLimit,
+          sort: "birth",
+          ...optionalHintSearchParams,
+        },
+        fields
+      );
+      currentLastStrictHintMatches = searchMatches || [];
+    }
 
     let strictMatches = [];
     if (firstName && lastName) {
@@ -337,7 +423,7 @@ export function createChatConnectionHandlers({
           LastName: lastName,
           skipVariants: 1,
           lastNameMatch: "strict",
-          limit: 15,
+          limit: exactMatchSearchLimit,
           sort: "birth",
         },
         fields
@@ -353,7 +439,7 @@ export function createChatConnectionHandlers({
           FirstName: firstName,
           LastNameCurrent: lastName,
           skipVariants: 1,
-          limit: 15,
+          limit: exactMatchSearchLimit,
           sort: "birth",
         },
         fields
@@ -368,7 +454,7 @@ export function createChatConnectionHandlers({
         {
           FirstName: firstName,
           LastName: lastName,
-          limit: 15,
+          limit: broadMatchSearchLimit,
           sort: "birth",
         },
         fields
@@ -380,7 +466,7 @@ export function createChatConnectionHandlers({
       "Chat",
       {
         RealName: cleanedTarget,
-        limit: 15,
+        limit: broadMatchSearchLimit,
       },
       fields
     );
@@ -392,7 +478,7 @@ export function createChatConnectionHandlers({
         "Chat",
         {
           RealName: aiExpansion.searchName,
-          limit: 20,
+          limit: broadMatchSearchLimit,
         },
         fields
       );
@@ -409,7 +495,7 @@ export function createChatConnectionHandlers({
         "Chat",
         {
           RealName: aiExpansion.searchName,
-          limit: 20,
+          limit: broadMatchSearchLimit,
           ...birthDateSearchParams,
         },
         fields
@@ -418,7 +504,7 @@ export function createChatConnectionHandlers({
     }
 
     let expandedStrictMatches = [];
-    if (expandedParts.firstName && expandedParts.lastName) {
+    if (hasExpandedStructuredName && expandedParts.firstName && expandedParts.lastName) {
       const [, searchMatches] = await WikiTreeAPI.searchPerson(
         "Chat",
         {
@@ -426,7 +512,7 @@ export function createChatConnectionHandlers({
           LastName: expandedParts.lastName,
           skipVariants: 1,
           lastNameMatch: "strict",
-          limit: 20,
+          limit: exactMatchSearchLimit,
         },
         fields
       );
@@ -434,14 +520,14 @@ export function createChatConnectionHandlers({
     }
 
     let expandedCurrentLastStrictMatches = [];
-    if (expandedParts.firstName && expandedParts.lastName) {
+    if (hasExpandedStructuredName && expandedParts.firstName && expandedParts.lastName) {
       const [, searchMatches] = await WikiTreeAPI.searchPerson(
         "Chat",
         {
           FirstName: expandedParts.firstName,
           LastNameCurrent: expandedParts.lastName,
           skipVariants: 1,
-          limit: 20,
+          limit: exactMatchSearchLimit,
         },
         fields
       );
@@ -449,7 +535,7 @@ export function createChatConnectionHandlers({
     }
 
     let expandedBirthYearStrictMatches = [];
-    if (birthDateSearchParams && expandedParts.firstName && expandedParts.lastName) {
+    if (birthDateSearchParams && hasExpandedStructuredName && expandedParts.firstName && expandedParts.lastName) {
       const [, searchMatches] = await WikiTreeAPI.searchPerson(
         "Chat",
         {
@@ -457,7 +543,7 @@ export function createChatConnectionHandlers({
           LastName: expandedParts.lastName,
           skipVariants: 1,
           lastNameMatch: "strict",
-          limit: 20,
+          limit: exactMatchSearchLimit,
           ...birthDateSearchParams,
         },
         fields
@@ -472,6 +558,8 @@ export function createChatConnectionHandlers({
         : null;
 
     const matches = mergeConnectionMatches([
+      strictHintMatches,
+      currentLastStrictHintMatches,
       expandedBirthYearStrictMatches,
       expandedBirthYearMatches,
       expandedStrictMatches,
@@ -525,7 +613,23 @@ export function createChatConnectionHandlers({
             } else if (candidateBirthDate.slice(0, 4) === normalizedBirthDate.slice(0, 4)) {
               score += 120;
             } else {
-              score -= 40;
+              const gap =
+                Number.isFinite(candidateBirthYear) && Number.isFinite(Number(targetBirthYear))
+                  ? Math.abs(candidateBirthYear - targetBirthYear)
+                  : null;
+              if (Number.isFinite(gap) && gap >= 80) {
+                score -= 260;
+              } else if (Number.isFinite(gap) && gap >= 40) {
+                score -= 180;
+              } else if (Number.isFinite(gap) && gap >= 20) {
+                score -= 120;
+              } else if (Number.isFinite(gap) && gap >= 10) {
+                score -= 80;
+              } else if (Number.isFinite(gap) && gap >= 3) {
+                score -= 55;
+              } else {
+                score -= 40;
+              }
             }
           } else if (Number.isFinite(candidateBirthYear) && Number.isFinite(Number(aiExpansion?.birthYear))) {
             const gap = Math.abs(candidateBirthYear - aiExpansion.birthYear);
@@ -547,6 +651,30 @@ export function createChatConnectionHandlers({
           }
           return { ...entry, score };
         })
+        .sort((left, right) => right.score - left.score);
+    }
+
+    if (aiGender && rankedMatches.length) {
+      rankedMatches = rankedMatches
+        .map((entry) => {
+          const candidateGender = normalizeConnectionAiGender(entry.match?.Gender);
+          let score = entry.score;
+          if (candidateGender) {
+            score += candidateGender === aiGender ? 80 : -160;
+          } else {
+            score -= 10;
+          }
+          return { ...entry, score };
+        })
+        .sort((left, right) => right.score - left.score);
+    }
+
+    if (aiSuggestedWtId && rankedMatches.length) {
+      rankedMatches = rankedMatches
+        .map((entry) => ({
+          ...entry,
+          score: entry.score + (String(entry.match?.Name || "").trim() === aiSuggestedWtId ? 260 : 0),
+        }))
         .sort((left, right) => right.score - left.score);
     }
 

@@ -38,8 +38,11 @@ describe("chat_planner connection target expansion", () => {
     expect(prompt).toContain(
       'For role titles like "the Pope", resolve the office holder on that date, not a former holder.'
     );
+    expect(prompt).toContain('Include Gender as "Male" or "Female" when it is likely known');
+    expect(prompt).toContain("fatherFirstName");
+    expect(prompt).toContain("motherLastName");
     expect(prompt).toContain(
-      '{"FirstName":"<given name>","LastName":"<WikiTree-search surname>","BirthDate":"1801-12-05","DeathDate":"1882-04-19","isLiving":false}'
+      '{"FirstName":"<given name>","LastName":"<WikiTree-search surname>","BirthDate":"1801-12-05","DeathDate":"1882-04-19","Gender":"Male","isLiving":false}'
     );
     expect(prompt).toContain("Include isLiving as true when the person is living, false when the person is deceased");
     expect(prompt).toContain(

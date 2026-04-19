@@ -4,8 +4,12 @@
   max-height: calc(100vh - 180px);
   padding: 4px;
 }
+.conn-diag-scale-layer {
+  position: relative;
+}
 .conn-diag-canvas {
   position: relative;
+  transform-origin: top left;
 }
 .conn-diag-svg {
   position: absolute;
@@ -32,6 +36,7 @@
   flex-shrink: 0;
   width: 36px;
   height: 36px;
+  box-sizing: border-box;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -47,6 +52,7 @@
   display: block;
   width: 36px;
   height: 36px;
+  box-sizing: border-box;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
@@ -272,6 +278,16 @@
   display: flex;
   align-items: center;
   gap: 0.3rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.chat-popup-controls .wbe-conn-diagram-action[hidden] {
+  display: none !important;
+}
+
+.chat-popup-controls button.small {
+  white-space: nowrap;
 }
 
 .chat-popup-body {

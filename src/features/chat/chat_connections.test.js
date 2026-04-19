@@ -401,6 +401,327 @@ describe("chat_connections target resolution", () => {
     expect(matched?.Name).toBe("Mapother-1");
   });
 
+  test("searches deeper exact lanes for likely living targets and prefers plausible modern matches", async () => {
+    const historicalStephen = {
+      Id: 44378737,
+      Name: "Fry-11320",
+      RealName: "Stephen",
+      FirstName: "Stephen",
+      LastNameAtBirth: "Fry",
+      LastNameCurrent: "Fry",
+      BirthDate: "1695-06-19",
+      DeathDate: "0000-00-00",
+      index: 1,
+    };
+    const livingStephen = {
+      Id: 11512457,
+      Name: "Fry-2606",
+      RealName: "Stephen",
+      LastNameAtBirth: "Fry",
+      LastNameCurrent: "Fry",
+      index: 32,
+    };
+
+    WikiTreeAPI.searchPerson.mockImplementation(async (_appId, searchParams) => {
+      if (
+        searchParams.FirstName === "Stephen" &&
+        searchParams.LastName === "Fry" &&
+        searchParams.skipVariants &&
+        searchParams.limit === 100
+      ) {
+        return [0, [historicalStephen, livingStephen]];
+      }
+      if (
+        searchParams.FirstName === "Stephen" &&
+        searchParams.LastNameCurrent === "Fry" &&
+        searchParams.skipVariants &&
+        searchParams.limit === 100
+      ) {
+        return [0, [historicalStephen, livingStephen]];
+      }
+      if (searchParams.RealName === "Stephen Fry" && searchParams.limit === 40) {
+        return [0, [historicalStephen]];
+      }
+      return [0, []];
+    });
+
+    const { resolveConnectionTargetPerson } = makeHandlers({
+      tryAiExpandConnectionTarget: jest.fn(async () => ({
+        FirstName: "Stephen",
+        LastName: "Fry",
+        BirthDate: "1957-08-24",
+        DeathDate: "",
+        isLiving: true,
+      })),
+    });
+
+    const matched = await resolveConnectionTargetPerson("Stephen Fry", "Connection between me and Stephen Fry.");
+
+    expect(matched?.Name).toBe("Fry-2606");
+    expect(WikiTreeAPI.searchPerson).toHaveBeenCalledWith(
+      "Chat",
+      expect.objectContaining({
+        FirstName: "Stephen",
+        LastName: "Fry",
+        limit: 100,
+      }),
+      expect.any(String)
+    );
+  });
+
+  test("does not run duplicate unsorted exact-name lanes when AI expansion matches the original name", async () => {
+    const livingStephen = {
+      Id: 11512457,
+      Name: "Fry-2606",
+      RealName: "Stephen",
+      LastNameAtBirth: "Fry",
+      LastNameCurrent: "Fry",
+      Gender: "Male",
+      index: 31,
+    };
+    const wrongStephenExact = {
+      Id: 7906084,
+      Name: "Fry-1714",
+      RealName: "Stephen",
+      LastNameAtBirth: "Fry",
+      LastNameCurrent: "Fry",
+      Gender: "Male",
+      index: 33,
+    };
+    const wrongStephenRelaxed = {
+      Id: 7906084,
+      Name: "Fry-1714",
+      RealName: "Stephen",
+      FirstName: "Stephen",
+      LastNameAtBirth: "Fry",
+      LastNameCurrent: "Fry",
+      Gender: "Male",
+      index: 1,
+    };
+
+    WikiTreeAPI.searchPerson.mockImplementation(async (_appId, searchParams) => {
+      if (
+        searchParams.FirstName === "Stephen" &&
+        searchParams.LastName === "Fry" &&
+        searchParams.skipVariants &&
+        searchParams.lastNameMatch === "strict" &&
+        searchParams.limit === 100 &&
+        searchParams.sort === "birth"
+      ) {
+        return [0, [livingStephen, wrongStephenExact]];
+      }
+      if (
+        searchParams.FirstName === "Stephen" &&
+        searchParams.LastNameCurrent === "Fry" &&
+        searchParams.skipVariants &&
+        searchParams.limit === 100 &&
+        searchParams.sort === "birth"
+      ) {
+        return [0, [livingStephen, wrongStephenExact]];
+      }
+      if (
+        searchParams.FirstName === "Stephen" &&
+        searchParams.LastName === "Fry" &&
+        searchParams.limit === 40 &&
+        searchParams.sort === "birth"
+      ) {
+        return [0, [wrongStephenRelaxed]];
+      }
+      if (searchParams.RealName === "Stephen Fry" && searchParams.limit === 40) {
+        return [0, [wrongStephenRelaxed]];
+      }
+      throw new Error(`Unexpected search params: ${JSON.stringify(searchParams)}`);
+    });
+
+    const { resolveConnectionTargetPerson } = makeHandlers({
+      tryAiExpandConnectionTarget: jest.fn(async () => ({
+        FirstName: "Stephen",
+        LastName: "Fry",
+        BirthDate: "1957-08-24",
+        DeathDate: "",
+        isLiving: true,
+      })),
+    });
+
+    const matched = await resolveConnectionTargetPerson("Stephen Fry", "Connection between me and Stephen Fry.");
+
+    expect(matched?.Name).toBe("Fry-2606");
+    expect(
+      WikiTreeAPI.searchPerson.mock.calls.some(
+        ([, params]) =>
+          params.FirstName === "Stephen" &&
+          params.LastName === "Fry" &&
+          params.skipVariants === 1 &&
+          params.lastNameMatch === "strict" &&
+          params.limit === 100 &&
+          !Object.prototype.hasOwnProperty.call(params, "sort")
+      )
+    ).toBe(false);
+  });
+
+  test("treats an AI wtId as a bonus only when it matches a real candidate", async () => {
+    const wrongStephen = {
+      Id: 7906084,
+      Name: "Fry-1714",
+      RealName: "Stephen",
+      LastNameAtBirth: "Fry",
+      LastNameCurrent: "Fry",
+      Gender: "Male",
+      index: 12,
+    };
+    const livingStephen = {
+      Id: 11512457,
+      Name: "Fry-2606",
+      RealName: "Stephen",
+      LastNameAtBirth: "Fry",
+      LastNameCurrent: "Fry",
+      Gender: "Male",
+      index: 31,
+    };
+
+    WikiTreeAPI.searchPerson.mockImplementation(async (_appId, searchParams) => {
+      if (
+        searchParams.FirstName === "Stephen" &&
+        searchParams.LastName === "Fry" &&
+        searchParams.skipVariants &&
+        searchParams.lastNameMatch === "strict" &&
+        searchParams.limit === 100 &&
+        searchParams.sort === "birth"
+      ) {
+        return [0, [wrongStephen, livingStephen]];
+      }
+      if (
+        searchParams.FirstName === "Stephen" &&
+        searchParams.LastNameCurrent === "Fry" &&
+        searchParams.skipVariants &&
+        searchParams.limit === 100 &&
+        searchParams.sort === "birth"
+      ) {
+        return [0, [wrongStephen, livingStephen]];
+      }
+      if (
+        searchParams.FirstName === "Stephen" &&
+        searchParams.LastName === "Fry" &&
+        searchParams.limit === 40 &&
+        searchParams.sort === "birth"
+      ) {
+        return [0, [wrongStephen]];
+      }
+      if (searchParams.RealName === "Stephen Fry" && searchParams.limit === 40) {
+        return [0, [wrongStephen]];
+      }
+      throw new Error(`Unexpected search params: ${JSON.stringify(searchParams)}`);
+    });
+
+    const { resolveConnectionTargetPerson } = makeHandlers({
+      tryAiExpandConnectionTarget: jest.fn(async () => ({
+        FirstName: "Stephen",
+        LastName: "Fry",
+        BirthDate: "1957-08-24",
+        DeathDate: "",
+        isLiving: true,
+        wtId: "Fry-2606",
+      })),
+    });
+
+    const matched = await resolveConnectionTargetPerson("Stephen Fry", "Connection between me and Stephen Fry.");
+
+    expect(matched?.Name).toBe("Fry-2606");
+    expect(WikiTreeAPI.getPerson).not.toHaveBeenCalledWith("Chat", "Fry-2606", expect.any(String));
+  });
+
+  test("uses optional AI gender and parent-name hints in exact search lanes", async () => {
+    const hintedMatch = {
+      Id: 404,
+      Name: "Example-404",
+      RealName: "Alex Example",
+      FirstName: "Alex",
+      LastNameAtBirth: "Example",
+      LastNameCurrent: "Example",
+      Gender: "Female",
+      index: 0,
+    };
+
+    WikiTreeAPI.searchPerson.mockImplementation(async (_appId, searchParams) => {
+      if (
+        searchParams.FirstName === "Alex" &&
+        searchParams.LastName === "Example" &&
+        searchParams.skipVariants &&
+        searchParams.lastNameMatch === "strict" &&
+        searchParams.limit === 100 &&
+        searchParams.sort === "birth" &&
+        searchParams.Gender === "Female" &&
+        searchParams.fatherFirstName === "John" &&
+        searchParams.motherFirstName === "Mary"
+      ) {
+        return [0, [hintedMatch]];
+      }
+      if (
+        searchParams.FirstName === "Alex" &&
+        searchParams.LastNameCurrent === "Example" &&
+        searchParams.skipVariants &&
+        searchParams.limit === 100 &&
+        searchParams.sort === "birth" &&
+        searchParams.Gender === "Female" &&
+        searchParams.fatherFirstName === "John" &&
+        searchParams.motherFirstName === "Mary"
+      ) {
+        return [0, [hintedMatch]];
+      }
+      if (searchParams.RealName === "Alex Example" && searchParams.limit === 40) {
+        return [0, []];
+      }
+      if (searchParams.FirstName === "Alex" && searchParams.LastName === "Example" && searchParams.limit === 40) {
+        return [0, []];
+      }
+      if (
+        searchParams.FirstName === "Alex" &&
+        searchParams.LastName === "Example" &&
+        searchParams.skipVariants &&
+        searchParams.limit === 100 &&
+        searchParams.sort === "birth"
+      ) {
+        return [0, []];
+      }
+      if (
+        searchParams.FirstName === "Alex" &&
+        searchParams.LastNameCurrent === "Example" &&
+        searchParams.skipVariants &&
+        searchParams.limit === 100 &&
+        searchParams.sort === "birth"
+      ) {
+        return [0, []];
+      }
+      throw new Error(`Unexpected search params: ${JSON.stringify(searchParams)}`);
+    });
+
+    const { resolveConnectionTargetPerson } = makeHandlers({
+      tryAiExpandConnectionTarget: jest.fn(async () => ({
+        FirstName: "Alex",
+        LastName: "Example",
+        Gender: "Female",
+        fatherFirstName: "John",
+        motherFirstName: "Mary",
+        isLiving: true,
+      })),
+    });
+
+    const matched = await resolveConnectionTargetPerson("Alex Example", "Connection between me and Alex Example.");
+
+    expect(matched?.Name).toBe("Example-404");
+    expect(WikiTreeAPI.searchPerson).toHaveBeenCalledWith(
+      "Chat",
+      expect.objectContaining({
+        FirstName: "Alex",
+        LastName: "Example",
+        Gender: "Female",
+        fatherFirstName: "John",
+        motherFirstName: "Mary",
+      }),
+      expect.any(String)
+    );
+  });
+
   test("uses the deterministic current Pope alias before AI expansion", async () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date("2026-04-19T12:00:00Z"));
