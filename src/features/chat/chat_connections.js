@@ -101,6 +101,45 @@ function normalizeConnectionAiNamePart(value) {
   return String(value ?? "").trim();
 }
 
+function normalizeConnectionAiLocation(value) {
+  return String(value ?? "").trim();
+}
+
+function shouldPreferOriginalAliasConnectionMatches(
+  cleanedTarget,
+  originalParts,
+  expandedParts,
+  exactOriginalAliasMatches
+) {
+  if (!exactOriginalAliasMatches.length) {
+    return false;
+  }
+
+  const normalizedTarget = normalizePersonText(cleanedTarget);
+  const normalizedExpandedFullName = normalizePersonText(
+    [expandedParts?.firstName, expandedParts?.lastName].filter(Boolean).join(" ")
+  );
+  const normalizedOriginalFullName = normalizePersonText(
+    [originalParts?.firstName, originalParts?.lastName].filter(Boolean).join(" ")
+  );
+  const targetTokens = String(cleanedTarget || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (
+    normalizedExpandedFullName &&
+    normalizedOriginalFullName &&
+    normalizedExpandedFullName !== normalizedOriginalFullName &&
+    targetTokens.length > 2 &&
+    normalizedTarget.includes(normalizedExpandedFullName)
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 function scoreExactConnectionNameEvidence(match, firstName, lastName) {
   let score = 0;
 
@@ -138,6 +177,246 @@ function scoreExactConnectionNameEvidence(match, firstName, lastName) {
   }
 
   return score;
+}
+
+function scoreConnectionLocationEvidence(candidateLocation, targetLocation) {
+  const normalizedTargetLocation = normalizePersonText(targetLocation);
+  const normalizedCandidateLocation = normalizePersonText(candidateLocation);
+
+  if (!normalizedTargetLocation) {
+    return 0;
+  }
+
+  if (!normalizedCandidateLocation) {
+    return -20;
+  }
+
+  if (normalizedCandidateLocation === normalizedTargetLocation) {
+    return 220;
+  }
+
+  if (
+    normalizedCandidateLocation.includes(normalizedTargetLocation) ||
+    normalizedTargetLocation.includes(normalizedCandidateLocation)
+  ) {
+    return 160;
+  }
+
+  const targetTokens = normalizedTargetLocation.split(" ").filter(Boolean);
+  const candidateTokens = new Set(normalizedCandidateLocation.split(" ").filter(Boolean));
+  const overlapCount = targetTokens.filter((token) => candidateTokens.has(token)).length;
+
+  if (overlapCount >= Math.min(3, targetTokens.length) && overlapCount >= 2) {
+    return 80;
+  }
+
+  if (overlapCount >= 2) {
+    return 30;
+  }
+
+  return -80;
+}
+
+function detectConnectionLocationRegion(normalizedLocation) {
+  const value = String(normalizedLocation || "").trim();
+  if (!value) {
+    return "";
+  }
+
+  if (value.includes("united states") || value.includes(" usa ") || value.endsWith(" usa") || value === "usa") {
+    return "us";
+  }
+  if (value.includes("england")) {
+    return "england";
+  }
+  if (value.includes("scotland")) {
+    return "scotland";
+  }
+  if (value.includes("wales")) {
+    return "wales";
+  }
+  if (value.includes("ireland")) {
+    return "ireland";
+  }
+  if (value.includes("united kingdom")) {
+    return "uk";
+  }
+  if (value.includes("canada")) {
+    return "canada";
+  }
+  if (value.includes("australia")) {
+    return "australia";
+  }
+  if (value.includes("new zealand")) {
+    return "new-zealand";
+  }
+
+  return "";
+}
+
+function areConnectionRegionsCompatible(leftRegion, rightRegion) {
+  if (!leftRegion || !rightRegion) {
+    return false;
+  }
+  if (leftRegion === rightRegion) {
+    return true;
+  }
+
+  const ukRegions = new Set(["uk", "england", "scotland", "wales", "ireland"]);
+  return ukRegions.has(leftRegion) && ukRegions.has(rightRegion);
+}
+
+function scoreConnectionRegionalLocationEvidence(candidateLocation, targetLocation) {
+  const normalizedTargetLocation = normalizePersonText(targetLocation);
+  const normalizedCandidateLocation = normalizePersonText(candidateLocation);
+
+  if (!normalizedTargetLocation || !normalizedCandidateLocation) {
+    return 0;
+  }
+
+  if (normalizedCandidateLocation === normalizedTargetLocation) {
+    return 120;
+  }
+
+  if (
+    normalizedCandidateLocation.includes(normalizedTargetLocation) ||
+    normalizedTargetLocation.includes(normalizedCandidateLocation)
+  ) {
+    return 90;
+  }
+
+  const targetTokens = normalizedTargetLocation.split(" ").filter(Boolean);
+  const candidateTokens = new Set(normalizedCandidateLocation.split(" ").filter(Boolean));
+  const overlapCount = targetTokens.filter((token) => candidateTokens.has(token)).length;
+  let score = 0;
+
+  if (overlapCount >= 3) {
+    score += 70;
+  } else if (overlapCount === 2) {
+    score += 45;
+  } else if (overlapCount === 1) {
+    score += 15;
+  }
+
+  const targetRegion = detectConnectionLocationRegion(normalizedTargetLocation);
+  const candidateRegion = detectConnectionLocationRegion(normalizedCandidateLocation);
+  if (targetRegion && candidateRegion) {
+    score += areConnectionRegionsCompatible(targetRegion, candidateRegion) ? 25 : -55;
+  } else if (!overlapCount) {
+    score -= 10;
+  }
+
+  return score;
+}
+
+function buildConnectionAncestorDepthMap(rootId, ancestors) {
+  const normalizedRootId = String(rootId || "").trim();
+  if (!normalizedRootId || !Array.isArray(ancestors) || !ancestors.length) {
+    return new Map();
+  }
+
+  const ancestorMap = new Map(
+    ancestors
+      .map((ancestor) => {
+        const key = String(ancestor?.Id ?? "").trim();
+        return key ? [key, ancestor] : null;
+      })
+      .filter(Boolean)
+  );
+
+  if (!ancestorMap.has(normalizedRootId)) {
+    return new Map();
+  }
+
+  const depthMap = new Map([[normalizedRootId, 0]]);
+  const queue = [normalizedRootId];
+
+  while (queue.length) {
+    const currentId = queue.shift();
+    const currentDepth = Number(depthMap.get(currentId) || 0);
+    if (currentDepth >= 4) {
+      continue;
+    }
+
+    const current = ancestorMap.get(currentId);
+    if (!current) {
+      continue;
+    }
+
+    [current.Father, current.Mother].forEach((parentId) => {
+      const normalizedParentId = String(parentId ?? "").trim();
+      if (!normalizedParentId || normalizedParentId === "0" || depthMap.has(normalizedParentId)) {
+        return;
+      }
+      if (!ancestorMap.has(normalizedParentId)) {
+        return;
+      }
+      depthMap.set(normalizedParentId, currentDepth + 1);
+      queue.push(normalizedParentId);
+    });
+  }
+
+  return depthMap;
+}
+
+function getConnectionAncestorDepthWeight(depth) {
+  if (depth <= 1) {
+    return 1;
+  }
+  if (depth === 2) {
+    return 0.8;
+  }
+  if (depth === 3) {
+    return 0.65;
+  }
+  if (depth === 4) {
+    return 0.45;
+  }
+  return 0.3;
+}
+
+function scoreConnectionAncestorLocationEvidence(match, ancestors, targetLocation) {
+  const rootId = String(match?.Id ?? "").trim();
+  if (!rootId || !targetLocation) {
+    return 0;
+  }
+
+  const depthMap = buildConnectionAncestorDepthMap(rootId, ancestors);
+  if (!depthMap.size) {
+    return 0;
+  }
+
+  const ancestorMap = new Map(
+    (ancestors || [])
+      .map((ancestor) => {
+        const key = String(ancestor?.Id ?? "").trim();
+        return key ? [key, ancestor] : null;
+      })
+      .filter(Boolean)
+  );
+
+  let totalScore = 0;
+  depthMap.forEach((depth, id) => {
+    if (depth <= 0) {
+      return;
+    }
+
+    const ancestor = ancestorMap.get(id);
+    if (!ancestor) {
+      return;
+    }
+
+    const birthScore = scoreConnectionRegionalLocationEvidence(ancestor?.BirthLocation, targetLocation);
+    const deathScore = scoreConnectionRegionalLocationEvidence(ancestor?.DeathLocation, targetLocation);
+    const bestLocationScore = Math.max(birthScore, deathScore);
+    if (!bestLocationScore) {
+      return;
+    }
+
+    totalScore += Math.round(bestLocationScore * getConnectionAncestorDepthWeight(depth));
+  });
+
+  return Math.max(-260, Math.min(260, totalScore));
 }
 
 function hasExactConnectionSurname(match, surname) {
@@ -215,6 +494,8 @@ function normalizeConnectionAiExpansion(expansion) {
   const normalizedLastName = String(expansion?.LastName || expansion?.lastName || "").trim();
   const normalizedBirthDate = String(expansion?.BirthDate || expansion?.birthDate || "").trim();
   const normalizedDeathDate = String(expansion?.DeathDate || expansion?.deathDate || "").trim();
+  const normalizedBirthLocation = normalizeConnectionAiLocation(expansion?.BirthLocation || expansion?.birthLocation);
+  const normalizedDeathLocation = normalizeConnectionAiLocation(expansion?.DeathLocation || expansion?.deathLocation);
   const normalizedGender = normalizeConnectionAiGender(expansion?.Gender ?? expansion?.gender);
   const isLiving = normalizeConnectionAiBoolean(expansion?.IsLiving ?? expansion?.isLiving);
   const rawBirthYear = expansion?.BirthYear ?? expansion?.birthYear;
@@ -236,6 +517,8 @@ function normalizeConnectionAiExpansion(expansion) {
     lastName: normalizedLastName,
     birthDate: normalizedBirthDate,
     deathDate: normalizedDeathDate,
+    birthLocation: normalizedBirthLocation,
+    deathLocation: normalizedDeathLocation,
     gender: normalizedGender,
     isLiving,
     birthYear,
@@ -263,6 +546,53 @@ export function createChatConnectionHandlers({
   setLastConnectionPopupResult,
   onResolvedPerson,
 }) {
+  async function rerankConnectionMatchesByAncestorLocations(rankedMatches, targetLocations = []) {
+    const normalizedTargets = (targetLocations || []).map((value) => String(value || "").trim()).filter(Boolean);
+    if (!normalizedTargets.length || rankedMatches.length < 2) {
+      return rankedMatches;
+    }
+
+    const candidateEntries = rankedMatches
+      .filter((entry) => entry?.match?.Name && entry?.match?.Id)
+      .slice(0, Math.min(4, rankedMatches.length));
+    if (candidateEntries.length < 2) {
+      return rankedMatches;
+    }
+
+    const ancestorScores = new Map();
+    await Promise.all(
+      candidateEntries.map(async (entry) => {
+        try {
+          const ancestors = await WikiTreeAPI.getAncestors(
+            "Chat",
+            entry.match.Name,
+            4,
+            "Id,Name,RealName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,BirthLocation,DeathDate,DeathLocation,Gender,Father,Mother"
+          );
+          const score = normalizedTargets.reduce(
+            (total, targetLocation) =>
+              total + scoreConnectionAncestorLocationEvidence(entry.match, ancestors || [], targetLocation),
+            0
+          );
+          ancestorScores.set(String(entry.match.Name || ""), score);
+        } catch (error) {
+          ancestorScores.set(String(entry.match.Name || ""), 0);
+        }
+      })
+    );
+
+    if (!Array.from(ancestorScores.values()).some((score) => score)) {
+      return rankedMatches;
+    }
+
+    return rankedMatches
+      .map((entry) => ({
+        ...entry,
+        score: entry.score + (ancestorScores.get(String(entry.match?.Name || "")) || 0),
+      }))
+      .sort((left, right) => right.score - left.score);
+  }
+
   async function resolveConnectionTargetPerson(target, prompt = "", options = {}) {
     const cleanedTarget = normalizeConnectionTargetForSearch(target);
     if (!cleanedTarget) {
@@ -304,7 +634,7 @@ export function createChatConnectionHandlers({
 
     const { firstName, lastName } = splitPersonName(cleanedTarget);
     const fields =
-      "Id,Name,RealName,Derived.ShortName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender";
+      "Id,Name,RealName,Derived.ShortName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender";
     const commonAlias = normalizeConnectionAiExpansion(getCommonAliasExpansion(cleanedTarget));
     const trustedAliasWtId = isWikiTreeId(commonAlias?.wtId || "") ? String(commonAlias.wtId).trim() : "";
     let aiExpansion = commonAlias;
@@ -371,6 +701,8 @@ export function createChatConnectionHandlers({
         }
       : null;
     const optionalHintSearchParams = {
+      ...(aiExpansion?.birthLocation ? { BirthLocation: aiExpansion.birthLocation } : {}),
+      ...(aiExpansion?.deathLocation ? { DeathLocation: aiExpansion.deathLocation } : {}),
       ...(aiGender ? { Gender: aiGender } : {}),
       ...(aiExpansion?.fatherFirstName ? { fatherFirstName: aiExpansion.fatherFirstName } : {}),
       ...(aiExpansion?.fatherLastName ? { fatherLastName: aiExpansion.fatherLastName } : {}),
@@ -654,6 +986,24 @@ export function createChatConnectionHandlers({
         .sort((left, right) => right.score - left.score);
     }
 
+    if ((aiExpansion?.birthLocation || aiExpansion?.deathLocation) && rankedMatches.length) {
+      rankedMatches = rankedMatches
+        .map((entry) => {
+          let score = entry.score;
+
+          if (aiExpansion?.birthLocation) {
+            score += scoreConnectionLocationEvidence(entry.match?.BirthLocation, aiExpansion.birthLocation);
+          }
+
+          if (aiExpansion?.deathLocation) {
+            score += scoreConnectionLocationEvidence(entry.match?.DeathLocation, aiExpansion.deathLocation);
+          }
+
+          return { ...entry, score };
+        })
+        .sort((left, right) => right.score - left.score);
+    }
+
     if (aiGender && rankedMatches.length) {
       rankedMatches = rankedMatches
         .map((entry) => {
@@ -726,7 +1076,14 @@ export function createChatConnectionHandlers({
       const exactFullNameMatches = rankedMatches.filter((entry) =>
         hasExactConnectionFullName(entry.match, rankingParts.firstName, rankingParts.lastName)
       );
-      const shouldPreferOriginalAliasMatches = targetDiffersFromExpandedName && exactOriginalAliasMatches.length;
+      const shouldPreferOriginalAliasMatches =
+        targetDiffersFromExpandedName &&
+        shouldPreferOriginalAliasConnectionMatches(
+          cleanedTarget,
+          { firstName, lastName },
+          expandedParts,
+          exactOriginalAliasMatches
+        );
       if (exactFullNameMatches.length && !shouldPreferOriginalAliasMatches) {
         rankedMatches = exactFullNameMatches;
       } else {
@@ -752,6 +1109,13 @@ export function createChatConnectionHandlers({
 
     if (excludedWtIds.size) {
       rankedMatches = rankedMatches.filter((entry) => !excludedWtIds.has(String(entry?.match?.Name || "")));
+    }
+
+    if ((aiExpansion?.birthLocation || aiExpansion?.deathLocation) && rankedMatches.length > 1) {
+      rankedMatches = await rerankConnectionMatchesByAncestorLocations(rankedMatches, [
+        aiExpansion.birthLocation,
+        aiExpansion.deathLocation,
+      ]);
     }
 
     if (!rankedMatches.length && sparseExactOriginalMatch) {

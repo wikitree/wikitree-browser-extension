@@ -63,6 +63,8 @@ const CONNECTION_DIAGRAM_MAX_SCALE = 2.4;
 const CONNECTION_DIAGRAM_SCALE_STEP = 0.2;
 const CONNECTION_DIAGRAM_PRINT_MIN_SCALE = 0.1;
 const CONNECTION_DIAGRAM_PRINT_MAX_SCALE = 4;
+const CONNECTION_DIAGRAM_ARROW_HEAD_LENGTH = 12;
+const CONNECTION_DIAGRAM_ARROW_HEAD_HALF_HEIGHT = 4.5;
 const MM_TO_CSS_PX = 96 / 25.4;
 
 function buildConnectionsBranchKeyHtml(usedBranches) {
@@ -200,7 +202,7 @@ function buildConnectionsDiagramLayout(path, stepMeta, options = {}) {
       const movingRight = b.left >= a.left;
       x1 = movingRight ? a.right : a.left;
       y1 = a.cy;
-      x2 = movingRight ? b.left : b.right;
+      x2 = movingRight ? b.left - CONNECTION_DIAGRAM_ARROW_HEAD_LENGTH : b.right + CONNECTION_DIAGRAM_ARROW_HEAD_LENGTH;
       y2 = b.cy;
       const mx = (x1 + x2) / 2;
       cpx1 = mx;
@@ -211,7 +213,7 @@ function buildConnectionsDiagramLayout(path, stepMeta, options = {}) {
       x1 = a.cx;
       y1 = a.top;
       x2 = b.cx;
-      y2 = b.bottom;
+      y2 = b.bottom + CONNECTION_DIAGRAM_ARROW_HEAD_LENGTH;
       const my = (y1 + y2) / 2;
       cpx1 = x1;
       cpy1 = my;
@@ -221,7 +223,7 @@ function buildConnectionsDiagramLayout(path, stepMeta, options = {}) {
       x1 = a.cx;
       y1 = a.bottom;
       x2 = b.cx;
-      y2 = b.top;
+      y2 = b.top - CONNECTION_DIAGRAM_ARROW_HEAD_LENGTH;
       const my = (y1 + y2) / 2;
       cpx1 = x1;
       cpy1 = my;
@@ -299,8 +301,12 @@ function buildConnectionsDiagramHtml(path, stepMeta, options = {}) {
       <div class="conn-diag-canvas" style="width:${totalW}px;height:${totalH}px;">
         <svg class="conn-diag-svg" width="${totalW}" height="${totalH}">
           <defs>
-            <marker id="conn-arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-              <polygon points="0 0, 8 3, 0 6" fill="#999"/>
+            <marker id="conn-arr" markerWidth="${CONNECTION_DIAGRAM_ARROW_HEAD_LENGTH}" markerHeight="${
+    CONNECTION_DIAGRAM_ARROW_HEAD_HALF_HEIGHT * 2
+  }" refX="0" refY="${CONNECTION_DIAGRAM_ARROW_HEAD_HALF_HEIGHT}" orient="auto" markerUnits="userSpaceOnUse">
+              <polygon points="0 0, ${CONNECTION_DIAGRAM_ARROW_HEAD_LENGTH} ${CONNECTION_DIAGRAM_ARROW_HEAD_HALF_HEIGHT}, 0 ${
+    CONNECTION_DIAGRAM_ARROW_HEAD_HALF_HEIGHT * 2
+  }" fill="#999"/>
             </marker>
           </defs>
           ${svgPaths}

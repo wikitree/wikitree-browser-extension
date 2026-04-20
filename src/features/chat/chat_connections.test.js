@@ -1,6 +1,7 @@
 jest.mock("../../core/API/WikiTreeAPI", () => ({
   WikiTreeAPI: {
     getPerson: jest.fn(),
+    getAncestors: jest.fn(),
     searchPerson: jest.fn(),
     getConnections: jest.fn(),
   },
@@ -50,6 +51,7 @@ function makeHandlers(overrides = {}) {
 describe("chat_connections target resolution", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    WikiTreeAPI.getAncestors.mockResolvedValue([]);
   });
 
   test("prefers an exact current-surname match over variant-surname results for full names", async () => {
@@ -401,6 +403,274 @@ describe("chat_connections target resolution", () => {
     expect(matched?.Name).toBe("Mapother-1");
   });
 
+  test("does not prefer contextual surname matches when the expanded full name already appears in the target", async () => {
+    const contextualCureMatch = {
+      Id: 15644409,
+      Name: "Cure-53",
+      RealName: "Robert",
+      FirstName: "Robert",
+      LastNameAtBirth: "Cure",
+      LastNameCurrent: "Cure",
+      BirthDate: "1823-01-01",
+      DeathDate: "1878-09-28",
+      Gender: "Male",
+      index: 0,
+    };
+    const robertSmithMatch = {
+      Id: 501,
+      Name: "Smith-5001",
+      RealName: "Robert",
+      FirstName: "Robert",
+      LastNameAtBirth: "Smith",
+      LastNameCurrent: "Smith",
+      Gender: "Male",
+      index: 8,
+    };
+
+    WikiTreeAPI.searchPerson.mockImplementation(async (_appId, searchParams) => {
+      if (
+        searchParams.FirstName === "Robert" &&
+        searchParams.LastName === "Cure" &&
+        searchParams.skipVariants &&
+        searchParams.lastNameMatch === "strict"
+      ) {
+        return [0, [contextualCureMatch]];
+      }
+      if (searchParams.FirstName === "Robert" && searchParams.LastNameCurrent === "Cure" && searchParams.skipVariants) {
+        return [0, [contextualCureMatch]];
+      }
+      if (
+        searchParams.FirstName === "Robert" &&
+        searchParams.LastName === "Smith" &&
+        searchParams.skipVariants &&
+        searchParams.lastNameMatch === "strict"
+      ) {
+        return [0, [robertSmithMatch]];
+      }
+      if (
+        searchParams.FirstName === "Robert" &&
+        searchParams.LastNameCurrent === "Smith" &&
+        searchParams.skipVariants
+      ) {
+        return [0, [robertSmithMatch]];
+      }
+      if (searchParams.RealName === "Robert Smith" && searchParams.limit === 40) {
+        return [0, [robertSmithMatch]];
+      }
+      if (searchParams.RealName === "Robert Smith of the Cure" && searchParams.limit === 40) {
+        return [0, []];
+      }
+      if (searchParams.FirstName === "Robert" && searchParams.LastName === "Cure" && searchParams.limit === 40) {
+        return [0, [contextualCureMatch]];
+      }
+      return [0, []];
+    });
+
+    const { resolveConnectionTargetPerson } = makeHandlers({
+      tryAiExpandConnectionTarget: jest.fn(async () => ({
+        FirstName: "Robert",
+        LastName: "Smith",
+        BirthDate: "1959-04-21",
+        DeathDate: "",
+        Gender: "Male",
+        isLiving: true,
+      })),
+    });
+
+    const matched = await resolveConnectionTargetPerson(
+      "Robert Smith of the Cure",
+      "My connection to Robert Smith of the Cure"
+    );
+
+    expect(matched?.Name).toBe("Smith-5001");
+  });
+
+  test("prefers the ancestor-geo match when public exact-name candidates omit birth location", async () => {
+    const wrongRobertSmithMatch = {
+      Id: 701,
+      Name: "Smith-153778",
+      RealName: "Robert Smith",
+      FirstName: "Robert",
+      LastNameAtBirth: "Smith",
+      LastNameCurrent: "Smith",
+      BirthDate: "1959-04-21",
+      Gender: "Male",
+      index: 0,
+    };
+    const correctRobertSmithMatch = {
+      Id: 702,
+      Name: "Smith-183792",
+      RealName: "Robert Smith",
+      FirstName: "Robert",
+      LastNameAtBirth: "Smith",
+      LastNameCurrent: "Smith",
+      BirthDate: "1959-04-21",
+      Gender: "Male",
+      index: 7,
+    };
+
+    WikiTreeAPI.searchPerson.mockImplementation(async (_appId, searchParams) => {
+      if (
+        searchParams.FirstName === "Robert" &&
+        searchParams.LastName === "Cure" &&
+        searchParams.skipVariants &&
+        searchParams.lastNameMatch === "strict"
+      ) {
+        return [0, []];
+      }
+      if (searchParams.FirstName === "Robert" && searchParams.LastNameCurrent === "Cure" && searchParams.skipVariants) {
+        return [0, []];
+      }
+      if (
+        searchParams.FirstName === "Robert" &&
+        searchParams.LastName === "Smith" &&
+        searchParams.skipVariants &&
+        searchParams.lastNameMatch === "strict"
+      ) {
+        return [0, [wrongRobertSmithMatch, correctRobertSmithMatch]];
+      }
+      if (
+        searchParams.FirstName === "Robert" &&
+        searchParams.LastNameCurrent === "Smith" &&
+        searchParams.skipVariants
+      ) {
+        return [0, [wrongRobertSmithMatch, correctRobertSmithMatch]];
+      }
+      if (searchParams.RealName === "Robert Smith" && searchParams.limit === 40) {
+        return [0, [wrongRobertSmithMatch, correctRobertSmithMatch]];
+      }
+      if (searchParams.RealName === "Robert Smith of the Cure" && searchParams.limit === 40) {
+        return [0, []];
+      }
+      if (searchParams.FirstName === "Robert" && searchParams.LastName === "Cure" && searchParams.limit === 40) {
+        return [0, []];
+      }
+      return [0, []];
+    });
+
+    WikiTreeAPI.getAncestors.mockImplementation(async (_appId, key) => {
+      if (key === "Smith-153778") {
+        return [
+          {
+            Id: 701,
+            Name: "Smith-153778",
+            Father: 1701,
+            Mother: 1702,
+          },
+          {
+            Id: 1701,
+            Name: "Smith-153779",
+            BirthLocation: "Meadow Township, Johnston, North Carolina, United States",
+            DeathLocation: "Smithfield, Johnston, North Carolina, United States",
+            Father: 1703,
+            Mother: 1704,
+          },
+          {
+            Id: 1702,
+            Name: "Smith-155779",
+            BirthLocation: "Meadow Township, Johnston, North Carolina, United States",
+            DeathLocation: "Smithfield Township, Johnston, North Carolina, United States",
+            Father: 1705,
+            Mother: 1706,
+          },
+          {
+            Id: 1703,
+            Name: "Smith-153780",
+            BirthLocation: "Johnston County, North Carolina, United States",
+            DeathLocation: "Johnston County, North Carolina, United States",
+            Father: 0,
+            Mother: 0,
+          },
+        ];
+      }
+      if (key === "Smith-183792") {
+        return [
+          {
+            Id: 702,
+            Name: "Smith-183792",
+            Father: 2701,
+            Mother: -1,
+          },
+          {
+            Id: 2701,
+            Name: "Smith-181568",
+            BirthLocation: "",
+            DeathLocation: "Crawley, West Sussex, England, United Kingdom",
+            Father: 0,
+            Mother: 0,
+          },
+          {
+            Id: -1,
+            Father: -2,
+            Mother: -3,
+          },
+          {
+            Id: -2,
+            Father: 2702,
+            Mother: 2703,
+          },
+          {
+            Id: -3,
+            Father: 2704,
+            Mother: 2705,
+          },
+          {
+            Id: 2702,
+            Name: "Emmott-50",
+            BirthLocation: "Bermondsey, Surrey, England, United Kingdom",
+            DeathLocation: "",
+            Father: 0,
+            Mother: 0,
+          },
+          {
+            Id: 2703,
+            Name: "Osborn-5177",
+            BirthLocation: "Bradford, Yorkshire, England, United Kingdom",
+            DeathLocation: "",
+            Father: 0,
+            Mother: 0,
+          },
+          {
+            Id: 2704,
+            Name: "Gelder-90",
+            BirthLocation: "Bradford, Yorkshire, England, United Kingdom",
+            DeathLocation: "",
+            Father: 0,
+            Mother: 0,
+          },
+          {
+            Id: 2705,
+            Name: "Price-18149",
+            BirthLocation: "Roundhay, Yorkshire, England, United Kingdom",
+            DeathLocation: "",
+            Father: 0,
+            Mother: 0,
+          },
+        ];
+      }
+      return [];
+    });
+
+    const { resolveConnectionTargetPerson } = makeHandlers({
+      tryAiExpandConnectionTarget: jest.fn(async () => ({
+        FirstName: "Robert",
+        LastName: "Smith",
+        BirthDate: "1959-04-21",
+        DeathDate: "",
+        BirthLocation: "Blackpool, Lancashire, England",
+        Gender: "Male",
+        isLiving: true,
+      })),
+    });
+
+    const matched = await resolveConnectionTargetPerson(
+      "Robert Smith of the Cure",
+      "My connection to Robert Smith of the Cure"
+    );
+
+    expect(matched?.Name).toBe("Smith-183792");
+  });
+
   test("searches deeper exact lanes for likely living targets and prefers plausible modern matches", async () => {
     const historicalStephen = {
       Id: 44378737,
@@ -630,7 +900,7 @@ describe("chat_connections target resolution", () => {
     expect(WikiTreeAPI.getPerson).not.toHaveBeenCalledWith("Chat", "Fry-2606", expect.any(String));
   });
 
-  test("uses optional AI gender and parent-name hints in exact search lanes", async () => {
+  test("uses optional AI location, gender, and parent-name hints in exact search lanes", async () => {
     const hintedMatch = {
       Id: 404,
       Name: "Example-404",
@@ -638,6 +908,7 @@ describe("chat_connections target resolution", () => {
       FirstName: "Alex",
       LastNameAtBirth: "Example",
       LastNameCurrent: "Example",
+      BirthLocation: "Blackpool, Lancashire, England",
       Gender: "Female",
       index: 0,
     };
@@ -650,6 +921,7 @@ describe("chat_connections target resolution", () => {
         searchParams.lastNameMatch === "strict" &&
         searchParams.limit === 100 &&
         searchParams.sort === "birth" &&
+        searchParams.BirthLocation === "Blackpool, Lancashire, England" &&
         searchParams.Gender === "Female" &&
         searchParams.fatherFirstName === "John" &&
         searchParams.motherFirstName === "Mary"
@@ -662,6 +934,7 @@ describe("chat_connections target resolution", () => {
         searchParams.skipVariants &&
         searchParams.limit === 100 &&
         searchParams.sort === "birth" &&
+        searchParams.BirthLocation === "Blackpool, Lancashire, England" &&
         searchParams.Gender === "Female" &&
         searchParams.fatherFirstName === "John" &&
         searchParams.motherFirstName === "Mary"
@@ -699,6 +972,7 @@ describe("chat_connections target resolution", () => {
       tryAiExpandConnectionTarget: jest.fn(async () => ({
         FirstName: "Alex",
         LastName: "Example",
+        BirthLocation: "Blackpool, Lancashire, England",
         Gender: "Female",
         fatherFirstName: "John",
         motherFirstName: "Mary",
@@ -714,6 +988,7 @@ describe("chat_connections target resolution", () => {
       expect.objectContaining({
         FirstName: "Alex",
         LastName: "Example",
+        BirthLocation: "Blackpool, Lancashire, England",
         Gender: "Female",
         fatherFirstName: "John",
         motherFirstName: "Mary",
