@@ -1,10 +1,9 @@
 import $ from "jquery";
 import { treeImageURL } from "../../core/common";
+import "./editorUtils.css";
 
 export function addWorking() {
-  const working = $(
-    "<img id='working' style='position:absolute; margin-top:3em; margin-left: 300px' src='" + treeImageURL + "'>"
-  );
+  const working = $("<img id='working' src='" + treeImageURL + "'>");
   $("#wpTextbox1").before(working);
 }
 
