@@ -3895,6 +3895,12 @@ function addReferencePlaces() {
 export function sourcesArray(bio) {
   let dummy = $(document.createElement("html"));
   bio = bio.replace(/\{\|\s*class="wikitable".*?\|\+ Timeline.*?\|\}/gs, "").replace(/<ref[^>]*\/>/g, "");
+  let previousBioText = bio || "";
+  try {
+    previousBioText = localStorage.getItem("previousBio") || previousBioText;
+  } catch (error) {
+    previousBioText = previousBioText || "";
+  }
   // Remove == Research Notes == section
   bio = bio.replace(/==\s?Research Notes\s?==.*?==\s?Sources\s?==/gis, "");
 
@@ -4536,8 +4542,8 @@ export function sourcesArray(bio) {
         /\(\d{1,2}\).*? in (.+)(?=(, (United States|United Kingdom|England|Scotland|Wales|Canada|Australia)))/
       );
       const censusResidenceRegex2 = aRef.Text.match(/\(\d{1,2}\).*? in (.+)(?=\. Born)/);
-      const censusBioMatch = localStorage.previousBio.match(censusBioRegex);
-      const censusBioMatch2 = localStorage.previousBio.match(censusBioRegex2);
+      const censusBioMatch = previousBioText.match(censusBioRegex);
+      const censusBioMatch2 = previousBioText.match(censusBioRegex2);
 
       if (censusBioMatch) {
         aRef.Residence = censusBioMatch[1];

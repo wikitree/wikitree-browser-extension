@@ -302,7 +302,7 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
 
 function showTabbingOptions() {
   if ($("#tabbingOptions").length == 0) {
-    $('<input type="button" class="wbe small" id="tabbingOptions" value="🡒 Minimal tabbing">').insertBefore(
+    $('<input type="button" class="wbe small" id="tabbingOptions" value="Minimal tabbing">').insertBefore(
       $("#basicDataSection").eq(0)
     );
     doTabbingOptions($("#tabbingOptions"));
@@ -354,7 +354,7 @@ function doTabbingOptions(el, sw = 0) {
         $(this).attr("tabindex", "0");
       });
 
-      el.val("🡒 Natural tabbing");
+      el.val("Natural tabbing");
     } else if (sw == 1) {
       setSync({
         w_convenientTabbing: 0,
@@ -365,7 +365,7 @@ function doTabbingOptions(el, sw = 0) {
       $("input[type='radio']").attr("tabindex", "-1");
       $("input[type='radio']:first-child").attr("tabindex", "0");
 
-      el.val("🡒 Minimal tabbing");
+      el.val("Minimal tabbing");
     }
   });
 }
@@ -455,7 +455,7 @@ function addAdditionalFields() {
     $("#sourcesLabel").closest(".sourcesContent").prepend(notesRow);
   }
   $(".toggleAdvancedSources").on("click", function () {
-    if ($(".toggleAdvancedSources").text().match("Basic") && $("#notesLabel").length == 0) {
+    if ($(".toggleAdvancedSources").text().match("Basic") && $("#mBioWithoutSources").length == 0) {
       $("#sourcesLabel").closest(".sourcesContent").before(notesRow);
     } else {
       $("#notesLabel").closest("div").remove();
