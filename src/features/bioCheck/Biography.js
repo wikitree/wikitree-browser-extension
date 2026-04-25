@@ -106,6 +106,7 @@ export class Biography {
       bioHasMultipleBioHeadings: false,
       bioHasRefWithoutEnd: false,
       bioHasSpanWithoutEndingSpan: false,
+      bioHasTooManyStickers: false,
       bioIsMissingSourcesHeading: false,
       sourcesHeadingHasExtraEqual: false,
       bioHasMultipleSourceHeadings: false,
@@ -237,7 +238,10 @@ export class Biography {
     let haveNavBoxSuccession = false;
     let haveProjectBox = false;
     let haveBiography = false;
-    let haveTextLine = false;
+    let haveTextLine = false;  // before Biography heading
+    let haveBioText = false;  // after Biography heading
+    let haveNotabilityTemplate = false;
+    let isBioHeadingLine = false;
 
     // build a vector of each line in the bio then iterate
     this.#getLines(this.#bioInputString);
@@ -250,6 +254,7 @@ export class Biography {
     while (currentIndex < lineCount) {
       let mixedCaseLine = this.#bioLines[currentIndex].trim();
       let line = this.#bioLines[currentIndex].toLowerCase().trim();
+      isBioHeadingLine = false;
       let linesToSkip = 0;
       if (line.length > 0) {         // something here?
         if (line.indexOf(Biography.#REFERENCES_TAG) >= 0) {
@@ -259,6 +264,7 @@ export class Biography {
           this.#evaluateHeadingLine(line, currentIndex, this.#bioLines[currentIndex]);
           if (this.#biographyIndex >= 0) {
             haveBiography = true;
+            isBioHeadingLine = true;
           }
         } 
         if (this.#checkForEmail(line)) {
@@ -279,7 +285,8 @@ export class Biography {
           // Report category out of order with the last thing reported first so that
           // you only get one reported per category
           // out of order if RNB, Project Box, Nav Box or Biography heading preceeds
-          if (haveResearchNoteBox || haveNavBoxConfused || haveNavBoxSuccession || haveProjectBox || haveBiography || haveTextLine) {
+          if (haveResearchNoteBox || haveNavBoxConfused || haveNavBoxSuccession || haveProjectBox || haveBiography ||
+              haveTextLine || haveNotabilityTemplate) {
             this.#style.bioCategoryNotAtStart = true;
             this.#bioScore--;
             if (haveBiography) {
@@ -299,6 +306,10 @@ export class Biography {
                     } else {
                       if (haveNavBoxConfused) {
                         this.#messages.styleMessages.push('Easily Confused Navigation Box before ' + this.#bioLines[currentIndex]);
+                      } else {
+                        if (haveNotabilityTemplate) {
+                          this.#messages.styleMessages.push('Notability statement before ' + this.#bioLines[currentIndex]);
+                        }
                       }
                     }
                   }
@@ -479,22 +490,46 @@ export class Biography {
                     this.#bioScore--;
                   }
                 } else {
-                  if (this.#sourceRules.isSticker(partialLine)) {
-                    this.#stats.numberStickers++;
+                  if (this.#sourceRules.isNotabilityTemplate(partialLine)) {
+                    // Must be after Biography before any stickers
                     if (!haveBiography) {
-                      let msg = 'Sticker: ' + partialMixedCaseLine + ' should be after Biography heading';
+                      let msg = 'Notability statement should be after Biography heading';
                       this.#messages.styleMessages.push(msg);
                       this.#style.bioHasStyleIssues = true;
                       this.#bioScore--;
+                    } else {
+                      if (this.#stats.numberStickers > 0) {
+                        let msg = 'Notability statement should be before any Sticker';
+                        this.#messages.styleMessages.push(msg);
+                        this.#style.bioHasStyleIssues = true;
+                        this.#bioScore--;
+                      } else {
+                        if (haveBioText) {
+                          let msg = 'Notability statement should be after Biography heading and before any text';
+                          this.#messages.styleMessages.push(msg);
+                          this.#style.bioHasStyleIssues = true;
+                          this.#bioScore--;
+                        }
+                      }
                     }
-                    let stat = this.#sourceRules.getStickerStatus(partialLine);
-                    if ((stat.length > 0) && (stat != 'approved')) {
-                      let msg = 'Sticker: ' + partialMixedCaseLine + ' is ' + stat + ' status';
-                      this.#messages.styleMessages.push(msg);
-                      this.#style.bioHasStyleIssues = true;
-                      this.#bioScore--;
-                    }
-                  }  // end sticker
+                  } else {
+                    if (this.#sourceRules.isSticker(partialLine)) {
+                      this.#stats.numberStickers++;
+                      if (!haveBiography) {
+                        let msg = 'Sticker: ' + partialMixedCaseLine + ' should be after Biography heading';
+                        this.#messages.styleMessages.push(msg);
+                        this.#style.bioHasStyleIssues = true;
+                        this.#bioScore--;
+                      }
+                      let stat = this.#sourceRules.getStickerStatus(partialLine);
+                      if ((stat.length > 0) && (stat != 'approved')) {
+                        let msg = 'Sticker: ' + partialMixedCaseLine + ' is ' + stat + ' status';
+                        this.#messages.styleMessages.push(msg);
+                        this.#style.bioHasStyleIssues = true;
+                        this.#bioScore--;
+                      }
+                    }  // end sticker
+                  }
                 } // end project box 
               } // end research note box
             } // end nav box
@@ -507,6 +542,10 @@ export class Biography {
                 let str = this.#bioLines[currentIndex].toLowerCase().trim();
                 // test the line before the bio
                 this.#checkLineBeforeBio(str);
+              }
+            } else {
+              if (!isBioHeadingLine) {
+                haveBioText = true;
               }
             }
           }
@@ -546,6 +585,12 @@ export class Biography {
           this.#bioScore--;
         }
       }
+    }
+
+    // Check for too many stickers
+    if ((this.#stats.numberStickers > 5) && (!thePerson.isMember())) {
+      this.#style.bioHasTooManyStickers = true;
+      this.#style.bioHasStyleIssues = true;
     }
 
     // Get the string that might contain <ref>xxx</ref> pairs
@@ -1578,6 +1623,11 @@ validateSourcesStr(sourcesStr, thePerson) {
         }
         this.#messages.styleMessages.push('Wrong level heading == ' + str + ' ==');
       }
+    }
+    if (this.#style.bioHasTooManyStickers) {
+      this.#style.bioHasStyleIssues = true;
+      this.#bioScore--;
+      this.#messages.sectionMessages.push('Too many Stickers: ' + this.#stats.numberStickers);
     }
     if (this.#style.acknowledgementsHeadingHasExtraEqual) {
       this.#style.bioHasStyleIssues = true;

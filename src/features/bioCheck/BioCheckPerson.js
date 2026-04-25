@@ -172,14 +172,17 @@ export class BioCheckPerson {
         this.person.hasDeathLocation = true;
       }
 
-      // To check for DNA status use Bio parent if not null else default to just parent
-      if ((profileObj.DataStatus.BioFather == BioCheckPerson.CONF_WITH_DNA_STATUS) ||
-          (profileObj.DataStatus.Father == BioCheckPerson.CONF_WITH_DNA_STATUS)) {
-        this.person.fatherDnaConfirmed = true;
-      }
-      if ((profileObj.DataStatus.BioMother == BioCheckPerson.CONF_WITH_DNA_STATUS) ||
-          (profileObj.DataStatus.Mother == BioCheckPerson.CONF_WITH_DNA_STATUS)) {
-        this.person.motherDnaConfirmed = true;
+      // note that DataStatus might not be returned, depending on privacy
+      if (profileObj.DataStatus != null) {
+        // To check for DNA status use Bio parent if not null else default to just parent
+        if ((profileObj.DataStatus.BioFather == BioCheckPerson.CONF_WITH_DNA_STATUS) ||
+            (profileObj.DataStatus.Father == BioCheckPerson.CONF_WITH_DNA_STATUS)) {
+          this.person.fatherDnaConfirmed = true;
+        }
+        if ((profileObj.DataStatus.BioMother == BioCheckPerson.CONF_WITH_DNA_STATUS) ||
+            (profileObj.DataStatus.Mother == BioCheckPerson.CONF_WITH_DNA_STATUS)) {
+          this.person.motherDnaConfirmed = true;
+        }
       }
       // can use if logged in user is the same as Manager
       if (this.person.privacyLevel < BioCheckPerson.MIN_PRIVACY) {
