@@ -133,6 +133,49 @@
   text-align: left;
 }
 
+#wikitableContextMenu .wikitable-context-submenu-group {
+  position: relative;
+}
+
+#wikitableContextMenu .wikitable-context-parent::after {
+  content: "\25B8";
+  float: right;
+  color: #666;
+  margin-left: 0.6em;
+}
+
+#wikitableContextMenu .wikitable-context-submenu {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: 0;
+  border: 1px solid #ccc;
+  background-color: #f9f9f9;
+  min-width: 3em;
+  box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+  z-index: 11002;
+}
+
+#wikitableContextMenu .wikitable-context-submenu-group:hover .wikitable-context-submenu {
+  display: block;
+}
+
+#wikitableContextMenu .wikitable-context-sub-option {
+  text-align: center;
+}
+
+#wikitableContextMenu a.wikitable-context-option.disabled,
+#wikitableContextMenu a.wikitable-context-option.disabled:link,
+#wikitableContextMenu a.wikitable-context-option.disabled:visited {
+  color: #888 !important;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+#wikitableContextMenu .wikitable-context-submenu-group.disabled .wikitable-context-parent::after {
+  color: #bbb;
+}
+
 #wikitableWizardModal input.rowBgColor {
   width: 2em;
 }
@@ -156,6 +199,22 @@
   text-align: center;
   width: 100%;
   min-width: 40px;
+}
+
+#wikitableWizardModal #wikitableWizardTable td.wtw-merged-cell {
+  vertical-align: middle;
+  padding: 0;
+}
+
+#wikitableWizardModal #wikitableWizardTable td.wtw-merged-cell > input[type="text"] {
+  display: block;
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+#wikitableWizardModal #wikitableWizardTable td.wtw-merged-placeholder {
+  display: none;
 }
 
 a.wikitable-context-option:hover {

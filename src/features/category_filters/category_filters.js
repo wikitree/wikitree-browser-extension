@@ -161,6 +161,7 @@ function initCategoryFilters() {
     if (buttonID === "unconnectedButton") {
       cycleUnconnectedButton($(this));
       applyFilters();
+      $(this).trigger("blur"); // Remove focus from the button after clicking
       return;
     }
 
@@ -186,6 +187,7 @@ function initCategoryFilters() {
 
     // Re-apply filters based on the current active filters
     applyFilters();
+    $(this).trigger("blur");
   });
 
   // Event listener for DNA user input field with debounce

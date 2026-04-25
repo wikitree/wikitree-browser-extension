@@ -210,6 +210,14 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
       placeholder: 'e.g. "One Place Study"',
       group: "Categories and Templates",
     },
+    {
+      id: "TemplateFull",
+      label: "TemplateFull",
+      kind: "index",
+      input: "text",
+      placeholder: 'e.g. "One Place Study/Nantwich, Cheshire"',
+      group: "Categories and Templates",
+    },
 
     // Relations & Tree
     {
@@ -223,7 +231,7 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
     {
       id: "Ancestors",
       label: "Ancestors",
-      kind: "raw",
+      kind: "index",
       input: "text",
       placeholder: 'e.g. Tudor-18 or "Van Veenendaal-20"',
       group: "Relations",
@@ -231,7 +239,7 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
     {
       id: "Descendants",
       label: "Descendants",
-      kind: "raw",
+      kind: "index",
       input: "text",
       placeholder: 'e.g. Tudor-18 or "Van Hoorn-230"',
       group: "Relations",
@@ -239,13 +247,21 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
     {
       id: "CC7",
       label: "CC7",
-      kind: "raw",
+      kind: "index",
       input: "text",
       placeholder: "e.g. Tudor-18 or 13064898",
       group: "Relations",
     },
 
     // Management & editing (documented)
+    {
+      id: "Manager",
+      label: "Manager",
+      kind: "index",
+      input: "text",
+      placeholder: "e.g. Darwin-15",
+      group: "Management",
+    },
     {
       id: "Creator_",
       label: "Creator_",

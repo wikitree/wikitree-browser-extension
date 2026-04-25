@@ -20,6 +20,7 @@ import { isOK, displayName } from "../../core/common";
 import { displayDates } from "../verifyID/verifyID";
 import { getUserWtId } from "../../core/common";
 import "./change_family_lists.css";
+import { getAge } from "./change_family_lists_age";
 import * as distRel from "../distanceAndRelationship/distanceAndRelationship.js";
 const { initRelationshipDB, RELATIONSHIP_STORE_NAME } = distRel;
 import { getProfilePersonInfo } from "../../core/common";
@@ -331,16 +332,17 @@ function parseBlock(blockEl, itempropName) {
 function parseSpousesBlock(spouseEls) {
   const records = [];
   spouseEls.forEach((spouse, index) => {
-    const spouseEl = spouse.querySelector('[itemprop="spouse"]');
+    const spouseClone = spouse.cloneNode(true);
+    const spouseEl = spouseClone.querySelector('[itemprop="spouse"]');
     if (spouseEl) {
       const rec = parseItempropElement(spouseEl);
       rec.RelationshipStatus = getRelationshipStatusFromElement(spouse);
       spouseEl.remove();
-      let details = spouse.textContent || "";
+      let details = spouseClone.textContent || "";
       details = details.replace(/\s{2,}/g, " ").trim();
       details = details.replace(/add\/edit spouses/gi, "").trim();
       rec.MarriageDetails = details;
-      const mapLinkEl = spouse.querySelector('a[href*="maps.google"]');
+      const mapLinkEl = spouseClone.querySelector('a[href*="maps.google"]');
       if (mapLinkEl) {
         rec.MarriageMapLink = mapLinkEl.getAttribute("href") || "";
       }
@@ -1533,14 +1535,42 @@ function buildChildrenUnknown() {
   return container;
 }
 
+function isLikelyFamilyListApiAccessError(error) {
+  const message = String(error?.message || error || "").toLowerCase();
+  return (
+    error?.name === "TypeError" ||
+    message.includes("failed to fetch") ||
+    message.includes("load failed") ||
+    message.includes("networkerror") ||
+    message.includes("cors") ||
+    message.includes("cross-origin")
+  );
+}
+
 /**
  * Retrieves people data from the API and stores it in global Maps.
- * @returns {Promise<void>}
+ * @returns {Promise<boolean>} True when people data was loaded, otherwise false.
  */
 async function getWindowPeople() {
-  const [, , people] = await WikiTreeAPI.getPeople(WBE_CFL_APP_ID, profilePerson.Id, getPeopleFields, {
-    nuclear: 1,
-  });
+  let people;
+  try {
+    [, , people] = await WikiTreeAPI.getPeople(WBE_CFL_APP_ID, profilePerson.Id, getPeopleFields, {
+      nuclear: 1,
+    });
+  } catch (error) {
+    window.people = new Map();
+    window.peopleByWtID = new Map();
+    profilePersonData = undefined;
+    throw error;
+  }
+
+  if (!people || typeof people !== "object") {
+    window.people = new Map();
+    window.peopleByWtID = new Map();
+    profilePersonData = undefined;
+    return false;
+  }
+
   if (DEBUG_FAMILY_LISTS) {
     try {
       console.log("[CFL] getWindowPeople API response keys:", Object.keys(people || {}));
@@ -1728,6 +1758,8 @@ async function getWindowPeople() {
       "[CFL] profilePersonData set to",
       profilePersonData ? { Id: profilePersonData.Id, Name: profilePersonData.Name } : null
     );
+
+  return true;
 }
 
 /**
@@ -1808,86 +1840,6 @@ function attachApiData() {
     }
     fillBirthDeathDates($(this), p);
   });
-}
-
-/**
- * Calculates the age difference between two dates.
- * @param {string|Object} start - The start date in "YYYY-MM-DD" format or an object with date parts.
- * @param {string|Object} end - The end date in "YYYY-MM-DD" format or an object with date parts.
- * @returns {number[]} An array: [fullYears, extraDays, totalDays].
- */
-export function getAge(start, end = false) {
-  let start_day, start_month, start_year, end_day, end_month, end_year;
-  if (typeof start === "object") {
-    start_day = parseInt(start.start.date);
-    start_month = parseInt(start.start.month);
-    start_year = parseInt(start.start.year);
-    end_day = parseInt(start.end.date);
-    end_month = parseInt(start.end.month);
-    end_year = parseInt(start.end.year);
-  } else {
-    const startSplit = start.split("-");
-    start_day = parseInt(startSplit[2]);
-    start_month = parseInt(startSplit[1]);
-    start_year = parseInt(startSplit[0]);
-    const endSplit = end.split("-");
-    end_day = parseInt(endSplit[2]);
-    end_month = parseInt(endSplit[1]);
-    end_year = parseInt(endSplit[0]);
-  }
-  const month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  if (isLeapYear(start_year)) {
-    month[1] = 29;
-  }
-  const firstMonthDays = month[start_month - 1] - start_day;
-  let restOfYearDays = 0;
-  for (let i = start_month; i < 12; i++) {
-    restOfYearDays += month[i];
-  }
-  const firstYearDays = firstMonthDays + restOfYearDays;
-  let fullYears = end_year - (start_year + 1);
-  let lastYearMonthDays = 0;
-  if (isLeapYear(end_year)) {
-    month[1] = 29;
-  } else {
-    month[1] = 28;
-  }
-  for (let i = 0; i < end_month - 1; i++) {
-    lastYearMonthDays += month[i];
-  }
-  let lastYearDaysTotal = end_day + lastYearMonthDays;
-  let totalExtraDays = lastYearDaysTotal + firstYearDays;
-  let andDays;
-  if (totalExtraDays > 364) {
-    fullYears++;
-    let yearDays = 365;
-    if (isLeapYear(start_year) && start_month < 3) {
-      yearDays++;
-    }
-    if (isLeapYear(end_year) && end_month > 3) {
-      yearDays++;
-    }
-    andDays = totalExtraDays - yearDays;
-  } else {
-    andDays = totalExtraDays;
-    if (isLeapYear(start_year) && start_month < 3) {
-      totalExtraDays--;
-    }
-    if (isLeapYear(end_year) && end_month > 3) {
-      totalExtraDays--;
-    }
-  }
-  const totalDays = Math.round(fullYears * 365.25) + andDays;
-  return [fullYears, andDays, totalDays];
-}
-
-/**
- * Checks whether the given year is a leap year.
- * @param {number} year - The year to check.
- * @returns {boolean} True if leap year, false otherwise.
- */
-function isLeapYear(year) {
-  return year % 100 === 0 ? year % 400 === 0 : year % 4 === 0;
 }
 
 /**
@@ -2465,10 +2417,10 @@ function insertInSibList() {
     return $(this).data("mother") !== motherId;
   });
   if (diffMother.length || diffFather.length) {
-    if (profilePersonData.Father) {
+    if (pPerson.Father) {
       parentClasses += "parent_1 ";
     }
-    if (profilePersonData.Mother) {
+    if (pPerson.Mother) {
       parentClasses += "parent_2";
     }
   }
@@ -3191,17 +3143,34 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     return;
   }
 
-  pencils = getInitialPencils();
-  captureNativeParentDNA();
-  moveMetaGender();
-  const familyData = parseInitialData();
-  if (DEBUG_FAMILY_LISTS) console.log("Family data:", familyData);
   const treePerson = $("#Family-pane div.tree--person");
+
+  let newVitals;
+  let familyData;
+  try {
+    // Only rejected first-load API requests should abort before we touch the native family DOM.
+    const hasApiPeople = await getWindowPeople();
+    if (!hasApiPeople) {
+      console.warn("[CFL] Proceeding without apps server people data.");
+    }
+
+    pencils = getInitialPencils();
+    captureNativeParentDNA();
+    familyData = parseInitialData();
+    if (DEBUG_FAMILY_LISTS) console.log("Family data:", familyData);
+
+    newVitals = buildFamilyListsFromData(familyData);
+  } catch (error) {
+    const errorType = isLikelyFamilyListApiAccessError(error)
+      ? "likely CORS/network error"
+      : "API initialization error";
+    console.warn(`[CFL] Leaving native family lists in place due to ${errorType}.`, error);
+    return;
+  }
+
+  moveMetaGender();
   // Retain only the first .VITALS element.
   treePerson.children().not(":first").remove();
-
-  await getWindowPeople();
-  const newVitals = buildFamilyListsFromData(familyData);
   treePersonBit.append(newVitals);
   attachApiData();
   window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];

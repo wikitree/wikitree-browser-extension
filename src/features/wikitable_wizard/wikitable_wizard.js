@@ -6,7 +6,7 @@ import "./wikitable_wizard.css";
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
 import { showCopyMessage } from "../access_keys/access_keys";
-import { analyzeColumns } from "../auto_bio/auto_bio";
+import { analyzeColumns } from "../auto_bio/columnAnalysisUtils";
 import { stateInfo } from "./us_states.js"; // Import the state information
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { mainDomain } from "../../core/pageType";
@@ -33,6 +33,658 @@ let globalWikiTableStyles = {
   tableStyle: "",
   rowStyles: [],
 };
+
+const mergedCellClass = "wtw-merged-cell";
+const mergedPlaceholderClass = "wtw-merged-placeholder";
+
+function getTextInputHtml(value = "", bgColor = "#ffffff", isBold = false) {
+  return `<input type="text" class="cell" value="${value}" style="background-color:${bgColor};${
+    isBold ? "font-weight:bold;" : ""
+  }">`;
+}
+
+function getDataCellHtml({
+  value = "",
+  bgColor = "#ffffff",
+  isBold = false,
+  colspan = 1,
+  rowspan = 1,
+  isPlaceholder = false,
+  masterRow = "",
+  masterCol = "",
+} = {}) {
+  if (isPlaceholder) {
+    return `<td class="${mergedPlaceholderClass}" data-merge-placeholder="true" data-merge-master-row="${masterRow}" data-merge-master-col="${masterCol}"></td>`;
+  }
+
+  const spanAttrs = `${colspan > 1 ? ` colspan="${colspan}"` : ""}${rowspan > 1 ? ` rowspan="${rowspan}"` : ""}`;
+  const mergedClass = colspan > 1 || rowspan > 1 ? ` class="${mergedCellClass}"` : "";
+  return `<td${mergedClass}${spanAttrs}>${getTextInputHtml(value, bgColor, isBold)}</td>`;
+}
+
+function normalizeWikiCell(cell) {
+  if (typeof cell === "string") {
+    return { text: cell, colspan: 1, rowspan: 1 };
+  }
+
+  return {
+    text: cell?.text || "",
+    colspan: parseInt(cell?.colspan, 10) || 1,
+    rowspan: parseInt(cell?.rowspan, 10) || 1,
+  };
+}
+
+function parseWikiCellSegment(segment, marker) {
+  const trimmedSegment = segment
+    .trim()
+    .replace(new RegExp(`^\\${marker}`), "")
+    .trim();
+  const pipeIndex = trimmedSegment.indexOf("|");
+  let text = trimmedSegment;
+  let attributes = "";
+
+  if (pipeIndex !== -1) {
+    const possibleAttributes = trimmedSegment.slice(0, pipeIndex).trim();
+    if (possibleAttributes.includes("=")) {
+      attributes = possibleAttributes;
+      text = trimmedSegment.slice(pipeIndex + 1).trim();
+    }
+  }
+
+  const colspanMatch = attributes.match(/colspan\s*=\s*["']?(\d+)/i);
+  const rowspanMatch = attributes.match(/rowspan\s*=\s*["']?(\d+)/i);
+
+  return {
+    text,
+    colspan: colspanMatch ? parseInt(colspanMatch[1], 10) : 1,
+    rowspan: rowspanMatch ? parseInt(rowspanMatch[1], 10) : 1,
+  };
+}
+
+function parseWikiCellsFromLine(line) {
+  const marker = line.startsWith("!") ? "!" : "|";
+  const separator = marker === "!" ? "!!" : "||";
+  const segments = line.includes(separator) ? line.split(separator) : [line];
+  return segments.map((segment) => parseWikiCellSegment(segment, marker));
+}
+
+function buildRenderMatrix(rows) {
+  const matrix = [];
+
+  rows.forEach((row, rowIndex) => {
+    if (!matrix[rowIndex]) {
+      matrix[rowIndex] = [];
+    }
+
+    let colIndex = 0;
+    row.cells.map(normalizeWikiCell).forEach((cell) => {
+      while (matrix[rowIndex][colIndex]) {
+        colIndex++;
+      }
+
+      for (let rowOffset = 0; rowOffset < cell.rowspan; rowOffset++) {
+        if (!matrix[rowIndex + rowOffset]) {
+          matrix[rowIndex + rowOffset] = [];
+        }
+
+        for (let colOffset = 0; colOffset < cell.colspan; colOffset++) {
+          matrix[rowIndex + rowOffset][colIndex + colOffset] =
+            rowOffset === 0 && colOffset === 0
+              ? { type: "master", cell }
+              : { type: "placeholder", masterRow: rowIndex, masterCol: colIndex };
+        }
+      }
+
+      colIndex += cell.colspan;
+    });
+  });
+
+  return matrix;
+}
+
+function getCellColSpan(cell) {
+  return parseInt(cell.attr("colspan"), 10) || 1;
+}
+
+function getCellRowSpan(cell) {
+  return parseInt(cell.attr("rowspan"), 10) || 1;
+}
+
+function isMergedPlaceholder(cell) {
+  return cell.hasClass(mergedPlaceholderClass) || cell.attr("data-merge-placeholder") === "true";
+}
+
+function hasCellSpan(cell) {
+  return getCellColSpan(cell) > 1 || getCellRowSpan(cell) > 1;
+}
+
+function tableHasMergedCells() {
+  return (
+    $(
+      `#wikitableWizardTable tbody td.${mergedPlaceholderClass}, #wikitableWizardTable tbody td[colspan], #wikitableWizardTable tbody td[rowspan]`
+    ).length > 0
+  );
+}
+
+function syncMergedCellInputHeights() {
+  const tableBody = $("#wikitableWizardTable tbody");
+
+  // Clear stale inline heights left behind after unmerge operations.
+  tableBody.find("td input[type=text]").css("height", "");
+
+  const mergedCells = tableBody.find("td.wtw-merged-cell");
+
+  mergedCells.each(function () {
+    const cell = $(this);
+    const input = cell.find("input[type=text]").first();
+    if (!input.length) {
+      return;
+    }
+
+    if (getCellRowSpan(cell) > 1) {
+      input.css("height", `${Math.max(cell.innerHeight(), 0)}px`);
+    }
+  });
+}
+
+function scheduleMergedCellInputSync() {
+  window.requestAnimationFrame(() => {
+    syncMergedCellInputHeights();
+  });
+}
+
+function getDataCellAt(rowIndex, columnIndex) {
+  return $("#wikitableWizardTable tbody tr")
+    .eq(rowIndex)
+    .find("td")
+    .eq(columnIndex + 2);
+}
+
+function setCellSpan(cell, colspan = 1, rowspan = 1) {
+  if (colspan > 1) {
+    cell.attr("colspan", colspan);
+  } else {
+    cell.removeAttr("colspan");
+  }
+
+  if (rowspan > 1) {
+    cell.attr("rowspan", rowspan);
+  } else {
+    cell.removeAttr("rowspan");
+  }
+
+  cell.toggleClass(mergedCellClass, colspan > 1 || rowspan > 1);
+}
+
+function setPlaceholderCell(cell, masterRow, masterCol) {
+  cell
+    .removeAttr("colspan")
+    .removeAttr("rowspan")
+    .removeClass(mergedCellClass)
+    .addClass(mergedPlaceholderClass)
+    .attr("data-merge-placeholder", "true")
+    .attr("data-merge-master-row", masterRow)
+    .attr("data-merge-master-col", masterCol)
+    .empty();
+}
+
+function restoreEditableCell(cell, row) {
+  const isBold = row.find(".rowBold").prop("checked");
+  const bgColor = row.find(".rowBgColor").val() || "#ffffff";
+  cell
+    .removeAttr("data-merge-placeholder")
+    .removeAttr("data-merge-master-row")
+    .removeAttr("data-merge-master-col")
+    .removeClass(`${mergedPlaceholderClass} ${mergedCellClass}`)
+    .removeAttr("colspan")
+    .removeAttr("rowspan")
+    .html(getTextInputHtml("", bgColor, isBold));
+}
+
+function rowHasMergedCoverage(row) {
+  return row.find(`td.${mergedPlaceholderClass}, td[colspan], td[rowspan]`).length > 0;
+}
+
+function columnHasMergedCoverage(columnIndex) {
+  let hasMergedCoverage = false;
+
+  $("#wikitableWizardTable tbody tr").each(function () {
+    const cell = $(this).find("td").eq(columnIndex);
+    if (!cell.length) {
+      return;
+    }
+
+    if (isMergedPlaceholder(cell) || hasCellSpan(cell)) {
+      hasMergedCoverage = true;
+      return false;
+    }
+
+    return undefined;
+  });
+
+  return hasMergedCoverage;
+}
+
+function collectMergeRangeText(startRow, startCol, rowCount, colCount) {
+  const texts = [];
+
+  for (let rowOffset = 0; rowOffset < rowCount; rowOffset++) {
+    for (let colOffset = 0; colOffset < colCount; colOffset++) {
+      const cell = getDataCellAt(startRow + rowOffset, startCol + colOffset);
+      if (!cell.length || isMergedPlaceholder(cell)) {
+        continue;
+      }
+
+      const textValue = (cell.find("input[type=text]").val() || "").trim();
+      if (textValue !== "") {
+        texts.push(textValue);
+      }
+    }
+  }
+
+  return texts;
+}
+
+function canMergeRange(startRow, startCol, rowCount, colCount) {
+  for (let rowOffset = 0; rowOffset < rowCount; rowOffset++) {
+    for (let colOffset = 0; colOffset < colCount; colOffset++) {
+      const cell = getDataCellAt(startRow + rowOffset, startCol + colOffset);
+      if (!cell.length || isMergedPlaceholder(cell)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+function getMaxMergeRightCells(cell) {
+  const row = cell.closest("tr");
+  const rowIndex = row.index();
+  const dataColumnIndex = cell.index() - 2;
+  const currentRowSpan = getCellRowSpan(cell);
+  let nextColumnIndex = dataColumnIndex + getCellColSpan(cell);
+  let maxMergeableCells = 0;
+
+  while (true) {
+    const adjacentCell = getDataCellAt(rowIndex, nextColumnIndex);
+    if (!adjacentCell.length || isMergedPlaceholder(adjacentCell)) {
+      break;
+    }
+
+    if (getCellRowSpan(adjacentCell) !== currentRowSpan) {
+      break;
+    }
+
+    const adjacentColSpan = getCellColSpan(adjacentCell);
+    if (!canMergeRange(rowIndex, nextColumnIndex, currentRowSpan, adjacentColSpan)) {
+      break;
+    }
+
+    maxMergeableCells += adjacentColSpan;
+    nextColumnIndex += adjacentColSpan;
+  }
+
+  return maxMergeableCells;
+}
+
+function getMaxMergeDownCells(cell) {
+  const row = cell.closest("tr");
+  const rowIndex = row.index();
+  const dataColumnIndex = cell.index() - 2;
+  const currentColSpan = getCellColSpan(cell);
+  let nextRowIndex = rowIndex + getCellRowSpan(cell);
+  let maxMergeableCells = 0;
+
+  while (true) {
+    const adjacentCell = getDataCellAt(nextRowIndex, dataColumnIndex);
+    if (!adjacentCell.length || isMergedPlaceholder(adjacentCell)) {
+      break;
+    }
+
+    if (getCellColSpan(adjacentCell) !== currentColSpan) {
+      break;
+    }
+
+    const adjacentRowSpan = getCellRowSpan(adjacentCell);
+    if (!canMergeRange(nextRowIndex, dataColumnIndex, adjacentRowSpan, currentColSpan)) {
+      break;
+    }
+
+    maxMergeableCells += adjacentRowSpan;
+    nextRowIndex += adjacentRowSpan;
+  }
+
+  return maxMergeableCells;
+}
+
+function appendMergedText(baseCell, absorbedTexts, separator = ", ") {
+  const baseInput = baseCell.find("input[type=text]");
+  const baseText = (baseInput.val() || "").trim();
+  const mergedParts = [baseText, ...absorbedTexts].filter((part) => part !== "");
+
+  if (mergedParts.length > 0) {
+    baseInput.val(mergedParts.join(separator));
+    baseInput.trigger("change");
+  }
+}
+
+function mergeCellRight(cell) {
+  const row = cell.closest("tr");
+  const rowIndex = row.index();
+  const dataColumnIndex = cell.index() - 2;
+  const currentColSpan = getCellColSpan(cell);
+  const currentRowSpan = getCellRowSpan(cell);
+  const adjacentCell = getDataCellAt(rowIndex, dataColumnIndex + currentColSpan);
+
+  if (!adjacentCell.length || isMergedPlaceholder(adjacentCell)) {
+    return false;
+  }
+
+  if (getCellRowSpan(adjacentCell) !== currentRowSpan) {
+    return false;
+  }
+
+  const adjacentColSpan = getCellColSpan(adjacentCell);
+  if (!canMergeRange(rowIndex, dataColumnIndex + currentColSpan, currentRowSpan, adjacentColSpan)) {
+    return false;
+  }
+  const absorbedTexts = collectMergeRangeText(
+    rowIndex,
+    dataColumnIndex + currentColSpan,
+    currentRowSpan,
+    adjacentColSpan
+  );
+  appendMergedText(cell, absorbedTexts);
+
+  for (let rowOffset = 0; rowOffset < currentRowSpan; rowOffset++) {
+    for (let colOffset = 0; colOffset < adjacentColSpan; colOffset++) {
+      const targetCell = getDataCellAt(rowIndex + rowOffset, dataColumnIndex + currentColSpan + colOffset);
+      setPlaceholderCell(targetCell, rowIndex, dataColumnIndex);
+    }
+  }
+
+  setCellSpan(cell, currentColSpan + adjacentColSpan, currentRowSpan);
+  scheduleMergedCellInputSync();
+  return true;
+}
+
+function mergeCellDown(cell) {
+  const row = cell.closest("tr");
+  const rowIndex = row.index();
+  const dataColumnIndex = cell.index() - 2;
+  const currentColSpan = getCellColSpan(cell);
+  const currentRowSpan = getCellRowSpan(cell);
+  const adjacentCell = getDataCellAt(rowIndex + currentRowSpan, dataColumnIndex);
+
+  if (!adjacentCell.length || isMergedPlaceholder(adjacentCell)) {
+    return false;
+  }
+
+  if (getCellColSpan(adjacentCell) !== currentColSpan) {
+    return false;
+  }
+
+  const adjacentRowSpan = getCellRowSpan(adjacentCell);
+  if (!canMergeRange(rowIndex + currentRowSpan, dataColumnIndex, adjacentRowSpan, currentColSpan)) {
+    return false;
+  }
+  const absorbedTexts = collectMergeRangeText(
+    rowIndex + currentRowSpan,
+    dataColumnIndex,
+    adjacentRowSpan,
+    currentColSpan
+  );
+  appendMergedText(cell, absorbedTexts);
+
+  for (let rowOffset = 0; rowOffset < adjacentRowSpan; rowOffset++) {
+    for (let colOffset = 0; colOffset < currentColSpan; colOffset++) {
+      const targetCell = getDataCellAt(rowIndex + currentRowSpan + rowOffset, dataColumnIndex + colOffset);
+      setPlaceholderCell(targetCell, rowIndex, dataColumnIndex);
+    }
+  }
+
+  setCellSpan(cell, currentColSpan, currentRowSpan + adjacentRowSpan);
+  scheduleMergedCellInputSync();
+  return true;
+}
+
+function mergeCellRightByCount(cell, count) {
+  for (let i = 0; i < count; i++) {
+    if (!mergeCellRight(cell)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function mergeCellDownByCount(cell, count) {
+  for (let i = 0; i < count; i++) {
+    if (!mergeCellDown(cell)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function unmergeCell(cell) {
+  const row = cell.closest("tr");
+  const rowIndex = row.index();
+  const dataColumnIndex = cell.index() - 2;
+  const currentColSpan = getCellColSpan(cell);
+  const currentRowSpan = getCellRowSpan(cell);
+
+  if (currentColSpan === 1 && currentRowSpan === 1) {
+    return false;
+  }
+
+  const mergedText = (cell.find("input[type=text]").val() || "").trim();
+  const splitValues = mergedText
+    ? mergedText
+        .split(",")
+        .map((part) => part.trim())
+        .filter((part) => part !== "")
+    : [];
+  const totalCells = currentColSpan * currentRowSpan;
+  const distributedValues = new Array(totalCells).fill("");
+
+  for (let i = 0; i < Math.min(splitValues.length, totalCells); i++) {
+    distributedValues[i] = splitValues[i];
+  }
+
+  if (splitValues.length > totalCells) {
+    distributedValues[totalCells - 1] = splitValues.slice(totalCells - 1).join(", ");
+  }
+
+  setCellSpan(cell, 1, 1);
+  cell.find("input[type=text]").val(distributedValues[0]).trigger("change");
+
+  let valueIndex = 1;
+  for (let rowOffset = 0; rowOffset < currentRowSpan; rowOffset++) {
+    const targetRow = $("#wikitableWizardTable tbody tr").eq(rowIndex + rowOffset);
+    for (let colOffset = 0; colOffset < currentColSpan; colOffset++) {
+      if (rowOffset === 0 && colOffset === 0) {
+        continue;
+      }
+
+      const targetCell = getDataCellAt(rowIndex + rowOffset, dataColumnIndex + colOffset);
+      restoreEditableCell(targetCell, targetRow);
+      targetCell
+        .find("input[type=text]")
+        .val(distributedValues[valueIndex] || "")
+        .trigger("change");
+      valueIndex++;
+    }
+  }
+
+  scheduleMergedCellInputSync();
+  return true;
+}
+
+function parseWikiTableData(data) {
+  const lines = data
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  const propertiesObj = {};
+  const tableData = {
+    rows: [],
+    caption: "",
+    isCaptionBold: false,
+    styles: {},
+  };
+  let currentRow = null;
+  let isFullWidth = false;
+
+  function getLineBgColor(line) {
+    const bgColorMatch = line.match(/bgcolor=("|')?([a-zA-Z0-9#]+)\1?/i);
+    let bgColor = bgColorMatch ? bgColorMatch[2] : "#ffffff";
+    if (bgColor && !bgColor.startsWith("#")) {
+      bgColor = colorNameToHex[bgColor.toLowerCase()] || bgColor;
+    }
+    return bgColor;
+  }
+
+  function startNewRow(line = "") {
+    if (currentRow?.cells?.length) {
+      tableData.rows.push(currentRow);
+    }
+
+    const rowStyleMatch = line.match(/style="([^"]*)"/);
+    const properties = line.match(/(\w+)=("|')?(.*?)\2/g) || [];
+    properties.forEach((prop) => {
+      const [key, value] = prop.split("=");
+      propertiesObj[key] = value.replace(/["']/g, "");
+    });
+
+    const borderWidth = propertiesObj.border;
+    if (borderWidth) {
+      $("#wikitableWizardBorderWidth").val(borderWidth);
+    }
+
+    currentRow = {
+      cells: [],
+      bgColor: getLineBgColor(line),
+      isBold: false,
+      isHeader: false,
+      style: rowStyleMatch ? rowStyleMatch[1] : "",
+    };
+  }
+
+  lines.forEach((line) => {
+    if (line === "|}") {
+      return;
+    }
+
+    if (line.startsWith("{|")) {
+      const styleMatch = line.match(/style="([^"]*)"/);
+      if (styleMatch) {
+        tableData.styles.tableStyle = styleMatch[1];
+      }
+
+      const properties = line.match(/(\w+)=("|')?([a-zA-Z0-9#%]+)\2?/g) || [];
+      properties.forEach((prop) => {
+        const [, key, , value] = prop.match(/(\w+)=("|')?([a-zA-Z0-9#%]+)\2?/);
+        propertiesObj[key] = value;
+      });
+      if (/width=["']?100%["']?/i.test(line)) {
+        isFullWidth = true;
+      }
+      return;
+    }
+
+    if (line.startsWith("|+")) {
+      const captionText = line.substring(2).trim();
+      tableData.caption = captionText.replace(/'''/g, "").trim();
+      tableData.isCaptionBold = /'''/.test(captionText);
+      $("#wikitableWizardCaptionBold").prop("checked", tableData.isCaptionBold);
+      return;
+    }
+
+    if (line.startsWith("|-")) {
+      startNewRow(line);
+      return;
+    }
+
+    if (!currentRow) {
+      startNewRow();
+    }
+
+    if (line.startsWith("!")) {
+      currentRow.isHeader = true;
+      currentRow.cells.push(...parseWikiCellsFromLine(line));
+      return;
+    }
+
+    if (line.startsWith("|")) {
+      currentRow.cells.push(...parseWikiCellsFromLine(line));
+    }
+  });
+
+  if (currentRow?.cells?.length) {
+    tableData.rows.push(currentRow);
+  }
+
+  tableData.rows = tableData.rows.map((row) => {
+    const normalizedCells = row.cells.map(normalizeWikiCell);
+    const isBoldRow = normalizedCells.every(
+      (cell) => cell.text.trim() === "" || (/^\s*'''/.test(cell.text) && /'''\s*$/.test(cell.text))
+    );
+
+    return {
+      ...row,
+      cells: normalizedCells.map((cell) => ({
+        ...cell,
+        text: isBoldRow
+          ? cell.text
+              .replace(/^\s*'''/, "")
+              .replace(/'''\s*$/, "")
+              .trim()
+          : cell.text,
+      })),
+      isBold: isBoldRow,
+      isFullWidth,
+      styles: tableData.styles,
+    };
+  });
+
+  const hasMergedCells = tableData.rows.some((row) => row.cells.some((cell) => cell.colspan > 1 || cell.rowspan > 1));
+  if (!hasMergedCells) {
+    const nonEmptyColumns = tableData.rows.reduce((acc, row) => {
+      row.cells.forEach((cell, idx) => {
+        if (cell.text.trim() !== "") {
+          acc.add(idx);
+        }
+      });
+      return acc;
+    }, new Set());
+
+    tableData.rows = tableData.rows.map((row) => ({
+      ...row,
+      cells: row.cells.filter((_, idx) => nonEmptyColumns.has(idx)),
+    }));
+  }
+
+  addHashesToRows(tableData.rows);
+
+  const isSortable = lines.some((line) => line.startsWith("{|") && /class=".*sortable.*"/i.test(line));
+  const isWikitableClass = lines.some((line) => line.startsWith("{|") && /class=".*wikitable.*"/i.test(line));
+
+  globalWikiTableStyles.tableStyle = tableData.styles.tableStyle;
+  globalWikiTableStyles.rowStyles = tableData.rows.map((row) => row.style);
+
+  return {
+    cellPadding: propertiesObj.cellpadding || "",
+    bgColor: propertiesObj.bgcolor || "#ffffff",
+    data: tableData,
+    isSortable,
+    isFullWidth,
+    isWikitableClass,
+  };
+}
 
 // Event listeners for drop zone using jQuery delegation
 $(document).on("dragover", "#wikitableWizardFileDropZone", function (e) {
@@ -150,16 +802,30 @@ function renderTableFromData(parsedData, wikiTableData = null) {
   // Handle Wikitable format
   if (wikiTableData) {
     console.log("Rendering Wikitable format.");
-    wikiTableData.data.rows.forEach((row) => {
+    const renderMatrix = buildRenderMatrix(wikiTableData.data.rows);
+    wikiTableData.data.rows.forEach((row, rowIndex) => {
       let rowHtml = `<tr data-row-hash="${row.hash}">
     <td class="rowBoldCell"><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"${
       row.isBold ? " checked" : ""
     }></td>
     <td><input type="color" class="rowBgColor" value="${row.bgColor || "#ffffff"}"></td>`;
-      row.cells.forEach((cell) => {
-        rowHtml += `<td><input type="text" class="cell" value="${cell}" style="background-color:${
-          row.bgColor || "#ffffff"
-        };${row.isBold ? "font-weight:bold;" : ""}"></td>\n`;
+      (renderMatrix[rowIndex] || []).forEach((cellInfo) => {
+        if (cellInfo.type === "placeholder") {
+          rowHtml += `${getDataCellHtml({
+            isPlaceholder: true,
+            masterRow: cellInfo.masterRow,
+            masterCol: cellInfo.masterCol,
+          })}\n`;
+          return;
+        }
+
+        rowHtml += `${getDataCellHtml({
+          value: cellInfo.cell.text,
+          bgColor: row.bgColor || "#ffffff",
+          isBold: row.isBold,
+          colspan: cellInfo.cell.colspan,
+          rowspan: cellInfo.cell.rowspan,
+        })}\n`;
       });
       rowHtml += `</tr>\n`;
       theTableBody.append($(rowHtml));
@@ -196,6 +862,23 @@ function renderTableFromData(parsedData, wikiTableData = null) {
         headerRow[parseInt(value)] = formattedKey;
       }
 
+      // Determine the maximum number of columns
+      const maxColumns = Math.max(headerRow.length, ...parsedData.map((row) => row.length));
+
+      // Normalize all rows to have equal cell counts
+      parsedData = parsedData.map((row) => {
+        if (row.length < maxColumns) {
+          // Pad row with empty strings to match max columns
+          return [...row, ...new Array(maxColumns - row.length).fill("")];
+        }
+        return row;
+      });
+
+      // Ensure header row also has the correct number of columns
+      if (headerRow.length < maxColumns) {
+        headerRow = [...headerRow, ...new Array(maxColumns - headerRow.length).fill("")];
+      }
+
       // Check if headers should be generated
       if ($("#addGeneratedHeaders").prop("checked") && includesAtLeastN(headerItems, headerRow, 3)) {
         $("#addGeneratedHeadersLabel").show();
@@ -222,6 +905,7 @@ function renderTableFromData(parsedData, wikiTableData = null) {
   // Ensure table is properly rendered and events are attached
   updateHeaderRow();
   setupSorting();
+  scheduleMergedCellInputSync();
   updateRowNumberButtonLabel();
 
   // Attach event listeners to the newly added inputs (check for color and boldness)
@@ -275,183 +959,6 @@ function parseSSVData(data) {
   return parsedData;
 }
   */
-
-function parseWikiTableData(data) {
-  // Split the data by lines
-  const lines = data
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-
-  const propertiesObj = {};
-  const tableData = {
-    rows: [],
-    caption: "",
-    isCaptionBold: false,
-    styles: {}, // Object to store style attributes
-  };
-  let currentRow = { cells: [], bgColor: "#ffffff", isBold: false, isHeader: false, style: "" };
-  let isFullWidth = false;
-
-  //console.log(lines);
-  lines.forEach((line, index) => {
-    let bgColorMatch = line.match(/bgcolor=("|')?([a-zA-Z0-9#]+)\1?/); // Updated regex pattern
-    let bgColor = bgColorMatch ? bgColorMatch[2] : "#ffffff"; // Get the matched value or name
-    if (bgColor && !bgColor.startsWith("#")) {
-      bgColor = colorNameToHex[bgColor.toLowerCase()] || null; // Convert color name to hex value if necessary
-    }
-
-    if (line === "|}") return; // Ignore the closing bracket
-
-    if (line.startsWith("{|")) {
-      // Capture table-wide style attributes
-      const styleMatch = line.match(/style="([^"]*)"/);
-      if (styleMatch) {
-        tableData.styles.tableStyle = styleMatch[1];
-      }
-
-      // Matching both quoted and unquoted values
-      const properties = line.match(/(\w+)=("|')?([a-zA-Z0-9#]+)\2?/g) || [];
-      properties.forEach((prop) => {
-        const [, key, , value] = prop.match(/(\w+)=("|')?([a-zA-Z0-9#]+)\2?/);
-        propertiesObj[key] = value;
-      });
-      if (/width=["']?100%["']?/.test(line)) {
-        isFullWidth = true; // Set isFullWidth to true if the line contains width="100%"
-      }
-    } else if (line.startsWith("|+")) {
-      const captionLine = line.match(/\|\+.*/);
-      if (captionLine) {
-        const captionText = (captionLine[0].substring(2) + " ").trim();
-        tableData.caption = (captionText.replace(/'''/g, "") + " ").trim();
-        // Check for bold
-        tableData.isCaptionBold = /'''/.test(captionText);
-        $("#wikitableWizardCaptionBold").prop("checked", tableData.isCaptionBold);
-      }
-    } else if (line.startsWith("|-") || (line.startsWith("|") && index === 0)) {
-      if (currentRow) tableData.rows.push(currentRow);
-
-      // Capture row-specific style attributes
-      const rowStyleMatch = line.match(/style="([^"]*)"/);
-      if (rowStyleMatch) {
-        currentRow = { cells: [], style: rowStyleMatch[1] };
-      } else {
-        currentRow = { cells: [], style: "" };
-      }
-
-      let bgColorMatch = line.match(/bgcolor=("|')?([a-zA-Z0-9#]+)\1?/); // Updated regex pattern
-      let bgColor = bgColorMatch ? bgColorMatch[2] : "#ffffff"; // Get the matched value or name
-      if (bgColor && !bgColor.startsWith("#")) {
-        bgColor = colorNameToHex[bgColor.toLowerCase()] || null; // Convert color name to hex value if necessary
-      }
-      const properties = line.match(/(\w+)=("|')?(.*?)\2/g) || [];
-      properties.forEach((prop) => {
-        const [key, value] = prop.split("=");
-        propertiesObj[key] = value.replace(/["']/g, "");
-      });
-
-      const borderWidth = propertiesObj["border"];
-      if (borderWidth) {
-        // Assign the value to the border-width input box
-        $("#wikitableWizardBorderWidth").val(borderWidth);
-      }
-
-      currentRow = {
-        cells: [],
-        bgColor: bgColor || "#ffffff",
-        isBold: false,
-      };
-
-      // Generate and store the hash for the currentRow
-      if (currentRow) {
-        const hash = generateRowHash(currentRow.cells);
-        currentRow.hash = hash; // Store the hash with the row
-        globalWikiTableStyles.rowStyles[hash] = currentRow.style; // Use the hash as a key for the style
-      }
-    } else if (line.startsWith("!")) {
-      currentRow = {
-        cells: [],
-        bgColor: bgColor || "#ffffff",
-        isBold: false,
-      };
-      currentRow.isHeader = true;
-      if (line.includes("!!")) {
-        currentRow.cells.push(...line.split("!!").map((cell) => cell.trim().replace(/^!/, "").trim()));
-      } else if (line.includes("||")) {
-        currentRow.cells.push(...line.split("||").map((cell) => cell.trim().replace(/^!/, "").trim()));
-      } else {
-        currentRow.cells.push((line.trim().replace(/^!/, "") + " ").trim());
-      }
-    } else if (line.startsWith("|")) {
-      const cells = line.split("||").map((cell) =>
-        cell
-          .trim()
-          .replace(/^\||\|$/g, "")
-          .trim()
-      );
-
-      // Check if the entire row is bold (excluding empty cells)
-      if (cells.every((cell) => (cell + " ").trim() === "" || (cell.match(/^\s*'''/) && cell.match(/'''\s*$/)))) {
-        currentRow.isBold = true;
-
-        console.log("Current row is bold:", currentRow.isBold);
-        console.log("Cells:", cells);
-        cells.forEach((cell, idx) => {
-          if (cell.trim() !== "") {
-            cells[idx] = cell
-              .replace(/^\s*'''/, "")
-              .replace(/'''\s*$/, "")
-              .trim(); // Remove ''' from non-empty cells
-          }
-        });
-      }
-
-      currentRow.cells.push(...cells);
-    }
-  });
-
-  if (currentRow?.cells?.length > 0) tableData.rows.push(currentRow);
-
-  // Find columns that are not empty in at least one row
-  const nonEmptyColumns = tableData.rows.reduce((acc, row) => {
-    //console.log("Row:", row);
-    if (!row.cells) {
-      return acc;
-    }
-    row.cells.forEach((cell, idx) => {
-      if (cell.trim() !== "") acc.add(idx);
-    });
-    return acc;
-  }, new Set());
-
-  // Apply non-empty columns to every row
-  tableData.rows = tableData.rows.map((row) => {
-    return {
-      ...row,
-      cells: row.cells.filter((_, idx) => nonEmptyColumns.has(idx)),
-      isFullWidth: isFullWidth,
-      styles: tableData.styles, // Include the captured styles in the return object
-    };
-  });
-
-  // Filter out empty rows
-  tableData.rows = tableData.rows.filter((row) => row.cells.some((cell) => cell.trim() !== ""));
-
-  const isSortable = lines.some((line) => line.startsWith("{|") && /class=".*sortable.*"/i.test(line));
-  const isWikitableClass = lines.some((line) => line.startsWith("{|") && /class=".*wikitable.*"/i.test(line));
-
-  globalWikiTableStyles.tableStyle = tableData.styles.tableStyle; // For table-wide styles
-  globalWikiTableStyles.rowStyles = tableData.rows.map((row) => row.style); // For row-specific styles
-
-  return {
-    cellPadding: propertiesObj.cellpadding || "",
-    bgColor: propertiesObj.bgcolor || "#ffffff",
-    data: tableData,
-    isSortable: isSortable,
-    isFullWidth: isFullWidth,
-    isWikitableClass: isWikitableClass,
-  };
-}
 
 function formatColumnName(name) {
   if (name === "originalRelation") {
@@ -648,9 +1155,12 @@ function detectDelimiter(data) {
   // Define how many lines you want to check for consistency
   const linesToCheck = 3;
 
-  // Check if the first few lines have a consistent number of tabs
+  // Check if lines with tabs have a consistent number of tabs.
+  // Ignore heading lines that have no delimiter so mixed list/table input still parses.
   const tabCounts = lines.slice(0, linesToCheck).map((line) => (line.match(/\t/g) || []).length);
-  const allTabsConsistent = tabCounts.every((count) => count === tabCounts[0] && count > 0);
+  const tabCountsWithDelimiter = tabCounts.filter((count) => count > 0);
+  const allTabsConsistent =
+    tabCountsWithDelimiter.length >= 1 && tabCountsWithDelimiter.every((count) => count === tabCountsWithDelimiter[0]);
 
   if (allTabsConsistent) {
     console.log("Detected tab delimiter");
@@ -669,9 +1179,12 @@ function detectDelimiter(data) {
   }
 
   // Check if the first few lines have a consistent number of parts when split by sequences of 4 spaces
-  const fourSpaceCounts = lines.slice(0, linesToCheck).map(countPartsAfterSplitting);
+  const fourSpaceCounts = lines.slice(0, linesToCheck).map((line) => countPartsAfterSplitting(line) - 1);
   console.log(`Four-space counts for the first ${linesToCheck} lines:`, fourSpaceCounts);
-  const allFourSpacesConsistent = fourSpaceCounts.every((count) => count === fourSpaceCounts[0] && count > 1);
+  const fourSpaceCountsWithDelimiter = fourSpaceCounts.filter((count) => count > 0);
+  const allFourSpacesConsistent =
+    fourSpaceCountsWithDelimiter.length >= 1 &&
+    fourSpaceCountsWithDelimiter.every((count) => count === fourSpaceCountsWithDelimiter[0]);
   console.log(`All four-space counts consistent: ${allFourSpacesConsistent}`);
 
   if (allFourSpacesConsistent) {
@@ -696,6 +1209,22 @@ function detectDelimiter(data) {
   return null; // Fallback in case no clear delimiter is found
 }
 
+function detectLineDelimiter(line) {
+  if ((line.match(/\t/g) || []).length > 0) {
+    return "\t";
+  }
+
+  if ((line.match(/(?:\u00A0| ) {3,}|\u00A0{4}/g) || []).length > 0 || /(?:\u00A0| ) {3,}/.test(line)) {
+    return "    ";
+  }
+
+  if ((line.match(/,/g) || []).length > 0) {
+    return ",";
+  }
+
+  return null;
+}
+
 function parseLine(line, delimiter) {
   console.log(`Parsing line with delimiter '${delimiter}': ${line}`);
   line = line.replace(/^[:*#]+/, ""); // Remove any leading colons, asterisks, or hash characters
@@ -703,8 +1232,8 @@ function parseLine(line, delimiter) {
   if (!delimiter) return [line];
   let fields;
   if (delimiter === "    ") {
-    // Special case for four-space delimiter: split by exactly four spaces or non-breaking spaces
-    fields = line.split(/[\s\u00A0]{4}/);
+    // Preserve leading indentation so an indented row starts with an empty first cell.
+    fields = line.split(/[ \u00A0]{4,}/);
   } else {
     fields = line.split(delimiter);
   }
@@ -714,8 +1243,7 @@ function parseLine(line, delimiter) {
 }
 
 function parseDelimitedText(data) {
-  const firstLine = data.split("\n")[0];
-  const delimiter = detectDelimiter(firstLine);
+  const delimiter = detectDelimiter(data);
   console.log(`Detected delimiter: ${delimiter}`);
 
   if (delimiter === "\t") {
@@ -728,7 +1256,7 @@ function parseDelimitedText(data) {
     const parsedData = data
       .split("\n")
       .filter((line) => typeof line === "string" && line.trim() !== "")
-      .map((line) => parseLine(line, delimiter));
+      .map((line) => parseLine(line, delimiter || detectLineDelimiter(line)));
     console.log(`Parsed delimited data:`, parsedData);
     return parsedData;
   }
@@ -778,7 +1306,15 @@ function splitLineIntoColumns(line) {
 
 function generateRowHash(row) {
   // Create a string representation of the row data
-  const rowStr = row.join("|");
+  const rowStr = row
+    .map((cell) => {
+      if (typeof cell === "string") {
+        return cell;
+      }
+
+      return `${cell?.text || ""}:${cell?.colspan || 1}:${cell?.rowspan || 1}`;
+    })
+    .join("|");
   // Encode the string to base64 to create a simple hash
   return btoa(rowStr);
 }
@@ -818,6 +1354,7 @@ function createwikitableWizardModal() {
       <fieldset id='classes'>Classes:
         <label><input type="checkbox" id="wikitableWizardSortable"> sortable</label>
         <label><input type="checkbox" id="wikitableWizardWikitableClass"> wikitable</label>
+        <small>Right-click in a cell for more actions</small>
       </fieldset>  
       <div id="wikitableWizardHelp">
       <x>x</x>
@@ -832,10 +1369,11 @@ function createwikitableWizardModal() {
         <p>Other points to note:</p>
         <ul>
           <li>Columns and rows can be moved by grabbing the handle at the top or on the left.</li>
-          <li>Right-clicking in a cell will give you a menu of actions: Copy, Paste, Delete Row, Delete Column, Insert Row Above, Insert Row Below, Insert Column Left, and Insert Column Right.</li>
+          <li>Right-clicking in a cell will give you a menu of actions including copy/paste, row and column insertion or deletion, plus Merge Right, Merge Down, and Unmerge Cell.</li>
           <li>The 'sortable' class will make the table sortable.</li>
           <li>The 'wikitable' class will make the table look like a wikitable.  It will also make it available to the WBE's Table Filters and Sorting feature.</li>
           <li>Use Add Row Numbers to insert an auto-updating number column on the left; click Remove Row Numbers to take it out.</li>
+          <li>While merged cells are present, row and column dragging is disabled so merges do not get corrupted.</li>
           <li>You can move this popup window by dragging the title bar.</li>
           <li>There are four ways to close this Notes section: ?, Escape, 'x', and double-click.</li>
           </ul>
@@ -927,6 +1465,7 @@ function createwikitableWizardModal() {
     const rowStyles = [];
     let rowNum = 0;
     const isHeaderRow = $("#wikitableWizardHeaderRow").prop("checked");
+    const hasMergedCells = tableHasMergedCells();
 
     const tableCellPadding = $("#wikitableWizardCellPadding").val();
     let tableCellPaddingBit = "";
@@ -946,9 +1485,19 @@ function createwikitableWizardModal() {
     $("#wikitableWizardTable tbody tr").each(function () {
       const row = [];
       $(this)
-        .find("input[type=text]")
+        .find("td")
+        .slice(2)
         .each(function () {
-          row.push($(this).val());
+          const cell = $(this);
+          if (isMergedPlaceholder(cell)) {
+            return;
+          }
+
+          row.push({
+            text: cell.find("input[type=text]").val() || "",
+            colspan: getCellColSpan(cell),
+            rowspan: getCellRowSpan(cell),
+          });
         });
       data.push(row);
 
@@ -985,21 +1534,11 @@ function createwikitableWizardModal() {
       if (isCaptionBold) formattedContent += "''' ";
     }
 
-    // Identify empty columns
-    const emptyColumns = new Set(Array.from({ length: data[0].length }, (_, i) => i));
-    data.forEach((row) => {
-      row.forEach((cell, index) => {
-        if (typeof cell === "string" && (cell + " ").trim() !== "") {
-          emptyColumns.delete(index);
-        }
-      });
-    });
-
     // Find the last non-empty row index
     let lastNonEmptyRowIndex = data.length - 1;
     while (lastNonEmptyRowIndex >= 0) {
       const row = data[lastNonEmptyRowIndex];
-      if (Array.isArray(row) && row.every((cell) => typeof cell === "string" && (cell + " ").trim() === "")) {
+      if (Array.isArray(row) && row.every((cell) => (cell.text + " ").trim() === "")) {
         lastNonEmptyRowIndex--;
       } else {
         break;
@@ -1029,16 +1568,31 @@ function createwikitableWizardModal() {
       }
 
       if (isHeaderRow && rowIndex === 0) {
-        // Use "!" for headers if the first row is a header
-        row.forEach((cell, cellIndex) => {
-          if (emptyColumns.has(cellIndex)) return;
-          formattedContent += (cellIndex === 0 ? " \n! " : " !! ") + (style.isBold ? `'''${cell}'''` : cell);
+        const headerCells = row.map((cell) => {
+          const cellText = style.isBold && cell.text ? `'''${cell.text}'''` : cell.text;
+          const cellAttributes = [];
+          if (cell.colspan > 1) {
+            cellAttributes.push(`colspan="${cell.colspan}"`);
+          }
+          if (cell.rowspan > 1) {
+            cellAttributes.push(`rowspan="${cell.rowspan}"`);
+          }
+          return `${cellAttributes.join(" ")}${cellAttributes.length ? " | " : ""}${cellText}`;
         });
+        formattedContent += `\n! ${headerCells.join(" !! ")}`;
       } else {
-        row.forEach((cell, cellIndex) => {
-          if (emptyColumns.has(cellIndex)) return;
-          formattedContent += (cellIndex === 0 ? " \n| " : " || ") + (style.isBold && cell ? `'''${cell}'''` : cell);
+        const dataCells = row.map((cell) => {
+          const cellText = style.isBold && cell.text ? `'''${cell.text}'''` : cell.text;
+          const cellAttributes = [];
+          if (cell.colspan > 1) {
+            cellAttributes.push(`colspan="${cell.colspan}"`);
+          }
+          if (cell.rowspan > 1) {
+            cellAttributes.push(`rowspan="${cell.rowspan}"`);
+          }
+          return `${cellAttributes.join(" ")}${cellAttributes.length ? " | " : ""}${cellText}`;
         });
+        formattedContent += `\n| ${dataCells.join(" || ")}`;
       }
     });
 
@@ -1112,6 +1666,11 @@ function createwikitableWizardModal() {
     .on("click", function (e) {
       e.preventDefault();
 
+      if (tableHasMergedCells()) {
+        showCopyMessage("Unmerge cells before adding rows.", 1);
+        return;
+      }
+
       // Save the current table state before adding a row
       const currentTableState = theTable.html();
       changeStack.push({ type: "tableState", content: currentTableState });
@@ -1136,6 +1695,10 @@ function createwikitableWizardModal() {
     .off("click")
     .on("click", function (e) {
       e.preventDefault();
+      if (tableHasMergedCells()) {
+        showCopyMessage("Unmerge cells before changing row numbers.", 1);
+        return;
+      }
       if (hasRowNumberColumn()) {
         removeRowNumbers();
       } else {
@@ -1147,6 +1710,11 @@ function createwikitableWizardModal() {
     .off("click")
     .on("click", function (e) {
       e.preventDefault();
+
+      if (tableHasMergedCells()) {
+        showCopyMessage("Unmerge cells before adding columns.", 1);
+        return;
+      }
 
       // Save the current table state before adding a column
       const currentTableState = theTable.html();
@@ -1439,6 +2007,10 @@ function swapColumns(oldIndex, newIndex) {
 }
 
 function setupSorting() {
+  if (tableHasMergedCells()) {
+    return;
+  }
+
   // Enable sorting for table rows
   $("#wikitableWizardTable tbody").sortable({
     axis: "y", // Limit dragging to vertical axis
@@ -1595,6 +2167,7 @@ function refreshSorting() {
 
   // Re-initialize sorting, dragging, and dropping
   setupSorting();
+  scheduleMergedCellInputSync();
 }
 
 // Create custom context menu
@@ -1633,9 +2206,19 @@ $(document)
   <a href="#" class="wikitable-context-option" data-action="insert-row-below">Insert Row Below</a>
   <a href="#" class="wikitable-context-option" data-action="insert-column-left">Insert Column Left</a>
   <a href="#" class="wikitable-context-option" data-action="insert-column-right">Insert Column Right</a>
+  <div class="wikitable-context-submenu-group" data-submenu-group="merge-right">
+    <a href="#" class="wikitable-context-option wikitable-context-parent" data-action="merge-right">Merge Right</a>
+    <div class="wikitable-context-submenu" data-submenu-options="merge-right"></div>
+  </div>
+  <div class="wikitable-context-submenu-group" data-submenu-group="merge-down">
+    <a href="#" class="wikitable-context-option wikitable-context-parent" data-action="merge-down">Merge Down</a>
+    <div class="wikitable-context-submenu" data-submenu-options="merge-down"></div>
+  </div>
+  <a href="#" class="wikitable-context-option" data-action="unmerge">Unmerge Cell</a>
 </div>
     `;
     currentCell = $(this);
+    const currentTableCell = currentCell.closest("td");
 
     // Append context menu to body
     $("body").append(menuHtml);
@@ -1647,11 +2230,60 @@ $(document)
       display: "block", // Show the context menu
     });
 
+    const mergeRightCount = getMaxMergeRightCells(currentTableCell);
+    const mergeDownCount = getMaxMergeDownCells(currentTableCell);
+    const mergeRightOption = $("#wikitableContextMenu [data-action='merge-right']");
+    const mergeDownOption = $("#wikitableContextMenu [data-action='merge-down']");
+    const mergeRightGroup = $("#wikitableContextMenu [data-submenu-group='merge-right']");
+    const mergeDownGroup = $("#wikitableContextMenu [data-submenu-group='merge-down']");
+    const mergeRightSubmenu = $("#wikitableContextMenu [data-submenu-options='merge-right']");
+    const mergeDownSubmenu = $("#wikitableContextMenu [data-submenu-options='merge-down']");
+    const unmergeOption = $("#wikitableContextMenu [data-action='unmerge']");
+
+    const addMergeCountOptions = (submenuElem, directionAction, mergeCount) => {
+      submenuElem.empty();
+      for (let i = 1; i <= mergeCount; i++) {
+        submenuElem.append(
+          `<a href="#" class="wikitable-context-option wikitable-context-sub-option" data-action="${directionAction}-count" data-count="${i}">${i}</a>`
+        );
+      }
+    };
+
+    mergeRightOption.attr(
+      "title",
+      `Can merge ${mergeRightCount} additional cell${mergeRightCount === 1 ? "" : "s"} to the right`
+    );
+    mergeDownOption.attr(
+      "title",
+      `Can merge ${mergeDownCount} additional cell${mergeDownCount === 1 ? "" : "s"} downward`
+    );
+
+    if (mergeRightCount <= 0) {
+      mergeRightOption.addClass("disabled");
+      mergeRightGroup.addClass("disabled");
+    } else {
+      addMergeCountOptions(mergeRightSubmenu, "merge-right", mergeRightCount);
+    }
+    if (mergeDownCount <= 0) {
+      mergeDownOption.addClass("disabled");
+      mergeDownGroup.addClass("disabled");
+    } else {
+      addMergeCountOptions(mergeDownSubmenu, "merge-down", mergeDownCount);
+    }
+
+    if (!hasCellSpan(currentTableCell)) {
+      unmergeOption.hide();
+    }
+
     // Click handlers for context menu options
     $(".wikitable-context-option")
       .off("click")
       .on("click", async function (e) {
         e.preventDefault();
+
+        if ($(this).hasClass("disabled")) {
+          return;
+        }
 
         function addTableStateToStack() {
           const theTable = $("#wikitableWizardTable");
@@ -1814,6 +2446,7 @@ $(document)
         }
 
         const action = $(this).data("action");
+        const selectedMergeCount = parseInt($(this).data("count"), 10) || 1;
         if (action === "copy") {
           const cellValue = currentCell.val();
           try {
@@ -1835,6 +2468,11 @@ $(document)
         } else if (action === "delete-row") {
           // Delete the row
           const row = currentCell.closest("tr");
+          if (rowHasMergedCoverage(row)) {
+            showCopyMessage("Unmerge cells in this row first.", 1);
+            $("#wikitableContextMenu").remove();
+            return;
+          }
           const rowIndex = row.index();
           changeStack.push({ type: "row", content: row.clone(), index: rowIndex });
           // Update Undo button visibility
@@ -1846,6 +2484,11 @@ $(document)
         } else if (action === "delete-column") {
           // Delete the column
           const colIndex = currentCell.closest("td").index();
+          if (columnHasMergedCoverage(colIndex)) {
+            showCopyMessage("Unmerge cells in this column first.", 1);
+            $("#wikitableContextMenu").remove();
+            return;
+          }
           const deletedColumn = [];
           $("#wikitableWizardTable tbody tr").each(function () {
             deletedColumn.push($(this).find("td").eq(colIndex).clone());
@@ -1867,16 +2510,64 @@ $(document)
           setupSorting();
         } else if (action === "insert-row-above") {
           const row = currentCell.closest("tr");
+          if (rowHasMergedCoverage(row)) {
+            showCopyMessage("Unmerge cells in this row first.", 1);
+            $("#wikitableContextMenu").remove();
+            return;
+          }
           insertRow(row, "above");
         } else if (action === "insert-row-below") {
           const row = currentCell.closest("tr");
+          if (rowHasMergedCoverage(row)) {
+            showCopyMessage("Unmerge cells in this row first.", 1);
+            $("#wikitableContextMenu").remove();
+            return;
+          }
           insertRow(row, "below");
         } else if (action === "insert-column-left") {
           const colIndex = currentCell.closest("td").index();
+          if (columnHasMergedCoverage(colIndex)) {
+            showCopyMessage("Unmerge cells in this column first.", 1);
+            $("#wikitableContextMenu").remove();
+            return;
+          }
           insertColumn(colIndex, "left");
         } else if (action === "insert-column-right") {
           const colIndex = currentCell.closest("td").index();
+          if (columnHasMergedCoverage(colIndex)) {
+            showCopyMessage("Unmerge cells in this column first.", 1);
+            $("#wikitableContextMenu").remove();
+            return;
+          }
           insertColumn(colIndex, "right");
+        } else if (action === "merge-right") {
+          return;
+        } else if (action === "merge-down") {
+          return;
+        } else if (action === "merge-right-count") {
+          addTableStateToStack();
+          if (!mergeCellRightByCount(currentCell.closest("td"), selectedMergeCount)) {
+            changeStack.pop();
+            toggleUndoButton();
+            showCopyMessage("That cell can't be merged to the right.", 1);
+          }
+          refreshSorting();
+        } else if (action === "merge-down-count") {
+          addTableStateToStack();
+          if (!mergeCellDownByCount(currentCell.closest("td"), selectedMergeCount)) {
+            changeStack.pop();
+            toggleUndoButton();
+            showCopyMessage("That cell can't be merged downward.", 1);
+          }
+          refreshSorting();
+        } else if (action === "unmerge") {
+          addTableStateToStack();
+          if (!unmergeCell(currentCell.closest("td"))) {
+            changeStack.pop();
+            toggleUndoButton();
+            showCopyMessage("That cell is not merged.", 1);
+          }
+          refreshSorting();
         }
 
         // Close context menu
@@ -2185,6 +2876,31 @@ function findAListMatch(escapedSelectedText, allLists) {
   return listMatch;
 }
 
+function normalizeSelectionText(text) {
+  return (text || "")
+    .replace(/\u00A0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function findUniqueWikitableMatch(currentBio, selectedText) {
+  const tableBlocks = currentBio.match(/\{\|[\s\S]*?\n\|\}/g) || [];
+  if (!tableBlocks.length) {
+    return null;
+  }
+
+  const normalizedSelectedText = normalizeSelectionText(selectedText);
+  if (!normalizedSelectedText) {
+    return null;
+  }
+
+  const matchingTables = tableBlocks.filter((tableBlock) =>
+    normalizeSelectionText(tableBlock).includes(normalizedSelectedText)
+  );
+
+  return matchingTables.length === 1 ? matchingTables[0] : null;
+}
+
 // The closeWithEscape function
 function closeWithEscape() {
   let helpIsOpen = false;
@@ -2231,19 +2947,7 @@ function selectToLaunchWikiTableWizard() {
           if (selectedText.length > 0) {
             const currentBio = $("#wpTextbox1").val();
             const escapedSelectedText = selectedText.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
-
-            const escapedSelectedTextWithSpacesHandled = escapedSelectedText
-              .replace(/ /g, "(?: |\\u00A0)") // Replace space with a group that matches either a space or a non-breaking space
-              .replace(/\u00A0/g, "(?: |\\u00A0)"); // Replace non-breaking space similarly
-
-            const tableMatchRegex = new RegExp(
-              `{\\|[^\\{\\}]*${escapedSelectedTextWithSpacesHandled
-                .replace(/\\\\/g, "\\\\\\\\")
-                .replace(/\|\|/g, "\\|\\|(?: |\\u00A0)*")}[^\\{\\}]*\\|\\}`,
-              "g"
-            );
-
-            const tableMatch = currentBio.match(tableMatchRegex);
+            const tableMatch = findUniqueWikitableMatch(currentBio, selectedText);
 
             // Regex to match each list
             const allListsRegex =
@@ -2264,9 +2968,9 @@ function selectToLaunchWikiTableWizard() {
 
             let uniqueMatch = false;
 
-            if (tableMatch && tableMatch.length === 1) {
+            if (tableMatch) {
               uniqueMatch = true;
-              window.selectedTable = tableMatch[0];
+              window.selectedTable = tableMatch;
             } else if (listMatch) {
               uniqueMatch = true;
               window.selectedTable = listMatch;
