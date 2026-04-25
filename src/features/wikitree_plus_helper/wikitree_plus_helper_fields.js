@@ -255,6 +255,14 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
 
     // Management & editing (documented)
     {
+      id: "Manager",
+      label: "Manager",
+      kind: "index",
+      input: "text",
+      placeholder: "e.g. Darwin-15",
+      group: "Management",
+    },
+    {
       id: "Creator_",
       label: "Creator_",
       kind: "prefix",
