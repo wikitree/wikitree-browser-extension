@@ -107,6 +107,7 @@ export class Biography {
       bioHasRefWithoutEnd: false,
       bioHasSpanWithoutEndingSpan: false,
       bioHasTooManyStickers: false,
+      bioMissingLocations: false,
       bioIsMissingSourcesHeading: false,
       sourcesHeadingHasExtraEqual: false,
       bioHasMultipleSourceHeadings: false,
@@ -590,6 +591,12 @@ export class Biography {
     // Check for too many stickers
     if ((this.#stats.numberStickers > 5) && (!thePerson.isMember())) {
       this.#style.bioHasTooManyStickers = true;
+      this.#style.bioHasStyleIssues = true;
+    }
+
+    // Check for absense of either birth or death location
+    if (!thePerson.hasLocation()) {
+      this.#style.bioMissingLocations = true;
       this.#style.bioHasStyleIssues = true;
     }
 
@@ -1629,6 +1636,12 @@ validateSourcesStr(sourcesStr, thePerson) {
       this.#bioScore--;
       this.#messages.sectionMessages.push('Too many Stickers: ' + this.#stats.numberStickers);
     }
+    if (this.#style.bioMissingLocations) {
+      this.#style.bioHasStyleIssues = true;
+      this.#bioScore = this.#bioScore - 5;
+      this.#messages.sectionMessages.push('Profile has neither birth nor death location');
+    }
+
     if (this.#style.acknowledgementsHeadingHasExtraEqual) {
       this.#style.bioHasStyleIssues = true;
       this.#messages.sectionMessages.push('Acknowledgements subsection instead of section');
