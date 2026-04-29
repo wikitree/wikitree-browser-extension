@@ -339,9 +339,14 @@ export class BioCheckPerson {
   /**
    * Does profile have either birth or death location
    * @returns {Boolean} true if either location present
+   * or the privacy does not let us determine location
    */
   hasLocation() {
-    return this.person.hasLocation;
+    if (this.person.privacyLevel >= BioCheckPerson.MIN_PRIVACY) {
+      return true;
+    } else {
+      return this.person.hasLocation;
+    }
   }
   /**
    * Does profile have birth location
@@ -680,17 +685,20 @@ export class BioCheckPerson {
   }
   /**
    * Does the profile lack dates
+   * Only looks at open and private profiles
    * @returns {Boolean}  true if profile has neither birth nor death date
    */
   isUndated() {
+    let undated = false;
     if (!this.#hasBirthDate && !this.#hasDeathDate) {
       this.#isPre1500 = true;
       this.#isPre1700 = true;
       this.#tooOldToRemember = true;
-      return true;
-    } else {
-      return false;
+      if (this.person.privacyLevel > BioCheckPerson.MIN_PRIVACY) {
+        undated = true;
+      }
     }
+    return undated;
   }
 
   /**

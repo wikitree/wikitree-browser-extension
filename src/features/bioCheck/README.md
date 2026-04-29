@@ -149,6 +149,7 @@ Returns **[String][8]** list of managers
 Does profile have either birth or death location
 
 Returns **[Boolean][7]** true if either location present
+or the privacy does not let us determine location
 
 ### hasBirthLocation
 
@@ -222,6 +223,7 @@ Does the profile have a death date
 ### isUndated
 
 Does the profile lack dates
+Only looks at open and private profiles
 
 Returns **[Boolean][7]** true if profile has neither birth nor death date
 
