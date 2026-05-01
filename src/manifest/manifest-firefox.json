@@ -1,7 +1,7 @@
 {
-  "name": "WikiTree Browser Extension (Preview)",
+  "name": "WikiTree Browser Extension",
   "description": "The official WikiTree browser extension.",
-  "version": "2.13.2.4",
+  "version": "2.14",
   "manifest_version": 2,
   "options_ui": {
     "page": "options.html",
@@ -24,7 +24,7 @@
   ],
   "content_scripts": [
     {
-      "matches": ["https://*.wikitree.com/*", "https://wikitree.sdms.si/*", "*://*.findagrave.com/*"],
+      "matches": ["https://*.wikitree.com/*", "*://*.findagrave.com/*"],
       "js": ["js/vendor.js", "js/content.js"]
     }
   ],
@@ -48,7 +48,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "info@wikitree.com"
+      "id": "in.fo@wikitree.com"
     }
   },
   "browser_action": {
