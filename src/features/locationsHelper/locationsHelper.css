@@ -50,6 +50,14 @@ input[name="mMarriageLocation"] {
   width: max-content !important;
 }
 
+body.wbe-location-exclusive-active .autocomplete-suggestions {
+  display: none !important;
+}
+
+.ui-autocomplete.wbe-exclusive-autocomplete-menu {
+  z-index: 2000 !important;
+}
+
 .wbe-location-popup {
   display: none;
   position: absolute;

@@ -57,6 +57,56 @@ let forceUpdate = false;
 let select2Selections;
 let selectedCountries = [];
 
+// In exclusive mode our jQuery UI menu and the site's own autocomplete can both
+// exist briefly. We tag our menu and mirror its open/focus state onto <body> so
+// CSS can suppress the host popup while our replacement UI is active.
+const EXCLUSIVE_ACTIVE_CLASS = "wbe-location-exclusive-active";
+const EXCLUSIVE_MENU_CLASS = "wbe-exclusive-autocomplete-menu";
+
+function isExclusiveAutocompleteMenuOpen() {
+  return Array.from(document.querySelectorAll(`.ui-autocomplete.${EXCLUSIVE_MENU_CLASS}`)).some(
+    (menu) => menu.offsetParent !== null
+  );
+}
+
+function syncExclusiveAutocompleteState() {
+  const activeEl = document.activeElement;
+  const hasFocusedExclusiveField = activeEl instanceof Element && activeEl.closest(".wbe-loc-autocomplete") !== null;
+  document.body?.classList.toggle(
+    EXCLUSIVE_ACTIVE_CLASS,
+    hasFocusedExclusiveField || isExclusiveAutocompleteMenuOpen()
+  );
+}
+
+function bindExclusiveAutocompleteGuards(field, $autocomplete) {
+  // The guard is intentionally lightweight: just keep the CSS state aligned with
+  // focus/menu visibility so Firefox cannot paint the host popup above our menu.
+  $autocomplete.autocomplete("widget").addClass(EXCLUSIVE_MENU_CLASS);
+
+  const syncSoon = () => window.setTimeout(syncExclusiveAutocompleteState, 0);
+
+  field.addEventListener("focus", syncExclusiveAutocompleteState);
+  field.addEventListener("input", syncExclusiveAutocompleteState);
+  field.addEventListener("blur", syncSoon);
+  $autocomplete.on("autocompleteopen", syncExclusiveAutocompleteState);
+  $autocomplete.on("autocompleteclose", syncSoon);
+}
+
+function bindPseudoButtonActivation(element, handler) {
+  // These controls live inside the edit form, but we do not want to inject real
+  // form-associated buttons there because Firefox draft-save treated them as form
+  // changes. Use span[role=button] instead and restore keyboard activation here.
+  element.addEventListener("click", handler);
+  element.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") {
+      return;
+    }
+
+    e.preventDefault();
+    handler(e);
+  });
+}
+
 export function getSelectedCountries() {
   return [...selectedCountries];
 }
@@ -274,6 +324,7 @@ export async function initLocationSuggestions(suggestionOption) {
             response(suggestions);
           },
         });
+        bindExclusiveAutocompleteGuards(newField, $ac);
         $ac.autocomplete("instance")._renderItem = function (ul, item) {
           const term = this.term; // current user input
           const matcher = new RegExp("(" + $.ui.autocomplete.escapeRegex(term) + ")", "ig");
@@ -318,17 +369,19 @@ function insertCountrySelectAbove(inputfield, sid) {
 
   const newRow = document.createElement("div");
   newRow.className = `row mb-1`;
+  // Keep the helper row visually in the form layout, but avoid injecting actual
+  // form controls for the summary trigger and gear button.
   newRow.innerHTML =
     (labelCol ? `<div class="${labelColClasses}"></div>` : "") +
     `<div class="${colClasses} position-relative">
         <div class="input-group country-input">
           <span class="input-group-text" title="Select the countries to which to limit searches for place name suggestions. No selection implies all loaded countries.">Country</span>
-          <button id="${sid}" class="btn btn-outline-secondary wbe-country-summary" type="button" title="Select the countries to which to limit searches for place name suggestions. No selection implies all loaded countries.">
+          <span id="${sid}" class="btn btn-outline-secondary wbe-country-summary" role="button" tabindex="0" title="Select the countries to which to limit searches for place name suggestions. No selection implies all loaded countries.">
             <span class="wbe-country-summary-label"></span>
-          </button>
-          <button class="btn btn-outline-secondary wbe-location-gear" type="button" title="Location Data Management">
+          </span>
+          <span class="btn btn-outline-secondary wbe-location-gear" role="button" tabindex="0" title="Location Data Management" aria-label="Location Data Management">
             <img src="${gearSrc}">
-          </button>
+          </span>
         </div>
       </div>`;
 
@@ -441,7 +494,8 @@ function insertCountrySelectAbove(inputfield, sid) {
     });
   }
 
-  filterBtn.addEventListener("click", function (e) {
+  // The summary trigger uses the outside-form popup for country filtering.
+  bindPseudoButtonActivation(filterBtn, function (e) {
     e.stopPropagation();
     e.preventDefault();
 
@@ -467,8 +521,9 @@ function insertCountrySelectAbove(inputfield, sid) {
   // const fileInput = newRow.querySelector(".wbe-loc-file-input");
   // let shouldClear = CLEAR.ALL;
 
-  // Use vanilla JS for event listeners to be safer
-  gearBtn.addEventListener("click", async function (e) {
+  // The gear trigger opens the dataset-management popup without adding another
+  // form control to the edit page itself.
+  bindPseudoButtonActivation(gearBtn, async function (e) {
     e.stopPropagation();
     e.preventDefault();
 

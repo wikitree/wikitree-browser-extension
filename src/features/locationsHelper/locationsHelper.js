@@ -43,6 +43,13 @@ const natalStart = new Date("1856-01-01");
 const fieldSelectors = locationFields.map((f) => f.fieldId).join(",");
 const locationFieldsMap = new Map(locationFields.map((f) => [f.name, f]));
 
+// We only freeze the native inputs while we are attaching the augmenting observer.
+// In "only" mode we leave the original fields alone because Firefox draft-save was
+// treating disabled/enabled transitions on those form controls as real edits.
+function shouldTemporarilyDisableLocationFields() {
+  return window.locationsHelperOptions?.newLocations === "augment";
+}
+
 // Ensure we only initialize observers and bindings once per page load
 window.locationsHelperInitDone = window.locationsHelperInitDone || false;
 
@@ -63,7 +70,6 @@ shouldInitializeFeature("locationsHelper").then((result) => {
           if (options?.newLocations !== "no") {
             initLocationSuggestions(options?.newLocations);
             if (options?.newLocations === "only") {
-              $(fieldSelectors).prop("disabled", false);
               return;
             }
           }
@@ -107,7 +113,7 @@ function waitForElements(selectors, timeoutMs = 5000) {
     // 1. Immediate check for any of the fields
     const foundEls = document.querySelectorAll(selectors);
     if (foundEls.length > 0) {
-      if (window.locationsHelperOptions?.newLocations !== "no") {
+      if (shouldTemporarilyDisableLocationFields()) {
         foundEls.forEach((el) => {
           $(el).prop("disabled", true);
         });
@@ -131,7 +137,7 @@ function waitForElements(selectors, timeoutMs = 5000) {
         clearTimeout(timer);
         observer.disconnect();
 
-        if (window.locationsHelperOptions?.newLocations !== "no") {
+        if (shouldTemporarilyDisableLocationFields()) {
           // Disable the location inputs until we are ready to intervene in the autocompletes
           console.log("Disablle location inputs");
           els.forEach((el) => {
@@ -295,6 +301,8 @@ function attachInputListeners() {
         normalised: normalise(val),
       };
       ++f.inputRevision;
+      // FamilySearch does not always refresh its list on every extra character,
+      // so keep narrowing the currently rendered list client-side as the user types.
       filterRenderedSuggestionsForField(f);
     });
   }
@@ -325,6 +333,8 @@ function containsTermsInOrder(haystack, terms) {
 }
 
 function getSuggestionContainersForField(locationField) {
+  // Once we have associated a popup with a field, keep using that association.
+  // Before that happens, fall back to whichever autocomplete container is visible.
   return Array.from(document.querySelectorAll(".autocomplete-suggestions")).filter((container) => {
     const state = getState(container);
     if (state.fieldName) {
@@ -342,6 +352,9 @@ function getSuggestionFilterText(node) {
 }
 
 function filterRenderedSuggestionsForField(locationField) {
+  // This runs against both WT/FamilySearch suggestions and our injected WBE rows.
+  // The goal is not to replace the upstream source, just to keep the visible list
+  // in sync with what the user has typed when the upstream source lags behind.
   const normalisedInput = locationField.latestInput?.normalised || "";
   const terms = normalisedInput.split(/[\s,]+/).filter(Boolean);
 
