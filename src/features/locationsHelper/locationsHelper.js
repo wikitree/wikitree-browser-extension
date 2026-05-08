@@ -19,6 +19,7 @@ import {
   locationFields,
   initLocationSuggestions,
   getAugmentedSuggestions,
+  getSelectedCountries,
   formWTSuggestionElement,
 } from "./location_suggestions";
 
@@ -294,6 +295,7 @@ function attachInputListeners() {
         normalised: normalise(val),
       };
       ++f.inputRevision;
+      filterRenderedSuggestionsForField(f);
     });
   }
 }
@@ -304,6 +306,7 @@ function getState(container) {
       injecting: false,
       fieldName: null, // permanent association
       renderRevision: null, // number
+      injectedRevision: null, // number
     };
   }
   return container.__wbeState;
@@ -319,6 +322,35 @@ function containsTermsInOrder(haystack, terms) {
   }
 
   return true;
+}
+
+function getSuggestionContainersForField(locationField) {
+  return Array.from(document.querySelectorAll(".autocomplete-suggestions")).filter((container) => {
+    const state = getState(container);
+    if (state.fieldName) {
+      return state.fieldName === locationField.name;
+    }
+
+    return container.offsetParent !== null;
+  });
+}
+
+function getSuggestionFilterText(node) {
+  const rawText = node.textContent || node.getAttribute("data-val") || "";
+  const { cleanText } = stripLocationDates(rawText);
+  return normalise(cleanText || rawText);
+}
+
+function filterRenderedSuggestionsForField(locationField) {
+  const normalisedInput = locationField.latestInput?.normalised || "";
+  const terms = normalisedInput.split(/[\s,]+/).filter(Boolean);
+
+  getSuggestionContainersForField(locationField).forEach((container) => {
+    container.querySelectorAll(".autocomplete-suggestion").forEach((node) => {
+      const matches = !terms.length || containsTermsInOrder(getSuggestionFilterText(node), terms);
+      node.style.display = matches ? "" : "none";
+    });
+  });
 }
 
 async function locationsHelper() {
@@ -413,10 +445,20 @@ async function locationsHelper() {
       state.renderRevision = field.inputRevision;
     }
 
-    // Prevent reinjection
-    if (container.querySelector(".wbe-injected-suggestion")) {
-      dbg1("injection already done; skipping");
-      return;
+    const existingInjectedSuggestions = container.querySelectorAll(".wbe-injected-suggestion");
+    if (existingInjectedSuggestions.length) {
+      if (state.injectedRevision === field.inputRevision) {
+        dbg1("injection already done for current revision; skipping");
+        return;
+      }
+
+      dbg1("removing stale injected suggestions for new revision", {
+        fieldName: field.name,
+        previousInjectedRevision: state.injectedRevision,
+        nextRevision: field.inputRevision,
+        staleCount: existingInjectedSuggestions.length,
+      });
+      existingInjectedSuggestions.forEach((node) => node.remove());
     }
 
     // Validate freshness
@@ -448,7 +490,7 @@ async function locationsHelper() {
     let suggestions = [];
     if (window.locationsHelperOptions?.newLocations !== "no") {
       const date = formISODate(document.querySelector(locationField.dateId)?.value);
-      const countries = $(`#${locationField.fieldId.slice(1)}_cntry`)?.val() || [];
+      const countries = getSelectedCountries();
 
       suggestions = await getAugmentedSuggestions(userInput, date, countries);
     }
@@ -482,6 +524,8 @@ async function locationsHelper() {
 
       if (suggestions.length) injectAugmentedSuggestions(container, suggestions);
       applySuggestionCorrections(container, locationField, userInput, mutations, suggestions);
+      filterRenderedSuggestionsForField(locationField);
+      state.injectedRevision = locationField.inputRevision;
     } finally {
       state.injecting = false;
       dbg1(`injection done`, {

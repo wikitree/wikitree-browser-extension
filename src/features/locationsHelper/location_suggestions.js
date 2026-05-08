@@ -1,7 +1,5 @@
 // Code to retrieve location suggestions from IndexedDB
 import $ from "jquery";
-import "select2";
-import "select2/dist/css/select2.css";
 import "jquery-ui/ui/widgets/autocomplete.js";
 import "jquery-ui/themes/base/autocomplete.css";
 import { formISODate } from "../date_fixer/date_fixer.js";
@@ -48,7 +46,7 @@ export const locationFields = [
 
 const FORCE = true;
 let cachedResults = [];
-let lastEntry = ""; // the previous place name entry the user typed
+let lastEntry = ""; // the previous normalized place name entry the user typed
 let lastDate = ""; // the pervious date value the user used
 let lastCountries = []; // the previous country value the user used
 
@@ -57,6 +55,171 @@ let lastCountries = []; // the previous country value the user used
 let forceUpdate = false;
 
 let select2Selections;
+let selectedCountries = [];
+
+export function getSelectedCountries() {
+  return [...selectedCountries];
+}
+
+function getValidSelectedCountries(values = []) {
+  const availableCodes = new Set((select2Selections || []).map((option) => option.id));
+  if (!availableCodes.size) {
+    return [...new Set(values || [])];
+  }
+  return [...new Set((values || []).filter((value) => availableCodes.has(value)))];
+}
+
+function setSelectedCountries(values = []) {
+  selectedCountries = getValidSelectedCountries(values);
+  lastCountries = [];
+  updateCountrySummaryLabels();
+
+  const popupEl = document.querySelector(".wbe-country-filter-popup");
+  if (popupEl) {
+    renderCountryFilterOptions(popupEl);
+  }
+}
+
+function getCountrySummaryText() {
+  if (!select2Selections?.length) {
+    return "Click gear to load countries";
+  }
+
+  if (!selectedCountries.length) {
+    return "All loaded countries";
+  }
+
+  const selectedLabels = select2Selections
+    .filter((option) => selectedCountries.includes(option.id))
+    .map((option) => option.text);
+
+  if (!selectedLabels.length) {
+    return "All loaded countries";
+  }
+
+  if (selectedLabels.length <= 2) {
+    return selectedLabels.join(", ");
+  }
+
+  return `${selectedLabels.length} countries selected`;
+}
+
+function updateCountrySummaryLabels() {
+  const summaryText = getCountrySummaryText();
+  document.querySelectorAll(".wbe-country-summary-label").forEach((label) => {
+    label.textContent = summaryText;
+  });
+}
+
+async function persistSelectedCountries(values = getSelectedCountries()) {
+  const defaults = await getLocationSuggestionDefaults();
+  defaults.countries = getValidSelectedCountries(values);
+  saveLocationDefaultsToStorage(defaults);
+}
+
+function renderCountryFilterOptions(popupEl) {
+  const listEl = popupEl.querySelector(".wbe-country-filter-list");
+  if (!listEl) return;
+
+  listEl.innerHTML = "";
+
+  if (!select2Selections?.length) {
+    const emptyEl = document.createElement("div");
+    emptyEl.className = "wbe-country-filter-empty";
+    emptyEl.textContent = "No country datasets are loaded yet.";
+    listEl.appendChild(emptyEl);
+    return;
+  }
+
+  const selectedSet = new Set(selectedCountries);
+  select2Selections.forEach((option) => {
+    const label = document.createElement("label");
+    label.className = "wbe-country-filter-option";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.dataset.country = option.id;
+    checkbox.checked = selectedSet.has(option.id);
+
+    const text = document.createElement("span");
+    text.textContent = option.text;
+
+    label.appendChild(checkbox);
+    label.appendChild(text);
+    listEl.appendChild(label);
+  });
+}
+
+function ensureCountryFilterPopup() {
+  let popupEl = document.querySelector(".wbe-country-filter-popup");
+  if (!popupEl) {
+    const target = document.querySelector("body");
+    if (!target) {
+      console.error("No <body> ???");
+      return null;
+    }
+
+    popupEl = document.createElement("div");
+    popupEl.className = "wbe-country-filter-popup";
+    popupEl.style.display = "none";
+    popupEl.innerHTML = `
+      <p class="wbe-country-filter-title">Country Filter</p>
+      <div class="wbe-country-filter-help">Select countries to limit suggestions. No selection uses all loaded countries.</div>
+      <div class="wbe-country-filter-list"></div>
+      <div class="wbe-country-filter-actions">
+        <button class="small button wbe-country-filter-clear" type="button">Use all loaded countries</button>
+        <button class="small button wbe-country-filter-done" type="button">Done</button>
+      </div>`;
+    target.appendChild(popupEl);
+
+    popupEl.querySelector(".wbe-country-filter-clear").addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setSelectedCountries([]);
+      await persistSelectedCountries([]);
+    });
+
+    popupEl.querySelector(".wbe-country-filter-done").addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      popupEl.style.display = "none";
+      delete popupEl.dataset.anchorId;
+    });
+
+    popupEl.addEventListener("change", async (e) => {
+      const targetEl = e.target;
+      if (!(targetEl instanceof HTMLInputElement) || targetEl.type !== "checkbox") {
+        return;
+      }
+
+      e.stopPropagation();
+      const values = Array.from(popupEl.querySelectorAll("input[type=checkbox]:checked")).map(
+        (checkbox) => checkbox.dataset.country
+      );
+      setSelectedCountries(values);
+      await persistSelectedCountries(values);
+    });
+
+    popupEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+    });
+
+    document.addEventListener("click", (e) => {
+      const targetEl = e.target;
+      if (
+        popupEl.style.display !== "none" &&
+        !popupEl.contains(targetEl) &&
+        !(targetEl instanceof Element && targetEl.closest(".wbe-country-summary"))
+      ) {
+        popupEl.style.display = "none";
+        delete popupEl.dataset.anchorId;
+      }
+    });
+  }
+
+  renderCountryFilterOptions(popupEl);
+  return popupEl;
+}
 
 export async function initLocationSuggestions(suggestionOption) {
   if (suggestionOption === "no") return;
@@ -73,6 +236,8 @@ export async function initLocationSuggestions(suggestionOption) {
       text: c.Country,
       selected: defaults.countries && defaults.countries.includes(c.Code),
     }));
+
+    setSelectedCountries(defaults.countries || []);
   }
 
   for (const { name, fieldId, dateId } of locationFields) {
@@ -98,7 +263,7 @@ export async function initLocationSuggestions(suggestionOption) {
           delay: 300,
           source: async (request, response) => {
             const date = formISODate($(dateId).val());
-            const countries = $(`#${selectId}`).val() || [];
+            const countries = getSelectedCountries();
             dbg1(`Getting suggestions for ${request.term}, ${date}`, countries);
             const suggestions = await getWBELocSuggestions(request.term, date, countries);
             const familyRank = (x) => (x.familyLoc2 ? 0 : x.familyLoc ? 1 : 2);
@@ -158,7 +323,9 @@ function insertCountrySelectAbove(inputfield, sid) {
     `<div class="${colClasses} position-relative">
         <div class="input-group country-input">
           <span class="input-group-text" title="Select the countries to which to limit searches for place name suggestions. No selection implies all loaded countries.">Country</span>
-          <select id="${sid}" class="form-select wbe-country-select" multiple="multiple"></select>
+          <button id="${sid}" class="btn btn-outline-secondary wbe-country-summary" type="button" title="Select the countries to which to limit searches for place name suggestions. No selection implies all loaded countries.">
+            <span class="wbe-country-summary-label"></span>
+          </button>
           <button class="btn btn-outline-secondary wbe-location-gear" type="button" title="Location Data Management">
             <img src="${gearSrc}">
           </button>
@@ -172,6 +339,9 @@ function insertCountrySelectAbove(inputfield, sid) {
   //  </svg>
 
   row.parentNode.insertBefore(newRow, row);
+  updateCountrySummaryLabels();
+
+  const filterBtn = newRow.querySelector(".wbe-country-summary");
 
   // Check if the popup already exists and if not, create it.
   let popupEl = document.querySelector(".wbe-location-popup");
@@ -223,13 +393,13 @@ function insertCountrySelectAbove(inputfield, sid) {
       console.error("No <body> ???");
     }
 
-    function getSelectedCountries(popupEl) {
+    function getSelectedDatasetCountries(popupEl) {
       return Array.from(popupEl.querySelectorAll("input[type=checkbox]:checked")).map((cb) => cb.dataset.country);
     }
 
     popupEl.querySelector(".wbe-loc-clear-load").addEventListener("click", async (e) => {
       const statusEl = popupEl.querySelector(".wbe-loc-status");
-      const countries = getSelectedCountries(popupEl);
+      const countries = getSelectedDatasetCountries(popupEl);
       if (countries.length) {
         statusEl.classList.remove("is-red");
       } else {
@@ -252,7 +422,7 @@ function insertCountrySelectAbove(inputfield, sid) {
 
     popupEl.querySelector(".wbe-loc-load").addEventListener("click", async (e) => {
       const statusEl = popupEl.querySelector(".wbe-loc-status");
-      const countries = getSelectedCountries(popupEl);
+      const countries = getSelectedDatasetCountries(popupEl);
       if (countries.length) {
         statusEl.classList.remove("is-red");
       } else {
@@ -270,6 +440,25 @@ function insertCountrySelectAbove(inputfield, sid) {
       await openLocationDialog(popupEl);
     });
   }
+
+  filterBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const filterPopupEl = ensureCountryFilterPopup();
+    if (!filterPopupEl) {
+      return;
+    }
+
+    const isSameTrigger = filterPopupEl.style.display !== "none" && filterPopupEl.dataset.anchorId === sid;
+    if (isSameTrigger) {
+      filterPopupEl.style.display = "none";
+      delete filterPopupEl.dataset.anchorId;
+      return;
+    }
+
+    openCountryFilterDialog(filterPopupEl, e);
+  });
 
   const gearBtn = newRow.querySelector(".wbe-location-gear");
   // const popup = newRow.querySelector(".wbe-location-popup");
@@ -410,40 +599,6 @@ function insertCountrySelectAbove(inputfield, sid) {
   //   };
   //   reader.readAsText(file);
   // });
-
-  $(newRow)
-    .find("select.wbe-country-select")
-    .select2({
-      data: select2Selections,
-      maximumSelectionLength: 5,
-      placeholder: select2Selections.length ? "All loaded countries" : "Click gear to load countries",
-      width: "81%",
-    })
-    .on("change", async function (e) {
-      if (e.target.dataset.ignoreNextChange) {
-        delete e.target.dataset.ignoreNextChange; // consume the flag
-        return; // Skip saving to prevent feedback loop
-      }
-
-      lastCountries = [];
-      const selectedValues = $(this).val();
-      const defaults = await getLocationSuggestionDefaults();
-      defaults.countries = selectedValues || [];
-      saveLocationDefaultsToStorage(defaults);
-    });
-
-  // Stop the event from bubbling up to the form to prevent the "Leave site?" prompt
-  // caused by the page thinking the form is dirty when our field changes (or is initialized).
-  const selectElement = newRow.querySelector("select.wbe-country-select");
-  if (selectElement) {
-    ["change", "input"].forEach((eventType) => {
-      selectElement.addEventListener(eventType, (e) => e.stopPropagation());
-    });
-    // Also catch jQuery events if they bubble up from select2 to here
-    $(selectElement).on("change input", function (e) {
-      e.stopPropagation();
-    });
-  }
 }
 
 const DATASET_BASE_URL = "https://raw.githubusercontent.com/udjeni/wikitree-location-datasets/main";
@@ -498,6 +653,18 @@ async function openLocationDialog(popupEl, event) {
 
   renderTable(manifest, localDatasets, tbody);
   statusEl.textContent = "Select countries to load or update.";
+}
+
+function openCountryFilterDialog(popupEl, event) {
+  const triggerElement = event.currentTarget;
+  const rect = triggerElement.getBoundingClientRect();
+
+  popupEl.style.top = `${rect.bottom + window.scrollY}px`;
+  popupEl.style.left = `${rect.left + window.scrollX}px`;
+  popupEl.style.display = "block";
+  popupEl.dataset.anchorId = triggerElement.id;
+
+  renderCountryFilterOptions(popupEl);
 }
 
 function renderTable(manifest, localDatasets, tbody) {
@@ -622,14 +789,7 @@ async function updateCountrySelectors() {
     selected: defaults.countries && defaults.countries.includes(c.Code),
   }));
 
-  $(".wbe-country-select").each(function () {
-    const $el = $(this);
-    $el.empty();
-    select2Selections.forEach((opt) => {
-      $el.append(new Option(opt.text, opt.id, opt.selected, opt.selected));
-    });
-    $el.trigger("change.select2"); // let Select2 refresh
-  });
+  setSelectedCountries(defaults.countries || []);
 }
 
 export async function getAugmentedSuggestions(userInput, date, countries) {
@@ -788,7 +948,9 @@ async function fetchOrFilterSuggestions(entry, date, countries) {
     if (cachedResults.length > 0) {
       filteredResults = cachedResults.filter(
         (item) =>
-          item.np.startsWith(entryLow) || item.no.startsWith(entryLow) || item.na.some((a) => a.startsWith(entryLow))
+          (item.np || "").startsWith(entryLow) ||
+          (item.no || "").startsWith(entryLow) ||
+          (item.na || []).some((alias) => alias.startsWith(entryLow))
       );
     }
     dbg2(`filtered from cache:`, cachedResults, filteredResults);
@@ -809,8 +971,9 @@ async function fetchOrFilterSuggestions(entry, date, countries) {
     if (cachedResults.length > 1) {
       cachedResults.sort((a, b) => a.p.localeCompare(b.p));
     }
-    lastEntry = entry;
+    lastEntry = entryLow;
     lastDate = date || "";
+    lastCountries = [...countries];
     forceUpdate = false; // Reset the force update flag
   }
   return cachedResults;
@@ -837,28 +1000,8 @@ function arraysEqual(a, b) {
 function handleStorageChange(changes, areaName) {
   if (areaName === "sync" && changes[STORAGE_KEY]) {
     const newValues = changes[STORAGE_KEY].newValue.countries || [];
-
-    document.querySelectorAll(".wbe-country-select").forEach((select) => {
-      // Get currently selected values of this select
-      const currentSelected = Array.from(select.selectedOptions).map((opt) => opt.value);
-
-      // Compare with newValues, ignore update if equal
-      if (!arraysEqual(currentSelected, newValues)) {
-        // Mark this select as being updated programmatically
-        select.dataset.ignoreNextChange = "true";
-
-        // Update selection
-        Array.from(select.options).forEach((opt) => {
-          opt.selected = newValues.includes(opt.value);
-        });
-
-        // Trigger UI refresh if using Select2
-        if (typeof $ !== "undefined" && $(select).data("select2")) {
-          $(select).trigger("change.select2");
-        } else {
-          select.dispatchEvent(new Event("change", { bubbles: true }));
-        }
-      }
-    });
+    if (!arraysEqual(getSelectedCountries(), newValues)) {
+      setSelectedCountries(newValues);
+    }
   }
 }
