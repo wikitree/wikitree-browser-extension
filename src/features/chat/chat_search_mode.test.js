@@ -10,6 +10,7 @@ jest.mock("../../core/common", () => ({
 }));
 
 import { handleExplicitSearchMode } from "./chat_search_mode";
+import { ChatIntent, routeChatPrompt } from "./chat_router";
 
 function makeVisibleWtModeDom() {
   document.body.innerHTML = `
@@ -105,5 +106,35 @@ describe("chat_search_mode explicit routing", () => {
       message: "wtplus:more than six children, Cheshire, married after 1899",
     });
     expect(result).toEqual({ handled: true, prompt: "more than six children, Cheshire, married after 1899" });
+  });
+
+  test("defers removed cousin prompts to deterministic relation handling in WT mode", async () => {
+    const tryHandleProfileSearchPrompt = jest.fn(async () => ({
+      message: "should not run",
+    }));
+    const handleChatResult = jest.fn(async () => {});
+
+    const result = await handleExplicitSearchMode({
+      prompt: "Alex's first cousins three times removed",
+      chatPopupId: "chat-popup",
+      hasStructuredResult: false,
+      getLastStructuredResult: jest.fn(() => null),
+      ChatIntent,
+      routeChatPrompt,
+      buildRecentConversationForAi: jest.fn(() => ""),
+      buildRecentUserMessagesForAi: jest.fn(() => ""),
+      getChatAiConfig: jest.fn(async () => ({ provider: "openai", key: "test", model: "gpt-test" })),
+      appendMessage: jest.fn(),
+      tryHandleProfileSearchPrompt,
+      handleChatResult,
+      extractFollowupTableFilterText: jest.fn(() => ""),
+      openResultsTable: jest.fn(),
+      tryHandleAiPlannedIntent: jest.fn(async () => null),
+      setExplicitMode: jest.fn(),
+    });
+
+    expect(tryHandleProfileSearchPrompt).not.toHaveBeenCalled();
+    expect(handleChatResult).not.toHaveBeenCalled();
+    expect(result).toEqual({ handled: false, prompt: "Alex's first cousins three times removed" });
   });
 });

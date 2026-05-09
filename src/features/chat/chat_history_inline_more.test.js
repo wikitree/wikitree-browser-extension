@@ -80,4 +80,25 @@ describe("chat_history inline more trailing text", () => {
     expect(bodyHtml.indexOf("chat-message-trailing-text")).toBeGreaterThan(-1);
     expect(bodyHtml.indexOf("chat-inline-more-container")).toBeLessThan(bodyHtml.indexOf("chat-message-trailing-text"));
   });
+
+  test("does not escalate deterministic family no-result messages to AI", () => {
+    const { handlers } = createTestHandlers();
+
+    expect(
+      handlers.shouldEscalateLocalFailureToAi({
+        message:
+          "I couldn't find any 1st cousins 3 times removed for Alex Example (Example-123) in currently accessible family data yet.",
+      })
+    ).toBe(false);
+  });
+
+  test("still escalates unresolved profile-search failures to AI", () => {
+    const { handlers } = createTestHandlers();
+
+    expect(
+      handlers.shouldEscalateLocalFailureToAi({
+        message: "I couldn't find profile matches for \"Alex's first cousins three times removed\".",
+      })
+    ).toBe(true);
+  });
 });

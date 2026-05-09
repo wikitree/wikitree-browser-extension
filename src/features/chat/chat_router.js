@@ -204,6 +204,7 @@ function parseRelationPrompt(prompt) {
       ...baseParams,
       relationRaw: parsed.relationLabel,
       ...(Number.isFinite(Number(parsed.cousinDegree)) ? { cousinDegree: Number(parsed.cousinDegree) } : {}),
+      ...(Number.isFinite(Number(parsed.removed)) ? { removed: Number(parsed.removed) } : {}),
       ...(parsed.allCousins ? { allCousins: true, maxAncestorGeneration: parsed.maxAncestorGeneration } : {}),
       location: parsed.location,
       locationField: parsed.locationField,

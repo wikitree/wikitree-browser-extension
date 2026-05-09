@@ -251,7 +251,12 @@ export function createChatHistoryHandlers({
       return false;
     }
 
-    return /^\s*(?:I'm\s+sorry,\s*)?I\s+could(?:\s+not|n't)\b/i.test(String(message));
+    const normalizedMessage = String(message);
+    if (/\bin currently accessible family data yet\b/i.test(normalizedMessage)) {
+      return false;
+    }
+
+    return /^\s*(?:I'm\s+sorry,\s*)?I\s+could(?:\s+not|n't)\b/i.test(normalizedMessage);
   }
 
   function tryFormatWtPlusQueryMessage(text) {

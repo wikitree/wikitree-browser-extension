@@ -18,6 +18,24 @@ const ORDINAL_WORDS = {
   ninth: 9,
 };
 
+const CARDINAL_WORDS = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+};
+
+const COUSIN_DEGREE_TOKEN_PATTERN =
+  "(?:\\d+(?:st|nd|rd|th)?|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth)";
+const REMOVED_COUNT_TOKEN_PATTERN = "(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten)";
+const REMOVED_TOKEN_PATTERN = "(?:once|twice|(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten)\\s+times?)";
+
 export const MAX_SUPPORTED_COUSIN_DEGREE = 9;
 export const MAX_COUSIN_ANCESTOR_GENERATION = MAX_SUPPORTED_COUSIN_DEGREE + 1;
 export const DEFAULT_ALL_COUSIN_ANCESTOR_GENERATION = 5;
@@ -40,7 +58,69 @@ function parseOrdinalNumber(value) {
     return Number.isFinite(parsed) ? parsed : null;
   }
 
+  if (/^\d+$/.test(text)) {
+    const parsed = Number.parseInt(text, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
   return null;
+}
+
+function parseCardinalNumber(value) {
+  const text = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (!text) {
+    return null;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(CARDINAL_WORDS, text)) {
+    return CARDINAL_WORDS[text];
+  }
+
+  if (/^\d+$/.test(text)) {
+    const parsed = Number.parseInt(text, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function parseRemovedCount(value) {
+  const text = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (!text) {
+    return null;
+  }
+
+  if (text === "once") {
+    return 1;
+  }
+  if (text === "twice") {
+    return 2;
+  }
+
+  const timesMatch = text.match(/^(.+?)\s+times?$/i);
+  if (timesMatch?.[1]) {
+    return parseCardinalNumber(timesMatch[1]);
+  }
+
+  return parseCardinalNumber(text);
+}
+
+export function formatRemovedLabel(removed) {
+  const number = Number(removed);
+  if (!Number.isFinite(number) || number < 1) {
+    return "";
+  }
+  if (number === 1) {
+    return "once removed";
+  }
+  if (number === 2) {
+    return "twice removed";
+  }
+  return `${number} times removed`;
 }
 
 export function formatCousinLabel(degree, plural = true) {
@@ -60,6 +140,12 @@ export function formatCousinLabel(degree, plural = true) {
       ? "rd"
       : "th";
   return `${number}${suffix} cousin${plural ? "s" : ""}`;
+}
+
+export function formatCousinRelationshipLabel(degree, removed, plural = true) {
+  const baseLabel = formatCousinLabel(degree, plural);
+  const removedLabel = formatRemovedLabel(removed);
+  return removedLabel ? `${baseLabel} ${removedLabel}` : baseLabel;
 }
 
 export function parseCousinRelationRequest(rawRelation) {
@@ -107,7 +193,10 @@ export function parseCousinRelationRequest(rawRelation) {
   }
 
   const rangedCousinMatch = relationText.match(
-    /^cousins?\s+(?:up\s+to|through|thru|up\s+through)\s+((?:\d+(?:st|nd|rd|th))|(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth))(?:\s+cousins?)?$/i
+    new RegExp(
+      `^cousins?\\s+(?:up\\s+to|through|thru|up\\s+through)\\s+(${COUSIN_DEGREE_TOKEN_PATTERN})(?:\\s+cousins?)?$`,
+      "i"
+    )
   );
   if (rangedCousinMatch?.[1]) {
     const maxCousinDegree = parseOrdinalNumber(rangedCousinMatch[1]);
@@ -124,9 +213,60 @@ export function parseCousinRelationRequest(rawRelation) {
     };
   }
 
-  const cousinMatch = relationText.match(
-    /^((?:\d+(?:st|nd|rd|th))|(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth))\s+cousins?$/i
+  const removedCousinMatch = relationText.match(
+    new RegExp(`^(${COUSIN_DEGREE_TOKEN_PATTERN})\\s+c(?:ousins?)?\\s+(${REMOVED_TOKEN_PATTERN})\\s+removed$`, "i")
   );
+  if (removedCousinMatch?.[1] && removedCousinMatch?.[2]) {
+    const cousinDegree = parseOrdinalNumber(removedCousinMatch[1]);
+    const removed = parseRemovedCount(removedCousinMatch[2]);
+    if (
+      !Number.isFinite(cousinDegree) ||
+      cousinDegree < 1 ||
+      cousinDegree > MAX_SUPPORTED_COUSIN_DEGREE ||
+      !Number.isFinite(removed) ||
+      removed < 1
+    ) {
+      return null;
+    }
+
+    return {
+      cousinDegree,
+      removed,
+      relationLabel: formatCousinRelationshipLabel(cousinDegree, removed, true),
+      location,
+      locationField,
+    };
+  }
+
+  const shorthandRemovedCousinMatch = relationText.match(
+    new RegExp(
+      `^(${COUSIN_DEGREE_TOKEN_PATTERN})\\s*c(?:ousins?)?\\s*(${REMOVED_COUNT_TOKEN_PATTERN})\\s*r(?:emoved)?$`,
+      "i"
+    )
+  );
+  if (shorthandRemovedCousinMatch?.[1] && shorthandRemovedCousinMatch?.[2]) {
+    const cousinDegree = parseOrdinalNumber(shorthandRemovedCousinMatch[1]);
+    const removed = parseRemovedCount(shorthandRemovedCousinMatch[2]);
+    if (
+      !Number.isFinite(cousinDegree) ||
+      cousinDegree < 1 ||
+      cousinDegree > MAX_SUPPORTED_COUSIN_DEGREE ||
+      !Number.isFinite(removed) ||
+      removed < 1
+    ) {
+      return null;
+    }
+
+    return {
+      cousinDegree,
+      removed,
+      relationLabel: formatCousinRelationshipLabel(cousinDegree, removed, true),
+      location,
+      locationField,
+    };
+  }
+
+  const cousinMatch = relationText.match(new RegExp(`^(${COUSIN_DEGREE_TOKEN_PATTERN})\\s+cousins?$`, "i"));
   if (!cousinMatch?.[1]) {
     return null;
   }

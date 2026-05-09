@@ -72,6 +72,14 @@ import {
   makeWatchlistTable,
   makeAncestorAgeTable,
 } from "./tables";
+import {
+  buildResolvedAliasRegex,
+  escapeRegExp,
+  extractAliasCandidates,
+  extractResolvedPeopleFromMessage,
+  normalizePersonMemoryToken,
+  sanitizeResolvedPersonDisplayName,
+} from "./chat_person_memory";
 
 // Debug: indicate the chat feature script has been loaded
 console.debug("wbe: chat.js loaded");
@@ -299,37 +307,6 @@ let resolvedPersonAliasToWtId = {};
 let resolvedPersonOrderCounter = 0;
 let resolvedPersonMemoryLoaded = false;
 
-function escapeRegExp(value) {
-  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function normalizePersonMemoryToken(value) {
-  return String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9\s'\-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function extractAliasCandidates(value) {
-  const normalized = String(value || "").trim();
-  if (!normalized) {
-    return [];
-  }
-
-  const candidates = new Set();
-  candidates.add(normalized);
-  normalized
-    .split(/\s+/)
-    .map((part) => part.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, ""))
-    .filter((part) => part.length >= 3)
-    .forEach((part) => candidates.add(part));
-
-  return Array.from(candidates);
-}
-
 function persistResolvedPersonMemory() {
   try {
     const payload = {
@@ -355,14 +332,40 @@ function loadResolvedPersonMemory() {
     }
     const parsed = JSON.parse(raw);
     const peopleByWtId = parsed?.peopleByWtId;
-    const aliasToWtId = parsed?.aliasToWtId;
     const orderCounter = Number(parsed?.orderCounter);
 
     if (peopleByWtId && typeof peopleByWtId === "object") {
-      resolvedPeopleByWtId = peopleByWtId;
-    }
-    if (aliasToWtId && typeof aliasToWtId === "object") {
-      resolvedPersonAliasToWtId = aliasToWtId;
+      resolvedPeopleByWtId = Object.entries(peopleByWtId).reduce((acc, [wtId, entry]) => {
+        const normalizedWtId = String(entry?.wtId || wtId || "").trim();
+        if (!normalizedWtId || !/-\d+$/i.test(normalizedWtId)) {
+          return acc;
+        }
+
+        const sanitizedAliases = new Set();
+        extractAliasCandidates(entry?.displayName || "").forEach((alias) => sanitizedAliases.add(alias));
+        extractAliasCandidates(normalizedWtId).forEach((alias) => sanitizedAliases.add(alias));
+        (Array.isArray(entry?.aliases) ? entry.aliases : []).forEach((alias) => {
+          extractAliasCandidates(alias).forEach((candidate) => sanitizedAliases.add(candidate));
+        });
+
+        const nextEntry = {
+          wtId: normalizedWtId,
+          displayName: sanitizeResolvedPersonDisplayName(entry?.displayName || "", normalizedWtId) || normalizedWtId,
+          aliases: Array.from(sanitizedAliases).slice(0, 25),
+          seenOrder: Number.isFinite(Number(entry?.seenOrder)) ? Number(entry.seenOrder) : 0,
+        };
+
+        nextEntry.aliases.forEach((alias) => {
+          const normalizedAlias = normalizePersonMemoryToken(alias);
+          if (!normalizedAlias || normalizedAlias.length < 3) {
+            return;
+          }
+          resolvedPersonAliasToWtId[normalizedAlias] = normalizedWtId;
+        });
+
+        acc[normalizedWtId] = nextEntry;
+        return acc;
+      }, {});
     }
     if (Number.isFinite(orderCounter) && orderCounter >= 0) {
       resolvedPersonOrderCounter = orderCounter;
@@ -406,7 +409,10 @@ function rememberResolvedPerson({ wtId, displayName, aliases = [] }) {
     seenOrder: 0,
   };
 
-  const cleanedDisplay = String(displayName || "").trim();
+  const currentDisplay = sanitizeResolvedPersonDisplayName(existing.displayName || "", "");
+  existing.displayName = currentDisplay;
+
+  const cleanedDisplay = sanitizeResolvedPersonDisplayName(displayName || "", "");
   if (cleanedDisplay && (!existing.displayName || existing.displayName.length < cleanedDisplay.length)) {
     existing.displayName = cleanedDisplay;
   }
@@ -471,21 +477,9 @@ function rememberResolvedPersonFromMatch(person, aliases = []) {
 }
 
 function rememberResolvedPeopleFromMessage(text) {
-  const sourceText = String(text || "");
-  if (!sourceText) {
-    return;
-  }
-
-  const pattern = /([A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ' .-]{1,60}?)\s*\(([A-Za-z][A-Za-z0-9_-]+-\d{1,7})\)/g;
-  let match;
-  while ((match = pattern.exec(sourceText)) !== null) {
-    const displayName = String(match[1] || "").trim();
-    const wtId = String(match[2] || "").trim();
-    if (!wtId) {
-      continue;
-    }
+  extractResolvedPeopleFromMessage(text).forEach(({ displayName, wtId }) => {
     rememberResolvedPerson({ wtId, displayName, aliases: [displayName] });
-  }
+  });
 }
 
 function rememberResolvedPeopleFromTable(table) {
@@ -549,7 +543,7 @@ function applyResolvedPersonAliasesToPrompt(prompt) {
 
   const person = aliasResolution.person;
   const wtId = String(person.wtId || "").trim();
-  const replacement = String(person.displayName || "").trim();
+  const replacement = sanitizeResolvedPersonDisplayName(person.displayName || "", wtId);
   if (!wtId || !replacement) {
     return { prompt, changed: false, matchedAlias: "", person: null };
   }
@@ -571,7 +565,10 @@ function applyResolvedPersonAliasesToPrompt(prompt) {
     if (!cleanedAlias || cleanedAlias.length < 3) {
       continue;
     }
-    const aliasRegex = new RegExp(`\\b${escapeRegExp(cleanedAlias)}\\b`, "i");
+    const aliasRegex = buildResolvedAliasRegex(cleanedAlias);
+    if (!aliasRegex) {
+      continue;
+    }
     if (!aliasRegex.test(sourcePrompt)) {
       continue;
     }

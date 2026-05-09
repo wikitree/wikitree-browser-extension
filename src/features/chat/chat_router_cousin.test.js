@@ -91,6 +91,35 @@ describe("chat_router cousin prompts", () => {
     });
   });
 
+  test("routes removed cousin prompts and shorthand", () => {
+    expect(routeChatPrompt("Alex's first cousins three times removed")).toEqual({
+      intent: ChatIntent.RELATION_COUNT,
+      params: {
+        mode: "list",
+        relationRaw: "1st cousins 3 times removed",
+        subjectMode: "named",
+        subjectName: "Alex",
+        cousinDegree: 1,
+        removed: 3,
+        location: "",
+        locationField: "",
+      },
+    });
+
+    expect(routeChatPrompt("1C 3R")).toEqual({
+      intent: ChatIntent.RELATION_COUNT,
+      params: {
+        mode: "list",
+        relationRaw: "1st cousins 3 times removed",
+        subjectMode: "contextual",
+        cousinDegree: 1,
+        removed: 3,
+        location: "",
+        locationField: "",
+      },
+    });
+  });
+
   test("routes bare cousin prompts to contextual profile-first relation handling", () => {
     expect(routeChatPrompt("third cousins")).toEqual({
       intent: ChatIntent.RELATION_COUNT,

@@ -3,6 +3,7 @@ import {
   MAX_COUSIN_ANCESTOR_GENERATION,
   MAX_SUPPORTED_COUSIN_DEGREE,
   formatCousinLabel,
+  formatCousinRelationshipLabel,
   parseCousinRelationRequest,
   selectPeopleAtMinimalSharedGeneration,
 } from "./chat_cousin_helpers";
@@ -553,11 +554,17 @@ export function createChatRelationHandlers({
       : [subject?.key, subject?.wtId];
   }
 
-  async function collectCousinGenerationBuckets(subject, maxAncestorGeneration = MAX_COUSIN_ANCESTOR_GENERATION) {
+  async function collectCousinGenerationBuckets(
+    subject,
+    maxAncestorGeneration = MAX_COUSIN_ANCESTOR_GENERATION,
+    maxRemoved = MAX_COUSIN_REMOVED
+  ) {
     const maxGeneration = Number(maxAncestorGeneration);
     if (!Number.isFinite(maxGeneration) || maxGeneration < 2) {
       return [];
     }
+    const parsedMaxRemoved = Number(maxRemoved);
+    const safeMaxRemoved = Number.isFinite(parsedMaxRemoved) && parsedMaxRemoved >= 0 ? parsedMaxRemoved : 0;
 
     const subjectKey = subject?.key;
     if (!subjectKey) {
@@ -597,7 +604,7 @@ export function createChatRelationHandlers({
         ancestorIds,
         `${RELATION_PERSON_FIELDS},Meta`,
         {
-          descendants: Math.min(MAX_COUSIN_ANCESTOR_GENERATION, generation + MAX_COUSIN_REMOVED),
+          descendants: Math.min(MAX_COUSIN_ANCESTOR_GENERATION, generation + safeMaxRemoved),
           minGeneration: generation,
           limit: 100,
         }
@@ -612,11 +619,14 @@ export function createChatRelationHandlers({
     return generationBuckets;
   }
 
-  async function collectNthCousins(subject, cousinDegree) {
+  async function collectNthCousins(subject, cousinDegree, maxRemoved = MAX_COUSIN_REMOVED) {
     const degree = Number(cousinDegree);
     if (!Number.isFinite(degree) || degree < 1) {
       return [];
     }
+
+    const parsedMaxRemoved = Number(maxRemoved);
+    const safeMaxRemoved = Number.isFinite(parsedMaxRemoved) && parsedMaxRemoved >= 0 ? parsedMaxRemoved : 0;
 
     const sharedAncestorGeneration = degree + 1;
     if (sharedAncestorGeneration > MAX_COUSIN_ANCESTOR_GENERATION) {
@@ -625,17 +635,130 @@ export function createChatRelationHandlers({
       );
     }
 
-    const generationBuckets = await collectCousinGenerationBuckets(subject, sharedAncestorGeneration);
+    const generationBuckets = await collectCousinGenerationBuckets(subject, sharedAncestorGeneration, safeMaxRemoved);
     const excludedKeys = getCousinExcludedKeys(subject);
 
     return uniquePeopleById(
-      selectPeopleAtMinimalSharedGeneration(
-        generationBuckets,
-        sharedAncestorGeneration,
-        excludedKeys,
-        MAX_COUSIN_REMOVED
-      )
+      selectPeopleAtMinimalSharedGeneration(generationBuckets, sharedAncestorGeneration, excludedKeys, safeMaxRemoved)
     );
+  }
+
+  async function collectExactNthCousins(subject, cousinDegree, removedCount) {
+    const degree = Number(cousinDegree);
+    const removed = Number(removedCount);
+    if (!Number.isFinite(degree) || degree < 1 || !Number.isFinite(removed) || removed < 0) {
+      return [];
+    }
+
+    const sharedAncestorGeneration = degree + 1;
+    const maxSubjectAncestorGeneration = sharedAncestorGeneration + removed;
+    if (maxSubjectAncestorGeneration > MAX_COUSIN_ANCESTOR_GENERATION) {
+      throw new Error(
+        "getPeople currently supports cousin relationships up to 9 generations through ancestor/descendant expansion"
+      );
+    }
+
+    const subjectKey = subject?.key;
+    if (!subjectKey) {
+      return [];
+    }
+
+    const [, , ancestorPeopleMap] = await fetchPeoplePaged(WBE_CHAT_APP_ID, subjectKey, "Id,Name,Meta", {
+      ancestors: maxSubjectAncestorGeneration,
+      minGeneration: 1,
+      limit: 1000,
+    });
+
+    const ancestorsByGeneration = new Map();
+    Object.values(ancestorPeopleMap || {}).forEach((profile) => {
+      const generation = Number(profile?.Meta?.Degrees);
+      const ancestorId = Number(profile?.Id);
+      if (
+        !Number.isFinite(generation) ||
+        generation < sharedAncestorGeneration ||
+        generation > maxSubjectAncestorGeneration
+      ) {
+        return;
+      }
+      if (!Number.isFinite(ancestorId) || ancestorId <= 0) {
+        return;
+      }
+      const bucket = ancestorsByGeneration.get(generation) || [];
+      bucket.push(ancestorId);
+      ancestorsByGeneration.set(generation, bucket);
+    });
+
+    const excludedKeys = new Set(
+      getCousinExcludedKeys(subject)
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+    );
+    const bestByKey = new Map();
+    const searchPlans = [
+      {
+        ancestorGeneration: sharedAncestorGeneration,
+        descendantGeneration: sharedAncestorGeneration + removed,
+      },
+    ];
+
+    if (removed > 0) {
+      searchPlans.push({
+        ancestorGeneration: sharedAncestorGeneration + removed,
+        descendantGeneration: sharedAncestorGeneration,
+      });
+    }
+
+    for (const plan of searchPlans) {
+      const ancestorIds = Array.from(new Set(ancestorsByGeneration.get(plan.ancestorGeneration) || [])).filter(
+        (id) => id > 0
+      );
+      if (!ancestorIds.length) {
+        continue;
+      }
+
+      const [, , descendantPeopleMap] = await fetchPeoplePaged(
+        WBE_CHAT_APP_ID,
+        ancestorIds,
+        `${RELATION_PERSON_FIELDS},Meta`,
+        {
+          descendants: plan.descendantGeneration,
+          minGeneration: plan.descendantGeneration,
+          limit: 100,
+        }
+      );
+
+      Object.values(descendantPeopleMap || {}).forEach((person) => {
+        const key = String(person?.Name || person?.Id || "").trim();
+        if (!key || excludedKeys.has(key)) {
+          return;
+        }
+
+        const descendantGeneration = Number(person?.Meta?.Degrees);
+        if (!Number.isFinite(descendantGeneration) || descendantGeneration !== plan.descendantGeneration) {
+          return;
+        }
+
+        const candidateDegree = Math.min(plan.ancestorGeneration, descendantGeneration) - 1;
+        const candidateRemoved = Math.abs(plan.ancestorGeneration - descendantGeneration);
+        if (candidateDegree !== degree || candidateRemoved !== removed) {
+          return;
+        }
+
+        const previous = bestByKey.get(key);
+        if (!previous || plan.ancestorGeneration < previous.ancestorGeneration) {
+          bestByKey.set(key, {
+            ancestorGeneration: plan.ancestorGeneration,
+            person: {
+              ...person,
+              cousinDegree: degree,
+              removed: candidateRemoved,
+            },
+          });
+        }
+      });
+    }
+
+    return Array.from(bestByKey.values()).map((entry) => entry.person);
   }
 
   async function collectAllCousins(subject, maxAncestorGeneration = DEFAULT_ALL_COUSIN_ANCESTOR_GENERATION) {
@@ -672,6 +795,8 @@ export function createChatRelationHandlers({
     if (!wantsAllCousins && (!Number.isFinite(cousinDegree) || cousinDegree < 1)) {
       return null;
     }
+    const requestedRemoved = Number(params?.removed);
+    const hasExactRemoved = !wantsAllCousins && Number.isFinite(requestedRemoved) && requestedRemoved >= 1;
 
     let subject = null;
     if (!forceUserSubject && params?.subjectMode === "named") {
@@ -744,9 +869,15 @@ export function createChatRelationHandlers({
         )
       : null;
     const maxCousinDegree = wantsAllCousins ? Math.max(1, maxAncestorGeneration - 1) : null;
-    const relationLabel = wantsAllCousins ? "cousins" : formatCousinLabel(cousinDegree, true);
+    const relationLabel = wantsAllCousins
+      ? "cousins"
+      : hasExactRemoved
+      ? formatCousinRelationshipLabel(cousinDegree, requestedRemoved, true)
+      : formatCousinLabel(cousinDegree, true);
     const resultLabel = wantsAllCousins
       ? `cousins (through ${formatCousinLabel(maxCousinDegree, true)} and up to ${MAX_COUSIN_REMOVED} removed)`
+      : hasExactRemoved
+      ? relationLabel
       : `${relationLabel} (and up to ${MAX_COUSIN_REMOVED} removed)`;
     const location = String(params?.location || "").trim();
     const locationField = String(params?.locationField || "").trim() || "AnyLocation";
@@ -761,8 +892,13 @@ export function createChatRelationHandlers({
     try {
       const allCousins = wantsAllCousins
         ? await collectAllCousins(subject, maxAncestorGeneration)
-        : await collectNthCousins(subject, cousinDegree);
-      const cousins = sortCousinsForDisplay(filterPeopleByLocation(allCousins, location, locationField));
+        : hasExactRemoved
+        ? await collectExactNthCousins(subject, cousinDegree, requestedRemoved)
+        : await collectNthCousins(subject, cousinDegree, MAX_COUSIN_REMOVED);
+      const removedMatchedCousins = hasExactRemoved
+        ? allCousins.filter((person) => Number(person?.removed) === requestedRemoved)
+        : allCousins;
+      const cousins = sortCousinsForDisplay(filterPeopleByLocation(removedMatchedCousins, location, locationField));
       const cousinRows = toRelationTableRows(cousins, { includeCousinOrdinal: true });
 
       if (!cousins.length) {
@@ -770,8 +906,8 @@ export function createChatRelationHandlers({
           subject.isUser && isAppsLoginButtonPresent()
             ? " If you see the Apps Login button, click it and try again so Chat can use full app-server access."
             : "";
-        if (location && allCousins.length) {
-          const missingLocationCount = allCousins.filter((person) => {
+        if (location && removedMatchedCousins.length) {
+          const missingLocationCount = removedMatchedCousins.filter((person) => {
             const birth = normalizeText(person?.BirthLocation || "");
             const death = normalizeText(person?.DeathLocation || "");
             if (locationField === "BirthLocation") {
@@ -782,7 +918,7 @@ export function createChatRelationHandlers({
             }
             return !birth && !death;
           }).length;
-          return `I searched ${allCousins.length} ${resultLabel} for ${
+          return `I searched ${removedMatchedCousins.length} ${resultLabel} for ${
             subject.label
           }, but none matched ${locationPhrase}. ${missingLocationCount} had no ${getLocationFieldLabel(
             locationField
@@ -1060,6 +1196,7 @@ export function createChatRelationHandlers({
       Number.isFinite(Number(params?.cousinDegree)) || params?.allCousins
         ? {
             ...(Number.isFinite(Number(params?.cousinDegree)) ? { cousinDegree: Number(params.cousinDegree) } : {}),
+            ...(Number.isFinite(Number(params?.removed)) ? { removed: Number(params.removed) } : {}),
             ...(params?.allCousins
               ? {
                   allCousins: true,
@@ -1076,6 +1213,7 @@ export function createChatRelationHandlers({
         {
           ...params,
           cousinDegree: parsedCousin.cousinDegree,
+          ...(Number.isFinite(Number(parsedCousin.removed)) ? { removed: Number(parsedCousin.removed) } : {}),
           ...(parsedCousin.allCousins
             ? {
                 allCousins: true,

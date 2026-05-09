@@ -25,6 +25,42 @@ describe("chat_cousin_helpers parsing", () => {
     });
   });
 
+  test("parses removed cousin phrases", () => {
+    expect(parseCousinRelationRequest("first cousins three times removed")).toEqual({
+      cousinDegree: 1,
+      removed: 3,
+      relationLabel: "1st cousins 3 times removed",
+      location: "",
+      locationField: "",
+    });
+
+    expect(parseCousinRelationRequest("3rd cousins once removed born in England")).toEqual({
+      cousinDegree: 3,
+      removed: 1,
+      relationLabel: "3rd cousins once removed",
+      location: "England",
+      locationField: "BirthLocation",
+    });
+  });
+
+  test("parses removed cousin shorthand", () => {
+    expect(parseCousinRelationRequest("1C 3R")).toEqual({
+      cousinDegree: 1,
+      removed: 3,
+      relationLabel: "1st cousins 3 times removed",
+      location: "",
+      locationField: "",
+    });
+
+    expect(parseCousinRelationRequest("1C3R in England")).toEqual({
+      cousinDegree: 1,
+      removed: 3,
+      relationLabel: "1st cousins 3 times removed",
+      location: "England",
+      locationField: "AnyLocation",
+    });
+  });
+
   test("parses plain cousins as all cousins through the supported range", () => {
     expect(parseCousinRelationRequest("cousins born in England")).toEqual({
       allCousins: true,
