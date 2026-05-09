@@ -238,6 +238,7 @@ function displayWarning(inputElement, message) {
 }
 
 function splitAndMoveLocationIfPresent(input, inputElement) {
+  input = getDateAndLocationFromSourcerFamilySearchCitation(input);
   const separators = [" in ", "\t", " - ", " • "];
   for (let i = 0; i < separators.length; i++) {
     const indexBlankIn = input.indexOf(separators[i]);
@@ -245,6 +246,10 @@ function splitAndMoveLocationIfPresent(input, inputElement) {
       //cutting of a location part
       const location = input.substr(indexBlankIn + separators[i].length).trim();
       input = input.substr(0, indexBlankIn);
+      //hack for FamilySearch baptism records
+      input = input.split(", child of")[0];
+      input = input.split(", son of")[0];
+      input = input.split(", daughter of")[0];
       if (location.length > 0) {
         switch (inputElement.attr("id")) {
           case "mBirthDate": {
@@ -265,6 +270,16 @@ function splitAndMoveLocationIfPresent(input, inputElement) {
     }
   }
 
+  return input;
+}
+
+function getDateAndLocationFromSourcerFamilySearchCitation(input) {
+  if (input.includes(" on ")) {
+    input = input.split(" on ")[1].split("</ref>")[0];
+    if (input[input.length - 1] == ".") {
+      input = input.substr(0, input.length - 1);
+    }
+  }
   return input;
 }
 

@@ -170,6 +170,8 @@ class SourceRules {
   #projectBox = [];
   // loads from templates, each is name and status
   #sticker = [];
+  // loads from templates, each is name and status
+  #formattingTemplate = [];
 
   // recommended HTML tags
   #recommendedTagsStart = [
@@ -999,6 +1001,17 @@ class SourceRules {
           projectBox.status = templates[i].status.toLowerCase().trim();
           this.#projectBox.push(projectBox);
         }
+        // TODO hack that Notability may be set to the wrong type
+        if ((templates[i].type.toLowerCase().trim() === 'formatting') ||
+           (templates[i].type.toLowerCase().trim() === 'formattingtemplate')) {
+          let formattingTemplate = {
+            name: "",
+            status: "",
+          };
+          formattingTemplate.name = templates[i].name.toLowerCase().trim();
+          formattingTemplate.status = templates[i].status.toLowerCase().trim();
+          this.#formattingTemplate.push(formattingTemplate);
+        }
         if (templates[i].type.toLowerCase().trim() === 'sticker') {
           let sticker = {
             name: "",
@@ -1188,6 +1201,25 @@ class SourceRules {
         isFound = true;
       }
     });
+    return isFound;
+  }
+
+  /**
+   * Determine if line is a Notability template
+   * Do not want to look at all formatting templates, at present
+   * assumes the leading {{ removed and line is lower case
+   * @param {String} line to test
+   * @returns {Boolean} true if notability else false
+   */
+  isNotabilityTemplate(line) {
+    let isFound = false;
+    if (line === 'notability') {
+      this.#formattingTemplate.find((element) => {
+        if (element.name === line) {
+          isFound = true;
+        }
+      });
+    }
     return isFound;
   }
 
