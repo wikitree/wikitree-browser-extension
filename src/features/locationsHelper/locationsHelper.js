@@ -19,6 +19,7 @@ import {
   locationFields,
   initLocationSuggestions,
   getAugmentedSuggestions,
+  getSelectedCountries,
   formWTSuggestionElement,
 } from "./location_suggestions";
 
@@ -42,6 +43,13 @@ const natalStart = new Date("1856-01-01");
 const fieldSelectors = locationFields.map((f) => f.fieldId).join(",");
 const locationFieldsMap = new Map(locationFields.map((f) => [f.name, f]));
 
+// We only freeze the native inputs while we are attaching the augmenting observer.
+// In "only" mode we leave the original fields alone because Firefox draft-save was
+// treating disabled/enabled transitions on those form controls as real edits.
+function shouldTemporarilyDisableLocationFields() {
+  return window.locationsHelperOptions?.newLocations === "augment";
+}
+
 // Ensure we only initialize observers and bindings once per page load
 window.locationsHelperInitDone = window.locationsHelperInitDone || false;
 
@@ -62,7 +70,6 @@ shouldInitializeFeature("locationsHelper").then((result) => {
           if (options?.newLocations !== "no") {
             initLocationSuggestions(options?.newLocations);
             if (options?.newLocations === "only") {
-              $(fieldSelectors).prop("disabled", false);
               return;
             }
           }
@@ -106,7 +113,7 @@ function waitForElements(selectors, timeoutMs = 5000) {
     // 1. Immediate check for any of the fields
     const foundEls = document.querySelectorAll(selectors);
     if (foundEls.length > 0) {
-      if (window.locationsHelperOptions?.newLocations !== "no") {
+      if (shouldTemporarilyDisableLocationFields()) {
         foundEls.forEach((el) => {
           $(el).prop("disabled", true);
         });
@@ -130,7 +137,7 @@ function waitForElements(selectors, timeoutMs = 5000) {
         clearTimeout(timer);
         observer.disconnect();
 
-        if (window.locationsHelperOptions?.newLocations !== "no") {
+        if (shouldTemporarilyDisableLocationFields()) {
           // Disable the location inputs until we are ready to intervene in the autocompletes
           console.log("Disablle location inputs");
           els.forEach((el) => {
@@ -294,6 +301,9 @@ function attachInputListeners() {
         normalised: normalise(val),
       };
       ++f.inputRevision;
+      // FamilySearch does not always refresh its list on every extra character,
+      // so keep narrowing the currently rendered list client-side as the user types.
+      filterRenderedSuggestionsForField(f);
     });
   }
 }
@@ -304,6 +314,7 @@ function getState(container) {
       injecting: false,
       fieldName: null, // permanent association
       renderRevision: null, // number
+      injectedRevision: null, // number
     };
   }
   return container.__wbeState;
@@ -319,6 +330,40 @@ function containsTermsInOrder(haystack, terms) {
   }
 
   return true;
+}
+
+function getSuggestionContainersForField(locationField) {
+  // Once we have associated a popup with a field, keep using that association.
+  // Before that happens, fall back to whichever autocomplete container is visible.
+  return Array.from(document.querySelectorAll(".autocomplete-suggestions")).filter((container) => {
+    const state = getState(container);
+    if (state.fieldName) {
+      return state.fieldName === locationField.name;
+    }
+
+    return container.offsetParent !== null;
+  });
+}
+
+function getSuggestionFilterText(node) {
+  const rawText = node.textContent || node.getAttribute("data-val") || "";
+  const { cleanText } = stripLocationDates(rawText);
+  return normalise(cleanText || rawText);
+}
+
+function filterRenderedSuggestionsForField(locationField) {
+  // This runs against both WT/FamilySearch suggestions and our injected WBE rows.
+  // The goal is not to replace the upstream source, just to keep the visible list
+  // in sync with what the user has typed when the upstream source lags behind.
+  const normalisedInput = locationField.latestInput?.normalised || "";
+  const terms = normalisedInput.split(/[\s,]+/).filter(Boolean);
+
+  getSuggestionContainersForField(locationField).forEach((container) => {
+    container.querySelectorAll(".autocomplete-suggestion").forEach((node) => {
+      const matches = !terms.length || containsTermsInOrder(getSuggestionFilterText(node), terms);
+      node.style.display = matches ? "" : "none";
+    });
+  });
 }
 
 async function locationsHelper() {
@@ -413,10 +458,20 @@ async function locationsHelper() {
       state.renderRevision = field.inputRevision;
     }
 
-    // Prevent reinjection
-    if (container.querySelector(".wbe-injected-suggestion")) {
-      dbg1("injection already done; skipping");
-      return;
+    const existingInjectedSuggestions = container.querySelectorAll(".wbe-injected-suggestion");
+    if (existingInjectedSuggestions.length) {
+      if (state.injectedRevision === field.inputRevision) {
+        dbg1("injection already done for current revision; skipping");
+        return;
+      }
+
+      dbg1("removing stale injected suggestions for new revision", {
+        fieldName: field.name,
+        previousInjectedRevision: state.injectedRevision,
+        nextRevision: field.inputRevision,
+        staleCount: existingInjectedSuggestions.length,
+      });
+      existingInjectedSuggestions.forEach((node) => node.remove());
     }
 
     // Validate freshness
@@ -448,7 +503,7 @@ async function locationsHelper() {
     let suggestions = [];
     if (window.locationsHelperOptions?.newLocations !== "no") {
       const date = formISODate(document.querySelector(locationField.dateId)?.value);
-      const countries = $(`#${locationField.fieldId.slice(1)}_cntry`)?.val() || [];
+      const countries = getSelectedCountries();
 
       suggestions = await getAugmentedSuggestions(userInput, date, countries);
     }
@@ -482,6 +537,8 @@ async function locationsHelper() {
 
       if (suggestions.length) injectAugmentedSuggestions(container, suggestions);
       applySuggestionCorrections(container, locationField, userInput, mutations, suggestions);
+      filterRenderedSuggestionsForField(locationField);
+      state.injectedRevision = locationField.inputRevision;
     } finally {
       state.injecting = false;
       dbg1(`injection done`, {
