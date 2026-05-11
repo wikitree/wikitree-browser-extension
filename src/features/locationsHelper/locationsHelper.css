@@ -22,15 +22,23 @@ input[name="mMarriageLocation"] {
   width: 100%;
 }
 
-/* Reduce vertical spacing between options */
-.select2-results__option {
-  padding: 1px 6px; /* vertical | horizontal padding */
-  margin-bottom: 0px;
+.country-input .wbe-country-summary {
+  flex: 1 1 auto;
+  justify-content: flex-start;
+  overflow: hidden;
+  text-align: left;
 }
-.country-input .select2-selection__choice {
-  margin-top: 4px !important;
-  margin-bottom: 2px !important;
-  margin-left: 4px !important;
+
+.country-input .wbe-country-summary-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+.wbe-country-summary {
+  border: 1px solid #ccc;
+  border-radius: 4px;
 }
 
 .wbe-location-gear {
@@ -40,6 +48,14 @@ input[name="mMarriageLocation"] {
 
 .autocomplete-suggestions {
   width: max-content !important;
+}
+
+body.wbe-location-exclusive-active .autocomplete-suggestions {
+  display: none !important;
+}
+
+.ui-autocomplete.wbe-exclusive-autocomplete-menu {
+  z-index: 2000 !important;
 }
 
 .wbe-location-popup {
@@ -80,4 +96,54 @@ input[name="mMarriageLocation"] {
 }
 .wbe-loc-status.is-red {
   color: red !important;
+}
+
+.wbe-country-filter-popup {
+  display: none;
+  position: absolute;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  min-width: 18rem;
+  max-width: 90vw;
+}
+
+.wbe-country-filter-title {
+  margin: 0 0 6px;
+  font-weight: bold;
+}
+
+.wbe-country-filter-help {
+  margin-bottom: 8px;
+  color: #666;
+  font-size: 0.9em;
+}
+
+.wbe-country-filter-list {
+  display: grid;
+  gap: 4px;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.wbe-country-filter-option {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+}
+
+.wbe-country-filter-empty {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.wbe-country-filter-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin-top: 10px;
 }
