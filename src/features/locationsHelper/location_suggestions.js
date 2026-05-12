@@ -56,6 +56,9 @@ let forceUpdate = false;
 
 let select2Selections;
 let selectedCountries = [];
+const MAX_COUNTRY_SUMMARY_ROWS = 2;
+let countrySummaryResizeListenerBound = false;
+let countrySummaryResizeFrame = 0;
 
 // In exclusive mode our jQuery UI menu and the site's own autocomplete can both
 // exist briefly. We tag our menu and mirror its open/focus state onto <body> so
@@ -130,34 +133,167 @@ function setSelectedCountries(values = []) {
   }
 }
 
-function getCountrySummaryText() {
+function getCountrySummaryOptions() {
   if (!select2Selections?.length) {
-    return "Click gear to load countries";
+    return [];
   }
 
   if (!selectedCountries.length) {
-    return "All loaded countries";
+    return [...select2Selections];
   }
 
-  const selectedLabels = select2Selections
-    .filter((option) => selectedCountries.includes(option.id))
-    .map((option) => option.text);
+  const selectedSet = new Set(selectedCountries);
+  return select2Selections.filter((option) => selectedSet.has(option.id));
+}
 
-  if (!selectedLabels.length) {
-    return "All loaded countries";
+function createCountrySummaryChip(option) {
+  const chip = document.createElement("span");
+  chip.className = "wbe-country-summary-chip";
+  chip.dataset.country = option.id;
+  chip.title = `Click to remove ${option.text}`;
+
+  const text = document.createElement("span");
+  text.className = "wbe-country-summary-chip-text";
+  text.textContent = option.text;
+
+  const remove = document.createElement("span");
+  remove.className = "wbe-country-summary-chip-remove";
+  remove.setAttribute("aria-hidden", "true");
+  remove.textContent = "x";
+
+  chip.append(text, remove);
+  return chip;
+}
+
+function createCountrySummaryOverflowChip(hiddenCount) {
+  const chip = document.createElement("span");
+  chip.className = "wbe-country-summary-chip wbe-country-summary-chip-overflow";
+  chip.title = "Open country list";
+
+  const text = document.createElement("span");
+  text.className = "wbe-country-summary-chip-text";
+  text.textContent = `+ ${hiddenCount} more`;
+
+  chip.appendChild(text);
+  return chip;
+}
+
+function renderCountrySummaryChips(label, visibleOptions, hiddenCount = 0) {
+  label.replaceChildren();
+
+  visibleOptions.forEach((option) => {
+    label.appendChild(createCountrySummaryChip(option));
+  });
+
+  if (hiddenCount > 0) {
+    label.appendChild(createCountrySummaryOverflowChip(hiddenCount));
+  }
+}
+
+function getCountrySummaryRowCount(label) {
+  const rows = new Set();
+  Array.from(label.children).forEach((chip) => {
+    if (chip instanceof HTMLElement) {
+      rows.add(chip.offsetTop);
+    }
+  });
+  return rows.size;
+}
+
+function fitCountrySummaryChips(label, summaryOptions) {
+  renderCountrySummaryChips(label, summaryOptions);
+  if (getCountrySummaryRowCount(label) <= MAX_COUNTRY_SUMMARY_ROWS) {
+    return;
   }
 
-  if (selectedLabels.length <= 2) {
-    return selectedLabels.join(", ");
+  for (let visibleCount = summaryOptions.length - 1; visibleCount >= 0; visibleCount -= 1) {
+    const visibleOptions = summaryOptions.slice(0, visibleCount);
+    const hiddenCount = summaryOptions.length - visibleCount;
+
+    renderCountrySummaryChips(label, visibleOptions, hiddenCount);
+    if (getCountrySummaryRowCount(label) <= MAX_COUNTRY_SUMMARY_ROWS) {
+      return;
+    }
+  }
+}
+
+function ensureCountrySummaryResizeListener() {
+  if (countrySummaryResizeListenerBound) {
+    return;
   }
 
-  return `${selectedLabels.length} countries selected`;
+  countrySummaryResizeListenerBound = true;
+  window.addEventListener("resize", () => {
+    if (countrySummaryResizeFrame) {
+      cancelAnimationFrame(countrySummaryResizeFrame);
+    }
+
+    countrySummaryResizeFrame = requestAnimationFrame(() => {
+      countrySummaryResizeFrame = 0;
+      updateCountrySummaryLabels();
+    });
+  });
+}
+
+function renderCountrySummaryLabel(label) {
+  label.replaceChildren();
+  label.classList.remove("is-placeholder");
+
+  if (!select2Selections?.length) {
+    label.classList.add("is-placeholder");
+    label.textContent = "Click gear to load countries";
+    return;
+  }
+
+  const summaryOptions = getCountrySummaryOptions();
+  if (!summaryOptions.length) {
+    label.classList.add("is-placeholder");
+    label.textContent = "All loaded countries";
+    return;
+  }
+
+  fitCountrySummaryChips(label, summaryOptions);
 }
 
 function updateCountrySummaryLabels() {
-  const summaryText = getCountrySummaryText();
   document.querySelectorAll(".wbe-country-summary-label").forEach((label) => {
-    label.textContent = summaryText;
+    renderCountrySummaryLabel(label);
+  });
+}
+
+async function removeCountryFromSummary(countryCode) {
+  if (!countryCode || !select2Selections?.length) {
+    return;
+  }
+
+  const currentValues = selectedCountries.length
+    ? getValidSelectedCountries(selectedCountries)
+    : select2Selections.map((option) => option.id);
+  const nextValues = currentValues.filter((value) => value !== countryCode);
+
+  setSelectedCountries(nextValues);
+  await persistSelectedCountries(nextValues);
+}
+
+function bindCountrySummaryRemoval(summaryLabel) {
+  summaryLabel.addEventListener("click", (e) => {
+    const targetEl = e.target;
+    if (!(targetEl instanceof Element)) {
+      return;
+    }
+
+    const chip = targetEl.closest(".wbe-country-summary-chip");
+    if (!(chip instanceof HTMLElement)) {
+      return;
+    }
+
+    if (!chip.dataset.country) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    void removeCountryFromSummary(chip.dataset.country);
   });
 }
 
@@ -376,7 +512,7 @@ function insertCountrySelectAbove(inputfield, sid) {
     `<div class="${colClasses} position-relative">
         <div class="input-group country-input">
           <span class="input-group-text" title="Select the countries to which to limit searches for place name suggestions. No selection implies all loaded countries.">Country</span>
-          <span id="${sid}" class="btn btn-outline-secondary wbe-country-summary" role="button" tabindex="0" title="Select the countries to which to limit searches for place name suggestions. No selection implies all loaded countries.">
+          <span id="${sid}" class="form-control wbe-country-summary" role="button" tabindex="0" title="Select the countries to which to limit searches for place name suggestions. No selection implies all loaded countries.">
             <span class="wbe-country-summary-label"></span>
           </span>
           <span class="btn btn-outline-secondary wbe-location-gear" role="button" tabindex="0" title="Location Data Management" aria-label="Location Data Management">
@@ -395,6 +531,9 @@ function insertCountrySelectAbove(inputfield, sid) {
   updateCountrySummaryLabels();
 
   const filterBtn = newRow.querySelector(".wbe-country-summary");
+  const summaryLabel = newRow.querySelector(".wbe-country-summary-label");
+  bindCountrySummaryRemoval(summaryLabel);
+  ensureCountrySummaryResizeListener();
 
   // Check if the popup already exists and if not, create it.
   let popupEl = document.querySelector(".wbe-location-popup");
@@ -469,7 +608,7 @@ function insertCountrySelectAbove(inputfield, sid) {
       for (const c of countries) {
         await fetchAndLoadCountry(c, statusEl);
       }
-      updateCountrySelectors();
+      await updateCountrySelectors();
       await openLocationDialog(popupEl);
     });
 
@@ -489,7 +628,7 @@ function insertCountrySelectAbove(inputfield, sid) {
         await clearCountry(c);
         await fetchAndLoadCountry(c, statusEl);
       }
-      updateCountrySelectors();
+      await updateCountrySelectors();
       await openLocationDialog(popupEl);
     });
   }
