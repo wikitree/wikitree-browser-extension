@@ -42,12 +42,132 @@ const natalStart = new Date("1856-01-01");
 
 const fieldSelectors = locationFields.map((f) => f.fieldId).join(",");
 const locationFieldsMap = new Map(locationFields.map((f) => [f.name, f]));
+const LOC_HELPER_LOG_PREFIX = "[locHelper]";
 
 // We only freeze the native inputs while we are attaching the augmenting observer.
 // In "only" mode we leave the original fields alone because Firefox draft-save was
 // treating disabled/enabled transitions on those form controls as real edits.
 function shouldTemporarilyDisableLocationFields() {
   return window.locationsHelperOptions?.newLocations === "augment";
+}
+
+function shouldFilterRenderedSuggestions() {
+  return window.locationsHelperOptions?.newLocations !== "no";
+}
+
+function getLocHelperOptionSnapshot() {
+  const options = window.locationsHelperOptions || {};
+
+  return {
+    featureEnabled: true,
+    newLocations: options.newLocations || "unset",
+    correctLocations: Boolean(options.correctLocations),
+    addUSCounty: Boolean(options.addUSCounty),
+    nativeName: Boolean(options.nativeName),
+    allDates: Boolean(options.allDates),
+  };
+}
+
+function getSuggestionDebugSummary(container, limit = 5) {
+  return Array.from(container.querySelectorAll(".autocomplete-suggestion"))
+    .slice(0, limit)
+    .map((node) => {
+      const rawText = node.getAttribute("data-val") || node.textContent || "";
+      const { cleanText } = stripLocationDates(rawText);
+
+      return {
+        text: (cleanText || rawText).trim().slice(0, 120),
+        display: node.style.display || window.getComputedStyle(node).display,
+        classes: node.className,
+      };
+    });
+}
+
+function maybeLogSuggestionVisibility(reason, locationField, container) {
+  const suggestions = Array.from(container.querySelectorAll(".autocomplete-suggestion"));
+
+  if (!suggestions.length) {
+    return;
+  }
+
+  const visibleSuggestions = suggestions.filter((node) => window.getComputedStyle(node).display !== "none");
+  const hiddenCount = suggestions.length - visibleSuggestions.length;
+  const mode = window.locationsHelperOptions?.newLocations || "unset";
+
+  if (hiddenCount === 0 && visibleSuggestions.length > 0) {
+    return;
+  }
+
+  if (visibleSuggestions.length > 0 && !(mode === "no" && reason === "post-mutation")) {
+    return;
+  }
+
+  const state = getState(container);
+  const inputValue = locationField.latestInput?.input || "";
+  const signature = [
+    reason,
+    locationField.name,
+    locationField.inputRevision,
+    suggestions.length,
+    visibleSuggestions.length,
+    hiddenCount,
+    inputValue,
+  ].join("|");
+
+  if (state.lastVisibilityLog === signature) {
+    return;
+  }
+
+  state.lastVisibilityLog = signature;
+
+  const payload = {
+    reason,
+    ...getLocHelperOptionSnapshot(),
+    fieldName: locationField.name,
+    inputValue,
+    inputRevision: locationField.inputRevision,
+    terms: (locationField.latestInput?.normalised || "").split(/[\s,]+/).filter(Boolean),
+    activeElement: document.activeElement?.id || document.activeElement?.name || document.activeElement?.tagName,
+    totalSuggestions: suggestions.length,
+    visibleSuggestions: visibleSuggestions.length,
+    hiddenSuggestions: hiddenCount,
+    associatedField: state.fieldName,
+    renderRevision: state.renderRevision,
+    injectedRevision: state.injectedRevision,
+    sampleSuggestions: getSuggestionDebugSummary(container),
+  };
+
+  if (visibleSuggestions.length === 0) {
+    console.warn(`${LOC_HELPER_LOG_PREFIX} suggestion popup has no visible rows`, payload);
+    return;
+  }
+
+  if (mode === "no" && reason === "post-mutation") {
+    console.info(`${LOC_HELPER_LOG_PREFIX} native suggestion rows were filtered`, payload);
+  }
+}
+
+function maybeLogFilterFallback(reason, locationField, container, terms, suggestions) {
+  const state = getState(container);
+  const inputValue = locationField.latestInput?.input || "";
+  const signature = [reason, locationField.name, locationField.inputRevision, inputValue, suggestions.length].join("|");
+
+  if (state.lastFilterFallbackLog === signature) {
+    return;
+  }
+
+  state.lastFilterFallbackLog = signature;
+
+  console.info(`${LOC_HELPER_LOG_PREFIX} local filter found no matches; leaving native rows visible`, {
+    reason,
+    ...getLocHelperOptionSnapshot(),
+    fieldName: locationField.name,
+    inputValue,
+    inputRevision: locationField.inputRevision,
+    terms,
+    totalSuggestions: suggestions.length,
+    sampleSuggestions: suggestions.slice(0, 5).map((node) => getSuggestionFilterText(node).slice(0, 120)),
+  });
 }
 
 // Ensure we only initialize observers and bindings once per page load
@@ -63,6 +183,19 @@ shouldInitializeFeature("locationsHelper").then((result) => {
       }
       window.locationsHelperOptions = options;
       dbg2("feature options", options);
+      console.info(`${LOC_HELPER_LOG_PREFIX} feature initialised`, {
+        ...getLocHelperOptionSnapshot(),
+        disableLocationSuggestions: Boolean($("#userOptions").data("disableLocationSuggestions")),
+      });
+
+      if (options?.newLocations === "no") {
+        console.info(
+          `${LOC_HELPER_LOG_PREFIX} experimental suggestions are off; native visibility filtering is disabled while corrections remain active`,
+          {
+            fieldSelectors,
+          }
+        );
+      }
 
       waitForElements(fieldSelectors, 2000)
         .then((el) => {
@@ -355,14 +488,33 @@ function filterRenderedSuggestionsForField(locationField) {
   // This runs against both WT/FamilySearch suggestions and our injected WBE rows.
   // The goal is not to replace the upstream source, just to keep the visible list
   // in sync with what the user has typed when the upstream source lags behind.
+  if (!shouldFilterRenderedSuggestions()) {
+    return;
+  }
+
   const normalisedInput = locationField.latestInput?.normalised || "";
   const terms = normalisedInput.split(/[\s,]+/).filter(Boolean);
 
   getSuggestionContainersForField(locationField).forEach((container) => {
-    container.querySelectorAll(".autocomplete-suggestion").forEach((node) => {
-      const matches = !terms.length || containsTermsInOrder(getSuggestionFilterText(node), terms);
+    const suggestions = Array.from(container.querySelectorAll(".autocomplete-suggestion"));
+    const matchResults = suggestions.map((node) => ({
+      node,
+      matches: !terms.length || containsTermsInOrder(getSuggestionFilterText(node), terms),
+    }));
+
+    if (terms.length && matchResults.length && !matchResults.some(({ matches }) => matches)) {
+      suggestions.forEach((node) => {
+        node.style.display = "";
+      });
+      maybeLogFilterFallback("input-filter", locationField, container, terms, suggestions);
+      return;
+    }
+
+    matchResults.forEach(({ node, matches }) => {
       node.style.display = matches ? "" : "none";
     });
+
+    maybeLogSuggestionVisibility("input-filter", locationField, container);
   });
 }
 
@@ -538,6 +690,7 @@ async function locationsHelper() {
       if (suggestions.length) injectAugmentedSuggestions(container, suggestions);
       applySuggestionCorrections(container, locationField, userInput, mutations, suggestions);
       filterRenderedSuggestionsForField(locationField);
+      maybeLogSuggestionVisibility("post-mutation", locationField, container);
       state.injectedRevision = locationField.inputRevision;
     } finally {
       state.injecting = false;
@@ -565,6 +718,12 @@ async function locationsHelper() {
       // We are now ready to intervene in autocompletes, so enable the inputs
       if (window.locationsHelperOptions?.newLocations !== "no") {
         $(fieldSelectors).prop("disabled", false);
+      }
+      if (window.locationsHelperOptions?.newLocations === "no") {
+        console.info(`${LOC_HELPER_LOG_PREFIX} observing native suggestion containers`, {
+          containersFound: cnt,
+          observersAttached: added,
+        });
       }
       dbg1(`attachObserverToSuggestions: ${cnt} containers found, attached observers to ${added}`);
     }
