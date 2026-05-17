@@ -465,6 +465,22 @@ function containsTermsInOrder(haystack, terms) {
   return true;
 }
 
+function getRenderedSuggestionTerms(suggestionEl) {
+  if (!suggestionEl) {
+    return [];
+  }
+
+  // FamilySearch can emit duplicate or single-character highlight spans while the
+  // user is still typing. Those are too noisy to use as freshness guards.
+  return [
+    ...new Set(
+      Array.from(suggestionEl.querySelectorAll(".autocomplete-suggestion-term"))
+        .map((el) => normalise(el.textContent))
+        .filter((term) => term.length >= 2)
+    ),
+  ];
+}
+
 function getSuggestionContainersForField(locationField) {
   // Once we have associated a popup with a field, keep using that association.
   // Before that happens, fall back to whichever autocomplete container is visible.
@@ -578,11 +594,7 @@ async function locationsHelper() {
     const arr = Array.from(qsa);
     const suggestionEl = arr.find((el) => el.querySelector(".autocomplete-suggestion-term"));
 
-    const normalisedTerms = suggestionEl
-      ? Array.from(suggestionEl.querySelectorAll(".autocomplete-suggestion-term"))
-          .map((el) => normalise(el.textContent))
-          .filter(Boolean)
-      : [];
+    const normalisedTerms = getRenderedSuggestionTerms(suggestionEl);
 
     let field = state.fieldName ? locationFieldsMap.get(state.fieldName) : null;
     if (!field) {
