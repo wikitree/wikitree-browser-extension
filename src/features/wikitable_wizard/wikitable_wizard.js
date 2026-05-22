@@ -8,6 +8,7 @@ import JSZip from "jszip";
 import { showCopyMessage } from "../access_keys/access_keys";
 import { analyzeColumns } from "../auto_bio/columnAnalysisUtils";
 import { stateInfo } from "./us_states.js"; // Import the state information
+import { generateRowHash } from "./rowHash.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { mainDomain } from "../../core/pageType";
 import { readFromClipboard, copyToClipboard } from "../../core/clipboard.js";
@@ -1302,21 +1303,6 @@ function splitLineIntoColumns(line) {
   }
   // Assemble and return the structured data
   return [name, relation, maritalStatus, gender, age, occupation, locationIdentified];
-}
-
-function generateRowHash(row) {
-  // Create a string representation of the row data
-  const rowStr = row
-    .map((cell) => {
-      if (typeof cell === "string") {
-        return cell;
-      }
-
-      return `${cell?.text || ""}:${cell?.colspan || 1}:${cell?.rowspan || 1}`;
-    })
-    .join("|");
-  // Encode the string to base64 to create a simple hash
-  return btoa(rowStr);
 }
 
 // Assume this function is called after the table is imported and parsed

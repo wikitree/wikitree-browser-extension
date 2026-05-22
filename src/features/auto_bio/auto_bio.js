@@ -33,6 +33,12 @@ import { addWorking, getBioText, removeWorking, setBioText } from "./editorUtils
 import { assignPersonNames, setOrderBirthDate } from "./auto_bio_person.js";
 import { getFindAGraveLink, getCitation, cleanFindAGraveCitation } from "./auto_bio_citations.js";
 import {
+  findGenealogicallyDefinedLinePlacement,
+  isGenealogicallyDefinedLink,
+  sortStuffBeforeBioItems,
+  splitStuffBeforeBioEntry,
+} from "./preBioUtils.js";
+import {
   appalachiaStates,
   findUSState as findUSStateInStates,
   fixUSLocation as fixUSLocationInStates,
@@ -5628,6 +5634,11 @@ export async function getStickersAndBoxes() {
   let thingsToAddBeforeBioHeading = [];
 
   const currentBio = $("#wpTextbox1").val();
+  const genealogicallyDefinedPlacement = findGenealogicallyDefinedLinePlacement(currentBio);
+
+  if (genealogicallyDefinedPlacement && genealogicallyDefinedPlacement.beforeBiography === false) {
+    thingsToAddAfterBioHeading.push(genealogicallyDefinedPlacement.line);
+  }
 
   try {
     templatesObject.templates.forEach(function (aTemplate) {
@@ -6072,45 +6083,17 @@ export function splitBioIntoSections() {
 
   // Split the things before the bio up into separate items
   if (sections.StuffBeforeTheBio.text?.length > 0) {
-    const pattern = /(\{\{.*?\}\}|\[\[.*?\]\])/g;
-    const categoryOnlyPattern = /^\[\[Category:[^\]]+\]\]$/i;
-    const htmlCommentPattern = /^<!--.*-->$/;
-
     for (let i = 0; i < sections.StuffBeforeTheBio.text.length; i++) {
       const line = sections.StuffBeforeTheBio.text[i];
-      const matches = Array.from(line.matchAll(pattern));
+      const nextLine = sections.StuffBeforeTheBio.text[i + 1];
+      const { items: splitItems, consumeNextLine } = splitStuffBeforeBioEntry(line, nextLine);
 
-      if (matches.length > 0) {
-        const splitItems = [];
-
-        for (let j = 0; j < matches.length; j++) {
-          const token = matches[j][0];
-          splitItems.push(token);
-
-          const tokenEnd = matches[j].index + token.length;
-          const nextTokenStart = j < matches.length - 1 ? matches[j + 1].index : line.length;
-          const trailingText = line.slice(tokenEnd, nextTokenStart).trim();
-
-          // Keep inline HTML comments near categories as their own adjacent item.
-          if (categoryOnlyPattern.test(token) && trailingText && htmlCommentPattern.test(trailingText)) {
-            splitItems.push(trailingText);
-          }
-        }
-
-        // Keep a standalone next-line HTML comment near its category.
-        const lastToken = matches[matches.length - 1][0];
-        if (categoryOnlyPattern.test(lastToken)) {
-          const nextLine = sections.StuffBeforeTheBio.text[i + 1]?.trim();
-          if (nextLine && htmlCommentPattern.test(nextLine)) {
-            splitItems.push(nextLine);
-            sections.StuffBeforeTheBio.text.splice(i + 1, 1);
-          }
-        }
-
-        sections.StuffBeforeTheBio.text[i] = splitItems[0];
-        if (splitItems.length > 1) {
-          sections.StuffBeforeTheBio.text.splice(i + 1, 0, ...splitItems.slice(1));
-        }
+      sections.StuffBeforeTheBio.text[i] = splitItems[0];
+      if (splitItems.length > 1) {
+        sections.StuffBeforeTheBio.text.splice(i + 1, 0, ...splitItems.slice(1));
+      }
+      if (consumeNextLine) {
+        sections.StuffBeforeTheBio.text.splice(i + splitItems.length, 1);
       }
       const gedcomMatch = sections.StuffBeforeTheBio.text[i].match(/\.ged\s/);
       if (gedcomMatch) {
@@ -6236,56 +6219,11 @@ async function getTemplates() {
 
 async function sortStuffBeforeBio() {
   const templatesObject = await getTemplates();
-  const tempStuffObject = {
-    categories: [],
-    easilyConfused: [],
-    researchNoteBoxes: [],
-    projectBoxes: [],
-    succession: [],
-  };
   if (window.sectionsObject["StuffBeforeTheBio"]) {
     const stuff = window.sectionsObject["StuffBeforeTheBio"].text;
-    stuff.forEach(function (item, index) {
-      const itemName = item.match(/\{\{([^|}]+)/);
-      const extractedName = itemName?.[1]?.trim();
-      const previousItem = index > 0 ? stuff[index - 1] : "";
-      if (item.startsWith("[[Category:")) {
-        tempStuffObject.categories.push(item);
-      } else if (/^<!--.*-->$/.test(item) && previousItem.startsWith("[[Category:")) {
-        // Preserve category-adjacent comments in output while keeping categories plain for matching.
-        tempStuffObject.categories.push(item);
-      } else if (item.toLowerCase().startsWith("{{easily confused")) {
-        tempStuffObject.easilyConfused.push(item);
-      } else if (
-        templatesObject.templates.find(
-          (template) => template.name === extractedName && template.group?.toLowerCase() === "research note box"
-        )
-      ) {
-        tempStuffObject.researchNoteBoxes.push(item);
-      } else if (
-        templatesObject.templates.find(
-          (template) => template.name === extractedName && template.type?.toLowerCase() === "project box"
-        )
-      ) {
-        tempStuffObject.projectBoxes.push(item);
-      } else if (
-        templatesObject.templates.find(
-          (template) => template.name === extractedName && template.group?.toLowerCase() === "succession"
-        )
-      ) {
-        tempStuffObject.succession.push(item);
-      }
-    });
+    return sortStuffBeforeBioItems(stuff, templatesObject);
   }
-  // Combine the arrays.
-  const combinedStuff = [
-    ...tempStuffObject.categories,
-    ...tempStuffObject.easilyConfused,
-    ...tempStuffObject.researchNoteBoxes,
-    ...tempStuffObject.projectBoxes,
-    ...tempStuffObject.succession,
-  ];
-  return combinedStuff;
+  return [];
 }
 
 export async function getStuffBeforeTheBioText() {
@@ -7412,9 +7350,10 @@ export async function generateBio() {
       const isCategoryLine = /^\[\[Category:[^\]]+\]\](\s*<!--.*-->)?$/i.test(trimmedLine);
       const isCommentLine = /^<!--.*-->$/.test(trimmedLine);
       const isCommentForPreviousCategory = previousLineWasCategory && isCommentLine;
+      const isGenealogicallyDefinedLine = isGenealogicallyDefinedLink(trimmedLine);
 
       // Skip lines that are part of a template or are categories
-      if (!inTemplate && !isCategoryLine && !isCommentForPreviousCategory) {
+      if (!inTemplate && !isCategoryLine && !isCommentForPreviousCategory && !isGenealogicallyDefinedLine) {
         filteredLines.push(line);
       }
 

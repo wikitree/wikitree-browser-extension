@@ -22,15 +22,89 @@ input[name="mMarriageLocation"] {
   width: 100%;
 }
 
-/* Reduce vertical spacing between options */
-.select2-results__option {
-  padding: 1px 6px; /* vertical | horizontal padding */
-  margin-bottom: 0px;
+.country-input {
+  align-items: stretch;
+  flex-wrap: nowrap;
 }
-.country-input .select2-selection__choice {
-  margin-top: 4px !important;
-  margin-bottom: 2px !important;
-  margin-left: 4px !important;
+
+.country-input .wbe-country-summary {
+  align-items: flex-start;
+  background: #fff;
+  border: 1px solid #ced4da;
+  border-radius: 0 0.25rem 0.25rem 0;
+  color: #495057;
+  cursor: pointer;
+  display: flex;
+  flex: 1 1 auto;
+  font-family: inherit;
+  font-size: 0.95em;
+  justify-content: flex-start;
+  min-height: calc(1.5em + 0.75rem + 2px);
+  padding: 0.375rem 0.75rem;
+  text-align: left;
+}
+
+.country-input .wbe-country-summary:hover,
+.country-input .wbe-country-summary:active {
+  background: #fff;
+  border-color: #ced4da;
+  color: #495057;
+}
+
+.country-input .wbe-country-summary:focus,
+.country-input .wbe-country-summary:focus-visible {
+  background: #fff;
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+  color: #495057;
+  outline: 0;
+}
+
+.country-input .wbe-country-summary-label {
+  align-content: center;
+  display: flex;
+  font-family: inherit;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  white-space: normal;
+  width: 100%;
+}
+
+.country-input .wbe-country-summary-label.is-placeholder {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wbe-country-summary-chip {
+  align-items: center;
+  background: #eef2f6;
+  border: 1px solid #c7d0d9;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  font-family: inherit;
+  font-size: 0.92em;
+  gap: 0.25rem;
+  max-width: 100%;
+  padding: 0.1rem 0.45rem;
+}
+
+.wbe-country-summary-chip:hover {
+  background: #e4ebf2;
+  border-color: #b8c4ce;
+}
+
+.wbe-country-summary-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wbe-country-summary-chip-remove {
+  font-size: 0.8em;
+  font-weight: bold;
+  line-height: 1;
 }
 
 .wbe-location-gear {
@@ -40,6 +114,14 @@ input[name="mMarriageLocation"] {
 
 .autocomplete-suggestions {
   width: max-content !important;
+}
+
+body.wbe-location-exclusive-active .autocomplete-suggestions {
+  display: none !important;
+}
+
+.ui-autocomplete.wbe-exclusive-autocomplete-menu {
+  z-index: 2000 !important;
 }
 
 .wbe-location-popup {
@@ -80,4 +162,54 @@ input[name="mMarriageLocation"] {
 }
 .wbe-loc-status.is-red {
   color: red !important;
+}
+
+.wbe-country-filter-popup {
+  display: none;
+  position: absolute;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  min-width: 18rem;
+  max-width: 90vw;
+}
+
+.wbe-country-filter-title {
+  margin: 0 0 6px;
+  font-weight: bold;
+}
+
+.wbe-country-filter-help {
+  margin-bottom: 8px;
+  color: #666;
+  font-size: 0.9em;
+}
+
+.wbe-country-filter-list {
+  display: grid;
+  gap: 4px;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.wbe-country-filter-option {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+}
+
+.wbe-country-filter-empty {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.wbe-country-filter-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin-top: 10px;
 }
