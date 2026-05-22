@@ -175,6 +175,18 @@ Get the privacy as a string to be displayed to the user
 
 Returns **[String][8]** privacy string (i.e., the color)
 
+### getResearchStatus
+
+Get the research status
+
+Returns **[Number][9]** numeric research status
+
+### getResearchStatusString
+
+Get the research status as a string to be displayed to the user
+
+Returns **[String][8]** research status string
+
 ### isUncheckedDueToPrivacy
 
 Was profile not checked due to privacy

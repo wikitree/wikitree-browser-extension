@@ -65,6 +65,7 @@ export class BioCheckPerson {
     bio: "",
     hasName: false,
     privacyLevel: 0,
+    researchStatus: 0,  
     isMember: false,
     isOrphan: false,
     hasLocation: false,
@@ -188,6 +189,12 @@ export class BioCheckPerson {
             this.person.motherDnaConfirmed = true;
           }
         }
+
+        // Populate researchStatus from returned value
+        if (profileObj.ResearchStatus != null) {
+          this.person.researchStatus = profileObj.ResearchStatus;
+        }
+
         // can use if logged in user is the same as Manager
         if (this.person.privacyLevel < BioCheckPerson.MIN_PRIVACY) {
           if (userId === 0) {
@@ -403,6 +410,45 @@ export class BioCheckPerson {
     }
     return privacyString;
   }
+  /** 
+   * Get the research status
+   * @returns {Number} numeric research status
+   */
+  getResearchStatus() {
+    return this.person.researchStatus;
+  }
+  /**
+   * Get the research status as a string to be displayed to the user
+   * @returns {String} research status string 
+   */
+  getResearchStatusString() {
+    let researchString = "";
+    switch (this.person.researchStatus) {
+      case 0: 
+        researchString = " ";  // No status
+        break;
+      case 10: // Unfinished
+        researchString = "Unfinished";
+        break;
+      case 20: // Help Requested
+        researchString = "Help Requested";
+        break;
+      case 30: // Sources to Review
+        researchString = "Sources to Review";
+        break;
+      case 40: // Silver Standard
+        researchString = "Silver Research";
+        break;
+      case 50: // Gold Standard Candidate
+        researchString = "Pending Review";
+        break;
+      case 60: // Gold Standard: Genealogically Complete and Peer Reviewed
+        researchString = "Peer Reviewed ";
+        break;
+    }
+    return researchString;
+  }
+
   /**
    * Was profile not checked due to privacy
    * @returns {Boolean} true if profile could not be checked due to privacy
@@ -511,6 +557,8 @@ export class BioCheckPerson {
     if (emailElements.length > 0) {
       this.person.isMember = true;
     }
+
+    // TODO set researchStatus
   }
 
   /*
