@@ -77,6 +77,7 @@ import "./darkMode/darkMode_options";
 import "./date_fixer/date_fixer_options";
 import "./disable_GIFs/disable_GIFs_options";
 import "./distanceAndRelationship/distanceAndRelationship_options";
+import "./duplicates/duplicates_options";
 import "./edit_family_data/edit_family_data_options";
 import "./edit_profile_redesign/edit_profile_redesign_options";
 import "./editor_expander/editor_expander_options";
