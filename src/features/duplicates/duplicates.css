@@ -15,6 +15,30 @@
 
 .wbe-duplicates-collapse-toggle {
   margin-left: auto;
+  min-width: 1.9rem;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 999px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.wbe-duplicates-collapse-toggle:hover {
+  filter: brightness(0.97);
+}
+
+.wbe-duplicates-collapse-toggle:focus-visible {
+  outline: 2px solid #2b6cb0;
+  outline-offset: 2px;
+}
+
+.wbe-duplicates-toggle-icon {
+  transform: translateY(-1px);
 }
 
 .wbe-duplicates-heading-left {

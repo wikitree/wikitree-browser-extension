@@ -113,6 +113,19 @@ function mountPanel() {
   return panel;
 }
 
+function unmountPanel(panel) {
+  if (!panel || !panel.length) {
+    return;
+  }
+
+  const fallback = panel.closest("#wbe-duplicates-fallback");
+  panel.remove();
+
+  if (fallback.length && fallback.find(`#${PANEL_ID}`).length === 0) {
+    fallback.remove();
+  }
+}
+
 function renderLoading(panel, wtId, options) {
   panel.html(`
     <div class="wbe-duplicates-header">
@@ -148,14 +161,9 @@ function renderData(panel, wtId, payload, options, currentUserWtId) {
     return;
   }
 
-  if (!normalized.hasVisibleMatches) {
-    panel.html(`
-      <div class="wbe-duplicates-header">
-        <h3 title="WBE Duplicates feature">Possible duplicates</h3>
-      </div>
-      <p class="wbe-duplicates-muted">No visible duplicate matches were found for this profile.</p>
-    `);
-    applyPanelCollapseState(panel, options?.startCollapsed);
+  const hasAnyDuplicates = normalized.pairs.length > 0 || normalized.hiddenResolvedPairCount > 0;
+  if (!hasAnyDuplicates) {
+    unmountPanel(panel);
     return;
   }
 
@@ -200,8 +208,11 @@ function applyPanelCollapseState(panel, startCollapsed) {
       body.toggle(!isCollapsed);
     }
 
-    button.text(isCollapsed ? "Expand" : "Collapse");
+    button.html(
+      `<span class="wbe-duplicates-toggle-icon" aria-hidden="true">${isCollapsed ? "&#9656;" : "&#9662;"}</span>`
+    );
     button.attr("aria-expanded", String(!isCollapsed));
+    button.attr("aria-label", isCollapsed ? "Expand duplicates panel" : "Collapse duplicates panel");
     button.attr("title", isCollapsed ? "Expand duplicates panel" : "Collapse duplicates panel");
   };
 
