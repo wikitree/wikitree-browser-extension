@@ -7,6 +7,7 @@ import "jquery-ui/ui/widgets/dialog";
 import "jquery-ui-dist/jquery-ui.css";
 import { getProfilePersonInfo, getUserWtId } from "../../core/common";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { collectExcludedMatchIds, filterExcludedDuplicatePairs } from "./duplicates_page_state";
 
 const PANEL_ID = "wbe-duplicates-panel";
 const COMPARE_DIALOG_ID = "comparison-dialog";
@@ -148,7 +149,8 @@ function renderError(panel, wtId, message, options) {
 }
 
 function renderData(panel, wtId, payload, options, currentUserWtId) {
-  const normalized = normalizePayload(wtId, payload);
+  const excludedMatchIds = collectExcludedMatchIds();
+  const normalized = normalizePayload(wtId, payload, excludedMatchIds);
 
   if (!normalized.lookupAvailable) {
     panel.html(`
@@ -244,7 +246,7 @@ async function updateFeatureOption(featureName, optionName, optionValue) {
   });
 }
 
-function normalizePayload(wtId, payload) {
+function normalizePayload(wtId, payload, excludedMatchIds = new Set()) {
   const groups = Array.isArray(payload?.groups) ? payload.groups : [];
   const selectedGroup =
     groups.find((group) => {
@@ -273,6 +275,8 @@ function normalizePayload(wtId, payload) {
       return (p1 === req && p2 === anchor) || (p1 === anchor && p2 === req);
     });
   }
+
+  pairs = filterExcludedDuplicatePairs(pairs, excludedMatchIds);
 
   const hasVisibleMatches = Boolean(payload?.has_visible_matches || selectedGroup?.has_visible_match || pairs.length);
 
@@ -361,16 +365,17 @@ function renderDuplicateFinderTable(panel, normalized, options, currentUserWtId)
   ];
 
   const originalAnchorId = isMultiMatch ? findLowestNumberedPairId(normalized.pairs) : "";
-  const orderedPairs = isMultiMatch && originalAnchorId
-    ? [...normalized.pairs].sort((a, b) => {
-        const aHasAnchor = a?.person1 === originalAnchorId || a?.person2 === originalAnchorId;
-        const bHasAnchor = b?.person1 === originalAnchorId || b?.person2 === originalAnchorId;
-        if (aHasAnchor === bHasAnchor) {
-          return 0;
-        }
-        return aHasAnchor ? -1 : 1;
-      })
-    : normalized.pairs;
+  const orderedPairs =
+    isMultiMatch && originalAnchorId
+      ? [...normalized.pairs].sort((a, b) => {
+          const aHasAnchor = a?.person1 === originalAnchorId || a?.person2 === originalAnchorId;
+          const bHasAnchor = b?.person1 === originalAnchorId || b?.person2 === originalAnchorId;
+          if (aHasAnchor === bHasAnchor) {
+            return 0;
+          }
+          return aHasAnchor ? -1 : 1;
+        })
+      : normalized.pairs;
 
   let hasRenderedRequestedRow = false;
   orderedPairs.forEach((pair) => {
@@ -448,7 +453,9 @@ function renderDuplicateFinderTable(panel, normalized, options, currentUserWtId)
         $("<button></button>")
           .addClass("small")
           .text("Set Status")
-          .on("click", () => window.open(makeDuplicatesStatusUrl(pair, currentUserWtId), "_blank", "noopener,noreferrer"))
+          .on("click", () =>
+            window.open(makeDuplicatesStatusUrl(pair, currentUserWtId), "_blank", "noopener,noreferrer")
+          )
       );
     }
 
