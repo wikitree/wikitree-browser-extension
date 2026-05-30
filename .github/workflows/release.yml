@@ -10,7 +10,7 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -31,7 +31,7 @@ jobs:
           # we have to add 300000000 to make it greater than build numbers generated in prior formats
           echo "X_SAFARI_BUILD=$((`date -u +%s`+300000000-1690848000))" >> $GITHUB_ENV
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20.x
           cache: "npm"
