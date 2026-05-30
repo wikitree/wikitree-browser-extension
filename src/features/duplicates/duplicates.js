@@ -180,7 +180,7 @@ function renderData(panel, wtId, payload, options, currentUserWtId) {
 
   applyPanelCollapseState(panel, options?.startCollapsed);
 
-  renderDuplicateFinderTable(panel, normalized, options, currentUserWtId);
+  renderDuplicateFinderTable(panel, wtId, normalized, options, currentUserWtId);
 }
 
 function applyPanelCollapseState(panel, startCollapsed) {
@@ -296,7 +296,7 @@ function normalizePayload(wtId, payload, excludedMatchIds = new Set()) {
   };
 }
 
-function renderDuplicateFinderTable(panel, normalized, options, currentUserWtId) {
+function renderDuplicateFinderTable(panel, wtId, normalized, options, currentUserWtId) {
   const content = panel.find("#wbe-duplicates-content");
   const card = $("<div></div>").addClass("wbe-duplicates-card wbe-duplicates-finder-card");
   const controls = $("<div></div>").addClass("wbe-duplicates-actions-row");
@@ -312,16 +312,24 @@ function renderDuplicateFinderTable(panel, normalized, options, currentUserWtId)
   }
 
   if (normalized.hiddenResolvedPairCount > 0) {
+    const moreLabel =
+      normalized.hiddenResolvedPairCount === 1
+        ? "See the extra possible duplicate"
+        : `See ${normalized.hiddenResolvedPairCount} more possible duplicates`;
     controls.append(
       $("<button></button>")
         .addClass("small")
-        .text(`See more possible duplicates (${normalized.hiddenResolvedPairCount})`)
-        .on("click", () => {
-          const url =
-            `https://apps.wikitree.com/apps/beacall6/duplicates/api.php?id=${encodeURIComponent(
-              normalized.requestedId
-            )}` + "&include_resolved=1";
-          window.open(url, "_blank");
+        .text(moreLabel)
+        .on("click", async function () {
+          const button = $(this);
+          button.prop("disabled", true).text("Loading more...");
+          try {
+            const data = await fetchDuplicatesData(wtId, true);
+            renderData(panel, wtId, data, { ...options, includeResolvedDebug: true }, currentUserWtId);
+          } catch (error) {
+            console.error("[duplicates] failed to load resolved duplicates", error);
+            button.prop("disabled", false).text(moreLabel);
+          }
         })
     );
   }
