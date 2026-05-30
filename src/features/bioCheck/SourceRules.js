@@ -1001,9 +1001,7 @@ class SourceRules {
           projectBox.status = templates[i].status.toLowerCase().trim();
           this.#projectBox.push(projectBox);
         }
-        // TODO hack that Notability may be set to the wrong type
-        if ((templates[i].type.toLowerCase().trim() === 'formatting') ||
-           (templates[i].type.toLowerCase().trim() === 'formattingtemplate')) {
+        if (templates[i].type.toLowerCase().trim() === 'formattingtemplate') {
           let formattingTemplate = {
             name: "",
             status: "",
