@@ -8,7 +8,8 @@ import { isProfilePage } from "../../core/pageType";
 registerFeature({
   name: "Duplicates",
   id: "duplicates",
-  description: "Shows duplicate matches from Arborists in a compact panel on profile pages.",
+  description:
+    "Shows possible duplicate matches from the Duplicate Finder app in the Matches and Merges section of profile pages.",
   category: "Profile",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
@@ -16,21 +17,9 @@ registerFeature({
   pages: [isProfilePage],
   options: [
     {
-      id: "enableSetStatus",
-      type: OptionType.CHECKBOX,
-      label: "Enable Set Status actions",
-      defaultValue: true,
-    },
-    {
       id: "startCollapsed",
       type: OptionType.CHECKBOX,
       label: "Start duplicates panel collapsed",
-      defaultValue: false,
-    },
-    {
-      id: "includeResolvedDebug",
-      type: OptionType.CHECKBOX,
-      label: "Debug: include resolved matches in read requests",
       defaultValue: false,
     },
   ],
