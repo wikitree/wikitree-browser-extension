@@ -31,7 +31,9 @@ export function filterExcludedDuplicatePairs(pairs, excludedMatchIds) {
 function findExcludedMatchSections(root) {
   return Array.from(root.querySelectorAll("h3"))
     .filter((heading) =>
-      EXCLUDED_MATCH_SECTION_HEADINGS.some((sectionHeading) => normalizeText(heading.textContent).startsWith(sectionHeading))
+      EXCLUDED_MATCH_SECTION_HEADINGS.some((sectionHeading) =>
+        normalizeText(heading.textContent).startsWith(sectionHeading)
+      )
     )
     .map((heading) => heading.closest(".col-lg-4, .col-md-4, .col"))
     .filter(Boolean);
