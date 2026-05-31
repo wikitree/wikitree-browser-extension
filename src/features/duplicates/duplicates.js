@@ -447,15 +447,6 @@ function renderDuplicateFinderTable(panel, wtId, normalized, options, currentUse
         .on("click", () => window.open(makeMergeUrl(p1, p2), "_blank"))
     );
 
-    if (normalized.actions?.can_merge_pair) {
-      actions.append(
-        $("<button></button>")
-          .addClass("small")
-          .text("Merge")
-          .on("click", () => window.open(makeMergeUrl(p1, p2), "_blank"))
-      );
-    }
-
     if (normalized.actions?.can_set_status && options?.enableSetStatus) {
       actions.append(
         $("<button></button>")
