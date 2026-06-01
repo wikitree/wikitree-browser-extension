@@ -349,9 +349,9 @@ function renderDuplicateFinderTable(panel, wtId, normalized, options, currentUse
       <thead>
         <tr>
           <th>ID</th>
-          <th>First</th>
-          <th>Last Name at Birth</th>
-          <th>Current Last</th>
+          <th>First name(s)</th>
+          <th>Last</th>
+          <th>Current</th>
           <th>Birth date</th>
           <th>Death date</th>
           <th>Birth location</th>
@@ -363,7 +363,14 @@ function renderDuplicateFinderTable(panel, wtId, normalized, options, currentUse
   `);
 
   const PAIR_FIELDS = [
-    (p) => p?.first_name || p?.firstName || p?.FirstName || "",
+    (p) => {
+      const firstName = p?.first_name || p?.firstName || p?.FirstName || "";
+      const middleName = p?.middle_name || p?.middleName || p?.MiddleName || "";
+      return [firstName, middleName]
+        .map((part) => String(part || "").trim())
+        .filter(Boolean)
+        .join(" ");
+    },
     (p) => p?.last_name_at_birth || p?.LastNameAtBirth || "",
     (p) => p?.last_name_current || p?.LastNameCurrent || "",
     (p) => displayDate(p?.birth_date_display || p?.BirthDate || ""),
