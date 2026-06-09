@@ -349,13 +349,15 @@ function renderDuplicateFinderTable(panel, wtId, normalized, options, currentUse
       <thead>
         <tr>
           <th>ID</th>
-          <th>First name(s)</th>
+          <th>First</th>
           <th>Last</th>
           <th>Current</th>
-          <th>Birth date</th>
-          <th>Death date</th>
-          <th>Birth location</th>
-          <th>Death location</th>
+          <th>Birth</th>
+          <th>Death</th>
+          <th>Parents</th>
+          <th>Spouse(s)</th>
+          <th>Birth place</th>
+          <th>Death place</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -375,6 +377,10 @@ function renderDuplicateFinderTable(panel, wtId, normalized, options, currentUse
     (p) => p?.last_name_current || p?.LastNameCurrent || "",
     (p) => displayDate(p?.birth_date_display || p?.BirthDate || ""),
     (p) => displayDate(p?.death_date_display || p?.DeathDate || ""),
+    (p, other) =>
+      buildRelationText(getDuplicateRelationEntries(p, "parents"), getDuplicateRelationEntries(other, "parents")),
+    (p, other) =>
+      buildRelationText(getDuplicateRelationEntries(p, "spouses"), getDuplicateRelationEntries(other, "spouses")),
     (p) => p?.birth_location || p?.BirthLocation || "",
     (p) => p?.death_location || p?.DeathLocation || "",
   ];
@@ -392,7 +398,6 @@ function renderDuplicateFinderTable(panel, wtId, normalized, options, currentUse
         })
       : normalized.pairs;
 
-  let hasRenderedRequestedRow = false;
   orderedPairs.forEach((pair) => {
     const p1 = pair?.person1 || "";
     const p2 = pair?.person2 || "";
@@ -413,26 +418,27 @@ function renderDuplicateFinderTable(panel, wtId, normalized, options, currentUse
     if (pairProfiles[1]) rowB.append(`<td>${profileLink(pairProfiles[1])}</td>`);
 
     PAIR_FIELDS.forEach((getter) => {
-      const valA = pairProfiles[0] ? getter(pairProfiles[0]) : "";
-      const valB = pairProfiles[1] ? getter(pairProfiles[1]) : "";
+      const valA = pairProfiles[0] ? getter(pairProfiles[0], pairProfiles[1]) : "";
+      const valB = pairProfiles[1] ? getter(pairProfiles[1], pairProfiles[0]) : "";
       if (pairProfiles[0]) rowA.append(buildMatchCell(valA, valB));
       if (pairProfiles[1]) rowB.append(buildMatchCell(valB, valA));
     });
 
-    if (pairProfiles[0] && (!isMultiMatch || !hasRenderedRequestedRow)) {
+    if (pairProfiles[0]) {
       table.find("tbody").append(rowA);
-      hasRenderedRequestedRow = true;
     }
     if (pairProfiles[1]) table.find("tbody").append(rowB);
 
+    const warningsRow = buildPairWarningsRow(warnings);
+    if (warningsRow) {
+      table.find("tbody").append(warningsRow);
+    }
+
     const actionRow = $("<tr></tr>").addClass("wbe-duplicates-pair-action-row");
-    const actionCell = $("<td colspan='8'></td>");
+    const actionCell = $("<td colspan='10'></td>");
     const leftMeta = $("<div></div>").addClass("wbe-duplicates-pair-meta");
     leftMeta.append(`<span>Score <strong>${escapeHtml(String(score))}</strong></span>`);
     leftMeta.append(`<span>Strength <strong>${escapeHtml(level)}</strong></span>`);
-    if (warnings.length) {
-      leftMeta.append(`<span>Warnings <strong>${escapeHtml(warnings.join("; "))}</strong></span>`);
-    }
 
     const actions = $("<div></div>").addClass("wbe-duplicates-row-actions");
     actions.append(
@@ -472,6 +478,216 @@ function renderDuplicateFinderTable(panel, wtId, normalized, options, currentUse
 
   card.append(table);
   content.append(card);
+}
+
+function buildPairWarningsRow(warnings) {
+  const pairWarnings = Array.isArray(warnings) ? warnings.filter(Boolean) : [];
+  if (!pairWarnings.length) {
+    return null;
+  }
+
+  const warningRow = $("<tr></tr>").addClass("wbe-duplicates-pair-details-row");
+  const warningCell = $("<td colspan='10'></td>");
+  const warningSection = $("<div></div>").addClass("wbe-duplicates-warnings");
+  warningSection.append("<span class='wbe-duplicates-warnings-label'>Warnings</span>");
+  const warningList = $("<ul></ul>");
+  pairWarnings.forEach((warning) => {
+    warningList.append(`<li>${escapeHtml(String(warning))}</li>`);
+  });
+  warningSection.append(warningList);
+  warningCell.append(warningSection);
+  warningRow.append(warningCell);
+  return warningRow;
+}
+
+function buildRelationText(entries, otherEntries = []) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return "";
+  }
+
+  const otherKeys = new Set(
+    (Array.isArray(otherEntries) ? otherEntries : []).map((entry) => relationKey(entry)).filter(Boolean)
+  );
+  const otherNames = new Set(
+    (Array.isArray(otherEntries) ? otherEntries : []).map((entry) => relationNameKey(entry)).filter(Boolean)
+  );
+
+  return `<div class="wbe-duplicates-relation-list">${entries
+    .map((entry) => {
+      const label = String(entry?.name || entry?.label || "").trim();
+      const wtId = String(entry?.wtId || "").trim();
+      const gender = String(entry?.gender || "").trim();
+      const role = String(entry?.role || "")
+        .trim()
+        .toLowerCase();
+      const url = wtId ? makeProfileUrl(wtId) : "";
+      const nameText = escapeHtml(label || wtId || "unknown");
+      const idText = wtId ? `(${escapeHtml(wtId)})` : "";
+      const nameHtml = url
+        ? `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer noopener">${nameText}</a>`
+        : nameText;
+      const genderClass = getRelationGenderClass(gender, role);
+      const exactMatch = otherKeys.has(relationKey(entry));
+      const nameOnlyMatch = !exactMatch && otherNames.has(relationNameKey(entry));
+      const itemMatchClass = exactMatch ? "wbe-part-match" : "";
+      const nameMatchClass = nameOnlyMatch ? "wbe-part-match" : "";
+
+      return `
+        <div class="wbe-duplicates-relation-item ${genderClass} ${itemMatchClass}">
+          <div class="wbe-duplicates-relation-name ${nameMatchClass}">${nameHtml}</div>
+          ${idText ? `<div class="wbe-duplicates-relation-id">${idText}</div>` : ""}
+        </div>
+      `;
+    })
+    .join("")}</div>`;
+}
+
+function appendRelationEntry(target, entry) {
+  const label = String(entry?.label || "").trim();
+  const wtId = String(entry?.wtId || "").trim();
+  const url = wtId ? makeProfileUrl(wtId) : "";
+  if (url) {
+    const text = label || wtId;
+    target.append(`<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer noopener">${escapeHtml(text)}</a>`);
+    return;
+  }
+  target.append(document.createTextNode(label || wtId || "unknown"));
+}
+
+function getDuplicateRelationEntries(profile, relation) {
+  if (!profile || typeof profile !== "object") {
+    return [];
+  }
+
+  const isParents = relation === "parents";
+  const directCandidates = isParents
+    ? [profile.parent_refs, profile.parents, profile.Parents, profile.parent_profiles, profile.ParentProfiles]
+    : [profile.spouse_refs, profile.spouses, profile.Spouses, profile.spouse_profiles, profile.SpouseProfiles];
+
+  const entries = [];
+  directCandidates.forEach((candidate) => {
+    normalizeRelationEntries(candidate).forEach((entry) => {
+      entries.push(entry);
+    });
+  });
+
+  if (isParents && entries.length === 0) {
+    const fallbackParents = [
+      normalizeSingleRelation(profile.father || profile.Father || profile.father_wikitree_id || profile.FatherName),
+      normalizeSingleRelation(profile.mother || profile.Mother || profile.mother_wikitree_id || profile.MotherName),
+    ].filter(Boolean);
+    entries.push(...fallbackParents);
+  }
+
+  return dedupeRelationEntries(entries);
+}
+
+function normalizeRelationEntries(value) {
+  if (!value) {
+    return [];
+  }
+  const items = Array.isArray(value) ? value : typeof value === "object" ? Object.values(value) : [value];
+  return items.map((item) => normalizeSingleRelation(item)).filter(Boolean);
+}
+
+function normalizeSingleRelation(item) {
+  if (!item) {
+    return null;
+  }
+
+  if (typeof item === "string") {
+    const trimmed = item.trim();
+    if (!trimmed) {
+      return null;
+    }
+    return {
+      label: trimmed,
+      wtId: extractWtId(trimmed),
+    };
+  }
+
+  if (typeof item !== "object") {
+    const label = String(item).trim();
+    return label
+      ? {
+          label,
+          wtId: extractWtId(label),
+        }
+      : null;
+  }
+
+  const wtId = String(
+    item.wikitree_id || item.WikiTreeID || item.Name || item.name || item.profile_id || item.profileId || ""
+  ).trim();
+  const label = String(
+    item.name ||
+      item.display ||
+      item.label ||
+      item.full_name ||
+      item.fullName ||
+      item.name_display ||
+      item.Name ||
+      wtId ||
+      ""
+  ).trim();
+  const role = String(item.role || item.relation || "").trim();
+  const gender = String(item.gender || item.Gender || "").trim();
+
+  if (!label && !wtId) {
+    return null;
+  }
+
+  return {
+    label: label || wtId,
+    name: item.name || item.Name || label || wtId,
+    wtId: wtId || extractWtId(label),
+    gender,
+    role,
+  };
+}
+
+function getRelationGenderClass(gender, role) {
+  if (role === "father" || gender === "1") {
+    return "wbe-duplicates-relation-male";
+  }
+  if (role === "mother" || gender === "2") {
+    return "wbe-duplicates-relation-female";
+  }
+  return "wbe-duplicates-relation-none";
+}
+
+function relationKey(entry) {
+  const wtId = String(entry?.wtId || "")
+    .trim()
+    .toLowerCase();
+  const label = String(entry?.name || entry?.label || "")
+    .trim()
+    .toLowerCase();
+  return wtId || label || "";
+}
+
+function relationNameKey(entry) {
+  return String(entry?.name || entry?.label || "")
+    .trim()
+    .toLowerCase();
+}
+
+function dedupeRelationEntries(entries) {
+  const seen = new Set();
+  return entries.filter((entry) => {
+    const key = `${String(entry?.wtId || "").toLowerCase()}::${String(entry?.label || "").toLowerCase()}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+function extractWtId(value) {
+  const text = String(value || "");
+  const match = text.match(/([A-Za-z][A-Za-z0-9'._-]*-\d+)/);
+  return match ? match[1] : "";
 }
 
 function getPairProfiles(normalized, pair, preferredOriginalId = "") {
@@ -563,9 +779,37 @@ function buildMatchCell(thisVal, otherVal) {
     return td;
   }
 
-  if (thisVal === otherVal) {
-    td.addClass("wbe-cell-match");
+  const hasHtml = /<[^>]+>/.test(thisVal);
+  const thisCompare = hasHtml ? stripHtml(thisVal) : thisVal;
+  const otherCompare = hasHtml ? stripHtml(otherVal || "") : otherVal;
+
+  if (isDateString(thisCompare) && isDateString(otherCompare)) {
+    const matchParts = getDateMatchPrefixParts(thisCompare, otherCompare);
+    if (matchParts === 3) {
+      td.addClass("wbe-cell-match");
+      td.text(thisVal);
+      return td;
+    }
+    if (matchParts > 0) {
+      appendDatePartialMatch(td, thisVal, matchParts);
+      return td;
+    }
     td.text(thisVal);
+    return td;
+  }
+
+  if (thisCompare === otherCompare) {
+    td.addClass("wbe-cell-match");
+    if (hasHtml) {
+      td.html(thisVal);
+    } else {
+      td.text(thisVal);
+    }
+    return td;
+  }
+
+  if (hasHtml) {
+    td.html(thisVal);
     return td;
   }
 
@@ -593,6 +837,51 @@ function buildMatchCell(thisVal, otherVal) {
 
   td.text(thisVal);
   return td;
+}
+
+function isDateString(value) {
+  return /^\d{4}(-\d{2}){2}$/.test(String(value || ""));
+}
+
+function getDateMatchPrefixParts(thisVal, otherVal) {
+  const thisParts = String(thisVal || "").split("-");
+  const otherParts = String(otherVal || "").split("-");
+  if (thisParts.length !== 3 || otherParts.length !== 3) {
+    return 0;
+  }
+
+  if (thisParts[0] !== otherParts[0]) {
+    return 0;
+  }
+
+  let matchedParts = 1;
+
+  if (thisParts[1] !== "00" && otherParts[1] !== "00" && thisParts[1] === otherParts[1]) {
+    matchedParts += 1;
+  } else {
+    return matchedParts;
+  }
+
+  if (thisParts[2] !== "00" && otherParts[2] !== "00" && thisParts[2] === otherParts[2]) {
+    matchedParts += 1;
+  }
+
+  return matchedParts;
+}
+
+function appendDatePartialMatch(td, value, matchedParts) {
+  const parts = String(value || "").split("-");
+  if (parts.length !== 3 || matchedParts <= 0) {
+    td.text(value);
+    return;
+  }
+
+  const matchedText = parts.slice(0, matchedParts).join("-");
+  const remainingText = parts.slice(matchedParts).join("-");
+  td.append($("<span></span>").addClass("wbe-part-match").text(matchedText));
+  if (remainingText) {
+    td.append(document.createTextNode(`-${remainingText}`));
+  }
 }
 
 function openPairProfiles(pairProfiles) {
