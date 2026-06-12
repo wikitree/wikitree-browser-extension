@@ -8567,9 +8567,7 @@ function resolveAustralianCategoryLocation(location, type, australianLocations) 
   locationParts[locationParts.length - 1] = resolvedLocation;
 
   const note =
-    aliasLocation && !window.autoBioOptions?.checkAustralia
-      ? `Australian location should be ${resolvedLocation}.`
-      : "";
+    aliasLocation && !window.autoBioOptions?.checkAustralia ? `Australian location should be ${resolvedLocation}.` : "";
 
   return { location: locationParts.join(", "), note };
 }
