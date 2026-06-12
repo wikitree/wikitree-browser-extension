@@ -68,6 +68,32 @@ function fixUSLocation(event) {
   return fixUSLocationInStates(event, USstatesObjArray, window.autoBioOptions, window.autoBioNotes);
 }
 
+function captureAutoBioFormState() {
+  const fieldState = {};
+  $("input[id^='m'], select[id^='m'], textarea[id^='m']").each(function () {
+    const field = $(this);
+    const fieldId = field.attr("id");
+    if (!fieldId) {
+      return;
+    }
+    fieldState[fieldId] = field.val();
+  });
+  return fieldState;
+}
+
+function restoreAutoBioFormState(fieldState) {
+  if (!fieldState || typeof fieldState !== "object") {
+    return;
+  }
+
+  Object.entries(fieldState).forEach(([fieldId, fieldValue]) => {
+    const field = $("#" + fieldId);
+    if (field.length) {
+      field.val(fieldValue);
+    }
+  });
+}
+
 function personDates(person) {
   let theDates = formatDates(person);
   if (window.autoBioOptions?.longDates) {
@@ -7177,66 +7203,18 @@ async function fixLocations() {
       let australianLocations;
       if (!window.australianLocations) {
         australianLocations = await import("./australian_locations.json");
+        window.australianLocations = australianLocations.default;
+        australianLocations = window.australianLocations;
       } else {
         australianLocations = window.australianLocations;
       }
-      const locationKeys = Object.keys(australianLocations);
-      let foundLocationMatch = false;
-      let matchedKey = null;
-      let originalMatched = false;
-
-      for (let i = 0; i < locationKeys.length; i++) {
-        let key = locationKeys[i];
-
-        const addedAustralia = lastLocationBit + ", Australia";
-
-        if (event.Location.includes(key)) {
-          matchedKey = key;
-          originalMatched = true;
-        } else if (addedAustralia == key) {
-          matchedKey = key;
-          originalMatched = false;
-        }
-
-        if (matchedKey) {
-          const startDate = australianLocations[key]["startDate"];
-          const endDate = australianLocations[key]["endDate"];
-          const afterStart = isSameDateOrAfter(event.Date, startDate);
-          const beforeEnd = endDate ? !isSameDateOrAfter(event.Date, endDate) : true;
-
-          if (afterStart && beforeEnd) {
-            foundLocationMatch = true;
-            break;
-          } else if (!afterStart && "previousName" in australianLocations[key]) {
-            foundLocationMatch = true;
-            matchedKey = key; // keep the original key
-            break;
-          }
-        }
-      }
-      if (foundLocationMatch) {
-        const startDate = australianLocations[matchedKey]["startDate"];
-        const afterStart = isSameDateOrAfter(event.Date, startDate);
-
-        if (!afterStart && australianLocations[matchedKey]["previousName"]) {
-          // Use previousName if the event date is before the start date of the matched location
-          if (originalMatched) {
-            // cope with "Australian Colonies"
-            const matchedKeyPattern = new RegExp(matchedKey + ".*");
-            event.Location = event?.Location
-              ? event.Location.replace(matchedKeyPattern, australianLocations[matchedKey]["previousName"])
-              : "";
-          } else {
-            event.Location = event?.Location
-              ? event.Location.replace(lastLocationBit, australianLocations[matchedKey]["previousName"])
-              : "";
-          }
-        } else if (!originalMatched && matchedKey && event?.Location) {
-          // If the location match was found with the addedAustralia search and the event date is within the appropriate timeframe, add matchedKey to the location.
-          event.Location = event.Location.replace(lastLocationBit, matchedKey);
-        } else if (!australianLocations[matchedKey]["previousName"]) {
-          console.log("No previousName defined for matchedKey:", matchedKey);
-        }
+      const resolvedAustralianLocation = resolveAustralianCategoryLocation(
+        event.Location,
+        capitalizeFirstLetter(event.Event),
+        australianLocations
+      );
+      if (resolvedAustralianLocation.location) {
+        event.Location = resolvedAustralianLocation.location;
       }
     }
 
@@ -7304,6 +7282,7 @@ async function fixLocations() {
 
 export async function generateBio() {
   window.autoBio_originalBio = getBioText(); // Capture original text before any changes
+  window.autoBio_originalFields = captureAutoBioFormState();
   const module = await import("./us_states.json");
   USstatesObjArray = module.default;
   templatesObject = await getTemplates();
@@ -8524,6 +8503,77 @@ async function appalachiaCategory(location, thisState) {
   addUniqueCategoryToStuffBeforeTheBio(tag);
 }
 
+const AUSTRALIAN_LOCATION_ALIASES = {
+  ACT: "Australian Capital Territory",
+  NSW: "New South Wales, Australia",
+  "New South Wales": "New South Wales, Australia",
+  NT: "Northern Territory of Australia",
+  "Northern Territory": "Northern Territory of Australia",
+  QLD: "Queensland, Australia",
+  Queensland: "Queensland, Australia",
+  SA: "South Australia, Australia",
+  "South Australia": "South Australia, Australia",
+  TAS: "Tasmania, Australia",
+  Tasmania: "Tasmania, Australia",
+  VIC: "Victoria, Australia",
+  Victoria: "Victoria, Australia",
+  WA: "Western Australia, Australia",
+  "Western Australia": "Western Australia, Australia",
+  "Australian Capital Territory": "Australian Capital Territory",
+};
+
+function getAustralianCategoryDate(type) {
+  if (type === "Birth") {
+    return $("#mBirthDate").val() || "";
+  }
+  if (type === "Death" || type === "Cemetery") {
+    return $("#mDeathDate").val() || "";
+  }
+  if (type === "Marriage") {
+    const spouseList = Array.isArray(window.profilePerson?.Spouses)
+      ? window.profilePerson.Spouses.filter(Boolean)
+      : Object.values(window.profilePerson?.Spouses || {}).filter(Boolean);
+    const spouse = spouseList.find((entry) => entry?.marriage_date) || spouseList[0];
+    return spouse?.marriage_date || "";
+  }
+  return "";
+}
+
+function resolveAustralianCategoryLocation(location, type, australianLocations) {
+  if (!location) {
+    return { location, note: "" };
+  }
+
+  const searchLocation = removeCountryName(location);
+  const locationParts = searchLocation.split(/, /);
+  const lastPart = locationParts[locationParts.length - 1];
+  const aliasLocation = AUSTRALIAN_LOCATION_ALIASES[lastPart];
+  const canonicalLocation = australianLocations[lastPart] ? lastPart : aliasLocation;
+
+  if (!canonicalLocation || !australianLocations[canonicalLocation]) {
+    return { location: searchLocation, note: "" };
+  }
+
+  const dateValue = getAustralianCategoryDate(type);
+  const locationRecord = australianLocations[canonicalLocation];
+  let resolvedLocation = canonicalLocation;
+
+  if (dateValue && locationRecord?.startDate && !isSameDateOrAfter(dateValue, locationRecord.startDate)) {
+    resolvedLocation = locationRecord.previousName || canonicalLocation;
+  } else if (locationRecord?.modernName) {
+    resolvedLocation = locationRecord.modernName;
+  }
+
+  locationParts[locationParts.length - 1] = resolvedLocation;
+
+  const note =
+    aliasLocation && !window.autoBioOptions?.checkAustralia
+      ? `Australian location should be ${resolvedLocation}.`
+      : "";
+
+  return { location: locationParts.join(", "), note };
+}
+
 export async function getLocationCategory(type, location = null) {
   if (!USstatesObjArray) {
     const module = await import("./us_states.json");
@@ -8592,7 +8642,6 @@ export async function getLocationCategory(type, location = null) {
     return false;
   }
 
-  const locationSplit = location.split(/, /);
   let searchLocation = removeCountryName(location);
 
   let australianLocations;
@@ -8603,15 +8652,13 @@ export async function getLocationCategory(type, location = null) {
     australianLocations = window.australianLocations;
   }
 
-  const lastElement = locationSplit[locationSplit.length - 1];
-  if (australianLocations[lastElement]) {
-    if (australianLocations[lastElement]?.["modernName"]) {
-      locationSplit.pop();
-      let modernLastElement = australianLocations[lastElement]?.["modernName"];
-      modernLastElement = modernLastElement ? modernLastElement.replace(/, Australia.*/, "") : "";
-      locationSplit.push(modernLastElement);
-      searchLocation = locationSplit.join(", ");
+  const resolvedAustralianLocation = resolveAustralianCategoryLocation(searchLocation, type, australianLocations);
+  searchLocation = resolvedAustralianLocation.location;
+  if (resolvedAustralianLocation.note && !window.autoBioNotes?.includes(resolvedAustralianLocation.note)) {
+    if (!Array.isArray(window.autoBioNotes)) {
+      window.autoBioNotes = [];
     }
+    window.autoBioNotes.push(resolvedAustralianLocation.note);
   }
 
   let searchLocationsSet = new Set(generateCombinations(searchLocation));
@@ -9159,10 +9206,12 @@ function addAutoBioUI() {
         oldBio = oldBio.replace(/<!--[\s\S]*?-->/g, "").trim();
         setBioText(oldBio, "replace");
       }
+      restoreAutoBioFormState(window.autoBio_originalFields);
       removeAutoBioUI();
       // Clear cached variables to reset state
       window.autoBio_cleanDraft = null;
       window.autoBio_commentBlock = null;
+      window.autoBio_originalFields = null;
       // window.autoBio_originalBio = null; // Don't clear this immediately? No, we should clear it to allow fresh start.
       window.autoBio_originalBio = null;
     });
