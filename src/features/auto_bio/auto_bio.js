@@ -7193,7 +7193,6 @@ async function fixLocations() {
 
     let locationBits = event?.Location.split(",");
     locationBits = locationBits.map((str) => str.trim());
-    const lastLocationBit = locationBits[locationBits.length - 1];
 
     if (window.autoBioOptions?.checkUS && isOK(event?.Date)) {
       event = fixUSLocation(event);
@@ -7217,6 +7216,10 @@ async function fixLocations() {
         event.Location = resolvedAustralianLocation.location;
       }
     }
+
+    locationBits = event?.Location.split(",");
+    locationBits = locationBits.map((str) => str.trim());
+    const lastLocationBit = locationBits[locationBits.length - 1];
 
     if (window.autoBioOptions?.checkUK && isOK(event?.Date)) {
       if (["England", "Scotland", "Wales"].includes(lastLocationBit) && isSameDateOrAfter(event.Date, "1801-01-01")) {
@@ -8544,14 +8547,27 @@ function resolveAustralianCategoryLocation(location, type, australianLocations) 
     return { location, note: "" };
   }
 
-  const searchLocation = removeCountryName(location);
+  const originalLocation = location
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(", ");
+  const originalParts = originalLocation.split(/, /);
+  const originalLastPart = originalParts[originalParts.length - 1];
+
+  const searchLocation = removeCountryName(originalLocation);
   const locationParts = searchLocation.split(/, /);
-  const lastPart = locationParts[locationParts.length - 1];
-  const aliasLocation = AUSTRALIAN_LOCATION_ALIASES[lastPart];
-  const canonicalLocation = australianLocations[lastPart] ? lastPart : aliasLocation;
+  const searchLastPart = locationParts[locationParts.length - 1];
+
+  const aliasLocation = AUSTRALIAN_LOCATION_ALIASES[originalLastPart] || AUSTRALIAN_LOCATION_ALIASES[searchLastPart];
+  const canonicalLocation = australianLocations[originalLastPart]
+    ? originalLastPart
+    : australianLocations[searchLastPart]
+      ? searchLastPart
+      : aliasLocation;
 
   if (!canonicalLocation || !australianLocations[canonicalLocation]) {
-    return { location: searchLocation, note: "" };
+    return { location: originalLocation, note: "" };
   }
 
   const dateValue = getAustralianCategoryDate(type);
