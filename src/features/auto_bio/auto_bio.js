@@ -8552,21 +8552,20 @@ function resolveAustralianCategoryLocation(location, type, australianLocations) 
     .map((part) => part.trim())
     .filter(Boolean)
     .join(", ");
-  const originalParts = originalLocation.split(/, /);
-  const originalLastPart = originalParts[originalParts.length - 1];
 
+  // Strip the country name to isolate the state/territory portion for lookup.
+  // We deliberately do NOT check the original last part (e.g. "Australia") as a
+  // canonical key — that would match the country itself and corrupt the location.
   const searchLocation = removeCountryName(originalLocation);
   const locationParts = searchLocation.split(/, /);
-  const searchLastPart = locationParts[locationParts.length - 1];
+  const lastPart = locationParts[locationParts.length - 1];
 
-  const aliasLocation = AUSTRALIAN_LOCATION_ALIASES[originalLastPart] || AUSTRALIAN_LOCATION_ALIASES[searchLastPart];
-  const canonicalLocation = australianLocations[originalLastPart]
-    ? originalLastPart
-    : australianLocations[searchLastPart]
-      ? searchLastPart
-      : aliasLocation;
+  const aliasLocation = AUSTRALIAN_LOCATION_ALIASES[lastPart];
+  const canonicalLocation = australianLocations[lastPart] ? lastPart : aliasLocation;
 
   if (!canonicalLocation || !australianLocations[canonicalLocation]) {
+    // Not an Australian state/territory — return the original location unchanged
+    // so we don't inadvertently strip country names from UK or other places.
     return { location: originalLocation, note: "" };
   }
 
@@ -8578,6 +8577,12 @@ function resolveAustralianCategoryLocation(location, type, australianLocations) 
     resolvedLocation = locationRecord.previousName || canonicalLocation;
   } else if (locationRecord?.modernName) {
     resolvedLocation = locationRecord.modernName;
+  }
+
+  // If the state name hasn't actually changed, return the full original location
+  // unchanged so the country suffix (e.g. ", Australia") is preserved.
+  if (resolvedLocation === lastPart) {
+    return { location: originalLocation, note: "" };
   }
 
   locationParts[locationParts.length - 1] = resolvedLocation;
