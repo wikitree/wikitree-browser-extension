@@ -349,7 +349,7 @@ export class BioCheckPerson {
    * or the privacy does not let us determine location
    */
   hasLocation() {
-    if (this.person.privacyLevel >= BioCheckPerson.MIN_PRIVACY) {
+    if (this.person.privacyLevel < BioCheckPerson.MIN_PRIVACY) {
       return true;
     } else {
       return this.person.hasLocation;
@@ -471,6 +471,7 @@ export class BioCheckPerson {
    * mStatusFather, mStatusMother
    */
   build() {
+    this.person.privacyLevel = this.OPEN_PRIVACY;
     let bDay = document.getElementById("mBirthDate").value;
     let dDay = document.getElementById("mDeathDate").value;
     this.#birthDate = null;

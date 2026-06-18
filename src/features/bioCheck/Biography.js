@@ -1038,7 +1038,6 @@ validateSourcesStr(sourcesStr, thePerson) {
     return this.#style.bioHasMaternalDnaConf;
   }
   /** 
-  /** 
    * Return messages for reporting
    * @returns {Array} sectionMessages[]
    */
@@ -1062,11 +1061,6 @@ validateSourcesStr(sourcesStr, thePerson) {
   getDnaSourceList() {
     return this.#dnaSourceList;
   }
-  /**
-   * Return invalid DNA Source list (for reporting)
-   */
-
-  #dnaInvaldSourceCount = 0;
   /**
    * does bio have search string
    * @returns {Boolean} true if bio has the searchString
@@ -1710,6 +1704,7 @@ validateSourcesStr(sourcesStr, thePerson) {
       this.#messages.styleMessages.push("Mother not marked as Confirmed with DNA");
       this.#bioScore--;
     }
+
   }
 
   /*
@@ -1906,6 +1901,9 @@ validateSourcesStr(sourcesStr, thePerson) {
           this.#bioScore--;
         }
       }  else {
+        // changes in help now no lines before Biography heading
+        this.#unexpectedLines.push(line);
+        /*
         if ((line.startsWith('[[')) && (line.endsWith(']]'))) {
           this.#unexpectedLines.push(line);
         }
@@ -1913,6 +1911,7 @@ validateSourcesStr(sourcesStr, thePerson) {
             (line.includes('collaborative work-in-progress'))) {
           this.#unexpectedLines.push(line);
         }
+        */
       }
     }
   }
