@@ -21,7 +21,7 @@ import { BioCheckPerson } from "./BioCheckPerson.js";
 import { Biography } from "./Biography.js";
 
   // initialization - just once
-  let bioCheckTemplateManager = new BioCheckTemplateManager();
+  let bioCheckTemplateManager = new BioCheckTemplateManager(appId);
   bioCheckTemplateManager.load();
 
   // For each person. Get the bio text and dates to test
@@ -53,8 +53,7 @@ import { Biography } from "./Biography.js";
 *   [BioCheckPerson][1]
 *   [BioCheckTemplateManager][2]
 *   [Biography][3]
-*   [dnaInvaldSourceCount][4]
-*   [SourceRules][5]
+*   [SourceRules][4]
 
 ## BioCheckPerson
 
@@ -77,25 +76,25 @@ When requesting the profile using the WikiTree API, resolveRedirect should be us
 
 #### Parameters
 
-*   `profileObj` **[Object][6]** containing the profile as returned from WikiTree APIs
-*   `mustBeOpen` **[Boolean][7]** true if profile must be open privacy
-*   `mustBeOrphan` **[Boolean][7]** true if profile must not have a manager
-*   `ignorePre1500` **[Boolean][7]** true to ignore Pre1500 profiles
-*   `userId` **[String][8]** ID number of the person running the app (not the WikiTree-Id)
+*   `profileObj` **[Object][5]** containing the profile as returned from WikiTree APIs
+*   `mustBeOpen` **[Boolean][6]** true if profile must be open privacy
+*   `mustBeOrphan` **[Boolean][6]** true if profile must not have a manager
+*   `ignorePre1500` **[Boolean][6]** true to ignore Pre1500 profiles
+*   `userId` **[String][7]** ID number of the person running the app (not the WikiTree-Id)
 
-Returns **[Boolean][7]** true if this person can be checked else false
+Returns **[Boolean][6]** true if this person can be checked else false
 
 ### hasBio
 
 Does this person have a bio
 
-Returns **[Boolean][7]** true if person has bio
+Returns **[Boolean][6]** true if person has bio
 
 ### getBio
 
 Get bio string for this person
 
-Returns **[String][8]** bio string
+Returns **[String][7]** bio string
 
 ### clearBio
 
@@ -106,98 +105,98 @@ to allow for garbage collection
 
 Get wikiTreeId for the person
 
-Returns **[String][8]** wikiTreeId (e.g., Doe-100)
+Returns **[String][7]** wikiTreeId (e.g., Doe-100)
 
 ### getProfileId
 
 Get profileId for the person
 
-Returns **[String][8]** profileId (e.g., 12345678)
+Returns **[String][7]** profileId (e.g., 12345678)
 
 ### getReportName
 
 Get name to report
 
-Returns **[String][8]** string with first and last name
+Returns **[String][7]** string with first and last name
 
 ### getManagerId
 
 Get manager Id for the person
 
-Returns **[String][8]** manager Id
+Returns **[String][7]** manager Id
 
 ### isMember
 
 Is profile for a member
 
-Returns **[Boolean][7]** true if profile for a member
+Returns **[Boolean][6]** true if profile for a member
 
 ### isOrphan
 
 Is profile an orphan
 
-Returns **[Boolean][7]** true if profile is an orphan
+Returns **[Boolean][6]** true if profile is an orphan
 
 ### getManagers
 
 Get managers for this profile as a String
 
-Returns **[String][8]** list of managers
+Returns **[String][7]** list of managers
 
 ### hasLocation
 
 Does profile have either birth or death location
 
-Returns **[Boolean][7]** true if either location present
+Returns **[Boolean][6]** true if either location present
 or the privacy does not let us determine location
 
 ### hasBirthLocation
 
 Does profile have birth location
 
-Returns **[Boolean][7]** true if birth location
+Returns **[Boolean][6]** true if birth location
 
 ### hasDeathLocation
 
 Does profile have death location
 
-Returns **[Boolean][7]** true if death location
+Returns **[Boolean][6]** true if death location
 
 ### getPrivacy
 
 Get the privacy
 
-Returns **[Number][9]** numeric privacy level
+Returns **[Number][8]** numeric privacy level
 
 ### getPrivacyString
 
 Get the privacy as a string to be displayed to the user
 
-Returns **[String][8]** privacy string (i.e., the color)
+Returns **[String][7]** privacy string (i.e., the color)
 
 ### getResearchStatus
 
 Get the research status
 
-Returns **[Number][9]** numeric research status
+Returns **[Number][8]** numeric research status
 
 ### getResearchStatusString
 
 Get the research status as a string to be displayed to the user
 
-Returns **[String][8]** research status string
+Returns **[String][7]** research status string
 
 ### isUncheckedDueToPrivacy
 
 Was profile not checked due to privacy
 
-Returns **[Boolean][7]** true if profile could not be checked due to privacy
+Returns **[Boolean][6]** true if profile could not be checked due to privacy
 
 ### isUncheckedDueToDate
 
 Was profile not checked due to date
 
-Returns **[Boolean][7]** true if profile could not be checked due to date
+Returns **[Boolean][6]** true if profile could not be checked due to date
 
 ### build
 
@@ -210,19 +209,19 @@ mStatusFather, mStatusMother
 
 Is the person before 1500
 
-Returns **[Boolean][7]** true if either birth or death date before 1500
+Returns **[Boolean][6]** true if either birth or death date before 1500
 
 ### isPre1700
 
 Is the person before 1700
 
-Returns **[Boolean][7]** true if either birth or death date before 1700
+Returns **[Boolean][6]** true if either birth or death date before 1700
 
 ### isTooOldToRemember
 
 Is the person born > 150 years ago or died > 100 years ago
 
-Returns **[Boolean][7]** true if born > 150 years ago or died > 100 years ago
+Returns **[Boolean][6]** true if born > 150 years ago or died > 100 years ago
 
 ### hasBirthDate
 
@@ -237,19 +236,19 @@ Does the profile have a death date
 Does the profile lack dates
 Only looks at open and private profiles
 
-Returns **[Boolean][7]** true if profile has neither birth nor death date
+Returns **[Boolean][6]** true if profile has neither birth nor death date
 
 ### getBirthDate
 
 Get birth date
 
-Returns **[Date][10]** birth date
+Returns **[Date][9]** birth date
 
 ### getDeathDate
 
 Get death date
 
-Returns **[Date][10]** death date
+Returns **[Date][9]** death date
 
 ### getReportDate
 
@@ -258,9 +257,9 @@ Convert date to a display format
 #### Parameters
 
 *   `isBirth` &#x20;
-*   `true` **[Boolean][7]** to get birth date, else death date
+*   `true` **[Boolean][6]** to get birth date, else death date
 
-Returns **[String][8]** string in the form yyyy mon dd
+Returns **[String][7]** string in the form yyyy mon dd
 
 ## BioCheckTemplateManager
 
@@ -277,11 +276,23 @@ This can take some time. You can instead use loadPrep to get
 a promise and then await loadTemplates using that promise if
 there is other initialization to be performed.
 
+#### Parameters
+
+*   `appId`  appId to use for WT+ request
+
+<!---->
+
 *   Throws **any** error getting response
 
 ### loadPrep
 
 Send request to load templates from WT+
+
+#### Parameters
+
+*   `appId`  appId to use for WT+ request
+
+<!---->
 
 *   Throws **any** error getting response
 
@@ -321,17 +332,17 @@ Information about the biography style can be accessed via get methods.
 
 #### Parameters
 
-*   `inStr` **[String][8]** the bio string. This contains the bio as returned
+*   `inStr` **[String][7]** the bio string. This contains the bio as returned
     by the WikiTree API in Wiki format for the profile. Alternately, it can
     be contents obtained from the Edit or Add person pages.
 *   `thePerson` **[BioCheckPerson][1]** person to check
-*   `bioSearchString` **[String][8]** search string to search for in bio
+*   `bioSearchString` **[String][7]** search string to search for in bio
 
 ### validate
 
 Validate contents of bio
 
-Returns **[Boolean][7]** true if profile looks good, else false.
+Returns **[Boolean][6]** true if profile looks good, else false.
 Returns false a profile that appears unsourced (is ?), a profile with an empty bio, a profile with no dates,
 or a profile that has an Unsourced Research Notes Box or is in an Unsourced category.
 
@@ -349,7 +360,7 @@ the start of the next heading or end of the biography.
 The \n character terminates a line, which are returned in an array.
 Blank lines are included.
 
-Returns **[Array][11]** of bio string lines
+Returns **[Array][10]** of bio string lines
 
 ### validateSourcesStr
 
@@ -358,10 +369,10 @@ used when adding a new person in basic mode.
 
 #### Parameters
 
-*   `sourcesStr` **[String][8]** string containing sources
+*   `sourcesStr` **[String][7]** string containing sources
 *   `thePerson`  {BioCheckPerson} person to check
 
-Returns **[Boolean][7]** true if sources found.
+Returns **[Boolean][6]** true if sources found.
 
 ### hasProblems
 
@@ -369,176 +380,175 @@ Does biography have problems.
 problems include: no valid sources, no sources, empty,
 marked unsourced, undated, has style issues
 
-Returns **[Boolean][7]** true if bio has problems
+Returns **[Boolean][6]** true if bio has problems
 
 ### isEmpty
 
 is bio empty
 
-Returns **[Boolean][7]** true if bio empty
+Returns **[Boolean][6]** true if bio empty
 
 ### hasCategories
 
 does bio have categories
 
-Returns **[Boolean][7]** true if bio has categories
+Returns **[Boolean][6]** true if bio has categories
 
 ### isMarkedUnsourced
 
 does bio have Unsourced template or category
 
-Returns **[Boolean][7]** true if bio has Unsourced template or category
+Returns **[Boolean][6]** true if bio has Unsourced template or category
 
 ### isUndated
 
 is bio undated
 
-Returns **[Boolean][7]** true if bio has neither birth nor death date
+Returns **[Boolean][6]** true if bio has neither birth nor death date
 
 ### getTotalBioLines
 
 get total number of lines in bio
 
-Returns **[Number][9]** total number of bio lines
+Returns **[Number][8]** total number of bio lines
 
 ### getInlineRefCount
 
 get number of inline ref
 
-Returns **[Number][9]** number of inline ref
+Returns **[Number][8]** number of inline ref
 
 ### getPossibleSourcesLineCount
 
 get number of lines that might contain sources
 
-Returns **[Number][9]** number of lines that might contain sources
+Returns **[Number][8]** number of lines that might contain sources
 
 ### hasNonCategoryTextBeforeBiographyHeading
 
 does bio have non category text before biography heading
 
-Returns **[Boolean][7]** true if bio has non category text before bio heading
+Returns **[Boolean][6]** true if bio has non category text before bio heading
 
 ### hasStyleIssues
 
 does bio have style issues
 
-Returns **[Boolean][7]** true if bio has style issues
+Returns **[Boolean][6]** true if bio has style issues
 
 ### hasEndlessComment
 
 does bio have endless comment
 
-Returns **[Boolean][7]** true if bio has endless comment
+Returns **[Boolean][6]** true if bio has endless comment
 
 ### isMissingBiographyHeading
 
 is bio missing biography heading
 
-Returns **[Boolean][7]** true if bio is missing biography heading
+Returns **[Boolean][6]** true if bio is missing biography heading
 
 ### hasHeadingWithNoLinesFollowing
 
 does bio have biography heading with no lines following
 
-Returns **[Boolean][7]** true if bio has biography heading with no lines following
+Returns **[Boolean][6]** true if bio has biography heading with no lines following
 
 ### hasMultipleBioHeadings
 
 does bio have multiple biography headings
 
-Returns **[Boolean][7]** true if bio has multiple biography headings
+Returns **[Boolean][6]** true if bio has multiple biography headings
 
 ### hasRefWithoutEnd
 
 does bio have ref with ending ref
 
-Returns **[Boolean][7]** true if bio haref with ending refs
+Returns **[Boolean][6]** true if bio haref with ending refs
 
 ### hasSpanWithoutEndingSpan
 
 does bio have span without ending span
 
-Returns **[Boolean][7]** true if bio has span without ending span
+Returns **[Boolean][6]** true if bio has span without ending span
 
 ### isMissingSourcesHeading
 
 is bio missing sources heading
 
-Returns **[Boolean][7]** true if bio is missing sources heading
+Returns **[Boolean][6]** true if bio is missing sources heading
 
 ### hasMultipleSourceHeadings
 
 does bio have multiple sources headings
 
-Returns **[Boolean][7]** true if bio has multiple sources headings
+Returns **[Boolean][6]** true if bio has multiple sources headings
 
 ### getMisplacedLineCount
 
 how many lines are between Sources and references
 
-Returns **[Number][9]** number of lines between sources and references
+Returns **[Number][8]** number of lines between sources and references
 
 ### isMissingReferencesTag
 
 is bio missing the references tag
 
-Returns **[Boolean][7]** true if is missing the references tag
+Returns **[Boolean][6]** true if is missing the references tag
 
 ### hasMultipleReferencesTags
 
 does bio have multiple references tags
 
-Returns **[Boolean][7]** true if bio has multiple references tags
+Returns **[Boolean][6]** true if bio has multiple references tags
 
 ### hasRefAfterReferences
 
 does bio have ref after references
 
-Returns **[Boolean][7]** true if bio has ref after references
+Returns **[Boolean][6]** true if bio has ref after references
 
 ### hasAcknowledgementsBeforeSources
 
 does bio have acknowledgements before sources
 
-Returns **[Boolean][7]** true if bio has acknowledgements before sources
+Returns **[Boolean][6]** true if bio has acknowledgements before sources
 
 ### hasSectionAfterAdvanceDirective
 
 does bio have section after advance directive
 
-Returns **[Boolean][7]** true if bio has section heading after advance directive
+Returns **[Boolean][6]** true if bio has section heading after advance directive
 
 ### hasUnknownSection
 
 does bio have unknown section headings
 
-Returns **[Boolean][7]** true if bio has unknown section headings
+Returns **[Boolean][6]** true if bio has unknown section headings
 
 ### hasPaternalDnaConf
 
 does bio have paternal Dna confirmation
 
-Returns **[Boolean][7]** true if bio has paternal Dna confirmation
+Returns **[Boolean][6]** true if bio has paternal Dna confirmation
 
 ### hasMaternalDnaConf
 
 does bio have maternal Dna confirmation
 
-Returns **[Boolean][7]** true if bio has maternal Dna confirmation
+Returns **[Boolean][6]** true if bio has maternal Dna confirmation
 
 ### getSectionMessages
 
-/\*\*
 Return messages for reporting
 
-Returns **[Array][11]** sectionMessages\[]
+Returns **[Array][10]** sectionMessages\[]
 
 ### getStyleMessages
 
 Return messages for reporting
 
-Returns **[Array][11]** styleMessages\[]
+Returns **[Array][10]** styleMessages\[]
 
 ### getDnaSourceList
 
@@ -552,37 +562,33 @@ dnaSourceText: "",
 
 does bio have search string
 
-Returns **[Boolean][7]** true if bio has the searchString
+Returns **[Boolean][6]** true if bio has the searchString
 that was supplied to the parse() method
 
 ### hasSources
 
 does bio appear to have sources
 
-Returns **[Boolean][7]** true if bio appears to have sources
+Returns **[Boolean][6]** true if bio appears to have sources
 
 ### getInvalidSources
 
 get invalid sources found for profile
 
-Returns **[Array][11]** array of String of invalid source lines
+Returns **[Array][10]** array of String of invalid source lines
 
 ### getInvalidDnaSources
 
 get invalid DNA sources found for profile
 
-Returns **[Array][11]** array of String of invalid source lines
+Returns **[Array][10]** array of String of invalid source lines
 for reporting
 
 ### getValidSources
 
 get valid sources found for profile
 
-Returns **[Array][11]** array of String of valid source lines
-
-## dnaInvaldSourceCount
-
-Return invalid DNA Source list (for reporting)
+Returns **[Array][10]** array of String of valid source lines
 
 ## SourceRules
 
@@ -600,9 +606,9 @@ Determine if a line is a valid biography heading
 
 #### Parameters
 
-*   `line` **[String][8]** to test
+*   `line` **[String][7]** to test
 
-Returns **[Boolean][7]** true if bio heading else false
+Returns **[Boolean][6]** true if bio heading else false
 
 ### isResearchNotesHeading
 
@@ -610,9 +616,9 @@ Determine if a line is a valid research notes heading
 
 #### Parameters
 
-*   `line` **[String][8]** to test
+*   `line` **[String][7]** to test
 
-Returns **[Boolean][7]** true if research notes heading else false
+Returns **[Boolean][6]** true if research notes heading else false
 
 ### isSourcesHeading
 
@@ -620,9 +626,9 @@ Determine if a line is a valid sources heading
 
 #### Parameters
 
-*   `line` **[String][8]** to test
+*   `line` **[String][7]** to test
 
-Returns **[Boolean][7]** true if sources heading else false
+Returns **[Boolean][6]** true if sources heading else false
 
 ### isAckHeading
 
@@ -630,9 +636,9 @@ Determine if a line is a valid acknowledgements heading
 
 #### Parameters
 
-*   `line` **[String][8]** to test
+*   `line` **[String][7]** to test
 
-Returns **[Boolean][7]** true if acknowledgements heading else false
+Returns **[Boolean][6]** true if acknowledgements heading else false
 
 ### isAdvanceDirective
 
@@ -640,9 +646,9 @@ Determine if a line is a valid advance directive heading
 
 #### Parameters
 
-*   `line` **[String][8]** to test
+*   `line` **[String][7]** to test
 
-Returns **[Boolean][7]** true if advance directive heading else false
+Returns **[Boolean][6]** true if advance directive heading else false
 
 ### hasDnaTestCompany
 
@@ -650,9 +656,9 @@ Determine if a line contains a DNA testing company
 
 #### Parameters
 
-*   `line` **[String][8]** to test
+*   `line` **[String][7]** to test
 
-Returns **[Boolean][7]** true if a DNA testing company
+Returns **[Boolean][6]** true if a DNA testing company
 
 ### hasCommonDnaTestCompany
 
@@ -660,9 +666,9 @@ Determine if a line has a common DNA testing company
 
 #### Parameters
 
-*   `line` **[String][8]** to test
+*   `line` **[String][7]** to test
 
-Returns **[Boolean][7]** true if a common DNA testing company
+Returns **[Boolean][6]** true if a common DNA testing company
 
 ### isDnaSourceIdentifier
 
@@ -670,9 +676,9 @@ Determine if a line is something specifying DNA source
 
 #### Parameters
 
-*   `line` **[String][8]** to test
+*   `line` **[String][7]** to test
 
-Returns **[Boolean][7]** true if something specifying a DNA source
+Returns **[Boolean][6]** true if something specifying a DNA source
 
 ### isResearchNoteBox
 
@@ -681,9 +687,9 @@ assumes the leading {{ removed and line is lower case
 
 #### Parameters
 
-*   `line` **[String][8]** to test
+*   `line` **[String][7]** to test
 
-Returns **[Boolean][7]** true if research notes box else false
+Returns **[Boolean][6]** true if research notes box else false
 
 ### getResearchNoteBoxStatus
 
@@ -692,9 +698,9 @@ assumes the leading {{ removed and line is lower case
 
 #### Parameters
 
-*   `line` **[String][8]** to test
+*   `line` **[String][7]** to test
 
-Returns **[String][8]** status value or blank if not a research notes box
+Returns **[String][7]** status value or blank if not a research notes box
 
 ### getNavBoxStatus
 
@@ -703,9 +709,9 @@ assumes the leading {{ removed and line is lower case
 
 #### Parameters
 
-*   `line` **[String][8]** to test
+*   `line` **[String][7]** to test
 
-Returns **[String][8]** status value or blank if not a nav box
+Returns **[String][7]** status value or blank if not a nav box
 
 ### getProjectBoxStatus
 
@@ -714,9 +720,9 @@ assumes the leading {{ removed and line is lower case
 
 #### Parameters
 
-*   `line` **[String][8]** to test
+*   `line` **[String][7]** to test
 
-Returns **[String][8]** status value or blank if not a Project box
+Returns **[String][7]** status value or blank if not a Project box
 
 ### getStickerStatus
 
@@ -725,9 +731,9 @@ assumes the leading {{ removed and line is lower case
 
 #### Parameters
 
-*   `line` **[String][8]** to test
+*   `line` **[String][7]** to test
 
-Returns **[String][8]** status value or blank if not a Project box
+Returns **[String][7]** status value or blank if not a Project box
 
 ### isProjectBox
 
@@ -736,9 +742,9 @@ assumes the leading {{ removed and line is lower case
 
 #### Parameters
 
-*   `line` **[String][8]** to test
+*   `line` **[String][7]** to test
 
-Returns **[Boolean][7]** true if research notes box else false
+Returns **[Boolean][6]** true if research notes box else false
 
 ### isNavBox
 
@@ -747,9 +753,9 @@ assumes the leading {{ removed and line is lower case
 
 #### Parameters
 
-*   `line` **[String][8]** to test
+*   `line` **[String][7]** to test
 
-Returns **[Boolean][7]** true if nav box else false
+Returns **[Boolean][6]** true if nav box else false
 
 ### isNotabilityTemplate
 
@@ -759,9 +765,9 @@ assumes the leading {{ removed and line is lower case
 
 #### Parameters
 
-*   `line` **[String][8]** to test
+*   `line` **[String][7]** to test
 
-Returns **[Boolean][7]** true if notability else false
+Returns **[Boolean][6]** true if notability else false
 
 ### isSticker
 
@@ -770,9 +776,9 @@ assumes the leading {{ removed and line is lower case
 
 #### Parameters
 
-*   `line` **[String][8]** to test
+*   `line` **[String][7]** to test
 
-Returns **[Boolean][7]** true if sticker else false
+Returns **[Boolean][6]** true if sticker else false
 
 ### isRecommendedTag
 
@@ -782,9 +788,9 @@ Typically used for a line that starts with <
 
 #### Parameters
 
-*   `line` **[String][8]** to test
+*   `line` **[String][7]** to test
 
-Returns **[Boolean][7]** true if recommended else false
+Returns **[Boolean][6]** true if recommended else false
 
 ### isCensus
 
@@ -792,9 +798,9 @@ Determine if a line is a census line
 
 #### Parameters
 
-*   `line` **[String][8]** to test
+*   `line` **[String][7]** to test
 
-Returns **[Boolean][7]** true if census line else false
+Returns **[Boolean][6]** true if census line else false
 
 ### hasCensusString
 
@@ -802,7 +808,7 @@ Determine if a line contains a census string
 
 #### Parameters
 
-*   `line` **[String][8]** the line
+*   `line` **[String][7]** the line
 
 Returns **any** census string if line contains census string
 
@@ -812,9 +818,9 @@ Determine if line by itself is an invalid source
 
 #### Parameters
 
-*   `line` **[String][8]** input source string
+*   `line` **[String][7]** input source string
 
-Returns **[Boolean][7]** true if invalid source else false
+Returns **[Boolean][6]** true if invalid source else false
 
 ### removeInvalidSourcePart
 
@@ -822,9 +828,9 @@ Remove a string that by itself on a line is not a valid source
 
 #### Parameters
 
-*   `line` **[String][8]** the line to check
+*   `line` **[String][7]** the line to check
 
-Returns **[String][8]** line with any invalid sources removed
+Returns **[String][7]** line with any invalid sources removed
 
 ### removeInvalidSourcePartTooOld
 
@@ -833,9 +839,9 @@ for too old to remember
 
 #### Parameters
 
-*   `line` **[String][8]** the line to check
+*   `line` **[String][7]** the line to check
 
-Returns **[String][8]** line with any invalid sources removed
+Returns **[String][7]** line with any invalid sources removed
 
 ### removeInvalidSourcePartPre1700
 
@@ -843,9 +849,9 @@ Remove a string that by itself on a line is not a valid source Pre1700
 
 #### Parameters
 
-*   `line` **[String][8]** the line to check
+*   `line` **[String][7]** the line to check
 
-Returns **[String][8]** line with any invalid sources removed
+Returns **[String][7]** line with any invalid sources removed
 
 ### isInvalidPartialSource
 
@@ -853,9 +859,9 @@ Determine if line is an invalid source when found anywhere on a line
 
 #### Parameters
 
-*   `line` **[String][8]** input source string
+*   `line` **[String][7]** input source string
 
-Returns **[Boolean][7]** true if found on invalid partial source list, else false
+Returns **[Boolean][6]** true if found on invalid partial source list, else false
 
 ### isInvalidPartialSourceTooOld
 
@@ -864,9 +870,9 @@ when the person is too old to remember
 
 #### Parameters
 
-*   `line` **[String][8]** input source string
+*   `line` **[String][7]** input source string
 
-Returns **[Boolean][7]** true if found on too old partial source list, else false
+Returns **[Boolean][6]** true if found on too old partial source list, else false
 
 ### isInvalidPartialSourcePre1700
 
@@ -875,9 +881,9 @@ and the person is Pre1700
 
 #### Parameters
 
-*   `line` **[String][8]** input source string
+*   `line` **[String][7]** input source string
 
-Returns **[Boolean][7]** true if found on pre1700 partial source list, else false
+Returns **[Boolean][6]** true if found on pre1700 partial source list, else false
 
 ### isValidPartialSourcePre1700
 
@@ -886,9 +892,9 @@ and the person is Pre1700
 
 #### Parameters
 
-*   `line` **[String][8]** input source string
+*   `line` **[String][7]** input source string
 
-Returns **[Boolean][7]** true if found on pre1700 valid partial source list, else false
+Returns **[Boolean][6]** true if found on pre1700 valid partial source list, else false
 
 ### isInvalidStartPartialSource
 
@@ -896,9 +902,9 @@ Determine if line starts with something on the invalid partial source list
 
 #### Parameters
 
-*   `line` **[String][8]** input source string
+*   `line` **[String][7]** input source string
 
-Returns **[Boolean][7]** true if starts with invalid source, else false
+Returns **[Boolean][6]** true if starts with invalid source, else false
 
 ### isInvalidSourceTooOld
 
@@ -907,9 +913,9 @@ remember
 
 #### Parameters
 
-*   `line` **[String][8]** input source string
+*   `line` **[String][7]** input source string
 
-Returns **[Boolean][7]** true if invalid source else false
+Returns **[Boolean][6]** true if invalid source else false
 
 ### isInvalidSourcePre1700
 
@@ -917,9 +923,9 @@ Determine if line by itself is an invalid source for Pre1700
 
 #### Parameters
 
-*   `line` **[String][8]** input source string
+*   `line` **[String][7]** input source string
 
-Returns **[Boolean][7]** true if invalid source else false
+Returns **[Boolean][6]** true if invalid source else false
 
 [1]: #biocheckperson
 
@@ -927,18 +933,16 @@ Returns **[Boolean][7]** true if invalid source else false
 
 [3]: #biography
 
-[4]: #dnainvaldsourcecount
+[4]: #sourcerules
 
-[5]: #sourcerules
+[5]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object
 
-[6]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object
+[6]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Boolean
 
-[7]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Boolean
+[7]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
 
-[8]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
+[8]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Number
 
-[9]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Number
+[9]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Date
 
-[10]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Date
-
-[11]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Array
+[10]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Array
