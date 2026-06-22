@@ -1240,6 +1240,7 @@ async function backupData(compactMode, sendResponse) {
   data.changeSummaryOptions_Category = localStorage.LSchangeSummaryOptions_Category;
   data.myMenu = localStorage.customMenu;
   data.extraWatchlist = localStorage.extraWatchlist;
+  data.extraWatchlistNotes = localStorage.extraWatchlistNotes;
   data.textExpander = localStorage.wbe_text_expander_custom; // Add text expander data
 
   const databases = compactMode ? WBE_DATABASES_MINIMAL : WBE_DATABASES_ALL;
@@ -1340,6 +1341,13 @@ async function restoreData(data, sendResponse) {
   }
   if (data.extraWatchlist) {
     localStorage.setItem("extraWatchlist", data.extraWatchlist);
+  }
+  if (Object.prototype.hasOwnProperty.call(data, "extraWatchlistNotes")) {
+    if (data.extraWatchlistNotes) {
+      localStorage.setItem("extraWatchlistNotes", data.extraWatchlistNotes);
+    } else {
+      localStorage.removeItem("extraWatchlistNotes");
+    }
   }
   if (data.textExpander) {
     // Add text expander restore

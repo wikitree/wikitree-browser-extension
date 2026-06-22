@@ -21,6 +21,7 @@ const browserAPI = typeof browser !== "undefined" ? browser : chrome;
 const DATA_VERSION = "extraWatchlistVersion";
 const WATCHLIST_IDS = "extraWatchlist";
 const WATCHLIST_DATA = "extraWatchlistData";
+const WATCHLIST_NOTES = "extraWatchlistNotes";
 
 let ewData = [];
 let loadedEwDataVersion = 0;
@@ -30,6 +31,134 @@ let spaceTable;
 let isLoading = false;
 
 const DEBUG_LOGGING = false;
+
+function getWatchlistNotes() {
+  try {
+    const raw = localStorage.getItem(WATCHLIST_NOTES);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (e) {
+    console.warn("Failed to parse extra watchlist notes", e);
+    return {};
+  }
+}
+
+function saveWatchlistNotes(notes) {
+  localStorage.setItem(WATCHLIST_NOTES, JSON.stringify(notes));
+}
+
+function getNoteForId(wtId) {
+  const notes = getWatchlistNotes();
+  return typeof notes[wtId] === "string" ? notes[wtId] : "";
+}
+
+function setNoteForId(wtId, noteText) {
+  const notes = getWatchlistNotes();
+  const clean = (noteText || "").trim();
+  if (clean) {
+    notes[wtId] = clean;
+  } else {
+    delete notes[wtId];
+  }
+  saveWatchlistNotes(notes);
+}
+
+function removeNoteForId(wtId) {
+  const notes = getWatchlistNotes();
+  if (Object.prototype.hasOwnProperty.call(notes, wtId)) {
+    delete notes[wtId];
+    saveWatchlistNotes(notes);
+  }
+}
+
+function pruneNotesToCurrentIds(ids) {
+  const notes = getWatchlistNotes();
+  const valid = new Set(ids || []);
+  let changed = false;
+  Object.keys(notes).forEach((wtId) => {
+    if (!valid.has(wtId)) {
+      delete notes[wtId];
+      changed = true;
+    }
+  });
+  if (changed) {
+    saveWatchlistNotes(notes);
+  }
+}
+
+function profileNameCellHtml(row) {
+  const note = getNoteForId(row.wtId);
+  const marker = note ? "<span class='ew-note-marker ew-note-marker-right' title='Has note'>🗒</span>" : "";
+  return `<span class='ew-name-wrap'><a href="https://${mainDomain}/wiki/${htmlEntities(row.wtId)}">${row.lName}</a>${marker}</span>`;
+}
+
+function removeWatchlistNotePopup() {
+  $("#extraWatchlistNotePopup").remove();
+}
+
+function positionWatchlistNotePopup($popup, anchorEl) {
+  if (anchorEl && anchorEl.getBoundingClientRect) {
+    const rect = anchorEl.getBoundingClientRect();
+    const top = Math.min(window.innerHeight - 280, Math.max(10, rect.top + 10));
+    const left = Math.min(window.innerWidth - 360, Math.max(10, rect.left + 20));
+    $popup.css({ top, left });
+  } else {
+    $popup.css({ top: 120, left: 120 });
+  }
+}
+
+function showNoteViewer(wtId, displayName, anchorEl) {
+  const note = getNoteForId(wtId);
+  if (!note) return;
+  removeWatchlistNotePopup();
+  const safeName = htmlEntities(displayName || decodeURIComponent(wtId));
+  const safeNote = htmlEntities(note).replace(/\n/g, "<br>");
+  const $popup = $(
+    `<div id='extraWatchlistNotePopup' class='ui-widget-content ew-note-popup wbe-popup'>
+      <div class='ew-note-popup-header'>${safeName}</div>
+      <div class='ew-note-popup-body'>${safeNote}</div>
+      <div class='ew-note-popup-actions'>
+        <button type='button' class='small ew-note-edit'>Edit</button>
+        <button type='button' class='small ew-note-close'>Close</button>
+      </div>
+    </div>`
+  );
+  $popup.appendTo("body").css({ position: "fixed" });
+  positionWatchlistNotePopup($popup, anchorEl);
+  setHighestZIndex($popup);
+
+  $popup.find(".ew-note-close").on("click", () => removeWatchlistNotePopup());
+  $popup.find(".ew-note-edit").on("click", () => showNoteEditor(wtId, displayName, anchorEl));
+}
+
+function showNoteEditor(wtId, displayName, anchorEl) {
+  removeWatchlistNotePopup();
+  const note = getNoteForId(wtId);
+  const safeName = htmlEntities(displayName || decodeURIComponent(wtId));
+  const $popup = $(
+    `<div id='extraWatchlistNotePopup' class='ui-widget-content ew-note-popup wbe-popup'>
+      <div class='ew-note-popup-header'>Note for ${safeName}</div>
+      <textarea class='ew-note-text' rows='6' maxlength='5000' placeholder='Add a note for this profile...'></textarea>
+      <div class='ew-note-popup-actions'>
+        <button type='button' class='small ew-note-save'>Save</button>
+        <button type='button' class='small ew-note-cancel'>Cancel</button>
+      </div>
+    </div>`
+  );
+  $popup.appendTo("body").css({ position: "fixed" });
+  positionWatchlistNotePopup($popup, anchorEl);
+  setHighestZIndex($popup);
+  $popup.find(".ew-note-text").val(note).trigger("focus");
+
+  $popup.find(".ew-note-save").on("click", () => {
+    const newText = $popup.find(".ew-note-text").val();
+    setNoteForId(wtId, newText);
+    redrawPeopleTable();
+    removeWatchlistNotePopup();
+  });
+  $popup.find(".ew-note-cancel").on("click", () => removeWatchlistNotePopup());
+}
 // ====================================================================
 // INITIALIZATION
 // ====================================================================
@@ -126,6 +255,7 @@ function saveWatchList(ids) {
     console.log(`Saving new ewData: v:${loadedEwDataVersion}, count=${idArray.length} size=${jsonData.length}`);
   localStorage.setItem(WATCHLIST_IDS, idString);
   localStorage.setItem(WATCHLIST_DATA, jsonData);
+  pruneNotesToCurrentIds(idArray);
   localStorage.setItem(DATA_VERSION, loadedEwDataVersion);
   browserAPI.storage.local.set({ [DATA_VERSION]: loadedEwDataVersion });
 }
@@ -400,6 +530,7 @@ const extraWatchlist = async () => {
       // The profile is already on the watchlist, remove it.
       list = list.filter((id) => id !== currentID);
       ewData = ewData.filter((d) => d.wtId != currentID);
+      removeNoteForId(currentID);
       if ($("#extraWatchlistWindow").is(":visible")) {
         const htmlIds = htmlEntities(currentID);
         let row = peopleTable.row($(`#touchedListPersons tbody tr[data-id="${htmlIds}"]`));
@@ -537,12 +668,12 @@ const createWatchlistPopup = async (mouseY) => {
       break;
 
     case "Name":
-      personSortOrder = [1, "asc"];
+      personSortOrder = [2, "asc"];
       spaceSortOrder = [0, "asc"];
       break;
 
     case "Changed":
-      personSortOrder = [4, "desc"];
+      personSortOrder = [5, "desc"];
       spaceSortOrder = [1, "desc"];
       break;
 
@@ -555,15 +686,29 @@ const createWatchlistPopup = async (mouseY) => {
     columns: [
       { title: "ID", data: "wtId", render: (data, type, row) => decodeURIComponent(data), width: "20%" },
       {
+        title: "",
+        data: "wtId",
+        searchable: false,
+        orderable: false,
+        render: (data, type, row) => {
+          if (type === "display") {
+            return `<span class='ew-note-edit-trigger' title='Edit note' data-id="${htmlEntities(data)}">📝</span>`;
+          }
+          return getNoteForId(data) ? 1 : 0;
+        },
+        width: "3%",
+        className: "dt-center ew-note-col",
+      },
+      {
         title: "Name",
         data: "lName",
         render: (data, type, row) => {
           if (type === "display") {
-            return `<a href="https://${mainDomain}/wiki/${htmlEntities(row.wtId)}">${data}</a>`;
+            return profileNameCellHtml(row);
           }
           return data;
         },
-        width: "50%",
+        width: "47%",
       },
       { title: "Birth", data: "bYear", width: "5%" },
       { title: "Death", data: "dYear", width: "5%" },
@@ -612,25 +757,6 @@ const createWatchlistPopup = async (mouseY) => {
     createdRow: function (row, data, dataIndex) {
       const $row = $(row);
       $row.attr("data-id", htmlEntities(data.wtId));
-      $row
-        .find("span.removeFromExtraWatchlist")
-        .off("click")
-        .on("click", function () {
-          const rowId = htmlEntities(data.wtId);
-
-          // Remove from ewData
-          ewData = ewData.filter((d) => htmlEntities(d.wtId) !== rowId);
-          const ids = ewData.map((d) => d.wtId);
-
-          // Remove the row from the DataTable
-          peopleTable
-            .row($row) // Reference the row
-            .remove() // Remove it
-            .draw(); // Redraw the table
-
-          saveWatchList(ids);
-          setPlusButton();
-        });
     },
     language: {
       emptyTable: "No records found. Please wait while we fetch the data...",
@@ -645,6 +771,40 @@ const createWatchlistPopup = async (mouseY) => {
     searchDelay: 400, // Debounce user input - only start search/filter after 400ms of no typing
     autoWidth: false,
   });
+
+  const $peopleBody = $("#touchedListPersons tbody");
+  $peopleBody
+    .off("click.ewRemove")
+    .on("click.ewRemove", "span.removeFromExtraWatchlist", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const $row = $(this).closest("tr");
+      const rowData = peopleTable.row($row).data();
+      if (!rowData) return;
+
+      ewData = ewData.filter((d) => d.wtId !== rowData.wtId);
+      removeNoteForId(rowData.wtId);
+      const ids = ewData.map((d) => d.wtId);
+      peopleTable.row($row).remove().draw();
+
+      saveWatchList(ids);
+      setPlusButton();
+    });
+
+  $peopleBody
+    .off("click.ewEditNote")
+    .on("click.ewEditNote", "span.ew-note-edit-trigger", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const $row = $(this).closest("tr");
+      const rowData = peopleTable.row($row).data();
+      if (!rowData) return;
+      if (getNoteForId(rowData.wtId)) {
+        showNoteViewer(rowData.wtId, rowData.lName, this);
+      } else {
+        showNoteEditor(rowData.wtId, rowData.lName, this);
+      }
+    });
 
   spaceTable = $("#touchedListSpaces").DataTable({
     data: ewData.filter((d) => d.type == "s"),
@@ -838,6 +998,7 @@ function redrawSpaceTable() {
 }
 
 function closeWatchlistPopup($popup) {
+  removeWatchlistNotePopup();
   $popup.slideUp("swing");
   $popup.remove();
 }
