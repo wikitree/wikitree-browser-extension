@@ -192,10 +192,14 @@ class SourceRules {
     "</onlyinclude",
     "<ref",
     "</ref",
+    "<s>",
+    "</s>",
     "<sub",
     "</sub",
     "<sup",
     "</sup",
+    "<u>",
+    "</u>",
     "<0",
     "<1",
     "<2",
@@ -282,6 +286,7 @@ class SourceRules {
     "title: marriage",
     "'''see also:'''",
     "well documented",
+    "www.ancestry.au",
     "www.ancestry.ca",
     "www.bms2000.org",
     "confirmed by dna",
@@ -300,6 +305,7 @@ class SourceRules {
     "research records",
     "various archives",
     "www.ancestry.com",
+    "www.wikitree.com",
     "acknowledgements:",
     "ash.howison.co.nz",
     "familysearch.com",
@@ -772,6 +778,8 @@ class SourceRules {
     "thepeerage.com",
     "trees.ancestry.com",
     "unsourced family tree handed down",
+    "wc.rootsweb",
+    "worldconnect.rootsweb",
     "world family tree",
     "www.geni.com/people",
     // compilations (typically from family trees)
@@ -1001,7 +1009,7 @@ class SourceRules {
           projectBox.status = templates[i].status.toLowerCase().trim();
           this.#projectBox.push(projectBox);
         }
-        if (templates[i].type.toLowerCase().trim() === 'formattingtemplate') {
+        if (templates[i].type.toLowerCase().trim() === 'formatting template') {
           let formattingTemplate = {
             name: "",
             status: "",
@@ -1121,6 +1129,11 @@ class SourceRules {
     });
     return stat;
   }
+
+// TODO testing
+getNavBox() {
+    return this.#navBox;
+}
   /**
    * Return status value for Nav Box
    * assumes the leading {{ removed and line is lower case
