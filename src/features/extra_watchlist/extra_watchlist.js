@@ -90,7 +90,9 @@ function pruneNotesToCurrentIds(ids) {
 function profileNameCellHtml(row) {
   const note = getNoteForId(row.wtId);
   const marker = note ? "<span class='ew-note-marker ew-note-marker-right' title='Has note'>🗒</span>" : "";
-  return `<span class='ew-name-wrap'><a href="https://${mainDomain}/wiki/${htmlEntities(row.wtId)}">${row.lName}</a>${marker}</span>`;
+  return `<span class='ew-name-wrap'><a href="https://${mainDomain}/wiki/${htmlEntities(row.wtId)}">${
+    row.lName
+  }</a>${marker}</span>`;
 }
 
 function removeWatchlistNotePopup() {
@@ -773,38 +775,34 @@ const createWatchlistPopup = async (mouseY) => {
   });
 
   const $peopleBody = $("#touchedListPersons tbody");
-  $peopleBody
-    .off("click.ewRemove")
-    .on("click.ewRemove", "span.removeFromExtraWatchlist", function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      const $row = $(this).closest("tr");
-      const rowData = peopleTable.row($row).data();
-      if (!rowData) return;
+  $peopleBody.off("click.ewRemove").on("click.ewRemove", "span.removeFromExtraWatchlist", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const $row = $(this).closest("tr");
+    const rowData = peopleTable.row($row).data();
+    if (!rowData) return;
 
-      ewData = ewData.filter((d) => d.wtId !== rowData.wtId);
-      removeNoteForId(rowData.wtId);
-      const ids = ewData.map((d) => d.wtId);
-      peopleTable.row($row).remove().draw();
+    ewData = ewData.filter((d) => d.wtId !== rowData.wtId);
+    removeNoteForId(rowData.wtId);
+    const ids = ewData.map((d) => d.wtId);
+    peopleTable.row($row).remove().draw();
 
-      saveWatchList(ids);
-      setPlusButton();
-    });
+    saveWatchList(ids);
+    setPlusButton();
+  });
 
-  $peopleBody
-    .off("click.ewEditNote")
-    .on("click.ewEditNote", "span.ew-note-edit-trigger", function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      const $row = $(this).closest("tr");
-      const rowData = peopleTable.row($row).data();
-      if (!rowData) return;
-      if (getNoteForId(rowData.wtId)) {
-        showNoteViewer(rowData.wtId, rowData.lName, this);
-      } else {
-        showNoteEditor(rowData.wtId, rowData.lName, this);
-      }
-    });
+  $peopleBody.off("click.ewEditNote").on("click.ewEditNote", "span.ew-note-edit-trigger", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const $row = $(this).closest("tr");
+    const rowData = peopleTable.row($row).data();
+    if (!rowData) return;
+    if (getNoteForId(rowData.wtId)) {
+      showNoteViewer(rowData.wtId, rowData.lName, this);
+    } else {
+      showNoteEditor(rowData.wtId, rowData.lName, this);
+    }
+  });
 
   spaceTable = $("#touchedListSpaces").DataTable({
     data: ewData.filter((d) => d.type == "s"),
