@@ -1060,3 +1060,8 @@ body.verticalLists div.mb-5:has(div.tree--person) {
 body.familyListsRight #nVitals.vanilla span.EDIT {
   position: relative;
 }
+body.verticalLists #nVitals ol.nameList a {
+  display: flex;
+  justify-content: space-between;
+  padding-right: 0.5em;
+}
