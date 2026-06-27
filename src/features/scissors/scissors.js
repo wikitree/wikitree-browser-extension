@@ -41,7 +41,17 @@ shouldInitializeFeature("scissors").then((result) => {
       }
     });
 
-    if ($("#helpScissors").length === 0) {
+    if (
+      $("#helpScissors").length === 0 &&
+      (isWikiPage ||
+        isProfileEdit ||
+        isSpaceEdit ||
+        isProfileHistoryDetail ||
+        isNetworkFeed ||
+        isCategoryEdit ||
+        isCategoryPage ||
+        isImagePage)
+    ) {
       helpScissors();
     }
   }

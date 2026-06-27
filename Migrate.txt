@@ -1,0 +1,30 @@
+export async function migrateOption(featureFrom, optionFrom, featureTo, optionTo) {
+  console.debug("migrating " + featureFrom + "." + optionFrom + " to " + featureTo + "." + optionTo);
+  try {
+    const keyFrom = featureFrom + "_options";
+    let value;
+    const itemsFromRead = await chrome.storage.sync.get(keyFrom);
+    let optionsFromRead = itemsFromRead[keyFrom];
+    value = optionsFromRead[optionFrom];
+    console.debug("reading from old configuration: " + value);
+    if (value != null) {
+      console.debug("there still is something set, performing migration");
+      delete itemsFromRead[keyFrom][optionFrom];
+      console.debug("deleted");
+      await chrome.storage.sync.set({ keyFrom: itemsFromRead });
+      console.debug("set 1");
+      const keyTo = featureTo + "_options";
+      const itemsToRead = await chrome.storage.sync.get(keyTo);
+      console.debug("got 2");
+      itemsToRead[keyTo][optionTo] = value;
+      await chrome.storage.sync.set({ keyTo: itemsToRead });
+      console.debug("set 2");
+      const res = await chrome.storage.sync.get({ keyTo: itemsToRead });
+      console.debug("got 3:" +  itemsToRead[keyTo][optionTo]);
+    } else {
+      console.debug("already migrated, doing nothing");
+    }
+  } catch (ex) {
+    reject(ex);
+  }
+}
