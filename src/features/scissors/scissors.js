@@ -315,7 +315,7 @@ export function addItems(copyItems, copyPosition, options = {}) {
       button.setAttribute("class", "copyWidget helpScissors mono-b");
       button.setAttribute("data-copy-text", item.text);
       button.setAttribute("data-bs-toggle", "tooltip");
-      button.setAttribute("data-bs-title", "Copy User ID");
+      button.setAttribute("data-bs-title", `Copy ${item.label}`);
 
       if (item.image) {
         button.innerHTML = '<img src="/images/icons/scissors.png">';
