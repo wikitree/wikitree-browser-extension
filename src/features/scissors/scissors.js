@@ -18,6 +18,7 @@ import {
   isNetworkFeed,
   isCategoryEdit,
   isHelpPage,
+  isWikiPage,
 } from "../../core/pageType";
 import { profilePerson } from "../../core/common";
 import { showCopyMessage } from "../access_keys/access_keys.js";
