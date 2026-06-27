@@ -6,7 +6,7 @@ import * as $ from "jquery";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isOK } from "../../core/common";
-
+import { addItems } from "../scissors/scissors";
 shouldInitializeFeature("editFamilyData").then((result) => {
   if (
     result &&
@@ -86,6 +86,13 @@ async function addInfoAboutOtherPerson() {
         `;
       }
 
+      if (options.scissors) {
+        let name = h1Link.text();
+        let copyItems = [];
+        copyItems.push({ label: "Link", text: `[[${wtid}|${name}]]` });
+        const displayOptions = { classic: true, image: false };
+        addItems(copyItems, $(".copy--buttons"), displayOptions);
+      }
       const efHTML = `
         <ul id='EFdates'>
           ${
