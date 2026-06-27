@@ -23,5 +23,11 @@ registerFeature({
       label: "Add links to copy locations into location fields",
       defaultValue: true,
     },
+    {
+      id: "scissors",
+      type: OptionType.CHECKBOX,
+      label: "Add link to copy profile link",
+      defaultValue: true,
+    },
   ],
 });
