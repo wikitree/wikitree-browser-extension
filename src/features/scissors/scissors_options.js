@@ -8,6 +8,7 @@ import {
   isCategoryPage,
   isCategoryEdit,
   isImagePage,
+  isMainDomain,
 } from "../../core/pageType";
 
 registerFeature({
@@ -23,16 +24,7 @@ registerFeature({
     { name: "Florian Straub", wikitreeid: "Straub-620" },
   ],
   defaultValue: true,
-  pages: [
-    isWikiPage,
-    isProfileEdit,
-    isSpaceEdit,
-    isProfileHistoryDetail,
-    isNetworkFeed,
-    isCategoryEdit,
-    isCategoryPage,
-    isImagePage,
-  ],
+  pages: [isMainDomain] /* needs to be everywhere for bracket removal in page previews*/,
   options: [
     {
       id: "sectionLinkOnProfiles",

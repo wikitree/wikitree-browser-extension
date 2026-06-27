@@ -25,6 +25,7 @@ import { copyToClipboard } from "../../core/clipboard.js";
 
 shouldInitializeFeature("scissors").then((result) => {
   if (result) {
+    fixYearsWhenCopyingProfileLinkFromPreview();
     import("./scissors.css");
 
     $(document).on("click", ".copy--buttons button", async function (e) {
@@ -46,6 +47,46 @@ shouldInitializeFeature("scissors").then((result) => {
   }
 });
 
+async function fixYearsWhenCopyingProfileLinkFromPreview() {
+  const options = await getFeatureOptions("scissors");
+  if (!options.removeDates) {
+  }
+
+  const observer = new MutationObserver((mutationsList, observerInstance) => {
+    for (const mutation of mutationsList) {
+      if (mutation.addedNodes.length > 0) {
+        for (const node of mutation.addedNodes) {
+          if (node.id === "pagePreviewInner") {
+            handleFoundElement(node);
+            return;
+          }
+
+          if (node.querySelector) {
+            const nestedTarget = node.querySelector("#pagePreviewInner");
+            if (nestedTarget) {
+              handleFoundElement(nestedTarget);
+              return;
+            }
+          }
+        }
+      }
+    }
+
+    function handleFoundElement(pagePreviewInner) {
+      if (pagePreviewInner) {
+        const copyButtons = pagePreviewInner.getElementsByTagName("ul")[0];
+        if (copyButtons) {
+          removeDatesFromWikiButtons(copyButtons);
+        }
+      }
+    }
+  });
+
+  observer.observe(document.body || document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
+}
 async function helpScissors() {
   const options = await getFeatureOptions("scissors");
   const displayOptions = {};
@@ -204,13 +245,24 @@ async function helpScissors() {
 
   attachScissorsEvent();
 }
+function removeDatesFromWikiButtons(elements) {
+  const $buttons = $(elements)
+    .find("button[aria-label='Copy Wiki Link']")
+    .addBack("button[aria-label='Copy Wiki Link']");
 
+  $buttons.each(function () {
+    const $this = $(this);
+    const originalText = $this.data("copy-text");
+
+    if (originalText) {
+      const dateless = originalText.replace(/\s\([^\s]*[0-9]{3,4}.*\)/, "");
+      $this.data("copy-text", dateless).attr("data-copy-text", dateless);
+    }
+  });
+}
 function modifyLinkButtons(options) {
   if ((isProfilePage || isProfileEdit) && options.removeDates) {
-    const dateless = $("button[aria-label='Copy Wiki Link']")
-      .data("copy-text")
-      .replace(/\s\([^\s]*[0-9]{3,4}.*\)/, ""); //year brackets might contain abt., two years or one, but never a blank
-    $("button[aria-label='Copy Wiki Link']").data("copy-text", dateless).attr("data-copy-text", dateless);
+    removeDatesFromWikiButtons("button[aria-label='Copy Wiki Link']");
   }
 
   if (isSpacePage || isSpaceEdit) {
