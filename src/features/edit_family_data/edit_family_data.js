@@ -77,12 +77,12 @@ async function addInfoAboutOtherPerson() {
       let theDeathButtons = "";
       if (options.copyLocations) {
         theBirthButtons = `
-          <button class='copyLocation ${birthButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location='${efBlocation}'>as birth location</button>
-          <button class='copyLocation ${birthButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location='${efBlocation}'>as death location</button>
+          <button class='copyLocation ${birthButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location="${efBlocation}">as birth location</button>
+          <button class='copyLocation ${birthButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location="${efBlocation}">as death location</button>
         `;
         theDeathButtons = `
-          <button class='copyLocation ${deathButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location='${efDlocation}'>as birth location</button>
-          <button class='copyLocation ${deathButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location='${efDlocation}'>as death location</button>
+          <button class='copyLocation ${deathButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location="${efDlocation}">as birth location</button>
+          <button class='copyLocation ${deathButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location="${efDlocation}">as death location</button>
         `;
       }
 
