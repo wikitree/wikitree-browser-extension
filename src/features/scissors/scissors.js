@@ -53,12 +53,31 @@ async function fixYearsWhenCopyingProfileLinkFromPreview() {
   }
 
   const observer = new MutationObserver((mutationsList, observerInstance) => {
-    const pagePreviewInner = document.getElementById("pagePreviewInner");
+    for (const mutation of mutationsList) {
+      if (mutation.addedNodes.length > 0) {
+        for (const node of mutation.addedNodes) {
+          if (node.id === "pagePreviewInner") {
+            handleFoundElement(node);
+            return;
+          }
 
-    if (pagePreviewInner) {
-      const copyButtons = pagePreviewInner.getElementsByTagName("ul")[0];
-      if (copyButtons) {
-        removeDatesFromWikiButtons(copyButtons);
+          if (node.querySelector) {
+            const nestedTarget = node.querySelector("#pagePreviewInner");
+            if (nestedTarget) {
+              handleFoundElement(nestedTarget);
+              return;
+            }
+          }
+        }
+      }
+    }
+
+    function handleFoundElement(pagePreviewInner) {
+      if (pagePreviewInner) {
+        const copyButtons = pagePreviewInner.getElementsByTagName("ul")[0];
+        if (copyButtons) {
+          removeDatesFromWikiButtons(copyButtons);
+        }
       }
     }
   });
