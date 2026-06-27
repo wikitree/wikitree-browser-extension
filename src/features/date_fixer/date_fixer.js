@@ -250,7 +250,6 @@ function splitAndMoveLocationIfPresent(input, inputElement) {
       input = input.split(", child of")[0];
       input = input.split(", son of")[0];
       input = input.split(", daughter of")[0];
-      input = input.replace(/\s*\(age \d+\)/, "");
       if (location.length > 0) {
         switch (inputElement.attr("id")) {
           case "mBirthDate": {
