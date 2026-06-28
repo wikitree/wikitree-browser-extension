@@ -13,6 +13,12 @@ const UNCONNECTED_FILTER_STATES = {
   connected: "connected",
 };
 
+const OPEN_FILTER_STATES = {
+  inactive: "inactive",
+  open: "open",
+  notOpen: "notOpen",
+};
+
 // Initial filter mode
 let filterMode = "only"; // Default filter mode
 
@@ -20,6 +26,7 @@ let filterMode = "only"; // Default filter mode
 let activeFilters = [];
 
 let unconnectedFilterState = UNCONNECTED_FILTER_STATES.inactive;
+let openFilterState = OPEN_FILTER_STATES.inactive;
 
 // Variable to store fetched filter data
 let filterData = null;
@@ -78,6 +85,7 @@ function initCategoryFilters() {
     dnaConnectedButton,
     dnaUserInput
   );
+  syncOpenButtonState(openButton);
 
   // Create text filters with labels
   const textFilter = $(
@@ -167,6 +175,13 @@ function initCategoryFilters() {
       return;
     }
 
+    if (buttonID === "openButton") {
+      cycleOpenButton($(this));
+      applyFilters();
+      $(this).trigger("blur");
+      return;
+    }
+
     // Toggle active state of the button
     if ($(this).hasClass("active")) {
       $(this).removeClass("active");
@@ -253,6 +268,36 @@ function cycleUnconnectedButton(button) {
   syncUnconnectedButtonState(button);
 }
 
+function cycleOpenButton(button) {
+  const wasInactive = openFilterState === OPEN_FILTER_STATES.inactive;
+
+  if (openFilterState === OPEN_FILTER_STATES.inactive) {
+    if (filterMode === "only") {
+      $(".categoryFilterButton").removeClass("active");
+      activeFilters = [];
+      $("#categoryFiltersTextFilter").val("");
+      $("#categoryFiltersNotFilter").val("");
+    }
+    openFilterState = OPEN_FILTER_STATES.open;
+  } else if (openFilterState === OPEN_FILTER_STATES.open) {
+    openFilterState = OPEN_FILTER_STATES.notOpen;
+  } else {
+    openFilterState = OPEN_FILTER_STATES.inactive;
+  }
+
+  if (openFilterState === OPEN_FILTER_STATES.inactive) {
+    button.removeClass("active");
+    activeFilters = activeFilters.filter((filterID) => filterID !== "openButton");
+  } else {
+    button.addClass("active");
+    if (wasInactive && !activeFilters.includes("openButton")) {
+      activeFilters.push("openButton");
+    }
+  }
+
+  syncOpenButtonState(button);
+}
+
 function syncUnconnectedButtonState(button = $("#unconnectedButton")) {
   const buttonStateConfig = {
     [UNCONNECTED_FILTER_STATES.inactive]: {
@@ -270,6 +315,26 @@ function syncUnconnectedButtonState(button = $("#unconnectedButton")) {
   };
 
   const { title, text } = buttonStateConfig[unconnectedFilterState];
+  button.attr("title", title).text(text);
+}
+
+function syncOpenButtonState(button = $("#openButton")) {
+  const buttonStateConfig = {
+    [OPEN_FILTER_STATES.inactive]: {
+      title: "Show only open profiles",
+      text: "Open",
+    },
+    [OPEN_FILTER_STATES.open]: {
+      title: "Show only open profiles",
+      text: "Open",
+    },
+    [OPEN_FILTER_STATES.notOpen]: {
+      title: "Show only not open profiles",
+      text: "Not open",
+    },
+  };
+
+  const { title, text } = buttonStateConfig[openFilterState];
   button.attr("title", title).text(text);
 }
 
@@ -400,7 +465,12 @@ function shouldShowButtonFilter(filterID, profileElement) {
   }
   if (filterID === "orphanedButton") return isOrphaned;
   if (filterID === "missingParentButton") return isMissingParent;
-  if (filterID === "openButton") return isOpen;
+  if (filterID === "openButton") {
+    if (openFilterState === OPEN_FILTER_STATES.notOpen) {
+      return !isOpen;
+    }
+    return isOpen;
+  }
   if (filterID === "dnaConnectedButton") return isDNAConnected;
 
   return false;
