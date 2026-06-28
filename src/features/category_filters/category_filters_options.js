@@ -8,7 +8,7 @@ import { isCategoryPage } from "../../core/pageType";
 registerFeature({
   name: "Category Filters",
   id: "categoryFilters",
-  description: "Adds buttons to category pages to show only unconnected profiles or only orphaned profiles.",
+  description: "Adds buttons to category pages to show only unconnected profiles, only orphaned profiles, only profiles missing a parent, or only open profiles.",
   category: "Other",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
