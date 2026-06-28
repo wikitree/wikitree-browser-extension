@@ -346,14 +346,9 @@ export class BioCheckPerson {
   /**
    * Does profile have either birth or death location
    * @returns {Boolean} true if either location present
-   * or the privacy does not let us determine location
    */
   hasLocation() {
-    if (this.person.privacyLevel < BioCheckPerson.MIN_PRIVACY) {
-      return true;
-    } else {
-      return this.person.hasLocation;
-    }
+    return this.person.hasLocation;
   }
   /**
    * Does profile have birth location
