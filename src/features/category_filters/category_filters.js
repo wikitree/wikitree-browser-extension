@@ -55,6 +55,7 @@ function initCategoryFilters() {
     "Show only profiles missing a parent",
     "Missing Parent"
   );
+  const openButton = createButton("openButton", "Show only open profiles", "Open");
   const dnaConnectedButton = createButton(
     "dnaConnectedButton",
     "Show only profiles that share DNA test results with the specified user. This filters based on actual DNA tests uploaded to WikiTree (23andMe, AncestryDNA, FTDNA, etc.), not family tree relationships. Enter any WikiTree ID to check DNA test connections.",
@@ -73,6 +74,7 @@ function initCategoryFilters() {
     unconnectedButton,
     orphanedButton,
     missingParentButton,
+    openButton,
     dnaConnectedButton,
     dnaUserInput
   );
@@ -386,6 +388,8 @@ function shouldShowButtonFilter(filterID, profileElement) {
   const isUnconnected = $(profileElement).attr("data-connected") == 0;
   const isOrphaned = $(profileElement).attr("data-managers") === "none";
   const isMissingParent = $(profileElement).attr("data-missing-parent") === "true";
+  const privacyVal = $(profileElement).attr("data-privacy");
+  const isOpen = privacyVal !== undefined && privacyVal !== "null" && parseInt(privacyVal, 10) >= 60;
   const isDNAConnected = $(profileElement).attr("data-dna-connected") === "true";
 
   if (filterID === "unconnectedButton") {
@@ -396,6 +400,7 @@ function shouldShowButtonFilter(filterID, profileElement) {
   }
   if (filterID === "orphanedButton") return isOrphaned;
   if (filterID === "missingParentButton") return isMissingParent;
+  if (filterID === "openButton") return isOpen;
   if (filterID === "dnaConnectedButton") return isDNAConnected;
 
   return false;
@@ -452,7 +457,7 @@ async function fetchAndSetFilterData() {
     [, resultByKey, filterData] = await WikiTreeAPI.getPeople(
       WBE_CATF_APP_ID,
       keys,
-      "Name,Connected,Managers,Manager,Father,Mother"
+      "Name,Connected,Managers,Manager,Father,Mother,Privacy"
     );
 
     // Assign basic data attributes to profiles (non-DNA)
@@ -478,6 +483,7 @@ async function fetchAndSetFilterData() {
         } else {
           $(this).attr("data-missing-parent", "false");
         }
+        $(this).attr("data-privacy", person.Privacy !== undefined ? person.Privacy : "null");
 
         // Initialize DNA data attribute (will be set by fetchDNAData)
         $(this).attr("data-dna-connected", "false");
@@ -485,6 +491,7 @@ async function fetchAndSetFilterData() {
         $(this).attr("data-connected", "null");
         $(this).attr("data-managers", "null");
         $(this).attr("data-missing-parent", "null");
+        $(this).attr("data-privacy", "null");
         $(this).attr("data-dna-connected", "false");
       }
     });
