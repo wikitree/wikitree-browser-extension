@@ -81,6 +81,8 @@ export class Biography {
   #bioScore = 0;  // ranking based on bioCheck
   #bioLineArray = [];  // after == Biography == before Sources
 
+  #checkAllDates = false; // true to check all dates
+
   // Hold results of parsing and validating a WikiTree biography
   #stats = {
       bioIsEmpty: false,
@@ -135,14 +137,19 @@ export class Biography {
       invalidSource: [], // Invalid sources that were found 
       validSource: [],
       invalidDnaSourceList: [], // Invalid source list for reporting
+      hasModernSources: false,
+      hasTooOldSources: false,
+      hasPre1700Sources: false,
   };
   #messages = {
     sectionMessages: [],
     styleMessages: [],
   };
 
-  #dnaReason = ""  // Why is DNA confirmation incomplete
+  #dnaReason = "";  // Why is DNA confirmation incomplete
   #dnaSourceList = []; // DNA confirmation source -- collection of source and reason
+  #isDnaLine = false;   // from testing one line
+  #isRepository = false;
 
   static #START_OF_COMMENT = "<!--";
   static #END_OF_COMMENT = "-->";
@@ -595,7 +602,8 @@ export class Biography {
     }
 
     // Check for absense of either birth or death location
-    if (!thePerson.hasLocation()) {
+    // when returned by the API
+    if (((thePerson.getPrivacy()) > 40) && (!thePerson.hasLocation())) {
       this.#style.bioMissingLocations = true;
       this.#style.bioHasStyleIssues = true;
     }
@@ -620,6 +628,16 @@ export class Biography {
     // don't count the inline ref characters
     this.#stats.totalBioSectionChar = trimmedLines.join().length - this.#refStringList.join().length;
     return;
+  }
+
+  /**
+   * Validate contents of bio
+   * Check for valid sources for all dates
+   * @returns {Boolean} true if profile looks good, else false.
+   */
+  validateAllDates() {
+    this.#checkAllDates = true;
+    return this.validate();
   }
 
   /**
@@ -786,15 +804,15 @@ export class Biography {
  * @param thePerson {BioCheckPerson} person to check
  * @returns {Boolean} true if sources found.
  */
-validateSourcesStr(sourcesStr, thePerson) {
-  // build bioLines from the input sources string then validate
-  this.#getLines(sourcesStr);
-  this.#isPre1500 = thePerson.isPre1500();
-  this.#isPre1700 = thePerson.isPre1700();
-  this.#tooOldToRemember = thePerson.isTooOldToRemember();
-  this.#fatherDnaMarked = thePerson.person.fatherDnaConfirmed;
-  this.#motherDnaMarked = thePerson.person.motherDnaConfirmed;
-  this.#scorePerson(thePerson);
+  validateSourcesStr(sourcesStr, thePerson) {
+    // build bioLines from the input sources string then validate
+    this.#getLines(sourcesStr);
+    this.#isPre1500 = thePerson.isPre1500();
+    this.#isPre1700 = thePerson.isPre1700();
+    this.#tooOldToRemember = thePerson.isTooOldToRemember();
+    this.#fatherDnaMarked = thePerson.person.fatherDnaConfirmed;
+    this.#motherDnaMarked = thePerson.person.motherDnaConfirmed;
+    this.#scorePerson(thePerson);
     let isValid = this.#validateReferenceStrings(false);
     if (isValid) {
       this.#sources.sourcesFound = true;
@@ -1077,6 +1095,27 @@ validateSourcesStr(sourcesStr, thePerson) {
    */
   hasSources() {
     return this.#sources.sourcesFound;
+  }
+  /**
+   * does bio have modern sources
+   * @returns {Boolean} true if bio appears to have modern sources
+   */
+  hasModernSources() {
+    return this.#sources.hasModernSources;
+  }
+  /**
+   * does bio have too old to remember sources
+   * @returns {Boolean} true if bio appears to have too old to remember sources
+   */
+  hasTooOldSources() {
+    return this.#sources.hasTooOldSources;
+  }
+  /**
+   * does bio have Pre1700 sources
+   * @returns {Boolean} true if bio appears to have Pre1700 sources
+   */
+  hasPre1700Sources() {
+    return this.#sources.hasPre1700Sources;
   }
   /**
    * get invalid sources found for profile
@@ -1996,8 +2035,8 @@ validateSourcesStr(sourcesStr, thePerson) {
    */
   #isValidSource(mixedCaseLine) {
     let isValid = false; // assume guilty
-    let isRepository = false;
-    let isDnaLine = false;
+    this.#isRepository = false;
+    this.#isDnaLine = false;
     // just ignore starting *
     if (mixedCaseLine.startsWith("*")) {
       mixedCaseLine = mixedCaseLine.substring(1);
@@ -2006,6 +2045,58 @@ validateSourcesStr(sourcesStr, thePerson) {
 
     // perform tests on lower case line
     let line = mixedCaseLine.toLowerCase().trim();
+    // It takes a minimum number of characters to be valid
+    //if (line.length >= Biography.#MIN_SOURCE_LEN) {
+      isValid = this.#isValidSourceLine(line, mixedCaseLine);
+    //} // endif too short when stripped of whitespace
+
+    // Save line for reporting
+    if (isValid) {
+      this.#sources.validSource.push(mixedCaseLine);
+    } else {
+      if ((!this.#isRepository) && (!this.#isDnaLine)) {
+        if (!this.#ignoreDnaStart(line)) {
+          this.#sources.invalidSource.push(mixedCaseLine);
+        }
+      }
+    }
+    if (isValid) {
+      this.#sources.hasModernSources = true;
+    }
+    if (this.#checkAllDates && (!this.#sources.hasPre1700Sources)) {
+      // Check when you have no profile dates
+      // have already checked what essentially would be modern
+      // and if you have found Pre1700 then TooOld is covered
+      // and in this case only need to know if you find one good one
+      let savedTooOld = this.#tooOldToRemember;
+      let savedPre1700 = this.#treatAsPre1700;
+      this.#treatAsPre1700 = true;
+      this.#tooOldToRemember = true;
+      if (this.#isValidSourceLine(line, mixedCaseLine)) {
+        this.#sources.hasPre1700Sources = true;
+        this.#sources.hasTooOldSources = true;
+      } else {
+        this.#treatAsPre1700 = savedPre1700;
+        if (!this.#sources.hasTooOldSources) {
+          if (this.#isValidSourceLine(line, mixedCaseLine)) {
+            this.#sources.hasTooOldSources = true;
+          }
+        }
+      }
+      this.#treatAsPre1700 = savedPre1700;
+      this.#tooOldToRemember = savedTooOld;
+    }
+
+    return isValid;
+  }
+
+  /*
+   * Determine if valid source line
+   * @param {String} input source line
+   * @returns {Boolean} true if valid source, else false
+   */
+  #isValidSourceLine(line, mixedCaseLine) {
+    let isValid = false;
     // ignore starting source:
     if (line.length > 0 && line.startsWith(Biography.#SOURCE_START)) {
       line = line.substring(7);
@@ -2016,7 +2107,6 @@ validateSourcesStr(sourcesStr, thePerson) {
       line = line.slice(0, -1);
       line = line.trim();
     }
-    // It takes a minimum number of characters to be valid
     if (line.length >= Biography.#MIN_SOURCE_LEN) {
       if (!this.#isInvalidStandAloneSource(line)) {
         line = line.trim();
@@ -2035,24 +2125,21 @@ validateSourcesStr(sourcesStr, thePerson) {
             line = line.replace(/\u0027/g, '');  // lines with ' will not match
             line = line.replace(/\u0026/g, 'and');  // and convert & to and
             let str = line.replace('family tree dna', ''); // valid in DNA confirmation
-            if (this.#onAnyPartialSourceList(str)) {
-              isValid = false;
-            } else {
+            if (!this.#onAnyPartialSourceList(str)) {
               // Check for line that starts with something on the invalid start partial list
-              if (this.#sourceRules.isInvalidStartPartialSource(line)) {
-                isValid = false;
-              } else {
+              if (!this.#sourceRules.isInvalidStartPartialSource(line)) {
+
                 // TODO can you refactor so this uses a plugin architecture?
 
                 // Some other things to check
                 if (!this.#isJustCensus(line)) {
                   if (!this.#invalidFamilyTree(line)) {
-                    isRepository = this.#isJustRepository(line)
-                    if (!isRepository) {
+                    this.#isRepository = this.#isJustRepository(line)
+                    if (!this.#isRepository) {
                       if (!this.#isJustGedcomCrud(line)) {
                         if (!this.#isJustThePeerage(line)) {
-                          isDnaLine = this.#isDnaSourceLine(line);
-                          if (isDnaLine) {
+                          this.#isDnaLine = this.#isDnaSourceLine(line);
+                          if (this.#isDnaLine) {
                               // if it says confident or suggested instead of confirmed 
                               // it should be neither a DNA nor traditional source
                               this.#isValidDnaConfirmation(line, mixedCaseLine);
@@ -2076,19 +2163,8 @@ validateSourcesStr(sourcesStr, thePerson) {
           } // endif on any valid partial list
         } // endif a findagrave citation
       } // endif on the list of invalid sources
-    } // endif too short when stripped of whitespace
-
-    // Save line for reporting
-    if (isValid) {
-      this.#sources.validSource.push(mixedCaseLine);
-    } else {
-      if ((!isRepository) && (!isDnaLine)) {
-        if (!this.#ignoreDnaStart(line)) {
-          this.#sources.invalidSource.push(mixedCaseLine);
-        }
-      }
     }
-    return isValid;
+    return isValid
   }
 
   /*
@@ -2100,13 +2176,12 @@ validateSourcesStr(sourcesStr, thePerson) {
     let isInvalidStandAlone = this.#sourceRules.isInvalidSource(line);
     if (!isInvalidStandAlone && this.#tooOldToRemember) {
       isInvalidStandAlone = this.#sourceRules.isInvalidSourceTooOld(line);
-
-      if ((this.#isPre1700 || this.#treatAsPre1700) && !isInvalidStandAlone) {
-        isInvalidStandAlone = this.#sourceRules.isInvalidSourcePre1700(line);
-      }
-      if (this.#isPre1500 && !isInvalidStandAlone) {
-        // TODO add more pre1500 validation
-      }
+    }
+    if ((this.#isPre1700 || this.#treatAsPre1700) && !isInvalidStandAlone) {
+      isInvalidStandAlone = this.#sourceRules.isInvalidSourcePre1700(line);
+    }
+    if (this.#isPre1500 && !isInvalidStandAlone) {
+      ; // TODO add more pre1500 validation
     }
     return isInvalidStandAlone;
   }
@@ -2118,13 +2193,12 @@ validateSourcesStr(sourcesStr, thePerson) {
    */
   #onAnyPartialSourceList(line) {
     let foundInvalidPartialSource = this.#sourceRules.isInvalidPartialSource(line);
-    if (this.#tooOldToRemember && !foundInvalidPartialSource) {
-      foundInvalidPartialSource = this.#sourceRules.isInvalidPartialSourceTooOld(line);
-    }
     if ((this.#isPre1700 || this.#treatAsPre1700) && !foundInvalidPartialSource) {
       foundInvalidPartialSource = this.#sourceRules.isInvalidPartialSourcePre1700(line);
     }
-    // TODO add more pre1500 validation
+    if ((this.#tooOldToRemember || this.#treatAsPre1700) && !foundInvalidPartialSource) {
+      foundInvalidPartialSource = this.#sourceRules.isInvalidPartialSourceTooOld(line);
+    }
     return foundInvalidPartialSource;
   }
   /*
@@ -2219,14 +2293,12 @@ validateSourcesStr(sourcesStr, thePerson) {
       nextIndex = index + 1;
       // Skip the <references line and any heading line or empty line
       // or the See Also line
-      if (
-        !line.startsWith(Biography.#REFERENCES_TAG) &&
-        !line.startsWith(Biography.#HEADING_START) &&
-        !line.includes(Biography.#SEE_ALSO) &&
-        !line.includes(Biography.#SEE_ALSO2) &&
-        !line.includes(Biography.#SEE_ALSO3) &&
-        line.length > 0
-      ) {
+      if (!line.startsWith(Biography.#REFERENCES_TAG) &&
+          !line.startsWith(Biography.#HEADING_START) &&
+          !line.includes(Biography.#SEE_ALSO) &&
+          !line.includes(Biography.#SEE_ALSO2) &&
+          !line.includes(Biography.#SEE_ALSO3) &&
+          line.length > 0) {
         // Now gather all lines from this line until an empty line
         // or a line that starts with * to test as the source
         // TODO consider in the future combining when nextLine 
@@ -2439,7 +2511,7 @@ validateSourcesStr(sourcesStr, thePerson) {
    * @returns {Boolean} true if this is just a repository line
    */
   #isJustRepository(line) {
-    let isRepository = false;
+    let isRepos = false;
     if (line.includes("repository")) {
       let repositoryStrings = [
         "ancestry.com.au",
@@ -2488,11 +2560,11 @@ validateSourcesStr(sourcesStr, thePerson) {
       line = line.trim();
       if (line.length > 0) {
         if (line === "repository") {
-          isRepository = true;
+          isRepos = true;
         }
       }
     }
-    return isRepository;
+    return isRepos;
   }
 
   /*
@@ -3131,7 +3203,7 @@ validateSourcesStr(sourcesStr, thePerson) {
    * @param thePerson {BioCheckPerson} person 
    */
   #scorePerson(thePerson) {
-    if (thePerson.isUndated()) {
+    if (!this.#checkAllDates && (thePerson.isUndated())) {
       this.#bioScore = this.#bioScore - 10;
     }
   }

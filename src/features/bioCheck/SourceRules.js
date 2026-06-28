@@ -367,6 +367,7 @@ class SourceRules {
     "family search website",
     "freereg baptism entry",
     "maternal dna matches:",
+    "military grave marker",
     "mormon church records",
     "paternal dna matches:",
     "replace this citation",
@@ -548,6 +549,7 @@ class SourceRules {
   // anywhere in a line not a valid source
   #invalidPartialSourceList = [
     "through the import of",
+    ".ged",
     "add sources here",
     "add [[sources]] here",
     "family tree maker",
@@ -556,6 +558,7 @@ class SourceRules {
     "replace this citation",
     "family member and primary source",
     "i am a primary source",
+    "olmste(a)d files of",
   ];
 
   // anywhere on a line is a valid source
@@ -571,6 +574,7 @@ class SourceRules {
     "entered by",
     "no sources.",
     "uploaded by",
+    "repository:",
     "no repo record found",
     "source will be added by",
     "no sour record found",
@@ -627,6 +631,7 @@ class SourceRules {
     "firsthand knowledge",
     "immediate family member", 
     "as remembered by",
+    "personal recollection",
     "selon la mémoire de",
     "zoals herinnerd door",
     "eigen kennis",
@@ -744,6 +749,7 @@ class SourceRules {
     "ancestry.com-oneworld tree",
     "árbol de familia",
     "arbre généalogique",
+    "as remembered by",
     "družinsko drevo",
     "drzewo rodzinne",
     "familie træ",
@@ -785,6 +791,7 @@ class SourceRules {
     // compilations (typically from family trees)
     "ancestral file",
     "derbund wft",
+    "derbund software",
     "family data collection",
     "family group sheet",
     "international genealogical index",
@@ -834,9 +841,11 @@ class SourceRules {
 
   // List of short strings that are not by themselves a valid source
   // to use for pulling apart a "source" that is a combination of these
-  // list of sources not valid by themselves that are < 15 characterse
+  // list of sources not valid by themselves that are < 15 characters
   // but you want to find these in reverse order to remove from the source
   #invalidSourceListShort = [
+  //123456789012345
+    "personal knowledge",
     "ancestry.co.uk",
     "ancestrydotcom",
     "billion graves",
