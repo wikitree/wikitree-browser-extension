@@ -63,18 +63,23 @@ chrome.storage.sync.get(["customStyle_options"], (result) => {
 import "./features/register_feature_options";
 
 // First are loaded modules that change the wikitree appearence by altering css style
-import "./features/visitedLinks/visitedLinks";
-import "./features/sticky_header/sticky_header";
-import "./features/show_search/show_search";
-import "./features/darkMode/darkMode";
-import "./features/enhanced_editor_style/enhanced_editor_style";
-import "./features/readability/readability";
-import "./features/custom_style/custom_style";
-import "./features/menu_style/menu_style";
-import "./features/menu_hover/menu_hover";
 import "./features/collapsible_profiles/collapsible_profiles";
+import "./features/custom_style/custom_style";
+import "./features/darkMode/darkMode";
+import "./features/disable_GIFs/disable_GIFs";
+import "./features/enhanced_editor_style/enhanced_editor_style";
+import "./features/menu_hover/menu_hover";
+import "./features/menu_style/menu_style";
+import "./features/readability/readability";
+import "./features/reorderNames/reorderNames";
+import "./features/show_search/show_search";
+import "./features/space_style/space_style";
+import "./features/sticky_header/sticky_header";
+import "./features/visitedLinks/visitedLinks";
 
 // followed by the rest
+
+import "./easterEgg";
 import "./features/access_keys/access_keys";
 import "./features/add_fs_id/add_fs_id";
 import "./features/add_search_boxes/add_search_boxes";
@@ -82,114 +87,96 @@ import "./features/akaNameLinks/akaNameLinks";
 import "./features/anniversaries_table/anniversaries_table";
 import "./features/categoryDisplay/categoryDisplay";
 import "./features/categoryFinderPins/categoryFinderPins";
-import "./features/connector_image/connector_image";
 import "./features/change_family_lists/change_family_lists_bootstrap";
 import "./features/clipboard_and_notes/clipboard_and_notes";
+import "./features/collapsible_descendants/collapsible_descendants";
 import "./features/confirm_thank_yous/confirm_thank_yous";
 import "./features/connection_finder/connection_finder";
+import "./features/connector_image/connector_image";
 import "./features/copy_bio_changes/copy_bio_changes";
+import "./features/countdown/countdown";
 import "./features/distanceAndRelationship/distanceAndRelationship";
 import "./features/dna_table/dna_table";
+import "./features/duplicates/duplicates";
+import "./features/enumerate_image_detail/enumerate_image_detail.js";
 import "./features/extra_watchlist/extra_watchlist";
-import "./features/familyGroup/familyGroup";
 import "./features/family_dropdown/family_dropdown";
+import "./features/familyGroup/familyGroup";
 import "./features/familyTimeline/familyTimeline";
+import "./features/feed_helper/feed_helper_bootstrap";
+import "./features/find_a_grave_memorial_extractor/find_a_grave_memorial_extractor";
 import "./features/g2g/g2g";
+import "./features/help/help";
 import "./features/hide_my_contributions/hide_my_contributions";
+import "./features/highlight_WBE_features/highlight_WBE_features";
+import "./features/image_page_options/image_page_options";
 import "./features/image_zoom/image_zoom";
+import "./features/links_to_new_tabs/links_to_new_tabs";
 import "./features/my_connections/my_connections";
 import "./features/my_menu/my_menu";
+import "./features/pending_merges_filters/pending_merges_filters";
 import "./features/printerfriendly/printerfriendly";
 import "./features/redir_ext_links/redir_ext_links";
 import "./features/scissors/scissors";
 import "./features/send_to_merge/send_to_merge";
 import "./features/shareable_sources/shareable_sources";
 import "./features/show_suggestions/show_suggestions";
-import "./features/sortBadges/sortBadges";
 import "./features/sort_theme_people/sort_theme_people";
+import "./features/sortBadges/sortBadges";
 import "./features/sourcepreview/sourcepreview";
 import "./features/spacepreview/spacepreview";
-
 import "./features/surname_table/surname_table";
 import "./features/table_filters/table_filters";
 import "./features/unconnected_branch_table/unconnected_branch_table";
 import "./features/usability_tweaks/usability_tweaks";
+import "./features/watchlistFilter/watchlistFilter";
+import "./features/wikitree_plus_helper/wikitree_plus_helper_bootstrap";
 import "./features/wills/wills";
 
 // Edit mode addons are towards the end
-import "./features/wtPlus/wtPlus";
 import "./features/agc/agc_content";
 import "./features/auto_bio/auto_bio_bootstrap";
 import "./features/custom_change_summary_options/custom_change_summary_options";
 import "./features/date_fixer/date_fixer";
+import "./features/family_status_sync/family_status_sync";
 import "./features/language_setting/language_setting";
 import "./features/locationsHelper/locationsHelper";
 import "./features/make_radio_buttons_deselectable/make_radio_buttons_deselectable";
 import "./features/migration_category_helper/migration_category_helper";
 import "./features/remove_from_watchlist/remove_from_watchlist";
 import "./features/save_buttons_style_options/save_buttons_style_options"; // Disabled for now
-import "./features/show_edits/show_edits";
-import "./features/space_drafts/space_drafts";
 import "./features/sticky_toolbar/sticky_toolbar";
 import "./features/wikitable_wizard/wikitable_wizard_bootstrap";
+import "./features/wtPlus/wtPlus";
+
 // BioCheck needs to load later than custom_change_summary_options
 import "./features/bioCheck/bioCheck";
 
 // Edit mode Add Person addons are even later
 import "./features/add_person/add_person";
-import "./features/unnamed_infant/unnamed_infant";
 import "./features/genderPredictor/genderPredictor";
 import "./features/suggested_matches_filters/suggested_matches_filters";
+import "./features/unnamed_infant/unnamed_infant";
 import "./features/verifyID/verifyID";
 
-// At the end are the features, that add items into menu structure.
+// At the end are the features that add items into menu structure.
 import "./features/appsMenu/appsMenu";
-import "./features/category_tables/category_tables";
 import "./features/category_filters/category_filters";
 import "./features/category_management/category_management";
+import "./features/category_tables/category_tables";
 import "./features/cc7_changes/cc7_changes";
-import "./features/edit_family_data/edit_family_data";
-import "./features/editor_expander/editor_expander";
 import "./features/draftList/draftList";
+import "./features/edit_family_data/edit_family_data";
+import "./features/edit_profile_redesign/edit_profile_redesign";
+import "./features/editor_expander/editor_expander";
 import "./features/image_table/image_table_bootstrap";
 import "./features/randomProfile/randomProfile";
 import "./features/space_watchlist_sorter/space_watchlist_sorter_bootstrap";
 import "./features/text_expander/text_expander";
 import "./features/what_links_here/what_links_here";
-import "./features/edit_profile_redesign/edit_profile_redesign";
 
 /* MARKER: Default place for new features. Move these to a more appropriate place.*/
-import "./features/duplicates/duplicates";
 
-import "./features/space_style/space_style";
-
-import "./features/wikitree_plus_helper/wikitree_plus_helper_bootstrap";
-
-import "./features/find_a_grave_memorial_extractor/find_a_grave_memorial_extractor";
-
-import "./features/countdown/countdown";
-
-import "./features/reorderNames/reorderNames";
-import "./features/feed_helper/feed_helper_bootstrap";
-
-import "./features/collapsible_descendants/collapsible_descendants";
-
-import "./features/disable_GIFs/disable_GIFs";
-
-import "./features/highlight_WBE_features/highlight_WBE_features";
-
-import "./features/image_page_options/image_page_options";
-
-import "./features/links_to_new_tabs/links_to_new_tabs";
-
-import "./features/watchlistFilter/watchlistFilter";
-
-import "./features/family_status_sync/family_status_sync";
-
-import "./features/help/help";
-import "./features/pending_merges_filters/pending_merges_filters";
-import "./features/enumerate_image_detail/enumerate_image_detail.js";
-import "./easterEgg";
 /*
  * debugging features for development only
  *
