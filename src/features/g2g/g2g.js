@@ -110,17 +110,16 @@ function linkify() {
 function addScissorsToAnswers() {
   const allAnchorNodes = document.querySelectorAll("a:not(header a)");
   for (let i = 0; i < allAnchorNodes.length; i++) {
-    //https://wikitree.com/g2g/1652303/join-the-2nd-germany-research-party-on-wikitree-day?show=1657604#a1657604
+    // Supports both:
+    // https://wikitree.com/g2g/1652303/join-the-2nd-germany-research-party-on-wikitree-day?show=1657604#a1657604
+    // https://www.wikitree.com/g2g/2046376#2046391
 
-    const indexShow = allAnchorNodes[i].href.indexOf("show=");
-    const indexHash = allAnchorNodes[i].href.indexOf("#"); //spare the top left menu when show= is used
-    const indexLast = allAnchorNodes[i].href.length - 1;
+    const href = allAnchorNodes[i].href;
+    const indexShow = href.indexOf("show=");
+    const indexHash = href.indexOf("#");
 
-    if (indexShow > -1 && indexHash < indexLast) {
-      //console.log(allAnchorNodes[i].href);
-      const indexHash = allAnchorNodes[i].href.indexOf("#");
-      const indexAfterHashAndAorC = indexHash + 2;
-      const number = allAnchorNodes[i].href.substring(indexAfterHashAndAorC);
+    if ((indexShow > -1 || href.match(/\/g2g\/\d+#\d+$/)) && indexHash > -1 && indexHash < href.length - 1) {
+      const number = href.substring(indexHash + 1).replace(/^[ac]/i, "");
       const plainURL = window.location.href.split("?")[0];
       //allAnchorNodes[i].href = "https://apps.wikitree.com/apps/straub620/g2gpeek.php?post=" + plainURL + "&a=" + number;
 
@@ -132,7 +131,7 @@ function addScissorsToAnswers() {
 
       const urlItem = {
         label: "URL",
-        text: allAnchorNodes[i].href,
+        text: href,
       };
 
       const g2gScissorsClassDiv = $("<div class='g2gScissors'></div>");
