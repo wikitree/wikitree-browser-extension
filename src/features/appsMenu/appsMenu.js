@@ -166,8 +166,8 @@ function getAppsMenuItems() {
     },
     { title: "Cemetery Mapping", url: "https://apps.wikitree.com/apps/harris5439/cemeteries/" },
     { title: "DNA Confirmation Citation Maker", url: "https://apps.wikitree.com/apps/clarke11007/DNAconf.php" },
-    { title: "FamilySearch Matches", url: "https://apps.wikitree.com/apps/york1423/fs-match" },
-    { title: "Feeds -> Excel", url: "https://apps.wikitree.com/apps/beacall6/contributions.php" },
+    { title: "Duplicate Finder", url: "https://apps.wikitree.com/apps/beacall6/duplicates/" },
+    { title: "Feeds → Excel", url: "https://apps.wikitree.com/apps/beacall6/contributions.php" },
     {
       title: "Genealogietools.nl",
       url: `https://${mainDomain}/wiki/Space:Genealogietools.nl_-_WieWasWie_formatter`,
@@ -175,18 +175,14 @@ function getAppsMenuItems() {
     { title: "Mystery Box", url: `https://apps.wikitree.com/apps/clarke11007/apps/mysteryBox.php` },
     { title: "Photo Lines", url: "https://apps.wikitree.com/apps/clarke11007/PhotoLines.php" },
     { title: "Profile Overview", url: "https://apps.wikitree.com/apps/beacall6/templates.php" },
-    { title: "RootsSearch", url: "https://apps.wikitree.com/apps/york1423/rootssearch/" },
     { title: "RSS Feed Maker", url: "https://apps.wikitree.com/apps/beacall6/rss_feed_maker.html" },
     { title: "SixDegrees", url: `https://apps.wikitree.com/apps/clarke11007/SixDegrees.php?id=${userName}` },
     { title: "Surnames Generator", url: "https://apps.wikitree.com/apps/clarke11007/surnames.php" },
     { title: "Swedish Reference Creation Tools", url: "https://apps.wikitree.com/apps/lundholm24/ref-making" },
     { title: "Topola Genealogy Viewer", url: "https://apps.wikitree.com/apps/wiech13/topola-viewer/" },
+    { title: "Watchlist", url: `https://apps.wikitree.com/apps/beacall6/watchlist/` },
     { title: "WikiTree+", url: "https://plus.wikitree.com/default.htm" },
     { title: "WikiTree BEE", url: `https://${mainDomain}/index.php?title=Space:WikiTree_BEE` },
-    {
-      title: "WikiTree Browser Extension",
-      url: `https://${mainDomain}/index.php?title=Space:WikiTree_Browser_Extension`,
-    },
     { title: "WikiTree Sourcer", url: `https://${mainDomain}/wiki/Space:WikiTree_Sourcer` },
   ];
 }

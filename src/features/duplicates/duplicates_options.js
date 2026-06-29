@@ -9,7 +9,7 @@ registerFeature({
   name: "Duplicates",
   id: "duplicates",
   description:
-    "Shows possible duplicate matches from the Duplicate Finder app in the Matches and Merges section of profile pages.",
+    'Shows possible duplicate matches from the <a href="https://apps.wikitree.com/apps/beacall6/duplicates/" target="_blank">Duplicate Finder</a> app in the Matches and Merges section of profile pages.',
   category: "Profile",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],

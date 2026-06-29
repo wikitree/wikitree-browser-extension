@@ -862,7 +862,7 @@ function addFeatureToOptionsPage(featureData, container) {
   }
   container = $('<div class="section-content"></div>').appendTo(container);
   if (featureData.description) {
-    container.append($('<div class="section-description"></div>').text(featureData.description));
+    container.append($('<div class="section-description"></div>').html(featureData.description));
   }
   if (featureData.creators?.length || featureData.contributors?.length) {
     let $authors = $('<div class="feature-author"></div>').prependTo(container);
