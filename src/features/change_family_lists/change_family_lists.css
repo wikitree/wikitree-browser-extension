@@ -379,7 +379,20 @@ body.darkMode .vertical .nameList li.spouse_51 {
 }
 
 .vertical .marriageDetails {
-  display: block;
+  display: inline;
+}
+.vertical .marriageAges {
+  display: inline;
+}
+
+.marriageDetails .marriageMapLink,
+.marriageDetails .marriageMapIcon {
+  display: inline !important;
+  vertical-align: middle;
+}
+.marriageDetails .marriageMapIcon {
+  width: 1em;
+  height: 1em;
 }
 
 /*
@@ -397,10 +410,6 @@ body.darkMode .vertical .nameList li.spouse_51 {
 
 .marriageAges {
   display: block;
-}
-.vertical .marriageDetails,
-.vertical .marriageAges {
-  margin-left: 0.5em;
 }
 
 .vertical #spousesUnknown,
@@ -662,9 +671,6 @@ span[itemprop="sibling"]:has(.activeProfile) {
   margin: 0;
 }
 
-.vanilla .marriageDetails {
-  margin-left: 0.5em;
-}
 .vanilla .marriageAges {
   display: inline;
 }
@@ -976,7 +982,7 @@ div.VITALS a:link .addedPrefix {
   margin-bottom: 0;
 }
 .marriageDetailsInner {
-  display: inline-block;
+  display: inline;
 }
 
 .vanilla .marriageDetailsInner {
@@ -1060,7 +1066,7 @@ body.verticalLists div.mb-5:has(div.tree--person) {
 body.familyListsRight #nVitals.vanilla span.EDIT {
   position: relative;
 }
-body.verticalLists #nVitals ol.nameList a {
+body.verticalLists #nVitals ol.nameList a:not(.marriageMapLink) {
   display: flex;
   justify-content: space-between;
   padding-right: 0.5em;
