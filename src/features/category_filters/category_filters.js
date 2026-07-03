@@ -13,6 +13,12 @@ const UNCONNECTED_FILTER_STATES = {
   connected: "connected",
 };
 
+const OPEN_FILTER_STATES = {
+  inactive: "inactive",
+  open: "open",
+  notOpen: "notOpen",
+};
+
 // Initial filter mode
 let filterMode = "only"; // Default filter mode
 
@@ -20,6 +26,7 @@ let filterMode = "only"; // Default filter mode
 let activeFilters = [];
 
 let unconnectedFilterState = UNCONNECTED_FILTER_STATES.inactive;
+let openFilterState = OPEN_FILTER_STATES.inactive;
 
 // Variable to store fetched filter data
 let filterData = null;
@@ -55,6 +62,7 @@ function initCategoryFilters() {
     "Show only profiles missing a parent",
     "Missing Parent"
   );
+  const openButton = createButton("openButton", "Show only open profiles", "Open");
   const dnaConnectedButton = createButton(
     "dnaConnectedButton",
     "Show only profiles that share DNA test results with the specified user. This filters based on actual DNA tests uploaded to WikiTree (23andMe, AncestryDNA, FTDNA, etc.), not family tree relationships. Enter any WikiTree ID to check DNA test connections.",
@@ -73,9 +81,11 @@ function initCategoryFilters() {
     unconnectedButton,
     orphanedButton,
     missingParentButton,
+    openButton,
     dnaConnectedButton,
     dnaUserInput
   );
+  syncOpenButtonState(openButton);
 
   // Create text filters with labels
   const textFilter = $(
@@ -165,6 +175,13 @@ function initCategoryFilters() {
       return;
     }
 
+    if (buttonID === "openButton") {
+      cycleOpenButton($(this));
+      applyFilters();
+      $(this).trigger("blur");
+      return;
+    }
+
     // Toggle active state of the button
     if ($(this).hasClass("active")) {
       $(this).removeClass("active");
@@ -251,6 +268,36 @@ function cycleUnconnectedButton(button) {
   syncUnconnectedButtonState(button);
 }
 
+function cycleOpenButton(button) {
+  const wasInactive = openFilterState === OPEN_FILTER_STATES.inactive;
+
+  if (openFilterState === OPEN_FILTER_STATES.inactive) {
+    if (filterMode === "only") {
+      $(".categoryFilterButton").removeClass("active");
+      activeFilters = [];
+      $("#categoryFiltersTextFilter").val("");
+      $("#categoryFiltersNotFilter").val("");
+    }
+    openFilterState = OPEN_FILTER_STATES.open;
+  } else if (openFilterState === OPEN_FILTER_STATES.open) {
+    openFilterState = OPEN_FILTER_STATES.notOpen;
+  } else {
+    openFilterState = OPEN_FILTER_STATES.inactive;
+  }
+
+  if (openFilterState === OPEN_FILTER_STATES.inactive) {
+    button.removeClass("active");
+    activeFilters = activeFilters.filter((filterID) => filterID !== "openButton");
+  } else {
+    button.addClass("active");
+    if (wasInactive && !activeFilters.includes("openButton")) {
+      activeFilters.push("openButton");
+    }
+  }
+
+  syncOpenButtonState(button);
+}
+
 function syncUnconnectedButtonState(button = $("#unconnectedButton")) {
   const buttonStateConfig = {
     [UNCONNECTED_FILTER_STATES.inactive]: {
@@ -268,6 +315,26 @@ function syncUnconnectedButtonState(button = $("#unconnectedButton")) {
   };
 
   const { title, text } = buttonStateConfig[unconnectedFilterState];
+  button.attr("title", title).text(text);
+}
+
+function syncOpenButtonState(button = $("#openButton")) {
+  const buttonStateConfig = {
+    [OPEN_FILTER_STATES.inactive]: {
+      title: "Show only open profiles",
+      text: "Open",
+    },
+    [OPEN_FILTER_STATES.open]: {
+      title: "Show only open profiles",
+      text: "Open",
+    },
+    [OPEN_FILTER_STATES.notOpen]: {
+      title: "Show only not open profiles",
+      text: "Not open",
+    },
+  };
+
+  const { title, text } = buttonStateConfig[openFilterState];
   button.attr("title", title).text(text);
 }
 
@@ -386,6 +453,8 @@ function shouldShowButtonFilter(filterID, profileElement) {
   const isUnconnected = $(profileElement).attr("data-connected") == 0;
   const isOrphaned = $(profileElement).attr("data-managers") === "none";
   const isMissingParent = $(profileElement).attr("data-missing-parent") === "true";
+  const privacyVal = $(profileElement).attr("data-privacy");
+  const isOpen = privacyVal !== undefined && privacyVal !== "null" && parseInt(privacyVal, 10) >= 60;
   const isDNAConnected = $(profileElement).attr("data-dna-connected") === "true";
 
   if (filterID === "unconnectedButton") {
@@ -396,6 +465,12 @@ function shouldShowButtonFilter(filterID, profileElement) {
   }
   if (filterID === "orphanedButton") return isOrphaned;
   if (filterID === "missingParentButton") return isMissingParent;
+  if (filterID === "openButton") {
+    if (openFilterState === OPEN_FILTER_STATES.notOpen) {
+      return !isOpen;
+    }
+    return isOpen;
+  }
   if (filterID === "dnaConnectedButton") return isDNAConnected;
 
   return false;
@@ -452,7 +527,7 @@ async function fetchAndSetFilterData() {
     [, resultByKey, filterData] = await WikiTreeAPI.getPeople(
       WBE_CATF_APP_ID,
       keys,
-      "Name,Connected,Managers,Manager,Father,Mother"
+      "Name,Connected,Managers,Manager,Father,Mother,Privacy"
     );
 
     // Assign basic data attributes to profiles (non-DNA)
@@ -478,6 +553,7 @@ async function fetchAndSetFilterData() {
         } else {
           $(this).attr("data-missing-parent", "false");
         }
+        $(this).attr("data-privacy", person.Privacy !== undefined ? person.Privacy : "null");
 
         // Initialize DNA data attribute (will be set by fetchDNAData)
         $(this).attr("data-dna-connected", "false");
@@ -485,6 +561,7 @@ async function fetchAndSetFilterData() {
         $(this).attr("data-connected", "null");
         $(this).attr("data-managers", "null");
         $(this).attr("data-missing-parent", "null");
+        $(this).attr("data-privacy", "null");
         $(this).attr("data-dna-connected", "false");
       }
     });

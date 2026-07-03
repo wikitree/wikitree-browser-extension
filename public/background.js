@@ -111,241 +111,438 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keep channel open for async response
   }
 
-  if (message.action === "chatWithAI") {
-    handleChatRequest(message, sendResponse);
+  if (message.action === "duplicatesRead") {
+    handleDuplicatesRead(message, sendResponse);
     return true; // Keep channel open for async response
   }
 
-  if (message.action === "fetchWikidataSparql") {
-    (async () => {
-      try {
-        const query = String(message?.query || "").trim();
-        if (!query) {
-          sendResponse({ success: false, error: "missing-query" });
-          return;
-        }
+  if (message.action === "duplicatesSetStatus") {
+    handleDuplicatesSetStatus(message, sendResponse);
+    return true; // Keep channel open for async response
+  }
 
-        const timeoutMs = Math.max(2000, Math.min(30000, Number(message?.timeoutMs) || 15000));
-        const endpoint = `https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(query)}`;
-        const response = await withTimeout(timeoutMs, (signal) =>
-          fetch(endpoint, {
-            method: "GET",
-            headers: { Accept: "application/sparql-results+json" },
-            cache: "no-cache",
-            signal,
-          })
-        );
-
-        if (!response.ok) {
-          sendResponse({ success: false, error: `wikidata-http-${response.status}` });
-          return;
-        }
-
-        const json = await response.json();
-        sendResponse({ success: true, json });
-      } catch (error) {
-        const isAbort =
-          error?.name === "AbortError" ||
-          /abort/i.test(String(error?.message || "")) ||
-          /aborted/i.test(String(error || ""));
-        sendResponse({
-          success: false,
-          error: isAbort ? "wikidata-timeout" : String(error?.message || error || "wikidata-fetch-failed"),
-        });
-      }
-    })();
-    return true;
+  if (message.action === "duplicatesCompareProfiles") {
+    handleDuplicatesCompareProfiles(message, sendResponse);
+    return true; // Keep channel open for async response
   }
 });
 
-async function callAIProvider(provider, key, model, systemRole, prompt) {
-  if (provider === "openai") {
-    return callOpenAI(key, model || "gpt-5-mini", systemRole, prompt);
-  } else if (provider === "gemini") {
-    return callGemini(key, model || "gemini-3-flash-preview", systemRole, prompt);
-  } else if (provider === "claude") {
-    return callClaude(key, model || "claude-sonnet-4-5", systemRole, prompt);
-  } else if (provider === "perplexity") {
-    return callPerplexity(key, model || "sonar", systemRole, prompt);
-  }
-
-  throw new Error("Unknown provider: " + provider);
-}
-
-const WT_API_DOC_REPO_BASE = "https://raw.githubusercontent.com/wikitree/wikitree-api/main/";
-const WT_API_DOC_FILES = [
-  "README.md",
-  "getPeople.md",
-  "getPerson.md",
-  "getRelatives.md",
-  "getConnections.md",
-  "searchPerson.md",
-  "getAncestors.md",
-  "getDescendants.md",
-  "authentication.md",
+const DUPLICATES_READ_ENDPOINTS = [
+  "https://apps.wikitree.com/apps/beacall6/duplicates/api.php",
+  "https://apps.wikitree.com/beacall6/duplicates/api.php",
 ];
-const WT_API_DOC_DEFAULT_MAX_CHARS = 5000;
-const WT_API_DOC_MAX_FILES = 3;
-const WT_API_DOC_CACHE_TTL_MS = 30 * 60 * 1000;
-const wtApiDocCache = new Map();
+const DUPLICATES_AUTH_SESSION_ENDPOINTS = [
+  "https://apps.wikitree.com/apps/beacall6/duplicates/api/auth_session.php",
+  "https://apps.wikitree.com/beacall6/duplicates/api/auth_session.php",
+];
+const DUPLICATES_RESOLVE_ENDPOINTS = [
+  "https://apps.wikitree.com/apps/beacall6/duplicates/api/resolve.php",
+  "https://apps.wikitree.com/beacall6/duplicates/api/resolve.php",
+];
+const UNAUTHORIZED_STATUS_MESSAGE =
+  "Not authorized for Arborists status updates. Please confirm you are logged into WikiTree.";
 
-function withTimeout(timeoutMs, task) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  return task(controller.signal).finally(() => clearTimeout(timeoutId));
+let arboristsSessionToken = "";
+let arboristsSessionTokenExpiresAt = 0;
+
+function clearArboristsSessionToken() {
+  arboristsSessionToken = "";
+  arboristsSessionTokenExpiresAt = 0;
 }
 
-function normalizeWhitespace(value) {
-  return String(value || "")
-    .replace(/\r\n/g, "\n")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-function scoreApiDocFile(fileName, query) {
-  const q = String(query || "").toLowerCase();
-  if (!q) {
-    return fileName === "README.md" ? 1 : 0;
+function isTokenStillValid() {
+  if (!arboristsSessionToken || !arboristsSessionTokenExpiresAt) {
+    return false;
   }
-
-  const keywordGroups = [
-    {
-      files: ["getPeople.md"],
-      words: [
-        "getpeople",
-        "nuclear",
-        "ancestors",
-        "descendants",
-        "mingeneration",
-        "limit",
-        "start",
-        "cc7",
-        "cc6",
-        "cc5",
-      ],
-    },
-    { files: ["getConnections.md"], words: ["connection", "distance", "path", "relation", "ignoreids", "nopath"] },
-    { files: ["searchPerson.md"], words: ["search", "find", "lookup", "person", "realname", "lastname"] },
-    { files: ["getRelatives.md"], words: ["siblings", "parents", "children", "spouses", "relatives"] },
-    { files: ["getPerson.md"], words: ["profile", "person", "resolve", "redirect", "fields"] },
-    { files: ["getAncestors.md"], words: ["ancestor", "grandparent", "generation"] },
-    { files: ["getDescendants.md"], words: ["descendant", "children", "generation"] },
-    { files: ["authentication.md"], words: ["login", "auth", "private", "trusted", "session", "cookie"] },
-  ];
-
-  let score = fileName === "README.md" ? 1 : 0;
-  keywordGroups.forEach((group) => {
-    if (!group.files.includes(fileName)) {
-      return;
-    }
-    group.words.forEach((word) => {
-      if (q.includes(word)) {
-        score += 3;
-      }
-    });
-  });
-
-  return score;
+  const refreshBufferMs = 15 * 1000;
+  return Date.now() + refreshBufferMs < arboristsSessionTokenExpiresAt;
 }
 
-async function fetchWikiTreeApiDocFile(fileName) {
-  const cached = wtApiDocCache.get(fileName);
-  const now = Date.now();
-  if (cached && now - cached.fetchedAt < WT_API_DOC_CACHE_TTL_MS) {
-    return cached.text;
-  }
-
-  const url = `${WT_API_DOC_REPO_BASE}${fileName}`;
-  const response = await withTimeout(5000, (signal) => fetch(url, { method: "GET", signal }));
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${fileName}: ${response.status}`);
-  }
-
-  const text = await response.text();
-  wtApiDocCache.set(fileName, {
-    text,
-    fetchedAt: now,
-  });
-  return text;
-}
-
-function extractRelevantDocExcerpt(fileName, text, query, maxChars) {
-  const normalized = normalizeWhitespace(text);
-  if (!normalized) {
+function getTokenFromResponse(data) {
+  if (!data || typeof data !== "object") {
     return "";
   }
-
-  const queryWords = String(query || "")
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter((word) => word.length > 2);
-  const lines = normalized.split("\n");
-
-  // Prefer lines around key sections and query terms.
-  const picked = [];
-  const mustInclude = [/^#\s+/, /^##\s+(Parameters|Results|Examples)/i, /^\|\s*Param\s*\|/i];
-
-  lines.forEach((line, index) => {
-    if (mustInclude.some((pattern) => pattern.test(line))) {
-      picked.push(index);
-      return;
-    }
-    if (queryWords.some((word) => line.toLowerCase().includes(word))) {
-      picked.push(index);
-    }
-  });
-
-  const lineIndexes = new Set();
-  picked.forEach((idx) => {
-    for (let i = Math.max(0, idx - 1); i <= Math.min(lines.length - 1, idx + 1); i += 1) {
-      lineIndexes.add(i);
-    }
-  });
-
-  const excerptLines = (
-    lineIndexes.size
-      ? Array.from(lineIndexes)
-          .sort((a, b) => a - b)
-          .map((i) => lines[i])
-      : lines
-  ).filter((line) => !/^```/.test(line));
-
-  const excerpt = normalizeWhitespace(excerptLines.join("\n"));
-  const clipped = excerpt.length > maxChars ? `${excerpt.slice(0, Math.max(200, maxChars - 3))}...` : excerpt;
-  return `Source: ${fileName}\n${clipped}`;
+  return data.token || data.access_token || data.jwt || data.session_token || "";
 }
 
-async function buildWikiTreeApiDocContext(query, maxChars = WT_API_DOC_DEFAULT_MAX_CHARS) {
-  const budget = Math.max(1200, Math.min(12000, Number(maxChars) || WT_API_DOC_DEFAULT_MAX_CHARS));
-  const rankedFiles = WT_API_DOC_FILES.map((fileName) => ({ fileName, score: scoreApiDocFile(fileName, query) }))
-    .sort((left, right) => right.score - left.score)
-    .filter((entry, index) => entry.score > 0 || index < 2)
-    .slice(0, WT_API_DOC_MAX_FILES)
-    .map((entry) => entry.fileName);
+function getTokenExpiryMs(data) {
+  if (!data || typeof data !== "object") {
+    return Date.now() + 5 * 60 * 1000;
+  }
 
-  const perFileBudget = Math.max(500, Math.floor(budget / Math.max(1, rankedFiles.length)));
-  const snippets = [];
+  const expiresIn = Number(data.expires_in || data.expiresIn || 0);
+  if (Number.isFinite(expiresIn) && expiresIn > 0) {
+    return Date.now() + expiresIn * 1000;
+  }
 
-  for (const fileName of rankedFiles) {
+  const expiresAtRaw = data.expires_at || data.expiresAt;
+  if (typeof expiresAtRaw === "number" && Number.isFinite(expiresAtRaw)) {
+    return expiresAtRaw > 1e12 ? expiresAtRaw : expiresAtRaw * 1000;
+  }
+  if (typeof expiresAtRaw === "string") {
+    const parsed = Date.parse(expiresAtRaw);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+
+  return Date.now() + 5 * 60 * 1000;
+}
+
+function normalizeApiResponse(parsedBody, rawBody) {
+  return parsedBody.ok ? parsedBody.data : { raw: rawBody };
+}
+
+function createHttpError(status, message, data) {
+  const error = new Error(message);
+  error.status = status;
+  error.data = data;
+  return error;
+}
+
+async function fetchDuplicatesApiWithFallback(urls, fetchOptions = {}) {
+  const candidates = Array.isArray(urls) ? urls : [urls];
+  let lastResult = null;
+
+  for (const url of candidates) {
     try {
-      const text = await fetchWikiTreeApiDocFile(fileName);
-      const snippet = extractRelevantDocExcerpt(fileName, text, query, perFileBudget);
-      if (snippet) {
-        snippets.push(snippet);
+      const response = await fetch(url, fetchOptions);
+      const rawBody = await response.text();
+      const parsedBody = tryParseJsonOrJsonl(rawBody);
+      const responseData = normalizeApiResponse(parsedBody, rawBody);
+      const looksHtml = !parsedBody.ok && /<(html|!doctype)/i.test(rawBody || "");
+
+      lastResult = {
+        response,
+        responseData,
+        parsedOk: parsedBody.ok,
+        looksHtml,
+      };
+
+      const shouldTryNext = !response.ok && response.status === 404;
+      const shouldTryNextForHtml = looksHtml && !parsedBody.ok;
+      if (shouldTryNext || shouldTryNextForHtml) {
+        continue;
       }
+
+      return lastResult;
     } catch (error) {
-      // Keep chat resilient if docs are temporarily unavailable.
-      console.warn(`WikiTree API doc fetch skipped for ${fileName}:`, error?.message || error);
+      lastResult = { error };
+      continue;
     }
   }
 
-  const merged = snippets.join("\n\n");
-  if (!merged) {
-    return "";
+  if (lastResult?.error) {
+    throw lastResult.error;
+  }
+  return lastResult;
+}
+
+async function getArboristsSessionToken(forceRefresh = false) {
+  if (!forceRefresh && isTokenStillValid()) {
+    return arboristsSessionToken;
   }
 
-  return merged.length > budget ? `${merged.slice(0, budget - 3)}...` : merged;
+  const { response, responseData, parsedOk, looksHtml } = await fetchDuplicatesApiWithFallback(
+    DUPLICATES_AUTH_SESSION_ENDPOINTS,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+      redirect: "follow",
+    }
+  );
+
+  if (!response.ok) {
+    throw createHttpError(
+      response.status,
+      responseData?.error || "Failed to start Arborists auth session.",
+      responseData
+    );
+  }
+
+  if (!parsedOk || looksHtml) {
+    const raw = String(responseData?.raw || "").toLowerCase();
+    const looksLikeLoginPage = /\blog\s*in\b|\blogin\b|special:userlogin|signin/.test(raw);
+    if (looksLikeLoginPage) {
+      throw createHttpError(401, UNAUTHORIZED_STATUS_MESSAGE, responseData);
+    }
+    throw createHttpError(503, "Arborists auth session did not return valid JSON.", responseData);
+  }
+
+  const token = getTokenFromResponse(responseData);
+  if (!token) {
+    throw createHttpError(503, "Arborists auth session returned no token.", responseData);
+  }
+
+  arboristsSessionToken = token;
+  arboristsSessionTokenExpiresAt = getTokenExpiryMs(responseData);
+  return arboristsSessionToken;
+}
+
+async function postDuplicatesResolve(payload, token) {
+  return fetchDuplicatesApiWithFallback(DUPLICATES_RESOLVE_ENDPOINTS, {
+    method: "POST",
+    redirect: "follow",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+async function handleDuplicatesRead(message, sendResponse) {
+  try {
+    const wtId = (message?.requestedWikiTreeId || "").trim();
+    if (!wtId) {
+      sendResponse({ success: false, error: "Missing requested WikiTree ID." });
+      return;
+    }
+
+    const readUrls = DUPLICATES_READ_ENDPOINTS.map((baseUrl) => {
+      const url = new URL(baseUrl);
+      url.searchParams.set("id", wtId);
+      if (message?.includeResolved) {
+        url.searchParams.set("include_resolved", "1");
+      }
+      return url.toString();
+    });
+
+    const { response, responseData, parsedOk } = await fetchDuplicatesApiWithFallback(readUrls, {
+      method: "GET",
+      redirect: "follow",
+    });
+
+    if (!parsedOk) {
+      sendResponse({
+        success: false,
+        error: "Duplicates API did not return JSON.",
+        status: response.status,
+        data: { raw: String(responseData?.raw || "").slice(0, 300) },
+      });
+      return;
+    }
+
+    if (!response.ok) {
+      sendResponse({
+        success: false,
+        error: responseData?.error || `Read request failed with status ${response.status}`,
+        status: response.status,
+        data: responseData,
+      });
+      return;
+    }
+
+    sendResponse({ success: true, data: responseData });
+  } catch (error) {
+    sendResponse({ success: false, error: error?.message || "Duplicates read request failed." });
+  }
+}
+
+async function handleDuplicatesSetStatus(message, sendResponse) {
+  try {
+    const payload = {
+      match_id: message?.matchId || message?.pairId || "",
+      status: message?.status || message?.reviewStatus || "",
+      client_wt_id: message?.clientWtId || "",
+      note: message?.note || "",
+      notes: message?.note || "",
+    };
+
+    if (!payload.match_id) {
+      sendResponse({ success: false, error: "Missing match_id for status update." });
+      return;
+    }
+    if (!payload.status) {
+      sendResponse({ success: false, error: "Missing status for status update." });
+      return;
+    }
+
+    let token = await getArboristsSessionToken(false);
+    let { response, responseData } = await postDuplicatesResolve(payload, token);
+
+    if (response.status === 401 || response.status === 403) {
+      clearArboristsSessionToken();
+      token = await getArboristsSessionToken(true);
+      ({ response, responseData } = await postDuplicatesResolve(payload, token));
+    }
+
+    if (response.status === 401 || response.status === 403) {
+      clearArboristsSessionToken();
+      sendResponse({
+        success: false,
+        error: UNAUTHORIZED_STATUS_MESSAGE,
+        status: response.status,
+        data: responseData,
+      });
+      return;
+    }
+
+    if (!response.ok) {
+      sendResponse({
+        success: false,
+        error: responseData?.error || `Set Status failed with status ${response.status}`,
+        status: response.status,
+        data: responseData,
+      });
+      return;
+    }
+
+    sendResponse({ success: true, data: responseData });
+  } catch (error) {
+    const status = Number(error?.status || 0);
+    if (status === 401 || status === 403) {
+      clearArboristsSessionToken();
+      sendResponse({ success: false, error: UNAUTHORIZED_STATUS_MESSAGE, status });
+      return;
+    }
+
+    if (status >= 500 || !status) {
+      const serverMessage = String(error?.message || "").trim();
+      sendResponse({
+        success: false,
+        error: serverMessage
+          ? `${serverMessage} The duplicates panel remains in read-only mode.`
+          : "Arborists status updates are temporarily unavailable. The duplicates panel remains in read-only mode.",
+        status: status || undefined,
+        data: error?.data || undefined,
+      });
+      return;
+    }
+
+    sendResponse({ success: false, error: error?.message || "Set Status request failed." });
+  }
+}
+
+async function handleDuplicatesCompareProfiles(message, sendResponse) {
+  try {
+    const ids = Array.isArray(message?.ids) ? message.ids.map((id) => String(id || "").trim()).filter(Boolean) : [];
+
+    if (ids.length < 2) {
+      sendResponse({ success: false, error: "Compare requires two WikiTree IDs." });
+      return;
+    }
+
+    const fields = [
+      "Id",
+      "Name",
+      "FirstName",
+      "MiddleName",
+      "RealName",
+      "Prefix",
+      "Suffix",
+      "LastNameAtBirth",
+      "LastNameCurrent",
+      "Gender",
+      "BirthDate",
+      "DeathDate",
+      "BirthLocation",
+      "DeathLocation",
+      "Father",
+      "Mother",
+      "Children",
+      "Siblings",
+      "Spouses",
+      "Managers",
+      "Created",
+      "Touched",
+      "Connected",
+      "Privacy",
+      "DataStatus",
+      "Bio",
+      "bioHTML",
+    ];
+
+    const params = new URLSearchParams();
+    params.set("appId", "WBE_duplicates");
+    params.set("action", "getPeople");
+    params.set("keys", ids.join(","));
+    params.set("fields", fields.join(","));
+    params.set("nuclear", "1");
+    params.set("bioFormat", "html");
+
+    const response = await fetch("https://api.wikitree.com/api.php", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params,
+    });
+
+    const rawBody = await response.text();
+    const parsedBody = tryParseJsonOrJsonl(rawBody);
+    if (!parsedBody.ok) {
+      sendResponse({
+        success: false,
+        error: "WikiTree API did not return valid JSON.",
+        status: response.status,
+      });
+      return;
+    }
+
+    const root = Array.isArray(parsedBody.data) ? parsedBody.data[0] : null;
+    const people = root?.people || {};
+    const resultByKey = root?.resultByKey || {};
+
+    const profiles = {};
+    ids.forEach((requestedId) => {
+      const lookup = resultByKey?.[requestedId] || resultByKey?.[requestedId.replace(/_/g, " ")];
+      const personId = lookup?.Id;
+      let profile = personId ? people?.[personId] : null;
+
+      if (!profile) {
+        const normalizedRequested = requestedId.replace(/\s+/g, "_").toLowerCase();
+        profile = Object.values(people).find(
+          (person) =>
+            String(person?.Name || "")
+              .replace(/\s+/g, "_")
+              .toLowerCase() === normalizedRequested
+        );
+      }
+
+      profiles[requestedId] = profile || null;
+    });
+
+    if (!response.ok) {
+      sendResponse({
+        success: false,
+        error: root?.status || `Compare request failed with status ${response.status}`,
+        status: response.status,
+        data: { profiles, root },
+      });
+      return;
+    }
+
+    sendResponse({ success: true, data: { profiles, people, root } });
+  } catch (error) {
+    sendResponse({ success: false, error: error?.message || "Compare request failed." });
+  }
+}
+
+function tryParseJsonOrJsonl(rawBody) {
+  try {
+    return { ok: true, data: rawBody ? JSON.parse(rawBody) : null };
+  } catch (error) {
+    const lines = String(rawBody || "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    for (const line of lines) {
+      try {
+        return { ok: true, data: JSON.parse(line) };
+      } catch (lineError) {
+        continue;
+      }
+    }
+
+    return { ok: false, data: null };
+  }
 }
 
 // For Auto Bio: Handle AI requests
@@ -510,7 +707,18 @@ ${newBio}
 ${dataPayload}`;
 
   try {
-    let resultBio = await callAIProvider(provider, key, model, systemRole, prompt);
+    let resultBio = "";
+    if (provider === "openai") {
+      resultBio = await callOpenAI(key, model || "gpt-5-mini", systemRole, prompt);
+    } else if (provider === "gemini") {
+      resultBio = await callGemini(key, model || "gemini-3-flash-preview", systemRole, prompt);
+    } else if (provider === "claude") {
+      resultBio = await callClaude(key, model || "claude-sonnet-4-5", systemRole, prompt);
+    } else if (provider === "perplexity") {
+      resultBio = await callPerplexity(key, model || "sonar", systemRole, prompt);
+    } else {
+      throw new Error("Unknown provider: " + provider);
+    }
 
     // --- PROGRAMMATIC CLEANING : CATEGORIES ---
     // The AI sometimes ignores instructions and adds categories like [[Category: 1917 Births]].
@@ -554,51 +762,6 @@ ${dataPayload}`;
     sendResponse({ success: true, bio: resultBio });
   } catch (error) {
     console.error("AI Request Failed:", error);
-    sendResponse({ success: false, error: error.message });
-  }
-}
-
-async function handleChatRequest(request, sendResponse) {
-  const { prompt, provider, key, model, pageContext, includeApiDocContext, apiDocUserQuery, apiDocMaxChars } = request;
-
-  if (!prompt || typeof prompt !== "string") {
-    sendResponse({ success: false, error: "No prompt provided." });
-    return;
-  }
-
-  if (!key) {
-    sendResponse({ success: false, error: "API key is missing." });
-    return;
-  }
-
-  const systemRole =
-    "You are a genealogy assistant for WikiTree Browser Extension. " +
-    "Be concise, factual, and explicit about uncertainty. " +
-    "Do not invent profile data. If data is missing, say what is needed next.";
-
-  const contextBlock = pageContext
-    ? `\n\nPage context:\n- URL: ${pageContext.url || ""}\n- Title: ${pageContext.title || ""}`
-    : "";
-
-  let apiDocsBlock = "";
-  if (includeApiDocContext) {
-    const apiContext = await buildWikiTreeApiDocContext(apiDocUserQuery || prompt, apiDocMaxChars);
-    if (apiContext) {
-      apiDocsBlock = `\n\nRelevant WikiTree API docs excerpts (from wikitree/wikitree-api):\n${apiContext}`;
-    }
-  }
-
-  try {
-    const responseText = await callAIProvider(
-      provider,
-      key,
-      model,
-      systemRole,
-      `${prompt}${contextBlock}${apiDocsBlock}`
-    );
-    sendResponse({ success: true, response: responseText || "No response text returned." });
-  } catch (error) {
-    console.error("Chat AI Request Failed:", error);
     sendResponse({ success: false, error: error.message });
   }
 }

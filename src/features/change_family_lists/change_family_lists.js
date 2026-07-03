@@ -1344,6 +1344,7 @@ function buildSpousesSection(spouses) {
     // Map icon link
     if (spouse.MarriageMapLink) {
       const mapLink = document.createElement("a");
+      mapLink.className = "marriageMapLink";
       mapLink.style.position = "relative";
       mapLink.style.marginLeft = "4px";
       mapLink.href = spouse.MarriageMapLink;
@@ -1351,6 +1352,7 @@ function buildSpousesSection(spouses) {
       mapLink.setAttribute("data-bs-title", "Marriage Location on Map");
       mapLink.target = "_map";
       const img = document.createElement("img");
+      img.className = "marriageMapIcon";
       img.src = "/images/icons/icon-map-pin.svg";
       img.alt = "map icon";
       mapLink.appendChild(img);

@@ -6,7 +6,7 @@ import * as $ from "jquery";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isOK } from "../../core/common";
-
+import { addItems } from "../scissors/scissors";
 shouldInitializeFeature("editFamilyData").then((result) => {
   if (
     result &&
@@ -77,15 +77,22 @@ async function addInfoAboutOtherPerson() {
       let theDeathButtons = "";
       if (options.copyLocations) {
         theBirthButtons = `
-          <button class='copyLocation ${birthButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location='${efBlocation}'>as birth location</button>
-          <button class='copyLocation ${birthButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location='${efBlocation}'>as death location</button>
+          <button class='copyLocation ${birthButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location="${efBlocation}">as birth location</button>
+          <button class='copyLocation ${birthButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location="${efBlocation}">as death location</button>
         `;
         theDeathButtons = `
-          <button class='copyLocation ${deathButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location='${efDlocation}'>as birth location</button>
-          <button class='copyLocation ${deathButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location='${efDlocation}'>as death location</button>
+          <button class='copyLocation ${deathButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location="${efDlocation}">as birth location</button>
+          <button class='copyLocation ${deathButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location="${efDlocation}">as death location</button>
         `;
       }
 
+      if (options.scissors) {
+        let name = h1Link.text();
+        let copyItems = [];
+        copyItems.push({ label: "Link", text: `[[${wtid}|${name}]]` });
+        const displayOptions = { classic: true, image: false };
+        addItems(copyItems, $(".copy--buttons"), displayOptions);
+      }
       const efHTML = `
         <ul id='EFdates'>
           ${

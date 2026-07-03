@@ -70,6 +70,73 @@
   cursor: pointer;
 }
 
+.ew-note-col {
+  min-width: 1.8em;
+}
+
+.ew-note-edit-trigger {
+  display: inline-block;
+  cursor: pointer;
+  font-size: 1em;
+  line-height: 1;
+}
+
+.ew-name-wrap {
+  display: block;
+  width: 100%;
+}
+
+.ew-note-marker {
+  display: inline-block;
+  opacity: 0.7;
+}
+
+.ew-note-marker-right {
+  float: right;
+  font-size: 0.62em;
+  margin-left: 0.5em;
+  margin-top: 0.25em;
+  pointer-events: none;
+}
+
+.ew-note-popup {
+  width: 320px;
+  max-width: calc(100vw - 20px);
+  border: 1px solid #496;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.2);
+  padding: 10px;
+}
+
+.ew-note-popup-header {
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.ew-note-popup-body {
+  max-height: 180px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.ew-note-text {
+  width: 100%;
+  min-height: 120px;
+  max-height: 250px;
+  resize: vertical;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+}
+
+.ew-note-popup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 #importExtraWatchlist,
 #exportExtraWatchlist {
   margin: 0.3em;

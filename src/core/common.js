@@ -17,6 +17,8 @@ import {
   isAddUnrelatedPerson,
   isG2G,
   isMergeEdit,
+  isProfileEdit,
+  isSpaceEdit,
 } from "./pageType.js";
 import { checkIfFeatureEnabled, getFeatureOptions } from "./options/options_storage";
 
@@ -131,17 +133,25 @@ if (isProfilePage) {
  */
 export function getProfilePersonInfo() {
   const person = {};
+  if (/Space(:|%3a|%3A)/i.test(window.location.href)) {
+    // For space pages, the profile person is the space page itself.
+    // This doesn't rely on #pageData, which isn't present on Space edit pages.
+    let namePart = window.location.href.split(/Space(:|%3a|%3A)/i)[2];
+    if (namePart) {
+      const pageName = namePart.split(/[?&#]/)[0];
+      person.Name = "Space:" + pageName;
+      // Prefer the actual page title over the URL slug: the edit form's #mName field,
+      // or the h1 on the page itself, falling back to the URL-derived name.
+      const titleFromForm = $("#mName").val();
+      const titleFromH1 = $("h1[itemprop='name']").first().text().trim();
+      person.FullName = titleFromForm || titleFromH1 || decodeURIComponent(pageName).replace(/_/g, " ");
+      return person;
+    }
+  }
+
   const pageData = $("#pageData").data();
   if (!pageData) {
     return null;
-  }
-  if (/Space(:|%3a|%3A)/i.test(window.location.href)) {
-    // For space pages, the profile person is the space page itself
-    let namePart = window.location.href.split(/Space(:|%3a|%3A)/i)[2];
-    if (namePart) {
-      person.Name = "Space:" + namePart.split(/[?#]/)[0];
-      return person;
-    }
   }
 
   person.Name = pageData.mnamedb;
@@ -906,10 +916,18 @@ export function htmlEntities(str) {
     .replaceAll(/'/g, "&apos;");
 }
 
+async function ensureDraftsDataTable() {
+  if (!$.fn.DataTable) {
+    await import("datatables.net-dt/css/jquery.dataTables.css");
+    await import("datatables.net");
+  }
+}
+
 export async function showDraftList() {
   if (localStorage.drafts) {
     await updateDraftList();
   }
+  await ensureDraftsDataTable();
 
   // Remove existing draft list and re-append the container
   $("#myDrafts").remove();
@@ -918,12 +936,21 @@ export async function showDraftList() {
       <h2>My Drafts</h2>
       <x>x</x>
       <div id="myDraftsList">
-        <table></table>
+        <h3>Profiles</h3>
+        <table id="myDraftsProfiles" class="display" style="width:100%">
+          <thead><tr><th>WT ID</th><th>Name</th><th>Date</th><th></th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <h3>Spaces</h3>
+        <table id="myDraftsSpaces" class="display" style="width:100%">
+          <thead><tr><th>WT ID</th><th>Name</th><th>Date</th><th></th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
     </div>
   `);
 
-  // Bind draggable, close actions, and double-click
+  // Bind close actions and double-click
   $("#myDrafts").on("dblclick", function () {
     $(this).slideUp();
   });
@@ -936,26 +963,26 @@ export async function showDraftList() {
     $(this).parent().slideUp();
   });
 
-  // Process person drafts
+  // Process drafts (profile and space pages are saved and reported the same way)
   if (localStorage.drafts && localStorage.drafts !== "[]") {
     try {
       const drafts = JSON.parse(localStorage.drafts);
-      processPersonDrafts(drafts);
+      processDrafts(drafts);
     } catch (e) {
-      console.error("Error parsing person drafts:", e);
+      console.error("Error parsing drafts:", e);
+      renderDraftTables([]);
     }
   } else {
-    // Handle space drafts if no person drafts exist
-    handleSpaceDrafts();
+    renderDraftTables([]);
   }
 
   /**
-   * Processes a list of drafts by checking for uncommitted drafts and extracting relevant information.
-   * Updates the drafts array with associated user and draft IDs when available.
+   * Checks each draft entry for an uncommitted draft on WikiTree, and records the
+   * "Use the Draft" / "Discard the Draft" links (derived from the same href) for each.
    *
-   * @param {Array} drafts - An array of draft entries, where each draft is expected to have at least one element: the WikiTree ID.
+   * @param {Array} drafts - An array of draft entries, where each draft is expected to have at least one element: the WikiTree ID (a person ID or "Space:PageName").
    */
-  function processPersonDrafts(drafts) {
+  function processDrafts(drafts) {
     let draftCalls = 0; // Counter to track the number of processed drafts
     const tempDraftArr = []; // Temporary array to store drafts that are uncommitted
 
@@ -975,45 +1002,24 @@ export async function showDraftList() {
           const parser = new DOMParser();
           const doc = parser.parseFromString(res, "text/html");
 
-          // Extract the profile ID (WTID) from the page data
-          let aWTID = doc.querySelector("#pageData")?.getAttribute("data-mnamedb") || "";
-
-          // Check if 'aWTID' ends with ' User' and remove it if present
-          if (aWTID.endsWith(" User")) {
-            aWTID = aWTID.replace(/ User$/, ""); // Remove ' User' at the end
-          }
-
           // Search for an element indicating an uncommitted draft
           const statusDiv = Array.from(doc.querySelectorAll("div.status")).find((el) =>
             el.textContent.includes("You have an uncommitted")
           );
 
           if (statusDiv) {
-            // If an uncommitted draft is found, store the profile ID
-            tempDraftArr.push(aWTID);
+            // If an uncommitted draft is found, keep this entry
+            tempDraftArr.push(theWTID);
 
-            // Locate the 'Use the Draft' link and extract its href
-            const useLink = Array.from(doc.querySelectorAll("a"))
+            // Locate the 'Use the Draft' link. The 'Discard the Draft' link is the same
+            // href with the ud= (use draft) param swapped for dd= (discard draft).
+            const useHref = Array.from(doc.querySelectorAll("a"))
               .find((el) => el.textContent.includes("Use the Draft"))
               ?.getAttribute("href");
 
-            if (useLink) {
-              // Extract person and draft IDs from the URL parameters
-              const personIDMatch = useLink.match(/&u=([0-9]+)/);
-              const draftIDMatch = useLink.match(/&ud=([0-9]+)/);
-
-              if (personIDMatch && draftIDMatch) {
-                const personID = personIDMatch[1];
-                const draftID = draftIDMatch[1];
-
-                // Update the corresponding draft entry with extracted IDs
-                drafts.forEach((yDraft) => {
-                  if (yDraft[0] === aWTID) {
-                    yDraft[3] = personID;
-                    yDraft[4] = draftID;
-                  }
-                });
-              }
+            if (useHref && /[?&]ud=\d+/.test(useHref)) {
+              drafts[index][3] = useHref;
+              drafts[index][4] = useHref.replace(/([?&])ud=(\d+)/, "$1dd=$2");
             }
           }
 
@@ -1028,148 +1034,139 @@ export async function showDraftList() {
 
   function updateDraftTable(drafts, tempDraftArr) {
     const newDraftArr = drafts.filter((aDraft) => tempDraftArr.includes(aDraft[0]) && isOK(aDraft[0]));
-
-    // Clear the table before rendering to prevent duplicates
-    $("#myDrafts table").empty();
-
-    if (!newDraftArr.length && !localStorage.spaceDrafts) {
-      $("#myDrafts").append("<p>No drafts!</p>");
-    }
-
-    newDraftArr.forEach((xDraft) => {
-      const useButton = xDraft[3]
-        ? `
-           <td><a href='https://${mainDomain}/index.php?title=Special:EditPerson&u=${xDraft[3]}&ud=${xDraft[4]}' class='small button'>USE</a></td>
-           <td><a href='https://${mainDomain}/index.php?title=Special:EditPerson&u=${xDraft[3]}&dd=${xDraft[4]}' class='small button'>DISCARD</a></td>`
-        : "<td></td><td></td>";
-
-      $("#myDrafts table").append(`
-        <tr>
-          <td><a href='https://${mainDomain}/index.php?title=${xDraft[0]}&displayDraft=1'>${xDraft[2]}</a></td>
-          ${useButton}
-        </tr>
-      `);
-    });
-
-    $("#myDrafts").slideDown();
     localStorage.setItem("drafts", JSON.stringify(newDraftArr));
-
-    // Now handle space drafts
-    handleSpaceDrafts();
+    renderDraftTables(newDraftArr);
   }
+}
 
-  // Function to handle space drafts
-  function handleSpaceDrafts() {
-    removeKeysStartingWithSpace(); // Remove any keys starting with "Space:"
-    const spaceDrafts = JSON.parse(localStorage.spaceDrafts || "{}");
-    const spaceDraftKeys = Object.keys(spaceDrafts);
+// Renders the Profiles and Spaces draft tables. Draft entries are [WTID, timestamp, FullName, useHref, discardHref].
+// Entries saved by older versions of this extension may have a bare numeric personID/draftID in [3]/[4]
+// instead of an href (or may only have the first 3 elements) - toHref() treats anything but a real href as absent.
+function renderDraftTables(draftArr) {
+  const toHref = (value) => (typeof value === "string" && value ? absolutizeUrl(value) : "");
+  const toRowData = (xDraft) => ({
+    wtId: xDraft[0],
+    name: xDraft[2],
+    date: xDraft[1],
+    useHref: toHref(xDraft[3]),
+    discardHref: toHref(xDraft[4]),
+  });
 
-    if (spaceDraftKeys.length > 0) {
-      spaceDraftKeys.forEach((key) => {
-        const spaceDraft = spaceDrafts[key];
-        const keyParts = key.split("_section_"); // Split to check if it's a section draft
-        const spaceDraftPage = keyParts[0].replace(/_/g, " "); // Get the page title, remove underscores
-        const sectionId = keyParts[1]; // Get section ID if present
+  const profileRows = draftArr.filter((d) => !d[0].startsWith("Space:")).map(toRowData);
+  const spaceRows = draftArr.filter((d) => d[0].startsWith("Space:")).map(toRowData);
 
-        // Generate the link for editing the page or section
-        const editLink = sectionId
-          ? `https://${mainDomain}/index.php?title=Space:${keyParts[0]}&action=edit&section=${sectionId}`
-          : `https://${mainDomain}/index.php?title=Space:${keyParts[0]}&action=edit`;
+  initDraftsTable("#myDraftsProfiles", profileRows, "No profile drafts");
+  initDraftsTable("#myDraftsSpaces", spaceRows, "No space drafts");
 
-        // Append the draft row to the table
-        $("#myDrafts table").append(`
-          <tr>
-            <td><a href="${editLink}">${spaceDraftPage}</a></td>
-            <td>${sectionId ? "Section " + sectionId : "Full Page"}</td>
-            <td><button class='small button delete-space-draft' data-key="${key}">DISCARD</button></td>
-          </tr>
-        `);
-      });
+  $("#myDrafts").slideDown();
+}
 
-      // Add action buttons for deleting space drafts
-      $("#myDrafts").append(`
-        <div id="spaceDraftActions">
-          <button id="deleteAllSpaceDrafts" class="small button">Delete All Space Drafts</button>
-        </div>
-      `);
-    } else {
-      if ($("#noSpaceDrafts").length === 0) {
-        $("#myDrafts").append("<p id='noSpaceDrafts'>No space drafts!</p>");
+function initDraftsTable(selector, rows, emptyMessage) {
+  $(selector).DataTable({
+    destroy: true,
+    data: rows,
+    columns: [
+      {
+        title: "WT ID",
+        data: "wtId",
+        render: (data, type) => (type === "display" ? htmlEntities(data) : data),
+      },
+      {
+        title: "Name",
+        data: "name",
+        render: (data, type, row) =>
+          type === "display"
+            ? `<a href='https://${mainDomain}/index.php?title=${row.wtId}&displayDraft=1'>${htmlEntities(data)}</a>`
+            : data,
+      },
+      {
+        title: "Date",
+        data: "date",
+        render: (data, type) => (type === "display" ? formatDraftDate(data) : data),
+      },
+      {
+        title: "",
+        data: "useHref",
+        orderable: false,
+        searchable: false,
+        render: (data) =>
+          data ? `<button type="button" class="small button use-draft" data-href="${data}">USE</button>` : "",
+      },
+      {
+        title: "",
+        data: "discardHref",
+        orderable: false,
+        searchable: false,
+        render: (data) =>
+          data ? `<button type="button" class="small button discard-draft" data-href="${data}">DISCARD</button>` : "",
+      },
+    ],
+    createdRow: (row, data) => {
+      $(row).attr("data-wtid", htmlEntities(data.wtId));
+    },
+    order: [[2, "desc"]],
+    paging: false,
+    info: false,
+    searching: false,
+    autoWidth: false,
+    language: { emptyTable: emptyMessage },
+  });
+}
+
+// Draft dates are stored as UTC epoch ms (Date.now()); formatting with local getters shows them in local time.
+function formatDraftDate(timestamp) {
+  const d = new Date(timestamp);
+  if (isNaN(d)) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function absolutizeUrl(href) {
+  return href.startsWith("http") ? href : `https://${mainDomain}${href.startsWith("/") ? "" : "/"}${href}`;
+}
+
+// Navigate to the draft to use it
+$(document).on("click", ".use-draft", function () {
+  const href = $(this).data("href");
+  if (href) {
+    window.location.href = href;
+  }
+});
+
+// Discard a draft in the background, without navigating away from the current page
+$(document).on("click", ".discard-draft", function () {
+  const $button = $(this);
+  const href = $button.data("href");
+  if (!href) return;
+
+  const $row = $button.closest("tr");
+  const table = $button.closest("table").DataTable();
+  $button.prop("disabled", true);
+  $row.find(".use-draft").prop("disabled", true);
+
+  fetch(href)
+    .then((response) => {
+      if (!response.ok) throw new Error(response.statusText);
+      if (localStorage.drafts) {
+        const wtid = $row.data("wtid");
+        const remainingDrafts = JSON.parse(localStorage.drafts).filter((draft) => draft[0] !== wtid);
+        localStorage.setItem("drafts", JSON.stringify(remainingDrafts));
       }
-    }
-  }
-}
-
-function removeKeysStartingWithSpace() {
-  const spaceDrafts = JSON.parse(localStorage.getItem("spaceDrafts") || "{}");
-
-  // Iterate through the keys of spaceDrafts
-  Object.keys(spaceDrafts).forEach((key) => {
-    if (key.startsWith("Space:")) {
-      // Remove the key from the object
-      delete spaceDrafts[key];
-    }
-  });
-
-  // Save the updated spaceDrafts back to localStorage
-  localStorage.setItem("spaceDrafts", JSON.stringify(spaceDrafts));
-}
-
-// Event listeners for space drafts actions
-$(document).on("click", ".delete-space-draft", function () {
-  const key = $(this).data("key");
-  const spaceDrafts = JSON.parse(localStorage.spaceDrafts || "{}");
-  delete spaceDrafts[key];
-  localStorage.setItem("spaceDrafts", JSON.stringify(spaceDrafts));
-  showDraftList(); // Refresh the draft list
-});
-
-$(document).on("click", "#deleteAllSpaceDrafts", function () {
-  localStorage.removeItem("spaceDrafts");
-  showDraftList(); // Refresh the draft list
-});
-
-$(document).on("click", "#deleteSpaceDraftsForPage", function () {
-  const pageId = window.location.href.split("/index.php?title=")[1]?.split("&")[0] || "";
-  const spaceDrafts = JSON.parse(localStorage.spaceDrafts || "{}");
-  Object.keys(spaceDrafts).forEach((key) => {
-    if (spaceDrafts[key].pageId === pageId) {
-      delete spaceDrafts[key];
-    }
-  });
-  localStorage.setItem("spaceDrafts", JSON.stringify(spaceDrafts));
-  showDraftList(); // Refresh the draft list after deleting page-specific drafts
-});
-
-// Event listeners for space drafts actions
-$(document).on("click", ".delete-space-draft", function () {
-  const key = $(this).data("key");
-  const spaceDrafts = JSON.parse(localStorage.spaceDrafts || "{}");
-  delete spaceDrafts[key];
-  localStorage.setItem("spaceDrafts", JSON.stringify(spaceDrafts));
-  showDraftList(); // Refresh the draft list
-});
-
-$(document).on("click", "#deleteAllSpaceDrafts", function () {
-  localStorage.removeItem("spaceDrafts");
-  showDraftList(); // Refresh the draft list
-});
-
-$(document).on("click", "#deleteSpaceDraftsForPage", function () {
-  const pageId = window.location.href.split("/index.php?title=")[1]?.split("&")[0] || "";
-  const spaceDrafts = JSON.parse(localStorage.spaceDrafts || "{}");
-  Object.keys(spaceDrafts).forEach((key) => {
-    if (spaceDrafts[key].pageId === pageId) {
-      delete spaceDrafts[key];
-    }
-  });
-  localStorage.setItem("spaceDrafts", JSON.stringify(spaceDrafts));
-  showDraftList(); // Refresh the draft list after deleting page-specific drafts
+      table.row($row).remove().draw(false);
+    })
+    .catch((e) => {
+      console.error("Error discarding draft:", e);
+      $button.prop("disabled", false);
+      $row.find(".use-draft").prop("disabled", false);
+    });
 });
 
 // Used in saveDraftList (above)
 export async function updateDraftList() {
   setTimeout(() => {
+    if (!profilePerson) {
+      return;
+    }
     const profileWTID = profilePerson.Name;
     let addDraft = false;
     let timeNow = Date.now();
@@ -1179,7 +1176,7 @@ export async function updateDraftList() {
 
     if ($("#draftStatus:contains('saved'),#status:contains('Starting with previous')").length) {
       addDraft = true;
-    } else if ($("body.edit-person").length) {
+    } else if (isProfileEdit || isSpaceEdit) {
       isEditPage = true;
     }
 
@@ -1240,6 +1237,7 @@ async function backupData(compactMode, sendResponse) {
   data.changeSummaryOptions_Category = localStorage.LSchangeSummaryOptions_Category;
   data.myMenu = localStorage.customMenu;
   data.extraWatchlist = localStorage.extraWatchlist;
+  data.extraWatchlistNotes = localStorage.extraWatchlistNotes;
   data.textExpander = localStorage.wbe_text_expander_custom; // Add text expander data
 
   const databases = compactMode ? WBE_DATABASES_MINIMAL : WBE_DATABASES_ALL;
@@ -1340,6 +1338,13 @@ async function restoreData(data, sendResponse) {
   }
   if (data.extraWatchlist) {
     localStorage.setItem("extraWatchlist", data.extraWatchlist);
+  }
+  if (Object.prototype.hasOwnProperty.call(data, "extraWatchlistNotes")) {
+    if (data.extraWatchlistNotes) {
+      localStorage.setItem("extraWatchlistNotes", data.extraWatchlistNotes);
+    } else {
+      localStorage.removeItem("extraWatchlistNotes");
+    }
   }
   if (data.textExpander) {
     // Add text expander restore

@@ -33,6 +33,12 @@ import { addWorking, getBioText, removeWorking, setBioText } from "./editorUtils
 import { assignPersonNames, setOrderBirthDate } from "./auto_bio_person.js";
 import { getFindAGraveLink, getCitation, cleanFindAGraveCitation } from "./auto_bio_citations.js";
 import {
+  findGenealogicallyDefinedLinePlacement,
+  isGenealogicallyDefinedLink,
+  sortStuffBeforeBioItems,
+  splitStuffBeforeBioEntry,
+} from "./preBioUtils.js";
+import {
   appalachiaStates,
   findUSState as findUSStateInStates,
   fixUSLocation as fixUSLocationInStates,
@@ -60,6 +66,32 @@ function findUSState(location) {
 
 function fixUSLocation(event) {
   return fixUSLocationInStates(event, USstatesObjArray, window.autoBioOptions, window.autoBioNotes);
+}
+
+function captureAutoBioFormState() {
+  const fieldState = {};
+  $("input[id^='m'], select[id^='m'], textarea[id^='m']").each(function () {
+    const field = $(this);
+    const fieldId = field.attr("id");
+    if (!fieldId) {
+      return;
+    }
+    fieldState[fieldId] = field.val();
+  });
+  return fieldState;
+}
+
+function restoreAutoBioFormState(fieldState) {
+  if (!fieldState || typeof fieldState !== "object") {
+    return;
+  }
+
+  Object.entries(fieldState).forEach(([fieldId, fieldValue]) => {
+    const field = $("#" + fieldId);
+    if (field.length) {
+      field.val(fieldValue);
+    }
+  });
 }
 
 function personDates(person) {
@@ -5628,6 +5660,11 @@ export async function getStickersAndBoxes() {
   let thingsToAddBeforeBioHeading = [];
 
   const currentBio = $("#wpTextbox1").val();
+  const genealogicallyDefinedPlacement = findGenealogicallyDefinedLinePlacement(currentBio);
+
+  if (genealogicallyDefinedPlacement && genealogicallyDefinedPlacement.beforeBiography === false) {
+    thingsToAddAfterBioHeading.push(genealogicallyDefinedPlacement.line);
+  }
 
   try {
     templatesObject.templates.forEach(function (aTemplate) {
@@ -6072,45 +6109,17 @@ export function splitBioIntoSections() {
 
   // Split the things before the bio up into separate items
   if (sections.StuffBeforeTheBio.text?.length > 0) {
-    const pattern = /(\{\{.*?\}\}|\[\[.*?\]\])/g;
-    const categoryOnlyPattern = /^\[\[Category:[^\]]+\]\]$/i;
-    const htmlCommentPattern = /^<!--.*-->$/;
-
     for (let i = 0; i < sections.StuffBeforeTheBio.text.length; i++) {
       const line = sections.StuffBeforeTheBio.text[i];
-      const matches = Array.from(line.matchAll(pattern));
+      const nextLine = sections.StuffBeforeTheBio.text[i + 1];
+      const { items: splitItems, consumeNextLine } = splitStuffBeforeBioEntry(line, nextLine);
 
-      if (matches.length > 0) {
-        const splitItems = [];
-
-        for (let j = 0; j < matches.length; j++) {
-          const token = matches[j][0];
-          splitItems.push(token);
-
-          const tokenEnd = matches[j].index + token.length;
-          const nextTokenStart = j < matches.length - 1 ? matches[j + 1].index : line.length;
-          const trailingText = line.slice(tokenEnd, nextTokenStart).trim();
-
-          // Keep inline HTML comments near categories as their own adjacent item.
-          if (categoryOnlyPattern.test(token) && trailingText && htmlCommentPattern.test(trailingText)) {
-            splitItems.push(trailingText);
-          }
-        }
-
-        // Keep a standalone next-line HTML comment near its category.
-        const lastToken = matches[matches.length - 1][0];
-        if (categoryOnlyPattern.test(lastToken)) {
-          const nextLine = sections.StuffBeforeTheBio.text[i + 1]?.trim();
-          if (nextLine && htmlCommentPattern.test(nextLine)) {
-            splitItems.push(nextLine);
-            sections.StuffBeforeTheBio.text.splice(i + 1, 1);
-          }
-        }
-
-        sections.StuffBeforeTheBio.text[i] = splitItems[0];
-        if (splitItems.length > 1) {
-          sections.StuffBeforeTheBio.text.splice(i + 1, 0, ...splitItems.slice(1));
-        }
+      sections.StuffBeforeTheBio.text[i] = splitItems[0];
+      if (splitItems.length > 1) {
+        sections.StuffBeforeTheBio.text.splice(i + 1, 0, ...splitItems.slice(1));
+      }
+      if (consumeNextLine) {
+        sections.StuffBeforeTheBio.text.splice(i + splitItems.length, 1);
       }
       const gedcomMatch = sections.StuffBeforeTheBio.text[i].match(/\.ged\s/);
       if (gedcomMatch) {
@@ -6236,56 +6245,11 @@ async function getTemplates() {
 
 async function sortStuffBeforeBio() {
   const templatesObject = await getTemplates();
-  const tempStuffObject = {
-    categories: [],
-    easilyConfused: [],
-    researchNoteBoxes: [],
-    projectBoxes: [],
-    succession: [],
-  };
   if (window.sectionsObject["StuffBeforeTheBio"]) {
     const stuff = window.sectionsObject["StuffBeforeTheBio"].text;
-    stuff.forEach(function (item, index) {
-      const itemName = item.match(/\{\{([^|}]+)/);
-      const extractedName = itemName?.[1]?.trim();
-      const previousItem = index > 0 ? stuff[index - 1] : "";
-      if (item.startsWith("[[Category:")) {
-        tempStuffObject.categories.push(item);
-      } else if (/^<!--.*-->$/.test(item) && previousItem.startsWith("[[Category:")) {
-        // Preserve category-adjacent comments in output while keeping categories plain for matching.
-        tempStuffObject.categories.push(item);
-      } else if (item.toLowerCase().startsWith("{{easily confused")) {
-        tempStuffObject.easilyConfused.push(item);
-      } else if (
-        templatesObject.templates.find(
-          (template) => template.name === extractedName && template.group?.toLowerCase() === "research note box"
-        )
-      ) {
-        tempStuffObject.researchNoteBoxes.push(item);
-      } else if (
-        templatesObject.templates.find(
-          (template) => template.name === extractedName && template.type?.toLowerCase() === "project box"
-        )
-      ) {
-        tempStuffObject.projectBoxes.push(item);
-      } else if (
-        templatesObject.templates.find(
-          (template) => template.name === extractedName && template.group?.toLowerCase() === "succession"
-        )
-      ) {
-        tempStuffObject.succession.push(item);
-      }
-    });
+    return sortStuffBeforeBioItems(stuff, templatesObject);
   }
-  // Combine the arrays.
-  const combinedStuff = [
-    ...tempStuffObject.categories,
-    ...tempStuffObject.easilyConfused,
-    ...tempStuffObject.researchNoteBoxes,
-    ...tempStuffObject.projectBoxes,
-    ...tempStuffObject.succession,
-  ];
-  return combinedStuff;
+  return [];
 }
 
 export async function getStuffBeforeTheBioText() {
@@ -7229,7 +7193,6 @@ async function fixLocations() {
 
     let locationBits = event?.Location.split(",");
     locationBits = locationBits.map((str) => str.trim());
-    const lastLocationBit = locationBits[locationBits.length - 1];
 
     if (window.autoBioOptions?.checkUS && isOK(event?.Date)) {
       event = fixUSLocation(event);
@@ -7239,68 +7202,24 @@ async function fixLocations() {
       let australianLocations;
       if (!window.australianLocations) {
         australianLocations = await import("./australian_locations.json");
+        window.australianLocations = australianLocations.default;
+        australianLocations = window.australianLocations;
       } else {
         australianLocations = window.australianLocations;
       }
-      const locationKeys = Object.keys(australianLocations);
-      let foundLocationMatch = false;
-      let matchedKey = null;
-      let originalMatched = false;
-
-      for (let i = 0; i < locationKeys.length; i++) {
-        let key = locationKeys[i];
-
-        const addedAustralia = lastLocationBit + ", Australia";
-
-        if (event.Location.includes(key)) {
-          matchedKey = key;
-          originalMatched = true;
-        } else if (addedAustralia == key) {
-          matchedKey = key;
-          originalMatched = false;
-        }
-
-        if (matchedKey) {
-          const startDate = australianLocations[key]["startDate"];
-          const endDate = australianLocations[key]["endDate"];
-          const afterStart = isSameDateOrAfter(event.Date, startDate);
-          const beforeEnd = endDate ? !isSameDateOrAfter(event.Date, endDate) : true;
-
-          if (afterStart && beforeEnd) {
-            foundLocationMatch = true;
-            break;
-          } else if (!afterStart && "previousName" in australianLocations[key]) {
-            foundLocationMatch = true;
-            matchedKey = key; // keep the original key
-            break;
-          }
-        }
-      }
-      if (foundLocationMatch) {
-        const startDate = australianLocations[matchedKey]["startDate"];
-        const afterStart = isSameDateOrAfter(event.Date, startDate);
-
-        if (!afterStart && australianLocations[matchedKey]["previousName"]) {
-          // Use previousName if the event date is before the start date of the matched location
-          if (originalMatched) {
-            // cope with "Australian Colonies"
-            const matchedKeyPattern = new RegExp(matchedKey + ".*");
-            event.Location = event?.Location
-              ? event.Location.replace(matchedKeyPattern, australianLocations[matchedKey]["previousName"])
-              : "";
-          } else {
-            event.Location = event?.Location
-              ? event.Location.replace(lastLocationBit, australianLocations[matchedKey]["previousName"])
-              : "";
-          }
-        } else if (!originalMatched && matchedKey && event?.Location) {
-          // If the location match was found with the addedAustralia search and the event date is within the appropriate timeframe, add matchedKey to the location.
-          event.Location = event.Location.replace(lastLocationBit, matchedKey);
-        } else if (!australianLocations[matchedKey]["previousName"]) {
-          console.log("No previousName defined for matchedKey:", matchedKey);
-        }
+      const resolvedAustralianLocation = resolveAustralianCategoryLocation(
+        event.Location,
+        capitalizeFirstLetter(event.Event),
+        australianLocations
+      );
+      if (resolvedAustralianLocation.location) {
+        event.Location = resolvedAustralianLocation.location;
       }
     }
+
+    locationBits = event?.Location.split(",");
+    locationBits = locationBits.map((str) => str.trim());
+    const lastLocationBit = locationBits[locationBits.length - 1];
 
     if (window.autoBioOptions?.checkUK && isOK(event?.Date)) {
       if (["England", "Scotland", "Wales"].includes(lastLocationBit) && isSameDateOrAfter(event.Date, "1801-01-01")) {
@@ -7366,6 +7285,7 @@ async function fixLocations() {
 
 export async function generateBio() {
   window.autoBio_originalBio = getBioText(); // Capture original text before any changes
+  window.autoBio_originalFields = captureAutoBioFormState();
   const module = await import("./us_states.json");
   USstatesObjArray = module.default;
   templatesObject = await getTemplates();
@@ -7412,9 +7332,10 @@ export async function generateBio() {
       const isCategoryLine = /^\[\[Category:[^\]]+\]\](\s*<!--.*-->)?$/i.test(trimmedLine);
       const isCommentLine = /^<!--.*-->$/.test(trimmedLine);
       const isCommentForPreviousCategory = previousLineWasCategory && isCommentLine;
+      const isGenealogicallyDefinedLine = isGenealogicallyDefinedLink(trimmedLine);
 
       // Skip lines that are part of a template or are categories
-      if (!inTemplate && !isCategoryLine && !isCommentForPreviousCategory) {
+      if (!inTemplate && !isCategoryLine && !isCommentForPreviousCategory && !isGenealogicallyDefinedLine) {
         filteredLines.push(line);
       }
 
@@ -8585,6 +8506,93 @@ async function appalachiaCategory(location, thisState) {
   addUniqueCategoryToStuffBeforeTheBio(tag);
 }
 
+const AUSTRALIAN_LOCATION_ALIASES = {
+  ACT: "Australian Capital Territory",
+  NSW: "New South Wales, Australia",
+  "New South Wales": "New South Wales, Australia",
+  NT: "Northern Territory of Australia",
+  "Northern Territory": "Northern Territory of Australia",
+  QLD: "Queensland, Australia",
+  Queensland: "Queensland, Australia",
+  SA: "South Australia, Australia",
+  "South Australia": "South Australia, Australia",
+  TAS: "Tasmania, Australia",
+  Tasmania: "Tasmania, Australia",
+  VIC: "Victoria, Australia",
+  Victoria: "Victoria, Australia",
+  WA: "Western Australia, Australia",
+  "Western Australia": "Western Australia, Australia",
+  "Australian Capital Territory": "Australian Capital Territory",
+};
+
+function getAustralianCategoryDate(type) {
+  if (type === "Birth") {
+    return $("#mBirthDate").val() || "";
+  }
+  if (type === "Death" || type === "Cemetery") {
+    return $("#mDeathDate").val() || "";
+  }
+  if (type === "Marriage") {
+    const spouseList = Array.isArray(window.profilePerson?.Spouses)
+      ? window.profilePerson.Spouses.filter(Boolean)
+      : Object.values(window.profilePerson?.Spouses || {}).filter(Boolean);
+    const spouse = spouseList.find((entry) => entry?.marriage_date) || spouseList[0];
+    return spouse?.marriage_date || "";
+  }
+  return "";
+}
+
+function resolveAustralianCategoryLocation(location, type, australianLocations) {
+  if (!location) {
+    return { location, note: "" };
+  }
+
+  const originalLocation = location
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(", ");
+
+  // Strip the country name to isolate the state/territory portion for lookup.
+  // We deliberately do NOT check the original last part (e.g. "Australia") as a
+  // canonical key — that would match the country itself and corrupt the location.
+  const searchLocation = removeCountryName(originalLocation);
+  const locationParts = searchLocation.split(/, /);
+  const lastPart = locationParts[locationParts.length - 1];
+
+  const aliasLocation = AUSTRALIAN_LOCATION_ALIASES[lastPart];
+  const canonicalLocation = australianLocations[lastPart] ? lastPart : aliasLocation;
+
+  if (!canonicalLocation || !australianLocations[canonicalLocation]) {
+    // Not an Australian state/territory — return the original location unchanged
+    // so we don't inadvertently strip country names from UK or other places.
+    return { location: originalLocation, note: "" };
+  }
+
+  const dateValue = getAustralianCategoryDate(type);
+  const locationRecord = australianLocations[canonicalLocation];
+  let resolvedLocation = canonicalLocation;
+
+  if (dateValue && locationRecord?.startDate && !isSameDateOrAfter(dateValue, locationRecord.startDate)) {
+    resolvedLocation = locationRecord.previousName || canonicalLocation;
+  } else if (locationRecord?.modernName) {
+    resolvedLocation = locationRecord.modernName;
+  }
+
+  // If the state name hasn't actually changed, return the full original location
+  // unchanged so the country suffix (e.g. ", Australia") is preserved.
+  if (resolvedLocation === lastPart) {
+    return { location: originalLocation, note: "" };
+  }
+
+  locationParts[locationParts.length - 1] = resolvedLocation;
+
+  const note =
+    aliasLocation && !window.autoBioOptions?.checkAustralia ? `Australian location should be ${resolvedLocation}.` : "";
+
+  return { location: locationParts.join(", "), note };
+}
+
 export async function getLocationCategory(type, location = null) {
   if (!USstatesObjArray) {
     const module = await import("./us_states.json");
@@ -8653,7 +8661,6 @@ export async function getLocationCategory(type, location = null) {
     return false;
   }
 
-  const locationSplit = location.split(/, /);
   let searchLocation = removeCountryName(location);
 
   let australianLocations;
@@ -8664,15 +8671,13 @@ export async function getLocationCategory(type, location = null) {
     australianLocations = window.australianLocations;
   }
 
-  const lastElement = locationSplit[locationSplit.length - 1];
-  if (australianLocations[lastElement]) {
-    if (australianLocations[lastElement]?.["modernName"]) {
-      locationSplit.pop();
-      let modernLastElement = australianLocations[lastElement]?.["modernName"];
-      modernLastElement = modernLastElement ? modernLastElement.replace(/, Australia.*/, "") : "";
-      locationSplit.push(modernLastElement);
-      searchLocation = locationSplit.join(", ");
+  const resolvedAustralianLocation = resolveAustralianCategoryLocation(searchLocation, type, australianLocations);
+  searchLocation = resolvedAustralianLocation.location;
+  if (resolvedAustralianLocation.note && !window.autoBioNotes?.includes(resolvedAustralianLocation.note)) {
+    if (!Array.isArray(window.autoBioNotes)) {
+      window.autoBioNotes = [];
     }
+    window.autoBioNotes.push(resolvedAustralianLocation.note);
   }
 
   let searchLocationsSet = new Set(generateCombinations(searchLocation));
@@ -9220,10 +9225,12 @@ function addAutoBioUI() {
         oldBio = oldBio.replace(/<!--[\s\S]*?-->/g, "").trim();
         setBioText(oldBio, "replace");
       }
+      restoreAutoBioFormState(window.autoBio_originalFields);
       removeAutoBioUI();
       // Clear cached variables to reset state
       window.autoBio_cleanDraft = null;
       window.autoBio_commentBlock = null;
+      window.autoBio_originalFields = null;
       // window.autoBio_originalBio = null; // Don't clear this immediately? No, we should clear it to allow fresh start.
       window.autoBio_originalBio = null;
     });

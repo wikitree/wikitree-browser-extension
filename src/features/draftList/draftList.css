@@ -11,6 +11,7 @@
   padding: 1em;
   display: none;
   text-align: left;
+  max-width: 90vw;
 }
 
 #myDrafts x {
@@ -23,35 +24,39 @@
 
 #myDrafts h2 {
   margin: 0.5em;
+  padding: 0.5em;
+  text-align: center;
 }
 
 #myDraftsList {
-  max-height: 60vh;
-  overflow-y: auto;
+  max-height: 70vh;
+  overflow: auto;
   min-width: 200px;
 }
 
-#myDrafts table td {
+#myDraftsList h3 {
+  margin: 0.5em 0.5em 0.2em;
+}
+
+#myDrafts table.dataTable td {
   padding: 0.5em;
-  list-style: none;
   white-space: nowrap;
 }
 
-#myDrafts a {
+#myDrafts a,
+#myDrafts button {
   margin: 0.2em 0.5em;
 }
 
-#myDrafts a.button:active {
+#myDrafts a.button:active,
+#myDrafts button:active {
   color: gold;
   background: rgb(0, 100, 0);
 }
 
-#myDrafts p {
-  text-align: center;
-}
-
-#myDrafts h2 {
-  padding: 0.5em;
+#myDrafts button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 body.qa-body-js-on .button.small {
@@ -68,9 +73,4 @@ body.qa-body-js-on .button.small {
   text-decoration: none !important;
   cursor: pointer;
   line-height: normal;
-}
-
-#spaceDraftActions {
-  text-align: center;
-  margin-top: 1em;
 }
