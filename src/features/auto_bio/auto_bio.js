@@ -31,7 +31,12 @@ import { logMerge } from "./debugUtils.js";
 import { minimalPlace, nameLink } from "./displayUtils.js";
 import { addWorking, getBioText, removeWorking, setBioText } from "./editorUtils.js";
 import { assignPersonNames, setOrderBirthDate } from "./auto_bio_person.js";
-import { getFindAGraveLink, getCitation, cleanFindAGraveCitation } from "./auto_bio_citations.js";
+import {
+  getFindAGraveLink,
+  getCitation,
+  getLastCitationFailure,
+  cleanFindAGraveCitation,
+} from "./auto_bio_citations.js";
 import {
   findGenealogicallyDefinedLinePlacement,
   isGenealogicallyDefinedLink,
@@ -6192,7 +6197,7 @@ export async function getCitations() {
       try {
         let citation = await getCitation(citationLink);
         if (citation) {
-          console.log("Raw citation from server:", citation);
+          console.log("Raw citation:", citation);
           if (findAGraveLink) {
             const memorialNumber = citationLink.match(/\d{5,}/);
             let findagraveTemplate = "";
@@ -6216,7 +6221,12 @@ export async function getCitations() {
             }
           }
         } else {
-          console.error("Error fetching citation for link:", citationLink);
+          const failure = getLastCitationFailure();
+          if (failure) {
+            console.warn("Citation retrieval skipped", failure);
+          } else {
+            console.error("Error fetching citation for link:", citationLink);
+          }
         }
       } catch (error) {
         console.error("Error fetching citation:", error);

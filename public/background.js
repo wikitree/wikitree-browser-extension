@@ -125,7 +125,49 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     handleDuplicatesCompareProfiles(message, sendResponse);
     return true; // Keep channel open for async response
   }
+
+  if (message.action === "fetchFindAGraveMemorial") {
+    handleFindAGraveMemorialFetch(message, sendResponse);
+    return true;
+  }
 });
+
+async function handleFindAGraveMemorialFetch(message, sendResponse) {
+  try {
+    const response = await fetch(message.link, {
+      credentials: "include",
+      redirect: "follow",
+      headers: {
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+    });
+
+    const html = await response.text();
+    if (!response.ok) {
+      sendResponse({
+        success: false,
+        status: response.status,
+        url: response.url || message.link,
+        error: `Find a Grave request failed with status ${response.status}`,
+        html,
+      });
+      return;
+    }
+
+    sendResponse({
+      success: true,
+      status: response.status,
+      url: response.url || message.link,
+      html,
+    });
+  } catch (error) {
+    sendResponse({
+      success: false,
+      url: message.link,
+      error: error?.message || "Failed to fetch Find a Grave memorial",
+    });
+  }
+}
 
 const DUPLICATES_READ_ENDPOINTS = [
   "https://apps.wikitree.com/apps/beacall6/duplicates/api.php",

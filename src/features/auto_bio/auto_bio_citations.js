@@ -1,5 +1,7 @@
 import $ from "jquery";
 
+let lastCitationFailure = null;
+
 export function getFindAGraveLink(text) {
   const match1 = /(https?:\/\/www\.findagrave.com[^\s);.,<]+)/;
   const match2 = /\[(https?:\/\/www\.findagrave.com[^\s]+)(\s([^\]]+))?\]/;
@@ -25,9 +27,15 @@ export function getFindAGraveLink(text) {
 }
 
 export async function getCitation(link) {
+  lastCitationFailure = null;
+
   if (link.match("cgi-bin/fg.cgi") && link.match("id=")) {
     let memorial = link.split("id=")[1];
     link = "https://www.findagrave.com/memorial/" + memorial;
+  }
+
+  if (isFindAGraveMemorialLink(link)) {
+    return getFindAGraveCitation(link);
   }
 
   const encodedLink = encodeGuid(link);
@@ -40,9 +48,19 @@ export async function getCitation(link) {
     });
     return result;
   } catch (error) {
+    setCitationFailure({
+      source: "remote-citation-service",
+      link,
+      userMessage: "WBE couldn't retrieve this citation right now. Your source text was left unchanged.",
+      technicalMessage: error?.message || "Unknown citation service error",
+    });
     console.error("Error fetching citation:", error);
     return null;
   }
+}
+
+export function getLastCitationFailure() {
+  return lastCitationFailure;
 }
 
 export function cleanFindAGraveCitation(citation, refText) {
@@ -107,4 +125,238 @@ function addAccessedDate(citation) {
     citation = citation.replace(accessedPattern, `: accessed ${dateStr})`);
   }
   return citation;
+}
+
+function isFindAGraveMemorialLink(link) {
+  return /findagrave\.com\/(?:memorial|cgi-bin\/fg\.cgi)/i.test(link);
+}
+
+async function getFindAGraveCitation(link) {
+  const normalizedLink = normalizeFindAGraveMemorialLink(link);
+
+  try {
+    const fetchResult = await fetchFindAGraveMemorialHtml(normalizedLink);
+    if (!fetchResult?.success) {
+      throw new Error(fetchResult?.error || "Find a Grave request failed");
+    }
+
+    const html = fetchResult.html;
+    if (!html.trim()) {
+      throw new Error("Find a Grave returned an empty response");
+    }
+
+    if (isFindAGraveChallengePage(html)) {
+      setCitationFailure({
+        source: "findagrave-browser-fetch",
+        link: normalizedLink,
+        userMessage: "WBE couldn't read this Find a Grave memorial right now. Your source text was left unchanged.",
+        technicalMessage: "Find a Grave returned a bot-protection challenge instead of memorial HTML",
+      });
+      console.warn("Find a Grave citation fetch hit a challenge page", { link: normalizedLink });
+      return null;
+    }
+
+    const citation = parseFindAGraveCitationFromHtml(html, fetchResult.url || normalizedLink);
+    if (!citation) {
+      throw new Error("Unable to parse memorial details from Find a Grave response");
+    }
+
+    return citation;
+  } catch (error) {
+    setCitationFailure({
+      source: "findagrave-browser-fetch",
+      link: normalizedLink,
+      userMessage: "WBE couldn't read this Find a Grave memorial right now. Your source text was left unchanged.",
+      technicalMessage: error?.message || "Unknown Find a Grave fetch error",
+    });
+    console.warn("Error fetching Find a Grave citation in browser context:", error);
+    return null;
+  }
+}
+
+function fetchFindAGraveMemorialHtml(link) {
+  return new Promise((resolve, reject) => {
+    if (typeof chrome === "undefined" || !chrome.runtime?.sendMessage) {
+      reject(new Error("Extension messaging is unavailable for Find a Grave fetches"));
+      return;
+    }
+
+    chrome.runtime.sendMessage({ action: "fetchFindAGraveMemorial", link }, (response) => {
+      const runtimeError = chrome.runtime?.lastError;
+      if (runtimeError) {
+        reject(new Error(runtimeError.message));
+        return;
+      }
+
+      resolve(response || { success: false, error: "No response from background fetch" });
+    });
+  });
+}
+
+function normalizeFindAGraveMemorialLink(link) {
+  if (link.match("cgi-bin/fg.cgi") && link.match("id=")) {
+    let memorial = link.split("id=")[1];
+    return `https://www.findagrave.com/memorial/${memorial}`;
+  }
+
+  try {
+    const url = new URL(link);
+    if (url.hostname === "findagrave.com") {
+      url.hostname = "www.findagrave.com";
+    }
+    return url.toString();
+  } catch (_error) {
+    return link;
+  }
+}
+
+function isFindAGraveChallengePage(html) {
+  return /(Just a moment\.\.\.|Checking your browser|cf-browser-verification|cf-challenge|challenge-platform|Enable JavaScript and cookies to continue)/i.test(
+    html
+  );
+}
+
+export function parseFindAGraveCitationFromHtml(html, link) {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const memorialData = extractFindAGraveMemorialData(doc, link);
+  if (!memorialData.name || !memorialData.memorialId || !memorialData.cemeteryName) {
+    return null;
+  }
+
+  const lifeDates = `${memorialData.birthDate || "unknown"}–${memorialData.deathDate || "unknown"}`;
+  const cemetery = [memorialData.cemeteryName, memorialData.cemeteryLocation].filter(Boolean).join(", ");
+  let citation = `Find a Grave, database and images (${memorialData.pageUrl} : accessed), memorial page for ${memorialData.name} (${lifeDates}), Find a Grave Memorial ID ${memorialData.memorialId}, citing ${cemetery}`;
+
+  if (memorialData.maintainer) {
+    citation += ` ; Maintained by ${memorialData.maintainer}`;
+  }
+
+  return citation;
+}
+
+function extractFindAGraveMemorialData(doc, link) {
+  const bodyText = normalizeFindAGraveText(doc.body?.textContent || "");
+  const name = cleanFindAGraveField(doc.querySelector("h1")?.textContent || extractNameFromBody(bodyText));
+  const pageUrl = cleanFindAGravePageUrl(link);
+  const memorialId = extractFindAGraveId(pageUrl) || extractField(bodyText, /Find a Grave Memorial ID:\s*(\d+)/i);
+  const birthBlock = extractLabeledBlock(bodyText, "BIRTH", "DEATH");
+  const deathBlock = extractLabeledBlock(bodyText, "DEATH", "BURIAL");
+  const burialBlock = extractLabeledBlock(bodyText, "BURIAL", "MEMORIAL ID");
+  const maintainer = extractMaintainer(bodyText);
+
+  const cemeteryName = cleanFindAGraveField(
+    doc.querySelector('a[href*="/cemetery/"]')?.textContent || extractCemeteryName(burialBlock)
+  );
+  const cemeteryLocation = cleanFindAGraveField(extractCemeteryLocation(burialBlock, cemeteryName));
+
+  return {
+    name,
+    pageUrl,
+    memorialId,
+    birthDate: extractEventDate(birthBlock),
+    deathDate: extractEventDate(deathBlock),
+    cemeteryName,
+    cemeteryLocation,
+    maintainer,
+  };
+}
+
+function extractNameFromBody(bodyText) {
+  const match = bodyText.match(/^(.+?)\s+BIRTH\b/i);
+  return match ? match[1] : "";
+}
+
+function extractLabeledBlock(bodyText, startLabel, endLabel) {
+  const pattern = new RegExp(`${startLabel}\\s+([\\s\\S]*?)\\s+${endLabel}\\b`, "i");
+  const match = bodyText.match(pattern);
+  return match ? match[1].trim() : "";
+}
+
+function extractEventDate(block) {
+  const cleanedBlock = cleanFindAGraveField(block)
+    .replace(/\(aged[^\)]*\)/gi, "")
+    .trim();
+  const dateMatch = cleanedBlock.match(
+    /^(unknown|[0-9]{1,2}\s+[A-Za-z]{3,9}\s+[0-9]{4}|[A-Za-z]{3,9}\s+[0-9]{4}|[0-9]{4})\b/i
+  );
+  return dateMatch ? dateMatch[1] : "unknown";
+}
+
+function extractCemeteryName(burialBlock) {
+  if (!burialBlock) {
+    return "";
+  }
+
+  const cleanedBlock = cleanFindAGraveField(burialBlock)
+    .replace(/\s+Add to Map$/i, "")
+    .trim();
+  const segments = cleanedBlock.split(/,\s*/).filter(Boolean);
+  return segments.length ? segments[0] : cleanedBlock;
+}
+
+function extractCemeteryLocation(burialBlock, cemeteryName) {
+  if (!burialBlock) {
+    return "";
+  }
+
+  const cleanedBlock = cleanFindAGraveField(burialBlock)
+    .replace(/\s+Add to Map$/i, "")
+    .trim();
+  if (!cemeteryName) {
+    return cleanedBlock;
+  }
+
+  if (cleanedBlock.startsWith(cemeteryName)) {
+    return cleanedBlock.slice(cemeteryName.length).replace(/^,\s*/, "");
+  }
+
+  return cleanedBlock;
+}
+
+function extractMaintainer(bodyText) {
+  const createdByMatch = bodyText.match(/Created by:\s*(.+?)\s+Added:\s*/i);
+  if (createdByMatch) {
+    return cleanFindAGraveField(createdByMatch[1]).replace(
+      /\s+(RELATIVE|FRIEND|SPOUSE|PARENT|CHILD|SIBLING|NIECE\/NEPHEW|GRANDCHILD|OTHER)\b.*$/i,
+      ""
+    );
+  }
+
+  return "Find a Grave";
+}
+
+function extractFindAGraveId(link) {
+  const match = link.match(/\/memorial\/(\d+)/i);
+  return match ? match[1] : "";
+}
+
+function extractField(text, pattern) {
+  const match = text.match(pattern);
+  return match ? cleanFindAGraveField(match[1]) : "";
+}
+
+function cleanFindAGravePageUrl(link) {
+  try {
+    const url = new URL(link);
+    url.hash = "";
+    url.search = "";
+    return url.toString();
+  } catch (_error) {
+    return link;
+  }
+}
+
+function normalizeFindAGraveText(text) {
+  return text
+    .replace(/\u00a0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function cleanFindAGraveField(value) {
+  return (value || "").replace(/\s+/g, " ").trim();
+}
+
+function setCitationFailure(failure) {
+  lastCitationFailure = failure;
 }
