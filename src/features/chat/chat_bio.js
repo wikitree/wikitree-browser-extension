@@ -373,6 +373,26 @@ export function createChatBioHandlers({
     }
   }
 
+  // "father"/"mother" must pick the specific parent, not parents[0]. Returns
+  // [] when the profile is readable but that parent is not recorded, so a
+  // chain hop fails honestly instead of silently switching to the other
+  // parent. Falls back to fetchParentIds for generic words or fetch failures.
+  async function fetchGenderedParentIds(personKey, relationWord) {
+    const word = String(relationWord || "").toLowerCase();
+    if (word === "father" || word === "mother" || word === "fathers" || word === "mothers") {
+      try {
+        const person = await WikiTreeAPI.getPerson("Chat", personKey, "Id,Name,Father,Mother");
+        if (person && (person.Father !== undefined || person.Mother !== undefined)) {
+          const specificId = word.startsWith("father") ? person.Father : person.Mother;
+          return Number(specificId) > 0 ? [String(specificId)] : [];
+        }
+      } catch (error) {
+        /* fall back to the generic parent lookup */
+      }
+    }
+    return fetchParentIds(personKey);
+  }
+
   async function fetchParentIds(personKey) {
     try {
       const relatives = await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, personKey, "Id,Name,RealName", {
@@ -640,10 +660,18 @@ export function createChatBioHandlers({
       if (match) {
         targetRaw = (match[1] || "").trim();
         const relPart = (match[2] || "").trim();
+        // Trailing bio/profile words often carry no possessive ("siblings
+        // bios"), which would fuse them into the last chain segment and lose
+        // the final relation — strip them before splitting.
+        const relPartClean = relPart
+          .replace(/[’`]/g, "'")
+          .replace(/\s*\b(?:bios?|biograph(?:y|ies)|profiles?)\b\s*[?.!]*$/i, "")
+          .replace(/'s?\s*$/, "")
+          .trim();
         // Split on possessive markers to detect multi-hop chains
-        // e.g. "husband's parents' bios" → ["husband", "parents", "bios"]
+        // e.g. "husband's parents' bios" → ["husband", "parents"]
         const bioTerms = new Set(["bio", "bios", "biography", "profile", "profiles"]);
-        const chainSegments = relPart
+        const chainSegments = relPartClean
           .split(/'s?\s+/)
           .map((s) =>
             s
@@ -659,7 +687,7 @@ export function createChatBioHandlers({
           relationRaw = relChain[relChain.length - 1];
         } else {
           // Single-hop: original logic
-          const singlePart = relPart
+          const singlePart = relPartClean
             .replace(/\b's\b/g, "")
             .replace(/\b'\b/g, "")
             .replace(/[\?\.!,:;]*/g, "")
@@ -685,23 +713,47 @@ export function createChatBioHandlers({
 
     const relMap = {
       wife: "spouses",
+      wives: "spouses",
       husband: "spouses",
+      husbands: "spouses",
       spouse: "spouses",
       spouses: "spouses",
       parent: "parents",
       parents: "parents",
       mother: "parents",
+      mothers: "parents",
       father: "parents",
+      fathers: "parents",
       child: "children",
       children: "children",
+      kid: "children",
+      kids: "children",
       son: "children",
+      sons: "children",
       daughter: "children",
+      daughters: "children",
       sibling: "siblings",
       siblings: "siblings",
       brother: "siblings",
+      brothers: "siblings",
       sister: "siblings",
+      sisters: "siblings",
       self: "self",
     };
+
+    // A bare relation word in the subject slot ("father's wife's siblings
+    // bios") refers to the person whose profile is open — anchor the chain
+    // there and treat the word as the first hop.
+    if (targetRaw) {
+      const targetRelKey = targetRaw.toLowerCase().replace(/[^a-z]/g, "");
+      if (targetRelKey !== "self" && Object.prototype.hasOwnProperty.call(relMap, targetRelKey)) {
+        const rootPersonName = getProfileRootPerson()?.Name || getProfilePersonInfo()?.Name || "";
+        if (rootPersonName) {
+          intermediateRelations = [targetRelKey, ...intermediateRelations];
+          targetRaw = rootPersonName;
+        }
+      }
+    }
 
     const hasBioKeyword = /\b(bio|biography|profile|bios)\b/i.test(str);
     const isSupportedRelationPrompt = relationRaw && Object.prototype.hasOwnProperty.call(relMap, relationRaw);
@@ -946,11 +998,13 @@ export function createChatBioHandlers({
     // Walk intermediate relation hops (e.g. "husband" in "Rebecca's husband's parents' bios")
     if (intermediateRelations.length && personKey) {
       let hopFailed = false;
+      let failedHop = "";
       for (const hop of intermediateRelations) {
         const hopType = relMap[hop.toLowerCase()];
         if (!hopType) {
           console.info("wbe: tryHandlePersonBioPrompt unknown intermediate hop, stopping chain", { hop, personKey });
           hopFailed = true;
+          failedHop = hop;
           break;
         }
         let nextKey = null;
@@ -967,9 +1021,21 @@ export function createChatBioHandlers({
             const [pr] = result;
             const spouseMap = pr?.person?.Spouses || {};
             const spouses = Object.values(spouseMap).filter((s) => s?.Name);
-            if (spouses.length) nextKey = spouses[0].Name;
+            const hopWord = String(hop).toLowerCase();
+            const wantedGender = /^(wife|wives)$/.test(hopWord)
+              ? "female"
+              : /^(husband|husbands)$/.test(hopWord)
+              ? "male"
+              : null;
+            const genderMatches = wantedGender
+              ? spouses.filter((s) => String(s?.Gender || "").toLowerCase() === wantedGender)
+              : spouses;
+            // Gender data can be missing on private profiles; any spouse
+            // beats failing the hop outright.
+            const pool = genderMatches.length ? genderMatches : spouses;
+            if (pool.length) nextKey = pool[0].Name;
           } else if (hopType === "parents") {
-            const ids = await fetchParentIds(personKey);
+            const ids = await fetchGenderedParentIds(personKey, hop);
             if (ids?.length) nextKey = String(ids[0]);
           } else if (hopType === "children") {
             const ids = await fetchChildrenIdsForId(personKey);
@@ -990,15 +1056,14 @@ export function createChatBioHandlers({
         if (!nextKey) {
           console.info("wbe: tryHandlePersonBioPrompt hop could not resolve next person", { hop, hopType, personKey });
           hopFailed = true;
+          failedHop = hop;
           break;
         }
         personKey = nextKey;
       }
       if (hopFailed) {
         hideChatShaky();
-        return `I couldn't follow the full relationship chain in "${prompt}". I stopped at "${
-          intermediateRelations.find((_, i) => !intermediateRelations[i + 1] || true) || "?"
-        }".`;
+        return `I couldn't follow the full relationship chain in "${prompt}". I stopped at "${failedHop || "?"}".`;
       }
       cameFromHops = true;
       // Fetch the display name of the final intermediate person for accurate labelling
@@ -1024,6 +1089,12 @@ export function createChatBioHandlers({
 
       const mapped = relationRaw ? relMap[relationRaw.toLowerCase()] : null;
       const relationType = mapped || null;
+
+      // After walking hops, an unrecognised final relation must not silently
+      // degrade to the hopped person's own bio.
+      if (cameFromHops && relationRaw && relationRaw !== "self" && !mapped) {
+        return `I followed the relationship chain to ${subjectDisplayName}, but I didn't understand the final relation "${relationRaw}".`;
+      }
 
       if (!relationType || relationType === "self") {
         showChatShaky("Loading biography...");
@@ -1073,7 +1144,19 @@ export function createChatBioHandlers({
         hideChatShaky();
         const [peopleResult] = relativesResult;
         const profile = peopleResult?.person || {};
-        entries = Object.values(profile?.Spouses || {}).map((spouse) => ({
+        const wantedSpouseGender = /^(wife|wives)$/i.test(String(relationRaw || ""))
+          ? "female"
+          : /^(husband|husbands)$/i.test(String(relationRaw || ""))
+          ? "male"
+          : null;
+        let spouseValues = Object.values(profile?.Spouses || {});
+        if (wantedSpouseGender) {
+          const genderMatches = spouseValues.filter(
+            (s) => String(s?.Gender || "").toLowerCase() === wantedSpouseGender
+          );
+          if (genderMatches.length) spouseValues = genderMatches;
+        }
+        entries = spouseValues.map((spouse) => ({
           wtid: spouse.Name,
           displayName: spouse.RealName || spouse.Name,
         }));
@@ -1196,7 +1279,7 @@ export function createChatBioHandlers({
           if (relationFetchFailedIds.length) window.wbeSuppressAutoBioOpen = true;
         }
       } else if (relationType === "parents") {
-        const ids = await fetchParentIds(personKey);
+        const ids = await fetchGenderedParentIds(personKey, relationRaw);
         if (ids && ids.length) {
           const failed = [];
           entries = [];

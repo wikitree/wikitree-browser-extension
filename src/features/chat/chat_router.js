@@ -316,7 +316,22 @@ function parseRelationPrompt(prompt) {
       .split(/\s*'s\s+/i)
       .map((part) => part.trim())
       .filter(Boolean);
-    if (chainSegments.length >= 2 && chainSegments.every((segment) => RELATION_WORD_REGEX.test(segment))) {
+    const chainSubjectIsRelation = RELATION_WORD_REGEX.test(chainSubject);
+    if (
+      chainSegments.length &&
+      chainSegments.every((segment) => RELATION_WORD_REGEX.test(segment)) &&
+      (chainSegments.length >= 2 || chainSubjectIsRelation)
+    ) {
+      // A relation word in the subject slot ("father's wife's siblings")
+      // refers to the profile being viewed (or the logged-in user): keep the
+      // word as the first chain step and leave the subject contextual.
+      if (chainSubjectIsRelation) {
+        return {
+          mode: "list",
+          relationRaw: `${chainSubject}'s ${chainTail}`,
+          subjectMode: "contextual",
+        };
+      }
       return {
         mode: "list",
         relationRaw: chainTail,
@@ -1763,6 +1778,30 @@ function parseLastResultPrompt(prompt, options = {}) {
         };
       }
       return { action: "filter", filter: { kind: "text", value: inVal } };
+    }
+  }
+
+  if (allowConversationalFollowups) {
+    // Bare location refinement: "Cheshire, England" after a results table
+    // narrows the results to that place. The comma requirement keeps bare
+    // person-name follow-ups ("George Beacall") out of this rule, and the
+    // keyword check keeps new-search prompts ("London, England unsourced")
+    // out of it.
+    const bareLocationMatch = promptForMatch.match(
+      /^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'\- ]*(?:,\s*[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'\- ]*)+)[?.!]*$/
+    );
+    if (bareLocationMatch?.[1]) {
+      const searchKeywordRegex =
+        /\b(?:and|or|not|only|unsourced|unconnected|connected|orphaned|born|died|birth|death|married|marriage|century|decade|suggestions?|managed|managers?|project|ppp|templates?|categor(?:y|ies)|profiles?|bios?|sort|count|show|list|keep|filter|open|table|female|male|women|men|children|kids)\b/i;
+      if (!searchKeywordRegex.test(bareLocationMatch[1])) {
+        return {
+          action: "filter",
+          filter: {
+            kind: "text",
+            value: bareLocationMatch[1].trim(),
+          },
+        };
+      }
     }
   }
 

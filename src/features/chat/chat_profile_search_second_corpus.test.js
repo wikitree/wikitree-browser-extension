@@ -122,6 +122,21 @@ describe("chat second-set prompt corpus (deterministic WT+ parses)", () => {
     expect(executedQuery).toMatch(/19Cen|18000101\.\.18991231/);
   });
 
+  test("19th century Cheshire, England, exactly one marriage keeps the place whole", async () => {
+    const executedQuery = await executedQueryFor("19th century Cheshire, England, exactly one marriage");
+    expect(executedQuery).toContain('Location="Cheshire, England"');
+    expect(executedQuery).not.toContain("LastNameAtBirth=Cheshire");
+    expect(executedQuery).toContain("[Marriage].[Marriage Location].LineCount = 1");
+    expect(executedQuery).toMatch(/19Cen|18000101\.\.18991231/);
+  });
+
+  test("unsourced Shropshire, England born in 1820s keeps lead keywords out of the place", async () => {
+    const executedQuery = await executedQueryFor("unsourced Shropshire, England born in 1820s");
+    expect(executedQuery).toContain("Unsourced");
+    expect(executedQuery).toContain('Location="Shropshire, England"');
+    expect(executedQuery).toContain("1820s");
+  });
+
   test("England suggestions 678", async () => {
     const executedQuery = await executedQueryFor("England suggestions 678");
     expect(executedQuery).toContain("Suggestions=678");

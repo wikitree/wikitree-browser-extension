@@ -3650,6 +3650,34 @@ export function createProfileSearchHandler({
     if (/(?:^|\s)or(?:\s|$)/i.test(working)) {
       return null;
     }
+    // "Cheshire, England" is one place, not surname + country. The comma is
+    // the signal and cleanWtPlusGroupRemainder strips it, so consume
+    // comma-joined phrases that end in a known country here first.
+    {
+      const countryAlternation = [...WT_PLUS_KNOWN_COUNTRY_NAMES, "United Kingdom", "UK", "USA", "Britain"]
+        .map((country) => country.replace(/ /g, "\\s+"))
+        .join("|");
+      const commaLocationRegex = new RegExp(
+        `\\b([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'\\-]*(?:\\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'\\-]*){0,3})\\s*,\\s*(${countryAlternation})(?=\\b|$)`,
+        "i"
+      );
+      const commaLocationMatch = working.match(commaLocationRegex);
+      if (commaLocationMatch?.[1] && commaLocationMatch?.[2]) {
+        // Leading words that are really search tokens ("unsourced Shropshire,
+        // England") stay behind for normal token handling.
+        const prefixWords = commaLocationMatch[1].trim().split(/\s+/);
+        const keptLeadWords = [];
+        while (prefixWords.length > 1 && canonicalizeWtPlusRawToken(prefixWords[0])) {
+          keptLeadWords.push(prefixWords.shift());
+        }
+        const placePrefix = prefixWords.join(" ");
+        if (placePrefix && !canonicalizeWtPlusRawToken(placePrefix)) {
+          const locationValue = `${placePrefix}, ${commaLocationMatch[2].trim()}`;
+          addTerm(normalizeWtPlusFieldTerm("Location", locationValue), `location ${locationValue}`);
+          working = working.replace(commaLocationMatch[0], ` ${keptLeadWords.join(" ")} `);
+        }
+      }
+    }
     let remainder = cleanWtPlusGroupRemainder(working);
     if (remainder) {
       const tokens = remainder
@@ -5364,6 +5392,11 @@ export function createProfileSearchHandler({
     return `${keptTokens.join(" ")} Location=${/[\s,]/.test(place) ? `"${place}"` : place}`;
   }
 
+  // The last canonical query actually sent to WT+, kept for "Continue" mode
+  // follow-ups. Unlike lastStructuredResult.wtPlusQuery this survives runs
+  // that produce no table (for example "too many profiles").
+  let lastExecutedWtPlusQuery = "";
+
   async function runWtPlusProfileQuery(wtPlusQuery, title, interpretation = null, runOptions = {}) {
     const templateCanonicalQuery = await canonicalizeWtPlusTemplateTerms(wtPlusQuery);
     const contextCanonicalQuery = resolveWtPlusContextPlaceholders(templateCanonicalQuery);
@@ -5576,6 +5609,7 @@ export function createProfileSearchHandler({
     showChatShaky(`Running WT+ query: ${canonicalQuery}`);
     try {
       recordWtPlusParseTelemetry("queryRan");
+      lastExecutedWtPlusQuery = canonicalQuery;
       const response = await wtAPIProfileSearch("ChatWTPlus", encodedQuery, { maxProfiles: WT_PLUS_MAX_PROFILES });
       const searchLog = String(response?.response?.searchLog || response?.searchLog || "");
       const foundCount = Number(response?.response?.found);
@@ -8831,8 +8865,31 @@ export function createProfileSearchHandler({
     });
   }
 
+  /**
+   * Parse-only translation of a follow-up fragment ("unconnected",
+   * "Cheshire, England", "born after 1850") into WT+ terms, without running a
+   * search. Used by "Continue" mode to merge refinements into the previous
+   * query. Returns { query } or null when the text doesn't translate to a
+   * plain text-search refinement.
+   */
+  function translateWtPlusRefinementTerms(promptText) {
+    const text = String(promptText || "").trim();
+    if (!text) return null;
+    let parsed = null;
+    try {
+      parsed = parseNaturalLanguageWtPlusQuery(text) || parseCombinedNaturalLanguageWtPlusQuery(text);
+    } catch (error) {
+      return null;
+    }
+    if (!parsed?.query) return null;
+    if (parsed.searchType && parsed.searchType !== "text") return null;
+    return { query: String(parsed.query).trim() };
+  }
+
   return {
     tryHandleProfileSearchPrompt,
     reRunSavedWtPlusQuery,
+    translateWtPlusRefinementTerms,
+    getLastExecutedWtPlusQuery: () => lastExecutedWtPlusQuery,
   };
 }

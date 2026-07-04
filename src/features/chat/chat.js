@@ -1111,6 +1111,8 @@ const profileSearchHandlers = createProfileSearchHandler({
 
 const tryHandleProfileSearchPrompt = profileSearchHandlers.tryHandleProfileSearchPrompt;
 const reRunSavedWtPlusQuery = profileSearchHandlers.reRunSavedWtPlusQuery;
+const translateWtPlusRefinementTerms = profileSearchHandlers.translateWtPlusRefinementTerms;
+const getLastExecutedWtPlusQuery = profileSearchHandlers.getLastExecutedWtPlusQuery;
 
 const { getCc7ProfilesForUser, tryHandleCc7LocationPrompt, tryHandleCcSummaryPrompt, tryHandleWatchlistPrompt } =
   createChatCcHandlers({
@@ -2686,6 +2688,10 @@ async function sendChatPrompt() {
         openResultsTable,
         tryHandleAiPlannedIntent,
         setExplicitMode: setCurrentChatMode,
+        continueQueryContext: !newQueryContext,
+        translateWtPlusRefinementTerms,
+        reRunSavedWtPlusQuery,
+        getLastExecutedWtPlusQuery,
       });
       prompt = modeResult.prompt;
       console.debug("wbe: explicit mode result", {

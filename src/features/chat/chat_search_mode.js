@@ -385,6 +385,129 @@ function extractWtPlusFieldValue(queryText, fieldName) {
   return stripSurroundingQuotes(match?.[1] || "");
 }
 
+function tokenizeWtPlusQueryUnits(query) {
+  const rawTokens = String(query || "").match(/[A-Za-z][\w]*="[^"]*"|\S+/g) || [];
+  const units = [];
+  for (let index = 0; index < rawTokens.length; index += 1) {
+    if (/^NOT$/i.test(rawTokens[index]) && rawTokens[index + 1]) {
+      units.push(`NOT ${rawTokens[index + 1]}`);
+      index += 1;
+    } else {
+      units.push(rawTokens[index]);
+    }
+  }
+  return units;
+}
+
+function classifyWtPlusQueryUnit(unit) {
+  const term = String(unit || "").trim();
+  const fieldMatch = term.match(/^([A-Za-z][\w]*)=/);
+  if (fieldMatch) {
+    const value = term
+      .slice(fieldMatch[0].length)
+      .replace(/^"|"$/g, "")
+      .trim();
+    return { type: "field", field: fieldMatch[1].toLowerCase(), value };
+  }
+  if (/^\d{1,2}Cen$/i.test(term)) return { type: "century" };
+  if (/^\d{4}s$/i.test(term)) return { type: "decade" };
+  if (/^B\d{4}$/i.test(term)) return { type: "birthYear" };
+  if (/^D\d{4}$/i.test(term)) return { type: "deathYear" };
+  return { type: "raw" };
+}
+
+/**
+ * Merge a parsed refinement ("Unconnected", 'Location="Cheshire, England"')
+ * into the previous WT+ query for Continue-mode follow-ups.
+ *
+ * - Same field, more specific value ("Cheshire" -> "Cheshire, England"):
+ *   replace the old term.
+ * - Same field, unrelated value (Location=Cheshire vs Location=Devon): the
+ *   prompt is a new search, not a refinement — return "" so normal routing
+ *   runs.
+ * - Same-kind date scope (19Cen -> 20Cen): replace (an adjustment).
+ * - sql= terms: combine into one expression with And.
+ * - Anything new: append.
+ *
+ * Returns "" when the merge is declined or adds nothing.
+ */
+export function mergeWtPlusRefinementIntoQuery(previousWtPlusQuery, refinementQuery) {
+  const previous = String(previousWtPlusQuery || "").trim();
+  const refinement = String(refinementQuery || "").trim();
+  if (!previous || !refinement) return "";
+  // OR groups need branch-aware merging; decline rather than corrupt them.
+  if (/\bOR\b/.test(previous) || /\bOR\b/.test(refinement)) return "";
+
+  const merged = tokenizeWtPlusQueryUnits(previous);
+  let changed = false;
+  for (const unit of tokenizeWtPlusQueryUnits(refinement)) {
+    const cls = classifyWtPlusQueryUnit(unit);
+
+    if (cls.type === "field" && cls.field === "sql") {
+      const index = merged.findIndex((existing) => /^sql="/i.test(existing));
+      if (index >= 0) {
+        const previousSql = merged[index].replace(/^sql="/i, "").replace(/"$/, "");
+        const nextSql = unit.replace(/^sql="/i, "").replace(/"$/, "");
+        if (previousSql !== nextSql) {
+          merged[index] = `sql="${previousSql} And ${nextSql}"`;
+          changed = true;
+        }
+      } else {
+        merged.push(unit);
+        changed = true;
+      }
+      continue;
+    }
+
+    if (cls.type === "field") {
+      const index = merged.findIndex((existing) => {
+        const existingCls = classifyWtPlusQueryUnit(existing);
+        return existingCls.type === "field" && existingCls.field === cls.field;
+      });
+      if (index >= 0) {
+        const oldValue = classifyWtPlusQueryUnit(merged[index]).value.toLowerCase();
+        const newValue = cls.value.toLowerCase();
+        if (newValue === oldValue) continue;
+        if (newValue.includes(oldValue)) {
+          merged[index] = unit;
+          changed = true;
+          continue;
+        }
+        if (oldValue.includes(newValue)) continue;
+        return "";
+      }
+      merged.push(unit);
+      changed = true;
+      continue;
+    }
+
+    if (["century", "decade", "birthYear", "deathYear"].includes(cls.type)) {
+      const index = merged.findIndex((existing) => classifyWtPlusQueryUnit(existing).type === cls.type);
+      if (index >= 0) {
+        if (merged[index].toLowerCase() !== unit.toLowerCase()) {
+          merged[index] = unit;
+          changed = true;
+        }
+        continue;
+      }
+      merged.push(unit);
+      changed = true;
+      continue;
+    }
+
+    if (!merged.some((existing) => existing.toLowerCase() === unit.toLowerCase())) {
+      merged.push(unit);
+      changed = true;
+    }
+  }
+
+  if (!changed) return "";
+  // WT+ rejects queries that start with sql=; keep sql terms at the end.
+  const sqlUnits = merged.filter((unit) => /^sql="/i.test(unit));
+  const plainUnits = merged.filter((unit) => !/^sql="/i.test(unit));
+  return [...plainUnits, ...sqlUnits].join(" ").trim();
+}
+
 function buildWtPlusOrFollowupBranch(prompt, previousWtPlusQuery) {
   const normalizedPrompt = String(prompt || "").trim();
   const previousQuery = String(previousWtPlusQuery || "").trim();
@@ -663,6 +786,10 @@ export async function handleExplicitSearchMode({
   openResultsTable,
   tryHandleAiPlannedIntent,
   setExplicitMode,
+  continueQueryContext,
+  translateWtPlusRefinementTerms,
+  reRunSavedWtPlusQuery,
+  getLastExecutedWtPlusQuery,
 }) {
   console.debug("wbe: checking chat mode for prompt", { prompt });
   const selectedMode = getVisibleSearchMode(chatPopupId);
@@ -758,6 +885,14 @@ export async function handleExplicitSearchMode({
       .replace(/^\s*search[:\s]+/i, "")
       .trim();
     let shouldSkipFinalSearch = false;
+    // The previous WT+ query for Continue-mode merging. Prefer the loaded
+    // result's query; fall back to the last executed query so refinements
+    // still work after a "too many profiles" run that produced no table.
+    const structuredResultForQuery =
+      hasStructuredResult && typeof getLastStructuredResult === "function" ? getLastStructuredResult() : null;
+    const previousWtPlusQueryForMerge =
+      String(structuredResultForQuery?.wtPlusQuery || "").trim() ||
+      String((typeof getLastExecutedWtPlusQuery === "function" && getLastExecutedWtPlusQuery()) || "").trim();
     if (mode === "wtplus" && hasStructuredResult) {
       const structuredResult = typeof getLastStructuredResult === "function" ? getLastStructuredResult() : null;
       const previousWtPlusQuery = String(structuredResult?.wtPlusQuery || "").trim();
@@ -802,13 +937,52 @@ export async function handleExplicitSearchMode({
       }
     }
 
-    if (hasStructuredResult && typeof routeChatPrompt === "function") {
-      const followupRoute = routeChatPrompt(normalizedPrompt, { hasStructuredResult: true });
-      if (followupRoute?.intent === ChatIntent?.LAST_RESULT_OPERATION) {
-        // Let the main deterministic router execute this so conversational
-        // follow-ups like "And died in Yorkshire?" refine the current
-        // in-chat result set instead of launching a fresh global search.
-        return { handled: false, prompt: normalizedPrompt };
+    const followupRoute =
+      typeof routeChatPrompt === "function"
+        ? routeChatPrompt(normalizedPrompt, { hasStructuredResult: Boolean(hasStructuredResult) })
+        : null;
+    if (hasStructuredResult && followupRoute?.intent === ChatIntent?.LAST_RESULT_OPERATION) {
+      // Let the main deterministic router execute this so conversational
+      // follow-ups like "And died in Yorkshire?" refine the current
+      // in-chat result set instead of launching a fresh global search.
+      return { handled: false, prompt: normalizedPrompt };
+    }
+
+    // "Continue" radio: build on the previous WT+ query. A follow-up that
+    // parses to WT+ terms ("unconnected", "Cheshire, England", "born after
+    // 1850") is merged into the last executed query and re-run server-side.
+    // Conflicting terms (a different place or surname) mean the user started
+    // a new search, so the merge declines and normal routing takes over.
+    if (
+      mode === "wtplus" &&
+      continueQueryContext &&
+      previousWtPlusQueryForMerge &&
+      !/^or\b/i.test(normalizedPrompt) &&
+      (!followupRoute ||
+        [ChatIntent?.PROFILE_SEARCH, ChatIntent?.FALLBACK_AI, ChatIntent?.LAST_RESULT_OPERATION].includes(
+          followupRoute.intent
+        )) &&
+      typeof translateWtPlusRefinementTerms === "function" &&
+      typeof reRunSavedWtPlusQuery === "function"
+    ) {
+      const refinement = translateWtPlusRefinementTerms(normalizedPrompt);
+      const mergedQuery = refinement?.query
+        ? mergeWtPlusRefinementIntoQuery(previousWtPlusQueryForMerge, refinement.query)
+        : "";
+      if (mergedQuery) {
+        try {
+          const mergedResult = await reRunSavedWtPlusQuery(mergedQuery, "text");
+          if (mergedResult) {
+            const base = typeof mergedResult === "string" ? { message: mergedResult } : mergedResult;
+            await handleChatResult({
+              ...base,
+              message: `Continuing the previous search with "${refinement.query}". ${base.message || ""}`.trim(),
+            });
+            return { handled: true, prompt: normalizedPrompt };
+          }
+        } catch (continueMergeErr) {
+          console.debug("wbe: wtplus continue-mode merge failed", continueMergeErr);
+        }
       }
     }
 

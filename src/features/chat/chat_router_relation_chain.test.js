@@ -29,6 +29,28 @@ describe("chat_router bare possessive relation chains", () => {
     });
   });
 
+  test("a relation word in the subject slot keeps the chain contextual", () => {
+    expect(routeChatPrompt("father's wife's siblings bios")).toEqual({
+      intent: ChatIntent.RELATION_COUNT,
+      params: {
+        mode: "list",
+        relationRaw: "father's wife's siblings",
+        subjectMode: "contextual",
+      },
+    });
+  });
+
+  test("a two-segment chain rooted at a relation word stays contextual", () => {
+    expect(routeChatPrompt("father's siblings")).toEqual({
+      intent: ChatIntent.RELATION_COUNT,
+      params: {
+        mode: "list",
+        relationRaw: "father's siblings",
+        subjectMode: "contextual",
+      },
+    });
+  });
+
   test("single-relation possessives are not hijacked by the chain rule", () => {
     const routed = routeChatPrompt("Sarah's wife");
     if (routed) {
