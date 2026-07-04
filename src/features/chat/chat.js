@@ -10,7 +10,7 @@ import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { getUserWtId, getUserNumId, getProfilePersonInfo } from "../../core/common";
 import { setHighestZIndex } from "../../core/common";
-import { routeChatPrompt, ChatIntent, pause } from "./chat_router";
+import { routeChatPrompt, ChatIntent, pause, extractConnectionSourceName } from "./chat_router";
 import "datatables.net-dt/css/jquery.dataTables.css";
 import "datatables.net";
 import * as XLSX from "xlsx";
@@ -1057,6 +1057,18 @@ const { resolveConnectionTargetPerson, tryHandleConnectionCorrectionPrompt, tryH
     tryAiExpandConnectionTarget,
     shouldOfferDisambiguation,
     resolveConnectionSourceRoot,
+    // Memory hit only counts when the alias covers the whole name, so a
+    // remembered "Stephen Brown" never answers for "Stephen Fry".
+    resolveAliasToRememberedPerson: (name) => {
+      const resolution = resolvePromptAlias(name);
+      if (!resolution?.person?.wtId) {
+        return null;
+      }
+      if (resolution.aliasKey !== normalizePersonMemoryToken(name)) {
+        return null;
+      }
+      return resolution.person;
+    },
     promptRefersToUser,
     getLastConnectionContext: () => lastConnectionContext,
     setLastConnectionContext: (value) => {
@@ -2996,7 +3008,9 @@ async function executeRoutedIntent(routed, prompt) {
       return spouseBioAttempt;
     }
 
-    return await tryHandleConnectionPrompt(prompt, routed.params?.target);
+    return await tryHandleConnectionPrompt(prompt, routed.params?.target, {
+      sourceOverride: routed.params?.source || "",
+    });
   }
   if (routed.intent === ChatIntent.PROFILE_FAMILY_CONNECTION) {
     return await tryHandleProfileFamilyConnectionPrompt(routed.params);
@@ -3269,34 +3283,9 @@ function extractNamedSubjectForCc7Prompt(prompt) {
   return "";
 }
 
-function extractConnectionSourceName(prompt) {
-  const normalized = String(prompt || "").trim();
-  if (!normalized || promptRefersToUser(normalized)) {
-    return "";
-  }
-
-  const fromMatch = normalized.match(
-    /(?:what(?:'s|\s+is)\s+)?(?:the\s+)?(?:connection|distance)(?:\s+or\s+connection|\s+or\s+distance)?\s+from\s+(.+?)\s+to\s+.+?\??$/i
-  );
-  if (fromMatch?.[1]) {
-    const source = fromMatch[1]
-      .replace(/^(?:the\s+)?(?:profile\s+person|current\s+profile|this\s+profile)\b/i, "")
-      .trim();
-    return source;
-  }
-
-  const betweenMatch = normalized.match(
-    /(?:what(?:'s|\s+is)\s+)?(?:the\s+)?(?:connection|distance)(?:\s+or\s+connection|\s+or\s+distance)?\s+between\s+(.+?)\s+and\s+.+?\??$/i
-  );
-  if (betweenMatch?.[1]) {
-    const source = betweenMatch[1]
-      .replace(/^(?:the\s+)?(?:profile\s+person|current\s+profile|this\s+profile)\b/i, "")
-      .trim();
-    return source;
-  }
-
-  return "";
-}
+// extractConnectionSourceName now lives in chat_router.js (parsing belongs in
+// the router); resolveConnectionSourceRoot below checks promptRefersToUser
+// before consulting it.
 
 async function getLoggedInRootPerson() {
   const userWtId = getUserWtId();
@@ -3373,9 +3362,10 @@ async function resolveCc7SubjectRoot(prompt) {
   return getProfileSubjectRoot() || (await getLoggedInRootPerson());
 }
 
-async function resolveConnectionSourceRoot(prompt, targetWtId = "") {
+async function resolveConnectionSourceRoot(prompt, targetWtId = "", sourceNameOverride = "") {
   const normalizedPrompt = String(prompt || "").trim();
-  if (promptRefersToUser(normalizedPrompt)) {
+  const overrideName = String(sourceNameOverride || "").trim();
+  if (!overrideName && promptRefersToUser(normalizedPrompt)) {
     let root = await getLoggedInRootPerson();
     if (!root) {
       await pause(150);
@@ -3384,7 +3374,7 @@ async function resolveConnectionSourceRoot(prompt, targetWtId = "") {
     return root || getProfileSubjectRoot();
   }
 
-  const namedSource = extractConnectionSourceName(normalizedPrompt);
+  const namedSource = overrideName || extractConnectionSourceName(normalizedPrompt);
   if (namedSource) {
     const resolved = await resolveConnectionTargetPerson(namedSource, normalizedPrompt);
     if (!resolved?.Name) {

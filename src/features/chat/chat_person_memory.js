@@ -1,4 +1,4 @@
-const PERSON_MEMORY_ALIAS_STOPWORDS = new Set([
+export const PERSON_MEMORY_ALIAS_STOPWORDS = new Set([
   "about",
   "after",
   "all",
@@ -135,7 +135,7 @@ function isWikiTreeId(value) {
   return /^[A-Za-z][A-Za-z0-9_-]+-\d{1,7}$/i.test(String(value || "").trim());
 }
 
-function isLikelyPersonAliasLabel(value) {
+export function isLikelyPersonAliasLabel(value) {
   const normalized = normalizePersonMemoryToken(value);
   if (!normalized) {
     return false;

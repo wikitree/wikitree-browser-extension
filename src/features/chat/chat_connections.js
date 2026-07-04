@@ -19,6 +19,27 @@ import {
   extractYearFromDate,
 } from "./chat_router";
 import { hideChatShaky, showConnectionsPopup } from "./ui";
+import { PERSON_MEMORY_ALIAS_STOPWORDS, normalizePersonMemoryToken } from "./chat_person_memory";
+
+/**
+ * Guard for searchPerson lookups: an extracted "name" whose first or last
+ * token is a query/relation word ("connection", "siblings", "his") is a
+ * parsing artifact, not a person. Inner stopwords are allowed so names like
+ * "Catherine of Aragon" still pass.
+ */
+export function looksLikePersonNameForSearch(value) {
+  const normalized = normalizePersonMemoryToken(value);
+  if (!normalized) {
+    return false;
+  }
+
+  const tokens = normalized.split(" ").filter(Boolean);
+  if (!tokens.length || tokens.length > 6) {
+    return false;
+  }
+
+  return !PERSON_MEMORY_ALIAS_STOPWORDS.has(tokens[0]) && !PERSON_MEMORY_ALIAS_STOPWORDS.has(tokens[tokens.length - 1]);
+}
 
 function parseLegacyRelationshipLabel(legacy) {
   const html = String(legacy?.html || "");
@@ -537,6 +558,7 @@ export function createChatConnectionHandlers({
   tryAiExpandConnectionTarget,
   shouldOfferDisambiguation,
   resolveConnectionSourceRoot,
+  resolveAliasToRememberedPerson,
   promptRefersToUser,
   getLastConnectionContext,
   setLastConnectionContext,
@@ -630,6 +652,31 @@ export function createChatConnectionHandlers({
           "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender"
         )
       );
+    }
+
+    // A mis-extracted "name" like "connection" or "his siblings" must not
+    // reach searchPerson. Known common aliases ("the Pope") are exempt.
+    if (!looksLikePersonNameForSearch(cleanedTarget) && !getCommonAliasExpansion(cleanedTarget)) {
+      console.debug("wbe: resolveConnectionTargetPerson rejected implausible person name", { cleanedTarget });
+      return null;
+    }
+
+    // A person already resolved earlier in the conversation ("Sarah (Jones-12)")
+    // costs one getPerson instead of a searchPerson fan-out.
+    const remembered = resolveAliasToRememberedPerson?.(cleanedTarget) || null;
+    const rememberedWtId = String(remembered?.wtId || "").trim();
+    if (rememberedWtId && isWikiTreeId(rememberedWtId) && !excludedWtIds.has(rememberedWtId)) {
+      const rememberedMatch = normalizeResolvedConnectionPerson(
+        await WikiTreeAPI.getPerson(
+          "Chat",
+          rememberedWtId,
+          "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender"
+        )
+      );
+      if (rememberedMatch?.Name || rememberedMatch?.Id) {
+        console.debug("wbe: resolveConnectionTargetPerson used remembered person", { cleanedTarget, rememberedWtId });
+        return rememberedMatch;
+      }
     }
 
     const { firstName, lastName } = splitPersonName(cleanedTarget);
@@ -1278,9 +1325,10 @@ export function createChatConnectionHandlers({
     } away from ${lastConnectionContext.sourceLabel}.${relationshipSuffix}`;
   }
 
-  async function tryHandleConnectionPrompt(prompt, targetOverride = "") {
+  async function tryHandleConnectionPrompt(prompt, targetOverride = "", options = {}) {
     const target = targetOverride || extractConnectionTarget(prompt);
-    console.debug("wbe: tryHandleConnectionPrompt start", { prompt, targetOverride, target });
+    const sourceOverride = String(options?.sourceOverride || "").trim();
+    console.debug("wbe: tryHandleConnectionPrompt start", { prompt, targetOverride, target, sourceOverride });
 
     let resolvedTarget = target;
     if (!resolvedTarget) {
@@ -1322,7 +1370,7 @@ export function createChatConnectionHandlers({
         return `I found candidate matches for \"${lookupTarget}\", but could not resolve a WikiTree ID. If that profile is private, Muse cannot compute the connection because WikiTree did not expose a stable WikiTree ID.`;
       }
 
-      const sourceRoot = await resolveConnectionSourceRoot(prompt, targetWtId);
+      const sourceRoot = await resolveConnectionSourceRoot(prompt, targetWtId, sourceOverride);
       console.debug("wbe: tryHandleConnectionPrompt sourceRoot", { sourceRoot });
       if (sourceRoot?.unresolvedName) {
         return `I couldn't identify which source profile you meant by "${sourceRoot.unresolvedName}". If that profile is private, Muse may not be able to compute the connection because WikiTree may not expose a stable WikiTree ID.`;

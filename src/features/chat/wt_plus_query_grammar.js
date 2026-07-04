@@ -622,7 +622,22 @@ function translateSuggestionsFreeTextToQuery(queryText) {
     queryTerms.push(`Suggestions=${suggestionId}`);
   }
   if (remainder) {
-    queryTerms.push(remainder);
+    // Emit only valid query-builder terms: recognized raw tokens stay bare,
+    // anything else is treated as a location scope. Raw free text (e.g.
+    // "England") is not valid WT+ text-search syntax.
+    const leftoverWords = [];
+    for (const word of remainder.replace(/^(?:in|from)\s+/i, "").split(/\s+/)) {
+      const canonicalWord = canonicalizeWtPlusRawToken(word);
+      if (canonicalWord) {
+        queryTerms.push(canonicalWord);
+      } else {
+        leftoverWords.push(word);
+      }
+    }
+    if (leftoverWords.length) {
+      const place = leftoverWords.join(" ").replace(/^["']|["']$/g, "");
+      queryTerms.push(`Location=${/[\s,]/.test(place) ? `"${place}"` : place}`);
+    }
   }
 
   return {

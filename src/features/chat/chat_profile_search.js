@@ -35,6 +35,7 @@ import {
   parseSpousalAgeGapPrompt,
 } from "./chat_spouse_age_gap_filter";
 import { parseProjectMissingBoxPrompt } from "./chat_project_missing_box_filter";
+import { isLikelyPersonAliasLabel } from "./chat_person_memory";
 import wtPlusProjectsCatalog from "./wtplus_projects.json";
 
 // Build a compact one-line catalog of suggestion codes and titles for the AI
@@ -61,6 +62,80 @@ function getCompactSuggestionCatalog() {
   }
   _compactSuggestionCatalog = lines.join(" | ");
   return _compactSuggestionCatalog;
+}
+
+/**
+ * Find the first spouse in a getPeople Spouses map/array whose name matches
+ * the free-text spouse query. Multi-token queries must match first-name parts
+ * and last-name parts independently; single tokens match either side; quoted
+ * queries require an exact candidate match.
+ */
+export function matchSpouseByName(spousesObj, spouseQuery, { normalizeText, quoted = false } = {}) {
+  const normalize =
+    normalizeText ||
+    ((value) =>
+      String(value || "")
+        .trim()
+        .toLowerCase());
+  const spouses = Array.isArray(spousesObj) ? spousesObj : Object.values(spousesObj || {});
+  const normSpouse = normalize(spouseQuery);
+  const spouseTokens = (normSpouse || "").split(/\s+/).filter(Boolean);
+  if (!spouses.length || !spouseTokens.length) {
+    return null;
+  }
+
+  for (const s of spouses) {
+    const firstNameParts = [s?.RealName, s?.FirstName, s?.MiddleName, s?.Name]
+      .filter(Boolean)
+      .map((v) => normalize(String(v)));
+    const lastNameParts = [s?.LastNameAtBirth, s?.LastNameCurrent, s?.LastNameOther, s?.Name]
+      .filter(Boolean)
+      .map((v) => normalize(String(v)));
+
+    let isMatch = false;
+    if (spouseTokens.length >= 2) {
+      const lastQuery = spouseTokens[spouseTokens.length - 1];
+      const firstQuery = spouseTokens.slice(0, spouseTokens.length - 1).join(" ");
+      const firstMatch = firstNameParts.some((n) => n.includes(firstQuery));
+      const lastMatch = lastNameParts.some((n) => n.includes(lastQuery));
+      if (firstMatch && lastMatch) isMatch = true;
+    }
+
+    const candidates = [];
+    if (s?.RealName) candidates.push(String(s.RealName));
+    if (s?.Name) candidates.push(String(s.Name).replace(/[-_]/g, " "));
+    if (s?.FirstName || s?.LastNameCurrent) candidates.push([s.FirstName || "", s.LastNameCurrent || ""].join(" ").trim());
+    if (s?.MiddleName) candidates.push(String(s.MiddleName));
+    if (s?.LastNameCurrent) candidates.push(String(s.LastNameCurrent));
+    if (s?.LastNameAtBirth) candidates.push(String(s.LastNameAtBirth));
+    if (s?.LastNameOther) candidates.push(String(s.LastNameOther));
+
+    const candNormalized = candidates.filter(Boolean).map((c) => normalize(c));
+
+    if (!isMatch) {
+      if (quoted) {
+        if (candNormalized.includes(normSpouse)) isMatch = true;
+        if (!isMatch) {
+          for (const tok of candNormalized) {
+            const tokParts = tok.split(/\s+/).filter(Boolean);
+            if (tokParts.includes(normSpouse)) {
+              isMatch = true;
+              break;
+            }
+          }
+        }
+      } else {
+        if (candNormalized.some((c) => c.includes(normSpouse))) isMatch = true;
+        if (!isMatch && spouseTokens.every((t) => candNormalized.some((c) => c.includes(t)))) isMatch = true;
+      }
+    }
+
+    if (isMatch) {
+      return s;
+    }
+  }
+
+  return null;
 }
 
 export function createProfileSearchHandler({
@@ -2692,6 +2767,8 @@ export function createProfileSearchHandler({
     const sqlTerms = [];
     const understood = [];
     let searchType = "";
+    let dualScopeRemainderToken = "";
+    let ambiguousLoneScopeSwap = null;
     const addTerm = (term, summary) => {
       if (!term) return;
       terms.push(term);
@@ -2892,6 +2969,38 @@ export function createProfileSearchHandler({
       addTerm(token, token);
     });
 
+    // Combined parent-presence phrases must be consumed before the plain
+    // no-father/no-mother rules, or "no father" gets eaten and the
+    // "with a mother" half is stranded as junk name/location text.
+    consume(
+      /\b(?:with|has|having)\s+(?:a\s+)?mother\s+(?:but|and)\s+(?:no|without(?:\s+a)?|missing)\s+father\b/i,
+      () => {
+        addTerm("NoFather", "no father");
+        addTerm("NOT NoMother", "has a mother");
+      }
+    );
+    consume(
+      /\b(?:no|without(?:\s+a)?|missing)\s+father\s+but\s+(?:with|has|having)\s+(?:a\s+)?mother\b/i,
+      () => {
+        addTerm("NoFather", "no father");
+        addTerm("NOT NoMother", "has a mother");
+      }
+    );
+    consume(
+      /\b(?:with|has|having)\s+(?:a\s+)?father\s+(?:but|and)\s+(?:no|without(?:\s+a)?|missing)\s+mother\b/i,
+      () => {
+        addTerm("NoMother", "no mother");
+        addTerm("NOT NoFather", "has a father");
+      }
+    );
+    consume(
+      /\b(?:no|without(?:\s+a)?|missing)\s+mother\s+but\s+(?:with|has|having)\s+(?:a\s+)?father\b/i,
+      () => {
+        addTerm("NoMother", "no mother");
+        addTerm("NOT NoFather", "has a father");
+      }
+    );
+
     consume(/\b(?:no\s+father|without\s+father)\b/i, () => {
       addTerm("NoFather", "no father");
     });
@@ -2927,7 +3036,9 @@ export function createProfileSearchHandler({
       const categoryWord = stripSurroundingQuotes(match[1]);
       addTerm(normalizeWtPlusFieldTerm("CategoryWord", categoryWord), `category word ${categoryWord}`);
     });
-    consume(/\btemplate\s*[:=]?\s*(.+)$/i, (match) => {
+    // "template text ..." and "template name ..." have dedicated sql rules
+    // later; the generic template rule must not swallow them.
+    consume(/\btemplate(?!\s+(?:text|name)\b)\s*[:=]?\s*(.+)$/i, (match) => {
       const template = stripSurroundingQuotes(match[1]);
       addTerm(normalizeWtPlusFieldTerm("TemplateText", template), `template ${template}`);
     });
@@ -3018,6 +3129,16 @@ export function createProfileSearchHandler({
         addSqlTerm(buildWtPlusSqlTerm(`([Children].[User ID].LineCount > ${n})`), `more than ${n} children`);
       }
     });
+
+    consume(
+      new RegExp(`\\b(?:exactly|precisely)\\s+(${WT_PLUS_SMALL_NUMBER_VALUE_PATTERN})\\s+(?:children|kids?)\\b`, "i"),
+      (match) => {
+        const n = parseWtPlusSmallIntegerValue(match[1]);
+        if (Number.isFinite(n)) {
+          addSqlTerm(buildWtPlusSqlTerm(`([Children].[User ID].LineCount = ${n})`), `exactly ${n} children`);
+        }
+      }
+    );
 
     consume(new RegExp(`\\b(?:more\\s+than|over)\\s+(${WT_PLUS_SMALL_NUMBER_VALUE_PATTERN})\\s+siblings\\b`, "i"), (match) => {
       const n = parseWtPlusSmallIntegerValue(match[1]);
@@ -3147,13 +3268,13 @@ export function createProfileSearchHandler({
       }
     });
 
-    consume(/\btemplate\s+text\s+contains\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
-      const templateText = escapeWtPlusSqlLiteral(match[1], true);
+    // TemplateText= is a primary-scope field with substring semantics, so it
+    // can anchor a standalone "template text contains X" prompt. The sql Like
+    // form is not a scope term and would be refused when it's the only term.
+    consume(/\btemplate\s+text\s+(?:contains|containing|includes|including|says)\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+      const templateText = stripSurroundingQuotes(match[1]);
       if (templateText) {
-        addSqlTerm(
-          buildWtPlusSqlTerm(`([Templates].[Template text].AsString Like '*${templateText}*')`),
-          `template text contains ${stripSurroundingQuotes(match[1])}`
-        );
+        addTerm(normalizeWtPlusFieldTerm("TemplateText", templateText), `template text contains ${templateText}`);
       }
     });
 
@@ -3521,6 +3642,14 @@ export function createProfileSearchHandler({
       addTerm(normalizeWtPlusFieldTerm("DeathCountry", "UnknownCountry"), "unrecognized death locations");
     });
 
+    // An unconsumed standalone "or" means the user asked for disjunctive
+    // branches ("England ProjectManaged or PPP"). Silently dropping it would
+    // turn OR into AND, so bail out and let the combined OR parser split the
+    // groups and re-parse each one. Checked before cleanWtPlusGroupRemainder,
+    // which would strip the "or".
+    if (/(?:^|\s)or(?:\s|$)/i.test(working)) {
+      return null;
+    }
     let remainder = cleanWtPlusGroupRemainder(working);
     if (remainder) {
       const tokens = remainder
@@ -3562,6 +3691,9 @@ export function createProfileSearchHandler({
       const hasNameScopedTerm = terms.some((term) => /^(?:LastNameAtBirth|AllLastNames|WikiTreeID)=/.test(term));
       const hasConsumedStandaloneTerm = terms.some((term) => !/=/.test(String(term || "").trim()));
       const hasDnaStandaloneTerm = terms.some((term) => /^(?:mtDNA|yDNA|auDNA)$/i.test(String(term || "").trim()));
+      const hasFamilyPresenceTerm = terms.some((term) =>
+        /^(?:NOT\s+)?No(?:Father|Mother|Parents|Spouses|Children)$/.test(String(term || "").trim())
+      );
       if (remainderTokens.length === 1) {
         const token = stripSurroundingQuotes(remainderTokens[0]);
         if (token && !/^(?:in|from)$/i.test(token)) {
@@ -3570,6 +3702,12 @@ export function createProfileSearchHandler({
           } else if (hasDnaStandaloneTerm && !hasNameScopedTerm) {
             // With DNA prompts, a lone ambiguous token is usually intended as a family name.
             addTerm(normalizeWtPlusFieldTerm("LastNameAtBirth", token), `last name ${token}`);
+          } else if (!hasNameScopedTerm && hasFamilyPresenceTerm) {
+            // "Beacall no father" vs "Flintshire no father": a lone token next
+            // to family-presence tokens is genuinely ambiguous between surname
+            // and place, so search both scopes as OR branches.
+            dualScopeRemainderToken = token;
+            understood.push(`name or place ${token}`);
           } else if (hasNameScopedTerm && extractedDateTokens.length > 0) {
             addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
           } else if (hasNameScopedTerm && extractedRawTokens.length > 0) {
@@ -3578,14 +3716,20 @@ export function createProfileSearchHandler({
             addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
           } else if (hasNameScopedTerm && sqlTerms.length > 0) {
             addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
-          } else if (!hasNameScopedTerm && extractedDateTokens.length > 0) {
-            addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
-          } else if (!hasNameScopedTerm && extractedRawTokens.length > 0) {
-            addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
-          } else if (!hasNameScopedTerm && hasConsumedStandaloneTerm) {
-            addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
-          } else if (!hasNameScopedTerm && sqlTerms.length > 0) {
-            addTerm(normalizeWtPlusFieldTerm("Location", token), `location ${token}`);
+          } else if (
+            !hasNameScopedTerm &&
+            (extractedDateTokens.length > 0 || extractedRawTokens.length > 0 || hasConsumedStandaloneTerm || sqlTerms.length > 0)
+          ) {
+            // Without a name term, a lone leftover token is probably a place
+            // ("Manchester age 42") but could be a surname ("Dickin 19th
+            // century"). Keep the location guess, and record the surname form
+            // so a zero-result run can retry with it deterministically.
+            const locationTerm = normalizeWtPlusFieldTerm("Location", token);
+            addTerm(locationTerm, `location ${token}`);
+            ambiguousLoneScopeSwap = {
+              from: locationTerm,
+              to: normalizeWtPlusFieldTerm("AllLastNames", token),
+            };
           } else {
             addTerm(normalizeWtPlusFieldTerm("LastNameAtBirth", token), `last name ${token}`);
           }
@@ -3617,14 +3761,28 @@ export function createProfileSearchHandler({
 
     const mergedSqlTerm = combineSqlTerms();
     const allTerms = [...terms, ...(mergedSqlTerm ? [mergedSqlTerm] : [])].filter(Boolean);
-    if (!allTerms.length) {
+    if (!allTerms.length && !dualScopeRemainderToken) {
       return null;
+    }
+
+    if (dualScopeRemainderToken) {
+      const surnameTerm = normalizeWtPlusFieldTerm("AllLastNames", dualScopeRemainderToken);
+      const locationTerm = normalizeWtPlusFieldTerm("Location", dualScopeRemainderToken);
+      const sharedTerms = allTerms.join(" ").trim();
+      const surnameBranch = `${surnameTerm}${sharedTerms ? ` ${sharedTerms}` : ""}`;
+      const locationBranch = `${locationTerm}${sharedTerms ? ` ${sharedTerms}` : ""}`;
+      return {
+        query: `${surnameBranch} OR ${locationBranch}`,
+        understood: understood.join(", "),
+        searchType,
+      };
     }
 
     return {
       query: allTerms.join(" "),
       understood: understood.join(", "),
       searchType,
+      ...(ambiguousLoneScopeSwap ? { ambiguousScopeSwap: ambiguousLoneScopeSwap } : {}),
     };
   }
 
@@ -3910,7 +4068,18 @@ export function createProfileSearchHandler({
         .trim()
     );
 
-    if (isLikelySuggestionsPrompt(normalizedText)) {
+    // Family-presence phrases ("no father", "with a mother but no father",
+    // "no spouses") have dedicated raw tokens in the group parser. Implicit
+    // suggestion-title matching must not steal them — it would emit
+    // Suggestions=NNN plus the rest of the prompt as junk free text. An
+    // explicit "suggestions"/"err NNN" keyword still routes to suggestions.
+    const familyPresencePhraseRegex =
+      /\b(?:no|without(?:\s+a)?|missing)\s+(?:father|mother|parents|spouses?|children)\b|\b(?:with|has|having)\s+(?:a\s+)?(?:father|mother)\b/i;
+    const hasExplicitSuggestionKeyword = /\b(?:suggestions?|error\s*id|errorid|err\s*\d+)\b/i.test(normalizedText);
+    if (
+      (hasExplicitSuggestionKeyword || !familyPresencePhraseRegex.test(normalizedText)) &&
+      isLikelySuggestionsPrompt(normalizedText)
+    ) {
       const suggestionParse = translateSuggestionsFreeTextToQuery(normalizedText);
       if (suggestionParse?.query) {
         // In chat mode, execute suggestions prompts as text search so we can
@@ -4171,7 +4340,7 @@ export function createProfileSearchHandler({
       }
     }
 
-    match = normalizedText.match(/^(?:profiles?|people)\s+(?:with\s+)?template\s*[:=]?\s*(.+)$/i);
+    match = normalizedText.match(/^(?:profiles?|people)\s+(?:with\s+)?template(?!\s+(?:text|name)\b)\s*[:=]?\s*(.+)$/i);
     if (match?.[1]) {
       const templateText = stripSurroundingQuotes(match[1]);
       if (templateText) {
@@ -4183,7 +4352,7 @@ export function createProfileSearchHandler({
       }
     }
 
-    match = normalizedText.match(/^(?:with\s+)?template\s*[:=]?\s*(.+)$/i);
+    match = normalizedText.match(/^(?:with\s+)?template(?!\s+(?:text|name)\b)\s*[:=]?\s*(.+)$/i);
     if (match?.[1]) {
       const templateText = stripSurroundingQuotes(match[1]);
       if (templateText) {
@@ -4530,6 +4699,7 @@ export function createProfileSearchHandler({
         description: groupedQuery.understood || normalizedText,
         understood: groupedQuery.understood || normalizedText,
         ...(groupedQuery.searchType ? { searchType: groupedQuery.searchType } : {}),
+        ...(groupedQuery.ambiguousScopeSwap ? { ambiguousScopeSwap: groupedQuery.ambiguousScopeSwap } : {}),
       };
     }
 
@@ -4992,6 +5162,26 @@ export function createProfileSearchHandler({
     return table;
   }
 
+  const WT_SEARCH_ANCHOR_PARAMS = [
+    "FirstName",
+    "LastName",
+    "BirthLocation",
+    "DeathLocation",
+    "fatherFirstName",
+    "fatherLastName",
+    "motherFirstName",
+    "motherLastName",
+    "watchlist",
+  ];
+
+  function hasMeaningfulWtSearchAnchor(searchParams) {
+    return WT_SEARCH_ANCHOR_PARAMS.some((param) => {
+      const value = searchParams?.[param];
+      if (param === "watchlist") return Boolean(value);
+      return typeof value === "string" ? value.trim().length > 0 : Boolean(value);
+    });
+  }
+
   function isWtPlusExecutionFailure(result) {
     const text = typeof result === "string" ? result : result?.message;
     return /couldn't complete the WT\+ query/i.test(String(text || ""));
@@ -5248,6 +5438,34 @@ export function createProfileSearchHandler({
         ],
       };
     }
+
+    // Final validation choke point: every path that reaches the WT+ JSON API
+    // (deterministic parse, AI parse, saved re-run) must produce a query the
+    // grammar accepts, or we refuse to send it. Suggestions searches return
+    // above because they open in WT+ directly and allow free-text remainders.
+    // The failure message keeps the "couldn't complete the WT+ query" form so
+    // callers' existing AI-reparse/deterministic fallbacks still apply.
+    const finalValidation = validateAndRepairWtPlusQuery(canonicalizeWtPlusErrTokenAssignments(canonicalQuery));
+    if (!finalValidation?.isValid) {
+      recordWtPlusParseTelemetry("parseRejected");
+      hideChatShaky();
+      const invalidParts = (finalValidation?.diagnostics || [])
+        .map((entry) => {
+          const detailMatch = String(entry || "").match(/^invalid-(?:field|token):(.*)$/);
+          return detailMatch?.[1] ? `"${detailMatch[1]}"` : "";
+        })
+        .filter(Boolean);
+      const invalidDetail = invalidParts.length ? ` I couldn't understand ${invalidParts.join(", ")}.` : "";
+      console.info("wbe: WT+ query blocked by validation gate", {
+        canonicalQuery,
+        diagnostics: finalValidation?.diagnostics || [],
+      });
+      return {
+        message: `I couldn't complete the WT+ query "${canonicalQuery}" because it failed validation before it was sent.${invalidDetail}`,
+        showMagicWordsRef: true,
+      };
+    }
+    canonicalQuery = finalValidation.normalizedQuery;
 
     const encodedQuery = encodeURIComponent(canonicalQuery);
     console.debug("wbe: WT+ direct query", {
@@ -7226,50 +7444,50 @@ export function createProfileSearchHandler({
       working = working.replace(/\bno\s+variants\b/i, "");
     }
 
-    const dateTokenRegex = /(born|b|died|d)\s*[:=]?\s*([^,;]+)/gi;
-    let dtMatch;
-    while ((dtMatch = dateTokenRegex.exec(working))) {
+    // Word boundaries matter: without \b the bare "b"/"d" alternatives match
+    // inside names ("Beacall") and swallow the rest of the prompt. The date
+    // expression is matched tightly so trailing text ("in Devon") stays in
+    // the main query for location handling.
+    const dateTokenRegex =
+      /\b(born|died|b|d)\b\.?\s*[:=]?\s*((?:[<>]|bef(?:ore)?|aft(?:er)?)\s*)?(\d{4}(?:-\d{2}(?:-\d{2})?)?)(?:\s*[\-–]\s*(\d{4}(?:-\d{2}(?:-\d{2})?)?))?/gi;
+    for (const dtMatch of Array.from(working.matchAll(dateTokenRegex))) {
       const key = (dtMatch[1] || "").toLowerCase();
-      const raw = (dtMatch[2] || "").trim();
-      working = working.replace(dtMatch[0], "");
+      const op = (dtMatch[2] || "").trim().toLowerCase();
+      const dateStart = (dtMatch[3] || "").trim();
+      const dateEnd = (dtMatch[4] || "").trim();
+      working = working.replace(dtMatch[0], " ");
 
-      const rangeMatch = raw.match(/^(\d{4}(?:-\d{2}(?:-\d{2})?)?)\s*[\-–]\s*(\d{4}(?:-\d{2}(?:-\d{2})?)?)$/);
-      if (rangeMatch) {
-        const start = normalizeDateToIsoStart(rangeMatch[1]);
-        const end = normalizeDateToIsoEnd(rangeMatch[2]);
+      if (dateStart && dateEnd) {
+        const start = normalizeDateToIsoStart(dateStart);
+        const end = normalizeDateToIsoEnd(dateEnd);
         if (key.startsWith("b")) modifiers.bornRange = { start, end };
         else modifiers.diedRange = { start, end };
         continue;
       }
 
-      const compMatch = raw.match(/^([<>]|bef|aft|before|after)\s*(\d{4}(?:-\d{2}(?:-\d{2})?)?)$/i);
-      if (compMatch) {
-        const op = compMatch[1].toLowerCase();
-        const date = compMatch[2];
+      if (op && dateStart) {
+        const isBefore = op === "<" || /^bef/.test(op);
         if (key.startsWith("b")) {
-          if (op === "<" || /^bef/i.test(op) || /^before/i.test(op))
-            modifiers.bornBefore = normalizeDateToIsoStart(date);
-          else modifiers.bornAfter = normalizeDateToIsoEnd(date);
+          if (isBefore) modifiers.bornBefore = normalizeDateToIsoStart(dateStart);
+          else modifiers.bornAfter = normalizeDateToIsoEnd(dateStart);
         } else {
-          if (op === "<" || /^bef/i.test(op) || /^before/i.test(op))
-            modifiers.diedBefore = normalizeDateToIsoStart(date);
-          else modifiers.diedAfter = normalizeDateToIsoEnd(date);
+          if (isBefore) modifiers.diedBefore = normalizeDateToIsoStart(dateStart);
+          else modifiers.diedAfter = normalizeDateToIsoEnd(dateStart);
         }
         continue;
       }
 
-      const singleMatch = raw.match(/^(\d{4}(?:-\d{2}(?:-\d{2})?)?)$/);
-      if (singleMatch) {
-        const sd = singleMatch[1];
+      if (dateStart) {
         if (key.startsWith("b")) {
-          modifiers.bornAfter = normalizeDateToIsoStart(sd);
-          modifiers.bornBefore = normalizeDateToIsoEnd(sd);
+          modifiers.bornAfter = normalizeDateToIsoStart(dateStart);
+          modifiers.bornBefore = normalizeDateToIsoEnd(dateStart);
         } else {
-          modifiers.diedAfter = normalizeDateToIsoStart(sd);
-          modifiers.diedBefore = normalizeDateToIsoEnd(sd);
+          modifiers.diedAfter = normalizeDateToIsoStart(dateStart);
+          modifiers.diedBefore = normalizeDateToIsoEnd(dateStart);
         }
       }
     }
+    working = working.replace(/\s{2,}/g, " ").trim();
 
     const parentRegex = /(father|dad|fatherFirstName|fatherFirst|fatherLast|fatherLastName)\s*[:=]?\s*([A-Za-z'\-]+)/i;
     const motherRegex = /(mother|mum|motherFirstName|motherFirst|motherLast|motherLastName)\s*[:=]?\s*([A-Za-z'\-]+)/i;
@@ -7398,11 +7616,20 @@ export function createProfileSearchHandler({
     try {
       let mainQuery = query;
       let spouseQuery = null;
-      const spouseMatch = query.match(/^(.*?)\s*(?:,|-)??\s*(?:spouse|wife|husband|married to)\s*[:\-]?\s*(.+)$/i);
+      const spouseMatch = query.match(
+        /^(.*?)\s*(?:,|-)??\s*(?:(?:with\s+)?(?:spouse|wife|husband)|married(?:\s+to)?|who\s+married)\s*[:\-]?\s*(.+)$/i
+      );
       const spouseMatchLooksLikePossessiveChain = /^\s*['’]s\b/i.test(String(spouseMatch?.[2] || ""));
-      if (spouseMatch && !spouseMatchLooksLikePossessiveChain) {
-        mainQuery = (spouseMatch[1] || "").trim() || query;
-        spouseQuery = (spouseMatch[2] || "").trim();
+      // "married in Cheshire" / "married after 1899" are marriage-date/place
+      // constraints, not spouse names; and the tail must plausibly be a name.
+      const spouseTailCandidate = String(spouseMatch?.[2] || "").trim();
+      const spouseTailLooksLikeConstraint =
+        /^(?:in|at|on|before|after|circa|by|around|between|the|a|an)\b/i.test(spouseTailCandidate) ||
+        /^\d/.test(spouseTailCandidate);
+      const spouseTailLooksLikeName = isLikelyPersonAliasLabel(stripSurroundingQuotes(spouseTailCandidate));
+      if (spouseMatch && !spouseMatchLooksLikePossessiveChain && !spouseTailLooksLikeConstraint && spouseTailLooksLikeName) {
+        mainQuery = (spouseMatch[1] || "").trim().replace(/\s+(?:with|whose|and)\s*$/i, "") || query;
+        spouseQuery = spouseTailCandidate;
       }
 
       console.debug("wbe: tryHandleProfileSearchPrompt initial", {
@@ -7458,7 +7685,7 @@ export function createProfileSearchHandler({
         parseNaturalLanguageWtPlusQuery(mainQuery) || parseCombinedNaturalLanguageWtPlusQuery(mainQuery);
       const preferAiWtPlusQueryCandidate = shouldPreferAiWtPlusQuery(mainQuery);
       const wtPlusOnlyConstraintRegex =
-        /\b(?:category|template|suggestions?\s*=|sql\s*=|project\s*managed|managed\s*(?:only\s*)?by|manager\s*=|unsourced|unconnected|orphan|no\s+father|no\s+mother|no\s+parents|no\s+spouses|no\s+children|without\s+(?:father|mother|parents|spouses|children)|with\s+a\s+(?:father|mother)|\d{1,2}(?:st|nd|rd|th)\s+century|fg(?:cem|mem)\d+|find\s*a\s*grave\s+(?:cemetery|cem)|fg\s+(?:cemetery|cem))\b/i;
+        /\b(?:category|template|suggestions?\s*=|sql\s*=|project\s*managed|managed\s*(?:only\s*)?by|manager\s*=|unsourced|unconnected|orphan|no\s+father|no\s+mother|no\s+parents|no\s+spouses|no\s+children|without\s+(?:father|mother|parents|spouses|children)|(?:with|has|having)\s+a\s+(?:father|mother)|(?:exactly|precisely)\s+\S+\s+(?:children|kids?)|\d{1,2}(?:st|nd|rd|th)\s+century|fg(?:cem|mem)\d+|find\s*a\s*grave\s+(?:cemetery|cem)|fg\s+(?:cemetery|cem))\b/i;
       const looksWtPlusOnly =
         wtPlusOnlyConstraintRegex.test(rawQuery) ||
         wtPlusOnlyConstraintRegex.test(mainQuery) ||
@@ -7604,6 +7831,23 @@ export function createProfileSearchHandler({
               );
             }
 
+            const scopeSwap = localWtPlusQuery.ambiguousScopeSwap;
+            if (scopeSwap?.from && scopeSwap?.to && localWtPlusQuery.query.includes(scopeSwap.from)) {
+              const swappedQuery = localWtPlusQuery.query.replace(scopeSwap.from, scopeSwap.to);
+              console.info("wbe: WT+ zero-result local parse; retrying ambiguous lone token as surname", {
+                rawQuery,
+                localQuery: localWtPlusQuery.query,
+                swappedQuery,
+              });
+              recordWtPlusParseTelemetry("parsedLocal");
+              const swappedResult = await runWtPlusProfileQuery(swappedQuery, localWtPlusQuery.title, null, {
+                rawPrompt: rawQuery,
+              });
+              if (!isWtPlusZeroResults(swappedResult) && !isWtPlusExecutionFailure(swappedResult)) {
+                return annotateAutoRoutedWtPlusResult(swappedResult);
+              }
+            }
+
             showChatShaky("No local WT+ matches. Asking AI to reinterpret this query...");
             const aiRetryQuery = await callAiParseWtPlusQuery(rawQuery, {
               reparseFromZeroResults: true,
@@ -7708,11 +7952,35 @@ export function createProfileSearchHandler({
             localQuery: localWtPlusQuery.query,
             localSearchType: localWtPlusQuery.searchType || "text",
           });
-          return annotateAutoRoutedWtPlusResult(
-            await runWtPlusProfileQuery(localWtPlusQuery.query, localWtPlusQuery.title, localWtPlusQuery, {
+          const fallbackRunResult = await runWtPlusProfileQuery(
+            localWtPlusQuery.query,
+            localWtPlusQuery.title,
+            localWtPlusQuery,
+            {
               rawPrompt: rawQuery,
-            })
+            }
           );
+          const fallbackScopeSwap = localWtPlusQuery.ambiguousScopeSwap;
+          if (
+            isWtPlusZeroResults(fallbackRunResult) &&
+            fallbackScopeSwap?.from &&
+            fallbackScopeSwap?.to &&
+            localWtPlusQuery.query.includes(fallbackScopeSwap.from)
+          ) {
+            const swappedQuery = localWtPlusQuery.query.replace(fallbackScopeSwap.from, fallbackScopeSwap.to);
+            console.info("wbe: WT+ zero-result fallback parse; retrying ambiguous lone token as surname", {
+              rawQuery,
+              localQuery: localWtPlusQuery.query,
+              swappedQuery,
+            });
+            const swappedResult = await runWtPlusProfileQuery(swappedQuery, localWtPlusQuery.title, null, {
+              rawPrompt: rawQuery,
+            });
+            if (!isWtPlusZeroResults(swappedResult) && !isWtPlusExecutionFailure(swappedResult)) {
+              return annotateAutoRoutedWtPlusResult(swappedResult);
+            }
+          }
+          return annotateAutoRoutedWtPlusResult(fallbackRunResult);
         }
       }
 
@@ -7780,7 +8048,11 @@ export function createProfileSearchHandler({
             let catVal = chosenCategory.replace(/,\s+/g, "__");
             catVal = catVal.replace(/\s+/g, "_");
 
-            const qb = `CategoryFull=${catVal}`;
+            const qb = normalizeWtPlusQueryString(`CategoryFull=${catVal}`);
+            if (!qb) {
+              hideChatShaky();
+              return `I couldn't build a valid WT+ category query for "${chosenCategory}".`;
+            }
             const encodedQ = encodeURIComponent(qb);
             const debugUrl = `https://plus.wikitree.com/function/WTWebProfileSearch/apiWBE_ChatCategory.json?Query=${encodedQ}&MaxProfiles=${WT_PLUS_MAX_PROFILES}&Format=JSON`;
             console.debug("wbe: WT+ deterministic CategoryFull", { chosenCategory, catVal, qb, encodedQ, debugUrl });
@@ -7923,14 +8195,23 @@ export function createProfileSearchHandler({
         /* ignore AI parse errors */
       }
 
-      const shouldInferNameFromPrompt = !(
-        effectiveChatMode === "wt" &&
-        aiParseAppliedLocationFields &&
-        !aiParseAppliedNameFields &&
-        !modifiers?.firstName &&
-        !modifiers?.lastName &&
-        !modifiers?.realName
-      );
+      // Name inference from the raw prompt is only safe when the leftover
+      // phrase plausibly IS a person name (no query words, few tokens).
+      // Otherwise "interesting people please" becomes FirstName=interesting
+      // LastName=please and we send a nonsense searchPerson call.
+      const inferNameSourceRaw = stripSurroundingQuotes(mainQuery) || "";
+      const inferNameSourceText = stripDateQualifiersFromText(inferNameSourceRaw) || inferNameSourceRaw;
+      const promptLooksLikePersonName = isLikelyPersonAliasLabel(inferNameSourceText);
+      const shouldInferNameFromPrompt =
+        promptLooksLikePersonName &&
+        !(
+          effectiveChatMode === "wt" &&
+          aiParseAppliedLocationFields &&
+          !aiParseAppliedNameFields &&
+          !modifiers?.firstName &&
+          !modifiers?.lastName &&
+          !modifiers?.realName
+        );
 
       const hasDateModifiers = Boolean(
         modifiers?.bornBefore ||
@@ -8080,6 +8361,14 @@ export function createProfileSearchHandler({
         }
       }
 
+      // Pre-flight guard: never call searchPerson without at least one
+      // meaningful anchor. Flags like skipVariants alone would ask the API
+      // to scan everything and return noise.
+      if (!hasMeaningfulWtSearchAnchor(searchParams)) {
+        console.info("wbe: WT searchPerson call blocked — no meaningful anchor params", { query, searchParams });
+        return `I couldn't work out a concrete person search from "${query}". Try adding a name, a location, or a date.`;
+      }
+
       console.debug("wbe: searchPerson call", { mainQuery, searchParams });
       const needPaging =
         modifiers?.bornBefore ||
@@ -8128,11 +8417,21 @@ export function createProfileSearchHandler({
         return `I couldn't find profile matches for "${query}".`;
       }
 
+      // Spouse filtering enriches with getSpouses in this same fetch, so cap
+      // candidate volume rather than issuing per-chunk follow-up calls later.
+      const SPOUSE_FILTER_CANDIDATE_CAP = 500;
+      let spouseCandidatesTruncated = false;
+      if (spouseQuery && profileIds.length > SPOUSE_FILTER_CANDIDATE_CAP) {
+        spouseCandidatesTruncated = true;
+        profileIds = profileIds.slice(0, SPOUSE_FILTER_CANDIDATE_CAP);
+      }
+
       const [, , people] = await fetchPeoplePaged(
         WBE_CHAT_APP_ID,
         profileIds,
-        "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,BirthDate,DeathDate,BirthLocation,DeathLocation,LastNameAtBirth,LastNameCurrent,LastNameOther,Gender",
-        {}
+        "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,BirthDate,DeathDate,BirthLocation,DeathLocation,LastNameAtBirth,LastNameCurrent,LastNameOther,Gender" +
+          (spouseQuery ? ",Spouses" : ""),
+        spouseQuery ? { getSpouses: 1 } : {}
       );
       const peopleCount = Object.keys(people || {}).length;
       console.debug("wbe: fetchPeoplePaged result", {
@@ -8227,119 +8526,39 @@ export function createProfileSearchHandler({
 
       if (spouseQuery) {
         showChatShaky(`Checking spouses for \"${spouseQuery}\"...`);
-        const normSpouse = normalizeText(spouseQuery);
-        const spouseTokens = (normSpouse || "").split(/\s+/).filter(Boolean);
         const spouseHadQuoted = quoteRegex.test(String(spouseQuery || ""));
         console.debug("wbe: tryHandleProfileSearchPrompt spouse filter", {
           mainQuery,
           spouseQuery,
-          normSpouse,
-          spouseTokens,
           profileIdsSample: profileIds.slice(0, 50),
           matchedPeopleCount: matchedPeople.length,
         });
 
+        // Spouses were fetched with the main detail call (getSpouses: 1), so
+        // filtering is a pure in-memory pass — no follow-up API chunks.
         const matches = [];
-        const keys = matchedPeople.map((p) => p?.Name || p?.Id).filter(Boolean);
-        const CHUNK = 30;
-        for (let k = 0; k < keys.length; k += CHUNK) {
-          const chunkKeys = keys.slice(k, k + CHUNK);
-          try {
-            const [, resultByKey, peopleData] = await WikiTreeAPI.getPeople(
-              WBE_CHAT_APP_ID,
-              chunkKeys,
-              "Spouses,Name,RealName,Id,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther",
-              { getSpouses: 1, resolveRedirect: 1 }
-            );
-
-            for (let ci = 0; ci < chunkKeys.length; ci++) {
-              const key = chunkKeys[ci];
-              const origIdx = matchedPeople.findIndex((p) => (p?.Name || p?.Id) === key);
-              if (origIdx === -1) continue;
-              const apiPerson = WikiTreeAPI.lookupProfile(key, resultByKey, peopleData);
-              const spousesObj = apiPerson?.Spouses || {};
-              const spouses = Object.values(spousesObj || []);
-
-              let found = null;
-              for (const s of spouses) {
-                const firstNameParts = [s?.RealName, s?.FirstName, s?.MiddleName, s?.Name]
-                  .filter(Boolean)
-                  .map((v) => normalizeText(String(v)));
-                const lastNameParts = [s?.LastNameAtBirth, s?.LastNameCurrent, s?.LastNameOther, s?.Name]
-                  .filter(Boolean)
-                  .map((v) => normalizeText(String(v)));
-
-                let isMatch = false;
-                if (spouseTokens.length >= 2) {
-                  const lastQuery = spouseTokens[spouseTokens.length - 1];
-                  const firstQuery = spouseTokens.slice(0, spouseTokens.length - 1).join(" ");
-                  const firstNorm = normalizeText(firstQuery);
-                  const lastNorm = normalizeText(lastQuery);
-
-                  const firstMatch = firstNameParts.some((n) => n.includes(firstNorm));
-                  const lastMatch = lastNameParts.some((n) => n.includes(lastNorm));
-                  if (firstMatch && lastMatch) isMatch = true;
-                }
-
-                const candidates = [];
-                if (s?.RealName) candidates.push(String(s.RealName));
-                if (s?.Name) candidates.push(String(s.Name).replace(/[-_]/g, " "));
-                if (s?.FirstName || s?.LastNameCurrent)
-                  candidates.push([s.FirstName || "", s.LastNameCurrent || ""].join(" ").trim());
-                if (s?.MiddleName) candidates.push(String(s.MiddleName));
-                if (s?.LastNameCurrent) candidates.push(String(s.LastNameCurrent));
-                if (s?.LastNameAtBirth) candidates.push(String(s.LastNameAtBirth));
-                if (s?.LastNameOther) candidates.push(String(s.LastNameOther));
-
-                const candNormalized = candidates.filter(Boolean).map((c) => normalizeText(c));
-
-                if (!isMatch) {
-                  if (spouseHadQuoted) {
-                    if (candNormalized.includes(normSpouse)) isMatch = true;
-                    if (!isMatch) {
-                      for (const tok of candNormalized) {
-                        const tokParts = tok.split(/\s+/).filter(Boolean);
-                        if (tokParts.includes(normSpouse)) {
-                          isMatch = true;
-                          break;
-                        }
-                      }
-                    }
-                  } else {
-                    if (candNormalized.some((c) => c.includes(normSpouse))) isMatch = true;
-                    if (
-                      !isMatch &&
-                      spouseTokens.length &&
-                      spouseTokens.every((t) => candNormalized.some((c) => c.includes(t)))
-                    )
-                      isMatch = true;
-                  }
-                }
-
-                if (isMatch) {
-                  found = s;
-                  break;
-                }
-              }
-
-              if (found) {
-                const spouseEntry = {
-                  wtid: found?.Name || "",
-                  firstName: found?.FirstName || found?.RealName || "",
-                  lnab: found?.LastNameAtBirth || found?.LastNameCurrent || found?.LastNameOther || "",
-                  display: found?.RealName || found?.Name || "",
-                };
-                matches.push({ row: mappedRows[origIdx], spouseName: found.RealName || found.Name || "", spouseEntry });
-              }
-            }
-          } catch (error) {
-            console.debug("wbe: getPeople chunk failed", error);
+        matchedPeople.forEach((apiPerson, index) => {
+          const found = matchSpouseByName(apiPerson?.Spouses, spouseQuery, {
+            normalizeText,
+            quoted: spouseHadQuoted,
+          });
+          if (found) {
+            const spouseEntry = {
+              wtid: found?.Name || "",
+              firstName: found?.FirstName || found?.RealName || "",
+              lnab: found?.LastNameAtBirth || found?.LastNameCurrent || found?.LastNameOther || "",
+              display: found?.RealName || found?.Name || "",
+            };
+            matches.push({ row: mappedRows[index], spouseName: found.RealName || found.Name || "", spouseEntry });
           }
-        }
+        });
         hideChatShaky();
 
         if (!matches.length) {
-          return `I found no profile matches for "${mainQuery}" with a spouse matching "${spouseQuery}".`;
+          const truncationNote = spouseCandidatesTruncated
+            ? ` (Only the first ${SPOUSE_FILTER_CANDIDATE_CAP} name matches were checked — try narrowing the main name.)`
+            : " (Spouses of private profiles may not be visible.)";
+          return `I found no profile matches for "${mainQuery}" with a spouse matching "${spouseQuery}".${truncationNote}`;
         }
 
         finalRows = matches.map((m) => {

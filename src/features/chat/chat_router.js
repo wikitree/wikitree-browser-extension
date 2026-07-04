@@ -211,6 +211,9 @@ function parseRelationPrompt(prompt) {
     };
   };
 
+  const RELATION_WORD_REGEX =
+    /^(?:grand\s*aunts?|grand\s*uncles?|grand\s*mothers?|grand\s*fathers?|grand\s*parents?|aunts?|uncles?|mothers?|moms?|fathers?|dads?|parents?|daughters?|sons?|children|kids?|wives|wife|husbands?|spouses?|brothers?|sisters?|siblings?)$/i;
+
   const isSupportedBareRelationPhrase = (text) => {
     const cleaned = String(text || "")
       .trim()
@@ -222,9 +225,7 @@ function parseRelationPrompt(prompt) {
     if (parseCousinRelationRequest(cleaned)) {
       return true;
     }
-    return /^(?:grand\s*aunts?|grand\s*uncles?|grand\s*mothers?|grand\s*fathers?|grand\s*parents?|aunts?|uncles?|mothers?|moms?|fathers?|dads?|parents?|daughters?|sons?|children|kids?|wives|wife|husbands?|spouses?|brothers?|sisters?|siblings?)$/i.test(
-      cleaned
-    );
+    return RELATION_WORD_REGEX.test(cleaned);
   };
 
   const withRelationExtras = (baseParams) => {
@@ -298,6 +299,33 @@ function parseRelationPrompt(prompt) {
     }
   }
 
+  // Bare possessive relation chains with no leading verb:
+  // "Sarah's father's wife's siblings' bios". Requires at least two relation
+  // segments so single-relation possessives ("Sarah's wife") keep their
+  // dedicated routes (SPOUSE_LIST etc.).
+  const barePossessiveChainMatch = normalized.match(/^(.+?)['’]s\s+(.+?)\??$/i);
+  if (barePossessiveChainMatch?.[1] && barePossessiveChainMatch?.[2]) {
+    const chainSubject = barePossessiveChainMatch[1].trim();
+    const chainTail = barePossessiveChainMatch[2]
+      .replace(/[?.!]+$/g, "")
+      .replace(/\s*\b(?:bios?|biograph(?:y|ies))\b\s*$/i, "")
+      .replace(/['’]s?\s*$/, "")
+      .trim();
+    const chainSegments = chainTail
+      .replace(/[’`]/g, "'")
+      .split(/\s*'s\s+/i)
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (chainSegments.length >= 2 && chainSegments.every((segment) => RELATION_WORD_REGEX.test(segment))) {
+      return {
+        mode: "list",
+        relationRaw: chainTail,
+        subjectMode: "named",
+        subjectName: chainSubject,
+      };
+    }
+  }
+
   if (isSupportedBareRelationPhrase(normalized)) {
     const parsed = parseCousinRelationRequest(normalized);
     if (parsed) {
@@ -351,49 +379,113 @@ function parseRelationPrompt(prompt) {
   return null;
 }
 
-export function extractConnectionTarget(prompt) {
-  const possessiveToMeMatch = prompt.match(
-    /^\s*(.+?)'s\s+(?:connection(?:\s+or\s+distance)?|distance(?:\s+or\s+connection)?)\s+to\s+me\??\s*$/i
+function isSelfReferenceEndpoint(value) {
+  return /^(?:me|myself|i|my|mine)$/i.test(
+    String(value || "")
+      .trim()
+      .replace(/[?.!]+$/, "")
+  );
+}
+
+function cleanConnectionEndpoint(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[?.!]+$/, "")
+    .replace(/^(?:the\s+)?(?:profile\s+person|current\s+profile|this\s+profile)\b/i, "")
+    .trim();
+}
+
+/**
+ * Parse a connection/distance prompt into its two endpoints.
+ * Returns { source, target } where an empty source means "the user (or
+ * current page profile)", or null when the prompt is not a connection
+ * lookup. Both-named forms ("connection between A and B",
+ * "Philip's connection to Jefferson") fill both fields; self references
+ * ("between X and me") are normalized to an empty source.
+ */
+export function extractConnectionEndpoints(prompt) {
+  const normalized = String(prompt || "").trim();
+  if (!normalized) return null;
+
+  // Strip interrogative/imperative lead-ins so possessive patterns don't
+  // capture "What" from "What is Philip's connection to Jefferson?".
+  const lead = normalized
+    .replace(/^\s*(?:please\s+)?(?:what(?:['’]s|\s+is)|show(?:\s+me)?|tell\s+me|find|give\s+me)\s+/i, "")
+    .replace(/^\s*the\s+/i, "");
+
+  const possessiveToMeMatch = lead.match(
+    /^\s*(.+?)['’]s\s+(?:connection(?:\s+or\s+distance)?|distance(?:\s+or\s+connection)?)\s+to\s+me\??\s*$/i
   );
   if (possessiveToMeMatch?.[1]) {
-    return possessiveToMeMatch[1].trim();
+    return { source: "", target: cleanConnectionEndpoint(possessiveToMeMatch[1]) };
   }
 
-  const fromMeMatch = prompt.match(
+  const possessiveToNamedMatch = lead.match(
+    /^\s*(.+?)['’]s\s+(?:connection(?:\s+or\s+distance)?|distance(?:\s+or\s+connection)?)\s+to\s+(.+?)\??\s*$/i
+  );
+  if (possessiveToNamedMatch?.[1] && possessiveToNamedMatch?.[2]) {
+    const source = cleanConnectionEndpoint(possessiveToNamedMatch[1]);
+    const target = cleanConnectionEndpoint(possessiveToNamedMatch[2]);
+    if (isSelfReferenceEndpoint(target)) {
+      return { source: "", target: source };
+    }
+    return { source, target };
+  }
+
+  const fromMeMatch = normalized.match(
     /(?:what(?:'s|\s+is)\s+)?(?:the\s+)?(?:connection|distance)(?:\s+or\s+connection|\s+or\s+distance)?\s+from\s+me\s+to\s+(.+?)\??$/i
   );
   if (fromMeMatch?.[1]) {
-    return fromMeMatch[1].trim();
+    return { source: "", target: cleanConnectionEndpoint(fromMeMatch[1]) };
   }
 
-  const betweenMatch = prompt.match(
+  const betweenMeMatch = normalized.match(
     /(?:what(?:'s|\s+is)\s+)?(?:the\s+)?(?:connection|distance)(?:\s+or\s+connection|\s+or\s+distance)?\s+between\s+me\s+and\s+(.+?)\??$/i
   );
-  if (betweenMatch?.[1]) {
-    return betweenMatch[1].trim();
+  if (betweenMeMatch?.[1]) {
+    return { source: "", target: cleanConnectionEndpoint(betweenMeMatch[1]) };
   }
 
-  const fromAnyMatch = prompt.match(
-    /(?:what(?:'s|\s+is)\s+)?(?:the\s+)?(?:connection|distance)(?:\s+or\s+connection|\s+or\s+distance)?\s+from\s+.+?\s+to\s+(.+?)\??$/i
+  const fromAnyMatch = normalized.match(
+    /(?:what(?:'s|\s+is)\s+)?(?:the\s+)?(?:connection|distance)(?:\s+or\s+connection|\s+or\s+distance)?\s+from\s+(.+?)\s+to\s+(.+?)\??$/i
   );
-  if (fromAnyMatch?.[1]) {
-    return fromAnyMatch[1].trim();
+  if (fromAnyMatch?.[1] && fromAnyMatch?.[2]) {
+    const source = cleanConnectionEndpoint(fromAnyMatch[1]);
+    const target = cleanConnectionEndpoint(fromAnyMatch[2]);
+    if (isSelfReferenceEndpoint(target)) {
+      return { source: "", target: source };
+    }
+    return { source: isSelfReferenceEndpoint(source) ? "" : source, target };
   }
 
-  const betweenAnyMatch = prompt.match(
-    /(?:what(?:'s|\s+is)\s+)?(?:the\s+)?(?:connection|distance)(?:\s+or\s+connection|\s+or\s+distance)?\s+between\s+.+?\s+and\s+(.+?)\??$/i
+  const betweenAnyMatch = normalized.match(
+    /(?:what(?:'s|\s+is)\s+)?(?:the\s+)?(?:connection|distance)(?:\s+or\s+connection|\s+or\s+distance)?\s+between\s+(.+?)\s+and\s+(.+?)\??$/i
   );
-  if (betweenAnyMatch?.[1]) {
-    return betweenAnyMatch[1].trim();
+  if (betweenAnyMatch?.[1] && betweenAnyMatch?.[2]) {
+    const source = cleanConnectionEndpoint(betweenAnyMatch[1]);
+    const target = cleanConnectionEndpoint(betweenAnyMatch[2]);
+    if (isSelfReferenceEndpoint(target)) {
+      return { source: "", target: source };
+    }
+    return { source: isSelfReferenceEndpoint(source) ? "" : source, target };
   }
 
-  const toMatch = prompt.match(
+  const toMatch = normalized.match(
     /(?:what(?:'s|\s+is)\s+)?(?:my\s+)?(?:connection(?:\s+or\s+distance)?|distance(?:\s+or\s+connection)?)\s+to\s+(.+?)\??$/i
   );
-  if (!toMatch?.[1]) {
-    return "";
+  if (toMatch?.[1]) {
+    return { source: "", target: cleanConnectionEndpoint(toMatch[1]) };
   }
-  return toMatch[1].trim();
+
+  return null;
+}
+
+export function extractConnectionTarget(prompt) {
+  return extractConnectionEndpoints(prompt)?.target || "";
+}
+
+export function extractConnectionSourceName(prompt) {
+  return extractConnectionEndpoints(prompt)?.source || "";
 }
 
 // Additional utility helpers (moved from chat.js)
@@ -1812,11 +1904,11 @@ export function routeChatPrompt(prompt, options = {}) {
     };
   }
 
-  const connectionTarget = extractConnectionTarget(prompt);
-  if (connectionTarget) {
+  const connectionEndpoints = extractConnectionEndpoints(prompt);
+  if (connectionEndpoints?.target) {
     return {
       intent: ChatIntent.CONNECTION_LOOKUP,
-      params: { target: connectionTarget },
+      params: { target: connectionEndpoints.target, source: connectionEndpoints.source || "" },
     };
   }
 

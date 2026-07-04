@@ -102,7 +102,7 @@ describe("wt_plus_query_grammar suggestions free text", () => {
     expect(result).toEqual({
       searchType: "suggestions",
       suggestionId: "321",
-      query: "Suggestions=321 in Devon",
+      query: "Suggestions=321 Location=Devon",
       options: {
         showHidden: true,
         hideActive: true,

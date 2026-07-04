@@ -173,8 +173,38 @@ export function createChatRelationHandlers({
     return String(rawRelation || "")
       .replace(/[’`]/g, "'")
       .replace(/[?.!]+$/g, "")
+      .replace(/\s*\b(?:bios?|biograph(?:y|ies))\b\s*$/i, "")
+      .replace(/'s?\s*$/, "")
       .replace(/\s+/g, " ")
       .trim();
+  }
+
+  /**
+   * Parse a chain whose first segment is a person name rather than a relation
+   * word ("Sarah's father's wife's siblings"). Returns { subjectName, steps }
+   * or null when the text is not a name-rooted chain.
+   */
+  function parseRelationChainWithSubject(rawRelation) {
+    const segments = splitRelationChainSegments(rawRelation);
+    if (segments.length < 2) {
+      return null;
+    }
+
+    const [head, ...rest] = segments;
+    if (parseRelationType(head)) {
+      return null;
+    }
+
+    const steps = [];
+    for (const segment of rest) {
+      const spec = parseRelationType(segment);
+      if (!spec) {
+        return null;
+      }
+      steps.push(spec);
+    }
+
+    return { subjectName: head.trim(), steps };
   }
 
   function splitRelationChainSegments(rawRelation) {
@@ -1230,15 +1260,30 @@ export function createChatRelationHandlers({
       );
     }
 
-    const relationSteps = await resolveRelationChain(relationRaw);
+    // The planner sometimes leaves the leading person name inside relationRaw
+    // ("Sarah's father's wife's siblings"); recover it as the subject BEFORE
+    // resolveRelationChain's unanchored single-word fallback can mis-read the
+    // whole chain as one "siblings" step.
+    let relationSteps = parseRelationChainLocally(relationRaw);
+    let subjectNameFromChain = "";
+    if (!relationSteps.length && !forceUserSubject && params?.subjectMode !== "named") {
+      const chainWithSubject = parseRelationChainWithSubject(relationRaw);
+      if (chainWithSubject?.steps?.length) {
+        relationSteps = chainWithSubject.steps;
+        subjectNameFromChain = chainWithSubject.subjectName;
+      }
+    }
+    if (!relationSteps.length) {
+      relationSteps = await resolveRelationChain(relationRaw);
+    }
     if (!relationSteps.length) {
       return `I couldn't match "${relationRaw}" to a supported relation type yet. Try siblings, parents, children, spouses, aunts, uncles, grandparents, granduncles, or grandaunts.`;
     }
     const relationSpec = relationSteps[relationSteps.length - 1];
 
     let subject = null;
-    if (!forceUserSubject && params?.subjectMode === "named") {
-      const subjectName = String(params?.subjectName || "").trim();
+    if (!forceUserSubject && (params?.subjectMode === "named" || subjectNameFromChain)) {
+      const subjectName = String(params?.subjectName || subjectNameFromChain || "").trim();
       if (!subjectName) {
         return "I couldn't tell which person you meant. Could you include a name or WikiTree ID?";
       }
