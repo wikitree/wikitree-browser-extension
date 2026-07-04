@@ -1052,7 +1052,7 @@ export function showConnectionsPopup(connectionsResult) {
 /**
  * Small shaky-tree loader UI used in chat operations.
  */
-export function showChatShaky(label = "Finding connection...", position = "center") {
+export function showChatShaky(label = "Finding connection...", position = "center", progressPercent = null) {
   let $existing = $("#wbeShakyTree");
   const treeUrl = chrome?.runtime?.getURL ? chrome.runtime.getURL("images/tree.gif") : "images/tree.gif";
   if ($existing.length === 0) {
@@ -1071,6 +1071,23 @@ export function showChatShaky(label = "Finding connection...", position = "cente
     // Replace existing messages with the latest label to avoid duplicates
     $msgs.html(`<div class="wbe-shaky-label">${label}</div>`);
   }
+
+  // Optional determinate progress line (0-100) under the label.
+  const numericProgress = Number(progressPercent);
+  if (progressPercent !== null && Number.isFinite(numericProgress)) {
+    const clamped = Math.max(0, Math.min(100, numericProgress));
+    let $bar = $existing.find(".wbe-shaky-progress");
+    if (!$bar.length) {
+      $existing
+        .find(".wbe-shaky-messages")
+        .append('<div class="wbe-shaky-progress"><div class="wbe-shaky-progress-fill"></div></div>');
+      $bar = $existing.find(".wbe-shaky-progress");
+    }
+    $bar.find(".wbe-shaky-progress-fill").css("width", `${clamped}%`);
+  } else {
+    $existing.find(".wbe-shaky-progress").remove();
+  }
+
   if (position === "center") $existing.addClass("center");
   else $existing.removeClass("center");
   $existing.stop(true, true).fadeIn(180);

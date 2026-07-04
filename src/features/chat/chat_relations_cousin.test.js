@@ -148,7 +148,8 @@ describe("chat_relations cousin handling", () => {
       "my third cousins born in England"
     );
 
-    expect(fetchPeoplePaged).toHaveBeenCalledTimes(4);
+    // Ancestors fetch + one descendants fetch per generation bucket (1-4).
+    expect(fetchPeoplePaged).toHaveBeenCalledTimes(5);
     expect(result.table.rows).toEqual([
       {
         displayName: "Third Cousin",
@@ -184,6 +185,167 @@ describe("chat_relations cousin handling", () => {
       },
     ]);
     expect(result.message).toContain("Here are your 3rd cousins (and up to 3 removed) born in England (2 found)");
+  });
+
+  test("excludes siblings and closer cousins that also descend from the target-generation ancestors", async () => {
+    const fetchPeoplePaged = jest.fn(async (_appId, _keys, _fields, options) => {
+      if (options?.ancestors === 4) {
+        return [
+          null,
+          null,
+          {
+            10: { Id: 10, Name: "Parent-1", Meta: { Degrees: 1 } },
+            20: { Id: 20, Name: "Grandparent-1", Meta: { Degrees: 2 } },
+            30: { Id: 30, Name: "GreatGrandparent-1", Meta: { Degrees: 3 } },
+            40: { Id: 40, Name: "SharedAncestor-1", Meta: { Degrees: 4 } },
+          },
+        ];
+      }
+
+      const keys = Array.isArray(_keys) ? _keys : [_keys];
+
+      // Sister is a descendant of the parents at the subject's own generation.
+      if (options?.minGeneration === 1 && keys.includes(10)) {
+        return [
+          null,
+          null,
+          {
+            9: {
+              Id: 9,
+              Name: "Sister-1",
+              FirstName: "Susan",
+              LastNameAtBirth: "Tester",
+              BirthLocation: "England",
+              Meta: { Degrees: 1 },
+            },
+          },
+        ];
+      }
+
+      // Second cousin descends from the great-grandparents.
+      if (options?.minGeneration === 3 && keys.includes(30)) {
+        return [
+          null,
+          null,
+          {
+            8: {
+              Id: 8,
+              Name: "SecondCousin-1",
+              FirstName: "Maria",
+              LastNameAtBirth: "Boyce",
+              BirthLocation: "England",
+              Meta: { Degrees: 3 },
+            },
+          },
+        ];
+      }
+
+      // The target-generation bucket also "sees" the sister and the second
+      // cousin because they descend from the same deep ancestors too.
+      if (options?.minGeneration === 4 && keys.includes(40)) {
+        return [
+          null,
+          null,
+          {
+            5: {
+              Id: 5,
+              Name: "ThirdCousin-1",
+              FirstName: "Third",
+              LastNameAtBirth: "Cousin",
+              BirthLocation: "England",
+              Meta: { Degrees: 4 },
+            },
+            8: {
+              Id: 8,
+              Name: "SecondCousin-1",
+              FirstName: "Maria",
+              LastNameAtBirth: "Boyce",
+              BirthLocation: "England",
+              Meta: { Degrees: 4 },
+            },
+            9: {
+              Id: 9,
+              Name: "Sister-1",
+              FirstName: "Susan",
+              LastNameAtBirth: "Tester",
+              BirthLocation: "England",
+              Meta: { Degrees: 4 },
+            },
+          },
+        ];
+      }
+
+      return [null, null, {}];
+    });
+
+    const { tryHandleRelationCountPrompt } = makeHandlers(fetchPeoplePaged);
+    const result = await tryHandleRelationCountPrompt(
+      {
+        mode: "list",
+        relationRaw: "3rd cousins",
+        subjectMode: "user",
+        cousinDegree: 3,
+        location: "England",
+        locationField: "BirthLocation",
+      },
+      "my third cousins born in England"
+    );
+
+    const wtids = result.table.rows.map((row) => row.wtid);
+    expect(wtids).toEqual(["ThirdCousin-1"]);
+    expect(wtids).not.toContain("Sister-1");
+    expect(wtids).not.toContain("SecondCousin-1");
+  });
+
+  test("omits no-detail private profiles from cousin tables and reports the count", async () => {
+    const fetchPeoplePaged = jest.fn(async (_appId, _keys, _fields, options) => {
+      if (options?.ancestors === 4) {
+        return [
+          null,
+          null,
+          {
+            40: { Id: 40, Name: "SharedAncestor-1", Meta: { Degrees: 4 } },
+          },
+        ];
+      }
+
+      const keys = Array.isArray(_keys) ? _keys : [_keys];
+      if (options?.minGeneration === 4 && keys.includes(40)) {
+        return [
+          null,
+          null,
+          {
+            5: {
+              Id: 5,
+              Name: "ThirdCousin-1",
+              FirstName: "Third",
+              LastNameAtBirth: "Cousin",
+              Meta: { Degrees: 4 },
+            },
+            "-2": { Id: -2, FirstName: "Private", Meta: { Degrees: 4 } },
+            "-3": { Id: -3, FirstName: "Private", Meta: { Degrees: 4 } },
+          },
+        ];
+      }
+
+      return [null, null, {}];
+    });
+
+    const { tryHandleRelationCountPrompt } = makeHandlers(fetchPeoplePaged);
+    const result = await tryHandleRelationCountPrompt(
+      {
+        mode: "list",
+        relationRaw: "3rd cousins",
+        subjectMode: "user",
+        cousinDegree: 3,
+        location: "",
+        locationField: "",
+      },
+      "my third cousins"
+    );
+
+    expect(result.table.rows.map((row) => row.wtid)).toEqual(["ThirdCousin-1"]);
+    expect(result.message).toContain("2 private profiles with no viewable details not shown");
   });
 
   test("returns inlineMore for cousin lists longer than the preview limit", async () => {

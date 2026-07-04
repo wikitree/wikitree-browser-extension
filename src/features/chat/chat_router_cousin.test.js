@@ -160,6 +160,32 @@ describe("chat_router cousin prompts", () => {
     });
   });
 
+  test("routes show-me-my cousin prompts to relation count intent", () => {
+    expect(routeChatPrompt("show me my 7th cousins")).toEqual({
+      intent: ChatIntent.RELATION_COUNT,
+      params: {
+        mode: "list",
+        relationRaw: "7th cousins",
+        subjectMode: "user",
+        cousinDegree: 7,
+        location: "",
+        locationField: "",
+      },
+    });
+
+    expect(routeChatPrompt("give me my 3rd cousins")).toEqual({
+      intent: ChatIntent.RELATION_COUNT,
+      params: {
+        mode: "list",
+        relationRaw: "3rd cousins",
+        subjectMode: "user",
+        cousinDegree: 3,
+        location: "",
+        locationField: "",
+      },
+    });
+  });
+
   test("routes counted cousin prompts with cousin metadata", () => {
     expect(routeChatPrompt("how many 2nd cousins do I have?")).toEqual({
       intent: ChatIntent.RELATION_COUNT,

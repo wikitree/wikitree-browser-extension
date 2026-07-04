@@ -4,6 +4,7 @@ import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { getProfilePersonInfo } from "../../core/common";
 import { formatDate } from "../../core/formatting";
 import {
+  ChatIntent,
   normalizePersonText,
   splitPersonName,
   normalizeConnectionTargetForSearch,
@@ -513,6 +514,7 @@ function normalizeConnectionAiExpansion(expansion) {
 
   const normalizedFirstName = String(expansion?.FirstName || expansion?.firstName || "").trim();
   const normalizedLastName = String(expansion?.LastName || expansion?.lastName || "").trim();
+  const normalizedMiddleName = String(expansion?.MiddleName || expansion?.middleName || "").trim();
   const normalizedBirthDate = String(expansion?.BirthDate || expansion?.birthDate || "").trim();
   const normalizedDeathDate = String(expansion?.DeathDate || expansion?.deathDate || "").trim();
   const normalizedBirthLocation = normalizeConnectionAiLocation(expansion?.BirthLocation || expansion?.birthLocation);
@@ -536,6 +538,7 @@ function normalizeConnectionAiExpansion(expansion) {
     searchName,
     firstName: normalizedFirstName,
     lastName: normalizedLastName,
+    middleName: normalizedMiddleName,
     birthDate: normalizedBirthDate,
     deathDate: normalizedDeathDate,
     birthLocation: normalizedBirthLocation,
@@ -559,6 +562,8 @@ export function createChatConnectionHandlers({
   shouldOfferDisambiguation,
   resolveConnectionSourceRoot,
   resolveAliasToRememberedPerson,
+  setPendingDisambiguationContext,
+  buildDisambiguationMessage,
   promptRefersToUser,
   getLastConnectionContext,
   setLastConnectionContext,
@@ -680,8 +685,11 @@ export function createChatConnectionHandlers({
     }
 
     const { firstName, lastName } = splitPersonName(cleanedTarget);
+    // BirthDateDecade matters for living people: the API often withholds the
+    // exact BirthDate but still exposes the decade. Templates/Managers carry
+    // notability evidence (Notables templates, Wikidata, WikiTree-* managers).
     const fields =
-      "Id,Name,RealName,Derived.ShortName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender";
+      "Id,Name,RealName,Derived.ShortName,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,BirthLocation,DeathLocation,Gender,IsLiving,Templates,Managers";
     const commonAlias = normalizeConnectionAiExpansion(getCommonAliasExpansion(cleanedTarget));
     const trustedAliasWtId = isWikiTreeId(commonAlias?.wtId || "") ? String(commonAlias.wtId).trim() : "";
     let aiExpansion = commonAlias;
@@ -750,6 +758,7 @@ export function createChatConnectionHandlers({
     const optionalHintSearchParams = {
       ...(aiExpansion?.birthLocation ? { BirthLocation: aiExpansion.birthLocation } : {}),
       ...(aiExpansion?.deathLocation ? { DeathLocation: aiExpansion.deathLocation } : {}),
+      ...(aiSaysLiving ? { isLiving: 1 } : {}),
       ...(aiGender ? { Gender: aiGender } : {}),
       ...(aiExpansion?.fatherFirstName ? { fatherFirstName: aiExpansion.fatherFirstName } : {}),
       ...(aiExpansion?.fatherLastName ? { fatherLastName: aiExpansion.fatherLastName } : {}),
@@ -851,6 +860,89 @@ export function createChatConnectionHandlers({
     );
     const realNameMatches = searchRealNameMatches || [];
 
+    // Living-person searches run whenever the target is likely living —
+    // independent of whether the AI expansion renamed anyone. Without these,
+    // a common name like "Stephen Fry" only ever surfaces the oldest dead
+    // namesakes (unhinted searches sort by birth ascending), and the famous
+    // living profile never enters the candidate pool. No location hints
+    // here: living profiles hide locations, so they only over-constrain.
+    const livingSearchFirstName = expandedParts.firstName || firstName;
+    const livingSearchLastName = expandedParts.lastName || lastName;
+
+    // Plain living lane — mirrors the empirically verified API call
+    // (FirstName + LastName + isLiving=1) and runs UNCONDITIONALLY, so living
+    // namesakes are in the pool even when the AI expansion failed entirely.
+    // Living people with a given name pair are a small set; ranking sorts
+    // them against the deceased candidates.
+    let livingPlainMatches = [];
+    if (livingSearchFirstName && livingSearchLastName) {
+      const [, livingPlainSearch] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: livingSearchFirstName,
+          LastName: livingSearchLastName,
+          isLiving: 1,
+          limit: 100,
+        },
+        fields
+      );
+      livingPlainMatches = livingPlainSearch || [];
+    }
+
+    let livingStrictMatches = [];
+    let livingCurrentLastMatches = [];
+    if (likelyLivingTarget && livingSearchFirstName && livingSearchLastName) {
+      const [, livingSearch] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: livingSearchFirstName,
+          LastName: livingSearchLastName,
+          skipVariants: 1,
+          lastNameMatch: "strict",
+          isLiving: 1,
+          limit: 100,
+          ...(aiGender ? { Gender: aiGender } : {}),
+        },
+        fields
+      );
+      livingStrictMatches = livingSearch || [];
+
+      const [, livingCurrentSearch] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: livingSearchFirstName,
+          LastNameCurrent: livingSearchLastName,
+          skipVariants: 1,
+          isLiving: 1,
+          limit: 100,
+          ...(aiGender ? { Gender: aiGender } : {}),
+        },
+        fields
+      );
+      livingCurrentLastMatches = livingCurrentSearch || [];
+    }
+
+    // Birth-date search on the (possibly identical) resolved name. The old
+    // expandedBirthYear searches only ran when the AI produced a DIFFERENT
+    // name than the user typed, which skipped exactly the common case of the
+    // user typing the famous person's well-known name.
+    let sameNameBirthDateMatches = [];
+    if (birthDateSearchParams && livingSearchFirstName && livingSearchLastName) {
+      const [, birthDateSearch] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: livingSearchFirstName,
+          LastName: livingSearchLastName,
+          skipVariants: 1,
+          lastNameMatch: "strict",
+          limit: exactMatchSearchLimit,
+          ...birthDateSearchParams,
+        },
+        fields
+      );
+      sameNameBirthDateMatches = birthDateSearch || [];
+    }
+
     let expandedNameMatches = [];
     if (aiExpansion?.searchName && normalizePersonText(aiExpansion.searchName) !== normalizePersonText(cleanedTarget)) {
       const [, expandedMatches] = await WikiTreeAPI.searchPerson(
@@ -939,6 +1031,10 @@ export function createChatConnectionHandlers({
     const matches = mergeConnectionMatches([
       strictHintMatches,
       currentLastStrictHintMatches,
+      livingStrictMatches,
+      livingCurrentLastMatches,
+      livingPlainMatches,
+      sameNameBirthDateMatches,
       expandedBirthYearStrictMatches,
       expandedBirthYearMatches,
       expandedStrictMatches,
@@ -949,6 +1045,31 @@ export function createChatConnectionHandlers({
       relaxedMatches,
       realNameMatches,
     ]);
+
+    console.info("wbe: connection target search lanes", {
+      cleanedTarget,
+      aiExpansionPresent: Boolean(aiExpansion),
+      likelyLivingTarget,
+      laneCounts: {
+        strictHint: strictHintMatches.length,
+        currentLastStrictHint: currentLastStrictHintMatches.length,
+        livingStrict: livingStrictMatches.length,
+        livingCurrentLast: livingCurrentLastMatches.length,
+        livingPlain: livingPlainMatches.length,
+        sameNameBirthDate: sameNameBirthDateMatches.length,
+        expandedBirthYearStrict: expandedBirthYearStrictMatches.length,
+        expandedBirthYear: expandedBirthYearMatches.length,
+        expandedStrict: expandedStrictMatches.length,
+        expandedCurrentLastStrict: expandedCurrentLastStrictMatches.length,
+        strict: strictMatches.length,
+        currentLastStrict: currentLastStrictMatches.length,
+        expandedName: expandedNameMatches.length,
+        relaxed: relaxedMatches.length,
+        realName: realNameMatches.length,
+      },
+      mergedCount: matches.length,
+      livingPlainSample: livingPlainMatches.slice(0, 10).map((match) => match?.Name),
+    });
 
     const hasExpandedSearchName =
       Boolean(aiExpansion?.searchName) &&
@@ -1021,6 +1142,27 @@ export function createChatConnectionHandlers({
             } else if (gap <= 8) {
               score += 35;
             } else if (gap >= 35) {
+              score -= 60;
+            }
+          } else if (
+            Number.isFinite(Number(targetBirthYear)) &&
+            /^\d{4}s$/.test(String(entry.match?.BirthDateDecade || ""))
+          ) {
+            // Living people often expose only BirthDateDecade. A decade that
+            // contains the expected birth year is strong evidence; a distant
+            // decade rules the candidate out.
+            const decadeStart = Number(String(entry.match.BirthDateDecade).slice(0, 4));
+            const yearGapFromDecade =
+              targetBirthYear < decadeStart
+                ? decadeStart - targetBirthYear
+                : Math.max(0, targetBirthYear - (decadeStart + 9));
+            if (yearGapFromDecade === 0) {
+              score += 200;
+            } else if (yearGapFromDecade <= 10) {
+              score += 40;
+            } else if (yearGapFromDecade >= 30) {
+              score -= 160;
+            } else {
               score -= 60;
             }
           } else if (likelyLivingTarget) {
@@ -1156,6 +1298,44 @@ export function createChatConnectionHandlers({
 
     if (excludedWtIds.size) {
       rankedMatches = rankedMatches.filter((entry) => !excludedWtIds.has(String(entry?.match?.Name || "")));
+    }
+
+    // Notability evidence lives on the profile itself (Notables/Wikidata
+    // templates, official WikiTree-* manager accounts), so it applies even
+    // when the AI expansion failed: among equal name matches, the notable
+    // profile is almost always the person the user meant.
+    if (rankedMatches.length) {
+      const aiMiddleInitial = String(aiExpansion?.middleName || "")
+        .trim()
+        .charAt(0)
+        .toLowerCase();
+      rankedMatches = rankedMatches
+        .map((entry) => {
+          let score = entry.score;
+          const templates = Array.isArray(entry.match?.Templates) ? entry.match.Templates : [];
+          const templateNames = templates.map((template) => String(template?.name || "").toLowerCase());
+          if (templateNames.some((name) => name.includes("notable"))) {
+            score += 180;
+          }
+          if (templateNames.some((name) => name === "wikidata")) {
+            score += 140;
+          }
+          const managers = Array.isArray(entry.match?.Managers) ? entry.match.Managers : [];
+          if (managers.some((manager) => /^WikiTree-\d+$/i.test(String(manager?.Name || "")))) {
+            score += 120;
+          }
+          if (aiMiddleInitial) {
+            const candidateMiddleInitial = String(entry.match?.MiddleName || entry.match?.MiddleInitial || "")
+              .trim()
+              .charAt(0)
+              .toLowerCase();
+            if (candidateMiddleInitial && candidateMiddleInitial === aiMiddleInitial) {
+              score += 40;
+            }
+          }
+          return { ...entry, score };
+        })
+        .sort((left, right) => right.score - left.score);
     }
 
     if ((aiExpansion?.birthLocation || aiExpansion?.deathLocation) && rankedMatches.length > 1) {
@@ -1359,7 +1539,23 @@ export function createChatConnectionHandlers({
 
     try {
       const lookupTarget = resolvedTarget || target;
-      const matchedPerson = await resolveConnectionTargetPerson(lookupTarget, prompt, { excludeWtIds: [] });
+      // When candidate scores are close (e.g. several plausible Stephen
+      // Frys), let the user pick rather than silently taking the top match.
+      const canOfferChoice =
+        typeof setPendingDisambiguationContext === "function" && typeof buildDisambiguationMessage === "function";
+      const matchedPerson = await resolveConnectionTargetPerson(lookupTarget, prompt, {
+        excludeWtIds: [],
+        allowDisambiguation: canOfferChoice,
+      });
+      if (matchedPerson?._disambiguationNeeded) {
+        setPendingDisambiguationContext({
+          intent: ChatIntent.CONNECTION_LOOKUP,
+          params: { target, source: sourceOverride },
+          prompt,
+          candidates: matchedPerson._candidates,
+        });
+        return buildDisambiguationMessage(matchedPerson._candidates, lookupTarget);
+      }
       console.debug("wbe: tryHandleConnectionPrompt resolved matchedPerson", { matchedPerson });
       if (!matchedPerson) {
         return `I could not find a WikiTree profile match for \"${lookupTarget}\". If that profile is private, Muse may not be able to compute the connection at all because WikiTree may not expose a stable WikiTree ID.`;

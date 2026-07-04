@@ -308,6 +308,12 @@ export function selectPeopleAtMinimalSharedGeneration(
 
   const excluded = new Set((excludedKeys || []).map((value) => String(value || "").trim()).filter(Boolean));
   const bestByKey = new Map();
+  // Minimal bucket generation seen for each person across ALL appearances,
+  // including ones outside the removal bounds. A sibling appears in every
+  // bucket at the subject's own generation (d = g); the bucket-1 sighting
+  // must veto the bucket-8 sighting, or a sister is misreported as a 7th
+  // cousin. Same for any closer cousin.
+  const minGenerationByKey = new Map();
 
   for (const bucket of generationBuckets || []) {
     const generation = Number(bucket?.generation);
@@ -319,6 +325,11 @@ export function selectPeopleAtMinimalSharedGeneration(
       const key = toCandidateKey(person);
       if (!key || excluded.has(key)) {
         continue;
+      }
+
+      const seenMinimalGeneration = minGenerationByKey.get(key);
+      if (seenMinimalGeneration == null || generation < seenMinimalGeneration) {
+        minGenerationByKey.set(key, generation);
       }
 
       const descendantGeneration = Number(person?.Meta?.Degrees);
@@ -347,7 +358,7 @@ export function selectPeopleAtMinimalSharedGeneration(
     }
   }
 
-  return Array.from(bestByKey.values())
-    .filter((entry) => entry.generation === target)
-    .map((entry) => entry.person);
+  return Array.from(bestByKey.entries())
+    .filter(([key, entry]) => entry.generation === target && minGenerationByKey.get(key) === target)
+    .map(([, entry]) => entry.person);
 }

@@ -261,7 +261,7 @@ function parseRelationPrompt(prompt) {
     });
   }
 
-  const listMyMatch = normalized.match(/^(?:who\s+are|list|show)\s+my\s+(.+?)\??$/i);
+  const listMyMatch = normalized.match(/^(?:who\s+are|list|show(?:\s+me)?|give\s+me)\s+my\s+(.+?)\??$/i);
   if (listMyMatch?.[1]) {
     return withRelationExtras({
       mode: "list",

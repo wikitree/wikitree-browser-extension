@@ -17,11 +17,19 @@ export function buildDisambiguationMessage(candidates, targetName) {
     const displayName = c.RealName || c?.Derived?.ShortName || wtId;
     const birthYear = extractYearFromDate(c.BirthDate);
     const deathYear = extractYearFromDate(c.DeathDate);
+    // Living people usually expose only a decade; show it (plus a "living"
+    // marker) so the candidate is recognizable in the list.
+    const birthDecade = /^\d{4}s$/.test(String(c.BirthDateDecade || "")) ? String(c.BirthDateDecade) : "";
     const loc = c.BirthLocation ? ` in ${c.BirthLocation}` : "";
-    const dateParts = [
-      Number.isFinite(birthYear) ? `b. ${birthYear}${loc}` : loc ? `b. ?${loc}` : "",
-      Number.isFinite(deathYear) ? `d. ${deathYear}` : "",
-    ].filter(Boolean);
+    const birthPart = Number.isFinite(birthYear)
+      ? `b. ${birthYear}${loc}`
+      : birthDecade
+      ? `b. ${birthDecade}${loc}`
+      : loc
+      ? `b. ?${loc}`
+      : "";
+    const deathPart = Number.isFinite(deathYear) ? `d. ${deathYear}` : Number(c.IsLiving) === 1 ? "living" : "";
+    const dateParts = [birthPart, deathPart].filter(Boolean);
     const dates = dateParts.length ? ` (${dateParts.join(", ")})` : "";
     const label = displayName !== wtId ? `${wtId} - ${displayName}` : wtId;
     return `  ${i + 1}. ${label}${dates}`;

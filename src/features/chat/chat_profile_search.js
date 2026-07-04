@@ -4788,13 +4788,18 @@ export function createProfileSearchHandler({
           : []),
       ].join("\n");
       const previousQuery = String(reparseContext?.previousQuery || "").trim();
-      const isReparse = !!reparseContext?.reparseFromZeroResults;
+      const isZeroResultReparse = !!reparseContext?.reparseFromZeroResults;
+      const isInvalidQueryReparse = !!reparseContext?.reparseFromInvalidQuery;
+      const isReparse = isZeroResultReparse || isInvalidQueryReparse;
       const user = [
         `Translate this into a WT+ query: "${normalizedRawQuery}"`,
-        isReparse
+        isZeroResultReparse
           ? "Reparse mode: a previous deterministic parse returned zero profiles. Prefer the most likely surname/location interpretation."
           : "",
-        isReparse && previousQuery ? `Previous zero-result query: "${previousQuery}"` : "",
+        isInvalidQueryReparse
+          ? "Reparse mode: a previous parse produced an invalid WT+ query. Map every plain word to a valid field (usually Location= or a name field) — never emit bare words that are not documented magic tokens."
+          : "",
+        isReparse && previousQuery ? `Previous ${isZeroResultReparse ? "zero-result" : "invalid"} query: "${previousQuery}"` : "",
       ]
         .filter(Boolean)
         .join("\n");
@@ -5304,6 +5309,61 @@ export function createProfileSearchHandler({
     );
   }
 
+  /**
+   * Whole-year age at death from BirthDate/DeathDate strings (YYYY-MM-DD,
+   * where month/day may be 00). Returns "" when either year is missing.
+   */
+  function computeAgeAtDeathYears(person) {
+    const [birthYear, birthMonth, birthDay] = String(person?.BirthDate || "")
+      .split("-")
+      .map((part) => Number.parseInt(part, 10) || 0);
+    const [deathYear, deathMonth, deathDay] = String(person?.DeathDate || "")
+      .split("-")
+      .map((part) => Number.parseInt(part, 10) || 0);
+    if (!birthYear || !deathYear) {
+      return "";
+    }
+
+    let age = deathYear - birthYear;
+    if (birthMonth && deathMonth && (deathMonth < birthMonth || (deathMonth === birthMonth && birthDay && deathDay && deathDay < birthDay))) {
+      age -= 1;
+    }
+    return age >= 0 ? String(age) : "";
+  }
+
+  /**
+   * Repair a query whose only problem is unknown plain-word bare tokens
+   * ("England Suggestions=678"): fold those words into a Location= term.
+   * Returns the repaired query, or null when the unknown tokens are not
+   * plain words or a Location field already exists.
+   */
+  function coerceUnknownBareWordsToLocation(queryText) {
+    const tokens = tokenizeWtPlusQueryText(queryText);
+    if (!tokens.length) return null;
+    if (tokens.some((token) => /^Location=/i.test(token))) return null;
+
+    const keptTokens = [];
+    const locationWords = [];
+    for (const token of tokens) {
+      if (token.includes("=") || /^(?:OR|NOT)$/i.test(token) || canonicalizeWtPlusRawToken(token)) {
+        keptTokens.push(token);
+        continue;
+      }
+      if (/^[A-Za-z][A-Za-z.,'’-]*$/.test(token)) {
+        locationWords.push(token);
+        continue;
+      }
+      return null;
+    }
+
+    if (!locationWords.length || !keptTokens.length) {
+      return null;
+    }
+
+    const place = locationWords.join(" ");
+    return `${keptTokens.join(" ")} Location=${/[\s,]/.test(place) ? `"${place}"` : place}`;
+  }
+
   async function runWtPlusProfileQuery(wtPlusQuery, title, interpretation = null, runOptions = {}) {
     const templateCanonicalQuery = await canonicalizeWtPlusTemplateTerms(wtPlusQuery);
     const contextCanonicalQuery = resolveWtPlusContextPlaceholders(templateCanonicalQuery);
@@ -5445,8 +5505,43 @@ export function createProfileSearchHandler({
     // above because they open in WT+ directly and allow free-text remainders.
     // The failure message keeps the "couldn't complete the WT+ query" form so
     // callers' existing AI-reparse/deterministic fallbacks still apply.
-    const finalValidation = validateAndRepairWtPlusQuery(canonicalizeWtPlusErrTokenAssignments(canonicalQuery));
+    let finalValidation = validateAndRepairWtPlusQuery(canonicalizeWtPlusErrTokenAssignments(canonicalQuery));
     if (!finalValidation?.isValid) {
+      // Repair 1 (deterministic): unknown plain words are usually places.
+      const locationCoercedQuery = coerceUnknownBareWordsToLocation(canonicalQuery);
+      const coercedValidation = locationCoercedQuery
+        ? validateAndRepairWtPlusQuery(canonicalizeWtPlusErrTokenAssignments(locationCoercedQuery))
+        : null;
+      if (coercedValidation?.isValid) {
+        console.info("wbe: WT+ validation gate coerced unknown bare words to Location", {
+          canonicalQuery,
+          repairedQuery: coercedValidation.normalizedQuery,
+        });
+        finalValidation = coercedValidation;
+      }
+    }
+    if (!finalValidation?.isValid) {
+      // Repair 2 (AI, once): reinterpret the original prompt.
+      if (!runOptions?.invalidQueryRepairAttempted && rawPromptForRun) {
+        const aiRepair = await callAiParseWtPlusQuery(rawPromptForRun, {
+          reparseFromInvalidQuery: true,
+          previousQuery: canonicalQuery,
+        });
+        const normalizedAiRepair = normalizeWtPlusQueryString(aiRepair?.query || "");
+        if (normalizedAiRepair && normalizedAiRepair !== canonicalQuery) {
+          console.info("wbe: WT+ validation gate retrying with AI reinterpretation", {
+            canonicalQuery,
+            aiRepairQuery: aiRepair.query,
+          });
+          recordWtPlusParseTelemetry("parsedAi");
+          return runWtPlusProfileQuery(aiRepair.query, title || aiRepair.title, aiRepair, {
+            ...runOptions,
+            invalidQueryRepairAttempted: true,
+            rawPrompt: rawPromptForRun,
+          });
+        }
+      }
+
       recordWtPlusParseTelemetry("parseRejected");
       hideChatShaky();
       const invalidParts = (finalValidation?.diagnostics || [])
@@ -5561,16 +5656,25 @@ export function createProfileSearchHandler({
       }
 
       const uniqueIds = [...new Set(profiles.map((value) => String(value)))];
-      showChatShaky(`Fetching ${uniqueIds.length} WT+ matches...`);
+      showChatShaky(`Fetching ${uniqueIds.length} WT+ matches...`, "center", 0);
       const includeMarriageDetails = shouldIncludeMarriageDetails(canonicalQuery);
+      // Query-relevant columns: surface the data the query filtered on.
+      const wantsAgeColumn = /\bage\d{1,3}\b/i.test(canonicalQuery) || /\bDeath Age\b/i.test(canonicalQuery);
+      const wantsParentColumns = /\bNo(?:Father|Mother|Parents)\b/.test(canonicalQuery);
+      const wantsManagerColumn = /(?:^|\s)Manager=/i.test(canonicalQuery) || /\b(?:ProjectManaged|PPP)\b/.test(canonicalQuery);
       const fields =
         "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,Father,Mother,BirthDate,BirthDateDecade,BirthLocation,DeathDate,DeathDateDecade,DeathLocation,Gender,Id,Name,Categories" +
         (createdRecentlyFilter ? ",Created" : "") +
+        (wantsManagerColumn ? ",Managers,TrustedList" : "") +
         (spousalAgeGapFilter || includeMarriageDetails ? ",Spouses" : "");
       let [, , peopleById] = await fetchPeoplePaged(WBE_CHAT_APP_ID, uniqueIds, fields, {
         resolveRedirect: 1,
         limit: WT_PLUS_GET_PEOPLE_CHUNK,
         ...(spousalAgeGapFilter || includeMarriageDetails ? { getSpouses: 1 } : {}),
+        onProgress: (loaded, total) => {
+          const percent = total > 0 ? Math.round((loaded / total) * 100) : 0;
+          showChatShaky(`Fetching WT+ matches: ${Math.min(loaded, total)} of ${total}...`, "center", percent);
+        },
       });
       peopleById = peopleById || {};
 
@@ -5797,12 +5901,94 @@ export function createProfileSearchHandler({
         };
       }
 
+      // Resolve parent profiles once so Father/Mother cells can show names
+      // and links for parent-presence queries.
+      let parentProfilesById = {};
+      if (wantsParentColumns && people.length) {
+        const parentIds = [
+          ...new Set(
+            people
+              .flatMap((person) => [person?.Father, person?.Mother])
+              .map((value) => String(value || "").trim())
+              .filter((value) => value && value !== "0")
+          ),
+        ];
+        if (parentIds.length) {
+          showChatShaky(`Fetching ${parentIds.length} linked parents...`);
+          try {
+            const [, , fetchedParents] = await fetchPeoplePaged(
+              WBE_CHAT_APP_ID,
+              parentIds,
+              "Id,Name,FirstName,LastNameAtBirth,LastNameCurrent,RealName",
+              { resolveRedirect: 1, limit: WT_PLUS_GET_PEOPLE_CHUNK }
+            );
+            parentProfilesById = fetchedParents || {};
+          } catch (error) {
+            console.info("wbe: parent-profile fetch for Father/Mother columns failed", { error });
+          }
+        }
+      }
+
+      const parentDisplayName = (parent) => {
+        if (!parent) return "";
+        const first = String(parent.RealName || parent.FirstName || "").trim();
+        const last = String(parent.LastNameAtBirth || parent.LastNameCurrent || "").trim();
+        return [first, last].filter(Boolean).join(" ") || String(parent.Name || "");
+      };
+
+      const decorateQueryRelevantColumns = (row, person) => {
+        if (!wantsAgeColumn && !wantsParentColumns && !wantsManagerColumn) {
+          return row;
+        }
+        const extended = { ...row };
+        if (wantsAgeColumn) {
+          extended.ageAtDeath = computeAgeAtDeathYears(person);
+        }
+        if (wantsParentColumns) {
+          const father = parentProfilesById[String(person?.Father || "")];
+          const mother = parentProfilesById[String(person?.Mother || "")];
+          extended.father = parentDisplayName(father);
+          extended.fatherWtid = father?.Name || "";
+          extended.mother = parentDisplayName(mother);
+          extended.motherWtid = mother?.Name || "";
+        }
+        if (wantsManagerColumn) {
+          // TrustedList includes everyone with an IsManager flag; Managers is
+          // the fallback when the API doesn't return TrustedList in bulk.
+          const trustedEntries = Array.isArray(person?.TrustedList)
+            ? person.TrustedList
+            : Object.values(person?.TrustedList || {});
+          if (trustedEntries.length) {
+            extended.managerList = trustedEntries
+              .map((entry) => ({
+                wtid: String(entry?.Name || "").trim(),
+                role: Number(entry?.IsManager) ? "M" : "T",
+              }))
+              .filter((entry) => entry.wtid)
+              .sort((left, right) => (left.role === right.role ? 0 : left.role === "M" ? -1 : 1));
+          } else {
+            const managers = Array.isArray(person?.Managers)
+              ? person.Managers
+              : Object.values(person?.Managers || {});
+            extended.managerList = managers
+              .map((manager) => ({ wtid: String(manager?.Name || "").trim(), role: "M" }))
+              .filter((manager) => manager.wtid);
+          }
+        }
+        return extended;
+      };
+
       const ancestorRootWtId = extractWtPlusAncestorsRoot(canonicalQuery);
       const rows = ancestorRootWtId
         ? await buildWtPlusAncestorRows(ancestorRootWtId, uniqueIds, fields)
-        : people.map((person) => mapWtPlusPersonRow(person));
+        : people.map((person) => decorateQueryRelevantColumns(mapWtPlusPersonRow(person), person));
       const tableFactory = ancestorRootWtId ? makeAncestorProfileTable : makeStandardProfileTable;
-      const table = tableFactory(title || `WT+ search: ${wtPlusQuery}`, rows, [[0, "asc"]]);
+      const forceColumnKeys = [
+        ...(wantsAgeColumn ? ["ageAtDeath"] : []),
+        ...(wantsParentColumns ? ["father", "mother"] : []),
+        ...(wantsManagerColumn ? ["managerList"] : []),
+      ];
+      const table = tableFactory(title || `WT+ search: ${wtPlusQuery}`, rows, [[0, "asc"]], { forceColumnKeys });
       table.wtPlusQuery = canonicalQuery;
       table.wtPlusSearchType = "text";
       if (!ancestorRootWtId) {
@@ -7617,7 +7803,7 @@ export function createProfileSearchHandler({
       let mainQuery = query;
       let spouseQuery = null;
       const spouseMatch = query.match(
-        /^(.*?)\s*(?:,|-)??\s*(?:(?:with\s+)?(?:spouse|wife|husband)|married(?:\s+to)?|who\s+married)\s*[:\-]?\s*(.+)$/i
+        /^(.*?)\s*(?:,|-)??\s*(?:whose\s+(?:wife|husband|spouse)\s+(?:was|is)|(?:with\s+)?(?:spouse|wife|husband)|married(?:\s+to)?|who\s+married)\s*[:\-]?\s*(.+)$/i
       );
       const spouseMatchLooksLikePossessiveChain = /^\s*['’]s\b/i.test(String(spouseMatch?.[2] || ""));
       // "married in Cheshire" / "married after 1899" are marriage-date/place

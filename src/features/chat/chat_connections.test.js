@@ -800,6 +800,12 @@ describe("chat_connections target resolution", () => {
       if (searchParams.RealName === "Stephen Fry" && searchParams.limit === 40) {
         return [0, [wrongStephenRelaxed]];
       }
+      if (searchParams.isLiving === 1) {
+        return [0, [livingStephen]];
+      }
+      if (searchParams.BirthDate) {
+        return [0, []];
+      }
       throw new Error(`Unexpected search params: ${JSON.stringify(searchParams)}`);
     });
 
@@ -816,6 +822,8 @@ describe("chat_connections target resolution", () => {
     const matched = await resolveConnectionTargetPerson("Stephen Fry", "Connection between me and Stephen Fry.");
 
     expect(matched?.Name).toBe("Fry-2606");
+    // The living lane (isLiving=1) is a distinct, deliberate unsorted lane;
+    // redundant duplicates of the sorted exact lane are still forbidden.
     expect(
       WikiTreeAPI.searchPerson.mock.calls.some(
         ([, params]) =>
@@ -824,6 +832,8 @@ describe("chat_connections target resolution", () => {
           params.skipVariants === 1 &&
           params.lastNameMatch === "strict" &&
           params.limit === 100 &&
+          !params.isLiving &&
+          !params.BirthDate &&
           !Object.prototype.hasOwnProperty.call(params, "sort")
       )
     ).toBe(false);
@@ -879,6 +889,12 @@ describe("chat_connections target resolution", () => {
       }
       if (searchParams.RealName === "Stephen Fry" && searchParams.limit === 40) {
         return [0, [wrongStephen]];
+      }
+      if (searchParams.isLiving === 1) {
+        return [0, [livingStephen]];
+      }
+      if (searchParams.BirthDate) {
+        return [0, []];
       }
       throw new Error(`Unexpected search params: ${JSON.stringify(searchParams)}`);
     });
@@ -963,6 +979,12 @@ describe("chat_connections target resolution", () => {
         searchParams.limit === 100 &&
         searchParams.sort === "birth"
       ) {
+        return [0, []];
+      }
+      if (searchParams.isLiving === 1 && !searchParams.BirthLocation) {
+        return [0, []];
+      }
+      if (searchParams.BirthDate) {
         return [0, []];
       }
       throw new Error(`Unexpected search params: ${JSON.stringify(searchParams)}`);

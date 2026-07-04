@@ -1069,6 +1069,10 @@ const { resolveConnectionTargetPerson, tryHandleConnectionCorrectionPrompt, tryH
       }
       return resolution.person;
     },
+    setPendingDisambiguationContext: (value) => {
+      pendingDisambiguationContext = value;
+    },
+    buildDisambiguationMessage,
     promptRefersToUser,
     getLastConnectionContext: () => lastConnectionContext,
     setLastConnectionContext: (value) => {
@@ -1353,6 +1357,9 @@ async function fetchPeoplePaged(appId, rootKey, fields, options = {}) {
         .filter(Boolean)
     : null;
 
+  // Optional page-progress callback; never forwarded to the API.
+  const onProgress = typeof options.onProgress === "function" ? options.onProgress : null;
+
   if (keysArray && keysArray.length) {
     totalCount = keysArray.length;
     for (let i = 0; i < keysArray.length; i += limit) {
@@ -1362,6 +1369,7 @@ async function fetchPeoplePaged(appId, rootKey, fields, options = {}) {
         const chunkOpts = { ...(options || {}) };
         delete chunkOpts.start;
         delete chunkOpts.limit;
+        delete chunkOpts.onProgress;
         console.debug("wbe: fetchPeoplePaged requesting chunk", { chunkSize: chunk.length });
         const [status, resultByKey, people] = await WikiTreeAPI.getPeople(appId, chunk, fields, chunkOpts);
         lastStatus = status || lastStatus;
@@ -1379,6 +1387,7 @@ async function fetchPeoplePaged(appId, rootKey, fields, options = {}) {
           const retryOpts = { ...(options || {}) };
           delete retryOpts.start;
           delete retryOpts.limit;
+          delete retryOpts.onProgress;
           console.debug("wbe: fetchPeoplePaged retrying failed chunk", { chunkSize: chunk.length });
           const [retryStatus, , retryPeople] = await WikiTreeAPI.getPeople(appId, chunk, fields, retryOpts);
           lastStatus = retryStatus || lastStatus;
@@ -1400,6 +1409,14 @@ async function fetchPeoplePaged(appId, rootKey, fields, options = {}) {
           // continue on error for resilience
         }
       }
+
+      if (onProgress) {
+        try {
+          onProgress(Math.min(i + limit, keysArray.length), keysArray.length);
+        } catch (progressError) {
+          /* progress reporting must never break the fetch */
+        }
+      }
     }
 
     return [lastStatus, totalCount, aggregated];
@@ -1411,6 +1428,7 @@ async function fetchPeoplePaged(appId, rootKey, fields, options = {}) {
 
   while (fetchMore) {
     const pageOpts = { ...(options || {}), start, limit };
+    delete pageOpts.onProgress;
     const [status, total, people] = await WikiTreeAPI.getPeople(appId, rootKey, fields, pageOpts);
     if (status == null) {
       throw new Error("No status returned from getPeople while paging results.");

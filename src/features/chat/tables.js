@@ -114,7 +114,7 @@ export function cloneResultWithRows(result, title, rows, defaultOrder = result?.
   };
 }
 
-export function makeStandardProfileTable(title, rows, defaultOrder = [[0, "asc"]]) {
+export function makeStandardProfileTable(title, rows, defaultOrder = [[0, "asc"]], options = {}) {
   const baseColumns = [
     {
       title: "WT ID",
@@ -158,18 +158,56 @@ export function makeStandardProfileTable(title, rows, defaultOrder = [[0, "asc"]
       key: "categoryDisplay",
       render: (row) => makeCategoryLink(row?.categoryPageName, row?.categoryDisplay),
     },
+    // Query-relevant optional columns. Appended after the long-standing base
+    // columns so existing defaultOrder indices (which refer to positions in
+    // this array) keep meaning the same columns.
+    { title: "Age", key: "ageAtDeath", headerTitle: "Age at death" },
+    {
+      title: "Father",
+      key: "father",
+      render: (row) =>
+        row?.fatherWtid ? makeProfileLink(row.fatherWtid, row.father || row.fatherWtid) : escapeHtml(row?.father || ""),
+    },
+    {
+      title: "Mother",
+      key: "mother",
+      render: (row) =>
+        row?.motherWtid ? makeProfileLink(row.motherWtid, row.mother || row.motherWtid) : escapeHtml(row?.mother || ""),
+    },
+    {
+      title: "Trusted List",
+      key: "managerList",
+      headerTitle: "(M) manager, (T) on the trusted list",
+      render: (row) => {
+        const managers = Array.isArray(row?.managerList) ? row.managerList : [];
+        return managers
+          .filter((manager) => manager?.wtid)
+          .map((manager) => `${makeProfileLink(manager.wtid, manager.wtid)} (${escapeHtml(manager.role || "M")})`)
+          .join(", ");
+      },
+    },
   ];
 
   const optionalColumnKeys = new Set([
     "middleName",
+    "father",
+    "mother",
     "spouse",
     "marriageDate",
     "marriageLocation",
     "removed",
+    "ageAtDeath",
+    "managerList",
     "categoryDisplay",
   ]);
+  // Query-relevant columns can be forced visible even when every row is
+  // blank — an all-blank Father column is the proof for a "no father" search.
+  const forceColumnKeys = new Set(options?.forceColumnKeys || []);
   const columns = baseColumns.filter((column) => {
     if (!optionalColumnKeys.has(column.key)) {
+      return true;
+    }
+    if (forceColumnKeys.has(column.key)) {
       return true;
     }
 
@@ -179,6 +217,9 @@ export function makeStandardProfileTable(title, rows, defaultOrder = [[0, "asc"]
       }
       if (column.key === "categoryDisplay") {
         return String(row?.categoryDisplay || "").trim();
+      }
+      if (column.key === "managerList") {
+        return Array.isArray(row?.managerList) && row.managerList.length;
       }
       const value = row?.[column.key];
       return value != null && String(value).trim() !== "";

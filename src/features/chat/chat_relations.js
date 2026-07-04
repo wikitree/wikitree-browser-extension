@@ -611,7 +611,10 @@ export function createChatRelationHandlers({
     Object.values(ancestorPeopleMap || {}).forEach((profile) => {
       const generation = Number(profile?.Meta?.Degrees);
       const ancestorId = Number(profile?.Id);
-      if (!Number.isFinite(generation) || generation < 2 || generation > maxGeneration) {
+      // Generation 1 (parents) is included so siblings/nieces get a
+      // closest-shared-ancestor sighting; without it they can only be seen in
+      // deeper buckets and get misreported as distant cousins.
+      if (!Number.isFinite(generation) || generation < 1 || generation > maxGeneration) {
         return;
       }
       if (!Number.isFinite(ancestorId) || ancestorId <= 0) {
@@ -623,7 +626,7 @@ export function createChatRelationHandlers({
     });
 
     const generationBuckets = [];
-    for (let generation = 2; generation <= maxGeneration; generation += 1) {
+    for (let generation = 1; generation <= maxGeneration; generation += 1) {
       const ancestorIds = Array.from(new Set(ancestorsByGeneration.get(generation) || [])).filter((id) => id > 0);
       if (!ancestorIds.length) {
         continue;
@@ -723,6 +726,26 @@ export function createChatRelationHandlers({
         .map((value) => String(value || "").trim())
         .filter(Boolean)
     );
+
+    // People related through a CLOSER shared ancestor (siblings, nearer
+    // cousins) also descend from the target-generation ancestors, so they
+    // must be vetoed explicitly.
+    if (sharedAncestorGeneration > 1) {
+      try {
+        const closerBuckets = await collectCousinGenerationBuckets(subject, sharedAncestorGeneration - 1, removed);
+        closerBuckets.forEach((bucket) => {
+          (bucket?.people || []).forEach((person) => {
+            const key = String(person?.Name || person?.Id || "").trim();
+            if (key) {
+              excludedKeys.add(key);
+            }
+          });
+        });
+      } catch (error) {
+        console.info("wbe: closer-relation exclusion fetch failed for exact cousins", { error });
+      }
+    }
+
     const bestByKey = new Map();
     const searchPlans = [
       {
@@ -928,7 +951,29 @@ export function createChatRelationHandlers({
       const removedMatchedCousins = hasExactRemoved
         ? allCousins.filter((person) => Number(person?.removed) === requestedRemoved)
         : allCousins;
-      const cousins = sortCousinsForDisplay(filterPeopleByLocation(removedMatchedCousins, location, locationField));
+      const locatedCousins = sortCousinsForDisplay(
+        filterPeopleByLocation(removedMatchedCousins, location, locationField)
+      );
+      // Privacy-limited entries are only worth a row when they carry SOME
+      // viewable detail (a link, name, date, or location). Fully blank
+      // "Private" rows are dropped, with a count in the message.
+      const hasViewableCousinDetails = (person) =>
+        Boolean(
+          String(person?.Name || "").trim() ||
+            String(person?.RealName || "").trim() ||
+            (String(person?.FirstName || "").trim() && normalizeText(person?.FirstName) !== "private") ||
+            String(person?.LastNameAtBirth || "").trim() ||
+            String(person?.LastNameCurrent || "").trim() ||
+            (person?.BirthDate && person.BirthDate !== "0000-00-00") ||
+            (person?.DeathDate && person.DeathDate !== "0000-00-00") ||
+            String(person?.BirthLocation || "").trim() ||
+            String(person?.DeathLocation || "").trim()
+        );
+      const cousins = locatedCousins.filter(hasViewableCousinDetails);
+      const hiddenPrivateCount = locatedCousins.length - cousins.length;
+      const privateNote = hiddenPrivateCount
+        ? ` (${hiddenPrivateCount} private profile${hiddenPrivateCount === 1 ? "" : "s"} with no viewable details not shown.)`
+        : "";
       const cousinRows = toRelationTableRows(cousins, { includeCousinOrdinal: true });
 
       if (!cousins.length) {
@@ -955,8 +1000,8 @@ export function createChatRelationHandlers({
           )} in accessible API data.${appsLoginHint}`;
         }
         return subject.isUser
-          ? `I couldn't find any ${resultLabel} in currently accessible family data yet.${appsLoginHint}`
-          : `I couldn't find any ${resultLabel} for ${subject.label} in currently accessible family data yet.${appsLoginHint}`;
+          ? `I couldn't find any ${resultLabel} in currently accessible family data yet.${privateNote}${appsLoginHint}`
+          : `I couldn't find any ${resultLabel} for ${subject.label} in currently accessible family data yet.${privateNote}${appsLoginHint}`;
       }
 
       if (mode === "count") {
@@ -969,10 +1014,10 @@ export function createChatRelationHandlers({
           message: subject.isUser
             ? `You have ${cousins.length} ${resultLabel}${
                 locationPhrase ? ` ${locationPhrase}` : ""
-              } in currently accessible data. ${sample}${suffix}`
+              } in currently accessible data. ${sample}${suffix}${privateNote}`
             : `${subject.label} has ${cousins.length} ${resultLabel}${
                 locationPhrase ? ` ${locationPhrase}` : ""
-              } in currently accessible data. ${sample}${suffix}`,
+              } in currently accessible data. ${sample}${suffix}${privateNote}`,
           table: makeCousinProfileTable(
             subject.isUser ? `Your ${resultLabel}` : `${resultLabel} for ${subject.label}`,
             cousinRows
@@ -986,10 +1031,10 @@ export function createChatRelationHandlers({
         message: subject.isUser
           ? `Here are your ${resultLabel}${locationPhrase ? ` ${locationPhrase}` : ""} (${
               cousins.length
-            } found):\n${preview}`
+            } found).${privateNote}\n${preview}`
           : `Here are ${resultLabel}${locationPhrase ? ` ${locationPhrase}` : ""} for ${subject.label} (${
               cousins.length
-            } found):\n${preview}`,
+            } found).${privateNote}\n${preview}`,
         inlineMore,
         table: makeCousinProfileTable(
           subject.isUser ? `Your ${resultLabel}` : `${resultLabel} for ${subject.label}`,

@@ -123,6 +123,19 @@ describe("chat_profile_search spouse-name search", () => {
     expect(result.table.rows[0].matchedSpouse).toBe("Margaret");
   });
 
+  test("'George Beacall whose wife was Margaret' takes the spouse-filter path", async () => {
+    const handler = makeHandler();
+
+    const result = await handler.tryHandleProfileSearchPrompt(
+      { chatModeOverride: "wt" },
+      "George Beacall whose wife was Margaret"
+    );
+
+    expect(result.table.rows).toHaveLength(1);
+    expect(result.table.rows[0].wtid).toBe("Beacall-1");
+    expect(result.table.rows[0].matchedSpouse).toBe("Margaret");
+  });
+
   test("'find George Beacall with spouse Margaret' takes the same path", async () => {
     const handler = makeHandler();
 

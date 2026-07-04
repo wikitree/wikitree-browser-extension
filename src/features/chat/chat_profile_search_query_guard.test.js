@@ -98,6 +98,28 @@ describe("chat_profile_search query guards", () => {
     expect(message).toContain("FrobnicateToken");
   });
 
+  test("coerces unknown plain words to Location instead of refusing (England Suggestions=678)", async () => {
+    const { tryHandleProfileSearchPrompt } = makeHandler();
+
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "England Suggestions=678");
+
+    expect(wtAPIProfileSearch).toHaveBeenCalled();
+    const executedQuery = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
+    expect(executedQuery).toContain("Suggestions=678");
+    expect(executedQuery).toContain("Location=England");
+  });
+
+  test("coerces plain words on saved re-runs too", async () => {
+    const { reRunSavedWtPlusQuery } = makeHandler();
+
+    await reRunSavedWtPlusQuery("England Suggestions=678");
+
+    expect(wtAPIProfileSearch).toHaveBeenCalledTimes(1);
+    const executedQuery = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
+    expect(executedQuery).toContain("Suggestions=678");
+    expect(executedQuery).toContain("Location=England");
+  });
+
   test("valid saved WT+ queries pass through the gate unchanged", async () => {
     const { reRunSavedWtPlusQuery } = makeHandler();
 
