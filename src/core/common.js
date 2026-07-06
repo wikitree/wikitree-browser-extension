@@ -1876,7 +1876,7 @@ export function WBEHelpIcon(settings) {
 // Close .wbe-popup with the highest z-index on Esc key press
 $(document).on("keydown", function (e) {
   if (e.key === "Escape") {
-    const $popup = $(".wbe-popup")
+    const $popup = $(".wbe-popup,.diff-modal,#pagePreview")
       .filter(":visible")
       .filter((_, el) => el.id !== "photoPopup")
       .sort((a, b) => parseInt($(b).css("z-index") || 0) - parseInt($(a).css("z-index") || 0))
