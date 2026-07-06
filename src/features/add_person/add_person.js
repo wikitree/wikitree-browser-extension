@@ -4,7 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { getCitation, cleanFindAGraveCitation } from "../auto_bio/auto_bio_citations.js";
+import { getCitation, getLastCitationFailure, cleanFindAGraveCitation } from "../auto_bio/auto_bio_citations.js";
 import {
   CreateAutoSuggestionDiv,
   showResultsOnKeyUp,
@@ -690,6 +690,23 @@ function updateFindAGraveButtonStates($box, refCitation, bulletCitation) {
   }
 }
 
+function showFindAGraveCitationStatusForBox($box, message) {
+  const boxId = $box.attr("id");
+  const toolId = boxId + "_findAGraveCitationTools";
+
+  $(`#${toolId}`).remove();
+
+  const $wrapper = $(`
+    <div id="${toolId}" title="Find a Grave citation status"
+         style="margin-top: 1em; border:1px solid #d0d0d0; border-radius:0.5em;
+                padding:0.75em 1em; background:#f8f8f8; color:#444;">
+      ${message}
+    </div>
+  `);
+
+  $box.after($wrapper);
+}
+
 function showFindAGraveCitationToolsForBox($box, citationText, targetId) {
   const boxId = $box.attr("id");
   const toolId = boxId + "_findAGraveCitationTools";
@@ -811,6 +828,17 @@ function handleFindAGraveEventForBox($box) {
   getCitation(findAGraveLink).then((citationText) => {
     if (citationText) {
       showFindAGraveCitationToolsForBox($box, citationText, targetId);
+      return;
+    }
+
+    const failure = getLastCitationFailure();
+    if (failure?.source === "findagrave-browser-fetch") {
+      console.warn("Find a Grave citation retrieval failed", failure);
+      showFindAGraveCitationStatusForBox(
+        $box,
+        failure.userMessage ||
+          "WBE couldn't read this Find a Grave memorial right now. Your source text was left unchanged."
+      );
     }
   });
 }

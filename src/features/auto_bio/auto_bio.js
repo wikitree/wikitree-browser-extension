@@ -31,7 +31,12 @@ import { logMerge } from "./debugUtils.js";
 import { minimalPlace, nameLink } from "./displayUtils.js";
 import { addWorking, getBioText, removeWorking, setBioText } from "./editorUtils.js";
 import { assignPersonNames, setOrderBirthDate } from "./auto_bio_person.js";
-import { getFindAGraveLink, getCitation, cleanFindAGraveCitation } from "./auto_bio_citations.js";
+import {
+  getFindAGraveLink,
+  getCitation,
+  getLastCitationFailure,
+  cleanFindAGraveCitation,
+} from "./auto_bio_citations.js";
 import {
   findGenealogicallyDefinedLinePlacement,
   isGenealogicallyDefinedLink,
@@ -6192,7 +6197,7 @@ export async function getCitations() {
       try {
         let citation = await getCitation(citationLink);
         if (citation) {
-          console.log("Raw citation from server:", citation);
+          console.log("Raw citation:", citation);
           if (findAGraveLink) {
             const memorialNumber = citationLink.match(/\d{5,}/);
             let findagraveTemplate = "";
@@ -6216,7 +6221,12 @@ export async function getCitations() {
             }
           }
         } else {
-          console.error("Error fetching citation for link:", citationLink);
+          const failure = getLastCitationFailure();
+          if (failure) {
+            console.warn("Citation retrieval skipped", failure);
+          } else {
+            console.error("Error fetching citation for link:", citationLink);
+          }
         }
       } catch (error) {
         console.error("Error fetching citation:", error);
@@ -8593,6 +8603,29 @@ function resolveAustralianCategoryLocation(location, type, australianLocations) 
   return { location: locationParts.join(", "), note };
 }
 
+function getYearFromDateString(dateStr) {
+  // WT+ timeframe dates come in many formats ("1 February 1841", "Jan 1, 2016", "1241");
+  // the year is the only 3-4 digit number in all of them.
+  const match = String(dateStr || "").match(/\b\d{3,4}\b/);
+  const year = match ? parseInt(match[0], 10) : null;
+  return year || null;
+}
+
+function isWithinCategoryTimeframe(aCat, eventYear) {
+  if (!eventYear) {
+    return true;
+  }
+  const start = getYearFromDateString(aCat?.startDate);
+  const end = getYearFromDateString(aCat?.endDate);
+  if (start && eventYear < start) {
+    return false;
+  }
+  if (end && eventYear > end) {
+    return false;
+  }
+  return true;
+}
+
 export async function getLocationCategory(type, location = null) {
   if (!USstatesObjArray) {
     const module = await import("./us_states.json");
@@ -8610,6 +8643,7 @@ export async function getLocationCategory(type, location = null) {
     }
   }
 
+  let marriageDate = null;
   if ("Marriage" === type) {
     if (window.profilePerson.Spouses) {
       const spouseList = Array.isArray(window.profilePerson.Spouses)
@@ -8618,6 +8652,7 @@ export async function getLocationCategory(type, location = null) {
       const spouse = spouseList.find((s) => s?.marriage_location) || spouseList[0];
       if (spouse?.marriage_location) {
         location = spouse.marriage_location;
+        marriageDate = spouse.marriage_date;
       } else {
         return;
       }
@@ -8704,11 +8739,27 @@ export async function getLocationCategory(type, location = null) {
     appalachiaCategory(location, thisState);
   }
 
+  let eventDate = null;
+  if (type === "Birth") {
+    eventDate = $("#mBirthDate").val() || window.profilePerson?.BirthDate;
+  } else if (["Death", "Cemetery", "Burial"].includes(type)) {
+    eventDate = $("#mDeathDate").val() || window.profilePerson?.DeathDate;
+  } else if (type === "Marriage") {
+    eventDate = marriageDate;
+  }
+  const eventYear = getYearFromDateString(eventDate);
+
   let foundCategory = null;
   for (const location of searchLocationsArray) {
     for (const api of apiResponses) {
       if (api.status === "fulfilled") {
         const response = api.value.response;
+
+        // Skip categories with a timeframe (e.g. "Swartland District, Dutch Cape Colony", 1703-1806)
+        // that doesn't include the profile's event year.
+        if (eventYear && response?.categories?.length > 0) {
+          response.categories = response.categories.filter((aCat) => isWithinCategoryTimeframe(aCat, eventYear));
+        }
 
         // If location includes United States, find the state.
 
