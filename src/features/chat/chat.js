@@ -2269,7 +2269,7 @@ function openResultsTable(result = lastStructuredResult, opts = {}) {
       return titleText;
     }
 
-    return `${titleText} (${count} ${count === 1 ? "result" : "results"})`;
+    return `${titleText} (${count.toLocaleString()} ${count === 1 ? "result" : "results"})`;
   };
 
   const popupTitle = formatResultsPopupTitle(result.title, Array.isArray(result.rows) ? result.rows.length : 0);

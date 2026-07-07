@@ -135,6 +135,27 @@ describe("wt_plus_query_grammar suggestions free text", () => {
     expect(result.query.startsWith("Suggestions=802")).toBe(true);
   });
 
+  test("does not leak the matched suggestion phrase into a Location scope", () => {
+    // The words that matched the suggestion title must be consumed, not left
+    // behind as a bogus Location="empty biography".
+    const bare = translateSuggestionsFreeTextToQuery("empty biography");
+    expect(bare.query).toBe("Suggestions=802");
+    expect(bare.query).not.toMatch(/Location=/i);
+
+    const gedcom = translateSuggestionsFreeTextToQuery("gedcom junk");
+    expect(gedcom.query).toBe("Suggestions=853");
+
+    const image = translateSuggestionsFreeTextToQuery("missing image");
+    expect(image.query).toBe("Suggestions=971");
+  });
+
+  test("keeps a real location alongside a natural-language suggestion phrase", () => {
+    const result = translateSuggestionsFreeTextToQuery("England profiles with no biography");
+    expect(result.query).toContain("Suggestions=802");
+    expect(result.query).toContain("Location=England");
+    expect(result.query).not.toMatch(/Location="[^"]*\bbiography\b/i);
+  });
+
   test("maps almost empty biography phrasing to Suggestions=803", () => {
     const result = translateSuggestionsFreeTextToQuery("show short biographies");
     expect(result).not.toBeNull();

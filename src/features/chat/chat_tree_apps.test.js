@@ -4,6 +4,14 @@ describe("chat_tree_apps", () => {
   test("builds ancestor recommendations with expected URLs", () => {
     expect(buildTreeAppRecommendations("ancestors", "Smith-123")).toEqual([
       {
+        label: "Super Tree",
+        url: "https://www.wikitree.com/apps/Smith-123#name=Smith-123&view=superbig",
+      },
+      {
+        label: "Slippy Tree",
+        url: "https://www.wikitree.com/apps/Smith-123#name=Smith-123&view=slippyTree",
+      },
+      {
         label: "Ahnentafel Ancestor List",
         url: "https://www.wikitree.com/apps/Smith-123#name=Smith-123&view=ahnentafel",
       },
@@ -36,8 +44,20 @@ describe("chat_tree_apps", () => {
 
     expect(buildTreeAppRecommendations("descendants", "Jones-456")).toEqual([
       {
+        label: "Super Tree",
+        url: "https://www.wikitree.com/apps/Jones-456#name=Jones-456&view=superbig",
+      },
+      {
+        label: "Slippy Tree",
+        url: "https://www.wikitree.com/apps/Jones-456#name=Jones-456&view=slippyTree",
+      },
+      {
         label: "Descendants",
         url: "https://www.wikitree.com/apps/Jones-456#name=Jones-456&view=descendants",
+      },
+      {
+        label: "Compact Couple Descendants",
+        url: "https://www.wikitree.com/apps/Jones-456#name=Jones-456&view=ccdtree",
       },
     ]);
   });

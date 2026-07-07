@@ -8,7 +8,7 @@ jest.mock("../../core/common", () => ({
   getUserWtId: jest.fn(() => "User-1"),
 }));
 
-import { mergeWtPlusRefinementIntoQuery } from "./chat_search_mode";
+import { buildContextualDateFollowupQuery, mergeWtPlusRefinementIntoQuery } from "./chat_search_mode";
 import { createProfileSearchHandler } from "./chat_profile_search";
 
 const PREVIOUS = '19Cen Location=Cheshire sql="([Marriage].[Marriage Location].LineCount = 1)"';
@@ -51,6 +51,59 @@ describe("mergeWtPlusRefinementIntoQuery", () => {
 
   test("keeps a less specific repeat of the existing location", () => {
     expect(mergeWtPlusRefinementIntoQuery('Location="Cheshire, England" Unsourced', "Location=Cheshire")).toBe("");
+  });
+});
+
+describe("buildContextualDateFollowupQuery", () => {
+  const DEATH_PREVIOUS = 'Location="Liverpool, England" sql="([Default].[Death Date].AsNumber > 19009999)"';
+  const BIRTH_PREVIOUS = 'Location=Devon sql="([Default].[Birth Date].AsNumber < 18500000)"';
+
+  test('"After 1920?" tightens the previous death bound in place', () => {
+    expect(buildContextualDateFollowupQuery(DEATH_PREVIOUS, "After 1920?")).toBe(
+      'Location="Liverpool, England" sql="([Default].[Death Date].AsNumber > 19209999)"'
+    );
+  });
+
+  test('"before 1930" flips the death comparison against the death context', () => {
+    expect(buildContextualDateFollowupQuery(DEATH_PREVIOUS, "before 1930")).toBe(
+      'Location="Liverpool, England" sql="([Default].[Death Date].AsNumber < 19300000)"'
+    );
+  });
+
+  test("a bare boundary follows the birth context when that is what the previous query used", () => {
+    expect(buildContextualDateFollowupQuery(BIRTH_PREVIOUS, "after 1820")).toBe(
+      'Location=Devon sql="([Default].[Birth Date].AsNumber > 18209999)"'
+    );
+  });
+
+  test('"between 1900 and 1910" builds an In range on the death field', () => {
+    expect(buildContextualDateFollowupQuery(DEATH_PREVIOUS, "between 1900 and 1910")).toBe(
+      'Location="Liverpool, England" sql="([Default].[Death Date].AsNumber In 19000000..19109999)"'
+    );
+  });
+
+  test("an explicit born cue overrides the death context", () => {
+    expect(buildContextualDateFollowupQuery(DEATH_PREVIOUS, "born before 1880")).toBe(
+      'Location="Liverpool, England" sql="([Default].[Death Date].AsNumber > 19009999) And ([Default].[Birth Date].AsNumber < 18800000)"'
+    );
+  });
+
+  test("declines when the previous query has no date context", () => {
+    expect(buildContextualDateFollowupQuery("Location=Cheshire", "after 1920")).toBe("");
+  });
+
+  test("declines when the previous query has both birth and death dates and no cue", () => {
+    const both =
+      'Location=Kent sql="([Default].[Birth Date].AsNumber > 18000000) And ([Default].[Death Date].AsNumber < 18800000)"';
+    expect(buildContextualDateFollowupQuery(both, "after 1850")).toBe("");
+  });
+
+  test("declines a richer prompt that is not just a boundary", () => {
+    expect(buildContextualDateFollowupQuery(DEATH_PREVIOUS, "died after 1920 in Yorkshire")).toBe("");
+  });
+
+  test("declines OR previous queries", () => {
+    expect(buildContextualDateFollowupQuery("Location=A OR Location=B", "after 1920")).toBe("");
   });
 });
 

@@ -178,6 +178,23 @@ describe("chat_profile_search query guards", () => {
     }
   });
 
+  test("nameless place+date prompt in WT mode falls back to the deterministic WT+ query", async () => {
+    const fetchSearchPersonPaged = jest.fn(async () => [0, []]);
+    const { tryHandleProfileSearchPrompt } = makeHandler({ fetchSearchPersonPaged });
+
+    const result = await tryHandleProfileSearchPrompt(
+      { chatModeOverride: "wt" },
+      "profiles from Hampshire, England with birth year earlier than 1800"
+    );
+
+    expect(fetchSearchPersonPaged).not.toHaveBeenCalled();
+    expect(wtAPIProfileSearch).toHaveBeenCalled();
+    const executedQuery = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
+    expect(executedQuery).toContain('Location="Hampshire, England"');
+    expect(executedQuery).toMatch(/\[Default\]\.\[Birth Date\]\.AsNumber < 1800/);
+    expect(result?.switchToMode).toBe("wtplus");
+  });
+
   test("still infers names from a plain two-token name prompt in WT mode", async () => {
     const fetchSearchPersonPaged = jest.fn(async () => [
       0,

@@ -590,12 +590,14 @@ function translateSuggestionsFreeTextToQuery(queryText) {
 
   const suggestionIdMatch = text.match(/(?:suggestions?|error\s*id|errorid|err)\s*[:=#-]?\s*(\d{1,6})/i);
   let suggestionId = suggestionIdMatch?.[1] || "";
+  let nlMatchedTitle = "";
 
   // If no explicit ID, try natural-language title matching.
   if (!suggestionId) {
     const nlMatch = matchSuggestionByNaturalLanguage(text);
     if (nlMatch) {
       suggestionId = String(nlMatch.code);
+      nlMatchedTitle = String(nlMatch.cleanTitle || "");
     }
   }
 
@@ -612,6 +614,30 @@ function translateSuggestionsFreeTextToQuery(queryText) {
     .replace(/\b(?:suggestions?|error\s*id|errorid|err)\s*[:=#-]?\s*\d{1,6}\b/gi, " ")
     .replace(/\s{2,}/g, " ")
     .trim();
+
+  // When the id came from a natural-language phrase (not an explicit
+  // "Suggestions=NNN"), the descriptive words that matched the suggestion title
+  // ("empty biography", "missing gender", …) are still in the remainder and
+  // would otherwise leak into a bogus Location scope. Drop the matched title
+  // words plus generic qualifier/filler words, leaving only a real place.
+  if (nlMatchedTitle) {
+    const descriptorWords = new Set([
+      ...normalizeSuggestionFreeText(nlMatchedTitle).split(/\s+/).filter(Boolean),
+      "empty", "blank", "no", "not", "non", "none", "missing", "without", "lacking",
+      "short", "almost", "nearly", "near", "thin", "uncleaned", "unclean", "unconnected",
+      "duplicated", "duplicate", "hidden", "broken", "bad", "invalid", "wrong",
+      "profile", "profiles", "people", "person", "member", "members", "bio",
+      "with", "after", "that", "the", "a", "an", "by", "but", "and", "or",
+    ]);
+    remainder = remainder
+      .split(/\s+/)
+      .filter((word) => {
+        const normalized = word.toLowerCase().replace(/[^a-z0-9]/g, "");
+        return normalized && !descriptorWords.has(normalized);
+      })
+      .join(" ")
+      .trim();
+  }
 
   if (!suggestionId && !remainder) {
     return null;

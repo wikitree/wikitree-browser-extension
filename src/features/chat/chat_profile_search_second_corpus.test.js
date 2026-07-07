@@ -100,6 +100,25 @@ describe("chat second-set prompt corpus (deterministic WT+ parses)", () => {
     expect(executedQuery).toMatch(/(?:Death)?Location=Liverpool/);
   });
 
+  test("noun form: death after 1900 Liverpool, England", async () => {
+    const executedQuery = await executedQueryFor("death after 1900 Liverpool, England");
+    expect(executedQuery).toMatch(/\[Default\]\.\[Death Date\]\.AsNumber > 1900/);
+    expect(executedQuery).not.toContain("LastNameAtBirth=death");
+    expect(executedQuery).toMatch(/Location=/);
+  });
+
+  test("noun form: birth before 1850 in Devon", async () => {
+    const executedQuery = await executedQueryFor("birth before 1850 in Devon");
+    expect(executedQuery).toMatch(/\[Default\]\.\[Birth Date\]\.AsNumber < 1850/);
+    expect(executedQuery).not.toContain("LastNameAtBirth=birth");
+  });
+
+  test("died between 1900 and 1910 is a death range, not birth", async () => {
+    const executedQuery = await executedQueryFor("died between 1900 and 1910 in Liverpool");
+    expect(executedQuery).toMatch(/\[Default\]\.\[Death Date\]\.AsNumber In 19000000\.\./);
+    expect(executedQuery).not.toContain("20Cen");
+  });
+
   test("Shropshire unsourced born in 1820s", async () => {
     const executedQuery = await executedQueryFor("Shropshire unsourced born in 1820s");
     expect(executedQuery).toContain("Unsourced");
@@ -135,6 +154,93 @@ describe("chat second-set prompt corpus (deterministic WT+ parses)", () => {
     expect(executedQuery).toContain("Unsourced");
     expect(executedQuery).toContain('Location="Shropshire, England"');
     expect(executedQuery).toContain("1820s");
+  });
+
+  test("profiles from Hampshire, England with birth year earlier than 1800", async () => {
+    const executedQuery = await executedQueryFor("profiles from Hampshire, England with birth year earlier than 1800");
+    expect(executedQuery).toContain('Location="Hampshire, England"');
+    expect(executedQuery).toMatch(/\[Default\]\.\[Birth Date\]\.AsNumber < 1800/);
+    expect(executedQuery).not.toMatch(/with|earlier|than/i);
+  });
+
+  test("profiles from Hampshire, England stays a plain place search", async () => {
+    const executedQuery = await executedQueryFor("profiles from Hampshire, England");
+    expect(executedQuery).toContain('Location="Hampshire, England"');
+  });
+
+  test("profiles from Hampshire, England with birth year 17th century", async () => {
+    const executedQuery = await executedQueryFor("profiles from Hampshire, England with birth year 17th century");
+    expect(executedQuery).toContain("17Cen");
+    expect(executedQuery).toContain('Location="Hampshire, England"');
+    expect(executedQuery).not.toMatch(/LastNameAtBirth=birth|Location=year/);
+  });
+
+  test("profiles from Hampshire, England with death year 18th century", async () => {
+    const executedQuery = await executedQueryFor("profiles from Hampshire, England with death year 18th century");
+    expect(executedQuery).toContain('Location="Hampshire, England"');
+    expect(executedQuery).toMatch(/\[Default\]\.\[Death Date\]\.AsNumber In 17000101\.\.17991231/);
+    expect(executedQuery).not.toMatch(/LastNameAtBirth=death|Location=year/);
+  });
+
+  test("profiles from Kent with death year later than 1850", async () => {
+    const executedQuery = await executedQueryFor("profiles from Kent with death year later than 1850");
+    expect(executedQuery).toContain("Location=Kent");
+    expect(executedQuery).toMatch(/\[Default\]\.\[Death Date\]\.AsNumber > 1850/);
+  });
+
+  test("born earlier than 1750 in Devon", async () => {
+    const executedQuery = await executedQueryFor("born earlier than 1750 in Devon");
+    expect(executedQuery).toMatch(/\[Default\]\.\[Birth Date\]\.AsNumber < 1750/);
+    expect(executedQuery).toMatch(/(?:Birth)?Location=Devon/);
+  });
+
+  test("place + topic expands to a Location + CategoryWord OR query", async () => {
+    const executedQuery = await executedQueryFor("Yorkshire mining");
+    expect(executedQuery).toContain("Location=Yorkshire CategoryWord=mining");
+    expect(executedQuery).toContain("Location=Yorkshire CategoryWord=colliery");
+    expect(executedQuery).toMatch(/\bOR\b/);
+    expect(executedQuery).not.toMatch(/LastNameAtBirth=mining/);
+  });
+
+  test("'in <project> but missing project box' resolves to Manager=<project> Suggestions=931", async () => {
+    const executedQuery = await executedQueryFor("Profiles in England project but missing project box in bio");
+    expect(executedQuery).toContain("Suggestions=931");
+    expect(executedQuery).toMatch(/Manager=/);
+    // The whole sentence must not leak into a Location value (the old malformed
+    // parse that tripped the suspicious-query gate).
+    expect(executedQuery).not.toMatch(/Location="[^"]*\bmissing\b/);
+  });
+
+  test("a bare natural-language suggestion runs as Suggestions=NNN without a bogus Location", async () => {
+    const executedQuery = await executedQueryFor("empty biography");
+    expect(executedQuery).toBe("Suggestions=802");
+  });
+
+  test("a place-scoped natural-language suggestion keeps only the real location", async () => {
+    const executedQuery = await executedQueryFor("Yorkshire gedcom junk");
+    expect(executedQuery).toContain("Suggestions=853");
+    expect(executedQuery).toContain("Location=Yorkshire");
+    expect(executedQuery).not.toMatch(/Location="[^"]*\bjunk\b/i);
+  });
+
+  test("surname + DNA magic token becomes a WT+ query, not a person search", async () => {
+    const executedQuery = await executedQueryFor("Anderson mtDNA");
+    expect(executedQuery).toContain("mtDNA");
+    expect(executedQuery).toMatch(/(?:AllLastNames|LastNameAtBirth)=Anderson/);
+    expect(executedQuery).not.toContain("Location=mtDNA");
+  });
+
+  test("military falls back to the CategoryWord OR expansion when AI is unavailable", async () => {
+    // No AI (allowAiFallback: false) — the AI-first military tree path can't run,
+    // so the deterministic Location + CategoryWord expansion must execute rather
+    // than the broken "LastNameAtBirth=Chicago Location=military" group parse.
+    const executedQuery = await executedQueryFor("Chicago military");
+    expect(executedQuery).toContain("Location=Chicago CategoryWord=military");
+    expect(executedQuery).toContain("Location=Chicago CategoryWord=army");
+    expect(executedQuery).toContain("Location=Chicago CategoryWord=navy");
+    expect(executedQuery).toMatch(/\bOR\b/);
+    expect(executedQuery).not.toContain("LastNameAtBirth=Chicago");
+    expect(executedQuery).not.toContain("Location=military");
   });
 
   test("England suggestions 678", async () => {

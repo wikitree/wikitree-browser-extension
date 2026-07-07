@@ -125,20 +125,14 @@
 }
 
 /* Gender colouring for connections table (match chat-results styles) */
-.connections-table tr.background--gender-male td.name-cell,
-.connections-table tr.background--gender-male td.birth-location-cell,
-.connections-table tr.background--gender-male td.death-location-cell {
-  background-color: #f2f1ff !important;
+.chat-results-popup .connections-table tr.background--gender-male td:first-child {
+  border-left: 5px solid #f2f1ff !important;
 }
-.connections-table tr.background--gender-female td.name-cell,
-.connections-table tr.background--gender-female td.birth-location-cell,
-.connections-table tr.background--gender-female td.death-location-cell {
-  background-color: #ffeeee !important;
+.chat-results-popup .connections-table tr.background--gender-female td:first-child {
+  border-left: 5px solid #ffeeee !important;
 }
-.connections-table tr.background--gender-no-gender td.name-cell,
-.connections-table tr.background--gender-no-gender td.birth-location-cell,
-.connections-table tr.background--gender-no-gender td.death-location-cell {
-  background-color: #eeffee !important;
+.chat-results-popup .connections-table tr.background--gender-no-gender td:first-child {
+  border-left: 5px solid #4caf50 !important;
 }
 /* Connections button styles */
 .chat-connections-button {
@@ -678,42 +672,46 @@
   width: 100%;
 }
 
-.chat-results-popup .dataTables_wrapper {
+div.chat-results-popup .dataTables_wrapper {
   font-size: 0.92rem;
 }
 
-.chat-results-popup table.dataTable thead th {
+div.chat-results-popup table.dataTable thead th {
   white-space: nowrap;
   background: #eff5ef;
   border-bottom: 1px solid #d8e3d8;
 }
 
-.chat-results-popup table.dataTable tbody td {
+div.chat-results-popup table.dataTable tbody td {
   vertical-align: top;
   word-break: break-word;
 }
 
-.chat-results-popup table.dataTable th.chat-date-cell,
-.chat-results-popup table.dataTable td.chat-date-cell {
+div.chat-results-popup table.dataTable th.chat-date-cell,
+div.chat-results-popup table.dataTable td.chat-date-cell {
   white-space: nowrap;
   word-break: normal;
 }
 
-.chat-results-popup table.dataTable tbody tr.background--gender-male td {
-  background-color: #f2f1ff !important;
+div.chat-results-popup table.dataTable tbody tr.background--gender-male td:first-child {
+  border-left: 5px solid #f2f1ff !important;
+}
+div.chat-results-popup table.dataTable tbody tr.background--gender-male,
+div.chat-results-popup table.dataTable tbody tr.background--gender-female {
+  background-color: white !important;
 }
 
-.chat-results-popup table.dataTable tbody tr.background--gender-female td {
-  background-color: #ffeeee !important;
+div.chat-results-popup table.dataTable tbody tr.background--gender-female td:first-child {
+  border-left: 5px solid #ffeeee !important;
 }
 
-.chat-results-popup table.dataTable tbody tr.background--gender-no-gender td {
-  background-color: #eeffee !important;
+div.chat-results-popup table.dataTable tbody tr.background--gender-no-gender td:first-child {
+  border-left: 5px solid #4caf50 !important;
 }
 
 /* Prevent wrapping for LNAB and Current Last cells in results tables */
-.chat-results-popup table.dataTable td.nowrap-cell,
-.chat-results-table td.nowrap-cell {
+div.chat-results-popup table.dataTable td.nowrap-cell,
+div.chat-results-popup table.dataTable td.nowrap-cell {
   white-space: nowrap;
 }
 

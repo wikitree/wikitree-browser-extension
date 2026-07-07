@@ -4,6 +4,7 @@ import { isLikelyMarriedNoChildrenPrompt } from "./chat_married_no_children_filt
 import { isLikelyParentAgeAtBirthPrompt } from "./chat_parent_age_filter";
 import { isLikelySiblingBirthGapPrompt } from "./chat_sibling_birth_gap_filter";
 import { isLikelySpousalAgeGapPrompt } from "./chat_spouse_age_gap_filter";
+import { isLocationTopicCategoryPrompt } from "./chat_place_topic_category";
 
 function extractNamesFromPrompt(prompt) {
   if (!prompt || typeof prompt !== "string") return [];
@@ -194,9 +195,28 @@ function isLikelyWtPlusFilterPrompt(prompt) {
     return true;
   }
 
+  // "<place> <topic>" (e.g. "Chicago military") expands to a Location +
+  // CategoryWord OR query, which only WT+ can run.
+  if (isLocationTopicCategoryPrompt(normalizedPrompt)) {
+    return true;
+  }
+
+  // WT+ DNA and raw status/family magic tokens (mtDNA, Unsourced, NoFather, …)
+  // only exist in the WT+ query language, so a prompt containing one — even
+  // with just a surname ("Anderson mtDNA") — belongs in WT+, not person search.
+  // (\bdna\b above can't match inside "mtDNA", so these need explicit tokens.)
+  const hasWtPlusMagicToken =
+    /\b(?:mt-?dna|y-?dna|au-?dna)\b/i.test(normalizedPrompt) ||
+    /(?:^|\s)(?:Unsourced|Unconnected|Orphaned?|PPP|ProjectManaged|NeverEdited|GEDCOMJunk|SourceJunk|IsInWikiData|NoFather|NoMother|NoParents|NoSpouses|NoChildren|NoGender|pre1500)(?=\s|$)/i.test(
+      normalizedPrompt
+    );
+  if (hasWtPlusMagicToken) {
+    return true;
+  }
+
   const hasAgeConstraint = /\bage\s*(?:=|is|of)?\s*\d{1,3}\b/i.test(normalizedPrompt);
   const hasYearConstraint =
-    /\b(?:born|died|b\.|d\.)\s+(?:before|after|in|around)?\s*\d{4}\b|\b\d{4}\s*(?:birth|death)\b|\b(?:pre|post)[-\s]?\d{4}\b|\b(?:before|after)\s+\d{4}\b/i.test(
+    /\b(?:born|died|b\.|d\.)\s+(?:before|after|in|around)?\s*\d{4}\b|\b\d{4}\s*(?:birth|death)\b|\b(?:pre|post)[-\s]?\d{4}\b|\b(?:before|after)\s+\d{4}\b|\b(?:earlier|later)\s+than\s+\d{4}\b|\bprior\s+to\s+\d{4}\b|\b(?:birth|death)\s+year\b[^,]{0,40}\b\d{4}\b/i.test(
       normalizedPrompt
     );
   const hasConnectedFilter = /\bconnected\b|\bdna\b/i.test(normalizedPrompt);
@@ -506,6 +526,103 @@ export function mergeWtPlusRefinementIntoQuery(previousWtPlusQuery, refinementQu
   const sqlUnits = merged.filter((unit) => /^sql="/i.test(unit));
   const plainUnits = merged.filter((unit) => !/^sql="/i.test(unit));
   return [...plainUnits, ...sqlUnits].join(" ").trim();
+}
+
+/**
+ * Continue-mode helper for bare date-boundary follow-ups ("After 1920?",
+ * "before 1850", "between 1900 and 1910", "1820s", "19th century").
+ *
+ * A bare boundary is ambiguous on its own (after what — birth or death?), so we
+ * resolve it against the date field the PREVIOUS query already constrained. If
+ * the previous query filtered death dates, "After 1920?" tightens that death
+ * bound in place; if it filtered birth dates, it tightens the birth bound. When
+ * the previous query has no date context, or has both birth and death dates, we
+ * decline (return "") so normal routing runs and we never guess wrong.
+ */
+export function buildContextualDateFollowupQuery(previousWtPlusQuery, prompt) {
+  const previous = String(previousWtPlusQuery || "").trim();
+  const text = String(prompt || "")
+    .trim()
+    .replace(/[?.!]+$/g, "")
+    .replace(/^(?:and|also|then|plus|but)\s+/i, "")
+    .trim();
+  if (!previous || !text) return "";
+  // OR groups need branch-aware merging; decline rather than corrupt them.
+  if (/\bOR\b/.test(previous)) return "";
+
+  const eventCue = text.match(/\b(born|birth|died|death)\b/i);
+  let op = "";
+  let yearA = 0;
+  let yearB = 0;
+  let match;
+  // The phrase must be essentially JUST a date boundary (optional born/died
+  // cue), so richer prompts like "died after 1920 in Yorkshire" fall through.
+  if ((match = text.match(/^(?:(?:born|birth|died|death)\s+)?(?:before|earlier\s+than|prior\s+to)\s+(\d{4})$/i))) {
+    op = "before";
+    yearA = Number.parseInt(match[1], 10);
+  } else if ((match = text.match(/^(?:(?:born|birth|died|death)\s+)?(?:after|later\s+than|since)\s+(\d{4})$/i))) {
+    op = "after";
+    yearA = Number.parseInt(match[1], 10);
+  } else if (
+    (match = text.match(/^(?:(?:born|birth|died|death)\s+)?between\s+(\d{4})\s+(?:and|to)\s+(\d{4})$/i))
+  ) {
+    op = "between";
+    yearA = Number.parseInt(match[1], 10);
+    yearB = Number.parseInt(match[2], 10);
+  } else if ((match = text.match(/^(?:(?:born|birth|died|death)\s+)?(?:in\s+)?(?:the\s+)?(\d{4})s$/i))) {
+    op = "decade";
+    yearA = Number.parseInt(match[1], 10);
+  } else if (
+    (match = text.match(/^(?:(?:born|birth|died|death)\s+)?(?:in\s+)?(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)\s+century$/i))
+  ) {
+    op = "century";
+    yearA = Number.parseInt(match[1], 10);
+  } else {
+    return "";
+  }
+  if (!Number.isFinite(yearA)) return "";
+
+  const hasDeathContext = /\[Death Date\]/i.test(previous) || /\bD\d{4}\b/.test(previous);
+  const hasBirthContext = /\[Birth Date\]/i.test(previous) || /\bB\d{4}\b/.test(previous);
+  let field = "";
+  if (/\b(?:died|death)\b/i.test(eventCue?.[0] || "")) field = "Death Date";
+  else if (/\b(?:born|birth)\b/i.test(eventCue?.[0] || "")) field = "Birth Date";
+  else if (hasDeathContext && !hasBirthContext) field = "Death Date";
+  else if (hasBirthContext && !hasDeathContext) field = "Birth Date";
+  else return ""; // no date context, or ambiguous birth+death — don't guess.
+
+  const startEdge = (year) => `${year}0000`;
+  const endEdge = (year) => `${year}9999`;
+  let expr = "";
+  if (op === "before") expr = `([Default].[${field}].AsNumber < ${startEdge(yearA)})`;
+  else if (op === "after") expr = `([Default].[${field}].AsNumber > ${endEdge(yearA)})`;
+  else if (op === "between") {
+    const lo = Math.min(yearA, yearB);
+    const hi = Math.max(yearA, yearB);
+    expr = `([Default].[${field}].AsNumber In ${startEdge(lo)}..${endEdge(hi)})`;
+  } else if (op === "decade") {
+    expr = `([Default].[${field}].AsNumber In ${startEdge(yearA)}..${endEdge(yearA + 9)})`;
+  } else if (op === "century") {
+    const start = (yearA - 1) * 100;
+    expr = `([Default].[${field}].AsNumber In ${startEdge(String(start).padStart(4, "0"))}..${endEdge(
+      String(start + 99).padStart(4, "0")
+    )})`;
+  }
+  if (!expr) return "";
+
+  // Replace an existing comparison on the same field in place; otherwise fold
+  // the new expression into the sql= term (or add one).
+  const fieldExprRe = new RegExp(`\\(\\[Default\\]\\.\\[${field}\\]\\.AsNumber[^)]*\\)`, "i");
+  let result;
+  if (fieldExprRe.test(previous)) {
+    result = previous.replace(fieldExprRe, expr);
+  } else if (/sql="/i.test(previous)) {
+    result = previous.replace(/sql="([\s\S]*)"/i, (whole, inner) => `sql="${inner.trim()} And ${expr}"`);
+  } else {
+    result = `${previous} sql="${expr}"`;
+  }
+  result = result.trim();
+  return result === previous ? "" : result;
 }
 
 function buildWtPlusOrFollowupBranch(prompt, previousWtPlusQuery) {
@@ -953,8 +1070,12 @@ export async function handleExplicitSearchMode({
     // 1850") is merged into the last executed query and re-run server-side.
     // Conflicting terms (a different place or surname) mean the user started
     // a new search, so the merge declines and normal routing takes over.
+    // This runs in the visible "Search" (wt) mode as well as auto-routed
+    // "wtplus" mode. The UI has no separate WT+ radio, so after a WT+ result
+    // the follow-up arrives in "wt" mode; gating on "wtplus" alone silently
+    // disabled every Continue follow-up.
     if (
-      mode === "wtplus" &&
+      (mode === "wt" || mode === "wtplus") &&
       continueQueryContext &&
       previousWtPlusQueryForMerge &&
       !/^or\b/i.test(normalizedPrompt) &&
@@ -965,10 +1086,26 @@ export async function handleExplicitSearchMode({
       typeof translateWtPlusRefinementTerms === "function" &&
       typeof reRunSavedWtPlusQuery === "function"
     ) {
-      const refinement = translateWtPlusRefinementTerms(normalizedPrompt);
-      const mergedQuery = refinement?.query
-        ? mergeWtPlusRefinementIntoQuery(previousWtPlusQueryForMerge, refinement.query)
-        : "";
+      // A bare date boundary ("After 1920?") is resolved against the previous
+      // query's own date field before the generic term parser sees it, since
+      // that parser can't tell whether "after" means birth or death.
+      const contextualDateQuery = buildContextualDateFollowupQuery(previousWtPlusQueryForMerge, normalizedPrompt);
+      const refinement = contextualDateQuery ? null : translateWtPlusRefinementTerms(normalizedPrompt);
+      // A refinement that introduces a person name (FirstName/LastName/…) is a
+      // fresh person search, not a narrowing of the previous filter. In the
+      // default Search mode, let those fall through to normal routing rather
+      // than silently folding a name into the prior location/date query.
+      const refinementIntroducesName = /\b(?:FirstName|LastName|LastNameAtBirth|AllLastNames)=/i.test(
+        refinement?.query || ""
+      );
+      const refinementLabel = contextualDateQuery
+        ? normalizedPrompt.replace(/[?.!]+$/g, "").trim()
+        : refinement?.query || "";
+      const mergedQuery = contextualDateQuery
+        ? contextualDateQuery
+        : refinement?.query && !refinementIntroducesName
+          ? mergeWtPlusRefinementIntoQuery(previousWtPlusQueryForMerge, refinement.query)
+          : "";
       if (mergedQuery) {
         try {
           const mergedResult = await reRunSavedWtPlusQuery(mergedQuery, "text");
@@ -976,7 +1113,7 @@ export async function handleExplicitSearchMode({
             const base = typeof mergedResult === "string" ? { message: mergedResult } : mergedResult;
             await handleChatResult({
               ...base,
-              message: `Continuing the previous search with "${refinement.query}". ${base.message || ""}`.trim(),
+              message: `Continuing the previous search with "${refinementLabel}". ${base.message || ""}`.trim(),
             });
             return { handled: true, prompt: normalizedPrompt };
           }

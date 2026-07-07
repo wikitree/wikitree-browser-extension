@@ -35,6 +35,7 @@ import {
   parseSpousalAgeGapPrompt,
 } from "./chat_spouse_age_gap_filter";
 import { parseProjectMissingBoxPrompt } from "./chat_project_missing_box_filter";
+import { matchLocationTopicCategory } from "./chat_place_topic_category";
 import { isLikelyPersonAliasLabel } from "./chat_person_memory";
 import wtPlusProjectsCatalog from "./wtplus_projects.json";
 
@@ -2441,6 +2442,9 @@ export function createProfileSearchHandler({
     "TemplateText",
     "Template",
     "TemplateFull",
+    // Suggestions=NNN is a bounded, server-indexed set (unlike ProjectManaged/PPP
+    // magic words), so it can stand alone as a base term, e.g. "empty biography".
+    "Suggestions",
   ]);
 
   function tokenizeWtPlusQueryText(queryText) {
@@ -3043,11 +3047,37 @@ export function createProfileSearchHandler({
       addTerm(normalizeWtPlusFieldTerm("TemplateText", template), `template ${template}`);
     });
 
-    consume(/\bborn\s+before\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i, (match) => {
+    // "with birth year earlier than 1800" and friends — consumed before the
+    // bare-year fallback so the year isn't misread as an exact birth year.
+    consume(
+      /\b(?:with\s+)?(?:a\s+)?birth\s+year\s+(?:earlier\s+than|before|prior\s+to)\s+(\d{4})\b/i,
+      (match) => {
+        const boundary = normalizeWtPlusBoundaryDate(match[1], "before");
+        addSqlTerm(buildWtPlusSqlTerm(`([Default].[Birth Date].AsNumber < ${boundary})`), `born before ${match[1]}`);
+      }
+    );
+    consume(/\b(?:with\s+)?(?:a\s+)?birth\s+year\s+(?:later\s+than|after)\s+(\d{4})\b/i, (match) => {
+      const boundary = normalizeWtPlusBoundaryDate(match[1], "after");
+      addSqlTerm(buildWtPlusSqlTerm(`([Default].[Birth Date].AsNumber > ${boundary})`), `born after ${match[1]}`);
+    });
+    consume(
+      /\b(?:with\s+)?(?:a\s+)?death\s+year\s+(?:earlier\s+than|before|prior\s+to)\s+(\d{4})\b/i,
+      (match) => {
+        const boundary = normalizeWtPlusBoundaryDate(match[1], "before");
+        addSqlTerm(buildWtPlusSqlTerm(`([Default].[Death Date].AsNumber < ${boundary})`), `died before ${match[1]}`);
+      }
+    );
+    consume(/\b(?:with\s+)?(?:a\s+)?death\s+year\s+(?:later\s+than|after)\s+(\d{4})\b/i, (match) => {
+      const boundary = normalizeWtPlusBoundaryDate(match[1], "after");
+      addSqlTerm(buildWtPlusSqlTerm(`([Default].[Death Date].AsNumber > ${boundary})`), `died after ${match[1]}`);
+    });
+    // Noun form ("birth before 1850") is accepted alongside the verb form
+    // ("born before 1850"); the "birth year ..." phrasings were consumed above.
+    consume(/\b(?:born|birth)\s+(?:before|earlier\s+than|prior\s+to)\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i, (match) => {
       const boundary = normalizeWtPlusBoundaryDate(match[1], "before");
       addSqlTerm(buildWtPlusSqlTerm(`([Default].[Birth Date].AsNumber < ${boundary})`), `born before ${match[1]}`);
     });
-    consume(/\bborn\s+after\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i, (match) => {
+    consume(/\b(?:born|birth)\s+(?:after|later\s+than)\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i, (match) => {
       const boundary = normalizeWtPlusBoundaryDate(match[1], "after");
       addSqlTerm(buildWtPlusSqlTerm(`([Default].[Birth Date].AsNumber > ${boundary})`), `born after ${match[1]}`);
     });
@@ -3073,6 +3103,23 @@ export function createProfileSearchHandler({
         }
       }
     );
+    // Death-date range must be consumed before the bare "between" fallback,
+    // otherwise "died between 1900 and 1910" would be misread as a birth range.
+    consume(
+      /\b(?:died|death)\s+between\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\s+(?:and|to)\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i,
+      (match) => {
+        const y1 = Number.parseInt(match[1], 10);
+        const y2 = Number.parseInt(match[2], 10);
+        const first = y1 <= y2 ? match[1] : match[2];
+        const second = y1 <= y2 ? match[2] : match[1];
+        const start = normalizeWtPlusBoundaryDate(first, "before");
+        const end = normalizeWtPlusBoundaryDate(second, "after");
+        addSqlTerm(
+          buildWtPlusSqlTerm(`([Default].[Death Date].AsNumber In ${start}..${end})`),
+          `died between ${first} and ${second}`
+        );
+      }
+    );
     // Bare "between Y1 and Y2" (without "born") — treat as a birth year range.
     // When both years fall in the same century use the NCen magic token so the
     // filter is applied natively rather than via a potentially-fragile sql= term.
@@ -3095,11 +3142,13 @@ export function createProfileSearchHandler({
         );
       }
     });
-    consume(/\bdied\s+before\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i, (match) => {
+    // Noun form ("death after 1900") is accepted alongside the verb form
+    // ("died after 1900"); the "death year ..." phrasings were consumed above.
+    consume(/\b(?:died|death)\s+(?:before|earlier\s+than|prior\s+to)\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i, (match) => {
       const boundary = normalizeWtPlusBoundaryDate(match[1], "before");
       addSqlTerm(buildWtPlusSqlTerm(`([Default].[Death Date].AsNumber < ${boundary})`), `died before ${match[1]}`);
     });
-    consume(/\bdied\s+after\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i, (match) => {
+    consume(/\b(?:died|death)\s+(?:after|later\s+than)\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/i, (match) => {
       const boundary = normalizeWtPlusBoundaryDate(match[1], "after");
       addSqlTerm(buildWtPlusSqlTerm(`([Default].[Death Date].AsNumber > ${boundary})`), `died after ${match[1]}`);
     });
@@ -3440,6 +3489,40 @@ export function createProfileSearchHandler({
     consume(/\bborn\s+in\s+(\d{4})s\b/i, (match) => {
       addTerm(`${match[1]}s`, `born in ${match[1]}s`);
     });
+    // "(with a) birth year (in the) 17th century" — consume the "birth year"
+    // cue together with the century so neither word is stranded and misread as
+    // a surname/location token. Placed before the generic century rules.
+    consume(
+      new RegExp(
+        `\\b(?:with\\s+)?(?:a\\s+)?birth\\s+year\\s+(?:in\\s+)?(?:the\\s+)?(${WT_PLUS_CENTURY_VALUE_PATTERN})\\s+century\\b`,
+        "i"
+      ),
+      (match) => {
+        const n = parseWtPlusCenturyValue(match[1]);
+        if (Number.isFinite(n) && n >= 0 && n <= 21) {
+          addTerm(`${n}Cen`, `born in ${n} century`);
+        }
+      }
+    );
+    consume(
+      new RegExp(
+        `\\b(?:with\\s+)?(?:a\\s+)?death\\s+year\\s+(?:in\\s+)?(?:the\\s+)?(${WT_PLUS_CENTURY_VALUE_PATTERN})\\s+century\\b`,
+        "i"
+      ),
+      (match) => {
+        const n = parseWtPlusCenturyValue(match[1]);
+        if (Number.isFinite(n) && n >= 1 && n <= 21) {
+          const startYear = (n - 1) * 100;
+          const endYear = startYear + 99;
+          addSqlTerm(
+            buildWtPlusSqlTerm(
+              `([Default].[Death Date].AsNumber In ${String(startYear).padStart(4, "0")}0101..${String(endYear).padStart(4, "0")}1231)`
+            ),
+            `died in ${n} century`
+          );
+        }
+      }
+    );
     consume(new RegExp(`\\bborn\\s+in\\s+(?:the\\s+)?(${WT_PLUS_CENTURY_VALUE_PATTERN})\\s+century\\b`, "i"), (match) => {
       const n = parseWtPlusCenturyValue(match[1]);
       if (Number.isFinite(n) && n >= 0 && n <= 21) {
@@ -3622,7 +3705,11 @@ export function createProfileSearchHandler({
     consume(/\b(?:find\s*a\s*grave\s+(?:memorial|mem)|fg\s*(?:memorial|mem))\s*(\d+)\b/i, (match) => {
       addTerm(`fgmem${match[1]}`, `find a grave memorial ${match[1]}`);
     });
-    consume(/\b(?:in|from)\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+    // Stop the location capture at clause words ("with", "who", "born"…) so a
+    // trailing constraint the earlier rules didn't consume can't leak into the
+    // place value ("from Hampshire, England with …" must not become
+    // Location="Hampshire, England with …").
+    consume(/\b(?:in|from)\s+(.+?)(?=$|[,\s]+\b(?:and|or|with|who|whose|that|born|died|married|before|after|between)\b)/i, (match) => {
       const value = stripSurroundingQuotes(match[1]);
       if (value) {
         addTerm(normalizeWtPlusFieldTerm("Location", value), `location ${value}`);
@@ -4096,6 +4183,28 @@ export function createProfileSearchHandler({
         .trim()
     );
 
+    // "profiles in <project> but missing the project box in bio" is a specific
+    // shape (Manager=<project> Suggestions=931). It contains "missing" and
+    // "box", which the generic suggestion-title matcher below would otherwise
+    // grab first, so resolve it before the suggestions check.
+    const projectMissingBoxPromptEarly = parseProjectMissingBoxPrompt(normalizedText);
+    if (projectMissingBoxPromptEarly) {
+      // Manager=<project> resolves via the project→WT-ID map to the project
+      // account (e.g. England Project → WikiTree-57), scoping to the profiles
+      // that project manages; Suggestions=931 flags a missing project box. The
+      // intersection may legitimately be empty (well-maintained projects keep
+      // their boxes), which is a correct answer, not a parse error.
+      const managerText = projectMissingBoxPromptEarly.projectName;
+      const query = `Manager=${quoteWtPlusValue(managerText)} Suggestions=931`;
+      return {
+        query,
+        title: `WT+ search: ${projectMissingBoxPromptEarly.understood}`,
+        description: projectMissingBoxPromptEarly.understood,
+        understood: projectMissingBoxPromptEarly.understood,
+        searchType: "projectMissingBox",
+      };
+    }
+
     // Family-presence phrases ("no father", "with a mother but no father",
     // "no spouses") have dedicated raw tokens in the group parser. Implicit
     // suggestion-title matching must not steal them — it would emit
@@ -4122,19 +4231,6 @@ export function createProfileSearchHandler({
           suggestionOptions: suggestionParse.options || {},
         };
       }
-    }
-
-    const projectMissingBoxPrompt = parseProjectMissingBoxPrompt(normalizedText);
-    if (projectMissingBoxPrompt) {
-      const managerText = projectMissingBoxPrompt.projectName;
-      const query = `Manager=${quoteWtPlusValue(managerText)} Suggestions=931`;
-      return {
-        query,
-        title: `WT+ search: ${projectMissingBoxPrompt.understood}`,
-        description: projectMissingBoxPrompt.understood,
-        understood: projectMissingBoxPrompt.understood,
-        searchType: "projectMissingBox",
-      };
     }
 
     const parentAgeAtBirthPrompt = parseParentAgeAtBirthPrompt(normalizedText);
@@ -4576,7 +4672,15 @@ export function createProfileSearchHandler({
     }
 
     match = normalizedText.match(/^(?:profiles?|people)\s+(?:from|in)\s+(.+)$/i);
-    if (match?.[1]) {
+    // Only when the tail is a plain place. Digits or clause words mean extra
+    // constraints, which belong to the multi-term group parser instead.
+    if (
+      match?.[1] &&
+      !/\d/.test(match[1]) &&
+      !/\b(?:with|and|or|who|whose|that|born|died|married|before|after|between|earlier|later|than|unsourced|unconnected)\b/i.test(
+        match[1]
+      )
+    ) {
       const location = stripSurroundingQuotes(match[1]);
       if (location) {
         return {
@@ -4717,6 +4821,27 @@ export function createProfileSearchHandler({
           description: `Descendants=${descendantRoot.wtId}`,
         };
       }
+    }
+
+    // "<place> <topic>" (e.g. "Yorkshire mining", "Chicago military") — no single
+    // category name, so scope a location and OR it against every category word
+    // for the topic. For military the AI-first path may instead produce the
+    // richer CategoryFull tree (maybeExpandWtPlusCategoryTreeQuery); this OR
+    // query is the deterministic fallback used when AI is unavailable.
+    const topicCategoryMatch = matchLocationTopicCategory(normalizedText);
+    if (topicCategoryMatch?.location && topicCategoryMatch.synonyms?.length) {
+      const locationTerm = `Location=${quoteWtPlusValue(topicCategoryMatch.location)}`;
+      const query = topicCategoryMatch.synonyms
+        .map((word) => `${locationTerm} CategoryWord=${word}`)
+        .join(" OR ");
+      const understood = `${topicCategoryMatch.label} categories in ${topicCategoryMatch.location}`;
+      return {
+        query,
+        title: `WT+ search: ${understood}`,
+        description: understood,
+        understood,
+        searchType: "text",
+      };
     }
 
     const groupedQuery = parseNaturalLanguageWtPlusGroup(normalizedText);
@@ -6069,7 +6194,7 @@ export function createProfileSearchHandler({
         .join(" ");
       return {
         message: interpretation?.understood
-          ? `AI interpreted this as "${
+          ? `I interpreted this as "${
               interpretation.understood
             }", and I ran this WT+ query: ${canonicalQuery}. Found ${rows.length} profile${
               rows.length === 1 ? "" : "s"
@@ -8585,6 +8710,46 @@ export function createProfileSearchHandler({
       // meaningful anchor. Flags like skipVariants alone would ask the API
       // to scan everything and return noise.
       if (!hasMeaningfulWtSearchAnchor(searchParams)) {
+        // No name for searchPerson, but the prompt may still translate to a
+        // WT+ query ("profiles from Hampshire, England with birth year
+        // earlier than 1800") — run that instead of giving up. Require at
+        // least one high-confidence unit (sql/date/magic token or a quoted
+        // place) so bare token-fallback guesses like
+        // "LastNameAtBirth=interesting Location=please" don't qualify.
+        const wtPlusFallbackHasConfidentConstraint =
+          /\bsql="/i.test(localWtPlusQueryCandidate?.query || "") ||
+          /="[^"]+"/.test(localWtPlusQueryCandidate?.query || "") ||
+          /(?:^|\s)(?:NOT\s+)?(?:Unsourced|Unconnected|Orphaned?|Connected|\d{1,2}Cen|\d{4}s|B\d{4}|D\d{4}|pre1500|NoFather|NoMother|NoParents|NoSpouses|NoChildren|NoGender|PPP|ProjectManaged|Suggestions=\S+|age\d+|fg(?:cem|mem)\d+)(?=\s|$)/.test(
+            localWtPlusQueryCandidate?.query || ""
+          );
+        if (
+          localWtPlusQueryCandidate?.query &&
+          wtPlusFallbackHasConfidentConstraint &&
+          !shouldForceAiForSuspiciousLocalWtPlusQuery(localWtPlusQueryCandidate)
+        ) {
+          console.info("wbe: no searchPerson anchor; falling back to deterministic WT+ query", {
+            query,
+            wtPlusQuery: localWtPlusQueryCandidate.query,
+          });
+          recordWtPlusParseTelemetry("parsedLocal");
+          const wtPlusFallbackResult = await runWtPlusProfileQuery(
+            localWtPlusQueryCandidate.query,
+            localWtPlusQueryCandidate.title,
+            null,
+            {
+              searchType: localWtPlusQueryCandidate.searchType,
+              customFilter: localWtPlusQueryCandidate.customFilter,
+              suggestionId: localWtPlusQueryCandidate.suggestionId,
+              suggestionOptions: localWtPlusQueryCandidate.suggestionOptions,
+              rawPrompt: rawQuery,
+            }
+          );
+          if (wtPlusFallbackResult) {
+            return typeof wtPlusFallbackResult === "string"
+              ? { message: wtPlusFallbackResult, switchToMode: "wtplus", switchModeChatMessage: "WT+ mode." }
+              : { ...wtPlusFallbackResult, switchToMode: "wtplus", switchModeChatMessage: "WT+ mode." };
+          }
+        }
         console.info("wbe: WT searchPerson call blocked — no meaningful anchor params", { query, searchParams });
         return `I couldn't work out a concrete person search from "${query}". Try adding a name, a location, or a date.`;
       }
