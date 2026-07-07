@@ -585,6 +585,7 @@ const autoBio = {
             { value: "gemini", text: "Google Gemini" },
             { value: "claude", text: "Anthropic Claude" },
             { value: "perplexity", text: "Perplexity AI" },
+            { value: "xai", text: "xAI (Grok)" },
           ],
           defaultValue: "openai",
         },
@@ -599,7 +600,7 @@ const autoBio = {
           type: OptionType.SELECT,
           label: "OpenAI Model",
           values: aiModels.openai,
-          defaultValue: "gpt-5-mini",
+          defaultValue: "gpt-5.4-mini",
         },
         {
           id: "geminiKey",
@@ -612,7 +613,7 @@ const autoBio = {
           type: OptionType.SELECT,
           label: "Gemini Model",
           values: aiModels.gemini,
-          defaultValue: "gemini-3-flash-preview",
+          defaultValue: "gemini-3.5-flash",
         },
         {
           id: "claudeKey",
@@ -625,7 +626,7 @@ const autoBio = {
           type: OptionType.SELECT,
           label: "Claude Model",
           values: aiModels.claude,
-          defaultValue: "claude-sonnet-4-5",
+          defaultValue: "claude-sonnet-5",
         },
         {
           id: "perplexityKey",
@@ -639,6 +640,19 @@ const autoBio = {
           label: "Perplexity Model",
           values: aiModels.perplexity,
           defaultValue: "sonar",
+        },
+        {
+          id: "xaiKey",
+          type: OptionType.TEXT,
+          label: "xAI API Key",
+          defaultValue: "",
+        },
+        {
+          id: "xaiModel",
+          type: OptionType.SELECT,
+          label: "xAI Model",
+          values: aiModels.xai,
+          defaultValue: "grok-4.3",
         },
         {
           id: "aiModel",

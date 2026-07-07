@@ -58,12 +58,47 @@ import { initBioCheck } from "../bioCheck/bioCheck.js";
 import { bioTimelineFacts, buildTimelineTable, buildTimelineSA } from "./timeline";
 import { mainDomain, isIansProfile } from "../../core/pageType";
 import { profilePerson } from "../../core/common";
+import aiModels from "./ai_models.json";
 
 export const WBE_AUTO_BIO_APP_ID = "WBE_auto_bio";
 
 let bugReportMore = "";
 let templatesObject;
 let USstatesObjArray;
+
+const AUTO_BIO_AI_MODEL_CONFIG = {
+  openai: { optionId: "openAIModel", defaultModel: "gpt-5.4-mini", models: aiModels.openai },
+  gemini: { optionId: "geminiModel", defaultModel: "gemini-3.5-flash", models: aiModels.gemini },
+  claude: { optionId: "claudeModel", defaultModel: "claude-sonnet-5", models: aiModels.claude },
+  perplexity: { optionId: "perplexityModel", defaultModel: "sonar", models: aiModels.perplexity },
+  xai: { optionId: "xaiModel", defaultModel: "grok-4.3", models: aiModels.xai },
+};
+
+async function migrateAutoBioAiModelOptions(options) {
+  const normalized = { ...(options || {}) };
+  let changed = false;
+
+  const provider = normalized.aiProvider;
+  if (!AUTO_BIO_AI_MODEL_CONFIG[provider]) {
+    normalized.aiProvider = "openai";
+    changed = true;
+  }
+
+  for (const [providerId, config] of Object.entries(AUTO_BIO_AI_MODEL_CONFIG)) {
+    const validModelIds = new Set(config.models.map((model) => model.value));
+    const currentModel = normalized[config.optionId];
+    if (!currentModel || !validModelIds.has(currentModel)) {
+      normalized[config.optionId] = config.defaultModel;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    await chrome.storage.sync.set({ autoBio_options: normalized });
+  }
+
+  return normalized;
+}
 
 function findUSState(location) {
   return findUSStateInStates(location, USstatesObjArray);
@@ -8911,8 +8946,8 @@ let boldBit = "";
 shouldInitializeFeature("autoBio").then((result) => {
   if (result) {
     import("./auto_bio.css");
-    getFeatureOptions("autoBio").then((options) => {
-      window.autoBioOptions = options;
+    getFeatureOptions("autoBio").then(async (options) => {
+      window.autoBioOptions = await migrateAutoBioAiModelOptions(options);
       boldBit = "";
       if (window.autoBioOptions?.boldNames) {
         boldBit = "'''";
@@ -9204,6 +9239,7 @@ function addAutoBioUI() {
       window.autoBioOptions?.geminiKey,
       window.autoBioOptions?.claudeKey,
       window.autoBioOptions?.perplexityKey,
+      window.autoBioOptions?.xaiKey,
     ].some((key) => typeof key === "string" && key.trim() !== "");
 
     if (hasAIKey) {
@@ -9349,7 +9385,7 @@ async function improveBioWithAI(e) {
 
   try {
     // 1. REFRESH OPTIONS
-    window.autoBioOptions = await getFeatureOptions("autoBio");
+    window.autoBioOptions = await migrateAutoBioAiModelOptions(await getFeatureOptions("autoBio"));
 
     // 2. STRICT VARIABLE USAGE (Per User Request)
     const oldBio = window.autoBio_originalBio;
@@ -9371,16 +9407,19 @@ async function improveBioWithAI(e) {
 
     if (provider === "openai") {
       selectedKey = window.autoBioOptions?.openAIKey;
-      if (!selectedModel) selectedModel = window.autoBioOptions?.openAIModel || "gpt-5-mini";
+      if (!selectedModel) selectedModel = window.autoBioOptions?.openAIModel || "gpt-5.4-mini";
     } else if (provider === "gemini") {
       selectedKey = window.autoBioOptions?.geminiKey;
-      if (!selectedModel) selectedModel = window.autoBioOptions?.geminiModel || "gemini-3-flash-preview";
+      if (!selectedModel) selectedModel = window.autoBioOptions?.geminiModel || "gemini-3.5-flash";
     } else if (provider === "claude") {
       selectedKey = window.autoBioOptions?.claudeKey;
-      if (!selectedModel) selectedModel = window.autoBioOptions?.claudeModel || "claude-sonnet-4-5";
+      if (!selectedModel) selectedModel = window.autoBioOptions?.claudeModel || "claude-sonnet-5";
     } else if (provider === "perplexity") {
       selectedKey = window.autoBioOptions?.perplexityKey;
       if (!selectedModel) selectedModel = window.autoBioOptions?.perplexityModel || "sonar";
+    } else if (provider === "xai") {
+      selectedKey = window.autoBioOptions?.xaiKey;
+      if (!selectedModel) selectedModel = window.autoBioOptions?.xaiModel || "grok-4.3";
     }
 
     const requestPayload = {

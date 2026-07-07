@@ -751,13 +751,15 @@ ${dataPayload}`;
   try {
     let resultBio = "";
     if (provider === "openai") {
-      resultBio = await callOpenAI(key, model || "gpt-5-mini", systemRole, prompt);
+      resultBio = await callOpenAI(key, model || "gpt-5.4-mini", systemRole, prompt);
     } else if (provider === "gemini") {
-      resultBio = await callGemini(key, model || "gemini-3-flash-preview", systemRole, prompt);
+      resultBio = await callGemini(key, model || "gemini-3.5-flash", systemRole, prompt);
     } else if (provider === "claude") {
-      resultBio = await callClaude(key, model || "claude-sonnet-4-5", systemRole, prompt);
+      resultBio = await callClaude(key, model || "claude-sonnet-5", systemRole, prompt);
     } else if (provider === "perplexity") {
       resultBio = await callPerplexity(key, model || "sonar", systemRole, prompt);
+    } else if (provider === "xai") {
+      resultBio = await callXAI(key, model || "grok-4.3", systemRole, prompt);
     } else {
       throw new Error("Unknown provider: " + provider);
     }
@@ -921,6 +923,32 @@ async function callPerplexity(apiKey, model, system, userPrompt) {
   if (!response.ok) {
     const err = await response.text();
     throw new Error("Perplexity API Error: " + response.status + " " + err);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "";
+}
+
+async function callXAI(apiKey, model, system, userPrompt) {
+  const response = await fetch("https://api.x.ai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.2,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error("xAI API Error: " + response.status + " " + err);
   }
 
   const data = await response.json();
