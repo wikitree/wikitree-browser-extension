@@ -6216,6 +6216,18 @@ function getNewBrunswickLink(text) {
 }
 
 export async function getCitations() {
+  const addCitationFailureNote = (message) => {
+    if (!message) {
+      return;
+    }
+    if (!Array.isArray(window.autoBioNotes)) {
+      window.autoBioNotes = [];
+    }
+    if (!window.autoBioNotes.includes(message)) {
+      window.autoBioNotes.push(message);
+    }
+  };
+
   window.NonSourceCount = 0;
   for (let i = 0; i < window.references.length; i++) {
     let aRef = window.references[i];
@@ -6259,12 +6271,19 @@ export async function getCitations() {
           const failure = getLastCitationFailure();
           if (failure) {
             console.warn("Citation retrieval skipped", failure);
+            const userMessage = failure.userMessage || "WBE could not retrieve this citation right now.";
+            const detail = failure.technicalMessage ? ` (${failure.technicalMessage})` : "";
+            addCitationFailureNote(`${userMessage}${detail} Link: ${citationLink}`);
           } else {
             console.error("Error fetching citation for link:", citationLink);
+            addCitationFailureNote(`WBE could not retrieve this citation right now. Link: ${citationLink}`);
           }
         }
       } catch (error) {
         console.error("Error fetching citation:", error);
+        addCitationFailureNote(
+          `WBE could not retrieve this citation right now (${error?.message || "Unknown error"}). Link: ${citationLink}`
+        );
       }
     }
   }
@@ -7192,6 +7211,13 @@ function addUniqueRefNames(records) {
 }
 
 async function fixLocations() {
+  const getLocationBits = (location) => {
+    if (typeof location !== "string" || location.trim() === "") {
+      return [];
+    }
+    return location.split(",").map((str) => str.trim());
+  };
+
   const birth = {
     Date: document.getElementById("mBirthDate").value,
     Location: document.getElementById("mBirthLocation").value,
@@ -7236,11 +7262,10 @@ async function fixLocations() {
       }
     });
 
-    let locationBits = event?.Location.split(",");
-    locationBits = locationBits.map((str) => str.trim());
+    let locationBits = getLocationBits(event?.Location);
 
     if (window.autoBioOptions?.checkUS && isOK(event?.Date)) {
-      event = fixUSLocation(event);
+      event = fixUSLocation(event) || event;
     }
 
     if (window.autoBioOptions?.checkAustralia && isOK(event?.Date)) {
@@ -7262,8 +7287,7 @@ async function fixLocations() {
       }
     }
 
-    locationBits = event?.Location.split(",");
-    locationBits = locationBits.map((str) => str.trim());
+    locationBits = getLocationBits(event?.Location);
     const lastLocationBit = locationBits[locationBits.length - 1];
 
     if (window.autoBioOptions?.checkUK && isOK(event?.Date)) {
