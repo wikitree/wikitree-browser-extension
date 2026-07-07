@@ -1,7 +1,7 @@
 {
   "name": "WikiTree Browser Extension (Preview)",
   "description": "The official WikiTree browser extension.",
-  "version": "2.16.0.1",
+  "version": "2.16.0.2",
   "manifest_version": 2,
   "options_ui": {
     "page": "options.html",
@@ -15,6 +15,7 @@
     "https://generativelanguage.googleapis.com/*",
     "https://api.anthropic.com/*",
     "https://api.perplexity.ai/*",
+    "https://api.x.ai/*",
     "https://raw.githubusercontent.com/*",
     "storage",
     "clipboardRead",
