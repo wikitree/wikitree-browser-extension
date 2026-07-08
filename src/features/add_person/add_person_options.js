@@ -52,7 +52,6 @@ const addPersonRedesign = {
       label: "Add a Research Notes section (in 'Advanced' mode)",
       defaultValue: false,
     },
-    },
 
     // Removed Find a Grave citation auto-fetch option per user request
   ],
