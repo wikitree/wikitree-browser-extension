@@ -52,15 +52,9 @@ const addPersonRedesign = {
       label: "Add a Research Notes section (in 'Advanced' mode)",
       defaultValue: false,
     },
-    {
-      id: "getFullFindAGraveCitations",
-      type: OptionType.CHECKBOX,
-      label:
-        "Get full Find A Grave citations. " +
-        "If your sources include a minimal reference to a Find a Grave memorial, " +
-        "this will fetch the full citation from Find a Grave for you to use instead.",
-      defaultValue: true,
     },
+
+    // Removed Find a Grave citation auto-fetch option per user request
   ],
 };
 

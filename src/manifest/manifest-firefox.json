@@ -21,9 +21,7 @@
     "clipboardRead",
     "clipboardWrite",
     "contextMenus",
-    "activeTab",
-    "tabs",
-    "scripting"
+    "activeTab"
   ],
   "content_scripts": [
     {

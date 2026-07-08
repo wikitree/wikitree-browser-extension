@@ -31,12 +31,7 @@ import { logMerge } from "./debugUtils.js";
 import { minimalPlace, nameLink } from "./displayUtils.js";
 import { addWorking, getBioText, removeWorking, setBioText } from "./editorUtils.js";
 import { assignPersonNames, setOrderBirthDate } from "./auto_bio_person.js";
-import {
-  getFindAGraveLink,
-  getCitation,
-  getLastCitationFailure,
-  cleanFindAGraveCitation,
-} from "./auto_bio_citations.js";
+// Find a Grave citation helpers removed per user request
 import {
   findGenealogicallyDefinedLinePlacement,
   isGenealogicallyDefinedLink,
@@ -6215,75 +6210,40 @@ function getNewBrunswickLink(text) {
   }
 }
 
+// Find a Grave citation retrieval removed per user request
+
 export async function getCitations() {
   const addCitationFailureNote = (message) => {
-    if (!message) {
-      return;
-    }
-    if (!Array.isArray(window.autoBioNotes)) {
-      window.autoBioNotes = [];
-    }
-    if (!window.autoBioNotes.includes(message)) {
-      window.autoBioNotes.push(message);
-    }
+    if (!message) return;
+    if (!Array.isArray(window.autoBioNotes)) window.autoBioNotes = [];
+    if (!window.autoBioNotes.includes(message)) window.autoBioNotes.push(message);
   };
 
   window.NonSourceCount = 0;
   for (let i = 0; i < window.references.length; i++) {
     let aRef = window.references[i];
-    if (aRef.NonSource) {
-      window.NonSourceCount++;
-    }
+    if (aRef.NonSource) window.NonSourceCount++;
 
-    let findAGraveLink = getFindAGraveLink(aRef.Text);
     let matriculaLink = getMatriculaLink(aRef.Text);
     let newBrunswickLink = getNewBrunswickLink(aRef.Text);
-    let citationLink = findAGraveLink || matriculaLink || newBrunswickLink;
+    let citationLink = matriculaLink || newBrunswickLink;
 
     if (citationLink && aRef.Text.match(/sameas=no/) == null) {
       try {
-        let citation = await getCitation(citationLink);
-        if (citation) {
-          console.log("Raw citation:", citation);
-          if (findAGraveLink) {
-            const memorialNumber = citationLink.match(/\d{5,}/);
-            let findagraveTemplate = "";
-            if (memorialNumber) {
-              findagraveTemplate = `<br>{{FindAGrave|${memorialNumber[0]}}}`;
-            }
-            citation = cleanFindAGraveCitation(citation, aRef.Text) + findagraveTemplate;
-            console.log("Cleaned citation:", citation);
-          }
-          aRef.Text = citation.trim();
-
-          // Get cemetery name from citation
-          if (findAGraveLink && aRef.Text.match(/sameas=no/) == null) {
-            const cemeteryMatch = citation.match(/citing ([^;]+)/);
-            if (cemeteryMatch) {
-              aRef.Cemetery = cemeteryMatch[1];
-              // If window.profilePerson is in the citation, add the cemetery to the profile
-              if (citation.match(window.profilePerson?.PersonName?.FirstName)) {
-                window.profilePerson.Cemetery = aRef.Cemetery;
-              }
-            }
-          }
+        const result = await $.ajax({
+          url: "https://wikitreebee.com/citation",
+          type: "GET",
+          data: { link: citationLink },
+          dataType: "text",
+        });
+        if (result) {
+          aRef.Text = result.trim();
         } else {
-          const failure = getLastCitationFailure();
-          if (failure) {
-            console.warn("Citation retrieval skipped", failure);
-            const userMessage = failure.userMessage || "WBE could not retrieve this citation right now.";
-            const detail = failure.technicalMessage ? ` (${failure.technicalMessage})` : "";
-            addCitationFailureNote(`${userMessage}${detail} Link: ${citationLink}`);
-          } else {
-            console.error("Error fetching citation for link:", citationLink);
-            addCitationFailureNote(`WBE could not retrieve this citation right now. Link: ${citationLink}`);
-          }
+          addCitationFailureNote(`WBE could not retrieve this citation right now. Link: ${citationLink}`);
         }
       } catch (error) {
         console.error("Error fetching citation:", error);
-        addCitationFailureNote(
-          `WBE could not retrieve this citation right now (${error?.message || "Unknown error"}). Link: ${citationLink}`
-        );
+        addCitationFailureNote(`WBE could not retrieve this citation right now. Link: ${citationLink}`);
       }
     }
   }
@@ -7556,8 +7516,7 @@ export async function generateBio() {
     }
     sourcesArray(currentBio);
 
-    // Update references with Find A Grave citations
-    await getCitations();
+    // Find A Grave citation automation removed; no-op
 
     // Start OUTPUT
     const bioHeader = "== Biography ==\n";
@@ -9677,4 +9636,4 @@ export { minimalPlace, nameLink } from "./displayUtils.js";
 export { getFormData, getPronouns } from "./profileUtils.js";
 export { capitalizeFirstLetter } from "./textUtils.js";
 export { assignPersonNames, setOrderBirthDate } from "./auto_bio_person.js";
-export { getFindAGraveLink, getCitation, cleanFindAGraveCitation } from "./auto_bio_citations.js";
+// Find a Grave citation utilities removed from exports

@@ -939,12 +939,13 @@ chrome.storage.onChanged.addListener(function () {
 
 (function (tabs) {
   if (tabs && tabs.query) {
-    tabs.query({}, function (tabs) {
-      for (let tab of tabs) {
-        if (isWikiTreeUrl(tab.url)) {
-          $("html").addClass("is-on-wikitree");
-          break;
-        }
+    tabs.query({ active: true, currentWindow: true }, function (tabList) {
+      if (chrome.runtime?.lastError || !tabList?.length) {
+        return;
+      }
+      const activeTab = tabList[0];
+      if (activeTab?.url && isWikiTreeUrl(activeTab.url)) {
+        $("html").addClass("is-on-wikitree");
       }
     });
   }

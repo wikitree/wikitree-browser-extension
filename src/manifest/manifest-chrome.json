@@ -4,7 +4,7 @@
   "version": "2.16.0.2",
   "manifest_version": 3,
   "options_page": "options.html",
-  "permissions": ["storage", "clipboardRead", "clipboardWrite", "contextMenus", "activeTab", "tabs", "scripting"],
+  "permissions": ["storage", "clipboardRead", "clipboardWrite", "contextMenus", "activeTab"],
   "host_permissions": [
     "https://*.wikitree.com/*",
     "https://wikitreebee.com/*",
