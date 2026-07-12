@@ -3245,10 +3245,16 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   reconcileChildrenWithAPI();
   addDNAConfirmedToFamily();
 
-  // Wait until Distance and Relationship feature has loaded (hopefully)
+  // Wait until Distance and Relationship feature has loaded (hopefully).
+  // That feature's IndexedDB write has no completion signal we can await, and its
+  // own latency varies a lot (async storage read, network fetch with legacy fallbacks).
+  // A single fixed delay races against that and can lose in slower browsers (e.g. Safari),
+  // so retry a few times instead of betting on one guess - each pass is a cheap, idempotent re-check.
   if (options.highlightAncestors) {
-    setTimeout(() => {
-      getAncestorsOnPage().catch(console.error);
-    }, 4000);
+    [2000, 4000, 7000, 11000].forEach((delay) => {
+      setTimeout(() => {
+        getAncestorsOnPage().catch(console.error);
+      }, delay);
+    });
   }
 });
