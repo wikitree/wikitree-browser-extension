@@ -2540,25 +2540,38 @@ async function getAncestorsOnPage() {
     setTimeout(() => resolve(null), 3000);
   });
   const db = await dbPromise;
+  if (!db) {
+    console.log("[WBE cfl-ancestors] relationship DB did not open within 3s; using page-text fallback only");
+  }
   let ancestorKeys = [];
   if (db) {
+    console.log(
+      `[WBE cfl-ancestors] DB opened: version ${db.version}, stores: ${[...db.objectStoreNames].join(", ")}`
+    );
     ancestorKeys = await new Promise((resolve, reject) => {
       const transaction = db.transaction(storeName, "readonly");
       const store = transaction.objectStore(storeName);
       const allItemsRequest = store.getAll();
       allItemsRequest.onsuccess = () => {
         const items = allItemsRequest.result;
-        resolve(
-          items
-            .filter((item) => {
-              const relationship = item?.relationship?.toLowerCase();
-              if (!relationship) return false;
-              return relationship.match(/father|mother/i) != null && item.userId === user;
-            })
-            .map((item) => item.id)
+        const keys = items
+          .filter((item) => {
+            const relationship = item?.relationship?.toLowerCase();
+            if (!relationship) return false;
+            return relationship.match(/father|mother/i) != null && item.userId === user;
+          })
+          .map((item) => item.id);
+        console.log(
+          `[WBE cfl-ancestors] DB records: ${items.length} total, ${keys.length} ancestor(s) for user '${user}';`,
+          "first records:",
+          JSON.stringify(items.slice(0, 8).map((i) => ({ id: i.id, userId: i.userId, relationship: i.relationship })))
         );
+        resolve(keys);
       };
-      allItemsRequest.onerror = (event) => reject(event.target.error);
+      allItemsRequest.onerror = (event) => {
+        console.log("[WBE cfl-ancestors] getAll failed:", event.target.error);
+        reject(event.target.error);
+      };
     });
   }
   const familyLinks = $(".VITALS a[href*='/wiki/']");
@@ -2589,23 +2602,54 @@ async function getAncestorsOnPage() {
       addAncestorLabels(element);
     }
   });
-  if (
+  const relationshipText = $(".yourRelationshipText").text();
+  // The profile person is known to be a (parent of an) ancestor of the user if:
+  // - the relationship DB has a father/mother record for them, or
+  // - the Distance and Relationship text on the page says so, or
+  // - the profile person IS the user (their parents are ancestors by definition), or
+  // - the user, or a known ancestor, appears in the children list
+  const userVariants = [user?.replace(/ /g, "_"), user?.replace(/_/g, " ")].filter(Boolean);
+  const userChildSelector = userVariants
+    .map((v) => `#childrenList a[href$="/wiki/${v}"], #childrenList a[data-wtid="${v}"]`)
+    .join(", ");
+  const profileIsUser = userVariants.includes(profilePerson.Name);
+  const userInChildren = userVariants.length > 0 && $(userChildSelector).length > 0;
+  const ancestorInChildren = $("#childrenList a.ancestor").length > 0;
+  const profileIsAncestor =
     ancestorsOnPage.includes(profilePerson.Name) ||
     // Distance and Relationship renders this element with a class (the id was dropped
     // in March 2025 to avoid duplicate ids), so match on the class
-    $(".yourRelationshipText")
-      .text()
-      ?.match(/father|mother/)
-  ) {
-    const fatherElement = $(`#nVitals .VITALS span[itemprop="Father"] a[aria-label="Parent"]`);
-    const motherElement = $(`#nVitals .VITALS span[itemprop="Mother"] a[aria-label="Parent"]`);
-    if (fatherElement.length && fatherElement.data("status") != 5) {
-      addAncestorLabels(fatherElement);
+    relationshipText?.match(/father|mother/) != null ||
+    profileIsUser ||
+    userInChildren ||
+    ancestorInChildren;
+  console.log(
+    `[WBE cfl-ancestors] matched on page: [${ancestorsOnPage.join(", ")}];`,
+    `profile is ancestor: ${profileIsAncestor}`,
+    `(own record: ${ancestorsOnPage.includes(profilePerson.Name)}, profile is user: ${profileIsUser},`,
+    `user in children: ${userInChildren}, ancestor in children: ${ancestorInChildren});`,
+    `relationship text: '${relationshipText}'`
+  );
+  if (profileIsAncestor) {
+    // Parents can carry itemprop="Father"/"Mother" or the generic itemprop="parent"
+    // (see buildParents and fixVanilla), so cover all three variants
+    const parentElements = $(
+      `#nVitals .VITALS span[itemprop="Father"] a[aria-label="Parent"],
+       #nVitals .VITALS span[itemprop="Mother"] a[aria-label="Parent"],
+       #nVitals #parentList span[itemprop="parent"] a[aria-label="Parent"]`
+    );
+    console.log(`[WBE cfl-ancestors] profile is an ancestor; badging ${parentElements.length} parent link(s)`);
+    parentElements.each(function () {
+      if ($(this).data("status") != 5) {
+        addAncestorLabels($(this));
+      }
+    });
+    if (userInChildren && $("#childrenList a.ancestor").length == 0) {
+      // The user's own entry in the children list marks the line of descent
+      // (and lets the spouse logic below identify the user's other parent)
+      addAncestorLabels($(userChildSelector));
     }
-    if (motherElement.length && motherElement.data("status") != 5) {
-      addAncestorLabels(motherElement);
-    }
-    if ($("#childrenList").length && $("#childrenList").find("a.ancestor").length == 0) {
+    if (!profileIsUser && $("#childrenList").length && $("#childrenList").find("a.ancestor").length == 0) {
       const connectionName = await getAncestorConnection(profilePerson.Name, user);
       if (connectionName) {
         const connectionElement = $(
@@ -2664,12 +2708,16 @@ async function getAncestorConnection(ancestor, user) {
     .then((html) => {
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, "text/html");
-      const table = doc.querySelector("table");
-      const rows = table.querySelectorAll("tr");
-      const ancestorLink = rows[2].querySelector("td:nth-child(2) a");
+      // The WT+ response has no table when there's no path (or no WT+ session)
+      const rows = doc.querySelector("table")?.querySelectorAll("tr");
+      const ancestorLink = rows?.[2]?.querySelector("td:nth-child(2) a");
       if (ancestorLink) {
         return ancestorLink.href.split("/").pop();
       }
+      console.log("[WBE cfl-ancestors] WT+ path lookup returned no usable path table");
+    })
+    .catch((error) => {
+      console.log("[WBE cfl-ancestors] WT+ path lookup failed:", error);
     });
 }
 
@@ -3260,10 +3308,19 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   // A single fixed delay races against that and can lose in slower browsers (e.g. Safari),
   // so retry a few times instead of betting on one guess - each pass is a cheap, idempotent re-check.
   if (options.highlightAncestors) {
+    console.log(
+      "[WBE cfl-ancestors] highlightAncestors is on; checking at 2s/4s/7s/11s |",
+      "extension version:",
+      chrome.runtime.getManifest?.().version,
+      "| UA:",
+      navigator.userAgent
+    );
     [2000, 4000, 7000, 11000].forEach((delay) => {
       setTimeout(() => {
-        getAncestorsOnPage().catch(console.error);
+        getAncestorsOnPage().catch((error) => console.log("[WBE cfl-ancestors] check failed:", error));
       }, delay);
     });
+  } else {
+    console.log("[WBE cfl-ancestors] highlightAncestors option is OFF");
   }
 });
