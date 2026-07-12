@@ -15,10 +15,27 @@ body {
   background-color: #fff;
 }
 
-/* Safari's popup doesn't auto-scroll like Chrome/Firefox, so force an inner scrollbar */
+/* Safari's popup doesn't auto-scroll like Chrome/Firefox, so force an inner scrollbar.
+   The html element must not have the default overflow: visible, otherwise the body's
+   overflow value is propagated to the viewport (which Safari's popover never scrolls)
+   instead of applying to the body itself. */
+.browser-safari {
+  overflow: hidden;
+}
 .browser-safari body {
   max-height: 600px;
   overflow-y: auto;
+}
+/* Style the scrollbar so it stays visible even with macOS overlay scrollbars */
+.browser-safari body::-webkit-scrollbar {
+  width: 11px;
+}
+.browser-safari body::-webkit-scrollbar-thumb {
+  background-color: #b4b4b4;
+  border-radius: 6px;
+}
+.browser-safari body::-webkit-scrollbar-track {
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 h1,

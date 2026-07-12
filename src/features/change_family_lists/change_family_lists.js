@@ -2532,28 +2532,35 @@ function addAncestorLabels(element) {
  */
 async function getAncestorsOnPage() {
   const storeName = RELATIONSHIP_STORE_NAME;
-  const dbPromise = new Promise((resolve, reject) => {
+  // initRelationshipDB only signals success; if the DB never opens (seen in Safari),
+  // give up after a few seconds and fall through with no keys so the
+  // relationship-text fallback below still gets a chance to run.
+  const dbPromise = new Promise((resolve) => {
     initRelationshipDB((event) => resolve(event.target.result));
+    setTimeout(() => resolve(null), 3000);
   });
   const db = await dbPromise;
-  const ancestorsPromise = new Promise((resolve, reject) => {
-    const transaction = db.transaction(storeName, "readonly");
-    const store = transaction.objectStore(storeName);
-    const allItemsRequest = store.getAll();
-    allItemsRequest.onsuccess = () => {
-      const items = allItemsRequest.result;
-      const ancestorKeys = items
-        .filter((item) => {
-          const relationship = item?.relationship?.toLowerCase();
-          if (!relationship) return false;
-          return relationship.match(/father|mother/i) != null && item.userId === user;
-        })
-        .map((item) => item.id);
-      resolve(ancestorKeys);
-    };
-    allItemsRequest.onerror = (event) => reject(event.target.error);
-  });
-  const ancestorKeys = await ancestorsPromise;
+  let ancestorKeys = [];
+  if (db) {
+    ancestorKeys = await new Promise((resolve, reject) => {
+      const transaction = db.transaction(storeName, "readonly");
+      const store = transaction.objectStore(storeName);
+      const allItemsRequest = store.getAll();
+      allItemsRequest.onsuccess = () => {
+        const items = allItemsRequest.result;
+        resolve(
+          items
+            .filter((item) => {
+              const relationship = item?.relationship?.toLowerCase();
+              if (!relationship) return false;
+              return relationship.match(/father|mother/i) != null && item.userId === user;
+            })
+            .map((item) => item.id)
+        );
+      };
+      allItemsRequest.onerror = (event) => reject(event.target.error);
+    });
+  }
   const familyLinks = $(".VITALS a[href*='/wiki/']");
   const peopleOnPage = familyLinks
     .map(function () {
@@ -2584,7 +2591,9 @@ async function getAncestorsOnPage() {
   });
   if (
     ancestorsOnPage.includes(profilePerson.Name) ||
-    $("#yourRelationshipText")
+    // Distance and Relationship renders this element with a class (the id was dropped
+    // in March 2025 to avoid duplicate ids), so match on the class
+    $(".yourRelationshipText")
       .text()
       ?.match(/father|mother/)
   ) {
