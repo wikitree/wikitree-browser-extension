@@ -195,6 +195,10 @@ shouldInitializeFeature("distanceAndRelationship").then(async (result) => {
   }
 });
 
+// Set when a fresh relationship computation has been kicked off, so the two
+// parallel cache callbacks (distance and relationship) don't start duplicate fetches.
+let relationshipFlowStarted = false;
+
 function onRelationsSuccess(event, profileID, userID) {
   const db = event.target.result;
   getDistRelCacheRecord(db, RELATIONSHIP_STORE_NAME, profileID, userID, (relationRecord) => {
@@ -203,6 +207,18 @@ function onRelationsSuccess(event, profileID, userID) {
         const sortedAncestors = sortCommonAncestorsByGender(relationRecord.commonAncestors);
         addRelationshipText(relationRecord.relationship, cleanCommonAncestors(sortedAncestors));
       }
+    } else {
+      // A distance record can exist without a relationship record (e.g. after a failed
+      // or interrupted write), and the distance path never refetches while its cache is
+      // fresh - so the relationship (text, and the record the ancestor badges rely on)
+      // would stay missing until the distance cache goes stale. Fetch it directly,
+      // after a short delay so a full init started by the distance path wins.
+      setTimeout(() => {
+        if (!relationshipFlowStarted) {
+          console.log("[WBE dist-rel] no cached relationship record; fetching relationship directly");
+          doRelationshipText(userID, profileID);
+        }
+      }, 500);
     }
   });
 }
@@ -893,6 +909,7 @@ function attachDistanceHandlers(userID, profileID) {
 }
 
 function doRelationshipText(userID, profileID, source = "api") {
+  relationshipFlowStarted = true;
   // When source is "legacy", skip the getConnections API entirely and let the
   // legacy getRelationJSON fallback handle the full response.
   const connectionPromise =
@@ -1337,6 +1354,7 @@ export function ordinalWordToNumberAndSuffix(word) {
 }
 
 function initDistanceAndRelationship(userID, profileID, clicked = false, clearExisting = true) {
+  relationshipFlowStarted = true;
   if (clearExisting) {
     $(".distanceFromYou").fadeOut().remove();
     $(".yourRelationshipText").fadeOut().remove();

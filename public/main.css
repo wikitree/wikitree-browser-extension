@@ -15,6 +15,29 @@ body {
   background-color: #fff;
 }
 
+/* The Safari popup scrolls fine but hides its scrollbar, because macOS overlay
+   scrollbars are only drawn while scrolling. Styling ::-webkit-scrollbar opts the
+   popup out of overlay scrollbars, so one is always visible when content overflows.
+   Scoped by exclusion rather than .browser-safari in case the UA detector doesn't
+   recognize Safari's extension-popup context: Chrome/Edge/Opera get .browser-blink
+   and Firefox gets .browser-gecko from navigatorDetect.js, so anything else is
+   treated as Safari. This file is only loaded by options.html and popup.html,
+   never web pages. */
+html:not(.browser-blink):not(.browser-gecko)::-webkit-scrollbar,
+html:not(.browser-blink):not(.browser-gecko) body::-webkit-scrollbar {
+  width: 11px;
+}
+html:not(.browser-blink):not(.browser-gecko)::-webkit-scrollbar-thumb,
+html:not(.browser-blink):not(.browser-gecko) body::-webkit-scrollbar-thumb {
+  background-color: #b4b4b4;
+  border-radius: 6px;
+  border: 2px solid #fff;
+}
+html:not(.browser-blink):not(.browser-gecko)::-webkit-scrollbar-track,
+html:not(.browser-blink):not(.browser-gecko) body::-webkit-scrollbar-track {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
 h1,
 h2,
 h3,
