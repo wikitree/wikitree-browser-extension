@@ -141,6 +141,13 @@ h1 .toggle-category {
   scroll-margin-top: 90px;
 }
 
+/* Leave room for the popup's always-visible custom scrollbar (see main.css) so it
+   doesn't get painted over by these fixed, full-width elements in Safari. */
+html:not(.browser-blink):not(.browser-gecko) #options h1,
+html:not(.browser-blink):not(.browser-gecko) #categoryBar {
+  right: 11px;
+}
+
 #categoryBar {
   position: fixed;
   top: 62px;
