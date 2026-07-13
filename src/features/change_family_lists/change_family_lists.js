@@ -2527,6 +2527,16 @@ function addAncestorLabels(element) {
 }
 
 /**
+ * Marks the user's own entry in a children list as the traced line of descent, without
+ * visually badging them as their own ancestor. Lets downstream logic (spouse/connection
+ * detection, which looks for a marked link in #childrenList) follow the correct line.
+ * @param {jQuery|HTMLElement} element - The element to mark.
+ */
+function addDescentMarker(element) {
+  $(element).addClass("descent-marker");
+}
+
+/**
  * Retrieves ancestor WikiTree IDs from the relationship database and highlights ancestors on the page.
  * @returns {Promise<string[]>} A promise that resolves with an array of ancestor WikiTree IDs.
  */
@@ -2614,7 +2624,7 @@ async function getAncestorsOnPage() {
     .join(", ");
   const profileIsUser = userVariants.includes(profilePerson.Name);
   const userInChildren = userVariants.length > 0 && $(userChildSelector).length > 0;
-  const ancestorInChildren = $("#childrenList a.ancestor").length > 0;
+  const ancestorInChildren = $("#childrenList a.ancestor, #childrenList a.descent-marker").length > 0;
   const profileIsAncestor =
     ancestorsOnPage.includes(profilePerson.Name) ||
     // Distance and Relationship renders this element with a class (the id was dropped
@@ -2644,12 +2654,16 @@ async function getAncestorsOnPage() {
         addAncestorLabels($(this));
       }
     });
-    if (userInChildren && $("#childrenList a.ancestor").length == 0) {
-      // The user's own entry in the children list marks the line of descent
-      // (and lets the spouse logic below identify the user's other parent)
-      addAncestorLabels($(userChildSelector));
+    if (userInChildren && $("#childrenList a.ancestor, #childrenList a.descent-marker").length == 0) {
+      // Mark the user's own entry (not a visible badge - the user isn't their own
+      // ancestor) so the spouse logic below can identify which line to follow
+      addDescentMarker($(userChildSelector));
     }
-    if (!profileIsUser && $("#childrenList").length && $("#childrenList").find("a.ancestor").length == 0) {
+    if (
+      !profileIsUser &&
+      $("#childrenList").length &&
+      $("#childrenList").find("a.ancestor, a.descent-marker").length == 0
+    ) {
       const connectionName = await getAncestorConnection(profilePerson.Name, user);
       if (connectionName) {
         const connectionElement = $(
@@ -2663,8 +2677,11 @@ async function getAncestorsOnPage() {
         }
       }
     }
-    if ($("#childrenList a.ancestor").length && $(".spouseDetails a.ancestor").length == 0) {
-      const connectionElement = $("#childrenList a.ancestor");
+    if (
+      $("#childrenList a.ancestor, #childrenList a.descent-marker").length &&
+      $(".spouseDetails a.ancestor").length == 0
+    ) {
+      const connectionElement = $("#childrenList a.ancestor, #childrenList a.descent-marker").first();
       const thisClass = connectionElement.closest("li").attr("class");
       const spouseClass = thisClass?.split(" ").find((c) => c.startsWith("spouse_"));
       if (spouseClass) {
