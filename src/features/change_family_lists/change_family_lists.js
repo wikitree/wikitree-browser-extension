@@ -2555,9 +2555,7 @@ async function getAncestorsOnPage() {
   }
   let ancestorKeys = [];
   if (db) {
-    console.log(
-      `[WBE cfl-ancestors] DB opened: version ${db.version}, stores: ${[...db.objectStoreNames].join(", ")}`
-    );
+    console.log(`[WBE cfl-ancestors] DB opened: version ${db.version}, stores: ${[...db.objectStoreNames].join(", ")}`);
     ancestorKeys = await new Promise((resolve, reject) => {
       const transaction = db.transaction(storeName, "readonly");
       const store = transaction.objectStore(storeName);
@@ -2629,7 +2627,7 @@ async function getAncestorsOnPage() {
     ancestorsOnPage.includes(profilePerson.Name) ||
     // Distance and Relationship renders this element with a class (the id was dropped
     // in March 2025 to avoid duplicate ids), so match on the class
-    relationshipText?.match(/father|mother/) != null ||
+    relationshipText?.match(/Your father|Your mother/) != null ||
     profileIsUser ||
     userInChildren ||
     ancestorInChildren;
