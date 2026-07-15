@@ -2626,8 +2626,11 @@ async function getAncestorsOnPage() {
   const profileIsAncestor =
     ancestorsOnPage.includes(profilePerson.Name) ||
     // Distance and Relationship renders this element with a class (the id was dropped
-    // in March 2025 to avoid duplicate ids), so match on the class
-    relationshipText?.match(/Your father|Your mother/) != null ||
+    // in March 2025 to avoid duplicate ids), so match on the class. The text starts
+    // with the profile person's own relationship ("Your grandmother"), but the
+    // common-ancestor lines that follow can also read "Your great grandfather, X,
+    // is his grandfather", so only a direct-ancestor label at the very start counts.
+    relationshipText?.match(/^\s*Your (\d+(st|nd|rd|th) )?(great )*(grand)?(father|mother|parent)\b/i) != null ||
     profileIsUser ||
     userInChildren ||
     ancestorInChildren;
@@ -2694,20 +2697,54 @@ async function getAncestorsOnPage() {
         }
       }
     }
-  } else if ($("#siblingList a.ancestor").length) {
-    const closestLi = $("#siblingList a.ancestor").closest("li");
-    const fatherId = closestLi.data("father");
-    const motherId = closestLi.data("mother");
-    const fatherElement = $(`#nVitals .VITALS li[data-id="${fatherId}"] a`);
-    const motherElement = $(`#nVitals .VITALS li[data-id="${motherId}"] a`);
-    if (fatherElement.length && fatherElement.data("status") != 5) {
-      addAncestorLabels(fatherElement);
+  } else {
+    if ($("#siblingList a").length && $("#siblingList a.ancestor").length == 0) {
+      // A parent can be a known ancestor (their own DB record, from a visit to their
+      // page) while the sibling who carries the line has no record because their page
+      // was never visited. Ask WT+ for the path from that parent down to the user;
+      // the first step in the path is the connecting child, i.e. the sibling.
+      const badgedParent = $(
+        `#nVitals .VITALS span[itemprop="Father"] a.ancestor,
+         #nVitals .VITALS span[itemprop="Mother"] a.ancestor,
+         #nVitals #parentList span[itemprop="parent"] a.ancestor`
+      ).first();
+      const parentId = badgedParent.attr("data-wtid") || badgedParent.attr("href")?.split("/").pop();
+      if (parentId) {
+        const connectionName = await getAncestorConnection(parentId, user);
+        console.log(
+          `[WBE cfl-ancestors] ancestor parent '${parentId}' but no badged sibling;`,
+          `WT+ connecting child: '${connectionName}'`
+        );
+        // The connecting child can be the user themself (on a page of the user's
+        // aunt/uncle or sibling); the user is not their own ancestor, so skip
+        if (connectionName && !userVariants.includes(connectionName)) {
+          const siblingElement = $(
+            `#siblingList a[href$="/wiki/${connectionName.replace(/ /g, "_")}"],
+             #siblingList a[data-wtid="${connectionName.replace(/ /g, "_")}"],
+             #siblingList a[href$="/wiki/${connectionName.replace(/_/g, " ")}"],
+             #siblingList a[data-wtid="${connectionName.replace(/_/g, " ")}"]`
+          );
+          if (siblingElement.length && siblingElement.data("status") != 5) {
+            addAncestorLabels(siblingElement);
+          }
+        }
+      }
     }
-    if (motherElement.length && motherElement.data("status") != 5) {
-      addAncestorLabels(motherElement);
+    if ($("#siblingList a.ancestor").length) {
+      const closestLi = $("#siblingList a.ancestor").closest("li");
+      const fatherId = closestLi.data("father");
+      const motherId = closestLi.data("mother");
+      const fatherElement = $(`#nVitals .VITALS li[data-id="${fatherId}"] a`);
+      const motherElement = $(`#nVitals .VITALS li[data-id="${motherId}"] a`);
+      if (fatherElement.length && fatherElement.data("status") != 5) {
+        addAncestorLabels(fatherElement);
+      }
+      if (motherElement.length && motherElement.data("status") != 5) {
+        addAncestorLabels(motherElement);
+      }
     }
   }
-  return ancestorsOnPage.map((a) => a.Name);
+  return ancestorsOnPage;
 }
 
 /**
