@@ -382,12 +382,6 @@ const autoBio = {
           defaultValue: "Default",
         },
         {
-          id: "nameStudyStickers",
-          type: OptionType.CHECKBOX,
-          label: "Add One Name Study stickers for profiles with surnames with a name study",
-          defaultValue: true,
-        },
-        {
           id: "australiaBornStickers",
           type: OptionType.CHECKBOX,
           label: "Add Australia '... born in' stickers",
