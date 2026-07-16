@@ -30,7 +30,10 @@ html:not(.browser-blink):not(.browser-gecko) {
   overflow: hidden;
 }
 html:not(.browser-blink):not(.browser-gecko) body {
-  max-height: 600px;
+  /* Match whatever height Safari actually allocates the popover, rather than
+     guessing a fixed pixel value that would leave blank space below a taller
+     popover (or clip a shorter one). 100vh reflects the real popup viewport. */
+  height: 100vh;
   overflow-y: auto;
 }
 html:not(.browser-blink):not(.browser-gecko) body::-webkit-scrollbar {
