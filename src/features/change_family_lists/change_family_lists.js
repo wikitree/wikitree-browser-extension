@@ -2634,13 +2634,6 @@ async function getAncestorsOnPage() {
     profileIsUser ||
     userInChildren ||
     ancestorInChildren;
-  console.log(
-    `[WBE cfl-ancestors] matched on page: [${ancestorsOnPage.join(", ")}];`,
-    `profile is ancestor: ${profileIsAncestor}`,
-    `(own record: ${ancestorsOnPage.includes(profilePerson.Name)}, profile is user: ${profileIsUser},`,
-    `user in children: ${userInChildren}, ancestor in children: ${ancestorInChildren});`,
-    `relationship text: '${relationshipText}'`
-  );
   if (profileIsAncestor) {
     // Parents can carry itemprop="Father"/"Mother" or the generic itemprop="parent"
     // (see buildParents and fixVanilla), so cover all three variants
@@ -2649,7 +2642,6 @@ async function getAncestorsOnPage() {
        #nVitals .VITALS span[itemprop="Mother"] a[aria-label="Parent"],
        #nVitals #parentList span[itemprop="parent"] a[aria-label="Parent"]`
     );
-    console.log(`[WBE cfl-ancestors] profile is an ancestor; badging ${parentElements.length} parent link(s)`);
     parentElements.each(function () {
       if ($(this).data("status") != 5) {
         addAncestorLabels($(this));
@@ -2711,10 +2703,7 @@ async function getAncestorsOnPage() {
       const parentId = badgedParent.attr("data-wtid") || badgedParent.attr("href")?.split("/").pop();
       if (parentId) {
         const connectionName = await getAncestorConnection(parentId, user);
-        console.log(
-          `[WBE cfl-ancestors] ancestor parent '${parentId}' but no badged sibling;`,
-          `WT+ connecting child: '${connectionName}'`
-        );
+
         // The connecting child can be the user themself (on a page of the user's
         // aunt/uncle or sibling); the user is not their own ancestor, so skip
         if (connectionName && !userVariants.includes(connectionName)) {
@@ -2766,7 +2755,6 @@ async function getAncestorConnection(ancestor, user) {
       if (ancestorLink) {
         return ancestorLink.href.split("/").pop();
       }
-      console.log("[WBE cfl-ancestors] WT+ path lookup returned no usable path table");
     })
     .catch((error) => {
       console.log("[WBE cfl-ancestors] WT+ path lookup failed:", error);
