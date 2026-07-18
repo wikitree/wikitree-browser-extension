@@ -7,6 +7,7 @@ import { WBE, isWikiTreeUrl, showAlert, wrapBackupData, getBackupLink } from "./
 import { restoreOptions, restoreData, sendMessageToContentTab } from "./upload";
 import { navigatorDetect } from "./core/navigatorDetect";
 import { shouldInitializeFeature } from "./core/options/options_storage.js";
+import { initSafariPopupScrollFix } from "./core/popupScrollFix";
 
 shouldInitializeFeature("darkMode").then((result) => {
   if (result) {
@@ -14,32 +15,15 @@ shouldInitializeFeature("darkMode").then((result) => {
   }
 });
 
-// Diagnostics for the popup scroll issue on Safari: what did the browser detector decide,
-// and did the popover viewport end up shorter than the document?
 console.log(
   "[WBE options] version:",
   WBE?.version,
   "| UA:",
   navigator.userAgent,
-  "| html classes:",
-  document.documentElement.className,
   "| detected:",
   JSON.stringify(navigatorDetect.browser)
 );
-setTimeout(() => {
-  console.log(
-    "[WBE options] innerHeight:",
-    window.innerHeight,
-    "| doc scrollHeight:",
-    document.documentElement.scrollHeight,
-    "| body scrollHeight:",
-    document.body.scrollHeight,
-    "| body computed overflow-y:",
-    getComputedStyle(document.body).overflowY,
-    "| body computed max-height:",
-    getComputedStyle(document.body).maxHeight
-  );
-}, 2000);
+initSafariPopupScrollFix();
 
 if (WBE?.version) {
   const title = WBE.name + " " + WBE.version;
