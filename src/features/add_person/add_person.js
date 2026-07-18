@@ -37,7 +37,7 @@ Place #sourceBits before #backToActionButton.
 */
   const sourceBits = $("<div id='sourceBits'></div>");
   sourceBits.appendTo($("#basicDataSection"));
-  $("div.sourcesContent, table.sourcesContent, div.refsBox, table#summaryTable").appendTo(sourceBits);
+  $("div.sourcesContent, table.sourcesContent, div.refsBox,#summaryTable").appendTo(sourceBits);
   /*
   const sourcesSection = $("#sourcesSection");
   if (sourcesSection.length) {
@@ -52,6 +52,7 @@ function showBasicData() {
   $("#basicDataSection").show();
   $("#backToActionButton").text("Back to Action");
   $("#backToActionButton").insertBefore($("#dismissMatchesButton"));
+  $("#summaryTable").insertBefore($("#backToActionButton"));
   if ($("#validationContainer").length == 0) {
     $("#enterBasicDataButton").hide();
   }
@@ -107,6 +108,15 @@ function keepBasicDataSectionVisible() {
   );
 
   $("#actionButton").on("click", function () {
+    if ($("#editAction_createNew").prop("checked")) {
+      // A connect-existing pass hides all .sourcesContent, which holds
+      // #mSources, #summaryTable, and the Back/Continue buttons in our
+      // layout; the site's createNew path never re-shows them.
+      $(".sourcesContent").show();
+      // showBasicData() moves #summaryTable into the matches section at the
+      // match step; restore the mSources > summaryTable > buttons order.
+      $("#summaryTable").insertAfter($("#mSources"));
+    }
     $("#enterBasicDataButton").show();
     $("#backToActionButton").text("Back");
     $("#backToActionButton").insertBefore($("#enterBasicDataButton"));
@@ -114,6 +124,38 @@ function keepBasicDataSectionVisible() {
       $("#noMatches").remove();
     });
   });
+
+  // The site's selectEditAction() disables #actionButton during its async
+  // validation and only re-enables it on failure; on success it hides the
+  // whole section instead. Mirror its enableButton() whenever we bring the
+  // section back.
+  function enableActionButton() {
+    $("#actionButton").attr("disabled", false).css("opacity", "1.0");
+    $("#progressBar").data("disabled", "");
+  }
+  $(document).on("click", "#backToActionButton, #backToActionButton2, #actionTab", function () {
+    enableActionButton();
+  });
+
+  // "Set as child/father/mother/etc.": the site's setAsWho flow shows #actionSection,
+  // fills #mName, then hides #actionSection again once its async validation succeeds.
+  // Wait for that hide and re-show the section. (Spouse has its own handler below.)
+  $(document).on(
+    "click",
+    "button.matchActionButton[data-action='setAsWho']:not(:contains('Set as spouse'))",
+    function () {
+      let tries = 0;
+      const actionSectionPoll = setInterval(() => {
+        if ($("#actionSection").is(":hidden")) {
+          $("#actionSection").show();
+          enableActionButton();
+          clearInterval(actionSectionPoll);
+        } else if (++tries > 40) {
+          clearInterval(actionSectionPoll);
+        }
+      }, 250);
+    }
+  );
 
   $(document).on("click", "button.matchActionButton:contains('Set as spouse')", function () {
     setTimeout(() => {
@@ -237,7 +279,8 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
       }
     });
 
-    $("#enterBasicDataButton").insertAfter($("#mSources"));
+    $("#summaryTable").insertAfter($("#mSources"));
+    $("#enterBasicDataButton").insertAfter($("#summaryTable"));
     $("#enterBasicDataButton").on("click", function () {
       hasHitContinue = true;
     });
@@ -302,6 +345,19 @@ function showTabbingOptions() {
       $("#basicDataSection").eq(0)
     );
     doTabbingOptions($("#tabbingOptions"));
+
+    // Only show the button while the form it controls is visible.
+    const basicDataSection = $("#basicDataSection").get(0);
+    if (basicDataSection) {
+      const toggleTabbingButton = () => {
+        $("#tabbingOptions").toggle($(basicDataSection).is(":visible"));
+      };
+      toggleTabbingButton();
+      new MutationObserver(toggleTabbingButton).observe(basicDataSection, {
+        attributes: true,
+        attributeFilter: ["style"],
+      });
+    }
   }
   $("#tabbingOptions").on("click", function () {
     doTabbingOptions($(this), 1);
