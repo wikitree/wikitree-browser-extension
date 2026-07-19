@@ -8693,6 +8693,35 @@ function locationCategoryFilter(category) {
   if (category.match(/Co\..*County/)) {
     return "";
   }
+  // Exclude institutional buildings and organizations - they are not geographic locations
+  // These include: lodges, temples, churches, religious buildings, schools, hospitals, etc.
+  const institutionalPatterns = [
+    /\blodge\b/i,
+    /\btemple\b/i,
+    /\bsynagogue\b/i,
+    /\bmosque\b/i,
+    /\bmonastery\b/i,
+    /\bconvent\b/i,
+    /\babbey\b/i,
+    /\bpriory\b/i,
+    /\bchapel\b/i,
+    /\bchurch\b/i,
+    /\bschool\b/i,
+    /\buniversity\b/i,
+    /\bcollege\b/i,
+    /\bhospital\b/i,
+    /\bhotel\b/i,
+    /\binn\b/i,
+    /\bpub\b/i,
+    /\btavern\b/i,
+  ];
+  
+  for (const pattern of institutionalPatterns) {
+    if (category.match(pattern)) {
+      return "";
+    }
+  }
+  
   return category;
 }
 
