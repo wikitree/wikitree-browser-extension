@@ -709,9 +709,46 @@ function enhanceThonStats() {
     normalizedHeader.appendChild(normalizedLink);
   }
 
+  if (window.location.toString().includes("Histogram.htm")) {
+    //add sums
+    AddCumulatedSumsToHistograms();
+    FilterThonRows();
+  }
+
   function roundIfNeeded(diffToLower) {
     return Math.round(diffToLower * 100) / 100;
   }
+}
+
+function FilterThonRows() {
+  const params = new URLSearchParams(window.location.search);
+  const needle = params.get("filter");
+  if (needle) {
+    var tds = document.getElementsByTagName("td");
+    for (let i = 0; i < tds.length; i++) {
+      console.log(tds[i].innerHTML);
+      if (tds[i].innerHTML.includes("/wiki/") && !tds[i].innerHTML.includes(needle)) {
+        console.log(tds[i].innerHTML);
+        tds[i].parentElement.style.display = "none";
+      }
+    }
+  }
+}
+
+function AddCumulatedSumsToHistograms() {
+  document.querySelectorAll("tr").forEach((r) => {
+    if (r.querySelector("div.histogram")) {
+      let cumulated = 0;
+      r.querySelectorAll("div.histogram div.col").forEach((c) => {
+        let t = c.getAttribute("title") || "",
+          m = t.match(/-\s*(\d+)/);
+        if (m) {
+          cumulated += parseInt(m[1], 10);
+          c.setAttribute("title", `${t} (${cumulated})`);
+        }
+      });
+    }
+  });
 }
 
 function addNavHomePageLink() {
