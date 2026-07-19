@@ -3,45 +3,57 @@ import { navigatorDetect } from "./navigatorDetect";
 // Safari's extension popup scrolls (trackpad/wheel) but the scrollbar is invisible
 // (macOS overlay scrollbars only draw while actively scrolling), and Safari only
 // honors custom ::-webkit-scrollbar styling on an element scroller, not the root
-// viewport. Making body an element scroller requires giving it an explicit height,
-// but Safari decides the real popover height itself from the page's unconstrained
-// content, so a guessed CSS height either leaves blank space below a shorter guess
-// or - as `height: 100vh` did - feeds back into that sizing pass and collapses the
-// popup. Measuring the real height in JS after Safari has already settled on it
-// avoids both failure modes.
+// viewport. Making body an element scroller requires an explicit height, but any
+// viewport-relative CSS height (100vh) feeds back into Safari's own popover sizing
+// pass and collapses the popup, while a guessed fixed height leaves blank space
+// below a popover that is really taller. So the height is measured in JS after
+// Safari has settled, applied in px, and clamped so a pathological reading taken
+// mid-settle (collapsed popover, or a viewport reported as tall as the content)
+// can never collapse or blow up the popup.
 const SCROLL_CLASS = "wbe-safari-scroll";
+const MIN_HEIGHT = 300;
+const MAX_HEIGHT = 1000;
 
 function measureAndApply() {
   const body = document.body;
-  const wasApplied = body.classList.contains(SCROLL_CLASS);
-  // Reset to natural size before measuring, so a previous constrained height
-  // doesn't make content look like it fits when it no longer does (or vice versa).
-  // html's overflow must go back to visible at the same time: while body owns the
-  // constrained height, html:hidden stops body's own overflow being propagated up
-  // to the (unstylable) viewport scroller - but with no constrained height, that
-  // same html:hidden would just clip content with no way to scroll it at all.
-  if (wasApplied) {
+  const html = document.documentElement;
+  const scrollTop = body.scrollTop;
+
+  // Reset to natural size before measuring, so a previously applied height doesn't
+  // skew this pass. html's overflow goes back to visible at the same time: while
+  // body owns a constrained height, html:hidden stops body's overflow being
+  // propagated to the (unstylable) viewport scroller, but with no constrained
+  // height it would just clip the content with no way to scroll it.
+  if (body.classList.contains(SCROLL_CLASS)) {
     body.classList.remove(SCROLL_CLASS);
     body.style.height = "";
-    document.documentElement.style.overflow = "";
+    html.style.overflow = "";
   }
 
   const popupHeight = window.innerHeight;
-  const contentHeight = document.documentElement.scrollHeight;
-  console.log(`[WBE popup-scroll] popup height: ${popupHeight}, content height: ${contentHeight}`);
+  const contentHeight = html.scrollHeight;
+  const targetHeight = Math.min(Math.max(popupHeight, MIN_HEIGHT), MAX_HEIGHT);
+  const needsScroll = contentHeight > targetHeight;
+  console.log(
+    `[WBE popup-scroll v2] innerHeight: ${popupHeight}, content: ${contentHeight},`,
+    needsScroll ? `applying ${targetHeight}px scroll container` : "content fits, leaving natural"
+  );
 
-  if (contentHeight > popupHeight) {
-    document.documentElement.style.overflow = "hidden";
-    body.style.height = `${popupHeight}px`;
+  if (needsScroll) {
+    html.style.overflow = "hidden";
+    body.style.height = `${targetHeight}px`;
     body.classList.add(SCROLL_CLASS);
+    body.scrollTop = scrollTop;
   }
 }
 
 export function initSafariPopupScrollFix() {
   if (navigatorDetect.browser.Blink || navigatorDetect.browser.Gecko) return;
 
-  // Let Safari finish sizing the popover to the page's natural content before measuring.
-  setTimeout(measureAndApply, 300);
+  // Safari settles the popover size late and unpredictably; a few staggered passes
+  // plus mutation/resize listeners cover both slow settling and content changes
+  // (e.g. the search box filtering the feature list).
+  [250, 1000, 2500].forEach((delay) => setTimeout(measureAndApply, delay));
 
   const debouncedRemeasure = debounce(measureAndApply, 200);
   new MutationObserver(debouncedRemeasure).observe(document.body, { childList: true, subtree: true });
