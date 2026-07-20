@@ -332,7 +332,7 @@ function addRelationshipText(oText, commonAncestors) {
   } else {
     cousinText = $(
       `<div class='yourRelationshipText' title='Click to refresh' class='relationshipFinder'>Your ${oText}
-      <ul class='yourCommonAncestor' style='white-space:nowrap'>${commonAncestorTextOut}</ul>
+      <ul class='yourCommonAncestor'>${commonAncestorTextOut}</ul>
       </div>`
     );
   }
