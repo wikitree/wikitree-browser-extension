@@ -71,14 +71,7 @@
 }
 
 .ew-note-col {
-  min-width: 1.8em;
-}
-
-.ew-note-edit-trigger {
-  display: inline-block;
-  cursor: pointer;
-  font-size: 1em;
-  line-height: 1;
+  min-width: 6em;
 }
 
 .ew-name-wrap {
@@ -86,55 +79,62 @@
   width: 100%;
 }
 
-.ew-note-marker {
-  display: inline-block;
-  opacity: 0.7;
-}
-
-.ew-note-marker-right {
-  float: right;
-  font-size: 0.62em;
-  margin-left: 0.5em;
-  margin-top: 0.25em;
-  pointer-events: none;
-}
-
-.ew-note-popup {
-  width: 320px;
-  max-width: calc(100vw - 20px);
-  border: 1px solid #496;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.2);
-  padding: 10px;
-}
-
-.ew-note-popup-header {
-  font-weight: bold;
-  margin-bottom: 8px;
-}
-
-.ew-note-popup-body {
-  max-height: 180px;
-  overflow-y: auto;
-  margin-bottom: 10px;
-  white-space: normal;
+textarea.ew-note-input {
+  width: 100%;
+  box-sizing: border-box;
+  display: block;
+  font-family: inherit;
+  font-size: 0.9em;
+  line-height: 1.3;
+  padding: 0.2em 0.35em;
+  border: 1px solid #cfd8cf;
+  border-radius: 0.3em;
+  color: black;
+  resize: none; /* height is managed automatically to fit the note */
+  overflow-y: auto; /* scrolls only when a very long note hits the height cap */
+  white-space: pre-wrap;
   word-break: break-word;
 }
 
-.ew-note-text {
-  width: 100%;
-  min-height: 120px;
-  max-height: 250px;
-  resize: vertical;
-  box-sizing: border-box;
-  margin-bottom: 8px;
+textarea.ew-note-input::placeholder {
+  color: #999;
+  font-style: italic;
 }
 
-.ew-note-popup-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
+textarea.ew-note-input:focus {
+  outline: none;
+  border-color: forestgreen;
+  background: #fff;
+}
+
+/* Custom "reuse a previous note" dropdown. Lives inside #extraWatchlistWindow
+   (see ensureNoteSuggestBox) so it stays above the popup when the popup is
+   raised; the z-index only needs to beat in-popup elements (header uses 1000). */
+.ew-note-suggest {
+  display: none;
+  z-index: 5000;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #496;
+  border-radius: 0.4em;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+  font-size: 0.9em;
+  padding: 0.2em 0;
+}
+
+.ew-note-suggest-item {
+  padding: 0.25em 0.6em;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: black;
+}
+
+.ew-note-suggest-item:hover,
+.ew-note-suggest-item.active {
+  background: #fcefc4;
 }
 
 #importExtraWatchlist,
