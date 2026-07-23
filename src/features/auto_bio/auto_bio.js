@@ -31,12 +31,7 @@ import { logMerge } from "./debugUtils.js";
 import { minimalPlace, nameLink } from "./displayUtils.js";
 import { addWorking, getBioText, removeWorking, setBioText } from "./editorUtils.js";
 import { assignPersonNames, setOrderBirthDate } from "./auto_bio_person.js";
-import {
-  getFindAGraveLink,
-  getCitation,
-  getLastCitationFailure,
-  cleanFindAGraveCitation,
-} from "./auto_bio_citations.js";
+// Find a Grave citation helpers removed per user request
 import {
   findGenealogicallyDefinedLinePlacement,
   isGenealogicallyDefinedLink,
@@ -58,12 +53,47 @@ import { initBioCheck } from "../bioCheck/bioCheck.js";
 import { bioTimelineFacts, buildTimelineTable, buildTimelineSA } from "./timeline";
 import { mainDomain, isIansProfile } from "../../core/pageType";
 import { profilePerson } from "../../core/common";
+import aiModels from "./ai_models.json";
 
 export const WBE_AUTO_BIO_APP_ID = "WBE_auto_bio";
 
 let bugReportMore = "";
 let templatesObject;
 let USstatesObjArray;
+
+const AUTO_BIO_AI_MODEL_CONFIG = {
+  openai: { optionId: "openAIModel", defaultModel: "gpt-5.4-mini", models: aiModels.openai },
+  gemini: { optionId: "geminiModel", defaultModel: "gemini-3.5-flash", models: aiModels.gemini },
+  claude: { optionId: "claudeModel", defaultModel: "claude-sonnet-5", models: aiModels.claude },
+  perplexity: { optionId: "perplexityModel", defaultModel: "sonar", models: aiModels.perplexity },
+  xai: { optionId: "xaiModel", defaultModel: "grok-4.3", models: aiModels.xai },
+};
+
+async function migrateAutoBioAiModelOptions(options) {
+  const normalized = { ...(options || {}) };
+  let changed = false;
+
+  const provider = normalized.aiProvider;
+  if (!AUTO_BIO_AI_MODEL_CONFIG[provider]) {
+    normalized.aiProvider = "openai";
+    changed = true;
+  }
+
+  for (const [providerId, config] of Object.entries(AUTO_BIO_AI_MODEL_CONFIG)) {
+    const validModelIds = new Set(config.models.map((model) => model.value));
+    const currentModel = normalized[config.optionId];
+    if (!currentModel || !validModelIds.has(currentModel)) {
+      normalized[config.optionId] = config.defaultModel;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    await chrome.storage.sync.set({ autoBio_options: normalized });
+  }
+
+  return normalized;
+}
 
 function findUSState(location) {
   return findUSStateInStates(location, USstatesObjArray);
@@ -5536,51 +5566,6 @@ function updateRelationForSibling(otherPerson) {
 export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading = []) {
   let afterBioHeading = "";
 
-  if (window.autoBioOptions?.nameStudyStickers) {
-    try {
-      const ONSstickers = await getONSstickers();
-      if (ONSstickers) {
-        ONSstickers.forEach(function (ONSsticker) {
-          let isDuplicate = false;
-          for (let sticker of thingsToAddAfterBioHeading) {
-            if (sticker.replace(/\s/g, "") === ONSsticker.replace(/\s/g, "")) {
-              isDuplicate = true;
-              break;
-            }
-          }
-          if (!isDuplicate) {
-            if (ONSsticker.match("|category=")) {
-              thingsToAddAfterBioHeading = thingsToAddAfterBioHeading.filter(function (sticker) {
-                const result =
-                  sticker
-                    .replace(/\s/g, "")
-                    ?.toLowerCase()
-                    .indexOf(ONSsticker.split("|category=")[0].replace(/\s/g, "")?.toLowerCase()) === -1;
-                return result;
-              });
-              window.sectionsObject.StuffBeforeTheBio.text = window.sectionsObject.StuffBeforeTheBio.text.filter(
-                function (categoryLine) {
-                  if (ONSsticker?.includes("category=")) {
-                    const categoryInLine = categoryLine.replace("[[Category:", "").replace("]]", "").trim();
-                    const categoryInSticker = ONSsticker.split("category=")[1].replace("}}", "").trim();
-                    const result =
-                      categoryInLine.replace(/\s/g, "")?.toLowerCase() !==
-                      categoryInSticker.replace(/\s/g, "")?.toLowerCase();
-                    return result;
-                  }
-                  return true;
-                }
-              );
-            }
-            thingsToAddAfterBioHeading.push(ONSsticker);
-          }
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching ONSstickers:", error);
-    }
-  }
-
   if (window.autoBioOptions?.australiaBornStickers) {
     try {
       let australianLocations;
@@ -6180,56 +6165,40 @@ function getNewBrunswickLink(text) {
   }
 }
 
+// Find a Grave citation retrieval removed per user request
+
 export async function getCitations() {
+  const addCitationFailureNote = (message) => {
+    if (!message) return;
+    if (!Array.isArray(window.autoBioNotes)) window.autoBioNotes = [];
+    if (!window.autoBioNotes.includes(message)) window.autoBioNotes.push(message);
+  };
+
   window.NonSourceCount = 0;
   for (let i = 0; i < window.references.length; i++) {
     let aRef = window.references[i];
-    if (aRef.NonSource) {
-      window.NonSourceCount++;
-    }
+    if (aRef.NonSource) window.NonSourceCount++;
 
-    let findAGraveLink = getFindAGraveLink(aRef.Text);
     let matriculaLink = getMatriculaLink(aRef.Text);
     let newBrunswickLink = getNewBrunswickLink(aRef.Text);
-    let citationLink = findAGraveLink || matriculaLink || newBrunswickLink;
+    let citationLink = matriculaLink || newBrunswickLink;
 
     if (citationLink && aRef.Text.match(/sameas=no/) == null) {
       try {
-        let citation = await getCitation(citationLink);
-        if (citation) {
-          console.log("Raw citation:", citation);
-          if (findAGraveLink) {
-            const memorialNumber = citationLink.match(/\d{5,}/);
-            let findagraveTemplate = "";
-            if (memorialNumber) {
-              findagraveTemplate = `<br>{{FindAGrave|${memorialNumber[0]}}}`;
-            }
-            citation = cleanFindAGraveCitation(citation, aRef.Text) + findagraveTemplate;
-            console.log("Cleaned citation:", citation);
-          }
-          aRef.Text = citation.trim();
-
-          // Get cemetery name from citation
-          if (findAGraveLink && aRef.Text.match(/sameas=no/) == null) {
-            const cemeteryMatch = citation.match(/citing ([^;]+)/);
-            if (cemeteryMatch) {
-              aRef.Cemetery = cemeteryMatch[1];
-              // If window.profilePerson is in the citation, add the cemetery to the profile
-              if (citation.match(window.profilePerson?.PersonName?.FirstName)) {
-                window.profilePerson.Cemetery = aRef.Cemetery;
-              }
-            }
-          }
+        const result = await $.ajax({
+          url: "https://wikitreebee.com/citation",
+          type: "GET",
+          data: { link: citationLink },
+          dataType: "text",
+        });
+        if (result) {
+          aRef.Text = result.trim();
         } else {
-          const failure = getLastCitationFailure();
-          if (failure) {
-            console.warn("Citation retrieval skipped", failure);
-          } else {
-            console.error("Error fetching citation for link:", citationLink);
-          }
+          addCitationFailureNote(`WBE could not retrieve this citation right now. Link: ${citationLink}`);
         }
       } catch (error) {
         console.error("Error fetching citation:", error);
+        addCitationFailureNote(`WBE could not retrieve this citation right now. Link: ${citationLink}`);
       }
     }
   }
@@ -6287,147 +6256,6 @@ export async function getStuffBeforeTheBioText() {
     stuffBeforeTheBioText += window.textBeforeTheBio + "\n";
   }
   return stuffBeforeTheBioText;
-}
-
-export async function getONSstickers() {
-  const excludedSurnames = [
-    "Beasley",
-    "Cresap",
-    "Crippen",
-    "Ebbans",
-    "Ebbens",
-    "Ebbins",
-    "Ebbons",
-    "Ebons",
-    "Ebben",
-    "Glaester",
-    "Glaister",
-    "Glaster",
-    "Glayster",
-    "Hoxsie",
-    "Little",
-    "Longan",
-    "McBrayer",
-    "Reynolds",
-    "Rodewald",
-    "Vanover",
-    "Weddington",
-    "Wrayford",
-    "Wreford",
-    "Wreyford",
-  ];
-
-  const surnames = [window.profilePerson.PersonName?.LastNameAtBirth];
-
-  if (window.profilePerson.PersonName?.LastNameCurrent != window.profilePerson.PersonName?.LastNameAtBirth) {
-    surnames.push(window.profilePerson.PersonName?.LastNameCurrent);
-  }
-
-  if (window.profilePerson.LastNameOther) {
-    window.profilePerson.LastNameOther.split(",").forEach((item) => {
-      item = item.trim();
-      if (!surnames.includes(item) && !excludedSurnames.includes(item)) {
-        surnames.push(item);
-      }
-    });
-  }
-
-  let promises = surnames.map(async (aSurname) => {
-    let isOnONSlist = false;
-    if (searchName(aSurname)) {
-      aSurname = searchName(aSurname);
-      isOnONSlist = true;
-    }
-    let results;
-    try {
-      results = await promiseWithTimeout(
-        wtAPICatCIBSearch("AutoBio_ONS", "nameStudy", aSurname + " name study"),
-        5000,
-        `wtAPICatCIBSearch("AutoBio_ONS", "nameStudy", "${aSurname} name study")`
-      ); // 5 seconds timeout
-      if (results?.response?.categories) {
-        const result = findBestMatch(
-          aSurname,
-          window.profilePerson?.BirthLocation,
-          window.profilePerson.DeathLocation,
-          results.response.categories
-        );
-        if (result) {
-          let ONSresult;
-          if (result.match(",")) {
-            const splitResult = result.split(",");
-            const trimmedResult = splitResult.map((item) => item.trim());
-            let isACountry = countries.some((obj) => obj.name === trimmedResult[0]);
-            let scottishCounties = [
-              "Aberdeenshire",
-              "Angus",
-              "Argyll",
-              "Ayrshire",
-              "Banffshire",
-              "Berwickshire",
-              "Bute",
-              "Caithness",
-              "Clackmannanshire",
-              "Dumfriesshire",
-              "Dunbartonshire",
-              "East Lothian",
-              "Fife",
-              "Inverness-shire",
-              "Kincardineshire",
-              "Kinross-shire",
-              "Kirkcudbrightshire",
-              "Lanarkshire",
-              "Midlothian",
-              "Moray",
-              "Nairnshire",
-              "Orkney",
-              "Peeblesshire",
-              "Perthshire",
-              "Renfrewshire",
-              "Ross-shire",
-              "Roxburghshire",
-              "Selkirkshire",
-              "Shetland",
-              "Stirlingshire",
-              "Sutherland",
-              "West Lothian",
-              "Wigtownshire",
-            ];
-            const otherHighLevel = ["England", "Ireland", "Scotland", "Wales", "United States"];
-            if (
-              !(isACountry || scottishCounties.includes(trimmedResult[0]) || otherHighLevel.includes(trimmedResult[0]))
-            ) {
-              ONSresult = `{{One Name Study|name=${aSurname}|category=${result}}}`;
-            } else {
-              ONSresult = `{{One Name Study|name=${aSurname}}}`;
-            }
-          } else {
-            ONSresult = `{{One Name Study|name=${aSurname}}}`;
-          }
-          if (ONSresult && isOnONSlist && !topOfLineOnlyCondition(aSurname, window.profilePerson)) {
-            return ONSresult;
-          }
-        }
-      } else if (isOnONSlist && !topOfLineOnlyCondition(aSurname, window.profilePerson)) {
-        const ONSresult = `{{One Name Study|name=${aSurname}}}`;
-        return ONSresult;
-      }
-    } catch (error) {
-      console.log("Error getting ONS categories", error);
-      results = null;
-    }
-  });
-
-  let out = await Promise.all(
-    promises.map((promise) =>
-      promise.catch((error) => {
-        console.error("Error in promise:", error);
-        return null;
-      })
-    )
-  );
-  out = out.filter((item) => item != null); // Remove null values if any
-  return out;
 }
 
 export function addUnsourced(feature = "autoBio") {
@@ -7157,6 +6985,13 @@ function addUniqueRefNames(records) {
 }
 
 async function fixLocations() {
+  const getLocationBits = (location) => {
+    if (typeof location !== "string" || location.trim() === "") {
+      return [];
+    }
+    return location.split(",").map((str) => str.trim());
+  };
+
   const birth = {
     Date: document.getElementById("mBirthDate").value,
     Location: document.getElementById("mBirthLocation").value,
@@ -7201,11 +7036,10 @@ async function fixLocations() {
       }
     });
 
-    let locationBits = event?.Location.split(",");
-    locationBits = locationBits.map((str) => str.trim());
+    let locationBits = getLocationBits(event?.Location);
 
     if (window.autoBioOptions?.checkUS && isOK(event?.Date)) {
-      event = fixUSLocation(event);
+      event = fixUSLocation(event) || event;
     }
 
     if (window.autoBioOptions?.checkAustralia && isOK(event?.Date)) {
@@ -7227,8 +7061,7 @@ async function fixLocations() {
       }
     }
 
-    locationBits = event?.Location.split(",");
-    locationBits = locationBits.map((str) => str.trim());
+    locationBits = getLocationBits(event?.Location);
     const lastLocationBit = locationBits[locationBits.length - 1];
 
     if (window.autoBioOptions?.checkUK && isOK(event?.Date)) {
@@ -7497,8 +7330,7 @@ export async function generateBio() {
     }
     sourcesArray(currentBio);
 
-    // Update references with Find A Grave citations
-    await getCitations();
+    // Find A Grave citation automation removed; no-op
 
     // Start OUTPUT
     const bioHeader = "== Biography ==\n";
@@ -8861,6 +8693,35 @@ function locationCategoryFilter(category) {
   if (category.match(/Co\..*County/)) {
     return "";
   }
+  // Exclude institutional buildings and organizations - they are not geographic locations
+  // These include: lodges, temples, churches, religious buildings, schools, hospitals, etc.
+  const institutionalPatterns = [
+    /\blodge\b/i,
+    /\btemple\b/i,
+    /\bsynagogue\b/i,
+    /\bmosque\b/i,
+    /\bmonastery\b/i,
+    /\bconvent\b/i,
+    /\babbey\b/i,
+    /\bpriory\b/i,
+    /\bchapel\b/i,
+    /\bchurch\b/i,
+    /\bschool\b/i,
+    /\buniversity\b/i,
+    /\bcollege\b/i,
+    /\bhospital\b/i,
+    /\bhotel\b/i,
+    /\binn\b/i,
+    /\bpub\b/i,
+    /\btavern\b/i,
+  ];
+  
+  for (const pattern of institutionalPatterns) {
+    if (category.match(pattern)) {
+      return "";
+    }
+  }
+  
   return category;
 }
 
@@ -8911,8 +8772,8 @@ let boldBit = "";
 shouldInitializeFeature("autoBio").then((result) => {
   if (result) {
     import("./auto_bio.css");
-    getFeatureOptions("autoBio").then((options) => {
-      window.autoBioOptions = options;
+    getFeatureOptions("autoBio").then(async (options) => {
+      window.autoBioOptions = await migrateAutoBioAiModelOptions(options);
       boldBit = "";
       if (window.autoBioOptions?.boldNames) {
         boldBit = "'''";
@@ -9204,6 +9065,7 @@ function addAutoBioUI() {
       window.autoBioOptions?.geminiKey,
       window.autoBioOptions?.claudeKey,
       window.autoBioOptions?.perplexityKey,
+      window.autoBioOptions?.xaiKey,
     ].some((key) => typeof key === "string" && key.trim() !== "");
 
     if (hasAIKey) {
@@ -9349,7 +9211,7 @@ async function improveBioWithAI(e) {
 
   try {
     // 1. REFRESH OPTIONS
-    window.autoBioOptions = await getFeatureOptions("autoBio");
+    window.autoBioOptions = await migrateAutoBioAiModelOptions(await getFeatureOptions("autoBio"));
 
     // 2. STRICT VARIABLE USAGE (Per User Request)
     const oldBio = window.autoBio_originalBio;
@@ -9371,16 +9233,19 @@ async function improveBioWithAI(e) {
 
     if (provider === "openai") {
       selectedKey = window.autoBioOptions?.openAIKey;
-      if (!selectedModel) selectedModel = window.autoBioOptions?.openAIModel || "gpt-5-mini";
+      if (!selectedModel) selectedModel = window.autoBioOptions?.openAIModel || "gpt-5.4-mini";
     } else if (provider === "gemini") {
       selectedKey = window.autoBioOptions?.geminiKey;
-      if (!selectedModel) selectedModel = window.autoBioOptions?.geminiModel || "gemini-3-flash-preview";
+      if (!selectedModel) selectedModel = window.autoBioOptions?.geminiModel || "gemini-3.5-flash";
     } else if (provider === "claude") {
       selectedKey = window.autoBioOptions?.claudeKey;
-      if (!selectedModel) selectedModel = window.autoBioOptions?.claudeModel || "claude-sonnet-4-5";
+      if (!selectedModel) selectedModel = window.autoBioOptions?.claudeModel || "claude-sonnet-5";
     } else if (provider === "perplexity") {
       selectedKey = window.autoBioOptions?.perplexityKey;
       if (!selectedModel) selectedModel = window.autoBioOptions?.perplexityModel || "sonar";
+    } else if (provider === "xai") {
+      selectedKey = window.autoBioOptions?.xaiKey;
+      if (!selectedModel) selectedModel = window.autoBioOptions?.xaiModel || "grok-4.3";
     }
 
     const requestPayload = {
@@ -9614,4 +9479,4 @@ export { minimalPlace, nameLink } from "./displayUtils.js";
 export { getFormData, getPronouns } from "./profileUtils.js";
 export { capitalizeFirstLetter } from "./textUtils.js";
 export { assignPersonNames, setOrderBirthDate } from "./auto_bio_person.js";
-export { getFindAGraveLink, getCitation, cleanFindAGraveCitation } from "./auto_bio_citations.js";
+// Find a Grave citation utilities removed from exports

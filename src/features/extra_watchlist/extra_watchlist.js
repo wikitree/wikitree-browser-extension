@@ -88,78 +88,260 @@ function pruneNotesToCurrentIds(ids) {
 }
 
 function profileNameCellHtml(row) {
-  const note = getNoteForId(row.wtId);
-  const marker = note ? "<span class='ew-note-marker ew-note-marker-right' title='Has note'>🗒</span>" : "";
   return `<span class='ew-name-wrap'><a href="https://${mainDomain}/wiki/${htmlEntities(row.wtId)}">${
     row.lName
-  }</a>${marker}</span>`;
+  }</a></span>`;
 }
 
-function removeWatchlistNotePopup() {
-  $("#extraWatchlistNotePopup").remove();
+// ---- Note column (inline editable, sortable) & suggestions ----------
+
+const NOTE_AREA_MAX_PX = 200; // cap cell height; taller notes scroll internally
+
+// Unique, trimmed note values across the whole watchlist, used to offer
+// previous notes/project names as reusable suggestions.
+function getUniqueNoteValues() {
+  const notes = getWatchlistNotes();
+  const seen = new Set();
+  const values = [];
+  Object.values(notes).forEach((v) => {
+    const t = (typeof v === "string" ? v : "").trim();
+    if (t && !seen.has(t)) {
+      seen.add(t);
+      values.push(t);
+    }
+  });
+  values.sort((a, b) => a.localeCompare(b));
+  return values;
 }
 
-function positionWatchlistNotePopup($popup, anchorEl) {
-  if (anchorEl && anchorEl.getBoundingClientRect) {
-    const rect = anchorEl.getBoundingClientRect();
-    const top = Math.min(window.innerHeight - 280, Math.max(10, rect.top + 10));
-    const left = Math.min(window.innerWidth - 360, Math.max(10, rect.left + 20));
-    $popup.css({ top, left });
-  } else {
-    $popup.css({ top: 120, left: 120 });
+// The editable text box shown in each note cell. It's a textarea so long notes
+// wrap onto multiple lines instead of being cut off; newlines are preserved.
+function noteInputHtml(wtId) {
+  const note = getNoteForId(wtId);
+  // Keep content on the same line as the opening tag: HTML strips one leading
+  // newline after <textarea>, which would corrupt notes that start with a break.
+  return `<textarea class="ew-note-input" rows="1" data-id="${htmlEntities(
+    wtId
+  )}"  maxlength="5000" autocomplete="off">${htmlEntities(note)}</textarea>`;
+}
+
+// A DataTables column definition for the note. Bound to wtId so it survives
+// API refetches (notes live in their own localStorage store). Display renders
+// the textarea; sort/filter use the raw note text so the column is sortable and
+// searchable.
+function noteColumnDef(width) {
+  return {
+    title: "Note",
+    data: "wtId",
+    searchable: true,
+    orderable: true,
+    render: (data, type, row) => {
+      if (type === "display") return noteInputHtml(data);
+      return getNoteForId(data);
+    },
+    width,
+    className: "ew-note-col",
+  };
+}
+
+// Grow a note textarea to fit its content (up to a cap, then it scrolls).
+function autoSizeNoteArea(el) {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = Math.min(el.scrollHeight, NOTE_AREA_MAX_PX) + "px";
+}
+
+// Size every note textarea inside a container (used after each table draw).
+function autoSizeNoteAreasIn(root) {
+  $(root)
+    .find("textarea.ew-note-input")
+    .each(function () {
+      autoSizeNoteArea(this);
+    });
+}
+
+// Return the DataTable a note field belongs to.
+function tableForNoteField(field) {
+  return $(field).closest("table").attr("id") === "touchedListSpaces" ? spaceTable : peopleTable;
+}
+
+// Persist a note field's value and refresh the row's cached sort/search data.
+function saveNoteField(field) {
+  const table = tableForNoteField(field);
+  if (!table) return;
+  const $row = $(field).closest("tr");
+  const rowData = table.row($row).data();
+  const wtId = rowData ? rowData.wtId : $(field).attr("data-id");
+  if (!wtId) return;
+  const newVal = (field.value || "").trim();
+  if (getNoteForId(wtId) === newVal) return; // nothing changed
+  setNoteForId(wtId, field.value);
+  table.row($row).invalidate("data");
+}
+
+// ---- Custom suggestions dropdown (datalist can't attach to a textarea) ------
+
+let $noteSuggestBox = null;
+let noteSuggestItems = [];
+let noteSuggestActive = -1;
+let noteSuggestTarget = null;
+let noteDocListenerBound = false;
+
+// Close the dropdown when the user presses down anywhere that isn't the
+// dropdown itself or a note field. Capture phase so it runs before focus
+// shifts. Clicking another note cell keeps it open (its focusin repositions).
+function onNoteDocMouseDown(e) {
+  if (!$noteSuggestBox || !$noteSuggestBox.is(":visible")) return;
+  const t = e.target;
+  if (t && t.closest && (t.closest("#ewNoteSuggestBox") || t.closest("textarea.ew-note-input"))) return;
+  hideNoteSuggestions();
+}
+
+// common.js raises any clicked .wbe-popup to the top z-index. That fires on the
+// same click that focuses a note cell, so it would otherwise leapfrog the popup
+// above the dropdown. Re-raise the dropdown right after (this handler is bound
+// after common.js's, so it runs second) to keep it on top. Only does the DOM
+// scan while the dropdown is actually open, so ordinary clicks stay cheap.
+function raiseNoteBoxAbovePopup() {
+  if ($noteSuggestBox && $noteSuggestBox.is(":visible")) {
+    setHighestZIndex($noteSuggestBox);
   }
 }
 
-function showNoteViewer(wtId, displayName, anchorEl) {
-  const note = getNoteForId(wtId);
-  if (!note) return;
-  removeWatchlistNotePopup();
-  const safeName = htmlEntities(displayName || decodeURIComponent(wtId));
-  const safeNote = htmlEntities(note).replace(/\n/g, "<br>");
-  const $popup = $(
-    `<div id='extraWatchlistNotePopup' class='ui-widget-content ew-note-popup wbe-popup'>
-      <div class='ew-note-popup-header'>${safeName}</div>
-      <div class='ew-note-popup-body'>${safeNote}</div>
-      <div class='ew-note-popup-actions'>
-        <button type='button' class='small ew-note-edit'>Edit</button>
-        <button type='button' class='small ew-note-close'>Close</button>
-      </div>
-    </div>`
-  );
-  $popup.appendTo("body").css({ position: "fixed" });
-  positionWatchlistNotePopup($popup, anchorEl);
-  setHighestZIndex($popup);
-
-  $popup.find(".ew-note-close").on("click", () => removeWatchlistNotePopup());
-  $popup.find(".ew-note-edit").on("click", () => showNoteEditor(wtId, displayName, anchorEl));
+function ensureNoteSuggestBox() {
+  if (!$noteSuggestBox || $noteSuggestBox.parent().length === 0) {
+    // Append INSIDE the watchlist popup, not <body>: as a child of the popup the
+    // dropdown always paints above the popup's own content and rides along when
+    // the popup is raised, so the popup can't cover it. The z-index handling
+    // below is belt-and-suspenders on top of that.
+    const host = document.getElementById("extraWatchlistWindow") || document.body;
+    $noteSuggestBox = $("<div id='ewNoteSuggestBox' class='ew-note-suggest'></div>").appendTo(host);
+    setHighestZIndex($noteSuggestBox);
+    // mousedown (not click) so selection happens before the textarea blurs.
+    $noteSuggestBox.on("mousedown", ".ew-note-suggest-item", function (e) {
+      e.preventDefault();
+      applyNoteSuggestion(Number($(this).attr("data-idx")));
+    });
+  }
+  if (!noteDocListenerBound) {
+    document.addEventListener("mousedown", onNoteDocMouseDown, true);
+    // Bound after common.js's .wbe-popup click handler, so this runs second and
+    // lifts the dropdown back above the just-raised popup.
+    $(document).on("click.ewNoteRaise", "#extraWatchlistWindow", raiseNoteBoxAbovePopup);
+    noteDocListenerBound = true;
+  }
+  return $noteSuggestBox;
 }
 
-function showNoteEditor(wtId, displayName, anchorEl) {
-  removeWatchlistNotePopup();
-  const note = getNoteForId(wtId);
-  const safeName = htmlEntities(displayName || decodeURIComponent(wtId));
-  const $popup = $(
-    `<div id='extraWatchlistNotePopup' class='ui-widget-content ew-note-popup wbe-popup'>
-      <div class='ew-note-popup-header'>Note for ${safeName}</div>
-      <textarea class='ew-note-text' rows='6' maxlength='5000' placeholder='Add a note for this profile...'></textarea>
-      <div class='ew-note-popup-actions'>
-        <button type='button' class='small ew-note-save'>Save</button>
-        <button type='button' class='small ew-note-cancel'>Cancel</button>
-      </div>
-    </div>`
-  );
-  $popup.appendTo("body").css({ position: "fixed" });
-  positionWatchlistNotePopup($popup, anchorEl);
-  setHighestZIndex($popup);
-  $popup.find(".ew-note-text").val(note).trigger("focus");
+function hideNoteSuggestions() {
+  if ($noteSuggestBox) $noteSuggestBox.hide();
+  noteSuggestItems = [];
+  noteSuggestActive = -1;
+  noteSuggestTarget = null;
+}
 
-  $popup.find(".ew-note-save").on("click", () => {
-    const newText = $popup.find(".ew-note-text").val();
-    setNoteForId(wtId, newText);
-    redrawPeopleTable();
-    removeWatchlistNotePopup();
+function positionNoteSuggestBox(field) {
+  const r = field.getBoundingClientRect();
+  const width = Math.max(180, r.width);
+  $noteSuggestBox.css({
+    position: "fixed",
+    top: Math.min(window.innerHeight - 30, r.bottom + 2),
+    left: Math.max(6, Math.min(window.innerWidth - width - 6, r.left)),
+    width,
   });
-  $popup.find(".ew-note-cancel").on("click", () => removeWatchlistNotePopup());
+}
+
+function showNoteSuggestions(field) {
+  const val = (field.value || "").trim().toLowerCase();
+  const matches = getUniqueNoteValues()
+    .filter((v) => {
+      const lv = v.toLowerCase();
+      return lv !== val && (val === "" || lv.includes(val));
+    })
+    .slice(0, 8);
+  if (matches.length === 0) {
+    hideNoteSuggestions();
+    return;
+  }
+  noteSuggestItems = matches;
+  noteSuggestActive = -1;
+  noteSuggestTarget = field;
+  const $box = ensureNoteSuggestBox();
+  $box.html(
+    matches.map((m, i) => `<div class='ew-note-suggest-item' data-idx='${i}'>${htmlEntities(m)}</div>`).join("")
+  );
+  positionNoteSuggestBox(field);
+  $box.show();
+}
+
+function moveNoteSuggestActive(dir) {
+  if (!$noteSuggestBox || noteSuggestItems.length === 0) return;
+  noteSuggestActive = (noteSuggestActive + dir + noteSuggestItems.length) % noteSuggestItems.length;
+  $noteSuggestBox.find(".ew-note-suggest-item").removeClass("active").eq(noteSuggestActive).addClass("active");
+}
+
+function applyNoteSuggestion(idx) {
+  const field = noteSuggestTarget;
+  if (!field || idx < 0 || idx >= noteSuggestItems.length) return;
+  field.value = noteSuggestItems[idx];
+  autoSizeNoteArea(field);
+  saveNoteField(field);
+  hideNoteSuggestions();
+  field.focus();
+}
+
+// Wire up inline note editing + suggestions for a table's tbody. We use native
+// addEventListener delegation (focusin/focusout/input bubble natively) rather
+// than jQuery's delegated .on("focus"/"blur"): jQuery 3.7 routes those through
+// a capture-phase simulation that doesn't fire reliably here, which would leave
+// the suggestions dropdown from ever opening.
+function bindNoteEditing($tbody) {
+  const tbody = $tbody && $tbody[0];
+  if (!tbody || tbody.__ewNoteBound) return;
+  tbody.__ewNoteBound = true;
+  const isNoteField = (el) => el && el.matches && el.matches("textarea.ew-note-input");
+
+  tbody.addEventListener("focusin", (e) => {
+    if (!isNoteField(e.target)) return;
+    autoSizeNoteArea(e.target);
+    showNoteSuggestions(e.target);
+  });
+
+  tbody.addEventListener("input", (e) => {
+    if (!isNoteField(e.target)) return;
+    autoSizeNoteArea(e.target);
+    showNoteSuggestions(e.target);
+  });
+
+  tbody.addEventListener("keydown", (e) => {
+    if (!isNoteField(e.target)) return;
+    if (!$noteSuggestBox || !$noteSuggestBox.is(":visible") || noteSuggestItems.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      moveNoteSuggestActive(1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      moveNoteSuggestActive(-1);
+    } else if (e.key === "Enter" && noteSuggestActive >= 0) {
+      e.preventDefault(); // pick highlighted suggestion instead of adding a newline
+      applyNoteSuggestion(noteSuggestActive);
+    } else if (e.key === "Escape" || e.key === "Tab") {
+      hideNoteSuggestions();
+    }
+  });
+
+  tbody.addEventListener("focusout", (e) => {
+    if (!isNoteField(e.target)) return;
+    saveNoteField(e.target);
+    // NOTE: we deliberately do NOT hide the suggestions here. Something on the
+    // host page briefly steals focus on left-click (a click-handler firing a
+    // transient blur), which would make the dropdown flash and vanish. The
+    // dropdown is closed instead by Escape/Tab, picking an item, or a mousedown
+    // outside it (see onNoteDocMouseDown) — never by a blur.
+    // A data refresh that arrived mid-edit was deferred; catch up now that the
+    // field has lost focus.
+    flushPendingNoteRedraws();
+  });
 }
 // ====================================================================
 // INITIALIZATION
@@ -309,6 +491,13 @@ const strDate = () => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
 };
 
+// Show a blank rather than "unknown"/"unknowns" for missing birth/death years.
+// "living" and real years pass through unchanged.
+function cleanYear(v) {
+  const s = v == null ? "" : String(v).trim();
+  return /^unknowns?$/i.test(s) ? "" : s;
+}
+
 function formDate(input) {
   const pt = isOK(input) ? input : input !== "" ? input : false;
   let ptOut = "";
@@ -338,17 +527,17 @@ const FIELDS =
 function extractPerson(data) {
   let bYear = data?.BirthDate?.substr(0, 4) || "";
   if (!isOK(bYear)) {
-    bYear = data?.BirthDateDecade || "unknown";
+    bYear = data?.BirthDateDecade || "";
   }
 
   let dYear = data?.DeathDate?.substr(0, 4) || "";
   if (!isOK(dYear)) dYear = data?.DeathDateDecade || "";
-  if ((dYear === "unknown" || dYear == "") && data.IsLiving === 1) dYear = "living";
+  if ((cleanYear(dYear) === "" || dYear == "") && data.IsLiving === 1) dYear = "living";
 
   return {
     type: "p",
-    bYear: bYear,
-    dYear: dYear,
+    bYear: cleanYear(bYear),
+    dYear: cleanYear(dYear),
     lName: isOK(data.LongNamePrivate) ? data.LongNamePrivate : isOK(data.ShortName) ? data.ShortName : "Private",
     wtId: data.Name ? encodeURIComponent(decodeURIComponent(data.Name.replaceAll(" ", "_"))) : "",
     numId: data.Id,
@@ -670,13 +859,13 @@ const createWatchlistPopup = async (mouseY) => {
       break;
 
     case "Name":
-      personSortOrder = [2, "asc"];
+      personSortOrder = [1, "asc"];
       spaceSortOrder = [0, "asc"];
       break;
 
     case "Changed":
       personSortOrder = [5, "desc"];
-      spaceSortOrder = [1, "desc"];
+      spaceSortOrder = [2, "desc"];
       break;
 
     default:
@@ -686,21 +875,7 @@ const createWatchlistPopup = async (mouseY) => {
   peopleTable = $("#touchedListPersons").DataTable({
     data: ewData.filter((d) => d.type == "p"),
     columns: [
-      { title: "ID", data: "wtId", render: (data, type, row) => decodeURIComponent(data), width: "20%" },
-      {
-        title: "",
-        data: "wtId",
-        searchable: false,
-        orderable: false,
-        render: (data, type, row) => {
-          if (type === "display") {
-            return `<span class='ew-note-edit-trigger' title='Edit note' data-id="${htmlEntities(data)}">📝</span>`;
-          }
-          return getNoteForId(data) ? 1 : 0;
-        },
-        width: "3%",
-        className: "dt-center ew-note-col",
-      },
+      { title: "ID", data: "wtId", render: (data, type, row) => decodeURIComponent(data), width: "18%" },
       {
         title: "Name",
         data: "lName",
@@ -710,10 +885,11 @@ const createWatchlistPopup = async (mouseY) => {
           }
           return data;
         },
-        width: "47%",
+        width: "30%",
       },
-      { title: "Birth", data: "bYear", width: "5%" },
-      { title: "Death", data: "dYear", width: "5%" },
+      { title: "Birth", data: "bYear", render: (data) => cleanYear(data), width: "5%" },
+      { title: "Death", data: "dYear", render: (data) => cleanYear(data), width: "5%" },
+      noteColumnDef("24%"),
       {
         title: "Changed",
         data: "touched",
@@ -772,6 +948,9 @@ const createWatchlistPopup = async (mouseY) => {
     searching: true, // Enable the search box
     searchDelay: 400, // Debounce user input - only start search/filter after 400ms of no typing
     autoWidth: false,
+    drawCallback: function () {
+      autoSizeNoteAreasIn(this.api().table().body());
+    },
   });
 
   const $peopleBody = $("#touchedListPersons tbody");
@@ -791,18 +970,7 @@ const createWatchlistPopup = async (mouseY) => {
     setPlusButton();
   });
 
-  $peopleBody.off("click.ewEditNote").on("click.ewEditNote", "span.ew-note-edit-trigger", function (e) {
-    e.preventDefault();
-    e.stopPropagation();
-    const $row = $(this).closest("tr");
-    const rowData = peopleTable.row($row).data();
-    if (!rowData) return;
-    if (getNoteForId(rowData.wtId)) {
-      showNoteViewer(rowData.wtId, rowData.lName, this);
-    } else {
-      showNoteEditor(rowData.wtId, rowData.lName, this);
-    }
-  });
+  bindNoteEditing($peopleBody);
 
   spaceTable = $("#touchedListSpaces").DataTable({
     data: ewData.filter((d) => d.type == "s"),
@@ -818,8 +986,9 @@ const createWatchlistPopup = async (mouseY) => {
           }
           return data;
         },
-        width: "80%",
+        width: "58%",
       },
+      noteColumnDef("22%"),
       {
         title: "Changed",
         data: "touched",
@@ -873,6 +1042,7 @@ const createWatchlistPopup = async (mouseY) => {
 
           // Remove from ewData
           ewData = ewData.filter((d) => htmlEntities(d.wtId) !== rowId);
+          removeNoteForId(data.wtId);
           const ids = ewData.map((d) => d.wtId);
 
           // Remove the row from the DataTable
@@ -894,7 +1064,12 @@ const createWatchlistPopup = async (mouseY) => {
     searching: true, // Enable the search box
     searchDelay: 400, // Debounce user input - only start search/filter after 400ms of no typing
     autoWidth: false,
+    drawCallback: function () {
+      autoSizeNoteAreasIn(this.api().table().body());
+    },
   });
+
+  bindNoteEditing($("#touchedListSpaces tbody"));
 
   // $popup.append('<p id="ewlEmpty">Empty?</p>');
 
@@ -964,7 +1139,9 @@ const createWatchlistPopup = async (mouseY) => {
 
   setTimeout(() => {
     setHighestZIndex($popup);
-    $popup.slideDown();
+    // Size note textareas once the popup is actually visible (scrollHeight is 0
+    // while it's display:none, which would leave them collapsed).
+    $popup.slideDown(400, () => autoSizeNoteAreasIn("#extraWatchlistWindow"));
   }, 1000);
 
   $popup.draggable({
@@ -977,26 +1154,61 @@ const createWatchlistPopup = async (mouseY) => {
   doExtraWatchlist();
 };
 
+// A full redraw recreates every row, which destroys a note textarea that's
+// being edited (blurs it, closes the suggestions dropdown, drops unsaved text).
+// So while a note field is focused we defer the redraw and flush it on blur.
+// Note: columns.adjust() only re-measures widths — it does NOT recreate rows —
+// so it's safe to call during editing (and we no longer chain .draw() to it).
+let pendingPeopleRedraw = false;
+let pendingSpaceRedraw = false;
+
+function isEditingNote() {
+  const el = document.activeElement;
+  return !!(el && el.classList && el.classList.contains("ew-note-input"));
+}
+
+function flushPendingNoteRedraws() {
+  if (pendingPeopleRedraw) redrawPeopleTable();
+  if (pendingSpaceRedraw) redrawSpaceTable();
+}
+
 function redrawPeopleTable() {
+  if (isEditingNote()) {
+    pendingPeopleRedraw = true;
+    return;
+  }
+  pendingPeopleRedraw = false;
   peopleTable.clear(); // Clear existing data
   peopleTable.rows.add(ewData.filter((d) => d.type == "p")); // Add new/updated data
   peopleTable.draw();
   setTimeout(() => {
-    peopleTable.columns.adjust().draw();
+    peopleTable.columns.adjust();
   }, 1000);
 }
 
 function redrawSpaceTable() {
+  if (isEditingNote()) {
+    pendingSpaceRedraw = true;
+    return;
+  }
+  pendingSpaceRedraw = false;
   spaceTable.clear(); // Clear existing data
   spaceTable.rows.add(ewData.filter((d) => d.type == "s")); // Add new/updated data
   spaceTable.draw();
   setTimeout(() => {
-    spaceTable.columns.adjust().draw();
+    spaceTable.columns.adjust();
   }, 1000);
 }
 
 function closeWatchlistPopup($popup) {
-  removeWatchlistNotePopup();
+  hideNoteSuggestions();
+  if (noteDocListenerBound) {
+    document.removeEventListener("mousedown", onNoteDocMouseDown, true);
+    $(document).off("click.ewNoteRaise");
+    noteDocListenerBound = false;
+  }
+  $("#ewNoteSuggestBox").remove();
+  $noteSuggestBox = null;
   $popup.slideUp("swing");
   $popup.remove();
 }

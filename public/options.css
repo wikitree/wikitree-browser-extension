@@ -141,6 +141,14 @@ h1 .toggle-category {
   scroll-margin-top: 90px;
 }
 
+/* Leave room for the popup's scrollbar (added by popupScrollFix.js only when
+   content actually overflows, see main.css) so it doesn't get painted over by
+   these fixed, full-width elements. */
+body.wbe-safari-scroll #options h1,
+body.wbe-safari-scroll #categoryBar {
+  right: 11px;
+}
+
 #categoryBar {
   position: fixed;
   top: 62px;

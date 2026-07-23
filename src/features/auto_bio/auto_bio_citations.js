@@ -145,17 +145,6 @@ async function getFindAGraveCitation(link) {
       throw new Error("Find a Grave returned an empty response");
     }
 
-    if (isFindAGraveChallengePage(html)) {
-      setCitationFailure({
-        source: "findagrave-browser-fetch",
-        link: normalizedLink,
-        userMessage: "WBE couldn't read this Find a Grave memorial right now. Your source text was left unchanged.",
-        technicalMessage: "Find a Grave returned a bot-protection challenge instead of memorial HTML",
-      });
-      console.warn("Find a Grave citation fetch hit a challenge page", { link: normalizedLink });
-      return null;
-    }
-
     const citation = parseFindAGraveCitationFromHtml(html, fetchResult.url || normalizedLink);
     if (!citation) {
       throw new Error("Unable to parse memorial details from Find a Grave response");
@@ -177,17 +166,21 @@ async function getFindAGraveCitation(link) {
 function fetchFindAGraveMemorialHtml(link) {
   return new Promise((resolve, reject) => {
     if (typeof chrome === "undefined" || !chrome.runtime?.sendMessage) {
+      console.warn("[WBE FaG] chrome.runtime.sendMessage unavailable");
       reject(new Error("Extension messaging is unavailable for Find a Grave fetches"));
       return;
     }
 
+    console.log("[WBE FaG] Sending fetchFindAGraveMemorial to background →", link);
     chrome.runtime.sendMessage({ action: "fetchFindAGraveMemorial", link }, (response) => {
       const runtimeError = chrome.runtime?.lastError;
       if (runtimeError) {
+        console.warn("[WBE FaG] runtime.lastError:", runtimeError.message);
         reject(new Error(runtimeError.message));
         return;
       }
 
+      console.log("[WBE FaG] Background response:", response?.success, response?.error, "url:", response?.url);
       resolve(response || { success: false, error: "No response from background fetch" });
     });
   });
@@ -208,12 +201,6 @@ function normalizeFindAGraveMemorialLink(link) {
   } catch (_error) {
     return link;
   }
-}
-
-function isFindAGraveChallengePage(html) {
-  return /(Just a moment\.\.\.|Checking your browser|cf-browser-verification|cf-challenge|challenge-platform|Enable JavaScript and cookies to continue)/i.test(
-    html
-  );
 }
 
 export function parseFindAGraveCitationFromHtml(html, link) {

@@ -1,5 +1,4 @@
 import $ from "jquery";
-import Cookies from "js-cookie";
 import {
   mainDomain,
   isSearchPage,
@@ -197,64 +196,179 @@ function addScratchPadButton() {
   });
 }
 
-function toggleNonMembers() {
+// The filter's on/off state is tied to the current search rather than kept globally.
+// We store the "signature" of the search it was turned on for in sessionStorage, so it
+// persists while paging through the results of that one search (same tab) but is gone when
+// the tab closes and off whenever we're not in that search.
+const ONLY_MEMBERS_KEY = "onlyMembersSearch";
+const ONLY_MEMBERS_TTL_MS = 60 * 60 * 1000; // ~1 hour; a safety net so stale state can't linger
+
+// Read the stored signature, ignoring (and clearing) it if it has expired.
+function getStoredOnlyMembersSignature() {
+  try {
+    const raw = sessionStorage.getItem(ONLY_MEMBERS_KEY);
+    if (!raw) return null;
+    const { signature, expires } = JSON.parse(raw);
+    if (typeof expires === "number" && Date.now() > expires) {
+      sessionStorage.removeItem(ONLY_MEMBERS_KEY);
+      return null;
+    }
+    return signature;
+  } catch (e) {
+    return null;
+  }
+}
+
+// A signature that identifies the current search by its criteria. The results page carries
+// a hidden #resortForm holding the full canonical search parameters; we serialise those,
+// skipping the fields that change while paging/sorting the *same* search (start offset,
+// page limit, sort order, merge-options toggle). The result is identical across every
+// result page of one search and absent when there's no results form (the blank search page).
+const SEARCH_SIGNATURE_SKIP_FIELDS = new Set(["start", "limit", "sort", "secondary_sort", "showMergeOptions"]);
+
+function getSearchSignature() {
+  const $form = $("#resortForm");
+  if (!$form.length) return "";
+  const parts = [];
+  $form.find("input, select").each(function () {
+    if (!this.name || SEARCH_SIGNATURE_SKIP_FIELDS.has(this.name)) return;
+    parts.push(`${this.name}=${this.value || ""}`);
+  });
+  return parts.join("&");
+}
+
+// True when we're looking at actual search results, not the empty search form.
+function isSearchResultsPage() {
+  return $("#resortForm").length > 0 && $("#Sort-Table tbody tr").length > 0;
+}
+
+// A "non-member" result row: a person profile (has a /wiki/ link) with no ACTIVE badge.
+function isNonMemberRow(row) {
+  const $row = $(row);
+  return $row.find("a[href*='/wiki/']").length > 0 && $row.find("span:contains('ACTIVE')").length === 0;
+}
+
+// Show/hide the non-member rows. Idempotent: reflects the given state regardless of the
+// current visibility, so it's safe to call on page load or on toggle.
+function applyOnlyMembersFilter(hide) {
   $("#Sort-Table tbody tr").each(function () {
-    if ($(this).find("a[href*='/wiki/']").length > 0 && $(this).find("span:contains('ACTIVE')").length == 0) {
-      $(this).toggle();
+    if (isNonMemberRow(this)) {
+      $(this).toggle(!hide);
     }
   });
-  $("#onlyMembers").toggleClass("active");
-  if ($("#onlyMembers").hasClass("active")) {
-    Cookies.set("onlyMembers", 1);
+}
+
+// Set the switch (and the results) to on/off and persist the choice for this search.
+function setOnlyMembersState(on) {
+  const $btn = $("#onlyMembers");
+  // Own state class (not Bootstrap's ".active", which ScrollSpy toggles on #jump-nav links).
+  $btn.toggleClass("onlyMembers-active", on);
+  $btn.attr("aria-pressed", on ? "true" : "false");
+  $btn.find(".onlyMembers-state").text(on ? "On" : "Off");
+  applyOnlyMembersFilter(on);
+  if (on) {
+    // Store the signature of the search this is on for (and refresh the TTL as we page).
+    sessionStorage.setItem(
+      ONLY_MEMBERS_KEY,
+      JSON.stringify({ signature: getSearchSignature(), expires: Date.now() + ONLY_MEMBERS_TTL_MS })
+    );
   } else {
-    Cookies.set("onlyMembers", 0);
+    sessionStorage.removeItem(ONLY_MEMBERS_KEY);
   }
+}
+
+function toggleNonMembers() {
+  setOnlyMembersState(!$("#onlyMembers").hasClass("onlyMembers-active"));
 }
 
 async function onlyMembers() {
   $("#jump-nav")
     .eq(0)
     .append(
-      $(
-        `<li><a href="#n" id='onlyMembers' title="Show only the active members on this page">Only Active Members</a></li>`
-      )
+      $(`<li><a href="#n" id="onlyMembers" role="button" aria-pressed="false"
+            title="Show only the active members in these search results">
+            <span class="onlyMembers-label">Active members only</span>
+            <span class="onlyMembers-switch"><span class="onlyMembers-knob"></span></span>
+            <span class="onlyMembers-state">Off</span>
+          </a></li>`)
     );
 
-  // Add CSS to fix Safari border issue
   if (!$("#onlyMembersStyle").length) {
     $("head").append(`
       <style id="onlyMembersStyle">
         #onlyMembers {
+          display: inline-flex !important;
+          align-items: center;
+          gap: 6px;
           border: none !important;
           outline: none !important;
+          cursor: pointer;
+          text-decoration: none;
+          user-select: none;
+        }
+        #onlyMembers .onlyMembers-switch {
+          position: relative;
+          display: inline-block;
+          flex: 0 0 auto;
+          width: 34px;
+          height: 18px;
+          border-radius: 9px;
+          background: #b0b3b8;
+          transition: background 0.2s ease;
+        }
+        #onlyMembers .onlyMembers-knob {
+          position: absolute;
+          top: 2px;
+          left: 2px;
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: #fff;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+          transition: left 0.2s ease;
+        }
+        #onlyMembers.onlyMembers-active .onlyMembers-switch {
+          background: #4caf50;
+        }
+        #onlyMembers.onlyMembers-active .onlyMembers-knob {
+          left: 18px;
+        }
+        #onlyMembers .onlyMembers-state {
+          min-width: 2.2em;
+          font-weight: 600;
+          color: #777;
+        }
+        #onlyMembers.onlyMembers-active .onlyMembers-state {
+          color: #2e7d32;
         }
       </style>
     `);
   }
 
-  $("#onlyMembers").on("click", function () {
+  $("#onlyMembers").on("click", function (e) {
+    e.preventDefault();
     toggleNonMembers();
-    return;
   });
 
-  if (Cookies.get("onlyMembers") == 1) {
-    // Set the button as active first
-    $("#onlyMembers").addClass("active");
-    // Add a small delay to ensure the table is fully loaded before applying the filter
+  // Restore the state only while we're within the same search (i.e. paging through the
+  // results of the search it was turned on for). A fresh arrival at the search form, a
+  // different search, or an expired entry all start off with a clean slate.
+  const savedSignature = getStoredOnlyMembersSignature();
+  if (isSearchResultsPage() && savedSignature != null && savedSignature === getSearchSignature()) {
+    // Small delay to ensure the table is fully loaded before applying the filter.
     setTimeout(function () {
-      $("#Sort-Table tbody tr").each(function () {
-        if ($(this).find("a[href*='/wiki/']").length > 0 && $(this).find("span:contains('ACTIVE')").length == 0) {
-          $(this).hide();
-        }
-      });
+      setOnlyMembersState(true);
     }, 100);
+  } else {
+    sessionStorage.removeItem(ONLY_MEMBERS_KEY);
+    setOnlyMembersState(false);
   }
 }
 
-// Helper function to clear the onlyMembers cookie for testing
+// Helper function to clear the onlyMembers state for testing
 function clearOnlyMembersCookie() {
-  Cookies.remove("onlyMembers");
-  console.log("onlyMembers cookie cleared for testing");
+  sessionStorage.removeItem(ONLY_MEMBERS_KEY);
+  console.log("onlyMembers state cleared for testing");
 }
 
 function getUserIds() {
@@ -595,9 +709,46 @@ function enhanceThonStats() {
     normalizedHeader.appendChild(normalizedLink);
   }
 
+  if (window.location.toString().includes("Histogram.htm")) {
+    //add sums
+    AddCumulatedSumsToHistograms();
+    FilterThonRows();
+  }
+
   function roundIfNeeded(diffToLower) {
     return Math.round(diffToLower * 100) / 100;
   }
+}
+
+function FilterThonRows() {
+  const params = new URLSearchParams(window.location.search);
+  const needle = params.get("filter");
+  if (needle) {
+    var tds = document.getElementsByTagName("td");
+    for (let i = 0; i < tds.length; i++) {
+      console.log(tds[i].innerHTML);
+      if (tds[i].innerHTML.includes("/wiki/") && !tds[i].innerHTML.includes(needle)) {
+        console.log(tds[i].innerHTML);
+        tds[i].parentElement.style.display = "none";
+      }
+    }
+  }
+}
+
+function AddCumulatedSumsToHistograms() {
+  document.querySelectorAll("tr").forEach((r) => {
+    if (r.querySelector("div.histogram")) {
+      let cumulated = 0;
+      r.querySelectorAll("div.histogram div.col").forEach((c) => {
+        let t = c.getAttribute("title") || "",
+          m = t.match(/-\s*(\d+)/);
+        if (m) {
+          cumulated += parseInt(m[1], 10);
+          c.setAttribute("title", `${t} (${cumulated})`);
+        }
+      });
+    }
+  });
 }
 
 function addNavHomePageLink() {

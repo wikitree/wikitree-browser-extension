@@ -239,16 +239,24 @@ function getSources(person, active = 0) {
       referenceBox.draggable();
     } else {
       $("#sourcesLabel").after(referenceBox);
-      setTimeout(function () {
-        referenceBox.find("h3").trigger("click");
-      }, 1000);
+      // Start collapsed, without animation. The box may be inserted after the
+      // sources area is already visible (the profile API call can finish after
+      // the user has moved past the first step), so the old delayed, animated
+      // collapse played out on screen.
+      referenceBox.find("div").hide();
+      referenceBox.removeClass("active");
     }
 
     if (activeSources === 1 && !isProfileAddRelative) {
       $("div.referenceBox div").slideDown("swing");
     }
 
-    focusFirstButton(referenceBox);
+    // Focus only the floating box on profile edit pages. On add-relative pages
+    // the box is in the normal page flow, and focusing a button inside it
+    // scrolls the page down to the box.
+    if (isProfileEdit) {
+      focusFirstButton(referenceBox);
+    }
 
     $("#previewButton").on("click", function () {
       if ($(".referenceBox").hasClass("active")) {

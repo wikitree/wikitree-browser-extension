@@ -100,28 +100,39 @@ export function restoreData(onProcessing) {
 }
 
 export function sendMessageToContentTab(message, callback) {
-  // emulate this synchronously by checking each tab and waiting for a response to see if an error was thrown by sendMessage
-  async function _trySendMessageAsync(tabs, message, callback, index) {
-    if (tabs && tabs.length && index < tabs.length) {
-      const tab = tabs[index];
-      if (tab && tab.url && isWikiTreeUrl(tab.url) && tab.status == "complete" && tab.id) {
-        chrome.tabs.sendMessage(tab.id, message, function (response) {
-          if (chrome.runtime.lastError) {
-            _trySendMessageAsync(tabs, message, callback, index + 1); // try the next tab
-          } else if (callback) {
-            callback(response);
-          }
-        });
-      } else {
-        _trySendMessageAsync(tabs, message, callback, index + 1); // try the next tab
-      }
-    } else if (callback) {
+  const sendNoTabs = () => {
+    if (callback) {
       callback({
         nak: "NO_TABS",
       });
     }
+  };
+
+  if (!chrome?.tabs?.query || !chrome?.tabs?.sendMessage) {
+    sendNoTabs();
+    return;
   }
-  chrome.tabs.query({}, async function (tabs) {
-    _trySendMessageAsync(tabs, message, callback, 0);
+
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    if (chrome.runtime?.lastError || !tabs?.length) {
+      sendNoTabs();
+      return;
+    }
+
+    const tab = tabs[0];
+    if (!tab?.id || !tab?.url || !isWikiTreeUrl(tab.url) || tab.status !== "complete") {
+      sendNoTabs();
+      return;
+    }
+
+    chrome.tabs.sendMessage(tab.id, message, function (response) {
+      if (chrome.runtime?.lastError) {
+        sendNoTabs();
+        return;
+      }
+      if (callback) {
+        callback(response);
+      }
+    });
   });
 }

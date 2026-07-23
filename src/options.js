@@ -7,12 +7,23 @@ import { WBE, isWikiTreeUrl, showAlert, wrapBackupData, getBackupLink } from "./
 import { restoreOptions, restoreData, sendMessageToContentTab } from "./upload";
 import { navigatorDetect } from "./core/navigatorDetect";
 import { shouldInitializeFeature } from "./core/options/options_storage.js";
+import { initSafariPopupScrollFix } from "./core/popupScrollFix";
 
 shouldInitializeFeature("darkMode").then((result) => {
   if (result) {
     import("./features/darkMode/darkMode.css");
   }
 });
+
+console.log(
+  "[WBE options] version:",
+  WBE?.version,
+  "| UA:",
+  navigator.userAgent,
+  "| detected:",
+  JSON.stringify(navigatorDetect.browser)
+);
+initSafariPopupScrollFix();
 
 if (WBE?.version) {
   const title = WBE.name + " " + WBE.version;
@@ -1029,12 +1040,13 @@ chrome.storage.onChanged.addListener(function () {
 
 (function (tabs) {
   if (tabs && tabs.query) {
-    tabs.query({}, function (tabs) {
-      for (let tab of tabs) {
-        if (isWikiTreeUrl(tab.url)) {
-          $("html").addClass("is-on-wikitree");
-          break;
-        }
+    tabs.query({ active: true, currentWindow: true }, function (tabList) {
+      if (chrome.runtime?.lastError || !tabList?.length) {
+        return;
+      }
+      const activeTab = tabList[0];
+      if (activeTab?.url && isWikiTreeUrl(activeTab.url)) {
+        $("html").addClass("is-on-wikitree");
       }
     });
   }

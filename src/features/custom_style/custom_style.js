@@ -45,6 +45,7 @@ class CustomStyle {
       voteCount: ".qa-body-wrapper .green.box:has(.qa-voting)",
       answerCount: ".qa-body-wrapper .orange.box:has(.qa-a-count)",
       editor: "div.CodeMirror,#wpTextbox1",
+      selection: "body:not(.darkMode) *::selection,body:not(.darkMode)::selection",
     };
   }
 
@@ -126,6 +127,88 @@ class CustomStyle {
 
   darkenColor(rgb, percent) {
     return rgb.map((value) => Math.round(value * (1 - percent / 100)));
+  }
+
+  colorDistance(rgb1, rgb2) {
+    return Math.sqrt((rgb1[0] - rgb2[0]) ** 2 + (rgb1[1] - rgb2[1]) ** 2 + (rgb1[2] - rgb2[2]) ** 2);
+  }
+
+  // The user's chosen highlight may be deliberately subtle (e.g. pale lilac on white),
+  // so only treat it as a problem when it is nearly identical to the element's background.
+  isNearlyInvisible(rgb1, rgb2) {
+    return this.colorDistance(rgb1, rgb2) < 15;
+  }
+
+  parseCssColor(color) {
+    const match = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/.exec(color || "");
+    if (!match) {
+      return null;
+    }
+    if (match[4] !== undefined && parseFloat(match[4]) === 0) {
+      return null;
+    }
+    return [parseInt(match[1]), parseInt(match[2]), parseInt(match[3])];
+  }
+
+  getEffectiveBackgroundColor(element) {
+    while (element && element !== document.documentElement) {
+      const rgb = this.parseCssColor(window.getComputedStyle(element).backgroundColor);
+      if (rgb) {
+        return rgb;
+      }
+      element = element.parentElement;
+    }
+    return this.hexToRgb(this.options["all_background-color"]) || [255, 255, 255];
+  }
+
+  watchSelectionContrast() {
+    const chosenRgb = this.hexToRgb(this.options["selection_background-color"]);
+    if (!chosenRgb) {
+      return;
+    }
+    const selectors = this.idToSelectorMapping["selection"];
+    const styleElement = $("<style id='customStyleSelectionContrast'></style>").appendTo("head");
+    let debounceTimer;
+    document.addEventListener("selectionchange", () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        const selection = document.getSelection();
+        if (!selection || selection.isCollapsed || !selection.anchorNode) {
+          return;
+        }
+        const elements = [selection.anchorNode, selection.focusNode]
+          .map((node) => (node && node.nodeType === Node.TEXT_NODE ? node.parentElement : node))
+          .filter((node) => node instanceof Element);
+        if (elements.length === 0) {
+          return;
+        }
+
+        // One rescue only: if the background under the selection is nearly the same as
+        // the chosen highlight and the text is dark, a white highlight is always safe.
+        // Everything else is left exactly as the user chose.
+        let nearlyInvisible = false;
+        let allTextDark = true;
+        elements.forEach((element) => {
+          const backgroundRgb = this.getEffectiveBackgroundColor(element);
+          if (this.isNearlyInvisible(chosenRgb, backgroundRgb)) {
+            nearlyInvisible = true;
+          }
+          const textRgb = this.parseCssColor(window.getComputedStyle(element).color);
+          if (textRgb && this.isLight(textRgb)) {
+            allTextDark = false;
+          }
+        });
+
+        if (nearlyInvisible && allTextDark) {
+          styleElement.text(
+            `${selectors} { background-color: #ffffff !important; }\n` +
+              `body:not(.darkMode) *::selection:window-inactive { background-color: #ffffff !important; }`
+          );
+        } else {
+          styleElement.empty();
+        }
+      }, 100);
+    });
   }
 
   handleRoundedCorners() {
@@ -355,6 +438,15 @@ class CustomStyle {
       }`;
     }
 
+    // Keep the chosen highlight when the window is not focused (Chrome otherwise swaps
+    // to its own gray). Separate rule: unsupported browsers drop only this one.
+    if (this.options["selection_background-color"]) {
+      rules += `
+      body:not(.darkMode) *::selection:window-inactive {
+        background-color: ${this.options["selection_background-color"]} !important;
+      }`;
+    }
+
     return rules;
   }
 
@@ -409,6 +501,7 @@ shouldInitializeFeature("customStyle").then((result) => {
       customStyle.applyStyles();
       import("./custom_style.css");
       customStyle.addFontButtons();
+      customStyle.watchSelectionContrast();
     });
   }
 });

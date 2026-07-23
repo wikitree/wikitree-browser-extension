@@ -127,40 +127,81 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.action === "fetchFindAGraveMemorial") {
+    console.log("[WBE bg] fetchFindAGraveMemorial received for:", message.link);
     handleFindAGraveMemorialFetch(message, sendResponse);
     return true;
   }
 });
 
 async function handleFindAGraveMemorialFetch(message, sendResponse) {
+  let tab;
   try {
-    const response = await fetch(message.link, {
-      credentials: "include",
-      redirect: "follow",
-      headers: {
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
+    // Open a hidden background tab so Cloudflare bot-protection JS can execute
+    // using the user's real browser session and cookies.
+    tab = await chrome.tabs.create({ url: message.link, active: false });
+    const tabId = tab.id;
+    console.log("[WBE bg] Created background tab", tabId, "for", message.link);
+
+    // Keep listening through multiple "complete" events:
+    //   1st complete  → may be the Cloudflare challenge page
+    //   nth complete  → memorial page after challenge JS redirects back
+    // We only resolve once the tab URL is at a real memorial path AND the
+    // page content doesn't look like a challenge interstitial.
+    const { html, url } = await new Promise((resolve, reject) => {
+      const TIMEOUT_MS = 30000;
+      const timer = setTimeout(() => {
+        chrome.tabs.onUpdated.removeListener(onUpdated);
+        reject(new Error("Find a Grave tab load timed out after 30 s"));
+      }, TIMEOUT_MS);
+
+      async function onUpdated(updatedTabId, changeInfo) {
+        if (updatedTabId !== tabId || changeInfo.status !== "complete") return;
+
+        try {
+          const [result] = await chrome.scripting.executeScript({
+            target: { tabId },
+            func: () => ({
+              html: document.documentElement.outerHTML,
+              url: location.href,
+              hasH1: !!document.querySelector("h1")?.textContent?.trim(),
+            }),
+          });
+
+          const { html, url, hasH1 } = result.result;
+          console.log("[WBE bg] Tab", tabId, "complete — url:", url, "hasH1:", hasH1, "htmlLen:", html?.length);
+
+          // Guard 1: tab must be on a memorial URL
+          if (!/findagrave\.com\/memorial\/\d+/i.test(url)) {
+            console.log("[WBE bg] Guard 1 failed — not a memorial URL");
+            return;
+          }
+
+          // Guard 2: page must have a person name heading (challenge pages don't)
+          if (!hasH1) {
+            console.log("[WBE bg] Guard 2 failed — no h1");
+            return;
+          }
+
+          chrome.tabs.onUpdated.removeListener(onUpdated);
+          clearTimeout(timer);
+          console.log("[WBE bg] Memorial HTML ready, resolving");
+          resolve({ html, url });
+        } catch (_err) {
+          // executeScript can fail while the page is mid-navigation; keep waiting.
+        }
+      }
+
+      chrome.tabs.onUpdated.addListener(onUpdated);
     });
 
-    const html = await response.text();
-    if (!response.ok) {
-      sendResponse({
-        success: false,
-        status: response.status,
-        url: response.url || message.link,
-        error: `Find a Grave request failed with status ${response.status}`,
-        html,
-      });
-      return;
-    }
+    chrome.tabs.remove(tabId);
+    tab = null;
 
-    sendResponse({
-      success: true,
-      status: response.status,
-      url: response.url || message.link,
-      html,
-    });
+    sendResponse({ success: true, html, url });
   } catch (error) {
+    if (tab?.id) {
+      chrome.tabs.remove(tab.id).catch(() => {});
+    }
     sendResponse({
       success: false,
       url: message.link,
@@ -751,13 +792,15 @@ ${dataPayload}`;
   try {
     let resultBio = "";
     if (provider === "openai") {
-      resultBio = await callOpenAI(key, model || "gpt-5-mini", systemRole, prompt);
+      resultBio = await callOpenAI(key, model || "gpt-5.4-mini", systemRole, prompt);
     } else if (provider === "gemini") {
-      resultBio = await callGemini(key, model || "gemini-3-flash-preview", systemRole, prompt);
+      resultBio = await callGemini(key, model || "gemini-3.5-flash", systemRole, prompt);
     } else if (provider === "claude") {
-      resultBio = await callClaude(key, model || "claude-sonnet-4-5", systemRole, prompt);
+      resultBio = await callClaude(key, model || "claude-sonnet-5", systemRole, prompt);
     } else if (provider === "perplexity") {
       resultBio = await callPerplexity(key, model || "sonar", systemRole, prompt);
+    } else if (provider === "xai") {
+      resultBio = await callXAI(key, model || "grok-4.3", systemRole, prompt);
     } else {
       throw new Error("Unknown provider: " + provider);
     }
@@ -921,6 +964,32 @@ async function callPerplexity(apiKey, model, system, userPrompt) {
   if (!response.ok) {
     const err = await response.text();
     throw new Error("Perplexity API Error: " + response.status + " " + err);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "";
+}
+
+async function callXAI(apiKey, model, system, userPrompt) {
+  const response = await fetch("https://api.x.ai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.2,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error("xAI API Error: " + response.status + " " + err);
   }
 
   const data = await response.json();
