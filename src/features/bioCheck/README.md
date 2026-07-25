@@ -148,7 +148,6 @@ Returns **[String][7]** list of managers
 Does profile have either birth or death location
 
 Returns **[Boolean][6]** true if either location present
-or the privacy does not let us determine location
 
 ### hasBirthLocation
 
@@ -338,6 +337,13 @@ Information about the biography style can be accessed via get methods.
 *   `thePerson` **[BioCheckPerson][1]** person to check
 *   `bioSearchString` **[String][7]** search string to search for in bio
 
+### validateAllDates
+
+Validate contents of bio
+Check for valid sources for all dates
+
+Returns **[Boolean][6]** true if profile looks good, else false.
+
 ### validate
 
 Validate contents of bio
@@ -520,7 +526,7 @@ does bio have section after advance directive
 
 Returns **[Boolean][6]** true if bio has section heading after advance directive
 
-### hasUnknownSection
+### ElementNotInOrder
 
 does bio have unknown section headings
 
@@ -571,6 +577,24 @@ does bio appear to have sources
 
 Returns **[Boolean][6]** true if bio appears to have sources
 
+### hasModernSources
+
+does bio have modern sources
+
+Returns **[Boolean][6]** true if bio appears to have modern sources
+
+### hasTooOldSources
+
+does bio have too old to remember sources
+
+Returns **[Boolean][6]** true if bio appears to have too old to remember sources
+
+### hasPre1700Sources
+
+does bio have Pre1700 sources
+
+Returns **[Boolean][6]** true if bio appears to have Pre1700 sources
+
 ### getInvalidSources
 
 get invalid sources found for profile
@@ -589,6 +613,72 @@ for reporting
 get valid sources found for profile
 
 Returns **[Array][10]** array of String of valid source lines
+
+### isDisprovenExistence
+
+is profile marked Disproven Existence
+
+Returns **[Boolean][6]** true if is marked Disproven Existence
+
+### isUncertainExistence
+
+is profile marked Uncertain Existence
+
+Returns **[Boolean][6]** true if is marked Uncertain Existence
+
+### hasHorizontalRuleBeforeBio
+
+does profile have Horizontal Rule before Biography
+
+Returns **[Boolean][6]** true if Horizontal Rule before Biography
+
+### hasNonRecommendedHtml
+
+does profile have HTML that is not recommended
+
+Returns **[Boolean][6]** true if HTML that is not recommended
+
+### hasEmail
+
+does profile have email
+
+Returns **[Boolean][6]** true if bio has email
+
+### hasTooManyStickers
+
+does profile have too many stickers
+
+Returns **[Boolean][6]** true if profile has too many stickers
+
+### notabilityHasRef
+
+does Notability statement contain source citation
+
+Returns **[Boolean][6]** true if notability contains source citation
+
+### hasMultipleRefName
+
+does biography have the same ref defined more than once
+
+Returns **[Boolean][6]** true if the same ref name is defined more than once
+
+### hasRefMissingCitation
+
+does biography have named ref without a citation
+
+Returns **[Boolean][6]** true if named ref missing citation
+
+### hasElementNotInProperOrder
+
+does biography have elements out of order
+
+Returns **[Boolean][6]** true elements out of order
+
+### hasIncompleteDNAConfirmation
+
+does bio have incomplete Dna confirmation
+
+Returns **[Boolean][6]** true incomplete DNA Confirmation found
 
 ## SourceRules
 
