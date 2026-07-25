@@ -730,6 +730,14 @@ div.chat-results-popup table.dataTable td.nowrap-cell {
   gap: 8px;
   pointer-events: none;
 }
+/* The chat/Muse loader must catch clicks on itself instead of letting them
+   fall through to the page (tabs, links) behind it. Scoped to the chat-owned
+   marker class (and given extra specificity) so it wins over the shared
+   .wbe-shaky-tree rule without changing other features' loaders. */
+.wbe-shaky-tree.wbe-chat-shaky,
+.wbe-shaky-tree.wbe-chat-shaky.center {
+  pointer-events: auto;
+}
 .wbe-shaky-tree .wbe-shaky-image {
   width: 96px;
   height: 96px;
@@ -830,6 +838,28 @@ div.chat-results-popup table.dataTable td.nowrap-cell {
   background: #4caf50;
   border-radius: 3px;
   transition: width 0.25s ease;
+}
+
+.wbe-shaky-tree .wbe-shaky-cancel {
+  pointer-events: auto;
+  cursor: pointer;
+  margin-top: 2px;
+  padding: 5px 14px;
+  font-size: 12px;
+  color: #b3261e;
+  background: #ffffff;
+  border: 1px solid #e0b4b0;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.wbe-shaky-tree .wbe-shaky-cancel:hover {
+  background: #fdeceb;
+}
+.wbe-shaky-tree .wbe-shaky-cancel:disabled {
+  cursor: default;
+  color: #999;
+  border-color: #ddd;
+  background: #f5f5f5;
 }
 
 /* Hide shaky tree by default; JS toggles via fadeIn/fadeOut and .center */

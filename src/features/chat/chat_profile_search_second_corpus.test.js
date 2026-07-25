@@ -163,9 +163,19 @@ describe("chat second-set prompt corpus (deterministic WT+ parses)", () => {
     expect(executedQuery).not.toMatch(/with|earlier|than/i);
   });
 
-  test("profiles from Hampshire, England stays a plain place search", async () => {
-    const executedQuery = await executedQueryFor("profiles from Hampshire, England");
-    expect(executedQuery).toContain('Location="Hampshire, England"');
+  test("a place-only prompt asks which life-event scope instead of running a vague Location= query", async () => {
+    // "profiles from Hampshire, England" has no other scope, so Muse asks
+    // born/married/died up front rather than running the (huge, vague) query.
+    const result = await runPrompt("profiles from Hampshire, England");
+    expect(wtAPIProfileSearch).not.toHaveBeenCalled();
+    expect(result.message).toMatch(/birth, marriage, or death place/i);
+    expect((result.actions || []).map((a) => a.wtPlusQuery)).toEqual(
+      expect.arrayContaining([
+        'BirthLocation="Hampshire, England"',
+        'DeathLocation="Hampshire, England"',
+        'Location="Hampshire, England"',
+      ])
+    );
   });
 
   test("profiles from Hampshire, England with birth year 17th century", async () => {
@@ -306,5 +316,72 @@ describe("chat second-set prompt corpus (deterministic WT+ parses)", () => {
     const executedQuery = await executedQueryFor("Illinois Find a Grave cem 105308");
     expect(executedQuery).toContain("Location=Illinois");
     expect(executedQuery).toContain("fgcem105308");
+  });
+
+  test("a bare Location= scope offers life-event refinements, and a surname reading only when ambiguous", async () => {
+    const labelsFor = async (prompt) => {
+      jest.clearAllMocks();
+      wtAPIProfileSearch.mockResolvedValue({ response: { profiles: ["1"], searchLog: "Result: 1\r\n" } });
+      const result = await runPrompt(prompt);
+      return (result.actions || []).map((action) => action.label);
+    };
+
+    const kent = await labelsFor("Kent no manager");
+    expect(kent).toEqual(expect.arrayContaining(["Born in Kent", "Married in Kent", "Died in Kent"]));
+    // "Kent" is a county AND a surname, so the surname reading is offered.
+    expect(kent).toContain("Surname Kent");
+
+    // "-shire" and known countries can only be places — no surname button.
+    const denbighshire = await labelsFor("Denbighshire no manager");
+    expect(denbighshire).toEqual(expect.arrayContaining(["Born in Denbighshire", "Died in Denbighshire"]));
+    expect(denbighshire).not.toContain("Surname Denbighshire");
+    expect(await labelsFor("Scotland no manager")).not.toContain("Surname Scotland");
+  });
+
+  test("choosing 'Any place' still surfaces scope refinements when it is too many / zero", async () => {
+    // The user accepted the vague scope via the "Any place" button, which
+    // re-runs Location=Kent directly (fromScopeChoice). Those result branches
+    // used to return before the refinement buttons were attached.
+    const { reRunSavedWtPlusQuery } = makeHandler();
+
+    jest.clearAllMocks();
+    wtAPIProfileSearch.mockResolvedValue({
+      response: { found: 99999, profiles: [] },
+      searchLog: "Result: 99999 Maximum number of profiles\r\n",
+    });
+    const tooMany = await reRunSavedWtPlusQuery("Orphan Location=Kent", "text");
+    expect((tooMany.actions || []).map((a) => a.label)).toEqual(
+      expect.arrayContaining(["Born in Kent", "Died in Kent", "Surname Kent"])
+    );
+
+    jest.clearAllMocks();
+    wtAPIProfileSearch.mockResolvedValue({ response: { found: 0, profiles: [] }, searchLog: "Result: 0\r\n" });
+    const zero = await reRunSavedWtPlusQuery("Orphan Location=Kent", "text");
+    expect((zero.actions || []).map((a) => a.label)).toEqual(expect.arrayContaining(["Born in Kent", "Surname Kent"]));
+  });
+
+  test("plain-English orphan phrasing parses to the Orphan token (offered on each scope choice), never leaking 'manager'", async () => {
+    // Regression: "Denbighshire no manager" produced no WT+ query at all and
+    // fell through to person search. Now it parses to Orphan + place and asks
+    // which life-event scope. "manager" must never leak into the query.
+    for (const prompt of [
+      "Denbighshire no manager",
+      "Denbighshire with no managers",
+      "Denbighshire without a manager",
+      "unmanaged profiles in Denbighshire",
+      "orphaned profiles in Denbighshire",
+    ]) {
+      jest.clearAllMocks();
+      wtAPIProfileSearch.mockResolvedValue({ response: { profiles: ["1"], searchLog: "Result: 1\r\n" } });
+      const result = await runPrompt(prompt);
+      expect(wtAPIProfileSearch).not.toHaveBeenCalled();
+      const actionQueries = (result.actions || []).map((a) => a.wtPlusQuery);
+      expect(actionQueries.length).toBeGreaterThan(0);
+      for (const q of actionQueries) {
+        expect(q).toContain("Orphan");
+        expect(q).toMatch(/Denbighshire/);
+        expect(q).not.toMatch(/manager/i);
+      }
+    }
   });
 });

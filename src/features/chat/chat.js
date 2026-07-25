@@ -52,6 +52,8 @@ import {
   getPopupResizeLimits as uiGetPopupResizeLimits,
   showChatShaky,
   hideChatShaky,
+  resetChatShakyCancel,
+  isChatShakyCancelled,
   showConnectionsPopup,
   sanitizeHtmlForPopup,
   extractProfileBios,
@@ -295,6 +297,11 @@ let chatHistory = [];
 let lastNonRetryUserPrompt = "";
 let lastConnectionContext = null;
 let pendingDisambiguationContext = null;
+// When an answer offers a concrete follow-up ("...would you like to try an
+// ancestor search instead?"), we stash the prompt that a plain "Sure."/"Yes"
+// should run. Without this a bare affirmative falls through to profile search
+// and returns nonsense name matches for "Sure.".
+let pendingFollowupOffer = null;
 let lastConnectionCandidates = [];
 let lastConnectionRankedMatches = [];
 let lastConnectionPopupResult = null;
@@ -666,6 +673,41 @@ function isWtPlusSuggestionPrompt(text) {
   }
 
   return /(?:^|\s)(?:suggestions?|sug\w*|dbe\w*)\b/i.test(normalized);
+}
+
+// Strip list/bullet decorations that ride along when a prompt is pasted from a
+// bulleted document (e.g. "•\tLancashire ..." or "- Lancashire ..."). Without
+// this the marker leaks into the search, e.g. BirthLocation="• Lancashire".
+// Only a single leading marker is removed; tabs/non-breaking spaces anywhere
+// are folded to regular spaces so downstream tokenizing behaves normally.
+function stripPromptListDecorations(prompt) {
+  // Fold tabs and non-breaking / thin spaces to regular spaces first.
+  let text = String(prompt || "").replace(/[\t\u00a0\u2000-\u200a\u202f\u205f\u3000]+/g, " ");
+  // Remove a single leading bullet glyph, dash, or "1." / "1)" ordinal marker
+  // when it is followed by whitespace, so we never eat a real word or a
+  // hyphenated place like "Stratford-upon-Avon".
+  text = text.replace(/^\s*(?:[\u2022\u00b7\u2023\u25aa\u25e6\u2219*+\u2013\u2014\u2043-]|\d{1,3}[.)])\s+/, "");
+  return text.replace(/\s{2,}/g, " ").trim();
+}
+
+// Bare conversational replies to an offered follow-up. Kept deliberately tight
+// (whole-prompt matches only) so a real search like "yes Smith" is untouched.
+function normalizeReplyText(prompt) {
+  return String(prompt || "")
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isAffirmativeReply(prompt) {
+  return /^(?:sure|yes|yeah|yep|yup|ok|okay|please|go ahead|go on|do it|sounds good|why not|alright|absolutely)(?: please| thanks| thank you)?$/.test(
+    normalizeReplyText(prompt)
+  );
+}
+
+function isNegativeReply(prompt) {
+  return /^(?:no|nope|nah|no thanks|no thank you|not now|maybe later)$/.test(normalizeReplyText(prompt));
 }
 
 function parseSuggestionNumberFromPrompt(prompt) {
@@ -1107,6 +1149,8 @@ const profileSearchHandlers = createProfileSearchHandler({
   normalizeKnownDate,
   showChatShaky,
   hideChatShaky,
+  resetChatShakyCancel,
+  isChatShakyCancelled,
 });
 
 const tryHandleProfileSearchPrompt = profileSearchHandlers.tryHandleProfileSearchPrompt;
@@ -1361,10 +1405,15 @@ async function fetchPeoplePaged(appId, rootKey, fields, options = {}) {
 
   // Optional page-progress callback; never forwarded to the API.
   const onProgress = typeof options.onProgress === "function" ? options.onProgress : null;
+  // Optional cancellation predicate, polled between chunks/pages; never
+  // forwarded to the API. Returning true stops paging and returns what has been
+  // aggregated so far.
+  const shouldCancel = typeof options.shouldCancel === "function" ? options.shouldCancel : null;
 
   if (keysArray && keysArray.length) {
     totalCount = keysArray.length;
     for (let i = 0; i < keysArray.length; i += limit) {
+      if (shouldCancel && shouldCancel()) break;
       const chunk = keysArray.slice(i, i + limit);
       try {
         // Do not pass start/limit when requesting a specific set of keys.
@@ -1372,6 +1421,7 @@ async function fetchPeoplePaged(appId, rootKey, fields, options = {}) {
         delete chunkOpts.start;
         delete chunkOpts.limit;
         delete chunkOpts.onProgress;
+        delete chunkOpts.shouldCancel;
         console.debug("wbe: fetchPeoplePaged requesting chunk", { chunkSize: chunk.length });
         const [status, resultByKey, people] = await WikiTreeAPI.getPeople(appId, chunk, fields, chunkOpts);
         lastStatus = status || lastStatus;
@@ -1390,6 +1440,7 @@ async function fetchPeoplePaged(appId, rootKey, fields, options = {}) {
           delete retryOpts.start;
           delete retryOpts.limit;
           delete retryOpts.onProgress;
+          delete retryOpts.shouldCancel;
           console.debug("wbe: fetchPeoplePaged retrying failed chunk", { chunkSize: chunk.length });
           const [retryStatus, , retryPeople] = await WikiTreeAPI.getPeople(appId, chunk, fields, retryOpts);
           lastStatus = retryStatus || lastStatus;
@@ -1429,8 +1480,10 @@ async function fetchPeoplePaged(appId, rootKey, fields, options = {}) {
   let fetchMore = true;
 
   while (fetchMore) {
+    if (shouldCancel && shouldCancel()) break;
     const pageOpts = { ...(options || {}), start, limit };
     delete pageOpts.onProgress;
+    delete pageOpts.shouldCancel;
     const [status, total, people] = await WikiTreeAPI.getPeople(appId, rootKey, fields, pageOpts);
     if (status == null) {
       throw new Error("No status returned from getPeople while paging results.");
@@ -2445,6 +2498,12 @@ async function handleChatResult(result) {
 
   rememberResolvedPeopleFromMessage(messageText);
 
+  // A handler can offer a concrete follow-up; a bare "Sure."/"Yes" on the next
+  // turn runs offer.prompt instead of being treated as a search term.
+  if (result?.offer?.prompt) {
+    pendingFollowupOffer = { prompt: String(result.offer.prompt) };
+  }
+
   if (Object.prototype.hasOwnProperty.call(result, "table")) {
     setPersistedLastStructuredResult(result.table || null);
     rememberResolvedPeopleFromTable(result.table);
@@ -2478,6 +2537,29 @@ async function handleChatResult(result) {
               action.wtPlusSuggestionId || "",
               action.wtPlusSuggestionOptions || {}
             ),
+        };
+      }
+
+      // Re-run a saved WT+ query in chat (disambiguation scope buttons, "Fetch
+      // results again"). The live path needs an onClick attached here — only
+      // hydrateAction wires these up on history restore, so without this the
+      // render loop in appendMessage silently drops the buttons.
+      if (
+        (action?.actionType === "fetch-wtplus-results" || action?.label === "Fetch results again") &&
+        action?.wtPlusQuery
+      ) {
+        return {
+          ...action,
+          onClick: async () => {
+            if (typeof reRunSavedWtPlusQuery !== "function") return;
+            const result = await reRunSavedWtPlusQuery(
+              action.wtPlusQuery,
+              action.wtPlusSearchType || "text",
+              action.wtPlusSuggestionId || "",
+              action.wtPlusSuggestionOptions || {}
+            );
+            await handleChatResult(typeof result === "string" ? { message: result } : result);
+          },
         };
       }
 
@@ -2569,7 +2651,7 @@ async function sendChatPrompt() {
   const $input = $(`#${CHAT_INPUT_ID}`);
   if ($input.length === 0) return;
 
-  const rawPrompt = String($input.val() || "").trim();
+  const rawPrompt = stripPromptListDecorations(String($input.val() || ""));
   if (!rawPrompt) {
     return;
   }
@@ -2589,8 +2671,32 @@ async function sendChatPrompt() {
     }
     // A retry should replay the previous request verbatim, not answer a stale disambiguation prompt.
     pendingDisambiguationContext = null;
+    pendingFollowupOffer = null;
     prompt = sanitizeRetriedPrompt(lastNonRetryUserPrompt);
     appendMessage("assistant", `Retrying your previous request: ${prompt}`, { shouldPersist: false });
+  }
+
+  // Answer to an offered follow-up ("...would you like to try X instead?").
+  // Consume it before any routing so a bare "Sure." never reaches the
+  // profile-name search. The offer is single-use either way.
+  let followupOfferNote = "";
+  if (pendingFollowupOffer && !retryRequested) {
+    const offer = pendingFollowupOffer;
+    pendingFollowupOffer = null;
+    if (isNegativeReply(prompt)) {
+      appendMessage("user", normalizedPrompt);
+      appendMessage("assistant", "No problem — ask me anything else when you're ready.");
+      $input.val("");
+      refreshWtPlusSuggestionPickerForCurrentPopup();
+      return;
+    }
+    if (isAffirmativeReply(prompt)) {
+      prompt = offer.prompt;
+      followupOfferNote = `Running: ${prompt}`;
+    }
+  } else if (!retryRequested) {
+    // Any unrelated prompt cancels a stale offer.
+    pendingFollowupOffer = null;
   }
 
   ensureResolvedPersonMemoryLoaded();
@@ -2621,6 +2727,9 @@ async function sendChatPrompt() {
   }
 
   appendMessage("user", normalizedPrompt);
+  if (followupOfferNote) {
+    appendMessage("assistant", followupOfferNote, { shouldPersist: false });
+  }
   if (!retryRequested) {
     lastNonRetryUserPrompt = rawPrompt;
   }

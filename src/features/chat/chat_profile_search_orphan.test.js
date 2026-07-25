@@ -75,16 +75,66 @@ describe("chat_profile_search orphan manager phrasing", () => {
     delete window.callAiModel;
   });
 
-  test("parses no manager as the Orphan token locally", async () => {
+  test("parses no manager as the Orphan token locally and asks which place scope", async () => {
     const { tryHandleProfileSearchPrompt } = makeHandler();
 
+    // "Denbighshire no manager" is place-only (Orphan + bare Location=), so Muse
+    // asks born/married/died up front instead of running the vague query.
     const result = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Denbighshire no manager");
-    const executedQuery = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
 
-    expect(executedQuery).toContain("Orphan");
-    expect(executedQuery).toContain("Location=Denbighshire");
-    expect(result.message).toContain("Orphan");
-    expect(result.message).toContain("Location=Denbighshire");
+    expect(wtAPIProfileSearch).not.toHaveBeenCalled();
+    expect(result.message).toMatch(/birth, marriage, or death place/i);
+    const actionQueries = (result.actions || []).map((a) => a.wtPlusQuery);
+    // The Orphan token parsed correctly and rides along on each scope choice.
+    expect(actionQueries).toEqual(
+      expect.arrayContaining([
+        "Orphan BirthLocation=Denbighshire",
+        "Orphan DeathLocation=Denbighshire",
+        "Orphan Location=Denbighshire", // the "Any place" option
+      ])
+    );
+    // Unambiguous place: no surname reading offered.
+    expect((result.actions || []).map((a) => a.label)).not.toContain("Surname Denbighshire");
+  });
+
+  test("asks AI what an ambiguous single word could mean and builds those scope buttons", async () => {
+    window.callAiModel = jest.fn(async () =>
+      JSON.stringify([
+        { kind: "place", label: "Kent, England (county)", location: "Kent, England, United Kingdom" },
+        { kind: "surname", label: "Surname Kent", surname: "Kent" },
+        { kind: "place", label: "Kent, Ohio, USA", location: "Kent, Ohio, United States" },
+      ])
+    );
+
+    const { tryHandleProfileSearchPrompt } = makeHandler({
+      getChatOptions: jest.fn(async () => ({ allowAiFallback: true })),
+    });
+
+    const result = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Kent no manager");
+
+    expect(window.callAiModel).toHaveBeenCalled();
+    expect(wtAPIProfileSearch).not.toHaveBeenCalled();
+    expect(result.message).toMatch(/could mean a few different things/i);
+
+    const byLabel = Object.fromEntries((result.actions || []).map((a) => [a.label, a.wtPlusQuery]));
+    expect(byLabel["Kent, England (county)"]).toBe('Orphan Location="Kent, England, United Kingdom"');
+    expect(byLabel["Surname Kent"]).toBe("Orphan AllLastNames=Kent");
+    expect(byLabel["Kent, Ohio, USA"]).toBe('Orphan Location="Kent, Ohio, United States"');
+    // The catch-all keeps the original broad term available.
+    expect(byLabel["Any place named Kent"]).toBe("Orphan Location=Kent");
+    // Every button re-runs a saved WT+ query in chat.
+    expect((result.actions || []).every((a) => a.actionType === "fetch-wtplus-results")).toBe(true);
+  });
+
+  test("falls back to born/married/died buttons when AI is unavailable", async () => {
+    // allowAiFallback stays false (default handler), so no AI round-trip.
+    const { tryHandleProfileSearchPrompt } = makeHandler();
+
+    const result = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Kent no manager");
+
+    expect(result.message).toMatch(/birth, marriage, or death place/i);
+    const labels = (result.actions || []).map((a) => a.label);
+    expect(labels).toEqual(expect.arrayContaining(["Born in Kent", "Died in Kent", "Surname Kent"]));
   });
 
   test("coerces AI no-manager interpretations away from NOT ProjectManaged", async () => {

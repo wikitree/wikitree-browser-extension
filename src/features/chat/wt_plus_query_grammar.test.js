@@ -156,6 +156,37 @@ describe("wt_plus_query_grammar suggestions free text", () => {
     expect(result.query).not.toMatch(/Location="[^"]*\bbiography\b/i);
   });
 
+  test("strips trailing intensifier fillers ('at all', 'whatsoever') from the location", () => {
+    const atAll = translateSuggestionsFreeTextToQuery("Cheshire no biography at all");
+    expect(atAll.query).toContain("Suggestions=802");
+    expect(atAll.query).toContain("Location=Cheshire");
+    expect(atAll.query).not.toMatch(/Location="[^"]*\b(?:at|all)\b/i);
+
+    const whatsoever = translateSuggestionsFreeTextToQuery("England profiles with no biography whatsoever");
+    expect(whatsoever.query).toContain("Location=England");
+    expect(whatsoever.query).not.toMatch(/whatsoever/i);
+  });
+
+  test("maps 'no birth or death date' to the No-Dates suggestion group, not a FindAGrave date code", () => {
+    // Regression: the keyword matcher used to grab a single FindAGrave code
+    // (573) and leak the unmatched word "death" into Location="England death".
+    const result = translateSuggestionsFreeTextToQuery("England no birth or death date");
+    expect(result).not.toBeNull();
+    expect(result.suggestionId).toBe("131 132 133 134");
+    // Multi-code values must be quoted so the query tokenizer keeps them together.
+    expect(result.query).toContain('Suggestions="131 132 133 134"');
+    expect(result.query).toContain("Location=England");
+    expect(result.query).not.toMatch(/death/i);
+    expect(result.query).not.toContain("573");
+  });
+
+  test("maps a bare 'no dates' phrase to the No-Dates suggestion group without leaking 'dates'", () => {
+    const result = translateSuggestionsFreeTextToQuery("profiles in Devon with no dates");
+    expect(result.suggestionId).toBe("131 132 133 134");
+    expect(result.query).toContain("Location=Devon");
+    expect(result.query).not.toMatch(/Location="[^"]*\bdates?\b/i);
+  });
+
   test("maps almost empty biography phrasing to Suggestions=803", () => {
     const result = translateSuggestionsFreeTextToQuery("show short biographies");
     expect(result).not.toBeNull();

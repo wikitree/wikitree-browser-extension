@@ -111,6 +111,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keep channel open for async response
   }
 
+  if (message.action === "chatWithAI") {
+    handleChatWithAIRequest(message, sendResponse);
+    return true; // Keep channel open for async response
+  }
+
   if (message.action === "duplicatesRead") {
     handleDuplicatesRead(message, sendResponse);
     return true; // Keep channel open for async response
@@ -848,6 +853,55 @@ ${dataPayload}`;
   } catch (error) {
     console.error("AI Request Failed:", error);
     sendResponse({ success: false, error: error.message });
+  }
+}
+
+// Generic chat bridge for the Muse chat feature. The content script cannot call
+// AI providers directly (no window.callAiModel in production and CORS/key
+// handling belongs here), so it sends { action: "chatWithAI", provider, key,
+// model, prompt } and expects { success, response }. Without this handler every
+// Muse AI call silently fails and the chat falls back to deterministic parsing.
+async function handleChatWithAIRequest(message, sendResponse) {
+  try {
+    const provider = message.provider || "openai";
+    const key = message.key;
+    const model = message.model || "";
+    const prompt = message.prompt || "";
+
+    if (!key) {
+      sendResponse({ success: false, error: "No API key configured for the selected AI provider." });
+      return;
+    }
+    if (!prompt) {
+      sendResponse({ success: false, error: "No prompt supplied." });
+      return;
+    }
+
+    const system =
+      "You are Muse, the assistant inside the WikiTree Browser Extension chat. " +
+      "Follow the user's instructions precisely. When the instructions ask for JSON, " +
+      "reply with strict JSON only and no surrounding prose or code fences.";
+
+    let response = "";
+    if (provider === "openai") {
+      response = await callOpenAI(key, model || "gpt-5-mini", system, prompt);
+    } else if (provider === "gemini") {
+      response = await callGemini(key, model || "gemini-3-flash-preview", system, prompt);
+    } else if (provider === "claude") {
+      response = await callClaude(key, model || "claude-sonnet-4-5", system, prompt);
+    } else if (provider === "perplexity") {
+      response = await callPerplexity(key, model || "sonar", system, prompt);
+    } else if (provider === "xai") {
+      response = await callXAI(key, model || "grok-4.3", system, prompt);
+    } else {
+      sendResponse({ success: false, error: "Unknown provider: " + provider });
+      return;
+    }
+
+    sendResponse({ success: true, response });
+  } catch (error) {
+    console.error("chatWithAI request failed:", error);
+    sendResponse({ success: false, error: error?.message || String(error) });
   }
 }
 

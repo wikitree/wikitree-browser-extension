@@ -1049,27 +1049,58 @@ export function showConnectionsPopup(connectionsResult) {
   });
 }
 
+// Cancellation token for long-running shaky-tree operations. Callers that want
+// a cancellable operation reset it at the start (resetChatShakyCancel), show a
+// cancellable loader, and poll isChatShakyCancelled() between work units.
+let _shakyCancelRequested = false;
+
+/** Clear the cancel flag. Call at the start of a cancellable operation. */
+export function resetChatShakyCancel() {
+  _shakyCancelRequested = false;
+}
+
+/** True once the user has clicked Cancel on the shaky loader. */
+export function isChatShakyCancelled() {
+  return _shakyCancelRequested;
+}
+
 /**
  * Small shaky-tree loader UI used in chat operations.
+ *
+ * @param {object} [options]
+ * @param {boolean} [options.cancellable] Pass `true` to show a Cancel button,
+ *   `false` to remove it. Omit (undefined) to leave the current button
+ *   untouched — this lets progress updates refresh the label without wiping the
+ *   button.
+ * @param {Function} [options.onCancel] Invoked when the user clicks Cancel.
  */
-export function showChatShaky(label = "Finding connection...", position = "center", progressPercent = null) {
+export function showChatShaky(label = "Finding connection...", position = "center", progressPercent = null, options = {}) {
+  const onCancel = typeof options.onCancel === "function" ? options.onCancel : null;
   let $existing = $("#wbeShakyTree");
   const treeUrl = chrome?.runtime?.getURL ? chrome.runtime.getURL("images/tree.gif") : "images/tree.gif";
   if ($existing.length === 0) {
     const html = `
-      <div id="wbeShakyTree" class="wbe-shaky-tree" style="display:none">
+      <div id="wbeShakyTree" class="wbe-shaky-tree wbe-chat-shaky" style="display:none">
         <div class="wbe-shaky-image"><img src="${treeUrl}" alt="loading" /></div>
         <div class="wbe-shaky-messages">
-          <div class="wbe-shaky-label">${label}</div>
+          <div class="wbe-shaky-label"></div>
         </div>
       </div>
       `;
     $(document.body).append(html);
     $existing = $("#wbeShakyTree");
+    $existing.find(".wbe-shaky-label").html(label);
   } else {
-    const $msgs = $existing.find(".wbe-shaky-messages");
-    // Replace existing messages with the latest label to avoid duplicates
-    $msgs.html(`<div class="wbe-shaky-label">${label}</div>`);
+    // Mark the loader as chat-owned even if another feature created the shared
+    // #wbeShakyTree element first, so the chat-scoped styles apply.
+    $existing.addClass("wbe-chat-shaky");
+    // Update only the label so any progress bar / cancel button survive.
+    let $label = $existing.find(".wbe-shaky-label");
+    if (!$label.length) {
+      $label = $('<div class="wbe-shaky-label"></div>');
+      $existing.find(".wbe-shaky-messages").prepend($label);
+    }
+    $label.html(label);
   }
 
   // Optional determinate progress line (0-100) under the label.
@@ -1088,6 +1119,35 @@ export function showChatShaky(label = "Finding connection...", position = "cente
     $existing.find(".wbe-shaky-progress").remove();
   }
 
+  // Opt-in Cancel button. `cancellable === true` creates it (once) and rebinds
+  // the handler; `=== false` removes it; `undefined` leaves it as-is.
+  const $messages = $existing.find(".wbe-shaky-messages");
+  let $cancel = $existing.find(".wbe-shaky-cancel");
+  if (options.cancellable === true) {
+    if (!$cancel.length) {
+      $cancel = $('<button type="button" class="wbe-shaky-cancel">Cancel</button>');
+      $messages.append($cancel);
+    }
+    $cancel.off("click.wbeShaky").on("click.wbeShaky", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      _shakyCancelRequested = true;
+      $cancel.prop("disabled", true).text("Cancelling…");
+      $existing.find(".wbe-shaky-label").text("Cancelling…");
+      if (onCancel) {
+        try {
+          onCancel();
+        } catch (e) {
+          /* cancel handler must never break teardown */
+        }
+      }
+    });
+    // Keep the button visually last, under the label/progress.
+    $messages.append($cancel);
+  } else if (options.cancellable === false && $cancel.length) {
+    $cancel.off("click.wbeShaky").remove();
+  }
+
   if (position === "center") $existing.addClass("center");
   else $existing.removeClass("center");
   $existing.stop(true, true).fadeIn(180);
@@ -1104,6 +1164,8 @@ export function hideChatShaky() {
   const $el = $("#wbeShakyTree");
   if ($el.length) {
     $el.stop(true, true).fadeOut(150, function () {
+      // Remove any Cancel button so it never lingers into the next operation.
+      $(this).find(".wbe-shaky-cancel").off("click.wbeShaky").remove();
       $(this).removeClass("center");
     });
   }
@@ -1113,6 +1175,8 @@ export function hideChatShaky() {
 window.wbeUi = window.wbeUi || {};
 window.wbeUi.showChatShaky = showChatShaky;
 window.wbeUi.hideChatShaky = hideChatShaky;
+window.wbeUi.resetChatShakyCancel = resetChatShakyCancel;
+window.wbeUi.isChatShakyCancelled = isChatShakyCancelled;
 window.wbeUi.showConnectionsPopup = showConnectionsPopup;
 
 // Sanitize profile HTML for insertion into popups to avoid CSP inline-script execution.

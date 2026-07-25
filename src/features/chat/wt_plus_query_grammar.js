@@ -375,6 +375,20 @@ const SUGGESTION_PHRASE_ALIASES = [
     titleHint: "Project managed but no project box",
   },
   {
+    // Profiles missing both birth and death dates map to the WT+ "No Dates"
+    // suggestion group. These four codes cover the open-privacy No-Dates cases;
+    // emitting them together (Suggestions="131 132 133 134") matches any of them.
+    // Without this alias the keyword matcher grabs a single FindAGrave date code
+    // (e.g. 573) and leaks the unmatched word ("death") into a bogus Location.
+    code: "131 132 133 134",
+    patterns: [
+      /\b(?:no|missing|without|empty|blank)\b.*\bbirth\b.*\bdeath\b.*\bdates?\b/i,
+      /\b(?:no|missing|without|empty|blank)\b.*\bdeath\b.*\bbirth\b.*\bdates?\b/i,
+      /\bno\s+dates?\b/i,
+    ],
+    titleHint: "No birth or death date",
+  },
+  {
     code: "802",
     patterns: [/\b(?:empty|blank|no)\b.*\bbiograph(?:y|ies)\b/i, /\bno\b.*\bbio\b/i],
     titleHint: "Empty biography",
@@ -626,8 +640,10 @@ function translateSuggestionsFreeTextToQuery(queryText) {
       "empty", "blank", "no", "not", "non", "none", "missing", "without", "lacking",
       "short", "almost", "nearly", "near", "thin", "uncleaned", "unclean", "unconnected",
       "duplicated", "duplicate", "hidden", "broken", "bad", "invalid", "wrong",
+      "date", "dates", "birth", "death", "born", "died",
       "profile", "profiles", "people", "person", "member", "members", "bio",
       "with", "after", "that", "the", "a", "an", "by", "but", "and", "or",
+      "at", "all", "any", "whatsoever", "even", "still",
     ]);
     remainder = remainder
       .split(/\s+/)
@@ -645,7 +661,10 @@ function translateSuggestionsFreeTextToQuery(queryText) {
 
   const queryTerms = [];
   if (suggestionId) {
-    queryTerms.push(`Suggestions=${suggestionId}`);
+    // A multi-code suggestionId ("131 132 133 134") must be quoted so the query
+    // tokenizer keeps it as one Suggestions= value instead of splitting the
+    // trailing codes into bare (invalid) tokens.
+    queryTerms.push(`Suggestions=${/\s/.test(suggestionId) ? `"${suggestionId}"` : suggestionId}`);
   }
   if (remainder) {
     // Emit only valid query-builder terms: recognized raw tokens stay bare,

@@ -993,15 +993,38 @@ export function createChatRelationHandlers({
             }
             return !birth && !death;
           }).length;
-          return `I searched ${removedMatchedCousins.length} ${resultLabel} for ${
-            subject.label
-          }, but none matched ${locationPhrase}. ${missingLocationCount} had no ${getLocationFieldLabel(
-            locationField
-          )} in accessible API data.${appsLoginHint}`;
+          // Cousins are mostly living contemporaries, and living profiles are
+          // only returned by the API when they exist on WikiTree AND are
+          // visible to this user. A small count is usually a statement about
+          // documented data, not a failed lookup, so say that plainly instead
+          // of implying the question was wrong.
+          const found = removedMatchedCousins.length;
+          const isOne = found === 1;
+          const missingLocationNote = missingLocationCount
+            ? ` ${missingLocationCount} had no ${getLocationFieldLabel(locationField)} recorded.`
+            : "";
+          return (
+            `Among ${resultLabel}, only ${found} ${isOne ? "profile is" : "profiles are"} documented in ` +
+            `WikiTree's accessible data for ${subject.label}, and ${isOne ? "that one wasn't" : "none were"} ` +
+            `${locationPhrase}.${missingLocationNote} Cousins are usually living relatives, so many may not be ` +
+            `on WikiTree yet or may not be visible to you.${appsLoginHint}`
+          );
         }
-        return subject.isUser
-          ? `I couldn't find any ${resultLabel} in currently accessible family data yet.${privateNote}${appsLoginHint}`
-          : `I couldn't find any ${resultLabel} for ${subject.label} in currently accessible family data yet.${privateNote}${appsLoginHint}`;
+        // Phrased as a question, and paired with `offer` so a bare "Sure."/"Yes"
+        // on the next turn runs the ancestor search instead of being treated as
+        // a profile-name search.
+        const sparseCousinNote =
+          " Cousins are usually living relatives, so many may not be on WikiTree yet or may not be visible to you." +
+          " Your ancestor lines are unaffected — would you like me to show your ancestors instead?";
+        const offer = subject.isUser
+          ? { prompt: "my ancestors" }
+          : { prompt: `ancestors of ${subject.wtId || subject.label}` };
+        return {
+          message: subject.isUser
+            ? `No ${resultLabel} are documented in WikiTree's accessible data for you.${privateNote}${appsLoginHint}${sparseCousinNote}`
+            : `No ${resultLabel} are documented in WikiTree's accessible data for ${subject.label}.${privateNote}${appsLoginHint}${sparseCousinNote}`,
+          offer,
+        };
       }
 
       if (mode === "count") {

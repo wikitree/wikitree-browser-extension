@@ -1,4 +1,19 @@
 export const PERSON_MEMORY_ALIAS_STOPWORDS = new Set([
+  // Conversational replies — never person names. Without these a bare "Sure."
+  // or "Yes" looks like a plausible surname and gets run as a profile search.
+  "sure",
+  "yes",
+  "yeah",
+  "yep",
+  "yup",
+  "ok",
+  "okay",
+  "nope",
+  "nah",
+  "thanks",
+  "please",
+  "alright",
+  "absolutely",
   "about",
   "after",
   "all",

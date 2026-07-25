@@ -153,6 +153,8 @@ export function createProfileSearchHandler({
   normalizeKnownDate,
   showChatShaky,
   hideChatShaky,
+  resetChatShakyCancel = () => {},
+  isChatShakyCancelled = () => false,
 }) {
   const WT_PLUS_MAX_PROFILES = 30000;
   const WT_PLUS_GET_PEOPLE_CHUNK = 1000;
@@ -883,6 +885,158 @@ export function createProfileSearchHandler({
     const text = stripSurroundingQuotes(value);
     if (!text) return "";
     return /\s|,/.test(text) ? `"${text.replace(/"/g, '\\"')}"` : text;
+  }
+
+  const WT_PLUS_LOCATION_SCOPE_RE = /(^|\s)Location=("[^"]*"|'[^']*'|\S+)/i;
+
+  /**
+   * A bare `Location=X` matches a birth, marriage OR death place, which is
+   * vaguer than most prompts intend ("Denbighshire no manager"). Offer one-click
+   * re-runs that narrow the same query to a specific life event, plus a surname
+   * reading when the token is a single word that could be a name ("Kent").
+   * Returns [] unless the query has exactly one generic Location= scope.
+   */
+  function buildLocationScopeRefinementActions(canonicalQuery, suggestionId, suggestionOptions, options = {}) {
+    const query = String(canonicalQuery || "");
+    const allLocationScopes = query.match(/(^|\s)Location=("[^"]*"|'[^']*'|\S+)/gi) || [];
+    if (allLocationScopes.length !== 1) {
+      return [];
+    }
+    const rawValue = String(query.match(WT_PLUS_LOCATION_SCOPE_RE)?.[2] || "").trim();
+    const display = stripSurroundingQuotes(rawValue);
+    if (!rawValue || !display) {
+      return [];
+    }
+
+    const withScope = (field) => query.replace(WT_PLUS_LOCATION_SCOPE_RE, `$1${field}=${rawValue}`);
+    const makeAction = (label, nextQuery) => ({
+      label,
+      actionType: "fetch-wtplus-results",
+      wtPlusQuery: nextQuery,
+      wtPlusSearchType: "text",
+      wtPlusSuggestionId: suggestionId || "",
+      wtPlusSuggestionOptions: suggestionOptions || {},
+    });
+
+    const actions = [
+      makeAction(`Born in ${display}`, withScope("BirthLocation")),
+      makeAction(`Married in ${display}`, withScope("MarriageLocation")),
+      makeAction(`Died in ${display}`, withScope("DeathLocation")),
+    ];
+
+    // "Any place" re-runs the original bare Location= query. Offered when asking
+    // up front (so the user can accept the vague scope), not on a result that
+    // already ran that exact query.
+    if (options.includeAny) {
+      actions.push(makeAction(`Any place in ${display}`, query));
+    }
+
+    // A single unquoted word may be ambiguous: "Kent" is a county AND a surname,
+    // so offer the surname reading. But don't offer it for words that can only
+    // be places ("Denbighshire", "Scotland") — no surname ends in -shire.
+    const isSingleWord = /^[A-Za-z][A-Za-z'-]*$/.test(display);
+    const isUnambiguousPlace =
+      /(?:shire|county)$/i.test(display) ||
+      WT_PLUS_KNOWN_COUNTRY_NAMES.some((country) => String(country).toLowerCase() === display.toLowerCase());
+    if (isSingleWord && !isUnambiguousPlace) {
+      actions.push(
+        makeAction(`Surname ${display}`, query.replace(WT_PLUS_LOCATION_SCOPE_RE, `$1AllLastNames=${rawValue}`))
+      );
+    }
+
+    return actions;
+  }
+
+  /**
+   * Ask the AI what a single ambiguous search word could mean, then turn the
+   * answer into scope buttons. "Kent" is the English county, a surname, and
+   * towns in several US states — a genealogist wants those spelled out, not a
+   * generic born/married/died prompt. Returns null (so the caller falls back to
+   * buildLocationScopeRefinementActions) when AI is off, the value is not a
+   * single word, or the model gives nothing usable.
+   */
+  async function buildAiWordMeaningActions(canonicalQuery, suggestionId, suggestionOptions) {
+    const query = String(canonicalQuery || "");
+    const allLocationScopes = query.match(/(^|\s)Location=("[^"]*"|'[^']*'|\S+)/gi) || [];
+    if (allLocationScopes.length !== 1) return null;
+    const rawValue = String(query.match(WT_PLUS_LOCATION_SCOPE_RE)?.[2] || "").trim();
+    const word = stripSurroundingQuotes(rawValue);
+    // Only worth an AI round-trip for a single bare token ("Kent"). A value the
+    // user already qualified ("Kent, England") isn't ambiguous.
+    if (!word || !/^[A-Za-z][A-Za-z'’.-]*$/.test(word)) return null;
+
+    try {
+      const options = await getChatOptions();
+      if (!options?.allowAiFallback) return null;
+      const { key } = await getChatAiConfig();
+      if (!key) return null;
+
+      const prompt = [
+        "You disambiguate a single search term on WikiTree, a genealogy site.",
+        `The user searched for the term: "${word}".`,
+        "List the distinct things a genealogist might mean by it. Return STRICT JSON only — no prose, no code fences.",
+        "Shape: an array (max 6) of objects. Each object is one of:",
+        '  {"kind":"place","label":"<short label>","location":"<full place, e.g. Kent, England, United Kingdom>"}',
+        '  {"kind":"surname","label":"<short label>","surname":"<the surname>"}',
+        "Rules:",
+        "- Include a surname entry when the term is a plausible last name.",
+        "- For places sharing the name across regions/countries (e.g. an English county and US towns), give one entry each with enough geography to tell them apart.",
+        "- Keep labels short and human (e.g. \"Kent, England (county)\", \"Kent, Ohio, USA\", \"Surname Kent\").",
+        "- Order by how likely a genealogist means it. Return only real interpretations.",
+      ].join("\n");
+
+      const aiResult = await callChatAiRaw(prompt);
+      if (!aiResult) return null;
+
+      const txt = String(aiResult || "");
+      const jsonMatch = txt.match(/\[[\s\S]*\]/);
+      const jsonText = jsonMatch ? jsonMatch[0] : txt;
+      const parsed = JSON.parse(jsonText);
+      if (!Array.isArray(parsed) || !parsed.length) return null;
+
+      const makeAction = (label, nextQuery) => ({
+        label,
+        actionType: "fetch-wtplus-results",
+        wtPlusQuery: nextQuery,
+        wtPlusSearchType: "text",
+        wtPlusSuggestionId: suggestionId || "",
+        wtPlusSuggestionOptions: suggestionOptions || {},
+      });
+      const quoteVal = (value) => {
+        const clean = stripSurroundingQuotes(String(value || "")).trim();
+        if (!clean) return "";
+        return /[\s,]/.test(clean) ? `"${clean.replace(/"/g, "")}"` : clean;
+      };
+      const withField = (field, value) => query.replace(WT_PLUS_LOCATION_SCOPE_RE, `$1${field}=${value}`);
+
+      const actions = [];
+      const seenLabels = new Set();
+      for (const entry of parsed) {
+        if (!entry || typeof entry !== "object") continue;
+        const label = String(entry.label || "").trim().slice(0, 60);
+        if (!label || seenLabels.has(label.toLowerCase())) continue;
+        if (entry.kind === "surname") {
+          const surname = quoteVal(entry.surname || word);
+          if (!surname) continue;
+          actions.push(makeAction(label, withField("AllLastNames", surname)));
+        } else if (entry.kind === "place") {
+          const location = quoteVal(entry.location || word);
+          if (!location) continue;
+          actions.push(makeAction(label, withField("Location", location)));
+        } else {
+          continue;
+        }
+        seenLabels.add(label.toLowerCase());
+        if (actions.length >= 6) break;
+      }
+
+      // Always leave an escape hatch to run the original broad term as typed.
+      actions.push(makeAction(`Any place named ${word}`, query));
+      return actions.length > 1 ? actions : null;
+    } catch (error) {
+      console.info("wbe: AI word-meaning disambiguation failed", { error });
+      return null;
+    }
   }
 
   function escapeWtPlusSqlLiteral(value, withUnderscores = false) {
@@ -1833,6 +1987,47 @@ export function createProfileSearchHandler({
     };
   }
 
+  /**
+   * Send one prompt to the configured chat AI and return the raw text response
+   * (or "" on any failure). Uses the page-injected window.callAiModel when
+   * present, otherwise the background bridge. Callers are responsible for
+   * checking allowAiFallback / key and for parsing the response.
+   */
+  async function callChatAiRaw(prompt) {
+    try {
+      const { provider, key, model } = await getChatAiConfig();
+      if (typeof window.callAiModel === "function") {
+        return String((await window.callAiModel(prompt)) || "");
+      }
+      const payload = {
+        action: "chatWithAI",
+        provider,
+        key,
+        model,
+        prompt,
+        includeApiDocContext: false,
+      };
+      const resp = await new Promise((resolve) => {
+        try {
+          chrome.runtime.sendMessage(payload, (r) => {
+            if (chrome.runtime.lastError) {
+              resolve({ success: false, error: chrome.runtime.lastError.message });
+              return;
+            }
+            resolve(r || { success: false, error: "no-response" });
+          });
+        } catch (error) {
+          resolve({ success: false, error: String(error?.message || error) });
+        }
+      });
+      if (!resp?.success || typeof resp.response !== "string") return "";
+      return resp.response;
+    } catch (error) {
+      console.info("wbe: callChatAiRaw failed", { error });
+      return "";
+    }
+  }
+
   async function callAiInferCategoryExpansionSeed(rawPrompt, currentQuery, fallbackSeed) {
     try {
       const options = await getChatOptions();
@@ -1924,6 +2119,23 @@ export function createProfileSearchHandler({
       ? stripSurroundingQuotes(parsedCategory.categoryValue)
       : "";
     const militaryMode = isMilitaryCategoryLikeText(categoryWord) || isMilitaryCategoryLikeText(rawPrompt);
+
+    // A military category search only makes sense anchored to a country/region:
+    // WT+ armed-forces trees are national. With no scope resolved (e.g. "Chicago
+    // military" when the city can't be mapped to a country), the root picker
+    // would otherwise grab whichever "Armed Forces" tree has the most children
+    // in the catalog — a foreign one (Greek/Hellenic) — and, because the country
+    // filter is disabled when the scope is unknown, keep all of its children.
+    // That is the baffling all-Greek result. Skip the expansion and let the
+    // deterministic location + category-word fallback handle it instead.
+    if (militaryMode && !countryScope && !geoScope) {
+      console.info("wbe: skipping military category expansion (no country/geo scope resolved)", {
+        query,
+        rawPrompt,
+      });
+      return null;
+    }
+
     const aiSeed = await callAiInferCategoryExpansionSeed(rawPrompt, query, fallbackSeed);
     const effectiveSeed = aiSeed || fallbackSeed;
     const seedsToTry = buildWtPlusCategorySearchSeeds({
@@ -2916,6 +3128,17 @@ export function createProfileSearchHandler({
       addTerm(normalizeWtPlusFieldTerm("CategoryWord", "Notables"), "notables");
     });
 
+    // "no manager" / "without a manager" / "unmanaged" all mean the WT+ Orphan
+    // status. This must run BEFORE the plain status word rule so the phrase is
+    // consumed as a whole; otherwise "manager" leaks into the location scope.
+    // (hasWtPlusOrphanStatusHint covers the same phrasings on the AI path.)
+    consume(
+      /\b(?:with\s+)?(?:has\s+)?no\s+managers?\b|\bwithout\s+(?:a\s+|any\s+)?managers?\b|\bunmanaged\b|\borphaned\b/i,
+      () => {
+        addTerm("Orphan", "orphaned profiles (no manager)");
+      }
+    );
+
     consume(/\b(open|unsourced|unconnected|orphan)\b/i, (match) => {
       const status = `${match[1].slice(0, 1).toUpperCase()}${match[1].slice(1).toLowerCase()}`;
       addTerm(status, `${status.toLowerCase()} profiles`);
@@ -2965,7 +3188,11 @@ export function createProfileSearchHandler({
       }
     );
 
-    consume(/\b(?:mt\s*dna|y\s*dna|au\s*dna)\b/i, (match) => {
+    // Bare DNA tokens (has-any-yDNA/mtDNA/auDNA). The negative lookahead is
+    // essential: without it this eats the "yDNA" in "yDNA haplogroup R-M269"
+    // (and "auDNA lnabs ...") before the specific value-carrying consumes below
+    // can fire, mis-parsing the haplogroup into junk name/location terms.
+    consume(/\b(?:mt\s*dna|y\s*dna|au\s*dna)\b(?!\s*(?:haplogroup|lnabs?)\b)/i, (match) => {
       const key = String(match[0] || "")
         .toLowerCase()
         .replace(/\s+/g, "");
@@ -3327,7 +3554,11 @@ export function createProfileSearchHandler({
       }
     });
 
-    consume(/\bmtdna\s+haplogroup\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+    // A haplogroup value is a single token like "R-M269"/"I-M253"; stop the
+    // capture at a trailing location clause ("... in Yorkshire") or another
+    // clause so the county is left for normal location parsing instead of being
+    // swallowed into the LIKE pattern.
+    consume(/\bmtdna\s+haplogroup\s+(.+?)(?=$|\b(?:and|or|in|from)\b)/i, (match) => {
       const value = escapeWtPlusSqlLiteral(match[1], true);
       if (value) {
         addSqlTerm(
@@ -3337,7 +3568,7 @@ export function createProfileSearchHandler({
       }
     });
 
-    consume(/\bydna\s+haplogroup\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+    consume(/\bydna\s+haplogroup\s+(.+?)(?=$|\b(?:and|or|in|from)\b)/i, (match) => {
       const value = escapeWtPlusSqlLiteral(match[1], true);
       if (value) {
         addSqlTerm(
@@ -5731,6 +5962,60 @@ export function createProfileSearchHandler({
       interpretation,
     });
 
+    // Ask BEFORE running when a bare Location= (matches birth, marriage OR death
+    // place) is the SOLE scope — e.g. "Kent no manager" → Orphan Location=Kent,
+    // which is vague and huge (142k). Running it first is slow, so offer the
+    // life-event choice up front. We only ask when nothing else scopes the
+    // search: after removing the Location= term and broad status/magic tokens,
+    // the query is empty. A query already narrowed by a date, age, name,
+    // category, suggestion, etc. runs directly. Skipped when the user already
+    // chose a scope via a button (reRunSavedWtPlusQuery sets fromScopeChoice).
+    if (!runOptions?.fromScopeChoice && !isSuggestionsSearch) {
+      const scopeRemainder = canonicalQuery
+        .replace(WT_PLUS_LOCATION_SCOPE_RE, " ")
+        .replace(
+          /\b(?:Orphan|Unsourced|Unconnected|Open|Notables|connected|unlinked|Public|Private|PublicTree|PrivateTree|male|female|NoGender|MissingLocation|UnknownCountry|UnknownRegion|UnofficialLocation|ProjectManaged|PPP|NeverEdited|ApprovedMerge|PendingMerge|UnmergedMatch|GEDCOMJunk|SourceJunk|IsInWikiData|NoFather|NoMother|NoParents|NoSpouses|NoChildren|mtDNA|yDNA|auDNA|noGEDMatchID|noMitoyDNAID|pre1500|B0|D0|NOT|AND|OR)\b/gi,
+          " "
+        )
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!scopeRemainder) {
+        const placeDisplay = stripSurroundingQuotes(
+          String(canonicalQuery.match(WT_PLUS_LOCATION_SCOPE_RE)?.[2] || "")
+        );
+
+        // First try AI: it knows "Kent" is a county, a surname AND US towns, so
+        // it can offer concrete meaning-based choices rather than a generic
+        // born/married/died prompt. Falls back to the deterministic set below.
+        const aiMeaningActions = await buildAiWordMeaningActions(canonicalQuery, suggestionId, suggestionOptions);
+        if (aiMeaningActions && aiMeaningActions.length) {
+          hideChatShaky();
+          return {
+            message: `"${placeDisplay}" could mean a few different things — which did you want?`,
+            actions: aiMeaningActions,
+          };
+        }
+
+        const disambiguationActions = buildLocationScopeRefinementActions(
+          canonicalQuery,
+          suggestionId,
+          suggestionOptions,
+          { includeAny: true }
+        );
+        if (disambiguationActions.length) {
+          hideChatShaky();
+          const hasSurnameOption = disambiguationActions.some((a) => /^Surname\b/.test(a.label));
+          return {
+            message:
+              `"${placeDisplay}" could be a birth, marriage, or death place${
+                hasSurnameOption ? " — or a surname" : ""
+              }. Which did you mean?`,
+            actions: disambiguationActions,
+          };
+        }
+      }
+    }
+
     showChatShaky(`Running WT+ query: ${canonicalQuery}`);
     try {
       recordWtPlusParseTelemetry("queryRan");
@@ -5788,8 +6073,20 @@ export function createProfileSearchHandler({
           : Number.isFinite(foundCount) && foundCount >= WT_PLUS_MAX_PROFILES
           ? `${foundCount.toLocaleString()}+`
           : "too many";
+        // Narrowing is exactly what this case needs, so offer the life-event
+        // scopes here too — this early return used to skip them.
+        const tooManyScopeActions = buildLocationScopeRefinementActions(
+          canonicalQuery,
+          suggestionId,
+          suggestionOptions
+        );
         return {
-          message: `WT+ found ${countText} profiles for query: ${canonicalQuery}. That is too many for Muse to load usefully. Muse can display up to ${WT_PLUS_MAX_PROFILES.toLocaleString()} results, but fewer results will load faster. Please narrow the search (for example add a date range, category, manager, or a more specific location).`,
+          message:
+            `WT+ found ${countText} profiles for query: ${canonicalQuery}. That is too many for Muse to load usefully. ` +
+            `Muse can display up to ${WT_PLUS_MAX_PROFILES.toLocaleString()} results, but fewer results will load faster. ` +
+            (tooManyScopeActions.length
+              ? "Use the buttons below to narrow it, or add a date range or category."
+              : "Please narrow the search (for example add a date range, category, manager, or a more specific location)."),
           actions: [
             {
               label: "Open in WT+",
@@ -5799,6 +6096,7 @@ export function createProfileSearchHandler({
               wtPlusSuggestionId: suggestionId || "",
               wtPlusSuggestionOptions: suggestionOptions,
             },
+            ...tooManyScopeActions,
           ],
         };
       }
@@ -5811,11 +6109,23 @@ export function createProfileSearchHandler({
           searchLog,
         });
         hideChatShaky();
+        // Zero results often means the scope was read the wrong way ("Kent" as a
+        // place when a surname was meant), so offer the other readings.
+        const zeroScopeActions = buildLocationScopeRefinementActions(canonicalQuery, suggestionId, suggestionOptions);
+        if (zeroScopeActions.length) {
+          return {
+            message: `I couldn't find any profiles for WT+ query: ${canonicalQuery}. Try one of these readings instead:`,
+            actions: zeroScopeActions,
+          };
+        }
         return `I couldn't find any profiles for WT+ query: ${canonicalQuery}`;
       }
 
       const uniqueIds = [...new Set(profiles.map((value) => String(value)))];
-      showChatShaky(`Fetching ${uniqueIds.length} WT+ matches...`, "center", 0);
+      // This load (and its retry pass) can take a while for large result sets,
+      // so make it cancellable. The paging loop polls isChatShakyCancelled().
+      resetChatShakyCancel();
+      showChatShaky(`Fetching ${uniqueIds.length} WT+ matches...`, "center", 0, { cancellable: true });
       const includeMarriageDetails = shouldIncludeMarriageDetails(canonicalQuery);
       // Query-relevant columns: surface the data the query filtered on.
       const wantsAgeColumn = /\bage\d{1,3}\b/i.test(canonicalQuery) || /\bDeath Age\b/i.test(canonicalQuery);
@@ -5830,12 +6140,18 @@ export function createProfileSearchHandler({
         resolveRedirect: 1,
         limit: WT_PLUS_GET_PEOPLE_CHUNK,
         ...(spousalAgeGapFilter || includeMarriageDetails ? { getSpouses: 1 } : {}),
+        shouldCancel: isChatShakyCancelled,
         onProgress: (loaded, total) => {
           const percent = total > 0 ? Math.round((loaded / total) * 100) : 0;
           showChatShaky(`Fetching WT+ matches: ${Math.min(loaded, total)} of ${total}...`, "center", percent);
         },
       });
       peopleById = peopleById || {};
+
+      if (isChatShakyCancelled()) {
+        hideChatShaky();
+        return `Search cancelled. WT+ query was: ${canonicalQuery}`;
+      }
 
       let missingProfileIds = uniqueIds.filter((key) => !peopleById?.[String(key)]);
       if (missingProfileIds.length) {
@@ -5845,10 +6161,13 @@ export function createProfileSearchHandler({
           initialMissing: missingProfileIds.length,
           retryLimit,
         });
-        showChatShaky(`Retrying ${missingProfileIds.length.toLocaleString()} profiles after transient API errors...`);
+        showChatShaky(`Retrying ${missingProfileIds.length.toLocaleString()} profiles after transient API errors...`, "center", null, {
+          cancellable: true,
+        });
         const [, , retryPeopleById] = await fetchPeoplePaged(WBE_CHAT_APP_ID, missingProfileIds, fields, {
           resolveRedirect: 1,
           limit: retryLimit,
+          shouldCancel: isChatShakyCancelled,
           ...(spousalAgeGapFilter || includeMarriageDetails ? { getSpouses: 1 } : {}),
         });
         peopleById = {
@@ -5856,6 +6175,11 @@ export function createProfileSearchHandler({
           ...(retryPeopleById || {}),
         };
         missingProfileIds = uniqueIds.filter((key) => !peopleById?.[String(key)]);
+      }
+
+      if (isChatShakyCancelled()) {
+        hideChatShaky();
+        return `Search cancelled. WT+ query was: ${canonicalQuery}`;
       }
 
       const people = uniqueIds.map((key) => peopleById?.[String(key)]).filter(Boolean);
@@ -6189,7 +6513,21 @@ export function createProfileSearchHandler({
           wtPlusSuggestionOptions: suggestionOptions,
         });
       }
-      const extraNotes = [categoryNote ? `Also ${categoryNote}.` : "", truncationNote || "", missingProfilesNote || ""]
+      const scopeRefinementActions = buildLocationScopeRefinementActions(
+        canonicalQuery,
+        suggestionId,
+        suggestionOptions
+      );
+      actions.push(...scopeRefinementActions);
+      const scopeNote = scopeRefinementActions.length
+        ? "This matched a birth, marriage or death place. Use the buttons to narrow it."
+        : "";
+      const extraNotes = [
+        categoryNote ? `Also ${categoryNote}.` : "",
+        truncationNote || "",
+        missingProfilesNote || "",
+        scopeNote,
+      ]
         .filter(Boolean)
         .join(" ");
       return {
@@ -9027,6 +9365,9 @@ export function createProfileSearchHandler({
       searchType,
       suggestionId,
       suggestionOptions,
+      // The user reached here by clicking a scope button, so run it directly
+      // instead of asking the birth/marriage/death question again.
+      fromScopeChoice: true,
     });
   }
 

@@ -28,6 +28,14 @@ import { mainDomain, isProfileAddRelative } from "../../core/pageType";
 import { autoClickAddPersonOptions } from "../usability_tweaks/usability_tweaks.js";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 
+// Set to true to re-enable the verbose "[WBE cfl-ancestors]" diagnostic logging
+// (DB open, record dumps, highlight-ancestors banner). Off by default so it does
+// not clutter the console — genuine errors are still logged unconditionally.
+const CFL_ANCESTORS_DEBUG = false;
+function cflDebugLog(...args) {
+  if (CFL_ANCESTORS_DEBUG) console.log(...args);
+}
+
 const WBE_CFL_APP_ID = "WBE_change_family_lists";
 
 let options;
@@ -2551,11 +2559,11 @@ async function getAncestorsOnPage() {
   });
   const db = await dbPromise;
   if (!db) {
-    console.log("[WBE cfl-ancestors] relationship DB did not open within 3s; using page-text fallback only");
+    cflDebugLog("[WBE cfl-ancestors] relationship DB did not open within 3s; using page-text fallback only");
   }
   let ancestorKeys = [];
   if (db) {
-    console.log(`[WBE cfl-ancestors] DB opened: version ${db.version}, stores: ${[...db.objectStoreNames].join(", ")}`);
+    cflDebugLog(`[WBE cfl-ancestors] DB opened: version ${db.version}, stores: ${[...db.objectStoreNames].join(", ")}`);
     ancestorKeys = await new Promise((resolve, reject) => {
       const transaction = db.transaction(storeName, "readonly");
       const store = transaction.objectStore(storeName);
@@ -2569,7 +2577,7 @@ async function getAncestorsOnPage() {
             return relationship.match(/father|mother/i) != null && item.userId === user;
           })
           .map((item) => item.id);
-        console.log(
+        cflDebugLog(
           `[WBE cfl-ancestors] DB records: ${items.length} total, ${keys.length} ancestor(s) for user '${user}';`,
           "first records:",
           JSON.stringify(items.slice(0, 8).map((i) => ({ id: i.id, userId: i.userId, relationship: i.relationship })))
@@ -3348,7 +3356,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   // A single fixed delay races against that and can lose in slower browsers (e.g. Safari),
   // so retry a few times instead of betting on one guess - each pass is a cheap, idempotent re-check.
   if (options.highlightAncestors) {
-    console.log(
+    cflDebugLog(
       "[WBE cfl-ancestors] highlightAncestors is on; checking at 2s/4s/7s/11s |",
       "extension version:",
       chrome.runtime.getManifest?.().version,
@@ -3361,6 +3369,6 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
       }, delay);
     });
   } else {
-    console.log("[WBE cfl-ancestors] highlightAncestors option is OFF");
+    cflDebugLog("[WBE cfl-ancestors] highlightAncestors option is OFF");
   }
 });

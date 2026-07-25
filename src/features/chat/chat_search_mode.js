@@ -214,6 +214,17 @@ function isLikelyWtPlusFilterPrompt(prompt) {
     return true;
   }
 
+  // Orphan status written as plain English ("Denbighshire no manager"). Only
+  // WT+ can filter on it, so route there instead of falling through to a
+  // person-name search that would look for someone called "no manager".
+  const hasOrphanPhrase =
+    /\b(?:with\s+)?(?:has\s+)?no\s+managers?\b|\bwithout\s+(?:a\s+|any\s+)?managers?\b|\bunmanaged\b/i.test(
+      normalizedPrompt
+    );
+  if (hasOrphanPhrase) {
+    return true;
+  }
+
   const hasAgeConstraint = /\bage\s*(?:=|is|of)?\s*\d{1,3}\b/i.test(normalizedPrompt);
   const hasYearConstraint =
     /\b(?:born|died|b\.|d\.)\s+(?:before|after|in|around)?\s*\d{4}\b|\b\d{4}\s*(?:birth|death)\b|\b(?:pre|post)[-\s]?\d{4}\b|\b(?:before|after)\s+\d{4}\b|\b(?:earlier|later)\s+than\s+\d{4}\b|\bprior\s+to\s+\d{4}\b|\b(?:birth|death)\s+year\b[^,]{0,40}\b\d{4}\b/i.test(

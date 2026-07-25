@@ -1069,7 +1069,15 @@ export function createChatPeopleHandlers({
           )} in accessible API data.`;
         }
 
-        return `I found no ${displayRelationshipLabel} for ${subjectLabel} in accessible API data.`;
+        // Mirror of the descendants wording: state the fact rather than
+        // echoing the request ("I found no 10 generations of ancestors...").
+        const subjectVerb = rootPerson?.subjectType === "user" ? "have" : "has";
+        if (includeUpTo) {
+          return `${subjectLabel} ${subjectVerb} no parents recorded on WikiTree, so there are no ancestors to show.`;
+        }
+        return `${subjectLabel} ${subjectVerb} no ancestors recorded ${generation} generation${
+          generation === 1 ? "" : "s"
+        } back on WikiTree.`;
       }
 
       return buildKinListResult({
@@ -1299,7 +1307,24 @@ export function createChatPeopleHandlers({
       );
 
       if (!sortedDescendants.length) {
-        return `I found no ${displayRelationshipLabel} for ${subjectLabel} in accessible API data.`;
+        // Say what is actually true rather than echoing the request back
+        // ("I found no 10 generations of descendants..."). Three distinct cases:
+        // descendants exist but a filter excluded them; the person has no
+        // children at all; or nothing sits at one exact requested generation.
+        const subjectVerb = rootPerson?.subjectType === "user" ? "have" : "has";
+        if (descendants.length) {
+          const count = descendants.length;
+          return (
+            `${subjectLabel} ${subjectVerb} ${count} recorded descendant${count === 1 ? "" : "s"}, ` +
+            `but none matched the filters in your question.`
+          );
+        }
+        if (includeUpTo) {
+          return `${subjectLabel} ${subjectVerb} no children recorded on WikiTree, so there are no descendants to show.`;
+        }
+        return `${subjectLabel} ${subjectVerb} no descendants recorded ${generation} generation${
+          generation === 1 ? "" : "s"
+        } down on WikiTree.`;
       }
 
       return buildKinListResult({

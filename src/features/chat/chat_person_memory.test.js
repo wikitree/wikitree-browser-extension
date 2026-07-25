@@ -2,11 +2,23 @@ import {
   buildResolvedAliasRegex,
   extractAliasCandidates,
   extractResolvedPeopleFromMessage,
+  isLikelyPersonAliasLabel,
   normalizePersonMemoryToken,
   sanitizeResolvedPersonDisplayName,
 } from "./chat_person_memory";
 
 describe("chat person memory helpers", () => {
+  test("treats bare conversational replies as non-names", () => {
+    // Regression: answering an offered follow-up with "Sure." used to look like
+    // a surname and ran a profile search, returning Schorr/Schier/Shore matches.
+    for (const reply of ["Sure", "sure.", "Yes", "yeah", "OK", "okay", "nope", "thanks"]) {
+      expect(isLikelyPersonAliasLabel(reply)).toBe(false);
+      expect(extractAliasCandidates(reply)).toEqual([]);
+    }
+    // Real names must still pass.
+    expect(isLikelyPersonAliasLabel("Alex Example")).toBe(true);
+  });
+
   test("keeps likely person aliases and rejects generic relation words", () => {
     expect(extractAliasCandidates("Alex Example")).toEqual(expect.arrayContaining(["Alex Example", "Alex", "Example"]));
     expect(extractAliasCandidates("cousins")).toEqual([]);

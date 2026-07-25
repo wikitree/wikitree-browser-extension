@@ -240,6 +240,38 @@ describe("chat_search_mode explicit routing", () => {
     expect(result).toEqual({ handled: true, prompt: "Anderson mtDNA" });
   });
 
+  test("routes a plain-English orphan prompt ('no manager') to WT+ from the Search radio", async () => {
+    // Regression: "Denbighshire no manager" fell through to person search and
+    // answered "couldn't find profile matches" instead of running an Orphan query.
+    for (const prompt of ["Denbighshire no manager", "Kent with no managers", "unmanaged profiles in Devon"]) {
+      const tryHandleProfileSearchPrompt = jest.fn(async (options, value) => ({
+        message: `${options.chatModeOverride}:${value}`,
+      }));
+
+      const result = await handleExplicitSearchMode({
+        prompt,
+        chatPopupId: "chat-popup",
+        hasStructuredResult: false,
+        getLastStructuredResult: jest.fn(() => null),
+        ChatIntent: {},
+        routeChatPrompt: jest.fn(() => ({ intent: "fallbackAi" })),
+        buildRecentConversationForAi: jest.fn(() => ""),
+        buildRecentUserMessagesForAi: jest.fn(() => ""),
+        getChatAiConfig: jest.fn(async () => ({ provider: "openai", key: "test", model: "gpt-test" })),
+        appendMessage: jest.fn(),
+        tryHandleProfileSearchPrompt,
+        handleChatResult: jest.fn(async () => {}),
+        extractFollowupTableFilterText: jest.fn(() => ""),
+        openResultsTable: jest.fn(),
+        tryHandleAiPlannedIntent: jest.fn(async () => null),
+        setExplicitMode: jest.fn(),
+      });
+
+      expect(tryHandleProfileSearchPrompt).toHaveBeenCalledWith({ chatModeOverride: "wtplus" }, prompt);
+      expect(result).toEqual({ handled: true, prompt });
+    }
+  });
+
   test("defers removed cousin prompts to deterministic relation handling in WT mode", async () => {
     const tryHandleProfileSearchPrompt = jest.fn(async () => ({
       message: "should not run",
