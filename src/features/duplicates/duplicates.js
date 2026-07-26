@@ -459,6 +459,12 @@ function renderDuplicateFinderTable(panel, wtId, normalized, options, currentUse
         .text("Compare → Merge")
         .on("click", () => window.open(makeMergeUrl(p1, p2), "_blank"))
     );
+    actions.append(
+      $("<button></button>")
+        .addClass("small")
+        .text("Reject")
+        .on("click", () => window.open(makeRejectUrl(p1, p2), "_blank"))
+    );
 
     if (normalized.actions?.can_set_status && options?.enableSetStatus) {
       actions.append(
@@ -1449,6 +1455,28 @@ function makeMergeUrl(person1, person2) {
   return `https://www.wikitree.com/index.php?title=Special:MergePerson&user1_name=${encodeURIComponent(
     user1
   )}&user2_name=${encodeURIComponent(user2)}&action=compare`;
+}
+
+function makeRejectUrl(person1, person2) {
+  // Reject wants user1 = higher numeric suffix, user2 = lower (anchor).
+  const num1 = extractNumericSuffix(person1);
+  const num2 = extractNumericSuffix(person2);
+  let user1, user2;
+  if (num1 !== null && num2 !== null && num1 !== num2) {
+    if (num1 < num2) {
+      user2 = person1;
+      user1 = person2;
+    } else {
+      user1 = person1;
+      user2 = person2;
+    }
+  } else {
+    user1 = person1;
+    user2 = person2;
+  }
+  return `https://www.wikitree.com/index.php?title=Special:MergePerson&user1_name=${encodeURIComponent(
+    user1
+  )}&user2_name=${encodeURIComponent(user2)}&action=reject`;
 }
 
 function escapeHtml(value) {
