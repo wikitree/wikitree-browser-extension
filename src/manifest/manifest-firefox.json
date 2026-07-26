@@ -2,12 +2,13 @@
   "name": "WikiTree Browser Extension (Preview)",
   "description": "The official WikiTree browser extension.",
   "version": "2.16.3.5",
-  "manifest_version": 2,
+  "manifest_version": 3,
   "options_ui": {
     "page": "options.html",
     "open_in_tab": true
   },
-  "permissions": [
+  "permissions": ["storage", "clipboardRead", "clipboardWrite", "contextMenus", "activeTab"],
+  "host_permissions": [
     "https://*.wikitree.com/*",
     "https://wikitreebee.com/*",
     "*://*.findagrave.com/*",
@@ -16,12 +17,7 @@
     "https://api.anthropic.com/*",
     "https://api.perplexity.ai/*",
     "https://api.x.ai/*",
-    "https://raw.githubusercontent.com/*",
-    "storage",
-    "clipboardRead",
-    "clipboardWrite",
-    "contextMenus",
-    "activeTab"
+    "https://raw.githubusercontent.com/*"
   ],
   "content_scripts": [
     {
@@ -33,26 +29,32 @@
     "scripts": ["background.js"]
   },
   "web_accessible_resources": [
-    "images/*",
-    "features/wtPlus/templatesExp.json",
-    "features/darkMode/darkMode.css",
-    "js/*.js",
-    "js/images/*",
-    "fonts/*.woff2",
-    "fonts/*.woff",
-    "fonts/*.ttf",
-    "features/text_expander/cm_helper.js",
-    "features/text_expander/event_dispatcher.js"
+    {
+      "matches": ["https://*.wikitree.com/*", "https://wikitree.sdms.si/*", "*://*.findagrave.com/*"],
+      "resources": [
+        "images/*",
+        "features/wtPlus/templatesExp.json",
+        "features/darkMode/darkMode.css",
+        "js/*.js",
+        "js/images/*",
+        "fonts/*.woff2",
+        "fonts/*.woff",
+        "fonts/*.ttf",
+        "features/text_expander/cm_helper.js",
+        "features/text_expander/event_dispatcher.js"
+      ]
+    }
   ],
   "icons": {
     "128": "images/we128.png"
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "info@wikitree.com"
+      "id": "info@wikitree.com",
+      "strict_min_version": "109.0"
     }
   },
-  "browser_action": {
+  "action": {
     "default_icon": {
       "128": "images/we128.png"
     },

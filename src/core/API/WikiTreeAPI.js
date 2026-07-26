@@ -510,6 +510,8 @@ WikiTreeAPI.isLikelyAppsServerAccessError = function (error) {
     message.includes("networkerror") ||
     message.includes("cors") ||
     message.includes("cross-origin") ||
+    message.includes("waf challenge") ||
+    message.includes("empty api response") ||
     message.includes("http error! status: 403")
   );
 };
@@ -598,7 +600,21 @@ WikiTreeAPI.postToAPI = async function (postData, signal) {
     // condLog(" ${response.status}: ${response.statusText} ");
     throw new Error(`HTTP error! Status: ${response.status}: ${response.statusText}`);
   }
-  return await response.json();
+  // The API sits behind AWS WAF, which answers unchallenged requests with 202 and an empty body
+  // (plus an x-amzn-waf-action header) rather than an error status. response.ok is true for those,
+  // so without these checks the caller only ever sees a JSON parse failure.
+  const wafAction = (response.headers.get("x-amzn-waf-action") || "").toLowerCase();
+  if (wafAction === "challenge" || wafAction === "captcha") {
+    throw new Error(
+      `WAF challenge: api.wikitree.com is challenging this request (${wafAction}, status ${response.status}). ` +
+        `This browser has no valid aws-waf-token for api.wikitree.com.`
+    );
+  }
+  const text = await response.text();
+  if (!text) {
+    throw new Error(`Empty API response (status ${response.status}) for action ${postData.action}.`);
+  }
+  return JSON.parse(text);
 };
 
 WikiTreeAPI.lookupProfile = function (wtId, resultByKey, people) {
