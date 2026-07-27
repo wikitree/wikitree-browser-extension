@@ -51,11 +51,14 @@ jobs:
         run: |
           if [ "${{ env.X_BUILD_MONIKER }}" = "stable" ]; then
             X_SAFARI_NAME="WikiTree Browser Extension"
+            X_SAFARI_BUNDLE_ID="com.WikiTree.WikiTree-Browser-Extension"
           else
             X_SAFARI_NAME="WikiTree Browser Extension Preview"
+            X_SAFARI_BUNDLE_ID="com.WikiTree.WikiTree-Browser-Extension-Preview"
           fi
           X_SAFARI_PROJECT="xcode/$X_SAFARI_NAME/$X_SAFARI_NAME.xcodeproj"
           echo "X_SAFARI_NAME=$X_SAFARI_NAME" >> $GITHUB_ENV
+          echo "X_SAFARI_BUNDLE_ID=$X_SAFARI_BUNDLE_ID" >> $GITHUB_ENV
           echo "X_SAFARI_PROJECT=$X_SAFARI_PROJECT" >> $GITHUB_ENV
           mv -f "$X_SAFARI_PROJECT/project.pbxproj" "$X_SAFARI_PROJECT/project.pbxproj.tmp"
           sed -E "s/MARKETING_VERSION[ ]*=[ ]*[0-9.]+/MARKETING_VERSION = ${{ env.X_SAFARI_VERSION }}/Ig" "$X_SAFARI_PROJECT/project.pbxproj.tmp" > "$X_SAFARI_PROJECT/project.pbxproj"
@@ -155,21 +158,77 @@ jobs:
           cd dist
           zip -r ../dist-firefox.zip *
           cd ..
-      - name: Upload packages to Apple
+      # altool's --upload-app resolves the app's numeric Apple ID from the bundle ID by calling
+      # App Store Connect's list-apps endpoint. That endpoint is a single point of failure: when it
+      # returns 500s the upload dies with the misleading "Cannot determine the Apple ID from Bundle
+      # ID ... (19)". --upload-package takes the Apple ID directly, so no lookup is needed.
+      # It requires the bundle id/version/short-version to match the built binary exactly; they come
+      # from the same variables written into MARKETING_VERSION and CURRENT_PROJECT_VERSION above.
+      - name: Prepare Apple API key
+        if: vars.APPLE_SIGNING_ENABLED == 'true' && vars.APPLE_UPLOADING_ENABLED == 'true'
+        env:
+          API_KEY_ID: ${{ secrets.API_KEY_ID }}
+          API_KEY_P8: ${{ secrets.API_KEY_P8 }}
+          APPLE_APP_ID_STABLE: ${{ vars.APPLE_APP_ID_STABLE }}
+          APPLE_APP_ID_PREVIEW: ${{ vars.APPLE_APP_ID_PREVIEW }}
+        run: |
+          # Resolved in the shell rather than a GitHub expression: `a == b && vars.X || vars.Y`
+          # silently falls through to Y when X is unset, which would upload to the wrong app.
+          if [ "${{ env.X_BUILD_MONIKER }}" = "stable" ]; then
+            APPLE_APP_ID="$APPLE_APP_ID_STABLE"
+            APPLE_APP_ID_VAR="APPLE_APP_ID_STABLE"
+          else
+            APPLE_APP_ID="$APPLE_APP_ID_PREVIEW"
+            APPLE_APP_ID_VAR="APPLE_APP_ID_PREVIEW"
+          fi
+          if [ -z "$APPLE_APP_ID" ]; then
+            echo "::error::Repository variable $APPLE_APP_ID_VAR is not set. Use the app's numeric Apple ID from App Store Connect > App Information > General Information > Apple ID."
+            exit 1
+          fi
+          echo "X_APPLE_APP_ID=$APPLE_APP_ID" >> $GITHUB_ENV
+          mkdir -p private_keys
+          echo -n "$API_KEY_P8" | base64 --decode -o "private_keys/AuthKey_$API_KEY_ID.p8"
+      - name: Upload package to Apple (iOS)
         if: vars.APPLE_SIGNING_ENABLED == 'true' && vars.APPLE_UPLOADING_ENABLED == 'true'
         env:
           API_ISSUER_ID: ${{ secrets.API_ISSUER_ID }}
           API_KEY_ID: ${{ secrets.API_KEY_ID }}
-          API_KEY_P8: ${{ secrets.API_KEY_P8 }}
         run: |
-          mkdir private_keys
-          P8_PATH=private_keys/AuthKey_$API_KEY_ID.p8
-          echo -n "$API_KEY_P8" | base64 --decode -o $P8_PATH
-          xcrun altool --validate-app -f dist-safari-ios.ipa -t ios --apiKey $API_KEY_ID --apiIssuer $API_ISSUER_ID
-          xcrun altool --validate-app -f dist-safari-macos.pkg -t macos --apiKey $API_KEY_ID --apiIssuer $API_ISSUER_ID
-          # upload-app is deprecated for upload-package, so we need to update at some point
-          xcrun altool --upload-app -f dist-safari-ios.ipa -t ios --apiKey $API_KEY_ID --apiIssuer $API_ISSUER_ID
-          xcrun altool --upload-app -f dist-safari-macos.pkg -t macos --apiKey $API_KEY_ID --apiIssuer $API_ISSUER_ID
+          if [ ! -f dist-safari-ios.ipa ]; then
+            echo "::error::dist-safari-ios.ipa not found - the iOS build step did not produce a package."
+            exit 1
+          fi
+          xcrun altool --upload-package dist-safari-ios.ipa \
+            --type ios \
+            --apple-id "${{ env.X_APPLE_APP_ID }}" \
+            --bundle-id "${{ env.X_SAFARI_BUNDLE_ID }}" \
+            --bundle-version "${{ env.X_SAFARI_BUILD }}" \
+            --bundle-short-version-string "${{ env.X_SAFARI_VERSION }}" \
+            --apiKey "$API_KEY_ID" --apiIssuer "$API_ISSUER_ID"
+      # !cancelled() so an iOS-side failure - or an Apple outage that only hits one platform -
+      # no longer stops the macOS package from being uploaded, as it did when both platforms
+      # shared a single step.
+      - name: Upload package to Apple (macOS)
+        if: ${{ !cancelled() && vars.APPLE_SIGNING_ENABLED == 'true' && vars.APPLE_UPLOADING_ENABLED == 'true' }}
+        env:
+          API_ISSUER_ID: ${{ secrets.API_ISSUER_ID }}
+          API_KEY_ID: ${{ secrets.API_KEY_ID }}
+        run: |
+          if [ -z "${{ env.X_APPLE_APP_ID }}" ]; then
+            echo "::error::No Apple ID resolved - the 'Prepare Apple API key' step did not complete."
+            exit 1
+          fi
+          if [ ! -f dist-safari-macos.pkg ]; then
+            echo "::error::dist-safari-macos.pkg not found - the macOS build step did not produce a package."
+            exit 1
+          fi
+          xcrun altool --upload-package dist-safari-macos.pkg \
+            --type macos \
+            --apple-id "${{ env.X_APPLE_APP_ID }}" \
+            --bundle-id "${{ env.X_SAFARI_BUNDLE_ID }}" \
+            --bundle-version "${{ env.X_SAFARI_BUILD }}" \
+            --bundle-short-version-string "${{ env.X_SAFARI_VERSION }}" \
+            --apiKey "$API_KEY_ID" --apiIssuer "$API_ISSUER_ID"
       - name: Rename release assets
         env:
           X_DIST_PREFIX: ${{ format('wbe-{0}-{1}-{2}', (env.X_BUILD_MONIKER == 'stable' || env.X_BUILD_MONIKER == 'preview') && env.X_BUILD_MONIKER || format('{0}-{1}', env.X_BUILD_MONIKER, github.ref_name), env.X_VERSION, env.X_SHORT_HASH) }}
