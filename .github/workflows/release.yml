@@ -182,8 +182,7 @@ jobs:
             APPLE_APP_ID_VAR="APPLE_APP_ID_PREVIEW"
           fi
           if [ -z "$APPLE_APP_ID" ]; then
-            echo "::error::Repository variable $APPLE_APP_ID_VAR is not set. Use the app's numeric Apple ID from App Store Connect > App Information > General Information > Apple ID."
-            exit 1
+            echo "::warning::Repository variable $APPLE_APP_ID_VAR is not set, so uploads fall back to --upload-app, which resolves the Apple ID via App Store Connect's list-apps endpoint. Set it (App Store Connect > App Information > General Information > Apple ID) to use the more reliable --upload-package path."
           fi
           echo "X_APPLE_APP_ID=$APPLE_APP_ID" >> $GITHUB_ENV
           mkdir -p private_keys
@@ -198,13 +197,18 @@ jobs:
             echo "::error::dist-safari-ios.ipa not found - the iOS build step did not produce a package."
             exit 1
           fi
-          xcrun altool --upload-package dist-safari-ios.ipa \
-            --type ios \
-            --apple-id "${{ env.X_APPLE_APP_ID }}" \
-            --bundle-id "${{ env.X_SAFARI_BUNDLE_ID }}" \
-            --bundle-version "${{ env.X_SAFARI_BUILD }}" \
-            --bundle-short-version-string "${{ env.X_SAFARI_VERSION }}" \
-            --apiKey "$API_KEY_ID" --apiIssuer "$API_ISSUER_ID"
+          if [ -n "${{ env.X_APPLE_APP_ID }}" ]; then
+            xcrun altool --upload-package dist-safari-ios.ipa \
+              --type ios \
+              --apple-id "${{ env.X_APPLE_APP_ID }}" \
+              --bundle-id "${{ env.X_SAFARI_BUNDLE_ID }}" \
+              --bundle-version "${{ env.X_SAFARI_BUILD }}" \
+              --bundle-short-version-string "${{ env.X_SAFARI_VERSION }}" \
+              --apiKey "$API_KEY_ID" --apiIssuer "$API_ISSUER_ID"
+          else
+            xcrun altool --upload-app -f dist-safari-ios.ipa -t ios \
+              --apiKey "$API_KEY_ID" --apiIssuer "$API_ISSUER_ID"
+          fi
       # !cancelled() so an iOS-side failure - or an Apple outage that only hits one platform -
       # no longer stops the macOS package from being uploaded, as it did when both platforms
       # shared a single step.
@@ -214,21 +218,22 @@ jobs:
           API_ISSUER_ID: ${{ secrets.API_ISSUER_ID }}
           API_KEY_ID: ${{ secrets.API_KEY_ID }}
         run: |
-          if [ -z "${{ env.X_APPLE_APP_ID }}" ]; then
-            echo "::error::No Apple ID resolved - the 'Prepare Apple API key' step did not complete."
-            exit 1
-          fi
           if [ ! -f dist-safari-macos.pkg ]; then
             echo "::error::dist-safari-macos.pkg not found - the macOS build step did not produce a package."
             exit 1
           fi
-          xcrun altool --upload-package dist-safari-macos.pkg \
-            --type macos \
-            --apple-id "${{ env.X_APPLE_APP_ID }}" \
-            --bundle-id "${{ env.X_SAFARI_BUNDLE_ID }}" \
-            --bundle-version "${{ env.X_SAFARI_BUILD }}" \
-            --bundle-short-version-string "${{ env.X_SAFARI_VERSION }}" \
-            --apiKey "$API_KEY_ID" --apiIssuer "$API_ISSUER_ID"
+          if [ -n "${{ env.X_APPLE_APP_ID }}" ]; then
+            xcrun altool --upload-package dist-safari-macos.pkg \
+              --type macos \
+              --apple-id "${{ env.X_APPLE_APP_ID }}" \
+              --bundle-id "${{ env.X_SAFARI_BUNDLE_ID }}" \
+              --bundle-version "${{ env.X_SAFARI_BUILD }}" \
+              --bundle-short-version-string "${{ env.X_SAFARI_VERSION }}" \
+              --apiKey "$API_KEY_ID" --apiIssuer "$API_ISSUER_ID"
+          else
+            xcrun altool --upload-app -f dist-safari-macos.pkg -t macos \
+              --apiKey "$API_KEY_ID" --apiIssuer "$API_ISSUER_ID"
+          fi
       - name: Rename release assets
         env:
           X_DIST_PREFIX: ${{ format('wbe-{0}-{1}-{2}', (env.X_BUILD_MONIKER == 'stable' || env.X_BUILD_MONIKER == 'preview') && env.X_BUILD_MONIKER || format('{0}-{1}', env.X_BUILD_MONIKER, github.ref_name), env.X_VERSION, env.X_SHORT_HASH) }}
