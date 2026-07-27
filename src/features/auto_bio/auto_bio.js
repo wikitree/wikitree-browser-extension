@@ -3959,6 +3959,12 @@ function addReferencePlaces() {
   });
 }
 
+/* Turn an existing "In the [year] census[,] ..." sentence from the bio into the
+"In [year], ..." form Auto Bio uses, with or without Sourcer's comma and bold year. */
+function censusNarrativeFromBioSentence(sentence) {
+  return sentence.replace(/^In the\s+(?:''')?(\d{4})(?:''')?\s+census\b\s*,?\s*/i, "In $1, ");
+}
+
 export function sourcesArray(bio) {
   let dummy = $(document.createElement("html"));
   bio = bio.replace(/\{\|\s*class="wikitable".*?\|\+ Timeline.*?\|\}/gs, "").replace(/<ref[^>]*\/>/g, "");
@@ -4602,9 +4608,12 @@ export function sourcesArray(bio) {
         aRef.Residence = thePlace.trim();
       }
 
-      /* Search bio for "In the [year] census, [person] was living in [place]." */
-      const censusBioRegex = new RegExp("In the " + aRef.Year + " census .*? was living in ([^.]+)", "i");
-      const censusBioRegex2 = new RegExp("In the " + aRef.Year + " census .*? was ([^.]+) in ([^.]+)", "i");
+      /* Search bio for "In the [year] census [person] was living in [place]."
+      Deliberately narrow: a Sourcer sentence ("In the [year] census, ...") should NOT match,
+      because buildCensusNarratives writes a better one from the household table. The place
+      must not run past the end of the sentence into a table, so no newlines or "{". */
+      const censusBioRegex = new RegExp("In the " + aRef.Year + " census .*? was living in ([^.\\n{]+)", "i");
+      const censusBioRegex2 = new RegExp("In the " + aRef.Year + " census .*? was ([^.\\n{]+) in ([^.\\n{]+)", "i");
       const censusResidenceRegex = aRef.Text.match(
         /\(\d{1,2}\).*? in (.+)(?=(, (United States|United Kingdom|England|Scotland|Wales|Canada|Australia)))/
       );
@@ -4629,9 +4638,9 @@ export function sourcesArray(bio) {
           aRef.Residence = aRef.Residence.split(" in ")[1];
         }
         if (censusBioMatch) {
-          aRef.Narrative = censusBioMatch[0].replace(/In the/, "In").replace(/\scensus/i, ",");
+          aRef.Narrative = censusNarrativeFromBioSentence(censusBioMatch[0]);
         } else if (censusBioMatch2) {
-          aRef.Narrative = censusBioMatch2[0].replace(/In the/, "In").replace(/\scensus/i, ",");
+          aRef.Narrative = censusNarrativeFromBioSentence(censusBioMatch2[0]);
         } else if (aRef.Residence) {
           aRef.Narrative =
             "In " +
@@ -4998,29 +5007,38 @@ function getOriginalBioTextWithoutRefs() {
   return dummy.innerHTML;
 }
 
-function findClosestCensusYearForTable(text, tableStart, tableEnd) {
-  const contextStart = Math.max(0, tableStart - 800);
-  const contextEnd = Math.min(text.length, tableEnd + 250);
-  const context = text.slice(contextStart, contextEnd);
-  const yearRegex =
-    /(?:In the\s+)?(?:''')?(1[789]\d{2}|1939)(?:''')?\s+(?:England and Wales\s+)?(?:census|register)|(?:census|register)[^.\n]{0,80}(?:''')?(1[789]\d{2}|1939)(?:''')?/gi;
-  let bestYear = "";
-  let bestDistance = Infinity;
+const censusYearMentionRegex =
+  /(?:In the\s+)?(?:''')?(1[789]\d{2}|1939)(?:''')?\s+(?:England and Wales\s+)?(?:census|register)|(?:census|register)[^.\n]{0,80}(?:''')?(1[789]\d{2}|1939)(?:''')?/gi;
 
-  for (const match of context.matchAll(yearRegex)) {
+function findClosestCensusYearForTable(text, tableStart, tableEnd) {
+  /* Sourcer writes the census narrative first and the household table straight after it,
+  so the year that owns a table is the last one mentioned before it. Measuring the distance
+  from either end of the table let the *next* census heading (which sits right after the
+  table) win, which handed the same table to two census years and duplicated it. */
+  const previousTableEnd = text.lastIndexOf("|}", tableStart);
+  const beforeStart = Math.max(previousTableEnd === -1 ? 0 : previousTableEnd + 2, tableStart - 800);
+  let bestYear = "";
+  for (const match of text.slice(beforeStart, tableStart).matchAll(censusYearMentionRegex)) {
     const year = match[1] || match[2];
-    if (!year) {
-      continue;
+    if (year) {
+      bestYear = year; // keep the last (closest) mention before the table
     }
-    const absoluteIndex = contextStart + match.index;
-    const distance = Math.min(Math.abs(absoluteIndex - tableStart), Math.abs(absoluteIndex - tableEnd));
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      bestYear = year;
+  }
+  if (bestYear) {
+    return bestYear;
+  }
+
+  // Nothing before it, so fall back to the first mention after it, stopping at any following table.
+  const nextTableStart = text.indexOf("{|", tableEnd);
+  const afterEnd = Math.min(nextTableStart === -1 ? text.length : nextTableStart, tableEnd + 250);
+  for (const match of text.slice(tableEnd, afterEnd).matchAll(censusYearMentionRegex)) {
+    const year = match[1] || match[2];
+    if (year) {
+      return year;
     }
   }
 
-  return bestYear;
+  return "";
 }
 
 function tableHasExplicitSelfRow(table) {
@@ -5135,20 +5153,24 @@ function getPreservedCensusTablesForReference(reference) {
     return [];
   }
 
-  const matches = window.preservedCensusTables
-    .filter((candidate) => String(candidate["Census Year"] || candidate.Year || "") === censusYear)
-    .map((candidate) => ({
-      candidate,
-      score: (candidate.MatchScore || 0) - (candidate.Used ? 5 : 0),
-    }))
-    .filter((candidateMatch) => candidateMatch.score > 0)
-    .sort((a, b) => b.score - a.score);
+  /* Only the single best table, and never one that has already been handed to another
+  reference: a census gets one household table, so returning every candidate for the year
+  just repeated households in the bio. */
+  const best = window.preservedCensusTables
+    .filter(
+      (candidate) =>
+        !candidate.Used &&
+        String(candidate["Census Year"] || candidate.Year || "") === censusYear &&
+        (candidate.MatchScore || 0) > 0
+    )
+    .sort((a, b) => (b.MatchScore || 0) - (a.MatchScore || 0))[0];
 
-  matches.forEach((match) => {
-    match.candidate.Used = true;
-  });
+  if (!best) {
+    return [];
+  }
 
-  return matches.map((match) => match.candidate);
+  best.Used = true;
+  return [best];
 }
 
 function resolveCensusYearForReference(reference) {
@@ -5209,7 +5231,11 @@ function attachOriginalTableToReference(reference, tableText, household) {
   if (!Array.isArray(reference.OriginalTables)) {
     reference.OriginalTables = [];
   }
-  if (!reference.OriginalTables.includes(tableText)) {
+  // The same table can arrive from the Sourcer census parser and from the preserved-table
+  // scan, sometimes with different whitespace, so compare on normalized text.
+  const normalizeTable = (table) => table.replace(/\s+/g, " ").trim();
+  const normalizedTableText = normalizeTable(tableText);
+  if (!reference.OriginalTables.some((existing) => normalizeTable(existing) === normalizedTableText)) {
     reference.OriginalTables.push(tableText);
   }
   if (!reference.OriginalTable) {
@@ -8587,18 +8613,25 @@ export async function getLocationCategory(type, location = null) {
       if (api.status === "fulfilled") {
         const response = api.value.response;
 
+        /* Narrow a local list instead of assigning back onto the fetched response.
+        In Firefox the response belongs to the page compartment, so storing our own array
+        on it throws "Not allowed to define cross-origin object as property ... XrayWrapper".
+        It also leaked: these filters depend on `location`, but the responses are re-read for
+        every location in the outer loop, so a mutation here narrowed later locations too. */
+        let categories = Array.isArray(response?.categories) ? response.categories : [];
+
         // Skip categories with a timeframe (e.g. "Swartland District, Dutch Cape Colony", 1703-1806)
         // that doesn't include the profile's event year.
-        if (eventYear && response?.categories?.length > 0) {
-          response.categories = response.categories.filter((aCat) => isWithinCategoryTimeframe(aCat, eventYear));
+        if (eventYear && categories.length > 0) {
+          categories = categories.filter((aCat) => isWithinCategoryTimeframe(aCat, eventYear));
         }
 
         // If location includes United States, find the state.
 
         if (location.match(/United States|USA|U\.S\.A\.|U\.S\./i)) {
           const thisState = findUSState(location);
-          if (thisState && response?.categories?.length > 0) {
-            response.categories = response.categories.filter((category) => {
+          if (thisState && categories.length > 0) {
+            categories = categories.filter((category) => {
               const categoryState = findUSState(category.category);
               if (!categoryState) return true; // Keep categories not tied to a specific state
               return categoryState === thisState; // Keep only if state matches
@@ -8606,15 +8639,15 @@ export async function getLocationCategory(type, location = null) {
           }
         }
 
-        if (response?.categories?.length === 1) {
-          const category = response.categories[0];
+        if (categories.length === 1) {
+          const category = categories[0];
           if (!category.topLevel) {
             foundCategory = category.category;
           }
-        } else if (response?.categories?.length > 1) {
+        } else if (categories.length > 1) {
           const locationSplit = location.split(", ");
           let thisState = findUSState(location);
-          response.categories.forEach(function (aCat) {
+          categories.forEach(function (aCat) {
             if (["Birth", "Death", "Marriage"].includes(type)) {
               if (!isFirstWordInText(type, aCat?.category)) {
                 return;
