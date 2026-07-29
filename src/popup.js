@@ -35,7 +35,17 @@ function showUpload(hash, dialog) {
 
   function failed(result) {
     $("#btnLaunch").show();
-    $("#errorMessage").text("The file was not valid. Click the button to try another one.").fadeIn();
+    if (result?.nak === "CANCELLED") {
+      $("#errorMessage").hide();
+      return;
+    }
+    $("#errorMessage")
+      .text(
+        result?.nak === "STORAGE_ERROR"
+          ? "Your settings could not be saved, so nothing was restored. The backup may be too large for the browser's sync storage."
+          : "The file was not valid. Click the button to try another one."
+      )
+      .fadeIn();
   }
 
   if (window.location.hash === "#UploadOptions") {

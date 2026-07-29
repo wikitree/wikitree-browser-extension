@@ -1,211 +1,36 @@
-document?.documentElement?.removeAttribute("data-wbe-conflict");
-
-// Add OpenDyslexic font
-chrome.storage.sync.get(["customStyle_options"], (result) => {
-  const fontFamily = result.customStyle_options?.["global_font-family"];
-
-  if (fontFamily === "OpenDyslexic") {
-    const base = (name) => chrome.runtime.getURL(`fonts/OpenDyslexic-${name}.woff2`);
-
-    const style = document.createElement("style");
-    style.textContent = `
-      @font-face {
-        font-family: 'OpenDyslexic';
-        src: url('${base("Regular")}') format('woff2');
-        font-weight: normal;
-        font-style: normal;
-        font-display: swap;
-      }
-      @font-face {
-        font-family: 'OpenDyslexic';
-        src: url('${base("Bold")}') format('woff2');
-        font-weight: bold;
-        font-style: normal;
-        font-display: swap;
-      }
-      @font-face {
-        font-family: 'OpenDyslexic';
-        src: url('${base("Italic")}') format('woff2');
-        font-weight: normal;
-        font-style: italic;
-        font-display: swap;
-      }
-      @font-face {
-        font-family: 'OpenDyslexic';
-        src: url('${base("Bold-Italic")}') format('woff2');
-        font-weight: bold;
-        font-style: italic;
-        font-display: swap;
-      }
-    `;
-    document.head.appendChild(style);
-
-    // 👇 Explicitly load each variation
-    Promise.all([
-      document.fonts.load("normal 1rem OpenDyslexic"),
-      document.fonts.load("bold 1rem OpenDyslexic"),
-      document.fonts.load("italic 1rem OpenDyslexic"),
-      document.fonts.load("bold italic 1rem OpenDyslexic"),
-    ]).then(() => {
-      document.documentElement.classList.add("dyslexic-font");
-
-      // 👇 Optional Safari nudge
-      const nudge = document.createElement("span");
-      nudge.textContent = ".";
-      nudge.style.fontFamily = "OpenDyslexic";
-      nudge.style.opacity = "0";
-      document.body.appendChild(nudge);
-      requestAnimationFrame(() => nudge.remove());
-    });
-  }
-});
-
-import "./features/register_feature_options";
-
-// First are loaded modules that change the wikitree appearence by altering css style
-import "./features/collapsible_profiles/collapsible_profiles";
-import "./features/custom_style/custom_style";
-import "./features/darkMode/darkMode";
-import "./features/disable_GIFs/disable_GIFs";
-import "./features/enhanced_editor_style/enhanced_editor_style";
-import "./features/menu_hover/menu_hover";
-import "./features/menu_style/menu_style";
-import "./features/readability/readability";
-import "./features/reorderNames/reorderNames";
-import "./features/show_search/show_search";
-import "./features/space_style/space_style";
-import "./features/sticky_header/sticky_header";
-import "./features/visitedLinks/visitedLinks";
-
-// followed by the rest
-
-import "./easterEgg";
-import "./features/access_keys/access_keys";
-import "./features/add_fs_id/add_fs_id";
-import "./features/add_search_boxes/add_search_boxes";
-import "./features/akaNameLinks/akaNameLinks";
-import "./features/anniversaries_table/anniversaries_table";
-import "./features/categoryDisplay/categoryDisplay";
-import "./features/categoryFinderPins/categoryFinderPins";
-import "./features/change_family_lists/change_family_lists";
-import "./features/clipboard_and_notes/clipboard_and_notes";
-import "./features/collapsible_descendants/collapsible_descendants";
-import "./features/confirm_thank_yous/confirm_thank_yous";
-import "./features/connection_finder/connection_finder";
-import "./features/connector_image/connector_image";
-import "./features/copy_bio_changes/copy_bio_changes";
-import "./features/countdown/countdown";
-import "./features/distanceAndRelationship/distanceAndRelationship";
-import "./features/dna_table/dna_table";
-import "./features/duplicates/duplicates";
-import "./features/enumerate_image_detail/enumerate_image_detail.js";
-import "./features/extra_watchlist/extra_watchlist";
-import "./features/family_dropdown/family_dropdown";
-import "./features/familyGroup/familyGroup";
-import "./features/familyTimeline/familyTimeline";
-import "./features/feed_helper/feed_helper";
-import "./features/find_a_grave_memorial_extractor/find_a_grave_memorial_extractor";
-import "./features/g2g/g2g";
-import "./features/help/help";
-import "./features/hide_my_contributions/hide_my_contributions";
-import "./features/highlight_WBE_features/highlight_WBE_features";
-import "./features/image_page_options/image_page_options";
-import "./features/image_zoom/image_zoom";
-import "./features/links_to_new_tabs/links_to_new_tabs";
-import "./features/my_connections/my_connections";
-import "./features/my_menu/my_menu";
-import "./features/pending_merges_filters/pending_merges_filters";
-import "./features/printerfriendly/printerfriendly";
-import "./features/redir_ext_links/redir_ext_links";
-import "./features/scissors/scissors";
-import "./features/send_to_merge/send_to_merge";
-import "./features/shareable_sources/shareable_sources";
-import "./features/show_suggestions/show_suggestions";
-import "./features/sort_theme_people/sort_theme_people";
-import "./features/sortBadges/sortBadges";
-import "./features/sourcepreview/sourcepreview";
-import "./features/spacepreview/spacepreview";
-import "./features/surname_table/surname_table";
-import "./features/table_filters/table_filters";
-import "./features/unconnected_branch_table/unconnected_branch_table";
-import "./features/usability_tweaks/usability_tweaks";
-import "./features/watchlistFilter/watchlistFilter";
-import "./features/wikitree_plus_helper/wikitree_plus_helper";
-import "./features/wills/wills";
-
-// Edit mode addons are towards the end
-import "./features/agc/agc_content";
-import "./features/auto_bio/auto_bio";
-import "./features/custom_change_summary_options/custom_change_summary_options";
-import "./features/date_fixer/date_fixer";
-import "./features/family_status_sync/family_status_sync";
-import "./features/language_setting/language_setting";
-import "./features/locationsHelper/locationsHelper";
-import "./features/make_radio_buttons_deselectable/make_radio_buttons_deselectable";
-import "./features/migration_category_helper/migration_category_helper";
-import "./features/remove_from_watchlist/remove_from_watchlist";
-import "./features/save_buttons_style_options/save_buttons_style_options"; // Disabled for now
-import "./features/sticky_toolbar/sticky_toolbar";
-import "./features/wikitable_wizard/wikitable_wizard";
-import "./features/wtPlus/wtPlus";
-
-// BioCheck needs to load later than custom_change_summary_options
-import "./features/bioCheck/bioCheck";
-
-// Edit mode Add Person addons are even later
-import "./features/add_person/add_person";
-import "./features/genderPredictor/genderPredictor";
-import "./features/suggested_matches_filters/suggested_matches_filters";
-import "./features/unnamed_infant/unnamed_infant";
-import "./features/verifyID/verifyID";
-
-// At the end are the features that add items into menu structure.
-import "./features/appsMenu/appsMenu";
-import "./features/category_filters/category_filters";
-import "./features/category_management/category_management";
-import "./features/category_tables/category_tables";
-import "./features/cc7_changes/cc7_changes";
-import "./features/draftList/draftList";
-import "./features/edit_family_data/edit_family_data";
-import "./features/edit_profile_redesign/edit_profile_redesign";
-import "./features/editor_expander/editor_expander";
-import "./features/image_table/image_table";
-import "./features/randomProfile/randomProfile";
-import "./features/space_watchlist_sorter/space_watchlist_sorter";
-import "./features/text_expander/text_expander";
-import "./features/what_links_here/what_links_here";
-
-/* MARKER: Default place for new features. Move these to a more appropriate place.*/
-
-/*
- * debugging features for development only
- *
-import "./features/debugProfileClasses/debugProfileClasses";
-// end debugging section */
-
-import "./core/editToolbar/editToolbar";
-
-//createTopMenu();
-
-window.setTimeout(function () {
-  if (document?.documentElement?.getAttribute("data-wbe-conflict")) {
-    console.warn(
-      "WikiTree Browser Extension conflict detected: " + document.documentElement.getAttribute("data-wbe-conflict")
-    );
-    /*
-    document.getElementById("conflictAlert")?.remove();
-    let conflictAlert = document.createElement("dialog");
-    conflictAlert.id = "conflictAlert";
-    conflictAlert.style = "max-width:480px;border:3px solid #fbb616;border-radius:1em;";
-    conflictAlert.innerText =
-      "The WikiTree Browser Extension has reloaded or a conflicting version has been installed. Make sure features are enabled in only one version at a time. Some features may no longer work until this page is refreshed. If you were still working on this page, you can click anywhere to resume.";
-    conflictAlert.addEventListener("click", function () {
-      this.close();
-    });
-    document.body.prepend(conflictAlert);
-    conflictAlert.showModal();
-    */
-  }
-}, 2000);
-
+// Entry point for the content script.
 //
+// This file deliberately contains nothing but a guard. The browser can inject a
+// declared content script into the same document more than once (an extension
+// reload or update with the tab still open, two copies of the extension installed,
+// or a browser-specific injection quirk), and nothing stops the bundle running
+// twice. When that happens the unguarded module-level side effects in the real
+// entry point run again, producing duplicated UI: a second #editToolbarExt row, a
+// second .wbe-button-container2, doubled click handlers.
+//
+// The guard is on documentElement rather than only on `window`: a window flag is
+// shared only between injections landing in the same isolated world, which is not
+// guaranteed. An attribute on <html> is shared by every injection into the document,
+// whichever world or copy of the extension it came from. Both are set, and either
+// one being present is enough to bail.
+//
+// require() rather than import(): webpack bundles it into this same chunk, so the
+// real entry point still loads synchronously from js/content.js and no extra chunk
+// fetch is introduced. A dynamic import() would make the whole extension depend on
+// runtime chunk loading, which has no working fallback here (public/background.js
+// handles no WTW_INJECT message).
+const alreadyLoaded = window.__wbeContentLoaded || document?.documentElement?.hasAttribute("data-wbe-content-loaded");
+
+if (alreadyLoaded) {
+  // Name the copy that stood down: with two versions installed the loser is
+  // completely inert, and "why is Preview doing nothing?" is otherwise a mystery.
+  const me = chrome?.runtime?.getManifest?.();
+  console.warn(
+    `${me ? me.name + " " + me.version : "WikiTree Browser Extension"}: another copy of the extension has already ` +
+      "loaded into this page, so this one is standing down. Only one version can run at a time."
+  );
+} else {
+  window.__wbeContentLoaded = true;
+  document?.documentElement?.setAttribute("data-wbe-content-loaded", Date.now().toString());
+  require("./content_main.js");
+}

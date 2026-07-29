@@ -454,13 +454,20 @@ async function checkButtonFeatures() {
   ];
   const promises = features.map((feature) => checkIfFeatureEnabled(feature));
 
-  let buttonContainer2 = $("<div>").addClass("wbe-button-container2");
   const isMarriageInfo = $("h1:contains('Edit Marriage Information')").length;
-  if (isWikiEdit) {
-    $("#toolbar").append(buttonContainer2);
-  }
-  if (isG2G) {
-    $(".qa-c-form h2").before(buttonContainer2);
+  // Reuse an existing container. Creating a second one duplicates every button,
+  // because the .each() further down appends to *all* of them.
+  if ($(".wbe-button-container2").length === 0) {
+    const buttonContainer2 = $("<div>").addClass("wbe-button-container2");
+    if (isWikiEdit) {
+      // .first(): ids are supposed to be unique, but if the page has more than one
+      // #toolbar jQuery clones the container into each, and the .each() below then
+      // gives every clone its own set of buttons.
+      $("#toolbar").first().append(buttonContainer2);
+    }
+    if (isG2G) {
+      $(".qa-c-form h2").before(buttonContainer2);
+    }
   }
 
   try {
@@ -549,6 +556,9 @@ async function checkButtonFeatures() {
       );
       if (isWikiEdit || isG2G) {
         $(".wbe-button-container2").each(function () {
+          // These buttons carry no id, so createButton's own duplicate check can't
+          // help here; check the container instead.
+          if ($(this).find(".aClipboardButton, .aNotesButton").length) return;
           $(this).append(
             createButton({
               id: "",
@@ -1350,26 +1360,42 @@ async function restoreData(data, sendResponse) {
     // Add text expander restore
     localStorage.setItem("wbe_text_expander_custom", data.textExpander);
   }
-  if (data.clipboard) {
-    await restoreIndexedDB("Clipboard", { Clipboard: data.clipboard });
-  } else if (data.indexedDB) {
-    for (const dbName of WBE_DATABASES_ALL) {
-      if (data.indexedDB[dbName]) {
-        await restoreIndexedDB(dbName, data.indexedDB[dbName]);
+  try {
+    if (data.clipboard) {
+      await restoreIndexedDB("Clipboard", { Clipboard: data.clipboard });
+    } else if (data.indexedDB) {
+      for (const dbName of WBE_DATABASES_ALL) {
+        if (data.indexedDB[dbName]) {
+          await restoreIndexedDB(dbName, data.indexedDB[dbName]);
+        }
       }
     }
+  } catch (error) {
+    // Previously these failures only reached console.error, so a restore that
+    // wrote nothing still reported success.
+    console.error("Failed to restore IndexedDB data", error);
+    if (sendResponse) sendResponse({ nak: `Data restore failed: ${error?.message ?? error}` });
+    return;
   }
   if (sendResponse) sendResponse({ ack: "data restored" });
 }
 
 async function restoreIndexedDB(dbName, dbData) {
   const db = await openDatabase(dbName);
-  for (const storeName in dbData) {
-    const jsonStr = dbData[storeName];
-    const records = JSON.parse(jsonStr);
-    writeToDB(db, dbName, storeName, records);
+  try {
+    const writes = [];
+    for (const storeName in dbData) {
+      const jsonStr = dbData[storeName];
+      const records = JSON.parse(jsonStr);
+      writes.push(writeToDB(db, dbName, storeName, records));
+    }
+    // These must be awaited before we close the connection and report success.
+    // Callers reload the page the moment the restore resolves, which would tear
+    // down transactions that are still in flight and silently lose the data.
+    await Promise.all(writes);
+  } finally {
+    db.close();
   }
-  db.close();
 }
 
 function writeToDB(db, dbName, requestedStoreName, records) {
@@ -1390,28 +1416,38 @@ function writeToDB(db, dbName, requestedStoreName, records) {
     });
   }
 
-  const transaction = db.transaction(storeName, "readwrite");
+  // Resolves only once the transaction has actually committed, so callers can wait
+  // for the data to be on disk rather than merely queued.
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, "readwrite");
 
-  transaction.oncomplete = () => {
-    console.log(`Data written for ${dbName}.${storeName}`);
-  };
-  transaction.onerror = (event) => {
-    console.error(`Error writing data for ${dbName}.${storeName}`, event.target.error);
-  };
+    transaction.oncomplete = () => {
+      console.log(`Data written for ${dbName}.${storeName}`);
+      resolve();
+    };
+    transaction.onerror = (event) => {
+      console.error(`Error writing data for ${dbName}.${storeName}`, event.target.error);
+      reject(event.target.error ?? new Error(`Error writing ${dbName}.${storeName}`));
+    };
+    transaction.onabort = (event) => {
+      console.error(`Aborted writing data for ${dbName}.${storeName}`, event.target.error);
+      reject(event.target.error ?? new Error(`Aborted writing ${dbName}.${storeName}`));
+    };
 
-  // Add each record to the object store
-  const objectStore = transaction.objectStore(storeName);
-  if (dbName == "CC7Database") {
-    // It does not make sense to keep previous (or new) CC7 data around when
-    // restoring any store in the CC7Database
-    objectStore.clear();
-  }
-  records.forEach((record) => {
-    if (record.key) {
-      objectStore.put(record.value, record.key);
-    } else {
-      objectStore.put(record);
+    // Add each record to the object store
+    const objectStore = transaction.objectStore(storeName);
+    if (dbName == "CC7Database") {
+      // It does not make sense to keep previous (or new) CC7 data around when
+      // restoring any store in the CC7Database
+      objectStore.clear();
     }
+    records.forEach((record) => {
+      if (record.key) {
+        objectStore.put(record.value, record.key);
+      } else {
+        objectStore.put(record);
+      }
+    });
   });
 }
 

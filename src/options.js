@@ -769,8 +769,17 @@ $("#openSettings").on("click", function () {
         .then(closeSettings)
         .catch((response) => {
           var err = response?.nak ?? JSON.stringify(response ?? "NO_RESPONSE");
-          if (err == "INVALID_FORMAT") {
+          if (err == "CANCELLED") {
+            // the file picker was dismissed; nothing to report
+          } else if (err == "INVALID_FORMAT") {
             showAlert("The options backup file was not valid.", "Restore Options Failed", "#settingsDialog");
+          } else if (err == "STORAGE_ERROR") {
+            showAlert(
+              "Your settings could not be saved, so nothing was restored.\nThis usually means the backup is too large for the browser's sync storage.\n\n" +
+                (response?.message ?? ""),
+              "Restore Options Failed",
+              "#settingsDialog"
+            );
           } else {
             console.error(err);
           }
@@ -789,7 +798,9 @@ $("#openSettings").on("click", function () {
         .then(closeSettings)
         .catch((response) => {
           var err = response?.nak ?? JSON.stringify(response ?? "NO_RESPONSE");
-          if (err == "INVALID_FORMAT") {
+          if (err == "CANCELLED") {
+            // the file picker was dismissed; nothing to report
+          } else if (err == "INVALID_FORMAT") {
             showAlert("The data backup file was not valid.", "Restore Data Failed", "#settingsDialog");
           } else if (err == "NO_TABS") {
             showAlert(
