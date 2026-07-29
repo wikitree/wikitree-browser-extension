@@ -526,7 +526,7 @@ does bio have section after advance directive
 
 Returns **[Boolean][6]** true if bio has section heading after advance directive
 
-### ElementNotInOrder
+### hasUnknownSection
 
 does bio have unknown section headings
 
@@ -679,6 +679,24 @@ Returns **[Boolean][6]** true elements out of order
 does bio have incomplete Dna confirmation
 
 Returns **[Boolean][6]** true incomplete DNA Confirmation found
+
+### isMarkedAndHasSources
+
+is bio marked unsource but have sources
+
+Returns **[Boolean][6]** true marked unsourced but has sources
+
+### isDnaMatchTooDistant
+
+is DNA match not 3rd cousin or closer
+
+Returns **[Boolean][6]** true if DNA match might not be 3rd cousin
+
+### hasTemplateNotAppoved
+
+does profile use a template that is not approved status
+
+Returns **[Boolean][6]** true if template not approved
 
 ## SourceRules
 
