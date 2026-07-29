@@ -813,6 +813,7 @@ class SourceRules {
     "cracofts peerage",
     "cracroftspeerage.co.uk",
     "daughters of the american revolution",
+    "douglashistory.co.uk",
     "dictionnaire universel de la noblesse de france",
     "dictionary of the peerages of england, ireland, and scotland",
     "fabpedigree.com",

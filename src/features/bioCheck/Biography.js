@@ -139,6 +139,9 @@ export class Biography {
       bioHasNonRecommendedHtml: false,
       refDefinedMultipleTimes: false,
       refWithNoCitation: false,
+      markedHasSources: false,
+      dnaMatchTooDistant: false,
+      templateNotApproved: false,
   };
   #have = {
     haveResearchNoteBox: false,
@@ -886,7 +889,7 @@ export class Biography {
    * does bio have unknown section headings
    * @returns {Boolean} true if bio has unknown section headings
    */
-  ElementNotInOrder() {
+  hasUnknownSection() {
     return this.#style.bioHasUnknownSectionHeadings;
   }
   /** 
@@ -1066,6 +1069,27 @@ export class Biography {
   hasIncompleteDNAConfirmation () {
     return this.#style.bioHasIncompleteDNAconfirmation;
   }
+  /**
+   * is bio marked unsource but have sources
+   * @returns {Boolean} true marked unsourced but has sources
+   */
+  isMarkedAndHasSources () {
+    return this.#style.markedHasSources;
+  }
+  /**
+   * is DNA match not 3rd cousin or closer
+   * @returns {Boolean} true if DNA match might not be 3rd cousin
+   */
+  isDnaMatchTooDistant () {
+    return this.#style.dnaMatchTooDistant;
+  }
+  /**
+   * does profile use a template that is not approved status
+   * @returns {Boolean} true if template not approved
+   */
+  hasTemplateNotAppoved () {
+    return this.#style.templateNotApproved;
+  }
 
   /* *********************************************************************
    * ******************* PRIVATE METHODS *********************************
@@ -1163,6 +1187,7 @@ export class Biography {
       let msg = 'Navigation Box: ' + partialMixedCaseLine + ' is ' + stat + ' status';
       this.#messages.styleMessages.push(msg);
       this.#style.bioHasStyleIssues = true;
+      this.#style.templateNotApproved = true;
       this.#bioScore--;
     } else {
       if (partialLine.startsWith('easily confused')) {
@@ -1240,6 +1265,7 @@ export class Biography {
       let msg = 'Research Note Box: ' + partialMixedCaseLine + ' is ' + stat + ' status';
       this.#messages.styleMessages.push(msg);
       this.#style.bioHasStyleIssues = true;
+      this.#style.templateNotApproved = true;
       this.#bioScore--;
     }
   }
@@ -1271,6 +1297,7 @@ export class Biography {
       let msg = 'Project Box: ' + partialMixedCaseLine + ' is ' + stat + ' status';
       this.#messages.styleMessages.push(msg);
       this.#style.bioHasStyleIssues = true;
+      this.#style.templateNotApproved = true;
       this.#bioScore--;
     }
   }
@@ -1323,6 +1350,7 @@ export class Biography {
       let msg = 'Sticker: ' + partialMixedCaseLine + ' is ' + stat + ' status';
       this.#messages.styleMessages.push(msg);
       this.#style.bioHasStyleIssues = true;
+      this.#style.templateNotApproved = true;
       this.#bioScore--;
     }
   }
@@ -1719,6 +1747,7 @@ export class Biography {
       if (this.#sources.sourcesFound) {
         this.#messages.sectionMessages.push('Profile is marked unsourced but may have sources');
         this.#style.bioHasStyleIssues = true;
+        this.#style.markedHasSources = true;
       } else {
         this.#messages.sectionMessages.push('Profile is marked unsourced');
       }
@@ -2319,7 +2348,9 @@ export class Biography {
             let str = line.replace('family tree dna', ''); // valid in DNA confirmation
             if (!this.#onAnyPartialSourceList(str)) {
               // Check for line that starts with something on the invalid start partial list
-              if (!this.#sourceRules.isInvalidStartPartialSource(line)) {
+              // however there may be a line that has both repository and source
+              str = line.replace('repository', '');
+              if (!this.#sourceRules.isInvalidStartPartialSource(str)) {
 
                 // TODO can you refactor so this uses a plugin architecture?
 
@@ -3094,11 +3125,13 @@ export class Biography {
           line.includes('4C') || line.includes('3C1')) {
         this.#style.bioHasStyleIssues = true;
         this.#messages.styleMessages.push('DNA Match might not be 3rd cousin or closer');
+        this.#style.dnaMatchTooDistant = true;
       }
       // Could be as little as 0 so just report for the fourth cousins numbers
       if (((cM > 0) && (cM < 13)) || ((sharedDnaPercent > 0) && (sharedDnaPercent < .19))) {
         this.#style.bioHasStyleIssues = true;
         this.#messages.styleMessages.push('DNA Match might not be 3rd cousin or closer');
+        this.#style.dnaMatchTooDistant = true;
       }
     }
     return isValidConf;
