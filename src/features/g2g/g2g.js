@@ -142,6 +142,164 @@ function addScissorsToAnswers() {
   }
 }
 
+const G2G_TAG_PICKER_MAX_RESULTS = 50;
+let g2gTagsPromise = null;
+// Lower case tag names, worked out once per tag list rather than on every keystroke.
+const g2gTagNames = new WeakMap();
+
+// The tag list is big, so it's only pulled in (as its own chunk) on the Tags page.
+function loadG2GTags() {
+  if (!g2gTagsPromise) {
+    g2gTagsPromise = import(/* webpackChunkName: "g2g-tags" */ "./g2g_tags.json")
+      .then((module) => module.default || module)
+      .catch((error) => {
+        console.error("WBE G2G tag picker: couldn't load the tag list.", error);
+        return [];
+      });
+  }
+  return g2gTagsPromise;
+}
+
+function g2gTagURL(tag) {
+  return "https://" + mainDomain + "/g2g/tag/" + encodeURIComponent(tag);
+}
+
+/* Best matches first: the start of the tag, then the start of a word within it
+   (so 'york' finds new_york before corkery), then anywhere in the tag.
+   Tags are ordered by question count, so each group has the most used first. */
+function rankG2GTagMatches(names, needle, limit) {
+  const startsWith = [];
+  const startsWord = [];
+  const contains = [];
+  for (let i = 0; i < names.length; i++) {
+    const position = names[i].indexOf(needle);
+    if (position === 0) {
+      startsWith.push(i);
+      if (startsWith.length >= limit) {
+        break;
+      }
+    } else if (position > 0) {
+      const group = names[i][position - 1] === "_" ? startsWord : contains;
+      if (group.length < limit) {
+        group.push(i);
+      }
+    }
+  }
+  return startsWith.concat(startsWord, contains).slice(0, limit);
+}
+
+function matchG2GTags(tags, query) {
+  const needle = query.trim().toLowerCase().replace(/\s+/g, "_");
+  if (!needle) {
+    return tags.slice(0, G2G_TAG_PICKER_MAX_RESULTS);
+  }
+  if (!g2gTagNames.has(tags)) {
+    g2gTagNames.set(
+      tags,
+      tags.map((tag) => tag.tag.toLowerCase())
+    );
+  }
+  const matches = rankG2GTagMatches(g2gTagNames.get(tags), needle, G2G_TAG_PICKER_MAX_RESULTS);
+  return matches.map((index) => tags[index]);
+}
+
+function showG2GTagPickerResults(results, matches) {
+  results.empty();
+  if (matches.length === 0) {
+    results.append($("<li class='g2gTagPickerEmpty'>No matching tags</li>"));
+  } else {
+    matches.forEach(function (tag) {
+      const item = $("<li class='g2gTagPickerItem'></li>");
+      $("<a></a>").attr("href", g2gTagURL(tag.tag)).text(tag.tag).appendTo(item);
+      $("<span class='g2gTagPickerCount'></span>").text(tag.count).appendTo(item);
+      results.append(item);
+    });
+  }
+  results.prop("hidden", false);
+}
+
+function moveG2GTagPickerSelection(results, direction) {
+  const items = results.find(".g2gTagPickerItem");
+  if (items.length === 0) {
+    return;
+  }
+  const current = items.index(items.filter(".g2gTagPickerActive"));
+  let next = current + direction;
+  if (next < 0) {
+    next = items.length - 1;
+  } else if (next >= items.length) {
+    next = 0;
+  }
+  items.removeClass("g2gTagPickerActive");
+  const active = items.eq(next).addClass("g2gTagPickerActive");
+  active[0].scrollIntoView({ block: "nearest" });
+}
+
+function addG2GTagPicker() {
+  if ($("#g2gTagPicker").length) {
+    return;
+  }
+  const surnameIndexLink = $('a[href*="/indexes/person.html"]').first();
+  const anchor = surnameIndexLink.length ? surnameIndexLink.parent() : $(".qa-main-heading").first();
+  if (anchor.length === 0) {
+    return;
+  }
+
+  const picker = $("<div id='g2gTagPicker'></div>");
+  $("<label for='g2gTagPickerInput' title='Last updated: 30 July 2026'>Find a tag:</label>").appendTo(picker);
+  const input = $(
+    "<input type='search' id='g2gTagPickerInput' autocomplete='off' placeholder='Type to search all G2G tags'>"
+  ).appendTo(picker);
+  const results = $("<ul id='g2gTagPickerResults' hidden></ul>").appendTo(picker);
+  anchor.after(picker);
+
+  let tags = null;
+  loadG2GTags().then(function (loaded) {
+    tags = loaded;
+    // The user may have typed something while the list was loading.
+    if (input.is(":focus") && input.val()) {
+      showG2GTagPickerResults(results, matchG2GTags(tags, input.val()));
+    }
+  });
+
+  function updateResults() {
+    if (tags === null) {
+      results.empty().append($("<li class='g2gTagPickerEmpty'>Loading tags…</li>")).prop("hidden", false);
+      return;
+    }
+    showG2GTagPickerResults(results, matchG2GTags(tags, input.val()));
+  }
+
+  input.on("input focus", updateResults);
+
+  input.on("keydown", function (event) {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      moveG2GTagPickerSelection(results, event.key === "ArrowDown" ? 1 : -1);
+    } else if (event.key === "Enter") {
+      const active = results.find(".g2gTagPickerActive a").first();
+      const link = active.length ? active : results.find(".g2gTagPickerItem a").first();
+      if (link.length) {
+        event.preventDefault();
+        window.location.href = link.attr("href");
+      }
+    } else if (event.key === "Escape") {
+      results.prop("hidden", true);
+    }
+  });
+
+  results.on("mouseenter", ".g2gTagPickerItem", function () {
+    results.find(".g2gTagPickerItem").removeClass("g2gTagPickerActive");
+    $(this).addClass("g2gTagPickerActive");
+  });
+
+  $(document).on("click", function (event) {
+    if ($(event.target).closest("#g2gTagPicker").length === 0) {
+      results.prop("hidden", true);
+    }
+  });
+}
+
 async function initG2G() {
   const options = await getFeatureOptions("g2g");
   if (options.removeAds && getUserWtId()) {
@@ -164,6 +322,9 @@ async function initG2G() {
   if (options.filter) {
     addG2GCategoryCheckboxes();
     doG2GCategories();
+  }
+  if (options.tagPicker && window.location.pathname.match(/^\/g2g\/tags\b/)) {
+    addG2GTagPicker();
   }
   if (options.scissors) {
     g2gScissors(options.scissors_answers);

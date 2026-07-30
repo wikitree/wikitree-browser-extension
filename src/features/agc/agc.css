@@ -1,6 +1,30 @@
 #agc-toast .toast-header {
   background-color: #ffc107 !important;
 }
+#agcOldBioContainer {
+  margin: 0.5em 0;
+}
+#agcOldBioToggle {
+  cursor: pointer;
+  padding: 0.2em 0.6em;
+  border: solid gray 1px;
+  border-radius: 3px;
+  background-color: #f0f0f0;
+}
+#agcOldBioText {
+  display: block;
+  width: 100%;
+  height: 20em;
+  margin-top: 0.5em;
+  box-sizing: border-box;
+  font-family: monospace;
+  background-color: #f8f8f8;
+}
+body.darkMode #agcOldBioToggle,
+body.darkMode #agcOldBioText {
+  background-color: #333;
+  color: #eee;
+}
 img.mw-toolbar-editbutton[alt="Automatic GEDCOM Cleanup"] {
   height: 28px;
   cursor: pointer;

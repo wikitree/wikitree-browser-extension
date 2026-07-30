@@ -26,6 +26,7 @@ SOFTWARE.
 Created By: Rob Pavey (Pavey-429)
 */
 
+import $ from "jquery";
 import { WBE } from "../../core/common";
 
 
@@ -307,6 +308,42 @@ function displaySuccessToast(message) {
 }
 
 /*
+ * Remove the "See old bio" panel (e.g. after an undo, when it is no longer needed)
+ */
+function removeOldBioPanel() {
+  $("#agcOldBioContainer").remove();
+}
+
+/*
+ * Show a collapsed textarea above the editor holding the bio as it was before AGC ran,
+ * so that the user can compare the reformatted bio against the original.
+ */
+function showOldBioPanel(oldBio) {
+  removeOldBioPanel();
+
+  const container = $(
+    `<div id="agcOldBioContainer">
+      <button type="button" id="agcOldBioToggle">See old bio</button>
+      <textarea id="agcOldBioText" readonly="readonly" spellcheck="false"></textarea>
+    </div>`
+  );
+
+  const textarea = container.find("#agcOldBioText");
+  textarea.val(oldBio).hide();
+
+  // Above the editor (the enhanced editor's CodeMirror div sits after the textbox) so that
+  // the panel is right there in view after the AGC button is pressed
+  container.insertBefore($("#wpTextbox1"));
+
+  container.find("#agcOldBioToggle").on("click", function () {
+    const button = $(this);
+    textarea.slideToggle(300, function () {
+      button.text(textarea.is(":visible") ? "Hide old bio" : "See old bio");
+    });
+  });
+}
+
+/*
  * Edit the biography
  * Get the input values from the current page, and get options from user storage
  * Then use editbio to clean the GEDCOM import
@@ -459,6 +496,11 @@ async function doEditBio() {
       enhancedEditorButton.click();
     }
 
+    if (editBioOutput.succeeded) {
+      // Give the user a way to check the reformatted bio against the original
+      showOldBioPanel(origBioText);
+    }
+
     if (!editBioOutput.succeeded) {
       // AGC failed
       // display error message
@@ -493,6 +535,8 @@ function undoEditBio() {
   document.getElementById("mLastNameCurrent").value = origCurrentLastName;
 
   lastReformattedBioText = "";
+
+  removeOldBioPanel();
 
   isBioEdited = false;
   updateButton();

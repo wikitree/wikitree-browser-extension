@@ -149,3 +149,71 @@ input[name$="_docomment"].bigButton:hover {
 .qa-q-item-title .checkmark {
   position: relative !important;
 }
+
+/* G2G tag picker */
+#g2gTagPicker {
+  position: relative;
+  max-width: 30em;
+  margin-bottom: 20px;
+}
+
+#g2gTagPicker label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 0.2em;
+}
+
+#g2gTagPickerInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.4em;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+}
+
+#g2gTagPickerResults {
+  position: absolute;
+  z-index: 1000;
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 20em;
+  overflow-y: auto;
+  background-color: #fff;
+  border: 1px solid #aaa;
+  border-top: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+#g2gTagPickerResults[hidden] {
+  display: none;
+}
+
+.g2gTagPickerItem {
+  display: flex;
+  justify-content: space-between;
+  gap: 1em;
+  padding: 0.25em 0.5em;
+}
+
+.g2gTagPickerItem a {
+  flex: 1;
+  text-decoration: none;
+}
+
+.g2gTagPickerItem.g2gTagPickerActive {
+  background-color: #ffe270;
+}
+
+.g2gTagPickerCount {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.g2gTagPickerEmpty {
+  padding: 0.25em 0.5em;
+  color: #666;
+  font-style: italic;
+}

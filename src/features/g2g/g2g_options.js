@@ -59,6 +59,12 @@ const g2g = {
       defaultValue: true,
     },
     {
+      id: "tagPicker",
+      type: OptionType.CHECKBOX,
+      label: "Tag picker: a searchable list of all G2G tags on the Tags page",
+      defaultValue: true,
+    },
+    {
       id: "bigButtons",
       type: OptionType.CHECKBOX,
       label: "Big Comment and Reply buttons",
