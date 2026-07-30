@@ -141,6 +141,16 @@ const DUPLICATES_RESOLVE_ENDPOINTS = [
 ];
 const UNAUTHORIZED_STATUS_MESSAGE =
   "Not authorized for Arborists status updates. Please confirm you are logged into WikiTree.";
+// The apps.wikitree.com hosts sit behind an AWS WAF challenge rule that answers unidentified
+// clients with 202 and an empty body. Requests carrying an appId query parameter are allowed
+// through, so every duplicates request must include one.
+const DUPLICATES_APP_ID = "WBEDuplicates";
+
+function withAppId(url) {
+  const withParam = new URL(url);
+  withParam.searchParams.set("appId", DUPLICATES_APP_ID);
+  return withParam.toString();
+}
 
 let arboristsSessionToken = "";
 let arboristsSessionTokenExpiresAt = 0;
@@ -206,7 +216,7 @@ async function fetchDuplicatesApiWithFallback(urls, fetchOptions = {}) {
 
   for (const url of candidates) {
     try {
-      const response = await fetch(url, fetchOptions);
+      const response = await fetch(withAppId(url), fetchOptions);
       const rawBody = await response.text();
       const parsedBody = tryParseJsonOrJsonl(rawBody);
       const responseData = normalizeApiResponse(parsedBody, rawBody);
