@@ -8,6 +8,7 @@ import $ from "jquery";
 import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
 import { readFromClipboard } from "./clipboard.js";
+import { settleWhenUnblocked } from "./lib/indexedDBHelper";
 import {
   mainDomain,
   isNavHomePage,
@@ -374,13 +375,64 @@ async function checkBackupReminder() {
   const urlParams = new URLSearchParams(window.location.search);
   const testMode = urlParams.get("wbe_test_backup") === "1";
 
-  chrome.storage.local.get(["lastBackupNag"], function (items) {
-    const lastNag = items.lastBackupNag || 0;
-    const thirtyDays = 30 * 24 * 60 * 60 * 1000;
-    const now = Date.now();
+  const items = await new Promise((resolve) => chrome.storage.local.get(["lastBackupNag"], resolve));
+  const lastNag = items.lastBackupNag || 0;
+  const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
 
-    if (testMode || now - lastNag > thirtyDays) {
-      showBackupReminder(enabledFeatures);
+  if (!testMode && now - lastNag <= thirtyDays) return;
+
+  // Don't nag someone who has nothing to lose yet. lastBackupNag starts at 0, so a
+  // brand new user was told on their very first page load that it had "been a while"
+  // since a backup they had never made. Having a feature *enabled* is not the same
+  // as having data in it — most of these are on by default.
+  if (!testMode && !(await hasDataToBackUp())) {
+    // Push the next check out a month instead of scanning on every page load.
+    chrome.storage.local.set({ lastBackupNag: now });
+    return;
+  }
+
+  showBackupReminder(enabledFeatures);
+}
+
+// Is there actually anything in the places backupData() reads from?
+async function hasDataToBackUp() {
+  const localStorageKeys = [
+    "LSchangeSummaryOptions",
+    "LSchangeSummaryOptions_Space",
+    "LSchangeSummaryOptions_Category",
+    "customMenu",
+    "extraWatchlist",
+    "extraWatchlistNotes",
+    "wbe_text_expander_custom",
+  ];
+  if (localStorageKeys.some((key) => localStorage.getItem(key))) return true;
+
+  for (const dbName of WBE_DATABASES_ALL) {
+    // openDatabase returns null rather than creating a database that isn't there,
+    // which matters here: this runs for users who have never used these features.
+    const db = await openDatabase(dbName);
+    if (!db) continue;
+    try {
+      for (const storeName of getObjectStores(db)) {
+        if ((await countRecords(db, storeName)) > 0) return true;
+      }
+    } finally {
+      db.close();
+    }
+  }
+  return false;
+}
+
+function countRecords(db, storeName) {
+  return new Promise((resolve) => {
+    try {
+      const request = db.transaction(storeName, "readonly").objectStore(storeName).count();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve(0);
+    } catch {
+      // A store that can't be read counts as empty; this is only a nag heuristic.
+      resolve(0);
     }
   });
 }
@@ -708,8 +760,8 @@ function importFeatureData() {
               // Reload the page to apply the changes
               location.reload();
             } else {
-              const err = response?.nak ?? JSON.stringify(response ?? "Restore failed");
-              showFriendlyError(err);
+              const err = response?.message ?? response?.nak ?? JSON.stringify(response ?? "Restore failed");
+              showFriendlyError(`Data restore failed: ${err}`);
             }
           });
         }
@@ -1232,6 +1284,49 @@ export function isWikiTreeUrl(url) {
 const WBE_DATABASES_MINIMAL = ["Clipboard", "SpaceWatchlistDB", "WTPlusQueryBuilder"];
 const WBE_DATABASES_ALL = [...WBE_DATABASES_MINIMAL, "CC7Database", "ConnectionFinderWTE", "RelationshipFinderWTE"];
 
+// The schema each feature creates for itself the first time it runs.
+//
+// Restoring a backup must not depend on the owning feature having run in this page
+// first: a backup can be restored on a machine where the feature was never used, or
+// from the Nav Home page, where most features never initialise. Without this, the
+// restore hits "'<store>' is not a known object store name" and stops.
+//
+// Keep these in step with the features. Each entry mirrors, in order:
+//   Clipboard             src/features/clipboard_and_notes/clipboard_and_notes.js
+//   SpaceWatchlistDB      src/features/space_watchlist_sorter/space_watchlist_sorter.js
+//   WTPlusQueryBuilder    src/features/wikitree_plus_helper/wikitree_plus_helper_storage.js
+//   CC7Database           src/features/cc7_changes/cc7_changes.js
+//   Connection/Relationship  src/features/distanceAndRelationship/distanceAndRelationship.js
+const WBE_DB_SCHEMA = {
+  Clipboard: {
+    version: 1,
+    stores: { Clipboard: { options: { autoIncrement: true } } },
+  },
+  SpaceWatchlistDB: {
+    version: 2,
+    stores: { watchlist: { options: { keyPath: "id" } } },
+  },
+  WTPlusQueryBuilder: {
+    version: 1,
+    stores: { savedQueries: { options: { keyPath: "id", autoIncrement: true } } },
+  },
+  CC7Database: {
+    version: 4,
+    stores: {
+      cc7Profiles: { options: { keyPath: "theKey" }, indexes: [{ name: "userId", keyPath: "userId" }] },
+      cc7Deltas: { options: { keyPath: "date" }, indexes: [{ name: "userId", keyPath: "userId" }] },
+    },
+  },
+  ConnectionFinderWTE: {
+    version: 2,
+    stores: { distance2: { options: { keyPath: "theKey" } } },
+  },
+  RelationshipFinderWTE: {
+    version: 2,
+    stores: { relationship2: { options: { keyPath: "theKey" } } },
+  },
+};
+
 export function distRelDbKeyFor(profileId, userId) {
   return `${profileId}:${userId}`;
 }
@@ -1269,6 +1364,9 @@ async function getAllData(databases) {
   for (const dbName of databases) {
     try {
       const db = await openDatabase(dbName);
+      // The feature that owns this database has never run here, so there is nothing
+      // to back up. Skip it rather than creating it.
+      if (!db) continue;
       const objectStores = getObjectStores(db);
       const dbData = {};
 
@@ -1289,13 +1387,120 @@ async function getAllData(databases) {
   return rsp;
 }
 
+/**
+ * Open an existing database without altering it in any way.
+ *
+ * indexedDB.open() with no version *creates* the database when it does not exist,
+ * which is not what a reader wants: backing up used to leave behind an empty
+ * database for every feature the user had never used, and for a version 1 database
+ * (Clipboard, WTPlusQueryBuilder) that is permanent damage — the feature opens at
+ * version 1, the version already matches, onupgradeneeded never fires, and its
+ * object store is never created.
+ *
+ * So ask indexedDB.databases() first and don't open it at all if it isn't there.
+ * Aborting the version-change transaction is the fallback for browsers without
+ * databases(); it undoes the creation, but WebKit has been unreliable about that in
+ * the past, which is why it is not the primary check.
+ *
+ * @returns the database, or null if it does not exist
+ */
 async function openDatabase(dbName) {
+  if ((await databaseExists(dbName)) === false) return null;
+  return openExistingDatabase(dbName);
+}
+
+/**
+ * @returns true, false, or null when the browser gives us no way to tell
+ */
+async function databaseExists(dbName) {
+  if (typeof indexedDB.databases !== "function") return null;
+  try {
+    const databases = await indexedDB.databases();
+    return databases.some((database) => database.name === dbName);
+  } catch (error) {
+    console.warn("Could not list the IndexedDB databases", error);
+    return null;
+  }
+}
+
+function openExistingDatabase(dbName) {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(dbName);
+    let didNotExist = false;
 
-    request.onerror = () => reject(request.error);
+    request.onupgradeneeded = (event) => {
+      didNotExist = true;
+      event.target.transaction.abort();
+    };
+    request.onerror = (event) => {
+      // The abort above surfaces here as an error on the open request.
+      event.preventDefault();
+      if (didNotExist) {
+        resolve(null);
+      } else {
+        reject(request.error);
+      }
+    };
     request.onsuccess = () => resolve(request.result);
   });
+}
+
+/**
+ * Open a database for restoring into, creating it from WBE_DB_SCHEMA if the feature
+ * that owns it has never run here.
+ */
+async function openDatabaseForRestore(dbName, requiredStores) {
+  const schema = WBE_DB_SCHEMA[dbName];
+  if (!schema) {
+    throw new Error(`No schema is known for the database ${dbName}, so it cannot be created.`);
+  }
+
+  const db = await openDatabase(dbName);
+  if (db) {
+    const missing = requiredStores.filter((storeName) => !db.objectStoreNames.contains(storeName));
+    if (missing.length === 0) return db;
+
+    const isEmpty = db.objectStoreNames.length === 0;
+    const version = db.version;
+    db.close();
+
+    if (isEmpty) {
+      // Left behind by an older build that created databases just by reading them.
+      // There is nothing in it to preserve, and at version 1 no upgrade could ever
+      // fire to add the store, so start over from the schema.
+      await deleteDatabase(dbName);
+    } else if (version >= schema.version) {
+      // The database is in use and already at (or past) the version we know about,
+      // so we have no safe way to add the store without guessing at a migration.
+      throw new Error(
+        `The ${dbName} database has no '${missing.join("', '")}' data. ` +
+          "Open a WikiTree page with that feature enabled, then try the restore again."
+      );
+    }
+    // Otherwise it is an older version we can upgrade to the current schema below.
+  }
+
+  return createDatabaseFromSchema(dbName, schema);
+}
+
+function createDatabaseFromSchema(dbName, schema) {
+  const request = indexedDB.open(dbName, schema.version);
+
+  request.onupgradeneeded = (event) => {
+    const db = event.target.result;
+    for (const [storeName, { options, indexes }] of Object.entries(schema.stores)) {
+      if (db.objectStoreNames.contains(storeName)) continue;
+      const store = db.createObjectStore(storeName, options);
+      for (const index of indexes ?? []) {
+        store.createIndex(index.name, index.keyPath, { unique: false });
+      }
+    }
+  };
+  return settleWhenUnblocked(request, `Setting up the ${dbName} database`);
+}
+
+function deleteDatabase(dbName) {
+  return settleWhenUnblocked(indexedDB.deleteDatabase(dbName), `Replacing the ${dbName} database`);
 }
 
 export function getObjectStores(db) {
@@ -1374,14 +1579,15 @@ async function restoreData(data, sendResponse) {
     // Previously these failures only reached console.error, so a restore that
     // wrote nothing still reported success.
     console.error("Failed to restore IndexedDB data", error);
-    if (sendResponse) sendResponse({ nak: `Data restore failed: ${error?.message ?? error}` });
+    if (sendResponse) sendResponse({ nak: "RESTORE_FAILED", message: error?.message ?? String(error) });
     return;
   }
   if (sendResponse) sendResponse({ ack: "data restored" });
 }
 
 async function restoreIndexedDB(dbName, dbData) {
-  const db = await openDatabase(dbName);
+  const requiredStores = Object.keys(dbData).map(currentStoreNameFor);
+  const db = await openDatabaseForRestore(dbName, requiredStores);
   try {
     const writes = [];
     for (const storeName in dbData) {
@@ -1398,23 +1604,31 @@ async function restoreIndexedDB(dbName, dbData) {
   }
 }
 
+// Map an object store name as it appears in a backup onto the store that holds that
+// data today, so older backups can be restored to the current database versions.
+// CC7, distance, and relationship are the previous versions of those object stores.
+// NOTE: we don't check dbName because the storeNames currently are unique
+function currentStoreNameFor(requestedStoreName) {
+  if (requestedStoreName == "CC7") return "cc7Profiles";
+  if (requestedStoreName == "distance" || requestedStoreName == "relationship") return `${requestedStoreName}2`;
+  return requestedStoreName;
+}
+
+// getAllRecords() wraps a record as {key, value} when the store it came from is
+// autoIncrement or has no keyPath, and stores it as-is otherwise.
+//
+// Recognise the wrapper by its exact shape rather than by asking "does this record
+// have a .key property". A plain record that happens to have a field called key
+// would otherwise be written as record.value, i.e. undefined, which IndexedDB
+// rejects with "Data provided to an operation does not meet requirements".
+function isWrappedRecord(record) {
+  if (record === null || typeof record !== "object") return false;
+  const fields = Object.keys(record);
+  return fields.length === 2 && fields.includes("key") && fields.includes("value");
+}
+
 function writeToDB(db, dbName, requestedStoreName, records) {
-  // Do some fiddling so we can restore older backups to the new DB versions.
-  // CC7, distance, and relationship are the previous versions of those object
-  // stores. The new ones are cc7Profiles, distance2 and relationship2 respectively.
-  // NOTE: we don't check dbName because the storeNames currently are unique
-  let storeName = requestedStoreName;
-  if (requestedStoreName == "CC7") {
-    storeName = "cc7Profiles";
-    records.forEach((record) => {
-      record.theKey = cc7DbKeyFor(record.Id, record.userId);
-    });
-  } else if (requestedStoreName == "distance" || requestedStoreName == "relationship") {
-    storeName = `${requestedStoreName}2`;
-    records.forEach((record) => {
-      record.theKey = distRelDbKeyFor(record.id, record.userId);
-    });
-  }
+  const storeName = currentStoreNameFor(requestedStoreName);
 
   // Resolves only once the transaction has actually committed, so callers can wait
   // for the data to be on disk rather than merely queued.
@@ -1441,13 +1655,37 @@ function writeToDB(db, dbName, requestedStoreName, records) {
       // restoring any store in the CC7Database
       objectStore.clear();
     }
-    records.forEach((record) => {
-      if (record.key) {
-        objectStore.put(record.value, record.key);
-      } else {
-        objectStore.put(record);
+    // Whether a key may be supplied is a property of the *store*, not of the record.
+    // savedQueries is both autoIncrement and keyPath: "id", so its records are
+    // wrapped on backup, but passing that key back to put() is an error because the
+    // store takes its key from the record itself.
+    const usesInlineKeys = objectStore.keyPath !== null;
+    let index = 0;
+    try {
+      for (; index < records.length; index++) {
+        const record = records[index];
+        const wrapped = isWrappedRecord(record);
+        const value = wrapped ? record.value : record;
+
+        // The renamed stores also changed their key, so rebuild it from the old record.
+        if (requestedStoreName == "CC7") {
+          value.theKey = cc7DbKeyFor(value.Id, value.userId);
+        } else if (requestedStoreName == "distance" || requestedStoreName == "relationship") {
+          value.theKey = distRelDbKeyFor(value.id, value.userId);
+        }
+
+        if (usesInlineKeys || !wrapped) {
+          objectStore.put(value);
+        } else {
+          objectStore.put(value, record.key);
+        }
       }
-    });
+    } catch (error) {
+      // put() throws synchronously for a malformed record, which would otherwise
+      // leave the transaction to commit the records either side of it.
+      transaction.abort();
+      reject(new Error(`Could not restore record ${index} of ${dbName}.${storeName}: ${error?.message ?? error}`));
+    }
   });
 }
 

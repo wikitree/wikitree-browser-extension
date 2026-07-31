@@ -136,18 +136,9 @@ export function sendMessageToContentTab(message, callback) {
     return;
   }
 
-  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-    if (chrome.runtime?.lastError || !tabs?.length) {
-      sendNoTabs();
-      return;
-    }
+  const isUsable = (tab) => !!tab?.id && !!tab?.url && isWikiTreeUrl(tab.url) && tab.status === "complete";
 
-    const tab = tabs[0];
-    if (!tab?.id || !tab?.url || !isWikiTreeUrl(tab.url) || tab.status !== "complete") {
-      sendNoTabs();
-      return;
-    }
-
+  const trySend = (tab) => {
     chrome.tabs.sendMessage(tab.id, message, function (response) {
       if (chrome.runtime?.lastError) {
         sendNoTabs();
@@ -156,6 +147,33 @@ export function sendMessageToContentTab(message, callback) {
       if (callback) {
         callback(response);
       }
+    });
+  };
+
+  // The active tab of the current window is the right target when the settings
+  // dialog is open over a WikiTree page. It is the wrong one when we were opened as
+  // a separate upload window (see the Firefox branch in options.js): there the
+  // "current window" is that window, whose only tab is popup.html, and the restore
+  // failed with NO_TABS however many WikiTree tabs were open. So fall back to
+  // looking for a loaded WikiTree tab anywhere.
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    if (!chrome.runtime?.lastError && isUsable(tabs?.[0])) {
+      trySend(tabs[0]);
+      return;
+    }
+    chrome.tabs.query({ url: "https://*.wikitree.com/*" }, function (wikitreeTabs) {
+      if (chrome.runtime?.lastError || !wikitreeTabs?.length) {
+        sendNoTabs();
+        return;
+      }
+      // Prefer a tab the user is actually looking at, so the reload they see is
+      // the page they restored into.
+      const tab = wikitreeTabs.find((t) => t.active && isUsable(t)) ?? wikitreeTabs.find(isUsable);
+      if (!tab) {
+        sendNoTabs();
+        return;
+      }
+      trySend(tab);
     });
   });
 }

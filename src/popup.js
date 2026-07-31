@@ -33,19 +33,35 @@ function showUpload(hash, dialog) {
     exit();
   }
 
+  // Anything other than a bad file used to be reported as "The file was not valid",
+  // which sent people off hunting for a problem with a perfectly good backup.
+  function messageFor(result) {
+    switch (result?.nak) {
+      case "STORAGE_ERROR":
+        return "Your settings could not be saved, so nothing was restored. The backup may be too large for the browser's sync storage.";
+      case "NO_TABS":
+        return (
+          "The restore failed because no WikiTree page responded. " +
+          "Open a WikiTree page in another tab, then click the button to try again."
+        );
+      case "RESTORE_FAILED":
+        return `The restore failed: ${result.message}`;
+      case "EMPTY_FILE":
+        return "That file was empty. Click the button to try another one.";
+      case "INVALID_FORMAT":
+        return "The file was not valid. Click the button to try another one.";
+      default:
+        return `The restore failed: ${result?.nak ?? JSON.stringify(result ?? "no response")}`;
+    }
+  }
+
   function failed(result) {
     $("#btnLaunch").show();
     if (result?.nak === "CANCELLED") {
       $("#errorMessage").hide();
       return;
     }
-    $("#errorMessage")
-      .text(
-        result?.nak === "STORAGE_ERROR"
-          ? "Your settings could not be saved, so nothing was restored. The backup may be too large for the browser's sync storage."
-          : "The file was not valid. Click the button to try another one."
-      )
-      .fadeIn();
+    $("#errorMessage").text(messageFor(result)).fadeIn();
   }
 
   if (window.location.hash === "#UploadOptions") {

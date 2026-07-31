@@ -808,6 +808,8 @@ $("#openSettings").on("click", function () {
               "Restore Data Failed",
               "#settingsDialog"
             );
+          } else if (err == "RESTORE_FAILED") {
+            showAlert(`The restore failed:\n\n${response?.message ?? ""}`, "Restore Data Failed", "#settingsDialog");
           } else {
             console.error(err);
           }

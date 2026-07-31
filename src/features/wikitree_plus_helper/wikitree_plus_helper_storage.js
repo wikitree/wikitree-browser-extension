@@ -3,6 +3,8 @@
  * Handles IndexedDB migration and chrome.storage.local persistence
  */
 
+import { recreateEmptyDatabase } from "../../core/lib/indexedDBHelper";
+
 const DB_NAME = "WTPlusQueryBuilder";
 const DB_VERSION = 1;
 const STORE_NAME = "savedQueries";
@@ -38,7 +40,7 @@ function storageSet(key, value) {
   });
 }
 
-function initDB() {
+function initDB(isRetry = false) {
   return new Promise((resolve, reject) => {
     if (!window.indexedDB) {
       return resolve(null);
@@ -46,6 +48,14 @@ function initDB() {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
+      // At version 1 an empty database can never upgrade itself into a usable one,
+      // so throw it away and let the retry recreate it. See recreateEmptyDatabase.
+      if (request.result.objectStoreNames.length === 0 && !isRetry) {
+        recreateEmptyDatabase(request.result)
+          .then(() => resolve(initDB(true)))
+          .catch(reject);
+        return;
+      }
       db = request.result;
       resolve(db);
     };
