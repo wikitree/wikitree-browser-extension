@@ -164,6 +164,9 @@ export function startSyntheticHotkeys(options) {
         clearTimeout(timer);
         const k = normalizeKey(e);
 
+        // Swallow arrows while a sequence is pending so an unbound one doesn't scroll the page.
+        if (KEY_DISPLAY[k]) e.preventDefault();
+
         if (k === "escape") {
           endSequence();
           return;
@@ -297,6 +300,25 @@ function buildActions(options, DEBUG = false) {
 
   // Random Profile: r
   if (options.RandomProfile) reg("r", "Random Profile", () => $("a.dropdown-item.randomProfile").trigger("click"));
+
+  // Previous / Next page: ← / →
+  // Arrow keys can't be native accesskeys, so these are synthetic-only (prefix then arrow).
+  if (options.PrevNext) {
+    reg(
+      "arrowleft",
+      "Previous page",
+      () => clickPagerControl("prev"),
+      null,
+      () => !!findPagerControl("prev")
+    );
+    reg(
+      "arrowright",
+      "Next page",
+      () => clickPagerControl("next"),
+      null,
+      () => !!findPagerControl("next")
+    );
+  }
 
   // Home: 1
   if (options.NavHomePage)
@@ -626,6 +648,67 @@ export function showCopyMessage(message, otherMessage = "") {
 }
 
 /* ============================
+   Previous / Next page controls
+   ============================ */
+
+// Containers that hold a pager, checked before falling back to the whole page.
+const PAGER_CONTAINERS = ".qa-page-links, .dataTables_paginate, #categoryTablePaginationLinks, .pagination";
+
+const PREV_TEXT = /^(prev|previous)( change| page| \d+)?$/;
+const NEXT_TEXT = /^(next)( change| page| \d+)?$/;
+
+function isUsablePagerControl(el) {
+  if (!el) return false;
+  if (el.getAttribute("aria-disabled") === "true") return false;
+  if (el.closest(".disabled")) return false;
+  return el.offsetParent !== null || el.getClientRects().length > 0;
+}
+
+// "« Prev", "Next 100", "Next Change ›" → "prev", "next 100", "next change"
+function normalizePagerText(el) {
+  return (el.textContent || "")
+    .replace(/[«»‹›<>←→|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function findPagerControl(dir) {
+  const isPrev = dir === "prev";
+
+  // 1. G2G (Question2Answer) page links
+  const g2g = document.querySelector(isPrev ? "a.qa-page-prev" : "a.qa-page-next");
+  if (isUsablePagerControl(g2g)) return g2g;
+
+  // 2. DataTables paginators (the extension's own tables)
+  const dt = document.querySelector(
+    isPrev ? ".dataTables_paginate .paginate_button.previous" : ".dataTables_paginate .paginate_button.next"
+  );
+  if (isUsablePagerControl(dt)) return dt;
+
+  // 3. Match on the label: "Previous Change"/"Next Change" on change pages, "Next 100" on the
+  //    watchlist and search results, "Prev"/"Next" on category pages. Known pager containers
+  //    first so an unrelated "Next" elsewhere on the page can't win.
+  const re = isPrev ? PREV_TEXT : NEXT_TEXT;
+  const scopes = [...document.querySelectorAll(PAGER_CONTAINERS), document.body];
+  for (const scope of scopes) {
+    for (const el of scope.querySelectorAll("a, button")) {
+      if (!re.test(normalizePagerText(el))) continue;
+      if (!isUsablePagerControl(el)) continue;
+      // For <a><button>Next Change</button></a>, click the link rather than the button.
+      return el.closest("a") || el;
+    }
+  }
+
+  return null;
+}
+
+function clickPagerControl(dir) {
+  const el = findPagerControl(dir);
+  if (el) el.click();
+}
+
+/* ============================
    Jump Navigation (g j → 1–9)
    ============================ */
 
@@ -898,6 +981,13 @@ function detectLinuxPlatform() {
   return /Linux/.test(userAgent);
 }
 
+// Keys that have no accesskey equivalent, shown with a friendlier label in the cheat sheet.
+const KEY_DISPLAY = { arrowleft: "←", arrowright: "→" };
+
+function displayKey(k) {
+  return KEY_DISPLAY[k] || k;
+}
+
 function normalizeKey(e) {
   const k = e.key?.toLowerCase();
   if (k === " ") return "space";
@@ -1153,7 +1243,7 @@ function populateCheatGrid(grid, actions, prefixKey, browserKeysEnabled = false,
   if (!grid) return;
   grid.innerHTML = "";
   if (!actions) return;
-  const keys = Object.keys(actions).sort((a, b) => String(a).localeCompare(String(b)));
+  const keys = Object.keys(actions).sort((a, b) => displayKey(a).localeCompare(displayKey(b)));
   for (const k of keys) {
     const list = actions[k];
     if (!list || !list.length) continue;
@@ -1184,15 +1274,16 @@ function populateCheatGrid(grid, actions, prefixKey, browserKeysEnabled = false,
     const div = document.createElement("div");
     div.className = "wbe-hotkey-item";
 
-    // Show both key combinations if browser keys enabled with platform-specific symbols
+    // Show both key combinations if browser keys enabled with platform-specific symbols.
+    // Arrow keys are synthetic-only: accesskey attributes only accept printable characters.
     let keyDisplay;
-    if (browserKeysEnabled) {
+    if (browserKeysEnabled && !KEY_DISPLAY[k]) {
       const browserKeys = isMac
         ? `^⌥${escapeHtml(k.toUpperCase())}` // Ctrl+Option on Mac
         : `⇧⎇${escapeHtml(k.toUpperCase())}`; // Shift+Alt on PC
       keyDisplay = `<kbd>${escapeHtml(k)}</kbd> <small>or</small> <kbd>${browserKeys}</kbd>`;
     } else {
-      keyDisplay = `<kbd>${escapeHtml(k)}</kbd>`;
+      keyDisplay = `<kbd>${escapeHtml(displayKey(k))}</kbd>`;
     }
 
     div.innerHTML = `${keyDisplay}<span>${escapeHtml(labels.join(" / "))}</span>`;
