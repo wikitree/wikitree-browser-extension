@@ -1274,19 +1274,21 @@ function populateCheatGrid(grid, actions, prefixKey, browserKeysEnabled = false,
     const div = document.createElement("div");
     div.className = "wbe-hotkey-item";
 
-    // Show both key combinations if browser keys enabled with platform-specific symbols.
     // Arrow keys are synthetic-only: accesskey attributes only accept printable characters.
-    let keyDisplay;
-    if (browserKeysEnabled && !KEY_DISPLAY[k]) {
+    // Those rows get a tag instead of the browser-key alternative the other rows show.
+    const prefixOnly = !!KEY_DISPLAY[k];
+    let keyDisplay = `<kbd>${escapeHtml(displayKey(k))}</kbd>`;
+    let note = "";
+    if (browserKeysEnabled && prefixOnly) {
+      note = `<small class="wbe-hotkey-note">${escapeHtml(prefixKey)} only</small>`;
+    } else if (browserKeysEnabled) {
       const browserKeys = isMac
         ? `^⌥${escapeHtml(k.toUpperCase())}` // Ctrl+Option on Mac
         : `⇧⎇${escapeHtml(k.toUpperCase())}`; // Shift+Alt on PC
       keyDisplay = `<kbd>${escapeHtml(k)}</kbd> <small>or</small> <kbd>${browserKeys}</kbd>`;
-    } else {
-      keyDisplay = `<kbd>${escapeHtml(displayKey(k))}</kbd>`;
     }
 
-    div.innerHTML = `${keyDisplay}<span>${escapeHtml(labels.join(" / "))}</span>`;
+    div.innerHTML = `${keyDisplay}<span>${escapeHtml(labels.join(" / "))}</span>${note}`;
     grid.appendChild(div);
   }
   if (!grid.children.length) {
