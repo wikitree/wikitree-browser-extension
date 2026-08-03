@@ -127,7 +127,8 @@ registerFeature({
           id: "PrevNext",
           type: OptionType.CHECKBOX,
           label:
-            "Previous/Next page buttons (prefix + ← or →; arrow keys can't be browser access keys, so these only work as prefixed shortcuts)",
+            "Page navigation: Previous (prefix + ←), Next (prefix + →), First (prefix + ↑), Last (prefix + ↓). " +
+            "Arrow keys can't be browser access keys, so these only work as prefixed shortcuts.",
           defaultValue: true,
         },
         {
