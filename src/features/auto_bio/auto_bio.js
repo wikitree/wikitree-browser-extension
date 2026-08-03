@@ -7,7 +7,7 @@ import { needsCategories } from "./needs.js";
 import { occupationCategories } from "./occupations.js";
 import { unsourcedCategories } from "./unsourced_categories.js";
 import { firstNameVariants } from "./first_name_variants.js";
-import { ageAtDeath, familyArray, isOK } from "../../core/common";
+import { ageAtDeath, familyArray, hasDiedYoungSticker, isOK } from "../../core/common";
 import { addLoginButton } from "../../core/loginButton";
 import { titleCase } from "../familyTimeline/familyTimeline";
 import { wtAPICatCIBSearch } from "../../core/API/wtPlusAPI";
@@ -5589,7 +5589,7 @@ function updateRelationForSibling(otherPerson) {
   }
 }
 
-export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading = []) {
+export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading = [], feature = "autoBio") {
   let afterBioHeading = "";
 
   if (window.autoBioOptions?.australiaBornStickers) {
@@ -5627,11 +5627,13 @@ export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading =
     }
   }
 
-  if (window.autoBioOptions?.diedYoung) {
+  const diedYoungOption =
+    feature == "autoCategories" ? window.autoCategoriesOptions?.diedYoung : window.autoBioOptions?.diedYoung;
+  if (diedYoungOption) {
     try {
       const deathAge = ageAtDeath(window.profilePerson);
       if (deathAge.age !== "") {
-        const alreadyHasDiedYoungTemplate = thingsToAddAfterBioHeading.some((item) => item.startsWith("{{Died Young"));
+        const alreadyHasDiedYoungTemplate = thingsToAddAfterBioHeading.some((item) => hasDiedYoungSticker(item));
 
         if (deathAge.age < 17 && !alreadyHasDiedYoungTemplate) {
           if (window.autoBioOptions?.diedYoungImage != "Default") {
@@ -5661,7 +5663,7 @@ export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading =
   return { text: afterBioHeading, objects: thingsToAddAfterBioHeading };
 }
 
-export async function getStickersAndBoxes() {
+export async function getStickersAndBoxes(feature = "autoBio") {
   let afterBioHeading = "";
 
   try {
@@ -5727,7 +5729,7 @@ export async function getStickersAndBoxes() {
       }
     });
 
-    const afterBioHeadingThings = await afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading);
+    const afterBioHeadingThings = await afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading, feature);
     afterBioHeading = afterBioHeadingThings.text;
   } catch (error) {
     console.error("Error processing templates:", error);

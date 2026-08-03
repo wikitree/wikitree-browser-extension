@@ -22,6 +22,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+// WBE addition to this vendored library: shared died young sticker detection.
+import { hasDiedYoungSticker } from "../../../core/stickers";
+
 //------------------------------
 // Date set used for residence facts
 //------------------------------
@@ -6908,7 +6911,7 @@ class BiographyWriter {
 
   writeStickers() {
     // Add the "Died Young" sticker if appropriate
-    if (!this.biography.textBeforeBio.includes("{{Died Young}}")) {
+    if (!hasDiedYoungSticker(this.biography.textBeforeBio)) {
       var birthDate = this.biography.birthDate;
       var deathDate = this.biography.deathDate;
       const timeDiff = new Date(deathDate) - new Date(birthDate);

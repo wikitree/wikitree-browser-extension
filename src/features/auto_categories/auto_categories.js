@@ -1,24 +1,11 @@
 import $ from "jquery";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { getFeatureOptions } from "../../core/options/options_storage";
-import { ageAtDeath } from "../../core/common";
 import { profilePerson } from "../../core/common";
 import { showCopyMessage } from "../access_keys/access_keys";
 import { loadAutoBioModule } from "../auto_bio/auto_bio_loader";
 
 const WBE_AUTO_CAT_APP_ID = "WBE_auto_categories";
-
-function addDiedYoung() {
-  let currentBio = $("#wpTextbox1").val();
-  if (window.autoCategoriesOptions.diedYoung) {
-    const deathAge = ageAtDeath(window.profilePerson);
-    if (typeof deathAge.age !== "") {
-      if (deathAge.age < 17 && !currentBio.includes("{{Died Young}}")) {
-        currentBio = currentBio.replace(/==\s?Biography\s?==/i, "== Biography ==\n{{Died Young}}");
-      }
-    }
-  }
-}
 
 // Export the function addAutoCategories as an asynchronous function
 export async function addAutoCategories() {
@@ -124,9 +111,6 @@ export async function addAutoCategories() {
     if (window.autoCategoriesOptions.occupationCategory) {
       addOccupationCategories("autoCategories");
     }
-    if (window.autoCategoriesOptions.diedYoung) {
-      addDiedYoung();
-    }
 
     // Get the text of the stuff before the bio
     let stuffBeforeTheBioText = await getStuffBeforeTheBioText();
@@ -140,7 +124,7 @@ export async function addAutoCategories() {
     }
 
     //  const afterBioHeadingThings = await afterBioHeadingTextAndObjects();
-    const afterBioHeadingThings = await getStickersAndBoxes();
+    const afterBioHeadingThings = await getStickersAndBoxes("autoCategories");
 
     const afterBioHeadingThingsArray = afterBioHeadingThings.split("\n");
     const filteredAfterBioHeadingThingsArray = [];

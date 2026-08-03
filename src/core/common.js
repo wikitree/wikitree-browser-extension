@@ -25,6 +25,10 @@ import { checkIfFeatureEnabled, getFeatureOptions } from "./options/options_stor
 
 import Cookies from "js-cookie";
 
+// Sticker helpers live in their own side-effect-free module so that the vendored AGC library can
+// use them without loading this file. Re-exported here so they can be imported from either place.
+export { diedYoungStickers, hasDiedYoungSticker } from "./stickers";
+
 /* * * * * * * * * * * * * * * * * * * *
  * Initialization. This section of code should run first.
  */

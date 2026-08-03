@@ -11,6 +11,7 @@ import { isProfileEdit } from "../../core/pageType";
 import { tryParseDate, euDateFormats, usDateFormats } from "../date_fixer/date_fixer";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
+import { hasDiedYoungSticker } from "../../core/common";
 import { saveProfile, hasProfile } from "./idb";
 import USstates from "../locationsHelper/USstates.json";
 
@@ -333,13 +334,13 @@ function checkBoxes() {
 /**
  * Adds a "Died Young" sticker to the Biography field if appropriate.
  * Optionally uses a custom image if specified in options.
+ * Does nothing if the Biography already has a Died Young sticker or an equivalent (e.g. Stillborn).
  *
  * @param {Object} options - Feature options for unnamedInfant.
  * @returns {Array<string>} The updated message array.
  */
 function addDiedYoungSticker(options) {
   const diedYoung = "{{Died Young}}";
-  const diedYoungWithoutEnd = "{{Died Young";
   if (options.diedYoung) {
     let enhanced = false;
     const enhancedEditorButton = $("#toggleMarkupColor");
@@ -349,8 +350,8 @@ function addDiedYoungSticker(options) {
     }
     const bioBox = $("#wpTextbox1");
     const bio = bioBox.val();
-    // Search Biography for Died Young sticker
-    if (!bio.includes(diedYoungWithoutEnd)) {
+    // Search Biography for a Died Young sticker (or an equivalent, such as Stillborn)
+    if (!hasDiedYoungSticker(bio)) {
       // Find the Biography section and insert the sticker after it.
       const bioIndex = bio.search(/== ?Biography ?==/);
       if (bioIndex != -1) {
