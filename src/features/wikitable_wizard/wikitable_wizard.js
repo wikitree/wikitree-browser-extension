@@ -922,45 +922,6 @@ function renderTableFromData(parsedData, wikiTableData = null) {
   console.log("Table update complete.");
 }
 
-// Parses a single line of the input data
-function parseOneLine(entry, genderRegex, placeRegex) {
-  const genderMatch = entry.match(genderRegex);
-  const placeMatch = entry.match(placeRegex);
-
-  if (genderMatch && placeMatch) {
-    const genderIndex = genderMatch.index;
-    const placeIndex = placeMatch.index;
-
-    const name = (entry.substring(0, genderIndex) + " ").trim();
-    const rest = (entry.substring(genderIndex, placeIndex) + " ").trim().split(" ");
-
-    const [gender, age, maritalStatus, position, ...remainingArray] = rest;
-    const remaining = (remainingArray.join(" ") + " ").trim();
-
-    return [name, gender, age, maritalStatus, position, remaining, placeMatch[0]];
-  }
-
-  return null;
-}
-
-/*
-function parseSSVData(data) {
-  parsedData = [];
-  const censusList = data.split("\n").map((line) => line.replace(/^[:#]+/, "").trim());
-  const genderRegex = /(?<=\s)([MF])(?=\s)/;
-  const placeRegex = /\w+,\s[\w\s]+/;
-
-  for (const entry of censusList) {
-    const parsedLine = parseOneLine(entry, genderRegex, placeRegex);
-    if (parsedLine) {
-      parsedData.push(parsedLine);
-    }
-  }
-
-  return parsedData;
-}
-  */
-
 function formatColumnName(name) {
   if (name === "originalRelation") {
     return "Relation";
@@ -1055,65 +1016,6 @@ function scrollToElement() {
   ); // The number 500 represents animation speed in ms
 }
 
-function isCSV(text) {
-  // Split the text into lines
-  const lines = text.split("\n");
-
-  // Function to count commas outside of quoted fields
-  function countCommas(line) {
-    let inQuotes = false;
-    let commaCount = 0;
-
-    for (let char of line) {
-      if (char === '"') {
-        inQuotes = !inQuotes; // Toggle the inQuotes flag
-      } else if (char === "," && !inQuotes) {
-        commaCount++; // Count commas outside of quotes
-      }
-    }
-
-    return commaCount;
-  }
-
-  // Count the number of commas in the first line
-  const firstLineCommaCount = countCommas(lines[0]);
-  // Count single spaces not preceded by a comma.
-  const singleSpaceCount = (lines[0].match(/(?<!, ) /g) || []).length;
-  if (singleSpaceCount - 2 > firstLineCommaCount) {
-    return false;
-  }
-
-  // Check if every line has the same number of commas
-  return lines.every((line) => countCommas(line) === firstLineCommaCount);
-}
-
-function isTSV(text) {
-  const lines = text.split("\n");
-
-  function countTabs(line) {
-    let inQuotes = false;
-    let tabCount = 0;
-
-    for (let char of line) {
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === "\t" && !inQuotes) {
-        tabCount++;
-      }
-    }
-
-    return tabCount;
-  }
-
-  const firstLineTabCount = countTabs(lines[0]);
-  const singleSpaceCount = (lines[0].match(/(?<!, ) /g) || []).length;
-  if (singleSpaceCount - 2 > firstLineTabCount) {
-    return false;
-  }
-
-  return lines.every((line) => countTabs(line) === firstLineTabCount);
-}
-
 function parseTSV(data) {
   const newlinePlaceholder = "<br>";
 
@@ -1147,6 +1049,28 @@ function parseTSV(data) {
 
   console.log(`Parsed TSV data:`, parsedData);
   return parsedData;
+}
+
+// Count the spaces that start a token and are not the last space of a four-space run.
+//
+// This replaces a regex that used a negative lookbehind. Lookbehind cannot be used anywhere in this
+// codebase: Safari only supports it from 16.4, and our iOS deployment target is 15.0. On anything
+// older the regex literal fails to compile while the surrounding function is parsed, and since the
+// bundle is one big anonymous IIFE that takes down the whole content script, not just this feature.
+// scripts/check-legacy-safari.mjs fails the build if one reappears.
+function countSingleSpaceDelimiters(line) {
+  let count = 0;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] !== " ") continue;
+    // Must be followed by a non-whitespace character: a tab or newline after the space disqualifies
+    // it just as a second space does.
+    if (i + 1 >= line.length || /\s/.test(line[i + 1])) continue;
+    // Must not be preceded by three spaces. A short slice near the start of the line can never equal
+    // three spaces, which is what the old lookbehind did there too: it failed, so the space counted.
+    if (line.slice(Math.max(0, i - 3), i) === "   ") continue;
+    count++;
+  }
+  return count;
 }
 
 function detectDelimiter(data) {
@@ -1195,7 +1119,7 @@ function detectDelimiter(data) {
 
   // Now fallback to checking other delimiters (comma, single space, etc.)
   const commaCount = (lines[0].match(/,/g) || []).length;
-  const singleSpaceCount = (lines[0].match(/(?<! {3}) (?=\S)/g) || []).length;
+  const singleSpaceCount = countSingleSpaceDelimiters(lines[0]);
 
   console.log(`Comma count: ${commaCount}, Single-space count: ${singleSpaceCount}`);
 
