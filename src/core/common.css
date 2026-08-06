@@ -237,6 +237,76 @@ ol.star1.green > li::before {
     font-size: x-small;
     margin-left: 1em;
   }
+
+  /* The page toolbar nests its icons in two floated boxes inside a nav that is
+     only as wide as the page gutter allows. The .float-end box alone is as wide
+     as the nav, so it can never share a line with .float-start and its contents
+     start on a row of their own. Make the nav one wrapping flex row and dissolve
+     both boxes so every icon flows as a single sequence and fills each line.
+     (Don't try to unset the floats: .float-start/.float-end are Bootstrap
+     utilities carrying !important, so those declarations would be ignored.) */
+  body.wte .tabs--wrapper nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3em;
+  }
+
+  body.wte .tabs--wrapper nav > .profile--actions.float-start,
+  body.wte .tabs--wrapper nav > .profile--actions.float-end {
+    display: contents;
+  }
+
+  /* These links carry their own uneven horizontal margins (8-21px) on top of the
+     flex gap, which is enough to push the last icon onto a row by itself. Let the
+     gap do the spacing instead. */
+  body.wte .tabs--wrapper nav > .btn,
+  body.wte .tabs--wrapper nav .profile--actions > a {
+    margin-left: 0;
+    margin-right: 0;
+    line-height: 1;
+  }
+
+  /* Shrink the toolbar icons at phone widths so more fit per row. The glyphs are
+     background images painted with `background-size: contain`, so resizing the
+     box scales them cleanly — no transform needed (a transform would shrink the
+     glyph without reclaiming any layout width). */
+  body.wte .tabs--wrapper nav .wbe-button:not(.WBEHelpIcon, #unconnectedBranchButton) span,
+  body.wte .tabs--wrapper nav .wbe-icon:not(.WBEHelpIcon, #unconnectedBranchButton) span,
+  body.wte .tabs--wrapper nav .profile--actions > a > span {
+    width: 22px;
+    height: 21px;
+  }
+
+  /* Fallback for engines without display:contents — keeps the pre-existing
+     wrapping behaviour rather than reverting to a single squeezed column. */
+  body.wte .profile--actions.float-end {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3em;
+  }
+
+  /* Keep our icons on one line: at the default pitch seven of them overflow the
+     row and one orphans onto a line of its own. Don't let the container shrink
+     either, or it collapses to a single icon wide. */
+  body.wte .clipboardContainer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: 0.3em;
+  }
+
+  body.wte .clipboardContainer > .wbe-button {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  body.wte .clipboardContainer img.button.small {
+    margin-right: 0;
+    padding-left: 0.2em;
+    padding-right: 0.2em;
+  }
 }
 @media (min-width: 992px) and (max-width: 1200px) {
   .ebWBE {

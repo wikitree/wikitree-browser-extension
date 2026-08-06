@@ -220,7 +220,7 @@ html[data-wbe-genderpredictor] .wbe-highlight #mGender,
 }
 
 /* 2px top and bottom borders only */
-body.wbe-highlight #myMenuGroup,
+body.wbe-highlight .myMenuGroup,
 .wbe-highlight #navHomePageHouse,
 .wbe-highlight .accessKeyHint {
   border-top: 2px solid var(--wbe-colour) !important;

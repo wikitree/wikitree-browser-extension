@@ -23,46 +23,50 @@ if (chrome.runtime) {
   });
 }
 
-// Create a context menu item when the extension is installed
-chrome.runtime.onInstalled.addListener(function () {
-  chrome.contextMenus.create({
-    id: "myContextMenu",
-    title: "Wikitable Wizard",
-    contexts: ["all"],
-    documentUrlPatterns: [
-      "https://www.wikitree.com/index.php?title=Special:EditPerson*",
-      "https://www.wikitree.com/index.php?title=Space:*",
-    ], // Only show on WikiTree profile edit and space edit pages
+// Create a context menu item when the extension is installed.
+// contextMenus is not implemented on Firefox for Android, so everything
+// below is skipped there rather than throwing and killing this script.
+if (chrome.contextMenus) {
+  chrome.runtime.onInstalled.addListener(function () {
+    chrome.contextMenus.create({
+      id: "myContextMenu",
+      title: "Wikitable Wizard",
+      contexts: ["all"],
+      documentUrlPatterns: [
+        "https://www.wikitree.com/index.php?title=Special:EditPerson*",
+        "https://www.wikitree.com/index.php?title=Space:*",
+      ], // Only show on WikiTree profile edit and space edit pages
+    });
+    chrome.contextMenus.create({
+      id: "clipboardContextMenu",
+      title: "Clipboard",
+      contexts: ["all"],
+      documentUrlPatterns: ["https://www.wikitree.com/*"],
+    });
+    chrome.contextMenus.create({
+      id: "notesContextMenu",
+      title: "Notes",
+      contexts: ["all"],
+      documentUrlPatterns: ["https://www.wikitree.com/*"],
+    });
   });
-  chrome.contextMenus.create({
-    id: "clipboardContextMenu",
-    title: "Clipboard",
-    contexts: ["all"],
-    documentUrlPatterns: ["https://www.wikitree.com/*"],
-  });
-  chrome.contextMenus.create({
-    id: "notesContextMenu",
-    title: "Notes",
-    contexts: ["all"],
-    documentUrlPatterns: ["https://www.wikitree.com/*"],
-  });
-});
 
-// Listen for the context menu item click
-chrome.contextMenus.onClicked.addListener(function (info, tab) {
-  if (info.menuItemId === "myContextMenu") {
-    // Execute script in the content script
-    chrome.tabs.sendMessage(tab.id, { action: "launchWikitableWizard" });
-  }
-  if (info.menuItemId === "clipboardContextMenu") {
-    // Execute script in the content script
-    chrome.tabs.sendMessage(tab.id, { action: "showClipboard" });
-  }
-  if (info.menuItemId === "notesContextMenu") {
-    // Execute script in the content script
-    chrome.tabs.sendMessage(tab.id, { action: "showNotes" });
-  }
-});
+  // Listen for the context menu item click
+  chrome.contextMenus.onClicked.addListener(function (info, tab) {
+    if (info.menuItemId === "myContextMenu") {
+      // Execute script in the content script
+      chrome.tabs.sendMessage(tab.id, { action: "launchWikitableWizard" });
+    }
+    if (info.menuItemId === "clipboardContextMenu") {
+      // Execute script in the content script
+      chrome.tabs.sendMessage(tab.id, { action: "showClipboard" });
+    }
+    if (info.menuItemId === "notesContextMenu") {
+      // Execute script in the content script
+      chrome.tabs.sendMessage(tab.id, { action: "showNotes" });
+    }
+  });
+}
 
 // Clipboard functions from content script for browsers that don't support navigator.clipboard (i.e. Firefox)
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

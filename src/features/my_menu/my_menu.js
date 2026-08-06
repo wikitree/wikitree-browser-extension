@@ -50,46 +50,12 @@ shouldInitializeFeature("myMenu").then((result) => {
       window.randomProfileOptions = getFeatureOptions("randomProfile");
     }
 
-    let resizeTimeout;
-
-    window.onresize = () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => {
-        const theWidth = window.innerWidth;
-        const menuGroup = document.getElementById("myMenuGroup");
-        const headerRight = document.querySelector("header .justify-content-end:nth-of-type(2)");
-        const nav = document.querySelector("nav[aria-label='Main Navigation']");
-
-        if (!menuGroup || !nav) {
-          return;
-        }
-
-        if (theWidth < 992) {
-          if (!menuGroup.classList.contains("fixed") && headerRight && !headerRight?.contains(menuGroup)) {
-            menuGroup.classList.add("fixed");
-            headerRight.prepend(menuGroup);
-          }
-        } else {
-          if (menuGroup.classList.contains("fixed")) {
-            // Remove fixed class before appending back
-            menuGroup.classList.remove("fixed");
-
-            // Prevent duplication
-            if (!nav.contains(menuGroup)) {
-              nav.appendChild(menuGroup);
-            }
-
-            // Remove any extra instances of #myMenuGroup in .tabs--wrapper
-            document.querySelectorAll("header .justify-content-end #myMenuGroup").forEach((el) => {
-              if (el !== menuGroup) el.remove();
-            });
-          }
-        }
-      }, 50); // Debounce time
-    };
-
-    // Ensure correct placement on page load
-    window.addEventListener("load", window.onresize);
+    // A resize handler used to relocate the menu into the mobile header below
+    // 992px. It never worked: it looked the group up with getElementById, which
+    // returned the copy in WikiTree's desktop-only nav (display:none at that
+    // width), so it moved an invisible element and left the visible one alone.
+    // A copy now sits in each nav — the desktop container and the offcanvas
+    // drawer — and CSS shows whichever applies, so no relocation is needed.
   }
 
   // Prevent closing when clicking inside the popup
@@ -290,6 +256,12 @@ function updateMyCustomMenu() {
 // If the button already exists, it simply calls updateMyCustomMenu() so that
 // any changes are immediately reflected.
 function addCustomMenu() {
+  // The document-level handlers below are delegated, so they survive the menu
+  // being rebuilt and only ever need wiring once. They are registered before the
+  // early return: previously they sat after it, so any later call — or a first
+  // call that bailed — left the gear inert.
+  wireCustomMenuHandlers();
+
   // If the "My Menu" button already exists, update its contents.
   if ($(".myMenuLink").length) {
     updateMyCustomMenu();
@@ -299,11 +271,16 @@ function addCustomMenu() {
   // Set data-menu attributes on nav buttons based on their text (normalize spaces to underscores)
   addDataMenuAttributes();
 
-  // Remove any old container and create the My Menu button.
-  $("#myCustomMenuContainer").remove();
+  // Below Bootstrap's lg breakpoint WikiTree renders its navigation twice — a
+  // desktop container that is display:none, and the #offcanvasNavbar drawer —
+  // so this selector matches more than one nav. jQuery's .append() clones into
+  // every match, which is what we want (the menu should exist in whichever nav
+  // is currently visible), but it used to clone a duplicate id="myMenuGroup"
+  // along with it. Identify the group by class so each copy is valid.
+  $(".myMenuGroup").remove();
   const myMenuGearsSrc = chrome.runtime.getURL("images/settings30.png");
   const outNow = $(`
-    <div class='btn-group' id="myMenuGroup" data-menu="MyMenu">
+    <div class='btn-group myMenuGroup' data-menu="MyMenu">
       <button class="myMenuLink btn btn-link dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
         My Menu
       </button>
@@ -314,6 +291,15 @@ function addCustomMenu() {
 
   // Update the My Menu contents from localStorage.
   updateMyCustomMenu();
+}
+
+let customMenuHandlersWired = false;
+
+// Delegated handlers for the gear and the special "My Menu" links. Registered
+// once for the life of the page.
+function wireCustomMenuHandlers() {
+  if (customMenuHandlersWired) return;
+  customMenuHandlersWired = true;
 
   // Wire up the gear icon so that when clicked it toggles the popup options.
   $(document).on("click", ".myMenuGears", function (e) {

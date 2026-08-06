@@ -228,3 +228,42 @@ textarea.ew-note-input:focus {
 #pagePreview {
   z-index: 100000000000 !important;
 }
+
+/* On a phone this popup opens far wider than the viewport (max-width 60em against
+   a ~270px screen) and hangs off both edges at once. Because the only drag handle
+   is the header, and the header is as wide as the popup, most of it ends up
+   off-screen and the window becomes impossible to grab or reposition.
+
+   Pin it to the viewport instead of leaving it draggable: at this size there is
+   nowhere useful to drag it to, and a fixed, full-width panel is both reachable
+   and predictable. The left/right/top overrides need !important because jQuery UI
+   draggable writes its offsets to the inline style. */
+@media (max-width: 600px) {
+  #extraWatchlistWindow {
+    position: fixed !important;
+    left: 0.5em !important;
+    right: 0.5em !important;
+    top: 0.5em !important;
+    width: auto !important;
+    max-width: none;
+    /* dvh tracks the address bar showing/hiding; vh does not, and would let the
+       panel run underneath it. vh first as the fallback for older engines. */
+    max-height: calc(100vh - 1em);
+    max-height: calc(100dvh - 1em);
+    box-sizing: border-box;
+    padding: 0.5em;
+    padding-top: 0;
+  }
+
+  /* The table is far wider than the panel; let it scroll inside rather than
+     stretching the popup back out. */
+  #extraWatchlistWindow table {
+    max-width: none;
+  }
+
+  /* Dragging is pinned out above, so stop advertising it. */
+  #extraWatchlistHeader,
+  #extraWatchlistHeader:active {
+    cursor: default;
+  }
+}

@@ -302,9 +302,27 @@ function addProfileAction(details) {
   profileActions.append(action);
 }
 
+/**
+ * Whether this profile actually has photos to show.
+ *
+ * The #wt-photos heading is rendered even when a profile has none (the section
+ * just says "There are currently no photos of ..."), so its presence alone isn't
+ * enough to justify the tab. The heading carries the count in data-photo-total.
+ *
+ * A missing attribute means we can't tell, so fall back to showing the tab
+ * rather than hiding a section that may well have photos in it.
+ */
+function profileHasPhotos() {
+  const heading = document.querySelector("#wt-photos");
+  if (!heading) return false;
+  const total = heading.getAttribute("data-photo-total");
+  if (total === null) return true;
+  return Number.parseInt(total, 10) > 0;
+}
+
 // Initialize the photo popup and related actions on page load if the feature is enabled
 shouldInitializeFeature("imageTable").then((result) => {
-  if (result && $("#wt-photos").length && !$("#photoPopup,#ImageTable,#ImageTable-tab").length) {
+  if (result && profileHasPhotos() && !$("#photoPopup,#ImageTable,#ImageTable-tab").length) {
     // Dynamically import the CSS for the image table
     import("./image_table.css");
     if (isProfilePage) {

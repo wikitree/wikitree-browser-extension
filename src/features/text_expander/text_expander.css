@@ -236,3 +236,119 @@
   background-color: #8fc641 !important;
   width: 8px !important;
 }
+
+/* On a phone `min-width: 400px` forces this dialog wider than the viewport. The
+   translate(-50%, -50%) centring then leaves it hanging off both edges at once,
+   and because the dialog is `overflow: hidden` the parts that fall outside can't
+   be scrolled back into view.
+
+   Pin it to the viewport instead. The height stays explicit rather than `auto`:
+   PerfectScrollbar drives the inner list and needs a definite height from this
+   flex column to size its scroll area. */
+@media (max-width: 600px) {
+  #textExpanderDialog {
+    top: 0.5em;
+    left: 0.5em;
+    right: 0.5em;
+    transform: none;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    /* dvh tracks the address bar showing/hiding; vh does not. vh first as the
+       fallback for older engines. */
+    height: calc(100vh - 1em);
+    height: calc(100dvh - 1em);
+    max-height: calc(100vh - 1em);
+    max-height: calc(100dvh - 1em);
+    padding: 0.75em;
+    box-sizing: border-box;
+    /* The resize grabber lands off-screen at this size and only makes the
+       overflow worse. */
+    resize: none;
+  }
+
+  /* Without a fixed layout the inputs' intrinsic widths push the table past the
+     dialog, where overflow:hidden clips it. Fixed layout would otherwise split
+     the columns evenly, which starves the expansion field and over-feeds the
+     delete column, so weight them explicitly. */
+  #textExpanderDialog table {
+    table-layout: fixed;
+  }
+
+  #textExpanderDialog th:nth-child(1),
+  #textExpanderDialog td:nth-child(1) {
+    width: 33%;
+  }
+
+  #textExpanderDialog th:nth-child(2),
+  #textExpanderDialog td:nth-child(2) {
+    width: 52%;
+  }
+
+  #textExpanderDialog th:nth-child(3),
+  #textExpanderDialog td:nth-child(3) {
+    width: 15%;
+  }
+
+  /* The full header words don't fit these columns at body size. */
+  #textExpanderDialog th {
+    font-size: 0.8em;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  #textExpanderDialog .abbr-input,
+  #textExpanderDialog .expansion-input,
+  #textExpanderDialog input[type="text"] {
+    box-sizing: border-box;
+    min-width: 0;
+  }
+
+  /* In this row only the input carries flex:1, so the textarea's intrinsic width
+     and the button squeeze it down to a sliver. Give each field its own line. */
+  /* The list is flex:1, so every pixel of chrome below it comes straight out of
+     the visible entries. On a phone-height dialog that chrome was costing more
+     than the list itself, so trim the desktop spacing here. */
+  #textExpanderDialog .add-expansion {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px 0 0;
+    margin-top: 6px;
+  }
+
+  #textExpanderDialog .expansions-list {
+    margin-bottom: 6px;
+    padding: 4px;
+  }
+
+  #textExpanderDialog h1 {
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+  }
+
+  #textExpanderDialog .dialog-buttons {
+    margin-top: 6px;
+    padding-top: 6px;
+  }
+
+  #textExpanderDialog .add-expansion #newAbbr,
+  #textExpanderDialog .add-expansion #newExpansion {
+    flex: 1 1 100%;
+    width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+  }
+
+  /* Stacking makes this row three lines tall, and .expansions-list is flex:1 so
+     it gives up the space. Keep the textarea compact so the list stays usable —
+     it is still resizable by its grabber. */
+  #textExpanderDialog .add-expansion #newExpansion {
+    height: 3.5em;
+    min-height: 3.5em;
+  }
+
+  #textExpanderDialog .add-expansion #addExpansion {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+}

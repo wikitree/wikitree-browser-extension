@@ -2,8 +2,14 @@
   background: white;
   border-radius: 20px;
   padding: 0 1em;
-  height: 10em;
+  /* min-height, not height: once the box can narrow, the contents need somewhere
+     to grow rather than spilling out of a fixed 10em. */
+  min-height: 10em;
   width: 42em;
+  /* 42em overflows any viewport narrower than ~700px, desktop included.
+     border-box keeps the 1em side padding inside the 100%. */
+  max-width: 100%;
+  box-sizing: border-box;
   margin: auto;
   color: #25422d;
 }
@@ -60,6 +66,8 @@
 
 #helpSearchBox {
   width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
   background-color: white;
   padding: 0.5em;
   border-radius: 20px;
@@ -79,6 +87,13 @@
   gap: 20px; /* Optional: adjust this for desired space between the forms */
   justify-content: center;
   color: #25422d;
+}
+
+/* Flex items default to min-width:auto, which refuses to shrink below their
+   content and is what pushed the help form off the left edge. Without this the
+   max-width above can never take effect while both forms share a row. */
+#form-wrapper > form {
+  min-width: 0;
 }
 
 #form-wrapper input[type="text"] {
@@ -141,4 +156,67 @@
   border-style: inset;
   border-color: #8ec641;
   border-image: initial;
+}
+
+/* The layout above is built for a wide footer: the two forms sit side by side in
+   a non-wrapping flex row and .googleSearch is a fixed 42em. On a phone that
+   overflows in both directions at once — the help form is pushed off the left
+   edge and the Google form's radio options off the right, so neither is usable.
+   Stack the forms and let everything size to the viewport instead. */
+@media (max-width: 600px) {
+  #form-wrapper {
+    flex-wrap: wrap;
+    gap: 1em;
+  }
+
+  .googleSearch,
+  #googleSearchBox,
+  #helpSearchBox {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    margin: 0;
+    box-sizing: border-box;
+  }
+
+  #googleSearchBox div.row {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  /* Put the label, input row and radio options on their own lines. */
+  #googleSearchBox .search-wrapper {
+    flex-wrap: wrap;
+    gap: 0.5em;
+  }
+
+  #googleSearchBox .search-input,
+  #googleSearchBox .search-options {
+    margin: 0;
+    width: 100%;
+  }
+
+  /* Keep the Go button beside its input rather than below it. */
+  #googleSearchBox .search-input {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5em;
+  }
+
+  #form-wrapper input[type="text"] {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  /* The help form has no wrapper around its input and button, so it can't use
+     the flex row above. Leave room for the button so it stays on the same line. */
+  #helpSearchBox input[type="text"] {
+    width: calc(100% - 5em);
+  }
+
+  #form-wrapper label.searchBoxLabel {
+    margin: 0 0 0.5em;
+  }
 }
