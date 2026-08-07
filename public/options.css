@@ -256,12 +256,47 @@ body.wbe-safari-scroll #categoryBar {
   font-weight: 300;
   letter-spacing: -3px;
 }
+/* Set by options.js when it adds the "Open in a tab" button (Safari popup only).
+   The title is positioned out of flow, so the floated button can't push it: give
+   it a right edge to stop at instead. 165px is exactly what the button, the gear
+   and the h1 padding occupy, so the header fits in any popup 628px or wider. */
+.has-open-in-tab #options #h1Text {
+  right: 165px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+/* Narrower than that, drop the wordmark rather than clip it - the WikiTree logo
+   beside it already identifies the page, and the iPhone rules below drop it
+   anyway. The button keeps its place either way. */
+@media only screen and (max-width: 640px) {
+  .has-open-in-tab #options #h1Text {
+    display: none;
+  }
+}
 
 #openSettings {
   float: right;
   width: 34px;
   height: 34px;
   filter: drop-shadow(0 0 1px #000);
+}
+/* Only added (by options.js) when this page is running as the toolbar popup. */
+#openInTab {
+  float: right;
+  margin: 5px 12px 0 0;
+  padding: 5px 14px;
+  background-color: #ddd;
+  border-radius: 34px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #000;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+#openInTab:hover {
+  background-color: #8fc641;
+  color: #000;
 }
 #openSettings g > rect {
   fill: #ddd;
@@ -282,7 +317,9 @@ body.wbe-safari-scroll #categoryBar {
 /* Settings dialog */
 #settingsDialog {
   min-height: 100px;
-  max-height: 580px;
+  /* This overrides the generic dialog cap, so it has to respect the popup height
+     itself or it overflows a popup shorter than 580px. */
+  max-height: min(580px, var(--wbe-viewport-height, 100vh));
   font-size: 16px;
 }
 #settingsDialog .dialog-version {
@@ -358,6 +395,11 @@ body.wbe-safari-scroll #categoryBar {
     position: absolute;
     top: 10px;
     right: 20px;
+  }
+  #openInTab {
+    margin: 0 22px 0 0;
+    padding: 3px 10px;
+    font-size: 12px;
   }
   #options #h1Text {
     display: none;

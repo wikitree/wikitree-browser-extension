@@ -41,6 +41,37 @@ if (WBE?.version) {
   );
 })(chrome.runtime);
 
+// Same browser set as popupScrollFix.js: not Blink, not Gecko. Safari is the only
+// one that both mis-sizes the popup viewport and offers no Options entry of its
+// own, so nothing below this point should change anywhere else.
+const isSafari = !navigatorDetect.browser.Blink && !navigatorDetect.browser.Gecko;
+
+// The toolbar button opens this page as the popup, and on Safari for iPadOS that
+// popover is all you get - unlike Chrome's icon context menu or Firefox's
+// about:addons, there is no "open the options page" entry anywhere in the browser
+// UI. Offer a way out of it. tabs.getCurrent() reports the tab the caller is
+// running in, and is undefined in a popup, so the button only appears when this
+// page really is the popup.
+(function (tabs) {
+  if (!isSafari || !tabs?.getCurrent || !tabs?.create) return;
+  try {
+    tabs.getCurrent(function (tab) {
+      if (chrome.runtime?.lastError || tab) return; // already in a tab
+      $('<a id="openInTab" class="nohover">Open in a tab</a>')
+        .attr({ href: chrome.runtime.getURL("options.html"), title: "Open these options in a full browser tab" })
+        .on("click", function (e) {
+          e.preventDefault();
+          tabs.create({ url: this.href });
+          window.close();
+        })
+        .appendTo($("#options > h1"));
+      $("html").addClass("has-open-in-tab");
+    });
+  } catch (e) {
+    console.log("[WBE options] could not check for the popup:", e);
+  }
+})(chrome.tabs); // chrome.* is the callback-style namespace in all three browsers
+
 import("./core/toggleCheckbox.css");
 
 // Build the tree of categories with features under them
@@ -926,7 +957,12 @@ function addFeatureToOptionsPage(featureData, container) {
     let $options = $(`<div class="feature-options" hidden></div>`).appendTo(container);
     $header.append(`<button type="button" class="feature-options-button">Show options</button>`);
     addOptionsForFeature(featureData, $options.get(0), featureData.options);
-    if ($options.height() > window.innerHeight * 0.8) {
+    // Safari reports innerHeight as almost nothing while the popover is still
+    // settling, which would turn every feature into a modal. Inline options only
+    // scroll with the page, so a floor there fails to the harmless side. Other
+    // browsers report it correctly, so they keep using it as-is.
+    const viewportHeight = isSafari ? Math.max(window.innerHeight, 400) : window.innerHeight;
+    if ($options.height() > viewportHeight * 0.8) {
       $options.wrap('<dialog class="feature-options"></dialog>');
       $options
         .removeClass("feature-options")
