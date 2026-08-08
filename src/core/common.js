@@ -359,8 +359,20 @@ async function checkAnyDataFeature() {
   }
 }
 
+const BACKUP_REMINDER_INTERVAL = 30 * 24 * 60 * 60 * 1000;
+
+// Called whenever the user actually downloads a data backup, from wherever they did it,
+// so that the monthly nag counts from the last real backup rather than the last nag.
+export function recordBackupMade() {
+  chrome.storage.local.set({ lastBackupDate: Date.now() });
+}
+
 async function checkBackupReminder() {
   // This is the monthly nag to backup data.
+  // The options page imports this module too, and none of the data this looks at lives in
+  // the extension's own origin, so only run where the data actually is.
+  if (!isWikiTreeUrl(window.location.href)) return;
+
   const dataFeatures = [
     "clipboardAndNotes",
     "customChangeSummaryOptions",
@@ -379,24 +391,35 @@ async function checkBackupReminder() {
   const urlParams = new URLSearchParams(window.location.search);
   const testMode = urlParams.get("wbe_test_backup") === "1";
 
-  const items = await new Promise((resolve) => chrome.storage.local.get(["lastBackupNag"], resolve));
-  const lastNag = items.lastBackupNag || 0;
-  const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+  const items = await new Promise((resolve) =>
+    chrome.storage.local.get(["lastBackupDate", "lastBackupNag", "wbeInstallDate"], resolve)
+  );
   const now = Date.now();
 
-  if (!testMode && now - lastNag <= thirtyDays) return;
+  // background.js records the install date, but only for installs from this version on,
+  // so anyone upgrading from an older build gets a first-seen date written here instead.
+  let installDate = items.wbeInstallDate;
+  if (!installDate) {
+    installDate = now;
+    chrome.storage.local.set({ wbeInstallDate: installDate });
+  }
 
-  // Don't nag someone who has nothing to lose yet. lastBackupNag starts at 0, so a
-  // brand new user was told on their very first page load that it had "been a while"
-  // since a backup they had never made. Having a feature *enabled* is not the same
-  // as having data in it — most of these are on by default.
+  // Count from whichever came last: a real backup, the last nag, or the install. The
+  // install date is what stops a brand new user being told on their very first page load
+  // that it had "been a while" since a backup they had never made.
+  const lastBackupEvent = Math.max(items.lastBackupDate || 0, items.lastBackupNag || 0, installDate);
+
+  if (!testMode && now - lastBackupEvent <= BACKUP_REMINDER_INTERVAL) return;
+
+  // Don't nag someone who has nothing to lose yet. Having a feature *enabled* is not the
+  // same as having data in it — most of these are on by default.
   if (!testMode && !(await hasDataToBackUp())) {
     // Push the next check out a month instead of scanning on every page load.
     chrome.storage.local.set({ lastBackupNag: now });
     return;
   }
 
-  showBackupReminder(enabledFeatures);
+  showBackupReminder(enabledFeatures, Boolean(items.lastBackupDate));
 }
 
 // Is there actually anything in the places backupData() reads from?
@@ -441,7 +464,7 @@ function countRecords(db, storeName) {
   });
 }
 
-function showBackupReminder(enabledFeatures) {
+function showBackupReminder(enabledFeatures, hasBackedUpBefore) {
   if ($("#wbe-backup-reminder").length) return;
 
   const dataFeatureNames = {
@@ -466,7 +489,11 @@ function showBackupReminder(enabledFeatures) {
         WikiTree Browser Extension Monthly Backup Reminder
       </div>
       <div class="dialog-content">
-        <p>It's been a while since your last data backup. We recommend backing up your data monthly to keep it safe.</p>
+        <p>${
+          hasBackedUpBefore
+            ? "It's been a while since your last data backup."
+            : "You haven't backed up your WBE data yet."
+        } We recommend backing up your data monthly to keep it safe.</p>
         <p>Your backup will include data from:</p>
         <ul class="wbe-feature-list">
           ${featureListHtml}
@@ -692,6 +719,7 @@ function downloadFeatureData() {
       const wrapped = wrapBackupData("data", response.backup);
       const link = getBackupLink(wrapped);
       link.click();
+      recordBackupMade();
     } else {
       const err = response?.nak ?? JSON.stringify(response ?? "Backup failed");
       showFriendlyError(err);

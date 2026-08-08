@@ -3,7 +3,7 @@ import $ from "jquery";
 import { features, OptionType } from "./core/options/options_registry";
 import { categorize } from "./features/register_categories";
 import "./features/register_feature_options";
-import { WBE, isWikiTreeUrl, showAlert, wrapBackupData, getBackupLink } from "./core/common";
+import { WBE, isWikiTreeUrl, showAlert, wrapBackupData, getBackupLink, recordBackupMade } from "./core/common";
 import { restoreOptions, restoreData, sendMessageToContentTab } from "./upload";
 import { navigatorDetect } from "./core/navigatorDetect";
 import { shouldInitializeFeature } from "./core/options/options_storage.js";
@@ -1014,6 +1014,11 @@ chrome.storage.onChanged.addListener(function () {
 function downloadBackupData(key, data, button) {
   const wrapped = wrapBackupData(key, data, key == "data");
   const link = $(getBackupLink(wrapped)).addClass("button download").text("Download").hide();
+  if (key == "data") {
+    // Only a data backup counts towards the monthly backup reminder, and only once the
+    // user has actually clicked the link: building it doesn't save anything anywhere.
+    link.on("click", recordBackupMade);
+  }
   $(button).hide().parent().append(" ").append(link);
   link.fadeIn();
 }

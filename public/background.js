@@ -1,6 +1,9 @@
 if (chrome.runtime) {
   chrome.runtime.onInstalled.addListener(function (details) {
     if (details.reason == "install") {
+      // The monthly backup reminder counts from this, so a new user isn't told on their
+      // first page load that it's been a while since a backup they never made.
+      chrome.storage?.local?.set({ wbeInstallDate: Date.now() });
       chrome.tabs.create({
         url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension",
         active: true,
