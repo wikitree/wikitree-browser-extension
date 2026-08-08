@@ -463,7 +463,7 @@ function showBackupReminder(enabledFeatures) {
     <div id="wbe-backup-reminder" class="wbe-popup">
       <div class="dialog-header">
         <a href="#" class="close" id="wbe-backup-reminder-close" title="Close">&#x2715;</a>
-        WBE Monthly Backup Reminder
+        WikiTree Browser Extension Monthly Backup Reminder
       </div>
       <div class="dialog-content">
         <p>It's been a while since your last data backup. We recommend backing up your data monthly to keep it safe.</p>
