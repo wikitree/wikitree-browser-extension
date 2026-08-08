@@ -135,6 +135,75 @@ const homeImg = chrome.runtime.getURL("images/family_group.svg");
 let connectionNames = [];
 let connectionList = $(); // Will hold the jQuery object for the connection list
 
+// True once something has decided the Surname summaries button should be visible.
+// The button may not be in the document yet at that point (see addSurnameSummariesButton),
+// so the decision is recorded here and applied whenever the button does get inserted.
+let surnameSummariesWanted = false;
+
+/*
+  Run `callback` once the document has finished parsing.
+
+  Nothing in this feature can touch the page before then. Chrome injects content
+  scripts late enough (measured: ~370ms after DOMContentLoaded on a results page)
+  that the whole file got away with running immediately, but Safari injects much
+  earlier, so every selector below has to be given something to find first.
+*/
+function whenDomReady(callback) {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", callback, { once: true });
+  } else {
+    callback();
+  }
+}
+
+/*
+  Poll `test` until it passes, then call `onFound`; give up after `timeoutMs`.
+
+  Deliberately not a setInterval that clears itself the first time the test fails:
+  parts of this page are server-rendered and parts are drawn by the site's own
+  script, so a single early miss says nothing about whether the element is coming.
+*/
+function pollUntil(test, onFound, { intervalMs = 100, timeoutMs = 15000 } = {}) {
+  if (test()) {
+    onFound();
+    return;
+  }
+  const deadline = Date.now() + timeoutMs;
+  const timer = setInterval(() => {
+    if (test()) {
+      clearInterval(timer);
+      onFound();
+    } else if (Date.now() > deadline) {
+      clearInterval(timer);
+    }
+  }, intervalMs);
+}
+
+// Put the button in the page as soon as #layoutButton exists. insertBefore() on an
+// empty set is a silent no-op, so doing this too early left the button permanently
+// detached and no later fadeIn() could ever show it.
+function addSurnameSummariesButton() {
+  pollUntil(
+    () => $("#layoutButton").length > 0,
+    () => {
+      surnameSummariesButton.insertBefore($("#layoutButton"));
+      if (surnameSummariesWanted) {
+        surnameSummariesButton.show();
+      } else {
+        surnameSummariesButton.hide();
+      }
+    }
+  );
+}
+
+// Show the button, or remember to show it if it hasn't been inserted yet.
+function showSurnameSummariesButton() {
+  surnameSummariesWanted = true;
+  if (document.body?.contains(surnameSummariesButton[0])) {
+    surnameSummariesButton.fadeIn();
+  }
+}
+
 function setupConnectionTools() {
   if ($("#customActionsContainer").length) {
     return; // Do not add buttons if they already exist
@@ -162,14 +231,13 @@ function setupConnectionTools() {
 }
 
 function displayBranchListAutomatically() {
-  const checkConnectionListInterval = setInterval(() => {
-    console.log("Checking for connection list");
-    if ($("#connectionList").length) {
-      clearInterval(checkConnectionListInterval); // Stop checking once #connectionList is found
+  pollUntil(
+    () => $("#connectionList").length > 0,
+    () => {
       console.log("Connection list found");
       displayBranchList(); // Call function to display the branch list
     }
-  }, 100); // Check every 100 milliseconds
+  );
 }
 
 function displayBranchList() {
@@ -431,51 +499,56 @@ async function addCFsurnameList() {
 }
 
 async function connectionFinderThings() {
-  // Add Surname summaries button
-  if (window.connectionFinderOptions.surnameSummaries) {
-    surnameSummariesButton.insertBefore($("#layoutButton")).hide();
+  whenDomReady(() => {
+    // Add Surname summaries button
+    if (window.connectionFinderOptions.surnameSummaries) {
+      addSurnameSummariesButton();
 
-    surnameSummariesButton.on("click", function () {
-      addCFsurnameList();
-      $(this).fadeOut();
-    });
-  }
-  $("#findButton").on("click", function () {
-    if ($("#person2Name").val().match("-")) {
-      surnameSummariesButton.fadeIn();
+      surnameSummariesButton.on("click", function () {
+        addCFsurnameList();
+        $(this).fadeOut();
+      });
     }
-  });
+    $("#findButton").on("click", function () {
+      if (($("#person2Name").val() || "").match("-")) {
+        showSurnameSummariesButton();
+      }
+    });
 
-  const checkForDegreesHeader = setInterval(function () {
-    console.log("Checking for Degrees header");
+    // Wait for the results, rather than checking once and giving up. #findButton is a
+    // form submit, so on the results page this poll is the only thing that runs the
+    // branch list and reveals the Surname summaries button.
     // Example text:
     //connectionText = [
     // "Ian Beacall is \n        22 Degrees from\n        Joseph Harnois"
     //]
-    if ($("h2:contains('Degrees')").length && $("#person1Name").val() && $("#person2Name").val()) {
-      // Get text of first and last links in #connectionList
-      const firstLink = $("#connectionList a").first().text();
-      const lastLink = $("#connectionList a").last().text();
-      connectionNames = [firstLink, lastLink];
+    pollUntil(
+      () =>
+        ($("h2:contains('Degrees')").length && $("#person1Name").val() && $("#person2Name").val()) ||
+        $("h2:contains('No Connection Found')").length > 0,
+      () => {
+        if ($("h2:contains('No Connection Found')").length) {
+          setupConnectionTools();
+          return;
+        }
+        // Get text of first and last links in #connectionList
+        const firstLink = $("#connectionList a").first().text();
+        const lastLink = $("#connectionList a").last().text();
+        connectionNames = [firstLink, lastLink];
 
-      clearInterval(checkForDegreesHeader); // Stop checking
+        setupConnectionTools();
+        displayBranchListAutomatically();
+        showSurnameSummariesButton();
+      }
+    );
+
+    $("#findButton").on("click", function () {
+      // addTrees();
+
       setupConnectionTools();
+
       displayBranchListAutomatically();
-      surnameSummariesButton.fadeIn();
-    } else if ($("h2:contains('No Connection Found')").length) {
-      clearInterval(checkForDegreesHeader); // Stop checking
-      setupConnectionTools();
-    } else {
-      clearInterval(checkForDegreesHeader); // Stop checking
-    }
-  }, 100);
-
-  $("#findButton").on("click", function () {
-    // addTrees();
-
-    setupConnectionTools();
-
-    displayBranchListAutomatically();
+    });
   });
 }
 
@@ -1081,35 +1154,37 @@ function getPrivacyIcon(p) {
 }
 
 function connectionFinderTable() {
-  // Delay just long enough for the page to render
-  setTimeout(() => {
-    // 1) Add the “Table” button to the header
-    const moreDetailsButton = `<button class="small button moreDetails">Table</button>`;
-    $("h1:contains(Connection Finder)").append($(moreDetailsButton));
-    // Show it immediately if we're already on action=connect
-    if (window.location.href.includes("action=connect")) {
-      $(".moreDetails").show();
-    }
+  // The 1s delay was doing double duty as a wait for the DOM; keep it for the page's
+  // own rendering, but only start counting once the document has actually parsed.
+  whenDomReady(() =>
+    setTimeout(() => {
+      // 1) Add the “Table” button to the header
+      const moreDetailsButton = `<button class="small button moreDetails">Table</button>`;
+      $("h1:contains(Connection Finder)").append($(moreDetailsButton));
+      // Show it immediately if we're already on action=connect
+      if (window.location.href.includes("action=connect")) {
+        $(".moreDetails").show();
+      }
 
-    // 2) When the user clicks “Table”…
-    $(".moreDetails").on("click", () => {
-      $(".moreDetails").slideUp(); // hide the button
-      if (!$("#connectionList").length) return; // bail if there's no list
+      // 2) When the user clicks “Table”…
+      $(".moreDetails").on("click", () => {
+        $(".moreDetails").slideUp(); // hide the button
+        if (!$("#connectionList").length) return; // bail if there's no list
 
-      // show the little tree GIF in the header
-      $("h1:contains(Connection Finder)").append($(`<img class="treeImg" src="${tree}">`));
+        // show the little tree GIF in the header
+        $("h1:contains(Connection Finder)").append($(`<img class="treeImg" src="${tree}">`));
 
-      // build the comma-separated list of wiki IDs + collect raw relations
-      const IDstring = gatherConnectionIDs();
+        // build the comma-separated list of wiki IDs + collect raw relations
+        const IDstring = gatherConnectionIDs();
 
-      // 3) Do the API call
-      WikiTreeAPI.getRelatives(WBE_CF_APP_ID, IDstring, "", {
-        getSpouses: 1,
-        getParents: 1,
-        getSiblings: 1,
-        getChildren: 1,
-      }).then((people) => {
-        const table = $(`
+        // 3) Do the API call
+        WikiTreeAPI.getRelatives(WBE_CF_APP_ID, IDstring, "", {
+          getSpouses: 1,
+          getParents: 1,
+          getSiblings: 1,
+          getChildren: 1,
+        }).then((people) => {
+          const table = $(`
             <table id="connectionsTable">
               <thead>
                 <tr>
@@ -1134,72 +1209,72 @@ function connectionFinderTable() {
               </tfoot>
             </table>
           `);
-        table.insertAfter("#connectionList");
+          table.insertAfter("#connectionList");
 
-        const connectionBoxes = $("#connectionList .connection-box");
-        connectionList = connectionBoxes; // <— make the global a jQuery set
+          const connectionBoxes = $("#connectionList .connection-box");
+          connectionList = connectionBoxes; // <— make the global a jQuery set
 
-        pNumber = 0;
-        window.heritageSociety = [];
+          pNumber = 0;
+          window.heritageSociety = [];
 
-        /* ───────────────────────────  main loop  ───────────────────────────── */
+          /* ───────────────────────────  main loop  ───────────────────────────── */
 
-        people.forEach((item, i) => {
-          let m = item.person;
+          people.forEach((item, i) => {
+            let m = item.person;
 
-          /* 1 ─ insert any “[private …]” row that comes **before** this person */
-          const privMatch = connectionBoxes
-            .eq(pNumber)
-            .text()
-            .match(/\[private.*?\]/i);
-          if (privMatch) addAPrivate(privMatch); // ← no gender guess
+            /* 1 ─ insert any “[private …]” row that comes **before** this person */
+            const privMatch = connectionBoxes
+              .eq(pNumber)
+              .text()
+              .match(/\[private.*?\]/i);
+            if (privMatch) addAPrivate(privMatch); // ← no gender guess
 
-          /* 2 ─ fetch the relation text by real **row** number, not by `i` */
-          const relTxt = connectionIDs[pNumber][1];
+            /* 2 ─ fetch the relation text by real **row** number, not by `i` */
+            const relTxt = connectionIDs[pNumber][1];
 
-          /* 3 ─ we still need the real profile object – fill blanks if private */
-          if (!m.Name) {
-            const link = connectionList.eq(i).find("a");
-            const parts = link.text().trim().split(" ");
-            m.Name = link.attr("href").replace("/wiki/", "");
-            m.FirstName = parts.shift();
-            m.LastNameAtBirth = m.LastNameCurrent = parts.pop();
-            m.MiddleName = parts.join(" ");
-            m.Privacy = 10;
-          }
+            /* 3 ─ we still need the real profile object – fill blanks if private */
+            if (!m.Name) {
+              const link = connectionList.eq(i).find("a");
+              const parts = link.text().trim().split(" ");
+              m.Name = link.attr("href").replace("/wiki/", "");
+              m.FirstName = parts.shift();
+              m.LastNameAtBirth = m.LastNameCurrent = parts.pop();
+              m.MiddleName = parts.join(" ");
+              m.Privacy = 10;
+            }
 
-          m = addRelArraysToPerson(m); // normalise rel-arrays
+            m = addRelArraysToPerson(m); // normalise rel-arrays
 
-          /* 2. dates / colours ---------------------------------------------- */
-          const { birthRaw, deathRaw, yearColour, textColour, birthLoc, deathLoc } = buildDateBits(m);
+            /* 2. dates / colours ---------------------------------------------- */
+            const { birthRaw, deathRaw, yearColour, textColour, birthLoc, deathLoc } = buildDateBits(m);
 
-          /* 3. marriage details (only if this row is a spouse) -------------- */
-          const { date: marriageDate, place: marriageLoc } = getMarriageDetails(
-            m,
-            relTxt,
-            i > 0 ? connectionIDs[i - 1][0] : ""
-          );
+            /* 3. marriage details (only if this row is a spouse) -------------- */
+            const { date: marriageDate, place: marriageLoc } = getMarriageDetails(
+              m,
+              relTxt,
+              i > 0 ? connectionIDs[i - 1][0] : ""
+            );
 
-          /* 4. privacy icon -------------------------------------------------- */
-          const { src: privacy, title: privacyTitle } = getPrivacyIcon(m);
+            /* 4. privacy icon -------------------------------------------------- */
+            const { src: privacy, title: privacyTitle } = getPrivacyIcon(m);
 
-          /* 5. relation column ---------------------------------------------- */
-          const {
-            arrow,
-            colour: relColour,
-            pronoun,
-            baseWord,
-            corrected,
-          } = buildRelationBits(pNumber, relTxt, prevRowGender, m.Gender);
+            /* 5. relation column ---------------------------------------------- */
+            const {
+              arrow,
+              colour: relColour,
+              pronoun,
+              baseWord,
+              corrected,
+            } = buildRelationBits(pNumber, relTxt, prevRowGender, m.Gender);
 
-          /* 6. timeline / family-sheet icons -------------------------------- */
-          const timelineBtn = `<img data-wtid="${m.Name}" src="${timeLineImg}" class="timelineButton" width="18" height="18" title="View Family Timeline">`;
-          const familySheetBtn = `<span data-wtid="${m.Name}" class="familyHome" title="View Family Group"><img src="${homeImg}" width="18" height="18"></span>`;
+            /* 6. timeline / family-sheet icons -------------------------------- */
+            const timelineBtn = `<img data-wtid="${m.Name}" src="${timeLineImg}" class="timelineButton" width="18" height="18" title="View Family Timeline">`;
+            const familySheetBtn = `<span data-wtid="${m.Name}" class="familyHome" title="View Family Group"><img src="${homeImg}" width="18" height="18"></span>`;
 
-          const arrowHTML = arrow ? `<span class="relationshipArrow">${arrow}</span>` : "";
+            const arrowHTML = arrow ? `<span class="relationshipArrow">${arrow}</span>` : "";
 
-          /* 7. assemble & append the table row ------------------------------ */
-          const $row = $(`
+            /* 7. assemble & append the table row ------------------------------ */
+            const $row = $(`
               <tr data-wtid="${m.Name}" class="${m.Gender}">
                 <td>${pNumber}</td>
                 <td class="buttonsCell">
@@ -1220,100 +1295,101 @@ function connectionFinderTable() {
                 <td>${marriageLoc}</td>
               </tr>
             `);
-          $("#connectionsTable tbody").append($row);
+            $("#connectionsTable tbody").append($row);
 
-          /* 8. counters / heritage box -------------------------------------- */
-          pNumber++;
-          const prev = people[i - 1] && people[i - 1].person;
-          prevRowGender = m.Gender;
-          window.heritageSociety.push([m, getSpouse(m, prev)]);
-        });
-        /* ───────────────────────────  end loop  ───────────────────────────── */
+            /* 8. counters / heritage box -------------------------------------- */
+            pNumber++;
+            const prev = people[i - 1] && people[i - 1].person;
+            prevRowGender = m.Gender;
+            window.heritageSociety.push([m, getSpouse(m, prev)]);
+          });
+          /* ───────────────────────────  end loop  ───────────────────────────── */
 
-        connectionNames = [
-          // (re-)capture endpoints *guaranteed* to be correct
-          displayName(people[0].person)[0], //  ↖ first real profile
-          displayName(people[people.length - 1].person)[0], // ↗ last real profile
-        ];
+          connectionNames = [
+            // (re-)capture endpoints *guaranteed* to be correct
+            displayName(people[0].person)[0], //  ↖ first real profile
+            displayName(people[people.length - 1].person)[0], // ↗ last real profile
+          ];
 
-        // — post-processing: collapse/expand text, reductions, buttons, heritage box…
-        window.peopleTablePeople = people;
-        window.relWords = [];
+          // — post-processing: collapse/expand text, reductions, buttons, heritage box…
+          window.peopleTablePeople = people;
+          window.relWords = [];
 
-        $("#connectionsTable td[data-relationship]").each(function () {
-          /* full string carried in the <td>, e.g.  "their father"              */
-          const relFull = ($(this).data("relationship") || "").trim();
+          $("#connectionsTable td[data-relationship]").each(function () {
+            /* full string carried in the <td>, e.g.  "their father"              */
+            const relFull = ($(this).data("relationship") || "").trim();
 
-          /* 1 – strip the pronoun word, whatever its length                    */
-          let relWord = relFull.replace(/^\w+\s+/, ""); // → "father"  (or "")
+            /* 1 – strip the pronoun word, whatever its length                    */
+            let relWord = relFull.replace(/^\w+\s+/, ""); // → "father"  (or "")
 
-          /* 2 – if that left us with NOTHING and this row is a private stub,
+            /* 2 – if that left us with NOTHING and this row is a private stub,
                     push an ellipsis so the sentence shows an “unknown” hop            */
-          if (!relWord) {
-            const isPrivateRow = $(this)
-              .closest("tr")
-              .find(".connectionsName")
-              .text()
-              .toLowerCase()
-              .includes("private");
-            if (isPrivateRow) relWord = "…";
-          }
+            if (!relWord) {
+              const isPrivateRow = $(this)
+                .closest("tr")
+                .find(".connectionsName")
+                .text()
+                .toLowerCase()
+                .includes("private");
+              if (isPrivateRow) relWord = "…";
+            }
 
-          if (relWord) window.relWords.push([relWord, 0]);
+            if (relWord) window.relWords.push([relWord, 0]);
+          });
+
+          const pW = /(father)|(mother)/,
+            cW = /(son)|(daughter)/,
+            sW = /(brother)|(sister)/;
+          reduceRelWords(pW);
+          reduceRelWords(cW);
+          reduceRelWords(sW, pW);
+          reduceRelWords(sW, cW);
+          window.relWords.forEach((r, i) => {
+            if (r[1] > 0) r[2] = (r[1] > 1 ? "great-grand" : "grand") + r[0];
+            if (r[1] > 2) r[2] = ordinal(r[1] - 1) + " " + r[2];
+          });
+          window.relWords2 = JSON.parse(JSON.stringify(window.relWords));
+          window.sameGen = ["husband", "wife", "sibling", "brother", "sister", "cousin"];
+          window.upOne = ["father", "mother", "uncle", "aunt"];
+          window.downOne = ["son", "daughter", "nephew", "niece"];
+          window.bloodRels = ["father", "mother", "uncle", "aunt", "niece", "nephew", "son", "daughter"];
+          window.siblingWords = ["brother", "sister"];
+          window.childrenWords = ["son", "daughter"];
+          window.relWords2.forEach((a) => {
+            if (window.upOne.includes(a[0]) || window.downOne.includes(a[0])) a[1]++;
+          });
+          reduceRelWordsMore();
+
+          addConnectionText(); // insert the summary sentence
+          addWideTableButton(); // existing table buttons
+          $("img.timelineButton").on("click", function (e) {
+            window.pointerY = e.pageY;
+            window.pointerX = e.pageX;
+            cfTimeline($(e.currentTarget));
+          });
+          $("span.familyHome").on("click", function () {
+            showFamilySheet($(this), $(this).data("wtid"));
+          });
+          showHeritageSocietyBox(); // the heritage-society textarea
+          $(".treeImg").remove(); // remove the tree GIF
+          // Smooth scroll to 200px above the table
+          $("html, body").animate(
+            {
+              scrollTop: $("#connectionsTable").offset().top - 200,
+            },
+            500
+          );
         });
 
-        const pW = /(father)|(mother)/,
-          cW = /(son)|(daughter)/,
-          sW = /(brother)|(sister)/;
-        reduceRelWords(pW);
-        reduceRelWords(cW);
-        reduceRelWords(sW, pW);
-        reduceRelWords(sW, cW);
-        window.relWords.forEach((r, i) => {
-          if (r[1] > 0) r[2] = (r[1] > 1 ? "great-grand" : "grand") + r[0];
-          if (r[1] > 2) r[2] = ordinal(r[1] - 1) + " " + r[2];
-        });
-        window.relWords2 = JSON.parse(JSON.stringify(window.relWords));
-        window.sameGen = ["husband", "wife", "sibling", "brother", "sister", "cousin"];
-        window.upOne = ["father", "mother", "uncle", "aunt"];
-        window.downOne = ["son", "daughter", "nephew", "niece"];
-        window.bloodRels = ["father", "mother", "uncle", "aunt", "niece", "nephew", "son", "daughter"];
-        window.siblingWords = ["brother", "sister"];
-        window.childrenWords = ["son", "daughter"];
-        window.relWords2.forEach((a) => {
-          if (window.upOne.includes(a[0]) || window.downOne.includes(a[0])) a[1]++;
-        });
-        reduceRelWordsMore();
-
-        addConnectionText(); // insert the summary sentence
-        addWideTableButton(); // existing table buttons
-        $("img.timelineButton").on("click", function (e) {
-          window.pointerY = e.pageY;
-          window.pointerX = e.pageX;
-          cfTimeline($(e.currentTarget));
-        });
-        $("span.familyHome").on("click", function () {
-          showFamilySheet($(this), $(this).data("wtid"));
-        });
-        showHeritageSocietyBox(); // the heritage-society textarea
-        $(".treeImg").remove(); // remove the tree GIF
-        // Smooth scroll to 200px above the table
-        $("html, body").animate(
-          {
-            scrollTop: $("#connectionsTable").offset().top - 200,
-          },
-          500
-        );
+        // 4) Re-enable "Table" after 20 seconds
+        $(".moreDetails").prop("disabled", true);
+        setTimeout(() => $(".moreDetails").prop("disabled", false), 20000);
       });
 
-      // 4) Re-enable "Table" after 20 seconds
-      $(".moreDetails").prop("disabled", true);
-      setTimeout(() => $(".moreDetails").prop("disabled", false), 20000);
-    });
-
-    // If they re-run Connection Finder, show the button again
-    $("#findButton").on("click", () => $(".moreDetails").show());
-  }, 1000);
+      // If they re-run Connection Finder, show the button again
+      $("#findButton").on("click", () => $(".moreDetails").show());
+    }, 1000)
+  );
 }
 
 /**
