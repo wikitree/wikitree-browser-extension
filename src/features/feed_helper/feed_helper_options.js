@@ -15,4 +15,13 @@ registerFeature({
   contributors: [],
   defaultValue: false,
   pages: [isNetworkFeed, isContributions],
+  options: [
+    {
+      id: "newMemberThreeWayFilter",
+      type: OptionType.CHECKBOX,
+      label:
+        "Three-way 'New Members' filter: click the new/newly-badged members button once to show only their activity, again to show only everyone else's, and again to show all activity",
+      defaultValue: false,
+    },
+  ],
 });
