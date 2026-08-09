@@ -65,12 +65,12 @@ function showUpload(hash, dialog) {
   }
 
   if (window.location.hash === "#UploadOptions") {
-    dialog.find(".dialog-header").text("Restore Options");
+    dialog.find(".dialog-header").text("Restore Settings");
     launch = function () {
       restoreOptions().then(done).catch(failed);
     };
   } else if (window.location.hash === "#UploadData") {
-    dialog.find(".dialog-header").text("Restore Data");
+    dialog.find(".dialog-header").text("Restore Feature Data");
     launch = function () {
       restoreData().then(done).catch(failed);
     };

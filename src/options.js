@@ -722,7 +722,7 @@ $("#toggleAll, .section.category > .section-header > .toggle > input").on("click
 $("#openSettings").on("click", function () {
   let $dialog = $(
     '<dialog id="settingsDialog">' +
-      '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Settings &amp; Data Backup' +
+      '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Settings &amp; Feature Data Backup' +
       '<a class="feature-help-link nohover" target="WBE_Help" href="https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#Settings"><img src="https://www.wikitree.com/images/icons/help.gif" border="0" width="11" height="11" alt="Help" title="Help about Settings"></a>' +
       '</div><div class="dialog-content">' +
       `<div class="dialog-version">v${WBE.version} (${WBE.isRelease ? "stable" : WBE.isDebug ? "debug" : "preview"})${
@@ -736,16 +736,16 @@ $("#openSettings").on("click", function () {
               .replace(/^\s*\w+\s+(\w+)\s+0*([1-9]\d+)\s+(\d+)\s*$/, "$2 $1 $3")}</a>`
           : ""
       }</div>` +
-      '<ul><li style="font-size: 10pt; font-weight: bold;">Extension Settings</li>' +
+      '<ul><li style="font-size: 10pt; font-weight: bold;">Settings (which features are switched on, plus each feature\'s options)</li>' +
       '<li><div style="--font-px:16" class="toggle"><input type="checkbox" id="toggleDisableUpdateNotification"><label for="toggleDisableUpdateNotification">Disable the notification when the extension updates.</label></div></li>' +
-      '<li title="This would be like toggling all of the radio buttons back to the default. Each feature\'s options will be preserved."><button id="btnResetOptions">Default Features</button> Enable only the default features.</li>' +
-      '<li title="This will download a backup file with your current feature options."><button id="btnExportOptions">Back Up Options</button> Back up your current feature options.</li>' +
-      '<li title="This will pop up a dialog to select the backup file for your feature options. This will overwrite your current options."><button id="btnImportOptions">Restore Options</button> Restore the feature options from a previous backup.</li>' +
-      '<li title="Resets all feature options to the defaults. This does not include data stored on WikiTree by features like My Menu, Extra Watchlist, etc."><button id="btnClearOptions">Reset Options</button> Reset all options to the defaults.</li>' +
-      '<li class="hide-on-wikitree" style="font-size: 10pt; font-style: italic; color: #bbb; text-align: center;">For more data options, access this from the <a href="https://www.wikitree.com/" style="color: #bbb;" target="_blank">WikiTree</a> site.</li>' +
-      '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Backup feature data associated with the following subset of features: Change Summary Options, Clipboard and Notes, Extra Watchlist (including profile notes), My Menu, Space Watchlist Sorter, and WT+ Query Builder.</li>' +
-      '<li class="hide-unless-wikitree" title="This will download a backup file with your current feature data."><button id="btnExportData">Back Up Data</button> Back up above subset of your feature data from WikiTree.</li>' +
-      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select your feature data backup file."><button id="btnImportData">Restore Data</button> Restore above subset of your feature data on WikiTree.</li>' +
+      '<li title="This would be like toggling all of the radio buttons back to the default. Each feature\'s settings will be preserved."><button id="btnResetOptions">Default Features</button> Enable only the default features.</li>' +
+      '<li title="This will download a backup file with your current settings."><button id="btnExportOptions">Back Up Settings</button> Back up your current settings.</li>' +
+      '<li title="This will pop up a dialog to select the backup file for your settings. This will overwrite your current settings."><button id="btnImportOptions">Restore Settings</button> Restore your settings from a previous backup.</li>' +
+      '<li title="Resets all settings to the defaults. This does not include data stored on WikiTree by features like My Menu, Extra Watchlist, etc."><button id="btnClearOptions">Reset Settings</button> Reset all settings to the defaults.</li>' +
+      '<li class="hide-on-wikitree" style="font-size: 10pt; font-style: italic; color: #bbb; text-align: center;">To back up your feature data as well, access this from the <a href="https://www.wikitree.com/" style="color: #bbb;" target="_blank">WikiTree</a> site.</li>' +
+      '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Feature data (the content you have saved with a feature) for this subset of features: Change Summary Options, Clipboard and Notes, Extra Watchlist (including profile notes), My Menu, Space Watchlist Sorter, and WT+ Query Builder.</li>' +
+      '<li class="hide-unless-wikitree" title="This will download a backup file with your current feature data."><button id="btnExportData">Back Up Feature Data</button> Back up the above subset of your feature data from WikiTree.</li>' +
+      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select your feature data backup file."><button id="btnImportData">Restore Feature Data</button> Restore the above subset of your feature data on WikiTree.</li>' +
       '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Use the save/restore buttons on your <a href="https://www.wikitree.com/wiki/Special:Home#downloadFeatureData" style="color: #060;" target="_blank">WikiTree Navigation Home Page</a> to save/restore all feature data.</li>' +
       "</ul></div></dialog>"
   )
@@ -803,12 +803,12 @@ $("#openSettings").on("click", function () {
           if (err == "CANCELLED") {
             // the file picker was dismissed; nothing to report
           } else if (err == "INVALID_FORMAT") {
-            showAlert("The options backup file was not valid.", "Restore Options Failed", "#settingsDialog");
+            showAlert("The settings backup file was not valid.", "Restore Settings Failed", "#settingsDialog");
           } else if (err == "STORAGE_ERROR") {
             showAlert(
               "Your settings could not be saved, so nothing was restored.\nThis usually means the backup is too large for the browser's sync storage.\n\n" +
                 (response?.message ?? ""),
-              "Restore Options Failed",
+              "Restore Settings Failed",
               "#settingsDialog"
             );
           } else {
@@ -832,15 +832,19 @@ $("#openSettings").on("click", function () {
           if (err == "CANCELLED") {
             // the file picker was dismissed; nothing to report
           } else if (err == "INVALID_FORMAT") {
-            showAlert("The data backup file was not valid.", "Restore Data Failed", "#settingsDialog");
+            showAlert("The feature data backup file was not valid.", "Restore Feature Data Failed", "#settingsDialog");
           } else if (err == "NO_TABS") {
             showAlert(
               "The restore failed because no WikiTree pages responded.\nThis could happen if you closed your tabs or the extension updated.\nOpen a new WikiTree page in your browser, or refresh and try again.",
-              "Restore Data Failed",
+              "Restore Feature Data Failed",
               "#settingsDialog"
             );
           } else if (err == "RESTORE_FAILED") {
-            showAlert(`The restore failed:\n\n${response?.message ?? ""}`, "Restore Data Failed", "#settingsDialog");
+            showAlert(
+              `The restore failed:\n\n${response?.message ?? ""}`,
+              "Restore Feature Data Failed",
+              "#settingsDialog"
+            );
           } else {
             console.error(err);
           }
@@ -1040,7 +1044,7 @@ function exportDataClicked() {
       if (err == "NO_TABS") {
         showAlert(
           "The backup failed because no WikiTree pages responded.\nThis could happen if you closed your tabs or the extension updated.\nOpen a new WikiTree page in your browser, or refresh and try again.",
-          "Backup Data Failed",
+          "Back Up Feature Data Failed",
           "#settingsDialog"
         );
       } else {

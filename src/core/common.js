@@ -491,15 +491,15 @@ function showBackupReminder(enabledFeatures, hasBackedUpBefore) {
       <div class="dialog-content">
         <p>${
           hasBackedUpBefore
-            ? "It's been a while since your last data backup."
-            : "You haven't backed up your WBE data yet."
-        } We recommend backing up your data monthly to keep it safe.</p>
-        <p>Your backup will include data from:</p>
+            ? "It's been a while since your last backup."
+            : "You haven't backed up your WBE settings and data yet."
+        } We recommend backing up monthly to keep them safe.</p>
+        <p>You'll get a single file containing your settings (your feature options) and your feature data from:</p>
         <ul class="wbe-feature-list">
           ${featureListHtml}
         </ul>
         <div class="backup-reminder-buttons">
-          <button id="wbe-backup-reminder-now" class="btn btn-primary btn-sm">Back up WBE Data</button>
+          <button id="wbe-backup-reminder-now" class="btn btn-primary btn-sm">Back Up Settings &amp; Feature Data</button>
         </div>
       </div>
     </div>
@@ -518,7 +518,7 @@ function showBackupReminder(enabledFeatures, hasBackedUpBefore) {
 
   $("#wbe-backup-reminder-now").on("click", function (e) {
     e.preventDefault();
-    downloadFeatureData();
+    downloadFullBackup();
     $("#wbe-backup-reminder").fadeOut(function () {
       $(this).remove();
     });
@@ -727,28 +727,61 @@ function downloadFeatureData() {
   });
 }
 
+// Settings live in sync storage rather than on WikiTree, so they are fetched separately
+// from the feature data and the two are written into a single backup file.
+function downloadFullBackup() {
+  backupData(false, (response) => {
+    if (!response || !response.ack) {
+      showFriendlyError(response?.nak ?? JSON.stringify(response ?? "Backup failed"));
+      return;
+    }
+    chrome.storage.sync.get(null, (settings) => {
+      const link = getBackupLink(wrapFullBackup(settings || {}, response.backup));
+      link.click();
+      recordBackupMade();
+    });
+  });
+}
+
 export function addCollapseButtons(opt) {
   const toBoolean = (val) => val === true || val === "true" || val === 1 || val === "1";
   return isProfilePage ? toBoolean(opt.automaticallyAddButtonsProfiles) : toBoolean(opt.automaticallyAddButtonsSpaces);
 }
 
-export function wrapBackupData(key, data, isDataSubset = false) {
-  let now = new Date();
-  let wrapped = {
+// The "features"/"data" keys are what the restore code looks for, so they can't change
+// without breaking older backup files. The label is only the file name, where "settings"
+// and "feature data" are what everything the user sees calls them.
+function makeBackupWrapper(label) {
+  const now = new Date();
+  return {
     id:
       Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "medium" }) // sv-SE uses ISO format
         .format(now)
         .replace(/:/g, "")
         .replace(/ /g, "_") +
       "_WBE_backup_" +
-      key +
-      (key == "data" ? (isDataSubset ? "_subset" : "_all") : ""),
+      label,
     extension: WBE.name,
     version: WBE.version,
     browser: navigator.userAgent,
     timestamp: now.toISOString(),
   };
+}
+
+export function wrapBackupData(key, data, isDataSubset = false) {
+  const label = key == "data" ? (isDataSubset ? "feature_data_subset" : "feature_data_all") : "settings";
+  const wrapped = makeBackupWrapper(label);
   wrapped[key] = data;
+  return wrapped;
+}
+
+// The monthly reminder backs up both halves in one click. One file is friendlier than two
+// downloads, and because each half keeps the key its own backup file uses, this file is
+// accepted by both "Restore Settings" and "Restore Feature Data".
+function wrapFullBackup(settings, data) {
+  const wrapped = makeBackupWrapper("settings_and_feature_data");
+  wrapped.features = settings;
+  wrapped.data = data;
   return wrapped;
 }
 
