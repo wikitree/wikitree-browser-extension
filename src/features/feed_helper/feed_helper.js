@@ -13,6 +13,11 @@ import { getUserWtId } from "../../core/common.js";
 
 const WBE_RANGERS_APP_ID = "WBE_rangers";
 
+// Bump whenever the managed-profiles lookup changes what it can resolve, so cached results from
+// the previous logic are discarded instead of being served for the rest of their TTL.
+// 2: space pages resolved via TrustedList/IsManager.
+const MANAGED_PROFILES_CACHE_VERSION = 2;
+
 // States for the "Only Activity by New Members" / "Only Activity by Newly-Badged People" button.
 // The third state is only reachable when the newMemberThreeWayFilter option is on.
 const NEW_MEMBER_FILTER_STATES = {
@@ -437,7 +442,9 @@ class FeedHelper {
     this.dismissedWarningsStorageKey = "FeedHelper-dismissed-warnings"; // Global dismissed warnings
     this.hideWhitelistActivityStorageKey = "FeedHelper-hideWhitelistActivity";
     this.hideFilterStatesStorageKey = "FeedHelper-hideFilterStates";
-    this.managedProfilesCacheStorageKey = "FeedHelper-managedProfilesCache";
+    // v2: cached sets from before space pages were included would otherwise keep
+    // suppressing them for the length of the TTL after an upgrade.
+    this.managedProfilesCacheStorageKey = "FeedHelper-managedProfilesCache-v2";
     this.managedProfilesCacheHours = 1;
     this.lastActiveKey = "FeedHelper-last-active";
     this.sessionTimeoutHours = 2; // Clean up data older than 2 hours
@@ -988,6 +995,15 @@ class FeedHelper {
       return null;
     }
 
+    // Entries written by an older version of the lookup describe a different world (e.g. before
+    // space pages were resolved at all), so discard them rather than serving a stale miss for
+    // the rest of the TTL.
+    if (cachedEntry.version !== MANAGED_PROFILES_CACHE_VERSION) {
+      delete cache[cacheKey];
+      this.setManagedProfilesCache(cache);
+      return null;
+    }
+
     if (Date.now() > cachedEntry.expiresAt) {
       delete cache[cacheKey];
       this.setManagedProfilesCache(cache);
@@ -1006,6 +1022,7 @@ class FeedHelper {
     const cacheKey = this.getManagedProfilesCacheKey(managerId);
     cache[cacheKey] = {
       source,
+      version: MANAGED_PROFILES_CACHE_VERSION,
       names: Array.from(profileSet),
       expiresAt: Date.now() + this.managedProfilesCacheHours * 60 * 60 * 1000,
     };
@@ -1043,6 +1060,31 @@ class FeedHelper {
     });
   }
 
+  /**
+   * Free-space pages expose no Manager/Managers fields at all - getProfile returns their
+   * managers inside TrustedList, flagged with IsManager. Trusted-list-only entries
+   * (IsManager 0) are not managers and must not match.
+   * @param {string} managerId - WikiTree ID of the watchlist owner
+   * @param {Array} trustedList - The profile's TrustedList
+   * @returns {boolean} True if managerId manages this space page
+   */
+  isSpacePageManagedBy(managerId, trustedList) {
+    if (!managerId) {
+      return false;
+    }
+
+    const managerLookup = String(managerId).toLowerCase();
+    return this.normalizeManagersCollection(trustedList).some((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return false;
+      }
+      if (Number(entry.IsManager) !== 1) {
+        return false;
+      }
+      return entry.Name && String(entry.Name).toLowerCase() === managerLookup;
+    });
+  }
+
   getFeedProfileIdsForManagedCheck() {
     this.prepareFeedItemsForFiltering();
     const ids = new Set();
@@ -1060,9 +1102,62 @@ class FeedHelper {
     return Array.from(ids);
   }
 
+  getFeedSpaceIdsForManagedCheck() {
+    this.prepareFeedItemsForFiltering();
+    const ids = new Set();
+
+    $("span.feed-item").each((_, element) => {
+      const $item = $(element);
+      const spaceIds = $item.data("feedHelperSpaceIds") || [];
+      spaceIds.forEach((spaceId) => {
+        if (spaceId) {
+          ids.add(String(spaceId));
+        }
+      });
+    });
+
+    return Array.from(ids);
+  }
+
+  /**
+   * Resolves managers for free-space pages. getPeople is person-only and space pages carry no
+   * Manager/Managers fields, so each needs a getProfile call for its TrustedList. Feeds contain
+   * few distinct space pages, so a small concurrency cap keeps this cheap.
+   * @param {string} managerId - WikiTree ID of the watchlist owner
+   * @param {string[]} spaceIds - "Space:"-prefixed page ids
+   * @param {Set} managedProfiles - Set to add matches to (lowercased, prefix retained)
+   */
+  async addManagedSpacePages(managerId, spaceIds, managedProfiles) {
+    const concurrency = 5;
+    for (let i = 0; i < spaceIds.length; i += concurrency) {
+      const batch = spaceIds.slice(i, i + concurrency);
+      const results = await Promise.all(
+        batch.map(async (spaceId) => {
+          try {
+            const [profile] = await WikiTreeAPI.getProfile(WBE_RANGERS_APP_ID, spaceId, ["PageId", "TrustedList"], {
+              resolveRedirect: 0,
+            });
+            return { spaceId, profile };
+          } catch (error) {
+            this.debug(`FeedHelper: Unable to fetch space page ${spaceId}`, error);
+            return { spaceId, profile: null };
+          }
+        })
+      );
+
+      results.forEach(({ spaceId, profile }) => {
+        if (profile && this.isSpacePageManagedBy(managerId, profile.TrustedList)) {
+          // Key on the id we extracted from the feed link, so it lines up with feedHelperSpaceIds.
+          managedProfiles.add(String(spaceId).toLowerCase());
+        }
+      });
+    }
+  }
+
   async fetchManagedProfilesFromFeedProfiles(managerId) {
     const profileIds = this.getFeedProfileIdsForManagedCheck();
-    if (profileIds.length === 0) {
+    const spaceIds = this.getFeedSpaceIdsForManagedCheck();
+    if (profileIds.length === 0 && spaceIds.length === 0) {
       return new Set();
     }
 
@@ -1080,6 +1175,10 @@ class FeedHelper {
           managedProfiles.add(String(person.Name).toLowerCase());
         }
       });
+    }
+
+    if (spaceIds.length > 0) {
+      await this.addManagedSpacePages(managerId, spaceIds, managedProfiles);
     }
 
     return managedProfiles;
@@ -1129,9 +1228,9 @@ class FeedHelper {
       const hasG2GLink = $item.find("a[href*='/g2g/']").length > 0;
       const isG2G = hasG2GLink && (itemText.includes("asked a question") || itemText.includes("answered a question"));
 
-      const profileIds = this.getProfileIdsFromHistoryItem($item)
-        .map((id) => String(id))
-        .filter((id) => id && !id.toLowerCase().startsWith("space:"));
+      const allIds = this.getProfileIdsFromHistoryItem($item).map((id) => String(id));
+      const profileIds = allIds.filter((id) => id && !id.toLowerCase().startsWith("space:"));
+      const spaceIds = allIds.filter((id) => id && id.toLowerCase().startsWith("space:"));
 
       const hasProfileActivity = !hasSpaceLink;
       const hasSpaceActivity = hasSpaceLink;
@@ -1140,6 +1239,7 @@ class FeedHelper {
       $item.data("feedHelperHasSpaceActivity", hasSpaceActivity);
       $item.data("feedHelperIsG2G", isG2G);
       $item.data("feedHelperProfileIds", profileIds);
+      $item.data("feedHelperSpaceIds", spaceIds);
 
       // Preserve old classes to support existing styles/logic.
       $item.toggleClass("feed-item--space", hasSpaceActivity).toggleClass("feed-item--profile", hasProfileActivity);
@@ -1323,10 +1423,10 @@ class FeedHelper {
         !shouldHide &&
         activeFilters.profilesNotManagedBy &&
         this.isProfilesNotManagedFilterAvailable() &&
-        $item.data("feedHelperHasProfileActivity") &&
+        ($item.data("feedHelperHasProfileActivity") || $item.data("feedHelperHasSpaceActivity")) &&
         managedProfileSet
       ) {
-        const profileIds = $item.data("feedHelperProfileIds") || [];
+        const profileIds = ($item.data("feedHelperProfileIds") || []).concat($item.data("feedHelperSpaceIds") || []);
         if (profileIds.length > 0) {
           const hasManagedProfile = profileIds.some((profileId) =>
             managedProfileSet.has(String(profileId).toLowerCase())
@@ -1341,10 +1441,10 @@ class FeedHelper {
         !shouldHide &&
         activeFilters.profilesManagedBy &&
         this.isProfilesNotManagedFilterAvailable() &&
-        $item.data("feedHelperHasProfileActivity") &&
+        ($item.data("feedHelperHasProfileActivity") || $item.data("feedHelperHasSpaceActivity")) &&
         managedProfileSet
       ) {
-        const profileIds = $item.data("feedHelperProfileIds") || [];
+        const profileIds = ($item.data("feedHelperProfileIds") || []).concat($item.data("feedHelperSpaceIds") || []);
         if (profileIds.length > 0) {
           const hasManagedProfile = profileIds.some((profileId) =>
             managedProfileSet.has(String(profileId).toLowerCase())
@@ -5648,13 +5748,28 @@ class FeedHelper {
       if (!href) {
         return;
       }
-      const match = href.match(/\/wiki\/([A-Za-z0-9_-]+)/);
-      if (match) {
-        const id = match[1];
-        if (!seen.has(id)) {
-          seen.add(id);
-          ids.push(id);
-        }
+      const match = href.match(/\/wiki\/([^/?#]+)/);
+      if (!match) {
+        return;
+      }
+
+      let id;
+      try {
+        id = decodeURIComponent(match[1]);
+      } catch (error) {
+        id = match[1];
+      }
+      // "Space%3AFoo" and "Space:Foo" are the same page.
+      id = id.replace(/^Space%3A/i, "Space:");
+
+      // Free-space pages, or plain person profile ids. Anything else is discarded.
+      if (!/^Space:.+/i.test(id) && !/^[A-Za-z0-9_-]+$/.test(id)) {
+        return;
+      }
+
+      if (!seen.has(id)) {
+        seen.add(id);
+        ids.push(id);
       }
     };
 

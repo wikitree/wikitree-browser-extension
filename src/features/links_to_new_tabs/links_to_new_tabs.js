@@ -6,6 +6,38 @@ import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 // -------------------- helpers --------------------
+// The activity feed's own view switches: per-page count, hide-own-contributions, only-created,
+// paired items. They reload the current view, so a new tab just loses your place.
+function isFeedViewControl(href) {
+  return /title=Special(:|%3A)NetworkFeed/i.test(href) && /[?&](l|hideown|created|paired)=/i.test(href);
+}
+
+/**
+ * Links that must never leave the current tab, whatever anyone else has done to them.
+ *
+ * Unlike the exclusions below, these are not preferences - the link is either handled by another
+ * feature, or a new tab makes no sense for it. Any target already on them is stripped, since the
+ * site (or an earlier run of this feature) may have set one.
+ *
+ * @param {jQuery} $link - The link to test
+ * @returns {boolean} True if the link must open in the current tab
+ */
+function mustStayInThisTab($link) {
+  const href = $link.attr("href") || "";
+
+  // Claimed by another feature, which runs its own click handler. Without this, the capture-phase
+  // handler below fires first and opens a new tab before that handler ever runs.
+  if ($link.closest("[data-wbe-no-new-tab]").length > 0) return true;
+
+  // Script links - there is no document to open, so a new tab would just be blank.
+  if (href.toLowerCase().startsWith("javascript:")) return true;
+
+  // The feed's own view controls. Tab strips are left alone so their dedicated exclude options
+  // stay in charge of them.
+  const inNavArea = $link.closest(".nav-tabs,.tabs--wrapper,.nav-item,nav").length > 0;
+  return !inNavArea && isFeedViewControl(href);
+}
+
 // Decide if a link should open in a new tab
 function shouldOpenInNewTab($link, options) {
   const href = $link.attr("href") || "";
@@ -16,6 +48,9 @@ function shouldOpenInNewTab($link, options) {
 
   // 2. Skip blob URLs (used for downloads)
   if (href.startsWith("blob:")) return false;
+
+  // 2b. Skip links that must stay in this tab
+  if (mustStayInThisTab($link)) return false;
 
   // 2. Skip pager / navigation controls
   const navButton =
@@ -70,13 +105,21 @@ function shouldOpenInNewTab($link, options) {
 
 // -------------------- main --------------------
 function initLinksToNewTabs(options) {
-  // Pass 1: tag existing links
-  $("a:not([target])").each(function () {
+  // Tag a link, or release one that must stay put. Declining to add a target is not enough for
+  // the latter - the site, or an earlier run of this pass, may already have set one.
+  const applyTo = function () {
     const $link = $(this);
-    if (shouldOpenInNewTab($link, options)) {
+    if (mustStayInThisTab($link)) {
+      $link.removeAttr("target");
+      return;
+    }
+    if (!$link.attr("target") && shouldOpenInNewTab($link, options)) {
       $link.attr("target", "_blank");
     }
-  });
+  };
+
+  // Pass 1: tag existing links
+  $("a").each(applyTo);
 
   // Pass 2: intercept clicks before site scripts
   document.addEventListener(
@@ -99,14 +142,7 @@ function initLinksToNewTabs(options) {
   // Pass 3: watch for dynamically added links
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
-      $(mutation.addedNodes)
-        .find("a:not([target])")
-        .each(function () {
-          const $link = $(this);
-          if (shouldOpenInNewTab($link, options)) {
-            $link.attr("target", "_blank");
-          }
-        });
+      $(mutation.addedNodes).find("a").addBack("a").each(applyTo);
     });
   });
   observer.observe(document.body, { childList: true, subtree: true });
