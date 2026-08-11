@@ -436,6 +436,15 @@ function addG2GButtons() {
         button.find("a").parent().addClass("qa-nav-main-selected").addClass("active");
       }
     });
+    // Prevent tabs from wrapping to the next line by adjusting padding
+    const styleElement = document.createElement("style");
+    styleElement.textContent = `
+      .nav-tabs .nav-link, .nav-tabs .nav-link:visited {
+        padding-left: 0.3em !important;
+        padding-right: 0.3em !important;
+      }
+    `;
+    document.head.appendChild(styleElement);
   }
 }
 
