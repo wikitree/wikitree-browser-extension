@@ -507,8 +507,17 @@ export function autoClickAddPersonOptions() {
     const whoValue = new URL(window.location.href).searchParams.get("who");
     const WBEactionValue = new URL(window.location.href).searchParams.get("WBEaction");
     if (WBEactionValue) {
+      const h1Add = document.getElementById("addEditHeadline");
+      const aInHelpIcon = h1Add.getElementsByClassName("icon--help")[0].parentNode;
+
       if (WBEactionValue == "Add") {
         $("#editAction_createNew").trigger("click");
+        const aConnect = document.createElement("a");
+        aConnect.innerText = "connect";
+        aConnect.href = window.location.href.replace("WBEaction=Add", "WBEaction=Connect");
+
+        // aInHelpIcon.appendChild(aConnect);
+        h1Add.parentNode.appendChild(aConnect);
       } else if (WBEactionValue == "Connect") {
         $("#editAction_connectExisting").trigger("click");
       } else if (WBEactionValue == "Remove") {
