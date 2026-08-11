@@ -168,7 +168,13 @@ async function updateProfilesSequentially(
   completionMessage // <== new optional param
 ) {
   console.log(`Starting sequential update for ${profiles.length} ${noMore}...`);
-  $("#wpSummary").val(isChecked ? `Checked 'No more ${noMore}'` : `Unchecked 'No more ${noMore}'`);
+  // Append the Checked 'No more ${noMore}' or Unchecked 'No more ${noMore}' to the summary field.
+  // Don't overwrite any existing summary text, just append to it.
+  const summaryField = $("#wpSummary");
+  const existingSummary = summaryField.val() || "";
+  const newSummaryText = isChecked ? `Checked 'No more ${noMore}'` : `Unchecked 'No more ${noMore}'`;
+  const updatedSummary = existingSummary ? `${existingSummary} ${newSummaryText}` : newSummaryText;
+  summaryField.val(updatedSummary);
 
   for (const profile of profiles) {
     console.log(`Updating profile: ${profile.Id} (${relationship})`);
