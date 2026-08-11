@@ -22,6 +22,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { isProfileEdit, isProfileAddRelative } from "../../core/pageType";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { profilePerson } from "../../core/common";
+import { addItems } from "../scissors/scissors";
 
 const WBE_SHAREABLE_SOURCES_APP_ID = "WBE_shareable_sources";
 
@@ -215,6 +216,13 @@ function getSources(person, active = 0) {
         <x class='small button'>x</x>
       </div>
     `);
+
+    if (isProfileAddRelative) {
+      let copyItems = [];
+      copyItems.push({ label: "Link", text: `[[${efProfile.Name}|${displayName(efProfile)[0]}]]` });
+      const displayOptions = { classic: true, image: false, style: "color: green" };
+      addItems(copyItems, $(referenceBox), displayOptions);
+    }
 
     refArr.forEach(function (aRef, index) {
       let button1 = `<button data-ref=${index} class='small paste'>Add to Sources</button>`;
