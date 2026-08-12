@@ -513,7 +513,8 @@ export function autoClickAddPersonOptions() {
       if (WBEactionValue == "Add") {
         $("#editAction_createNew").trigger("click");
         const aConnect = document.createElement("a");
-        aConnect.innerText = "connect";
+        aConnect.className = "btn btn-secondary";
+        aConnect.innerHTML = "&larr; Connect";
         aConnect.href = window.location.href.replace("WBEaction=Add", "WBEaction=Connect");
 
         // aInHelpIcon.appendChild(aConnect);
