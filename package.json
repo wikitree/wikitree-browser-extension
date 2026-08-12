@@ -10,6 +10,7 @@
     "build-and-run-firefox-windows": "npm run build-firefox-dev && \"C:\\Program Files\\Mozilla Firefox\\firefox.exe\" \"about:debugging#/runtime/this-firefox\"",
     "build-firefox-dev": "webpack --config webpack/webpack.dev.js --env browser=firefox && npm run check-legacy-safari",
     "check-legacy-safari": "node scripts/check-legacy-safari.mjs",
+    "build-safari-dev": "npm run build-dev && node scripts/build-safari-dev.mjs",
     "test": "jest",
     "clean": "rimraf dist",
     "download-templates": "node download-templates.js",

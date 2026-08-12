@@ -39,6 +39,89 @@ export function openFileChooser(readerCallback, readAs = "text", onAbort) {
   }
 }
 
+// storage.sync.set is atomic: if the payload busts QUOTA_BYTES (100KB) or any single item busts
+// QUOTA_BYTES_PER_ITEM (8KB), nothing at all is written and the only signal is lastError. Without
+// this check a restore reports success while the settings are unchanged.
+function writeSettings(features) {
+  return new Promise((resolve, reject) => {
+    if (!features) {
+      resolve(false); // nothing in the file to restore, which is not a failure
+      return;
+    }
+    chrome.storage.sync.set(features, () => {
+      const error = chrome.runtime.lastError;
+      if (error) {
+        reject({ nak: "STORAGE_ERROR", message: error.message });
+      } else {
+        resolve(true);
+      }
+    });
+  });
+}
+
+// The feature data lives on WikiTree rather than in the extension, so this half has to be done by
+// the content script.
+function sendData(data) {
+  return new Promise((resolve, reject) => {
+    if (!data) {
+      resolve(false);
+      return;
+    }
+    sendMessageToContentTab({ action: "restoreData", payload: data }, function (response) {
+      if (response && response.ack) {
+        resolve(true);
+      } else {
+        reject(response ?? { nak: "NO_RESPONSE" });
+      }
+    });
+  });
+}
+
+export function isWBEBackup(json) {
+  return !!(json?.extension && json.extension.indexOf("WikiTree Browser Extension") === 0);
+}
+
+// A file from "Back Up Everything" holds both halves. Each half keeps the key its own backup file
+// uses, so a settings-only or feature-data-only backup is accepted here too, and whichever half the
+// file has is what gets restored.
+export function restoreAll(onProcessing) {
+  return new Promise((resolve, reject) => {
+    openFileChooser(
+      function (e) {
+        if (!this.result) {
+          reject({ nak: "EMPTY_FILE" });
+          return;
+        }
+        let json;
+        try {
+          json = JSON.parse(this.result);
+        } catch {
+          reject({ nak: "INVALID_FORMAT", content: this.result });
+          return;
+        }
+        if (!isWBEBackup(json) || (!json.features && !json.data)) {
+          reject({ nak: "INVALID_FORMAT", content: this.result });
+          return;
+        }
+        if (onProcessing) onProcessing();
+        // The settings go first because they are the half that can be put back without a WikiTree
+        // page. If the data half then fails, settingsRestored tells the caller that the restore
+        // stopped half way, which is a different thing to tell the user than a plain failure.
+        let settingsRestored = false;
+        writeSettings(json.features)
+          .then((done) => {
+            settingsRestored = done;
+            return sendData(json.data);
+          })
+          .then(() => resolve({ settingsRestored, dataRestored: !!json.data }))
+          .catch((failure) => reject({ ...(failure ?? {}), settingsRestored }));
+      },
+      "text",
+      (reason) => reject({ nak: reason })
+    );
+  });
+}
+
 export function restoreOptions(onProcessing) {
   return new Promise((resolve, reject) => {
     openFileChooser(

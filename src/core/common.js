@@ -713,20 +713,6 @@ if (isNavHomePage) {
   checkAnyDataFeature();
 }
 
-function downloadFeatureData() {
-  backupData(false, (response) => {
-    if (response && response.ack) {
-      const wrapped = wrapBackupData("data", response.backup);
-      const link = getBackupLink(wrapped);
-      link.click();
-      recordBackupMade();
-    } else {
-      const err = response?.nak ?? JSON.stringify(response ?? "Backup failed");
-      showFriendlyError(err);
-    }
-  });
-}
-
 // Settings live in sync storage rather than on WikiTree, so they are fetched separately
 // from the feature data and the two are written into a single backup file.
 function downloadFullBackup() {
@@ -736,8 +722,7 @@ function downloadFullBackup() {
       return;
     }
     chrome.storage.sync.get(null, (settings) => {
-      const link = getBackupLink(wrapFullBackup(settings || {}, response.backup));
-      link.click();
+      triggerDownload(getBackupLink(wrapFullBackup(settings || {}, response.backup)));
       recordBackupMade();
     });
   });
@@ -778,7 +763,7 @@ export function wrapBackupData(key, data, isDataSubset = false) {
 // The monthly reminder backs up both halves in one click. One file is friendlier than two
 // downloads, and because each half keeps the key its own backup file uses, this file is
 // accepted by both "Restore Settings" and "Restore Feature Data".
-function wrapFullBackup(settings, data) {
+export function wrapFullBackup(settings, data) {
   const wrapped = makeBackupWrapper("settings_and_feature_data");
   wrapped.features = settings;
   wrapped.data = data;
@@ -795,8 +780,16 @@ export function getDownloadLink(filename, data) {
   let link = document.createElement("a");
   link.title = 'Right-click to "Save as..." at specific location on your device.';
 
-  if (navigatorDetect.browser.Safari) {
-    // Safari doesn't handle blobs or the download attribute properly
+  // Safari used to need a data: URL everywhere, because it handled neither blobs nor the download
+  // attribute. On a web page that is long since fixed, and it now refuses to navigate to a data: URL
+  // at all ("Not allowed to load local resource"), so the blob is the only thing that works there.
+  // Inside the extension's own pages it is still the other way round: Safari ignores the download
+  // attribute, treats the click as a navigation, and then will not read a blob from the extension's
+  // own origin ("WebKitBlobResource error 1"). A data: URL does download there, but carries no
+  // filename with it, so the file arrives called "Unknown" - which is why downloadBackupData() in
+  // options.js hands the job to the content script whenever a WikiTree tab is available.
+  const isExtensionPage = location.protocol.endsWith("-extension:");
+  if (navigatorDetect.browser.Safari && isExtensionPage) {
     link.href = "data:application/octet-stream," + encodeURIComponent(data);
     link.target = "_blank";
     link.title = link.title.replace("Save as...", "Download Linked File As...");
@@ -806,6 +799,32 @@ export function getDownloadLink(filename, data) {
     link.download = filename;
   }
   return link;
+}
+
+// Safari ignores a click on an anchor that isn't in the document, so put it there for
+// the click and take it out again afterwards. The object URL keeps the whole backup in
+// memory until it is revoked, but revoking it too soon cancels the download, hence the
+// delay rather than doing it on the next line.
+export function triggerDownload(link) {
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(() => {
+    link.remove();
+    if (link.href.startsWith("blob:")) {
+      URL.revokeObjectURL(link.href);
+    }
+  }, 30000);
+}
+
+// storage.sync.set is atomic: if the backup is too big for sync storage nothing is written at all
+// and the only signal is lastError, so reporting success without checking would be a lie.
+function restoreSettings(features, done) {
+  if (!features) {
+    done(null); // a file with no settings in it is not a failure
+    return;
+  }
+  chrome.storage.sync.set(features, () => done(chrome.runtime.lastError?.message ?? null));
 }
 
 function importFeatureData() {
@@ -819,15 +838,35 @@ function importFeatureData() {
       let isValid = false;
       try {
         const json = JSON.parse(reader.result);
-        if ((isValid = json.extension && json.extension.indexOf("WikiTree Browser Extension") === 0 && json.data)) {
-          restoreData(json.data, (response) => {
-            if (response && response.ack) {
-              // Reload the page to apply the changes
-              location.reload();
-            } else {
-              const err = response?.message ?? response?.nak ?? JSON.stringify(response ?? "Restore failed");
-              showFriendlyError(`Data restore failed: ${err}`);
+        // Backups made before this button did both halves hold only the feature data, and a
+        // settings-only backup is a valid file too, so restore whichever halves the file has.
+        if (
+          (isValid =
+            json.extension &&
+            json.extension.indexOf("WikiTree Browser Extension") === 0 &&
+            (json.features || json.data))
+        ) {
+          restoreSettings(json.features, (settingsError) => {
+            if (settingsError) {
+              showFriendlyError(`Settings restore failed: ${settingsError}`);
+              return;
             }
+            if (!json.data) {
+              location.reload(); // Reload the page to apply the changes
+              return;
+            }
+            restoreData(json.data, (response) => {
+              if (response && response.ack) {
+                location.reload();
+              } else {
+                const err = response?.message ?? response?.nak ?? JSON.stringify(response ?? "Restore failed");
+                showFriendlyError(
+                  json.features
+                    ? `Your settings were restored, but the feature data was not: ${err}`
+                    : `Data restore failed: ${err}`
+                );
+              }
+            });
           });
         }
       } catch {
@@ -844,19 +883,20 @@ function importFeatureData() {
 
 function addDataButtons() {
   const commonText =
-    "of all data associated with features of WikiTree Browser Extension. This includes data for Change Summary " +
-    "Options, Clipboard and Notes, Distance and Relationships, Extra Watchlist, My Menu, Space Watchlist " +
-    "Sorter, Text Expander, and WT+ Query Builder";
+    "your WikiTree Browser Extension settings (which features are switched on, plus each feature's options) " +
+    "and all data associated with its features. This includes data for Change Summary Options, Clipboard and " +
+    "Notes, Distance and Relationships, Extra Watchlist, My Menu, Space Watchlist Sorter, Text Expander, and " +
+    "WT+ Query Builder";
   const dataButtons = `
     <div id="featureDataButtons">
       <button id="downloadFeatureData" class="btn btn-secondary btn-sm"
-      title="Create and download a backup file ${commonText}.">Download all WBE Feature Data</button>
+      title="Create and download a single backup file of ${commonText}.">Back Up All WBE Data and Settings</button>
       <button id="importFeatureData" class="btn btn-secondary btn-sm"
-      title="Import/restore data from a backup file ${commonText}.">Import WBE Feature Data</button>
+      title="Restore from a backup file of ${commonText}.">Restore WBE Data and Settings</button>
     </div>
   `;
   $(".masonry-wrapper").after(dataButtons);
-  $("#downloadFeatureData").on("click", downloadFeatureData);
+  $("#downloadFeatureData").on("click", downloadFullBackup);
   $("#importFeatureData").on("click", importFeatureData);
 }
 
@@ -1826,6 +1866,12 @@ function backupRestoreListener(request, sender, sendResponse) {
     } else if (request.action === "restoreData") {
       restoreData(request.payload, sendResponse);
       return true; // keep the message channel open for async sendResponse
+    } else if (request.action === "downloadBackup") {
+      // Safari can't download from the extension popup (see getDownloadLink), so the popup sends
+      // the finished backup here and the page, which downloads perfectly well, saves it.
+      triggerDownload(getBackupLink(request.payload));
+      sendResponse({ ack: true });
+      return true;
     }
   }
   return false; // this tells Chrome that it can close the channel because no response will be sent

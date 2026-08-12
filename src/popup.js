@@ -1,5 +1,5 @@
 import $ from "jquery";
-import { restoreOptions, restoreData } from "./upload";
+import { restoreOptions, restoreData, restoreAll } from "./upload";
 
 if (window.location.hash) {
   (function (hash, dialog) {
@@ -36,6 +36,13 @@ function showUpload(hash, dialog) {
   // Anything other than a bad file used to be reported as "The file was not valid",
   // which sent people off hunting for a problem with a perfectly good backup.
   function messageFor(result) {
+    // "Restore Everything" puts the settings back before the feature data, so a failure can leave
+    // half the backup restored. This is empty for the other two, which only ever do one half.
+    const half = result?.settingsRestored ? "Your settings were restored, but your feature data was not. " : "";
+    return half + reasonFor(result);
+  }
+
+  function reasonFor(result) {
     switch (result?.nak) {
       case "STORAGE_ERROR":
         return "Your settings could not be saved, so nothing was restored. The backup may be too large for the browser's sync storage.";
@@ -64,7 +71,12 @@ function showUpload(hash, dialog) {
     $("#errorMessage").text(messageFor(result)).fadeIn();
   }
 
-  if (window.location.hash === "#UploadOptions") {
+  if (window.location.hash === "#UploadAll") {
+    dialog.find(".dialog-header").text("Restore Everything");
+    launch = function () {
+      restoreAll().then(done).catch(failed);
+    };
+  } else if (window.location.hash === "#UploadOptions") {
     dialog.find(".dialog-header").text("Restore Settings");
     launch = function () {
       restoreOptions().then(done).catch(failed);

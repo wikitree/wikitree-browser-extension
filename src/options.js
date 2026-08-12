@@ -3,8 +3,16 @@ import $ from "jquery";
 import { features, OptionType } from "./core/options/options_registry";
 import { categorize } from "./features/register_categories";
 import "./features/register_feature_options";
-import { WBE, isWikiTreeUrl, showAlert, wrapBackupData, getBackupLink, recordBackupMade } from "./core/common";
-import { restoreOptions, restoreData, sendMessageToContentTab } from "./upload";
+import {
+  WBE,
+  isWikiTreeUrl,
+  showAlert,
+  wrapBackupData,
+  wrapFullBackup,
+  getBackupLink,
+  recordBackupMade,
+} from "./core/common";
+import { restoreOptions, restoreData, restoreAll, sendMessageToContentTab } from "./upload";
 import { navigatorDetect } from "./core/navigatorDetect";
 import { shouldInitializeFeature } from "./core/options/options_storage.js";
 import { initSafariPopupScrollFix } from "./core/popupScrollFix";
@@ -736,7 +744,9 @@ $("#openSettings").on("click", function () {
               .replace(/^\s*\w+\s+(\w+)\s+0*([1-9]\d+)\s+(\d+)\s*$/, "$2 $1 $3")}</a>`
           : ""
       }</div>` +
-      '<ul><li style="font-size: 10pt; font-weight: bold;">Settings (which features are switched on, plus each feature\'s options)</li>' +
+      '<ul><li class="hide-unless-wikitree" title="This will download a single backup file with your settings and your feature data."><button id="btnExportAll">Back Up Everything</button> Back up your settings <i>and</i> your feature data, in one file.</li>' +
+      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select a backup file, and will restore both your settings and your feature data from it."><button id="btnImportAll">Restore Everything</button> Restore your settings <i>and</i> your feature data from one backup file.</li>' +
+      '<li style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Settings (which features are switched on, plus each feature\'s options)</li>' +
       '<li><div style="--font-px:16" class="toggle"><input type="checkbox" id="toggleDisableUpdateNotification"><label for="toggleDisableUpdateNotification">Disable the notification when the extension updates.</label></div></li>' +
       '<li title="This would be like toggling all of the radio buttons back to the default. Each feature\'s settings will be preserved."><button id="btnResetOptions">Default Features</button> Enable only the default features.</li>' +
       '<li title="This will download a backup file with your current settings."><button id="btnExportOptions">Back Up Settings</button> Back up your current settings.</li>' +
@@ -746,7 +756,7 @@ $("#openSettings").on("click", function () {
       '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Feature data (the content you have saved with a feature) for this subset of features: Change Summary Options, Clipboard and Notes, Extra Watchlist (including profile notes), My Menu, Space Watchlist Sorter, and WT+ Query Builder.</li>' +
       '<li class="hide-unless-wikitree" title="This will download a backup file with your current feature data."><button id="btnExportData">Back Up Feature Data</button> Back up the above subset of your feature data from WikiTree.</li>' +
       '<li class="hide-unless-wikitree" title="This will pop up a dialog to select your feature data backup file."><button id="btnImportData">Restore Feature Data</button> Restore the above subset of your feature data on WikiTree.</li>' +
-      '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Use the save/restore buttons on your <a href="https://www.wikitree.com/wiki/Special:Home#downloadFeatureData" style="color: #060;" target="_blank">WikiTree Navigation Home Page</a> to save/restore all feature data.</li>' +
+      '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Use the save/restore buttons on your <a href="https://www.wikitree.com/wiki/Special:Home#downloadFeatureData" style="color: #060;" target="_blank">WikiTree Navigation Home Page</a> to save/restore all of your feature data and settings in one file.</li>' +
       "</ul></div></dialog>"
   )
     .appendTo($(document.body).remove("#settingsDialog"))
@@ -786,8 +796,56 @@ $("#openSettings").on("click", function () {
   $dialog.find("#btnClearOptions").on("click", function (e) {
     reset_options(false, closeSettings);
   });
+  $dialog.find("#btnExportAll").on("click", exportAllClicked);
   $dialog.find("#btnExportOptions").on("click", exportOptionsClicked);
   $dialog.find("#btnExportData").on("click", exportDataClicked);
+  $dialog.find("#btnImportAll").on("click", function (e) {
+    if (navigatorDetect.browser.Firefox) {
+      window.open(
+        "popup.html#UploadAll",
+        "wbe_upload",
+        `innerWidth=${window.innerWidth},innerHeight=${window.innerHeight},screenX=${window.screenX},screenY=${window.screenY},popup=1`
+      );
+    } else {
+      restoreAll()
+        .then(closeSettings)
+        .catch((response) => {
+          var err = response?.nak ?? JSON.stringify(response ?? "NO_RESPONSE");
+          // The settings go in before the feature data, so a failure can leave half the backup
+          // restored. Say which half, rather than letting it look as though nothing happened.
+          const half = response?.settingsRestored
+            ? "Your settings were restored, but your feature data was not.\n\n"
+            : "";
+          if (err == "CANCELLED") {
+            // the file picker was dismissed; nothing to report
+          } else if (err == "INVALID_FORMAT") {
+            showAlert("The backup file was not valid.", "Restore Everything Failed", "#settingsDialog");
+          } else if (err == "STORAGE_ERROR") {
+            showAlert(
+              "Your settings could not be saved, so nothing was restored.\nThis usually means the backup is too large for the browser's sync storage.\n\n" +
+                (response?.message ?? ""),
+              "Restore Everything Failed",
+              "#settingsDialog"
+            );
+          } else if (err == "NO_TABS") {
+            showAlert(
+              half +
+                "No WikiTree pages responded, so the feature data could not be restored.\nThis could happen if you closed your tabs or the extension updated.\nOpen a new WikiTree page in your browser, or refresh and try again.",
+              "Restore Everything Failed",
+              "#settingsDialog"
+            );
+          } else if (err == "RESTORE_FAILED") {
+            showAlert(
+              half + `The restore failed:\n\n${response?.message ?? ""}`,
+              "Restore Everything Failed",
+              "#settingsDialog"
+            );
+          } else {
+            console.error(err);
+          }
+        });
+    }
+  });
   $dialog.find("#btnImportOptions").on("click", function (e) {
     if (navigatorDetect.browser.Firefox) {
       window.open(
@@ -1015,12 +1073,29 @@ chrome.storage.onChanged.addListener(function () {
   }
 })((typeof browser !== "undefined" ? browser : chrome).tabs);
 
-function downloadBackupData(key, data, button) {
-  const wrapped = wrapBackupData(key, data, key == "data");
-  const link = $(getBackupLink(wrapped)).addClass("button download").text("Download").hide();
-  if (key == "data") {
-    // Only a data backup counts towards the monthly backup reminder, and only once the
-    // user has actually clicked the link: building it doesn't save anything anywhere.
+function downloadBackupData(wrapped, button, countsAsBackup) {
+  // Safari's own pages can only manage a data: URL, which saves the file as "Unknown" because a
+  // data: URL has no filename in it. A WikiTree page has no such limitation, so when there is one
+  // open, it does the download and the file keeps its name. Nothing else needs this detour.
+  const viaPage = isSafari && $("html").hasClass("is-on-wikitree");
+  const link = viaPage
+    ? $('<a class="download" href="#">Download</a>').on("click", function (e) {
+        e.preventDefault();
+        sendMessageToContentTab({ action: "downloadBackup", payload: wrapped }, function (response) {
+          if (!response || !response.ack) {
+            showAlert(
+              "The backup could not be saved. Try again from a WikiTree page.",
+              "Download Failed",
+              "#settingsDialog"
+            );
+          }
+        });
+      })
+    : $(getBackupLink(wrapped)).text("Download");
+  link.addClass("button download").hide();
+  if (countsAsBackup) {
+    // Only a backup that includes the feature data counts towards the monthly reminder, and only
+    // once the user has actually clicked the link: building it doesn't save anything anywhere.
     link.on("click", recordBackupMade);
   }
   $(button).hide().parent().append(" ").append(link);
@@ -1030,21 +1105,36 @@ function downloadBackupData(key, data, button) {
 function exportOptionsClicked() {
   const button = this;
   chrome.storage.sync.get(null, (result) => {
-    downloadBackupData("features", result, button);
+    downloadBackupData(wrapBackupData("features", result), button, false);
   });
 }
 
 function exportDataClicked() {
   const button = this;
+  backupFromPage(button, "Back Up Feature Data Failed", (backup) => wrapBackupData("data", backup, true));
+}
+
+// The settings and the feature data are kept in different places, so the one file has to be
+// assembled from both. It is the same file the monthly reminder produces, and because each half
+// keeps the key its own backup file uses, it restores through either of the Restore buttons.
+function exportAllClicked() {
+  const button = this;
+  backupFromPage(button, "Back Up Everything Failed", (backup, settings) => wrapFullBackup(settings, backup));
+}
+
+// Everything with feature data in it needs a WikiTree page to fetch that data from.
+function backupFromPage(button, failureTitle, wrap) {
   sendMessageToContentTab({ action: "backupData" }, function (response) {
     if (response && response.ack && response.backup) {
-      downloadBackupData("data", response.backup, button);
+      chrome.storage.sync.get(null, (settings) => {
+        downloadBackupData(wrap(response.backup, settings || {}), button, true);
+      });
     } else {
       var err = response?.nak ?? JSON.stringify(response ?? "NO_RESPONSE");
       if (err == "NO_TABS") {
         showAlert(
           "The backup failed because no WikiTree pages responded.\nThis could happen if you closed your tabs or the extension updated.\nOpen a new WikiTree page in your browser, or refresh and try again.",
-          "Back Up Feature Data Failed",
+          failureTitle,
           "#settingsDialog"
         );
       } else {
