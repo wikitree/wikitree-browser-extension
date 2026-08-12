@@ -22,6 +22,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { isProfileEdit, isProfileAddRelative } from "../../core/pageType";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { profilePerson } from "../../core/common";
+import { addItems } from "../scissors/scissors";
 
 const WBE_SHAREABLE_SOURCES_APP_ID = "WBE_shareable_sources";
 
@@ -206,6 +207,8 @@ function getSources(person, active = 0) {
     /* pick arrow markup only if we are NOT on profile edit page */
     const arrowHtml = isProfileEdit ? "" : "<span class='showSources'>&#9660;</span>";
 
+    const copyButtonsBox = $("<span class='copy--buttons'></span>");
+
     let referenceBox = $(` 
       <div class='referenceBox active ${refBoxClass}' data-id=${efProfile.Name} tabindex='-1'>
         <button class='seeBiography' class='small'>Bio</button>
@@ -215,6 +218,17 @@ function getSources(person, active = 0) {
         <x class='small button'>x</x>
       </div>
     `);
+
+    if (isProfileAddRelative) {
+      let copyItems = [];
+      copyItems.push({ label: "Link", text: `[[${efProfile.Name}|${displayName(efProfile)[0]}]]` });
+      const displayOptions = { classic: true, image: false, style: "color: green" };
+      // referenceBox is still detached here, so check inside it, not the document.
+      if (referenceBox.find(".copy--buttons").length === 0) {
+        referenceBox.append(copyButtonsBox);
+        addItems(copyItems, copyButtonsBox, displayOptions);
+      }
+    }
 
     refArr.forEach(function (aRef, index) {
       let button1 = `<button data-ref=${index} class='small paste'>Add to Sources</button>`;
