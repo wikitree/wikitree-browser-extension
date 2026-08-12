@@ -54,12 +54,6 @@ if (WBE?.version) {
 // own, so nothing below this point should change anywhere else.
 const isSafari = !navigatorDetect.browser.Blink && !navigatorDetect.browser.Gecko;
 
-// Safari's popover can't download a blob (see getDownloadLink), and the data: URL it can manage
-// loses the filename. A full tab is an ordinary page and should have neither problem. This starts
-// out assuming the worst and is cleared below once tabs.getCurrent confirms we are in a tab, so a
-// browser that won't answer that question keeps the download that at least works.
-let isSafariPopover = isSafari;
-
 // The toolbar button opens this page as the popup, and on Safari for iPadOS that
 // popover is all you get - unlike Chrome's icon context menu or Firefox's
 // about:addons, there is no "open the options page" entry anywhere in the browser
@@ -70,11 +64,7 @@ let isSafariPopover = isSafari;
   if (!isSafari || !tabs?.getCurrent || !tabs?.create) return;
   try {
     tabs.getCurrent(function (tab) {
-      if (chrome.runtime?.lastError) return;
-      if (tab) {
-        isSafariPopover = false;
-        return; // already in a tab, so no need for a button offering one
-      }
+      if (chrome.runtime?.lastError || tab) return; // already in a tab
       $('<a id="openInTab" class="nohover">Open in a tab</a>')
         .attr({ href: chrome.runtime.getURL("options.html"), title: "Open these options in a full browser tab" })
         .on("click", function (e) {
@@ -1095,12 +1085,18 @@ function downloadBackupData(wrapped, button, countsAsBackup) {
   // Safari's own pages can only manage a data: URL, which saves the file as "Unknown" because a
   // data: URL has no filename in it. A WikiTree page has no such limitation, so when there is one
   // open, it does the download and the file keeps its name. Nothing else needs this detour.
-  const viaPage = isSafari && $("html").hasClass("is-on-wikitree");
-  const link = viaPage
+  // Every Safari download goes through a WikiTree page, whether one is open already or has to be
+  // opened for it. The data: URL below is only for a browser that won't let us open a tab at all.
+  const link = isSafari
     ? $('<a class="download" href="#">Download</a>').on("click", function (e) {
         e.preventDefault();
         sendMessageToContentTab({ action: "downloadBackup", payload: wrapped }, function (response) {
-          if (!response || !response.ack) {
+          if (response && response.ack) {
+            return;
+          }
+          if (response?.nak === "NO_TABS") {
+            downloadFromNewWikiTreeTab(wrapped);
+          } else {
             showAlert(
               "The backup could not be saved. Try again from a WikiTree page.",
               "Download Failed",
@@ -1109,7 +1105,7 @@ function downloadBackupData(wrapped, button, countsAsBackup) {
           }
         });
       })
-    : $(getBackupLink(wrapped, { dataUrl: isSafariPopover })).text("Download");
+    : $(getBackupLink(wrapped, { dataUrl: isSafari })).text("Download");
   link.addClass("button download").hide();
   if (countsAsBackup) {
     // Only a backup that includes the feature data counts towards the monthly reminder, and only
@@ -1118,6 +1114,28 @@ function downloadBackupData(wrapped, button, countsAsBackup) {
   }
   $(button).hide().parent().append(" ").append(link);
   link.fadeIn();
+}
+
+// Safari won't save a file with a name on it from the extension's own pages, so when there is no
+// WikiTree page to hand the job to, open one. Messaging that new tab means guessing when its
+// content script has started listening; leaving the backup where the content script will find it
+// means it can pick the job up whenever it is ready, and works from the popover too, which closes
+// itself - taking any code waiting on it with it - the moment a tab opens.
+function downloadFromNewWikiTreeTab(wrapped) {
+  const tabs = (typeof browser !== "undefined" ? browser : chrome).tabs;
+  if (!tabs?.create) {
+    showAlert(
+      "The backup could not be saved.\nOpen a WikiTree page and try again.",
+      "Download Failed",
+      "#settingsDialog"
+    );
+    return;
+  }
+  chrome.storage.local.set({ wbePendingBackup: { payload: wrapped, at: Date.now() } }, function () {
+    // Focused rather than in the background: Safari asks for permission to download in that tab,
+    // and a prompt nobody can see is a download that never happens.
+    tabs.create({ url: "https://www.wikitree.com/" });
+  });
 }
 
 function exportOptionsClicked() {

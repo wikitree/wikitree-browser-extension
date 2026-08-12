@@ -268,6 +268,7 @@ oncePerTab((rootWindow) => {
   // Since messages will be targeting a tab and not a window, we don't want to add multiple listeners if
   // there is an iframe on the page.
   chrome.runtime.onMessage.addListener(backupRestoreListener);
+  takePendingBackup();
 
   if (!WBE.isRelease) {
     // print the WBE build info in the console for easy debugging
@@ -825,6 +826,27 @@ function restoreSettings(features, done) {
     return;
   }
   chrome.storage.sync.set(features, () => done(chrome.runtime.lastError?.message ?? null));
+}
+
+// Safari saves no named file from the extension's own pages, so they leave the backup here and open
+// a WikiTree tab to do it (see downloadFromNewWikiTreeTab in options.js). Waiting to be asked
+// rather than being messaged is what makes that work from the popover, which closes the moment the
+// tab opens: by then this page hasn't loaded, and there would be nothing left to answer.
+function takePendingBackup() {
+  chrome.storage.local.get("wbePendingBackup", (stored) => {
+    const pending = stored?.wbePendingBackup;
+    if (!pending?.payload) {
+      return;
+    }
+    // Taken before it is used, so that two WikiTree pages loading at once can't both save it.
+    chrome.storage.local.remove("wbePendingBackup", () => {
+      // Anything left over from a tab that never loaded, or a browser closed part way through,
+      // would otherwise download itself out of nowhere the next time WikiTree was opened.
+      if (Date.now() - (pending.at ?? 0) < 300000) {
+        triggerDownload(getBackupLink(pending.payload));
+      }
+    });
+  });
 }
 
 function importFeatureData() {
