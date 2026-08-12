@@ -26,32 +26,169 @@ if (chrome.runtime) {
   });
 }
 
-// Create a context menu item when the extension is installed.
+// Context menu items.
 // contextMenus is not implemented on Firefox for Android, so everything
 // below is skipped there rather than throwing and killing this script.
+//
+// Which items are shown is worked out here rather than left to documentUrlPatterns, because
+// Safari does not behave like Chrome on either count:
+//   * It matches documentUrlPatterns against the path alone, so a pattern with a query string in
+//     it (index.php?title=Special:EditPerson*) never matches and the item never appears at all.
+//   * It shows every item in the menu you get by right-clicking the toolbar icon, whatever the
+//     item's patterns say, so items for the page you are on are offered on pages they cannot work.
+// Only creating the items the active tab can use means the same thing in every browser, and covers
+// the toolbar menu as well as the page menu.
 if (chrome.contextMenus) {
-  chrome.runtime.onInstalled.addListener(function () {
-    chrome.contextMenus.create({
+  // The URL tests mirror src/core/pageType.js, which is what decides whether the features
+  // themselves run. featureId/featureDefault mirror the feature's registration, so an item is
+  // not offered for a feature the user has switched off (the click would do nothing).
+  const contextMenuItems = [
+    {
       id: "myContextMenu",
       title: "Wikitable Wizard",
-      contexts: ["all"],
-      documentUrlPatterns: [
-        "https://www.wikitree.com/index.php?title=Special:EditPerson*",
-        "https://www.wikitree.com/index.php?title=Space:*",
-      ], // Only show on WikiTree profile edit and space edit pages
-    });
-    chrome.contextMenus.create({
+      featureId: "wikitableWizard",
+      featureDefault: true,
+      isUsefulOn: (url) => isWikiEditUrl(url),
+    },
+    {
       id: "clipboardContextMenu",
       title: "Clipboard",
-      contexts: ["all"],
-      documentUrlPatterns: ["https://www.wikitree.com/*"],
-    });
-    chrome.contextMenus.create({
+      featureId: "clipboardAndNotes",
+      featureDefault: false,
+      isUsefulOn: (url) => isMainDomainUrl(url),
+    },
+    {
       id: "notesContextMenu",
       title: "Notes",
-      contexts: ["all"],
-      documentUrlPatterns: ["https://www.wikitree.com/*"],
+      featureId: "clipboardAndNotes",
+      featureDefault: false,
+      isUsefulOn: (url) => isMainDomainUrl(url),
+    },
+    {
+      // Both halves of a backup need the content script: the feature data is read from the page,
+      // and on Safari the page is also the only thing that can save a file with a name on it. So
+      // these are offered on WikiTree pages only, whatever the browser.
+      id: "backupAllContextMenu",
+      title: "Backup",
+      isUsefulOn: (url) => isMainDomainUrl(url),
+    },
+    {
+      id: "restoreAllContextMenu",
+      title: "Restore",
+      isUsefulOn: (url) => isMainDomainUrl(url),
+    },
+    {
+      // The settings page is otherwise buried, so this one is offered everywhere, including in
+      // Safari's toolbar icon menu when the tab has nothing to do with WikiTree. "action" puts it
+      // in the icon menu in Chrome too, where items for the page do not appear there.
+      id: "optionsContextMenu",
+      title: "Settings",
+      contexts: ["all", "action"],
+      isUsefulOn: () => true,
+    },
+  ];
+
+  function wikiTreePageUrl(url) {
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return null; // no URL at all: a tab we have no permission for, or a new tab page
+    }
+    if (parsed.protocol !== "https:" || !/(^|\.)wikitree\.com$/.test(parsed.hostname)) return null;
+    // apps, api and plus are separate sites; these features only run on the main one.
+    if (/^(apps|api|plus)\./.test(parsed.hostname)) return null;
+    return parsed;
+  }
+
+  function isMainDomainUrl(url) {
+    return Boolean(wikiTreePageUrl(url));
+  }
+
+  // Profile edit pages, and Space/Category/Template/Help/Project edit pages: anywhere there is
+  // wiki text to put a table into. The same set as the Wikitable Wizard's own isWikiEdit check.
+  // Titles can arrive with the colon encoded, hence the (:|%3A|%3a) in each pattern.
+  function isWikiEditUrl(url) {
+    const parsed = wikiTreePageUrl(url);
+    if (!parsed) return false;
+    const uri = parsed.href;
+    return (
+      /\/(index\.php\?title=|wiki\/)Special(:|%3A|%3a)EditPerson/.test(uri) ||
+      /\/index\.php\?title=[^&]+(:|%3A|%3a)[^&]*&action=(edit|submit)/.test(uri)
+    );
+  }
+
+  function activeTabUrl() {
+    return new Promise((resolve) => {
+      chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+        // Without host permission for the tab's site, url is empty, which is the same answer as
+        // "nothing here for us": without that permission the content script isn't running either.
+        resolve((!chrome.runtime.lastError && tabs?.[0]?.url) || "");
+      });
     });
+  }
+
+  function featureSettings() {
+    const keys = [...new Set(contextMenuItems.map((item) => item.featureId).filter(Boolean))];
+    return new Promise((resolve) => {
+      chrome.storage.sync.get(keys, (items) => resolve((!chrome.runtime.lastError && items) || {}));
+    });
+  }
+
+  // An item with no featureId belongs to no feature and is always on.
+  function isFeatureEnabled(item, settings) {
+    return !item.featureId || (settings[item.featureId] ?? item.featureDefault);
+  }
+
+  // Safari has not always supported the "action" context. Rather than lose the item if it rejects
+  // one, a create that fails is retried with the contexts every browser has.
+  function createContextMenuItem(item) {
+    const contexts = item.contexts ?? ["all"];
+    chrome.contextMenus.create({ id: item.id, title: item.title, contexts }, () => {
+      if (chrome.runtime.lastError && contexts.length > 1) {
+        chrome.contextMenus.create(
+          { id: item.id, title: item.title, contexts: ["all"] },
+          () => chrome.runtime.lastError
+        );
+      }
+    });
+  }
+
+  // The items that should be there are created and the rest are removed, rather than created once
+  // and hidden with `visible`, because create and remove behave the same everywhere.
+  let shownIds = null; // what the menu holds; null until this copy of the script has built it
+  let pending = Promise.resolve(); // rebuilds are queued, so two of them cannot interleave
+
+  function refreshContextMenus() {
+    pending = pending.then(rebuildContextMenus).catch(() => {});
+    return pending;
+  }
+
+  async function rebuildContextMenus() {
+    const [url, settings] = await Promise.all([activeTabUrl(), featureSettings()]);
+    const wanted = contextMenuItems.filter((item) => isFeatureEnabled(item, settings) && item.isUsefulOn(url));
+    const wantedIds = wanted.map((item) => item.id).join();
+    if (shownIds === wantedIds) return;
+    await new Promise((resolve) => chrome.contextMenus.removeAll(resolve));
+    wanted.forEach(createContextMenuItem);
+    shownIds = wantedIds;
+  }
+
+  // Built every time the background script starts, not only on install: onInstalled fires when the
+  // version changes, so in Safari a rebuilt extension can otherwise go on serving the menu it was
+  // installed with and never show a newly added item.
+  refreshContextMenus();
+
+  chrome.runtime.onStartup?.addListener(() => refreshContextMenus());
+  chrome.tabs.onActivated.addListener(() => refreshContextMenus());
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (changeInfo.url || changeInfo.status === "complete") refreshContextMenus();
+  });
+  chrome.windows?.onFocusChanged.addListener(() => refreshContextMenus());
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "sync" && contextMenuItems.some((item) => item.featureId && item.featureId in changes)) {
+      refreshContextMenus();
+    }
   });
 
   // Listen for the context menu item click
@@ -64,9 +201,26 @@ if (chrome.contextMenus) {
       // Execute script in the content script
       chrome.tabs.sendMessage(tab.id, { action: "showClipboard" });
     }
+    if (info.menuItemId === "backupAllContextMenu") {
+      chrome.tabs.sendMessage(tab.id, { action: "backupEverything" });
+    }
+    if (info.menuItemId === "restoreAllContextMenu") {
+      chrome.tabs.sendMessage(tab.id, { action: "restoreEverything" });
+    }
     if (info.menuItemId === "notesContextMenu") {
       // Execute script in the content script
       chrome.tabs.sendMessage(tab.id, { action: "showNotes" });
+    }
+    if (info.menuItemId === "optionsContextMenu") {
+      // openOptionsPage is the one that reuses an already open settings tab, so it is worth
+      // trying first, but it is not in every browser this runs in.
+      if (chrome.runtime.openOptionsPage) {
+        chrome.runtime.openOptionsPage(() => {
+          if (chrome.runtime.lastError) chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
+        });
+      } else {
+        chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
+      }
     }
   });
 }

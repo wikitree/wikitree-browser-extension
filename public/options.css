@@ -375,6 +375,21 @@ body.wbe-safari-scroll #categoryBar {
 #settingsDialog .dialog-content a.button.download:hover {
   background-color: #8fc641;
 }
+/* Replaces the button once the page has saved the file, so it sits on its own line rather than
+   running on from the description the button used to sit in front of. */
+#settingsDialog .dialog-content .download-done {
+  display: block;
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background-color: #eef6e2;
+  border: 1px solid #8fc641;
+  color: #25422d;
+  font-weight: bold;
+}
+#settingsDialog .dialog-content .download-done::before {
+  content: "\2713\00a0"; /* tick, then a non-breaking space */
+}
 
 #options h1 div.toggle-category {
   background-color: #f7f6f0;

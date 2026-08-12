@@ -716,15 +716,34 @@ if (isNavHomePage) {
 
 // Settings live in sync storage rather than on WikiTree, so they are fetched separately
 // from the feature data and the two are written into a single backup file.
-function downloadFullBackup() {
+//
+// onDone reports back to whoever asked for this from outside the page. Called with an error it
+// reports the failure itself, because the caller may be the popup, which has closed by then.
+function downloadFullBackup(onDone) {
+  downloadBackupFile(
+    (backup, ready) => chrome.storage.sync.get(null, (settings) => ready(wrapFullBackup(settings || {}, backup))),
+    onDone
+  );
+}
+
+// The feature data on its own, with every database in it - the compact backup that fits through
+// messaging is not what anyone clicking a Back Up button is asking for.
+function downloadFeatureDataBackup(onDone) {
+  downloadBackupFile((backup, ready) => ready(wrapBackupData("data", backup)), onDone);
+}
+
+function downloadBackupFile(wrap, onDone) {
   backupData(false, (response) => {
     if (!response || !response.ack) {
-      showFriendlyError(response?.nak ?? JSON.stringify(response ?? "Backup failed"));
+      const error = response?.nak ?? JSON.stringify(response ?? "Backup failed");
+      showFriendlyError(error);
+      if (onDone) onDone(error);
       return;
     }
-    chrome.storage.sync.get(null, (settings) => {
-      triggerDownload(getBackupLink(wrapFullBackup(settings || {}, response.backup)));
+    wrap(response.backup, (wrapped) => {
+      triggerDownload(getBackupLink(wrapped));
       recordBackupMade();
+      if (onDone) onDone(null);
     });
   });
 }
@@ -849,13 +868,67 @@ function takePendingBackup() {
   });
 }
 
-function importFeatureData() {
+// A file picker only opens for a click that belongs to the page. The context menu click belongs to
+// the background script, so calling importFeatureData() straight from there does nothing at all,
+// and does it silently. Asking first gives the picker the click it needs, and gives a destructive
+// thing a moment to be reconsidered.
+function promptForRestoreFile() {
+  if ($("#wbe-restore-prompt").length) return;
+
+  const prompt = $(`
+    <div id="wbe-restore-prompt" class="wbe-popup">
+      <div class="dialog-header">
+        <a href="#" class="close" id="wbe-restore-prompt-close" title="Close">&#x2715;</a>
+        Restore WBE Data and Settings
+      </div>
+      <div class="dialog-content">
+        <p>Choose a WBE backup file to restore from. Whatever the file holds &mdash; your settings,
+        your feature data, or both &mdash; replaces what you have now.</p>
+        <div class="backup-reminder-buttons">
+          <button id="wbe-restore-prompt-choose" class="btn btn-primary btn-sm">Choose File</button>
+        </div>
+      </div>
+    </div>
+  `);
+
+  $("body").append(prompt);
+
+  const close = () =>
+    $("#wbe-restore-prompt").fadeOut(function () {
+      $(this).remove();
+    });
+
+  $("#wbe-restore-prompt-close").on("click", function (e) {
+    e.preventDefault();
+    close();
+  });
+
+  $("#wbe-restore-prompt-choose").on("click", function (e) {
+    e.preventDefault();
+    // A backup holding a big Extra Watchlist or Relationship Finder store is tens of megabytes, and
+    // all of it has to be written before the page reloads. Without something on screen saying so,
+    // a restore that is working looks exactly like one that has died - and gets interrupted.
+    importFeatureData(function (status) {
+      if (status === null) {
+        close();
+        return;
+      }
+      $("#wbe-restore-prompt .dialog-content").html($("<p>").text(status));
+    });
+  });
+}
+
+// onStatus is called with what is happening, or with null when there is nothing left to report and
+// any progress message should go. The Nav Home button passes nothing and just gets the old silence
+// until the page reloads.
+function importFeatureData(onStatus = () => {}) {
   const input = document.createElement("input");
   input.type = "file";
   input.accept = "text/plain";
   input.onchange = function () {
     const file = input.files[0];
     const reader = new FileReader();
+    onStatus("Reading the backup file...");
     reader.onload = async function () {
       let isValid = false;
       try {
@@ -868,33 +941,49 @@ function importFeatureData() {
             json.extension.indexOf("WikiTree Browser Extension") === 0 &&
             (json.features || json.data))
         ) {
-          restoreSettings(json.features, (settingsError) => {
-            if (settingsError) {
-              showFriendlyError(`Settings restore failed: ${settingsError}`);
-              return;
-            }
-            if (!json.data) {
-              location.reload(); // Reload the page to apply the changes
-              return;
-            }
-            restoreData(json.data, (response) => {
-              if (response && response.ack) {
-                location.reload();
-              } else {
-                const err = response?.message ?? response?.nak ?? JSON.stringify(response ?? "Restore failed");
-                showFriendlyError(
-                  json.features
-                    ? `Your settings were restored, but the feature data was not: ${err}`
-                    : `Data restore failed: ${err}`
-                );
+          // Anything thrown inside these callbacks lands outside the try below, so without this a
+          // failure part way through the restore is completely silent: no reload, no message.
+          const reportFailure = (what, detail) => {
+            console.error(`WBE restore: ${what}`, detail);
+            onStatus(null);
+            showFriendlyError(`${what}: ${detail?.message ?? detail}`);
+          };
+          onStatus("Restoring... A large backup can take a while. The page reloads when it is done.");
+          try {
+            restoreSettings(json.features, (settingsError) => {
+              try {
+                if (settingsError) {
+                  reportFailure("Settings restore failed", settingsError);
+                  return;
+                }
+                if (!json.data) {
+                  location.reload(); // Reload the page to apply the changes
+                  return;
+                }
+                restoreData(json.data, (response) => {
+                  if (response && response.ack) {
+                    location.reload();
+                    return;
+                  }
+                  const err = response?.message ?? response?.nak ?? JSON.stringify(response ?? "Restore failed");
+                  reportFailure(
+                    json.features ? "Your settings were restored, but the feature data was not" : "Data restore failed",
+                    err
+                  );
+                });
+              } catch (error) {
+                reportFailure("Restore failed", error);
               }
             });
-          });
+          } catch (error) {
+            reportFailure("Restore failed", error);
+          }
         }
       } catch {
         /* if JSON parsing failed or some other error, isValid will still be false here */
       }
       if (!isValid) {
+        onStatus(null);
         showFriendlyError("Invalid file");
       }
     };
@@ -1888,6 +1977,20 @@ function backupRestoreListener(request, sender, sendResponse) {
     } else if (request.action === "restoreData") {
       restoreData(request.payload, sendResponse);
       return true; // keep the message channel open for async sendResponse
+    } else if (request.action === "backupEverything") {
+      // Done here rather than by sending the data back: a backup that fits in a message is a
+      // backup with its three biggest databases left out (see backupData's compactMode).
+      downloadFullBackup((error) => sendResponse(error ? { nak: "BACKUP_FAILED", message: error } : { ack: true }));
+      return true;
+    } else if (request.action === "backupFeatureData") {
+      downloadFeatureDataBackup((error) =>
+        sendResponse(error ? { nak: "BACKUP_FAILED", message: error } : { ack: true })
+      );
+      return true;
+    } else if (request.action === "restoreEverything") {
+      promptForRestoreFile();
+      sendResponse({ ack: true });
+      return true;
     } else if (request.action === "downloadBackup") {
       // Safari can't download from the extension popup (see getDownloadLink), so the popup sends
       // the finished backup here and the page, which downloads perfectly well, saves it.

@@ -375,7 +375,8 @@ ol.star1.green > li::before {
   top: -0.1em;
 }
 
-#wbe-backup-reminder {
+#wbe-backup-reminder,
+#wbe-restore-prompt {
   position: fixed;
   bottom: 20px;
   right: 20px;
@@ -389,7 +390,8 @@ ol.star1.green > li::before {
   flex-direction: column;
 }
 
-#wbe-backup-reminder .dialog-header {
+#wbe-backup-reminder .dialog-header,
+#wbe-restore-prompt .dialog-header {
   background-color: #25422d;
   color: #fff;
   padding: 8px 12px;
@@ -401,36 +403,42 @@ ol.star1.green > li::before {
   align-items: center;
 }
 
-#wbe-backup-reminder .dialog-header .close {
+#wbe-backup-reminder .dialog-header .close,
+#wbe-restore-prompt .dialog-header .close {
   color: #fff;
   text-decoration: none;
   font-size: 18px;
   order: 2;
 }
 
-#wbe-backup-reminder .dialog-content {
+#wbe-backup-reminder .dialog-content,
+#wbe-restore-prompt .dialog-content {
   padding: 15px;
   font-size: 14px;
   line-height: 1.4;
 }
 
-#wbe-backup-reminder .wbe-feature-list {
+#wbe-backup-reminder .wbe-feature-list,
+#wbe-restore-prompt .wbe-feature-list {
   margin: 10px 0;
   padding-left: 20px;
   list-style-type: disc;
 }
 
-#wbe-backup-reminder .wbe-feature-list li {
+#wbe-backup-reminder .wbe-feature-list li,
+#wbe-restore-prompt .wbe-feature-list li {
   margin-bottom: 4px;
 }
 
-#wbe-backup-reminder .backup-reminder-buttons {
+#wbe-backup-reminder .backup-reminder-buttons,
+#wbe-restore-prompt .backup-reminder-buttons {
   margin-top: 15px;
   display: flex;
   justify-content: center;
 }
 
-#wbe-backup-reminder button {
+#wbe-backup-reminder button,
+#wbe-restore-prompt button {
   padding: 10px 20px;
   border-radius: 4px;
   cursor: pointer;
@@ -443,11 +451,24 @@ ol.star1.green > li::before {
   transition: background-color 0.2s;
 }
 
-#wbe-backup-reminder button:hover {
+#wbe-backup-reminder button:hover,
+#wbe-restore-prompt button:hover {
   background-color: #1a3020 !important;
   opacity: 1;
 }
 
-#wbe-backup-reminder button:hover {
+#wbe-backup-reminder button:hover,
+#wbe-restore-prompt button:hover {
   opacity: 0.9;
+}
+
+/* The reminder appears unasked for, so it keeps out of the way in the corner. This one is the
+   answer to a menu item just clicked, and is waiting on a decision, so it goes in the middle. */
+#wbe-restore-prompt {
+  top: 50%;
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  max-width: calc(100vw - 40px);
 }

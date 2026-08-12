@@ -3,15 +3,7 @@ import $ from "jquery";
 import { features, OptionType } from "./core/options/options_registry";
 import { categorize } from "./features/register_categories";
 import "./features/register_feature_options";
-import {
-  WBE,
-  isWikiTreeUrl,
-  showAlert,
-  wrapBackupData,
-  wrapFullBackup,
-  getBackupLink,
-  recordBackupMade,
-} from "./core/common";
+import { WBE, isWikiTreeUrl, showAlert, wrapBackupData, getBackupLink, recordBackupMade } from "./core/common";
 import { restoreOptions, restoreData, restoreAll, sendMessageToContentTab } from "./upload";
 import { navigatorDetect } from "./core/navigatorDetect";
 import { shouldInitializeFeature } from "./core/options/options_storage.js";
@@ -35,7 +27,7 @@ initSafariPopupScrollFix();
 
 if (WBE?.version) {
   const title = WBE.name + " " + WBE.version;
-  $("head > title").text(title.replace("Extension", "Extension Options"));
+  $("head > title").text(title.replace("Extension", "Extension Settings"));
   $("#h1Text").attr("title", title);
 }
 
@@ -50,23 +42,24 @@ if (WBE?.version) {
 })(chrome.runtime);
 
 // Same browser set as popupScrollFix.js: not Blink, not Gecko. Safari is the only
-// one that both mis-sizes the popup viewport and offers no Options entry of its
+// one that both mis-sizes the popup viewport and offers no Settings entry of its
 // own, so nothing below this point should change anywhere else.
 const isSafari = !navigatorDetect.browser.Blink && !navigatorDetect.browser.Gecko;
 
 // The toolbar button opens this page as the popup, and on Safari for iPadOS that
 // popover is all you get - unlike Chrome's icon context menu or Firefox's
-// about:addons, there is no "open the options page" entry anywhere in the browser
-// UI. Offer a way out of it. tabs.getCurrent() reports the tab the caller is
-// running in, and is undefined in a popup, so the button only appears when this
-// page really is the popup.
+// about:addons, there is no "open the settings page" entry anywhere in the browser
+// UI. The Settings context menu item covers the desktop, but there is no context
+// menu to reach it with on iPadOS, so offer a way out of the popup as well.
+// tabs.getCurrent() reports the tab the caller is running in, and is undefined in
+// a popup, so the button only appears when this page really is the popup.
 (function (tabs) {
   if (!isSafari || !tabs?.getCurrent || !tabs?.create) return;
   try {
     tabs.getCurrent(function (tab) {
       if (chrome.runtime?.lastError || tab) return; // already in a tab
       $('<a id="openInTab" class="nohover">Open in a tab</a>')
-        .attr({ href: chrome.runtime.getURL("options.html"), title: "Open these options in a full browser tab" })
+        .attr({ href: chrome.runtime.getURL("options.html"), title: "Open these settings in a full browser tab" })
         .on("click", function (e) {
           e.preventDefault();
           tabs.create({ url: this.href });
@@ -728,6 +721,7 @@ $("#toggleAll, .section.category > .section-header > .toggle > input").on("click
 });
 
 $("#openSettings").on("click", function () {
+  checkOnWikiTree(); // a WikiTree tab may have been opened since this page loaded
   let $dialog = $(
     '<dialog id="settingsDialog">' +
       '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Settings &amp; Feature Data Backup' +
@@ -753,9 +747,9 @@ $("#openSettings").on("click", function () {
       '<li title="This will pop up a dialog to select the backup file for your settings. This will overwrite your current settings."><button id="btnImportOptions">Restore Settings</button> Restore your settings from a previous backup.</li>' +
       '<li title="Resets all settings to the defaults. This does not include data stored on WikiTree by features like My Menu, Extra Watchlist, etc."><button id="btnClearOptions">Reset Settings</button> Reset all settings to the defaults.</li>' +
       '<li class="hide-on-wikitree" style="font-size: 10pt; font-style: italic; color: #bbb; text-align: center;">To back up your feature data as well, access this from the <a href="https://www.wikitree.com/" style="color: #bbb;" target="_blank">WikiTree</a> site.</li>' +
-      '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Feature data (the content you have saved with a feature) for this subset of features: Change Summary Options, Clipboard and Notes, Extra Watchlist (including profile notes), My Menu, Space Watchlist Sorter, and WT+ Query Builder.</li>' +
-      '<li class="hide-unless-wikitree" title="This will download a backup file with your current feature data."><button id="btnExportData">Back Up Feature Data</button> Back up the above subset of your feature data from WikiTree.</li>' +
-      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select your feature data backup file."><button id="btnImportData">Restore Feature Data</button> Restore the above subset of your feature data on WikiTree.</li>' +
+      '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Feature data (the content you have saved with a feature) for: Change Summary Options, Clipboard and Notes, Distance and Relationships, Extra Watchlist (including profile notes), My Menu, Space Watchlist Sorter, Text Expander, and WT+ Query Builder.</li>' +
+      '<li class="hide-unless-wikitree" title="This will download a backup file with your current feature data."><button id="btnExportData">Back Up Feature Data</button> Back up the feature data listed above from WikiTree.</li>' +
+      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select your feature data backup file."><button id="btnImportData">Restore Feature Data</button> Restore the feature data listed above on WikiTree.</li>' +
       '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Use the save/restore buttons on your <a href="https://www.wikitree.com/wiki/Special:Home#downloadFeatureData" style="color: #060;" target="_blank">WikiTree Navigation Home Page</a> to save/restore all of your feature data and settings in one file.</li>' +
       "</ul></div></dialog>"
   )
@@ -1064,22 +1058,26 @@ chrome.storage.onChanged.addListener(function () {
 // the active tab is this page, so everything needing WikiTree stayed hidden and the Safari download
 // fell back to a nameless file. Look for a WikiTree tab anywhere in that case, which is the same
 // tab sendMessageToContentTab would end up talking to.
-(function (tabs) {
+// This runs again every time the dialog is opened, not just at load: as a tab, this page outlives
+// the tabs around it, and a WikiTree page opened after it - by the download below, or by the user -
+// would otherwise never be noticed.
+function checkOnWikiTree() {
+  const tabs = (typeof browser !== "undefined" ? browser : chrome).tabs;
   if (!tabs?.query) return;
   const isUsable = (tab) => isWikiTreeUrl(tab?.url) && tab.status === "complete";
+  const setOnWikiTree = (on) => $("html").toggleClass("is-on-wikitree", on);
   tabs.query({ active: true, currentWindow: true }, function (tabList) {
     if (!chrome.runtime?.lastError && isWikiTreeUrl(tabList?.[0]?.url)) {
-      $("html").addClass("is-on-wikitree");
+      setOnWikiTree(true);
       return;
     }
     tabs.query({ url: "https://*.wikitree.com/*" }, function (wikitreeTabs) {
-      if (chrome.runtime?.lastError || !wikitreeTabs?.some(isUsable)) {
-        return;
-      }
-      $("html").addClass("is-on-wikitree");
+      setOnWikiTree(!chrome.runtime?.lastError && !!wikitreeTabs?.some(isUsable));
     });
   });
-})((typeof browser !== "undefined" ? browser : chrome).tabs);
+}
+
+checkOnWikiTree();
 
 function downloadBackupData(wrapped, button, countsAsBackup) {
   // Safari's own pages can only manage a data: URL, which saves the file as "Unknown" because a
@@ -1146,36 +1144,40 @@ function exportOptionsClicked() {
 }
 
 function exportDataClicked() {
-  const button = this;
-  backupFromPage(button, "Back Up Feature Data Failed", (backup) => wrapBackupData("data", backup, true));
+  backupFromPage(this, "backupFeatureData", "Back Up Feature Data Failed");
 }
 
 // The settings and the feature data are kept in different places, so the one file has to be
 // assembled from both. It is the same file the monthly reminder produces, and because each half
 // keeps the key its own backup file uses, it restores through either of the Restore buttons.
 function exportAllClicked() {
-  const button = this;
-  backupFromPage(button, "Back Up Everything Failed", (backup, settings) => wrapFullBackup(settings, backup));
+  backupFromPage(this, "backupEverything", "Back Up Everything Failed");
 }
 
-// Everything with feature data in it needs a WikiTree page to fetch that data from.
-function backupFromPage(button, failureTitle, wrap) {
-  sendMessageToContentTab({ action: "backupData" }, function (response) {
-    if (response && response.ack && response.backup) {
-      chrome.storage.sync.get(null, (settings) => {
-        downloadBackupData(wrap(response.backup, settings || {}), button, true);
-      });
+// The page gathers the data, wraps it and saves it, rather than sending the data here to be wrapped
+// and saved. Anything sent through messaging has to be small enough to survive the trip, and
+// backupData shrinks it by leaving out its three biggest databases - so a backup assembled here was
+// missing CC7, Connection Finder and Relationship Finder, which is nearly all of it.
+function backupFromPage(button, action, failureTitle) {
+  const $button = $(button).prop("disabled", true);
+  sendMessageToContentTab({ action }, function (response) {
+    $button.prop("disabled", false);
+    if (response && response.ack) {
+      // The file is saved by the page, so there is no link to click here - just say so.
+      $button.hide().parent().append($('<span class="download-done">Saved to your downloads.</span>').hide().fadeIn());
+      return;
+    }
+    var err = response?.nak ?? JSON.stringify(response ?? "NO_RESPONSE");
+    if (err == "NO_TABS") {
+      showAlert(
+        "The backup failed because no WikiTree pages responded.\nThis could happen if you closed your tabs or the extension updated.\nOpen a new WikiTree page in your browser, or refresh and try again.",
+        failureTitle,
+        "#settingsDialog"
+      );
+    } else if (err == "BACKUP_FAILED") {
+      showAlert(`The backup failed:\n\n${response?.message ?? ""}`, failureTitle, "#settingsDialog");
     } else {
-      var err = response?.nak ?? JSON.stringify(response ?? "NO_RESPONSE");
-      if (err == "NO_TABS") {
-        showAlert(
-          "The backup failed because no WikiTree pages responded.\nThis could happen if you closed your tabs or the extension updated.\nOpen a new WikiTree page in your browser, or refresh and try again.",
-          failureTitle,
-          "#settingsDialog"
-        );
-      } else {
-        console.error(err);
-      }
+      console.error(err);
     }
   });
 }
