@@ -54,6 +54,12 @@ if (WBE?.version) {
 // own, so nothing below this point should change anywhere else.
 const isSafari = !navigatorDetect.browser.Blink && !navigatorDetect.browser.Gecko;
 
+// Safari's popover can't download a blob (see getDownloadLink), and the data: URL it can manage
+// loses the filename. A full tab is an ordinary page and should have neither problem. This starts
+// out assuming the worst and is cleared below once tabs.getCurrent confirms we are in a tab, so a
+// browser that won't answer that question keeps the download that at least works.
+let isSafariPopover = isSafari;
+
 // The toolbar button opens this page as the popup, and on Safari for iPadOS that
 // popover is all you get - unlike Chrome's icon context menu or Firefox's
 // about:addons, there is no "open the options page" entry anywhere in the browser
@@ -64,7 +70,11 @@ const isSafari = !navigatorDetect.browser.Blink && !navigatorDetect.browser.Geck
   if (!isSafari || !tabs?.getCurrent || !tabs?.create) return;
   try {
     tabs.getCurrent(function (tab) {
-      if (chrome.runtime?.lastError || tab) return; // already in a tab
+      if (chrome.runtime?.lastError) return;
+      if (tab) {
+        isSafariPopover = false;
+        return; // already in a tab, so no need for a button offering one
+      }
       $('<a id="openInTab" class="nohover">Open in a tab</a>')
         .attr({ href: chrome.runtime.getURL("options.html"), title: "Open these options in a full browser tab" })
         .on("click", function (e) {
@@ -1059,18 +1069,26 @@ chrome.storage.onChanged.addListener(function () {
   restore_options();
 });
 
+// The active tab is the WikiTree page when this page is the popup opened over it. Opened as a tab
+// of its own instead - "Open in a tab" above, Firefox's about:addons, Chrome's extension options -
+// the active tab is this page, so everything needing WikiTree stayed hidden and the Safari download
+// fell back to a nameless file. Look for a WikiTree tab anywhere in that case, which is the same
+// tab sendMessageToContentTab would end up talking to.
 (function (tabs) {
-  if (tabs && tabs.query) {
-    tabs.query({ active: true, currentWindow: true }, function (tabList) {
-      if (chrome.runtime?.lastError || !tabList?.length) {
+  if (!tabs?.query) return;
+  const isUsable = (tab) => isWikiTreeUrl(tab?.url) && tab.status === "complete";
+  tabs.query({ active: true, currentWindow: true }, function (tabList) {
+    if (!chrome.runtime?.lastError && isWikiTreeUrl(tabList?.[0]?.url)) {
+      $("html").addClass("is-on-wikitree");
+      return;
+    }
+    tabs.query({ url: "https://*.wikitree.com/*" }, function (wikitreeTabs) {
+      if (chrome.runtime?.lastError || !wikitreeTabs?.some(isUsable)) {
         return;
       }
-      const activeTab = tabList[0];
-      if (activeTab?.url && isWikiTreeUrl(activeTab.url)) {
-        $("html").addClass("is-on-wikitree");
-      }
+      $("html").addClass("is-on-wikitree");
     });
-  }
+  });
 })((typeof browser !== "undefined" ? browser : chrome).tabs);
 
 function downloadBackupData(wrapped, button, countsAsBackup) {
@@ -1091,7 +1109,7 @@ function downloadBackupData(wrapped, button, countsAsBackup) {
           }
         });
       })
-    : $(getBackupLink(wrapped)).text("Download");
+    : $(getBackupLink(wrapped, { dataUrl: isSafariPopover })).text("Download");
   link.addClass("button download").hide();
   if (countsAsBackup) {
     // Only a backup that includes the feature data counts towards the monthly reminder, and only

@@ -770,26 +770,26 @@ export function wrapFullBackup(settings, data) {
   return wrapped;
 }
 
-export function getBackupLink(wrappedJsonData) {
+export function getBackupLink(wrappedJsonData, options) {
   const filename = wrappedJsonData.id + ".txt";
   const json = JSON.stringify(wrappedJsonData, null, 2);
-  return getDownloadLink(filename, json);
+  return getDownloadLink(filename, json, options);
 }
 
-export function getDownloadLink(filename, data) {
+// Safari used to need a data: URL everywhere, because it handled neither blobs nor the download
+// attribute. On a web page that is long since fixed, and it now refuses to navigate to a data: URL
+// at all ("Not allowed to load local resource"), so the blob is the only thing that works there.
+// Safari's extension popover is still the other way round: it ignores the download attribute,
+// treats the click as a navigation, and then will not read a blob from the extension's own origin
+// ("WebKitBlobResource error 1"). A data: URL does download there, but carries no filename with it,
+// so the file arrives called "Unknown" - which is why downloadBackupData() in options.js hands the
+// job to the content script whenever a WikiTree tab is available, and why it asks for the data: URL
+// only in the popover itself.
+export function getDownloadLink(filename, data, { dataUrl = false } = {}) {
   let link = document.createElement("a");
   link.title = 'Right-click to "Save as..." at specific location on your device.';
 
-  // Safari used to need a data: URL everywhere, because it handled neither blobs nor the download
-  // attribute. On a web page that is long since fixed, and it now refuses to navigate to a data: URL
-  // at all ("Not allowed to load local resource"), so the blob is the only thing that works there.
-  // Inside the extension's own pages it is still the other way round: Safari ignores the download
-  // attribute, treats the click as a navigation, and then will not read a blob from the extension's
-  // own origin ("WebKitBlobResource error 1"). A data: URL does download there, but carries no
-  // filename with it, so the file arrives called "Unknown" - which is why downloadBackupData() in
-  // options.js hands the job to the content script whenever a WikiTree tab is available.
-  const isExtensionPage = location.protocol.endsWith("-extension:");
-  if (navigatorDetect.browser.Safari && isExtensionPage) {
+  if (dataUrl) {
     link.href = "data:application/octet-stream," + encodeURIComponent(data);
     link.target = "_blank";
     link.title = link.title.replace("Save as...", "Download Linked File As...");
