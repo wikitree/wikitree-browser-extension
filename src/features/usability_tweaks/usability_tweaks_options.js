@@ -241,7 +241,7 @@ const usabilityTweaks = {
         {
           id: "enhanceThonPages",
           type: OptionType.CHECKBOX,
-          label: "Show differences and normalized popup on Thon stats pages.",
+          label: "Show differences, normalized popup and filter on Thon stats pages.",
           defaultValue: true,
         },
       ],

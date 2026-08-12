@@ -711,8 +711,9 @@ function enhanceThonStats() {
 
   if (window.location.toString().includes("Histogram.htm")) {
     //add sums
-    AddCumulatedSumsToHistograms();
+    AddFilterLink();
     FilterThonRows();
+    AddCumulatedSumsToHistograms();
   }
 
   function roundIfNeeded(diffToLower) {
@@ -720,15 +721,42 @@ function enhanceThonStats() {
   }
 }
 
-function FilterThonRows() {
+function AddFilterLink() {
+  const INDEX_USER_COL = 1;
+  const secondTableHeader = document.getElementsByClassName("groupH")[6];
+  const wikiTreeIdHeader = secondTableHeader.firstChild;
+  const filterLink = document.createElement("a");
+  const params = new URLSearchParams(window.location.search);
+  const isFiltered = params.has("filter");
+  filterLink.addEventListener("click", () => {
+    if (!isFiltered) {
+      const filterTerm = prompt("Filter for user names?", "Germany");
+      window.location = window.location + "?filter=" + filterTerm;
+    } else {
+      window.location = window.location.pathname;
+    }
+  });
+
+  if (!isFiltered) {
+    filterLink.innerText = "add filter";
+  } else {
+    filterLink.innerText = "remove filter";
+  }
+
+  const filterSpan = document.createElement("span");
+  filterSpan.append(" [");
+  filterSpan.appendChild(filterLink);
+  filterSpan.append("] ");
+  wikiTreeIdHeader.appendChild(filterSpan);
+}
+
+function FilterThonRows(neede) {
   const params = new URLSearchParams(window.location.search);
   const needle = params.get("filter");
   if (needle) {
     var tds = document.getElementsByTagName("td");
     for (let i = 0; i < tds.length; i++) {
-      console.log(tds[i].innerHTML);
       if (tds[i].innerHTML.includes("/wiki/") && !tds[i].innerHTML.includes(needle)) {
-        console.log(tds[i].innerHTML);
         tds[i].parentElement.style.display = "none";
       }
     }
@@ -737,16 +765,18 @@ function FilterThonRows() {
 
 function AddCumulatedSumsToHistograms() {
   document.querySelectorAll("tr").forEach((r) => {
-    if (r.querySelector("div.histogram")) {
-      let cumulated = 0;
-      r.querySelectorAll("div.histogram div.col").forEach((c) => {
-        let t = c.getAttribute("title") || "",
-          m = t.match(/-\s*(\d+)/);
-        if (m) {
-          cumulated += parseInt(m[1], 10);
-          c.setAttribute("title", `${t} (${cumulated})`);
-        }
-      });
+    if (r.style.display != "none") {
+      if (r.querySelector("div.histogram")) {
+        let cumulated = 0;
+        r.querySelectorAll("div.histogram div.col").forEach((c) => {
+          let t = c.getAttribute("title") || "",
+            m = t.match(/-\s*(\d+)/);
+          if (m) {
+            cumulated += parseInt(m[1], 10);
+            c.setAttribute("title", `${t} (${cumulated})`);
+          }
+        });
+      }
     }
   });
 }
