@@ -42,6 +42,10 @@ shouldInitializeFeature("editFamilyData").then((result) => {
 async function addInfoAboutOtherPerson() {
   const h1Link = $("#addEditHeadline a:first");
   const wtid = h1Link.attr("href").split("/").pop();
+  // Grab the page's own scissors box now, before the API calls below. Other
+  // features (shareable sources) add .copy--buttons containers of their own
+  // later, and appending there would give their box a stray "Link" button.
+  const copyPosition = $(".copy--buttons").not(".referenceBox .copy--buttons");
   const fields = ["Id", "Name", "BirthDate", "BirthLocation", "DeathDate", "DeathLocation"];
   console.log("Fetching person data for wtid:", wtid);
   WikiTreeAPI.getPerson("edit_family_data", wtid, fields).then(async (data) => {
@@ -91,7 +95,7 @@ async function addInfoAboutOtherPerson() {
         let copyItems = [];
         copyItems.push({ label: "Link", text: `[[${wtid}|${name}]]` });
         const displayOptions = { classic: true, image: false };
-        addItems(copyItems, $(".copy--buttons"), displayOptions);
+        addItems(copyItems, copyPosition, displayOptions);
       }
       const efHTML = `
         <ul id='EFdates'>
