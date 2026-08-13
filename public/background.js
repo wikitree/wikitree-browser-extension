@@ -719,7 +719,7 @@ ${dataPayload}`;
   try {
     let resultBio = "";
     if (provider === "openai") {
-      resultBio = await callOpenAI(key, model || "gpt-5.4-mini", systemRole, prompt);
+      resultBio = await callOpenAI(key, model || "gpt-5.6-terra", systemRole, prompt);
     } else if (provider === "gemini") {
       resultBio = await callGemini(key, model || "gemini-3.5-flash", systemRole, prompt);
     } else if (provider === "claude") {
@@ -779,9 +779,9 @@ ${dataPayload}`;
 }
 
 async function callOpenAI(apiKey, model, system, userPrompt) {
-  // Some models (like gpt-5-mini, gpt-5.2, and o-series) do not support low temperatures or require default (1).
+  // Reasoning models (gpt-5 family, o-series) only accept the default temperature,
+  // and some reject the parameter outright, so omit it for them.
   const isReasoningModel = model.includes("gpt-5") || model.startsWith("o1") || model.startsWith("o3");
-  const temperature = isReasoningModel ? 1 : 0.2;
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -795,7 +795,7 @@ async function callOpenAI(apiKey, model, system, userPrompt) {
         { role: "system", content: system },
         { role: "user", content: userPrompt },
       ],
-      temperature: temperature,
+      ...(isReasoningModel ? {} : { temperature: 0.2 }),
       // max_tokens removed to allow full model output
     }),
   });
@@ -811,8 +811,12 @@ async function callOpenAI(apiKey, model, system, userPrompt) {
 
 async function callGemini(apiKey, model, system, userPrompt) {
   // Gemini mostly uses 'user' role, 'system' can be simulated or passed as system_instruction in beta
-  const modelId = model || "gemini-1.5-flash";
+  const modelId = model || "gemini-3.5-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
+
+  // Google strongly recommends leaving temperature at the default 1.0 for Gemini 3
+  // models: lowering it can cause looping or degraded output.
+  const isGemini3 = modelId.startsWith("gemini-3");
 
   const response = await fetch(url, {
     method: "POST",
@@ -827,7 +831,7 @@ async function callGemini(apiKey, model, system, userPrompt) {
         },
       ],
       generationConfig: {
-        temperature: 0.2,
+        ...(isGemini3 ? {} : { temperature: 0.2 }),
         // maxOutputTokens removed to allow full model output
       },
     }),
@@ -857,8 +861,10 @@ async function callClaude(apiKey, model, system, userPrompt) {
       model: model,
       system: system,
       messages: [{ role: "user", content: userPrompt }],
-      max_tokens: 8192, // Increased to maximum typical for Sonnet 3.5
-      temperature: 0.2,
+      // max_tokens covers thinking + reply on models that think by default,
+      // so leave headroom. Above ~16000 the request should be streamed.
+      max_tokens: 16000,
+      // No temperature: current Claude models reject sampling parameters.
     }),
   });
 
@@ -868,7 +874,22 @@ async function callClaude(apiKey, model, system, userPrompt) {
   }
 
   const data = await response.json();
-  return data.content?.[0]?.text || "";
+
+  if (data.stop_reason === "refusal") {
+    throw new Error(
+      "Claude declined this request" + (data.stop_details?.explanation ? ": " + data.stop_details.explanation : ".")
+    );
+  }
+
+  // Responses can start with a thinking block, so take the first text block
+  // rather than content[0].
+  const text = data.content?.find((block) => block.type === "text")?.text || "";
+
+  if (data.stop_reason === "max_tokens" && !text) {
+    throw new Error("Claude hit the output limit before writing a bio. Try a shorter profile or a different model.");
+  }
+
+  return text;
 }
 
 async function callPerplexity(apiKey, model, system, userPrompt) {

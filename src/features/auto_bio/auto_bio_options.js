@@ -594,7 +594,7 @@ const autoBio = {
           type: OptionType.SELECT,
           label: "OpenAI Model",
           values: aiModels.openai,
-          defaultValue: "gpt-5.4-mini",
+          defaultValue: "gpt-5.6-terra",
         },
         {
           id: "geminiKey",

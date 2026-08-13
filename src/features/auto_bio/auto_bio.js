@@ -62,7 +62,7 @@ let templatesObject;
 let USstatesObjArray;
 
 const AUTO_BIO_AI_MODEL_CONFIG = {
-  openai: { optionId: "openAIModel", defaultModel: "gpt-5.4-mini", models: aiModels.openai },
+  openai: { optionId: "openAIModel", defaultModel: "gpt-5.6-terra", models: aiModels.openai },
   gemini: { optionId: "geminiModel", defaultModel: "gemini-3.5-flash", models: aiModels.gemini },
   claude: { optionId: "claudeModel", defaultModel: "claude-sonnet-5", models: aiModels.claude },
   perplexity: { optionId: "perplexityModel", defaultModel: "sonar", models: aiModels.perplexity },
@@ -8748,13 +8748,13 @@ function locationCategoryFilter(category) {
     /\bpub\b/i,
     /\btavern\b/i,
   ];
-  
+
   for (const pattern of institutionalPatterns) {
     if (category.match(pattern)) {
       return "";
     }
   }
-  
+
   return category;
 }
 
@@ -9266,7 +9266,7 @@ async function improveBioWithAI(e) {
 
     if (provider === "openai") {
       selectedKey = window.autoBioOptions?.openAIKey;
-      if (!selectedModel) selectedModel = window.autoBioOptions?.openAIModel || "gpt-5.4-mini";
+      if (!selectedModel) selectedModel = window.autoBioOptions?.openAIModel || "gpt-5.6-terra";
     } else if (provider === "gemini") {
       selectedKey = window.autoBioOptions?.geminiKey;
       if (!selectedModel) selectedModel = window.autoBioOptions?.geminiModel || "gemini-3.5-flash";
