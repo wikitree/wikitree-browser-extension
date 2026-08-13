@@ -233,7 +233,6 @@ export class Biography {
     this.#bioSearchString = bioSearchString;
     this.#fatherDnaMarked = thePerson.person.fatherDnaConfirmed;
     this.#motherDnaMarked = thePerson.person.motherDnaConfirmed;
-
     // update score from the person fields
     this.#scorePerson(thePerson);
 
@@ -359,7 +358,6 @@ export class Biography {
                * and since you are confusing the Successsion and Succession box and the later are deprecated, 
                * check for that first
                */
-
               if (this.#sourceRules.isNavBox(partialLine, partialMixedCaseLine)) {
                 this.#parseNavBox(partialLine);
               } else {
@@ -408,7 +406,6 @@ export class Biography {
     }
 
     if (!this.#stats.isDisprovenExistence && !this.#stats.isUncertainExistence) {
-
       // acknowlegements may go to end of bio
       if (this.#acknowledgementsEndIndex < 0) {
         this.#acknowledgementsEndIndex = lineCount;
@@ -498,6 +495,11 @@ export class Biography {
     let isValid = false;
     if (this.#stats.isDisprovenExistence || this.#stats.isUncertainExistence) {
       isValid = true;  // disable reporting?
+      if (this.#checkAllDates) {
+        this.#sources.hasModernSources = true;
+        this.#sources.hasPre1700Sources = true;
+        this.#sources.hasTooOldSources = true;
+      }
     } else {
       // Don't bother for empty bio
       if (!this.#stats.bioIsEmpty) {
@@ -1060,7 +1062,7 @@ export class Biography {
    * @returns {Boolean} true elements out of order
    */
   hasElementNotInProperOrder () {
-    return this.#style.ElementNotInOrder;
+    return this.#style.bioHasElementNotInOrder;
   }
   /**
    * does bio have incomplete Dna confirmation
@@ -1807,6 +1809,7 @@ export class Biography {
     }
     if (this.#style.misplacedLineCount > 0) {
       this.#style.bioHasStyleIssues = true;
+      this.#style.bioHasElementNotInOrder = true;
       let msg = this.#style.misplacedLineCount + ' line';
       if (this.#style.misplacedLineCount > 1) {
         msg += 's';
@@ -3260,9 +3263,9 @@ export class Biography {
 
   /*
    * Find number of cM.
-   * Note at present this only works for . as a decimal separator, not for ,
    */
   #getCm(line) {
+    line = line.replaceAll(',', '');  // lose the ,
     let cM = this.#findPrecedingNumber(line, ' cm');
     if (cM == 0) {
       cM = this.#findPrecedingNumber(line, 'centimorgan');
