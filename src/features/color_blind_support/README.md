@@ -32,8 +32,50 @@ alone:
 | Bio Check's results box                                                   | "Passed." / "Issues found." in words above the findings               |
 
 **Simulates** color vision deficiencies, so you can check a page rather than guess:
-grayscale, deuteranopia, protanopia, tritanopia and achromatopsia, via SVG
-`feColorMatrix`. A corner badge reminds you it is on.
+achromatopsia, deuteranopia, protanopia and tritanopia. The three dichromacies use SVG
+`feColorMatrix`; achromatopsia uses the browser's own `filter: grayscale(1)`.
+
+Two notes on that last one. It uses `grayscale()` rather than the achromatopsia matrix
+usually published alongside the others, because that matrix uses the Rec.601 luma
+coefficients — a legacy television standard — where `grayscale()` uses Rec.709, the
+right luminance model for sRGB. They disagree sharply: WikiTree's green links and its
+red `a.new` links come out **38** levels apart under `grayscale()` and **1** apart under
+the Rec.601 matrix.
+
+And no greyscale conversion is a faithful model of achromatopsia anyway — complete
+achromatopsia is rod monochromacy, and rods peak around 498nm, so true rod luminance
+weights the channels differently again. What the mode reliably answers is "what survives
+when hue is gone", which is the question worth asking, and it doubles as a
+black-and-white print check.
+
+Once a simulation is on, a control sits in the bottom corner of every page, with two
+independent halves:
+
+- **Support** — a checkbox for whether WBE is helping at all. Unchecked, the page reverts
+  to exactly how WikiTree styles it: original colors, no cues, and the other WBE features
+  back to their own reds and greens, because dropping the custom properties makes their
+  `var(--wbe-cb-danger, red)` fallbacks take over.
+- **Seeing as** — which reader you are looking through.
+
+The combination worth reaching for is a deficiency selected with Support switched **off**:
+that is the page as the member who reported this actually sees it. Switch Support back on
+and the fix is right there next to the problem.
+
+Unchecking Support is a peek at the current page; it is not written anywhere by itself.
+Closing the control while it is unchecked **is** the decision, and that is saved: the
+whole feature is switched off in your settings, exactly as if you had unticked it on the
+options page. Anything else would leave the feature enabled but doing nothing, which is
+indistinguishable from it having quietly broken.
+
+Closing that way resets the simulation too, so that turning the feature back on later
+does not drop you onto a page filtered to somebody else's color vision with no
+explanation. The `×` tooltip says which of the two things it is about to do.
+
+With Support checked, `×` is a plain dismiss: the page stays exactly as it is. The
+simulation choice _is_ remembered as you navigate, so a run of pages can be walked in one
+condition and then re-walked in another. Choosing **Normal (off)** ends the simulation:
+the control will not be there on the next page, and the options page is the way to start
+again.
 
 ## How it fits together
 

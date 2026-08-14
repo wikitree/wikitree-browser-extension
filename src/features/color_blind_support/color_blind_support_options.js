@@ -157,17 +157,23 @@ const colorBlindSupport = {
           label: "Show every page as",
           values: [
             { value: "off", text: "Normal (off)" },
-            { value: "grayscale", text: "Grayscale" },
+            { value: "achromatopsia", text: "Achromatopsia (no color at all)" },
             { value: "deuteranopia", text: "Deuteranopia (no green)" },
             { value: "protanopia", text: "Protanopia (no red)" },
             { value: "tritanopia", text: "Tritanopia (no blue)" },
-            { value: "achromatopsia", text: "Achromatopsia (no color at all)" },
           ],
           defaultValue: "off",
           comment:
             "A checking tool: it recolors every page so you can see which distinctions survive. Leave it off for " +
-            "normal use. While it is on, a reminder appears in the corner, and elements that stay fixed on screen " +
-            "(pop-ups, sticky bars) may scroll with the page instead.",
+            "normal use. Once it is on, a control in the corner of the page switches between conditions without " +
+            "coming back here, and remembers your choice as you move from page to page. It also has a Support " +
+            "checkbox: uncheck it to see the page with no help at all, which next to a simulated condition shows " +
+            "the problem and the fix side by side. Closing the control while Support is unchecked turns this " +
+            "whole feature off, the same as unticking it here. Choosing Normal ends the simulation, and the " +
+            "control is gone on the next page; come " +
+            "back here to start again. Achromatopsia shows the page in grayscale, which is also the quickest " +
+            "way to check how it would look printed in black and white. While a simulation is on, elements that " +
+            "stay fixed on screen (pop-ups, sticky bars) may scroll with the page instead.",
         },
       ],
     },

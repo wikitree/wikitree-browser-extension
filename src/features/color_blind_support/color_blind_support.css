@@ -295,11 +295,16 @@ html body.wbe-cb-gender-letter .tree--person_u::before {
 }
 
 /* ---------------------------------------------------------------------------
-   Simulator badge
+   Simulator control
 
    Not inside body: the script hangs it off <html> so that it escapes the filter and
-   keeps a working position: fixed. Deliberately plain black and white so it still reads
-   as a caption if someone screenshots a simulated page.
+   keeps a working position: fixed. Deliberately plain black and white, so it still reads
+   as a caption if someone screenshots a simulated page, and so it cannot itself be
+   mistaken for part of what is being checked.
+
+   Every property is spelled out rather than inherited. This element sits outside <body>,
+   where WikiTree's own styling mostly does not reach, and it has to look the same on
+   every page the extension runs on.
    --------------------------------------------------------------------------- */
 
 html > #wbeColorBlindSimulatorBadge {
@@ -307,7 +312,10 @@ html > #wbeColorBlindSimulatorBadge {
   bottom: 12px;
   right: 12px;
   z-index: 2147483000;
-  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
   background-color: #ffffff;
   color: #000000;
   border: 2px solid #000000;
@@ -315,8 +323,70 @@ html > #wbeColorBlindSimulatorBadge {
   font-family: "Roboto", sans-serif;
   font-size: 0.75rem;
   font-weight: 700;
-  cursor: pointer;
+  line-height: 1.2;
   box-shadow: 0 2px 6px rgb(0 0 0 / 40%);
+}
+
+html > #wbeColorBlindSimulatorBadge label {
+  margin: 0;
+  padding: 0;
+  color: #000000;
+  font: inherit;
+  cursor: default;
+}
+
+html > #wbeColorBlindSimulatorBadge label[for="wbeColorBlindSupportToggle"] {
+  margin-right: 4px;
+  padding-right: 8px;
+  border-right: 1px solid #000000;
+  cursor: pointer;
+}
+
+html > #wbeColorBlindSimulatorBadge input[type="checkbox"] {
+  margin: 0 2px 0 0;
+  accent-color: #000000;
+  cursor: pointer;
+}
+
+html > #wbeColorBlindSimulatorBadge select {
+  margin: 0;
+  padding: 2px 4px;
+  background-color: #ffffff;
+  color: #000000;
+  border: 1px solid #000000;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+html > #wbeColorBlindSimulatorBadge .wbe-cb-badge-close {
+  margin: 0;
+  padding: 0 4px;
+  background: none;
+  color: #000000;
+  border: none;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+html > #wbeColorBlindSimulatorBadge .wbe-cb-badge-close:hover {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+/* The control is the one thing on the page that must stay operable by keyboard, since
+   it is the way back out of a simulation. */
+html > #wbeColorBlindSimulatorBadge input[type="checkbox"]:focus-visible,
+html > #wbeColorBlindSimulatorBadge select:focus-visible,
+html > #wbeColorBlindSimulatorBadge .wbe-cb-badge-close:focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 2px;
 }
 
 @media print {
