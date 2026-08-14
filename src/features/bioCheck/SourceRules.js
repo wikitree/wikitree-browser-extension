@@ -49,6 +49,7 @@ class SourceRules {
     "biography",
     "biographie",
     "biografia",
+    "biografía",
     "biografie",
     "biografi",
     "elämäntarina",
@@ -805,6 +806,8 @@ class SourceRules {
     "pedigree resource file",
     "u.s. and international marriage records",
     "us and international marriages",
+    "american genealogical biographical index",
+    "american genealogical-biographical index",
     // other items
     "burkes peerage",
     "burkes dormant and extinct peerages",
