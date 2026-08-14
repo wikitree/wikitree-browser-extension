@@ -67,6 +67,7 @@ import "./cc7_changes/cc7_changes_options";
 import "./change_family_lists/change_family_lists_options";
 import "./collapsible_descendants/collapsible_descendants_options";
 import "./collapsible_profiles/collapsible_profiles_options";
+import "./color_blind_support/color_blind_support_options";
 import "./connection_finder/connection_finder_options";
 import "./connector_image/connector_image_options";
 import "./copy_bio_changes/copy_bio_changes_options";

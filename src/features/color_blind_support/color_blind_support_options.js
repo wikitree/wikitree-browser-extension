@@ -1,0 +1,177 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
+import { isMainDomain, isG2G } from "../../core/pageType";
+import { registerFeature, OptionType } from "../../core/options/options_registry";
+
+const colorBlindSupport = {
+  name: "Color-Blind Support",
+  id: "colorBlindSupport",
+  description:
+    "Replaces WikiTree's red/green color coding with a color-blind-safe palette, and adds shape and text cues " +
+    "so that meaning never depends on color alone. Includes a simulator for checking pages as a color-blind " +
+    "reader sees them.",
+  category: "Global/Style",
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
+  contributors: [],
+  defaultValue: false,
+  pages: [isMainDomain, isG2G],
+  options: [
+    {
+      id: "palette",
+      type: OptionType.GROUP,
+      label: "Palette",
+      options: [
+        {
+          id: "paletteName",
+          type: OptionType.SELECT,
+          label: "Palette",
+          values: [
+            { value: "okabeIto", text: "Color-blind safe (Okabe-Ito)" },
+            { value: "redGreen", text: "Red-green (deuteranopia / protanopia)" },
+            { value: "tritan", text: "Blue-yellow (tritanopia)" },
+            { value: "highContrast", text: "High contrast" },
+            { value: "custom", text: "Custom (use the colors below)" },
+          ],
+          defaultValue: "okabeIto",
+          comment:
+            "The colors below are only used when the palette is set to Custom. " +
+            "Link and visited link colors are not set here: see the Visited Links and Custom Style features.",
+        },
+        {
+          id: "newLinkColor",
+          type: OptionType.COLOR,
+          label: "New/unknown link color",
+          defaultValue: "#0072B2",
+        },
+        {
+          id: "dangerColor",
+          type: OptionType.COLOR,
+          label: "Error color",
+          defaultValue: "#B0003A",
+        },
+        {
+          id: "warningColor",
+          type: OptionType.COLOR,
+          label: "Warning color",
+          defaultValue: "#C68900",
+        },
+        {
+          id: "successColor",
+          type: OptionType.COLOR,
+          label: "Success color",
+          defaultValue: "#007A5E",
+        },
+      ],
+    },
+    {
+      id: "links",
+      type: OptionType.GROUP,
+      label: "New/Unknown Links",
+      options: [
+        {
+          id: "newLinkCue",
+          type: OptionType.SELECT,
+          label: "Mark links to pages that do not exist yet",
+          values: [
+            { value: "both", text: "Dotted underline and a ?" },
+            { value: "dotted", text: "Dotted underline" },
+            { value: "question", text: "A ? after the link" },
+            { value: "none", text: "Color only" },
+          ],
+          defaultValue: "both",
+          comment:
+            "WikiTree shows links to categories and pages that do not exist yet in red, and every other link in " +
+            "green. These marks make the difference visible without relying on that red/green pair.",
+        },
+      ],
+    },
+    {
+      id: "boxes",
+      type: OptionType.GROUP,
+      label: "Status Messages and Boxes",
+      options: [
+        {
+          id: "statusCue",
+          type: OptionType.CHECKBOX,
+          label: "Give each kind of box a distinct border",
+          defaultValue: true,
+          comment:
+            "Success boxes get a solid edge, warnings a dashed one and errors a double one, so the three are " +
+            "distinguishable in grayscale.",
+        },
+      ],
+    },
+    {
+      id: "privacy",
+      type: OptionType.GROUP,
+      label: "Privacy Indicators",
+      options: [
+        {
+          id: "privacyCue",
+          type: OptionType.SELECT,
+          label: "Mark privacy levels",
+          values: [
+            { value: "both", text: "Border style and the level number" },
+            { value: "border", text: "Border style" },
+            { value: "number", text: "The level number" },
+            { value: "none", text: "Color only" },
+          ],
+          defaultValue: "both",
+          comment:
+            "Privacy levels 30, 35 and 40 are three near-identical yellows, and share the same padlock icon. " +
+            "The number is not added to the smallest dots, which have no room for it; those get a tooltip instead.",
+        },
+      ],
+    },
+    {
+      id: "gender",
+      type: OptionType.GROUP,
+      label: "Gender Backgrounds",
+      options: [
+        {
+          id: "genderCue",
+          type: OptionType.SELECT,
+          label: "Mark gender backgrounds",
+          values: [
+            { value: "border", text: "Border style" },
+            { value: "letter", text: "Border style and a letter" },
+            { value: "none", text: "Color only" },
+          ],
+          defaultValue: "border",
+          comment:
+            "The pale pink, blue and green backgrounds are hard to tell apart with red-green color blindness. " +
+            "To change the colors themselves, use the Profile Background Colors section of the Custom Style feature.",
+        },
+      ],
+    },
+    {
+      id: "simulator",
+      type: OptionType.GROUP,
+      label: "Simulator",
+      options: [
+        {
+          id: "simulate",
+          type: OptionType.SELECT,
+          label: "Show every page as",
+          values: [
+            { value: "off", text: "Normal (off)" },
+            { value: "grayscale", text: "Grayscale" },
+            { value: "deuteranopia", text: "Deuteranopia (no green)" },
+            { value: "protanopia", text: "Protanopia (no red)" },
+            { value: "tritanopia", text: "Tritanopia (no blue)" },
+            { value: "achromatopsia", text: "Achromatopsia (no color at all)" },
+          ],
+          defaultValue: "off",
+          comment:
+            "A checking tool: it recolors every page so you can see which distinctions survive. Leave it off for " +
+            "normal use. While it is on, a reminder appears in the corner, and elements that stay fixed on screen " +
+            "(pop-ups, sticky bars) may scroll with the page instead.",
+        },
+      ],
+    },
+  ],
+};
+
+registerFeature(colorBlindSupport);

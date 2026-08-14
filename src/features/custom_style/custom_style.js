@@ -1,5 +1,6 @@
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { colorDistance, contrastRatio, hexToRgb, isLight, parseCssColor } from "../../core/lib/colorUtils";
 
 class CustomStyle {
   constructor(options) {
@@ -64,20 +65,11 @@ class CustomStyle {
     }
   }
 
-  isLight(color) {
-    const brightness = Math.round(
-      (parseInt(color[0]) * 299 + parseInt(color[1]) * 587 + parseInt(color[2]) * 114) / 1000
-    );
-    return brightness > 155;
-  }
-
   getTextColor(backgroundColor, chosenTextColor) {
-    const contrastRatio = this.contrastRatio(backgroundColor, chosenTextColor);
-
-    if (contrastRatio >= 4.5) {
+    if (contrastRatio(backgroundColor, chosenTextColor) >= 4.5) {
       return chosenTextColor;
     } else {
-      const isLightBackground = this.isLight(backgroundColor);
+      const isLightBackground = isLight(backgroundColor);
 
       const textColor = isLightBackground ? "#000000" : "#ffffff";
 
@@ -85,84 +77,42 @@ class CustomStyle {
     }
   }
 
-  hexToRgb(hex) {
-    let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : null;
-  }
-
-  rgbToHex(rgb) {
-    return "#" + ((1 << 24) | (rgb[0] << 16) | (rgb[1] << 8) | rgb[2]).toString(16).slice(1).toUpperCase();
-  }
-
-  contrastRatio(rgb1, rgb2) {
-    const luminance = (rgb) => {
-      let a = rgb.map((v) => {
-        v /= 255;
-        return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-      });
-      return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
-    };
-    let l1 = luminance(rgb1) + 0.05;
-    let l2 = luminance(rgb2) + 0.05;
-    return l1 > l2 ? l1 / l2 : l2 / l1;
-  }
-
   getTextColorForBackground(theValue, backgroundColorKey) {
     const contrastRatioThreshold = 4.5;
     const selectedBackgroundColor = this.options[backgroundColorKey];
     let textColor = null;
     if (selectedBackgroundColor) {
-      let backgroundColor = this.hexToRgb(selectedBackgroundColor);
-      let chosenTextColor = this.hexToRgb(theValue);
-      const contrastRatio = this.contrastRatio(backgroundColor, chosenTextColor);
+      let backgroundColor = hexToRgb(selectedBackgroundColor);
+      let chosenTextColor = hexToRgb(theValue);
 
-      if (contrastRatio >= contrastRatioThreshold) {
+      if (contrastRatio(backgroundColor, chosenTextColor) >= contrastRatioThreshold) {
         textColor = theValue;
       } else {
-        textColor = this.isLight(backgroundColor) ? "#000000" : "#ffffff";
+        textColor = isLight(backgroundColor) ? "#000000" : "#ffffff";
       }
     }
     return textColor || theValue;
   }
 
-  darkenColor(rgb, percent) {
-    return rgb.map((value) => Math.round(value * (1 - percent / 100)));
-  }
-
-  colorDistance(rgb1, rgb2) {
-    return Math.sqrt((rgb1[0] - rgb2[0]) ** 2 + (rgb1[1] - rgb2[1]) ** 2 + (rgb1[2] - rgb2[2]) ** 2);
-  }
-
   // The user's chosen highlight may be deliberately subtle (e.g. pale lilac on white),
   // so only treat it as a problem when it is nearly identical to the element's background.
   isNearlyInvisible(rgb1, rgb2) {
-    return this.colorDistance(rgb1, rgb2) < 15;
-  }
-
-  parseCssColor(color) {
-    const match = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/.exec(color || "");
-    if (!match) {
-      return null;
-    }
-    if (match[4] !== undefined && parseFloat(match[4]) === 0) {
-      return null;
-    }
-    return [parseInt(match[1]), parseInt(match[2]), parseInt(match[3])];
+    return colorDistance(rgb1, rgb2) < 15;
   }
 
   getEffectiveBackgroundColor(element) {
     while (element && element !== document.documentElement) {
-      const rgb = this.parseCssColor(window.getComputedStyle(element).backgroundColor);
+      const rgb = parseCssColor(window.getComputedStyle(element).backgroundColor);
       if (rgb) {
         return rgb;
       }
       element = element.parentElement;
     }
-    return this.hexToRgb(this.options["all_background-color"]) || [255, 255, 255];
+    return hexToRgb(this.options["all_background-color"]) || [255, 255, 255];
   }
 
   watchSelectionContrast() {
-    const chosenRgb = this.hexToRgb(this.options["selection_background-color"]);
+    const chosenRgb = hexToRgb(this.options["selection_background-color"]);
     if (!chosenRgb) {
       return;
     }
@@ -193,8 +143,8 @@ class CustomStyle {
           if (this.isNearlyInvisible(chosenRgb, backgroundRgb)) {
             nearlyInvisible = true;
           }
-          const textRgb = this.parseCssColor(window.getComputedStyle(element).color);
-          if (textRgb && this.isLight(textRgb)) {
+          const textRgb = parseCssColor(window.getComputedStyle(element).color);
+          if (textRgb && isLight(textRgb)) {
             allTextDark = false;
           }
         });
@@ -357,8 +307,8 @@ class CustomStyle {
     if (headingLinksSelectors && headingBgColor) {
       ["link_color", "visitedLink_color"].forEach((linkColorOption) => {
         let linkColor = this.options[linkColorOption];
-        let contrastRatio = this.contrastRatio(this.hexToRgb(linkColor), this.hexToRgb(headingBgColor));
-        if (contrastRatio < 4.5) {
+        let ratio = contrastRatio(hexToRgb(linkColor), hexToRgb(headingBgColor));
+        if (ratio < 4.5) {
           if (!rulesMap.has(headingLinksSelectors)) {
             rulesMap.set(headingLinksSelectors, {
               selectors: headingLinksSelectors,
@@ -366,9 +316,7 @@ class CustomStyle {
             });
           }
           const selectorObj = rulesMap.get(headingLinksSelectors);
-          selectorObj.rules["color"] = this.isLight(this.hexToRgb(headingBgColor))
-            ? "#000000 !important"
-            : "#ffffff !important";
+          selectorObj.rules["color"] = isLight(hexToRgb(headingBgColor)) ? "#000000 !important" : "#ffffff !important";
         }
       });
     }

@@ -76,6 +76,9 @@ import "./features/show_search/show_search";
 import "./features/space_style/space_style";
 import "./features/sticky_header/sticky_header";
 import "./features/visitedLinks/visitedLinks";
+// Last of the appearance modules on purpose: Color-Blind Support has to be able to
+// override the colours the ones above set, so its <style> needs to land after theirs.
+import "./features/color_blind_support/color_blind_support";
 
 // followed by the rest
 

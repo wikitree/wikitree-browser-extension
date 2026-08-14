@@ -11,6 +11,9 @@
 #Categories a {
   cursor: pointer;
 }
+/* Links to categories that do not exist yet. Red against WikiTree's green links is the
+   pairing red-green colour blindness cannot resolve, so defer to Color-Blind Support's
+   choice when that feature is on; the fallback keeps today's red when it is off. */
 #Categories a.new {
-  color: red !important;
+  color: var(--wbe-cb-newlink, red) !important;
 }

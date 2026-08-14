@@ -117,7 +117,7 @@
 }
 
 #textExpanderDialog .delete-expansion:hover {
-  color: #ff0000;
+  color: var(--wbe-cb-danger, #ff0000);
 }
 
 #textExpanderDialog .add-expansion {

@@ -1,0 +1,323 @@
+/*
+Everything here is keyed off classes that color_blind_support.js puts on <body>, and
+draws its colors from the --wbe-cb-* custom properties the same file sets on <html>.
+
+Two things about the specificity. The selectors are written as "html body ..." and use
+!important because they are competing with rules that already shout: WikiTree's own
+a.new:visited { color: red !important }, and Custom Style's and Dark Mode's generated
+<style> blocks. And color_blind_support is imported last in the appearance block of
+content_main.js, so when specificity ties, this stylesheet is the later one and wins.
+
+Every var() carries a fallback matching WikiTree's current color, so a half-applied
+palette degrades to the status quo rather than to black.
+*/
+
+/* ---------------------------------------------------------------------------
+   Links to pages that do not exist yet
+
+   WikiTree: a.new { color: red } against a, a:link { color: #008000 }. The two are the
+   same color to a red-green color-blind reader, so the underline and the ? are doing
+   the real work here; the recolour is the smaller half of the fix.
+   --------------------------------------------------------------------------- */
+
+html body.wbe-cb a.new,
+html body.wbe-cb a.new:link,
+html body.wbe-cb a.new:visited {
+  color: var(--wbe-cb-newlink, #0072b2) !important;
+}
+
+html body.wbe-cb-newlink-dotted a.new,
+html body.wbe-cb-newlink-both a.new {
+  text-decoration: underline !important;
+  text-decoration-style: dotted !important;
+  text-decoration-thickness: 2px !important;
+  text-underline-offset: 2px !important;
+}
+
+html body.wbe-cb-newlink-question a.new::after,
+html body.wbe-cb-newlink-both a.new::after {
+  content: "?";
+  vertical-align: super;
+  font-size: 0.7em;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 1px;
+  text-decoration: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Status messages and content boxes
+
+   WikiTree: .status is a warning, .status.green a success and .status.red an error;
+   .box.green and .box.orange are the quieter content equivalents. The .status variants
+   carry distinct icons already, but the icons are small and themselves color-coded, so
+   the border style is what makes them readable in grayscale. The .box pair has no icon
+   at all.
+   --------------------------------------------------------------------------- */
+
+html body.wbe-cb .box.green {
+  background-color: var(--wbe-cb-success-bg, #e1f0b4) !important;
+  color: var(--wbe-cb-success-text, #25422d) !important;
+}
+
+html body.wbe-cb .box.orange {
+  background-color: var(--wbe-cb-warning-bg, #ffee99) !important;
+  color: var(--wbe-cb-warning-text, #25422d) !important;
+}
+
+html body.wbe-cb .status.green {
+  background-color: var(--wbe-cb-success-bg, #e1f0b4) !important;
+  border-color: var(--wbe-cb-success, #8fc641) !important;
+}
+
+html body.wbe-cb .status.red {
+  background-color: var(--wbe-cb-danger-bg, #ffcccc) !important;
+  border-color: var(--wbe-cb-danger, #e22a40) !important;
+}
+
+html body.wbe-cb .status:not(.green):not(.red) {
+  background-color: var(--wbe-cb-warning-bg, #ffee99) !important;
+}
+
+/* The three border treatments. Solid for success, dashed for a warning, double for an
+   error: a deliberate progression in visual weight, so the severity reads even when
+   only one box is on screen and there is nothing to compare it against. */
+
+html body.wbe-cb-status .box.green,
+html body.wbe-cb-status .status.green {
+  border-left: 10px solid var(--wbe-cb-success, #8fc641) !important;
+}
+
+html body.wbe-cb-status .box.orange,
+html body.wbe-cb-status .status:not(.green):not(.red) {
+  border-left: 10px dashed var(--wbe-cb-warning, #e69f00) !important;
+}
+
+html body.wbe-cb-status .status.red {
+  border-left: 10px double var(--wbe-cb-danger, #e22a40) !important;
+}
+
+/* WikiTree squares off the left corners of .box...border so the coloured edge reads as
+   a tab. Do the same for the edges added above, or the border sits oddly inside the
+   18px radius of a .box.rounded. */
+html body.wbe-cb-status .box.rounded {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+/* Bio Check reports its outcome by putting "status green" on its results container for a
+   pass and plain "status" for a fail. Those two do differ by icon as well as colour, but
+   at 30px that is a thin thing to rest a result on. Say it in words instead.
+
+   Done from here rather than by editing bioCheck.js, so Bio Check itself is untouched:
+   the cost is that the wording only appears while this feature is on. The container is
+   the .status element and #bioCheckResultsList is its list of findings, so the outcome
+   lands on its own line between the heading and the findings. */
+
+html body.wbe-cb-status #bioCheckResultsContainer #bioCheckResultsList::before {
+  display: block;
+  margin-bottom: 0.25em;
+  font-weight: 700;
+  list-style: none;
+}
+
+html body.wbe-cb-status #bioCheckResultsContainer.green #bioCheckResultsList::before {
+  content: "Passed.";
+}
+
+html body.wbe-cb-status #bioCheckResultsContainer:not(.green) #bioCheckResultsList::before {
+  content: "Issues found.";
+}
+
+/* Badges use the same green/red pairing, in a small enough element that only the fill
+   is visible. Recolour and outline both. */
+
+html body.wbe-cb .badge.green {
+  background-color: var(--wbe-cb-success-bg, #e1f0b4) !important;
+}
+
+html body.wbe-cb .badge.green.new {
+  background-color: var(--wbe-cb-success, #8fc641) !important;
+}
+
+html body.wbe-cb .badge.red {
+  background-color: var(--wbe-cb-danger-bg, #ffcccc) !important;
+}
+
+html body.wbe-cb .badge.red.new {
+  background-color: var(--wbe-cb-danger, #cc0000) !important;
+  color: #ffffff !important;
+}
+
+html body.wbe-cb-status .badge.green {
+  border: 2px solid var(--wbe-cb-success, #8fc641) !important;
+}
+
+html body.wbe-cb-status .badge.red {
+  border: 2px dashed var(--wbe-cb-danger, #cc0000) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Privacy indicators
+
+   Seven levels, three padlock icons and a run of yellows: 40 (#ffe270), 35 (#fad158)
+   and 30 (#fcb815) are effectively one colour to most eyes, colour-blind or not. The
+   border style separates them, and the number removes the guesswork entirely.
+   --------------------------------------------------------------------------- */
+
+html body.wbe-cb-privacy-border .privacy[data-wbe-privacy="50"],
+html body.wbe-cb-privacy-both .privacy[data-wbe-privacy="50"] {
+  border: 2px solid #25422d !important;
+}
+
+html body.wbe-cb-privacy-border .privacy[data-wbe-privacy="40"],
+html body.wbe-cb-privacy-both .privacy[data-wbe-privacy="40"] {
+  border: 2px dashed #25422d !important;
+}
+
+html body.wbe-cb-privacy-border .privacy[data-wbe-privacy="35"],
+html body.wbe-cb-privacy-both .privacy[data-wbe-privacy="35"] {
+  border: 2px dotted #25422d !important;
+}
+
+html body.wbe-cb-privacy-border .privacy[data-wbe-privacy="30"],
+html body.wbe-cb-privacy-both .privacy[data-wbe-privacy="30"] {
+  border: 3px double #25422d !important;
+}
+
+html body.wbe-cb-privacy-border .privacy[data-wbe-privacy="20"],
+html body.wbe-cb-privacy-both .privacy[data-wbe-privacy="20"] {
+  border: 3px solid #25422d !important;
+}
+
+html body.wbe-cb-privacy-border .privacy[data-wbe-privacy="10"],
+html body.wbe-cb-privacy-both .privacy[data-wbe-privacy="10"] {
+  border: 3px ridge #ffffff !important;
+}
+
+/* The number sits beside the dot rather than on it, because the dot is already carrying
+   a padlock. .privacy--sm is excluded: at 15px there is no room beside it either, so
+   those get the tooltip the script adds instead. */
+html body.wbe-cb-privacy-number .privacy[data-wbe-privacy]:not(.privacy--sm),
+html body.wbe-cb-privacy-both .privacy[data-wbe-privacy]:not(.privacy--sm) {
+  position: relative;
+  overflow: visible;
+}
+
+html body.wbe-cb-privacy-number .privacy[data-wbe-privacy]:not(.privacy--sm)::after,
+html body.wbe-cb-privacy-both .privacy[data-wbe-privacy]:not(.privacy--sm)::after {
+  content: attr(data-wbe-privacy);
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 3px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #393a3c;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+html body.darkMode.wbe-cb-privacy-number .privacy[data-wbe-privacy]:not(.privacy--sm)::after,
+html body.darkMode.wbe-cb-privacy-both .privacy[data-wbe-privacy]:not(.privacy--sm)::after {
+  color: #dedecb;
+}
+
+/* ---------------------------------------------------------------------------
+   Gender backgrounds
+
+   #f2f1ff / #ffeeee / #eeffee - a pale blue, a pale pink and a pale green. The pink and
+   green are the classic red-green pair, and all three are close to white anyway. The
+   colours themselves belong to Custom Style; this only adds the second channel.
+   --------------------------------------------------------------------------- */
+
+html body.wbe-cb-gender-border .tree--person_m,
+html body.wbe-cb-gender-letter .tree--person_m,
+html body.wbe-cb-gender-border table.table--data td.person--male .genderbar,
+html body.wbe-cb-gender-letter table.table--data td.person--male .genderbar,
+html body.wbe-cb-gender-border .vertical .nameList li[data-gender="Male" i],
+html body.wbe-cb-gender-letter .vertical .nameList li[data-gender="Male" i] {
+  border-left: 6px solid #393a3c !important;
+}
+
+html body.wbe-cb-gender-border .tree--person_f,
+html body.wbe-cb-gender-letter .tree--person_f,
+html body.wbe-cb-gender-border table.table--data td.person--female .genderbar,
+html body.wbe-cb-gender-letter table.table--data td.person--female .genderbar,
+html body.wbe-cb-gender-border .vertical .nameList li[data-gender="Female" i],
+html body.wbe-cb-gender-letter .vertical .nameList li[data-gender="Female" i] {
+  border-left: 6px dashed #393a3c !important;
+}
+
+html body.wbe-cb-gender-border .tree--person_u,
+html body.wbe-cb-gender-letter .tree--person_u,
+html body.wbe-cb-gender-border table.table--data td.person--no-gender .genderbar,
+html body.wbe-cb-gender-letter table.table--data td.person--no-gender .genderbar {
+  border-left: 6px dotted #393a3c !important;
+}
+
+/* The letter goes only on the tree boxes. The genderbar is an 8px sliver with no room
+   for text, and the name lists are dense enough that a letter on every row is noise. */
+html body.wbe-cb-gender-letter .tree--person_m,
+html body.wbe-cb-gender-letter .tree--person_f,
+html body.wbe-cb-gender-letter .tree--person_u {
+  position: relative;
+}
+
+html body.wbe-cb-gender-letter .tree--person_m::before,
+html body.wbe-cb-gender-letter .tree--person_f::before,
+html body.wbe-cb-gender-letter .tree--person_u::before {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+html body.wbe-cb-gender-letter .tree--person_m::before {
+  content: "M";
+}
+
+html body.wbe-cb-gender-letter .tree--person_f::before {
+  content: "F";
+}
+
+html body.wbe-cb-gender-letter .tree--person_u::before {
+  content: "?";
+}
+
+/* ---------------------------------------------------------------------------
+   Simulator badge
+
+   Not inside body: the script hangs it off <html> so that it escapes the filter and
+   keeps a working position: fixed. Deliberately plain black and white so it still reads
+   as a caption if someone screenshots a simulated page.
+   --------------------------------------------------------------------------- */
+
+html > #wbeColorBlindSimulatorBadge {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  z-index: 2147483000;
+  padding: 6px 10px;
+  background-color: #ffffff;
+  color: #000000;
+  border: 2px solid #000000;
+  border-radius: 6px;
+  font-family: "Roboto", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 40%);
+}
+
+@media print {
+  html > #wbeColorBlindSimulatorBadge {
+    display: none;
+  }
+}
