@@ -182,6 +182,7 @@ let featureOptions = null;
 let featureEnabled = false;
 let stylesLoaded = false;
 let privacyDotsTagged = false;
+let familyGroupsTagged = false;
 
 /**
  * The stylesheet is needed by the corner control as well as by the cues, so the simulator
@@ -373,7 +374,13 @@ const PALETTE_PROPERTIES = ["light", "dark"].flatMap((suffix) => [
  * @returns {string[]}
  */
 function cueClassesFor(options) {
-  const classes = ["wbe-cb", `wbe-cb-newlink-${options.newLinkCue}`, `wbe-cb-privacy-${options.privacyCue}`];
+  const classes = [
+    "wbe-cb",
+    `wbe-cb-newlink-${options.newLinkCue}`,
+    `wbe-cb-privacy-${options.privacyCue}`,
+    // Options saved before this cue existed have no familyCue; pattern is its default.
+    `wbe-cb-family-${options.familyCue || "pattern"}`,
+  ];
 
   classes.push(`wbe-cb-gender-${options.genderCue}`);
   if (options.statusCue) {
@@ -406,6 +413,7 @@ function setSupport(on, options) {
     // belongs here rather than at startup: switching the support on mid-page is otherwise
     // the one route that leaves the dots unlabelled.
     tagPrivacyDots(options);
+    tagFamilyGroups(options);
   } else {
     PALETTE_PROPERTIES.forEach((property) => document.documentElement.style.removeProperty(property));
     document.body.classList.remove(...cueClassesFor(options));
@@ -461,6 +469,106 @@ function tagPrivacyDots(options) {
     });
   });
   observer.observe(document.body, { childList: true, subtree: true });
+}
+
+/**
+ * Copy the family group number onto a data attribute so that CSS can print it.
+ *
+ * Change Family Lists puts spouse_1 ... spouse_51 on the people in a blended family and
+ * gives each a colour down the right hand edge, which is how a reader sees which children
+ * go with which parent. Fifty-one colours means no two can be far apart, and none of it
+ * survives grayscale - it is the clearest case in this whole feature of colour carrying
+ * something entirely on its own.
+ *
+ * The classes are added and removed as that feature redraws its lists - it strips every
+ * spouse_ class before reassigning them - so this watches the class attribute as well as
+ * added nodes, and clears the attribute again when the class goes.
+ *
+ * @param {object} options
+ */
+function tagFamilyGroups(options) {
+  if (options.familyCue === "none" || familyGroupsTagged) {
+    return;
+  }
+  familyGroupsTagged = true;
+
+  const tag = (element) => {
+    // SVG elements have an object here rather than a string, hence the typeof check.
+    const names = typeof element.className === "string" ? element.className : "";
+    const match = /(?:^|\s)spouse_(\d+)(?:\s|$)/.exec(names);
+    if (match) {
+      element.setAttribute("data-wbe-family", match[1]);
+    } else if (element.hasAttribute("data-wbe-family")) {
+      element.removeAttribute("data-wbe-family");
+    }
+  };
+
+  /**
+   * The other half of the connection, and a different shape of problem.
+   *
+   * Siblings are joined to parents rather than to spouses, and the two lines are marked
+   * separately: parent_1 (the father's line) goes on the sibling's <li>, parent_2 (the
+   * mother's) on the span[itemprop='sibling'] inside it. Both together is a full sibling,
+   * one alone is a half sibling on that side. Reading them off two elements and writing
+   * one combined value onto the row keeps the marker in one place, and in a sensible
+   * order - taking them where they fall would print the mother's line before the father's.
+   *
+   * Marked only when the list actually mixes: if every sibling shares both parents there
+   * is no distinction to point at, and numbering all of them "1,2" would be noise.
+   */
+  const tagSiblings = (list) => {
+    const seen = new Set();
+    list.querySelectorAll("li").forEach((row) => {
+      const inner = row.querySelector("span[itemprop='sibling']");
+      const names = [row, inner]
+        .map((element) => (element && typeof element.className === "string" ? element.className : ""))
+        .join(" ");
+      const lines = ["1", "2"].filter((line) =>
+        new RegExp(`(?:^|\\s)parent_${line}(?:_pid[^\\s]*)?(?=\\s|$)`).test(names)
+      );
+      // On the inner span rather than the row when there is one: the row's content is
+      // laid out as a block, so a marker on the row drops onto a line of its own instead
+      // of sitting after the name.
+      const target = inner || row;
+      [row, inner].forEach((element) => element?.removeAttribute("data-wbe-parents"));
+      if (lines.length) {
+        target.setAttribute("data-wbe-parents", lines.join(","));
+        seen.add(lines.join(","));
+      }
+    });
+    list.classList.toggle("wbe-cb-mixed-parents", seen.size > 1);
+  };
+
+  const tagWithin = (root) => {
+    if (root.nodeType !== Node.ELEMENT_NODE) {
+      return;
+    }
+    tag(root);
+    root.querySelectorAll?.('[class*="spouse_"]').forEach(tag);
+
+    const siblings = root.closest?.("#siblingList") || root.querySelector?.("#siblingList");
+    if (siblings) {
+      tagSiblings(siblings);
+    }
+  };
+
+  tagWithin(document.body);
+
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === "attributes") {
+        tag(mutation.target);
+        return;
+      }
+      mutation.addedNodes.forEach(tagWithin);
+    });
+  });
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["class"],
+  });
 }
 
 /**

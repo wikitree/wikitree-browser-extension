@@ -29,13 +29,16 @@ border colors. Content boxes deliberately **keep WikiTree's own backgrounds**; s
 one palette suits every form of color blindness, so nothing here relies on the recolor
 alone:
 
-| Element                                                                   | Cue added                                                             |
-| ------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `a.new` — links to pages that do not exist                                | Dotted underline and a superscript `?`                                |
-| `.status.green` / `.status` / `.status.red`, `.box.green` / `.box.orange` | Solid / dashed / double left border                                   |
-| `.privacy--NN` dots                                                       | Distinct border style per level, plus the level number beside the dot |
-| `.tree--person_m/_f/_u`, `.genderbar`                                     | Solid / dashed / dotted left edge, optionally an M / F / ? letter     |
-| Bio Check's results box                                                   | "Passed." / "Issues found." in words above the findings               |
+| Element                                                                    | Cue added                                                             |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `a.new` — links to pages that do not exist                                 | Dotted underline and a superscript `?`                                |
+| `.status.green` / `.status` / `.status.red`, `.box.green` / `.box.orange`  | Solid / dashed / double left border                                   |
+| `.privacy--NN` dots                                                        | Distinct border style per level, plus the level number beside the dot |
+| `.tree--person_m/_f/_u`, `.genderbar`                                      | Solid / dashed / dotted left edge, optionally an M / F / ? letter     |
+| Bio Check's results box                                                    | "Passed." / "Issues found." in words above the findings               |
+| `spouse_N` / `parent_1` / `parent_2` in Change Family Lists                | The connection's number beside the name                               |
+| `#errorMessages` / `#warningMessages` / `#hintMessages` (Show Suggestions) | Double / dashed / dotted left border                                  |
+| `.background--gender-*` rows (What Links Here, Category Management)        | Solid / dashed / dotted painted stripe                                |
 
 **Simulates** color vision deficiencies, so you can check a page rather than guess:
 achromatopsia, deuteranopia, protanopia and tritanopia. The three dichromacies use SVG
@@ -124,6 +127,84 @@ alike, and reads without a second box on screen to compare against.
 Badges keep their fill recolor. They are too small for a border and the fill is the only
 channel they have.
 
+## Family connections
+
+Change Family Lists draws two coloured bars on each person in a family list. The left one
+is gender, and the gender cue above already covers it. The right one is the one that
+matters here: it marks **which parent each person belongs with** in a blended family, and
+it does that with `spouse_1` … `spouse_51` and fifty-one hues.
+
+Fifty-one colours cannot be far apart from each other, and in grayscale they are one
+colour. Of everything in this feature it is the purest colour-only signal — and what it is
+carrying is the structure of the family, which is the reason someone opened the page.
+
+There are **two** of these systems on one page, not one:
+
+- **`spouse_1` … `spouse_51`** joins each spouse to their children.
+- **`parent_1` / `parent_2`** joins the two parents to the siblings — and these land on
+  _different elements_, `parent_1` on the sibling's `<li>` and `parent_2` on the
+  `span[itemprop='sibling']` inside it. Carrying both means a full sibling; one alone
+  means a half sibling on that side. That is arguably the more interesting fact of the
+  two, and it is just as invisible without color.
+
+Two cues. **The patterns are the default and the number is opt-in**, because only one of
+them is free:
+
+- **The bars get a pattern** — solid, dashed, dotted, double. Only the style is changed,
+  never the colour or the width: the colours belong to that feature and a reader with
+  normal vision should see exactly what it intended, while the pattern needs no colour at
+  all. Four patterns covers the real cases — siblings have exactly two lines, and a profile
+  with more than four spouses is vanishingly rare. Above four the patterns cycle.
+- **A number beside the name**, optional. Beside a child it is the spouse they belong with;
+  beside a sibling it is which parents they share, so `1,2` is a full sibling. It is the
+  clearer of the two cues and it costs layout: the number needs a strip of space to sit in,
+  which narrows the lists and pushes longer names onto a second line. On a real profile in
+  the sidebar that wrapped most rows, which is why it is not the default.
+
+Details worth knowing:
+
+- Nothing is marked unless it is **saying something**. A profile with a single family gets
+  a bar too, and numbering it "1" would announce a distinction that does not exist; that
+  test is `:has([data-wbe-family="2"])` in the stylesheet, so it costs no JavaScript and
+  follows the lists as they are redrawn. A sibling list is only marked when it actually
+  mixes full and half siblings, which needs the values compared and so is decided in
+  JavaScript, as `wbe-cb-mixed-parents`.
+- When the number is switched on it sits in a **gutter outside the row**, and getting there
+  took three tries on real profiles. Left in the flow it lands on a line of its own, because these rows lay
+  their contents out as blocks — that adds height to every row. Pinned inside the row it
+  lands on top of the ages and relationship figures, which are already right-aligned there.
+  So the list gives up a strip of its width (`padding-right`), which moves each row's right
+  border left and leaves a clear gutter with nothing else in it. Nothing overflows and
+  nothing overlaps. Spouse blocks are exempt: they are tall, with the marriage details
+  below the name, so there is room inside and nothing to collide with. They still get the
+  gutter anyway, and so does the parents list, which carries no marker at all. Two rounds
+  were spent learning this: first the spouse list stayed wide because its blocks had room
+  inside, then the parents list stayed wide because its own `:has()` test failed for want
+  of a marker. Both looked like bugs. The gutter is now decided once on `#nVitals` and
+  applied to every list in it — four stacked lists that do not line up read worse than four
+  slightly narrower ones that do.
+- The patterns are crisp for spouses and children, where each row has a single bar. For
+  siblings they are subtler, because the row's border and the inner span's border sit
+  almost on top of each other — the difference is there, but it is a doubled bar rather
+  than two clean ones. Change Family Lists already prints `[half]` in those rows, so the
+  full/half distinction has a text channel regardless; what the pattern adds is _which_
+  parent.
+- The `::after` that draws the number is matched by **two** selectors — one for the
+  spouse/children groups and one for the sibling lines — and both have to list every mode
+  the cue is on in. Getting that wrong is silent: the number simply does not appear, and
+  nothing fails. It happened once, when the default changed from `number` to `both` and
+  only one of the two selectors was updated; siblings kept working and children and
+  spouses quietly stopped. The jest tests cannot catch this — they assert the body class,
+  not whether any CSS matched it — so **check a rendered profile after touching these
+  selectors**.
+- The patterns are matched on **that feature's own classes**, not on the data attributes
+  this file adds, because the border sits on the row or on the span inside it depending on
+  which parent it is, and the class is on whichever element actually carries the border.
+  Both the plain (`parent_1`) and per-id (`parent_1_pid12345`) forms are matched.
+- The attribute is kept in step with the class by a `MutationObserver` watching `class`,
+  not just added nodes. Change Family Lists strips every `spouse_` class before reassigning
+  them on each redraw, so a one-off pass at load would be wrong within seconds.
+
 ## Custom Style
 
 Custom Style has 24 color pickers, and two of them change what this feature is working
@@ -210,6 +291,30 @@ feature, use the variable with a fallback rather than a bare color.**
 The cue choices become classes on `<body>` (`wbe-cb`, `wbe-cb-newlink-both`,
 `wbe-cb-status`, `wbe-cb-privacy-both`, `wbe-cb-gender-border`), which
 `color_blind_support.css` keys off.
+
+## Other WBE features
+
+The same question — _is colour the only thing carrying this?_ — was put to the rest of the
+extension. What it turned up, in order of how much the colour is doing:
+
+| Feature                                                                 | What colour encodes                                                                                                    | State                                                                                                                                 |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **Show Suggestions**                                                    | error / warning / hint, three panels differing **only** in background — same border colour, same text colour           | **done** — double / dashed / dotted edge                                                                                              |
+| **What Links Here**, **Category Management**                            | gender, as `.background--gender-*` row tints                                                                           | **done** — painted stripe                                                                                                             |
+| **Connection Finder**                                                   | which connection branch a person belongs to, as 18 classes literally named `greenFamily`, `blueFamily`, `pinkFamily` … | **not done** — the same shape as `spouse_N`; the JS holds them in an ordered array, so an index exists to hang a number or pattern on |
+| **Suggested Matches Filters**                                           | which field matched, and **full vs partial**, across ~8 tinted spans                                                   | **not done** — needs thought: the meaning is "what kind of match", which may want words rather than shapes                            |
+| Feed Helper, Sort Theme People, Wikitable Wizard, Menu Style, Dark Mode | highlighting, chrome, theming                                                                                          | not information — left alone                                                                                                          |
+
+Two things learned doing the ones marked done, both by measuring rather than reasoning:
+
+- **A border is the wrong tool on a table row.** `border-left` on a `<tr>` in a collapsed
+  table merges with the rows above and below, and the collapse algorithm picks one winner
+  by style precedence — so three rows asking for solid, dashed and dotted render as a
+  single unbroken line. Moving it to the row's first cell does not help.
+- **A background gradient on a `<tr>` is also wrong**, because a table row's background
+  positioning area is the whole table, so the gradient is scaled across it and each row
+  shows a flat slice. Painted on the first **cell** it renders per row, which is what the
+  rules do.
 
 ## Notes and limits
 

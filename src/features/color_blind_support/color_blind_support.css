@@ -105,6 +105,257 @@ html body.wbe-cb-newlink-both a.new::after {
   text-decoration: none;
 }
 
+/* Gender rows in tables - What Links Here, Category Management.
+
+   The same idea as the tree boxes above, but NOT done with a border, because these are
+   table rows. border-left on a <tr> in a collapsed table merges with the rows above and
+   below, and the collapse algorithm resolves the conflict by style precedence - so three
+   rows asking for solid, dashed and dotted render as one unbroken line. Measured twice,
+   once on the row and once on its first cell; both come out as a single bar.
+
+   A background gradient does not collapse, so the stripe is painted rather than bordered -
+   and painted on the row's first CELL, not the row: a table-row's background positioning
+   area is the whole table in some engines, so a gradient set on the row is scaled across
+   the table and each row shows a flat slice of it, which comes out as one solid bar again.
+   currentColor keeps it to the row's own text colour: this is a shape cue, and giving it a
+   colour of its own would be the mistake this whole feature exists to correct. */
+
+html
+  :is(body.wbe-cb-gender-border, body.wbe-cb-gender-letter)
+  :is(.background--gender-male, .background--gender-female, .background--gender-no-gender, tr.background--gender-male
+    > *:first-child, tr.background--gender-female > *:first-child, tr.background--gender-no-gender > *:first-child) {
+  background-repeat: no-repeat !important;
+  background-position: left top !important;
+  background-size: 5px 100% !important;
+}
+
+html :is(body.wbe-cb-gender-border, body.wbe-cb-gender-letter) .background--gender-male:not(tr),
+html :is(body.wbe-cb-gender-border, body.wbe-cb-gender-letter) tr.background--gender-male > *:first-child {
+  background-image: linear-gradient(currentColor, currentColor) !important;
+}
+
+html :is(body.wbe-cb-gender-border, body.wbe-cb-gender-letter) .background--gender-female:not(tr),
+html :is(body.wbe-cb-gender-border, body.wbe-cb-gender-letter) tr.background--gender-female > *:first-child {
+  background-image: repeating-linear-gradient(to bottom, currentColor 0 6px, transparent 6px 12px) !important;
+}
+
+html :is(body.wbe-cb-gender-border, body.wbe-cb-gender-letter) .background--gender-no-gender:not(tr),
+html :is(body.wbe-cb-gender-border, body.wbe-cb-gender-letter) tr.background--gender-no-gender > *:first-child {
+  background-image: repeating-linear-gradient(to bottom, currentColor 0 2px, transparent 2px 6px) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Family connections in blended families
+
+   Change Family Lists marks which parent each person belongs with by putting spouse_1 ...
+   spouse_51 on them and colouring a 3px bar down the right hand edge. Fifty-one hues
+   cannot be far apart from one another, and in grayscale they are one colour, so this is
+   the purest colour-only signal anywhere in the extension - and it is carrying the
+   structure of the family.
+
+   The number is the cue, because the groups are already numbered and a number scales to
+   as many of them as there are, where border styles run out after four. It goes inline
+   after the name rather than absolutely positioned against the bar, which would need
+   position: relative on rows belonging to another feature.
+
+   There are two of these systems, not one. spouse_1 ... spouse_51 joins spouses to their
+   children. parent_1 and parent_2 join the two parents to the siblings, and a sibling
+   carrying both shares both parents while one alone is a half sibling on that side -
+   the more interesting fact of the two, and equally invisible without colour.
+
+   Neither is marked unless it is actually saying something. A profile with one family
+   gets a bar too, and numbering it "1" would announce a distinction that does not exist;
+   the :has() test handles that with no JavaScript and follows the lists as they redraw.
+   The sibling list is only marked when it mixes full and half siblings, which needs the
+   values compared and so is decided in JavaScript, as wbe-cb-mixed-parents.
+
+   content: attr(a) attr(b) rather than two rules - only one of the two attributes is ever
+   present on a given element, and an absent attr() contributes nothing.
+   --------------------------------------------------------------------------- */
+
+html
+  :is(body.wbe-cb-family-number, body.wbe-cb-family-both)
+  :is(#nVitals, .familyList, .nameList):has([data-wbe-family="2"])
+  [data-wbe-family]::after,
+html
+  :is(body.wbe-cb-family-number, body.wbe-cb-family-both)
+  #siblingList.wbe-cb-mixed-parents
+  [data-wbe-parents]::after {
+  content: attr(data-wbe-family) attr(data-wbe-parents);
+  font-size: 0.7em;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  font-style: normal;
+  /* Left in the flow it lands on a line of its own - these rows lay their contents out as
+     blocks - which adds height to every row. Pinned inside the row instead, it collides
+     with the ages and relationship figures that are already right-aligned there. So it
+     goes OUTSIDE: the list below gives up a strip of its width, which moves each row's
+     right border left and leaves a clear gutter for the marker to sit in. Nothing overflows
+     and nothing overlaps. */
+  position: absolute;
+  /* Anchored from the row's right edge and growing outwards, not right-aligned into it.
+     Right-aligning works for "1" and fails for "1,2": the longer string grows leftwards
+     back over the border and the ages, which is exactly what it was moved out to avoid. */
+  left: calc(100% + 7px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
+/* The gutter the marker sits in. padding-right on the list narrows the rows, so the bar
+   moves left by this much and the space to its right belongs to nobody.
+
+   Every list in the panel gets it, and the decision is made once on #nVitals rather than
+   per list. Two rounds of this were spent discovering that the lists have to agree: first
+   the spouse list stayed wide because its blocks are tall enough to hold the marker
+   inside, then the parents list stayed wide because it carries no marker of its own so its
+   own :has() test failed. Both looked like bugs. A list with nothing to show still gives
+   up the same strip, because four stacked lists that do not line up read worse than four
+   slightly narrower ones that do. */
+html
+  :is(body.wbe-cb-family-number, body.wbe-cb-family-both)
+  #nVitals:has([data-wbe-parents], [data-wbe-family])
+  :is(#parentList, #bioParentList, #siblingList, #childrenList, #Spouses) {
+  /* Wide enough for the longest marker, which is "1,2". */
+  padding-right: 2.4em;
+  box-sizing: border-box;
+}
+
+html
+  :is(body.wbe-cb-family-number, body.wbe-cb-family-both)
+  :is(#siblingList, #childrenList, #nVitals)
+  :is(li, .spouse):has([data-wbe-parents], [data-wbe-family]),
+html :is(body.wbe-cb-family-number, body.wbe-cb-family-both) :is(#siblingList, #childrenList) li[data-wbe-family] {
+  position: relative;
+}
+
+/* The bars themselves.
+
+   Only the style is changed, never the colour or the width: the colours are that feature's
+   to choose and a reader with normal vision should see exactly what it intended, while the
+   pattern is a shape difference that needs no colour at all. 3px is enough for double to
+   render as three visible 1px lines.
+
+   Four patterns covers the real cases. Siblings have exactly two lines, father and mother.
+   Spouse groups are declared up to fifty-one but a profile with more than four spouses is
+   vanishingly rare, and the patterns cycle after that with the number left to disambiguate.
+
+   Matched on that feature's own classes rather than on the data attributes this file adds,
+   because the border can sit on the row or on the span inside it depending on which parent
+   it is, and the class is on whichever element actually carries the border. */
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  .vertical
+  :is(#parentList, #bioParentList, #siblingList, .nameList)
+  :is(li, span).parent_1:not(.activeProfile),
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  .vertical
+  :is(#parentList, #bioParentList, #siblingList, .nameList)
+  :is(li, span)[class*="parent_1_pid"]:not(.activeProfile) {
+  border-right-style: solid !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  .vertical
+  :is(#parentList, #bioParentList, #siblingList, .nameList)
+  :is(li, span).parent_2:not(.activeProfile),
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  .vertical
+  :is(#parentList, #bioParentList, #siblingList, .nameList)
+  :is(li, span)[class*="parent_2_pid"]:not(.activeProfile) {
+  border-right-style: dashed !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_1, li.spouse_1) {
+  border-right-style: solid !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_2, li.spouse_2) {
+  border-right-style: dashed !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_3, li.spouse_3) {
+  border-right-style: dotted !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_4, li.spouse_4) {
+  border-right-style: double !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_5, li.spouse_5) {
+  border-right-style: solid !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_6, li.spouse_6) {
+  border-right-style: dashed !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_7, li.spouse_7) {
+  border-right-style: dotted !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_8, li.spouse_8) {
+  border-right-style: double !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_9, li.spouse_9) {
+  border-right-style: solid !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_10, li.spouse_10) {
+  border-right-style: dashed !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_11, li.spouse_11) {
+  border-right-style: dotted !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_12, li.spouse_12) {
+  border-right-style: double !important;
+}
+
 /* ---------------------------------------------------------------------------
    Status messages and content boxes
 
@@ -161,6 +412,23 @@ html body.wbe-cb-status .status:not(.green):not(.red) {
 
 html body.wbe-cb-status .status.red {
   border-left: 10px double var(--wbe-cb-danger, #e22a40) !important;
+}
+
+/* Show Suggestions stacks three panels whose ONLY difference is the background: a pale
+   red, a pale yellow and a pale blue, with the same border colour and the same text
+   colour on all three. In grayscale they are three near-identical greys, and what they
+   are separating is errors from warnings from hints. Same treatment as the boxes above,
+   with a dotted edge for hints - the one severity WikiTree itself has no equivalent of. */
+html body.wbe-cb-status #errorMessages {
+  border-left: 10px double var(--wbe-cb-danger, #e22a40) !important;
+}
+
+html body.wbe-cb-status #warningMessages {
+  border-left: 10px dashed var(--wbe-cb-warning, #e69f00) !important;
+}
+
+html body.wbe-cb-status #hintMessages {
+  border-left: 10px dotted var(--wbe-cb-newlink, #0072b2) !important;
 }
 
 /* WikiTree squares off the left corners of .box...border so the coloured edge reads as

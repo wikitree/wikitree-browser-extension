@@ -147,6 +147,39 @@ const colorBlindSupport = {
       ],
     },
     {
+      id: "family",
+      type: OptionType.GROUP,
+      label: "Family Connections",
+      options: [
+        {
+          id: "familyCue",
+          type: OptionType.SELECT,
+          label: "Number the family connections in family lists",
+          values: [
+            { value: "both", text: "Patterned bars and a number" },
+            { value: "pattern", text: "Patterned bars" },
+            { value: "number", text: "A number" },
+            { value: "none", text: "Color only" },
+          ],
+          defaultValue: "both",
+          comment:
+            "The Change Family Lists feature draws a colored bar down the right of each person to show two " +
+            "things: which spouse each child belongs to, and which parent each sibling shares. It has fifty-one " +
+            "colors for the first and nothing else for either, so these are the first things to go without color " +
+            "vision, and in grayscale they go completely. This gives the bars themselves a pattern - solid, " +
+            "dashed, dotted, double - which needs no color at all and changes nothing about the layout. A number " +
+            "can be added as well, and is the clearer of the two, but it has a cost: it needs a strip of space " +
+            "beside each row to sit in, which narrows the lists and can push longer names onto a second line. " +
+            "Patterns alone are the default for that reason. " +
+            "Beside a child it is the spouse they belong with, counting down the list of spouses. Beside a " +
+            "sibling it is which parents you share - 1 for the first parent, 2 for the second, and 1,2 for a " +
+            "full sibling. Nothing is marked unless it is saying something: a profile with one family, or a " +
+            "sibling list where everyone is a full sibling, is left alone. The bar down the left is gender, and " +
+            "the Gender Backgrounds section above handles that one.",
+        },
+      ],
+    },
+    {
       id: "simulator",
       type: OptionType.GROUP,
       label: "Simulator",

@@ -72,9 +72,11 @@ beforeEach(() => {
       element.remove();
     });
   document.documentElement.removeAttribute("style");
-  document.body.removeAttribute("style");
-  document.body.className = "";
-  document.body.innerHTML = "";
+
+  // A fresh <body> each time, not just an emptied one. Each loadFeature leaves a
+  // MutationObserver watching document.body, and jsdom keeps the same document across
+  // tests, so without this the observers from earlier tests go on tagging this one's DOM.
+  document.documentElement.replaceChild(document.createElement("body"), document.body);
 });
 
 describe("on page load", () => {
@@ -265,5 +267,139 @@ describe("closing the control", () => {
     supportToggle().dispatchEvent(new Event("change"));
 
     expect(closeButton().title).toBe("Close and turn Color-Blind Support off in your settings");
+  });
+});
+
+describe("family connections in blended families", () => {
+  function familyList() {
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      `<div id="nVitals" class="vertical">
+         <div class="spouse spouse_1" id="s1">Clarence Howard Pool</div>
+         <div class="spouse spouse_2" id="s2">Someone Else</div>
+         <ul class="nameList" id="kids">
+           <li class="spouse_1" id="k1">a child of the first</li>
+           <li class="spouse_2" id="k2">a child of the second</li>
+         </ul>
+       </div>`
+    );
+  }
+
+  const familyOf = (id) => document.getElementById(id)?.getAttribute("data-wbe-family");
+
+  test("numbers each person with the group that connects them to a parent", async () => {
+    familyList();
+    await loadFeature({ enabled: true });
+
+    expect(document.body.classList.contains("wbe-cb-family-pattern")).toBe(true);
+    expect(familyOf("s1")).toBe("1");
+    expect(familyOf("k1")).toBe("1");
+    expect(familyOf("s2")).toBe("2");
+    expect(familyOf("k2")).toBe("2");
+  });
+
+  test("keeps up when the list is redrawn and the classes are reassigned", async () => {
+    familyList();
+    await loadFeature({ enabled: true });
+
+    // Change Family Lists strips every spouse_ class before assigning them again, so the
+    // attribute has to follow the class rather than being written once at load.
+    const child = document.getElementById("k1");
+    child.className = "spouse_3";
+    await settle();
+    expect(familyOf("k1")).toBe("3");
+
+    child.className = "";
+    await settle();
+    expect(familyOf("k1")).toBeNull();
+  });
+
+  test("marks people added to the list after load", async () => {
+    familyList();
+    await loadFeature({ enabled: true });
+
+    document.getElementById("kids").insertAdjacentHTML("beforeend", '<li class="spouse_2" id="k3">a late arrival</li>');
+    await settle();
+
+    expect(familyOf("k3")).toBe("2");
+  });
+
+  test("does nothing when the cue is switched off", async () => {
+    familyList();
+    await loadFeature({ enabled: true, options: { familyCue: "none" } });
+
+    expect(familyOf("s1")).toBeNull();
+    expect(document.body.classList.contains("wbe-cb-family-none")).toBe(true);
+  });
+});
+
+describe("which parent a sibling shares", () => {
+  // parent_1 (the father's line) goes on the <li>; parent_2 (the mother's) on the inner
+  // span. Both = a full sibling, one = a half sibling on that side.
+  function siblingList(rows) {
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      `<div class="vertical"><ol id="siblingList" class="nameList">${rows
+        .map(
+          ([id, onLi, onSpan]) =>
+            `<li id="${id}" class="${onLi}"><span itemprop="sibling" class="${onSpan}">a sibling</span></li>`
+        )
+        .join("")}</ol></div>`
+    );
+  }
+
+  // The marker goes on the inner span when there is one, so ask the row for whichever
+  // of its elements is carrying it.
+  const parentsOf = (id) =>
+    document.getElementById(id)?.querySelector("[data-wbe-parents]")?.getAttribute("data-wbe-parents") ??
+    document.getElementById(id)?.getAttribute("data-wbe-parents");
+  const list = () => document.getElementById("siblingList");
+
+  test("marks a mixed list of full and half siblings", async () => {
+    siblingList([
+      ["full", "parent_1", "parent_2"],
+      ["halfFather", "parent_1", ""],
+      ["halfMother", "", "parent_2"],
+    ]);
+    await loadFeature({ enabled: true });
+
+    expect(parentsOf("full")).toBe("1,2");
+    expect(parentsOf("halfFather")).toBe("1");
+    expect(parentsOf("halfMother")).toBe("2");
+    expect(list().classList.contains("wbe-cb-mixed-parents")).toBe(true);
+  });
+
+  test("reads the per-parent id classes too", async () => {
+    siblingList([
+      ["full", "parent_1 parent_1_pid12345", "parent_2 parent_2_pid67890"],
+      ["half", "parent_1 parent_1_pid12345", ""],
+    ]);
+    await loadFeature({ enabled: true });
+
+    expect(parentsOf("full")).toBe("1,2");
+    expect(parentsOf("half")).toBe("1");
+  });
+
+  test("says nothing when every sibling shares both parents", async () => {
+    siblingList([
+      ["a", "parent_1", "parent_2"],
+      ["b", "parent_1", "parent_2"],
+    ]);
+    await loadFeature({ enabled: true });
+
+    // The attribute is still there, but the list is not flagged, so nothing is shown -
+    // there is no distinction to point at.
+    expect(list().classList.contains("wbe-cb-mixed-parents")).toBe(false);
+  });
+
+  test("does not confuse parent_1 with parent_2", async () => {
+    siblingList([
+      ["onlyMother", "", "parent_2"],
+      ["onlyFather", "parent_1", ""],
+    ]);
+    await loadFeature({ enabled: true });
+
+    expect(parentsOf("onlyMother")).toBe("2");
+    expect(parentsOf("onlyFather")).toBe("1");
   });
 });
