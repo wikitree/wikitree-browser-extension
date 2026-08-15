@@ -156,12 +156,12 @@ const colorBlindSupport = {
           type: OptionType.SELECT,
           label: "Number the family connections in family lists",
           values: [
-            { value: "both", text: "Patterned bars and a number" },
             { value: "pattern", text: "Patterned bars" },
+            { value: "both", text: "Patterned bars and a number" },
             { value: "number", text: "A number" },
             { value: "none", text: "Color only" },
           ],
-          defaultValue: "both",
+          defaultValue: "pattern",
           comment:
             "The Change Family Lists feature draws a colored bar down the right of each person to show two " +
             "things: which spouse each child belongs to, and which parent each sibling shares. It has fifty-one " +

@@ -105,6 +105,43 @@ html body.wbe-cb-newlink-both a.new::after {
   text-decoration: none;
 }
 
+/* ---------------------------------------------------------------------------
+   Links you have already followed - NOTHING IS DONE HERE, AND NOTHING CAN BE
+
+   WikiTree draws a:visited purple against a:link green. Measured as CIE76 dE, that is
+   141.3 apart with normal colour vision and in grayscale - purple is much the darker, so
+   the difference survives having no colour at all - but only 23.0 under deuteranopia,
+   34.5 under protanopia and 42.2 under tritanopia. Deuteranopia is the weak case, and a
+   reader with it reported these as looking the same.
+
+   The cue used everywhere else in this file - an always-present element whose COLOUR
+   alone changes - was built here twice and does not work. Tested in Chrome against a page
+   with real history, ten ways:
+
+     border-*-color, background-color, outline-color, text-decoration-color,
+     the colour of a child span (g2g.js's checkmark pattern), the colour of an
+     ::after glyph          all IGNORED on :visited
+     color on the link itself                                  the ONLY one honoured
+
+   The allow-list published in every reference, this file's earlier comments included, is
+   out of date: Chrome now restricts :visited to the link's own colour. So no shape cue for
+   visited links is possible at all, and the same finding kills the "checkmarks to show
+   questions you have visited" option in this extension's own g2g feature, which colours a
+   checkmark span exactly like variant five above.
+
+   Nor is a better colour available through the one property that does work. The best
+   scorer over every colour readable on white is #D84000 at 58.8 worst-case against
+   WikiTree's green, next to purple's 23.0 - but that is an orange-red against a green,
+   the exact pair red-green readers confuse, and the score is inflated by a known blind
+   spot in the measurement: the simulation matrices drop hue but keep luminance, so they
+   cannot see red-green confusion (see the note on that in check-palette.mjs). A change
+   this file's own tooling cannot validate is not one to ship.
+
+   Link colours therefore stay with the Visited Links and Custom Style features, where the
+   reader picks them. If Chrome ever relaxes this, the cue to add is the doubled bottom
+   border: transparent by default, border-bottom-color on :visited, which costs no layout
+   because a bottom border on an inline element does not affect line box height. */
+
 /* Gender rows in tables - What Links Here, Category Management.
 
    The same idea as the tree boxes above, but NOT done with a border, because these are

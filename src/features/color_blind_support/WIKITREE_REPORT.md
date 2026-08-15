@@ -97,6 +97,31 @@ struggles with. Two better tests:
 - Look at a signal **in isolation**, not next to its counterpart. One red link in a
   paragraph of green ones, not the two side by side in a swatch.
 
+## Visited links: something WikiTree cannot fix, and neither can an extension
+
+Worth recording because it changes what is worth attempting. `a:visited` purple against
+`a:link` green measures 141.3 dE apart with normal colour vision and in greyscale, but only
+**23.0 under deuteranopia** - the weakest pair on the site after the red/green links, and a
+reader with deuteranopia reported the two as looking the same.
+
+The usual remedy - add a second, non-colour channel - is not available here. Browsers
+restrict what a `:visited` rule may change so that a page cannot read back a reader's
+history, and that restriction has tightened beyond what is widely documented. Tested in
+Chrome against a page with genuine history, `border-*-color`, `background-color`,
+`outline-color`, `text-decoration-color`, the colour of a child element and the colour of
+an `::after` glyph are **all ignored**; only `color` on the link itself is honoured. So no
+marker, no border and no glyph can be made to appear for visited links, by a site or by an
+extension.
+
+That leaves only the choice of colour. WikiTree's purple is a reasonable one: the best
+alternative found by searching every colour readable on white scores far better on paper
+but is an orange-red, which is the exact pair red-green readers confuse - the measurement
+cannot see that, for the reason given in the section above.
+
+The honest conclusion is that visited/unvisited is the one distinction on the site that
+cannot be made reliable for readers with deuteranopia. Anywhere it carries something that
+matters, it should not be the only thing carrying it.
+
 ## What the extension does about it meanwhile
 
 The WikiTree Browser Extension now has a **Color-Blind Support** feature that recolours

@@ -100,6 +100,74 @@ so a check started from the context menu carries across pages like any other. Ch
 **Normal (off)** ends the simulation: the control will not be there on the next page, and
 the context menu or the options page is the way to start again.
 
+## Visited links: tried, measured, and not possible
+
+**Nothing in this feature touches visited links.** Two versions were built and both were
+removed. The reason is a browser restriction that has tightened since it was last widely
+documented, so it is written down here in full rather than left for the next person to
+rediscover.
+
+WikiTree draws `a:visited` purple against `a:link` green. As CIE76 dE:
+
+|                 | normal | deuteranopia | protanopia | tritanopia | grayscale |
+| --------------- | ------ | ------------ | ---------- | ---------- | --------- |
+| green vs purple | 141.3  | **23.0**     | 34.5       | 42.2       | 141.3     |
+
+Note that grayscale is _not_ the problem — purple is much the darker of the two, so the
+difference survives having no colour at all. Deuteranopia is the weak case, and a reader
+with it reported the two as looking the same.
+
+### Why no shape cue is possible
+
+Every other cue in this feature is a shape, because shape survives what colour does not.
+For visited links, browsers restrict what `:visited` may change, so that a page cannot read
+back which links you have followed. The published allow-list — `color`, `background-color`,
+the border and outline colours, `fill`, `stroke` — is what the two attempts here were built
+on, and **it is out of date**. Tested in Chrome against a page with genuine history:
+
+| tried                                                     | result                    |
+| --------------------------------------------------------- | ------------------------- |
+| `border-bottom-color`, currentColor and explicit          | ignored                   |
+| `background-color`                                        | ignored                   |
+| `outline-color`                                           | ignored                   |
+| `text-decoration-color`                                   | ignored                   |
+| colour of a child `<span>` — `g2g.js`'s checkmark pattern | ignored                   |
+| colour of an `::after` glyph                              | ignored                   |
+| `color` on the link itself                                | **the only one honoured** |
+
+So the trick this feature relies on everywhere else — an element that is always present and
+only changes colour — cannot work for visited links in Chrome at all.
+
+**This affects `g2g.js` too.** Its "checkmarks to show questions you have visited" option
+colours a `✓` span inside the link, which is the fifth row of that table. That option is
+silently doing nothing in Chrome. Not fixed here; noted so somebody can.
+
+### Why a better colour is not the answer either
+
+`color` does work, so the visited colour could be changed. Over every colour readable on
+white, the best scorer against WikiTree's green is `#D84000` at **58.8** worst-case, against
+purple's 23.0 — a large improvement on paper.
+
+It was not taken, because the measurement cannot be trusted for this particular pair.
+`#D84000` is an orange-red against a green, and the simulation matrices drop hue while
+keeping luminance, so they cannot see red-green confusion at all — the same blind spot
+recorded in `scripts/check-palette.mjs`, where WikiTree's own red/green measures 91.8 dE
+apart under deuteranopia. A change this repo's own tooling cannot validate is not one to
+ship to the readers it is meant to help.
+
+Link colours therefore stay with the **Visited Links** and **Custom Style** features, where
+the reader chooses them.
+
+### If Chrome ever relaxes this
+
+The cue to add back is a doubled bottom border: `border-bottom: 3px double transparent` on
+the link, `border-bottom-color` on `:visited`. It costs no layout — a bottom border on an
+inline element does not affect line box height (CSS 2.1 §10.8.1) — which matters both for
+the page and for honesty, since a cue that changed the layout would leak the history the
+restriction exists to protect. The first attempt used an appended span instead and put a
+visible gap after every link on the page, because the span took its width whether or not
+the link had been visited.
+
 ## Why the boxes are not recolored
 
 The first version repainted `.box.green`, `.box.orange` and the three `.status` variants
