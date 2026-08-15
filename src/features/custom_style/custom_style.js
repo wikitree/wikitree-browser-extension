@@ -395,6 +395,23 @@ class CustomStyle {
       }`;
     }
 
+    // Ensure footer visited links remain visible — use the chosen visited color
+    // unless it fails WCAG contrast against the footer background, in which
+    // case fall back to black/white for sufficient contrast.
+    try {
+      const footerBg = this.options["color1_background-color"] || this.options["all_background-color"];
+      let footerVisited = this.options["visitedLink_color"] || this.options["link_color"] || "#800080";
+      if (footerBg && footerVisited) {
+        const ratio = contrastRatio(hexToRgb(footerVisited), hexToRgb(footerBg));
+        if (ratio < 4.5) {
+          footerVisited = isLight(hexToRgb(footerBg)) ? "#000000" : "#ffffff";
+        }
+        rules += `\n      footer#footer a:visited { color: ${footerVisited} !important; }`;
+      }
+    } catch (e) {
+      // Defensive: don't let any color parsing errors break style generation
+    }
+
     return rules;
   }
 
