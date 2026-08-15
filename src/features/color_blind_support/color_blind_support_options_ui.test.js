@@ -131,3 +131,61 @@ test("catches a bad palette that was already saved, once the inputs are filled i
 
   expect(warningText()).toMatch(/against the page/);
 });
+
+describe("with Custom Style setting the reader's own colours", () => {
+  function withCustomStyle(options) {
+    jest.resetModules();
+    jest.doMock("../../core/options/options_storage", () => ({
+      checkIfFeatureEnabled: () => Promise.resolve(Boolean(options)),
+      getFeatureOptions: () => Promise.resolve(options),
+    }));
+    return import("./color_blind_support_options_ui");
+  }
+
+  /** The Custom Style read is a three-link promise chain; let all of it settle. */
+  async function settle() {
+    for (let i = 0; i < 6; i++) {
+      await Promise.resolve();
+    }
+  }
+
+  test("compares the new-link colour against the reader's link colour, not WikiTree's green", async () => {
+    // The reader has set their links to the same blue as the okabeIto new-link colour.
+    // Against WikiTree's #008000 that pair looks fine, which is why the hardcoded
+    // reference was the wrong thing to check.
+    buildOptionsPage({ newLinkColor: "#0072b2" });
+    const { watchCustomPalette } = await withCustomStyle({
+      link_color: "#0072b2",
+      "all_background-color": "#ffffff",
+    });
+
+    watchCustomPalette();
+    await settle();
+
+    expect(warningText()).toMatch(/New\/unknown link color and an ordinary link come out as the same color/);
+  });
+
+  test("measures contrast against the reader's background, not white", async () => {
+    // #0072B2 is a comfortable 5.19:1 on white and 1.6:1 on this reader's dark page.
+    buildOptionsPage({ newLinkColor: "#0072b2" });
+    const { watchCustomPalette } = await withCustomStyle({
+      link_color: "#ffee99",
+      "all_background-color": "#222222",
+    });
+
+    watchCustomPalette();
+    await settle();
+
+    expect(warningText()).toMatch(/against your Custom Style background/);
+  });
+
+  test("falls back to WikiTree's own colours when Custom Style is switched off", async () => {
+    buildOptionsPage({ newLinkColor: "#0072b2" });
+    const { watchCustomPalette } = await withCustomStyle(null);
+
+    watchCustomPalette();
+    await settle();
+
+    expect(warning()).toBeNull();
+  });
+});

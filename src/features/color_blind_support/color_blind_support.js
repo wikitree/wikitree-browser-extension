@@ -21,9 +21,11 @@ so nothing changes when this feature is off.
 
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import {
+  contrastRatio,
   hexToRgb,
   lightenColor,
   mixColors,
+  parseCssColor,
   raiseContrast,
   readableTextColor,
   rgbToHex,
@@ -96,6 +98,33 @@ const DARK_PALETTES = {
 
 /** WBE Dark Mode's page background, which the dark palette is measured against. */
 const DARK_BACKGROUND = "#36393f";
+
+/** The contrast each role has to clear against whatever the page background turns out to be. */
+const ROLE_MIN_CONTRAST = { newLink: 4.5, danger: 4.5, warning: 3, success: 3 };
+
+/**
+ * The page's effective background colour.
+ *
+ * Both palettes are measured against an assumed background - white, or Dark Mode's
+ * #36393f - and that assumption is not safe. Custom Style has a Background color picker,
+ * so a reader can set the page to anything without Dark Mode being involved at all, and
+ * then the light palette is being painted on a dark page: measured, okabeIto's danger is
+ * 1.05:1 on a #5a5a5a page. Invisible.
+ *
+ * Walks up from <body> because a page background is as often on <html>, and because
+ * parseCssColor returns null for a transparent element rather than reporting black.
+ *
+ * @returns {number[]} rgb, defaulting to white when nothing sets a background.
+ */
+function pageBackground() {
+  for (const element of [document.body, document.documentElement]) {
+    const background = parseCssColor(getComputedStyle(element).backgroundColor);
+    if (background) {
+      return background;
+    }
+  }
+  return [255, 255, 255];
+}
 
 /**
  * The conditions the simulator can show, taken from core/lib/colorVision.js so that this
@@ -276,6 +305,49 @@ function applyPalette(options) {
       // mint in the dark one. Both are unreadable, and both shipped before this existed.
       root.style.setProperty(`--wbe-cb-${role}-on-${suffix}`, readableTextColor(rgb));
     });
+  });
+
+  adaptToPageBackground();
+}
+
+/**
+ * Make the palette fit the background the page actually has, rather than the one it was
+ * measured against.
+ *
+ * Two things happen here, and they are separate. First, a dark page gets the dark palette
+ * even when Dark Mode is not what made it dark - Custom Style's Background color picker
+ * does the same thing with no class to key off. Second, whichever palette that lands on
+ * is checked against the real background and lightened where it falls short, because a
+ * reader is free to choose a mid grey that suits neither table.
+ *
+ * Only the accent colours are adjusted. The tints and their text colours are derived from
+ * each other, so they stay readable wherever they are painted.
+ */
+function adaptToPageBackground() {
+  const background = pageBackground();
+  const root = document.documentElement;
+
+  // Dark enough that the light palette would be painted on a dark page.
+  const isDarkPage = contrastRatio(background, [255, 255, 255]) > contrastRatio(background, [0, 0, 0]);
+  document.body.classList.toggle("wbe-cb-dark-page", isDarkPage);
+
+  const suffix = isDarkPage ? "dark" : "light";
+  ["newLink", ...BOX_ROLES].forEach((role) => {
+    const property = role === "newLink" ? `--wbe-cb-newlink-${suffix}` : `--wbe-cb-${role}-${suffix}`;
+    const current = hexToRgb(root.style.getPropertyValue(property).trim());
+    if (!current) {
+      return;
+    }
+    const minRatio = ROLE_MIN_CONTRAST[role];
+    if (contrastRatio(current, background) >= minRatio) {
+      return;
+    }
+    // On a dark page the fix is to lighten; on a light one there is nothing useful to do,
+    // since these are already as dark as they can be without becoming black, and a reader
+    // who has chosen an unusual light background is not being made unreadable by it.
+    if (isDarkPage) {
+      root.style.setProperty(property, rgbToHex(raiseContrast(current, background, minRatio)));
+    }
   });
 }
 
@@ -686,6 +758,11 @@ const featureReady = Promise.all([
   if (featureEnabled) {
     setSupport(true, options);
     applySimulator(options);
+    // Custom Style and Dark Mode inject their <style> from their own async init, which can
+    // land after this one. The first measurement above may therefore have read WikiTree's
+    // white before the reader's own background was applied, so take it again once things
+    // have settled. Cheap, and it is the difference between fitting the page and guessing.
+    setTimeout(adaptToPageBackground, 1200);
   } else if (normalizeMode(options.simulate) !== "off") {
     // A simulation started from the context menu with the feature switched off. It carries
     // from page to page like any other, because checking one page at a time is not how

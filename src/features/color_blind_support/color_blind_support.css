@@ -43,7 +43,11 @@ and the other features' reds and greens in one go.
   --wbe-cb-success-on: var(--wbe-cb-success-on-light);
 }
 
-html body.darkMode {
+/* wbe-cb-dark-page is set by measuring the page's real background, so a dark page set
+   through Custom Style's own Background color picker - with no Dark Mode and no class of
+   its own - gets the dark palette too. */
+html body.darkMode,
+html body.wbe-cb-dark-page {
   --wbe-cb-newlink: var(--wbe-cb-newlink-dark);
   --wbe-cb-danger: var(--wbe-cb-danger-dark);
   --wbe-cb-danger-bg: var(--wbe-cb-danger-bg-dark);

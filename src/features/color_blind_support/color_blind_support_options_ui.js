@@ -12,7 +12,8 @@ looking, so it is the part that has to be checked for them.
 
 Two things are tested:
 
-  - readable where it is used, measured on the true color against WikiTree's white
+  - readable where it is used, measured on the true color against the page background -
+    the reader's own, when Custom Style is setting one
   - not simply the same color as something else once simulated
 
 Be clear about what that second one is and is not. It catches a pair that converges - two
@@ -36,6 +37,7 @@ Everything here is advisory. Nothing is blocked or silently corrected: it is the
 palette, and there are reasons to want a color that scores badly.
 */
 
+import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 import { contrastRatio, hexToRgb } from "../../core/lib/colorUtils";
 import { CONDITIONS, perceptualDistance, simulateColor } from "../../core/lib/colorVision";
 
@@ -54,6 +56,21 @@ const WHITE = [255, 255, 255];
 const ORDINARY_LINK = [0, 128, 0];
 
 /**
+ * Custom Style's own settings, when that feature is switched on.
+ *
+ * It has 24 colour pickers, two of which decide whether the checks here mean anything:
+ * "Link color" replaces the colour a new-page link has to look unlike, and "Background
+ * color" replaces the one everything is measured against. Checking against WikiTree's
+ * defaults while the reader is looking at their own colours is checking the wrong page.
+ *
+ * Custom Style's own contrast logic cannot cover this: it asks whether text is readable
+ * on its own background, one element at a time. Whether two separate colours stay
+ * distinguishable - let alone distinguishable to a colour-blind reader - is not a
+ * question it is shaped to ask.
+ */
+let customStyle = null;
+
+/**
  * Below this, two colors are the same color rather than merely similar. Deliberately low:
  * see the note at the top about what this check can and cannot tell you. A higher bar
  * here would produce confident warnings about pairs it has no basis to judge.
@@ -61,12 +78,22 @@ const ORDINARY_LINK = [0, 128, 0];
 const SAME_COLOR = 12;
 
 const PAIRS = [
-  { a: "newLinkColor", b: null, against: ORDINARY_LINK, describe: "an ordinary link" },
+  { a: "newLinkColor", b: null, against: ordinaryLinkColor, describe: "an ordinary link" },
   { a: "dangerColor", b: "successColor", describe: null },
 ];
 
 function inputFor(optionId) {
   return document.getElementById(`${FEATURE_ID}_${optionId}`);
+}
+
+/** The link colour a new-page link is competing with on this reader's pages. */
+function ordinaryLinkColor() {
+  return (customStyle && hexToRgb(customStyle.link_color)) || ORDINARY_LINK;
+}
+
+/** The background everything is measured against on this reader's pages. */
+function pageBackground() {
+  return (customStyle && hexToRgb(customStyle["all_background-color"])) || WHITE;
 }
 
 function currentPalette() {
@@ -90,18 +117,19 @@ function findProblems() {
     if (!rgb) {
       return;
     }
-    const ratio = contrastRatio(rgb, WHITE);
+    const ratio = contrastRatio(rgb, pageBackground());
     if (ratio < minContrast) {
+      const against = customStyle ? "against your Custom Style background" : "against the page";
       problems.push(
-        `${label} is ${ratio.toFixed(1)}:1 against the page, below the ${minContrast}:1 it needs. ` +
-          `Choose a darker shade.`
+        `${label} is ${ratio.toFixed(1)}:1 ${against}, below the ${minContrast}:1 it needs. ` +
+          `Choose a shade with more contrast.`
       );
     }
   });
 
   PAIRS.forEach(({ a, b, against, describe }) => {
     const first = palette[a];
-    const second = b ? palette[b] : against;
+    const second = b ? palette[b] : against();
     if (!first || !second) {
       return;
     }
@@ -179,6 +207,15 @@ function render() {
  * built its inputs or filled them in from storage.
  */
 export function watchCustomPalette() {
+  // Read Custom Style once. If it is off, or unreadable, the WikiTree defaults stand.
+  checkIfFeatureEnabled("customStyle")
+    .then((enabled) => (enabled ? getFeatureOptions("customStyle") : null))
+    .then((options) => {
+      customStyle = options;
+      render();
+    })
+    .catch(() => {});
+
   const watched = new Set([...Object.keys(ROLES), "paletteName"].map((optionId) => `${FEATURE_ID}_${optionId}`));
 
   ["change", "input"].forEach((eventName) => {

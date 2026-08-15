@@ -124,6 +124,34 @@ alike, and reads without a second box on screen to compare against.
 Badges keep their fill recolor. They are too small for a border and the fill is the only
 channel they have.
 
+## Custom Style
+
+Custom Style has 24 color pickers, and two of them change what this feature is working
+against.
+
+**Background color.** Both palettes are measured against an assumed page — white, or Dark
+Mode's `#36393f`. A reader can set the page to anything from Custom Style with no Dark Mode
+involved and no class to key off, and then the light palette is being painted on a dark
+page. Measured: okabeIto's danger is **1.05:1** on a `#5a5a5a` page. So the palette is no
+longer chosen from `body.darkMode` alone — `adaptToPageBackground` measures the real
+background, adds `wbe-cb-dark-page` when it is dark, and lightens any accent that still
+falls short of its bar against that actual color. It runs again 1.2s after load, because
+Custom Style injects its `<style>` from its own async init and can land after this one.
+
+**Link color.** The bug this feature exists for is "a new-page link looks like an ordinary
+link", so the options-page warning compares the two. It was comparing against a hardcoded
+`#008000`. If the reader has set their links to the same blue as the default new-link
+color, those are now the same link and the warning would have said nothing. It reads
+Custom Style's `link_color` and `all_background-color` instead, falling back to WikiTree's
+own when that feature is off.
+
+What is **not** handled: Custom Style's own contrast logic asks whether text is readable on
+its own background, one element at a time. It has no notion of two separate colors needing
+to stay distinguishable, and none of color blindness, so a reader can still pick a set of
+Custom Style colors that collide with each other. Checking that properly means teaching
+Custom Style about color vision, which is its own piece of work. The simulator is the
+answer meanwhile: a Custom Style palette can be checked by looking at a page through it.
+
 ## Dark Mode
 
 WBE's own Dark Mode needs a second palette, and this is not a nicety. The light values
