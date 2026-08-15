@@ -65,6 +65,14 @@ if (chrome.contextMenus) {
       isUsefulOn: (url) => isMainDomainUrl(url),
     },
     {
+      // No featureId: the simulator is a checking tool, useful to anyone reviewing a page whether
+      // or not they have Color-Blind Support switched on for themselves, so it is offered either
+      // way. The content script starts the simulation without turning the rest of the feature on.
+      id: "colorBlindSimulatorContextMenu",
+      title: "Color-Blind Simulator",
+      isUsefulOn: (url) => isMainDomainUrl(url),
+    },
+    {
       // Both halves of a backup need the content script: the feature data is read from the page,
       // and on Safari the page is also the only thing that can save a file with a name on it. So
       // these are offered on WikiTree pages only, whatever the browser.
@@ -200,6 +208,9 @@ if (chrome.contextMenus) {
     if (info.menuItemId === "clipboardContextMenu") {
       // Execute script in the content script
       chrome.tabs.sendMessage(tab.id, { action: "showClipboard" });
+    }
+    if (info.menuItemId === "colorBlindSimulatorContextMenu") {
+      chrome.tabs.sendMessage(tab.id, { action: "showColorBlindSimulator" });
     }
     if (info.menuItemId === "backupAllContextMenu") {
       chrome.tabs.sendMessage(tab.id, { action: "backupEverything" });

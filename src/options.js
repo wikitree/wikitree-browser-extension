@@ -8,6 +8,7 @@ import { restoreOptions, restoreData, restoreAll, sendMessageToContentTab } from
 import { navigatorDetect } from "./core/navigatorDetect";
 import { shouldInitializeFeature } from "./core/options/options_storage.js";
 import { initSafariPopupScrollFix } from "./core/popupScrollFix";
+import { watchCustomPalette } from "./features/color_blind_support/color_blind_support_options_ui";
 
 shouldInitializeFeature("darkMode").then((result) => {
   if (result) {
@@ -524,6 +525,9 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
 // when the options page loads, load status of options from storage into the UI elements
 $(() => {
   restore_options();
+  // Warns when a custom Color-Blind Support palette will not do its job. Self-contained
+  // and delegated, so it does not care that restore_options fills the inputs after this.
+  watchCustomPalette();
 });
 
 // adds HTML elements for each category and its features to the options page

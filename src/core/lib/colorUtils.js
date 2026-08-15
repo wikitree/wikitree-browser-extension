@@ -121,11 +121,66 @@ export function lightenColor(rgb, percent) {
 }
 
 /**
- * Pick black or white, whichever is more readable on the given background.
+ * Mix two colours. lightenColor is this towards white and darkenColor towards black;
+ * this one takes the destination, which is what you need to tint a colour towards a
+ * page background that is neither.
+ *
+ * @param {number[]} rgb
+ * @param {number[]} towards
+ * @param {number} percent - 0-100; 100 is `towards`.
+ * @returns {number[]}
+ */
+export function mixColors(rgb, towards, percent) {
+  return rgb.map((value, index) => Math.round(value + (towards[index] - value) * (percent / 100)));
+}
+
+/**
+ * Lighten a colour until it is readable on the given background, giving up rather than
+ * running all the way to white.
+ *
+ * Used for custom palettes, where the user picks a colour that suits WikiTree's white
+ * and something has to be derived for Dark Mode's #36393f. A hand-picked colour is
+ * nearly always too dark there, and a fixed lightening step either overshoots pale
+ * colours or leaves dark ones unreadable.
+ *
+ * @param {number[]} rgb
+ * @param {number[]} backgroundRgb
+ * @param {number} minRatio - the contrast to reach.
+ * @returns {number[]}
+ */
+export function raiseContrast(rgb, backgroundRgb, minRatio) {
+  let candidate = rgb;
+  // 5% at a time: fine enough not to overshoot a colour that was nearly there, and
+  // 20 steps is a hard stop well before the loop could spin.
+  for (let step = 0; step < 20 && contrastRatio(candidate, backgroundRgb) < minRatio; step++) {
+    candidate = lightenColor(candidate, 5);
+  }
+  return candidate;
+}
+
+/**
+ * Pick black or white, whichever is actually more readable on the given background.
+ *
+ * Deliberately not `isLight(rgb) ? black : white`, which is what this did first. isLight
+ * asks whether a colour looks light, using Rec.601 perceived brightness against a
+ * threshold of 155. That is a different question from which text is readable on it, and
+ * the two disagree over a wide band of saturated mid-tones - where brightness is low but
+ * WCAG luminance is not, because Rec.601 heavily discounts blue and rewards green.
+ *
+ * Two colours from this extension's own palettes were getting the wrong answer: #C68900
+ * scored 140 on brightness, so it took white text at 3.01:1 when black would have been
+ * 6.98:1, and #00D6A5 scored 144 and took white at 1.9:1 against black's 11.16:1. Both
+ * shipped.
+ *
+ * Comparing the two ratios has no threshold to get wrong.
+ *
+ * isLight is left alone because custom_style depends on its current behaviour.
  *
  * @param {number[]} backgroundRgb
  * @returns {string} "#000000" or "#ffffff".
  */
 export function readableTextColor(backgroundRgb) {
-  return isLight(backgroundRgb) ? "#000000" : "#ffffff";
+  const onBlack = contrastRatio(backgroundRgb, [0, 0, 0]);
+  const onWhite = contrastRatio(backgroundRgb, [255, 255, 255]);
+  return onBlack >= onWhite ? "#000000" : "#ffffff";
 }

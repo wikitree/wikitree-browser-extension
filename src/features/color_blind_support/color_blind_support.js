@@ -20,7 +20,15 @@ so nothing changes when this feature is off.
 */
 
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { hexToRgb, lightenColor, readableTextColor, rgbToHex } from "../../core/lib/colorUtils";
+import {
+  hexToRgb,
+  lightenColor,
+  mixColors,
+  raiseContrast,
+  readableTextColor,
+  rgbToHex,
+} from "../../core/lib/colorUtils";
+import { CONDITIONS, svgMatrixValues } from "../../core/lib/colorVision";
 
 /**
  * Preset palettes.
@@ -61,11 +69,42 @@ const PALETTES = {
 };
 
 /**
- * Color matrices for the simulator. These are the widely used linear approximations
- * (Wickline / Viénot), applied with color-interpolation-filters="sRGB" so that the
- * result matches what the familiar online simulators show.
+ * The same palettes for WBE's Dark Mode, whose background is #36393f.
  *
- * Achromatopsia has no entry here because it needs no matrix: it is handled with the
+ * These are not a nicety. The colors above were darkened until they were readable on
+ * white, which is exactly the wrong direction for a dark page: okabeIto's danger scores
+ * 1.60:1 on #36393f and highContrast's newLink 1.03:1, which is invisible. Every value
+ * here is the light palette's hue lightened back up until it clears the same bar against
+ * #36393f, so the two schemes read as one palette in two lightings.
+ *
+ * There is a second job specific to Dark Mode. It recolors every ordinary link to
+ * #ffee99, so newLink has to stay clear of a pale yellow rather than of WikiTree's green
+ * - a different constraint that lands the blues brighter than a straight lightening would.
+ *
+ * highContrast goes to near-whites here. On a dark background that is what high contrast
+ * means, and the preset was never separating its colors by hue anyway; the border styles
+ * carry it, as its own note above says.
+ *
+ * scripts/check-palette.mjs checks both tables. Run it after touching either.
+ */
+const DARK_PALETTES = {
+  okabeIto: { newLink: "#14ABFF", danger: "#FF85AD", warning: "#FFB000", success: "#00D6A5" },
+  redGreen: { newLink: "#14ABFF", danger: "#FFADC8", warning: "#C99A2C", success: "#1F8FFF" },
+  tritan: { newLink: "#F6886F", danger: "#FFB8BE", warning: "#E26F28", success: "#00D6A5" },
+  highContrast: { newLink: "#DBE2F0", danger: "#F1E2DA", warning: "#FDFFCC", success: "#CCFFFF" },
+};
+
+/** WBE Dark Mode's page background, which the dark palette is measured against. */
+const DARK_BACKGROUND = "#36393f";
+
+/**
+ * The conditions the simulator can show, taken from core/lib/colorVision.js so that this
+ * feature and its options page - which uses the same matrices to warn about a custom
+ * color pair that would converge - cannot drift apart. They are applied with
+ * color-interpolation-filters="sRGB" so that the result matches what the familiar online
+ * simulators show.
+ *
+ * Achromatopsia has no entry there because it needs no matrix: it is handled with the
  * browser's own filter: grayscale(1). That is deliberate, and not just convenience. The
  * matrix usually published for achromatopsia uses the Rec.601 luma coefficients
  * (0.299/0.587/0.114), a legacy television standard, where grayscale() uses Rec.709
@@ -79,11 +118,9 @@ const PALETTES = {
  * it. What this mode reliably answers is "what survives when hue is gone", which is the
  * question worth asking, and it doubles as a black-and-white print check.
  */
-const SIMULATION_MATRICES = {
-  deuteranopia: "0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0",
-  protanopia: "0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0",
-  tritanopia: "0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0",
-};
+const SIMULATION_MATRICES = Object.fromEntries(
+  Object.keys(CONDITIONS).map((condition) => [condition, svgMatrixValues(condition)])
+);
 
 const SIMULATION_LABELS = {
   off: "off",
@@ -102,6 +139,34 @@ const SIMULATION_LABELS = {
 const SIMULATION_ORDER = ["off", "achromatopsia", "deuteranopia", "protanopia", "tritanopia"];
 
 /**
+ * What the context menu item starts with when nothing is running yet. Deuteranopia is
+ * the most common form of color blindness by a distance, and it is the one the member
+ * who reported the red/green link problem has, so it is the right first look at a page.
+ */
+const MENU_LAUNCH_MODE = "deuteranopia";
+
+/**
+ * Shared state. The page-load path, the context menu item and the corner control all act
+ * on the same feature rather than each reading storage and building their own idea of it.
+ */
+let featureOptions = null;
+let featureEnabled = false;
+let stylesLoaded = false;
+let privacyDotsTagged = false;
+
+/**
+ * The stylesheet is needed by the corner control as well as by the cues, so the simulator
+ * pulls it in even when the rest of the feature is off. That is safe: every rule in it is
+ * behind a body.wbe-cb* class, and those are only added when the support is on.
+ */
+function loadStyles() {
+  if (!stylesLoaded) {
+    stylesLoaded = true;
+    import("./color_blind_support.css");
+  }
+}
+
+/**
  * Guard against a stored value that is no longer offered, rather than leaving the picker
  * showing nothing and the page unfiltered.
  *
@@ -115,13 +180,51 @@ function normalizeMode(mode) {
   return SIMULATION_ORDER.includes(mode) ? mode : "off";
 }
 
+/** The three roles that get a box background and a text color as well as an accent. */
+const BOX_ROLES = ["danger", "warning", "success"];
+
 /**
- * Resolve the chosen palette to its four colors, publish them on <html> as custom
- * properties, and derive a pale background and a readable foreground for each.
+ * Work out the custom palette's Dark Mode counterpart.
  *
- * The pale backgrounds stand in for WikiTree's own #e1f0b4 and #ffee99 box tints. They
- * are mixed towards white rather than picked by hand so that a custom accent color
- * always gets a background that goes with it.
+ * A user picking colors is looking at WikiTree's white page, so their choices are nearly
+ * always too dark for Dark Mode's #36393f - the presets had exactly this problem before
+ * DARK_PALETTES existed. Each color is lightened along its own hue until it clears the
+ * bar for the job it does, so a custom palette follows the user's hues into Dark Mode
+ * rather than being abandoned there.
+ *
+ * @param {object} palette
+ * @returns {object}
+ */
+function deriveDarkPalette(palette) {
+  const background = hexToRgb(DARK_BACKGROUND);
+  const derived = {};
+  Object.entries(palette).forEach(([role, hex]) => {
+    const rgb = hexToRgb(hex);
+    // 4.5:1 for the two that are painted as text, 3:1 for the two that are only ever a
+    // border or the seed for a background - the same split the presets were built to.
+    const minRatio = role === "newLink" || role === "danger" ? 4.5 : 3;
+    derived[role] = rgb ? rgbToHex(raiseContrast(rgb, background, minRatio)) : hex;
+  });
+  return derived;
+}
+
+/**
+ * Publish the chosen palette on <html> as custom properties, in both lightings, and
+ * derive a box background and a readable foreground for each color.
+ *
+ * Both schemes are published at once and the stylesheet picks between them off
+ * body.darkMode, rather than this function reading that class and publishing one. Dark
+ * Mode adds the class from its own async init, which can land either side of this one -
+ * so anything decided here would be a coin toss. Leaving the choice to the cascade also
+ * means a reader on "system" Dark Mode who changes their OS setting gets the right
+ * palette immediately, with nothing here to notice or listen for.
+ *
+ * The light backgrounds stand in for WikiTree's own #e1f0b4 and #ffee99 box tints and are
+ * mixed towards white. The dark ones are mixed towards the Dark Mode background instead:
+ * a pale tint there would be a light box in a dark page, and - measured, not guessed -
+ * Dark Mode's own #dedecb body text wins over ours on those boxes, which left pale text
+ * on a pale background. Tinting towards the page keeps that combination readable however
+ * the specificity falls.
  *
  * @param {object} options
  */
@@ -136,24 +239,43 @@ function applyPalette(options) {
         }
       : PALETTES[options.paletteName] || PALETTES.okabeIto;
 
+  const darkPalette =
+    options.paletteName === "custom"
+      ? deriveDarkPalette(palette)
+      : DARK_PALETTES[options.paletteName] || DARK_PALETTES.okabeIto;
+
   const root = document.documentElement;
-  root.style.setProperty("--wbe-cb-newlink", palette.newLink);
+  const darkBackground = hexToRgb(DARK_BACKGROUND);
 
-  ["danger", "warning", "success"].forEach((role) => {
-    const hex = palette[role];
-    root.style.setProperty(`--wbe-cb-${role}`, hex);
+  [
+    { suffix: "light", colors: palette, tint: (rgb) => lightenColor(rgb, 84) },
+    // 78% of the way to the page background: enough of the hue survives to tell the boxes
+    // apart, without becoming a block of color in a dark page.
+    { suffix: "dark", colors: darkPalette, tint: (rgb) => mixColors(rgb, darkBackground, 78) },
+  ].forEach(({ suffix, colors, tint }) => {
+    root.style.setProperty(`--wbe-cb-newlink-${suffix}`, colors.newLink);
 
-    const rgb = hexToRgb(hex);
-    if (!rgb) {
-      // A custom color the picker somehow left unparseable: leave the -bg properties
-      // unset so the stylesheet's own fallbacks apply rather than writing "undefined".
-      return;
-    }
-    // 84% towards white lands close to the lightness of WikiTree's existing box tints,
-    // which keeps the boxes looking like WikiTree rather than like a warning banner.
-    const background = lightenColor(rgb, 84);
-    root.style.setProperty(`--wbe-cb-${role}-bg`, rgbToHex(background));
-    root.style.setProperty(`--wbe-cb-${role}-text`, readableTextColor(background));
+    BOX_ROLES.forEach((role) => {
+      const hex = colors[role];
+      root.style.setProperty(`--wbe-cb-${role}-${suffix}`, hex);
+
+      const rgb = hexToRgb(hex);
+      if (!rgb) {
+        // A custom color the picker somehow left unparseable: leave the -bg properties
+        // unset so the stylesheet's own fallbacks apply rather than writing "undefined".
+        return;
+      }
+      const background = tint(rgb);
+      root.style.setProperty(`--wbe-cb-${role}-bg-${suffix}`, rgbToHex(background));
+      root.style.setProperty(`--wbe-cb-${role}-text-${suffix}`, readableTextColor(background));
+
+      // Text for when the accent itself is the background, which is what small solid
+      // elements like badges do. This is not the same answer as -text and cannot be
+      // reused from it: -text is computed for the pale tint, so pairing it with the
+      // accent gives black on a dark green in the light palette, and white on a bright
+      // mint in the dark one. Both are unreadable, and both shipped before this existed.
+      root.style.setProperty(`--wbe-cb-${role}-on-${suffix}`, readableTextColor(rgb));
+    });
   });
 }
 
@@ -161,14 +283,15 @@ function applyPalette(options) {
  * Every custom property applyPalette sets, so that turning the support off again can
  * remove exactly what was added and no more.
  */
-const PALETTE_PROPERTIES = [
-  "--wbe-cb-newlink",
-  ...["danger", "warning", "success"].flatMap((role) => [
-    `--wbe-cb-${role}`,
-    `--wbe-cb-${role}-bg`,
-    `--wbe-cb-${role}-text`,
+const PALETTE_PROPERTIES = ["light", "dark"].flatMap((suffix) => [
+  `--wbe-cb-newlink-${suffix}`,
+  ...BOX_ROLES.flatMap((role) => [
+    `--wbe-cb-${role}-${suffix}`,
+    `--wbe-cb-${role}-bg-${suffix}`,
+    `--wbe-cb-${role}-text-${suffix}`,
+    `--wbe-cb-${role}-on-${suffix}`,
   ]),
-];
+]);
 
 /**
  * The <body> classes the cue choices translate to, so that the stylesheet can stay
@@ -204,8 +327,13 @@ function cueClassesFor(options) {
  */
 function setSupport(on, options) {
   if (on) {
+    loadStyles();
     applyPalette(options);
     document.body.classList.add(...cueClassesFor(options));
+    // Ticking the checkbox has to bring the privacy numbers with it, so the tagging pass
+    // belongs here rather than at startup: switching the support on mid-page is otherwise
+    // the one route that leaves the dots unlabelled.
+    tagPrivacyDots(options);
   } else {
     PALETTE_PROPERTIES.forEach((property) => document.documentElement.style.removeProperty(property));
     document.body.classList.remove(...cueClassesFor(options));
@@ -222,9 +350,10 @@ function setSupport(on, options) {
  * @param {object} options
  */
 function tagPrivacyDots(options) {
-  if (options.privacyCue === "none") {
+  if (options.privacyCue === "none" || privacyDotsTagged) {
     return;
   }
+  privacyDotsTagged = true;
 
   const tag = (dot) => {
     const match = /(?:^|\s)privacy--?(\d{2})(?:\s|$)/.exec(dot.className || "");
@@ -306,12 +435,20 @@ function ensureFilterDefs() {
  * while this is on, which is why the picker says so and why this is a checking tool
  * rather than something to browse with.
  *
+ * The obvious fix for that does not work, and the way it fails is worth knowing about
+ * before trying it. A fixed full-viewport overlay with backdrop-filter: url(#...) filters
+ * the page without becoming a containing block, and in Chromium it works perfectly -
+ * measured: the sticky header stays put and the colors are transformed. Firefox reports
+ * CSS.supports("backdrop-filter", "url(#f)") === true and then paints nothing at all. So
+ * there is no way to tell the two apart before committing to it, and the failure is a
+ * simulator that quietly shows an unfiltered page while the control claims a condition -
+ * which is worse than a sticky header that scrolls. Do not swap this over.
+ *
  * @param {string} mode - a key of SIMULATION_ORDER.
  */
 function setSimulation(mode) {
   if (mode === "off") {
     document.body.style.filter = "";
-    document.body.classList.remove("wbe-cb-simulating");
     return;
   }
   if (mode === "achromatopsia") {
@@ -320,10 +457,7 @@ function setSimulation(mode) {
   } else if (SIMULATION_MATRICES[mode]) {
     ensureFilterDefs();
     document.body.style.filter = `url(#wbe-cb-${mode})`;
-  } else {
-    return;
   }
-  document.body.classList.add("wbe-cb-simulating");
 }
 
 /**
@@ -336,8 +470,23 @@ function setSimulation(mode) {
 function persistSimulation(mode) {
   getFeatureOptions("colorBlindSupport").then((options) => {
     options.simulate = mode;
+    featureOptions = options;
     chrome.storage.sync.set({ colorBlindSupport_options: options });
   });
+}
+
+/**
+ * Start, or switch, the simulation on this page and show the control that goes with it.
+ *
+ * @param {string} mode
+ */
+function showSimulator(mode) {
+  loadStyles();
+  setSimulation(mode);
+  // Rebuilt rather than updated: the control holds no state of its own worth keeping,
+  // and this way a second launch from the context menu brings it back if it was closed.
+  document.getElementById("wbeColorBlindSimulatorBadge")?.remove();
+  addSimulatorPicker(mode);
 }
 
 function applySimulator(options) {
@@ -345,8 +494,28 @@ function applySimulator(options) {
   if (mode === "off") {
     return;
   }
-  setSimulation(mode);
-  addSimulatorPicker(mode, options);
+  showSimulator(mode);
+}
+
+/**
+ * The context menu item.
+ *
+ * Deliberately independent of whether the feature itself is switched on. The simulator is
+ * a checking tool - the cheap way to find out which distinctions on a page survive - and
+ * making people first enable a remediation feature they may not need for themselves would
+ * put that behind a door most reviewers would never open. What they get is the simulation
+ * and the control; the remediation stays off until its checkbox says otherwise.
+ *
+ * Launching while a simulation is already running re-shows the control rather than
+ * changing the mode, since that is the only way back to it once it has been closed.
+ */
+function launchSimulatorFromMenu() {
+  const running = normalizeMode(featureOptions.simulate);
+  const mode = running === "off" ? MENU_LAUNCH_MODE : running;
+  showSimulator(mode);
+  if (mode !== running) {
+    persistSimulation(mode);
+  }
 }
 
 /**
@@ -369,23 +538,25 @@ function applySimulator(options) {
  * which anything inside the filter has lost.
  *
  * @param {string} mode
- * @param {object} options
  */
-function addSimulatorPicker(mode, options) {
+function addSimulatorPicker(mode) {
+  const options = featureOptions;
   const badge = document.createElement("div");
   badge.id = "wbeColorBlindSimulatorBadge";
 
   const supportToggle = document.createElement("input");
   supportToggle.type = "checkbox";
   supportToggle.id = "wbeColorBlindSupportToggle";
-  supportToggle.checked = true;
+  // Starts wherever the feature itself stands, so the box always says what is true. It is
+  // unchecked for a simulation started from the context menu with the feature switched off.
+  supportToggle.checked = featureEnabled;
 
   const supportLabel = document.createElement("label");
   supportLabel.setAttribute("for", "wbeColorBlindSupportToggle");
   supportLabel.textContent = "Support";
   supportLabel.title =
-    "Uncheck to see this page as WikiTree styles it, without any of Color-Blind Support's " +
-    "colors or cues. Leave it unchecked and close this control to turn the whole feature off.";
+    "Whether Color-Blind Support's colors and cues are applied to this page. Change it to " +
+    "compare the page with and without them; close this control to keep the change.";
 
   const label = document.createElement("label");
   label.setAttribute("for", "wbeColorBlindSimulatorSelect");
@@ -413,12 +584,15 @@ function addSimulatorPicker(mode, options) {
   close.className = "wbe-cb-badge-close";
   close.textContent = "×";
 
-  // What the close button does depends on the checkbox, so say which it will be. With
-  // the support on it is a plain dismiss; with it off it commits the decision.
+  // What the close button does depends on the checkbox, so say which it will be. Left as
+  // it was found it is a plain dismiss; changed, it commits the change.
   const describeClose = () => {
-    if (supportToggle.checked) {
+    if (supportToggle.checked === featureEnabled) {
       close.title = "Hide this control and stay in the current mode";
       close.setAttribute("aria-label", "Hide the color-blindness simulator control");
+    } else if (supportToggle.checked) {
+      close.title = "Close and turn Color-Blind Support on in your settings";
+      close.setAttribute("aria-label", "Close and turn Color-Blind Support on");
     } else {
       close.title = "Close and turn Color-Blind Support off in your settings";
       close.setAttribute("aria-label", "Close and turn Color-Blind Support off");
@@ -431,13 +605,17 @@ function addSimulatorPicker(mode, options) {
     describeClose();
   });
 
-  // Closing with the support switched off is a decision rather than a peek - you have
-  // just spent a moment looking at the page without the help and chosen to leave it that
-  // way - so it is saved. Doing anything else leaves the feature enabled but doing
-  // nothing, which is indistinguishable from it having quietly broken.
+  // The saved state can also change from another tab, in which case the storage listener
+  // below moves the checkbox for us and the close button's promise has to be redescribed.
+  supportToggle.addEventListener("wbe-cb-refresh", describeClose);
+
+  // Moving the checkbox and then closing is a decision rather than a peek - you have just
+  // spent a moment looking at the page the other way and chosen to leave it like that - so
+  // it is saved. Anything else would leave the feature switched on but doing nothing, or a
+  // fix you had just seen working quietly thrown away.
   close.addEventListener("click", () => {
-    if (!supportToggle.checked) {
-      disableFeature();
+    if (supportToggle.checked !== featureEnabled) {
+      saveFeatureEnabled(supportToggle.checked);
     }
     badge.remove();
   });
@@ -447,27 +625,77 @@ function addSimulatorPicker(mode, options) {
 }
 
 /**
- * Switch the whole feature off in the options, as if its checkbox there had been
- * unticked.
+ * Switch the whole feature on or off in the options, as if its checkbox there had been
+ * ticked or unticked.
  *
- * The simulation is reset at the same time. Otherwise turning the feature back on later
- * would land the reader on a page filtered to somebody else's color vision with no
- * explanation, which is an alarming way to be welcomed back.
+ * Switching it off ends the simulation as well, on this page and in the stored options.
+ * A feature that is off has no business filtering pages, and once its control is gone
+ * there would be nothing left on screen to switch the filter back off with.
+ *
+ * @param {boolean} on
  */
-function disableFeature() {
-  getFeatureOptions("colorBlindSupport").then((options) => {
+function saveFeatureEnabled(on) {
+  featureEnabled = on;
+  const options = { ...featureOptions };
+  if (!on) {
     options.simulate = "off";
-    chrome.storage.sync.set({ colorBlindSupport: false, colorBlindSupport_options: options });
-  });
+    setSimulation("off");
+  }
+  featureOptions = options;
+  chrome.storage.sync.set({ colorBlindSupport: on, colorBlindSupport_options: options });
 }
 
-shouldInitializeFeature("colorBlindSupport").then((result) => {
-  if (result) {
-    getFeatureOptions("colorBlindSupport").then((options) => {
-      import("./color_blind_support.css");
-      setSupport(true, options);
-      tagPrivacyDots(options);
-      applySimulator(options);
-    });
+/**
+ * Keep this tab's idea of whether the feature is on in step with what is actually saved.
+ *
+ * Every other WBE feature reads its settings once and waits for a reload, and this one
+ * does too for the colors and cues - repainting a page mid-read would be worse than
+ * leaving it. What is tracked here is only the enabled flag, because the corner control
+ * writes it and a stale copy does real damage rather than merely looking out of date:
+ * switch the feature off from the control in one tab, and a second tab still holding
+ * `featureEnabled === true` would treat its own ticked checkbox as unchanged, then write
+ * `true` straight back when its control was closed. The decision would be silently undone
+ * by a tab the reader had forgotten about.
+ *
+ * The checkbox on screen is corrected too, so it never claims a state that is not saved.
+ */
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "sync" || !changes.colorBlindSupport) {
+    return;
+  }
+  featureEnabled = Boolean(changes.colorBlindSupport.newValue);
+
+  const toggle = document.getElementById("wbeColorBlindSupportToggle");
+  if (toggle && toggle.checked !== featureEnabled) {
+    toggle.checked = featureEnabled;
+    setSupport(featureEnabled, featureOptions);
+    toggle.dispatchEvent(new Event("wbe-cb-refresh"));
+  }
+});
+
+// Read once, up front, whatever is going to happen: the context menu can ask for the
+// simulator at any moment, and it needs the same options and the same idea of whether the
+// feature is on as the page-load path has.
+const featureReady = Promise.all([
+  shouldInitializeFeature("colorBlindSupport"),
+  getFeatureOptions("colorBlindSupport"),
+]).then(([enabled, options]) => {
+  featureEnabled = Boolean(enabled);
+  featureOptions = options;
+
+  if (featureEnabled) {
+    setSupport(true, options);
+    applySimulator(options);
+  } else if (normalizeMode(options.simulate) !== "off") {
+    // A simulation started from the context menu with the feature switched off. It carries
+    // from page to page like any other, because checking one page at a time is not how
+    // anyone reviews a site - but it brings only the filter and the control, no cues.
+    applySimulator(options);
+  }
+});
+
+chrome.runtime.onMessage.addListener((request) => {
+  if (request.action === "showColorBlindSimulator") {
+    featureReady.then(launchSimulatorFromMenu);
   }
 });

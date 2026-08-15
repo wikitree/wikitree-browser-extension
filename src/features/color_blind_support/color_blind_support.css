@@ -10,7 +10,54 @@ content_main.js, so when specificity ties, this stylesheet is the later one and 
 
 Every var() carries a fallback matching WikiTree's current color, so a half-applied
 palette degrades to the status quo rather than to black.
+
+The palette arrives in two lightings. color_blind_support.js publishes --wbe-cb-*-light
+and --wbe-cb-*-dark on <html>, and the block below resolves each pair to the plain
+--wbe-cb-* name that every rule here, and every var(--wbe-cb-*, <original>) fallback in
+the other features' stylesheets, actually reads. The choice is made here rather than in
+JavaScript because Dark Mode adds body.darkMode from its own async init, which can land
+either side of this feature's - so the cascade is the only thing that can be relied on to
+get it right, and it also follows a "system" Dark Mode reader who changes their OS
+setting mid-page.
+
+When the support is switched off, the JS removes the -light and -dark properties. The
+var() references below then have nothing to resolve to, --wbe-cb-* becomes invalid, and
+every consumer falls through to its own fallback - which is the original WikiTree color.
+That is what makes switching the support off in the corner control revert this feature
+and the other features' reds and greens in one go.
 */
+
+:root {
+  --wbe-cb-newlink: var(--wbe-cb-newlink-light);
+  --wbe-cb-danger: var(--wbe-cb-danger-light);
+  --wbe-cb-danger-bg: var(--wbe-cb-danger-bg-light);
+  --wbe-cb-danger-text: var(--wbe-cb-danger-text-light);
+  --wbe-cb-danger-on: var(--wbe-cb-danger-on-light);
+  --wbe-cb-warning: var(--wbe-cb-warning-light);
+  --wbe-cb-warning-bg: var(--wbe-cb-warning-bg-light);
+  --wbe-cb-warning-text: var(--wbe-cb-warning-text-light);
+  --wbe-cb-warning-on: var(--wbe-cb-warning-on-light);
+  --wbe-cb-success: var(--wbe-cb-success-light);
+  --wbe-cb-success-bg: var(--wbe-cb-success-bg-light);
+  --wbe-cb-success-text: var(--wbe-cb-success-text-light);
+  --wbe-cb-success-on: var(--wbe-cb-success-on-light);
+}
+
+html body.darkMode {
+  --wbe-cb-newlink: var(--wbe-cb-newlink-dark);
+  --wbe-cb-danger: var(--wbe-cb-danger-dark);
+  --wbe-cb-danger-bg: var(--wbe-cb-danger-bg-dark);
+  --wbe-cb-danger-text: var(--wbe-cb-danger-text-dark);
+  --wbe-cb-danger-on: var(--wbe-cb-danger-on-dark);
+  --wbe-cb-warning: var(--wbe-cb-warning-dark);
+  --wbe-cb-warning-bg: var(--wbe-cb-warning-bg-dark);
+  --wbe-cb-warning-text: var(--wbe-cb-warning-text-dark);
+  --wbe-cb-warning-on: var(--wbe-cb-warning-on-dark);
+  --wbe-cb-success: var(--wbe-cb-success-dark);
+  --wbe-cb-success-bg: var(--wbe-cb-success-bg-dark);
+  --wbe-cb-success-text: var(--wbe-cb-success-text-dark);
+  --wbe-cb-success-on: var(--wbe-cb-success-on-dark);
+}
 
 /* ---------------------------------------------------------------------------
    Links to pages that do not exist yet
@@ -20,9 +67,18 @@ palette degrades to the status quo rather than to black.
    the real work here; the recolour is the smaller half of the fix.
    --------------------------------------------------------------------------- */
 
-html body.wbe-cb a.new,
-html body.wbe-cb a.new:link,
-html body.wbe-cb a.new:visited {
+/*
+The :not(#dummyID) is not a typo and not superstition. Dark Mode repaints every link
+#ffee99 through a selector carrying a long :not() list, and :not() takes the specificity
+of its most specific argument - which puts that rule at (0,5,3), comfortably above the
+(0,2,3) this one would otherwise have. Measured, not guessed: without this, new links and
+ordinary links are both #ffee99 in Dark Mode, which is the very bug this feature exists to
+fix, reintroduced. #dummyID matches nothing and exists only to carry an id's worth of
+specificity; it is the same trick darkMode.css itself uses.
+*/
+html body.wbe-cb a.new:not(#dummyID),
+html body.wbe-cb a.new:link:not(#dummyID),
+html body.wbe-cb a.new:visited:not(#dummyID) {
   color: var(--wbe-cb-newlink, #0072b2) !important;
 }
 
@@ -55,28 +111,34 @@ html body.wbe-cb-newlink-both a.new::after {
    at all.
    --------------------------------------------------------------------------- */
 
-html body.wbe-cb .box.green {
-  background-color: var(--wbe-cb-success-bg, #e1f0b4) !important;
-  color: var(--wbe-cb-success-text, #25422d) !important;
-}
+/*
+These boxes deliberately keep WikiTree's own background colours. Repainting them was tried
+and measured, and it did not earn its place:
 
-html body.wbe-cb .box.orange {
-  background-color: var(--wbe-cb-warning-bg, #ffee99) !important;
-  color: var(--wbe-cb-warning-text, #25422d) !important;
-}
+  - It did not help readability. WikiTree's own text-on-box is already 10.4:1 and 10.8:1,
+    so replacing the tints moved a number that was never the problem.
+  - It did not help separation either. The replacement tints were 18.4 apart under
+    deuteranopia against WikiTree's own 20.2 - very slightly worse.
+
+And it cannot be fixed by choosing better tints, which was also tried across the whole
+range. With the severity reading in the right order (success palest, error darkest) the
+best any readable set of tints achieves is 10.8 in grayscale, still under the 12 that
+means "the same colour", and only by making the error box a solid dusty rose. Three
+backgrounds pale enough to take dark text have to sit in a narrow band of luminance -
+the same constraint that stops the accent colours separating in grayscale.
+
+The left border below does the whole job instead: a shape difference, so it survives any
+colour vision and grayscale alike, and it reads without a second box on screen to compare
+against. Badges keep their fill recolour, because they are too small for a border and the
+fill is the only channel they have.
+*/
 
 html body.wbe-cb .status.green {
-  background-color: var(--wbe-cb-success-bg, #e1f0b4) !important;
   border-color: var(--wbe-cb-success, #8fc641) !important;
 }
 
 html body.wbe-cb .status.red {
-  background-color: var(--wbe-cb-danger-bg, #ffcccc) !important;
   border-color: var(--wbe-cb-danger, #e22a40) !important;
-}
-
-html body.wbe-cb .status:not(.green):not(.red) {
-  background-color: var(--wbe-cb-warning-bg, #ffee99) !important;
 }
 
 /* The three border treatments. Solid for success, dashed for a warning, double for an
@@ -130,23 +192,33 @@ html body.wbe-cb-status #bioCheckResultsContainer:not(.green) #bioCheckResultsLi
 }
 
 /* Badges use the same green/red pairing, in a small enough element that only the fill
-   is visible. Recolour and outline both. */
+   is visible. Recolour and outline both.
+
+   Every one of these MUST set a text colour to go with its background. WikiTree picks its
+   badge text to suit its own fill, so changing the fill and leaving the text alone leaves
+   whatever it had - which is how the Content Rank badge ended up as a solid unreadable
+   block, its light text sitting on a pale tint. Note that the plain and .new variants take
+   different text colours: -text is computed for the pale tint and -on for the accent, and
+   using either in the other's place is unreadable in one of the two lightings. */
 
 html body.wbe-cb .badge.green {
   background-color: var(--wbe-cb-success-bg, #e1f0b4) !important;
+  color: var(--wbe-cb-success-text, #25422d) !important;
 }
 
 html body.wbe-cb .badge.green.new {
   background-color: var(--wbe-cb-success, #8fc641) !important;
+  color: var(--wbe-cb-success-on, #ffffff) !important;
 }
 
 html body.wbe-cb .badge.red {
   background-color: var(--wbe-cb-danger-bg, #ffcccc) !important;
+  color: var(--wbe-cb-danger-text, #25422d) !important;
 }
 
 html body.wbe-cb .badge.red.new {
   background-color: var(--wbe-cb-danger, #cc0000) !important;
-  color: #ffffff !important;
+  color: var(--wbe-cb-danger-on, #ffffff) !important;
 }
 
 html body.wbe-cb-status .badge.green {

@@ -165,15 +165,17 @@ const colorBlindSupport = {
           defaultValue: "off",
           comment:
             "A checking tool: it recolors every page so you can see which distinctions survive. Leave it off for " +
-            "normal use. Once it is on, a control in the corner of the page switches between conditions without " +
-            "coming back here, and remembers your choice as you move from page to page. It also has a Support " +
-            "checkbox: uncheck it to see the page with no help at all, which next to a simulated condition shows " +
-            "the problem and the fix side by side. Closing the control while Support is unchecked turns this " +
-            "whole feature off, the same as unticking it here. Choosing Normal ends the simulation, and the " +
-            "control is gone on the next page; come " +
-            "back here to start again. Achromatopsia shows the page in grayscale, which is also the quickest " +
-            "way to check how it would look printed in black and white. While a simulation is on, elements that " +
-            "stay fixed on screen (pop-ups, sticky bars) may scroll with the page instead.",
+            "normal use. You do not have to start it here - right-click any WikiTree page and choose " +
+            "Color-Blind Simulator, which works whether or not the rest of this feature is switched on. Once it " +
+            "is running, a control in the corner of the page switches between conditions without coming back " +
+            "here, and remembers your choice as you move from page to page. It also has a Support checkbox " +
+            "showing whether this feature is helping: change it to compare the page with and without the colors " +
+            "and cues, then close the control with the x to keep that change - closing after unticking it " +
+            "switches this whole feature off, and closing after ticking it switches it on, the same as the " +
+            "checkbox at the top of this section. Choosing Normal ends the simulation, and the control is gone " +
+            "on the next page. Achromatopsia shows the page in grayscale, which is also the quickest way to " +
+            "check how it would look printed in black and white. While a simulation is on, elements that stay " +
+            "fixed on screen (pop-ups, sticky bars) may scroll with the page instead.",
         },
       ],
     },
