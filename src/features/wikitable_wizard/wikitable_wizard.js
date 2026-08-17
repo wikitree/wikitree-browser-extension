@@ -21,6 +21,7 @@ const headerItems = [
   "Position",
   "Occupation",
   "Birth Place",
+  "Race",
   "Gender",
   "Link",
   "Burial Place",

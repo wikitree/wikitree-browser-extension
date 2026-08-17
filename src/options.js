@@ -16,6 +16,11 @@ shouldInitializeFeature("darkMode").then((result) => {
   }
 });
 
+// Features that the category and "toggle all" switches leave alone.
+const TOGGLE_ALL_EXCLUDED_SELECTOR = ["darkMode", "highlightWBEFeatures", "colorBlindSupport"]
+  .map((id) => "#" + id)
+  .join(",");
+
 console.log(
   "[WBE options] version:",
   WBE?.version,
@@ -591,7 +596,7 @@ function setCategorySwitches() {
       .each(function () {
         let $toggle = $(this).find("> .section-header > .toggle > input").first();
         if ($toggle.length) {
-          if (!$toggle.closest("#darkMode").length && !$toggle.closest("#highlightWBEFeatures").length) {
+          if (!$toggle.closest(TOGGLE_ALL_EXCLUDED_SELECTOR).length) {
             count++;
             if ($toggle.is(":checked")) {
               checked++;
@@ -700,7 +705,7 @@ $("#toggleAll, .section.category > .section-header > .toggle > input").on("click
         $(originalCheckbox).prop("checked", oSwitch);
         const $top = $(".category-root");
         $top
-          .find(".section:not(#darkMode,#highlightWBEFeatures) > .section-header > .toggle > input")
+          .find(`.section:not(${TOGGLE_ALL_EXCLUDED_SELECTOR}) > .section-header > .toggle > input`)
           .prop("checked", oSwitch)
           .trigger("change");
         saveFeatureOnOffOptions();
@@ -717,7 +722,7 @@ $("#toggleAll, .section.category > .section-header > .toggle > input").on("click
 
   if ($top) {
     $top
-      .find(".section:not(#darkMode,#highlightWBEFeatures) > .section-header > .toggle > input")
+      .find(`.section:not(${TOGGLE_ALL_EXCLUDED_SELECTOR}) > .section-header > .toggle > input`)
       .prop("checked", oSwitch)
       .trigger("change");
     saveFeatureOnOffOptions();

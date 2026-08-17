@@ -253,6 +253,9 @@ citiesCountiesStates.push(...UKMetropolitanCities);
 const placeNameRegExp =
   /\w+(land|shire|mere|acres|bay|beach|bluffs|center|corner|cove|crest|crossing|falls|farms|fields|flats|fork|gardens|gate|glen|green|grove|harbor|heights|hills|hollow|inlet|key|knolls|landing|light|manor|mesa|mills|mount|mountain|orchard|park|passage|pines|point|ranch|ridge|river|runway|shores|sky|springs|terrace|trace|view|village|vista|woods|basin|cape|canyon|delta|forest|glacier|gulf|island|isthmus|lake|mesa|oasis|plain|plateau|prairie|sea|shore|sound|swamp|trail|valley|waterfall|peak|ridge|summit|pass|range|butte|knob|dome|spit|shoals|rapids|falls|bend|junction|spur|switch|fork|cross|field|estate|parkway|boulevard|circle|court|place|avenue|plaza|path|way|alley|borough|city|county|district|municipality|parish|town|township|village|territory|region|state|province|shire|ton|ham|don|wick|ford|bury|port|stadt|stede|burg|burgh|by|ville|beck|dale|holme|hurts|mead|wold|boro|chester|heath|hill|vale|wyke)\b/gi;
 
+const racePattern =
+  /^(w|b|mu|white|black|negro|colou?red|mulatt[oa]|chinese|japanese|filipino|hindu|korean|mexican|(american\s)?indian)$/i;
+
 export function analyzeColumns(lines) {
   const columns = {};
 
@@ -277,7 +280,9 @@ export function analyzeColumns(lines) {
           Gender: 0,
           originalRelation: 0,
           Age: 0,
+          Race: 0,
           BirthPlace: 0,
+          BirthPlaceStrong: 0,
           Occupation: 0,
           MaritalStatus: 0,
           Link: 0,
@@ -315,6 +320,14 @@ export function analyzeColumns(lines) {
         matched = true;
       }
 
+      /* US censuses have a race/colour column. Its values are not places, and left
+      unclaimed they used to outscore the real birthplace column. */
+      const isRaceValue = index > 0 && racePattern.test(part);
+      if (!matched && isRaceValue) {
+        columns[index].Race++;
+        matched = true;
+      }
+
       if (
         !matched &&
         part.match(
@@ -331,8 +344,9 @@ export function analyzeColumns(lines) {
         matched = true;
       }
 
-      if (part.match(/,/) || part.match(bigPlacesMatch) || part.match(placeNameRegExp)) {
+      if (!isRaceValue && (part.match(/,/) || part.match(bigPlacesMatch) || part.match(placeNameRegExp))) {
         columns[index].BirthPlace++;
+        columns[index].BirthPlaceStrong++;
         matched = true;
       }
       if (part.match(occupationMatch)) {
@@ -361,34 +375,37 @@ export function analyzeColumns(lines) {
     "Gender",
     "originalRelation",
     "Age",
+    "Race",
     "BirthPlace",
     "Occupation",
     "MaritalStatus",
     "Link",
     "BurialPlace",
   ];
-  const assignedColumnNames = new Set();
   const columnMapping = {};
+  const minCount = lines.length <= 2 ? 1 : 2;
 
   for (const columnName of columnPriority) {
-    let maxScore = 0;
-    let maxScoreIndex = null;
+    let best = null;
 
     for (const [index, column] of Object.entries(columns)) {
-      if (!Object.values(columnMapping).includes(index) && column) {
-        const score = column[columnName];
-        if (!assignedColumnNames.has(columnName) && score > maxScore) {
-          maxScore = score;
-          maxScoreIndex = index;
-        }
+      if (Object.values(columnMapping).includes(index) || !column) {
+        continue;
+      }
+      const score = column[columnName];
+      if (!score || score < minCount) {
+        continue;
+      }
+      /* Recognisable place names are better evidence of a birthplace column than values
+      nothing else claimed, so they win even where the counts are level. */
+      const strength = columnName === "BirthPlace" ? column.BirthPlaceStrong || 0 : 0;
+      if (!best || strength > best.strength || (strength === best.strength && score > best.score)) {
+        best = { index, score, strength };
       }
     }
 
-    const minCount = lines.length <= 2 ? 1 : 2;
-
-    if (maxScoreIndex !== null && maxScore >= minCount) {
-      columnMapping[columnName] = maxScoreIndex;
-      assignedColumnNames.add(columnName);
+    if (best) {
+      columnMapping[columnName] = best.index;
     }
   }
 

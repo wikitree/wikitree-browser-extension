@@ -139,3 +139,42 @@ export function isSameName(name, nameVariants, strength = 0.9) {
   });
   return sameName;
 }
+
+/* "Garry V McBride III" splits into a first name and a last name, and the generational
+suffix is then lost from every variant built out of them, so a citation carrying the suffix
+scores only 0.79 against "Garry V McBride" and never matches. */
+const generationalSuffixPattern = /[\s,]+(jn?r|sn?r|junior|senior|I{1,3}|IV|VI{0,3}|IX|XI{0,3})\.?$/i;
+
+export function withoutGenerationalSuffix(name) {
+  return (name || "").replace(generationalSuffixPattern, "").trim();
+}
+
+function generationalSuffix(name) {
+  const match = (name || "").match(generationalSuffixPattern);
+  if (!match) {
+    return "";
+  }
+  return match[1]
+    .toLowerCase()
+    .replace(/^(jnr|junior)$/, "jr")
+    .replace(/^(snr|senior)$/, "sr");
+}
+
+/* A father and son of the same name differ only by the suffix, and the suffix-free variants
+score well past the similarity threshold. Two *different* stated suffixes are a definite no.
+One name without a suffix says nothing either way, so that stays a match. */
+export function generationalSuffixesConflict(nameA, nameB) {
+  const suffixA = generationalSuffix(nameA);
+  const suffixB = generationalSuffix(nameB);
+  return Boolean(suffixA && suffixB && suffixA !== suffixB);
+}
+
+/* Possessive form of a name, for sentences that open a paragraph and so cannot lean on a
+pronoun for their referent: "Garry's known children were:". */
+export function possessiveName(name) {
+  const trimmed = (name || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  return trimmed.endsWith("'") ? trimmed : `${trimmed}'s`;
+}

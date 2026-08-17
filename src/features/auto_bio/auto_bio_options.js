@@ -77,7 +77,7 @@ const autoBio = {
           id: "householdTable",
           type: OptionType.CHECKBOX,
           label: "Household table in the biography (when possible)",
-          defaultValue: false,
+          defaultValue: true,
         },
         {
           id: "noNarrativeForCensus",

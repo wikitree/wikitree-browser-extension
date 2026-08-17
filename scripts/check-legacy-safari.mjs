@@ -52,7 +52,9 @@ function contextAround(source, index) {
 const files = scanDirs.flatMap(jsFilesIn);
 
 if (files.length === 0) {
-  console.error(`check-legacy-safari: no built JavaScript found under ${relative(repoRoot, dist)}/. Run a build first.`);
+  console.error(
+    `check-legacy-safari: no built JavaScript found under ${relative(repoRoot, dist)}/. Run a build first.`
+  );
   process.exit(1);
 }
 

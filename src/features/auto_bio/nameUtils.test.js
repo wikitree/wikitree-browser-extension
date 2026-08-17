@@ -1,4 +1,9 @@
-import { namesMatchByFirstAndLast } from "./nameUtils.js";
+import {
+  generationalSuffixesConflict,
+  namesMatchByFirstAndLast,
+  possessiveName,
+  withoutGenerationalSuffix,
+} from "./nameUtils.js";
 
 describe("namesMatchByFirstAndLast", () => {
   test("matches names with accents removed", () => {
@@ -23,5 +28,47 @@ describe("namesMatchByFirstAndLast", () => {
 
   test("does not over-match nearby first names", () => {
     expect(namesMatchByFirstAndLast("John Smith", "Joan Smith")).toBe(false);
+  });
+});
+
+describe("generational suffixes", () => {
+  test("strips a suffix so a citation name can match a stored name", () => {
+    expect(withoutGenerationalSuffix("Garry V McBride III")).toBe("Garry V McBride");
+    expect(withoutGenerationalSuffix("Gary V McBride, Jr.")).toBe("Gary V McBride");
+    expect(withoutGenerationalSuffix("Deedra Ella McBride")).toBe("Deedra Ella McBride");
+  });
+
+  test("does not mistake a trailing middle initial for a suffix", () => {
+    expect(withoutGenerationalSuffix("Garry V McBride")).toBe("Garry V McBride");
+  });
+
+  test("treats two different stated suffixes as different people", () => {
+    expect(generationalSuffixesConflict("John Smith Jr", "John Smith Sr")).toBe(true);
+    expect(generationalSuffixesConflict("Garry V McBride III", "Garry V McBride, Jr.")).toBe(true);
+    expect(generationalSuffixesConflict("John Smith Junior", "John Smith Jr.")).toBe(false);
+  });
+
+  test("says nothing when only one name carries a suffix", () => {
+    expect(generationalSuffixesConflict("John Smith Jr", "John Smith")).toBe(false);
+    expect(generationalSuffixesConflict("John Smith", "John Smith")).toBe(false);
+  });
+});
+
+describe("possessiveName", () => {
+  test("names the person for a sentence that opens a paragraph", () => {
+    expect(possessiveName("Garry")).toBe("Garry's");
+  });
+
+  test("still adds 's to a name ending in s", () => {
+    expect(possessiveName("James")).toBe("James's");
+  });
+
+  test("leaves a name that already ends in an apostrophe alone", () => {
+    expect(possessiveName("Jones'")).toBe("Jones'");
+  });
+
+  test("gives nothing back when there is no name to use", () => {
+    expect(possessiveName("")).toBe("");
+    expect(possessiveName(undefined)).toBe("");
   });
 });
