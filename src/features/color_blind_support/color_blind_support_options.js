@@ -88,18 +88,63 @@ const colorBlindSupport = {
       ],
     },
     {
+      id: "visited",
+      type: OptionType.GROUP,
+      label: "Visited Links",
+      options: [
+        {
+          id: "visitedCue",
+          type: OptionType.SELECT,
+          label: "Mark links you have already visited",
+          values: [
+            { value: "none", text: "Color only" },
+            { value: "underline", text: "An underline" },
+            { value: "check", text: "A checkmark after the link" },
+          ],
+          defaultValue: "none",
+          comment:
+            "WikiTree shows visited links in purple and unvisited ones in green, which are 23 units apart with " +
+            "deuteranopia - close enough that a reader with it reported them as the same link. The mark added " +
+            "here does not depend on telling those two colors apart. " +
+            "The color of the mark is not set here: it follows whatever your visited link color is, so the " +
+            "Visited Links and Custom Style features stay in charge of that and this one only adds the shape. " +
+            "The mark goes on content: the rows of a list you are working through, and the links in the text " +
+            "you are reading - a profile's biography and sources, its categories box, space and category " +
+            "pages, and G2G question lists. The furniture is left alone: navigation bars and menus, the " +
+            "profile tab strip, search boxes, badges, and the ancestor tree, which on a well-connected " +
+            "profile is 154 links on its own and would swamp everything else. " +
+            "The underline is the quieter of the two and costs no space; the checkmark is more obvious but " +
+            "sits after the link text whether or not it is showing, and the G2G feature's own visited " +
+            "checkmarks go at the front of those same titles, so switching both on puts a mark at each end. " +
+            "Where WikiTree already underlines a link - a profile's categories box, the links in a biography - " +
+            "the mark sits under the underline that is already there, so a visited one reads as a doubled " +
+            "underline. On a title that wraps onto several lines the underline is drawn under each line, " +
+            "where the checkmark marks the title once. " +
+            "One limit worth knowing: the mark is hidden by painting it the same color as the page, so on a " +
+            "link sitting on a colored background a faint mark can show on links you have not visited.",
+        },
+      ],
+    },
+    {
       id: "boxes",
       type: OptionType.GROUP,
-      label: "Status Messages and Boxes",
+      label: "Status, Suggestions and Edited Fields",
       options: [
         {
           id: "statusCue",
           type: OptionType.CHECKBOX,
-          label: "Give each kind of box a distinct border",
+          label: "Give each kind of message a distinct border",
           defaultValue: true,
           comment:
-            "Success boxes get a solid edge, warnings a dashed one and errors a double one, so the three are " +
-            "distinguishable in grayscale.",
+            "Success messages get a solid edge, warnings a dashed one and errors a double one, so the three are " +
+            "distinguishable in grayscale. WikiTree's own status boxes give all three the same yellow border and " +
+            "change only the background, and those three backgrounds are the same shade of grey once color is " +
+            "gone. The same treatment covers suggestion lists and flagged G2G posts, and marks fields you have " +
+            "changed in an edit form with a dashed border and a bold label - WikiTree marks those with an orange " +
+            "border of the same width and shape as an unchanged one. " +
+            "Ordinary green and orange content boxes are left alone: those classes are named after a color, not " +
+            "a state, so a page uses them wherever it wants a colored panel and marking them would invent a " +
+            "meaning that was never there.",
         },
       ],
     },

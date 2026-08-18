@@ -332,6 +332,12 @@ function adaptToPageBackground() {
   const isDarkPage = contrastRatio(background, [255, 255, 255]) > contrastRatio(background, [0, 0, 0]);
   document.body.classList.toggle("wbe-cb-dark-page", isDarkPage);
 
+  // The visited-link cue needs the real background, not an assumed white: its off state
+  // is a mark painted the same colour as the page, and `transparent` will not do - see
+  // the visited-links section of the README. Published here rather than with the palette
+  // because this is the only place that measures what the background actually is.
+  root.style.setProperty("--wbe-cb-page-bg", rgbToHex(background));
+
   const suffix = isDarkPage ? "dark" : "light";
   ["newLink", ...BOX_ROLES].forEach((role) => {
     const property = role === "newLink" ? `--wbe-cb-newlink-${suffix}` : `--wbe-cb-${role}-${suffix}`;
@@ -380,6 +386,9 @@ function cueClassesFor(options) {
     `wbe-cb-privacy-${options.privacyCue}`,
     // Options saved before this cue existed have no familyCue; pattern is its default.
     `wbe-cb-family-${options.familyCue || "pattern"}`,
+    // Likewise visitedCue, whose default is off - it marks every visited link on the
+    // page, which is a bigger change than the other cues and wants to be asked for.
+    `wbe-cb-visited-${options.visitedCue || "none"}`,
   ];
 
   classes.push(`wbe-cb-gender-${options.genderCue}`);

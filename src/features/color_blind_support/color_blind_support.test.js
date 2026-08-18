@@ -146,6 +146,31 @@ describe("on page load", () => {
   });
 });
 
+describe("the visited link cue", () => {
+  // The cue hides its off state by painting the mark the same colour as the page, so it
+  // needs the real background rather than an assumed white. `transparent` cannot be used:
+  // a :visited colour takes its alpha from the unvisited value, so alpha 0 stays alpha 0
+  // and the mark never appears - which is what made this look impossible last time.
+  test("publishes the measured page background for the mark to hide against", async () => {
+    await loadFeature({ enabled: true });
+
+    expect(document.documentElement.style.getPropertyValue("--wbe-cb-page-bg")).toBe("#FFFFFF");
+  });
+
+  test("is off unless it is asked for, including for options saved before it existed", async () => {
+    await loadFeature({ enabled: true });
+
+    expect(document.body.classList.contains("wbe-cb-visited-none")).toBe(true);
+  });
+
+  test("switches on the cue that was chosen", async () => {
+    await loadFeature({ enabled: true, options: { visitedCue: "underline" } });
+
+    expect(document.body.classList.contains("wbe-cb-visited-underline")).toBe(true);
+    expect(document.body.classList.contains("wbe-cb-visited-none")).toBe(false);
+  });
+});
+
 describe("the context menu item", () => {
   test("starts the simulator with the feature switched off", async () => {
     await loadFeature({ enabled: false });

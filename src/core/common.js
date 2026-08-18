@@ -425,16 +425,7 @@ async function checkBackupReminder() {
 
 // Is there actually anything in the places backupData() reads from?
 async function hasDataToBackUp() {
-  const localStorageKeys = [
-    "LSchangeSummaryOptions",
-    "LSchangeSummaryOptions_Space",
-    "LSchangeSummaryOptions_Category",
-    "customMenu",
-    "extraWatchlist",
-    "extraWatchlistNotes",
-    "wbe_text_expander_custom",
-  ];
-  if (localStorageKeys.some((key) => localStorage.getItem(key))) return true;
+  if (Object.values(WBE_LOCAL_STORAGE_KEYS).some((key) => localStorage.getItem(key))) return true;
 
   for (const dbName of WBE_DATABASES_ALL) {
     // openDatabase returns null rather than creating a database that isn't there,
@@ -1551,15 +1542,36 @@ export function cc7DbKeyFor(profileId, userId) {
   return `${profileId}:${userId}`;
 }
 
+// The localStorage half of the feature data: the field name in a backup file on the left,
+// the localStorage key it comes from on the right. One table so that backing up, restoring,
+// and the "is there anything worth backing up" check cannot drift apart - a key added to
+// one and forgotten in the others is exactly the sort of gap that only shows up when
+// someone restores a backup and finds something missing.
+//
+// The field names appear in every backup file ever written, so they cannot be renamed.
+const WBE_LOCAL_STORAGE_KEYS = {
+  changeSummaryOptions: "LSchangeSummaryOptions", // src/features/custom_change_summary_options
+  changeSummaryOptions_Space: "LSchangeSummaryOptions_Space",
+  changeSummaryOptions_Category: "LSchangeSummaryOptions_Category",
+  myMenu: "customMenu", // src/features/my_menu
+  extraWatchlist: "extraWatchlist", // src/features/extra_watchlist
+  extraWatchlistNotes: "extraWatchlistNotes",
+  textExpander: "wbe_text_expander_custom", // src/features/text_expander
+};
+
 async function backupData(compactMode, sendResponse) {
   const data = {};
-  data.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
-  data.changeSummaryOptions_Space = localStorage.LSchangeSummaryOptions_Space;
-  data.changeSummaryOptions_Category = localStorage.LSchangeSummaryOptions_Category;
-  data.myMenu = localStorage.customMenu;
-  data.extraWatchlist = localStorage.extraWatchlist;
-  data.extraWatchlistNotes = localStorage.extraWatchlistNotes;
-  data.textExpander = localStorage.wbe_text_expander_custom; // Add text expander data
+  // getItem() rather than property access, and the null is kept rather than left out:
+  // a key written as null says "there was nothing stored in this browser", where a key
+  // missing from the file gives no way to tell that apart from a backup that never
+  // looked for it. That question is otherwise unanswerable from a user's backup file.
+  for (const [field, key] of Object.entries(WBE_LOCAL_STORAGE_KEYS)) {
+    data[field] = localStorage.getItem(key);
+  }
+  // localStorage belongs to whichever WikiTree host this ran on, and the feature data
+  // is only there if the features were used on that same host, so a backup that came
+  // back thinner than expected can be explained rather than guessed at.
+  data.backedUpFrom = window.location.origin;
 
   const databases = compactMode ? WBE_DATABASES_MINIMAL : WBE_DATABASES_ALL;
 
@@ -1755,31 +1767,17 @@ export async function getAllRecords(db, storeName) {
 }
 
 async function restoreData(data, sendResponse) {
-  if (data.changeSummaryOptions) {
-    localStorage.setItem("LSchangeSummaryOptions", data.changeSummaryOptions);
+  for (const [field, key] of Object.entries(WBE_LOCAL_STORAGE_KEYS)) {
+    // An empty value is not an instruction to delete what is already here: a backup
+    // taken before the feature was used should not wipe the data of someone restoring
+    // it later. The notes below are the exception.
+    if (data[field]) localStorage.setItem(key, data[field]);
   }
-  if (data.changeSummaryOptions_Space) {
-    localStorage.setItem("LSchangeSummaryOptions_Space", data.changeSummaryOptions_Space);
-  }
-  if (data.changeSummaryOptions_Category) {
-    localStorage.setItem("LSchangeSummaryOptions_Category", data.changeSummaryOptions_Category);
-  }
-  if (data.myMenu) {
-    localStorage.setItem("customMenu", data.myMenu);
-  }
-  if (data.extraWatchlist) {
-    localStorage.setItem("extraWatchlist", data.extraWatchlist);
-  }
-  if (Object.prototype.hasOwnProperty.call(data, "extraWatchlistNotes")) {
-    if (data.extraWatchlistNotes) {
-      localStorage.setItem("extraWatchlistNotes", data.extraWatchlistNotes);
-    } else {
-      localStorage.removeItem("extraWatchlistNotes");
-    }
-  }
-  if (data.textExpander) {
-    // Add text expander restore
-    localStorage.setItem("wbe_text_expander_custom", data.textExpander);
+  // The notes are the one thing a restore may clear. They belong to the watchlist that
+  // is being restored alongside them, so leaving the old notes attached to a restored
+  // watchlist would leave notes on profiles that are no longer in it.
+  if (Object.prototype.hasOwnProperty.call(data, "extraWatchlistNotes") && !data.extraWatchlistNotes) {
+    localStorage.removeItem("extraWatchlistNotes");
   }
   try {
     if (data.clipboard) {

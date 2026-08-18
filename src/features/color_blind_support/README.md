@@ -32,7 +32,11 @@ alone:
 | Element                                                                    | Cue added                                                             |
 | -------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | `a.new` — links to pages that do not exist                                 | Dotted underline and a superscript `?`                                |
-| `.status.green` / `.status` / `.status.red`, `.box.green` / `.box.orange`  | Solid / dashed / double left border                                   |
+| `a:visited` on content links                                               | An underline appearing, or a checkmark; off by default                |
+| `.status.green` / `.status` / `.status.red`                                | Solid / dashed / double left border                                   |
+| `.suggestion-item.suggestion-Error` / `-Warning` / `-Hint`                 | Double / dashed / dotted left border                                  |
+| `input.changed` / `select.changed` / `textarea.changed`, `label.changed`   | Dashed border instead of solid; bold label                            |
+| `.qa-q-view-flags` and friends (flagged G2G posts)                         | Double border instead of solid                                        |
 | `.privacy--NN` dots                                                        | Distinct border style per level, plus the level number beside the dot |
 | `.tree--person_m/_f/_u`, `.genderbar`                                      | Solid / dashed / dotted left edge, optionally an M / F / ? letter     |
 | Bio Check's results box                                                    | "Passed." / "Issues found." in words above the findings               |
@@ -100,12 +104,7 @@ so a check started from the context menu carries across pages like any other. Ch
 **Normal (off)** ends the simulation: the control will not be there on the next page, and
 the context menu or the options page is the way to start again.
 
-## Visited links: tried, measured, and not possible
-
-**Nothing in this feature touches visited links.** Two versions were built and both were
-removed. The reason is a browser restriction that has tightened since it was last widely
-documented, so it is written down here in full rather than left for the next person to
-rediscover.
+## Visited links: possible after all
 
 WikiTree draws `a:visited` purple against `a:link` green. As CIE76 dE:
 
@@ -117,36 +116,66 @@ Note that grayscale is _not_ the problem — purple is much the darker of the tw
 difference survives having no colour at all. Deuteranopia is the weak case, and a reader
 with it reported the two as looking the same.
 
-### Why no shape cue is possible
+**An earlier version of this file said no shape cue was possible in Chrome. That was
+wrong**, and the reason it was wrong is worth more than the conclusion was, so it is
+recorded here.
 
-Every other cue in this feature is a shape, because shape survives what colour does not.
-For visited links, browsers restrict what `:visited` may change, so that a page cannot read
-back which links you have followed. The published allow-list — `color`, `background-color`,
-the border and outline colours, `fill`, `stroke` — is what the two attempts here were built
-on, and **it is out of date**. Tested in Chrome against a page with genuine history:
+### What Chrome actually restricts
 
-| tried                                                     | result                    |
-| --------------------------------------------------------- | ------------------------- |
-| `border-bottom-color`, currentColor and explicit          | ignored                   |
-| `background-color`                                        | ignored                   |
-| `outline-color`                                           | ignored                   |
-| `text-decoration-color`                                   | ignored                   |
-| colour of a child `<span>` — `g2g.js`'s checkmark pattern | ignored                   |
-| colour of an `::after` glyph                              | ignored                   |
-| `color` on the link itself                                | **the only one honoured** |
+The restriction is about **layout**, not about which element the rule matches. Retested in
+real Chrome against a page with genuine history:
 
-So the trick this feature relies on everywhere else — an element that is always present and
-only changes colour — cannot work for visited links in Chrome at all.
+| tried                                                     | result       |
+| --------------------------------------------------------- | ------------ |
+| `color` on the link itself                                | honoured     |
+| colour of a child `<span>` — `g2g.js`'s checkmark pattern | **honoured** |
+| colour of an `::after` glyph                              | **honoured** |
+| `border-bottom-color`                                     | **honoured** |
+| `outline-color`                                           | **honoured** |
+| `text-decoration-color`                                   | **honoured** |
+| `display` of a child `<span>`                             | ignored      |
+| `content` on `::after`                                    | ignored      |
+| `background-color`                                        | ignored      |
 
-**This affects `g2g.js` too.** Its "checkmarks to show questions you have visited" option
-colours a `✓` span inside the link, which is the fifth row of that table. That option is
-silently doing nothing in Chrome. Not fixed here; noted so somebody can.
+Anything that would move the page is refused, because that is what leaks history to a
+script. Anything that only changes a colour is allowed, on descendants and pseudo-elements
+as much as on the link.
 
-### Why a better colour is not the answer either
+### The trap that produced the wrong answer
 
-`color` does work, so the visited colour could be changed. Over every colour readable on
-white, the best scorer against WikiTree's green is `#D84000` at **58.8** worst-case, against
-purple's 23.0 — a large improvement on paper.
+**The alpha channel of a `:visited` colour is taken from the unvisited value.** A cue built
+on `border-bottom: 3px double transparent` — which is exactly what the abandoned attempt
+here used — asks Chrome to paint the visited colour at alpha 0. Nothing appears, and it is
+indistinguishable from the property being ignored.
+
+Base the off state on an **opaque** colour instead, the page background, and every cue in
+the table above works. `getComputedStyle` reports the unvisited style by design, so this can
+only be checked in rendered pixels; and Chrome 136+ partitions visited-link history, so the
+link has to be reached by **clicking it from the test page**, and the test page then
+revisited by a fresh navigation rather than Back, which restores the pre-visit paint from
+bfcache.
+
+### Why this counts as a shape cue
+
+Only a colour is being set, but it is set from "same as the background" to "dark", which is
+a **luminance** change: the mark is absent or present. Verified under `filter: grayscale(1)`
+— a checkmark, a doubled underline and a dotted underline all read, while the link text
+itself is an identical grey either way. It is a shape cue built out of the one property the
+browser allows.
+
+The cost is that the off state has to match the real page background, which Custom Style and
+Dark Mode both move. `adaptToPageBackground` already measures that background for the
+palette, so the value is available.
+
+**`g2g.js` is therefore not broken.** Its checkmark option paints the `✓` white and turns it
+green on `:visited`, which is the working pattern, not a dead one. It does assume a white
+page.
+
+### Why a better colour is not the answer
+
+`color` does work, so the visited colour could be changed instead. Over every colour readable
+on white, the best scorer against WikiTree's green is `#D84000` at **58.8** worst-case,
+against purple's 23.0 — a large improvement on paper.
 
 It was not taken, because the measurement cannot be trusted for this particular pair.
 `#D84000` is an orange-red against a green, and the simulation matrices drop hue while
@@ -155,24 +184,91 @@ recorded in `scripts/check-palette.mjs`, where WikiTree's own red/green measures
 apart under deuteranopia. A change this repo's own tooling cannot validate is not one to
 ship to the readers it is meant to help.
 
-Link colours therefore stay with the **Visited Links** and **Custom Style** features, where
-the reader chooses them.
+### What shipped
 
-### If Chrome ever relaxes this
+A `visitedCue` option with three settings: **Color only** (the default), **a doubled
+underline**, and **a checkmark after the link**. Off by default because it marks every
+visited link on the page rather than the occasional one, which is a bigger change to how a
+page looks than any other cue here makes.
 
-The cue to add back is a doubled bottom border: `border-bottom: 3px double transparent` on
-the link, `border-bottom-color` on `:visited`. It costs no layout — a bottom border on an
-inline element does not affect line box height (CSS 2.1 §10.8.1) — which matters both for
-the page and for honesty, since a cue that changed the layout would leak the history the
-restriction exists to protect. The first attempt used an appended span instead and put a
-visible gap after every link on the page, because the span took its width whether or not
-the link had been visited.
+Two details carry the whole thing, and both are easy to undo by accident:
+
+- **The off state is `--wbe-cb-page-bg`, not `transparent`** — the alpha trap above.
+  `adaptToPageBackground` publishes it from the background it already measures, so Dark
+  Mode and a Custom Style background are both followed.
+- **The mark is `currentColor`, not a palette colour.** Inside a `:visited` rule
+  currentColor resolves to the visited ink — verified, Chrome does not substitute the
+  unvisited one — so the mark follows whatever the reader chose in **Visited Links** or
+  **Custom Style**. Those features keep the colour; this one adds only the shape. That is
+  the same split as gender backgrounds, and it means there is nothing to arbitrate between
+  the three features and no need for a "who wins" setting.
+
+**Where it applies matters as much as what it is**, and the first version got that wrong by
+marking every visited link on the page. On a G2G list that put a mark on the nav tabs, the
+tag pills, the usernames, the category sidebar and the "commented" meta links, and lost the
+two question titles among them.
+
+"Have I already looked at this?" is a question the reader asks about **content** — a row in
+a list they are working through, a link in the text they are reading — and never about the
+furniture around it. So the cue is scoped to:
+
+| selector                 | covers                                                                             |
+| ------------------------ | ---------------------------------------------------------------------------------- |
+| `.qa-q-item-title a`     | every G2G list — Questions, Unanswered, Recent Activity, My Activity, Tags, search |
+| `table.table--data td a` | WikiTree's own data-table lists                                                    |
+| `.body-text a`           | the wiki content itself: a profile's biography and sources and the stickers in     |
+|                          | them, and space and category page text                                             |
+| `#Categories a`          | the profile's categories box, which sits outside `.body-text` in the right column  |
+
+Deliberately excluded, all navigation rather than reading: the nav bars and menus, the
+profile tab strip, the search boxes, the badges, and **the ancestor tree** — 154 links on
+Winston Churchill's profile, which would swamp everything else on the page.
+
+The count follows how much content a page has, which is the point: a stub profile picks up
+a handful of marks, Churchill's picks up 318 because it genuinely has that much to read.
+
+Not covered, for want of anything to hook onto: **What Links Here** builds a plain `<ul>`
+with no distinguishing class, and **Special:SearchPerson** renders its results into
+undifferentiated bootstrap columns. Widening to either is one line in that list.
+
+Three things worth knowing before changing it:
+
+- Hiding the off state by painting it the page colour assumes the link sits on the page
+  colour. On a tinted row a faint mark can show on links that have not been visited.
+- On a title that wraps, the underline is drawn on **every line**, because that is what a
+  bottom border on an inline element does. The checkmark marks the title once instead.
+- **Where WikiTree already underlines its links** — the categories box, the links in a
+  biography — the mark has no choice but to stack under the underline that is already
+  there, because only a colour may change on `:visited`. That is why the mark is a **2px
+  solid** line and not the 3px double it started as: double made three stacked lines,
+  which read as a rendering fault rather than a cue. One extra line reads as a doubled
+  underline, which is what a marked link should look like. Checked in grayscale against 48
+  unvisited neighbours in the categories box, and on a G2G title, where nothing is
+  underlined and the mark is a single line appearing.
+
+**Firefox is unverified.** Headless Firefox records no history, so `:visited` cannot be
+triggered there locally. If Firefox refuses any of this the cue simply does not appear,
+which is the safe direction to fail in.
+
+## Why `.box.green` and `.box.orange` are left alone entirely
+
+Earlier versions gave those two a severity edge alongside the `.status` variants. That was
+a mistake and has been removed. **A class named after a colour is not a state.** WikiTree
+uses `.box.green` and `.box.orange` for ordinary content panels wherever a page wants a
+green or an orange one, so marking them announces a severity the page never claimed — and
+that is worse than leaving them plain, because a reader who trusts the edges cannot then
+tell an invented one from a real one. Only markup that actually encodes a state is marked.
+
+`.status`, by contrast, does encode one, and needs the help badly: measured on the live
+stylesheet, `.status` sets a 3px solid `#fcb815` border and `.status.green` / `.status.red`
+override **the background only**. All three severities ship the same yellow border and
+differ by `#ffee99`, `#e1f0b4` and `#ffcccc` — Rec.709 luminance 235, 232 and 215. Warning
+against success is three levels out of 255, which is no difference at all in grayscale.
 
 ## Why the boxes are not recolored
 
-The first version repainted `.box.green`, `.box.orange` and the three `.status` variants
-with tints derived from the palette. That was removed, because measuring it showed it was
-not doing anything:
+The first version repainted the box backgrounds with tints derived from the palette. That
+was removed, because measuring it showed it was not doing anything:
 
 - **Readability was never the problem.** WikiTree's own text-on-box is already 10.4:1 and
   10.8:1. The replacement tints scored higher, but both are so far past the 4.5:1 bar that
@@ -432,7 +528,7 @@ Two things learned doing the ones marked done, both by measuring rather than rea
   closed, silently undoing the decision.
 - `WIKITREE_REPORT.md` in this folder is the write-up of the site-side findings, for
   taking upstream. WBE only helps people who install it.
-- **G2G is not fully audited.** Anything there carrying `.box.green`, `.box.orange` or
-  `.status` is already covered by the rules above. The G2G-specific signals —
-  `.qa-a-item-selected`, the vote and answer counts, the tag pills — have not been
-  checked against the live stylesheet.
+- **G2G is not fully audited.** Anything there carrying `.status` is covered by the rules
+  above, and the flag boxes (`.qa-q-view-flags` and friends) now are too. The remaining
+  G2G-specific signals — `.qa-a-item-selected`, the vote and answer counts, the tag pills
+  — have not been checked against the live stylesheet.

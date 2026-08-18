@@ -106,41 +106,102 @@ html body.wbe-cb-newlink-both a.new::after {
 }
 
 /* ---------------------------------------------------------------------------
-   Links you have already followed - NOTHING IS DONE HERE, AND NOTHING CAN BE
+   Visited links
 
-   WikiTree draws a:visited purple against a:link green. Measured as CIE76 dE, that is
-   141.3 apart with normal colour vision and in grayscale - purple is much the darker, so
-   the difference survives having no colour at all - but only 23.0 under deuteranopia,
-   34.5 under protanopia and 42.2 under tritanopia. Deuteranopia is the weak case, and a
-   reader with it reported these as looking the same.
+   WikiTree draws a:visited purple against a:link green - 23.0 dE apart under
+   deuteranopia, and a reader with it reported the two as the same link.
 
-   The cue used everywhere else in this file - an always-present element whose COLOUR
-   alone changes - was built here twice and does not work. Tested in Chrome against a page
-   with real history, ten ways:
+   Browsers restrict :visited to stop a page reading back your history, and the
+   restriction is about LAYOUT, not about which element the rule matches. Colour is
+   allowed, on the link, on its children and on its pseudo-elements; `display` and
+   `content` are not. So the mark has to be present on every link already, and only its
+   colour may change - which is enough, because painting it from "same as the page" to
+   "the visited ink" is a change in LUMINANCE. The mark is absent or present. That is a
+   shape difference built out of a colour, and it survives grayscale; checked.
 
-     border-*-color, background-color, outline-color, text-decoration-color,
-     the colour of a child span (g2g.js's checkmark pattern), the colour of an
-     ::after glyph          all IGNORED on :visited
-     color on the link itself                                  the ONLY one honoured
+   Two rules make this work, and both are easy to get wrong:
 
-   The allow-list published in every reference, this file's earlier comments included, is
-   out of date: Chrome now restricts :visited to the link's own colour. So no shape cue for
-   visited links is possible at all, and the same finding kills the "checkmarks to show
-   questions you have visited" option in this extension's own g2g feature, which colours a
-   checkmark span exactly like variant five above.
+   1. The off state must be OPAQUE. The alpha channel of a :visited colour is taken from
+      the unvisited value, so `transparent` means the visited colour is painted at alpha
+      0 and nothing appears - indistinguishable from the browser ignoring the rule, and
+      exactly what made an earlier attempt here look impossible. Hence
+      --wbe-cb-page-bg, which color_blind_support.js measures from the real page.
+   2. The mark is currentColor, NOT a palette colour. Inside a :visited rule currentColor
+      resolves to the visited ink, so the mark follows whatever the reader chose in
+      Visited Links or Custom Style. Those features own the colour; this one only adds
+      the shape. Verified that Chrome resolves it to the visited value and not the
+      unvisited one.
 
-   Nor is a better colour available through the one property that does work. The best
-   scorer over every colour readable on white is #D84000 at 58.8 worst-case against
-   WikiTree's green, next to purple's 23.0 - but that is an orange-red against a green,
-   the exact pair red-green readers confuse, and the score is inflated by a known blind
-   spot in the measurement: the simulation matrices drop hue but keep luminance, so they
-   cannot see red-green confusion (see the note on that in check-palette.mjs). A change
-   this file's own tooling cannot validate is not one to ship.
+   The underline costs no layout: a bottom border on an inline element does not affect
+   line box height (CSS 2.1 section 10.8.1). That matters for honesty as well as looks,
+   since a cue that moved the page would leak the history the restriction protects.
 
-   Link colours therefore stay with the Visited Links and Custom Style features, where the
-   reader picks them. If Chrome ever relaxes this, the cue to add is the doubled bottom
-   border: transparent by default, border-bottom-color on :visited, which costs no layout
-   because a bottom border on an inline element does not affect line box height. */
+   It is a 2px SOLID line, not the 3px double it started as, and the reason is stacking.
+   WikiTree underlines a lot of its links itself - the categories box, the links in a
+   biography - and since only a COLOUR may change on :visited, a mark on one of those has
+   no choice but to sit underneath the underline that is already there. A double border
+   made that three stacked lines, which looked like a rendering fault rather than a cue.
+   One extra line reads as a doubled underline, which is what a marked link should look
+   like. On a link with no underline of its own - a G2G question title - the mark is a
+   single line appearing, which is unambiguous there because nothing else in those lists
+   is underlined.
+   --------------------------------------------------------------------------- */
+
+/* WHERE the cue applies matters as much as what it is, and the first version got this
+   wrong: it marked every visited link on the page. On a G2G list that meant the nav
+   tabs, the tag pills, the usernames, the category sidebar and the "commented" meta
+   links all wore a mark, and the two question titles - the only links on the page whose
+   read-or-not state anyone cares about - were lost among them.
+
+   "Have I already looked at this?" is a question the reader asks about CONTENT - a row
+   in a list they are working through, a link in the text they are reading - and never
+   about the furniture around it. So the cue goes on:
+
+     .qa-q-item-title a     every G2G list - Questions, Unanswered, Recent Activity,
+                            My Activity, Tags, search results
+     table.table--data td a WikiTree's own data-table lists
+     .body-text a           the wiki content itself: a profile's biography, its sources
+                            and the stickers in them, and space and category page text
+     #Categories a          the profile's own categories box, which sits outside
+                            .body-text in the right-hand column
+
+   Deliberately NOT included, all of them navigation rather than reading: the nav bars and
+   menus, the profile tab strip, the search boxes, the badges, and the ancestor tree -
+   which is 98 links on a well-connected profile and would swamp everything else.
+
+   The count follows how much content a page has, which is the point: a stub profile picks
+   up a handful of marks, Winston Churchill's picks up 155 because it genuinely has that
+   much text to read.
+
+   Not covered, for want of anything to hook onto: What Links Here builds a plain <ul>
+   with no distinguishing class, and Special:SearchPerson renders its results into
+   undifferentiated bootstrap columns. */
+
+html body.wbe-cb-visited-underline :is(.qa-q-item-title, table.table--data td, .body-text, #Categories) a:link,
+html body.wbe-cb-visited-underline :is(.qa-q-item-title, table.table--data td, .body-text, #Categories) a:visited {
+  border-bottom: 2px solid var(--wbe-cb-page-bg, #ffffff);
+}
+
+html body.wbe-cb-visited-underline :is(.qa-q-item-title, table.table--data td, .body-text, #Categories) a:visited {
+  border-bottom-color: currentColor;
+}
+
+/* The glyph is the more obvious of the two and the more intrusive: it sits after the
+   link text, so it is always taking that space, visible or not. Note that g2g.js's own
+   "checkmarks to show questions you have visited" option puts a checkmark at the FRONT
+   of these same titles, so switching both on gives a title a mark at each end. */
+html body.wbe-cb-visited-check :is(.qa-q-item-title, table.table--data td, .body-text, #Categories) a:link::after,
+html body.wbe-cb-visited-check :is(.qa-q-item-title, table.table--data td, .body-text, #Categories) a:visited::after {
+  content: "\2713";
+  color: var(--wbe-cb-page-bg, #ffffff);
+  font-size: 0.85em;
+  margin-left: 0.15em;
+  text-decoration: none;
+}
+
+html body.wbe-cb-visited-check :is(.qa-q-item-title, table.table--data td, .body-text, #Categories) a:visited::after {
+  color: currentColor;
+}
 
 /* Gender rows in tables - What Links Here, Category Management.
 
@@ -396,11 +457,16 @@ html
 /* ---------------------------------------------------------------------------
    Status messages and content boxes
 
-   WikiTree: .status is a warning, .status.green a success and .status.red an error;
-   .box.green and .box.orange are the quieter content equivalents. The .status variants
-   carry distinct icons already, but the icons are small and themselves color-coded, so
-   the border style is what makes them readable in grayscale. The .box pair has no icon
-   at all.
+   WikiTree: .status is a warning, .status.green a success and .status.red an error.
+   The .status variants carry distinct icons already, but the icons are small and
+   themselves color-coded, so the border style is what makes them readable in grayscale.
+
+   .box.green and .box.orange are deliberately NOT touched. They were, and it was wrong:
+   a class named after a colour is not a severity. WikiTree uses .box.green and
+   .box.orange for ordinary content panels wherever a page wants a green or an orange
+   one, and giving those a "success" or "warning" edge invents a meaning the page never
+   had - which is worse than no cue, because the reader cannot tell the invented ones
+   from the real ones. Only markup that actually encodes a state is marked here.
    --------------------------------------------------------------------------- */
 
 /*
@@ -425,6 +491,11 @@ against. Badges keep their fill recolour, because they are too small for a borde
 fill is the only channel they have.
 */
 
+/* Measured on the live stylesheet: .status sets border 3px solid #fcb815, and
+   .status.green and .status.red override the BACKGROUND ONLY. All three severities
+   therefore ship the same yellow border, and differ by a background of #ffee99,
+   #e1f0b4 and #ffcccc - Rec.709 luminance 235, 232 and 215. Warning against success is
+   three levels out of 255, which is no difference at all in grayscale. */
 html body.wbe-cb .status.green {
   border-color: var(--wbe-cb-success, #8fc641) !important;
 }
@@ -437,12 +508,10 @@ html body.wbe-cb .status.red {
    error: a deliberate progression in visual weight, so the severity reads even when
    only one box is on screen and there is nothing to compare it against. */
 
-html body.wbe-cb-status .box.green,
 html body.wbe-cb-status .status.green {
   border-left: 10px solid var(--wbe-cb-success, #8fc641) !important;
 }
 
-html body.wbe-cb-status .box.orange,
 html body.wbe-cb-status .status:not(.green):not(.red) {
   border-left: 10px dashed var(--wbe-cb-warning, #e69f00) !important;
 }
@@ -470,10 +539,88 @@ html body.wbe-cb-status #hintMessages {
 
 /* WikiTree squares off the left corners of .box...border so the coloured edge reads as
    a tab. Do the same for the edges added above, or the border sits oddly inside the
-   18px radius of a .box.rounded. */
-html body.wbe-cb-status .box.rounded {
+   18px radius of a rounded box. Scoped to the elements that actually get an edge here -
+   plain .box.rounded is no longer one of them. .status carries its own 6px radius and
+   never takes the .rounded class, so it is matched on its own. */
+html body.wbe-cb-status .status,
+html body.wbe-cb-status #errorMessages,
+html body.wbe-cb-status #warningMessages,
+html body.wbe-cb-status #hintMessages {
   border-top-left-radius: 0 !important;
   border-bottom-left-radius: 0 !important;
+}
+
+/* ---------------------------------------------------------------------------
+   WikiTree's own suggestion list
+
+   .suggestion-item.suggestion-Error / -Warning / -Hint differ by background alone:
+   #ffcccc, #ffee99 and #e1f0b4, on the same text colour. Warning and Hint are
+   Rec.709 luminance 235 and 232 - three levels apart out of 255, which is the same
+   grey. Same severity language as the panels above: double, dashed, dotted.
+
+   These are WikiTree's markup, unlike the #errorMessages panels above, which are
+   Show Suggestions' own. Both exist and both need the cue.
+   --------------------------------------------------------------------------- */
+html body.wbe-cb-status .suggestion-item.suggestion-Error {
+  border-left: 10px double var(--wbe-cb-danger, #e22a40) !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+html body.wbe-cb-status .suggestion-item.suggestion-Warning {
+  border-left: 10px dashed var(--wbe-cb-warning, #e69f00) !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+html body.wbe-cb-status .suggestion-item.suggestion-Hint {
+  border-left: 10px dotted var(--wbe-cb-newlink, #0072b2) !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Edited fields
+
+   WikiTree marks a field you have changed with border-color: #ffa500 and its label
+   with color: #ffa500, and nothing else. Against the unchanged field's own grey
+   border that is 172 against 204 in grayscale - present, but the two borders are the
+   same shape and the same width, so on a long edit form there is nothing to scan for.
+
+   The border style carries it instead: dashed against solid is a difference in kind,
+   not degree. Style-only, so nothing moves - the width is untouched. The label goes
+   bold for the same reason.
+   --------------------------------------------------------------------------- */
+html body.wbe-cb-status input.changed,
+html body.wbe-cb-status select.changed,
+html body.wbe-cb-status textarea.changed {
+  border-style: dashed !important;
+  border-color: var(--wbe-cb-warning, #ffa500) !important;
+}
+
+html body.wbe-cb-status label.changed {
+  font-weight: 700 !important;
+  color: var(--wbe-cb-warning, #ffa500) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   G2G flagged posts
+
+   .qa-q-view-flags and friends: background #ffcccc with a 3px solid #e22a40 border.
+   The border is a shape, but it is the same shape every other bordered panel on the
+   page has, so what marks the box as flagged rather than merely boxed is the red. A
+   double border makes it the one panel of its kind, and matches what an error looks
+   like everywhere else in this feature.
+
+   5px, not 4px: a `double` border splits its width three ways, so at 4px the two lines
+   and the gap round down to a single line and the cue is lost. Checked in grayscale
+   against 3px solid, 4px, 5px and 6px - 5px is the narrowest that reads as doubled.
+   --------------------------------------------------------------------------- */
+html body.wbe-cb-status .qa-c-item-flags,
+html body.wbe-cb-status .qa-q-item-flags,
+html body.wbe-cb-status .qa-q-view-flags,
+html body.wbe-cb-status .qa-a-item-flags {
+  border: 5px double var(--wbe-cb-danger, #e22a40) !important;
 }
 
 /* Bio Check reports its outcome by putting "status green" on its results container for a
