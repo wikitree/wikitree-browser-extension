@@ -46,7 +46,10 @@ export class Biography {
   #bioLines = []; // lines in the biography
   #bioHeadingsFound = []; // biography headings found (multi lang)
   #sourcesHeadingsFound = []; // sources headings found (multi lang)
-  #invalidSpanTargetList = []; // target of a span that are not valid
+  //#spanTargetList = []; // list of span targets found (by id)
+  //#validSpanTargetList = []; // target of a span that are valid sources
+  //#invalidSpanTargetList = []; // target of a span that are not valid sources
+  #invalidSpanTargetCount = 0;
   #refStringList = []; // all the <ref> this </ref> lines
   #refNamesDefined = new Set();  // all the <ref> with a defined name 
   #refNamesUsed = new Set();  // all the ref names that are used
@@ -624,7 +627,7 @@ export class Biography {
     }
     this.#bioScore = this.#bioScore - this.#wrongLevelHeadings.length; // should be 3 not 2
     this.#bioScore = this.#bioScore - this.#refNamesMultiple.size;
-    this.#bioScore = this.#bioScore - this.#invalidSpanTargetList.length;
+    this.#bioScore = this.#bioScore - this.#invalidSpanTargetCount;
     this.#bioScore = this.#bioScore - this.#missingRnb.length;
     this.#bioScore = this.#bioScore - this.#sources.invalidDnaSourceList.length;
     this.#bioScore = this.#bioScore + Math.min(this.#stats.numberCategories, 4);
@@ -1308,6 +1311,7 @@ export class Biography {
    */
   #parseNotabilityTemplate(partialLine, partialMixedCaseLine) {
     // Must be after Biography before any stickers
+    // TODO check for use of deprecated |category parameter
     if (!this.#have.haveBiography) {
       let msg = 'Notability Statement should be after Biography heading';
       this.#messages.styleMessages.push(msg);
@@ -2097,6 +2101,8 @@ export class Biography {
     // WITH the addition of spaces that people might put in to avoid email checking
     // Thanks to Andrew Millard for the regex
 
+    // TODO check for iMDB
+
     let looksLikeEmail = false;
     let orig_regex = /^[a-z0-9]+@[a-z]+\.[a-z]{2,3}$/;
 
@@ -2260,13 +2266,11 @@ export class Biography {
       mixedCaseLine = mixedCaseLine.substring(1);
     }
     mixedCaseLine = mixedCaseLine.trim();
+    mixedCaseLine = this.#swallowSpanId(mixedCaseLine);
 
     // perform tests on lower case line
     let line = mixedCaseLine.toLowerCase().trim();
-    // It takes a minimum number of characters to be valid
-    //if (line.length >= Biography.#MIN_SOURCE_LEN) {
-      isValid = this.#isValidSourceLine(line, mixedCaseLine);
-    //} // endif too short when stripped of whitespace
+    isValid = this.#isValidSourceLine(line, mixedCaseLine);
 
     // Save line for reporting
     if (isValid) {
@@ -2286,7 +2290,7 @@ export class Biography {
         this.#sources.hasPre1700Sources = true;
         this.#sources.hasTooOldSources = true;
       }
-      if (!this.#sources.hasPre1700Sources) {
+      if (isValid  && !this.#sources.hasPre1700Sources) {
         // Check when you have no profile dates
         // have already checked what essentially would be modern
         // and if you have found Pre1700 then TooOld is covered
@@ -2331,6 +2335,7 @@ export class Biography {
       line = line.slice(0, -1);
       line = line.trim();
     }
+    line = line.replace('date of import: ', '');
     if (line.length >= Biography.#MIN_SOURCE_LEN) {
       if (!this.#isInvalidStandAloneSource(line)) {
         line = line.trim();
@@ -2442,7 +2447,7 @@ export class Biography {
 
   /*
    * Validate content in <ref> tags
-   * invalidSpanTargetList is used if line contains a span reference
+   * Assumes that reference strings (Sources) checked first to find span targets
    * @param {Array} refStrings array of string found within ref tag
    * @returns {Boolean} true if at least one is valid else false
    */
@@ -2453,27 +2458,11 @@ export class Biography {
     while (i < refStrings.length) {
       line = refStrings[i];
       if (line.length > 0) {
-        // Check span target if ref contains a span reference
-        let startPos = line.indexOf(Biography.#SPAN_REFERENCE_START);
-        if (startPos >= 0) {
-          startPos = startPos + 3;
-          let endPos = line.indexOf("|");
-          if (endPos < 0) {
-            endPos = line.indexOf(Biography.#SPAN_REFERENCE_END);
-          }
-          if (endPos > 0 && startPos < endPos) {
-            let spanId = line.substring(startPos, endPos);
-            if (!this.#invalidSpanTargetList.includes(spanId)) {
-              isValid = true;
-            }
-          }
-        } else {
-          if (this.#isValidSource(line)) {
-            this.#bioScore = this.#bioScore + 2;
-            if (!isValid) {
-              // first one found?
-              isValid = true;
-            }
+        if (this.#isValidSource(line)) {
+          this.#bioScore = this.#bioScore + 2;
+          if (!isValid) {
+            // first one found?
+            isValid = true;
           }
         }
       }
@@ -2571,10 +2560,14 @@ export class Biography {
             }
           }
         } else {
+          //this.#spanTargetList.push(spanId);
           if (this.#isValidSpanTarget(mixedCaseLine)) {
+            //this.#validSpanTargetList.push(spanId);
             if (!isValid) {
               isValid = true; // first one found
             }
+          } else {
+            this.#invalidSpanTargetCount++;
           }
         }
       }
@@ -2585,7 +2578,6 @@ export class Biography {
 
   /*
    * Validate string that is a span target
-   * Side effect: add to invalidSpanTargetList for invalid target
    * @param {String} line line to be evaluated
    * @param {Number} startPos starting position in line
    * @returns {Boolean} true if valid else false
@@ -2617,10 +2609,30 @@ export class Biography {
       mixedCaseLine = beforeSpan + " " + mixedCaseLine.substring(pos).trim();
       isValid = this.#isValidSource(mixedCaseLine);
     }
-    if (!isValid) {
-      this.#invalidSpanTargetList.push(spanId);
-    }
     return isValid;
+  }
+
+  /* 
+   * Swallow spanId portion of a line to test as a source
+   */
+  #swallowSpanId(line) {
+    let shortLine = line;
+    // Check span target if ref contains a span reference
+    let startPos = line.indexOf(Biography.#SPAN_REFERENCE_START);
+    if (startPos >= 0) {
+      startPos = startPos + 3;
+      let endPos = line.indexOf("|");
+      if (endPos < 0) {
+        endPos = line.indexOf(Biography.#SPAN_REFERENCE_END);
+      }
+      if (endPos > 0 && startPos < endPos) {
+        let spanId = line.substring(startPos, endPos);
+        shortLine = shortLine.replace(Biography.#SPAN_REFERENCE_START, '');
+        shortLine = shortLine.replace(Biography.#SPAN_REFERENCE_END, '');
+        shortLine = shortLine.replace(spanId, '');
+      }
+    }
+    return shortLine;
   }
 
   /*
