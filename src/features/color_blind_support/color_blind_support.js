@@ -214,6 +214,14 @@ function normalizeMode(mode) {
 const BOX_ROLES = ["danger", "warning", "success"];
 
 /**
+ * The links the visited-link cue applies to. This MUST stay in step with the selector the
+ * visited rules use in color_blind_support.css - the stylesheet decides where the mark is
+ * drawn, and this decides where its off-state colour gets measured. Out of step, the mark
+ * is drawn in the wrong background colour and shows on links that were never visited.
+ */
+const VISITED_CUE_SELECTOR = ":is(.qa-q-item-title, table.table--data td, .body-text, #Categories) a";
+
+/**
  * Work out the custom palette's Dark Mode counterpart.
  *
  * A user picking colors is looking at WikiTree's white page, so their choices are nearly
@@ -389,11 +397,21 @@ function cueClassesFor(options) {
     // Likewise visitedCue, whose default is off - it marks every visited link on the
     // page, which is a bigger change than the other cues and wants to be asked for.
     `wbe-cb-visited-${options.visitedCue || "none"}`,
+    // And badgeCue. "both" is its default because that is what the badges did before the
+    // option existed: the fill was recoloured whenever the feature was on, and the border
+    // came with the status cue.
+    `wbe-cb-badges-${options.badgeCue || "both"}`,
   ];
 
   classes.push(`wbe-cb-gender-${options.genderCue}`);
   if (options.statusCue) {
     classes.push("wbe-cb-status");
+  }
+  // The recolour of new/unknown links is separate from the shape cue on them, so that a
+  // reader who sets their own link colours can keep the shape and drop the colour. It
+  // defaults on, and options saved before it existed have no value for it.
+  if (options.newLinkRecolor !== false) {
+    classes.push("wbe-cb-newlink-recolor");
   }
 
   return classes;
@@ -423,10 +441,49 @@ function setSupport(on, options) {
     // the one route that leaves the dots unlabelled.
     tagPrivacyDots(options);
     tagFamilyGroups(options);
+    markLocalBackgrounds(options);
   } else {
     PALETTE_PROPERTIES.forEach((property) => document.documentElement.style.removeProperty(property));
     document.body.classList.remove(...cueClassesFor(options));
   }
+}
+
+/**
+ * The visited-link mark hides its off state by painting itself the colour of the page.
+ * That assumes the link sits on the page's own background, and plenty do not: WikiTree
+ * gives the profile's Categories box a pale green of its own (measured: rgb(225,240,180)
+ * against a white body), and the stickers inside a biography have their own fills too. On
+ * those, an off state painted page-white draws a visible white line under every link the
+ * reader has NOT visited - the exact opposite of what the cue is for.
+ *
+ * So the background is measured where the link actually is. For each link the cue applies
+ * to, walk up to the nearest ancestor that paints something, and publish that colour as
+ * --wbe-cb-local-bg on that ancestor; the property inherits, so one write covers every
+ * link inside it. Custom Style and Dark Mode need no special handling here - this reads
+ * computed style, so whatever they have painted by then is what gets measured, including
+ * on boxes neither of them knows about.
+ *
+ * @param {object} options
+ */
+function markLocalBackgrounds(options) {
+  if ((options.visitedCue || "none") === "none") {
+    return;
+  }
+
+  const seen = new Set();
+  document.querySelectorAll(VISITED_CUE_SELECTOR).forEach((link) => {
+    for (let element = link.parentElement; element; element = element.parentElement) {
+      const background = parseCssColor(getComputedStyle(element).backgroundColor);
+      if (!background) {
+        continue;
+      }
+      if (!seen.has(element)) {
+        seen.add(element);
+        element.style.setProperty("--wbe-cb-local-bg", rgbToHex(background));
+      }
+      return;
+    }
+  });
 }
 
 /**
@@ -879,7 +936,13 @@ const featureReady = Promise.all([
     // land after this one. The first measurement above may therefore have read WikiTree's
     // white before the reader's own background was applied, so take it again once things
     // have settled. Cheap, and it is the difference between fitting the page and guessing.
-    setTimeout(adaptToPageBackground, 1200);
+    setTimeout(() => {
+      adaptToPageBackground();
+      // The per-box backgrounds need the same second look, and for the same reason: the
+      // first pass may have measured WikiTree's own colours before Custom Style repainted
+      // them.
+      markLocalBackgrounds(options);
+    }, 1200);
   } else if (normalizeMode(options.simulate) !== "off") {
     // A simulation started from the context menu with the feature switched off. It carries
     // from page to page like any other, because checking one page at a time is not how

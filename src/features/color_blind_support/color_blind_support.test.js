@@ -34,11 +34,14 @@ async function settle() {
 /**
  * Load the feature as a page would, with the feature switched on or off in the options.
  */
-async function loadFeature({ enabled = false, options = {} } = {}) {
+async function loadFeature({ enabled = false, options = {}, customStyle = null } = {}) {
   jest.resetModules();
   jest.doMock("../../core/options/options_storage", () => ({
     shouldInitializeFeature: () => Promise.resolve(enabled),
-    getFeatureOptions: () => Promise.resolve({ ...DEFAULT_OPTIONS, ...options }),
+    // The feature reads Custom Style's options as well as its own, to find out whether the
+    // reader has asked for no link underlines. Pass customStyle to stand that up.
+    checkIfFeatureEnabled: (id) => Promise.resolve(id === "customStyle" ? Boolean(customStyle) : enabled),
+    getFeatureOptions: (id) => Promise.resolve(id === "customStyle" ? customStyle : { ...DEFAULT_OPTIONS, ...options }),
   }));
   await import("./color_blind_support");
   await settle();
@@ -143,6 +146,72 @@ describe("on page load", () => {
     expect(badge()).not.toBeNull();
     expect(supportToggle().checked).toBe(false);
     expect(document.body.classList.contains("wbe-cb")).toBe(false);
+  });
+});
+
+describe("every cue can be switched off", () => {
+  // The recolour of new/unknown links and the badge fills used to happen whenever the
+  // feature was on, with nothing to turn them off. Both now have their own switch.
+  test("the new-link recolor is on by default and can be turned off", async () => {
+    await loadFeature({ enabled: true });
+    expect(document.body.classList.contains("wbe-cb-newlink-recolor")).toBe(true);
+
+    document.body.className = "";
+    await loadFeature({ enabled: true, options: { newLinkRecolor: false } });
+    expect(document.body.classList.contains("wbe-cb-newlink-recolor")).toBe(false);
+  });
+
+  test.each([
+    ["wbe-cb-newlink-none", { newLinkCue: "none" }],
+    ["wbe-cb-visited-none", { visitedCue: "none" }],
+    ["wbe-cb-privacy-none", { privacyCue: "none" }],
+    ["wbe-cb-gender-none", { genderCue: "none" }],
+    ["wbe-cb-family-none", { familyCue: "none" }],
+    ["wbe-cb-badges-none", { badgeCue: "none" }],
+  ])("%s is reachable from the options", async (expected, options) => {
+    await loadFeature({ enabled: true, options });
+    expect(document.body.classList.contains(expected)).toBe(true);
+  });
+
+  test("the status cue is a plain checkbox, so off means off", async () => {
+    await loadFeature({ enabled: true, options: { statusCue: false } });
+    expect(document.body.classList.contains("wbe-cb-status")).toBe(false);
+  });
+
+  test("badges default to fill and border, and can be left alone entirely", async () => {
+    await loadFeature({ enabled: true });
+    expect(document.body.classList.contains("wbe-cb-badges-both")).toBe(true);
+
+    document.body.className = "";
+    await loadFeature({ enabled: true, options: { badgeCue: "none" } });
+    expect(document.body.classList.contains("wbe-cb-badges-none")).toBe(true);
+    expect(document.body.classList.contains("wbe-cb-badges-both")).toBe(false);
+  });
+});
+
+describe("hiding the visited mark against the right background", () => {
+  // WikiTree gives the profile's Categories box a background of its own, so a mark hidden
+  // against the PAGE draws a visible line there on links that were never visited.
+  function categoriesBox() {
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      '<p id="Categories" style="background-color: rgb(225, 240, 180)"><a href="/a">a category</a></p>'
+    );
+    return document.getElementById("Categories");
+  }
+
+  test("measures the box the link sits in, not the page", async () => {
+    const box = categoriesBox();
+    await loadFeature({ enabled: true, options: { visitedCue: "underline" } });
+
+    expect(box.style.getPropertyValue("--wbe-cb-local-bg")).toBe("#E1F0B4");
+  });
+
+  test("does nothing when the cue is off, since nothing is being hidden", async () => {
+    const box = categoriesBox();
+    await loadFeature({ enabled: true });
+
+    expect(box.style.getPropertyValue("--wbe-cb-local-bg")).toBe("");
   });
 });
 

@@ -467,33 +467,18 @@ body.wbe-safari-scroll #categoryBar {
   background-color: #e8e8e8;
 }
 
-/* Color-Blind Support: the warning shown when a custom palette will not do its job.
-   Deliberately not colour-coded on its own - it carries a heading and text, because a
-   warning about colour-blindness that could only be recognised by its colour would be a
-   poor advertisement for the feature. */
-.cb-palette-warning {
-  margin: 0.5em 0 0;
-  padding: 0.5em 0.75em;
-  border-left: 6px double #b0003a;
-  background-color: #f7e0e6;
-  color: #3a0011;
-  font-size: 0.9em;
+/* Color-Blind Support: notes under a custom palette's color pickers.
+
+   Quiet on purpose. These are observations about what the reader chose, not errors, so
+   they get the same weight as the option comments beside them rather than a coloured
+   alert box. An earlier version was a pink panel headed "Problems with these colors" and
+   it read as a telling-off for a palette that was the reader's to pick. */
+.cb-palette-note {
+  margin: 0.2em 0 0;
+  font-size: 0.85em;
+  opacity: 0.8;
   max-width: 46em;
 }
-.cb-palette-warning ul {
-  margin: 0.3em 0 0;
-  padding-left: 1.2em;
-}
-.cb-palette-warning li {
-  margin: 0.2em 0;
-}
-body.darkMode .cb-palette-warning {
-  background-color: #624a57;
-  color: #dedecb;
-  border-left-color: #ff85ad;
-}
-.cb-palette-warning-footnote {
-  margin: 0.5em 0 0;
+.cb-palette-note--footnote {
   font-style: italic;
-  opacity: 0.85;
 }

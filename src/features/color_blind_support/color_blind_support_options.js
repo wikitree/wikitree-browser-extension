@@ -36,32 +36,36 @@ const colorBlindSupport = {
           ],
           defaultValue: "okabeIto",
           comment:
-            "The colors below are only used when the palette is set to Custom. " +
-            "Link and visited link colors are not set here: see the Visited Links and Custom Style features.",
+            "The colors below apply only to the Custom palette. They paint two things: new/unknown links and " +
+            "the small badges. Every other cue is a shape, so no color choice can hide one.",
         },
         {
           id: "newLinkColor",
           type: OptionType.COLOR,
           label: "New/unknown link color",
           defaultValue: "#0072B2",
+          comment: "Paints new/unknown link text, and the same links in Category Display.",
         },
         {
           id: "dangerColor",
           type: OptionType.COLOR,
           label: "Error color",
           defaultValue: "#B0003A",
+          comment: "Paints red badges, and red text in Date Fixer, Text Expander, Locations Helper and WikiTree+.",
         },
         {
           id: "warningColor",
           type: OptionType.COLOR,
           label: "Warning color",
           defaultValue: "#C68900",
+          comment: "Paints nothing on screen. Published for other WBE features to use for their own warnings.",
         },
         {
           id: "successColor",
           type: OptionType.COLOR,
           label: "Success color",
           defaultValue: "#007A5E",
+          comment: "Paints green badges.",
         },
       ],
     },
@@ -78,12 +82,44 @@ const colorBlindSupport = {
             { value: "both", text: "Dotted underline and a ?" },
             { value: "dotted", text: "Dotted underline" },
             { value: "question", text: "A ? after the link" },
-            { value: "none", text: "Color only" },
+            { value: "none", text: "Do not mark them" },
           ],
           defaultValue: "both",
           comment:
-            "WikiTree shows links to categories and pages that do not exist yet in red, and every other link in " +
-            "green. These marks make the difference visible without relying on that red/green pair.",
+            "WikiTree colors these red and every other link green - the same link with red-green color " +
+            "blindness. The mark shows the difference without the color. Pick the ? if you would rather have " +
+            "no underlines.",
+        },
+        {
+          id: "newLinkRecolor",
+          type: OptionType.CHECKBOX,
+          label: "Recolor these links",
+          defaultValue: true,
+          comment:
+            "Replaces WikiTree's red with the palette color above. Turn it off to keep WikiTree's own color, or " +
+            "your Custom Style one, and rely on the mark alone.",
+        },
+      ],
+    },
+    {
+      id: "badges",
+      type: OptionType.GROUP,
+      label: "Badges",
+      options: [
+        {
+          id: "badgeCue",
+          type: OptionType.SELECT,
+          label: "Mark the small green and red badges",
+          values: [
+            { value: "both", text: "Recolored fill and a border" },
+            { value: "recolor", text: "Recolored fill" },
+            { value: "border", text: "Border" },
+            { value: "none", text: "Leave them alone" },
+          ],
+          defaultValue: "both",
+          comment:
+            "Badges are too small for much of a shape, so the fill does most of the work. The border - solid " +
+            "for green, dashed for red - is the part that survives grayscale.",
         },
       ],
     },
@@ -97,31 +133,18 @@ const colorBlindSupport = {
           type: OptionType.SELECT,
           label: "Mark links you have already visited",
           values: [
-            { value: "none", text: "Color only" },
+            { value: "none", text: "Do not mark them" },
             { value: "underline", text: "An underline" },
             { value: "check", text: "A checkmark after the link" },
           ],
           defaultValue: "none",
           comment:
-            "WikiTree shows visited links in purple and unvisited ones in green, which are 23 units apart with " +
-            "deuteranopia - close enough that a reader with it reported them as the same link. The mark added " +
-            "here does not depend on telling those two colors apart. " +
-            "The color of the mark is not set here: it follows whatever your visited link color is, so the " +
-            "Visited Links and Custom Style features stay in charge of that and this one only adds the shape. " +
-            "The mark goes on content: the rows of a list you are working through, and the links in the text " +
-            "you are reading - a profile's biography and sources, its categories box, space and category " +
-            "pages, and G2G question lists. The furniture is left alone: navigation bars and menus, the " +
-            "profile tab strip, search boxes, badges, and the ancestor tree, which on a well-connected " +
-            "profile is 154 links on its own and would swamp everything else. " +
-            "The underline is the quieter of the two and costs no space; the checkmark is more obvious but " +
-            "sits after the link text whether or not it is showing, and the G2G feature's own visited " +
-            "checkmarks go at the front of those same titles, so switching both on puts a mark at each end. " +
-            "Where WikiTree already underlines a link - a profile's categories box, the links in a biography - " +
-            "the mark sits under the underline that is already there, so a visited one reads as a doubled " +
-            "underline. On a title that wraps onto several lines the underline is drawn under each line, " +
-            "where the checkmark marks the title once. " +
-            "One limit worth knowing: the mark is hidden by painting it the same color as the page, so on a " +
-            "link sitting on a colored background a faint mark can show on links you have not visited.",
+            "Visited purple and unvisited green are 23 units apart with deuteranopia - near enough the same " +
+            "link. The mark shows the difference without the color, and takes whatever visited link color you " +
+            "have set elsewhere. " +
+            "It marks content only: list rows, and links in the text you are reading. Menus, tabs and the " +
+            "ancestor tree are left alone. The underline costs no space; the checkmark leaves a small gap " +
+            "after every link, showing or not.",
         },
       ],
     },
@@ -136,15 +159,10 @@ const colorBlindSupport = {
           label: "Give each kind of message a distinct border",
           defaultValue: true,
           comment:
-            "Success messages get a solid edge, warnings a dashed one and errors a double one, so the three are " +
-            "distinguishable in grayscale. WikiTree's own status boxes give all three the same yellow border and " +
-            "change only the background, and those three backgrounds are the same shade of grey once color is " +
-            "gone. The same treatment covers suggestion lists and flagged G2G posts, and marks fields you have " +
-            "changed in an edit form with a dashed border and a bold label - WikiTree marks those with an orange " +
-            "border of the same width and shape as an unchanged one. " +
-            "Ordinary green and orange content boxes are left alone: those classes are named after a color, not " +
-            "a state, so a page uses them wherever it wants a colored panel and marking them would invent a " +
-            "meaning that was never there.",
+            "WikiTree gives success, warning and error boxes the same border and changes only the background, " +
+            "and those three backgrounds are one shade of grey without color. Solid, dashed and double edges " +
+            "tell them apart. Also covers suggestion lists, flagged G2G posts, and fields you have changed in " +
+            "an edit form.",
         },
       ],
     },
@@ -161,12 +179,12 @@ const colorBlindSupport = {
             { value: "both", text: "Border style and the level number" },
             { value: "border", text: "Border style" },
             { value: "number", text: "The level number" },
-            { value: "none", text: "Color only" },
+            { value: "none", text: "Do not mark them" },
           ],
           defaultValue: "both",
           comment:
-            "Privacy levels 30, 35 and 40 are three near-identical yellows, and share the same padlock icon. " +
-            "The number is not added to the smallest dots, which have no room for it; those get a tooltip instead.",
+            "Levels 30, 35 and 40 are three near-identical yellows sharing one padlock icon. The smallest dots " +
+            "have no room for a number, so they get a tooltip instead.",
         },
       ],
     },
@@ -182,12 +200,12 @@ const colorBlindSupport = {
           values: [
             { value: "border", text: "Border style" },
             { value: "letter", text: "Border style and a letter" },
-            { value: "none", text: "Color only" },
+            { value: "none", text: "Do not mark them" },
           ],
           defaultValue: "border",
           comment:
             "The pale pink, blue and green backgrounds are hard to tell apart with red-green color blindness. " +
-            "To change the colors themselves, use the Profile Background Colors section of the Custom Style feature.",
+            "To change the colors, see Custom Style.",
         },
       ],
     },
@@ -204,23 +222,15 @@ const colorBlindSupport = {
             { value: "pattern", text: "Patterned bars" },
             { value: "both", text: "Patterned bars and a number" },
             { value: "number", text: "A number" },
-            { value: "none", text: "Color only" },
+            { value: "none", text: "Do not mark them" },
           ],
           defaultValue: "pattern",
           comment:
-            "The Change Family Lists feature draws a colored bar down the right of each person to show two " +
-            "things: which spouse each child belongs to, and which parent each sibling shares. It has fifty-one " +
-            "colors for the first and nothing else for either, so these are the first things to go without color " +
-            "vision, and in grayscale they go completely. This gives the bars themselves a pattern - solid, " +
-            "dashed, dotted, double - which needs no color at all and changes nothing about the layout. A number " +
-            "can be added as well, and is the clearer of the two, but it has a cost: it needs a strip of space " +
-            "beside each row to sit in, which narrows the lists and can push longer names onto a second line. " +
-            "Patterns alone are the default for that reason. " +
-            "Beside a child it is the spouse they belong with, counting down the list of spouses. Beside a " +
-            "sibling it is which parents you share - 1 for the first parent, 2 for the second, and 1,2 for a " +
-            "full sibling. Nothing is marked unless it is saying something: a profile with one family, or a " +
-            "sibling list where everyone is a full sibling, is left alone. The bar down the left is gender, and " +
-            "the Gender Backgrounds section above handles that one.",
+            "Change Family Lists uses fifty-one bar colors to show which spouse each child belongs to and " +
+            "which parent each sibling shares - all of it lost in grayscale. Patterned bars cost no space. A " +
+            "number is clearer but needs a strip beside each row, which can wrap longer names. " +
+            "Beside a child the number is the spouse; beside a sibling it is which parents you share, so 1,2 " +
+            "is a full sibling. Nothing is marked where there is only one family to tell apart.",
         },
       ],
     },
@@ -242,18 +252,11 @@ const colorBlindSupport = {
           ],
           defaultValue: "off",
           comment:
-            "A checking tool: it recolors every page so you can see which distinctions survive. Leave it off for " +
-            "normal use. You do not have to start it here - right-click any WikiTree page and choose " +
-            "Color-Blind Simulator, which works whether or not the rest of this feature is switched on. Once it " +
-            "is running, a control in the corner of the page switches between conditions without coming back " +
-            "here, and remembers your choice as you move from page to page. It also has a Support checkbox " +
-            "showing whether this feature is helping: change it to compare the page with and without the colors " +
-            "and cues, then close the control with the x to keep that change - closing after unticking it " +
-            "switches this whole feature off, and closing after ticking it switches it on, the same as the " +
-            "checkbox at the top of this section. Choosing Normal ends the simulation, and the control is gone " +
-            "on the next page. Achromatopsia shows the page in grayscale, which is also the quickest way to " +
-            "check how it would look printed in black and white. While a simulation is on, elements that stay " +
-            "fixed on screen (pop-ups, sticky bars) may scroll with the page instead.",
+            "A checking tool: it recolors every page so you can see which distinctions survive. Leave it off " +
+            "for normal use. You can also start it by right-clicking any page, and a control in the corner " +
+            "then switches conditions and compares the page with and without this feature's help. " +
+            "Achromatopsia is grayscale, which is the most reliable check and doubles as a print preview. " +
+            "While a simulation is on, fixed pop-ups and sticky bars may scroll with the page.",
         },
       ],
     },

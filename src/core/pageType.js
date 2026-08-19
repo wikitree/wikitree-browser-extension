@@ -290,6 +290,8 @@ if (domain.match("apps.wikitree.com")) {
     }
     if (
       path.match(/\/wiki\/Space.*Notables.*/g) &&
+      path.match(/20/) == false &&
+      path.match(/Australia/) == false &&
       (path.match(/\/wiki\/Space.*Unconnected.*/g) || path.match(/Profiles_Needing_Family_Member/))
     ) {
       isUnconnectedNotables = true;

@@ -106,23 +106,30 @@ function currentPalette() {
 }
 
 /**
- * @returns {string[]} one plain-language line per problem, empty when there are none.
+ * What is worth telling the reader about each color, keyed by the option it belongs to.
+ *
+ * Notes, not warnings. Nothing here is wrong exactly - it is the reader's palette and
+ * there are reasons to want a color that measures badly - so each line states what was
+ * measured and leaves the decision alone. No instruction to go and pick something else.
+ *
+ * @returns {Map<string, string[]>}
  */
-function findProblems() {
+function findNotes() {
   const palette = currentPalette();
-  const problems = [];
+  const notes = new Map();
+  const add = (optionId, line) => notes.set(optionId, [...(notes.get(optionId) || []), line]);
 
-  Object.entries(ROLES).forEach(([optionId, { label, minContrast }]) => {
+  Object.entries(ROLES).forEach(([optionId, { minContrast }]) => {
     const rgb = palette[optionId];
     if (!rgb) {
       return;
     }
     const ratio = contrastRatio(rgb, pageBackground());
     if (ratio < minContrast) {
-      const against = customStyle ? "against your Custom Style background" : "against the page";
-      problems.push(
-        `${label} is ${ratio.toFixed(1)}:1 ${against}, below the ${minContrast}:1 it needs. ` +
-          `Choose a shade with more contrast.`
+      const against = customStyle ? "your Custom Style background" : "the page";
+      add(
+        optionId,
+        `${ratio.toFixed(1)}:1 against ${against}. This kind of color reads most easily at ${minContrast}:1 or more.`
       );
     }
   });
@@ -140,19 +147,17 @@ function findProblems() {
       return;
     }
     const what = describe || ROLES[b].label.toLowerCase();
-    problems.push(
-      `${ROLES[a].label} and ${what} come out as the same color with ${clashes.join(", ")}. ` +
-        `That is the problem this feature is meant to fix, so it is worth changing one of them.`
-    );
+    add(a, `Looks the same as ${what} with ${clashes.join(", ")}.`);
   });
 
-  return problems;
+  return notes;
 }
 
 /**
- * Show or clear the warning. It goes after the palette select rather than after any one
- * picker, because most of what it reports is about a pair of colors and belongs to the
- * palette as a whole.
+ * Put each note under the color picker it is about, rather than collecting them into one
+ * block by the palette select. A note about the error color belongs next to the error
+ * color: that is where the reader is looking when they change it, and it stops four
+ * separate observations reading as a list of faults.
  */
 function render() {
   const anchor = inputFor("paletteName");
@@ -160,46 +165,40 @@ function render() {
     return;
   }
 
-  let warning = document.getElementById("colorBlindSupportPaletteWarning");
-  const custom = anchor.value === "custom";
-  const problems = custom ? findProblems() : [];
+  const notes = anchor.value === "custom" ? findNotes() : new Map();
 
-  if (!problems.length) {
-    warning?.remove();
-    return;
-  }
+  Object.keys(ROLES).forEach((optionId) => {
+    const input = inputFor(optionId);
+    const id = `${FEATURE_ID}_${optionId}_note`;
+    document.getElementById(id)?.remove();
 
-  if (!warning) {
-    warning = document.createElement("div");
-    warning.id = "colorBlindSupportPaletteWarning";
-    warning.className = "cb-palette-warning";
-    // Announced rather than only shown: a reader using a screen reader is exactly as
-    // entitled to know their palette will not work.
-    warning.setAttribute("role", "status");
-    anchor.closest("div")?.appendChild(warning);
-  }
+    const lines = notes.get(optionId);
+    if (!input || !lines) {
+      return;
+    }
 
-  warning.textContent = "";
-  const heading = document.createElement("strong");
-  heading.textContent = problems.length === 1 ? "One problem with these colors:" : "Problems with these colors:";
-  warning.appendChild(heading);
-
-  const list = document.createElement("ul");
-  problems.forEach((problem) => {
-    const item = document.createElement("li");
-    item.textContent = problem;
-    list.appendChild(item);
+    const note = document.createElement("p");
+    note.id = id;
+    note.className = "cb-palette-note";
+    // Announced as well as shown: a reader using a screen reader is exactly as entitled to
+    // know what their palette measures.
+    note.setAttribute("role", "status");
+    note.textContent = lines.join(" ");
+    input.closest("div")?.appendChild(note);
   });
-  warning.appendChild(list);
 
-  // These checks catch what arithmetic can catch. Whether two colors are hard to tell
-  // apart - the actual question - is one only looking can answer, so say where to look.
-  const footnote = document.createElement("p");
-  footnote.className = "cb-palette-warning-footnote";
-  footnote.textContent =
-    "These are the problems that can be measured. To see whether your colors are actually " +
-    "easy to tell apart, set the Simulator below and look at a page.";
-  warning.appendChild(footnote);
+  // One quiet line, once, and only when there is something to qualify. Arithmetic catches
+  // what arithmetic can catch; whether two colors are actually hard to tell apart is a
+  // question only looking answers.
+  const footnoteId = `${FEATURE_ID}_paletteFootnote`;
+  document.getElementById(footnoteId)?.remove();
+  if (notes.size) {
+    const footnote = document.createElement("p");
+    footnote.id = footnoteId;
+    footnote.className = "cb-palette-note cb-palette-note--footnote";
+    footnote.textContent = "These are the measurable checks. The Simulator below shows how the colors actually look.";
+    anchor.closest("div")?.appendChild(footnote);
+  }
 }
 
 /**

@@ -43,8 +43,16 @@ function buildOptionsPage(values = {}) {
   return select;
 }
 
-const warning = () => document.getElementById("colorBlindSupportPaletteWarning");
-const warningText = () => warning()?.textContent ?? "";
+// Each note now sits under the color picker it is about, so there is no single warning
+// element any more. These read the set of them.
+const notes = () => [...document.querySelectorAll(".cb-palette-note")];
+const warning = () => notes()[0] ?? null;
+const warningText = () =>
+  notes()
+    .map((note) => note.textContent)
+    .join(" ");
+/** The note attached to one picker, which is what "under the right option" means. */
+const noteFor = (optionId) => document.getElementById(`colorBlindSupport_${optionId}_note`)?.textContent ?? "";
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -66,7 +74,7 @@ test("warns when the new-link color is the red that started this", () => {
   buildOptionsPage({ newLinkColor: "#ff0000" });
   watchCustomPalette();
 
-  expect(warningText()).toMatch(/New\/unknown link color is 4\.0:1 against the page/);
+  expect(noteFor("newLinkColor")).toMatch(/4\.0:1 against the page/);
 });
 
 test("does not claim red and green converge, because with these matrices they do not", () => {
@@ -77,7 +85,7 @@ test("does not claim red and green converge, because with these matrices they do
   buildOptionsPage({ newLinkColor: "#d40000", dangerColor: "#b0003a" });
   watchCustomPalette();
 
-  expect(warningText()).not.toMatch(/same color/);
+  expect(warningText()).not.toMatch(/Looks the same/);
 });
 
 test("warns when two colors really do converge", () => {
@@ -86,14 +94,14 @@ test("warns when two colors really do converge", () => {
   buildOptionsPage({ dangerColor: "#0072b2", successColor: "#0073b0" });
   watchCustomPalette();
 
-  expect(warningText()).toMatch(/Error color and success color come out as the same color/);
+  expect(noteFor("dangerColor")).toMatch(/Looks the same as success color/);
 });
 
 test("warns when a color is too pale to read on the page", () => {
   buildOptionsPage({ dangerColor: "#ffff00" });
   watchCustomPalette();
 
-  expect(warningText()).toMatch(/Error color is 1\.1:1 against the page/);
+  expect(noteFor("dangerColor")).toMatch(/1\.1:1 against the page/);
 });
 
 test("says nothing at all while a preset is selected", () => {
@@ -162,7 +170,7 @@ describe("with Custom Style setting the reader's own colours", () => {
     watchCustomPalette();
     await settle();
 
-    expect(warningText()).toMatch(/New\/unknown link color and an ordinary link come out as the same color/);
+    expect(noteFor("newLinkColor")).toMatch(/Looks the same as an ordinary link/);
   });
 
   test("measures contrast against the reader's background, not white", async () => {

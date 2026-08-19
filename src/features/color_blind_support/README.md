@@ -233,8 +233,20 @@ undifferentiated bootstrap columns. Widening to either is one line in that list.
 
 Three things worth knowing before changing it:
 
-- Hiding the off state by painting it the page colour assumes the link sits on the page
-  colour. On a tinted row a faint mark can show on links that have not been visited.
+- The off state is hidden by painting it the colour of the background the link actually
+  sits on, which is **not** always the page. WikiTree gives the profile's Categories box a
+  pale green of its own — measured `rgb(225,240,180)` against a white body — and the
+  stickers in a biography have their own fills. Painted page-white, the off state drew a
+  visible white line under every link the reader had _not_ visited, which is the cue
+  backwards. `markLocalBackgrounds` walks up from each link to the nearest ancestor that
+  paints something and publishes it as `--wbe-cb-local-bg` on that ancestor; the property
+  inherits, so one write covers every link inside. It runs again at 1.2s with
+  `adaptToPageBackground`, because Custom Style can repaint after this feature starts.
+  Because it reads computed style rather than Custom Style's settings, it also covers
+  boxes Custom Style knows nothing about — which is how the Categories box was caught.
+  **`VISITED_CUE_SELECTOR` in the JS must stay in step with the visited selector in the
+  CSS**; out of step, the mark is measured against the wrong background and shows on links
+  that were never visited.
 - On a title that wraps, the underline is drawn on **every line**, because that is what a
   bottom border on an inline element does. The checkmark marks the title once instead.
 - **Where WikiTree already underlines its links** — the categories box, the links in a
@@ -249,6 +261,92 @@ Three things worth knowing before changing it:
 **Firefox is unverified.** Headless Firefox records no history, so `:visited` cannot be
 triggered there locally. If Firefox refuses any of this the cue simply does not appear,
 which is the safe direction to fail in.
+
+## Every cue has its own switch
+
+Two things used to happen the moment the feature was switched on, with nothing to turn
+them off: **new/unknown links were recoloured**, and **the badge fills were repainted**.
+Both now have their own setting, so nothing this feature does is compulsory beyond being
+switched on at all.
+
+- `newLinkRecolor` (default on) gates the `a.new` recolour, separately from the shape cue
+  on the same links. Turning it off keeps WikiTree's red — or whatever Custom Style sets —
+  while the dotted underline and the `?` still mark the link. Colour and shape are
+  independent because a reader who has chosen their own link colours should not have to
+  give up the cue to keep them.
+- `badgeCue` (default `both`) gates the badge fill and the badge border independently:
+  `both`, `recolor`, `border`, `none`. `both` is the default because that is what badges
+  did before the option existed — the fill came with the feature, the border with the
+  status cue.
+
+### Every cue can be told to do nothing, and that is how conflicts get settled
+
+There was briefly a cross-feature override here: this feature read Custom Style's
+**Remove link underlines** option and, when it was on, quietly swapped the dotted underline
+for the `?` and the visited underline for the checkmark, with an `underlineOverride`
+checkbox to countermand it. **That is gone**, and the reasoning for removing it is better
+than the reasoning for adding it.
+
+It failed in use the moment it shipped. A reader whose Visited Links setting read "An
+underline" saw checkmarks instead, with no way to tell from the options page why — the
+select said one thing and the page did another. An override that silently rewrites the
+setting you are looking at is worse than the conflict it was avoiding.
+
+The rule now: **every option can be set to do nothing**, and that is the only mechanism.
+
+| option           | its do-nothing value                                      |
+| ---------------- | --------------------------------------------------------- |
+| `newLinkCue`     | Do not mark them (and `newLinkRecolor` off for the color) |
+| `visitedCue`     | Do not mark them                                          |
+| `badgeCue`       | Leave them alone                                          |
+| `statusCue`      | unticked                                                  |
+| `privacyCue`     | Do not mark them                                          |
+| `genderCue`      | Do not mark them                                          |
+| `familyCue`      | Do not mark them                                          |
+| `newLinkRecolor` | unticked                                                  |
+
+`paletteName` has no off value and needs none: after the currentColor change below, its
+only consumers inside this feature are the new-link color and the badge fills, and both of
+those have their own switch.
+
+So a reader who wants no underlines anywhere chooses the `?` for new links and the
+checkmark — or nothing — for visited ones, and gets exactly what they asked for, visibly,
+from settings they can see. No feature is guessing at another's intent.
+
+The one cost worth stating: the checkmark **reserves its space whether or not it is
+showing**, because `content` cannot change on `:visited` — so it leaves a small gap after
+every marked link. The underline costs no layout at all. That is now in the option's own
+text.
+
+## Shape cues are drawn in currentColor, never in the palette
+
+Every cue that works by **shape** — the status edges, the suggestion and message edges, the
+badge borders, the dashed edge on a changed field, the G2G flag border — is drawn in
+`currentColor`, not in a `--wbe-cb-*` colour. This is not a detail; it was a real bug,
+reported from a real page.
+
+A reader set a Custom palette of pale tints. Their own options page measured them at 1.2:1,
+1.1:1 and **1.0:1** against the page background and said so in as many words. Every shape
+cue was then painted in those colours, so:
+
+- the success and error boxes lost their edge **completely** — the cue was invisible;
+- with the cue switched **off** it was worse, because the whole-border recolour was still
+  active, so WikiTree's own visible yellow border was repainted invisible and the boxes
+  ended up with less of an edge than WikiTree gives them.
+
+Reproduced against the shipped stylesheet with WikiTree's own `.status` declarations, fixed,
+and re-checked in grayscale: with `currentColor` the default palette and the 1.0:1 palette
+now render **identically**, because the palette no longer touches the cue at all.
+
+The rule this leaves behind, worth keeping: **if a cue is a shape, its colour must come from
+the element, not from a setting.** `currentColor` is right for these because the element's
+own text colour is already guaranteed readable against its own background — WikiTree's
+box text measures 10.4:1 and 10.8:1, and the badge text colours are computed here for
+exactly that. It also follows Dark Mode for free. The same reasoning is already written down
+for the gender stripes and the visited-link mark, which were built this way from the start.
+
+**The palette now drives only the places where colour is genuinely the only channel:**
+new/unknown link text, and the badge fills. Nothing else reads a `--wbe-cb-*` colour.
 
 ## Why `.box.green` and `.box.orange` are left alone entirely
 

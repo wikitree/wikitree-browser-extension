@@ -80,9 +80,9 @@ ordinary links are both #ffee99 in Dark Mode, which is the very bug this feature
 fix, reintroduced. #dummyID matches nothing and exists only to carry an id's worth of
 specificity; it is the same trick darkMode.css itself uses.
 */
-html body.wbe-cb a.new:not(#dummyID),
-html body.wbe-cb a.new:link:not(#dummyID),
-html body.wbe-cb a.new:visited:not(#dummyID) {
+html body.wbe-cb-newlink-recolor a.new:not(#dummyID),
+html body.wbe-cb-newlink-recolor a.new:link:not(#dummyID),
+html body.wbe-cb-newlink-recolor a.new:visited:not(#dummyID) {
   color: var(--wbe-cb-newlink, #0072b2) !important;
 }
 
@@ -125,7 +125,11 @@ html body.wbe-cb-newlink-both a.new::after {
       the unvisited value, so `transparent` means the visited colour is painted at alpha
       0 and nothing appears - indistinguishable from the browser ignoring the rule, and
       exactly what made an earlier attempt here look impossible. Hence
-      --wbe-cb-page-bg, which color_blind_support.js measures from the real page.
+      --wbe-cb-page-bg, which color_blind_support.js measures from the real page - and
+      --wbe-cb-local-bg ahead of it, measured on the box the link actually sits in. The
+      profile's Categories box is a pale green of its own on a white page, so a mark
+      hidden against the PAGE draws a visible white line there under every link the
+      reader has not visited. See markLocalBackgrounds.
    2. The mark is currentColor, NOT a palette colour. Inside a :visited rule currentColor
       resolves to the visited ink, so the mark follows whatever the reader chose in
       Visited Links or Custom Style. Those features own the colour; this one only adds
@@ -179,7 +183,7 @@ html body.wbe-cb-newlink-both a.new::after {
 
 html body.wbe-cb-visited-underline :is(.qa-q-item-title, table.table--data td, .body-text, #Categories) a:link,
 html body.wbe-cb-visited-underline :is(.qa-q-item-title, table.table--data td, .body-text, #Categories) a:visited {
-  border-bottom: 2px solid var(--wbe-cb-page-bg, #ffffff);
+  border-bottom: 2px solid var(--wbe-cb-local-bg, var(--wbe-cb-page-bg, #ffffff));
 }
 
 html body.wbe-cb-visited-underline :is(.qa-q-item-title, table.table--data td, .body-text, #Categories) a:visited {
@@ -193,7 +197,7 @@ html body.wbe-cb-visited-underline :is(.qa-q-item-title, table.table--data td, .
 html body.wbe-cb-visited-check :is(.qa-q-item-title, table.table--data td, .body-text, #Categories) a:link::after,
 html body.wbe-cb-visited-check :is(.qa-q-item-title, table.table--data td, .body-text, #Categories) a:visited::after {
   content: "\2713";
-  color: var(--wbe-cb-page-bg, #ffffff);
+  color: var(--wbe-cb-local-bg, var(--wbe-cb-page-bg, #ffffff));
   font-size: 0.85em;
   margin-left: 0.15em;
   text-decoration: none;
@@ -495,29 +499,29 @@ fill is the only channel they have.
    .status.green and .status.red override the BACKGROUND ONLY. All three severities
    therefore ship the same yellow border, and differ by a background of #ffee99,
    #e1f0b4 and #ffcccc - Rec.709 luminance 235, 232 and 215. Warning against success is
-   three levels out of 255, which is no difference at all in grayscale. */
-html body.wbe-cb .status.green {
-  border-color: var(--wbe-cb-success, #8fc641) !important;
-}
+   three levels out of 255, which is no difference at all in grayscale.
 
-html body.wbe-cb .status.red {
-  border-color: var(--wbe-cb-danger, #e22a40) !important;
-}
+   WikiTree's own border colour is deliberately left alone. An earlier version repainted
+   it from the palette, and that was a bug of exactly the kind this feature exists to
+   prevent: a reader with a pale Custom palette - the options page measured one at 1.0:1
+   against the page - got a border repainted invisible, so a success box ended up with
+   LESS of an edge than WikiTree gives it. The colour was never carrying the meaning
+   anyway. The left edge below is, and it is drawn in currentColor. */
 
 /* The three border treatments. Solid for success, dashed for a warning, double for an
    error: a deliberate progression in visual weight, so the severity reads even when
    only one box is on screen and there is nothing to compare it against. */
 
 html body.wbe-cb-status .status.green {
-  border-left: 10px solid var(--wbe-cb-success, #8fc641) !important;
+  border-left: 10px solid currentColor !important;
 }
 
 html body.wbe-cb-status .status:not(.green):not(.red) {
-  border-left: 10px dashed var(--wbe-cb-warning, #e69f00) !important;
+  border-left: 10px dashed currentColor !important;
 }
 
 html body.wbe-cb-status .status.red {
-  border-left: 10px double var(--wbe-cb-danger, #e22a40) !important;
+  border-left: 10px double currentColor !important;
 }
 
 /* Show Suggestions stacks three panels whose ONLY difference is the background: a pale
@@ -526,15 +530,15 @@ html body.wbe-cb-status .status.red {
    are separating is errors from warnings from hints. Same treatment as the boxes above,
    with a dotted edge for hints - the one severity WikiTree itself has no equivalent of. */
 html body.wbe-cb-status #errorMessages {
-  border-left: 10px double var(--wbe-cb-danger, #e22a40) !important;
+  border-left: 10px double currentColor !important;
 }
 
 html body.wbe-cb-status #warningMessages {
-  border-left: 10px dashed var(--wbe-cb-warning, #e69f00) !important;
+  border-left: 10px dashed currentColor !important;
 }
 
 html body.wbe-cb-status #hintMessages {
-  border-left: 10px dotted var(--wbe-cb-newlink, #0072b2) !important;
+  border-left: 10px dotted currentColor !important;
 }
 
 /* WikiTree squares off the left corners of .box...border so the coloured edge reads as
@@ -562,19 +566,19 @@ html body.wbe-cb-status #hintMessages {
    Show Suggestions' own. Both exist and both need the cue.
    --------------------------------------------------------------------------- */
 html body.wbe-cb-status .suggestion-item.suggestion-Error {
-  border-left: 10px double var(--wbe-cb-danger, #e22a40) !important;
+  border-left: 10px double currentColor !important;
   border-top-left-radius: 0 !important;
   border-bottom-left-radius: 0 !important;
 }
 
 html body.wbe-cb-status .suggestion-item.suggestion-Warning {
-  border-left: 10px dashed var(--wbe-cb-warning, #e69f00) !important;
+  border-left: 10px dashed currentColor !important;
   border-top-left-radius: 0 !important;
   border-bottom-left-radius: 0 !important;
 }
 
 html body.wbe-cb-status .suggestion-item.suggestion-Hint {
-  border-left: 10px dotted var(--wbe-cb-newlink, #0072b2) !important;
+  border-left: 10px dotted currentColor !important;
   border-top-left-radius: 0 !important;
   border-bottom-left-radius: 0 !important;
 }
@@ -595,12 +599,11 @@ html body.wbe-cb-status input.changed,
 html body.wbe-cb-status select.changed,
 html body.wbe-cb-status textarea.changed {
   border-style: dashed !important;
-  border-color: var(--wbe-cb-warning, #ffa500) !important;
+  border-color: currentColor !important;
 }
 
 html body.wbe-cb-status label.changed {
   font-weight: 700 !important;
-  color: var(--wbe-cb-warning, #ffa500) !important;
 }
 
 /* ---------------------------------------------------------------------------
@@ -620,7 +623,7 @@ html body.wbe-cb-status .qa-c-item-flags,
 html body.wbe-cb-status .qa-q-item-flags,
 html body.wbe-cb-status .qa-q-view-flags,
 html body.wbe-cb-status .qa-a-item-flags {
-  border: 5px double var(--wbe-cb-danger, #e22a40) !important;
+  border: 5px double currentColor !important;
 }
 
 /* Bio Check reports its outcome by putting "status green" on its results container for a
@@ -657,32 +660,35 @@ html body.wbe-cb-status #bioCheckResultsContainer:not(.green) #bioCheckResultsLi
    different text colours: -text is computed for the pale tint and -on for the accent, and
    using either in the other's place is unreadable in one of the two lightings. */
 
-html body.wbe-cb .badge.green {
+html body:is(.wbe-cb-badges-recolor, .wbe-cb-badges-both) .badge.green {
   background-color: var(--wbe-cb-success-bg, #e1f0b4) !important;
   color: var(--wbe-cb-success-text, #25422d) !important;
 }
 
-html body.wbe-cb .badge.green.new {
+html body:is(.wbe-cb-badges-recolor, .wbe-cb-badges-both) .badge.green.new {
   background-color: var(--wbe-cb-success, #8fc641) !important;
   color: var(--wbe-cb-success-on, #ffffff) !important;
 }
 
-html body.wbe-cb .badge.red {
+html body:is(.wbe-cb-badges-recolor, .wbe-cb-badges-both) .badge.red {
   background-color: var(--wbe-cb-danger-bg, #ffcccc) !important;
   color: var(--wbe-cb-danger-text, #25422d) !important;
 }
 
-html body.wbe-cb .badge.red.new {
+html body:is(.wbe-cb-badges-recolor, .wbe-cb-badges-both) .badge.red.new {
   background-color: var(--wbe-cb-danger, #cc0000) !important;
   color: var(--wbe-cb-danger-on, #ffffff) !important;
 }
 
-html body.wbe-cb-status .badge.green {
-  border: 2px solid var(--wbe-cb-success, #8fc641) !important;
+/* currentColor, like every other shape cue here: the badge's own text colour is computed
+   to be readable against its fill, so the edge cannot be painted invisible by a palette
+   choice the way a --wbe-cb-* colour can. */
+html body:is(.wbe-cb-badges-border, .wbe-cb-badges-both) .badge.green {
+  border: 2px solid currentColor !important;
 }
 
-html body.wbe-cb-status .badge.red {
-  border: 2px dashed var(--wbe-cb-danger, #cc0000) !important;
+html body:is(.wbe-cb-badges-border, .wbe-cb-badges-both) .badge.red {
+  border: 2px dashed currentColor !important;
 }
 
 /* ---------------------------------------------------------------------------
