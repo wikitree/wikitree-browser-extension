@@ -87,3 +87,98 @@ describe("WikiTreeAPI.postToAPI", () => {
     expect(WikiTreeAPI.isLikelyAppsServerAccessError(error)).toBe(true);
   });
 });
+
+/**
+ * The API occasionally answers a good request with a 5xx. Those are transient, so postToAPI
+ * retries them with a backoff rather than surfacing them as an Auto Bio bug report.
+ */
+describe("WikiTreeAPI.postToAPI retries", () => {
+  afterEach(() => {
+    delete global.fetch;
+    jest.useRealTimers();
+  });
+
+  function jsonResponse(payload) {
+    return fakeResponse({ body: JSON.stringify(payload) });
+  }
+
+  it("retries a 500 and returns the result of the successful attempt", async () => {
+    jest.useFakeTimers();
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(fakeResponse({ status: 500, ok: false, body: "Internal Server Error" }))
+      .mockResolvedValueOnce(jsonResponse([{ status: "", people: {} }]));
+
+    const promise = WikiTreeAPI.postToAPI({ action: "getPeople", appId: "test" });
+    await jest.advanceTimersByTimeAsync(1000);
+
+    await expect(promise).resolves.toEqual([{ status: "", people: {} }]);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("gives up after three attempts on a persistent 500", async () => {
+    jest.useFakeTimers();
+    global.fetch = jest.fn().mockResolvedValue(fakeResponse({ status: 500, ok: false, body: "" }));
+
+    const promise = WikiTreeAPI.postToAPI({ action: "getPeople", appId: "test" }).catch((e) => e);
+    await jest.advanceTimersByTimeAsync(5000);
+
+    const error = await promise;
+    expect(error.message).toMatch(/HTTP error! Status: 500/);
+    expect(global.fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it.each([403, 401, 404])("does not retry a %i, which is a real answer", async (status) => {
+    global.fetch = jest.fn().mockResolvedValue(fakeResponse({ status, ok: false, body: "" }));
+
+    await WikiTreeAPI.postToAPI({ action: "getPeople", appId: "test" }).catch((e) => e);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry an abort", async () => {
+    const aborted = new Error("The operation was aborted.");
+    aborted.name = "AbortError";
+    global.fetch = jest.fn().mockRejectedValue(aborted);
+
+    const error = await WikiTreeAPI.postToAPI({ action: "getPeople", appId: "test" }).catch((e) => e);
+    expect(error.name).toBe("AbortError");
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("names the failing call and quotes the response body, so a bug report is diagnosable", async () => {
+    jest.useFakeTimers();
+    global.fetch = jest.fn().mockResolvedValue(
+      fakeResponse({
+        status: 500,
+        ok: false,
+        body: "Fatal error: Allowed memory size of 134217728 bytes exhausted",
+      })
+    );
+
+    const promise = WikiTreeAPI.postToAPI({
+      action: "getPeople",
+      appId: "test",
+      keys: "Beacall-6,Beacall-7",
+    }).catch((e) => e);
+    await jest.advanceTimersByTimeAsync(5000);
+
+    const error = await promise;
+    expect(error.message).toMatch(/action getPeople/);
+    expect(error.message).toMatch(/keys Beacall-6,Beacall-7/);
+    expect(error.message).toMatch(/Allowed memory size/);
+    expect(error.status).toBe(500);
+  });
+
+  it("truncates a huge key list instead of pasting it all into the error", async () => {
+    jest.useFakeTimers();
+    global.fetch = jest.fn().mockResolvedValue(fakeResponse({ status: 503, ok: false, body: "" }));
+
+    const keys = Array.from({ length: 500 }, (_, i) => `Beacall-${i}`).join(",");
+    const promise = WikiTreeAPI.postToAPI({ action: "getPeople", appId: "test", keys }).catch((e) => e);
+    await jest.advanceTimersByTimeAsync(5000);
+
+    const error = await promise;
+    expect(error.message).toMatch(/…/);
+    expect(error.message.length).toBeLessThan(400);
+  });
+});

@@ -8,6 +8,41 @@ import { assignPersonNames } from "./auto_bio_person.js";
 import { WBE_AUTO_BIO_APP_ID } from "./autoBioConstants.js";
 
 /**
+ * Everything Auto Bio actually reads off a relative: the name parts PersonName needs, the dates
+ * formatDates needs, and the ids we look profiles up by. Asking for "*" instead pulls the whole
+ * profile — biography text included — for every person in the response, which is how a getPeople
+ * call for a large family ends up big enough for the API to time out or die with a 500.
+ */
+const FAMILY_PROFILE_FIELDS = [
+  "BirthDate",
+  "BirthDateDecade",
+  "BirthLocation",
+  "DataStatus",
+  "DeathDate",
+  "DeathDateDecade",
+  "DeathLocation",
+  "Derived.BirthName",
+  "Derived.BirthNamePrivate",
+  "Father",
+  "FirstName",
+  "Gender",
+  "HasChildren",
+  "Id",
+  "IsRedirect",
+  "LastNameAtBirth",
+  "LastNameCurrent",
+  "LastNameOther",
+  "MiddleName",
+  "Mother",
+  "Name",
+  "Nicknames",
+  "Prefix",
+  "RealName",
+  "Suffix",
+  "Spouses",
+];
+
+/**
  * This function builds a family tree for private profiles.
  * It retrieves and processes family information (like parents, siblings, spouses, children)
  * from the current window and updates the global `window.profilePerson` object.
@@ -211,39 +246,10 @@ export async function buildFamilyForPrivateProfiles() {
   // --------------------------
   // Fetch Family Profiles Data
   // --------------------------
-  const theFields = [
-    "BirthDate",
-    "BirthDateDecade",
-    "BirthLocation",
-    "DataStatus",
-    "DeathDate",
-    "DeathDateDecade",
-    "DeathLocation",
-    "Derived.BirthName",
-    "Derived.BirthNamePrivate",
-    "Father",
-    "FirstName",
-    "Gender",
-    "HasChildren",
-    "Id",
-    "IsRedirect",
-    "LastNameAtBirth",
-    "LastNameCurrent",
-    "LastNameOther",
-    "MiddleName",
-    "Mother",
-    "Name",
-    "Nicknames",
-    "Prefix",
-    "RealName",
-    "Suffix",
-    "Spouses",
-  ];
-
   let people, resultByKey;
   if (ids.length > 0) {
     try {
-      [, resultByKey, people] = await WikiTreeAPI.getPeople(WBE_AUTO_BIO_APP_ID, ids, theFields, {
+      [, resultByKey, people] = await WikiTreeAPI.getPeople(WBE_AUTO_BIO_APP_ID, ids, FAMILY_PROFILE_FIELDS, {
         getSpouses: 1,
       });
       if (!people) {
@@ -371,7 +377,12 @@ export async function buildFamilyForPrivateProfiles() {
 export async function getBiographySpouseParents(keys, options = {}) {
   const bsp = {};
   options.getSpouses = 1; // always include spouses
-  [bsp.status, bsp.resultByKey, bsp.people] = await WikiTreeAPI.getPeople(WBE_AUTO_BIO_APP_ID, keys, "*", options);
+  [bsp.status, bsp.resultByKey, bsp.people] = await WikiTreeAPI.getPeople(
+    WBE_AUTO_BIO_APP_ID,
+    keys,
+    FAMILY_PROFILE_FIELDS,
+    options
+  );
   window.biographySpouseParents = [bsp]; // simulate saving the direct api result that was previously done
   return bsp.people;
 }
@@ -391,17 +402,16 @@ async function getSpouseParents2() {
         parentKeys.push(spouseList[i]?.Father);
         parentKeys.push(spouseList[i]?.Mother);
       }
+      // An unknown parent comes back as 0 (or "0"), which is not a profile key.
       const validParentKeys = parentKeys
-        .filter((key) => key !== undefined && key !== null && `${key}`.trim() !== "")
+        .filter((key) => key !== undefined && key !== null && `${key}`.trim() !== "" && `${key}`.trim() !== "0")
         .filter((key, idx, arr) => arr.indexOf(key) === idx);
       if (validParentKeys.length === 0) {
         return;
       }
       const people = await getBiographySpouseParents(validParentKeys);
-      const biographySpouseParentsKeys = Object.keys(people);
-      biographySpouseParentsKeys.forEach(function (key) {
-        const person = people[key];
-        assignPersonNames(person);
+      Object.keys(people || {}).forEach(function (key) {
+        assignPersonNames(people[key]);
       });
     }
   }

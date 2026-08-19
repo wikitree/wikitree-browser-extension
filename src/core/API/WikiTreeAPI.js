@@ -553,8 +553,115 @@ WikiTreeAPI.isLoggedIntoAPI = async function (userNumId, appId = "WBE_check_logi
   return await apiLoginStatusCache.get(cacheKey);
 };
 
+// api.wikitree.com sometimes answers a perfectly good request with a 5xx (or a 429 when it is
+// busy). Those are transient: the request reached the API and the server fell over, so trying
+// again usually works. Statuses that are a real answer (401, 403, 404...) are thrown straight
+// away, as are the WAF/network failures isLikelyAppsServerAccessError recognises - retrying
+// those just delays a message the user needs to see.
+const RETRYABLE_HTTP_STATUSES = [429, 500, 502, 503, 504];
+const MAX_API_ATTEMPTS = 3;
+const API_RETRY_BASE_DELAY_MS = 500;
+const MAX_LOGGED_ERROR_BODY = 500;
+const MAX_LOGGED_KEYS = 200;
+
+function abortError() {
+  const error = new Error("The operation was aborted.");
+  error.name = "AbortError";
+  return error;
+}
+
+function isRetryableApiError(error) {
+  return error?.name !== "AbortError" && RETRYABLE_HTTP_STATUSES.includes(error?.status);
+}
+
 /**
- * This is just a wrapper for JavaScript's fetch() call, sending along necessary options for the WikiTree API.
+ * Wait before the next attempt, backing off so we do not hammer an API that is already
+ * struggling. Rejects immediately if the caller aborts while we are waiting.
+ */
+function apiRetryDelay(attempt, signal) {
+  const delay = API_RETRY_BASE_DELAY_MS * Math.pow(3, attempt - 1);
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(abortError());
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener?.("abort", onAbort);
+      resolve();
+    }, delay);
+    signal?.addEventListener?.("abort", onAbort, { once: true });
+  });
+}
+
+/**
+ * Describe the request that failed, so a bug report says which call died rather than just
+ * "Status: 500".
+ */
+function describeApiRequest(postData) {
+  const bits = [];
+  if (postData?.action) {
+    bits.push(`action ${postData.action}`);
+  }
+  const keys = postData?.keys ?? postData?.key;
+  if (keys !== undefined && keys !== null && `${keys}` !== "") {
+    const keyString = Array.isArray(keys) ? keys.join(",") : `${keys}`;
+    bits.push(
+      `keys ${keyString.length > MAX_LOGGED_KEYS ? `${keyString.slice(0, MAX_LOGGED_KEYS)}\u2026` : keyString}`
+    );
+  }
+  return bits.join(", ") || "no action given";
+}
+
+/**
+ * The API often explains a 500 in the response body (a PHP error, or an HTML error page).
+ * Reading it costs us nothing on a request we have already given up on, and it is the
+ * difference between a useful bug report and a useless one.
+ */
+async function readErrorBody(response) {
+  try {
+    const text = await response.text();
+    if (!text) {
+      return "";
+    }
+    const collapsed = text.replace(/\s+/g, " ").trim();
+    return collapsed.length > MAX_LOGGED_ERROR_BODY ? `${collapsed.slice(0, MAX_LOGGED_ERROR_BODY)}\u2026` : collapsed;
+  } catch (error) {
+    return "";
+  }
+}
+
+async function fetchFromAPI(options, postData) {
+  const response = await fetch(API_URL, options);
+  if (!response.ok) {
+    const body = await readErrorBody(response);
+    const error = new Error(
+      `HTTP error! Status: ${response.status}: ${response.statusText}` +
+        ` (${describeApiRequest(postData)})` +
+        (body ? `\nResponse body: ${body}` : "")
+    );
+    error.status = response.status;
+    throw error;
+  }
+  // The API sits behind AWS WAF, which answers unchallenged requests with 202 and an empty body
+  // (plus an x-amzn-waf-action header) rather than an error status. response.ok is true for those,
+  // so without these checks the caller only ever sees a JSON parse failure.
+  const wafAction = (response.headers.get("x-amzn-waf-action") || "").toLowerCase();
+  if (wafAction === "challenge" || wafAction === "captcha") {
+    throw new Error(
+      `WAF challenge: api.wikitree.com is challenging this request (${wafAction}, status ${response.status}). ` +
+        `This browser has no valid aws-waf-token for api.wikitree.com.`
+    );
+  }
+  const text = await response.text();
+  if (!text) {
+    throw new Error(`Empty API response (status ${response.status}) for action ${postData.action}.`);
+  }
+  return JSON.parse(text);
+}
+
+/**
+ * This is just a wrapper for JavaScript's fetch() call, sending along necessary options for the
+ * WikiTree API, retrying the handful of statuses that mean "try me again in a moment".
  *
  * @param {*} postData
  * @param {*} signal (optional) The AbortController.signal to listen on for aborting the call
@@ -595,26 +702,17 @@ WikiTreeAPI.postToAPI = async function (postData, signal) {
     options["signal"] = signal;
   }
 
-  const response = await fetch(API_URL, options);
-  if (!response.ok) {
-    // condLog(" ${response.status}: ${response.statusText} ");
-    throw new Error(`HTTP error! Status: ${response.status}: ${response.statusText}`);
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fetchFromAPI(options, postData);
+    } catch (error) {
+      if (attempt >= MAX_API_ATTEMPTS || signal?.aborted || !isRetryableApiError(error)) {
+        throw error;
+      }
+      condLog(`postToAPI ${postData.action}: ${error.message} - retrying (attempt ${attempt + 1})`);
+      await apiRetryDelay(attempt, signal);
+    }
   }
-  // The API sits behind AWS WAF, which answers unchallenged requests with 202 and an empty body
-  // (plus an x-amzn-waf-action header) rather than an error status. response.ok is true for those,
-  // so without these checks the caller only ever sees a JSON parse failure.
-  const wafAction = (response.headers.get("x-amzn-waf-action") || "").toLowerCase();
-  if (wafAction === "challenge" || wafAction === "captcha") {
-    throw new Error(
-      `WAF challenge: api.wikitree.com is challenging this request (${wafAction}, status ${response.status}). ` +
-        `This browser has no valid aws-waf-token for api.wikitree.com.`
-    );
-  }
-  const text = await response.text();
-  if (!text) {
-    throw new Error(`Empty API response (status ${response.status}) for action ${postData.action}.`);
-  }
-  return JSON.parse(text);
 };
 
 WikiTreeAPI.lookupProfile = function (wtId, resultByKey, people) {

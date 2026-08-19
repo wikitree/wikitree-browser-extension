@@ -3,9 +3,10 @@
  * and the "improve with AI" panel. Pure DOM work — no biography text is built here.
  */
 import $ from "jquery";
+import * as Diff from "diff";
 import { getFeatureOptions } from "../../core/options/options_storage";
 import { isIansProfile } from "../../core/pageType";
-import { getBioText, setBioText } from "./editorUtils.js";
+import { addWorking, getBioText, removeWorking, setBioText } from "./editorUtils.js";
 import { initBioCheck } from "../bioCheck/bioCheck.js";
 import aiModels from "./ai_models.json";
 

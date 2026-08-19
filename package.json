@@ -3,12 +3,12 @@
   "version": "1.2.0",
   "scripts": {
     "watch": "webpack --config webpack/webpack.dev.js  --env browser=chrome --watch",
-    "build": "webpack --config webpack/webpack.prod.js --env browser=chrome && npm run check-legacy-safari && npm run check-palette",
-    "build-dev": "webpack --config webpack/webpack.dev.js --env browser=chrome && npm run check-legacy-safari && npm run check-palette",
+    "build": "npm run check-undefined-globals && webpack --config webpack/webpack.prod.js --env browser=chrome && npm run check-legacy-safari && npm run check-palette",
+    "build-dev": "npm run check-undefined-globals && webpack --config webpack/webpack.dev.js --env browser=chrome && npm run check-legacy-safari && npm run check-palette",
     "watch-firefox": "webpack --config webpack/webpack.dev.js  --env browser=firefox --watch",
-    "build-firefox": "webpack --config webpack/webpack.prod.js --env browser=firefox && npm run check-legacy-safari && npm run check-palette",
+    "build-firefox": "npm run check-undefined-globals && webpack --config webpack/webpack.prod.js --env browser=firefox && npm run check-legacy-safari && npm run check-palette",
     "build-and-run-firefox-windows": "npm run build-firefox-dev && \"C:\\Program Files\\Mozilla Firefox\\firefox.exe\" \"about:debugging#/runtime/this-firefox\"",
-    "build-firefox-dev": "webpack --config webpack/webpack.dev.js --env browser=firefox && npm run check-legacy-safari && npm run check-palette",
+    "build-firefox-dev": "npm run check-undefined-globals && webpack --config webpack/webpack.dev.js --env browser=firefox && npm run check-legacy-safari && npm run check-palette",
     "check-legacy-safari": "node scripts/check-legacy-safari.mjs",
     "build-safari-dev": "npm run build-dev && node scripts/build-safari-dev.mjs",
     "test": "jest",
@@ -18,7 +18,8 @@
     "zip": "npm run download-templates && npm run clean && npm run build && cd dist && bestzip ../dist-chrome.zip *",
     "zip-firefox": "npm run download-templates && npm run clean && npm run build-firefox && cd dist && bestzip ../dist-firefox.zip *",
     "zip-and-rename-both": "npm run zip && npm run zip-firefox && python scripts/name_zip.py",
-    "check-palette": "node scripts/check-palette.mjs"
+    "check-palette": "node scripts/check-palette.mjs",
+    "check-undefined-globals": "node scripts/check-undefined-globals.mjs"
   },
   "repository": {
     "type": "git",
@@ -51,6 +52,7 @@
   },
   "devDependencies": {
     "@babel/preset-env": "^7.19.4",
+    "acorn": "^8.18.0",
     "bestzip": "^3.0.1",
     "copy-webpack-plugin": "^14.0.0",
     "css-loader": "^7.1.4",
