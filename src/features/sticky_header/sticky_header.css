@@ -75,3 +75,12 @@
     z-index: 10000000;
   }
 }
+
+html.makeG2GHeaderSmaller .qa-main-heading h1 {
+  padding: 0.2em !important;
+  font-size: 1.5em !important;
+}
+html.makeG2GHeaderSmaller .page--title {
+  padding-top: 0.5em !important;
+  padding-bottom: 0.5em !important;
+}

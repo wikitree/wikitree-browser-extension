@@ -254,6 +254,7 @@ function restore_options() {
       }, 100);
     });
     restore_settings(items);
+    updateDependentOptions();
   });
 }
 
@@ -334,6 +335,7 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
 
   function onChange(event) {
     saveFeatureOptions(featureData);
+    updateDependentOptions();
   }
 
   function createTextElementForLabel(option, addSpaceBefore, addColonAfter) {
@@ -508,6 +510,13 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
       }
     }
 
+    if (option.dependsOn) {
+      // This option only makes sense while its parent checkbox is on, so indent
+      // it under the parent and disable it whenever the parent is off
+      optionDivElement.classList.add("option-dependent");
+      optionDivElement.dataset.dependsOn = optionElementIdPrefix + option.dependsOn;
+    }
+
     if (option.comment) {
       let breakElement = document.createElement("br");
       optionDivElement.appendChild(breakElement);
@@ -525,6 +534,17 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
 
     optionsContainerElement.appendChild(optionDivElement);
   }
+}
+
+// Enables/disables any option that declared a dependsOn parent checkbox.
+// Options are stored flat, so a disabled sub-option keeps its saved value.
+function updateDependentOptions() {
+  $("[data-depends-on]").each(function () {
+    const parentElement = document.getElementById(this.dataset.dependsOn);
+    const parentIsOn = parentElement ? parentElement.checked && !parentElement.disabled : true;
+    $(this).toggleClass("option-dependent-off", !parentIsOn);
+    $(this).find("input, select, textarea, button").prop("disabled", !parentIsOn);
+  });
 }
 
 // when the options page loads, load status of options from storage into the UI elements

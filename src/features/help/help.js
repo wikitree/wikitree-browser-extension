@@ -289,8 +289,27 @@ function generateOptionHTML(featureId, option) {
       break;
   }
 
+  if (option.dependsOn && optionHTML) {
+    // Indent under the parent checkbox; updateDependentOptions() keeps it disabled while the parent is off
+    optionHTML = `<div class="option-dependent" data-depends-on="${featureId}_${option.dependsOn}">${optionHTML}</div>`;
+  }
+
   return optionHTML;
 }
+
+// Enables/disables any option that declared a dependsOn parent checkbox
+function updateDependentOptions() {
+  $("[data-depends-on]").each(function () {
+    const parentElement = document.getElementById(this.dataset.dependsOn);
+    const parentIsOn = parentElement ? parentElement.checked && !parentElement.disabled : true;
+    $(this).toggleClass("option-dependent-off", !parentIsOn);
+    $(this).find("input, select, textarea, button").prop("disabled", !parentIsOn);
+  });
+}
+
+$(document).on("change", "[data-depends-on] input, .wbe-settings-container input[type='checkbox']", () => {
+  updateDependentOptions();
+});
 
 function loadFeatureSettings(feature, $container) {
   const storageKeys = [feature.id, `${feature.id}_options`];
@@ -306,6 +325,7 @@ function loadFeatureSettings(feature, $container) {
     // Load options if they exist and the feature is enabled
     if (feature.options) {
       loadOptionsRecursive(feature, $container, feature.options, optionsData);
+      updateDependentOptions();
     }
   });
 }

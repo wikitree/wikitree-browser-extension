@@ -114,6 +114,16 @@ div.feature-options {
   display: inline-block;
 }
 
+/* Options that only apply while a parent option is turned on */
+.option-dependent {
+  margin-left: 22px;
+  padding-left: 8px;
+  border-left: 2px solid #ccc;
+}
+.option-dependent-off {
+  opacity: 0.5;
+}
+
 /* Toggle buttons */
 .toggle-category:not(.label-left),
 .toggle-feature {

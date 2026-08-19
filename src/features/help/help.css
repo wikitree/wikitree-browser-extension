@@ -93,6 +93,16 @@
   display: flex;
 }
 
+/* Options that only apply while a parent option is turned on */
+.wbe-settings-container .option-dependent {
+  margin-left: 1.4em;
+  padding-left: 0.5em;
+  border-left: 2px solid #ccc;
+}
+.wbe-settings-container .option-dependent-off {
+  opacity: 0.5;
+}
+
 /* Float the creators and contributors to the right */
 .wbe-creators-and-contributors {
   font-size: 0.9em;
