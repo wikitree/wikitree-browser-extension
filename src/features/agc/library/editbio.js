@@ -7794,9 +7794,18 @@ class BiographyWriter {
       }
     }
 
-    if (this.biography.sourcesMap.size == 0 && this.biography.otherSourceLines == 0) {
+    if (this.biography.sourcesMap.size == 0 && this.biography.otherSourceLines.length == 0) {
       // this may be an unsourced bio. Need to check if there are any refs
-      if (!hasActiveRefs) {
+      // As well as the refs attached to facts, we have to check the text that is carried over
+      // unchanged (e.g. a hand written biography added to the profile after the GEDCOM import,
+      // as in Turner-4916). Any refs in there are sources too.
+      const carriedOverText =
+        this.biography.preamble +
+        this.biography.textAfterBioBeforeResearchNotes +
+        this.biography.textAfterResearchNotesBeforeSources;
+      const carriedOverTextHasRefs = /<\s*ref[\s>/]/i.test(carriedOverText);
+
+      if (!hasActiveRefs && !carriedOverTextHasRefs) {
         const unsourcedString = "{{Unsourced}}";
         if (!this.biography.textBeforeBio.includes("{{Unsourced")) {
           this.text = this.text.concat(unsourcedString, "\n");

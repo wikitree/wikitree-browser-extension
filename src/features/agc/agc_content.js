@@ -90,6 +90,124 @@ async function useModuleToEditBio(editBioInput, callback) {
 }
 
 /*
+ * Check for the GEDCOM structure that the import creates, i.e. the fact sections
+ * return true if any of it is found
+ */
+function hasGedcomFactStructure(bio) {
+  if (bio.indexOf("'''Name:'''") != -1 || bio.indexOf("'''Born'''") != -1 || bio.indexOf("'''Died'''") != -1) {
+    return true;
+  }
+
+  if (bio.indexOf("=== Name ===") != -1 || bio.indexOf("=== Birth ===") != -1 || bio.indexOf("=== Death ===") != -1) {
+    return true;
+  }
+
+  if (bio.indexOf("=== User ID ===") != -1 || bio.indexOf("=== Data Changed ===") != -1) {
+    return true;
+  }
+
+  return false;
+}
+
+/*
+ * Check for anything left in the bio that AGC would clean up, apart from the line crediting
+ * the GEDCOM import itself
+ * return true if there is anything for AGC to do
+ */
+function hasGedcomCruft(bio) {
+  if (hasGedcomFactStructure(bio)) {
+    return true;
+  }
+
+  // GEDCOM source and repository spans, e.g. <span id='S572556085'>
+  if (/<span id='[SR]\d/.test(bio)) {
+    return true;
+  }
+
+  if (/^\s*\*?\s*Repository\s*:/m.test(bio)) {
+    return true;
+  }
+
+  // GEDCOM data lines, e.g. ":: Birth Date:  16 Jan 1621"
+  if (/^::\s*[^\n]+:/m.test(bio)) {
+    return true;
+  }
+
+  if (bio.includes("No more info is currently available")) {
+    return true;
+  }
+
+  if (bio.includes("rough draft")) {
+    return true;
+  }
+
+  if (bio.includes("The following data was included in the gedcom")) {
+    return true;
+  }
+
+  return false;
+}
+
+/*
+ * Check whether the line crediting the GEDCOM import is inside the Sources section.
+ * When it is, AGC still has work to do because that line belongs in Acknowledgements.
+ * return true if the credit line is in the Sources section
+ */
+function isGedcomCreditLineInSourcesSection(bio) {
+  const creditLine = bio.match(
+    /(?:WikiTree profile [^-\n]+-\d+ created through the import of |This person was created on \d+ \w+ \d+ through the import of )/
+  );
+  if (!creditLine) {
+    return false;
+  }
+
+  const sourcesIndex = bio.search(/==\s*Sources\s*==/);
+  if (sourcesIndex == -1) {
+    return false;
+  }
+
+  // find the end of the Sources section, i.e. the next top level heading (if any)
+  const indexAfterSourcesHeading = sourcesIndex + 4;
+  const nextHeadingIndex = bio.slice(indexAfterSourcesHeading).search(/\n==[^=]/);
+  const sourcesEndIndex = nextHeadingIndex == -1 ? bio.length : indexAfterSourcesHeading + nextHeadingIndex;
+
+  return creditLine.index > sourcesIndex && creditLine.index < sourcesEndIndex;
+}
+
+/*
+ * Check whether there is a real, hand written biography in the Biography section
+ * return true if the Biography section has meaningful text in it
+ */
+function hasRealBiographyText(bio) {
+  const bioHeadingIndex = bio.search(/==\s*Biography\s*==\s*\n/);
+  if (bioHeadingIndex == -1) {
+    return false;
+  }
+
+  const textAfterHeading = bio.slice(bioHeadingIndex).replace(/^==\s*Biography\s*==\s*\n/, "");
+  const nextHeadingIndex = textAfterHeading.search(/\n==[^=]/);
+  var bioText = nextHeadingIndex == -1 ? textAfterHeading : textAfterHeading.slice(0, nextHeadingIndex);
+
+  // stickers, categories and comments don't count as a biography
+  bioText = bioText.replace(/\{\{[^}]*\}\}/g, "");
+  bioText = bioText.replace(/\[\[Category:[^\]]*\]\]/gi, "");
+  bioText = bioText.replace(/<!--[\s\S]*?-->/g, "");
+
+  return bioText.trim().length > 40;
+}
+
+/*
+ * Some GEDCOM imports leave a permanent credit line on the profile, usually in the
+ * Acknowledgements section. That line stays there however thoroughly the profile is cleaned up
+ * and developed afterwards, so on its own it is not a reason to offer the AGC button.
+ * See Turner-4916, where the bio has been rewritten by hand with inline sources since the import.
+ * return true if the credit line is the only trace of the GEDCOM import left
+ */
+function isCleanedUpSinceGedcomImport(bio) {
+  return !hasGedcomCruft(bio) && !isGedcomCreditLineInSourcesSection(bio) && hasRealBiographyText(bio);
+}
+
+/*
  * Check for GEDCOM created profile
  * by searching for well known strings in the profile
  * return true if it appears to be GEDCOM created
@@ -132,7 +250,7 @@ function checkForGedcomCreatedProfile() {
       return true;
     }
   } else if (bio.search(/This person was created on \d+ \w+ \d+ through the import of /) != -1) {
-    if (bio.includes(".ged")) {
+    if (bio.includes(".ged") && !isCleanedUpSinceGedcomImport(bio)) {
       return true;
     }
   } else if (bio.search(/\<ref\>[^-]+\-\d+ was created by \[\[[^\]]+\]\] through the import of /) != -1) {
@@ -146,7 +264,7 @@ function checkForGedcomCreatedProfile() {
   }
   // WikiTree profile Di Rocco-2 created through the import of Collier, Centola, Di Rocco, Po(1).ged on Oct 14, 2011 by [[Collier-494 | Michael Collier]]. See the [http://www.wikitree.com/index.php?title=Special:NetworkFeed&who=Di Rocco-2 Changes page] for the details of edits by Michael and others.
   else if (bio.search(/WikiTree profile [^-]+\-\d+ created through the import of /) != -1) {
-    if (bio.includes(".ged")) {
+    if (bio.includes(".ged") && !isCleanedUpSinceGedcomImport(bio)) {
       return true;
     }
   }
@@ -155,27 +273,7 @@ function checkForGedcomCreatedProfile() {
    Here we didn't find one of the known GEDCOM imported strings so check for 
    name, birth, death. If that fails try other GEDCOM cruft.
   */
-  var nameTitleIndex = bio.indexOf("'''Name:'''");
-  var bornTitleIndex = bio.indexOf("'''Born'''");
-  var diedTitleIndex = bio.indexOf("'''Died'''");
-  if (nameTitleIndex != -1 || bornTitleIndex != -1 || diedTitleIndex != -1) {
-    return true;
-  }
-
-  nameTitleIndex = bio.indexOf("=== Name ===");
-  bornTitleIndex = bio.indexOf("=== Birth ===");
-  diedTitleIndex = bio.indexOf("=== Death ===");
-  if (nameTitleIndex != -1 || bornTitleIndex != -1 || diedTitleIndex != -1) {
-    return true;
-  }
-
-  const userIdIndex = bio.indexOf("=== User ID ===");
-  const dataChangedIndex = bio.indexOf("=== Data Changed ===");
-  if (userIdIndex != -1 || dataChangedIndex != -1) {
-    return true;
-  }
-
-  return false;
+  return hasGedcomFactStructure(bio);
 }
 
 function getParentsFromDocument(document, parents) {
