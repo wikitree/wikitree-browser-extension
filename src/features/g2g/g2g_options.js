@@ -94,6 +94,12 @@ const g2g = {
       label: "Remove Ads",
       defaultValue: true,
     },
+    {
+      id: "compact",
+      type: OptionType.CHECKBOX,
+      label: "Compact",
+      defaultValue: false,
+    },
   ],
 };
 

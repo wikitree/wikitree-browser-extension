@@ -343,6 +343,9 @@ async function initG2G() {
     // Temp: This won't work until G2G has the top menus.
     // document.getElementsByClassName("pureCssMenui0")[0].href = "https://" + mainDomain + "/wiki/Special:Home";
   }
+  if (options.compact) {
+    $("html").addClass("g2gCompact");
+  }
 }
 
 shouldInitializeFeature("g2g").then((result) => {

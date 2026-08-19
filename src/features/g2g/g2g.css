@@ -217,3 +217,9 @@ input[name$="_docomment"].bigButton:hover {
   color: #666;
   font-style: italic;
 }
+html.g2gCompact .p-3,
+html.g2gCompact .mb-3,
+html.g2gCompact .box {
+  padding: 0.2em !important;
+  margin-bottom: 0.2em !important;
+}

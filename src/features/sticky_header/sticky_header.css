@@ -77,10 +77,24 @@
 }
 
 html.makeG2GHeaderSmaller .qa-main-heading h1 {
-  padding: 0.2em !important;
+  padding-top: 0.2em !important;
+  padding-bottom: 0.2em !important;
   font-size: 1.5em !important;
+  margin: auto 0.2em !important;
 }
 html.makeG2GHeaderSmaller .page--title {
   padding-top: 0.5em !important;
   padding-bottom: 0.5em !important;
+}
+html.makeG2GHeaderSmaller #heading .container {
+  width: 90%;
+  margin: auto;
+}
+html.makeG2GHeaderSmaller .qa-q-item-title {
+  font-size: 1.2em !important;
+  line-height: 1.2em !important;
+}
+html.makeG2GHeaderSmaller .p-3 .col-auto {
+  margin: 0.1em !important;
+  padding: 0.1em !important;
 }
