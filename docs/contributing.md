@@ -128,6 +128,25 @@ import "./features/myFeature/myFeature";
 
 You may want to include a README file in the folder to explain what the feature does.
 
+### Mark the elements your feature adds
+
+The **Highlight WBE Features** option draws a cyan border around everything the extension
+has added to the page, so users can tell our stuff apart from WikiTree's. It picks up
+elements automatically as long as you follow one of the naming conventions:
+
+- give the element the bare `wbe` class, e.g. `<button class="small wbe">`, or
+- prefix its class or id with `wbe-` / `wbe`, e.g. `<div class="wbe-myfeature-panel">` or
+  `<div id="wbeMyFeaturePanel">`.
+
+Only the outermost marked element in a block is highlighted, so mark the container your
+feature inserts rather than every element inside it.
+
+If your feature changes existing WikiTree markup instead of adding new elements, add a
+`wbe-` prefixed class to whatever you changed so it can be highlighted too.
+
+Anything that cannot follow those conventions needs a selector adding by hand to
+[highlight_WBE_features.css](../src/features/highlight_WBE_features/highlight_WBE_features.css).
+
 ### See your feature in the browser
 
 See main [[README]] for installation instructions.

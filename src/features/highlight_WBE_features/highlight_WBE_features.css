@@ -1,11 +1,38 @@
 /* Styles for highlightWBEFeatures feature */
 
+/*
+Generic catch-all.
+
+Everything below this block is a hand-written list of selectors, one per
+feature, which means a new feature is only highlighted if someone remembers to
+come back here and add it. This rule covers anything that follows the
+extension's existing naming conventions instead: the bare `wbe` marker class, a
+`wbe-` prefixed class, or a `wbe`-prefixed id.
+
+Only the outermost marked element gets the border; without the `:not()` a
+feature whose markup is `wbe-` prefixed all the way down would draw a border
+around every nested element. The `body` in front of that `:not()` argument
+matters: body itself carries `wbe-highlight` (and the colour blind support
+`wbe-cb-*` classes), so without it every element on the page counts as the
+descendant of a marked element and nothing is highlighted at all.
+
+Kept at (0, 1, 1) specificity with `:where()` so that every hand-written rule
+below still wins and can give an element a different treatment (3px, radius,
+lighter colour, etc.). Keep this rule first in the file for the same reason.
+*/
+.wbe-highlight
+  :where(.wbe, [class*="wbe-"], [id^="wbe"]):not(body
+    :where(.wbe, [class*="wbe-"], [id^="wbe"])
+    *, :where(script, style, link, template, br, option), :where(img.wbe-button, .toggleOverflowButton), :where(.ebWBE, .ebWBE
+      *, .wbe-icon)) {
+  border: var(--wbe-colour) 2px solid !important;
+}
+
 /* 2px border */
 .wbe-highlight #downloadFeatureData,
 .wbe-highlight #importFeatureData,
 .wbe-highlight #scratchPadDisplayInner.wbe,
 .wbe-highlight input[type="button"].wbe,
-.wbe-highlight img.expandTextareaButton,
 .wbe-highlight #nVitals,
 .wbe-highlight button.wbe-tab,
 .wbe-highlight button.wbe-app-login,
@@ -60,6 +87,24 @@ html[data-wbe-categorydisplay] .wbe-highlight #Categories,
 .wbe-highlight #rangersButtons button,
 .wbe-highlight img.mw-toolbar-editbutton[alt="Automatic GEDCOM Cleanup"],
 .wbe-highlight #expandTextareaButton,
+/* Added later */
+.wbe-highlight #copyPreBioChangesButton,
+.wbe-highlight #copyPostBioChangesButton,
+.wbe-highlight #analyzeLinksBtn,
+.wbe-highlight #hideBadges,
+.wbe-highlight #moveDownBadges,
+.wbe-highlight #hideProfileBadges,
+.wbe-highlight #moveProfileBadges,
+.wbe-highlight #addLinkFormButton,
+.wbe-highlight #catALotButton,
+.wbe-highlight #stickerALotButton,
+.wbe-highlight #checkAllButton,
+.wbe-highlight #orphanButton,
+.wbe-highlight #loadNextGenerationButton,
+.wbe-highlight #toggleAnniversariesTableButton,
+.wbe-highlight #collapsibleProfilesMenuItem,
+.wbe-highlight #magnifier,
+.wbe-highlight #suggestedMatchesTextFilter,
 .wbe-highlight span.awtG2GLink {
   border: var(--wbe-colour) 2px solid !important;
 }
@@ -129,6 +174,26 @@ html[data-wbe-genderpredictor] .wbe-highlight #mGender,
 .wbe-highlight #googleSearchBox,
 .wbe-highlight #helpSearchBox,
 .wbe-highlight #changeSummaryOptions,
+/* Added later */
+.wbe-highlight #wikitableWizardModal,
+.wbe-highlight #wikitableContextMenu,
+.wbe-highlight #suggestionsPopup,
+.wbe-highlight #customMenuContainer,
+.wbe-highlight #cc7-notes-container,
+.wbe-highlight #notesContextMenu,
+.wbe-highlight #largeImagePopup,
+.wbe-highlight #randomProfilePopup,
+.wbe-highlight #dateClarificationModal,
+.wbe-highlight #autoBioButtonBox,
+.wbe-highlight #autoBioCustomInstructions,
+.wbe-highlight #wtPlusDlg,
+.wbe-highlight #agcOldBioContainer,
+.wbe-highlight #textFilterHelpPopup,
+.wbe-highlight #editorExpanderFixedDiv,
+.wbe-highlight #connectionsTable,
+.wbe-highlight #activeSourcePreview,
+.wbe-highlight #g2gTagPicker,
+.wbe-highlight #buttonBox,
 .wbe-highlight button.btn-secondary.wbe {
   border: var(--wbe-colour) 3px solid !important;
 }
@@ -152,6 +217,16 @@ html[data-wbe-genderpredictor] .wbe-highlight #mGender,
 .wbe-highlight a.backToTop,
 .wbe-highlight h2#What_Links_Here:has(.toggle-whl),
 .wbe-highlight #onlyMembers,
+/* Added later */
+.wbe-highlight #wikitableContextMenu,
+.wbe-highlight #suggestionsPopup,
+.wbe-highlight #notesContextMenu,
+.wbe-highlight #largeImagePopup,
+.wbe-highlight #randomProfilePopup,
+.wbe-highlight #dateClarificationModal,
+.wbe-highlight #autoBioCustomInstructions,
+.wbe-highlight #textFilterHelpPopup,
+.wbe-highlight #g2gTagPicker,
 .wbe-highlight .accessKeyHint {
   border-radius: 5px !important;
 }
@@ -181,7 +256,6 @@ html[data-wbe-genderpredictor] .wbe-highlight #mGender,
 .wbe-highlight #importFeatureData,
 .wbe-highlight #scratchPadDisplayInner.wbe,
 .wbe-highlight input[type="button"].wbe,
-.wbe-highlight img.expandTextareaButton,
 .wbe-highlight button.special-collapse-button,
 .wbe-highlight button.collapse-toggle,
 .wbe-highlight button.collapse-all-toggle,
@@ -215,6 +289,22 @@ html[data-wbe-genderpredictor] .wbe-highlight #mGender,
 .wbe-highlight img.mw-toolbar-editbutton[alt="Automatic GEDCOM Cleanup"],
 .wbe-highlight .fontSizeButton,
 .wbe-highlight #expandTextareaButton,
+/* Added later */
+.wbe-highlight #copyPreBioChangesButton,
+.wbe-highlight #copyPostBioChangesButton,
+.wbe-highlight #analyzeLinksBtn,
+.wbe-highlight #hideBadges,
+.wbe-highlight #moveDownBadges,
+.wbe-highlight #hideProfileBadges,
+.wbe-highlight #moveProfileBadges,
+.wbe-highlight #addLinkFormButton,
+.wbe-highlight #catALotButton,
+.wbe-highlight #stickerALotButton,
+.wbe-highlight #checkAllButton,
+.wbe-highlight #orphanButton,
+.wbe-highlight #loadNextGenerationButton,
+.wbe-highlight #toggleAnniversariesTableButton,
+.wbe-highlight #collapsibleProfilesMenuItem,
 .wbe-highlight button.btn-secondary.wbe {
   border-color: var(--wbe-colour-light) !important;
 }
@@ -254,7 +344,15 @@ body.wbe-highlight .myMenuGroup,
   margin-left: 0.5em;
 }
 
-body.wbe-highlight .showWBEFeatures circle {
+/*
+The two icons in the header are the extension's own chrome rather than a page
+enhancement, so they are left out of the border rules above. Turning their
+circles blue is the highlight-is-on indicator instead. The help icon draws its
+circle as a single path rather than a <circle>, hence the second selector; both
+are scoped so the help icons inside features are not affected.
+*/
+body.wbe-highlight .showWBEFeatures circle,
+body.wbe-highlight .ebWBE .WBEHelpIcon svg path {
   fill: var(--wbe-colour-light) !important;
 }
 
@@ -262,9 +360,40 @@ body.wbe-highlight .showWBEFeatures circle {
   margin: auto;
 }
 
-/* image filters */
-.wbe-highlight .wbe-button:not(.toggleTipsColumn, #toggleFamilyColumn) {
+/*
+Image filters.
+
+`filter` recolours everything an element paints, its border included, so a
+--wbe-colour border on a filtered element comes out magenta. Where the icon is a
+span inside the button (which is how nearly every .wbe-button is built) filter
+the span, so the button itself is free to take a border like anything else.
+*/
+.wbe-highlight .wbe-button:not(.toggleTipsColumn, #toggleFamilyColumn) > span {
   filter: var(--wbe-icon-filter);
+}
+
+/*
+These carry their icon as a background-image on the element itself, so the
+filter has to stay on the element and they can't be given a border. They are
+excluded from the generic rule at the top of the file for that reason.
+*/
+.wbe-highlight img.wbe-button,
+.wbe-highlight .toggleOverflowButton {
+  filter: var(--wbe-icon-filter);
+}
+
+/*
+Room for the border to sit around the icon rather than through it. The icon
+spans are 26x25 with no padding of their own, and most of these buttons are
+inline anchors, so without this the border clips the artwork.
+*/
+.wbe-highlight a.wbe-button:not(.toggleTipsColumn, #toggleFamilyColumn, .toggleOverflowButton) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border-radius: 5px !important;
+  vertical-align: middle;
 }
 .wbe-highlight .myMenuGears,
 .wbe-highlight #changeSummaryGears,

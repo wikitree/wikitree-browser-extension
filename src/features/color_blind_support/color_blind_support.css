@@ -501,12 +501,31 @@ fill is the only channel they have.
    #e1f0b4 and #ffcccc - Rec.709 luminance 235, 232 and 215. Warning against success is
    three levels out of 255, which is no difference at all in grayscale.
 
-   WikiTree's own border colour is deliberately left alone. An earlier version repainted
-   it from the palette, and that was a bug of exactly the kind this feature exists to
-   prevent: a reader with a pale Custom palette - the options page measured one at 1.0:1
-   against the page - got a border repainted invisible, so a success box ended up with
-   LESS of an edge than WikiTree gives it. The colour was never carrying the meaning
-   anyway. The left edge below is, and it is drawn in currentColor. */
+   The border is redrawn, but never from the palette: the rim below and the left edge
+   below that are both currentColor. The colour was never carrying the meaning - the
+   left edge's style is - but the rim is what makes a pale box read as a box at all. */
+
+/* A dark rim on all four sides, at WikiTree's own 3px so nothing reflows.
+
+   WikiTree ships all three severities with the same #fcb815 rim, which against the pale
+   yellow warning tint is barely an edge at all and against the green and red tints is a
+   colour that belongs to neither. The tints themselves are 235, 232 and 215 in Rec.709
+   luminance, so on a white page a status box is a box with almost nothing around it: in
+   grayscale the green box is three levels away from the page it sits on.
+
+   currentColor, for the same reason as every other shape cue here: it is the box's own
+   text colour, which is dark by construction and cannot be painted invisible by a pale
+   palette. An earlier version repainted this rim from the palette and that is exactly
+   what went wrong - a Custom palette measured at 1.0:1 against the page left a success
+   box with LESS of an edge than WikiTree gives it.
+
+   Set as three sides, not as a shorthand, so the left edge below is independent of
+   source order. */
+html body.wbe-cb-status .status {
+  border-top: 3px solid currentColor !important;
+  border-right: 3px solid currentColor !important;
+  border-bottom: 3px solid currentColor !important;
+}
 
 /* The three border treatments. Solid for success, dashed for a warning, double for an
    error: a deliberate progression in visual weight, so the severity reads even when

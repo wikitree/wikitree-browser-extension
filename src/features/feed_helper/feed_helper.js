@@ -687,7 +687,7 @@ class FeedHelper {
    */
   showConfirmDialog(message, onConfirm, onCancel = null) {
     const $dialog = $(
-      '<dialog id="confirmDialog">' +
+      '<dialog id="confirmDialog" class="wbe">' +
         '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Confirmation</div>' +
         '<div class="dialog-content">' +
         '<p style="margin: 20px 0; font-size: 16px; line-height: 1.4;">' +
@@ -1493,7 +1493,7 @@ class FeedHelper {
     }
 
     const popup = $(`
-      <div id="whitelistManagerPopup">
+      <div id="whitelistManagerPopup" class="wbe">
         <div class="popup-header">
           <h3>Activity Whitelist Manager</h3>
           <button id="closeWhitelistManager">&times;</button>
@@ -2863,7 +2863,7 @@ class FeedHelper {
     const existed = $popup.length > 0;
     if (!existed) {
       $popup = $(
-        `<div class="anomalies-popup"><div class="anomalies-messages"><div class="anomalies-line">${message}</div></div></div>`
+        `<div class="anomalies-popup wbe"><div class="anomalies-messages"><div class="anomalies-line">${message}</div></div></div>`
       );
       $container.append($popup);
     } else {
@@ -2910,7 +2910,7 @@ class FeedHelper {
     if (existingTable.length === 0) {
       // Create the table container (initially hidden)
       const tableHtml = `
-        <div id="activityWarningsTable" style="display: none;">
+        <div id="activityWarningsTable" class="wbe" style="display: none;">
           <div class="table-header">
             <h3>⚠️ Rapid Activity (<span id="warningsCount">0</span>)</h3>
             <div class="header-buttons">
@@ -3427,7 +3427,7 @@ class FeedHelper {
     }
 
     const popup = $(`
-      <div class="rapid-merge-popup">
+      <div class="rapid-merge-popup wbe">
         ${message}
         <span class="close-popup">&times;</span>
         <button class="highlight-btn small">Highlight</button>
@@ -3524,7 +3524,7 @@ class FeedHelper {
     }
 
     const hideFilterSection = $(
-      `<div id="feedHelperHideFilters" class="feed-helper-hide-filters" aria-label="Feed helper hide filters">
+      `<div id="feedHelperHideFilters" class="feed-helper-hide-filters wbe" aria-label="Feed helper hide filters">
         <span class="feed-helper-hide-label">Hide:</span>
         <button type="button" class="button small feed-helper-filter-btn" data-filter-key="whitelistActivity" aria-pressed="false" title="Hide activity by whitelisted users">Whitelist Activity</button>
         <button type="button" class="button small feed-helper-filter-btn" data-filter-key="allProfiles" aria-pressed="false" title="Hide profile activity">All Profiles</button>
@@ -3809,7 +3809,7 @@ class FeedHelper {
 
     // Show loading popup first
     $("main#main").prepend(
-      `<div class="bioPopup" data-id="${bioId}">
+      `<div class="bioPopup wbe" data-id="${bioId}">
         <x class="closeBioPopup">&times;</x>
         <div class="bio-section">
           <p><strong>Loading bio for ${bioId}...</strong></p>
@@ -4344,7 +4344,7 @@ class FeedHelper {
         const highlightedBio = this.highlightMarkup(bio.bio).replace(/\n/g, "<br>");
         const bioCheckIssues = this.buildBioCheckIssues(bio);
         $("main#main").prepend(
-          `<div class="bioPopup" data-id="${bioId}">
+          `<div class="bioPopup wbe" data-id="${bioId}">
             <x class="closeBioPopup">&times;</x>
             ${highlightedBio}
             ${bioCheckIssues.html}

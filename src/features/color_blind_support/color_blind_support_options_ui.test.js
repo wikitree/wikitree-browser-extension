@@ -104,6 +104,17 @@ test("warns when a color is too pale to read on the page", () => {
   expect(noteFor("dangerColor")).toMatch(/1\.1:1 against the page/);
 });
 
+test("says nothing about a color that is painted nowhere", () => {
+  // The warning color is published for other WBE features and read by none of them, so
+  // there is no background to measure it against. A ratio for a color that reaches no
+  // pixel is the note that teaches a reader to ignore the other three.
+  buildOptionsPage({ warningColor: "#ffff00" });
+  watchCustomPalette();
+
+  expect(noteFor("warningColor")).toBe("");
+  expect(warning()).toBeNull();
+});
+
 test("says nothing at all while a preset is selected", () => {
   buildOptionsPage({ paletteName: "okabeIto", newLinkColor: "#ff0000" });
   watchCustomPalette();

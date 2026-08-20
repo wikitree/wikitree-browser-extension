@@ -43,11 +43,18 @@ import { CONDITIONS, perceptualDistance, simulateColor } from "../../core/lib/co
 
 const FEATURE_ID = "colorBlindSupport";
 
-/** Matches ROLES in scripts/check-palette.mjs: 4.5:1 where a color is painted as text. */
+/**
+ * Matches ROLES in scripts/check-palette.mjs: 4.5:1 where a color is painted as text.
+ *
+ * minContrast null means the color is not painted anywhere, so there is no background to
+ * measure it against and nothing worth saying about it. The warning color is published
+ * for other WBE features and read by none of them, and reporting a ratio for a color that
+ * reaches no pixel is the kind of note that teaches a reader to ignore all of them.
+ */
 const ROLES = {
   newLinkColor: { label: "New/unknown link color", minContrast: 4.5 },
   dangerColor: { label: "Error color", minContrast: 4.5 },
-  warningColor: { label: "Warning color", minContrast: 3 },
+  warningColor: { label: "Warning color", minContrast: null },
   successColor: { label: "Success color", minContrast: 3 },
 };
 
@@ -121,7 +128,7 @@ function findNotes() {
 
   Object.entries(ROLES).forEach(([optionId, { minContrast }]) => {
     const rgb = palette[optionId];
-    if (!rgb) {
+    if (!rgb || !minContrast) {
       return;
     }
     const ratio = contrastRatio(rgb, pageBackground());

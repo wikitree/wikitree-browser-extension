@@ -33,7 +33,7 @@ alone:
 | -------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | `a.new` — links to pages that do not exist                                 | Dotted underline and a superscript `?`                                |
 | `a:visited` on content links                                               | An underline appearing, or a checkmark; off by default                |
-| `.status.green` / `.status` / `.status.red`                                | Solid / dashed / double left border                                   |
+| `.status.green` / `.status` / `.status.red`                                | 3px dark rim, plus a solid / dashed / double left border              |
 | `.suggestion-item.suggestion-Error` / `-Warning` / `-Hint`                 | Double / dashed / dotted left border                                  |
 | `input.changed` / `select.changed` / `textarea.changed`, `label.changed`   | Dashed border instead of solid; bold label                            |
 | `.qa-q-view-flags` and friends (flagged G2G posts)                         | Double border instead of solid                                        |
@@ -388,6 +388,22 @@ alike, and reads without a second box on screen to compare against.
 
 Badges keep their fill recolor. They are too small for a border and the fill is the only
 channel they have.
+
+### The rim is redrawn, though
+
+Not recoloring the background is not the same as leaving the box edgeless. A `.status` box
+is a pale tint on a white page — 215 to 235 out of 255 — so in grayscale it has almost
+nothing separating it from the page it sits in, and WikiTree's own `#fcb815` rim does not
+help: against the yellow warning tint it is barely an edge, and on the green and red boxes
+it is a color that belongs to neither.
+
+So all four sides get `3px solid currentColor`, at WikiTree's own width so nothing
+reflows. `currentColor` for the same reason as every other shape cue here — it is the
+box's own text color, dark by construction, and cannot be painted invisible by a pale
+palette. An earlier version drew this rim **from the palette**, and that is precisely what
+went wrong: a Custom palette measured at 1.0:1 against the page left a success box with
+_less_ of an edge than WikiTree gives it. The three sides are set individually rather than
+as a shorthand so that the 10px severity edge on the left does not depend on source order.
 
 ## Family connections
 

@@ -36,36 +36,33 @@ const colorBlindSupport = {
           ],
           defaultValue: "okabeIto",
           comment:
-            "The colors below apply only to the Custom palette. They paint two things: new/unknown links and " +
-            "the small badges. Every other cue is a shape, so no color choice can hide one.",
-        },
-        {
-          id: "newLinkColor",
-          type: OptionType.COLOR,
-          label: "New/unknown link color",
-          defaultValue: "#0072B2",
-          comment: "Paints new/unknown link text, and the same links in Category Display.",
+            "The three accent colors below apply only to the Custom palette. The new/unknown link color is with " +
+            "that option further down. Every other cue is a shape, so no color choice can hide one.",
         },
         {
           id: "dangerColor",
           type: OptionType.COLOR,
           label: "Error color",
           defaultValue: "#B0003A",
-          comment: "Paints red badges, and red text in Date Fixer, Text Expander, Locations Helper and WikiTree+.",
+          comment:
+            "Used as it is for red text in Date Fixer, Text Expander, Locations Helper and WikiTree+, and for " +
+            "the solid red badge. The ordinary pale red badge is filled with a light tint of it.",
         },
         {
           id: "warningColor",
           type: OptionType.COLOR,
           label: "Warning color",
           defaultValue: "#C68900",
-          comment: "Paints nothing on screen. Published for other WBE features to use for their own warnings.",
+          comment: "Nothing on screen uses this yet. It is published for other WBE features to pick up.",
         },
         {
           id: "successColor",
           type: OptionType.COLOR,
           label: "Success color",
           defaultValue: "#007A5E",
-          comment: "Paints green badges.",
+          comment:
+            "Used as it is for the solid green badge. The ordinary pale green badge is filled with a light tint " +
+            "of it.",
         },
       ],
     },
@@ -93,11 +90,20 @@ const colorBlindSupport = {
         {
           id: "newLinkRecolor",
           type: OptionType.CHECKBOX,
-          label: "Recolor these links",
+          label: "Recolor new/unknown links",
           defaultValue: true,
           comment:
-            "Replaces WikiTree's red with the palette color above. Turn it off to keep WikiTree's own color, or " +
-            "your Custom Style one, and rely on the mark alone.",
+            "Replaces WikiTree's red with the palette color. Turn it off to keep WikiTree's own color, or your " +
+            "Custom Style one, and rely on the mark alone.",
+        },
+        {
+          id: "newLinkColor",
+          type: OptionType.COLOR,
+          label: "New/unknown link color",
+          defaultValue: "#0072B2",
+          comment:
+            "Custom palette only. Paints the link text, and the same links in Category Display, when the box " +
+            "above is ticked.",
         },
       ],
     },
