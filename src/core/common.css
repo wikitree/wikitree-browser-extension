@@ -330,6 +330,9 @@ ol.star1.green > li::before {
   --wbe-colour-light: #0086b3;
   --wbe-icon-filter: sepia(0%) saturate(690%) hue-rotate(445deg) brightness(89%) contrast(100%);
   --wbe-icon-filter-light: sepia(0%) saturate(650%) hue-rotate(80deg) brightness(120%) contrast(101%);
+  --wbe-green: #6d9731;
+  --wbe-orange: #f5a623;
+  --wbe-gray: #b4b4b4;
 }
 
 /* Tooltip for the WBE help icon */
