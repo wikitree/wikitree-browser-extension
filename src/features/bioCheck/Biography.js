@@ -362,10 +362,10 @@ export class Biography {
                * check for that first
                */
               if (this.#sourceRules.isNavBox(partialLine, partialMixedCaseLine)) {
-                this.#parseNavBox(partialLine);
+                this.#parseNavBox(partialLine, partialMixedCaseLine);
               } else {
                 if (this.#sourceRules.isResearchNoteBox(partialLine, partialMixedCaseLine)) {
-                  this.#parseResearchNoteBox(partialLine);
+                  this.#parseResearchNoteBox(partialLine, partialMixedCaseLine);
                 } else {
                   if (this.#sourceRules.isProjectBox(partialLine, partialMixedCaseLine)) {
                     this.#parseProjectBox(partialLine, partialMixedCaseLine);
