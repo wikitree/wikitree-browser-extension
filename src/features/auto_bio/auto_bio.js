@@ -34,8 +34,10 @@ import { addWorking, getBioText, removeWorking, setBioText } from "./editorUtils
 import { assignPersonNames, setOrderBirthDate } from "./auto_bio_person.js";
 // Find a Grave citation helpers removed per user request
 import {
+  extractPreBioNotes,
   findGenealogicallyDefinedLinePlacement,
-  isGenealogicallyDefinedLink,
+  getPreBioTextLines,
+  removeNotesBeforeBio,
   sortStuffBeforeBioItems,
   splitStuffBeforeBioEntry,
 } from "./preBioUtils.js";
@@ -2713,8 +2715,10 @@ export function sourcesArray(bio) {
   } catch (error) {
     previousBioText = previousBioText || "";
   }
-  // Remove == Research Notes == section
-  bio = bio.replace(/==\s?Research Notes\s?==.*?==\s?Sources\s?==/gis, "");
+  /* Remove the == Research Notes == section. Stop at the next top-level heading
+  (=== subsections === stay with it) or at the end of the bio, so notes that aren't
+  followed by a Sources section are skipped too. */
+  bio = bio.replace(/==\s*Research Notes\s*==.*?(?=\n\s*==[^=]|$)/gis, "");
 
   dummy.append(bio);
   let refArr = [];
@@ -5204,50 +5208,29 @@ export async function generateBio() {
     Categories are [[.*]]; Templates are {{.*}}.
     Especially look out for a section entitled == Disambiguation == here.
     We need to add this back in later.
+    Anything marked up as a note (":'''Note 1:''' ...") belongs in Research Notes,
+    so leave it out of here and move it over once the sections are split.
     */
-    const allStuffBeforeTheBio = currentBio.match(/^(.*?)(==\s*Biography\s*==)/s);
-    let textBeforeTheBio = "";
-    if (allStuffBeforeTheBio) {
-      textBeforeTheBio = allStuffBeforeTheBio[1].trim();
-    }
-
-    // Remove all templates (both single-line and multi-line) and categories from textBeforeTheBio
-    // since they're already being handled by StuffBeforeTheBio.text
-    let lines = textBeforeTheBio.split("\n");
-    let filteredLines = [];
-    let inTemplate = false;
-    let previousLineWasCategory = false;
-
-    for (let line of lines) {
-      const trimmedLine = line.trim();
-
-      if (trimmedLine.startsWith("{{")) {
-        inTemplate = true;
-      }
-
-      const isCategoryLine = /^\[\[Category:[^\]]+\]\](\s*<!--.*-->)?$/i.test(trimmedLine);
-      const isCommentLine = /^<!--.*-->$/.test(trimmedLine);
-      const isCommentForPreviousCategory = previousLineWasCategory && isCommentLine;
-      const isGenealogicallyDefinedLine = isGenealogicallyDefinedLink(trimmedLine);
-
-      // Skip lines that are part of a template or are categories
-      if (!inTemplate && !isCategoryLine && !isCommentForPreviousCategory && !isGenealogicallyDefinedLine) {
-        filteredLines.push(line);
-      }
-
-      if (trimmedLine.endsWith("}}")) {
-        inTemplate = false;
-      }
-
-      previousLineWasCategory = isCategoryLine;
-    }
+    const { notes: notesBeforeTheBio, remaining: textLinesBeforeTheBio } = extractPreBioNotes(
+      getPreBioTextLines(currentBio)
+    );
 
     // Filter out empty lines and rejoin
-    textBeforeTheBio = filteredLines.filter((line) => line.trim() !== "").join("\n");
-    window.textBeforeTheBio = textBeforeTheBio;
+    window.textBeforeTheBio = textLinesBeforeTheBio.filter((line) => line.trim() !== "").join("\n");
 
     // Split the current bio into sections
     window.sectionsObject = splitBioIntoSections();
+
+    // Move the notes that were above the Biography heading into Research Notes
+    if (notesBeforeTheBio.length > 0) {
+      const { remaining: stuffWithoutNotes } = extractPreBioNotes(window.sectionsObject.StuffBeforeTheBio.text);
+      window.sectionsObject.StuffBeforeTheBio.text = stuffWithoutNotes;
+      notesBeforeTheBio.forEach(function (aNote) {
+        if (!window.sectionsObject["Research Notes"].text.includes(aNote)) {
+          window.sectionsObject["Research Notes"].text.push(aNote);
+        }
+      });
+    }
 
     // Normalize all multi-line templates to single-line
     for (let sectionName in window.sectionsObject) {
@@ -5381,7 +5364,9 @@ export async function generateBio() {
     if (window.sectionsObject.Sources) {
       window.sourcesSection = window.sectionsObject.Sources;
     }
-    sourcesArray(currentBio);
+    /* The notes from above the Biography heading are in Research Notes now,
+    so leave their citations out of the Sources section. */
+    sourcesArray(removeNotesBeforeBio(currentBio));
 
     // Find A Grave citation automation removed; no-op
 

@@ -117,3 +117,93 @@ export function sortStuffBeforeBioItems(stuff = [], templatesObject = {}) {
     ...tempStuffObject.succession,
   ];
 }
+
+// Lines like ":'''Note 1:''' ..." or "'''Notes:''' ..." shouldn't be above the
+// Biography heading at all; Auto Bio moves them to Research Notes.
+const preBioNotePattern = /^[:*#]*\s*''+\s*Notes?\b[^']*''+/i;
+
+export function isPreBioNoteLine(line = "") {
+  return typeof line === "string" && preBioNotePattern.test(line.trim());
+}
+
+/* Split the lines before the Biography heading into the ones that are marked up
+as notes (plus their indented continuation lines) and everything else. */
+export function extractPreBioNotes(lines = []) {
+  const notes = [];
+  const remaining = [];
+  let inNote = false;
+
+  lines.forEach(function (line) {
+    const trimmedLine = typeof line === "string" ? line.trim() : "";
+
+    if (isPreBioNoteLine(trimmedLine)) {
+      inNote = true;
+      notes.push(trimmedLine);
+    } else if (inNote && trimmedLine.startsWith(":")) {
+      notes.push(trimmedLine);
+    } else {
+      inNote = false;
+      remaining.push(line);
+    }
+  });
+
+  return { notes, remaining };
+}
+
+/* The lines before the Biography heading that aren't templates or categories
+(those are handled by StuffBeforeTheBio.text). */
+export function getPreBioTextLines(bioText = "") {
+  const allStuffBeforeTheBio = bioText?.match(/^(.*?)(==\s*Biography\s*==)/s);
+  if (!allStuffBeforeTheBio) {
+    return [];
+  }
+
+  const lines = allStuffBeforeTheBio[1].trim().split("\n");
+  const filteredLines = [];
+  let inTemplate = false;
+  let previousLineWasCategory = false;
+
+  for (let line of lines) {
+    const trimmedLine = line.trim();
+
+    if (trimmedLine.startsWith("{{")) {
+      inTemplate = true;
+    }
+
+    const isCategoryLine = /^\[\[Category:[^\]]+\]\](\s*<!--.*-->)?$/i.test(trimmedLine);
+    const isCommentLine = /^<!--.*-->$/.test(trimmedLine);
+    const isCommentForPreviousCategory = previousLineWasCategory && isCommentLine;
+    const isGenealogicallyDefinedLine = isGenealogicallyDefinedLink(trimmedLine);
+
+    // Skip lines that are part of a template or are categories
+    if (!inTemplate && !isCategoryLine && !isCommentForPreviousCategory && !isGenealogicallyDefinedLine) {
+      filteredLines.push(line);
+    }
+
+    if (trimmedLine.endsWith("}}")) {
+      inTemplate = false;
+    }
+
+    previousLineWasCategory = isCategoryLine;
+  }
+
+  return filteredLines;
+}
+
+/* Return the bio with the notes that were above the Biography heading taken out.
+Auto Bio moves those to Research Notes, so the citations in them shouldn't be
+harvested into the Sources section as well. */
+export function removeNotesBeforeBio(bioText = "") {
+  const allStuffBeforeTheBio = bioText?.match(/^(.*?)(==\s*Biography\s*==)/s);
+  if (!allStuffBeforeTheBio) {
+    return bioText;
+  }
+
+  const stuffBeforeTheBio = allStuffBeforeTheBio[1];
+  const { notes, remaining } = extractPreBioNotes(stuffBeforeTheBio.split("\n"));
+  if (notes.length === 0) {
+    return bioText;
+  }
+
+  return remaining.join("\n") + bioText.slice(stuffBeforeTheBio.length);
+}

@@ -4,6 +4,7 @@ import { getFeatureOptions } from "../../core/options/options_storage";
 import { profilePerson } from "../../core/common";
 import { showCopyMessage } from "../access_keys/access_keys";
 import { loadAutoBioModule } from "../auto_bio/auto_bio_loader";
+import { getPreBioTextLines } from "../auto_bio/preBioUtils";
 
 const WBE_AUTO_CAT_APP_ID = "WBE_auto_categories";
 
@@ -36,6 +37,14 @@ export async function addAutoCategories() {
     window.autoCategoriesOptions = await getFeatureOptions("autoCategories");
 
     let currentBio = $("#wpTextbox1").val();
+
+    /* Keep any text that's above the Biography heading (notes, disambiguation, etc.)
+    exactly as we found it. Auto Categories is only here to add categories, so unlike
+    Auto Bio it doesn't move notes to Research Notes. getStuffBeforeTheBioText() adds
+    this back below the categories and templates. */
+    window.textBeforeTheBio = getPreBioTextLines(currentBio)
+      .filter((line) => line.trim() !== "")
+      .join("\n");
 
     // Initialize an empty array in the global window object
     window.addCategories = [];
