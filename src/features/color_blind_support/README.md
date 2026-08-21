@@ -40,6 +40,10 @@ alone:
 | `.qa-q-view-flags` and friends (flagged G2G posts)                         | Double border instead of solid                                        |
 | `.privacy--NN` dots                                                        | Distinct border style per level, plus the level number beside the dot |
 | `.tree--person_m/_f/_u`, `.genderbar`                                      | Solid / dashed / dotted left edge, optionally an M / F / ? letter     |
+| Tree Apps gender backgrounds (Ahnentafel, report views)                    | Solid / dashed / dotted left edge                                     |
+| Tree Apps Descendants `li.person`                                          | Gender on the **right** edge; spouse group patterned on the left      |
+| Tree Apps One Name Trees `[data-gender]`                                   | Gender on the **right** edge; parent pairing patterned on the left    |
+| Tree Apps CC7 Views `#peopleTable tr.Male/.Female`                         | Solid / dashed left edge on the row's first cell                      |
 | Bio Check's results box                                                    | "Passed." / "Issues found." in words above the findings               |
 | `spouse_N` / `parent_1` / `parent_2` in Change Family Lists                | The connection's number beside the name                               |
 | `#errorMessages` / `#warningMessages` / `#hintMessages` (Show Suggestions) | Double / dashed / dotted left border                                  |
@@ -490,6 +494,149 @@ palette. An earlier version drew this rim **from the palette**, and that is prec
 went wrong: a Custom palette measured at 1.0:1 against the page left a success box with
 _less_ of an edge than WikiTree gives it. The three sides are set individually rather than
 as a shorthand so that the 10px severity edge on the left does not depend on source order.
+
+## The Tree Apps
+
+The apps under `/apps/` are user-created content from the WT Apps project rather than
+WikiTree's own pages, but `isMainDomain` covers them, so the feature already runs there.
+They reuse **the identical gender trio** — `#f2f1ff`, `#ffeeee`, `#eeffee` — which measures:
+
+| pair              | contrast | grayscale gap |
+| ----------------- | -------- | ------------- |
+| male vs female    | 1.005:1  | **0.6 / 255** |
+| male vs unknown   | 1.073:1  | 7.9 / 255     |
+| female vs unknown | 1.078:1  | 8.5 / 255     |
+
+Male against female is six tenths of one level out of 255. It is not a near-miss; it is the
+same color, and the app has nothing else marking which is which.
+
+Four families carry it, all handled by the existing `genderCue` option:
+
+- `#ahnentafelAncestorList .ahnentafelPerson` / `.ahnentafelPersonShort` with `.Male` /
+  `.Female`
+- `.report-person-header` and `.report-breadcrumb-person` with `.Male` / `.Female` /
+  `.Unknown`
+- `.gender-male` / `.gender-female` / `.gender-unknown`, the app's general-purpose helper
+
+Two things about the scoping:
+
+- **The Ahnentafel rules are gated on `.gender-colors`**, which is the app's own switch (a
+  "Gender colors" checkbox in its toolbar) and sits either on `#ahnentafelAncestorList` or
+  on an ancestor. With it unticked the app shows no gender color at all, so there is nothing
+  to translate — a mark there would invent a distinction rather than preserve one.
+- **No unknown row is possible in an Ahnentafel.** Every position in one is somebody's
+  father or mother, so that selector list has two branches, not three. The app's base rule
+  paints `#eeffee` as the default, which never surfaces here.
+
+Drawn in `currentColor`, unlike the older gender rules above, which use a fixed `#393a3c`.
+Those should be brought over — a fixed dark grey disappears in Dark Mode — but that touches
+pages this block does not.
+
+### The Descendants view, where two colour-only signals collide
+
+Every other place in this feature has one colour doing one job. A `li.person` row in the
+Descendants app has two, and neither has any other channel:
+
+|             | carries                           | values                                                                       |
+| ----------- | --------------------------------- | ---------------------------------------------------------------------------- |
+| background  | gender                            | `.Male` `#eeeeff` vs `.Female` `#ffeeee` — **2.4 / 255** apart in grayscale  |
+| left border | which spouse the child belongs to | `childOfSpouse_0` green `rgb(0,128,0)`, `childOfSpouse_1` red `rgb(255,0,0)` |
+
+Note the male tint is `#eeeeff` here, not the `#f2f1ff` the other apps use.
+
+So the left edge is not just occupied — it is occupied by **green against red**, the exact
+pair this feature was built for, carrying the structure of the family. Putting the gender
+cue there would overwrite one colour-only signal to fix the other.
+
+They get separated instead, in the arrangement Change Family Lists already uses on the main
+site — gender on one edge, family on the other:
+
+- **family keeps the left edge** and gains a pattern (`familyCue`). Only style and width are
+  set, never the colour: the app's green and red stay exactly as they are for readers who
+  can see them. Both halves of the app's pairing are covered — the child rows
+  (`li.person.childOfSpouse_N`) and the marriage lines above them (`dl.spouse dt.spouse_N`),
+  which take the same colour from the same palette.
+- **gender moves to the right edge** (`genderCue`), which was a plain 1px `#ddd` rule
+  carrying nothing.
+
+Rows with no gender class are left alone — this view gives them a neutral `#f6f6f6`, not a
+gender colour, so there is nothing to translate.
+
+**The bar is widened to 5px**, and that is not cosmetic. `double` at the app's own 3px
+renders as a single line — the two strokes and the gap each round to well under a pixel — so
+the fourth pattern in the cycle would be indistinguishable from the first. 5px is the
+narrowest that reads as doubled. _The main-site spouse bars are 3px and take the same
+four-style cycle, so they have this bug too._
+
+**Known limit:** the cycle repeats every four, so `childOfSpouse_0` and `_4` share a pattern.
+Fifty-two groups cannot each have a style, which is precisely why the number is the scalable
+cue on the main site. A number here would mean reading the index out of the class name in
+JavaScript, which these rules do not do — so `familyCue: "number"` currently leaves this view
+unmarked.
+
+### One Name Trees, where the left bars are not what they look like
+
+Same two signals, same split — but the premise needs correcting first, because the obvious
+reading of this view is wrong.
+
+The nested bars running down the left **look like generation rails. They are not.**
+
+- **Generation is `level_N`**, which maps exactly one-to-one onto nesting depth
+  (`level_0` → depth 1, `level_1` → depth 2, …) and **has no CSS rule anywhere in the app**.
+  It is carried by indentation alone, so it already survives grayscale and needs nothing
+  from this feature.
+- **The bar colour is `parent-child-N`** — which parent pairing the row belongs to, the same
+  meaning as `childOfSpouse_N` in Descendants. `parent-child-0` is forestgreen,
+  `parent-child-1` blue, and the palette runs to `parent-child-45`.
+
+The bars only read as generations because each ancestor's own bar shows through the nesting.
+Confirmed in the DOM: `parent-child-0` appears at nesting depths 3, 5, 6, 7, 8 and 9 — if it
+were the generation it would appear at exactly one.
+
+So the treatment is the same as Descendants: pattern the left bar under `familyCue`, and put
+gender on the right edge, which is bare here (`0px none`).
+
+Two differences from Descendants:
+
+- **Gender is an attribute, not a class**, and it has a third value:
+  `[data-gender="Male"]` `#eeeeff`, `[data-gender="Female"]` `#ffeeee`,
+  `[data-gender="blank"]` `#eeffee`.
+- **`.popup a.Male` / `a.Female` needs no moving.** There the 5px left border _is_ the
+  gender — blue against pink — so it only wants a style.
+
+**A trap worth knowing:** `.oneNameTrees` is a class on `body`, the same element that carries
+the `wbe-cb-*` cue classes. So these are written `body.oneNameTrees.wbe-cb-…`, not as a
+descendant. Written the obvious way they match nothing at all, silently — which is how the
+first version of them was wrong.
+
+### CC7 Views, and a table that silently ignores row borders
+
+`#peopleTable` tints whole rows by gender, with its own pair rather than the trio the other
+apps share: `tr.Male` `#cceeff` against `tr.Female` `#ffe6ea`. Stronger colours than
+elsewhere and no better for it — **3.6 / 255** in grayscale, against the Descendants view's
+2.4. Only these two; the table has no unknown row.
+
+The cue goes on the row's **first cell**, not the row. The table is `border-collapse: separate`, and in the separated model a border set on a `tr` is **ignored outright** — while
+`getComputedStyle` still cheerfully reports it. That combination is worth stating plainly:
+nothing looks broken, the rule simply never paints. The first cell is the narrow privacy
+column with no left border of its own, so the mark lands at the table's left edge, where a
+row border would have gone.
+
+Nothing else needed moving here — unlike Descendants and One Name Trees, this table has no
+second colour-only signal competing for the same edge.
+
+### The Family Group app needs nothing, and that is the point
+
+It tints `tr.roleRow` by gender like the rest, and gets **no rules at all**, because the app
+already says the same thing in words on every row:
+
+- children carry `<span class="fsGender">M</span>` / `F` beside the name
+- the couple — the two rows with no such span — are labelled **Husband** and **Wife** in the
+  role column
+
+Every row is covered by one or the other, so an edge would be decoration. This feature marks
+what colour alone is carrying, not everything that happens to be coloured — the same
+principle that keeps `.box.green` and `.box.orange` untouched.
 
 ## Family connections
 

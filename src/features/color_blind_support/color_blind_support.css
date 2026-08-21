@@ -850,6 +850,283 @@ html body.wbe-cb-gender-letter table.table--data td.person--no-gender .genderbar
   border-left: 6px dotted #393a3c !important;
 }
 
+/* The same three colours again, in the Tree Apps under /apps/ - user-created content from
+   the WT Apps project rather than WikiTree's own pages, but the same job and the same
+   markup problem. Measured on the live app: #f2f1ff, #ffeeee and #eeffee, which is the
+   identical trio, so male against female is 0.6 levels out of 255 in grayscale.
+
+   Four families carry it, and the colour is the only thing any of them varies:
+
+     - the Ahnentafel list, where each row is one ancestor
+     - .report-person-header and .report-breadcrumb-person in the report views
+     - .gender-male / -female / -unknown, the app's general-purpose helper
+
+   The Ahnentafel rules are scoped to .gender-colors, which is the app's own switch for
+   these backgrounds and sits either on #ahnentafelAncestorList or on an ancestor of it.
+   With it off the app shows no gender colour at all, so there is nothing to translate and
+   a mark would be inventing a distinction rather than preserving one.
+
+   currentColor rather than the #393a3c above: these are the newer rules and follow the
+   same reasoning as every other shape cue here. (The older gender rules should be brought
+   over to it too - a fixed dark grey disappears in Dark Mode - but that is a change to
+   pages this block does not touch.) */
+
+html
+  body.wbe-cb-gender-border
+  :is(.gender-colors #ahnentafelAncestorList, #ahnentafelAncestorList.gender-colors)
+  :is(.ahnentafelPerson, .ahnentafelPersonShort).Male,
+html
+  body.wbe-cb-gender-letter
+  :is(.gender-colors #ahnentafelAncestorList, #ahnentafelAncestorList.gender-colors)
+  :is(.ahnentafelPerson, .ahnentafelPersonShort).Male,
+html body.wbe-cb-gender-border :is(.report-person-header, .report-breadcrumb-person).Male,
+html body.wbe-cb-gender-letter :is(.report-person-header, .report-breadcrumb-person).Male,
+html body.wbe-cb-gender-border .gender-male,
+html body.wbe-cb-gender-letter .gender-male {
+  border-left: 6px solid currentColor !important;
+}
+
+html
+  body.wbe-cb-gender-border
+  :is(.gender-colors #ahnentafelAncestorList, #ahnentafelAncestorList.gender-colors)
+  :is(.ahnentafelPerson, .ahnentafelPersonShort).Female,
+html
+  body.wbe-cb-gender-letter
+  :is(.gender-colors #ahnentafelAncestorList, #ahnentafelAncestorList.gender-colors)
+  :is(.ahnentafelPerson, .ahnentafelPersonShort).Female,
+html body.wbe-cb-gender-border :is(.report-person-header, .report-breadcrumb-person).Female,
+html body.wbe-cb-gender-letter :is(.report-person-header, .report-breadcrumb-person).Female,
+html body.wbe-cb-gender-border .gender-female,
+html body.wbe-cb-gender-letter .gender-female {
+  border-left: 6px dashed currentColor !important;
+}
+
+/* No unknown row can occur in an Ahnentafel - every position in it is somebody's father or
+   mother - so the list is not in this rule. The report views and the helper class can have
+   one, and the app's own default for an unmarked person is the green #eeffee. */
+html body.wbe-cb-gender-border :is(.report-person-header, .report-breadcrumb-person).Unknown,
+html body.wbe-cb-gender-letter :is(.report-person-header, .report-breadcrumb-person).Unknown,
+html body.wbe-cb-gender-border .gender-unknown,
+html body.wbe-cb-gender-letter .gender-unknown {
+  border-left: 6px dotted currentColor !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Tree Apps: the Descendants view, where two colour-only signals meet
+
+   This row carries two meanings at once, both in colour and nothing else:
+
+     - the BACKGROUND is gender: .Male #eeeeff against .Female #ffeeee, which is 2.4
+       levels out of 255 apart in grayscale. (Note it is not quite the trio the other
+       apps use - this view's male is #eeeeff where the Ahnentafel's is #f2f1ff.)
+     - the LEFT BORDER is which spouse the child belongs to: childOfSpouse_0 is green
+       and childOfSpouse_1 is red. Green against red - the exact pair this whole feature
+       was built for - carrying the structure of the family.
+
+   So the left edge is not merely occupied, it is occupied by the worse of the two
+   problems. Putting gender there would overwrite one colour-only signal with a fix for
+   the other, which is not a fix.
+
+   The two are separated instead, and the arrangement mirrors what Change Family Lists
+   already does on the main site - gender on one edge, family on the other:
+
+     - FAMILY keeps the left edge it already has and gains a pattern, under familyCue.
+       Only the style and width are set, never the colour: the app's own green and red
+       stay exactly as they are for readers who can see them.
+     - GENDER moves to the right edge, under genderCue. It was a plain 1px #ddd rule
+       there, carrying nothing.
+
+   Both halves of the app's own pairing are covered: the child rows (li.person with
+   childOfSpouse_N) and the marriage lines above them (dl.spouse dt.spouse_N), which take
+   the same colour from the same palette and would otherwise be left behind.
+
+   Widened to 5px because of the four-style cycle. `double` at the app's own 3px renders
+   as a single line - the two strokes and the gap each round to well under a pixel - so
+   at 3px the fourth pattern would be indistinguishable from the first. 5px is the
+   narrowest that reads as doubled. (The main-site spouse bars are 3px and take the same
+   cycle, so they have this problem too; that is a fix for those rules, not these.)
+
+   The cycle repeats every four, so childOfSpouse_0 and _4 do share a pattern. Fifty-two
+   groups cannot each have their own style, which is exactly why the number is the
+   scalable cue on the main site - and the number here needs the index read out of the
+   class name in JavaScript, which these rules do not do.
+
+   Rows with no gender class are left alone: this view gives them a neutral #f6f6f6, not
+   a gender colour, so there is nothing to translate.
+   --------------------------------------------------------------------------- */
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  #descendants
+  :is(li.person:is(.childOfSpouse_0, .childOfSpouse_4, .childOfSpouse_8, .childOfSpouse_12, .childOfSpouse_16, .childOfSpouse_20, .childOfSpouse_24, .childOfSpouse_28, .childOfSpouse_32, .childOfSpouse_36, .childOfSpouse_40, .childOfSpouse_44, .childOfSpouse_48), dl.spouse
+    dt:is(.spouse_0, .spouse_4, .spouse_8, .spouse_12, .spouse_16, .spouse_20, .spouse_24, .spouse_28, .spouse_32, .spouse_36, .spouse_40, .spouse_44, .spouse_48)) {
+  border-left-width: 5px !important;
+  border-left-style: solid !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  #descendants
+  :is(li.person:is(.childOfSpouse_1, .childOfSpouse_5, .childOfSpouse_9, .childOfSpouse_13, .childOfSpouse_17, .childOfSpouse_21, .childOfSpouse_25, .childOfSpouse_29, .childOfSpouse_33, .childOfSpouse_37, .childOfSpouse_41, .childOfSpouse_45, .childOfSpouse_49), dl.spouse
+    dt:is(.spouse_1, .spouse_5, .spouse_9, .spouse_13, .spouse_17, .spouse_21, .spouse_25, .spouse_29, .spouse_33, .spouse_37, .spouse_41, .spouse_45, .spouse_49)) {
+  border-left-width: 5px !important;
+  border-left-style: dashed !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  #descendants
+  :is(li.person:is(.childOfSpouse_2, .childOfSpouse_6, .childOfSpouse_10, .childOfSpouse_14, .childOfSpouse_18, .childOfSpouse_22, .childOfSpouse_26, .childOfSpouse_30, .childOfSpouse_34, .childOfSpouse_38, .childOfSpouse_42, .childOfSpouse_46, .childOfSpouse_50), dl.spouse
+    dt:is(.spouse_2, .spouse_6, .spouse_10, .spouse_14, .spouse_18, .spouse_22, .spouse_26, .spouse_30, .spouse_34, .spouse_38, .spouse_42, .spouse_46, .spouse_50)) {
+  border-left-width: 5px !important;
+  border-left-style: dotted !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  #descendants
+  :is(li.person:is(.childOfSpouse_3, .childOfSpouse_7, .childOfSpouse_11, .childOfSpouse_15, .childOfSpouse_19, .childOfSpouse_23, .childOfSpouse_27, .childOfSpouse_31, .childOfSpouse_35, .childOfSpouse_39, .childOfSpouse_43, .childOfSpouse_47, .childOfSpouse_51), dl.spouse
+    dt:is(.spouse_3, .spouse_7, .spouse_11, .spouse_15, .spouse_19, .spouse_23, .spouse_27, .spouse_31, .spouse_35, .spouse_39, .spouse_43, .spouse_47, .spouse_51)) {
+  border-left-width: 5px !important;
+  border-left-style: double !important;
+}
+
+html body.wbe-cb-gender-border #descendants li.person.Male,
+html body.wbe-cb-gender-letter #descendants li.person.Male {
+  border-right: 6px solid currentColor !important;
+}
+
+html body.wbe-cb-gender-border #descendants li.person.Female,
+html body.wbe-cb-gender-letter #descendants li.person.Female {
+  border-right: 6px dashed currentColor !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Tree Apps: One Name Trees
+
+   Same two signals as the Descendants view, and the same split, but the markup differs
+   enough to need its own rules - and one thing here is NOT what it looks like.
+
+   The nested bars running down the left read like generation rails, and they are not.
+   Generation is `level_N`, which maps exactly one-to-one onto nesting depth and has no
+   CSS rule of its own anywhere in the app - it is carried by indentation, so it survives
+   grayscale untouched and needs nothing from us. What the bar colour actually encodes is
+   `parent-child-N`: which parent pairing the row belongs to, the same meaning as
+   childOfSpouse_N above, and forestgreen against blue for the first two. The bars only
+   look like generations because each ancestor's own bar shows through the nesting.
+
+   So: pattern the left bar under familyCue, exactly as for Descendants, and put gender on
+   the right edge, which is bare here (0px none).
+
+   Gender is an attribute rather than a class in this app, and it has a third value:
+   [data-gender="blank"], the pale green #eeffee. Male is #eeeeff and female #ffeeee.
+
+   .popup a.Male / a.Female is a separate case and needs no moving: there the 5px left
+   border IS the gender, in blue against pink, so it only wants a style.
+
+   Note .oneNameTrees is a class on BODY, the same element that carries the cue classes -
+   so it is written body.oneNameTrees.wbe-cb-..., not as a descendant. Written the obvious
+   way it matches nothing at all, silently.
+   --------------------------------------------------------------------------- */
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  .oneNameTrees
+  section#results
+  li.person:is(.parent-child-0, .parent-child-4, .parent-child-8, .parent-child-12, .parent-child-16, .parent-child-20, .parent-child-24, .parent-child-28, .parent-child-32, .parent-child-36, .parent-child-40, .parent-child-44) {
+  border-left-width: 5px !important;
+  border-left-style: solid !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  .oneNameTrees
+  section#results
+  li.person:is(.parent-child-1, .parent-child-5, .parent-child-9, .parent-child-13, .parent-child-17, .parent-child-21, .parent-child-25, .parent-child-29, .parent-child-33, .parent-child-37, .parent-child-41, .parent-child-45) {
+  border-left-width: 5px !important;
+  border-left-style: dashed !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  .oneNameTrees
+  section#results
+  li.person:is(.parent-child-2, .parent-child-6, .parent-child-10, .parent-child-14, .parent-child-18, .parent-child-22, .parent-child-26, .parent-child-30, .parent-child-34, .parent-child-38, .parent-child-42) {
+  border-left-width: 5px !important;
+  border-left-style: dotted !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  .oneNameTrees
+  section#results
+  li.person:is(.parent-child-3, .parent-child-7, .parent-child-11, .parent-child-15, .parent-child-19, .parent-child-23, .parent-child-27, .parent-child-31, .parent-child-35, .parent-child-39, .parent-child-43) {
+  border-left-width: 5px !important;
+  border-left-style: double !important;
+}
+
+html body.oneNameTrees.wbe-cb-gender-border section#results [data-gender="Male"],
+html body.oneNameTrees.wbe-cb-gender-letter section#results [data-gender="Male"] {
+  border-right: 6px solid currentColor !important;
+}
+
+html body.oneNameTrees.wbe-cb-gender-border section#results [data-gender="Female"],
+html body.oneNameTrees.wbe-cb-gender-letter section#results [data-gender="Female"] {
+  border-right: 6px dashed currentColor !important;
+}
+
+html body.oneNameTrees.wbe-cb-gender-border section#results [data-gender="blank"],
+html body.oneNameTrees.wbe-cb-gender-letter section#results [data-gender="blank"] {
+  border-right: 6px dotted currentColor !important;
+}
+
+html body.oneNameTrees.wbe-cb-gender-border .popup a.Male,
+html body.oneNameTrees.wbe-cb-gender-letter .popup a.Male {
+  border-left-style: solid !important;
+}
+
+html body.oneNameTrees.wbe-cb-gender-border .popup a.Female,
+html body.oneNameTrees.wbe-cb-gender-letter .popup a.Female {
+  border-left-style: dashed !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Tree Apps: CC7 Views
+
+   #peopleTable tints whole rows by gender, and with its own pair rather than the trio the
+   other apps share: tr.Male #cceeff against tr.Female #ffe6ea. Stronger colours than
+   elsewhere, and no better in grayscale - 3.6 levels out of 255, against the Descendants
+   view's 2.4. There are only these two; no unknown row exists in this table.
+
+   The cue goes on the row's FIRST CELL, not on the row. The table is border-collapse:
+   separate, and in the separated model borders set on a tr are ignored outright - the
+   computed style still reports one, which is what makes this worth stating: nothing looks
+   wrong until you notice the page never changed. The first cell is the narrow privacy
+   column, whose left border is unset, so the mark lands at the table's left edge where a
+   row border would have been.
+
+   Nothing else here needs moving out of the way. Unlike the Descendants and One Name Trees
+   views, this table carries no second colour-only signal on the same edge.
+   --------------------------------------------------------------------------- */
+
+html body.wbe-cb-gender-border #peopleTable tbody tr.Male > td:first-child,
+html body.wbe-cb-gender-letter #peopleTable tbody tr.Male > td:first-child {
+  border-left: 6px solid currentColor !important;
+}
+
+html body.wbe-cb-gender-border #peopleTable tbody tr.Female > td:first-child,
+html body.wbe-cb-gender-letter #peopleTable tbody tr.Female > td:first-child {
+  border-left: 6px dashed currentColor !important;
+}
+
+/* The Family Group app is deliberately absent from this file, and that is the interesting
+   case: it tints tr.roleRow by gender too, and needs nothing, because the app already says
+   the same thing in words on every row. The children carry
+   <span class="fsGender">M</span> / F beside the name, and the couple - the two rows that
+   have no such span - are labelled Husband and Wife in the role column. Every row is
+   covered by one or the other. Adding an edge there would be decoration, and this feature
+   marks what colour alone is carrying, not everything that happens to be coloured. */
+
 /* The letter goes only on the tree boxes. The genderbar is an 8px sliver with no room
    for text, and the name lists are dense enough that a letter on every row is noise. */
 html body.wbe-cb-gender-letter .tree--person_m,
