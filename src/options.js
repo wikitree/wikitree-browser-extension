@@ -8,7 +8,6 @@ import { restoreOptions, restoreData, restoreAll, sendMessageToContentTab } from
 import { navigatorDetect } from "./core/navigatorDetect";
 import { shouldInitializeFeature } from "./core/options/options_storage.js";
 import { initSafariPopupScrollFix } from "./core/popupScrollFix";
-import { watchCustomPalette } from "./features/color_blind_support/color_blind_support_options_ui";
 
 shouldInitializeFeature("darkMode").then((result) => {
   if (result) {
@@ -378,10 +377,15 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
         optionDivElement.appendChild(subContainerElement);
       }
     } else if (option.type == OptionType.TEXT_LINE) {
-      let textLineElement = document.createElement("label");
-      textLineElement.innerText = option.label;
-      textLineElement.className = "option-text-line";
-      optionDivElement.appendChild(textLineElement);
+      // A text line can carry its words in the comment instead, which is the way to get a
+      // standalone sentence styled like every other explanation on the page rather than
+      // flush against the margin.
+      if (option.label) {
+        let textLineElement = document.createElement("label");
+        textLineElement.innerText = option.label;
+        textLineElement.className = "option-text-line";
+        optionDivElement.appendChild(textLineElement);
+      }
     } else if (option.type == OptionType.CHECKBOX) {
       optionDivElement.style = "--font-px:16";
       optionDivElement.className = "toggle fit-line toggle-option";
@@ -496,8 +500,9 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
       optionElement.addEventListener("change", onChange);
     }
     if (resetToDefaultButtonsNeeded.includes(featureId)) {
-      // Do this if the parent div has a label as the first child
-      if (optionDivElement.firstChild.tagName == "LABEL") {
+      // Do this if the parent div has a label as the first child. A comment-only row has
+      // no first child yet at this point, and nothing to reset either.
+      if (optionDivElement.firstChild?.tagName == "LABEL") {
         let resetToDefaultButton = document.createElement("button");
         resetToDefaultButton.innerText = "↺";
         resetToDefaultButton.className = "reset-to-default-button";
@@ -511,15 +516,30 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
     }
 
     if (option.dependsOn) {
-      // This option only makes sense while its parent checkbox is on, so indent
-      // it under the parent and disable it whenever the parent is off
-      optionDivElement.classList.add("option-dependent");
-      optionDivElement.dataset.dependsOn = optionElementIdPrefix + option.dependsOn;
+      // "someCheckbox" for a parent that is a checkbox, or { option, value, hide } for one
+      // that is a select - see normaliseDependsOn.
+      const { option: parentId, value, hide } = normaliseDependsOn(option.dependsOn);
+      optionDivElement.dataset.dependsOn = optionElementIdPrefix + parentId;
+      if (value !== undefined) {
+        optionDivElement.dataset.dependsOnValue = JSON.stringify([].concat(value));
+      }
+      if (hide) {
+        // Removed from the page rather than greyed out, so no indent: a row that is only
+        // there when it applies does not also need a rail pointing at what it depends on.
+        optionDivElement.dataset.dependsOnHide = "true";
+      } else {
+        // Indent it under the parent and disable it whenever the parent is off
+        optionDivElement.classList.add("option-dependent");
+      }
     }
 
     if (option.comment) {
-      let breakElement = document.createElement("br");
-      optionDivElement.appendChild(breakElement);
+      // Only break if there is something to break away from, so a comment-only row does
+      // not open with a blank line.
+      if (optionDivElement.childNodes.length) {
+        let breakElement = document.createElement("br");
+        optionDivElement.appendChild(breakElement);
+      }
 
       let commentElement = document.createElement("label");
       commentElement.innerText = option.comment;
@@ -536,12 +556,39 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
   }
 }
 
-// Enables/disables any option that declared a dependsOn parent checkbox.
-// Options are stored flat, so a disabled sub-option keeps its saved value.
+/**
+ * Both forms a dependsOn can take.
+ *
+ * A bare string means the parent is a checkbox and the option applies while it is ticked.
+ * The object form is for a parent that is a select: `value` is the value (or values) that
+ * make this option apply, and `hide` asks for it to be left out of the page entirely
+ * rather than dimmed - right when the option cannot apply at all rather than merely being
+ * inactive, where a greyed-out control is clutter dressed as information.
+ *
+ * @param {string|{option: string, value?: string|string[], hide?: boolean}} dependsOn
+ */
+function normaliseDependsOn(dependsOn) {
+  return typeof dependsOn === "string" ? { option: dependsOn } : dependsOn;
+}
+
+// Enables/disables (or shows/hides) any option that declared a dependsOn parent.
+// Options are stored flat, so an inactive sub-option keeps its saved value either way.
 function updateDependentOptions() {
   $("[data-depends-on]").each(function () {
     const parentElement = document.getElementById(this.dataset.dependsOn);
-    const parentIsOn = parentElement ? parentElement.checked && !parentElement.disabled : true;
+    const wanted = this.dataset.dependsOnValue;
+    // No parent on the page means show it: better a stray option than one that can never
+    // be reached because the thing it depends on failed to render.
+    const parentIsOn = !parentElement
+      ? true
+      : wanted !== undefined
+      ? JSON.parse(wanted).includes(parentElement.value)
+      : parentElement.checked && !parentElement.disabled;
+
+    if (this.dataset.dependsOnHide) {
+      $(this).toggleClass("option-dependent-hidden", !parentIsOn);
+      return;
+    }
     $(this).toggleClass("option-dependent-off", !parentIsOn);
     $(this).find("input, select, textarea, button").prop("disabled", !parentIsOn);
   });
@@ -550,9 +597,6 @@ function updateDependentOptions() {
 // when the options page loads, load status of options from storage into the UI elements
 $(() => {
   restore_options();
-  // Warns when a custom Color-Blind Support palette will not do its job. Self-contained
-  // and delegated, so it does not care that restore_options fills the inputs after this.
-  watchCustomPalette();
 });
 
 // adds HTML elements for each category and its features to the options page

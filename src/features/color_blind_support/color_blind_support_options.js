@@ -38,8 +38,14 @@ const colorBlindSupport = {
           defaultValue: "okabeIto",
           comment:
             "Recolors the success, warning and error message boxes, the small badges and new/unknown links. " +
-            "With Custom, the three colors below are the message boxes themselves, used exactly as you pick " +
-            'them. Every other cue is a shape, so it stays whichever palette you choose, including "Do nothing".',
+            'Every other cue is a shape, so it stays whichever palette you choose, including "Do nothing".',
+        },
+        {
+          // Only true while the pickers below it are on the page, so it comes and goes with
+          // them rather than describing controls that are not there.
+          type: OptionType.TEXT_LINE,
+          dependsOn: { option: "paletteName", value: "custom", hide: true },
+          comment: "The three colors below are the message boxes themselves.",
         },
         {
           id: "dangerColor",
@@ -48,8 +54,9 @@ const colorBlindSupport = {
           // WikiTree's own error box, so switching to Custom starts from the page as it is
           // rather than from an accent that would paint the box a solid dark block.
           defaultValue: "#FFCCCC",
+          dependsOn: { option: "paletteName", value: "custom", hide: true },
           comment:
-            "Custom palette only. Fills the error message box, exactly as picked. Red text in Date Fixer, Text " +
+            "Fills the error message box, exactly as picked. Red text in Date Fixer, Text " +
             "Expander, Locations Helper and WikiTree+, and the red badges, use a darkened version so they stay " +
             "readable - the box keeps your color.",
         },
@@ -58,15 +65,17 @@ const colorBlindSupport = {
           type: OptionType.COLOR,
           label: "Warning color",
           defaultValue: "#FFEE99",
-          comment: "Custom palette only. Fills the warning message box, exactly as picked.",
+          dependsOn: { option: "paletteName", value: "custom", hide: true },
+          comment: "Fills the warning message box, exactly as picked.",
         },
         {
           id: "successColor",
           type: OptionType.COLOR,
           label: "Success color",
           defaultValue: "#E1F0B4",
+          dependsOn: { option: "paletteName", value: "custom", hide: true },
           comment:
-            "Custom palette only. Fills the success message box, exactly as picked. The green badges use a " +
+            "Fills the success message box, exactly as picked. The green badges use a " +
             "darkened version so their text stays readable.",
         },
       ],
@@ -106,9 +115,8 @@ const colorBlindSupport = {
           type: OptionType.COLOR,
           label: "New/unknown link color",
           defaultValue: "#0072B2",
-          comment:
-            "Custom palette only. Paints the link text, and the same links in Category Display, when the box " +
-            "above is ticked.",
+          dependsOn: { option: "paletteName", value: "custom", hide: true },
+          comment: "Paints the link text, and the same links in Category Display, when the box " + "above is ticked.",
         },
       ],
     },

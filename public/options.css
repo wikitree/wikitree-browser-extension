@@ -124,6 +124,11 @@ div.feature-options {
   opacity: 0.5;
 }
 
+/* Options that cannot apply at all, rather than being merely inactive */
+.option-dependent-hidden {
+  display: none;
+}
+
 /* Toggle buttons */
 .toggle-category:not(.label-left),
 .toggle-feature {

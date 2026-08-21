@@ -328,9 +328,10 @@ badge borders, the dashed edge on a changed field, the G2G flag border — is dr
 `currentColor`, not in a `--wbe-cb-*` colour. This is not a detail; it was a real bug,
 reported from a real page.
 
-A reader set a Custom palette of pale tints. Their own options page measured them at 1.2:1,
-1.1:1 and **1.0:1** against the page background and said so in as many words. Every shape
-cue was then painted in those colours, so:
+A reader set a Custom palette of pale tints. The options page of the day measured them at
+1.2:1, 1.1:1 and **1.0:1** against the page background and said so in as many words — those
+notes have since been removed, for reasons below. Every shape cue was then painted in those
+colours, so:
 
 - the success and error boxes lost their edge **completely** — the cue was invisible;
 - with the cue switched **off** it was worse, because the whole-border recolour was still
@@ -360,11 +361,25 @@ green or an orange one, so marking them announces a severity the page never clai
 that is worse than leaving them plain, because a reader who trusts the edges cannot then
 tell an invented one from a real one. Only markup that actually encodes a state is marked.
 
-`.status`, by contrast, does encode one, and needs the help badly: measured on the live
-stylesheet, `.status` sets a 3px solid `#fcb815` border and `.status.green` / `.status.red`
-override **the background only**. All three severities ship the same yellow border and
-differ by `#ffee99`, `#e1f0b4` and `#ffcccc` — Rec.709 luminance 235, 232 and 215. Warning
-against success is three levels out of 255, which is no difference at all in grayscale.
+What leaving them alone costs is worth stating, because it is not nothing. `.box.green` and
+`.box.orange` are `#e1f0b4` and `#ffee99` — the **same two fills** as `.status.green` and
+plain `.status`, three levels apart in Rec.709 and 20.2 dE apart under deuteranopia, below
+the 25 `check-palette` treats as a failure for the palette's own colours. Unlike the status
+boxes they carry no icon, and unless the page adds `.border` no edge either, so a page that
+uses one of each really does hand a colour-blind reader two identical panels. The answer is
+still not to invent a severity. If they are ever marked it has to be with something that
+says only "these two are not the same box", and the hook for it is `.box.green.border` /
+`.box.orange.border` — WikiTree's own opt-in 10px left edge, `#25422d` for green and
+`#fad158` for orange, which the page author has already chosen to turn on.
+
+`.status`, by contrast, does encode a state, and needs the help badly. Measured on the live
+stylesheet and re-checked 2026-08-22: `.status` is `#ffee99` behind a 3px solid `#fcb815`
+rim, `.status.green` overrides both to `#e1f0b4` and `#8fc641`, and `.status.red` to
+`#ffcccc` and `#e22a40`. An earlier version of this note said all three shipped the same
+yellow rim; WikiTree has since colour-coded them, which helps nobody here, because each rim
+now disappears into the fill it surrounds — 1.68:1 for green on green, 1.49:1 for amber on
+yellow. The three fills are Rec.709 luminance 235, 232 and 215, so warning against success
+is three levels out of 255, which is no difference at all in grayscale.
 
 ## The palette can be switched off
 
@@ -439,18 +454,36 @@ the reader's own pick rather than from the lightened accent, so their hue carrie
 The Custom defaults are WikiTree's own three box colors, so switching to Custom starts from
 the page as it already looks.
 
-### What the options page says about a Custom color
+### The options page says nothing about a Custom color
 
-Two notes, and only one of them is about something going wrong:
+It used to. Picking a color ran three contrast measurements and a color-vision simulation
+and printed notes under the picker — _this is faint as text at 1.1:1_, _this box is 1.12:1
+from your page_, _looks the same as an ordinary link with deuteranopia_. All of it is gone,
+with `color_blind_support_options_ui.js` and its test.
 
-- **the box is too close to the page** — measured on the pick itself at 1.12:1, just under
-  WikiTree's palest box. There is no derivation in between to reason about any more.
-- **the ink had to be darkened** — not a problem and not phrased as one, but worth saying:
-  the reader would otherwise meet a color they did not choose with no way to find out where
-  it came from. The note names the derived value.
+The reason is the one the rest of this file keeps arriving at: **shape carries the meaning,
+not color.** New links get a dotted underline and a `?` by default, the boxes get a rim and
+a left edge, the pale badges get an outline. Every one of those notes was therefore
+reporting a weakness in the _backup_ channel — telling a reader their color measured badly
+while the cue that actually does the work carried on regardless. And a settings panel that
+quotes contrast ratios at somebody reads as an audit, which is a strange thing to hand a
+reader about a decision that was theirs to make.
 
-Both are skipped on a dark page, where the dark palette is derived differently and the color
-being measured is not the one that gets painted.
+What replaces it is looking at the page. A color too faint to read looks too faint to read,
+and for the part that cannot be judged by eye the simulator is one select away in this same
+options page.
+
+One thing did get quieter. Where a box color is also painted as text it is darkened to stay
+readable there, and the note used to name the derived value. **The derivation still
+happens** — it is in `applyPalette`, and was never in the notes — so a reader now meets a
+color they did not pick with nothing to explain it. If that turns out to matter, showing the
+derived color in the swatch would say it better than a sentence ever did.
+
+The four color pickers themselves are now shown only while the palette is set to Custom,
+rather than each repeating "Custom palette only" in its own comment. That is a `dependsOn`
+in the option definition, extended for this to take a select and the value that satisfies
+it, and to hide the row rather than dim it — a control that cannot apply at all is clutter,
+where a greyed-out one is at least telling you it exists.
 
 ### The recolor is not what makes them readable
 
@@ -526,10 +559,11 @@ Hence `:not(.new)` on all four badge rules, fill and border alike.
 ### The rim is redrawn, though
 
 Not recoloring the background is not the same as leaving the box edgeless. A `.status` box
-is a pale tint on a white page — 215 to 235 out of 255 — so in grayscale it has almost
-nothing separating it from the page it sits in, and WikiTree's own `#fcb815` rim does not
-help: against the yellow warning tint it is barely an edge, and on the green and red boxes
-it is a color that belongs to neither.
+is a pale tint on a `#fcfcfc` page — 215 to 235 against 252 — so in grayscale it has almost
+nothing separating it from the page it sits in, and WikiTree's own rims do not help. They
+are now one per severity rather than one amber for all three, and each is measured against
+the tint it encloses at 1.49:1, 1.68:1 and 3.18:1: the warning and success rims are barely
+edges at all, and none of the three is a difference that survives grayscale.
 
 So all four sides get `3px solid currentColor`, at WikiTree's own width so nothing
 reflows. `currentColor` for the same reason as every other shape cue here — it is the

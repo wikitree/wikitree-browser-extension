@@ -281,7 +281,9 @@ function generateOptionHTML(featureId, option) {
       break;
 
     case "TEXTLINE":
-      optionHTML = `<div class="text-line">${option.label}</div>`;
+      // No label means the words are in the comment, and this panel renders no comments,
+      // so there is nothing to draw rather than an empty line to draw it on.
+      optionHTML = option.label ? `<div class="text-line">${option.label}</div>` : "";
       break;
 
     default:
@@ -290,26 +292,64 @@ function generateOptionHTML(featureId, option) {
   }
 
   if (option.dependsOn && optionHTML) {
-    // Indent under the parent checkbox; updateDependentOptions() keeps it disabled while the parent is off
-    optionHTML = `<div class="option-dependent" data-depends-on="${featureId}_${option.dependsOn}">${optionHTML}</div>`;
+    // "someCheckbox" for a parent that is a checkbox, or { option, value, hide } for one
+    // that is a select - see normaliseDependsOn.
+    const { option: parentId, value, hide } = normaliseDependsOn(option.dependsOn);
+    const attributes = [`data-depends-on="${featureId}_${parentId}"`];
+    if (value !== undefined) {
+      attributes.push(`data-depends-on-value='${JSON.stringify([].concat(value))}'`);
+    }
+    if (hide) {
+      // Left out of the panel rather than greyed out, so no indent rail either.
+      attributes.push(`data-depends-on-hide="true"`);
+    } else {
+      // Indent under the parent; updateDependentOptions() keeps it disabled while the parent is off
+      attributes.unshift(`class="option-dependent"`);
+    }
+    optionHTML = `<div ${attributes.join(" ")}>${optionHTML}</div>`;
   }
 
   return optionHTML;
 }
 
-// Enables/disables any option that declared a dependsOn parent checkbox
+/**
+ * Both forms a dependsOn can take. Kept in step with the same function in options.js,
+ * which renders these options for the extension's own settings page.
+ *
+ * @param {string|{option: string, value?: string|string[], hide?: boolean}} dependsOn
+ */
+function normaliseDependsOn(dependsOn) {
+  return typeof dependsOn === "string" ? { option: dependsOn } : dependsOn;
+}
+
+// Enables/disables (or shows/hides) any option that declared a dependsOn parent
 function updateDependentOptions() {
   $("[data-depends-on]").each(function () {
     const parentElement = document.getElementById(this.dataset.dependsOn);
-    const parentIsOn = parentElement ? parentElement.checked && !parentElement.disabled : true;
+    const wanted = this.dataset.dependsOnValue;
+    const parentIsOn = !parentElement
+      ? true
+      : wanted !== undefined
+      ? JSON.parse(wanted).includes(parentElement.value)
+      : parentElement.checked && !parentElement.disabled;
+
+    if (this.dataset.dependsOnHide) {
+      $(this).toggleClass("option-dependent-hidden", !parentIsOn);
+      return;
+    }
     $(this).toggleClass("option-dependent-off", !parentIsOn);
     $(this).find("input, select, textarea, button").prop("disabled", !parentIsOn);
   });
 }
 
-$(document).on("change", "[data-depends-on] input, .wbe-settings-container input[type='checkbox']", () => {
-  updateDependentOptions();
-});
+// The select is in here because a dependsOn parent can now be one.
+$(document).on(
+  "change",
+  "[data-depends-on] input, .wbe-settings-container input[type='checkbox'], .wbe-settings-container select",
+  () => {
+    updateDependentOptions();
+  }
+);
 
 function loadFeatureSettings(feature, $container) {
   const storageKeys = [feature.id, `${feature.id}_options`];

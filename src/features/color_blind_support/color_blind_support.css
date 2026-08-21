@@ -471,6 +471,11 @@ html
    one, and giving those a "success" or "warning" edge invents a meaning the page never
    had - which is worse than no cue, because the reader cannot tell the invented ones
    from the real ones. Only markup that actually encodes a state is marked here.
+
+   That is not a free decision, and the README section "Why .box.green and .box.orange are
+   left alone entirely" measures what it costs: the two fills are #e1f0b4 and #ffee99, the
+   very tints .status.green and plain .status use, three levels apart in Rec.709 and with
+   neither an icon nor a rim between them.
    --------------------------------------------------------------------------- */
 
 /*
@@ -496,11 +501,13 @@ An earlier version of this file had these two backwards: it dropped the recolour
 the recolour did not achieve what the shape achieves, which was true and beside the point.
 */
 
-/* Measured on the live stylesheet: .status sets border 3px solid #fcb815, and
-   .status.green and .status.red override the BACKGROUND ONLY. All three severities
-   therefore ship the same yellow border, and differ by a background of #ffee99,
-   #e1f0b4 and #ffcccc - Rec.709 luminance 235, 232 and 215. Warning against success is
-   three levels out of 255, which is no difference at all in grayscale.
+/* Measured on the live stylesheet, re-checked 2026-08-22: .status is #ffee99 behind a 3px
+   solid #fcb815 rim, .status.green overrides both to #e1f0b4 and #8fc641, and .status.red
+   to #ffcccc and #e22a40. An earlier version of this note said all three shipped the same
+   amber rim; WikiTree has since colour-coded them, which changes nothing below, because
+   each rim now disappears into the fill it encloses - 1.68:1 for green on green, 1.49:1
+   for amber on yellow. The three fills are Rec.709 luminance 235, 232 and 215, so warning
+   against success is three levels out of 255, no difference at all in grayscale.
 
    The border is redrawn, but never from the palette: the rim below and the left edge
    below that are both currentColor. The colour was never carrying the meaning - the
@@ -548,11 +555,11 @@ html body.wbe-cb-palette .status.red {
 
 /* A dark rim on all four sides, at WikiTree's own 3px so nothing reflows.
 
-   WikiTree ships all three severities with the same #fcb815 rim, which against the pale
-   yellow warning tint is barely an edge at all and against the green and red tints is a
-   colour that belongs to neither. The tints themselves are 235, 232 and 215 in Rec.709
-   luminance, so on a white page a status box is a box with almost nothing around it: in
-   grayscale the green box is three levels away from the page it sits on.
+   WikiTree's own rims are one per severity, and each is measured against the tint it
+   encloses at 1.49:1, 1.68:1 and 3.18:1 - the warning and success rims are barely edges at
+   all. The tints themselves are 235, 232 and 215 in Rec.709 luminance against a #fcfcfc
+   page, so a status box is a box with almost nothing around it and barely anything behind
+   it: twenty levels out of 255 for the green one, and a rim its own colour.
 
    currentColor, for the same reason as every other shape cue here: it is the box's own
    text colour, which is dark by construction and cannot be painted invisible by a pale

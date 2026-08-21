@@ -103,6 +103,11 @@
   opacity: 0.5;
 }
 
+/* Options that cannot apply at all, rather than being merely inactive */
+.wbe-settings-container .option-dependent-hidden {
+  display: none;
+}
+
 /* Float the creators and contributors to the right */
 .wbe-creators-and-contributors {
   font-size: 0.9em;
