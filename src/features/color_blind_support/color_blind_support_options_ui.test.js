@@ -74,7 +74,7 @@ test("warns when the new-link color is the red that started this", () => {
   buildOptionsPage({ newLinkColor: "#ff0000" });
   watchCustomPalette();
 
-  expect(noteFor("newLinkColor")).toMatch(/4\.0:1 against the page/);
+  expect(noteFor("newLinkColor")).toMatch(/At 4\.0:1 against your page this is faint as text/);
 });
 
 test("does not claim red and green converge, because with these matrices they do not", () => {
@@ -97,26 +97,55 @@ test("warns when two colors really do converge", () => {
   expect(noteFor("dangerColor")).toMatch(/Looks the same as success color/);
 });
 
-test("warns when a color is too pale to read on the page", () => {
+test("says a pale color will make a faint box, and where it gets darkened instead", () => {
   buildOptionsPage({ dangerColor: "#ffff00" });
   watchCustomPalette();
 
-  expect(noteFor("dangerColor")).toMatch(/1\.1:1 against the page/);
+  // The box keeps the color, so the note is about what that box will look like...
+  expect(noteFor("dangerColor")).toMatch(/very close to your page color, so the message box will be hard to make out/);
+  // ...and the places the same color is painted as text get a darkened one, which is worth
+  // saying plainly rather than leaving the reader to meet a color they did not choose.
+  expect(noteFor("dangerColor")).toMatch(/Used as text it is darkened to #\w{6}, which reaches the 4.5:1/);
 });
 
-test("says nothing about a color that is painted nowhere", () => {
-  // The warning color is published for other WBE features and read by none of them, so
-  // there is no background to measure it against. A ratio for a color that reaches no
-  // pixel is the note that teaches a reader to ignore the other three.
-  buildOptionsPage({ warningColor: "#ffff00" });
+test("says nothing about WikiTree's own box color, which is a reasonable thing to pick", () => {
+  // Picking the pale yellow WikiTree already uses for the warning box is the obvious move
+  // when the option is called "Warning color", and it is a fine answer: at 1.17:1 it is
+  // the ratio the tint would have been aimed at anyway. An earlier version lightened it
+  // again to 1.03:1 and then warned about the box it had just ruined.
+  buildOptionsPage({ warningColor: "#ffee99" });
   watchCustomPalette();
 
   expect(noteFor("warningColor")).toBe("");
-  expect(warning()).toBeNull();
+});
+
+test("warns when a color would make a message box the reader cannot see", () => {
+  // Paler than any box WikiTree ships. A tint is never more visible than the color it is
+  // made from, so no target can rescue this one.
+  buildOptionsPage({ warningColor: "#fffdf5" });
+  watchCustomPalette();
+
+  expect(noteFor("warningColor")).toMatch(/the message box will be hard to make out/);
+  // And says nothing about reading it as text: nothing paints this color as text, so a
+  // note about that would be about a pixel that does not exist.
+  expect(noteFor("warningColor")).not.toMatch(/Used as text/);
 });
 
 test("says nothing at all while a preset is selected", () => {
   buildOptionsPage({ paletteName: "okabeIto", newLinkColor: "#ff0000" });
+  watchCustomPalette();
+
+  expect(warning()).toBeNull();
+});
+
+test("says nothing while the palette is set to do nothing", () => {
+  // Nothing is painted from these colors in that state, so measuring them would be a note
+  // about a setting the reader has already turned off.
+  const select = buildOptionsPage({ newLinkColor: "#ff0000" });
+  const option = document.createElement("option");
+  option.value = "none";
+  select.appendChild(option);
+  select.value = "none";
   watchCustomPalette();
 
   expect(warning()).toBeNull();
@@ -148,7 +177,7 @@ test("catches a bad palette that was already saved, once the inputs are filled i
   document.getElementById("colorBlindSupport_newLinkColor").value = "#ffff00";
   jest.advanceTimersByTime(500);
 
-  expect(warningText()).toMatch(/against the page/);
+  expect(warningText()).toMatch(/against your page/);
 });
 
 describe("with Custom Style setting the reader's own colours", () => {
@@ -195,7 +224,25 @@ describe("with Custom Style setting the reader's own colours", () => {
     watchCustomPalette();
     await settle();
 
-    expect(warningText()).toMatch(/against your Custom Style background/);
+    // 3.1:1 is the ratio against this reader's #222222. Measured against white it is
+    // 5.19:1, which is over the bar and would have produced no note at all - so the
+    // number being here, and being this one, is the whole assertion.
+    expect(noteFor("newLinkColor")).toMatch(/At 3\.1:1 against your page/);
+  });
+
+  test("leaves the box-tint check alone on a dark page, where a different color is used", async () => {
+    // #262626 is 1.03:1 against this reader's page, so the check would fire on sight. It
+    // must not: on a dark page applyPalette paints the DARK palette, which for a custom
+    // one is this color raised until it is readable there - so the color being measured is
+    // not the color the reader is going to get, and a note about it would be about a box
+    // that never appears.
+    buildOptionsPage({ warningColor: "#262626" });
+    const { watchCustomPalette } = await withCustomStyle({ "all_background-color": "#222222" });
+
+    watchCustomPalette();
+    await settle();
+
+    expect(noteFor("warningColor")).not.toMatch(/The message box/);
   });
 
   test("falls back to WikiTree's own colours when Custom Style is switched off", async () => {

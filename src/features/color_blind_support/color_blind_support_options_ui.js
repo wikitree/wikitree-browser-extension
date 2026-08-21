@@ -38,25 +38,43 @@ palette, and there are reasons to want a color that scores badly.
 */
 
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
-import { contrastRatio, hexToRgb } from "../../core/lib/colorUtils";
+import { contrastRatio, hexToRgb, reachContrast, rgbToHex } from "../../core/lib/colorUtils";
 import { CONDITIONS, perceptualDistance, simulateColor } from "../../core/lib/colorVision";
 
 const FEATURE_ID = "colorBlindSupport";
 
 /**
- * Matches ROLES in scripts/check-palette.mjs: 4.5:1 where a color is painted as text.
+ * What each color is used for, which is what decides how to check it.
  *
- * minContrast null means the color is not painted anywhere, so there is no background to
- * measure it against and nothing worth saying about it. The warning color is published
- * for other WBE features and read by none of them, and reporting a ratio for a color that
- * reaches no pixel is the kind of note that teaches a reader to ignore all of them.
+ * Two different jobs, and a color can have both:
+ *
+ *   - `ink`, with the ratio it needs: the color as picked, painted straight onto the page.
+ *     Matches ROLES in scripts/check-palette.mjs - 4.5:1 as text, 3:1 as a solid fill.
+ *   - `box`: the color seeds a message-box tint. The tint is derived, not picked, so what
+ *     matters is not whether the accent is readable but whether the tint it produces is
+ *     still visible against the page.
+ *
+ * The warning color is the case that shows why both are needed. It is painted nowhere -
+ * nothing reads `--wbe-cb-warning` - so it has no ink check at all, and checking it as
+ * text would be a note about a pixel that does not exist. But it does fill the warning
+ * box, and a pale pick makes that box vanish. One check would have said nothing; the
+ * other would have said the wrong thing.
  */
 const ROLES = {
-  newLinkColor: { label: "New/unknown link color", minContrast: 4.5 },
-  dangerColor: { label: "Error color", minContrast: 4.5 },
-  warningColor: { label: "Warning color", minContrast: null },
-  successColor: { label: "Success color", minContrast: 3 },
+  newLinkColor: { label: "New/unknown link color", ink: 4.5, inkAs: "as text", box: false },
+  dangerColor: { label: "Error color", ink: 4.5, inkAs: "as text", box: true },
+  warningColor: { label: "Warning color", ink: null, inkAs: null, box: true },
+  successColor: { label: "Success color", ink: 3, inkAs: "as a badge fill", box: true },
 };
+
+/**
+ * How close to the page a message box may be before it stops reading as a box.
+ *
+ * A custom color is used as the box exactly as picked, so this is measured on the pick
+ * itself - there is no derivation in between to reason about. 1.12:1 sits just under
+ * WikiTree's palest box, #ffee99 at 1.17:1 on white.
+ */
+const BOX_MIN = 1.12;
 
 const WHITE = [255, 255, 255];
 /** WikiTree's ordinary link color, which is what a new-page link has to look unlike. */
@@ -126,17 +144,51 @@ function findNotes() {
   const notes = new Map();
   const add = (optionId, line) => notes.set(optionId, [...(notes.get(optionId) || []), line]);
 
-  Object.entries(ROLES).forEach(([optionId, { minContrast }]) => {
+  const background = pageBackground();
+  // On a dark page applyPalette tints towards the page rather than towards white, and
+  // adapts the accents on top of that. The arithmetic below is the light-page one, so it
+  // would be describing a box the reader is not going to get.
+  const lightPage = contrastRatio(background, WHITE) < contrastRatio(background, [0, 0, 0]);
+
+  Object.entries(ROLES).forEach(([optionId, { ink, inkAs, box }]) => {
     const rgb = palette[optionId];
-    if (!rgb || !minContrast) {
+    if (!rgb) {
       return;
     }
-    const ratio = contrastRatio(rgb, pageBackground());
-    if (ratio < minContrast) {
-      const against = customStyle ? "your Custom Style background" : "the page";
+
+    const ratio = contrastRatio(rgb, background);
+
+    if (!box) {
+      // No box to fill, so the color is painted as picked and nothing rescues it.
+      if (ink && ratio < ink) {
+        add(
+          optionId,
+          `At ${ratio.toFixed(1)}:1 against your page this is faint ${inkAs}; ${ink}:1 or more is clearer.`
+        );
+      }
+      return;
+    }
+
+    // A box role. The color fills the message box exactly as picked, so the only thing
+    // that can go wrong is picking one the page swallows.
+    if (lightPage && ratio < BOX_MIN) {
       add(
         optionId,
-        `${ratio.toFixed(1)}:1 against ${against}. This kind of color reads most easily at ${minContrast}:1 or more.`
+        `At ${ratio.toFixed(2)}:1 this is very close to your page color, so the message box will be hard to ` +
+          `make out. WikiTree's own boxes sit between 1.17:1 and 1.42:1.`
+      );
+    }
+
+    // Not a problem, and not phrased as one: where the same color is painted as text or as
+    // a badge it cannot be this pale, so it is darkened for those and the box is left
+    // alone. Worth saying because the reader would otherwise meet a color they did not
+    // choose and have no way to find out where it came from.
+    if (ink && lightPage && ratio < ink) {
+      const derived = rgbToHex(reachContrast(rgb, background, ink));
+      add(
+        optionId,
+        `Used ${inkAs} it is darkened to ${derived}, which reaches the ${ink}:1 it needs there. The message ` +
+          `box keeps the color exactly as you picked it.`
       );
     }
   });

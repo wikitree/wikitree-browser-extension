@@ -100,8 +100,8 @@ describe("on page load", () => {
     expect(root.getPropertyValue("--wbe-cb-danger-dark")).toBe("#FF85AD");
     // The dark box tints go towards the Dark Mode page, not towards white: a pale tint
     // there ends up under Dark Mode's own pale body text.
-    expect(root.getPropertyValue("--wbe-cb-danger-bg-light")).toBe("#F2D6DF");
-    expect(root.getPropertyValue("--wbe-cb-danger-bg-dark")).toBe("#624A57");
+    expect(root.getPropertyValue("--wbe-cb-danger-bg-light")).toBe("#F1D1DB");
+    expect(root.getPropertyValue("--wbe-cb-danger-bg-dark")).toBe("#5F4956");
   });
 
   test("publishes text for the accent as well as for the tint, which are different answers", async () => {
@@ -116,6 +116,71 @@ describe("on page load", () => {
     expect(root.getPropertyValue("--wbe-cb-warning-text-light")).toBe("#000000");
     expect(root.getPropertyValue("--wbe-cb-danger-on-dark")).toBe("#000000");
     expect(root.getPropertyValue("--wbe-cb-danger-text-dark")).toBe("#ffffff");
+  });
+
+  test("aims each box tint at the visibility WikiTree's own box has", async () => {
+    // The pale colors WikiTree already uses for these three boxes, picked as the accents -
+    // which is what "Error color" invites a reader to do. The tint is aimed at a ratio
+    // rather than made by lightening a fixed amount, so a color already at that ratio is
+    // returned as it is instead of being washed out into the page.
+    await loadFeature({
+      enabled: true,
+      options: {
+        paletteName: "custom",
+        dangerColor: "#ffcccc",
+        warningColor: "#ffee99",
+        successColor: "#e1f0b4",
+      },
+    });
+
+    const root = document.documentElement.style;
+    // Byte for byte what was picked. Not "near enough": a color the reader chose comes back
+    // as that color, or the option is not doing what its label says.
+    expect(root.getPropertyValue("--wbe-cb-danger-bg-light")).toBe("#FFCCCC");
+    expect(root.getPropertyValue("--wbe-cb-warning-bg-light")).toBe("#FFEE99");
+    expect(root.getPropertyValue("--wbe-cb-success-bg-light")).toBe("#E1F0B4");
+  });
+
+  test("keeps a dark custom pick as the box, and moves the text instead", async () => {
+    // The other half of the promise. A pale pick gets dark text on it; a deep one gets pale
+    // text on it. What never happens is the color being overruled to suit the text.
+    await loadFeature({
+      enabled: true,
+      options: { paletteName: "custom", dangerColor: "#7a0021", successColor: "#004d3a" },
+    });
+
+    const root = document.documentElement.style;
+    expect(root.getPropertyValue("--wbe-cb-danger-bg-light")).toBe("#7A0021");
+    expect(root.getPropertyValue("--wbe-cb-danger-text-light")).toBe("#ffffff");
+    // Already past 4.5:1 on a white page, so the ink is the pick untouched as well.
+    expect(root.getPropertyValue("--wbe-cb-danger-light")).toBe("#7A0021");
+    expect(root.getPropertyValue("--wbe-cb-success-text-light")).toBe("#ffffff");
+  });
+
+  test("darkens the ink out of a pale custom pick rather than lightening the box out of it", async () => {
+    await loadFeature({
+      enabled: true,
+      options: { paletteName: "custom", dangerColor: "#ffcccc" },
+    });
+
+    const root = document.documentElement.style;
+    // Box: exactly as picked, with text chosen to suit it.
+    expect(root.getPropertyValue("--wbe-cb-danger-bg-light")).toBe("#FFCCCC");
+    expect(root.getPropertyValue("--wbe-cb-danger-text-light")).toBe("#000000");
+    // Ink: darkened until it can be read as error text in the features that paint it.
+    expect(root.getPropertyValue("--wbe-cb-danger-light")).toBe("#8B6F6F");
+  });
+
+  test("does not leave a custom box pale on a dark page, where it would be a light block", async () => {
+    await loadFeature({
+      enabled: true,
+      options: { paletteName: "custom", dangerColor: "#ffcccc" },
+    });
+
+    // The pick is a box color for a white page. Used unchanged on #36393f it is a pale
+    // block, so the dark scheme tints it towards that page instead - starting from the
+    // pick, so the reader's hue carries over.
+    expect(document.documentElement.style.getPropertyValue("--wbe-cb-danger-bg-dark")).toBe("#524E53");
   });
 
   test("derives a Dark Mode palette for custom colors, which are picked against white", async () => {
@@ -171,6 +236,38 @@ describe("every cue can be switched off", () => {
   ])("%s is reachable from the options", async (expected, options) => {
     await loadFeature({ enabled: true, options });
     expect(document.body.classList.contains(expected)).toBe(true);
+  });
+
+  test("the palette itself can be told to do nothing", async () => {
+    await loadFeature({ enabled: true, options: { paletteName: "none" } });
+    const root = document.documentElement.style;
+
+    // Nothing published, so every rule falls back to WikiTree's own value - including the
+    // ones in Date Fixer, Text Expander, Locations Helper and WikiTree+, which read
+    // --wbe-cb-danger from their own stylesheets and no class here could reach.
+    expect(root.getPropertyValue("--wbe-cb-newlink-light")).toBe("");
+    expect(root.getPropertyValue("--wbe-cb-danger-bg-light")).toBe("");
+    expect(root.getPropertyValue("--wbe-cb-success-text-dark")).toBe("");
+
+    // And the gate is off, because the fallbacks alone are not enough: those rules carry
+    // !important and would repaint WikiTree's own value over a Custom Style one.
+    expect(document.body.classList.contains("wbe-cb-palette")).toBe(false);
+  });
+
+  test("a palette that does nothing still leaves every shape cue working", async () => {
+    await loadFeature({ enabled: true, options: { paletteName: "none", visitedCue: "underline" } });
+
+    expect(document.body.classList.contains("wbe-cb")).toBe(true);
+    expect(document.body.classList.contains("wbe-cb-status")).toBe(true);
+    expect(document.body.classList.contains("wbe-cb-visited-underline")).toBe(true);
+    // The visited mark hides against the measured background, which is not a palette
+    // colour and has to survive the palette being switched off.
+    expect(document.documentElement.style.getPropertyValue("--wbe-cb-page-bg")).toBe("#FFFFFF");
+  });
+
+  test("the palette gate is on for an ordinary palette", async () => {
+    await loadFeature({ enabled: true });
+    expect(document.body.classList.contains("wbe-cb-palette")).toBe(true);
   });
 
   test("the status cue is a plain checkbox, so off means off", async () => {

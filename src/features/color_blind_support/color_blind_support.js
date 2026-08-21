@@ -23,8 +23,8 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import {
   contrastRatio,
   hexToRgb,
-  lightenColor,
-  mixColors,
+  reachContrast,
+  tintTowards,
   parseCssColor,
   raiseContrast,
   readableTextColor,
@@ -214,6 +214,62 @@ function normalizeMode(mode) {
 const BOX_ROLES = ["danger", "warning", "success"];
 
 /**
+ * How visible each message box should be against the page it sits on.
+ *
+ * These are WikiTree's own numbers, measured: #ffcccc, #ffee99 and #e1f0b4 come out at
+ * 1.42:1, 1.17:1 and 1.21:1 on a white page. Aiming at them means a custom palette
+ * produces boxes with the same weight, and the same order - the error box the heaviest of
+ * the three - as the ones WikiTree ships.
+ *
+ * A target, not an amount of mixing, and that distinction is the whole point. The previous
+ * rule lightened every accent by a fixed 84%, which assumes the accent is dark. It is a
+ * reasonable assumption for the presets and wrong for a reader who reads "Error color",
+ * picks the pale red WikiTree already uses for the error box, and gets that pale red
+ * lightened again into #fff7f7 - a 1.06:1 box, which is no box at all. Aimed at a ratio,
+ * the same pick is already at 1.42:1 and is left exactly as it is.
+ */
+const BOX_TINT_TARGET = { danger: 1.42, warning: 1.17, success: 1.21 };
+
+/** The light page every palette is picked against, and measured against. */
+const WHITE = [255, 255, 255];
+
+/**
+ * The palette value that means "keep WikiTree's own colors".
+ *
+ * The shape cues are unaffected by it. Color and shape are separate jobs here: the palette
+ * decides what things are colored, the cue options decide what shape they are, and a
+ * reader who is happy with WikiTree's colors but wants the shapes should not have to give
+ * up one to get the other.
+ */
+const NO_PALETTE = "none";
+
+/**
+ * Publish nothing, which is how "do nothing" is done.
+ *
+ * Every rule that reads one of these writes it as `var(--wbe-cb-thing, <WikiTree's own
+ * value>)`, so removing the properties hands each element straight back to the color it
+ * had. That matters most for the consumers this file cannot reach: Date Fixer, Text
+ * Expander, Locations Helper and WikiTree+ read `--wbe-cb-danger` from their own
+ * stylesheets, and no body class here could switch those off.
+ *
+ * Verified rather than assumed, because it looks like it should not work: the stylesheet
+ * aliases `--wbe-cb-danger: var(--wbe-cb-danger-light)`, so the property is still declared
+ * after the -light one is removed. An alias resolving to an unset property becomes the
+ * guaranteed-invalid value, and `var()` treats that exactly as it treats an undeclared
+ * property - the fallback is used. Checked in Chrome.
+ *
+ * The page-background probe still runs. It is not part of the palette: it publishes what
+ * the background actually is, which is what the visited-link cue paints its off state in,
+ * and that cue is a shape and stays available with no palette at all.
+ *
+ * @param {HTMLElement} root
+ */
+function clearPalette(root) {
+  PALETTE_PROPERTIES.forEach((property) => root.style.removeProperty(property));
+  adaptToPageBackground();
+}
+
+/**
  * The links the visited-link cue applies to. This MUST stay in step with the selector the
  * visited rules use in color_blind_support.css - the stylesheet decides where the mark is
  * drawn, and this decides where its off-state colour gets measured. Out of step, the mark
@@ -257,63 +313,108 @@ function deriveDarkPalette(palette) {
  * means a reader on "system" Dark Mode who changes their OS setting gets the right
  * palette immediately, with nothing here to notice or listen for.
  *
- * The light backgrounds stand in for WikiTree's own #e1f0b4 and #ffee99 box tints and are
- * mixed towards white. The dark ones are mixed towards the Dark Mode background instead:
- * a pale tint there would be a light box in a dark page, and - measured, not guessed -
- * Dark Mode's own #dedecb body text wins over ours on those boxes, which left pale text
- * on a pale background. Tinting towards the page keeps that combination readable however
- * the specificity falls.
+ * A preset and a Custom palette are read in opposite directions, and this is the one
+ * place that difference lives.
+ *
+ * A PRESET is a set of accents. Okabe-Ito's #B0003A was chosen to stay apart from the
+ * others as ink, and painting it straight onto a message box would make a solid dark
+ * block where WikiTree has a pale one. So the box tint is derived from it.
+ *
+ * A CUSTOM color is the box. The reader picked it under a label that names a message box,
+ * looking at a page where that box is pale, so it is used exactly as picked and the INK is
+ * what gets derived - darkened until it is readable as error text. This is the way round
+ * that keeps the promise the label makes. It also fails better: darkening a pale color to
+ * reach a contrast target always arrives, whereas lightening a pale one to make a tint
+ * lands on the page and disappears.
+ *
+ * Whichever direction it came from, the text ON the box is computed from the box, never
+ * assumed. That is what lets a Custom pick be honoured whatever it is: pick a pale pink and
+ * the box is pale pink with dark text; pick a deep crimson and it is deep crimson with pale
+ * text. The color is never overruled to keep the text readable - the text moves instead.
+ *
+ * The dark scheme is mixed towards the Dark Mode background rather than towards white: a
+ * pale tint there would be a light box in a dark page, and - measured, not guessed - Dark
+ * Mode's own #dedecb body text wins over ours on those boxes, which left pale text on a
+ * pale background. Tinting towards the page keeps that combination readable however the
+ * specificity falls.
+ *
+ * Both schemes are published at once; see the note above about Dark Mode's async init.
  *
  * @param {object} options
  */
 function applyPalette(options) {
-  const palette =
-    options.paletteName === "custom"
-      ? {
-          newLink: options.newLinkColor,
-          danger: options.dangerColor,
-          warning: options.warningColor,
-          success: options.successColor,
-        }
-      : PALETTES[options.paletteName] || PALETTES.okabeIto;
-
-  const darkPalette =
-    options.paletteName === "custom"
-      ? deriveDarkPalette(palette)
-      : DARK_PALETTES[options.paletteName] || DARK_PALETTES.okabeIto;
-
   const root = document.documentElement;
+
+  if (options.paletteName === NO_PALETTE) {
+    clearPalette(root);
+    return;
+  }
+
+  const custom = options.paletteName === "custom";
+  const palette = custom
+    ? {
+        newLink: options.newLinkColor,
+        danger: options.dangerColor,
+        warning: options.warningColor,
+        success: options.successColor,
+      }
+    : PALETTES[options.paletteName] || PALETTES.okabeIto;
+
+  const darkPalette = custom
+    ? deriveDarkPalette(palette)
+    : DARK_PALETTES[options.paletteName] || DARK_PALETTES.okabeIto;
+
   const darkBackground = hexToRgb(DARK_BACKGROUND);
 
-  [
-    { suffix: "light", colors: palette, tint: (rgb) => lightenColor(rgb, 84) },
-    // 78% of the way to the page background: enough of the hue survives to tell the boxes
-    // apart, without becoming a block of color in a dark page.
-    { suffix: "dark", colors: darkPalette, tint: (rgb) => mixColors(rgb, darkBackground, 78) },
-  ].forEach(({ suffix, colors, tint }) => {
-    root.style.setProperty(`--wbe-cb-newlink-${suffix}`, colors.newLink);
+  // The new-link color has no box anywhere. It is ink in both palettes and both lightings,
+  // and is used exactly as it comes.
+  root.style.setProperty("--wbe-cb-newlink-light", palette.newLink);
+  root.style.setProperty("--wbe-cb-newlink-dark", darkPalette.newLink);
 
-    BOX_ROLES.forEach((role) => {
-      const hex = colors[role];
-      root.style.setProperty(`--wbe-cb-${role}-${suffix}`, hex);
+  /**
+   * @param {string} suffix - "light" or "dark".
+   * @param {string} role
+   * @param {number[]} box - what the message box is filled with.
+   * @param {number[]} ink - what is painted as text, and as a solid badge.
+   */
+  const publish = (suffix, role, box, ink) => {
+    root.style.setProperty(`--wbe-cb-${role}-${suffix}`, rgbToHex(ink));
+    root.style.setProperty(`--wbe-cb-${role}-bg-${suffix}`, rgbToHex(box));
+    root.style.setProperty(`--wbe-cb-${role}-text-${suffix}`, readableTextColor(box));
+    // Text for when the ink itself is the background, which is what small solid elements
+    // like badges do. This is not the same answer as -text and cannot be reused from it:
+    // -text is computed for the box, so pairing it with the ink gives black on a dark green
+    // in the light palette, and white on a bright mint in the dark one. Both are
+    // unreadable, and both shipped before this existed.
+    root.style.setProperty(`--wbe-cb-${role}-on-${suffix}`, readableTextColor(ink));
+  };
 
-      const rgb = hexToRgb(hex);
-      if (!rgb) {
-        // A custom color the picker somehow left unparseable: leave the -bg properties
-        // unset so the stylesheet's own fallbacks apply rather than writing "undefined".
-        return;
-      }
-      const background = tint(rgb);
-      root.style.setProperty(`--wbe-cb-${role}-bg-${suffix}`, rgbToHex(background));
-      root.style.setProperty(`--wbe-cb-${role}-text-${suffix}`, readableTextColor(background));
+  BOX_ROLES.forEach((role) => {
+    const picked = hexToRgb(palette[role]);
+    const darkAccent = hexToRgb(darkPalette[role]);
+    if (!picked || !darkAccent) {
+      // A custom color the picker somehow left unparseable: leave every property for the
+      // role unset so the stylesheet's own fallbacks apply rather than writing "undefined".
+      return;
+    }
+    const target = BOX_TINT_TARGET[role];
+    const minRatio = ROLE_MIN_CONTRAST[role];
 
-      // Text for when the accent itself is the background, which is what small solid
-      // elements like badges do. This is not the same answer as -text and cannot be
-      // reused from it: -text is computed for the pale tint, so pairing it with the
-      // accent gives black on a dark green in the light palette, and white on a bright
-      // mint in the dark one. Both are unreadable, and both shipped before this existed.
-      root.style.setProperty(`--wbe-cb-${role}-on-${suffix}`, readableTextColor(rgb));
-    });
+    // Light: the two directions. Custom hands back exactly what was picked and derives the
+    // ink; a preset hands back its accent and derives the box.
+    publish(
+      "light",
+      role,
+      custom ? picked : tintTowards(picked, WHITE, target),
+      custom ? reachContrast(picked, WHITE, minRatio) : picked
+    );
+
+    // Dark: the box is always tinted, because nothing here was picked against a dark page
+    // and a color that is a box on white is a light block on #36393f. For a custom palette
+    // the tint starts from what the reader picked, so their hue carries over rather than
+    // being read off the lightened accent. The ink is the dark accent either way - for a
+    // custom palette that is the pick raised until it is readable there.
+    publish("dark", role, tintTowards(custom ? picked : darkAccent, darkBackground, target), darkAccent);
   });
 
   adaptToPageBackground();
@@ -402,6 +503,14 @@ function cueClassesFor(options) {
     // came with the status cue.
     `wbe-cb-badges-${options.badgeCue || "both"}`,
   ];
+
+  // Gates every rule that paints a palette color. Removing the custom properties alone is
+  // not enough: each of those rules falls back to WikiTree's own value and would repaint
+  // it with !important, which would then win over a color the reader had set in Custom
+  // Style. With the palette off, the rules must not match at all.
+  if (options.paletteName !== NO_PALETTE) {
+    classes.push("wbe-cb-palette");
+  }
 
   classes.push(`wbe-cb-gender-${options.genderCue}`);
   if (options.statusCue) {

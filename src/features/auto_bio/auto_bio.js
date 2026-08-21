@@ -36,6 +36,7 @@ import { assignPersonNames, setOrderBirthDate } from "./auto_bio_person.js";
 import {
   extractPreBioNotes,
   findGenealogicallyDefinedLinePlacement,
+  findTemplatesToKeepByName,
   getPreBioTextLines,
   removeNotesBeforeBio,
   sortStuffBeforeBioItems,
@@ -4488,6 +4489,12 @@ export async function getStickersAndBoxes(feature = "autoBio") {
             }
           }
         }
+      }
+    });
+
+    findTemplatesToKeepByName(currentBio).forEach(function (template) {
+      if (!thingsToAddAfterBioHeading.includes(template)) {
+        thingsToAddAfterBioHeading.push(template);
       }
     });
 

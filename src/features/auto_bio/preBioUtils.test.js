@@ -1,6 +1,7 @@
 import {
   extractPreBioNotes,
   findGenealogicallyDefinedLinePlacement,
+  findTemplatesToKeepByName,
   getPreBioTextLines,
   isPreBioNoteLine,
   removeNotesBeforeBio,
@@ -84,6 +85,33 @@ describe("findGenealogicallyDefinedLinePlacement", () => {
       line: genealogicallyDefined,
       beforeBiography: false,
     });
+  });
+});
+
+describe("findTemplatesToKeepByName", () => {
+  const notability =
+    '{{Notability\n|location=California\n|theme=Film\n|text=Carrie Fisher was best known for her portrayal of "Princess Leia Organa".}}';
+
+  test("finds a multi-line Notability template", () => {
+    const bioText = `== Biography ==\n${notability}\n\nCarrie Frances Fisher was born...`;
+
+    expect(findTemplatesToKeepByName(bioText)).toEqual([notability]);
+  });
+
+  test("ignores other templates", () => {
+    const bioText = "== Biography ==\n{{Died Young}}\n{{Notables Sticker|category=Actors}}";
+
+    expect(findTemplatesToKeepByName(bioText)).toEqual([]);
+  });
+
+  test("returns each matching template once", () => {
+    const bioText = "{{Notability}}\n== Biography ==\n{{Notability}}";
+
+    expect(findTemplatesToKeepByName(bioText)).toEqual(["{{Notability}}"]);
+  });
+
+  test("returns an empty array for an empty bio", () => {
+    expect(findTemplatesToKeepByName("")).toEqual([]);
   });
 });
 

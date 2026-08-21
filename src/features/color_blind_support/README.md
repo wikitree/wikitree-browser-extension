@@ -21,9 +21,10 @@ protanopia, one leaning on red/green for tritanopia, a high-contrast set, and Cu
 Each preset comes in two lightings — see [Dark Mode](#dark-mode) — and
 `scripts/check-palette.mjs` checks all eight on every build.
 
-The recolor is applied where color is the only channel available — link text, badge fills,
-border colors. Content boxes deliberately **keep WikiTree's own backgrounds**; see
-[Why the boxes are not recolored](#why-the-boxes-are-not-recolored).
+The recolor is applied to the three `.status` message boxes — the elements the palette's
+roles are named after — plus new/unknown link text and the badge fills. A ninth value,
+**Do nothing**, keeps WikiTree's own colors throughout while leaving every shape cue
+running; see [The palette can be switched off](#the-palette-can-be-switched-off).
 
 **Adds a second, non-color channel**, which is the part that actually does the work. No
 one palette suits every form of color blindness, so nothing here relies on the recolor
@@ -304,10 +305,7 @@ The rule now: **every option can be set to do nothing**, and that is the only me
 | `genderCue`      | Do not mark them                                          |
 | `familyCue`      | Do not mark them                                          |
 | `newLinkRecolor` | unticked                                                  |
-
-`paletteName` has no off value and needs none: after the currentColor change below, its
-only consumers inside this feature are the new-link color and the badge fills, and both of
-those have their own switch.
+| `paletteName`    | Do nothing (keep WikiTree's colors)                       |
 
 So a reader who wants no underlines anywhere chooses the `?` for new links and the
 checkmark — or nothing — for visited ones, and gets exactly what they asked for, visibly,
@@ -363,10 +361,97 @@ override **the background only**. All three severities ship the same yellow bord
 differ by `#ffee99`, `#e1f0b4` and `#ffcccc` — Rec.709 luminance 235, 232 and 215. Warning
 against success is three levels out of 255, which is no difference at all in grayscale.
 
-## Why the boxes are not recolored
+## The palette can be switched off
 
-The first version repainted the box backgrounds with tints derived from the palette. That
-was removed, because measuring it showed it was not doing anything:
+`paletteName` takes **Do nothing (keep WikiTree's colors)**, and it is the only switch
+needed for the color half of the feature: the shape cues are drawn in `currentColor` and
+keep working with no palette at all.
+
+It is implemented as two things, because either alone is wrong:
+
+- **Nothing is published.** `applyPalette` removes every `--wbe-cb-*` property instead of
+  setting it. Every rule that reads one writes it as `var(--wbe-cb-thing, <WikiTree's own value>)`, so each element goes back to the color it had. This is the only mechanism that
+  reaches **Date Fixer, Text Expander, Locations Helper and WikiTree+**, which read
+  `--wbe-cb-danger` from their own stylesheets — no body class here could switch those off.
+
+  It looks like it should not work, because `color_blind_support.css` aliases
+  `--wbe-cb-danger: var(--wbe-cb-danger-light)`, so the property is still declared after
+  the `-light` one is removed. An alias resolving to an unset property becomes the
+  guaranteed-invalid value, and `var()` treats that exactly as an undeclared property — the
+  fallback is used. Checked in Chrome rather than assumed.
+
+- **The `wbe-cb-palette` body class is absent**, which is what actually stops the paint.
+  The fallbacks alone are not enough: those rules carry `!important`, so they would repaint
+  WikiTree's own value _over a color the reader had set in Custom Style_. With the palette
+  off the rules must not match at all.
+
+`--wbe-cb-page-bg` is deliberately **not** cleared. It is the measured page background, not
+a palette color, and the visited-link cue paints its off state in it.
+
+## What the boxes are recolored with, and why it is the ink
+
+`.status.green` is a success, plain `.status` a warning and `.status.red` an error — the one
+place on WikiTree where the palette's three roles have an element that means exactly what
+they are called. Each gets `--wbe-cb-<role>-bg` (the accent mixed 84% toward the page) and
+`--wbe-cb-<role>-text` (computed to be readable on that tint).
+
+**The picker is the ink, not the tint.** The same accent paints error text in Date Fixer
+and the solid badges, so one choice keeps its meaning wherever the role appears — and it
+has to be that way round, because a color pale enough to sit behind body text cannot be
+read as error text. Choosing the tint and deriving the ink does not work in reverse.
+
+### A preset and a Custom color are read in opposite directions
+
+This is the one asymmetry in the feature, and it is deliberate.
+
+|            | what the value is                                      | what gets derived                                |
+| ---------- | ------------------------------------------------------ | ------------------------------------------------ |
+| **preset** | an accent, chosen to stay apart from the others as ink | the box, tinted out of it toward the page        |
+| **Custom** | the message box, used **exactly as picked**            | the ink, darkened out of it until it can be read |
+
+A preset like Okabe-Ito's `#B0003A` was picked to work as _text_. Painted straight onto a
+message box it is a solid dark block where WikiTree has a pale one, so `tintTowards()` mixes
+it toward the page until it reaches `BOX_TINT_TARGET` — `{ danger: 1.42, warning: 1.17, success: 1.21 }`, which is WikiTree's own `#ffcccc`, `#ffee99` and `#e1f0b4` measured against
+white.
+
+A Custom color goes the other way, because of what the reader was looking at when they chose
+it: a label naming a message box, on a page where that box is pale. So the pick fills the box
+untouched, and `reachContrast()` darkens a copy for the places the same role is painted as
+text — error text in Date Fixer, Text Expander, Locations Helper and WikiTree+, and the badge
+fills.
+
+**The color is never overruled to keep text readable. The text moves instead.** Whichever
+direction the box came from, the text on it is computed from the box:
+
+| picked    | box       | text on it | ink derived for text/badges |
+| --------- | --------- | ---------- | --------------------------- |
+| `#ffcccc` | `#FFCCCC` | `#000000`  | `#8B6F6F` — 4.6:1           |
+| `#7a0021` | `#7A0021` | `#ffffff`  | `#7A0021` — already 11.4:1  |
+
+Dark Mode always tints, in both directions: nothing here was picked against `#36393f`, and a
+color that is a box on white is a pale block there. For a Custom palette the tint starts from
+the reader's own pick rather than from the lightened accent, so their hue carries over.
+
+The Custom defaults are WikiTree's own three box colors, so switching to Custom starts from
+the page as it already looks.
+
+### What the options page says about a Custom color
+
+Two notes, and only one of them is about something going wrong:
+
+- **the box is too close to the page** — measured on the pick itself at 1.12:1, just under
+  WikiTree's palest box. There is no derivation in between to reason about any more.
+- **the ink had to be darkened** — not a problem and not phrased as one, but worth saying:
+  the reader would otherwise meet a color they did not choose with no way to find out where
+  it came from. The note names the derived value.
+
+Both are skipped on a dark page, where the dark palette is derived differently and the color
+being measured is not the one that gets painted.
+
+### The recolor is not what makes them readable
+
+Worth keeping straight, because an earlier version of this file got the two backwards and
+dropped the recolor entirely. Repainting the tints does **not** separate the severities:
 
 - **Readability was never the problem.** WikiTree's own text-on-box is already 10.4:1 and
   10.8:1. The replacement tints scored higher, but both are so far past the 4.5:1 bar that
@@ -381,10 +466,11 @@ grayscale**, under the 12 that means "the same color", and it gets there only by
 the error box a solid dusty rose. Three backgrounds pale enough to take dark text have to
 sit in a narrow band of luminance. It is the same wall the accent colors hit.
 
-So the tint was costing a washed-out page, a conflict with Custom Style's own box colors,
-and the background-without-text bug described above, in exchange for nothing. The left
-border does the whole job: a shape difference survives any color vision and grayscale
-alike, and reads without a second box on screen to compare against.
+So the shape carries the meaning: the rim and the left border survive any color vision and
+grayscale alike, and read without a second box on screen to compare against. The recolor is
+a separate promise — that a reader who picks an error color sees the error box change — and
+measurements about grayscale do not answer it either way. Both are done; neither is asked
+to do the other's work.
 
 Badges keep their fill recolor. They are too small for a border and the fill is the only
 channel they have.

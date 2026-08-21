@@ -80,9 +80,9 @@ ordinary links are both #ffee99 in Dark Mode, which is the very bug this feature
 fix, reintroduced. #dummyID matches nothing and exists only to carry an id's worth of
 specificity; it is the same trick darkMode.css itself uses.
 */
-html body.wbe-cb-newlink-recolor a.new:not(#dummyID),
-html body.wbe-cb-newlink-recolor a.new:link:not(#dummyID),
-html body.wbe-cb-newlink-recolor a.new:visited:not(#dummyID) {
+html body.wbe-cb-palette.wbe-cb-newlink-recolor a.new:not(#dummyID),
+html body.wbe-cb-palette.wbe-cb-newlink-recolor a.new:link:not(#dummyID),
+html body.wbe-cb-palette.wbe-cb-newlink-recolor a.new:visited:not(#dummyID) {
   color: var(--wbe-cb-newlink, #0072b2) !important;
 }
 
@@ -474,25 +474,26 @@ html
    --------------------------------------------------------------------------- */
 
 /*
-These boxes deliberately keep WikiTree's own background colours. Repainting them was tried
-and measured, and it did not earn its place:
+Colour and shape are two separate jobs here, and this block is where the difference is
+easiest to get wrong. Both are done, and neither is asked to do the other's work.
 
-  - It did not help readability. WikiTree's own text-on-box is already 10.4:1 and 10.8:1,
-    so replacing the tints moved a number that was never the problem.
-  - It did not help separation either. The replacement tints were 18.4 apart under
-    deuteranopia against WikiTree's own 20.2 - very slightly worse.
+The SHAPE is what makes these boxes readable without colour, and it is the part that was
+measured. Repainting the tints does not separate the severities: with the severity in the
+order a reader expects (success palest, error darkest) the best any set of readable tints
+reaches is 10.8 in grayscale, under the 12 that means "the same colour", and it gets there
+only by making the error box a solid dusty rose. Three backgrounds pale enough to take
+dark text have to sit in a narrow band of luminance. So the rim and the left edge below
+carry the meaning: a shape difference survives any colour vision and grayscale alike, and
+reads without a second box on screen to compare against.
 
-And it cannot be fixed by choosing better tints, which was also tried across the whole
-range. With the severity reading in the right order (success palest, error darkest) the
-best any readable set of tints achieves is 10.8 in grayscale, still under the 12 that
-means "the same colour", and only by making the error box a solid dusty rose. Three
-backgrounds pale enough to take dark text have to sit in a narrow band of luminance -
-the same constraint that stops the accent colours separating in grayscale.
+The COLOUR is a separate promise, and one this feature has to keep. These three boxes are
+the elements the palette's roles are named after. A reader who picks an error colour and
+finds the error box unchanged has been told something untrue by the options page, and no
+measurement about grayscale answers that. So the tints are painted from the palette, and
+turning them off is what the palette's own "do nothing" value is for.
 
-The left border below does the whole job instead: a shape difference, so it survives any
-colour vision and grayscale alike, and it reads without a second box on screen to compare
-against. Badges keep their fill recolour, because they are too small for a border and the
-fill is the only channel they have.
+An earlier version of this file had these two backwards: it dropped the recolour because
+the recolour did not achieve what the shape achieves, which was true and beside the point.
 */
 
 /* Measured on the live stylesheet: .status sets border 3px solid #fcb815, and
@@ -504,6 +505,41 @@ fill is the only channel they have.
    The border is redrawn, but never from the palette: the rim below and the left edge
    below that are both currentColor. The colour was never carrying the meaning - the
    left edge's style is - but the rim is what makes a pale box read as a box at all. */
+
+/* The colors these boxes are named after.
+
+   .status.green is a success, plain .status a warning and .status.red an error, so this
+   is the one place on WikiTree where the palette's three role colors have an element that
+   means exactly what they are called. Painting anything else from them and leaving these
+   alone reads as a bug, and did.
+
+   The picked color is the ink, not the tint: each box gets --wbe-cb-<role>-bg, which is
+   the accent mixed 84% towards the page, and --wbe-cb-<role>-text, which is computed to
+   be readable on that tint. That is the same accent Date Fixer and the solid badges use,
+   so one choice keeps its meaning wherever the role turns up - and it has to be the ink
+   that is chosen, because a color pale enough to sit behind body text is not a color that
+   can be read as error text.
+
+   Setting the text color matters as much as setting the background. WikiTree picks its
+   box text to suit its own tint, so repainting the tint alone leaves whatever contrast
+   the old pairing happened to have. Both, always.
+
+   The text color is also what the rim below is drawn in, since that is currentColor - so
+   the rim follows the palette without ever being painted from it. */
+html body.wbe-cb-palette .status.green {
+  background-color: var(--wbe-cb-success-bg, #e1f0b4) !important;
+  color: var(--wbe-cb-success-text, #25422d) !important;
+}
+
+html body.wbe-cb-palette .status:not(.green):not(.red) {
+  background-color: var(--wbe-cb-warning-bg, #ffee99) !important;
+  color: var(--wbe-cb-warning-text, #25422d) !important;
+}
+
+html body.wbe-cb-palette .status.red {
+  background-color: var(--wbe-cb-danger-bg, #ffcccc) !important;
+  color: var(--wbe-cb-danger-text, #25422d) !important;
+}
 
 /* A dark rim on all four sides, at WikiTree's own 3px so nothing reflows.
 
@@ -679,22 +715,22 @@ html body.wbe-cb-status #bioCheckResultsContainer:not(.green) #bioCheckResultsLi
    different text colours: -text is computed for the pale tint and -on for the accent, and
    using either in the other's place is unreadable in one of the two lightings. */
 
-html body:is(.wbe-cb-badges-recolor, .wbe-cb-badges-both) .badge.green {
+html body.wbe-cb-palette:is(.wbe-cb-badges-recolor, .wbe-cb-badges-both) .badge.green {
   background-color: var(--wbe-cb-success-bg, #e1f0b4) !important;
   color: var(--wbe-cb-success-text, #25422d) !important;
 }
 
-html body:is(.wbe-cb-badges-recolor, .wbe-cb-badges-both) .badge.green.new {
+html body.wbe-cb-palette:is(.wbe-cb-badges-recolor, .wbe-cb-badges-both) .badge.green.new {
   background-color: var(--wbe-cb-success, #8fc641) !important;
   color: var(--wbe-cb-success-on, #ffffff) !important;
 }
 
-html body:is(.wbe-cb-badges-recolor, .wbe-cb-badges-both) .badge.red {
+html body.wbe-cb-palette:is(.wbe-cb-badges-recolor, .wbe-cb-badges-both) .badge.red {
   background-color: var(--wbe-cb-danger-bg, #ffcccc) !important;
   color: var(--wbe-cb-danger-text, #25422d) !important;
 }
 
-html body:is(.wbe-cb-badges-recolor, .wbe-cb-badges-both) .badge.red.new {
+html body.wbe-cb-palette:is(.wbe-cb-badges-recolor, .wbe-cb-badges-both) .badge.red.new {
   background-color: var(--wbe-cb-danger, #cc0000) !important;
   color: var(--wbe-cb-danger-on, #ffffff) !important;
 }

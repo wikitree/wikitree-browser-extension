@@ -21,6 +21,32 @@ export function findGenealogicallyDefinedLinePlacement(bioText = "") {
   };
 }
 
+// Templates that belong after the Biography heading but aren't typed as a sticker or box
+// in templatesExp.json, so the type-based match in getStickersAndBoxes misses them.
+// (Notability is typed there as a "Formatting Template", and is missing entirely from
+// copies of the file downloaded before mid-2026.)
+export const templatesToKeepByName = ["Notability"];
+
+export function findTemplatesToKeepByName(bioText = "", names = templatesToKeepByName) {
+  if (!bioText) {
+    return [];
+  }
+
+  const lowerCaseNames = names.map((name) => name.toLowerCase());
+  const found = [];
+
+  for (const match of bioText.matchAll(/\{\{[\s\S]*?\}\}/g)) {
+    const nameMatch = match[0].match(/\{\{([^|}]+)/);
+    const templateName = nameMatch ? nameMatch[1].trim() : "";
+
+    if (lowerCaseNames.includes(templateName.toLowerCase()) && !found.includes(match[0])) {
+      found.push(match[0]);
+    }
+  }
+
+  return found;
+}
+
 export function splitStuffBeforeBioEntry(line = "", nextLine = "") {
   const pattern = /(\{\{.*?\}\}|\[\[.*?\]\])/g;
   const categoryOnlyPattern = /^\[\[Category:[^\]]+\]\]$/i;

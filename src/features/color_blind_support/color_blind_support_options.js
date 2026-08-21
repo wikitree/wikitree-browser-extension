@@ -33,36 +33,41 @@ const colorBlindSupport = {
             { value: "tritan", text: "Blue-yellow (tritanopia)" },
             { value: "highContrast", text: "High contrast" },
             { value: "custom", text: "Custom (use the colors below)" },
+            { value: "none", text: "Do nothing (keep WikiTree's colors)" },
           ],
           defaultValue: "okabeIto",
           comment:
-            "The three accent colors below apply only to the Custom palette. The new/unknown link color is with " +
-            "that option further down. Every other cue is a shape, so no color choice can hide one.",
+            "Recolors the success, warning and error message boxes, the small badges and new/unknown links. " +
+            "With Custom, the three colors below are the message boxes themselves, used exactly as you pick " +
+            'them. Every other cue is a shape, so it stays whichever palette you choose, including "Do nothing".',
         },
         {
           id: "dangerColor",
           type: OptionType.COLOR,
           label: "Error color",
-          defaultValue: "#B0003A",
+          // WikiTree's own error box, so switching to Custom starts from the page as it is
+          // rather than from an accent that would paint the box a solid dark block.
+          defaultValue: "#FFCCCC",
           comment:
-            "Used as it is for red text in Date Fixer, Text Expander, Locations Helper and WikiTree+, and for " +
-            "the solid red badge. The ordinary pale red badge is filled with a light tint of it.",
+            "Custom palette only. Fills the error message box, exactly as picked. Red text in Date Fixer, Text " +
+            "Expander, Locations Helper and WikiTree+, and the red badges, use a darkened version so they stay " +
+            "readable - the box keeps your color.",
         },
         {
           id: "warningColor",
           type: OptionType.COLOR,
           label: "Warning color",
-          defaultValue: "#C68900",
-          comment: "Nothing on screen uses this yet. It is published for other WBE features to pick up.",
+          defaultValue: "#FFEE99",
+          comment: "Custom palette only. Fills the warning message box, exactly as picked.",
         },
         {
           id: "successColor",
           type: OptionType.COLOR,
           label: "Success color",
-          defaultValue: "#007A5E",
+          defaultValue: "#E1F0B4",
           comment:
-            "Used as it is for the solid green badge. The ordinary pale green badge is filled with a light tint " +
-            "of it.",
+            "Custom palette only. Fills the success message box, exactly as picked. The green badges use a " +
+            "darkened version so their text stays readable.",
         },
       ],
     },

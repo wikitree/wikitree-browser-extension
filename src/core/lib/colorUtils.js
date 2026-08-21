@@ -159,6 +159,81 @@ export function raiseContrast(rgb, backgroundRgb, minRatio) {
 }
 
 /**
+ * Move a colour away from a background until it is readable against it, in whichever
+ * direction that background makes sense.
+ *
+ * raiseContrast only lightens, which is the right and only answer for a dark page. This
+ * one is for the case where the direction is not known in advance: a colour chosen to sit
+ * BEHIND text has to be darkened to become text itself, and a colour chosen for a dark
+ * page has to be lightened. Picking the direction from the background rather than from a
+ * caller's assumption is what makes one function serve both.
+ *
+ * @param {number[]} rgb
+ * @param {number[]} backgroundRgb
+ * @param {number} minRatio - the contrast to reach.
+ * @returns {number[]}
+ */
+export function reachContrast(rgb, backgroundRgb, minRatio) {
+  if (contrastRatio(rgb, backgroundRgb) >= minRatio) {
+    return rgb;
+  }
+  // Away from the background: darken on a light one, lighten on a dark one. Going the
+  // wrong way here would walk a colour towards the background and never arrive.
+  const towardsBlack = isLight(backgroundRgb);
+  let candidate = rgb;
+  for (let step = 0; step < 20 && contrastRatio(candidate, backgroundRgb) < minRatio; step++) {
+    candidate = towardsBlack ? darkenColor(candidate, 5) : lightenColor(candidate, 5);
+  }
+  return candidate;
+}
+
+/**
+ * Mix a colour towards a background until it is only just visible against it - a tint to
+ * put behind text, aimed at a contrast ratio rather than at a fixed amount of mixing.
+ *
+ * The fixed-amount version of this ("lighten by 84%") assumes it is given a dark colour,
+ * and quietly produces nothing when it is not: lightening an already-pale colour lands it
+ * on top of the background. Aiming at a ratio has no such assumption, and it means a tint
+ * is defined by what it has to look like rather than by how it was made.
+ *
+ * A colour that is already at or below the target is returned unchanged. Mixing can only
+ * reduce contrast, so there is nothing to do, and the honest answer to "make this into a
+ * pale tint" for a colour that is already one is to leave it alone.
+ *
+ * "At the target" is measured with a little slack, and that is the point of it rather than
+ * sloppiness. A colour a few thousandths over the target would otherwise be returned one
+ * channel step away from itself: a change nobody can see, to a colour somebody chose. If
+ * the caller asked for a tint and was handed back a colour that already is one, the right
+ * answer is the colour they gave, exactly.
+ *
+ * @param {number[]} rgb
+ * @param {number[]} backgroundRgb
+ * @param {number} targetRatio - contrast the tint should have against the background.
+ * @returns {number[]}
+ */
+export function tintTowards(rgb, backgroundRgb, targetRatio) {
+  // Well under a channel step at these ratios, and far under anything the eye resolves.
+  const SLACK = 0.05;
+  if (contrastRatio(rgb, backgroundRgb) <= targetRatio + SLACK) {
+    return rgb;
+  }
+  // Contrast falls monotonically as the mix runs from the colour to the background, so a
+  // bisection lands on the fraction that hits the target. Twelve passes is finer than the
+  // 8-bit channels can express.
+  let opaque = 0;
+  let mixed = 100;
+  for (let pass = 0; pass < 12; pass++) {
+    const middle = (opaque + mixed) / 2;
+    if (contrastRatio(mixColors(rgb, backgroundRgb, middle), backgroundRgb) > targetRatio) {
+      opaque = middle;
+    } else {
+      mixed = middle;
+    }
+  }
+  return mixColors(rgb, backgroundRgb, mixed);
+}
+
+/**
  * Pick black or white, whichever is actually more readable on the given background.
  *
  * Deliberately not `isLight(rgb) ? black : white`, which is what this did first. isLight
