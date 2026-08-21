@@ -110,6 +110,11 @@ export function splitBioIntoSections() {
       if (newSectionTitle.match(/Census/i)) {
         newSectionTitle = "Census";
       }
+      /* "See also", "See Also" and "SEE ALSO" are all in use. The section is looked up by
+      key later, so settle on one spelling here. */
+      if (newSectionTitle.match(/^see\s*also$/i)) {
+        newSectionTitle = "See Also";
+      }
 
       sections[newSectionTitle] = {
         title: newSectionTitle,

@@ -59,12 +59,17 @@ const FEATURE_ID = "colorBlindSupport";
  * text would be a note about a pixel that does not exist. But it does fill the warning
  * box, and a pale pick makes that box vanish. One check would have said nothing; the
  * other would have said the wrong thing.
+ *
+ * The success color is now in the same position. Its ink was checked at 3:1 because the
+ * solid green badge was painted from it; those badges are left alone now - Content Rank
+ * and PPP both label themselves in text - so nothing reads `--wbe-cb-success` either, and
+ * a note about how it reads as a fill would be a note about a fill that no longer exists.
  */
 const ROLES = {
   newLinkColor: { label: "New/unknown link color", ink: 4.5, inkAs: "as text", box: false },
   dangerColor: { label: "Error color", ink: 4.5, inkAs: "as text", box: true },
   warningColor: { label: "Warning color", ink: null, inkAs: null, box: true },
-  successColor: { label: "Success color", ink: 3, inkAs: "as a badge fill", box: true },
+  successColor: { label: "Success color", ink: null, inkAs: null, box: true },
 };
 
 /**

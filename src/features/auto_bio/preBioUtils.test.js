@@ -115,6 +115,30 @@ describe("findTemplatesToKeepByName", () => {
   });
 });
 
+describe("getPreBioTextLines", () => {
+  // Winder-432 has " [[Category: Darfield, Yorkshire]][[Category: Wombwell, Yorkshire]]".
+  test("does not treat a line of several categories as text", () => {
+    const bioText =
+      "[[Category:Shoemakers]] [[Category: England, Publicans]]\n" +
+      " [[Category: Darfield, Yorkshire]][[Category: Wombwell, Yorkshire]]\n" +
+      "== Biography ==\nHe was born.";
+
+    expect(getPreBioTextLines(bioText)).toEqual([]);
+  });
+
+  test("still keeps real text before the biography", () => {
+    const bioText = "[[Category:Shoemakers]]\nThis profile needs work.\n== Biography ==\nHe was born.";
+
+    expect(getPreBioTextLines(bioText)).toEqual(["This profile needs work."]);
+  });
+
+  test("keeps a category line with its comment out of the text", () => {
+    const bioText = "[[Category:Featured]]<!--Star Wars-->\n== Biography ==\nShe was born.";
+
+    expect(getPreBioTextLines(bioText)).toEqual([]);
+  });
+});
+
 describe("isPreBioNoteLine", () => {
   test.each([
     ":'''Note 1:''' Savage gives Job Cole two additional sons.",

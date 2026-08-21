@@ -30,6 +30,13 @@ import {
 } from "./dateUtils.js";
 import { logMerge } from "./debugUtils.js";
 import { minimalPlace, nameLink } from "./displayUtils.js";
+import { citationDedupeKey, collapseCitationWhitespace, decodeHtmlEntities } from "./citationTextUtils.js";
+import { citationCouldBeAboutEvent, couldHaveServedIn, yearFromDate } from "./citationRelevanceUtils.js";
+import {
+  censusNarrativeFromBioSentence,
+  findCensusSentenceInBio,
+  tidyCensusResidence,
+} from "./censusNarrativeUtils.js";
 import { addWorking, getBioText, removeWorking, setBioText } from "./editorUtils.js";
 import { assignPersonNames, setOrderBirthDate } from "./auto_bio_person.js";
 // Find a Grave citation helpers removed per user request
@@ -48,6 +55,7 @@ import {
   fixUSLocation as fixUSLocationInStates,
   irishCounties,
   isSameDateOrAfter,
+  stripPersonNameFromPlace,
 } from "./locationUtils.js";
 import { estimateChildListDate, joinChildBits } from "./childListUtils.js";
 import {
@@ -56,6 +64,7 @@ import {
   getSimilarity,
   isSameName,
   namesMatchByFirstAndLast,
+  matchesNameOrInitial,
   possessiveName,
   withoutGenerationalSuffix,
 } from "./nameUtils.js";
@@ -212,7 +221,15 @@ function childList(person, spouse) {
   }
   let other = "";
   if (spouse == "other") {
-    other = "other ";
+    /* "Carrie's other daughter" only makes sense if children were listed under a marriage
+    first. When every child is in this group — which is what happens when the marriage was to
+    somebody the API will not return — they are simply her children. */
+    const childrenListedAlready = Object.keys(person.Children || {}).some(
+      (key) => person.Children[key].Displayed && !ourChildren.includes(person.Children[key])
+    );
+    if (childrenListedAlready) {
+      other = "other ";
+    }
   }
 
   let known = "";
@@ -270,6 +287,9 @@ function childList(person, spouse) {
       if (window.autoBioOptions?.usePrivate && child?.Privacy < 30) {
         const childWord = child.Gender == "Male" ? "Son" : child?.Gender == "Female" ? "Daughter" : "Child";
         childListText += "Private " + childWord + "\n";
+        /* "Private Daughter" is the point of the option, so the list still has something to
+        introduce; without this a family of only private children loses its opening line. */
+        gotChild = true;
       } else {
         const refText = addRefsToRelation(window.references, child, "children");
         childListText += joinChildBits(nameLink(child), theDates, status) + refText + "\n";
@@ -1007,6 +1027,11 @@ export function buildSpouses(person) {
               continue; // likely not the same event
             }
 
+            /* This citation has been taken as evidence for a marriage to a spouse the profile
+            already has, so it must not also be read as evidence of a marriage to somebody else.
+            Whether the two names look alike is beside the point once the event is claimed. */
+            ref.MatchedToKnownSpouse = true;
+
             // Merge parsed fields into spouse where missing
             if (!spouse.Father && parsed.Parents) {
               // try to split parsed.Parents into father/mother
@@ -1132,8 +1157,11 @@ export function buildSpouses(person) {
               }
 
               if (spouseFatherObj && spouseFatherObj.Name) {
-                spouseDetailsA += "[[" + spouseFatherObj.Name + "|" + spouseFatherObj.PersonName?.FullName + "]]";
-                spouseDetailsB += "[[" + spouseFatherObj.Name + "|" + spouseFatherObj.PersonName?.FullName + "]]";
+                /* nameLink so that a spouse's parents are named the same way as everybody
+                else in the bio, following the "Name format" option. */
+                const parentLink = nameLink(spouseFatherObj);
+                spouseDetailsA += parentLink;
+                spouseDetailsB += parentLink;
                 if (spouseFatherObj.BirthDate && window.autoBioOptions?.includeSpouseParentsDates) {
                   spouseDetailsA += " " + formatDates(spouseFatherObj);
                   spouseDetailsB += " " + formatDates(spouseFatherObj);
@@ -1166,8 +1194,11 @@ export function buildSpouses(person) {
               }
 
               if (spouseMotherObj && spouseMotherObj.Name) {
-                spouseDetailsA += "[[" + spouseMotherObj.Name + "|" + spouseMotherObj.PersonName?.FullName + "]]";
-                spouseDetailsB += "[[" + spouseMotherObj.Name + "|" + spouseMotherObj.PersonName?.FullName + "]]";
+                /* nameLink so that a spouse's parents are named the same way as everybody
+                else in the bio, following the "Name format" option. */
+                const parentLink = nameLink(spouseMotherObj);
+                spouseDetailsA += parentLink;
+                spouseDetailsB += parentLink;
                 if (spouseMotherObj.BirthDate && window.autoBioOptions?.includeSpouseParentsDates) {
                   spouseDetailsA += " " + formatDates(spouseMotherObj);
                   spouseDetailsB += " " + formatDates(spouseMotherObj);
@@ -1290,7 +1321,7 @@ export function buildSpouses(person) {
             foundSpouse = true;
           }
         });
-        if (foundSpouse == false && thisSpouse) {
+        if (foundSpouse == false && thisSpouse && !isProfilePersonName(thisSpouse) && !reference.MatchedToKnownSpouse) {
           console.log("[buildSpouses] Unmatched reference for spouse:", { thisSpouse, firstNameAndYear });
           let text = ""; // ensure text is defined for later Narrative assembly
           // compute marriage date and the profile person's age at that marriage
@@ -1871,7 +1902,18 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
   if (countryPatternMatch) {
     //if we have a match on the country pattern
     if (countryPatternMatch[2]) {
-      const thisLocation = countryPatternMatch[2].replace(/.*household of.*,\s/, "");
+      const thisLocation = stripPersonNameFromPlace(countryPatternMatch[2].replace(/.*household of.*,\s/, ""), {
+        firstNames: [
+          window.profilePerson?.PersonName?.FirstName,
+          window.profilePerson?.FirstName,
+          window.profilePerson?.RealName,
+        ],
+        lastNames: [
+          window.profilePerson?.LastNameAtBirth,
+          window.profilePerson?.LastNameCurrent,
+          window.profilePerson?.LastNameOther,
+        ],
+      });
       const thisMinimalPlace = minimalPlace(thisLocation);
       if (!text) {
         text += window.profilePerson.PersonName?.FirstName + ageBit + " was living in " + thisMinimalPlace + ".";
@@ -2023,7 +2065,55 @@ function addAges() {
   });
 }
 
+/**
+ * Whether a name from a record is the person whose profile this is, however it is written.
+ * Records abbreviate ("C F Coombes"), and a name that is not recognised as theirs becomes a
+ * stranger: a spouse they married, or somebody who needs a profile creating.
+ */
+function isProfilePersonName(name) {
+  if (!name) {
+    return false;
+  }
+  return (
+    isSameName(name, window.profilePerson?.NameVariants || []) ||
+    namesMatchByFirstAndLast(name, window.profilePerson?.PersonName?.BirthName) ||
+    namesMatchByFirstAndLast(name, window.profilePerson?.PersonName?.FullName)
+  );
+}
+
+/**
+ * Whether a name from a record belongs to somebody already linked to this profile. Records name
+ * a woman by her birth surname where WikiTree has her married name, so compare against both.
+ */
+function isKnownRelativeName(name) {
+  if (!name) {
+    return false;
+  }
+  return ["Parents", "Siblings", "Spouses", "Children"].some(function (relation) {
+    const family = window.profilePerson?.[relation];
+    if (!family || typeof family !== "object") {
+      return false;
+    }
+    return Object.keys(family).some(function (key) {
+      const relative = family[key];
+      return (
+        namesMatchByFirstAndLast(name, relative?.PersonName?.FullName) ||
+        namesMatchByFirstAndLast(name, relative?.PersonName?.BirthName)
+      );
+    });
+  });
+}
+
 function addToNeedsProfilesCreated(householdMember) {
+  // The person whose profile this is never needs a profile creating.
+  if (isProfilePersonName(householdMember?.Name)) {
+    return;
+  }
+  // Neither does somebody already in the tree, whichever name the record used for them.
+  if (isKnownRelativeName(householdMember?.Name)) {
+    return;
+  }
+
   let inNeedsProfiles = false;
   window.sectionsObject["Research Notes"].subsections.NeedsProfiles.forEach(function (person) {
     if (person.Name == householdMember.Name) {
@@ -2157,7 +2247,7 @@ function parseSourcerFamilyListWithBRs(reference) {
   return reference;
 }
 
-function buildCensusNarratives() {
+function buildCensusNarratives(previousBioText = "") {
   // getCensusesFromCensusSection();
   window.references.forEach(function (reference) {
     const isCensusReference = reference.Text.match(/census|1939( England and Wales)? Register/i);
@@ -2374,7 +2464,16 @@ function buildCensusNarratives() {
           reference = fsCensus[1];
           censusRest += fsCensus[0];
         }
-        if (censusRest) {
+        /* With no household to describe, all Auto Bio can do is rearrange the words of the
+        citation. A sentence already written about this census in the old bio says it better,
+        so use that instead when there is one. */
+        const bioCensusSentence = findCensusSentenceInBio(previousBioText, {
+          year: reference["Census Year"],
+          names: nameVariants.filter(Boolean),
+        });
+        if (bioCensusSentence) {
+          text = censusNarrativeFromBioSentence(bioCensusSentence, reference["Census Year"]);
+        } else if (censusRest) {
           text += censusIntro + censusRest.replace(/^\n/, "");
         }
         // Switch "in the household of NAME" to "in the household of her father, Frederick" (for example)
@@ -2452,7 +2551,9 @@ function buildCensusNarratives() {
         }
       }
       if (text) {
-        reference.Narrative = text.replace(" ;", "");
+        /* The sentence is built from pieces that each carry their own spacing, so runs of
+        spaces collect between them ("was living  in Barnsley"). Newlines are left alone. */
+        reference.Narrative = text.replace(" ;", "").replace(/ {2,}/g, " ").replace(/ +\./g, ".");
       }
       reference.OrderDate = formatDate(reference["Census Year"], 0, { format: 8 });
     }
@@ -2701,12 +2802,6 @@ function addReferencePlaces() {
   });
 }
 
-/* Turn an existing "In the [year] census[,] ..." sentence from the bio into the
-"In [year], ..." form Auto Bio uses, with or without Sourcer's comma and bold year. */
-function censusNarrativeFromBioSentence(sentence) {
-  return sentence.replace(/^In the\s+(?:''')?(\d{4})(?:''')?\s+census\b\s*,?\s*/i, "In $1, ");
-}
-
 export function sourcesArray(bio) {
   let dummy = $(document.createElement("html"));
   bio = bio.replace(/\{\|\s*class="wikitable".*?\|\+ Timeline.*?\|\}/gs, "").replace(/<ref[^>]*\/>/g, "");
@@ -2724,48 +2819,44 @@ export function sourcesArray(bio) {
   dummy.append(bio);
   let refArr = [];
   let refs = dummy.find("ref");
-  let refNamesAdded = new Set(); // Keep track of added reference names
-  let refNameCounter = new Map(); // Map to hold counters for each RefName
+  /* Each name in the old bio mapped to the citation texts already seen under it. A name is
+  only changed when a second, different citation claims it: the old bio's own
+  <ref name="x" /> uses are still in the text Auto Bio keeps, so renaming a citation that
+  nobody else is competing for would leave those uses pointing at nothing. */
+  let textsByRefName = new Map();
 
   refs.each(function () {
     let refElement = $(this);
-    let refName = refElement.attr("name");
-    if (refName && refNamesAdded.has(refName)) return; // Skip if the reference with this name has already been added
-
-    // If the refName exists in the map, increment its value, else set it to 'a'
-    if (refName) {
-      if (refNameCounter.has(refName)) {
-        let counter = refNameCounter.get(refName);
-        counter = String.fromCharCode(counter.charCodeAt() + 1); // Increment character ('a' to 'b', 'b' to 'c', etc.)
-        refNameCounter.set(refName, counter);
-      } else {
-        refNameCounter.set(refName, "a");
-      }
-      // Append the counter to the refName to make it unique
-      refName = refName + "_" + refNameCounter.get(refName);
-    }
+    const originalRefName = refElement.attr("name");
 
     let innerHTML = refElement.html().trim();
     if (innerHTML?.length === 0) return; // Skip if the reference has no content
 
-    let theRef = innerHTML
-      .match(/^(.*?)(?=<\/?ref|$)/s)[1]
-      .trim()
-      .replace(/&amp;/g, "&");
+    let theRef = decodeHtmlEntities(innerHTML.match(/^(.*?)(?=<\/?ref|$)/s)[1].trim());
 
     if (window.isFirefox == true) {
       theRef = $(this)[0].innerText;
     }
     if (theRef != "" && theRef != "\n" && theRef != "\n\n" && theRef.match(/==\s?Sources\s?==/) == null) {
+      let refName = originalRefName;
+      if (originalRefName) {
+        const textsUsingThisName = textsByRefName.get(originalRefName);
+        if (!textsUsingThisName) {
+          textsByRefName.set(originalRefName, new Set([theRef.trim()]));
+        } else if (textsUsingThisName.has(theRef.trim())) {
+          return; // The same citation, defined twice under the same name
+        } else {
+          // Two different citations under one name: the old bio was already broken here.
+          refName = originalRefName + "_" + String.fromCharCode("a".charCodeAt(0) + textsUsingThisName.size);
+          textsUsingThisName.add(theRef.trim());
+        }
+      }
+
       let NonSource = false;
       if (theRef.match(unsourced)) {
         NonSource = true;
       }
       refArr.push({ Text: theRef.trim(), RefName: refName, NonSource: NonSource });
-
-      if (refName) {
-        refNamesAdded.add(refName); // Mark this reference name as added
-      }
     }
   });
 
@@ -3061,7 +3152,12 @@ export function sourcesArray(bio) {
               console.log("Person 2 name variant:", person2);
             }
           }
-          if (!isSameName(window.profilePerson.FirstName, person1)) {
+          /* An initial stands for the name here too: "C F Coombes" on a marriage index is this
+          Charles, and failing to see that makes the spouse out of the profile person. */
+          if (
+            !isSameName(window.profilePerson.FirstName, person1) &&
+            !matchesNameOrInitial(window.profilePerson.FirstName, person1)
+          ) {
             aRef["Spouse Name"] = aRef["Couple"][0];
             console.log("Spouse name set to Couple[0]:", aRef["Spouse Name"]);
           } else {
@@ -3130,13 +3226,21 @@ export function sourcesArray(bio) {
 
         // Use isSameName for fuzzy matching of first names (with lower threshold for spelling variants)
         let profilePersonFound = false;
-        if (isSameName(couple1FirstName, profileFirstNameVariants, 0.85)) {
+        /* An initial stands for the name: a marriage index recording "C F Coombes" is this
+        Charles, and reading it as somebody else marries him to himself. */
+        if (
+          isSameName(couple1FirstName, profileFirstNameVariants, 0.85) ||
+          matchesNameOrInitial(couple1FirstName, profileFirstNameVariants)
+        ) {
           aRef["Spouse Name"] = aRef.Couple[1];
           aRef["Spouse Age"] = person2Age;
           aRef["Age"] = person1Age;
           profilePersonFound = true;
           console.log("Spouse Name and Age set (Couple[0] matches profile):", aRef["Spouse Name"], aRef["Spouse Age"]);
-        } else if (isSameName(couple2FirstName, profileFirstNameVariants, 0.85)) {
+        } else if (
+          isSameName(couple2FirstName, profileFirstNameVariants, 0.85) ||
+          matchesNameOrInitial(couple2FirstName, profileFirstNameVariants)
+        ) {
           aRef["Spouse Name"] = aRef.Couple[0];
           aRef["Spouse Age"] = person1Age;
           aRef["Age"] = person2Age;
@@ -3212,7 +3316,12 @@ export function sourcesArray(bio) {
             // Heuristic: decide which is spouse vs profile
             if (!aRef.Spouse) {
               const profFirst = window.profilePerson?.PersonName?.FirstName || window.profilePerson?.FirstName || "";
-              if (profFirst && new RegExp(`\\b${profFirst}\\b`, "i").test(p1name)) {
+              /* Which of the two is the profile person decides who the spouse is and whose age
+              is whose. A record naming him "C F Coombes" does not contain "Charles", so ask
+              whether the whole name is his before falling back to looking for his first name. */
+              const namedIsProfilePerson = (name) =>
+                isProfilePersonName(name) || (profFirst && new RegExp(`\\b${profFirst}\\b`, "i").test(name));
+              if (namedIsProfilePerson(p1name)) {
                 aRef.Spouse = { FullName: p2name, Age: p2age, Parents: p2parents };
                 aRef.ProfilePerson = { Name: p1name, Age: p1age, Parents: p1parents };
               } else {
@@ -3309,9 +3418,19 @@ export function sourcesArray(bio) {
         aRef["Death Date"]) &&
       aRef.Text.match("Birth of") == null
     ) {
-      aRef["Record Type"].push("Death");
+      /* The patterns above say what kind of record this is, not whose. An old bio usually
+      talks about the whole family, so check the citation could be about this person before
+      it is quoted for their death; if not, it stays a source under "See also". */
+      if (
+        citationCouldBeAboutEvent(aRef.Text, {
+          eventYear: yearFromDate(window.profilePerson?.DeathDate),
+          gender: window.profilePerson?.Gender,
+        })
+      ) {
+        aRef["Record Type"].push("Death");
 
-      aRef.OrderDate = formatDate(aRef["Death Date"], 0, { format: 8 });
+        aRef.OrderDate = formatDate(aRef["Death Date"], 0, { format: 8 });
+      }
     }
     if (aRef.Text.match(/citing.*Burial,/i)) {
       const familySearchBurialMatch = aRef.Text.match(
@@ -3384,6 +3503,8 @@ export function sourcesArray(bio) {
         aRef.Residence = censusResidenceRegex2[1];
       }
 
+      aRef.Residence = tidyCensusResidence(aRef.Residence);
+
       if (aRef.Residence) {
         if (aRef.Residence.match(" in ")) {
           aRef.Residence = aRef.Residence.split(" in ")[1];
@@ -3433,7 +3554,14 @@ export function sourcesArray(bio) {
     // Add military service records
     const militaryMatch = aRef.Text.match(/World War I\b|World War II|Korean War|Vietnam War/);
     if (militaryMatch) {
-      aRef = addMilitaryRecord(aRef, militaryMatch[0]);
+      /* A war is named, but not whose service it was. An old bio cites the son's papers as
+      readily as the father's, so check the age before saying this person served. */
+      const warStarted = { "World War I": 1914, "World War II": 1939, "Korean War": 1950, "Vietnam War": 1955 }[
+        militaryMatch[0]
+      ];
+      if (couldHaveServedIn(yearFromDate(window.profilePerson?.BirthDate), warStarted)) {
+        aRef = addMilitaryRecord(aRef, militaryMatch[0]);
+      }
     }
   });
   let birthCitation = false;
@@ -3459,7 +3587,7 @@ export function sourcesArray(bio) {
     }
   }
   window.references = refArr;
-  buildCensusNarratives();
+  buildCensusNarratives(previousBioText);
   addReferencePlaces();
   getFamilyFromCitations();
 }
@@ -4303,7 +4431,16 @@ function processMainHouseholdMember(mainPerson, census) {
   if (mainPerson.Relation) {
     census.Household.forEach((otherPerson) => {
       if (otherPerson !== mainPerson) {
+        const relationBefore = otherPerson.Relation;
         updateRelation(mainPerson, otherPerson);
+        /* Anyone still carrying the relation the census recorded to the head of the household
+        has a relation to the head, not to this person, and saying "her wife" about the head's
+        wife would be plainly wrong. If updateRelations has already decided this, its answer
+        stands. */
+        if (otherPerson.RelationToHeadOnly === undefined) {
+          const censusRelation = otherPerson.censusRelation || otherPerson.originalRelation || relationBefore;
+          otherPerson.RelationToHeadOnly = Boolean(otherPerson.Relation) && otherPerson.Relation === censusRelation;
+        }
       }
     });
   }
@@ -5518,6 +5655,19 @@ export async function generateBio() {
         if (previousEventObject) {
           if (previousEventObject.Texts) {
             previousEventObject.Texts.push(thisObj);
+          } else if (previousEventObject.Text) {
+            /* This event became the group's owner without its own citation being put in Texts,
+            and once Texts exists the emitter stops falling back to anEvent.Text. Without the
+            owner's citation here it is emitted nowhere: not inline, and not under "See also"
+            either, because it is still marked as used. */
+            previousEventObject.Texts = [
+              {
+                Text: previousEventObject.Text,
+                Used: previousEventObject.Used === true,
+                RefName: previousEventObject.RefName,
+              },
+              thisObj,
+            ];
           } else {
             previousEventObject.Texts = [thisObj];
           }
@@ -5815,9 +5965,11 @@ export async function generateBio() {
 
     // Add Research Notes
     let researchNotesText = "";
+    const leftoverSectionsText = getLeftoverSectionsText();
     if (
       window.sectionsObject["Research Notes"]?.text?.length > 0 ||
-      window.sectionsObject["Research Notes"]?.subsections["NeedsProfiles"]?.length > 0
+      window.sectionsObject["Research Notes"]?.subsections["NeedsProfiles"]?.length > 0 ||
+      leftoverSectionsText
     ) {
       let researchNotesHeader = "== Research Notes ==\n";
       researchNotesText += researchNotesHeader;
@@ -5877,6 +6029,8 @@ export async function generateBio() {
           researchNotesText += "=== " + aSubsection + " ===\n" + subsectionText + "\n\n";
         }
       });
+
+      researchNotesText += leftoverSectionsText;
     }
 
     // Add Sources section
@@ -5885,44 +6039,64 @@ export async function generateBio() {
     sourcesText += sourcesHeader;
     let isAnyUsed = window.references.some((reference) => reference.Used === true);
     let isAnyUnused = window.references.some((reference) => reference.Used !== true);
-    if (isAnyUsed && isAnyUnused) {
-      sourcesText += "See also:\n";
+
+    /* One bullet per source, on one line (a citation split over several lines only puts its
+    first line in the list), and never the same citation twice. */
+    const seeAlsoKeys = new Set();
+    function seeAlsoBullet(text) {
+      const line = collapseCitationWhitespace((text || "").replace(/^\*\s?/, "").trim());
+      if (!line) {
+        return "";
+      }
+      const key = citationDedupeKey(line);
+      if (seeAlsoKeys.has(key)) {
+        return "";
+      }
+      seeAlsoKeys.add(key);
+      return "* " + line + "\n";
     }
 
+    let unusedRefsText = "";
     window.references.forEach(function (aRef) {
       if (
         ([false, undefined]?.includes(aRef.Used) || window.autoBioOptions?.inlineCitations == false) &&
         aRef["Record Type"] != "GEDCOM" &&
         aRef.Text.match(/Sources? will be added/) == null
       ) {
-        sourcesText +=
-          "* " +
+        unusedRefsText += seeAlsoBullet(
           aRef.Text.replace(/Click the Changes tab.*/, "").replace(
             "''Replace this citation if there is another source.''",
             ""
-          ) +
-          "\n";
+          )
+        );
       }
       if (aRef["Record Type"]?.includes("GEDCOM")) {
         window.sectionsObject["Acknowledgements"].text.push("*" + aRef.Text);
       }
     });
 
-    // Add See also
-    if (window.sectionsObject["See Also"]) {
-      // Filter out the unwanted text
-      const filteredText = window.sectionsObject["See Also"].text.filter(
-        (anAlso) => !anAlso.match("''Add \\[\\[sources\\]\\] here.''")
-      );
+    let seeAlsoHeadingAdded = false;
+    if (isAnyUsed && isAnyUnused && unusedRefsText) {
+      sourcesText += "See also:\n";
+      seeAlsoHeadingAdded = true;
+    }
+    sourcesText += unusedRefsText;
 
-      if (filteredText?.length > 0) {
-        sourcesText += "See also:\n";
-        filteredText.forEach(function (anAlso) {
-          if (anAlso) {
-            sourcesText += "* " + anAlso.replace(/^\*\s?/, "").replace(/:\s*[\r\n]+/gm, ": ") + "\n";
-          }
-        });
-        sourcesText += "\n";
+    // Add See also
+    const seeAlsoSection = window.sectionsObject["See Also"];
+    if (seeAlsoSection) {
+      let seeAlsoSectionText = "";
+      seeAlsoSection.text.forEach(function (anAlso) {
+        if (anAlso && !anAlso.match("''Add \\[\\[sources\\]\\] here.''")) {
+          seeAlsoSectionText += seeAlsoBullet(anAlso);
+        }
+      });
+
+      if (seeAlsoSectionText) {
+        if (!seeAlsoHeadingAdded) {
+          sourcesText += "See also:\n";
+        }
+        sourcesText += seeAlsoSectionText + "\n";
       }
     }
 
@@ -5976,6 +6150,8 @@ export async function generateBio() {
       addUnsourced();
     }
 
+    const advanceDirectiveText = getAdvanceDirectiveText();
+
     // Add stuff before the bio
     let stuffBeforeTheBioText = await getStuffBeforeTheBioText();
 
@@ -5994,7 +6170,8 @@ export async function generateBio() {
         useItemsText +
         researchNotesText +
         sourcesText +
-        acknowledgementsText;
+        acknowledgementsText +
+        advanceDirectiveText;
     } else if (window.autoBioOptions?.deathPosition) {
       outputText =
         stuffBeforeTheBioText +
@@ -6008,7 +6185,8 @@ export async function generateBio() {
         timelineText +
         researchNotesText +
         sourcesText +
-        acknowledgementsText;
+        acknowledgementsText +
+        advanceDirectiveText;
     } else {
       outputText =
         stuffBeforeTheBioText +
@@ -6022,7 +6200,8 @@ export async function generateBio() {
         timelineText +
         researchNotesText +
         sourcesText +
-        acknowledgementsText;
+        acknowledgementsText +
+        advanceDirectiveText;
     }
 
     // NEW LOGIC: Store clean draft and notes separately
@@ -6113,6 +6292,90 @@ export async function generateBio() {
   }
 }
 
+/* Notes shown to the editor in the comment block at the end of the new bio. */
+function addAutoBioNote(message) {
+  if (!message) {
+    return;
+  }
+  if (!Array.isArray(window.autoBioNotes)) {
+    window.autoBioNotes = [];
+  }
+  if (!window.autoBioNotes.includes(message)) {
+    window.autoBioNotes.push(message);
+  }
+}
+
+/* A profile may only use five level-2 headings: Biography, Research Notes, Sources,
+Acknowledgements and Advance Directive. Everything Auto Bio takes from the old bio is read
+out of the sections below; a section with any other heading used to be dropped along with
+everything in it. Keep it instead, demoted to level 3 under Research Notes. Long text in an
+old bio may be careful research or may be nonsense — Research Notes is the honest place for
+text Auto Bio cannot vouch for, and the editor (or Improve with AI) can promote it from there. */
+const sectionsAutoBioUses = [
+  "StuffBeforeTheBio",
+  "Biography",
+  "Research Notes",
+  "Sources",
+  "Acknowledgements",
+  "Acknowledgments",
+  "See Also",
+  "Advance Directive",
+  "Military",
+  "Military Service",
+  "Obituary",
+  /* Census tables in the old bio are read by the census code and rebuilt in the new bio,
+  so keeping the old section as well would duplicate them. */
+  "Census",
+];
+
+function getLeftoverSectionsText() {
+  let text = "";
+
+  const kept = new Set();
+  const keepSection = function (title, section, wasALevelTwoHeading) {
+    if (sectionsAutoBioUses.includes(title) || kept.has(title)) {
+      return;
+    }
+    if (!Array.isArray(section?.text) || !section.text.some((line) => line?.trim())) {
+      return;
+    }
+    /* addSubsection writes the "=== Title ===" heading and marks the citations it contains
+    as used, so they are not repeated under "See also". */
+    kept.add(title);
+    text += addSubsection(title);
+    const name = section.originalTitle || title;
+    addAutoBioNote(
+      wasALevelTwoHeading
+        ? `Moved the '${name}' section to Research Notes (only Biography, Research Notes, Sources, ` +
+            `Acknowledgements and Advance Directive may be level-2 headings).`
+        : `Moved the '${name}' section to Research Notes.`
+    );
+  };
+
+  Object.keys(window.sectionsObject || {}).forEach(function (title) {
+    keepSection(title, window.sectionsObject[title], true);
+  });
+
+  /* A level-3 section of the old biography — a will transcript, a note on a family story —
+  is not written anywhere else either, so it would be thrown away with the biography it sat in. */
+  const biographySubsections = window.sectionsObject?.Biography?.subsections || {};
+  Object.keys(biographySubsections).forEach(function (title) {
+    keepSection(title, biographySubsections[title], false);
+  });
+
+  return text;
+}
+
+/* Advance Directive is one of the five allowed headings, so it keeps its own level-2
+section at the end of the profile rather than being folded into Research Notes. */
+function getAdvanceDirectiveText() {
+  const section = window.sectionsObject["Advance Directive"];
+  if (!Array.isArray(section?.text) || !section.text.some((line) => line?.trim())) {
+    return "";
+  }
+  return "== Advance Directive ==\n" + section.text.join("\n").trim() + "\n\n";
+}
+
 function addSubsection(title) {
   // Add title subsection
   let subsectionText = "";
@@ -6129,19 +6392,36 @@ function addSubsection(title) {
   // Find ref tags in these subsections and match them to ones in the references array
   const dummy = document.createElement("div");
   dummy.innerHTML = subsectionText;
+  /* Citation text already defined in this section, so the same source is never written out
+  twice: the second use points at the first with <ref name="..." />, which is what MediaWiki
+  expects and what stops a source appearing twice in the reference list. */
+  const definedInThisSection = new Map();
   if ($(dummy).find("ref")) {
     $(dummy)
       .find("ref")
       .each(function (i) {
-        subsectionText = subsectionText.replace(
-          `<ref>${$(this).text()}</ref>`,
-          `<ref name="${title}_${i + 1}">${$(this).text()}</ref>`
+        const refText = $(this).text();
+        /* .html() re-escapes what the parser decoded, while window.references holds citations
+        with the entities put back, so decode before comparing or a citation with an "&" in it
+        never matches and ends up quoted here and listed under "See also" as well. */
+        const html = decodeHtmlEntities($(this).html());
+        const alreadyUsedElsewhere = window.references.find(
+          (ref) => (ref.Text == html || getSimilarity(ref.Text, html) > 0.99) && ref.Used && ref.RefName
         );
-        let html = $(this).html(); // save the html value
+        const existingName = definedInThisSection.get(refText) || alreadyUsedElsewhere?.RefName;
+
+        if (existingName) {
+          subsectionText = subsectionText.replace(`<ref>${refText}</ref>`, `<ref name="${existingName}" />`);
+          return;
+        }
+
+        const refName = title + "_" + (i + 1);
+        subsectionText = subsectionText.replace(`<ref>${refText}</ref>`, `<ref name="${refName}">${refText}</ref>`);
+        definedInThisSection.set(refText, refName);
         window.references.forEach((ref) => {
           if (ref.Text == html || getSimilarity(ref.Text, html) > 0.99) {
             ref.Used = true;
-            ref.RefName = title + "_" + (i + 1);
+            ref.RefName = refName;
             ref["Record Type"].push(title);
           }
         });

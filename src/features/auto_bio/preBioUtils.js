@@ -196,7 +196,10 @@ export function getPreBioTextLines(bioText = "") {
       inTemplate = true;
     }
 
-    const isCategoryLine = /^\[\[Category:[^\]]+\]\](\s*<!--.*-->)?$/i.test(trimmedLine);
+    /* People put several categories on one line. Matching only a single one left the whole
+    line looking like ordinary text, so it was kept verbatim as text before the bio *and*
+    split into separate categories elsewhere — the categories came out twice. */
+    const isCategoryLine = /^(\[\[Category:[^\]]+\]\]\s*)+(<!--.*-->)?$/i.test(trimmedLine);
     const isCommentLine = /^<!--.*-->$/.test(trimmedLine);
     const isCommentForPreviousCategory = previousLineWasCategory && isCommentLine;
     const isGenealogicallyDefinedLine = isGenealogicallyDefinedLink(trimmedLine);

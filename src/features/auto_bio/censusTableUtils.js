@@ -91,6 +91,10 @@ export function buildHouseholdTableFromHousehold(household) {
     "MiddleName",
     "Census",
     "censusRelation",
+    "originalRelation",
+    /* Bookkeeping: whether a relation is to the head of the household rather than to the
+    profile person. It decides how the sentence names people; it is not a census column. */
+    "RelationToHeadOnly",
   ]);
   const preferredOrder = [
     "Name",

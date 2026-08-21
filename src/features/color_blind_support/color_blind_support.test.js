@@ -594,3 +594,41 @@ describe("which parent a sibling shares", () => {
     expect(parentsOf("onlyFather")).toBe("1");
   });
 });
+
+/*
+The solid badges are left alone deliberately, and a deliberate absence in a stylesheet is
+indistinguishable from an oversight. These read the rules as text so that reinstating one
+fails here rather than shipping a muddy Content Rank badge again. See the README section
+"The Content Rank badge, and why the solid ones are left alone".
+*/
+describe("badge rules", () => {
+  const stylesheet = require("fs").readFileSync(`${__dirname}/color_blind_support.css`, "utf8");
+
+  /** Selector lines only - the prose in the comments talks about .new on purpose. */
+  const badgeSelectors = stylesheet
+    .split("\n")
+    .filter((line) => line.startsWith("html body") && line.includes(".badge"));
+
+  test("every badge rule excludes the solid .new variants", () => {
+    expect(badgeSelectors).not.toHaveLength(0);
+    badgeSelectors.forEach((selector) => {
+      expect(selector).toMatch(/\.badge\.(green|red):not\(\.new\)/);
+    });
+  });
+
+  test("no badge is filled from a role ink", () => {
+    // The inks are derived to be readable as text. Used as a fill they desaturate, which
+    // is what greying-out looks like - #8FC641 became #8E9871. The -bg tints are the fills.
+    const badgeBlocks = stylesheet.match(/html body[^{]*\.badge[^{]*\{[^}]*\}/g) || [];
+    expect(badgeBlocks.length).toBe(badgeSelectors.length);
+    badgeBlocks.forEach((block) => {
+      expect(block).not.toMatch(/background-color: var\(--wbe-cb-(success|danger|warning),/);
+    });
+  });
+
+  test("each badge fill still sets a text color beside it", () => {
+    const fills = stylesheet.match(/background-color: var\(--wbe-cb-\w+-bg[^}]*/g) || [];
+    expect(fills.length).toBeGreaterThan(0);
+    fills.forEach((block) => expect(block).toMatch(/color: var\(--wbe-cb-\w+-text/));
+  });
+});

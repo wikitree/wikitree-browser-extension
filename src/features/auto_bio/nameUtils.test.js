@@ -1,5 +1,7 @@
 import {
   generationalSuffixesConflict,
+  isInitialFor,
+  matchesNameOrInitial,
   namesMatchByFirstAndLast,
   possessiveName,
   withoutGenerationalSuffix,
@@ -70,5 +72,67 @@ describe("possessiveName", () => {
   test("gives nothing back when there is no name to use", () => {
     expect(possessiveName("")).toBe("");
     expect(possessiveName(undefined)).toBe("");
+  });
+});
+
+describe("isInitialFor", () => {
+  test("reads an initial as standing for the name", () => {
+    // Coombes-890: a marriage index recording "C F Coombes" is Charles Francis Coombes.
+    expect(isInitialFor("C", "Charles")).toBe(true);
+    expect(isInitialFor("Charles", "C")).toBe(true);
+    expect(isInitialFor("C.", "Charles")).toBe(true);
+  });
+
+  test("does not match a different letter", () => {
+    expect(isInitialFor("J", "Charles")).toBe(false);
+  });
+
+  test("needs one side to actually be an initial", () => {
+    expect(isInitialFor("Charles", "Clara")).toBe(false);
+    expect(isInitialFor("", "Charles")).toBe(false);
+  });
+});
+
+describe("namesMatchByFirstAndLast with initials", () => {
+  test("matches a name written with initials to the full name", () => {
+    expect(namesMatchByFirstAndLast("C F Coombes", "Charles Francis Coombes")).toBe(true);
+  });
+
+  test("still needs the surname to agree", () => {
+    expect(namesMatchByFirstAndLast("C F Dyer", "Charles Francis Coombes")).toBe(false);
+  });
+});
+
+describe("matchesNameOrInitial", () => {
+  test("finds the profile person behind an initial", () => {
+    expect(matchesNameOrInitial("C", ["Charles", "Charlie", "Chas"])).toBe(true);
+    expect(matchesNameOrInitial("Ida", ["Charles", "Charlie"])).toBe(false);
+  });
+});
+
+describe("namesMatchByFirstAndLast across a married name", () => {
+  test("matches a birth-surname record to a married WikiTree name", () => {
+    // Coombes-890: the marriage index says "Ida Dyer"; WikiTree has "Ida Elisabeth (Dyer) Coombes".
+    expect(namesMatchByFirstAndLast("Ida Dyer", "Ida Elisabeth (Dyer) Coombes")).toBe(true);
+    expect(namesMatchByFirstAndLast("Ida Elisabeth (Dyer) Coombes", "Ida Dyer")).toBe(true);
+  });
+
+  test("does not guess at an unbracketed middle name", () => {
+    /* WikiTree always brackets a birth surname that differs, so "Ida Dyer Coombes" carries no
+    such promise and a middle name must not be read as a surname. */
+    expect(namesMatchByFirstAndLast("Ida Dyer", "Ida Dyer Coombes")).toBe(false);
+  });
+
+  test("still matches on the married surname", () => {
+    expect(namesMatchByFirstAndLast("Ida Coombes", "Ida Elisabeth (Dyer) Coombes")).toBe(true);
+  });
+
+  test("does not match a different woman", () => {
+    expect(namesMatchByFirstAndLast("Sarah Dyer", "Ida Elisabeth (Dyer) Coombes")).toBe(false);
+    expect(namesMatchByFirstAndLast("Ida Smith", "Ida Elisabeth (Dyer) Coombes")).toBe(false);
+  });
+
+  test("does not treat a middle name as a surname", () => {
+    expect(namesMatchByFirstAndLast("Charles Francis", "Charles Francis Coombes")).toBe(false);
   });
 });

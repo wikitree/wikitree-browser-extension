@@ -189,7 +189,15 @@ const KNOWN_GLOBALS = new Map([
 ]);
 
 // Per-file exceptions: file path (repo-relative, forward slashes) -> { name: reason }.
-const ALLOWED = {};
+const ALLOWED = {
+  // Jest runs tests as CommonJS, so __dirname exists there. It is not in KNOWN_GLOBALS
+  // because webpack also defines it in bundled source, where it is a trap rather than a
+  // path - allowing it everywhere would stop this check from catching that.
+  "src/features/color_blind_support/color_blind_support.test.js": {
+    __dirname:
+      "reads the feature's own stylesheet from disk; Jest maps .css to a stub, so require.resolve cannot give the real path",
+  },
+};
 
 function jsFilesIn(dir) {
   const out = [];

@@ -3,7 +3,8 @@ import { treeImageURL } from "../../core/common";
 import "./editorUtils.css";
 
 export function addWorking() {
-  const working = $("<img id='working' src='" + treeImageURL + "'>");
+  /* The class keeps this rule off the #working image other features show. */
+  const working = $("<img id='working' class='autoBioWorking' src='" + treeImageURL + "'>");
   $("#wpTextbox1").before(working);
 }
 

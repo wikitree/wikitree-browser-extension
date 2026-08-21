@@ -47,6 +47,68 @@ const FAMILY_PROFILE_FIELDS = [
  * It retrieves and processes family information (like parents, siblings, spouses, children)
  * from the current window and updates the global `window.profilePerson` object.
  */
+const genderByRelationWord = {
+  husband: "Male",
+  son: "Male",
+  brother: "Male",
+  father: "Male",
+  wife: "Female",
+  daughter: "Female",
+  sister: "Female",
+  mother: "Female",
+};
+
+/**
+ * A family member the viewer may not see is listed on the edit page without a link, as
+ * "private daughter (1990s - unknown)". Build the little that is known about them, marked
+ * private, so that the biography can say "Private Daughter" instead of leaving them out.
+ *
+ * @param {string} itemText - the text of the family list item
+ * @param {string} type - "Siblings", "Spouses" or "Children"
+ * @returns {object|null} a family member, or null if the item is not a private one
+ */
+export function privateFamilyMemberFromListItem(itemText = "", type = "", index = 0) {
+  const text = itemText.replace(/\s+/g, " ").trim();
+  const privateMatch = text.match(/^\[?private\b\s*([a-z]+)?/i);
+  if (!privateMatch) {
+    return null;
+  }
+
+  const relationWord = (privateMatch[1] || "").toLowerCase();
+  const decadeMatch = text.match(/\((\d{4}s)\s*-/);
+
+  const member = {
+    Name: "",
+    /* An id of their own, so that a missing Father/Mother is never read as a match against
+    another private relative's missing id. */
+    Id: -1 * (index + 1),
+    /* Below 30 is what the rest of Auto Bio reads as private. */
+    Privacy: 20,
+    IsPrivate: true,
+    Gender: genderByRelationWord[relationWord] || "",
+    BirthDate: "0000-00-00",
+    BirthName: "Private",
+    BirthNamePrivate: "Private",
+    FirstName: "Private",
+    LastNameAtBirth: "",
+    PersonName: { FirstName: "Private", FullName: "Private", BirthName: "Private" },
+  };
+
+  if (decadeMatch) {
+    member.BirthDateDecade = decadeMatch[1];
+  }
+  if (type === "Spouses") {
+    member.marriage_date = "0000-00-00";
+  }
+  if (type === "Children") {
+    /* Which spouse they belong to is not shown, so list them with the children whose other
+    parent is unknown rather than crediting them to somebody. */
+    member.OtherParentUnknown = true;
+  }
+
+  return member;
+}
+
 export async function buildFamilyForPrivateProfiles() {
   // Ensure window.profilePerson is defined before proceeding
   if (!window.profilePerson) {
@@ -220,6 +282,14 @@ export async function buildFamilyForPrivateProfiles() {
           const memberName = link.text().trim();
           parseName(memberName, memberObject);
           window.profilePerson[type][i] = memberObject;
+        } else {
+          /* A living relative is listed without a link, as "private daughter (1990s - unknown)".
+          The API does not return them either, so without this they would vanish from the bio
+          altogether rather than appearing as "Private Daughter". */
+          const privateMember = privateFamilyMemberFromListItem(item.text(), type, i);
+          if (privateMember) {
+            window.profilePerson[type][i] = privateMember;
+          }
         }
       }
       if (Object.keys(window.profilePerson[type]).length === 0) {

@@ -88,21 +88,64 @@ function normalizeNamePart(value) {
 }
 
 function getComparableFirstAndLastNames(value) {
-  const parts = getComparableNameString(value)
-    .trim()
-    .split(/\s+/)
-    .map((part) => normalizeNamePart(part))
-    .filter(Boolean);
+  const raw = getComparableNameString(value).trim().split(/\s+/);
+  const parts = raw.map((part) => normalizeNamePart(part)).filter(Boolean);
+
+  /* A married woman is "Ida Elisabeth (Dyer) Coombes" on WikiTree and "Ida Dyer" on the record
+  of her marriage. Both surnames are hers, so both count as a match. */
+  const lastNames = [];
+  if (parts.length > 0) {
+    lastNames.push(parts[parts.length - 1]);
+  }
+  raw.forEach(function (part) {
+    if (/^\(.*\)$/.test(part)) {
+      const inBrackets = normalizeNamePart(part);
+      if (inBrackets && !lastNames.includes(inBrackets)) {
+        lastNames.push(inBrackets);
+      }
+    }
+  });
 
   return {
     firstName: parts[0] || "",
     lastName: parts[parts.length - 1] || "",
+    lastNames,
   };
+}
+
+/**
+ * Whether one name is written as an initial standing for the other: a marriage index recording
+ * "C F Coombes" is the "Charles Francis Coombes" whose profile this is. Without this he is read
+ * as somebody else and ends up married to himself.
+ *
+ * @param {string} left - a name or an initial
+ * @param {string} right - a name or an initial
+ */
+export function isInitialFor(left = "", right = "") {
+  const one = String(left).trim().replace(/\.$/, "").toLowerCase();
+  const other = String(right).trim().replace(/\.$/, "").toLowerCase();
+  if (!one || !other) {
+    return false;
+  }
+  if (one.length !== 1 && other.length !== 1) {
+    return false;
+  }
+  return one[0] === other[0];
+}
+
+/**
+ * Whether a first name matches any of these names, allowing for an initial.
+ * @param {string} firstName
+ * @param {string[]} names
+ */
+export function matchesNameOrInitial(firstName, names = []) {
+  return names.some((name) => name && isInitialFor(firstName, String(name).trim().split(/\s+/)[0]));
 }
 
 function firstNamesLikelyMatch(leftFirstName, rightFirstName) {
   if (!leftFirstName || !rightFirstName) return false;
   if (leftFirstName === rightFirstName) return true;
+  if (isInitialFor(leftFirstName, rightFirstName)) return true;
 
   const similarity = getSimilarity(leftFirstName, rightFirstName);
   if (similarity >= 0.8) {
@@ -125,7 +168,8 @@ export function namesMatchByFirstAndLast(leftName, rightName) {
     return false;
   }
 
-  return left.lastName === right.lastName && firstNamesLikelyMatch(left.firstName, right.firstName);
+  const surnamesOverlap = left.lastNames.some((surname) => right.lastNames.includes(surname));
+  return surnamesOverlap && firstNamesLikelyMatch(left.firstName, right.firstName);
 }
 
 export function isSameName(name, nameVariants, strength = 0.9) {

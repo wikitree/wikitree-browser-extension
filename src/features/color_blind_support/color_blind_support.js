@@ -381,11 +381,13 @@ function applyPalette(options) {
     root.style.setProperty(`--wbe-cb-${role}-${suffix}`, rgbToHex(ink));
     root.style.setProperty(`--wbe-cb-${role}-bg-${suffix}`, rgbToHex(box));
     root.style.setProperty(`--wbe-cb-${role}-text-${suffix}`, readableTextColor(box));
-    // Text for when the ink itself is the background, which is what small solid elements
-    // like badges do. This is not the same answer as -text and cannot be reused from it:
-    // -text is computed for the box, so pairing it with the ink gives black on a dark green
-    // in the light palette, and white on a bright mint in the dark one. Both are
-    // unreadable, and both shipped before this existed.
+    // Text for when the ink itself is the background. Nothing in this feature paints an
+    // ink as a fill any more - the solid badges did, and were dropped - but the pairing is
+    // published because any WBE feature that puts a role colour behind text needs it, and
+    // it is not the same answer as -text and cannot be reused from it: -text is computed
+    // for the box, so pairing it with the ink gives black on a dark green in the light
+    // palette, and white on a bright mint in the dark one. Both unreadable, both shipped
+    // before this existed.
     root.style.setProperty(`--wbe-cb-${role}-on-${suffix}`, readableTextColor(ink));
   };
 

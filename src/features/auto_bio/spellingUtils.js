@@ -1,18 +1,55 @@
 /**
- * Converts American English spelling to British English spelling based on the user's locale.
- * This function checks if the user's browser locale is set to a form of English that typically
- * uses British spelling (like UK or Australia). If so, it converts American English words
- * to their British equivalents based on a predefined dictionary of spellings.
+ * Converts American English spelling to British English spelling for the profile being written.
+ *
+ * Which English to use follows the profile's own country (an English profile reads "baptised",
+ * a profile in the United States reads "baptized"), falling back to the editor's browser locale
+ * when the profile gives nothing to go on.
  *
  * @param {string} text - The text to be converted from American to British spelling.
  * @returns {string} The text with American spellings converted to British spellings where applicable.
- *                   If the user's locale is not set to use British English, the original text is returned unchanged.
+ *                   For an American-English profile the original text is returned unchanged.
  *
- * The conversion only occurs if the user's locale is set to British English variants (en-GB, en-AU, etc.).
- * The function splits the input text into words, checks each word against a dictionary of American-to-British
- * spellings, and replaces them if a match is found. The `matchCase` function is used to preserve the original
- * word's capitalization style.
+ * The function splits the input text into words, checks each word against a dictionary of
+ * American-to-British spellings, and replaces them if a match is found. The `matchCase` function
+ * is used to preserve the original word's capitalization style.
  */
+
+/* Which English a biography is written in follows the profile, not the editor: an English
+profile reads "baptised" whoever is running Auto Bio, and a profile in the United States
+reads "baptized" for an editor in Manchester. The editor's browser is only the fallback,
+for a profile with no country to go on. */
+const britishSpellingPlaces =
+  /\bEngland\b|\bScotland\b|\bWales\b|\bIreland\b|\bUnited Kingdom\b|\bGreat Britain\b|\bAustralia\b|\bNew Zealand\b|\bSouth Africa\b|\bIndia\b|\bSingapore\b|\bMalta\b|\bJamaica\b|\bBarbados\b/i;
+/* New England is in the United States. Taken out before the test above rather than excluded
+with a lookbehind, which Safari before 16.4 cannot parse at all. */
+const newEngland = /\bNew England\b/gi;
+const americanSpellingPlaces = /\bUnited States\b|\bU\.?S\.?A\.?\b|\bColony of Virginia\b|\bProvince of [A-Z]/i;
+const britishSpellingLocales = ["en-GB", "en-AU", "en-NZ", "en-ZA", "en-IE", "en-IN", "en-SG", "en-MT"];
+
+/**
+ * @param {string[]} places - places in the order they should be trusted, birth first
+ * @param {string} userLanguage - the editor's browser language, used only if no place says
+ */
+export function useBritishSpelling(places = [], userLanguage = "") {
+  for (const place of places) {
+    if (!place) {
+      continue;
+    }
+    const placeWithoutNewEngland = place.replace(newEngland, " ");
+    if (britishSpellingPlaces.test(placeWithoutNewEngland)) {
+      return true;
+    }
+    if (americanSpellingPlaces.test(place) || placeWithoutNewEngland !== place) {
+      return false;
+    }
+  }
+  return britishSpellingLocales.includes(userLanguage);
+}
+
+function spellingPlaces() {
+  const person = typeof window !== "undefined" ? window.profilePerson : null;
+  return [person?.BirthLocation, person?.DeathLocation, person?.BirthLocationEdited, person?.DeathLocationEdited];
+}
 
 export function spell(text) {
   const americanToBritishSpelling = {
@@ -205,10 +242,7 @@ export function spell(text) {
     // Add more as needed
   };
 
-  const userLanguage = navigator.language || navigator.userLanguage;
-  const useBritishEnglish = ["en-GB", "en-AU", "en-NZ", "en-ZA", "en-IE", "en-IN", "en-SG", "en-MT"].includes(
-    userLanguage
-  );
+  const useBritishEnglish = useBritishSpelling(spellingPlaces(), navigator.language || navigator.userLanguage);
 
   function matchCase(original, transformed) {
     if (original === original.toUpperCase()) {

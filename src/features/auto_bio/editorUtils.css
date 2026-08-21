@@ -1,9 +1,12 @@
-#working {
-  position: absolute;
-  margin-top: 3em;
-  margin-left: 300px;
+/* Centred on the viewport and fixed, so the tree stays in sight however far down the edit
+page is scrolled and however long the biography takes to build. */
+#working.autoBioWorking {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   z-index: 1000000;
-  height: 50px;
+  height: 80px;
   border-radius: 50%;
   border: 2px solid forestgreen;
 }

@@ -34,6 +34,11 @@ export function updateRelations(household) {
     data.forEach(function (person, index) {
       if (person.Relation != "Self") {
         if (index != selfIndex) {
+          /* What the census recorded is this person's relation to the head of the household.
+          The table below turns that into a relation to the profile person, but only for the
+          combinations it knows. Anything it leaves alone is still a relation to the head, and
+          saying "her wife" about the head's wife would be plainly wrong, so mark it. */
+          const relationToTheHead = person.Relation;
           switch (person.censusRelation || person.originalRelation) {
             case "Head":
               switch (self.censusRelation || self.originalRelation) {
@@ -283,10 +288,27 @@ export function updateRelations(household) {
               }
               break;
           }
+          /* Compared against what the census actually recorded, not against the value on the
+          way in, so that a second pass over the same household cannot mistake an already
+          translated relation for an untranslated one. Recorded either way, true or false, so
+          a later pass can tell "not decided yet" from "decided". */
+          const censusRelation = person.censusRelation || person.originalRelation || relationToTheHead;
+          person.RelationToHeadOnly = Boolean(person.Relation) && person.Relation === censusRelation;
         }
       }
       if (!person.Relation) {
         person.Relation = findRelation(person);
+        if (person.Relation) {
+          person.RelationToHeadOnly = false;
+        } else {
+          /* Nothing in this person's own family matches, so fall back to what the census said:
+          true of the head, and said as such rather than dropped. */
+          const censusRelation = person.censusRelation || person.originalRelation;
+          if (censusRelation) {
+            person.Relation = censusRelation;
+            person.RelationToHeadOnly = true;
+          }
+        }
       }
     });
   } else {
@@ -299,6 +321,18 @@ export function updateRelations(household) {
   return data;
 }
 
+/* Surnames a relative may be recorded under, and the one this household member is listed with. */
+function surnamesOf(relative) {
+  return [relative?.LastNameAtBirth, relative?.LastNameCurrent, relative?.LastNameOther]
+    .filter(Boolean)
+    .map((name) => String(name).trim().toLowerCase());
+}
+
+function surnameFromName(name = "") {
+  const parts = String(name).trim().split(/\s+/);
+  return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "";
+}
+
 export function findRelation(person) {
   let relationWord;
   if (!person.FirstName) {
@@ -306,6 +340,7 @@ export function findRelation(person) {
       person.FirstName = person.Name.split(" ")[0];
     }
   }
+  const personSurname = surnameFromName(person.Name);
   ["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
     if (window.profilePerson[relation]) {
       let relationSingular = relation.slice(0, -1);
@@ -325,6 +360,14 @@ export function findRelation(person) {
                 5
               );
               if (!isWithin) {
+                skip = true;
+              }
+            } else {
+              /* A first name on its own is thin evidence: it made Joseph Hargate, the head's
+              nephew, into the son named Joe. With no birth year to check the match against,
+              the surnames have to agree. */
+              const relativeSurnames = surnamesOf(window.profilePerson[relation][key]);
+              if (personSurname && relativeSurnames.length > 0 && !relativeSurnames.includes(personSurname)) {
                 skip = true;
               }
             }
@@ -414,14 +457,28 @@ export function createFamilyNarrative(familyMembers) {
   }
   let narrative = "";
 
-  const spouse = familyMembers.find((member) => member.Relation === "Wife" || member.Relation === "Husband");
-  const children = familyMembers.filter((member) => member.Relation === "Daughter" || member.Relation === "Son");
-  const siblings = familyMembers.filter((member) => member.Relation === "Brother" || member.Relation === "Sister");
-  const parents = familyMembers.filter((member) => member.Relation === "Father" || member.Relation === "Mother");
+  /* Somebody whose relation is still the one the census recorded to the head of the household
+  is named plainly, with that relation in brackets. Reading it as a relation to the profile
+  person is how a two-year-old granddaughter ends up with "her wife". */
+  const relatedToThisPerson = (member) => member.RelationToHeadOnly !== true;
+  const spouse = familyMembers.find(
+    (member) => relatedToThisPerson(member) && (member.Relation === "Wife" || member.Relation === "Husband")
+  );
+  const children = familyMembers.filter(
+    (member) => relatedToThisPerson(member) && (member.Relation === "Daughter" || member.Relation === "Son")
+  );
+  const siblings = familyMembers.filter(
+    (member) => relatedToThisPerson(member) && (member.Relation === "Brother" || member.Relation === "Sister")
+  );
+  const parents = familyMembers.filter(
+    (member) => relatedToThisPerson(member) && (member.Relation === "Father" || member.Relation === "Mother")
+  );
 
   const others = familyMembers.filter(
     (member) =>
-      !["Self", "Wife", "Husband", "Daughter", "Son", "Brother", "Sister", "Father", "Mother"].includes(member.Relation)
+      member.Relation !== "Self" &&
+      (!relatedToThisPerson(member) ||
+        !["Wife", "Husband", "Daughter", "Son", "Brother", "Sister", "Father", "Mother"].includes(member.Relation))
   );
 
   const removeMainPersonLastName = (name) => {
@@ -466,9 +523,10 @@ export function createFamilyNarrative(familyMembers) {
     }
     children.forEach((child, index) => {
       const childAge = child.Age ? ` (${child.Age})` : "";
-      childrenBit += `${removeMainPersonLastName(child.Name)} ${childAge}`;
+      childrenBit += `${removeMainPersonLastName(child.Name)}${childAge}`;
       if (index === children?.length - 2) {
-        childrenBit += `, and `;
+        /* "Mary and John", not "Mary, and John": the comma only earns its place in a longer list. */
+        childrenBit += children?.length === 2 ? ` and ` : `, and `;
       } else if (index !== children?.length - 1) {
         childrenBit += `, `;
       }
@@ -489,7 +547,7 @@ export function createFamilyNarrative(familyMembers) {
     siblings.forEach((sibling, index) => {
       siblingsBit += `${removeMainPersonLastName(sibling.Name)} (${sibling.Age})`;
       if (index === siblings?.length - 2) {
-        siblingsBit += `, and `;
+        siblingsBit += siblings?.length === 2 ? ` and ` : `, and `;
       } else if (index !== siblings?.length - 1) {
         siblingsBit += `, `;
       }
@@ -528,7 +586,7 @@ export function createFamilyNarrative(familyMembers) {
       othersBit += other.Name + " (" + other.Age + oRelationStr + ")";
 
       if (index === others?.length - 2) {
-        othersBit += ", and ";
+        othersBit += others?.length === 2 ? " and " : ", and ";
       } else if (index !== others?.length - 1) {
         othersBit += ", ";
       }
