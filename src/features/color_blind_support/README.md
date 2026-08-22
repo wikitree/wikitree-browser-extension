@@ -22,7 +22,7 @@ Each preset comes in two lightings — see [Dark Mode](#dark-mode) — and
 `scripts/check-palette.mjs` checks all eight on every build.
 
 The recolor is applied to the three `.status` message boxes — the elements the palette's
-roles are named after — plus new/unknown link text and the pale badge fills. A ninth value,
+roles are named after — plus new/unknown link text. A ninth value,
 **Do nothing**, keeps WikiTree's own colors throughout while leaving every shape cue
 running; see [The palette can be switched off](#the-palette-can-be-switched-off).
 
@@ -282,8 +282,9 @@ switched on at all.
 - `badgeCue` (default `both`) gates the badge fill and the badge border independently:
   `both`, `recolor`, `border`, `none`. `both` is the default because that is what badges
   did before the option existed — the fill came with the feature, the border with the
-  status cue. Both settings apply only to the pale `.badge.green` and `.badge.red`; see
-  [The Content Rank badge, and why the solid ones are left alone](#the-content-rank-badge-and-why-the-solid-ones-are-left-alone).
+  status cue. Both settings skip the Content Rank badge at every tier, which is every
+  badge on WikiTree today; see
+  [The Content Rank badge, and why it is left alone](#the-content-rank-badge-and-why-it-is-left-alone).
 
 ### Every cue can be told to do nothing, and that is how conflicts get settled
 
@@ -349,8 +350,9 @@ box text measures 10.4:1 and 10.8:1, and the badge text colours are computed her
 exactly that. It also follows Dark Mode for free. The same reasoning is already written down
 for the gender stripes and the visited-link mark, which were built this way from the start.
 
-**The palette now drives only the places where colour is genuinely the only channel:**
-new/unknown link text, and the pale badge fills. Nothing else reads a `--wbe-cb-*` colour.
+**The palette now drives only the places where colour is genuinely the only channel:** the
+three `.status` message boxes and new/unknown link text. Nothing else reads a `--wbe-cb-*`
+colour.
 
 ## Why `.box.green` and `.box.orange` are left alone entirely
 
@@ -463,7 +465,7 @@ with `color_blind_support_options_ui.js` and its test.
 
 The reason is the one the rest of this file keeps arriving at: **shape carries the meaning,
 not color.** New links get a dotted underline and a `?` by default, the boxes get a rim and
-a left edge, the pale badges get an outline. Every one of those notes was therefore
+a left edge, a marked badge gets an outline. Every one of those notes was therefore
 reporting a weakness in the _backup_ channel — telling a reader their color measured badly
 while the cue that actually does the work carried on regardless. And a settings panel that
 quotes contrast ratios at somebody reads as an audit, which is a strange thing to hand a
@@ -509,28 +511,29 @@ a separate promise — that a reader who picks an error color sees the error box
 measurements about grayscale do not answer it either way. Both are done; neither is asked
 to do the other's work.
 
-The pale badges keep their fill recolor, and get a 2px edge as well — solid for green,
-dashed for red — because the fill alone is one channel and they are small enough that it is
-easy to miss. The solid badges get neither; see the next section.
+A badge that means success or error keeps its fill recolor and gets a 2px edge as well —
+solid for green, dashed for red — because the fill alone is one channel and badges are small
+enough that it is easy to miss. No badge on WikiTree currently qualifies; see the next
+section.
 
-### The Content Rank badge, and why the solid ones are left alone
+### The Content Rank badge, and why it is left alone
 
-WikiTree runs a five-value badge scale, read straight off its own stylesheet:
+WikiTree runs one badge scale, and almost every badge in the wild turns out to be the
+Content Rank number beside a profile name — a ten-point score on five colour steps:
 
-| Selector           | WikiTree's fill | Seen in the wild         |
-| ------------------ | --------------- | ------------------------ |
-| `.badge.new`       | `#FCB815` amber | — (no rule here)         |
-| `.badge.green`     | `#E1F0B4` pale  | recoloured and outlined  |
-| `.badge.green.new` | `#8FC641` solid | Content Rank — untouched |
-| `.badge.red`       | `#FFCCCC` pale  | recoloured and outlined  |
-| `.badge.red.new`   | `#CC0000` solid | PPP — untouched          |
+| Selector           | WikiTree's fill | Content Rank | Also seen            | Rule here |
+| ------------------ | --------------- | ------------ | -------------------- | --------- |
+| `.badge.green.new` | `#8FC641` solid | `CR:10`      | `M` on the watchlist | untouched |
+| `.badge.green`     | `#E1F0B4` pale  | `CR:9`–`8`   | —                    | untouched |
+| `.badge.new`       | `#FCB815` amber | —            | —                    | untouched |
+| `.badge`           | `#FFE270` amber | `CR:7`–`6`   | —                    | untouched |
+| `.badge.red`       | `#FFCCCC` pale  | `CR:5`–`4`   | —                    | untouched |
+| `.badge.red.new`   | `#CC0000` solid | `CR:3`–`1`   | `PPP`                | untouched |
 
-The two solid ones used to be repainted from the role **ink** — `--wbe-cb-success` and
-`--wbe-cb-danger` — and that was wrong twice over.
-
-**It marked something that was not colour-only.** The badges read `CR:10` and `PPP`. The
-state is in the text, so colour is carrying nothing the label is not already carrying, and
-by this feature's own test there is nothing to mark. It is the same finding as
+**Nothing here is colour-only.** Every step of the ramp prints the number it is encoding —
+`CR:9`, `CR:5` — and `PPP` spells out its state too. Colour is carrying nothing the label is
+not already carrying, and by this feature's own test there is nothing to mark. It is the
+same finding as
 [the Family Group app](#the-family-group-app-needs-nothing-and-that-is-the-point), left
 alone for the same reason.
 
@@ -554,7 +557,31 @@ fill will always look like a disabled control, because desaturating toward legib
 exactly what greying-out does. The 2px `currentColor` ring did the rest: on an element that
 narrow it eats the padding the label needs.
 
-Hence `:not(.new)` on all four badge rules, fill and border alike.
+#### Excluding only `.new` was not enough
+
+That first fix left `CR:9`–`8` and `CR:5`–`4` being repainted while the other three steps of
+the same ramp were not — a ten-point scale recoloured in the middle and untouched at both
+ends. The split was not arbitrary. Those two pale fills really are the one confusable pair
+in the scale:
+
+| Pair                     | Deuteranopia | Protanopia | Bar |
+| ------------------------ | ------------ | ---------- | --- |
+| `#E1F0B4` vs `#FFCCCC`   | **4.0**      | **4.7**    | 25  |
+| every other pair of five | 26–32        | 26–32      | 25  |
+
+Under protanopia `#E1F0B4` simulates to `#E7E8C3` and `#FFCCCC` to `#E9E8CC`. They are the
+same pale cream.
+
+**But repainting them did not fix that.** `#DDEDE9` against `#F1D1DB` measures 12.0 and 8.3
+— still under half the bar. And nothing here was rescuing legibility: WikiTree's own badge
+text clears WCAG at every step of the ramp, `5.44:1` at the worst of them, and dichromats'
+luminance perception is near-normal, so those ratios hold for the readers this feature is
+for. The recolor bought a broken ramp and no distinguishability.
+
+Hence `:not(.new):not(.cr-details)` on all four badge rules, fill and border alike. The
+rules stay for a pale green or red badge that genuinely means success or error — a sweep of
+profiles, the watchlist, G2G, `Special:Badges`, Recent Changes and the person search found
+none, so today they select nothing, and that is the point rather than an oversight.
 
 ### The rim is redrawn, though
 
@@ -874,7 +901,7 @@ invisible text.
 
 Nothing in this feature currently uses `-on`, because nothing paints an ink as a fill any
 more; the badges that did are
-[no longer touched](#the-content-rank-badge-and-why-the-solid-ones-are-left-alone). It is
+[no longer touched](#the-content-rank-badge-and-why-it-is-left-alone). It is
 still published for anything that puts a role colour behind text, and the warning above is
 why it exists separately at all. `--wbe-cb-success` and `--wbe-cb-warning` are likewise
 unread now — the boxes take `-bg` and `-text` — and are published for other features.

@@ -596,10 +596,10 @@ describe("which parent a sibling shares", () => {
 });
 
 /*
-The solid badges are left alone deliberately, and a deliberate absence in a stylesheet is
-indistinguishable from an oversight. These read the rules as text so that reinstating one
-fails here rather than shipping a muddy Content Rank badge again. See the README section
-"The Content Rank badge, and why the solid ones are left alone".
+The Content Rank badge is left alone deliberately, and a deliberate absence in a stylesheet
+is indistinguishable from an oversight. These read the rules as text so that reinstating one
+fails here rather than shipping a repainted rank tier again. See the README section
+"The Content Rank badge, and why it is left alone".
 */
 describe("badge rules", () => {
   const stylesheet = require("fs").readFileSync(`${__dirname}/color_blind_support.css`, "utf8");
@@ -613,6 +613,16 @@ describe("badge rules", () => {
     expect(badgeSelectors).not.toHaveLength(0);
     badgeSelectors.forEach((selector) => {
       expect(selector).toMatch(/\.badge\.(green|red):not\(\.new\)/);
+    });
+  });
+
+  test("every badge rule excludes the Content Rank badge, at every tier", () => {
+    // The badge prints its own number, so its colour is a second encoding of something
+    // already spelled out - the test that leaves the Family Group app alone. Excluding
+    // only .new repainted CR:9-8 and CR:5-4 and left the other three steps of the same
+    // five-step ramp untouched.
+    badgeSelectors.forEach((selector) => {
+      expect(selector).toMatch(/:not\(\.cr-details\)/);
     });
   });
 

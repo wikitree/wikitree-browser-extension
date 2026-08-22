@@ -56,8 +56,8 @@ const colorBlindSupport = {
           defaultValue: "#FFCCCC",
           dependsOn: { option: "paletteName", value: "custom", hide: true },
           comment:
-            "Fills the error message box and the red badges, exactly as picked. Red text in Date Fixer, " +
-            "Text Expander, Locations Helper and WikiTree+ uses a darkened version so it stays readable.",
+            "Fills the error message box, exactly as picked. Red text in Date Fixer, Text Expander, " +
+            "Locations Helper and WikiTree+ uses a darkened version so it stays readable.",
         },
         {
           id: "warningColor",
@@ -73,7 +73,7 @@ const colorBlindSupport = {
           label: "Success color",
           defaultValue: "#E1F0B4",
           dependsOn: { option: "paletteName", value: "custom", hide: true },
-          comment: "Fills the success message box and the green badges, exactly as picked.",
+          comment: "Fills the success message box, exactly as picked.",
         },
       ],
     },

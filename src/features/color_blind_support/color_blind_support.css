@@ -718,42 +718,53 @@ html body.wbe-cb-status #bioCheckResultsContainer:not(.green) #bioCheckResultsLi
 }
 
 /* Badges use the same green/red pairing, in a small enough element that only the fill
-   is visible. Recolour and outline both - but only the pale variants.
+   is visible. Recolour and outline both - but nothing that prints its own value.
 
    WikiTree's badge scale, read off its own stylesheet: .badge.green #E1F0B4 pale against
    .badge.green.new #8FC641 solid, .badge.red #FFCCCC pale against .badge.red.new #CC0000
    solid, plus a .badge.new #FCB815 amber that no rule here touches.
 
-   The solid .new ones are deliberately left alone. The two in the wild are Content Rank
-   (CR:10) and Project Protection (PPP), and both spell their state out in the badge text.
-   Colour is carrying nothing there that the label is not already carrying, which is the
-   test this whole feature applies - the same test that leaves the Family Group app alone.
-   Their green and red are not the success and danger roles either: green on a Content
-   Rank badge is a rank tier, not a success, so painting the reader's success colour onto
-   it maps a palette role onto something that does not hold that meaning.
+   THE WHOLE CONTENT RANK RAMP IS EXCLUDED, not just the saturated ends of it. That badge
+   is one widget spread over five colour steps - #8FC641 at CR:10, #E1F0B4 at 9-8, #FFE270
+   at 7-6, #FFCCCC at 5-4, #CC0000 at 3-1 - and every step of it prints the number it is
+   encoding. Colour is carrying nothing the label is not already carrying, which is the
+   test this whole feature applies, the same test that leaves the Family Group app alone.
+   The role mapping is wrong on top of that: green on a Content Rank badge is a rank tier,
+   not a success, so painting the reader's success colour onto a 9 announces a meaning the
+   badge does not hold.
 
-   There was also nothing good to paint them with. --wbe-cb-success is an *ink*: under a
-   custom palette it is reachContrast(pick, white, 3), the pick dragged down until it works
-   as text. Used as a fill that turns WikiTree's #8FC641 into #8E9871, a muddy olive. Not a
-   contrast failure - 6.88:1 against the black text computed for it, better than the 5.44:1
-   WikiTree ships - just a badge that now reads as a greyed-out disabled control. Flipping
-   the text colour cannot fix it, because the text colour was already derived from the fill
-   and was already the right one; the fill was the mistake.
+   An earlier version of these rules excluded only .new, which repainted CR:9-8 and CR:5-4
+   and left the other three steps as WikiTree ships them - a ten-point ramp recoloured in
+   the middle and untouched at both ends. That split was not arbitrary: those two really
+   are the one confusable pair in the scale, 4.0 dE apart under deuteranopia and 4.7 under
+   protanopia against a bar of 25, where every other pair sits at 26-32. But repainting
+   them did not fix it. #DDEDE9 against #F1D1DB comes out at 12.0 and 8.3, still under half
+   the bar, so the recolour bought a broken ramp and no distinguishability. Nothing here
+   was rescuing legibility either - WikiTree's own badge text clears WCAG at every step,
+   5.44:1 at the worst of them.
 
-   Hence :not(.new) on all four rules, borders included - a 2px ring on an element this
-   small is most of the crowding, and these badges are not being marked at all.
+   The rules below stay for a pale green or red badge that genuinely means success or
+   error. A sweep of profiles, the watchlist, G2G, Special:Badges, Recent Changes and the
+   person search found none - every pale badge in the wild was Content Rank - so today
+   these select nothing, and that is the point rather than an oversight.
 
-   What remains MUST each set a text colour to go with its background. WikiTree picks its
-   badge text to suit its own fill, so changing the fill and leaving the text alone leaves
-   whatever it had. Note that -text is computed for the pale tint and -on for the accent,
-   and using either in the other's place is unreadable in one of the two lightings. */
+   Do not paint a badge from a role INK if one ever does match. --wbe-cb-success is text:
+   under a custom palette it is reachContrast(pick, white, 3), the pick dragged down until
+   it works as a letterform. Used as a fill that turned WikiTree's #8FC641 into #8E9871, a
+   muddy olive - not a contrast failure, 6.88:1 against the black computed for it, better
+   than the 5.44:1 WikiTree ships, just a badge that read as a greyed-out disabled control.
 
-html body.wbe-cb-palette:is(.wbe-cb-badges-recolor, .wbe-cb-badges-both) .badge.green:not(.new) {
+   Each fill MUST set a text colour beside it. WikiTree picks its badge text to suit its
+   own fill, so changing the fill and leaving the text alone leaves whatever it had. Note
+   that -text is computed for the pale tint and -on for the accent, and using either in the
+   other's place is unreadable in one of the two lightings. */
+
+html body.wbe-cb-palette:is(.wbe-cb-badges-recolor, .wbe-cb-badges-both) .badge.green:not(.new):not(.cr-details) {
   background-color: var(--wbe-cb-success-bg, #e1f0b4) !important;
   color: var(--wbe-cb-success-text, #25422d) !important;
 }
 
-html body.wbe-cb-palette:is(.wbe-cb-badges-recolor, .wbe-cb-badges-both) .badge.red:not(.new) {
+html body.wbe-cb-palette:is(.wbe-cb-badges-recolor, .wbe-cb-badges-both) .badge.red:not(.new):not(.cr-details) {
   background-color: var(--wbe-cb-danger-bg, #ffcccc) !important;
   color: var(--wbe-cb-danger-text, #25422d) !important;
 }
@@ -761,11 +772,11 @@ html body.wbe-cb-palette:is(.wbe-cb-badges-recolor, .wbe-cb-badges-both) .badge.
 /* currentColor, like every other shape cue here: the badge's own text colour is computed
    to be readable against its fill, so the edge cannot be painted invisible by a palette
    choice the way a --wbe-cb-* colour can. */
-html body:is(.wbe-cb-badges-border, .wbe-cb-badges-both) .badge.green:not(.new) {
+html body:is(.wbe-cb-badges-border, .wbe-cb-badges-both) .badge.green:not(.new):not(.cr-details) {
   border: 2px solid currentColor !important;
 }
 
-html body:is(.wbe-cb-badges-border, .wbe-cb-badges-both) .badge.red:not(.new) {
+html body:is(.wbe-cb-badges-border, .wbe-cb-badges-both) .badge.red:not(.new):not(.cr-details) {
   border: 2px dashed currentColor !important;
 }
 
