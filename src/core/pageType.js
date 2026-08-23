@@ -150,6 +150,8 @@ export let isWBESpace = false;
 export let isNetworkFeed = false;
 // Special:BrowseMatches
 export let isBrowseMatches = false;
+// Special:FindMatches results (index.php?title=Special:FindMatches&action=find&u=...)
+export let isFindMatchesResults = false;
 // Special:Contributions
 export let isContributions = false;
 
@@ -444,6 +446,9 @@ if (domain.match("apps.wikitree.com")) {
       isWhatLinksHere = true;
     } else if (uri.match(/Special(:|%3A|%3a)BrowseMatches/)) {
       isBrowseMatches = true;
+    } else if (uri.match(/Special(:|%3A|%3a)FindMatches/) && uri.match(/action=find/)) {
+      // Only the results page. Special:FindMatches with no action is the empty search form.
+      isFindMatchesResults = true;
     }
   } else if (
     // Other Edit Page

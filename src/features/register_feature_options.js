@@ -88,6 +88,7 @@ import "./family_dropdown/family_dropdown_options";
 import "./family_lists/family_lists_options";
 import "./family_status_sync/family_status_sync_options";
 import "./feed_helper/feed_helper_options";
+import "./find_matches_scores/find_matches_scores_options";
 import "./find_a_grave_memorial_extractor/find_a_grave_memorial_extractor_options";
 import "./g2g/g2g_options";
 import "./genderPredictor/gender_predictor_options";

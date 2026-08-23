@@ -197,6 +197,9 @@ const ALLOWED = {
     __dirname:
       "reads the feature's own stylesheet from disk; Jest maps .css to a stub, so require.resolve cannot give the real path",
   },
+  "src/features/find_matches_scores/find_matches_page.test.js": {
+    __dirname: "reads a saved copy of the Find Matches page from __fixtures__, which is HTML rather than a module",
+  },
 };
 
 function jsFilesIn(dir) {

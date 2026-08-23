@@ -108,6 +108,7 @@ import "./features/familyGroup/familyGroup";
 import "./features/familyTimeline/familyTimeline";
 import "./features/feed_helper/feed_helper";
 import "./features/find_a_grave_memorial_extractor/find_a_grave_memorial_extractor";
+import "./features/find_matches_scores/find_matches_scores";
 import "./features/g2g/g2g";
 import "./features/help/help";
 import "./features/hide_my_contributions/hide_my_contributions";
