@@ -6,8 +6,16 @@
 #g2gScissors {
   margin: 0.5em;
 }
+/* Sit on the end of the "answered/commented by ..." line rather than taking a line of its own. */
 .g2gScissors {
-  margin-top: 0.5em;
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 0.7em;
+}
+
+.g2gScissors ul.copy--buttons {
+  display: inline-block;
+  margin-bottom: 0;
 }
 
 .g2gPlus {
@@ -222,4 +230,35 @@ html.g2gCompact .mb-3,
 html.g2gCompact .box {
   padding: 0.2em !important;
   margin-bottom: 0.2em !important;
+}
+
+/* Compact: question, answers, and comments on a question page */
+html.g2gCompact hr.page--divider {
+  padding: 0 !important;
+  margin-top: 0.2em !important;
+  margin-bottom: 0.4em !important;
+}
+html.g2gCompact .qa-a-list-item,
+html.g2gCompact .qa-c-list-item,
+html.g2gCompact .qa-part-a-form,
+html.g2gCompact .qa-part-a-list > h2 {
+  margin-bottom: 0.4em !important;
+}
+html.g2gCompact .qa-q-view .small.mt-3,
+html.g2gCompact .qa-a-item-main .small.mt-3,
+html.g2gCompact .qa-c-item-footer .small.mt-3 {
+  margin-top: 0.2em !important;
+  margin-bottom: 0.2em !important;
+}
+html.g2gCompact .qa-q-view-tag-list {
+  margin-top: 0.3em !important;
+  margin-bottom: 0.3em !important;
+}
+html.g2gCompact .qa-post-content p {
+  margin-bottom: 0.5em !important;
+}
+html.g2gCompact .qa-q-view-content p:last-child,
+html.g2gCompact .qa-a-item-content p:last-child,
+html.g2gCompact .qa-c-item-content p:last-child {
+  margin-bottom: 0 !important;
 }
