@@ -1185,8 +1185,9 @@ function addNotabilityTextCounter() {
   counter.title =
     "Added by the WikiTree Browser Extension (Usability Tweaks). " +
     `The text parameter of the Notability template has a ${NOTABILITY_TEXT_LIMIT} character maximum.`;
-  // Above the editor, where it's in view. The editor is usually too tall for anything
+  // Above the editor, where it's in view: the editor is usually too tall for anything
   // below it to be seen, and the Notability template sits at the top of the biography.
+  // The Sticky Toolbar feature moves this into the toolbar so it stays in view.
   textarea.parentNode.insertBefore(counter, textarea);
 
   let pending = null;
@@ -1201,7 +1202,9 @@ function addNotabilityTextCounter() {
   }
 
   $(textarea).on("input change keyup paste", scheduleUpdate);
-  // Watch the enhanced editor's lines, ignoring the changes we make to the counter itself.
+  /* Watch the enhanced editor's lines, ignoring the changes we make to the counter itself.
+     Bound to the form rather than the textarea's parent because the Editor Expander moves
+     the editor into the toolbar, and an observer bound to the old parent would lose it. */
   new MutationObserver(function (mutations) {
     if (
       mutations.every(function (mutation) {
@@ -1211,7 +1214,11 @@ function addNotabilityTextCounter() {
       return;
     }
     scheduleUpdate();
-  }).observe(textarea.parentNode, { childList: true, subtree: true, characterData: true });
+  }).observe(textarea.closest("form") || textarea.parentNode, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  });
 
   updateNotabilityTextCounter();
 }
