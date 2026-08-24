@@ -1177,6 +1177,8 @@ function addNotabilityTextCounter() {
 
   const counter = document.createElement("div");
   counter.id = "wbeNotabilityCounter";
+  // Marks it for the Highlight WBE Features feature.
+  counter.className = "wbe";
   counter.hidden = true;
   // On by default, so say where it came from: the box is new to anyone who hasn't
   // read the release notes, and the tooltip is the only thing that explains it.
