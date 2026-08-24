@@ -156,6 +156,12 @@ const usabilityTweaks = {
           label: "Remember the height of the editor on the edit page.",
           defaultValue: false,
         },
+        {
+          id: "notabilityTextCounter",
+          type: OptionType.CHECKBOX,
+          label: "Show a character count for the 'text' parameter of the Notability template (350 character maximum).",
+          defaultValue: true,
+        },
       ],
     },
     {

@@ -30,3 +30,34 @@ body.search-person #onlyMembers {
 #catSearch {
   z-index: 100;
 }
+#wbeNotabilityCounter {
+  width: fit-content;
+  margin: 0.3em 0;
+  padding: 0.15em 0.6em;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background-color: #f4f4f4;
+  font-size: 0.9em;
+  line-height: 1.5;
+  color: #555;
+}
+#wbeNotabilityCounter[hidden] {
+  display: none;
+}
+#wbeNotabilityCounter .wbeNotabilityCount.close {
+  color: var(--wbe-cb-warning-text, #b36b00);
+}
+#wbeNotabilityCounter .wbeNotabilityCount.over {
+  color: var(--wbe-cb-danger-text, #c00000);
+}
+body.darkMode #wbeNotabilityCounter {
+  border-color: #555;
+  background-color: #2a2a2a;
+  color: #ccc;
+}
+body.darkMode #wbeNotabilityCounter .wbeNotabilityCount.close {
+  color: var(--wbe-cb-warning-text, #ffb347);
+}
+body.darkMode #wbeNotabilityCounter .wbeNotabilityCount.over {
+  color: var(--wbe-cb-danger-text, #ff8080);
+}

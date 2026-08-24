@@ -1016,6 +1016,204 @@ function addAccessedCountToProfileData() {
   }
 }
 
+/* The text parameter of the {{Notability}} template has a 350 character maximum,
+   so show a live count of what's been typed and what's left while editing. */
+const NOTABILITY_TEXT_LIMIT = 350;
+// Where an unclosed template ends: a blank line, or the start of a section heading.
+const UNCLOSED_END = /^\n[ \t]*(\n|==)/;
+
+/**
+ * Splits the template starting at the given index into its pipe-separated parts.
+ * Pipes inside nested templates and wiki links are ignored.
+ * The template is often still being typed and so has no closing "}}" yet. In that case
+ * it ends at a blank line or a section heading, so that the rest of the biography
+ * isn't counted as part of the last parameter.
+ *
+ * @param {string} text - The full editor text.
+ * @param {number} start - The index of the template's opening "{{".
+ * @returns {{end: number, parts: Array<string>}} The parts (the first is the template name)
+ * and the index the template ends at.
+ */
+function parseTemplateParts(text, start) {
+  const parts = [];
+  let templateDepth = 0;
+  let linkDepth = 0;
+  let partStart = start + 2;
+  let i = partStart;
+
+  while (i < text.length) {
+    const pair = text.substr(i, 2);
+    if (pair == "{{") {
+      templateDepth++;
+      i += 2;
+    } else if (pair == "}}") {
+      if (templateDepth == 0) {
+        parts.push(text.slice(partStart, i));
+        return { end: i + 2, parts: parts };
+      }
+      templateDepth--;
+      i += 2;
+    } else if (pair == "[[") {
+      linkDepth++;
+      i += 2;
+    } else if (pair == "]]") {
+      if (linkDepth > 0) {
+        linkDepth--;
+      }
+      i += 2;
+    } else if (templateDepth == 0 && linkDepth == 0 && text[i] == "|") {
+      parts.push(text.slice(partStart, i));
+      i++;
+      partStart = i;
+    } else if (templateDepth == 0 && linkDepth == 0 && text[i] == "\n" && UNCLOSED_END.test(text.substr(i, 12))) {
+      break;
+    } else {
+      i++;
+    }
+  }
+  parts.push(text.slice(partStart, i));
+  return { end: i, parts: parts };
+}
+
+/**
+ * Finds the text parameter of every {{Notability}} template in the text.
+ *
+ * @param {string} text - The full editor text.
+ * @returns {Array<string>} The trimmed text= values, in the order they appear.
+ */
+function getNotabilityTexts(text) {
+  const values = [];
+  const notabilityStart = /\{\{\s*notability\s*(?=[|}])/gi;
+  let match;
+  while ((match = notabilityStart.exec(text)) !== null) {
+    const template = parseTemplateParts(text, match.index);
+    notabilityStart.lastIndex = Math.max(template.end, notabilityStart.lastIndex);
+    template.parts.slice(1).forEach(function (part) {
+      const equals = part.indexOf("=");
+      if (equals > -1 && part.slice(0, equals).trim().toLowerCase() == "text") {
+        values.push(part.slice(equals + 1).trim());
+      }
+    });
+  }
+  return values;
+}
+
+/**
+ * Gets the text currently in the editor.
+ * The enhanced editor (CodeMirror) doesn't write back to the textarea until the form
+ * is submitted, so read its rendered lines when it's switched on.
+ *
+ * @returns {string} The editor's text.
+ */
+function getWikiEditorText() {
+  const codeMirror = document.querySelector("div.CodeMirror");
+  if (codeMirror && $(codeMirror).is(":visible")) {
+    const lines = codeMirror.querySelectorAll(".CodeMirror-code .CodeMirror-line");
+    if (lines.length) {
+      return Array.from(lines)
+        .map(function (line) {
+          return line.textContent.replace(/\u200b/g, "");
+        })
+        .join("\n");
+    }
+  }
+  const textarea = document.getElementById("wpTextbox1");
+  return textarea ? textarea.value : "";
+}
+
+/**
+ * Updates (or hides) the Notability character counter.
+ *
+ * @returns {void}
+ */
+function updateNotabilityTextCounter() {
+  const counter = document.getElementById("wbeNotabilityCounter");
+  if (!counter) {
+    return;
+  }
+  const texts = getNotabilityTexts(getWikiEditorText());
+  if (!texts.length) {
+    counter.hidden = true;
+    counter.innerHTML = "";
+    return;
+  }
+  counter.hidden = false;
+  counter.innerHTML = texts
+    .map(function (value, index) {
+      const used = value.length;
+      const left = NOTABILITY_TEXT_LIMIT - used;
+      let state = "";
+      if (left < 0) {
+        state = " over";
+      } else if (left <= 25) {
+        state = " close";
+      }
+      const label = texts.length > 1 ? `Notability text ${index + 1}` : "Notability text";
+      const remaining =
+        left < 0 ? `<strong>${-left}</strong> over the limit` : `<strong>${left}</strong> characters left`;
+      return (
+        `<div class="wbeNotabilityCount${state}">${label}: ` +
+        `<strong>${used}</strong>/${NOTABILITY_TEXT_LIMIT} &ndash; ${remaining}</div>`
+      );
+    })
+    .join("");
+}
+
+/**
+ * Adds a character counter above the editor for the text parameter of any
+ * {{Notability}} template in the biography. It stays hidden until there is one.
+ *
+ * @returns {void}
+ */
+function addNotabilityTextCounter() {
+  const textarea = document.getElementById("wpTextbox1");
+  if (!textarea) {
+    window.addEventListener("load", addNotabilityTextCounter, { once: true });
+    return;
+  }
+  if (document.getElementById("wbeNotabilityCounter")) {
+    return;
+  }
+
+  const counter = document.createElement("div");
+  counter.id = "wbeNotabilityCounter";
+  counter.hidden = true;
+  // On by default, so say where it came from: the box is new to anyone who hasn't
+  // read the release notes, and the tooltip is the only thing that explains it.
+  counter.title =
+    "Added by the WikiTree Browser Extension (Usability Tweaks). " +
+    `The text parameter of the Notability template has a ${NOTABILITY_TEXT_LIMIT} character maximum.`;
+  // Above the editor, where it's in view. The editor is usually too tall for anything
+  // below it to be seen, and the Notability template sits at the top of the biography.
+  textarea.parentNode.insertBefore(counter, textarea);
+
+  let pending = null;
+  function scheduleUpdate() {
+    if (pending) {
+      return;
+    }
+    pending = setTimeout(function () {
+      pending = null;
+      updateNotabilityTextCounter();
+    }, 200);
+  }
+
+  $(textarea).on("input change keyup paste", scheduleUpdate);
+  // Watch the enhanced editor's lines, ignoring the changes we make to the counter itself.
+  new MutationObserver(function (mutations) {
+    if (
+      mutations.every(function (mutation) {
+        return counter.contains(mutation.target);
+      })
+    ) {
+      return;
+    }
+    scheduleUpdate();
+  }).observe(textarea.parentNode, { childList: true, subtree: true, characterData: true });
+
+  updateNotabilityTextCounter();
+}
+
 shouldInitializeFeature("usabilityTweaks").then((result) => {
   if (result) {
     getFeatureOptions("usabilityTweaks").then((options) => {
@@ -1077,6 +1275,9 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
 
       if (isWikiEdit && options.rememberTextareaHeight) {
         triggerRememberTextareaHeight();
+      }
+      if (isWikiEdit && options.notabilityTextCounter) {
+        addNotabilityTextCounter();
       }
       if (isNavHomePage) {
         if (options.addScratchPadButton && $("#clonedScratchPadButton").length == 0) {
