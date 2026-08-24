@@ -10,3 +10,7 @@
 body[class*="page-Space_"].stickyToolbar #wpSave.small {
   margin-top: -2em !important;
 }
+/* The toolbar's edit buttons are floated, so the counter needs its own line in there. */
+#toolbar > #wbeNotabilityCounter {
+  clear: both;
+}

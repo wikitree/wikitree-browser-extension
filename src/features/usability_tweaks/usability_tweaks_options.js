@@ -159,7 +159,9 @@ const usabilityTweaks = {
         {
           id: "notabilityTextCounter",
           type: OptionType.CHECKBOX,
-          label: "Show a character count for the 'text' parameter of the Notability template (350 character maximum).",
+          label:
+            "Show a character count for the 'text' parameter of the Notability template " +
+            "(350 character maximum) while the cursor is inside the template.",
           defaultValue: true,
         },
       ],

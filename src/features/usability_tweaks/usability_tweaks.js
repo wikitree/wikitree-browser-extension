@@ -1076,13 +1076,15 @@ function parseTemplateParts(text, start) {
 }
 
 /**
- * Finds the text parameter of every {{Notability}} template in the text.
+ * Finds every {{Notability}} template in the text that has a text parameter, along with
+ * where the template starts and ends, so that the caret can be tested against it.
  *
  * @param {string} text - The full editor text.
- * @returns {Array<string>} The trimmed text= values, in the order they appear.
+ * @returns {Array<{value: string, start: number, end: number}>} One entry per template
+ * with a text parameter, in the order they appear.
  */
-function getNotabilityTexts(text) {
-  const values = [];
+function getNotabilityTemplates(text) {
+  const templates = [];
   const notabilityStart = /\{\{\s*notability\s*(?=[|}])/gi;
   let match;
   while ((match = notabilityStart.exec(text)) !== null) {
@@ -1091,38 +1093,79 @@ function getNotabilityTexts(text) {
     template.parts.slice(1).forEach(function (part) {
       const equals = part.indexOf("=");
       if (equals > -1 && part.slice(0, equals).trim().toLowerCase() == "text") {
-        values.push(part.slice(equals + 1).trim());
+        templates.push({ value: part.slice(equals + 1).trim(), start: match.index, end: template.end });
       }
     });
   }
-  return values;
+  return templates;
 }
 
 /**
- * Gets the text currently in the editor.
- * The enhanced editor (CodeMirror) doesn't write back to the textarea until the form
- * is submitted, so read its rendered lines when it's switched on.
+ * Locates the caret within the enhanced editor's text.
  *
- * @returns {string} The editor's text.
+ * The position lives in the page's own CodeMirror instance, which a content script can't
+ * reach, so it's read off the rendered cursor instead: find which line box the cursor is
+ * drawn in. That gives line precision rather than column, so the range covers the whole
+ * line, which is enough to tell whether the caret is inside a template.
+ *
+ * @param {Array<Element>} lines - The rendered line elements.
+ * @param {Array<string>} lineTexts - Their text, in the same order.
+ * @param {Element} codeMirror - The CodeMirror wrapper.
+ * @returns {{from: number, to: number}|null} Null if the cursor can't be located.
  */
-function getWikiEditorText() {
+function findCodeMirrorCaret(lines, lineTexts, codeMirror) {
+  const cursor = codeMirror.querySelector(".CodeMirror-cursor");
+  if (!cursor) {
+    return null;
+  }
+  // A wrapped line is still one element, so its box covers every row it occupies.
+  const cursorTop = cursor.getBoundingClientRect().top;
+  let offset = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (cursorTop < lines[i].getBoundingClientRect().bottom - 1) {
+      return { from: offset, to: offset + lineTexts[i].length };
+    }
+    offset += lineTexts[i].length + 1;
+  }
+  return null;
+}
+
+/**
+ * Gets the editor's text and, where it can be worked out, the caret's position in it.
+ *
+ * The enhanced editor (CodeMirror) doesn't write back to the textarea until the form is
+ * submitted, so its rendered lines are read instead.
+ *
+ * A null caret means "couldn't tell", not "not in a template": the caller shows the
+ * counter anyway in that case, so that a caret this can't find never makes the feature
+ * silently disappear.
+ *
+ * @returns {{text: string, caret: {from: number, to: number}|null}|null} Null if there's
+ * no editor to read.
+ */
+function getWikiEditorState() {
   const codeMirror = document.querySelector("div.CodeMirror");
   if (codeMirror && $(codeMirror).is(":visible")) {
-    const lines = codeMirror.querySelectorAll(".CodeMirror-code .CodeMirror-line");
+    const lines = Array.from(codeMirror.querySelectorAll(".CodeMirror-code .CodeMirror-line"));
     if (lines.length) {
-      return Array.from(lines)
-        .map(function (line) {
-          return line.textContent.replace(/\u200b/g, "");
-        })
-        .join("\n");
+      const lineTexts = lines.map(function (line) {
+        return line.textContent.replace(/\u200b/g, "");
+      });
+      return { text: lineTexts.join("\n"), caret: findCodeMirrorCaret(lines, lineTexts, codeMirror) };
     }
   }
   const textarea = document.getElementById("wpTextbox1");
-  return textarea ? textarea.value : "";
+  if (!textarea) {
+    return null;
+  }
+  // selectionStart survives losing focus, so the counter doesn't flicker away when a
+  // toolbar button is clicked. It's 0 until the editor has been clicked into.
+  return { text: textarea.value, caret: { from: textarea.selectionStart, to: textarea.selectionEnd } };
 }
 
 /**
- * Updates (or hides) the Notability character counter.
+ * Shows the count for the {{Notability}} template the caret is in, and hides the counter
+ * whenever the caret is somewhere else.
  *
  * @returns {void}
  */
@@ -1131,37 +1174,37 @@ function updateNotabilityTextCounter() {
   if (!counter) {
     return;
   }
-  const texts = getNotabilityTexts(getWikiEditorText());
-  if (!texts.length) {
+  const state = getWikiEditorState();
+  const templates = state ? getNotabilityTemplates(state.text) : [];
+  const caret = state && state.caret;
+  const template = caret
+    ? templates.find(function (candidate) {
+        return caret.to >= candidate.start && caret.from <= candidate.end;
+      })
+    : templates[0];
+  if (!template) {
     counter.hidden = true;
     counter.innerHTML = "";
     return;
   }
+  const used = template.value.length;
+  const left = NOTABILITY_TEXT_LIMIT - used;
+  let severity = "";
+  if (left < 0) {
+    severity = " over";
+  } else if (left <= 25) {
+    severity = " close";
+  }
+  const remaining = left < 0 ? `<strong>${-left}</strong> over the limit` : `<strong>${left}</strong> characters left`;
   counter.hidden = false;
-  counter.innerHTML = texts
-    .map(function (value, index) {
-      const used = value.length;
-      const left = NOTABILITY_TEXT_LIMIT - used;
-      let state = "";
-      if (left < 0) {
-        state = " over";
-      } else if (left <= 25) {
-        state = " close";
-      }
-      const label = texts.length > 1 ? `Notability text ${index + 1}` : "Notability text";
-      const remaining =
-        left < 0 ? `<strong>${-left}</strong> over the limit` : `<strong>${left}</strong> characters left`;
-      return (
-        `<div class="wbeNotabilityCount${state}">${label}: ` +
-        `<strong>${used}</strong>/${NOTABILITY_TEXT_LIMIT} &ndash; ${remaining}</div>`
-      );
-    })
-    .join("");
+  counter.innerHTML =
+    `<div class="wbeNotabilityCount${severity}">Notability text: ` +
+    `<strong>${used}</strong>/${NOTABILITY_TEXT_LIMIT} &ndash; ${remaining}</div>`;
 }
 
 /**
- * Adds a character counter above the editor for the text parameter of any
- * {{Notability}} template in the biography. It stays hidden until there is one.
+ * Adds a character counter above the editor for the text parameter of the {{Notability}}
+ * template the caret is in. It stays hidden the rest of the time.
  *
  * @returns {void}
  */
@@ -1198,13 +1241,17 @@ function addNotabilityTextCounter() {
     pending = setTimeout(function () {
       pending = null;
       updateNotabilityTextCounter();
-    }, 200);
+    }, 150);
   }
 
-  $(textarea).on("input change keyup paste", scheduleUpdate);
+  /* Bound to the form rather than the editor itself for two reasons: the Editor Expander
+     moves the editor into the toolbar, and the enhanced editor takes the typing on a
+     textarea of its own. Caret moves matter as much as edits, hence mouseup and the arrow
+     keys via keyup, and focusout is what hides the counter when you leave the editor. */
+  const editorArea = textarea.closest("form") || textarea.parentNode;
+  $(editorArea).on("input change keyup mouseup paste focusin focusout", scheduleUpdate);
   /* Watch the enhanced editor's lines, ignoring the changes we make to the counter itself.
-     Bound to the form rather than the textarea's parent because the Editor Expander moves
-     the editor into the toolbar, and an observer bound to the old parent would lose it. */
+     Same reason for observing the form. */
   new MutationObserver(function (mutations) {
     if (
       mutations.every(function (mutation) {
@@ -1214,11 +1261,7 @@ function addNotabilityTextCounter() {
       return;
     }
     scheduleUpdate();
-  }).observe(textarea.closest("form") || textarea.parentNode, {
-    childList: true,
-    subtree: true,
-    characterData: true,
-  });
+  }).observe(editorArea, { childList: true, subtree: true, characterData: true });
 
   updateNotabilityTextCounter();
 }

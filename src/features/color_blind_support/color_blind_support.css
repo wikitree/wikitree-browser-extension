@@ -851,6 +851,17 @@ html body.darkMode.wbe-cb-privacy-both .privacy[data-wbe-privacy]:not(.privacy--
   color: #dedecb;
 }
 
+/* On the edit form the dot opens the field's label, so the numeral's usual place to the
+   right of it lands on top of "Death Date:" and every other label it precedes. There is
+   nothing to its left but the column's padding, so the number goes there instead. */
+html body.wbe-cb-privacy-number label .privacy[data-wbe-privacy]:not(.privacy--sm)::after,
+html body.wbe-cb-privacy-both label .privacy[data-wbe-privacy]:not(.privacy--sm)::after {
+  left: auto;
+  right: 88%;
+  margin-left: 0;
+  margin-right: 3px;
+}
+
 /* ---------------------------------------------------------------------------
    Gender backgrounds
 
