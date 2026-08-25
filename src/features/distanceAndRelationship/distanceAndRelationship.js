@@ -204,7 +204,7 @@ function onRelationsSuccess(event, profileID, userID) {
   getDistRelCacheRecord(db, RELATIONSHIP_STORE_NAME, profileID, userID, (relationRecord) => {
     if (relationRecord != undefined) {
       if ($(".yourRelationshipText").length < 2) {
-        const sortedAncestors = sortCommonAncestorsByGender(relationRecord.commonAncestors);
+        const sortedAncestors = sortCommonAncestorsByCouple(relationRecord.commonAncestors);
         addRelationshipText(relationRecord.relationship, cleanCommonAncestors(sortedAncestors));
       }
     } else {
@@ -408,14 +408,31 @@ function commonAncestorText(commonAncestors) {
   return result;
 }
 
-function sortCommonAncestorsByGender(commonAncestors) {
+// Common ancestors usually come in couples. Keep each couple together (ancestors the
+// same number of steps from both people) rather than listing all the men and then all
+// the women, and put the father before the mother within each couple.
+function sortCommonAncestorsByCouple(commonAncestors) {
   if (!Array.isArray(commonAncestors)) return [];
-  return [...commonAncestors].sort((a, b) => {
-    const ga = (a?.ancestor?.mGender || "").toLowerCase();
-    const gb = (b?.ancestor?.mGender || "").toLowerCase();
-    const score = (g) => (g === "male" ? 0 : g === "female" ? 1 : 2);
-    return score(ga) - score(gb);
+  const genderScore = (entry) => {
+    const gender = (entry?.ancestor?.mGender || "").toLowerCase();
+    return gender === "male" ? 0 : gender === "female" ? 1 : 2;
+  };
+  const pathLengths = (entry) => [Number(entry?.path1Length) || 0, Number(entry?.path2Length) || 0];
+  const coupleKey = (entry) => pathLengths(entry).join("|");
+
+  const couples = new Map();
+  commonAncestors.forEach((entry) => {
+    const key = coupleKey(entry);
+    if (!couples.has(key)) {
+      couples.set(key, { total: pathLengths(entry).reduce((sum, n) => sum + n, 0), entries: [] });
+    }
+    couples.get(key).entries.push(entry);
   });
+
+  // Closest couple first; sort is stable, so equally distant couples keep their original order.
+  return [...couples.values()]
+    .sort((a, b) => a.total - b.total)
+    .flatMap((couple) => [...couple.entries].sort((a, b) => genderScore(a) - genderScore(b)));
 }
 
 function cleanCommonAncestors(commonAncestors) {
@@ -978,7 +995,7 @@ function doRelationshipText(userID, profileID, source = "api") {
           pathAnalysis,
           commonAncestors
         );
-        commonAncestors = sortCommonAncestorsByGender(commonAncestors);
+        commonAncestors = sortCommonAncestorsByCouple(commonAncestors);
         addRelationshipText(relationshipText, cleanCommonAncestors(commonAncestors));
       } else {
         console.log("[WBE dist-rel] No path from getConnections; invoking legacy fallback");
@@ -1058,7 +1075,7 @@ function doRelationshipText(userID, profileID, source = "api") {
                   },
                 },
               }));
-              commonAncestors = sortCommonAncestorsByGender(commonAncestors);
+              commonAncestors = sortCommonAncestorsByCouple(commonAncestors);
               console.log("[WBE dist-rel] legacy commonAncestors normalized:", commonAncestors);
             }
 
