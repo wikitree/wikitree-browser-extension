@@ -168,9 +168,11 @@ const SIMULATION_LABELS = {
 const SIMULATION_ORDER = ["off", "achromatopsia", "deuteranopia", "protanopia", "tritanopia"];
 
 /**
- * What the context menu item starts with when nothing is running yet. Deuteranopia is
- * the most common form of color blindness by a distance, and it is the one the member
- * who reported the red/green link problem has, so it is the right first look at a page.
+ * The fallback the menu's "Open" entry starts with when nothing is running and no launch
+ * default has been saved. Deuteranopia is the most common form of color blindness by a
+ * distance, and it is the one the member who reported the red/green link problem has, so
+ * it is the right first look at a page. The reader can change it in the options, and pick
+ * any condition directly from the menu's submenu.
  */
 const MENU_LAUNCH_MODE = "deuteranopia";
 
@@ -863,16 +865,35 @@ function applySimulator(options) {
  * put that behind a door most reviewers would never open. What they get is the simulation
  * and the control; the remediation stays off until its checkbox says otherwise.
  *
- * Launching while a simulation is already running re-shows the control rather than
- * changing the mode, since that is the only way back to it once it has been closed.
+ * The plain "Open" entry, with no mode, re-shows a running simulation rather than changing
+ * it - that is the only way back to the control once it has been closed - or starts on the
+ * saved launch default. A specific condition chosen from the submenu overrides whatever is
+ * running: the reader asked to see that one.
+ *
+ * @param {string} [requestedMode] - a condition picked from the submenu, or nothing for the
+ *   default "Open" entry.
  */
-function launchSimulatorFromMenu() {
+function launchSimulatorFromMenu(requestedMode) {
   const running = normalizeMode(featureOptions.simulate);
-  const mode = running === "off" ? MENU_LAUNCH_MODE : running;
+  const picked = normalizeMode(requestedMode);
+  const mode =
+    requestedMode && picked !== "off" ? picked : running === "off" ? menuLaunchMode() : running;
   showSimulator(mode);
   if (mode !== running) {
     persistSimulation(mode);
   }
+}
+
+/**
+ * The condition the menu's "Open" entry starts with, from the saved options. Guarded so a
+ * value that is missing, invalid or "off" falls back to the sensible first look rather than
+ * opening the simulator showing the page's real colors, which is no simulation at all.
+ *
+ * @returns {string}
+ */
+function menuLaunchMode() {
+  const saved = normalizeMode(featureOptions.menuLaunchMode);
+  return saved === "off" ? MENU_LAUNCH_MODE : saved;
 }
 
 /**
@@ -1064,6 +1085,6 @@ const featureReady = Promise.all([
 
 chrome.runtime.onMessage.addListener((request) => {
   if (request.action === "showColorBlindSimulator") {
-    featureReady.then(launchSimulatorFromMenu);
+    featureReady.then(() => launchSimulatorFromMenu(request.mode));
   }
 });

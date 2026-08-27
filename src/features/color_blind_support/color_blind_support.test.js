@@ -47,8 +47,9 @@ async function loadFeature({ enabled = false, options = {}, customStyle = null }
   await settle();
 }
 
-function sendContextMenuClick() {
-  messageListeners.forEach((listener) => listener({ action: "showColorBlindSimulator" }));
+function sendContextMenuClick(mode) {
+  // No mode is the plain "Open" entry; a mode is a specific condition chosen from the submenu.
+  messageListeners.forEach((listener) => listener({ action: "showColorBlindSimulator", mode }));
   return settle();
 }
 
@@ -367,6 +368,42 @@ describe("the context menu item", () => {
     expect(badge()).not.toBeNull();
     expect(modeSelect().value).toBe("tritanopia");
     expect(writes).toEqual([]);
+  });
+
+  test("opens the condition chosen from the submenu", async () => {
+    await loadFeature({ enabled: false });
+
+    await sendContextMenuClick("protanopia");
+
+    expect(document.body.style.filter).toBe("url(#wbe-cb-protanopia)");
+    expect(modeSelect().value).toBe("protanopia");
+    expect(supportToggle().checked).toBe(false);
+  });
+
+  test("a submenu choice overrides a simulation already running", async () => {
+    await loadFeature({ enabled: true, options: { simulate: "deuteranopia" } });
+
+    await sendContextMenuClick("tritanopia");
+
+    expect(document.body.style.filter).toBe("url(#wbe-cb-tritanopia)");
+    expect(modeSelect().value).toBe("tritanopia");
+  });
+
+  test("the plain Open uses the saved launch default", async () => {
+    await loadFeature({ enabled: false, options: { menuLaunchMode: "tritanopia" } });
+
+    await sendContextMenuClick();
+
+    expect(document.body.style.filter).toBe("url(#wbe-cb-tritanopia)");
+    expect(modeSelect().value).toBe("tritanopia");
+  });
+
+  test("falls back to deuteranopia when the saved launch default is off or unset", async () => {
+    await loadFeature({ enabled: false, options: { menuLaunchMode: "off" } });
+
+    await sendContextMenuClick();
+
+    expect(modeSelect().value).toBe("deuteranopia");
   });
 });
 

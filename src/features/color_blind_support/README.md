@@ -72,8 +72,18 @@ switched on for you. That is deliberate: the simulator is how anyone reviewing a
 finds out which distinctions on it survive, and putting it behind a remediation feature
 they may not need for themselves would be a door most reviewers never open. What the menu
 item starts is the simulation and the control, nothing else — the cues and the palette
-stay off until the Support checkbox says otherwise. It starts in deuteranopia, the most
-common form and the one the member who reported the red/green link problem has.
+stay off until the Support checkbox says otherwise.
+
+Color-Blind Simulator is a submenu. **Open** starts on your saved default condition, and
+its label shows which — deuteranopia out of the box, the most common form and the one the
+member who reported the red/green link problem has, changeable under _Right-click menu
+opens the simulator in_ on the options page. Below it, **Deuteranopia**, **Protanopia**,
+**Tritanopia** and **Achromatopsia** each open that condition directly, whatever the
+default is set to — and a condition picked this way wins over one already running, since
+you asked to see it. (A parent menu item that has children is not itself clickable, which
+is why the default lives in its own **Open** entry rather than on the parent.) Once the
+control is showing, the same conditions are on its **Seeing as** dropdown, so the submenu
+is about where you start, not the only way to switch.
 
 Once a simulation is on, a control sits in the bottom corner of every page, with two
 independent halves:
@@ -970,11 +980,17 @@ Two things learned doing the ones marked done, both by measuring rather than rea
 - Privacy dots are tagged on load and by a `MutationObserver`, so dots in watchlists,
   CC7 tables and other late-built content are covered too.
 - The context menu item is created in `public/background.js`, with no `featureId`, so it
-  is offered on every main-domain page whatever this feature's own setting says. It sends
-  `{ action: "showColorBlindSimulator" }`; the listener for that is registered
-  unconditionally, outside the `shouldInitializeFeature` check, or it would not be there
-  to hear it. Firefox for Android has no `contextMenus` API, so the menu route does not
-  exist there and the options page is the only way in.
+  is offered on every main-domain page whatever this feature's own setting says. It is a
+  submenu: each child sends `{ action: "showColorBlindSimulator", mode }`, where `mode` is
+  a condition for the direct picks and absent for **Open** (the content script then uses
+  the saved `menuLaunchMode`). The child-to-mode map is derived from the same submenu
+  definition that builds the menu, so the two cannot drift, and the **Open** entry's label
+  is rebuilt from `menuLaunchMode` — which means the rebuild signature carries the launch
+  mode, and a change to `colorBlindSupport_options` triggers a rebuild, since neither
+  moves any menu id. The listener for the message is registered unconditionally, outside
+  the `shouldInitializeFeature` check, or it would not be there to hear it. Firefox for
+  Android has no `contextMenus` API, so the menu route does not exist there and the options
+  page is the only way in.
 - Because the simulator can run with the feature off, `color_blind_support.css` is
   imported on demand rather than at startup. That is safe: every rule in it is behind a
   `body.wbe-cb*` class except the corner control's own.

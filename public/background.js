@@ -68,9 +68,22 @@ if (chrome.contextMenus) {
       // No featureId: the simulator is a checking tool, useful to anyone reviewing a page whether
       // or not they have Color-Blind Support switched on for themselves, so it is offered either
       // way. The content script starts the simulation without turning the rest of the feature on.
+      //
+      // A submenu: the first entry opens on the reader's saved default condition, and its label
+      // shows which; the rest open a specific one directly. The chosen mode travels to the content
+      // script on the message. A parent that has children is not itself clickable, which is why the
+      // default lives in its own "Open" entry rather than on the parent.
       id: "colorBlindSimulatorContextMenu",
       title: "Color-Blind Simulator",
       isUsefulOn: (url) => isMainDomainUrl(url),
+      submenu: [
+        { id: "colorBlindSimulatorOpen" }, // label built from the saved default at build time
+        { id: "colorBlindSimulatorSeparator", type: "separator" },
+        { id: "colorBlindSimulatorDeuteranopia", title: "Deuteranopia", mode: "deuteranopia" },
+        { id: "colorBlindSimulatorProtanopia", title: "Protanopia", mode: "protanopia" },
+        { id: "colorBlindSimulatorTritanopia", title: "Tritanopia", mode: "tritanopia" },
+        { id: "colorBlindSimulatorAchromatopsia", title: "Achromatopsia", mode: "achromatopsia" },
+      ],
     },
     {
       // Both halves of a backup need the content script: the feature data is read from the page,
@@ -95,6 +108,15 @@ if (chrome.contextMenus) {
       isUsefulOn: () => true,
     },
   ];
+
+  // Which simulator condition each submenu entry launches, derived from the definition above so
+  // the two cannot drift. The "Open" entry maps to undefined: no mode, the content script uses the
+  // reader's saved default.
+  const simulatorMenuModes = Object.fromEntries(
+    (contextMenuItems.find((item) => item.id === "colorBlindSimulatorContextMenu")?.submenu ?? [])
+      .filter((child) => child.type !== "separator")
+      .map((child) => [child.id, child.mode])
+  );
 
   function wikiTreePageUrl(url) {
     let parsed;
@@ -148,17 +170,50 @@ if (chrome.contextMenus) {
     return !item.featureId || (settings[item.featureId] ?? item.featureDefault);
   }
 
+  // Human names for the simulator conditions, used to label the "Open" entry with the reader's
+  // saved default. Keyed by the mode the content script understands.
+  const SIMULATOR_MODE_LABELS = {
+    deuteranopia: "Deuteranopia",
+    protanopia: "Protanopia",
+    tritanopia: "Tritanopia",
+    achromatopsia: "Achromatopsia",
+  };
+
+  // The condition the menu's "Open" entry starts with, read from Color-Blind Support's options.
+  // Guarded so a missing or unknown value falls back to deuteranopia, the same first look the
+  // content script uses.
+  function simulatorLaunchMode() {
+    return new Promise((resolve) => {
+      chrome.storage.sync.get("colorBlindSupport_options", (items) => {
+        const saved = !chrome.runtime.lastError && items && items.colorBlindSupport_options;
+        const mode = saved && saved.menuLaunchMode;
+        resolve(SIMULATOR_MODE_LABELS[mode] ? mode : "deuteranopia");
+      });
+    });
+  }
+
   // Safari has not always supported the "action" context. Rather than lose the item if it rejects
   // one, a create that fails is retried with the contexts every browser has.
-  function createContextMenuItem(item) {
-    const contexts = item.contexts ?? ["all"];
-    chrome.contextMenus.create({ id: item.id, title: item.title, contexts }, () => {
+  function createMenu(props) {
+    const contexts = props.contexts ?? ["all"];
+    chrome.contextMenus.create({ ...props, contexts }, () => {
       if (chrome.runtime.lastError && contexts.length > 1) {
-        chrome.contextMenus.create(
-          { id: item.id, title: item.title, contexts: ["all"] },
-          () => chrome.runtime.lastError
-        );
+        chrome.contextMenus.create({ ...props, contexts: ["all"] }, () => chrome.runtime.lastError);
       }
+    });
+  }
+
+  function createContextMenuItem(item, launchMode) {
+    const contexts = item.contexts ?? ["all"];
+    createMenu({ id: item.id, title: item.title, contexts });
+    // A submenu hangs its children off the parent. The "Open" entry's label is built from the
+    // saved default so the reader can see what a plain open will do; the rest are static.
+    (item.submenu ?? []).forEach((child) => {
+      const title =
+        child.id === "colorBlindSimulatorOpen"
+          ? `Open (${SIMULATOR_MODE_LABELS[launchMode]})`
+          : child.title;
+      createMenu({ id: child.id, parentId: item.id, type: child.type, title, contexts });
     });
   }
 
@@ -173,12 +228,18 @@ if (chrome.contextMenus) {
   }
 
   async function rebuildContextMenus() {
-    const [url, settings] = await Promise.all([activeTabUrl(), featureSettings()]);
+    const [url, settings, launchMode] = await Promise.all([
+      activeTabUrl(),
+      featureSettings(),
+      simulatorLaunchMode(),
+    ]);
     const wanted = contextMenuItems.filter((item) => isFeatureEnabled(item, settings) && item.isUsefulOn(url));
-    const wantedIds = wanted.map((item) => item.id).join();
+    // The launch mode is part of the signature: it changes the "Open" entry's label without
+    // changing any id, so a rebuild has to be allowed when only it has moved.
+    const wantedIds = wanted.map((item) => item.id).join() + "|" + launchMode;
     if (shownIds === wantedIds) return;
     await new Promise((resolve) => chrome.contextMenus.removeAll(resolve));
-    wanted.forEach(createContextMenuItem);
+    wanted.forEach((item) => createContextMenuItem(item, launchMode));
     shownIds = wantedIds;
   }
 
@@ -194,7 +255,13 @@ if (chrome.contextMenus) {
   });
   chrome.windows?.onFocusChanged.addListener(() => refreshContextMenus());
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "sync" && contextMenuItems.some((item) => item.featureId && item.featureId in changes)) {
+    if (area !== "sync") return;
+    // A feature being switched on or off changes which items belong; the simulator's own options
+    // change the "Open" entry's label. Both need a rebuild.
+    if (
+      contextMenuItems.some((item) => item.featureId && item.featureId in changes) ||
+      "colorBlindSupport_options" in changes
+    ) {
       refreshContextMenus();
     }
   });
@@ -209,8 +276,13 @@ if (chrome.contextMenus) {
       // Execute script in the content script
       chrome.tabs.sendMessage(tab.id, { action: "showClipboard" });
     }
-    if (info.menuItemId === "colorBlindSimulatorContextMenu") {
-      chrome.tabs.sendMessage(tab.id, { action: "showColorBlindSimulator" });
+    if (info.menuItemId in simulatorMenuModes) {
+      // "Open" carries no mode (the content script uses the saved default); each condition entry
+      // carries its own. The parent itself is never clicked - it has children.
+      chrome.tabs.sendMessage(tab.id, {
+        action: "showColorBlindSimulator",
+        mode: simulatorMenuModes[info.menuItemId],
+      });
     }
     if (info.menuItemId === "backupAllContextMenu") {
       chrome.tabs.sendMessage(tab.id, { action: "backupEverything" });

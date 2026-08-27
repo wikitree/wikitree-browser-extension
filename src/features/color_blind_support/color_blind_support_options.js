@@ -274,6 +274,22 @@ const colorBlindSupport = {
             "Achromatopsia is grayscale, which is the most reliable check and doubles as a print preview. " +
             "While a simulation is on, fixed pop-ups and sticky bars may scroll with the page.",
         },
+        {
+          id: "menuLaunchMode",
+          type: OptionType.SELECT,
+          label: "Right-click menu opens the simulator in",
+          values: [
+            { value: "deuteranopia", text: "Deuteranopia (no green)" },
+            { value: "protanopia", text: "Protanopia (no red)" },
+            { value: "tritanopia", text: "Tritanopia (no blue)" },
+            { value: "achromatopsia", text: "Achromatopsia (no color at all)" },
+          ],
+          defaultValue: "deuteranopia",
+          comment:
+            'The condition the "Open" entry in the right-click Color-Blind Simulator menu starts with. The ' +
+            "submenu beside it opens any of the others directly, whatever this is set to. Deuteranopia is the " +
+            "most common form of color blindness, so it is the default first look at a page.",
+        },
       ],
     },
   ],
