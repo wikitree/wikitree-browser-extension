@@ -102,9 +102,19 @@ if (chrome.contextMenus) {
       // The settings page is otherwise buried, so this one is offered everywhere, including in
       // Safari's toolbar icon menu when the tab has nothing to do with WikiTree. "action" puts it
       // in the icon menu in Chrome too, where items for the page do not appear there.
+      //
+      // documentUrlPatterns keeps the page-context copy off pages we should not decorate - chiefly
+      // OTHER extensions' popups, which are chrome-extension:// (safari-web-extension:// in Safari)
+      // documents that "all" would otherwise match, so WBE's "Settings" turned up when you
+      // right-clicked inside, say, the Sourcer popup. The "*" scheme matches only http/https, so
+      // those extension schemes are excluded while every real web page (and file:// page) still
+      // gets it. This does not touch the "action" (toolbar) copy - that context has no document to
+      // match - and Safari shows every toolbar-icon item regardless of patterns, so Settings stays
+      // reachable everywhere it was before.
       id: "optionsContextMenu",
       title: "Settings",
       contexts: ["all", "action"],
+      documentUrlPatterns: ["*://*/*", "file:///*"],
       isUsefulOn: () => true,
     },
   ];
@@ -205,7 +215,13 @@ if (chrome.contextMenus) {
 
   function createContextMenuItem(item, launchMode) {
     const contexts = item.contexts ?? ["all"];
-    createMenu({ id: item.id, title: item.title, contexts });
+    createMenu({
+      id: item.id,
+      title: item.title,
+      contexts,
+      // Only some items restrict which documents they attach to; the rest attach to all of them.
+      ...(item.documentUrlPatterns ? { documentUrlPatterns: item.documentUrlPatterns } : {}),
+    });
     // A submenu hangs its children off the parent. The "Open" entry's label is built from the
     // saved default so the reader can see what a plain open will do; the rest are static.
     (item.submenu ?? []).forEach((child) => {

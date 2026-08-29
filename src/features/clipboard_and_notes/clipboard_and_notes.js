@@ -22,7 +22,13 @@ import {
 import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
 import { copyToClipboard } from "../../core/clipboard.js";
 
-let lastTextboxSelection = { start: 0, end: 0 }; // Store the last selection in the text box
+// Store the last caret/selection in an editable field, tagged with the field's id
+// so a paste only restores a selection that actually belongs to the target field.
+let lastTextboxSelection = { id: null, start: 0, end: 0 };
+
+// The fields we track a caret position for, so a clipping can be inserted at the caret.
+const TRACKED_FIELD_IDS = ["wpTextbox1", "newUser_mBio", "wpSummary"];
+const TRACKED_FIELD_SELECTOR = TRACKED_FIELD_IDS.map((id) => `#${id}`).join(", ");
 
 const CB_DB_NAME = "Clipboard";
 const CB_DB_VERSION = 1;
@@ -104,27 +110,28 @@ export async function appendClipboardButtons(clipboardButtons = $()) {
 // Remember the last selection in the text box
 
 // Update whenever the textarea is interacted with
+function rememberSelection(field) {
+  // selectionStart/End are non-numeric for field types that don't support a caret,
+  // and can be unreliable on blur in some browsers; guard against both.
+  if (field && typeof field.selectionStart === "number" && typeof field.selectionEnd === "number") {
+    lastTextboxSelection.id = field.id;
+    lastTextboxSelection.start = field.selectionStart;
+    lastTextboxSelection.end = field.selectionEnd;
+  }
+}
+
 function updateLastTextboxSelection() {
-  // Place this outside any function, after your lastTextboxSelection declaration.
-  $(document).on("focus click keyup select blur", "#wpTextbox1, #newUser_mBio", function (e) {
-    // For blur: only store if this was the active element
-    if (e.type === "blur" || e.type === "focusout") {
-      // Defensive: in some browsers, selectionStart/End is still valid on blur, in others it's 0.
-      if (typeof this.selectionStart === "number" && typeof this.selectionEnd === "number") {
-        lastTextboxSelection.start = this.selectionStart;
-        lastTextboxSelection.end = this.selectionEnd;
-      }
-    } else {
-      lastTextboxSelection.start = this.selectionStart;
-      lastTextboxSelection.end = this.selectionEnd;
-    }
+  // Track the caret in any editable field a clipping can be pasted into, including
+  // the Change Explanation field (#wpSummary), so a paste lands where the user left it.
+  $(document).on("focus click keyup select blur", TRACKED_FIELD_SELECTOR, function () {
+    rememberSelection(this);
   });
-  // Insurance: Save on clipboard button mousedown
+  // Insurance: capture the caret of the still-focused field the instant a clipboard
+  // button is pressed (before the popup steals focus).
   $(document).on("mousedown", ".aClipboardButton", function () {
-    const $t = $("#wpTextbox1, #newUser_mBio");
-    if ($t.length) {
-      lastTextboxSelection.start = $t[0].selectionStart;
-      lastTextboxSelection.end = $t[0].selectionEnd;
+    const active = document.activeElement;
+    if (active && TRACKED_FIELD_IDS.includes(active.id)) {
+      rememberSelection(active);
     }
   });
 }
@@ -373,6 +380,11 @@ async function copyClippingToClipboard(element) {
   }
 
   const enhancedEditorButton = $("#toggleMarkupColor");
+  // The Change Explanation field (#wpSummary) is a plain <input>, independent of the
+  // biography editor. When the enhanced editor (CodeMirror) is on, none of the bio-based
+  // conditions below match this page, so we must recognise a #wpSummary target on its own
+  // — otherwise a clipping only reaches the system clipboard and is never inserted.
+  const summaryIsTarget = window.activeFormElement === "wpSummary" && $("#wpSummary").length;
   if (
     enhancedEditorButton.attr("value") == "turn on enhanced editor" ||
     enhancedEditorButton.attr("value") == "Turn On Enhanced Editor" || //toggles once used
@@ -383,7 +395,8 @@ async function copyClippingToClipboard(element) {
     $("h1:contains('Edit Marriage Information')").length ||
     $("#mSources").length ||
     isSpecialTrustedList ||
-    isMergeEdit
+    isMergeEdit ||
+    summaryIsTarget
   ) {
     const box = window.activeFormElement;
     let el = $();
@@ -417,27 +430,31 @@ async function copyClippingToClipboard(element) {
       el = $("input[name='add_email']");
     } else if (isMergeEdit && $("#newUser_mBio").length) {
       el = $("#newUser_mBio");
-    } else if ($("#wpTextbox1").length && lastTextboxSelection) {
+    } else if (box && TRACKED_FIELD_IDS.includes(box) && $("#" + box).length) {
+      // Honor the field the user last focused (e.g. the Change Explanation field,
+      // #wpSummary) instead of always defaulting to the main #wpTextbox1 body.
+      el = $("#" + box);
+    } else if ($("#wpTextbox1").length) {
       el = $("#wpTextbox1");
     } else {
       el = $("#" + box);
     }
     if (el[0]) {
       let selStart;
+      const elId = el.attr("id");
 
-      // Check if we have a meaningful stored selection (not just the default 0,0)
-      const hasMeaningfulSelection =
-        lastTextboxSelection &&
-        (lastTextboxSelection.start !== 0 ||
-          lastTextboxSelection.end !== 0 ||
-          ((el.attr("id") === "wpTextbox1" || el.attr("id") === "newUser_mBio") && el[0] === document.activeElement));
+      // Do we have a saved caret that belongs to the field we're pasting into?
+      // Matching on id means a saved position of 0 is still honored (caret at start),
+      // and a caret saved for one field is never applied to another.
+      const hasSavedSelectionForField =
+        lastTextboxSelection && lastTextboxSelection.id === elId && typeof lastTextboxSelection.start === "number";
 
-      if ((el.attr("id") === "wpTextbox1" || el.attr("id") === "newUser_mBio") && hasMeaningfulSelection) {
+      if (TRACKED_FIELD_IDS.includes(elId) && hasSavedSelectionForField) {
         el[0].focus();
         el[0].selectionStart = lastTextboxSelection.start;
         el[0].selectionEnd = lastTextboxSelection.end;
         selStart = lastTextboxSelection.start;
-      } else if (el.attr("id") === "newUser_mBio" && isMergeEdit) {
+      } else if (elId === "newUser_mBio" && isMergeEdit) {
         // If it's the merge edit textarea but no meaningful selection is stored, paste at the end on a new line
         el[0].focus();
         const currentContent = el.val();
@@ -457,7 +474,9 @@ async function copyClippingToClipboard(element) {
         el[0].focus();
         return; // Exit early since we've handled the insertion manually
       } else {
-        selStart = el[0].selectionStart;
+        // No saved caret for this field: use its own caret, or the end of its
+        // content when the field can't report one (avoids a NaN split below).
+        selStart = typeof el[0].selectionStart === "number" ? el[0].selectionStart : (el.val() || "").length;
       }
 
       const textToInsert = decodeHTMLEntities(theText);
