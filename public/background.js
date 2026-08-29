@@ -1033,8 +1033,12 @@ ${dataPayload}`;
 
     sendResponse({ success: true, bio: resultBio });
   } catch (error) {
-    console.error("AI Request Failed:", error);
-    sendResponse({ success: false, error: error.message });
+    // Never leak the raw provider API key into logs or cross-context messages
+    // (this handler's errors can surface via chrome.runtime messaging and devtools).
+    const safeMessage =
+      key && typeof error?.message === "string" ? error.message.split(key).join("[REDACTED]") : error?.message;
+    console.error("AI Request Failed:", safeMessage);
+    sendResponse({ success: false, error: safeMessage });
   }
 }
 
