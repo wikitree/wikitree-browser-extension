@@ -825,6 +825,14 @@ function tryParseJsonOrJsonl(rawBody) {
 }
 
 // For Auto Bio: Handle AI requests
+// Remove a secret (e.g. a provider API key) from a string so it can't leak into
+// logs or messages passed across chrome.runtime, where it could be read via
+// devtools or another extension. Returns non-strings and empty secrets unchanged.
+function redactSecret(message, secret) {
+  if (typeof message !== "string" || !secret) return message;
+  return message.split(secret).join("[REDACTED]");
+}
+
 async function handleAIRequest(request, sendResponse) {
   const {
     oldBio,
@@ -1042,8 +1050,11 @@ ${dataPayload}`;
 
     sendResponse({ success: true, bio: resultBio });
   } catch (error) {
-    console.error("AI Request Failed:", error);
-    sendResponse({ success: false, error: error.message });
+    // Provider errors can embed the raw API key (e.g. an echoed request URL or
+    // response body), so strip it before logging or sending the message back.
+    const safeMessage = redactSecret(error?.message, key);
+    console.error("AI Request Failed:", safeMessage);
+    sendResponse({ success: false, error: safeMessage });
   }
 }
 
@@ -1081,7 +1092,9 @@ async function callOpenAI(apiKey, model, system, userPrompt) {
 async function callGemini(apiKey, model, system, userPrompt) {
   // Gemini mostly uses 'user' role, 'system' can be simulated or passed as system_instruction in beta
   const modelId = model || "gemini-3.5-flash";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
+  // Pass the key as a header, not a query string, so it never lands in the URL
+  // (network panel, referrer, or a URL-bearing fetch error).
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`;
 
   // Google strongly recommends leaving temperature at the default 1.0 for Gemini 3
   // models: lowering it can cause looping or degraded output.
@@ -1091,6 +1104,7 @@ async function callGemini(apiKey, model, system, userPrompt) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "x-goog-api-key": apiKey,
     },
     body: JSON.stringify({
       contents: [
