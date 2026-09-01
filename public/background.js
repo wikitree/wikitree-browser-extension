@@ -39,6 +39,14 @@ if (chrome.runtime) {
 // Only creating the items the active tab can use means the same thing in every browser, and covers
 // the toolbar menu as well as the page menu.
 if (chrome.contextMenus) {
+  // Safari matches documentUrlPatterns against the path alone (see the note above), so any pattern
+  // of the usual scheme://host/path form never matches and the item disappears from every menu.
+  // documentUrlPatterns is therefore only usable on Chromium/Firefox; on Safari we leave it off and
+  // keep the old always-shown behaviour. The extension's own URL scheme is the reliable tell -
+  // safari-web-extension:// on Safari, chrome-extension:// / moz-extension:// elsewhere - with no
+  // user-agent sniffing (Chrome's UA also says "Safari").
+  const isSafari = chrome.runtime.getURL("").startsWith("safari-web-extension:");
+
   // The URL tests mirror src/core/pageType.js, which is what decides whether the features
   // themselves run. featureId/featureDefault mirror the feature's registration, so an item is
   // not offered for a feature the user has switched off (the click would do nothing).
@@ -104,13 +112,12 @@ if (chrome.contextMenus) {
       // in the icon menu in Chrome too, where items for the page do not appear there.
       //
       // documentUrlPatterns keeps the page-context copy off pages we should not decorate - chiefly
-      // OTHER extensions' popups, which are chrome-extension:// (safari-web-extension:// in Safari)
-      // documents that "all" would otherwise match, so WBE's "Settings" turned up when you
-      // right-clicked inside, say, the Sourcer popup. The "*" scheme matches only http/https, so
-      // those extension schemes are excluded while every real web page (and file:// page) still
-      // gets it. This does not touch the "action" (toolbar) copy - that context has no document to
-      // match - and Safari shows every toolbar-icon item regardless of patterns, so Settings stays
-      // reachable everywhere it was before.
+      // OTHER extensions' popups, which are chrome-extension:// documents that "all" would otherwise
+      // match, so WBE's "Settings" turned up when you right-clicked inside, say, the Sourcer popup.
+      // The "*" scheme matches only http/https, so the extension scheme is excluded while every real
+      // web page (and file:// page) still gets it. It does not touch the "action" (toolbar) copy -
+      // that context has no document to match. Applied only off Safari (see isSafari above), where
+      // these patterns would match nothing and remove the item everywhere.
       id: "optionsContextMenu",
       title: "Settings",
       contexts: ["all", "action"],
@@ -220,7 +227,9 @@ if (chrome.contextMenus) {
       title: item.title,
       contexts,
       // Only some items restrict which documents they attach to; the rest attach to all of them.
-      ...(item.documentUrlPatterns ? { documentUrlPatterns: item.documentUrlPatterns } : {}),
+      // Skipped on Safari, which matches these patterns against the path alone and so would drop the
+      // item from every menu rather than just the ones we mean to exclude.
+      ...(item.documentUrlPatterns && !isSafari ? { documentUrlPatterns: item.documentUrlPatterns } : {}),
     });
     // A submenu hangs its children off the parent. The "Open" entry's label is built from the
     // saved default so the reader can see what a plain open will do; the rest are static.
