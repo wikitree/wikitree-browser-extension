@@ -134,7 +134,9 @@ function addAdditionalColumns($table) {
     $tr.find("td").each(function (i) {
       const $this = $(this);
       if ($this.find("span[title='Same as above']").length) {
-        $this.html($tr.prev().find("td").eq(i).html());
+        // Ignore any note cell already inserted into the previous row so the
+        // column indexes line up with this row (which has no note cell yet).
+        $this.html($tr.prev().find("td").not(".profile-note").eq(i).html());
       }
     });
 
