@@ -1,7 +1,7 @@
 {
   "name": "WikiTree Browser Extension",
   "description": "The official WikiTree browser extension.",
-  "version": "2.18",
+  "version": "2.18.0.1",
   "manifest_version": 3,
   "options_ui": {
     "page": "options.html",
