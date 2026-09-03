@@ -30,6 +30,13 @@ let lastTextboxSelection = { id: null, start: 0, end: 0 };
 const TRACKED_FIELD_IDS = ["wpTextbox1", "newUser_mBio", "wpSummary"];
 const TRACKED_FIELD_SELECTOR = TRACKED_FIELD_IDS.map((id) => `#${id}`).join(", ");
 
+// Whether the Change Explanation field (#wpSummary) was the focused element at the moment
+// the clipboard was opened. This is read from document.activeElement on button mousedown
+// (before focus moves to the popup), which is reliable even when the biography uses the
+// CodeMirror editor — CodeMirror's editable is an id-less contenteditable div, so it never
+// looks like #wpSummary and never fires our field-focus handlers.
+let summaryWasActiveOnClipboardOpen = false;
+
 const CB_DB_NAME = "Clipboard";
 const CB_DB_VERSION = 1;
 const CB_DB_STORE = "Clipboard";
@@ -126,10 +133,12 @@ function updateLastTextboxSelection() {
   $(document).on("focus click keyup select blur", TRACKED_FIELD_SELECTOR, function () {
     rememberSelection(this);
   });
-  // Insurance: capture the caret of the still-focused field the instant a clipboard
-  // button is pressed (before the popup steals focus).
+  // The instant a clipboard button is pressed (before the popup steals focus), record
+  // which field was focused: whether it was the Change Explanation field, and — for a
+  // tracked field — its caret position.
   $(document).on("mousedown", ".aClipboardButton", function () {
     const active = document.activeElement;
+    summaryWasActiveOnClipboardOpen = !!(active && active.id === "wpSummary");
     if (active && TRACKED_FIELD_IDS.includes(active.id)) {
       rememberSelection(active);
     }
@@ -383,8 +392,10 @@ async function copyClippingToClipboard(element) {
   // The Change Explanation field (#wpSummary) is a plain <input>, independent of the
   // biography editor. When the enhanced editor (CodeMirror) is on, none of the bio-based
   // conditions below match this page, so we must recognise a #wpSummary target on its own
-  // — otherwise a clipping only reaches the system clipboard and is never inserted.
-  const summaryIsTarget = window.activeFormElement === "wpSummary" && $("#wpSummary").length;
+  // — otherwise a clipping only reaches the system clipboard and is never inserted. We
+  // only treat it as the target when it was genuinely the focused field as the clipboard
+  // opened, so clicking a clipping while editing the biography still copies (as before).
+  const summaryIsTarget = summaryWasActiveOnClipboardOpen && $("#wpSummary").length;
   if (
     enhancedEditorButton.attr("value") == "turn on enhanced editor" ||
     enhancedEditorButton.attr("value") == "Turn On Enhanced Editor" || //toggles once used
@@ -400,7 +411,10 @@ async function copyClippingToClipboard(element) {
   ) {
     const box = window.activeFormElement;
     let el = $();
-    if ($("#photo_upload").length) {
+    if (summaryIsTarget) {
+      // The Change Explanation field was focused as the clipboard opened; paste there.
+      el = $("#wpSummary");
+    } else if ($("#photo_upload").length) {
       el = $("#wpUploadDescription");
     } else if ($("h1:contains('Edit Marriage Information')").length) {
       el = $();
