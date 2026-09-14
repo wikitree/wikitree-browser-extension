@@ -38,3 +38,10 @@
     display: none;
   }
 }
+
+/* Allow source preview popups to escape clipping inside specific blockquote sections.
+   Target only the blockquote classes used on the site to avoid wide layout changes. */
+blockquote.x-level-1.section-biography,
+blockquote.x-level-2.section-researchnotes {
+  overflow: visible !important;
+}
