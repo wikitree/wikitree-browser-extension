@@ -18,6 +18,61 @@
   margin-bottom: 0;
 }
 
+/* "Newest first" On/Off switch in the "N Answers" heading */
+.wbe-reverse-answers {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 0.8em;
+  vertical-align: middle;
+  font-size: 0.65em;
+  font-weight: 600;
+  color: #777;
+  cursor: pointer;
+  user-select: none;
+}
+.wbe-reverse-answers .wbe-reverse-answers-switch {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 18px;
+  border-radius: 9px;
+  background: #b0b3b8;
+  transition: background 0.2s ease;
+}
+.wbe-reverse-answers .wbe-reverse-answers-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: left 0.2s ease;
+}
+.wbe-reverse-answers.wbe-reverse-answers-active .wbe-reverse-answers-switch {
+  background: #4caf50;
+}
+.wbe-reverse-answers.wbe-reverse-answers-active .wbe-reverse-answers-knob {
+  left: 18px;
+}
+.wbe-reverse-answers .wbe-reverse-answers-state {
+  min-width: 2.2em;
+}
+.wbe-reverse-answers.wbe-reverse-answers-active .wbe-reverse-answers-state {
+  color: #2e7d32;
+}
+.wbe-reverse-answers-tree {
+  height: 50px;
+  width: 50px;
+  border-radius: 50%;
+  border: 2px solid forestgreen;
+  vertical-align: middle;
+  margin-left: 0.6em;
+}
+
 .g2gPlus {
   position: absolute;
   margin-top: 1.1em;

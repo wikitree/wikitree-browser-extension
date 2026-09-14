@@ -4,11 +4,20 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import "./g2g_.css";
-import { isOK, getUserWtId } from "../../core/common";
+import { isOK, getUserWtId, treeImageURL } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { addItems, attachScissorsEvent } from "../scissors/scissors";
+import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 
+/**
+ * Split an element's direct text nodes on every occurrence of `text` and drop a
+ * copy of `link` into each gap, leaving all other child nodes untouched.
+ * @param {Element} element - Element whose direct children are scanned.
+ * @param {string} text - The substring to replace with a link.
+ * @param {Node} link - The link node to clone into each occurrence.
+ * @returns {Node[]} The rebuilt list of child nodes (text nodes interleaved with link clones).
+ */
 function text2Link(element, text, link) {
   const childNodes = element.childNodes;
   let modifiedNodes = [];
@@ -39,6 +48,14 @@ function text2Link(element, text, link) {
   return modifiedNodes;
 }
 
+/**
+ * Turn WikiTree IDs (e.g. "Smith-123") found in question/answer/comment text
+ * into links to the matching profile, skipping look-alikes that aren't IDs
+ * (decades like "pre-1700"/"mid-1800", DNA markers like "Y-37"/"CTS-4466",
+ * military designations like "B-17", citations like "Ref-3", roads like
+ * "US-101"). See `excludeList` for the full set.
+ * @returns {void}
+ */
 function linkify() {
   const posts = document.querySelectorAll('div[itemprop="text"]');
 
@@ -65,7 +82,27 @@ function linkify() {
     }
   });
 
-  const excludeList = [/\bpre-\d{4}/i, /\bpost-\d{4}/i, /COVID-19/i];
+  // Things that look like WikiTree IDs (Word-Number) but aren't. We deliberately
+  // don't exclude words that are also real surnames (e.g. Page-66, Ward-2).
+  const excludeList = [
+    // Decades: pre-1700, post-1500, mid-1800(s).
+    /\bpre-\d{4}/i,
+    /\bpost-\d{4}/i,
+    /\bmid-\d{4}/i,
+    /COVID-19/i,
+    // A single letter before the hyphen is never a WikiTree ID. Covers Y-STR
+    // marker counts (Y-37, Y-67, Y-111), single-letter DNA SNPs (M-269, L-21,
+    // U-152, P-312) and military designations (B-17, B-29, P-51, P-38).
+    /^[A-Za-zÀ-ž]-\d+$/,
+    // Multi-letter DNA SNP naming authorities (CTS-4466, DF-27, FGC-...).
+    // Not BY-, which is a real surname.
+    /^(?:CTS|DF|FGC|FT|ZS|YP|YSC|PF)-\d+$/i,
+    // Citation/reference shorthand. Deliberately omits words that are also real
+    // surnames (Page, Volume, Note, Table, Verse, Chapter).
+    /^(?:ref|reference|footnote|figure|fig|section)-\d+$/i,
+    // Roads. Not Route- or Highway-, which are real surnames.
+    /^(?:us|hwy|interstate)-\d+$/i,
+  ];
 
   /* Regex explanation:
 1. The first three lookaheads check that the string contains between 0 and 3 dashes, between 0 and 2 underscores, and between 0 and 1 apostrophes, respectively.
@@ -101,12 +138,16 @@ function linkify() {
             });
           });
         }
-        delete window.matches;
       }
     });
   });
 }
 
+/**
+ * Add "Preview"/"URL" scissors copy links to each answer/comment anchor on a
+ * question page.
+ * @returns {void}
+ */
 function addScissorsToAnswers() {
   const allAnchorNodes = document.querySelectorAll("a:not(header a)");
   for (let i = 0; i < allAnchorNodes.length; i++) {
@@ -147,7 +188,11 @@ let g2gTagsPromise = null;
 // Lower case tag names, worked out once per tag list rather than on every keystroke.
 const g2gTagNames = new WeakMap();
 
-// The tag list is big, so it's only pulled in (as its own chunk) on the Tags page.
+/**
+ * Load the G2G tag list. It's big, so it's imported as its own webpack chunk on
+ * first use and the promise is cached for the life of the page.
+ * @returns {Promise<Array<{tag: string, count: number}>>} The tag list (empty on failure).
+ */
 function loadG2GTags() {
   if (!g2gTagsPromise) {
     g2gTagsPromise = import(/* webpackChunkName: "g2g-tags" */ "./g2g_tags.json")
@@ -160,13 +205,25 @@ function loadG2GTags() {
   return g2gTagsPromise;
 }
 
+/**
+ * Build the G2G URL for a tag's question list.
+ * @param {string} tag - The tag name.
+ * @returns {string} The absolute URL to that tag's page.
+ */
 function g2gTagURL(tag) {
   return "https://" + mainDomain + "/g2g/tag/" + encodeURIComponent(tag);
 }
 
-/* Best matches first: the start of the tag, then the start of a word within it
-   (so 'york' finds new_york before corkery), then anywhere in the tag.
-   Tags are ordered by question count, so each group has the most used first. */
+/**
+ * Rank tag matches best-first: tags starting with the needle, then tags where a
+ * word within them starts with it (so 'york' finds new_york before corkery),
+ * then tags merely containing it. Within each group the input order is kept, and
+ * since `names` is ordered by question count the most-used tags come first.
+ * @param {string[]} names - Lower-cased tag names, ordered by question count.
+ * @param {string} needle - The lower-cased, underscore-joined search term.
+ * @param {number} limit - Maximum number of indexes to return.
+ * @returns {number[]} Indexes into `names`, best match first, capped at `limit`.
+ */
 function rankG2GTagMatches(names, needle, limit) {
   const startsWith = [];
   const startsWord = [];
@@ -188,6 +245,13 @@ function rankG2GTagMatches(names, needle, limit) {
   return startsWith.concat(startsWord, contains).slice(0, limit);
 }
 
+/**
+ * Find the tags matching a search query. The lower-cased name list is computed
+ * once per tag array (cached in a WeakMap) rather than on every keystroke.
+ * @param {Array<{tag: string, count: number}>} tags - The full tag list.
+ * @param {string} query - The user's raw search input.
+ * @returns {Array<{tag: string, count: number}>} Matching tags, best first, capped.
+ */
 function matchG2GTags(tags, query) {
   const needle = query.trim().toLowerCase().replace(/\s+/g, "_");
   if (!needle) {
@@ -203,6 +267,12 @@ function matchG2GTags(tags, query) {
   return matches.map((index) => tags[index]);
 }
 
+/**
+ * Render the tag-picker dropdown from a set of matches (or an empty message).
+ * @param {JQuery} results - The <ul> results element.
+ * @param {Array<{tag: string, count: number}>} matches - Tags to show.
+ * @returns {void}
+ */
 function showG2GTagPickerResults(results, matches) {
   results.empty();
   if (matches.length === 0) {
@@ -218,6 +288,12 @@ function showG2GTagPickerResults(results, matches) {
   results.prop("hidden", false);
 }
 
+/**
+ * Move the highlighted item in the tag-picker dropdown, wrapping at the ends.
+ * @param {JQuery} results - The <ul> results element.
+ * @param {number} direction - 1 to move down, -1 to move up.
+ * @returns {void}
+ */
 function moveG2GTagPickerSelection(results, direction) {
   const items = results.find(".g2gTagPickerItem");
   if (items.length === 0) {
@@ -235,6 +311,11 @@ function moveG2GTagPickerSelection(results, direction) {
   active[0].scrollIntoView({ block: "nearest" });
 }
 
+/**
+ * Build the "Find a tag" search box on the G2G Tags page: a debounced-by-nature
+ * autocomplete over the whole tag list with keyboard and mouse navigation.
+ * @returns {void}
+ */
 function addG2GTagPicker() {
   if ($("#g2gTagPicker").length) {
     return;
@@ -300,10 +381,14 @@ function addG2GTagPicker() {
   });
 }
 
+/**
+ * Read the G2G feature options and wire up each enabled sub-feature on the
+ * current page.
+ * @returns {Promise<void>}
+ */
 async function initG2G() {
   const options = await getFeatureOptions("g2g");
   if (options.removeAds && getUserWtId()) {
-    console.log(getUserWtId());
     import("./remove_ad.css");
   }
   if (options.checkMarks) {
@@ -332,6 +417,9 @@ async function initG2G() {
   if (options.bigButtons) {
     bigG2GButtons();
   }
+  if (options.reverseAnswers) {
+    addReverseAnswersButton();
+  }
   if (options.pageLinks) {
     g2gPageLinksAtTop();
   }
@@ -355,10 +443,203 @@ shouldInitializeFeature("g2g").then((result) => {
   }
 });
 
+/**
+ * Enlarge the Comment and Reply submit buttons.
+ * @returns {void}
+ */
 function bigG2GButtons() {
   $(".qa-body-wrapper input[name$='_docomment'").addClass("bigButton");
 }
 
+// G2G shows 20 answers per page.
+const G2G_ANSWERS_PER_PAGE = 20;
+
+/**
+ * Work out the `?start=` offset of every page of answers, read from the paging
+ * control at the bottom of the answer list (the numbered links, ignoring
+ * "next »"/"« prev").
+ * @returns {number[]} One start offset per page, in order (e.g. [0, 20, 40]).
+ */
+function g2gAnswerPageStarts() {
+  let maxPage = 1;
+  document.querySelectorAll(".qa-page-links .qa-page-links-item").forEach((item) => {
+    const label = (item.querySelector("a") || item).textContent.trim();
+    const page = parseInt(label, 10);
+    if (!isNaN(page) && String(page) === label && page > maxPage) {
+      maxPage = page;
+    }
+  });
+  const starts = [];
+  for (let page = 0; page < maxPage; page++) {
+    starts.push(page * G2G_ANSWERS_PER_PAGE);
+  }
+  return starts;
+}
+
+/**
+ * The `?start=` offset of the page we're currently on.
+ * @returns {number} The current start offset (0 on the first page).
+ */
+function g2gCurrentStart() {
+  const match = window.location.search.match(/[?&]start=(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
+/**
+ * Fetch one page of the current question through the API and return its answer
+ * items (still owned by the parsed document — import them before inserting).
+ * @param {number} start - The `?start=` offset of the page to fetch.
+ * @returns {Promise<Element[]>} The `.qa-a-list-item` elements on that page.
+ */
+async function g2gFetchAnswerItems(start) {
+  const html = await getWikiTreePage("G2GReverseAnswers", window.location.pathname, "start=" + start);
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return Array.from(doc.querySelectorAll(".qa-a-list .qa-a-list-item"));
+}
+
+/**
+ * Add a switch (in the "N Answers" heading) that flips the answer order so the
+ * newest is first, while keeping any "Best answer" pinned to the top. When the
+ * answers span more than one page, the other pages are pulled in through the
+ * API the first time it's used so the whole set can be reversed at once.
+ * @returns {void}
+ */
+function addReverseAnswersButton() {
+  const title = document.getElementById("a_list_title");
+  const list = document.querySelector(".qa-a-list");
+  if (!title || !list || document.getElementById("wbeReverseAnswers")) {
+    return;
+  }
+
+  const starts = g2gAnswerPageStarts();
+  const multiPage = starts.length > 1;
+  // Nothing worth reversing on a single page with fewer than two answers.
+  if (!multiPage && list.querySelectorAll(".qa-a-list-item").length < 2) {
+    return;
+  }
+
+  // A little On/Off switch, matching the "Active members only" toggle in
+  // usability_tweaks.
+  const toggle = document.createElement("span");
+  toggle.id = "wbeReverseAnswers";
+  toggle.className = "wbe-reverse-answers";
+  toggle.setAttribute("role", "button");
+  toggle.setAttribute("tabindex", "0");
+  toggle.setAttribute("aria-pressed", "false");
+  toggle.title = "Reverse the order of answers (newest first), keeping any Best answer at the top";
+  toggle.innerHTML =
+    '<span class="wbe-reverse-answers-label">Newest first</span>' +
+    '<span class="wbe-reverse-answers-switch"><span class="wbe-reverse-answers-knob"></span></span>' +
+    '<span class="wbe-reverse-answers-state">Off</span>';
+  title.appendChild(toggle);
+  const stateLabel = toggle.querySelector(".wbe-reverse-answers-state");
+
+  // The little "shaking tree" spinner (as used by familyStatusSync etc.), shown
+  // next to the switch while the other answer pages are fetched.
+  let spinner = null;
+  function showSpinner() {
+    if (!spinner) {
+      spinner = document.createElement("img");
+      spinner.src = treeImageURL;
+      spinner.alt = "Loading…";
+      spinner.className = "wbe-reverse-answers-tree";
+    }
+    toggle.after(spinner);
+  }
+  function hideSpinner() {
+    if (spinner) {
+      spinner.remove();
+    }
+  }
+
+  // The full set of answer items in the site's original order. Filled in lazily
+  // the first time the switch is used.
+  let orderedItems = null;
+  let reversed = false;
+  let working = false;
+
+  async function ensureAllLoaded() {
+    if (orderedItems) {
+      return;
+    }
+    if (!multiPage) {
+      orderedItems = Array.from(list.querySelectorAll(".qa-a-list-item"));
+      return;
+    }
+    // Keep the current page's live items (Q2A's inline vote/comment handlers
+    // still work on them) and fetch the rest, placing each page by its start
+    // offset so the combined list keeps the site's order.
+    const currentStart = g2gCurrentStart();
+    const byStart = new Map();
+    byStart.set(currentStart, Array.from(list.querySelectorAll(".qa-a-list-item")));
+    const others = starts.filter((start) => start !== currentStart);
+    const fetched = await Promise.all(others.map((start) => g2gFetchAnswerItems(start)));
+    others.forEach((start, index) => {
+      byStart.set(
+        start,
+        fetched[index].map((item) => document.importNode(item, true))
+      );
+    });
+    orderedItems = starts.flatMap((start) => byStart.get(start) || []);
+    // Everything is on this page now, so the paging links no longer apply.
+    document.querySelectorAll(".qa-page-links").forEach((links) => {
+      links.hidden = true;
+    });
+  }
+
+  function render() {
+    const best = orderedItems.find((item) => item.classList.contains("qa-a-list-item-selected"));
+    const rest = orderedItems.filter((item) => item !== best);
+    const ordered = reversed ? rest.slice().reverse() : rest;
+    const fragment = document.createDocumentFragment();
+    if (best) {
+      fragment.appendChild(best);
+    }
+    ordered.forEach((item) => fragment.appendChild(item));
+    list.appendChild(fragment);
+    toggle.classList.toggle("wbe-reverse-answers-active", reversed);
+    toggle.setAttribute("aria-pressed", reversed ? "true" : "false");
+    stateLabel.textContent = reversed ? "On" : "Off";
+  }
+
+  async function flip() {
+    if (working) {
+      return;
+    }
+    if (!orderedItems) {
+      working = true;
+      if (multiPage) {
+        showSpinner();
+      }
+      try {
+        await ensureAllLoaded();
+      } catch (error) {
+        console.error("WBE G2G reverse answers: couldn't load all answer pages.", error);
+        hideSpinner();
+        working = false;
+        return;
+      }
+      hideSpinner();
+      working = false;
+    }
+    reversed = !reversed;
+    render();
+  }
+
+  toggle.addEventListener("click", flip);
+  toggle.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      flip();
+    }
+  });
+}
+
+/**
+ * Copy the bottom paging links up into the main heading so they're reachable at
+ * the top of the page too.
+ * @returns {void}
+ */
 function g2gPageLinksAtTop() {
   if ($(".qa-page-links").length && $(".qa-main-heading").find(".qa-page-links").length == 0) {
     const links2 = $(".qa-page-links").clone();
@@ -366,6 +647,12 @@ function g2gPageLinksAtTop() {
   }
 }
 
+/**
+ * Add the scissors copy panel (ID / URL / Question) to a question page, and
+ * optionally per-answer copy links.
+ * @param {boolean} alsoInAnswers - Whether to also add copy links to answers.
+ * @returns {void}
+ */
 function g2gScissors(alsoInAnswers) {
   if ($("body.qa-template-question.qa-body-js-on").length && $("#g2gScissors").length == 0) {
     const g2gScissors = $("<div id='g2gScissors'></div>");
@@ -408,12 +695,24 @@ function g2gScissors(alsoInAnswers) {
   }
 }
 
+/**
+ * Build one of the extra G2G nav-bar tab buttons.
+ * @param {string} id - The element id to give the button.
+ * @param {string} url - The href for the button's link.
+ * @param {string} text - The link text.
+ * @returns {JQuery} The button element (not yet inserted).
+ */
 function createG2GButton(id, url, text) {
   const button = $('<span class="awtG2GLink nav-link qa-nav-main-item-opp"></span>');
   const link = $('<a class="qa-nav-main-link"></a>').attr("href", url).text(text);
   return button.attr("id", id).append(link);
 }
 
+/**
+ * Add "Recent Activity", "My Activity" and "+ (Favorited)" tab buttons to the
+ * G2G nav bar, marking the current one as selected.
+ * @returns {void}
+ */
 function addG2GButtons() {
   if ($("#recentActivity").length === 0) {
     const mainList = $(".qa-nav-main-list");
@@ -451,8 +750,11 @@ function addG2GButtons() {
   }
 }
 
+/**
+ * Mark questions you've favorited with a "+" badge in the question list.
+ * @returns {void}
+ */
 function g2gFavorited() {
-  // Favourited
   if ($(".qa-q-list-item.qa-q-favorited").length) {
     $(".qa-q-list-item.qa-q-favorited div.qa-q-item-title a").each(function () {
       if ($(this).find(".g2gPlus").length == 0) {
@@ -462,6 +764,10 @@ function g2gFavorited() {
   }
 }
 
+/**
+ * Add a "↑ Back to top" link that smooth-scrolls to the top of the page.
+ * @returns {void}
+ */
 function g2gBackToTop() {
   if ($(".qa-q-list-form").length && $(".backToTop").length == 0) {
     const backToTop = $("<a class='backToTop'>&uarr; Back to top</a>");
@@ -478,6 +784,11 @@ function g2gBackToTop() {
   }
 }
 
+/**
+ * Read one or more keys from `chrome.storage.sync`.
+ * @param {string|string[]} key - The key(s) to read.
+ * @returns {Promise<Object|undefined>} The stored values (undefined on error).
+ */
 export async function getSync(key) {
   try {
     const result = await chrome.storage.sync.get(key);
@@ -487,11 +798,20 @@ export async function getSync(key) {
   }
 }
 
+/**
+ * Write an object of key/value pairs to `chrome.storage.sync`.
+ * @param {Object} thing - The key/value pairs to store.
+ * @returns {void}
+ */
 export function setSync(thing) {
-  // object
   chrome.storage.sync.set(thing, function () {});
 }
 
+/**
+ * Add a "show/hide" checkbox next to each category link in the sidebar, checked
+ * according to the user's saved `g2gCategories` preferences, then apply them.
+ * @returns {void}
+ */
 function addG2GCategoryCheckboxes() {
   getSync(["g2gCategories"]).then((sync) => {
     const sidePanelA = $(".qa-sidepanel a");
@@ -528,6 +848,11 @@ function addG2GCategoryCheckboxes() {
   });
 }
 
+/**
+ * Save the current state of the category checkboxes to `chrome.storage.sync`,
+ * then re-apply the show/hide filtering.
+ * @returns {void}
+ */
 function g2gCategoriesSync() {
   const g2gCategories = { g2gCategories: {} };
   const checks = $(".catCheck");
@@ -540,6 +865,11 @@ function g2gCategoriesSync() {
   }, 1000);
 }
 
+/**
+ * Show or hide each question in the list according to the user's saved
+ * `g2gCategories` preferences.
+ * @returns {void}
+ */
 function doG2GCategories() {
   const catLinks = $(".qa-q-item-where-data a");
   getSync(["g2gCategories"]).then((sync) => {
@@ -558,6 +888,10 @@ function doG2GCategories() {
   });
 }
 
+/**
+ * Prepend a checkmark to questions you've already visited.
+ * @returns {void}
+ */
 function g2gCheckmarks() {
   $("div.qa-q-item-title a,span.qa-q-item-meta a.qa-q-item-what").each(function () {
     if ($(this).find(".checkmark").length == 0) {

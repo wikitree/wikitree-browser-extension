@@ -71,6 +71,12 @@ const g2g = {
       defaultValue: true,
     },
     {
+      id: "reverseAnswers",
+      type: OptionType.CHECKBOX,
+      label: "Button to reverse the order of answers (newest first), keeping any 'Best answer' at the top",
+      defaultValue: true,
+    },
+    {
       id: "pageLinks",
       type: OptionType.CHECKBOX,
       label: "Page links (Page: [1], [2], [3]) at the top of a page",
