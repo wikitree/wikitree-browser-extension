@@ -5966,10 +5966,12 @@ export async function generateBio() {
     // Add Research Notes
     let researchNotesText = "";
     const leftoverSectionsText = getLeftoverSectionsText();
+    const showNeedsProfilesNote = window.autoBioOptions?.needsProfilesResearchNote !== false;
     if (
       window.sectionsObject["Research Notes"]?.text?.length > 0 ||
-      window.sectionsObject["Research Notes"]?.subsections["NeedsProfiles"]?.length > 0 ||
-      leftoverSectionsText
+      (showNeedsProfilesNote && window.sectionsObject["Research Notes"]?.subsections["NeedsProfiles"]?.length > 0) ||
+      leftoverSectionsText ||
+      Object.keys(window.sectionsObject["Research Notes"]?.subsections || {}).some((s) => s != "NeedsProfiles")
     ) {
       let researchNotesHeader = "== Research Notes ==\n";
       researchNotesText += researchNotesHeader;
@@ -5981,7 +5983,7 @@ export async function generateBio() {
       const needsDone = [];
       let needsProfileText = "";
       const needsProfiles = window.sectionsObject["Research Notes"].subsections["NeedsProfiles"];
-      if (needsProfiles?.length > 0) {
+      if (showNeedsProfilesNote && needsProfiles?.length > 0) {
         if (needsProfiles.length == 1) {
           needsProfileText =
             needsProfiles[0].Name +
@@ -6000,24 +6002,28 @@ export async function generateBio() {
           });
         }
         researchNotesText += needsProfileText + "\n\n";
+      }
 
-        // Add Needs Profiles Created category
-        if (window.profilePerson?.BirthLocation && window.autoBioOptions?.needsProfilesCreatedCategory) {
-          const birthPlaces = window.profilePerson.BirthLocation?.split(", ");
-          let needsCategory;
-          birthPlaces.forEach(function (aPlace) {
-            const needsProfilesCreated = needsCategories.Profiles_Created;
-            for (const aNeed of needsProfilesCreated) {
-              const placeMatch = new RegExp("\\b" + aPlace + "\\b", "i");
-              if (aNeed.PlaceOrProject.match(placeMatch) && !needsCategory) {
-                needsCategory = "[[Category: " + aNeed.PlaceOrProject + " Needs Profiles Created]]";
-                break;
-              }
+      // Add Needs Profiles Created category (independent of the research note above)
+      if (
+        needsProfiles?.length > 0 &&
+        window.profilePerson?.BirthLocation &&
+        window.autoBioOptions?.needsProfilesCreatedCategory
+      ) {
+        const birthPlaces = window.profilePerson.BirthLocation?.split(", ");
+        let needsCategory;
+        birthPlaces.forEach(function (aPlace) {
+          const needsProfilesCreated = needsCategories.Profiles_Created;
+          for (const aNeed of needsProfilesCreated) {
+            const placeMatch = new RegExp("\\b" + aPlace + "\\b", "i");
+            if (aNeed.PlaceOrProject.match(placeMatch) && !needsCategory) {
+              needsCategory = "[[Category: " + aNeed.PlaceOrProject + " Needs Profiles Created]]";
+              break;
             }
-          });
-          if (needsCategory) {
-            addUniqueCategoryToStuffBeforeTheBio(needsCategory);
           }
+        });
+        if (needsCategory) {
+          addUniqueCategoryToStuffBeforeTheBio(needsCategory);
         }
       }
 

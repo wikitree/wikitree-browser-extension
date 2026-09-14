@@ -410,6 +410,19 @@ const autoBio = {
       ],
     },
     {
+      id: "researchNotesGroup",
+      type: OptionType.GROUP,
+      label: "Research Notes",
+      options: [
+        {
+          id: "needsProfilesResearchNote",
+          type: OptionType.CHECKBOX,
+          label: "Add a research note listing people who may need profiles",
+          defaultValue: true,
+        },
+      ],
+    },
+    {
       id: "spouseDetailsGroup",
       type: OptionType.GROUP,
       label: "Spouse",
