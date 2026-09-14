@@ -499,9 +499,10 @@ async function g2gFetchAnswerItems(start) {
 
 /**
  * Add a switch (in the "N Answers" heading) that flips the answer order so the
- * newest is first, while keeping any "Best answer" pinned to the top. When the
- * answers span more than one page, the other pages are pulled in through the
- * API the first time it's used so the whole set can be reversed at once.
+ * newest is first, while keeping any "Best answer" pinned to the top. The
+ * comments within each answer are flipped to match. When the answers span more
+ * than one page, the other pages are pulled in through the API the first time
+ * it's used so the whole set can be reversed at once.
  * @returns {void}
  */
 function addReverseAnswersButton() {
@@ -557,6 +558,32 @@ function addReverseAnswersButton() {
   let orderedItems = null;
   let reversed = false;
   let working = false;
+  // Each answer's comments in their original (oldest-first) order, captured once
+  // per comment list so we can flip them back and forth with the answers.
+  const originalCommentOrder = new WeakMap();
+
+  /**
+   * Reverse (or restore) the comments inside one answer item to match the
+   * current `reversed` state. Comments have no "best", so the whole list flips.
+   * @param {Element} answerItem - A `.qa-a-list-item` element.
+   * @returns {void}
+   */
+  function orderComments(answerItem) {
+    const commentList = answerItem.querySelector(".qa-a-item-c-list");
+    if (!commentList) {
+      return;
+    }
+    let original = originalCommentOrder.get(commentList);
+    if (!original) {
+      original = Array.from(commentList.querySelectorAll(":scope > .qa-c-list-item"));
+      if (original.length < 2) {
+        return;
+      }
+      originalCommentOrder.set(commentList, original);
+    }
+    const ordered = reversed ? original.slice().reverse() : original;
+    ordered.forEach((comment) => commentList.appendChild(comment));
+  }
 
   async function ensureAllLoaded() {
     if (orderedItems) {
@@ -597,6 +624,8 @@ function addReverseAnswersButton() {
     }
     ordered.forEach((item) => fragment.appendChild(item));
     list.appendChild(fragment);
+    // Flip the comments within each answer to match the answer order.
+    orderedItems.forEach(orderComments);
     toggle.classList.toggle("wbe-reverse-answers-active", reversed);
     toggle.setAttribute("aria-pressed", reversed ? "true" : "false");
     stateLabel.textContent = reversed ? "On" : "Off";
