@@ -27,7 +27,7 @@ function mustStayInThisTab($link) {
 
   // Claimed by another feature, which runs its own click handler. Without this, the capture-phase
   // handler below fires first and opens a new tab before that handler ever runs.
-  if ($link.closest("[data-wbe-no-new-tab]").length > 0 || $link.closest("#getImageButton").length > 0) return true;
+  if ($link.closest("[data-wbe-no-new-tab]").length > 0) return true;
 
   // Script links - there is no document to open, so a new tab would just be blank.
   if (href.toLowerCase().startsWith("javascript:")) return true;
