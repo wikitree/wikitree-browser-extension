@@ -27,7 +27,7 @@ function mustStayInThisTab($link) {
 
   // Claimed by another feature, which runs its own click handler. Without this, the capture-phase
   // handler below fires first and opens a new tab before that handler ever runs.
-  if ($link.closest("[data-wbe-no-new-tab]").length > 0) return true;
+  if ($link.closest("[data-wbe-no-new-tab]").length > 0 || $link.closest("#getImageButton").length > 0) return true;
 
   // Script links - there is no document to open, so a new tab would just be blank.
   if (href.toLowerCase().startsWith("javascript:")) return true;
@@ -46,8 +46,12 @@ function shouldOpenInNewTab($link, options) {
   // 1. Skip empty links or same‑page anchors
   if (href === "" || href.startsWith("#")) return false;
 
-  // 2. Skip blob URLs (used for downloads)
-  if (href.startsWith("blob:")) return false;
+  // 2. Skip download mechanisms, never navigation: blob:/data: URLs, and any link with a
+  // download attribute. The "Get Shareable Image" button builds an <a download href="data:...">
+  // and clicks it programmatically; without this, the capture handler below cancels the download
+  // and opens the base64 payload as a page instead.
+  if (href.startsWith("blob:") || href.startsWith("data:")) return false;
+  if ($link.is("[download]")) return false;
 
   // 2b. Skip links that must stay in this tab
   if (mustStayInThisTab($link)) return false;
@@ -82,7 +86,7 @@ function shouldOpenInNewTab($link, options) {
   const isBtn = $link.hasClass("btn-pill") || $link.hasClass("btn-secondary") || $link.hasClass("btn-utility");
   if (isBtn) return false;
 
-  // 4. Skip areas the user asked to exclude
+  // 4. Other exclusions
   const isProfileTab = $link.closest(".nav-tabs,.tabs--wrapper,.nav-item").length > 0;
   const isG2GTabOrLinks = $link.closest("div.qa-nav-main,div.qa-nav-footer,div.qa-page-links").length > 0;
   const isTopMenu = $link.closest("nav").length > 0;
