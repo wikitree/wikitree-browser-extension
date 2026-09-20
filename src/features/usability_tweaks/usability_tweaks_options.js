@@ -112,6 +112,12 @@ const usabilityTweaks = {
           label: "Add the accessed count to the profile data box (with the profile manager and edits).",
           defaultValue: false,
         },
+        {
+          id: "addBrowsePhotosButton",
+          type: OptionType.CHECKBOX,
+          label: "Add a 'Browse Photos' button when there is more than one photo but no button is shown.",
+          defaultValue: true,
+        },
       ],
     },
     {

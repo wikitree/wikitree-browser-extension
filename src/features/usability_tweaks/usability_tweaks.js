@@ -18,7 +18,7 @@ import {
 } from "../../core/pageType";
 import "./usability_tweaks.css";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { getUserWtId, getUserNumId } from "../../core/common";
+import { getUserWtId, getUserNumId, profilePerson } from "../../core/common";
 import "../../core/common.css";
 import { addLoginButton } from "../../core/loginButton";
 //import draggable from "jquery-ui/ui/widgets/draggable";
@@ -1016,6 +1016,41 @@ function addAccessedCountToProfileData() {
   }
 }
 
+/**
+ * Adds a "Browse Photos" button to the #Photo-Actions section when the profile has
+ * more than one photo but WikiTree hasn't rendered the button itself (it only shows it
+ * once there are enough photos to warrant the photos page).
+ *
+ * The photos page URL follows from the profile's WikiTree ID: "Herling-44" becomes
+ * "/genealogy/Herling-Photos-44/".
+ */
+function addBrowsePhotosButton() {
+  const section = document.getElementById("Photo-Actions");
+  if (!section) return;
+
+  // Nothing to do if there's already a Browse Photos button.
+  const hasBrowseButton = Array.from(section.querySelectorAll("a")).some(
+    (a) => a.textContent.trim() === "Browse Photos" || /-Photos-\d+\/?$/.test(a.getAttribute("href") || "")
+  );
+  if (hasBrowseButton) return;
+
+  // Only add it when there's more than one photo on the page.
+  const heading = document.getElementById("wt-photos");
+  const total = heading ? parseInt(heading.getAttribute("data-photo-total"), 10) : NaN;
+  if (!(total > 1)) return;
+
+  // Build the photos page URL from the WikiTree ID (e.g. "Herling-44" -> "Herling-Photos-44").
+  const wtId = profilePerson && profilePerson.Name;
+  if (!wtId || !/-\d+$/.test(wtId)) return;
+  const photosId = wtId.replace(/-(\d+)$/, "-Photos-$1");
+  const fullName = (profilePerson && profilePerson.FullName) || wtId;
+
+  const button = $(
+    `<a class="btn btn-pill btn-block wbe" href="/genealogy/${photosId}/" title="Browse photos for ${fullName}"><span class="icon--photo"></span> Browse Photos</a>`
+  );
+  $(section).prepend(button);
+}
+
 /* The text parameter of the {{Notability}} template has a 350 character maximum,
    so show a live count of what's been typed and what's left while editing. */
 const NOTABILITY_TEXT_LIMIT = 350;
@@ -1274,6 +1309,10 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
       // addAccessedCountToProfileData();
       if (isProfilePage && options.addAccessedCountToProfileData) {
         addAccessedCountToProfileData();
+      }
+
+      if (isProfilePage && options.addBrowsePhotosButton) {
+        addBrowsePhotosButton();
       }
 
       // Add save form button
