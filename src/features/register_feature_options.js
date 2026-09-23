@@ -55,6 +55,7 @@ import {
 import "./access_keys/access_keys_options";
 import "./add_person/add_person_options";
 import "./add_search_boxes/add_search_boxes_options";
+import "./profile_adoption_surname_table/profile_adoption_surname_table_options";
 import "./agc/agc_options";
 import "./anniversaries_table/anniversaries_table_options";
 import "./auto_bio/auto_bio_options";

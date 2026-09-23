@@ -154,6 +154,8 @@ export let isBrowseMatches = false;
 export let isFindMatchesResults = false;
 // Special:Contributions
 export let isContributions = false;
+// Special:Adoptions for one surname (index.php?title=Special:Adoptions&s=BUCH)
+export let isSpecialProfileAdoptionsSurname = false;
 
 // WikiTree Plus variables
 // Profile Search results
@@ -449,6 +451,11 @@ if (domain.match("apps.wikitree.com")) {
     } else if (uri.match(/Special(:|%3A|%3a)FindMatches/) && uri.match(/action=find/)) {
       // Only the results page. Special:FindMatches with no action is the empty search form.
       isFindMatchesResults = true;
+    } else if (
+      uri.match(/Special(:|%3A|%3a)Adoptions/) &&
+      new URLSearchParams(window.location.search).get("s")?.trim()
+    ) {
+      isSpecialProfileAdoptionsSurname = true;
     }
   } else if (
     // Other Edit Page

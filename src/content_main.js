@@ -86,6 +86,7 @@ import "./easterEgg";
 import "./features/access_keys/access_keys";
 import "./features/add_fs_id/add_fs_id";
 import "./features/add_search_boxes/add_search_boxes";
+import "./features/profile_adoption_surname_table/profile_adoption_surname_table";
 import "./features/akaNameLinks/akaNameLinks";
 import "./features/anniversaries_table/anniversaries_table";
 import "./features/categoryDisplay/categoryDisplay";
