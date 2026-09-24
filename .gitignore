@@ -32,3 +32,4 @@ xcode/WikiTree Browser Extension Preview/WikiTree Browser Extension Preview.xcod
 
 # Local npm cache override
 .npm-cache/
+/.claude
