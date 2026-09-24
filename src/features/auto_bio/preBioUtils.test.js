@@ -306,6 +306,8 @@ describe("template names written without spaces", () => {
   test("templateNameKey ignores spaces, underscores and case", () => {
     expect(templateNameKey("OnePlaceStudy")).toBe(templateNameKey("One Place Study"));
     expect(templateNameKey("one_place_study")).toBe(templateNameKey("One Place Study"));
+    expect(templateNameKey("One-Place-Study")).toBe(templateNameKey("One Place Study"));
+    expect(templateNameKey("Clean a Thon")).toBe(templateNameKey("Clean-a-Thon"));
   });
 
   test("findTemplateDefinition finds the documented template", () => {
@@ -326,6 +328,9 @@ describe("template names written without spaces", () => {
       )
     ).toBe("{{One Place Study\n|place=Solum, Telemark, Norway\n|category=Grimholt, Solum, Telemark, Norway\n}}");
     expect(withCanonicalTemplateName("{{notability}}", "Notability")).toBe("{{Notability}}");
+    expect(withCanonicalTemplateName("{{One_Place-Study|place=Solum}}", "One Place Study")).toBe(
+      "{{One Place Study|place=Solum}}"
+    );
   });
 
   test("findTemplatesToKeepByName matches a lower-case name", () => {
@@ -342,7 +347,8 @@ describe("template names written without spaces", () => {
     ).toEqual(["{{Easily Confused|name=Greer}}", "{{Research Note Box|status=Unconfirmed}}"]);
   });
 
-  test("getOneNameStudyCategories handles {{OneNameStudy}}", () => {
+  test("getOneNameStudyCategories handles {{OneNameStudy}} and {{One-Name-Study}}", () => {
     expect(getOneNameStudyCategories("{{OneNameStudy|name=Greer}}")).toEqual(["[[Category: Greer Name Study]]"]);
+    expect(getOneNameStudyCategories("{{One-Name-Study|name=Greer}}")).toEqual(["[[Category: Greer Name Study]]"]);
   });
 });

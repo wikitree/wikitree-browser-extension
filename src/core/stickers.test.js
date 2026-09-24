@@ -50,4 +50,6 @@ describe("hasDiedYoungSticker", () => {
 
 test("hasDiedYoungSticker matches a name written without spaces", () => {
   expect(hasDiedYoungSticker("{{DiedYoung}}")).toBe(true);
+  expect(hasDiedYoungSticker("{{Died-Young}}")).toBe(true);
+  expect(hasDiedYoungSticker("{{Died_Young}}")).toBe(true);
 });

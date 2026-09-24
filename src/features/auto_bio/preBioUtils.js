@@ -21,10 +21,10 @@ export function findGenealogicallyDefinedLinePlacement(bioText = "") {
   };
 }
 
-// People write "{{OnePlaceStudy}}", "{{One_Place_Study}}" or "{{one place study}}" for
-// "{{One Place Study}}", so compare template names without spaces, underscores or case.
+// People write "{{OnePlaceStudy}}", "{{One_Place_Study}}", "{{One-Place-Study}}" or "{{one place study}}"
+// for "{{One Place Study}}", so compare template names without spaces, underscores, hyphens or case.
 export function templateNameKey(name = "") {
-  return name.replace(/[\s_]+/g, "").toLowerCase();
+  return name.replace(/[\s_-]+/g, "").toLowerCase();
 }
 
 export function getTemplateName(templateText = "") {
@@ -267,7 +267,7 @@ export function getOneNameStudyCategories(bioText = "") {
   }
 
   const categories = [];
-  const templatePattern = /\{\{\s*One[ _]*Name[ _]*Study\s*\|([^{}]*)\}\}/gi;
+  const templatePattern = /\{\{\s*One[ _-]*Name[ _-]*Study\s*\|([^{}]*)\}\}/gi;
   for (const match of bioText.matchAll(templatePattern)) {
     const params = match[1].split("|").map((param) => param.trim());
     const nameParam = params.find((param) => /^name\s*=/i.test(param)) ?? params.find((param) => !param.includes("="));
