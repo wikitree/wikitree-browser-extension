@@ -4585,7 +4585,17 @@ export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading =
 }
 
 export async function getStickersAndBoxes(feature = "autoBio") {
-  let afterBioHeading = "";
+  return (await collectStickersAndBoxes(feature)).text;
+}
+
+// The same stickers and boxes as getStickersAndBoxes, one template per item, so a caller can
+// tell which ones are already under the Biography heading without splitting multi-line templates.
+export async function getStickersAndBoxesList(feature = "autoBio") {
+  return (await collectStickersAndBoxes(feature)).objects;
+}
+
+async function collectStickersAndBoxes(feature = "autoBio") {
+  let afterBioHeading = { text: "", objects: [] };
 
   try {
     templatesObject = await getTemplates();
@@ -4647,8 +4657,7 @@ export async function getStickersAndBoxes(feature = "autoBio") {
       }
     });
 
-    const afterBioHeadingThings = await afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading, feature);
-    afterBioHeading = afterBioHeadingThings.text;
+    afterBioHeading = await afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading, feature);
   } catch (error) {
     console.error("Error processing templates:", error);
   }

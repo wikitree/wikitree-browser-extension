@@ -1,6 +1,7 @@
 import {
   extractPreBioNotes,
   findGenealogicallyDefinedLinePlacement,
+  findItemsMissingFromText,
   findTemplateDefinition,
   findTemplatesToKeepByName,
   getOneNameStudyCategories,
@@ -350,5 +351,40 @@ describe("template names written without spaces", () => {
   test("getOneNameStudyCategories handles {{OneNameStudy}} and {{One-Name-Study}}", () => {
     expect(getOneNameStudyCategories("{{OneNameStudy|name=Greer}}")).toEqual(["[[Category: Greer Name Study]]"]);
     expect(getOneNameStudyCategories("{{One-Name-Study|name=Greer}}")).toEqual(["[[Category: Greer Name Study]]"]);
+  });
+});
+
+describe("findItemsMissingFromText", () => {
+  const stickers = [
+    "{{Italian Roots Sticker}}",
+    "{{One Place Study|place= Mese, Lombardy|category= Mese, Lombardy One Place Study}}",
+  ];
+
+  test("keeps stickers that aren't under the heading yet", () => {
+    expect(findItemsMissingFromText(stickers, "\nMario was born in Mese.")).toEqual(stickers);
+  });
+
+  test("skips a sticker that's already there, however its name and spacing are written", () => {
+    const textAfterHeading =
+      "\n{{ItalianRootsSticker}}\n{{One_Place_Study|place=Mese, Lombardy|category=Mese, Lombardy One Place Study}}\nText";
+    expect(findItemsMissingFromText(stickers, textAfterHeading)).toEqual([]);
+  });
+
+  test("treats a multi-line template as one item", () => {
+    const multiLine = "{{One Place Study\n|place=Solum, Telemark, Norway\n}}";
+    expect(findItemsMissingFromText([multiLine], "\n}}\n|place=Solum, Telemark, Norway")).toEqual([multiLine]);
+    expect(findItemsMissingFromText([multiLine], "\n{{One Place Study|place=Solum, Telemark, Norway}}")).toEqual([]);
+  });
+
+  test("a different parameter makes it a different sticker", () => {
+    expect(findItemsMissingFromText(["{{One Place Study|place=Mese}}"], "{{One Place Study|place=Solum}}")).toEqual([
+      "{{One Place Study|place=Mese}}",
+    ]);
+  });
+
+  test("checks plain lines as text", () => {
+    const line = "'''[[Space:Genealogically Defined|Genealogically Defined]]'''";
+    expect(findItemsMissingFromText([line], `\n${line}\n`)).toEqual([]);
+    expect(findItemsMissingFromText([line, ""], "\nText")).toEqual([line]);
   });
 });

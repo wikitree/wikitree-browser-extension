@@ -4,7 +4,7 @@ import { getFeatureOptions } from "../../core/options/options_storage";
 import { profilePerson } from "../../core/common";
 import { showCopyMessage } from "../access_keys/access_keys";
 import { loadAutoBioModule } from "../auto_bio/auto_bio_loader";
-import { getPreBioTextLines } from "../auto_bio/preBioUtils";
+import { findItemsMissingFromText, getPreBioTextLines } from "../auto_bio/preBioUtils";
 
 const WBE_AUTO_CAT_APP_ID = "WBE_auto_categories";
 
@@ -21,7 +21,7 @@ export async function addAutoCategories() {
     assignCemeteryFromSources,
     addLocationCategoryToStuffBeforeTheBio,
     getStuffBeforeTheBioText,
-    getStickersAndBoxes,
+    getStickersAndBoxesList,
     addWorking,
     removeWorking,
     addUnsourced,
@@ -132,23 +132,19 @@ export async function addAutoCategories() {
       enhanced = true;
     }
 
-    //  const afterBioHeadingThings = await afterBioHeadingTextAndObjects();
-    const afterBioHeadingThings = await getStickersAndBoxes("autoCategories");
-
-    const afterBioHeadingThingsArray = afterBioHeadingThings.split("\n");
-    const filteredAfterBioHeadingThingsArray = [];
-    afterBioHeadingThingsArray.forEach((line) => {
-      // Skip empty lines and use a literal substring check to avoid treating
-      // the line as a RegExp (which can throw for characters like []-|).
-      const normalizedLine = line && line.trim();
-      if (normalizedLine && !currentBio.includes(normalizedLine)) {
-        filteredAfterBioHeadingThingsArray.push(line);
-      }
-    });
-    //let afterBioHeading = afterBioHeadingThings.text;
+    /* Everything above the Biography heading is about to be replaced by stuffBeforeTheBioText,
+    which only has categories and boxes. So a sticker from up there has to go under the heading,
+    unless it's already there. (Only look under the heading: a sticker that's above it now will
+    be gone.) */
+    const afterBioHeadingThings = await getStickersAndBoxesList("autoCategories");
+    const bioHeadingMatch = currentBio.match(/== ?Biography ?==/i);
+    const textAfterBioHeading = bioHeadingMatch
+      ? currentBio.slice(bioHeadingMatch.index + bioHeadingMatch[0].length)
+      : currentBio;
+    const missingAfterBioHeadingThings = findItemsMissingFromText(afterBioHeadingThings, textAfterBioHeading);
     let afterBioHeading = "";
-    if (afterBioHeadingThings) {
-      afterBioHeading = "\n" + filteredAfterBioHeadingThingsArray.join("\n");
+    if (missingAfterBioHeadingThings.length > 0) {
+      afterBioHeading = "\n" + missingAfterBioHeadingThings.join("\n");
     }
 
     if (stuffBeforeTheBioText || afterBioHeading) {

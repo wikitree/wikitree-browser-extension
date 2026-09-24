@@ -292,3 +292,28 @@ export function getOneNameStudyCategories(bioText = "") {
 
   return categories;
 }
+
+// "{{OnePlaceStudy|place= Mese}}" and "{{One Place Study|place=Mese}}" are the same template.
+function templateComparisonKey(templateText = "") {
+  const name = getTemplateName(templateText);
+  const rest = templateText.replace(/^\{\{\s*[^|}]+/, "");
+  return templateNameKey(name) + rest.replace(/\s+/g, "");
+}
+
+// The items (stickers, boxes, etc.) that aren't already somewhere in bioText.
+export function findItemsMissingFromText(items = [], bioText = "") {
+  const existingTemplateKeys = new Set(
+    Array.from(bioText.matchAll(/\{\{[\s\S]*?\}\}/g), (match) => templateComparisonKey(match[0]))
+  );
+
+  return items.filter((item) => {
+    const trimmedItem = item?.trim();
+    if (!trimmedItem) {
+      return false;
+    }
+    if (trimmedItem.startsWith("{{")) {
+      return !existingTemplateKeys.has(templateComparisonKey(trimmedItem));
+    }
+    return !bioText.includes(trimmedItem);
+  });
+}
