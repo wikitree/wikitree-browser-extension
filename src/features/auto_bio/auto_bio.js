@@ -44,6 +44,7 @@ import {
   extractPreBioNotes,
   findGenealogicallyDefinedLinePlacement,
   findTemplatesToKeepByName,
+  getOneNameStudyCategories,
   getPreBioTextLines,
   removeNotesBeforeBio,
   sortStuffBeforeBioItems,
@@ -5393,6 +5394,9 @@ export async function generateBio() {
         }
       }
     }
+
+    // The deprecated One Name Study template won't be carried over, so keep its category.
+    getOneNameStudyCategories(currentBio).forEach((category) => addUniqueCategoryToStuffBeforeTheBio(category));
 
     window.usedPlaces = [];
     let profileID = profilePerson.Name;

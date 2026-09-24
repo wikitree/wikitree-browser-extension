@@ -2,6 +2,7 @@ import {
   extractPreBioNotes,
   findGenealogicallyDefinedLinePlacement,
   findTemplatesToKeepByName,
+  getOneNameStudyCategories,
   getPreBioTextLines,
   isPreBioNoteLine,
   removeNotesBeforeBio,
@@ -252,5 +253,43 @@ describe("removeNotesBeforeBio", () => {
     const bioText = ":'''Note 1:''' A note with no heading below it.";
 
     expect(removeNotesBeforeBio(bioText)).toBe(bioText);
+  });
+});
+
+describe("getOneNameStudyCategories", () => {
+  test("turns the deprecated template into its category", () => {
+    expect(getOneNameStudyCategories("{{One Name Study|name=Greer}}\n== Biography ==")).toEqual([
+      "[[Category: Greer Name Study]]",
+    ]);
+  });
+
+  test("handles spacing, case, underscores and multi-word names", () => {
+    expect(getOneNameStudyCategories("{{ one_name_study | name = De la Mare }}")).toEqual([
+      "[[Category: De la Mare Name Study]]",
+    ]);
+  });
+
+  test("skips a study whose category is already there", () => {
+    expect(
+      getOneNameStudyCategories("[[Category: Greer Name Study]]\n{{One Name Study|name=Greer}}")
+    ).toEqual([]);
+  });
+
+  test("skips a study that already has a located category", () => {
+    expect(
+      getOneNameStudyCategories("[[category: United States, Greer Name Study ]]\n{{One Name Study|name=Greer}}")
+    ).toEqual([]);
+  });
+
+  test("doesn't treat a different study's category as a match", () => {
+    expect(
+      getOneNameStudyCategories("[[Category: McGreer Name Study]]\n{{One Name Study|name=Greer}}")
+    ).toEqual(["[[Category: Greer Name Study]]"]);
+  });
+
+  test("returns one category per study", () => {
+    expect(
+      getOneNameStudyCategories("{{One Name Study|name=Greer}}\n{{One Name Study|name=Greer}}\n{{One Name Study|name=Brodie}}")
+    ).toEqual(["[[Category: Greer Name Study]]", "[[Category: Brodie Name Study]]"]);
   });
 });

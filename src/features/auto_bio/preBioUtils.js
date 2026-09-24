@@ -236,3 +236,43 @@ export function removeNotesBeforeBio(bioText = "") {
 
   return remaining.join("\n") + bioText.slice(stuffBeforeTheBio.length);
 }
+
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// {{One Name Study|name=Greer}} is deprecated and Auto Bio drops it, but it was also what put the
+// profile in the name study's category. Return a replacement "[[Category: Greer Name Study]]" for
+// each one in the bio, unless the bio already has that category or a located one such as
+// "[[Category: United States, Greer Name Study]]".
+export function getOneNameStudyCategories(bioText = "") {
+  if (!bioText) {
+    return [];
+  }
+
+  const categories = [];
+  const templatePattern = /\{\{\s*One[ _]+Name[ _]+Study\s*\|([^{}]*)\}\}/gi;
+  for (const match of bioText.matchAll(templatePattern)) {
+    const params = match[1].split("|").map((param) => param.trim());
+    const nameParam = params.find((param) => /^name\s*=/i.test(param)) ?? params.find((param) => !param.includes("="));
+    const surname = nameParam
+      ?.replace(/^name\s*=/i, "")
+      .replace(/_/g, " ")
+      .trim();
+    if (!surname) {
+      continue;
+    }
+
+    const studyName = escapeRegExp(surname).replace(/ +/g, "[ _]+") + "[ _]+Name[ _]+Study";
+    const existingCategoryPattern = new RegExp(
+      `\\[\\[\\s*Category\\s*:\\s*(?:[^\\]|]*,\\s*)?${studyName}\\s*(?:\\|[^\\]]*)?\\]\\]`,
+      "i"
+    );
+    const category = `[[Category: ${surname} Name Study]]`;
+    if (!existingCategoryPattern.test(bioText) && !categories.includes(category)) {
+      categories.push(category);
+    }
+  }
+
+  return categories;
+}
