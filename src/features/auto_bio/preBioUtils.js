@@ -21,6 +21,30 @@ export function findGenealogicallyDefinedLinePlacement(bioText = "") {
   };
 }
 
+// People write "{{OnePlaceStudy}}", "{{One_Place_Study}}" or "{{one place study}}" for
+// "{{One Place Study}}", so compare template names without spaces, underscores or case.
+export function templateNameKey(name = "") {
+  return name.replace(/[\s_]+/g, "").toLowerCase();
+}
+
+export function getTemplateName(templateText = "") {
+  const nameMatch = templateText.match(/^\{\{\s*([^|}]+)/);
+  return nameMatch ? nameMatch[1].trim() : "";
+}
+
+export function findTemplateDefinition(templateText = "", templates = []) {
+  const key = templateNameKey(getTemplateName(templateText));
+  return key ? templates.find((template) => templateNameKey(template.name || "") === key) : undefined;
+}
+
+// Swap the name in "{{OnePlaceStudy|place=...}}" for the documented one, leaving the parameters alone.
+export function withCanonicalTemplateName(templateText = "", canonicalName = "") {
+  if (!canonicalName) {
+    return templateText;
+  }
+  return templateText.replace(/^\{\{\s*[^|}]+?(\s*)(?=\||\}\})/, `{{${canonicalName}$1`);
+}
+
 // Templates that belong after the Biography heading but aren't typed as a sticker or box
 // in templatesExp.json, so the type-based match in getStickersAndBoxes misses them.
 // (Notability is typed there as a "Formatting Template", and is missing entirely from
@@ -32,15 +56,15 @@ export function findTemplatesToKeepByName(bioText = "", names = templatesToKeepB
     return [];
   }
 
-  const lowerCaseNames = names.map((name) => name.toLowerCase());
   const found = [];
 
   for (const match of bioText.matchAll(/\{\{[\s\S]*?\}\}/g)) {
-    const nameMatch = match[0].match(/\{\{([^|}]+)/);
-    const templateName = nameMatch ? nameMatch[1].trim() : "";
+    const key = templateNameKey(getTemplateName(match[0]));
+    const canonicalName = names.find((name) => templateNameKey(name) === key);
+    const template = withCanonicalTemplateName(match[0], canonicalName);
 
-    if (lowerCaseNames.includes(templateName.toLowerCase()) && !found.includes(match[0])) {
-      found.push(match[0]);
+    if (canonicalName && !found.includes(template)) {
+      found.push(template);
     }
   }
 
@@ -105,8 +129,8 @@ export function sortStuffBeforeBioItems(stuff = [], templatesObject = {}) {
       return;
     }
 
-    const itemName = item.match(/\{\{([^|}]+)/);
-    const extractedName = itemName?.[1]?.trim();
+    const template = item.startsWith("{{") ? findTemplateDefinition(item, templates) : undefined;
+    const canonicalItem = withCanonicalTemplateName(item, template?.name);
     const previousItem = index > 0 ? stuff[index - 1] : "";
 
     if (item.startsWith("[[Category:")) {
@@ -115,22 +139,14 @@ export function sortStuffBeforeBioItems(stuff = [], templatesObject = {}) {
       tempStuffObject.categories.push(item);
     } else if (isGenealogicallyDefinedLink(item)) {
       tempStuffObject.genealogicallyDefined.push(item);
-    } else if (item.toLowerCase().startsWith("{{easily confused")) {
-      tempStuffObject.easilyConfused.push(item);
-    } else if (
-      templates.find(
-        (template) => template.name === extractedName && template.group?.toLowerCase() === "research note box"
-      )
-    ) {
-      tempStuffObject.researchNoteBoxes.push(item);
-    } else if (
-      templates.find((template) => template.name === extractedName && template.type?.toLowerCase() === "project box")
-    ) {
-      tempStuffObject.projectBoxes.push(item);
-    } else if (
-      templates.find((template) => template.name === extractedName && template.group?.toLowerCase() === "succession")
-    ) {
-      tempStuffObject.succession.push(item);
+    } else if (item.startsWith("{{") && templateNameKey(getTemplateName(item)) === "easilyconfused") {
+      tempStuffObject.easilyConfused.push(withCanonicalTemplateName(item, "Easily Confused"));
+    } else if (template?.group?.toLowerCase() === "research note box") {
+      tempStuffObject.researchNoteBoxes.push(canonicalItem);
+    } else if (template?.type?.toLowerCase() === "project box") {
+      tempStuffObject.projectBoxes.push(canonicalItem);
+    } else if (template?.group?.toLowerCase() === "succession") {
+      tempStuffObject.succession.push(canonicalItem);
     }
   });
 
@@ -251,7 +267,7 @@ export function getOneNameStudyCategories(bioText = "") {
   }
 
   const categories = [];
-  const templatePattern = /\{\{\s*One[ _]+Name[ _]+Study\s*\|([^{}]*)\}\}/gi;
+  const templatePattern = /\{\{\s*One[ _]*Name[ _]*Study\s*\|([^{}]*)\}\}/gi;
   for (const match of bioText.matchAll(templatePattern)) {
     const params = match[1].split("|").map((param) => param.trim());
     const nameParam = params.find((param) => /^name\s*=/i.test(param)) ?? params.find((param) => !param.includes("="));

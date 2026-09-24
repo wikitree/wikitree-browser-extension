@@ -47,3 +47,7 @@ describe("hasDiedYoungSticker", () => {
     });
   });
 });
+
+test("hasDiedYoungSticker matches a name written without spaces", () => {
+  expect(hasDiedYoungSticker("{{DiedYoung}}")).toBe(true);
+});

@@ -46,9 +46,12 @@ import {
   findTemplatesToKeepByName,
   getOneNameStudyCategories,
   getPreBioTextLines,
+  getTemplateName,
   removeNotesBeforeBio,
   sortStuffBeforeBioItems,
   splitStuffBeforeBioEntry,
+  templateNameKey,
+  withCanonicalTemplateName,
 } from "./preBioUtils.js";
 import {
   appalachiaStates,
@@ -4608,21 +4611,17 @@ export async function getStickersAndBoxes(feature = "autoBio") {
         const newTemplateMatch = currentBio.matchAll(/\{\{[\s\S]*?\}\}/g);
 
         for (let match of newTemplateMatch) {
-          // Extract template name from the match, handling parameters after pipe
-          const templateText = match[0];
-          const templateNameMatch = templateText.match(/\{\{([^|}]+)/);
-          const extractedTemplateName = templateNameMatch ? templateNameMatch[1].trim() : "";
-
-          // Direct string comparison instead of regex matching
-          if (extractedTemplateName === aTemplate.name) {
-            if (!thingsToAddAfterBioHeading.includes(match[0])) {
+          // Match "{{OnePlaceStudy}}" etc. too, and write the documented name in the new bio
+          if (templateNameKey(getTemplateName(match[0])) === templateNameKey(aTemplate.name)) {
+            const templateText = withCanonicalTemplateName(match[0], aTemplate.name);
+            if (!thingsToAddAfterBioHeading.includes(templateText)) {
               if (
                 beforeHeadingThings.some((thing) => thing.toLowerCase() === aTemplate.type?.toLowerCase()) ||
                 beforeHeadingThings.some((thing) => thing.toLowerCase() === aTemplate.group?.toLowerCase())
               ) {
-                thingsToAddBeforeBioHeading.push(match[0]);
+                thingsToAddBeforeBioHeading.push(templateText);
               } else {
-                thingsToAddAfterBioHeading.push(match[0]);
+                thingsToAddAfterBioHeading.push(templateText);
               }
             }
           }
@@ -4637,16 +4636,11 @@ export async function getStickersAndBoxes(feature = "autoBio") {
     });
 
     thingsToAddBeforeBioHeading.forEach(function (box) {
-      // Extract template name from the box
-      const boxNameMatch = box.match(/\{\{([^|}]+)/);
-      const boxTemplateName = boxNameMatch ? boxNameMatch[1].trim() : "";
-
       // Check if this template name is already in StuffBeforeTheBio (to avoid duplicates)
-      const alreadyExists = window.sectionsObject.StuffBeforeTheBio.text.some((item) => {
-        const itemNameMatch = item.match(/\{\{([^|}]+)/);
-        const itemTemplateName = itemNameMatch ? itemNameMatch[1].trim() : "";
-        return itemTemplateName === boxTemplateName;
-      });
+      const boxNameKey = templateNameKey(getTemplateName(box));
+      const alreadyExists = window.sectionsObject.StuffBeforeTheBio.text.some(
+        (item) => templateNameKey(getTemplateName(item)) === boxNameKey
+      );
 
       if (!alreadyExists) {
         window.sectionsObject.StuffBeforeTheBio.text.push(box);

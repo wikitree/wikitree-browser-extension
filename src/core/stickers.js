@@ -24,7 +24,8 @@ export function hasDiedYoungSticker(text) {
   if (typeof text != "string" || !text) return false;
   return diedYoungStickers.some((sticker) => {
     // WikiTree template names are tolerant of spaces/underscores and of the case of the first letter.
-    const namePattern = sticker.replace(/\s+/g, "[\\s_]+");
+    // Some people leave the spaces out entirely ("{{DiedYoung}}").
+    const namePattern = sticker.replace(/\s+/g, "[\\s_]*");
     return new RegExp(`\\{\\{\\s*${namePattern}\\s*(\\||\\}\\})`, "i").test(text);
   });
 }

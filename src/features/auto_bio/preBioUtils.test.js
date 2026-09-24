@@ -1,6 +1,7 @@
 import {
   extractPreBioNotes,
   findGenealogicallyDefinedLinePlacement,
+  findTemplateDefinition,
   findTemplatesToKeepByName,
   getOneNameStudyCategories,
   getPreBioTextLines,
@@ -9,6 +10,8 @@ import {
   isGenealogicallyDefinedLink,
   sortStuffBeforeBioItems,
   splitStuffBeforeBioEntry,
+  templateNameKey,
+  withCanonicalTemplateName,
 } from "./preBioUtils.js";
 
 describe("splitStuffBeforeBioEntry", () => {
@@ -291,5 +294,55 @@ describe("getOneNameStudyCategories", () => {
     expect(
       getOneNameStudyCategories("{{One Name Study|name=Greer}}\n{{One Name Study|name=Greer}}\n{{One Name Study|name=Brodie}}")
     ).toEqual(["[[Category: Greer Name Study]]", "[[Category: Brodie Name Study]]"]);
+  });
+});
+
+describe("template names written without spaces", () => {
+  const templates = [
+    { name: "One Place Study", type: "Sticker", group: "Study" },
+    { name: "Research Note Box", type: "Research Note Box", group: "Research Note Box" },
+  ];
+
+  test("templateNameKey ignores spaces, underscores and case", () => {
+    expect(templateNameKey("OnePlaceStudy")).toBe(templateNameKey("One Place Study"));
+    expect(templateNameKey("one_place_study")).toBe(templateNameKey("One Place Study"));
+  });
+
+  test("findTemplateDefinition finds the documented template", () => {
+    expect(findTemplateDefinition("{{OnePlaceStudy|place=Solum, Telemark, Norway}}", templates)?.name).toBe(
+      "One Place Study"
+    );
+    expect(findTemplateDefinition("{{OnePlace}}", templates)).toBeUndefined();
+  });
+
+  test("withCanonicalTemplateName fixes the name and keeps the parameters", () => {
+    expect(withCanonicalTemplateName("{{OnePlaceStudy|place=Solum, Telemark, Norway}}", "One Place Study")).toBe(
+      "{{One Place Study|place=Solum, Telemark, Norway}}"
+    );
+    expect(
+      withCanonicalTemplateName(
+        "{{OnePlaceStudy\n|place=Solum, Telemark, Norway\n|category=Grimholt, Solum, Telemark, Norway\n}}",
+        "One Place Study"
+      )
+    ).toBe("{{One Place Study\n|place=Solum, Telemark, Norway\n|category=Grimholt, Solum, Telemark, Norway\n}}");
+    expect(withCanonicalTemplateName("{{notability}}", "Notability")).toBe("{{Notability}}");
+  });
+
+  test("findTemplatesToKeepByName matches a lower-case name", () => {
+    expect(findTemplatesToKeepByName("== Biography ==\n{{notability|theme=Film}}")).toEqual([
+      "{{Notability|theme=Film}}",
+    ]);
+  });
+
+  test("sortStuffBeforeBioItems keeps a box written without spaces", () => {
+    expect(
+      sortStuffBeforeBioItems(["{{ResearchNoteBox|status=Unconfirmed}}", "{{EasilyConfused|name=Greer}}"], {
+        templates,
+      })
+    ).toEqual(["{{Easily Confused|name=Greer}}", "{{Research Note Box|status=Unconfirmed}}"]);
+  });
+
+  test("getOneNameStudyCategories handles {{OneNameStudy}}", () => {
+    expect(getOneNameStudyCategories("{{OneNameStudy|name=Greer}}")).toEqual(["[[Category: Greer Name Study]]"]);
   });
 });
