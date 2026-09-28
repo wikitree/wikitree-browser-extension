@@ -1161,10 +1161,55 @@ async function fetchOrFilterSuggestions(entry, date, countries) {
     };
     dbg1(`calling fetchLocationData (from DB):`, options);
 
-    cachedResults = await fetchLocationData(options);
-    if (cachedResults.length > 1) {
-      cachedResults.sort((a, b) => a.p.localeCompare(b.p));
+    let locationData = await fetchLocationData(options);
+    if (locationData.length > 1) {
+      const grouped = new Map();
+
+      for (const item of locationData) {
+        const key = `${item.p}\u0000${item.dt}`;
+        let group = grouped.get(key);
+
+        if (!group) {
+          group = {
+            p: item.p,
+            o: item.o,
+            c: item.c,
+            s: item.s,
+            e: item.e,
+            l: item.l,
+            np: item.np,
+            no: item.no,
+            na: Array.isArray(item.na) ? [...item.na] : [],
+            dt: item.dt,
+          };
+
+          grouped.set(key, group);
+        } else {
+          if (item.s < group.s) group.s = item.s;
+          if (item.e > group.e) group.e = item.e;
+
+          if (Array.isArray(item.na)) {
+            group.na.push(...item.na);
+          }
+        }
+      }
+      locationData = [...grouped.values()];
+
+      //  De-duplication of aliases
+      for (const item of locationData) {
+        item.na = [...new Set(item.na)];
+      }
+
+      // Sort
+      locationData.sort((a, b) => {
+        const pCompare = a.p.localeCompare(b.p);
+        if (pCompare !== 0) return pCompare;
+
+        return a.dt - b.dt;
+      });
     }
+
+    cachedResults = locationData;
     lastEntry = entryLow;
     lastDate = date || "";
     lastCountries = [...countries];
