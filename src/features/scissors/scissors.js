@@ -61,6 +61,7 @@ shouldInitializeFeature("scissors").then((result) => {
 async function fixYearsWhenCopyingProfileLinkFromPreview() {
   const options = await getFeatureOptions("scissors");
   if (!options.removeDates) {
+    return;
   }
 
   const observer = new MutationObserver((mutationsList, observerInstance) => {
