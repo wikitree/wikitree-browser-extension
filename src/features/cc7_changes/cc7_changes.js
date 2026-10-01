@@ -298,45 +298,23 @@ class Database {
 }
 
 const loginPopup = $(`<div id="login-popup">
-<button id="login-btn" title="You need to be logged in to the apps server to use CC7 Changes.
-It's possible that the login will fail and you'll see this button again.
-Sorry about that.">Log in to initialize WBE CC7 Changes</button>
+<button id="login-btn" title="CC7 Changes needs you to be logged in to the WikiTree apps server.
+You'll come straight back here afterwards.">Log in to use WBE CC7 Changes</button>
 <button id="dismiss-btn">Dismiss</button>
 </div>`);
 
 let db;
 
-const LOGIN_DISMISSED_KEY = "cc7ChangesLoginDismissed";
+// Set (per tab) when the user goes off to log in from the popup, so that on their return we can carry on with what
+// they asked for. The value is RUN_AFTER_LOGIN_REPORT_ONLY for "CC7 Report Only", anything else for "CC7 Changes".
+const RUN_AFTER_LOGIN_KEY = "cc7ChangesRunAfterLogin";
+const RUN_AFTER_LOGIN_REPORT_ONLY = "reportOnly";
 
 // On return from api.wikitree.com the URL carries an authcode that has to be exchanged for an API session.
 // That must finish before we ask whether the user is logged in, or we get (and cache) a stale "no".
 async function isLoggedIntoAPI() {
   await redeemAuthcode(WBE_CC7C_APP_ID);
   return WikiTreeAPI.isLoggedIntoAPI(db.userNumId, WBE_CC7C_APP_ID);
-}
-
-function loginDismissedKey() {
-  return `${LOGIN_DISMISSED_KEY}_${db.userNumId}`;
-}
-
-function isLoginDismissed() {
-  try {
-    return localStorage.getItem(loginDismissedKey()) === "1";
-  } catch (e) {
-    return false;
-  }
-}
-
-function setLoginDismissed(dismissed) {
-  try {
-    if (dismissed) {
-      localStorage.setItem(loginDismissedKey(), "1");
-    } else {
-      localStorage.removeItem(loginDismissedKey());
-    }
-  } catch (e) {
-    // Not being able to remember the dismissal only means the popup comes back
-  }
 }
 
 // The URL to return to after login: no stale authcode, and no hash, which would otherwise end up in front of
@@ -348,13 +326,26 @@ function loginReturnURL() {
   return url.href;
 }
 
-/**
- * Show the login popup.
- * @param {boolean} [unprompted] - true when shown on page load rather than in response to the user choosing
- *                  CC7 Changes. An unprompted popup is not shown once the user has dismissed it.
- */
-function showLoginPopup(unprompted = false) {
-  if (unprompted && isLoginDismissed()) return;
+function setRunAfterLogin(reportOnly) {
+  try {
+    sessionStorage.setItem(RUN_AFTER_LOGIN_KEY, reportOnly ? RUN_AFTER_LOGIN_REPORT_ONLY : "changes");
+  } catch (e) {
+    // Then the user just has to choose CC7 Changes again after logging in
+  }
+}
+
+// Returns (and forgets) what the user asked for before going off to log in, or null.
+function takeRunAfterLogin() {
+  try {
+    const value = sessionStorage.getItem(RUN_AFTER_LOGIN_KEY);
+    sessionStorage.removeItem(RUN_AFTER_LOGIN_KEY);
+    return value;
+  } catch (e) {
+    return null;
+  }
+}
+
+function showLoginPopup(reportOnly) {
   if (window.self !== window.top) return;
   if ($("#login-popup").length == 0) {
     $("body").append(loginPopup);
@@ -363,14 +354,13 @@ function showLoginPopup(unprompted = false) {
   $("#login-btn")
     .off("click")
     .on("click", () => {
-      setLoginDismissed(false);
+      setRunAfterLogin(reportOnly);
       goAndLogIn(loginReturnURL());
     });
 
   $("#dismiss-btn")
     .off("click")
     .on("click", () => {
-      setLoginDismissed(true);
       $("#login-popup").remove();
     });
 }
@@ -391,31 +381,62 @@ export async function addCC7ChangesButton() {
     reportOnlyLi.on("click", (e) => cc7ChangesClick(e, true));
   });
 
-  async function cc7ChangesClick(e, reportOnly = false) {
+  function cc7ChangesClick(e, reportOnly = false) {
     e.preventDefault();
-    if (($("#working").length > 0 && $("#working").is(":visible")) || $("#cc7DeltaContainer").length > 0) {
+    if (!TESTING || !USE_TEST_USER) {
+      // The user may have logged in to (or out of) the apps server elsewhere since this page last checked
+      WikiTreeAPI.clearCachedApiLoginStatus(db.userNumId);
+    }
+    runCC7Changes(reportOnly, e.pageY + 100);
+  }
+}
+
+/**
+ * Fetch the user's CC7, work out and store what changed, and show the report.
+ * If the user is not logged in to the apps server, show the login popup instead.
+ * @param {boolean} reportOnly - just show the stored report, without fetching the CC7
+ * @param {number} top - where to put the report on the page
+ */
+async function runCC7Changes(reportOnly, top) {
+  if (($("#working").length > 0 && $("#working").is(":visible")) || $("#cc7DeltaContainer").length > 0) {
+    return;
+  }
+
+  if (!TESTING || !USE_TEST_USER) {
+    if (!(await isLoggedIntoAPI())) {
+      showLoginPopup(reportOnly);
       return;
     }
-
-    if (!TESTING || !USE_TEST_USER) {
-      if (!(await isLoggedIntoAPI())) {
-        showLoginPopup();
-        return;
-      }
-      $("#login-popup").remove();
-    }
-
-    const container = createCC7DeltaContainer();
-    $("body").append(container.css("top", e.pageY + 100));
-
-    const isOk = reportOnly || (await calculateAndStoreCC7Deltas());
-    if (isOk) {
-      const storedDeltas = await fetchStoredDeltas();
-      showStoredDeltas(storedDeltas, container);
-    } else {
-      showError("Something went wrong when retrieving your CC7. Try again later.");
-    }
+    $("#login-popup").remove();
   }
+
+  const container = createCC7DeltaContainer();
+  $("body").append(container.css("top", top));
+
+  const isFirstRun = (await db.fetchLastStoredCC7()).length === 0;
+  if (isFirstRun && reportOnly) {
+    showFirstRunMessage("There is no CC7 Changes report yet. Choose CC7 Changes to start tracking your CC7.");
+    return;
+  }
+
+  const isOk = reportOnly || (await calculateAndStoreCC7Deltas());
+  if (!isOk) {
+    showError("Something went wrong when retrieving your CC7. Try again later.");
+  } else if (isFirstRun) {
+    showFirstRunMessage(
+      "Your CC7 has been saved. From now on, CC7 Changes will show who has joined or left it since you last checked."
+    );
+  } else {
+    const storedDeltas = await fetchStoredDeltas();
+    showStoredDeltas(storedDeltas, container);
+  }
+}
+
+function showFirstRunMessage(msg) {
+  working.remove();
+  $("#cc7DeltaContainer").append($(`<p>${msg}</p>`));
+  $(CC7_DELTA_CONTAINER_ID).draggable();
+  addCloseEventHandlers($("#cc7DeltaContainer"));
 }
 
 function showError(msg) {
@@ -426,42 +447,27 @@ function showError(msg) {
 async function initializeCC7Tracking() {
   // It is assumed db.initializeDB() has already been called at this point
   try {
-    let shouldCheckLogin = false;
-
-    if (db.initialized && !db.upgradeNeeded) {
-      // console.log("initializeCC7Tracking awaiting fetchLastStoredCC7");
-      const lastStoredData = await db.fetchLastStoredCC7();
-      if (lastStoredData.length === 0) {
-        // Database is empty, so we should check for login
-        shouldCheckLogin = true;
-      } else {
-        // Database has entries, proceed with normal operation
-        addCC7ChangesButton();
-      }
-    } else {
-      // Database is not initialized or is being upgraded, check for login
-      shouldCheckLogin = true;
+    if (!db.initialized || db.upgradeNeeded) {
       console.log("DB Initialization failed or upgrade is in progress. Not adding CC7 Changes menu item.");
+      return;
     }
 
-    // Check for login and populate the database only if necessary
-    if (shouldCheckLogin) {
-      if (USE_TEST_USER) {
-        // For the test user we can't check login status, we just proceed
-        addCC7ChangesButton();
-        await calculateAndStoreCC7Deltas(); // Populate the database
-        return;
-      }
+    // Anyone logged in to WikiTree gets the menu items. Being logged in to the apps server is checked when they are
+    // chosen.
+    addCC7ChangesButton();
 
-      if (!(await isLoggedIntoAPI())) {
-        // Add the menu items anyway, so someone who dismissed the popup can still log in by choosing CC7 Changes
-        addCC7ChangesButton();
-        showLoginPopup(true);
-      } else {
-        // User is logged in and the database is empty, populate the database
-        addCC7ChangesButton();
+    if (USE_TEST_USER) {
+      // For the test user we can't check login status, we just proceed
+      if ((await db.fetchLastStoredCC7()).length === 0) {
         await calculateAndStoreCC7Deltas(); // Populate the database
       }
+      return;
+    }
+
+    // If the user has just come back from logging in via our popup, carry on with what they asked for
+    const runAfterLogin = takeRunAfterLogin();
+    if (runAfterLogin && new URLSearchParams(window.location.search).has("authcode")) {
+      runCC7Changes(runAfterLogin == RUN_AFTER_LOGIN_REPORT_ONLY, window.scrollY + 100);
     }
   } catch (e) {
     console.log("An error occurred during DB initialization or login check:", e);
@@ -511,9 +517,14 @@ export async function calculateAndStoreCC7Deltas() {
       };
     }
 
-    // Calculate and store the deltas
+    // Calculate and store the deltas. The first time, everyone would be "added", which isn't a change the user wants
+    // to see reported, so we store an empty delta instead (it still records the CC7 count and date).
     const { added, removed } = calculateDifferences(filteredApiData, lastStoredData);
-    await db.storeCC7Deltas(cc7Count, added, removed);
+    if (lastStoredData.length === 0) {
+      await db.storeCC7Deltas(cc7Count, [], []);
+    } else {
+      await db.storeCC7Deltas(cc7Count, added, removed);
+    }
 
     // Now update the CC7 table
     await updateCC7Table(added, removed);
