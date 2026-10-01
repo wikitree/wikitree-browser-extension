@@ -3,7 +3,7 @@ import { shouldInitializeFeature } from "../../core/options/options_storage";
 import "jquery-ui/ui/widgets/draggable";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { treeImageURL, getObjectStores, cc7DbKeyFor, oncePerTab, getUserNumId, getUserWtId } from "../../core/common";
-import { currentHrefWithoutAuthcode } from "../../core/loginButton";
+import { redeemAuthcode } from "../../core/loginButton";
 import { PersonName } from "../auto_bio/person_name.js";
 import { displayDates } from "../verifyID/verifyID";
 import { goAndLogIn } from "../randomProfile/randomProfile";
@@ -306,40 +306,73 @@ Sorry about that.">Log in to initialize WBE CC7 Changes</button>
 
 let db;
 
-// Function to show login popup
-function showLoginPopup() {
-  if ($("#login-popup").length == 0) {
-    if (window.self === window.top) {
-      // Append loginPopup to the body of the main document
-      $("body").append(loginPopup);
-    }
+const LOGIN_DISMISSED_KEY = "cc7ChangesLoginDismissed";
+
+// On return from api.wikitree.com the URL carries an authcode that has to be exchanged for an API session.
+// That must finish before we ask whether the user is logged in, or we get (and cache) a stale "no".
+async function isLoggedIntoAPI() {
+  await redeemAuthcode(WBE_CC7C_APP_ID);
+  return WikiTreeAPI.isLoggedIntoAPI(db.userNumId, WBE_CC7C_APP_ID);
+}
+
+function loginDismissedKey() {
+  return `${LOGIN_DISMISSED_KEY}_${db.userNumId}`;
+}
+
+function isLoginDismissed() {
+  try {
+    return localStorage.getItem(loginDismissedKey()) === "1";
+  } catch (e) {
+    return false;
   }
-  loginPopup.className = "login-popup-shown";
+}
 
-  // Attach an event listener to the login button
-  document.getElementById("login-btn").addEventListener("click", async () => {
-    goAndLogIn(currentHrefWithoutAuthcode());
-
-    // After successful login, hide the popup and initialize CC7 Changes
-    const userId = getTheUsersWtId();
-    const userNumId = getTheUsersNumId();
-    if (userId && userNumId) {
-      if (await WikiTreeAPI.isLoggedIntoAPI(userNumId, WBE_CC7C_APP_ID)) {
-        db.setUserIds(userId, userNumId);
-        await initializeCC7Tracking();
-      } else {
-        console.error(
-          `userId='${userId}', userNumId='${userNumId}', but even after API login, user is not logged in to API`
-        );
-      }
+function setLoginDismissed(dismissed) {
+  try {
+    if (dismissed) {
+      localStorage.setItem(loginDismissedKey(), "1");
     } else {
-      console.error(`User logged in to the API, but userId='${userId}', userNumId='${userNumId}'`);
+      localStorage.removeItem(loginDismissedKey());
     }
-  });
+  } catch (e) {
+    // Not being able to remember the dismissal only means the popup comes back
+  }
+}
 
-  document.getElementById("dismiss-btn").addEventListener("click", () => {
-    $("#login-popup").remove();
-  });
+// The URL to return to after login: no stale authcode, and no hash, which would otherwise end up in front of
+// the authcode WikiTree appends.
+function loginReturnURL() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("authcode");
+  url.hash = "";
+  return url.href;
+}
+
+/**
+ * Show the login popup.
+ * @param {boolean} [unprompted] - true when shown on page load rather than in response to the user choosing
+ *                  CC7 Changes. An unprompted popup is not shown once the user has dismissed it.
+ */
+function showLoginPopup(unprompted = false) {
+  if (unprompted && isLoginDismissed()) return;
+  if (window.self !== window.top) return;
+  if ($("#login-popup").length == 0) {
+    $("body").append(loginPopup);
+  }
+
+  $("#login-btn")
+    .off("click")
+    .on("click", () => {
+      setLoginDismissed(false);
+      goAndLogIn(loginReturnURL());
+    });
+
+  $("#dismiss-btn")
+    .off("click")
+    .on("click", () => {
+      setLoginDismissed(true);
+      $("#login-popup").remove();
+    });
 }
 
 export async function addCC7ChangesButton() {
@@ -365,14 +398,11 @@ export async function addCC7ChangesButton() {
     }
 
     if (!TESTING || !USE_TEST_USER) {
-      // Check login status
-      const isLoggedIn = await WikiTreeAPI.isLoggedIntoAPI(db.userNumId, WBE_CC7C_APP_ID);
-      if (!isLoggedIn) {
+      if (!(await isLoggedIntoAPI())) {
         showLoginPopup();
-        // Not logged in, redirect to login
-        // goAndLogIn(window.location.href);
         return;
       }
+      $("#login-popup").remove();
     }
 
     const container = createCC7DeltaContainer();
@@ -423,10 +453,10 @@ async function initializeCC7Tracking() {
         return;
       }
 
-      const isLoggedIn = await WikiTreeAPI.isLoggedIntoAPI(db.userNumId, WBE_CC7C_APP_ID);
-      if (!isLoggedIn) {
-        // Show login popup if login failed
-        showLoginPopup();
+      if (!(await isLoggedIntoAPI())) {
+        // Add the menu items anyway, so someone who dismissed the popup can still log in by choosing CC7 Changes
+        addCC7ChangesButton();
+        showLoginPopup(true);
       } else {
         // User is logged in and the database is empty, populate the database
         addCC7ChangesButton();

@@ -43,42 +43,46 @@ export async function addLoginButton(opt) {
 }
 
 async function handleOptionalAuthCode(opt) {
-  const x = window.location.href.split("?");
-  if (!x[1]) return;
+  if (await redeemAuthcode(opt.appId)) {
+    $(`#${opt.btnId}`).hide();
+  }
+}
 
-  const queryParams = new URLSearchParams(x[1]);
-  const authcode = queryParams.get("authcode");
-  if (!authcode) return;
+let authcodeRedemption = null;
 
-  // console.log("clientLogin with Auth code:", authcode);
+/**
+ * If the page URL carries an authcode (we've just come back from api.wikitree.com's clientLogin),
+ * exchange it for an API session. An authcode can only be used once, and several features may want
+ * to do this on the same page, so the exchange happens at most once per page and everyone awaits the
+ * same promise. Anything that checks API login status on a page that may have an authcode should
+ * await this first, otherwise it can cache a "not logged in" answer before the exchange completes.
+ * @param {string} appId - The application ID to use in the call.
+ * @returns {Promise<boolean>} true if an authcode was present and the login succeeded.
+ */
+export function redeemAuthcode(appId) {
+  if (!authcodeRedemption) {
+    authcodeRedemption = doRedeemAuthcode(appId);
+  }
+  return authcodeRedemption;
+}
+
+async function doRedeemAuthcode(appId) {
+  const authcode = new URLSearchParams(window.location.search).get("authcode");
+  if (!authcode) return false;
+
+  const userNumId = getUserNumId();
   try {
-    const response = await fetch("https://api.wikitree.com/api.php", {
-      method: "POST",
-      credentials: "include", // includes cookies for cross-domain requests
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        action: "clientLogin",
-        authcode: authcode,
-        appId: opt.appId,
-      }),
-    });
-
-    const data = await response.json();
-
+    const data = await WikiTreeAPI.postToAPI({ action: "clientLogin", authcode: authcode, appId: appId });
     if (data?.clientLogin?.result === "Success") {
-      const userNumId = getUserNumId();
-      if (userNumId) {
-        WikiTreeAPI.setCachedApiLoginStatus(userNumId, true);
-      }
-      $(`#${opt.btnId}`).hide();
-    } else {
-      // console.error(`Login with auth code ${authcode} failed:`, data);
+      WikiTreeAPI.setCachedApiLoginStatus(userNumId, true);
+      return true;
     }
   } catch (error) {
     console.error(`Login with auth code ${authcode} failed:`, error);
   }
+  // A status check may have been cached while the exchange was in flight; make the next one ask again.
+  WikiTreeAPI.clearCachedApiLoginStatus(userNumId);
+  return false;
 }
 
 export function currentHrefWithoutAuthcode() {
