@@ -1,6 +1,9 @@
 if (chrome.runtime) {
   chrome.runtime.onInstalled.addListener(function (details) {
     if (details.reason == "install") {
+      // The monthly backup reminder counts from this, so a new user isn't told on their
+      // first page load that it's been a while since a backup they never made.
+      chrome.storage?.local?.set({ wbeInstallDate: Date.now() });
       chrome.tabs.create({
         url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension",
         active: true,
@@ -23,46 +26,312 @@ if (chrome.runtime) {
   });
 }
 
-// Create a context menu item when the extension is installed
-chrome.runtime.onInstalled.addListener(function () {
-  chrome.contextMenus.create({
-    id: "myContextMenu",
-    title: "Wikitable Wizard",
-    contexts: ["all"],
-    documentUrlPatterns: [
-      "https://www.wikitree.com/index.php?title=Special:EditPerson*",
-      "https://www.wikitree.com/index.php?title=Space:*",
-    ], // Only show on WikiTree profile edit and space edit pages
-  });
-  chrome.contextMenus.create({
-    id: "clipboardContextMenu",
-    title: "Clipboard",
-    contexts: ["all"],
-    documentUrlPatterns: ["https://www.wikitree.com/*"],
-  });
-  chrome.contextMenus.create({
-    id: "notesContextMenu",
-    title: "Notes",
-    contexts: ["all"],
-    documentUrlPatterns: ["https://www.wikitree.com/*"],
-  });
-});
+// Context menu items.
+// contextMenus is not implemented on Firefox for Android, so everything
+// below is skipped there rather than throwing and killing this script.
+//
+// Which items are shown is worked out here rather than left to documentUrlPatterns, because
+// Safari does not behave like Chrome on either count:
+//   * It matches documentUrlPatterns against the path alone, so a pattern with a query string in
+//     it (index.php?title=Special:EditPerson*) never matches and the item never appears at all.
+//   * It shows every item in the menu you get by right-clicking the toolbar icon, whatever the
+//     item's patterns say, so items for the page you are on are offered on pages they cannot work.
+// Only creating the items the active tab can use means the same thing in every browser, and covers
+// the toolbar menu as well as the page menu.
+if (chrome.contextMenus) {
+  // Safari matches documentUrlPatterns against the path alone (see the note above), so any pattern
+  // of the usual scheme://host/path form never matches and the item disappears from every menu.
+  // documentUrlPatterns is therefore only usable on Chromium/Firefox; on Safari we leave it off and
+  // keep the old always-shown behaviour. The extension's own URL scheme is the reliable tell -
+  // safari-web-extension:// on Safari, chrome-extension:// / moz-extension:// elsewhere - with no
+  // user-agent sniffing (Chrome's UA also says "Safari").
+  const isSafari = chrome.runtime.getURL("").startsWith("safari-web-extension:");
 
-// Listen for the context menu item click
-chrome.contextMenus.onClicked.addListener(function (info, tab) {
-  if (info.menuItemId === "myContextMenu") {
-    // Execute script in the content script
-    chrome.tabs.sendMessage(tab.id, { action: "launchWikitableWizard" });
+  // The URL tests mirror src/core/pageType.js, which is what decides whether the features
+  // themselves run. featureId/featureDefault mirror the feature's registration, so an item is
+  // not offered for a feature the user has switched off (the click would do nothing).
+  const contextMenuItems = [
+    {
+      id: "myContextMenu",
+      title: "Wikitable Wizard",
+      featureId: "wikitableWizard",
+      featureDefault: true,
+      isUsefulOn: (url) => isWikiEditUrl(url),
+    },
+    {
+      id: "clipboardContextMenu",
+      title: "Clipboard",
+      featureId: "clipboardAndNotes",
+      featureDefault: false,
+      isUsefulOn: (url) => isMainDomainUrl(url),
+    },
+    {
+      id: "notesContextMenu",
+      title: "Notes",
+      featureId: "clipboardAndNotes",
+      featureDefault: false,
+      isUsefulOn: (url) => isMainDomainUrl(url),
+    },
+    {
+      // No featureId: the simulator is a checking tool, useful to anyone reviewing a page whether
+      // or not they have Color-Blind Support switched on for themselves, so it is offered either
+      // way. The content script starts the simulation without turning the rest of the feature on.
+      //
+      // A submenu: the first entry opens on the reader's saved default condition, and its label
+      // shows which; the rest open a specific one directly. The chosen mode travels to the content
+      // script on the message. A parent that has children is not itself clickable, which is why the
+      // default lives in its own "Open" entry rather than on the parent.
+      id: "colorBlindSimulatorContextMenu",
+      title: "Color-Blind Simulator",
+      isUsefulOn: (url) => isMainDomainUrl(url),
+      submenu: [
+        { id: "colorBlindSimulatorOpen" }, // label built from the saved default at build time
+        { id: "colorBlindSimulatorSeparator", type: "separator" },
+        { id: "colorBlindSimulatorDeuteranopia", title: "Deuteranopia", mode: "deuteranopia" },
+        { id: "colorBlindSimulatorProtanopia", title: "Protanopia", mode: "protanopia" },
+        { id: "colorBlindSimulatorTritanopia", title: "Tritanopia", mode: "tritanopia" },
+        { id: "colorBlindSimulatorAchromatopsia", title: "Achromatopsia", mode: "achromatopsia" },
+      ],
+    },
+    {
+      // Both halves of a backup need the content script: the feature data is read from the page,
+      // and on Safari the page is also the only thing that can save a file with a name on it. So
+      // these are offered on WikiTree pages only, whatever the browser.
+      id: "backupAllContextMenu",
+      title: "Backup",
+      isUsefulOn: (url) => isMainDomainUrl(url),
+    },
+    {
+      id: "restoreAllContextMenu",
+      title: "Restore",
+      isUsefulOn: (url) => isMainDomainUrl(url),
+    },
+    {
+      // The settings page is otherwise buried, so this one is offered everywhere, including in
+      // Safari's toolbar icon menu when the tab has nothing to do with WikiTree. "action" puts it
+      // in the icon menu in Chrome too, where items for the page do not appear there.
+      //
+      // documentUrlPatterns keeps the page-context copy off pages we should not decorate - chiefly
+      // OTHER extensions' popups, which are chrome-extension:// documents that "all" would otherwise
+      // match, so WBE's "Settings" turned up when you right-clicked inside, say, the Sourcer popup.
+      // The "*" scheme matches only http/https, so the extension scheme is excluded while every real
+      // web page (and file:// page) still gets it. It does not touch the "action" (toolbar) copy -
+      // that context has no document to match. Applied only off Safari (see isSafari above), where
+      // these patterns would match nothing and remove the item everywhere.
+      id: "optionsContextMenu",
+      title: "Settings",
+      contexts: ["all", "action"],
+      documentUrlPatterns: ["*://*/*", "file:///*"],
+      isUsefulOn: () => true,
+    },
+  ];
+
+  // Which simulator condition each submenu entry launches, derived from the definition above so
+  // the two cannot drift. The "Open" entry maps to undefined: no mode, the content script uses the
+  // reader's saved default.
+  const simulatorMenuModes = Object.fromEntries(
+    (contextMenuItems.find((item) => item.id === "colorBlindSimulatorContextMenu")?.submenu ?? [])
+      .filter((child) => child.type !== "separator")
+      .map((child) => [child.id, child.mode])
+  );
+
+  function wikiTreePageUrl(url) {
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return null; // no URL at all: a tab we have no permission for, or a new tab page
+    }
+    if (parsed.protocol !== "https:" || !/(^|\.)wikitree\.com$/.test(parsed.hostname)) return null;
+    // apps, api and plus are separate sites; these features only run on the main one.
+    if (/^(apps|api|plus)\./.test(parsed.hostname)) return null;
+    return parsed;
   }
-  if (info.menuItemId === "clipboardContextMenu") {
-    // Execute script in the content script
-    chrome.tabs.sendMessage(tab.id, { action: "showClipboard" });
+
+  function isMainDomainUrl(url) {
+    return Boolean(wikiTreePageUrl(url));
   }
-  if (info.menuItemId === "notesContextMenu") {
-    // Execute script in the content script
-    chrome.tabs.sendMessage(tab.id, { action: "showNotes" });
+
+  // Profile edit pages, and Space/Category/Template/Help/Project edit pages: anywhere there is
+  // wiki text to put a table into. The same set as the Wikitable Wizard's own isWikiEdit check.
+  // Titles can arrive with the colon encoded, hence the (:|%3A|%3a) in each pattern.
+  function isWikiEditUrl(url) {
+    const parsed = wikiTreePageUrl(url);
+    if (!parsed) return false;
+    const uri = parsed.href;
+    return (
+      /\/(index\.php\?title=|wiki\/)Special(:|%3A|%3a)EditPerson/.test(uri) ||
+      /\/index\.php\?title=[^&]+(:|%3A|%3a)[^&]*&action=(edit|submit)/.test(uri)
+    );
   }
-});
+
+  function activeTabUrl() {
+    return new Promise((resolve) => {
+      chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+        // Without host permission for the tab's site, url is empty, which is the same answer as
+        // "nothing here for us": without that permission the content script isn't running either.
+        resolve((!chrome.runtime.lastError && tabs?.[0]?.url) || "");
+      });
+    });
+  }
+
+  function featureSettings() {
+    const keys = [...new Set(contextMenuItems.map((item) => item.featureId).filter(Boolean))];
+    return new Promise((resolve) => {
+      chrome.storage.sync.get(keys, (items) => resolve((!chrome.runtime.lastError && items) || {}));
+    });
+  }
+
+  // An item with no featureId belongs to no feature and is always on.
+  function isFeatureEnabled(item, settings) {
+    return !item.featureId || (settings[item.featureId] ?? item.featureDefault);
+  }
+
+  // Human names for the simulator conditions, used to label the "Open" entry with the reader's
+  // saved default. Keyed by the mode the content script understands.
+  const SIMULATOR_MODE_LABELS = {
+    deuteranopia: "Deuteranopia",
+    protanopia: "Protanopia",
+    tritanopia: "Tritanopia",
+    achromatopsia: "Achromatopsia",
+  };
+
+  // The condition the menu's "Open" entry starts with, read from Color-Blind Support's options.
+  // Guarded so a missing or unknown value falls back to deuteranopia, the same first look the
+  // content script uses.
+  function simulatorLaunchMode() {
+    return new Promise((resolve) => {
+      chrome.storage.sync.get("colorBlindSupport_options", (items) => {
+        const saved = !chrome.runtime.lastError && items && items.colorBlindSupport_options;
+        const mode = saved && saved.menuLaunchMode;
+        resolve(SIMULATOR_MODE_LABELS[mode] ? mode : "deuteranopia");
+      });
+    });
+  }
+
+  // Safari has not always supported the "action" context. Rather than lose the item if it rejects
+  // one, a create that fails is retried with the contexts every browser has.
+  function createMenu(props) {
+    const contexts = props.contexts ?? ["all"];
+    chrome.contextMenus.create({ ...props, contexts }, () => {
+      if (chrome.runtime.lastError && contexts.length > 1) {
+        chrome.contextMenus.create({ ...props, contexts: ["all"] }, () => chrome.runtime.lastError);
+      }
+    });
+  }
+
+  function createContextMenuItem(item, launchMode) {
+    const contexts = item.contexts ?? ["all"];
+    createMenu({
+      id: item.id,
+      title: item.title,
+      contexts,
+      // Only some items restrict which documents they attach to; the rest attach to all of them.
+      // Skipped on Safari, which matches these patterns against the path alone and so would drop the
+      // item from every menu rather than just the ones we mean to exclude.
+      ...(item.documentUrlPatterns && !isSafari ? { documentUrlPatterns: item.documentUrlPatterns } : {}),
+    });
+    // A submenu hangs its children off the parent. The "Open" entry's label is built from the
+    // saved default so the reader can see what a plain open will do; the rest are static.
+    (item.submenu ?? []).forEach((child) => {
+      const title =
+        child.id === "colorBlindSimulatorOpen"
+          ? `Open (${SIMULATOR_MODE_LABELS[launchMode]})`
+          : child.title;
+      createMenu({ id: child.id, parentId: item.id, type: child.type, title, contexts });
+    });
+  }
+
+  // The items that should be there are created and the rest are removed, rather than created once
+  // and hidden with `visible`, because create and remove behave the same everywhere.
+  let shownIds = null; // what the menu holds; null until this copy of the script has built it
+  let pending = Promise.resolve(); // rebuilds are queued, so two of them cannot interleave
+
+  function refreshContextMenus() {
+    pending = pending.then(rebuildContextMenus).catch(() => {});
+    return pending;
+  }
+
+  async function rebuildContextMenus() {
+    const [url, settings, launchMode] = await Promise.all([
+      activeTabUrl(),
+      featureSettings(),
+      simulatorLaunchMode(),
+    ]);
+    const wanted = contextMenuItems.filter((item) => isFeatureEnabled(item, settings) && item.isUsefulOn(url));
+    // The launch mode is part of the signature: it changes the "Open" entry's label without
+    // changing any id, so a rebuild has to be allowed when only it has moved.
+    const wantedIds = wanted.map((item) => item.id).join() + "|" + launchMode;
+    if (shownIds === wantedIds) return;
+    await new Promise((resolve) => chrome.contextMenus.removeAll(resolve));
+    wanted.forEach((item) => createContextMenuItem(item, launchMode));
+    shownIds = wantedIds;
+  }
+
+  // Built every time the background script starts, not only on install: onInstalled fires when the
+  // version changes, so in Safari a rebuilt extension can otherwise go on serving the menu it was
+  // installed with and never show a newly added item.
+  refreshContextMenus();
+
+  chrome.runtime.onStartup?.addListener(() => refreshContextMenus());
+  chrome.tabs.onActivated.addListener(() => refreshContextMenus());
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (changeInfo.url || changeInfo.status === "complete") refreshContextMenus();
+  });
+  chrome.windows?.onFocusChanged.addListener(() => refreshContextMenus());
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "sync") return;
+    // A feature being switched on or off changes which items belong; the simulator's own options
+    // change the "Open" entry's label. Both need a rebuild.
+    if (
+      contextMenuItems.some((item) => item.featureId && item.featureId in changes) ||
+      "colorBlindSupport_options" in changes
+    ) {
+      refreshContextMenus();
+    }
+  });
+
+  // Listen for the context menu item click
+  chrome.contextMenus.onClicked.addListener(function (info, tab) {
+    if (info.menuItemId === "myContextMenu") {
+      // Execute script in the content script
+      chrome.tabs.sendMessage(tab.id, { action: "launchWikitableWizard" });
+    }
+    if (info.menuItemId === "clipboardContextMenu") {
+      // Execute script in the content script
+      chrome.tabs.sendMessage(tab.id, { action: "showClipboard" });
+    }
+    if (info.menuItemId in simulatorMenuModes) {
+      // "Open" carries no mode (the content script uses the saved default); each condition entry
+      // carries its own. The parent itself is never clicked - it has children.
+      chrome.tabs.sendMessage(tab.id, {
+        action: "showColorBlindSimulator",
+        mode: simulatorMenuModes[info.menuItemId],
+      });
+    }
+    if (info.menuItemId === "backupAllContextMenu") {
+      chrome.tabs.sendMessage(tab.id, { action: "backupEverything" });
+    }
+    if (info.menuItemId === "restoreAllContextMenu") {
+      chrome.tabs.sendMessage(tab.id, { action: "restoreEverything" });
+    }
+    if (info.menuItemId === "notesContextMenu") {
+      // Execute script in the content script
+      chrome.tabs.sendMessage(tab.id, { action: "showNotes" });
+    }
+    if (info.menuItemId === "optionsContextMenu") {
+      // openOptionsPage is the one that reuses an already open settings tab, so it is worth
+      // trying first, but it is not in every browser this runs in.
+      if (chrome.runtime.openOptionsPage) {
+        chrome.runtime.openOptionsPage(() => {
+          if (chrome.runtime.lastError) chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
+        });
+      } else {
+        chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
+      }
+    }
+  });
+}
 
 // Clipboard functions from content script for browsers that don't support navigator.clipboard (i.e. Firefox)
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -130,90 +399,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     handleDuplicatesCompareProfiles(message, sendResponse);
     return true; // Keep channel open for async response
   }
-
-  if (message.action === "fetchFindAGraveMemorial") {
-    console.log("[WBE bg] fetchFindAGraveMemorial received for:", message.link);
-    handleFindAGraveMemorialFetch(message, sendResponse);
-    return true;
-  }
 });
-
-async function handleFindAGraveMemorialFetch(message, sendResponse) {
-  let tab;
-  try {
-    // Open a hidden background tab so Cloudflare bot-protection JS can execute
-    // using the user's real browser session and cookies.
-    tab = await chrome.tabs.create({ url: message.link, active: false });
-    const tabId = tab.id;
-    console.log("[WBE bg] Created background tab", tabId, "for", message.link);
-
-    // Keep listening through multiple "complete" events:
-    //   1st complete  → may be the Cloudflare challenge page
-    //   nth complete  → memorial page after challenge JS redirects back
-    // We only resolve once the tab URL is at a real memorial path AND the
-    // page content doesn't look like a challenge interstitial.
-    const { html, url } = await new Promise((resolve, reject) => {
-      const TIMEOUT_MS = 30000;
-      const timer = setTimeout(() => {
-        chrome.tabs.onUpdated.removeListener(onUpdated);
-        reject(new Error("Find a Grave tab load timed out after 30 s"));
-      }, TIMEOUT_MS);
-
-      async function onUpdated(updatedTabId, changeInfo) {
-        if (updatedTabId !== tabId || changeInfo.status !== "complete") return;
-
-        try {
-          const [result] = await chrome.scripting.executeScript({
-            target: { tabId },
-            func: () => ({
-              html: document.documentElement.outerHTML,
-              url: location.href,
-              hasH1: !!document.querySelector("h1")?.textContent?.trim(),
-            }),
-          });
-
-          const { html, url, hasH1 } = result.result;
-          console.log("[WBE bg] Tab", tabId, "complete — url:", url, "hasH1:", hasH1, "htmlLen:", html?.length);
-
-          // Guard 1: tab must be on a memorial URL
-          if (!/findagrave\.com\/memorial\/\d+/i.test(url)) {
-            console.log("[WBE bg] Guard 1 failed — not a memorial URL");
-            return;
-          }
-
-          // Guard 2: page must have a person name heading (challenge pages don't)
-          if (!hasH1) {
-            console.log("[WBE bg] Guard 2 failed — no h1");
-            return;
-          }
-
-          chrome.tabs.onUpdated.removeListener(onUpdated);
-          clearTimeout(timer);
-          console.log("[WBE bg] Memorial HTML ready, resolving");
-          resolve({ html, url });
-        } catch (_err) {
-          // executeScript can fail while the page is mid-navigation; keep waiting.
-        }
-      }
-
-      chrome.tabs.onUpdated.addListener(onUpdated);
-    });
-
-    chrome.tabs.remove(tabId);
-    tab = null;
-
-    sendResponse({ success: true, html, url });
-  } catch (error) {
-    if (tab?.id) {
-      chrome.tabs.remove(tab.id).catch(() => {});
-    }
-    sendResponse({
-      success: false,
-      url: message.link,
-      error: error?.message || "Failed to fetch Find a Grave memorial",
-    });
-  }
-}
 
 const DUPLICATES_READ_ENDPOINTS = [
   "https://apps.wikitree.com/apps/beacall6/duplicates/api.php",
@@ -229,6 +415,16 @@ const DUPLICATES_RESOLVE_ENDPOINTS = [
 ];
 const UNAUTHORIZED_STATUS_MESSAGE =
   "Not authorized for Arborists status updates. Please confirm you are logged into WikiTree.";
+// The apps.wikitree.com hosts sit behind an AWS WAF challenge rule that answers unidentified
+// clients with 202 and an empty body. Requests carrying an appId query parameter are allowed
+// through, so every duplicates request must include one.
+const DUPLICATES_APP_ID = "WBEDuplicates";
+
+function withAppId(url) {
+  const withParam = new URL(url);
+  withParam.searchParams.set("appId", DUPLICATES_APP_ID);
+  return withParam.toString();
+}
 
 let arboristsSessionToken = "";
 let arboristsSessionTokenExpiresAt = 0;
@@ -294,7 +490,7 @@ async function fetchDuplicatesApiWithFallback(urls, fetchOptions = {}) {
 
   for (const url of candidates) {
     try {
-      const response = await fetch(url, fetchOptions);
+      const response = await fetch(withAppId(url), fetchOptions);
       const rawBody = await response.text();
       const parsedBody = tryParseJsonOrJsonl(rawBody);
       const responseData = normalizeApiResponse(parsedBody, rawBody);
@@ -634,6 +830,14 @@ function tryParseJsonOrJsonl(rawBody) {
 }
 
 // For Auto Bio: Handle AI requests
+// Remove a secret (e.g. a provider API key) from a string so it can't leak into
+// logs or messages passed across chrome.runtime, where it could be read via
+// devtools or another extension. Returns non-strings and empty secrets unchanged.
+function redactSecret(message, secret) {
+  if (typeof message !== "string" || !secret) return message;
+  return message.split(secret).join("[REDACTED]");
+}
+
 async function handleAIRequest(request, sendResponse) {
   const {
     oldBio,
@@ -797,7 +1001,7 @@ ${dataPayload}`;
   try {
     let resultBio = "";
     if (provider === "openai") {
-      resultBio = await callOpenAI(key, model || "gpt-5.4-mini", systemRole, prompt);
+      resultBio = await callOpenAI(key, model || "gpt-5.6-terra", systemRole, prompt);
     } else if (provider === "gemini") {
       resultBio = await callGemini(key, model || "gemini-3.5-flash", systemRole, prompt);
     } else if (provider === "claude") {
@@ -851,8 +1055,11 @@ ${dataPayload}`;
 
     sendResponse({ success: true, bio: resultBio });
   } catch (error) {
-    console.error("AI Request Failed:", error);
-    sendResponse({ success: false, error: error.message });
+    // Provider errors can embed the raw API key (e.g. an echoed request URL or
+    // response body), so strip it before logging or sending the message back.
+    const safeMessage = redactSecret(error?.message, key);
+    console.error("AI Request Failed:", safeMessage);
+    sendResponse({ success: false, error: safeMessage });
   }
 }
 
@@ -906,9 +1113,9 @@ async function handleChatWithAIRequest(message, sendResponse) {
 }
 
 async function callOpenAI(apiKey, model, system, userPrompt) {
-  // Some models (like gpt-5-mini, gpt-5.2, and o-series) do not support low temperatures or require default (1).
+  // Reasoning models (gpt-5 family, o-series) only accept the default temperature,
+  // and some reject the parameter outright, so omit it for them.
   const isReasoningModel = model.includes("gpt-5") || model.startsWith("o1") || model.startsWith("o3");
-  const temperature = isReasoningModel ? 1 : 0.2;
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -922,7 +1129,7 @@ async function callOpenAI(apiKey, model, system, userPrompt) {
         { role: "system", content: system },
         { role: "user", content: userPrompt },
       ],
-      temperature: temperature,
+      ...(isReasoningModel ? {} : { temperature: 0.2 }),
       // max_tokens removed to allow full model output
     }),
   });
@@ -938,13 +1145,20 @@ async function callOpenAI(apiKey, model, system, userPrompt) {
 
 async function callGemini(apiKey, model, system, userPrompt) {
   // Gemini mostly uses 'user' role, 'system' can be simulated or passed as system_instruction in beta
-  const modelId = model || "gemini-1.5-flash";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
+  const modelId = model || "gemini-3.5-flash";
+  // Pass the key as a header, not a query string, so it never lands in the URL
+  // (network panel, referrer, or a URL-bearing fetch error).
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`;
+
+  // Google strongly recommends leaving temperature at the default 1.0 for Gemini 3
+  // models: lowering it can cause looping or degraded output.
+  const isGemini3 = modelId.startsWith("gemini-3");
 
   const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "x-goog-api-key": apiKey,
     },
     body: JSON.stringify({
       contents: [
@@ -954,7 +1168,7 @@ async function callGemini(apiKey, model, system, userPrompt) {
         },
       ],
       generationConfig: {
-        temperature: 0.2,
+        ...(isGemini3 ? {} : { temperature: 0.2 }),
         // maxOutputTokens removed to allow full model output
       },
     }),
@@ -984,8 +1198,10 @@ async function callClaude(apiKey, model, system, userPrompt) {
       model: model,
       system: system,
       messages: [{ role: "user", content: userPrompt }],
-      max_tokens: 8192, // Increased to maximum typical for Sonnet 3.5
-      temperature: 0.2,
+      // max_tokens covers thinking + reply on models that think by default,
+      // so leave headroom. Above ~16000 the request should be streamed.
+      max_tokens: 16000,
+      // No temperature: current Claude models reject sampling parameters.
     }),
   });
 
@@ -995,7 +1211,22 @@ async function callClaude(apiKey, model, system, userPrompt) {
   }
 
   const data = await response.json();
-  return data.content?.[0]?.text || "";
+
+  if (data.stop_reason === "refusal") {
+    throw new Error(
+      "Claude declined this request" + (data.stop_details?.explanation ? ": " + data.stop_details.explanation : ".")
+    );
+  }
+
+  // Responses can start with a thinking block, so take the first text block
+  // rather than content[0].
+  const text = data.content?.find((block) => block.type === "text")?.text || "";
+
+  if (data.stop_reason === "max_tokens" && !text) {
+    throw new Error("Claude hit the output limit before writing a bio. Try a shorter profile or a different model.");
+  }
+
+  return text;
 }
 
 async function callPerplexity(apiKey, model, system, userPrompt) {

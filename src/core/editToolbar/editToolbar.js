@@ -111,15 +111,21 @@ function editToolbarCreateHtml(items, featureEnabled, level) {
 
 /* creates menu next to the toolbar  */
 async function editToolbarCreate(options) {
+  // Don't build a second row if one is already on the page.
+  if (document.getElementById("editToolbarExt")) return;
+  const toolbar = document.getElementById("toolbar");
+  if (!toolbar) return;
   editToolbarOptions = options;
   const featureEnabled = await getEnabledStateForAllFeatures();
   var menuHTML = editToolbarCreateHtml(editToolbarOptions, featureEnabled, -1);
-  if (menuHTML != "") {
+  // Checked again: the await above means two calls could both clear the first check.
+  if (menuHTML != "" && !document.getElementById("editToolbarExt")) {
     import("./editToolbar.css");
+    toolbar.insertAdjacentHTML("afterend", '<div id="editToolbarExt" style="display: none">' + menuHTML + "</div>");
+    // Scoped to the row we just inserted, so we never bind a second listener to
+    // anchors belonging to an earlier one.
     document
-      .getElementById("toolbar")
-      .insertAdjacentHTML("afterend", '<div id="editToolbarExt" style="display: none">' + menuHTML + "</div>");
-    document
+      .getElementById("editToolbarExt")
       .querySelectorAll("a.editToolbarClick")
       .forEach((i) => i.addEventListener("click", (event) => editToolbarEvent(event)));
   }

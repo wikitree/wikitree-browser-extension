@@ -91,10 +91,8 @@ async function getFamily() {
         nuclear: 1,
         minGeneration: 1,
       });
-      const biographySpouseParentsKeys = Object.keys(people);
-      biographySpouseParentsKeys.forEach(function (key) {
-        const person = people[key];
-        assignPersonNames(person);
+      Object.keys(people || {}).forEach(function (key) {
+        assignPersonNames(people[key]);
       });
     }
     if (isOK(window.profilePerson.MiddleName)) {

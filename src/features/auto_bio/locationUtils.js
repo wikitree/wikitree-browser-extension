@@ -54,6 +54,43 @@ export const irishCounties = [
   "Wicklow",
 ];
 
+/**
+ * A citation names the person before the place ("... : 23 May 2019), William Wood, Lichfield
+ * St Mary, Staffordshire, England"), and a place pulled out of one can start with that name.
+ * Drop the leading part only when it really is this person: their first name followed by one
+ * of their surnames. A place that merely shares a word with the name is left alone.
+ *
+ * @param {string} place
+ * @param {{firstNames?: string[], lastNames?: string[]}} person
+ * @returns {string} the place without the name in front of it
+ */
+export function stripPersonNameFromPlace(place = "", person = {}) {
+  if (!place || !place.includes(",")) {
+    return place;
+  }
+
+  const firstNames = (person.firstNames || []).filter(Boolean).map((name) => name.trim().toLowerCase());
+  const lastNames = (person.lastNames || []).filter(Boolean).map((name) => name.trim().toLowerCase());
+  if (firstNames.length === 0 || lastNames.length === 0) {
+    return place;
+  }
+
+  const parts = place.split(",");
+  const firstPart = parts[0].trim().toLowerCase();
+  const words = firstPart.split(/\s+/);
+  if (words.length < 2 || words.length > 4) {
+    return place;
+  }
+
+  const startsWithTheirName = firstNames.includes(words[0]);
+  const endsWithTheirSurname = lastNames.includes(words[words.length - 1]);
+  if (startsWithTheirName && endsWithTheirSurname) {
+    return parts.slice(1).join(",").trim();
+  }
+
+  return place;
+}
+
 export function isSameDateOrAfter(dateStr1, dateStr2) {
   const date1 = new Date(dateStr1);
   const date2 = new Date(dateStr2);

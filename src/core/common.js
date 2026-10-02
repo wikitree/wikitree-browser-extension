@@ -8,6 +8,7 @@ import $ from "jquery";
 import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
 import { readFromClipboard } from "./clipboard.js";
+import { settleWhenUnblocked } from "./lib/indexedDBHelper";
 import {
   mainDomain,
   isNavHomePage,
@@ -23,6 +24,10 @@ import {
 import { checkIfFeatureEnabled, getFeatureOptions } from "./options/options_storage";
 
 import Cookies from "js-cookie";
+
+// Sticker helpers live in their own side-effect-free module so that the vendored AGC library can
+// use them without loading this file. Re-exported here so they can be imported from either place.
+export { diedYoungStickers, hasDiedYoungSticker } from "./stickers";
 
 /* * * * * * * * * * * * * * * * * * * *
  * Initialization. This section of code should run first.
@@ -263,6 +268,7 @@ oncePerTab((rootWindow) => {
   // Since messages will be targeting a tab and not a window, we don't want to add multiple listeners if
   // there is an iframe on the page.
   chrome.runtime.onMessage.addListener(backupRestoreListener);
+  takePendingBackup();
 
   if (!WBE.isRelease) {
     // print the WBE build info in the console for easy debugging
@@ -354,8 +360,20 @@ async function checkAnyDataFeature() {
   }
 }
 
+const BACKUP_REMINDER_INTERVAL = 30 * 24 * 60 * 60 * 1000;
+
+// Called whenever the user actually downloads a data backup, from wherever they did it,
+// so that the monthly nag counts from the last real backup rather than the last nag.
+export function recordBackupMade() {
+  chrome.storage.local.set({ lastBackupDate: Date.now() });
+}
+
 async function checkBackupReminder() {
   // This is the monthly nag to backup data.
+  // The options page imports this module too, and none of the data this looks at lives in
+  // the extension's own origin, so only run where the data actually is.
+  if (!isWikiTreeUrl(window.location.href)) return;
+
   const dataFeatures = [
     "clipboardAndNotes",
     "customChangeSummaryOptions",
@@ -374,18 +392,71 @@ async function checkBackupReminder() {
   const urlParams = new URLSearchParams(window.location.search);
   const testMode = urlParams.get("wbe_test_backup") === "1";
 
-  chrome.storage.local.get(["lastBackupNag"], function (items) {
-    const lastNag = items.lastBackupNag || 0;
-    const thirtyDays = 30 * 24 * 60 * 60 * 1000;
-    const now = Date.now();
+  const items = await new Promise((resolve) =>
+    chrome.storage.local.get(["lastBackupDate", "lastBackupNag", "wbeInstallDate"], resolve)
+  );
+  const now = Date.now();
 
-    if (testMode || now - lastNag > thirtyDays) {
-      showBackupReminder(enabledFeatures);
+  // background.js records the install date, but only for installs from this version on,
+  // so anyone upgrading from an older build gets a first-seen date written here instead.
+  let installDate = items.wbeInstallDate;
+  if (!installDate) {
+    installDate = now;
+    chrome.storage.local.set({ wbeInstallDate: installDate });
+  }
+
+  // Count from whichever came last: a real backup, the last nag, or the install. The
+  // install date is what stops a brand new user being told on their very first page load
+  // that it had "been a while" since a backup they had never made.
+  const lastBackupEvent = Math.max(items.lastBackupDate || 0, items.lastBackupNag || 0, installDate);
+
+  if (!testMode && now - lastBackupEvent <= BACKUP_REMINDER_INTERVAL) return;
+
+  // Don't nag someone who has nothing to lose yet. Having a feature *enabled* is not the
+  // same as having data in it — most of these are on by default.
+  if (!testMode && !(await hasDataToBackUp())) {
+    // Push the next check out a month instead of scanning on every page load.
+    chrome.storage.local.set({ lastBackupNag: now });
+    return;
+  }
+
+  showBackupReminder(enabledFeatures, Boolean(items.lastBackupDate));
+}
+
+// Is there actually anything in the places backupData() reads from?
+async function hasDataToBackUp() {
+  if (Object.values(WBE_LOCAL_STORAGE_KEYS).some((key) => localStorage.getItem(key))) return true;
+
+  for (const dbName of WBE_DATABASES_ALL) {
+    // openDatabase returns null rather than creating a database that isn't there,
+    // which matters here: this runs for users who have never used these features.
+    const db = await openDatabase(dbName);
+    if (!db) continue;
+    try {
+      for (const storeName of getObjectStores(db)) {
+        if ((await countRecords(db, storeName)) > 0) return true;
+      }
+    } finally {
+      db.close();
+    }
+  }
+  return false;
+}
+
+function countRecords(db, storeName) {
+  return new Promise((resolve) => {
+    try {
+      const request = db.transaction(storeName, "readonly").objectStore(storeName).count();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve(0);
+    } catch {
+      // A store that can't be read counts as empty; this is only a nag heuristic.
+      resolve(0);
     }
   });
 }
 
-function showBackupReminder(enabledFeatures) {
+function showBackupReminder(enabledFeatures, hasBackedUpBefore) {
   if ($("#wbe-backup-reminder").length) return;
 
   const dataFeatureNames = {
@@ -407,16 +478,20 @@ function showBackupReminder(enabledFeatures) {
     <div id="wbe-backup-reminder" class="wbe-popup">
       <div class="dialog-header">
         <a href="#" class="close" id="wbe-backup-reminder-close" title="Close">&#x2715;</a>
-        WBE Monthly Backup Reminder
+        WikiTree Browser Extension Monthly Backup Reminder
       </div>
       <div class="dialog-content">
-        <p>It's been a while since your last data backup. We recommend backing up your data monthly to keep it safe.</p>
-        <p>Your backup will include data from:</p>
+        <p>${
+          hasBackedUpBefore
+            ? "It's been a while since your last backup."
+            : "You haven't backed up your WBE settings and data yet."
+        } We recommend backing up monthly to keep them safe.</p>
+        <p>You'll get a single file containing your settings (your feature options) and your feature data from:</p>
         <ul class="wbe-feature-list">
           ${featureListHtml}
         </ul>
         <div class="backup-reminder-buttons">
-          <button id="wbe-backup-reminder-now" class="btn btn-primary btn-sm">Back up WBE Data</button>
+          <button id="wbe-backup-reminder-now" class="btn btn-primary btn-sm">Back Up Settings &amp; Feature Data</button>
         </div>
       </div>
     </div>
@@ -435,7 +510,7 @@ function showBackupReminder(enabledFeatures) {
 
   $("#wbe-backup-reminder-now").on("click", function (e) {
     e.preventDefault();
-    downloadFeatureData();
+    downloadFullBackup();
     $("#wbe-backup-reminder").fadeOut(function () {
       $(this).remove();
     });
@@ -454,13 +529,20 @@ async function checkButtonFeatures() {
   ];
   const promises = features.map((feature) => checkIfFeatureEnabled(feature));
 
-  let buttonContainer2 = $("<div>").addClass("wbe-button-container2");
   const isMarriageInfo = $("h1:contains('Edit Marriage Information')").length;
-  if (isWikiEdit) {
-    $("#toolbar").append(buttonContainer2);
-  }
-  if (isG2G) {
-    $(".qa-c-form h2").before(buttonContainer2);
+  // Reuse an existing container. Creating a second one duplicates every button,
+  // because the .each() further down appends to *all* of them.
+  if ($(".wbe-button-container2").length === 0) {
+    const buttonContainer2 = $("<div>").addClass("wbe-button-container2");
+    if (isWikiEdit) {
+      // .first(): ids are supposed to be unique, but if the page has more than one
+      // #toolbar jQuery clones the container into each, and the .each() below then
+      // gives every clone its own set of buttons.
+      $("#toolbar").first().append(buttonContainer2);
+    }
+    if (isG2G) {
+      $(".qa-c-form h2").before(buttonContainer2);
+    }
   }
 
   try {
@@ -549,6 +631,9 @@ async function checkButtonFeatures() {
       );
       if (isWikiEdit || isG2G) {
         $(".wbe-button-container2").each(function () {
+          // These buttons carry no id, so createButton's own duplicate check can't
+          // help here; check the container instead.
+          if ($(this).find(".aClipboardButton, .aNotesButton").length) return;
           $(this).append(
             createButton({
               id: "",
@@ -620,16 +705,37 @@ if (isNavHomePage) {
   checkAnyDataFeature();
 }
 
-function downloadFeatureData() {
+// Settings live in sync storage rather than on WikiTree, so they are fetched separately
+// from the feature data and the two are written into a single backup file.
+//
+// onDone reports back to whoever asked for this from outside the page. Called with an error it
+// reports the failure itself, because the caller may be the popup, which has closed by then.
+function downloadFullBackup(onDone) {
+  downloadBackupFile(
+    (backup, ready) => chrome.storage.sync.get(null, (settings) => ready(wrapFullBackup(settings || {}, backup))),
+    onDone
+  );
+}
+
+// The feature data on its own, with every database in it - the compact backup that fits through
+// messaging is not what anyone clicking a Back Up button is asking for.
+function downloadFeatureDataBackup(onDone) {
+  downloadBackupFile((backup, ready) => ready(wrapBackupData("data", backup)), onDone);
+}
+
+function downloadBackupFile(wrap, onDone) {
   backupData(false, (response) => {
-    if (response && response.ack) {
-      const wrapped = wrapBackupData("data", response.backup);
-      const link = getBackupLink(wrapped);
-      link.click();
-    } else {
-      const err = response?.nak ?? JSON.stringify(response ?? "Backup failed");
-      showFriendlyError(err);
+    if (!response || !response.ack) {
+      const error = response?.nak ?? JSON.stringify(response ?? "Backup failed");
+      showFriendlyError(error);
+      if (onDone) onDone(error);
+      return;
     }
+    wrap(response.backup, (wrapped) => {
+      triggerDownload(getBackupLink(wrapped));
+      recordBackupMade();
+      if (onDone) onDone(null);
+    });
   });
 }
 
@@ -638,38 +744,63 @@ export function addCollapseButtons(opt) {
   return isProfilePage ? toBoolean(opt.automaticallyAddButtonsProfiles) : toBoolean(opt.automaticallyAddButtonsSpaces);
 }
 
-export function wrapBackupData(key, data, isDataSubset = false) {
-  let now = new Date();
-  let wrapped = {
+// The "features"/"data" keys are what the restore code looks for, so they can't change
+// without breaking older backup files. The label is only the file name, where "settings"
+// and "feature data" are what everything the user sees calls them.
+function makeBackupWrapper(label) {
+  const now = new Date();
+  return {
     id:
       Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "medium" }) // sv-SE uses ISO format
         .format(now)
         .replace(/:/g, "")
         .replace(/ /g, "_") +
       "_WBE_backup_" +
-      key +
-      (key == "data" ? (isDataSubset ? "_subset" : "_all") : ""),
+      label,
     extension: WBE.name,
     version: WBE.version,
     browser: navigator.userAgent,
     timestamp: now.toISOString(),
   };
+}
+
+export function wrapBackupData(key, data, isDataSubset = false) {
+  const label = key == "data" ? (isDataSubset ? "feature_data_subset" : "feature_data_all") : "settings";
+  const wrapped = makeBackupWrapper(label);
   wrapped[key] = data;
   return wrapped;
 }
 
-export function getBackupLink(wrappedJsonData) {
-  const filename = wrappedJsonData.id + ".txt";
-  const json = JSON.stringify(wrappedJsonData, null, 2);
-  return getDownloadLink(filename, json);
+// The monthly reminder backs up both halves in one click. One file is friendlier than two
+// downloads, and because each half keeps the key its own backup file uses, this file is
+// accepted by both "Restore Settings" and "Restore Feature Data".
+export function wrapFullBackup(settings, data) {
+  const wrapped = makeBackupWrapper("settings_and_feature_data");
+  wrapped.features = settings;
+  wrapped.data = data;
+  return wrapped;
 }
 
-export function getDownloadLink(filename, data) {
+export function getBackupLink(wrappedJsonData, options) {
+  const filename = wrappedJsonData.id + ".txt";
+  const json = JSON.stringify(wrappedJsonData, null, 2);
+  return getDownloadLink(filename, json, options);
+}
+
+// Safari used to need a data: URL everywhere, because it handled neither blobs nor the download
+// attribute. On a web page that is long since fixed, and it now refuses to navigate to a data: URL
+// at all ("Not allowed to load local resource"), so the blob is the only thing that works there.
+// Safari's extension popover is still the other way round: it ignores the download attribute,
+// treats the click as a navigation, and then will not read a blob from the extension's own origin
+// ("WebKitBlobResource error 1"). A data: URL does download there, but carries no filename with it,
+// so the file arrives called "Unknown" - which is why downloadBackupData() in options.js hands the
+// job to the content script whenever a WikiTree tab is available, and why it asks for the data: URL
+// only in the popover itself.
+export function getDownloadLink(filename, data, { dataUrl = false } = {}) {
   let link = document.createElement("a");
   link.title = 'Right-click to "Save as..." at specific location on your device.';
 
-  if (navigatorDetect.browser.Safari) {
-    // Safari doesn't handle blobs or the download attribute properly
+  if (dataUrl) {
     link.href = "data:application/octet-stream," + encodeURIComponent(data);
     link.target = "_blank";
     link.title = link.title.replace("Save as...", "Download Linked File As...");
@@ -681,32 +812,169 @@ export function getDownloadLink(filename, data) {
   return link;
 }
 
-function importFeatureData() {
+// Safari ignores a click on an anchor that isn't in the document, so put it there for
+// the click and take it out again afterwards. The object URL keeps the whole backup in
+// memory until it is revoked, but revoking it too soon cancels the download, hence the
+// delay rather than doing it on the next line.
+export function triggerDownload(link) {
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(() => {
+    link.remove();
+    if (link.href.startsWith("blob:")) {
+      URL.revokeObjectURL(link.href);
+    }
+  }, 30000);
+}
+
+// storage.sync.set is atomic: if the backup is too big for sync storage nothing is written at all
+// and the only signal is lastError, so reporting success without checking would be a lie.
+function restoreSettings(features, done) {
+  if (!features) {
+    done(null); // a file with no settings in it is not a failure
+    return;
+  }
+  chrome.storage.sync.set(features, () => done(chrome.runtime.lastError?.message ?? null));
+}
+
+// Safari saves no named file from the extension's own pages, so they leave the backup here and open
+// a WikiTree tab to do it (see downloadFromNewWikiTreeTab in options.js). Waiting to be asked
+// rather than being messaged is what makes that work from the popover, which closes the moment the
+// tab opens: by then this page hasn't loaded, and there would be nothing left to answer.
+function takePendingBackup() {
+  chrome.storage.local.get("wbePendingBackup", (stored) => {
+    const pending = stored?.wbePendingBackup;
+    if (!pending?.payload) {
+      return;
+    }
+    // Taken before it is used, so that two WikiTree pages loading at once can't both save it.
+    chrome.storage.local.remove("wbePendingBackup", () => {
+      // Anything left over from a tab that never loaded, or a browser closed part way through,
+      // would otherwise download itself out of nowhere the next time WikiTree was opened.
+      if (Date.now() - (pending.at ?? 0) < 300000) {
+        triggerDownload(getBackupLink(pending.payload));
+      }
+    });
+  });
+}
+
+// A file picker only opens for a click that belongs to the page. The context menu click belongs to
+// the background script, so calling importFeatureData() straight from there does nothing at all,
+// and does it silently. Asking first gives the picker the click it needs, and gives a destructive
+// thing a moment to be reconsidered.
+function promptForRestoreFile() {
+  if ($("#wbe-restore-prompt").length) return;
+
+  const prompt = $(`
+    <div id="wbe-restore-prompt" class="wbe-popup">
+      <div class="dialog-header">
+        <a href="#" class="close" id="wbe-restore-prompt-close" title="Close">&#x2715;</a>
+        Restore WBE Data and Settings
+      </div>
+      <div class="dialog-content">
+        <p>Choose a WBE backup file to restore from. Whatever the file holds &mdash; your settings,
+        your feature data, or both &mdash; replaces what you have now.</p>
+        <div class="backup-reminder-buttons">
+          <button id="wbe-restore-prompt-choose" class="btn btn-primary btn-sm">Choose File</button>
+        </div>
+      </div>
+    </div>
+  `);
+
+  $("body").append(prompt);
+
+  const close = () =>
+    $("#wbe-restore-prompt").fadeOut(function () {
+      $(this).remove();
+    });
+
+  $("#wbe-restore-prompt-close").on("click", function (e) {
+    e.preventDefault();
+    close();
+  });
+
+  $("#wbe-restore-prompt-choose").on("click", function (e) {
+    e.preventDefault();
+    // A backup holding a big Extra Watchlist or Relationship Finder store is tens of megabytes, and
+    // all of it has to be written before the page reloads. Without something on screen saying so,
+    // a restore that is working looks exactly like one that has died - and gets interrupted.
+    importFeatureData(function (status) {
+      if (status === null) {
+        close();
+        return;
+      }
+      $("#wbe-restore-prompt .dialog-content").html($("<p>").text(status));
+    });
+  });
+}
+
+// onStatus is called with what is happening, or with null when there is nothing left to report and
+// any progress message should go. The Nav Home button passes nothing and just gets the old silence
+// until the page reloads.
+function importFeatureData(onStatus = () => {}) {
   const input = document.createElement("input");
   input.type = "file";
   input.accept = "text/plain";
   input.onchange = function () {
     const file = input.files[0];
     const reader = new FileReader();
+    onStatus("Reading the backup file...");
     reader.onload = async function () {
       let isValid = false;
       try {
         const json = JSON.parse(reader.result);
-        if ((isValid = json.extension && json.extension.indexOf("WikiTree Browser Extension") === 0 && json.data)) {
-          restoreData(json.data, (response) => {
-            if (response && response.ack) {
-              // Reload the page to apply the changes
-              location.reload();
-            } else {
-              const err = response?.nak ?? JSON.stringify(response ?? "Restore failed");
-              showFriendlyError(err);
-            }
-          });
+        // Backups made before this button did both halves hold only the feature data, and a
+        // settings-only backup is a valid file too, so restore whichever halves the file has.
+        if (
+          (isValid =
+            json.extension &&
+            json.extension.indexOf("WikiTree Browser Extension") === 0 &&
+            (json.features || json.data))
+        ) {
+          // Anything thrown inside these callbacks lands outside the try below, so without this a
+          // failure part way through the restore is completely silent: no reload, no message.
+          const reportFailure = (what, detail) => {
+            console.error(`WBE restore: ${what}`, detail);
+            onStatus(null);
+            showFriendlyError(`${what}: ${detail?.message ?? detail}`);
+          };
+          onStatus("Restoring... A large backup can take a while. The page reloads when it is done.");
+          try {
+            restoreSettings(json.features, (settingsError) => {
+              try {
+                if (settingsError) {
+                  reportFailure("Settings restore failed", settingsError);
+                  return;
+                }
+                if (!json.data) {
+                  location.reload(); // Reload the page to apply the changes
+                  return;
+                }
+                restoreData(json.data, (response) => {
+                  if (response && response.ack) {
+                    location.reload();
+                    return;
+                  }
+                  const err = response?.message ?? response?.nak ?? JSON.stringify(response ?? "Restore failed");
+                  reportFailure(
+                    json.features ? "Your settings were restored, but the feature data was not" : "Data restore failed",
+                    err
+                  );
+                });
+              } catch (error) {
+                reportFailure("Restore failed", error);
+              }
+            });
+          } catch (error) {
+            reportFailure("Restore failed", error);
+          }
         }
       } catch {
         /* if JSON parsing failed or some other error, isValid will still be false here */
       }
       if (!isValid) {
+        onStatus(null);
         showFriendlyError("Invalid file");
       }
     };
@@ -717,19 +985,20 @@ function importFeatureData() {
 
 function addDataButtons() {
   const commonText =
-    "of all data associated with features of WikiTree Browser Extension. This includes data for Change Summary " +
-    "Options, Clipboard and Notes, Distance and Relationships, Extra Watchlist, My Menu, Space Watchlist " +
-    "Sorter, Text Expander, and WT+ Query Builder";
+    "your WikiTree Browser Extension settings (which features are switched on, plus each feature's options) " +
+    "and all data associated with its features. This includes data for Change Summary Options, Clipboard and " +
+    "Notes, Distance and Relationships, Extra Watchlist, My Menu, Space Watchlist Sorter, Text Expander, and " +
+    "WT+ Query Builder";
   const dataButtons = `
     <div id="featureDataButtons">
       <button id="downloadFeatureData" class="btn btn-secondary btn-sm"
-      title="Create and download a backup file ${commonText}.">Download all WBE Feature Data</button>
+      title="Create and download a single backup file of ${commonText}.">Back Up All WBE Data and Settings</button>
       <button id="importFeatureData" class="btn btn-secondary btn-sm"
-      title="Import/restore data from a backup file ${commonText}.">Import WBE Feature Data</button>
+      title="Restore from a backup file of ${commonText}.">Restore WBE Data and Settings</button>
     </div>
   `;
   $(".masonry-wrapper").after(dataButtons);
-  $("#downloadFeatureData").on("click", downloadFeatureData);
+  $("#downloadFeatureData").on("click", downloadFullBackup);
   $("#importFeatureData").on("click", importFeatureData);
 }
 
@@ -1222,6 +1491,49 @@ export function isWikiTreeUrl(url) {
 const WBE_DATABASES_MINIMAL = ["Clipboard", "SpaceWatchlistDB", "WTPlusQueryBuilder"];
 const WBE_DATABASES_ALL = [...WBE_DATABASES_MINIMAL, "CC7Database", "ConnectionFinderWTE", "RelationshipFinderWTE"];
 
+// The schema each feature creates for itself the first time it runs.
+//
+// Restoring a backup must not depend on the owning feature having run in this page
+// first: a backup can be restored on a machine where the feature was never used, or
+// from the Nav Home page, where most features never initialise. Without this, the
+// restore hits "'<store>' is not a known object store name" and stops.
+//
+// Keep these in step with the features. Each entry mirrors, in order:
+//   Clipboard             src/features/clipboard_and_notes/clipboard_and_notes.js
+//   SpaceWatchlistDB      src/features/space_watchlist_sorter/space_watchlist_sorter.js
+//   WTPlusQueryBuilder    src/features/wikitree_plus_helper/wikitree_plus_helper_storage.js
+//   CC7Database           src/features/cc7_changes/cc7_changes.js
+//   Connection/Relationship  src/features/distanceAndRelationship/distanceAndRelationship.js
+const WBE_DB_SCHEMA = {
+  Clipboard: {
+    version: 1,
+    stores: { Clipboard: { options: { autoIncrement: true } } },
+  },
+  SpaceWatchlistDB: {
+    version: 2,
+    stores: { watchlist: { options: { keyPath: "id" } } },
+  },
+  WTPlusQueryBuilder: {
+    version: 1,
+    stores: { savedQueries: { options: { keyPath: "id", autoIncrement: true } } },
+  },
+  CC7Database: {
+    version: 4,
+    stores: {
+      cc7Profiles: { options: { keyPath: "theKey" }, indexes: [{ name: "userId", keyPath: "userId" }] },
+      cc7Deltas: { options: { keyPath: "date" }, indexes: [{ name: "userId", keyPath: "userId" }] },
+    },
+  },
+  ConnectionFinderWTE: {
+    version: 2,
+    stores: { distance2: { options: { keyPath: "theKey" } } },
+  },
+  RelationshipFinderWTE: {
+    version: 2,
+    stores: { relationship2: { options: { keyPath: "theKey" } } },
+  },
+};
+
 export function distRelDbKeyFor(profileId, userId) {
   return `${profileId}:${userId}`;
 }
@@ -1230,15 +1542,36 @@ export function cc7DbKeyFor(profileId, userId) {
   return `${profileId}:${userId}`;
 }
 
+// The localStorage half of the feature data: the field name in a backup file on the left,
+// the localStorage key it comes from on the right. One table so that backing up, restoring,
+// and the "is there anything worth backing up" check cannot drift apart - a key added to
+// one and forgotten in the others is exactly the sort of gap that only shows up when
+// someone restores a backup and finds something missing.
+//
+// The field names appear in every backup file ever written, so they cannot be renamed.
+const WBE_LOCAL_STORAGE_KEYS = {
+  changeSummaryOptions: "LSchangeSummaryOptions", // src/features/custom_change_summary_options
+  changeSummaryOptions_Space: "LSchangeSummaryOptions_Space",
+  changeSummaryOptions_Category: "LSchangeSummaryOptions_Category",
+  myMenu: "customMenu", // src/features/my_menu
+  extraWatchlist: "extraWatchlist", // src/features/extra_watchlist
+  extraWatchlistNotes: "extraWatchlistNotes",
+  textExpander: "wbe_text_expander_custom", // src/features/text_expander
+};
+
 async function backupData(compactMode, sendResponse) {
   const data = {};
-  data.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
-  data.changeSummaryOptions_Space = localStorage.LSchangeSummaryOptions_Space;
-  data.changeSummaryOptions_Category = localStorage.LSchangeSummaryOptions_Category;
-  data.myMenu = localStorage.customMenu;
-  data.extraWatchlist = localStorage.extraWatchlist;
-  data.extraWatchlistNotes = localStorage.extraWatchlistNotes;
-  data.textExpander = localStorage.wbe_text_expander_custom; // Add text expander data
+  // getItem() rather than property access, and the null is kept rather than left out:
+  // a key written as null says "there was nothing stored in this browser", where a key
+  // missing from the file gives no way to tell that apart from a backup that never
+  // looked for it. That question is otherwise unanswerable from a user's backup file.
+  for (const [field, key] of Object.entries(WBE_LOCAL_STORAGE_KEYS)) {
+    data[field] = localStorage.getItem(key);
+  }
+  // localStorage belongs to whichever WikiTree host this ran on, and the feature data
+  // is only there if the features were used on that same host, so a backup that came
+  // back thinner than expected can be explained rather than guessed at.
+  data.backedUpFrom = window.location.origin;
 
   const databases = compactMode ? WBE_DATABASES_MINIMAL : WBE_DATABASES_ALL;
 
@@ -1259,6 +1592,9 @@ async function getAllData(databases) {
   for (const dbName of databases) {
     try {
       const db = await openDatabase(dbName);
+      // The feature that owns this database has never run here, so there is nothing
+      // to back up. Skip it rather than creating it.
+      if (!db) continue;
       const objectStores = getObjectStores(db);
       const dbData = {};
 
@@ -1279,13 +1615,120 @@ async function getAllData(databases) {
   return rsp;
 }
 
+/**
+ * Open an existing database without altering it in any way.
+ *
+ * indexedDB.open() with no version *creates* the database when it does not exist,
+ * which is not what a reader wants: backing up used to leave behind an empty
+ * database for every feature the user had never used, and for a version 1 database
+ * (Clipboard, WTPlusQueryBuilder) that is permanent damage — the feature opens at
+ * version 1, the version already matches, onupgradeneeded never fires, and its
+ * object store is never created.
+ *
+ * So ask indexedDB.databases() first and don't open it at all if it isn't there.
+ * Aborting the version-change transaction is the fallback for browsers without
+ * databases(); it undoes the creation, but WebKit has been unreliable about that in
+ * the past, which is why it is not the primary check.
+ *
+ * @returns the database, or null if it does not exist
+ */
 async function openDatabase(dbName) {
+  if ((await databaseExists(dbName)) === false) return null;
+  return openExistingDatabase(dbName);
+}
+
+/**
+ * @returns true, false, or null when the browser gives us no way to tell
+ */
+async function databaseExists(dbName) {
+  if (typeof indexedDB.databases !== "function") return null;
+  try {
+    const databases = await indexedDB.databases();
+    return databases.some((database) => database.name === dbName);
+  } catch (error) {
+    console.warn("Could not list the IndexedDB databases", error);
+    return null;
+  }
+}
+
+function openExistingDatabase(dbName) {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(dbName);
+    let didNotExist = false;
 
-    request.onerror = () => reject(request.error);
+    request.onupgradeneeded = (event) => {
+      didNotExist = true;
+      event.target.transaction.abort();
+    };
+    request.onerror = (event) => {
+      // The abort above surfaces here as an error on the open request.
+      event.preventDefault();
+      if (didNotExist) {
+        resolve(null);
+      } else {
+        reject(request.error);
+      }
+    };
     request.onsuccess = () => resolve(request.result);
   });
+}
+
+/**
+ * Open a database for restoring into, creating it from WBE_DB_SCHEMA if the feature
+ * that owns it has never run here.
+ */
+async function openDatabaseForRestore(dbName, requiredStores) {
+  const schema = WBE_DB_SCHEMA[dbName];
+  if (!schema) {
+    throw new Error(`No schema is known for the database ${dbName}, so it cannot be created.`);
+  }
+
+  const db = await openDatabase(dbName);
+  if (db) {
+    const missing = requiredStores.filter((storeName) => !db.objectStoreNames.contains(storeName));
+    if (missing.length === 0) return db;
+
+    const isEmpty = db.objectStoreNames.length === 0;
+    const version = db.version;
+    db.close();
+
+    if (isEmpty) {
+      // Left behind by an older build that created databases just by reading them.
+      // There is nothing in it to preserve, and at version 1 no upgrade could ever
+      // fire to add the store, so start over from the schema.
+      await deleteDatabase(dbName);
+    } else if (version >= schema.version) {
+      // The database is in use and already at (or past) the version we know about,
+      // so we have no safe way to add the store without guessing at a migration.
+      throw new Error(
+        `The ${dbName} database has no '${missing.join("', '")}' data. ` +
+          "Open a WikiTree page with that feature enabled, then try the restore again."
+      );
+    }
+    // Otherwise it is an older version we can upgrade to the current schema below.
+  }
+
+  return createDatabaseFromSchema(dbName, schema);
+}
+
+function createDatabaseFromSchema(dbName, schema) {
+  const request = indexedDB.open(dbName, schema.version);
+
+  request.onupgradeneeded = (event) => {
+    const db = event.target.result;
+    for (const [storeName, { options, indexes }] of Object.entries(schema.stores)) {
+      if (db.objectStoreNames.contains(storeName)) continue;
+      const store = db.createObjectStore(storeName, options);
+      for (const index of indexes ?? []) {
+        store.createIndex(index.name, index.keyPath, { unique: false });
+      }
+    }
+  };
+  return settleWhenUnblocked(request, `Setting up the ${dbName} database`);
+}
+
+function deleteDatabase(dbName) {
+  return settleWhenUnblocked(indexedDB.deleteDatabase(dbName), `Replacing the ${dbName} database`);
 }
 
 export function getObjectStores(db) {
@@ -1324,93 +1767,138 @@ export async function getAllRecords(db, storeName) {
 }
 
 async function restoreData(data, sendResponse) {
-  if (data.changeSummaryOptions) {
-    localStorage.setItem("LSchangeSummaryOptions", data.changeSummaryOptions);
+  for (const [field, key] of Object.entries(WBE_LOCAL_STORAGE_KEYS)) {
+    // An empty value is not an instruction to delete what is already here: a backup
+    // taken before the feature was used should not wipe the data of someone restoring
+    // it later. The notes below are the exception.
+    if (data[field]) localStorage.setItem(key, data[field]);
   }
-  if (data.changeSummaryOptions_Space) {
-    localStorage.setItem("LSchangeSummaryOptions_Space", data.changeSummaryOptions_Space);
+  // The notes are the one thing a restore may clear. They belong to the watchlist that
+  // is being restored alongside them, so leaving the old notes attached to a restored
+  // watchlist would leave notes on profiles that are no longer in it.
+  if (Object.prototype.hasOwnProperty.call(data, "extraWatchlistNotes") && !data.extraWatchlistNotes) {
+    localStorage.removeItem("extraWatchlistNotes");
   }
-  if (data.changeSummaryOptions_Category) {
-    localStorage.setItem("LSchangeSummaryOptions_Category", data.changeSummaryOptions_Category);
-  }
-  if (data.myMenu) {
-    localStorage.setItem("customMenu", data.myMenu);
-  }
-  if (data.extraWatchlist) {
-    localStorage.setItem("extraWatchlist", data.extraWatchlist);
-  }
-  if (Object.prototype.hasOwnProperty.call(data, "extraWatchlistNotes")) {
-    if (data.extraWatchlistNotes) {
-      localStorage.setItem("extraWatchlistNotes", data.extraWatchlistNotes);
-    } else {
-      localStorage.removeItem("extraWatchlistNotes");
-    }
-  }
-  if (data.textExpander) {
-    // Add text expander restore
-    localStorage.setItem("wbe_text_expander_custom", data.textExpander);
-  }
-  if (data.clipboard) {
-    await restoreIndexedDB("Clipboard", { Clipboard: data.clipboard });
-  } else if (data.indexedDB) {
-    for (const dbName of WBE_DATABASES_ALL) {
-      if (data.indexedDB[dbName]) {
-        await restoreIndexedDB(dbName, data.indexedDB[dbName]);
+  try {
+    if (data.clipboard) {
+      await restoreIndexedDB("Clipboard", { Clipboard: data.clipboard });
+    } else if (data.indexedDB) {
+      for (const dbName of WBE_DATABASES_ALL) {
+        if (data.indexedDB[dbName]) {
+          await restoreIndexedDB(dbName, data.indexedDB[dbName]);
+        }
       }
     }
+  } catch (error) {
+    // Previously these failures only reached console.error, so a restore that
+    // wrote nothing still reported success.
+    console.error("Failed to restore IndexedDB data", error);
+    if (sendResponse) sendResponse({ nak: "RESTORE_FAILED", message: error?.message ?? String(error) });
+    return;
   }
   if (sendResponse) sendResponse({ ack: "data restored" });
 }
 
 async function restoreIndexedDB(dbName, dbData) {
-  const db = await openDatabase(dbName);
-  for (const storeName in dbData) {
-    const jsonStr = dbData[storeName];
-    const records = JSON.parse(jsonStr);
-    writeToDB(db, dbName, storeName, records);
+  const requiredStores = Object.keys(dbData).map(currentStoreNameFor);
+  const db = await openDatabaseForRestore(dbName, requiredStores);
+  try {
+    const writes = [];
+    for (const storeName in dbData) {
+      const jsonStr = dbData[storeName];
+      const records = JSON.parse(jsonStr);
+      writes.push(writeToDB(db, dbName, storeName, records));
+    }
+    // These must be awaited before we close the connection and report success.
+    // Callers reload the page the moment the restore resolves, which would tear
+    // down transactions that are still in flight and silently lose the data.
+    await Promise.all(writes);
+  } finally {
+    db.close();
   }
-  db.close();
+}
+
+// Map an object store name as it appears in a backup onto the store that holds that
+// data today, so older backups can be restored to the current database versions.
+// CC7, distance, and relationship are the previous versions of those object stores.
+// NOTE: we don't check dbName because the storeNames currently are unique
+function currentStoreNameFor(requestedStoreName) {
+  if (requestedStoreName == "CC7") return "cc7Profiles";
+  if (requestedStoreName == "distance" || requestedStoreName == "relationship") return `${requestedStoreName}2`;
+  return requestedStoreName;
+}
+
+// getAllRecords() wraps a record as {key, value} when the store it came from is
+// autoIncrement or has no keyPath, and stores it as-is otherwise.
+//
+// Recognise the wrapper by its exact shape rather than by asking "does this record
+// have a .key property". A plain record that happens to have a field called key
+// would otherwise be written as record.value, i.e. undefined, which IndexedDB
+// rejects with "Data provided to an operation does not meet requirements".
+function isWrappedRecord(record) {
+  if (record === null || typeof record !== "object") return false;
+  const fields = Object.keys(record);
+  return fields.length === 2 && fields.includes("key") && fields.includes("value");
 }
 
 function writeToDB(db, dbName, requestedStoreName, records) {
-  // Do some fiddling so we can restore older backups to the new DB versions.
-  // CC7, distance, and relationship are the previous versions of those object
-  // stores. The new ones are cc7Profiles, distance2 and relationship2 respectively.
-  // NOTE: we don't check dbName because the storeNames currently are unique
-  let storeName = requestedStoreName;
-  if (requestedStoreName == "CC7") {
-    storeName = "cc7Profiles";
-    records.forEach((record) => {
-      record.theKey = cc7DbKeyFor(record.Id, record.userId);
-    });
-  } else if (requestedStoreName == "distance" || requestedStoreName == "relationship") {
-    storeName = `${requestedStoreName}2`;
-    records.forEach((record) => {
-      record.theKey = distRelDbKeyFor(record.id, record.userId);
-    });
-  }
+  const storeName = currentStoreNameFor(requestedStoreName);
 
-  const transaction = db.transaction(storeName, "readwrite");
+  // Resolves only once the transaction has actually committed, so callers can wait
+  // for the data to be on disk rather than merely queued.
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, "readwrite");
 
-  transaction.oncomplete = () => {
-    console.log(`Data written for ${dbName}.${storeName}`);
-  };
-  transaction.onerror = (event) => {
-    console.error(`Error writing data for ${dbName}.${storeName}`, event.target.error);
-  };
+    transaction.oncomplete = () => {
+      console.log(`Data written for ${dbName}.${storeName}`);
+      resolve();
+    };
+    transaction.onerror = (event) => {
+      console.error(`Error writing data for ${dbName}.${storeName}`, event.target.error);
+      reject(event.target.error ?? new Error(`Error writing ${dbName}.${storeName}`));
+    };
+    transaction.onabort = (event) => {
+      console.error(`Aborted writing data for ${dbName}.${storeName}`, event.target.error);
+      reject(event.target.error ?? new Error(`Aborted writing ${dbName}.${storeName}`));
+    };
 
-  // Add each record to the object store
-  const objectStore = transaction.objectStore(storeName);
-  if (dbName == "CC7Database") {
-    // It does not make sense to keep previous (or new) CC7 data around when
-    // restoring any store in the CC7Database
-    objectStore.clear();
-  }
-  records.forEach((record) => {
-    if (record.key) {
-      objectStore.put(record.value, record.key);
-    } else {
-      objectStore.put(record);
+    // Add each record to the object store
+    const objectStore = transaction.objectStore(storeName);
+    if (dbName == "CC7Database") {
+      // It does not make sense to keep previous (or new) CC7 data around when
+      // restoring any store in the CC7Database
+      objectStore.clear();
+    }
+    // Whether a key may be supplied is a property of the *store*, not of the record.
+    // savedQueries is both autoIncrement and keyPath: "id", so its records are
+    // wrapped on backup, but passing that key back to put() is an error because the
+    // store takes its key from the record itself.
+    const usesInlineKeys = objectStore.keyPath !== null;
+    let index = 0;
+    try {
+      for (; index < records.length; index++) {
+        const record = records[index];
+        const wrapped = isWrappedRecord(record);
+        const value = wrapped ? record.value : record;
+
+        // The renamed stores also changed their key, so rebuild it from the old record.
+        if (requestedStoreName == "CC7") {
+          value.theKey = cc7DbKeyFor(value.Id, value.userId);
+        } else if (requestedStoreName == "distance" || requestedStoreName == "relationship") {
+          value.theKey = distRelDbKeyFor(value.id, value.userId);
+        }
+
+        if (usesInlineKeys || !wrapped) {
+          objectStore.put(value);
+        } else {
+          objectStore.put(value, record.key);
+        }
+      }
+    } catch (error) {
+      // put() throws synchronously for a malformed record, which would otherwise
+      // leave the transaction to commit the records either side of it.
+      transaction.abort();
+      reject(new Error(`Could not restore record ${index} of ${dbName}.${storeName}: ${error?.message ?? error}`));
     }
   });
 }
@@ -1487,6 +1975,26 @@ function backupRestoreListener(request, sender, sendResponse) {
     } else if (request.action === "restoreData") {
       restoreData(request.payload, sendResponse);
       return true; // keep the message channel open for async sendResponse
+    } else if (request.action === "backupEverything") {
+      // Done here rather than by sending the data back: a backup that fits in a message is a
+      // backup with its three biggest databases left out (see backupData's compactMode).
+      downloadFullBackup((error) => sendResponse(error ? { nak: "BACKUP_FAILED", message: error } : { ack: true }));
+      return true;
+    } else if (request.action === "backupFeatureData") {
+      downloadFeatureDataBackup((error) =>
+        sendResponse(error ? { nak: "BACKUP_FAILED", message: error } : { ack: true })
+      );
+      return true;
+    } else if (request.action === "restoreEverything") {
+      promptForRestoreFile();
+      sendResponse({ ack: true });
+      return true;
+    } else if (request.action === "downloadBackup") {
+      // Safari can't download from the extension popup (see getDownloadLink), so the popup sends
+      // the finished backup here and the page, which downloads perfectly well, saves it.
+      triggerDownload(getBackupLink(request.payload));
+      sendResponse({ ack: true });
+      return true;
     }
   }
   return false; // this tells Chrome that it can close the channel because no response will be sent

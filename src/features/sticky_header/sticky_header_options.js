@@ -17,5 +17,12 @@ registerFeature({
       label: "G2G",
       defaultValue: true,
     },
+    {
+      id: "makeG2GHeaderSmaller",
+      type: OptionType.CHECKBOX,
+      label: "Make G2G Header Smaller",
+      dependsOn: "g2gStickyHeader",
+      defaultValue: true,
+    },
   ],
 });

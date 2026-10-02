@@ -3,6 +3,7 @@ import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import $ from "jquery";
 import { mainDomain } from "../../core/pageType";
 import { getUserNumId } from "../../core/common";
+import { redeemAuthcode } from "../../core/loginButton";
 
 const WBE_ORPHAN_WATCHLIST_APP_ID = "WBE_orphan_watchlist";
 
@@ -145,15 +146,7 @@ function init() {
  */
 shouldInitializeFeature("removeFromWatchlist").then((result) => {
   if (result) {
-    const urlParams = new URLSearchParams(window.location.search);
-    const authcode = urlParams.get("authcode");
-    if (authcode) {
-      WikiTreeAPI.postToAPI({
-        appId: WBE_ORPHAN_WATCHLIST_APP_ID,
-        action: "clientLogin",
-        authcode: authcode,
-      });
-    }
+    redeemAuthcode(WBE_ORPHAN_WATCHLIST_APP_ID);
     // Watchlist Free-Space Profiles do not have information to be able to remove them
     if ($(".nav-link.active").text().match("Free-Space Profiles") == null) {
       setTimeout(init, 3000);

@@ -77,7 +77,7 @@ const autoBio = {
           id: "householdTable",
           type: OptionType.CHECKBOX,
           label: "Household table in the biography (when possible)",
-          defaultValue: false,
+          defaultValue: true,
         },
         {
           id: "noNarrativeForCensus",
@@ -410,6 +410,19 @@ const autoBio = {
       ],
     },
     {
+      id: "researchNotesGroup",
+      type: OptionType.GROUP,
+      label: "Research Notes",
+      options: [
+        {
+          id: "needsProfilesResearchNote",
+          type: OptionType.CHECKBOX,
+          label: "Add a research note listing people who may need profiles",
+          defaultValue: true,
+        },
+      ],
+    },
+    {
       id: "spouseDetailsGroup",
       type: OptionType.GROUP,
       label: "Spouse",
@@ -594,7 +607,7 @@ const autoBio = {
           type: OptionType.SELECT,
           label: "OpenAI Model",
           values: aiModels.openai,
-          defaultValue: "gpt-5.4-mini",
+          defaultValue: "gpt-5.6-terra",
         },
         {
           id: "geminiKey",

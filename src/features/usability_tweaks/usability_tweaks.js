@@ -18,7 +18,7 @@ import {
 } from "../../core/pageType";
 import "./usability_tweaks.css";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { getUserWtId, getUserNumId } from "../../core/common";
+import { getUserWtId, getUserNumId, profilePerson } from "../../core/common";
 import "../../core/common.css";
 import { addLoginButton } from "../../core/loginButton";
 //import draggable from "jquery-ui/ui/widgets/draggable";
@@ -507,8 +507,18 @@ export function autoClickAddPersonOptions() {
     const whoValue = new URL(window.location.href).searchParams.get("who");
     const WBEactionValue = new URL(window.location.href).searchParams.get("WBEaction");
     if (WBEactionValue) {
+      const h1Add = document.getElementById("addEditHeadline");
+      const aInHelpIcon = h1Add.getElementsByClassName("icon--help")[0].parentNode;
+
       if (WBEactionValue == "Add") {
         $("#editAction_createNew").trigger("click");
+        const aConnect = document.createElement("a");
+        aConnect.className = "btn btn-secondary";
+        aConnect.innerHTML = "&larr; Connect";
+        aConnect.href = window.location.href.replace("WBEaction=Add", "WBEaction=Connect");
+
+        // aInHelpIcon.appendChild(aConnect);
+        h1Add.parentNode.appendChild(aConnect);
       } else if (WBEactionValue == "Connect") {
         $("#editAction_connectExisting").trigger("click");
       } else if (WBEactionValue == "Remove") {
@@ -711,8 +721,9 @@ function enhanceThonStats() {
 
   if (window.location.toString().includes("Histogram.htm")) {
     //add sums
-    AddCumulatedSumsToHistograms();
+    AddFilterLink();
     FilterThonRows();
+    AddCumulatedSumsToHistograms();
   }
 
   function roundIfNeeded(diffToLower) {
@@ -720,15 +731,42 @@ function enhanceThonStats() {
   }
 }
 
-function FilterThonRows() {
+function AddFilterLink() {
+  const INDEX_USER_COL = 1;
+  const secondTableHeader = document.getElementsByClassName("groupH")[6];
+  const wikiTreeIdHeader = secondTableHeader.firstChild;
+  const filterLink = document.createElement("a");
+  const params = new URLSearchParams(window.location.search);
+  const isFiltered = params.has("filter");
+  filterLink.addEventListener("click", () => {
+    if (!isFiltered) {
+      const filterTerm = prompt("Filter for user names?", "Germany");
+      window.location = window.location + "?filter=" + filterTerm;
+    } else {
+      window.location = window.location.pathname;
+    }
+  });
+
+  if (!isFiltered) {
+    filterLink.innerText = "add filter";
+  } else {
+    filterLink.innerText = "remove filter";
+  }
+
+  const filterSpan = document.createElement("span");
+  filterSpan.append(" [");
+  filterSpan.appendChild(filterLink);
+  filterSpan.append("] ");
+  wikiTreeIdHeader.appendChild(filterSpan);
+}
+
+function FilterThonRows(neede) {
   const params = new URLSearchParams(window.location.search);
   const needle = params.get("filter");
   if (needle) {
     var tds = document.getElementsByTagName("td");
     for (let i = 0; i < tds.length; i++) {
-      console.log(tds[i].innerHTML);
       if (tds[i].innerHTML.includes("/wiki/") && !tds[i].innerHTML.includes(needle)) {
-        console.log(tds[i].innerHTML);
         tds[i].parentElement.style.display = "none";
       }
     }
@@ -737,16 +775,18 @@ function FilterThonRows() {
 
 function AddCumulatedSumsToHistograms() {
   document.querySelectorAll("tr").forEach((r) => {
-    if (r.querySelector("div.histogram")) {
-      let cumulated = 0;
-      r.querySelectorAll("div.histogram div.col").forEach((c) => {
-        let t = c.getAttribute("title") || "",
-          m = t.match(/-\s*(\d+)/);
-        if (m) {
-          cumulated += parseInt(m[1], 10);
-          c.setAttribute("title", `${t} (${cumulated})`);
-        }
-      });
+    if (r.style.display != "none") {
+      if (r.querySelector("div.histogram")) {
+        let cumulated = 0;
+        r.querySelectorAll("div.histogram div.col").forEach((c) => {
+          let t = c.getAttribute("title") || "",
+            m = t.match(/-\s*(\d+)/);
+          if (m) {
+            cumulated += parseInt(m[1], 10);
+            c.setAttribute("title", `${t} (${cumulated})`);
+          }
+        });
+      }
     }
   });
 }
@@ -976,6 +1016,291 @@ function addAccessedCountToProfileData() {
   }
 }
 
+/**
+ * Adds a "Browse Photos" button to the #Photo-Actions section when the profile has
+ * more than one photo but WikiTree hasn't rendered the button itself (it only shows it
+ * once there are enough photos to warrant the photos page).
+ *
+ * The photos page URL follows from the profile's WikiTree ID: "Herling-44" becomes
+ * "/genealogy/Herling-Photos-44/".
+ */
+function addBrowsePhotosButton() {
+  const section = document.getElementById("Photo-Actions");
+  if (!section) return;
+
+  // Nothing to do if there's already a Browse Photos button.
+  const hasBrowseButton = Array.from(section.querySelectorAll("a")).some(
+    (a) => a.textContent.trim() === "Browse Photos" || /-Photos-\d+\/?$/.test(a.getAttribute("href") || "")
+  );
+  if (hasBrowseButton) return;
+
+  // Only add it when there's more than one photo on the page.
+  const heading = document.getElementById("wt-photos");
+  const total = heading ? parseInt(heading.getAttribute("data-photo-total"), 10) : NaN;
+  if (!(total > 1)) return;
+
+  // Build the photos page URL from the WikiTree ID (e.g. "Herling-44" -> "Herling-Photos-44").
+  const wtId = profilePerson && profilePerson.Name;
+  if (!wtId || !/-\d+$/.test(wtId)) return;
+  const photosId = wtId.replace(/-(\d+)$/, "-Photos-$1");
+  const fullName = (profilePerson && profilePerson.FullName) || wtId;
+
+  const button = $(
+    `<a class="btn btn-pill btn-block wbe" href="/genealogy/${photosId}/" title="Browse photos for ${fullName}"><span class="icon--photo"></span> Browse Photos</a>`
+  );
+  $(section).prepend(button);
+}
+
+/* The text parameter of the {{Notability}} template has a 350 character maximum,
+   so show a live count of what's been typed and what's left while editing. */
+const NOTABILITY_TEXT_LIMIT = 350;
+// Where an unclosed template ends: a blank line, or the start of a section heading.
+const UNCLOSED_END = /^\n[ \t]*(\n|==)/;
+
+/**
+ * Splits the template starting at the given index into its pipe-separated parts.
+ * Pipes inside nested templates and wiki links are ignored.
+ * The template is often still being typed and so has no closing "}}" yet. In that case
+ * it ends at a blank line or a section heading, so that the rest of the biography
+ * isn't counted as part of the last parameter.
+ *
+ * @param {string} text - The full editor text.
+ * @param {number} start - The index of the template's opening "{{".
+ * @returns {{end: number, parts: Array<string>}} The parts (the first is the template name)
+ * and the index the template ends at.
+ */
+function parseTemplateParts(text, start) {
+  const parts = [];
+  let templateDepth = 0;
+  let linkDepth = 0;
+  let partStart = start + 2;
+  let i = partStart;
+
+  while (i < text.length) {
+    const pair = text.substr(i, 2);
+    if (pair == "{{") {
+      templateDepth++;
+      i += 2;
+    } else if (pair == "}}") {
+      if (templateDepth == 0) {
+        parts.push(text.slice(partStart, i));
+        return { end: i + 2, parts: parts };
+      }
+      templateDepth--;
+      i += 2;
+    } else if (pair == "[[") {
+      linkDepth++;
+      i += 2;
+    } else if (pair == "]]") {
+      if (linkDepth > 0) {
+        linkDepth--;
+      }
+      i += 2;
+    } else if (templateDepth == 0 && linkDepth == 0 && text[i] == "|") {
+      parts.push(text.slice(partStart, i));
+      i++;
+      partStart = i;
+    } else if (templateDepth == 0 && linkDepth == 0 && text[i] == "\n" && UNCLOSED_END.test(text.substr(i, 12))) {
+      break;
+    } else {
+      i++;
+    }
+  }
+  parts.push(text.slice(partStart, i));
+  return { end: i, parts: parts };
+}
+
+/**
+ * Finds every {{Notability}} template in the text that has a text parameter, along with
+ * where the template starts and ends, so that the caret can be tested against it.
+ *
+ * @param {string} text - The full editor text.
+ * @returns {Array<{value: string, start: number, end: number}>} One entry per template
+ * with a text parameter, in the order they appear.
+ */
+function getNotabilityTemplates(text) {
+  const templates = [];
+  const notabilityStart = /\{\{\s*notability\s*(?=[|}])/gi;
+  let match;
+  while ((match = notabilityStart.exec(text)) !== null) {
+    const template = parseTemplateParts(text, match.index);
+    notabilityStart.lastIndex = Math.max(template.end, notabilityStart.lastIndex);
+    template.parts.slice(1).forEach(function (part) {
+      const equals = part.indexOf("=");
+      if (equals > -1 && part.slice(0, equals).trim().toLowerCase() == "text") {
+        templates.push({ value: part.slice(equals + 1).trim(), start: match.index, end: template.end });
+      }
+    });
+  }
+  return templates;
+}
+
+/**
+ * Locates the caret within the enhanced editor's text.
+ *
+ * The position lives in the page's own CodeMirror instance, which a content script can't
+ * reach, so it's read off the rendered cursor instead: find which line box the cursor is
+ * drawn in. That gives line precision rather than column, so the range covers the whole
+ * line, which is enough to tell whether the caret is inside a template.
+ *
+ * @param {Array<Element>} lines - The rendered line elements.
+ * @param {Array<string>} lineTexts - Their text, in the same order.
+ * @param {Element} codeMirror - The CodeMirror wrapper.
+ * @returns {{from: number, to: number}|null} Null if the cursor can't be located.
+ */
+function findCodeMirrorCaret(lines, lineTexts, codeMirror) {
+  const cursor = codeMirror.querySelector(".CodeMirror-cursor");
+  if (!cursor) {
+    return null;
+  }
+  // A wrapped line is still one element, so its box covers every row it occupies.
+  const cursorTop = cursor.getBoundingClientRect().top;
+  let offset = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (cursorTop < lines[i].getBoundingClientRect().bottom - 1) {
+      return { from: offset, to: offset + lineTexts[i].length };
+    }
+    offset += lineTexts[i].length + 1;
+  }
+  return null;
+}
+
+/**
+ * Gets the editor's text and, where it can be worked out, the caret's position in it.
+ *
+ * The enhanced editor (CodeMirror) doesn't write back to the textarea until the form is
+ * submitted, so its rendered lines are read instead.
+ *
+ * A null caret means "couldn't tell", not "not in a template": the caller shows the
+ * counter anyway in that case, so that a caret this can't find never makes the feature
+ * silently disappear.
+ *
+ * @returns {{text: string, caret: {from: number, to: number}|null}|null} Null if there's
+ * no editor to read.
+ */
+function getWikiEditorState() {
+  const codeMirror = document.querySelector("div.CodeMirror");
+  if (codeMirror && $(codeMirror).is(":visible")) {
+    const lines = Array.from(codeMirror.querySelectorAll(".CodeMirror-code .CodeMirror-line"));
+    if (lines.length) {
+      const lineTexts = lines.map(function (line) {
+        return line.textContent.replace(/\u200b/g, "");
+      });
+      return { text: lineTexts.join("\n"), caret: findCodeMirrorCaret(lines, lineTexts, codeMirror) };
+    }
+  }
+  const textarea = document.getElementById("wpTextbox1");
+  if (!textarea) {
+    return null;
+  }
+  // selectionStart survives losing focus, so the counter doesn't flicker away when a
+  // toolbar button is clicked. It's 0 until the editor has been clicked into.
+  return { text: textarea.value, caret: { from: textarea.selectionStart, to: textarea.selectionEnd } };
+}
+
+/**
+ * Shows the count for the {{Notability}} template the caret is in, and hides the counter
+ * whenever the caret is somewhere else.
+ *
+ * @returns {void}
+ */
+function updateNotabilityTextCounter() {
+  const counter = document.getElementById("wbeNotabilityCounter");
+  if (!counter) {
+    return;
+  }
+  const state = getWikiEditorState();
+  const templates = state ? getNotabilityTemplates(state.text) : [];
+  const caret = state && state.caret;
+  const template = caret
+    ? templates.find(function (candidate) {
+        return caret.to >= candidate.start && caret.from <= candidate.end;
+      })
+    : templates[0];
+  if (!template) {
+    counter.hidden = true;
+    counter.innerHTML = "";
+    return;
+  }
+  const used = template.value.length;
+  const left = NOTABILITY_TEXT_LIMIT - used;
+  let severity = "";
+  if (left < 0) {
+    severity = " over";
+  } else if (left <= 25) {
+    severity = " close";
+  }
+  const remaining = left < 0 ? `<strong>${-left}</strong> over the limit` : `<strong>${left}</strong> characters left`;
+  counter.hidden = false;
+  counter.innerHTML =
+    `<div class="wbeNotabilityCount${severity}">Notability text: ` +
+    `<strong>${used}</strong>/${NOTABILITY_TEXT_LIMIT} &ndash; ${remaining}</div>`;
+}
+
+/**
+ * Adds a character counter above the editor for the text parameter of the {{Notability}}
+ * template the caret is in. It stays hidden the rest of the time.
+ *
+ * @returns {void}
+ */
+function addNotabilityTextCounter() {
+  const textarea = document.getElementById("wpTextbox1");
+  if (!textarea) {
+    window.addEventListener("load", addNotabilityTextCounter, { once: true });
+    return;
+  }
+  if (document.getElementById("wbeNotabilityCounter")) {
+    return;
+  }
+
+  const counter = document.createElement("div");
+  counter.id = "wbeNotabilityCounter";
+  // Marks it for the Highlight WBE Features feature.
+  counter.className = "wbe";
+  counter.hidden = true;
+  // On by default, so say where it came from: the box is new to anyone who hasn't
+  // read the release notes, and the tooltip is the only thing that explains it.
+  counter.title =
+    "Added by the WikiTree Browser Extension (Usability Tweaks). " +
+    `The text parameter of the Notability template has a ${NOTABILITY_TEXT_LIMIT} character maximum.`;
+  // Above the editor, where it's in view: the editor is usually too tall for anything
+  // below it to be seen, and the Notability template sits at the top of the biography.
+  // The Sticky Toolbar feature moves this into the toolbar so it stays in view.
+  textarea.parentNode.insertBefore(counter, textarea);
+
+  let pending = null;
+  function scheduleUpdate() {
+    if (pending) {
+      return;
+    }
+    pending = setTimeout(function () {
+      pending = null;
+      updateNotabilityTextCounter();
+    }, 150);
+  }
+
+  /* Bound to the form rather than the editor itself for two reasons: the Editor Expander
+     moves the editor into the toolbar, and the enhanced editor takes the typing on a
+     textarea of its own. Caret moves matter as much as edits, hence mouseup and the arrow
+     keys via keyup, and focusout is what hides the counter when you leave the editor. */
+  const editorArea = textarea.closest("form") || textarea.parentNode;
+  $(editorArea).on("input change keyup mouseup paste focusin focusout", scheduleUpdate);
+  /* Watch the enhanced editor's lines, ignoring the changes we make to the counter itself.
+     Same reason for observing the form. */
+  new MutationObserver(function (mutations) {
+    if (
+      mutations.every(function (mutation) {
+        return counter.contains(mutation.target);
+      })
+    ) {
+      return;
+    }
+    scheduleUpdate();
+  }).observe(editorArea, { childList: true, subtree: true, characterData: true });
+
+  updateNotabilityTextCounter();
+}
+
 shouldInitializeFeature("usabilityTweaks").then((result) => {
   if (result) {
     getFeatureOptions("usabilityTweaks").then((options) => {
@@ -984,6 +1309,10 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
       // addAccessedCountToProfileData();
       if (isProfilePage && options.addAccessedCountToProfileData) {
         addAccessedCountToProfileData();
+      }
+
+      if (isProfilePage && options.addBrowsePhotosButton) {
+        addBrowsePhotosButton();
       }
 
       // Add save form button
@@ -1037,6 +1366,9 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
 
       if (isWikiEdit && options.rememberTextareaHeight) {
         triggerRememberTextareaHeight();
+      }
+      if (isWikiEdit && options.notabilityTextCounter) {
+        addNotabilityTextCounter();
       }
       if (isNavHomePage) {
         if (options.addScratchPadButton && $("#clonedScratchPadButton").length == 0) {

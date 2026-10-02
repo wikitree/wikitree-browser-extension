@@ -53,6 +53,9 @@ This feature shows the distance (degrees) and relationship between the logged-in
 
 - Shows distance badge (e.g. `1°`) near the profile heading.
 - Shows relationship box (`Your cousin`, `Your daughter`, etc.) and common ancestor lines when available.
+- Common ancestor lines are grouped by couple (`sortCommonAncestorsByCouple`): ancestors the same number of steps
+  from both people are kept next to each other, closest couple first, father before mother. The `More` button
+  therefore reveals whole couples rather than one member of each.
 - Clicking distance or relationship triggers refresh.
 
 ## Testing as another member

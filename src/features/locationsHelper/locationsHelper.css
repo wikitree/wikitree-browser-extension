@@ -161,7 +161,7 @@ body.wbe-location-exclusive-active .autocomplete-suggestions {
   color: #666;
 }
 .wbe-loc-status.is-red {
-  color: red !important;
+  color: var(--wbe-cb-danger, red) !important;
 }
 
 .wbe-country-filter-popup {

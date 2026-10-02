@@ -124,6 +124,14 @@ registerFeature({
           defaultValue: true,
         },
         {
+          id: "PrevNext",
+          type: OptionType.CHECKBOX,
+          label:
+            "Page navigation: Previous (prefix + ←), Next (prefix + →), First (prefix + ↑), Last (prefix + ↓). " +
+            "Arrow keys can't be browser access keys, so these only work as prefixed shortcuts.",
+          defaultValue: true,
+        },
+        {
           id: "JumpNav",
           type: OptionType.CHECKBOX,
           label: "Jump Navigation (Access keys: 1/2-9)",

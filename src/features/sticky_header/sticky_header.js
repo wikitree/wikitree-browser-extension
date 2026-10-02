@@ -86,6 +86,9 @@ shouldInitializeFeature("stickyHeader").then(async (result) => {
       if (options.g2gStickyHeader) {
         $("html").addClass("g2gStickyHeader");
         window.setTimeout(setG2GHeaderBGColour, 1000);
+        if (options.makeG2GHeaderSmaller) {
+          $("html").addClass("makeG2GHeaderSmaller");
+        }
       }
     }
     // wait a second for other items to adjust the page layout

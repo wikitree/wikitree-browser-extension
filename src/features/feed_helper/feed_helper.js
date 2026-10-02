@@ -2,7 +2,7 @@
 Created By: Ian Beacall (Beacall-6)
 */
 
-import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { theSourceRules } from "../bioCheck/SourceRules.js";
@@ -12,6 +12,19 @@ import { initBioCheck } from "../bioCheck/bioCheck.js";
 import { getUserWtId } from "../../core/common.js";
 
 const WBE_RANGERS_APP_ID = "WBE_rangers";
+
+// Bump whenever the managed-profiles lookup changes what it can resolve, so cached results from
+// the previous logic are discarded instead of being served for the rest of their TTL.
+// 2: space pages resolved via TrustedList/IsManager.
+const MANAGED_PROFILES_CACHE_VERSION = 2;
+
+// States for the "Only Activity by New Members" / "Only Activity by Newly-Badged People" button.
+// The third state is only reachable when the newMemberThreeWayFilter option is on.
+const NEW_MEMBER_FILTER_STATES = {
+  inactive: "inactive",
+  only: "only",
+  exclude: "exclude",
+};
 
 const rangers = [
   "Ikeler-28",
@@ -343,7 +356,12 @@ const bioCheckFields = [
 
 // Define the class FeedHelper
 class FeedHelper {
-  constructor() {
+  constructor(featureOptions = {}) {
+    this.featureOptions = featureOptions || {};
+    this.newMemberThreeWayFilterEnabled = !!this.featureOptions.newMemberThreeWayFilter;
+    this.newMemberFilterState = NEW_MEMBER_FILTER_STATES.inactive;
+    this.newMemberFilterButtonId = null;
+
     // Initialize variables
     this.config = {
       pre1700: {
@@ -424,7 +442,9 @@ class FeedHelper {
     this.dismissedWarningsStorageKey = "FeedHelper-dismissed-warnings"; // Global dismissed warnings
     this.hideWhitelistActivityStorageKey = "FeedHelper-hideWhitelistActivity";
     this.hideFilterStatesStorageKey = "FeedHelper-hideFilterStates";
-    this.managedProfilesCacheStorageKey = "FeedHelper-managedProfilesCache";
+    // v2: cached sets from before space pages were included would otherwise keep
+    // suppressing them for the length of the TTL after an upgrade.
+    this.managedProfilesCacheStorageKey = "FeedHelper-managedProfilesCache-v2";
     this.managedProfilesCacheHours = 1;
     this.lastActiveKey = "FeedHelper-last-active";
     this.sessionTimeoutHours = 2; // Clean up data older than 2 hours
@@ -667,7 +687,7 @@ class FeedHelper {
    */
   showConfirmDialog(message, onConfirm, onCancel = null) {
     const $dialog = $(
-      '<dialog id="confirmDialog">' +
+      '<dialog id="confirmDialog" class="wbe">' +
         '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Confirmation</div>' +
         '<div class="dialog-content">' +
         '<p style="margin: 20px 0; font-size: 16px; line-height: 1.4;">' +
@@ -975,6 +995,15 @@ class FeedHelper {
       return null;
     }
 
+    // Entries written by an older version of the lookup describe a different world (e.g. before
+    // space pages were resolved at all), so discard them rather than serving a stale miss for
+    // the rest of the TTL.
+    if (cachedEntry.version !== MANAGED_PROFILES_CACHE_VERSION) {
+      delete cache[cacheKey];
+      this.setManagedProfilesCache(cache);
+      return null;
+    }
+
     if (Date.now() > cachedEntry.expiresAt) {
       delete cache[cacheKey];
       this.setManagedProfilesCache(cache);
@@ -993,6 +1022,7 @@ class FeedHelper {
     const cacheKey = this.getManagedProfilesCacheKey(managerId);
     cache[cacheKey] = {
       source,
+      version: MANAGED_PROFILES_CACHE_VERSION,
       names: Array.from(profileSet),
       expiresAt: Date.now() + this.managedProfilesCacheHours * 60 * 60 * 1000,
     };
@@ -1030,6 +1060,31 @@ class FeedHelper {
     });
   }
 
+  /**
+   * Free-space pages expose no Manager/Managers fields at all - getProfile returns their
+   * managers inside TrustedList, flagged with IsManager. Trusted-list-only entries
+   * (IsManager 0) are not managers and must not match.
+   * @param {string} managerId - WikiTree ID of the watchlist owner
+   * @param {Array} trustedList - The profile's TrustedList
+   * @returns {boolean} True if managerId manages this space page
+   */
+  isSpacePageManagedBy(managerId, trustedList) {
+    if (!managerId) {
+      return false;
+    }
+
+    const managerLookup = String(managerId).toLowerCase();
+    return this.normalizeManagersCollection(trustedList).some((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return false;
+      }
+      if (Number(entry.IsManager) !== 1) {
+        return false;
+      }
+      return entry.Name && String(entry.Name).toLowerCase() === managerLookup;
+    });
+  }
+
   getFeedProfileIdsForManagedCheck() {
     this.prepareFeedItemsForFiltering();
     const ids = new Set();
@@ -1047,9 +1102,62 @@ class FeedHelper {
     return Array.from(ids);
   }
 
+  getFeedSpaceIdsForManagedCheck() {
+    this.prepareFeedItemsForFiltering();
+    const ids = new Set();
+
+    $("span.feed-item").each((_, element) => {
+      const $item = $(element);
+      const spaceIds = $item.data("feedHelperSpaceIds") || [];
+      spaceIds.forEach((spaceId) => {
+        if (spaceId) {
+          ids.add(String(spaceId));
+        }
+      });
+    });
+
+    return Array.from(ids);
+  }
+
+  /**
+   * Resolves managers for free-space pages. getPeople is person-only and space pages carry no
+   * Manager/Managers fields, so each needs a getProfile call for its TrustedList. Feeds contain
+   * few distinct space pages, so a small concurrency cap keeps this cheap.
+   * @param {string} managerId - WikiTree ID of the watchlist owner
+   * @param {string[]} spaceIds - "Space:"-prefixed page ids
+   * @param {Set} managedProfiles - Set to add matches to (lowercased, prefix retained)
+   */
+  async addManagedSpacePages(managerId, spaceIds, managedProfiles) {
+    const concurrency = 5;
+    for (let i = 0; i < spaceIds.length; i += concurrency) {
+      const batch = spaceIds.slice(i, i + concurrency);
+      const results = await Promise.all(
+        batch.map(async (spaceId) => {
+          try {
+            const [profile] = await WikiTreeAPI.getProfile(WBE_RANGERS_APP_ID, spaceId, ["PageId", "TrustedList"], {
+              resolveRedirect: 0,
+            });
+            return { spaceId, profile };
+          } catch (error) {
+            this.debug(`FeedHelper: Unable to fetch space page ${spaceId}`, error);
+            return { spaceId, profile: null };
+          }
+        })
+      );
+
+      results.forEach(({ spaceId, profile }) => {
+        if (profile && this.isSpacePageManagedBy(managerId, profile.TrustedList)) {
+          // Key on the id we extracted from the feed link, so it lines up with feedHelperSpaceIds.
+          managedProfiles.add(String(spaceId).toLowerCase());
+        }
+      });
+    }
+  }
+
   async fetchManagedProfilesFromFeedProfiles(managerId) {
     const profileIds = this.getFeedProfileIdsForManagedCheck();
-    if (profileIds.length === 0) {
+    const spaceIds = this.getFeedSpaceIdsForManagedCheck();
+    if (profileIds.length === 0 && spaceIds.length === 0) {
       return new Set();
     }
 
@@ -1067,6 +1175,10 @@ class FeedHelper {
           managedProfiles.add(String(person.Name).toLowerCase());
         }
       });
+    }
+
+    if (spaceIds.length > 0) {
+      await this.addManagedSpacePages(managerId, spaceIds, managedProfiles);
     }
 
     return managedProfiles;
@@ -1116,9 +1228,9 @@ class FeedHelper {
       const hasG2GLink = $item.find("a[href*='/g2g/']").length > 0;
       const isG2G = hasG2GLink && (itemText.includes("asked a question") || itemText.includes("answered a question"));
 
-      const profileIds = this.getProfileIdsFromHistoryItem($item)
-        .map((id) => String(id))
-        .filter((id) => id && !id.toLowerCase().startsWith("space:"));
+      const allIds = this.getProfileIdsFromHistoryItem($item).map((id) => String(id));
+      const profileIds = allIds.filter((id) => id && !id.toLowerCase().startsWith("space:"));
+      const spaceIds = allIds.filter((id) => id && id.toLowerCase().startsWith("space:"));
 
       const hasProfileActivity = !hasSpaceLink;
       const hasSpaceActivity = hasSpaceLink;
@@ -1127,6 +1239,7 @@ class FeedHelper {
       $item.data("feedHelperHasSpaceActivity", hasSpaceActivity);
       $item.data("feedHelperIsG2G", isG2G);
       $item.data("feedHelperProfileIds", profileIds);
+      $item.data("feedHelperSpaceIds", spaceIds);
 
       // Preserve old classes to support existing styles/logic.
       $item.toggleClass("feed-item--space", hasSpaceActivity).toggleClass("feed-item--profile", hasProfileActivity);
@@ -1145,32 +1258,119 @@ class FeedHelper {
       $button.attr("aria-pressed", isEnabled ? "true" : "false");
     });
 
+    // These two only work on watchlist activity feed pages. Hide them elsewhere rather than
+    // showing permanently greyed-out buttons.
+    const available = this.isProfilesNotManagedFilterAvailable();
+
     const managedByButton = $("#hideProfilesNotManagedByButton");
     if (managedByButton.length > 0) {
       managedByButton.text(this.activeManagerLabel);
-      const available = this.isProfilesNotManagedFilterAvailable();
-      managedByButton.prop("disabled", !available);
-      managedByButton.toggleClass("disabled", !available);
-      if (!available) {
-        managedByButton.attr("title", "This filter is available on watchlist activity feed pages only");
-      } else {
+      managedByButton.prop("disabled", !available).removeClass("disabled").toggle(available);
+      if (available) {
         managedByButton.attr("title", `Hide profiles not managed by ${this.watchlistOwnerWtId}`);
       }
     }
 
     const managedByTargetButton = $("#hideProfilesManagedByButton");
     if (managedByTargetButton.length > 0) {
-      const managedLabel = this.getProfilesManagedLabel();
-      managedByTargetButton.text(managedLabel);
-      const available = this.isProfilesNotManagedFilterAvailable();
-      managedByTargetButton.prop("disabled", !available);
-      managedByTargetButton.toggleClass("disabled", !available);
-      if (!available) {
-        managedByTargetButton.attr("title", "This filter is available on watchlist activity feed pages only");
-      } else {
+      managedByTargetButton.text(this.getProfilesManagedLabel());
+      managedByTargetButton.prop("disabled", !available).removeClass("disabled").toggle(available);
+      if (available) {
         managedByTargetButton.attr("title", `Hide profiles managed by ${this.watchlistOwnerWtId}`);
       }
     }
+  }
+
+  /**
+   * The link classes that mark a feed item as being activity by a new and/or newly-badged member,
+   * for the filter button shown on the current page.
+   */
+  getNewMemberFilterSelector(buttonId = this.newMemberFilterButtonId) {
+    if (buttonId === "onlyNewestBadges") {
+      if (this.currentConfig.name === "Pre-1700") {
+        return "a.newestPre1700s";
+      }
+      if (this.currentConfig.name === "Pre-1500") {
+        return "a.recentPre1500s";
+      }
+      if (this.currentConfig.name === "Project Feed") {
+        return "a.newestProjectBadged, a.newt";
+      }
+      return "";
+    }
+    if (buttonId === "onlyNewts") {
+      return "a.newt";
+    }
+    return "";
+  }
+
+  /**
+   * Advance the new/newly-badged member filter. Two states by default (all activity <-> only theirs);
+   * the "everyone else" state is added when the newMemberThreeWayFilter option is on.
+   */
+  cycleNewMemberFilter(buttonId) {
+    this.newMemberFilterButtonId = buttonId;
+
+    if (this.newMemberFilterState === NEW_MEMBER_FILTER_STATES.inactive) {
+      this.newMemberFilterState = NEW_MEMBER_FILTER_STATES.only;
+    } else if (this.newMemberFilterState === NEW_MEMBER_FILTER_STATES.only && this.newMemberThreeWayFilterEnabled) {
+      this.newMemberFilterState = NEW_MEMBER_FILTER_STATES.exclude;
+    } else {
+      this.newMemberFilterState = NEW_MEMBER_FILTER_STATES.inactive;
+    }
+
+    this.syncNewMemberFilterButton(buttonId);
+  }
+
+  /**
+   * Labels for each state of the new/newly-badged member filter button, by page type.
+   */
+  getNewMemberFilterLabels(buttonId = this.newMemberFilterButtonId) {
+    if (buttonId === "onlyNewestBadges") {
+      if (this.currentConfig.name === "Project Feed") {
+        return {
+          subject: "new or newly-badged members",
+          inactive: "Only New and Newly-Badged Members",
+          exclude: "Only Activity NOT by New or Newly-Badged Members",
+        };
+      }
+      return {
+        subject: "newly-badged people",
+        inactive: "Only Activity by Newly-Badged People",
+        exclude: "Only Activity NOT by Newly-Badged People",
+      };
+    }
+    return {
+      subject: "new members",
+      inactive: "Only Activity by New Members",
+      exclude: "Only Activity NOT by New Members",
+    };
+  }
+
+  syncNewMemberFilterButton(buttonId = this.newMemberFilterButtonId) {
+    const button = $(`#${buttonId}`);
+    if (button.length === 0) {
+      return;
+    }
+
+    const labels = this.getNewMemberFilterLabels(buttonId);
+    const threeWay = this.newMemberThreeWayFilterEnabled;
+    let text = labels.inactive;
+    let title = `Show only activity by ${labels.subject}`;
+
+    if (this.newMemberFilterState === NEW_MEMBER_FILTER_STATES.only) {
+      // In two-state mode the next click shows everything again, so say so on the button.
+      text = threeWay ? labels.inactive : "Show All Activity";
+      title = threeWay ? `Click again to show only activity NOT by ${labels.subject}` : "Show all activity";
+    } else if (this.newMemberFilterState === NEW_MEMBER_FILTER_STATES.exclude) {
+      text = labels.exclude;
+      title = "Click again to show all activity";
+    }
+
+    button
+      .text(text)
+      .attr("title", title)
+      .toggleClass("active", this.newMemberFilterState !== NEW_MEMBER_FILTER_STATES.inactive);
   }
 
   async applyFeedFilters() {
@@ -1185,12 +1385,22 @@ class FeedHelper {
       managedProfileSet = this.managedProfilesSet;
     }
 
+    const newMemberSelector =
+      this.newMemberFilterState === NEW_MEMBER_FILTER_STATES.inactive ? "" : this.getNewMemberFilterSelector();
+
     let hiddenCount = 0;
     $("span.feed-item").each((_, element) => {
       const $item = $(element);
       let shouldHide = false;
 
-      if (activeFilters.whitelistActivity && whitelistSet.size > 0) {
+      if (newMemberSelector) {
+        const isNewMemberActivity = $item.find(newMemberSelector).length > 0;
+        if (this.newMemberFilterState === NEW_MEMBER_FILTER_STATES.only ? !isNewMemberActivity : isNewMemberActivity) {
+          shouldHide = true;
+        }
+      }
+
+      if (!shouldHide && activeFilters.whitelistActivity && whitelistSet.size > 0) {
         const actorId = this.getFeedItemActorId($item);
         if (actorId && whitelistSet.has(String(actorId).toLowerCase())) {
           shouldHide = true;
@@ -1213,10 +1423,10 @@ class FeedHelper {
         !shouldHide &&
         activeFilters.profilesNotManagedBy &&
         this.isProfilesNotManagedFilterAvailable() &&
-        $item.data("feedHelperHasProfileActivity") &&
+        ($item.data("feedHelperHasProfileActivity") || $item.data("feedHelperHasSpaceActivity")) &&
         managedProfileSet
       ) {
-        const profileIds = $item.data("feedHelperProfileIds") || [];
+        const profileIds = ($item.data("feedHelperProfileIds") || []).concat($item.data("feedHelperSpaceIds") || []);
         if (profileIds.length > 0) {
           const hasManagedProfile = profileIds.some((profileId) =>
             managedProfileSet.has(String(profileId).toLowerCase())
@@ -1231,10 +1441,10 @@ class FeedHelper {
         !shouldHide &&
         activeFilters.profilesManagedBy &&
         this.isProfilesNotManagedFilterAvailable() &&
-        $item.data("feedHelperHasProfileActivity") &&
+        ($item.data("feedHelperHasProfileActivity") || $item.data("feedHelperHasSpaceActivity")) &&
         managedProfileSet
       ) {
-        const profileIds = $item.data("feedHelperProfileIds") || [];
+        const profileIds = ($item.data("feedHelperProfileIds") || []).concat($item.data("feedHelperSpaceIds") || []);
         if (profileIds.length > 0) {
           const hasManagedProfile = profileIds.some((profileId) =>
             managedProfileSet.has(String(profileId).toLowerCase())
@@ -1283,7 +1493,7 @@ class FeedHelper {
     }
 
     const popup = $(`
-      <div id="whitelistManagerPopup">
+      <div id="whitelistManagerPopup" class="wbe">
         <div class="popup-header">
           <h3>Activity Whitelist Manager</h3>
           <button id="closeWhitelistManager">&times;</button>
@@ -2653,7 +2863,7 @@ class FeedHelper {
     const existed = $popup.length > 0;
     if (!existed) {
       $popup = $(
-        `<div class="anomalies-popup"><div class="anomalies-messages"><div class="anomalies-line">${message}</div></div></div>`
+        `<div class="anomalies-popup wbe"><div class="anomalies-messages"><div class="anomalies-line">${message}</div></div></div>`
       );
       $container.append($popup);
     } else {
@@ -2700,7 +2910,7 @@ class FeedHelper {
     if (existingTable.length === 0) {
       // Create the table container (initially hidden)
       const tableHtml = `
-        <div id="activityWarningsTable" style="display: none;">
+        <div id="activityWarningsTable" class="wbe" style="display: none;">
           <div class="table-header">
             <h3>⚠️ Rapid Activity (<span id="warningsCount">0</span>)</h3>
             <div class="header-buttons">
@@ -3217,7 +3427,7 @@ class FeedHelper {
     }
 
     const popup = $(`
-      <div class="rapid-merge-popup">
+      <div class="rapid-merge-popup wbe">
         ${message}
         <span class="close-popup">&times;</span>
         <button class="highlight-btn small">Highlight</button>
@@ -3314,7 +3524,7 @@ class FeedHelper {
     }
 
     const hideFilterSection = $(
-      `<div id="feedHelperHideFilters" class="feed-helper-hide-filters" aria-label="Feed helper hide filters">
+      `<div id="feedHelperHideFilters" class="feed-helper-hide-filters wbe" aria-label="Feed helper hide filters">
         <span class="feed-helper-hide-label">Hide:</span>
         <button type="button" class="button small feed-helper-filter-btn" data-filter-key="whitelistActivity" aria-pressed="false" title="Hide activity by whitelisted users">Whitelist Activity</button>
         <button type="button" class="button small feed-helper-filter-btn" data-filter-key="allProfiles" aria-pressed="false" title="Hide profile activity">All Profiles</button>
@@ -3599,7 +3809,7 @@ class FeedHelper {
 
     // Show loading popup first
     $("main#main").prepend(
-      `<div class="bioPopup" data-id="${bioId}">
+      `<div class="bioPopup wbe" data-id="${bioId}">
         <x class="closeBioPopup">&times;</x>
         <div class="bio-section">
           <p><strong>Loading bio for ${bioId}...</strong></p>
@@ -4134,7 +4344,7 @@ class FeedHelper {
         const highlightedBio = this.highlightMarkup(bio.bio).replace(/\n/g, "<br>");
         const bioCheckIssues = this.buildBioCheckIssues(bio);
         $("main#main").prepend(
-          `<div class="bioPopup" data-id="${bioId}">
+          `<div class="bioPopup wbe" data-id="${bioId}">
             <x class="closeBioPopup">&times;</x>
             ${highlightedBio}
             ${bioCheckIssues.html}
@@ -4171,60 +4381,15 @@ class FeedHelper {
     });
 
     $(document).on("click", "#onlyNewestBadges,#onlyNewts", async function () {
-      self.debug(`WBE: Button clicked: ${$(this).attr("id")}, current config: ${self.currentConfig.name}`);
+      const buttonId = $(this).attr("id");
+      self.debug(`WBE: Button clicked: ${buttonId}, current config: ${self.currentConfig.name}`);
 
-      // Find all span.HISTORY-ITEM rows not containing links with the class newestPre1700s and toggle them
-      const allItems = $("span.feed-item:not(.HISTORY-HIDDEN)");
       if (self.currentConfig.name === "Merges" && Object.keys(self.memberData).length == 0) {
         await self.getMemberCreatedDates(true);
       }
 
-      // Determine which CSS classes to look for based on current configuration and button clicked
-      let targetClasses = "";
-      if ($(this).attr("id") === "onlyNewestBadges") {
-        if (self.currentConfig.name === "Pre-1700") {
-          targetClasses = "a.newestPre1700s";
-        } else if (self.currentConfig.name === "Pre-1500") {
-          targetClasses = "a.recentPre1500s";
-        } else if (self.currentConfig.name === "Project Feed") {
-          targetClasses = "a.newestProjectBadged, a.newt";
-        }
-      } else if ($(this).attr("id") === "onlyNewts") {
-        targetClasses = "a.newt";
-      }
-
-      self.debug(`WBE: Looking for elements with class: ${targetClasses}`);
-      self.debug(`WBE: Found ${$(targetClasses).length} highlighted elements`);
-
-      allItems.each(function () {
-        if ($(this).find(targetClasses).length == 0) {
-          $(this).toggle();
-        }
-      });
-      $(this).toggleClass("active");
-
-      // Toggle the button text based on current state
-      if ($(this).hasClass("active")) {
-        // Currently filtering - show "Show all" text
-        if ($(this).attr("id") === "onlyNewestBadges") {
-          $(this).text("Show All Activity");
-        } else if ($(this).attr("id") === "onlyNewts") {
-          $(this).text("Show All Activity");
-        }
-      } else {
-        // Currently showing all - show filter text
-        if ($(this).attr("id") === "onlyNewestBadges") {
-          if (self.currentConfig.name === "Pre-1700") {
-            $(this).text("Only Activity by Newly-Badged People");
-          } else if (self.currentConfig.name === "Pre-1500") {
-            $(this).text("Only Activity by Newly-Badged People");
-          } else if (self.currentConfig.name === "Project Feed") {
-            $(this).text("Only New and Newly-Badged Members");
-          }
-        } else if ($(this).attr("id") === "onlyNewts") {
-          $(this).text("Only Activity by New Members");
-        }
-      }
+      self.cycleNewMemberFilter(buttonId);
+      await self.applyFeedFilters();
     });
 
     $(document).on("click", "#feedHelperHideFilters .feed-helper-filter-btn", async (event) => {
@@ -4490,22 +4655,26 @@ class FeedHelper {
           `<button id="onlyNewestBadges" title="Show only activity by the 200 newest Pre-1700 badged people" class="button small">Only Activity by Newly-Badged People</button>`
         );
         this.feedHelperButtons.append(onlyNewestBadgesButton);
+        this.newMemberFilterButtonId = "onlyNewestBadges";
       } else if (this.currentConfig.name === "Pre-1500") {
         const onlyNewestBadgesButton = $(
           `<button id="onlyNewestBadges" title="Show only activity by newly-badged Pre-1500 people (last six months)" class="button small">Only Activity by Newly-Badged People</button>`
         );
         this.feedHelperButtons.append(onlyNewestBadgesButton);
+        this.newMemberFilterButtonId = "onlyNewestBadges";
       } else if (this.currentConfig.name === "Project Feed") {
         const onlyNewestBadgesButton = $(
           `<button id="onlyNewestBadges" title="Show only activity by people who recently received project badges or joined less than 6 months ago" class="button small">Only New and Newly-Badged Members</button>`
         );
         this.feedHelperButtons.append(onlyNewestBadgesButton);
+        this.newMemberFilterButtonId = "onlyNewestBadges";
       } else {
         // All other feed types get the new members filter
         const onlyNewtsButton = $(
           `<button id="onlyNewts" title="Show only activity by people who joined less than 6 months ago" class="button small">Only Activity by New Members</button>`
         );
         this.feedHelperButtons.append(onlyNewtsButton);
+        this.newMemberFilterButtonId = "onlyNewts";
       }
     }
   }
@@ -5579,13 +5748,28 @@ class FeedHelper {
       if (!href) {
         return;
       }
-      const match = href.match(/\/wiki\/([A-Za-z0-9_-]+)/);
-      if (match) {
-        const id = match[1];
-        if (!seen.has(id)) {
-          seen.add(id);
-          ids.push(id);
-        }
+      const match = href.match(/\/wiki\/([^/?#]+)/);
+      if (!match) {
+        return;
+      }
+
+      let id;
+      try {
+        id = decodeURIComponent(match[1]);
+      } catch (error) {
+        id = match[1];
+      }
+      // "Space%3AFoo" and "Space:Foo" are the same page.
+      id = id.replace(/^Space%3A/i, "Space:");
+
+      // Free-space pages, or plain person profile ids. Anything else is discarded.
+      if (!/^Space:.+/i.test(id) && !/^[A-Za-z0-9_-]+$/.test(id)) {
+        return;
+      }
+
+      if (!seen.has(id)) {
+        seen.add(id);
+        ids.push(id);
       }
     };
 
@@ -5865,7 +6049,7 @@ class FeedHelper {
 
 let feedHelper;
 
-shouldInitializeFeature("feedHelper").then((isEnabled) => {
+shouldInitializeFeature("feedHelper").then(async (isEnabled) => {
   if (isEnabled) {
     // Skip feed helper on NetworkFeed upgrade page
     const currentUrl = window.location.href;
@@ -5876,9 +6060,16 @@ shouldInitializeFeature("feedHelper").then((isEnabled) => {
       return;
     }
 
+    let options = {};
+    try {
+      options = (await getFeatureOptions("feedHelper")) || {};
+    } catch (error) {
+      console.error("FeedHelper: Unable to load feature options", error);
+    }
+
     import("./feed_helper.css");
     initBioCheck();
     $("body").addClass("feed-helper");
-    feedHelper = new FeedHelper();
+    feedHelper = new FeedHelper(options);
   }
 });

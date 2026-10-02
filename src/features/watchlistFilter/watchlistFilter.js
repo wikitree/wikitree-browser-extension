@@ -12,7 +12,7 @@ shouldInitializeFeature("watchlistFilter").then((result) => {
     const nextButton = document.querySelector("a.btn.btn-secondary, a[href*='start=']");
     const filterPanel = document.createElement("div");
     filterPanel.className =
-        "mb-2 p-2 border border-success rounded d-flex flex-wrap align-items-center";
+        "wbe mb-2 p-2 border border-success rounded d-flex flex-wrap align-items-center";
     filterPanel.innerHTML = `
     <div class="me-5">
       <strong>Management:</strong><br>

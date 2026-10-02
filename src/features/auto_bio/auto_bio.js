@@ -7,14 +7,15 @@ import { needsCategories } from "./needs.js";
 import { occupationCategories } from "./occupations.js";
 import { unsourcedCategories } from "./unsourced_categories.js";
 import { firstNameVariants } from "./first_name_variants.js";
-import { ageAtDeath, familyArray, isOK } from "../../core/common";
+import { ageAtDeath, familyArray, hasDiedYoungSticker, isOK } from "../../core/common";
 import { addLoginButton } from "../../core/loginButton";
 import { titleCase } from "../familyTimeline/familyTimeline";
 import { wtAPICatCIBSearch } from "../../core/API/wtPlusAPI";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { promiseWithTimeout } from "./asyncUtils.js";
 import { autoBioCheck, unsourced } from "./bioValidationUtils.js";
-import { analyzeColumns, EnglandCounties, parseFamilyDataLines, UKMetropolitanCities } from "./columnAnalysisUtils.js";
+import { EnglandCounties, parseFamilyDataLines, UKMetropolitanCities } from "./columnAnalysisUtils.js";
+import { buildHouseholdTableFromHousehold, parseCensusWikitable } from "./censusTableUtils.js";
 import {
   convertDate,
   convertMonth,
@@ -29,14 +30,28 @@ import {
 } from "./dateUtils.js";
 import { logMerge } from "./debugUtils.js";
 import { minimalPlace, nameLink } from "./displayUtils.js";
+import { citationDedupeKey, collapseCitationWhitespace, decodeHtmlEntities } from "./citationTextUtils.js";
+import { citationCouldBeAboutEvent, couldHaveServedIn, yearFromDate } from "./citationRelevanceUtils.js";
+import {
+  censusNarrativeFromBioSentence,
+  findCensusSentenceInBio,
+  tidyCensusResidence,
+} from "./censusNarrativeUtils.js";
 import { addWorking, getBioText, removeWorking, setBioText } from "./editorUtils.js";
 import { assignPersonNames, setOrderBirthDate } from "./auto_bio_person.js";
 // Find a Grave citation helpers removed per user request
 import {
+  extractPreBioNotes,
   findGenealogicallyDefinedLinePlacement,
-  isGenealogicallyDefinedLink,
+  findTemplatesToKeepByName,
+  getOneNameStudyCategories,
+  getPreBioTextLines,
+  getTemplateName,
+  removeNotesBeforeBio,
   sortStuffBeforeBioItems,
   splitStuffBeforeBioEntry,
+  templateNameKey,
+  withCanonicalTemplateName,
 } from "./preBioUtils.js";
 import {
   appalachiaStates,
@@ -44,9 +59,47 @@ import {
   fixUSLocation as fixUSLocationInStates,
   irishCounties,
   isSameDateOrAfter,
+  stripPersonNameFromPlace,
 } from "./locationUtils.js";
-import { getNameVariantsAll, getSimilarity, isSameName, namesMatchByFirstAndLast } from "./nameUtils.js";
+import { estimateChildListDate, joinChildBits } from "./childListUtils.js";
+import {
+  generationalSuffixesConflict,
+  getNameVariantsAll,
+  getSimilarity,
+  isSameName,
+  namesMatchByFirstAndLast,
+  matchesNameOrInitial,
+  possessiveName,
+  withoutGenerationalSuffix,
+} from "./nameUtils.js";
+import { sortPeopleByBirthDate } from "./peopleSortUtils.js";
 import { findBestMatch, searchName, topOfLineOnlyCondition } from "./onsUtils.js";
+import { addAutoBioUI, addErrorMessage, checkForAutoBioMarker, migrateAutoBioAiModelOptions } from "./autoBioUI.js";
+import { WBE_AUTO_BIO_APP_ID } from "./autoBioConstants.js";
+import { buildFamilyForPrivateProfiles, getBiographySpouseParents } from "./privateFamilyUtils.js";
+import {
+  addUniqueCategoryToStuffBeforeTheBio,
+  findUSState,
+  getLocationCategoriesForSourcePlaces,
+  getLocationCategory,
+  removeCountryName,
+  resolveAustralianCategoryLocation,
+} from "./locationCategoryUtils.js";
+import {
+  assignSelf,
+  createFamilyNarrative,
+  doHousehold,
+  extractHouseholdMembers,
+  findRelation,
+  getNameVariants,
+  isObject,
+  parseFamilyData,
+  parseWikiTable,
+  updateRelations,
+} from "./familyMatchUtils.js";
+import { normalizeTemplatesInSectionArray, splitBioIntoSections } from "./bioSectionUtils.js";
+import { spell } from "./spellingUtils.js";
+import { getUSStates, loadUSStates } from "./usStatesStore.js";
 import { getFormData, getPronouns } from "./profileUtils.js";
 import { capitalizeFirstLetter } from "./textUtils.js";
 import { initBioCheck } from "../bioCheck/bioCheck.js";
@@ -55,52 +108,11 @@ import { mainDomain, isIansProfile } from "../../core/pageType";
 import { profilePerson } from "../../core/common";
 import aiModels from "./ai_models.json";
 
-export const WBE_AUTO_BIO_APP_ID = "WBE_auto_bio";
-
 let bugReportMore = "";
 let templatesObject;
-let USstatesObjArray;
-
-const AUTO_BIO_AI_MODEL_CONFIG = {
-  openai: { optionId: "openAIModel", defaultModel: "gpt-5.4-mini", models: aiModels.openai },
-  gemini: { optionId: "geminiModel", defaultModel: "gemini-3.5-flash", models: aiModels.gemini },
-  claude: { optionId: "claudeModel", defaultModel: "claude-sonnet-5", models: aiModels.claude },
-  perplexity: { optionId: "perplexityModel", defaultModel: "sonar", models: aiModels.perplexity },
-  xai: { optionId: "xaiModel", defaultModel: "grok-4.3", models: aiModels.xai },
-};
-
-async function migrateAutoBioAiModelOptions(options) {
-  const normalized = { ...(options || {}) };
-  let changed = false;
-
-  const provider = normalized.aiProvider;
-  if (!AUTO_BIO_AI_MODEL_CONFIG[provider]) {
-    normalized.aiProvider = "openai";
-    changed = true;
-  }
-
-  for (const [providerId, config] of Object.entries(AUTO_BIO_AI_MODEL_CONFIG)) {
-    const validModelIds = new Set(config.models.map((model) => model.value));
-    const currentModel = normalized[config.optionId];
-    if (!currentModel || !validModelIds.has(currentModel)) {
-      normalized[config.optionId] = config.defaultModel;
-      changed = true;
-    }
-  }
-
-  if (changed) {
-    await chrome.storage.sync.set({ autoBio_options: normalized });
-  }
-
-  return normalized;
-}
-
-function findUSState(location) {
-  return findUSStateInStates(location, USstatesObjArray);
-}
 
 function fixUSLocation(event) {
-  return fixUSLocationInStates(event, USstatesObjArray, window.autoBioOptions, window.autoBioNotes);
+  return fixUSLocationInStates(event, getUSStates(), window.autoBioOptions, window.autoBioNotes);
 }
 
 function captureAutoBioFormState() {
@@ -114,19 +126,6 @@ function captureAutoBioFormState() {
     fieldState[fieldId] = field.val();
   });
   return fieldState;
-}
-
-function restoreAutoBioFormState(fieldState) {
-  if (!fieldState || typeof fieldState !== "object") {
-    return;
-  }
-
-  Object.entries(fieldState).forEach(([fieldId, fieldValue]) => {
-    const field = $("#" + fieldId);
-    if (field.length) {
-      field.val(fieldValue);
-    }
-  });
 }
 
 function personDates(person) {
@@ -206,7 +205,8 @@ function childList(person, spouse) {
       } else if (
         !person.Children[key].Displayed &&
         spouse == "other" &&
-        ((person.Children[key].Father == person.Id && person.Children[key].Mother == 0) ||
+        (person.Children[key].OtherParentUnknown ||
+          (person.Children[key].Father == person.Id && person.Children[key].Mother == 0) ||
           (person.Children[key].Mother == person.Id && person.Children[key].Father == 0))
       ) {
         ourChildren.push(person.Children[key]);
@@ -216,11 +216,24 @@ function childList(person, spouse) {
   }
   let possessive;
   if (spouse == false || spouse == "other") {
-    possessive = capitalizeFirstLetter(person.Pronouns.possessiveAdjective);
+    /* This list opens its own paragraph, so there is no earlier mention for "His" to refer
+    back to. Name the person instead; the spouse case keeps "Their" because it follows the
+    marriage sentence. */
+    possessive =
+      possessiveName(person.PersonName?.FirstName || person.FirstName) ||
+      capitalizeFirstLetter(person.Pronouns.possessiveAdjective);
   }
   let other = "";
   if (spouse == "other") {
-    other = "other ";
+    /* "Carrie's other daughter" only makes sense if children were listed under a marriage
+    first. When every child is in this group — which is what happens when the marriage was to
+    somebody the API will not return — they are simply her children. */
+    const childrenListedAlready = Object.keys(person.Children || {}).some(
+      (key) => person.Children[key].Displayed && !ourChildren.includes(person.Children[key])
+    );
+    if (childrenListedAlready) {
+      other = "other ";
+    }
   }
 
   let known = "";
@@ -244,7 +257,9 @@ function childList(person, spouse) {
   let childListText = "";
   //  || spouse == false
   if (ourChildren?.length == 1) {
-    if (ourChildren[0].Father == spouse.Id || ourChildren[0].Mother == spouse.Id || !spouse) {
+    /* ourChildren has already been filtered to this spouse (or to the "other" group), so
+    an only child in the "other" group must not fall through and blank the sentence. */
+    if (spouse == "other" || ourChildren[0].Father == spouse.Id || ourChildren[0].Mother == spouse.Id || !spouse) {
       const oDates = personDates(ourChildren[0]);
       const theDates = oDates ? oDates.replace(/(in|on)\s/g, "") : "";
       const status = getStatus(ourChildren[0]);
@@ -255,7 +270,7 @@ function childList(person, spouse) {
         childListText += "Private " + childWord + ".\n";
       } else {
         const refText = addRefsToRelation(window.references, ourChildren[0], "children");
-        childListText += nameLink(ourChildren[0]) + " " + theDates + " " + status + "." + refText + "\n";
+        childListText += joinChildBits(nameLink(ourChildren[0]), theDates, status) + "." + refText + "\n";
       }
     } else {
       text = "";
@@ -276,9 +291,12 @@ function childList(person, spouse) {
       if (window.autoBioOptions?.usePrivate && child?.Privacy < 30) {
         const childWord = child.Gender == "Male" ? "Son" : child?.Gender == "Female" ? "Daughter" : "Child";
         childListText += "Private " + childWord + "\n";
+        /* "Private Daughter" is the point of the option, so the list still has something to
+        introduce; without this a family of only private children loses its opening line. */
+        gotChild = true;
       } else {
         const refText = addRefsToRelation(window.references, child, "children");
-        childListText += nameLink(child) + " " + theDates + " " + status + refText + "\n";
+        childListText += joinChildBits(nameLink(child), theDates, status) + refText + "\n";
         gotChild = true;
       }
     });
@@ -295,125 +313,6 @@ function childList(person, spouse) {
     text = text.replace(/\s\.$/, ".");
   }
   return text;
-}
-
-function sortPeopleByBirthDate(people) {
-  // Define the priority for DataStatus.BirthDate
-  const birthDatePriority = {
-    before: 1,
-    certain: 2,
-    "": 3, // Blank or missing status
-    guess: 4,
-    after: 5,
-  };
-
-  /**
-   * Adjusts the OrderBirthDate based on the DataStatus.BirthDate status.
-   * If status is 'after', it moves the date immediately after the specified date.
-   *
-   * @param {string} dateStr - The original OrderBirthDate in 'YYYY-MM-DD' format.
-   * @param {string} status - The DataStatus.BirthDate status.
-   * @returns {Object} An object containing adjusted year, month, and day as integers.
-   */
-  function adjustDate(dateStr, status) {
-    const [yearStr, monthStr, dayStr] = dateStr.split("-");
-    let year = parseInt(yearStr, 10);
-    let month = parseInt(monthStr, 10);
-    let day = parseInt(dayStr, 10);
-
-    if (status === "after") {
-      if (month === 0 && day === 0) {
-        // Only year is present: set to January 1 of the next year
-        year += 1;
-        month = 1;
-        day = 1;
-      } else if (day === 0) {
-        // Year and month are present: set to the first day of the next month
-        month += 1;
-        if (month > 12) {
-          month = 1;
-          year += 1;
-        }
-        day = 1;
-      } else {
-        // Full date is present: increment the day by 1
-        day += 1;
-        // Determine the number of days in the current month
-        const daysInMonth = new Date(year, month, 0).getDate();
-        if (day > daysInMonth) {
-          day = 1;
-          month += 1;
-          if (month > 12) {
-            month = 1;
-            year += 1;
-          }
-        }
-      }
-    }
-
-    return { year, month, day };
-  }
-
-  /**
-   * Converts the adjusted date into a sortable array.
-   * Treats '00' as the earliest possible value for comparison.
-   *
-   * @param {Object} dateObj - An object containing year, month, and day.
-   * @returns {Array} An array [year, month, day] for comparison.
-   */
-  function getSortKey(dateObj) {
-    // Ensure that month and day are at least 1 for sorting purposes
-    // '00' will be treated as 0, which is less than any valid month/day
-    const sortMonth = dateObj.month || 0;
-    const sortDay = dateObj.day || 0;
-    return [dateObj.year, sortMonth, sortDay];
-  }
-
-  /**
-   * Custom comparison function for sorting.
-   *
-   * @param {Object} a - First person object.
-   * @param {Object} b - Second person object.
-   * @returns {number} Comparison result for sorting.
-   */
-  function comparePeople(a, b) {
-    const aStatus = a?.DataStatus?.BirthDate || "";
-    const bStatus = b?.DataStatus?.BirthDate || "";
-
-    const aAdjusted = adjustDate(a.OrderBirthDate, aStatus);
-    const bAdjusted = adjustDate(b.OrderBirthDate, bStatus);
-
-    const aKey = getSortKey(aAdjusted);
-    const bKey = getSortKey(bAdjusted);
-
-    // Compare year
-    if (aKey[0] !== bKey[0]) {
-      return aKey[0] - bKey[0];
-    }
-
-    // Compare month, treating 0 as less than any month
-    if (aKey[1] !== bKey[1]) {
-      if (aKey[1] === 0) return -1;
-      if (bKey[1] === 0) return 1;
-      return aKey[1] - bKey[1];
-    }
-
-    // Compare day, treating 0 as less than any day
-    if (aKey[2] !== bKey[2]) {
-      if (aKey[2] === 0) return -1;
-      if (bKey[2] === 0) return 1;
-      return aKey[2] - bKey[2];
-    }
-
-    // If adjusted dates are equal, sort based on DataStatus priority
-    const aPriority = birthDatePriority[aStatus] || 3;
-    const bPriority = birthDatePriority[bStatus] || 3;
-
-    return aPriority - bPriority;
-  }
-
-  // Perform the sort using the custom comparison function
-  people.sort(comparePeople);
 }
 
 export function siblingList() {
@@ -870,6 +769,9 @@ function addRefsToRelation(refs, person, relation) {
       if (["siblings", "children", "spouse"].includes(relation)) {
         const nameVariants = getNameVariants(person);
         //  console.log(`Checking reference name ${reference.Name} against name variants: ${nameVariants}`);
+        if (generationalSuffixesConflict(reference.Name, person.FullName || person.LongName)) {
+          return;
+        }
         if (!isSameName(reference.Name, nameVariants)) {
           //  console.log(`Reference name ${reference.Name} does not match any name variants.`);
           return;
@@ -1129,6 +1031,11 @@ export function buildSpouses(person) {
               continue; // likely not the same event
             }
 
+            /* This citation has been taken as evidence for a marriage to a spouse the profile
+            already has, so it must not also be read as evidence of a marriage to somebody else.
+            Whether the two names look alike is beside the point once the event is claimed. */
+            ref.MatchedToKnownSpouse = true;
+
             // Merge parsed fields into spouse where missing
             if (!spouse.Father && parsed.Parents) {
               // try to split parsed.Parents into father/mother
@@ -1254,8 +1161,11 @@ export function buildSpouses(person) {
               }
 
               if (spouseFatherObj && spouseFatherObj.Name) {
-                spouseDetailsA += "[[" + spouseFatherObj.Name + "|" + spouseFatherObj.PersonName?.FullName + "]]";
-                spouseDetailsB += "[[" + spouseFatherObj.Name + "|" + spouseFatherObj.PersonName?.FullName + "]]";
+                /* nameLink so that a spouse's parents are named the same way as everybody
+                else in the bio, following the "Name format" option. */
+                const parentLink = nameLink(spouseFatherObj);
+                spouseDetailsA += parentLink;
+                spouseDetailsB += parentLink;
                 if (spouseFatherObj.BirthDate && window.autoBioOptions?.includeSpouseParentsDates) {
                   spouseDetailsA += " " + formatDates(spouseFatherObj);
                   spouseDetailsB += " " + formatDates(spouseFatherObj);
@@ -1288,8 +1198,11 @@ export function buildSpouses(person) {
               }
 
               if (spouseMotherObj && spouseMotherObj.Name) {
-                spouseDetailsA += "[[" + spouseMotherObj.Name + "|" + spouseMotherObj.PersonName?.FullName + "]]";
-                spouseDetailsB += "[[" + spouseMotherObj.Name + "|" + spouseMotherObj.PersonName?.FullName + "]]";
+                /* nameLink so that a spouse's parents are named the same way as everybody
+                else in the bio, following the "Name format" option. */
+                const parentLink = nameLink(spouseMotherObj);
+                spouseDetailsA += parentLink;
+                spouseDetailsB += parentLink;
                 if (spouseMotherObj.BirthDate && window.autoBioOptions?.includeSpouseParentsDates) {
                   spouseDetailsA += " " + formatDates(spouseMotherObj);
                   spouseDetailsB += " " + formatDates(spouseMotherObj);
@@ -1412,7 +1325,7 @@ export function buildSpouses(person) {
             foundSpouse = true;
           }
         });
-        if (foundSpouse == false && thisSpouse) {
+        if (foundSpouse == false && thisSpouse && !isProfilePersonName(thisSpouse) && !reference.MatchedToKnownSpouse) {
           console.log("[buildSpouses] Unmatched reference for spouse:", { thisSpouse, firstNameAndYear });
           let text = ""; // ensure text is defined for later Narrative assembly
           // compute marriage date and the profile person's age at that marriage
@@ -1993,7 +1906,18 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
   if (countryPatternMatch) {
     //if we have a match on the country pattern
     if (countryPatternMatch[2]) {
-      const thisLocation = countryPatternMatch[2].replace(/.*household of.*,\s/, "");
+      const thisLocation = stripPersonNameFromPlace(countryPatternMatch[2].replace(/.*household of.*,\s/, ""), {
+        firstNames: [
+          window.profilePerson?.PersonName?.FirstName,
+          window.profilePerson?.FirstName,
+          window.profilePerson?.RealName,
+        ],
+        lastNames: [
+          window.profilePerson?.LastNameAtBirth,
+          window.profilePerson?.LastNameCurrent,
+          window.profilePerson?.LastNameOther,
+        ],
+      });
       const thisMinimalPlace = minimalPlace(thisLocation);
       if (!text) {
         text += window.profilePerson.PersonName?.FirstName + ageBit + " was living in " + thisMinimalPlace + ".";
@@ -2005,10 +1929,6 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
   text = getHouseholdOfRelationAndName(text, reference);
   text = text.replace(/ +/g, " ");
   return [text, reference];
-}
-
-function isObject(thing) {
-  return Object.prototype.toString.call(thing) === "[object Object]";
 }
 
 function getHouseholdOfRelationAndName(text, reference = null) {
@@ -2071,15 +1991,22 @@ function getHouseholdOfRelationAndName(text, reference = null) {
             }
 
             householdHeadMatch[1] = householdHeadMatch[1].split(" (")[0];
-            text = text.replace(
-              householdHeadMatch[1],
+            const headReplacement =
               window.profilePerson.Pronouns.possessiveAdjective +
-                " " +
-                relationWord +
-                ", " +
-                window.profilePerson[relation][key].FirstName +
-                ","
-            );
+              " " +
+              relationWord +
+              ", " +
+              window.profilePerson[relation][key].FirstName +
+              ",";
+            /* Anchor the swap to "household of X". A father and son often share a name,
+            so a bare replace would rewrite the profile person's own name instead. */
+            const escapedHeadName = householdHeadMatch[1].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const householdOfHeadPattern = new RegExp("(household\\sof\\s)" + escapedHeadName);
+            if (householdOfHeadPattern.test(text)) {
+              text = text.replace(householdOfHeadPattern, "$1" + headReplacement);
+            } else {
+              text = text.replace(householdHeadMatch[1], headReplacement);
+            }
           }
         });
       }
@@ -2087,429 +2014,6 @@ function getHouseholdOfRelationAndName(text, reference = null) {
     text = text.replace(/in the household of her husband/, "living with her husband").replace(",.", ".");
   }
   return text;
-}
-
-/**
-Update relations of people in a household based on the information of a profile person.
-@param {Object[]} household - An array of objects representing people in a household.
-@returns {Object[]} - An array of objects representing people in the household with updated relations.
-*/
-function updateRelations(household) {
-  let data = household;
-
-  // Find self
-  const selfIndex = data.findIndex((person) => person.Relation === "Self");
-
-  if (selfIndex < 0) {
-    // Self is not in the household, return the original data
-    return data;
-  }
-  const self = data[selfIndex];
-  self.Gender = window.profilePerson.Gender;
-  const excludes = ["Head"];
-  if (!excludes.includes(self.originalRelation)) {
-    data.forEach(function (person, index) {
-      if (person.Relation != "Self") {
-        if (index != selfIndex) {
-          switch (person.censusRelation || person.originalRelation) {
-            case "Head":
-              switch (self.censusRelation || self.originalRelation) {
-                case "Son":
-                case "Daughter":
-                  person.Relation = person.Gender == "Female" ? "Mother" : "Father";
-                  break;
-                case "Brother":
-                case "Sister":
-                  person.Relation = person.Gender == "Female" ? "Sister-in-law" : "Brother-in-law";
-                  break;
-                case "Father":
-                case "Mother":
-                  person.Relation = person.Gender == "Female" ? "Daughter" : "Son";
-                  break;
-                case "Wife":
-                  person.Relation = "Husband";
-                  break;
-                case "Son-in-law":
-                case "Daughter-in-law":
-                  person.Relation = person.Gender == "Female" ? "Mother-in-law" : "Father-in-law";
-                  break;
-                case "Mother-in-law":
-                case "Father-in-law":
-                  person.Relation = person.Gender == "Female" ? "Daughter-in-law" : "Son-in-law";
-                  break;
-                case "Brother-in-law":
-                case "Sister-in-law":
-                  person.Relation = person.Gender == "Female" ? "Sister-in-law" : "Brother-in-law";
-                  break;
-              }
-              break;
-            case "Wife":
-              switch (self.censusRelation || self.originalRelation) {
-                case "Son":
-                case "Daughter":
-                  person.Relation = "Mother";
-                  break;
-                case "Brother":
-                case "Sister":
-                  person.Relation = "Sister-in-law";
-                  break;
-                case "Father":
-                case "Mother":
-                  person.Relation = "Daughter-in-law";
-                  break;
-                case "Brother-in-law":
-                  person.Relation = "Brother";
-                  break;
-                case "Sister-in-law":
-                  person.Relation = "Sister";
-                  break;
-                case "Father-in-law":
-                case "Mother-in-law":
-                  person.Relation = "Daughter";
-                  break;
-                case "Son-in-law":
-                case "Daughter-in-law":
-                  person.Relation = "Mother-in-law";
-                  break;
-              }
-              break;
-            case "Son":
-              switch (self.censusRelation || self.originalRelation) {
-                case "Son":
-                case "Daughter":
-                  person.Relation = "Brother";
-                  break;
-                case "Brother":
-                case "Sister":
-                  person.Relation = "Nephew";
-                  break;
-                case "Father":
-                case "Mother":
-                  person.Relation = "Grandson";
-                  break;
-                case "Wife":
-                  person.Relation = "Son";
-                  break;
-                case "Son-in-law":
-                  person.Relation = "Brother-in-law";
-                  break;
-                case "Daughter-in-law":
-                  person.Name.split(" ").slice(-1)[0] == self.Name.split(" ").slice(-1)[0]
-                    ? (person.Relation = "Husband")
-                    : (person.Relation = "Brother-in-law");
-                  break;
-              }
-              break;
-            case "Daughter":
-              switch (self.censusRelation || self.originalRelation) {
-                case "Son":
-                case "Daughter":
-                  person.Relation = "Sister";
-                  break;
-                case "Brother":
-                case "Sister":
-                  person.Relation = "Niece";
-                  break;
-                case "Father":
-                case "Mother":
-                  person.Relation = "Granddaughter";
-                  break;
-                case "Wife":
-                  person.Relation = "Daughter";
-                  break;
-                case "Son-in-law":
-                  person.Name.split(" ").slice(-1)[0] == self.Name.split(" ").slice(-1)[0]
-                    ? (person.Relation = "Wife")
-                    : (person.Relation = "Sister-in-law");
-                  break;
-                case "Daughter-in-law":
-                  person.Relation = "Sister-in-law";
-                  break;
-              }
-              break;
-            case "Mother":
-              switch (self.censusRelation || self.originalRelation) {
-                case "Son":
-                case "Daughter":
-                  person.Relation = "Grandmother";
-                  break;
-                case "Brother":
-                case "Sister":
-                  person.Relation = "Mother";
-                  break;
-                case "Father":
-                  person.Relation = "Wife";
-                  break;
-                case "Wife":
-                  person.Relation = "Mother-in-law";
-                  break;
-              }
-              break;
-            case "Father":
-              switch (self.censusRelation || self.originalRelation) {
-                case "Son":
-                case "Daughter":
-                  person.Relation = "Grandfather";
-                  break;
-                case "Brother":
-                case "Sister":
-                  person.Relation = "Father";
-                  break;
-                case "Mother":
-                  person.Relation = "Husband";
-                  break;
-                case "Wife":
-                  person.Relation = "Father-in-law";
-                  break;
-              }
-              break;
-            case "Brother":
-              switch (self.censusRelation || self.originalRelation) {
-                case "Son":
-                case "Daughter":
-                  person.Relation = "Uncle";
-                  break;
-                case "Brother":
-                case "Sister":
-                  person.Relation = "Brother";
-                  break;
-                case "Father":
-                case "Mother":
-                  person.Relation = "Son";
-                  break;
-                case "Wife":
-                  person.Relation = "Brother-in-law";
-                  break;
-              }
-              break;
-            case "Sister":
-              switch (self.censusRelation || self.originalRelation) {
-                case "Son":
-                case "Daughter":
-                  person.Relation = "Aunt";
-                  break;
-                case "Brother":
-                case "Sister":
-                  person.Relation = "Sister";
-                  break;
-                case "Father":
-                case "Mother":
-                  person.Relation = "Daughter";
-                  break;
-                case "Wife":
-                  person.Relation = "Sister-in-law";
-                  break;
-              }
-              break;
-            case "Grandson":
-              switch (self.censusRelation || self.originalRelation) {
-                case "Son":
-                case "Daughter":
-                  person.Relation = "Nephew";
-                  break;
-                case "Brother":
-                case "Sister":
-                  person.Relation = "Grand-nephew";
-                  break;
-                case "Father":
-                case "Mother":
-                  person.Relation = "Great-grandson";
-                  break;
-                case "Wife":
-                  person.Relation = "Grandson";
-                  break;
-                case "Son-in-law":
-                  person.Name.split(" ").slice(-1)[0] == self.Name.split(" ").slice(-1)[0]
-                    ? (person.Relation = "Son")
-                    : "";
-                  break;
-                case "Daughter-in-law":
-                  person.Name.split(" ").slice(-1)[0] == self.Name.split(" ").slice(-1)[0]
-                    ? (person.Relation = "Son")
-                    : "";
-                  break;
-              }
-              break;
-            case "Granddaughter":
-              switch (self.censusRelation || self.originalRelation) {
-                case "Son":
-                case "Daughter":
-                  person.Relation = "Niece";
-                  break;
-                case "Brother":
-                case "Sister":
-                  person.Relation = "Grand-niece";
-                  break;
-                case "Father":
-                case "Mother":
-                  person.Relation = "Great-granddaughter";
-                  break;
-                case "Wife":
-                  person.Relation = "Granddaughter";
-                  break;
-                case "Son-in-law":
-                  person.Name.split(" ").slice(-1)[0] == self.Name.split(" ").slice(-1)[0]
-                    ? (person.Relation = "Daughter")
-                    : "";
-                  break;
-                case "Daughter-in-law":
-                  person.Name.split(" ").slice(-1)[0] == self.Name.split(" ").slice(-1)[0]
-                    ? (person.Relation = "Daughter")
-                    : "";
-                  break;
-              }
-              break;
-          }
-        }
-      }
-      if (!person.Relation) {
-        person.Relation = findRelation(person);
-      }
-    });
-  } else {
-    data.forEach(function (person) {
-      if (person.Relation != "Self") {
-        person.Relation = person.originalRelation;
-      }
-    });
-  }
-  return data;
-}
-
-function findRelation(person) {
-  let relationWord;
-  if (!person.FirstName) {
-    if (person.Name) {
-      person.FirstName = person.Name.split(" ")[0];
-    }
-  }
-  ["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
-    if (window.profilePerson[relation]) {
-      let relationSingular = relation.slice(0, -1);
-      if (relationSingular == "Childre") {
-        relationSingular = "Child";
-      }
-      if (isObject(window.profilePerson[relation])) {
-        let keys = Object.keys(window.profilePerson[relation]);
-        keys.forEach(function (key) {
-          let skip = false;
-          const oNameVariants = getNameVariantsAll(person.FirstName, firstNameVariants);
-          if (isSameName(window.profilePerson[relation][key].FirstName, oNameVariants)) {
-            if (person.BirthYear) {
-              const isWithin = isWithinX(
-                person.BirthYear,
-                window.profilePerson[relation][key].BirthDate.slice(0, 4),
-                5
-              );
-              if (!isWithin) {
-                skip = true;
-              }
-            }
-            if (window.profilePerson[relation][key].Gender && skip == false) {
-              let oGender = window.profilePerson[relation][key].Gender;
-              relationWord =
-                relationSingular == "Child"
-                  ? oGender == "Male"
-                    ? "Son"
-                    : oGender == "Female"
-                    ? "Daughter"
-                    : "Child"
-                  : relationSingular == "Parent"
-                  ? oGender == "Male"
-                    ? "Father"
-                    : oGender == "Female"
-                    ? "Mother"
-                    : "Parent"
-                  : relationSingular == "Sibling"
-                  ? oGender == "Male"
-                    ? "Brother"
-                    : oGender == "Female"
-                    ? "Sister"
-                    : "Sibling"
-                  : relationSingular == "Spouse"
-                  ? oGender == "Male"
-                    ? "Husband"
-                    : oGender == "Female"
-                    ? "Wife"
-                    : "Spouse"
-                  : relationSingular;
-            }
-          }
-        });
-      }
-    }
-  });
-  if (!relationWord) {
-    const needsProfilesList = window.sectionsObject["Research Notes"].subsections.NeedsProfiles;
-    if (needsProfilesList) {
-      needsProfilesList.forEach(function (needed) {
-        if (getSimilarity(needed.Name, person.Name) > 0.9 && !relationWord) {
-          relationWord = needed.Relation;
-        }
-      });
-    }
-  }
-  return relationWord;
-}
-
-function extractHouseholdMembers(row) {
-  if (!row) {
-    return [];
-  }
-  const brRegex = /<br\s*\/?>/gi;
-  const rowDataSplit = row.split("||");
-  let rowData;
-  if (rowDataSplit[1]) {
-    rowData = rowDataSplit[1].trim();
-    const lines = rowData.split(brRegex);
-    return lines;
-  } else {
-    return [];
-  }
-}
-
-function parseCensusWikitable(text) {
-  let rowHadBold = false;
-  let lines = text.split("\n");
-  lines = lines.filter(
-    (line) => !line.startsWith("|-") && !line.startsWith("|+") && !line.startsWith("{|") && !line.startsWith("!")
-  ); // Filter out non-data rows
-  const columnMapping = analyzeColumns(lines);
-  const data = [];
-  lines.forEach((line, index) => {
-    if (!line.startsWith("|-") && !line.startsWith("|}") && index > 0 && !line.includes(" Age ")) {
-      const row = {};
-      const parts = line.split("||");
-      parts.forEach((part, index) => {
-        part = part.replace(/^\s*\||\s*\|$/, "").trim();
-        const key = Object.keys(columnMapping).find((key) => columnMapping[key] === String(index));
-        if (part && key) {
-          if (part.includes("'''")) {
-            rowHadBold = true;
-            part = part.replace(/'''/g, "").trim();
-          }
-          row[key] = part;
-        }
-      });
-      if (rowHadBold) {
-        row.Relation = "Self"; // Set the relation to Self
-      }
-      if (Object.keys(row)?.length > 0) {
-        data.push(row);
-      }
-    }
-    rowHadBold = false; // Reset for the next row
-  });
-
-  return data;
-}
-
-function parseFamilyData(familyData, options = { format: "list", year: "" }) {
-  if (options.format === "wikitable") {
-    return parseCensusWikitable(familyData);
-  }
-
-  return parseFamilyDataLines(familyData, options);
 }
 
 function parseCensusData(censusData) {
@@ -2565,7 +2069,55 @@ function addAges() {
   });
 }
 
+/**
+ * Whether a name from a record is the person whose profile this is, however it is written.
+ * Records abbreviate ("C F Coombes"), and a name that is not recognised as theirs becomes a
+ * stranger: a spouse they married, or somebody who needs a profile creating.
+ */
+function isProfilePersonName(name) {
+  if (!name) {
+    return false;
+  }
+  return (
+    isSameName(name, window.profilePerson?.NameVariants || []) ||
+    namesMatchByFirstAndLast(name, window.profilePerson?.PersonName?.BirthName) ||
+    namesMatchByFirstAndLast(name, window.profilePerson?.PersonName?.FullName)
+  );
+}
+
+/**
+ * Whether a name from a record belongs to somebody already linked to this profile. Records name
+ * a woman by her birth surname where WikiTree has her married name, so compare against both.
+ */
+function isKnownRelativeName(name) {
+  if (!name) {
+    return false;
+  }
+  return ["Parents", "Siblings", "Spouses", "Children"].some(function (relation) {
+    const family = window.profilePerson?.[relation];
+    if (!family || typeof family !== "object") {
+      return false;
+    }
+    return Object.keys(family).some(function (key) {
+      const relative = family[key];
+      return (
+        namesMatchByFirstAndLast(name, relative?.PersonName?.FullName) ||
+        namesMatchByFirstAndLast(name, relative?.PersonName?.BirthName)
+      );
+    });
+  });
+}
+
 function addToNeedsProfilesCreated(householdMember) {
+  // The person whose profile this is never needs a profile creating.
+  if (isProfilePersonName(householdMember?.Name)) {
+    return;
+  }
+  // Neither does somebody already in the tree, whichever name the record used for them.
+  if (isKnownRelativeName(householdMember?.Name)) {
+    return;
+  }
+
   let inNeedsProfiles = false;
   window.sectionsObject["Research Notes"].subsections.NeedsProfiles.forEach(function (person) {
     if (person.Name == householdMember.Name) {
@@ -2699,7 +2251,7 @@ function parseSourcerFamilyListWithBRs(reference) {
   return reference;
 }
 
-function buildCensusNarratives() {
+function buildCensusNarratives(previousBioText = "") {
   // getCensusesFromCensusSection();
   window.references.forEach(function (reference) {
     const isCensusReference = reference.Text.match(/census|1939( England and Wales)? Register/i);
@@ -2916,7 +2468,16 @@ function buildCensusNarratives() {
           reference = fsCensus[1];
           censusRest += fsCensus[0];
         }
-        if (censusRest) {
+        /* With no household to describe, all Auto Bio can do is rearrange the words of the
+        citation. A sentence already written about this census in the old bio says it better,
+        so use that instead when there is one. */
+        const bioCensusSentence = findCensusSentenceInBio(previousBioText, {
+          year: reference["Census Year"],
+          names: nameVariants.filter(Boolean),
+        });
+        if (bioCensusSentence) {
+          text = censusNarrativeFromBioSentence(bioCensusSentence, reference["Census Year"]);
+        } else if (censusRest) {
           text += censusIntro + censusRest.replace(/^\n/, "");
         }
         // Switch "in the household of NAME" to "in the household of her father, Frederick" (for example)
@@ -2994,727 +2555,13 @@ function buildCensusNarratives() {
         }
       }
       if (text) {
-        reference.Narrative = text.replace(" ;", "");
+        /* The sentence is built from pieces that each carry their own spacing, so runs of
+        spaces collect between them ("was living  in Barnsley"). Newlines are left alone. */
+        reference.Narrative = text.replace(" ;", "").replace(/ {2,}/g, " ").replace(/ +\./g, ".");
       }
       reference.OrderDate = formatDate(reference["Census Year"], 0, { format: 8 });
     }
   });
-}
-
-function createFamilyNarrative(familyMembers) {
-  const mainPerson = familyMembers.find((member) => member.Relation === "Self");
-  const lastNameMatchRegex = new RegExp(
-    window.profilePerson.LastNameAtBirth + "|" + window.profilePerson.LastNameAtBirth
-  );
-  if (mainPerson) {
-    const lastNameMatch = mainPerson.Name.match(lastNameMatchRegex);
-    if (lastNameMatch) {
-      mainPerson.LastName = lastNameMatch[0];
-    } else {
-      mainPerson.LastName = mainPerson.Name.split(" ").slice(-1)[0];
-    }
-  }
-  let narrative = "";
-
-  const spouse = familyMembers.find((member) => member.Relation === "Wife" || member.Relation === "Husband");
-  const children = familyMembers.filter((member) => member.Relation === "Daughter" || member.Relation === "Son");
-  const siblings = familyMembers.filter((member) => member.Relation === "Brother" || member.Relation === "Sister");
-  const parents = familyMembers.filter((member) => member.Relation === "Father" || member.Relation === "Mother");
-
-  const others = familyMembers.filter(
-    (member) =>
-      !["Self", "Wife", "Husband", "Daughter", "Son", "Brother", "Sister", "Father", "Mother"].includes(member.Relation)
-  );
-
-  const removeMainPersonLastName = (name) => {
-    if (!name) return name;
-    const names = name.split(" ");
-    let lastNameAtBirth = window.profilePerson.LastNameAtBirth;
-    let lastNameCurrent = window.profilePerson.LastNameCurrent;
-    let mainPersonLastName = mainPerson ? mainPerson.LastName : lastNameAtBirth;
-
-    // Check if the last name in the 'names' array matches either the main person's last name or the current last name, and remove it if it does
-    if (names[names.length - 1] === mainPersonLastName || names[names.length - 1] === lastNameCurrent) {
-      names.pop();
-    }
-
-    return names.join(" ");
-  };
-
-  let spouseBit = "";
-  if (spouse) {
-    spouseBit = `${
-      window.profilePerson.Pronouns.possessiveAdjective
-    } ${spouse.Relation?.toLowerCase()}, ${removeMainPersonLastName(spouse.Name)} (${spouse.Age})`;
-  }
-
-  let childrenBit = "";
-  if (children?.length > 0) {
-    if (spouse) {
-      childrenBit += ` their `;
-    } else {
-      if (window.profilePerson.Gender == "Male") {
-        childrenBit += ` his `;
-      } else if (window.profilePerson.Gender == "Female") {
-        childrenBit += ` her `;
-      } else {
-        childrenBit += ` their `;
-      }
-    }
-    if (children?.length === 1) {
-      childrenBit += `${children[0].Relation?.toLowerCase()}, `;
-    } else {
-      childrenBit += `children, `;
-    }
-    children.forEach((child, index) => {
-      const childAge = child.Age ? ` (${child.Age})` : "";
-      childrenBit += `${removeMainPersonLastName(child.Name)} ${childAge}`;
-      if (index === children?.length - 2) {
-        childrenBit += `, and `;
-      } else if (index !== children?.length - 1) {
-        childrenBit += `, `;
-      }
-    });
-  }
-
-  let siblingsBit = "";
-  if (siblings?.length > 0) {
-    if (siblings?.length === 1) {
-      if (siblings[0].Relation === "Brother") {
-        siblingsBit += `${window.profilePerson.Pronouns.possessiveAdjective} brother, `;
-      } else {
-        siblingsBit += `${window.profilePerson.Pronouns.possessiveAdjective} sister, `;
-      }
-    } else {
-      siblingsBit += `${window.profilePerson.Pronouns.possessiveAdjective} siblings, `;
-    }
-    siblings.forEach((sibling, index) => {
-      siblingsBit += `${removeMainPersonLastName(sibling.Name)} (${sibling.Age})`;
-      if (index === siblings?.length - 2) {
-        siblingsBit += `, and `;
-      } else if (index !== siblings?.length - 1) {
-        siblingsBit += `, `;
-      }
-    });
-  }
-
-  let parentsBit = "";
-  if (parents?.length > 0) {
-    if (parents?.length === 1) {
-      if (parents[0].Relation === "Father") {
-        parentsBit += `${window.profilePerson.Pronouns.possessiveAdjective} father, `;
-      } else {
-        parentsBit += `${window.profilePerson.Pronouns.possessiveAdjective} mother, `;
-      }
-    } else {
-      parentsBit += `${window.profilePerson.Pronouns.possessiveAdjective} parents, `;
-    }
-    parents.forEach((parent, index) => {
-      parentsBit += `${removeMainPersonLastName(parent.Name)} (${parent.Age})`;
-      if (index === parents?.length - 2) {
-        parentsBit += ` and `;
-      }
-    });
-  }
-
-  let othersBit = "";
-  if (others?.length > 0) {
-    if (parentsBit || siblingsBit || childrenBit || spouseBit) {
-      othersBit += "; and ";
-    }
-    let oRelation;
-    let oRelationStr;
-    others.forEach((other, index) => {
-      oRelation = other.Relation;
-      oRelationStr = oRelation ? ", " + oRelation?.toLowerCase() : "";
-      othersBit += other.Name + " (" + other.Age + oRelationStr + ")";
-
-      if (index === others?.length - 2) {
-        othersBit += ", and ";
-      } else if (index !== others?.length - 1) {
-        othersBit += ", ";
-      }
-    });
-  }
-  if (spouse) {
-    narrative +=
-      spouseBit +
-      (childrenBit
-        ? !othersBit && !siblingsBit && !parentsBit && spouseBit != ""
-          ? "; and "
-          : spouseBit
-          ? "; "
-          : ""
-        : "") +
-      childrenBit +
-      (parentsBit ? (!othersBit && !siblingsBit ? "; and " : "; ") : "") +
-      parentsBit +
-      (siblingsBit ? (!othersBit ? "; and " : "; ") : "") +
-      siblingsBit +
-      othersBit;
-  } else {
-    narrative +=
-      parentsBit +
-      (childrenBit ? (!othersBit && !siblingsBit && parentsBit ? "; and " : "; ") : "") +
-      childrenBit +
-      (siblingsBit ? (!othersBit ? "; and " : "; ") : "") +
-      siblingsBit +
-      othersBit;
-  }
-  narrative += ".";
-
-  return narrative
-    .replaceAll(/\s;/g, "")
-    .replace(/with\sand/g, "with")
-    .replace(/\s{2,}/, " ");
-}
-
-function buildHouseholdTableFromHousehold(household) {
-  if (!Array.isArray(household) || household.length === 0) {
-    return "";
-  }
-
-  const ignoredKeys = new Set([
-    "isMain",
-    "HasProfile",
-    "LastNameAtBirth",
-    "FirstName",
-    "MiddleName",
-    "Census",
-    "censusRelation",
-  ]);
-  const preferredOrder = [
-    "Name",
-    "Relation",
-    "Status",
-    "MaritalStatus",
-    "Sex",
-    "Gender",
-    "Age",
-    "Occupation",
-    "Birth Place",
-    "Birthplace",
-    "Residence",
-    "BurialPlace",
-    "Link",
-  ];
-  const headers = [];
-
-  household.forEach((person) => {
-    Object.keys(person || {}).forEach((key) => {
-      if (ignoredKeys.has(key)) {
-        return;
-      }
-      if (key === "originalRelation") {
-        if (!headers.includes("Relation") && !headers.includes("originalRelation")) {
-          headers.push("Relation");
-        }
-        return;
-      }
-      if (key === "Gender" && headers.includes("Sex")) {
-        return;
-      }
-      if (key === "Birthplace" && headers.includes("Birth Place")) {
-        return;
-      }
-      if (!headers.includes(key)) {
-        headers.push(key);
-      }
-    });
-  });
-
-  if (headers.length === 0) {
-    return "";
-  }
-
-  headers.sort((left, right) => {
-    const leftIndex = preferredOrder.indexOf(left);
-    const rightIndex = preferredOrder.indexOf(right);
-    if (leftIndex === -1 && rightIndex === -1) {
-      return left.localeCompare(right);
-    }
-    if (leftIndex === -1) {
-      return 1;
-    }
-    if (rightIndex === -1) {
-      return -1;
-    }
-    return leftIndex - rightIndex;
-  });
-
-  const tableLines = ['{| border="1" cellpadding="4"', "|- bgcolor=#E1F0B4", `| ${headers.join(" || ")}`];
-
-  household.forEach((person) => {
-    const highlightRow = person?.isMain || person?.Relation === "Self";
-    const row = headers.map((header) => {
-      let value = "";
-      if (header === "Relation") {
-        value =
-          person.Relation === "Self"
-            ? person.originalRelation || person.Relation || ""
-            : person.Relation || person.originalRelation || "";
-      } else if (header === "Sex") {
-        value = person.Sex || (person.Gender === "Male" ? "M" : person.Gender === "Female" ? "F" : person.Gender || "");
-      } else if (header === "Birth Place") {
-        value = person["Birth Place"] || person.Birthplace || "";
-      } else {
-        value = person[header] || "";
-      }
-
-      const cleanValue = `${value}`.replace(/\n+/g, " ").trim();
-      return highlightRow && cleanValue ? `'''${cleanValue}'''` : cleanValue;
-    });
-
-    tableLines.push("|-");
-    tableLines.push(`| ${row.join(" || ")}`);
-  });
-
-  tableLines.push("|}");
-  return tableLines.join("\n");
-}
-
-function doHousehold(aRef) {
-  if (!aRef.Household) {
-    return aRef;
-  }
-  aRef.Household.forEach(function (aMember) {
-    if (
-      isSameName(aMember.Name, window.profilePerson.NameVariants) &&
-      isWithinX(getAgeAtCensus(window.profilePerson, aRef["Year"]), aMember.Age, 5)
-    ) {
-      aMember.Relation = "Self";
-    } else if (aRef["Relation to Head"] && aMember.Relation) {
-      if (["Son", "Daughter"].includes(aRef["Relation to Head"])) {
-        if (aMember.Relation == "Son") {
-          aMember.Relation = "Brother";
-        } else if (aMember.Relation == "Daughter") {
-          aMember.Relation = "Sister";
-        } else if (aMember.Relation == "Wife") {
-          aMember.Relation = "Mother";
-        } else if (aMember.Relation == "Husband") {
-          aMember.Relation = "Father";
-        } else if (aMember.Relation == "Child") {
-          aMember.Relation = "Sibling";
-        }
-      } else if (["Brother", "Sister"].includes(aRef["Relation to Head"])) {
-        if (aMember.Relation == "Son") {
-          aMember.Relation = "Nephew";
-        } else if (aMember.Relation == "Daughter") {
-          aMember.Relation = "Niece";
-        } else if (aMember.Relation == "Wife") {
-          aMember.Relation = "Sister-in-law";
-        } else if (aMember.Relation == "Husband") {
-          aMember.Relation = "Brother-in-law";
-        } else if (aMember.Relation == "Child") {
-          aMember.Relation = "Nephew/Niece";
-        }
-      } else if (["Father", "Mother"].includes(aRef["Relation to Head"])) {
-        if (aMember.Relation == "Son") {
-          aMember.Relation = "Grandson";
-        } else if (aMember.Relation == "Daughter") {
-          aMember.Relation = "Granddaughter";
-        } else if (aMember.Relation == "Wife") {
-          aMember.Relation = "Daughter-in-law";
-        } else if (aMember.Relation == "Husband") {
-          aMember.Relation = "Son-in-law";
-        } else if (aMember.Relation == "Child") {
-          aMember.Relation = "Grandson/Granddaughter";
-        }
-      }
-    }
-    ["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
-      let oKeys = Object.keys(window.profilePerson[relation]);
-      oKeys.forEach(function (aKey) {
-        let aPerson = window.profilePerson[relation][aKey];
-        let theRelation;
-
-        if (
-          isSameName(aMember.Name, getNameVariants(aPerson)) &&
-          isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5)
-        ) {
-          aMember.HasProfile = true;
-          if (aPerson.Gender) {
-            aMember.Gender = aPerson.Gender;
-            if (aMember.Gender == "Male") {
-              theRelation =
-                relation == "Parents"
-                  ? "Father"
-                  : relation == "Siblings"
-                  ? "Brother"
-                  : relation == "Spouses"
-                  ? "Husband"
-                  : relation == "Children"
-                  ? "Son"
-                  : "";
-            }
-            if (aMember.Gender == "Female") {
-              theRelation =
-                relation == "Parents"
-                  ? "Mother"
-                  : relation == "Siblings"
-                  ? "Sister"
-                  : relation == "Spouses"
-                  ? "Wife"
-                  : relation == "Children"
-                  ? "Daughter"
-                  : "";
-            }
-          }
-          aMember.Relation = theRelation;
-          aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
-        } else if (aRef.Father == aMember.Name && aRef.Age < aMember.Age) {
-          aMember.Relation = "Father";
-        } else if (aRef.Mother == aMember.Name && aRef.Age < aMember.Age) {
-          aMember.Relation = "Mother";
-        }
-      });
-    });
-  });
-  return aRef;
-}
-
-function parseWikiTable(aRef) {
-  const text = aRef.Text;
-  const rows = text.split("\n");
-  let data = {};
-
-  const yearRegex = /\b(1[789]\d{2})\b(?!-)/;
-  let match = text.match(yearRegex);
-  if (match) {
-    data["Year"] = match[1];
-  }
-
-  // Parse main table
-  // If Household Members has been reached, stop parsing
-  let reachedHouseholdMembers = false;
-  for (const row of rows) {
-    if (row.match("Household Members")) {
-      reachedHouseholdMembers = true;
-    }
-
-    if (row.match("|}")) {
-      reachedHouseholdMembers = false;
-    }
-    if (row.match(/\|\|/) && !reachedHouseholdMembers) {
-      const cells = row.split("||");
-      const key = cells[0].replace("|", "").replace(/:$/, "").trim();
-      const value = cells[1].replace("|", "").trim();
-      data[key] = value;
-    }
-  }
-
-  // Parse Sourcer Household Members row with <br> tags
-  for (const row of rows) {
-    if (row.startsWith("| Household Members") && row.includes("||") && row.match(/<br.*?>/g)?.length >= 2) {
-      const members = extractHouseholdMembers(row);
-      data.Household = parseFamilyData(members);
-    }
-  }
-
-  // Parse tables from BEE
-  if (!data.Household) {
-    for (const row of rows) {
-      if (!data.Household) {
-        if (row.match(/\|\|/)) {
-          const cells = row.split("||");
-          const key = cells[0].trim().replace("|", "").replace(/:$/, "").trim();
-          const value = cells[1].trim().replace("|", "").trim();
-          data[key] = value;
-        }
-      }
-
-      if (row.match("Household Members") && row.match(/<br.{0,2}>/) == null) {
-        data.Household = [];
-      }
-      if (!row.includes("|")) continue;
-      if (row.match(/\|\|/) && data.Household) {
-        const cells = row.split("||");
-        const key = cells[0].trim().replace("|", "").replace(/:$/, "").trim();
-        const value = cells[1].trim().replace("|", "").trim();
-        if (data.Household && key.match("Household Members") == null) {
-          const aMember = { Name: key, Census: data["Year"] };
-          for (let i = 1; i < cells.length; i++) {
-            if (
-              cells[i].match(
-                /father|mother|brother|sister|wife|husband|head|son|daughter|child|boarder|visitor|aunt|uncle|grandmother|grandfather|grandson|granddaughter|niece|nephew|cousin|teacher/i
-              )
-            ) {
-              aMember.Relation = cells[i].trim();
-              aMember.censusRelation = aMember.Relation;
-            } else if (cells[i].match(/^\s?\d{1,2}/)) {
-              aMember.Age = cells[i].trim();
-              aMember.BirthYear = data["Year"] - aMember.Age;
-            } else if (cells[i].match(/^M$/)) {
-              aMember.Gender = "Male";
-            } else if (cells[i].match(/^F$/)) {
-              aMember.Gender = "Female";
-            } else if (cells[i].match(/[A-Z][a-z]+/)) {
-              aMember["Birth Place"] = cells[i].trim();
-            }
-          }
-
-          if (
-            isSameName(key, window.profilePerson.NameVariants) &&
-            isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), aMember.Age, 5)
-          ) {
-            aMember.Relation = "Self";
-          } else if (data["Relation to Head"] && aMember.Relation) {
-            if (["Son", "Daughter"].includes(data["Relation to Head"])) {
-              if (aMember.Relation == "Son") {
-                aMember.Relation = "Brother";
-              } else if (aMember.Relation == "Daughter") {
-                aMember.Relation = "Sister";
-              } else if (aMember.Relation == "Wife") {
-                aMember.Relation = "Mother";
-              } else if (aMember.Relation == "Husband") {
-                aMember.Relation = "Father";
-              } else if (aMember.Relation == "Child") {
-                aMember.Relation = "Sibling";
-              }
-            } else if (["Brother", "Sister"].includes(data["Relation to Head"])) {
-              if (aMember.Relation == "Son") {
-                aMember.Relation = "Nephew";
-              } else if (aMember.Relation == "Daughter") {
-                aMember.Relation = "Niece";
-              } else if (aMember.Relation == "Wife") {
-                aMember.Relation = "Sister-in-law";
-              } else if (aMember.Relation == "Husband") {
-                aMember.Relation = "Brother-in-law";
-              } else if (aMember.Relation == "Child") {
-                aMember.Relation = "Nephew/Niece";
-              }
-            } else if (["Father", "Mother"].includes(data["Relation to Head"])) {
-              if (aMember.Relation == "Son") {
-                aMember.Relation = "Grandson";
-              } else if (aMember.Relation == "Daughter") {
-                aMember.Relation = "Granddaughter";
-              } else if (aMember.Relation == "Wife") {
-                aMember.Relation = "Daughter-in-law";
-              } else if (aMember.Relation == "Husband") {
-                aMember.Relation = "Son-in-law";
-              } else if (aMember.Relation == "Child") {
-                aMember.Relation = "Grandson/Granddaughter";
-              }
-            }
-          }
-          ["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
-            let oKeys = Object.keys(window.profilePerson[relation]);
-            oKeys.forEach(function (aKey) {
-              let aPerson = window.profilePerson[relation][aKey];
-              let theRelation;
-
-              if (
-                isSameName(key, getNameVariants(aPerson)) &&
-                isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5)
-              ) {
-                aMember.HasProfile = true;
-                if (aPerson.Gender) {
-                  aMember.Gender = aPerson.Gender;
-                  if (aMember.Gender == "Male") {
-                    theRelation =
-                      relation == "Parents"
-                        ? "Father"
-                        : relation == "Siblings"
-                        ? "Brother"
-                        : relation == "Spouses"
-                        ? "Husband"
-                        : relation == "Children"
-                        ? "Son"
-                        : "";
-                  }
-                  if (aMember.Gender == "Female") {
-                    theRelation =
-                      relation == "Parents"
-                        ? "Mother"
-                        : relation == "Siblings"
-                        ? "Sister"
-                        : relation == "Spouses"
-                        ? "Wife"
-                        : relation == "Children"
-                        ? "Daughter"
-                        : "";
-                  }
-                }
-                aMember.Relation = theRelation;
-                aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
-              } else if (data.Father == key && data.Age < aMember.Age) {
-                aMember.Relation = "Father";
-              } else if (data.Mother == key && data.Age < aMember.Age) {
-                aMember.Relation = "Mother";
-              }
-            });
-          });
-          data.Household.push(aMember);
-        } else if (!reachedHouseholdMembers) {
-          if (data[key]) {
-            data[key] = data[key] + ", " + value;
-          } else {
-            data[key] = value;
-          }
-        }
-      }
-    }
-  }
-  data = assignSelf(data);
-
-  // Add relations for unknown members
-
-  if (data.Household && Array.isArray(data.Household)) {
-    data.Household.forEach(function (aMember) {
-      if (!aMember.Relation && aMember.Age) {
-        if (!aMember.LastNameAtBirth) {
-          aMember.LastNameAtBirth = aMember.Name.split(" ").slice(-1)[0];
-        }
-        data.Household.forEach(function (aMember2) {
-          if (aMember2 !== aMember) {
-            if (aMember2.LastNameAtBirth == aMember.LastNameAtBirth) {
-              if (isWithinX(aMember.Age, aMember2.Age, 5) && !aMember.Relation) {
-                aMember.Relation =
-                  aMember2.Relation == "Father"
-                    ? "Mother"
-                    : aMember2.Relation == "Mother"
-                    ? "Father"
-                    : ["Brother", "Sister", "Sibling"].includes(aMember2.Relation)
-                    ? "Sibling"
-                    : ["Son", "Daughter", "Child"].includes(aMember2.Relation)
-                    ? "Child"
-                    : "";
-              }
-            }
-          }
-        });
-      }
-      // Add to Research Notes
-      if (!aMember.HasProfile && aMember.Relation != "Self") {
-        if (!window.sectionsObject["Research Notes"].subsections?.NeedsProfiles?.includes(aMember)) {
-          window.sectionsObject["Research Notes"].subsections.NeedsProfiles.push(aMember);
-        }
-      }
-    });
-  }
-  return data;
-}
-
-function assignSelf(data) {
-  function findSelf(data, hasSelf, checkAge = true) {
-    let isWithinRange = 10;
-    if (checkAge == false) {
-      isWithinRange = 100;
-    }
-    let strength = 0.9;
-    while (!hasSelf && strength > 0) {
-      for (const member of data.Household) {
-        if (
-          isSameName(member.Name, window.profilePerson.NameVariants, strength) &&
-          isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), member.Age, isWithinRange)
-        ) {
-          if (member.Relation != "Self" && member.Relation != "" && !member.originalRelation) {
-            member.originalRelation = member.Relation;
-          }
-          member.Relation = "Self";
-          hasSelf = true;
-          /*
-          if (member.Occupation) {
-            data.Occupation = member.Occupation;
-          }
-          */
-        }
-      }
-      strength -= 0.1;
-    }
-    return data;
-  }
-  if (Array.isArray(data.Household)) {
-    let hasSelf = data.Household.some((person) => person.Relation === "Self");
-
-    if (!hasSelf) {
-      data = findSelf(data, hasSelf);
-    }
-
-    hasSelf = Array.isArray(data.Household) && data.Household.some((person) => person.Relation === "Self");
-    if (!hasSelf) {
-      data = findSelf(data, hasSelf, false);
-    }
-  }
-
-  if (Array.isArray(data.Household)) {
-    data.Household = updateRelations(data.Household);
-  }
-
-  return data;
-}
-
-function getNameVariantsB(person, firstNameVariant) {
-  let nameVariants = [];
-  let middleInitial = person.MiddleName ? person.MiddleName.charAt(0) : "";
-  let firstInitial = firstNameVariant ? firstNameVariant.charAt(0) : "";
-  if (person.MiddleName && person.LastNameAtBirth) {
-    nameVariants.push(`${firstNameVariant} ${person.MiddleName} ${person.LastNameAtBirth}`);
-  }
-  if (person.MiddleName && person.LastNameCurrent) {
-    nameVariants.push(`${firstNameVariant} ${person.MiddleName} ${person.LastNameCurrent}`);
-    nameVariants.push(`${person.MiddleName} ${person.LastNameCurrent}`);
-    nameVariants.push(`${person.MiddleName} ${person.LastNameAtBirth}`);
-  }
-  if (person.LastNameAtBirth) {
-    nameVariants.push(`${firstNameVariant} ${person.LastNameAtBirth}`);
-    if (middleInitial) {
-      nameVariants.push(`${firstNameVariant} ${middleInitial} ${person.LastNameAtBirth}`);
-      nameVariants.push(`${firstNameVariant} ${middleInitial}. ${person.LastNameAtBirth}`);
-      nameVariants.push(`${firstInitial} ${middleInitial} ${person.LastNameAtBirth}`);
-    }
-  }
-  if (person.LastNameCurrent) {
-    nameVariants.push(`${firstNameVariant} ${person.LastNameCurrent}`);
-    if (middleInitial) {
-      nameVariants.push(`${firstNameVariant} ${middleInitial} ${person.LastNameCurrent}`);
-      nameVariants.push(`${firstNameVariant} ${middleInitial}. ${person.LastNameCurrent}`);
-      nameVariants.push(`${firstInitial} ${middleInitial} ${person.LastNameCurrent}`);
-    }
-  }
-  if (person.LastNameOther) {
-    nameVariants.push(`${firstNameVariant} ${person.LastNameOther}`);
-    if (person.MiddleName) {
-      nameVariants.push(`${firstNameVariant} ${person.MiddleName} ${person.LastNameOther}`);
-      nameVariants.push(`${firstNameVariant} ${middleInitial} ${person.LastNameOther}`);
-      nameVariants.push(`${firstNameVariant} ${middleInitial}. ${person.LastNameOther}`);
-      nameVariants.push(`${person.MiddleName} ${person.LastNameOther}`);
-      nameVariants.push(`${firstInitial} ${middleInitial} ${person.LastNameOther}`);
-    }
-  }
-  return nameVariants;
-}
-
-export function getNameVariants(person) {
-  let nameVariants = [];
-  if (person.LongName) {
-    nameVariants.push(person.LongName.replace(/\s\s/, " "));
-  }
-  if (person.PersonName?.BirthName) {
-    nameVariants.push(person.PersonName?.BirthName);
-  }
-  if (person.LongNamePrivate) {
-    nameVariants.push(person.LongNamePrivate.replace(/\s\s/, " "));
-    nameVariants.push(person.LongNamePrivate.split(" ")[0] + " " + person.LastNameAtBirth);
-    nameVariants.push(person.LongNamePrivate.split(" ")[0] + " " + person.LastNameCurrent);
-  }
-  if (person.ShortName) {
-    nameVariants.push(person.ShortName);
-  }
-  if (person.ShortNamePrivate) {
-    nameVariants.push(person.ShortNamePrivate);
-  }
-
-  nameVariants.push(...getNameVariantsB(person, person.FirstName));
-  let variantKeys = Object.keys(firstNameVariants);
-  if (variantKeys?.includes(person.FirstName)) {
-    firstNameVariants[person.FirstName].forEach(function (variant) {
-      nameVariants.push(...getNameVariantsB(person, variant));
-    });
-  }
-
-  const uniqueArray = [...new Set(nameVariants)];
-  return uniqueArray;
 }
 
 function addMilitaryRecord(aRef, type) {
@@ -3968,54 +2815,52 @@ export function sourcesArray(bio) {
   } catch (error) {
     previousBioText = previousBioText || "";
   }
-  // Remove == Research Notes == section
-  bio = bio.replace(/==\s?Research Notes\s?==.*?==\s?Sources\s?==/gis, "");
+  /* Remove the == Research Notes == section. Stop at the next top-level heading
+  (=== subsections === stay with it) or at the end of the bio, so notes that aren't
+  followed by a Sources section are skipped too. */
+  bio = bio.replace(/==\s*Research Notes\s*==.*?(?=\n\s*==[^=]|$)/gis, "");
 
   dummy.append(bio);
   let refArr = [];
   let refs = dummy.find("ref");
-  let refNamesAdded = new Set(); // Keep track of added reference names
-  let refNameCounter = new Map(); // Map to hold counters for each RefName
+  /* Each name in the old bio mapped to the citation texts already seen under it. A name is
+  only changed when a second, different citation claims it: the old bio's own
+  <ref name="x" /> uses are still in the text Auto Bio keeps, so renaming a citation that
+  nobody else is competing for would leave those uses pointing at nothing. */
+  let textsByRefName = new Map();
 
   refs.each(function () {
     let refElement = $(this);
-    let refName = refElement.attr("name");
-    if (refName && refNamesAdded.has(refName)) return; // Skip if the reference with this name has already been added
-
-    // If the refName exists in the map, increment its value, else set it to 'a'
-    if (refName) {
-      if (refNameCounter.has(refName)) {
-        let counter = refNameCounter.get(refName);
-        counter = String.fromCharCode(counter.charCodeAt() + 1); // Increment character ('a' to 'b', 'b' to 'c', etc.)
-        refNameCounter.set(refName, counter);
-      } else {
-        refNameCounter.set(refName, "a");
-      }
-      // Append the counter to the refName to make it unique
-      refName = refName + "_" + refNameCounter.get(refName);
-    }
+    const originalRefName = refElement.attr("name");
 
     let innerHTML = refElement.html().trim();
     if (innerHTML?.length === 0) return; // Skip if the reference has no content
 
-    let theRef = innerHTML
-      .match(/^(.*?)(?=<\/?ref|$)/s)[1]
-      .trim()
-      .replace(/&amp;/g, "&");
+    let theRef = decodeHtmlEntities(innerHTML.match(/^(.*?)(?=<\/?ref|$)/s)[1].trim());
 
     if (window.isFirefox == true) {
       theRef = $(this)[0].innerText;
     }
     if (theRef != "" && theRef != "\n" && theRef != "\n\n" && theRef.match(/==\s?Sources\s?==/) == null) {
+      let refName = originalRefName;
+      if (originalRefName) {
+        const textsUsingThisName = textsByRefName.get(originalRefName);
+        if (!textsUsingThisName) {
+          textsByRefName.set(originalRefName, new Set([theRef.trim()]));
+        } else if (textsUsingThisName.has(theRef.trim())) {
+          return; // The same citation, defined twice under the same name
+        } else {
+          // Two different citations under one name: the old bio was already broken here.
+          refName = originalRefName + "_" + String.fromCharCode("a".charCodeAt(0) + textsUsingThisName.size);
+          textsUsingThisName.add(theRef.trim());
+        }
+      }
+
       let NonSource = false;
       if (theRef.match(unsourced)) {
         NonSource = true;
       }
       refArr.push({ Text: theRef.trim(), RefName: refName, NonSource: NonSource });
-
-      if (refName) {
-        refNamesAdded.add(refName); // Mark this reference name as added
-      }
     }
   });
 
@@ -4091,13 +2936,17 @@ export function sourcesArray(bio) {
   });
 
   function whoseCitation(aRef) {
-    // Match pattern '''Birth|Baptism|Marriage||Burial|Death of (child|son|daughter|husband|wife|father|mother|brother|sister|sibling) (.*?)'''
+    /* Match a Sourcer fact heading: '''<fact> of <relation> <name>'''. The fact is anything
+    Sourcer names the record ("Birth", "Obituary", "Social Security record", ...), so it is
+    not a fixed list; the relationship word after "of" is what identifies whose record it is.
+    "of" is lazy so a fact containing it ("Record of Death of son John") still lands on the
+    relationship, and a marriage between two named people has no relationship word to match. */
     const whoseCitationPattern =
-      /'''(Birth|Baptism|Marriage|Burial|Death) of (child|son|daughter|husband|wife|father|mother|brother|sister|sibling) (.*?)'''/i;
+      /'''[^']*?\bof\s(child|son|daughter|husband|wife|father|mother|brother|sister|sibling)\s(.*?)'''/i;
     const whoseCitationMatch = aRef.Text.match(whoseCitationPattern);
     if (whoseCitationMatch) {
-      const relation = whoseCitationMatch[2];
-      const name = whoseCitationMatch[3];
+      const relation = whoseCitationMatch[1];
+      const name = whoseCitationMatch[2];
       aRef.Relation = relation;
       aRef.Name = name;
     }
@@ -4307,7 +3156,12 @@ export function sourcesArray(bio) {
               console.log("Person 2 name variant:", person2);
             }
           }
-          if (!isSameName(window.profilePerson.FirstName, person1)) {
+          /* An initial stands for the name here too: "C F Coombes" on a marriage index is this
+          Charles, and failing to see that makes the spouse out of the profile person. */
+          if (
+            !isSameName(window.profilePerson.FirstName, person1) &&
+            !matchesNameOrInitial(window.profilePerson.FirstName, person1)
+          ) {
             aRef["Spouse Name"] = aRef["Couple"][0];
             console.log("Spouse name set to Couple[0]:", aRef["Spouse Name"]);
           } else {
@@ -4376,13 +3230,21 @@ export function sourcesArray(bio) {
 
         // Use isSameName for fuzzy matching of first names (with lower threshold for spelling variants)
         let profilePersonFound = false;
-        if (isSameName(couple1FirstName, profileFirstNameVariants, 0.85)) {
+        /* An initial stands for the name: a marriage index recording "C F Coombes" is this
+        Charles, and reading it as somebody else marries him to himself. */
+        if (
+          isSameName(couple1FirstName, profileFirstNameVariants, 0.85) ||
+          matchesNameOrInitial(couple1FirstName, profileFirstNameVariants)
+        ) {
           aRef["Spouse Name"] = aRef.Couple[1];
           aRef["Spouse Age"] = person2Age;
           aRef["Age"] = person1Age;
           profilePersonFound = true;
           console.log("Spouse Name and Age set (Couple[0] matches profile):", aRef["Spouse Name"], aRef["Spouse Age"]);
-        } else if (isSameName(couple2FirstName, profileFirstNameVariants, 0.85)) {
+        } else if (
+          isSameName(couple2FirstName, profileFirstNameVariants, 0.85) ||
+          matchesNameOrInitial(couple2FirstName, profileFirstNameVariants)
+        ) {
           aRef["Spouse Name"] = aRef.Couple[0];
           aRef["Spouse Age"] = person1Age;
           aRef["Age"] = person2Age;
@@ -4458,7 +3320,12 @@ export function sourcesArray(bio) {
             // Heuristic: decide which is spouse vs profile
             if (!aRef.Spouse) {
               const profFirst = window.profilePerson?.PersonName?.FirstName || window.profilePerson?.FirstName || "";
-              if (profFirst && new RegExp(`\\b${profFirst}\\b`, "i").test(p1name)) {
+              /* Which of the two is the profile person decides who the spouse is and whose age
+              is whose. A record naming him "C F Coombes" does not contain "Charles", so ask
+              whether the whole name is his before falling back to looking for his first name. */
+              const namedIsProfilePerson = (name) =>
+                isProfilePersonName(name) || (profFirst && new RegExp(`\\b${profFirst}\\b`, "i").test(name));
+              if (namedIsProfilePerson(p1name)) {
                 aRef.Spouse = { FullName: p2name, Age: p2age, Parents: p2parents };
                 aRef.ProfilePerson = { Name: p1name, Age: p1age, Parents: p1parents };
               } else {
@@ -4547,14 +3414,27 @@ export function sourcesArray(bio) {
     }
     if (
       (aRef.Text.match(
-        /NZBDM DEATH|(New Zealand Department.*Death Registration)|Overlijden|[A-Z][a-z]+ Deaths(?!\s&|\sand)|'''Death'''|Death (Index|Record|Reg)|findagrave|Find a Grave|memorial|Cemetery Registers|Death Certificate|^Death -|citing Death|citing.*Burial,|Probate|Information of Death/i
+        /* '''Burial''' and the grave-site indexes matter as much as Find a Grave here:
+        without them a burial citation is never relevant to the death sentence and drops
+        into "See also" instead of going inline. */
+        /NZBDM DEATH|(New Zealand Department.*Death Registration)|Overlijden|[A-Z][a-z]+ Deaths(?!\s&|\sand)|'''Death'''|'''Burial'''|Death (Index|Record|Reg)|findagrave|Find a Grave|BillionGraves|billiongraves\.com|Interment|memorial|Cemetery Registers|Cemetery (Index|Records?)|Death Certificate|^Death -|citing Death|citing.*Burial,|Probate|Information of Death/i
       ) ||
         aRef["Death Date"]) &&
       aRef.Text.match("Birth of") == null
     ) {
-      aRef["Record Type"].push("Death");
+      /* The patterns above say what kind of record this is, not whose. An old bio usually
+      talks about the whole family, so check the citation could be about this person before
+      it is quoted for their death; if not, it stays a source under "See also". */
+      if (
+        citationCouldBeAboutEvent(aRef.Text, {
+          eventYear: yearFromDate(window.profilePerson?.DeathDate),
+          gender: window.profilePerson?.Gender,
+        })
+      ) {
+        aRef["Record Type"].push("Death");
 
-      aRef.OrderDate = formatDate(aRef["Death Date"], 0, { format: 8 });
+        aRef.OrderDate = formatDate(aRef["Death Date"], 0, { format: 8 });
+      }
     }
     if (aRef.Text.match(/citing.*Burial,/i)) {
       const familySearchBurialMatch = aRef.Text.match(
@@ -4602,9 +3482,12 @@ export function sourcesArray(bio) {
         aRef.Residence = thePlace.trim();
       }
 
-      /* Search bio for "In the [year] census, [person] was living in [place]." */
-      const censusBioRegex = new RegExp("In the " + aRef.Year + " census .*? was living in ([^.]+)", "i");
-      const censusBioRegex2 = new RegExp("In the " + aRef.Year + " census .*? was ([^.]+) in ([^.]+)", "i");
+      /* Search bio for "In the [year] census [person] was living in [place]."
+      Deliberately narrow: a Sourcer sentence ("In the [year] census, ...") should NOT match,
+      because buildCensusNarratives writes a better one from the household table. The place
+      must not run past the end of the sentence into a table, so no newlines or "{". */
+      const censusBioRegex = new RegExp("In the " + aRef.Year + " census .*? was living in ([^.\\n{]+)", "i");
+      const censusBioRegex2 = new RegExp("In the " + aRef.Year + " census .*? was ([^.\\n{]+) in ([^.\\n{]+)", "i");
       const censusResidenceRegex = aRef.Text.match(
         /\(\d{1,2}\).*? in (.+)(?=(, (United States|United Kingdom|England|Scotland|Wales|Canada|Australia)))/
       );
@@ -4624,14 +3507,16 @@ export function sourcesArray(bio) {
         aRef.Residence = censusResidenceRegex2[1];
       }
 
+      aRef.Residence = tidyCensusResidence(aRef.Residence);
+
       if (aRef.Residence) {
         if (aRef.Residence.match(" in ")) {
           aRef.Residence = aRef.Residence.split(" in ")[1];
         }
         if (censusBioMatch) {
-          aRef.Narrative = censusBioMatch[0].replace(/In the/, "In").replace(/\scensus/i, ",");
+          aRef.Narrative = censusNarrativeFromBioSentence(censusBioMatch[0]);
         } else if (censusBioMatch2) {
-          aRef.Narrative = censusBioMatch2[0].replace(/In the/, "In").replace(/\scensus/i, ",");
+          aRef.Narrative = censusNarrativeFromBioSentence(censusBioMatch2[0]);
         } else if (aRef.Residence) {
           aRef.Narrative =
             "In " +
@@ -4673,7 +3558,14 @@ export function sourcesArray(bio) {
     // Add military service records
     const militaryMatch = aRef.Text.match(/World War I\b|World War II|Korean War|Vietnam War/);
     if (militaryMatch) {
-      aRef = addMilitaryRecord(aRef, militaryMatch[0]);
+      /* A war is named, but not whose service it was. An old bio cites the son's papers as
+      readily as the father's, so check the age before saying this person served. */
+      const warStarted = { "World War I": 1914, "World War II": 1939, "Korean War": 1950, "Vietnam War": 1955 }[
+        militaryMatch[0]
+      ];
+      if (couldHaveServedIn(yearFromDate(window.profilePerson?.BirthDate), warStarted)) {
+        aRef = addMilitaryRecord(aRef, militaryMatch[0]);
+      }
     }
   });
   let birthCitation = false;
@@ -4699,7 +3591,7 @@ export function sourcesArray(bio) {
     }
   }
   window.references = refArr;
-  buildCensusNarratives();
+  buildCensusNarratives(previousBioText);
   addReferencePlaces();
   getFamilyFromCitations();
 }
@@ -4821,17 +3713,40 @@ function compareLastName(name, person) {
   return { FirstName: FirstName, LastNameAtBirth: LastNameAtBirth, Name: name };
 }
 
+/* Children are stored keyed by name, but a profile with none in the database gets an empty
+array instead, and a string key on an array stays invisible to Array.isArray checks
+downstream. Swap it for an object before adding anyone found in the sources. */
+function childrenAsObject() {
+  if (Array.isArray(window.profilePerson.Children)) {
+    const asObject = {};
+    window.profilePerson.Children.forEach(function (aChild, index) {
+      asObject[index] = aChild;
+    });
+    window.profilePerson.Children = asObject;
+  }
+  return window.profilePerson.Children;
+}
+
 function getFamilyFromCitations() {
   const refs = window.references;
-  const children = Object.values(window.profilePerson.Children);
+  const children = Object.values(window.profilePerson.Children || {});
   // Extract children to array of objects
   // console.log(children);
   refs.forEach(function (aRef) {
     const newChild = {
       DataStatus: { BirthDate: "guess", BirthLocation: "guess", DeathDate: "guess", DeathLocation: "guess" },
     };
-    if (aRef.Text.match(/Birth of (son|daughter)/i)) {
-      getFamilySearchBirthDetails(aRef);
+    const isBirthOfChild = aRef.Text.match(/Birth of (son|daughter|child)/i);
+    /* Sourcer heads every citation with the fact and the relationship, so a Social Security
+    record or an obituary names a child just as a birth record does. The other parent is
+    unknown from these, which is what OtherParentUnknown tells the child list. */
+    const childRelation = ["child", "son", "daughter"].includes(aRef.Relation?.toLowerCase())
+      ? aRef.Relation.toLowerCase()
+      : "";
+    if (aRef.Name && (isBirthOfChild || childRelation)) {
+      if (isBirthOfChild) {
+        getFamilySearchBirthDetails(aRef);
+      }
       // Split the name by " ".
       // Compare the last name to the profile person's LastNameAtBirth and LastNameCurrent
       // If there's a match, add the name as LastNameAtBirth to newChild.
@@ -4868,11 +3783,17 @@ function getFamilyFromCitations() {
         newChild.LastNameAtBirth = lastNameCompare.LastNameAtBirth;
         newChild.FullName = lastNameCompare.Name;
       }
-      newChild.BirthDate = getYYYYMMDD(aRef["Birth Date"]);
+      newChild.BirthDate = getYYYYMMDD(aRef["Birth Date"]) || "0000-00-00";
       newChild.OrderBirthDate = newChild.BirthDate.replace(/-/g, "");
       newChild.BirthLocation = aRef["Birth Place"];
       newChild.DeathDate = "0000-00-00";
       newChild.DeathLocation = "";
+      if (childRelation === "son") {
+        newChild.Gender = "Male";
+      } else if (childRelation === "daughter") {
+        newChild.Gender = "Female";
+      }
+      newChild.OtherParentUnknown = true;
 
       // Check if the child is already in the profile
       let childExists = false;
@@ -4883,7 +3804,7 @@ function getFamilyFromCitations() {
       });
       if (!childExists) {
         children.push(newChild);
-        window.profilePerson.Children[newChild.FullName] = newChild;
+        childrenAsObject()[newChild.FullName] = newChild;
       }
     }
   });
@@ -4998,29 +3919,38 @@ function getOriginalBioTextWithoutRefs() {
   return dummy.innerHTML;
 }
 
-function findClosestCensusYearForTable(text, tableStart, tableEnd) {
-  const contextStart = Math.max(0, tableStart - 800);
-  const contextEnd = Math.min(text.length, tableEnd + 250);
-  const context = text.slice(contextStart, contextEnd);
-  const yearRegex =
-    /(?:In the\s+)?(?:''')?(1[789]\d{2}|1939)(?:''')?\s+(?:England and Wales\s+)?(?:census|register)|(?:census|register)[^.\n]{0,80}(?:''')?(1[789]\d{2}|1939)(?:''')?/gi;
-  let bestYear = "";
-  let bestDistance = Infinity;
+const censusYearMentionRegex =
+  /(?:In the\s+)?(?:''')?(1[789]\d{2}|1939)(?:''')?\s+(?:England and Wales\s+)?(?:census|register)|(?:census|register)[^.\n]{0,80}(?:''')?(1[789]\d{2}|1939)(?:''')?/gi;
 
-  for (const match of context.matchAll(yearRegex)) {
+function findClosestCensusYearForTable(text, tableStart, tableEnd) {
+  /* Sourcer writes the census narrative first and the household table straight after it,
+  so the year that owns a table is the last one mentioned before it. Measuring the distance
+  from either end of the table let the *next* census heading (which sits right after the
+  table) win, which handed the same table to two census years and duplicated it. */
+  const previousTableEnd = text.lastIndexOf("|}", tableStart);
+  const beforeStart = Math.max(previousTableEnd === -1 ? 0 : previousTableEnd + 2, tableStart - 800);
+  let bestYear = "";
+  for (const match of text.slice(beforeStart, tableStart).matchAll(censusYearMentionRegex)) {
     const year = match[1] || match[2];
-    if (!year) {
-      continue;
+    if (year) {
+      bestYear = year; // keep the last (closest) mention before the table
     }
-    const absoluteIndex = contextStart + match.index;
-    const distance = Math.min(Math.abs(absoluteIndex - tableStart), Math.abs(absoluteIndex - tableEnd));
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      bestYear = year;
+  }
+  if (bestYear) {
+    return bestYear;
+  }
+
+  // Nothing before it, so fall back to the first mention after it, stopping at any following table.
+  const nextTableStart = text.indexOf("{|", tableEnd);
+  const afterEnd = Math.min(nextTableStart === -1 ? text.length : nextTableStart, tableEnd + 250);
+  for (const match of text.slice(tableEnd, afterEnd).matchAll(censusYearMentionRegex)) {
+    const year = match[1] || match[2];
+    if (year) {
+      return year;
     }
   }
 
-  return bestYear;
+  return "";
 }
 
 function tableHasExplicitSelfRow(table) {
@@ -5135,20 +4065,24 @@ function getPreservedCensusTablesForReference(reference) {
     return [];
   }
 
-  const matches = window.preservedCensusTables
-    .filter((candidate) => String(candidate["Census Year"] || candidate.Year || "") === censusYear)
-    .map((candidate) => ({
-      candidate,
-      score: (candidate.MatchScore || 0) - (candidate.Used ? 5 : 0),
-    }))
-    .filter((candidateMatch) => candidateMatch.score > 0)
-    .sort((a, b) => b.score - a.score);
+  /* Only the single best table, and never one that has already been handed to another
+  reference: a census gets one household table, so returning every candidate for the year
+  just repeated households in the bio. */
+  const best = window.preservedCensusTables
+    .filter(
+      (candidate) =>
+        !candidate.Used &&
+        String(candidate["Census Year"] || candidate.Year || "") === censusYear &&
+        (candidate.MatchScore || 0) > 0
+    )
+    .sort((a, b) => (b.MatchScore || 0) - (a.MatchScore || 0))[0];
 
-  matches.forEach((match) => {
-    match.candidate.Used = true;
-  });
+  if (!best) {
+    return [];
+  }
 
-  return matches.map((match) => match.candidate);
+  best.Used = true;
+  return [best];
 }
 
 function resolveCensusYearForReference(reference) {
@@ -5209,7 +4143,11 @@ function attachOriginalTableToReference(reference, tableText, household) {
   if (!Array.isArray(reference.OriginalTables)) {
     reference.OriginalTables = [];
   }
-  if (!reference.OriginalTables.includes(tableText)) {
+  // The same table can arrive from the Sourcer census parser and from the preserved-table
+  // scan, sometimes with different whitespace, so compare on normalized text.
+  const normalizeTable = (table) => table.replace(/\s+/g, " ").trim();
+  const normalizedTableText = normalizeTable(tableText);
+  if (!reference.OriginalTables.some((existing) => normalizeTable(existing) === normalizedTableText)) {
     reference.OriginalTables.push(tableText);
   }
   if (!reference.OriginalTable) {
@@ -5497,7 +4435,16 @@ function processMainHouseholdMember(mainPerson, census) {
   if (mainPerson.Relation) {
     census.Household.forEach((otherPerson) => {
       if (otherPerson !== mainPerson) {
+        const relationBefore = otherPerson.Relation;
         updateRelation(mainPerson, otherPerson);
+        /* Anyone still carrying the relation the census recorded to the head of the household
+        has a relation to the head, not to this person, and saying "her wife" about the head's
+        wife would be plainly wrong. If updateRelations has already decided this, its answer
+        stands. */
+        if (otherPerson.RelationToHeadOnly === undefined) {
+          const censusRelation = otherPerson.censusRelation || otherPerson.originalRelation || relationBefore;
+          otherPerson.RelationToHeadOnly = Boolean(otherPerson.Relation) && otherPerson.Relation === censusRelation;
+        }
       }
     });
   }
@@ -5563,7 +4510,7 @@ function updateRelationForSibling(otherPerson) {
   }
 }
 
-export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading = []) {
+export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading = [], feature = "autoBio") {
   let afterBioHeading = "";
 
   if (window.autoBioOptions?.australiaBornStickers) {
@@ -5601,11 +4548,13 @@ export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading =
     }
   }
 
-  if (window.autoBioOptions?.diedYoung) {
+  const diedYoungOption =
+    feature == "autoCategories" ? window.autoCategoriesOptions?.diedYoung : window.autoBioOptions?.diedYoung;
+  if (diedYoungOption) {
     try {
       const deathAge = ageAtDeath(window.profilePerson);
       if (deathAge.age !== "") {
-        const alreadyHasDiedYoungTemplate = thingsToAddAfterBioHeading.some((item) => item.startsWith("{{Died Young"));
+        const alreadyHasDiedYoungTemplate = thingsToAddAfterBioHeading.some((item) => hasDiedYoungSticker(item));
 
         if (deathAge.age < 17 && !alreadyHasDiedYoungTemplate) {
           if (window.autoBioOptions?.diedYoungImage != "Default") {
@@ -5635,8 +4584,18 @@ export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading =
   return { text: afterBioHeading, objects: thingsToAddAfterBioHeading };
 }
 
-export async function getStickersAndBoxes() {
-  let afterBioHeading = "";
+export async function getStickersAndBoxes(feature = "autoBio") {
+  return (await collectStickersAndBoxes(feature)).text;
+}
+
+// The same stickers and boxes as getStickersAndBoxes, one template per item, so a caller can
+// tell which ones are already under the Biography heading without splitting multi-line templates.
+export async function getStickersAndBoxesList(feature = "autoBio") {
+  return (await collectStickersAndBoxes(feature)).objects;
+}
+
+async function collectStickersAndBoxes(feature = "autoBio") {
+  let afterBioHeading = { text: "", objects: [] };
 
   try {
     templatesObject = await getTemplates();
@@ -5662,21 +4621,17 @@ export async function getStickersAndBoxes() {
         const newTemplateMatch = currentBio.matchAll(/\{\{[\s\S]*?\}\}/g);
 
         for (let match of newTemplateMatch) {
-          // Extract template name from the match, handling parameters after pipe
-          const templateText = match[0];
-          const templateNameMatch = templateText.match(/\{\{([^|}]+)/);
-          const extractedTemplateName = templateNameMatch ? templateNameMatch[1].trim() : "";
-
-          // Direct string comparison instead of regex matching
-          if (extractedTemplateName === aTemplate.name) {
-            if (!thingsToAddAfterBioHeading.includes(match[0])) {
+          // Match "{{OnePlaceStudy}}" etc. too, and write the documented name in the new bio
+          if (templateNameKey(getTemplateName(match[0])) === templateNameKey(aTemplate.name)) {
+            const templateText = withCanonicalTemplateName(match[0], aTemplate.name);
+            if (!thingsToAddAfterBioHeading.includes(templateText)) {
               if (
                 beforeHeadingThings.some((thing) => thing.toLowerCase() === aTemplate.type?.toLowerCase()) ||
                 beforeHeadingThings.some((thing) => thing.toLowerCase() === aTemplate.group?.toLowerCase())
               ) {
-                thingsToAddBeforeBioHeading.push(match[0]);
+                thingsToAddBeforeBioHeading.push(templateText);
               } else {
-                thingsToAddAfterBioHeading.push(match[0]);
+                thingsToAddAfterBioHeading.push(templateText);
               }
             }
           }
@@ -5684,25 +4639,25 @@ export async function getStickersAndBoxes() {
       }
     });
 
-    thingsToAddBeforeBioHeading.forEach(function (box) {
-      // Extract template name from the box
-      const boxNameMatch = box.match(/\{\{([^|}]+)/);
-      const boxTemplateName = boxNameMatch ? boxNameMatch[1].trim() : "";
+    findTemplatesToKeepByName(currentBio).forEach(function (template) {
+      if (!thingsToAddAfterBioHeading.includes(template)) {
+        thingsToAddAfterBioHeading.push(template);
+      }
+    });
 
+    thingsToAddBeforeBioHeading.forEach(function (box) {
       // Check if this template name is already in StuffBeforeTheBio (to avoid duplicates)
-      const alreadyExists = window.sectionsObject.StuffBeforeTheBio.text.some((item) => {
-        const itemNameMatch = item.match(/\{\{([^|}]+)/);
-        const itemTemplateName = itemNameMatch ? itemNameMatch[1].trim() : "";
-        return itemTemplateName === boxTemplateName;
-      });
+      const boxNameKey = templateNameKey(getTemplateName(box));
+      const alreadyExists = window.sectionsObject.StuffBeforeTheBio.text.some(
+        (item) => templateNameKey(getTemplateName(item)) === boxNameKey
+      );
 
       if (!alreadyExists) {
         window.sectionsObject.StuffBeforeTheBio.text.push(box);
       }
     });
 
-    const afterBioHeadingThings = await afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading);
-    afterBioHeading = afterBioHeadingThings.text;
+    afterBioHeading = await afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading, feature);
   } catch (error) {
     console.error("Error processing templates:", error);
   }
@@ -5815,331 +4770,6 @@ function getFamilySearchFacts() {
     return !arr.slice(0, index).some((prevItem) => prevItem.Narrative === item.Narrative);
   });
   window.familySearchFacts = filteredData;
-}
-
-function normalizeTemplatesInSectionArray(textArray) {
-  const normalized = [];
-  let currentTemplate = "";
-
-  for (let item of textArray) {
-    // Check if this item is already a complete template (single-line)
-    if (item.startsWith("{{") && item.includes("}}")) {
-      // Complete template, add it directly
-      if (currentTemplate) {
-        // Finish any pending template first
-        normalized.push(currentTemplate);
-        currentTemplate = "";
-      }
-      normalized.push(item);
-    } else if (item.startsWith("{{")) {
-      // Start of a multi-line template
-      if (currentTemplate) {
-        normalized.push(currentTemplate);
-      }
-      currentTemplate = item;
-    } else if (currentTemplate && item.endsWith("}}")) {
-      // End of multi-line template
-      currentTemplate += " " + item;
-      normalized.push(currentTemplate);
-      currentTemplate = "";
-    } else if (currentTemplate) {
-      // Middle of multi-line template
-      currentTemplate += " " + item;
-    } else {
-      // Standalone item (category, text, etc.)
-      normalized.push(item);
-    }
-  }
-
-  // If there's an unclosed template, add it anyway
-  if (currentTemplate) {
-    normalized.push(currentTemplate);
-  }
-
-  return normalized;
-}
-
-function extractCategoryName(categoryText) {
-  if (!categoryText) {
-    return null;
-  }
-
-  const match = categoryText.match(/^\[\[Category:\s*([^\]]+?)\s*\]\]/i);
-  return match ? match[1].trim() : null;
-}
-
-function hasEquivalentCategory(categoryText, categoryItems = []) {
-  const categoryName = extractCategoryName(categoryText);
-  if (!categoryName) {
-    return false;
-  }
-
-  return categoryItems.some((item) => extractCategoryName(item) === categoryName);
-}
-
-function textContainsEquivalentCategory(text, categoryText) {
-  const categoryName = extractCategoryName(categoryText);
-  if (!categoryName || !text) {
-    return false;
-  }
-
-  return text.split("\n").some((line) => extractCategoryName(line.trim()) === categoryName);
-}
-
-function addUniqueCategoryToStuffBeforeTheBio(categoryText) {
-  if (!categoryText) {
-    return false;
-  }
-
-  const stuffBeforeTheBio = window.sectionsObject?.StuffBeforeTheBio?.text;
-  if (!Array.isArray(stuffBeforeTheBio)) {
-    return false;
-  }
-
-  if (hasEquivalentCategory(categoryText, stuffBeforeTheBio)) {
-    return false;
-  }
-
-  if (textContainsEquivalentCategory(window.textBeforeTheBio, categoryText)) {
-    return false;
-  }
-
-  stuffBeforeTheBio.push(categoryText);
-  return true;
-}
-
-export function splitBioIntoSections() {
-  const wikiText = $("#wpTextbox1").val();
-  let lines = [];
-  if (wikiText) {
-    lines = wikiText.split("\n");
-  }
-  let currentSection = { subsections: {}, text: [] };
-  let currentSubsection = null;
-  let sections = {
-    StuffBeforeTheBio: {
-      title: "StuffBeforeTheBio",
-      text: [],
-      subsections: {},
-    },
-    Biography: {
-      title: "Biography",
-      text: [],
-      subsections: {},
-    },
-    "Research Notes": {
-      title: "ResearchNotes",
-      text: [],
-      subsections: { NeedsProfiles: [] },
-    },
-    Sources: {
-      title: "Sources",
-      text: [],
-      subsections: {},
-    },
-    Acknowledgements: {
-      title: "Acknowledgements",
-      text: [],
-      subsections: {},
-    },
-  };
-  const exclude = [/<!-- Please edit, add, or delete anything in this text.*->/];
-  for (let i = 0; i < lines.length; i++) {
-    let line = lines[i].trim();
-    exclude.forEach(function (ex) {
-      const m = line.match(ex);
-      if (m) console.log(`exclude match: ${m}`);
-      line = line.replace(ex, "").trim();
-    });
-
-    // If the line is empty and the previous section is "Sources", keep the line as-is without trimming
-    if (currentSection.title === "Sources" && line === "") {
-      line = lines[i];
-    }
-
-    let sectionMatch = line.match(/^={2}([^=]+)={2}$/);
-    let subsectionMatch = line.match(/^={3}([^=]+)={3}$/);
-    if (sectionMatch) {
-      let newSectionTitle = sectionMatch[1].trim();
-      let originalTitle = newSectionTitle;
-      if (newSectionTitle == "Acknowledgments") {
-        newSectionTitle = "Acknowledgements";
-      }
-      if (newSectionTitle.match(/Research Notes/i)) {
-        newSectionTitle = "Research Notes";
-      }
-      if (newSectionTitle.match(/Census/i)) {
-        newSectionTitle = "Census";
-      }
-
-      sections[newSectionTitle] = {
-        title: newSectionTitle,
-        text: [],
-        subsections: {},
-        originalTitle: originalTitle,
-      };
-      currentSection = sections[newSectionTitle];
-      if (currentSection.title == "Research Notes") {
-        currentSection.subsections["NeedsProfiles"] = [];
-      }
-      currentSubsection = null;
-    } else if (subsectionMatch) {
-      let newSubsectionTitle = subsectionMatch[1].trim();
-
-      let originalTitle = newSubsectionTitle;
-      if (newSubsectionTitle == "Acknowledgments") {
-        newSubsectionTitle = "Acknowledgements";
-      }
-
-      currentSection.subsections[newSubsectionTitle] = {
-        title: newSubsectionTitle,
-        text: [],
-        subsections: {},
-        originalTitle: originalTitle,
-      };
-
-      currentSubsection = currentSection.subsections[newSubsectionTitle];
-    } else {
-      let skip = false;
-      if (line.match(/^See also:/i) || line.match("''Add \\[\\[sources\\]\\] here.''")) {
-        skip = true;
-      }
-      if (currentSubsection && line && !skip) {
-        currentSubsection.text.push(line);
-      } else if (currentSection && !skip) {
-        currentSection.text.push(line);
-        if (!currentSection.title) {
-          sections.StuffBeforeTheBio.text.push(line);
-        }
-      }
-    }
-  }
-
-  // Normalize all multi-line templates to single-line in all sections
-  for (let sectionName in sections) {
-    if (sections[sectionName].text && Array.isArray(sections[sectionName].text)) {
-      sections[sectionName].text = normalizeTemplatesInSectionArray(sections[sectionName].text);
-    }
-    if (sections[sectionName].subsections) {
-      for (let subsectionName in sections[sectionName].subsections) {
-        if (sections[sectionName].subsections[subsectionName].text) {
-          sections[sectionName].subsections[subsectionName].text = normalizeTemplatesInSectionArray(
-            sections[sectionName].subsections[subsectionName].text
-          );
-        }
-      }
-    }
-  }
-
-  if (sections.Sources) {
-    let shouldStartWithAsterisk = true;
-    sections.Sources.text.forEach(function (line, i) {
-      const matchOldBEETableHeading = line.match(/.*:$/);
-      const matchPreviousBlankLine = !sections.Sources.text[i - 1];
-      const matchTable = line.match(/^\{\|/);
-      const isBEECitation = (matchOldBEETableHeading || matchTable) && matchPreviousBlankLine;
-      if (shouldStartWithAsterisk && line.trim() !== "" && !line.trim().startsWith("*") && !isBEECitation) {
-        sections.Sources.text[i] = "*" + line.trim();
-      }
-      shouldStartWithAsterisk = line.trim() === "";
-      if (line.match(/^See also:/i) == null && line.match("''Add \\[\\[sources\\]\\] here.''") == null) {
-        if (line.match(/This person was created on.* /)) {
-          sections.Acknowledgements.text.push(line);
-          sections.Sources.text.splice(i, 1);
-        }
-        if (line.match(/Sources? will be added/gs) || line.match("''Add [[sources]] here.''")) {
-          sections.Sources.text.splice(i, 1);
-        }
-      }
-    });
-    if (sections.Sources.subsections?.Acknowledgements) {
-      sections.Acknowledgements.text = sections.Sources.subsections.Acknowledgements.text;
-    }
-    if (
-      ["Birth", "Baptism", "Marriage", "Burial", "Death"].forEach(function (fact) {
-        if (sections.Sources.subsections[fact]) {
-          sections.Sources.subsections[fact].text.forEach(function (line) {
-            sections.Sources.text.push(line);
-          });
-        }
-      })
-    );
-    /* Loop through the Research Notes section.
-    If the line matches "The following people may need profiles:"
-    then add the next lines to NeedsProfiles (while the line has a name)
-    and remove it from ["Research Notes"].text */
-    if (sections["Research Notes"] || sections?.Biography?.subsections?.["Research Notes"]) {
-      if (sections?.Biography?.subsections?.["Research Notes"]) {
-        sections.Biography.subsections["Research Notes"].text.forEach(function (line) {
-          sections["Research Notes"].text.push(line);
-        });
-      }
-      const namePattern = new RegExp(
-        /^\*\s([A-Za-z]+(?:[.'-][A-Za-z]+)*(?:\s[A-Za-z]+(?:[.'-][A-Za-z]+)*)+)(?:\s\(([A-Za-z\s]+)\))?$/
-      );
-
-      for (let i = 0; i < sections["Research Notes"].text.length; i++) {
-        if (sections["Research Notes"].text[i].match(/The following people may need profiles:/)) {
-          sections["Research Notes"].text.splice(i, 1); // Remove the matched line
-          i--; // Decrement i to account for the removed line
-
-          let j = i + 1;
-          while (sections["Research Notes"].text[j] && sections["Research Notes"].text[j].match(namePattern)) {
-            const nameMatch = sections["Research Notes"].text[j].match(namePattern);
-            sections["Research Notes"].subsections["NeedsProfiles"].push({
-              Name: nameMatch[1],
-              Relation: nameMatch[2],
-            });
-            sections["Research Notes"].text.splice(j, 1);
-          }
-        }
-      }
-    }
-  }
-
-  // Split the things before the bio up into separate items
-  if (sections.StuffBeforeTheBio.text?.length > 0) {
-    for (let i = 0; i < sections.StuffBeforeTheBio.text.length; i++) {
-      const line = sections.StuffBeforeTheBio.text[i];
-      const nextLine = sections.StuffBeforeTheBio.text[i + 1];
-      const { items: splitItems, consumeNextLine } = splitStuffBeforeBioEntry(line, nextLine);
-
-      sections.StuffBeforeTheBio.text[i] = splitItems[0];
-      if (splitItems.length > 1) {
-        sections.StuffBeforeTheBio.text.splice(i + 1, 0, ...splitItems.slice(1));
-      }
-      if (consumeNextLine) {
-        sections.StuffBeforeTheBio.text.splice(i + splitItems.length, 1);
-      }
-      const gedcomMatch = sections.StuffBeforeTheBio.text[i].match(/\.ged\s/);
-      if (gedcomMatch) {
-        const thisThing = sections.StuffBeforeTheBio.text[i]
-          .replace(/The following data[^.]+\./, "")
-          .replace(/You may wish[^.]+\./, "");
-        sections.Acknowledgements.text.push(thisThing);
-        sections.StuffBeforeTheBio.text.splice(i, 1);
-      }
-    }
-  }
-
-  if (sections.Acknowledgements.text?.length > 0) {
-    sections.Acknowledgements.text = sections.Acknowledgements.text.map((str) =>
-      str.replace("This person was created", "This profile was created")
-    );
-  }
-
-  // Use some of the original text by wrapping it in 'use' tags
-  if (sections.Biography.text?.length > 0) {
-    const biographyText = sections.Biography.text.join("\n");
-    const biographyDummy = $("<div>" + biographyText + "</div>");
-    const use = biographyDummy.find("use");
-    sections.Biography.use = [];
-    use.each(function () {
-      sections.Biography.use.push($(this).html());
-    });
-  }
-
-  return sections;
 }
 
 function getMatriculaLink(text) {
@@ -6424,367 +5054,6 @@ export function addOccupationCategories(feature = "autoBio") {
   });
 }
 
-/**
- * This function builds a family tree for private profiles.
- * It retrieves and processes family information (like parents, siblings, spouses, children)
- * from the current window and updates the global `window.profilePerson` object.
- */
-export async function buildFamilyForPrivateProfiles() {
-  // Ensure window.profilePerson is defined before proceeding
-  if (!window.profilePerson) {
-    console.error("window.profilePerson is undefined");
-    return; // Exit the function early
-  }
-
-  // Construct BirthName if it doesn't exist
-  if (!window.profilePerson.BirthName) {
-    window.profilePerson.BirthName =
-      window.profilePerson.FirstName + (window.profilePerson.MiddleName ? " " + window.profilePerson.MiddleName : "");
-  }
-
-  // Construct BirthNamePrivate if it doesn't exist
-  if (!window.profilePerson.BirthNamePrivate) {
-    window.profilePerson.BirthNamePrivate =
-      (window.profilePerson.RealName || window.profilePerson.FirstName) +
-      " " +
-      window.profilePerson.LastNameAtBirth +
-      (window.profilePerson.Suffix ? " " + window.profilePerson.Suffix : "");
-  }
-
-  // Retrieve LastNameAtBirth from the page if not present
-  if (!window.profilePerson.LastNameAtBirth) {
-    const lastNameAnchor = $("a[name='last-name']");
-    if (lastNameAnchor && lastNameAnchor.length > 0) {
-      const lastNameText = lastNameAnchor.parent().text().split(" [")[0].trim();
-      window.profilePerson.LastNameAtBirth = lastNameText;
-    }
-  }
-
-  // Retrieve Gender from the page if not present
-  if (!window.profilePerson.Gender) {
-    const genderElement = $("select#mGender option:selected");
-    if (genderElement && genderElement.length > 0) {
-      window.profilePerson.Gender = genderElement.val();
-    }
-  }
-
-  /**
-   * Helper function to parse a name string.
-   * If the name has a part in parentheses, it's considered the LastNameAtBirth.
-   */
-  function parseName(name, object) {
-    const nameParts = name.split(" ");
-    let lastNameAtBirthIndex;
-    nameParts.forEach(function (part, index) {
-      if (part.match(/^\(.*\)$/)) {
-        nameParts[index] = part.replace("(", "").replace(")", "");
-        object.LastNameAtBirth = nameParts[index];
-        lastNameAtBirthIndex = index;
-      }
-    });
-    if (lastNameAtBirthIndex !== undefined) {
-      object.FirstName = nameParts.slice(0, lastNameAtBirthIndex).join(" ");
-      object.LastNameCurrent = nameParts.slice(lastNameAtBirthIndex + 1).join(" ");
-    } else {
-      object.LastNameAtBirth = nameParts.pop();
-      object.FirstName = nameParts.join(" ");
-    }
-    // Create a PersonName object for consistent output
-    object.PersonName = {
-      FirstName: object.FirstName,
-      // Prefer LastNameCurrent if available; otherwise, use LastNameAtBirth
-      FullName: object.FirstName + " " + (object.LastNameCurrent || object.LastNameAtBirth),
-    };
-  }
-
-  /**
-   * Helper function to decode accents in a string.
-   * @param {string} str - The string to decode.
-   * @returns {string} The decoded string.
-   */
-  function decodeAccents(str) {
-    try {
-      return decodeURIComponent(str);
-    } catch (e) {
-      console.error("Error decoding string: ", e);
-      return str; // return original string if decoding fails
-    }
-  }
-
-  /**
-   * Helper function to find the correct link for a family member
-   * from a given list of links.
-   */
-  function findFamilyPersonLink(links) {
-    for (let i = 0; i < links.length; i++) {
-      const link = links[i];
-      const linkMatch = link.href.match(/\/wiki\/.*-\d+$/);
-      if (linkMatch) {
-        link.href = link.href.replace(/\s|%20/g, "_");
-        return link;
-      }
-    }
-    return null;
-  }
-
-  // --------------------------
-  // Process Parent Data
-  // --------------------------
-  if (!window.profilePerson.Parents) {
-    window.profilePerson.Parents = {};
-  }
-
-  // Process Father's data using the new #Father container
-  const fatherDiv = $("#Father");
-  if (fatherDiv.length) {
-    const fatherLink = fatherDiv.find(".tree--person a").first();
-    if (fatherLink.length) {
-      const fatherId = decodeAccents(fatherLink.attr("href").split("/").pop());
-      const fatherObject = { Name: fatherId };
-      const fatherName = fatherLink.text().trim();
-      parseName(fatherName, fatherObject);
-      if (window.profilePerson.Father) {
-        if (!window.profilePerson.Parents[window.profilePerson.Father]) {
-          fatherObject.Id = window.profilePerson.Father;
-          window.profilePerson.Parents[window.profilePerson.Father] = fatherObject;
-        } else if (!window.profilePerson.Parents[window.profilePerson.Father]?.Name) {
-          window.profilePerson.Parents[window.profilePerson.Father].assign(fatherObject);
-        }
-      } else {
-        window.profilePerson.Parents[1] = fatherObject;
-        window.profilePerson.Father = 1;
-      }
-    }
-  }
-
-  // Process Mother's data using the new #Mother container
-  const motherDiv = $("#Mother");
-  if (motherDiv.length) {
-    const motherLink = motherDiv.find(".tree--person a").first();
-    if (motherLink.length) {
-      const motherId = decodeAccents(motherLink.attr("href").split("/").pop());
-      const motherObject = { Name: motherId };
-      const motherName = motherLink.text().trim();
-      parseName(motherName, motherObject);
-      if (window.profilePerson.Mother) {
-        if (!window.profilePerson.Parents[window.profilePerson.Mother]) {
-          motherObject.Id = window.profilePerson.Mother;
-          window.profilePerson.Parents[window.profilePerson.Mother] = motherObject;
-        } else if (!window.profilePerson.Parents[window.profilePerson.Mother]?.Name) {
-          window.profilePerson.Parents[window.profilePerson.Mother].assign(motherObject);
-        }
-      } else {
-        window.profilePerson.Parents[2] = motherObject;
-        window.profilePerson.Mother = 2;
-      }
-    }
-  }
-
-  // --------------------------
-  // Process Siblings, Spouses, and Children
-  // --------------------------
-  const familyTypes = ["Siblings", "Spouses", "Children"];
-  familyTypes.forEach((type) => {
-    window.profilePerson[type] = {};
-    const container = $(`#${type}`);
-    if (container.length) {
-      // Assuming each container has a <ul> with <li> items for each family member.
-      const familyItems = container.find("ol > li");
-      for (let i = 0; i < familyItems.length; i++) {
-        const item = $(familyItems[i]);
-        const link = item.find("a").first();
-        if (link.length) {
-          const memberId = decodeAccents(link.attr("href").split("/").pop());
-          const memberObject = { Name: memberId, BirthDate: "0000-00-00" };
-          if (type === "Spouses") {
-            memberObject["marriage_date"] = "0000-00-00";
-          }
-          const memberName = link.text().trim();
-          parseName(memberName, memberObject);
-          window.profilePerson[type][i] = memberObject;
-        }
-      }
-      if (Object.keys(window.profilePerson[type]).length === 0) {
-        window.profilePerson[type] = [];
-      }
-    }
-  });
-
-  // --------------------------
-  // Collate All Family Member Names for Fetching Data
-  // --------------------------
-  const ids = [];
-  ["Parents", "Siblings", "Spouses", "Children"].forEach(function (familyList) {
-    if (window.profilePerson[familyList] && typeof window.profilePerson[familyList] === "object") {
-      for (let key in window.profilePerson[familyList]) {
-        const person = window.profilePerson[familyList][key];
-        if (person.Name) {
-          ids.push(person.Name);
-        }
-      }
-    }
-  });
-
-  // --------------------------
-  // Fetch Family Profiles Data
-  // --------------------------
-  const theFields = [
-    "BirthDate",
-    "BirthDateDecade",
-    "BirthLocation",
-    "DataStatus",
-    "DeathDate",
-    "DeathDateDecade",
-    "DeathLocation",
-    "Derived.BirthName",
-    "Derived.BirthNamePrivate",
-    "Father",
-    "FirstName",
-    "Gender",
-    "HasChildren",
-    "Id",
-    "IsRedirect",
-    "LastNameAtBirth",
-    "LastNameCurrent",
-    "LastNameOther",
-    "MiddleName",
-    "Mother",
-    "Name",
-    "Nicknames",
-    "Prefix",
-    "RealName",
-    "Suffix",
-    "Spouses",
-  ];
-
-  let people, resultByKey;
-  if (ids.length > 0) {
-    try {
-      [, resultByKey, people] = await WikiTreeAPI.getPeople(WBE_AUTO_BIO_APP_ID, ids, theFields, {
-        getSpouses: 1,
-      });
-      if (!people) {
-        console.error("Failed to fetch family profiles");
-      } else {
-        // Assign the fetched family profiles data to the respective family lists
-        ["Parents", "Siblings", "Spouses", "Children"].forEach(function (familyList) {
-          const keys = Object.keys(window.profilePerson[familyList]);
-          for (let i = 0; i < keys.length; i++) {
-            const key = keys[i];
-            const person = window.profilePerson[familyList][key];
-            if (person.Name) {
-              const thisPerson = WikiTreeAPI.lookupProfile(person.Name, resultByKey, people);
-              if (thisPerson) {
-                const thisId = thisPerson.Id;
-                if (familyList == "Spouses") {
-                  const spousesArray = Array.isArray(thisPerson.Spouses)
-                    ? thisPerson.Spouses
-                    : Object.values(thisPerson.Spouses || {});
-                  spousesArray.forEach(function (spouse) {
-                    if (spouse.Id == window.profilePerson.Id) {
-                      thisPerson.marriage_date = spouse?.marriage_date;
-                      thisPerson.marriage_location = spouse?.marriage_location;
-                      thisPerson.data_status = {
-                        marriage_date: spouse?.DataStatus?.MarriageDate,
-                        marriage_location: spouse?.DataStatus?.MarriageLocation,
-                      };
-                    }
-                  });
-                }
-                window.profilePerson[familyList][thisId] = thisPerson;
-                if (familyList == "Parents") {
-                  if (thisPerson.Gender == "Male") {
-                    window.profilePerson.Father = thisId;
-                  } else if (thisPerson.Gender == "Female") {
-                    window.profilePerson.Mother = thisId;
-                  }
-                }
-                if (key < 70) {
-                  delete window.profilePerson[familyList][key];
-                }
-              }
-            }
-          }
-        });
-      }
-    } catch (err) {
-      console.error("Error fetching family profiles", err);
-    }
-  }
-
-  // Update the main profile with the new family members' names
-  assignPersonNames(window.profilePerson);
-
-  // --------------------------
-  // Further Refinement of the Family Tree
-  // --------------------------
-  for (let i = -10; i < 0; i++) {
-    if (people?.[i]) {
-      const thisPerson = people[i];
-      if (!thisPerson.BirthDate && thisPerson.BirthDateDecade) {
-        thisPerson.tempBirthDate = thisPerson.BirthDateDecade.replace(/s$/, "");
-      }
-      window.profilePerson.BirthYear = window.profilePerson.BirthDate.match(/\d{4}/)[0];
-      if (thisPerson.Mother == window.profilePerson.Id || thisPerson.Father == window.profilePerson.Id) {
-        for (let x = 0; x < 10; x++) {
-          if (window.profilePerson.Children[x] && !window.profilePerson.Children[x]?.Id) {
-            const thisChild = window.profilePerson.Children[x];
-            Object.assign(thisChild, thisPerson);
-            break;
-          }
-        }
-      } else if (parseInt(thisPerson.tempBirthDate) < parseInt(window.profilePerson.BirthYear) - 18) {
-        for (let x = 0; x < 10; x++) {
-          if (window.profilePerson.Parents[x] && !window.profilePerson.Parents[x]?.Id) {
-            const thisParent = window.profilePerson.Parents[x];
-            Object.assign(thisParent, thisPerson);
-            break;
-          }
-        }
-      } else if (
-        (window.profilePerson.Mother && thisPerson.Mother == window.profilePerson.Mother) ||
-        (window.profilePerson.Father && thisPerson.Father == window.profilePerson.Father)
-      ) {
-        for (let x = 0; x < 10; x++) {
-          if (window.profilePerson.Siblings[x] && !window.profilePerson.Siblings[x]?.Id) {
-            const thisSibling = window.profilePerson.Siblings[x];
-            Object.assign(thisSibling, thisPerson);
-            break;
-          }
-        }
-      } else if (thisPerson.BirthDateDecade) {
-        const birthYearMatch = window.profilePerson.BirthDate.match(/\d{4}/);
-        if (birthYearMatch) {
-          const tempBirthDate = thisPerson.BirthDateDecade.replace(/s$/, "");
-          window.profilePerson.BirthYear = birthYearMatch[0];
-          if (parseInt(tempBirthDate) > parseInt(window.profilePerson.BirthYear) + 18) {
-            for (let x = 0; x < 10; x++) {
-              if (window.profilePerson.Children[x] && !window.profilePerson.Children[x]?.Id) {
-                const thisChild = window.profilePerson.Children[x];
-                Object.assign(thisChild, thisPerson);
-                break;
-              }
-            }
-          } else {
-            for (let x = 0; x < 10; x++) {
-              if (window.profilePerson.Spouses[x] && !window.profilePerson.Spouses[x]?.Id) {
-                const thisSpouse = window.profilePerson.Spouses[x];
-                Object.assign(thisSpouse, thisPerson);
-                await getSpouseParents2();
-                break;
-              } else if (window.profilePerson.Siblings[x] && !window.profilePerson.Siblings[x]?.Id) {
-                const thisSibling = window.profilePerson.Siblings[x];
-                Object.assign(thisSibling, thisPerson);
-                break;
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
 function minimalPlace2(narrativeBits) {
   let used = 0;
   let out = "";
@@ -6817,30 +5086,6 @@ function minimalPlace2(narrativeBits) {
   return out;
 }
 
-export async function getLocationCategoriesForSourcePlaces() {
-  // Check if window.profilePerson.referencePlaces exists and is an array
-  if (!Array.isArray(window.profilePerson.referencePlaces)) {
-    return [];
-  }
-
-  const results = [];
-
-  for (const place of window.profilePerson.referencePlaces) {
-    // Assuming "type" is something you know for each place, or it's the same for all places.
-    const type = "Source"; // Replace with the appropriate type for each place
-
-    const foundCategory = await getLocationCategory(type, place);
-    if (foundCategory) {
-      results.push({
-        place,
-        category: foundCategory,
-      });
-    }
-  }
-
-  return results;
-}
-
 // Add location category
 async function getLocationCategories() {
   let types = ["Birth", "Marriage", "Death", "Cemetery"];
@@ -6855,14 +5100,6 @@ async function getLocationCategories() {
   sourceLocationCategories.forEach((sourceLocationCategory) => {
     addLocationCategoryToStuffBeforeTheBio(sourceLocationCategory.category);
   });
-}
-
-export async function getBiographySpouseParents(keys, options = {}) {
-  const bsp = {};
-  options.getSpouses = 1; // always include spouses
-  [bsp.status, bsp.resultByKey, bsp.people] = await WikiTreeAPI.getPeople(WBE_AUTO_BIO_APP_ID, keys, "*", options);
-  window.biographySpouseParents = [bsp]; // simulate saving the direct api result that was previously done
-  return bsp.people;
 }
 
 async function getSpouseParents() {
@@ -6885,37 +5122,6 @@ async function getSpouseParents() {
       minGeneration: 1,
     });
     if (people) {
-      const biographySpouseParentsKeys = Object.keys(people);
-      biographySpouseParentsKeys.forEach(function (key) {
-        const person = people[key];
-        assignPersonNames(person);
-      });
-    }
-  }
-}
-
-async function getSpouseParents2() {
-  // Get spouse parents
-  if (
-    window.profilePerson.Spouses &&
-    !(Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses?.length === 0)
-  ) {
-    const spouseList = Array.isArray(window.profilePerson.Spouses)
-      ? window.profilePerson.Spouses.filter(Boolean)
-      : Object.values(window.profilePerson.Spouses).filter(Boolean);
-    const parentKeys = [];
-    if (spouseList.length) {
-      for (let i = 0; i < spouseList.length; i++) {
-        parentKeys.push(spouseList[i]?.Father);
-        parentKeys.push(spouseList[i]?.Mother);
-      }
-      const validParentKeys = parentKeys
-        .filter((key) => key !== undefined && key !== null && `${key}`.trim() !== "")
-        .filter((key, idx, arr) => arr.indexOf(key) === idx);
-      if (validParentKeys.length === 0) {
-        return;
-      }
-      const people = await getBiographySpouseParents(validParentKeys);
       const biographySpouseParentsKeys = Object.keys(people);
       biographySpouseParentsKeys.forEach(function (key) {
         const person = people[key];
@@ -7129,8 +5335,7 @@ async function fixLocations() {
 export async function generateBio() {
   window.autoBio_originalBio = getBioText(); // Capture original text before any changes
   window.autoBio_originalFields = captureAutoBioFormState();
-  const module = await import("./us_states.json");
-  USstatesObjArray = module.default;
+  await loadUSStates();
   templatesObject = await getTemplates();
 
   try {
@@ -7151,50 +5356,29 @@ export async function generateBio() {
     Categories are [[.*]]; Templates are {{.*}}.
     Especially look out for a section entitled == Disambiguation == here.
     We need to add this back in later.
+    Anything marked up as a note (":'''Note 1:''' ...") belongs in Research Notes,
+    so leave it out of here and move it over once the sections are split.
     */
-    const allStuffBeforeTheBio = currentBio.match(/^(.*?)(==\s*Biography\s*==)/s);
-    let textBeforeTheBio = "";
-    if (allStuffBeforeTheBio) {
-      textBeforeTheBio = allStuffBeforeTheBio[1].trim();
-    }
-
-    // Remove all templates (both single-line and multi-line) and categories from textBeforeTheBio
-    // since they're already being handled by StuffBeforeTheBio.text
-    let lines = textBeforeTheBio.split("\n");
-    let filteredLines = [];
-    let inTemplate = false;
-    let previousLineWasCategory = false;
-
-    for (let line of lines) {
-      const trimmedLine = line.trim();
-
-      if (trimmedLine.startsWith("{{")) {
-        inTemplate = true;
-      }
-
-      const isCategoryLine = /^\[\[Category:[^\]]+\]\](\s*<!--.*-->)?$/i.test(trimmedLine);
-      const isCommentLine = /^<!--.*-->$/.test(trimmedLine);
-      const isCommentForPreviousCategory = previousLineWasCategory && isCommentLine;
-      const isGenealogicallyDefinedLine = isGenealogicallyDefinedLink(trimmedLine);
-
-      // Skip lines that are part of a template or are categories
-      if (!inTemplate && !isCategoryLine && !isCommentForPreviousCategory && !isGenealogicallyDefinedLine) {
-        filteredLines.push(line);
-      }
-
-      if (trimmedLine.endsWith("}}")) {
-        inTemplate = false;
-      }
-
-      previousLineWasCategory = isCategoryLine;
-    }
+    const { notes: notesBeforeTheBio, remaining: textLinesBeforeTheBio } = extractPreBioNotes(
+      getPreBioTextLines(currentBio)
+    );
 
     // Filter out empty lines and rejoin
-    textBeforeTheBio = filteredLines.filter((line) => line.trim() !== "").join("\n");
-    window.textBeforeTheBio = textBeforeTheBio;
+    window.textBeforeTheBio = textLinesBeforeTheBio.filter((line) => line.trim() !== "").join("\n");
 
     // Split the current bio into sections
     window.sectionsObject = splitBioIntoSections();
+
+    // Move the notes that were above the Biography heading into Research Notes
+    if (notesBeforeTheBio.length > 0) {
+      const { remaining: stuffWithoutNotes } = extractPreBioNotes(window.sectionsObject.StuffBeforeTheBio.text);
+      window.sectionsObject.StuffBeforeTheBio.text = stuffWithoutNotes;
+      notesBeforeTheBio.forEach(function (aNote) {
+        if (!window.sectionsObject["Research Notes"].text.includes(aNote)) {
+          window.sectionsObject["Research Notes"].text.push(aNote);
+        }
+      });
+    }
 
     // Normalize all multi-line templates to single-line
     for (let sectionName in window.sectionsObject) {
@@ -7213,6 +5397,9 @@ export async function generateBio() {
         }
       }
     }
+
+    // The deprecated One Name Study template won't be carried over, so keep its category.
+    getOneNameStudyCategories(currentBio).forEach((category) => addUniqueCategoryToStuffBeforeTheBio(category));
 
     window.usedPlaces = [];
     let profileID = profilePerson.Name;
@@ -7328,7 +5515,9 @@ export async function generateBio() {
     if (window.sectionsObject.Sources) {
       window.sourcesSection = window.sectionsObject.Sources;
     }
-    sourcesArray(currentBio);
+    /* The notes from above the Biography heading are in Research Notes now,
+    so leave their citations out of the Sources section. */
+    sourcesArray(removeNotesBeforeBio(currentBio));
 
     // Find A Grave citation automation removed; no-op
 
@@ -7362,28 +5551,21 @@ export async function generateBio() {
     const marriagesAndCensusesEtc = [...marriages];
 
     // Get children who were not from one of the spouses
-    if (
-      !Array.isArray(window.profilePerson.Children) &&
-      window.profilePerson.Children &&
-      window.autoBioOptions?.childList
-    ) {
-      const childrenKeys = Object.keys(window.profilePerson.Children);
+    const childrenKeys = window.profilePerson.Children ? Object.keys(window.profilePerson.Children) : [];
+    if (childrenKeys.length > 0 && window.autoBioOptions?.childList) {
       let aChildList;
-      if (Array.isArray(window.profilePerson.Spouses)) {
+      if (Array.isArray(window.profilePerson.Spouses) || Object.keys(window.profilePerson.Spouses || {}).length === 0) {
+        // No spouse sections to hang them off, so list every child not already shown.
         aChildList = childList(window.profilePerson, false);
       } else {
         aChildList = childList(window.profilePerson, "other");
       }
       const eventDateMatch = aChildList.match(/(\d{4})–/);
-      const firstBirth = window.profilePerson.Children[childrenKeys[0]].BirthDate;
       let eventDate;
-      if (firstBirth) {
-        eventDate = firstBirth;
-      }
       if (eventDateMatch) {
         eventDate = eventDateMatch[1] + "-00-00";
       } else {
-        eventDate = "0000-00-00";
+        eventDate = estimateChildListDate(window.profilePerson);
       }
       const orderDate = eventDate ? eventDate.replaceAll(/-/g, "") : "";
       const newEvent = {
@@ -7480,6 +5662,19 @@ export async function generateBio() {
         if (previousEventObject) {
           if (previousEventObject.Texts) {
             previousEventObject.Texts.push(thisObj);
+          } else if (previousEventObject.Text) {
+            /* This event became the group's owner without its own citation being put in Texts,
+            and once Texts exists the emitter stops falling back to anEvent.Text. Without the
+            owner's citation here it is emitted nowhere: not inline, and not under "See also"
+            either, because it is still marked as used. */
+            previousEventObject.Texts = [
+              {
+                Text: previousEventObject.Text,
+                Used: previousEventObject.Used === true,
+                RefName: previousEventObject.RefName,
+              },
+              thisObj,
+            ];
           } else {
             previousEventObject.Texts = [thisObj];
           }
@@ -7777,9 +5972,13 @@ export async function generateBio() {
 
     // Add Research Notes
     let researchNotesText = "";
+    const leftoverSectionsText = getLeftoverSectionsText();
+    const showNeedsProfilesNote = window.autoBioOptions?.needsProfilesResearchNote !== false;
     if (
       window.sectionsObject["Research Notes"]?.text?.length > 0 ||
-      window.sectionsObject["Research Notes"]?.subsections["NeedsProfiles"]?.length > 0
+      (showNeedsProfilesNote && window.sectionsObject["Research Notes"]?.subsections["NeedsProfiles"]?.length > 0) ||
+      leftoverSectionsText ||
+      Object.keys(window.sectionsObject["Research Notes"]?.subsections || {}).some((s) => s != "NeedsProfiles")
     ) {
       let researchNotesHeader = "== Research Notes ==\n";
       researchNotesText += researchNotesHeader;
@@ -7791,7 +5990,7 @@ export async function generateBio() {
       const needsDone = [];
       let needsProfileText = "";
       const needsProfiles = window.sectionsObject["Research Notes"].subsections["NeedsProfiles"];
-      if (needsProfiles?.length > 0) {
+      if (showNeedsProfilesNote && needsProfiles?.length > 0) {
         if (needsProfiles.length == 1) {
           needsProfileText =
             needsProfiles[0].Name +
@@ -7810,24 +6009,28 @@ export async function generateBio() {
           });
         }
         researchNotesText += needsProfileText + "\n\n";
+      }
 
-        // Add Needs Profiles Created category
-        if (window.profilePerson?.BirthLocation && window.autoBioOptions?.needsProfilesCreatedCategory) {
-          const birthPlaces = window.profilePerson.BirthLocation?.split(", ");
-          let needsCategory;
-          birthPlaces.forEach(function (aPlace) {
-            const needsProfilesCreated = needsCategories.Profiles_Created;
-            for (const aNeed of needsProfilesCreated) {
-              const placeMatch = new RegExp("\\b" + aPlace + "\\b", "i");
-              if (aNeed.PlaceOrProject.match(placeMatch) && !needsCategory) {
-                needsCategory = "[[Category: " + aNeed.PlaceOrProject + " Needs Profiles Created]]";
-                break;
-              }
+      // Add Needs Profiles Created category (independent of the research note above)
+      if (
+        needsProfiles?.length > 0 &&
+        window.profilePerson?.BirthLocation &&
+        window.autoBioOptions?.needsProfilesCreatedCategory
+      ) {
+        const birthPlaces = window.profilePerson.BirthLocation?.split(", ");
+        let needsCategory;
+        birthPlaces.forEach(function (aPlace) {
+          const needsProfilesCreated = needsCategories.Profiles_Created;
+          for (const aNeed of needsProfilesCreated) {
+            const placeMatch = new RegExp("\\b" + aPlace + "\\b", "i");
+            if (aNeed.PlaceOrProject.match(placeMatch) && !needsCategory) {
+              needsCategory = "[[Category: " + aNeed.PlaceOrProject + " Needs Profiles Created]]";
+              break;
             }
-          });
-          if (needsCategory) {
-            addUniqueCategoryToStuffBeforeTheBio(needsCategory);
           }
+        });
+        if (needsCategory) {
+          addUniqueCategoryToStuffBeforeTheBio(needsCategory);
         }
       }
 
@@ -7839,6 +6042,8 @@ export async function generateBio() {
           researchNotesText += "=== " + aSubsection + " ===\n" + subsectionText + "\n\n";
         }
       });
+
+      researchNotesText += leftoverSectionsText;
     }
 
     // Add Sources section
@@ -7847,44 +6052,64 @@ export async function generateBio() {
     sourcesText += sourcesHeader;
     let isAnyUsed = window.references.some((reference) => reference.Used === true);
     let isAnyUnused = window.references.some((reference) => reference.Used !== true);
-    if (isAnyUsed && isAnyUnused) {
-      sourcesText += "See also:\n";
+
+    /* One bullet per source, on one line (a citation split over several lines only puts its
+    first line in the list), and never the same citation twice. */
+    const seeAlsoKeys = new Set();
+    function seeAlsoBullet(text) {
+      const line = collapseCitationWhitespace((text || "").replace(/^\*\s?/, "").trim());
+      if (!line) {
+        return "";
+      }
+      const key = citationDedupeKey(line);
+      if (seeAlsoKeys.has(key)) {
+        return "";
+      }
+      seeAlsoKeys.add(key);
+      return "* " + line + "\n";
     }
 
+    let unusedRefsText = "";
     window.references.forEach(function (aRef) {
       if (
         ([false, undefined]?.includes(aRef.Used) || window.autoBioOptions?.inlineCitations == false) &&
         aRef["Record Type"] != "GEDCOM" &&
         aRef.Text.match(/Sources? will be added/) == null
       ) {
-        sourcesText +=
-          "* " +
+        unusedRefsText += seeAlsoBullet(
           aRef.Text.replace(/Click the Changes tab.*/, "").replace(
             "''Replace this citation if there is another source.''",
             ""
-          ) +
-          "\n";
+          )
+        );
       }
       if (aRef["Record Type"]?.includes("GEDCOM")) {
         window.sectionsObject["Acknowledgements"].text.push("*" + aRef.Text);
       }
     });
 
-    // Add See also
-    if (window.sectionsObject["See Also"]) {
-      // Filter out the unwanted text
-      const filteredText = window.sectionsObject["See Also"].text.filter(
-        (anAlso) => !anAlso.match("''Add \\[\\[sources\\]\\] here.''")
-      );
+    let seeAlsoHeadingAdded = false;
+    if (isAnyUsed && isAnyUnused && unusedRefsText) {
+      sourcesText += "See also:\n";
+      seeAlsoHeadingAdded = true;
+    }
+    sourcesText += unusedRefsText;
 
-      if (filteredText?.length > 0) {
-        sourcesText += "See also:\n";
-        filteredText.forEach(function (anAlso) {
-          if (anAlso) {
-            sourcesText += "* " + anAlso.replace(/^\*\s?/, "").replace(/:\s*[\r\n]+/gm, ": ") + "\n";
-          }
-        });
-        sourcesText += "\n";
+    // Add See also
+    const seeAlsoSection = window.sectionsObject["See Also"];
+    if (seeAlsoSection) {
+      let seeAlsoSectionText = "";
+      seeAlsoSection.text.forEach(function (anAlso) {
+        if (anAlso && !anAlso.match("''Add \\[\\[sources\\]\\] here.''")) {
+          seeAlsoSectionText += seeAlsoBullet(anAlso);
+        }
+      });
+
+      if (seeAlsoSectionText) {
+        if (!seeAlsoHeadingAdded) {
+          sourcesText += "See also:\n";
+        }
+        sourcesText += seeAlsoSectionText + "\n";
       }
     }
 
@@ -7938,6 +6163,8 @@ export async function generateBio() {
       addUnsourced();
     }
 
+    const advanceDirectiveText = getAdvanceDirectiveText();
+
     // Add stuff before the bio
     let stuffBeforeTheBioText = await getStuffBeforeTheBioText();
 
@@ -7956,7 +6183,8 @@ export async function generateBio() {
         useItemsText +
         researchNotesText +
         sourcesText +
-        acknowledgementsText;
+        acknowledgementsText +
+        advanceDirectiveText;
     } else if (window.autoBioOptions?.deathPosition) {
       outputText =
         stuffBeforeTheBioText +
@@ -7970,7 +6198,8 @@ export async function generateBio() {
         timelineText +
         researchNotesText +
         sourcesText +
-        acknowledgementsText;
+        acknowledgementsText +
+        advanceDirectiveText;
     } else {
       outputText =
         stuffBeforeTheBioText +
@@ -7984,7 +6213,8 @@ export async function generateBio() {
         timelineText +
         researchNotesText +
         sourcesText +
-        acknowledgementsText;
+        acknowledgementsText +
+        advanceDirectiveText;
     }
 
     // NEW LOGIC: Store clean draft and notes separately
@@ -8075,29 +6305,88 @@ export async function generateBio() {
   }
 }
 
-function removeOldBioMessage() {
-  if ($("#wpTextbox1").length == 0) {
+/* Notes shown to the editor in the comment block at the end of the new bio. */
+function addAutoBioNote(message) {
+  if (!message) {
     return;
   }
-  let remove = false;
-  if ($(".CodeMirror").length) {
-    if (
-      $(".CodeMirror")
-        .text()
-        .match(/WikiTree Browser Extension Auto Bio/) == null
-    ) {
-      remove = true;
+  if (!Array.isArray(window.autoBioNotes)) {
+    window.autoBioNotes = [];
+  }
+  if (!window.autoBioNotes.includes(message)) {
+    window.autoBioNotes.push(message);
+  }
+}
+
+/* A profile may only use five level-2 headings: Biography, Research Notes, Sources,
+Acknowledgements and Advance Directive. Everything Auto Bio takes from the old bio is read
+out of the sections below; a section with any other heading used to be dropped along with
+everything in it. Keep it instead, demoted to level 3 under Research Notes. Long text in an
+old bio may be careful research or may be nonsense — Research Notes is the honest place for
+text Auto Bio cannot vouch for, and the editor (or Improve with AI) can promote it from there. */
+const sectionsAutoBioUses = [
+  "StuffBeforeTheBio",
+  "Biography",
+  "Research Notes",
+  "Sources",
+  "Acknowledgements",
+  "Acknowledgments",
+  "See Also",
+  "Advance Directive",
+  "Military",
+  "Military Service",
+  "Obituary",
+  /* Census tables in the old bio are read by the census code and rebuilt in the new bio,
+  so keeping the old section as well would duplicate them. */
+  "Census",
+];
+
+function getLeftoverSectionsText() {
+  let text = "";
+
+  const kept = new Set();
+  const keepSection = function (title, section, wasALevelTwoHeading) {
+    if (sectionsAutoBioUses.includes(title) || kept.has(title)) {
+      return;
     }
-  } else if (
-    $("#wpTextbox1")
-      .val()
-      .match(/WikiTree Browser Extension Auto Bio/) == null
-  ) {
-    remove = true;
+    if (!Array.isArray(section?.text) || !section.text.some((line) => line?.trim())) {
+      return;
+    }
+    /* addSubsection writes the "=== Title ===" heading and marks the citations it contains
+    as used, so they are not repeated under "See also". */
+    kept.add(title);
+    text += addSubsection(title);
+    const name = section.originalTitle || title;
+    addAutoBioNote(
+      wasALevelTwoHeading
+        ? `Moved the '${name}' section to Research Notes (only Biography, Research Notes, Sources, ` +
+            `Acknowledgements and Advance Directive may be level-2 headings).`
+        : `Moved the '${name}' section to Research Notes.`
+    );
+  };
+
+  Object.keys(window.sectionsObject || {}).forEach(function (title) {
+    keepSection(title, window.sectionsObject[title], true);
+  });
+
+  /* A level-3 section of the old biography — a will transcript, a note on a family story —
+  is not written anywhere else either, so it would be thrown away with the biography it sat in. */
+  const biographySubsections = window.sectionsObject?.Biography?.subsections || {};
+  Object.keys(biographySubsections).forEach(function (title) {
+    keepSection(title, biographySubsections[title], false);
+  });
+
+  return text;
+}
+
+/* Advance Directive is one of the five allowed headings, so it keeps its own level-2
+section at the end of the profile rather than being folded into Research Notes. */
+function getAdvanceDirectiveText() {
+  const section = window.sectionsObject["Advance Directive"];
+  if (!Array.isArray(section?.text) || !section.text.some((line) => line?.trim())) {
+    return "";
   }
-  if (remove) {
-    $("#deleteOldBioMessage").remove();
-  }
+  return "== Advance Directive ==\n" + section.text.join("\n").trim() + "\n\n";
 }
 
 function addSubsection(title) {
@@ -8116,19 +6405,36 @@ function addSubsection(title) {
   // Find ref tags in these subsections and match them to ones in the references array
   const dummy = document.createElement("div");
   dummy.innerHTML = subsectionText;
+  /* Citation text already defined in this section, so the same source is never written out
+  twice: the second use points at the first with <ref name="..." />, which is what MediaWiki
+  expects and what stops a source appearing twice in the reference list. */
+  const definedInThisSection = new Map();
   if ($(dummy).find("ref")) {
     $(dummy)
       .find("ref")
       .each(function (i) {
-        subsectionText = subsectionText.replace(
-          `<ref>${$(this).text()}</ref>`,
-          `<ref name="${title}_${i + 1}">${$(this).text()}</ref>`
+        const refText = $(this).text();
+        /* .html() re-escapes what the parser decoded, while window.references holds citations
+        with the entities put back, so decode before comparing or a citation with an "&" in it
+        never matches and ends up quoted here and listed under "See also" as well. */
+        const html = decodeHtmlEntities($(this).html());
+        const alreadyUsedElsewhere = window.references.find(
+          (ref) => (ref.Text == html || getSimilarity(ref.Text, html) > 0.99) && ref.Used && ref.RefName
         );
-        let html = $(this).html(); // save the html value
+        const existingName = definedInThisSection.get(refText) || alreadyUsedElsewhere?.RefName;
+
+        if (existingName) {
+          subsectionText = subsectionText.replace(`<ref>${refText}</ref>`, `<ref name="${existingName}" />`);
+          return;
+        }
+
+        const refName = title + "_" + (i + 1);
+        subsectionText = subsectionText.replace(`<ref>${refText}</ref>`, `<ref name="${refName}">${refText}</ref>`);
+        definedInThisSection.set(refText, refName);
         window.references.forEach((ref) => {
           if (ref.Text == html || getSimilarity(ref.Text, html) > 0.99) {
             ref.Used = true;
-            ref.RefName = title + "_" + (i + 1);
+            ref.RefName = refName;
             ref["Record Type"].push(title);
           }
         });
@@ -8137,637 +6443,6 @@ function addSubsection(title) {
   return subsectionText;
 }
 
-function removeCountryName(location) {
-  const usVariants = ["United States", "USA", "U.S.A.", "US", "U.S.", "United States of America", "U S A", "U S"];
-  const ukVariants = ["UK", "United Kingdom", "England", "Scotland", "Wales"];
-
-  let locationSplit = location.split(", ").reverse();
-
-  // Remove country name for US
-  if (usVariants?.includes(locationSplit[0])) {
-    locationSplit.shift();
-  }
-  // Remove country name for UK
-  else if (ukVariants?.includes(locationSplit[0])) {
-    locationSplit.shift();
-
-    // Remove additional country name if it's also a UK variant (e.g., "England, United Kingdom")
-    if (ukVariants?.includes(locationSplit[0])) {
-      locationSplit.shift();
-    }
-  }
-
-  // Remove country name for other countries
-  else {
-    countries.forEach((country) => {
-      if (country.name == locationSplit[0] || country.nativeName == locationSplit[0]) {
-        locationSplit.shift();
-      }
-    });
-  }
-
-  // Reconstruct the location string without the country name(s)
-  return locationSplit.reverse().join(", ");
-}
-
-function generateCombinations(location) {
-  location = location.split(". Born")[0].trim(); // Remove "Born" part if present
-
-  const replacements = [
-    { full: "Saint", abbr: "St." },
-    { full: "Fort", abbr: "Ft." },
-    { full: "Mount", abbr: "Mt." },
-    { full: "County", abbr: "Co." },
-    { full: "Heights", abbr: "Hts." },
-    { full: "Township", abbr: "Twp." },
-    { full: "Lakes", abbr: "Lks." },
-    { full: "Falls", abbr: "Fls." },
-    { full: "Springs", abbr: "Spgs." },
-  ];
-
-  const resultSet = new Set([location]);
-  const locationSplit = location.split(/, /);
-  resultSet.add(locationSplit[0] + ", " + locationSplit[1]);
-
-  function replaceAndAdd(str, find, replace) {
-    let index = str.indexOf(find);
-    while (index !== -1) {
-      const before = str.substring(0, index);
-      const after = str.substring(index + find.length);
-      const newStr = before + replace + after;
-
-      resultSet.add(newStr);
-
-      index = str.indexOf(find, index + find.length);
-    }
-  }
-
-  let somethingChanged = true;
-
-  while (somethingChanged) {
-    somethingChanged = false;
-
-    for (const loc of Array.from(resultSet)) {
-      for (const { full, abbr } of replacements) {
-        const initialSize = resultSet.size;
-
-        replaceAndAdd(loc, full, abbr);
-        replaceAndAdd(loc, abbr, full);
-
-        if (resultSet.size > initialSize) {
-          somethingChanged = true;
-        }
-      }
-    }
-  }
-
-  const array = Array.from(resultSet);
-  return array;
-}
-
-// Generate fallback place strings by dropping interior jurisdictions.
-// Example: "Drachten, Smallingerland, Friesland, Nederland" ->
-// "Drachten, Friesland, Nederland" and "Drachten, Friesland"
-function generateJurisdictionFallbacks(location) {
-  if (!location || typeof location !== "string") {
-    return [];
-  }
-
-  const parts = location
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  const fallbacks = new Set();
-
-  function addWithOptionalNoCountry(variant) {
-    if (!variant) {
-      return;
-    }
-    fallbacks.add(variant);
-
-    // Also try a no-country form because many categories omit the country.
-    const variantParts = variant
-      .split(",")
-      .map((part) => part.trim())
-      .filter(Boolean);
-    if (variantParts.length >= 3) {
-      fallbacks.add(variantParts.slice(0, -1).join(", "));
-    }
-  }
-
-  // Remove one interior segment at a time, preserving first and last.
-  // This must run for 3+ parts because countries are often removed earlier,
-  // leaving strings like "Town, District, County".
-  if (parts.length >= 3) {
-    for (let i = 1; i < parts.length - 1; i++) {
-      const variant = parts.filter((_, index) => index !== i).join(", ");
-      addWithOptionalNoCountry(variant);
-    }
-  }
-
-  // Common fallback: first place + penultimate + country.
-  // Useful when a municipality is present in the profile but absent in category names.
-  if (parts.length >= 3) {
-    const compactVariant = [parts[0], parts[parts.length - 2], parts[parts.length - 1]].join(", ");
-    addWithOptionalNoCountry(compactVariant);
-  }
-
-  return Array.from(fallbacks);
-}
-
-// Function to check and replace the county name before 'Ireland'
-function addCountyForIreland(locations) {
-  return locations.map((location) => {
-    const parts = location.split(",").map((part) => part.trim()); // Split by commas and trim parts
-
-    // Check if the last part is "Ireland" and there are at least 2 parts
-    if (parts.length >= 2 && parts[parts.length - 1] === "Ireland") {
-      let county = parts[parts.length - 2]; // Get the part before "Ireland"
-
-      // Check if this part is a known county and doesn't start with "County"
-      if (irishCounties.includes(county) && !county.startsWith("County")) {
-        county = `County ${county}`; // Prepend "County"
-        parts[parts.length - 2] = county; // Update the location part
-      }
-    }
-
-    return parts.join(", "); // Reassemble the location
-  });
-}
-
-/**
- * If a profile’s county is within ARC-defined Appalachia for the given state,
- * add  [[Category: {State} Appalachians]]  to StuffBeforeTheBio.
- *
- * @param {string} location  – full place string (e.g. “Jefferson Co., Tennessee, USA”)
- * @param {string} thisState – plain-text state name (e.g. “Tennessee”)
- */
-async function appalachiaCategory(location, thisState) {
-  /* ------------------------------------------------------------------
-   * 1. Load the county list exactly once, even with overlapping calls
-   * ----------------------------------------------------------------*/
-  if (!window.__appalachiaCountiesPromise) {
-    window.__appalachiaCountiesPromise = import("./appalachia_counties.json").then((m) => m.default); // keep only the default export
-  }
-
-  /** @type {{[state:string]: string[]}} */
-  const countiesObj = await window.__appalachiaCountiesPromise;
-
-  /* ------------------------------------------------------------------
-   * 2. Pull the county that immediately precedes the state in the place string
-   * ----------------------------------------------------------------*/
-  const parts = location.split(", ").map((p) => p.trim());
-  const stateIndex = parts.findIndex((p) => p.toLowerCase() === thisState.toLowerCase());
-  if (stateIndex <= 0) {
-    return;
-  }
-
-  const county = parts[stateIndex - 1] // raw piece
-    .replace(/\s+(County|Co\.?)$/i, "") // strip “County”, “Co”, “Co.”
-    .trim();
-
-  /* ------------------------------------------------------------------
-   * 3. Is that county in the Appalachian list for this state?
-   * ----------------------------------------------------------------*/
-  const countyList = countiesObj[thisState] ?? [];
-  const isAppalachian = countyList.some((c) => c.toLowerCase() === county.toLowerCase());
-  if (!isAppalachian) {
-    return;
-  }
-
-  /* ------------------------------------------------------------------
-   * 4. Add the category if it isn’t already present
-   * ----------------------------------------------------------------*/
-  const stuff = window.sectionsObject?.StuffBeforeTheBio?.text;
-  if (!Array.isArray(stuff)) {
-    return;
-  }
-
-  const tag = `[[Category: ${thisState} Appalachians]]`;
-  addUniqueCategoryToStuffBeforeTheBio(tag);
-}
-
-const AUSTRALIAN_LOCATION_ALIASES = {
-  ACT: "Australian Capital Territory",
-  NSW: "New South Wales, Australia",
-  "New South Wales": "New South Wales, Australia",
-  NT: "Northern Territory of Australia",
-  "Northern Territory": "Northern Territory of Australia",
-  QLD: "Queensland, Australia",
-  Queensland: "Queensland, Australia",
-  SA: "South Australia, Australia",
-  "South Australia": "South Australia, Australia",
-  TAS: "Tasmania, Australia",
-  Tasmania: "Tasmania, Australia",
-  VIC: "Victoria, Australia",
-  Victoria: "Victoria, Australia",
-  WA: "Western Australia, Australia",
-  "Western Australia": "Western Australia, Australia",
-  "Australian Capital Territory": "Australian Capital Territory",
-};
-
-function getAustralianCategoryDate(type) {
-  if (type === "Birth") {
-    return $("#mBirthDate").val() || "";
-  }
-  if (type === "Death" || type === "Cemetery") {
-    return $("#mDeathDate").val() || "";
-  }
-  if (type === "Marriage") {
-    const spouseList = Array.isArray(window.profilePerson?.Spouses)
-      ? window.profilePerson.Spouses.filter(Boolean)
-      : Object.values(window.profilePerson?.Spouses || {}).filter(Boolean);
-    const spouse = spouseList.find((entry) => entry?.marriage_date) || spouseList[0];
-    return spouse?.marriage_date || "";
-  }
-  return "";
-}
-
-function resolveAustralianCategoryLocation(location, type, australianLocations) {
-  if (!location) {
-    return { location, note: "" };
-  }
-
-  const originalLocation = location
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .join(", ");
-
-  // Strip the country name to isolate the state/territory portion for lookup.
-  // We deliberately do NOT check the original last part (e.g. "Australia") as a
-  // canonical key — that would match the country itself and corrupt the location.
-  const searchLocation = removeCountryName(originalLocation);
-  const locationParts = searchLocation.split(/, /);
-  const lastPart = locationParts[locationParts.length - 1];
-
-  const aliasLocation = AUSTRALIAN_LOCATION_ALIASES[lastPart];
-  const canonicalLocation = australianLocations[lastPart] ? lastPart : aliasLocation;
-
-  if (!canonicalLocation || !australianLocations[canonicalLocation]) {
-    // Not an Australian state/territory — return the original location unchanged
-    // so we don't inadvertently strip country names from UK or other places.
-    return { location: originalLocation, note: "" };
-  }
-
-  const dateValue = getAustralianCategoryDate(type);
-  const locationRecord = australianLocations[canonicalLocation];
-  let resolvedLocation = canonicalLocation;
-
-  if (dateValue && locationRecord?.startDate && !isSameDateOrAfter(dateValue, locationRecord.startDate)) {
-    resolvedLocation = locationRecord.previousName || canonicalLocation;
-  } else if (locationRecord?.modernName) {
-    resolvedLocation = locationRecord.modernName;
-  }
-
-  // If the state name hasn't actually changed, return the full original location
-  // unchanged so the country suffix (e.g. ", Australia") is preserved.
-  if (resolvedLocation === lastPart) {
-    return { location: originalLocation, note: "" };
-  }
-
-  locationParts[locationParts.length - 1] = resolvedLocation;
-
-  const note =
-    aliasLocation && !window.autoBioOptions?.checkAustralia ? `Australian location should be ${resolvedLocation}.` : "";
-
-  return { location: locationParts.join(", "), note };
-}
-
-function getYearFromDateString(dateStr) {
-  // WT+ timeframe dates come in many formats ("1 February 1841", "Jan 1, 2016", "1241");
-  // the year is the only 3-4 digit number in all of them.
-  const match = String(dateStr || "").match(/\b\d{3,4}\b/);
-  const year = match ? parseInt(match[0], 10) : null;
-  return year || null;
-}
-
-function isWithinCategoryTimeframe(aCat, eventYear) {
-  if (!eventYear) {
-    return true;
-  }
-  const start = getYearFromDateString(aCat?.startDate);
-  const end = getYearFromDateString(aCat?.endDate);
-  if (start && eventYear < start) {
-    return false;
-  }
-  if (end && eventYear > end) {
-    return false;
-  }
-  return true;
-}
-
-export async function getLocationCategory(type, location = null) {
-  if (!USstatesObjArray) {
-    const module = await import("./us_states.json");
-    USstatesObjArray = module.default;
-  }
-
-  let categoryType = "location";
-
-  if (["Birth", "Death"].includes(type)) {
-    const inputVal = $("#m" + type + "Location").val();
-    if (inputVal != "") {
-      location = inputVal;
-    } else {
-      return;
-    }
-  }
-
-  let marriageDate = null;
-  if ("Marriage" === type) {
-    if (window.profilePerson.Spouses) {
-      const spouseList = Array.isArray(window.profilePerson.Spouses)
-        ? window.profilePerson.Spouses.filter(Boolean)
-        : Object.values(window.profilePerson.Spouses).filter(Boolean);
-      const spouse = spouseList.find((s) => s?.marriage_location) || spouseList[0];
-      if (spouse?.marriage_location) {
-        location = spouse.marriage_location;
-        marriageDate = spouse.marriage_date;
-      } else {
-        return;
-      }
-    } else {
-      return;
-    }
-  }
-  let cemeteryVariants = [];
-  if (type === "Cemetery") {
-    if (window.profilePerson.Cemetery || window.profilePerson.CemeteryFull) {
-      location = window.profilePerson.CemeteryFull || window.profilePerson.Cemetery;
-      categoryType = "cemetery";
-      cemeteryVariants = generateCombinations(location);
-      // Remove any that matches 'undefined' anywhere in the text
-      cemeteryVariants = cemeteryVariants.filter((variant) => !variant.match(/undefined/i));
-
-      console.log("Cemetery variants:", cemeteryVariants);
-    } else {
-      return;
-    }
-  }
-
-  function isFirstWordInText(type, category) {
-    const firstWord = category.split(/[, ]/)[0];
-    const string = $("#m" + type + "Location").val();
-    if (!string) {
-      return false;
-    }
-    return string.match(new RegExp("\\b" + firstWord + "\\b", "i"));
-  }
-
-  function sameState(location1, location2) {
-    const state1 = findUSState(location1);
-    if (!state1) {
-      return "notUS";
-    }
-    const state2 = findUSState(location2);
-    if (state1 && state2 && state1 == state2) {
-      return "same";
-    }
-    return false;
-  }
-
-  let searchLocation = removeCountryName(location);
-
-  let australianLocations;
-  if (!window.australianLocations) {
-    australianLocations = await import("./australian_locations.json");
-    window.australianLocations = australianLocations.default;
-  } else {
-    australianLocations = window.australianLocations;
-  }
-
-  const resolvedAustralianLocation = resolveAustralianCategoryLocation(searchLocation, type, australianLocations);
-  searchLocation = resolvedAustralianLocation.location;
-  if (resolvedAustralianLocation.note && !window.autoBioNotes?.includes(resolvedAustralianLocation.note)) {
-    if (!Array.isArray(window.autoBioNotes)) {
-      window.autoBioNotes = [];
-    }
-    window.autoBioNotes.push(resolvedAustralianLocation.note);
-  }
-
-  let searchLocationsSet = new Set(generateCombinations(searchLocation));
-  const jurisdictionFallbacks = generateJurisdictionFallbacks(searchLocation);
-  jurisdictionFallbacks.forEach((fallbackLocation) => {
-    generateCombinations(fallbackLocation).forEach((combination) => searchLocationsSet.add(combination));
-  });
-  const searchLocationsArray = addCountyForIreland(Array.from(searchLocationsSet));
-  if (cemeteryVariants.length > 0) {
-    searchLocationsArray.push(...cemeteryVariants);
-  }
-  const apiPromises = searchLocationsArray.map((searchLocation) => {
-    return promiseWithTimeout(
-      wtAPICatCIBSearch("AutoBio_" + categoryType, categoryType, searchLocation),
-      5000,
-      `wtAPICatCIBSearch("AutoBio_${categoryType}, ${categoryType}, ${searchLocation})`
-    ); // 5 seconds timeout
-  });
-
-  const apiResponses = await Promise.allSettled(apiPromises);
-
-  const thisState = findUSState(location);
-  if (thisState && appalachiaStates.includes(thisState)) {
-    appalachiaCategory(location, thisState);
-  }
-
-  let eventDate = null;
-  if (type === "Birth") {
-    eventDate = $("#mBirthDate").val() || window.profilePerson?.BirthDate;
-  } else if (["Death", "Cemetery", "Burial"].includes(type)) {
-    eventDate = $("#mDeathDate").val() || window.profilePerson?.DeathDate;
-  } else if (type === "Marriage") {
-    eventDate = marriageDate;
-  }
-  const eventYear = getYearFromDateString(eventDate);
-
-  let foundCategory = null;
-  for (const location of searchLocationsArray) {
-    for (const api of apiResponses) {
-      if (api.status === "fulfilled") {
-        const response = api.value.response;
-
-        // Skip categories with a timeframe (e.g. "Swartland District, Dutch Cape Colony", 1703-1806)
-        // that doesn't include the profile's event year.
-        if (eventYear && response?.categories?.length > 0) {
-          response.categories = response.categories.filter((aCat) => isWithinCategoryTimeframe(aCat, eventYear));
-        }
-
-        // If location includes United States, find the state.
-
-        if (location.match(/United States|USA|U\.S\.A\.|U\.S\./i)) {
-          const thisState = findUSState(location);
-          if (thisState && response?.categories?.length > 0) {
-            response.categories = response.categories.filter((category) => {
-              const categoryState = findUSState(category.category);
-              if (!categoryState) return true; // Keep categories not tied to a specific state
-              return categoryState === thisState; // Keep only if state matches
-            });
-          }
-        }
-
-        if (response?.categories?.length === 1) {
-          const category = response.categories[0];
-          if (!category.topLevel) {
-            foundCategory = category.category;
-          }
-        } else if (response?.categories?.length > 1) {
-          const locationSplit = location.split(", ");
-          let thisState = findUSState(location);
-          response.categories.forEach(function (aCat) {
-            if (["Birth", "Death", "Marriage"].includes(type)) {
-              if (!isFirstWordInText(type, aCat?.category)) {
-                return;
-              }
-            }
-            if (type == "Death" || type == "Burial" || type == "Cemetery") {
-              console.log("Checking category:", aCat.category, "for location:", location);
-            }
-            if (!aCat.topLevel) {
-              let category = aCat.category;
-              if (type !== "Cemetery" || sameState(window.profilePerson.DeathLocation, aCat.location)) {
-                const parts = locationSplit.map((part) => part.trim()).filter(Boolean);
-                const part0 = parts[0];
-                const part1 = parts[1];
-                const penultimate = parts[parts.length - 2];
-                const last = parts[parts.length - 1];
-
-                const basePatterns = new Set();
-
-                // Adjacent pairs (e.g. Town, District and District, County)
-                for (let i = 0; i < parts.length - 1; i++) {
-                  basePatterns.add(`${parts[i]}, ${parts[i + 1]}`);
-                }
-
-                // Common direct fallbacks used by categories.
-                if (part0 && penultimate) {
-                  basePatterns.add(`${part0}, ${penultimate}`);
-                }
-                if (part0 && last) {
-                  basePatterns.add(`${part0}, ${last}`);
-                }
-                if (penultimate && last) {
-                  basePatterns.add(`${penultimate}, ${last}`);
-                }
-
-                const suffixes = Array.from(new Set([thisState, penultimate, last].filter(Boolean)));
-                const combinations = new Set();
-
-                basePatterns.forEach((pattern) => {
-                  combinations.add(pattern);
-                  combinations.add(`${pattern} County`);
-                  suffixes.forEach((suffix) => {
-                    combinations.add(`${pattern}, ${suffix}`);
-                    combinations.add(`${pattern} County, ${suffix}`);
-                  });
-                });
-
-                // Cases like "Houston, Georgia" -> "Houston County, Georgia"
-                if (part0 && part1) {
-                  combinations.add(`${part0} County, ${part1}`);
-                }
-
-                if (combinations.has(category)) {
-                  foundCategory = category;
-                }
-              }
-            }
-          });
-        }
-      } else if (api.status === "rejected") {
-        console.error(api.reason);
-      }
-    }
-  }
-
-  if (foundCategory) {
-    foundCategory = locationCategoryFilter(foundCategory);
-  } else {
-    console.log("No category found.");
-  }
-
-  return foundCategory;
-}
-
-function locationCategoryFilter(category) {
-  if (category.match(/Co\..*County/)) {
-    return "";
-  }
-  // Exclude institutional buildings and organizations - they are not geographic locations
-  // These include: lodges, temples, churches, religious buildings, schools, hospitals, etc.
-  const institutionalPatterns = [
-    /\blodge\b/i,
-    /\btemple\b/i,
-    /\bsynagogue\b/i,
-    /\bmosque\b/i,
-    /\bmonastery\b/i,
-    /\bconvent\b/i,
-    /\babbey\b/i,
-    /\bpriory\b/i,
-    /\bchapel\b/i,
-    /\bchurch\b/i,
-    /\bschool\b/i,
-    /\buniversity\b/i,
-    /\bcollege\b/i,
-    /\bhospital\b/i,
-    /\bhotel\b/i,
-    /\binn\b/i,
-    /\bpub\b/i,
-    /\btavern\b/i,
-  ];
-  
-  for (const pattern of institutionalPatterns) {
-    if (category.match(pattern)) {
-      return "";
-    }
-  }
-  
-  return category;
-}
-
-function addErrorMessage() {
-  // Check if there's an error message in the localStorage
-  if (localStorage.getItem("error_message")) {
-    // If so, click the first private message link
-    // Select the node that will be observed for mutations
-    let targetNode = document.body; // Replace with a closer parent if possible
-
-    // Options for the observer (which mutations to observe)
-    let config = { childList: true, subtree: true };
-
-    // Callback function to execute when mutations are observed
-    let callback = function (mutationsList, observer) {
-      for (let mutation of mutationsList) {
-        // Check the addedNodes property
-        for (let node of mutation.addedNodes) {
-          // Use the instanceof operator to ensure the added node is an Element
-          if (node instanceof Element) {
-            // Check if our target element exists within this node
-            let targetElement = node.querySelector("#privateMessage-comments");
-            if (targetElement) {
-              // Get member's first name from the form #privateMessgae-sender_name
-              let memberName = $("#privateMessage-sender_name").val().split(" ")[0];
-              $("#privateMessage-comments").val(
-                localStorage.getItem("error_message") + "\n\nGood Luck!\n\n" + memberName
-              );
-              $("#privateMessage-subject").val("Auto Bio bug report");
-              // Clear the error message from the localStorage
-              localStorage.removeItem("error_message");
-              observer.disconnect();
-            }
-          }
-        }
-      }
-    };
-
-    // Create an observer instance linked to the callback function
-    let observer = new MutationObserver(callback);
-
-    // Start observing the target node for configured mutations
-    observer.observe(targetNode, config);
-    $(".privateMessageLink")[0].click();
-  }
-}
 let boldBit = "";
 shouldInitializeFeature("autoBio").then((result) => {
   if (result) {
@@ -8802,656 +6477,12 @@ shouldInitializeFeature("autoBio").then((result) => {
   }
 });
 
-/**
- * Converts American English spelling to British English spelling based on the user's locale.
- * This function checks if the user's browser locale is set to a form of English that typically
- * uses British spelling (like UK or Australia). If so, it converts American English words
- * to their British equivalents based on a predefined dictionary of spellings.
- *
- * @param {string} text - The text to be converted from American to British spelling.
- * @returns {string} The text with American spellings converted to British spellings where applicable.
- *                   If the user's locale is not set to use British English, the original text is returned unchanged.
- *
- * The conversion only occurs if the user's locale is set to British English variants (en-GB, en-AU, etc.).
- * The function splits the input text into words, checks each word against a dictionary of American-to-British
- * spellings, and replaces them if a match is found. The `matchCase` function is used to preserve the original
- * word's capitalization style.
- */
-function spell(text) {
-  const americanToBritishSpelling = {
-    // A
-    acknowledgment: "acknowledgement",
-    acknowledgments: "acknowledgements",
-    aging: "ageing",
-    analog: "analogue",
-    analyze: "analyse",
-    analyzed: "analysed",
-    analyzes: "analyses",
-    analyzing: "analysing",
-    anglicize: "anglicise",
-    anglicized: "anglicised",
-    anglicizes: "anglicises",
-    anglicizing: "anglicising",
-    anonymize: "anonymise",
-    anonymized: "anonymised",
-    anonymizes: "anonymises",
-    anonymizing: "anonymising",
-    apologize: "apologise",
-    apologized: "apologised",
-    apologizes: "apologises",
-    apologizing: "apologising",
-    arbor: "arbour",
-    arbors: "arbours",
-    ax: "axe",
-
-    // B
-    baptize: "baptise",
-    baptized: "baptised",
-    baptizes: "baptises",
-    baptizing: "baptising",
-    behavior: "behaviour",
-    behaviors: "behaviours",
-
-    // C
-    catalog: "catalogue",
-    catalogs: "catalogues",
-    center: "centre",
-    centers: "centres",
-    color: "colour",
-    colored: "coloured",
-    colorful: "colourful",
-    colorfully: "colourfully",
-    coloring: "colouring",
-    colors: "colours",
-
-    // D
-    dialog: "dialogue",
-    dialogs: "dialogues",
-    draft: "draught",
-    drafts: "draughts",
-    defense: "defence",
-    defenses: "defences",
-
-    // E
-    enroll: "enrol",
-    enrolled: "enrolled",
-    enrolling: "enrolling",
-    enrollment: "enrolment",
-    enrollments: "enrolments",
-    encyclopedia: "encyclopaedia",
-    encyclopedias: "encyclopaedias",
-    esophagus: "oesophagus",
-    esthetic: "aesthetic",
-
-    // F
-    favor: "favour",
-    favored: "favoured",
-    favoring: "favouring",
-    favors: "favours",
-    fiber: "fibre",
-    fibers: "fibres",
-    fulfill: "fulfil",
-    fulfilled: "fulfilled",
-    fulfilling: "fulfilling",
-    fulfillment: "fulfilment",
-    fulfillments: "fulfilments",
-
-    // G
-    gray: "grey",
-    grays: "greys",
-
-    // H
-    honor: "honour",
-    honored: "honoured",
-    honoring: "honouring",
-    honors: "honours",
-    humor: "humour",
-    humored: "humoured",
-    humoring: "humouring",
-    humors: "humours",
-
-    // I-J
-    inquiry: "enquiry",
-    inquiries: "enquiries",
-    jewelry: "jewellery",
-    judgment: "judgement",
-    judgments: "judgements",
-
-    // L
-    labor: "labour",
-    labors: "labours",
-    license: "licence",
-    licenses: "licences",
-    liter: "litre",
-    liters: "litres",
-    luster: "lustre",
-
-    // M
-    marveled: "marvelled",
-    marveling: "marvelling",
-    meager: "meagre",
-    modeled: "modelled",
-    modeling: "modelling",
-    models: "models",
-    mold: "mould",
-    molds: "moulds",
-    mom: "mum",
-    moms: "mums",
-
-    // N
-    neighbor: "neighbour",
-    neighboring: "neighbouring",
-    neighbors: "neighbours",
-
-    // O
-    organization: "organisation",
-    organizations: "organisations",
-    organize: "organise",
-    organized: "organised",
-    organizes: "organises",
-    organizing: "organising",
-
-    // P
-    personalize: "personalise",
-    personalized: "personalised",
-    personalizes: "personalises",
-    personalizing: "personalising",
-    plow: "plough",
-    plows: "ploughs",
-    practicing: "practising",
-    privatize: "privatise",
-    privatized: "privatised",
-    privatizes: "privatises",
-    privatizing: "privatising",
-
-    // R
-    realization: "realisation",
-    realizations: "realisations",
-    realize: "realise",
-    realized: "realised",
-    realizes: "realises",
-    realizing: "realising",
-    recognize: "recognise",
-    recognized: "recognised",
-    recognizes: "recognises",
-    recognizing: "recognising",
-    rumor: "rumour",
-    rumors: "rumours",
-
-    // S
-    saber: "sabre",
-    sabers: "sabres",
-    skillful: "skilful",
-    skillfully: "skilfully",
-    somber: "sombre",
-    sulfur: "sulphur",
-
-    // T
-    theater: "theatre",
-    theaters: "theatres",
-
-    // Traveling
-    traveled: "travelled",
-    traveler: "traveller",
-    travelers: "travellers",
-    traveling: "travelling",
-
-    // V
-    valor: "valour",
-    vapor: "vapour",
-    vapors: "vapours",
-
-    // W
-    willful: "wilful",
-    willfully: "wilfully",
-
-    // Add more as needed
-  };
-
-  const userLanguage = navigator.language || navigator.userLanguage;
-  const useBritishEnglish = ["en-GB", "en-AU", "en-NZ", "en-ZA", "en-IE", "en-IN", "en-SG", "en-MT"].includes(
-    userLanguage
-  );
-
-  function matchCase(original, transformed) {
-    if (original === original.toUpperCase()) {
-      return transformed.toUpperCase();
-    }
-    if (original[0] === original[0].toUpperCase()) {
-      return transformed[0].toUpperCase() + transformed.slice(1);
-    }
-    return transformed;
-  }
-
-  return text
-    .split(/\b/)
-    .map((word) => {
-      const lowerCaseWord = word.toLowerCase();
-
-      if (americanToBritishSpelling.hasOwnProperty(lowerCaseWord)) {
-        const converted = americanToBritishSpelling[lowerCaseWord];
-        return useBritishEnglish ? matchCase(word, converted) : word;
-      }
-
-      return word;
-    })
-    .join("");
-}
-
-const AUTO_BIO_MARKER = "WikiTree Browser Extension Auto Bio";
-
-function addAutoBioUI() {
-  removeAutoBioUI(); // Clean up first
-
-  // Status message
-  if ($("#deleteOldBioMessage").length === 0) {
-    $("#draftStatus").before(
-      `<div id="deleteOldBioMessage" class="status">
-        <span class="large" style="display:block; font-weight:bold; margin-bottom:0.3em;">Auto Bio</span>
-        Don't forget to <b>delete the old bio</b> and the Auto Bio message above it.
-      </div>`
-    );
-  }
-
-  if ($("#autoBioButtonBox").length === 0) {
-    // Basic AutoBio UI (Delete Old Bio, etc)
-    // Removed specific styling to match native look as requested
-    const buttonBox = $(
-      "<div id='autoBioButtonBox' style='display: inline-flex; gap: 2px; align-items: center; margin-left: 2px; position: relative;'></div>"
-    );
-
-    const hasAIKey = [
-      window.autoBioOptions?.openAIKey,
-      window.autoBioOptions?.geminiKey,
-      window.autoBioOptions?.claudeKey,
-      window.autoBioOptions?.perplexityKey,
-      window.autoBioOptions?.xaiKey,
-    ].some((key) => typeof key === "string" && key.trim() !== "");
-
-    if (hasAIKey) {
-      // AI BUTTON
-      const aiButton = $("<button id='improveAI' class='small editToolbarButton'>Improve with AI</button>");
-      aiButton.on("click", improveBioWithAI);
-      buttonBox.append(aiButton);
-
-      // CUSTOM INSTRUCTIONS UI
-      const customInstructionsBtn = $(
-        "<button id='autoBioCustomInstructionsBtn' class='small editToolbarButton' title='Custom AI Instructions' style='padding: 0 4px;'>⚙️</button>"
-      );
-      buttonBox.append(customInstructionsBtn);
-
-      const customInstructionsPanel = $(
-        `<div id='autoBioCustomInstructions' style='display: none; position: absolute; background: white; border: 1px solid #ccc; padding: 10px; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); width: 300px; top: 35px; right: 0; cursor: default;'>
-          <div id='autoBioCustomInstructionsHeader' style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; cursor: move;'>
-            <span style='font-weight: bold;'>Custom AI Instructions</span>
-            <button id='autoBioCustomInstructionsClose' class='small' style='background: none; border: none; cursor: pointer; font-size: 16px; padding: 0 4px;'>&times;</button>
-          </div>
-          <textarea id='autoBioCustomInstructionsText' style='width: 100%; height: 80px; font-size: 12px; margin-bottom: 5px;' placeholder='e.g., Use "passed away" instead of "died"...'></textarea>
-          <label><input type='checkbox' id='autoBioUseCustomInstructions'> Use these instructions</label>
-        </div>`
-      );
-      buttonBox.append(customInstructionsPanel);
-
-      customInstructionsBtn.on("click", function (e) {
-        e.preventDefault();
-        customInstructionsPanel.toggle();
-      });
-
-      customInstructionsPanel.find("#autoBioCustomInstructionsClose").on("click", function (e) {
-        e.preventDefault();
-        customInstructionsPanel.hide();
-      });
-
-      // Make it draggable if jQuery UI is loaded
-      if (typeof $.fn.draggable === "function") {
-        customInstructionsPanel.draggable({ handle: "#autoBioCustomInstructionsHeader" });
-      }
-
-      // Load from localStorage
-      const savedInstructions = localStorage.getItem("autoBioCustomInstructions") || "";
-      const savedUse = localStorage.getItem("autoBioUseCustomInstructions") === "true";
-
-      customInstructionsPanel.find("#autoBioCustomInstructionsText").val(savedInstructions);
-      customInstructionsPanel.find("#autoBioUseCustomInstructions").prop("checked", savedUse);
-
-      // Save on change
-      customInstructionsPanel
-        .find("#autoBioCustomInstructionsText, #autoBioUseCustomInstructions")
-        .on("change input", function () {
-          localStorage.setItem("autoBioCustomInstructions", $("#autoBioCustomInstructionsText").val());
-          localStorage.setItem("autoBioUseCustomInstructions", $("#autoBioUseCustomInstructions").prop("checked"));
-        });
-    }
-
-    const removeButton = $("<button id='removeAutoBio' class='small editToolbarButton'>Undo Auto Bio</button>");
-    removeButton.on("click", function (e) {
-      e.preventDefault();
-      if (window.autoBio_originalBio) {
-        setBioText(window.autoBio_originalBio, "replace");
-      } else {
-        // Fallback: Try to extract text AFTER the marker (which is where we put the Old Bio now)
-        let bioNow = getBioText();
-        let oldBio = bioNow.replace(/^.*?--- WikiTree Browser Extension Auto Bio ---[\s\S]+?-->\s*/s, "");
-        // Ensure oldBio (Base) doesn't have the Auto Bio marker/comments causing diff noise on the left side
-        // This handles cases where we fell back to 'lastGenerated' which includes comments
-        // We use a generic comment remover to be absolutely sure no instructions leak into the Diff view.
-        oldBio = oldBio.replace(/<!--[\s\S]*?-->/g, "").trim();
-        setBioText(oldBio, "replace");
-      }
-      restoreAutoBioFormState(window.autoBio_originalFields);
-      removeAutoBioUI();
-      // Clear cached variables to reset state
-      window.autoBio_cleanDraft = null;
-      window.autoBio_commentBlock = null;
-      window.autoBio_originalFields = null;
-      // window.autoBio_originalBio = null; // Don't clear this immediately? No, we should clear it to allow fresh start.
-      window.autoBio_originalBio = null;
-    });
-    buttonBox.append(removeButton);
-
-    // Check if we have an "Old Bio" to delete
-    if (getBioText().includes("<!-- Old Bio -->") || getBioText().includes("<!--")) {
-      const deleteButton = $("<button id='deleteOldBio' class='small editToolbarButton'>Delete Old Bio</button>");
-      deleteButton.on("click", function (e) {
-        e.preventDefault();
-        let text = getBioText();
-
-        // Find the start of the Auto Bio message
-        // The message is a comment containing "WikiTree Browser Extension Auto Bio"
-        const marker = "WikiTree Browser Extension Auto Bio";
-        const commentStart = "<!--";
-
-        let headerIndex = -1;
-
-        // We need to find the specific comment block
-        // A simple indexOf matching might be risky if they have the text elsewhere,
-        // but it's unlikely another comment has this exact string unless it IS the auto bio marker.
-        // We iterate specifically to find the COMMENT containing the marker.
-
-        const regex = /<!--[\s\S]*?WikiTree Browser Extension Auto Bio[\s\S]*?-->/g;
-        const match = regex.exec(text);
-
-        if (match) {
-          headerIndex = match.index;
-        }
-
-        if (headerIndex !== -1) {
-          // Delete everything from the start of the message to the end
-          text = text.substring(0, headerIndex).trim();
-        } else {
-          // Fallback: If we can't find the specific marker but we know we have an "Old Bio",
-          // try to remove just the old bio text if we have it cached.
-          if (window.autoBio_originalBio) {
-            text = text.replace(window.autoBio_originalBio, "").trim();
-          }
-        }
-
-        setBioText(text, "replace");
-        $(this).remove();
-        $("#deleteOldBioMessage").remove();
-      });
-      buttonBox.append(deleteButton);
-    }
-
-    if ($("#editToolbarExt").length) {
-      $("#editToolbarExt").append(buttonBox);
-    } else {
-      $("#toolbar").after(buttonBox);
-    }
-  }
-}
-
-async function improveBioWithAI(e) {
-  e.preventDefault();
-  const btn = $(this);
-  const originalText = btn.text();
-  btn.text("Thinking...").prop("disabled", true);
-  removeWorking();
-  addWorking();
-
-  try {
-    // 1. REFRESH OPTIONS
-    window.autoBioOptions = await migrateAutoBioAiModelOptions(await getFeatureOptions("autoBio"));
-
-    // 2. STRICT VARIABLE USAGE (Per User Request)
-    const oldBio = window.autoBio_originalBio;
-    // Prefer cleanDraft (captured before UI add-ons), fallback to lastGenerated if needed
-    let newBio = window.autoBio_cleanDraft || window.autoBio_lastGenerated;
-
-    console.log("AutoBio Logic: Using stored bio variables.");
-    console.log("Old Bio (Original):", oldBio ? oldBio.substring(0, 50) + "..." : "MISSING");
-    console.log("New Bio (Draft):", newBio ? newBio.substring(0, 50) + "..." : "MISSING");
-
-    if (!oldBio || !newBio) {
-      alert("Missing Auto Bio data! Please click 'Auto Bio' again to generate a fresh draft before using AI.");
-      return;
-    }
-
-    const provider = window.autoBioOptions?.aiProvider || "openai";
-    let selectedKey = "";
-    let selectedModel = window.autoBioOptions?.aiModel || "";
-
-    if (provider === "openai") {
-      selectedKey = window.autoBioOptions?.openAIKey;
-      if (!selectedModel) selectedModel = window.autoBioOptions?.openAIModel || "gpt-5.4-mini";
-    } else if (provider === "gemini") {
-      selectedKey = window.autoBioOptions?.geminiKey;
-      if (!selectedModel) selectedModel = window.autoBioOptions?.geminiModel || "gemini-3.5-flash";
-    } else if (provider === "claude") {
-      selectedKey = window.autoBioOptions?.claudeKey;
-      if (!selectedModel) selectedModel = window.autoBioOptions?.claudeModel || "claude-sonnet-5";
-    } else if (provider === "perplexity") {
-      selectedKey = window.autoBioOptions?.perplexityKey;
-      if (!selectedModel) selectedModel = window.autoBioOptions?.perplexityModel || "sonar";
-    } else if (provider === "xai") {
-      selectedKey = window.autoBioOptions?.xaiKey;
-      if (!selectedModel) selectedModel = window.autoBioOptions?.xaiModel || "grok-4.3";
-    }
-
-    const requestPayload = {
-      action: "improveBioWithAI", // FIXED: Matches background.js listener
-      oldBio: oldBio,
-      newBio: newBio,
-      provider: provider,
-      key: selectedKey,
-      model: selectedModel,
-      diedWord: window.autoBioOptions?.diedWord || "died",
-      inlineCitations:
-        typeof window.autoBioOptions?.inlineCitations !== "undefined" ? window.autoBioOptions.inlineCitations : true,
-      dateFormat: window.autoBioOptions?.dateFormat || "MDY",
-      dateStatusFormat: window.autoBioOptions?.dateStatusFormat || "abbreviations",
-      yearsDateStatusFormat: window.autoBioOptions?.yearsDateStatusFormat || "symbols",
-      deathPosition: window.autoBioOptions?.deathPosition || false,
-      customInstructions:
-        localStorage.getItem("autoBioUseCustomInstructions") === "true"
-          ? localStorage.getItem("autoBioCustomInstructions")
-          : "",
-    };
-
-    console.log("Sending to AI:", requestPayload);
-
-    if (!requestPayload.key) {
-      alert("API Key is missing! Please ensure you have entered your API Key in the Auto Bio Options.");
-      return;
-    }
-
-    // Now send to AI
-    const response = await chrome.runtime.sendMessage(requestPayload);
-
-    if (response && response.success) {
-      let aiBio = response.bio
-        .replace(/```markdown/g, "")
-        .replace(/```/g, "")
-        .trim();
-
-      // Ensure newBio (Base) doesn't have the Auto Bio marker/comments causing diff noise on the left side
-      // We use a generic comment remover to be absolutely sure no instructions leak into the Diff view.
-      newBio = newBio.replace(/<!--[\s\S]*?-->/g, "").trim();
-
-      showAIResult(aiBio, newBio, oldBio);
-    } else {
-      console.error("AI Response Error:", response);
-      alert(
-        "AI Error: " +
-          (response
-            ? response.error
-            : "No response from AI service. Check that your API Key is correct and has credits.")
-      );
-    }
-  } catch (error) {
-    console.error(error);
-    alert("Error: " + error.message);
-  } finally {
-    removeWorking();
-    btn.text(originalText).prop("disabled", false);
-  }
-}
-
-function showAIResult(aiBio, cleanBaseBio, fullOriginalText) {
-  if ($("#aiBioReviewBox").length > 0) {
-    $("#aiBioReviewBox").remove();
-  }
-
-  // Calculate Diff with strict normalization to avoid false positives on whitespace/newlines and WikiText styling
-  const smartNormalize = (str) =>
-    (str || "")
-      .replace(/\r\n/g, "\n") // Standardize newlines
-      .replace(/\r/g, "\n")
-      .replace(/\u00A0/g, " ") // Kill NBSPs
-      .replace(/[\u200B-\u200D\uFEFF]/g, "") // Kill zero-width chars
-      .replace(/[\u2018\u2019]/g, "'") // Smart single quotes -> straight
-      .replace(/[\u201C\u201D]/g, '"') // Smart double quotes -> straight
-      .replace(/[ \t]+$/gm, "") // Kill trailing spaces
-      //.replace(/\n{2,}/g, "\n") // REMOVED: Preserving blank lines for diff visibility
-      .replace(/==\s*([^=]+?)\s*==/g, "== $1 ==") // Standardize Header Spacing
-      .replace(/\[\[\s*([^|\]]+?)\s*\|\s*([^\]]+?)\s*\]\]/g, "[[$1|$2]]") // Standardize Link Pipe Spacing
-      .replace(/\[\[Category:\s*([^\]]+?)\]\]/g, "[[Category: $1]]") // Standardize Category Spacing
-      .replace(/<references\s*\/?>/gi, "<references />") // Normalize references
-      .replace(/^See also:?$/gim, "See also:") // Normalize See also
-      .replace(/^\*\s+/gm, "* ") // Normalize bullet points spacing
-      .replace(/ +/g, " ") // Collapse multiple spaces
-      .trim();
-
-  const baseNorm = smartNormalize(cleanBaseBio);
-  const aiNorm = smartNormalize(aiBio);
-
-  // Switch back to diffWords as diffLines was too aggressive visually
-  const diff = Diff.diffWords(baseNorm, aiNorm);
-
-  let leftHtml = "";
-  let rightHtml = "";
-
-  diff.forEach(function (part) {
-    const escapedValue = part.value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-    if (part.added) {
-      rightHtml += `<span style="background-color: #dcfce7; text-decoration: none; color: #166534; padding: 2px 0;">${escapedValue}</span>`;
-    } else if (part.removed) {
-      leftHtml += `<span style="background-color: #fee2e2; text-decoration: line-through; color: #991b1b; padding: 2px 0;">${escapedValue}</span>`;
-    } else {
-      leftHtml += escapedValue;
-      rightHtml += escapedValue;
-    }
-  });
-
-  const box =
-    $(`<div id="aiBioReviewBox" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; justify-content: center; align-items: center; box-sizing: border-box;">
-        <div style="background: white; padding: 20px; border-radius: 8px; width: 95%; max-width: 1400px; height: 90vh; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 15px; box-sizing: border-box;">
-            <h3 style="margin: 0; color: #1e3a8a; font-size: 1.25rem;">AI Suggested Changes (Side-by-Side)</h3>
-
-            <div style="display: flex; gap: 20px; flex-grow: 1; min-height: 0; width: 100%; box-sizing: border-box;">
-                <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">
-                    <h4 style="margin: 0 0 5px 0; color: #666;">Original (Auto Bio Draft)</h4>
-                    <div id="aiBioDiffLeft" style="border: 1px solid #ccc; padding: 10px; border-radius: 4px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; line-height: 1.5; flex-grow: 1; background: #f9fafb; width: 100%; box-sizing: border-box;">${leftHtml}</div>
-                </div>
-                <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">
-                    <h4 style="margin: 0 0 5px 0; color: #2563eb;">AI Result</h4>
-                    <div id="aiBioDiffRight" style="border: 1px solid #2563eb; padding: 10px; border-radius: 4px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; line-height: 1.5; flex-grow: 1; background: white; width: 100%; box-sizing: border-box;">${rightHtml}</div>
-                </div>
-            </div>
-
-            <textarea id="aiBioTextarea" style="display:none;">${aiBio}</textarea>
-
-            <div style="display: flex; gap: 10px; justify-content: flex-end; align-items: center; box-sizing: border-box;">
-                <button id="discardAIBio" class="small editToolbarButton" style="background: #ef4444; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Discard</button>
-                <button id="acceptAIBio" class="small editToolbarButton" style="background: #2563eb; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Use AI Version</button>
-            </div>
-        </div>
-    </div>`);
-
-  $("body").append(box);
-
-  // Sync Scrolling
-  const leftPane = $("#aiBioDiffLeft");
-  const rightPane = $("#aiBioDiffRight");
-
-  leftPane.on("scroll", function () {
-    if (!leftPane.is(":hover")) return;
-    rightPane.scrollTop(leftPane.scrollTop());
-  });
-  rightPane.on("scroll", function () {
-    if (!rightPane.is(":hover")) return;
-    leftPane.scrollTop(rightPane.scrollTop());
-  });
-
-  $("#acceptAIBio").on("click", function (e) {
-    e.preventDefault();
-
-    let finalBio = $("#aiBioTextarea").val().trim();
-
-    // Re-attach the Auto Bio Comment Block (Instructions) AND the Old Bio
-    // This restores the user's preferred order: AI Bio first, then the Auto Bio block, then the Old Bio.
-    if (window.autoBio_commentBlock) {
-      finalBio += "\n\n" + window.autoBio_commentBlock;
-      // The extensionNotes (commentBlock) ends with "-->", so we should probably append the old bio AFTER it?
-      // Wait, normally AutoBio wraps the old bio IN the comments?
-      // The user request said: "[Auto Bio Comment Block with Instructions] ... Please add the old bio after that."
-      // So:
-      if (window.autoBio_originalBio) {
-        finalBio += "\n" + window.autoBio_originalBio;
-      }
-    }
-
-    setBioText(finalBio, "replace");
-    $("#aiBioReviewBox").remove();
-  });
-
-  $("#discardAIBio").on("click", function () {
-    $("#aiBioReviewBox").remove();
-  });
-}
-
 // Clear AI cache on load/refresh (Init logic)
 // We'll hook this into the doc ready or check logic
 $(function () {
   window.autoBio_lastGenerated = null;
   window.autoBio_cachedBaseBio = null;
 });
-
-function removeAutoBioUI() {
-  // Remove the Auto Bio buttons and message
-  $("#autoBioButtonBox").remove();
-  // Update event off calls for the new button setup
-  $("#deleteOldBio").off("click"); // New delete button uses direct click
-  $("#removeAutoBio").off("click"); // New remove button uses direct click
-  $("#improveAI").off("click"); // New AI button uses direct click
-  $("#wpTextbox1").off("input blur", removeOldBioMessage);
-  $("#wpSave").off("mouseover", removeOldBioMessage);
-  // Remove the delete old bio message
-  if ($("#deleteOldBioMessage").length) {
-    $("#deleteOldBioMessage").remove();
-  }
-}
-
-function checkForAutoBioMarker() {
-  if (getBioText().includes(AUTO_BIO_MARKER)) {
-    addAutoBioUI();
-    $("#wpTextbox1").on("input blur", removeOldBioMessage);
-    $("#wpSave").on("mouseover", removeOldBioMessage);
-  } else {
-    removeAutoBioUI();
-  }
-}
 
 // Initialize on load and on input/blur
 $(function () {
@@ -9480,3 +6511,8 @@ export { getFormData, getPronouns } from "./profileUtils.js";
 export { capitalizeFirstLetter } from "./textUtils.js";
 export { assignPersonNames, setOrderBirthDate } from "./auto_bio_person.js";
 // Find a Grave citation utilities removed from exports
+export { WBE_AUTO_BIO_APP_ID } from "./autoBioConstants.js";
+export { buildFamilyForPrivateProfiles, getBiographySpouseParents } from "./privateFamilyUtils.js";
+export { getLocationCategoriesForSourcePlaces, getLocationCategory } from "./locationCategoryUtils.js";
+export { getNameVariants } from "./familyMatchUtils.js";
+export { splitBioIntoSections } from "./bioSectionUtils.js";

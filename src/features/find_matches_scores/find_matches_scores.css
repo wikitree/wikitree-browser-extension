@@ -1,0 +1,394 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
+.wbe-fms-panel {
+  margin: 1rem 0 1.5rem;
+  padding: 0.85rem 1rem 1rem;
+  border: 1px solid #b9c5d1;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #f7fbff 0%, #f2f7fc 100%);
+  font-size: 0.9em;
+}
+
+.wbe-fms-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.6rem;
+}
+
+.wbe-fms-header h3 {
+  margin: 0;
+  font-size: 1.05em;
+}
+
+.wbe-fms-count {
+  font-weight: 400;
+  color: #5a6b7c;
+  font-size: 0.85em;
+  margin-left: 0.35rem;
+}
+
+.wbe-fms-status,
+.wbe-fms-error,
+.wbe-fms-notice,
+.wbe-fms-unscored {
+  margin: 0;
+  color: #5a6b7c;
+}
+
+/* The panel fades itself out after saying why there is no table. */
+.wbe-fms-panel {
+  transition: opacity 0.6s ease;
+}
+
+.wbe-fms-panel.wbe-fms-fading {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wbe-fms-panel {
+    transition: none;
+  }
+}
+
+.wbe-fms-unscored {
+  margin-top: 0.6rem;
+  font-size: 0.9em;
+}
+
+.wbe-fms-error {
+  color: #a4262c;
+}
+
+.wbe-fms-spinner {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  border: 2px solid #b9c5d1;
+  border-top-color: var(--wbe-colour, #006080);
+  border-radius: 50%;
+  animation: wbe-fms-spin 0.8s linear infinite;
+  vertical-align: -0.1em;
+}
+
+@keyframes wbe-fms-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wbe-fms-spinner {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------------------------- table -- */
+
+.wbe-fms-table-scroll {
+  overflow-x: auto;
+}
+
+.wbe-fms-table {
+  width: 100%;
+  min-width: 46rem;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.wbe-fms-table th,
+.wbe-fms-table td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid #e3e9ef;
+  text-align: left;
+  vertical-align: top;
+}
+
+.wbe-fms-table thead th {
+  background: #eef3f8;
+  font-weight: 600;
+  white-space: nowrap;
+  border-bottom: 2px solid #cdd8e3;
+}
+
+.wbe-fms-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.wbe-fms-sortable::after {
+  content: "";
+  display: inline-block;
+  margin-left: 0.3rem;
+  opacity: 0.4;
+}
+
+.wbe-fms-sorted-asc::after {
+  content: "▲";
+  opacity: 1;
+}
+
+.wbe-fms-sorted-desc::after {
+  content: "▼";
+  opacity: 1;
+}
+
+.wbe-fms-row {
+  cursor: pointer;
+}
+
+.wbe-fms-row:hover {
+  background: #f5f9fd;
+}
+
+/*
+  The profile being matched against. Tinted and ruled off from the results so the eye reads
+  it as the thing being compared with, not as the best result.
+*/
+.wbe-fms-anchor-row {
+  background: #eef3f8;
+}
+
+.wbe-fms-anchor-row td {
+  border-bottom: 2px solid #cdd8e3;
+}
+
+/* Sentence case, not the uppercase used for one-word tags: at this length it reads as shouting. */
+.wbe-fms-anchor-label {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid #9fb0c1;
+  border-radius: 4px;
+  font-size: 0.8em;
+  font-weight: 600;
+  color: #40525f;
+  white-space: nowrap;
+}
+
+.wbe-fms-row.wbe-fms-open {
+  background: #eef5fc;
+}
+
+.wbe-fms-table.wbe-fms-hide-weak .wbe-fms-weak,
+.wbe-fms-table.wbe-fms-hide-weak .wbe-fms-weak + .wbe-fms-detail-row {
+  display: none;
+}
+
+/* ------------------------------------------------------------------------ scores -- */
+
+.wbe-fms-score-cell {
+  white-space: nowrap;
+}
+
+.wbe-fms-badge {
+  display: inline-block;
+  min-width: 2.2em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  text-align: center;
+  font-weight: 700;
+  color: #fff;
+  background: #8a97a4;
+}
+
+/*
+  The band colours run cool-to-warm rather than green-to-red: these are judgements about
+  evidence, not pass/fail, and a red "Rejected" would read as an error in the page.
+*/
+.wbe-fms-badge-near-certain {
+  background: #1d6f42;
+}
+
+.wbe-fms-badge-very-strong {
+  background: #2e8b57;
+}
+
+.wbe-fms-badge-strong {
+  background: #4682b4;
+}
+
+.wbe-fms-badge-possible {
+  background: #b8860b;
+}
+
+.wbe-fms-badge-weak {
+  background: #8a97a4;
+}
+
+.wbe-fms-badge-rejected {
+  background: #c4ccd4;
+  color: #4a5560;
+}
+
+.wbe-fms-level {
+  display: block;
+  font-size: 0.8em;
+  color: #5a6b7c;
+  margin-top: 0.15rem;
+}
+
+/* ------------------------------------------------------------------------- cells -- */
+
+.wbe-fms-date-cell .wbe-fms-date {
+  display: block;
+  white-space: nowrap;
+}
+
+.wbe-fms-date-cell .wbe-fms-place {
+  display: block;
+  font-size: 0.85em;
+  color: #5a6b7c;
+}
+
+.wbe-fms-place-match .wbe-fms-place {
+  color: #1d6f42;
+  font-weight: 600;
+}
+
+.wbe-fms-people-cell {
+  max-width: 12rem;
+}
+
+.wbe-fms-relation {
+  display: block;
+  line-height: 1.2;
+  padding-left: 0.45rem;
+  border-left: 4px solid transparent;
+}
+
+/* A shared relative is the clearest duplicate signal on the page, so it gets the strongest mark. */
+.wbe-fms-relation.wbe-fms-shared-id {
+  border-left-color: #1d6f42;
+  font-weight: 600;
+}
+
+.wbe-fms-relation.wbe-fms-shared-name {
+  border-left-color: #b8860b;
+}
+
+.wbe-fms-compare-cell {
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ detail rows -- */
+
+.wbe-fms-detail-row {
+  display: none;
+}
+
+.wbe-fms-detail-row.wbe-fms-open {
+  display: table-row;
+}
+
+.wbe-fms-detail-row td {
+  background: #f7fbff;
+  padding: 0.6rem 0.9rem 0.75rem;
+}
+
+.wbe-fms-reject {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+  color: #8a4b00;
+}
+
+.wbe-fms-evidence {
+  display: inline-block;
+  vertical-align: top;
+  min-width: 16rem;
+  max-width: 32rem;
+  margin-right: 2rem;
+}
+
+.wbe-fms-evidence h4 {
+  margin: 0 0 0.25rem;
+  font-size: 0.9em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5a6b7c;
+}
+
+.wbe-fms-evidence ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.wbe-fms-evidence li {
+  margin-bottom: 0.15rem;
+}
+
+.wbe-fms-for li::marker {
+  color: #1d6f42;
+}
+
+.wbe-fms-against li::marker {
+  color: #b8860b;
+}
+
+/* -------------------------------------------------------------------- dark mode -- */
+
+body.darkMode .wbe-fms-panel {
+  border-color: #4a4f57;
+  background: #3a3d43;
+}
+
+body.darkMode .wbe-fms-table {
+  background: #36393f;
+}
+
+body.darkMode .wbe-fms-table th,
+body.darkMode .wbe-fms-table td {
+  border-bottom-color: #4a4f57;
+}
+
+body.darkMode .wbe-fms-table thead th {
+  background: #42464d;
+  border-bottom-color: #575d66;
+}
+
+body.darkMode .wbe-fms-row:hover,
+body.darkMode .wbe-fms-row.wbe-fms-open {
+  background: #42464d;
+}
+
+body.darkMode .wbe-fms-anchor-row {
+  background: #42464d;
+}
+
+body.darkMode .wbe-fms-anchor-row td {
+  border-bottom-color: #656c76;
+}
+
+body.darkMode .wbe-fms-anchor-label {
+  border-color: #7c8794;
+  color: #cfd6de;
+}
+
+body.darkMode .wbe-fms-detail-row td {
+  background: #3a3d43;
+}
+
+body.darkMode .wbe-fms-count,
+body.darkMode .wbe-fms-level,
+body.darkMode .wbe-fms-status,
+body.darkMode .wbe-fms-unscored,
+body.darkMode .wbe-fms-evidence h4,
+body.darkMode .wbe-fms-date-cell .wbe-fms-place {
+  color: #b6bfc9;
+}
+
+body.darkMode .wbe-fms-place-match .wbe-fms-place {
+  color: #6fc48f;
+}
+
+body.darkMode .wbe-fms-reject {
+  color: #e0b070;
+}
+
+body.darkMode .wbe-fms-badge-rejected {
+  background: #5a616b;
+  color: #dfe4ea;
+}

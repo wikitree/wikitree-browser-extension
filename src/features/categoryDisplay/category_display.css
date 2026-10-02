@@ -1,9 +1,11 @@
 #Categories.box {
   display: block;
+  border: 3px solid var(--wbe-gray) !important;
 }
 #Categories.box * {
   padding-left: 0 !important;
   padding-right: 0 !important;
+  border-radius: 0.25em !important;
 }
 #Categories ol.star li {
   margin-left: 0.5em !important;
@@ -11,6 +13,15 @@
 #Categories a {
   cursor: pointer;
 }
+#Categories.box.green {
+  border: 3px solid var(--wbe-green) !important;
+}
+#Categories.box.orange {
+  border: 3px solid var(--wbe-orange) !important;
+}
+/* Links to categories that do not exist yet. Red against WikiTree's green links is the
+   pairing red-green colour blindness cannot resolve, so defer to Color-Blind Support's
+   choice when that feature is on; the fallback keeps today's red when it is off. */
 #Categories a.new {
-  color: red !important;
+  color: var(--wbe-cb-newlink, red) !important;
 }

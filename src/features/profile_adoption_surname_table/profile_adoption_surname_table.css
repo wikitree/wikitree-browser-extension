@@ -1,0 +1,96 @@
+/* Profile Adoption Surname Table */
+
+.wbe-profile-adoption-button-row {
+  margin: 0.5em 0;
+}
+
+.wbe-profile-adoption-status {
+  margin: 0.5em 0;
+}
+
+.wbe-profile-adoption-page-link {
+  margin-right: 0.75em;
+}
+
+.wbe-profile-adoption-missing-note {
+  margin-top: 0.25em;
+  color: #a33;
+}
+
+.wbe-profile-adoption-table-wrapper {
+  margin: 0.5em 0 1em;
+  overflow-x: auto;
+}
+
+.wbe-profile-adoption-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.wbe-profile-adoption-selected-count {
+  font-weight: bold;
+}
+
+.wbe-profile-adoption-filter-help {
+  display: none;
+  flex-basis: 100%;
+  font-size: 0.9em;
+  padding: 0.5em 0.75em;
+  border: 1px solid #ccc;
+  border-radius: 0.5em;
+}
+
+.wbe-profile-adoption-filter-help p {
+  margin: 0.25em 0;
+}
+
+#wbeProfileAdoptionTable {
+  width: 100%;
+}
+
+#wbeProfileAdoptionTable .wbe-profile-adoption-filters th {
+  padding: 2px 4px;
+  font-weight: normal;
+  background-image: none;
+  cursor: default;
+}
+
+#wbeProfileAdoptionTable .wbe-profile-adoption-filter {
+  width: 100%;
+  min-width: 5em;
+  box-sizing: border-box;
+  font-size: 0.85em;
+  padding: 1px 3px;
+}
+
+#wbeProfileAdoptionTable td.wbe-profile-adoption-checked,
+#wbeProfileAdoptionTable th.wbe-profile-adoption-checked {
+  text-align: center;
+  width: 2em;
+}
+
+#wbeProfileAdoptionTable .wbe-profile-adoption-filters .wbe-profile-adoption-filter[data-column="0"] {
+  min-width: 4.5em;
+}
+
+#wbeProfileAdoptionTable #wbeProfileAdoptionSelectAll {
+  margin: 0;
+}
+
+#wbeProfileAdoptionTable td.wbe-profile-adoption-BirthDate,
+#wbeProfileAdoptionTable td.wbe-profile-adoption-DeathDate,
+#wbeProfileAdoptionTable td.wbe-profile-adoption-wtId {
+  white-space: nowrap;
+}
+
+#wbeProfileAdoptionTable .wbe-profile-adoption-check {
+  float: none;
+  margin: 0;
+}
+
+.wbe-profile-adoption-missing {
+  font-style: italic;
+}

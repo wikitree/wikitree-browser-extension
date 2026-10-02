@@ -1483,10 +1483,18 @@ function GetActualAkaCategoryUsedInProfile(wpTextbox1, cats) {
 }
 
 function AddCat(wpTextbox1, cat) {
+  if (!cat) return;
   let bio = wpTextbox1.value;
   let catSyntax = "[[Category:" + cat + "]]";
-  const catUnderlines = catSyntax.replace(" ", "_");
-  if (!bio.includes(cat + "]]") && !bio.includes(catUnderlines)) {
+  // Match the whole category link, so "Pittston, Pennsylvania" isn't mistaken for
+  // "Pittston City Cemetery, Pittston, Pennsylvania"; spaces and underscores are interchangeable.
+  const namePattern = cat
+    .trim()
+    .split(/[\s_]+/)
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("[\\s_]+");
+  const existingCat = new RegExp("\\[\\[\\s*Category\\s*:\\s*" + namePattern + "\\s*(\\|[^\\]]*)?\\]\\]", "i");
+  if (!existingCat.test(bio)) {
     wpTextbox1.value = catSyntax + "\n" + bio;
   }
 }

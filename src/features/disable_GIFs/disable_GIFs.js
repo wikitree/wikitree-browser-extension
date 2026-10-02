@@ -47,6 +47,10 @@ function stopAllGifs() {
         const ctx = canvas.getContext("2d");
         ctx.drawImage(tempImg, 0, 0);
         $img.attr("src", canvas.toDataURL("image/png"));
+        // Marker for the Highlight WBE Features option. Only the <img> case is
+        // marked: a background GIF can sit on any container, and marking one
+        // would stop everything inside it from being highlighted.
+        $img.addClass("wbe-frozen-gif");
       };
       tempImg.src = src;
     }

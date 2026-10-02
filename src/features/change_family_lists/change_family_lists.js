@@ -1553,7 +1553,9 @@ function isLikelyFamilyListApiAccessError(error) {
     message.includes("load failed") ||
     message.includes("networkerror") ||
     message.includes("cors") ||
-    message.includes("cross-origin")
+    message.includes("cross-origin") ||
+    message.includes("waf challenge") ||
+    message.includes("empty api response")
   );
 }
 
@@ -3269,7 +3271,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     newVitals = buildFamilyListsFromData(familyData);
   } catch (error) {
     const errorType = isLikelyFamilyListApiAccessError(error)
-      ? "likely CORS/network error"
+      ? "likely API access error (CORS, network, or WAF challenge)"
       : "API initialization error";
     console.warn(`[CFL] Leaving native family lists in place due to ${errorType}.`, error);
     return;

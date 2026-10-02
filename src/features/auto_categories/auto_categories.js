@@ -1,24 +1,12 @@
 import $ from "jquery";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { getFeatureOptions } from "../../core/options/options_storage";
-import { ageAtDeath } from "../../core/common";
 import { profilePerson } from "../../core/common";
 import { showCopyMessage } from "../access_keys/access_keys";
 import { loadAutoBioModule } from "../auto_bio/auto_bio_loader";
+import { findItemsMissingFromText, getPreBioTextLines } from "../auto_bio/preBioUtils";
 
 const WBE_AUTO_CAT_APP_ID = "WBE_auto_categories";
-
-function addDiedYoung() {
-  let currentBio = $("#wpTextbox1").val();
-  if (window.autoCategoriesOptions.diedYoung) {
-    const deathAge = ageAtDeath(window.profilePerson);
-    if (typeof deathAge.age !== "") {
-      if (deathAge.age < 17 && !currentBio.includes("{{Died Young}}")) {
-        currentBio = currentBio.replace(/==\s?Biography\s?==/i, "== Biography ==\n{{Died Young}}");
-      }
-    }
-  }
-}
 
 // Export the function addAutoCategories as an asynchronous function
 export async function addAutoCategories() {
@@ -33,7 +21,7 @@ export async function addAutoCategories() {
     assignCemeteryFromSources,
     addLocationCategoryToStuffBeforeTheBio,
     getStuffBeforeTheBioText,
-    getStickersAndBoxes,
+    getStickersAndBoxesList,
     addWorking,
     removeWorking,
     addUnsourced,
@@ -49,6 +37,14 @@ export async function addAutoCategories() {
     window.autoCategoriesOptions = await getFeatureOptions("autoCategories");
 
     let currentBio = $("#wpTextbox1").val();
+
+    /* Keep any text that's above the Biography heading (notes, disambiguation, etc.)
+    exactly as we found it. Auto Categories is only here to add categories, so unlike
+    Auto Bio it doesn't move notes to Research Notes. getStuffBeforeTheBioText() adds
+    this back below the categories and templates. */
+    window.textBeforeTheBio = getPreBioTextLines(currentBio)
+      .filter((line) => line.trim() !== "")
+      .join("\n");
 
     // Initialize an empty array in the global window object
     window.addCategories = [];
@@ -124,9 +120,6 @@ export async function addAutoCategories() {
     if (window.autoCategoriesOptions.occupationCategory) {
       addOccupationCategories("autoCategories");
     }
-    if (window.autoCategoriesOptions.diedYoung) {
-      addDiedYoung();
-    }
 
     // Get the text of the stuff before the bio
     let stuffBeforeTheBioText = await getStuffBeforeTheBioText();
@@ -139,23 +132,19 @@ export async function addAutoCategories() {
       enhanced = true;
     }
 
-    //  const afterBioHeadingThings = await afterBioHeadingTextAndObjects();
-    const afterBioHeadingThings = await getStickersAndBoxes();
-
-    const afterBioHeadingThingsArray = afterBioHeadingThings.split("\n");
-    const filteredAfterBioHeadingThingsArray = [];
-    afterBioHeadingThingsArray.forEach((line) => {
-      // Skip empty lines and use a literal substring check to avoid treating
-      // the line as a RegExp (which can throw for characters like []-|).
-      const normalizedLine = line && line.trim();
-      if (normalizedLine && !currentBio.includes(normalizedLine)) {
-        filteredAfterBioHeadingThingsArray.push(line);
-      }
-    });
-    //let afterBioHeading = afterBioHeadingThings.text;
+    /* Everything above the Biography heading is about to be replaced by stuffBeforeTheBioText,
+    which only has categories and boxes. So a sticker from up there has to go under the heading,
+    unless it's already there. (Only look under the heading: a sticker that's above it now will
+    be gone.) */
+    const afterBioHeadingThings = await getStickersAndBoxesList("autoCategories");
+    const bioHeadingMatch = currentBio.match(/== ?Biography ?==/i);
+    const textAfterBioHeading = bioHeadingMatch
+      ? currentBio.slice(bioHeadingMatch.index + bioHeadingMatch[0].length)
+      : currentBio;
+    const missingAfterBioHeadingThings = findItemsMissingFromText(afterBioHeadingThings, textAfterBioHeading);
     let afterBioHeading = "";
-    if (afterBioHeadingThings) {
-      afterBioHeading = "\n" + filteredAfterBioHeadingThingsArray.join("\n");
+    if (missingAfterBioHeadingThings.length > 0) {
+      afterBioHeading = "\n" + missingAfterBioHeadingThings.join("\n");
     }
 
     if (stuffBeforeTheBioText || afterBioHeading) {

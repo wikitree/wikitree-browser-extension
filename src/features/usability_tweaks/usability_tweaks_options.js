@@ -112,6 +112,12 @@ const usabilityTweaks = {
           label: "Add the accessed count to the profile data box (with the profile manager and edits).",
           defaultValue: false,
         },
+        {
+          id: "addBrowsePhotosButton",
+          type: OptionType.CHECKBOX,
+          label: "Add a 'Browse Photos' button when there is more than one photo but no button is shown.",
+          defaultValue: true,
+        },
       ],
     },
     {
@@ -155,6 +161,14 @@ const usabilityTweaks = {
           type: OptionType.CHECKBOX,
           label: "Remember the height of the editor on the edit page.",
           defaultValue: false,
+        },
+        {
+          id: "notabilityTextCounter",
+          type: OptionType.CHECKBOX,
+          label:
+            "Show a character count for the 'text' parameter of the Notability template " +
+            "(350 character maximum) while the cursor is inside the template.",
+          defaultValue: true,
         },
       ],
     },
@@ -241,7 +255,7 @@ const usabilityTweaks = {
         {
           id: "enhanceThonPages",
           type: OptionType.CHECKBOX,
-          label: "Show differences and normalized popup on Thon stats pages.",
+          label: "Show differences, normalized popup and filter on Thon stats pages.",
           defaultValue: true,
         },
       ],

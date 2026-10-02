@@ -8,6 +8,7 @@ import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { treeImageURL, getUserNumId } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
+import { redeemAuthcode } from "../../core/loginButton";
 import "jquery-ui/ui/widgets/draggable";
 
 const WBE_RP_APP_ID = "WBE_random_profile";
@@ -329,12 +330,7 @@ export async function doLogin() {
   const u = new URLSearchParams(window.location.search);
   const authcode = u?.get("authcode");
   if (typeof authcode != "undefined" && authcode != null && authcode != "") {
-    const postData = { appId: WBE_RP_APP_ID, action: "clientLogin", authcode: authcode };
-    await WikiTreeAPI.postToAPI(postData);
-    const userNumId = getUserNumId();
-    if (userNumId) {
-      WikiTreeAPI.setCachedApiLoginStatus(userNumId, true);
-    }
+    await redeemAuthcode(WBE_RP_APP_ID);
     if (u?.doRandomProfile) {
       showWorking();
       goToRandomWatchlistProfile(true);

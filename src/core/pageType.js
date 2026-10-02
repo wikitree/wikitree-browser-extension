@@ -150,8 +150,12 @@ export let isWBESpace = false;
 export let isNetworkFeed = false;
 // Special:BrowseMatches
 export let isBrowseMatches = false;
+// Special:FindMatches results (index.php?title=Special:FindMatches&action=find&u=...)
+export let isFindMatchesResults = false;
 // Special:Contributions
 export let isContributions = false;
+// Special:Adoptions for one surname (index.php?title=Special:Adoptions&s=BUCH)
+export let isSpecialProfileAdoptionsSurname = false;
 
 // WikiTree Plus variables
 // Profile Search results
@@ -290,6 +294,8 @@ if (domain.match("apps.wikitree.com")) {
     }
     if (
       path.match(/\/wiki\/Space.*Notables.*/g) &&
+      path.match(/20/) == false &&
+      path.match(/Australia/) == false &&
       (path.match(/\/wiki\/Space.*Unconnected.*/g) || path.match(/Profiles_Needing_Family_Member/))
     ) {
       isUnconnectedNotables = true;
@@ -442,6 +448,14 @@ if (domain.match("apps.wikitree.com")) {
       isWhatLinksHere = true;
     } else if (uri.match(/Special(:|%3A|%3a)BrowseMatches/)) {
       isBrowseMatches = true;
+    } else if (uri.match(/Special(:|%3A|%3a)FindMatches/) && uri.match(/action=find/)) {
+      // Only the results page. Special:FindMatches with no action is the empty search form.
+      isFindMatchesResults = true;
+    } else if (
+      uri.match(/Special(:|%3A|%3a)Adoptions/) &&
+      new URLSearchParams(window.location.search).get("s")?.trim()
+    ) {
+      isSpecialProfileAdoptionsSurname = true;
     }
   } else if (
     // Other Edit Page

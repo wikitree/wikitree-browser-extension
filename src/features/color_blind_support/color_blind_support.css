@@ -1,0 +1,1307 @@
+/*
+Everything here is keyed off classes that color_blind_support.js puts on <body>, and
+draws its colors from the --wbe-cb-* custom properties the same file sets on <html>.
+
+Two things about the specificity. The selectors are written as "html body ..." and use
+!important because they are competing with rules that already shout: WikiTree's own
+a.new:visited { color: red !important }, and Custom Style's and Dark Mode's generated
+<style> blocks. And color_blind_support is imported last in the appearance block of
+content_main.js, so when specificity ties, this stylesheet is the later one and wins.
+
+Every var() carries a fallback matching WikiTree's current color, so a half-applied
+palette degrades to the status quo rather than to black.
+
+The palette arrives in two lightings. color_blind_support.js publishes --wbe-cb-*-light
+and --wbe-cb-*-dark on <html>, and the block below resolves each pair to the plain
+--wbe-cb-* name that every rule here, and every var(--wbe-cb-*, <original>) fallback in
+the other features' stylesheets, actually reads. The choice is made here rather than in
+JavaScript because Dark Mode adds body.darkMode from its own async init, which can land
+either side of this feature's - so the cascade is the only thing that can be relied on to
+get it right, and it also follows a "system" Dark Mode reader who changes their OS
+setting mid-page.
+
+When the support is switched off, the JS removes the -light and -dark properties. The
+var() references below then have nothing to resolve to, --wbe-cb-* becomes invalid, and
+every consumer falls through to its own fallback - which is the original WikiTree color.
+That is what makes switching the support off in the corner control revert this feature
+and the other features' reds and greens in one go.
+*/
+
+:root {
+  --wbe-cb-newlink: var(--wbe-cb-newlink-light);
+  --wbe-cb-danger: var(--wbe-cb-danger-light);
+  --wbe-cb-danger-bg: var(--wbe-cb-danger-bg-light);
+  --wbe-cb-danger-text: var(--wbe-cb-danger-text-light);
+  --wbe-cb-danger-on: var(--wbe-cb-danger-on-light);
+  --wbe-cb-warning: var(--wbe-cb-warning-light);
+  --wbe-cb-warning-bg: var(--wbe-cb-warning-bg-light);
+  --wbe-cb-warning-text: var(--wbe-cb-warning-text-light);
+  --wbe-cb-warning-on: var(--wbe-cb-warning-on-light);
+  --wbe-cb-success: var(--wbe-cb-success-light);
+  --wbe-cb-success-bg: var(--wbe-cb-success-bg-light);
+  --wbe-cb-success-text: var(--wbe-cb-success-text-light);
+  --wbe-cb-success-on: var(--wbe-cb-success-on-light);
+}
+
+/* wbe-cb-dark-page is set by measuring the page's real background, so a dark page set
+   through Custom Style's own Background color picker - with no Dark Mode and no class of
+   its own - gets the dark palette too. */
+html body.darkMode,
+html body.wbe-cb-dark-page {
+  --wbe-cb-newlink: var(--wbe-cb-newlink-dark);
+  --wbe-cb-danger: var(--wbe-cb-danger-dark);
+  --wbe-cb-danger-bg: var(--wbe-cb-danger-bg-dark);
+  --wbe-cb-danger-text: var(--wbe-cb-danger-text-dark);
+  --wbe-cb-danger-on: var(--wbe-cb-danger-on-dark);
+  --wbe-cb-warning: var(--wbe-cb-warning-dark);
+  --wbe-cb-warning-bg: var(--wbe-cb-warning-bg-dark);
+  --wbe-cb-warning-text: var(--wbe-cb-warning-text-dark);
+  --wbe-cb-warning-on: var(--wbe-cb-warning-on-dark);
+  --wbe-cb-success: var(--wbe-cb-success-dark);
+  --wbe-cb-success-bg: var(--wbe-cb-success-bg-dark);
+  --wbe-cb-success-text: var(--wbe-cb-success-text-dark);
+  --wbe-cb-success-on: var(--wbe-cb-success-on-dark);
+}
+
+/* ---------------------------------------------------------------------------
+   Links to pages that do not exist yet
+
+   WikiTree: a.new { color: red } against a, a:link { color: #008000 }. The two are the
+   same color to a red-green color-blind reader, so the underline and the ? are doing
+   the real work here; the recolour is the smaller half of the fix.
+   --------------------------------------------------------------------------- */
+
+/*
+The :not(#dummyID) is not a typo and not superstition. Dark Mode repaints every link
+#ffee99 through a selector carrying a long :not() list, and :not() takes the specificity
+of its most specific argument - which puts that rule at (0,5,3), comfortably above the
+(0,2,3) this one would otherwise have. Measured, not guessed: without this, new links and
+ordinary links are both #ffee99 in Dark Mode, which is the very bug this feature exists to
+fix, reintroduced. #dummyID matches nothing and exists only to carry an id's worth of
+specificity; it is the same trick darkMode.css itself uses.
+*/
+html body.wbe-cb-palette.wbe-cb-newlink-recolor a.new:not(#dummyID),
+html body.wbe-cb-palette.wbe-cb-newlink-recolor a.new:link:not(#dummyID),
+html body.wbe-cb-palette.wbe-cb-newlink-recolor a.new:visited:not(#dummyID) {
+  color: var(--wbe-cb-newlink, #0072b2) !important;
+}
+
+html body.wbe-cb-newlink-dotted a.new,
+html body.wbe-cb-newlink-both a.new {
+  text-decoration: underline !important;
+  text-decoration-style: dotted !important;
+  text-decoration-thickness: 2px !important;
+  text-underline-offset: 2px !important;
+}
+
+html body.wbe-cb-newlink-question a.new::after,
+html body.wbe-cb-newlink-both a.new::after {
+  content: "?";
+  vertical-align: super;
+  font-size: 0.7em;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 1px;
+  text-decoration: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Visited links
+
+   WikiTree draws a:visited purple against a:link green - 23.0 dE apart under
+   deuteranopia, and a reader with it reported the two as the same link.
+
+   Browsers restrict :visited to stop a page reading back your history, and the
+   restriction is about LAYOUT, not about which element the rule matches. Colour is
+   allowed, on the link, on its children and on its pseudo-elements; `display` and
+   `content` are not. So the mark has to be present on every link already, and only its
+   colour may change - which is enough, because painting it from "same as the page" to
+   "the visited ink" is a change in LUMINANCE. The mark is absent or present. That is a
+   shape difference built out of a colour, and it survives grayscale; checked.
+
+   Two rules make this work, and both are easy to get wrong:
+
+   1. The off state must be OPAQUE. The alpha channel of a :visited colour is taken from
+      the unvisited value, so `transparent` means the visited colour is painted at alpha
+      0 and nothing appears - indistinguishable from the browser ignoring the rule, and
+      exactly what made an earlier attempt here look impossible. Hence
+      --wbe-cb-page-bg, which color_blind_support.js measures from the real page - and
+      --wbe-cb-local-bg ahead of it, measured on the box the link actually sits in. The
+      profile's Categories box is a pale green of its own on a white page, so a mark
+      hidden against the PAGE draws a visible white line there under every link the
+      reader has not visited. See markLocalBackgrounds.
+   2. The mark is currentColor, NOT a palette colour. Inside a :visited rule currentColor
+      resolves to the visited ink, so the mark follows whatever the reader chose in
+      Visited Links or Custom Style. Those features own the colour; this one only adds
+      the shape. Verified that Chrome resolves it to the visited value and not the
+      unvisited one.
+
+   The underline costs no layout: a bottom border on an inline element does not affect
+   line box height (CSS 2.1 section 10.8.1). That matters for honesty as well as looks,
+   since a cue that moved the page would leak the history the restriction protects.
+
+   It is a 2px SOLID line, not the 3px double it started as, and the reason is stacking.
+   WikiTree underlines a lot of its links itself - the categories box, the links in a
+   biography - and since only a COLOUR may change on :visited, a mark on one of those has
+   no choice but to sit underneath the underline that is already there. A double border
+   made that three stacked lines, which looked like a rendering fault rather than a cue.
+   One extra line reads as a doubled underline, which is what a marked link should look
+   like. On a link with no underline of its own - a G2G question title - the mark is a
+   single line appearing, which is unambiguous there because nothing else in those lists
+   is underlined.
+   --------------------------------------------------------------------------- */
+
+/* WHERE the cue applies matters as much as what it is, and the first version got this
+   wrong: it marked every visited link on the page. On a G2G list that meant the nav
+   tabs, the tag pills, the usernames, the category sidebar and the "commented" meta
+   links all wore a mark, and the two question titles - the only links on the page whose
+   read-or-not state anyone cares about - were lost among them.
+
+   "Have I already looked at this?" is a question the reader asks about CONTENT - a row
+   in a list they are working through, a link in the text they are reading - and never
+   about the furniture around it. So the cue goes on:
+
+     .qa-q-item-title a     every G2G list - Questions, Unanswered, Recent Activity,
+                            My Activity, Tags, search results
+     table.table--data td a WikiTree's own data-table lists
+     .body-text a           the wiki content itself: a profile's biography, its sources
+                            and the stickers in them, and space and category page text
+     #Categories a          the profile's own categories box, which sits outside
+                            .body-text in the right-hand column
+
+   Deliberately NOT included, all of them navigation rather than reading: the nav bars and
+   menus, the profile tab strip, the search boxes, the badges, and the ancestor tree -
+   which is 98 links on a well-connected profile and would swamp everything else.
+
+   The count follows how much content a page has, which is the point: a stub profile picks
+   up a handful of marks, Winston Churchill's picks up 155 because it genuinely has that
+   much text to read.
+
+   Not covered, for want of anything to hook onto: What Links Here builds a plain <ul>
+   with no distinguishing class, and Special:SearchPerson renders its results into
+   undifferentiated bootstrap columns. */
+
+html body.wbe-cb-visited-underline :is(.qa-q-item-title, table.table--data td, .body-text, #Categories) a:link,
+html body.wbe-cb-visited-underline :is(.qa-q-item-title, table.table--data td, .body-text, #Categories) a:visited {
+  border-bottom: 2px solid var(--wbe-cb-local-bg, var(--wbe-cb-page-bg, #ffffff));
+}
+
+html body.wbe-cb-visited-underline :is(.qa-q-item-title, table.table--data td, .body-text, #Categories) a:visited {
+  border-bottom-color: currentColor;
+}
+
+/* The glyph is the more obvious of the two and the more intrusive: it sits after the
+   link text, so it is always taking that space, visible or not. Note that g2g.js's own
+   "checkmarks to show questions you have visited" option puts a checkmark at the FRONT
+   of these same titles, so switching both on gives a title a mark at each end. */
+html body.wbe-cb-visited-check :is(.qa-q-item-title, table.table--data td, .body-text, #Categories) a:link::after,
+html body.wbe-cb-visited-check :is(.qa-q-item-title, table.table--data td, .body-text, #Categories) a:visited::after {
+  content: "\2713";
+  color: var(--wbe-cb-local-bg, var(--wbe-cb-page-bg, #ffffff));
+  font-size: 0.85em;
+  margin-left: 0.15em;
+  text-decoration: none;
+}
+
+html body.wbe-cb-visited-check :is(.qa-q-item-title, table.table--data td, .body-text, #Categories) a:visited::after {
+  color: currentColor;
+}
+
+/* Gender rows in tables - What Links Here, Category Management.
+
+   The same idea as the tree boxes above, but NOT done with a border, because these are
+   table rows. border-left on a <tr> in a collapsed table merges with the rows above and
+   below, and the collapse algorithm resolves the conflict by style precedence - so three
+   rows asking for solid, dashed and dotted render as one unbroken line. Measured twice,
+   once on the row and once on its first cell; both come out as a single bar.
+
+   A background gradient does not collapse, so the stripe is painted rather than bordered -
+   and painted on the row's first CELL, not the row: a table-row's background positioning
+   area is the whole table in some engines, so a gradient set on the row is scaled across
+   the table and each row shows a flat slice of it, which comes out as one solid bar again.
+   currentColor keeps it to the row's own text colour: this is a shape cue, and giving it a
+   colour of its own would be the mistake this whole feature exists to correct. */
+
+html
+  :is(body.wbe-cb-gender-border, body.wbe-cb-gender-letter)
+  :is(.background--gender-male, .background--gender-female, .background--gender-no-gender, tr.background--gender-male
+    > *:first-child, tr.background--gender-female > *:first-child, tr.background--gender-no-gender > *:first-child) {
+  background-repeat: no-repeat !important;
+  background-position: left top !important;
+  background-size: 5px 100% !important;
+}
+
+html :is(body.wbe-cb-gender-border, body.wbe-cb-gender-letter) .background--gender-male:not(tr),
+html :is(body.wbe-cb-gender-border, body.wbe-cb-gender-letter) tr.background--gender-male > *:first-child {
+  background-image: linear-gradient(currentColor, currentColor) !important;
+}
+
+html :is(body.wbe-cb-gender-border, body.wbe-cb-gender-letter) .background--gender-female:not(tr),
+html :is(body.wbe-cb-gender-border, body.wbe-cb-gender-letter) tr.background--gender-female > *:first-child {
+  background-image: repeating-linear-gradient(to bottom, currentColor 0 6px, transparent 6px 12px) !important;
+}
+
+html :is(body.wbe-cb-gender-border, body.wbe-cb-gender-letter) .background--gender-no-gender:not(tr),
+html :is(body.wbe-cb-gender-border, body.wbe-cb-gender-letter) tr.background--gender-no-gender > *:first-child {
+  background-image: repeating-linear-gradient(to bottom, currentColor 0 2px, transparent 2px 6px) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Family connections in blended families
+
+   Change Family Lists marks which parent each person belongs with by putting spouse_1 ...
+   spouse_51 on them and colouring a 3px bar down the right hand edge. Fifty-one hues
+   cannot be far apart from one another, and in grayscale they are one colour, so this is
+   the purest colour-only signal anywhere in the extension - and it is carrying the
+   structure of the family.
+
+   The number is the cue, because the groups are already numbered and a number scales to
+   as many of them as there are, where border styles run out after four. It goes inline
+   after the name rather than absolutely positioned against the bar, which would need
+   position: relative on rows belonging to another feature.
+
+   There are two of these systems, not one. spouse_1 ... spouse_51 joins spouses to their
+   children. parent_1 and parent_2 join the two parents to the siblings, and a sibling
+   carrying both shares both parents while one alone is a half sibling on that side -
+   the more interesting fact of the two, and equally invisible without colour.
+
+   Neither is marked unless it is actually saying something. A profile with one family
+   gets a bar too, and numbering it "1" would announce a distinction that does not exist;
+   the :has() test handles that with no JavaScript and follows the lists as they redraw.
+   The sibling list is only marked when it mixes full and half siblings, which needs the
+   values compared and so is decided in JavaScript, as wbe-cb-mixed-parents.
+
+   content: attr(a) attr(b) rather than two rules - only one of the two attributes is ever
+   present on a given element, and an absent attr() contributes nothing.
+   --------------------------------------------------------------------------- */
+
+html
+  :is(body.wbe-cb-family-number, body.wbe-cb-family-both)
+  :is(#nVitals, .familyList, .nameList):has([data-wbe-family="2"])
+  [data-wbe-family]::after,
+html
+  :is(body.wbe-cb-family-number, body.wbe-cb-family-both)
+  #siblingList.wbe-cb-mixed-parents
+  [data-wbe-parents]::after {
+  content: attr(data-wbe-family) attr(data-wbe-parents);
+  font-size: 0.7em;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  font-style: normal;
+  /* Left in the flow it lands on a line of its own - these rows lay their contents out as
+     blocks - which adds height to every row. Pinned inside the row instead, it collides
+     with the ages and relationship figures that are already right-aligned there. So it
+     goes OUTSIDE: the list below gives up a strip of its width, which moves each row's
+     right border left and leaves a clear gutter for the marker to sit in. Nothing overflows
+     and nothing overlaps. */
+  position: absolute;
+  /* Anchored from the row's right edge and growing outwards, not right-aligned into it.
+     Right-aligning works for "1" and fails for "1,2": the longer string grows leftwards
+     back over the border and the ages, which is exactly what it was moved out to avoid. */
+  left: calc(100% + 7px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
+/* The gutter the marker sits in. padding-right on the list narrows the rows, so the bar
+   moves left by this much and the space to its right belongs to nobody.
+
+   Every list in the panel gets it, and the decision is made once on #nVitals rather than
+   per list. Two rounds of this were spent discovering that the lists have to agree: first
+   the spouse list stayed wide because its blocks are tall enough to hold the marker
+   inside, then the parents list stayed wide because it carries no marker of its own so its
+   own :has() test failed. Both looked like bugs. A list with nothing to show still gives
+   up the same strip, because four stacked lists that do not line up read worse than four
+   slightly narrower ones that do. */
+html
+  :is(body.wbe-cb-family-number, body.wbe-cb-family-both)
+  #nVitals:has([data-wbe-parents], [data-wbe-family])
+  :is(#parentList, #bioParentList, #siblingList, #childrenList, #Spouses) {
+  /* Wide enough for the longest marker, which is "1,2". */
+  padding-right: 2.4em;
+  box-sizing: border-box;
+}
+
+html
+  :is(body.wbe-cb-family-number, body.wbe-cb-family-both)
+  :is(#siblingList, #childrenList, #nVitals)
+  :is(li, .spouse):has([data-wbe-parents], [data-wbe-family]),
+html :is(body.wbe-cb-family-number, body.wbe-cb-family-both) :is(#siblingList, #childrenList) li[data-wbe-family] {
+  position: relative;
+}
+
+/* The bars themselves.
+
+   Only the style is changed, never the colour or the width: the colours are that feature's
+   to choose and a reader with normal vision should see exactly what it intended, while the
+   pattern is a shape difference that needs no colour at all. 3px is enough for double to
+   render as three visible 1px lines.
+
+   Four patterns covers the real cases. Siblings have exactly two lines, father and mother.
+   Spouse groups are declared up to fifty-one but a profile with more than four spouses is
+   vanishingly rare, and the patterns cycle after that with the number left to disambiguate.
+
+   Matched on that feature's own classes rather than on the data attributes this file adds,
+   because the border can sit on the row or on the span inside it depending on which parent
+   it is, and the class is on whichever element actually carries the border. */
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  .vertical
+  :is(#parentList, #bioParentList, #siblingList, .nameList)
+  :is(li, span).parent_1:not(.activeProfile),
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  .vertical
+  :is(#parentList, #bioParentList, #siblingList, .nameList)
+  :is(li, span)[class*="parent_1_pid"]:not(.activeProfile) {
+  border-right-style: solid !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  .vertical
+  :is(#parentList, #bioParentList, #siblingList, .nameList)
+  :is(li, span).parent_2:not(.activeProfile),
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  .vertical
+  :is(#parentList, #bioParentList, #siblingList, .nameList)
+  :is(li, span)[class*="parent_2_pid"]:not(.activeProfile) {
+  border-right-style: dashed !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_1, li.spouse_1) {
+  border-right-style: solid !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_2, li.spouse_2) {
+  border-right-style: dashed !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_3, li.spouse_3) {
+  border-right-style: dotted !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_4, li.spouse_4) {
+  border-right-style: double !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_5, li.spouse_5) {
+  border-right-style: solid !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_6, li.spouse_6) {
+  border-right-style: dashed !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_7, li.spouse_7) {
+  border-right-style: dotted !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_8, li.spouse_8) {
+  border-right-style: double !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_9, li.spouse_9) {
+  border-right-style: solid !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_10, li.spouse_10) {
+  border-right-style: dashed !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_11, li.spouse_11) {
+  border-right-style: dotted !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  :is(.familyList, .nameList, #nVitals)
+  :is(.spouse_12, li.spouse_12) {
+  border-right-style: double !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Status messages and content boxes
+
+   WikiTree: .status is a warning, .status.green a success and .status.red an error.
+   The .status variants carry distinct icons already, but the icons are small and
+   themselves color-coded, so the border style is what makes them readable in grayscale.
+
+   .box.green and .box.orange are deliberately NOT touched. They were, and it was wrong:
+   a class named after a colour is not a severity. WikiTree uses .box.green and
+   .box.orange for ordinary content panels wherever a page wants a green or an orange
+   one, and giving those a "success" or "warning" edge invents a meaning the page never
+   had - which is worse than no cue, because the reader cannot tell the invented ones
+   from the real ones. Only markup that actually encodes a state is marked here.
+
+   That is not a free decision, and the README section "Why .box.green and .box.orange are
+   left alone entirely" measures what it costs: the two fills are #e1f0b4 and #ffee99, the
+   very tints .status.green and plain .status use, three levels apart in Rec.709 and with
+   neither an icon nor a rim between them.
+   --------------------------------------------------------------------------- */
+
+/*
+Colour and shape are two separate jobs here, and this block is where the difference is
+easiest to get wrong. Both are done, and neither is asked to do the other's work.
+
+The SHAPE is what makes these boxes readable without colour, and it is the part that was
+measured. Repainting the tints does not separate the severities: with the severity in the
+order a reader expects (success palest, error darkest) the best any set of readable tints
+reaches is 10.8 in grayscale, under the 12 that means "the same colour", and it gets there
+only by making the error box a solid dusty rose. Three backgrounds pale enough to take
+dark text have to sit in a narrow band of luminance. So the rim and the left edge below
+carry the meaning: a shape difference survives any colour vision and grayscale alike, and
+reads without a second box on screen to compare against.
+
+The COLOUR is a separate promise, and one this feature has to keep. These three boxes are
+the elements the palette's roles are named after. A reader who picks an error colour and
+finds the error box unchanged has been told something untrue by the options page, and no
+measurement about grayscale answers that. So the tints are painted from the palette, and
+turning them off is what the palette's own "do nothing" value is for.
+
+An earlier version of this file had these two backwards: it dropped the recolour because
+the recolour did not achieve what the shape achieves, which was true and beside the point.
+*/
+
+/* Measured on the live stylesheet, re-checked 2026-08-22: .status is #ffee99 behind a 3px
+   solid #fcb815 rim, .status.green overrides both to #e1f0b4 and #8fc641, and .status.red
+   to #ffcccc and #e22a40. An earlier version of this note said all three shipped the same
+   amber rim; WikiTree has since colour-coded them, which changes nothing below, because
+   each rim now disappears into the fill it encloses - 1.68:1 for green on green, 1.49:1
+   for amber on yellow. The three fills are Rec.709 luminance 235, 232 and 215, so warning
+   against success is three levels out of 255, no difference at all in grayscale.
+
+   The border is redrawn, but never from the palette: the rim below and the left edge
+   below that are both currentColor. The colour was never carrying the meaning - the
+   left edge's style is - but the rim is what makes a pale box read as a box at all. */
+
+/* The colors these boxes are named after.
+
+   .status.green is a success, plain .status a warning and .status.red an error, so this
+   is the one place on WikiTree where the palette's three role colors have an element that
+   means exactly what they are called. Painting anything else from them and leaving these
+   alone reads as a bug, and did.
+
+   Which of the two colors was picked depends on the palette. For a preset the accent is
+   the ink and --wbe-cb-<role>-bg is derived from it; for a Custom palette the pick is the
+   box and the ink is derived instead, because a reader who picks #E1F0B4 under a label
+   reading "Success color" means that pale green to be the box. Either way the box gets
+   --wbe-cb-<role>-bg and --wbe-cb-<role>-text, the latter computed to be readable on it,
+   and the tint is aimed at a contrast ratio rather than made by a fixed lightening.
+
+   The danger ink is what Date Fixer, Text Expander, Locations Helper and WikiTree+ read
+   for their error text, so one choice keeps its meaning wherever that role turns up.
+   Nothing paints the success or warning ink at all: the solid badges used to, and the
+   reasons they no longer do are with those rules further down.
+
+   Setting the text color matters as much as setting the background. WikiTree picks its
+   box text to suit its own tint, so repainting the tint alone leaves whatever contrast
+   the old pairing happened to have. Both, always.
+
+   The text color is also what the rim below is drawn in, since that is currentColor - so
+   the rim follows the palette without ever being painted from it. */
+html body.wbe-cb-palette .status.green {
+  background-color: var(--wbe-cb-success-bg, #e1f0b4) !important;
+  color: var(--wbe-cb-success-text, #25422d) !important;
+}
+
+html body.wbe-cb-palette .status:not(.green):not(.red) {
+  background-color: var(--wbe-cb-warning-bg, #ffee99) !important;
+  color: var(--wbe-cb-warning-text, #25422d) !important;
+}
+
+html body.wbe-cb-palette .status.red {
+  background-color: var(--wbe-cb-danger-bg, #ffcccc) !important;
+  color: var(--wbe-cb-danger-text, #25422d) !important;
+}
+
+/* A dark rim on all four sides, at WikiTree's own 3px so nothing reflows.
+
+   WikiTree's own rims are one per severity, and each is measured against the tint it
+   encloses at 1.49:1, 1.68:1 and 3.18:1 - the warning and success rims are barely edges at
+   all. The tints themselves are 235, 232 and 215 in Rec.709 luminance against a #fcfcfc
+   page, so a status box is a box with almost nothing around it and barely anything behind
+   it: twenty levels out of 255 for the green one, and a rim its own colour.
+
+   currentColor, for the same reason as every other shape cue here: it is the box's own
+   text colour, which is dark by construction and cannot be painted invisible by a pale
+   palette. An earlier version repainted this rim from the palette and that is exactly
+   what went wrong - a Custom palette measured at 1.0:1 against the page left a success
+   box with LESS of an edge than WikiTree gives it.
+
+   Set as three sides, not as a shorthand, so the left edge below is independent of
+   source order. */
+html body.wbe-cb-status .status {
+  border-top: 3px solid currentColor !important;
+  border-right: 3px solid currentColor !important;
+  border-bottom: 3px solid currentColor !important;
+}
+
+/* The three border treatments. Solid for success, dashed for a warning, double for an
+   error: a deliberate progression in visual weight, so the severity reads even when
+   only one box is on screen and there is nothing to compare it against. */
+
+html body.wbe-cb-status .status.green {
+  border-left: 10px solid currentColor !important;
+}
+
+html body.wbe-cb-status .status:not(.green):not(.red) {
+  border-left: 10px dashed currentColor !important;
+}
+
+html body.wbe-cb-status .status.red {
+  border-left: 10px double currentColor !important;
+}
+
+/* Show Suggestions stacks three panels whose ONLY difference is the background: a pale
+   red, a pale yellow and a pale blue, with the same border colour and the same text
+   colour on all three. In grayscale they are three near-identical greys, and what they
+   are separating is errors from warnings from hints. Same treatment as the boxes above,
+   with a dotted edge for hints - the one severity WikiTree itself has no equivalent of. */
+html body.wbe-cb-status #errorMessages {
+  border-left: 10px double currentColor !important;
+}
+
+html body.wbe-cb-status #warningMessages {
+  border-left: 10px dashed currentColor !important;
+}
+
+html body.wbe-cb-status #hintMessages {
+  border-left: 10px dotted currentColor !important;
+}
+
+/* WikiTree squares off the left corners of .box...border so the coloured edge reads as
+   a tab. Do the same for the edges added above, or the border sits oddly inside the
+   18px radius of a rounded box. Scoped to the elements that actually get an edge here -
+   plain .box.rounded is no longer one of them. .status carries its own 6px radius and
+   never takes the .rounded class, so it is matched on its own. */
+html body.wbe-cb-status .status,
+html body.wbe-cb-status #errorMessages,
+html body.wbe-cb-status #warningMessages,
+html body.wbe-cb-status #hintMessages {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+/* ---------------------------------------------------------------------------
+   WikiTree's own suggestion list
+
+   .suggestion-item.suggestion-Error / -Warning / -Hint differ by background alone:
+   #ffcccc, #ffee99 and #e1f0b4, on the same text colour. Warning and Hint are
+   Rec.709 luminance 235 and 232 - three levels apart out of 255, which is the same
+   grey. Same severity language as the panels above: double, dashed, dotted.
+
+   These are WikiTree's markup, unlike the #errorMessages panels above, which are
+   Show Suggestions' own. Both exist and both need the cue.
+   --------------------------------------------------------------------------- */
+html body.wbe-cb-status .suggestion-item.suggestion-Error {
+  border-left: 10px double currentColor !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+html body.wbe-cb-status .suggestion-item.suggestion-Warning {
+  border-left: 10px dashed currentColor !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+html body.wbe-cb-status .suggestion-item.suggestion-Hint {
+  border-left: 10px dotted currentColor !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Edited fields
+
+   WikiTree marks a field you have changed with border-color: #ffa500 and its label
+   with color: #ffa500, and nothing else. Against the unchanged field's own grey
+   border that is 172 against 204 in grayscale - present, but the two borders are the
+   same shape and the same width, so on a long edit form there is nothing to scan for.
+
+   The border style carries it instead: dashed against solid is a difference in kind,
+   not degree. Style-only, so nothing moves - the width is untouched. The label goes
+   bold for the same reason.
+   --------------------------------------------------------------------------- */
+html body.wbe-cb-status input.changed,
+html body.wbe-cb-status select.changed,
+html body.wbe-cb-status textarea.changed {
+  border-style: dashed !important;
+  border-color: currentColor !important;
+}
+
+html body.wbe-cb-status label.changed {
+  font-weight: 700 !important;
+}
+
+/* ---------------------------------------------------------------------------
+   G2G flagged posts
+
+   .qa-q-view-flags and friends: background #ffcccc with a 3px solid #e22a40 border.
+   The border is a shape, but it is the same shape every other bordered panel on the
+   page has, so what marks the box as flagged rather than merely boxed is the red. A
+   double border makes it the one panel of its kind, and matches what an error looks
+   like everywhere else in this feature.
+
+   5px, not 4px: a `double` border splits its width three ways, so at 4px the two lines
+   and the gap round down to a single line and the cue is lost. Checked in grayscale
+   against 3px solid, 4px, 5px and 6px - 5px is the narrowest that reads as doubled.
+   --------------------------------------------------------------------------- */
+html body.wbe-cb-status .qa-c-item-flags,
+html body.wbe-cb-status .qa-q-item-flags,
+html body.wbe-cb-status .qa-q-view-flags,
+html body.wbe-cb-status .qa-a-item-flags {
+  border: 5px double currentColor !important;
+}
+
+/* Bio Check reports its outcome by putting "status green" on its results container for a
+   pass and plain "status" for a fail. Those two do differ by icon as well as colour, but
+   at 30px that is a thin thing to rest a result on. Say it in words instead.
+
+   Done from here rather than by editing bioCheck.js, so Bio Check itself is untouched:
+   the cost is that the wording only appears while this feature is on. The container is
+   the .status element and #bioCheckResultsList is its list of findings, so the outcome
+   lands on its own line between the heading and the findings. */
+
+html body.wbe-cb-status #bioCheckResultsContainer #bioCheckResultsList::before {
+  display: block;
+  margin-bottom: 0.25em;
+  font-weight: 700;
+  list-style: none;
+}
+
+html body.wbe-cb-status #bioCheckResultsContainer.green #bioCheckResultsList::before {
+  content: "Passed.";
+}
+
+html body.wbe-cb-status #bioCheckResultsContainer:not(.green) #bioCheckResultsList::before {
+  content: "Issues found.";
+}
+
+/* Badges use the same green/red pairing, in a small enough element that only the fill
+   is visible. Recolour and outline both - but nothing that prints its own value.
+
+   WikiTree's badge scale, read off its own stylesheet: .badge.green #E1F0B4 pale against
+   .badge.green.new #8FC641 solid, .badge.red #FFCCCC pale against .badge.red.new #CC0000
+   solid, plus a .badge.new #FCB815 amber that no rule here touches.
+
+   THE WHOLE CONTENT RANK RAMP IS EXCLUDED, not just the saturated ends of it. That badge
+   is one widget spread over five colour steps - #8FC641 at CR:10, #E1F0B4 at 9-8, #FFE270
+   at 7-6, #FFCCCC at 5-4, #CC0000 at 3-1 - and every step of it prints the number it is
+   encoding. Colour is carrying nothing the label is not already carrying, which is the
+   test this whole feature applies, the same test that leaves the Family Group app alone.
+   The role mapping is wrong on top of that: green on a Content Rank badge is a rank tier,
+   not a success, so painting the reader's success colour onto a 9 announces a meaning the
+   badge does not hold.
+
+   An earlier version of these rules excluded only .new, which repainted CR:9-8 and CR:5-4
+   and left the other three steps as WikiTree ships them - a ten-point ramp recoloured in
+   the middle and untouched at both ends. That split was not arbitrary: those two really
+   are the one confusable pair in the scale, 4.0 dE apart under deuteranopia and 4.7 under
+   protanopia against a bar of 25, where every other pair sits at 26-32. But repainting
+   them did not fix it. #DDEDE9 against #F1D1DB comes out at 12.0 and 8.3, still under half
+   the bar, so the recolour bought a broken ramp and no distinguishability. Nothing here
+   was rescuing legibility either - WikiTree's own badge text clears WCAG at every step,
+   5.44:1 at the worst of them.
+
+   The rules below stay for a pale green or red badge that genuinely means success or
+   error. A sweep of profiles, the watchlist, G2G, Special:Badges, Recent Changes and the
+   person search found none - every pale badge in the wild was Content Rank - so today
+   these select nothing, and that is the point rather than an oversight.
+
+   Do not paint a badge from a role INK if one ever does match. --wbe-cb-success is text:
+   under a custom palette it is reachContrast(pick, white, 3), the pick dragged down until
+   it works as a letterform. Used as a fill that turned WikiTree's #8FC641 into #8E9871, a
+   muddy olive - not a contrast failure, 6.88:1 against the black computed for it, better
+   than the 5.44:1 WikiTree ships, just a badge that read as a greyed-out disabled control.
+
+   Each fill MUST set a text colour beside it. WikiTree picks its badge text to suit its
+   own fill, so changing the fill and leaving the text alone leaves whatever it had. Note
+   that -text is computed for the pale tint and -on for the accent, and using either in the
+   other's place is unreadable in one of the two lightings. */
+
+html body.wbe-cb-palette:is(.wbe-cb-badges-recolor, .wbe-cb-badges-both) .badge.green:not(.new):not(.cr-details) {
+  background-color: var(--wbe-cb-success-bg, #e1f0b4) !important;
+  color: var(--wbe-cb-success-text, #25422d) !important;
+}
+
+html body.wbe-cb-palette:is(.wbe-cb-badges-recolor, .wbe-cb-badges-both) .badge.red:not(.new):not(.cr-details) {
+  background-color: var(--wbe-cb-danger-bg, #ffcccc) !important;
+  color: var(--wbe-cb-danger-text, #25422d) !important;
+}
+
+/* currentColor, like every other shape cue here: the badge's own text colour is computed
+   to be readable against its fill, so the edge cannot be painted invisible by a palette
+   choice the way a --wbe-cb-* colour can. */
+html body:is(.wbe-cb-badges-border, .wbe-cb-badges-both) .badge.green:not(.new):not(.cr-details) {
+  border: 2px solid currentColor !important;
+}
+
+html body:is(.wbe-cb-badges-border, .wbe-cb-badges-both) .badge.red:not(.new):not(.cr-details) {
+  border: 2px dashed currentColor !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Privacy indicators
+
+   Seven levels, three padlock icons and a run of yellows: 40 (#ffe270), 35 (#fad158)
+   and 30 (#fcb815) are effectively one colour to most eyes, colour-blind or not. The
+   border style separates them, and the number removes the guesswork entirely.
+   --------------------------------------------------------------------------- */
+
+html body.wbe-cb-privacy-border .privacy[data-wbe-privacy="50"],
+html body.wbe-cb-privacy-both .privacy[data-wbe-privacy="50"] {
+  border: 2px solid #25422d !important;
+}
+
+html body.wbe-cb-privacy-border .privacy[data-wbe-privacy="40"],
+html body.wbe-cb-privacy-both .privacy[data-wbe-privacy="40"] {
+  border: 2px dashed #25422d !important;
+}
+
+html body.wbe-cb-privacy-border .privacy[data-wbe-privacy="35"],
+html body.wbe-cb-privacy-both .privacy[data-wbe-privacy="35"] {
+  border: 2px dotted #25422d !important;
+}
+
+html body.wbe-cb-privacy-border .privacy[data-wbe-privacy="30"],
+html body.wbe-cb-privacy-both .privacy[data-wbe-privacy="30"] {
+  border: 3px double #25422d !important;
+}
+
+html body.wbe-cb-privacy-border .privacy[data-wbe-privacy="20"],
+html body.wbe-cb-privacy-both .privacy[data-wbe-privacy="20"] {
+  border: 3px solid #25422d !important;
+}
+
+html body.wbe-cb-privacy-border .privacy[data-wbe-privacy="10"],
+html body.wbe-cb-privacy-both .privacy[data-wbe-privacy="10"] {
+  border: 3px ridge #ffffff !important;
+}
+
+/* The number sits beside the dot rather than on it, because the dot is already carrying
+   a padlock. .privacy--sm is excluded: at 15px there is no room beside it either, so
+   those get the tooltip the script adds instead. */
+html body.wbe-cb-privacy-number .privacy[data-wbe-privacy]:not(.privacy--sm),
+html body.wbe-cb-privacy-both .privacy[data-wbe-privacy]:not(.privacy--sm) {
+  position: relative;
+  overflow: visible;
+}
+
+html body.wbe-cb-privacy-number .privacy[data-wbe-privacy]:not(.privacy--sm)::after,
+html body.wbe-cb-privacy-both .privacy[data-wbe-privacy]:not(.privacy--sm)::after {
+  content: attr(data-wbe-privacy);
+  position: absolute;
+  left: 88%;
+  top: 12%;
+  transform: translateY(-50%);
+  margin-left: 3px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #393a3c;
+  white-space: nowrap;
+  pointer-events: none;
+  background: white;
+  border-radius: 50%;
+  padding: 2px;
+}
+
+html body.darkMode.wbe-cb-privacy-number .privacy[data-wbe-privacy]:not(.privacy--sm)::after,
+html body.darkMode.wbe-cb-privacy-both .privacy[data-wbe-privacy]:not(.privacy--sm)::after {
+  color: #dedecb;
+}
+
+/* On the edit form the dot opens the field's label, so the numeral's usual place to the
+   right of it lands on top of "Death Date:" and every other label it precedes. There is
+   nothing to its left but the column's padding, so the number goes there instead. */
+html body.wbe-cb-privacy-number label .privacy[data-wbe-privacy]:not(.privacy--sm)::after,
+html body.wbe-cb-privacy-both label .privacy[data-wbe-privacy]:not(.privacy--sm)::after {
+  left: auto;
+  right: 88%;
+  margin-left: 0;
+  margin-right: 3px;
+}
+
+/* ---------------------------------------------------------------------------
+   Gender backgrounds
+
+   #f2f1ff / #ffeeee / #eeffee - a pale blue, a pale pink and a pale green. The pink and
+   green are the classic red-green pair, and all three are close to white anyway. The
+   colours themselves belong to Custom Style; this only adds the second channel.
+   --------------------------------------------------------------------------- */
+
+html body.wbe-cb-gender-border .tree--person_m,
+html body.wbe-cb-gender-letter .tree--person_m,
+html body.wbe-cb-gender-border table.table--data td.person--male .genderbar,
+html body.wbe-cb-gender-letter table.table--data td.person--male .genderbar,
+html body.wbe-cb-gender-border .vertical .nameList li[data-gender="Male" i],
+html body.wbe-cb-gender-letter .vertical .nameList li[data-gender="Male" i] {
+  border-left: 6px solid #393a3c !important;
+}
+
+html body.wbe-cb-gender-border .tree--person_f,
+html body.wbe-cb-gender-letter .tree--person_f,
+html body.wbe-cb-gender-border table.table--data td.person--female .genderbar,
+html body.wbe-cb-gender-letter table.table--data td.person--female .genderbar,
+html body.wbe-cb-gender-border .vertical .nameList li[data-gender="Female" i],
+html body.wbe-cb-gender-letter .vertical .nameList li[data-gender="Female" i] {
+  border-left: 6px dashed #393a3c !important;
+}
+
+html body.wbe-cb-gender-border .tree--person_u,
+html body.wbe-cb-gender-letter .tree--person_u,
+html body.wbe-cb-gender-border table.table--data td.person--no-gender .genderbar,
+html body.wbe-cb-gender-letter table.table--data td.person--no-gender .genderbar {
+  border-left: 6px dotted #393a3c !important;
+}
+
+/* The same three colours again, in the Tree Apps under /apps/ - user-created content from
+   the WT Apps project rather than WikiTree's own pages, but the same job and the same
+   markup problem. Measured on the live app: #f2f1ff, #ffeeee and #eeffee, which is the
+   identical trio, so male against female is 0.6 levels out of 255 in grayscale.
+
+   Four families carry it, and the colour is the only thing any of them varies:
+
+     - the Ahnentafel list, where each row is one ancestor
+     - .report-person-header and .report-breadcrumb-person in the report views
+     - .gender-male / -female / -unknown, the app's general-purpose helper
+
+   The Ahnentafel rules are scoped to .gender-colors, which is the app's own switch for
+   these backgrounds and sits either on #ahnentafelAncestorList or on an ancestor of it.
+   With it off the app shows no gender colour at all, so there is nothing to translate and
+   a mark would be inventing a distinction rather than preserving one.
+
+   currentColor rather than the #393a3c above: these are the newer rules and follow the
+   same reasoning as every other shape cue here. (The older gender rules should be brought
+   over to it too - a fixed dark grey disappears in Dark Mode - but that is a change to
+   pages this block does not touch.) */
+
+html
+  body.wbe-cb-gender-border
+  :is(.gender-colors #ahnentafelAncestorList, #ahnentafelAncestorList.gender-colors)
+  :is(.ahnentafelPerson, .ahnentafelPersonShort).Male,
+html
+  body.wbe-cb-gender-letter
+  :is(.gender-colors #ahnentafelAncestorList, #ahnentafelAncestorList.gender-colors)
+  :is(.ahnentafelPerson, .ahnentafelPersonShort).Male,
+html body.wbe-cb-gender-border :is(.report-person-header, .report-breadcrumb-person).Male,
+html body.wbe-cb-gender-letter :is(.report-person-header, .report-breadcrumb-person).Male,
+html body.wbe-cb-gender-border .gender-male,
+html body.wbe-cb-gender-letter .gender-male {
+  border-left: 6px solid currentColor !important;
+}
+
+html
+  body.wbe-cb-gender-border
+  :is(.gender-colors #ahnentafelAncestorList, #ahnentafelAncestorList.gender-colors)
+  :is(.ahnentafelPerson, .ahnentafelPersonShort).Female,
+html
+  body.wbe-cb-gender-letter
+  :is(.gender-colors #ahnentafelAncestorList, #ahnentafelAncestorList.gender-colors)
+  :is(.ahnentafelPerson, .ahnentafelPersonShort).Female,
+html body.wbe-cb-gender-border :is(.report-person-header, .report-breadcrumb-person).Female,
+html body.wbe-cb-gender-letter :is(.report-person-header, .report-breadcrumb-person).Female,
+html body.wbe-cb-gender-border .gender-female,
+html body.wbe-cb-gender-letter .gender-female {
+  border-left: 6px dashed currentColor !important;
+}
+
+/* No unknown row can occur in an Ahnentafel - every position in it is somebody's father or
+   mother - so the list is not in this rule. The report views and the helper class can have
+   one, and the app's own default for an unmarked person is the green #eeffee. */
+html body.wbe-cb-gender-border :is(.report-person-header, .report-breadcrumb-person).Unknown,
+html body.wbe-cb-gender-letter :is(.report-person-header, .report-breadcrumb-person).Unknown,
+html body.wbe-cb-gender-border .gender-unknown,
+html body.wbe-cb-gender-letter .gender-unknown {
+  border-left: 6px dotted currentColor !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Tree Apps: the Descendants view, where two colour-only signals meet
+
+   This row carries two meanings at once, both in colour and nothing else:
+
+     - the BACKGROUND is gender: .Male #eeeeff against .Female #ffeeee, which is 2.4
+       levels out of 255 apart in grayscale. (Note it is not quite the trio the other
+       apps use - this view's male is #eeeeff where the Ahnentafel's is #f2f1ff.)
+     - the LEFT BORDER is which spouse the child belongs to: childOfSpouse_0 is green
+       and childOfSpouse_1 is red. Green against red - the exact pair this whole feature
+       was built for - carrying the structure of the family.
+
+   So the left edge is not merely occupied, it is occupied by the worse of the two
+   problems. Putting gender there would overwrite one colour-only signal with a fix for
+   the other, which is not a fix.
+
+   The two are separated instead, and the arrangement mirrors what Change Family Lists
+   already does on the main site - gender on one edge, family on the other:
+
+     - FAMILY keeps the left edge it already has and gains a pattern, under familyCue.
+       Only the style and width are set, never the colour: the app's own green and red
+       stay exactly as they are for readers who can see them.
+     - GENDER moves to the right edge, under genderCue. It was a plain 1px #ddd rule
+       there, carrying nothing.
+
+   Both halves of the app's own pairing are covered: the child rows (li.person with
+   childOfSpouse_N) and the marriage lines above them (dl.spouse dt.spouse_N), which take
+   the same colour from the same palette and would otherwise be left behind.
+
+   Widened to 5px because of the four-style cycle. `double` at the app's own 3px renders
+   as a single line - the two strokes and the gap each round to well under a pixel - so
+   at 3px the fourth pattern would be indistinguishable from the first. 5px is the
+   narrowest that reads as doubled. (The main-site spouse bars are 3px and take the same
+   cycle, so they have this problem too; that is a fix for those rules, not these.)
+
+   The cycle repeats every four, so childOfSpouse_0 and _4 do share a pattern. Fifty-two
+   groups cannot each have their own style, which is exactly why the number is the
+   scalable cue on the main site - and the number here needs the index read out of the
+   class name in JavaScript, which these rules do not do.
+
+   Rows with no gender class are left alone: this view gives them a neutral #f6f6f6, not
+   a gender colour, so there is nothing to translate.
+   --------------------------------------------------------------------------- */
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  #descendants
+  :is(li.person:is(.childOfSpouse_0, .childOfSpouse_4, .childOfSpouse_8, .childOfSpouse_12, .childOfSpouse_16, .childOfSpouse_20, .childOfSpouse_24, .childOfSpouse_28, .childOfSpouse_32, .childOfSpouse_36, .childOfSpouse_40, .childOfSpouse_44, .childOfSpouse_48), dl.spouse
+    dt:is(.spouse_0, .spouse_4, .spouse_8, .spouse_12, .spouse_16, .spouse_20, .spouse_24, .spouse_28, .spouse_32, .spouse_36, .spouse_40, .spouse_44, .spouse_48)) {
+  border-left-width: 5px !important;
+  border-left-style: solid !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  #descendants
+  :is(li.person:is(.childOfSpouse_1, .childOfSpouse_5, .childOfSpouse_9, .childOfSpouse_13, .childOfSpouse_17, .childOfSpouse_21, .childOfSpouse_25, .childOfSpouse_29, .childOfSpouse_33, .childOfSpouse_37, .childOfSpouse_41, .childOfSpouse_45, .childOfSpouse_49), dl.spouse
+    dt:is(.spouse_1, .spouse_5, .spouse_9, .spouse_13, .spouse_17, .spouse_21, .spouse_25, .spouse_29, .spouse_33, .spouse_37, .spouse_41, .spouse_45, .spouse_49)) {
+  border-left-width: 5px !important;
+  border-left-style: dashed !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  #descendants
+  :is(li.person:is(.childOfSpouse_2, .childOfSpouse_6, .childOfSpouse_10, .childOfSpouse_14, .childOfSpouse_18, .childOfSpouse_22, .childOfSpouse_26, .childOfSpouse_30, .childOfSpouse_34, .childOfSpouse_38, .childOfSpouse_42, .childOfSpouse_46, .childOfSpouse_50), dl.spouse
+    dt:is(.spouse_2, .spouse_6, .spouse_10, .spouse_14, .spouse_18, .spouse_22, .spouse_26, .spouse_30, .spouse_34, .spouse_38, .spouse_42, .spouse_46, .spouse_50)) {
+  border-left-width: 5px !important;
+  border-left-style: dotted !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  #descendants
+  :is(li.person:is(.childOfSpouse_3, .childOfSpouse_7, .childOfSpouse_11, .childOfSpouse_15, .childOfSpouse_19, .childOfSpouse_23, .childOfSpouse_27, .childOfSpouse_31, .childOfSpouse_35, .childOfSpouse_39, .childOfSpouse_43, .childOfSpouse_47, .childOfSpouse_51), dl.spouse
+    dt:is(.spouse_3, .spouse_7, .spouse_11, .spouse_15, .spouse_19, .spouse_23, .spouse_27, .spouse_31, .spouse_35, .spouse_39, .spouse_43, .spouse_47, .spouse_51)) {
+  border-left-width: 5px !important;
+  border-left-style: double !important;
+}
+
+html body.wbe-cb-gender-border #descendants li.person.Male,
+html body.wbe-cb-gender-letter #descendants li.person.Male {
+  border-right: 6px solid currentColor !important;
+}
+
+html body.wbe-cb-gender-border #descendants li.person.Female,
+html body.wbe-cb-gender-letter #descendants li.person.Female {
+  border-right: 6px dashed currentColor !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Tree Apps: One Name Trees
+
+   Same two signals as the Descendants view, and the same split, but the markup differs
+   enough to need its own rules - and one thing here is NOT what it looks like.
+
+   The nested bars running down the left read like generation rails, and they are not.
+   Generation is `level_N`, which maps exactly one-to-one onto nesting depth and has no
+   CSS rule of its own anywhere in the app - it is carried by indentation, so it survives
+   grayscale untouched and needs nothing from us. What the bar colour actually encodes is
+   `parent-child-N`: which parent pairing the row belongs to, the same meaning as
+   childOfSpouse_N above, and forestgreen against blue for the first two. The bars only
+   look like generations because each ancestor's own bar shows through the nesting.
+
+   So: pattern the left bar under familyCue, exactly as for Descendants, and put gender on
+   the right edge, which is bare here (0px none).
+
+   Gender is an attribute rather than a class in this app, and it has a third value:
+   [data-gender="blank"], the pale green #eeffee. Male is #eeeeff and female #ffeeee.
+
+   .popup a.Male / a.Female is a separate case and needs no moving: there the 5px left
+   border IS the gender, in blue against pink, so it only wants a style.
+
+   Note .oneNameTrees is a class on BODY, the same element that carries the cue classes -
+   so it is written body.oneNameTrees.wbe-cb-..., not as a descendant. Written the obvious
+   way it matches nothing at all, silently.
+   --------------------------------------------------------------------------- */
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  .oneNameTrees
+  section#results
+  li.person:is(.parent-child-0, .parent-child-4, .parent-child-8, .parent-child-12, .parent-child-16, .parent-child-20, .parent-child-24, .parent-child-28, .parent-child-32, .parent-child-36, .parent-child-40, .parent-child-44) {
+  border-left-width: 5px !important;
+  border-left-style: solid !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  .oneNameTrees
+  section#results
+  li.person:is(.parent-child-1, .parent-child-5, .parent-child-9, .parent-child-13, .parent-child-17, .parent-child-21, .parent-child-25, .parent-child-29, .parent-child-33, .parent-child-37, .parent-child-41, .parent-child-45) {
+  border-left-width: 5px !important;
+  border-left-style: dashed !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  .oneNameTrees
+  section#results
+  li.person:is(.parent-child-2, .parent-child-6, .parent-child-10, .parent-child-14, .parent-child-18, .parent-child-22, .parent-child-26, .parent-child-30, .parent-child-34, .parent-child-38, .parent-child-42) {
+  border-left-width: 5px !important;
+  border-left-style: dotted !important;
+}
+
+html
+  :is(body.wbe-cb-family-pattern, body.wbe-cb-family-both)
+  .oneNameTrees
+  section#results
+  li.person:is(.parent-child-3, .parent-child-7, .parent-child-11, .parent-child-15, .parent-child-19, .parent-child-23, .parent-child-27, .parent-child-31, .parent-child-35, .parent-child-39, .parent-child-43) {
+  border-left-width: 5px !important;
+  border-left-style: double !important;
+}
+
+html body.oneNameTrees.wbe-cb-gender-border section#results [data-gender="Male"],
+html body.oneNameTrees.wbe-cb-gender-letter section#results [data-gender="Male"] {
+  border-right: 6px solid currentColor !important;
+}
+
+html body.oneNameTrees.wbe-cb-gender-border section#results [data-gender="Female"],
+html body.oneNameTrees.wbe-cb-gender-letter section#results [data-gender="Female"] {
+  border-right: 6px dashed currentColor !important;
+}
+
+html body.oneNameTrees.wbe-cb-gender-border section#results [data-gender="blank"],
+html body.oneNameTrees.wbe-cb-gender-letter section#results [data-gender="blank"] {
+  border-right: 6px dotted currentColor !important;
+}
+
+html body.oneNameTrees.wbe-cb-gender-border .popup a.Male,
+html body.oneNameTrees.wbe-cb-gender-letter .popup a.Male {
+  border-left-style: solid !important;
+}
+
+html body.oneNameTrees.wbe-cb-gender-border .popup a.Female,
+html body.oneNameTrees.wbe-cb-gender-letter .popup a.Female {
+  border-left-style: dashed !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Tree Apps: CC7 Views
+
+   #peopleTable tints whole rows by gender, and with its own pair rather than the trio the
+   other apps share: tr.Male #cceeff against tr.Female #ffe6ea. Stronger colours than
+   elsewhere, and no better in grayscale - 3.6 levels out of 255, against the Descendants
+   view's 2.4. There are only these two; no unknown row exists in this table.
+
+   The cue goes on the row's FIRST CELL, not on the row. The table is border-collapse:
+   separate, and in the separated model borders set on a tr are ignored outright - the
+   computed style still reports one, which is what makes this worth stating: nothing looks
+   wrong until you notice the page never changed. The first cell is the narrow privacy
+   column, whose left border is unset, so the mark lands at the table's left edge where a
+   row border would have been.
+
+   Nothing else here needs moving out of the way. Unlike the Descendants and One Name Trees
+   views, this table carries no second colour-only signal on the same edge.
+   --------------------------------------------------------------------------- */
+
+html body.wbe-cb-gender-border #peopleTable tbody tr.Male > td:first-child,
+html body.wbe-cb-gender-letter #peopleTable tbody tr.Male > td:first-child {
+  border-left: 6px solid currentColor !important;
+}
+
+html body.wbe-cb-gender-border #peopleTable tbody tr.Female > td:first-child,
+html body.wbe-cb-gender-letter #peopleTable tbody tr.Female > td:first-child {
+  border-left: 6px dashed currentColor !important;
+}
+
+/* The Family Group app is deliberately absent from this file, and that is the interesting
+   case: it tints tr.roleRow by gender too, and needs nothing, because the app already says
+   the same thing in words on every row. The children carry
+   <span class="fsGender">M</span> / F beside the name, and the couple - the two rows that
+   have no such span - are labelled Husband and Wife in the role column. Every row is
+   covered by one or the other. Adding an edge there would be decoration, and this feature
+   marks what colour alone is carrying, not everything that happens to be coloured. */
+
+/* The letter goes only on the tree boxes. The genderbar is an 8px sliver with no room
+   for text, and the name lists are dense enough that a letter on every row is noise. */
+html body.wbe-cb-gender-letter .tree--person_m,
+html body.wbe-cb-gender-letter .tree--person_f,
+html body.wbe-cb-gender-letter .tree--person_u {
+  position: relative;
+}
+
+html body.wbe-cb-gender-letter .tree--person_m::before,
+html body.wbe-cb-gender-letter .tree--person_f::before,
+html body.wbe-cb-gender-letter .tree--person_u::before {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+html body.wbe-cb-gender-letter .tree--person_m::before {
+  content: "M";
+}
+
+html body.wbe-cb-gender-letter .tree--person_f::before {
+  content: "F";
+}
+
+html body.wbe-cb-gender-letter .tree--person_u::before {
+  content: "?";
+}
+
+/* ---------------------------------------------------------------------------
+   Simulator control
+
+   Not inside body: the script hangs it off <html> so that it escapes the filter and
+   keeps a working position: fixed. Deliberately plain black and white, so it still reads
+   as a caption if someone screenshots a simulated page, and so it cannot itself be
+   mistaken for part of what is being checked.
+
+   Every property is spelled out rather than inherited. This element sits outside <body>,
+   where WikiTree's own styling mostly does not reach, and it has to look the same on
+   every page the extension runs on.
+   --------------------------------------------------------------------------- */
+
+html > #wbeColorBlindSimulatorBadge {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background-color: #ffffff;
+  color: #000000;
+  border: 2px solid #000000;
+  border-radius: 6px;
+  font-family: "Roboto", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 40%);
+}
+
+html > #wbeColorBlindSimulatorBadge label {
+  margin: 0;
+  padding: 0;
+  color: #000000;
+  font: inherit;
+  cursor: default;
+}
+
+html > #wbeColorBlindSimulatorBadge label[for="wbeColorBlindSupportToggle"] {
+  margin-right: 4px;
+  padding-right: 8px;
+  border-right: 1px solid #000000;
+  cursor: pointer;
+}
+
+html > #wbeColorBlindSimulatorBadge input[type="checkbox"] {
+  margin: 0 2px 0 0;
+  accent-color: #000000;
+  cursor: pointer;
+}
+
+html > #wbeColorBlindSimulatorBadge select {
+  margin: 0;
+  padding: 2px 4px;
+  background-color: #ffffff;
+  color: #000000;
+  border: 1px solid #000000;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+html > #wbeColorBlindSimulatorBadge .wbe-cb-badge-close {
+  margin: 0;
+  padding: 0 4px;
+  background: none;
+  color: #000000;
+  border: none;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+html > #wbeColorBlindSimulatorBadge .wbe-cb-badge-close:hover {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+/* The control is the one thing on the page that must stay operable by keyboard, since
+   it is the way back out of a simulation. */
+html > #wbeColorBlindSimulatorBadge input[type="checkbox"]:focus-visible,
+html > #wbeColorBlindSimulatorBadge select:focus-visible,
+html > #wbeColorBlindSimulatorBadge .wbe-cb-badge-close:focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 2px;
+}
+
+@media print {
+  html > #wbeColorBlindSimulatorBadge {
+    display: none;
+  }
+}

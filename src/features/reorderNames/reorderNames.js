@@ -1046,5 +1046,6 @@ shouldInitializeFeature("reorderNames").then((result) => {
     });
 
     vitals.innerHTML = uniqueLines.join("<br>\n");
+    vitals.classList.add("wbe-reordered-names");
   });
 });

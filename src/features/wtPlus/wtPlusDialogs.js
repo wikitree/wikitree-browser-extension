@@ -78,7 +78,8 @@ export async function selectCIB(data, hideTopLevel) {
           attachEvents("td.tdSelect", "click");
         })
         .catch((error) => {
-          lb.innerHTML = '<tr><td style="color:red">Error in WikiTree+ server' + error + "</td></tr>";
+          lb.innerHTML =
+            '<tr><td style="color:var(--wbe-cb-danger, red)">Error in WikiTree+ server' + error + "</td></tr>";
         });
     }
   };

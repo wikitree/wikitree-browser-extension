@@ -237,6 +237,76 @@ ol.star1.green > li::before {
     font-size: x-small;
     margin-left: 1em;
   }
+
+  /* The page toolbar nests its icons in two floated boxes inside a nav that is
+     only as wide as the page gutter allows. The .float-end box alone is as wide
+     as the nav, so it can never share a line with .float-start and its contents
+     start on a row of their own. Make the nav one wrapping flex row and dissolve
+     both boxes so every icon flows as a single sequence and fills each line.
+     (Don't try to unset the floats: .float-start/.float-end are Bootstrap
+     utilities carrying !important, so those declarations would be ignored.) */
+  body.wte .tabs--wrapper nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3em;
+  }
+
+  body.wte .tabs--wrapper nav > .profile--actions.float-start,
+  body.wte .tabs--wrapper nav > .profile--actions.float-end {
+    display: contents;
+  }
+
+  /* These links carry their own uneven horizontal margins (8-21px) on top of the
+     flex gap, which is enough to push the last icon onto a row by itself. Let the
+     gap do the spacing instead. */
+  body.wte .tabs--wrapper nav > .btn,
+  body.wte .tabs--wrapper nav .profile--actions > a {
+    margin-left: 0;
+    margin-right: 0;
+    line-height: 1;
+  }
+
+  /* Shrink the toolbar icons at phone widths so more fit per row. The glyphs are
+     background images painted with `background-size: contain`, so resizing the
+     box scales them cleanly — no transform needed (a transform would shrink the
+     glyph without reclaiming any layout width). */
+  body.wte .tabs--wrapper nav .wbe-button:not(.WBEHelpIcon, #unconnectedBranchButton) span,
+  body.wte .tabs--wrapper nav .wbe-icon:not(.WBEHelpIcon, #unconnectedBranchButton) span,
+  body.wte .tabs--wrapper nav .profile--actions > a > span {
+    width: 22px;
+    height: 21px;
+  }
+
+  /* Fallback for engines without display:contents — keeps the pre-existing
+     wrapping behaviour rather than reverting to a single squeezed column. */
+  body.wte .profile--actions.float-end {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3em;
+  }
+
+  /* Keep our icons on one line: at the default pitch seven of them overflow the
+     row and one orphans onto a line of its own. Don't let the container shrink
+     either, or it collapses to a single icon wide. */
+  body.wte .clipboardContainer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: 0.3em;
+  }
+
+  body.wte .clipboardContainer > .wbe-button {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  body.wte .clipboardContainer img.button.small {
+    margin-right: 0;
+    padding-left: 0.2em;
+    padding-right: 0.2em;
+  }
 }
 @media (min-width: 992px) and (max-width: 1200px) {
   .ebWBE {
@@ -260,6 +330,9 @@ ol.star1.green > li::before {
   --wbe-colour-light: #0086b3;
   --wbe-icon-filter: sepia(0%) saturate(690%) hue-rotate(445deg) brightness(89%) contrast(100%);
   --wbe-icon-filter-light: sepia(0%) saturate(650%) hue-rotate(80deg) brightness(120%) contrast(101%);
+  --wbe-green: #6d9731;
+  --wbe-orange: #f5a623;
+  --wbe-gray: #b4b4b4;
 }
 
 /* Tooltip for the WBE help icon */
@@ -305,7 +378,8 @@ ol.star1.green > li::before {
   top: -0.1em;
 }
 
-#wbe-backup-reminder {
+#wbe-backup-reminder,
+#wbe-restore-prompt {
   position: fixed;
   bottom: 20px;
   right: 20px;
@@ -319,7 +393,8 @@ ol.star1.green > li::before {
   flex-direction: column;
 }
 
-#wbe-backup-reminder .dialog-header {
+#wbe-backup-reminder .dialog-header,
+#wbe-restore-prompt .dialog-header {
   background-color: #25422d;
   color: #fff;
   padding: 8px 12px;
@@ -331,36 +406,42 @@ ol.star1.green > li::before {
   align-items: center;
 }
 
-#wbe-backup-reminder .dialog-header .close {
+#wbe-backup-reminder .dialog-header .close,
+#wbe-restore-prompt .dialog-header .close {
   color: #fff;
   text-decoration: none;
   font-size: 18px;
   order: 2;
 }
 
-#wbe-backup-reminder .dialog-content {
+#wbe-backup-reminder .dialog-content,
+#wbe-restore-prompt .dialog-content {
   padding: 15px;
   font-size: 14px;
   line-height: 1.4;
 }
 
-#wbe-backup-reminder .wbe-feature-list {
+#wbe-backup-reminder .wbe-feature-list,
+#wbe-restore-prompt .wbe-feature-list {
   margin: 10px 0;
   padding-left: 20px;
   list-style-type: disc;
 }
 
-#wbe-backup-reminder .wbe-feature-list li {
+#wbe-backup-reminder .wbe-feature-list li,
+#wbe-restore-prompt .wbe-feature-list li {
   margin-bottom: 4px;
 }
 
-#wbe-backup-reminder .backup-reminder-buttons {
+#wbe-backup-reminder .backup-reminder-buttons,
+#wbe-restore-prompt .backup-reminder-buttons {
   margin-top: 15px;
   display: flex;
   justify-content: center;
 }
 
-#wbe-backup-reminder button {
+#wbe-backup-reminder button,
+#wbe-restore-prompt button {
   padding: 10px 20px;
   border-radius: 4px;
   cursor: pointer;
@@ -373,11 +454,24 @@ ol.star1.green > li::before {
   transition: background-color 0.2s;
 }
 
-#wbe-backup-reminder button:hover {
+#wbe-backup-reminder button:hover,
+#wbe-restore-prompt button:hover {
   background-color: #1a3020 !important;
   opacity: 1;
 }
 
-#wbe-backup-reminder button:hover {
+#wbe-backup-reminder button:hover,
+#wbe-restore-prompt button:hover {
   opacity: 0.9;
+}
+
+/* The reminder appears unasked for, so it keeps out of the way in the corner. This one is the
+   answer to a menu item just clicked, and is waiting on a decision, so it goes in the middle. */
+#wbe-restore-prompt {
+  top: 50%;
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  max-width: calc(100vw - 40px);
 }

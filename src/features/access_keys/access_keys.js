@@ -164,6 +164,9 @@ export function startSyntheticHotkeys(options) {
         clearTimeout(timer);
         const k = normalizeKey(e);
 
+        // Swallow arrows while a sequence is pending so an unbound one doesn't scroll the page.
+        if (KEY_DISPLAY[k]) e.preventDefault();
+
         if (k === "escape") {
           endSequence();
           return;
@@ -297,6 +300,26 @@ function buildActions(options, DEBUG = false) {
 
   // Random Profile: r
   if (options.RandomProfile) reg("r", "Random Profile", () => $("a.dropdown-item.randomProfile").trigger("click"));
+
+  // Page navigation: ← Prev, → Next, ↑ First, ↓ Last
+  // Arrow keys can't be native accesskeys, so these are synthetic-only (prefix then arrow).
+  if (options.PrevNext) {
+    const pagerKeys = [
+      ["arrowleft", "prev", "Previous page"],
+      ["arrowright", "next", "Next page"],
+      ["arrowup", "first", "First page"],
+      ["arrowdown", "last", "Last page"],
+    ];
+    for (const [key, dir, label] of pagerKeys) {
+      reg(
+        key,
+        label,
+        () => clickPagerControl(dir),
+        null,
+        () => !!findPagerControl(dir)
+      );
+    }
+  }
 
   // Home: 1
   if (options.NavHomePage)
@@ -626,6 +649,190 @@ export function showCopyMessage(message, otherMessage = "") {
 }
 
 /* ============================
+   Page navigation (Prev / Next / First / Last)
+   ============================ */
+
+// Containers that hold a pager, checked before falling back to the whole page.
+const PAGER_CONTAINERS = ".qa-page-links, .dataTables_paginate, #categoryTablePaginationLinks, .pagination";
+
+const PAGER_LABELS = {
+  prev: /^(prev|previous)( change| page| \d+)?$/,
+  next: /^(next)( change| page| \d+)?$/,
+  first: /^(first)( page)?$/,
+  last: /^(last)( page)?$/,
+};
+
+function isUsablePagerControl(el) {
+  if (!el) return false;
+  if (el.getAttribute("aria-disabled") === "true") return false;
+  if (el.closest(".disabled")) return false;
+  return el.offsetParent !== null || el.getClientRects().length > 0;
+}
+
+// "« Prev", "Next 100", "Next Change ›" → "prev", "next 100", "next change"
+function normalizePagerText(el) {
+  if (!el) return "";
+  return (el.textContent || "")
+    .replace(/[«»‹›<>←→|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+// The page number a control leads to, for controls labelled with a bare number.
+function pagerNumber(el) {
+  const text = normalizePagerText(el);
+  return /^\d+$/.test(text) ? Number(text) : null;
+}
+
+// Numbered page controls, lowest page first.
+function numberedPageControls(els, value = pagerNumber) {
+  return [...els]
+    .map((el) => ({ el, value: value(el) }))
+    .filter((c) => c.value !== null && isUsablePagerControl(c.el))
+    .sort((a, b) => a.value - b.value);
+}
+
+// Pick the lowest/highest numbered control. `current` is the page we're already on: when it sits
+// beyond the ends of the list, that end isn't in the list *because* it's the current page, so
+// there's nowhere to jump to.
+function edgePageControl(sorted, dir, current = null) {
+  if (!sorted.length) return null;
+  const target = dir === "first" ? sorted[0] : sorted[sorted.length - 1];
+  if (current !== null) {
+    if (dir === "first" && current < target.value) return null;
+    if (dir === "last" && current > target.value) return null;
+  }
+  return target.el;
+}
+
+// G2G (Question2Answer) page links
+function g2gPager(dir) {
+  const links = document.querySelector(".qa-page-links");
+  if (!links || !links.querySelector("a")) return undefined;
+  if (dir === "prev") return links.querySelector("a.qa-page-prev");
+  if (dir === "next") return links.querySelector("a.qa-page-next");
+  return edgePageControl(
+    numberedPageControls(links.querySelectorAll("a")),
+    dir,
+    pagerNumber(links.querySelector(".qa-page-selected"))
+  );
+}
+
+// DataTables paginators (the extension's own tables)
+function dataTablesPager(dir) {
+  const box = document.querySelector(".dataTables_paginate");
+  // Tables built with paging: false still render the container, but no buttons inside it.
+  if (!box || !box.querySelector(".paginate_button")) return undefined;
+
+  const byClass = { prev: "previous", next: "next", first: "first", last: "last" }[dir];
+  const direct = box.querySelector(`.paginate_button.${byClass}`);
+  // A dedicated button that's present but disabled means we're already at that end.
+  if (direct) return isUsablePagerControl(direct) ? direct : null;
+  if (dir === "prev" || dir === "next") return null;
+
+  // pagingType "simple_numbers" has no First/Last buttons, so use the numbered ones.
+  const current = box.querySelector(".paginate_button.current");
+  return edgePageControl(
+    numberedPageControls([...box.querySelectorAll(".paginate_button")].filter((el) => el !== current)),
+    dir,
+    pagerNumber(current)
+  );
+}
+
+// The start offset a WikiTree pager control jumps to: onclick="newStart(200);"
+function pagerStartOffset(el) {
+  const match = /newStart\(\s*(\d+)\s*\)/.exec(el.getAttribute("onclick") || "");
+  return match ? Number(match[1]) : null;
+}
+
+// WikiTree's own pager, e.g. Special:SearchPerson:
+//   <span class="pseudolink" onclick="newStart(200);"><button>Next</button></span>
+//   <span class="btn btn-utility" onclick="newStart(300);">4</span>
+// The handler sits on the span, so click that rather than the button inside it.
+function wikiTreeStartPager(dir) {
+  const controls = [...document.querySelectorAll("span[onclick*='newStart(']")].filter(isUsablePagerControl);
+  if (!controls.length) return undefined;
+
+  const nav = controls.filter((el) => el.classList.contains("pseudolink"));
+  if (dir === "prev" || dir === "next") {
+    return nav.find((el) => PAGER_LABELS[dir].test(normalizePagerText(el))) || null;
+  }
+
+  const numbered = numberedPageControls(
+    controls.filter((el) => !el.classList.contains("pseudolink")),
+    pagerStartOffset
+  );
+  if (!numbered.length) return null;
+
+  if (dir === "first") {
+    // The page-1 control only carries a handler when page 1 isn't the page we're on.
+    return numbered[0].value === 0 ? numbered[0].el : null;
+  }
+  // Nothing marks the final page, so treat a live Next as proof a later page exists.
+  const hasNext = nav.some((el) => PAGER_LABELS.next.test(normalizePagerText(el)));
+  return hasNext ? numbered[numbered.length - 1].el : null;
+}
+
+// Match on the label: "Previous Change"/"Next Change" on change pages, "Next 100" on the
+// watchlist, "Prev"/"Next" on category pages. Known pager containers first so an unrelated
+// "Next" elsewhere on the page can't win.
+function labelledPager(dir) {
+  const re = PAGER_LABELS[dir];
+  const scopes = [...document.querySelectorAll(PAGER_CONTAINERS), document.body];
+  for (const scope of scopes) {
+    for (const el of scope.querySelectorAll("a, button")) {
+      if (!re.test(normalizePagerText(el))) continue;
+      if (!isUsablePagerControl(el)) continue;
+      // For <a><button>Next Change</button></a>, click the link rather than the button.
+      return el.closest("a") || el;
+    }
+  }
+  return undefined;
+}
+
+// Numbered pagers with no First/Last control of their own.
+function numberedPager(dir) {
+  if (dir === "prev" || dir === "next") return undefined;
+  for (const box of document.querySelectorAll(PAGER_CONTAINERS)) {
+    const current = box.querySelector(".active, .current, .selected");
+    const el = edgePageControl(
+      numberedPageControls([...box.querySelectorAll("a, button, span[onclick]")].filter((c) => c !== current)),
+      dir,
+      pagerNumber(current)
+    );
+    if (isUsablePagerControl(el)) return el;
+  }
+  return undefined;
+}
+
+// Each strategy returns an element, null if it recognises the pager but there's nowhere to go
+// (already on the first/last page), or undefined if that kind of pager isn't on this page.
+// The first strategy to recognise a pager decides — a later, more generic one must not
+// second-guess it and send you somewhere wrong.
+const PAGER_STRATEGIES = [g2gPager, dataTablesPager, wikiTreeStartPager, labelledPager, numberedPager];
+
+// dir: "prev" | "next" | "first" | "last"
+function findPagerControl(dir) {
+  for (const strategy of PAGER_STRATEGIES) {
+    let el;
+    try {
+      el = strategy(dir);
+    } catch {
+      el = undefined;
+    }
+    if (el === undefined) continue;
+    return isUsablePagerControl(el) ? el : null;
+  }
+  return null;
+}
+
+function clickPagerControl(dir) {
+  const el = findPagerControl(dir);
+  if (el) el.click();
+}
+
+/* ============================
    Jump Navigation (g j → 1–9)
    ============================ */
 
@@ -898,6 +1105,21 @@ function detectLinuxPlatform() {
   return /Linux/.test(userAgent);
 }
 
+// Keys that have no accesskey equivalent, shown with a friendlier label in the cheat sheet.
+const KEY_DISPLAY = { arrowleft: "←", arrowright: "→", arrowup: "↑", arrowdown: "↓" };
+
+// Keeps the arrows together in reading order rather than sorting them as "arrowleft" etc.
+const KEY_SORT = { arrowleft: "1", arrowright: "2", arrowup: "3", arrowdown: "4" };
+
+function displayKey(k) {
+  return KEY_DISPLAY[k] || k;
+}
+
+// Letter and number keys alphabetically first, then the arrows as a block.
+function sortKey(k) {
+  return KEY_SORT[k] ? `1${KEY_SORT[k]}` : `0${k}`;
+}
+
 function normalizeKey(e) {
   const k = e.key?.toLowerCase();
   if (k === " ") return "space";
@@ -1153,7 +1375,7 @@ function populateCheatGrid(grid, actions, prefixKey, browserKeysEnabled = false,
   if (!grid) return;
   grid.innerHTML = "";
   if (!actions) return;
-  const keys = Object.keys(actions).sort((a, b) => String(a).localeCompare(String(b)));
+  const keys = Object.keys(actions).sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
   for (const k of keys) {
     const list = actions[k];
     if (!list || !list.length) continue;
@@ -1184,18 +1406,21 @@ function populateCheatGrid(grid, actions, prefixKey, browserKeysEnabled = false,
     const div = document.createElement("div");
     div.className = "wbe-hotkey-item";
 
-    // Show both key combinations if browser keys enabled with platform-specific symbols
-    let keyDisplay;
-    if (browserKeysEnabled) {
+    // Arrow keys are synthetic-only: accesskey attributes only accept printable characters.
+    // Those rows get a tag instead of the browser-key alternative the other rows show.
+    const prefixOnly = !!KEY_DISPLAY[k];
+    let keyDisplay = `<kbd>${escapeHtml(displayKey(k))}</kbd>`;
+    let note = "";
+    if (browserKeysEnabled && prefixOnly) {
+      note = `<small class="wbe-hotkey-note">${escapeHtml(prefixKey)} only</small>`;
+    } else if (browserKeysEnabled) {
       const browserKeys = isMac
         ? `^⌥${escapeHtml(k.toUpperCase())}` // Ctrl+Option on Mac
         : `⇧⎇${escapeHtml(k.toUpperCase())}`; // Shift+Alt on PC
       keyDisplay = `<kbd>${escapeHtml(k)}</kbd> <small>or</small> <kbd>${browserKeys}</kbd>`;
-    } else {
-      keyDisplay = `<kbd>${escapeHtml(k)}</kbd>`;
     }
 
-    div.innerHTML = `${keyDisplay}<span>${escapeHtml(labels.join(" / "))}</span>`;
+    div.innerHTML = `${keyDisplay}<span>${escapeHtml(labels.join(" / "))}</span>${note}`;
     grid.appendChild(div);
   }
   if (!grid.children.length) {
