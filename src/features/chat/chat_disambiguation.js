@@ -11,7 +11,7 @@ export function shouldOfferDisambiguation(rankedMatches) {
   return secondScore >= 60 && topScore - secondScore < 80;
 }
 
-export function buildDisambiguationMessage(candidates, targetName) {
+export function buildDisambiguationMessage(candidates, targetName, options = {}) {
   const lines = candidates.slice(0, 8).map((c, i) => {
     const wtId = c.Name || "";
     const displayName = c.RealName || c?.Derived?.ShortName || wtId;
@@ -35,7 +35,7 @@ export function buildDisambiguationMessage(candidates, targetName) {
     return `  ${i + 1}. ${label}${dates}`;
   });
   return [
-    `I found several people named "${targetName}". Which one did you mean?\n`,
+    `${options.heading || `I found several people named "${targetName}". Which one did you mean?`}\n`,
     ...lines,
     "\nReply with a number (1, 2, 3...) or paste a WikiTree ID.",
   ].join("\n");

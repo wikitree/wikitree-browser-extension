@@ -102,3 +102,28 @@ describe("chat_history inline more trailing text", () => {
     ).toBe(true);
   });
 });
+
+describe("chat_history WT+ zero-result message with alternative readings", () => {
+  test("keeps the query clean and says 'no results' once", () => {
+    createTestHandlers().handlers.appendMessage(
+      "assistant",
+      "I couldn't find any profiles for WT+ query: Location=Cheshire Suggestions=802. Try one of these readings instead:"
+    );
+
+    const bodyHtml = getMessageBodyHtml();
+    const bodyText = document.querySelector(".chat-message-body")?.textContent || "";
+    expect(document.querySelector(".chat-query-code")?.textContent).toBe("Location=Cheshire Suggestions=802");
+    expect(bodyText.match(/No results were found for this filter/g)).toHaveLength(1);
+    expect(bodyHtml).toContain("Try one of these readings instead:");
+  });
+
+  test("keeps 'Understood as' notes whole when the message has no alternatives", () => {
+    createTestHandlers().handlers.appendMessage(
+      "assistant",
+      "I couldn't find any profiles for WT+ query: AllLastNames=Cheshire Suggestions=802\nAssumed: Cheshire read as a surname"
+    );
+
+    const notes = Array.from(document.querySelectorAll(".chat-query-note")).map((note) => note.textContent);
+    expect(notes).toEqual(["No results were found for this filter.", "Assumed: Cheshire read as a surname"]);
+  });
+});

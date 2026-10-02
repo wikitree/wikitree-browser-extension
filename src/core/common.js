@@ -2384,10 +2384,16 @@ export function WBEHelpIcon(settings) {
 // Close .wbe-popup with the highest z-index on Esc key press
 $(document).on("keydown", function (e) {
   if (e.key === "Escape") {
-    const $popup = $(".wbe-popup,.diff-modal,#pagePreview")
-      .filter(":visible")
-      .filter((_, el) => el.id !== "photoPopup")
-      .sort((a, b) => parseInt($(b).css("z-index") || 0) - parseInt($(a).css("z-index") || 0))
+    // Reversed first so that, of popups with the same z-index, the later one in
+    // the page (the one drawn on top) closes first.
+    const $popup = $(
+      $(".wbe-popup,.diff-modal,#pagePreview")
+        .filter(":visible")
+        .filter((_, el) => el.id !== "photoPopup")
+        .get()
+        .reverse()
+    )
+      .sort((a, b) => (parseInt($(b).css("z-index")) || 0) - (parseInt($(a).css("z-index")) || 0))
       .eq(0);
     if ($popup.length) {
       if ($popup.find(".close-popup").length) {
@@ -2406,6 +2412,25 @@ $(document).on("click", ".wbe-popup,#editorExpanderFixedDiv", function (e) {
   setHighestZIndex(this);
   e.stopPropagation(); // Prevent event bubbling to parent elements
 });
+
+const Z_INDEX_CEILING = 2147483647; // the largest z-index browsers accept
+
+// Some overlays sit at the ceiling, so "max + 1" can't go higher and every
+// popup ends up tied there, with the later one in the page always on top.
+// Renumber the open popups just below the ceiling, keeping their order, and
+// put the clicked one at the ceiling.
+function raisePopupAtZIndexCeiling(el) {
+  const zOf = (node) => parseFloat(getComputedStyle(node).zIndex) || 0;
+  const others = $(".wbe-popup")
+    .filter(":visible")
+    .not(el)
+    .get()
+    .sort((a, b) => zOf(a) - zOf(b));
+  others.forEach((popup, index) => {
+    popup.style.setProperty("z-index", String(Z_INDEX_CEILING - others.length + index), "important");
+  });
+  el.style.setProperty("z-index", String(Z_INDEX_CEILING), "important");
+}
 
 export function setHighestZIndex(el) {
   // Compute max z-index across visible elements and set target to one higher.
@@ -2476,6 +2501,10 @@ export function setHighestZIndex(el) {
   // Use an inline style with `important` to reliably override stylesheet
   // rules that may also use `!important` for z-index.
   const targetZ = rawMax + 1;
+  if (targetZ > Z_INDEX_CEILING) {
+    raisePopupAtZIndexCeiling(el);
+    return;
+  }
   try {
     if (el && el.style && el.style.setProperty) {
       el.style.setProperty("z-index", String(targetZ), "important");

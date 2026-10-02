@@ -3,6 +3,7 @@ import { formatDate, getRelationColour, getYearColour, familyColours } from "../
 import { escapeHtml } from "../../core/lib/diff_utils";
 import { setHighestZIndex } from "../../core/common";
 import { PersonName } from "../auto_bio/person_name";
+import { profileLinkHtml } from "./chat_profile_link";
 
 /**
  * Normalize simple text for comparisons.
@@ -1240,7 +1241,7 @@ export function showBioListPopup(title, entries = [], onOpenTiled) {
     const listItems = (entries || [])
       .map(
         (e) =>
-          `<li><span>${escapeHtml(e.displayName || e.wtid || "")} (${escapeHtml(
+          `<li><span>${profileLinkHtml(e.displayName || e.wtid || "", e.wtid)} (${escapeHtml(
             e.wtid || ""
           )})</span> <button class="open-bio" data-wtid="${escapeHtml(e.wtid || "")}">Open Bio</button></li>`
       )

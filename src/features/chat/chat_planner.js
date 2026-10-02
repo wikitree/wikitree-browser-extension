@@ -90,6 +90,14 @@ export function createChatAiPlannerHandlers({
       `    filter by birth year range: {"action":"filter","filter":{"kind":"birthYearRange","start":1800,"end":1899}} — use for century phrases (e.g. "19th century" -> start:1800,end:1899; "20th century" -> start:1900,end:1999), decade phrases ("1850s" -> start:1850,end:1859), or year ranges ("1800-1900" -> start:1800,end:1900)`,
       `    filter by death year range: {"action":"filter","filter":{"kind":"deathYearRange","start":1800,"end":1899}}`,
       `    filter by text (broad search across all columns): {"action":"filter","filter":{"kind":"text","value":"search term"}}`,
+      `- rewrite with params {"prompt":"..."} — PREFER THIS when the request is about family relations, cousins, ancestors, descendants, connections, CC7 or bios. Restate it in one of these exact canonical forms (keep names as written; "my"/"me" = the logged-in user; "his"/"her"/"their" or no person = the profile person, so drop the pronoun):`,
+      `    "my 3rd cousins born in England" / "Benny's 2nd cousins once removed" / "3rd cousins died in Ohio"`,
+      `    "my father's wife's siblings" / "Benny's father's wife's siblings" / "father's wife's siblings" / "Benny's stepmother's siblings" (keep stepmother/stepfather as one word: a stepmother is a father's wife who is NOT the mother, so never write "father's wife" for it; brothers and sisters -> siblings)`,
+      `    "Benny's father's wife's siblings' bios" (any request for bios of relatives)`,
+      `    "10 generations of descendants" / "10 generations of Benny's descendants" / "7 generations of my ancestors"`,
+      `    "my connection to Murray Maloney" / "connection between Philip and Jefferson" (for related/connected/relationship questions, and for bare "me to Stephen Fry" -> "my connection to Stephen Fry", "Murray Maloney to Stephen Fry" -> "connection between Murray Maloney and Stephen Fry"; a relative can be the target: "how is Calvin's father related to me?" -> "my connection to Calvin's father")`,
+      `    "my cc7" (who is in my CC7, my CC7 profiles, my connection count 7)`,
+      `    Write numbers as digits and ordinals as 3rd/7th.`,
       `- ${ChatIntent.FALLBACK_AI} with params {}`,
       "If unsure, return fallbackAi.",
       recentUserMessages ? `Recent user messages:\n${recentUserMessages}` : "",
@@ -124,6 +132,11 @@ export function createChatAiPlannerHandlers({
     const planned = parsePlannerJson(response.response);
     if (!planned?.intent || planned.intent === ChatIntent.FALLBACK_AI) {
       return null;
+    }
+    if (planned.intent === "rewrite") {
+      const rewrittenPrompt = String(planned.params?.prompt || "").trim();
+      // The caller runs the canonical wording through the local handlers once.
+      return rewrittenPrompt && rewrittenPrompt !== prompt ? { rewrittenPrompt } : null;
     }
 
     return await executeRoutedIntent(
@@ -268,6 +281,7 @@ export function createChatAiPlannerHandlers({
       "When you include optional lookup hints, use the exact API field names: FirstName, LastName, MiddleName, BirthDate, DeathDate, BirthLocation, DeathLocation, Gender, fatherFirstName, fatherLastName, motherFirstName, motherLastName, isLiving.",
       "Do not include middle names, suffixes, honorifics, titles, or nicknames in FirstName or LastName. You may include a MiddleName field separately when it is confidently known (e.g. Stephen Fry -> MiddleName John).",
       "If the target is ambiguous but a famous or strongly implied historical person is the obvious interpretation from normal human context, return the lookup fields for that person.",
+      "If the target is only a given name (no surname), it was not found on the page or earlier in the chat. Use the rest of the prompt when it clearly implies who is meant (Philip with Jefferson -> Philip Mazzei); otherwise pick the most famous person known by that given name alone (Philip -> Prince Philip, Duke of Edinburgh).",
       ...roleTitleContext,
       "Include BirthDate when it helps disambiguate the person. Use YYYY-MM-DD when known, or YYYY if you only know the year.",
       "Include DeathDate when known. Use YYYY-MM-DD when known, YYYY if you only know the year, and an empty string if the person is living or no death date is known.",
@@ -282,6 +296,8 @@ export function createChatAiPlannerHandlers({
       "Examples:",
       '- Target: "Disney" -> {"FirstName":"Walter","LastName":"Disney","BirthDate":"1901-12-05","DeathDate":"1966-12-15","isLiving":false}',
       '- Target: "Darwin" with prompt about a famous naturalist -> {"FirstName":"Charles","LastName":"Darwin","BirthDate":"1809-02-12","DeathDate":"1882-04-19","isLiving":false}',
+      '- Target: "Philip" with prompt "Philip\'s connection to Jefferson" -> {"FirstName":"Philip","LastName":"Mazzei","BirthDate":"1730-12-25","DeathDate":"1816-03-19","Gender":"Male","isLiving":false}',
+      '- Target: "Philip" with prompt "how am I connected to Philip" -> {"FirstName":"Philip","LastName":"Mountbatten","BirthDate":"1921-06-10","DeathDate":"2021-04-09","Gender":"Male","isLiving":false}',
       '- Target: "JFK" -> {"FirstName":"John","LastName":"Kennedy","BirthDate":"1917-05-29","DeathDate":"1963-11-22","isLiving":false}',
       '- Target: "Tom Cruise" -> {"FirstName":"Thomas","LastName":"Mapother","BirthDate":"1962-07-03","DeathDate":"","isLiving":true}',
       `Target: ${target}`,

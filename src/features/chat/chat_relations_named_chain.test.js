@@ -118,4 +118,68 @@ describe("chat_relations name-rooted chains", () => {
     const [, entries] = deps.showBioListPopup.mock.calls[0];
     expect(entries.map((entry) => entry.wtid).sort()).toEqual(["Dave-1", "Eve-1"]);
   });
+
+  test("an ordinal spouse follows marriage order, and the label names the chain (live Beacall-385, 2026-10-02)", async () => {
+    // George (Beacall-385): Dicken-246 m. 1667 (no siblings), Dicken-247 m. 1683.
+    const GEORGE = { Id: 385, Name: "Beacall-385", RealName: "George", Gender: "Male" };
+    const FIRST = { Id: 246, Name: "Dicken-246", Gender: "Female", marriage_date: "1667-01-30" };
+    const SECOND = { Id: 247, Name: "Dicken-247", Gender: "Female", marriage_date: "1683-01-16" };
+    const SUSANNA = { Id: 253, Name: "Dicken-253", FirstName: "Susanna", Gender: "Female" };
+    const WikiTreeAPI = {
+      getRelatives: jest.fn(async (_appId, personKey, _fields, options) => {
+        if (options?.getSpouses && String(personKey) === "385") {
+          return [{ person: { ...GEORGE, Spouses: { 247: SECOND, 246: FIRST } } }];
+        }
+        if (options?.getSiblings && String(personKey) === "Dicken-247") {
+          return [{ person: { ...SECOND, Siblings: { 253: SUSANNA } } }];
+        }
+        return [{ person: {} }];
+      }),
+    };
+    const { handlers, deps } = makeHandlers({
+      WikiTreeAPI,
+      resolveConnectionTargetPerson: jest.fn(async () => GEORGE),
+    });
+
+    const result = await handlers.tryHandleRelationCountPrompt(
+      { mode: "list", relationRaw: "Beacall-385's second wife's siblings" },
+      "Beacall-385's second wife's siblings bios"
+    );
+
+    const [title, entries] = deps.showBioListPopup.mock.calls[0];
+    expect(entries.map((entry) => entry.wtid)).toEqual(["Dicken-253"]);
+    expect(title).toBe("sibling bios for George (Beacall-385)'s second wife");
+    expect(result.message).toBe("Opened bios for sibling of George (Beacall-385)'s second wife.");
+  });
+});
+
+describe("a relative named as a connection target (live, 2026-10-03)", () => {
+  test("Sarah's father resolves to one person through the family links", async () => {
+    const { handlers, deps } = makeHandlers();
+    const result = await handlers.resolveRelativeTargetPeople("Sarah's father", "how is Sarah's father related to me?");
+    expect(deps.resolveConnectionTargetPerson).toHaveBeenCalledWith("Sarah", "how is Sarah's father related to me?");
+    expect(result.people.map((person) => person.Name)).toEqual(["Bob-1"]);
+    expect(result.label).toBe("Sarah Jones (Sarah-1)'s father");
+  });
+
+  test("a chain gives every person at its end", async () => {
+    const { handlers } = makeHandlers();
+    const result = await handlers.resolveRelativeTargetPeople("Sarah's father's wife's siblings");
+    expect(result.people.map((person) => person.Name).sort()).toEqual(["Dave-1", "Eve-1"]);
+  });
+
+  test("my father is the user's father", async () => {
+    const { handlers, deps } = makeHandlers({
+      fetchParentIds: jest.fn(async (key) => (String(key) === "User-1" || String(key) === "1" ? [200] : [])),
+    });
+    const result = await handlers.resolveRelativeTargetPeople("my father");
+    expect(deps.resolveConnectionTargetPerson).not.toHaveBeenCalled();
+    expect(result.label).toBe("your father");
+    expect(result.people.map((person) => person.Name)).toEqual(["Bob-1"]);
+  });
+
+  test.each(["Stephen Fry", "Fry-2606", "Calvin", "the Pope"])("%s is a person, not a relative", async (target) => {
+    const { handlers } = makeHandlers();
+    await expect(handlers.resolveRelativeTargetPeople(target)).resolves.toBeNull();
+  });
 });

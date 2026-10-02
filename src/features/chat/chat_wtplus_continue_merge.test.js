@@ -49,6 +49,23 @@ describe("mergeWtPlusRefinementIntoQuery", () => {
     expect(mergeWtPlusRefinementIntoQuery("19Cen Location=Cheshire", "20Cen")).toBe("20Cen Location=Cheshire");
   });
 
+  test("declines a follow-up that brings its own place and date (a new search)", () => {
+    expect(
+      mergeWtPlusRefinementIntoQuery(
+        "AllLastNames=Dickin 19Cen female",
+        'Location=devon sql="([Default].[Birth Date].AsNumber < 17500000)"'
+      )
+    ).toBe("");
+    expect(mergeWtPlusRefinementIntoQuery("AllLastNames=Dickin", "BirthLocation=Devon 1820s")).toBe("");
+  });
+
+  test("treats the location fields as one family", () => {
+    expect(mergeWtPlusRefinementIntoQuery("DeathLocation=Liverpool", 'Location=England Suggestions="131 132"')).toBe("");
+    expect(mergeWtPlusRefinementIntoQuery("Location=Cheshire Unsourced", "BirthLocation=Cheshire")).toBe(
+      "BirthLocation=Cheshire Unsourced"
+    );
+  });
+
   test("keeps a less specific repeat of the existing location", () => {
     expect(mergeWtPlusRefinementIntoQuery('Location="Cheshire, England" Unsourced', "Location=Cheshire")).toBe("");
   });

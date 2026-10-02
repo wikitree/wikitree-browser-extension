@@ -90,7 +90,7 @@ describe("chat second-set prompt corpus (deterministic WT+ parses)", () => {
 
   test("born before 1750 in Devon", async () => {
     const executedQuery = await executedQueryFor("born before 1750 in Devon");
-    expect(executedQuery).toMatch(/\[Default\]\.\[Birth Date\]\.AsNumber < 1750/);
+    expect(executedQuery).toMatch(/\[Default\]\.\[Birth Date\]\.AsNumber In 1\.\.17499999/);
     expect(executedQuery).toMatch(/(?:Birth)?Location=Devon/);
   });
 
@@ -109,7 +109,7 @@ describe("chat second-set prompt corpus (deterministic WT+ parses)", () => {
 
   test("noun form: birth before 1850 in Devon", async () => {
     const executedQuery = await executedQueryFor("birth before 1850 in Devon");
-    expect(executedQuery).toMatch(/\[Default\]\.\[Birth Date\]\.AsNumber < 1850/);
+    expect(executedQuery).toMatch(/\[Default\]\.\[Birth Date\]\.AsNumber In 1\.\.18499999/);
     expect(executedQuery).not.toContain("LastNameAtBirth=birth");
   });
 
@@ -159,7 +159,7 @@ describe("chat second-set prompt corpus (deterministic WT+ parses)", () => {
   test("profiles from Hampshire, England with birth year earlier than 1800", async () => {
     const executedQuery = await executedQueryFor("profiles from Hampshire, England with birth year earlier than 1800");
     expect(executedQuery).toContain('Location="Hampshire, England"');
-    expect(executedQuery).toMatch(/\[Default\]\.\[Birth Date\]\.AsNumber < 1800/);
+    expect(executedQuery).toMatch(/\[Default\]\.\[Birth Date\]\.AsNumber In 1\.\.17999999/);
     expect(executedQuery).not.toMatch(/with|earlier|than/i);
   });
 
@@ -188,7 +188,7 @@ describe("chat second-set prompt corpus (deterministic WT+ parses)", () => {
   test("profiles from Hampshire, England with death year 18th century", async () => {
     const executedQuery = await executedQueryFor("profiles from Hampshire, England with death year 18th century");
     expect(executedQuery).toContain('Location="Hampshire, England"');
-    expect(executedQuery).toMatch(/\[Default\]\.\[Death Date\]\.AsNumber In 17000101\.\.17991231/);
+    expect(executedQuery).toMatch(/\[Default\]\.\[Death Date\]\.AsNumber In 17000000\.\.17999999/);
     expect(executedQuery).not.toMatch(/LastNameAtBirth=death|Location=year/);
   });
 
@@ -200,7 +200,7 @@ describe("chat second-set prompt corpus (deterministic WT+ parses)", () => {
 
   test("born earlier than 1750 in Devon", async () => {
     const executedQuery = await executedQueryFor("born earlier than 1750 in Devon");
-    expect(executedQuery).toMatch(/\[Default\]\.\[Birth Date\]\.AsNumber < 1750/);
+    expect(executedQuery).toMatch(/\[Default\]\.\[Birth Date\]\.AsNumber In 1\.\.17499999/);
     expect(executedQuery).toMatch(/(?:Birth)?Location=Devon/);
   });
 
@@ -212,9 +212,9 @@ describe("chat second-set prompt corpus (deterministic WT+ parses)", () => {
     expect(executedQuery).not.toMatch(/LastNameAtBirth=mining/);
   });
 
-  test("'in <project> but missing project box' resolves to Manager=<project> Suggestions=931", async () => {
+  test("'in <project> but missing project box' resolves to Manager=<project> Suggestions=933", async () => {
     const executedQuery = await executedQueryFor("Profiles in England project but missing project box in bio");
-    expect(executedQuery).toContain("Suggestions=931");
+    expect(executedQuery).toContain("Suggestions=933");
     expect(executedQuery).toMatch(/Manager=/);
     // The whole sentence must not leak into a Location value (the old malformed
     // parse that tripped the suspicious-query gate).
@@ -357,7 +357,9 @@ describe("chat second-set prompt corpus (deterministic WT+ parses)", () => {
     jest.clearAllMocks();
     wtAPIProfileSearch.mockResolvedValue({ response: { found: 0, profiles: [] }, searchLog: "Result: 0\r\n" });
     const zero = await reRunSavedWtPlusQuery("Orphan Location=Kent", "text");
-    expect((zero.actions || []).map((a) => a.label)).toEqual(expect.arrayContaining(["Born in Kent", "Surname Kent"]));
+    // Born/married/died in Kent can only find fewer than 0, so only the surname
+    // reading is offered.
+    expect((zero.actions || []).map((a) => a.label)).toEqual(["Surname Kent"]);
   });
 
   test("plain-English orphan phrasing parses to the Orphan token (offered on each scope choice), never leaking 'manager'", async () => {

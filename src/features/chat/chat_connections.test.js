@@ -4,6 +4,7 @@ jest.mock("../../core/API/WikiTreeAPI", () => ({
     getAncestors: jest.fn(),
     searchPerson: jest.fn(),
     getConnections: jest.fn(),
+    getPeople: jest.fn(),
   },
 }));
 
@@ -25,6 +26,7 @@ jest.mock("./ui", () => ({
 }));
 
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
+import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { createChatConnectionHandlers } from "./chat_connections";
 
 function makeHandlers(overrides = {}) {
@@ -184,6 +186,30 @@ describe("chat_connections target resolution", () => {
     const matched = await resolveConnectionTargetPerson("Tommy Buch", "Connection between Tommy Buch and the pope?");
 
     expect(matched?.Name).toBe("Buch-358");
+  });
+
+  test("a bare first name that is the profile person's preferred name resolves to them (live B7, 2026-10-02)", async () => {
+    const { getProfilePersonInfo } = require("../../core/common");
+    getProfilePersonInfo.mockReturnValue({
+      Name: "Cantrell-3638",
+      FirstName: "Benjamin",
+      FullName: "Benjamin Otho Cantrell",
+    });
+    WikiTreeAPI.getPerson.mockResolvedValue({
+      Id: 16100058,
+      Name: "Cantrell-3638",
+      RealName: "Benny",
+      FirstName: "Benjamin",
+      LastNameAtBirth: "Cantrell",
+    });
+    const tryAiExpandConnectionTarget = jest.fn(async () => ({ FirstName: "Benjamin", LastName: "Goodman" }));
+    const { resolveConnectionTargetPerson } = makeHandlers({ tryAiExpandConnectionTarget });
+
+    const matched = await resolveConnectionTargetPerson("Benny", "show me the siblings of the wife of Benny's father");
+
+    expect(matched?.Name).toBe("Cantrell-3638");
+    expect(tryAiExpandConnectionTarget).not.toHaveBeenCalled();
+    getProfilePersonInfo.mockReturnValue(null);
   });
 
   test("uses explicit AI lookup fields when resolving a famous target", async () => {
@@ -1090,5 +1116,36 @@ describe("chat_connections target resolution", () => {
 
     expect(result).toContain('I could not find a WikiTree profile match for "Unknown Example"');
     expect(result).toContain("Muse may not be able to compute the connection at all");
+  });
+});
+
+describe("chat_connections WT+ exact-name lane", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    WikiTreeAPI.getAncestors.mockResolvedValue([]);
+  });
+
+  test("finds a semi-private member that searchPerson leaves out (Murray Maloney, 2026-10-02)", async () => {
+    // Live: searchPerson returned only sound-alike Milne profiles; WT+ text
+    // search listed Maloney-2332, and getPeople returned its name.
+    WikiTreeAPI.searchPerson.mockImplementation(async (_appId, params) =>
+      params.FirstName === "Murray" && params.LastName === "Maloney" && !params.skipVariants && !params.isLiving
+        ? [0, [{ Id: 1, Name: "Milne-4266", RealName: "Murray", FirstName: "Murray", LastNameAtBirth: "Milne" }]]
+        : [0, []]
+    );
+    wtAPIProfileSearch.mockResolvedValue({ response: { profiles: [16354081, 25090970] } });
+    WikiTreeAPI.getPeople.mockResolvedValue([
+      0,
+      {},
+      {
+        16354081: { Id: 16354081, Name: "Murray-10645", RealName: "Elizabeth", LastNameAtBirth: "Murray", LastNameCurrent: "Maloney" },
+        25090970: { Id: 25090970, Name: "Maloney-2332", RealName: "Murray", FirstName: null, LastNameAtBirth: "Maloney", LastNameCurrent: "Maloney", BirthDateDecade: "1950s", IsLiving: 1 },
+      },
+    ]);
+
+    const { resolveConnectionTargetPerson } = makeHandlers();
+    const matched = await resolveConnectionTargetPerson("Murray Maloney", "connection to Murray Maloney");
+
+    expect(matched?.Name).toBe("Maloney-2332");
   });
 });

@@ -1,3 +1,4 @@
+import { describeRelationChain, pickSpouseByOrdinal, splitOrdinalFromRelation } from "./chat_relation_chain_text";
 import {
   DEFAULT_ALL_COUSIN_ANCESTOR_GENERATION,
   MAX_COUSIN_ANCESTOR_GENERATION,
@@ -201,7 +202,7 @@ export function createChatRelationHandlers({
       if (!spec) {
         return null;
       }
-      steps.push(spec);
+      steps.push(withStepText(spec, segment));
     }
 
     return { subjectName: head.trim(), steps };
@@ -244,10 +245,21 @@ export function createChatRelationHandlers({
       if (!spec) {
         return [];
       }
-      steps.push(spec);
+      steps.push(withStepText(spec, segment));
     }
 
     return steps;
+  }
+
+  // Keep the words as typed ("second wife") for labels, and the ordinal for
+  // picking one spouse by marriage order.
+  function withStepText(spec, segment) {
+    const text = String(segment || "")
+      .replace(/[^A-Za-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+    return { ...spec, text: text || spec.singular, ordinal: splitOrdinalFromRelation(text).ordinal };
   }
 
   async function tryAiParseRelationChain(rawRelation) {
@@ -1266,7 +1278,7 @@ export function createChatRelationHandlers({
       for (const key of currentKeys) {
         const relatives = await collectRelationPeople(key, step);
         const filtered = uniquePeopleById(relatives).filter((person) => relationMatchesGender(person, step.gender));
-        nextPeople.push(...filtered);
+        nextPeople.push(...(step.ordinal && step.group === "spouses" ? pickSpouseByOrdinal(filtered, step.ordinal) : filtered));
       }
 
       currentPeople = uniquePeopleById(nextPeople);
@@ -1280,6 +1292,147 @@ export function createChatRelationHandlers({
     }
 
     return currentPeople;
+  }
+
+  // Whose relatives: a named person, the profile person, or the user. Returns
+  // the subject, or a message string when it can't be resolved.
+  async function resolveRelationSubject({ named, subjectName: requestedSubjectName, forceUserSubject }, prompt = "") {
+    let subject = null;
+    if (!forceUserSubject && named) {
+      const subjectName = String(requestedSubjectName || "").trim();
+      if (!subjectName) {
+        return "I couldn't tell which person you meant. Could you include a name or WikiTree ID?";
+      }
+      const resolved = await resolveConnectionTargetPerson(subjectName, prompt);
+      if (!resolved?.Name && !resolved?.Id) {
+        return `I couldn't identify which profile you meant by "${subjectName}". Try a WikiTree ID like Name-123, or a more specific name.`;
+      }
+      subject = {
+        key: resolved.Id || resolved.Name,
+        label: `${resolved.RealName || resolved?.Derived?.ShortName || resolved.Name} (${
+          resolved.Name || resolved.Id
+        })`,
+        isUser: false,
+      };
+    } else {
+      const profileRoot =
+        !forceUserSubject && typeof getProfileSubjectRoot === "function" ? getProfileSubjectRoot() : null;
+      if (profileRoot?.key) {
+        subject = {
+          key: profileRoot.key,
+          label: `${profileRoot.displayName || profileRoot.wtId || profileRoot.key}${
+            profileRoot.wtId ? ` (${profileRoot.wtId})` : ""
+          }`,
+          isUser: false,
+          wtId: String(profileRoot.wtId || ""),
+          userKeys: Array.from(
+            new Set([profileRoot.key, profileRoot.wtId].map((value) => String(value || "").trim()).filter(Boolean))
+          ),
+          subjectType: "profile",
+        };
+      } else {
+        const directUserWtId = String(getUserWtId() || "").trim();
+        const directUserNumId = getUserNumId();
+        const directUserKey = directUserWtId || directUserNumId;
+
+        if (!directUserKey) {
+          return "I could not detect your logged-in WikiTree ID. Please make sure you are logged in on WikiTree.";
+        }
+
+        const me = await getLoggedInRootPerson();
+        const userKeys = Array.from(
+          new Set(
+            [directUserNumId, directUserWtId, me?.key, me?.wtId, me?.Id, me?.Name]
+              .map((value) => String(value || "").trim())
+              .filter(Boolean)
+          )
+        );
+        subject = {
+          key: directUserKey,
+          label: "you",
+          isUser: true,
+          wtId: directUserWtId || String(me?.wtId || ""),
+          userKeys,
+        };
+      }
+    }
+
+    return subject;
+  }
+
+  async function collectRelativesForSteps(subject, relationSteps) {
+    const relationSpec = relationSteps[relationSteps.length - 1];
+    let relatives = [];
+    const isSingleStep = relationSteps.length === 1;
+
+    if (subject.isUser && isSingleStep && ["parentSiblings", "grandparentSiblings"].includes(relationSpec.group)) {
+      const candidateKeys =
+        Array.isArray(subject.userKeys) && subject.userKeys.length ? subject.userKeys : [subject.key];
+      for (const candidateKey of candidateKeys) {
+        relatives = await collectUserAncestorSiblingRelations(relationSpec, candidateKey);
+        if (relatives.length) {
+          break;
+        }
+      }
+    }
+
+    if (!relatives.length && isSingleStep) {
+      relatives = await collectRelationPeople(subject.key, relationSpec);
+      if (relationSpec.ordinal && relationSpec.group === "spouses") {
+        relatives = pickSpouseByOrdinal(
+          uniquePeopleById(relatives).filter((person) => relationMatchesGender(person, relationSpec.gender)),
+          relationSpec.ordinal
+        );
+      }
+    }
+
+    if (!relatives.length && !isSingleStep) {
+      relatives = await collectRelationChainPeople(subject.key, relationSteps);
+    }
+
+    relatives = uniquePeopleById(relatives).filter((person) => relationMatchesGender(person, relationSpec.gender));
+    return relatives;
+  }
+
+  /**
+   * A connection target can name a relative instead of a person ("Calvin's
+   * father", "my mother's father", "his wife"). Returns null when the text is
+   * not a relation chain, a message string when its subject can't be found,
+   * or { people, label }.
+   */
+  async function resolveRelativeTargetPeople(targetText, prompt = "") {
+    const text = String(targetText || "").trim();
+    const pronounChain = text.match(/^(my|his|her|their)\s+(.+)$/i);
+    let steps = [];
+    let subjectName = "";
+    if (pronounChain) {
+      steps = parseRelationChainLocally(pronounChain[2]);
+    } else {
+      const chain = parseRelationChainWithSubject(text);
+      if (chain?.steps?.length) {
+        steps = chain.steps;
+        subjectName = chain.subjectName;
+      }
+    }
+    if (!steps.length) {
+      return null;
+    }
+
+    const subject = await resolveRelationSubject(
+      {
+        named: Boolean(subjectName),
+        subjectName,
+        forceUserSubject: pronounChain?.[1]?.toLowerCase() === "my",
+      },
+      prompt || text
+    );
+    if (typeof subject === "string") {
+      return subject;
+    }
+    const people = await collectRelativesForSteps(subject, steps);
+    const hops = steps.map((step) => step.text || step.singular);
+    const label = subject.isUser ? `your ${hops.join("'s ")}` : describeRelationChain(subject.label, hops);
+    return { people, label };
   }
 
   async function tryHandleRelationCountPrompt(params, prompt = "") {
@@ -1349,93 +1502,32 @@ export function createChatRelationHandlers({
     }
     const relationSpec = relationSteps[relationSteps.length - 1];
 
-    let subject = null;
-    if (!forceUserSubject && (params?.subjectMode === "named" || subjectNameFromChain)) {
-      const subjectName = String(params?.subjectName || subjectNameFromChain || "").trim();
-      if (!subjectName) {
-        return "I couldn't tell which person you meant. Could you include a name or WikiTree ID?";
-      }
-      const resolved = await resolveConnectionTargetPerson(subjectName, prompt);
-      if (!resolved?.Name && !resolved?.Id) {
-        return `I couldn't identify which profile you meant by "${subjectName}". Try a WikiTree ID like Name-123, or a more specific name.`;
-      }
-      subject = {
-        key: resolved.Id || resolved.Name,
-        label: `${resolved.RealName || resolved?.Derived?.ShortName || resolved.Name} (${
-          resolved.Name || resolved.Id
-        })`,
-        isUser: false,
-      };
-    } else {
-      const profileRoot =
-        !forceUserSubject && typeof getProfileSubjectRoot === "function" ? getProfileSubjectRoot() : null;
-      if (profileRoot?.key) {
-        subject = {
-          key: profileRoot.key,
-          label: `${profileRoot.displayName || profileRoot.wtId || profileRoot.key}${
-            profileRoot.wtId ? ` (${profileRoot.wtId})` : ""
-          }`,
-          isUser: false,
-          wtId: String(profileRoot.wtId || ""),
-          userKeys: Array.from(
-            new Set([profileRoot.key, profileRoot.wtId].map((value) => String(value || "").trim()).filter(Boolean))
-          ),
-          subjectType: "profile",
-        };
-      } else {
-        const directUserWtId = String(getUserWtId() || "").trim();
-        const directUserNumId = getUserNumId();
-        const directUserKey = directUserWtId || directUserNumId;
-
-        if (!directUserKey) {
-          return "I could not detect your logged-in WikiTree ID. Please make sure you are logged in on WikiTree.";
-        }
-
-        const me = await getLoggedInRootPerson();
-        const userKeys = Array.from(
-          new Set(
-            [directUserNumId, directUserWtId, me?.key, me?.wtId, me?.Id, me?.Name]
-              .map((value) => String(value || "").trim())
-              .filter(Boolean)
-          )
-        );
-        subject = {
-          key: directUserKey,
-          label: "you",
-          isUser: true,
-          wtId: directUserWtId || String(me?.wtId || ""),
-          userKeys,
-        };
-      }
+    const subject = await resolveRelationSubject(
+      {
+        named: params?.subjectMode === "named" || Boolean(subjectNameFromChain),
+        subjectName: params?.subjectName || subjectNameFromChain,
+        forceUserSubject,
+      },
+      prompt
+    );
+    if (typeof subject === "string") {
+      return subject;
     }
 
     try {
-      let relatives = [];
-      const isSingleStep = relationSteps.length === 1;
-
-      if (subject.isUser && isSingleStep && ["parentSiblings", "grandparentSiblings"].includes(relationSpec.group)) {
-        const candidateKeys =
-          Array.isArray(subject.userKeys) && subject.userKeys.length ? subject.userKeys : [subject.key];
-        for (const candidateKey of candidateKeys) {
-          relatives = await collectUserAncestorSiblingRelations(relationSpec, candidateKey);
-          if (relatives.length) {
-            break;
-          }
-        }
-      }
-
-      if (!relatives.length && isSingleStep) {
-        relatives = await collectRelationPeople(subject.key, relationSpec);
-      }
-
-      if (!relatives.length && !isSingleStep) {
-        relatives = await collectRelationChainPeople(subject.key, relationSteps);
-      }
-
-      relatives = uniquePeopleById(relatives).filter((person) => relationMatchesGender(person, relationSpec.gender));
+      const relatives = await collectRelativesForSteps(subject, relationSteps);
 
       const count = relatives.length;
       const noun = count === 1 ? relationSpec.singular : relationSpec.plural;
+      // Name whose relatives these are: "siblings of George (Beacall-385)'s
+      // second wife", not "siblings of George".
+      const hops = relationSteps.slice(0, -1).map((step) => step.text || step.singular);
+      const chainLabel = hops.length
+        ? subject.isUser
+          ? `your ${hops.join("'s ")}`
+          : describeRelationChain(subject.label, hops)
+        : subject.label;
+      const labelIsUser = subject.isUser && !hops.length;
       if (!count) {
         const appsLoginHint =
           subject.isUser && isAppsLoginButtonPresent()
@@ -1443,13 +1535,13 @@ export function createChatRelationHandlers({
             : "";
 
         if (mode === "list") {
-          return subject.isUser
+          return labelIsUser
             ? `I couldn't find any ${noun} in currently accessible family data yet. Try asking about a specific person (for example: "Who are the granduncles of Name-123?").${appsLoginHint}`
-            : `I couldn't find any ${noun} for ${subject.label} in currently accessible family data yet.${appsLoginHint}`;
+            : `I couldn't find any ${noun} for ${chainLabel} in currently accessible family data yet.${appsLoginHint}`;
         }
-        return subject.isUser
+        return labelIsUser
           ? `I found 0 ${noun} in currently accessible family data.${appsLoginHint}`
-          : `I found 0 ${noun} for ${subject.label} in currently accessible family data.${appsLoginHint}`;
+          : `I found 0 ${noun} for ${chainLabel} in currently accessible family data.${appsLoginHint}`;
       }
 
       if (mode === "list") {
@@ -1461,22 +1553,22 @@ export function createChatRelationHandlers({
             displayName: toDisplayName(person),
           }));
           showBioListPopup(
-            subject.isUser ? `Your ${noun} bios` : `${noun} bios for ${subject.label}`,
+            labelIsUser ? `Your ${noun} bios` : `${noun} bios for ${chainLabel}`,
             entries.slice(0, 50),
             handleOpenFromBioList
           );
           return {
-            message: subject.isUser ? `Opened bios for your ${noun}.` : `Opened bios for ${noun} of ${subject.label}.`,
+            message: labelIsUser ? `Opened bios for your ${noun}.` : `Opened bios for ${noun} of ${chainLabel}.`,
           };
         }
 
         return {
-          message: subject.isUser
+          message: labelIsUser
             ? `Here are your ${noun} (${count} found):\n${preview}`
-            : `Here are ${noun} for ${subject.label} (${count} found):\n${preview}`,
+            : `Here are ${noun} for ${chainLabel} (${count} found):\n${preview}`,
           inlineMore,
           table: makeStandardProfileTable(
-            subject.isUser ? `Your ${noun}` : `${noun} for ${subject.label}`,
+            labelIsUser ? `Your ${noun}` : `${noun} for ${chainLabel}`,
             toRelationTableRows(relatives),
             [[0, "asc"]]
           ),
@@ -1489,11 +1581,11 @@ export function createChatRelationHandlers({
         .join(", ");
       const suffix = count > 6 ? ", ..." : "";
       return {
-        message: subject.isUser
+        message: labelIsUser
           ? `You have ${count} ${noun} in currently accessible data. ${sample}${suffix}`
-          : `${subject.label} has ${count} ${noun} in currently accessible data. ${sample}${suffix}`,
+          : `${chainLabel} has ${count} ${noun} in currently accessible data. ${sample}${suffix}`,
         table: makeStandardProfileTable(
-          subject.isUser ? `Your ${noun}` : `${noun} for ${subject.label}`,
+          labelIsUser ? `Your ${noun}` : `${noun} for ${chainLabel}`,
           toRelationTableRows(relatives),
           [[0, "asc"]]
         ),
@@ -1504,6 +1596,7 @@ export function createChatRelationHandlers({
   }
 
   return {
+    resolveRelativeTargetPeople,
     tryHandleRelationCountPrompt,
   };
 }

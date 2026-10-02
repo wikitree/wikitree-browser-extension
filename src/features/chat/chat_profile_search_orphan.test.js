@@ -126,6 +126,22 @@ describe("chat_profile_search orphan manager phrasing", () => {
     expect((result.actions || []).every((a) => a.actionType === "fetch-wtplus-results")).toBe(true);
   });
 
+  test("runs at once when AI finds only one meaning for the place", async () => {
+    window.callAiModel = jest.fn(async () =>
+      JSON.stringify([{ kind: "place", label: "Denbighshire, Wales (county)", location: "Denbighshire, Wales" }])
+    );
+
+    const { tryHandleProfileSearchPrompt } = makeHandler({
+      getChatOptions: jest.fn(async () => ({ allowAiFallback: true })),
+    });
+
+    const result = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Denbighshire no manager");
+
+    expect(wtAPIProfileSearch).toHaveBeenCalled();
+    expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])).toBe("Orphan Location=Denbighshire");
+    expect(String(result?.message || result)).not.toMatch(/could mean a few different things|Which did you mean/i);
+  });
+
   test("falls back to born/married/died buttons when AI is unavailable", async () => {
     // allowAiFallback stays false (default handler), so no AI round-trip.
     const { tryHandleProfileSearchPrompt } = makeHandler();

@@ -117,14 +117,14 @@ describe("wt_plus_query_grammar suggestions free text", () => {
     expect(result).toBeNull();
   });
 
-  test("maps project managed without project box phrasing to Suggestions=931", () => {
+  test("maps project managed without project box phrasing to Suggestions=933", () => {
     const result = translateSuggestionsFreeTextToQuery(
       "profiles managed by england project but missing project box in bio"
     );
     expect(result).not.toBeNull();
     expect(result.searchType).toBe("suggestions");
-    expect(result.suggestionId).toBe("931");
-    expect(result.query.startsWith("Suggestions=931")).toBe(true);
+    expect(result.suggestionId).toBe("933");
+    expect(result.query.startsWith("Suggestions=933")).toBe(true);
   });
 
   test("maps empty biography phrasing to Suggestions=802", () => {

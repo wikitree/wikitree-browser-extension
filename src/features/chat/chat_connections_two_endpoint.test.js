@@ -406,3 +406,61 @@ describe("looksLikePersonNameForSearch", () => {
     expect(looksLikePersonNameForSearch("")).toBe(false);
   });
 });
+
+describe("a relative as the connection target (live, 2026-10-03)", () => {
+  const ChatIntent = { CONNECTION_LOOKUP: "connectionLookup" };
+  const father = { Id: 140, Name: "Tabler-140", RealName: "John", BirthDate: "1840-01-01" };
+  const sourceRoot = { key: 6, wtId: "Beacall-6", displayName: "you", subjectType: "user" };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    WikiTreeAPI.getConnections.mockResolvedValue({ pathLength: 5, path: [6, 140], people: {} });
+  });
+
+  test("follows the family link instead of searching for a person by that name", async () => {
+    const resolveRelativeTarget = jest.fn(async () => ({ people: [father], label: "Calvin's father" }));
+    const { tryHandleConnectionPrompt } = makeHandlers({
+      resolveRelativeTarget,
+      resolveConnectionSourceRoot: jest.fn(async () => sourceRoot),
+      ChatIntent,
+    });
+
+    const result = await tryHandleConnectionPrompt("my connection to Calvin's father", "Calvin's father");
+
+    expect(resolveRelativeTarget).toHaveBeenCalledWith("Calvin's father", "my connection to Calvin's father");
+    expect(WikiTreeAPI.searchPerson).not.toHaveBeenCalled();
+    expect(WikiTreeAPI.getConnections.mock.calls[0][1]).toEqual(["Beacall-6", "Tabler-140"]);
+    expect(String(result?.message || result)).toContain("Tabler-140");
+  });
+
+  test("asks which one when the relation names several people", async () => {
+    const brother = { Id: 142, Name: "Tabler-142", RealName: "Ivan" };
+    const setPendingDisambiguationContext = jest.fn();
+    const buildDisambiguationMessage = jest.fn((people, label, options) => options.heading);
+    const { tryHandleConnectionPrompt } = makeHandlers({
+      resolveRelativeTarget: jest.fn(async () => ({ people: [father, brother], label: "Calvin's siblings" })),
+      setPendingDisambiguationContext,
+      buildDisambiguationMessage,
+      ChatIntent,
+    });
+
+    const result = await tryHandleConnectionPrompt("my connection to Calvin's siblings", "Calvin's siblings");
+
+    expect(result).toBe("Calvin's siblings could be any of 2 people. Which one did you mean?");
+    expect(setPendingDisambiguationContext.mock.calls[0][0]).toMatchObject({
+      intent: "connectionLookup",
+      candidates: [father, brother],
+    });
+    expect(WikiTreeAPI.getConnections).not.toHaveBeenCalled();
+  });
+
+  test("says so when the relative isn't in the family data", async () => {
+    const { tryHandleConnectionPrompt } = makeHandlers({
+      resolveRelativeTarget: jest.fn(async () => ({ people: [], label: "Calvin's father" })),
+      ChatIntent,
+    });
+    await expect(tryHandleConnectionPrompt("my connection to Calvin's father", "Calvin's father")).resolves.toBe(
+      "I couldn't find Calvin's father in currently accessible family data."
+    );
+  });
+});

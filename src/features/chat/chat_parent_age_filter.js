@@ -33,6 +33,7 @@ function parseScopeTerms(scopeText) {
     /^(.*?)\s+born\s+(\d{4})\s*[-–]\s*(\d{4})$/i,
     /^(.*?)\s+born\s+between\s+(\d{4})\s+(?:and|to)\s+(\d{4})$/i,
     /^(.*?)\s+between\s+(\d{4})\s+(?:and|to)\s+(\d{4})$/i,
+    /^(.*?)\s+(\d{4})\s*[-–]\s*(\d{4})$/i,
   ];
 
   for (const pattern of yearRangePatterns) {
@@ -209,4 +210,33 @@ export function buildParentAgeAtBirthMatches(children = [], parentsById = {}, co
   }
 
   return matches;
+}
+
+// WT+ sql conditions that pre-filter parent-age searches on the WT+ server, so only
+// likely matches come back as IDs (fetching every candidate from the WikiTree API
+// is what made these searches take minutes). Returns one array of AND-ed expressions
+// per OR branch. AsNumber dates are yyyymmdd, so a 14-year gap is 140000. Both bounds
+// keep a superset of buildParentAgeAtBirthMatches (which compares birth years), so
+// that exact filter still runs on the results.
+export function buildParentAgeAtBirthSqlBranches(constraints = {}) {
+  const roleKeys =
+    Array.isArray(constraints?.roleKeys) && constraints.roleKeys.length ? constraints.roleKeys : ["Father", "Mother"];
+  const underAge = Number.isFinite(Number(constraints?.underAge)) ? Number(constraints.underAge) : null;
+  const overAge = Number.isFinite(Number(constraints?.overAge)) ? Number(constraints.overAge) : null;
+  const birth = "[Default].[Birth Date].AsNumber";
+  const branches = [];
+
+  for (const roleKey of roleKeys) {
+    const parentBirth = `[Default].[${roleKey} Birth Date].AsNumber`;
+    // A parent without a birth date has AsNumber 0, which the under bound already
+    // excludes (the difference is huge) but the over bound must exclude explicitly.
+    if (underAge !== null) {
+      branches.push([`${parentBirth} > 0`, `${birth} - ${parentBirth} < ${underAge * 10000}`]);
+    }
+    if (overAge !== null) {
+      branches.push([`${parentBirth} > 0`, `${birth} - ${parentBirth} > ${overAge * 10000}`]);
+    }
+  }
+
+  return branches;
 }

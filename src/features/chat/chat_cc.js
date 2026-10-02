@@ -320,6 +320,15 @@ export function createChatCcHandlers({
     };
   }
 
+  // "Your CC7 (Beacall-6)" rather than "you (Beacall-6)'s CC7".
+  function ccSummaryOwner(subjectRoot, subjectLabel, ccLabel) {
+    const userLabel = subjectLabel.match(/^you(?: \((.+)\))?$/);
+    if (subjectRoot?.subjectType === "user" && userLabel) {
+      return userLabel[1] ? `Your ${ccLabel} (${userLabel[1]})` : `Your ${ccLabel}`;
+    }
+    return `${subjectLabel}'s ${ccLabel}`;
+  }
+
   async function tryHandleCcSummaryPrompt(params, prompt = "") {
     const nuclear = normalizeCcNuclear(params?.nuclear, 7);
     const ccLabel = `CC${nuclear}`;
@@ -361,7 +370,7 @@ export function createChatCcHandlers({
       const treeAppActions = nuclear === 7 ? buildTreeAppActions("cc7", subjectRoot.wtId) : [];
 
       return {
-        message: `${subjectLabel === "you" ? "Your" : `${subjectLabel}'s`} ${ccLabel} includes ${rows.length} profile${
+        message: `${ccSummaryOwner(subjectRoot, subjectLabel, ccLabel)} includes ${rows.length.toLocaleString("en-US")} profile${
           rows.length === 1 ? "" : "s"
         }.\n${preview}${extra}`,
         trailingText: treeAppActions.length ? "Recommended Tree Apps are available below." : "",

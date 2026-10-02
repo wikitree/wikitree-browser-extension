@@ -56,3 +56,19 @@ describe("chat_project_missing_box_filter prompt parsing", () => {
     });
   });
 });
+
+describe("project missing box: other wordings (variant testing, 2026-10-02)", () => {
+  test.each([
+    "England project profiles without a project box",
+    "England Project managed profiles missing the project box",
+    "profiles managed by the England project with no project box",
+    "Profiles in England project but missing project box in bio",
+  ])("%s", (prompt) => {
+    expect(parseProjectMissingBoxPrompt(prompt)?.projectName).toBe("England Project");
+  });
+
+  test("not without a project name or a missing box", () => {
+    expect(parseProjectMissingBoxPrompt("profiles without a project box")).toBeNull();
+    expect(parseProjectMissingBoxPrompt("England project profiles")).toBeNull();
+  });
+});

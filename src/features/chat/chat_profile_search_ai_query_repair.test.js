@@ -91,7 +91,8 @@ describe("chat_profile_search AI WT+ query repair", () => {
 
     const result = await tryHandleProfileSearchPrompt(
       { chatModeOverride: "wtplus" },
-      "unsourced profiles in Shropshire born 1820s"
+      // Not a plain status+place+decade prompt (those skip the AI), so the AI answers.
+      "unsourced profiles in Shropshire born 1820s, any gender"
     );
 
     const executedQuery = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
@@ -101,7 +102,7 @@ describe("chat_profile_search AI WT+ query repair", () => {
     expect(result.table.rows).toHaveLength(1);
   });
 
-  test("normalizes exact birth-decade century-plus-sql AI queries to the raw decade token", async () => {
+  test("normalizes exact birth-decade century-plus-sql AI queries to the decade prefilter plus born-in-decade sql", async () => {
     window.callAiModel = jest.fn(async () =>
       JSON.stringify({
         understood: "unsourced profiles in Shropshire born 1820s",
@@ -113,7 +114,8 @@ describe("chat_profile_search AI WT+ query repair", () => {
 
     const result = await tryHandleProfileSearchPrompt(
       { chatModeOverride: "wtplus" },
-      "unsourced profiles in Shropshire born 1820s"
+      // Not a plain status+place+decade prompt (those skip the AI), so the AI answers.
+      "unsourced profiles in Shropshire born 1820s, any gender"
     );
 
     const executedQuery = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
@@ -122,6 +124,8 @@ describe("chat_profile_search AI WT+ query repair", () => {
     expect(executedQuery).toContain("1820s");
     expect(executedQuery).not.toContain("19Cen");
     expect(executedQuery).not.toContain("[Default].[Birth Date].AsNumber In 18200101..18291231");
+    // The decade token is only the prefilter; the born-in-decade sql does the filtering.
+    expect(executedQuery).toContain('sql="([Default].[Birth Date].AsNumber In 18200000..18299999)"');
     expect(result.table.rows).toHaveLength(1);
   });
 
@@ -130,7 +134,7 @@ describe("chat_profile_search AI WT+ query repair", () => {
       JSON.stringify({
         understood: "20th century more than 6 children and married in Cheshire",
         query:
-          '20Cen MarriageLocation=Cheshire sql="([Family].[Children Count] > 6) And ([Family].[Marriage Date].AsNumber In 19000101..19991231)"',
+          '20Cen MarriageLocation=Cheshire sql="([Family].[Children Count] > 6) And ([Family].[Marriage Date].AsNumber In 19000000..19999999)"',
       })
     );
 
@@ -143,7 +147,7 @@ describe("chat_profile_search AI WT+ query repair", () => {
 
     const executedQuery = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
     expect(executedQuery).toContain("[Children].[User ID].LineCount > 6");
-    expect(executedQuery).toContain("[Marriage].[Marriage Date].AsNumber In 19000101..19991231");
+    expect(executedQuery).toContain("[Marriage].[Marriage Date].AsNumber In 19000000..19999999");
     expect(executedQuery).not.toContain("[Family].[Marriage Date]");
   });
 
@@ -216,7 +220,7 @@ describe("chat_profile_search AI WT+ query repair", () => {
 
     const executedQuery = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
     expect(executedQuery).toContain("MarriageLocation=Cheshire");
-    expect(executedQuery).toContain("[Marriage].[Marriage Date].AsNumber In 19000101..19991231");
+    expect(executedQuery).toContain("[Marriage].[Marriage Date].AsNumber In 19000000..19999999");
     expect(executedQuery).toContain("[Children].[User ID].LineCount > 6");
     expect(executedQuery).not.toContain("20Cen");
   });
@@ -279,7 +283,7 @@ describe("chat_profile_search AI WT+ query repair", () => {
     expect(window.callAiModel).not.toHaveBeenCalled();
     const executedQuery = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
     expect(executedQuery).toContain("MarriageLocation=Cheshire");
-    expect(executedQuery).toContain("[Marriage].[Marriage Date].AsNumber In 19000101..19991231");
+    expect(executedQuery).toContain("[Marriage].[Marriage Date].AsNumber In 19000000..19999999");
     expect(executedQuery).toContain("[Children].[User ID].LineCount > 6");
     expect(executedQuery).not.toContain("20Cen");
   });

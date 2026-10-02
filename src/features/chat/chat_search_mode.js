@@ -286,6 +286,21 @@ function isLikelyRelationshipBioPrompt(prompt) {
   return (hasBioCue && hasRelationshipCue) || (hasBioCue && hasPossessiveChain);
 }
 
+// Family-relation requests ("show 10 generations of descendants", "siblings of
+// Benny's stepmother", "how is Philip connected to Jefferson?") that the router
+// declined belong to the main flow's AI planner, not to a profile search.
+// A prompt that is only names joined by "to" ("me to Stephen Fry") asks for a
+// connection; a WikiTree name search can't use the "to".
+const BARE_CONNECTION_PROMPT_RE =
+  /^\s*(?:me|myself|i|[\p{L}][\p{L}\p{M}'’.-]*(?:\s+[\p{L}][\p{L}\p{M}'’.-]*){0,3})\s+to\s+[\p{L}][\p{L}\p{M}'’.-]*(?:\s+[\p{L}][\p{L}\p{M}'’.-]*){0,3}\s*\??\s*$/iu;
+
+export function isLikelyFamilyRelationPrompt(prompt) {
+  if (BARE_CONNECTION_PROMPT_RE.test(String(prompt || ""))) return true;
+  return /\b(?:cousins?|ancestors?|descendants?|generations?|cc\d+|siblings?|brothers?\s+and\s+sisters?|step-?(?:mother|father|parents?|sons?|daughters?|children|brothers?|sisters?)|(?:connected|related)\s+(?:to|with)|(?:connection|relationship)\s+(?:to|between|with)|connect\s+\S+.*\bwith)\b|['’]s?\s+(?:father|mother|parents?|wife|husband|spouses?|children|sons?|daughters?)['’]s\b/i.test(
+    String(prompt || "")
+  );
+}
+
 function hasMinimumWtSearchIdentifiers(prompt) {
   /**
    * Check if a query has the minimum identifiers needed for WT API search.
@@ -468,6 +483,18 @@ export function mergeWtPlusRefinementIntoQuery(previousWtPlusQuery, refinementQu
   if (!previous || !refinement) return "";
   // OR groups need branch-aware merging; decline rather than corrupt them.
   if (/\bOR\b/.test(previous) || /\bOR\b/.test(refinement)) return "";
+  // A follow-up with its own place and its own date ("born before 1750 in
+  // Devon") is a complete search, not a narrowing of the previous one.
+  const refinementUnits = tokenizeWtPlusQueryUnits(refinement).map(classifyWtPlusQueryUnit);
+  const hasOwnPlace = refinementUnits.some(
+    (cls) => cls.type === "field" && /^(?:birth|death|marriage)?location$/.test(cls.field)
+  );
+  const hasOwnDate = refinementUnits.some(
+    (cls) =>
+      ["century", "decade", "birthYear", "deathYear"].includes(cls.type) ||
+      (cls.type === "field" && cls.field === "sql" && /Date\]/i.test(cls.value))
+  );
+  if (hasOwnPlace && hasOwnDate) return "";
 
   const merged = tokenizeWtPlusQueryUnits(previous);
   let changed = false;
@@ -491,14 +518,21 @@ export function mergeWtPlusRefinementIntoQuery(previousWtPlusQuery, refinementQu
     }
 
     if (cls.type === "field") {
+      // Location, BirthLocation, DeathLocation and MarriageLocation are one family:
+      // Location=England after DeathLocation=Liverpool is a new search.
+      const isPlaceField = (field) => /^(?:birth|death|marriage)?location$/.test(field);
       const index = merged.findIndex((existing) => {
         const existingCls = classifyWtPlusQueryUnit(existing);
-        return existingCls.type === "field" && existingCls.field === cls.field;
+        return (
+          existingCls.type === "field" &&
+          (existingCls.field === cls.field || (isPlaceField(existingCls.field) && isPlaceField(cls.field)))
+        );
       });
       if (index >= 0) {
-        const oldValue = classifyWtPlusQueryUnit(merged[index]).value.toLowerCase();
+        const oldCls = classifyWtPlusQueryUnit(merged[index]);
+        const oldValue = oldCls.value.toLowerCase();
         const newValue = cls.value.toLowerCase();
-        if (newValue === oldValue) continue;
+        if (newValue === oldValue && oldCls.field === cls.field) continue;
         if (newValue.includes(oldValue)) {
           merged[index] = unit;
           changed = true;
@@ -1018,9 +1052,11 @@ export async function handleExplicitSearchMode({
     // still work after a "too many profiles" run that produced no table.
     const structuredResultForQuery =
       hasStructuredResult && typeof getLastStructuredResult === "function" ? getLastStructuredResult() : null;
+    // The most recent query, even when it built no table (too many results,
+    // or none): the last table may belong to an older search.
     const previousWtPlusQueryForMerge =
-      String(structuredResultForQuery?.wtPlusQuery || "").trim() ||
-      String((typeof getLastExecutedWtPlusQuery === "function" && getLastExecutedWtPlusQuery()) || "").trim();
+      String((typeof getLastExecutedWtPlusQuery === "function" && getLastExecutedWtPlusQuery()) || "").trim() ||
+      String(structuredResultForQuery?.wtPlusQuery || "").trim();
     if (mode === "wtplus" && hasStructuredResult) {
       const structuredResult = typeof getLastStructuredResult === "function" ? getLastStructuredResult() : null;
       const previousWtPlusQuery = String(structuredResult?.wtPlusQuery || "").trim();
@@ -1125,6 +1161,12 @@ export async function handleExplicitSearchMode({
             await handleChatResult({
               ...base,
               message: `Continuing the previous search with "${refinementLabel}". ${base.message || ""}`.trim(),
+              // Continue is the default, so a request meant as a fresh search
+              // can land here; one click runs it on its own.
+              actions: [
+                ...(Array.isArray(base.actions) ? base.actions : []),
+                { label: "Search for this on its own", actionType: "send-prompt", prompt: normalizedPrompt, newSearch: true },
+              ],
             });
             return { handled: true, prompt: normalizedPrompt };
           }
@@ -1164,12 +1206,23 @@ export async function handleExplicitSearchMode({
         return { handled: false, prompt: normalizedPrompt };
       }
 
+      if (routed?.intent === ChatIntent?.FALLBACK_AI && isLikelyFamilyRelationPrompt(normalizedPrompt)) {
+        console.debug("wbe: explicit wt mode deferring family-relation prompt to main flow", {
+          prompt: normalizedPrompt.substring(0, 60),
+        });
+        return { handled: false, prompt: normalizedPrompt };
+      }
+
       // Relationship-bio prompts (for example "Rebecca's husband's parents' bios")
       // are better handled by dedicated bio/relationship handlers in main flow.
       if (isLikelyRelationshipBioPrompt(normalizedPrompt)) {
         if (typeof tryHandleAiPlannedIntent === "function") {
           try {
             const aiPlannedResult = await tryHandleAiPlannedIntent(normalizedPrompt);
+            if (aiPlannedResult?.rewrittenPrompt) {
+              // The planner restated the prompt; the main flow runs the canonical form.
+              return { handled: false, prompt: aiPlannedResult.rewrittenPrompt };
+            }
             if (aiPlannedResult) {
               await handleChatResult(
                 typeof aiPlannedResult === "string" ? { message: aiPlannedResult } : aiPlannedResult
@@ -1294,6 +1347,10 @@ export async function handleExplicitSearchMode({
       if (hasStructuredResult && typeof tryHandleAiPlannedIntent === "function") {
         try {
           const aiPlannedResult = await tryHandleAiPlannedIntent(normalizedPrompt);
+          if (aiPlannedResult?.rewrittenPrompt) {
+            // The planner restated the prompt; the main flow runs the canonical form.
+            return { handled: false, prompt: aiPlannedResult.rewrittenPrompt };
+          }
           if (aiPlannedResult) {
             await handleChatResult(
               typeof aiPlannedResult === "string" ? { message: aiPlannedResult } : aiPlannedResult
@@ -1357,6 +1414,10 @@ export async function handleExplicitSearchMode({
       if (shouldTryAiFollowupIntentInWtPlus(normalizedPrompt)) {
         try {
           const aiPlannedResult = await tryHandleAiPlannedIntent(normalizedPrompt);
+          if (aiPlannedResult?.rewrittenPrompt) {
+            // The planner restated the prompt; the main flow runs the canonical form.
+            return { handled: false, prompt: aiPlannedResult.rewrittenPrompt };
+          }
           if (aiPlannedResult) {
             await handleChatResult(
               typeof aiPlannedResult === "string" ? { message: aiPlannedResult } : aiPlannedResult

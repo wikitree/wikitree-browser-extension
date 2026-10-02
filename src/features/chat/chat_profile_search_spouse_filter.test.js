@@ -123,6 +123,20 @@ describe("chat_profile_search spouse-name search", () => {
     expect(result.table.rows[0].matchedSpouse).toBe("Margaret");
   });
 
+  test("a spouse search matches the surname exactly (no sound-alike variants)", async () => {
+    const fetchSearchPersonPaged = jest.fn(async () => [0, [{ Id: 1, Name: "Beacall-1" }]]);
+    const fetchPeoplePaged = jest.fn(async () => [null, null, { 1: GEORGE_WITH_MARGARET }]);
+    const handler = makeHandler({ fetchSearchPersonPaged, fetchPeoplePaged });
+
+    await handler.tryHandleProfileSearchPrompt({ chatModeOverride: "wt" }, "George Beacall married Margaret");
+
+    expect(fetchSearchPersonPaged.mock.calls[0][1]).toMatchObject({
+      FirstName: "George",
+      LastName: "Beacall",
+      skipVariants: 1,
+    });
+  });
+
   test("'George Beacall whose wife was Margaret' takes the spouse-filter path", async () => {
     const handler = makeHandler();
 

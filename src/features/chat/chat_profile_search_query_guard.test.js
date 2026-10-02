@@ -138,7 +138,7 @@ describe("chat_profile_search query guards", () => {
     const { reRunSavedWtPlusQuery } = makeHandler();
 
     await reRunSavedWtPlusQuery(
-      "MarriageLocation=Cheshire sql=\"([Children].[User ID].LineCount > 6) And ([Marriage].[Marriage Date].AsNumber In 19000101..19991231)\""
+      "MarriageLocation=Cheshire sql=\"([Children].[User ID].LineCount > 6) And ([Marriage].[Marriage Date].AsNumber In 19000000..19999999)\""
     );
 
     expect(wtAPIProfileSearch).toHaveBeenCalledTimes(1);
@@ -191,7 +191,7 @@ describe("chat_profile_search query guards", () => {
     expect(wtAPIProfileSearch).toHaveBeenCalled();
     const executedQuery = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
     expect(executedQuery).toContain('Location="Hampshire, England"');
-    expect(executedQuery).toMatch(/\[Default\]\.\[Birth Date\]\.AsNumber < 1800/);
+    expect(executedQuery).toMatch(/\[Default\]\.\[Birth Date\]\.AsNumber In 1\.\.17999999/);
     expect(result?.switchToMode).toBe("wtplus");
   });
 

@@ -9,6 +9,7 @@ export function createChatHistoryHandlers({
   chatLastBioKey,
   chatResultsPopupId,
   chatResultsTableId,
+  sendClarifiedPrompt,
   getChatHistory,
   setChatHistory,
   getLastNonRetryUserPrompt,
@@ -233,8 +234,14 @@ export function createChatHistoryHandlers({
 
     if (!/[?]$/.test(message)) {
       if (isWtPlusZeroResults) {
-        message += " No results were found for this filter.";
-        return message;
+        // A message that already offers alternative readings ends with a colon
+        // and its buttons follow; appending a sentence would land between them.
+        if (/:\s*$/.test(message)) {
+          return message;
+        }
+        // Keep note lines ("Understood as: …") after the sentence, not before it.
+        const [firstLine, ...noteLines] = message.split("\n");
+        return [`${firstLine} No results were found for this filter.`, ...noteLines].join("\n");
       }
       const hasAdviceAlready = /\b(try|please|refresh|restate|set it|log in)\b/i.test(message);
       message += hasAdviceAlready
@@ -259,7 +266,23 @@ export function createChatHistoryHandlers({
     return /^\s*(?:I'm\s+sorry,\s*)?I\s+could(?:\s+not|n't)\b/i.test(normalizedMessage);
   }
 
+  // AI search notes ("Understood as: …", "Assumed: …") are trailing lines added
+  // to any WT+ result; they render as notes under whichever format matches.
+  const AI_NOTE_LINE_RE = /^(?:Understood as|Assumed):\s/;
+
   function tryFormatWtPlusQueryMessage(text) {
+    const lines = String(text || "").split("\n");
+    const aiNoteLines = lines.filter((line) => AI_NOTE_LINE_RE.test(line.trim())).map((line) => line.trim());
+    if (!aiNoteLines.length) {
+      return tryFormatWtPlusQueryMessageBody(text);
+    }
+    const html = tryFormatWtPlusQueryMessageBody(lines.filter((line) => !AI_NOTE_LINE_RE.test(line.trim())).join("\n"));
+    return html
+      ? html + aiNoteLines.map((line) => `<div class="chat-query-note">${escapeHtml(line)}</div>`).join("")
+      : null;
+  }
+
+  function tryFormatWtPlusQueryMessageBody(text) {
     const normalized = String(text || "").trim();
     const hasWtPlusModePrefix = /^WT\+\s+mode\.\s*/i.test(normalized);
     const normalizedBody = hasWtPlusModePrefix ? normalized.replace(/^WT\+\s+mode\.\s*/i, "").trim() : normalized;
@@ -273,7 +296,7 @@ export function createChatHistoryHandlers({
       .map((l) => l.trim())
       .filter(Boolean);
     const interpretedMatch = mainLine.match(
-      /^AI\s+interpreted\s+this\s+as\s+"(.+?)"\s+and\s+ran\s+WT\+\s+query:\s+(.+?)\.\s+Found\s+(\d+)\s+profile(?:s)?(?:\.\s+Also\s+(.+))?\.?$/i
+      /^AI\s+interpreted\s+this\s+as\s+"(.+?)"\s+and\s+ran\s+WT\+\s+query:\s+(.+?)\.\s+Found\s+(\d[\d,]*)\s+profile(?:s)?(?:\.\s+Also\s+(.+))?\.?$/i
     );
     if (interpretedMatch) {
       const interpretedText = String(interpretedMatch[1] || "").trim();
@@ -301,11 +324,11 @@ export function createChatHistoryHandlers({
     }
 
     const foundMatch = mainLine.match(
-      /^Found\s+(\d+)\s+profile(?:s)?\s+for\s+WT\+\s+query:\s+(.+?)(?:\.\s+Also\s+(.+))?\.?$/i
+      /^Found\s+(\d[\d,]*)\s+profile(?:s)?\s+for\s+WT\+\s+query:\s+(.+?)(?:\.\s+Also\s+(.+))?\.?$/i
     );
     if (!foundMatch) {
       const noResultsMatch = normalizedBody.match(
-        /^I'm\s+sorry,\s+I\s+couldn't\s+find\s+any\s+profiles\s+for\s+WT\+\s+query:\s+(.+?)(?:\s+Could\s+you\s+try\s+a\s+more\s+specific\s+name\s+or\s+a\s+WikiTree\s+ID\?)?$/i
+        /^I'm\s+sorry,\s+I\s+couldn't\s+find\s+any\s+profiles\s+for\s+WT\+\s+query:\s+(.+?)(?:\.?\s+(Try\s+one\s+of\s+these\s+readings\s+instead:))?(?:\s+No\s+results\s+were\s+found\s+for\s+this\s+filter\.)?(?:\s+Could\s+you\s+try\s+a\s+more\s+specific\s+name\s+or\s+a\s+WikiTree\s+ID\?)?$/i
       );
       if (!noResultsMatch) {
         return null;
@@ -324,6 +347,7 @@ export function createChatHistoryHandlers({
         `<code class="chat-query-code">${escapedNoResultsQuery}</code>`,
         "</div>",
         '<div class="chat-query-note">No results were found for this filter.</div>',
+        noResultsMatch[2] ? `<div class="chat-query-note">${escapeHtml(noResultsMatch[2])}</div>` : "",
       ].join("");
     }
 
@@ -339,7 +363,7 @@ export function createChatHistoryHandlers({
     const escapedNote = optionalNote ? escapeHtml(optionalNote) : "";
     return [
       hasWtPlusModePrefix ? '<div class="chat-query-note">WT+ mode.</div>' : "",
-      `<div class="chat-query-row">Found ${escapedCount} profiles for WT+ query:</div>`,
+      `<div class="chat-query-row">Found ${escapedCount} profile${profileCount === "1" ? "" : "s"} for WT+ query:</div>`,
       `<div class="chat-query-box">`,
       `<code class="chat-query-code">${escapedQuery}</code>`,
       `</div>`,
@@ -405,6 +429,8 @@ export function createChatHistoryHandlers({
     if (action.wtPlusSearchType) serialized.wtPlusSearchType = action.wtPlusSearchType;
     if (action.wtPlusSuggestionId) serialized.wtPlusSuggestionId = action.wtPlusSuggestionId;
     if (action.url) serialized.url = action.url;
+    if (action.prompt) serialized.prompt = action.prompt;
+    if (action.newSearch === true) serialized.newSearch = true;
     if (action.wtPlusSuggestionOptions && typeof action.wtPlusSuggestionOptions === "object") {
       const opts = action.wtPlusSuggestionOptions;
       serialized.wtPlusSuggestionOptions = {
@@ -482,6 +508,20 @@ export function createChatHistoryHandlers({
             appendMessage("assistant", "No saved biography available to show.", { shouldPersist: false });
           }
         },
+      };
+    }
+
+    if (actionType === "send-prompt") {
+      if (!actionEntry.prompt || typeof sendClarifiedPrompt !== "function") {
+        return null;
+      }
+
+      return {
+        label: actionEntry.label,
+        actionType: "send-prompt",
+        prompt: actionEntry.prompt,
+        newSearch: actionEntry.newSearch === true,
+        onClick: () => sendClarifiedPrompt(actionEntry.prompt, { newSearch: actionEntry.newSearch === true }),
       };
     }
 

@@ -23,6 +23,7 @@ function parseScopeTerms(scopeText) {
     /^(.*?)\s+born\s+(\d{4})\s*[-–]\s*(\d{4})$/i,
     /^(.*?)\s+born\s+between\s+(\d{4})\s+(?:and|to)\s+(\d{4})$/i,
     /^(.*?)\s+between\s+(\d{4})\s+(?:and|to)\s+(\d{4})$/i,
+    /^(.*?)\s+(\d{4})\s*[-–]\s*(\d{4})$/i,
   ];
 
   for (const pattern of yearRangePatterns) {

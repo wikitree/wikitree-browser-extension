@@ -366,7 +366,7 @@ let _suggestionKeywordIndex = null;
 
 const SUGGESTION_PHRASE_ALIASES = [
   {
-    code: "931",
+    code: "933",
     patterns: [
       /\bproject\s*managed\b.*\b(?:with\s+no|missing|without)\b.*\bproject\s*box\b/i,
       /\bmanaged\s+by\b.*\b(?:with\s+no|missing|without)\b.*\bproject\s*box\b/i,
@@ -390,7 +390,10 @@ const SUGGESTION_PHRASE_ALIASES = [
   },
   {
     code: "802",
-    patterns: [/\b(?:empty|blank|no)\b.*\bbiograph(?:y|ies)\b/i, /\bno\b.*\bbio\b/i],
+    patterns: [
+      /\b(?:empty|blank|no|without|missing|lacking)\b.*\bbiograph(?:y|ies)\b/i,
+      /\b(?:no|without|missing|lacking)\b.*\bbios?\b/i,
+    ],
     titleHint: "Empty biography",
   },
   {
@@ -598,6 +601,25 @@ function isLikelySuggestionsPrompt(queryText) {
   return matchSuggestionByNaturalLanguage(queryText) !== null;
 }
 
+const SUGGESTION_REMAINDER_FILLER_WORDS = new Set([
+  "which", "who", "what", "whose", "where", "has", "have", "had", "are", "is", "was", "were", "there",
+  "do", "does", "please", "can", "could", "you", "me", "i", "profiles", "profile", "people", "with",
+  "that", "the", "a", "an", "of", "for", "any", "all", "listed",
+]);
+
+// "english profiles…" → England. Only whole-word demonyms of places WT+ knows.
+const PLACE_DEMONYMS = {
+  english: "England",
+  welsh: "Wales",
+  scottish: "Scotland",
+  scots: "Scotland",
+  irish: "Ireland",
+  british: "United Kingdom",
+  american: "United States",
+  canadian: "Canada",
+  australian: "Australia",
+};
+
 function translateSuggestionsFreeTextToQuery(queryText) {
   const text = String(queryText || "").trim();
   if (!text) return null;
@@ -666,6 +688,17 @@ function translateSuggestionsFreeTextToQuery(queryText) {
     // trailing codes into bare (invalid) tokens.
     queryTerms.push(`Suggestions=${/\s/.test(suggestionId) ? `"${suggestionId}"` : suggestionId}`);
   }
+  // Words that are never part of a place, in any phrasing ("which England
+  // profiles have…", "who in Cheshire has…", "England, …"). Variant testing
+  // (2026-10-02) found these leaking into Location.
+  remainder = remainder
+    .split(/\s+/)
+    .map((word) => word.replace(/^[,;:?!.]+|[,;:?!.]+$/g, ""))
+    .filter((word) => word && !SUGGESTION_REMAINDER_FILLER_WORDS.has(word.toLowerCase()))
+    .map((word) => PLACE_DEMONYMS[word.toLowerCase()] || word)
+    .join(" ")
+    .trim();
+
   if (remainder) {
     // Emit only valid query-builder terms: recognized raw tokens stay bare,
     // anything else is treated as a location scope. Raw free text (e.g.
@@ -706,5 +739,6 @@ export {
   validateAndRepairWtPlusQuery,
   isLikelySuggestionsPrompt,
   matchSuggestionByNaturalLanguage,
+  matchSuggestionByPhraseAlias,
   translateSuggestionsFreeTextToQuery,
 };

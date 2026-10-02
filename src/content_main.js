@@ -92,6 +92,7 @@ import "./features/anniversaries_table/anniversaries_table";
 import "./features/categoryDisplay/categoryDisplay";
 import "./features/categoryFinderPins/categoryFinderPins";
 import "./features/change_family_lists/change_family_lists";
+import "./features/chat/chat_bootstrap";
 import "./features/clipboard_and_notes/clipboard_and_notes";
 import "./features/collapsible_descendants/collapsible_descendants";
 import "./features/confirm_thank_yous/confirm_thank_yous";

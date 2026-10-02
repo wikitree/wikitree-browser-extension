@@ -147,6 +147,12 @@ describe("chat_search_mode explicit routing", () => {
     );
     const message = handleChatResult.mock.calls[0][0].message;
     expect(message).toContain("Continuing the previous search");
+    expect(handleChatResult.mock.calls[0][0].actions).toContainEqual({
+      label: "Search for this on its own",
+      actionType: "send-prompt",
+      prompt: "After 1920?",
+      newSearch: true,
+    });
   });
 
   test("does not hijack a fresh name search in Search mode as a continuation", async () => {

@@ -66,6 +66,17 @@ function parseLegacyRelationshipLabel(legacy) {
   return "";
 }
 
+// "Relationship: No relationship found." read badly (live corpus B8, 2026-10-02).
+function formatRelationshipSuffix(relationshipText) {
+  if (!relationshipText) {
+    return "";
+  }
+  if (/^No relationship found$/i.test(relationshipText)) {
+    return " No common ancestor was found.";
+  }
+  return ` Relationship: ${relationshipText}.`;
+}
+
 function normalizeConnectionBirthDate(value) {
   const text = String(value || "").trim();
   const match = text.match(/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?$/);
@@ -562,6 +573,7 @@ export function createChatConnectionHandlers({
   shouldOfferDisambiguation,
   resolveConnectionSourceRoot,
   resolveAliasToRememberedPerson,
+  resolveRelativeTarget,
   setPendingDisambiguationContext,
   buildDisambiguationMessage,
   promptRefersToUser,
@@ -620,6 +632,60 @@ export function createChatConnectionHandlers({
       .sort((left, right) => right.score - left.score);
   }
 
+  async function findExactNameMatchesViaWtPlus(firstName, lastName, fields) {
+    try {
+      const lookup = await wtAPIProfileSearch("Chat", encodeURIComponent(`${firstName} ${lastName}`), {
+        maxProfiles: 50,
+      });
+      const ids = (lookup?.response?.profiles || []).slice(0, 50);
+      if (!ids.length) {
+        return [];
+      }
+      const [, , people] = await WikiTreeAPI.getPeople("Chat", ids, fields);
+      const wantedFirst = normalizePersonText(firstName);
+      const wantedLast = normalizePersonText(lastName);
+      return Object.values(people || {}).filter((person) => {
+        if (!person?.Name) return false;
+        const givenNames = [person.FirstName, person.RealName].map((value) =>
+          normalizePersonText(String(value || "").split(/\s+/)[0])
+        );
+        const surnames = [person.LastNameAtBirth, person.LastNameCurrent].map((value) => normalizePersonText(value));
+        return givenNames.includes(wantedFirst) && surnames.includes(wantedLast);
+      });
+    } catch (error) {
+      console.debug("wbe: WT+ exact name lookup failed", error);
+      return [];
+    }
+  }
+
+  async function findProfilePersonByGivenName(target, excludedWtIds = new Set()) {
+    const wanted = normalizePersonText(target);
+    if (!wanted || /\s/.test(wanted) || isWikiTreeId(target)) {
+      return null;
+    }
+    const pagePerson = getProfilePersonInfo();
+    const wtId = String(pagePerson?.Name || "").trim();
+    if (!isWikiTreeId(wtId) || excludedWtIds.has(wtId)) {
+      return null;
+    }
+    const person = normalizeResolvedConnectionPerson(
+      await WikiTreeAPI.getPerson(
+        "Chat",
+        wtId,
+        "Id,Name,RealName,Derived.ShortName,FirstName,Nicknames,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate"
+      )
+    );
+    const givenNames = [
+      person?.RealName,
+      person?.FirstName,
+      pagePerson?.FirstName,
+      ...String(person?.Nicknames || "").split(/[,;]/),
+    ]
+      .map((name) => normalizePersonText(String(name || "").trim().split(/\s+/)[0]))
+      .filter(Boolean);
+    return givenNames.includes(wanted) && (person?.Name || person?.Id) ? person : null;
+  }
+
   async function resolveConnectionTargetPerson(target, prompt = "", options = {}) {
     const cleanedTarget = normalizeConnectionTargetForSearch(target);
     if (!cleanedTarget) {
@@ -647,6 +713,14 @@ export function createChatConnectionHandlers({
         RealName: pageContextCandidate.displayName,
         Derived: { ShortName: pageContextCandidate.displayName },
       };
+    }
+
+    // A bare first name may be the profile person's preferred name or nickname,
+    // which the page itself doesn't show ("Benny" on Benjamin Otho Cantrell's
+    // page went to Benny Goodman, live B7, 2026-10-02).
+    const profilePersonByName = await findProfilePersonByGivenName(cleanedTarget, excludedWtIds);
+    if (profilePersonByName) {
+      return profilePersonByName;
     }
 
     if (isWikiTreeId(cleanedTarget)) {
@@ -1022,7 +1096,20 @@ export function createChatConnectionHandlers({
       expandedBirthYearStrictMatches = searchMatches || [];
     }
 
-    const exactOriginalMatches = mergeConnectionMatches([strictMatches, currentLastStrictMatches]);
+    // Logged out, searchPerson leaves out living semi-private profiles
+    // entirely (e.g. the member Murray Maloney, Maloney-2332), yet getPeople
+    // still returns their name. WT+ lists them, so when the API has no exact
+    // name match, look the name up there and keep the exact matches.
+    let wtPlusExactMatches = [];
+    if (firstName && lastName && !strictMatches.length && !currentLastStrictMatches.length) {
+      wtPlusExactMatches = await findExactNameMatchesViaWtPlus(firstName, lastName, fields);
+    }
+
+    const exactOriginalMatches = mergeConnectionMatches([
+      strictMatches,
+      currentLastStrictMatches,
+      wtPlusExactMatches,
+    ]);
     const sparseExactOriginalMatch =
       firstName && lastName && exactOriginalMatches.length === 1 && isSparseConnectionMatch(exactOriginalMatches[0])
         ? exactOriginalMatches[0]
@@ -1041,6 +1128,7 @@ export function createChatConnectionHandlers({
       expandedCurrentLastStrictMatches,
       strictMatches,
       currentLastStrictMatches,
+      wtPlusExactMatches,
       expandedNameMatches,
       relaxedMatches,
       realNameMatches,
@@ -1066,6 +1154,7 @@ export function createChatConnectionHandlers({
         expandedName: expandedNameMatches.length,
         relaxed: relaxedMatches.length,
         realName: realNameMatches.length,
+        wtPlusExact: wtPlusExactMatches.length,
       },
       mergedCount: matches.length,
       livingPlainSample: livingPlainMatches.slice(0, 10).map((match) => match?.Name),
@@ -1499,7 +1588,7 @@ export function createChatConnectionHandlers({
     if (/^\d+$/.test(relationshipText)) {
       relationshipText = "";
     }
-    const relationshipSuffix = relationshipText ? ` Relationship: ${relationshipText}.` : "";
+    const relationshipSuffix = formatRelationshipSuffix(relationshipText);
     return `Trying another match: ${displayName} (${targetWtId}) is ${distance} step${
       distance === 1 ? "" : "s"
     } away from ${lastConnectionContext.sourceLabel}.${relationshipSuffix}`;
@@ -1543,10 +1632,33 @@ export function createChatConnectionHandlers({
       // Frys), let the user pick rather than silently taking the top match.
       const canOfferChoice =
         typeof setPendingDisambiguationContext === "function" && typeof buildDisambiguationMessage === "function";
-      const matchedPerson = await resolveConnectionTargetPerson(lookupTarget, prompt, {
-        excludeWtIds: [],
-        allowDisambiguation: canOfferChoice,
-      });
+      // "Calvin's father", "my mother's father": follow the family links to the
+      // relative instead of searching for a person by that name (live, 2026-10-03).
+      const relativeTarget =
+        typeof resolveRelativeTarget === "function" ? await resolveRelativeTarget(lookupTarget, prompt) : null;
+      if (typeof relativeTarget === "string") {
+        return relativeTarget;
+      }
+      if (relativeTarget && !relativeTarget.people?.length) {
+        return `I couldn't find ${relativeTarget.label} in currently accessible family data.`;
+      }
+      if (relativeTarget?.people?.length > 1 && canOfferChoice) {
+        setPendingDisambiguationContext({
+          intent: ChatIntent.CONNECTION_LOOKUP,
+          params: { target, source: sourceOverride },
+          prompt,
+          candidates: relativeTarget.people,
+        });
+        return buildDisambiguationMessage(relativeTarget.people, relativeTarget.label, {
+          heading: `${relativeTarget.label} could be any of ${relativeTarget.people.length} people. Which one did you mean?`,
+        });
+      }
+      const matchedPerson = relativeTarget
+        ? relativeTarget.people[0]
+        : await resolveConnectionTargetPerson(lookupTarget, prompt, {
+            excludeWtIds: [],
+            allowDisambiguation: canOfferChoice,
+          });
       if (matchedPerson?._disambiguationNeeded) {
         setPendingDisambiguationContext({
           intent: ChatIntent.CONNECTION_LOOKUP,
@@ -1633,7 +1745,7 @@ export function createChatConnectionHandlers({
       if (/^\d+$/.test(relationshipText)) {
         relationshipText = "";
       }
-      const relationshipSuffix = relationshipText ? ` Relationship: ${relationshipText}.` : "";
+      const relationshipSuffix = formatRelationshipSuffix(relationshipText);
 
       setLastConnectionContext({
         sourceKey,
@@ -1647,7 +1759,8 @@ export function createChatConnectionHandlers({
           .filter(Boolean),
       });
       if (typeof onResolvedPerson === "function") {
-        onResolvedPerson(matchedPerson, [lookupTarget]);
+        // A relative's description ("Calvin's father") is not a name for them.
+        onResolvedPerson(matchedPerson, relativeTarget ? [] : [lookupTarget]);
       }
 
       setLastConnectionPopupResult([data]);

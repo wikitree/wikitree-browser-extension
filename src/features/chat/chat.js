@@ -2,6 +2,7 @@
 Created By: Ian Beacall (Beacall-6)
 */
 
+import { rewriteOfRelationChain } from "./chat_relation_chain_text";
 import "../../core/userTimingCompat";
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
@@ -17,6 +18,8 @@ import * as XLSX from "xlsx";
 import "jquery-ui/ui/widgets/draggable";
 import "jquery-ui/ui/widgets/resizable";
 import "./chat.css";
+import { installChatDebugConsole } from "./chat_debug_console";
+import { findAmbiguousCenturyDecade, rewriteExplicitCenturyDecadeWording } from "./chat_century_decade";
 import { createChatConnectionHandlers } from "./chat_connections";
 import { handleExplicitSearchMode } from "./chat_search_mode";
 import { createProfileSearchHandler } from "./chat_profile_search";
@@ -75,11 +78,10 @@ import {
   makeAncestorAgeTable,
 } from "./tables";
 import {
-  buildResolvedAliasRegex,
-  escapeRegExp,
   extractAliasCandidates,
   extractResolvedPeopleFromMessage,
   normalizePersonMemoryToken,
+  rewritePromptWithRememberedPerson,
   sanitizeResolvedPersonDisplayName,
 } from "./chat_person_memory";
 
@@ -547,45 +549,7 @@ function applyResolvedPersonAliasesToPrompt(prompt) {
   if (!aliasResolution?.person) {
     return { prompt, changed: false, matchedAlias: "", person: null };
   }
-
-  const person = aliasResolution.person;
-  const wtId = String(person.wtId || "").trim();
-  const replacement = sanitizeResolvedPersonDisplayName(person.displayName || "", wtId);
-  if (!wtId || !replacement) {
-    return { prompt, changed: false, matchedAlias: "", person: null };
-  }
-
-  const sourcePrompt = String(prompt || "");
-  if (!sourcePrompt.trim()) {
-    return { prompt: sourcePrompt, changed: false, matchedAlias: "", person: null };
-  }
-
-  if (new RegExp(`\\b${escapeRegExp(wtId)}\\b`, "i").test(sourcePrompt)) {
-    return { prompt: sourcePrompt, changed: false, matchedAlias: "", person };
-  }
-
-  const aliasVariants = Array.isArray(person.aliases) ? person.aliases.slice() : [];
-  aliasVariants.sort((left, right) => String(right || "").length - String(left || "").length);
-
-  for (const alias of aliasVariants) {
-    const cleanedAlias = String(alias || "").trim();
-    if (!cleanedAlias || cleanedAlias.length < 3) {
-      continue;
-    }
-    const aliasRegex = buildResolvedAliasRegex(cleanedAlias);
-    if (!aliasRegex) {
-      continue;
-    }
-    if (!aliasRegex.test(sourcePrompt)) {
-      continue;
-    }
-    const nextPrompt = sourcePrompt.replace(aliasRegex, replacement);
-    if (nextPrompt !== sourcePrompt) {
-      return { prompt: nextPrompt, changed: true, matchedAlias: cleanedAlias, person };
-    }
-  }
-
-  return { prompt: sourcePrompt, changed: false, matchedAlias: "", person };
+  return rewritePromptWithRememberedPerson(prompt, aliasResolution.person);
 }
 
 function buildResolvedPeopleContextForAi() {
@@ -1025,6 +989,7 @@ const {
   chatLastBioKey: CHAT_LAST_BIO_KEY,
   chatResultsPopupId: CHAT_RESULTS_POPUP_ID,
   chatResultsTableId: CHAT_RESULTS_TABLE_ID,
+  sendClarifiedPrompt: (prompt) => sendClarifiedPrompt(prompt),
   getChatHistory: () => chatHistory,
   setChatHistory: (value) => {
     chatHistory = value;
@@ -1101,6 +1066,8 @@ const { resolveConnectionTargetPerson, tryHandleConnectionCorrectionPrompt, tryH
     resolveConnectionSourceRoot,
     // Memory hit only counts when the alias covers the whole name, so a
     // remembered "Stephen Brown" never answers for "Stephen Fry".
+    // Relation handlers are created below; resolve lazily.
+    resolveRelativeTarget: (targetText, prompt) => resolveRelativeTargetPeople(targetText, prompt),
     resolveAliasToRememberedPerson: (name) => {
       const resolution = resolvePromptAlias(name);
       if (!resolution?.person?.wtId) {
@@ -1232,7 +1199,7 @@ const {
   },
 });
 
-const { tryHandleRelationCountPrompt } = createChatRelationHandlers({
+const { resolveRelativeTargetPeople, tryHandleRelationCountPrompt } = createChatRelationHandlers({
   WikiTreeAPI,
   WBE_CHAT_APP_ID,
   RELATION_PERSON_FIELDS,
@@ -1546,10 +1513,13 @@ async function resolveToWTID(candidate) {
   const str = String(candidate || "").trim();
   // If it already looks like a WTID (contains a dash), return as-is
   if (/-/.test(str)) return str;
-  // Otherwise try to fetch the profile and return the Name field
+  // A number is a person Id. getProfile reads a number as a page Id, a
+  // different profile (7708765 = Hutton-734 as a person, Cook-8312 as a page;
+  // live, 2026-10-03), so ask getPerson, which returns a wrapper with ._data.
   try {
-    const [profile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, str, "Id,Name", { resolveRedirect: 1 });
-    if (profile && profile.Name) return profile.Name;
+    const person = await WikiTreeAPI.getPerson(WBE_CHAT_APP_ID, str, "Id,Name");
+    const row = person?._data && typeof person._data === "object" ? person._data : person;
+    if (row && row.Name) return row.Name;
   } catch (e) {
     console.debug("wbe: resolveToWTID failed to resolve", { candidate: str, e });
   }
@@ -2540,6 +2510,14 @@ async function handleChatResult(result) {
         };
       }
 
+      // Send a clarified prompt as if the user had typed it.
+      if (action?.actionType === "send-prompt" && action?.prompt) {
+        return {
+          ...action,
+          onClick: () => sendClarifiedPrompt(action.prompt, { newSearch: action.newSearch === true }),
+        };
+      }
+
       // Re-run a saved WT+ query in chat (disambiguation scope buttons, "Fetch
       // results again"). The live path needs an onClick attached here — only
       // hydrateAction wires these up on history restore, so without this the
@@ -2647,6 +2625,17 @@ async function handleChatResult(result) {
   });
 }
 
+// newSearch: run the prompt on its own, not as a Continue follow-up.
+function sendClarifiedPrompt(prompt, { newSearch = false } = {}) {
+  const $input = $(`#${CHAT_INPUT_ID}`);
+  if ($input.length === 0) return;
+  if (newSearch) {
+    $('input[name="wbe-chat-context"][value="new"]').prop("checked", true);
+  }
+  $input.val(prompt);
+  sendChatPrompt();
+}
+
 async function sendChatPrompt() {
   const $input = $(`#${CHAT_INPUT_ID}`);
   if ($input.length === 0) return;
@@ -2659,7 +2648,9 @@ async function sendChatPrompt() {
   // Normalize compact suggestion formats like "dbe803" to "Suggestions=803"
   const normalizedPrompt = parseSuggestionNumberFromPrompt(rawPrompt);
 
-  let prompt = normalizedPrompt;
+  // "siblings of the wife of Sarah's father" -> "Sarah's father's wife's siblings",
+  // the form the relation and bio handlers parse.
+  let prompt = rewriteOfRelationChain(normalizedPrompt) || normalizedPrompt;
   const retryRequested = isRetryPrompt(rawPrompt);
 
   if (retryRequested) {
@@ -2754,6 +2745,22 @@ async function sendChatPrompt() {
     const jsonBatchResponseEarly = await tryHandleJsonPeopleBatchPrompt(prompt);
     if (jsonBatchResponseEarly) {
       await handleChatResult(jsonBatchResponseEarly);
+      return;
+    }
+
+    // "1800s" may mean the 19th century or the decade 1800-1809: ask, and let the
+    // buttons resend the prompt with an explicit year range.
+    prompt = rewriteExplicitCenturyDecadeWording(prompt);
+    const centuryDecadeChoice = jsonBatchPayload === null ? findAmbiguousCenturyDecade(prompt) : null;
+    if (centuryDecadeChoice) {
+      await handleChatResult({
+        message: centuryDecadeChoice.question,
+        actions: centuryDecadeChoice.choices.map((choice) => ({
+          label: choice.label,
+          actionType: "send-prompt",
+          prompt: choice.prompt,
+        })),
+      });
       return;
     }
 
@@ -2853,6 +2860,22 @@ async function sendChatPrompt() {
       /* ignore early spouse handler errors */
     }
 
+    // The AI planner restated the prompt in a canonical form; run it once
+    // through the local handlers. Null means nothing local took it.
+    async function runRewrittenPrompt(rewrittenPrompt) {
+      try {
+        const bioResult = await tryHandlePersonBioPrompt(rewrittenPrompt);
+        if (bioResult) return bioResult;
+      } catch (e) {
+        /* fall through to the router */
+      }
+      const rewrittenRoute = routeChatPrompt(rewrittenPrompt, {
+        hasStructuredResult: Boolean(lastStructuredResult?.rows?.length),
+      });
+      if (!rewrittenRoute?.intent || rewrittenRoute.intent === ChatIntent.FALLBACK_AI) return null;
+      return await executeRoutedIntent(rewrittenRoute, rewrittenPrompt);
+    }
+
     const chatOptions = await getChatOptions();
     const routed = routeChatPrompt(prompt, {
       hasStructuredResult: Boolean(lastStructuredResult?.rows?.length),
@@ -2873,7 +2896,10 @@ async function sendChatPrompt() {
     ]);
     const shouldPreferDeterministicRoute = deterministicIntentSet.has(routed?.intent);
     if (chatOptions.allowAiFallback && !shouldPreferDeterministicRoute) {
-      const plannedToolResponse = await tryHandleAiPlannedIntent(prompt);
+      let plannedToolResponse = await tryHandleAiPlannedIntent(prompt);
+      if (plannedToolResponse?.rewrittenPrompt) {
+        plannedToolResponse = await runRewrittenPrompt(plannedToolResponse.rewrittenPrompt);
+      }
       if (plannedToolResponse) {
         if (typeof plannedToolResponse === "string") {
           await handleChatResult({ message: plannedToolResponse });
@@ -3751,6 +3777,7 @@ function openPopup() {
 }
 
 export function openChatPopup() {
+  installChatDebugConsole();
   openPopup();
 }
 

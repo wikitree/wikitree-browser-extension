@@ -186,6 +186,15 @@ export function makeStandardProfileTable(title, rows, defaultOrder = [[0, "asc"]
           .join(", ");
       },
     },
+    {
+      title: "Categories",
+      key: "categoryList",
+      headerTitle: "The person's categories that matched the search",
+      render: (row) =>
+        (Array.isArray(row?.categoryList) ? row.categoryList : [])
+          .map((name) => makeCategoryLink(name, String(name).replace(/_+/g, " ")))
+          .join("<br>"),
+    },
   ];
 
   const optionalColumnKeys = new Set([
@@ -198,6 +207,7 @@ export function makeStandardProfileTable(title, rows, defaultOrder = [[0, "asc"]
     "removed",
     "ageAtDeath",
     "managerList",
+    "categoryList",
     "categoryDisplay",
   ]);
   // Query-relevant columns can be forced visible even when every row is
@@ -220,6 +230,9 @@ export function makeStandardProfileTable(title, rows, defaultOrder = [[0, "asc"]
       }
       if (column.key === "managerList") {
         return Array.isArray(row?.managerList) && row.managerList.length;
+      }
+      if (column.key === "categoryList") {
+        return Array.isArray(row?.categoryList) && row.categoryList.length;
       }
       const value = row?.[column.key];
       return value != null && String(value).trim() !== "";

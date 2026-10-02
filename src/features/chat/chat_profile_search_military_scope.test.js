@@ -98,4 +98,24 @@ describe("military category expansion needs a country/region scope", () => {
     expect(query).toMatch(/British_Armed_Forces|Royal_Navy|British_Army/);
     expect(query).not.toMatch(/Greek|Hellenic/i);
   });
+
+  test("a resolved place never takes a root tree that doesn't name it (live 'Chicago military', 2026-10-02)", async () => {
+    // Live, Chicago resolved to a place scope, yet the only armed-forces root
+    // offered was Greek and the picker took it: 0 results.
+    wtAPICatCIBSearch.mockResolvedValue({
+      response: {
+        categories: [
+          { category: "Chicago, Illinois", other: "Cook County, Illinois" },
+          { category: "Armour and Company", other: "Chicago, Illinois" },
+        ],
+      },
+    });
+
+    const query = await runRaw("Location=Chicago CategoryFull=Military");
+
+    expect(query).not.toMatch(/Greek|Hellenic/i);
+    // "Military" alone found 85; each military word with the place repeated found 1,514.
+    expect(query).toContain("Location=Chicago CategoryWord=Army OR");
+    expect(query).toContain('Location=Chicago CategoryWord="Coast Guard"');
+  });
 });

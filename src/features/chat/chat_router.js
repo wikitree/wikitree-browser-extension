@@ -544,8 +544,9 @@ export function extractCorrectionTarget(prompt) {
   return normalizeConnectionTargetForSearch(match[1]);
 }
 
+// Surnames can hold hyphens and accents: Schleswig-Holstein-Sonderburg-Glücksburg-1.
 export function isWikiTreeId(value) {
-  return /^[A-Za-z][A-Za-z0-9_]+-\d+$/i.test(String(value || "").trim());
+  return /^\p{L}[\p{L}\p{M}0-9_'-]*-\d+$/u.test(String(value || "").trim().normalize("NFC"));
 }
 
 export function extractWikiTreeIdFromHref(href) {
@@ -769,6 +770,16 @@ export function getCommonAliasExpansion(target) {
     "martin luther king": { searchName: "Martin Luther King Jr", birthYear: 1929 },
     "pope leo xiv": { wtId: "Prevost-1162", searchName: "Robert Francis Prevost", birthDate: "1955-09-14" },
     "leo xiv": { wtId: "Prevost-1162", searchName: "Robert Francis Prevost", birthDate: "1955-09-14" },
+    "prince philip": {
+      wtId: "Schleswig-Holstein-Sonderburg-Glücksburg-1",
+      searchName: "Philip Mountbatten",
+      birthDate: "1921-06-10",
+    },
+    "duke of edinburgh": {
+      wtId: "Schleswig-Holstein-Sonderburg-Glücksburg-1",
+      searchName: "Philip Mountbatten",
+      birthDate: "1921-06-10",
+    },
   };
   if (normalized === "the pope" || normalized === "pope") {
     if (currentDate >= "2025-05-08") {
@@ -1909,7 +1920,43 @@ function parseSpousePrompt(prompt) {
   return null;
 }
 
+// Words that are never a person's name or a relation. When the router's parse
+// puts them there ("show 10 generations of descendants" → subject
+// "descendants"; "his father's wife's siblings" → subject "his father"), it has
+// misread the prompt, so let the AI planner read it instead. Variant testing,
+// 2026-10-02: the AI interprets, the code executes.
+const NOT_A_SUBJECT_RE =
+  /^(?:his|her|their|its|my|me|this|that)\b|\b(?:descendants?|ancestors?|generations?|cousins?|cc\d+|profiles?|for\s+me|of\s+mine)\b/i;
+const NOT_A_RELATION_RE = /\b(?:who|were|was|from|generations?|cc\d+|profiles?|people)\b/i;
+
+// A list intent ("Calvin's children") inside a connection question ("how am
+// I connected to Calvin's children?") is a misread (live, 2026-10-03).
+const CONNECTION_QUESTION_RE = /\b(?:related|connected)\s+(?:to|with)\b|\bconnection\s+(?:to|between|with)\b/i;
+const LIST_INTENTS = new Set([
+  ChatIntent.RELATION_COUNT,
+  ChatIntent.DESCENDANT_LIST,
+  ChatIntent.ANCESTOR_LIST,
+  ChatIntent.SPOUSE_LIST,
+]);
+
+export function declineMisreadRoute(routed, prompt = "") {
+  const intent = routed?.intent;
+  const params = routed?.params || {};
+  const misread =
+    (LIST_INTENTS.has(intent) && CONNECTION_QUESTION_RE.test(String(prompt || ""))) ||
+    (intent === ChatIntent.RELATION_COUNT &&
+      ((params.subjectMode === "named" && NOT_A_SUBJECT_RE.test(String(params.subjectName || ""))) ||
+        NOT_A_RELATION_RE.test(String(params.relationRaw || "")))) ||
+    (intent === ChatIntent.PROFILE_SEARCH && /\bcc\d+\b/i.test(String(params.query || ""))) ||
+    (intent === ChatIntent.SPOUSE_LIST && /\b(?:siblings?|bios?|brothers?|sisters?|children)\b/i.test(String(params.target || "")));
+  return misread ? { intent: ChatIntent.FALLBACK_AI, params: {} } : routed;
+}
+
 export function routeChatPrompt(prompt, options = {}) {
+  return declineMisreadRoute(routeChatPromptUnchecked(prompt, options), prompt);
+}
+
+function routeChatPromptUnchecked(prompt, options = {}) {
   const hasStructuredResult = Boolean(options?.hasStructuredResult);
   const cc7Parsed = parseCc7LocationPrompt(prompt);
   if (cc7Parsed) {

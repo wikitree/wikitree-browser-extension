@@ -175,4 +175,72 @@ describe("tryHandlePersonBioPrompt relation chains", () => {
     expect(deps.WikiTreeAPI.getPerson).toHaveBeenCalledWith("Chat", 100, "Id,Name,Father,Mother");
     expect(message).toMatch(/^Biography for 11:/);
   });
+  test("mother hop unwraps the Person object getPerson returns (live: Ellen's mother's siblings)", async () => {
+    const deps = makeDeps();
+    // The real WikiTreeAPI.getPerson returns a Person wrapper with the row in ._data.
+    deps.WikiTreeAPI.getPerson = jest.fn(async (appId, key) => ({
+      _data: { Id: Number(key) || 100, Name: "Dupont-1", Father: 11, Mother: 12 },
+    }));
+    const baseGetRelatives = deps.WikiTreeAPI.getRelatives;
+    deps.WikiTreeAPI.getRelatives = jest.fn(async (appId, key, fields, opts = {}) => {
+      // The generic parent lookup lists the father first.
+      if (opts.getParents) return [{ person: { Parents: { 11: { Name: "Dad-11" }, 12: { Name: "Mum-12" } } } }];
+      return baseGetRelatives(appId, key, fields, opts);
+    });
+    const handlers = createChatBioHandlers(deps);
+
+    await handlers.tryHandlePersonBioPrompt("Marguerite's mother's siblings");
+
+    // The numeric person Id is turned into a WikiTree ID before later steps.
+    expect(deps.resolveToWTID).toHaveBeenCalledWith("12");
+    const siblingCall = deps.WikiTreeAPI.getRelatives.mock.calls.find(([, , , opts]) => opts?.getSiblings);
+    expect(String(siblingCall?.[1])).toBe("12");
+  });
+  function withFatherSpouses(deps, spouses) {
+    deps.WikiTreeAPI.getPerson = jest.fn(async () => ({ _data: { Id: 100, Name: "Dupont-1", Father: 11, Mother: 12 } }));
+    const baseGetRelatives = deps.WikiTreeAPI.getRelatives;
+    deps.WikiTreeAPI.getRelatives = jest.fn(async (appId, key, fields, opts = {}) => {
+      if (opts.getSpouses && String(key) === "11") return [{ person: { Spouses: spouses } }];
+      return baseGetRelatives(appId, key, fields, opts);
+    });
+  }
+
+  test("stepmother skips the mother: father's other wife (live: Ellen's stepmother)", async () => {
+    const deps = makeDeps();
+    withFatherSpouses(deps, {
+      12: { Id: 12, Name: "Mum-12", RealName: "Hannah", Gender: "Female" },
+      13: { Id: 13, Name: "Step-13", RealName: "Lona", Gender: "Female" },
+    });
+    const handlers = createChatBioHandlers(deps);
+
+    const message = messageOf(await handlers.tryHandlePersonBioPrompt("Marguerite's step-mother"));
+
+    expect(message).toMatch(/Lona/);
+    expect(message).not.toMatch(/Hannah/);
+  });
+
+  test("stepmother when the father's only wife is the mother says none, not the mother", async () => {
+    const deps = makeDeps();
+    withFatherSpouses(deps, { 12: { Id: 12, Name: "Mum-12", RealName: "Hannah", Gender: "Female" } });
+    const handlers = createChatBioHandlers(deps);
+
+    const message = messageOf(await handlers.tryHandlePersonBioPrompt("Marguerite's stepmother"));
+
+    expect(message).toMatch(/no stepmother/);
+    expect(message).not.toMatch(/Hannah/);
+  });
+
+  test("stepmother as a hop: Marguerite's stepmother's siblings", async () => {
+    const deps = makeDeps();
+    withFatherSpouses(deps, {
+      12: { Id: 12, Name: "Mum-12", RealName: "Hannah", Gender: "Female" },
+      13: { Id: 13, Name: "Step-13", RealName: "Lona", Gender: "Female" },
+    });
+    const handlers = createChatBioHandlers(deps);
+
+    await handlers.tryHandlePersonBioPrompt("Marguerite's stepmother's siblings");
+
+    const siblingCall = deps.WikiTreeAPI.getRelatives.mock.calls.find(([, , , opts]) => opts?.getSiblings);
+    expect(String(siblingCall?.[1])).toBe("Step-13");
+  });
 });
