@@ -1,4 +1,5 @@
 import { buildTreeAppRecommendations } from "./chat_tree_apps";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 
 export function createChatPeopleHandlers({
   ChatIntent,
