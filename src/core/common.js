@@ -168,9 +168,12 @@ export function getProfilePersonInfo() {
     return yearMatch ? parseInt(yearMatch[0]) : null;
   };
 
+  // Newer profile pages wrap the name in a span; older pages and edit pages ("Edit Profile of …")
+  // have it as bare text in the h1, alongside child elements we strip off.
+  const nameFromSpan = $("h1 [data-cy='person-name']").first().text().trim();
   const $h1 = $("h1").eq(0).clone();
   $h1.children().remove();
-  person.FullName = $h1.text().replace("Edit Profile of ", "").trim();
+  person.FullName = nameFromSpan || $h1.text().replace("Edit Profile of ", "").trim();
   person.Id = pageData.mid;
   person.LastNameAtBirth = pageData.mlastnameatbirth;
   person.FirstName = pageData.mfirstname;
