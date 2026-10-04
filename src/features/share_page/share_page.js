@@ -5,18 +5,25 @@ Created By: TODO author name (TODO WikiTree ID)
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { copyToClipboard } from "../../core/clipboard.js";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import {
+  BASE_URL,
   CHANNELS,
   KIND_LABELS,
+  appNameFromSlug,
   buildText,
   detectPageKind,
   getChannel,
   intentUrl,
+  isShareablePrivacy,
   lifeSummary,
   measure,
+  pageSummary,
   photoLinks,
+  profileKeyFor,
   shareUrlFor,
   swapTag,
+  viewSlug,
 } from "./share_page_core";
 
 shouldInitializeFeature("sharePage").then((result) => {
@@ -27,21 +34,28 @@ shouldInitializeFeature("sharePage").then((result) => {
 
 async function init() {
   const kind = detectPageKind(window.location.pathname);
-  if (kind === "other" || !isPubliclyShareable(kind)) return;
+  if (kind === "other" || !(await isPubliclyShareable(kind))) return;
   import("./share_page.css");
   const options = await getFeatureOptions("sharePage");
   addShareButton(() => openDialog(kind, options));
 }
 
 /**
- * Only offer Share where the public can see the page.
- * TODO: this is not a privacy check yet. WikiTree does not expose a privacy level in the page
- * markup that this feature has been able to confirm, so decide with the WikiTree team how to detect
- * Private and Unlisted profiles (and private images) before this feature is released.
+ * Only offer Share where the public can see the page. A profile or free-space page (and the tree, widget or
+ * image that belongs to one) is shareable when WikiTree's API reports it as Public (50) or Open (60) and not
+ * living. If the level cannot be read, the button is not shown.
  */
-function isPubliclyShareable(kind) {
-  if (kind === "profile") return $("#pageData").length > 0;
-  return true;
+async function isPubliclyShareable(kind) {
+  const key = profileKeyFor(kind, window.location.pathname, window.location.hash);
+  if (!key) return true;
+  try {
+    const [profile] = await WikiTreeAPI.getProfile("sharePage", key, ["Privacy", "IsLiving"]);
+    // An image's file name only looks like a profile ID; if no such profile exists, the image does not belong to one.
+    if (!profile && (kind === "imagePage" || kind === "fullImage")) return true;
+    return isShareablePrivacy(profile);
+  } catch (e) {
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -81,6 +95,94 @@ function pageTitle() {
   if (fromHeading) return fromHeading;
   const id = decodeURIComponent(window.location.pathname).split("/").filter(Boolean)[1];
   return id || "this page";
+}
+
+const clean = (value) => (value || "").replace(/\s+/g, " ").trim();
+
+/** The app and person shown by a Tree Apps view, read from the page the member is looking at. */
+function readAppContext() {
+  const slug = viewSlug(window.location.hash);
+  const selected = clean($("#view-select option:selected").text());
+  return {
+    appName: clean($("#view-title").first().text()) || selected || appNameFromSlug(slug),
+    person: clean($("#name-placeholder").first().text()),
+  };
+}
+
+/** The opening text, section names and counts of a help, project, free-space or category page. */
+function readPageFacts() {
+  const $body = $(".body-text").first();
+  const paragraphs = $body
+    .find("p")
+    .filter((i, el) => !$(el).closest("table").length)
+    .map((i, el) => $(el).clone().find("sup, script, style").remove().end().text())
+    .get();
+  const sections = $body
+    .find("h2")
+    .map((i, el) => clean($(el).text()).replace(/\s*\[edit\]$/i, ""))
+    .get()
+    .filter((text) => text && !/^contents$/i.test(text));
+  const counts = {};
+  $("main h2").each((i, el) => {
+    const m = clean($(el).text()).match(/^(Subcategories|Pages|Person Profiles|Profiles)\s*\((\d[\d,]*)\)/i);
+    if (!m) return;
+    const n = parseInt(m[2].replace(/,/g, ""), 10);
+    if (/^sub/i.test(m[1])) counts.subcategories = n;
+    else if (/^pages/i.test(m[1])) counts.pages = n;
+    else counts.profiles = n;
+  });
+  return { paragraphs, sections, counts };
+}
+
+/**
+ * A picture of the chart or tree on screen in a Tree Apps view, as the member sees it. Returns an Image (from the
+ * page's SVG) or the canvas itself, or null when the view is plain text and tables.
+ */
+async function captureAppGraphic() {
+  const area = (el) => {
+    const box = el.getBoundingClientRect();
+    return box.width * box.height;
+  };
+  const candidates = $("#view-container svg, #view-container canvas")
+    .toArray()
+    .filter((el) => el.getBoundingClientRect().width >= 200 && el.getBoundingClientRect().height >= 200)
+    .sort((a, b) => area(b) - area(a));
+  const found = candidates[0];
+  if (!found) return null;
+  if (found.tagName.toLowerCase() === "canvas") return found;
+
+  // Copy the styles the page's own CSS gives the SVG, because the copy is drawn on its own.
+  const box = found.getBoundingClientRect();
+  const copy = found.cloneNode(true);
+  const from = [found, ...found.querySelectorAll("*")];
+  const to = [copy, ...copy.querySelectorAll("*")];
+  const properties = [
+    "fill",
+    "fill-opacity",
+    "stroke",
+    "stroke-width",
+    "stroke-opacity",
+    "opacity",
+    "font-family",
+    "font-size",
+    "font-weight",
+    "text-anchor",
+    "dominant-baseline",
+    "visibility",
+    "display",
+  ];
+  from.forEach((el, i) => {
+    const computed = getComputedStyle(el);
+    properties.forEach((property) => to[i].style.setProperty(property, computed.getPropertyValue(property)));
+  });
+  copy.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  copy.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+  copy.setAttribute("width", String(Math.round(box.width)));
+  copy.setAttribute("height", String(Math.round(box.height)));
+  if (!copy.getAttribute("viewBox"))
+    copy.setAttribute("viewBox", `0 0 ${Math.round(box.width)} ${Math.round(box.height)}`);
+  const xml = new XMLSerializer().serializeToString(copy);
+  return loadImage("data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml));
 }
 
 /** Photos on the page, as full-size addresses with the image page that shows each one. */
@@ -174,11 +276,17 @@ const CARD_FONT = 'Roboto, "Helvetica Neue", Arial, sans-serif';
 const LOGO_PATH = "/images/wikitree-logo-tagline.png";
 
 /**
- * Draw the share card in WikiTree's colours with the WikiTree logo. With a summary (profiles) it shows the
- * data fields, a short biography and a portrait; without one it shows the page title and a picture.
- * @param {{fields: {label: string, lines: string[]}[], bio: string}|null} summary
+ * Draw the share card in WikiTree's colours with the WikiTree logo.
+ *   - summary { fields, bio }: data fields and a short text (profiles, and help, project, free-space and category pages)
+ *   - graphic: a picture of the chart on screen (Tree Apps), shown large beside the title
+ *   - otherwise: the page title and a picture
+ * @param {string} kind - a key of KIND_LABELS
+ * @param {string} title - the heading on the card
+ * @param {{photoSrc?: string, summary?: {fields: {label: string, lines: string[], names?: boolean}[], bio: string}|null,
+ *          subtitle?: string, graphic?: HTMLImageElement|HTMLCanvasElement|null}} [extras]
  */
-async function drawShareCard(kind, title, photoSrc, summary) {
+async function drawShareCard(kind, title, extras = {}) {
+  const { photoSrc = "", summary = null, subtitle = "", graphic = null } = extras;
   const canvas = document.createElement("canvas");
   canvas.width = 1200;
   canvas.height = 630;
@@ -243,7 +351,21 @@ async function drawShareCard(kind, title, photoSrc, summary) {
   };
 
   g.fillStyle = BRAND.ink;
-  if (summary) {
+  if (graphic) {
+    // Tree Apps: the app's name and person on the left, the chart as the member sees it on the right
+    g.font = font("700 52px");
+    wrapText(g, title, 48, 200, 420, 60, 3);
+    if (subtitle) {
+      g.fillStyle = BRAND.muted;
+      g.font = font("400 26px");
+      wrapText(g, subtitle, 48, 330, 420, 34, 3);
+    }
+    const w = graphic.naturalWidth || graphic.width;
+    const h = graphic.naturalHeight || graphic.height;
+    const box = { x: 500, y: 100, w: 652, h: 468 };
+    const scale = Math.min(box.w / w, box.h / h);
+    g.drawImage(graphic, box.x + (box.w - w * scale) / 2, box.y + (box.h - h * scale) / 2, w * scale, h * scale);
+  } else if (summary) {
     g.font = font("700 44px");
     wrapText(g, title, 48, 184, 800, 50, 2);
     summary.fields.slice(0, 4).forEach((field, i) => {
@@ -261,9 +383,16 @@ async function drawShareCard(kind, title, photoSrc, summary) {
     });
     if (photo) drawPhoto(892, 100, 260, 300);
     if (summary.bio) {
+      // the text sits just below the data fields, and gets more room and a larger size when there are fewer of them
+      const rows = Math.ceil(Math.min(summary.fields.length, 4) / 2);
+      const layout = [
+        { y: 280, size: 25, line: 36, lines: 7 },
+        { y: 272 + 88 + 22, size: 23, line: 32, lines: 5 },
+        { y: 272 + 176 + 22, size: 21, line: 28, lines: 4 },
+      ][rows];
       g.fillStyle = BRAND.ink;
-      g.font = font("400 21px");
-      wrapText(g, summary.bio, 48, 470, 1104, 28, 4);
+      g.font = font(`400 ${layout.size}px`);
+      wrapText(g, summary.bio, 48, layout.y, 1104, layout.line, layout.lines);
     }
   } else {
     g.font = font("700 52px");
@@ -336,8 +465,12 @@ const DIALOG_HTML = `
         <div class="wbe-share-summary" hidden>
           <h3><label for="wbeShareSummary">Summary on the card</label></h3>
           <textarea id="wbeShareSummary" rows="4" spellcheck="true"></textarea>
-          <p class="wbe-share-hint">Built from this profile's dates, places and family lists. Check it before you post.</p>
+          <p class="wbe-share-hint wbe-share-summary-hint"></p>
         </div>
+        <label class="wbe-share-linkchoice" hidden>
+          <input type="checkbox" id="wbeShareProfileLink">
+          <span>Link to the person's profile instead, so anyone can open it</span>
+        </label>
         <h3><label for="wbeShareText">3. Post text</label></h3>
         <textarea id="wbeShareText" rows="9" spellcheck="true"></textarea>
         <div class="wbe-share-meter"><span class="wbe-share-count"></span><span class="wbe-share-limit"></span></div>
@@ -369,8 +502,12 @@ const HOW = {
 function openDialog(kind, options) {
   if ($(".wbe-share-overlay").length) return;
   const opener = document.activeElement;
-  const title = pageTitle();
-  const url = shareUrlFor(kind, window.location.href);
+  const app = kind === "treeApp" ? readAppContext() : null;
+  const title = app ? app.appName || "Tree Apps" : pageTitle();
+  const viewUrl = shareUrlFor(kind, window.location.href);
+  // A Tree Apps view opens only for people logged in to WikiTree, so the member can link to the profile instead.
+  const personId = kind === "treeApp" ? profileKeyFor(kind, window.location.pathname, window.location.hash) : "";
+  const profileUrl = personId ? `${BASE_URL}/wiki/${encodeURI(personId)}` : "";
   const isImageKind = kind === "imagePage" || kind === "fullImage";
   const photos = collectPhotos(kind);
 
@@ -381,14 +518,15 @@ function openDialog(kind, options) {
   photos.forEach((p) => images.push(p));
 
   const state = {
+    url: viewUrl,
     channel: getChannel(options.defaultChannel).id,
     text: "",
     edited: false,
     selected: [images[0].id],
     blobs: {},
   };
-  const textOptions = { hashtags: options.includeHashtags !== false };
-  const suggested = () => buildText(kind, title, url, getChannel(state.channel), textOptions);
+  const textOptions = { hashtags: options.includeHashtags !== false, context: app || {} };
+  const suggested = () => buildText(kind, title, state.url, getChannel(state.channel), textOptions);
   state.text = suggested();
 
   const $overlay = $(DIALOG_HTML);
@@ -397,26 +535,41 @@ function openDialog(kind, options) {
   const $status = $overlay.find(".wbe-share-status");
   const say = (message) => $status.text(message);
 
-  // The card is drawn from the first photo on the page, and again when the member edits its summary.
-  const facts = kind === "profile" && options.cardSummary !== false ? lifeSummary(readProfileFacts()) : null;
-  state.bio = facts ? facts.bio : "";
-  const cardPhoto = (photos[0] && photos[0].full) || "";
+  // The card is drawn once the chart (Tree Apps) has been captured, and again when the member edits its summary.
+  const cardSummary =
+    options.cardSummary === false
+      ? null
+      : kind === "profile"
+      ? lifeSummary(readProfileFacts())
+      : pageSummary(kind, readPageFacts());
+  state.bio = cardSummary ? cardSummary.bio : "";
+  // Only profiles put a photo on the card; a logo or badge cropped to a portrait looks wrong on the other pages.
+  const cardPhoto = kind === "profile" || !cardSummary ? (photos[0] && photos[0].full) || "" : "";
+  const graphicPromise = kind === "treeApp" ? captureAppGraphic().catch(() => null) : Promise.resolve(null);
   let cardPromise;
   let cardRun = 0;
   function redrawCard() {
     const run = ++cardRun;
     delete state.blobs.card;
-    const summary = facts ? { fields: facts.fields, bio: state.bio } : null;
-    cardPromise = drawShareCard(kind, title, cardPhoto, summary).then((canvas) => {
-      const card = images.find((i) => i.card);
-      if (card && run === cardRun) {
-        card.thumb = canvas.toDataURL("image/png");
-        card.fileName = "wikitree-share-card.png";
-        renderImages();
-        renderPost();
-      }
-      return canvas;
-    });
+    cardPromise = graphicPromise
+      .then((graphic) =>
+        drawShareCard(kind, title, {
+          photoSrc: graphic ? "" : cardPhoto,
+          summary: cardSummary ? { fields: cardSummary.fields, bio: state.bio } : null,
+          subtitle: app ? app.person : "",
+          graphic,
+        })
+      )
+      .then((canvas) => {
+        const card = images.find((i) => i.card);
+        if (card && run === cardRun) {
+          card.thumb = canvas.toDataURL("image/png");
+          card.fileName = "wikitree-share-card.png";
+          renderImages();
+          renderPost();
+        }
+        return canvas;
+      });
     return cardPromise;
   }
 
@@ -510,10 +663,10 @@ function openDialog(kind, options) {
       if (image.thumb) $media.append($('<img alt="">').attr("src", image.thumb));
     });
     $media.attr("data-count", shown.length);
-    $overlay.find(".wbe-share-pvlink").text(url);
+    $overlay.find(".wbe-share-pvlink").text(state.url);
 
     // actions
-    const link = intentUrl(channel, state.text, url, options.mastodonInstance);
+    const link = intentUrl(channel, state.text, state.url, options.mastodonInstance);
     const $actions = $overlay.find(".wbe-share-actions").empty();
     const button = (label, primary, handler, disabled) =>
       $('<button type="button" class="wbe-share-btn"></button>')
@@ -562,8 +715,12 @@ function openDialog(kind, options) {
           channel.name
         }. Shorten it before posting.`
       );
-    if (kind === "treeApp")
-      notes.push("Tree Apps may ask the person who opens this link to log in to apps.wikitree.com.");
+    if (kind === "treeApp" && state.url === viewUrl) {
+      notes.push(
+        "Tree Apps views open only for people logged in to WikiTree. Anyone else sees the login page." +
+          (profileUrl ? " Tick the box above the post text to link to the person's profile instead." : "")
+      );
+    }
     const $note = $overlay.find(".wbe-share-note").empty().prop("hidden", !notes.length);
     notes.forEach((n) => $note.append($("<p></p>").text(n)));
   }
@@ -617,6 +774,17 @@ function openDialog(kind, options) {
     state.edited = true;
     renderPost();
   });
+  if (profileUrl) {
+    const $choice = $overlay.find(".wbe-share-linkchoice").prop("hidden", false);
+    $choice.find("input").on("change", (e) => {
+      const previous = state.url;
+      state.url = e.target.checked ? profileUrl : viewUrl;
+      // swap the address wherever it appears, keeping whatever else the member has written
+      state.text = state.text.split(previous).join(state.url);
+      $text.val(state.text);
+      renderPost();
+    });
+  }
   $overlay.find(".wbe-share-reset").on("click", () => {
     state.edited = false;
     state.text = suggested();
@@ -653,8 +821,17 @@ function openDialog(kind, options) {
 
   const $summary = $overlay.find("#wbeShareSummary");
   let redrawTimer;
-  if (facts) {
+  if (cardSummary) {
     $overlay.find(".wbe-share-summary").prop("hidden", false);
+    $overlay
+      .find(".wbe-share-summary-hint")
+      .text(
+        kind === "profile"
+          ? "Built from this profile's dates, places and family lists. Check it before you post."
+          : kind === "category"
+          ? "Counts are from this category page. Edit the text if you like."
+          : "Taken from the top of this page. Check it before you post."
+      );
     $summary.val(state.bio).on("input", () => {
       state.bio = $summary.val();
       clearTimeout(redrawTimer);

@@ -33,7 +33,7 @@ registerFeature({
     {
       id: "cardSummary",
       type: OptionType.CHECKBOX,
-      label: "Add a short life summary to the share card on profiles",
+      label: "Add a short summary to the share card (a life summary on profiles, the opening text on other pages)",
       defaultValue: true,
     },
     {

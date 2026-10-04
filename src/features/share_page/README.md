@@ -49,7 +49,43 @@ summary:
 - It says nothing about someone who could still be living: no death year and born less than 110 years ago. Private
   children are skipped. This logic is in `lifeSummary()` in `share_page_core.js`.
 
-Other pages get a card with the page title and a picture.
+**Help, project, free-space and category pages** get the page title, a short text, and for most of them a data field:
+
+- Help, project and free-space pages: the opening sentences of the page's text (footnote markers removed, tables
+  skipped, up to about 330 characters), and an "On this page" field with the first section names.
+- Category pages: counts of subcategories, pages and person profiles, and a line inviting people to explore the category
+  and check their connections to the ancestors in it.
+- The member can edit the text in the dialog and the card redraws. The page's logo or badge images are not put on the
+  card, because they crop badly; they stay available as pictures to choose.
+
+**Tree Apps views** get the app's name (read from the page's `#view-title`, then the view selector, then the address, for
+example "Fan Chart"), the person's name, and a picture of the chart as the member sees it. The picture is taken from the
+largest SVG or canvas in `#view-container`, with the page's styles copied onto it. Views that are plain text and tables
+get the title and name only.
+
+Tree Apps views open only for people logged in to WikiTree; anyone else sees the login page. So on these views the
+dialog shows a note, and a checkbox, "Link to the person's profile instead, so anyone can open it". Ticking it swaps the
+address in the post (and the link the buttons open) for the person's profile, keeping the member's own edits. The person
+is taken from `#name=` in the address, then from the path.
+
+**Image pages** have no card; the image is the picture.
+
+Other pages with no summary get the title and a picture.
+
+## Privacy
+
+Before the button appears, the feature asks WikiTree's API (`WikiTreeAPI.getProfile`, app id `WBE_sharePage`) for the
+page's `Privacy` and `IsLiving` fields. It applies to profiles, free-space pages, tree widgets, Tree Apps views (the
+person in the address or `#name=`) and images whose file name is a profile ID.
+
+- Public (50) and Open (60) can be shared. Levels 10 to 40 cannot.
+- Anyone marked as living cannot, whatever the level.
+- If the API cannot be reached, the button is not shown.
+- An image whose name is not a profile gets no check (no such profile exists).
+- Categories, project and help pages have no privacy level and are not checked.
+
+Levels 30 and 40 have a public biography, and level 40 a public tree, but the card summary and post draw on the data
+fields, so they are left out. To allow them, change `isShareablePrivacy()` in `share_page_core.js`.
 
 ## What each network allows
 
@@ -75,12 +111,12 @@ Character limits and picture counts are in `CHANNELS` in `share_page_core.js`. T
 
 ## Options
 
-| Option                                                 | Default         |
-| ------------------------------------------------------ | --------------- |
-| Channel selected when the dialog opens                 | Facebook        |
-| Your Mastodon server (for example mastodon.social)     | mastodon.social |
-| Add a short life summary to the share card on profiles | On              |
-| Add the WikiTree hashtags to the post                  | On              |
+| Option                                                                                        | Default         |
+| --------------------------------------------------------------------------------------------- | --------------- |
+| Channel selected when the dialog opens                                                        | Facebook        |
+| Your Mastodon server (for example mastodon.social)                                            | mastodon.social |
+| Add a short summary to the share card (life summary on profiles, opening text on other pages) | On              |
+| Add the WikiTree hashtags to the post                                                         | On              |
 
 ## Files
 
@@ -107,11 +143,9 @@ photo fetching are only checked by loading the extension.
 
 ## Open items
 
-- **Privacy.** `isPubliclyShareable()` in `share_page.js` is a placeholder. WikiTree's page markup does not show a
-  privacy level that this feature could confirm. Decide how to hide the button on Private and Unlisted profiles and on
-  private images.
-- **Reddit.** Confirm r/wikitree's rules allow member-shared links.
-- **Tree Apps links** may ask the person who opens them to log in to apps.wikitree.com. The dialog warns the member.
+- **Chart capture.** Reading the chart from the page was written against the Tree Apps source (`#view-container`,
+  `fanChartSVG`) and tested only on stand-in markup. Check each view in a logged-in browser. Photos drawn inside an SVG
+  do not appear in the copy.
 - **Browser coverage.** Check Save picture and the share sheet in Safari and Firefox. Safari handles downloads
   differently (see the WBE help page's known issues).
 - **Network details.** Character limits, picture counts and the composer links can change. Re-check them before each

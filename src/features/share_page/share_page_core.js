@@ -103,7 +103,9 @@ const BODIES = {
   imagePage: (t) => `A photo shared on WikiTree: ${t}. Every image helps tell a family’s story.`,
   fullImage: (t) => `A photo shared on WikiTree: ${t}. Every image helps tell a family’s story.`,
   treeWidget: (t) => `Explore this family tree view for ${t} on WikiTree, built by volunteers working together.`,
-  treeApp: (t) => `Explore ${t} in WikiTree’s Tree Apps, a set of connected tree views built by community developers.`,
+  // ctx.appName is the view's own name (for example "Fan Chart"), ctx.person the person shown
+  treeApp: (t, ctx = {}) =>
+    `Explore ${ctx.appName || "this view"} in WikiTree’s Tree Apps${ctx.person ? ` for ${ctx.person}` : ""}.`,
 };
 
 /**
@@ -175,7 +177,7 @@ export function photoLinks(src) {
 
 /** The suggested post for a page and channel. */
 export function buildText(kind, title, url, channel, options = {}) {
-  const body = (BODIES[kind] || BODIES.profile)(title);
+  const body = (BODIES[kind] || BODIES.profile)(title, options.context || {});
   if (channel.noTags) return body;
   const hashtags = options.hashtags === false ? "" : ` ${BRAND_HASHTAGS}`;
   return `${body}\n\n${url}\n\n${channel.tag}${hashtags}`;
@@ -333,4 +335,130 @@ export function lifeSummary(facts, thisYear = new Date().getFullYear()) {
     sentences.push(`${subject} died${where}${yearPhrase(death.date)}${age}.`);
   }
   return { fields, bio: sentences.join(" ") };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Who the page is about, and whether it may be shared
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The WikiTree ID or page name whose privacy decides whether this page can be shared, or "" when the
+ * page has none (categories, projects, help, and images that do not belong to a profile).
+ */
+export function profileKeyFor(kind, pathname, hash = "") {
+  let path;
+  try {
+    path = decodeURIComponent(pathname);
+  } catch (e) {
+    path = pathname;
+  }
+  const segment = (re) => (path.match(re) || [])[1] || "";
+  if (kind === "profile" || kind === "space") return segment(/^\/wiki\/(.+)$/);
+  if (kind === "treeWidget") return segment(/^\/treewidget\/([^/]+)/);
+  if (kind === "treeApp") {
+    const name = new URLSearchParams((hash || "").replace(/^#/, "")).get("name");
+    return name || segment(/^\/apps\/([^/]+)/);
+  }
+  if (kind === "imagePage" || kind === "fullImage") {
+    const file = path
+      .split("/")
+      .pop()
+      .replace(/\.[A-Za-z0-9]+$/, "");
+    return (file.match(/^([A-Za-z][^/]*?-\d+)(?:-\d+)?$/) || [])[1] || "";
+  }
+  return "";
+}
+
+/** Public (50) and Open (60) profiles only, and never anyone marked as living. */
+export function isShareablePrivacy(profile) {
+  return !!profile && Number(profile.IsLiving) !== 1 && Number(profile.Privacy) >= 50;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Tree Apps views
+// ---------------------------------------------------------------------------------------------
+
+const APP_NAMES = { fanchart: "Fan Chart", familygroup: "Family Group", cc7: "CC7" };
+
+/** The view named in a Tree Apps address, from `#name=…&view=fanchart`. */
+export function viewSlug(hash) {
+  return new URLSearchParams((hash || "").replace(/^#/, "")).get("view") || "";
+}
+
+/** A readable name for a view when the page itself does not give one: "printer-friendly" becomes "Printer Friendly". */
+export function appNameFromSlug(slug) {
+  if (!slug) return "";
+  if (APP_NAMES[slug]) return APP_NAMES[slug];
+  return slug
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+// ---------------------------------------------------------------------------------------------
+// Summaries for pages that are not profiles
+// ---------------------------------------------------------------------------------------------
+
+function cutAtWord(text, max) {
+  if (text.length <= max) return text;
+  return text.slice(0, max).replace(/\s+\S*$/, "") + "…";
+}
+
+/**
+ * The opening of a page's text, as whole sentences up to a character budget. Footnote markers like [1] are
+ * removed and short fragments (headings, captions) are skipped.
+ */
+export function leadSummary(paragraphs, maxChars = 330) {
+  const sentences = [];
+  for (const raw of paragraphs) {
+    const text = raw
+      .replace(/\[(?:\d+|[a-z])\]/gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (text.length < 40) continue;
+    const parts = (text.match(/[^.!?]+[.!?]+["')\]]*(?=\s|$)|[^.!?]+$/g) || [text])
+      .map((x) => x.trim())
+      .filter(Boolean);
+    for (const sentence of parts) {
+      if ([...sentences, sentence].join(" ").length > maxChars) {
+        return sentences.length ? sentences.join(" ") : cutAtWord(sentence, maxChars);
+      }
+      sentences.push(sentence);
+    }
+  }
+  return sentences.join(" ");
+}
+
+/**
+ * The facts and short text for the share card of a help, project, free-space or category page.
+ *
+ * facts: { paragraphs: [text], sections: [heading], counts: { subcategories, pages, profiles } }
+ * Returns null for other kinds, or when there is nothing to show.
+ */
+export function pageSummary(kind, facts = {}) {
+  const fields = [];
+  let bio = "";
+  if (kind === "category") {
+    const counts = facts.counts || {};
+    const add = (label, n) => {
+      if (n) fields.push({ label, lines: [String(n)], names: false });
+    };
+    add("Subcategories", counts.subcategories);
+    add("Pages", counts.pages);
+    add("Person profiles", counts.profiles);
+    bio =
+      "Explore the subcategories, pages and profiles in this category. Check your connections to the ancestors listed here.";
+  } else if (kind === "help" || kind === "project" || kind === "space") {
+    bio = leadSummary(facts.paragraphs || []);
+    const sections = facts.sections || [];
+    if (sections.length) {
+      const lines = sections.length > 2 ? [sections[0], `${sections[1]} +${sections.length - 2} more`] : sections;
+      fields.push({ label: "On this page", lines, names: true });
+    }
+  } else {
+    return null;
+  }
+  return fields.length || bio ? { fields, bio } : null;
 }

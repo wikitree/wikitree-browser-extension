@@ -5,6 +5,10 @@ jest.mock("../../core/options/options_storage", () => ({
   getFeatureOptions: () =>
     Promise.resolve({ defaultChannel: "x", mastodonInstance: "example.social", includeHashtags: true }),
 }));
+// The feature is loaded inside jest.isolateModules, so the mock reads its behaviour from a global the tests control.
+jest.mock("../../core/API/WikiTreeAPI", () => ({
+  WikiTreeAPI: { getProfile: (...args) => global.mockGetProfile(...args) },
+}));
 jest.mock("../../core/clipboard.js", () => ({ copyToClipboard: jest.fn(() => Promise.resolve()) }));
 
 function typeInto(value) {
@@ -91,6 +95,10 @@ beforeAll(() => {
       return this._src;
     }
   };
+});
+
+beforeEach(() => {
+  global.mockGetProfile = jest.fn(() => Promise.resolve([{ Privacy: 60, IsLiving: 0 }, 0, "page"]));
 });
 
 afterEach(() => {
@@ -205,5 +213,138 @@ describe("Share Page dialog", () => {
     await loadFeature("/wiki/Help:Sources", PROFILE_HTML);
     $(".wbe-share-button").trigger("click");
     expect($(".wbe-share-summary").prop("hidden")).toBe(true);
+  });
+
+  test("asks the API for the page's privacy level", async () => {
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    expect(global.mockGetProfile).toHaveBeenCalledWith("sharePage", "Robinson-27274", ["Privacy", "IsLiving"]);
+  });
+
+  test.each([10, 20, 30, 40])("no Share button when the profile's privacy level is %i", async (level) => {
+    global.mockGetProfile = jest.fn(() => Promise.resolve([{ Privacy: level, IsLiving: 0 }, 0, "page"]));
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    expect($(".wbe-share-button").length).toBe(0);
+  });
+
+  test("Public (50) profiles can be shared", async () => {
+    global.mockGetProfile = jest.fn(() => Promise.resolve([{ Privacy: 50, IsLiving: 0 }, 0, "page"]));
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    expect($(".wbe-share-button").length).toBe(1);
+  });
+
+  test("no Share button when the privacy level cannot be read", async () => {
+    global.mockGetProfile = jest.fn(() => Promise.reject(new Error("network")));
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    expect($(".wbe-share-button").length).toBe(0);
+  });
+
+  test("category pages are not checked, and the card summary uses the counts", async () => {
+    await loadFeature(
+      "/wiki/Category:Andersonia,_California",
+      `<main><h1>Category: Andersonia, California</h1>
+        <h2>Subcategories (1)</h2><h2>Pages (2)</h2><h2>Person Profiles (140)</h2></main>`
+    );
+    expect(global.mockGetProfile).not.toHaveBeenCalled();
+    $(".wbe-share-button").trigger("click");
+    expect($(".wbe-share-summary").prop("hidden")).toBe(false);
+    expect($("#wbeShareSummary").val()).toContain("Explore the subcategories, pages and profiles in this category.");
+    expect($(".wbe-share-summary-hint").text()).toContain("Counts are from this category page");
+  });
+
+  test("a help page's card summary is its opening text, not its contents list", async () => {
+    await loadFeature(
+      "/wiki/Help:Projects",
+      `<main><h1>Help:Projects</h1><div class="body-text clearfix">
+        <p>A project is a group of members organized around a topic or volunteer activity. Many members say that joining a project transformed their experience here on WikiTree.</p>
+        <table class="toc"><tr><td><p>This contents paragraph is long enough to count but sits in a table, so it must be skipped.</p></td></tr></table>
+        <h2>Contents</h2><h2>Topical Projects</h2><h2>Functional Projects</h2></div></main>`
+    );
+    $(".wbe-share-button").trigger("click");
+    const summary = $("#wbeShareSummary").val();
+    expect(summary).toContain("A project is a group of members organized around a topic or volunteer activity.");
+    expect(summary).not.toContain("contents paragraph");
+    expect($(".wbe-share-summary-hint").text()).toContain("Taken from the top of this page");
+  });
+
+  test("a free-space page's summary drops footnote markers", async () => {
+    await loadFeature(
+      "/wiki/Space:Andersonia,_California_One_Place_Study",
+      `<main><h1>Andersonia</h1><div class="body-text"><p></p>
+        <p>Andersonia was named for the President of Southern Humboldt Lumber Company, Henry Neff Anderson.<sup>[1]</sup></p></div></main>`
+    );
+    $(".wbe-share-button").trigger("click");
+    expect($("#wbeShareSummary").val()).toBe(
+      "Andersonia was named for the President of Southern Humboldt Lumber Company, Henry Neff Anderson."
+    );
+  });
+
+  test("a Tree Apps view names the app and the person, and warns that a login is needed", async () => {
+    await loadFeature(
+      "/apps/Robinson-27274#name=Robinson-27274&view=fanchart",
+      `<h2 id="view-title">Fan Chart</h2><span id="name-placeholder">Firman Joseph Robinson</span>
+       <div id="view-container"></div>`
+    );
+    expect(global.mockGetProfile).toHaveBeenCalledWith("sharePage", "Robinson-27274", ["Privacy", "IsLiving"]);
+    $(".wbe-share-button").trigger("click");
+    expect($("#wbeShareText").val()).toContain("Explore Fan Chart in WikiTree’s Tree Apps for Firman Joseph Robinson.");
+    expect($("#wbeShareText").val()).toContain("#view=fanchart".replace("#", "") ? "view=fanchart" : "");
+    expect($(".wbe-share-note").text()).toContain("open only for people logged in to WikiTree");
+    expect($(".wbe-share-summary").prop("hidden")).toBe(true);
+  });
+
+  test("a Tree Apps view falls back to a readable name from its address", async () => {
+    await loadFeature(
+      "/apps/Robinson-27274#name=Robinson-27274&view=printer-friendly",
+      `<div id="view-container"></div>`
+    );
+    $(".wbe-share-button").trigger("click");
+    expect($("#wbeShareText").val()).toContain("Explore Printer Friendly in WikiTree’s Tree Apps");
+  });
+
+  test("an image that does not belong to a profile is shared without a privacy level", async () => {
+    global.mockGetProfile = jest.fn(() => Promise.resolve([undefined, "Illegal user name", "x"]));
+    await loadFeature("/photo/png/One_Place_Studies_Directory-2", "<h1>Image</h1>");
+    expect($(".wbe-share-button").length).toBe(1);
+  });
+
+  test("an image on a private profile is not shared", async () => {
+    global.mockGetProfile = jest.fn(() => Promise.resolve([{ Privacy: 20, IsLiving: 0 }, 0, "x"]));
+    await loadFeature("/photo/jpg/Robinson-27274", "<h1>Image</h1>");
+    expect($(".wbe-share-button").length).toBe(0);
+  });
+
+  test("a Tree Apps view can link to the person's profile instead, in one click", async () => {
+    await loadFeature(
+      "/apps/Robinson-27274#name=Robinson-27274&view=fanchart",
+      `<h2 id="view-title">Fan Chart</h2><span id="name-placeholder">Firman Joseph Robinson</span><div id="view-container"></div>`
+    );
+    $(".wbe-share-button").trigger("click");
+    expect($(".wbe-share-linkchoice").prop("hidden")).toBe(false);
+    expect($("#wbeShareText").val()).toContain(
+      "https://www.wikitree.com/apps/Robinson-27274#name=Robinson-27274&view=fanchart"
+    );
+    expect($(".wbe-share-note").text()).toContain("Tick the box above the post text");
+
+    typeInto($("#wbeShareText").val() + "\nMy own note.");
+    const box = document.getElementById("wbeShareProfileLink");
+    box.click();
+    expect($("#wbeShareText").val()).toContain("https://www.wikitree.com/wiki/Robinson-27274");
+    expect($("#wbeShareText").val()).not.toContain("/apps/");
+    expect($("#wbeShareText").val()).toContain("My own note.");
+    expect($(".wbe-share-pvlink").text()).toBe("https://www.wikitree.com/wiki/Robinson-27274");
+    expect($(".wbe-share-actions a").attr("href")).toContain(
+      encodeURIComponent("https://www.wikitree.com/wiki/Robinson-27274")
+    );
+    expect($(".wbe-share-note").text()).not.toContain("login");
+
+    box.click(); // and back to the view
+    expect($("#wbeShareText").val()).toContain("/apps/Robinson-27274#name=Robinson-27274&view=fanchart");
+    expect($(".wbe-share-note").text()).toContain("login");
+  });
+
+  test("other pages do not offer the profile-link choice", async () => {
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    $(".wbe-share-button").trigger("click");
+    expect($(".wbe-share-linkchoice").prop("hidden")).toBe(true);
   });
 });

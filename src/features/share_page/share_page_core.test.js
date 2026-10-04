@@ -3,8 +3,14 @@ import {
   buildText,
   detectPageKind,
   getChannel,
+  appNameFromSlug,
   intentUrl,
+  isShareablePrivacy,
+  leadSummary,
   lifeSummary,
+  pageSummary,
+  profileKeyFor,
+  viewSlug,
   measure,
   photoLinks,
   shareUrlFor,
@@ -194,5 +200,110 @@ describe("lifeSummary", () => {
     expect(shortPlace("Seattle, King, Washington, United States")).toBe("Seattle, Washington");
     expect(shortPlace("Paris, France")).toBe("Paris, France");
     expect(shortPlace("")).toBe("");
+  });
+});
+
+describe("profileKeyFor", () => {
+  test.each([
+    ["profile", "/wiki/Robinson-27274", "", "Robinson-27274"],
+    ["space", "/wiki/Space:Andersonia,_California_One_Place_Study", "", "Space:Andersonia,_California_One_Place_Study"],
+    ["treeWidget", "/treewidget/Robinson-27274/6", "", "Robinson-27274"],
+    ["treeApp", "/apps/Robinson-27274", "", "Robinson-27274"],
+    ["treeApp", "/apps/Robinson-27274", "#name=Smith-1&view=fanchart", "Smith-1"],
+    ["imagePage", "/photo/jpg/Robinson-27274", "", "Robinson-27274"],
+    ["imagePage", "/photo/jpg/Robinson-27274-1", "", "Robinson-27274"],
+    ["fullImage", "/photo.php/d/d3/Robinson-27274-1.jpg", "", "Robinson-27274"],
+    ["imagePage", "/photo/png/Not_A_Person", "", ""], // no number, so it cannot be a profile
+    ["category", "/wiki/Category:Andersonia,_California", "", ""],
+    ["help", "/wiki/Help:Projects", "", ""],
+  ])("%s %s %s gives %j", (kind, path, hash, key) => {
+    expect(profileKeyFor(kind, path, hash)).toBe(key);
+  });
+});
+
+describe("isShareablePrivacy", () => {
+  test("Public (50) and Open (60) can be shared", () => {
+    expect(isShareablePrivacy({ Privacy: 50, IsLiving: 0 })).toBe(true);
+    expect(isShareablePrivacy({ Privacy: 60, IsLiving: 0 })).toBe(true);
+  });
+  test("anything below Public cannot", () => {
+    [10, 20, 30, 40].forEach((level) => expect(isShareablePrivacy({ Privacy: level, IsLiving: 0 })).toBe(false));
+  });
+  test("a living person cannot, whatever the level", () => {
+    expect(isShareablePrivacy({ Privacy: 60, IsLiving: 1 })).toBe(false);
+  });
+  test("a missing profile cannot", () => {
+    expect(isShareablePrivacy(undefined)).toBe(false);
+  });
+});
+
+describe("Tree Apps names", () => {
+  test("reads the view from the hash", () => {
+    expect(viewSlug("#name=Robinson-27274&view=fanchart")).toBe("fanchart");
+    expect(viewSlug("")).toBe("");
+  });
+  test("makes a readable name from a view id", () => {
+    expect(appNameFromSlug("fanchart")).toBe("Fan Chart");
+    expect(appNameFromSlug("printer-friendly")).toBe("Printer Friendly");
+    expect(appNameFromSlug("slippyTree")).toBe("Slippy Tree");
+    expect(appNameFromSlug("")).toBe("");
+  });
+  test("the post names the app and the person", () => {
+    const text = buildText("treeApp", "Fan Chart", "https://www.wikitree.com/apps/Robinson-27274", getChannel("x"), {
+      context: { appName: "Fan Chart", person: "Firman Joseph Robinson" },
+    });
+    expect(text).toContain("Explore Fan Chart in WikiTree’s Tree Apps for Firman Joseph Robinson.");
+  });
+});
+
+describe("leadSummary", () => {
+  test("keeps whole sentences within the budget and drops footnote markers", () => {
+    const paragraphs = [
+      "",
+      "Short.",
+      "Andersonia was named for the President of Southern Humboldt Lumber Company, Henry Neff Anderson.[1]",
+      "40 acres in all, 12 miles from the coast, 17 miles from Garberville.[3]",
+      "After losing his wife in 1902, Henry Neff Anderson purchased 10,000 acres of redwood forest in northern California. He built not only a lumber mill but a small community to house the almost 200 employees he recruited from Grays Harbor County in Washington State.[3][4]",
+    ];
+    expect(leadSummary(paragraphs, 330)).toBe(
+      "Andersonia was named for the President of Southern Humboldt Lumber Company, Henry Neff Anderson. " +
+        "40 acres in all, 12 miles from the coast, 17 miles from Garberville. " +
+        "After losing his wife in 1902, Henry Neff Anderson purchased 10,000 acres of redwood forest in northern California."
+    );
+  });
+  test("cuts a single very long sentence at a word", () => {
+    const long = "word ".repeat(100).trim() + ".";
+    const out = leadSummary([long], 60);
+    expect(out.length).toBeLessThanOrEqual(61);
+    expect(out.endsWith("…")).toBe(true);
+  });
+  test("returns nothing when there is no real text", () => {
+    expect(leadSummary(["", "Hi"])).toBe("");
+  });
+});
+
+describe("pageSummary", () => {
+  test("a category shows its counts and an invitation to explore", () => {
+    const summary = pageSummary("category", { counts: { subcategories: 1, pages: 2, profiles: 140 } });
+    expect(summary.fields.map((f) => [f.label, f.lines[0]])).toEqual([
+      ["Subcategories", "1"],
+      ["Pages", "2"],
+      ["Person profiles", "140"],
+    ]);
+    expect(summary.bio).toContain("Explore the subcategories, pages and profiles in this category.");
+    expect(summary.bio).toContain("Check your connections to the ancestors listed here.");
+  });
+  test("a help, project or free-space page shows its opening text and sections", () => {
+    const summary = pageSummary("project", {
+      paragraphs: ["WikiTree Ambassadors are volunteers who have taken on the mission of spreading the WikiTree Love."],
+      sections: ["Who are Ambassadors?", "Why does WikiTree need Ambassadors?", "How can I help?"],
+    });
+    expect(summary.bio).toContain("WikiTree Ambassadors are volunteers");
+    expect(summary.fields[0].label).toBe("On this page");
+    expect(summary.fields[0].lines).toEqual(["Who are Ambassadors?", "Why does WikiTree need Ambassadors? +1 more"]);
+  });
+  test("other kinds have no summary", () => {
+    expect(pageSummary("treeApp", {})).toBeNull();
+    expect(pageSummary("imagePage", {})).toBeNull();
   });
 });
