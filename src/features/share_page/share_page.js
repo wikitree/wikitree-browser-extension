@@ -1,5 +1,5 @@
 /*
-Created By: TODO author name (TODO WikiTree ID)
+Created By: Azure Robinson (Robinson-27225)
 */
 
 import $ from "jquery";
@@ -255,9 +255,36 @@ async function captureAppGraphic() {
     "visibility",
     "display",
   ];
+  // HTML inside a foreignObject (names, dates, portraits) is laid out by the page's CSS, which the copy does not have,
+  // so it needs its sizes and spacing copied as well.
+  const htmlProperties = [
+    "color",
+    "width",
+    "height",
+    "max-width",
+    "max-height",
+    "margin",
+    "padding",
+    "float",
+    "display",
+    "text-align",
+    "line-height",
+    "vertical-align",
+    "border",
+    "border-radius",
+    "object-fit",
+    "background-color",
+    "overflow",
+    "white-space",
+  ];
+  const XHTML = "http://www.w3.org/1999/xhtml";
   from.forEach((el, i) => {
     const computed = getComputedStyle(el);
-    properties.forEach((property) => to[i].style.setProperty(property, computed.getPropertyValue(property)));
+    const list = el.namespaceURI === XHTML ? properties.concat(htmlProperties) : properties;
+    list.forEach((property) => to[i].style.setProperty(property, computed.getPropertyValue(property)));
+  });
+  copy.querySelectorAll("img").forEach((img) => {
+    ["srcset", "sizes", "loading", "crossorigin"].forEach((name) => img.removeAttribute(name));
   });
   copy.setAttribute("xmlns", "http://www.w3.org/2000/svg");
   copy.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
@@ -273,11 +300,11 @@ async function captureAppGraphic() {
   // it came out at least as full as the first.
   // A picture that cannot be embedded would show as a broken-image icon, so it is left out instead.
   const withoutPictures = copy.cloneNode(true);
-  withoutPictures.querySelectorAll("image").forEach((el) => el.remove());
+  withoutPictures.querySelectorAll("image, img").forEach((el) => el.remove());
   const plain = await toImage(withoutPictures);
   await Promise.race([inlinePictures(copy), sleep(6000)]);
-  copy.querySelectorAll("image").forEach((el) => {
-    const href = el.getAttribute("href") || el.getAttributeNS(XLINK, "href") || "";
+  copy.querySelectorAll("image, img").forEach((el) => {
+    const href = el.getAttribute("href") || el.getAttributeNS(XLINK, "href") || el.getAttribute("src") || "";
     if (!href.startsWith("data:")) el.remove();
   });
   const withPictures = await toImage(copy);
@@ -335,16 +362,21 @@ async function fetchPictureBlob(href) {
 /** Replace the address of every picture in an SVG with the picture itself, so it still shows when drawn alone. */
 async function inlinePictures(svg) {
   await Promise.all(
-    [...svg.querySelectorAll("image")].slice(0, 400).map(async (el) => {
-      const href = el.getAttribute("href") || el.getAttributeNS(XLINK, "href");
+    [...svg.querySelectorAll("image, img")].slice(0, 400).map(async (el) => {
+      const isHtmlImg = el.tagName.toLowerCase() === "img";
+      const href = isHtmlImg ? el.getAttribute("src") : el.getAttribute("href") || el.getAttributeNS(XLINK, "href");
       if (!href || href.startsWith("data:")) return;
       try {
         const blob = await fetchPictureBlob(href);
         const data = await shrinkToDataUrl(blob);
-        // write only the attribute the chart already uses, so the picture is not stored twice
-        const usesXlink = el.hasAttributeNS(XLINK, "href");
-        if (el.hasAttribute("href") || !usesXlink) el.setAttribute("href", data);
-        if (usesXlink) el.setAttributeNS(XLINK, "xlink:href", data);
+        if (isHtmlImg) {
+          el.setAttribute("src", data);
+        } else {
+          // write only the attribute the chart already uses, so the picture is not stored twice
+          const usesXlink = el.hasAttributeNS(XLINK, "href");
+          if (el.hasAttribute("href") || !usesXlink) el.setAttribute("href", data);
+          if (usesXlink) el.setAttributeNS(XLINK, "xlink:href", data);
+        }
       } catch (e) {
         // leave this picture as it is; the rest of the chart is still worth sharing
       }

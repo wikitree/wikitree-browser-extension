@@ -570,6 +570,12 @@ describe("Share Page dialog", () => {
              <image href="/photo.php/thumb/a/aa/Person-1.jpg/75px-Person-1.jpg" width="20" height="20"/>
              <image href="https://apps.wikitree.com/apps/clarke11007/pix/silhouette.png" width="20" height="20"/>
              <image href="https://other.example/tracking.png" width="20" height="20"/>
+             <foreignObject x="0" y="0" width="60" height="60">
+               <div class="image-box"><img src="/photo.php/thumb/b/bb/Person-2.jpg/75px-Person-2.jpg"></div>
+             </foreignObject>
+             <foreignObject x="60" y="0" width="60" height="60">
+               <div class="image-box"><img src="https://other.example/x.jpg"></div>
+             </foreignObject>
            </svg>
          </div>`
       );
@@ -581,13 +587,16 @@ describe("Share Page dialog", () => {
     }
     const [plain, withPictures] = global.mockSvgSources;
     expect(plain).not.toContain("<image");
+    expect(plain).not.toContain("<img"); // the fan chart's portraits are HTML pictures inside foreignObject boxes
     expect(withPictures).toContain("data:image/jpeg;base64,"); // the portrait on the page's own site
     expect(withPictures).toContain("data:image/png;base64,iVBORw0KGgo="); // the one fetched by the background script
-    expect(withPictures).not.toContain("other.example");
-    // the page cannot read either of the two cross-origin pictures, so both were offered to the background script
+    expect(withPictures).toMatch(/<img[^>]*src="data:image\/jpeg;base64,/); // an HTML portrait, embedded
+    expect(withPictures).not.toContain("other.example"); // pictures that could not be fetched are gone, not broken
+    // the page cannot read the three cross-origin pictures, so all were offered to the background script
     expect(sent.map((m) => m.url)).toEqual([
       "https://apps.wikitree.com/apps/clarke11007/pix/silhouette.png",
       "https://other.example/tracking.png",
+      "https://other.example/x.jpg",
     ]);
     expect(sent.every((m) => m.action === "sharePageFetchImage")).toBe(true);
   });

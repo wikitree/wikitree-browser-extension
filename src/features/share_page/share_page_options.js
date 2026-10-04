@@ -1,5 +1,5 @@
 /*
-Created By: TODO author name (TODO WikiTree ID)
+Created By: Azure Robinson (Robinson-27225)
 */
 
 import { registerFeature, OptionType } from "../../core/options/options_registry";
@@ -12,7 +12,7 @@ registerFeature({
   description:
     "Adds a Share button to profiles, free-space, project, category and help pages, image pages, tree widgets and Tree Apps views. Opens a dialog to post to social media with WikiTree's accounts tagged and the brand hashtags added.",
   category: "Global",
-  creators: [{ name: "TODO author name", wikitreeid: "TODO" }],
+  creators: [{ name: "Azure Robinson", wikitreeid: "Robinson-27225" }],
   contributors: [],
   defaultValue: false,
   pages: [isMainDomain],

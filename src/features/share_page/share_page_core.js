@@ -1,5 +1,5 @@
 /*
-Created By: TODO author name (TODO WikiTree ID)
+Created By: Azure Robinson (Robinson-27225)
 
 Pure logic for the Share Page feature: which page the member is on, what the post says,
 what each social network can do, and the links that open each network's composer.
