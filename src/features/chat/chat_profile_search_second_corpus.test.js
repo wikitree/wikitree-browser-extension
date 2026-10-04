@@ -164,7 +164,7 @@ describe("chat second-set prompt corpus (deterministic WT+ parses)", () => {
   });
 
   test("a place-only prompt asks which life-event scope instead of running a vague Location= query", async () => {
-    // "profiles from Hampshire, England" has no other scope, so Muse asks
+    // "profiles from Hampshire, England" has no other scope, so Genie asks
     // born/married/died up front rather than running the (huge, vague) query.
     const result = await runPrompt("profiles from Hampshire, England");
     expect(wtAPIProfileSearch).not.toHaveBeenCalled();

@@ -147,6 +147,23 @@ form[name="a_form"] {
   opacity: 1;
 }
 
+/* The Genie in the profile heading: the tooltip sits to its left. */
+#wbe-genie-button::after {
+  bottom: auto;
+  top: 50%;
+  left: auto;
+  right: calc(100% + 10px);
+  transform: translateY(-50%);
+}
+#wbe-genie-button::before {
+  bottom: auto;
+  top: 50%;
+  left: auto;
+  right: calc(100% - 4px);
+  transform: translateY(-50%);
+  border-color: transparent transparent transparent #fcb815;
+}
+
 .float-end {
   z-index: 10;
   position: relative;

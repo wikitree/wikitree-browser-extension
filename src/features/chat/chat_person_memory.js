@@ -279,6 +279,16 @@ export function rewritePromptWithRememberedPerson(prompt, person) {
   const declinedSpans = [];
   const insideDeclinedSpan = (start, end) => declinedSpans.some(([from, to]) => start >= from && end <= to);
   const surname = normalizePersonMemoryToken(wtId.replace(/-\d+$/, ""));
+  // "people with the surname Alley" became "…surname Ellen": Alley is Ellen
+  // (Cook) Alley's married name (live I9, 2026-10-03). The last word of a name
+  // of three or more words is a surname, and so is a word introduced as one.
+  const fullName =
+    [person.displayName, ...aliasVariants]
+      .map((value) => normalizePersonMemoryToken(value))
+      .sort((left, right) => right.split(" ").length - left.split(" ").length)[0] || "";
+  const fullTokens = fullName.split(" ").filter(Boolean);
+  const lastSurname = fullTokens.length >= 3 ? fullTokens[fullTokens.length - 1] : "";
+  const SURNAME_CONTEXT_RE = /\b(?:(?:sur|last|family|maiden)\s*names?|named|called)\s+(?:(?:of|is|was|=)\s+)?$/i;
 
   for (const alias of aliasVariants) {
     const cleanedAlias = String(alias || "").trim();
@@ -287,7 +297,11 @@ export function rewritePromptWithRememberedPerson(prompt, person) {
     }
     // A bare surname names a family, not this person; a possessive (stored
     // before extractAliasCandidates refused them) names someone else's relative.
-    if (normalizePersonMemoryToken(cleanedAlias) === surname || POSSESSIVE_RE.test(cleanedAlias)) {
+    const aliasToken = normalizePersonMemoryToken(cleanedAlias);
+    if (aliasToken === surname || POSSESSIVE_RE.test(cleanedAlias)) {
+      continue;
+    }
+    if (!aliasToken.includes(" ") && lastSurname && aliasToken === lastSurname) {
       continue;
     }
     const aliasRegex = buildResolvedAliasRegex(cleanedAlias);
@@ -300,6 +314,13 @@ export function rewritePromptWithRememberedPerson(prompt, person) {
     }
     const span = [match.index, match.index + match[0].length];
     if (insideDeclinedSpan(...span)) {
+      continue;
+    }
+    if (
+      !aliasToken.includes(" ") &&
+      (SURNAME_CONTEXT_RE.test(sourcePrompt.slice(0, match.index)) ||
+        /^\s*(?:family|line|surname|clan)\b/i.test(sourcePrompt.slice(span[1])))
+    ) {
       continue;
     }
     // Never swap in a name that says less than what was typed: "Stephen Fry"
@@ -322,4 +343,31 @@ export function rewritePromptWithRememberedPerson(prompt, person) {
   }
 
   return { prompt: sourcePrompt, changed: false, matchedAlias: "", person };
+}
+
+// The person the last answer was about: exactly one WikiTree ID in the message
+// and no multi-row table. "Abraham (Lincoln-103) is 21 steps away" → Lincoln-103;
+// a list of ancestors → null.
+export function pickAnswerSubject(messageText, table = null) {
+  if (Array.isArray(table?.rows) && table.rows.length > 1) return null;
+  const people = extractResolvedPeopleFromMessage(messageText);
+  const ids = [...new Set(people.map((person) => person.wtId))];
+  return ids.length === 1 ? people.find((person) => person.wtId === ids[0]) : null;
+}
+
+// "his wife" right after an answer about Lincoln → "Lincoln-103's wife". The
+// pronoun must fit the person's gender ("her" never means Lincoln); otherwise
+// the prompt is unchanged and the profile person applies.
+export function rewritePronounToSubject(prompt, subject, gender = "") {
+  const text = String(prompt || "");
+  const match = text.match(/\b(his|her|their)\s+(?=[A-Za-z])/i);
+  if (!match || !subject?.wtId) return { changed: false, prompt: text };
+  const pronoun = match[1].toLowerCase();
+  const personGender = String(gender || "").toLowerCase();
+  const fits = pronoun === "their" || (pronoun === "his" ? personGender === "male" : personGender === "female");
+  if (!fits) return { changed: false, prompt: text };
+  return {
+    changed: true,
+    prompt: `${text.slice(0, match.index)}${subject.wtId}'s ${text.slice(match.index + match[0].length)}`,
+  };
 }

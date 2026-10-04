@@ -4,6 +4,7 @@ import { escapeHtml } from "../../core/lib/diff_utils";
 import { setHighestZIndex } from "../../core/common";
 import { PersonName } from "../auto_bio/person_name";
 import { profileLinkHtml } from "./chat_profile_link";
+import { installHeaderDoubleClick, toggleChartFullScreen } from "./chat_chart_common";
 
 /**
  * Normalize simple text for comparisons.
@@ -86,14 +87,40 @@ function buildConnectionsBranchKeyHtml(usedBranches) {
   </div>`;
 }
 
+// A darker shade of a branch colour for the diagram's links (the branch
+// colours are pastels that vanish as thin lines on white).
+export function darkenHexColour(colour, factor = 0.55) {
+  const hex = String(colour || "").trim().replace(/^#/, "");
+  const full = hex.length === 3 ? hex.replace(/./g, (c) => c + c) : hex;
+  if (!/^[0-9a-f]{6}$/i.test(full)) return "#999";
+  const channel = (index) => Math.round(parseInt(full.slice(index, index + 2), 16) * factor);
+  return `#${[0, 2, 4].map((index) => channel(index).toString(16).padStart(2, "0")).join("")}`;
+}
+
+// Drawing animation pace: about 220ms a step, but the whole path within ~4s.
+export function connectionsDiagramStepMs(pathLength) {
+  return Math.round(Math.max(60, Math.min(220, 4000 / Math.max(1, pathLength))));
+}
+
+/** A card-sized place: "Kensington, London, England" → "Kensington, England". */
+export function shortConnectionPlace(location) {
+  const parts = String(location || "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length <= 2) return parts.join(", ");
+  return `${parts[0]}, ${parts[parts.length - 1]}`;
+}
+
 function buildConnectionsDiagramLayout(path, stepMeta, options = {}) {
   const layoutMode = options?.layoutMode === "compact" ? "compact" : "tree";
   const isCompact = layoutMode === "compact";
   const CARD_W = isCompact ? 220 : 180;
-  const CARD_H = isCompact ? 104 : 112;
+  const CARD_H = isCompact ? 118 : 126; // (room for the place line)
   const H_GAP = isCompact ? 20 : 36;
   const V_GAP = isCompact ? 22 : 40;
   const PAD = 20;
+  const GUTTER = 58; // (the generation labels down the left)
   const COL_STEP = CARD_W + H_GAP;
   const ROW_STEP = CARD_H + V_GAP;
 
@@ -113,7 +140,10 @@ function buildConnectionsDiagramLayout(path, stepMeta, options = {}) {
     }
   }
 
-  const uniqueGens = [...new Set(gens)].sort((a, b) => a - b);
+  // The common ancestors over a sibling pair at the top of the path (chat_connections.js
+  // attaches them as sharedParents): they get a row of their own above the pair.
+  const ghostSteps = path.map((person, k) => (k > 0 && person?.sharedParents?.length ? k : -1)).filter((k) => k > 0);
+  const uniqueGens = [...new Set([...gens, ...ghostSteps.map((k) => gens[k] - 1)])].sort((a, b) => a - b);
   const genToRow = new Map(uniqueGens.map((g, idx) => [g, idx]));
   const maxRow = uniqueGens.length - 1;
   const usedCells = new Set();
@@ -180,7 +210,7 @@ function buildConnectionsDiagramLayout(path, stepMeta, options = {}) {
   totalH = PAD * 2 + (maxRow + 1) * ROW_STEP - V_GAP;
 
   pos = path.map((_, i) => {
-    const left = PAD + cols[i] * COL_STEP;
+    const left = PAD + GUTTER + cols[i] * COL_STEP;
     const top = PAD + genToRow.get(gens[i]) * ROW_STEP;
     return {
       left,
@@ -192,6 +222,25 @@ function buildConnectionsDiagramLayout(path, stepMeta, options = {}) {
     };
   });
 
+  // Place each common-ancestors card centred over its sibling pair, if the space is free.
+  const ghosts = [];
+  ghostSteps.forEach((k) => {
+    const left = (pos[k - 1].left + pos[k].left) / 2;
+    const top = PAD + genToRow.get(gens[k] - 1) * ROW_STEP;
+    const box = { left, top, right: left + CARD_W, bottom: top + CARD_H };
+    const overlaps = [...pos, ...ghosts].some((other) => other.left < box.right && other.right > box.left && other.top < box.bottom && other.bottom > box.top);
+    if (!overlaps) ghosts.push({ ...box, k, parents: path[k].sharedParents });
+  });
+  let ghostLinks = "";
+  ghosts.forEach((ghost) => {
+    const x1 = (ghost.left + ghost.right) / 2;
+    [pos[ghost.k - 1], pos[ghost.k]].forEach((child) => {
+      const my = (ghost.bottom + child.top) / 2;
+      ghostLinks += `<path class="conn-diag-ghost-link" style="--i:${ghost.k}" d="M${x1},${ghost.bottom} C${x1},${my} ${child.cx},${my} ${child.cx},${child.top}" fill="none"/>`;
+    });
+  });
+
+  const markerColours = [];
   for (let i = 1; i < path.length; i++) {
     const a = pos[i - 1];
     const b = pos[i];
@@ -231,12 +280,55 @@ function buildConnectionsDiagramLayout(path, stepMeta, options = {}) {
       cpx2 = x2;
       cpy2 = my;
     }
-    svgPaths += `<path d="M${x1},${y1} C${cpx1},${cpy1} ${cpx2},${cpy2} ${x2},${y2}" stroke="#999" stroke-width="1.5" fill="none" marker-end="url(#conn-arr)"/>`;
+    const linkColour = darkenHexColour(stepMeta[i]?.branchColour);
+    if (!markerColours.includes(linkColour)) markerColours.push(linkColour);
+    const markerId = `conn-arr-${linkColour.slice(1)}`;
+    svgPaths += `<path class="conn-diag-link" data-link-index="${i}" pathLength="1" style="--i:${i}" d="M${x1},${y1} C${cpx1},${cpy1} ${cpx2},${cpy2} ${x2},${y2}" stroke="${linkColour}" stroke-width="2" fill="none" marker-end="url(#${markerId})"/>`;
   }
 
   if (pos.length) {
     totalW = Math.max(...pos.map((entry) => entry.right)) + PAD;
     totalH = Math.max(...pos.map((entry) => entry.bottom)) + PAD;
+  }
+
+  svgPaths = ghostLinks + svgPaths;
+
+  // Generation bands: a faint stripe per row, labelled with the decade most of its people
+  // were born in, so the eye can read the centuries down the diagram.
+  const rowBirthYears = new Map();
+  path.forEach((person, i) => {
+    const year = Number.parseInt(String(person.BirthDate || "").slice(0, 4), 10);
+    if (!year) return;
+    const row = genToRow.get(gens[i]);
+    rowBirthYears.set(row, [...(rowBirthYears.get(row) || []), year]);
+  });
+  ghosts.forEach((ghost) => {
+    const row = genToRow.get(gens[ghost.k] - 1);
+    ghost.parents.forEach((parent) => {
+      const year = Number.parseInt(String(parent.BirthDate || "").slice(0, 4), 10);
+      if (year) rowBirthYears.set(row, [...(rowBirthYears.get(row) || []), year]);
+    });
+  });
+  let bandsHtml = "";
+  for (let row = 0; row <= maxRow; row++) {
+    const years = (rowBirthYears.get(row) || []).sort((a, b) => a - b);
+    const median = years.length ? years[Math.floor((years.length - 1) / 2)] : 0;
+    const top = PAD + row * ROW_STEP - V_GAP / 2;
+    bandsHtml += `<div class="conn-diag-band${row % 2 ? " conn-diag-band--alt" : ""}" style="top:${top}px;height:${ROW_STEP}px;width:${totalW}px">${
+      median ? `<span class="conn-diag-band-label" title="Most of this generation were born around then">${Math.floor(median / 10) * 10}s</span>` : ""
+    }</div>`;
+  }
+
+  // The common ancestor(s): where the path stops climbing and starts down again (a couple
+  // joined by a spouse step at the top counts as both).
+  const commonAncestors = new Set();
+  for (let i = 1; i < path.length - 1; i++) {
+    if (gens[i] >= gens[i - 1]) continue; // (must arrive by going up)
+    let end = i;
+    while (end + 1 < path.length && gens[end + 1] === gens[i] && /spouse|husband|wife/.test(normalizeText(path[end + 1].pathType || ""))) end++;
+    if (end + 1 < path.length && gens[end + 1] > gens[i]) {
+      for (let k = i; k <= end; k++) commonAncestors.add(k);
+    }
   }
 
   let cardsHtml = "";
@@ -256,6 +348,7 @@ function buildConnectionsDiagramLayout(path, stepMeta, options = {}) {
     const birthLoc = person.BirthLocation ? `Born: ${person.BirthLocation}` : "";
     const deathLoc = person.DeathLocation ? `Died: ${person.DeathLocation}` : "";
     const tooltip = [name, birthLoc, deathLoc].filter(Boolean).join(" · ");
+    const place = shortConnectionPlace(person.BirthLocation || person.DeathLocation);
     const avatarCircleStyle = `background:${avatarBg};border:2px solid ${avatarBg};`;
     const avatarPhotoStyle = `border:2px solid ${avatarBg};`;
 
@@ -272,24 +365,55 @@ function buildConnectionsDiagramLayout(path, stepMeta, options = {}) {
          <div class="conn-diag-avatar" style="${avatarCircleStyle}display:none">${escapeHtml(initial)}</div>`
       : `<div class="conn-diag-avatar" style="${avatarCircleStyle}">${escapeHtml(initial)}</div>`;
 
-    cardsHtml += `<div class="conn-diag-card" title="${escapeHtml(tooltip)}"
+    const endClass =
+      (i === 0 ? " conn-diag-card--start" : i === path.length - 1 ? " conn-diag-card--end" : "") + (commonAncestors.has(i) ? " conn-diag-card--common" : "");
+    cardsHtml += `<div class="conn-diag-card${endClass}" title="${escapeHtml(tooltip)}"
       data-card-index="${i}" data-card-left="${p.left}" data-card-top="${p.top}"
-      style="left:${p.left}px;top:${p.top}px;width:${CARD_W}px;min-height:${CARD_H}px;border-color:${branchColour}">
+      style="left:${p.left}px;top:${p.top}px;width:${CARD_W}px;min-height:${CARD_H}px;border-color:${branchColour};--i:${i}">
+      ${commonAncestors.has(i) ? `<span class="conn-diag-badge">${commonAncestors.size > 1 ? "Common ancestors" : "Common ancestor"}</span>` : ""}
       ${avatarHtml}
       <div class="conn-diag-body">
         <div class="conn-diag-name">${renderConnectionPersonLink(person, name)}</div>
         <div class="conn-diag-years">${escapeHtml(by)} – ${escapeHtml(dy)}</div>
+        ${place ? `<div class="conn-diag-place">${escapeHtml(place)}</div>` : ""}
         ${rel ? `<div class="conn-diag-rel">${arrow}${escapeHtml(rel)}</div>` : ""}
       </div>
     </div>`;
   });
 
-  return { totalW, totalH, svgPaths, cardsHtml, layoutMode };
+  ghosts.forEach((ghost) => {
+    const lines = ghost.parents
+      .map((parent) => {
+        const name = formatConnectionPersonName(parent);
+        const by = String(parent.BirthDate || "").slice(0, 4);
+        const dy = String(parent.DeathDate || "").slice(0, 4);
+        const years = by && by !== "0000" ? `${by} – ${dy && dy !== "0000" ? dy : "?"}` : "";
+        return `<div class="conn-diag-ghost-person"><div class="conn-diag-name">${renderConnectionPersonLink(parent, name)}</div>${
+          years ? `<div class="conn-diag-years">${escapeHtml(years)}</div>` : ""
+        }</div>`;
+      })
+      .join("");
+    const pair = [path[ghost.k - 1], path[ghost.k]].map((person) => formatConnectionPersonName(person)).join(" and ");
+    cardsHtml += `<div class="conn-diag-ghost" title="${escapeHtml(`The parents of ${pair}: the common ancestors on this path`)}"
+      style="left:${ghost.left}px;top:${ghost.top}px;width:${CARD_W}px;min-height:${CARD_H}px;--i:${ghost.k}">
+      <span class="conn-diag-badge">${ghost.parents.length > 1 ? "Common ancestors" : "Common ancestor"}</span>
+      ${lines}
+    </div>`;
+  });
+
+  return { totalW, totalH, svgPaths, cardsHtml, bandsHtml, layoutMode, markerColours };
 }
 
 function buildConnectionsDiagramHtml(path, stepMeta, options = {}) {
   const standalone = Boolean(options?.standalone);
-  const { totalW, totalH, svgPaths, cardsHtml, layoutMode } = buildConnectionsDiagramLayout(path, stepMeta, options);
+  const { totalW, totalH, svgPaths, cardsHtml, bandsHtml, layoutMode, markerColours } = buildConnectionsDiagramLayout(path, stepMeta, options);
+  const arrowMarker = (id, fill) => `<marker id="${id}" markerWidth="${CONNECTION_DIAGRAM_ARROW_HEAD_LENGTH}" markerHeight="${
+    CONNECTION_DIAGRAM_ARROW_HEAD_HALF_HEIGHT * 2
+  }" refX="0" refY="${CONNECTION_DIAGRAM_ARROW_HEAD_HALF_HEIGHT}" orient="auto" markerUnits="userSpaceOnUse">
+              <polygon points="0 0, ${CONNECTION_DIAGRAM_ARROW_HEAD_LENGTH} ${CONNECTION_DIAGRAM_ARROW_HEAD_HALF_HEIGHT}, 0 ${
+    CONNECTION_DIAGRAM_ARROW_HEAD_HALF_HEIGHT * 2
+  }" fill="${fill}"/>
+            </marker>`;
   const scrollClasses = ["conn-diag-scroll"];
   if (standalone) {
     scrollClasses.push("conn-diag-scroll--standalone");
@@ -299,16 +423,12 @@ function buildConnectionsDiagramHtml(path, stepMeta, options = {}) {
     " "
   )}" data-base-width="${totalW}" data-base-height="${totalH}" data-layout-mode="${layoutMode}">
     <div class="conn-diag-scale-layer" style="width:${totalW}px;height:${totalH}px;">
-      <div class="conn-diag-canvas" style="width:${totalW}px;height:${totalH}px;">
+      <div class="conn-diag-canvas" style="width:${totalW}px;height:${totalH}px;--step:${connectionsDiagramStepMs(path.length)}ms">
+        ${bandsHtml || ""}
         <svg class="conn-diag-svg" width="${totalW}" height="${totalH}">
           <defs>
-            <marker id="conn-arr" markerWidth="${CONNECTION_DIAGRAM_ARROW_HEAD_LENGTH}" markerHeight="${
-    CONNECTION_DIAGRAM_ARROW_HEAD_HALF_HEIGHT * 2
-  }" refX="0" refY="${CONNECTION_DIAGRAM_ARROW_HEAD_HALF_HEIGHT}" orient="auto" markerUnits="userSpaceOnUse">
-              <polygon points="0 0, ${CONNECTION_DIAGRAM_ARROW_HEAD_LENGTH} ${CONNECTION_DIAGRAM_ARROW_HEAD_HALF_HEIGHT}, 0 ${
-    CONNECTION_DIAGRAM_ARROW_HEAD_HALF_HEIGHT * 2
-  }" fill="#999"/>
-            </marker>
+            ${arrowMarker("conn-arr", "#999")}
+            ${(markerColours || []).map((colour) => arrowMarker(`conn-arr-${colour.slice(1)}`, colour)).join("")}
           </defs>
           ${svgPaths}
         </svg>
@@ -452,6 +572,60 @@ function getConnectionsDiagramStandaloneStyles() {
       padding: 0;
       box-sizing: border-box;
     }
+    .conn-diag-ghost {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+      padding: 12px 10px 8px;
+      border-radius: 8px;
+      border: 2px dashed #e0a10f;
+      background: #fffaf0;
+      box-shadow: 0 0 0 3px rgba(242, 176, 30, 0.25);
+      font-size: 0.78em;
+      line-height: 1.3;
+      box-sizing: border-box;
+    }
+    .conn-diag-ghost-link {
+      stroke: #d39b12;
+      stroke-width: 2;
+      stroke-dasharray: 5 4;
+    }
+    .conn-diag-band {
+      position: absolute;
+      left: 0;
+      box-sizing: border-box;
+      border-top: 1px dashed rgba(100, 116, 139, 0.18);
+    }
+    .conn-diag-band--alt {
+      background: rgba(100, 116, 139, 0.05);
+    }
+    .conn-diag-band-label {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 13px;
+      font-weight: 700;
+      color: #7b8794;
+    }
+    .conn-diag-card--common {
+      box-shadow: 0 0 0 3px rgba(242, 176, 30, 0.45), 0 2px 6px rgba(0, 0, 0, 0.12);
+    }
+    .conn-diag-badge {
+      position: absolute;
+      top: -11px;
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 7px;
+      border-radius: 9px;
+      background: #f2b01e;
+      color: #3b2a00;
+    }
     .conn-diag-scroll--standalone .conn-diag-scale-layer {
       margin: 0 auto;
     }
@@ -533,6 +707,13 @@ function getConnectionsDiagramStandaloneStyles() {
       color: #777;
       font-style: italic;
       white-space: nowrap;
+    }
+    .conn-diag-place {
+      color: #6b7785;
+      font-size: 0.85em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .connections-colour-key {
       display: flex;
@@ -843,7 +1024,7 @@ export function showConnectionsPopup(connectionsResult) {
           ? `<td class="connections-step-cell"></td>`
           : `<td class="connections-step-cell" style="background:${branchColour}">${step}</td>`;
       return `
-        <tr class="${rowClass}">
+        <tr class="${rowClass} connections-row" data-row-index="${i}" title="Click to see this step in the diagram">
           ${stepCell}
           <td class="name-cell">${renderConnectionPersonLink(person, name)}</td>
           <td style="background:${getRelationColour(relation)}">${arrow}${escapeHtml(relation)}</td>
@@ -890,8 +1071,10 @@ export function showConnectionsPopup(connectionsResult) {
         <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-zoom-out" aria-label="Zoom out" title="Zoom out" hidden>-</button>
         <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-zoom-in" aria-label="Zoom in" title="Zoom in" hidden>+</button>
         <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-fit" title="Fit diagram to popup" hidden>Fit</button>
+        <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-replay" title="Draw the path again, step by step" hidden>Replay</button>
         <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-open" title="Open the full diagram in a new tab" hidden>Open</button>
         <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-pdf" title="Open print dialog for PDF export" hidden>PDF</button>
+        <button type="button" class="small" id="wbe-conn-full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
         <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
       </div>
     </div>
@@ -929,6 +1112,7 @@ export function showConnectionsPopup(connectionsResult) {
   const fitBtn = popup.querySelector("#wbe-conn-fit");
   const openBtn = popup.querySelector("#wbe-conn-open");
   const pdfBtn = popup.querySelector("#wbe-conn-pdf");
+  const replayBtn = popup.querySelector("#wbe-conn-replay");
   const diagramButtons = popup.querySelectorAll(".wbe-conn-diagram-action");
   const diagramState = {
     layoutMode: "tree",
@@ -948,11 +1132,136 @@ export function showConnectionsPopup(connectionsResult) {
     viewToggleBtn.title = isDiagramVisible ? "Switch to table view" : "Switch to diagram view";
   }
 
-  function renderDiagram({ fitToViewport = false, preserveScale = true, focusFirstPerson = false } = {}) {
+  // The camera follows the drawing animation until the user scrolls, drags or zooms.
+  let followTimers = [];
+  function stopFollowing() {
+    followTimers.forEach((timer) => clearTimeout(timer));
+    followTimers = [];
+  }
+  function followDrawing() {
+    stopFollowing();
+    const { scrollEl } = getConnectionsDiagramElements(diagramView);
+    if (!scrollEl) return;
+    const stepMs = connectionsDiagramStepMs(path.length);
+    path.forEach((_, index) => {
+      followTimers.push(
+        setTimeout(() => {
+          const card = diagramView.querySelector(`.conn-diag-card[data-card-index="${index}"]`);
+          if (!card || !popup.isConnected) return;
+          const scale = Number.parseFloat(scrollEl.dataset.scale || "1") || 1;
+          const left = (Number.parseFloat(card.dataset.cardLeft) || 0) * scale;
+          const top = (Number.parseFloat(card.dataset.cardTop) || 0) * scale;
+          const width = card.offsetWidth * scale;
+          const height = card.offsetHeight * scale;
+          const visible =
+            left >= scrollEl.scrollLeft &&
+            top >= scrollEl.scrollTop &&
+            left + width <= scrollEl.scrollLeft + scrollEl.clientWidth &&
+            top + height <= scrollEl.scrollTop + scrollEl.clientHeight;
+          if (visible) return;
+          scrollEl.scrollTo?.({
+            left: Math.max(0, left + width / 2 - scrollEl.clientWidth / 2),
+            top: Math.max(0, top + height / 2 - scrollEl.clientHeight / 2),
+            behavior: "smooth",
+          });
+        }, index * stepMs)
+      );
+    });
+  }
+
+  function bindDiagramInteractions() {
+    const { scrollEl } = getConnectionsDiagramElements(diagramView);
+    if (!scrollEl) return;
+    // Hover a card: lift it and thicken the links into and out of it.
+    diagramView.querySelectorAll(".conn-diag-card").forEach((card) => {
+      const index = Number(card.dataset.cardIndex);
+      const links = diagramView.querySelectorAll(
+        `.conn-diag-link[data-link-index="${index}"], .conn-diag-link[data-link-index="${index + 1}"]`
+      );
+      card.addEventListener("mouseenter", () => links.forEach((link) => link.classList.add("is-hot")));
+      card.addEventListener("mouseleave", () => links.forEach((link) => link.classList.remove("is-hot")));
+    });
+    // Grab anywhere (cards too) and drag to pan. Panning starts after a few pixels, so a
+    // plain click on a name still opens the profile; a click that ends a drag is swallowed.
+    const DRAG_THRESHOLD = 4;
+    let drag = null;
+    let suppressClick = false;
+    scrollEl.addEventListener("pointerdown", (event) => {
+      stopFollowing();
+      if (event.button !== 0) return;
+      if (event.target === scrollEl && (event.offsetX > scrollEl.clientWidth || event.offsetY > scrollEl.clientHeight)) return; // (the scrollbars)
+      drag = { x: event.clientX, y: event.clientY, left: scrollEl.scrollLeft, top: scrollEl.scrollTop, moved: false, pointerId: event.pointerId };
+    });
+    scrollEl.addEventListener("pointermove", (event) => {
+      if (!drag) return;
+      const dx = event.clientX - drag.x;
+      const dy = event.clientY - drag.y;
+      if (!drag.moved) {
+        if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+        drag.moved = true;
+        scrollEl.classList.add("is-panning");
+        scrollEl.setPointerCapture?.(drag.pointerId);
+      }
+      scrollEl.scrollLeft = drag.left - dx;
+      scrollEl.scrollTop = drag.top - dy;
+    });
+    const endDrag = () => {
+      if (drag?.moved) suppressClick = true;
+      drag = null;
+      scrollEl.classList.remove("is-panning");
+    };
+    scrollEl.addEventListener("pointerup", endDrag);
+    scrollEl.addEventListener("pointercancel", endDrag);
+    scrollEl.addEventListener(
+      "click",
+      (event) => {
+        if (!suppressClick) return;
+        suppressClick = false;
+        event.preventDefault();
+        event.stopPropagation();
+      },
+      true
+    );
+    // (no browser drag-and-drop of the links and photos)
+    scrollEl.addEventListener("dragstart", (event) => event.preventDefault());
+    // The mouse wheel (and trackpad pinch) zooms around the pointer.
+    scrollEl.addEventListener(
+      "wheel",
+      (event) => {
+        stopFollowing();
+        event.preventDefault();
+        const rect = scrollEl.getBoundingClientRect();
+        const pointerX = event.clientX - rect.left;
+        const pointerY = event.clientY - rect.top;
+        const oldScale = diagramState.scale;
+        const contentX = (scrollEl.scrollLeft + pointerX) / oldScale;
+        const contentY = (scrollEl.scrollTop + pointerY) / oldScale;
+        // (Firefox can report lines, not pixels; pinches arrive as ctrl+wheel with small deltas)
+        const deltaY = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaMode === 2 ? event.deltaY * 400 : event.deltaY;
+        const nextScale = oldScale * Math.exp(-Math.max(-120, Math.min(120, deltaY)) * (event.ctrlKey ? 0.01 : 0.0025));
+        diagramState.scale = applyConnectionsDiagramScale(diagramView, nextScale);
+        diagramState.scaleMode = "manual";
+        scrollEl.scrollLeft = contentX * diagramState.scale - pointerX;
+        scrollEl.scrollTop = contentY * diagramState.scale - pointerY;
+      },
+      { passive: false }
+    );
+  }
+
+  function renderDiagram({ fitToViewport = false, preserveScale = true, focusFirstPerson = false, animate = true } = {}) {
+    stopFollowing();
     diagramView.innerHTML = `${buildConnectionsDiagramHtml(path, stepMeta, {
       layoutMode: diagramState.layoutMode,
     })}${keyHtml}`;
     diagramState.rendered = true;
+    const scrollEl = diagramView.querySelector(".conn-diag-scroll");
+    if (animate && scrollEl) {
+      // Drop the class when the drawing ends: a filled animation would keep
+      // overriding the cards' hover transform.
+      scrollEl.classList.add("conn-diag-scroll--animate");
+      setTimeout(() => scrollEl.classList.remove("conn-diag-scroll--animate"), (path.length + 2) * connectionsDiagramStepMs(path.length) + 600);
+    }
+    bindDiagramInteractions();
     const nextScale = fitToViewport
       ? computeConnectionsDiagramFitScale(diagramView)
       : preserveScale
@@ -967,9 +1276,33 @@ export function showConnectionsPopup(connectionsResult) {
     if (focusFirstPerson) {
       focusConnectionsDiagramCard(diagramView, 0);
     }
+    if (animate && !fitToViewport) {
+      followDrawing();
+    }
   }
 
-  popup.querySelector(".close-popup")?.addEventListener("click", () => popup.remove());
+  popup.querySelector(".close-popup")?.addEventListener("click", () => {
+    stopFollowing();
+    popup._wbeLeaveFullScreen?.();
+    popup.remove();
+  });
+  // Full screen (the table too): the diagram re-fits to the new space unless it was zoomed by hand.
+  const refitAfterResize = () =>
+    setTimeout(() => {
+      if (!popup.isConnected || diagramView.style.display === "none" || diagramState.scaleMode === "manual") return;
+      diagramState.scale = applyConnectionsDiagramScale(diagramView, computeConnectionsDiagramFitScale(diagramView));
+      diagramState.scaleMode = "fit";
+    }, 200);
+  // Clicking the buttons (quickly, to zoom in steps) mustn't start a text selection (user: it selected all the text).
+  popup.querySelector(".chat-popup-controls")?.addEventListener("mousedown", (event) => {
+    if (event.target.closest("button")) event.preventDefault();
+  });
+  installHeaderDoubleClick();
+  popup.querySelector("#wbe-conn-full")?.addEventListener("click", () => {
+    toggleChartFullScreen(popup);
+    refitAfterResize();
+  });
+  document.addEventListener("fullscreenchange", () => popup.isConnected && refitAfterResize());
   viewToggleBtn?.addEventListener("click", () => {
     const isDiagramVisible = diagramView.style.display !== "none";
     tableView.style.display = isDiagramVisible ? "" : "none";
@@ -982,6 +1315,30 @@ export function showConnectionsPopup(connectionsResult) {
       });
     }
     syncDiagramToolbar(!isDiagramVisible);
+  });
+  // A table row opens the diagram on that person's card, with a pulse to find it.
+  tableView.querySelector("tbody")?.addEventListener("click", (event) => {
+    if (event.target.closest("a")) return;
+    const row = event.target.closest("tr[data-row-index]");
+    if (!row) return;
+    const index = Number(row.dataset.rowIndex);
+    tableView.style.display = "none";
+    diagramView.style.display = "";
+    if (!diagramState.rendered) renderDiagram({ preserveScale: false, animate: false });
+    syncDiagramToolbar(true);
+    stopFollowing();
+    const { scrollEl } = getConnectionsDiagramElements(diagramView);
+    const card = diagramView.querySelector(`.conn-diag-card[data-card-index="${index}"]`);
+    if (!scrollEl || !card) return;
+    const scale = diagramState.scale || 1;
+    const left = Number.parseFloat(card.dataset.cardLeft || "0") || 0;
+    const top = Number.parseFloat(card.dataset.cardTop || "0") || 0;
+    scrollEl.scrollLeft = Math.max(0, Math.round((left + card.offsetWidth / 2) * scale - scrollEl.clientWidth / 2));
+    scrollEl.scrollTop = Math.max(0, Math.round((top + card.offsetHeight / 2) * scale - scrollEl.clientHeight / 2));
+    card.classList.remove("is-pulse");
+    void card.offsetWidth;
+    card.classList.add("is-pulse");
+    setTimeout(() => card.classList.remove("is-pulse"), 1800);
   });
   layoutToggleBtn?.addEventListener("click", () => {
     if (diagramView.style.display === "none") {
@@ -1014,6 +1371,7 @@ export function showConnectionsPopup(connectionsResult) {
     if (diagramView.style.display === "none") {
       return;
     }
+    stopFollowing();
     diagramState.scale = applyConnectionsDiagramScale(diagramView, computeConnectionsDiagramFitScale(diagramView));
     diagramState.scaleMode = "fit";
   });
@@ -1026,6 +1384,14 @@ export function showConnectionsPopup(connectionsResult) {
       layoutMode: diagramState.layoutMode,
       printOnLoad: false,
     });
+  });
+  replayBtn?.addEventListener("click", () => {
+    if (diagramView.style.display === "none") {
+      return;
+    }
+    // Fitted, the whole path is visible, so renderDiagram doesn't follow the pen.
+    const keepFit = diagramState.scaleMode === "fit";
+    renderDiagram({ fitToViewport: keepFit, preserveScale: !keepFit, focusFirstPerson: !keepFit });
   });
   pdfBtn?.addEventListener("click", () => {
     openConnectionsDiagramDocument({

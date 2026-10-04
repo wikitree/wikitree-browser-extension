@@ -56,3 +56,13 @@ describe("1800s: century or decade?", () => {
     expect(findAmbiguousCenturyDecade(rewriteExplicitCenturyDecadeWording("Devon the 1800s decade"))).toBeNull();
   });
 });
+
+// Live, 2026-10-03: the century button sent "Kent born in the 1700-1799".
+test("the buttons drop 'in the' along with the decade word", () => {
+  const ambiguity = findAmbiguousCenturyDecade("Kent people born in the 1700s");
+  expect(ambiguity.choices.map((choice) => choice.prompt)).toEqual([
+    "Kent people born 1700-1799",
+    "Kent people born 1700-1709",
+  ]);
+  expect(findAmbiguousCenturyDecade("Devon 1800s miners").choices[0].prompt).toBe("Devon 1800-1899 miners");
+});

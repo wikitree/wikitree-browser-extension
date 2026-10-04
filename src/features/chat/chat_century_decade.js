@@ -1,4 +1,4 @@
-// Decades and centuries in Muse prompts.
+// Decades and centuries in Genie prompts.
 //
 // WT+ decade words mean "alive at some point in the decade" (probed 2026-10-02:
 // BirthLocation=Shropshire 1820s = 9,205, but only 2,858 were born then). Users
@@ -7,7 +7,7 @@
 // as a cheap index prefilter: sql alone over a large set fails ("Too many profiles").
 //
 // "1800s" is ambiguous in English: the whole 19th century, or the decade
-// 1800-1809. Muse asks, unless the wording already says which.
+// 1800-1809. Genie asks, unless the wording already says which.
 
 import { SQL_TEMPLATES } from "../wikitree_plus_helper/wikitree_plus_helper_sql";
 
@@ -110,7 +110,9 @@ export function findAmbiguousCenturyDecade(prompt) {
   if (!match) return null;
   const prefix = match[1];
   const centuryNumber = Number.parseInt(prefix, 10) + 1;
-  const replaceWith = (range) => text.replace(match[0], range);
+  // "born in the 1700s" → "born 1700-1799", not "born in the 1700-1799".
+  const replaceWith = (range) =>
+    text.replace(new RegExp(String.raw`(?:\b(?:in|during)\s+)?(?:\bthe\s+)?\b${match[0]}`, "i"), range);
   return {
     token: match[0],
     question: `By "${match[0]}" do you mean the whole ${ordinal(

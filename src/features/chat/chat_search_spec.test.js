@@ -1,4 +1,4 @@
-import { compileSearchSpec } from "./chat_search_spec";
+import { applySameCemetery, compileSearchSpec, pickCemeteryCategories } from "./chat_search_spec";
 
 const compile = (search, context) => compileSearchSpec(search, context);
 
@@ -8,6 +8,11 @@ describe("compileSearchSpec", () => {
       "B4: unsourced, Shropshire, born in the 1820s",
       { places: [{ text: "Shropshire" }], dates: [{ event: "birth", from: 1820, to: 1829 }], flags: ["Unsourced"] },
       "Location=Shropshire 1820s Unsourced",
+    ],
+    [
+      "D6: Shropshire with no birth place",
+      { places: [{ text: "Shropshire" }], missingPlaces: ["birth"] },
+      "Location=Shropshire sql=\"([Default].[Birth Location] = '')\"",
     ],
     [
       "B1: born before 1750 in Devon (undated profiles excluded)",
@@ -61,6 +66,26 @@ describe("compileSearchSpec", () => {
       "B21: Manchester, died aged 42, connected",
       { places: [{ text: "Manchester" }], deathAge: 42, flags: ["Connected"] },
       "Location=Manchester connected age42",
+    ],
+    [
+      "C23: oldest people who died in Devon (deathAge range)",
+      { places: [{ event: "death", text: "Devon" }], deathAge: { min: 100 } },
+      'DeathLocation=Devon sql="([Default].[Birth Date].AsNumber > 10000000) And ([Default].[Death Date].AsNumber - [Default].[Birth Date].AsNumber >= 1000000)"',
+    ],
+    [
+      "Kent, died under 5 (deathAge max)",
+      { places: [{ text: "Kent" }], deathAge: { max: 4 } },
+      'Location=Kent sql="([Default].[Birth Date].AsNumber > 10000000) And ([Default].[Death Date].AsNumber - [Default].[Birth Date].AsNumber < 50000) And ([Default].[Death Date].AsNumber > 0)"',
+    ],
+    [
+      "C26: uncertain fathers in Cheshire",
+      { places: [{ text: "Cheshire" }], parentStatus: [{ parent: "father", status: "uncertain" }] },
+      'Location=Cheshire sql="([Default].[Father Status].AsNumber = 10)"',
+    ],
+    [
+      "famous people born in Kent",
+      { places: [{ event: "birth", text: "Kent" }], flags: ["Notables"] },
+      "BirthLocation=Kent Notables",
     ],
     [
       "B22: Illinois, Find a Grave cemetery 105308",
@@ -125,5 +150,54 @@ describe("compileSearchSpec", () => {
     expect(compile({ flags: ["Living"] }).errors).toContain("unknown flag: Living");
     expect(compile({ dates: [{ event: "birth", from: 1900, to: 1800 }] }).errors[0]).toMatch(/bad date/);
     expect(compile({ places: [{ text: "Kent", event: "baptism" }] }).errors[0]).toMatch(/bad place/);
+  });
+});
+
+describe("sameCemeteryAs", () => {
+  test("picks cemetery categories only", () => {
+    expect(
+      pickCemeteryCategories(["Lloyds,_sailed_11_September_1841", "Motueka_Cemetery,_Motueka,_Tasman", "St_Mary's_Churchyard,_Acton"])
+    ).toEqual(["Motueka Cemetery, Motueka, Tasman", "St Mary's Churchyard, Acton"]);
+  });
+
+  test("one cemetery becomes an exact category", () => {
+    const search = applySameCemetery({ sameCemeteryAs: "current" }, ["Motueka Cemetery, Motueka, Tasman"]);
+    expect(compileSearchSpec(search).query).toBe('CategoryFull="Motueka Cemetery, Motueka, Tasman"');
+  });
+
+  test("several cemeteries are OR'd", () => {
+    const search = applySameCemetery({ sameCemeteryAs: "current" }, ["A Cemetery, X", "B Churchyard, Y"]);
+    expect(compileSearchSpec(search).query).toContain(" OR ");
+  });
+
+  test("unresolved sameCemeteryAs never runs", () => {
+    expect(compileSearchSpec({ sameCemeteryAs: "current" }).errors).toContain(
+      "sameCemeteryAs was not resolved to a cemetery category"
+    );
+  });
+});
+
+// Live C16, 2026-10-03: "Beacalls who emigrated to Australia" lost the emigration.
+describe("notPlaces", () => {
+  test("emigrated to: died there, not born there", () => {
+    const { query, errors } = compileSearchSpec({
+      names: { anyLastName: "Beacall" },
+      places: [{ text: "Australia", event: "death" }],
+      notPlaces: [{ text: "Australia", event: "birth" }],
+    });
+    expect(errors).toEqual([]);
+    expect(query).toMatch(/DeathLocation=Australia/);
+    expect(query).toMatch(/ NOT BirthLocation=Australia$/);
+  });
+
+  test("bad entry is an error", () => {
+    expect(compileSearchSpec({ places: [{ text: "Kent" }], notPlaces: [{ event: "birth" }] }).errors).toContain(
+      'bad notPlaces entry: {"event":"birth"}'
+    );
+  });
+  it("rejects a bad parentStatus entry", () => {
+    expect(
+      compileSearchSpec({ places: [{ text: "Kent" }], parentStatus: [{ parent: "father", status: "adopted" }] }).errors
+    ).toContain('bad parentStatus entry: {"parent":"father","status":"adopted"}');
   });
 });

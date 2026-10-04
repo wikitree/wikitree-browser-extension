@@ -18,6 +18,18 @@
  * @param {function(object, string): Promise<any>} deps.executeRoutedIntent
  * @param {function(): object|null} [deps.getLastStructuredResult]
  */
+// "what did her husband do for a living?" asks a fact the bios may hold; the
+// planner sometimes restated it as "husband's bios" and the chat just opened
+// them (live F4, 2026-10-03). A question that never asked for a bio keeps its
+// answer from the AI.
+export function plannerDriftsToBios(prompt, planned) {
+  const original = String(prompt || "");
+  if (/\b(?:bio(?:graphy|graphies|s)?|profiles?)\b/i.test(original)) return false;
+  if (!/^\s*(?:what|when|where|why|how|did|does|do|was|were|is|which)\b/i.test(original)) return false;
+  if (planned?.intent === "rewrite") return /\bbio(?:graphy|graphies|s)?\b/i.test(String(planned.params?.prompt || ""));
+  return planned?.intent === "spouseBio";
+}
+
 export function createChatAiPlannerHandlers({
   getChatAiConfig,
   getChatOptions,
@@ -66,6 +78,8 @@ export function createChatAiPlannerHandlers({
     const plannerPrompt = [
       "You are a planning layer for a WikiTree browser extension.",
       "Map the user's prompt to one local intent and parameters.",
+      // "born on this day" became a filter for "October 3" on October 4 (live, 2026-10-04).
+      `Today's date: ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}.`,
       'Return JSON only (no markdown): {"intent":"...","params":{...}}',
       structuredResultSummary,
       "Allowed intents:",
@@ -93,10 +107,16 @@ export function createChatAiPlannerHandlers({
       `- rewrite with params {"prompt":"..."} — PREFER THIS when the request is about family relations, cousins, ancestors, descendants, connections, CC7 or bios. Restate it in one of these exact canonical forms (keep names as written; "my"/"me" = the logged-in user; "his"/"her"/"their" or no person = the profile person, so drop the pronoun):`,
       `    "my 3rd cousins born in England" / "Benny's 2nd cousins once removed" / "3rd cousins died in Ohio"`,
       `    "my father's wife's siblings" / "Benny's father's wife's siblings" / "father's wife's siblings" / "Benny's stepmother's siblings" (keep stepmother/stepfather as one word: a stepmother is a father's wife who is NOT the mother, so never write "father's wife" for it; brothers and sisters -> siblings)`,
-      `    "Benny's father's wife's siblings' bios" (any request for bios of relatives)`,
+      `    "Benny's father's wife's siblings' bios" (any request for bios of relatives; a question about a relative, like "what did her husband do?", is fallbackAi, not a bios request)`,
       `    "10 generations of descendants" / "10 generations of Benny's descendants" / "7 generations of my ancestors"`,
+      `    "my ancestors who lived past 90" / "my ancestors who died under 5" / "my ancestors who died aged 42" / "Smith-123's ancestors who lived to 100" (centenarians -> "who lived to 100"; died in infancy -> "who died under 2")`,
+      `    "ancestors with a missing parent" / "my ancestors with a missing parent" / "Smith-123's ancestors with a missing parent" / "Benny's ancestors with no father" / "my ancestors with no parents" (brick walls, dead ends, end-of-line ancestors -> "with a missing parent"; "brick walls" alone = the profile person's, "my brick walls" = mine)`,
       `    "my connection to Murray Maloney" / "connection between Philip and Jefferson" (for related/connected/relationship questions, and for bare "me to Stephen Fry" -> "my connection to Stephen Fry", "Murray Maloney to Stephen Fry" -> "connection between Murray Maloney and Stephen Fry"; a relative can be the target: "how is Calvin's father related to me?" -> "my connection to Calvin's father")`,
       `    "my cc7" (who is in my CC7, my CC7 profiles, my connection count 7)`,
+      // "Where did his family move over the generations?" went to the AI, which had only
+      // the one profile; the migration map shows it (live, 2026-10-04).
+      `    "migration map" / "descendants map" / "where were his ancestors living in 1850" / "fan chart" / "descendant chart" / "family timeline" / "Family Explorer" / "name cloud" / "tree overview" (to see where the family came from, moved or settled over the generations -> migration map; where descendants went -> descendants map; ancestors at a glance -> fan chart; who lived when, overlapping lives -> family timeline; the family's first names or surnames -> name cloud; how the surnames changed down the generations -> "surname river"; how many children the ancestors had, family sizes, children who died young -> "family sizes in my tree"; how complete or deep the tree is -> tree overview; which branches are most or least complete -> "completeness heatmap"; which ancestors' profiles need work, research help or sources, how good the profiles are -> "which of my ancestors need help"). Which ancestors' parent links are confirmed with DNA, how well proven or DNA-backed the tree is -> "DNA confirmed chart"; ages at death through the centuries, life expectancy, longevity -> "lives and ages"; how old parents were when their children were born -> "parents' ages chart"; dates that can't be right (a mother of 9, a child born after its mother died) -> "who in my tree has impossible ages"; who could have passed down X-DNA -> "X-DNA chart"; the direct father's-father and mother's-mother lines, where Y-DNA or mtDNA came from -> "Y-DNA and mtDNA lines"; who could take a DNA test to prove a person's line, who carries his Y-DNA or her mtDNA -> "who could take a DNA test for Smith-123" (or "for him" / "for her" / "for me"). One person's life in history (what was happening in the world, events or wars they lived through) -> "what history did Philip live through" / "what history did he live through"; one person's whole life at a glance, on one line (marriages, children, losses, with history) -> "Philip's life line" / "his life line"; the ancestors' -> "what history did my ancestors live through". Add "my " in front only when the user says "my" or "our"; "Smith-123's migration map" for another person.`,
+      `    "on this day" / "who in his family was born in March" / "who in her family died in May" / "birthday calendar" (birthdays, anniversaries, births or deaths today or on this day or date, in the family or among ancestors; never a filter of the current result). These are the profile person's family; "this family" and "his/her family" are too, so write "on this day". Only when the user says "my" or "our": "on this day in my family" / "who in my family was born in March"`,
       `    Write numbers as digits and ordinals as 3rd/7th.`,
       `- ${ChatIntent.FALLBACK_AI} with params {}`,
       "If unsure, return fallbackAi.",
@@ -130,7 +150,7 @@ export function createChatAiPlannerHandlers({
     }
 
     const planned = parsePlannerJson(response.response);
-    if (!planned?.intent || planned.intent === ChatIntent.FALLBACK_AI) {
+    if (!planned?.intent || planned.intent === ChatIntent.FALLBACK_AI || plannerDriftsToBios(prompt, planned)) {
       return null;
     }
     if (planned.intent === "rewrite") {
@@ -278,7 +298,10 @@ export function createChatAiPlannerHandlers({
       "You are a helper for a genealogy extension.",
       "Given a user-provided target (name fragment) and the full user prompt, infer the most likely WikiTree lookup identity.",
       "Return lookup fields, not a display label: use the given name in FirstName and the searchable surname in LastName.",
-      "When you include optional lookup hints, use the exact API field names: FirstName, LastName, MiddleName, BirthDate, DeathDate, BirthLocation, DeathLocation, Gender, fatherFirstName, fatherLastName, motherFirstName, motherLastName, isLiving.",
+      "WikiTree files everyone under their surname AT BIRTH (Last Name at Birth), so LastName and FirstName must be the person's birth name, not a later, adopted, married or stage name: Bill Clinton was born William Blythe, Gerald Ford was born Leslie King, a married woman goes under her maiden name (Jacqueline Kennedy -> Jacqueline Bouvier), a performer under their real name (Tom Cruise -> Thomas Mapother). Only use the well-known name when it is the birth name.",
+      "Add Famous: true when the target is a well-known public figure (someone with a Wikipedia article: a president, monarch, celebrity, notable historical person), else Famous: false. Genie then looks the person up on Wikidata by the name they're known by.",
+      "When the person is known by a different first name or a later surname, add them as PreferredName and LastNameCurrent (Bill Clinton -> FirstName William, LastName Blythe, PreferredName Bill, LastNameCurrent Clinton).",
+      "When you include optional lookup hints, use the exact API field names: FirstName, LastName, MiddleName, PreferredName, LastNameCurrent, Famous, BirthDate, DeathDate, BirthLocation, DeathLocation, Gender, fatherFirstName, fatherLastName, motherFirstName, motherLastName, isLiving.",
       "Do not include middle names, suffixes, honorifics, titles, or nicknames in FirstName or LastName. You may include a MiddleName field separately when it is confidently known (e.g. Stephen Fry -> MiddleName John).",
       "If the target is ambiguous but a famous or strongly implied historical person is the obvious interpretation from normal human context, return the lookup fields for that person.",
       "If the target is only a given name (no surname), it was not found on the page or earlier in the chat. Use the rest of the prompt when it clearly implies who is meant (Philip with Jefferson -> Philip Mazzei); otherwise pick the most famous person known by that given name alone (Philip -> Prince Philip, Duke of Edinburgh).",
@@ -294,12 +317,13 @@ export function createChatAiPlannerHandlers({
       '{"FirstName":"<given name>","LastName":"<WikiTree-search surname>","BirthDate":"1801-12-05","DeathDate":"1882-04-19","BirthLocation":"Shrewsbury, Shropshire, England","DeathLocation":"Downe, Kent, England","Gender":"Male","isLiving":false} OR {"FirstName":"<given name>","LastName":"<WikiTree-search surname>","BirthDate":"1809","DeathDate":"1882","isLiving":false} OR {"FirstName":"<given name>","LastName":"<WikiTree-search surname>","BirthDate":"1962-07-03","DeathDate":"","BirthLocation":"Syracuse, Onondaga, New York","Gender":"Male","fatherFirstName":"Thomas","motherFirstName":"Mary","isLiving":true} OR {"wtId":"Name-123"} OR {"none":true}',
       "Only return valid JSON (no markdown).",
       "Examples:",
-      '- Target: "Disney" -> {"FirstName":"Walter","LastName":"Disney","BirthDate":"1901-12-05","DeathDate":"1966-12-15","isLiving":false}',
-      '- Target: "Darwin" with prompt about a famous naturalist -> {"FirstName":"Charles","LastName":"Darwin","BirthDate":"1809-02-12","DeathDate":"1882-04-19","isLiving":false}',
+      '- Target: "Disney" -> {"FirstName":"Walter","LastName":"Disney","Famous":true,"BirthDate":"1901-12-05","DeathDate":"1966-12-15","isLiving":false}',
+      '- Target: "Darwin" with prompt about a famous naturalist -> {"FirstName":"Charles","LastName":"Darwin","Famous":true,"BirthDate":"1809-02-12","DeathDate":"1882-04-19","isLiving":false}',
       '- Target: "Philip" with prompt "Philip\'s connection to Jefferson" -> {"FirstName":"Philip","LastName":"Mazzei","BirthDate":"1730-12-25","DeathDate":"1816-03-19","Gender":"Male","isLiving":false}',
-      '- Target: "Philip" with prompt "how am I connected to Philip" -> {"FirstName":"Philip","LastName":"Mountbatten","BirthDate":"1921-06-10","DeathDate":"2021-04-09","Gender":"Male","isLiving":false}',
-      '- Target: "JFK" -> {"FirstName":"John","LastName":"Kennedy","BirthDate":"1917-05-29","DeathDate":"1963-11-22","isLiving":false}',
-      '- Target: "Tom Cruise" -> {"FirstName":"Thomas","LastName":"Mapother","BirthDate":"1962-07-03","DeathDate":"","isLiving":true}',
+      '- Target: "Philip" with prompt "how am I connected to Philip" -> {"FirstName":"Philip","LastName":"Mountbatten","Famous":true,"BirthDate":"1921-06-10","DeathDate":"2021-04-09","Gender":"Male","isLiving":false}',
+      '- Target: "JFK" -> {"FirstName":"John","LastName":"Kennedy","Famous":true,"BirthDate":"1917-05-29","DeathDate":"1963-11-22","isLiving":false}',
+      '- Target: "Tom Cruise" -> {"FirstName":"Thomas","LastName":"Mapother","Famous":true,"BirthDate":"1962-07-03","DeathDate":"","isLiving":true}',
+      '- Target: "clinton" with prompt "connection to clinton" -> {"FirstName":"William","LastName":"Blythe","PreferredName":"Bill","LastNameCurrent":"Clinton","Famous":true,"BirthDate":"1946-08-19","DeathDate":"","BirthLocation":"Hope, Hempstead, Arkansas","Gender":"Male","isLiving":true}',
       `Target: ${target}`,
       `Prompt: ${prompt}`,
     ].join("\n\n");

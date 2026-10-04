@@ -48,7 +48,21 @@ describe("chat_planner connection target expansion", () => {
     );
     expect(prompt).toContain("Include isLiving as true when the person is living, false when the person is deceased");
     expect(prompt).toContain(
-      'Target: "Tom Cruise" -> {"FirstName":"Thomas","LastName":"Mapother","BirthDate":"1962-07-03","DeathDate":"","isLiving":true}'
+      'Target: "Tom Cruise" -> {"FirstName":"Thomas","LastName":"Mapother","Famous":true,"BirthDate":"1962-07-03","DeathDate":"","isLiving":true}'
     );
+  });
+});
+
+describe("plannerDriftsToBios (live F4, 2026-10-03)", () => {
+  const { plannerDriftsToBios } = require("./chat_planner");
+  test.each([
+    ["what did her husband do for a living?", { intent: "rewrite", params: { prompt: "husband's bios" } }, true],
+    ["what was her father's occupation", { intent: "spouseBio", params: { target: "Cook-8721" } }, true],
+    ["her husband's bio", { intent: "rewrite", params: { prompt: "husband's bios" } }, false],
+    ["show her husband", { intent: "rewrite", params: { prompt: "husband's bios" } }, false],
+    ["what did her husband do?", { intent: "rewrite", params: { prompt: "husband's siblings" } }, false],
+    ["what did her husband do?", { intent: "fallbackAi", params: {} }, false],
+  ])("%s", (prompt, planned, expected) => {
+    expect(plannerDriftsToBios(prompt, planned)).toBe(expected);
   });
 });

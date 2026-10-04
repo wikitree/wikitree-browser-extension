@@ -70,6 +70,8 @@ describe("Search mode hands family-relation prompts to the main flow", () => {
     "people born in Chicago who served in the military",
     "born 1850 to 1900 in Ohio",
     "Smith",
+    "Beacalls who emigrated to Australia",
+    "Smiths who moved to Ohio",
   ])("not family: %s", (prompt) => {
     expect(isLikelyFamilyRelationPrompt(prompt)).toBe(false);
   });

@@ -78,7 +78,7 @@ describe("chat_profile_search orphan manager phrasing", () => {
   test("parses no manager as the Orphan token locally and asks which place scope", async () => {
     const { tryHandleProfileSearchPrompt } = makeHandler();
 
-    // "Denbighshire no manager" is place-only (Orphan + bare Location=), so Muse
+    // "Denbighshire no manager" is place-only (Orphan + bare Location=), so Genie
     // asks born/married/died up front instead of running the vague query.
     const result = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Denbighshire no manager");
 
@@ -117,7 +117,8 @@ describe("chat_profile_search orphan manager phrasing", () => {
     expect(result.message).toMatch(/could mean a few different things/i);
 
     const byLabel = Object.fromEntries((result.actions || []).map((a) => [a.label, a.wtPlusQuery]));
-    expect(byLabel["Kent, England (county)"]).toBe('Orphan Location="Kent, England, United Kingdom"');
+    // The UK suffix is trimmed: most profiles say "Kent, England" (D12, 2026-10-03).
+    expect(byLabel["Kent, England (county)"]).toBe('Orphan Location="Kent, England"');
     expect(byLabel["Surname Kent"]).toBe("Orphan AllLastNames=Kent");
     expect(byLabel["Kent, Ohio, USA"]).toBe('Orphan Location="Kent, Ohio, United States"');
     // The catch-all keeps the original broad term available.

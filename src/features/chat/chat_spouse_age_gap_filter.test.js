@@ -1,5 +1,6 @@
 import {
   buildSpousalAgeGapMatches,
+  buildSpousalAgeGapSqlConditions,
   formatSpousalAgeGapThreshold,
   isLikelySpousalAgeGapPrompt,
   parseSpousalAgeGapPrompt,
@@ -83,5 +84,19 @@ describe("chat_spouse_age_gap_filter match building", () => {
         matchedThreshold: "over 20 years",
       },
     ]);
+  });
+});
+
+describe("buildSpousalAgeGapSqlConditions", () => {
+  test("both directions, one year looser than the exact filter", () => {
+    expect(buildSpousalAgeGapSqlConditions({ minGapYears: 20 })).toEqual([
+      "[Default].[Birth Date].AsNumber > 10000000",
+      "[Spouses].[Birth Date].AsNumber > 10000000",
+      "([Default].[Birth Date].AsNumber - [Spouses].[Birth Date].AsNumber > 190000) Or ([Spouses].[Birth Date].AsNumber - [Default].[Birth Date].AsNumber > 190000)",
+    ]);
+  });
+
+  test("no threshold, no conditions", () => {
+    expect(buildSpousalAgeGapSqlConditions({})).toEqual([]);
   });
 });

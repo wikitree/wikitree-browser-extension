@@ -1,4 +1,15 @@
-import { describeRelationChain, pickSpouseByOrdinal, splitOrdinalFromRelation } from "./chat_relation_chain_text";
+import { formatPreviewDate } from "./chat_preview_format";
+import { formatKinPlaceDetails } from "./chat_kin_details";
+import { sortByBirth } from "./chat_kin_order";
+import { applyKinFilter, kinFilterPhrase } from "./chat_kin_filter";
+import {
+  describeRelationChain,
+  NIECE_NEPHEW_RE,
+  nieceNephewToChain,
+  pickSpouseByOrdinal,
+  relationshipListLead,
+  splitOrdinalFromRelation,
+} from "./chat_relation_chain_text";
 import {
   DEFAULT_ALL_COUSIN_ANCESTOR_GENERATION,
   MAX_COUSIN_ANCESTOR_GENERATION,
@@ -34,7 +45,10 @@ export function createChatRelationHandlers({
   fetchSiblingIdsForId,
   fetchParentIds,
   isAppsLoginButtonPresent,
+  familyVisuals = () => [],
 }) {
+  // "Limit exceeded" makes getRelatives resolve to undefined; read that as no relatives.
+  const getRelativesOrEmpty = async (...args) => (await WikiTreeAPI.getRelatives(...args)) || [];
   function parseRelationType(rawRelation) {
     const value = normalizeText(rawRelation)
       .replace(/[^a-z\s]/g, " ")
@@ -176,6 +190,8 @@ export function createChatRelationHandlers({
       .replace(/[?.!]+$/g, "")
       .replace(/\s*\b(?:bios?|biograph(?:y|ies))\b\s*$/i, "")
       .replace(/'s?\s*$/, "")
+      .replace(/s'(?=\s)/g, "s's")
+      .replace(NIECE_NEPHEW_RE, nieceNephewToChain)
       .replace(/\s+/g, " ")
       .trim();
   }
@@ -403,20 +419,23 @@ export function createChatRelationHandlers({
     return composed || person?.Name || `ID ${person?.Id || "unknown"}`;
   }
 
-  function formatRelationPreviewLine(person) {
+  function formatRelationPreviewLine(person, placeDetails = []) {
     const details = [];
     if (Number.isFinite(Number(person?.removed))) {
       details.push(`${Number(person.removed)} removed`);
     }
     if (person?.BirthDate && person.BirthDate !== "0000-00-00") {
-      details.push(`b. ${person.BirthDate}`);
+      details.push(`b. ${formatPreviewDate(person.BirthDate)}`);
     }
     if (person?.DeathDate && person.DeathDate !== "0000-00-00") {
-      details.push(`d. ${person.DeathDate}`);
+      details.push(`d. ${formatPreviewDate(person.DeathDate)}`);
     }
 
     const detailSuffix = details.length ? ` - ${details.join(", ")}` : "";
-    return `- ${toDisplayName(person)} (${person?.Name || person?.Id || "unknown"})${detailSuffix}`;
+    return `- ${toDisplayName(person)} (${person?.Name || person?.Id || "unknown"})${detailSuffix}${formatKinPlaceDetails(
+      person,
+      placeDetails
+    )}`;
   }
 
   function compareRelationText(left, right) {
@@ -470,10 +489,10 @@ export function createChatRelationHandlers({
   function formatCousinPreviewLine(person) {
     const details = [];
     if (person?.BirthDate && person.BirthDate !== "0000-00-00") {
-      details.push(`b. ${person.BirthDate}`);
+      details.push(`b. ${formatPreviewDate(person.BirthDate)}`);
     }
     if (person?.DeathDate && person.DeathDate !== "0000-00-00") {
-      details.push(`d. ${person.DeathDate}`);
+      details.push(`d. ${formatPreviewDate(person.DeathDate)}`);
     }
 
     const cousinOrdinal = formatCousinOrdinal(getCousinDegree(person));
@@ -487,15 +506,15 @@ export function createChatRelationHandlers({
     return `- ${relationLabel}: ${toDisplayName(person)} (${person?.Name || person?.Id || "unknown"})${detailSuffix}`;
   }
 
-  function buildRelationPreviewAndInlineMore(people, previewLimit = 20) {
+  function buildRelationPreviewAndInlineMore(people, previewLimit = 20, placeDetails = []) {
     const previewPeople = people.slice(0, previewLimit);
     const remainingPeople = people.slice(previewLimit);
     return {
-      preview: previewPeople.map((person) => formatRelationPreviewLine(person)).join("\n"),
+      preview: previewPeople.map((person) => formatRelationPreviewLine(person, placeDetails)).join("\n"),
       inlineMore: remainingPeople.length
         ? {
             count: remainingPeople.length,
-            text: remainingPeople.map((person) => formatRelationPreviewLine(person)).join("\n"),
+            text: remainingPeople.map((person) => formatRelationPreviewLine(person, placeDetails)).join("\n"),
           }
         : null,
     };
@@ -1127,7 +1146,7 @@ export function createChatRelationHandlers({
     const uniqueIds = Array.from(new Set((personIds || []).map((id) => Number(id)).filter((id) => id > 0)));
 
     for (const id of uniqueIds) {
-      const [entry] = await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, id, `${RELATION_PERSON_FIELDS},Siblings`, {
+      const [entry] = await getRelativesOrEmpty(WBE_CHAT_APP_ID, id, `${RELATION_PERSON_FIELDS},Siblings`, {
         getSiblings: 1,
       });
 
@@ -1196,7 +1215,7 @@ export function createChatRelationHandlers({
 
   async function collectRelationPeople(personKey, relationSpec) {
     if (relationSpec.group === "siblings") {
-      const [entry] = await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, personKey, `${RELATION_PERSON_FIELDS},Siblings`, {
+      const [entry] = await getRelativesOrEmpty(WBE_CHAT_APP_ID, personKey, `${RELATION_PERSON_FIELDS},Siblings`, {
         getSiblings: 1,
       });
       const siblings = Object.values(entry?.person?.Siblings || {});
@@ -1214,7 +1233,7 @@ export function createChatRelationHandlers({
     }
 
     if (relationSpec.group === "children") {
-      const [entry] = await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, personKey, `${RELATION_PERSON_FIELDS},Children`, {
+      const [entry] = await getRelativesOrEmpty(WBE_CHAT_APP_ID, personKey, `${RELATION_PERSON_FIELDS},Children`, {
         getChildren: 1,
       });
       const children = Object.values(entry?.person?.Children || {});
@@ -1232,7 +1251,7 @@ export function createChatRelationHandlers({
     }
 
     if (relationSpec.group === "spouses") {
-      const [entry] = await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, personKey, `${RELATION_PERSON_FIELDS},Spouses`, {
+      const [entry] = await getRelativesOrEmpty(WBE_CHAT_APP_ID, personKey, `${RELATION_PERSON_FIELDS},Spouses`, {
         getSpouses: 1,
       });
       return Object.values(entry?.person?.Spouses || {});
@@ -1309,6 +1328,7 @@ export function createChatRelationHandlers({
       }
       subject = {
         key: resolved.Id || resolved.Name,
+        chartKey: resolved.Name || resolved.Id,
         label: `${resolved.RealName || resolved?.Derived?.ShortName || resolved.Name} (${
           resolved.Name || resolved.Id
         })`,
@@ -1515,10 +1535,18 @@ export function createChatRelationHandlers({
     }
 
     try {
-      const relatives = await collectRelativesForSteps(subject, relationSteps);
+      let relatives = await collectRelativesForSteps(subject, relationSteps);
+      let filterNote = "";
+      if (params?.filter) {
+        const total = relatives.length;
+        const { matched, unknown } = applyKinFilter(relatives, params.filter);
+        relatives = matched;
+        if (unknown) filterNote = ` (${unknown} of the ${total} have no ${/Location$/.test(params.filter.field) ? "place" : "date"} recorded.)`;
+      }
 
       const count = relatives.length;
-      const noun = count === 1 ? relationSpec.singular : relationSpec.plural;
+      const filterPhrase = params?.filter ? ` ${kinFilterPhrase(params.filter)}` : "";
+      const noun = (count === 1 ? relationSpec.singular : relationSpec.plural) + filterPhrase;
       // Name whose relatives these are: "siblings of George (Beacall-385)'s
       // second wife", not "siblings of George".
       const hops = relationSteps.slice(0, -1).map((step) => step.text || step.singular);
@@ -1537,16 +1565,22 @@ export function createChatRelationHandlers({
         if (mode === "list") {
           return labelIsUser
             ? `I couldn't find any ${noun} in currently accessible family data yet. Try asking about a specific person (for example: "Who are the granduncles of Name-123?").${appsLoginHint}`
-            : `I couldn't find any ${noun} for ${chainLabel} in currently accessible family data yet.${appsLoginHint}`;
+            : // A plain fact, not a failure: "I couldn't…" drew "try a more specific
+              // name" advice for a person who was found (live E1, 2026-10-03).
+              `No ${noun} are recorded for ${chainLabel} on WikiTree.${filterNote}${appsLoginHint}`;
         }
         return labelIsUser
-          ? `I found 0 ${noun} in currently accessible family data.${appsLoginHint}`
-          : `I found 0 ${noun} for ${chainLabel} in currently accessible family data.${appsLoginHint}`;
+          ? `I found 0 ${noun} in currently accessible family data.${filterNote}${appsLoginHint}`
+          : `I found 0 ${noun} for ${chainLabel} in currently accessible family data.${filterNote}${appsLoginHint}`;
       }
 
       if (mode === "list") {
         const wantsBio = /\bbio(?:s|graphy|graphies)?\b/i.test(prompt || relationRaw);
-        const { preview, inlineMore } = buildRelationPreviewAndInlineMore(relatives);
+        const { preview, inlineMore } = buildRelationPreviewAndInlineMore(
+          params?.order ? sortByBirth(relatives, params.order) : relatives,
+          20,
+          params?.details || []
+        );
         if (wantsBio) {
           const entries = relatives.map((person) => ({
             wtid: person?.Name || person?.Id || "",
@@ -1564,9 +1598,11 @@ export function createChatRelationHandlers({
 
         return {
           message: labelIsUser
-            ? `Here are your ${noun} (${count} found):\n${preview}`
-            : `Here are ${noun} for ${chainLabel} (${count} found):\n${preview}`,
+            ? `Here are your ${noun} (${count} found):${filterNote}\n${preview}`
+            : `${relationshipListLead(noun, count)} for ${chainLabel} (${count} found):${filterNote}\n${preview}`,
           inlineMore,
+          // Chart buttons for the person whose family this is (not for chained relations).
+          actions: hops.length ? [] : familyVisuals(subject.chartKey || subject.wtId || subject.key),
           table: makeStandardProfileTable(
             labelIsUser ? `Your ${noun}` : `${noun} for ${chainLabel}`,
             toRelationTableRows(relatives),
@@ -1582,8 +1618,8 @@ export function createChatRelationHandlers({
       const suffix = count > 6 ? ", ..." : "";
       return {
         message: labelIsUser
-          ? `You have ${count} ${noun} in currently accessible data. ${sample}${suffix}`
-          : `${chainLabel} has ${count} ${noun} in currently accessible data. ${sample}${suffix}`,
+          ? `You have ${count} ${noun} in currently accessible data. ${sample}${suffix}${filterNote}`
+          : `${chainLabel} ${/(?:'s|’s)\s+\w+s$/.test(chainLabel) ? "have" : "has"} ${count} ${noun} in currently accessible data. ${sample}${suffix}${filterNote}`,
         table: makeStandardProfileTable(
           labelIsUser ? `Your ${noun}` : `${noun} for ${chainLabel}`,
           toRelationTableRows(relatives),

@@ -21,7 +21,7 @@ function parseThreshold(boundsText, kind) {
   return Number.isFinite(value) ? value : null;
 }
 
-function parseScopeTerms(scopeText) {
+export function parseScopeTerms(scopeText) {
   const text = stripSurroundingQuotes(scopeText)
     .replace(/\s{2,}/g, " ")
     .trim();

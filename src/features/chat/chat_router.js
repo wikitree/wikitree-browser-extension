@@ -5,6 +5,42 @@ without growing chat.js into a single large file.
 */
 
 import { parseCousinRelationRequest } from "./chat_cousin_helpers";
+import { parseDuplicateCheckPrompt } from "./chat_duplicates";
+import { parseBurialPrompt } from "./chat_burial";
+import { parseProfileFactPrompt } from "./chat_profile_facts";
+import { parseDnaPrompt } from "./chat_dna";
+import { parseFanChartPrompt, parseSurnameChartPrompt } from "./chat_fan_chart_data";
+import { parseCompletenessPrompt } from "./chat_completeness_data";
+import { parseDnaCarrierPrompt, parseDnaChartPrompt } from "./chat_dna_data";
+import { parseFamilyCalendarPrompt } from "./chat_family_calendar_data";
+import { parseAgesPrompt } from "./chat_ages_data";
+import { parseTreeOverviewPrompt } from "./chat_tree_overview_data";
+import { parseFractalTreePrompt } from "./chat_fractal_tree_data";
+import { parseFamilyWorldPrompt } from "./chat_family_world_data";
+import { parseChartShortcutPrompt } from "./chat_chart_shortcuts";
+import { parseDescendantChartPrompt } from "./chat_descendant_chart_data";
+import { parseFamilyTimelinePrompt } from "./chat_family_timeline_data";
+import { parseLifeLinePrompt } from "./chat_life_line_data";
+import { parseMigrationMapPrompt } from "./chat_migration_data";
+import { parseLifespansPrompt } from "./chat_lifespans_data";
+import { parseFamilySizePrompt } from "./chat_family_size_data";
+import { parseHistoryPrompt } from "./chat_world_events_data";
+import { parseNameCloudPrompt } from "./chat_name_cloud_data";
+import { parseProfileSourcesPrompt } from "./chat_sources";
+import { parseMarriagePrompt } from "./chat_marriage";
+import { parseRelativeAgePrompt, parseRelativeFactPrompt } from "./chat_relative_fact";
+import { parseTwinsPrompt } from "./chat_twins";
+import { parseChildrenWithChildrenPrompt } from "./chat_children_with_children";
+import { parseOutlivedPrompt } from "./chat_outlived";
+import { parseRelativePickPrompt } from "./chat_relative_pick";
+import { NIECE_NEPHEW_RE, nieceNephewToChain, rewriteInLawTerms } from "./chat_relation_chain_text";
+import { parseChildPickPrompt } from "./chat_child_pick";
+import { splitKinDetailsClause } from "./chat_kin_details";
+import { splitKinOrderClause } from "./chat_kin_order";
+import { splitKinFilterClause } from "./chat_kin_filter";
+import { parseAncestorDepthOwner } from "./chat_ancestor_depth";
+import { parseResultPickPrompt } from "./chat_result_pick";
+import { isProfileNarrativePrompt } from "./chat_profile_narrative";
 
 export const ChatIntent = {
   CC7_LOCATION_FILTER: "cc7LocationFilter",
@@ -15,6 +51,29 @@ export const ChatIntent = {
   PROFILE_FAMILY_CONNECTION: "profileFamilyConnection",
   ANCESTOR_AVG_AGE_AT_DEATH: "ancestorAvgAgeAtDeath",
   PERSON_AGE_AT_DEATH: "personAgeAtDeath",
+  PERSON_AGE_AT_CHILD_BIRTH: "personAgeAtChildBirth",
+  PROFILE_DUPLICATES: "profileDuplicates",
+  PERSON_BURIAL: "personBurial",
+  PROFILE_FACT: "profileFact",
+  DNA: "dna",
+  FAN_CHART: "fanChart",
+  FRACTAL_TREE: "fractalTree",
+  FAMILY_WORLD: "familyWorld",
+  CHART_SHORTCUT: "chartShortcut",
+  DESCENDANT_CHART: "descendantChart",
+  FAMILY_TIMELINE: "familyTimeline",
+  MIGRATION_MAP: "migrationMap",
+  LIFESPANS: "lifespans",
+  NAME_CLOUD: "nameCloud",
+  FAMILY_CALENDAR: "familyCalendar",
+  AGES_CHART: "agesChart",
+  TREE_OVERVIEW: "treeOverview",
+  PROFILE_SOURCES: "profileSources",
+  PERSON_MARRIAGE: "personMarriage",
+  RELATIVE_FACT: "relativeFact",
+  CHILD_TWINS: "childTwins",
+  CHILDREN_WITH_CHILDREN: "childrenWithChildren",
+  CHILDREN_OUTLIVED: "childrenOutlived",
   ANCESTOR_LIST: "ancestorList",
   DESCENDANT_LIST: "descendantList",
   SPOUSE_LIST: "spouseList",
@@ -56,11 +115,22 @@ const RESULT_FIELD_ALIASES = {
   location: "birthLocation",
   "birth location": "birthLocation",
   "death location": "deathLocation",
+  decade: "birthDecade",
+  decades: "birthDecade",
+  "birth decade": "birthDecade",
+  "decade of birth": "birthDecade",
+  "death decade": "deathDecade",
+  "decade of death": "deathDecade",
+  century: "birthCentury",
+  "birth century": "birthCentury",
 };
 
 import { getProfilePersonInfo } from "../../core/common";
 
-const MAX_ANCESTOR_GENERATIONS = 10;
+// getPeople returns up to 25 generations of ancestors. A prompt with no number
+// uses the default, which stays at 10 because deep trees page slowly.
+const MAX_ANCESTOR_GENERATIONS = 25;
+const DEFAULT_ANCESTOR_GENERATIONS = 10;
 
 function withDateConstraint(base, dateField, dateDirection, dateValue) {
   if (!base || !dateField || !dateDirection || !dateValue) {
@@ -73,6 +143,21 @@ function withDateConstraint(base, dateField, dateDirection, dateValue) {
     dateDirection,
     dateValue: String(dateValue || "").trim(),
   };
+}
+
+// R6 (live, 2026-10-03): "how many of her children died before 1900?" went to
+// the AI, which counted her husband as a child. The kin-place rule's date twin.
+function matchKinDateClause(normalized, kinWords, parseBase) {
+  const match = normalized.match(
+    new RegExp(
+      String.raw`^(?:(?:how\s+many|which|who)\s+of\s+|(?:list|show(?:\s+me)?)\s+)?(.*?\b(?:${kinWords}))\s+(?:(?:who|that)\s+)?(?:were\s+|was\s+)?(born|died)\s+(before|after)\s+(\d{4})$`,
+      "i"
+    )
+  );
+  if (!match) return null;
+  const base = parseBase(match[1].trim());
+  if (!base || base.dateField) return null;
+  return withDateConstraint(base, /^died$/i.test(match[2]) ? "DeathDate" : "BirthDate", match[3].toLowerCase(), match[4]);
 }
 
 function parseCc7LocationPrompt(prompt) {
@@ -130,6 +215,9 @@ function parseCc7LocationPrompt(prompt) {
   return null;
 }
 
+const CC_FILTER_WORD_RE =
+  /\b(?:in|from|born|died|who|with|without|notables?|famous|people|profiles|men|women|living|unsourced)\b/i;
+
 function parseCcSummaryPrompt(prompt) {
   const normalized = String(prompt || "").trim();
 
@@ -144,7 +232,9 @@ function parseCcSummaryPrompt(prompt) {
   const possessiveMatch = normalized.match(
     /^\s*(?:show|list|what(?:'s|\s+is)|give\s+me)?\s*(.+?)'s\s+cc(\d+)\s*\??\s*$/i
   );
-  if (possessiveMatch?.[2]) {
+  // "notables in Cook-8721's CC7" is a filtered search, not a summary (live
+  // C29, 2026-10-03: it built the whole CC7 and froze the tab).
+  if (possessiveMatch?.[2] && !CC_FILTER_WORD_RE.test(possessiveMatch[1])) {
     return {
       mode: "summary",
       nuclear: Number(possessiveMatch[2]),
@@ -164,11 +254,46 @@ function parseCcSummaryPrompt(prompt) {
   return null;
 }
 
+export function parseWatchlistFilterPrompt(text) {
+  const match = String(text || "")
+    .trim()
+    .replace(/[.!?]+$/g, "")
+    .match(
+      /^(?:(?:show|list|find|get)\s+(?:me\s+)?)?(?:(?:the|all)\s+)?(?:(?:people|profiles|persons|ones)\s+(?:on|in|from)\s+my\s+watch\s*list|my\s+watch\s*list(?:ed)?(?:\s+(?:people|profiles|persons|entries))?|watch\s*listed\s+(?:people|profiles))\s+(?:(?:who|that)\s+(?:were\s+)?)?(.+)$/i
+    );
+  if (!match) return null;
+  const rest = match[1].trim();
+  const placeDate = rest.match(/^(born|died)\s+in\s+(.+?)(?:\s+(before|after)\s+(\d{4}))?$/i);
+  if (placeDate) {
+    return {
+      event: placeDate[1].toLowerCase() === "born" ? "birth" : "death",
+      location: placeDate[2].trim(),
+      ...(placeDate[3] ? { dateDirection: placeDate[3].toLowerCase(), year: Number(placeDate[4]) } : {}),
+    };
+  }
+  const dateOnly = rest.match(/^(born|died)\s+(before|after)\s+(\d{4})$/i);
+  if (dateOnly) {
+    return {
+      event: dateOnly[1].toLowerCase() === "born" ? "birth" : "death",
+      dateDirection: dateOnly[2].toLowerCase(),
+      year: Number(dateOnly[3]),
+    };
+  }
+  return null;
+}
+
 function parseWatchlistPrompt(prompt) {
   const normalized = String(prompt || "").trim();
   const normalizedClean = normalized.replace(/[.!?]+$/g, "").trim();
   if (!normalized) {
     return null;
+  }
+
+  // "my watchlist profiles that died in Kent" / "people on my watchlist born
+  // before 1800" (live C8, 2026-10-03: went to searchPerson, which can't).
+  const filtered = parseWatchlistFilterPrompt(normalizedClean);
+  if (filtered) {
+    return { mode: "list", limit: null, filter: filtered };
   }
 
   const isWatchlistPrompt =
@@ -187,6 +312,65 @@ function parseWatchlistPrompt(prompt) {
     mode: "list",
     limit,
   };
+}
+
+const RELATION_WORDS_RE =
+  /^(?:grand\s*aunts?|grand\s*uncles?|grand\s*mothers?|grand\s*fathers?|grand\s*parents?|aunts?|uncles?|mothers?|moms?|fathers?|dads?|parents?|daughters?|sons?|children|kids?|wives|wife|husbands?|spouses?|brothers?|sisters?|siblings?)$/i;
+
+// E1/E2 (live, 2026-10-03): "who were her grandparents?", "how many siblings
+// did she have?" fell to the AI. Tried only after the family routes, so forms
+// they already take ("list her children") keep their route. A his/her/she owner
+// is the profile person; spouse words keep SPOUSE_LIST.
+function pronounOwnerToProfile(owner) {
+  const name = getProfilePersonInfo()?.Name || "";
+  return /^(?:she|he|they|her|him|them|his|their)$/i.test(owner) && name ? name : owner;
+}
+
+function parseLateRelationPrompt(prompt) {
+  const normalized = String(prompt || "")
+    .trim()
+    .replace(/[.!?]+$/g, "");
+  const isPlainRelation = (text) =>
+    (RELATION_WORDS_RE.test(String(text).trim()) || Boolean(parseCousinRelationRequest(text))) &&
+    !/^(?:wives|wife|husbands?|spouses?)$/i.test(String(text).trim());
+  const profileName = getProfilePersonInfo()?.Name || "";
+  const pronounOwnerMatch = normalized.match(
+    /^(?:(?:who|what)\s+(?:are|were|was|is)\s+|list\s+|show(?:\s+me)?\s+|tell\s+me\s+)?(?:his|her|their)\s+(.+)$/i
+  );
+  if (pronounOwnerMatch?.[1] && isPlainRelation(pronounOwnerMatch[1]) && profileName) {
+    return { mode: "list", relationRaw: pronounOwnerMatch[1].trim(), subjectMode: "named", subjectName: profileName };
+  }
+  const pastPossessiveMatch = normalized.match(/^(?:who|what)\s+(?:were|was|is)\s+(.+?)['’]s\s+(.+)$/i);
+  if (pastPossessiveMatch?.[1] && pastPossessiveMatch?.[2] && isPlainRelation(pastPossessiveMatch[2])) {
+    return {
+      mode: "list",
+      relationRaw: pastPossessiveMatch[2].trim(),
+      subjectMode: "named",
+      subjectName: pastPossessiveMatch[1].trim(),
+    };
+  }
+  const pastCountMatch = normalized.match(/^how\s+many\s+(.+?)\s+did\s+(.+?)\s+have$/i);
+  if (pastCountMatch?.[1] && pastCountMatch?.[2]) {
+    const owner = pastCountMatch[2].trim();
+    if (/^i$/i.test(owner)) return { mode: "count", relationRaw: pastCountMatch[1].trim(), subjectMode: "user" };
+    // F9, "how many children did her parents have?": the profile's chain.
+    const ownerChain = owner.match(/^(?:his|her|their)\s+([A-Za-z ]+)$/i);
+    if (ownerChain && profileName && RELATION_WORDS_RE.test(ownerChain[1].trim())) {
+      return {
+        mode: "count",
+        relationRaw: `${ownerChain[1].trim()}'s ${pastCountMatch[1].trim()}`,
+        subjectMode: "named",
+        subjectName: profileName,
+      };
+    }
+    return {
+      mode: "count",
+      relationRaw: pastCountMatch[1].trim(),
+      subjectMode: "named",
+      subjectName: pronounOwnerToProfile(owner),
+    };
+  }
+  return null;
 }
 
 function parseRelationPrompt(prompt) {
@@ -211,8 +395,7 @@ function parseRelationPrompt(prompt) {
     };
   };
 
-  const RELATION_WORD_REGEX =
-    /^(?:grand\s*aunts?|grand\s*uncles?|grand\s*mothers?|grand\s*fathers?|grand\s*parents?|aunts?|uncles?|mothers?|moms?|fathers?|dads?|parents?|daughters?|sons?|children|kids?|wives|wife|husbands?|spouses?|brothers?|sisters?|siblings?)$/i;
+  const RELATION_WORD_REGEX = RELATION_WORDS_RE;
 
   const isSupportedBareRelationPhrase = (text) => {
     const cleaned = String(text || "")
@@ -242,6 +425,12 @@ function parseRelationPrompt(prompt) {
     return withCousinParams(baseParams, cousinParsed);
   };
 
+  // Ancestor generations belong to the ancestor list (getPeople, 2^g slots); the
+  // relation path collapsed "5th great-grandparents" to "grandparents".
+  if (/\bgreat[\s-]*grand[\s-]*parents?\b|\d+\s*x\s*great/i.test(normalized)) {
+    return null;
+  }
+
   const meMatch = normalized.match(/^how\s+many\s+(.+?)\s+do\s+i\s+have\??$/i);
   if (meMatch?.[1]) {
     return withRelationExtras({
@@ -257,7 +446,7 @@ function parseRelationPrompt(prompt) {
       mode: "count",
       relationRaw: namedMatch[1].trim(),
       subjectMode: "named",
-      subjectName: namedMatch[2].trim(),
+      subjectName: pronounOwnerToProfile(namedMatch[2].trim()),
     });
   }
 
@@ -284,15 +473,23 @@ function parseRelationPrompt(prompt) {
     }
   }
 
-  const barePossessiveCousinMatch = normalized.match(/^(.+?)'s\s+(.+?)\??$/i);
+  // "Who were Philip's first cousins?" looked for a person called "Who were
+  // Philip" (live, 2026-10-04): drop the question lead-in, as for siblings.
+  const cousinPrompt = normalized.replace(
+    /^(?:(?:who|what)\s+(?:are|were|was|is)\s+(?:the\s+)?|list\s+|show(?:\s+me)?\s+|tell\s+me\s+(?:about\s+)?)/i,
+    ""
+  );
+  const barePossessiveCousinMatch =
+    cousinPrompt.match(/^(.+?)['’]s\s+(.+?)\??$/i) || cousinPrompt.match(/^(his|her|their)\s+(.+?)\??$/i);
   if (barePossessiveCousinMatch?.[1] && barePossessiveCousinMatch?.[2]) {
     const parsed = parseCousinRelationRequest(barePossessiveCousinMatch[2]);
-    if (parsed) {
+    const cousinOwner = pronounOwnerToProfile(barePossessiveCousinMatch[1].trim());
+    if (parsed && cousinOwner && !/^(?:his|her|their)$/i.test(cousinOwner)) {
       return withCousinParams(
         {
           mode: "list",
           subjectMode: "named",
-          subjectName: barePossessiveCousinMatch[1].trim(),
+          subjectName: cousinOwner,
         },
         parsed
       );
@@ -303,7 +500,20 @@ function parseRelationPrompt(prompt) {
   // "Sarah's father's wife's siblings' bios". Requires at least two relation
   // segments so single-relation possessives ("Sarah's wife") keep their
   // dedicated routes (SPOUSE_LIST etc.).
-  const barePossessiveChainMatch = normalized.match(/^(.+?)['’]s\s+(.+?)\??$/i);
+  // F3 (live, 2026-10-03): "who was her father's father?" — a question prefix
+  // and a his/her/their owner; the owner is the profile person.
+  // H4 (live, 2026-10-03): "her siblings' children" — a plural possessive is
+  // read as "siblings's" so the chain splits.
+  const chainPrompt = normalized
+    .replace(/^(?:(?:who|what)\s+(?:are|were|was|is)\s+(?:the\s+)?|list\s+|show(?:\s+me)?\s+|tell\s+me\s+)/i, "")
+    .replace(/s['’](?=\s)/g, "s's")
+    .replace(NIECE_NEPHEW_RE, nieceNephewToChain);
+  const pronounChain = chainPrompt.match(/^(?:his|her|their)\s+([A-Za-z ]+?)['’]s\s+(.+?)\??$/i);
+  const pronounChainProfile = getProfilePersonInfo()?.Name || "";
+  const barePossessiveChainMatch =
+    pronounChain && pronounChainProfile && RELATION_WORD_REGEX.test(pronounChain[1].trim())
+      ? [chainPrompt, pronounChainProfile, `${pronounChain[1].trim()}'s ${pronounChain[2]}`]
+      : chainPrompt.match(/^(.+?)['’]s\s+(.+?)\??$/i);
   if (barePossessiveChainMatch?.[1] && barePossessiveChainMatch?.[2]) {
     const chainSubject = barePossessiveChainMatch[1].trim();
     const chainTail = barePossessiveChainMatch[2]
@@ -455,7 +665,7 @@ export function extractConnectionEndpoints(prompt) {
   }
 
   const betweenMeMatch = normalized.match(
-    /(?:what(?:'s|\s+is)\s+)?(?:the\s+)?(?:connection|distance)(?:\s+or\s+connection|\s+or\s+distance)?\s+between\s+me\s+and\s+(.+?)\??$/i
+    /(?:what(?:'s|\s+is)\s+)?(?:the\s+)?(?:connection|distance|relationship)(?:\s+or\s+connection|\s+or\s+distance)?\s+between\s+me\s+and\s+(.+?)\??$/i
   );
   if (betweenMeMatch?.[1]) {
     return { source: "", target: cleanConnectionEndpoint(betweenMeMatch[1]) };
@@ -474,7 +684,7 @@ export function extractConnectionEndpoints(prompt) {
   }
 
   const betweenAnyMatch = normalized.match(
-    /(?:what(?:'s|\s+is)\s+)?(?:the\s+)?(?:connection|distance)(?:\s+or\s+connection|\s+or\s+distance)?\s+between\s+(.+?)\s+and\s+(.+?)\??$/i
+    /(?:what(?:'s|\s+is)\s+)?(?:the\s+)?(?:connection|distance|relationship)(?:\s+or\s+connection|\s+or\s+distance)?\s+between\s+(.+?)\s+and\s+(.+?)\??$/i
   );
   if (betweenAnyMatch?.[1] && betweenAnyMatch?.[2]) {
     const source = cleanConnectionEndpoint(betweenAnyMatch[1]);
@@ -489,10 +699,21 @@ export function extractConnectionEndpoints(prompt) {
     /(?:what(?:'s|\s+is)\s+)?(?:my\s+)?(?:connection(?:\s+or\s+distance)?|distance(?:\s+or\s+connection)?)\s+to\s+(.+?)\??$/i
   );
   if (toMatch?.[1]) {
-    return { source: "", target: cleanConnectionEndpoint(toMatch[1]) };
+    const target = cleanConnectionEndpoint(toMatch[1]);
+    // "connection to me" on a profile: from me to the profile person (user, 2026-10-03).
+    return { source: "", target: isSelfReferenceEndpoint(target) ? "this profile" : target };
   }
 
   return null;
+}
+
+/** "this profile", "her", "him"…: the connection target is the page's profile person. */
+export function isPageProfileTarget(value) {
+  return /^(?:this\s+(?:profile|person)|the\s+profile(?:\s+person)?|her|him|them|this\s+(?:man|woman))$/i.test(
+    String(value || "")
+      .trim()
+      .replace(/[?.!]+$/, "")
+  );
 }
 
 export function extractConnectionTarget(prompt) {
@@ -542,6 +763,13 @@ export function extractCorrectionTarget(prompt) {
   const match = normalized.match(/(?:not|wrong\s+person\s*[:,]?)(?:\s+the\s+)?\s+(.+?)\??$/i);
   if (!match?.[1]) return "";
   return normalizeConnectionTargetForSearch(match[1]);
+}
+
+// "Thomas Beacall (Beacall-13)": the ID in brackets decides who is meant. Name
+// search on the rest found someone else, even Prince Philip (live, 2026-10-04).
+export function embeddedWikiTreeId(value) {
+  const id = String(value || "").match(/\(([^()]+)\)\s*$/)?.[1]?.trim() || "";
+  return isWikiTreeId(id) ? id : "";
 }
 
 // Surnames can hold hyphens and accents: Schleswig-Holstein-Sonderburg-Glücksburg-1.
@@ -620,10 +848,17 @@ export function findPageContextPersonCandidate(target) {
       title: document.title || "",
     };
     const score = scorePageContextCandidate(cleanedTarget, targetParts, profileCandidate);
-    if (score > 0) deduped.set(profileCandidate.wtId, { ...profileCandidate, score });
+    // A shared surname alone (140) isn't the profile person: "Captain James
+    // Cook" on Ellen Cook's page became Ellen (live F8, 2026-10-03). First and
+    // last name together score 220.
+    if (score >= 200) deduped.set(profileCandidate.wtId, { ...profileCandidate, score });
   }
 
+  // Genie's own answers are not page context: a connection path to Lincoln-103
+  // links his grandfather Abraham (Lincoln-229), and the repeat question
+  // found him instead (live, 2026-10-03).
   document.querySelectorAll('a[href*="/wiki/"]').forEach((anchor) => {
+    if (anchor.closest?.("#wbe-chat-popup, .wbe-popup")) return;
     const wtId = extractWikiTreeIdFromHref(anchor.getAttribute("href") || anchor.href || "");
     if (!wtId) return;
     const candidate = {
@@ -821,10 +1056,27 @@ function parseProfileFamilyConnectionPrompt(prompt) {
   };
 }
 
+// D13 "average lifespan of my ancestors": the planner turned it into one
+// generation (3x great-grandparents, live 2026-10-03). Lifespan words count, and
+// plain "ancestors" means every generation.
+const AVERAGE_AGE_RE =
+  /\b(?:average|mean)\s+(?:age\s+(?:at|of)\s+death|life\s*span|life\s+expectancy|length\s+of\s+life|age\s+when\s+they\s+died)\b|\bhow\s+long\s+did\s+.+?\s+live\s+on\s+average\b|\bon\s+average,?\s+how\s+long\s+did\s+.+?\s+live\b/i;
+
 function parseAncestorAverageAgePrompt(prompt) {
-  const normalized = String(prompt || "").trim();
-  if (!/average\s+age\s+at\s+death/i.test(normalized)) {
+  const normalized = String(prompt || "")
+    .trim()
+    .replace(/\s+live\s+on\s+average(\??)$/i, "$1")
+    .replace(/\s+live(\??)$/i, "$1");
+  if (!AVERAGE_AGE_RE.test(String(prompt || ""))) {
     return null;
+  }
+
+  if (/(?:of|for)?\s*(?:my|our|his|her|their|[A-Z][A-Za-z' -]*-\d+['’]s)?\s*(?:direct\s+)?ancestors?\??$/i.test(normalized)) {
+    return {
+      generation: MAX_ANCESTOR_GENERATIONS,
+      includeUpTo: true,
+      relationshipLabel: "ancestors",
+    };
   }
 
   const gxMatch = normalized.match(
@@ -870,6 +1122,34 @@ function parseAncestorAverageAgePrompt(prompt) {
   return null;
 }
 
+// "how old was she when her first child was born?" / "how old was Ellen when
+// she had her last baby?" (live C14, 2026-10-03: WT+ said it couldn't).
+export const PRONOUN_TARGET_RE = /^(?:he|she|they|him|her|them|this\s+person|the\s+profile\s+person|this\s+profile)$/i;
+
+function parsePersonAgeAtChildBirthPrompt(prompt) {
+  const normalized = String(prompt || "")
+    .trim()
+    .replace(/[.!?]+$/g, "");
+  const match =
+    normalized.match(
+      /^how\s+old\s+was\s+(.+?)\s+when\s+(?:(?:his|her|their|([^\s']+-\d+)'s)\s+)?(first|eldest|oldest|last|youngest)\s+(child|baby|son|daughter)\s+was\s+born$/i
+    ) ||
+    normalized.match(
+      /^how\s+old\s+was\s+(.+?)\s+when\s+(?:he|she|they)\s+had\s+(?:(?:his|her|their)\s+)?()(first|last)\s+(child|baby|son|daughter)$/i
+    ) ||
+    normalized.match(
+      /^(?:what\s+was\s+)?(.+?)(?:'s)?\s+age\s+(?:at|when)\s+(?:(?:his|her|their)\s+)?()(first|last)\s+(child|baby|son|daughter)(?:'s\s+birth|\s+was\s+born)?$/i
+    );
+  if (!match?.[1]) return null;
+  // A follow-up rewrite turns "her first child" into "Cook-8721's first child".
+  const target = PRONOUN_TARGET_RE.test(match[1].trim()) && match[2] ? match[2] : match[1].trim();
+  const which = /^(?:last|youngest)$/i.test(match[3]) ? "last" : "first";
+  const childWord = match[4].toLowerCase();
+  const childGender = childWord === "son" ? "Male" : childWord === "daughter" ? "Female" : "";
+  return { target, which, childGender };
+}
+
+// E3 (live, 2026-10-03): "how old was she when she died?" asked who "she" was.
 function parsePersonAgeAtDeathPrompt(prompt) {
   const normalized = String(prompt || "").trim();
   if (!normalized) {
@@ -878,21 +1158,56 @@ function parsePersonAgeAtDeathPrompt(prompt) {
 
   const howOldMatch = normalized.match(/^how\s+old\s+was\s+(.+?)\s+when\s+(?:he|she|they)\s+died\??$/i);
   if (howOldMatch?.[1]) {
-    return { target: howOldMatch[1].trim() };
+    return { target: pronounOwnerToProfile(howOldMatch[1].trim()) };
   }
 
   const ageWhenDiedMatch = normalized.match(/^how\s+old\s+was\s+(.+?)\s+when\s+died\??$/i);
   if (ageWhenDiedMatch?.[1]) {
-    return { target: ageWhenDiedMatch[1].trim() };
+    return { target: pronounOwnerToProfile(ageWhenDiedMatch[1].trim()) };
   }
 
   const whatAgeMatch = normalized.match(
     /^(?:what\s+age|what\s+was\s+the\s+age)\s+(?:did|was)\s+(.+?)\s+(?:die|at\s+death)\??$/i
   );
   if (whatAgeMatch?.[1]) {
-    return { target: whatAgeMatch[1].trim() };
+    return { target: pronounOwnerToProfile(whatAgeMatch[1].trim()) };
   }
 
+  return null;
+}
+
+// "brick walls" is a genealogy term: ancestors with a missing parent. Bare =
+// the profile person's, "my" = the user's, "Smith-123's" = that person's.
+function parseBrickWallPrompt(prompt) {
+  const match = String(prompt || "")
+    .trim()
+    .replace(/[.!?]+$/g, "")
+    .match(/^(?:(?:show|list|find|who\s+are|what\s+are)\s+)?(?:(?:the|all)\s+)?(.*?)\s*\b(?:brick[\s-]*walls?|dead[\s-]*ends?)$/i);
+  if (!match) return null;
+  const base = parseAncestorListPrompt(`${match[1].trim()} ancestors`.trim());
+  return base ? { ...base, missingParent: "either" } : null;
+}
+
+// Age-at-death suffix on a kin list. "past/over/older than 90" = 91+, "to 90" /
+// "90 or more" / "90+" = 90+, "under/younger than 5" / "before age 5" = 0-4,
+// "died aged 42" = 42.
+export function parseAgeAtDeathSuffix(text) {
+  const match = String(text || "")
+    .trim()
+    .replace(/[.!?]+$/g, "")
+    .match(
+      /^(.*?\b(?:ancestors?|descendants?|children|kids|sons|daughters|(?:great-)*grand(?:children|sons|daughters)))\s+(?:who\s+)?(?:(?:lived|died|were)\s+)?(aged\s+|at\s+(?=\d))?(?:(past|beyond|over|above|older\s+than|more\s+than)|(to|to\s+at\s+least|at\s+least)|(under|below|younger\s+than|less\s+than|before\s+(?:the\s+)?age(?:\s+of)?)|(young|as\s+(?:children|infants|babies)))?\s*(?:age\s+|the\s+age\s+of\s+)?(\d{1,3})?(\s*\+|\s+or\s+(?:more|older|over))?(?:\s+years?(?:\s+old)?)?$/i
+    );
+  if (!match) return null;
+  const [, subject, aged, over, atLeast, under, young, numText, plus] = match;
+  const rest = subject.replace(/^(?:which|who)\s+of\s+/i, "");
+  const n = Number(numText);
+  if (young && !numText) return { rest, range: { max: 15 } };
+  if (!numText || !Number.isFinite(n) || n > 125) return null;
+  if (under) return { rest, range: { max: n - 1 } };
+  if (plus || atLeast) return { rest, range: { min: n } };
+  if (over) return { rest, range: { min: n + 1 } };
+  if (aged) return { rest, range: { min: n, max: n } };
   return null;
 }
 
@@ -901,7 +1216,54 @@ function parseAncestorListPrompt(prompt) {
     .trim()
     .replace(/[.!?]+$/g, "")
     .trim();
-  const defaultAncestorGeneration = MAX_ANCESTOR_GENERATIONS;
+  const defaultAncestorGeneration = DEFAULT_ANCESTOR_GENERATIONS;
+
+  // O10 (live, 2026-10-03): "how many of my ancestors died in Wales?" got an AI
+  // hedge; "my ancestors born in Shropshire" already worked. Same rule as the
+  // descendants' H5 kinPlaceMatch.
+  const ancestorPlaceMatch = normalized.match(
+    /^(?:(?:how\s+many|which|who)\s+of\s+|(?:list|show(?:\s+me)?)\s+)?(.*?\b(?:ancestors|grandparents))\s+(?:(?:who|that)\s+)?(?:were\s+|was\s+)?(born|died)\s+in\s+(.+)$/i
+  );
+  if (ancestorPlaceMatch && !/\b(?:before|after|between)\s+\d{3,4}\b/i.test(ancestorPlaceMatch[3])) {
+    const base = parseAncestorListPrompt(ancestorPlaceMatch[1].trim());
+    if (base && !base.location) {
+      return {
+        ...base,
+        location: ancestorPlaceMatch[3].trim(),
+        locationField: /^died$/i.test(ancestorPlaceMatch[2]) ? "DeathLocation" : "BirthLocation",
+      };
+    }
+  }
+
+  const ancestorDate = matchKinDateClause(normalized, "ancestors|grandparents", parseAncestorListPrompt);
+  if (ancestorDate) return ancestorDate;
+
+  // "which of my ancestors have no parents" / "my ancestors with no father" /
+  // "my ancestors with a missing parent". The planner rewrites "brick walls" to the last.
+  const missingParentMatch = normalized.match(
+    /^(?:(?:which|who)\s+of\s+)?(.*?\bancestors?)\s+(?:who\s+)?(?:have|has|with|are\s+missing)\s+(no|a\s+missing|an?\s+unknown|missing)\s+(parents?|fathers?|mothers?)$/i
+  );
+  if (missingParentMatch?.[1]) {
+    const base = parseAncestorListPrompt(missingParentMatch[1].trim());
+    if (base) {
+      const parentWord = missingParentMatch[3].toLowerCase();
+      const missingParent = /^father/.test(parentWord)
+        ? "father"
+        : /^mother/.test(parentWord)
+        ? "mother"
+        : /^no$/i.test(missingParentMatch[2]) && parentWord === "parents"
+        ? "both"
+        : "either";
+      return { ...base, missingParent };
+    }
+  }
+
+  // "my ancestors who lived past 90" / "ancestors who died under 5" (C7).
+  const ageAtDeath = parseAgeAtDeathSuffix(normalized);
+  if (ageAtDeath) {
+    const base = parseAncestorListPrompt(ageAtDeath.rest);
+    if (base) return { ...base, ageAtDeath: ageAtDeath.range };
+  }
 
   const bornInBeforeMatch = normalized.match(
     /^(.*?\bancestors?)\s+born\s+in\s+(.+?)\s+before\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i
@@ -1048,7 +1410,7 @@ function parseAncestorListPrompt(prompt) {
   }
 
   const ancestorsGenerationsMatch = normalized.match(
-    /(?:show|list|display|give\s+me)?\s*(\d+)\s+generations?\s+(?:of\s+)?(?:my|the|our|his|her|their)?\s*ancestors?\b/i
+    /(?:show|list|display|give\s+me)?\s*(\d+)\s+generations?\s+(?:of\s+)?(?:my|the|our|his|her|their|[^\s']+(?:\s+[^\s']+)?'s)?\s*ancestors?\b/i
   );
   if (ancestorsGenerationsMatch?.[1]) {
     const generation = Math.min(Number(ancestorsGenerationsMatch[1]), MAX_ANCESTOR_GENERATIONS);
@@ -1092,7 +1454,11 @@ function parseAncestorListPrompt(prompt) {
     };
   }
 
-  if (!/(?:\blist\b|\bwho\s+are\b|\bshow\b)/i.test(normalized)) {
+  // N1 (live, 2026-10-03): "who were her great-grandparents?" went to WT+ and was declined.
+  if (
+    !/(?:\blist\b|\bwho\s+are\b|\bshow\b)/i.test(normalized) &&
+    !/^\s*(?:who\s+were\s+)?(?:my|his|her|their)\s+(?:\d+(?:st|nd|rd|th)?\s+|\d+\s*x\s*)?(?:great\s*-?\s*)+grand\s*-?\s*parents\??\s*$/i.test(normalized)
+  ) {
     return null;
   }
   if (!/(?:grand\s*-?\s*parents?|g\s*grand\s*-?\s*parents?|great\s*-?\s*grand\s*-?\s*parents?)/i.test(normalized)) {
@@ -1123,10 +1489,13 @@ function parseAncestorListPrompt(prompt) {
     }
   }
 
-  if (/\bgreat\s*-?\s*grand\s*-?\s*parents?\b/i.test(normalized)) {
+  const greatRun = normalized.match(/\b((?:great\s*-?\s*)+)grand\s*-?\s*parents?\b/i);
+  if (greatRun) {
+    // "great great grandparents" is one generation further back per "great".
+    const greats = (greatRun[1].match(/great/gi) || []).length;
     return {
-      generation: 3,
-      relationshipLabel: "great-grandparents",
+      generation: greats + 2,
+      relationshipLabel: greats === 1 ? "great-grandparents" : `${greats}x great-grandparents`,
     };
   }
 
@@ -1146,6 +1515,36 @@ function parseDescendantListPrompt(prompt) {
     .replace(/[.!?]+$/g, "")
     .trim();
   const defaultDescendantGeneration = 10;
+
+  // H5 (live, 2026-10-03): "how many of her grandchildren were born in New
+  // Zealand?" listed every grandchild; the place was dropped.
+  const kinPlaceMatch = normalized.match(
+    /^(?:(?:how\s+many|which|who)\s+of\s+|(?:list|show(?:\s+me)?)\s+)?(.*?\b(?:children|grandchildren|great[\s-]*(?:great[\s-]*)*grandchildren|descendants))\s+(?:(?:who|that)\s+)?(?:were\s+|was\s+)?(born|died)\s+in\s+(.+)$/i
+  );
+  if (kinPlaceMatch && !/\b(?:before|after|between)\s+\d{3,4}\b/i.test(kinPlaceMatch[3])) {
+    const base = parseDescendantListPrompt(kinPlaceMatch[1].trim());
+    if (base && !base.location) {
+      return {
+        ...base,
+        location: kinPlaceMatch[3].trim(),
+        locationField: /^died$/i.test(kinPlaceMatch[2]) ? "DeathLocation" : "BirthLocation",
+      };
+    }
+  }
+
+  const kinDate = matchKinDateClause(
+    normalized,
+    String.raw`children|grandchildren|great[\s-]*(?:great[\s-]*)*grandchildren|descendants`,
+    parseDescendantListPrompt
+  );
+  if (kinDate) return kinDate;
+
+  // D5, "which of her children died young?"
+  const ageAtDeath = parseAgeAtDeathSuffix(normalized);
+  if (ageAtDeath) {
+    const base = parseDescendantListPrompt(ageAtDeath.rest);
+    if (base) return { ...base, ageAtDeath: ageAtDeath.range };
+  }
 
   const bornInBeforeMatch = normalized.match(
     /^(.*?\bdescendants?)\s+born\s+in\s+(.+?)\s+before\s+(\d{4}(?:-\d{2}(?:-\d{2})?)?)\??$/i
@@ -1511,6 +1910,25 @@ function parseLastResultPrompt(prompt, options = {}) {
     return null;
   }
 
+  // L3 (live, 2026-10-03): "how many of them died before 1900?" after "only the
+  // women" went back to WT+ and lost the local filter. "how many / which / who of
+  // them …" is the same filter as "only those who …"; only a structured filter
+  // counts (a free-text one would be a guess).
+  if (allowConversationalFollowups) {
+    const resultPick = parseResultPickPrompt(promptForMatch);
+    if (resultPick) return resultPick;
+    const ofThem = promptForMatch.match(
+      /^(?:how\s+many|which(?:\s+ones)?|who)\s+(?:of\s+(?:them|those|these)|among\s+them)\s+(?:(?:were|are|was)\s+)?(.+?)\??$/i
+    );
+    if (ofThem?.[1]) {
+      for (const lead of ["only those", "only the"]) {
+        const inner = parseLastResultPrompt(`${lead} ${ofThem[1]}`, options);
+        const filters = inner?.filters || (inner?.filter ? [inner.filter] : []);
+        if (inner?.action === "filter" && filters.length && filters.every((filter) => filter.kind !== "text")) return inner;
+      }
+    }
+  }
+
   // Try compound filter parse first (e.g. "19th century female", "male 1800-1900").
   // This runs before any individual-pattern checks so combinations are handled in one step.
   const compoundFilter = parseCompoundLastResultFilter(promptForMatch);
@@ -1584,14 +2002,16 @@ function parseLastResultPrompt(prompt, options = {}) {
   }
 
   const genderMatch = promptForMatch.match(
-    /^(?:show|list|keep|filter(?:\s+(?:to|for))?)\s+(?:only\s+)?(females|female|women|males|male|men)\??$/i
+    /^(?:(show|list|keep|filter(?:\s+(?:to|for))?)\s+)?(?:(only|just)\s+)?(?:the\s+)?(females|female|women|males|male|men|girls|boys|daughters|sons|ladies)(\s+only)?\??$/i
   );
-  if (genderMatch?.[1]) {
+  // "only the women", "just the men", "women only"; a bare "women" is not a filter.
+  // M2 (live, 2026-10-03): "only the girls" on her grandchildren was a text filter.
+  if (genderMatch?.[3] && (genderMatch[1] || genderMatch[2] || genderMatch[4])) {
     return {
       action: "filter",
       filter: {
         kind: "gender",
-        value: /female|women/i.test(genderMatch[1]) ? "Female" : "Male",
+        value: /female|women|girls|daughters|ladies/i.test(genderMatch[3]) ? "Female" : "Male",
       },
     };
   }
@@ -1873,10 +2293,34 @@ function parseLastResultPrompt(prompt, options = {}) {
   return null;
 }
 
+const SPOUSE_ORDINALS = { first: 1, "1st": 1, second: 2, "2nd": 2, third: 3, "3rd": 3, fourth: 4, "4th": 4, last: "last" };
+
 function parseSpousePrompt(prompt) {
-  const normalized = String(prompt || "").trim();
+  // Live D1, 2026-10-03: "who was Ellen's husband?" searched for "who was Ellen".
+  const normalized = String(prompt || "")
+    .trim()
+    .replace(/^(?:who|what)\s+(?:was|were|is|are)\s+(?:the\s+names?\s+of\s+)?/i, "")
+    .replace(/^(?:tell\s+me|show\s+me|list)\s+/i, "");
   if (!normalized) {
     return null;
+  }
+
+  // "Ellen's first husband", "her second wife", "his last spouse": one spouse, by marriage order.
+  const ordinalMatch = normalized.match(
+    /^\s*(.+?)(?:'s|’s)?\s+(first|1st|second|2nd|third|3rd|fourth|4th|last)\s+(wife|husband|spouse)\??$/i
+  );
+  if (ordinalMatch?.[1]) {
+    const rawTarget = ordinalMatch[1].trim();
+    const isPronoun = /^(?:her|his|their|this\s+person|the\s+profile\s+person)$/i.test(rawTarget);
+    const target = isPronoun ? getProfilePersonInfo()?.Name || "" : rawTarget.replace(/(?:'s|’s)$/, "");
+    if (!target || (!isPronoun && !/(?:'s|’s)\s/.test(ordinalMatch[0]) && !/-\d+$/.test(target))) return null;
+    const word = ordinalMatch[3].toLowerCase();
+    return {
+      gender: word === "wife" ? "Female" : word === "husband" ? "Male" : null,
+      target,
+      relationshipLabel: word === "wife" ? "wives" : word === "husband" ? "husbands" : "spouses",
+      ordinal: SPOUSE_ORDINALS[ordinalMatch[2].toLowerCase()],
+    };
   }
 
   // Pattern: "wives/husbands/spouses of X" or "all wives of X" or "X's wives/husbands/spouses"
@@ -1907,6 +2351,17 @@ function parseSpousePrompt(prompt) {
     };
   }
 
+  // "her husband", "his wives" (E12 neighbour, 2026-10-03: fell to the AI).
+  const pronounSpouseMatch = normalized.match(/^\s*(?:her|his|their)\s+(wives|wife|husbands|husband|spouses|spouse)\??$/i);
+  if (pronounSpouseMatch?.[1] && getProfilePersonInfo()?.Name) {
+    const word = pronounSpouseMatch[1].toLowerCase();
+    return {
+      gender: /^wi/.test(word) ? "Female" : /^husband/.test(word) ? "Male" : null,
+      target: getProfilePersonInfo().Name,
+      relationshipLabel: /^wi/.test(word) ? "wives" : /^husband/.test(word) ? "husbands" : "spouses",
+    };
+  }
+
   // Possessive forms: "X's wife", "X's husband", "X's spouse"
   const possessiveMatch = normalized.match(/^\s*(.+?)'s\s+(?:wives|wife|husbands|husband|spouses|spouse)\??$/i);
   if (possessiveMatch?.[1]) {
@@ -1928,6 +2383,10 @@ function parseSpousePrompt(prompt) {
 const NOT_A_SUBJECT_RE =
   /^(?:his|her|their|its|my|me|this|that)\b|\b(?:descendants?|ancestors?|generations?|cousins?|cc\d+|profiles?|for\s+me|of\s+mine)\b/i;
 const NOT_A_RELATION_RE = /\b(?:who|were|was|from|generations?|cc\d+|profiles?|people)\b/i;
+// "who are my brick walls?" parsed as a relation "brick walls" (live C3,
+// 2026-10-03); with no family word it is not a relation, so the planner gets it.
+const KIN_WORD_RE =
+  /(?:parent|father|mother|dad|mum|mom|son|daughter|child|kid|sibling|brother|sister|spouse|husband|wife|wives|partner|aunt|uncle|niece|nephew|cousin|grand|great|step|half|in-law|relative|family|kin|ancestor|descendant)/i;
 
 // A list intent ("Calvin's children") inside a connection question ("how am
 // I connected to Calvin's children?") is a misread (live, 2026-10-03).
@@ -1939,6 +2398,211 @@ const LIST_INTENTS = new Set([
   ChatIntent.SPOUSE_LIST,
 ]);
 
+// "am I related to anyone famous?" → WT+ Notables in the CC7 (Cook-8721: 12,
+// live 2026-10-03). "famous ancestors" → Notables among the ancestors. Returns
+// the canonical query chat_profile_search parses, or null.
+const FAMOUS_RE = String.raw`(?:famous|notable|well[- ]known|celebrated)`;
+export function parseNotableRelativesPrompt(text) {
+  const t = String(text || "")
+    .trim()
+    .replace(/[.!?]+$/g, "")
+    .replace(/^(?:please\s+)?(?:(?:show|list|find|tell)\s+(?:me\s+)?)?/i, "");
+  const root = (subject) =>
+    !subject || /^(?:i|me|my|we|us|our)$/i.test(subject) ? "my" : /^[A-Z][A-Za-z' -]*-\d+$/.test(subject) ? `${subject}'s` : "";
+  const scope = (word) => (/ancestor/i.test(word || "") ? "ancestors" : "CC7");
+  let m = t.match(
+    new RegExp(String.raw`^(?:am\s+(i)|are\s+(we)|is\s+(\S+))\s+(?:related|connected)\s+to\s+(?:any(?:one|body)|someone|somebody|any\s+(?:people|person))\s+${FAMOUS_RE}$`, "i")
+  );
+  if (m) {
+    const r = root(m[1] || m[2] || m[3]);
+    return r ? `notables in ${r} CC7` : null;
+  }
+  m = t.match(
+    new RegExp(String.raw`^(?:do\s+(i|we)|does\s+(\S+))\s+have\s+(?:any\s+)?${FAMOUS_RE}\s+(relatives|cousins|kin|family|ancestors)$`, "i")
+  );
+  if (m) {
+    const r = root(m[1] || m[2]);
+    return r ? `notables in ${r} ${scope(m[3])}` : null;
+  }
+  m = t.match(
+    new RegExp(String.raw`^(?:(my|our)|(\S+?)['’]s)\s+${FAMOUS_RE}\s+(relatives|cousins|kin|family|ancestors)$`, "i")
+  );
+  if (m) {
+    const r = root(m[1] || m[2]);
+    return r ? `notables in ${r} ${scope(m[3])}` : null;
+  }
+  m = t.match(
+    new RegExp(String.raw`^(?:notables|${FAMOUS_RE}\s+(?:people|profiles|persons|relatives))\s+(?:in|among)\s+(?:(my)|(\S+?)['’]s)\s+(cc7|family|tree|ancestors)$`, "i")
+  );
+  if (m) {
+    const r = root(m[1] || m[2]);
+    return r ? `notables in ${r} ${scope(m[3])}` : null;
+  }
+  return null;
+}
+
+// "my DNA-confirmed relationships" → relatives whose father or mother link is
+// marked "Confirmed with DNA" (Cook-8721's CC7: 13; live 2026-10-03).
+export function parseDnaConfirmedPrompt(text) {
+  const m = String(text || "")
+    .trim()
+    .replace(/[.!?]+$/g, "")
+    .replace(/^(?:please\s+)?(?:(?:show|list|find|which\s+are|what\s+are)\s+(?:me\s+)?)?/i, "")
+    .match(
+      /^(?:(my|our)|([A-Z][A-Za-z' -]*-\d+)['’]s)\s+(?:dna[- ](?:confirmed|verified|proven))\s+(relationships?|relatives|links|connections|parents|ancestors|lines)$/i
+    );
+  if (!m) return null;
+  const root = m[1] ? "my" : `${m[2]}'s`;
+  return `dna-confirmed in ${root} ${/ancestor|parent|line/i.test(m[3]) ? "ancestors" : "CC7"}`;
+}
+
+// "export these" (C33) re-ran the last search (live, 2026-10-03). Returns the
+// export format for a request to export the current result, or null.
+export function parseExportResultPrompt(text) {
+  const m = String(text || "")
+    .trim()
+    .replace(/[.!?]+$/g, "")
+    .match(
+      /^(?:please\s+)?(?:can\s+you\s+)?(?:export|download|save)(?:\s+(?:these|this|them|it|all(?:\s+of\s+them)?|the\s+(?:results?|table|list|rows)|results?))?(?:\s+(?:as|to|in)\s+(?:an?\s+)?(csv|xlsx|excel|spreadsheet|json|wikitable|wiki\s+table)(?:\s+file)?)?$/i
+    );
+  if (!m) return null;
+  const format = String(m[1] || "csv").toLowerCase();
+  if (/excel|spreadsheet|xlsx/.test(format)) return "xlsx";
+  if (/wiki/.test(format)) return "wikitable";
+  return format;
+}
+
+// "how many of my 5th great-grandparents are known?" (C4): the relation-count
+// path read it as "grandparents" of the page person (live, 2026-10-03). Returns
+// an ANCESTOR_LIST params object for one generation, counted against 2^g.
+const GRANDPARENT_GENERATION_RE = String.raw`(?:(?:\d+(?:st|nd|rd|th)?|\d+\s*x)\s+)?(?:great[\s-]*)*grand[\s-]*parents?`;
+export function parseAncestorGenerationCountPrompt(text) {
+  const t = String(text || "")
+    .trim()
+    .replace(/[.!?]+$/g, "");
+  const m =
+    t.match(
+      new RegExp(
+        String.raw`^how\s+many\s+(?:of\s+)?(my|our|[A-Z][A-Za-z' -]*-\d+['’]s)\s+(${GRANDPARENT_GENERATION_RE})(?:\s+(?:are|have\s+been)\s+(?:known|recorded|identified|found|on\s+wikitree)|\s+do\s+(?:i|we)\s+(?:have|know))?$`,
+        "i"
+      )
+    ) ||
+    t.match(new RegExp(String.raw`^how\s+many\s+()(${GRANDPARENT_GENERATION_RE})\s+do\s+(?:i|we)\s+(?:have|know)$`, "i"));
+  if (!m) return null;
+  const owner = !m[1] || /^(?:my|our)$/i.test(m[1]) ? "my" : m[1];
+  const parsed = parseAncestorListPrompt(`show ${owner} ${m[2]}`);
+  if (!parsed?.generation || parsed.includeUpTo) return null;
+  return { ...parsed, countMode: true, subjectText: `${owner} ancestors` };
+}
+
+// C5 "where were my ancestors born?" (counts by country) and C6 "which of my
+// ancestors emigrated?" (born and died in different countries). Both fell to
+// the AI (live, 2026-10-03).
+const ANCESTOR_OWNER_RE = String.raw`(my|our|his|her|their|[A-Z][A-Za-z' -]*-\d+['’]s)`;
+export function parseAncestorPlacePrompt(text) {
+  const t = String(text || "")
+    .trim()
+    .replace(/[.!?]+$/g, "");
+  const build = (owner, extra) => {
+    const who = /^our$/i.test(owner) ? "my" : owner;
+    const base = parseAncestorListPrompt(`${who} ancestors`);
+    // Every known ancestor, not the 10-generation list default.
+    return base
+      ? { ...base, generation: MAX_ANCESTOR_GENERATIONS, ...extra, subjectText: `${who} ancestors` }
+      : null;
+  };
+  let m = t.match(
+    new RegExp(
+      String.raw`^(?:where\s+(?:were|was)\s+${ANCESTOR_OWNER_RE}\s+ancestors\s+(born|from)|where\s+did\s+${ANCESTOR_OWNER_RE}\s+ancestors\s+(come\s+from|die|live)|(?:which|what)\s+countries\s+(?:were|did)\s+${ANCESTOR_OWNER_RE}\s+ancestors\s+(born\s+in|come\s+from|die\s+in))$`,
+      "i"
+    )
+  );
+  if (m) {
+    const owner = m[1] || m[3] || m[5];
+    const verb = m[2] || m[4] || m[6];
+    return build(owner, { placeSummary: /die/i.test(verb) ? "death" : "birth" });
+  }
+  m = t.match(
+    new RegExp(
+      String.raw`^(?:(?:which|who)\s+of\s+${ANCESTOR_OWNER_RE}\s+ancestors\s+(?:emigrated|immigrated|migrated|moved\s+(?:abroad|overseas|to\s+another\s+country))|${ANCESTOR_OWNER_RE}\s+(?:emigrant|immigrant)\s+ancestors|${ANCESTOR_OWNER_RE}\s+ancestors\s+who\s+(?:emigrated|immigrated))$`,
+      "i"
+    )
+  );
+  if (m) return build(m[1] || m[2] || m[3], { emigrated: true });
+  return null;
+}
+
+// C9 "my most recent ancestor born in Germany" (fell to the AI, 2026-10-03):
+// the place-filtered ancestor list, then one row picked by the handler.
+// S10: "how far back does her tree go?" — the full ancestor list, then its depth.
+export function parseAncestorDepthPrompt(text) {
+  const owner = parseAncestorDepthOwner(text);
+  const base = owner ? parseAncestorListPrompt(`${owner} ancestors`) : null;
+  return base ? { ...base, generation: MAX_ANCESTOR_GENERATIONS, includeUpTo: true, pick: "depth", subjectText: `${owner} ancestors` } : null;
+}
+
+export function parseAncestorPickPrompt(text) {
+  const m = String(text || "")
+    .trim()
+    .replace(/[.!?]+$/g, "")
+    .match(
+      new RegExp(
+        String.raw`^(?:(?:who\s+(?:is|was)|show(?:\s+me)?|find)\s+)?${ANCESTOR_OWNER_RE}\s+(most\s+recent|latest|nearest|closest|youngest|earliest|oldest|most\s+distant|furthest)\s+(?:known\s+)?ancestor(?:\s+(?:who\s+was\s+|that\s+was\s+)?(born\s+in|from|who\s+died\s+in|died\s+in)\s+(.+))?$`,
+        "i"
+      )
+    );
+  if (!m) return null;
+  const owner = /^our$/i.test(m[1]) ? "my" : m[1];
+  const base = parseAncestorListPrompt(`${owner} ancestors`);
+  if (!base) return null;
+  // O6 (live, 2026-10-03): "who is my earliest known ancestor?" (no place) became
+  // a name search; the AI then hedged.
+  if (!m[4]) {
+    return { ...base, generation: MAX_ANCESTOR_GENERATIONS, pick: /recent|latest|nearest|closest|youngest/i.test(m[2]) ? "recent" : "earliest", subjectText: `${owner} ancestors` };
+  }
+  return {
+    ...base,
+    generation: MAX_ANCESTOR_GENERATIONS,
+    location: m[4].trim(),
+    locationField: /died/i.test(m[3]) ? "DeathLocation" : "BirthLocation",
+    pick: /recent|latest|nearest|closest|youngest/i.test(m[2]) ? "recent" : "earliest",
+    subjectText: `${owner} ancestors`,
+  };
+}
+
+// D7 "who in my tree lived the longest?" (a failed name search, 2026-10-03):
+// the ancestor list, then the longest life picked by the handler. "My tree" is
+// taken as direct ancestors, and the answer says so.
+export function parseLongestLivedPrompt(text) {
+  const t = String(text || "")
+    .trim()
+    .replace(/[.!?]+$/g, "");
+  const LIVED = String.raw`(?:lived\s+(?:the\s+)?longest|lived\s+to\s+the\s+greatest\s+age|died\s+(?:the\s+)?oldest|reached\s+the\s+greatest\s+age|had\s+the\s+longest\s+life)`;
+  const SCOPE = String.raw`(?:(?:family\s+)?tree|family|ancestors|ancestry)`;
+  const patterns = [
+    // "who in my tree lived the longest", "which of my ancestors lived longest"
+    new RegExp(String.raw`^(?:who|which(?:\s+(?:person|one|ancestor))?)\s+(?:in|of|among)\s+${ANCESTOR_OWNER_RE}\s+(${SCOPE})\s+${LIVED}$`, "i"),
+    // "my longest-lived ancestor", "who is the longest lived person in my tree"
+    new RegExp(String.raw`^(?:(?:who\s+(?:is|was)|show(?:\s+me)?|find)\s+)?${ANCESTOR_OWNER_RE}\s+()longest[\s-]+lived\s+(?:known\s+)?ancestor$`, "i"),
+    new RegExp(String.raw`^(?:who\s+(?:is|was)\s+)?the\s+(?:longest[\s-]+lived|oldest)\s+(?:person|ancestor|one)\s+(?:in|of|among)\s+${ANCESTOR_OWNER_RE}\s+(${SCOPE})$`, "i"),
+  ];
+  for (const re of patterns) {
+    const m = t.match(re);
+    if (!m) continue;
+    const owner = /^our$/i.test(m[1]) ? "my" : m[1];
+    const base = parseAncestorListPrompt(`${owner} ancestors`);
+    if (!base) return null;
+    return {
+      ...base,
+      generation: MAX_ANCESTOR_GENERATIONS,
+      pick: "longest",
+      treeTakenAsAncestors: /tree|family/i.test(m[2] || ""),
+      subjectText: `${owner} ancestors`,
+    };
+  }
+  return null;
+}
+
 export function declineMisreadRoute(routed, prompt = "") {
   const intent = routed?.intent;
   const params = routed?.params || {};
@@ -1946,18 +2610,185 @@ export function declineMisreadRoute(routed, prompt = "") {
     (LIST_INTENTS.has(intent) && CONNECTION_QUESTION_RE.test(String(prompt || ""))) ||
     (intent === ChatIntent.RELATION_COUNT &&
       ((params.subjectMode === "named" && NOT_A_SUBJECT_RE.test(String(params.subjectName || ""))) ||
-        NOT_A_RELATION_RE.test(String(params.relationRaw || "")))) ||
-    (intent === ChatIntent.PROFILE_SEARCH && /\bcc\d+\b/i.test(String(params.query || ""))) ||
+        NOT_A_RELATION_RE.test(String(params.relationRaw || "")) ||
+        (params.relationRaw && !KIN_WORD_RE.test(String(params.relationRaw))))) ||
+    (intent === ChatIntent.PROFILE_SEARCH &&
+      /\bcc\d+\b/i.test(String(params.query || "")) &&
+      !/^(?:notables|dna-confirmed) in /i.test(String(params.query || ""))) ||
     (intent === ChatIntent.SPOUSE_LIST && /\b(?:siblings?|bios?|brothers?|sisters?|children)\b/i.test(String(params.target || "")));
   return misread ? { intent: ChatIntent.FALLBACK_AI, params: {} } : routed;
 }
 
+const KIN_DETAIL_INTENTS = new Set([
+  ChatIntent.ANCESTOR_LIST,
+  ChatIntent.DESCENDANT_LIST,
+  ChatIntent.SPOUSE_LIST,
+  ChatIntent.RELATION_COUNT,
+]);
+
+// H9 (live, 2026-10-03): "show her family tree" was read as a table filter.
+// A family tree / pedigree is the ancestor list (its table opens the tree app).
+export function parseFamilyTreePrompt(prompt) {
+  const match = String(prompt || "")
+    .trim()
+    .replace(/[.!?]+$/g, "")
+    .match(
+      /^(?:(?:show|display|view|open|give)(?:\s+me)?\s+)?(her|his|their|my|our|[A-Z][A-Za-z' -]*?-\d+['’]s|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3}['’]s)\s+(?:family\s+tree|pedigree(?:\s+chart)?|ancestry|tree)$/i
+    );
+  if (!match) return null;
+  const owner = /^our$/i.test(match[1]) ? "my" : match[1];
+  const base = parseAncestorListPrompt(`${owner} ancestors`);
+  return base ? { ...base, subjectText: base.subjectText || `${owner} ancestors` } : null;
+}
+
+// I3 (live, 2026-10-03): "what's the most common first name among her
+// descendants?" — the AI declined. The kin list runs, then its rows are grouped.
+const KIN_GROUP_FIELDS = [
+  { field: "firstName", re: /^(?:first|given|christian)\s+names?$/i },
+  { field: "lnab", re: /^(?:sur|last|family)\s*names?$/i },
+  { field: "birthLocation", re: /^(?:birth\s*places?|places?\s+of\s+birth)$/i },
+  { field: "country", re: /^(?:countries|countries\s+of\s+birth|birth\s+countries)$/i },
+];
+export function parseKinGroupPrompt(prompt) {
+  const match = String(prompt || "")
+    .trim()
+    .replace(/[.!?]+$/g, "")
+    .match(
+      /^(?:(?:what|which)(?:['’]s|\s+is|\s+are|\s+was|\s+were)\s+)?(?:the\s+)?most\s+(?:common|popular|frequent)\s+(.+?)\s+(?:among|in|of|for|amongst)\s+(.+)$/i
+    );
+  if (!match) return null;
+  const groupBy = KIN_GROUP_FIELDS.find((entry) => entry.re.test(match[1].trim()))?.field;
+  if (!groupBy) return null;
+  const kinText = match[2].trim();
+  if (/\bancestors?\b/i.test(kinText)) {
+    const base = parseAncestorListPrompt(kinText);
+    return base ? { intent: ChatIntent.ANCESTOR_LIST, params: { ...base, subjectText: base.subjectText || kinText, groupBy } } : null;
+  }
+  if (/\b(?:descendants?|children|grandchildren|great[\s-]*grandchildren)\b/i.test(kinText)) {
+    const base = parseDescendantListPrompt(kinText);
+    return base ? { intent: ChatIntent.DESCENDANT_LIST, params: { ...base, subjectText: base.subjectText || kinText, groupBy } } : null;
+  }
+  return null;
+}
+
 export function routeChatPrompt(prompt, options = {}) {
-  return declineMisreadRoute(routeChatPromptUnchecked(prompt, options), prompt);
+  // J4 (live, 2026-10-03): "her parents' other children" are her siblings.
+  prompt = rewriteInLawTerms(prompt).replace(/\bparents['’](?:s)?\s+other\s+(children|kids|sons|daughters)\b/i, (_, noun) =>
+    /^sons$/i.test(noun) ? "brothers" : /^daughters$/i.test(noun) ? "sisters" : "siblings"
+  );
+  // S7 (live, 2026-10-03): "list her children with their spouses" was a text
+  // filter ("no structured result"); "her children's spouses" works (H6).
+  prompt = prompt.replace(
+    /^((?:list|show(?:\s+me)?|who\s+(?:are|were))\s+)?((?:my|his|her|their|[A-Z][A-Za-z' -]*?['’]s)\s+(?:children|sons|daughters|siblings|brothers|sisters|grandchildren))\s+(?:with|and)\s+their\s+(spouses|husbands|wives|partners)([.!?]*)$/i,
+    (_, lead, kin, spouses, end) => `${lead || ""}${kin}'${/s$/i.test(kin) ? "" : "s"} ${/^partners$/i.test(spouses) ? "spouses" : spouses}${end}`
+  );
+  // Profile facts are exact phrasings; "how many contributions does X have" mustn't become a relation count.
+  // The fractal tree comes first: it takes "visualize my ancestors" (2026-10-03, the user prefers it to a fan chart).
+  // The family world (the CC7-style fractal tree) before the CC7 list parsers: "show my CC7 tree".
+  const familyWorld = parseFamilyWorldPrompt(prompt);
+  if (familyWorld) return { intent: ChatIntent.FAMILY_WORLD, params: familyWorld };
+  const fractalTree = parseFractalTreePrompt(prompt);
+  if (fractalTree) return { intent: ChatIntent.FRACTAL_TREE, params: fractalTree };
+  const completeness = parseCompletenessPrompt(prompt);
+  if (completeness) return { intent: ChatIntent.FAN_CHART, params: completeness };
+  const dnaChart = parseDnaChartPrompt(prompt);
+  if (dnaChart) return { intent: ChatIntent.FAN_CHART, params: dnaChart };
+  const dnaCarriers = parseDnaCarrierPrompt(prompt);
+  if (dnaCarriers) return { intent: ChatIntent.DESCENDANT_CHART, params: dnaCarriers };
+  const agesChart = parseAgesPrompt(prompt);
+  if (agesChart) return { intent: ChatIntent.AGES_CHART, params: agesChart };
+  const surnameChart = parseSurnameChartPrompt(prompt);
+  if (surnameChart) return { intent: ChatIntent.FAN_CHART, params: surnameChart };
+  const fanChart = parseFanChartPrompt(prompt);
+  if (fanChart) return { intent: ChatIntent.FAN_CHART, params: fanChart };
+  const descendantChart = parseDescendantChartPrompt(prompt);
+  if (descendantChart) return { intent: ChatIntent.DESCENDANT_CHART, params: descendantChart };
+  const lifeLine = parseLifeLinePrompt(prompt);
+  if (lifeLine) return { intent: ChatIntent.FAMILY_TIMELINE, params: lifeLine };
+  const familyTimeline = parseFamilyTimelinePrompt(prompt);
+  if (familyTimeline) return { intent: ChatIntent.FAMILY_TIMELINE, params: familyTimeline };
+  const migrationMap = parseMigrationMapPrompt(prompt);
+  if (migrationMap) return { intent: ChatIntent.MIGRATION_MAP, params: migrationMap };
+  const history = parseHistoryPrompt(prompt);
+  if (history) return { intent: ChatIntent.LIFESPANS, params: history };
+  const lifespans = parseLifespansPrompt(prompt);
+  if (lifespans) return { intent: ChatIntent.LIFESPANS, params: lifespans };
+  const nameCloud = parseNameCloudPrompt(prompt);
+  if (nameCloud) return { intent: ChatIntent.NAME_CLOUD, params: nameCloud };
+  // (family size shares the name cloud's handler: both are ancestor-slot charts)
+  const familySize = parseFamilySizePrompt(prompt);
+  if (familySize) return { intent: ChatIntent.NAME_CLOUD, params: familySize };
+  const treeOverview = parseTreeOverviewPrompt(prompt);
+  if (treeOverview) return { intent: ChatIntent.TREE_OVERVIEW, params: treeOverview };
+  const familyCalendar = parseFamilyCalendarPrompt(prompt);
+  if (familyCalendar) return { intent: ChatIntent.FAMILY_CALENDAR, params: familyCalendar };
+  const dna = parseDnaPrompt(prompt);
+  if (dna) return { intent: ChatIntent.DNA, params: dna };
+  const earlyProfileFact = parseProfileFactPrompt(prompt);
+  if (earlyProfileFact) return { intent: ChatIntent.PROFILE_FACT, params: earlyProfileFact };
+  const treeDepth = parseAncestorDepthPrompt(prompt);
+  if (treeDepth) return { intent: ChatIntent.ANCESTOR_LIST, params: treeDepth };
+  const familyTree = parseFamilyTreePrompt(prompt);
+  if (familyTree) return { intent: ChatIntent.ANCESTOR_LIST, params: familyTree };
+  const kinGroup = parseKinGroupPrompt(prompt);
+  if (kinGroup) return kinGroup;
+  // "list her siblings in birth order": route the list, keep the order.
+  const kinOrder = splitKinOrderClause(prompt);
+  if (kinOrder) {
+    const routed = routeChatPrompt(kinOrder.basePrompt, options);
+    if (KIN_DETAIL_INTENTS.has(routed.intent)) {
+      return { ...routed, params: { ...routed.params, order: kinOrder.order } };
+    }
+  }
+  // "list her children with their birth places": route the list, keep the details.
+  const kinDetails = splitKinDetailsClause(prompt);
+  if (kinDetails) {
+    const routed = declineMisreadRoute(routeChatPromptUnchecked(kinDetails.basePrompt, options), kinDetails.basePrompt);
+    if (KIN_DETAIL_INTENTS.has(routed.intent)) {
+      return { ...routed, params: { ...routed.params, details: kinDetails.details } };
+    }
+  }
+  const routed = descendantCountRoute(declineMisreadRoute(routeChatPromptUnchecked(prompt, options), prompt));
+  // "how many of her siblings were born in England?": the relation, then a filter.
+  if (
+    routed.intent === ChatIntent.FALLBACK_AI ||
+    (routed.intent === ChatIntent.RELATION_COUNT && /\b(?:born|died)\b/i.test(routed.params?.relationRaw || ""))
+  ) {
+    const kinFilter = splitKinFilterClause(prompt);
+    const base = kinFilter ? declineMisreadRoute(routeChatPromptUnchecked(kinFilter.basePrompt, options), kinFilter.basePrompt) : null;
+    // Cousins take a place through the planner and their own handler.
+    if (base?.intent === ChatIntent.RELATION_COUNT && !/\b(?:born|died|cousins?)\b/i.test(base.params?.relationRaw || "")) {
+      return { ...base, params: { ...base.params, mode: kinFilter.mode, filter: kinFilter.filter } };
+    }
+  }
+  // "Beacall-9 fractal", "Jefferson descendants": a person and a chart (chat_chart_shortcuts.js).
+  // Last, so it only takes what nothing else understood ("Beacall-9's fan chart" has its own parser).
+  if (routed.intent === ChatIntent.FALLBACK_AI && !routed.params?.profileNarrative) {
+    const chartShortcut = parseChartShortcutPrompt(prompt);
+    if (chartShortcut) return { intent: ChatIntent.CHART_SHORTCUT, params: chartShortcut };
+  }
+  return routed;
+}
+
+// "how many descendants does she have?": the relation counter has no
+// descendants relation, so this is the descendant list for that subject (live
+// E7, 2026-10-03: the AI guessed from the bio).
+function descendantCountRoute(routed) {
+  if (routed?.intent !== ChatIntent.RELATION_COUNT || !/^descendants?$/i.test(routed.params?.relationRaw || "")) {
+    return routed;
+  }
+  const { subjectMode, subjectName } = routed.params;
+  if (subjectMode !== "user" && !subjectName) return routed;
+  const subjectText = subjectMode === "user" ? "my descendants" : `${subjectName}'s descendants`;
+  const base = parseDescendantListPrompt(subjectText);
+  return base ? { intent: ChatIntent.DESCENDANT_LIST, params: { ...base, subjectText } } : routed;
 }
 
 function routeChatPromptUnchecked(prompt, options = {}) {
   const hasStructuredResult = Boolean(options?.hasStructuredResult);
+  if (isProfileNarrativePrompt(prompt)) {
+    return { intent: ChatIntent.FALLBACK_AI, params: { profileNarrative: true } };
+  }
   const cc7Parsed = parseCc7LocationPrompt(prompt);
   if (cc7Parsed) {
     return {
@@ -1974,12 +2805,48 @@ function routeChatPromptUnchecked(prompt, options = {}) {
     };
   }
 
+  const notableRelatives = parseNotableRelativesPrompt(prompt) || parseDnaConfirmedPrompt(prompt);
+  if (notableRelatives) {
+    return {
+      intent: ChatIntent.PROFILE_SEARCH,
+      params: { query: notableRelatives },
+    };
+  }
+
   const watchlistPrompt = parseWatchlistPrompt(prompt);
   if (watchlistPrompt) {
     return {
       intent: ChatIntent.WATCHLIST,
       params: watchlistPrompt,
     };
+  }
+
+  const generationCount =
+    parseAncestorGenerationCountPrompt(prompt) ||
+    parseAncestorPlacePrompt(prompt) ||
+    parseAncestorPickPrompt(prompt) ||
+    parseAncestorDepthPrompt(prompt) ||
+    parseLongestLivedPrompt(prompt);
+  if (generationCount) {
+    return {
+      intent: ChatIntent.ANCESTOR_LIST,
+      params: generationCount,
+    };
+  }
+
+  const brickWalls = parseBrickWallPrompt(prompt);
+  if (brickWalls) {
+    return {
+      intent: ChatIntent.ANCESTOR_LIST,
+      params: brickWalls,
+    };
+  }
+
+  // "list my ancestors born in Wales" was a relation called "ancestors born in
+  // Wales"; with "who died in" it was declined (O10 follow-up, 2026-10-03).
+  const ancestorsInPlace = /\b(?:born|died)\s+in\b/i.test(prompt) ? parseAncestorListPrompt(prompt) : null;
+  if (ancestorsInPlace?.location) {
+    return { intent: ChatIntent.ANCESTOR_LIST, params: ancestorsInPlace };
   }
 
   const relationQuery = parseRelationPrompt(prompt);
@@ -2006,11 +2873,76 @@ function routeChatPromptUnchecked(prompt, options = {}) {
     };
   }
 
+  // "how old was her second husband when he died?": the relative list, not a name search.
+  const relativeAge = parseRelativeAgePrompt(prompt);
+  if (relativeAge) {
+    return { intent: ChatIntent.RELATIVE_FACT, params: relativeAge };
+  }
+
   const personAgeAtDeath = parsePersonAgeAtDeathPrompt(prompt);
   if (personAgeAtDeath) {
     return {
       intent: ChatIntent.PERSON_AGE_AT_DEATH,
       params: personAgeAtDeath,
+    };
+  }
+
+  // "which of her siblings died first?" reads the relative list (RELATIVE_FACT).
+  const relativePick = parseRelativePickPrompt(prompt);
+  if (relativePick) {
+    return { intent: ChatIntent.RELATIVE_FACT, params: { ...relativePick, fact: "pick" } };
+  }
+
+  const outlived = parseOutlivedPrompt(prompt);
+  if (outlived) {
+    return { intent: ChatIntent.CHILDREN_OUTLIVED, params: outlived };
+  }
+
+  const childrenWithChildren = parseChildrenWithChildrenPrompt(prompt);
+  if (childrenWithChildren) {
+    return { intent: ChatIntent.CHILDREN_WITH_CHILDREN, params: childrenWithChildren };
+  }
+
+  const twins = parseTwinsPrompt(prompt);
+  if (twins) {
+    return { intent: ChatIntent.CHILD_TWINS, params: twins };
+  }
+
+  const relativeFact = parseRelativeFactPrompt(prompt);
+  if (relativeFact) {
+    return { intent: ChatIntent.RELATIVE_FACT, params: relativeFact };
+  }
+
+  const marriage = parseMarriagePrompt(prompt);
+  if (marriage) {
+    return { intent: ChatIntent.PERSON_MARRIAGE, params: marriage };
+  }
+
+  const sources = parseProfileSourcesPrompt(prompt);
+  if (sources) {
+    return { intent: ChatIntent.PROFILE_SOURCES, params: sources };
+  }
+
+  const profileFact = parseProfileFactPrompt(prompt);
+  if (profileFact) {
+    return { intent: ChatIntent.PROFILE_FACT, params: profileFact };
+  }
+
+  const burial = parseBurialPrompt(prompt);
+  if (burial) {
+    return { intent: ChatIntent.PERSON_BURIAL, params: burial };
+  }
+
+  const duplicateCheck = parseDuplicateCheckPrompt(prompt);
+  if (duplicateCheck) {
+    return { intent: ChatIntent.PROFILE_DUPLICATES, params: duplicateCheck };
+  }
+
+  const ageAtChildBirth = parsePersonAgeAtChildBirthPrompt(prompt);
+  if (ageAtChildBirth) {
+    return {
+      intent: ChatIntent.PERSON_AGE_AT_CHILD_BIRTH,
+      params: ageAtChildBirth,
     };
   }
 
@@ -2020,6 +2952,11 @@ function routeChatPromptUnchecked(prompt, options = {}) {
       intent: ChatIntent.ANCESTOR_LIST,
       params: ancestorList,
     };
+  }
+
+  const childPick = parseChildPickPrompt(prompt);
+  if (childPick) {
+    return { intent: ChatIntent.DESCENDANT_LIST, params: childPick };
   }
 
   const descendantList = parseDescendantListPrompt(prompt);
@@ -2044,6 +2981,11 @@ function routeChatPromptUnchecked(prompt, options = {}) {
       intent: ChatIntent.PROFILE_FAMILY_CONNECTION,
       params: profileFamilyConnection,
     };
+  }
+
+  const lateRelation = parseLateRelationPrompt(prompt);
+  if (lateRelation) {
+    return { intent: ChatIntent.RELATION_COUNT, params: lateRelation };
   }
 
   if (hasStructuredResult) {

@@ -183,3 +183,65 @@ describe("a relative named as a connection target (live, 2026-10-03)", () => {
     await expect(handlers.resolveRelativeTargetPeople(target)).resolves.toBeNull();
   });
 });
+
+describe("count and empty-list wording (live F9/E1, 2026-10-03)", () => {
+  test("a plural chain owner takes 'have'", async () => {
+    const { handlers } = makeHandlers({
+      fetchChildrenIdsForId: jest.fn(async (key) => (/^(?:200|Bob-1)$/.test(String(key)) ? [400] : /^(?:201|Ann-1)$/.test(String(key)) ? [401] : [])),
+      fetchProfilesForIds: jest.fn(async (ids) => [DAVE, EVE].filter((p) => ids.map(String).includes(String(p.Id)))),
+    });
+    const result = await handlers.tryHandleRelationCountPrompt(
+      { mode: "count", relationRaw: "parents's children", subjectMode: "named", subjectName: "Sarah" },
+      "how many children did Sarah's parents have"
+    );
+    expect(result.message).toMatch(/'s parents have \d+ children/);
+  });
+
+  test("no relatives for a found person is a fact, not a failure", async () => {
+    const { handlers } = makeHandlers({ fetchParentIds: jest.fn(async () => []) });
+    const result = await handlers.tryHandleRelationCountPrompt(
+      { mode: "list", relationRaw: "grandparents", subjectMode: "named", subjectName: "Sarah" },
+      "who were Sarah's grandparents"
+    );
+    const message = typeof result === "string" ? result : result.message;
+    expect(message).toMatch(/^No grandparents are recorded for Sarah/);
+  });
+});
+
+describe("nieces and nephews are the siblings' children (live H4, 2026-10-03)", () => {
+  const withFamily = () =>
+    makeHandlers({
+      fetchSiblingIdsForId: jest.fn(async (key) => (/^(?:100|Sarah-1)$/.test(String(key)) ? [200] : [])),
+      fetchChildrenIdsForId: jest.fn(async (key) => (/^(?:200|Bob-1)$/.test(String(key)) ? [400, 401] : [])),
+      fetchProfilesForIds: jest.fn(async (ids) => [BOB, DAVE, EVE].filter((p) => ids.map(String).includes(String(p.Id)))),
+    });
+
+  test.each([
+    ["nieces and nephews", ["Dave-1", "Eve-1"]],
+    ["siblings' children", ["Dave-1", "Eve-1"]],
+    ["nieces", ["Eve-1"]],
+    ["nephews", ["Dave-1"]],
+  ])("%s", async (relationRaw, expected) => {
+    const { handlers } = withFamily();
+    const result = await handlers.resolveRelativeTargetPeople(`Sarah's ${relationRaw}`);
+    expect(result.people.map((person) => person.Name).sort()).toEqual(expected);
+  });
+
+  test("a one-step family list carries chart buttons for that person; a chain does not", async () => {
+    const familyVisuals = jest.fn((key) => [{ label: `Family timeline ${key}` }]);
+    const { handlers } = makeHandlers({ familyVisuals });
+
+    const parents = await handlers.tryHandleRelationCountPrompt(
+      { mode: "list", relationRaw: "parents", subjectMode: "named", subjectName: "Sarah" },
+      "Sarah's parents"
+    );
+    expect(familyVisuals).toHaveBeenCalledWith("Sarah-1");
+    expect(parents.actions.map((action) => action.label)).toEqual(["Family timeline Sarah-1"]);
+
+    const chained = await handlers.tryHandleRelationCountPrompt(
+      { mode: "list", relationRaw: "father's wife's siblings", subjectMode: "named", subjectName: "Sarah" },
+      "Sarah's father's wife's siblings"
+    );
+    expect(chained.actions).toEqual([]);
+  });
+});

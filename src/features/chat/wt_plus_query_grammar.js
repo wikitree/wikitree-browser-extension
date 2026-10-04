@@ -312,6 +312,8 @@ const TITLE_ABSENCE_ADJECTIVES = new Set([
 const QUERY_ABSENCE_QUALIFIERS_RE =
   /\b(?:no|not|none|missing|empty|blank|without|expired|absent|lacking|zero|unrecognized|incorrect|wrong|duplicate|duplicated|short|unused|unbalanced|unclosed)\b/i;
 
+const WT_PLUS_FLAG_ABSENCE_RE = /\b(?:no|without)\s+(?:gender|father|mother|parents|spouses?|children)\b/i;
+
 const SUGGESTION_STOP_WORDS = new Set([
   "the",
   "and",
@@ -433,7 +435,9 @@ const SUGGESTION_PHRASE_ALIASES = [
   },
   {
     code: "509",
-    patterns: [/\bmissing\b.*\bgender\b/i, /\bno\b.*\bgender\b/i, /\bgender\b.*\b(?:missing|unknown|blank|unset)\b/i],
+    // Only the suggestion's own wording: "no gender" is the NoGender flag, a
+    // superset (Kent: NoGender 117 vs Suggestions=509 14; live, 2026-10-03).
+    patterns: [/\bmissing\b.*\bgender\b/i, /\bgender\b.*\bmissing\b/i],
     titleHint: "Missing gender",
   },
   {
@@ -553,6 +557,9 @@ function matchSuggestionByNaturalLanguage(queryText) {
 
   const aliasMatch = matchSuggestionByPhraseAlias(queryText);
   if (aliasMatch) return aliasMatch;
+  // These are plain WT+ flags (NoGender, NoFather, …), not suggestions; the loose
+  // absence matching would otherwise pick e.g. 901 for "profiles with no gender".
+  if (WT_PLUS_FLAG_ABSENCE_RE.test(String(queryText || ""))) return null;
 
   const text = normalizeSuggestionFreeText(queryText);
   if (text.length < 3) return null;

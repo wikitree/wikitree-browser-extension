@@ -1,4 +1,4 @@
-// TemplateText matches any template containing the text (WT+), so Muse must not
+// TemplateText matches any template containing the text (WT+), so Genie must not
 // narrow a bare word to one template.
 
 jest.mock("../../core/API/wtPlusAPI", () => ({

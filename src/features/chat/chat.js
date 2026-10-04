@@ -2,16 +2,27 @@
 Created By: Ian Beacall (Beacall-6)
 */
 
+import {
+  getResultWtPlusQuery,
+  isLocallyFilteredResult,
+  narrowWtPlusQuery,
+  parseWtPlusNarrowPrompt,
+  restrictNarrowResultToRows,
+} from "./chat_wtplus_narrow";
 import { rewriteOfRelationChain } from "./chat_relation_chain_text";
+import { groupKinListResult } from "./chat_group_rows";
+import { WIKITREE_GLOSSARY_FOR_AI } from "./chat_wikitree_glossary";
 import "../../core/userTimingCompat";
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getFeatureOptions } from "../../core/options/options_storage";
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
+import { dnaTypesFromTestSlugs } from "./chat_dna";
 import { getUserWtId, getUserNumId, getProfilePersonInfo } from "../../core/common";
 import { setHighestZIndex } from "../../core/common";
-import { routeChatPrompt, ChatIntent, pause, extractConnectionSourceName } from "./chat_router";
+import { routeChatPrompt, ChatIntent, pause, extractConnectionSourceName, parseExportResultPrompt } from "./chat_router";
+import { CHART_BAR_KEYS, CHART_SHORTCUTS, chartButtonPrompt, chartShortcutCanonicalPrompt } from "./chat_chart_shortcuts";
 import "datatables.net-dt/css/jquery.dataTables.css";
 import "datatables.net";
 import * as XLSX from "xlsx";
@@ -21,7 +32,20 @@ import "./chat.css";
 import { installChatDebugConsole } from "./chat_debug_console";
 import { findAmbiguousCenturyDecade, rewriteExplicitCenturyDecadeWording } from "./chat_century_decade";
 import { createChatConnectionHandlers } from "./chat_connections";
-import { handleExplicitSearchMode } from "./chat_search_mode";
+import { AI_CHAT_CLAIM_RULES, handleExplicitSearchMode, looksLikeQuestion } from "./chat_search_mode";
+import {
+  AI_ANSWER_FORMAT_RULES,
+  clearUnanswered,
+  loadUnanswered,
+  needsAiKeyMessage,
+  parseAiAnswer,
+  parseUnansweredPrompt,
+  promptNameCandidates,
+  recordUnanswered,
+  suggestionActions,
+  unansweredMessage,
+} from "./chat_answer";
+import { prefillSearchForm } from "./chat_search_form";
 import { createProfileSearchHandler } from "./chat_profile_search";
 import { createChatAiHelpers } from "./chat_ai";
 import { createChatCcHandlers } from "./chat_cc";
@@ -66,6 +90,7 @@ import {
   addBioButton,
 } from "./ui";
 import { buildResultsTableHtml } from "./tables";
+import { relationSelector } from "./chat_relative_fact";
 import {
   makeProfileLink,
   extractCountryFromLocation,
@@ -81,7 +106,9 @@ import {
   extractAliasCandidates,
   extractResolvedPeopleFromMessage,
   normalizePersonMemoryToken,
+  pickAnswerSubject,
   rewritePromptWithRememberedPerson,
+  rewritePronounToSubject,
   sanitizeResolvedPersonDisplayName,
 } from "./chat_person_memory";
 
@@ -92,7 +119,6 @@ const CHAT_POPUP_ID = "wbe-chat-popup";
 const CHAT_BUTTON_ID = "wbe-chat-button";
 const SHARED_AI_OPTIONS_KEY = "sharedAI_options";
 const AUTO_BIO_OPTIONS_KEY = "autoBio_options";
-const AI_KEY_FIELDS = ["openAIKey", "geminiKey", "claudeKey", "perplexityKey"];
 const CHAT_MESSAGES_ID = "wbe-chat-messages";
 const CHAT_INPUT_ID = "wbe-chat-input";
 const CHAT_SEND_ID = "wbe-chat-send";
@@ -282,7 +308,8 @@ if (!$.fn.dataTable.ext.search.some((fn) => fn.__wbeColumnFilter === true)) {
   predicate.__wbeColumnFilter = true;
   $.fn.dataTable.ext.search.push(predicate);
 }
-const AUTO_OPEN_TABLE_MIN_ROWS = 8;
+// (one row is a sentence, not a table)
+const AUTO_OPEN_TABLE_MIN_ROWS = 2;
 const CHAT_AI_HISTORY_MAX_MESSAGES = 12;
 const CHAT_AI_MESSAGE_MAX_CHARS = 500;
 const CHAT_PERSISTED_STRUCTURED_ROWS_MAX = 250;
@@ -403,7 +430,10 @@ function clearResolvedPersonMemory() {
   }
 }
 
-function rememberResolvedPerson({ wtId, displayName, aliases = [] }) {
+// incidental: someone merely named in an answer (a connection path lists both
+// Abraham Lincolns). It must not take an alias already held by someone the
+// user asked about, or the next "Abraham Lincoln" finds the grandfather.
+function rememberResolvedPerson({ wtId, displayName, aliases = [], incidental = false }) {
   ensureResolvedPersonMemoryLoaded();
 
   const normalizedWtId = String(wtId || "").trim();
@@ -443,6 +473,10 @@ function rememberResolvedPerson({ wtId, displayName, aliases = [] }) {
   existing.aliases.forEach((alias) => {
     const normalizedAlias = normalizePersonMemoryToken(alias);
     if (!normalizedAlias || normalizedAlias.length < 3) {
+      return;
+    }
+    const holder = resolvedPersonAliasToWtId[normalizedAlias];
+    if (incidental && holder && holder !== normalizedWtId && resolvedPeopleByWtId[holder]) {
       return;
     }
     resolvedPersonAliasToWtId[normalizedAlias] = normalizedWtId;
@@ -485,9 +519,23 @@ function rememberResolvedPersonFromMatch(person, aliases = []) {
   });
 }
 
+// The person the last answer was about, for "his wife" follow-ups.
+let lastAnswerSubject = null;
+
+async function getSubjectGender(subject) {
+  if (subject.gender !== undefined) return subject.gender;
+  try {
+    const person = await WikiTreeAPI.getPerson(WBE_CHAT_APP_ID, subject.wtId, "Id,Name,Gender");
+    subject.gender = String((person?._data || person)?.Gender || "");
+  } catch (error) {
+    subject.gender = "";
+  }
+  return subject.gender;
+}
+
 function rememberResolvedPeopleFromMessage(text) {
   extractResolvedPeopleFromMessage(text).forEach(({ displayName, wtId }) => {
-    rememberResolvedPerson({ wtId, displayName, aliases: [displayName] });
+    rememberResolvedPerson({ wtId, displayName, aliases: [displayName], incidental: true });
   });
 }
 
@@ -502,7 +550,7 @@ function rememberResolvedPeopleFromTable(table) {
     if (!wtId || !/-\d+$/i.test(wtId)) {
       return;
     }
-    rememberResolvedPerson({ wtId, displayName, aliases: [displayName] });
+    rememberResolvedPerson({ wtId, displayName, aliases: [displayName], incidental: true });
   });
 }
 
@@ -942,6 +990,8 @@ function raiseChatActionPopupsAboveChat() {
     "#wbe-spouses-popup",
     '[id^="wbe-bio-popup-"]',
     ".chat-results-popup",
+    // (last, so a chart a button just opened stays over the Connections popup: live 2026-10-04)
+    ".wbe-chart-popup",
   ];
 
   const raiseOpenPopups = () => {
@@ -1012,6 +1062,8 @@ const {
     lastBioPopupProfile = profile;
   },
   toggleConnectionsPopup: () => toggleConnectionsPopup(),
+  // People handlers are created below; resolve lazily.
+  rebuildChartAction: (entry) => rebuildChartAction(entry),
   openResultsTable: (result, opts) => openResultsTable(result, opts),
   resolveToWTID: (candidate) => resolveToWTID(candidate),
   showBioPopupForId: (wtid) => showBioPopupForId(wtid),
@@ -1020,6 +1072,7 @@ const {
   reRunSavedWtPlusQuery: (...args) => reRunSavedWtPlusQuery?.(...args),
   handleChatResult: (result) => handleChatResult(result),
   afterActionClick: () => raiseChatActionPopupsAboveChat(),
+  onSearchFormSubmit: (values, built) => runSearchForm(values, built),
   resetTransientState: () => {
     pendingDisambiguationContext = null;
     lastConnectionCandidates = [];
@@ -1034,9 +1087,6 @@ const { buildRecentConversationForAi, buildRecentUserMessagesForAi, getChatAiCon
     getChatHistory: () => chatHistory,
     chatAiMessageMaxChars: CHAT_AI_MESSAGE_MAX_CHARS,
     chatAiHistoryMaxMessages: CHAT_AI_HISTORY_MAX_MESSAGES,
-    sharedAiOptionsKey: SHARED_AI_OPTIONS_KEY,
-    autoBioOptionsKey: AUTO_BIO_OPTIONS_KEY,
-    aiKeyFields: AI_KEY_FIELDS,
   });
 
 const {
@@ -1060,6 +1110,8 @@ const { resolveConnectionTargetPerson, tryHandleConnectionCorrectionPrompt, tryH
     WBE_CHAT_APP_ID,
     CHAT_LAST_CONNECTION_KEY,
     toggleConnectionsPopup: () => toggleConnectionsPopup(),
+    // People handlers are created below; resolve lazily.
+    personVisuals: (key) => personVisualActions(key),
     tryAiDisambiguateConnectionTarget,
     tryAiExpandConnectionTarget,
     shouldOfferDisambiguation,
@@ -1222,15 +1274,42 @@ const { resolveRelativeTargetPeople, tryHandleRelationCountPrompt } = createChat
   fetchSiblingIdsForId,
   fetchParentIds,
   isAppsLoginButtonPresent,
+  // familyVisualActions comes from createChatPeopleHandlers below; called only at answer time.
+  familyVisuals: (key) => familyVisualActions(key),
 });
 
 const {
   tryHandleSpouseListPrompt,
   tryHandlePersonAgeAtDeathPrompt,
+  tryHandlePersonAgeAtChildBirthPrompt,
+  tryHandleProfileDuplicatesPrompt,
+  tryHandlePersonBurialPrompt,
+  tryHandleProfileFactPrompt,
+  tryHandleDnaPrompt,
+  tryHandleFanChartPrompt,
+  tryHandleFractalTreePrompt,
+  tryHandleFamilyWorldPrompt,
+  tryHandleDescendantChartPrompt,
+  tryHandleFamilyTimelinePrompt,
+  tryHandleMigrationMapPrompt,
+  tryHandleLifespansPrompt,
+  tryHandleNameCloudPrompt,
+  tryHandleFamilyCalendarPrompt,
+  tryHandleAgesPrompt,
+  tryHandleTreeOverviewPrompt,
+  tryHandleProfileSourcesPrompt,
+  tryHandlePersonMarriagePrompt,
+  tryHandleRelativeFactPrompt,
+  tryHandleTwinsPrompt,
+  tryHandleChildrenWithChildrenPrompt,
+  tryHandleOutlivedPrompt,
   tryHandleAncestorAverageAgePrompt,
   tryHandleAncestorListPrompt,
   tryHandleDescendantListPrompt,
   tryHandleProfileFamilyConnectionPrompt,
+  familyVisualActions,
+  personVisualActions,
+  rebuildChartAction,
 } = createChatPeopleHandlers({
   ChatIntent,
   WBE_CHAT_APP_ID,
@@ -1259,6 +1338,8 @@ const {
   getCc7ProfilesForUser,
   getLastStructuredResult: () => lastStructuredResult,
   getCurrentChatMode,
+  getUserNumId,
+  notify: (text) => appendMessage("assistant", text, { shouldPersist: false }),
 });
 
 function toggleConnectionsPopup() {
@@ -1732,7 +1813,7 @@ function exportResultAsJson(result) {
     return obj;
   });
   const payload = {
-    title: result?.title || "Chat Results",
+    title: result?.title || "Genie Results",
     columns: (result?.columns || []).map((column) => ({
       title: String(column?.title || ""),
       key: String(column?.key || ""),
@@ -2282,7 +2363,7 @@ function openResultsTable(result = lastStructuredResult, opts = {}) {
   }
 
   const formatResultsPopupTitle = (rawTitle, rowCount) => {
-    const titleText = String(rawTitle || "Chat Results").trim() || "Chat Results";
+    const titleText = String(rawTitle || "Genie Results").trim() || "Genie Results";
     const count = Number.isFinite(Number(rowCount)) ? Number(rowCount) : 0;
     if (count <= 0) {
       return titleText;
@@ -2457,7 +2538,15 @@ async function getChatOptions() {
 }
 
 async function handleChatResult(result) {
+  // (a handler's plain-text reply; dropping it showed nothing at all for "Beacall-10", 2026-10-04)
+  if (typeof result === "string") result = { message: result };
   if (!result?.message) {
+    return;
+  }
+
+  // A parser that declined only an AI could read: without a key, say so plainly.
+  if (result.needsAi && !(await getChatAiConfig())?.key) {
+    showNeedsAiKey(lastNonRetryUserPrompt);
     return;
   }
 
@@ -2467,6 +2556,7 @@ async function handleChatResult(result) {
       : result.message;
 
   rememberResolvedPeopleFromMessage(messageText);
+  lastAnswerSubject = pickAnswerSubject(messageText, result.table);
 
   // A handler can offer a concrete follow-up; a bare "Sure."/"Yes" on the next
   // turn runs offer.prompt instead of being treated as a search term.
@@ -2510,6 +2600,10 @@ async function handleChatResult(result) {
         };
       }
 
+      if (action?.actionType === "search-form") {
+        return { ...action, onClick: () => showSearchFormAgain(action.values) };
+      }
+
       // Send a clarified prompt as if the user had typed it.
       if (action?.actionType === "send-prompt" && action?.prompt) {
         return {
@@ -2551,6 +2645,22 @@ async function handleChatResult(result) {
   const rowCount = Array.isArray(result.table?.rows) ? result.table.rows.length : 0;
   const isLargeWtPlusResult = result.table && result.table.wtPlusQuery && rowCount > CHAT_PERSISTED_STRUCTURED_ROWS_MAX;
 
+  // Without an AI key, "Answer as a question" can't work, and a search was
+  // read by Genie's simpler code, so say once how to get smarter searches.
+  if (aiAvailable === false) {
+    for (let index = explicitActions.length - 1; index >= 0; index -= 1) {
+      if (/^ask\s*:/i.test(String(explicitActions[index]?.prompt || ""))) explicitActions.splice(index, 1);
+    }
+  }
+  let trailingText = result.trailingText || "";
+  if (aiAvailable === false && result.table && !noKeyTipShown) {
+    noKeyTipShown = true;
+    trailingText = [trailingText, "Tip: add an AI key in the extension's Options for smarter searches and to ask questions."].filter(Boolean).join("\n");
+    // (the same how-to link as the "needs AI" message)
+    needsAiKeyMessage().actions.forEach((action) =>
+      explicitActions.push({ ...action, onClick: () => window.open(action.url, "_blank", "noopener,noreferrer") })
+    );
+  }
   const actions = [
     ...(result.table && !hasTableAction
       ? [
@@ -2609,11 +2719,15 @@ async function handleChatResult(result) {
   if (result.table) {
     const options = await getChatOptions();
     const rowCount = result.table?.rows?.length || 0;
+    // The table opens by itself unless a chart opened instead (then the Table
+    // button shows it). User, 2026-10-04: "If there's no chart we should see
+    // the table of results … automatically."
     const shouldAutoOpen =
-      result.autoOpen ||
-      options.showResultsInTable ||
-      rowCount >= AUTO_OPEN_TABLE_MIN_ROWS ||
-      Boolean(result.table?.wtPlusQuery);
+      !result.chartOpened &&
+      (result.autoOpen ||
+        options.showResultsInTable ||
+        rowCount >= AUTO_OPEN_TABLE_MIN_ROWS ||
+        Boolean(result.table?.wtPlusQuery));
     if (shouldAutoOpen) {
       openResultsTable(result.table);
     }
@@ -2621,8 +2735,55 @@ async function handleChatResult(result) {
   appendMessage("assistant", messageText, {
     actions,
     inlineMore: result.inlineMore || null,
-    trailingText: result.trailingText || "",
+    trailingText,
   });
+}
+
+// No AI key: say so, link to how to get one, and offer the search form filled
+// with what can't be misread in their prompt (a decade or year range).
+function showNeedsAiKey(prompt) {
+  // (a question gets just the message and the link; something more like a search gets the form too)
+  const withForm = !looksLikeQuestion(prompt);
+  const needsKey = needsAiKeyMessage({ withForm });
+  appendMessage("assistant", needsKey.text, {
+    actions: needsKey.actions.map((action) => ({ ...action, onClick: () => window.open(action.url, "_blank", "noopener,noreferrer") })),
+    searchForm: withForm ? prefillSearchForm(prompt) : null,
+  });
+}
+
+// The search form's Search button: the same WT+ run the AI's searches use.
+async function runSearchForm(values, built) {
+  appendMessage("user", `Search: ${built.description}`);
+  showChatShaky?.("Searching WikiTree+...");
+  let result;
+  try {
+    result = await reRunSavedWtPlusQuery(built.query);
+  } finally {
+    hideChatShaky?.();
+  }
+  const shown = typeof result === "string" ? { message: result } : result || { message: "That search didn't run." };
+  shown.actions = [...(shown.actions || []), { label: "Edit search", actionType: "search-form", values }];
+  await handleChatResult(shown);
+}
+
+function showSearchFormAgain(values) {
+  appendMessage("assistant", "Change the boxes and search again.", { searchForm: values || {} });
+}
+
+// When Genie can't answer: the things it can do, as one-click prompts.
+function buildCantAnswerActions() {
+  const root = getProfileSubjectRoot?.();
+  const key = root?.wtId || root?.key || "";
+  const prompts = key
+    ? [`${key}'s fan chart`, `${key}'s family lifespans`, `Family Explorer for ${key}`]
+    : ["My fan chart", "My ancestors' lifespans", "My Family Explorer"];
+  return prompts.map((prompt) => ({
+    label: prompt,
+    actionType: "send-prompt",
+    prompt,
+    newSearch: true,
+    onClick: () => sendClarifiedPrompt(prompt, { newSearch: true }),
+  }));
 }
 
 // newSearch: run the prompt on its own, not as a Continue follow-up.
@@ -2700,6 +2861,20 @@ async function sendChatPrompt() {
       matchedAlias: aliasRewrite.matchedAlias,
       resolvedWtId: aliasRewrite.person?.wtId || "",
     });
+  }
+  // "his wife" as a follow-up to an answer about one person means that
+  // person's wife, if the pronoun fits; otherwise the profile person.
+  const isFollowupContext =
+    document.querySelector('input[name="wbe-chat-context"]:checked')?.value !== "new";
+  if (isFollowupContext && lastAnswerSubject && /\b(?:his|her|their)\s+[A-Za-z]/i.test(prompt)) {
+    const pronounRewrite = rewritePronounToSubject(prompt, lastAnswerSubject, await getSubjectGender(lastAnswerSubject));
+    console.debug("wbe: pronoun follow-up", {
+      prompt,
+      subject: lastAnswerSubject.wtId,
+      gender: lastAnswerSubject.gender,
+      rewrittenPrompt: pronounRewrite.changed ? pronounRewrite.prompt : "",
+    });
+    if (pronounRewrite.changed) prompt = pronounRewrite.prompt;
   }
   const coercedConnectionPrompt = maybeCoerceFollowupConnectionPrompt(prompt);
   if (coercedConnectionPrompt.changed) {
@@ -2785,7 +2960,59 @@ async function sendChatPrompt() {
         pendingDisambiguationContext = null;
       }
     }
-    // If user selected AI mode explicitly when starting with 'Search', short-circuit to AI chat
+    const exportFormat = lastStructuredResult?.rows?.length ? parseExportResultPrompt(prompt) : null;
+    if (exportFormat) {
+      const exporters = {
+        csv: exportResultAsCsv,
+        xlsx: exportResultAsXlsx,
+        json: exportResultAsJson,
+        wikitable: exportResultAsWikitable,
+      };
+      try {
+        exporters[exportFormat](lastStructuredResult);
+        const count = lastStructuredResult.rows.length.toLocaleString();
+        await handleChatResult({
+          message: `Exported the current ${count} rows ("${lastStructuredResult.title || "Genie Results"}") as ${exportFormat.toUpperCase()}. The table's Export buttons offer CSV, XLSX, JSON and Wikitable.`,
+        });
+      } catch (error) {
+        console.info("wbe: export failed", { exportFormat, error });
+        await handleChatResult({ message: "Sorry, the export failed. Try the Export buttons above the results table." });
+      }
+      return;
+    }
+    // C33: "how many have no sources?" narrows the WT+ search behind the current result.
+    const narrowBaseQuery = getResultWtPlusQuery(lastStructuredResult);
+    const narrow = narrowBaseQuery ? parseWtPlusNarrowPrompt(prompt) : null;
+    if (narrow) {
+      const narrowedQuery = narrowWtPlusQuery(narrowBaseQuery, narrow.flag);
+      console.info("wbe: narrowing the last WT+ search", { narrowBaseQuery, narrowedQuery });
+      let narrowResult = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, narrowedQuery);
+      if (narrowResult && typeof narrowResult === "object" && isLocallyFilteredResult(lastStructuredResult)) {
+        narrowResult = restrictNarrowResultToRows(narrowResult, lastStructuredResult.rows, narrow.label, narrowedQuery);
+      }
+      if (narrowResult) {
+        await handleChatResult(typeof narrowResult === "string" ? { message: narrowResult } : narrowResult);
+        return;
+      }
+    }
+    // "questions you couldn't answer": the list kept in this browser (chat_answer.js).
+    if (parseUnansweredPrompt(prompt)) {
+      const list = await loadUnanswered();
+      const listText = unansweredMessage(list);
+      appendMessage("assistant", listText, {
+        shouldPersist: false,
+        actions: list.length
+          ? [
+              { label: "Copy", onClick: () => navigator.clipboard?.writeText(listText).catch(() => {}) },
+              { label: "Clear the list", onClick: () => { clearUnanswered(); appendMessage("assistant", "Cleared.", { shouldPersist: false }); } },
+            ]
+          : [],
+      });
+      return;
+    }
+    // A question to answer in words (the AI said so, or "ask: …"): skip the
+    // search planner and go to the AI answer below.
+    let answerWithAi = false;
     try {
       const modeResult = await handleExplicitSearchMode({
         prompt,
@@ -2810,6 +3037,7 @@ async function sendChatPrompt() {
         getLastExecutedWtPlusQuery,
       });
       prompt = modeResult.prompt;
+      answerWithAi = Boolean(modeResult.answer);
       console.debug("wbe: explicit mode result", {
         handled: Boolean(modeResult?.handled),
         prompt: String(prompt || "").substring(0, 60),
@@ -2888,6 +3116,30 @@ async function sendChatPrompt() {
       ChatIntent.PROFILE_FAMILY_CONNECTION,
       ChatIntent.ANCESTOR_AVG_AGE_AT_DEATH,
       ChatIntent.PERSON_AGE_AT_DEATH,
+      ChatIntent.PERSON_AGE_AT_CHILD_BIRTH,
+      ChatIntent.PROFILE_DUPLICATES,
+      ChatIntent.PERSON_BURIAL,
+      ChatIntent.PROFILE_FACT,
+      ChatIntent.DNA,
+      ChatIntent.FAN_CHART,
+      ChatIntent.FRACTAL_TREE,
+      ChatIntent.FAMILY_WORLD,
+      ChatIntent.CHART_SHORTCUT,
+      ChatIntent.DESCENDANT_CHART,
+      ChatIntent.FAMILY_TIMELINE,
+      ChatIntent.MIGRATION_MAP,
+      ChatIntent.LIFESPANS,
+      ChatIntent.NAME_CLOUD,
+      ChatIntent.FAMILY_CALENDAR,
+      ChatIntent.AGES_CHART,
+      ChatIntent.TREE_OVERVIEW,
+      ChatIntent.PROFILE_SOURCES,
+      ChatIntent.PERSON_MARRIAGE,
+      ChatIntent.RELATIVE_FACT,
+      ChatIntent.CHILD_TWINS,
+      ChatIntent.CHILDREN_WITH_CHILDREN,
+      ChatIntent.CHILDREN_OUTLIVED,
+      ChatIntent.WATCHLIST,
       ChatIntent.ANCESTOR_LIST,
       ChatIntent.DESCENDANT_LIST,
       ChatIntent.SPOUSE_LIST,
@@ -2895,10 +3147,16 @@ async function sendChatPrompt() {
       ChatIntent.LAST_RESULT_OPERATION,
     ]);
     const shouldPreferDeterministicRoute = deterministicIntentSet.has(routed?.intent);
-    if (chatOptions.allowAiFallback && !shouldPreferDeterministicRoute) {
+    if (chatOptions.allowAiFallback && !answerWithAi && !shouldPreferDeterministicRoute && !routed?.params?.profileNarrative) {
       let plannedToolResponse = await tryHandleAiPlannedIntent(prompt);
       if (plannedToolResponse?.rewrittenPrompt) {
         plannedToolResponse = await runRewrittenPrompt(plannedToolResponse.rewrittenPrompt);
+      }
+      // A search the planner tried and couldn't form ("I couldn't work out a concrete person
+      // search…") isn't an answer: go on, so the question still gets one (2026-10-04).
+      if (plannedToolResponse && shouldEscalateLocalFailureToAi(plannedToolResponse)) {
+        console.debug("wbe: planner's tool couldn't answer; going on", { prompt: String(prompt).slice(0, 60) });
+        plannedToolResponse = null;
       }
       if (plannedToolResponse) {
         if (typeof plannedToolResponse === "string") {
@@ -2910,7 +3168,7 @@ async function sendChatPrompt() {
       }
     }
 
-    let directToolResponse = await executeRoutedIntent(routed, prompt);
+    let directToolResponse = answerWithAi && routed?.intent === ChatIntent.FALLBACK_AI ? null : await executeRoutedIntent(routed, prompt);
     let localFailureForAi = "";
 
     if (directToolResponse) {
@@ -2926,27 +3184,20 @@ async function sendChatPrompt() {
       localFailureForAi = String(directToolResponse.message || "");
     }
 
-    if (!chatOptions.allowAiFallback) {
-      appendMessage(
-        "assistant",
-        "I could not match that to a local chat tool, and AI fallback is disabled in Chat options."
-      );
+    const { provider, key, model } = await getChatAiConfig();
+    if (!key) {
+      recordUnanswered(prompt, "no AI key");
+      showNeedsAiKey(prompt);
       return;
     }
 
-    const { provider, key, model } = await getChatAiConfig();
-    if (!key) {
-      if (localFailureForAi) {
-        appendMessage(
-          "assistant",
-          `${localFailureForAi} AI fallback is unavailable because no API key is configured for the selected provider.`
-        );
-      } else {
-        appendMessage(
-          "assistant",
-          "No API key found for the selected provider. Set it in Options under Auto Bio or Chat."
-        );
-      }
+    if (!chatOptions.allowAiFallback) {
+      recordUnanswered(prompt, "AI answers are turned off");
+      appendMessage(
+        "assistant",
+        "I couldn't answer that with Genie's own tools. Questions like that need AI answers, which are turned off in Genie's options.",
+        { actions: buildCantAnswerActions() }
+      );
       return;
     }
 
@@ -2958,11 +3209,13 @@ async function sendChatPrompt() {
     const recentUserMessages = buildRecentUserMessagesForAi(4);
     const resolvedPeopleContext = buildResolvedPeopleContextForAi();
     let profileContextText = null;
+    let pronounHintText = "";
+    let contextProfileKey = "";
     try {
       const textPrompt = String(prompt || "");
       const rememberedPromptPerson = resolvePromptAlias(textPrompt)?.person || null;
       // Extract capitalized name candidates
-      const nameCandidates = textPrompt.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/g) || [];
+      const nameCandidates = promptNameCandidates(textPrompt);
       console.log("wbe: extracted name candidates from prompt", { nameCandidates, prompt: textPrompt });
       // 1) Direct profile key like Beacall-156
       let profileKeyMatch = textPrompt.match(/\b([A-Za-z][A-Za-z0-9_\-]+-\d{1,6})\b/);
@@ -2986,7 +3239,7 @@ async function sendChatPrompt() {
       }
       // 3) Quick search by RealName
       if (!profileKey && nameCandidates.length) {
-        let nameCandidate = nameCandidates.sort((a, b) => b.split(" ").length - a.split(" ").length)[0];
+        let nameCandidate = nameCandidates[0];
         if (nameCandidate) {
           try {
             console.log("wbe: attempting searchPerson for nameCandidate", { nameCandidate });
@@ -3014,7 +3267,8 @@ async function sendChatPrompt() {
         try {
           const { getProfilePersonInfo } = await import("../../core/common");
           const personInfo = getProfilePersonInfo && getProfilePersonInfo();
-          let nameCandidate = nameCandidates.sort((a, b) => b.split(" ").length - a.split(" ").length)[0];
+          const fullName = String(personInfo?.FullName || "").toLowerCase();
+          let nameCandidate = nameCandidates.find((candidate) => fullName.includes(candidate.toLowerCase()));
           console.log("wbe: fallback DOM profile match attempt", {
             nameCandidate,
             personInfo,
@@ -3034,17 +3288,35 @@ async function sendChatPrompt() {
           console.log("wbe: DOM profile context detection error", domErr);
         }
       }
+      // 5) "where was she born?" names no one: a pronoun means the page's
+      // profile person unless the recent conversation names someone it fits
+      // (live F1, 2026-10-03: the AI asked which woman "she" was).
+      // "what's wrong with this profile?" names the page too (live C11).
+      if (
+        !profileKey &&
+        (/\b(?:he|she|him|his|her|hers|they|them|their)\b/i.test(textPrompt) ||
+          /\b(?:this|the\s+current)\s+(?:profile|person|page|man|woman)\b|\bprofile\s+person\b/i.test(textPrompt))
+      ) {
+        const pageRoot = getProfileSubjectRoot();
+        profileKey = pageRoot?.wtId || pageRoot?.key || null;
+        if (profileKey) {
+          pronounHintText = `Pronouns: "he", "she", "his", "her", "they" or "their", and "this profile/person/page", in the current request, when it names no one, mean the profile person ${profileKey} (shown below) unless the recent conversation names someone the pronoun fits. Don't ask which person is meant.`;
+        }
+      }
+      contextProfileKey = profileKey || "";
       // Fetch profile data if profileKey found
       if (profileKey) {
         try {
-          const fields = "Bio,Sources,Notes,Categories";
+          // Dates and places too: a timeline needs them even when the bio is thin.
+          const fields =
+            "Name,RealName,Gender,BirthDate,BirthLocation,DeathDate,DeathLocation,Bio,Sources,Notes,Categories";
           console.log("wbe: fetching profile for AI context", { profileKey });
           const [profile, status, page_name] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, profileKey, fields, {
             bioFormat: "wiki",
             resolveRedirect: 1,
           });
           console.log("wbe: fetched profile for AI context", { profile, status, page_name });
-          const bio = profile?.Bio || "";
+          const bio = profile?.Bio || profile?.bio || ""; // the API returns "bio"
           const sources = (profile?.Sources && Array.isArray(profile.Sources) ? profile.Sources : [])
             .map((s) => (typeof s === "string" ? s : JSON.stringify(s)))
             .join("\n");
@@ -3087,12 +3359,23 @@ async function sendChatPrompt() {
 
     const aiPromptParts = [
       "You are assisting inside the WikiTree Browser Extension chat.",
+      WIKITREE_GLOSSARY_FOR_AI,
+      AI_CHAT_CLAIM_RULES,
+      AI_ANSWER_FORMAT_RULES,
       recentUserMessages ? `Recent user messages:\n${recentUserMessages}` : "",
       conversationContext ? `Recent conversation:\n${conversationContext}` : "",
       resolvedPeopleContext,
       localFailureForAi ? `Local tool attempt failed with: ${localFailureForAi}` : "",
     ];
     if (profileContextText) aiPromptParts.push(profileContextText);
+    if (pronounHintText) aiPromptParts.push(pronounHintText);
+    // "Compare Philip with his son Philip" names the page person, so "his son" is
+    // theirs too; the AI said the son's details weren't given (live, 2026-10-04).
+    const pageRootForRelatives = getProfileSubjectRoot();
+    const relativesRoot =
+      pronounHintText || (pageRootForRelatives?.wtId && contextProfileKey === pageRootForRelatives.wtId) ? pageRootForRelatives : null;
+    const relativesContextText = await buildRelativeBiosContextForAi(prompt, relativesRoot);
+    if (relativesContextText) aiPromptParts.push(relativesContextText);
     aiPromptParts.push(`Current user request: ${prompt}`);
 
     const aiPrompt = aiPromptParts.filter(Boolean).join("\n\n");
@@ -3120,8 +3403,17 @@ async function sendChatPrompt() {
     });
 
     if (response?.success) {
-      rememberResolvedPeopleFromMessage(response.response || "");
-      appendMessage("assistant", response.response || "No response text returned.");
+      const answer = parseAiAnswer(response.response || "");
+      rememberResolvedPeopleFromMessage(answer.text);
+      lastAnswerSubject = pickAnswerSubject(answer.text);
+      if (answer.cannot) recordUnanswered(prompt, answer.text.split("\n")[0].slice(0, 160));
+      appendMessage("assistant", answer.text || "No response text returned.", {
+        badge: answer.cannot ? "Couldn't answer" : "AI answer",
+        actions: suggestionActions(answer.suggestions).map((action) => ({
+          ...action,
+          onClick: () => sendClarifiedPrompt(action.prompt, { newSearch: true }),
+        })),
+      });
     } else {
       appendMessage("assistant", localFailureForAi || `Error: ${response?.error || "AI request failed."}`);
     }
@@ -3140,6 +3432,23 @@ async function sendChatPrompt() {
     updateContextPickerVisibility();
     $input.focus();
   }
+}
+
+// "Beacall-9 fractal", "Jefferson descendants": find the person, then run the
+// chart's own prompt for their WikiTree ID (chat_chart_shortcuts.js).
+async function runChartShortcut({ chart, owner }, prompt) {
+  let key = "";
+  if (/-\d+$/.test(owner)) {
+    key = owner.charAt(0).toUpperCase() + owner.slice(1); // ("beacall-9")
+  } else {
+    const found = await resolveConnectionTargetPerson(owner, prompt);
+    key = found?.Name || "";
+  }
+  if (!key) return `I couldn't find who "${owner}" is on WikiTree. Try their WikiTree ID, like Smith-123.`;
+  const canonical = chartShortcutCanonicalPrompt(chart, key);
+  const routed = routeChatPrompt(canonical);
+  if (!routed?.intent || routed.intent === ChatIntent.CHART_SHORTCUT || routed.intent === ChatIntent.FALLBACK_AI) return null;
+  return await executeRoutedIntent(routed, canonical);
 }
 
 async function executeRoutedIntent(routed, prompt) {
@@ -3180,11 +3489,80 @@ async function executeRoutedIntent(routed, prompt) {
   if (routed.intent === ChatIntent.PERSON_AGE_AT_DEATH) {
     return await tryHandlePersonAgeAtDeathPrompt(routed.params, prompt);
   }
+  if (routed.intent === ChatIntent.CHILDREN_OUTLIVED) {
+    return await tryHandleOutlivedPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.CHILDREN_WITH_CHILDREN) {
+    return await tryHandleChildrenWithChildrenPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.CHILD_TWINS) {
+    return await tryHandleTwinsPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.RELATIVE_FACT) {
+    return await tryHandleRelativeFactPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.PERSON_MARRIAGE) {
+    return await tryHandlePersonMarriagePrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.PROFILE_SOURCES) {
+    return await tryHandleProfileSourcesPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.MIGRATION_MAP) {
+    return await tryHandleMigrationMapPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.TREE_OVERVIEW) {
+    return await tryHandleTreeOverviewPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.AGES_CHART) {
+    return await tryHandleAgesPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.FAMILY_CALENDAR) {
+    return await tryHandleFamilyCalendarPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.NAME_CLOUD) {
+    return await tryHandleNameCloudPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.LIFESPANS) {
+    return await tryHandleLifespansPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.FAMILY_TIMELINE) {
+    return await tryHandleFamilyTimelinePrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.DESCENDANT_CHART) {
+    return await tryHandleDescendantChartPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.FAMILY_WORLD) {
+    return await tryHandleFamilyWorldPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.CHART_SHORTCUT) {
+    return await runChartShortcut(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.FRACTAL_TREE) {
+    return await tryHandleFractalTreePrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.FAN_CHART) {
+    return await tryHandleFanChartPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.DNA) {
+    return await tryHandleDnaPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.PROFILE_FACT) {
+    return await tryHandleProfileFactPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.PERSON_BURIAL) {
+    return await tryHandlePersonBurialPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.PROFILE_DUPLICATES) {
+    return await tryHandleProfileDuplicatesPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.PERSON_AGE_AT_CHILD_BIRTH) {
+    return await tryHandlePersonAgeAtChildBirthPrompt(routed.params, prompt);
+  }
   if (routed.intent === ChatIntent.ANCESTOR_LIST) {
-    return await tryHandleAncestorListPrompt(routed.params, prompt);
+    return groupKinListResult(await tryHandleAncestorListPrompt(routed.params, prompt), routed.params?.groupBy);
   }
   if (routed.intent === ChatIntent.DESCENDANT_LIST) {
-    return await tryHandleDescendantListPrompt(routed.params, prompt);
+    return groupKinListResult(await tryHandleDescendantListPrompt(routed.params, prompt), routed.params?.groupBy);
   }
   if (routed.intent === ChatIntent.SPOUSE_LIST) {
     return await tryHandleSpouseListPrompt(routed.params, prompt);
@@ -3412,12 +3790,16 @@ function getProfileRootPerson() {
   return {
     key: person.Id || person.Name,
     wtId: person.Name,
-    displayName: person.FullName || person.Name,
+    // The h1 now keeps the name in a span, which getProfilePersonInfo strips (2026-10-03).
+    displayName: person.FullName || $("h1 [data-cy='person-name']").first().text().trim() || [person.FirstName, person.LastNameAtBirth].filter(Boolean).join(" ") || person.Name,
   };
 }
 
+// "how many siblings do I have" counted the page person's (live C4, 2026-10-03).
+// "I" only after an auxiliary or at the start, so "Henry I" stays a name.
 function promptRefersToUser(prompt) {
-  return /\b(my|me|mine|myself)\b/i.test(String(prompt || ""));
+  const text = String(prompt || "");
+  return /\b(my|me|mine|myself)\b/i.test(text) || /\b(?:do|am|have|did|was|can)\s+i\b|^\s*i\s/i.test(text);
 }
 
 function extractNamedSubjectForCc7Prompt(prompt) {
@@ -3521,6 +3903,44 @@ async function resolveCc7SubjectRoot(prompt) {
   return getProfileSubjectRoot() || (await getLoggedInRootPerson());
 }
 
+// F4, "what did her husband do for a living?": the answer is in the relative's
+// bio, so the AI gets those bios too (a few, trimmed).
+const RELATIVE_BIO_LIMIT = 4;
+const RELATIVE_BIO_CHARS = 6000;
+async function buildRelativeBiosContextForAi(prompt, pageRoot) {
+  const match = String(prompt || "").match(
+    /\b(?:his|her|their)\s+(mother|father|parents?|husbands?|wife|wives|spouses?|sons?|daughters?|children|brothers?|sisters?|siblings?)\b/i
+  );
+  if (!match || !pageRoot?.wtId) return "";
+  const { list, gender } = relationSelector(match[1]);
+  try {
+    const [entry] = (await WikiTreeAPI.getRelatives(
+      WBE_CHAT_APP_ID,
+      pageRoot.wtId,
+      "Id,Name,RealName,Gender,BirthDate,BirthLocation,DeathDate,DeathLocation,Bio",
+      { [`get${list}`]: 1, bioFormat: "wiki" }
+    )) || [];
+    const people = Object.values(entry?.person?.[list] || {})
+      .filter((person) => !gender || person?.Gender === gender)
+      .slice(0, RELATIVE_BIO_LIMIT);
+    if (!people.length) return "";
+    const blocks = people.map((person) => {
+      const bio = String(person?.Bio || person?.bio || "").slice(0, RELATIVE_BIO_CHARS); // the API returns "bio"
+      const facts = [
+        person.BirthDate ? `born ${person.BirthDate}${person.BirthLocation ? ` in ${person.BirthLocation}` : ""}` : "",
+        person.DeathDate ? `died ${person.DeathDate}${person.DeathLocation ? ` in ${person.DeathLocation}` : ""}` : "",
+      ]
+        .filter(Boolean)
+        .join("; ");
+      return `${match[1]} of ${pageRoot.wtId}: ${person.RealName || person.Name} (${person.Name})${facts ? ` — ${facts}` : ""}\nBIO:\n${bio || "(empty)"}`;
+    });
+    return `Relatives named in the request, with their biographies:\n\n${blocks.join("\n\n")}`;
+  } catch (error) {
+    console.log("wbe: relative bios for AI context failed", error);
+    return "";
+  }
+}
+
 async function resolveConnectionSourceRoot(prompt, targetWtId = "", sourceNameOverride = "") {
   const normalizedPrompt = String(prompt || "").trim();
   const overrideName = String(sourceNameOverride || "").trim();
@@ -3534,6 +3954,31 @@ async function resolveConnectionSourceRoot(prompt, targetWtId = "", sourceNameOv
   }
 
   const namedSource = overrideName || extractConnectionSourceName(normalizedPrompt);
+  // F8 (live, 2026-10-03): "is she related to Captain James Cook?" came back
+  // with the source "Ellen (Cook) Alley", the page's display name, which name
+  // search can't resolve. A pronoun or the page's own name is the page profile.
+  const pageRoot = getProfileSubjectRoot();
+  const sameName = (left, right) =>
+    String(left || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim() ===
+    String(right || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  if (
+    namedSource &&
+    pageRoot &&
+    (/^(?:she|he|they|her|him|them|this\s+person|the\s+profile\s+person)$/i.test(namedSource) ||
+      sameName(namedSource, pageRoot.displayName) ||
+      sameName(namedSource, pageRoot.wtId) ||
+      // P5 (live, 2026-10-03): "the relationship between Ellen and Amy Alley" on
+      // Ellen's page: "Ellen" alone was unresolved.
+      (/^[A-Za-z'-]+$/.test(namedSource) && sameName(namedSource, String(pageRoot.displayName || "").split(/\s+/)[0])))
+  ) {
+    return pageRoot;
+  }
   if (namedSource) {
     const resolved = await resolveConnectionTargetPerson(namedSource, normalizedPrompt);
     if (!resolved?.Name) {
@@ -3612,7 +4057,9 @@ async function shouldOfferAppsLoginHint() {
 
 async function maybeAppendAppsLoginHint() {
   if (await shouldOfferAppsLoginHint()) {
-    appendMessage("assistant", CHAT_APPS_LOGIN_HINT);
+    appendMessage("assistant", CHAT_APPS_LOGIN_HINT, { shouldPersist: false });
+    const $chips = $(`#${CHAT_MESSAGES_ID} .chat-welcome-chips`); // (keep the chips last)
+    $chips.parent().append($chips);
   }
 }
 
@@ -3680,33 +4127,169 @@ function bindOutsideClickToCloseChat() {
     });
 }
 
+// Chart buttons along the top of Genie (2026-10-03): one click opens a chart
+// for the profile person (or for you, off a profile). Each sends the typed
+// shortcut ("Beacall-9 fan chart"), so people see they can type it for anyone.
+// Chart-bar buttons that only make sense when the profile has a DNA test of that type,
+// taken or connected (the user, 2026-10-04: "if the profile person didn't take a test… useless").
+const DNA_BAR_BUTTON_TYPES = { ydnamap: "yDNA" };
+const profileDnaTypesCache = new Map();
+// "Who could test?" needs a profile the API can read. For an ancestor it lists their line's
+// carriers; for a living person, the people who share their lines (from each line's furthest ancestor).
+const profileIsReadableCache = new Map();
+
+/** The test types in this page's "DNA tested" box (empty when there's no box). */
+function pageDnaTestTypes() {
+  const $box = $("h4")
+    .filter((index, heading) => /^\s*DNA tested\b/i.test($(heading).text()))
+    .first()
+    .parent();
+  const slugs = $box
+    .find("a[href*='Special:DNATests']")
+    .map((index, link) => (String($(link).attr("href") || "").match(/[?&]t=([A-Za-z0-9_]+)/) || [])[1] || "")
+    .get();
+  return dnaTypesFromTestSlugs(slugs);
+}
+
+function profileIsReadable(wtid) {
+  if (!profileIsReadableCache.has(wtid)) {
+    const lookup = WikiTreeAPI.postToAPI({ appId: WBE_CHAT_APP_ID, action: "getProfile", key: wtid, fields: "Id,IsLiving" })
+      .then(([result] = []) => (result?.profile?.Id ? { living: Number(result.profile.IsLiving) === 1 } : null))
+      .catch(() => null);
+    profileIsReadableCache.set(wtid, lookup);
+  }
+  return profileIsReadableCache.get(wtid);
+}
+
+/** The DNA test types connected to a profile (a taker's own tests are connected too), remembered per profile. */
+function profileDnaTypes(wtid) {
+  if (!profileDnaTypesCache.has(wtid)) {
+    const lookup = WikiTreeAPI.postToAPI({ appId: WBE_CHAT_APP_ID, action: "getConnectedDNATestsByProfile", key: wtid })
+      .then(([result] = []) => new Set((result?.dnaTests || []).map((test) => test.dna_type).filter(Boolean)))
+      .catch(() => new Set());
+    profileDnaTypesCache.set(wtid, lookup);
+  }
+  return profileDnaTypesCache.get(wtid);
+}
+
+function renderChartBar($popup) {
+  const $bar = $popup.find(".chat-chart-bar").empty();
+  const profile = getProfileRootPerson();
+  const wtid = profile?.wtId || getUserWtId() || "";
+  if (!wtid) return;
+  const who = profile ? String(profile.displayName || wtid).trim().split(/\s+/)[0] : "you";
+  $("<span>").addClass("chat-chart-bar-label").text(`Charts for ${who}:`).attr("title", `Or type a name or ID and a chart, like "${wtid} fan chart" or "Jefferson descendants"`).appendTo($bar);
+  CHART_BAR_KEYS.forEach((key) => {
+    const chart = CHART_SHORTCUTS.find((item) => item.key === key);
+    const $button = $("<button>")
+      .attr({ type: "button", title: chart.title })
+      .addClass("chat-chart-bar-button")
+      .text(chart.label)
+      .on("click", () => {
+        $(`#${CHAT_INPUT_ID}`).val(chartButtonPrompt(key, wtid));
+        void sendChatPrompt();
+      })
+      .appendTo($bar);
+    // (the page's "DNA tested" box answers at once for the person on the page; the user, 2026-10-04)
+    const pageTypes = profile ? pageDnaTestTypes() : new Set();
+    const dnaType = DNA_BAR_BUTTON_TYPES[key];
+    if (dnaType && !pageTypes.has(dnaType)) {
+      $button.prop("hidden", true);
+      profileDnaTypes(wtid).then((types) => $button.prop("hidden", !types.has(dnaType)));
+    }
+    if (key === "dnatesters" && !pageTypes.size) {
+      // An ancestor: who carries their lines. A living person who hasn't tested: hidden.
+      $button.prop("hidden", true);
+      profileIsReadable(wtid).then((info) => $button.prop("hidden", !info || info.living));
+    }
+  });
+  $bar.prop("hidden", false);
+}
+
+// Example prompts under the welcome message (2026-10-03), so people find the
+// charts without knowing what to type. Clicking one sends it.
+const WELCOME_CHIPS_SHOWN = 6;
+
+// Whether an AI key is set: null until known (syncChatVisibilityToKeys).
+let aiAvailable = null;
+// The no-key tip on search results shows once per page.
+let noKeyTipShown = false;
+
+// ai: false when there's no AI key ("How am I related to…?" needs the AI
+// planner; "My connection to…" is handled by Genie's own code).
+// Without an AI key, a chip opens the search form instead of sending a prompt.
+export const SEARCH_FORM_CHIP = "Search by name, place or date";
+
+export function welcomeChipPrompts(profileFirstName, { ai = true } = {}) {
+  const prompts = profileFirstName
+    ? [ai ? `How am I related to ${profileFirstName}?` : `My connection to ${profileFirstName}`, "Tree overview", "Fan chart", "Family Explorer", "Map this person's ancestors", "On this day in this family", "Lifespans", "Ancestors in history", "Surnames", "Name cloud", "X-DNA chart", "Descendant chart", "Family timeline"]
+    : ["Tell me about my tree", "Show my fan chart", "Show my Family Explorer", "Map my ancestors", "How complete is my tree?", "How long did my ancestors live?", "What history did my ancestors live through?", "What surnames are in my tree?", "Who could I have inherited X-DNA from?", "On this day in my family", "Show my descendant chart", "Show my family timeline"];
+  return ai ? prompts : [prompts[0], SEARCH_FORM_CHIP, ...prompts.slice(1)];
+}
+
+function appendWelcomeChips() {
+  const $messages = $(`#${CHAT_MESSAGES_ID}`);
+  if (!$messages.length) return;
+  $messages.find(".chat-welcome-chips").remove();
+  const $chips = $("<div>").addClass("chat-message-actions chat-welcome-chips").attr("aria-label", "Try these");
+  const profile = getProfileRootPerson();
+  const profileFirstName = profile ? String(profile.displayName || profile.wtId).trim().split(/\s+/)[0] || profile.wtId : "";
+  // The first few show; "More…" opens the rest (there are a dozen charts now).
+  const prompts = welcomeChipPrompts(profileFirstName, { ai: aiAvailable !== false });
+  prompts.forEach((prompt, index) => {
+    $("<button>")
+      .attr("type", "button")
+      .addClass("chat-message-action")
+      .toggle(index < WELCOME_CHIPS_SHOWN)
+      .text(prompt)
+      .on("click", () => {
+        $chips.remove();
+        if (prompt === SEARCH_FORM_CHIP) {
+          appendMessage("assistant", "Fill in what you know, then press Search.", { searchForm: {} });
+          return;
+        }
+        $(`#${CHAT_INPUT_ID}`).val(prompt);
+        void sendChatPrompt();
+      })
+      .appendTo($chips);
+  });
+  if (prompts.length > WELCOME_CHIPS_SHOWN) {
+    $("<button>")
+      .attr("type", "button")
+      .addClass("chat-message-action chat-welcome-more")
+      .text("More…")
+      .on("click", function () {
+        $chips.children().show();
+        $(this).remove();
+      })
+      .appendTo($chips);
+  }
+  $messages.append($chips);
+}
+
 function openPopup() {
   let $popup = $(`#${CHAT_POPUP_ID}`);
   if ($popup.length === 0) {
     $popup = $(
       `<div id="${CHAT_POPUP_ID}" class="wbe-popup chat-popup">
         <div class="chat-popup-header">
-          <strong>Muse</strong>
+          <strong>Genie</strong>
           <div class="chat-popup-controls">
             <button id="${CHAT_CLEAR_ID}" type="button" class="small" title="Clear chat">Clear</button>
             <button type="button" class="small close-popup" aria-label="Close" title="Close">&times;</button>
           </div>
         </div>
+        <div class="chat-chart-bar" aria-label="Charts" hidden></div>
         <div class="chat-popup-body">
           <div id="${CHAT_MESSAGES_ID}" class="chat-messages"></div>
           <div class="chat-input-row">
-            <textarea id="${CHAT_INPUT_ID}" rows="2" placeholder="Ask something" style="flex:1;min-height:48px"></textarea>
+            <textarea id="${CHAT_INPUT_ID}" rows="2" placeholder="Search WikiTree, or ask a question" style="flex:1;min-height:48px"></textarea>
             <div id="${CHAT_WTPLUS_SUGGESTION_PICKER_ID}" class="chat-wtplus-suggestion-picker" style="display:none">
               <label for="${CHAT_WTPLUS_SUGGESTION_SELECT_ID}">WT+ suggestion</label>
               <select id="${CHAT_WTPLUS_SUGGESTION_SELECT_ID}"></select>
             </div>
             <div class="chat-input-actions">
-              <div id="wbe-chat-mode-controls" class="chat-mode-controls" aria-label="Chat mode">
-                <div class="chat-mode-controls-title">Mode</div>
-                <span id="wbe-chat-mode-notice" class="chat-mode-notice" aria-live="polite"></span>
-                <label class="chat-mode-option"><input type="radio" name="wbe-chat-mode" value="wt" checked /><span>Search</span></label>
-                <label class="chat-mode-option"><input type="radio" name="wbe-chat-mode" value="ai" /><span>Chat</span></label>
-              </div>
+              <span id="wbe-chat-mode-notice" class="chat-mode-notice" aria-live="polite"></span>
               <div id="${CHAT_CONTEXT_CONTROLS_ID}" class="chat-mode-controls chat-context-controls" aria-label="Next query context" style="display:none">
                 <div class="chat-mode-controls-title">Next</div>
                 <label class="chat-mode-option"><input type="radio" name="wbe-chat-context" value="followup" checked /><span>Continue</span></label>
@@ -3723,7 +4306,10 @@ function openPopup() {
 
     positionPopupForOpen($popup.get(0));
     $popup.find(".close-popup").on("click", closePopup);
-    $popup.find(`#${CHAT_CLEAR_ID}`).on("click", clearHistory);
+    $popup.find(`#${CHAT_CLEAR_ID}`).on("click", () => {
+      clearHistory();
+      appendWelcomeChips();
+    });
     $popup.find(`#${CHAT_SEND_ID}`).on("click", sendChatPrompt);
     $popup.find('input[name="wbe-chat-mode"]').on("change", (event) => {
       persistChatMode(event?.target?.value || getCurrentChatMode());
@@ -3740,12 +4326,16 @@ function openPopup() {
         sendChatPrompt();
       }
     });
+    renderChartBar($popup);
     loadHistory();
     ensureResolvedPersonMemoryLoaded();
     renderHistory();
     bindWtPlusSuggestionPicker($popup);
-    if (!chatHistory.length) {
-      appendMessage("assistant", "Muse is ready. Ask a question to begin.");
+    // Until something has been asked, greet and offer the chips. (The greeting used to be
+    // saved, so a tab that had opened Genie once never showed the chips again.)
+    if (!chatHistory.some((entry) => entry?.role === "user")) {
+      if (!chatHistory.length) appendMessage("assistant", "Genie is ready. Ask a question to begin.", { shouldPersist: false });
+      appendWelcomeChips();
     }
     void maybeAppendAppsLoginHint();
 
@@ -3770,6 +4360,11 @@ function openPopup() {
   }
 
   $popup.show();
+  applyAiAvailability();
+  hasAnyApiKey().then((hasKey) => {
+    aiAvailable = hasKey;
+    applyAiAvailability();
+  });
   restoreChatMode($popup);
   positionPopupForOpen($popup.get(0));
   setHighestZIndex($popup.get(0));
@@ -3785,9 +4380,9 @@ function ensureChatButton() {
   if (document.getElementById(CHAT_BUTTON_ID)) return;
   const container = ensureButtonContainer();
   if (!container) return;
-  const iconUrl = chrome.runtime.getURL("images/chat.svg");
+  const iconUrl = chrome.runtime.getURL("images/genie.svg");
   const $button = $(
-    `<a id="${CHAT_BUTTON_ID}" href="#" class="wbe-button" data-tooltip="Muse" data-bs-title="Muse" data-bs-toggle="tooltip" title="Open Muse"><span class="icon--chat" style="background-image:url(${iconUrl})"></span></a>`
+    `<a id="${CHAT_BUTTON_ID}" href="#" class="wbe-button" data-tooltip="Genie" data-bs-title="Genie" data-bs-toggle="tooltip" title="Open Genie"><span class="icon--chat" style="background-image:url(${iconUrl})"></span></a>`
   );
   $button.on("click", (e) => {
     e.preventDefault();
@@ -3796,17 +4391,26 @@ function ensureChatButton() {
   $(container).append($button);
 }
 
-function hideChatButtonAndPopup() {
-  document.getElementById(CHAT_BUTTON_ID)?.remove();
-  closePopup();
+// Genie is for everyone (2026-10-04): the charts and the prompts Genie's own code
+// understands need no AI. Without a key, only questions that need AI are
+// turned away (with chart buttons instead), and the hint says so.
+async function syncChatVisibilityToKeys() {
+  ensureChatButton();
+  aiAvailable = await hasAnyApiKey();
+  applyAiAvailability();
 }
 
-async function syncChatVisibilityToKeys() {
-  if (await hasAnyApiKey()) {
-    ensureChatButton();
-  } else {
-    hideChatButtonAndPopup();
-  }
+// The box hint, and the welcome chips' wording, follow whether an AI key is set.
+function applyAiAvailability() {
+  const $popup = $(`#${CHAT_POPUP_ID}`);
+  if (!$popup.length) return;
+  $popup
+    .find(`#${CHAT_INPUT_ID}`)
+    .attr(
+      "placeholder",
+      aiAvailable === false ? "Search WikiTree, or pick a chart (add an AI key in Options to ask questions)" : "Search WikiTree, or ask a question"
+    );
+  if ($popup.find(".chat-welcome-chips").length) appendWelcomeChips();
 }
 
 function init() {

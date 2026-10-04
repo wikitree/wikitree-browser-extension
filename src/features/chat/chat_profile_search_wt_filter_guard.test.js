@@ -101,12 +101,9 @@ describe("chat_profile_search WT filter guard", () => {
     const { tryHandleProfileSearchPrompt } = makeHandler({ fetchSearchPersonPaged });
     const result = await tryHandleProfileSearchPrompt({ chatModeOverride: "wt" }, "Lincolnshire births, post-1850");
 
-    const searchParams = fetchSearchPersonPaged.mock.calls[0][1];
-    expect(searchParams).toMatchObject({
-      BirthLocation: "Lincolnshire",
-    });
-    expect(searchParams.FirstName).toBeUndefined();
-    expect(searchParams.LastName).toBeUndefined();
-    expect(result.table.rows).toHaveLength(1);
+    // searchPerson refuses a place with no name (live API, 2026-10-03), so it
+    // must not be called at all rather than called with an invented name.
+    expect(fetchSearchPersonPaged).not.toHaveBeenCalled();
+    expect(JSON.stringify(result || "")).not.toMatch(/Lincoln-1/);
   });
 });

@@ -13,11 +13,12 @@ import $ from "jquery";
 /**
  * The page shows one block per watchlist profile searched: a "Possible matches for X"
  * paragraph followed by a list of candidates. Returns one entry per block.
+ * `root` lets the chat read a fetched copy of the page instead of the live one.
  */
-export function readResultBlocks() {
+export function readResultBlocks(root = document) {
   const blocks = [];
 
-  $("section#Results > div").each((_, element) => {
+  $(root).find("section#Results > div").each((_, element) => {
     const container = $(element);
     const anchorWtId = wtIdFromElement(container.children("p").first());
     if (!anchorWtId) {

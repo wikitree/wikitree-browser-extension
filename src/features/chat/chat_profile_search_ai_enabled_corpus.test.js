@@ -130,5 +130,7 @@ describe("AI-enabled corpus: curated deterministic parses beat the AI", () => {
     expect(executedQuery).not.toContain("AiSentinel");
     expect(executedQuery).toContain("BirthLocation=Lancashire");
     expect(executedQuery).toContain(range);
+    // A4, 2026-10-03: the gap is pre-filtered on the server (281,390 → 2,022 candidates).
+    expect(executedQuery).toContain("[Spouses].[Birth Date].AsNumber - [Default].[Birth Date].AsNumber > 190000");
   });
 });

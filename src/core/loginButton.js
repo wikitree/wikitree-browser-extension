@@ -49,6 +49,29 @@ async function handleOptionalAuthCode(opt) {
 }
 
 let authcodeRedemption = null;
+// Whether the page was opened with an authcode, remembered because the code is taken out of the
+// address bar once it has been used (see removeAuthcodeFromUrl).
+const arrivedWithAuthcode = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("authcode");
+
+/** True if this page was opened straight back from api.wikitree.com's clientLogin (with an authcode). */
+export function pageHadAuthcode() {
+  return arrivedWithAuthcode;
+}
+
+/**
+ * Takes the used authcode out of the address bar. An authcode works only once; left there, every
+ * reload sent it again (and the API login didn't stay, 2026-10-03, on staging).
+ */
+function removeAuthcodeFromUrl() {
+  try {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("authcode")) return;
+    url.searchParams.delete("authcode");
+    window.history.replaceState(window.history.state, "", url.href);
+  } catch (error) {
+    // (no history API: the code just stays in the URL, as before)
+  }
+}
 
 /**
  * If the page URL carries an authcode (we've just come back from api.wikitree.com's clientLogin),
@@ -73,6 +96,7 @@ async function doRedeemAuthcode(appId) {
   const userNumId = getUserNumId();
   try {
     const data = await WikiTreeAPI.postToAPI({ action: "clientLogin", authcode: authcode, appId: appId });
+    removeAuthcodeFromUrl();
     if (data?.clientLogin?.result === "Success") {
       WikiTreeAPI.setCachedApiLoginStatus(userNumId, true);
       return true;

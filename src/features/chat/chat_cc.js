@@ -385,6 +385,32 @@ export function createChatCcHandlers({
     }
   }
 
+  // Whole-word place match, so "Kent" never matches "Kentucky".
+  function filterWatchlistRows(rows, filter) {
+    const place = String(filter?.location || "").trim();
+    const placeRe = place
+      ? new RegExp(`(?:^|[^\\p{L}])${place.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:$|[^\\p{L}])`, "iu")
+      : null;
+    return rows.filter((row) => {
+      const where = filter.event === "birth" ? row.birthLocation : row.deathLocation;
+      if (placeRe && !placeRe.test(String(where || ""))) return false;
+      if (filter.dateDirection) {
+        const year = Number(String((filter.event === "birth" ? row.birth : row.death) || "").slice(0, 4));
+        if (!Number.isFinite(year) || year <= 0) return false;
+        if (filter.dateDirection === "before" && !(year < filter.year)) return false;
+        if (filter.dateDirection === "after" && !(year > filter.year)) return false;
+      }
+      return true;
+    });
+  }
+
+  function describeWatchlistFilter(filter) {
+    const verb = filter.event === "birth" ? "born" : "died";
+    return [verb, filter.location ? `in ${filter.location}` : "", filter.dateDirection ? `${filter.dateDirection} ${filter.year}` : ""]
+      .filter(Boolean)
+      .join(" ");
+  }
+
   async function tryHandleWatchlistPrompt(params = {}) {
     const hasExplicitLimit =
       params && params.limit !== undefined && params.limit !== null && String(params.limit).trim() !== "";
@@ -462,6 +488,25 @@ export function createChatCcHandlers({
 
       if (!rows.length) {
         return "I found watchlist entries, but none had usable profile identifiers to display.";
+      }
+
+      const filter = params?.filter || null;
+      if (filter) {
+        const allCount = rows.length;
+        const filteredRows = filterWatchlistRows(rows, filter);
+        const label = describeWatchlistFilter(filter);
+        if (!filteredRows.length) {
+          return `None of the ${allCount} profiles on your watchlist ${label}.`;
+        }
+        const listed = filteredRows.slice(0, 12).map((person) => `- ${person.displayName} (${person.wtid})`);
+        const more = filteredRows.slice(12);
+        return {
+          message: `${filteredRows.length} of the ${allCount} profiles on your watchlist ${label}.\n${listed.join("\n")}`,
+          inlineMore: more.length
+            ? { count: more.length, text: more.map((person) => `- ${person.displayName} (${person.wtid})`).join("\n") }
+            : null,
+          table: makeWatchlistTable(`Your watchlist: ${label}`, filteredRows, [[0, "asc"]]),
+        };
       }
 
       const knownTotal = Number.isFinite(Number(watchlistCount)) ? Number(watchlistCount) : rows.length;

@@ -3,7 +3,7 @@ import { shouldInitializeFeature } from "../../core/options/options_storage";
 import "jquery-ui/ui/widgets/draggable";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { treeImageURL, getObjectStores, cc7DbKeyFor, oncePerTab, getUserNumId, getUserWtId } from "../../core/common";
-import { redeemAuthcode } from "../../core/loginButton";
+import { pageHadAuthcode, redeemAuthcode } from "../../core/loginButton";
 import { PersonName } from "../auto_bio/person_name.js";
 import { displayDates } from "../verifyID/verifyID";
 import { goAndLogIn } from "../randomProfile/randomProfile";
@@ -466,7 +466,7 @@ async function initializeCC7Tracking() {
 
     // If the user has just come back from logging in via our popup, carry on with what they asked for
     const runAfterLogin = takeRunAfterLogin();
-    if (runAfterLogin && new URLSearchParams(window.location.search).has("authcode")) {
+    if (runAfterLogin && pageHadAuthcode()) {
       runCC7Changes(runAfterLogin == RUN_AFTER_LOGIN_REPORT_ONLY, window.scrollY + 100);
     }
   } catch (e) {

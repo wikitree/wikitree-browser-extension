@@ -178,6 +178,23 @@ describe("chat_profile_search query guards", () => {
     }
   });
 
+  test("a pronoun is never a surname: 'who are my brick walls?' runs no WT+ query", async () => {
+    const fetchSearchPersonPaged = jest.fn(async () => [0, []]);
+    window.callAiModel = jest.fn(async () => JSON.stringify({}));
+    const { tryHandleProfileSearchPrompt } = makeHandler({
+      fetchSearchPersonPaged,
+      getChatOptions: jest.fn(async () => ({ allowAiFallback: true })),
+    });
+    try {
+      const result = await tryHandleProfileSearchPrompt({ chatModeOverride: "wt" }, "who are my brick walls?");
+      expect(wtAPIProfileSearch).not.toHaveBeenCalled();
+      const message = typeof result === "string" ? result : result?.message;
+      expect(message).toMatch(/couldn't work out a concrete person search/i);
+    } finally {
+      delete window.callAiModel;
+    }
+  });
+
   test("nameless place+date prompt in WT mode falls back to the deterministic WT+ query", async () => {
     const fetchSearchPersonPaged = jest.fn(async () => [0, []]);
     const { tryHandleProfileSearchPrompt } = makeHandler({ fetchSearchPersonPaged });
@@ -218,4 +235,24 @@ describe("chat_profile_search query guards", () => {
     expect(searchParams.FirstName).toBe("George");
     expect(searchParams.LastName).toBe("Beacall");
   });
+});
+
+// Live, 2026-10-04: "Beacall-10" was searched for as a surname and found nothing.
+test("a bare WikiTree ID fetches that profile instead of searching for it as a name", async () => {
+  const fetchSearchPersonPaged = jest.fn(async () => [0, []]);
+  const fetchPeoplePaged = jest.fn(async () => [
+    null,
+    null,
+    { 5: { Id: 5, Name: "Beacall-10", FirstName: "Philip", LastNameAtBirth: "Beacall", BirthDate: "1859-00-00" } },
+  ]);
+  const { tryHandleProfileSearchPrompt } = makeHandler({
+    fetchSearchPersonPaged,
+    fetchPeoplePaged,
+    getChatAiConfig: jest.fn(async () => ({ provider: "openai", key: "", model: "" })),
+  });
+  const result = await tryHandleProfileSearchPrompt({ chatModeOverride: "wt" }, "Beacall-10");
+  expect(fetchSearchPersonPaged).not.toHaveBeenCalled();
+  expect(fetchPeoplePaged.mock.calls[0][1]).toEqual(["Beacall-10"]);
+  expect(JSON.stringify(result)).toContain("Beacall-10");
+  expect(JSON.stringify(result)).not.toMatch(/couldn't find/i);
 });

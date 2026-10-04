@@ -1,13 +1,10 @@
-const DEFAULT_AI_KEY_FIELDS = ["openAIKey", "geminiKey", "claudeKey", "perplexityKey"];
+import { SHARED_AI_DEFAULT_MODELS } from "../../core/options/shared_ai_options";
 
 export function createChatAiHelpers({
   getChatOptions,
   getChatHistory,
   chatAiMessageMaxChars = 500,
   chatAiHistoryMaxMessages = 12,
-  sharedAiOptionsKey = "sharedAI_options",
-  autoBioOptionsKey = "autoBio_options",
-  aiKeyFields = DEFAULT_AI_KEY_FIELDS,
 }) {
   function truncateForAi(text, maxChars = chatAiMessageMaxChars) {
     const normalized = String(text || "")
@@ -57,38 +54,36 @@ export function createChatAiHelpers({
     let key = "";
     let model = options.aiModel || "";
 
+    // (fallback models are the shared defaults, the same ones Auto Bio uses)
     if (provider === "openai") {
       key = options.openAIKey || "";
-      model = model || options.openAIModel || "gpt-5-mini";
+      model = model || options.openAIModel || SHARED_AI_DEFAULT_MODELS.openai;
     } else if (provider === "gemini") {
       key = options.geminiKey || "";
-      model = model || options.geminiModel || "gemini-3-flash-preview";
+      model = model || options.geminiModel || SHARED_AI_DEFAULT_MODELS.gemini;
     } else if (provider === "claude") {
       key = options.claudeKey || "";
-      model = model || options.claudeModel || "claude-sonnet-4-5";
+      model = model || options.claudeModel || SHARED_AI_DEFAULT_MODELS.claude;
     } else if (provider === "perplexity") {
       key = options.perplexityKey || "";
-      model = model || options.perplexityModel || "sonar";
+      model = model || options.perplexityModel || SHARED_AI_DEFAULT_MODELS.perplexity;
+    } else if (provider === "xai") {
+      key = options.xaiKey || "";
+      model = model || options.xaiModel || SHARED_AI_DEFAULT_MODELS.xai;
     }
 
     return { provider, key, model };
   }
 
+  // Whether Genie can reach an AI: a key for the provider Genie is set to use, as
+  // getChatAiConfig reads it (2026-10-04: "any key anywhere" counted a key kept for
+  // another provider or an old copy, so Genie half-acted as if it had AI).
   async function hasAnyApiKey() {
-    return new Promise((resolve) => {
-      chrome.storage.sync.get([sharedAiOptionsKey, autoBioOptionsKey, "chat_options"], (items) => {
-        const options = {
-          ...(items?.[autoBioOptionsKey] || {}),
-          ...(items?.chat_options || {}),
-          ...(items?.[sharedAiOptionsKey] || {}),
-        };
-        const hasKey = aiKeyFields.some((field) => {
-          const value = options?.[field];
-          return typeof value === "string" && value.trim().length > 0;
-        });
-        resolve(hasKey);
-      });
-    });
+    try {
+      return Boolean((await getChatAiConfig())?.key);
+    } catch (error) {
+      return false;
+    }
   }
 
   return {

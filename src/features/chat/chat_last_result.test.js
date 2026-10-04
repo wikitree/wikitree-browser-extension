@@ -113,8 +113,18 @@ describe("chat_last_result inline more", () => {
       }
     );
     expect(result).toEqual({
-      message: 'I opened the current result set in a table with the Birth Location column filter set to "Birkenhead".',
+      message:
+        'I opened the current result set in a table with the Birth Location column filter set to "Birkenhead". 27 of 27 rows match.',
     });
+  });
+
+  test("a filter that matches nothing says so", async () => {
+    const { handler } = createHandlerWithSpy({ title: "Cornwall", rows: createRows(5), columns: createStandardColumns() });
+    const result = await handler({
+      action: "filter",
+      filter: { kind: "birthLocation", value: "Kent" },
+    });
+    expect(result.message).toMatch(/set to "Kent"\. 0 of 5 rows match\.$/);
   });
 
   test("supported follow-up filters merge with existing column filters", async () => {
@@ -154,7 +164,7 @@ describe("chat_last_result inline more", () => {
     );
     expect(result).toEqual({
       message:
-        'I opened the current result set in a table with column filters set to Birth Location = "Iowa" and Birth = "1940-1950".',
+        'I opened the current result set in a table with column filters set to Birth Location = "Iowa" and Birth = "1940-1950". 0 of 27 rows match.',
     });
   });
 
@@ -171,7 +181,7 @@ describe("chat_last_result inline more", () => {
     expect(result.message).not.toContain("...and 15 more.");
     expect(result.inlineMore).toEqual({
       count: 15,
-      text: expect.stringContaining("- Person 13 (Person-13) | degree 5 | born 1862-00-00 | Male"),
+      text: expect.stringContaining("- Person 13 (Person-13) | degree 5 | born 1862 | Male"),
     });
   });
 
@@ -196,5 +206,33 @@ describe("chat_last_result inline more", () => {
       count: 3,
       text: expect.stringContaining("- Surname 7: 1"),
     });
+  });
+});
+
+describe("M3 year-range column filter counts", () => {
+  test("born before 1885 counts rows by year", async () => {
+    const rows = [
+      { displayName: "A", wtid: "A-1", birth: "1880" },
+      { displayName: "B", wtid: "B-1", birth: "1883-04-02" },
+      { displayName: "C", wtid: "C-1", birth: "1890" },
+      { displayName: "D", wtid: "D-1", birth: "" },
+    ];
+    const { handler } = createHandlerWithSpy({ title: "Grandchildren", rows, columns: createStandardColumns() });
+    const result = await handler({ action: "filter", filter: { kind: "birthDate", direction: "before", value: "1885" } });
+    expect(result.message).toMatch(/2 of 4 rows match\.$/);
+  });
+});
+
+describe("M3 open-ended year ranges become table bounds", () => {
+  test("0-1884 opens as < 1885", async () => {
+    const rows = [
+      { displayName: "A", wtid: "A-1", birth: "1880" },
+      { displayName: "C", wtid: "C-1", birth: "1890" },
+    ];
+    const { handler } = createHandlerWithSpy({ title: "Grandchildren", rows, columns: createStandardColumns() });
+    const result = await handler({ action: "filter", filter: { kind: "birthYearRange", start: 0, end: 1884 } });
+    expect(result.message).toBe('I opened the current result set in a table with the Birth column filter set to "< 1885". 1 of 2 rows match.');
+    const after = await handler({ action: "filter", filter: { kind: "birthYearRange", start: 1885, end: "" } });
+    expect(after.message).toMatch(/"> 1884"/);
   });
 });

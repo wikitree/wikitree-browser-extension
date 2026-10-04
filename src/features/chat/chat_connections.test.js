@@ -1097,7 +1097,7 @@ describe("chat_connections target resolution", () => {
     const result = await tryHandleConnectionPrompt("Connection between Marsha Hutchison and the Pope", "the Pope");
 
     expect(result).toContain('I found a possible source match for "Marsha Hutchison"');
-    expect(result).toContain("Muse cannot compute the connection from it");
+    expect(result).toContain("Genie cannot compute the connection from it");
     expect(result).toContain("stable WikiTree ID");
     expect(WikiTreeAPI.getConnections).not.toHaveBeenCalled();
   });
@@ -1115,7 +1115,7 @@ describe("chat_connections target resolution", () => {
     );
 
     expect(result).toContain('I could not find a WikiTree profile match for "Unknown Example"');
-    expect(result).toContain("Muse may not be able to compute the connection at all");
+    expect(result).toContain("Genie may not be able to compute the connection at all");
   });
 });
 

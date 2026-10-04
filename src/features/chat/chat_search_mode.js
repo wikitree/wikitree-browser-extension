@@ -1,10 +1,21 @@
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
+import { WIKITREE_GLOSSARY_FOR_AI } from "./chat_wikitree_glossary";
 import { getProfilePersonInfo } from "../../core/common";
 import { isLikelyMarriedNoChildrenPrompt } from "./chat_married_no_children_filter";
 import { isLikelyParentAgeAtBirthPrompt } from "./chat_parent_age_filter";
 import { isLikelySiblingBirthGapPrompt } from "./chat_sibling_birth_gap_filter";
 import { isLikelySpousalAgeGapPrompt } from "./chat_spouse_age_gap_filter";
 import { isLocationTopicCategoryPrompt } from "./chat_place_topic_category";
+import { isProfileNarrativePrompt } from "./chat_profile_narrative";
+import { parseProfileFactPrompt } from "./chat_profile_facts";
+import { parseDnaPrompt } from "./chat_dna";
+import { parseFanChartPrompt } from "./chat_fan_chart_data";
+import { parseFractalTreePrompt } from "./chat_fractal_tree_data";
+import { parseFamilyWorldPrompt } from "./chat_family_world_data";
+import { parseChartShortcutPrompt } from "./chat_chart_shortcuts";
+import { parseDescendantChartPrompt } from "./chat_descendant_chart_data";
+import { parseFamilyTimelinePrompt } from "./chat_family_timeline_data";
+import { parseMigrationMapPrompt } from "./chat_migration_data";
 
 function extractNamesFromPrompt(prompt) {
   if (!prompt || typeof prompt !== "string") return [];
@@ -45,7 +56,7 @@ async function appendProfileContextForCandidates(conversationContext, prompt) {
         }
       );
       if (fullProfile) {
-        const bio = fullProfile?.Bio || "";
+        const bio = fullProfile?.Bio || fullProfile?.bio || ""; // the API returns "bio"
         const sources = (Array.isArray(fullProfile?.Sources) ? fullProfile.Sources : [])
           .map((entry) => (typeof entry === "string" ? entry : JSON.stringify(entry)))
           .join("\n");
@@ -132,9 +143,11 @@ function getVisibleSearchMode(chatPopupId) {
     return null;
   }
 
+  // One box (2026-10-04): no Search/Chat switch, so everything starts as
+  // Search and questions are passed on to the AI (classifyWtPrompt).
   const controls = popup.querySelector("#wbe-chat-mode-controls");
   if (!controls) {
-    return null;
+    return "wt";
   }
 
   const isVisible = !!(controls.offsetWidth || controls.offsetHeight || controls.getClientRects().length);
@@ -155,9 +168,27 @@ function shouldUseExplicitSearchMode(prompt, mode) {
   return ["wt", "wtplus", "ai"].includes(String(mode).trim().toLowerCase());
 }
 
-function isWtPlusOnlyPrompt(prompt) {
+// J8 (live, 2026-10-03): "what does 'Unsourced' mean?" contains a WT+ magic
+// token, so it ran as a WT+ search and was declined. A definition or how-to
+// question is help, not a search.
+export function isDefinitionOrHelpQuestion(prompt) {
+  const text = String(prompt || "").trim();
+  return (
+    /^what\s+(?:does|do|did)\b.{1,60}\bmean\b/i.test(text) ||
+    /^(?:what\s+is|what's)\s+(?:the\s+)?meaning\s+of\b/i.test(text) ||
+    /^(?:define|explain)\s+['"]?\w+['"]?\??$/i.test(text) ||
+    /^how\s+(?:do|can|should)\s+I\b/i.test(text) ||
+    /^(?:what\s+(?:is|are)|what's)\s+(?:an?\s+|the\s+)?['"]?[\w-]+(?:\s+[\w-]+)?['"]?\s*\??$/i.test(text)
+  );
+}
+
+export function isWtPlusOnlyPrompt(prompt) {
   const normalizedPrompt = String(prompt || "").trim();
   if (!normalizedPrompt) {
+    return false;
+  }
+  // Q6: "what templates are on her profile?" is a profile fact, not a template search.
+  if (isDefinitionOrHelpQuestion(normalizedPrompt) || parseProfileFactPrompt(normalizedPrompt) || parseDnaPrompt(normalizedPrompt) || parseFanChartPrompt(normalizedPrompt) || parseFractalTreePrompt(normalizedPrompt) || parseFamilyWorldPrompt(normalizedPrompt) || parseChartShortcutPrompt(normalizedPrompt) || parseDescendantChartPrompt(normalizedPrompt) || parseFamilyTimelinePrompt(normalizedPrompt) || parseMigrationMapPrompt(normalizedPrompt)) {
     return false;
   }
 
@@ -176,6 +207,10 @@ function isWtPlusOnlyPrompt(prompt) {
 function isLikelyWtPlusFilterPrompt(prompt) {
   const normalizedPrompt = String(prompt || "").trim();
   if (!normalizedPrompt) {
+    return false;
+  }
+  // Q6: "what templates are on her profile?" is a profile fact, not a template search.
+  if (isDefinitionOrHelpQuestion(normalizedPrompt) || parseProfileFactPrompt(normalizedPrompt) || parseDnaPrompt(normalizedPrompt) || parseFanChartPrompt(normalizedPrompt) || parseFractalTreePrompt(normalizedPrompt) || parseFamilyWorldPrompt(normalizedPrompt) || parseChartShortcutPrompt(normalizedPrompt) || parseDescendantChartPrompt(normalizedPrompt) || parseFamilyTimelinePrompt(normalizedPrompt) || parseMigrationMapPrompt(normalizedPrompt)) {
     return false;
   }
 
@@ -294,8 +329,13 @@ function isLikelyRelationshipBioPrompt(prompt) {
 const BARE_CONNECTION_PROMPT_RE =
   /^\s*(?:me|myself|i|[\p{L}][\p{L}\p{M}'’.-]*(?:\s+[\p{L}][\p{L}\p{M}'’.-]*){0,3})\s+to\s+[\p{L}][\p{L}\p{M}'’.-]*(?:\s+[\p{L}][\p{L}\p{M}'’.-]*){0,3}\s*\??\s*$/iu;
 
+// "Beacalls who emigrated to Australia" is a search, not "X to Y" (live C16).
+const NOT_BARE_CONNECTION_RE =
+  /\b(?:who|that|which|were|was|emigrat\w*|immigrat\w*|migrat\w*|moved|went|came|sailed|travell?ed|born|died|married|deported|transported)\b/i;
+
 export function isLikelyFamilyRelationPrompt(prompt) {
-  if (BARE_CONNECTION_PROMPT_RE.test(String(prompt || ""))) return true;
+  const text = String(prompt || "");
+  if (BARE_CONNECTION_PROMPT_RE.test(text) && !NOT_BARE_CONNECTION_RE.test(text)) return true;
   return /\b(?:cousins?|ancestors?|descendants?|generations?|cc\d+|siblings?|brothers?\s+and\s+sisters?|step-?(?:mother|father|parents?|sons?|daughters?|children|brothers?|sisters?)|(?:connected|related)\s+(?:to|with)|(?:connection|relationship)\s+(?:to|between|with)|connect\s+\S+.*\bwith)\b|['’]s?\s+(?:father|mother|parents?|wife|husband|spouses?|children|sons?|daughters?)['’]s\b/i.test(
     String(prompt || "")
   );
@@ -769,7 +809,7 @@ function mergeStructuredRows(baseResult, additiveResult, mergedTitle) {
 
   return {
     ...baseResult,
-    title: mergedTitle || baseResult?.title || "Chat Results",
+    title: mergedTitle || baseResult?.title || "Genie Results",
     rows: Array.from(mergedByKey.values()),
   };
 }
@@ -796,6 +836,14 @@ function shouldTryAiFollowupIntentInWtPlus(prompt) {
   // Short, context-dependent follow-ups are usually refinements.
   const tokens = normalized.split(/\s+/).filter(Boolean);
   return tokens.length <= 7;
+}
+
+// Two to four words of letters only, none of them a search word: someone's name.
+const BARE_NAME_STOP_WORDS =
+  /\b(?:profiles?|people|persons?|born|died|dead|married|in|from|at|of|with|without|and|or|not|no|who|unsourced|unconnected|orphaned|before|after|between|since|until|century|decade|men|women|male|female|living)\b/i;
+export function isBareName(prompt) {
+  const text = String(prompt || "").trim();
+  return /^[\p{L}'’.-]+(?:\s+[\p{L}'’.-]+){1,3}$/u.test(text) && !BARE_NAME_STOP_WORDS.test(text);
 }
 
 function isLikelyPersonCentricPrompt(prompt) {
@@ -849,22 +897,40 @@ function extractPersonListCommandPrompt(prompt) {
   };
 }
 
-async function shouldAutoRouteWtPromptToWtPlus({ prompt, getChatAiConfig, buildRecentUserMessagesForAi }) {
+// A prompt phrased as a question or a request to explain ("what was Liverpool
+// like then?", "tell me about the Irish famine") may want an answer in words
+// rather than a list of profiles. Only these are worth asking the AI about;
+// "John Smith 1850 Liverpool" stays a search without an extra AI call.
+export function looksLikeQuestion(prompt) {
+  const text = String(prompt || "").trim();
+  return (
+    /\?\s*$/.test(text) ||
+    /^(?:what|why|how|when|where|who|which|was|were|is|are|did|does|do|could|would|might|can|should|tell|explain|describe)\b/i.test(text)
+  );
+}
+
+// One box for searches and questions (2026-10-04): the AI says which kind a
+// prompt is and code runs it. "wt" = a person/profile search, "wtplus" = a
+// broad filter search, "answer" = a question to answer in words.
+// Returns null when unsure or when no AI is configured (it stays a search).
+export async function classifyWtPrompt({ prompt, getChatAiConfig, buildRecentUserMessagesForAi, isUnclaimed = null }) {
   const normalizedPrompt = String(prompt || "").trim();
   if (!normalizedPrompt) {
-    return false;
+    return null;
   }
 
   if (isWtPlusOnlyPrompt(normalizedPrompt)) {
-    return true;
+    return "wtplus";
   }
 
   if (isLikelyWtPlusFilterPrompt(normalizedPrompt)) {
-    return true;
+    return "wtplus";
   }
 
-  if (isLikelyPersonCentricPrompt(normalizedPrompt)) {
-    return false;
+  const personCentric = isLikelyPersonCentricPrompt(normalizedPrompt);
+  const question = looksLikeQuestion(normalizedPrompt);
+  if (personCentric && !question) {
+    return "wt";
   }
 
   let provider = "";
@@ -879,19 +945,39 @@ async function shouldAutoRouteWtPromptToWtPlus({ prompt, getChatAiConfig, buildR
     console.debug("wbe: WT/WT+ auto-route classifier config unavailable", {
       error: String(error?.message || error),
     });
-    return false;
+    return null;
   }
+  // Without a key nothing can read it, so a search that no chart or other tool claims
+  // ("Yorkshire 1850s") goes to WT+, whose own parser runs it or declines (2026-10-04).
   if (!key) {
-    return false;
+    // A question needs the AI to answer it: say so, rather than run a search that can't (2026-10-04).
+    if (question) return "needsAi";
+    // A bare name ("Martha Teece") is the person search's to run; WT+'s parser read it
+    // as LastNameAtBirth=Martha Location=Teece (live, 2026-10-04).
+    if (isBareName(normalizedPrompt)) return null;
+    return isUnclaimed?.(normalizedPrompt) ? "wtplus" : null;
+  }
+
+  // Whose profile this is: "Where did Philip live?" on Philip's profile is a question about him, not a search for him.
+  let profileLine = "";
+  try {
+    const info = getProfilePersonInfo();
+    if (info?.Name && !/^Space:/i.test(info.Name)) {
+      profileLine = `The user is viewing the WikiTree profile of ${info.FullName || info.Name} (${info.Name}). A question about that person or their family (where they lived, what work they did, whom they married, what happened to them) is answer, even when it names them.`;
+    }
+  } catch (error) {
+    // (no profile on this page)
   }
 
   const recentUserMessages = buildRecentUserMessagesForAi?.(3) || "";
   const classifierPrompt = [
-    "Classify whether this WikiTree chat request should run in WT mode or WT+ mode.",
-    'Return STRICT JSON only: {"targetMode":"wt"|"wtplus","confidence":0..1,"reason":"..."}.',
-    "Use wtplus when the query is broad/filter-like (locations, categories, templates, stickers, status slices, date+place constraints) and does not identify a specific person.",
+    "Classify this request typed into the WikiTree Browser Extension's chat box.",
+    'Return STRICT JSON only: {"targetMode":"wt"|"wtplus"|"answer","confidence":0..1,"reason":"..."}.',
+    "Use wt when the request looks for a specific person or profile, a relationship, or a CC/ancestor/descendant list.",
+    "Use wtplus when it looks for many profiles by filters (locations, categories, templates, stickers, status slices, date+place constraints) without identifying a specific person.",
     "Also use wtplus for kinship anomaly filters such as siblings born within X months of each other, parent age at a child's birth, large spouse age gaps, or married-but-no-children slices.",
-    "Use wt when the query is about a specific person, relationship, CC/ancestor/descendant list, or profile lookup.",
+    'Use answer when the user wants an answer in words, not a list of profiles: what a place or period was like ("What was Liverpool like then?"), history or background, why or how something might have happened, what a term means, research advice, or a question about the profile person that their profile text can answer.',
+    profileLine,
     recentUserMessages ? `Recent user messages:\n${recentUserMessages}` : "",
     `Request: ${normalizedPrompt}`,
   ]
@@ -913,7 +999,7 @@ async function shouldAutoRouteWtPromptToWtPlus({ prompt, getChatAiConfig, buildR
     });
 
     if (!response?.success || !response?.response) {
-      return false;
+      return null;
     }
 
     const raw = String(response.response || "").trim();
@@ -923,13 +1009,38 @@ async function shouldAutoRouteWtPromptToWtPlus({ prompt, getChatAiConfig, buildR
       .trim()
       .toLowerCase();
     const confidence = Number(parsed?.confidence);
+    if (!Number.isFinite(confidence)) return null;
 
-    return targetMode === "wtplus" && Number.isFinite(confidence) && confidence >= 0.55;
+    if (targetMode === "answer" && confidence >= 0.6) return "answer";
+    // A named person is a person search, whatever the filters.
+    if (targetMode === "wtplus" && confidence >= 0.55) return personCentric ? "wt" : "wtplus";
+    return targetMode === "wt" ? "wt" : null;
   } catch (error) {
     console.debug("wbe: ai WT/WT+ classifier failed", error);
-    return false;
+    return null;
   }
 }
+
+// A search result for a prompt that may have been a question gets a button to
+// ask it as one instead (the user's ask: "Ask in Chat" rather than failing).
+export function withAskAsQuestionAction(result, prompt) {
+  if (!looksLikeQuestion(prompt) || !result) return result;
+  const base = typeof result === "string" ? { message: result } : result;
+  const actions = Array.isArray(base.actions) ? base.actions : base.action ? [base.action] : [];
+  return {
+    ...base,
+    action: undefined,
+    actions: [...actions, { label: "Answer as a question", actionType: "send-prompt", prompt: `ask: ${String(prompt).trim()}` }],
+  };
+}
+
+// Keeps the two kinds of claim apart (2026-10-04, the user's ask): facts about
+// people only from the WikiTree context; background history labelled as such.
+export const AI_CHAT_CLAIM_RULES = [
+  "Two kinds of claim, kept apart:",
+  "- Facts about people (names, dates, places, relationships) come only from the WikiTree profile text and data above. If they aren't there, say so; never invent or guess people, dates or relationships.",
+  '- General history (what a place or period was like) is allowed, but label it as general background ("Liverpool in the 1850s was…"), and do not present it as something the profile says.',
+].join("\n");
 
 export async function handleExplicitSearchMode({
   prompt,
@@ -954,6 +1065,11 @@ export async function handleExplicitSearchMode({
   getLastExecutedWtPlusQuery,
 }) {
   console.debug("wbe: checking chat mode for prompt", { prompt });
+  // "ask: …" always gets an answer in words, never a search.
+  const askMatch = String(prompt || "").match(/^\s*ask\s*:\s*([\s\S]+)$/i);
+  if (askMatch) {
+    return { handled: false, prompt: askMatch[1].trim(), answer: true };
+  }
   const selectedMode = getVisibleSearchMode(chatPopupId);
   const mode = getEffectiveExplicitMode(prompt, selectedMode);
   console.debug("wbe: mode detection", { selectedMode, mode, prompt: prompt.substring(0, 60) });
@@ -1005,6 +1121,8 @@ export async function handleExplicitSearchMode({
 
     const aiPrompt = [
       "You are assisting inside the WikiTree Browser Extension chat.",
+      WIKITREE_GLOSSARY_FOR_AI,
+      AI_CHAT_CLAIM_RULES,
       recentUserMessages ? `Recent user messages:\n${recentUserMessages}` : "",
       conversationContext ? `Recent conversation:\n${conversationContext}` : "",
       `Current user request: ${prompt}`,
@@ -1046,6 +1164,10 @@ export async function handleExplicitSearchMode({
     const normalizedPrompt = String(prompt || "")
       .replace(/^\s*search[:\s]+/i, "")
       .trim();
+    // A question about the page profile, not a search (C10).
+    if (isProfileNarrativePrompt(normalizedPrompt)) {
+      return { handled: false, prompt: normalizedPrompt };
+    }
     let shouldSkipFinalSearch = false;
     // The previous WT+ query for Continue-mode merging. Prefer the loaded
     // result's query; fall back to the last executed query so refinements
@@ -1142,7 +1264,7 @@ export async function handleExplicitSearchMode({
       // fresh person search, not a narrowing of the previous filter. In the
       // default Search mode, let those fall through to normal routing rather
       // than silently folding a name into the prior location/date query.
-      const refinementIntroducesName = /\b(?:FirstName|LastName|LastNameAtBirth|AllLastNames)=/i.test(
+      const refinementIntroducesName = /\b(?:FirstName|LastName|LastNameAtBirth|AllLastNames|WikiTreeID)=/i.test(
         refinement?.query || ""
       );
       const refinementLabel = contextualDateQuery
@@ -1157,7 +1279,7 @@ export async function handleExplicitSearchMode({
         try {
           const mergedResult = await reRunSavedWtPlusQuery(mergedQuery, "text");
           if (mergedResult) {
-            const base = typeof mergedResult === "string" ? { message: mergedResult } : mergedResult;
+            const base = withAskAsQuestionAction(mergedResult, normalizedPrompt);
             await handleChatResult({
               ...base,
               message: `Continuing the previous search with "${refinementLabel}". ${base.message || ""}`.trim(),
@@ -1191,6 +1313,30 @@ export async function handleExplicitSearchMode({
         ChatIntent?.PROFILE_FAMILY_CONNECTION,
         ChatIntent?.ANCESTOR_AVG_AGE_AT_DEATH,
         ChatIntent?.PERSON_AGE_AT_DEATH,
+        ChatIntent?.PERSON_AGE_AT_CHILD_BIRTH,
+        ChatIntent?.PROFILE_DUPLICATES,
+        ChatIntent?.PERSON_BURIAL,
+        ChatIntent?.PROFILE_FACT,
+        ChatIntent?.DNA,
+        ChatIntent?.FAN_CHART,
+        ChatIntent?.FRACTAL_TREE,
+        ChatIntent?.FAMILY_WORLD,
+        ChatIntent?.CHART_SHORTCUT,
+        ChatIntent?.DESCENDANT_CHART,
+        ChatIntent?.FAMILY_TIMELINE,
+        ChatIntent?.MIGRATION_MAP,
+        ChatIntent?.LIFESPANS,
+        ChatIntent?.NAME_CLOUD,
+        ChatIntent?.FAMILY_CALENDAR,
+        ChatIntent?.AGES_CHART,
+        ChatIntent?.TREE_OVERVIEW,
+        ChatIntent?.PROFILE_SOURCES,
+        ChatIntent?.PERSON_MARRIAGE,
+        ChatIntent?.RELATIVE_FACT,
+        ChatIntent?.CHILD_TWINS,
+        ChatIntent?.CHILDREN_WITH_CHILDREN,
+        ChatIntent?.CHILDREN_OUTLIVED,
+        ChatIntent?.WATCHLIST,
         ChatIntent?.ANCESTOR_LIST,
         ChatIntent?.DESCENDANT_LIST,
         ChatIntent?.SPOUSE_LIST,
@@ -1204,6 +1350,16 @@ export async function handleExplicitSearchMode({
           prompt: normalizedPrompt.substring(0, 60),
         });
         return { handled: false, prompt: normalizedPrompt };
+      }
+
+      // The router's canonical "notables in my CC7" (from "am I related to
+      // anyone famous?") is a WT+ search; run that form, not the raw prompt.
+      if (routed?.intent === ChatIntent?.PROFILE_SEARCH && /^(?:notables|dna-confirmed) in /i.test(routed?.params?.query || "")) {
+        const notablesResult = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, routed.params.query);
+        if (notablesResult) {
+          await handleChatResult(typeof notablesResult === "string" ? { message: notablesResult } : notablesResult);
+          return { handled: true, prompt: normalizedPrompt };
+        }
       }
 
       if (routed?.intent === ChatIntent?.FALLBACK_AI && isLikelyFamilyRelationPrompt(normalizedPrompt)) {
@@ -1362,13 +1518,23 @@ export async function handleExplicitSearchMode({
         }
       }
 
-      const shouldSwitchToWtPlus = await shouldAutoRouteWtPromptToWtPlus({
+      const target = await classifyWtPrompt({
         prompt: normalizedPrompt,
         getChatAiConfig,
         buildRecentUserMessagesForAi,
+        isUnclaimed: (text) =>
+          typeof routeChatPrompt === "function" &&
+          [ChatIntent?.FALLBACK_AI, ChatIntent?.PROFILE_SEARCH].includes(routeChatPrompt(text, { hasStructuredResult: false })?.intent),
       });
 
-      if (shouldSwitchToWtPlus) {
+      // A question to answer in words: the main flow's AI answers it with the
+      // profile as context.
+      if (target === "answer" || target === "needsAi") {
+        console.debug("wbe: wt prompt is a question; answering", { prompt: normalizedPrompt.substring(0, 60) });
+        return { handled: false, prompt: normalizedPrompt, answer: true };
+      }
+
+      if (target === "wtplus") {
         console.debug("wbe: auto-routing WT query to WT+ (in wt block)", { prompt: normalizedPrompt.substring(0, 60) });
         const wtPlusResult = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, normalizedPrompt);
         if (wtPlusResult) {
@@ -1459,12 +1625,32 @@ export async function handleExplicitSearchMode({
         return { handled: true, prompt: normalizedPrompt };
       }
 
-      if (searchResult) {
-        if (typeof searchResult === "string") {
-          await handleChatResult({ message: searchResult });
-        } else {
-          await handleChatResult(searchResult);
+      // Search could not form a query: let the main flow (planner) try it
+      // instead of showing "couldn't work out a search" (live C3, 2026-10-03).
+      if (typeof searchResult === "string" && /couldn't work out a concrete person search/i.test(searchResult)) {
+        // A condition a name search can't hold ("who else is buried in this
+        // cemetery?", "Beacalls who emigrated to Australia") is a WT+ search
+        // (live C13/C16, 2026-10-03: WT mode sent them to the AI, which asked
+        // which cemetery).
+        if (mode === "wt" && /\(it needs /.test(searchResult)) {
+          const wtPlusResult = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, normalizedPrompt);
+          const wtPlusDeclined =
+            !wtPlusResult ||
+            (typeof wtPlusResult === "string" && /couldn't work out a concrete person search|^I can't run that search/i.test(wtPlusResult)) ||
+            /^I can't run that search/i.test(String(wtPlusResult?.message || ""));
+          if (!wtPlusDeclined) {
+            await handleChatResult(typeof wtPlusResult === "string" ? { message: wtPlusResult } : wtPlusResult);
+            return { handled: true, prompt: normalizedPrompt };
+          }
         }
+        console.debug("wbe: explicit mode search found no query; deferring to main flow", {
+          prompt: normalizedPrompt.substring(0, 60),
+        });
+        return { handled: false, prompt: normalizedPrompt };
+      }
+
+      if (searchResult) {
+        await handleChatResult(withAskAsQuestionAction(searchResult, normalizedPrompt));
         console.debug("wbe: explicit mode handled final search result", {
           mode,
           prompt: normalizedPrompt.substring(0, 60),

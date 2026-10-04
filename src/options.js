@@ -1,6 +1,7 @@
 import $ from "jquery";
 
 import { features, OptionType } from "./core/options/options_registry";
+import { SHARED_AI_FEATURES, SHARED_AI_OPTIONS_KEY, SHARED_AI_OPTION_IDS } from "./core/options/shared_ai_options";
 import { categorize } from "./features/register_categories";
 import "./features/register_feature_options";
 import { WBE, isWikiTreeUrl, showAlert, wrapBackupData, getBackupLink, recordBackupMade } from "./core/common";
@@ -88,21 +89,6 @@ $("h1")
   .after('<div id="categoryBar"><ul><li><input id="optionSearch" type="search" placeholder="Search"></li></ul></div>');
 
 const textField = document.getElementById("optionSearch");
-
-const SHARED_AI_OPTIONS_KEY = "sharedAI_options";
-const SHARED_AI_FEATURES = ["autoBio", "chat"];
-const SHARED_AI_OPTION_IDS = [
-  "aiProvider",
-  "openAIKey",
-  "openAIModel",
-  "geminiKey",
-  "geminiModel",
-  "claudeKey",
-  "claudeModel",
-  "perplexityKey",
-  "perplexityModel",
-  "aiModel",
-];
 
 function isSharedAiFeature(featureId) {
   return SHARED_AI_FEATURES.includes(featureId);
@@ -264,12 +250,20 @@ function saveFeatureOptions(feature) {
 
   if (isSharedAiFeature(feature.id)) {
     const { featureOptions, sharedAiOptions } = splitSharedAiOptions(optionsData);
-    chrome.storage.sync.get(SHARED_AI_OPTIONS_KEY, (items) => {
+    chrome.storage.sync.get([SHARED_AI_OPTIONS_KEY, ...getSharedAiOptionStorageKeys()], (items) => {
       const currentShared = items?.[SHARED_AI_OPTIONS_KEY] || {};
-      chrome.storage.sync.set({
+      const updates = {
         [storageName]: featureOptions,
         [SHARED_AI_OPTIONS_KEY]: { ...currentShared, ...sharedAiOptions },
+      };
+      // Old copies of the AI settings in the other feature's storage would bring a removed
+      // key back (the user, 2026-10-04): the shared settings are the only copy now.
+      getSharedAiOptionStorageKeys().forEach((itemKey) => {
+        if (itemKey === storageName || !items?.[itemKey]) return;
+        const { featureOptions: withoutAi } = splitSharedAiOptions(items[itemKey]);
+        if (Object.keys(withoutAi).length !== Object.keys(items[itemKey]).length) updates[itemKey] = withoutAi;
       });
+      chrome.storage.sync.set(updates);
     });
     return;
   }

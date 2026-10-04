@@ -1063,11 +1063,11 @@ ${dataPayload}`;
   }
 }
 
-// Generic chat bridge for the Muse chat feature. The content script cannot call
+// Generic chat bridge for the Genie chat feature. The content script cannot call
 // AI providers directly (no window.callAiModel in production and CORS/key
 // handling belongs here), so it sends { action: "chatWithAI", provider, key,
 // model, prompt } and expects { success, response }. Without this handler every
-// Muse AI call silently fails and the chat falls back to deterministic parsing.
+// Genie AI call silently fails and the chat falls back to deterministic parsing.
 async function handleChatWithAIRequest(message, sendResponse) {
   try {
     const provider = message.provider || "openai";
@@ -1085,7 +1085,7 @@ async function handleChatWithAIRequest(message, sendResponse) {
     }
 
     const system =
-      "You are Muse, the assistant inside the WikiTree Browser Extension chat. " +
+      "You are Genie, the assistant inside the WikiTree Browser Extension chat. " +
       "Follow the user's instructions precisely. When the instructions ask for JSON, " +
       "reply with strict JSON only and no surrounding prose or code fences.";
 

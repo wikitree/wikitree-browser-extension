@@ -237,3 +237,20 @@ export function buildSpousalAgeGapMatches(people = [], spousesById = {}, constra
 
   return matches;
 }
+
+// WT+ sql that pre-filters on the server (A4: Lancashire 19th century was 281,390
+// candidates, far over the load cap; with this, 2,022; live 2026-10-03). [Spouses]
+// is multi-row and matches when any spouse fits. `> (N-1) years` keeps a superset of
+// both the strict and the inclusive year comparison, which still runs on the results.
+export function buildSpousalAgeGapSqlConditions(constraints = {}) {
+  const minGapYears = Number(constraints?.minGapYears);
+  if (!Number.isFinite(minGapYears) || minGapYears < 1) return [];
+  const birth = "[Default].[Birth Date].AsNumber";
+  const spouseBirth = "[Spouses].[Birth Date].AsNumber";
+  const gap = (minGapYears - 1) * 10000;
+  return [
+    `${birth} > 10000000`,
+    `${spouseBirth} > 10000000`,
+    `(${birth} - ${spouseBirth} > ${gap}) Or (${spouseBirth} - ${birth} > ${gap})`,
+  ];
+}

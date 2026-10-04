@@ -7,7 +7,7 @@ const buildInfo = { buildDate: new Date(Date.now()).toISOString() };
 // Chunks kept out of the vendor split so they stay self-contained.
 // The per-feature entries that used to appear here are now imported statically from
 // src/content.js, so those chunks are no longer emitted.
-const lazyFeatureChunks = new Set(["auto-categories", "family-lists"]);
+const lazyFeatureChunks = new Set(["auto-categories", "family-lists", "muse-world"]);
 
 try {
   const gitOutput = require("child_process").execSync('git log -1 --pretty="%h %H"').toString();
@@ -42,6 +42,16 @@ module.exports = (env) => ({
       name: "vendor",
       chunks(chunk) {
         return !lazyFeatureChunks.has(chunk.name);
+      },
+      cacheGroups: {
+        // d3 is used only by Genie's lazily loaded charts: keep it out of the every-page vendor.js.
+        museD3: {
+          test: /[\\/]node_modules[\\/](d3-[^\\/]+|internmap|delaunator|robust-predicates)[\\/]/,
+          name: "muse-d3",
+          chunks: "async",
+          priority: 20,
+          enforce: true,
+        },
       },
     },
   },

@@ -4,9 +4,11 @@ jest.mock("../../core/common", () => ({
 
 import {
   ChatIntent,
+  embeddedWikiTreeId,
   extractConnectionEndpoints,
   extractConnectionSourceName,
   extractConnectionTarget,
+  isPageProfileTarget,
   routeChatPrompt,
 } from "./chat_router";
 
@@ -107,5 +109,30 @@ describe("routeChatPrompt connection endpoints", () => {
   test("relation chains do not route as connections", () => {
     const routed = routeChatPrompt("show Sarah's children");
     expect(routed.intent).not.toBe(ChatIntent.CONNECTION_LOOKUP);
+  });
+});
+
+describe("connection to me (on a profile)", () => {
+  test.each(["connection to me", "Connection to me?", "my connection to me", "what is the connection to me"])("%s → me to the profile person", (prompt) => {
+    expect(extractConnectionEndpoints(prompt)).toEqual({ source: "", target: "this profile" });
+    expect(routeChatPrompt(prompt).intent).toBe(ChatIntent.CONNECTION_LOOKUP);
+  });
+
+  test.each(["this profile", "her", "him", "this person"])("%s is the page profile", (value) => expect(isPageProfileTarget(value)).toBe(true));
+  test.each(["Philip", "Henry", "hermione"])("%s is not", (value) => expect(isPageProfileTarget(value)).toBe(false));
+});
+
+describe("embeddedWikiTreeId", () => {
+  test("an ID in brackets after a name is the person meant", () => {
+    expect(embeddedWikiTreeId("Thomas Beacall (Beacall-13)")).toBe("Beacall-13");
+    expect(embeddedWikiTreeId("Philip (Schleswig-Holstein-Sonderburg-Glücksburg-1)")).toBe(
+      "Schleswig-Holstein-Sonderburg-Glücksburg-1"
+    );
+  });
+
+  test("other brackets are not IDs", () => {
+    expect(embeddedWikiTreeId("Mary (Smith) Jones")).toBe("");
+    expect(embeddedWikiTreeId("Thomas Beacall")).toBe("");
+    expect(embeddedWikiTreeId("John (1850)")).toBe("");
   });
 });

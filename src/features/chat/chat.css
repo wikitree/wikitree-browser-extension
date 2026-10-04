@@ -6,7 +6,63 @@
 }
 .conn-diag-scale-layer {
   position: relative;
+  margin: 0 auto; /* (centred when narrower than the popup) */
 }
+.conn-diag-ghost {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 10px 8px;
+  border-radius: 8px;
+  border: 2px dashed #e0a10f;
+  background: #fffaf0;
+  box-shadow: 0 0 0 3px rgba(242, 176, 30, 0.25);
+  font-size: 0.78em;
+  line-height: 1.3;
+  box-sizing: border-box;
+}
+.conn-diag-ghost-link {
+  stroke: #d39b12;
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+}
+.conn-diag-band {
+  position: absolute;
+  left: 0;
+  box-sizing: border-box;
+  border-top: 1px dashed rgba(100, 116, 139, 0.18);
+}
+.conn-diag-band--alt {
+  background: rgba(100, 116, 139, 0.05);
+}
+.conn-diag-band-label {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  font-weight: 700;
+  color: #7b8794;
+}
+.conn-diag-card--common {
+  box-shadow: 0 0 0 3px rgba(242, 176, 30, 0.45), 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+.conn-diag-badge {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 9px;
+  background: #f2b01e;
+  color: #3b2a00;
+}
+
 .conn-diag-canvas {
   position: relative;
   transform-origin: top left;
@@ -75,6 +131,126 @@
   color: #777;
   font-style: italic;
   white-space: nowrap;
+}
+.conn-diag-place {
+  color: #6b7785;
+  font-size: 0.85em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Connections diagram motion (2026-10-03): the path draws step by step,
+   cards pop in in order, hover lifts a card and its links. Popup only; the
+   exported page has its own styles. */
+.conn-diag-link {
+  transition: stroke-width 0.15s ease;
+}
+.conn-diag-link.is-hot {
+  stroke-width: 4;
+}
+.conn-diag-card {
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.conn-diag-card:hover {
+  z-index: 2;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+}
+.connections-row {
+  cursor: pointer;
+}
+.connections-row:hover td {
+  filter: brightness(0.95);
+}
+.conn-diag-card.is-pulse {
+  z-index: 3;
+  animation: wbe-conn-card-pulse 0.6s ease-in-out 3;
+}
+@keyframes wbe-conn-card-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(47, 111, 179, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(47, 111, 179, 0.25);
+  }
+}
+.conn-diag-card--start,
+.conn-diag-card--end {
+  box-shadow: 0 0 0 3px rgba(20, 87, 153, 0.18), 0 2px 8px rgba(0, 0, 0, 0.16);
+}
+.conn-diag-scroll {
+  cursor: grab;
+}
+.conn-diag-scroll.is-panning {
+  cursor: grabbing;
+  user-select: none;
+}
+.conn-diag-scroll .conn-diag-card,
+.conn-diag-scroll .conn-diag-ghost {
+  cursor: grab;
+}
+.conn-diag-scroll.is-panning .conn-diag-card,
+.conn-diag-scroll.is-panning .conn-diag-ghost,
+.conn-diag-scroll.is-panning a {
+  cursor: grabbing;
+}
+.conn-diag-scroll--animate .conn-diag-card {
+  animation: wbe-conn-card-in 460ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+  animation-delay: calc(var(--i) * var(--step, 220ms));
+}
+.conn-diag-scroll--animate .conn-diag-link {
+  stroke-dasharray: 1;
+  animation: wbe-conn-draw calc(var(--step, 220ms) * 0.8) ease-out both;
+  animation-delay: calc((var(--i) - 1) * var(--step, 220ms) + var(--step, 220ms) * 0.35);
+}
+@keyframes wbe-conn-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes wbe-conn-draw {
+  from {
+    opacity: 0;
+    stroke-dashoffset: 1;
+  }
+  1% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}
+.conn-diag-scroll--animate .conn-diag-ghost {
+  animation: wbe-conn-card-in 600ms ease-out both;
+  animation-delay: calc((var(--i) + 0.6) * var(--step, 220ms));
+}
+.conn-diag-scroll--animate .conn-diag-ghost-link {
+  animation: wbe-conn-fade-in 600ms ease-out both;
+  animation-delay: calc((var(--i) + 0.6) * var(--step, 220ms));
+}
+@keyframes wbe-conn-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .conn-diag-scroll--animate .conn-diag-ghost,
+  .conn-diag-scroll--animate .conn-diag-ghost-link,
+  .conn-diag-scroll--animate .conn-diag-card,
+  .conn-diag-scroll--animate .conn-diag-link {
+    animation: none;
+  }
 }
 
 /* Connections table column spacing */
@@ -268,6 +444,50 @@
   cursor: move;
 }
 
+/* Chart buttons under the header (2026-10-03): they wrap (a sideways scrollbar looked broken). */
+.chat-chart-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.75rem;
+  border-bottom: 1px solid #ececec;
+  background: linear-gradient(90deg, #f4f8ff, #fbf6ff);
+  flex-shrink: 0;
+}
+
+.chat-chart-bar[hidden] {
+  display: none;
+}
+
+.chat-chart-bar-label {
+  font-size: 0.75rem;
+  color: #5a6672;
+  white-space: nowrap;
+  margin-right: 0.15rem;
+  cursor: help;
+}
+
+.chat-chart-bar-button {
+  border: 1px solid #c9d6ea;
+  background: #fff;
+  color: #24456e;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, transform 0.12s;
+}
+
+.chat-chart-bar-button:hover {
+  background: #2f6fb3;
+  border-color: #2f6fb3;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
 .chat-popup-controls {
   display: flex;
   align-items: center;
@@ -317,6 +537,26 @@
   font-size: 0.72rem;
   color: #5f6c63;
   margin-bottom: 0.15rem;
+}
+
+.chat-message-badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0 0.42rem;
+  border: 1px solid #b9c7e6;
+  border-radius: 999px;
+  background: #eef2fb;
+  color: #3a4f7a;
+  font-size: 0.66rem;
+  font-weight: 600;
+  line-height: 1.45;
+  cursor: help;
+}
+
+.chat-message-badge--cannot {
+  border-color: #e3c99a;
+  background: #fbf3e4;
+  color: #7a5520;
 }
 
 .chat-message-body {
@@ -535,6 +775,11 @@
   gap: 0.4rem;
 }
 
+.chat-welcome-chips {
+  flex-wrap: wrap;
+  margin: 0.2rem 0 0.5rem;
+}
+
 .chat-wtplus-magic-ref {
   margin-top: 0.5rem;
   display: flex;
@@ -671,6 +916,46 @@
 .chat-connections-popup .connections-table {
   width: 100%;
 }
+/* Full screen (toggleChartFullScreen): the popup fills the window and the diagram takes the space. */
+.chat-connections-popup.wbe-chart-full,
+.chat-connections-popup:fullscreen {
+  left: 0 !important;
+  top: 0 !important;
+  right: auto !important;
+  transform: none !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  border-radius: 0 !important;
+  background: #fff;
+  display: flex !important;
+  flex-direction: column;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+/* Quick clicks on + / - were double/triple clicks that selected the page's text. */
+.chat-connections-popup .chat-popup-header,
+.chat-connections-popup .conn-diag-scroll {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.chat-connections-popup .chat-popup-controls {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.chat-connections-popup.wbe-chart-full .chat-popup-body,
+.chat-connections-popup:fullscreen .chat-popup-body {
+  flex: 1;
+  max-height: none;
+  overflow: auto;
+}
+.chat-connections-popup.wbe-chart-full .conn-diag-scroll,
+.chat-connections-popup:fullscreen .conn-diag-scroll {
+  height: calc(100vh - 70px);
+  max-height: calc(100vh - 70px);
+}
 
 div.chat-results-popup .dataTables_wrapper {
   font-size: 0.92rem;
@@ -730,7 +1015,7 @@ div.chat-results-popup table.dataTable td.nowrap-cell {
   gap: 8px;
   pointer-events: none;
 }
-/* The chat/Muse loader must catch clicks on itself instead of letting them
+/* The chat/Genie loader must catch clicks on itself instead of letting them
    fall through to the page (tabs, links) behind it. Scoped to the chat-owned
    marker class (and given extra specificity) so it wins over the shared
    .wbe-shaky-tree rule without changing other features' loaders. */
@@ -944,4 +1229,237 @@ div.chat-results-popup table.dataTable td.nowrap-cell {
 }
 .wbe-bio-button:hover {
   background: #1976d2;
+}
+
+/* Family calendar: today's births and deaths pulse. */
+.wbe-cal-today {
+  animation: wbe-cal-pulse 1.6s ease-in-out infinite;
+}
+@keyframes wbe-cal-pulse {
+  50% {
+    stroke-width: 5px;
+    stroke: #e0a100;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wbe-cal-today {
+    animation: none;
+  }
+}
+
+/* Tree overview dashboard (chat_tree_overview.js). */
+#wbe-tree-overview-popup {
+  width: min(980px, 96vw);
+  height: min(720px, 92vh);
+}
+.wbe-overview-root {
+  margin: 2px 4px 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.wbe-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 0 4px 8px;
+}
+.wbe-overview-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid #dde3ea;
+  border-radius: 10px;
+  background: #fbfcfd;
+  animation: wbe-overview-in 420ms ease-out both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes wbe-overview-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.wbe-overview-panel h4 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #5b6675;
+}
+.wbe-overview-body {
+  flex: 1;
+}
+.wbe-overview-big {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.05;
+  color: #1f2d3d;
+}
+.wbe-overview-big small {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #5b6675;
+}
+.wbe-overview-cols {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 92px;
+  margin-top: 8px;
+}
+.wbe-overview-col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  min-width: 0;
+}
+.wbe-overview-col b {
+  width: 100%;
+  max-width: 26px;
+  height: 0;
+  border-radius: 3px 3px 0 0;
+  transition: height 700ms cubic-bezier(0.2, 0.9, 0.3, 1.1);
+  transition-delay: var(--d, 0ms);
+}
+.wbe-overview-col-value {
+  font-size: 9.5px;
+  color: #5b6675;
+}
+.wbe-overview-col-label {
+  font-size: 10px;
+  color: #5b6675;
+}
+.wbe-overview-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.wbe-overview-bar {
+  display: grid;
+  grid-template-columns: 110px 1fr 36px;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.wbe-overview-bar span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wbe-overview-bar b {
+  height: 12px;
+  width: 0;
+  border-radius: 6px;
+  transition: width 700ms cubic-bezier(0.2, 0.9, 0.3, 1.1);
+  transition-delay: var(--d, 0ms);
+}
+.wbe-overview-bar em {
+  font-style: normal;
+  color: #5b6675;
+  text-align: right;
+}
+.wbe-overview-words {
+  line-height: 1.5;
+  color: #2f4a6b;
+  font-weight: 600;
+}
+.wbe-overview-words span {
+  margin-right: 6px;
+}
+.wbe-overview-pair {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #5b6675;
+}
+.wbe-overview-pair b {
+  font-size: 18px;
+}
+.wbe-overview-note {
+  font-size: 12px;
+  color: #3d4855;
+  margin-top: 4px;
+}
+.wbe-overview-open {
+  align-self: flex-start;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wbe-overview-panel {
+    animation: none;
+  }
+  .wbe-overview-col b,
+  .wbe-overview-bar b {
+    transition: none;
+  }
+}
+
+/* Search form for people without an AI key (chat_search_form.js). */
+.wbe-chat-search-form {
+  margin-top: 0.5rem;
+  padding: 0.6rem;
+  border: 1px solid #bcc8bc;
+  border-radius: 8px;
+  background: #f7faf7;
+  font-size: 0.85rem;
+}
+.wbe-chat-search-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.45rem 0.6rem;
+}
+.wbe-chat-search-form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  color: #3d4a3d;
+  font-weight: 600;
+}
+.wbe-chat-search-form input[type="text"],
+.wbe-chat-search-form select {
+  font: inherit;
+  font-weight: normal;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid #b8c4b8;
+  border-radius: 4px;
+  background: #fff;
+  min-width: 0;
+}
+.wbe-chat-search-form-years {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.wbe-chat-search-form-years input[type="text"] {
+  width: 4.2rem;
+}
+.wbe-chat-search-form-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.9rem;
+  margin-top: 0.5rem;
+}
+.wbe-chat-search-form-flags label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  cursor: pointer;
+}
+.wbe-chat-search-form-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.55rem;
+}
+.wbe-chat-search-form-submit {
+  font-weight: 600;
+  padding: 0.3rem 1rem;
+}
+.wbe-chat-search-form-problem {
+  color: #9a3412;
 }

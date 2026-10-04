@@ -1,11 +1,12 @@
 import { getFeatureData } from "../../core/options/options_registry";
+import { GENIE_ICON_SVG } from "./genie_icon";
 
 const CHAT_FEATURE_ID = "chat";
 const CHAT_BUTTON_ID = "wbe-chat-button";
+const GENIE_BUTTON_ID = "wbe-genie-button";
 const SHARED_AI_OPTIONS_KEY = "sharedAI_options";
 const AUTO_BIO_OPTIONS_KEY = "autoBio_options";
 const CHAT_OPTIONS_KEY = "chat_options";
-const AI_KEY_FIELDS = ["openAIKey", "geminiKey", "claudeKey", "perplexityKey"];
 
 let museModulePromise = null;
 
@@ -25,25 +26,6 @@ function isChatFeatureEnabled() {
       }
 
       resolve(Boolean(enabled));
-    });
-  });
-}
-
-function hasAnyApiKey() {
-  return new Promise((resolve) => {
-    chrome.storage.sync.get([SHARED_AI_OPTIONS_KEY, AUTO_BIO_OPTIONS_KEY, CHAT_OPTIONS_KEY], (items) => {
-      const options = {
-        ...(items?.[AUTO_BIO_OPTIONS_KEY] || {}),
-        ...(items?.[CHAT_OPTIONS_KEY] || {}),
-        ...(items?.[SHARED_AI_OPTIONS_KEY] || {}),
-      };
-
-      resolve(
-        AI_KEY_FIELDS.some((field) => {
-          const value = options?.[field];
-          return typeof value === "string" && value.trim().length > 0;
-        })
-      );
     });
   });
 }
@@ -95,63 +77,133 @@ async function loadMuseModule() {
 async function openMuse(event) {
   event?.preventDefault?.();
 
-  const button = document.getElementById(CHAT_BUTTON_ID);
+  const button = event?.currentTarget?.id ? event.currentTarget : document.getElementById(CHAT_BUTTON_ID);
   if (button) {
     button.setAttribute("aria-busy", "true");
-    button.setAttribute("title", "Loading Muse");
+    button.setAttribute("title", "Loading Genie");
   }
 
   try {
     const module = await loadMuseModule();
     module?.openChatPopup?.();
   } catch (error) {
-    console.error("wbe: failed to lazy-load Muse", error);
+    console.error("wbe: failed to lazy-load Genie", error);
     if (button) {
-      button.setAttribute("title", "Muse failed to load; see console");
+      button.setAttribute("title", "Genie failed to load; see console");
     }
   } finally {
     if (button) {
       button.removeAttribute("aria-busy");
-      if (button.getAttribute("title") === "Loading Muse") {
-        button.setAttribute("title", "Open Muse");
+      if (button.getAttribute("title") === "Loading Genie") {
+        button.setAttribute("title", "Open Genie");
       }
     }
   }
 }
 
-function ensureChatButton() {
-  if (document.getElementById(CHAT_BUTTON_ID)) {
-    return;
-  }
-
-  const container = ensureButtonContainer();
-  if (!container) {
-    return;
-  }
-
+function makeToolbarButton(id) {
   const button = document.createElement("a");
-  button.id = CHAT_BUTTON_ID;
+  if (id) {
+    button.id = id;
+  }
   button.href = "#";
-  button.className = "wbe-button";
-  button.setAttribute("data-tooltip", "Muse");
-  button.setAttribute("data-bs-title", "Muse");
+  button.className = "wbe-button wbe-genie-bar-button";
+  button.setAttribute("data-tooltip", "Genie");
+  button.setAttribute("data-bs-title", "Genie");
   button.setAttribute("data-bs-toggle", "tooltip");
-  button.setAttribute("title", "Open Muse");
+  button.setAttribute("aria-label", "Open Genie");
   button.innerHTML = `<span class="icon--chat" style="background-image:url(${chrome.runtime.getURL(
-    "images/chat.svg"
+    "images/genie.svg"
   )})"></span>`;
   button.addEventListener("click", openMuse);
-  container.appendChild(button);
+  return button;
+}
+
+// Joins the WBE buttons wherever they are. On a profile (or a page with a Manager box) the bar
+// can be made straight away; elsewhere common.js builds it later, so watch for it for a while.
+function placeChatButtons() {
+  if (!document.getElementById(CHAT_BUTTON_ID)) {
+    const container =
+      document.querySelector(".clipboardContainer") ||
+      (document.querySelector(".profile--actions.float-end, #Manager") ? ensureButtonContainer() : null);
+    container?.appendChild(makeToolbarButton(CHAT_BUTTON_ID));
+  }
+  // (The second bar on edit pages and G2G holds the Clipboard and Notes buttons.)
+  document.querySelectorAll(".wbe-button-container2").forEach((bar) => {
+    if (!bar.querySelector(".wbe-genie-bar-button")) {
+      bar.appendChild(makeToolbarButton(""));
+    }
+  });
+}
+
+let barObserver = null;
+function ensureChatButton() {
+  placeChatButtons();
+  if (barObserver || !document.body) {
+    return;
+  }
+  barObserver = new MutationObserver(() => {
+    if (document.querySelector(".clipboardContainer, .wbe-button-container2")) {
+      placeChatButtons();
+    }
+  });
+  barObserver.observe(document.body, { childList: true, subtree: true });
+  setTimeout(() => {
+    barObserver?.disconnect();
+    barObserver = null;
+  }, 15000);
+}
+
+// The Genie in the profile heading, just left of the privacy padlock.
+function ensureGenieButton() {
+  if (document.getElementById(GENIE_BUTTON_ID)) {
+    return;
+  }
+
+  // (WikiTree's own markup: the x-heading / x-privacy classes are added by profileClasses, which may not have run yet.)
+  const privacy = document.querySelector(".page--title span.privacy")?.closest("div");
+  if (!privacy?.parentNode) {
+    return;
+  }
+
+  const column = document.createElement("div");
+  column.className = "col-auto text-end p-0 wbe-genie-column";
+  const button = document.createElement("a");
+  button.id = GENIE_BUTTON_ID;
+  button.href = "#";
+  button.setAttribute("data-tooltip", "Genie");
+  button.setAttribute("aria-label", "Open Genie");
+  button.style.cssText = "display:inline-block;width:44px;height:44px;margin-right:12px;opacity:.85;transition:opacity .15s,transform .15s;";
+  // (The same green as the other WBE icons; important, or WikiTree's link colours win.)
+  button.style.setProperty("color", "#2b4d37", "important");
+  button.innerHTML = GENIE_ICON_SVG;
+  button.querySelector("svg").style.cssText = "display:block;width:100%;height:100%;";
+  button.addEventListener("mouseenter", () => {
+    button.style.opacity = "1";
+    button.style.transform = "translateY(-1px)";
+  });
+  button.addEventListener("mouseleave", () => {
+    button.style.opacity = ".85";
+    button.style.transform = "";
+  });
+  button.addEventListener("click", openMuse);
+  column.appendChild(button);
+  privacy.parentNode.insertBefore(column, privacy);
 }
 
 function hideChatButton() {
-  document.getElementById(CHAT_BUTTON_ID)?.remove();
+  barObserver?.disconnect();
+  barObserver = null;
+  document.querySelectorAll(".wbe-genie-bar-button").forEach((button) => button.remove());
+  document.getElementById(GENIE_BUTTON_ID)?.closest(".wbe-genie-column")?.remove();
 }
 
 async function syncChatVisibility() {
-  const [enabled, hasKey] = await Promise.all([isChatFeatureEnabled(), hasAnyApiKey()]);
-  if (enabled && hasKey) {
+  // (Genie is shown without an AI key too: its charts need none.)
+  const enabled = await isChatFeatureEnabled();
+  if (enabled) {
     ensureChatButton();
+    ensureGenieButton();
     return;
   }
 

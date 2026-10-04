@@ -1,5 +1,6 @@
 import $ from "jquery";
 import { escapeHtml } from "../../core/lib/diff_utils";
+import { renderSearchForm } from "./chat_search_form";
 
 export function createChatHistoryHandlers({
   chatMessagesId,
@@ -21,6 +22,7 @@ export function createChatHistoryHandlers({
   getLastBioPopupId,
   setLastBioPopupState,
   toggleConnectionsPopup,
+  rebuildChartAction,
   openResultsTable,
   resolveToWTID,
   showBioPopupForId,
@@ -30,6 +32,7 @@ export function createChatHistoryHandlers({
   handleChatResult,
   afterActionClick,
   resetTransientState,
+  onSearchFormSubmit,
 }) {
   let historyQuotaWarningShown = false;
   const MAX_PERSISTED_STRUCTURED_ROWS = 250;
@@ -373,11 +376,27 @@ export function createChatHistoryHandlers({
   }
 
   function formatStandardChatMessageBody(text) {
-    const escaped = escapeHtml(text).replace(/\n/g, "<br>");
-    const withWikiTreeLinks = escaped.replace(/\b([A-Z][A-Za-z0-9_-]+-\d+)\b/g, (full, wtId) => {
-      const href = `https://www.wikitree.com/wiki/${encodeURIComponent(wtId)}`;
-      return `<a class="chat-results-link" href="${href}" target="_blank" rel="noopener noreferrer">${wtId}</a>`;
-    });
+    // AI answers use **bold** and bare help-page URLs (live C34, 2026-10-03).
+    // URLs are parked before the WT ID linker so an ID inside one stays intact.
+    const urls = [];
+    const escaped = escapeHtml(text)
+      .replace(/\n/g, "<br>")
+      .replace(/\*\*([^*<]+)\*\*/g, "<strong>$1</strong>")
+      // The text is already escaped, so a query string's & arrives as &amp;.
+      .replace(/\bhttps?:\/\/(?:[^\s<>"'&]|&amp;)+?(?=[.,;:!?)]*(?:[\s<"']|&(?!amp;)|$))/g, (url) => {
+        urls.push(url);
+        return `__WBE_URL_${urls.length - 1}__`;
+      });
+    const withWikiTreeLinks = escaped
+      .replace(/\b([A-Z][A-Za-z0-9_-]+-\d+)\b/g, (full, wtId) => {
+        const href = `https://www.wikitree.com/wiki/${encodeURIComponent(wtId)}`;
+        return `<a class="chat-results-link" href="${href}" target="_blank" rel="noopener noreferrer">${wtId}</a>`;
+      })
+      .replace(
+        /__WBE_URL_(\d+)__/g,
+        (full, index) =>
+          `<a class="chat-results-link" href="${urls[index]}" target="_blank" rel="noopener noreferrer">${urls[index]}</a>`
+      );
 
     return withWikiTreeLinks.replace(/__WBE_SHOW_MORE__:(\d+)/g, (full, count) => {
       return `<a href="#" class="chat-results-link chat-inline-show-more">${count} more</a>`;
@@ -430,6 +449,12 @@ export function createChatHistoryHandlers({
     if (action.wtPlusSuggestionId) serialized.wtPlusSuggestionId = action.wtPlusSuggestionId;
     if (action.url) serialized.url = action.url;
     if (action.prompt) serialized.prompt = action.prompt;
+    if (action.actionType === "search-form" && action.values && typeof action.values === "object") serialized.values = action.values;
+    if (action.actionType === "chart" && action.chart && action.chartKey) {
+      serialized.chart = action.chart;
+      serialized.chartKey = String(action.chartKey);
+      serialized.chartArgs = Array.isArray(action.chartArgs) ? action.chartArgs.map(String) : [];
+    }
     if (action.newSearch === true) serialized.newSearch = true;
     if (action.wtPlusSuggestionOptions && typeof action.wtPlusSuggestionOptions === "object") {
       const opts = action.wtPlusSuggestionOptions;
@@ -448,6 +473,9 @@ export function createChatHistoryHandlers({
     }
 
     const actionType = actionEntry.actionType || actionEntry.label;
+    if (actionType === "chart") {
+      return typeof rebuildChartAction === "function" ? rebuildChartAction(actionEntry) : null;
+    }
     if (actionType === "Connections" || actionEntry.label === "Connections") {
       return {
         label: "Connections",
@@ -508,6 +536,15 @@ export function createChatHistoryHandlers({
             appendMessage("assistant", "No saved biography available to show.", { shouldPersist: false });
           }
         },
+      };
+    }
+
+    if (actionType === "search-form") {
+      return {
+        label: actionEntry.label,
+        actionType: "search-form",
+        values: actionEntry.values || {},
+        onClick: () => appendMessage("assistant", "Change the boxes and search again.", { searchForm: actionEntry.values || {} }),
       };
     }
 
@@ -595,6 +632,11 @@ export function createChatHistoryHandlers({
     const primaryAction = actions.find((action) => typeof action?.onClick === "function") || null;
     const inlineMore = typeof options === "object" ? options.inlineMore : null;
     const trailingText = typeof options?.trailingText === "string" ? options.trailingText.trim() : "";
+    // A small tag after "Genie", e.g. "AI answer", so an answer in words is
+    // told apart from what Genie found on WikiTree.
+    const badge = role === "assistant" && typeof options?.badge === "string" ? options.badge.trim() : "";
+    // A search form in the message (no AI key: the person fills in what the AI would have read).
+    const searchForm = role === "assistant" && options?.searchForm && typeof options.searchForm === "object" ? options.searchForm : null;
     const $messages = getMessageList();
     if ($messages.length === 0) return;
 
@@ -603,7 +645,15 @@ export function createChatHistoryHandlers({
     const $item = $("<div>").addClass(`chat-message chat-message-${role} chat-message--new`);
     const $label = $("<div>")
       .addClass("chat-message-label")
-      .text(role === "user" ? "You" : "Muse");
+      .text(role === "user" ? "You" : "Genie");
+    if (badge) {
+      $label.append(
+        $("<span>")
+          .addClass(`chat-message-badge${/couldn/i.test(badge) ? " chat-message-badge--cannot" : ""}`)
+          .attr("title", /couldn/i.test(badge) ? "Genie couldn't answer this from WikiTree or general knowledge" : "Written by AI from the profile and general knowledge: check facts against the profile")
+          .text(badge)
+      );
+    }
     const $body = $("<div>")
       .addClass("chat-message-body")
       .html(formatChatMessageBody(messageText, inlineMore, trailingText));
@@ -637,6 +687,9 @@ export function createChatHistoryHandlers({
     });
 
     $item.append($label, $body);
+    if (searchForm) {
+      $item.append(renderSearchForm(searchForm, (values, built) => onSearchFormSubmit?.(values, built)));
+    }
 
     if (actions.length) {
       const $actions = $("<div>").addClass("chat-message-actions");
@@ -660,6 +713,12 @@ export function createChatHistoryHandlers({
       const historyEntry = { role, text: role === "assistant" ? messageText : text };
       if (trailingText) {
         historyEntry.trailingText = trailingText;
+      }
+      if (badge) {
+        historyEntry.badge = badge;
+      }
+      if (searchForm) {
+        historyEntry.searchForm = searchForm;
       }
       if (inlineMore?.text) {
         const countValue = Number.isFinite(Number(inlineMore.count)) ? Number(inlineMore.count) : null;
@@ -716,6 +775,8 @@ export function createChatHistoryHandlers({
         shouldPersist: false,
         inlineMore: message.inlineMore || null,
         trailingText: typeof message.trailingText === "string" ? message.trailingText : "",
+        badge: typeof message.badge === "string" ? message.badge : "",
+        searchForm: message.searchForm && typeof message.searchForm === "object" ? message.searchForm : null,
       };
       const actionEntries = Array.isArray(message.actions)
         ? message.actions

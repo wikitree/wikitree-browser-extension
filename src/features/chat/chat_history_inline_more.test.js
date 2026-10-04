@@ -127,3 +127,31 @@ describe("chat_history WT+ zero-result message with alternative readings", () =>
     expect(notes).toEqual(["No results were found for this filter.", "Assumed: Cheshire read as a surname"]);
   });
 });
+
+// Live C34, 2026-10-03: AI help answers showed literal ** and dead URLs.
+describe("chat_history markdown-ish formatting", () => {
+  test("renders **bold** and links bare URLs without mangling WT IDs inside them", () => {
+    const { handlers } = createTestHandlers();
+    handlers.appendMessage(
+      "assistant",
+      'A **PPP** is a Project-Protected Profile. See https://www.wikitree.com/wiki/Help:Project_Protection. Ellen is Cook-8721; "https://www.wikitree.com/wiki/Cook-8721".'
+    );
+    const html = getMessageBodyHtml();
+    expect(html).toContain("<strong>PPP</strong>");
+    expect(html).toContain('href="https://www.wikitree.com/wiki/Help:Project_Protection"');
+    expect(html).toContain('rel="noopener noreferrer">https://www.wikitree.com/wiki/Cook-8721</a>');
+    expect(html).toContain('href="https://www.wikitree.com/wiki/Cook-8721" target="_blank" rel="noopener noreferrer">Cook-8721</a>');
+  });
+
+  test("keeps a query string's & in a linked URL (C12 Find Matches links)", () => {
+    const { handlers } = createTestHandlers();
+    handlers.appendMessage(
+      "assistant",
+      "Find Matches: https://staging.wikitree.com/index.php?title=Special:FindMatches&action=find&u=123.\nNext line"
+    );
+    const html = getMessageBodyHtml();
+    expect(html).toContain(
+      'href="https://staging.wikitree.com/index.php?title=Special:FindMatches&amp;action=find&amp;u=123"'
+    );
+  });
+});

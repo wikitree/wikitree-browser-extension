@@ -1,5 +1,5 @@
 // The AI answers with a JSON search spec (chat_search_spec.js); code compiles it to
-// WT+. These tests mock the model's replies and check what Muse does with each kind.
+// WT+. These tests mock the model's replies and check what Genie does with each kind.
 
 jest.mock("../../core/API/wtPlusAPI", () => ({
   wtAPICatCIBSearch: jest.fn(),

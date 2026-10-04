@@ -2,6 +2,7 @@ jest.mock("../../core/common", () => ({
   getProfilePersonInfo: jest.fn(),
 }));
 
+import { getProfilePersonInfo } from "../../core/common";
 import { ChatIntent, routeChatPrompt } from "./chat_router";
 
 describe("chat_router cousin prompts", () => {
@@ -198,5 +199,14 @@ describe("chat_router cousin prompts", () => {
         locationField: "",
       },
     });
+  });
+
+  test("a question about a named or page person's cousins finds that person", () => {
+    const first = { cousinDegree: 1, relationRaw: "1st cousins", subjectMode: "named" };
+    expect(routeChatPrompt("Who were Philip's first cousins?").params).toMatchObject({ ...first, subjectName: "Philip" });
+    expect(routeChatPrompt("show me Philip’s first cousins").params).toMatchObject({ ...first, subjectName: "Philip" });
+    getProfilePersonInfo.mockReturnValue({ Name: "Beacall-11" });
+    expect(routeChatPrompt("Who were his first cousins?").params).toMatchObject({ ...first, subjectName: "Beacall-11" });
+    getProfilePersonInfo.mockReturnValue(undefined);
   });
 });

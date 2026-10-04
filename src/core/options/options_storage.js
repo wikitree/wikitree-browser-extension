@@ -3,21 +3,7 @@ Created By: Rob Pavey (Pavey-429)
 */
 
 import { getDefaultOptionValuesForFeature, getFeatureData, features } from "./options_registry";
-
-const SHARED_AI_OPTIONS_KEY = "sharedAI_options";
-const SHARED_AI_FEATURES = ["autoBio", "chat"];
-const SHARED_AI_OPTION_IDS = [
-  "aiProvider",
-  "openAIKey",
-  "openAIModel",
-  "geminiKey",
-  "geminiModel",
-  "claudeKey",
-  "claudeModel",
-  "perplexityKey",
-  "perplexityModel",
-  "aiModel",
-];
+import { SHARED_AI_FEATURES, SHARED_AI_OPTIONS_KEY, SHARED_AI_OPTION_IDS } from "./shared_ai_options";
 
 function isSharedAiFeature(featureId) {
   return SHARED_AI_FEATURES.includes(featureId);
@@ -214,7 +200,9 @@ async function getFeatureOptions(featureId) {
           for (const optionId of SHARED_AI_OPTION_IDS) {
             const sharedValue = sharedOptions[optionId];
             const localValue = legacySharedOptions[optionId] ?? savedLocalOptions[optionId];
-            const sharedMissing = sharedValue === undefined || sharedValue === null || sharedValue === "";
+            // A blank shared value was cleared on purpose (a removed API key): only a value
+            // that was never saved is filled from the old per-feature copy (2026-10-04).
+            const sharedMissing = sharedValue === undefined || sharedValue === null;
             const localPresent = localValue !== undefined && localValue !== null && localValue !== "";
 
             if (sharedMissing && localPresent) {

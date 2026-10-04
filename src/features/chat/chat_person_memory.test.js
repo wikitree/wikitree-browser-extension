@@ -137,3 +137,23 @@ describe("possessives are never nicknames (live, 2026-10-03)", () => {
     });
   });
 });
+
+// I9 (live, 2026-10-03): "people with the surname Alley born in Nelson" became
+// "…surname Ellen…": Alley is Ellen (Cook) Alley's married name.
+describe("surnames are not rewritten to a remembered person", () => {
+  const ellen = { wtId: "Cook-8721", displayName: "Ellen", aliases: ["Ellen (Cook) Alley", "Ellen", "Alley"] };
+  const alfred = { wtId: "Fry-6447", displayName: "Alfred Stephen", aliases: ["Stephen"] };
+
+  test.each([
+    "people with the surname Alley born in Nelson",
+    "Alley born in Nelson",
+    "the Alley family in Motueka",
+  ])("%s", (prompt) => {
+    expect(rewritePromptWithRememberedPerson(prompt, ellen)).toMatchObject({ prompt, changed: false });
+  });
+
+  test("a word introduced as a surname is left alone", () => {
+    const prompt = "people with the last name Stephen";
+    expect(rewritePromptWithRememberedPerson(prompt, alfred)).toMatchObject({ prompt, changed: false });
+  });
+});

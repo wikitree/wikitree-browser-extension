@@ -227,6 +227,11 @@ describe("wt_plus_query_grammar suggestions free text", () => {
     expect(result.query.startsWith("Suggestions=509")).toBe(true);
   });
 
+  test("leaves 'no gender' to the NoGender flag", () => {
+    expect(isLikelySuggestionsPrompt("profiles with no gender in Kent")).toBe(false);
+    expect(isLikelySuggestionsPrompt("people without children in Devon")).toBe(false);
+  });
+
   test("maps uncleaned after merge phrasing to Suggestions=811", () => {
     const result = translateSuggestionsFreeTextToQuery("show profiles with merge cleanup needed");
     expect(result).not.toBeNull();

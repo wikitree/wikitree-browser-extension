@@ -1,5 +1,9 @@
+import { findWikiTreeIdOnWikidata } from "./chat_wikidata";
+import { sharedParentIds, topSiblingSteps } from "./chat_connection_common";
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { getRelationJSON } from "../../core/API/wwwWikiTree";
+import { analyseRelationship, asksForRelationship, buildRelationshipLines, describeRelationship, relationshipLead } from "./chat_relationship_data";
+import { showRelationshipPopup } from "./chat_relationship_chart";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { getProfilePersonInfo } from "../../core/common";
 import { formatDate } from "../../core/formatting";
@@ -12,13 +16,16 @@ import {
   isConnectionCorrectionPrompt,
   extractCorrectionTarget,
   isWikiTreeId,
+  embeddedWikiTreeId,
   findPageContextPersonCandidate,
   mergeConnectionMatches,
   rankConnectionMatches,
   shouldUseAiForConnectionDisambiguation,
   getCommonAliasExpansion,
   extractYearFromDate,
+  isPageProfileTarget,
 } from "./chat_router";
+import { describeConnectionPath } from "./chat_relation_chain_text";
 import { hideChatShaky, showConnectionsPopup } from "./ui";
 import { PERSON_MEMORY_ALIAS_STOPWORDS, normalizePersonMemoryToken } from "./chat_person_memory";
 
@@ -480,11 +487,23 @@ function hasExactConnectionFirstName(match, firstName) {
     .split(/\s+/)
     .filter(Boolean)[0];
 
-  return normalizePersonText(realNameFirstToken) === normalizedFirstName;
+  if (normalizePersonText(realNameFirstToken) === normalizedFirstName) {
+    return true;
+  }
+
+  // Nicknames, when the profile shares them (living profiles usually don't).
+  return String(match?.Nicknames || "")
+    .split(/[,;"]+|\s+/)
+    .some((nickname) => nickname && normalizePersonText(nickname) === normalizedFirstName);
 }
 
 function hasExactConnectionFullName(match, firstName, lastName) {
   return hasExactConnectionFirstName(match, firstName) && hasExactConnectionSurname(match, lastName);
+}
+
+/** An exact name match on any pairing of the given first names and surnames (birth or known-by names). */
+function hasAnyExactConnectionFullName(match, firstNames, lastNames) {
+  return firstNames.some((first) => first && hasExactConnectionFirstName(match, first)) && lastNames.some((last) => last && hasExactConnectionSurname(match, last));
 }
 
 function isSparseConnectionMatch(match) {
@@ -526,6 +545,10 @@ function normalizeConnectionAiExpansion(expansion) {
   const normalizedFirstName = String(expansion?.FirstName || expansion?.firstName || "").trim();
   const normalizedLastName = String(expansion?.LastName || expansion?.lastName || "").trim();
   const normalizedMiddleName = String(expansion?.MiddleName || expansion?.middleName || "").trim();
+  // (the name the profile may show instead: Bill for William Blythe, and his later surname Clinton)
+  const preferredName = normalizeConnectionAiNamePart(expansion?.PreferredName || expansion?.preferredName);
+  const lastNameCurrent = normalizeConnectionAiNamePart(expansion?.LastNameCurrent || expansion?.lastNameCurrent);
+  const famous = normalizeConnectionAiBoolean(expansion?.Famous ?? expansion?.famous) === true;
   const normalizedBirthDate = String(expansion?.BirthDate || expansion?.birthDate || "").trim();
   const normalizedDeathDate = String(expansion?.DeathDate || expansion?.deathDate || "").trim();
   const normalizedBirthLocation = normalizeConnectionAiLocation(expansion?.BirthLocation || expansion?.birthLocation);
@@ -550,6 +573,9 @@ function normalizeConnectionAiExpansion(expansion) {
     firstName: normalizedFirstName,
     lastName: normalizedLastName,
     middleName: normalizedMiddleName,
+    preferredName,
+    lastNameCurrent,
+    famous,
     birthDate: normalizedBirthDate,
     deathDate: normalizedDeathDate,
     birthLocation: normalizedBirthLocation,
@@ -584,6 +610,7 @@ export function createChatConnectionHandlers({
   setLastConnectionRankedMatches,
   setLastConnectionPopupResult,
   onResolvedPerson,
+  personVisuals = () => [],
 }) {
   async function rerankConnectionMatchesByAncestorLocations(rankedMatches, targetLocations = []) {
     const normalizedTargets = (targetLocations || []).map((value) => String(value || "").trim()).filter(Boolean);
@@ -687,7 +714,7 @@ export function createChatConnectionHandlers({
   }
 
   async function resolveConnectionTargetPerson(target, prompt = "", options = {}) {
-    const cleanedTarget = normalizeConnectionTargetForSearch(target);
+    const cleanedTarget = embeddedWikiTreeId(target) || normalizeConnectionTargetForSearch(target);
     if (!cleanedTarget) {
       return null;
     }
@@ -788,6 +815,29 @@ export function createChatConnectionHandlers({
           "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender"
         )
       );
+    }
+
+    // A famous person (the AI says so, and gives a birth year): Wikidata keeps their
+    // WikiTree ID, so look them up by the name they're known by.
+    if (aiExpansion?.famous && (aiExpansion.birthDate || aiExpansion.birthYear)) {
+      const knownBy = [aiExpansion.preferredName || aiExpansion.firstName, aiExpansion.lastNameCurrent || aiExpansion.lastName].filter(Boolean).join(" ");
+      const wikidata = await findWikiTreeIdOnWikidata(
+        [knownBy, cleanedTarget, aiExpansion.searchName],
+        extractYearFromDate(normalizeConnectionBirthDate(aiExpansion.birthDate)) || aiExpansion.birthYear
+      );
+      if (wikidata?.wtId && isWikiTreeId(wikidata.wtId) && !excludedWtIds.has(wikidata.wtId)) {
+        const person = normalizeResolvedConnectionPerson(
+          await WikiTreeAPI.getPerson(
+            "Chat",
+            wikidata.wtId,
+            "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender"
+          )
+        );
+        if (person?.Name || person?.Id) {
+          console.info("wbe: resolveConnectionTargetPerson used Wikidata", { cleanedTarget, ...wikidata });
+          return person;
+        }
+      }
     }
     const aiSuggestedWtId = isWikiTreeId(aiExpansion?.wtId || "") ? String(aiExpansion.wtId).trim() : "";
 
@@ -1351,9 +1401,10 @@ export function createChatConnectionHandlers({
         : [];
 
     if (rankingParts.firstName && rankingParts.lastName && rankedMatches.length) {
-      const exactFullNameMatches = rankedMatches.filter((entry) =>
-        hasExactConnectionFullName(entry.match, rankingParts.firstName, rankingParts.lastName)
-      );
+      // A famous person's profile often shows the name they're known by (Bill, not William).
+      const knownFirstNames = [rankingParts.firstName, aiExpansion?.preferredName];
+      const knownLastNames = [rankingParts.lastName, aiExpansion?.lastNameCurrent];
+      const exactFullNameMatches = rankedMatches.filter((entry) => hasAnyExactConnectionFullName(entry.match, knownFirstNames, knownLastNames));
       const shouldPreferOriginalAliasMatches =
         targetDiffersFromExpandedName &&
         shouldPreferOriginalAliasConnectionMatches(
@@ -1501,6 +1552,52 @@ export function createChatConnectionHandlers({
     return bestMatch;
   }
 
+  // The parents of the sibling pair at the top of the path: the common ancestors, which the
+  // connection finder skips (siblings are one step). The diagram draws them above the pair.
+  async function attachSharedParents(path) {
+    if (!Array.isArray(path)) return;
+    try {
+      const wanted = topSiblingSteps(path).map((k) => ({ k, ids: sharedParentIds(path[k - 1], path[k]) })).filter((entry) => entry.ids.length);
+      const ids = [...new Set(wanted.flatMap((entry) => entry.ids))];
+      if (!ids.length) return;
+      const [, , people] = await WikiTreeAPI.getPeople("Chat", ids, "Id,Name,RealName,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,Nicknames,Prefix,Suffix,BirthDate,DeathDate,Gender");
+      const byId = new Map(Object.values(people || {}).map((person) => [Number(person?.Id), person]));
+      wanted.forEach(({ k, ids: parentIds }) => {
+        const parents = parentIds.map((id) => byId.get(id)).filter((person) => person?.Name);
+        if (parents.length) path[k].sharedParents = parents;
+      });
+    } catch (error) {
+      console.debug("wbe: shared parents lookup failed", error);
+    }
+  }
+
+  // The relationship chart: getConnections relation=2 runs up through the common ancestor
+  // and down again, which is the two lines of descent.
+  async function openRelationshipChart(sourceWtId, targetWtId, relationship, relationshipText, targetName) {
+    try {
+      const data = await WikiTreeAPI.getConnections(
+        "Chat",
+        [sourceWtId, targetWtId],
+        "Id,Name,Gender,Photo,PhotoData,RealName,FirstName,LastNameAtBirth,LastNameCurrent,Suffix,BirthDate,BirthLocation,DeathDate,Father,Mother",
+        { relation: 2 }
+      );
+      const lines = buildRelationshipLines(data?.path, relationship);
+      if (!lines) {
+        console.debug("wbe: relationship chart: no line of descent", { data });
+        return;
+      }
+      showRelationshipPopup(lines, {
+        title: `Relationship: ${lines.line1[lines.line1.length - 1]?.first || sourceWtId} and ${targetName || targetWtId}`,
+        relationship: /^No relationship found$/i.test(relationshipText) ? "" : relationshipText,
+        route: relationship.routes[0],
+        otherRoutes: relationship.routes.length - 1,
+        rootKey: sourceWtId,
+      });
+    } catch (error) {
+      console.warn("wbe: relationship chart failed", error);
+    }
+  }
+
   async function getConnectionDataWithFallback(sourceKey, targetWtId) {
     const attempts = [0, 11, 1];
     let lastData = null;
@@ -1510,7 +1607,7 @@ export function createChatConnectionHandlers({
       const data = await WikiTreeAPI.getConnections(
         "Chat",
         [sourceKey, targetWtId],
-        "Id,Name,Gender,Photo,PhotoData,RealName,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,Nicknames,Prefix,Suffix,BirthName,BirthNamePrivate,BirthDate,BirthLocation,DeathDate,DeathLocation,pathType",
+        "Id,Name,Gender,Photo,PhotoData,RealName,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,Nicknames,Prefix,Suffix,BirthName,BirthNamePrivate,BirthDate,BirthLocation,DeathDate,DeathLocation,Father,Mother,pathType",
         {
           relation: relationCode,
         }
@@ -1521,6 +1618,7 @@ export function createChatConnectionHandlers({
       const hasPath =
         (Number.isFinite(pathLength) && pathLength > 0) || (Array.isArray(data?.path) && data.path.length > 0);
       if (hasPath) {
+        await attachSharedParents(data?.path);
         return { data, relationCode };
       }
     }
@@ -1600,6 +1698,11 @@ export function createChatConnectionHandlers({
     console.debug("wbe: tryHandleConnectionPrompt start", { prompt, targetOverride, target, sourceOverride });
 
     let resolvedTarget = target;
+    if (isPageProfileTarget(resolvedTarget)) {
+      const pagePerson = getProfilePersonInfo();
+      resolvedTarget = pagePerson?.Name || "";
+      if (!resolvedTarget) return "Open a profile first: Genie connects you to the profile you're looking at.";
+    }
     if (!resolvedTarget) {
       try {
         const pagePerson = getProfilePersonInfo();
@@ -1670,23 +1773,23 @@ export function createChatConnectionHandlers({
       }
       console.debug("wbe: tryHandleConnectionPrompt resolved matchedPerson", { matchedPerson });
       if (!matchedPerson) {
-        return `I could not find a WikiTree profile match for \"${lookupTarget}\". If that profile is private, Muse may not be able to compute the connection at all because WikiTree may not expose a stable WikiTree ID.`;
+        return `I could not find a WikiTree profile match for \"${lookupTarget}\". If that profile is private, Genie may not be able to compute the connection at all because WikiTree may not expose a stable WikiTree ID.`;
       }
 
       const targetWtId = matchedPerson?.Name;
       if (!targetWtId) {
-        return `I found candidate matches for \"${lookupTarget}\", but could not resolve a WikiTree ID. If that profile is private, Muse cannot compute the connection because WikiTree did not expose a stable WikiTree ID.`;
+        return `I found candidate matches for \"${lookupTarget}\", but could not resolve a WikiTree ID. If that profile is private, Genie cannot compute the connection because WikiTree did not expose a stable WikiTree ID.`;
       }
 
       const sourceRoot = await resolveConnectionSourceRoot(prompt, targetWtId, sourceOverride);
       console.debug("wbe: tryHandleConnectionPrompt sourceRoot", { sourceRoot });
       if (sourceRoot?.unresolvedName) {
-        return `I couldn't identify which source profile you meant by "${sourceRoot.unresolvedName}". If that profile is private, Muse may not be able to compute the connection because WikiTree may not expose a stable WikiTree ID.`;
+        return `I couldn't identify which source profile you meant by "${sourceRoot.unresolvedName}". If that profile is private, Genie may not be able to compute the connection because WikiTree may not expose a stable WikiTree ID.`;
       }
       if (sourceRoot?.subjectType === "named" && !sourceRoot?.wtId) {
         return `I found a possible source match for "${
           sourceRoot.displayName || "that person"
-        }", but WikiTree did not provide a stable WikiTree ID for it. If that profile is private, Muse cannot compute the connection from it.`;
+        }", but WikiTree did not provide a stable WikiTree ID for it. If that profile is private, Genie cannot compute the connection from it.`;
       }
       if (!sourceRoot?.wtId && !sourceRoot?.key) {
         if (promptRefersToUser(prompt)) {
@@ -1734,12 +1837,23 @@ export function createChatConnectionHandlers({
       const distance =
         Number.isFinite(pathLength) && pathLength > 0 ? pathLength - 1 : Math.max((data?.path || []).length - 1, 0);
       let relationshipText = String(data?.relationship || "").trim();
-      if (!relationshipText && sourceRoot.wtId && targetWtId) {
+      // The Relationship Finder: its label when getConnections gave none, and (2026-10-04)
+      // the common ancestors, every route and the DNA relatives this close share.
+      let relationshipDetails = "";
+      let relationship = null;
+      if (sourceRoot.wtId && targetWtId) {
         try {
           const legacy = await getRelationJSON("Chat", sourceRoot.wtId, targetWtId);
-          relationshipText = parseLegacyRelationshipLabel(legacy);
+          if (!relationshipText) relationshipText = parseLegacyRelationshipLabel(legacy);
+          relationship = analyseRelationship(legacy);
+          relationshipDetails = describeRelationship(
+            relationship,
+            sourceRoot.subjectType === "user" ? "you" : sourceRoot.displayName || sourceRoot.wtId,
+            String(displayName).split(" ")[0] || displayName,
+            { gender1: data?.path?.[0]?.Gender || "" }
+          );
         } catch (error) {
-          relationshipText = "";
+          console.debug("wbe: relationship details failed", error);
         }
       }
       if (/^\d+$/.test(relationshipText)) {
@@ -1770,10 +1884,18 @@ export function createChatConnectionHandlers({
         console.debug("wbe: failed to persist connection popup result", error);
       }
 
-      try {
-        showConnectionsPopup([data]);
-      } catch (error) {
-        console.debug("wbe: failed to show connections popup", error);
+      // "How am I related to X?" (2026-10-04): with common ancestors, the relationship leads
+      // and its chart opens; the shortest connection follows.
+      const sourceText = sourceRoot.subjectType === "user" ? "you" : `${sourceRoot.displayName} (${sourceRoot.wtId})`;
+      const lead = relationship?.kind === "common" && asksForRelationship(prompt) ? relationshipLead(relationshipText, `${displayName} (${targetWtId})`, sourceText) : "";
+      if (lead) {
+        openRelationshipChart(sourceRoot.wtId, targetWtId, relationship, relationshipText, displayName);
+      } else {
+        try {
+          showConnectionsPopup([data]);
+        } catch (error) {
+          console.debug("wbe: failed to show connections popup", error);
+        }
       }
 
       const rows = (data.path || []).map((person) => ({
@@ -1792,8 +1914,16 @@ export function createChatConnectionHandlers({
       }));
       void rows;
 
-      const messageText =
-        sourceRoot.subjectType === "user"
+      const pathSentence = describeConnectionPath(
+        data.path,
+        sourceRoot.subjectType === "user" ? "you" : `${sourceRoot.displayName} (${sourceRoot.wtId})`,
+        `${displayName} (${targetWtId})`,
+        3,
+        /^No relationship found$/i.test(relationshipText) ? "" : relationshipText
+      );
+      const messageText = pathSentence
+        ? pathSentence
+        : sourceRoot.subjectType === "user"
           ? `Connection found: ${displayName} (${targetWtId}) is ${distance} step${
               distance === 1 ? "" : "s"
             } away from you.${relationshipSuffix}`
@@ -1801,12 +1931,24 @@ export function createChatConnectionHandlers({
               distance === 1 ? "" : "s"
             } away from ${sourceRoot.displayName} (${sourceRoot.wtId}).${relationshipSuffix}`;
 
+      const ledMessage = lead
+        ? [lead, relationshipDetails, `The shortest connection on WikiTree is ${distance} step${distance === 1 ? "" : "s"} (Connections shows it).`].filter(Boolean).join("\n")
+        : "";
       return {
-        message: messageText,
-        action: {
-          label: "Connections",
-          onClick: () => toggleConnectionsPopup(),
-        },
+        message: ledMessage || (relationshipDetails ? `${messageText}\n${relationshipDetails}` : messageText),
+        // The diagram leads; then the other person's family, to look around in.
+        actions: [
+          { label: "Connections", onClick: () => toggleConnectionsPopup() },
+          ...(relationship?.kind === "common"
+            ? [
+                {
+                  label: "Relationship chart",
+                  onClick: () => openRelationshipChart(sourceRoot.wtId, targetWtId, relationship, relationshipText, displayName),
+                },
+              ]
+            : []),
+          ...personVisuals(targetWtId),
+        ],
       };
     } catch (error) {
       return `I could not complete the connection lookup for \"${target}\". Error: ${

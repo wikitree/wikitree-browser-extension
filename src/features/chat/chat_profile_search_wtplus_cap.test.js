@@ -68,8 +68,8 @@ describe("chat_profile_search WT+ cap handling", () => {
 
     expect(fetchPeoplePaged).not.toHaveBeenCalled();
     expect(result.message).toContain("39,336");
-    expect(result.message).toContain("too many for Muse to load usefully");
-    expect(result.message).toContain("Muse can display up to 30,000 results");
+    expect(result.message).toContain("too many for Genie to load usefully");
+    expect(result.message).toContain("Genie can display up to 30,000 results");
     expect(result.message).toContain("fewer results will load faster");
     expect(result.actions).toHaveLength(1);
     expect(result.actions[0]).toMatchObject({
@@ -101,7 +101,7 @@ describe("chat_profile_search WT+ cap handling", () => {
     expect(fetchPeoplePaged).not.toHaveBeenCalled();
     expect(result.message).toContain("450,420");
     expect(result.message).not.toContain("WT+ found 0 profiles");
-    expect(result.message).toContain("too many for Muse to load usefully");
-    expect(result.message).toContain("Muse can display up to 30,000 results");
+    expect(result.message).toContain("too many for Genie to load usefully");
+    expect(result.message).toContain("Genie can display up to 30,000 results");
   });
 });

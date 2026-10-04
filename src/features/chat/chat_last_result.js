@@ -1,3 +1,6 @@
+import { groupValue } from "./chat_group_rows";
+import { formatPreviewDate } from "./chat_preview_format";
+import { buildResultPickAnswer } from "./chat_result_pick";
 export function createLastResultOperationHandler({
   getLastStructuredResult,
   setLastStructuredResult,
@@ -129,7 +132,7 @@ export function createLastResultOperationHandler({
         bits.push(`removed ${row.removed}`);
       }
       if (row.birth) {
-        bits.push(`born ${row.birth}`);
+        bits.push(`born ${formatPreviewDate(row.birth)}`);
       }
       if (row.gender) {
         bits.push(row.gender);
@@ -184,9 +187,17 @@ export function createLastResultOperationHandler({
         return null;
       }
       const matchingColumn = result.columns.find((column) => String(column?.key || "").trim() === key);
+      // M3 (live, 2026-10-03): "born before 1885" came as 0-1884, which the
+      // table's filter (4-digit ranges, < and >) read as text and matched nothing.
+      const hasStart = /^\d{3,4}$/.test(start) && Number(start) > 0;
+      const hasEnd = /^\d{3,4}$/.test(end);
+      let value = `${start}-${end}`;
+      if (!hasStart && hasEnd) value = `< ${Number(end) + 1}`;
+      else if (hasStart && !hasEnd) value = `> ${Number(start) - 1}`;
+      else if (!hasStart && !hasEnd) return null;
       return {
         key,
-        value: `${start}-${end}`.replace(/^-|-$/g, ""),
+        value,
         label: String(matchingColumn?.title || key),
       };
     }
@@ -194,18 +205,49 @@ export function createLastResultOperationHandler({
     return null;
   }
 
-  function buildColumnFilterMessage(filterRequests) {
+  // "just Kent" on a Cornwall result opened an empty table with no word about it
+  // (live C33, 2026-10-03), so plain text filters report how many rows match.
+  function countColumnFilterMatches(filterRequests, rows) {
+    if (!Array.isArray(rows) || !rows.length) return null;
+    // M3 (live, 2026-10-03): a year range ("0-1884" for "born before 1885") was
+    // matched as text, so "0 of 10 rows match" when 2 did.
+    const yearRange = (value) => String(value).match(/^(\d{0,4})-(\d{0,4})$/);
+    return rows.filter((row) =>
+      filterRequests.every((filter) => {
+        const cell = String(row?.[filter.key] ?? "");
+        const range = yearRange(filter.value);
+        const bound = String(filter.value).match(/^([<>])\s*(\d{1,4})$/);
+        if (bound) {
+          const year = extractYear(cell);
+          if (!year) return false;
+          return bound[1] === "<" ? year < Number(bound[2]) : year > Number(bound[2]);
+        }
+        if (range) {
+          const year = extractYear(cell);
+          if (!year) return false;
+          return (!range[1] || year >= Number(range[1])) && (!range[2] || year <= Number(range[2]));
+        }
+        return cell.toLowerCase().includes(String(filter.value).toLowerCase());
+      })
+    ).length;
+  }
+
+  function buildColumnFilterMessage(filterRequests, rows) {
     if (!filterRequests.length) {
       return "I opened the current result set in a table.";
     }
 
+    const matches = countColumnFilterMatches(filterRequests, rows);
+    const countText =
+      matches === null ? "" : ` ${matches.toLocaleString()} of ${rows.length.toLocaleString()} rows match.`;
+
     if (filterRequests.length === 1) {
       const filter = filterRequests[0];
-      return `I opened the current result set in a table with the ${filter.label} column filter set to "${filter.value}".`;
+      return `I opened the current result set in a table with the ${filter.label} column filter set to "${filter.value}".${countText}`;
     }
 
     const summary = filterRequests.map((filter) => `${filter.label} = "${filter.value}"`).join(" and ");
-    return `I opened the current result set in a table with column filters set to ${summary}.`;
+    return `I opened the current result set in a table with column filters set to ${summary}.${countText}`;
   }
 
   function getStoredColumnFilters(result) {
@@ -238,7 +280,7 @@ export function createLastResultOperationHandler({
 
   function openTableWithMergedColumnFilters(result, incomingFilters = []) {
     const mergedFilters = mergeColumnFilters(getStoredColumnFilters(result), incomingFilters);
-    const nextResult = cloneResultWithRows(result, result?.title || "Chat Results", result?.rows || []);
+    const nextResult = cloneResultWithRows(result, result?.title || "Genie Results", result?.rows || []);
     nextResult.columnFilterContext = { filters: mergedFilters };
     if (typeof setLastStructuredResult === "function") {
       setLastStructuredResult(nextResult);
@@ -383,7 +425,7 @@ export function createLastResultOperationHandler({
 
     const baseResult = cloneResultWithRows(
       lastStructuredResult,
-      lastStructuredResult.title || "Chat Results",
+      lastStructuredResult.title || "Genie Results",
       lastStructuredResult.rows
     );
 
@@ -393,7 +435,7 @@ export function createLastResultOperationHandler({
     const dataResult =
       dataSource === lastStructuredResult
         ? baseResult
-        : cloneResultWithRows(dataSource, dataSource.title || "Chat Results", dataSource.rows);
+        : cloneResultWithRows(dataSource, dataSource.title || "Genie Results", dataSource.rows);
 
     if (params.action === "table") {
       openResultsTable(baseResult, { initialColumnFilters: getStoredColumnFilters(baseResult) });
@@ -416,6 +458,8 @@ export function createLastResultOperationHandler({
         let bucketValue = "Unknown";
         if (params.field === "country") {
           bucketValue = getRowCountry(row) || "Unknown";
+        } else if (/^(?:birthDecade|deathDecade|birthCentury)$/.test(params.field)) {
+          bucketValue = groupValue(row, params.field) || "Unknown";
         } else {
           bucketValue = row[params.field] || "Unknown";
         }
@@ -428,8 +472,10 @@ export function createLastResultOperationHandler({
           count,
         }))
         .sort(
-          (left, right) =>
-            right.count - left.count || normalizeText(left.label).localeCompare(normalizeText(right.label))
+          /^(?:birthDecade|deathDecade|birthCentury)$/.test(params.field)
+            ? (left, right) => (parseInt(left.label, 10) || Infinity) - (parseInt(right.label, 10) || Infinity)
+            : (left, right) =>
+                right.count - left.count || normalizeText(left.label).localeCompare(normalizeText(right.label))
         );
 
       const summary = groupedRows.map((row) => `- ${row.label}: ${row.count}`);
@@ -449,6 +495,10 @@ export function createLastResultOperationHandler({
           rows: groupedRows,
         },
       };
+    }
+
+    if (params.action === "pick") {
+      return buildResultPickAnswer(dataResult.rows, params.pick);
     }
 
     if (params.action === "sort") {
@@ -478,7 +528,7 @@ export function createLastResultOperationHandler({
         if (allColumnFiltersSupported) {
           const mergedFilters = openTableWithMergedColumnFilters(dataResult, columnFilters);
           return {
-            message: buildColumnFilterMessage(mergedFilters),
+            message: buildColumnFilterMessage(mergedFilters, dataResult?.rows),
           };
         }
       } else if (effectiveFilter?.operator !== "or") {
@@ -486,7 +536,7 @@ export function createLastResultOperationHandler({
         if (columnFilter) {
           const mergedFilters = openTableWithMergedColumnFilters(dataResult, [columnFilter]);
           return {
-            message: buildColumnFilterMessage(mergedFilters),
+            message: buildColumnFilterMessage(mergedFilters, dataResult?.rows),
           };
         }
       }
@@ -521,7 +571,7 @@ export function createLastResultOperationHandler({
         isOrFilter && lastStructuredResult?.filterContext?.baseResult
           ? cloneResultWithRows(
               lastStructuredResult.filterContext.baseResult,
-              lastStructuredResult.filterContext.baseResult.title || "Chat Results",
+              lastStructuredResult.filterContext.baseResult.title || "Genie Results",
               lastStructuredResult.filterContext.baseResult.rows || []
             )
           : dataResult;
@@ -559,7 +609,7 @@ export function createLastResultOperationHandler({
         operator: isOrFilter ? "or" : "and",
         baseResult:
           lastStructuredResult?.filterContext?.baseResult ||
-          cloneResultWithRows(dataResult, dataResult.title || "Chat Results", dataResult.rows),
+          cloneResultWithRows(dataResult, dataResult.title || "Genie Results", dataResult.rows),
       };
       const { preview, inlineMore } = summarizeStructuredRows(filteredRows);
 
