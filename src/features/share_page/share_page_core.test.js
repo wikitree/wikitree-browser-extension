@@ -1,6 +1,7 @@
 import {
   BRAND_HASHTAGS,
   buildText,
+  cleanHeading,
   cropRect,
   detectPageKind,
   getChannel,
@@ -12,6 +13,7 @@ import {
   leadSummary,
   lifeSummary,
   pageSummary,
+  usefulSections,
   profileKeyFor,
   viewSlug,
   measure,
@@ -33,6 +35,8 @@ describe("detectPageKind", () => {
     ["/photo.php/4/49/Robinson-27274.jpg", "fullImage"],
     ["/treewidget/Robinson-27274/6", "treeWidget"],
     ["/apps/Robinson-27274", "treeApp"],
+    ["/genealogy/PEASLEY", "genealogy"],
+    ["/genealogy/Peasley", "genealogy"],
     ["/wiki/Template:Example", "other"],
     ["/g2g/", "other"],
   ])("%s is %s", (path, kind) => {
@@ -218,6 +222,7 @@ describe("profileKeyFor", () => {
     ["fullImage", "/photo.php/d/d3/Robinson-27274-1.jpg", "", "Robinson-27274"],
     ["imagePage", "/photo/png/Not_A_Person", "", ""], // no number, so it cannot be a profile
     ["category", "/wiki/Category:Andersonia,_California", "", ""],
+    ["genealogy", "/genealogy/PEASLEY", "", ""],
     ["help", "/wiki/Help:Projects", "", ""],
   ])("%s %s %s gives %j", (kind, path, hash, key) => {
     expect(profileKeyFor(kind, path, hash)).toBe(key);
@@ -373,5 +378,98 @@ describe("cropRect", () => {
   });
   test("the shapes offered", () => {
     expect(CROP_SHAPES.map((c) => c.id)).toEqual(["original", "wide", "square", "tall"]);
+  });
+});
+
+describe("cleanHeading", () => {
+  test.each([
+    ["Andersonia[edit] Link URL", "Andersonia"],
+    ["Sources[edit] Link URL", "Sources"],
+    ["Biography [edit] ID Link URL", "Biography"],
+    ["Topical Projects [edit]", "Topical Projects"],
+    ["Who are Ambassadors?", "Who are Ambassadors?"],
+    ["A Useful Link", "A Useful Link"],
+    ["  Spaced   out  ", "Spaced out"],
+    ["", ""],
+  ])("%j becomes %j", (input, output) => {
+    expect(cleanHeading(input)).toBe(output);
+  });
+});
+
+describe("page summaries stay clean", () => {
+  test("section names lose the edit link and the copy buttons", () => {
+    const summary = pageSummary("help", {
+      title: "Help:Projects",
+      paragraphs: ["A project is a group of members organized around a topic or volunteer activity."],
+      sections: ["Topical Projects[edit] Link URL", "Functional Projects[edit] Link URL"],
+    });
+    expect(summary.fields[0].lines).toEqual(["Topical Projects", "Functional Projects"]);
+  });
+  test("a page whose only sections repeat its title or are standard ones lists none", () => {
+    const summary = pageSummary("space", {
+      title: "Andersonia, California One Place Study",
+      paragraphs: ["Andersonia was named for the President of Southern Humboldt Lumber Company, Henry Neff Anderson."],
+      sections: ["Andersonia[edit] Link URL", "Sources[edit] Link URL"],
+    });
+    expect(summary.fields).toEqual([]);
+    expect(summary.bio).toContain("Andersonia was named for the President");
+  });
+  test("the opening text loses stray [edit] markers", () => {
+    expect(leadSummary(["The Ambassadors Project[edit] helps spread the word about WikiTree every single day."])).toBe(
+      "The Ambassadors Project helps spread the word about WikiTree every single day."
+    );
+  });
+});
+
+describe("usefulSections", () => {
+  test("drops standard sections and headings that repeat the page title", () => {
+    expect(
+      usefulSections(
+        ["Andersonia", "History", "Sources", "References", "Footnotes", "See also", "Acknowledgments", "Contents"],
+        "Andersonia, California One Place Study"
+      )
+    ).toEqual(["History"]);
+  });
+  test("ignores the Space:, Project:, Help: and Category: prefix when comparing with the title", () => {
+    expect(usefulSections(["Projects", "Topical Projects"], "Help:Projects")).toEqual(["Topical Projects"]);
+  });
+  test("keeps real sections, cleaned", () => {
+    expect(usefulSections(["Who are Ambassadors?[edit] Link URL", "Teams"], "Ambassadors Project")).toEqual([
+      "Who are Ambassadors?",
+      "Teams",
+    ]);
+  });
+  test("without a title only the standard sections go", () => {
+    expect(usefulSections(["Andersonia", "Sources"])).toEqual(["Andersonia"]);
+  });
+});
+
+describe("surname pages", () => {
+  test("the address is shared as it is", () => {
+    expect(shareUrlFor("genealogy", "https://www.wikitree.com/genealogy/PEASLEY")).toBe(
+      "https://www.wikitree.com/genealogy/PEASLEY"
+    );
+  });
+  test("the card says how many profiles the surname has", () => {
+    const summary = pageSummary("genealogy", { title: "Peasley Genealogy", counts: { profiles: 652 } });
+    expect(summary.fields).toEqual([{ label: "Profiles", lines: ["652"], names: false }]);
+    expect(summary.bio).toBe(
+      "Explore the 652 Peasley profiles on WikiTree: ancestors, cousins and community members, and how they connect."
+    );
+  });
+  test("without a count it still gives a sentence", () => {
+    const summary = pageSummary("genealogy", { title: "Peasley Genealogy" });
+    expect(summary.fields).toEqual([]);
+    expect(summary.bio).toContain("Explore Peasley ancestors, cousins and community members");
+  });
+  test("the post names the surname page", () => {
+    const text = buildText(
+      "genealogy",
+      "Peasley Genealogy",
+      "https://www.wikitree.com/genealogy/PEASLEY",
+      getChannel("x")
+    );
+    expect(text).toContain("Explore Peasley Genealogy on WikiTree");
+    expect(text).toContain("@WikiTreers");
   });
 });

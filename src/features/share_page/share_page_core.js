@@ -86,6 +86,7 @@ export const KIND_LABELS = {
   project: "Project page",
   category: "Category page",
   help: "Help page",
+  genealogy: "Surname page",
   imagePage: "Image page",
   fullImage: "Full-screen image",
   treeWidget: "Tree widget",
@@ -100,6 +101,8 @@ const BODIES = {
   project: (t) => `Volunteers are collaborating on ${t} at WikiTree. Take a look and see how you can join in.`,
   category: (t) => `Browse ${t} on WikiTree to find connected profiles and pages, and add what you know.`,
   help: (t) => `Learning to build your family tree? ${t} on WikiTree walks you through it step by step.`,
+  genealogy: (t) =>
+    `Explore ${t} on WikiTree: ancestors, cousins and community members, and how their family trees connect.`,
   imagePage: (t) => `A photo shared on WikiTree: ${t}. Every image helps tell a family’s story.`,
   fullImage: (t) => `A photo shared on WikiTree: ${t}. Every image helps tell a family’s story.`,
   treeWidget: (t) => `Explore this family tree view for ${t} on WikiTree, built by volunteers working together.`,
@@ -125,6 +128,7 @@ export function detectPageKind(pathname) {
   } catch (e) {
     path = pathname;
   }
+  if (/^\/genealogy\/[^/]+/.test(path)) return "genealogy";
   if (/^\/treewidget\/[^/]+/.test(path)) return "treeWidget";
   if (/^\/apps\/[^/]+-\d+/.test(path)) return "treeApp";
   if (/^\/photo\.php\//.test(path)) return "fullImage";
@@ -406,6 +410,19 @@ export function appNameFromSlug(slug) {
 // Summaries for pages that are not profiles
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * A section heading as plain text. WikiTree's own "[edit]" link and the Link and URL copy buttons that Scissors adds sit
+ * inside the heading, so "Andersonia[edit] Link URL" becomes "Andersonia".
+ */
+export function cleanHeading(text) {
+  return (text || "")
+    .replace(/\[\s*edit\s*\]/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/(?:\s+ID)?(?:\s+Link)?\s+URL$/i, "")
+    .trim();
+}
+
 function cutAtWord(text, max) {
   if (text.length <= max) return text;
   return text.slice(0, max).replace(/\s+\S*$/, "") + "…";
@@ -419,7 +436,7 @@ export function leadSummary(paragraphs, maxChars = 330) {
   const sentences = [];
   for (const raw of paragraphs) {
     const text = raw
-      .replace(/\[(?:\d+|[a-z])\]/gi, "")
+      .replace(/\[(?:\d+|[a-z]|edit)\]/gi, "")
       .replace(/\s+/g, " ")
       .trim();
     if (text.length < 40) continue;
@@ -442,6 +459,31 @@ export function leadSummary(paragraphs, maxChars = 330) {
  * facts: { paragraphs: [text], sections: [heading], counts: { subcategories, pages, profiles } }
  * Returns null for other kinds, or when there is nothing to show.
  */
+const BOILERPLATE_SECTIONS =
+  /^(sources?|references?|footnotes?|notes?|citations?|bibliography|see also|external links?|further reading|acknowledge?ments?|research notes?|contents)$/i;
+
+const plain = (text) =>
+  (text || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+/**
+ * The section names worth listing on a card. Standard sections every page has (Sources, References, ...) tell the reader
+ * nothing, and neither does a heading that only repeats the page's own title ("Andersonia" on "Andersonia, California One
+ * Place Study").
+ */
+export function usefulSections(sections = [], title = "") {
+  const pageTitle = plain(title.replace(/^(Space|Project|Help|Category):/i, ""));
+  return sections.map(cleanHeading).filter((heading) => {
+    if (!heading || BOILERPLATE_SECTIONS.test(heading)) return false;
+    // only a heading that is just part of the title goes: "Andersonia" in "Andersonia, California One Place Study".
+    // One that adds to the title ("Topical Projects" on "Help:Projects") stays.
+    const name = plain(heading);
+    return !(name.length >= 3 && ` ${pageTitle} `.includes(` ${name} `));
+  });
+}
+
 export function pageSummary(kind, facts = {}) {
   const fields = [];
   let bio = "";
@@ -457,11 +499,24 @@ export function pageSummary(kind, facts = {}) {
       "Explore the subcategories, pages and profiles in this category. Check your connections to the ancestors listed here.";
   } else if (kind === "help" || kind === "project" || kind === "space") {
     bio = leadSummary(facts.paragraphs || []);
-    const sections = facts.sections || [];
+    const sections = usefulSections(facts.sections || [], facts.title || "");
     if (sections.length) {
       const lines = sections.length > 2 ? [sections[0], `${sections[1]} +${sections.length - 2} more`] : sections;
       fields.push({ label: "On this page", lines, names: true });
     }
+  } else if (kind === "genealogy") {
+    // a surname page: "Peasley Genealogy" with the number of profiles it lists
+    const surname = (facts.title || "").replace(/\s+Genealogy.*$/i, "").trim();
+    const count = (facts.counts || {}).profiles;
+    if (count) fields.push({ label: "Profiles", lines: [Number(count).toLocaleString("en-US")], names: false });
+    bio =
+      count && surname
+        ? `Explore the ${Number(count).toLocaleString(
+            "en-US"
+          )} ${surname} profiles on WikiTree: ancestors, cousins and community members, and how they connect.`
+        : `Explore ${
+            surname || "this surname"
+          } ancestors, cousins and community members on WikiTree, and how they connect.`;
   } else {
     return null;
   }

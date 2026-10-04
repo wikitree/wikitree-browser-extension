@@ -27,9 +27,9 @@ async function clickShare() {
   for (let i = 0; i < 5; i++) await tick();
 }
 
-async function loadFeature(path, html) {
+async function loadFeature(path, html, title = "Firman Joseph Robinson (1901-1991) | WikiTree FREE Family Tree") {
   window.history.pushState({}, "", path);
-  document.title = "Firman Joseph Robinson (1901-1991) | WikiTree FREE Family Tree";
+  document.title = title;
   document.body.innerHTML = html;
   jest.isolateModules(() => {
     require("./share_page");
@@ -82,14 +82,18 @@ beforeAll(() => {
   // jsdom has no canvas and never loads images
   window.HTMLCanvasElement.prototype.getContext = () => ({
     fillRect() {},
-    fillText() {},
+    fillText(text) {
+      global.mockCardText.push(String(text));
+    },
     measureText: () => ({ width: 10 }),
     save() {},
     restore() {},
     beginPath() {},
     rect() {},
     clip() {},
-    drawImage() {},
+    drawImage(picture) {
+      if (picture && picture._src) global.mockDrawn.push(picture._src);
+    },
     strokeRect() {},
   });
   window.HTMLCanvasElement.prototype.toDataURL = () => "data:image/png;base64,AAAA";
@@ -125,6 +129,8 @@ beforeAll(() => {
 
 beforeEach(() => {
   global.mockSvgSources = [];
+  global.mockCardText = [];
+  global.mockDrawn = [];
   global.mockPhotoSize = null;
   global.mockGetProfile = jest.fn(() => Promise.resolve([{ Privacy: 60, IsLiving: 0 }, 0, "page"]));
 });
@@ -599,5 +605,134 @@ describe("Share Page dialog", () => {
       "https://other.example/x.jpg",
     ]);
     expect(sent.every((m) => m.action === "sharePageFetchImage")).toBe(true);
+  });
+
+  const SPACE_PAGE = `<main><h1>Andersonia, California One Place Study</h1><div class="body-text">
+      <p>Andersonia was named for the President of Southern Humboldt Lumber Company, Henry Neff Anderson.</p>
+      <h2><span class="mw-headline">Andersonia</span><span class="editsection">[edit]</span>
+        <ul class="copy--buttons"><li><button>Link</button></li><li><button>URL</button></li></ul></h2>
+      <h2>Sources[edit] Link URL</h2>
+      <img src="https://www.wikitree.com/photo.php/thumb/c/ce/First-1.jpg/300px-First-1.jpg">
+      <img src="https://www.wikitree.com/photo.php/thumb/3/3f/Second-2.jpg/300px-Second-2.jpg">
+    </div></main>`;
+  const settle = async () => {
+    for (let i = 0; i < 8; i++) await tick();
+  };
+
+  test("a free-space page's card starts with its primary photo, and the member can pick another or none", async () => {
+    global.mockPhotoSize = [400, 300];
+    await loadFeature("/wiki/Space:Andersonia,_California_One_Place_Study", SPACE_PAGE);
+    await clickShare();
+    await settle();
+    expect($(".wbe-share-cardphoto").prop("hidden")).toBe(false);
+    const buttons = $(".wbe-share-cardphotobtn").toArray();
+    expect(buttons.map((b) => b.getAttribute("aria-checked"))).toEqual(["false", "true", "false"]); // none, first, second
+    expect(global.mockDrawn).toContain("https://www.wikitree.com/photo.php/c/ce/First-1.jpg");
+
+    global.mockDrawn = [];
+    buttons[2].click(); // the second photo
+    await settle();
+    expect(global.mockDrawn).toContain("https://www.wikitree.com/photo.php/3/3f/Second-2.jpg");
+    expect(global.mockDrawn).not.toContain("https://www.wikitree.com/photo.php/c/ce/First-1.jpg");
+
+    global.mockDrawn = [];
+    $(".wbe-share-cardphotobtn")[0].click(); // no photo
+    await settle();
+    expect(global.mockDrawn).toEqual([]);
+    expect($(".wbe-share-cardphotobtn")[0].getAttribute("aria-checked")).toBe("true");
+  });
+
+  test("the card lists no section that only repeats the title or is a standard one, and shows no edit link or copy buttons", async () => {
+    await loadFeature(
+      "/wiki/Space:Andersonia,_California_One_Place_Study",
+      SPACE_PAGE,
+      "Andersonia, California One Place Study | WikiTree FREE Family Tree"
+    );
+    await clickShare();
+    await settle();
+    const drawn = global.mockCardText.join("|");
+    expect(drawn).toContain("Andersonia, California One Place Study");
+    expect(drawn).not.toContain("ON THIS PAGE");
+    expect(drawn).not.toContain("Sources");
+    expect(drawn).not.toContain("[edit]");
+    expect(drawn).not.toContain("URL");
+    expect($("#wbeShareSummary").val()).toContain("Andersonia was named for the President");
+  });
+
+  test("a help page still lists its real sections, without the edit link and copy buttons", async () => {
+    await loadFeature(
+      "/wiki/Help:Projects",
+      `<main><h1>Help:Projects</h1><div class="body-text"><p>A project is a group of members organized around a topic or volunteer activity.</p>
+        <h2>Topical Projects[edit] <ul class="copy--buttons"><li><button>Link</button></li><li><button>URL</button></li></ul></h2>
+        <h2>Functional Projects<span class="editsection">[edit]</span></h2></div></main>`,
+      "Help:Projects | WikiTree FREE Family Tree"
+    );
+    await clickShare();
+    await settle();
+    const drawn = global.mockCardText.join("|");
+    expect(drawn).toContain("ON THIS PAGE");
+    expect(drawn).toContain("Topical Projects");
+    expect(drawn).toContain("Functional Projects");
+    expect(drawn).not.toContain("[edit]");
+    expect(drawn).not.toContain("URL");
+  });
+
+  test("a surname (genealogy) page gets a Share button, a card and a post", async () => {
+    await loadFeature(
+      "/genealogy/PEASLEY",
+      `<main><h1>Peasley Genealogy Hub</h1><ul id="jump-nav"></ul><div class="container">
+         <p>Here are the 300 most-recently added or edited Peasley ancestors, cousins, and community members. Search all 652 profiles.</p></div></main>`,
+      "Peasley Genealogy | WikiTree FREE Family Tree"
+    );
+    expect($("#jump-nav .wbe-share-button").length).toBe(1);
+    expect(global.mockGetProfile).not.toHaveBeenCalled(); // a surname page has no privacy level
+    await clickShare();
+    await settle();
+    expect($("#wbeShareText").val()).toContain("Explore Peasley Genealogy on WikiTree");
+    expect($("#wbeShareText").val()).toContain("https://www.wikitree.com/genealogy/PEASLEY");
+    expect($("#wbeShareSummary").val()).toBe(
+      "Explore the 652 Peasley profiles on WikiTree: ancestors, cousins and community members, and how they connect."
+    );
+    expect(global.mockCardText.join("|")).toContain("PROFILES");
+    expect(global.mockCardText.join("|")).toContain("652");
+    expect(global.mockCardText.join("|")).toContain("SURNAME PAGE");
+  });
+
+  test("a profile's card still starts with its primary photo and offers the others", async () => {
+    global.mockPhotoSize = [400, 300];
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    await clickShare();
+    await settle();
+    const buttons = $(".wbe-share-cardphotobtn").toArray();
+    expect(buttons.length).toBe(3); // none + the two photos on the page
+    expect(buttons[1].getAttribute("aria-checked")).toBe("true");
+    expect(global.mockDrawn[0]).toContain("Robinson-27274.jpg");
+  });
+
+  test("a help page's card starts with no photo, but one can be chosen", async () => {
+    global.mockPhotoSize = [400, 300];
+    await loadFeature(
+      "/wiki/Help:Projects",
+      `<main><h1>Help:Projects</h1><div class="body-text"><p>A project is a group of members organized around a topic or volunteer activity.</p>
+        <img src="https://www.wikitree.com/photo.php/thumb/c/ce/Badge-1.png/300px-Badge-1.png"></div></main>`
+    );
+    await clickShare();
+    await settle();
+    expect($(".wbe-share-cardphotobtn")[0].getAttribute("aria-checked")).toBe("true");
+    expect(global.mockDrawn).toEqual([]);
+    $(".wbe-share-cardphotobtn")[1].click();
+    await settle();
+    expect(global.mockDrawn).toContain("https://www.wikitree.com/photo.php/c/ce/Badge-1.png");
+  });
+
+  test("no photo chooser on a Tree Apps view or an image page", async () => {
+    await loadFeature("/apps/Robinson-27274#name=Robinson-27274&view=fanchart", `<div id="view-container"></div>`);
+    await clickShare();
+    expect($(".wbe-share-cardphoto").prop("hidden")).toBe(true);
+    $(".wbe-share-close")[0].click();
+    global.mockPhotoSize = [400, 1000];
+    await loadFeature("/photo.php/4/44/Anderson-45659-4.jpg", "");
+    await clickShare();
+    expect($(".wbe-share-cardphoto").prop("hidden")).toBe(true);
   });
 });

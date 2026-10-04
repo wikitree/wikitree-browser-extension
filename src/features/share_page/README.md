@@ -14,6 +14,7 @@ The feature is off by default. Its option category is Global.
 | ----------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------ |
 | Profile                             | `/wiki/Robinson-27274`                                                 | The profile                                                  |
 | Free-space, project, category, help | `/wiki/Space:…`, `/wiki/Project:…`, `/wiki/Category:…`, `/wiki/Help:…` | The page                                                     |
+| Surname page                        | `/genealogy/PEASLEY`                                                   | The page                                                     |
 | Image page                          | `/photo/jpg/Robinson-27274`                                            | The image page                                               |
 | Full-screen image                   | `/photo.php/4/49/Robinson-27274.jpg`                                   | The image page, rebuilt from the file name                   |
 | Tree widget                         | `/treewidget/Robinson-27274/6`                                         | The widget                                                   |
@@ -74,13 +75,28 @@ portrait, and a short life summary:
   children are skipped. See `lifeSummary()` in `share_page_core.js`.
 
 **Help, project and free-space pages** show the title, the opening sentences of the page's text (footnote markers removed,
-tables skipped, up to about 330 characters) and an "On this page" field with the first section names.
+tables skipped, up to about 330 characters) and an "On this page" field with the first section names. Standard sections (Sources, References, Footnotes, See also and the
+like) and a heading that only repeats the page's own title ("Andersonia" on "Andersonia, California One Place Study") are
+left out, and if nothing is left there is no field and the text gets the room. See `usefulSections()`.
+
+**Surname (genealogy) pages** show the title, a Profiles field with the number of profiles the surname lists (read from
+"Search all 652 profiles" in the page), and a line inviting people to explore its ancestors, cousins and community
+members. A surname page has no privacy level, so it is not checked.
 
 **Category pages** show counts of subcategories, pages and person profiles, and a line inviting people to explore the
 category and check their connections to the ancestors in it.
 
-For all of these the member can edit the text in the dialog and the card redraws. The page's own logo or badge images are
-not put on these cards, because they crop badly; they stay available as pictures to choose.
+Section names and text are read without the controls inside them: WikiTree's "[edit]" link, footnote markers, and the
+Link and URL copy buttons that Scissors adds to headings, so a heading shows as "Andersonia", not "Andersonia[edit] Link
+URL". See `cleanHeading()` and `textWithoutControls()`.
+
+**The photo on the card.** A profile or free-space page starts with its primary photo on the card (the first photo on the
+page). Help, project and category pages start with no photo, because their first picture is often a logo or badge. On any
+of these a "Photo on the card" strip lets the member choose any photo found on the page, or none, and the card redraws.
+The photo fills a portrait slot at the right, and the text stops short of it. Tree Apps cards show the chart instead and
+have no chooser.
+
+For all of these the member can edit the text in the dialog and the card redraws.
 
 **Tree Apps views** show the app's name (from the page's `#view-title`, then the view selector, then the address, for
 example "Fan Chart"), the person's name (from the page, or from the API), a short summary of what the view is showing,
@@ -170,9 +186,9 @@ No new permission is needed: the manifest already allows `https://*.wikitree.com
 | File                       | Purpose                                                                                            |
 | -------------------------- | -------------------------------------------------------------------------------------------------- |
 | `share_page_core.js`       | Pure logic: page detection, privacy rule, post text, networks, composer links, summaries, cropping |
-| `share_page_core.test.js`  | Unit tests for the core module (70)                                                                |
+| `share_page_core.test.js`  | Unit tests for the core module (92)                                                                |
 | `share_page.js`            | Button, privacy check, dialog, share card drawing, chart capture, crop panel, copy and save        |
-| `share_page.test.js`       | jsdom tests that open the dialog and click through it (41)                                         |
+| `share_page.test.js`       | jsdom tests that open the dialog and click through it (48)                                         |
 | `background_fetch.test.js` | Runs the real `public/background.js` against the picture fetch rules (15)                          |
 | `share_page_options.js`    | Registers the feature and its options                                                              |
 | `share_page.css`           | Dialog and button styles. Every class starts with `wbe-share`                                      |
@@ -183,7 +199,7 @@ The feature is imported in `src/content_main.js` and its options in `src/feature
 
 ```bash
 npm install
-npx jest src/features/share_page   # the 126 tests for this feature
+npx jest src/features/share_page   # the 155 tests for this feature
 npm run build-dev                  # build, plus the undefined-globals, Safari and palette checks
 ```
 

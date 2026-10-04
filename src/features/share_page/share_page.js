@@ -14,6 +14,7 @@ import {
   appNameFromSlug,
   appSummary,
   buildText,
+  cleanHeading,
   cropRect,
   detectPageKind,
   getChannel,
@@ -140,19 +141,35 @@ function readAppContext(profile) {
 }
 
 /** The opening text, section names and counts of a help, project, free-space or category page. */
+/**
+ * An element's text without the controls inside it: footnote markers, WikiTree's "[edit]" link, and the Link and URL
+ * copy buttons that Scissors adds to headings.
+ */
+function textWithoutControls($el) {
+  return $el
+    .clone()
+    .find("sup, script, style, button, ul.copy--buttons, .copy--buttons, .scissors, .editsection, .mw-editsection")
+    .remove()
+    .end()
+    .text();
+}
+
 function readPageFacts() {
   const $body = $(".body-text").first();
   const paragraphs = $body
     .find("p")
     .filter((i, el) => !$(el).closest("table").length)
-    .map((i, el) => $(el).clone().find("sup, script, style").remove().end().text())
+    .map((i, el) => textWithoutControls($(el)))
     .get();
   const sections = $body
     .find("h2")
-    .map((i, el) => clean($(el).text()).replace(/\s*\[edit\]$/i, ""))
+    .map((i, el) => cleanHeading(textWithoutControls($(el))))
     .get()
     .filter((text) => text && !/^contents$/i.test(text));
   const counts = {};
+  // a surname page says how many profiles it lists: "Search all 652 profiles."
+  const listed = clean($("main").first().text()).match(/Search all ([\d,]+) profiles/i);
+  if (listed) counts.profiles = parseInt(listed[1].replace(/,/g, ""), 10);
   $("main h2").each((i, el) => {
     const m = clean($(el).text()).match(/^(Subcategories|Pages|Person Profiles|Profiles)\s*\((\d[\d,]*)\)/i);
     if (!m) return;
@@ -639,7 +656,8 @@ async function drawShareCard(kind, title, extras = {}) {
       ][rows];
       g.fillStyle = BRAND.ink;
       g.font = font(`400 ${layout.size}px`);
-      wrapText(g, summary.bio, 48, layout.y, 1104, layout.line, layout.lines);
+      // with fewer than two rows of fields the text starts level with the photo, so it stops short of it
+      wrapText(g, summary.bio, 48, layout.y, photo && rows < 2 ? 810 : 1104, layout.line, layout.lines);
     }
   } else {
     g.font = font("700 52px");
@@ -733,6 +751,11 @@ const DIALOG_HTML = `
           <input type="checkbox" id="wbeShareProfileLink">
           <span>Link to the person's profile instead, so anyone can open it</span>
         </label>
+        <div class="wbe-share-cardphoto" hidden>
+          <h3>Photo on the card</h3>
+          <div class="wbe-share-cardphotos" role="radiogroup" aria-label="Photo on the card"></div>
+          <p class="wbe-share-hint">Choose which photo from this page is shown on the share card.</p>
+        </div>
         <h3><label for="wbeShareText">3. Post text</label></h3>
         <textarea id="wbeShareText" rows="9" spellcheck="true"></textarea>
         <div class="wbe-share-meter"><span class="wbe-share-count"></span><span class="wbe-share-limit"></span></div>
@@ -808,10 +831,15 @@ function openDialog(kind, options, profile = null) {
       ? lifeSummary(readProfileFacts())
       : kind === "treeApp"
       ? { fields: [], bio: appSummary(app) }
-      : pageSummary(kind, readPageFacts());
+      : pageSummary(kind, { ...readPageFacts(), title });
   state.bio = cardSummary ? cardSummary.bio : "";
-  // Only profiles put a photo on the card; a logo or badge cropped to a portrait looks wrong on the other pages.
-  const cardPhoto = kind === "profile" || !cardSummary ? (photos[0] && photos[0].full) || "" : "";
+  // The card shows the page's primary photo for a profile or free-space page. On other pages it starts with no photo,
+  // because their first picture is often a logo or badge, but the member can choose any photo on the page.
+  state.cardPhoto = kind === "profile" || kind === "space" || !cardSummary ? (photos[0] && photos[0].id) || "" : "";
+  const cardPhotoSrc = () => {
+    const chosen = photos.find((p) => p.id === state.cardPhoto);
+    return chosen ? chosen.full : "";
+  };
   const graphicPromise = kind === "treeApp" ? captureAppGraphic().catch(() => null) : Promise.resolve(null);
   let cardPromise;
   let cardRun = 0;
@@ -821,7 +849,7 @@ function openDialog(kind, options, profile = null) {
     cardPromise = graphicPromise
       .then((graphic) =>
         drawShareCard(kind, title, {
-          photoSrc: graphic ? "" : cardPhoto,
+          photoSrc: graphic ? "" : cardPhotoSrc(),
           summary: cardSummary ? { fields: cardSummary.fields, bio: state.bio } : null,
           subtitle: app ? app.person : "",
           graphic,
@@ -898,6 +926,32 @@ function openDialog(kind, options, profile = null) {
       .map((id) => images.find((i) => i.id === id))
       .filter(Boolean)
       .slice(0, channel.max);
+  }
+
+  // ---- the photo on the share card ----
+  const hasCard = images.some((i) => i.card);
+  function renderCardPhotos() {
+    const show = hasCard && kind !== "treeApp" && photos.length > 0;
+    $overlay.find(".wbe-share-cardphoto").prop("hidden", !show);
+    if (!show) return;
+    const $box = $overlay.find(".wbe-share-cardphotos").empty();
+    const choose = (id) => () => {
+      state.cardPhoto = id;
+      renderCardPhotos();
+      redrawCard();
+    };
+    $('<button type="button" role="radio" class="wbe-share-cardphotobtn wbe-share-cardphotonone">No photo</button>')
+      .attr("aria-checked", String(!state.cardPhoto))
+      .on("click", choose(""))
+      .appendTo($box);
+    photos.forEach((photo) => {
+      $('<button type="button" role="radio" class="wbe-share-cardphotobtn"></button>')
+        .attr("aria-checked", String(photo.id === state.cardPhoto))
+        .attr("title", photo.label)
+        .append($('<img alt="">').attr("src", photo.thumb))
+        .on("click", choose(photo.id))
+        .appendTo($box);
+    });
   }
 
   // ---- the crop panel ----
@@ -1282,6 +1336,7 @@ function openDialog(kind, options, profile = null) {
   $text.val(state.text);
   renderChannels();
   renderImages();
+  renderCardPhotos();
   renderCropPanel();
   renderPost();
   getBlob(images.find((i) => i.id === state.selected[0])).catch(() => {});
