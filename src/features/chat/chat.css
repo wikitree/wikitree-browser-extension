@@ -769,6 +769,11 @@
   }
 }
 
+/* the Apps Login pill under a message that tells people to use it (styled in core/common.css) */
+.chat-message-apps-login {
+  margin-top: 0.4rem;
+}
+
 .chat-message-actions {
   margin-top: 0.35rem;
   display: flex;

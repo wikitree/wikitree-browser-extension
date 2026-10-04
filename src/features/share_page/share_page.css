@@ -1,6 +1,7 @@
 /* Styles for the Share Page feature. Every class starts with wbe-share so Highlight WBE Features picks it up. */
 
-.wbe-share-button {
+/* The text button; in the row of WBE icon buttons it is an icon instead, styled like the others there. */
+button.wbe-share-button {
   font: inherit;
   cursor: pointer;
   padding: 0.2em 0.8em;
@@ -9,8 +10,23 @@
   background: #fff;
   color: #25422d;
 }
-.wbe-share-button:hover {
+button.wbe-share-button:hover {
   background: #e4ebe5;
+}
+/* in a jump bar of text links: a link like the others, with the share icon */
+.wbe-share-link {
+  white-space: nowrap;
+}
+.wbe-share-link .wbe-share-icon {
+  width: 1.05em;
+  height: 1.05em;
+  margin-right: 0.3em;
+  vertical-align: -0.15em;
+}
+/* at the right-hand end of the "Categories: ..." row */
+.wbe-share-in-categories {
+  float: right;
+  margin-left: 1em;
 }
 .wbe-share-floating {
   position: fixed;
@@ -18,8 +34,12 @@
   bottom: 1rem;
   z-index: 9998;
 }
-h1 + .wbe-share-button {
-  margin-block: 0.3em;
+/* at the end of the title line: page text, not heading text */
+h1 .wbe-share-in-heading {
+  margin-left: 1em;
+  font-size: 1rem;
+  font-weight: normal;
+  vertical-align: baseline;
 }
 
 .wbe-share-overlay {
@@ -361,6 +381,7 @@ h1 + .wbe-share-button {
   margin-left: 0.6rem;
   font-size: 0.85rem;
   color: #393a3c;
+  font-weight: normal;
 }
 
 .wbe-share-floating.wbe-share-top {

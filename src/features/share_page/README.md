@@ -22,9 +22,16 @@ The feature is off by default. Its option category is Global.
 
 Other pages get no button.
 
-**Where the button goes:** the jump bar on profiles, after the page heading elsewhere, and a floating button at the
-bottom right on pages with no heading (tree widgets, Tree Apps). A full-screen image gets the floating button at the top
-right, because another feature already uses the bottom right there.
+**Where the button goes:**
+
+- Signed-in members on profiles and free-space pages: a share icon (`images/share.svg`) in the row of WBE icon buttons
+  beside the site's own (Clipboard, Notes, ...).
+- Otherwise, in the jump bar (profiles, Genealogy Hub pages): a "Share" link like the others there, with the share icon.
+- Category, Help and Project pages: a "Share" link with the icon at the right-hand end of the "Categories: ..." row.
+- Other pages with a heading (Project pages, say): the "Share" link at the end of the title line, after the Scissors
+  ID / LINK / URL buttons.
+- A floating button at the bottom right on pages with no heading (tree widgets, Tree Apps). A full-screen image gets it at
+  the top right, because another feature already uses the bottom right there.
 
 ## Who can be shared
 

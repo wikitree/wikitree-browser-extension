@@ -2,6 +2,12 @@ import $ from "jquery";
 import { getUserNumId } from "./common";
 import { WikiTreeAPI } from "./API/WikiTreeAPI";
 
+// The key on the green "Apps" pill (styled in common.css). It takes the text colour, so it matches the label.
+const KEY_ICON =
+  '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" ' +
+  'stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4.5"/>' +
+  '<path d="M11.2 11.8 20 3M16.5 6.5l2.5 2.5M14 9l2 2"/></svg>';
+
 /**
  * Function to add a login button for the WikiTree Apps server.
  * @param {Object} opt - Options for the login button.
@@ -24,9 +30,7 @@ export async function addLoginButton(opt) {
     if (!loggedIn) {
       let loginButton = $(`#${opt.btnId}`);
       if (!loginButton || loginButton.length == 0) {
-        loginButton = $(
-          `<button title="${opt.btnTitle}" class='small button wbe-app-login wbe-button' id="${opt.btnId}">Apps Login</button>`
-        );
+        loginButton = appsLoginPill(opt.btnTitle).attr("id", opt.btnId);
         loginButton.appendTo(opt.btnContainer);
       }
       loginButton.off("click").on("click", function (e) {
@@ -34,11 +38,36 @@ export async function addLoginButton(opt) {
         if (opt.btnOnClick) {
           opt.btnOnClick(e);
         }
-        window.location = `https://api.wikitree.com/api.php?action=clientLogin&appId=${opt.appId}&returnURL=${returnURL}`;
+        goToAppsLogin(opt.appId, returnURL);
       });
     } else {
       $(`#${opt.btnId}`).hide();
     }
+  });
+}
+
+/** The green "Apps" pill with a key, with no click handler yet. */
+function appsLoginPill(title) {
+  return $(
+    `<button title="${title}" aria-label="Apps Login" class='small button wbe-app-login wbe-button'>${KEY_ICON}Apps</button>`
+  );
+}
+
+/** Off to api.wikitree.com to log in, coming back to returnURL (by default this page). */
+function goToAppsLogin(appId, returnURL = currentHrefWithoutAuthcode()) {
+  window.location = `https://api.wikitree.com/api.php?action=clientLogin&appId=${appId}&returnURL=${returnURL}`;
+}
+
+/**
+ * A working Apps Login pill to put anywhere, such as in a Chat message, for when the one on the page is out of sight
+ * or not there at all. It has no id, so there can be more than one.
+ * @param {string} appId - The application ID to use in the call to the WikiTree Apps server.
+ * @param {string} title - The title (tooltip) for the button.
+ */
+export function createAppsLoginButton(appId, title) {
+  return appsLoginPill(title).on("click", (e) => {
+    e.preventDefault();
+    goToAppsLogin(appId);
   });
 }
 

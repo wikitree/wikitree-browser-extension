@@ -73,6 +73,13 @@ describe("surname river", () => {
     expect(text).toMatch(/^3 surnames run through your 6 ancestors over 3 generations\. The biggest streams: Smith \(3, from parents\), Jones \(2, from parents\), Brown \(1, from grandparents\)\./);
     expect(describeSurnameRiver(null, "Philip's")).toBe("Philip's ancestors have no surnames recorded on WikiTree yet.");
   });
+  test("by default every country has its own band, with no Other", () => {
+    const many = ["England", "France", "Germany", "Ireland", "Italy", "Spain", "Poland", "Norway", "Sweden", "Japan"];
+    const series = buildOriginsSeries(many.map((country, index) => row(1 + (index % 3), `Somewhere, ${country}`)));
+    expect(series.keys.slice().sort()).toEqual(many.slice().sort());
+    expect(series.keys).not.toContain(OTHER_COUNTRIES);
+    expect(series.generations.every((gen) => gen.otherNames.length === 0)).toBe(true);
+  });
   test("countries still work with the default keys", () => {
     expect(buildOriginsSeries([row(1, "London, England")]).otherKey).toBe(OTHER_COUNTRIES);
   });

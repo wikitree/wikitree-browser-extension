@@ -6,7 +6,8 @@
 import { getCountryFromLocation } from "./chat_place_country";
 import { yearOf } from "./chat_chart_common";
 
-export const ORIGINS_TOP_COUNTRIES = 8;
+// Every country gets its own band, as in the Surname Stream (2026-10-05): no "Other countries" catch-all.
+export const ORIGINS_TOP_COUNTRIES = Infinity;
 export const OTHER_COUNTRIES = "Other countries";
 
 /** "Parents", "Grandparents", "Great-grandparents", "2× great-grandparents", … */

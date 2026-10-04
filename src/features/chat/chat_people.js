@@ -2061,7 +2061,7 @@ export function createChatPeopleHandlers({
     }
     const people = `${count} profile${count === 1 ? "" : "s"}`;
     if (loggedIn === false) {
-      notify(`${people} show as "Private" because the WikiTree API doesn't know you're logged in (it has its own login). Use the Apps Login button on this page, then open the chart again.`);
+      notify(`${people} show as "Private" because the WikiTree API doesn't know you're logged in (it has its own login). Use the green Apps button below, then open the chart again.`);
     } else if (loggedIn) notify(`${people} show as "Private": their privacy settings hide them from you.`);
   }
 

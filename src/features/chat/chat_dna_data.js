@@ -423,7 +423,7 @@ export function buildDnaCarrierSummary(tree, ownerText, generations, testers = [
   const hidden = hiddenCarrierChildren(tree);
   if (hidden) {
     lines.push(
-      `${hidden} private profile${hidden === 1 ? " is a child" : "s are children"} of carriers: WikiTree doesn't show you ${hidden === 1 ? "it" : "them"}, and living people are usually private. Use Apps Login on this page, then ask again, to see who they are.`
+      `${hidden} private profile${hidden === 1 ? " is a child" : "s are children"} of carriers: WikiTree doesn't show you ${hidden === 1 ? "it" : "them"}, and living people are usually private. Use the green Apps button below, then ask again, to see who they are.`
     );
   }
   if (brief) return lines.join("\n");

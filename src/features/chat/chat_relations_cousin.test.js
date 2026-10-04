@@ -26,7 +26,7 @@ function makeHandlers(fetchPeoplePaged, options = {}) {
     fetchChildrenIdsForId: jest.fn(),
     fetchSiblingIdsForId: jest.fn(),
     fetchParentIds: jest.fn(),
-    isAppsLoginButtonPresent: jest.fn(() => false),
+    isLoggedOutOfAppsServer: jest.fn(() => Promise.resolve(false)),
   });
 }
 

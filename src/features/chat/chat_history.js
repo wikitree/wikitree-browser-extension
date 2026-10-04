@@ -33,6 +33,7 @@ export function createChatHistoryHandlers({
   afterActionClick,
   resetTransientState,
   onSearchFormSubmit,
+  createAppsLoginButton,
 }) {
   let historyQuotaWarningShown = false;
   const MAX_PERSISTED_STRUCTURED_ROWS = 250;
@@ -687,6 +688,11 @@ export function createChatHistoryHandlers({
     });
 
     $item.append($label, $body);
+    // A message that tells people to use the Apps button gets one of its own: the one on the page may be scrolled
+    // out of sight, hidden behind the chat, or not on this page at all.
+    if (role === "assistant" && createAppsLoginButton && String(messageText).includes("green Apps button")) {
+      $item.append($("<div>").addClass("chat-message-apps-login").append(createAppsLoginButton()));
+    }
     if (searchForm) {
       $item.append(renderSearchForm(searchForm, (values, built) => onSearchFormSubmit?.(values, built)));
     }

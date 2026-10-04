@@ -44,7 +44,7 @@ export function createChatRelationHandlers({
   fetchChildrenIdsForId,
   fetchSiblingIdsForId,
   fetchParentIds,
-  isAppsLoginButtonPresent,
+  isLoggedOutOfAppsServer,
   familyVisuals = () => [],
 }) {
   // "Limit exceeded" makes getRelatives resolve to undefined; read that as no relatives.
@@ -1009,8 +1009,8 @@ export function createChatRelationHandlers({
 
       if (!cousins.length) {
         const appsLoginHint =
-          subject.isUser && isAppsLoginButtonPresent()
-            ? " If you see the Apps Login button, click it and try again so Chat can use full app-server access."
+          subject.isUser && (await isLoggedOutOfAppsServer())
+            ? " Click the green Apps button below and try again, so Chat can use full app-server access."
             : "";
         if (location && removedMatchedCousins.length) {
           const missingLocationCount = removedMatchedCousins.filter((person) => {
@@ -1558,8 +1558,8 @@ export function createChatRelationHandlers({
       const labelIsUser = subject.isUser && !hops.length;
       if (!count) {
         const appsLoginHint =
-          subject.isUser && isAppsLoginButtonPresent()
-            ? " If you see the Apps Login button, click it and try again so Chat can use full app-server access."
+          subject.isUser && (await isLoggedOutOfAppsServer())
+            ? " Click the green Apps button below and try again, so Chat can use full app-server access."
             : "";
 
         if (mode === "list") {

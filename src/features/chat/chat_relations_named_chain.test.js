@@ -55,7 +55,7 @@ function makeHandlers(overrides = {}) {
     fetchChildrenIdsForId: jest.fn(async () => []),
     fetchSiblingIdsForId: jest.fn(async () => []),
     fetchParentIds: jest.fn(async (key) => (String(key) === "100" ? [200, 201] : [])),
-    isAppsLoginButtonPresent: jest.fn(() => false),
+    isLoggedOutOfAppsServer: jest.fn(() => Promise.resolve(false)),
     ...overrides,
   };
 
@@ -205,6 +205,24 @@ describe("count and empty-list wording (live F9/E1, 2026-10-03)", () => {
     );
     const message = typeof result === "string" ? result : result.message;
     expect(message).toMatch(/^No grandparents are recorded for Sarah/);
+  });
+
+  test("none of your own relatives found: the Apps login hint comes when the API says you aren't logged in to it", async () => {
+    const ask = async (loggedOut) => {
+      const { handlers, deps } = makeHandlers({
+        promptRefersToUser: jest.fn(() => true),
+        fetchParentIds: jest.fn(async () => []),
+        isLoggedOutOfAppsServer: jest.fn(() => Promise.resolve(loggedOut)),
+      });
+      const result = await handlers.tryHandleRelationCountPrompt(
+        { mode: "list", relationRaw: "grandparents", subjectMode: "user" },
+        "who are my grandparents"
+      );
+      expect(deps.isLoggedOutOfAppsServer).toHaveBeenCalled();
+      return typeof result === "string" ? result : result.message;
+    };
+    expect(await ask(true)).toContain("Click the green Apps button below");
+    expect(await ask(false)).not.toContain("green Apps button");
   });
 });
 

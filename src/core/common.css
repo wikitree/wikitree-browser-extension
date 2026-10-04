@@ -334,11 +334,37 @@ ol.star1.green > li::before {
 
 .profile--actions.float-end #wbeAppLoginBtn {
   margin-left: 0.5em;
-  position: relative;
-  padding: 0.2em 0.5em;
-  display: inline-block;
-  height: 80%;
-  top: 0.2em;
+}
+/* the Navigation Home Page puts it at the end of the heading */
+h1 #wbeAppLoginBtn {
+  margin-left: 0.6em;
+}
+
+/* The Apps Login button, wherever a feature puts it: a green "Apps" pill with a key.
+   Features place theirs with rules on its id (float, margins), and some of those also set padding or font-size;
+   :not(#none) gives this rule an id's weight so the pill looks the same everywhere. */
+body button.wbe-app-login:not(#none) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  vertical-align: middle;
+  padding: 0 10px 0 8px;
+  border: 0;
+  border-radius: 12px;
+  background: #25422d;
+  color: #fff;
+  font: 500 12.5px/1 Roboto, Arial, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+}
+body button.wbe-app-login:not(#none):hover {
+  background: #3a6646;
+}
+body button.wbe-app-login:not(#none) svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
 }
 
 /* WBE branding */

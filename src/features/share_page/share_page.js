@@ -141,19 +141,31 @@ function showNotShareable($button) {
 
 function addShareButton(kind, onClick) {
   if ($(".wbe-share-button").length) return;
-  const $button = $(
-    '<button type="button" class="wbe-share-button" title="Share this page on social media">Share</button>'
-  );
+  const $toolbar = wbeButtonContainer();
+  const $jumpNav = $("#jump-nav");
+  // Category, Help and Project pages: the "Categories: ..." row under the title, which every visitor sees
+  const $categories = $("#Categories").first();
+  const $heading = $("h1").first();
+  const $button = $toolbar
+    ? toolbarButton()
+    : $jumpNav.length || $categories.length || $heading.length
+    ? jumpBarLink()
+    : $('<button type="button" class="wbe-share-button" title="Share this page on social media">Share</button>');
   $button.on("click", (e) => {
     e.preventDefault();
     onClick($button);
   });
-  const $jumpNav = $("#jump-nav");
-  const $heading = $("h1").first();
-  if ($jumpNav.length) {
+  if ($toolbar) {
+    $toolbar.append($button);
+  } else if ($jumpNav.length) {
     $('<li class="wbe-share-item"></li>').append($button).appendTo($jumpNav);
+  } else if ($categories.length) {
+    $categories.prepend($button.addClass("wbe-share-in-categories")); // floated to the right-hand end of the row
   } else if ($heading.length) {
-    $heading.after($button);
+    // at the end of the title line (Project pages, say), after the Scissors ID / LINK / URL buttons if they're there
+    const $copyButtons = $heading.find(".copy--buttons").first();
+    $button.addClass("wbe-share-in-heading");
+    $copyButtons.length ? $copyButtons.after($button) : $heading.append($button);
   } else {
     // Tree widgets and Tree Apps views have no heading to attach to.
     $button.addClass("wbe-share-floating");
@@ -163,6 +175,46 @@ function addShareButton(kind, onClick) {
   }
 }
 
+/**
+ * The row of WBE icon buttons (Clipboard, Notes, ...) beside the site's own buttons on profiles and free-space pages.
+ * The other features may not have made it yet, so it is made here in the same place common.js puts it. It only exists
+ * when the member is signed in, so other pages, and signed-out visitors, get the text button instead.
+ */
+function wbeButtonContainer() {
+  const $existing = $(".clipboardContainer").first();
+  if ($existing.length) return $existing;
+  const $actions = $(".profile--actions.float-end").first();
+  if (!$actions.length) return null;
+  const $container = $("<span>").addClass("clipboardContainer");
+  const $readingMode = $actions.find("a.action--reading-mode");
+  $readingMode.length ? $container.insertBefore($readingMode.first()) : $actions.append($container);
+  return $container;
+}
+
+// The share icon (as images/share.svg), drawn inline so it takes the colour of the link it is in.
+const SHARE_ICON =
+  '<svg class="wbe-share-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor" stroke="currentColor" ' +
+  'stroke-width="1.75" stroke-linecap="round"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/>' +
+  '<circle cx="18" cy="19" r="2.6"/><path fill="none" d="M8.26 10.69 15.74 6.31M8.26 13.31 15.74 17.69"/></svg>';
+
+/** Among text links (a jump bar, a Categories row) or at the end of the title line: a "Share" link with the share icon. */
+function jumpBarLink() {
+  return $(
+    `<a href="#" class="wbe-share-button wbe-share-link" title="Share this page on social media">${SHARE_ICON}Share</a>`
+  );
+}
+
+/** An icon button built like the ones common.js adds, so it gets the same size and tooltip. */
+function toolbarButton() {
+  const title = "Share this page on social media";
+  const icon = chrome.runtime.getURL("images/share.svg");
+  return $("<a>")
+    .attr({ id: "sharePageButton", href: "#", "aria-label": title })
+    .attr({ "data-bs-title": title, "data-bs-toggle": "tooltip", "data-tooltip": title })
+    .addClass("wbe-button wbe-share-button")
+    .append($("<span>").addClass("icon--sharePage").css("background-image", `url(${icon})`));
+}
+
 // ---------------------------------------------------------------------------------------------
 // Page data
 // ---------------------------------------------------------------------------------------------
@@ -170,7 +222,7 @@ function addShareButton(kind, onClick) {
 function pageTitle() {
   const fromTitle = document.title.replace(/\s*\|\s*WikiTree.*$/i, "").trim();
   if (fromTitle) return fromTitle;
-  const fromHeading = $("h1").first().text().replace(/\s+/g, " ").trim();
+  const fromHeading = textWithoutControls($("h1").first()).replace(/\s+/g, " ").trim();
   if (fromHeading) return fromHeading;
   const id = decodeURIComponent(window.location.pathname).split("/").filter(Boolean)[1];
   return id || "this page";
@@ -203,7 +255,9 @@ function readAppContext(profile) {
 function textWithoutControls($el) {
   return $el
     .clone()
-    .find("sup, script, style, button, ul.copy--buttons, .copy--buttons, .scissors, .editsection, .mw-editsection")
+    .find(
+      "sup, script, style, button, .wbe-share-button, ul.copy--buttons, .copy--buttons, .scissors, .editsection, .mw-editsection"
+    )
     .remove()
     .end()
     .text();

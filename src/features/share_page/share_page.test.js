@@ -26,8 +26,12 @@ const NAME_FIELDS = ["Privacy", "IsLiving", "FirstName", "MiddleName", "LastName
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 // The button checks the privacy level again when it is clicked, so opening the dialog takes a few ticks.
+// A DOM click event: the feature has its own copy of jQuery, and jQuery's trigger does not click links. (Not el.click():
+// one test replaces links' click() to catch downloads.)
 async function clickShare() {
-  $(".wbe-share-button").trigger("click");
+  document
+    .querySelector(".wbe-share-button")
+    .dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
   for (let i = 0; i < 5; i++) await tick();
 }
 
@@ -173,6 +177,66 @@ describe("Share Page dialog", () => {
   test("adds a Share button to the profile jump bar", async () => {
     await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
     expect($("#jump-nav .wbe-share-button").length).toBe(1);
+    // a link like the others in the bar, with the share icon
+    expect($("#jump-nav a.wbe-share-link").text()).toBe("Share");
+    expect($("#jump-nav a.wbe-share-link svg.wbe-share-icon").length).toBe(1);
+  });
+
+  test("a signed-in member gets a share icon in the row of WBE buttons instead", async () => {
+    global.chrome = { runtime: { getURL: (path) => `chrome-extension://wbe/${path}` } };
+    try {
+      await loadFeature(
+        "/wiki/Robinson-27274",
+        `<div class="profile--actions float-end"><a class="action--reading-mode"></a></div>${PROFILE_HTML}`
+      );
+      const $button = $(".profile--actions .clipboardContainer a.wbe-share-button");
+      expect($button.length).toBe(1);
+      expect($("#jump-nav .wbe-share-button").length).toBe(0);
+      expect($button.find("span").css("background-image")).toContain("images/share.svg");
+      expect($(".clipboardContainer").next().hasClass("action--reading-mode")).toBe(true);
+      // a native click: the feature has its own copy of jQuery, and jQuery's trigger does not click links
+      $button[0].click();
+      for (let i = 0; i < 5; i++) await tick();
+      expect($(".wbe-share-overlay").length).toBe(1);
+    } finally {
+      delete global.chrome;
+    }
+  });
+
+  test("a category gets a Share link at the end of its Categories row", async () => {
+    await loadFeature(
+      "/wiki/Category:Germany",
+      `<div class="row page--title"><div class="col-11"><h1>Category: Germany</h1></div><div class="col-1 text-end"></div></div>
+       <p class="mb-0" id="Categories"><a href="/wiki/Category:Categories">Categories</a>: <span><a href="/wiki/Category:Europe_(en)">Europe (en)</a></span></p>`,
+      "Category: Germany"
+    );
+    const $link = $("#Categories > a.wbe-share-link.wbe-share-in-categories");
+    expect($link.length).toBe(1);
+    expect($link.text()).toBe("Share");
+    expect($("h1 + .wbe-share-button, .page--title .wbe-share-button").length).toBe(0);
+    await clickShare();
+    expect($(".wbe-share-overlay").length).toBe(1);
+  });
+
+  test("the Share link in the heading is not read as part of the page's name", async () => {
+    await loadFeature("/wiki/Project:One_Name_Studies", `<h1>Project: One Name Studies</h1>`, "");
+    expect($("h1 .wbe-share-in-heading").length).toBe(1);
+    await clickShare();
+    expect($("#wbeShareText").val()).toContain("One Name Studies");
+    expect($("#wbeShareText").val()).not.toMatch(/Studies\s*Share/);
+  });
+
+  test("a Project page gets a Share link at the end of its title line, after the copy buttons", async () => {
+    await loadFeature(
+      "/wiki/Project:One_Name_Studies",
+      `<div class="row page--title"><div class="col-11"><h1>Project: One Name Studies<ul class="copy--buttons"><li>ID</li></ul></h1></div></div>`,
+      "Project: One Name Studies"
+    );
+    const $link = $("h1 .copy--buttons + a.wbe-share-link.wbe-share-in-heading");
+    expect($link.length).toBe(1);
+    expect($link.text()).toBe("Share");
+    await clickShare();
+    expect($(".wbe-share-overlay").length).toBe(1);
   });
 
   test("does nothing on pages it does not cover", async () => {

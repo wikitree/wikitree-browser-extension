@@ -54,6 +54,7 @@ import { createChatRelationHandlers } from "./chat_relations";
 import { createChatPeopleHandlers } from "./chat_people";
 import { createChatBioHandlers } from "./chat_bio";
 import { createChatHistoryHandlers } from "./chat_history";
+import { createAppsLoginButton } from "../../core/loginButton";
 import { createChatAiPlannerHandlers } from "./chat_planner";
 import {
   shouldOfferDisambiguation,
@@ -66,7 +67,7 @@ import {
   findSiblingProfileIdsFromDOM,
   findParentProfileIdsFromDOM,
 } from "./chat_dom_lookup";
-import { isNavHomePage, isPlusDomain, isProfilePage } from "../../core/pageType";
+import { isPlusDomain } from "../../core/pageType";
 import { escapeHtml } from "../../core/lib/diff_utils";
 import { buildPlusUrl } from "../wikitree_plus_helper/wikitree_plus_helper_url";
 import { buildSuggestionsOptions } from "../wikitree_plus_helper/wikitree_plus_helper_suggestions";
@@ -315,7 +316,7 @@ const CHAT_AI_MESSAGE_MAX_CHARS = 500;
 const CHAT_PERSISTED_STRUCTURED_ROWS_MAX = 250;
 const CHAT_PERSON_MEMORY_MAX_ENTRIES = 100;
 const CHAT_PERSON_MEMORY_AI_CONTEXT_MAX = 10;
-const CHAT_APPS_LOGIN_HINT = "Log in to the apps server for better results. Use the Apps Login button on this page.";
+const CHAT_APPS_LOGIN_HINT = "Log in to the apps server for better results. Use the green Apps button below.";
 const CHAT_JSON_BATCH_TRIGGER = /^\s*(?:search\s+)?person(?:s)?\s+from\s+json\s*:?\s*/i;
 const CHAT_JSON_BATCH_MAX_CHOICES = 6;
 const CHAT_JSON_BATCH_ENTRY_PAUSE_MS = 80;
@@ -1073,6 +1074,8 @@ const {
   handleChatResult: (result) => handleChatResult(result),
   afterActionClick: () => raiseChatActionPopupsAboveChat(),
   onSearchFormSubmit: (values, built) => runSearchForm(values, built),
+  createAppsLoginButton: () =>
+    createAppsLoginButton(CHAT_APPS_LOGIN_BUTTON_APP_ID, "Log in to the apps server for a better WBE experience"),
   resetTransientState: () => {
     pendingDisambiguationContext = null;
     lastConnectionCandidates = [];
@@ -1273,7 +1276,7 @@ const { resolveRelativeTargetPeople, tryHandleRelationCountPrompt } = createChat
   fetchChildrenIdsForId,
   fetchSiblingIdsForId,
   fetchParentIds,
-  isAppsLoginButtonPresent,
+  isLoggedOutOfAppsServer: () => isLoggedOutOfAppsServer(),
   // familyVisualActions comes from createChatPeopleHandlers below; called only at answer time.
   familyVisuals: (key) => familyVisualActions(key),
 });
@@ -4001,22 +4004,24 @@ async function resolveConnectionSourceRoot(prompt, targetWtId = "", sourceNameOv
   return getProfileSubjectRoot() || (await getLoggedInRootPerson());
 }
 
-function isAppsLoginButtonPresent() {
-  return $("#wbeAppLoginBtn").length > 0;
+/**
+ * True when the member is signed in to WikiTree but the API doesn't know it (the separate Apps Login), so answers miss
+ * the private profiles they could otherwise see. Asked of the API rather than read from the page's Apps button, which
+ * isn't on every page. If it can't be told, false: better no hint than a wrong one. The API keeps the answer per page.
+ */
+async function isLoggedOutOfAppsServer() {
+  const userNumId = getUserNumId();
+  if (!userNumId) return false;
+  try {
+    return !(await WikiTreeAPI.isLoggedIntoAPI(userNumId, CHAT_APPS_LOGIN_BUTTON_APP_ID));
+  } catch (error) {
+    console.debug("wbe: apps login check failed", error);
+    return false;
+  }
 }
 
-function shouldExpectAppsLoginButton(addApiLoginButton = "all") {
-  if (addApiLoginButton === "all") {
-    return isProfilePage || isNavHomePage;
-  }
-
-  if (addApiLoginButton === "navOnly") {
-    return isNavHomePage;
-  }
-
-  return false;
-}
-
+// On any page, when the API says the member isn't logged in to it: the hint carries its own Apps button, so it no
+// longer depends on the one on the page. Turning that button off in Usability Tweaks ("none") turns this off too.
 async function shouldOfferAppsLoginHint() {
   if (hasAppsLoginHintAlready()) {
     return false;
@@ -4030,29 +4035,11 @@ async function shouldOfferAppsLoginHint() {
       error: String(error?.message || error),
     });
   }
-
-  const addApiLoginButton = usabilityOptions.addApiLoginButton || "all";
-  if (!shouldExpectAppsLoginButton(addApiLoginButton)) {
+  if ((usabilityOptions.addApiLoginButton || "all") === "none") {
     return false;
   }
 
-  if (isAppsLoginButtonPresent()) {
-    return true;
-  }
-
-  const userNumId = getUserNumId();
-  if (!userNumId) {
-    return true;
-  }
-
-  try {
-    const isLoggedIntoAppsServer = await WikiTreeAPI.isLoggedIntoAPI(userNumId, CHAT_APPS_LOGIN_BUTTON_APP_ID);
-    return !isLoggedIntoAppsServer;
-  } catch (error) {
-    console.debug("wbe: apps login hint check failed", error);
-    // If the status check fails transiently, still offer the hint when the button is expected but missing.
-    return true;
-  }
+  return isLoggedOutOfAppsServer();
 }
 
 async function maybeAppendAppsLoginHint() {
