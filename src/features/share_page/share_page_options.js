@@ -11,7 +11,7 @@ registerFeature({
   id: "sharePage",
   description:
     "Adds a Share button to profiles, free-space, project, category and help pages, image pages, tree widgets and Tree Apps views. Opens a dialog to post to social media with WikiTree's accounts tagged and the brand hashtags added.",
-  category: "Global",
+  category: "Community",
   creators: [{ name: "Azure Robinson", wikitreeid: "Robinson-27225" }],
   contributors: [],
   defaultValue: false,

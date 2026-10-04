@@ -196,9 +196,11 @@ function wbeButtonContainer() {
   return $container;
 }
 
-// The share icon (as images/share.svg), drawn inline so it takes the colour of the link it is in.
+// The share icon (as images/share.svg), drawn inline so it takes the colour of the link it is in. Its width and height
+// keep it icon-sized until share_page.css (loaded lazily) arrives; without them it first renders at 300x150.
 const SHARE_ICON =
-  '<svg class="wbe-share-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor" stroke="currentColor" ' +
+  '<svg class="wbe-share-icon" width="1.05em" height="1.05em" viewBox="0 0 24 24" aria-hidden="true" ' +
+  'fill="currentColor" stroke="currentColor" ' +
   'stroke-width="1.75" stroke-linecap="round"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/>' +
   '<circle cx="18" cy="19" r="2.6"/><path fill="none" d="M8.26 10.69 15.74 6.31M8.26 13.31 15.74 17.69"/></svg>';
 
