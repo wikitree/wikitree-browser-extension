@@ -118,8 +118,7 @@ h1 + .wbe-share-button {
   min-width: 0;
 }
 .wbe-share-channel span {
-  font-family: "Roboto Mono", monospace;
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   color: #5f6064;
   overflow-wrap: anywhere;
 }
@@ -329,4 +328,13 @@ h1 + .wbe-share-button {
 }
 .wbe-share-summary[hidden] {
   display: none;
+}
+
+/* WikiTree styles every link green and underlined; the Open button is a link, so it has to say otherwise. */
+.wbe-share-dialog a.wbe-share-btn {
+  color: #393a3c !important;
+  text-decoration: none !important;
+}
+.wbe-share-dialog a.wbe-share-btn.wbe-share-primary {
+  color: #fff !important;
 }
