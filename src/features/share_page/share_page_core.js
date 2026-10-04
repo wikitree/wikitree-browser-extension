@@ -297,18 +297,20 @@ export function lifeSummary(facts, thisYear = new Date().getFullYear()) {
   const parent = facts.gender === "male" ? "father" : facts.gender === "female" ? "mother" : "parent";
 
   const fields = [];
-  const field = (label, lines) => {
+  // names: every line is a person's name, so the card shows them all in bold
+  const field = (label, lines, names = false) => {
     const kept = lines.filter(Boolean);
-    if (kept.length) fields.push({ label, lines: kept });
+    if (kept.length) fields.push({ label, lines: kept, names });
   };
   field("Born", [birth.date, birth.place]);
   field("Died", [death.date, death.place]);
-  field("Parents", parents.slice(0, 2));
+  field("Parents", parents.slice(0, 2), true);
   field(
     "Spouse",
     spouses.length > 2
       ? [spouses[0].name, `${spouses[1].name} +${spouses.length - 2} more`]
-      : spouses.map((s) => s.name).slice(0, 2)
+      : spouses.map((s) => s.name).slice(0, 2),
+    true
   );
 
   const sentences = [];

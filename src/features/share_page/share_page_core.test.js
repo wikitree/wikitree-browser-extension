@@ -158,6 +158,7 @@ describe("lifeSummary", () => {
   test("summarises the data fields and writes a short biography", () => {
     const summary = lifeSummary(firman, 2026);
     expect(summary.fields.map((f) => f.label)).toEqual(["Born", "Died", "Parents", "Spouse"]);
+    expect(summary.fields.map((f) => f.names)).toEqual([false, false, true, true]); // names are all shown bold
     expect(summary.fields[0].lines).toEqual(["2 Aug 1901", "Caledonia, Washington, Missouri, United States"]);
     expect(summary.bio).toBe(
       "Firman was born in Caledonia, Missouri in 1901, the son of William Thomas Robinson and Lucy Jane (Boushon) Gant. " +

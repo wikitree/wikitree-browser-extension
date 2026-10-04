@@ -213,10 +213,10 @@ async function drawShareCard(kind, title, photoSrc, summary) {
   g.fillRect(0, 584, 1200, 46);
   g.fillStyle = "#ffffff";
   g.font = font("700 20px");
-  g.fillText("wikitree.com", 48, 614);
+  g.fillText("WikiTree.com", 48, 614);
   g.font = font("400 20px");
   g.textAlign = "right";
-  g.fillText("The free family tree", 1152, 614);
+  g.fillText("The FREE Family Tree", 1152, 614);
   g.textAlign = "left";
 
   g.fillStyle = BRAND.green;
@@ -252,14 +252,12 @@ async function drawShareCard(kind, title, photoSrc, summary) {
       g.fillStyle = BRAND.green;
       g.font = font("700 14px");
       g.fillText(field.label.toUpperCase(), x, y);
-      g.fillStyle = BRAND.ink;
-      g.font = font("700 21px");
-      g.fillText(fitLine(g, field.lines[0], 380), x, y + 27);
-      if (field.lines[1]) {
-        g.fillStyle = BRAND.muted;
-        g.font = font("400 18px");
-        g.fillText(fitLine(g, field.lines[1], 380), x, y + 51);
-      }
+      field.lines.slice(0, 2).forEach((line, row) => {
+        const secondary = row === 1 && !field.names; // a place under a date is lighter; every name is bold
+        g.fillStyle = secondary ? BRAND.muted : BRAND.ink;
+        g.font = font(secondary ? "400 18px" : "700 21px");
+        g.fillText(fitLine(g, line, 380), x, y + 27 + row * 24);
+      });
     });
     if (photo) drawPhoto(892, 100, 260, 300);
     if (summary.bio) {
