@@ -19,7 +19,9 @@ import {
   cropRect,
   detectPageKind,
   getChannel,
+  fileIdFor,
   intentUrl,
+  isNameSafe,
   isShareablePrivacy,
   lifeSummary,
   measure,
@@ -27,6 +29,7 @@ import {
   pageSummary,
   photoLinks,
   profileKeyFor,
+  safeRelativeIds,
   shareUrlFor,
   swapTag,
   viewSlug,
@@ -47,7 +50,11 @@ async function init() {
     // Tree Apps lets people move to another person without reloading, so the level is checked again at the click.
     const now = await checkShareable(kind);
     if (!now.ok) return showNotShareable($button);
-    openDialog(kind, options, now.profile);
+    const key = profileKeyFor(kind, window.location.pathname, window.location.hash);
+    // Living people's names stay off the card, so find out who is safe to name before the dialog opens.
+    const safeIds = kind === "profile" ? await fetchSafeRelativeIds(key) : new Set();
+    const chart = kind === "treeApp" ? await chartPermission(key) : { allowed: false, reason: "" };
+    openDialog(kind, options, now.profile, { safeIds, chart });
   });
 }
 
@@ -73,6 +80,52 @@ async function checkShareable(kind) {
   } catch (e) {
     return { ok: false, profile: null };
   }
+}
+
+/**
+ * The IDs of a person's parents, spouses and children who may be named on the card: the API says they are not living and
+ * not Private. If the API cannot be reached nobody is safe, so relatives are counted but not named.
+ */
+async function fetchSafeRelativeIds(key) {
+  try {
+    const items = await WikiTreeAPI.getRelatives("sharePage", [key], ["Name", "IsLiving", "Privacy"], {
+      getParents: 1,
+      getSpouses: 1,
+      getChildren: 1,
+    });
+    return safeRelativeIds(items && items[0] && items[0].person);
+  } catch (e) {
+    return new Set();
+  }
+}
+
+/**
+ * Whether the picture of a Tree Apps chart may go on the card. The picture is whatever the page shows, so it is used only
+ * for the fan chart, which shows ancestors, and only when the API says every ancestor in it is deceased and not Private.
+ */
+async function chartPermission(key) {
+  if (viewSlug(window.location.hash) !== "fanchart") {
+    return {
+      allowed: false,
+      reason: "Only the fan chart's picture is put on the card, because other views can show living people.",
+    };
+  }
+  const generations = parseInt(clean($("#numGensInBBar").first().text()).replace(/\D/g, ""), 10) || 6;
+  try {
+    const ancestors = await WikiTreeAPI.getAncestors("sharePage", key, Math.min(10, generations), [
+      "Name",
+      "IsLiving",
+      "Privacy",
+    ]);
+    if (Array.isArray(ancestors) && ancestors.length && ancestors.every(isNameSafe))
+      return { allowed: true, reason: "" };
+  } catch (e) {
+    // treated as unsafe below
+  }
+  return {
+    allowed: false,
+    reason: "The chart's picture is not on the card, because it may include living or private people.",
+  };
 }
 
 function showNotShareable($button) {
@@ -679,28 +732,42 @@ async function drawShareCard(kind, title, extras = {}) {
 }
 
 /** The vitals and family lists shown on a profile, read from the page's own markup. */
-function readProfileFacts() {
+function readProfileFacts(safeIds = new Set()) {
   const clean = (value) => (value || "").replace(/\s+/g, " ").trim();
-  const names = (selector) => [
-    ...new Set(
-      $(selector)
-        .map((i, el) => clean($(el).find('[itemprop="name"]').first().text() || $(el).text()))
-        .get()
-        .filter(Boolean)
-    ),
-  ];
+  const idOf = (el) => {
+    const href = $(el).find('a[href*="/wiki/"]').first().attr("href") || "";
+    try {
+      return decodeURIComponent((href.match(/\/wiki\/([^/?#]+)/) || [])[1] || "");
+    } catch (e) {
+      return "";
+    }
+  };
+  // each relative with the WikiTree ID in their link, so the API can say whether they may be named
+  const relatives = (selector) => {
+    const found = new Map();
+    $(selector).each((i, el) => {
+      const name = clean($(el).find('[itemprop="name"]').first().text() || $(el).text());
+      if (name && !found.has(name)) found.set(name, idOf(el));
+    });
+    return [...found].map(([name, id]) => ({ name, id }));
+  };
+  const named = (list) => list.filter((r) => safeIds.has(r.id)).map((r) => r.name);
   const place = (scope, prop) => clean($(`${scope} [itemprop="${prop}"] [itemprop="name"]`).first().text());
   const spouses = $("#Spouses .spouse")
     .map((i, el) => {
       const $spouse = $(el);
       const name = clean($spouse.find('[itemprop="spouse"] [itemprop="name"]').first().text());
+      const id = idOf($spouse.find('[itemprop="spouse"]').first());
       const married = (clean($spouse.text()).match(/\bmarried\s+(.*)$/) || [])[1] || "";
       const when = married.replace(/\s+at age \d+.*$/, "");
       const split = when.match(/^(?:(.*?)\s+)?in\s+(.+)$/);
-      return { name, date: split ? clean(split[1]) : clean(when), place: split ? clean(split[2]) : "" };
+      return { name, id, date: split ? clean(split[1]) : clean(when), place: split ? clean(split[2]) : "" };
     })
     .get()
-    .filter((spouse) => spouse.name);
+    .filter((spouse) => spouse.name && safeIds.has(spouse.id))
+    .map(({ name, date, place }) => ({ name, date, place }));
+  const parents = relatives('#Parents [itemprop="parent"]');
+  const children = relatives('#Children [itemprop="children"]');
   const gender = String(
     $("#pageData").data("mgender") || $('meta[itemprop="gender"]').attr("content") || ""
   ).toLowerCase();
@@ -713,9 +780,10 @@ function readProfileFacts() {
       place: place("#Death", "deathPlace"),
       age: (clean($("#Death").first().text()).match(/\bat age (\d+)/) || [])[1] || "",
     },
-    parents: names('#Parents [itemprop="parent"]'),
+    parents: named(parents),
     spouses,
-    children: names('#Children [itemprop="children"]'),
+    children: named(children),
+    childCount: children.length,
   };
 }
 
@@ -795,7 +863,9 @@ const HOW = {
   copy: () => ["Save the picture.", "Copy the caption.", "Open the app, add the picture and paste."],
 };
 
-function openDialog(kind, options, profile = null) {
+function openDialog(kind, options, profile = null, extras = {}) {
+  const safeIds = extras.safeIds || new Set();
+  const chart = extras.chart || { allowed: false, reason: "" };
   if ($(".wbe-share-overlay").length) return;
   const opener = document.activeElement;
   const app = kind === "treeApp" ? readAppContext(profile) : null;
@@ -840,7 +910,7 @@ function openDialog(kind, options, profile = null) {
     options.cardSummary === false
       ? null
       : kind === "profile"
-      ? lifeSummary(readProfileFacts())
+      ? lifeSummary(readProfileFacts(safeIds))
       : kind === "treeApp"
       ? { fields: [], bio: appSummary(app) }
       : pageSummary(kind, { ...readPageFacts(), title, genealogy: kind === "genealogy" ? hubFacts : null });
@@ -885,7 +955,8 @@ function openDialog(kind, options, profile = null) {
   const chosenCard = () => cardChoices.find((c) => c.id === state.cardPhoto) || null;
   const cardPhotoSrc = () => (chosenCard() && chosenCard().full) || "";
   const cardSlot = () => (chosenCard() && chosenCard().canvas) || null;
-  const graphicPromise = kind === "treeApp" ? captureAppGraphic().catch(() => null) : Promise.resolve(null);
+  const graphicPromise =
+    kind === "treeApp" && chart.allowed ? captureAppGraphic().catch(() => null) : Promise.resolve(null);
   let cardPromise;
   let cardRun = 0;
   function redrawCard() {
@@ -905,7 +976,7 @@ function openDialog(kind, options, profile = null) {
         const card = images.find((i) => i.card);
         if (card && run === cardRun) {
           card.thumb = canvas.toDataURL("image/png");
-          card.fileName = "wikitree-share-card.png";
+          card.fileName = `wtshare-${fileIdFor(kind, window.location.pathname, window.location.hash)}.png`;
           renderImages();
           renderPost();
         }
@@ -1214,6 +1285,7 @@ function openDialog(kind, options, profile = null) {
           channel.name
         }. Shorten it before posting.`
       );
+    if (kind === "treeApp" && !chart.allowed && chart.reason) notes.push(chart.reason);
     if (kind === "treeApp" && state.url === viewUrl) {
       notes.push(
         "Tree Apps views open only for people logged in to WikiTree. Anyone else sees the login page." +

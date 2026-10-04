@@ -40,6 +40,23 @@ in `#name=` in the address, then the path) and images whose file name is a profi
 - An image whose name is not a profile gets no check, since no such profile exists. Categories, project and help pages
   have no privacy level and are not checked.
 
+### Living people on the card
+
+A deceased person's profile can list living relatives, so passing the check above is not enough to name them on the card.
+When the dialog opens on a profile, the feature asks the API (`WikiTreeAPI.getRelatives`) for the `IsLiving` and `Privacy`
+of the person's parents, spouses and children, and a relative is named on the card only if the API says they are **not
+living and not Private** (level 10). See `isNameSafe()` and `safeRelativeIds()`.
+
+- A relative who is not safe is left out of the Parents and Spouse fields and the written summary. Children who are not
+  named are still counted: "He was the father of Carl Jr and 3 more", or "He was the father of 5 children."
+- If the API cannot be reached, nobody is named, with the same counts. The card still shows the person's own dates and
+  places.
+- A Tree Apps chart is a picture of whatever the page shows, which can include living people, so its picture goes on the
+  card only for the **fan chart** (ancestors), and only when `WikiTreeAPI.getAncestors` says every ancestor in it, down
+  to the generations shown, is deceased and not Private. Other views (descendants, CC7 and so on) get a text-only card,
+  and the dialog says why.
+- A surname hub shows its coordinator, who is a public volunteer role, and the DNA test counts, which are numbers only.
+
 Levels 30 and 40 have a public biography, and level 40 a public tree, but the card and post draw on the data fields, so
 they are left out. To allow them, change `isShareablePrivacy()` in `share_page_core.js`.
 
@@ -151,7 +168,11 @@ the one being cropped). The member chooses a shape, then which part of the pictu
   Left to Right). If the picture already has the shape, there is nothing to move.
 - The preview in the post, the grid and the saved picture all use the crop. A cropped picture is saved as
   `name-cropped.jpg` (or `.png` if the original is a PNG) at up to 2,400 pixels wide, and the share sheet gets the same
-  file. The maths is `cropRect()` in `share_page_core.js`.
+  file.
+- The share card is saved as `wtshare-` and the page's id: `wtshare-Robinson-27265.png`,
+  `wtshare-Andersonia,_California_One_Place_Study.png` (the `Space:`, `Project:`, `Category:` or `Help:` prefix is
+  dropped), `wtshare-PEASLEY.png`, and for a Tree Apps view the person and the view, `wtshare-Robinson-27274-fanchart.png`.
+  See `fileIdFor()`. The maths is `cropRect()` in `share_page_core.js`.
 
 ## What each network allows
 
@@ -202,9 +223,9 @@ No new permission is needed: the manifest already allows `https://*.wikitree.com
 | File                          | Purpose                                                                                            |
 | ----------------------------- | -------------------------------------------------------------------------------------------------- |
 | `share_page_core.js`          | Pure logic: page detection, privacy rule, post text, networks, composer links, summaries, cropping |
-| `share_page_core.test.js`     | Unit tests for the core module (108)                                                               |
+| `share_page_core.test.js`     | Unit tests for the core module (128)                                                               |
 | `share_page.js`               | Button, privacy check, dialog, share card drawing, chart capture, crop panel, copy and save        |
-| `share_page.test.js`          | jsdom tests that open the dialog and click through it (51)                                         |
+| `share_page.test.js`          | jsdom tests that open the dialog and click through it (64)                                         |
 | `background_fetch.test.js`    | Runs the real `public/background.js` against the picture fetch rules (15)                          |
 | `share_page_card_art.js`      | The brand colours and font, and the drawn score, rank and DNA pictures for a surname hub           |
 | `share_page_card_art.test.js` | Tests for the drawn pictures (6)                                                                   |
@@ -217,7 +238,7 @@ The feature is imported in `src/content_main.js` and its options in `src/feature
 
 ```bash
 npm install
-npx jest src/features/share_page   # the 180 tests for this feature
+npx jest src/features/share_page   # the 213 tests for this feature
 npm run build-dev                  # build, plus the undefined-globals, Safari and palette checks
 ```
 

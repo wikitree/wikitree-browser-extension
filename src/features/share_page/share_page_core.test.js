@@ -8,7 +8,10 @@ import {
   CROP_SHAPES,
   appNameFromSlug,
   appSummary,
+  fileIdFor,
   intentUrl,
+  isNameSafe,
+  safeRelativeIds,
   isShareablePrivacy,
   leadSummary,
   lifeSummary,
@@ -552,5 +555,85 @@ describe("a surname hub's card", () => {
       genealogy: { ...hub, coordinator: "" },
     });
     expect(summary.fields.map((f) => f.label)).toEqual(["Profiles", "Open profiles", "Rank"]);
+  });
+});
+
+describe("living people stay off the card", () => {
+  test("a name is safe only when the API says not living and not Private", () => {
+    expect(isNameSafe({ IsLiving: 0, Privacy: 60 })).toBe(true);
+    expect(isNameSafe({ IsLiving: 0, Privacy: 20 })).toBe(true);
+    expect(isNameSafe({ IsLiving: 1, Privacy: 60 })).toBe(false);
+    expect(isNameSafe({ IsLiving: 0, Privacy: 10 })).toBe(false);
+    expect(isNameSafe({ Privacy: 60 })).toBe(false); // living status not reported
+    expect(isNameSafe({ IsLiving: 0 })).toBe(false); // privacy not reported
+    expect(isNameSafe(undefined)).toBe(false);
+  });
+
+  test("safeRelativeIds keeps only the relatives whose names are safe", () => {
+    const person = {
+      Parents: { 1: { Name: "Robinson-27274", IsLiving: 0, Privacy: 60 } },
+      Spouses: { 2: { Name: "Budd-1260", IsLiving: 1, Privacy: 60 } },
+      Children: {
+        3: { Name: "Robinson-27360", IsLiving: 0, Privacy: 60 },
+        4: { Name: "Robinson-99999", IsLiving: 1, Privacy: 60 },
+        5: { Name: "Robinson-88888", IsLiving: 0, Privacy: 10 },
+      },
+    };
+    expect([...safeRelativeIds(person)].sort()).toEqual(["Robinson-27274", "Robinson-27360"]);
+    expect(safeRelativeIds(undefined).size).toBe(0);
+    expect(safeRelativeIds({}).size).toBe(0);
+  });
+
+  const father = {
+    firstName: "Carl William",
+    gender: "male",
+    birth: { date: "13 Nov 1933", place: "Burlington, Des Moines, Iowa, United States" },
+    death: { date: "25 Apr 2003", place: "Longview, Cowlitz, Washington, United States", age: "69" },
+    parents: ["Firman Joseph Robinson", "Leona Catherine (Budd) Robinson"],
+    spouses: [],
+  };
+  test("children who are not named are still counted", () => {
+    const summary = lifeSummary({ ...father, children: [], childCount: 5 }, 2026);
+    expect(summary.bio).toContain("He was the father of 5 children.");
+    expect(summary.bio).not.toContain("Danny");
+  });
+  test("a single unnamed child is a child, not children", () => {
+    expect(lifeSummary({ ...father, children: [], childCount: 1 }, 2026).bio).toContain("the father of 1 child.");
+  });
+  test("some named and the rest counted", () => {
+    const summary = lifeSummary(
+      { ...father, children: ["Naomi Lucy (Robinson) Anderson", "Carl Jr"], childCount: 5 },
+      2026
+    );
+    expect(summary.bio).toContain("He was the father of Naomi Lucy (Robinson) Anderson, Carl Jr and 3 more.");
+  });
+  test("all named when all are safe", () => {
+    const summary = lifeSummary({ ...father, children: ["A B", "C D"], childCount: 2 }, 2026);
+    expect(summary.bio).toContain("He was the father of A B and C D.");
+  });
+  test("no children at all says nothing about children", () => {
+    expect(lifeSummary({ ...father, children: [], childCount: 0 }, 2026).bio).not.toContain("father of");
+  });
+});
+
+describe("fileIdFor", () => {
+  test.each([
+    ["profile", "/wiki/Robinson-27265", "", "Robinson-27265"],
+    ["space", "/wiki/Space:Andersonia,_California_One_Place_Study", "", "Andersonia,_California_One_Place_Study"],
+    ["space", "/wiki/Space%3AAndersonia,_California_One_Place_Study", "", "Andersonia,_California_One_Place_Study"],
+    ["project", "/wiki/Project:Ambassadors", "", "Ambassadors"],
+    ["category", "/wiki/Category:Andersonia,_California", "", "Andersonia,_California"],
+    ["help", "/wiki/Help:Projects", "", "Projects"],
+    ["genealogy", "/genealogy/PEASLEY", "", "PEASLEY"],
+    ["treeWidget", "/treewidget/Robinson-27274/6", "", "Robinson-27274"],
+    ["treeApp", "/apps/Robinson-27274", "#name=Robinson-27274&view=fanchart", "Robinson-27274-fanchart"],
+    ["treeApp", "/apps/Robinson-27274", "", "Robinson-27274"],
+    ["imagePage", "/photo/jpg/Anderson-45659-4", "", "Anderson-45659-4"],
+    ["other", "/g2g/", "", "page"],
+  ])("%s %s gives %s", (kind, path, hash, id) => {
+    expect(fileIdFor(kind, path, hash)).toBe(id);
+  });
+  test("characters a file name cannot hold become underscores", () => {
+    expect(fileIdFor("space", '/wiki/Space:A:B*C?D"E<F>G|H I')).toBe("A_B_C_D_E_F_G_H_I");
   });
 });

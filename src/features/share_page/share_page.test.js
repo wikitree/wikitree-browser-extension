@@ -7,7 +7,11 @@ jest.mock("../../core/options/options_storage", () => ({
 }));
 // The feature is loaded inside jest.isolateModules, so the mock reads its behaviour from a global the tests control.
 jest.mock("../../core/API/WikiTreeAPI", () => ({
-  WikiTreeAPI: { getProfile: (...args) => global.mockGetProfile(...args) },
+  WikiTreeAPI: {
+    getProfile: (...args) => global.mockGetProfile(...args),
+    getRelatives: (...args) => global.mockGetRelatives(...args),
+    getAncestors: (...args) => global.mockGetAncestors(...args),
+  },
 }));
 jest.mock("../../core/clipboard.js", () => ({ copyToClipboard: jest.fn(() => Promise.resolve()) }));
 
@@ -137,7 +141,21 @@ beforeAll(() => {
   };
 });
 
+// the relatives on the test profile, all deceased and public unless a test says otherwise
+const relative = (Name, IsLiving = 0, Privacy = 60) => ({ Name, IsLiving, Privacy });
+const FIRMAN_RELATIVES = () => [
+  {
+    person: {
+      Parents: { 1: relative("Robinson-27275"), 2: relative("Boushon-120") },
+      Spouses: { 3: relative("Budd-1260"), 4: relative("Showalter-1") },
+      Children: { 5: relative("Robinson-27360"), 6: relative("Robinson-27361") },
+    },
+  },
+];
+
 beforeEach(() => {
+  global.mockGetRelatives = jest.fn(() => Promise.resolve(FIRMAN_RELATIVES()));
+  global.mockGetAncestors = jest.fn(() => Promise.resolve([relative("Robinson-27274"), relative("Robinson-27275")]));
   global.mockSvgSources = [];
   global.mockCardText = [];
   global.mockDrawn = [];
@@ -834,5 +852,193 @@ describe("Share Page dialog", () => {
     expect($("#wbeShareSummary").val()).toBe(
       "Explore the 3 Newname profiles on WikiTree: ancestors, cousins and community members, and how they connect."
     );
+  });
+
+  const livingRelative = (id) => {
+    const items = FIRMAN_RELATIVES();
+    ["Parents", "Spouses", "Children"].forEach((group) =>
+      Object.values(items[0].person[group]).forEach((r) => {
+        if (r.Name === id) r.IsLiving = 1;
+      })
+    );
+    return items;
+  };
+  const summaryOf = async () => {
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    await clickShare();
+    return $("#wbeShareSummary").val();
+  };
+
+  test("the card names relatives the API says are deceased", async () => {
+    const bio = await summaryOf();
+    expect(global.mockGetRelatives).toHaveBeenCalledWith(
+      "sharePage",
+      ["Robinson-27274"],
+      ["Name", "IsLiving", "Privacy"],
+      {
+        getParents: 1,
+        getSpouses: 1,
+        getChildren: 1,
+      }
+    );
+    expect(bio).toContain("the son of William Thomas Robinson and Lucy Jane (Boushon) Gant");
+    expect(bio).toContain("He was the father of Naomi Lucy (Robinson) Anderson and Carl William Robinson Sr.");
+  });
+
+  test("a living child is not named, only counted", async () => {
+    global.mockGetRelatives = jest.fn(() => Promise.resolve(livingRelative("Robinson-27360")));
+    const bio = await summaryOf();
+    expect(bio).not.toContain("Naomi");
+    expect(bio).toContain("He was the father of Carl William Robinson Sr and 1 more.");
+  });
+
+  test("if every child is living the card says how many, with no names", async () => {
+    global.mockGetRelatives = jest.fn(() =>
+      Promise.resolve(
+        livingRelative("Robinson-27360").map((item) => {
+          item.person.Children[6].IsLiving = 1;
+          return item;
+        })
+      )
+    );
+    const bio = await summaryOf();
+    expect(bio).not.toContain("Naomi");
+    expect(bio).not.toContain("Carl William Robinson Sr");
+    expect(bio).toContain("He was the father of 2 children.");
+  });
+
+  test("a living spouse is not named on the card or in the text", async () => {
+    global.mockGetRelatives = jest.fn(() => Promise.resolve(livingRelative("Budd-1260")));
+    const bio = await summaryOf();
+    expect(bio).not.toContain("Leona");
+    expect(bio).toContain("He married Erma Faye (Showalter) Robinson in 1968.");
+    expect(global.mockCardText.join("|")).not.toContain("Leona");
+  });
+
+  test("a relative with a Private profile is not named", async () => {
+    global.mockGetRelatives = jest.fn(() => {
+      const items = FIRMAN_RELATIVES();
+      items[0].person.Parents[1].Privacy = 10;
+      return Promise.resolve(items);
+    });
+    const bio = await summaryOf();
+    expect(bio).not.toContain("William Thomas Robinson");
+    expect(bio).toContain("the son of Lucy Jane (Boushon) Gant");
+  });
+
+  test("if the API cannot say who is living, no relative is named", async () => {
+    global.mockGetRelatives = jest.fn(() => Promise.reject(new Error("network")));
+    const bio = await summaryOf();
+    ["William Thomas", "Boushon", "Leona", "Showalter", "Naomi", "Carl William Robinson Sr"].forEach((name) =>
+      expect(bio).not.toContain(name)
+    );
+    expect(bio).toContain("He was the father of 2 children.");
+    const drawn = global.mockCardText.join("|");
+    expect(drawn).not.toContain("Leona");
+    expect(drawn).not.toContain("PARENTS");
+  });
+
+  test("the fan chart's picture is used when every ancestor in it is deceased and not private", async () => {
+    await loadFeature(
+      "/apps/Robinson-27274#name=Robinson-27274&view=fanchart",
+      `<h2 id="view-title">Fan Chart</h2><span id="numGensInBBar">5</span><div id="view-container"></div>`
+    );
+    await clickShare();
+    expect(global.mockGetAncestors).toHaveBeenCalledWith("sharePage", "Robinson-27274", 5, [
+      "Name",
+      "IsLiving",
+      "Privacy",
+    ]);
+    expect($(".wbe-share-note").text()).not.toContain("living");
+  });
+
+  test("the fan chart's picture is left off when an ancestor in it is living", async () => {
+    global.mockGetAncestors = jest.fn(() =>
+      Promise.resolve([relative("Robinson-27274"), relative("Robinson-99999", 1)])
+    );
+    const getBox = window.Element.prototype.getBoundingClientRect;
+    window.Element.prototype.getBoundingClientRect = () => ({
+      width: 600,
+      height: 400,
+      top: 0,
+      left: 0,
+      right: 600,
+      bottom: 400,
+    });
+    try {
+      await loadFeature(
+        "/apps/Robinson-27274#name=Robinson-27274&view=fanchart",
+        `<h2 id="view-title">Fan Chart</h2><div id="view-container"><svg id="fanChartSVG" width="600" height="400"><path d="M0 0L9 9"/></svg></div>`
+      );
+      await clickShare();
+      await new Promise((resolve) => setTimeout(resolve, 1800));
+    } finally {
+      window.Element.prototype.getBoundingClientRect = getBox;
+    }
+    expect(global.mockSvgSources).toEqual([]); // the chart was never captured
+    expect($(".wbe-share-note").text()).toContain("may include living or private people");
+  });
+
+  test("the fan chart's picture is left off when the API cannot say who is in it", async () => {
+    global.mockGetAncestors = jest.fn(() => Promise.reject(new Error("network")));
+    await loadFeature("/apps/Robinson-27274#name=Robinson-27274&view=fanchart", `<div id="view-container"></div>`);
+    await clickShare();
+    expect($(".wbe-share-note").text()).toContain("may include living or private people");
+  });
+
+  test("other Tree Apps views get no chart picture, because they can show living people", async () => {
+    await loadFeature(
+      "/apps/Robinson-27274#name=Robinson-27274&view=descendants",
+      `<h2 id="view-title">Descendants</h2><div id="view-container"></div>`
+    );
+    await clickShare();
+    expect(global.mockGetAncestors).not.toHaveBeenCalled();
+    expect($(".wbe-share-note").text()).toContain("Only the fan chart's picture is put on the card");
+  });
+
+  const saveName = async () => {
+    const saved = [];
+    const click = window.HTMLAnchorElement.prototype.click;
+    window.HTMLAnchorElement.prototype.click = function () {
+      if (this.download) saved.push(this.download);
+    };
+    global.URL.createObjectURL = () => "blob:card";
+    global.URL.revokeObjectURL = () => {};
+    try {
+      $(".wbe-share-actions button")
+        .filter((i, el) => /Save picture/.test(el.textContent))[0]
+        .click();
+      for (let i = 0; i < 8; i++) await tick();
+    } finally {
+      window.HTMLAnchorElement.prototype.click = click;
+    }
+    return saved;
+  };
+
+  test("a profile's card is saved as wtshare- and the profile id", async () => {
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    await clickShare();
+    await settle();
+    expect(await saveName()).toEqual(["wtshare-Robinson-27274.png"]);
+  });
+
+  test("a free-space page's card is saved as wtshare- and the page name, without the Space: prefix", async () => {
+    await loadFeature("/wiki/Space:Andersonia,_California_One_Place_Study", SPACE_PAGE);
+    await clickShare();
+    await settle();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    // the card is the first picture, so it is the one selected
+    expect(await saveName()).toEqual(["wtshare-Andersonia,_California_One_Place_Study.png"]);
+  });
+
+  test("a surname page's card is saved under the surname", async () => {
+    await loadFeature(
+      "/genealogy/PEASLEY",
+      `<main><ul id="jump-nav"></ul><div class="container"><p>Search all 652 profiles.</p></div></main>`,
+      "Peasley Genealogy | WikiTree FREE Family Tree"
+    );
+    await clickShare();
+    await settle();
+    expect(await saveName()).toEqual(["wtshare-PEASLEY.png"]);
   });
 });

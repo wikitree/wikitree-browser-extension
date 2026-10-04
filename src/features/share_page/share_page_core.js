@@ -297,6 +297,8 @@ export function lifeSummary(facts, thisYear = new Date().getFullYear()) {
   const parents = facts.parents || [];
   const spouses = facts.spouses || [];
   const children = facts.children || [];
+  // children may be named only when known to be deceased; the rest are still counted
+  const childTotal = Math.max(facts.childCount || 0, children.length);
   const birthYear = parseInt(yearOf(birth.date), 10);
   const deathYear = parseInt(yearOf(death.date), 10);
   if (!birthYear && !deathYear) return null;
@@ -337,7 +339,15 @@ export function lifeSummary(facts, thisYear = new Date().getFullYear()) {
     if (spouses.length > 2) text += `, and ${spouses.length - 2} other spouse${spouses.length > 3 ? "s" : ""}`;
     sentences.push(`${text}.`);
   }
-  if (children.length) sentences.push(`${subject} was the ${parent} of ${joinNames(children)}.`);
+  if (childTotal) {
+    const shown = children.slice(0, 3);
+    if (shown.length) {
+      const parts = childTotal > shown.length ? [...shown, `${childTotal - shown.length} more`] : shown;
+      sentences.push(`${subject} was the ${parent} of ${joinNames(parts, parts.length)}.`);
+    } else {
+      sentences.push(`${subject} was the ${parent} of ${childTotal} ${childTotal === 1 ? "child" : "children"}.`);
+    }
+  }
   if (deathYear) {
     const where = death.place ? ` in ${shortPlace(death.place)}` : "";
     const age = death.age ? `, aged ${death.age}` : "";
@@ -629,4 +639,66 @@ export function cropRect(width, height, ratio, fx = 0.5, fy = 0.5) {
   }
   const sh = Math.round(width / ratio);
   return { sx: 0, sy: Math.round((height - sh) * clamp(fy)), sw: width, sh, axis: height - sh > 0 ? "y" : null };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Living people stay off the card
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Whether a relative's name may appear on a share card: the API says they are not living, and their profile is not
+ * Private (level 10). Anything the API did not report is treated as unsafe.
+ */
+export function isNameSafe(person) {
+  return !!person && Number(person.IsLiving) === 0 && Number(person.Privacy) >= 20;
+}
+
+/**
+ * The WikiTree IDs of a person's parents, spouses and children whose names may be shown, from the API's getRelatives
+ * answer for that person.
+ */
+export function safeRelativeIds(person) {
+  const safe = new Set();
+  ["Parents", "Spouses", "Children"].forEach((group) => {
+    Object.values((person && person[group]) || {}).forEach((relative) => {
+      if (isNameSafe(relative) && relative.Name) safe.add(relative.Name);
+    });
+  });
+  return safe;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Saved file names
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * What to call a page in a saved file's name: "Robinson-27274", "Andersonia,_California_One_Place_Study" (the Space:,
+ * Project:, Category: or Help: prefix is dropped), "PEASLEY", or for a Tree Apps view the person and the view,
+ * "Robinson-27274-fanchart".
+ */
+export function fileIdFor(kind, pathname, hash = "") {
+  let path;
+  try {
+    path = decodeURIComponent(pathname);
+  } catch (e) {
+    path = pathname;
+  }
+  const part = (re) => (path.match(re) || [])[1] || "";
+  let id = "";
+  if (["profile", "space", "project", "category", "help"].includes(kind)) {
+    id = part(/^\/wiki\/(.+)$/).replace(/^(Space|Project|Category|Help):/i, "");
+  } else if (kind === "genealogy") {
+    id = part(/^\/genealogy\/([^/]+)/);
+  } else if (kind === "treeWidget") {
+    id = part(/^\/treewidget\/([^/]+)/);
+  } else if (kind === "treeApp") {
+    const view = viewSlug(hash);
+    id = [profileKeyFor(kind, pathname, hash), view].filter(Boolean).join("-");
+  } else if (kind === "imagePage" || kind === "fullImage") {
+    id = path
+      .split("/")
+      .pop()
+      .replace(/\.[A-Za-z0-9]+$/, "");
+  }
+  return id.replace(/[\\/:*?"<>|\s]+/g, "_").replace(/^_+|_+$/g, "") || "page";
 }
