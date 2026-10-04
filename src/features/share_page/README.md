@@ -59,9 +59,18 @@ summary:
   card, because they crop badly; they stay available as pictures to choose.
 
 **Tree Apps views** get the app's name (read from the page's `#view-title`, then the view selector, then the address, for
-example "Fan Chart"), the person's name, and a picture of the chart as the member sees it. The picture is taken from the
-largest SVG or canvas in `#view-container`, with the page's styles copied onto it. Views that are plain text and tables
-get the title and name only.
+example "Fan Chart"), the person's name (from the page, or from the API), a short summary of what the view is showing, and
+a picture of the chart as the member sees it.
+
+- The summary is built when the dialog opens, so it follows the member's settings. A fan chart reads, for example, "A fan
+  chart of Firman Joseph Robinson's ancestors over 5 generations. Each ring is one generation further back." (the number
+  comes from the view's own generation counter, `#numGensInBBar`). Other views use their own description with the
+  instructions dropped ("Click on…", "Use the wheel…"), or a plain sentence if there is none. The member can edit it,
+  and the card redraws. See `appSummary()` in `share_page_core.js`.
+- The picture is taken from the largest SVG or canvas in `#view-container`, with the page's styles copied onto it. The
+  portraits inside an SVG are fetched and embedded first, because an SVG drawn on its own cannot load outside pictures.
+  The empty margin around the drawing is trimmed so the chart gets the room. Views that are plain text and tables get no
+  picture.
 
 Tree Apps views open only for people logged in to WikiTree; anyone else sees the login page. So on these views the
 dialog shows a note, and a checkbox, "Link to the person's profile instead, so anyone can open it". Ticking it swaps the
@@ -81,6 +90,8 @@ person in the address or `#name=`) and images whose file name is a profile ID.
 - Public (50) and Open (60) can be shared. Levels 10 to 40 cannot.
 - Anyone marked as living cannot, whatever the level.
 - If the API cannot be reached, the button is not shown.
+- The level is checked again when the button is clicked, because Tree Apps lets people move to another person without
+  reloading the page.
 - An image whose name is not a profile gets no check (no such profile exists).
 - Categories, project and help pages have no privacy level and are not checked.
 

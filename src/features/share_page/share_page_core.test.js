@@ -4,6 +4,7 @@ import {
   detectPageKind,
   getChannel,
   appNameFromSlug,
+  appSummary,
   intentUrl,
   isShareablePrivacy,
   leadSummary,
@@ -305,5 +306,34 @@ describe("pageSummary", () => {
   test("other kinds have no summary", () => {
     expect(pageSummary("treeApp", {})).toBeNull();
     expect(pageSummary("imagePage", {})).toBeNull();
+  });
+});
+
+describe("appSummary", () => {
+  test("a fan chart is described from what is on screen", () => {
+    expect(
+      appSummary({ slug: "fanchart", appName: "Fan Chart", person: "Firman Joseph Robinson", generations: "5" })
+    ).toBe(
+      "A fan chart of Firman Joseph Robinson's ancestors over 5 generations. Each ring is one generation further back."
+    );
+  });
+  test("the number of generations follows the member's setting", () => {
+    expect(appSummary({ slug: "fanchart", person: "A B", generations: "8" })).toContain("over 8 generations");
+    expect(appSummary({ slug: "fanchart", person: "A B" })).not.toContain("over");
+  });
+  test("other views use their description and drop the instructions", () => {
+    expect(
+      appSummary({
+        appName: "Family Timeline",
+        person: "A B",
+        description: "Shows a family chronology. Click on a person to create a new timeline. Use the wheel to zoom.",
+      })
+    ).toBe("Shows a family chronology.");
+  });
+  test("a view with no description gets a plain sentence", () => {
+    expect(appSummary({ appName: "Webs", person: "A B" })).toBe(
+      "Webs for A B, one of the connected tree views in WikiTree’s Tree Apps."
+    );
+    expect(appSummary({})).toBe("");
   });
 });

@@ -11,6 +11,7 @@ import {
   CHANNELS,
   KIND_LABELS,
   appNameFromSlug,
+  appSummary,
   buildText,
   detectPageKind,
   getChannel,
@@ -34,28 +35,46 @@ shouldInitializeFeature("sharePage").then((result) => {
 
 async function init() {
   const kind = detectPageKind(window.location.pathname);
-  if (kind === "other" || !(await isPubliclyShareable(kind))) return;
+  if (kind === "other" || !(await checkShareable(kind)).ok) return;
   import("./share_page.css");
   const options = await getFeatureOptions("sharePage");
-  addShareButton(() => openDialog(kind, options));
+  addShareButton(async ($button) => {
+    // Tree Apps lets people move to another person without reloading, so the level is checked again at the click.
+    const now = await checkShareable(kind);
+    if (!now.ok) return showNotShareable($button);
+    openDialog(kind, options, now.profile);
+  });
 }
 
 /**
- * Only offer Share where the public can see the page. A profile or free-space page (and the tree, widget or
- * image that belongs to one) is shareable when WikiTree's API reports it as Public (50) or Open (60) and not
- * living. If the level cannot be read, the button is not shown.
+ * Whether the page can be shared, and the profile the API returned. A profile or free-space page (and the tree,
+ * widget or image that belongs to one) is shareable when WikiTree's API reports it as Public (50) or Open (60) and
+ * not living. If the level cannot be read, it is not shareable.
  */
-async function isPubliclyShareable(kind) {
+async function checkShareable(kind) {
   const key = profileKeyFor(kind, window.location.pathname, window.location.hash);
-  if (!key) return true;
+  if (!key) return { ok: true, profile: null };
   try {
-    const [profile] = await WikiTreeAPI.getProfile("sharePage", key, ["Privacy", "IsLiving"]);
+    const [profile] = await WikiTreeAPI.getProfile("sharePage", key, [
+      "Privacy",
+      "IsLiving",
+      "FirstName",
+      "MiddleName",
+      "LastNameCurrent",
+    ]);
     // An image's file name only looks like a profile ID; if no such profile exists, the image does not belong to one.
-    if (!profile && (kind === "imagePage" || kind === "fullImage")) return true;
-    return isShareablePrivacy(profile);
+    if (!profile && (kind === "imagePage" || kind === "fullImage")) return { ok: true, profile: null };
+    return { ok: isShareablePrivacy(profile), profile };
   } catch (e) {
-    return false;
+    return { ok: false, profile: null };
   }
+}
+
+function showNotShareable($button) {
+  $(".wbe-share-denied").remove();
+  const $note = $('<span class="wbe-share-denied" role="status">Only Public and Open pages can be shared.</span>');
+  $button.closest("li, h1, body").length ? $button.after($note) : $("body").append($note);
+  setTimeout(() => $note.remove(), 5000);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -69,7 +88,7 @@ function addShareButton(onClick) {
   );
   $button.on("click", (e) => {
     e.preventDefault();
-    onClick();
+    onClick($button);
   });
   const $jumpNav = $("#jump-nav");
   const $heading = $("h1").first();
@@ -100,12 +119,19 @@ function pageTitle() {
 const clean = (value) => (value || "").replace(/\s+/g, " ").trim();
 
 /** The app and person shown by a Tree Apps view, read from the page the member is looking at. */
-function readAppContext() {
+function readAppContext(profile) {
   const slug = viewSlug(window.location.hash);
   const selected = clean($("#view-select option:selected").text());
   return {
+    slug,
+    generations: clean($("#numGensInBBar").first().text()).replace(/\D/g, ""),
+    description: clean($("#view-description").first().text()),
     appName: clean($("#view-title").first().text()) || selected || appNameFromSlug(slug),
-    person: clean($("#name-placeholder").first().text()),
+    person:
+      clean($("#name-placeholder").first().text()) ||
+      (profile
+        ? clean([profile.FirstName, profile.MiddleName, profile.LastNameCurrent].filter(Boolean).join(" "))
+        : ""),
   };
 }
 
@@ -181,8 +207,77 @@ async function captureAppGraphic() {
   copy.setAttribute("height", String(Math.round(box.height)));
   if (!copy.getAttribute("viewBox"))
     copy.setAttribute("viewBox", `0 0 ${Math.round(box.width)} ${Math.round(box.height)}`);
+  // An SVG drawn on its own cannot load outside pictures, so put the portraits inside it first.
+  await Promise.race([inlinePictures(copy), new Promise((resolve) => setTimeout(resolve, 6000))]);
   const xml = new XMLSerializer().serializeToString(copy);
-  return loadImage("data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml));
+  const image = await loadImage("data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml));
+  return image ? trimMargins(image) : null;
+}
+
+const XLINK = "http://www.w3.org/1999/xlink";
+
+/** Replace the address of every picture in an SVG with the picture itself, so it still shows when drawn alone. */
+async function inlinePictures(svg) {
+  await Promise.all(
+    [...svg.querySelectorAll("image")].map(async (el) => {
+      const href = el.getAttribute("href") || el.getAttributeNS(XLINK, "href");
+      if (!href || href.startsWith("data:")) return;
+      try {
+        const blob = await (await fetch(new URL(href, window.location.href))).blob();
+        const data = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        el.setAttribute("href", data);
+        el.setAttributeNS(XLINK, "xlink:href", data);
+      } catch (e) {
+        // leave this picture as it is; the rest of the chart is still worth sharing
+      }
+    })
+  );
+}
+
+/** Crop away the empty margin around a drawing so the chart gets the room on the card. */
+function trimMargins(source) {
+  try {
+    const w = source.naturalWidth || source.width;
+    const h = source.naturalHeight || source.height;
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const g = canvas.getContext("2d");
+    g.drawImage(source, 0, 0);
+    const data = g.getImageData(0, 0, w, h).data;
+    let x0 = w;
+    let y0 = h;
+    let x1 = -1;
+    let y1 = -1;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (data[(y * w + x) * 4 + 3] > 8) {
+          if (x < x0) x0 = x;
+          if (x > x1) x1 = x;
+          if (y < y0) y0 = y;
+          if (y > y1) y1 = y;
+        }
+      }
+    }
+    if (x1 < 0) return source;
+    const pad = 8;
+    x0 = Math.max(0, x0 - pad);
+    y0 = Math.max(0, y0 - pad);
+    x1 = Math.min(w - 1, x1 + pad);
+    y1 = Math.min(h - 1, y1 + pad);
+    const out = document.createElement("canvas");
+    out.width = x1 - x0 + 1;
+    out.height = y1 - y0 + 1;
+    out.getContext("2d").drawImage(canvas, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
+    return out;
+  } catch (e) {
+    return source;
+  }
 }
 
 /** Photos on the page, as full-size addresses with the image page that shows each one. */
@@ -230,6 +325,7 @@ function loadImage(src) {
   });
 }
 
+/** Draw text wrapped to a width, and return the baseline of the last line so the next block can start below it. */
 function wrapText(g, text, x, y, maxWidth, lineHeight, maxLines) {
   const words = text.split(/\s+/);
   let line = "";
@@ -240,7 +336,7 @@ function wrapText(g, text, x, y, maxWidth, lineHeight, maxLines) {
       lines++;
       if (lines === maxLines) {
         g.fillText(line.replace(/\s*\S*$/, "") + "…", x, y);
-        return;
+        return y;
       }
       g.fillText(line, x, y);
       y += lineHeight;
@@ -250,6 +346,7 @@ function wrapText(g, text, x, y, maxWidth, lineHeight, maxLines) {
     }
   }
   g.fillText(line, x, y);
+  return y;
 }
 
 function fitLine(g, text, maxWidth) {
@@ -352,17 +449,22 @@ async function drawShareCard(kind, title, extras = {}) {
 
   g.fillStyle = BRAND.ink;
   if (graphic) {
-    // Tree Apps: the app's name and person on the left, the chart as the member sees it on the right
+    // Tree Apps: the app's name, the person and what the view shows on the left, the chart as the member sees it on the right
     g.font = font("700 52px");
-    wrapText(g, title, 48, 200, 420, 60, 3);
+    let y = wrapText(g, title, 48, 200, 300, 60, 3);
     if (subtitle) {
+      g.fillStyle = BRAND.ink;
+      g.font = font("700 24px");
+      y = wrapText(g, subtitle, 48, y + 46, 300, 32, 3);
+    }
+    if (summary && summary.bio) {
       g.fillStyle = BRAND.muted;
-      g.font = font("400 26px");
-      wrapText(g, subtitle, 48, 330, 420, 34, 3);
+      g.font = font("400 22px");
+      wrapText(g, summary.bio, 48, y + 54, 300, 30, 7);
     }
     const w = graphic.naturalWidth || graphic.width;
     const h = graphic.naturalHeight || graphic.height;
-    const box = { x: 500, y: 100, w: 652, h: 468 };
+    const box = { x: 372, y: 96, w: 780, h: 476 };
     const scale = Math.min(box.w / w, box.h / h);
     g.drawImage(graphic, box.x + (box.w - w * scale) / 2, box.y + (box.h - h * scale) / 2, w * scale, h * scale);
   } else if (summary) {
@@ -499,10 +601,10 @@ const HOW = {
   copy: () => ["Save the picture.", "Copy the caption.", "Open the app, add the picture and paste."],
 };
 
-function openDialog(kind, options) {
+function openDialog(kind, options, profile = null) {
   if ($(".wbe-share-overlay").length) return;
   const opener = document.activeElement;
-  const app = kind === "treeApp" ? readAppContext() : null;
+  const app = kind === "treeApp" ? readAppContext(profile) : null;
   const title = app ? app.appName || "Tree Apps" : pageTitle();
   const viewUrl = shareUrlFor(kind, window.location.href);
   // A Tree Apps view opens only for people logged in to WikiTree, so the member can link to the profile instead.
@@ -541,6 +643,8 @@ function openDialog(kind, options) {
       ? null
       : kind === "profile"
       ? lifeSummary(readProfileFacts())
+      : kind === "treeApp"
+      ? { fields: [], bio: appSummary(app) }
       : pageSummary(kind, readPageFacts());
   state.bio = cardSummary ? cardSummary.bio : "";
   // Only profiles put a photo on the card; a logo or badge cropped to a portrait looks wrong on the other pages.
@@ -830,6 +934,8 @@ function openDialog(kind, options) {
           ? "Built from this profile's dates, places and family lists. Check it before you post."
           : kind === "category"
           ? "Counts are from this category page. Edit the text if you like."
+          : kind === "treeApp"
+          ? "Describes what the view is showing now. Edit it to say what you like."
           : "Taken from the top of this page. Check it before you post."
       );
     $summary.val(state.bio).on("input", () => {

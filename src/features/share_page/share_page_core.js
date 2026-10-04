@@ -462,3 +462,31 @@ export function pageSummary(kind, facts = {}) {
   }
   return fields.length || bio ? { fields, bio } : null;
 }
+
+const IMPERATIVE = /^(click|double|use|drag|select|hover|scroll|press|tap|choose|enter)\b/i;
+
+/**
+ * A short description of what a Tree Apps view is showing right now, for the share card.
+ *
+ * ctx: { appName, person, slug, generations, description } as read from the page. Views describe themselves with
+ * instructions ("Click on the tree and use your mouse wheel to zoom"), so those sentences are dropped and a known
+ * view gets a sentence built from what is on screen, such as the number of generations.
+ */
+export function appSummary(ctx = {}) {
+  const { appName = "", person = "", slug = "", generations = "", description = "" } = ctx;
+  const owner = person ? `${person}'s` : "a person's";
+  const count = parseInt(generations, 10);
+  if (slug === "fanchart" || /^fan chart$/i.test(appName)) {
+    const over = count ? ` over ${count} generations` : "";
+    return `A fan chart of ${owner} ancestors${over}. Each ring is one generation further back.`;
+  }
+  const flat = description.replace(/\s+/g, " ").trim();
+  const about = (flat.match(/[^.!?]+[.!?]+["')\]]*(?=\s|$)|[^.!?]+$/g) || [])
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence && !IMPERATIVE.test(sentence));
+  const text = about.join(" ");
+  if (text) return text.length > 220 ? cutAtWord(text, 220) : text;
+  if (appName && person) return `${appName} for ${person}, one of the connected tree views in WikiTree’s Tree Apps.`;
+  if (appName) return `${appName}, one of the connected tree views in WikiTree’s Tree Apps.`;
+  return "";
+}
