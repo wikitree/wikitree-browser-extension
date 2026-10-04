@@ -1,0 +1,332 @@
+/* Styles for the Share Page feature. Every class starts with wbe-share so Highlight WBE Features picks it up. */
+
+.wbe-share-button {
+  font: inherit;
+  cursor: pointer;
+  padding: 0.2em 0.8em;
+  border: 1px solid #25422d;
+  border-radius: 0.4em;
+  background: #fff;
+  color: #25422d;
+}
+.wbe-share-button:hover {
+  background: #e4ebe5;
+}
+.wbe-share-floating {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 9998;
+}
+h1 + .wbe-share-button {
+  margin-block: 0.3em;
+}
+
+.wbe-share-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2rem 1rem;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.55);
+}
+.wbe-share-dialog {
+  width: min(62rem, 100%);
+  background: #fff;
+  color: #393a3c;
+  border-radius: 0.6rem;
+  box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.35);
+  font-family: Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  overflow: hidden;
+}
+.wbe-share-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 1.2rem;
+  background: #f0f0eb;
+  border-bottom: 3px solid #f8a820;
+}
+.wbe-share-logo {
+  display: block;
+  height: 2.2rem;
+  width: auto;
+}
+.wbe-share-head h2 {
+  flex: 1;
+  color: #25422d;
+}
+.wbe-share-head h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+.wbe-share-close {
+  border: 0;
+  background: none;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+}
+.wbe-share-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+  gap: 1.2rem;
+  padding: 1.2rem;
+}
+.wbe-share-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+.wbe-share-dialog h3 {
+  margin: 0.6rem 0 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5f6064;
+}
+.wbe-share-col > h3:first-child {
+  margin-top: 0;
+}
+
+.wbe-share-channels {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.4rem;
+}
+.wbe-share-channel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #dcdcd5;
+  border-radius: 0.4rem;
+  background: #f0f0eb;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+.wbe-share-channel span {
+  font-family: "Roboto Mono", monospace;
+  font-size: 0.7rem;
+  color: #5f6064;
+  overflow-wrap: anywhere;
+}
+.wbe-share-channel[aria-checked="true"] {
+  border-color: #25422d;
+  background: #e4ebe5;
+  box-shadow: inset 0 0 0 1px #25422d;
+}
+
+.wbe-share-images {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+  gap: 0.5rem;
+}
+.wbe-share-image {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 2px solid #dcdcd5;
+  border-radius: 0.4rem;
+  overflow: hidden;
+  background: #f0f0eb;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.wbe-share-image[aria-pressed="true"] {
+  border-color: #25422d;
+}
+.wbe-share-image img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1.91 / 1;
+  object-fit: cover;
+}
+.wbe-share-image small {
+  padding: 0.25rem 0.4rem;
+  font-size: 0.72rem;
+  color: #5f6064;
+  overflow-wrap: anywhere;
+}
+.wbe-share-placeholder {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1.91 / 1;
+  font-size: 0.75rem;
+  color: #5f6064;
+}
+.wbe-share-badge {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding-inline: 0.3rem;
+  border-radius: 0.7rem;
+  background: #25422d;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+.wbe-share-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #5f6064;
+}
+
+.wbe-share-dialog textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 0.6rem;
+  border: 1px solid #dcdcd5;
+  border-radius: 0.4rem;
+  background: #f0f0eb;
+  color: inherit;
+  font: inherit;
+}
+.wbe-share-meter {
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+.wbe-share-over {
+  color: #b3261e;
+  font-weight: 600;
+}
+.wbe-share-reset {
+  align-self: flex-start;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: #25422d;
+  text-decoration: underline;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.wbe-share-post {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.8rem;
+  border: 1px solid #dcdcd5;
+  border-radius: 0.6rem;
+  background: #f0f0eb;
+}
+.wbe-share-pvtext {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.wbe-share-pvmedia {
+  display: grid;
+  gap: 0.2rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.wbe-share-pvmedia[data-count="1"] {
+  grid-template-columns: 1fr;
+}
+.wbe-share-pvmedia[data-count="2"],
+.wbe-share-pvmedia[data-count="3"],
+.wbe-share-pvmedia[data-count="4"] {
+  grid-template-columns: 1fr 1fr;
+}
+.wbe-share-pvmedia img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1.91 / 1;
+  object-fit: cover;
+}
+.wbe-share-pvlink {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #dcdcd5;
+  border-radius: 0.5rem;
+  font-family: "Roboto Mono", monospace;
+  font-size: 0.78rem;
+  color: #5f6064;
+  overflow-wrap: anywhere;
+}
+
+.wbe-share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.wbe-share-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid #dcdcd5;
+  border-radius: 0.4rem;
+  background: #f0f0eb;
+  color: #393a3c;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.wbe-share-btn:hover {
+  border-color: #25422d;
+}
+.wbe-share-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.wbe-share-primary {
+  background: #25422d;
+  border-color: #25422d;
+  color: #fff;
+}
+.wbe-share-how {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.85rem;
+  color: #5f6064;
+}
+.wbe-share-note {
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.4rem;
+  background: #fbefd5;
+  color: #393a3c;
+  font-size: 0.85rem;
+}
+.wbe-share-note p {
+  margin: 0;
+}
+.wbe-share-note p + p {
+  margin-top: 0.4rem;
+}
+.wbe-share-status {
+  min-height: 1.2em;
+  margin: 0;
+  font-size: 0.85rem;
+  color: #25422d;
+}
+
+.wbe-share-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.wbe-share-summary[hidden] {
+  display: none;
+}

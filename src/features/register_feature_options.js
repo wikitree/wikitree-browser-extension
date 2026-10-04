@@ -114,6 +114,7 @@ import "./reorderNames/reorderNames_options";
 import "./save_buttons_style_options/save_buttons_style_options_options";
 import "./scissors/scissors_options";
 import "./send_to_merge/send_to_merge_options";
+import "./share_page/share_page_options";
 import "./shareable_sources/shareable_sources_options";
 import "./show_search/show_search_options";
 import "./show_suggestions/show_suggestions_options";
