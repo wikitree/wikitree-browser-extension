@@ -92,9 +92,19 @@ beforeAll(() => {
     rect() {},
     clip() {},
     drawImage(picture) {
-      if (picture && picture._src) global.mockDrawn.push(picture._src);
+      if (!picture) return;
+      if (picture._src) global.mockDrawn.push(picture._src);
+      else if (picture.tagName === "CANVAS") global.mockDrawn.push(`canvas:${picture.width}x${picture.height}`);
     },
     strokeRect() {},
+    closePath() {},
+    moveTo() {},
+    lineTo() {},
+    quadraticCurveTo() {},
+    arc() {},
+    ellipse() {},
+    fill() {},
+    stroke() {},
   });
   window.HTMLCanvasElement.prototype.toDataURL = () => "data:image/png;base64,AAAA";
   window.HTMLCanvasElement.prototype.toBlob = (cb) => cb(new Blob(["x"], { type: "image/png" }));
@@ -734,5 +744,95 @@ describe("Share Page dialog", () => {
     await loadFeature("/photo.php/4/44/Anderson-45659-4.jpg", "");
     await clickShare();
     expect($(".wbe-share-cardphoto").prop("hidden")).toBe(true);
+  });
+
+  const HUB_PAGE = `<main>
+      <section id="surname-heading" class="has--bg_img" style="background-image: url('https://www.wikitree.com/photo.php/a/aa/ADWP-780.png')">
+        <div class="row page--title"><div class="col"><h1>Peasley Genealogy Hub</h1></div>
+          <div class="col-auto"><div><img alt="" src="/photo.php/thumb/e/ed/Robinson-27225-1.jpg/75px-Robinson-27225-1.jpg"></div>
+            <div>Coordinator: <a href="/wiki/Robinson-27225">Azure Robinson</a></div></div></div>
+      </section>
+      <ul id="jump-nav"></ul>
+      <div class="container">
+        <h2>Peasley Collaboration</h2>
+        <p>Surname Collaboration Score: 95.30% No change from last week.</p>
+        <p>Rank: 8,840th most popular surname on WikiTree, with 585 Open profiles. 9 places up from last week!</p>
+        <p>Here are the 300 most-recently added or edited Peasley ancestors. Search all 652 profiles.</p>
+        <p>1 members with the surname Peasley have taken Y-Chromosome DNA tests, connecting 222 profiles.</p>
+        <p>1 members with the surname Peasley have taken mitochondrial DNA tests, connecting 25 profiles.</p>
+        <p>5 members with the surname Peasley have taken autosomal DNA tests, connecting 342 profiles.</p>
+      </div></main>`;
+  const HUB_TITLE = "Peasley Genealogy | WikiTree FREE Family Tree";
+
+  test("a surname hub offers its score, rank, DNA, coordinator and background as card pictures, starting with the score", async () => {
+    global.mockPhotoSize = [300, 300];
+    await loadFeature("/genealogy/PEASLEY", HUB_PAGE, HUB_TITLE);
+    await clickShare();
+    await settle();
+    const buttons = $(".wbe-share-cardphotobtn").toArray();
+    expect(buttons.map((b) => b.getAttribute("title") || b.textContent)).toEqual([
+      "None",
+      "Collaboration score",
+      "Rank",
+      "DNA tests",
+      "Coordinator: Azure Robinson",
+      "One-name study background",
+    ]);
+    expect(buttons.map((b) => b.getAttribute("aria-checked"))).toEqual([
+      "false",
+      "true",
+      "false",
+      "false",
+      "false",
+      "false",
+    ]);
+    expect(global.mockDrawn).toContain("canvas:260x300"); // the drawn score badge is on the card
+
+    const drawn = global.mockCardText.join("|");
+    expect(drawn).toContain("PROFILES");
+    expect(drawn).toContain("OPEN PROFILES");
+    expect(drawn).toContain("585");
+    expect(drawn).toContain("8,840th");
+    expect(drawn).toContain("COORDINATOR");
+    expect(drawn).toContain("Azure Robinson");
+    expect($("#wbeShareSummary").val()).toContain("The surname collaboration score is 95%.");
+  });
+
+  test("choosing the coordinator's photo or the background puts that picture on the card; None removes it", async () => {
+    global.mockPhotoSize = [300, 300];
+    await loadFeature("/genealogy/PEASLEY", HUB_PAGE, HUB_TITLE);
+    await clickShare();
+    await settle();
+    const buttons = () => $(".wbe-share-cardphotobtn").toArray();
+
+    global.mockDrawn = [];
+    buttons()[4].click(); // the coordinator
+    await settle();
+    expect(global.mockDrawn).toContain("https://www.wikitree.com/photo.php/e/ed/Robinson-27225-1.jpg");
+    expect(global.mockDrawn).not.toContain("canvas:260x300");
+
+    global.mockDrawn = [];
+    buttons()[5].click(); // the background
+    await settle();
+    expect(global.mockDrawn).toContain("https://www.wikitree.com/photo.php/a/aa/ADWP-780.png");
+
+    global.mockDrawn = [];
+    buttons()[0].click(); // none
+    await settle();
+    expect(global.mockDrawn).toEqual([]);
+  });
+
+  test("a surname hub with no score, rank or DNA tests starts with no picture and offers only what it has", async () => {
+    await loadFeature(
+      "/genealogy/NEWNAME",
+      `<main><ul id="jump-nav"></ul><div class="container"><h1>Newname Genealogy Hub</h1><p>Search all 3 profiles.</p></div></main>`,
+      "Newname Genealogy | WikiTree FREE Family Tree"
+    );
+    await clickShare();
+    await settle();
+    expect($(".wbe-share-cardphoto").prop("hidden")).toBe(true); // nothing to choose from
+    expect($("#wbeShareSummary").val()).toBe(
+      "Explore the 3 Newname profiles on WikiTree: ancestors, cousins and community members, and how they connect."
+    );
   });
 });

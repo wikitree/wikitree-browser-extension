@@ -459,6 +459,46 @@ export function leadSummary(paragraphs, maxChars = 330) {
  * facts: { paragraphs: [text], sections: [heading], counts: { subcategories, pages, profiles } }
  * Returns null for other kinds, or when there is nothing to show.
  */
+/** 8840 becomes "8,840th", 1 "1st", 22 "22nd". */
+export function ordinal(n) {
+  const v = Math.abs(n) % 100;
+  const suffix = v >= 11 && v <= 13 ? "th" : { 1: "st", 2: "nd", 3: "rd" }[v % 10] || "th";
+  return `${n.toLocaleString("en-US")}${suffix}`;
+}
+
+/**
+ * The numbers on a surname's genealogy hub, read from its text: how many profiles it lists, the surname collaboration
+ * score, its rank, how many profiles are Open, and the DNA tests members have taken.
+ */
+export function parseGenealogyText(text = "") {
+  const flat = text.replace(/\s+/g, " ");
+  const int = (value) => parseInt(String(value).replace(/,/g, ""), 10);
+  const first = (re) => (flat.match(re) || [])[1];
+  const result = { profiles: 0, score: null, rank: 0, openProfiles: 0, dna: {} };
+  if (first(/Search all ([\d,]+) profiles/i)) result.profiles = int(first(/Search all ([\d,]+) profiles/i));
+  if (first(/Surname Collaboration Score:\s*([\d.]+)\s*%/i)) {
+    result.score = parseFloat(first(/Surname Collaboration Score:\s*([\d.]+)\s*%/i));
+  }
+  if (first(/Rank:\s*([\d,]+)\s*(?:st|nd|rd|th)\s+most popular/i)) {
+    result.rank = int(first(/Rank:\s*([\d,]+)\s*(?:st|nd|rd|th)\s+most popular/i));
+  }
+  if (first(/with\s+([\d,]+)\s+Open profiles/i)) result.openProfiles = int(first(/with\s+([\d,]+)\s+Open profiles/i));
+  [
+    ["y", "Y-Chromosome"],
+    ["mt", "mitochondrial"],
+    ["au", "autosomal"],
+  ].forEach(([key, name]) => {
+    const m = flat.match(
+      new RegExp(
+        `(\\d[\\d,]*)\\s+members?\\s+with the surname.{0,60}?${name} DNA tests?,\\s*connecting\\s+(\\d[\\d,]*)\\s+profiles`,
+        "i"
+      )
+    );
+    if (m) result.dna[key] = { members: int(m[1]), profiles: int(m[2]) };
+  });
+  return result;
+}
+
 const BOILERPLATE_SECTIONS =
   /^(sources?|references?|footnotes?|notes?|citations?|bibliography|see also|external links?|further reading|acknowledge?ments?|research notes?|contents)$/i;
 
@@ -505,18 +545,24 @@ export function pageSummary(kind, facts = {}) {
       fields.push({ label: "On this page", lines, names: true });
     }
   } else if (kind === "genealogy") {
-    // a surname page: "Peasley Genealogy" with the number of profiles it lists
+    // a surname hub: "Peasley Genealogy", with the numbers the page shows
+    const hub = facts.genealogy || {};
     const surname = (facts.title || "").replace(/\s+Genealogy.*$/i, "").trim();
-    const count = (facts.counts || {}).profiles;
-    if (count) fields.push({ label: "Profiles", lines: [Number(count).toLocaleString("en-US")], names: false });
+    const profiles = hub.profiles || (facts.counts || {}).profiles;
+    const add = (label, lines, names = false) => fields.push({ label, lines, names });
+    if (profiles) add("Profiles", [profiles.toLocaleString("en-US")]);
+    if (hub.openProfiles) add("Open profiles", [hub.openProfiles.toLocaleString("en-US")]);
+    if (hub.rank) add("Rank", [ordinal(hub.rank), "most popular surname"]);
+    if (hub.coordinator) add("Coordinator", [hub.coordinator], true);
     bio =
-      count && surname
-        ? `Explore the ${Number(count).toLocaleString(
+      profiles && surname
+        ? `Explore the ${profiles.toLocaleString(
             "en-US"
           )} ${surname} profiles on WikiTree: ancestors, cousins and community members, and how they connect.`
         : `Explore ${
             surname || "this surname"
           } ancestors, cousins and community members on WikiTree, and how they connect.`;
+    if (hub.score != null) bio += ` The surname collaboration score is ${Math.round(hub.score)}%.`;
   } else {
     return null;
   }

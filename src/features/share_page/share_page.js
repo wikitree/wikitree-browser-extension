@@ -6,6 +6,7 @@ import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { copyToClipboard } from "../../core/clipboard.js";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
+import { BRAND, CARD_FONT, drawDnaPanel, drawRankBadge, drawScoreBadge } from "./share_page_card_art";
 import {
   BASE_URL,
   CHANNELS,
@@ -22,6 +23,7 @@ import {
   isShareablePrivacy,
   lifeSummary,
   measure,
+  parseGenealogyText,
   pageSummary,
   photoLinks,
   profileKeyFor,
@@ -152,6 +154,25 @@ function textWithoutControls($el) {
     .remove()
     .end()
     .text();
+}
+
+/**
+ * What a surname's genealogy hub shows: its numbers (profiles, collaboration score, rank, DNA tests), the coordinator of
+ * its one-name study with their photo, and the study's background picture.
+ */
+function readGenealogyFacts() {
+  const hub = parseGenealogyText($("main").first().text());
+  const $title = $(".page--title").first();
+  const titleText = clean($title.text());
+  const link = $title.find('a[href*="/wiki/"]').first();
+  hub.coordinator = /Coordinator:/i.test(titleText) ? clean(link.text()) : "";
+  const avatar = $title.find('img[src*="/photo.php/"]').first().attr("src") || "";
+  hub.coordinatorPhoto = hub.coordinator && avatar ? (photoLinks(avatar) || {}).full || "" : "";
+  const background =
+    ($("#surname-heading").first().length ? getComputedStyle($("#surname-heading")[0]).backgroundImage : "") || "";
+  const url = (background.match(/url\(["']?([^"')]+)["']?\)/) || [])[1] || "";
+  hub.backgroundImage = url && photoLinks(url) ? photoLinks(url).full : "";
+  return hub;
 }
 
 function readPageFacts() {
@@ -520,17 +541,6 @@ function fitLine(g, text, maxWidth) {
   return shortened.trimEnd() + "…";
 }
 
-// WikiTree brand, taken from the live site: the header and footer colours and Roboto from its stylesheet,
-// the gold from the logo's emblem.
-const BRAND = {
-  green: "#25422d",
-  ink: "#393a3c",
-  paper: "#fcfcfc",
-  band: "#f0f0eb",
-  gold: "#f8a820",
-  muted: "rgba(57, 58, 60, 0.72)",
-};
-const CARD_FONT = 'Roboto, "Helvetica Neue", Arial, sans-serif';
 // Same address as the page, so the canvas stays clean enough to save.
 const LOGO_PATH = "/images/wikitree-logo-tagline.png";
 
@@ -545,7 +555,7 @@ const LOGO_PATH = "/images/wikitree-logo-tagline.png";
  *          subtitle?: string, graphic?: HTMLImageElement|HTMLCanvasElement|null}} [extras]
  */
 async function drawShareCard(kind, title, extras = {}) {
-  const { photoSrc = "", summary = null, subtitle = "", graphic = null } = extras;
+  const { photoSrc = "", summary = null, subtitle = "", graphic = null, slot = null } = extras;
   const canvas = document.createElement("canvas");
   canvas.width = 1200;
   canvas.height = 630;
@@ -646,6 +656,7 @@ async function drawShareCard(kind, title, extras = {}) {
       });
     });
     if (photo) drawPhoto(892, 100, 260, 300);
+    else if (slot) g.drawImage(slot, 892, 100, 260, 300);
     if (summary.bio) {
       // the text sits just below the data fields, and gets more room and a larger size when there are fewer of them
       const rows = Math.ceil(Math.min(summary.fields.length, 4) / 2);
@@ -657,7 +668,7 @@ async function drawShareCard(kind, title, extras = {}) {
       g.fillStyle = BRAND.ink;
       g.font = font(`400 ${layout.size}px`);
       // with fewer than two rows of fields the text starts level with the photo, so it stops short of it
-      wrapText(g, summary.bio, 48, layout.y, photo && rows < 2 ? 810 : 1104, layout.line, layout.lines);
+      wrapText(g, summary.bio, 48, layout.y, (photo || slot) && rows < 2 ? 810 : 1104, layout.line, layout.lines);
     }
   } else {
     g.font = font("700 52px");
@@ -752,9 +763,9 @@ const DIALOG_HTML = `
           <span>Link to the person's profile instead, so anyone can open it</span>
         </label>
         <div class="wbe-share-cardphoto" hidden>
-          <h3>Photo on the card</h3>
-          <div class="wbe-share-cardphotos" role="radiogroup" aria-label="Photo on the card"></div>
-          <p class="wbe-share-hint">Choose which photo from this page is shown on the share card.</p>
+          <h3>Picture on the card</h3>
+          <div class="wbe-share-cardphotos" role="radiogroup" aria-label="Picture on the card"></div>
+          <p class="wbe-share-hint">Choose which picture from this page is shown on the share card.</p>
         </div>
         <h3><label for="wbeShareText">3. Post text</label></h3>
         <textarea id="wbeShareText" rows="9" spellcheck="true"></textarea>
@@ -824,6 +835,7 @@ function openDialog(kind, options, profile = null) {
   const say = (message) => $status.text(message);
 
   // The card is drawn once the chart (Tree Apps) has been captured, and again when the member edits its summary.
+  const hubFacts = kind === "genealogy" ? readGenealogyFacts() : null;
   const cardSummary =
     options.cardSummary === false
       ? null
@@ -831,15 +843,48 @@ function openDialog(kind, options, profile = null) {
       ? lifeSummary(readProfileFacts())
       : kind === "treeApp"
       ? { fields: [], bio: appSummary(app) }
-      : pageSummary(kind, { ...readPageFacts(), title });
+      : pageSummary(kind, { ...readPageFacts(), title, genealogy: kind === "genealogy" ? hubFacts : null });
   state.bio = cardSummary ? cardSummary.bio : "";
-  // The card shows the page's primary photo for a profile or free-space page. On other pages it starts with no photo,
-  // because their first picture is often a logo or badge, but the member can choose any photo on the page.
-  state.cardPhoto = kind === "profile" || kind === "space" || !cardSummary ? (photos[0] && photos[0].id) || "" : "";
-  const cardPhotoSrc = () => {
-    const chosen = photos.find((p) => p.id === state.cardPhoto);
-    return chosen ? chosen.full : "";
-  };
+  // What the member can put in the card's picture slot: on a surname hub the drawn score, rank and DNA pictures, the
+  // one-name study's coordinator and background, then the photos found on the page.
+  const surname = title.replace(/\s+Genealogy.*$/i, "").trim();
+  const cardChoices = [];
+  if (hubFacts) {
+    const drawn = (id, label, canvas) => cardChoices.push({ id, label, canvas, thumb: canvas.toDataURL("image/png") });
+    if (hubFacts.score != null) drawn("art-score", "Collaboration score", drawScoreBadge(hubFacts.score));
+    if (hubFacts.rank) drawn("art-rank", "Rank", drawRankBadge(hubFacts.rank));
+    if (Object.keys(hubFacts.dna).length) drawn("art-dna", "DNA tests", drawDnaPanel(surname, hubFacts.dna));
+    if (hubFacts.coordinatorPhoto) {
+      cardChoices.push({
+        id: "coordinator",
+        label: `Coordinator: ${hubFacts.coordinator}`,
+        thumb: hubFacts.coordinatorPhoto,
+        full: hubFacts.coordinatorPhoto,
+      });
+    }
+    if (hubFacts.backgroundImage) {
+      cardChoices.push({
+        id: "background",
+        label: "One-name study background",
+        thumb: hubFacts.backgroundImage,
+        full: hubFacts.backgroundImage,
+      });
+    }
+  }
+  photos.forEach((photo) => {
+    if (!cardChoices.some((choice) => choice.full === photo.full)) cardChoices.push(photo);
+  });
+  // The card starts with the page's primary photo for a profile or free-space page, and with the collaboration score for
+  // a surname hub. On other pages it starts with no picture, because their first one is often a logo or badge.
+  state.cardPhoto =
+    kind === "genealogy"
+      ? (cardChoices.find((c) => c.id === "art-score") || {}).id || ""
+      : kind === "profile" || kind === "space" || !cardSummary
+      ? (photos[0] && photos[0].id) || ""
+      : "";
+  const chosenCard = () => cardChoices.find((c) => c.id === state.cardPhoto) || null;
+  const cardPhotoSrc = () => (chosenCard() && chosenCard().full) || "";
+  const cardSlot = () => (chosenCard() && chosenCard().canvas) || null;
   const graphicPromise = kind === "treeApp" ? captureAppGraphic().catch(() => null) : Promise.resolve(null);
   let cardPromise;
   let cardRun = 0;
@@ -850,6 +895,7 @@ function openDialog(kind, options, profile = null) {
       .then((graphic) =>
         drawShareCard(kind, title, {
           photoSrc: graphic ? "" : cardPhotoSrc(),
+          slot: graphic ? null : cardSlot(),
           summary: cardSummary ? { fields: cardSummary.fields, bio: state.bio } : null,
           subtitle: app ? app.person : "",
           graphic,
@@ -931,7 +977,7 @@ function openDialog(kind, options, profile = null) {
   // ---- the photo on the share card ----
   const hasCard = images.some((i) => i.card);
   function renderCardPhotos() {
-    const show = hasCard && kind !== "treeApp" && photos.length > 0;
+    const show = hasCard && kind !== "treeApp" && cardChoices.length > 0;
     $overlay.find(".wbe-share-cardphoto").prop("hidden", !show);
     if (!show) return;
     const $box = $overlay.find(".wbe-share-cardphotos").empty();
@@ -940,11 +986,11 @@ function openDialog(kind, options, profile = null) {
       renderCardPhotos();
       redrawCard();
     };
-    $('<button type="button" role="radio" class="wbe-share-cardphotobtn wbe-share-cardphotonone">No photo</button>')
+    $('<button type="button" role="radio" class="wbe-share-cardphotobtn wbe-share-cardphotonone">None</button>')
       .attr("aria-checked", String(!state.cardPhoto))
       .on("click", choose(""))
       .appendTo($box);
-    photos.forEach((photo) => {
+    cardChoices.forEach((photo) => {
       $('<button type="button" role="radio" class="wbe-share-cardphotobtn"></button>')
         .attr("aria-checked", String(photo.id === state.cardPhoto))
         .attr("title", photo.label)

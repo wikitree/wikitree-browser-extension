@@ -79,9 +79,25 @@ tables skipped, up to about 330 characters) and an "On this page" field with the
 like) and a heading that only repeats the page's own title ("Andersonia" on "Andersonia, California One Place Study") are
 left out, and if nothing is left there is no field and the text gets the room. See `usefulSections()`.
 
-**Surname (genealogy) pages** show the title, a Profiles field with the number of profiles the surname lists (read from
-"Search all 652 profiles" in the page), and a line inviting people to explore its ancestors, cousins and community
-members. A surname page has no privacy level, so it is not checked.
+**Surname (genealogy) pages** (the hub at `/genealogy/PEASLEY`) show the title, up to four fields read from the page's
+text (Profiles: "Search all 652 profiles"; Open profiles and Rank: "Rank: 8,840th most popular surname on WikiTree, with
+585 Open profiles"; Coordinator: the one-name study's coordinator) and a line inviting people to explore the surname's
+ancestors, cousins and community members, ending with "The surname collaboration score is 95%." when the page has one.
+A surname page has no privacy level, so it is not checked. See `parseGenealogyText()` and `readGenealogyFacts()`.
+
+The picture slot on a hub card can hold, at the member's choice:
+
+- **Collaboration score**: the score as a dark green disc ("95%"), drawn like the hub's own badge. The card starts with it.
+- **Rank**: the rank in an outlined oval ("8,840th").
+- **DNA tests**: a light green box listing the Y-DNA, mtDNA and autosomal tests members have taken, with the members and
+  connected profiles for each (only the kinds that were taken).
+- **Coordinator**: the coordinator's photo from the page's title bar.
+- **One-name study background**: the picture behind the page's title (`#surname-heading`), when there is one.
+- Any photo found on the page, or none.
+
+The three drawn pictures are 260 × 300 pixels and made in `share_page_card_art.js`, in WikiTree's colours and Roboto. They
+are drawn, not copied from the page, because a standalone copy of the page's own badges would lose their fonts and
+styling. The hub's search box is not offered, as it is not something to share.
 
 **Category pages** show counts of subcategories, pages and person profiles, and a line inviting people to explore the
 category and check their connections to the ancestors in it.
@@ -90,9 +106,9 @@ Section names and text are read without the controls inside them: WikiTree's "[e
 Link and URL copy buttons that Scissors adds to headings, so a heading shows as "Andersonia", not "Andersonia[edit] Link
 URL". See `cleanHeading()` and `textWithoutControls()`.
 
-**The photo on the card.** A profile or free-space page starts with its primary photo on the card (the first photo on the
+**The picture on the card.** A profile or free-space page starts with its primary photo on the card (the first photo on the
 page). Help, project and category pages start with no photo, because their first picture is often a logo or badge. On any
-of these a "Photo on the card" strip lets the member choose any photo found on the page, or none, and the card redraws.
+of these a "Picture on the card" strip lets the member choose any photo found on the page, or none, and the card redraws.
 The photo fills a portrait slot at the right, and the text stops short of it. Tree Apps cards show the chart instead and
 have no chooser.
 
@@ -183,15 +199,17 @@ No new permission is needed: the manifest already allows `https://*.wikitree.com
 
 ## Files
 
-| File                       | Purpose                                                                                            |
-| -------------------------- | -------------------------------------------------------------------------------------------------- |
-| `share_page_core.js`       | Pure logic: page detection, privacy rule, post text, networks, composer links, summaries, cropping |
-| `share_page_core.test.js`  | Unit tests for the core module (92)                                                                |
-| `share_page.js`            | Button, privacy check, dialog, share card drawing, chart capture, crop panel, copy and save        |
-| `share_page.test.js`       | jsdom tests that open the dialog and click through it (48)                                         |
-| `background_fetch.test.js` | Runs the real `public/background.js` against the picture fetch rules (15)                          |
-| `share_page_options.js`    | Registers the feature and its options                                                              |
-| `share_page.css`           | Dialog and button styles. Every class starts with `wbe-share`                                      |
+| File                          | Purpose                                                                                            |
+| ----------------------------- | -------------------------------------------------------------------------------------------------- |
+| `share_page_core.js`          | Pure logic: page detection, privacy rule, post text, networks, composer links, summaries, cropping |
+| `share_page_core.test.js`     | Unit tests for the core module (108)                                                               |
+| `share_page.js`               | Button, privacy check, dialog, share card drawing, chart capture, crop panel, copy and save        |
+| `share_page.test.js`          | jsdom tests that open the dialog and click through it (51)                                         |
+| `background_fetch.test.js`    | Runs the real `public/background.js` against the picture fetch rules (15)                          |
+| `share_page_card_art.js`      | The brand colours and font, and the drawn score, rank and DNA pictures for a surname hub           |
+| `share_page_card_art.test.js` | Tests for the drawn pictures (6)                                                                   |
+| `share_page_options.js`       | Registers the feature and its options                                                              |
+| `share_page.css`              | Dialog and button styles. Every class starts with `wbe-share`                                      |
 
 The feature is imported in `src/content_main.js` and its options in `src/features/register_feature_options.js`.
 
@@ -199,7 +217,7 @@ The feature is imported in `src/content_main.js` and its options in `src/feature
 
 ```bash
 npm install
-npx jest src/features/share_page   # the 155 tests for this feature
+npx jest src/features/share_page   # the 180 tests for this feature
 npm run build-dev                  # build, plus the undefined-globals, Safari and palette checks
 ```
 

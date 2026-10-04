@@ -12,7 +12,9 @@ import {
   isShareablePrivacy,
   leadSummary,
   lifeSummary,
+  ordinal,
   pageSummary,
+  parseGenealogyText,
   usefulSections,
   profileKeyFor,
   viewSlug,
@@ -471,5 +473,84 @@ describe("surname pages", () => {
     );
     expect(text).toContain("Explore Peasley Genealogy on WikiTree");
     expect(text).toContain("@WikiTreers");
+  });
+});
+
+const HUB_TEXT = `Peasley Collaboration
+  Surname Collaboration Score: 95.30% No change from last week. Improve this by fixing reported errors (93.16% done).
+  Rank: 8,840th most popular surname on WikiTree, with 585 Open profiles. 9 places up from last week!
+  Here are the 300 most-recently added or edited Peasley ancestors, cousins, and community members. Search all 652 profiles.
+  Peasley DNA Peasley DNA Study FamilyTreeDNA Group Project
+  1 members with the surname Peasley have taken Y-Chromosome DNA tests, connecting 222 profiles. Y connections
+  1 members with the surname Peasley have taken mitochondrial DNA tests, connecting 25 profiles. mt connections
+  5 members with the surname Peasley have taken autosomal DNA tests, connecting 342 profiles. au connections`;
+
+describe("parseGenealogyText", () => {
+  test("reads the numbers on a surname hub", () => {
+    expect(parseGenealogyText(HUB_TEXT)).toEqual({
+      profiles: 652,
+      score: 95.3,
+      rank: 8840,
+      openProfiles: 585,
+      dna: {
+        y: { members: 1, profiles: 222 },
+        mt: { members: 1, profiles: 25 },
+        au: { members: 5, profiles: 342 },
+      },
+    });
+  });
+  test("a hub with no score or DNA tests gives zeros and an empty DNA list", () => {
+    expect(parseGenealogyText("Search all 12 profiles.")).toEqual({
+      profiles: 12,
+      score: null,
+      rank: 0,
+      openProfiles: 0,
+      dna: {},
+    });
+    expect(parseGenealogyText("")).toEqual({ profiles: 0, score: null, rank: 0, openProfiles: 0, dna: {} });
+  });
+});
+
+describe("ordinal", () => {
+  test.each([
+    [1, "1st"],
+    [2, "2nd"],
+    [3, "3rd"],
+    [4, "4th"],
+    [11, "11th"],
+    [12, "12th"],
+    [13, "13th"],
+    [21, "21st"],
+    [22, "22nd"],
+    [101, "101st"],
+    [8840, "8,840th"],
+  ])("%i is %s", (n, text) => {
+    expect(ordinal(n)).toBe(text);
+  });
+});
+
+describe("a surname hub's card", () => {
+  const hub = { ...parseGenealogyText(HUB_TEXT), coordinator: "Azure Robinson" };
+  test("shows the profile count, open profiles, rank and coordinator", () => {
+    const summary = pageSummary("genealogy", { title: "Peasley Genealogy", genealogy: hub });
+    expect(summary.fields).toEqual([
+      { label: "Profiles", lines: ["652"], names: false },
+      { label: "Open profiles", lines: ["585"], names: false },
+      { label: "Rank", lines: ["8,840th", "most popular surname"], names: false },
+      { label: "Coordinator", lines: ["Azure Robinson"], names: true },
+    ]);
+  });
+  test("the text mentions the collaboration score, rounded", () => {
+    const summary = pageSummary("genealogy", { title: "Peasley Genealogy", genealogy: hub });
+    expect(summary.bio).toBe(
+      "Explore the 652 Peasley profiles on WikiTree: ancestors, cousins and community members, and how they connect. The surname collaboration score is 95%."
+    );
+  });
+  test("a hub with no one-name study leaves out the coordinator", () => {
+    const summary = pageSummary("genealogy", {
+      title: "Peasley Genealogy",
+      genealogy: { ...hub, coordinator: "" },
+    });
+    expect(summary.fields.map((f) => f.label)).toEqual(["Profiles", "Open profiles", "Rank"]);
   });
 });
