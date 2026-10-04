@@ -125,6 +125,7 @@ import "./features/printerfriendly/printerfriendly";
 import "./features/redir_ext_links/redir_ext_links";
 import "./features/scissors/scissors";
 import "./features/send_to_merge/send_to_merge";
+import "./features/share_page/share_page";
 import "./features/shareable_sources/shareable_sources";
 import "./features/show_suggestions/show_suggestions";
 import "./features/sort_theme_people/sort_theme_people";

@@ -399,7 +399,83 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     handleDuplicatesCompareProfiles(message, sendResponse);
     return true; // Keep channel open for async response
   }
+
+  if (message.action === "sharePageFetchImage") {
+    handleSharePageFetchImage(message, sendResponse);
+    return true; // Keep channel open for async response
+  }
 });
+
+// Share Page: fetch a picture from one of WikiTree's own sites for the content script, which the page itself is
+// not allowed to read (for example portraits served from apps.wikitree.com). This ignores the browser's cross-origin
+// rules, so it only ever fetches https pictures on wikitree.com, never anything else.
+const SHARE_PAGE_MAX_IMAGE_BYTES = 3 * 1024 * 1024;
+const SHARE_PAGE_APP_ID = "WBE_sharePage";
+
+function isWikiTreeHost(hostname) {
+  return /(^|\.)wikitree\.com$/i.test(hostname || "");
+}
+
+function bufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
+async function handleSharePageFetchImage(message, sendResponse) {
+  try {
+    let url;
+    try {
+      url = new URL(String(message?.url || ""));
+    } catch (e) {
+      sendResponse({ success: false, error: "Not an address." });
+      return;
+    }
+    if (url.protocol !== "https:" || !isWikiTreeHost(url.hostname)) {
+      sendResponse({
+        success: false,
+        error: "Only pictures on wikitree.com can be fetched.",
+      });
+      return;
+    }
+    // apps.wikitree.com answers requests with no appId with an empty page (see the note on the duplicates calls)
+    if (url.hostname.toLowerCase() === "apps.wikitree.com")
+      url.searchParams.set("appId", SHARE_PAGE_APP_ID);
+
+    const response = await fetch(url.toString(), { redirect: "follow" });
+    const type = (response.headers.get("content-type") || "")
+      .split(";")[0]
+      .trim()
+      .toLowerCase();
+    let finalHost = "";
+    try {
+      finalHost = new URL(response.url || url.toString()).hostname;
+    } catch (e) {
+      finalHost = "";
+    }
+    if (!response.ok || !/^image\//.test(type) || !isWikiTreeHost(finalHost)) {
+      sendResponse({
+        success: false,
+        error: "That address is not a WikiTree picture.",
+      });
+      return;
+    }
+    const buffer = await response.arrayBuffer();
+    if (buffer.byteLength > SHARE_PAGE_MAX_IMAGE_BYTES) {
+      sendResponse({ success: false, error: "The picture is too large." });
+      return;
+    }
+    sendResponse({ success: true, type, base64: bufferToBase64(buffer) });
+  } catch (error) {
+    sendResponse({
+      success: false,
+      error: error?.message || "Picture request failed.",
+    });
+  }
+}
 
 const DUPLICATES_READ_ENDPOINTS = [
   "https://apps.wikitree.com/apps/beacall6/duplicates/api.php",
