@@ -1,8 +1,10 @@
 import {
   BRAND_HASHTAGS,
   buildText,
+  cropRect,
   detectPageKind,
   getChannel,
+  CROP_SHAPES,
   appNameFromSlug,
   appSummary,
   intentUrl,
@@ -249,6 +251,16 @@ describe("Tree Apps names", () => {
     expect(appNameFromSlug("slippyTree")).toBe("Slippy Tree");
     expect(appNameFromSlug("")).toBe("");
   });
+  test("the post names the app and the person, and reads differently when it links to the profile", () => {
+    const context = { appName: "Fan Chart", person: "Firman Joseph Robinson", profileLink: true };
+    const text = buildText("treeApp", "Fan Chart", "https://www.wikitree.com/wiki/Robinson-27274", getChannel("x"), {
+      context,
+    });
+    expect(text).toContain(
+      "Fan Chart for Firman Joseph Robinson on WikiTree. Explore their profile and family connections."
+    );
+    expect(text).not.toContain("Tree Apps");
+  });
   test("the post names the app and the person", () => {
     const text = buildText("treeApp", "Fan Chart", "https://www.wikitree.com/apps/Robinson-27274", getChannel("x"), {
       context: { appName: "Fan Chart", person: "Firman Joseph Robinson" },
@@ -335,5 +347,31 @@ describe("appSummary", () => {
       "Webs for A B, one of the connected tree views in WikiTree’s Tree Apps."
     );
     expect(appSummary({})).toBe("");
+  });
+});
+
+describe("cropRect", () => {
+  test("no ratio keeps the whole picture", () => {
+    expect(cropRect(400, 1000, null)).toEqual({ sx: 0, sy: 0, sw: 400, sh: 1000, axis: null });
+  });
+  test("a tall picture cropped wide slides up and down", () => {
+    // 400 wide at 1.91:1 is 209 tall, out of 1000
+    expect(cropRect(400, 1000, 1.91, 0.5, 0)).toEqual({ sx: 0, sy: 0, sw: 400, sh: 209, axis: "y" });
+    expect(cropRect(400, 1000, 1.91, 0.5, 1)).toEqual({ sx: 0, sy: 791, sw: 400, sh: 209, axis: "y" });
+    expect(cropRect(400, 1000, 1.91, 0.5, 0.5).sy).toBe(396);
+  });
+  test("a wide picture cropped square slides left and right", () => {
+    expect(cropRect(1000, 400, 1, 0, 0.5)).toEqual({ sx: 0, sy: 0, sw: 400, sh: 400, axis: "x" });
+    expect(cropRect(1000, 400, 1, 1, 0.5)).toEqual({ sx: 600, sy: 0, sw: 400, sh: 400, axis: "x" });
+  });
+  test("a picture that already has the shape has nothing to choose", () => {
+    expect(cropRect(400, 400, 1, 0.2, 0.8)).toEqual({ sx: 0, sy: 0, sw: 400, sh: 400, axis: null });
+  });
+  test("positions outside 0 to 1 are held to the edges", () => {
+    expect(cropRect(400, 1000, 1.91, 0.5, 5).sy).toBe(791);
+    expect(cropRect(400, 1000, 1.91, 0.5, -3).sy).toBe(0);
+  });
+  test("the shapes offered", () => {
+    expect(CROP_SHAPES.map((c) => c.id)).toEqual(["original", "wide", "square", "tall"]);
   });
 });

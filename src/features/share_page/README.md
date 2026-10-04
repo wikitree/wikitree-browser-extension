@@ -18,7 +18,8 @@ The feature is off by default. Its option category is Global.
 | Tree Apps view                      | `/apps/Robinson-27274#name=…&view=…`                                   | The full address, including the `#` part that holds the view |
 
 Other pages get no button. Where the button goes: the jump bar on profiles, after the page heading elsewhere, and a
-floating button on pages with no heading (tree widgets, Tree Apps).
+floating button at the bottom right on pages with no heading (tree widgets, Tree Apps). A full-screen image gets the
+floating button at the top right, because another feature already uses the bottom right there.
 
 ## The dialog
 
@@ -30,6 +31,28 @@ floating button on pages with no heading (tree widgets, Tree Apps).
 4. **Post it.** The buttons depend on what the network allows (see below).
 
 A preview on the right shows the post as it will look.
+
+## Cropping a photo
+
+When a photo is selected, a "Crop picture" panel opens for it (with a picker when two or more photos are selected, for
+the one being cropped). The member chooses a shape, then which part of the picture shows:
+
+- Shapes: Original (the default, nothing cropped), Wide 1.91:1 (the shape of a link preview), Square 1:1, Tall 4:5.
+- A tall picture slides up and down, a wide one left and right. Drag the preview or use the slider (Top to Bottom, or
+  Left to Right). If the picture already has the shape, there is nothing to move.
+- The preview in the post, the grid and the saved picture all use the crop. A cropped picture is saved as
+  `name-cropped.jpg` (or `.png` if the original is a PNG) at up to 2,400 pixels wide, and the share sheet gets the same
+  file. The maths is `cropRect()` in `share_page_core.js`.
+
+## Background script
+
+`public/background.js` has one handler for this feature, `sharePageFetchImage`. The content script asks it for a
+picture the page itself may not read, and it replies with the bytes as base64. It ignores the browser's cross-origin
+rules, so it is strict about what it fetches: only `https` addresses on `wikitree.com` or its subdomains (a look-alike
+such as `wikitree.com.example.net` is refused), only responses that are images, nothing larger than 3 MB, and a picture
+that redirects to another site is refused. Requests to `apps.wikitree.com` carry an `appId`, because that host answers
+requests without one with an empty page. No new permission is needed: the manifest already allows
+`https://*.wikitree.com/*`. `background_fetch.test.js` runs the real `background.js` against these rules.
 
 ## Share card
 
@@ -67,15 +90,21 @@ a picture of the chart as the member sees it.
   comes from the view's own generation counter, `#numGensInBBar`). Other views use their own description with the
   instructions dropped ("Click on…", "Use the wheel…"), or a plain sentence if there is none. The member can edit it,
   and the card redraws. See `appSummary()` in `share_page_core.js`.
-- The picture is taken from the largest SVG or canvas in `#view-container`, with the page's styles copied onto it. The
-  portraits inside an SVG are fetched and embedded first, because an SVG drawn on its own cannot load outside pictures.
-  The empty margin around the drawing is trimmed so the chart gets the room. Views that are plain text and tables get no
-  picture.
+- The link defaults to the person's profile, because Tree Apps views open only for people logged in to WikiTree. A
+  checkbox switches to the view itself. While the box is ticked the post reads "Fan Chart for Firman Joseph Robinson on
+  WikiTree. Explore their profile and family connections."; unticked it reads "Explore Fan Chart in WikiTree's Tree Apps
+  for Firman Joseph Robinson." Text the member has edited keeps their words and only the address is swapped.
+- The picture is taken from the largest SVG or canvas in `#view-container`. Tree Apps draw the chart after the people
+  have loaded, so the capture first waits (up to 8 seconds) while `#view-loader` is showing or the drawing is still
+  changing. The page's styles are copied onto a copy of the SVG, which is drawn first as it is (colours and text). Then
+  the portraits are fetched, shrunk (JPEG photos stay JPEG) and embedded, because an SVG drawn on its own cannot load
+  outside pictures. The version with portraits is used only if it came out at least as full as the plain one. The empty
+  margin is trimmed so the chart gets the room. Portraits on the page's own site are fetched directly. Portraits from another WikiTree site, such as
+  `apps.wikitree.com`, are blocked for the page, so they are fetched by the extension's background script (see below).
+  A portrait that still cannot be fetched is left out rather than shown as a broken-image icon. Views that are plain text and
+  tables get no picture.
 
-Tree Apps views open only for people logged in to WikiTree; anyone else sees the login page. So on these views the
-dialog shows a note, and a checkbox, "Link to the person's profile instead, so anyone can open it". Ticking it swaps the
-address in the post (and the link the buttons open) for the person's profile, keeping the member's own edits. The person
-is taken from `#name=` in the address, then from the path.
+Where the link goes is decided by the person in `#name=` in the address, then by the path.
 
 **Image pages** have no card; the image is the picture.
 
@@ -131,14 +160,15 @@ Character limits and picture counts are in `CHANNELS` in `share_page_core.js`. T
 
 ## Files
 
-| File                      | Purpose                                                                              |
-| ------------------------- | ------------------------------------------------------------------------------------ |
-| `share_page_core.js`      | Pure logic: page detection, post text, network list, composer links, life summary    |
-| `share_page_core.test.js` | Unit tests for the core module                                                       |
-| `share_page.js`           | Button, dialog, share card drawing, reading the profile's data fields, copy and save |
-| `share_page.test.js`      | jsdom tests that open the dialog and click through it                                |
-| `share_page_options.js`   | Registers the feature and its options                                                |
-| `share_page.css`          | Dialog and button styles. Every class starts with `wbe-share`                        |
+| File                       | Purpose                                                                                   |
+| -------------------------- | ----------------------------------------------------------------------------------------- |
+| `share_page_core.js`       | Pure logic: page detection, post text, network list, composer links, life summary         |
+| `share_page_core.test.js`  | Unit tests for the core module                                                            |
+| `share_page.js`            | Button, dialog, share card drawing, reading the profile's data fields, copy and save      |
+| `share_page.test.js`       | jsdom tests that open the dialog and click through it                                     |
+| `background_fetch.test.js` | Runs `public/background.js` with a stand-in extension API to test the picture fetch rules |
+| `share_page_options.js`    | Registers the feature and its options                                                     |
+| `share_page.css`           | Dialog and button styles. Every class starts with `wbe-share`                             |
 
 ## Development
 

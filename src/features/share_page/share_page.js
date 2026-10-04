@@ -9,10 +9,12 @@ import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import {
   BASE_URL,
   CHANNELS,
+  CROP_SHAPES,
   KIND_LABELS,
   appNameFromSlug,
   appSummary,
   buildText,
+  cropRect,
   detectPageKind,
   getChannel,
   intentUrl,
@@ -38,7 +40,7 @@ async function init() {
   if (kind === "other" || !(await checkShareable(kind)).ok) return;
   import("./share_page.css");
   const options = await getFeatureOptions("sharePage");
-  addShareButton(async ($button) => {
+  addShareButton(kind, async ($button) => {
     // Tree Apps lets people move to another person without reloading, so the level is checked again at the click.
     const now = await checkShareable(kind);
     if (!now.ok) return showNotShareable($button);
@@ -81,7 +83,7 @@ function showNotShareable($button) {
 // The Share button
 // ---------------------------------------------------------------------------------------------
 
-function addShareButton(onClick) {
+function addShareButton(kind, onClick) {
   if ($(".wbe-share-button").length) return;
   const $button = $(
     '<button type="button" class="wbe-share-button" title="Share this page on social media">Share</button>'
@@ -99,6 +101,8 @@ function addShareButton(onClick) {
   } else {
     // Tree widgets and Tree Apps views have no heading to attach to.
     $button.addClass("wbe-share-floating");
+    // a full-screen image already has another feature's button at the bottom right
+    if (kind === "fullImage") $button.addClass("wbe-share-top");
     $("body").append($button);
   }
 }
@@ -160,20 +164,74 @@ function readPageFacts() {
   return { paragraphs, sections, counts };
 }
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** The chart or tree on screen in a Tree Apps view: its largest SVG or canvas. */
+function findChartElement() {
+  const area = (el) => {
+    const box = el.getBoundingClientRect();
+    return box.width * box.height;
+  };
+  return (
+    $("#view-container svg, #view-container canvas")
+      .toArray()
+      .filter((el) => el.getBoundingClientRect().width >= 200 && el.getBoundingClientRect().height >= 200)
+      .sort((a, b) => area(b) - area(a))[0] || null
+  );
+}
+
+/**
+ * Tree Apps draw their chart after the people have loaded, so a picture taken straight away can show empty shapes.
+ * Wait (up to a few seconds) while the loader is showing or the drawing is still changing.
+ */
+async function waitForChart(timeoutMs = 8000) {
+  const started = Date.now();
+  let last = -1;
+  let steady = 0;
+  while (Date.now() - started < timeoutMs) {
+    const el = findChartElement();
+    const loading = $("#view-loader").is(":visible");
+    if (!el && !loading) return;
+    if (el && el.tagName.toLowerCase() === "canvas" && !loading) return;
+    const size = el ? el.innerHTML.length : 0;
+    steady = el && !loading && size > 0 && size === last ? steady + 1 : 0;
+    if (steady >= 2) return;
+    last = size;
+    await sleep(400);
+  }
+}
+
+/** How much is drawn in a picture: the number of pixels that are neither clear nor white. -1 if it cannot be read. */
+function inkScore(image) {
+  try {
+    const w = 320;
+    const h = Math.max(
+      1,
+      Math.round((w * (image.naturalHeight || image.height)) / (image.naturalWidth || image.width))
+    );
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const g = canvas.getContext("2d");
+    g.drawImage(image, 0, 0, w, h);
+    const data = g.getImageData(0, 0, w, h).data;
+    let ink = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] > 8 && (data[i] < 245 || data[i + 1] < 245 || data[i + 2] < 245)) ink++;
+    }
+    return ink;
+  } catch (e) {
+    return -1;
+  }
+}
+
 /**
  * A picture of the chart or tree on screen in a Tree Apps view, as the member sees it. Returns an Image (from the
  * page's SVG) or the canvas itself, or null when the view is plain text and tables.
  */
 async function captureAppGraphic() {
-  const area = (el) => {
-    const box = el.getBoundingClientRect();
-    return box.width * box.height;
-  };
-  const candidates = $("#view-container svg, #view-container canvas")
-    .toArray()
-    .filter((el) => el.getBoundingClientRect().width >= 200 && el.getBoundingClientRect().height >= 200)
-    .sort((a, b) => area(b) - area(a));
-  const found = candidates[0];
+  await waitForChart();
+  const found = findChartElement();
   if (!found) return null;
   if (found.tagName.toLowerCase() === "canvas") return found;
 
@@ -207,31 +265,86 @@ async function captureAppGraphic() {
   copy.setAttribute("height", String(Math.round(box.height)));
   if (!copy.getAttribute("viewBox"))
     copy.setAttribute("viewBox", `0 0 ${Math.round(box.width)} ${Math.round(box.height)}`);
-  // An SVG drawn on its own cannot load outside pictures, so put the portraits inside it first.
-  await Promise.race([inlinePictures(copy), new Promise((resolve) => setTimeout(resolve, 6000))]);
-  const xml = new XMLSerializer().serializeToString(copy);
-  const image = await loadImage("data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml));
-  return image ? trimMargins(image) : null;
+  const toImage = (svg) =>
+    loadImage("data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svg)));
+
+  // First the plain drawing (colours and text, but no portraits), which is the safe result. Then the same drawing with
+  // the portraits embedded, because an SVG drawn on its own cannot load outside pictures. The second is used only if
+  // it came out at least as full as the first.
+  // A picture that cannot be embedded would show as a broken-image icon, so it is left out instead.
+  const withoutPictures = copy.cloneNode(true);
+  withoutPictures.querySelectorAll("image").forEach((el) => el.remove());
+  const plain = await toImage(withoutPictures);
+  await Promise.race([inlinePictures(copy), sleep(6000)]);
+  copy.querySelectorAll("image").forEach((el) => {
+    const href = el.getAttribute("href") || el.getAttributeNS(XLINK, "href") || "";
+    if (!href.startsWith("data:")) el.remove();
+  });
+  const withPictures = await toImage(copy);
+  const chosen =
+    withPictures && plain && inkScore(withPictures) >= inkScore(plain) * 0.9 ? withPictures : plain || withPictures;
+  return chosen ? trimMargins(chosen) : null;
 }
 
 const XLINK = "http://www.w3.org/1999/xlink";
 
+/** A small PNG of a picture, so embedding a whole chart's portraits does not make the SVG enormous. */
+async function shrinkToDataUrl(blob, max = 120) {
+  try {
+    const bitmap = await window.createImageBitmap(blob);
+    const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    // photos stay JPEG (a PNG of a photo is several times larger); anything else may be transparent, so it stays PNG
+    return blob.type === "image/jpeg" ? canvas.toDataURL("image/jpeg", 0.8) : canvas.toDataURL("image/png");
+  } catch (e) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+}
+
+/**
+ * Fetch a picture. The page can read pictures from its own site. Pictures from another WikiTree site (such as
+ * apps.wikitree.com) are blocked for the page, so they are fetched by the extension's background script instead.
+ */
+async function fetchPictureBlob(href) {
+  const url = new URL(href, window.location.href);
+  try {
+    const response = await fetch(url);
+    if (response.ok) return await response.blob();
+  } catch (e) {
+    // not allowed from the page; ask the background script below
+  }
+  const reply = await new Promise((resolve) => {
+    if (typeof chrome === "undefined" || !chrome.runtime || !chrome.runtime.sendMessage) return resolve(null);
+    chrome.runtime.sendMessage({ action: "sharePageFetchImage", url: url.toString() }, (response) =>
+      resolve(chrome.runtime.lastError ? null : response)
+    );
+  });
+  if (!reply || !reply.success) throw new Error("The picture could not be fetched.");
+  const bytes = Uint8Array.from(window.atob(reply.base64), (c) => c.charCodeAt(0));
+  return new Blob([bytes], { type: reply.type });
+}
+
 /** Replace the address of every picture in an SVG with the picture itself, so it still shows when drawn alone. */
 async function inlinePictures(svg) {
   await Promise.all(
-    [...svg.querySelectorAll("image")].map(async (el) => {
+    [...svg.querySelectorAll("image")].slice(0, 400).map(async (el) => {
       const href = el.getAttribute("href") || el.getAttributeNS(XLINK, "href");
       if (!href || href.startsWith("data:")) return;
       try {
-        const blob = await (await fetch(new URL(href, window.location.href))).blob();
-        const data = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-        el.setAttribute("href", data);
-        el.setAttributeNS(XLINK, "xlink:href", data);
+        const blob = await fetchPictureBlob(href);
+        const data = await shrinkToDataUrl(blob);
+        // write only the attribute the chart already uses, so the picture is not stored twice
+        const usesXlink = el.hasAttributeNS(XLINK, "href");
+        if (el.hasAttribute("href") || !usesXlink) el.setAttribute("href", data);
+        if (usesXlink) el.setAttributeNS(XLINK, "xlink:href", data);
       } catch (e) {
         // leave this picture as it is; the rest of the chart is still worth sharing
       }
@@ -564,6 +677,21 @@ const DIALOG_HTML = `
         <h3>2. Picture</h3>
         <div class="wbe-share-images"></div>
         <p class="wbe-share-hint wbe-share-imghint"></p>
+        <div class="wbe-share-crop" hidden>
+          <h3>Crop picture</h3>
+          <label class="wbe-share-cropfor" hidden>
+            <span>Picture</span>
+            <select id="wbeShareCropFor"></select>
+          </label>
+          <div class="wbe-share-cropshapes" role="radiogroup" aria-label="Crop shape"></div>
+          <canvas class="wbe-share-cropview" width="360" height="200" aria-label="The part of the picture that will show"></canvas>
+          <label class="wbe-share-cropslide">
+            <span class="wbe-share-cropfrom">Top</span>
+            <input type="range" id="wbeShareCropSlider" min="0" max="100" value="50">
+            <span class="wbe-share-cropto">Bottom</span>
+          </label>
+          <p class="wbe-share-hint wbe-share-crophint"></p>
+        </div>
         <div class="wbe-share-summary" hidden>
           <h3><label for="wbeShareSummary">Summary on the card</label></h3>
           <textarea id="wbeShareSummary" rows="4" spellcheck="true"></textarea>
@@ -620,15 +748,18 @@ function openDialog(kind, options, profile = null) {
   photos.forEach((p) => images.push(p));
 
   const state = {
-    url: viewUrl,
+    url: profileUrl || viewUrl, // for a Tree Apps view, the profile link is the default because anyone can open it
     channel: getChannel(options.defaultChannel).id,
     text: "",
     edited: false,
     selected: [images[0].id],
     blobs: {},
   };
-  const textOptions = { hashtags: options.includeHashtags !== false, context: app || {} };
-  const suggested = () => buildText(kind, title, state.url, getChannel(state.channel), textOptions);
+  const suggested = () =>
+    buildText(kind, title, state.url, getChannel(state.channel), {
+      hashtags: options.includeHashtags !== false,
+      context: { ...(app || {}), profileLink: !!profileUrl && state.url === profileUrl },
+    });
   state.text = suggested();
 
   const $overlay = $(DIALOG_HTML);
@@ -677,11 +808,55 @@ function openDialog(kind, options, profile = null) {
     return cardPromise;
   }
 
+  // ---- cropping: which part of a photo shows ----
+  const crops = {}; // picture id -> { shape, fx, fy }
+  const fullPictures = {}; // picture id -> the full-size picture, once loaded
+  const cropThumbs = {}; // picture id -> small cropped picture for the grid and preview
+  let cropAxis = null;
+  let cropGeometry = null;
+  let cropTimer;
+  const cropOf = (image) => (crops[image.id] = crops[image.id] || { shape: "original", fx: 0.5, fy: 0.5 });
+  const shapeOf = (image) => CROP_SHAPES.find((c) => c.id === cropOf(image).shape) || CROP_SHAPES[0];
+  const isCropped = (image) => !image.card && shapeOf(image).ratio !== null;
+  const isPng = (image) => /\.png$/i.test(image.fileName || "");
+  const thumbOf = (image) => (isCropped(image) && cropThumbs[image.id]) || image.thumb;
+  const fileNameOf = (image) =>
+    isCropped(image)
+      ? (image.fileName || "wikitree-image").replace(/\.[^.]+$/, "") + (isPng(image) ? "-cropped.png" : "-cropped.jpg")
+      : image.fileName || "wikitree-image.jpg";
+  const loadFull = (image) => (fullPictures[image.id] = fullPictures[image.id] || loadImage(image.full));
+
+  /** Draw the kept part of a photo on a canvas no wider than maxWidth. Resolves null if the photo cannot be loaded. */
+  async function renderCrop(image, maxWidth) {
+    const picture = await loadFull(image);
+    if (!picture) return null;
+    const w = picture.naturalWidth || picture.width;
+    const h = picture.naturalHeight || picture.height;
+    const crop = cropOf(image);
+    const rect = cropRect(w, h, shapeOf(image).ratio, crop.fx, crop.fy);
+    const scale = Math.min(1, maxWidth / rect.sw);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(rect.sw * scale));
+    canvas.height = Math.max(1, Math.round(rect.sh * scale));
+    canvas.getContext("2d").drawImage(picture, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, canvas.width, canvas.height);
+    return { canvas, rect, width: w, height: h };
+  }
+
   function getBlob(image) {
     if (!state.blobs[image.id]) {
-      state.blobs[image.id] = image.card
-        ? cardPromise.then((canvas) => new Promise((resolve) => canvas.toBlob(resolve, "image/png")))
-        : fetch(image.full).then((r) => r.blob());
+      if (image.card) {
+        state.blobs[image.id] = cardPromise.then(
+          (canvas) => new Promise((resolve) => canvas.toBlob(resolve, "image/png"))
+        );
+      } else if (isCropped(image)) {
+        state.blobs[image.id] = renderCrop(image, 2400).then((result) =>
+          result
+            ? new Promise((resolve) => result.canvas.toBlob(resolve, isPng(image) ? "image/png" : "image/jpeg", 0.92))
+            : fetch(image.full).then((r) => r.blob())
+        );
+      } else {
+        state.blobs[image.id] = fetch(image.full).then((r) => r.blob());
+      }
     }
     return state.blobs[image.id];
   }
@@ -691,6 +866,90 @@ function openDialog(kind, options, profile = null) {
       .map((id) => images.find((i) => i.id === id))
       .filter(Boolean)
       .slice(0, channel.max);
+  }
+
+  // ---- the crop panel ----
+  const photoById = (id) => images.find((i) => i.id === id && !i.card);
+  const lastSelectedPhoto = () => {
+    const ids = state.selected.filter((id) => photoById(id));
+    return ids.length ? ids[ids.length - 1] : null;
+  };
+  const activeImage = () => (state.active && state.selected.includes(state.active) ? photoById(state.active) : null);
+
+  /** Show the part of the photo that will be kept, and set up the slider for the direction it can move in. */
+  async function drawCropPreview(image) {
+    const result = await renderCrop(image, 360);
+    if (!result || activeImage() !== image) return;
+    const view = $overlay.find(".wbe-share-cropview")[0];
+    view.width = result.canvas.width;
+    view.height = result.canvas.height;
+    view.getContext("2d").drawImage(result.canvas, 0, 0);
+    cropAxis = result.rect.axis;
+    cropGeometry = result;
+    const crop = cropOf(image);
+    const $slider = $overlay.find("#wbeShareCropSlider");
+    $slider.prop("disabled", !cropAxis).val(Math.round((cropAxis === "x" ? crop.fx : crop.fy) * 100));
+    $overlay.find(".wbe-share-cropfrom").text(cropAxis === "x" ? "Left" : "Top");
+    $overlay.find(".wbe-share-cropto").text(cropAxis === "x" ? "Right" : "Bottom");
+    $overlay.find(".wbe-share-cropslide").toggleClass("wbe-share-off", !cropAxis);
+    $overlay
+      .find(".wbe-share-crophint")
+      .text(
+        !shapeOf(image).ratio
+          ? "The whole picture is used. Choose a shape to crop it."
+          : cropAxis
+          ? "Drag the picture or use the slider to choose which part shows. The saved picture is cropped to match."
+          : "This picture already has that shape, so there is nothing to move."
+      );
+  }
+
+  function renderCropPanel() {
+    const image = activeImage();
+    $overlay.find(".wbe-share-crop").prop("hidden", !image);
+    if (!image) return;
+    loadFull(image);
+    const selectedPhotos = state.selected.map(photoById).filter(Boolean);
+    $overlay.find(".wbe-share-cropfor").prop("hidden", selectedPhotos.length < 2);
+    const $for = $overlay.find("#wbeShareCropFor").empty();
+    selectedPhotos.forEach((photo) => $for.append($("<option></option>").val(photo.id).text(photo.label)));
+    $for.val(image.id);
+    const $shapes = $overlay.find(".wbe-share-cropshapes").empty();
+    CROP_SHAPES.forEach((shape) => {
+      $('<button type="button" role="radio" class="wbe-share-cropshape"></button>')
+        .attr("aria-checked", String(shape.id === cropOf(image).shape))
+        .text(shape.label)
+        .on("click", () => {
+          cropOf(image).shape = shape.id;
+          updateCrop(image);
+        })
+        .appendTo($shapes);
+    });
+    drawCropPreview(image);
+  }
+
+  /** The crop changed: forget the saved copy, redraw the panel now and the small pictures a moment later. */
+  function updateCrop(image) {
+    delete state.blobs[image.id];
+    renderCropPanel();
+    clearTimeout(cropTimer);
+    cropTimer = setTimeout(async () => {
+      if (isCropped(image)) {
+        const result = await renderCrop(image, 480);
+        if (result) cropThumbs[image.id] = result.canvas.toDataURL("image/jpeg", 0.85);
+      } else {
+        delete cropThumbs[image.id];
+      }
+      renderImages();
+      renderPost();
+    }, 120);
+  }
+
+  function moveCrop(image, fraction) {
+    const crop = cropOf(image);
+    if (cropAxis === "x") crop.fx = Math.min(1, Math.max(0, fraction));
+    else if (cropAxis === "y") crop.fy = Math.min(1, Math.max(0, fraction));
+    else return;
+    updateCrop(image);
   }
 
   function renderChannels() {
@@ -718,18 +977,22 @@ function openDialog(kind, options, profile = null) {
       const index = state.selected.indexOf(image.id);
       const $b = $('<button type="button" class="wbe-share-image"></button>');
       $b.attr("aria-pressed", String(index > -1));
-      if (image.thumb) $b.append($('<img alt="">').attr("src", image.thumb));
+      if (thumbOf(image)) $b.append($('<img alt="">').attr("src", thumbOf(image)));
       else $b.append('<span class="wbe-share-placeholder">Drawing card…</span>');
       if (index > -1) $b.append($("<span class='wbe-share-badge'></span>").text(index + 1));
-      $b.append($("<small></small>").text(image.label));
+      $b.append($("<small></small>").text(image.label + (isCropped(image) ? " · cropped" : "")));
       $b.on("click", () => {
         const at = state.selected.indexOf(image.id);
-        if (at > -1) state.selected.splice(at, 1);
-        else {
+        if (at > -1) {
+          state.selected.splice(at, 1);
+          if (state.active === image.id) state.active = lastSelectedPhoto();
+        } else {
           state.selected.push(image.id);
+          if (!image.card) state.active = image.id;
           getBlob(image).catch(() => {}); // fetch now so a phone's share sheet can open straight from a tap
         }
         renderImages();
+        renderCropPanel();
         renderPost();
       });
       $box.append($b);
@@ -764,7 +1027,7 @@ function openDialog(kind, options, profile = null) {
     const shown = chosenImages().slice(0, 4);
     const $media = $overlay.find(".wbe-share-pvmedia").empty();
     shown.forEach((image) => {
-      if (image.thumb) $media.append($('<img alt="">').attr("src", image.thumb));
+      if (thumbOf(image)) $media.append($('<img alt="">').attr("src", thumbOf(image)));
     });
     $media.attr("data-count", shown.length);
     $overlay.find(".wbe-share-pvlink").text(state.url);
@@ -838,7 +1101,7 @@ function openDialog(kind, options, profile = null) {
         const href = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = href;
-        a.download = image.fileName || "wikitree-image.jpg";
+        a.download = fileNameOf(image);
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -863,7 +1126,7 @@ function openDialog(kind, options, profile = null) {
       const files = await Promise.all(
         chosenImages().map(async (image) => {
           const blob = await getBlob(image);
-          return new File([blob], image.fileName || "wikitree-image.jpg", { type: blob.type || "image/jpeg" });
+          return new File([blob], fileNameOf(image), { type: blob.type || "image/jpeg" });
         })
       );
       await navigator.share({ text: state.text, files });
@@ -878,13 +1141,50 @@ function openDialog(kind, options, profile = null) {
     state.edited = true;
     renderPost();
   });
+  $overlay.find("#wbeShareCropFor").on("change", (e) => {
+    state.active = e.target.value;
+    renderCropPanel();
+  });
+  $overlay.find("#wbeShareCropSlider").on("input", (e) => {
+    const image = activeImage();
+    if (image) moveCrop(image, Number(e.target.value) / 100);
+  });
+  // dragging the preview moves the kept part the other way, as if pulling the picture across the frame
+  const $view = $overlay.find(".wbe-share-cropview");
+  let drag = null;
+  $view.on("pointerdown", (e) => {
+    const image = activeImage();
+    if (!image || !cropAxis || !cropGeometry) return;
+    const crop = cropOf(image);
+    drag = { x: e.clientX, y: e.clientY, fx: crop.fx, fy: crop.fy };
+    if (e.target.setPointerCapture && e.pointerId !== undefined) e.target.setPointerCapture(e.pointerId);
+    $view.addClass("wbe-share-dragging");
+  });
+  $view.on("pointermove", (e) => {
+    const image = activeImage();
+    if (!drag || !image || !cropGeometry) return;
+    const { rect, width, height } = cropGeometry;
+    const box = $view[0].getBoundingClientRect();
+    if (cropAxis === "y" && box.height) {
+      const slack = height - rect.sh;
+      moveCrop(image, drag.fy - ((e.clientY - drag.y) * (rect.sh / box.height)) / slack);
+    } else if (cropAxis === "x" && box.width) {
+      const slack = width - rect.sw;
+      moveCrop(image, drag.fx - ((e.clientX - drag.x) * (rect.sw / box.width)) / slack);
+    }
+  });
+  $view.on("pointerup pointercancel", () => {
+    drag = null;
+    $view.removeClass("wbe-share-dragging");
+  });
   if (profileUrl) {
     const $choice = $overlay.find(".wbe-share-linkchoice").prop("hidden", false);
+    $choice.find("input").prop("checked", state.url === profileUrl);
     $choice.find("input").on("change", (e) => {
       const previous = state.url;
       state.url = e.target.checked ? profileUrl : viewUrl;
-      // swap the address wherever it appears, keeping whatever else the member has written
-      state.text = state.text.split(previous).join(state.url);
+      // untouched text is rewritten for the new link; edited text only has the address swapped
+      state.text = state.edited ? state.text.split(previous).join(state.url) : suggested();
       $text.val(state.text);
       renderPost();
     });
@@ -897,6 +1197,7 @@ function openDialog(kind, options, profile = null) {
   });
   function close() {
     clearTimeout(redrawTimer);
+    clearTimeout(cropTimer);
     $(document).off("keydown.wbeShare");
     $overlay.remove();
     if (opener && opener.focus) opener.focus();
@@ -945,9 +1246,11 @@ function openDialog(kind, options, profile = null) {
     });
   }
   redrawCard();
+  state.active = lastSelectedPhoto();
   $text.val(state.text);
   renderChannels();
   renderImages();
+  renderCropPanel();
   renderPost();
   getBlob(images.find((i) => i.id === state.selected[0])).catch(() => {});
   $("body").append($overlay);

@@ -362,3 +362,84 @@ h1 + .wbe-share-button {
   font-size: 0.85rem;
   color: #393a3c;
 }
+
+.wbe-share-floating.wbe-share-top {
+  top: 1rem;
+  bottom: auto;
+}
+
+.wbe-share-crop {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.7rem;
+  border: 1px solid #dcdcd5;
+  border-radius: 0.4rem;
+  background: #f0f0eb;
+}
+.wbe-share-crop[hidden] {
+  display: none;
+}
+.wbe-share-crop h3 {
+  margin: 0;
+}
+.wbe-share-cropfor {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.wbe-share-cropfor[hidden] {
+  display: none;
+}
+.wbe-share-cropfor select {
+  flex: 1;
+  min-width: 0;
+  padding: 0.3rem;
+  font: inherit;
+}
+.wbe-share-cropshapes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.wbe-share-cropshape {
+  padding: 0.3rem 0.7rem;
+  border: 1px solid #dcdcd5;
+  border-radius: 999px;
+  background: #fcfcfc;
+  color: #393a3c;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.wbe-share-cropshape[aria-checked="true"] {
+  border-color: #25422d;
+  background: #25422d;
+  color: #fff;
+}
+.wbe-share-cropview {
+  align-self: flex-start;
+  max-width: 100%;
+  max-height: 18rem;
+  border: 1px solid #dcdcd5;
+  background: #fff;
+  cursor: grab;
+  touch-action: none;
+}
+.wbe-share-cropview.wbe-share-dragging {
+  cursor: grabbing;
+}
+.wbe-share-cropslide {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+}
+.wbe-share-cropslide input {
+  flex: 1;
+  min-width: 0;
+  accent-color: #25422d;
+}
+.wbe-share-cropslide.wbe-share-off {
+  opacity: 0.5;
+}

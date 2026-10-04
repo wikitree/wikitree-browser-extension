@@ -90,14 +90,32 @@ beforeAll(() => {
     rect() {},
     clip() {},
     drawImage() {},
+    strokeRect() {},
   });
   window.HTMLCanvasElement.prototype.toDataURL = () => "data:image/png;base64,AAAA";
   window.HTMLCanvasElement.prototype.toBlob = (cb) => cb(new Blob(["x"], { type: "image/png" }));
-  global.fetch = () => Promise.resolve({ blob: () => Promise.resolve(new Blob(["x"], { type: "image/jpeg" })) });
+  global.fetch = (url) =>
+    /apps\.wikitree\.com|other\.example/.test(String(url))
+      ? Promise.reject(new TypeError("Failed to fetch"))
+      : Promise.resolve({ ok: true, blob: () => Promise.resolve(new Blob(["x"], { type: "image/jpeg" })) });
   global.Image = class {
     set src(value) {
       this._src = value;
-      setTimeout(() => this.onerror && this.onerror());
+      const size = global.mockPhotoSize;
+      setTimeout(() => {
+        if (/^data:image\/svg\+xml/.test(value)) {
+          global.mockSvgSources.push(decodeURIComponent(value.split(",").slice(1).join(",")));
+          this.naturalWidth = this.width = 600;
+          this.naturalHeight = this.height = 400;
+          if (this.onload) this.onload();
+        } else if (size && /photo\.php/.test(value)) {
+          this.naturalWidth = this.width = size[0];
+          this.naturalHeight = this.height = size[1];
+          if (this.onload) this.onload();
+        } else if (this.onerror) {
+          this.onerror();
+        }
+      });
     }
     get src() {
       return this._src;
@@ -106,8 +124,12 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+  global.mockSvgSources = [];
+  global.mockPhotoSize = null;
   global.mockGetProfile = jest.fn(() => Promise.resolve([{ Privacy: 60, IsLiving: 0 }, 0, "page"]));
 });
+
+const TALL_PHOTO_PAGE = "<h1>Image</h1>";
 
 afterEach(() => {
   document.body.innerHTML = "";
@@ -286,7 +308,7 @@ describe("Share Page dialog", () => {
     );
   });
 
-  test("a Tree Apps view names the app and the person, and warns that a login is needed", async () => {
+  test("a Tree Apps view names the app and the person, and links to the profile by default", async () => {
     await loadFeature(
       "/apps/Robinson-27274#name=Robinson-27274&view=fanchart",
       `<h2 id="view-title">Fan Chart</h2><span id="name-placeholder">Firman Joseph Robinson</span>
@@ -294,9 +316,11 @@ describe("Share Page dialog", () => {
     );
     expect(global.mockGetProfile).toHaveBeenCalledWith("sharePage", "Robinson-27274", NAME_FIELDS);
     await clickShare();
-    expect($("#wbeShareText").val()).toContain("Explore Fan Chart in WikiTree’s Tree Apps for Firman Joseph Robinson.");
-    expect($("#wbeShareText").val()).toContain("#view=fanchart".replace("#", "") ? "view=fanchart" : "");
-    expect($(".wbe-share-note").text()).toContain("open only for people logged in to WikiTree");
+    expect($("#wbeShareText").val()).toContain("Fan Chart for Firman Joseph Robinson on WikiTree.");
+    expect($("#wbeShareText").val()).toContain("https://www.wikitree.com/wiki/Robinson-27274");
+    expect($("#wbeShareText").val()).not.toContain("/apps/");
+    expect(document.getElementById("wbeShareProfileLink").checked).toBe(true);
+    expect($(".wbe-share-note").text()).not.toContain("login");
     expect($(".wbe-share-summary").prop("hidden")).toBe(false);
     expect($("#wbeShareSummary").val()).toBe(
       "A fan chart of Firman Joseph Robinson's ancestors over 5 generations. Each ring is one generation further back."
@@ -310,7 +334,7 @@ describe("Share Page dialog", () => {
       `<div id="view-container"></div>`
     );
     await clickShare();
-    expect($("#wbeShareText").val()).toContain("Explore Printer Friendly in WikiTree’s Tree Apps");
+    expect($("#wbeShareText").val()).toContain("Printer Friendly");
   });
 
   test("an image that does not belong to a profile is shared without a privacy level", async () => {
@@ -325,33 +349,45 @@ describe("Share Page dialog", () => {
     expect($(".wbe-share-button").length).toBe(0);
   });
 
-  test("a Tree Apps view can link to the person's profile instead, in one click", async () => {
+  test("a Tree Apps view links to the profile by default, and one click switches to the view", async () => {
     await loadFeature(
       "/apps/Robinson-27274#name=Robinson-27274&view=fanchart",
       `<h2 id="view-title">Fan Chart</h2><span id="name-placeholder">Firman Joseph Robinson</span><div id="view-container"></div>`
     );
     await clickShare();
-    expect($(".wbe-share-linkchoice").prop("hidden")).toBe(false);
-    expect($("#wbeShareText").val()).toContain(
-      "https://www.wikitree.com/apps/Robinson-27274#name=Robinson-27274&view=fanchart"
-    );
-    expect($(".wbe-share-note").text()).toContain("Tick the box above the post text");
-
-    typeInto($("#wbeShareText").val() + "\nMy own note.");
     const box = document.getElementById("wbeShareProfileLink");
-    box.click();
+    expect($(".wbe-share-linkchoice").prop("hidden")).toBe(false);
+    expect(box.checked).toBe(true);
     expect($("#wbeShareText").val()).toContain("https://www.wikitree.com/wiki/Robinson-27274");
-    expect($("#wbeShareText").val()).not.toContain("/apps/");
-    expect($("#wbeShareText").val()).toContain("My own note.");
     expect($(".wbe-share-pvlink").text()).toBe("https://www.wikitree.com/wiki/Robinson-27274");
     expect($(".wbe-share-actions a").attr("href")).toContain(
       encodeURIComponent("https://www.wikitree.com/wiki/Robinson-27274")
     );
-    expect($(".wbe-share-note").text()).not.toContain("login");
 
-    box.click(); // and back to the view
+    box.click(); // untick: link to the view, and the text follows
+    expect($("#wbeShareText").val()).toContain("Explore Fan Chart in WikiTree’s Tree Apps for Firman Joseph Robinson.");
+    expect($("#wbeShareText").val()).toContain(
+      "https://www.wikitree.com/apps/Robinson-27274#name=Robinson-27274&view=fanchart"
+    );
+    expect($(".wbe-share-note").text()).toContain("open only for people logged in to WikiTree");
+
+    box.click(); // and back to the profile
+    expect($("#wbeShareText").val()).toContain("Fan Chart for Firman Joseph Robinson on WikiTree.");
+    expect($("#wbeShareText").val()).not.toContain("/apps/");
+    expect($(".wbe-share-note").text()).not.toContain("login");
+  });
+
+  test("switching the link keeps text the member has edited", async () => {
+    await loadFeature(
+      "/apps/Robinson-27274#name=Robinson-27274&view=fanchart",
+      `<h2 id="view-title">Fan Chart</h2><span id="name-placeholder">Firman Joseph Robinson</span><div id="view-container"></div>`
+    );
+    await clickShare();
+    typeInto($("#wbeShareText").val() + "\nMy own note.");
+    document.getElementById("wbeShareProfileLink").click();
+    expect($("#wbeShareText").val()).toContain("My own note.");
     expect($("#wbeShareText").val()).toContain("/apps/Robinson-27274#name=Robinson-27274&view=fanchart");
-    expect($(".wbe-share-note").text()).toContain("login");
+    expect($("#wbeShareText").val()).not.toContain("/wiki/Robinson-27274");
   });
 
   test("other pages do not offer the profile-link choice", async () => {
@@ -370,7 +406,7 @@ describe("Share Page dialog", () => {
     );
     await loadFeature("/apps/Robinson-27274#name=Robinson-27274&view=fanchart", `<div id="view-container"></div>`);
     await clickShare();
-    expect($("#wbeShareText").val()).toContain("Explore Fan Chart in WikiTree’s Tree Apps for Firman Joseph Robinson.");
+    expect($("#wbeShareText").val()).toContain("Fan Chart for Firman Joseph Robinson on WikiTree.");
   });
 
   test("the privacy level is checked again at the click, in case the member moved to another person", async () => {
@@ -393,5 +429,166 @@ describe("Share Page dialog", () => {
     expect($("#wbeShareSummary").val()).toBe(
       "The Timeline view is an interactive visualization chart that allows zooming and panning through a family chronology."
     );
+  });
+
+  test("the Share button on a full-screen image sits at the top right", async () => {
+    await loadFeature("/photo.php/4/44/Anderson-45659-4.jpg", "");
+    expect($(".wbe-share-button").hasClass("wbe-share-floating")).toBe(true);
+    expect($(".wbe-share-button").hasClass("wbe-share-top")).toBe(true);
+  });
+
+  test("tree apps keep the floating button at the bottom right", async () => {
+    await loadFeature("/apps/Robinson-27274#name=Robinson-27274&view=fanchart", `<div id="view-container"></div>`);
+    expect($(".wbe-share-button").hasClass("wbe-share-floating")).toBe(true);
+    expect($(".wbe-share-button").hasClass("wbe-share-top")).toBe(false);
+  });
+
+  test("a tall photo can be cropped, and the slider moves up and down", async () => {
+    global.mockPhotoSize = [400, 1000];
+    await loadFeature("/photo.php/4/44/Anderson-45659-4.jpg", TALL_PHOTO_PAGE);
+    await clickShare();
+    // the only picture is the photo itself, so the crop panel is open straight away
+    expect($(".wbe-share-crop").prop("hidden")).toBe(false);
+    const shapes = $(".wbe-share-cropshape")
+      .toArray()
+      .map((el) => el.textContent);
+    expect(shapes).toEqual(["Original", "Wide 1.91:1", "Square 1:1", "Tall 4:5"]);
+    expect($(".wbe-share-cropshape[aria-checked='true']").text()).toBe("Original");
+    expect($("#wbeShareCropSlider").prop("disabled")).toBe(true);
+
+    $(".wbe-share-cropshape")
+      .filter((i, el) => el.textContent === "Wide 1.91:1")[0]
+      .click();
+    for (let i = 0; i < 4; i++) await tick();
+    expect($(".wbe-share-cropshape[aria-checked='true']").text()).toBe("Wide 1.91:1");
+    expect($("#wbeShareCropSlider").prop("disabled")).toBe(false);
+    expect($(".wbe-share-cropfrom").text()).toBe("Top");
+    expect($(".wbe-share-cropto").text()).toBe("Bottom");
+    expect($(".wbe-share-crophint").text()).toContain("Drag the picture or use the slider");
+  });
+
+  test("a wide photo cropped square slides left and right", async () => {
+    global.mockPhotoSize = [1000, 400];
+    await loadFeature("/photo.php/4/44/Anderson-45659-4.jpg", TALL_PHOTO_PAGE);
+    await clickShare();
+    $(".wbe-share-cropshape")
+      .filter((i, el) => el.textContent === "Square 1:1")[0]
+      .click();
+    for (let i = 0; i < 4; i++) await tick();
+    expect($(".wbe-share-cropfrom").text()).toBe("Left");
+    expect($(".wbe-share-cropto").text()).toBe("Right");
+  });
+
+  test("a cropped picture is marked, and is saved under a cropped name", async () => {
+    global.mockPhotoSize = [400, 1000];
+    const saved = [];
+    const click = window.HTMLAnchorElement.prototype.click;
+    window.HTMLAnchorElement.prototype.click = function () {
+      if (this.download) saved.push(this.download);
+    };
+    global.URL.createObjectURL = () => "blob:cropped";
+    global.URL.revokeObjectURL = () => {};
+    try {
+      await loadFeature("/photo.php/4/44/Anderson-45659-4.jpg", TALL_PHOTO_PAGE);
+      await clickShare();
+      $(".wbe-share-cropshape")
+        .filter((i, el) => el.textContent === "Wide 1.91:1")[0]
+        .click();
+      const slider = document.getElementById("wbeShareCropSlider");
+      for (let i = 0; i < 4; i++) await tick();
+      slider.value = "100"; // show the bottom of the picture
+      slider.dispatchEvent(new Event("input", { bubbles: true }));
+      for (let i = 0; i < 6; i++) await tick();
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      expect($(".wbe-share-image small").text()).toContain("· cropped");
+      $(".wbe-share-actions button")
+        .filter((i, el) => /Save picture/.test(el.textContent))[0]
+        .click();
+      for (let i = 0; i < 6; i++) await tick();
+      expect(saved).toEqual(["Anderson-45659-4-cropped.jpg"]);
+    } finally {
+      window.HTMLAnchorElement.prototype.click = click;
+    }
+  });
+
+  test("no crop panel while only the share card is selected", async () => {
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    await clickShare();
+    expect($(".wbe-share-crop").prop("hidden")).toBe(true);
+  });
+
+  test("selecting a photo opens the crop panel for it, and a picker appears with two photos", async () => {
+    global.mockPhotoSize = [400, 1000];
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    await clickShare();
+    const photos = $(".wbe-share-image").toArray().slice(1);
+    photos[0].click();
+    expect($(".wbe-share-crop").prop("hidden")).toBe(false);
+    expect($(".wbe-share-cropfor").prop("hidden")).toBe(true);
+    $(".wbe-share-image").toArray()[2].click();
+    expect($(".wbe-share-cropfor").prop("hidden")).toBe(false);
+    expect($("#wbeShareCropFor option").length).toBe(2);
+    // removing the photo being cropped moves the panel to the other one; removing both closes it
+    $(".wbe-share-image").toArray()[2].click();
+    expect($(".wbe-share-cropfor").prop("hidden")).toBe(true);
+    $(".wbe-share-image").toArray()[1].click();
+    expect($(".wbe-share-crop").prop("hidden")).toBe(true);
+  });
+
+  test("a Tree Apps chart is captured with its portraits embedded, and a picture it cannot get is left out", async () => {
+    const sent = [];
+    global.chrome = {
+      runtime: {
+        lastError: null,
+        sendMessage: (message, callback) => {
+          sent.push(message);
+          // like the real background script: pictures on wikitree.com only
+          callback(
+            /^https:\/\/apps\.wikitree\.com\//.test(message.url)
+              ? { success: true, type: "image/png", base64: "iVBORw0KGgo=" }
+              : { success: false, error: "Only pictures on wikitree.com can be fetched." }
+          );
+        },
+      },
+    };
+    const getBox = window.Element.prototype.getBoundingClientRect;
+    window.Element.prototype.getBoundingClientRect = () => ({
+      width: 600,
+      height: 400,
+      top: 0,
+      left: 0,
+      right: 600,
+      bottom: 400,
+    });
+    try {
+      await loadFeature(
+        "/apps/Robinson-27274#name=Robinson-27274&view=fanchart",
+        `<h2 id="view-title">Fan Chart</h2>
+         <div id="view-container">
+           <svg id="fanChartSVG" width="600" height="400">
+             <path d="M0 0L10 10" fill="#cceeee"/>
+             <image href="/photo.php/thumb/a/aa/Person-1.jpg/75px-Person-1.jpg" width="20" height="20"/>
+             <image href="https://apps.wikitree.com/apps/clarke11007/pix/silhouette.png" width="20" height="20"/>
+             <image href="https://other.example/tracking.png" width="20" height="20"/>
+           </svg>
+         </div>`
+      );
+      await clickShare();
+      await new Promise((resolve) => setTimeout(resolve, 1800)); // the capture waits for the drawing to settle
+    } finally {
+      window.Element.prototype.getBoundingClientRect = getBox;
+      delete global.chrome;
+    }
+    const [plain, withPictures] = global.mockSvgSources;
+    expect(plain).not.toContain("<image");
+    expect(withPictures).toContain("data:image/jpeg;base64,"); // the portrait on the page's own site
+    expect(withPictures).toContain("data:image/png;base64,iVBORw0KGgo="); // the one fetched by the background script
+    expect(withPictures).not.toContain("other.example");
+    // the page cannot read either of the two cross-origin pictures, so both were offered to the background script
+    expect(sent.map((m) => m.url)).toEqual([
+      "https://apps.wikitree.com/apps/clarke11007/pix/silhouette.png",
+      "https://other.example/tracking.png",
+    ]);
+    expect(sent.every((m) => m.action === "sharePageFetchImage")).toBe(true);
   });
 });

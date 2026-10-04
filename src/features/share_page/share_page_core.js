@@ -104,8 +104,13 @@ const BODIES = {
   fullImage: (t) => `A photo shared on WikiTree: ${t}. Every image helps tell a family’s story.`,
   treeWidget: (t) => `Explore this family tree view for ${t} on WikiTree, built by volunteers working together.`,
   // ctx.appName is the view's own name (for example "Fan Chart"), ctx.person the person shown
+  // ctx.profileLink: the post links to the person's profile, which anyone can open, instead of the view itself
   treeApp: (t, ctx = {}) =>
-    `Explore ${ctx.appName || "this view"} in WikiTree’s Tree Apps${ctx.person ? ` for ${ctx.person}` : ""}.`,
+    ctx.profileLink
+      ? `${ctx.appName || "A tree view"}${
+          ctx.person ? ` for ${ctx.person}` : ""
+        } on WikiTree. Explore their profile and family connections.`
+      : `Explore ${ctx.appName || "this view"} in WikiTree’s Tree Apps${ctx.person ? ` for ${ctx.person}` : ""}.`,
 };
 
 /**
@@ -489,4 +494,38 @@ export function appSummary(ctx = {}) {
   if (appName && person) return `${appName} for ${person}, one of the connected tree views in WikiTree’s Tree Apps.`;
   if (appName) return `${appName}, one of the connected tree views in WikiTree’s Tree Apps.`;
   return "";
+}
+
+// ---------------------------------------------------------------------------------------------
+// Cropping a picture
+// ---------------------------------------------------------------------------------------------
+
+/** The shapes a picture can be cropped to. `ratio` is width divided by height; null keeps the whole picture. */
+export const CROP_SHAPES = [
+  { id: "original", label: "Original", ratio: null },
+  { id: "wide", label: "Wide 1.91:1", ratio: 1.91 },
+  { id: "square", label: "Square 1:1", ratio: 1 },
+  { id: "tall", label: "Tall 4:5", ratio: 0.8 },
+];
+
+/**
+ * The part of a picture to keep, in the picture's own pixels.
+ *
+ * @param {number} width - picture width
+ * @param {number} height - picture height
+ * @param {number|null} ratio - wanted width / height, or null for the whole picture
+ * @param {number} fx - 0 to 1, how far along the width the kept part sits (only matters when the picture is wider)
+ * @param {number} fy - 0 to 1, how far down the height the kept part sits (only matters when the picture is taller)
+ * @returns {{sx: number, sy: number, sw: number, sh: number, axis: "x"|"y"|null}} axis is the direction the kept part
+ *          can slide in, or null when there is nothing to choose
+ */
+export function cropRect(width, height, ratio, fx = 0.5, fy = 0.5) {
+  const clamp = (n) => Math.min(1, Math.max(0, Number.isFinite(n) ? n : 0.5));
+  if (!ratio || !width || !height) return { sx: 0, sy: 0, sw: width, sh: height, axis: null };
+  if (width / height > ratio) {
+    const sw = Math.round(height * ratio);
+    return { sx: Math.round((width - sw) * clamp(fx)), sy: 0, sw, sh: height, axis: width - sw > 0 ? "x" : null };
+  }
+  const sh = Math.round(width / ratio);
+  return { sx: 0, sy: Math.round((height - sh) * clamp(fy)), sw: width, sh, axis: height - sh > 0 ? "y" : null };
 }
