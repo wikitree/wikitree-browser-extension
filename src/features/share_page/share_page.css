@@ -28,11 +28,20 @@ button.wbe-share-button:hover {
   float: right;
   margin-left: 1em;
 }
-.wbe-share-floating {
+button.wbe-share-floating {
   position: fixed;
   right: 1rem;
   bottom: 1rem;
   z-index: 9998;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  /* its own font: a full-screen image has no WikiTree styles to inherit */
+  font: 500 15px/1.4 Roboto, Arial, sans-serif;
+}
+.wbe-share-floating .wbe-share-icon {
+  width: 1.05em;
+  height: 1.05em;
 }
 /* at the end of the title line: page text, not heading text */
 h1 .wbe-share-in-heading {

@@ -28,9 +28,9 @@ Other pages get no button.
   beside the site's own (Clipboard, Notes, ...).
 - Otherwise, in the jump bar (profiles, Genealogy Hub pages): a "Share" link like the others there, with the share icon.
 - Category, Help and Project pages: a "Share" link with the icon at the right-hand end of the "Categories: ..." row.
-- Other pages with a heading (Project pages, say): the "Share" link at the end of the title line, after the Scissors
+- Other pages with a heading (Project pages and tree widgets, say): the "Share" link at the end of the title line, after the Scissors
   ID / LINK / URL buttons.
-- A floating button at the bottom right on pages with no heading (tree widgets, Tree Apps). A full-screen image gets it at
+- A floating button at the bottom right on pages with no heading (Tree Apps). A full-screen image gets it at
   the top right, because another feature already uses the bottom right there.
 
 ## Who can be shared

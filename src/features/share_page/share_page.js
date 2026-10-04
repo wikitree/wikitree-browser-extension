@@ -150,7 +150,9 @@ function addShareButton(kind, onClick) {
     ? toolbarButton()
     : $jumpNav.length || $categories.length || $heading.length
     ? jumpBarLink()
-    : $('<button type="button" class="wbe-share-button" title="Share this page on social media">Share</button>');
+    : $(
+        `<button type="button" class="wbe-share-button" title="Share this page on social media">${SHARE_ICON}Share</button>`
+      );
   $button.on("click", (e) => {
     e.preventDefault();
     onClick($button);
@@ -158,7 +160,10 @@ function addShareButton(kind, onClick) {
   if ($toolbar) {
     $toolbar.append($button);
   } else if ($jumpNav.length) {
-    $('<li class="wbe-share-item"></li>').append($button).appendTo($jumpNav);
+    // after the page's own links, before the Scissors copy buttons (ID, LINK, URL...) if they're already in the bar
+    const $item = $('<li class="wbe-share-item"></li>').append($button);
+    const $copyButtons = $jumpNav.children(".copy--buttons").first();
+    $copyButtons.length ? $item.insertBefore($copyButtons) : $item.appendTo($jumpNav);
   } else if ($categories.length) {
     $categories.prepend($button.addClass("wbe-share-in-categories")); // floated to the right-hand end of the row
   } else if ($heading.length) {
@@ -167,7 +172,7 @@ function addShareButton(kind, onClick) {
     $button.addClass("wbe-share-in-heading");
     $copyButtons.length ? $copyButtons.after($button) : $heading.append($button);
   } else {
-    // Tree widgets and Tree Apps views have no heading to attach to.
+    // Tree Apps views and full-screen images have no heading to attach to.
     $button.addClass("wbe-share-floating");
     // a full-screen image already has another feature's button at the bottom right
     if (kind === "fullImage") $button.addClass("wbe-share-top");

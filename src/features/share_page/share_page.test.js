@@ -239,6 +239,18 @@ describe("Share Page dialog", () => {
     expect($(".wbe-share-overlay").length).toBe(1);
   });
 
+  test("in a jump bar, Share follows the page's links, before the Scissors copy buttons", async () => {
+    await loadFeature(
+      "/photo/gif/Flags",
+      `<h1>Flag of Germany</h1><ul id="jump-nav"><li><a href="#Details">Photo Details</a></li>
+       <li><a href="#Background">Set as Background</a></li><ul class="copy--buttons"><li>ID</li></ul></ul>`,
+      "Flag of Germany"
+    );
+    const items = $("#jump-nav").children().toArray();
+    expect($(items[2]).hasClass("wbe-share-item")).toBe(true);
+    expect($(items[3]).hasClass("copy--buttons")).toBe(true);
+  });
+
   test("does nothing on pages it does not cover", async () => {
     await loadFeature("/g2g/", PROFILE_HTML);
     expect($(".wbe-share-button").length).toBe(0);
@@ -533,6 +545,23 @@ describe("Share Page dialog", () => {
     await loadFeature("/photo.php/4/44/Anderson-45659-4.jpg", "");
     expect($(".wbe-share-button").hasClass("wbe-share-floating")).toBe(true);
     expect($(".wbe-share-button").hasClass("wbe-share-top")).toBe(true);
+  });
+
+  test("a tree widget gets a Share link at the end of its heading", async () => {
+    await loadFeature(
+      "/treewidget/Robinson-27274/6",
+      `<h1>Share Firman Robinson's Tree on Facebook</h1><p>To share...</p>`
+    );
+    const $button = $("h1 .wbe-share-button");
+    expect($button.length).toBe(1);
+    expect($button.hasClass("wbe-share-in-heading")).toBe(true);
+    expect($button.find(".wbe-share-icon").length).toBe(1);
+  });
+
+  test("a living person's tree widget gets no Share button", async () => {
+    global.mockGetProfile = jest.fn(() => Promise.resolve([{ Privacy: 60, IsLiving: 1 }, 0, "x"]));
+    await loadFeature("/treewidget/Beacall-6/6", `<h1>Share Ian Beacall's Tree on Facebook</h1>`);
+    expect($(".wbe-share-button").length).toBe(0);
   });
 
   test("tree apps keep the floating button at the bottom right", async () => {
