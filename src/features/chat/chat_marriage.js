@@ -4,8 +4,8 @@
 
 import { formatPreviewDate } from "./chat_preview_format";
 
-const SUBJECT = String.raw`(this\s+person|the\s+profile\s+person|he|she|they|[A-Z][A-Za-z' -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.()]*){0,4})`;
-const OWNER = String.raw`(his|her|their|my|[A-Z][A-Za-z' -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.()]*){0,4}(?:'s|’s))`;
+const SUBJECT = String.raw`(this\s+person|the\s+profile\s+person|he|she|they|[A-Z][A-Za-z'_ -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.()]*){0,4})`;
+const OWNER = String.raw`(his|her|their|my|[A-Z][A-Za-z'_ -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.()]*){0,4}(?:'s|’s))`;
 const MARRY = String.raw`(?:marry|get\s+married|wed)`;
 const PROFILE_SUBJECT_RE = /^(?:|this\s+person|the\s+profile\s+person|he|she|they|his|her|their)$/i;
 

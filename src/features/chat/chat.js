@@ -18,7 +18,7 @@ import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getFeatureOptions } from "../../core/options/options_storage";
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
-import { dnaTypesFromTestSlugs } from "./chat_dna";
+import { buildConnectedTestsAnswer, buildHaplogroupAnswer, dnaTypesFromTestSlugs } from "./chat_dna";
 import { getUserWtId, getUserNumId, getProfilePersonInfo } from "../../core/common";
 import { setHighestZIndex } from "../../core/common";
 import { routeChatPrompt, ChatIntent, pause, extractConnectionSourceName, parseExportResultPrompt } from "./chat_router";
@@ -92,6 +92,7 @@ import {
 } from "./ui";
 import { buildResultsTableHtml } from "./tables";
 import { relationSelector } from "./chat_relative_fact";
+import { buildCurrentPageContextForAi, currentPageChipPrompts, extractDnaConnectionsText, getCurrentPageInfo, isCurrentPagePrompt, isDnaPrompt } from "./chat_page_context";
 import {
   makeProfileLink,
   extractCountryFromLocation,
@@ -3214,6 +3215,8 @@ async function sendChatPrompt() {
     let profileContextText = null;
     let pronounHintText = "";
     let contextProfileKey = "";
+    // getProfile left the bio out (privacy) or failed: the page shows it.
+    let profileBioMissing = false;
     try {
       const textPrompt = String(prompt || "");
       const rememberedPromptPerson = resolvePromptAlias(textPrompt)?.person || null;
@@ -3320,6 +3323,7 @@ async function sendChatPrompt() {
           });
           console.log("wbe: fetched profile for AI context", { profile, status, page_name });
           const bio = profile?.Bio || profile?.bio || ""; // the API returns "bio"
+          profileBioMissing = !bio;
           const sources = (profile?.Sources && Array.isArray(profile.Sources) ? profile.Sources : [])
             .map((s) => (typeof s === "string" ? s : JSON.stringify(s)))
             .join("\n");
@@ -3352,6 +3356,7 @@ async function sendChatPrompt() {
           });
         } catch (pErr) {
           console.log("wbe: getProfile failed for AI context", pErr);
+          profileBioMissing = true;
           profileContextText = `Note: failed to fetch profile ${profileKey} for additional context (not logged in or API error).`;
         }
       }
@@ -3371,6 +3376,10 @@ async function sendChatPrompt() {
       localFailureForAi ? `Local tool attempt failed with: ${localFailureForAi}` : "",
     ];
     if (profileContextText) aiPromptParts.push(profileContextText);
+    const dnaContextText = await buildDnaContextForPrompt(prompt, contextProfileKey);
+    if (dnaContextText) aiPromptParts.push(dnaContextText);
+    const pageContextText = buildPageContextForPrompt(prompt, contextProfileKey, profileBioMissing);
+    if (pageContextText) aiPromptParts.push(pageContextText);
     if (pronounHintText) aiPromptParts.push(pronounHintText);
     // "Compare Philip with his son Philip" names the page person, so "his son" is
     // theirs too; the AI said the son's details weren't given (live, 2026-10-04).
@@ -3865,6 +3874,54 @@ async function getLoggedInRootPerson() {
   };
 }
 
+// The text of the page the user is on, for the general AI fallback
+// (chat_page_context.js). Space, Help, Project and other pages have no bio in
+// getProfile, so their page text goes whenever the question is about the page
+// or names no profile. A person profile's goes only when getProfile gave no
+// bio for that profile (privacy).
+// A DNA question about a profile: its connected DNA tests from the API (getConnectedDNATestsByProfile),
+// so the AI doesn't say there are none (Murray, Chicoine_dit_Henley-1, 2026-10-05). On the
+// profile page, its DNA Connections box adds what the API doesn't give: each taker's likely share.
+async function buildDnaContextForPrompt(prompt, contextProfileKey) {
+  if (!isDnaPrompt(prompt)) return "";
+  try {
+    const pageRoot = getProfileSubjectRoot();
+    // ("who could test?" names no one: on a profile page, the page person)
+    if (!contextProfileKey && pageRoot && getCurrentPageInfo().isPersonProfile) contextProfileKey = pageRoot.wtId || String(pageRoot.key);
+    if (!contextProfileKey) return "";
+    const [result] = (await WikiTreeAPI.postToAPI({ appId: WBE_CHAT_APP_ID, action: "getConnectedDNATestsByProfile", key: contextProfileKey })) || [];
+    const tests = result?.dnaTests || [];
+    const fromApi = tests.length
+      ? `DNA TESTS CONNECTED to ${contextProfileKey} (from WikiTree's API):\n${buildConnectedTestsAnswer(tests, contextProfileKey)}\nHaplogroups reported by these tests (each is the test-taker's own line; it is ${contextProfileKey}'s only for a Y-DNA or mtDNA test on that line): ${buildHaplogroupAnswer(tests, contextProfileKey)}`
+      : `DNA TESTS CONNECTED: WikiTree shows none connected to ${contextProfileKey}.`;
+    const onPage = pageRoot && [pageRoot.wtId, String(pageRoot.key)].includes(contextProfileKey);
+    const shares = onPage && tests.length ? extractDnaConnectionsText() : "";
+    return shares ? `${fromApi}\n\nLikely shared DNA, from the profile page's DNA Connections box:\n${shares}` : fromApi;
+  } catch (e) {
+    console.debug("wbe: DNA context for AI failed", e);
+    return "";
+  }
+}
+
+function buildPageContextForPrompt(prompt, contextProfileKey, profileBioMissing) {
+  try {
+    const pageInfo = getCurrentPageInfo();
+    if (!pageInfo.isPersonProfile) {
+      if (contextProfileKey && !isCurrentPagePrompt(prompt)) return "";
+      return buildCurrentPageContextForAi();
+    }
+    const pageRoot = getProfileSubjectRoot();
+    const aboutPagePerson =
+      contextProfileKey && pageRoot && [pageRoot.wtId, String(pageRoot.key)].includes(contextProfileKey);
+    if (!aboutPagePerson && !(isCurrentPagePrompt(prompt) && !contextProfileKey)) return "";
+    if (contextProfileKey && !profileBioMissing) return "";
+    return buildCurrentPageContextForAi(document, window.location, { includePersonProfile: true });
+  } catch (e) {
+    console.debug("wbe: page context for AI failed", e);
+    return "";
+  }
+}
+
 function getProfileSubjectRoot() {
   const profileRoot = getProfileRootPerson();
   if (!profileRoot) {
@@ -4166,6 +4223,7 @@ function renderChartBar($popup) {
   if (!wtid) return;
   const who = profile ? String(profile.displayName || wtid).trim().split(/\s+/)[0] : "you";
   $("<span>").addClass("chat-chart-bar-label").text(`Charts for ${who}:`).attr("title", `Or type a name or ID and a chart, like "${wtid} fan chart" or "Jefferson descendants"`).appendTo($bar);
+  const onPersonProfilePage = Boolean(profile) && getCurrentPageInfo().isPersonProfile;
   CHART_BAR_KEYS.forEach((key) => {
     const chart = CHART_SHORTCUTS.find((item) => item.key === key);
     const $button = $("<button>")
@@ -4183,6 +4241,12 @@ function renderChartBar($popup) {
     if (dnaType && !pageTypes.has(dnaType)) {
       $button.prop("hidden", true);
       profileDnaTypes(wtid).then((types) => $button.prop("hidden", !types.has(dnaType)));
+    }
+    // Only on a person's profile page (the user, 2026-10-05): not for you off a profile, nor on
+    // Special:EditPerson, where Paddy asked it about a profile the API didn't have yet.
+    if (key === "dnatesters" && !onPersonProfilePage) {
+      $button.remove();
+      return;
     }
     if (key === "dnatesters" && !pageTypes.size) {
       // An ancestor: who carries their lines. A living person who hasn't tested: hidden.
@@ -4222,7 +4286,9 @@ function appendWelcomeChips() {
   const profile = getProfileRootPerson();
   const profileFirstName = profile ? String(profile.displayName || profile.wtId).trim().split(/\s+/)[0] || profile.wtId : "";
   // The first few show; "More…" opens the rest (there are a dozen charts now).
-  const prompts = welcomeChipPrompts(profileFirstName, { ai: aiAvailable !== false });
+  // On a Space, Help, Project or Category page, questions about the page come first.
+  const pageChips = profile ? [] : currentPageChipPrompts(getCurrentPageInfo(), { ai: aiAvailable !== false });
+  const prompts = [...pageChips, ...welcomeChipPrompts(profileFirstName, { ai: aiAvailable !== false })];
   prompts.forEach((prompt, index) => {
     $("<button>")
       .attr("type", "button")

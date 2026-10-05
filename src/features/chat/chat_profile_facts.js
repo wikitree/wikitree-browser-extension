@@ -2,7 +2,7 @@
 // photo?" (the AI said no; she has one), "what templates are on her profile?"
 // (WT+ declined). getProfile has these fields; this reads them.
 
-const OWNER = String.raw`(this\s+profile|this\s+person|the\s+profile|her(?:\s+profile)?|his(?:\s+profile)?|their(?:\s+profile)?|she|he|they|it|my\s+profile|me|[A-Z][A-Za-z' -]*?-\d+(?:['’]s(?:\s+profile)?)?)`;
+const OWNER = String.raw`(this\s+profile|this\s+person|the\s+profile|her(?:\s+profile)?|his(?:\s+profile)?|their(?:\s+profile)?|she|he|they|it|my\s+profile|me|[A-Z][A-Za-z'_ -]*?-\d+(?:['’]s(?:\s+profile)?)?)`;
 
 const PATTERNS = [
   { fact: "manager", re: new RegExp(String.raw`^who\s+(?:manages|is\s+managing)\s+${OWNER}$`, "i") },

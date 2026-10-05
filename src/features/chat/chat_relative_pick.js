@@ -3,7 +3,7 @@
 
 import { formatPreviewDate } from "./chat_preview_format";
 
-const OWNER = String.raw`(her|his|their|my|[A-Z][A-Za-z' -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3}(?:'s|’s))`;
+const OWNER = String.raw`(her|his|their|my|[A-Z][A-Za-z'_ -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3}(?:'s|’s))`;
 const RELATIONS = String.raw`(siblings|brothers|sisters|grandchildren|grandsons|granddaughters|children|kids|sons|daughters|husbands|wives|spouses|parents)`;
 const PICKS = [
   { pick: "diedFirst", re: /^died\s+(?:first|earliest|soonest)$/i },

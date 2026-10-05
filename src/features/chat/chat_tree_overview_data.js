@@ -11,7 +11,7 @@ import { yearOf } from "./chat_chart_common";
 
 export const TREE_OVERVIEW_GENERATIONS = 8;
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z' -]*?-\d+['’]s)`;
+const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const TREE = String.raw`(?:family\s+tree|tree|ancestry|ancestors|pedigree|family\s+history)`;
 const PATTERNS = [
   // "tell me about my tree", "tell me about her ancestors", "summarise my ancestry", "analyse Cook-8721's family tree"

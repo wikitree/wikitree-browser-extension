@@ -29,8 +29,8 @@ export const FAMILY_WORLD_NUCLEAR = { start: 3, expand: 3 };
 // A placeholder's share of its family's circle (someone shown married into another family in view).
 const GHOST_WEIGHT = 6;
 
-const W_OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z' -]*?-\d+['’]s)`;
-const W_OWNER_AFTER = String.raw`(me|us|her|him|them|this\s+(?:profile|person)|[A-Z][A-Za-z' -]*?-\d+)`;
+const W_OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
+const W_OWNER_AFTER = String.raw`(me|us|her|him|them|this\s+(?:profile|person)|[A-Z][A-Za-z'_ -]*?-\d+)`;
 const W_LEAD = String.raw`(?:(?:show|draw|open|explore|make|build|give)(?:\s+me)?\s+)?`;
 // (and plain "fractal" / "fractal tree": the family world is the fractal tree's newest version; "my ancestors as a
 // fractal tree" still gets the ancestors-only one)

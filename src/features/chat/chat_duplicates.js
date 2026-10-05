@@ -8,7 +8,7 @@ import { compareScored, fetchProfiles } from "../find_matches_scores/find_matche
 import { foldText } from "../find_matches_scores/match_locations";
 import { scorePair } from "../find_matches_scores/match_scoring";
 
-const SUBJECT = String.raw`(this\s+(?:person|profile)|the\s+profile\s+person|he|she|they|him|her|them|[A-Z][A-Za-z' -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.()]*){0,4})`;
+const SUBJECT = String.raw`(this\s+(?:person|profile)|the\s+profile\s+person|he|she|they|him|her|them|[A-Z][A-Za-z'_ -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.()]*){0,4})`;
 const DUPES = String.raw`(?:(?:possible|potential|likely)\s+)?(?:duplicates?|duplicate\s+profiles?|dupes?|matches|matching\s+profiles)`;
 const DUPLICATE_PROMPT_RES = [
   new RegExp(String.raw`^(?:does|do|has|have)\s+${SUBJECT}\s+(?:got\s+)?(?:have\s+)?(?:any\s+)?${DUPES}(?:\s+on\s+wikitree)?$`, "i"),

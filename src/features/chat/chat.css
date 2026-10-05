@@ -496,6 +496,22 @@
   justify-content: flex-end;
 }
 
+/* Title and buttons share the header (the user, 2026-10-05: "PNG ×" wrapped under the rest).
+   The buttons keep one row and the title wraps beside them; when both can't fit, the whole
+   row of buttons drops below the title, and only a very narrow popup wraps the buttons. */
+.chat-popup-header {
+  flex-wrap: wrap;
+  gap: 0.3rem 0.75rem;
+}
+.chat-popup-header > strong {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+.chat-popup-header > .chat-popup-controls {
+  flex: 0 1 auto;
+  margin-left: auto;
+}
+
 .chat-popup-controls .wbe-conn-diagram-action[hidden] {
   display: none !important;
 }

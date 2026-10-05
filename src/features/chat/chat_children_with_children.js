@@ -1,7 +1,7 @@
 // E5, "which of her children had children of their own?": each child's own
 // child count. Live, 2026-10-03, the AI asked which woman "her" meant.
 
-const OWNER = String.raw`(her|his|their|my|[A-Z][A-Za-z' -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3}(?:'s|’s))`;
+const OWNER = String.raw`(her|his|their|my|[A-Z][A-Za-z'_ -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3}(?:'s|’s))`;
 const KIDS = String.raw`(?:children|kids|sons|daughters)`;
 const HAVE = String.raw`(?:had|have|has)`;
 const PATTERNS = [

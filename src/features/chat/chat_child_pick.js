@@ -25,7 +25,7 @@ const ORDER_WORDS = {
   "5th": 5,
 };
 
-const OWNER = String.raw`(her|his|their|my|[A-Z][A-Za-z' -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.()]*){0,3}(?:'s|’s))`;
+const OWNER = String.raw`(her|his|their|my|[A-Z][A-Za-z'_ -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.()]*){0,3}(?:'s|’s))`;
 const CHILD_PICK_RE = new RegExp(
   String.raw`^(?:(?:who|which)\s+(?:is|was)\s+|show(?:\s+me)?\s+|tell\s+me\s+)?${OWNER}\s+(youngest|last(?:-?born)?|eldest|oldest|first(?:-?born)?|1st|second|2nd|third|3rd|fourth|4th|fifth|5th)\s+((?:grand)?(?:child|kid|son|daughter)|baby)$`,
   "i"

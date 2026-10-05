@@ -8,7 +8,7 @@ import { generationOfSlot } from "./chat_fan_chart_data";
 
 export const LIFESPANS_GENERATIONS = 6;
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z' -]*?-\d+['’]s)`;
+const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const LEAD = String.raw`(?:(?:show|draw|make|create|give|display|open|build|generate)(?:\s+me)?\s+|(?:can|could|would)\s+you\s+(?:show|draw|make)(?:\s+me)?\s+)?`;
 const CHART = String.raw`(?:life\s*spans?|life\s*lines?|lifespan\s+chart|life\s+expectancy)`;
 const PATTERNS = [
@@ -19,7 +19,7 @@ const PATTERNS = [
   // "how long did my ancestors live", "how long did Cook-8721's ancestors live"
   new RegExp(String.raw`^how\s+long\s+did\s+${OWNER}\s+ancestors\s+live(?:\s+for)?$`, "i"),
   // "a lifespan chart of Cook-8721", "lifespans for me"
-  new RegExp(String.raw`^${LEAD}(?:an?\s+|the\s+)?(?:life\s*spans?\s+chart|life\s*spans|life\s*lines)\s+(?:of|for)\s+(me|us|her|him|them|[A-Z][A-Za-z' -]*?-\d+)$`, "i"),
+  new RegExp(String.raw`^${LEAD}(?:an?\s+|the\s+)?(?:life\s*spans?\s+chart|life\s*spans|life\s*lines)\s+(?:of|for)\s+(me|us|her|him|them|[A-Z][A-Za-z'_ -]*?-\d+)$`, "i"),
 ];
 // The Descendants view: chart words only ("how long did my descendants live" stays the
 // age-at-death answer).

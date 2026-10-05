@@ -84,6 +84,7 @@ const FAN_CHART_FIELDS = "Id,Name,RealName,FirstName,MiddleName,LastNameAtBirth,
 
 export { formatPreviewDate, formatPreviewName };
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
+import { checkProfileInApi, describeUnloadedProfile, isSamePerson } from "./chat_profile_availability";
 
 // "William Burton (Burton-13215)": RealName alone is the first name (live,
 // 2026-10-03: "William (Burton-13215) was died…"). Derived.ShortName comes back
@@ -121,6 +122,33 @@ export function createChatPeopleHandlers({
   getUserNumId = () => null,
   notify = () => {}, // (text) → a passing note in the chat (not saved)
 }) {
+  /**
+   * "I couldn't load X" said why: not in the API yet (a new profile), private to the user, or
+   * just failed. `subject` is a root person or a key.
+   */
+  async function cantLoad(subject, what = "", { privateHint = "", assumePrivate = false } = {}) {
+    const key = typeof subject === "object" ? subject?.key || subject?.wtId : subject;
+    const label = (typeof subject === "object" ? formatSubjectLabel(subject) : "") || String(key || "this profile");
+    let status = await checkProfileInApi(key, { appId: WBE_CHAT_APP_ID });
+    // (assumePrivate: anything but "missing" reads as private, so the reply doesn't go to the AI)
+    if (assumePrivate && status !== "missing") status = "hidden";
+    let apiLoggedIn = null;
+    if (status === "hidden") {
+      try {
+        apiLoggedIn = await WikiTreeAPI.isLoggedIntoAPI(getUserNumId(), WBE_CHAT_APP_ID);
+      } catch (error) {
+        // (unknown: say nothing about logging in)
+      }
+    }
+    let isPagePerson = false;
+    try {
+      isPagePerson = isSamePerson(subject, getProfileRootPerson?.());
+    } catch (error) {
+      // (no page person)
+    }
+    return describeUnloadedProfile({ label, what, status, isPagePerson, apiLoggedIn, privateHint });
+  }
+
   function filterCachedKinRows({
     intent,
     rootKey,
@@ -1193,7 +1221,7 @@ export function createChatPeopleHandlers({
       "Id,Name,RealName,Gender,DeathDate,DeathLocation,Categories,Bio"
     );
     const person = Object.values(people || {}).find((entry) => entry?.Name);
-    if (!person) return `I couldn't load ${key} from WikiTree.`;
+    if (!person) return cantLoad(key);
     return buildBurialAnswer(person);
   }
 
@@ -1234,7 +1262,7 @@ export function createChatPeopleHandlers({
         "Id,Name,RealName,Derived.ShortName,Gender,BirthDate,DeathDate",
         { getSpouses: 1 }
       )) || [];
-      if (!entry?.person) return `I couldn't load ${key} from WikiTree.`;
+      if (!entry?.person) return cantLoad(key);
       const marriages = Object.values(entry.person.Spouses || {})
         .map((spouse) => ({ ...asMarriage(spouse), spouseDeath: spouse?.DeathDate || "", endDate: spouse?.marriage_end_date || "" }))
         .sort((a, b) => String(a.date || "9999").localeCompare(String(b.date || "9999")));
@@ -1274,7 +1302,7 @@ export function createChatPeopleHandlers({
     }
 
     const subject = await spousesOf(key);
-    if (!subject) return `I couldn't load ${key} from WikiTree.`;
+    if (!subject) return cantLoad(key);
     const marriages = subject.spouses
       .map(asMarriage)
       .sort((a, b) => String(a.date || "9999").localeCompare(String(b.date || "9999")));
@@ -1309,7 +1337,7 @@ export function createChatPeopleHandlers({
     const { key, error } = await resolveOwnerKey(String(params?.owner || "").trim(), prompt);
     if (error) return error;
     const [profile] = (await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, key, PROFILE_FACT_FIELDS, { resolveRedirect: 1 })) || [];
-    if (!profile?.Name) return `I couldn't load ${key} from WikiTree.`;
+    if (!profile?.Name) return cantLoad(key);
     // Creator is a person Id: getPeople reads it as one (a numeric getProfile key is a page Id).
     let creatorLabel = "";
     if (params?.fact === "created" && Number(profile.Creator) > 0) {
@@ -1373,7 +1401,7 @@ export function createChatPeopleHandlers({
     try {
       // Completeness means the Gold Standard checklist too (the user, 2026-10-04), so load its fields.
       const slots = await loadFanSlots(rootPerson.key, generations, { quality: !!params?.completeness });
-      if (!slots[1]) return `I couldn't load ${formatSubjectLabel(rootPerson)}'s ancestors from WikiTree.`;
+      if (!slots[1]) return cantLoad(rootPerson, "ancestors");
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
       const hasAncestors = fanChartStats(slots).found > 0;
       const open = () => openFanChart(slots, generations, params?.mode || "");
@@ -1579,7 +1607,7 @@ export function createChatPeopleHandlers({
     if (!rootPerson) return "I could not detect a profile person or your logged-in profile to explore the family of.";
     try {
       const world = await loadFamilyWorld(rootPerson.key);
-      if (!world.focusId) return `I couldn't load ${formatSubjectLabel(rootPerson)}'s family from WikiTree.`;
+      if (!world.focusId) return cantLoad(rootPerson, "family");
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
       const open = () => openFamilyWorld(world);
       open();
@@ -1624,7 +1652,7 @@ export function createChatPeopleHandlers({
     if (!rootPerson) return "I could not detect a profile person or your logged-in profile to map the descendants of.";
     try {
       const shown = await openDescendantMap(rootPerson.key);
-      if (!shown) return `I couldn't load ${formatSubjectLabel(rootPerson)}'s descendants from WikiTree.`;
+      if (!shown) return cantLoad(rootPerson, "descendants");
       if (!shown.tree.children.length) return `${formatSubjectLabel(rootPerson)} has no descendants recorded on WikiTree.`;
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
       const key = shown.tree.person?.wtid || rootPerson.key;
@@ -1648,7 +1676,7 @@ export function createChatPeopleHandlers({
     if (!rootPerson) return "I could not detect a profile person or your logged-in profile to map the ancestors of.";
     try {
       const slots = await loadFanSlots(rootPerson.key, MIGRATION_MAP_GENERATIONS);
-      if (!slots[1]) return `I couldn't load ${formatSubjectLabel(rootPerson)}'s ancestors from WikiTree.`;
+      if (!slots[1]) return cantLoad(rootPerson, "ancestors");
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
       await loadGeocodeCache();
       const migration = buildMigration(slots);
@@ -1801,7 +1829,7 @@ export function createChatPeopleHandlers({
     if (params?.familySize) {
       try {
         const shown = await openFamilySize(rootPerson.key);
-        if (!shown) return `I couldn't load ${formatSubjectLabel(rootPerson)}'s ancestors from WikiTree.`;
+        if (!shown) return cantLoad(rootPerson, "ancestors");
         const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
         const key = shown.slots[1].wtid || rootPerson.key;
         return {
@@ -1817,7 +1845,7 @@ export function createChatPeopleHandlers({
     if (params?.river) {
       try {
         const shown = await openSurnameRiver(rootPerson.key);
-        if (!shown) return `I couldn't load ${formatSubjectLabel(rootPerson)}'s ancestors from WikiTree.`;
+        if (!shown) return cantLoad(rootPerson, "ancestors");
         const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
         const key = shown.slots[1].wtid || rootPerson.key;
         const message = shown.series
@@ -1839,7 +1867,7 @@ export function createChatPeopleHandlers({
     }
     try {
       const shown = await openNameCloud(rootPerson.key);
-      if (!shown) return `I couldn't load ${formatSubjectLabel(rootPerson)}'s ancestors from WikiTree.`;
+      if (!shown) return cantLoad(rootPerson, "ancestors");
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
       const key = shown.slots[1].wtid || rootPerson.key;
       return {
@@ -1904,7 +1932,7 @@ export function createChatPeopleHandlers({
     if (!rootPerson) return "I could not detect a profile person or your logged-in profile to sum up the tree of.";
     try {
       const shown = await openTreeOverview(rootPerson.key);
-      if (!shown) return `I couldn't load ${formatSubjectLabel(rootPerson)}'s ancestors from WikiTree.`;
+      if (!shown) return cantLoad(rootPerson, "ancestors");
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
       const key = shown.slots[1].wtid || rootPerson.key;
       return {
@@ -1927,7 +1955,7 @@ export function createChatPeopleHandlers({
     if (!rootPerson) return "I could not detect a profile person or your logged-in profile to chart the ages of.";
     try {
       const slots = await loadFanSlots(rootPerson.key, Number(params?.generations) || 10);
-      if (!slots[1]) return `I couldn't load ${formatSubjectLabel(rootPerson)}'s ancestors from WikiTree.`;
+      if (!slots[1]) return cantLoad(rootPerson, "ancestors");
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
       const key = slots[1].wtid || rootPerson.key;
       const open = () =>
@@ -1958,7 +1986,7 @@ export function createChatPeopleHandlers({
     if (!rootPerson) return "I could not detect a profile person or your logged-in profile to make a family calendar for.";
     try {
       const shown = await openFamilyCalendar(rootPerson.key, Number(params?.month) || 0);
-      if (!shown) return `I couldn't load ${formatSubjectLabel(rootPerson)}'s ancestors from WikiTree.`;
+      if (!shown) return cantLoad(rootPerson, "ancestors");
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
       const key = shown.slots[1].wtid || rootPerson.key;
       return {
@@ -1997,7 +2025,7 @@ export function createChatPeopleHandlers({
       }
       if (params?.view === "descendants") {
         const shown = await openLifespans(rootPerson.key, { view: "descendants" });
-        if (!shown) return `I couldn't load ${formatSubjectLabel(rootPerson)}'s descendants from WikiTree.`;
+        if (!shown) return cantLoad(rootPerson, "descendants");
         const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
         const key = shown.rows.find((row) => row.generation === 0)?.wtid || rootPerson.key;
         const dated = shown.rows.filter((row) => row.generation > 0);
@@ -2013,7 +2041,7 @@ export function createChatPeopleHandlers({
         };
       }
       const shown = await openLifespans(rootPerson.key, { focusEventId: params?.eventId });
-      if (!shown) return `I couldn't load ${formatSubjectLabel(rootPerson)}'s ancestors from WikiTree.`;
+      if (!shown) return cantLoad(rootPerson, "ancestors");
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
       const key = shown.rows.find((row) => row.generation === 0)?.wtid || rootPerson.key;
       return {
@@ -2094,16 +2122,47 @@ export function createChatPeopleHandlers({
     };
   }
 
+  /** The DNA tests connected to a person (getConnectedDNATestsByProfile), remembered per person. */
+  const connectedTestsCache = new Map();
+  function connectedTests(wtid) {
+    if (!connectedTestsCache.has(wtid)) {
+      connectedTestsCache.set(
+        wtid,
+        WikiTreeAPI.postToAPI({ appId: WBE_CHAT_APP_ID, action: "getConnectedDNATestsByProfile", key: wtid })
+          .then(([result] = []) => result?.dnaTests || [])
+          .catch(() => [])
+      );
+    }
+    return connectedTestsCache.get(wtid);
+  }
+
   /** The takers of tests connected to a person, of the type their line passes on (Y for a man, mt for a woman). */
   async function lineTesters(person) {
     const type = person?.gender === "Male" ? "yDNA" : person?.gender === "Female" ? "mtDNA" : "";
     if (!type || !person?.wtid) return [];
-    try {
-      const [result] = (await WikiTreeAPI.postToAPI({ appId: WBE_CHAT_APP_ID, action: "getConnectedDNATestsByProfile", key: person.wtid })) || [];
-      return [...new Set((result?.dnaTests || []).filter((test) => test.dna_type === type).map((test) => test.taker?.Name).filter(Boolean))];
-    } catch (error) {
-      return [];
+    const tests = await connectedTests(person.wtid);
+    return [...new Set(tests.filter((test) => test.dna_type === type).map((test) => test.taker?.Name).filter(Boolean))];
+  }
+
+  /**
+   * The other test-takers connected to the profile (its "DNA Connections"), so "who could test"
+   * doesn't read as if no one has (Murray, Chicoine_dit_Henley-1, 2026-10-05: 15 autosomal).
+   */
+  async function otherTestersNote(person) {
+    if (!person?.wtid) return "";
+    const lineType = person.gender === "Male" ? "yDNA" : person.gender === "Female" ? "mtDNA" : "";
+    const takers = new Map();
+    for (const test of await connectedTests(person.wtid)) {
+      const name = test.taker?.Name;
+      if (name && test.dna_type !== lineType) takers.set(name, [...(takers.get(name) || []), test.dna_type]);
     }
+    if (!takers.size) return "";
+    const names = [...takers.keys()];
+    const shown = names.slice(0, 8).join(", ") + (names.length > 8 ? `, and ${names.length - 8} more` : "");
+    const autosomalOnly = [...takers.values()].every((types) => types.every((type) => type === "auDNA"));
+    return `${names.length} other DNA test-taker${names.length === 1 ? " is" : "s are"} already connected to the profile${
+      autosomalOnly ? " by autosomal tests" : ""
+    } (its DNA Connections): ${shown}. Autosomal matches can help confirm relationships, but don't follow a single line.`;
   }
 
   /**
@@ -2153,15 +2212,22 @@ export function createChatPeopleHandlers({
       if (!tree && params?.mode === "dnacarriers") {
         // A living tester's profile is private to the API (Maloney-2332, live 2026-10-04), and
         // "I couldn't…" would hand the question to the AI, which listed testers instead.
-        return `${formatSubjectLabel(rootPerson)}'s profile is private (usually a living person), so Genie can't see who descends from them. Ask this about an ancestor instead: the people who carry an ancestor's Y-DNA or mtDNA are the ones who could test for that line.`;
+        // A brand-new profile isn't in the API yet either (Paddy, Horkan-26, 2026-10-05).
+        return cantLoad(rootPerson, "descendants", {
+          assumePrivate: true,
+          privateHint: "Ask this about an ancestor instead: the people who carry an ancestor's Y-DNA or mtDNA are the ones who could test for that line.",
+        });
       }
-      if (!tree) return `I couldn't load ${formatSubjectLabel(rootPerson)}'s descendants from WikiTree.`;
+      if (!tree) return cantLoad(rootPerson, "descendants");
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
       const hasDescendants = tree.children.length > 0;
       const open = () => openDescendantChart(tree, params?.mode || "");
       if (hasDescendants) open();
       return {
-        message: params?.mode === "dnacarriers" ? buildDnaCarrierSummary(tree, owner, generations, await lineTesters(tree.person)) : buildDescendantChartSummary(tree, owner, generations),
+        message:
+          params?.mode === "dnacarriers"
+            ? [buildDnaCarrierSummary(tree, owner, generations, await lineTesters(tree.person)), await otherTestersNote(tree.person)].filter(Boolean).join("\n")
+            : buildDescendantChartSummary(tree, owner, generations),
         actions: hasDescendants
           ? [{ label: "Open descendant chart", onClick: open }, VISUALS.descmap(tree.person?.wtid || rootPerson.key), VISUALS.explorer(tree.person?.wtid || rootPerson.key)]
           : [],
@@ -2319,7 +2385,7 @@ export function createChatPeopleHandlers({
     if (params?.lifeLine) {
       try {
         const shown = await openLifeLine(key);
-        if (!shown) return `I couldn't load ${key} from WikiTree.`;
+        if (!shown) return cantLoad(key);
         return {
           message: buildLifeLineSummary(shown.line, shown.family.label),
           actions: shown.line ? [VISUALS.lifeline(key, "Open life line"), VISUALS.timeline(key), VISUALS.lifespans(key)] : [VISUALS.timeline(key)],
@@ -2332,7 +2398,7 @@ export function createChatPeopleHandlers({
     }
     try {
       const loaded = await loadFamilyTimeline(key);
-      if (!loaded) return `I couldn't load ${key} from WikiTree.`;
+      if (!loaded) return cantLoad(key);
       const { rows, label } = loaded;
       const owner = params?.owner === "me" ? "Your" : `${label}'s`;
       const hasRows = rows.some((row) => row.role !== "self" && row.birth);
@@ -2423,7 +2489,7 @@ export function createChatPeopleHandlers({
     const nameOf = relativeNameOf;
     const [entry] = (await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, key, "Id,Name,RealName,Derived.ShortName,BirthDate,Gender", { getChildren: 1 })) || [];
     const owner = entry?.person;
-    if (!owner) return `I couldn't load ${key} from WikiTree.`;
+    if (!owner) return cantLoad(key);
     const children = Object.values(owner.Children || {})
       .filter((child) => !params?.gender || child?.Gender === params.gender)
       .sort((a, b) =>
@@ -2456,7 +2522,7 @@ export function createChatPeopleHandlers({
       { getChildren: 1 }
     )) || [];
     const owner = entry?.person;
-    if (!owner) return `I couldn't load ${key} from WikiTree.`;
+    if (!owner) return cantLoad(key);
     const children = Object.values(owner.Children || {})
       .sort((a, b) => String(a?.BirthDate || "9999").localeCompare(String(b?.BirthDate || "9999")))
       .map((child) => ({ label: nameOf(child), death: child?.DeathDate || "", living: Number(child?.IsLiving) === 1 }));
@@ -2481,7 +2547,7 @@ export function createChatPeopleHandlers({
         "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,BirthDate,BirthLocation,DeathDate,DeathLocation"
       );
       const person = Object.values(people || {}).find((entry) => entry?.Name);
-      if (!person) return `I couldn't load ${key} from WikiTree.`;
+      if (!person) return cantLoad(key);
       return buildRelativeFactAnswer([person], params?.fact, nameOf);
     }
     const { list, gender, grand } = relationSelector(params?.relationRaw);
@@ -2490,7 +2556,7 @@ export function createChatPeopleHandlers({
     }`;
     const [entry] = (await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, key, relativeFields, { [`get${list}`]: 1 })) || [];
     const owner = entry?.person;
-    if (!owner) return `I couldn't load ${key} from WikiTree.`;
+    if (!owner) return cantLoad(key);
     let relatives = Object.values(owner[list] || {});
     if (grand) {
       // Two steps along the same list: children's children, parents' parents (N4).
@@ -2554,7 +2620,7 @@ export function createChatPeopleHandlers({
       bioFormat: "wiki",
       resolveRedirect: 1,
     });
-    if (!profile?.Name) return `I couldn't load ${key} from WikiTree.`;
+    if (!profile?.Name) return cantLoad(key);
     return buildSourcesAnswer({
       label: `${profile.RealName || profile.Name} (${profile.Name})`,
       bio: profile.Bio || profile.bio || "", // the API returns "bio"
@@ -2578,7 +2644,7 @@ export function createChatPeopleHandlers({
     const response = await WikiTreeAPI.getPerson(WBE_CHAT_APP_ID, key, "Id,Name,RealName,LastNameAtBirth");
     const person = response?._data || response || {};
     if (!person.Id || !person.Name) {
-      return `I couldn't load ${key} from WikiTree.`;
+      return cantLoad(key);
     }
     try {
       // WikiTree pages go through wwwWikiTree (right domain, appId), not a bare fetch.

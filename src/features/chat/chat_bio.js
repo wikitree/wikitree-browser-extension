@@ -2,6 +2,7 @@ import $ from "jquery";
 import { isProfileNarrativePrompt } from "./chat_profile_narrative";
 import { describeRelationChain, pickSpouseByOrdinal, splitOrdinalFromRelation, rewriteInLawTerms } from "./chat_relation_chain_text";
 import { profileLinkHtml } from "./chat_profile_link";
+import { unloadedProfileMessage } from "./chat_profile_availability";
 
 export function createChatBioHandlers({
   WBE_CHAT_APP_ID,
@@ -37,6 +38,14 @@ export function createChatBioHandlers({
   findParentProfileIdsFromDOM,
   setLastBioPopupState,
 }) {
+  function safePageRoot() {
+    try {
+      return getProfileRootPerson?.() || null;
+    } catch (error) {
+      return null;
+    }
+  }
+
   async function showBioPopupForId(id, opts = { bioFormat: "both" }) {
     if (window.wbeSuppressAutoBioOpen) {
       try {
@@ -73,7 +82,8 @@ export function createChatBioHandlers({
       hideChatShaky();
       if (!profile || Object.keys(profile).length === 0) {
         console.info("wbe: showBioPopupForId - no profile data or private", { id, profile });
-        appendMessage("assistant", "No profile data returned or profile is private.");
+        // (a brand-new profile isn't in the API yet: say so, rather than "private")
+        appendMessage("assistant", await unloadedProfileMessage(id, { appId: WBE_CHAT_APP_ID, what: "biography", pageRoot: safePageRoot() }));
         return;
       }
 
@@ -1299,7 +1309,7 @@ export function createChatBioHandlers({
           }
         );
         hideChatShaky();
-        if (!profile) return `No profile data found for ${personKey}.`;
+        if (!profile) return unloadedProfileMessage(personKey, { appId: WBE_CHAT_APP_ID, what: "biography", pageRoot: safePageRoot() });
         const result = {
           message: `Biography for ${profile?.Name || personKey}:`,
           action: {

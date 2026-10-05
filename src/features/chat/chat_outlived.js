@@ -1,8 +1,8 @@
 // G9, "how many of her children died before her?": compare each child's death
 // date with the parent's (live, 2026-10-03: fell to the AI).
 
-const OWNER = String.raw`(her|his|their|my|[A-Z][A-Za-z' -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3}(?:'s|’s))`;
-const SUBJECT = String.raw`(she|he|they|I|[A-Z][A-Za-z' -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3})`;
+const OWNER = String.raw`(her|his|their|my|[A-Z][A-Za-z'_ -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3}(?:'s|’s))`;
+const SUBJECT = String.raw`(she|he|they|I|[A-Z][A-Za-z'_ -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3})`;
 const KIDS = String.raw`(?:children|kids|sons|daughters)`;
 const PATTERNS = [
   // "how many of her children died before her", "which of Ellen's children died before she did"

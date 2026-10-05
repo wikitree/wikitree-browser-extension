@@ -11,7 +11,7 @@ import { generationLabel } from "./chat_lifespans_data";
 export const FAMILY_SIZE_GENERATIONS = 7; // (couples in rows 1–6: up to 63 families)
 export const DIED_YOUNG_AGE = 5;
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z' -]*?-\d+['’]s)`;
+const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const LEAD = String.raw`(?:(?:show|draw|make|create|give|display|open|chart)(?:\s+me)?\s+)?`;
 const PATTERNS = [
   // "family size", "my family sizes", "show Cook-8721's ancestral family sizes", "family size chart"

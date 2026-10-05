@@ -4,7 +4,7 @@
 // tests (getConnectedProfilesByDNATest). Kit numbers and testing-company
 // usernames (ftdna, gedmatch, ancestry, …) are never shown.
 
-const OWNER = String.raw`(this\s+profile|this\s+person|her|his|their|she|he|they|my|me|I|[A-Z][A-Za-z' -]*?-\d+(?:['’]s)?|[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}['’]s)`;
+const OWNER = String.raw`(this\s+profile|this\s+person|her|his|their|she|he|they|my|me|I|[A-Z][A-Za-z'_ -]*?-\d+(?:['’]s)?|[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}['’]s)`;
 const TYPE = String.raw`(y[\s-]?dna|y[\s-]?chromosome|paternal|mt[\s-]?dna|mitochondrial|maternal|au[\s-]?dna|autosomal)`;
 
 const PATTERNS = [

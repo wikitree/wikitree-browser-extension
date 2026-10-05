@@ -32,7 +32,7 @@ export const CHART_SHORTCUTS = [
 export const CHART_BAR_KEYS = ["fan", "explorer", "descendants", "lifespans", "history", "map", "calendar", "names", "overview", "ages", "xdna", "dnalines", "ydnamap", "dnatesters"];
 
 // (lower case too: "beacall-9 fractal" can only be an ID)
-const WIKITREE_ID = String.raw`[A-Za-z][A-Za-z' ]*?[A-Za-z]-\d+`;
+const WIKITREE_ID = String.raw`[A-Za-z][A-Za-z'_ ]*?[A-Za-z]-\d+`;
 // A name: up to five words, the first capitalised ("Jefferson", "Thomas Jefferson", "Mary Ann de la Cour").
 const NAME = String.raw`[A-Z][A-Za-z'’.-]*(?:\s+[A-Za-z'’.-]+){0,4}`;
 // Capitalised words that start a sentence, not a name.

@@ -8,8 +8,8 @@ import { yearOf } from "./chat_chart_common";
 import { rowSpan } from "./chat_family_timeline_data";
 import { livedThrough, placeRegions } from "./chat_world_events_data";
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z' -]*?-\d+['’]s|[A-Z][A-Za-z'-]*(?:\s+[A-Z][A-Za-z'-]*){0,3}['’]s)`;
-const OWNER_AFTER = String.raw`(me|her|him|them|this\s+(?:profile|person)|[A-Z][A-Za-z' -]*?-\d+|[A-Z][A-Za-z'-]*(?:\s+[A-Z][A-Za-z'-]*){0,3})`;
+const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s|[A-Z][A-Za-z'-]*(?:\s+[A-Z][A-Za-z'-]*){0,3}['’]s)`;
+const OWNER_AFTER = String.raw`(me|her|him|them|this\s+(?:profile|person)|[A-Z][A-Za-z'_ -]*?-\d+|[A-Z][A-Za-z'-]*(?:\s+[A-Z][A-Za-z'-]*){0,3})`;
 const LEAD = String.raw`(?:(?:show|draw|make|create|give|display|open|build|put)(?:\s+me)?\s+|(?:can|could|would)\s+you\s+(?:show|draw|make|put)(?:\s+me)?\s+)?`;
 const LINE = String.raw`(?:life\s*line|life\s+chart|life\s+at\s+a\s+glance|life\s+on\s+(?:a|one)\s+(?:single\s+)?line|life\s+in\s+(?:a|one)\s+(?:single\s+)?line)`;
 

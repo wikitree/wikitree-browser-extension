@@ -5,7 +5,7 @@
 import { FAN_CHART_MAX_GENERATIONS, fanChartStats, generationOfSlot } from "./chat_fan_chart_data";
 import { ancestorWord, generationLabel } from "./chat_lifespans_data";
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z' -]*?-\d+['’]s)`;
+const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const TREE = String.raw`(?:family\s+tree|tree|pedigree|ancestry|family\s+history)`;
 // "How complete" means the Gold Standard checklist (the user, 2026-10-04), so these open
 // the fan chart's Completeness mode; the counting and brick-wall ones open Brick walls.

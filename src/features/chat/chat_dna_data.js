@@ -6,7 +6,7 @@
 import { FAN_CHART_MAX_GENERATIONS, generationOfSlot } from "./chat_fan_chart_data";
 import { ancestorWord, generationLabel } from "./chat_lifespans_data";
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z' -]*?-\d+['’]s)`;
+const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const X = String.raw`(?:x[\s-]*dna|x[\s-]*chromosomes?|x[\s-]*chromosome\s+dna)`;
 const PATTERNS = [
   // "X-DNA fan chart", "my X-DNA chart", "show her X chromosome inheritance", "X-DNA inheritance chart"
@@ -16,7 +16,7 @@ const PATTERNS = [
   ),
   // "who could I have inherited X-DNA from", "who did she get her X chromosome from"
   new RegExp(
-    String.raw`^(?:which|who)(?:\s+of\s+${OWNER}\s+ancestors)?\s+(?:could|can|might|did|do|does)\s+(I|we|she|he|they|[A-Z][A-Za-z' -]*?-\d+)\s+(?:have\s+)?(?:inherit(?:ed)?|get|got|receive[d]?)\s+(?:my\s+|her\s+|his\s+|their\s+|an?\s+)?${X}\s+from$`,
+    String.raw`^(?:which|who)(?:\s+of\s+${OWNER}\s+ancestors)?\s+(?:could|can|might|did|do|does)\s+(I|we|she|he|they|[A-Z][A-Za-z'_ -]*?-\d+)\s+(?:have\s+)?(?:inherit(?:ed)?|get|got|receive[d]?)\s+(?:my\s+|her\s+|his\s+|their\s+|an?\s+)?${X}\s+from$`,
     "i"
   ),
   // "which of my ancestors could have passed down X-DNA", "who passed X-DNA to me"
@@ -45,7 +45,7 @@ const LINE_PATTERNS = [
     String.raw`^(?:(?:show|draw|make|open|display|give)(?:\s+me)?\s+)?(?:the\s+)?(?:${OWNER}\s+)?(?:${YMT}|y)(?:\s*(?:and|&|\+)\s*(?:${YMT}|mt))?\s+(?:lines?|lineages?|inheritance)(?:\s+(?:fan\s+)?(?:chart|tree|fan))?$`,
     "i"
   ),
-  new RegExp(String.raw`^(?:who|which\s+ancestors?)\s+did\s+(I|we|she|he|they|[A-Z][A-Za-z' -]*?-\d+)\s+(?:get|inherit)\s+(?:my|her|his|their)\s+${YMT}\s+from$`, "i"),
+  new RegExp(String.raw`^(?:who|which\s+ancestors?)\s+did\s+(I|we|she|he|they|[A-Z][A-Za-z'_ -]*?-\d+)\s+(?:get|inherit)\s+(?:my|her|his|their)\s+${YMT}\s+from$`, "i"),
   new RegExp(String.raw`^where\s+did\s+${OWNER}\s+${YMT}\s+come\s+from$`, "i"),
 ];
 
@@ -437,7 +437,7 @@ export function buildDnaCarrierSummary(tree, ownerText, generations, testers = [
 }
 
 const TEST_WORD = String.raw`(?:(?:y[\s-]*dna|mt[\s-]*dna|dna)\s+test)`;
-const FOR_WHOM = String.raw`(me|us|her|him|them|this\s+(?:profile|person)|[A-Z][A-Za-z' -]*?-\d+)`;
+const FOR_WHOM = String.raw`(me|us|her|him|them|this\s+(?:profile|person)|[A-Z][A-Za-z'_ -]*?-\d+)`;
 const OBJECT_OWNER = { me: "my", us: "my", her: "her", him: "his", them: "their" };
 // "who could take a DNA test for him", "who could do a Y-DNA test for Beacall-13",
 // "who carries his Y-DNA", "who has her mtDNA", "Beacall-13's DNA carriers", "DNA test candidates for her"

@@ -6,7 +6,7 @@ import { formatPreviewDate } from "./chat_preview_format";
 import { ageAtDeath } from "./chat_result_pick";
 
 const RELATION = String.raw`(grandmothers?|grandfathers?|grandparents?|grandsons?|granddaughters?|grandchildren|grandchild|mother|father|parents?|husbands?|wife|wives|spouses?|sons?|daughters?|children|child|brothers?|sisters?|siblings?)`;
-const OWNER = String.raw`(her|his|their|my|[A-Z][A-Za-z' -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3}(?:'s|’s))`;
+const OWNER = String.raw`(her|his|their|my|[A-Z][A-Za-z'_ -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3}(?:'s|’s))`;
 const FACT_WORDS = [
   { fact: "maidenName", re: /^(?:maiden\s+names?|birth\s+(?:sur)?names?|surnames?\s+at\s+birth|last\s+names?\s+at\s+birth|family\s+names?|lnab)$/i },
   { fact: "birth", re: /^(?:birth\s*days?|birth\s+dates?|dates?\s+of\s+birth|dob)$/i },
@@ -34,7 +34,7 @@ const PATTERNS = [
 
 // F1/F12, "where was she born?" / "what was her maiden name?": the person's own
 // fact (live, 2026-10-03: the AI asked which woman "she" meant).
-const SELF_SUBJECT = String.raw`(he|she|they|this\s+person|the\s+profile\s+person|I|[A-Z][A-Za-z' -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3})`;
+const SELF_SUBJECT = String.raw`(he|she|they|this\s+person|the\s+profile\s+person|I|[A-Z][A-Za-z'_ -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3})`;
 const SELF_PATTERNS = [
   {
     re: new RegExp(String.raw`^(when|where|when\s+and\s+where)\s+(?:was|were|did)\s+${SELF_SUBJECT}\s+(born|die)$`, "i"),
@@ -42,7 +42,7 @@ const SELF_PATTERNS = [
     fact: (m) => (/^born$/i.test(m[3]) ? (/^where$/i.test(m[1]) ? "birthPlace" : "birth") : /^where$/i.test(m[1]) ? "deathPlace" : "death"),
   },
   {
-    re: /^(?:what\s+(?:was|is)\s+)?(her|his|their|my|[A-Z][A-Za-z' -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3}(?:'s|’s))\s+(maiden\s+name|birth\s+(?:sur)?name|surname\s+at\s+birth|last\s+name\s+at\s+birth)$/i,
+    re: /^(?:what\s+(?:was|is)\s+)?(her|his|their|my|[A-Z][A-Za-z'_ -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3}(?:'s|’s))\s+(maiden\s+name|birth\s+(?:sur)?name|surname\s+at\s+birth|last\s+name\s+at\s+birth)$/i,
     owner: (m) => m[1],
     fact: () => "maidenName",
   },

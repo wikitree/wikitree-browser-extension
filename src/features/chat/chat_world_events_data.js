@@ -364,7 +364,7 @@ export function livedThrough(row, fallbackCountries = []) {
     .map((event) => ({ event, age: Math.max(0, event.start - row.start) }));
 }
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z' -]*?-\d+['’]s)`;
+const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const PATTERNS = [
   // "what was happening when my ancestors were alive", "what was going on in the world when her ancestors lived"
   new RegExp(String.raw`^what\s+was\s+(?:happening|going\s+on)(?:\s+in\s+the\s+world)?\s+(?:when|while)\s+${OWNER}\s+ancestors\s+(?:were\s+alive|lived)$`, "i"),
@@ -385,8 +385,8 @@ const EVENT_PATTERNS = [
 // One person's life (live, 2026-10-04: "What was happening in the world during
 // Philip's life?" got a general essay): "what history did Philip live through",
 // "what was happening during his life", "world events in Cook-8721's lifetime".
-const PERSON = String.raw`(he|she|they|[A-Z][A-Za-z' -]*?-\d+|[A-Z][A-Za-z'-]*(?:\s+[A-Z][A-Za-z'-]*){0,3})`;
-const PERSON_OWNER = String.raw`(my|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z' -]*?-\d+['’]s|[A-Z][A-Za-z'-]*(?:\s+[A-Z][A-Za-z'-]*){0,3}['’]s)`;
+const PERSON = String.raw`(he|she|they|[A-Z][A-Za-z'_ -]*?-\d+|[A-Z][A-Za-z'-]*(?:\s+[A-Z][A-Za-z'-]*){0,3})`;
+const PERSON_OWNER = String.raw`(my|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s|[A-Z][A-Za-z'-]*(?:\s+[A-Z][A-Za-z'-]*){0,3}['’]s)`;
 const PERSON_PATTERNS = [
   new RegExp(String.raw`^what\s+was\s+(?:happening|going\s+on)(?:\s+in\s+the\s+world)?\s+(?:during|in)\s+${PERSON_OWNER}\s+life(?:time)?$`, "i"),
   new RegExp(String.raw`^what\s+(?:history|historical\s+events|events|wars)\s+did\s+${PERSON}\s+(?:live\s+through|see|witness|experience|survive)$`, "i"),

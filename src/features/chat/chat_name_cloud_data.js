@@ -8,7 +8,7 @@ import { generationOfSlot } from "./chat_fan_chart_data";
 
 export const NAME_CLOUD_GENERATIONS = 8;
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z' -]*?-\d+['’]s)`;
+const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const LEAD = String.raw`(?:(?:show|draw|make|create|give|display|open|build|generate)(?:\s+me)?\s+|(?:can|could|would)\s+you\s+(?:show|draw|make)(?:\s+me)?\s+)?`;
 const PATTERNS = [
   // "name cloud", "show my ancestors' name cloud", "Cook-8721's family names cloud"

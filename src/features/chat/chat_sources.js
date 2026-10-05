@@ -2,7 +2,7 @@
 // the lines under == Sources == in the biography wikitext (live, 2026-10-03: the
 // bio handler read "profile" as a bio request and showed a husband's biography).
 
-const SUBJECT = String.raw`(this\s+(?:profile|page|person)|the\s+profile(?:\s+person)?|(?:his|her|their)\s+(?:profile|page)|he|she|they|him|her|them|[A-Z][A-Za-z' -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.()]*){0,4})`;
+const SUBJECT = String.raw`(this\s+(?:profile|page|person)|the\s+profile(?:\s+person)?|(?:his|her|their)\s+(?:profile|page)|he|she|they|him|her|them|[A-Z][A-Za-z'_ -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.()]*){0,4})`;
 const SOURCES = String.raw`(?:sources?|citations?|references?)`;
 const SOURCES_PROMPT_RES = [
   // "what sources does this profile have", "how many sources does Cook-8721 have"
@@ -12,7 +12,7 @@ const SOURCES_PROMPT_RES = [
   // "what sources are on this profile", "how many sources are there on her profile"
   new RegExp(String.raw`^(?:what|which|how\s+many)\s+${SOURCES}\s+(?:are|is)\s+(?:there\s+)?(?:on|in|for)\s+${SUBJECT}$`, "i"),
   // "list her sources", "show me Cook-8721's sources", "what are her sources"
-  new RegExp(String.raw`^(?:what\s+are|list|show(?:\s+me)?|give\s+me)\s+(his|her|their|[A-Z][A-Za-z' -]*?-\d+(?:'s|’s))\s+${SOURCES}$`, "i"),
+  new RegExp(String.raw`^(?:what\s+are|list|show(?:\s+me)?|give\s+me)\s+(his|her|their|[A-Z][A-Za-z'_ -]*?-\d+(?:'s|’s))\s+${SOURCES}$`, "i"),
 ];
 const PROFILE_SUBJECT_RE =
   /^(?:|this\s+(?:profile|page|person)|the\s+profile(?:\s+person)?|(?:his|her|their)(?:\s+(?:profile|page))?|he|she|they|him|them)$/i;

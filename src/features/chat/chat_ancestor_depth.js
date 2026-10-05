@@ -2,8 +2,8 @@
 // to the AI, which read only the parents off the bio. The ancestor list knows
 // each row's generation (degrees); this reports how far back it reaches.
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+profile['’]s|[A-Z][A-Za-z' -]*-\d+['’]s)`;
-const SUBJECT = String.raw`(I|we|she|he|they|this\s+person|[A-Z][A-Za-z' -]*-\d+)`;
+const OWNER = String.raw`(my|our|her|his|their|this\s+profile['’]s|[A-Z][A-Za-z'_ -]*-\d+['’]s)`;
+const SUBJECT = String.raw`(I|we|she|he|they|this\s+person|[A-Z][A-Za-z'_ -]*-\d+)`;
 const PATTERNS = [
   // "how many generations of ancestors does she have", "how many generations back do I go"
   new RegExp(String.raw`^how\s+many\s+generations(?:\s+of\s+ancestors)?(?:\s+back)?\s+(?:does|do|can)\s+${SUBJECT}\s+(?:have|go(?:\s+back)?|trace(?:\s+back)?)(?:\s+on\s+wikitree)?$`, "i"),

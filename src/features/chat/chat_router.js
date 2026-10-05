@@ -1071,7 +1071,7 @@ function parseAncestorAverageAgePrompt(prompt) {
     return null;
   }
 
-  if (/(?:of|for)?\s*(?:my|our|his|her|their|[A-Z][A-Za-z' -]*-\d+['’]s)?\s*(?:direct\s+)?ancestors?\??$/i.test(normalized)) {
+  if (/(?:of|for)?\s*(?:my|our|his|her|their|[A-Z][A-Za-z'_ -]*-\d+['’]s)?\s*(?:direct\s+)?ancestors?\??$/i.test(normalized)) {
     return {
       generation: MAX_ANCESTOR_GENERATIONS,
       includeUpTo: true,
@@ -2408,7 +2408,7 @@ export function parseNotableRelativesPrompt(text) {
     .replace(/[.!?]+$/g, "")
     .replace(/^(?:please\s+)?(?:(?:show|list|find|tell)\s+(?:me\s+)?)?/i, "");
   const root = (subject) =>
-    !subject || /^(?:i|me|my|we|us|our)$/i.test(subject) ? "my" : /^[A-Z][A-Za-z' -]*-\d+$/.test(subject) ? `${subject}'s` : "";
+    !subject || /^(?:i|me|my|we|us|our)$/i.test(subject) ? "my" : /^[A-Z][A-Za-z'_ -]*-\d+$/.test(subject) ? `${subject}'s` : "";
   const scope = (word) => (/ancestor/i.test(word || "") ? "ancestors" : "CC7");
   let m = t.match(
     new RegExp(String.raw`^(?:am\s+(i)|are\s+(we)|is\s+(\S+))\s+(?:related|connected)\s+to\s+(?:any(?:one|body)|someone|somebody|any\s+(?:people|person))\s+${FAMOUS_RE}$`, "i")
@@ -2449,7 +2449,7 @@ export function parseDnaConfirmedPrompt(text) {
     .replace(/[.!?]+$/g, "")
     .replace(/^(?:please\s+)?(?:(?:show|list|find|which\s+are|what\s+are)\s+(?:me\s+)?)?/i, "")
     .match(
-      /^(?:(my|our)|([A-Z][A-Za-z' -]*-\d+)['’]s)\s+(?:dna[- ](?:confirmed|verified|proven))\s+(relationships?|relatives|links|connections|parents|ancestors|lines)$/i
+      /^(?:(my|our)|([A-Z][A-Za-z'_ -]*-\d+)['’]s)\s+(?:dna[- ](?:confirmed|verified|proven))\s+(relationships?|relatives|links|connections|parents|ancestors|lines)$/i
     );
   if (!m) return null;
   const root = m[1] ? "my" : `${m[2]}'s`;
@@ -2483,7 +2483,7 @@ export function parseAncestorGenerationCountPrompt(text) {
   const m =
     t.match(
       new RegExp(
-        String.raw`^how\s+many\s+(?:of\s+)?(my|our|[A-Z][A-Za-z' -]*-\d+['’]s)\s+(${GRANDPARENT_GENERATION_RE})(?:\s+(?:are|have\s+been)\s+(?:known|recorded|identified|found|on\s+wikitree)|\s+do\s+(?:i|we)\s+(?:have|know))?$`,
+        String.raw`^how\s+many\s+(?:of\s+)?(my|our|[A-Z][A-Za-z'_ -]*-\d+['’]s)\s+(${GRANDPARENT_GENERATION_RE})(?:\s+(?:are|have\s+been)\s+(?:known|recorded|identified|found|on\s+wikitree)|\s+do\s+(?:i|we)\s+(?:have|know))?$`,
         "i"
       )
     ) ||
@@ -2498,7 +2498,7 @@ export function parseAncestorGenerationCountPrompt(text) {
 // C5 "where were my ancestors born?" (counts by country) and C6 "which of my
 // ancestors emigrated?" (born and died in different countries). Both fell to
 // the AI (live, 2026-10-03).
-const ANCESTOR_OWNER_RE = String.raw`(my|our|his|her|their|[A-Z][A-Za-z' -]*-\d+['’]s)`;
+const ANCESTOR_OWNER_RE = String.raw`(my|our|his|her|their|[A-Z][A-Za-z'_ -]*-\d+['’]s)`;
 export function parseAncestorPlacePrompt(text) {
   const t = String(text || "")
     .trim()
@@ -2633,7 +2633,7 @@ export function parseFamilyTreePrompt(prompt) {
     .trim()
     .replace(/[.!?]+$/g, "")
     .match(
-      /^(?:(?:show|display|view|open|give)(?:\s+me)?\s+)?(her|his|their|my|our|[A-Z][A-Za-z' -]*?-\d+['’]s|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3}['’]s)\s+(?:family\s+tree|pedigree(?:\s+chart)?|ancestry|tree)$/i
+      /^(?:(?:show|display|view|open|give)(?:\s+me)?\s+)?(her|his|their|my|our|[A-Z][A-Za-z'_ -]*?-\d+['’]s|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3}['’]s)\s+(?:family\s+tree|pedigree(?:\s+chart)?|ancestry|tree)$/i
     );
   if (!match) return null;
   const owner = /^our$/i.test(match[1]) ? "my" : match[1];

@@ -35,6 +35,13 @@ describe("canonical prompts", () => {
     expect(routed.intent).toBe(ChatIntent[intents[key]]);
     expect(routed.params.owner).toBe("Beacall-9");
   });
+  // IDs with underscores ("dit" names, Van_Buren) fell through to the AI: Murray's "Who could
+  // test?" on Chicoine_dit_Henley-1 got a guess from the bio (2026-10-05).
+  test.each(CHART_SHORTCUTS.flatMap((chart) => ["Chicoine_dit_Henley-1", "Van_Buren-1"].map((id) => [chart.key, id])))("%s routes for %s", (key, id) => {
+    const routed = routeChatPrompt(chartShortcutCanonicalPrompt(key, id));
+    expect(routed.intent).toBe(ChatIntent[intents[key]]);
+    expect(routed.params.owner).toBe(id);
+  });
   test("history and X-DNA keep their flags", () => {
     expect(routeChatPrompt(chartShortcutCanonicalPrompt("history", "Beacall-9")).params.history).toBe(true);
     expect(routeChatPrompt(chartShortcutCanonicalPrompt("xdna", "Beacall-9")).params.mode).toBe("xdna");
@@ -47,6 +54,9 @@ describe("chart buttons", () => {
   });
   test.each(CHART_BAR_KEYS.filter((key) => key !== "ydnamap"))("%s button prompt routes to the shortcut", (key) => {
     expect(routeChatPrompt(chartButtonPrompt(key, "Beacall-9"))).toEqual({ intent: ChatIntent.CHART_SHORTCUT, params: { chart: key, owner: "Beacall-9" } });
+  });
+  test.each(CHART_BAR_KEYS)("%s button parses for an ID with underscores", (key) => {
+    expect(parseChartShortcutPrompt(chartButtonPrompt(key, "Chicoine_dit_Henley-1"))).toEqual({ chart: key, owner: "Chicoine_dit_Henley-1" });
   });
   test("the Y-DNA map button goes straight to the DNA map", () => {
     expect(routeChatPrompt(chartButtonPrompt("ydnamap", "Beacall-9"))).toEqual({ intent: ChatIntent.DNA, params: { kind: "map", owner: "Beacall-9", dnaType: "yDNA" } });

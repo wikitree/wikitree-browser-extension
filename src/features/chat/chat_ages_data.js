@@ -7,7 +7,7 @@
 import { generationOfSlot } from "./chat_fan_chart_data";
 import { ancestorWord } from "./chat_lifespans_data";
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z' -]*?-\d+['’]s)`;
+const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 
 const PATTERNS = [
   // "lives and ages", "my ancestors' ages chart", "age at death chart", "Beacall-11's lifespan statistics"

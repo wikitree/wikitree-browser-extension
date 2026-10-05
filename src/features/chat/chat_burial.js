@@ -6,7 +6,7 @@
 import { pickCemeteryCategories } from "./chat_search_spec";
 import { formatPreviewDate } from "./chat_preview_format";
 
-const SUBJECT = String.raw`(this\s+person|the\s+profile\s+person|he|she|they|him|her|them|[A-Z][A-Za-z' -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.()]*){0,4})`;
+const SUBJECT = String.raw`(this\s+person|the\s+profile\s+person|he|she|they|him|her|them|[A-Z][A-Za-z'_ -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.()]*){0,4})`;
 const BURIAL_PROMPT_RES = [
   new RegExp(String.raw`^where\s+(?:is|was|were|are)\s+${SUBJECT}\s+buried$`, "i"),
   new RegExp(String.raw`^where\s+(?:is|was)\s+${SUBJECT}(?:'s|’s)\s+(?:grave|burial(?:\s+place)?|resting\s+place)$`, "i"),
