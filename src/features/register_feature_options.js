@@ -110,6 +110,7 @@ import "./printerfriendly/printerfriendly_options";
 import "./randomProfile/randomProfile_options";
 import "./readability/readability_options";
 import "./redir_ext_links/redir_ext_links_options";
+import "./relationship_finder_options/relationship_finder_options_options";
 import "./reorderNames/reorderNames_options";
 import "./save_buttons_style_options/save_buttons_style_options_options";
 import "./scissors/scissors_options";
