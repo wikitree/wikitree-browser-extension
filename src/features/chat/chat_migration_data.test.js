@@ -27,6 +27,11 @@ describe("placeRegion", () => {
   test("Victoria, British Columbia stays in Canada; empty is null", () => {
     expect(placeRegion("Victoria, British Columbia, Canada")).toEqual({ key: "British Columbia", country: "Canada" });
     expect(placeRegion("")).toBeNull();
+    // Accented, old and French names (Murray's "Canada" dot in northern Manitoba, 2026-10-05)
+    expect(placeRegion("St Anne des Mont, Gaspésie, Québec, Canada")).toEqual({ key: "Quebec", country: "Canada" });
+    expect(placeRegion("Montréal, Bas-Canada")).toEqual({ key: "Quebec", country: "Canada" });
+    expect(placeRegion("Kingston, Upper Canada")).toEqual({ key: "Ontario", country: "Canada" });
+    expect(placeRegion("Halifax, Nouvelle-Écosse, Canada")).toEqual({ key: "Nova Scotia", country: "Canada" });
   });
 });
 

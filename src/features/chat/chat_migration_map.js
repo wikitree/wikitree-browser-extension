@@ -18,7 +18,7 @@ import { scaleSqrt, scaleSequential } from "d3-scale";
 import { interpolateYlOrRd, interpolateBlues } from "d3-scale-chromatic";
 import { easeCubicOut } from "d3-ease";
 import { feature } from "topojson-client";
-import { REGION_POINTS } from "./chat_migration_data";
+import { REGION_POINTS, SPLIT_COUNTRIES } from "./chat_migration_data";
 import { cachedPoint, geocodeLocations, loadGeocodeCache, pendingLookups } from "./chat_geocode";
 import { centrePopup, escapeText, injectChartStyles, raiseAboveOtherPopups, saveChart, toggleChartFullScreen } from "./chat_chart_common";
 
@@ -95,6 +95,9 @@ export async function showMigrationMapPopup(firstMigration, options = {}) {
   const pointOf = (place) => {
     if (place.point) return place.point;
     if (REGION_POINTS[place.key]) return REGION_POINTS[place.key];
+    // Just "Canada" (or the US, Australia): its middle is no one's birthplace. Murray's map put a
+    // dot in northern Manitoba and drew a move to it (2026-10-05); it counts as not on the map.
+    if (SPLIT_COUNTRIES.has(place.key)) return null;
     const country = atlasCountry(place.country || place.key);
     return country ? mainCentroid(country) : null;
   };

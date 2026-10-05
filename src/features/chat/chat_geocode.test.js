@@ -65,6 +65,10 @@ describe("town lookups for the migration map", () => {
     expect(namesMatch("Shrewsbury", "Shrewsbury St Mary, Shrewsbury, Shropshire")).toBe(true);
     expect(namesMatch("England Shelve", "Wrockwardine, Shropshire, England")).toBe(false);
     expect(namesMatch("Llanycil", "Llanycil, Merionethshire, Wales")).toBe(true);
+    // St/Sainte and a final "s" (Murray's map, 2026-10-05)
+    expect(namesMatch("Sainte-Anne-des-Monts", "St Anne des Mont, Gaspésie, Québec, Canada")).toBe(true);
+    expect(namesMatch("Saint-Siméon", "St Simeon, Charlevoix, Quebec")).toBe(true);
+    expect(namesMatch("Mont-Bellevue", "St Anne des Mont, Gaspésie, Québec, Canada")).toBe(false);
     const hits = [
       { name: "Shropshire", settlement: false, point: [-2.8, 52.65] },
       { name: "Wellington", settlement: true, point: [-3.23, 50.98] },
@@ -81,4 +85,13 @@ describe("town lookups for the migration map", () => {
     expect(pickPhotonCounty(hits, "Denbighshire, Wales").point).toEqual([-3.37, 53.11]);
     expect(pickPhotonCounty(hits, "Ruthin, Denbighshire, Wales")).toBeNull();
   });
+});
+
+test("Photon's Sainte-Anne-des-Monts is taken for St Anne des Mont", () => {
+  // (Photon's answer, 2026-10-05)
+  const hits = [
+    { name: "Sainte-Anne-des-Monts", point: [-66.48, 49.13], settlement: true },
+    { name: "Mont-Bellevue", point: [-66.52, 49.1], settlement: true },
+  ];
+  expect(pickPhotonTown(hits, "St Anne des Mont, Gaspésie, Québec, Canada")?.name).toBe("Sainte-Anne-des-Monts");
 });

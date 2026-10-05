@@ -89,23 +89,54 @@ export const REGION_POINTS = {
   "Northern Territory": [133, -19],
 };
 
-const SPLIT_COUNTRIES = new Set(["United States", "Canada", "Australia"]);
+export const SPLIT_COUNTRIES = new Set(["United States", "Canada", "Australia"]);
 const UK_AND_IRELAND = new Set(["England", "Scotland", "Wales", "Northern Ireland", "Ireland"]);
 const CANADIAN_PROVINCES = new Set(["Ontario", "Quebec", "Nova Scotia", "New Brunswick", "Prince Edward Island", "Newfoundland", "Manitoba", "Saskatchewan", "Alberta", "British Columbia"]);
 const AUSTRALIAN_STATES = new Set(["New South Wales", "Victoria", "Queensland", "South Australia", "Western Australia", "Tasmania", "Northern Territory"]);
 const REGION_NAMES = Object.keys(REGION_POINTS);
 // Colonial names: "Plymouth Colony", "Massachusetts Bay Colony", "Province of New York".
-const COLONY_ALIASES = { "plymouth colony": "Massachusetts", "massachusetts bay colony": "Massachusetts", "new netherland": "New York" };
+// Old and French names for Canadian provinces too. Murray's "…, Québec, Canada" (accented)
+// matched no province and was drawn at Canada's centre, in northern Manitoba (2026-10-05).
+const COLONY_ALIASES = {
+  "plymouth colony": "Massachusetts",
+  "massachusetts bay colony": "Massachusetts",
+  "new netherland": "New York",
+  "lower canada": "Quebec",
+  "canada east": "Quebec",
+  "bas canada": "Quebec",
+  "new france": "Quebec",
+  "nouvelle france": "Quebec",
+  "upper canada": "Ontario",
+  "canada west": "Ontario",
+  "haut canada": "Ontario",
+  "newfoundland and labrador": "Newfoundland",
+  "terre neuve": "Newfoundland",
+  "nouvelle ecosse": "Nova Scotia",
+  "nouveau brunswick": "New Brunswick",
+  "colombie britannique": "British Columbia",
+  "ile du prince edouard": "Prince Edward Island",
+};
+
+// (accents, hyphens and case don't matter: "Québec" is Quebec)
+function plainRegion(text) {
+  return String(text || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[-\s]+/g, " ")
+    .trim()
+    .toLowerCase();
+}
 
 function regionInParts(parts) {
   for (let index = parts.length - 1; index >= 0; index -= 1) {
-    const part = parts[index]
-      .replace(/^(?:colony|province|state|commonwealth)\s+of\s+/i, "")
-      .replace(/\s+(?:colony|province|territory)$/i, "")
-      .trim();
-    const alias = COLONY_ALIASES[parts[index].toLowerCase()];
+    const part = plainRegion(
+      parts[index]
+        .replace(/^(?:colony|province|state|commonwealth)\s+of\s+/i, "")
+        .replace(/\s+(?:colony|province|territory)$/i, "")
+    );
+    const alias = COLONY_ALIASES[plainRegion(parts[index])] || COLONY_ALIASES[part];
     if (alias) return alias;
-    const match = REGION_NAMES.find((name) => name.toLowerCase() === part.toLowerCase());
+    const match = REGION_NAMES.find((name) => plainRegion(name) === part);
     if (match && !UK_AND_IRELAND.has(match)) return match;
   }
   return "";

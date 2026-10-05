@@ -9,7 +9,9 @@
 
 // (v4: a county on its own is placed at the county; v3 namesakes chosen near the
 // county; v2 settlements only; v1 had streets and vice-counties)
-const STORAGE_KEY = "museGeocodeCache4";
+// (v5: names match St/Sainte and plurals, so v4's misses are looked up again; its hits are kept)
+const STORAGE_KEY = "museGeocodeCache5";
+const PREVIOUS_KEY = "museGeocodeCache4";
 const NOMINATIM = "https://nominatim.openstreetmap.org/search";
 const PHOTON = "https://photon.komoot.io/api/";
 // (fair use: a few at a time)
@@ -55,9 +57,15 @@ export function loadGeocodeCache() {
       if (!area) return resolve();
       try {
         area.remove?.(["museGeocodeCache", "museGeocodeCache2", "museGeocodeCache3"]);
-        area.get([STORAGE_KEY], (stored) => {
+        area.get([STORAGE_KEY, PREVIOUS_KEY], (stored) => {
           const saved = stored?.[STORAGE_KEY];
           if (saved && typeof saved === "object") Object.entries(saved).forEach(([key, value]) => cache.has(key) || cache.set(key, value));
+          const previous = stored?.[PREVIOUS_KEY];
+          if (previous && typeof previous === "object") {
+            Object.entries(previous).forEach(([key, value]) => value?.point && !cache.has(key) && cache.set(key, value));
+            area.remove?.([PREVIOUS_KEY]);
+            saveSoon();
+          }
           resolve();
         });
       } catch (error) {
@@ -153,10 +161,18 @@ const plain = (text) =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
+// For comparing names: Saint, Sainte, Ste and St are one word, and a final "s" doesn't count
+// ("St Anne des Mont" is Sainte-Anne-des-Monts; Murray's map, 2026-10-05).
+const nameWords = (text) =>
+  plain(text)
+    .split(" ")
+    .map((word) => (/^(?:st|ste|saint|sainte|sint|sankt)$/.test(word) ? "st" : word.length > 3 ? word.replace(/s$/, "") : word))
+    .join(" ");
+
 /** Whether a found town is the place asked for: "Shrewsbury" for "Shrewsbury St Mary", not "England Shelve" for "Wrockwardine". */
 export function namesMatch(townName, location) {
-  const town = plain(townName);
-  const asked = plain(locationKey(location).split(", ")[0]);
+  const town = nameWords(townName);
+  const asked = nameWords(locationKey(location).split(", ")[0]);
   if (!town || !asked) return false;
   return ` ${asked} `.includes(` ${town} `) || ` ${town} `.includes(` ${asked} `);
 }
