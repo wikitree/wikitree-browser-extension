@@ -1,3 +1,4 @@
+import { createConnectionSourceResolver } from "./chat_connection_source";
 /*
 Created By: Ian Beacall (Beacall-6)
 */
@@ -21,7 +22,7 @@ import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { buildConnectedTestsAnswer, buildHaplogroupAnswer, dnaTypesFromTestSlugs } from "./chat_dna";
 import { getUserWtId, getUserNumId, getProfilePersonInfo } from "../../core/common";
 import { setHighestZIndex } from "../../core/common";
-import { routeChatPrompt, ChatIntent, pause, extractConnectionSourceName, parseExportResultPrompt } from "./chat_router";
+import { routeChatPrompt, ChatIntent, pause, parseExportResultPrompt } from "./chat_router";
 import { CHART_BAR_KEYS, CHART_SHORTCUTS, chartButtonPrompt, chartShortcutCanonicalPrompt } from "./chat_chart_shortcuts";
 import "datatables.net-dt/css/jquery.dataTables.css";
 import "datatables.net";
@@ -1109,6 +1110,14 @@ const {
   getLastStructuredResult: () => lastStructuredResult,
 });
 
+const resolveConnectionSourceRoot = createConnectionSourceResolver({
+  promptRefersToUser,
+  getLoggedInRootPerson,
+  getProfileSubjectRoot,
+  isPersonPage: () => getCurrentPageInfo().isPersonProfile,
+  resolveConnectionTargetPerson: (...args) => resolveConnectionTargetPerson(...args),
+});
+
 const { resolveConnectionTargetPerson, tryHandleConnectionCorrectionPrompt, tryHandleConnectionPrompt } =
   createChatConnectionHandlers({
     WBE_CHAT_APP_ID,
@@ -1301,6 +1310,7 @@ const {
   tryHandleFamilyCalendarPrompt,
   tryHandleAgesPrompt,
   tryHandleTreeOverviewPrompt,
+  tryHandleFamilyMatrixPrompt,
   tryHandleProfileSourcesPrompt,
   tryHandlePersonMarriagePrompt,
   tryHandleRelativeFactPrompt,
@@ -3137,6 +3147,7 @@ async function sendChatPrompt() {
       ChatIntent.FAMILY_CALENDAR,
       ChatIntent.AGES_CHART,
       ChatIntent.TREE_OVERVIEW,
+      ChatIntent.FAMILY_MATRIX,
       ChatIntent.PROFILE_SOURCES,
       ChatIntent.PERSON_MARRIAGE,
       ChatIntent.RELATIVE_FACT,
@@ -3522,6 +3533,7 @@ async function executeRoutedIntent(routed, prompt) {
   if (routed.intent === ChatIntent.MIGRATION_MAP) {
     return await tryHandleMigrationMapPrompt(routed.params, prompt);
   }
+  if (routed.intent === ChatIntent.FAMILY_MATRIX) return await tryHandleFamilyMatrixPrompt(routed.params, prompt);
   if (routed.intent === ChatIntent.TREE_OVERVIEW) {
     return await tryHandleTreeOverviewPrompt(routed.params, prompt);
   }
@@ -3836,9 +3848,8 @@ function extractNamedSubjectForCc7Prompt(prompt) {
   return "";
 }
 
-// extractConnectionSourceName now lives in chat_router.js (parsing belongs in
-// the router); resolveConnectionSourceRoot below checks promptRefersToUser
-// before consulting it.
+// Connection source precedence lives in chat_connection_source.js; explicit
+// user references and named endpoints are resolved before the page default.
 
 async function getLoggedInRootPerson() {
   const userWtId = getUserWtId();
@@ -4001,65 +4012,6 @@ async function buildRelativeBiosContextForAi(prompt, pageRoot) {
   }
 }
 
-async function resolveConnectionSourceRoot(prompt, targetWtId = "", sourceNameOverride = "") {
-  const normalizedPrompt = String(prompt || "").trim();
-  const overrideName = String(sourceNameOverride || "").trim();
-  if (!overrideName && promptRefersToUser(normalizedPrompt)) {
-    let root = await getLoggedInRootPerson();
-    if (!root) {
-      await pause(150);
-      root = await getLoggedInRootPerson();
-    }
-    return root || getProfileSubjectRoot();
-  }
-
-  const namedSource = overrideName || extractConnectionSourceName(normalizedPrompt);
-  // F8 (live, 2026-10-03): "is she related to Captain James Cook?" came back
-  // with the source "Ellen (Cook) Alley", the page's display name, which name
-  // search can't resolve. A pronoun or the page's own name is the page profile.
-  const pageRoot = getProfileSubjectRoot();
-  const sameName = (left, right) =>
-    String(left || "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, " ")
-      .trim() ===
-    String(right || "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, " ")
-      .trim();
-  if (
-    namedSource &&
-    pageRoot &&
-    (/^(?:she|he|they|her|him|them|this\s+person|the\s+profile\s+person)$/i.test(namedSource) ||
-      sameName(namedSource, pageRoot.displayName) ||
-      sameName(namedSource, pageRoot.wtId) ||
-      // P5 (live, 2026-10-03): "the relationship between Ellen and Amy Alley" on
-      // Ellen's page: "Ellen" alone was unresolved.
-      (/^[A-Za-z'-]+$/.test(namedSource) && sameName(namedSource, String(pageRoot.displayName || "").split(/\s+/)[0])))
-  ) {
-    return pageRoot;
-  }
-  if (namedSource) {
-    const resolved = await resolveConnectionTargetPerson(namedSource, normalizedPrompt);
-    if (!resolved?.Name) {
-      return { unresolvedName: namedSource };
-    }
-
-    const sourceWtId = resolved.Name || "";
-    if (sourceWtId && targetWtId && sourceWtId === targetWtId) {
-      return { unresolvedName: namedSource };
-    }
-
-    return {
-      key: resolved.Id || resolved.Name,
-      wtId: sourceWtId,
-      displayName: resolved.RealName || resolved?.Derived?.ShortName || resolved.Name || namedSource,
-      subjectType: "named",
-    };
-  }
-
-  return getProfileSubjectRoot() || (await getLoggedInRootPerson());
-}
 
 /**
  * True when the member is signed in to WikiTree but the API doesn't know it (the separate Apps Login), so answers miss

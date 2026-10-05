@@ -23,7 +23,7 @@ lighter colour, etc.). Keep this rule first in the file for the same reason.
 .wbe-highlight
   :where(.wbe, [class*="wbe-"], [id^="wbe"]):not(body
     :where(.wbe, [class*="wbe-"], [id^="wbe"])
-    *, :where(script, style, link, template, br, option), :where(img.wbe-button, .toggleOverflowButton), :where(.ebWBE, .ebWBE
+    *, :where(script, style, link, template, br, option), :where(img.wbe-button, .toggleOverflowButton, .wbe-genie-column), :where(.ebWBE, .ebWBE
       *, .wbe-icon)) {
   border: var(--wbe-colour) 2px solid !important;
 }
@@ -382,18 +382,22 @@ excluded from the generic rule at the top of the file for that reason.
   filter: var(--wbe-icon-filter);
 }
 
-/*
-Room for the border to sit around the icon rather than through it. The icon
-spans are 26x25 with no padding of their own, and most of these buttons are
-inline anchors, so without this the border clips the artwork.
-*/
+/* Outlines mark controls without changing their dimensions or toolbar spacing. */
+.wbe-highlight a.wbe-button:not(.toggleTipsColumn, #toggleFamilyColumn, .toggleOverflowButton),
+.wbe-highlight #wbe-genie-button,
+.wbe-highlight button.wbe-app-login {
+  border: 0 !important;
+  outline: 2px solid var(--wbe-colour);
+  outline-offset: 2px;
+}
 .wbe-highlight a.wbe-button:not(.toggleTipsColumn, #toggleFamilyColumn, .toggleOverflowButton) {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 3px;
   border-radius: 5px !important;
-  vertical-align: middle;
+}
+.wbe-highlight #wbe-genie-button {
+  border-radius: 50%;
+}
+.wbe-highlight button.wbe-app-login {
+  border-radius: 999px;
 }
 .wbe-highlight .myMenuGears,
 .wbe-highlight #changeSummaryGears,
@@ -401,4 +405,12 @@ inline anchors, so without this the border clips the artwork.
 .wbe-highlight #jigsawMan,
 .wbe-highlight .WBEHelpIcon span.icon--help {
   filter: var(--wbe-icon-filter);
+}
+
+/* Keyboard focus remains distinct from the persistent feature highlight. */
+.wbe-highlight a.wbe-button:focus-visible,
+.wbe-highlight #wbe-genie-button:focus-visible,
+.wbe-highlight button.wbe-app-login:focus-visible {
+  outline-width: 3px;
+  outline-offset: 4px;
 }

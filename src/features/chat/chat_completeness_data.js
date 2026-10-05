@@ -1,9 +1,10 @@
+import { canonicalChartOwner as canonicalOwner } from "./chat_chart_prompt";
 // Tree completeness (2026-10-03, the "Wow!" visuals): "how complete is my tree?"
 // answers generation by generation and opens the fan chart in its Brick walls
 // mode, so the gaps show. The data is the fan chart's Ahnentafel slots.
 
 import { FAN_CHART_MAX_GENERATIONS, fanChartStats, generationOfSlot } from "./chat_fan_chart_data";
-import { ancestorWord, generationLabel } from "./chat_lifespans_data";
+import { ancestorWord, generationLabel } from "./chat_kin_labels";
 
 const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const TREE = String.raw`(?:family\s+tree|tree|pedigree|ancestry|family\s+history)`;
@@ -51,16 +52,6 @@ const HEATMAP_PATTERNS = [
   ),
 ];
 
-function canonicalOwner(word) {
-  const raw = String(word || "")
-    .trim()
-    .replace(/['’]s$/i, "");
-  if (!raw) return "";
-  if (/^(?:my|our)$/i.test(raw)) return "my";
-  if (/^(?:her|his|their)$/i.test(raw)) return raw.toLowerCase();
-  if (/^this\s+(?:profile|person)$/i.test(raw)) return "";
-  return raw;
-}
 
 /**
  * Fan chart params ({owner, generations, ancestorPrompt, mode: "completeness" | "brickwalls",

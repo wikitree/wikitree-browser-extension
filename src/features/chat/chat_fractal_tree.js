@@ -5,7 +5,14 @@
 // transform), so ten generations deep still draws sharp. d3-zoom moves the
 // camera; click a circle to fly into it, Shift/⌘/Ctrl-click opens the profile.
 
-import $ from "jquery";
+import {
+  injectFractalStyles,
+  reducedMotion,
+  wrapText,
+  bindFractalSearch,
+  saveFractalPng,
+  switchFractalWhich,
+} from "./chat_fractal_common";
 import { select } from "d3-selection";
 import "d3-transition";
 import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
@@ -14,7 +21,7 @@ import { interpolateSpectral, schemeTableau10 } from "d3-scale-chromatic";
 import { interpolateRgb } from "d3-interpolate";
 import { easeCubicInOut } from "d3-ease";
 import { buildFractalLayout, graftBranch, hasFrontier, NESTED_GEOMETRY } from "./chat_fractal_tree_data";
-import { centrePopup, chartLinkButtons, chartLinkClick, escapeText, fullName, injectChartStyles, lifeYears as years, photoUrl, profileUrl, raiseAboveOtherPopups, siteUrl, toggleChartFullScreen, yearOf } from "./chat_chart_common";
+import { createChartPopup, mountChartPopup, closeChartPopup, chartLinkButtons, chartLinkClick, escapeText, fullName, lifeYears as years, photoUrl, profileUrl, siteUrl, toggleChartFullScreen, yearOf } from "./chat_chart_common";
 import { showSpiralTreePopup } from "./chat_fractal_spiral";
 
 export { photoUrl };
@@ -39,28 +46,6 @@ const MODES = [
   { key: "country", label: "Birth country" },
   { key: "surname", label: "Surname" },
 ];
-
-const FRACTAL_CSS = `
-  #wbe-fractal-popup { width: min(1320px, 96vw); height: min(900px, 92vh); }
-  #wbe-fractal-popup .wbe-chart-stage { background: #ffffff; }
-  #wbe-fractal-popup canvas { width: 100%; height: 100%; display: block; cursor: grab; }
-  #wbe-fractal-popup canvas:active { cursor: grabbing; }
-  #wbe-fractal-popup .wbe-fractal-search { border: 1px solid rgba(0,0,0,.2); border-radius: 999px; padding: 3px 10px; font-size: 12px; width: 170px; }
-  #wbe-fractal-popup .wbe-fractal-crumbs { padding: 4px 10px; font-size: 12px; min-height: 18px; border-bottom: 1px solid rgba(0,0,0,.06); }
-`;
-
-function injectFractalStyles() {
-  injectChartStyles();
-  if (document.getElementById("wbe-fractal-style")) return;
-  const style = document.createElement("style");
-  style.id = "wbe-fractal-style";
-  style.textContent = FRACTAL_CSS;
-  document.head.appendChild(style);
-}
-
-function reducedMotion() {
-  return Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
-}
 
 /** {fill(person), key(person), legend:[{key,label,colour}]} for rings and leaves. */
 function buildColouring(nodes, mode, palette = {}) {
@@ -133,28 +118,6 @@ function buildColouring(nodes, mode, palette = {}) {
   };
 }
 
-/** Splits text into at most `maxLines` lines of about `width` characters. */
-function wrapText(text, width, maxLines = 2) {
-  const words = String(text || "").split(/\s+/).filter(Boolean);
-  const lines = [];
-  let line = "";
-  words.forEach((word) => {
-    if (!line) line = word;
-    else if ((line + " " + word).length <= width) line += ` ${word}`;
-    else {
-      lines.push(line);
-      line = word;
-    }
-  });
-  if (line) lines.push(line);
-  if (lines.length > maxLines) {
-    const kept = lines.slice(0, maxLines);
-    kept[maxLines - 1] = `${kept[maxLines - 1]}…`;
-    return kept;
-  }
-  return lines;
-}
-
 function savedLayout() {
   try {
     return localStorage.getItem(LAYOUT_KEY) === "spiral" ? "spiral" : "nested";
@@ -194,7 +157,6 @@ export function showFamilyWorldPopup(world, options = {}) {
 }
 
 function showNestedTreePopup(tree, options = {}) {
-  $("#wbe-fractal-popup").remove();
   injectFractalStyles();
   const which = options.which === "ancestors" ? "ancestors" : "descendants";
   const childWord = which === "ancestors" ? "parents" : "children";
@@ -220,11 +182,9 @@ function showNestedTreePopup(tree, options = {}) {
   };
   const photos = new Map();
 
-  const popup = document.createElement("div");
-  popup.className = "wbe-popup chat-popup ui-draggable wbe-chart-popup";
-  popup.id = "wbe-fractal-popup";
-  popup.style.display = "flex";
-  popup.innerHTML = `
+  const popup = createChartPopup({
+    id: "wbe-fractal-popup",
+    html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>
       <div class="chat-popup-controls">
@@ -250,9 +210,8 @@ function showNestedTreePopup(tree, options = {}) {
         <div class="wbe-chart-stats"></div>
         <div class="wbe-chart-legend"></div>
       </div>
-    </div>`;
-  document.body.appendChild(popup);
-  centrePopup(popup);
+    </div>`,
+  });
   popup.querySelector(".wbe-chart-title").textContent = options.title || "Fractal tree";
 
   const stage = popup.querySelector(".wbe-chart-stage");
@@ -266,6 +225,7 @@ function showNestedTreePopup(tree, options = {}) {
   let width = 0;
   let height = 0;
   let frame = 0;
+  const retryTimers = new Set();
 
   function resize() {
     const rect = stage.getBoundingClientRect();
@@ -573,7 +533,13 @@ function showNestedTreePopup(tree, options = {}) {
         state.loading -= 1;
         if (!popup.isConnected) return;
         relayout();
-        if (!ok) setTimeout(() => popup.isConnected && draw(), EXPAND_RETRY_MS + 50);
+        if (!ok) {
+          const timer = setTimeout(() => {
+            retryTimers.delete(timer);
+            if (popup.isConnected) draw();
+          }, EXPAND_RETRY_MS + 50);
+          retryTimers.add(timer);
+        }
       });
   }
 
@@ -978,34 +944,14 @@ function showNestedTreePopup(tree, options = {}) {
   });
 
   const search = popup.querySelector(".wbe-fractal-search");
-  search.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-    const query = search.value.trim().toLowerCase();
-    if (!query) return;
-    if (state.query !== query) {
-      state.query = query;
-      state.matches = nodes
-        .filter((node) => `${node.person.name} ${node.person.lnab} ${node.person.wtid}`.toLowerCase().includes(query))
-        .map((node) => node.index);
-      state.matchIndex = -1;
-    }
-    if (!state.matches.length) {
-      search.title = "No one on the tree matches";
-      search.style.borderColor = HIGHLIGHT;
-      return;
-    }
-    search.style.borderColor = "";
-    state.matchIndex = (state.matchIndex + 1) % state.matches.length;
-    search.title = `${state.matchIndex + 1} of ${state.matches.length} (Enter for the next)`;
-    const index = state.matches[state.matchIndex];
-    state.pulse = lineOf(index);
-    flyTo(index, 1600);
-    clearTimeout(state.pulseTimer);
-    state.pulseTimer = setTimeout(() => {
-      state.pulse = null;
-      requestDraw();
-    }, 3000);
+  bindFractalSearch(search, {
+    state,
+    getNodes: () => nodes,
+    lineOf,
+    flyTo,
+    requestDraw,
+    flyDuration: 1600,
+    pulseDuration: 3000,
   });
 
   function drawFooter() {
@@ -1049,9 +995,7 @@ function showNestedTreePopup(tree, options = {}) {
     if (!button || button.classList.contains("wbe-chart-crumb")) return;
     const act = button.dataset.act;
     if (button.classList.contains("close-popup")) {
-      resizeObserver?.disconnect();
-      popup._wbeLeaveFullScreen?.();
-      popup.remove();
+      closeChartPopup(popup);
     } else if (button.dataset.link) {
       chartLinkClick(popup, button, options.links, focusedPersonKey());
     } else if (button.dataset.mode) {
@@ -1061,15 +1005,7 @@ function showNestedTreePopup(tree, options = {}) {
       requestDraw();
     } else if (act === "layout") options.onSwitchLayout?.();
     else if (act === "which") {
-      const label = button.textContent;
-      button.disabled = true;
-      button.textContent = "Loading…";
-      Promise.resolve(options.onSwitchWhich?.())
-        .catch((error) => console.warn("wbe: fractal tree switch failed", error))
-        .finally(() => {
-          button.disabled = false;
-          button.textContent = label;
-        });
+      switchFractalWhich(button, () => options.onSwitchWhich?.());
     }
     else if (act === "reset") (world ? flyHome(1000) : flyTo(0, 1000));
     else if (act === "out" && world) {
@@ -1088,23 +1024,18 @@ function showNestedTreePopup(tree, options = {}) {
     } else if (act === "full") {
       toggleChartFullScreen(popup);
     } else if (act === "png") {
-      try {
-        const a = document.createElement("a");
-        a.href = canvas.toDataURL("image/png");
-        a.download = `fractal-tree-${(tree?.person?.wtid || "tree").replace(/[^A-Za-z0-9_-]/g, "")}.png`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      } catch (error) {
-        button.title = "This view can't be saved (a photo came from another site). Zoom away from photos and try again.";
-      }
+      saveFractalPng(canvas, tree, button);
     }
   });
 
-  raiseAboveOtherPopups(popup);
-  $(popup).draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
-  const resizeObserver = typeof ResizeObserver === "function" ? new ResizeObserver(() => resize()) : null;
-  resizeObserver?.observe(stage);
+  mountChartPopup(popup, () => {
+    cancelAnimationFrame(frame);
+    retryTimers.forEach(clearTimeout);
+    retryTimers.clear();
+    clearTimeout(state.pulseTimer);
+    canvasSelection.interrupt("fly");
+    canvasSelection.on(".zoom", null);
+  }, { stage, resize });
   resize();
   drawFooter();
   updateCrumbs(0);

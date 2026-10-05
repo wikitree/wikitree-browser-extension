@@ -42,6 +42,11 @@
   display: inline-block;
 }
 
+/* Match the toolbar artwork baseline without moving the whole button group. */
+body .clipboardContainer > button.wbe-app-login:not(#none) {
+  vertical-align: -3px;
+}
+
 body.edit_relation .clipboardContainer,
 body.add_unrelated .clipboardContainer {
   top: 0.2em;
@@ -517,4 +522,9 @@ body button.wbe-app-login:not(#none) svg {
   bottom: auto;
   transform: translate(-50%, -50%);
   max-width: calc(100vw - 40px);
+}
+
+/* The header Genie button takes precedence while it is visible. */
+.wbe-genie-bar-button.wbe-genie-header-visible {
+  display: none !important;
 }

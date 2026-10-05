@@ -204,3 +204,28 @@ Biography popup and relative-bio execution now also lives in `chat_bio.js`, incl
 Chat history persistence and message rendering now also lives in `chat_history.js`, including session restore/clear, retry-request tracking, inline "show more" expansion, and reconstruction of saved Connections/Table/Show Bio actions.
 
 AI-assisted planning and disambiguation now also lives in `chat_planner.js`. This includes `parsePlannerJson` (JSON extraction from AI responses), `tryHandleAiPlannedIntent` (sends the full planner prompt and routes the parsed intent), `tryAiDisambiguateConnectionTarget` (AI-ranked candidate resolution for connection targets), `tryAiParseCategoryName` (canonical category-query extraction), and `tryAiExpandConnectionTarget` (alternate search-name / WikiTree ID suggestion). All five are wired into `chat.js` via `createChatAiPlannerHandlers`. Note that `executeRoutedIntent` is injected as a thunk because it is defined after the factory call.
+
+Shared DRY helpers:
+
+- `chat_filter_scope.js` owns the identical location/year scope parser used by married-no-children and sibling-birth-gap filters. Pattern order is preserved; filters with different scope rules remain separate.
+- `chat_chart_prompt.js` owns shared chart owner normalization, with separate possessive and object-pronoun conventions. Family timeline retains its distinct page-profile/`me` convention.
+- `chat_chart_common.js` supplies standard fullscreen, SVG, PNG, and close controls through `chartPopupControls()`. Charts retain their own extra controls and action handlers.
+
+- `chat_dates.js` owns partial-date parsing and whole-year age calculations. Marriage duration keeps its `{years, approx}` interface as a wrapper.
+- `chat_kin_labels.js` owns ancestor/descendant labels and generation labels. Existing module exports remain available for callers.
+- `handleChartPopupButton()` in `chat_chart_common.js` handles standard chart actions for charts without special export or fullscreen work. Charts that finish animations before exporting retain their specialized handlers.
+
+- `chat_ahnentafel.js` owns the guarded API Ahnentafel-to-generation calculation shared by people queries and profile search.
+- `chat_place_text.js` supplies location-field labels for people and relation answers.
+- `partialDateSortKey()` in `chat_dates.js` supplies partial birth/death date keys for relative selection and age comparisons. It retains unknown months/days as `00`.
+- Profile search reuses the exported tokenizer in `wt_plus_query_grammar.js`; quoted fields and phrases have one tokenization rule.
+
+- `chat_fractal_common.js` owns shared nested/spiral canvas UI: styles, reduced-motion detection, text wrapping, Enter-to-cycle search, PNG export, and ancestor/descendant switch button state. Renderers supply current search nodes and their own flight/pulse durations; colouring, zoom geometry, and expansion remain layout-specific.
+
+- `createChartPopup()`, `mountChartPopup()`, and `closeChartPopup()` share creation, dragging, optional resize observation, and close/replacement cleanup for four SVG charts and both fractal canvas layouts. SVG cleanup interrupts animations; canvas cleanup cancels frames, pulse/retry timers, and zoom transitions. Replacement also exits fullscreen and destroys the drag widget.
+
+- `chat_connection_source.js` owns connection source precedence: explicit user references, explicit named endpoints, then the current person on profile/edit pages or the user on other pages. Bare `relationship to …` routes locally, so AI planning cannot introduce an unintended `my` endpoint.
+
+### Family relationship map
+
+`chat_family_matrix_data.js` loads paginated `getPeople` ancestry and descendant branches, then groups unique profiles by their nearest shared ancestor. `chat_family_matrix.js` displays accessible count cards and full-name/date lists with hover, focus, pinning and search. The chart uses the shared chart owner resolution and popup lifecycle. Defaults are four ancestor generations and five descendant generations; controls allow 25 and 10 respectively. Collateral descendant requests start from the nearest four ancestor generations to bound requests. Counts describe fetched profiles, with full and half cousins combined.

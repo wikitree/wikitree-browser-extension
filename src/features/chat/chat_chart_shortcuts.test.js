@@ -29,7 +29,7 @@ describe("parseChartShortcutPrompt", () => {
 });
 
 describe("canonical prompts", () => {
-  const intents = { fan: "FAN_CHART", explorer: "FAMILY_WORLD", descendants: "DESCENDANT_CHART", timeline: "FAMILY_TIMELINE", lifespans: "LIFESPANS", history: "LIFESPANS", map: "MIGRATION_MAP", descmap: "MIGRATION_MAP", calendar: "FAMILY_CALENDAR", names: "NAME_CLOUD", overview: "TREE_OVERVIEW", ages: "AGES_CHART", xdna: "FAN_CHART", dnalines: "FAN_CHART", dnaproof: "FAN_CHART", dnatesters: "DESCENDANT_CHART", ydnamap: "DNA" };
+  const intents = { familymap: "FAMILY_MATRIX", fan: "FAN_CHART", explorer: "FAMILY_WORLD", descendants: "DESCENDANT_CHART", timeline: "FAMILY_TIMELINE", lifespans: "LIFESPANS", history: "LIFESPANS", map: "MIGRATION_MAP", descmap: "MIGRATION_MAP", calendar: "FAMILY_CALENDAR", names: "NAME_CLOUD", overview: "TREE_OVERVIEW", ages: "AGES_CHART", xdna: "FAN_CHART", dnalines: "FAN_CHART", dnaproof: "FAN_CHART", dnatesters: "DESCENDANT_CHART", ydnamap: "DNA" };
   test.each(CHART_SHORTCUTS.map((chart) => chart.key))("%s routes to its chart for the ID", (key) => {
     const routed = routeChatPrompt(chartShortcutCanonicalPrompt(key, "Beacall-9"));
     expect(routed.intent).toBe(ChatIntent[intents[key]]);

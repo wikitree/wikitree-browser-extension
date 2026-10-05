@@ -1,3 +1,4 @@
+import { canonicalChartObjectOwner as canonicalOwner } from "./chat_chart_prompt";
 // Fractal tree (2026-10-03): a OneZoom-style family tree (the user's model:
 // onezoom.org, "but for families"). Each person is a circle holding a small
 // tree of their children; each child's circle holds theirs, and so on, so
@@ -36,18 +37,6 @@ const PATTERNS = [
   { re: new RegExp(String.raw`^(?:visuali[sz]e|chart|graph)\s+${OWNER}\s+(ancestors)${GENS}$`, "i"), groups: ["owner", "kin", "gens"] },
 ];
 
-function canonicalOwner(word) {
-  const raw = String(word || "")
-    .trim()
-    .replace(/['’]s$/i, "");
-  if (!raw) return "";
-  if (/^(?:my|our|me)$/i.test(raw)) return "my";
-  if (/^(?:her)$/i.test(raw)) return "her";
-  if (/^(?:his|him)$/i.test(raw)) return "his";
-  if (/^(?:their|them)$/i.test(raw)) return "their";
-  if (/^this\s+(?:profile|person)$/i.test(raw)) return "";
-  return raw;
-}
 
 /**
  * {owner, which, generations, subjectPrompt} or null. which: "descendants"

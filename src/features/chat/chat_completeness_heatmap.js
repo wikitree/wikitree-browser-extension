@@ -14,9 +14,9 @@ import "d3-transition";
 import { interpolateYlGn } from "d3-scale-chromatic";
 import { easeCubicOut } from "d3-ease";
 import { buildCompletenessGrid, HEATMAP_BRANCH_GENERATIONS } from "./chat_completeness_data";
-import { ancestorWord, generationLabel } from "./chat_lifespans_data";
+import { ancestorWord, generationLabel } from "./chat_kin_labels";
 import { researchStatusLabel } from "./chat_profile_quality_data";
-import { centrePopup, chartLinkButtons, chartLinkClick, escapeText, injectChartStyles, profileUrl, raiseAboveOtherPopups, saveChart, textColourFor, toggleChartFullScreen, truncate } from "./chat_chart_common";
+import { chartPopupControls, centrePopup, chartLinkButtons, chartLinkClick, escapeText, injectChartStyles, profileUrl, raiseAboveOtherPopups, saveChart, textColourFor, toggleChartFullScreen, truncate } from "./chat_chart_common";
 
 const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 const WIDTH = 960;
@@ -51,10 +51,7 @@ export function showCompletenessHeatmapPopup(slots, options = {}) {
       <div class="chat-popup-controls">
         <button type="button" class="small" data-act="replay" title="Fill it in again">Replay</button>
         ${chartLinkButtons(options.links)}
-        <button type="button" class="small" data-act="full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
-        <button type="button" class="small" data-act="svg" title="Save as SVG">SVG</button>
-        <button type="button" class="small" data-act="png" title="Save as PNG">PNG</button>
-        <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+        ${chartPopupControls()}
       </div>
     </div>
     <div class="chat-popup-body">

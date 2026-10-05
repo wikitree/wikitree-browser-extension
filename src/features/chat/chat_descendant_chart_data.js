@@ -3,6 +3,7 @@
 // parents (cousin marriages) is placed once, under the first parent reached.
 // The d3 drawing lives in chat_descendant_chart.js.
 
+import { fullWikiTreeName } from "./chat_fan_chart_data";
 import { getCountryFromLocation } from "./chat_place_country";
 
 export const DESCENDANT_CHART_DEFAULT_GENERATIONS = 5;
@@ -74,11 +75,13 @@ function summarize(person) {
     // (WikiTree sends only the Id for a profile you may not see: private or unlisted, not on its Trusted List)
     name: person.RealName || person?.Derived?.ShortName || person.FirstName || person.Name || "Private",
     hidden: !(person.RealName || person?.Derived?.ShortName || person.FirstName || person.Name),
+    fullName: fullWikiTreeName(person),
     lnab: person.LastNameAtBirth || "",
     gender: person.Gender || "",
     birth: cleanDate(person.BirthDate),
     death: cleanDate(person.DeathDate),
     birthLocation: person.BirthLocation || "",
+    deathLocation: person.DeathLocation || "",
     birthCountry: getCountryFromLocation(person.BirthLocation || "") || "",
     photo: person.Photo || "",
     photoData: person.PhotoData || null,

@@ -1,3 +1,4 @@
+import { getLocationFieldLabel } from "./chat_place_text";
 import { formatPreviewDate } from "./chat_preview_format";
 import { formatKinPlaceDetails } from "./chat_kin_details";
 import { sortByBirth } from "./chat_kin_order";
@@ -578,16 +579,6 @@ export function createChatRelationHandlers({
       deathLocation: person?.DeathLocation || "",
       surname: person?.LastNameAtBirth || person?.LastNameCurrent || "",
     }));
-  }
-
-  function getLocationFieldLabel(locationField = "AnyLocation") {
-    if (locationField === "BirthLocation") {
-      return "birth location";
-    }
-    if (locationField === "DeathLocation") {
-      return "death location";
-    }
-    return "birth or death location";
   }
 
   function filterPeopleByLocation(people = [], location = "", locationField = "AnyLocation") {

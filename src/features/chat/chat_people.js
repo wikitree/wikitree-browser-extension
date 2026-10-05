@@ -1,3 +1,8 @@
+import { buildFamilyMatrix, loadFamilyMatrixPeople } from "./chat_family_matrix_data";
+import { showFamilyMatrixPopup } from "./chat_family_matrix";
+import { descendantWord } from "./chat_kin_labels";
+import { getGenerationFromAhnen } from "./chat_ahnentafel";
+import { getLocationFieldLabel } from "./chat_place_text";
 import { buildTreeAppRecommendations } from "./chat_tree_apps";
 import { getCountryFromLocation, isEmigrantRow, summarizeCountries } from "./chat_place_country";
 import { runDuplicateCheck } from "./chat_duplicates";
@@ -42,7 +47,7 @@ import { showNameCloudPopup } from "./chat_name_cloud";
 import { buildNameCloud, buildNameCloudSummary, NAME_CLOUD_GENERATIONS } from "./chat_name_cloud_data";
 import { showFamilyCalendarPopup } from "./chat_family_calendar";
 import { showAgesPopup } from "./chat_ages_chart";
-import { buildAgesSummary } from "./chat_ages_data";
+import { deathAgeRows, parentAgeRows, buildAgesSummary } from "./chat_ages_data";
 import { buildCalendarEvents, buildCalendarSummary, FAMILY_CALENDAR_GENERATIONS } from "./chat_family_calendar_data";
 import { showTreeOverviewPopup } from "./chat_tree_overview";
 import { buildTreeOverview, buildTreeOverviewSummary, TREE_OVERVIEW_GENERATIONS } from "./chat_tree_overview_data";
@@ -350,7 +355,8 @@ export function createChatPeopleHandlers({
       table._chatMeta = enrichedChatMeta;
     }
 
-    // The charts lead (fan chart for ancestors, the sunburst for descendants), then the Tree Apps.
+    // Chart launch behavior is separate from the external Tree App recommendations.
+    // Genie charts are already available in the chart bar.
     const charts = treeAppKind === "ancestors" || treeAppKind === "descendants" ? visualActions(rootWtId, treeAppKind) : [];
     // Brick walls ("…with no father recorded") show best on the fan chart's Brick walls colouring, which opens itself.
     if (treeAppKind === "ancestors" && enrichedChatMeta?.missingParent && rootWtId) {
@@ -371,18 +377,8 @@ export function createChatPeopleHandlers({
       inlineMore,
       trailingText: recommendationSuffix.trim(),
       table,
-      actions: [...charts, ...treeAppActions],
+      actions: treeAppActions,
     };
-  }
-
-  function getLocationFieldLabel(locationField) {
-    if (locationField === "BirthLocation") {
-      return "birth location";
-    }
-    if (locationField === "DeathLocation") {
-      return "death location";
-    }
-    return "birth or death location";
   }
 
   function getDateConstraintLabel(dateField = "", dateDirection = "", dateValue = "") {
@@ -712,15 +708,6 @@ export function createChatPeopleHandlers({
       name: String(name || "").trim(),
       wtid,
     };
-  }
-
-  function getGenerationFromAhnen(ahnen) {
-    const numericAhnen = Number(ahnen);
-    if (!Number.isFinite(numericAhnen) || numericAhnen < 2) {
-      return 0;
-    }
-
-    return Math.floor(Math.log2(numericAhnen));
   }
 
   // The root in an ancestors response fetched with minGeneration 0.
@@ -1403,10 +1390,23 @@ export function createChatPeopleHandlers({
       const slots = await loadFanSlots(rootPerson.key, generations, { quality: !!params?.completeness });
       if (!slots[1]) return cantLoad(rootPerson, "ancestors");
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
+      if (params?.mode === "dnalines" && !slots[1].fatherId && !slots[1].motherId) {
+        const tree = await loadDescendantTree(rootPerson.key, generations);
+        if (!tree) return cantLoad(rootPerson, "descendants");
+        const openCarriers = () => openDescendantChart(tree, "dnacarriers");
+        openCarriers();
+        return {
+          message: `${formatSubjectLabel(rootPerson)} has no parents attached on WikiTree, so this chart shows DNA inheritance through children and descendants.\n${buildDnaCarrierSummary(tree, owner, generations)}`,
+          actions: [{ label: "Open DNA carriers chart", onClick: openCarriers }, VISUALS.explorer(rootPerson.key)],
+          chartOpened: true,
+        };
+      }
       const hasAncestors = fanChartStats(slots).found > 0;
+      // DNA views still show the root and inheritance gaps without recorded ancestors.
+      const canOpenChart = hasAncestors || ["dnalines", "xdna"].includes(params?.mode);
       const open = () => openFanChart(slots, generations, params?.mode || "");
       const openHeatmap = () => openCompletenessHeatmap(slots);
-      if (hasAncestors) (params?.heatmap ? openHeatmap : open)();
+      if (canOpenChart) (params?.heatmap ? openHeatmap : open)();
       const key = slots[1].wtid || rootPerson.key;
       if (params?.completeness) {
         const branches = hasAncestors ? describeBranchCompleteness(buildCompletenessGrid(slots)) : "";
@@ -1452,15 +1452,17 @@ export function createChatPeopleHandlers({
           : params?.mode === "dnaproof"
           ? buildParentStatusSummary(slots, owner)
           : params?.mode === "dnalines"
-          ? buildDnaLinesSummary(slots, owner)
+          ? buildDnaLinesSummary(slots, owner, { chartOpened: canOpenChart })
           : params?.dna
-          ? buildXDnaSummary(slots, owner)
+          ? buildXDnaSummary(slots, owner, { chartOpened: canOpenChart })
           : params?.mode === "surname"
           ? buildSurnameSummary(slots, owner)
-          : buildFanChartSummary(slots, owner),
-        actions: hasAncestors ? [{ label: "Open fan chart", onClick: open }, VISUALS.explorer(key), VISUALS.lifespans(key), VISUALS.map(key)] : [],
+          : canOpenChart
+          ? buildFanChartSummary(slots, owner)
+          : `${owner} tree has no parents recorded on WikiTree yet.`,
+        actions: canOpenChart ? [{ label: "Open fan chart", onClick: open }, VISUALS.explorer(key), VISUALS.lifespans(key), VISUALS.map(key)] : [],
         table: tableFromSlots(`${owner} ancestors`, slots),
-        chartOpened: hasAncestors,
+        chartOpened: canOpenChart,
       };
     } catch (error) {
       return `The fan chart failed to load (${error?.message || error}).`;
@@ -1743,10 +1745,14 @@ export function createChatPeopleHandlers({
     }
     const slots = await loadFanSlots(key, LIFESPANS_GENERATIONS);
     if (!slots[1]) return null;
+    if (!slots[1].fatherId && !slots[1].motherId) {
+      const descendants = await openLifespans(key, { ...extra, view: "descendants" });
+      return descendants ? { ...descendants, autoDescendants: true } : null;
+    }
     if (!extra.position) noteHiddenProfiles(slots.filter((person) => person?.hidden).length);
     const { rows, undated } = buildLifespanRows(slots);
     const table = tableFromSlots(`Ancestors of ${slots[1].name || slots[1].wtid} (${slots[1].wtid})`, slots);
-    if (rows.filter((row) => row.generation > 0).length < 2) return { rows, undated, table, opened: false };
+    if (rows.filter((row) => row.generation > 0).length < 1) return { rows, undated, table, opened: false };
     showLifespansPopup(rows, {
       ...common,
       title: `Lifespans: ${slots[1].name || slots[1].wtid} (${slots[1].wtid})`,
@@ -1760,17 +1766,30 @@ export function createChatPeopleHandlers({
   async function openNameCloud(key) {
     const slots = await loadFanSlots(key, NAME_CLOUD_GENERATIONS);
     if (!slots[1]) return null;
-    const clouds = { first: buildNameCloud(slots, "first"), surname: buildNameCloud(slots, "surname") };
-    const opened = clouds.first.length + clouds.surname.length >= 3;
+    let names = slots;
+    let scope = "ancestors";
+    if (!slots[1].fatherId && !slots[1].motherId) {
+      scope = "descendants";
+      names = [null, slots[1]];
+      const tree = await loadDescendantTree(key, NAME_CLOUD_GENERATIONS);
+      const visit = (node) => {
+        if (node.depth > 0) names.push({ ...node.person, generation: node.depth });
+        node.children.forEach(visit);
+      };
+      if (tree) visit(tree);
+    }
+    const clouds = { first: buildNameCloud(names, "first"), surname: buildNameCloud(names, "surname") };
+    const opened = clouds.first.length + clouds.surname.length > 0;
     if (opened) {
       showNameCloudPopup(clouds, {
-        title: `Name cloud: ${slots[1].name || slots[1].wtid} (${slots[1].wtid})`,
+        title: `Name cloud: ${scope} of ${slots[1].name || slots[1].wtid} (${slots[1].wtid})`,
+        scope,
         rootKey: slots[1].wtid,
         links: chartLinks("overview", "fan", "lifespans", "explorer"),
-        onRiver: () => showSurnameRiver(slots),
+        ...(scope === "ancestors" ? { onRiver: () => showSurnameRiver(slots) } : {}),
       });
     }
-    return { slots, opened };
+    return { slots, names, scope, opened };
   }
 
   // Family size (2026-10-04): each ancestral couple's children, generation by generation.
@@ -1871,9 +1890,8 @@ export function createChatPeopleHandlers({
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
       const key = shown.slots[1].wtid || rootPerson.key;
       return {
-        message: buildNameCloudSummary(shown.slots, owner),
-        actions: [VISUALS.names(key, shown.opened ? "Open name cloud" : "Name cloud"), VISUALS.fan(key, "surname", "Surnames fan chart"), VISUALS.lifespans(key)],
-        table: tableFromSlots(`${owner} ancestors`, shown.slots),
+        message: `${shown.scope === "descendants" ? `${owner} profile has no parents attached, so I used descendants for the name cloud.\n` : ""}${!shown.opened && shown.scope === "descendants" ? "No descendants with usable names were found on WikiTree, so there is no name cloud to show." : buildNameCloudSummary(shown.names, owner, shown.scope)}`,
+        actions: [...(shown.opened ? [VISUALS.names(key, "Open name cloud")] : []), ...(shown.scope === "descendants" ? [VISUALS.descendants(key), VISUALS.explorer(key)] : [VISUALS.fan(key, "surname", "Surnames fan chart"), VISUALS.lifespans(key)])],
         chartOpened: shown.opened,
       };
     } catch (error) {
@@ -1885,8 +1903,27 @@ export function createChatPeopleHandlers({
   async function openFamilyCalendar(key, focusMonth = 0) {
     const slots = await loadFanSlots(key, FAMILY_CALENDAR_GENERATIONS);
     if (!slots[1]) return null;
-    const events = buildCalendarEvents(slots);
-    const opened = events.length >= 3;
+    const [tree, relatives] = await Promise.all([
+      loadDescendantTree(key, FAMILY_CALENDAR_GENERATIONS),
+      typeof WikiTreeAPI.getRelatives === "function"
+        ? WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, key, FAN_CHART_FIELDS, { getSiblings: 1, getSpouses: 1 })
+        : Promise.resolve([]),
+    ]);
+    const family = slots.slice();
+    const visit = (node) => {
+      if (node.depth > 0) family.push({ ...node.person, generation: node.depth, relation: descendantWord(node.depth, node.person.gender) });
+      node.children.forEach(visit);
+    };
+    if (tree) visit(tree);
+    const person = relatives?.[0]?.person;
+    for (const [group, relation] of [["Siblings", "Sibling"], ["Spouses", "Spouse"]]) {
+      Object.values(person?.[group] || {}).forEach((relative) => {
+        const summary = buildFanSlots({ [relative.Id]: relative }, relative.Id || relative.Name, 0)[1];
+        if (summary) family.push({ ...summary, generation: 1, relation });
+      });
+    }
+    const events = buildCalendarEvents(family);
+    const opened = events.length > 0;
     if (opened) {
       showFamilyCalendarPopup(events, {
         title: `Family calendar: ${slots[1].name || slots[1].wtid} (${slots[1].wtid})`,
@@ -1898,18 +1935,56 @@ export function createChatPeopleHandlers({
     return { slots, events, opened };
   }
 
+  async function tryHandleFamilyMatrixPrompt(params, prompt = "") {
+    const root = await resolveAncestorSubjectRoot(params?.ancestorPrompt || prompt);
+    if (!root || root.unresolvedName) return "I couldn't identify that profile. Try a WikiTree ID for the Relationship Chart.";
+    const load = async (ancestors = 4, descendants = 5, progress) => {
+      const people = await loadFamilyMatrixPeople(WikiTreeAPI, WBE_CHAT_APP_ID, root.key, ancestors, descendants, progress);
+      const matrix = buildFamilyMatrix(people, root.key, ancestors, descendants);
+      if (!matrix) throw new Error("WikiTree returned no starting profile");
+      showFamilyMatrixPopup(matrix, { reload: load });
+      return matrix;
+    };
+    try {
+      const matrix = await load();
+      return { message: `Relationship Chart for ${formatSubjectLabel(root)}: ${matrix.total} relatives in ${matrix.cards.length} relationship groups. Hover a card for people and dates, or click to keep the list open.`, chartOpened: true, actions: [{ label: "Open Relationship Chart", onClick: () => load() }] };
+    } catch (error) { return `The Relationship Chart couldn't load (${error.message || error}).`; }
+  }
+
   // Tree overview (2026-10-03): a dashboard of the ancestors, each panel opening its chart.
   async function openTreeOverview(key) {
     const slots = await loadFanSlots(key, TREE_OVERVIEW_GENERATIONS);
     if (!slots[1]) return null;
     const overview = buildTreeOverview(slots);
+    if (!slots[1].fatherId && !slots[1].motherId) {
+      overview.descendants = [];
+      const tree = await loadDescendantTree(key, TREE_OVERVIEW_GENERATIONS);
+      const seen = new Set();
+      const visit = (node) => {
+        const id = node.person.id || node.person.wtid;
+        if (node.depth > 0 && !seen.has(id)) {
+          seen.add(id);
+          overview.descendants.push({ ...node.person, generation: node.depth });
+        }
+        node.children.forEach(visit);
+      };
+      if (tree) visit(tree);
+    }
     const wtid = slots[1].wtid || key;
-    const opened = overview.stats.found > 0;
+    const opened = true;
     if (opened) {
       const run = (action) => () => action.onClick();
       showTreeOverviewPopup(overview, {
         title: `Tree overview: ${slots[1].name || wtid} (${wtid})`,
         open: {
+          familymap: run(chartAction("Relationship Chart", async () => {
+            const result = await tryHandleFamilyMatrixPrompt({ ancestorPrompt: `${wtid}'s ancestors` });
+            if (typeof result === "string") notify(result);
+            return result;
+          })),
+          descendants: run(VISUALS.descendants(wtid)),
+          descmap: run(VISUALS.descmap(wtid)),
+          desclives: run(VISUALS.desclives(wtid)),
           fan: run(VISUALS.fan(wtid)),
           brickwalls: run(VISUALS.fan(wtid, "brickwalls", "Brick walls fan chart")),
           repeats: run(VISUALS.fan(wtid, "repeats", "Repeated ancestors")),
@@ -1936,9 +2011,9 @@ export function createChatPeopleHandlers({
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
       const key = shown.slots[1].wtid || rootPerson.key;
       return {
-        message: buildTreeOverviewSummary(shown.overview, owner),
-        actions: shown.opened ? [VISUALS.overview(key, "Open tree overview"), ...visualActions(key, "ancestors")] : [VISUALS.explorer(key)],
-        table: tableFromSlots(`${owner} ancestors`, shown.slots),
+        message: shown.overview.descendants ? `${formatSubjectLabel(rootPerson)} has no parents attached on WikiTree. The overview shows ${shown.overview.descendants.length} descendants found within ${TREE_OVERVIEW_GENERATIONS} generations.` : buildTreeOverviewSummary(shown.overview, owner),
+        actions: shown.opened ? [VISUALS.overview(key, "Open tree overview"), ...visualActions(key, shown.overview.descendants ? "descendants" : "ancestors")] : [VISUALS.explorer(key)],
+        ...(!shown.overview.descendants ? { table: tableFromSlots(`${owner} ancestors`, shown.slots) } : {}),
         chartOpened: shown.opened,
       };
     } catch (error) {
@@ -1958,9 +2033,28 @@ export function createChatPeopleHandlers({
       if (!slots[1]) return cantLoad(rootPerson, "ancestors");
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
       const key = slots[1].wtid || rootPerson.key;
+      let ages = slots;
+      let scope = "ancestors";
+      if (!slots[1].fatherId && !slots[1].motherId) {
+        scope = "descendants";
+        ages = [null];
+        const tree = await loadDescendantTree(rootPerson.key, Number(params?.generations) || 10);
+        const visit = (node) => {
+          ages.push({ ...node.person, generation: node.depth, children: node.children.map((child) => child.person) });
+          node.children.forEach(visit);
+        };
+        if (tree) visit(tree);
+      }
+      const hasAges = deathAgeRows(ages).length > 0 || parentAgeRows(ages).length > 0;
+      const prefix = scope === "descendants" ? `${formatSubjectLabel(rootPerson)} has no parents attached on WikiTree, so I used descendants for ages.\n` : "";
+      if (!hasAges) return {
+        message: `${prefix}There aren't enough birth or death dates to chart ${scope}' ages.`,
+        actions: [VISUALS.explorer(key), VISUALS.descendants(key)],
+        chartOpened: false,
+      };
       const open = () =>
-        showAgesPopup(slots, {
-          title: `Lives & ages: ${slots[1].name || key} (${key})`,
+        showAgesPopup(ages, {
+          title: `Lives & ages (${scope}): ${slots[1].name || key} (${key})`,
           mode: params?.mode || "death",
           links: chartLinks("fan", "lifespans", "overview"),
           rootKey: key,
@@ -1968,9 +2062,9 @@ export function createChatPeopleHandlers({
       noteHiddenProfiles(slots.filter((person) => person?.hidden).length);
       open();
       return {
-        message: buildAgesSummary(slots, owner, params?.mode || "death"),
+        message: prefix + buildAgesSummary(ages, owner, params?.mode || "death", scope),
         actions: [{ label: "Open Lives & ages", onClick: open }, VISUALS.fan(key), VISUALS.lifespans(key)],
-        table: tableFromSlots(`${owner} ancestors`, slots),
+        ...(scope === "ancestors" ? { table: tableFromSlots(`${owner} ancestors`, slots) } : {}),
         chartOpened: true,
       };
     } catch (error) {
@@ -1989,10 +2083,13 @@ export function createChatPeopleHandlers({
       if (!shown) return cantLoad(rootPerson, "ancestors");
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
       const key = shown.slots[1].wtid || rootPerson.key;
+      const root = shown.slots[1];
+      const noParentsAttached = !root.fatherId && !root.motherId;
+      const emptyMessage = `${rootPerson.subjectType === "user" ? "You have" : `${formatSubjectLabel(rootPerson)} has`} no parents attached on WikiTree, and no full birth or death dates to show, so the calendar is empty.`;
       return {
-        message: buildCalendarSummary(shown.events, owner, params || {}),
+        message: !shown.events.length && noParentsAttached ? emptyMessage : buildCalendarSummary(shown.events, owner, { ...params, scope: "family" }),
         actions: [VISUALS.calendar(key, shown.opened ? "Open family calendar" : "Family calendar"), VISUALS.fan(key), VISUALS.lifespans(key)],
-        table: tableFromSlots(`${owner} ancestors`, shown.slots),
+
         chartOpened: shown.opened,
       };
     } catch (error) {
@@ -2023,8 +2120,32 @@ export function createChatPeopleHandlers({
           };
         }
       }
-      if (params?.view === "descendants") {
-        const shown = await openLifespans(rootPerson.key, { view: "descendants" });
+      if (params?.history && !params?.personal) {
+        const slots = await loadFanSlots(rootPerson.key, LIFESPANS_GENERATIONS);
+        if (slots[1] && !slots[1].fatherId && !slots[1].motherId) {
+          const tree = await loadDescendantTree(rootPerson.key);
+          const { rows, undated } = tree ? buildDescendantLifespanRows(tree) : buildLifespanRows(slots);
+          const self = rows.find((row) => row.generation === 0);
+          const label = formatSubjectLabel(rootPerson);
+          if (!self) return { message: `${label} has no birth year recorded on WikiTree, so there isn't a dated life to place in history yet.`, chartOpened: false, actions: [VISUALS.explorer(rootPerson.key)] };
+          const open = () => showLifespansPopup(rows, {
+            title: `In history: ${label}`,
+            view: tree?.children.length ? "descendants" : "ancestors",
+            undated,
+            focusEventId: params.eventId || "",
+            links: chartLinks("explorer", "descendants"),
+          });
+          open();
+          return {
+            message: buildPersonHistorySummary(self, label, rowCountries(rows)),
+            actions: [{ label: "Open history chart", onClick: open }, VISUALS.explorer(rootPerson.key)],
+            chartOpened: true,
+          };
+        }
+      }
+      const defaultShown = params?.view === "descendants" ? null : await openLifespans(rootPerson.key, { focusEventId: params?.eventId });
+      if (params?.view === "descendants" || defaultShown?.autoDescendants) {
+        const shown = defaultShown || await openLifespans(rootPerson.key, { view: "descendants" });
         if (!shown) return cantLoad(rootPerson, "descendants");
         const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
         const key = shown.rows.find((row) => row.generation === 0)?.wtid || rootPerson.key;
@@ -2034,13 +2155,13 @@ export function createChatPeopleHandlers({
           ? `${owner} descendants' lifespans: ${dated.length} ${dated.length === 1 ? "person" : "people"} with a birth year over ${generations} generation${generations === 1 ? "" : "s"}, born ${Math.min(...dated.map((row) => row.start))}–${Math.max(...dated.map((row) => row.start))}${shown.undated ? ` (${shown.undated} without a birth year aren't shown)` : ""}.`
           : `None of ${owner.replace(/^Your$/, "your")} descendants on WikiTree has a birth year to chart.`;
         return {
-          message,
+          message: `${shown.autoDescendants ? `${formatSubjectLabel(rootPerson)} has no parents attached on WikiTree, so I used descendants.\n` : ""}${message}`,
           actions: shown.opened ? [VISUALS.desclives(key, "Open lifespans"), VISUALS.descendants(key), VISUALS.descmap(key)] : [VISUALS.descendants(key)],
-          table: shown.table,
+          ...(!shown.autoDescendants && shown.opened ? { table: shown.table } : {}),
           chartOpened: shown.opened,
         };
       }
-      const shown = await openLifespans(rootPerson.key, { focusEventId: params?.eventId });
+      const shown = defaultShown;
       if (!shown) return cantLoad(rootPerson, "ancestors");
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
       const key = shown.rows.find((row) => row.generation === 0)?.wtid || rootPerson.key;
@@ -2114,7 +2235,8 @@ export function createChatPeopleHandlers({
       onClick: async () => {
         try {
           const tree = await loadDescendantTree(key);
-          if (tree) openDescendantChart(tree);
+          if (!tree) return null;
+          return openDescendantChart(tree);
         } catch (error) {
           console.warn("wbe: descendant chart failed", error);
         }
@@ -2261,7 +2383,8 @@ export function createChatPeopleHandlers({
       label,
       onClick: async () => {
         try {
-          await open();
+          const shown = await open();
+          if (shown === null || shown?.opened === false) notify(`${label} has no usable data to chart for this profile.`);
         } catch (error) {
           console.warn(`wbe: ${label} failed`, error);
           notify(`${label} couldn't load (${error?.message || error}).`);
@@ -2275,7 +2398,8 @@ export function createChatPeopleHandlers({
     fan: (key, mode = "", label = "Fan chart") =>
       chartAction(label, async () => {
         const slots = await loadFanSlots(key);
-        if (slots[1]) openFanChart(slots, FAN_CHART_DEFAULT_GENERATIONS, mode);
+        if (!slots[1]) return null;
+        return openFanChart(slots, FAN_CHART_DEFAULT_GENERATIONS, mode);
       }),
     explorer: (key) =>
       chartAction("Family Explorer", async () => {
@@ -2292,7 +2416,9 @@ export function createChatPeopleHandlers({
             title: `Migration map: ${slots[1].name || slots[1].wtid} (${slots[1].wtid})`,
             fileBase: `migration-map-${String(slots[1].wtid || "").replace(/[^A-Za-z0-9_-]/g, "")}`,
           });
+          return { opened: true };
         }
+        return { opened: false };
       }),
     // (the family timeline is now Lifespans' Close family view; saved "timeline" buttons open it)
     timeline: (key) => chartAction("Family lifespans", () => openLifespans(key, { view: "family" })),
@@ -2307,7 +2433,8 @@ export function createChatPeopleHandlers({
     descendants: (key) =>
       chartAction("Descendant chart", async () => {
         const tree = await loadDescendantTree(key);
-        if (tree) openDescendantChart(tree);
+        if (!tree) return null;
+        return openDescendantChart(tree);
       }),
   };
 
@@ -3085,6 +3212,7 @@ export function createChatPeopleHandlers({
       return null;
     }
 
+    const livingOnly = Boolean(params?.livingOnly) || /\bliving\b/i.test(prompt);
     const normalizedPrompt = String(prompt || "").toLowerCase();
     const location = String(params?.location || "").trim();
     const locationField = String(params?.locationField || "").trim() || "AnyLocation";
@@ -3116,7 +3244,7 @@ export function createChatPeopleHandlers({
     const datePhrase = getDateConstraintLabel(dateField, dateDirection, dateValue);
     const ageAtDeath = params?.ageAtDeath || null;
     const ageAtDeathPhrase = getAgeAtDeathPhrase(ageAtDeath);
-    const filterPhrase = [locationPhrase, datePhrase, ageAtDeathPhrase].filter(Boolean).join(" ")
+    const filterPhrase = [livingOnly ? "marked living on WikiTree" : "", locationPhrase, datePhrase, ageAtDeathPhrase].filter(Boolean).join(" ")
       // "children who died before 1900", not "children died before 1900" (live R6 recheck).
       .replace(/^died\b/, "who died");
     const displayRelationshipLabel = filterPhrase
@@ -3142,7 +3270,7 @@ export function createChatPeopleHandlers({
           }
         : result;
 
-    const cachedDescendantRows = filterCachedKinRows({
+    const cachedDescendantRows = livingOnly ? null : filterCachedKinRows({
       intent: ChatIntent.DESCENDANT_LIST,
       rootKey: rootPerson.key,
       generation,
@@ -3216,7 +3344,7 @@ export function createChatPeopleHandlers({
       const [, , peopleMap] = await fetchPeoplePaged(
         WBE_CHAT_APP_ID,
         rootPerson.key,
-        "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,LastNameAtBirth,LastNameCurrent,LastNameOther,BirthDate,BirthDateDecade,DeathDate,DeathDateDecade,BirthLocation,DeathLocation,Gender,Meta",
+        "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,LastNameAtBirth,LastNameCurrent,LastNameOther,BirthDate,BirthDateDecade,DeathDate,DeathDateDecade,BirthLocation,DeathLocation,Gender,IsLiving,Meta",
         { descendants: generation, minGeneration: includeUpTo ? 1 : generation, limit: 1000 }
       );
 
@@ -3243,7 +3371,7 @@ export function createChatPeopleHandlers({
         return degree === generation;
       });
 
-      const descendants = descendantProfiles.map((profile) =>
+      const descendants = descendantProfiles.filter((profile) => !livingOnly || Number(profile.IsLiving) === 1).map((profile) =>
         mapApiPersonToStandardRow(profile, {
           degrees: Number.isFinite(Number(profile?.Meta?.Degrees)) ? Number(profile.Meta.Degrees) : "",
           surnamePreference: "birthFirst",
@@ -3303,6 +3431,9 @@ export function createChatPeopleHandlers({
         includeUpTo
       );
 
+      if (!sortedDescendants.length && livingOnly) {
+        return `No descendants of ${subjectLabel} within ${generation} generations are marked living in the WikiTree profiles available to you. Private profiles may hide their living status.`;
+      }
       if (!sortedDescendants.length) {
         // Say what is actually true rather than echoing the request back
         // ("I found no 10 generations of descendants..."). Three distinct cases:
@@ -3443,6 +3574,7 @@ export function createChatPeopleHandlers({
     tryHandleFamilyCalendarPrompt,
     tryHandleAgesPrompt,
     tryHandleTreeOverviewPrompt,
+    tryHandleFamilyMatrixPrompt,
     tryHandleProfileSourcesPrompt,
     tryHandlePersonMarriagePrompt,
     tryHandleRelativeFactPrompt,
@@ -3455,7 +3587,6 @@ export function createChatPeopleHandlers({
     tryHandleProfileFamilyConnectionPrompt,
   };
 }
-
 
 function knownMarriageDate(spouse) {
   const value = String(spouse?.marriage_date || spouse?.MarriageDate || "").trim();

@@ -1,3 +1,4 @@
+import { getGenerationFromAhnen } from "./chat_ahnentafel";
 import { trimUkCountrySuffix } from "./chat_place_text";
 import { singularSurnameRetryQuery } from "./chat_surname_plural";
 import { matchQueryCategories, queryHasCategoryTerms } from "./chat_query_categories";
@@ -29,6 +30,7 @@ import { getProfilePersonInfo, getUserWtId } from "../../core/common";
 import { extractSuggestionId } from "../wikitree_plus_helper/wikitree_plus_helper_url";
 import suggestionsData from "../wikitree_plus_helper/suggestions.json";
 import {
+  tokenizeWtPlusQuery as tokenizeWtPlusQueryText,
   WT_PLUS_ALLOWED_FIELDS,
   canonicalizeWtPlusRawToken as grammarCanonicalizeWtPlusRawToken,
   isLikelySuggestionsPrompt,
@@ -2841,18 +2843,6 @@ export function createProfileSearchHandler({
     // magic words), so it can stand alone as a base term, e.g. "empty biography".
     "Suggestions",
   ]);
-
-  function tokenizeWtPlusQueryText(queryText) {
-    const text = String(queryText || "").trim();
-    if (!text) return [];
-    const tokens = [];
-    const re = /[^\s=]+=(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\s]+)|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\s]+/g;
-    let match;
-    while ((match = re.exec(text)) !== null) {
-      tokens.push(match[0]);
-    }
-    return tokens;
-  }
 
   function hasPrimaryScopeTermInWtPlusGroup(groupText) {
     const tokens = tokenizeWtPlusQueryText(groupText);
@@ -7011,15 +7001,6 @@ export function createProfileSearchHandler({
     }
 
     return stripSurroundingQuotes(ancestorTerms[0][1]);
-  }
-
-  function getGenerationFromAhnen(ahnen) {
-    const numericAhnen = Number(ahnen);
-    if (!Number.isFinite(numericAhnen) || numericAhnen < 2) {
-      return 0;
-    }
-
-    return Math.floor(Math.log2(numericAhnen));
   }
 
   function buildAncestorRowsFromPeopleMap(rootProfile, peopleMap = {}, includedIds = null) {

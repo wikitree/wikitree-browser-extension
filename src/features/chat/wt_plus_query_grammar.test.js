@@ -11,6 +11,17 @@ describe("wt_plus_query_grammar tokenization", () => {
     const tokens = tokenizeWtPlusQuery('LastNameAtBirth=Smith BirthLocation="New York" OR Open');
     expect(tokens).toEqual(["LastNameAtBirth=Smith", 'BirthLocation="New York"', "OR", "Open"]);
   });
+
+  test("keeps escaped quotes, single-quoted assignments and standalone phrases intact", () => {
+    const query = String.raw`BirthLocation="St. \"Mary\" Parish" LastNameAtBirth='O\'Brien' "New York" NOT Private`;
+    expect(tokenizeWtPlusQuery(query)).toEqual([
+      String.raw`BirthLocation="St. \"Mary\" Parish"`,
+      String.raw`LastNameAtBirth='O\'Brien'`,
+      '"New York"',
+      "NOT",
+      "Private",
+    ]);
+  });
 });
 
 describe("wt_plus_query_grammar raw token canonicalization", () => {

@@ -12,6 +12,7 @@
     "check-legacy-safari": "node scripts/check-legacy-safari.mjs",
     "build-safari-dev": "npm run build-dev && node scripts/build-safari-dev.mjs",
     "test": "jest",
+    "test:charts": "jest --config jest.charts.config.js --runInBand",
     "test:wtplus": "jest src/features/chat/wt_plus_query_grammar.test.js src/features/chat/wt_plus_sql_edge_corpus.test.js",
     "clean": "rimraf dist",
     "download-templates": "node download-templates.js",

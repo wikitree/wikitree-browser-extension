@@ -3,6 +3,8 @@
 // data comes from the fan chart's Ahnentafel slots; the d3 drawing is
 // chat_lifespans_chart.js.
 
+import { ancestorWord, generationLabel, descendantWord } from "./chat_kin_labels";
+export { ancestorWord, generationLabel, descendantWord } from "./chat_kin_labels";
 import { yearOf } from "./chat_chart_common";
 import { generationOfSlot } from "./chat_fan_chart_data";
 
@@ -66,22 +68,6 @@ export function parseLifespansPrompt(prompt) {
   return null;
 }
 
-/** "Father", "Grandmother", "Great-grandfather", "3x great-grandmother". */
-export function ancestorWord(generation, gender) {
-  const base = gender === "Female" ? "mother" : gender === "Male" ? "father" : "parent";
-  if (generation <= 0) return "";
-  if (generation === 1) return base[0].toUpperCase() + base.slice(1);
-  if (generation === 2) return `Grand${base}`;
-  if (generation === 3) return `Great-grand${base}`;
-  return `${generation - 2}x great-grand${base}`;
-}
-
-/** "Parents", "Grandparents", "Great-grandparents", "3x great-grandparents". */
-export function generationLabel(generation) {
-  if (generation === 0) return "";
-  return `${ancestorWord(generation, "")}s`;
-}
-
 /**
  * One row per dated person in the slots: {slot, generation, side, wtid, name, gender,
  * relation, start, end, endKnown, living, age}. side: "father" or "mother" (whose
@@ -121,16 +107,6 @@ export function buildLifespanRows(slots, now = new Date().getFullYear()) {
   });
   rows.sort((a, b) => a.slot - b.slot);
   return { rows, undated };
-}
-
-/** "Son", "Granddaughter", "Great-grandchild", "3x great-grandson". */
-export function descendantWord(generation, gender) {
-  const base = gender === "Female" ? "daughter" : gender === "Male" ? "son" : "child";
-  if (generation <= 0) return "";
-  if (generation === 1) return base[0].toUpperCase() + base.slice(1);
-  if (generation === 2) return `Grand${base}`;
-  if (generation === 3) return `Great-grand${base}`;
-  return `${generation - 2}x great-grand${base}`;
 }
 
 /** "Children", "Grandchildren", "Great-grandchildren", "3x great-grandchildren". */

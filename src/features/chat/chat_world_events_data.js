@@ -1,3 +1,4 @@
+import { canonicalChartOwner as canonicalOwner } from "./chat_chart_prompt";
 // Ancestors in history (2026-10-03, the "Wow!" visuals): the events the ancestors
 // lived through, matched to where they were born. "What history did my ancestors
 // live through?", "which of my ancestors lived through the Great Famine?". The
@@ -402,16 +403,6 @@ function personOwner(word) {
   return raw;
 }
 
-function canonicalOwner(word) {
-  const raw = String(word || "")
-    .trim()
-    .replace(/['’]s$/i, "");
-  if (!raw) return "";
-  if (/^(?:my|our)$/i.test(raw)) return "my";
-  if (/^(?:her|his|their)$/i.test(raw)) return raw.toLowerCase();
-  if (/^this\s+(?:profile|person)$/i.test(raw)) return "";
-  return raw;
-}
 
 /** The event a phrase names ("the Great Famine", "WW1", "the civil war"), or null. */
 export function findEvent(phrase) {

@@ -3,8 +3,8 @@
 // CSS), styled in chat.css (.wbe-overview-*). Data from chat_tree_overview_data.js.
 
 import $ from "jquery";
-import { centrePopup, escapeText, injectChartStyles, profileUrl, raiseAboveOtherPopups, toggleChartFullScreen } from "./chat_chart_common";
-import { generationLabel } from "./chat_lifespans_data";
+import { createChartPopup, mountChartPopup, closeChartPopup, yearOf, centrePopup, escapeText, injectChartStyles, profileUrl, raiseAboveOtherPopups, toggleChartFullScreen } from "./chat_chart_common";
+import { generationLabel } from "./chat_kin_labels";
 
 const PCT_COLOUR = (percent) => (percent >= 100 ? "#3f9b6b" : percent >= 50 ? "#e0a100" : "#d9573f");
 const COUNTRY_COLOURS = ["#2f6fb3", "#d0577b", "#2a9d8f", "#e0a100", "#7b4fd6", "#bc6c25", "#6a994e", "#8a94a3"];
@@ -36,9 +36,10 @@ function columns(items, max, { colour, label, value, title }) {
 
 /**
  * overview: from buildTreeOverview. options: {title, ownerText, open: {fan, brickwalls,
- * map, names, lifespans, calendar, repeats, explorer}} (each a function).
+ * map, names, lifespans, calendar, repeats, explorer, familymap}} (each a function).
  */
 export function showTreeOverviewPopup(overview, options = {}) {
+  if (overview.descendants) return showDescendantOverview(overview, options);
   $("#wbe-tree-overview-popup").remove();
   injectChartStyles();
   const { stats, percent, countries, surnames, lifespans, months, datedBirths, interval, repeats, people, earliest, root } = overview;
@@ -175,6 +176,7 @@ export function showTreeOverviewPopup(overview, options = {}) {
       <div class="chat-popup-controls">
         <button type="button" class="small" data-open="fan" title="All the ancestors as a fan chart">Fan</button>
         <button type="button" class="small" data-open="explorer" title="Family Explorer">Explorer</button>
+        <button type="button" class="small" data-open="familymap" title="Counts of relatives, with names and dates">Relationship Chart</button>
         <button type="button" class="small" data-act="full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
         <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
       </div>
@@ -214,5 +216,31 @@ export function showTreeOverviewPopup(overview, options = {}) {
 
   raiseAboveOtherPopups(popup);
   $(popup).draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
+  return popup;
+}
+
+function showDescendantOverview(overview, options) {
+  const people = overview.descendants;
+  const generations = new Map();
+  people.forEach((person) => generations.set(person.generation, (generations.get(person.generation) || 0) + 1));
+  const years = people.map((person) => yearOf(person.birth)).filter(Boolean);
+  const surnameCounts = new Map();
+  people.forEach((person) => { if (person.lnab) surnameCounts.set(person.lnab, (surnameCounts.get(person.lnab) || 0) + 1); });
+  const panels = [
+    panel("descendants", "Descendants", `<div class="wbe-overview-big">${people.length}<small>profiles found within 8 generations</small></div>${[...generations].sort((a, b) => a[0] - b[0]).map(([generation, count]) => `<div>Generation ${generation}: ${count}</div>`).join("")}`, { chart: "descendants", label: "Descendant chart" }),
+    panel("dates", "Birth years", years.length ? `${Math.min(...years)}–${Math.max(...years)}<div>${years.length} descendants with birth years</div>` : "No descendants with birth years were returned.", { chart: "desclives", label: "Descendants' lifespans" }),
+    panel("names", "Surnames", [...surnameCounts].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([name, count]) => `<div>${escapeText(name)} (${count})</div>`).join("") || "No surnames were returned.", { chart: "names", label: "Name cloud" }),
+  ];
+  const popup = createChartPopup({ id: "wbe-tree-overview-popup", html: `
+    <div class="chat-popup-header"><strong class="wbe-chart-title">${escapeText(options.title || "Tree overview")} · descendants</strong><div class="chat-popup-controls"><button type="button" data-open="familymap" title="Counts of relatives, with names and dates">Relationship Chart</button><button type="button" data-act="full">Full screen</button><button type="button" class="close-popup" aria-label="Close">×</button></div></div>
+    <div class="chat-popup-body"><p>No parents are attached on WikiTree, so this overview shows descendants.</p><div class="wbe-overview-grid">${panels.join("")}</div></div>` });
+  popup.addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (!button) return;
+    if (button.classList.contains("close-popup")) closeChartPopup(popup);
+    else if (button.dataset.act === "full") toggleChartFullScreen(popup);
+    else if (button.dataset.open) options.open?.[button.dataset.open]?.();
+  });
+  mountChartPopup(popup);
   return popup;
 }

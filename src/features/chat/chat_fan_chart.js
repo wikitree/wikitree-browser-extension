@@ -20,7 +20,7 @@ import { buildMigration } from "./chat_migration_data";
 import { showMigrationMapPopup } from "./chat_migration_map";
 import { PARENT_STATUSES, autosomalShare, dnaLineAncestors, dnaLineCarrierNote, dnaLineOf, lineTestSummary, parentLinkStatus, parentStatusCounts, percentText, xDnaShares } from "./chat_dna_data";
 import { researchStatusLabel } from "./chat_profile_quality_data";
-import { centrePopup, chartLinkButtons, chartLinkClick, escapeText, injectChartStyles, lifeYears as years, profileUrl, raiseAboveOtherPopups, saveChart, toggleChartFullScreen, textColourFor, truncate } from "./chat_chart_common";
+import { chartPopupControls, centrePopup, chartLinkButtons, chartLinkClick, escapeText, injectChartStyles, lifeYears as years, profileUrl, raiseAboveOtherPopups, saveChart, toggleChartFullScreen, textColourFor, truncate } from "./chat_chart_common";
 
 const ROOT_RADIUS = 58;
 // The − / + generation buttons (user, 2026-10-04: "maybe we could have more?").
@@ -425,10 +425,7 @@ export function showFanChartPopup(slots, options = {}) {
         <button type="button" class="small" data-act="map" title="These ancestors' moves on a world map">Map</button>
         ${chartLinkButtons(options.links)}
         <button type="button" class="small" data-act="reset" title="Reset zoom">Reset</button>
-        <button type="button" class="small" data-act="full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
-        <button type="button" class="small" data-act="svg" title="Save as SVG">SVG</button>
-        <button type="button" class="small" data-act="png" title="Save as PNG">PNG</button>
-        <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+        ${chartPopupControls()}
       </div>
     </div>
     <div class="chat-popup-body">
@@ -497,7 +494,7 @@ export function showFanChartPopup(slots, options = {}) {
   }
 
   function fitViewBox() {
-    const maxGeneration = generationOfSlot(state.slots.length - 1);
+    const maxGeneration = fanChartStats(state.slots).found === 0 ? 1 : generationOfSlot(state.slots.length - 1);
     const radius = ringInner(maxGeneration) + ringWidth(maxGeneration) + 12;
     const top = -radius;
     const bottom = state.shape === "fan" ? Math.max(radius * 0.52, ROOT_RADIUS + 20) : radius;
@@ -931,6 +928,22 @@ export function showFanChartPopup(slots, options = {}) {
 
   function drawFooter(colouring) {
     const stats = fanChartStats(state.slots);
+    const noParents = !state.slots[1]?.fatherId && !state.slots[1]?.motherId && stats.found === 0;
+    popup.style.height = noParents ? "min(520px, 92vh)" : "";
+    popup.style.width = noParents ? "min(740px, 96vw)" : "";
+    if (noParents) {
+      popup.querySelector(".wbe-fan-gens").hidden = true;
+      popup.querySelector(".wbe-chart-stats").textContent = state.mode === "xdna"
+        ? state.slots[1]?.gender === "Male"
+          ? "No parents are attached. His X chromosome comes from his mother; attach her profile to trace that line."
+          : "No parents are attached. Attach parent profiles to trace X-DNA inheritance."
+        : "No parents are attached on WikiTree yet.";
+      popup.querySelector(".wbe-chart-bars").innerHTML = "";
+      popup.querySelector(".wbe-chart-bars").hidden = true;
+      popup.querySelector(".wbe-chart-legend").innerHTML = "";
+      return;
+    }
+    popup.querySelector(".wbe-chart-bars").hidden = false;
     const percent = stats.possible ? Math.round((stats.found / stats.possible) * 100) : 0;
     const meets = (state.repeats?.groups || []).filter((group) => group.start).length;
     popup.querySelector(".wbe-chart-stats").innerHTML =

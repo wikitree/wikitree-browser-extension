@@ -1,3 +1,4 @@
+import { canonicalChartOwner as canonicalOwner } from "./chat_chart_prompt";
 // Name cloud (2026-10-03, the "Wow!" visuals): the first names and surnames among
 // someone's ancestors, sized by how many carried them and coloured by when. The
 // data comes from the fan chart's Ahnentafel slots; the drawing is
@@ -37,16 +38,6 @@ const RIVER_PATTERNS = [
   ),
 ];
 
-function canonicalOwner(word) {
-  const raw = String(word || "")
-    .trim()
-    .replace(/['’]s$/i, "");
-  if (!raw) return "";
-  if (/^(?:my|our)$/i.test(raw)) return "my";
-  if (/^(?:her|his|their)$/i.test(raw)) return raw.toLowerCase();
-  if (/^this\s+(?:profile|person)$/i.test(raw)) return "";
-  return raw;
-}
 
 /** {owner, ancestorPrompt} (plus river: true for the surname river) or null; owner as in parseFanChartPrompt. */
 export function parseNameCloudPrompt(prompt) {
@@ -100,7 +91,7 @@ export function buildNameCloud(slots, kind = "first") {
     if (birthYear) entry.years.push(birthYear);
     if (person.gender === "Male") entry.male += 1;
     if (person.gender === "Female") entry.female += 1;
-    entry.people.push({ wtid: person.wtid || "", name: person.name || person.wtid || "", lnab: person.lnab || "", birthYear, generation: generationOfSlot(slot) });
+    entry.people.push({ wtid: person.wtid || "", name: person.fullName || [person.name || person.wtid || "", person.lnab && !String(person.name || "").includes(person.lnab) ? person.lnab : ""].filter(Boolean).join(" "), lnab: person.lnab || "", birthYear, generation: person.generation ?? generationOfSlot(slot) });
     words.set(text, entry);
   });
   return [...words.values()]
@@ -113,10 +104,10 @@ export function buildNameCloud(slots, kind = "first") {
 }
 
 /** The chat reply: the top names, and the name passed down most generations. */
-export function buildNameCloudSummary(slots, ownerText) {
+export function buildNameCloudSummary(slots, ownerText, scope = "ancestors") {
   const first = buildNameCloud(slots, "first");
   const surnames = buildNameCloud(slots, "surname");
-  if (!first.length && !surnames.length) return `${ownerText} ancestors have no names recorded on WikiTree yet.`;
+  if (!first.length && !surnames.length) return `${ownerText} ${scope} have no names recorded on WikiTree yet.`;
   const top = (list, gender) =>
     list
       .filter((word) => word.count > 1 && (!gender || word.gender === gender))
@@ -127,7 +118,7 @@ export function buildNameCloudSummary(slots, ownerText) {
   const women = top(first, "Female");
   if (men.length || women.length) {
     lines.push(
-      `The commonest first names among ${ownerText.toLowerCase() === "your" ? "your" : ownerText} ancestors: ${[
+      `The commonest first names among ${ownerText.toLowerCase() === "your" ? "your" : ownerText} ${scope}: ${[
         men.length ? `men ${men.join(", ")}` : "",
         women.length ? `women ${women.join(", ")}` : "",
       ]
@@ -135,7 +126,7 @@ export function buildNameCloudSummary(slots, ownerText) {
         .join("; ")}.`
     );
   } else if (first.length) {
-    lines.push(`${ownerText} ancestors have ${first.length} different first names, none used twice.`);
+    lines.push(`${ownerText} ${scope} have ${first.length} different first names, none used twice.`);
   }
   // A name that ran down the generations: the first name spanning the most generations.
   const span = (word) => {

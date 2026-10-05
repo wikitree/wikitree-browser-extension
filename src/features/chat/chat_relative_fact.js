@@ -2,6 +2,7 @@
 // one fact about a relative. The relation path finds the people; this reads the
 // fact off each (live, 2026-10-03: both became failed name searches).
 
+import { partialDateSortKey as birthKey } from "./chat_dates";
 import { formatPreviewDate } from "./chat_preview_format";
 import { ageAtDeath } from "./chat_result_pick";
 
@@ -236,12 +237,6 @@ export function relationSelector(relationRaw) {
     return { list: "Children", gender: /^son/.test(word) ? "Male" : /^daughter/.test(word) ? "Female" : "" };
   }
   return { list: "Siblings", gender: /^brother/.test(word) ? "Male" : /^sister/.test(word) ? "Female" : "" };
-}
-
-function birthKey(value) {
-  const match = String(value || "").match(/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?/);
-  if (!match || match[1] === "0000") return "";
-  return `${match[1]}-${match[2] || "00"}-${match[3] || "00"}`;
 }
 
 /** fact "older" | "younger": owner against each relative, by birth date. */

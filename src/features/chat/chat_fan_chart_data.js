@@ -3,6 +3,8 @@
 // person's father 2n and mother 2n+1, so generation g holds slots 2^g … 2^(g+1)-1.
 // The d3 drawing lives in chat_fan_chart.js.
 
+import { ancestorGenerationLabel as generationWord } from "./chat_kin_labels";
+import { canonicalChartObjectOwner as canonicalOwner } from "./chat_chart_prompt";
 import { getCountryFromLocation } from "./chat_place_country";
 import { profileQuality } from "./chat_profile_quality_data";
 import { PersonName } from "../auto_bio/person_name";
@@ -51,19 +53,6 @@ export function parseSurnameChartPrompt(prompt) {
     return { owner, generations: FAN_CHART_DEFAULT_GENERATIONS, ancestorPrompt, mode: "surname" };
   }
   return null;
-}
-
-function canonicalOwner(word) {
-  const raw = String(word || "")
-    .trim()
-    .replace(/['’]s$/i, "");
-  if (!raw) return "";
-  if (/^(?:my|our|me)$/i.test(raw)) return "my";
-  if (/^(?:her)$/i.test(raw)) return "her";
-  if (/^(?:his|him)$/i.test(raw)) return "his";
-  if (/^(?:their|them)$/i.test(raw)) return "their";
-  if (/^this\s+(?:profile|person)$/i.test(raw)) return "";
-  return raw;
 }
 
 /**
@@ -273,13 +262,6 @@ export function buildSurnameSummary(slots, ownerText) {
   const lines = [`${ownerText} ancestors carry ${surnames.length} surname${surnames.length === 1 ? "" : "s"} over ${fanChartStats(slots).rows.length} generations. The most common: ${top.join(", ")}.`];
   if (father || mother) lines.push(`The fan chart colours each surname, so you can follow ${[father, mother].filter(Boolean).join(" and ")} back up their lines.`);
   return lines.join("\n");
-}
-
-function generationWord(generation) {
-  if (generation === 1) return "parents";
-  if (generation === 2) return "grandparents";
-  if (generation === 3) return "great-grandparents";
-  return `${generation - 2}x great-grandparents`;
 }
 
 /** "Your fan chart shows 87 of 254 ancestors over 7 generations (34%) …". */

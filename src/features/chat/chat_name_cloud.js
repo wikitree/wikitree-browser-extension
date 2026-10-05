@@ -11,6 +11,7 @@ import { interpolateSpectral } from "d3-scale-chromatic";
 import { easeBackOut } from "d3-ease";
 import { hsl } from "d3-color";
 import {
+  chartPopupControls,
   centrePopup,
   chartLinkButtons,
   chartLinkClick,
@@ -95,10 +96,7 @@ export function showNameCloudPopup(clouds, options = {}) {
         <button type="button" class="small" data-act="replay" title="Play it again">Replay</button>
         ${options.onRiver ? `<button type="button" class="small" data-act="river" title="Surnames by generation, as a streamgraph">Surname river</button>` : ""}
         ${chartLinkButtons(options.links)}
-        <button type="button" class="small" data-act="full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
-        <button type="button" class="small" data-act="svg" title="Save as SVG">SVG</button>
-        <button type="button" class="small" data-act="png" title="Save as PNG">PNG</button>
-        <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+        ${chartPopupControls()}
       </div>
     </div>
     <div class="chat-popup-body">
@@ -107,7 +105,7 @@ export function showNameCloudPopup(clouds, options = {}) {
         <span style="width:12px"></span>
         ${COLOURINGS.map((c) => `<button type="button" class="wbe-chart-mode" data-colouring="${c.key}">${c.label}</button>`).join("")}
         <span class="wbe-chart-spacer"></span>
-        <span style="opacity:.65">Bigger = more ancestors · click a name for who</span>
+        <span style="opacity:.65">Bigger = more ${escapeText(options.scope || "ancestors")} · click a name for who</span>
       </div>
       <div class="wbe-chart-stage"><div class="wbe-chart-tip"></div></div>
       <div class="wbe-chart-footer"><div class="wbe-chart-legend"></div></div>
@@ -145,7 +143,7 @@ export function showNameCloudPopup(clouds, options = {}) {
   }
 
   function colourFor(word, era) {
-    if (state.colouring === "gender" && state.kind === "first") return GENDER_COLOURS[word.gender || ""];
+    if (state.colouring === "gender") return GENDER_COLOURS[word.gender || ""];
     return word.meanYear ? era(word.meanYear) : "#7a8590";
   }
 
@@ -157,7 +155,7 @@ export function showNameCloudPopup(clouds, options = {}) {
       .slice(0, 8)
       .map((person) => `<div>${escapeText(person.name)}${state.kind === "first" && person.lnab && !person.name.includes(person.lnab) ? ` ${escapeText(person.lnab)}` : ""}${person.birthYear ? ` <span style="opacity:.6">b. ${person.birthYear}</span>` : ""}</div>`)
       .join("");
-    tip.innerHTML = `<div class="wbe-chart-tip-rel">${word.count} ancestor${word.count === 1 ? "" : "s"}${range ? ` · born ${range}` : ""}</div><b>${escapeText(word.text)}</b>${names}${
+    tip.innerHTML = `<div class="wbe-chart-tip-rel">${word.count} ${options.scope === "descendants" ? "descendant" : "ancestor"}${word.count === 1 ? "" : "s"}${range ? ` · born ${range}` : ""}</div><b>${escapeText(word.text)}</b>${names}${
       word.people.length > 8 ? `<div>…and ${word.people.length - 8} more</div>` : ""
     }<div class="wbe-chart-tip-hint">Click to list them</div>`;
     tip.style.left = `${Math.min(event.clientX - rect.left + 14, rect.width - 290)}px`;
@@ -190,7 +188,7 @@ export function showNameCloudPopup(clouds, options = {}) {
       });
       return;
     }
-    if (state.colouring === "gender" && state.kind === "first") {
+    if (state.colouring === "gender") {
       add(GENDER_COLOURS.Male, "mostly men");
       add(GENDER_COLOURS.Female, "mostly women");
     } else {
@@ -255,7 +253,7 @@ export function showNameCloudPopup(clouds, options = {}) {
     popup.querySelectorAll("[data-kind]").forEach((button) => button.classList.toggle("active", button.dataset.kind === state.kind));
     popup.querySelectorAll("[data-colouring]").forEach((button) => {
       button.classList.toggle("active", button.dataset.colouring === state.colouring);
-      button.hidden = state.kind !== "first";
+      button.hidden = false;
     });
     drawLegend(list, era);
   }

@@ -5,20 +5,11 @@
 // the Table button needs no second fetch and follow-ups ("only the women")
 // work on the chart's people.
 
+import { ancestorWord, descendantWord } from "./chat_kin_labels";
+export { ancestorWord } from "./chat_kin_labels";
 import { escapeHtml } from "../../core/lib/diff_utils";
 import { generationOfSlot } from "./chat_fan_chart_data";
-import { descendantWord } from "./chat_lifespans_data";
 import { makeProfileLink, withDerivedRowFields } from "./tables";
-
-/** "Father", "Grandmother", "Great-grandfather", "3x great-grandmother". */
-export function ancestorWord(generation, gender) {
-  const base = gender === "Female" ? "mother" : gender === "Male" ? "father" : "parent";
-  if (generation <= 0) return "";
-  if (generation === 1) return base[0].toUpperCase() + base.slice(1);
-  if (generation === 2) return `Grand${base}`;
-  if (generation === 3) return `Great-grand${base}`;
-  return `${generation - 2}x great-grand${base}`;
-}
 
 function firstNameOf(person) {
   const name = String(person?.name || "").trim();

@@ -9,6 +9,7 @@
  * prompt for a WikiTree ID (each one routes to its chart; see the tests).
  */
 export const CHART_SHORTCUTS = [
+  { key: "familymap", label: "Relationship Chart", title: "Relatives grouped by relationship, with names and dates", words: "relationship\\s+chart|family\\s+(?:map|matrix|cards|relationships)|kinship\\s+(?:map|dashboard)", prompt: (id) => `${id}'s relationship chart` },
   { key: "fan", label: "Fan", title: "Ancestors as a fan chart", words: "fan(?:\\s+chart)?|ancestors?\\s+(?:fan|chart)", prompt: (id) => `${id}'s fan chart` },
   { key: "explorer", label: "Explorer", title: "Family Explorer: zoom in for children, out for parents", words: "(?:family\\s+)?explorer|fractal(?:\\s+tree)?|family\\s+world|cc-?7\\s+tree", prompt: (id) => `${id}'s family explorer` },
   { key: "descendants", label: "Descendants", title: "Descendants as a sunburst", words: "descendants?(?:\\s+(?:chart|sunburst|tree))?|sunburst", prompt: (id) => `${id}'s descendant chart` },
@@ -29,7 +30,7 @@ export const CHART_SHORTCUTS = [
 ];
 
 // The buttons along the top of Genie, in order (the descendants' map is reached from the descendant chart).
-export const CHART_BAR_KEYS = ["fan", "explorer", "descendants", "lifespans", "history", "map", "calendar", "names", "overview", "ages", "xdna", "dnalines", "ydnamap", "dnatesters"];
+export const CHART_BAR_KEYS = ["fan", "explorer", "descendants", "lifespans", "history", "map", "calendar", "names", "overview", "familymap", "ages", "xdna", "dnalines", "ydnamap", "dnatesters"];
 
 // (lower case too: "beacall-9 fractal" can only be an ID)
 const WIKITREE_ID = String.raw`[A-Za-z][A-Za-z'_ ]*?[A-Za-z]-\d+`;
@@ -86,6 +87,6 @@ export function chartShortcutCanonicalPrompt(key, wtid) {
 export function chartButtonPrompt(key, wtid) {
   const chart = CHART_SHORTCUTS.find((item) => item.key === key);
   if (!chart || !wtid) return "";
-  const word = { fan: "fan chart", explorer: "Family Explorer", descendants: "descendants", timeline: "timeline", lifespans: "lifespans", history: "in history", map: "map", calendar: "calendar", names: "name cloud", overview: "overview", ages: "ages", xdna: "X-DNA", dnalines: "DNA lines", dnaproof: "DNA confirmed", dnatesters: "DNA testers", ydnamap: "Y-DNA map", descmap: "descendants' map" }[key];
+  const word = { familymap: "relationship chart", fan: "fan chart", explorer: "Family Explorer", descendants: "descendants", timeline: "timeline", lifespans: "lifespans", history: "in history", map: "map", calendar: "calendar", names: "name cloud", overview: "overview", ages: "ages", xdna: "X-DNA", dnalines: "DNA lines", dnaproof: "DNA confirmed", dnatesters: "DNA testers", ydnamap: "Y-DNA map", descmap: "descendants' map" }[key];
   return `${wtid} ${word}`;
 }

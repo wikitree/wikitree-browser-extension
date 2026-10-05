@@ -71,3 +71,14 @@ describe("surname river prompts", () => {
     expect(parseNameCloudPrompt("my surnames")).toBeNull();
   });
 });
+
+test("both name clouds retain the full profile name for their tooltips", () => {
+  const person = { id: 2, wtid: "Curd-1", name: "Rene Georgina", fullName: "Rene Georgina (Curd) Harris", lnab: "Curd", gender: "Female" };
+  for (const kind of ["first", "surname"]) {
+    expect(buildNameCloud([null, null, person], kind)[0].people[0].name).toBe("Rene Georgina (Curd) Harris");
+  }
+});
+
+test("a name without a formatted full name still includes the surname", () => {
+  expect(buildNameCloud([null, null, { id: 2, name: "Rene Georgina", lnab: "Curd" }], "surname")[0].people[0].name).toBe("Rene Georgina Curd");
+});

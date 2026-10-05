@@ -1,6 +1,7 @@
 // G2, "which of her siblings died first?": one relative picked by a date or
 // lifespan (live, 2026-10-03: it listed all 5 siblings).
 
+import { partialDateSortKey as key } from "./chat_dates";
 import { formatPreviewDate } from "./chat_preview_format";
 
 const OWNER = String.raw`(her|his|their|my|[A-Z][A-Za-z'_ -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3}(?:'s|’s))`;
@@ -30,12 +31,6 @@ export function parseRelativePickPrompt(prompt) {
   if (/^my$/i.test(raw)) return { owner: "me", relationRaw, pick };
   if (!/-\d+$/.test(raw) && !/^(?:[A-Z][^\s]*\s*)+$/.test(raw)) return null;
   return { owner: raw, relationRaw, pick };
-}
-
-function key(value) {
-  const match = String(value || "").match(/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?/);
-  if (!match || match[1] === "0000") return "";
-  return `${match[1]}-${match[2] || "00"}-${match[3] || "00"}`;
 }
 
 function lifespanDays(person) {

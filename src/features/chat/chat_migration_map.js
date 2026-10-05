@@ -20,7 +20,7 @@ import { easeCubicOut } from "d3-ease";
 import { feature } from "topojson-client";
 import { REGION_POINTS, SPLIT_COUNTRIES } from "./chat_migration_data";
 import { cachedPoint, geocodeLocations, loadGeocodeCache, pendingLookups } from "./chat_geocode";
-import { centrePopup, escapeText, injectChartStyles, raiseAboveOtherPopups, saveChart, toggleChartFullScreen } from "./chat_chart_common";
+import { chartPopupControls, centrePopup, escapeText, injectChartStyles, raiseAboveOtherPopups, saveChart, toggleChartFullScreen } from "./chat_chart_common";
 
 const WIDTH = 960;
 const HEIGHT = 540;
@@ -115,10 +115,7 @@ export async function showMigrationMapPopup(firstMigration, options = {}) {
         <button type="button" class="small" data-act="replay" title="Play the moves again in date order">Replay</button>
         <button type="button" class="small" data-act="start" title="Zoom to where the earliest moves began">Zoom to the start</button>
         <button type="button" class="small" data-act="reset" title="Reset zoom">Reset</button>
-        <button type="button" class="small" data-act="full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
-        <button type="button" class="small" data-act="svg" title="Save as SVG">SVG</button>
-        <button type="button" class="small" data-act="png" title="Save as PNG">PNG</button>
-        <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+        ${chartPopupControls()}
       </div>
     </div>
     <div class="chat-popup-body">

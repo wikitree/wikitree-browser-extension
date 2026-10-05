@@ -12,7 +12,7 @@ import "d3-transition";
 import { area, curveMonotoneY } from "d3-shape";
 import { easeCubicOut } from "d3-ease";
 import { LINK_STATUS } from "./chat_relationship_data";
-import { centrePopup, chartLinkButtons, chartLinkClick, escapeText, injectChartStyles, photoUrl, profileUrl, raiseAboveOtherPopups, saveChart, toggleChartFullScreen, truncate } from "./chat_chart_common";
+import { chartPopupControls, centrePopup, chartLinkButtons, chartLinkClick, escapeText, injectChartStyles, photoUrl, profileUrl, raiseAboveOtherPopups, saveChart, toggleChartFullScreen, truncate } from "./chat_chart_common";
 
 const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 const WIDTH = 960;
@@ -60,10 +60,7 @@ export function showRelationshipPopup(lines, options = {}) {
       <div class="chat-popup-controls">
         <button type="button" class="small" data-act="replay" title="Draw it again">Replay</button>
         ${chartLinkButtons(options.links)}
-        <button type="button" class="small" data-act="full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
-        <button type="button" class="small" data-act="svg" title="Save as SVG">SVG</button>
-        <button type="button" class="small" data-act="png" title="Save as PNG">PNG</button>
-        <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+        ${chartPopupControls()}
       </div>
     </div>
     <div class="chat-popup-body">

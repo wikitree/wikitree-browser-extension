@@ -9,7 +9,7 @@ import { select } from "d3-selection";
 import "d3-transition";
 import { easeBackOut } from "d3-ease";
 import { DIED_YOUNG_AGE } from "./chat_family_size_data";
-import { centrePopup, chartLinkButtons, chartLinkClick, escapeText, injectChartStyles, profileUrl, raiseAboveOtherPopups, saveChart, toggleChartFullScreen, truncate } from "./chat_chart_common";
+import { chartPopupControls, centrePopup, chartLinkButtons, chartLinkClick, escapeText, injectChartStyles, profileUrl, raiseAboveOtherPopups, saveChart, toggleChartFullScreen, truncate } from "./chat_chart_common";
 
 const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 const WIDTH = 1000;
@@ -53,10 +53,7 @@ export function showFamilySizePopup(data, options = {}) {
       <div class="chat-popup-controls">
         <button type="button" class="small" data-act="sort" title="Order each row by family size, or by family tree position">Sort by size</button>
         ${chartLinkButtons(options.links)}
-        <button type="button" class="small" data-act="full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
-        <button type="button" class="small" data-act="svg" title="Save as SVG">SVG</button>
-        <button type="button" class="small" data-act="png" title="Save as PNG">PNG</button>
-        <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+        ${chartPopupControls()}
       </div>
     </div>
     <div class="chat-popup-body">

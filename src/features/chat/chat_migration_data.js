@@ -1,3 +1,4 @@
+import { canonicalChartOwner as canonicalOwner } from "./chat_chart_prompt";
 // Ancestor migration map data (2026-10-03, the "Wow!" visuals). From the fan
 // chart's Ahnentafel slots: each ancestor's birthplace becomes a place (a
 // country, or a state/province/nation for the US, Canada, Australia and the
@@ -421,16 +422,6 @@ const YEAR_PATTERNS = [
   new RegExp(String.raw`^(?:show|put|plot|draw)(?:\s+me)?\s+${OWNER}\s+ancestors\s+on\s+a\s+map\s+(?:in|for)\s+(\d{3,4})$`, "i"),
 ];
 
-function canonicalOwner(word) {
-  const raw = String(word || "")
-    .trim()
-    .replace(/['’]s$/i, "");
-  if (!raw) return "";
-  if (/^(?:my|our)$/i.test(raw)) return "my";
-  if (/^(?:her|his|their)$/i.test(raw)) return raw.toLowerCase();
-  if (/^this\s+(?:profile|person)$/i.test(raw)) return "";
-  return raw;
-}
 
 /** {owner, ancestorPrompt} or null; owner as in parseFanChartPrompt. */
 export function parseMigrationMapPrompt(prompt) {

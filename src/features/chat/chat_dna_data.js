@@ -4,7 +4,7 @@
 // varies (a 3rd great-grandparent can leave no detectable DNA at all).
 
 import { FAN_CHART_MAX_GENERATIONS, generationOfSlot } from "./chat_fan_chart_data";
-import { ancestorWord, generationLabel } from "./chat_lifespans_data";
+import { ancestorWord, generationLabel } from "./chat_kin_labels";
 
 const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const X = String.raw`(?:x[\s-]*dna|x[\s-]*chromosomes?|x[\s-]*chromosome\s+dna)`;
@@ -160,11 +160,11 @@ export function xDnaRows(slots) {
 }
 
 /** The chat reply for the X-DNA chart. ownerText: "Your" or "Cook-8721's". */
-export function buildXDnaSummary(slots, ownerText) {
+export function buildXDnaSummary(slots, ownerText, { chartOpened = true } = {}) {
   const root = slots[1];
   const rows = xDnaRows(slots);
   const owner = ownerText === "Your" ? "you" : ownerText.replace(/['’]s$/, "");
-  if (!rows) return `${ownerText} profile has no gender recorded, so I can't trace the X chromosome. The fan chart's X-DNA mode needs it.`;
+  if (!rows) return `${ownerText} profile has no gender recorded, so I can't trace the X chromosome.${chartOpened ? " The fan chart's X-DNA mode needs it." : ""}`;
   const male = root.gender === "Male";
   const lines = [
     male
@@ -178,8 +178,11 @@ export function buildXDnaSummary(slots, ownerText) {
   // Gaps worth researching: a missing X-DNA ancestor whose child is recorded.
   const shares = xDnaShares(slots);
   const gaps = shares.filter((share, slot) => share && slot > 1 && !slots[slot] && slots[Math.floor(slot / 2)]).length;
-  if (gaps) lines.push(`${gaps} missing X-DNA ancestor${gaps === 1 ? " is" : "s are"} outlined in purple: the gaps worth researching for an X match.`);
-  lines.push("The counts follow the Fibonacci sequence. The fan chart colours them by expected share; hover anyone for their expected autosomal DNA too.");
+  if (gaps) lines.push(chartOpened
+    ? `${gaps} missing X-DNA ancestor${gaps === 1 ? " is" : "s are"} outlined in purple: the gaps worth researching for an X match.`
+    : `${gaps} missing X-DNA ancestor${gaps === 1 ? " is a gap" : "s are gaps"} worth researching for an X match.`);
+  lines.push("The counts follow the Fibonacci sequence.");
+  if (chartOpened) lines[lines.length - 1] += " The fan chart colours them by expected share; hover anyone for their expected autosomal DNA too.";
   return lines.join("\n");
 }
 
@@ -276,7 +279,7 @@ export function dnaLineCarrierNote(root, line) {
 }
 
 /** The chat message for the DNA lines chart: how far back each line goes and who carries it. */
-export function buildDnaLinesSummary(slots, ownerText) {
+export function buildDnaLinesSummary(slots, ownerText, { chartOpened = true } = {}) {
   const root = slots?.[1];
   const ancestors = dnaLineAncestors(slots);
   const furthest = (line) => ancestors.filter((a) => a.line === line).pop();
@@ -292,7 +295,7 @@ export function buildDnaLinesSummary(slots, ownerText) {
     `${ownerText} direct DNA lines:`,
     describe("y"),
     describe("mt"),
-    "The chart shows both lines and checks WikiTree for DNA tests connected to each ancestor on them: darker means a test is connected (hover for the haplogroup).",
+    ...(chartOpened ? ["The chart shows both lines and checks WikiTree for DNA tests connected to each ancestor on them: darker means a test is connected (hover for the haplogroup)."] : []),
   ].join("\n");
 }
 

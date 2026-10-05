@@ -17,6 +17,7 @@ import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
 import { descendantTreeStats } from "./chat_descendant_chart_data";
 import { dnaCarrierKind } from "./chat_dna_data";
 import {
+  chartPopupControls,
   centrePopup,
   escapeText,
   injectChartStyles,
@@ -169,10 +170,7 @@ export function showDescendantChartPopup(tree, options = {}) {
       <strong class="wbe-chart-title"></strong>
       <div class="chat-popup-controls">
         ${chartLinkButtons(options.links)}
-        <button type="button" class="small" data-act="full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
-        <button type="button" class="small" data-act="svg" title="Save as SVG">SVG</button>
-        <button type="button" class="small" data-act="png" title="Save as PNG">PNG</button>
-        <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+        ${chartPopupControls()}
       </div>
     </div>
     <div class="chat-popup-body">
@@ -199,6 +197,7 @@ export function showDescendantChartPopup(tree, options = {}) {
   const stage = popup.querySelector(".wbe-chart-stage");
   const tip = popup.querySelector(".wbe-chart-tip");
   const VISIBLE_RINGS = Math.min(Math.max(root.height, 1), 5);
+  const labelSize = VISIBLE_RINGS <= 2 ? 26 : 12;
   const size = 900;
   const radius = size / 2 / (VISIBLE_RINGS + 1);
   const svg = select(stage)
@@ -253,12 +252,12 @@ export function showDescendantChartPopup(tree, options = {}) {
     .data(nodes)
     .join("text")
     .attr("dy", "0.35em")
-    .attr("font-size", 12);
+    .attr("font-size", labelSize);
 
   const centre = g.append("g").style("cursor", "pointer");
   const centreCircle = centre.append("circle").attr("r", 0).attr("fill", "#2f6fb3").attr("stroke", "#fff").attr("stroke-width", 3);
-  const centreName = centre.append("text").attr("text-anchor", "middle").attr("dy", "-0.25em").attr("fill", "#fff").attr("font-size", 15).attr("font-weight", 700);
-  const centreSub = centre.append("text").attr("text-anchor", "middle").attr("dy", "1.15em").attr("fill", "#dce9ff").attr("font-size", 11.5);
+  const centreName = centre.append("text").attr("text-anchor", "middle").attr("dy", "-0.25em").attr("fill", "#fff").attr("font-size", VISIBLE_RINGS <= 2 ? 32 : 15).attr("font-weight", 700);
+  const centreSub = centre.append("text").attr("text-anchor", "middle").attr("dy", "1.15em").attr("fill", "#dce9ff").attr("font-size", VISIBLE_RINGS <= 2 ? 22 : 11.5);
   centreCircle.transition().duration(650).ease(easeBackOut.overshoot(2)).attr("r", radius - 4);
 
   function colour() {
@@ -277,7 +276,7 @@ export function showDescendantChartPopup(tree, options = {}) {
       .text((d) => {
         const ringPx = radius - 10;
         const name = d.data.person.name || d.data.person.wtid;
-        return truncate(name, Math.floor(ringPx / 7));
+        return truncate(name, Math.floor(ringPx / (labelSize * 0.58)));
       });
   }
 
@@ -285,7 +284,7 @@ export function showDescendantChartPopup(tree, options = {}) {
     const person = state.focus.data.person;
     centreName.text(truncate(person.name || person.wtid, 14));
     const count = state.focus.value - 1;
-    centreSub.text(state.focus === root ? `${count.toLocaleString()} descendants` : `${count.toLocaleString()} · tap to go up`);
+    centreSub.text(state.focus === root ? `${count.toLocaleString()} descendant${count === 1 ? "" : "s"}` : `${count.toLocaleString()} · tap to go up`);
   }
 
   function updateCrumbs() {
@@ -430,7 +429,7 @@ export function showDescendantChartPopup(tree, options = {}) {
 
   function drawFooter(colouring) {
     const stats = descendantTreeStats(tree);
-    popup.querySelector(".wbe-chart-stats").innerHTML = `<strong>${stats.total.toLocaleString()}</strong>descendants · ${stats.byGeneration.length} generations`;
+    popup.querySelector(".wbe-chart-stats").innerHTML = `<strong>${stats.total.toLocaleString()}</strong>descendant${stats.total === 1 ? "" : "s"} · ${stats.byGeneration.length} generation${stats.byGeneration.length === 1 ? "" : "s"}`;
     const max = Math.max(1, ...stats.byGeneration.map((row) => row.count));
     popup.querySelector(".wbe-chart-bars").innerHTML = stats.byGeneration
       .map((row) => `<div title="${generationWord(row.generation)}ren: ${row.count}"><b style="height:${Math.round((row.count / max) * 100)}%"></b></div>`)

@@ -2,6 +2,8 @@
 // to the AI, which read only the parents off the bio. The ancestor list knows
 // each row's generation (degrees); this reports how far back it reaches.
 
+import { ancestorGenerationLabel as generationLabel } from "./chat_kin_labels";
+export { ancestorGenerationLabel as generationLabel } from "./chat_kin_labels";
 const OWNER = String.raw`(my|our|her|his|their|this\s+profile['’]s|[A-Z][A-Za-z'_ -]*-\d+['’]s)`;
 const SUBJECT = String.raw`(I|we|she|he|they|this\s+person|[A-Z][A-Za-z'_ -]*-\d+)`;
 const PATTERNS = [
@@ -29,13 +31,6 @@ export function parseAncestorDepthOwner(text) {
     return /['’]s$/.test(word) ? word : `${word}'s`;
   }
   return null;
-}
-
-export function generationLabel(generation) {
-  if (generation === 1) return "parents";
-  if (generation === 2) return "grandparents";
-  if (generation === 3) return "great-grandparents";
-  return `${generation - 2}x great-grandparents`;
 }
 
 /** rows: ancestor rows with degrees. ownerText: "Your" or "Ellen (Cook-8721)'s"; maxGeneration: the fetch limit. */

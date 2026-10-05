@@ -1,3 +1,4 @@
+import { canonicalChartOwner as canonicalOwner } from "./chat_chart_prompt";
 // Tree overview (2026-10-03, the "Wow!" visuals): "tell me about my tree" answers
 // with a dashboard of the ancestors: how complete, where from, which surnames, how
 // long they lived, when they were born, how long a generation was. Each panel opens
@@ -5,7 +6,8 @@
 // chat_tree_overview.js.
 
 import { fanChartCountries, fanChartRepeats, fanChartStats, fanChartSurnames, generationOfSlot } from "./chat_fan_chart_data";
-import { buildLifespanRows, lifespanStats, ancestorWord } from "./chat_lifespans_data";
+import { ancestorWord } from "./chat_kin_labels";
+import { buildLifespanRows, lifespanStats } from "./chat_lifespans_data";
 import { buildCalendarEvents, MONTHS } from "./chat_family_calendar_data";
 import { yearOf } from "./chat_chart_common";
 
@@ -25,16 +27,6 @@ const PATTERNS = [
   new RegExp(String.raw`^(?:(?:show|give)(?:\s+me)?\s+)?(?:an?\s+|the\s+)?(?:overview|summary|stats|statistics|dashboard)\s+(?:of|for)\s+${OWNER}\s+${TREE}$`, "i"),
 ];
 
-function canonicalOwner(word) {
-  const raw = String(word || "")
-    .trim()
-    .replace(/['’]s$/i, "");
-  if (!raw) return "";
-  if (/^(?:my|our)$/i.test(raw)) return "my";
-  if (/^(?:her|his|their)$/i.test(raw)) return raw.toLowerCase();
-  if (/^this\s+(?:profile|person)$/i.test(raw)) return "";
-  return raw;
-}
 
 /** {owner, ancestorPrompt} or null. */
 export function parseTreeOverviewPrompt(prompt) {

@@ -1,3 +1,4 @@
+import { canonicalChartOwner as canonicalOwner } from "./chat_chart_prompt";
 // Family size (2026-10-04, the "Wow!" visuals): how many children each ancestral couple
 // had, generation by generation, and how many died young. The couples are the fan
 // chart's Ahnentafel pairs (slots 2k and 2k+1 are the parents of slot k); their
@@ -6,7 +7,7 @@
 
 import { yearOf } from "./chat_chart_common";
 import { generationOfSlot } from "./chat_fan_chart_data";
-import { generationLabel } from "./chat_lifespans_data";
+import { generationLabel } from "./chat_kin_labels";
 
 export const FAMILY_SIZE_GENERATIONS = 7; // (couples in rows 1–6: up to 63 families)
 export const DIED_YOUNG_AGE = 5;
@@ -24,16 +25,6 @@ const PATTERNS = [
   new RegExp(String.raw`^how\s+many\s+(?:children|kids)\s+did\s+${OWNER}\s+ancestors\s+have$`, "i"),
 ];
 
-function canonicalOwner(word) {
-  const raw = String(word || "")
-    .trim()
-    .replace(/['’]s$/i, "");
-  if (!raw) return "";
-  if (/^(?:my|our)$/i.test(raw)) return "my";
-  if (/^(?:her|his|their)$/i.test(raw)) return raw.toLowerCase();
-  if (/^this\s+(?:profile|person)$/i.test(raw)) return "";
-  return raw;
-}
 
 /** {owner, ancestorPrompt, generations, familySize: true} or null. */
 export function parseFamilySizePrompt(prompt) {

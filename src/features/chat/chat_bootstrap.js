@@ -1,3 +1,4 @@
+import { createGenieVisibilityController } from "./chat_button_visibility";
 import { getFeatureData } from "../../core/options/options_registry";
 import { GENIE_ICON_SVG } from "./genie_icon";
 
@@ -134,8 +135,10 @@ function placeChatButtons() {
       bar.appendChild(makeToolbarButton(""));
     }
   });
+  genieVisibility.sync();
 }
 
+const genieVisibility = createGenieVisibilityController();
 let barObserver = null;
 function ensureChatButton() {
   placeChatButtons();
@@ -189,9 +192,11 @@ function ensureGenieButton() {
   button.addEventListener("click", openMuse);
   column.appendChild(button);
   privacy.parentNode.insertBefore(column, privacy);
+  genieVisibility.sync();
 }
 
 function hideChatButton() {
+  genieVisibility.destroy();
   barObserver?.disconnect();
   barObserver = null;
   document.querySelectorAll(".wbe-genie-bar-button").forEach((button) => button.remove());

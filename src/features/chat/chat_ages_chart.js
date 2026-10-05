@@ -5,14 +5,13 @@
 // place left to right; ages that can't be right get a red ring.
 // Data comes from chat_ages_data.js.
 
-import $ from "jquery";
 import { select } from "d3-selection";
 import "d3-transition";
 import { scaleLinear } from "d3-scale";
 import { line as d3line, curveMonotoneX } from "d3-shape";
 import { easeCubicOut } from "d3-ease";
 import { ageTrend, deathAgeRows, parentAgeRows } from "./chat_ages_data";
-import { centrePopup, chartLinkButtons, chartLinkClick, escapeText, injectChartStyles, profileUrl, raiseAboveOtherPopups, saveChart, toggleChartFullScreen } from "./chat_chart_common";
+import { createChartPopup, mountChartPopup, handleChartPopupButton, chartPopupControls, chartLinkButtons, chartLinkClick, escapeText, profileUrl, } from "./chat_chart_common";
 
 const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 const WIDTH = 940;
@@ -26,26 +25,19 @@ const MODES = [
 
 /** slots: from buildFanSlots. options: {title, links, mode, rootKey}. */
 export function showAgesPopup(slots, options = {}) {
-  $("#wbe-ages-popup").remove();
-  injectChartStyles();
   const data = { death: deathAgeRows(slots), parent: parentAgeRows(slots) };
   const state = { mode: MODES.some((m) => m.key === options.mode) ? options.mode : "death", flagsOnly: options.mode === "problems" };
   if (options.mode === "problems") state.mode = data.death.some((row) => row.flag) || !data.parent.some((row) => row.flag) ? "death" : "parent";
 
-  const popup = document.createElement("div");
-  popup.className = "wbe-popup chat-popup ui-draggable wbe-chart-popup";
-  popup.id = "wbe-ages-popup";
-  popup.style.display = "flex";
-  popup.innerHTML = `
+  const popup = createChartPopup({
+    id: "wbe-ages-popup",
+    html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>
       <div class="chat-popup-controls">
         <button type="button" class="small" data-act="replay" title="Draw the dots again">Replay</button>
         ${chartLinkButtons(options.links)}
-        <button type="button" class="small" data-act="full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
-        <button type="button" class="small" data-act="svg" title="Save as SVG">SVG</button>
-        <button type="button" class="small" data-act="png" title="Save as PNG">PNG</button>
-        <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+        ${chartPopupControls()}
       </div>
     </div>
     <div class="chat-popup-body">
@@ -57,9 +49,8 @@ export function showAgesPopup(slots, options = {}) {
       </div>
       <div class="wbe-chart-stage"><div class="wbe-chart-tip"></div></div>
       <div class="wbe-chart-footer"><div class="wbe-chart-stats"></div><div class="wbe-chart-legend"></div></div>
-    </div>`;
-  document.body.appendChild(popup);
-  centrePopup(popup);
+    </div>`,
+  });
   popup.querySelector(".wbe-chart-title").textContent = options.title || "Lives & ages";
 
   const stage = popup.querySelector(".wbe-chart-stage");
@@ -278,10 +269,14 @@ export function showAgesPopup(slots, options = {}) {
   popup.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
-    if (button.classList.contains("close-popup")) {
-      popup._wbeLeaveFullScreen?.();
-      popup.remove();
-    } else if (button.dataset.link) chartLinkClick(popup, button, options.links, slots[1]?.wtid || options.rootKey);
+    if (
+      handleChartPopupButton(popup, button, {
+        svg: svg.node(),
+        fileBase: `lives-and-ages-${String(slots[1]?.wtid || "chart").replace(/[^A-Za-z0-9_-]/g, "")}`,
+      })
+    )
+      return;
+    if (button.dataset.link) chartLinkClick(popup, button, options.links, slots[1]?.wtid || options.rootKey);
     else if (button.dataset.mode) {
       state.mode = button.dataset.mode;
       draw();
@@ -289,14 +284,12 @@ export function showAgesPopup(slots, options = {}) {
       state.flagsOnly = !state.flagsOnly;
       draw({ animate: false });
     } else if (button.dataset.act === "replay") draw();
-    else if (button.dataset.act === "full") toggleChartFullScreen(popup);
-    else if (button.dataset.act === "svg" || button.dataset.act === "png") {
-      saveChart(svg.node(), `lives-and-ages-${String(slots[1]?.wtid || "chart").replace(/[^A-Za-z0-9_-]/g, "")}`, button.dataset.act);
-    }
   });
 
   draw();
-  raiseAboveOtherPopups(popup);
-  $(popup).draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
+  mountChartPopup(popup, () => {
+    svg.interrupt();
+    svg.selectAll("*").interrupt();
+  });
   return popup;
 }

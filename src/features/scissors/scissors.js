@@ -369,6 +369,9 @@ function AddToOneSection(section, url, copyPosition) {
 }
 
 export function addItems(copyItems, copyPosition, options = {}) {
+  const $copyPosition = $(copyPosition);
+  const listLike = $copyPosition.is("ul, ol");
+
   if (options.classic) {
     for (let i = 0; i < copyItems.length; i++) {
       const item = copyItems[i];
@@ -392,9 +395,9 @@ export function addItems(copyItems, copyPosition, options = {}) {
       if (item.label == "User ID" || item.label.match("Title")) {
         const li = document.createElement("li");
         li.append(button);
-        copyPosition.append(li);
+        $copyPosition.append(li);
       } else {
-        copyPosition.append(button);
+        $copyPosition.append(button);
       }
     }
   } else {
@@ -405,7 +408,7 @@ export function addItems(copyItems, copyPosition, options = {}) {
     imageLI.append(image);
     aUL.append(imageLI);
 
-    copyItems.forEach((item, index) => {
+    copyItems.forEach((item) => {
       const aLI = $("<li></li>");
       let theLabel = item.label == "UserID" ? "User ID" : item.label;
       const button = $(`
@@ -432,12 +435,35 @@ export function addItems(copyItems, copyPosition, options = {}) {
       });
     }
 
+    const addToTarget = (node) => {
+      if (listLike) {
+        const wrapper = $('<li class="wbe-copy-list-item"></li>');
+        wrapper.append(node);
+        $copyPosition.append(wrapper);
+        return;
+      }
+
+      $copyPosition.append(node);
+    };
+
     if (options.positioning == "before") {
-      copyPosition.before(aUL);
+      if (listLike) {
+        const wrapper = $('<li class="wbe-copy-list-item"></li>');
+        wrapper.append(aUL);
+        $copyPosition.before(wrapper);
+      } else {
+        $copyPosition.before(aUL);
+      }
     } else if (options.positioning == "prepend") {
-      copyPosition.prepend(aUL);
+      if (listLike) {
+        const wrapper = $('<li class="wbe-copy-list-item"></li>');
+        wrapper.append(aUL);
+        $copyPosition.prepend(wrapper);
+      } else {
+        $copyPosition.prepend(aUL);
+      }
     } else {
-      copyPosition.append(aUL);
+      addToTarget(aUL);
     }
   }
 }

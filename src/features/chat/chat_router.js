@@ -1,3 +1,4 @@
+import { parseFamilyMatrixPrompt } from "./chat_family_matrix_data";
 /*
 Intent router for Chat feature.
 This keeps prompt classification in one place so API adapters can be expanded
@@ -68,6 +69,7 @@ export const ChatIntent = {
   FAMILY_CALENDAR: "familyCalendar",
   AGES_CHART: "agesChart",
   TREE_OVERVIEW: "treeOverview",
+  FAMILY_MATRIX: "familyMatrix",
   PROFILE_SOURCES: "profileSources",
   PERSON_MARRIAGE: "personMarriage",
   RELATIVE_FACT: "relativeFact",
@@ -639,14 +641,14 @@ export function extractConnectionEndpoints(prompt) {
     .replace(/^\s*the\s+/i, "");
 
   const possessiveToMeMatch = lead.match(
-    /^\s*(.+?)['’]s\s+(?:connection(?:\s+or\s+distance)?|distance(?:\s+or\s+connection)?)\s+to\s+me\??\s*$/i
+    /^\s*(.+?)['’]s\s+(?:(?:connection|relationship)(?:\s+or\s+distance)?|distance(?:\s+or\s+connection)?)\s+to\s+me\??\s*$/i
   );
   if (possessiveToMeMatch?.[1]) {
     return { source: "", target: cleanConnectionEndpoint(possessiveToMeMatch[1]) };
   }
 
   const possessiveToNamedMatch = lead.match(
-    /^\s*(.+?)['’]s\s+(?:connection(?:\s+or\s+distance)?|distance(?:\s+or\s+connection)?)\s+to\s+(.+?)\??\s*$/i
+    /^\s*(.+?)['’]s\s+(?:(?:connection|relationship)(?:\s+or\s+distance)?|distance(?:\s+or\s+connection)?)\s+to\s+(.+?)\??\s*$/i
   );
   if (possessiveToNamedMatch?.[1] && possessiveToNamedMatch?.[2]) {
     const source = cleanConnectionEndpoint(possessiveToNamedMatch[1]);
@@ -696,7 +698,7 @@ export function extractConnectionEndpoints(prompt) {
   }
 
   const toMatch = normalized.match(
-    /(?:what(?:'s|\s+is)\s+)?(?:my\s+)?(?:connection(?:\s+or\s+distance)?|distance(?:\s+or\s+connection)?)\s+to\s+(.+?)\??$/i
+    /(?:what(?:'s|\s+is)\s+)?(?:my\s+)?(?:(?:connection|relationship)(?:\s+or\s+distance)?|distance(?:\s+or\s+connection)?)\s+to\s+(.+?)\??$/i
   );
   if (toMatch?.[1]) {
     const target = cleanConnectionEndpoint(toMatch[1]);
@@ -1515,6 +1517,12 @@ function parseDescendantListPrompt(prompt) {
     .replace(/[.!?]+$/g, "")
     .trim();
   const defaultDescendantGeneration = 10;
+  if (/\bliving\b/i.test(normalized)) {
+    const rest = normalized.replace(/\bliving\s+/i, "").replace(/^(?:who|which)(?:\s+(?:are|is))?\s+/i, "");
+    const base = parseDescendantListPrompt(rest);
+    if (base) return { ...base, livingOnly: true };
+  }
+
 
   // H5 (live, 2026-10-03): "how many of her grandchildren were born in New
   // Zealand?" listed every grandchild; the place was dropped.
@@ -2718,6 +2726,8 @@ export function routeChatPrompt(prompt, options = {}) {
   // (family size shares the name cloud's handler: both are ancestor-slot charts)
   const familySize = parseFamilySizePrompt(prompt);
   if (familySize) return { intent: ChatIntent.NAME_CLOUD, params: familySize };
+  const matrix = parseFamilyMatrixPrompt(prompt);
+  if (matrix) return { intent: ChatIntent.FAMILY_MATRIX, params: matrix };
   const treeOverview = parseTreeOverviewPrompt(prompt);
   if (treeOverview) return { intent: ChatIntent.TREE_OVERVIEW, params: treeOverview };
   const familyCalendar = parseFamilyCalendarPrompt(prompt);
@@ -2785,6 +2795,10 @@ function descendantCountRoute(routed) {
 }
 
 function routeChatPromptUnchecked(prompt, options = {}) {
+  if (/\bliving\b/i.test(String(prompt || ""))) {
+    const livingDescendants = parseDescendantListPrompt(prompt);
+    if (livingDescendants?.livingOnly) return { intent: ChatIntent.DESCENDANT_LIST, params: livingDescendants };
+  }
   const hasStructuredResult = Boolean(options?.hasStructuredResult);
   if (isProfileNarrativePrompt(prompt)) {
     return { intent: ChatIntent.FALLBACK_AI, params: { profileNarrative: true } };

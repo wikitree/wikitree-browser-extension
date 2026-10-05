@@ -3,13 +3,12 @@
 // history bands give context (regional ones only when the family has places
 // there). Data comes from chat_family_timeline_data.js.
 
-import $ from "jquery";
 import { select, pointer } from "d3-selection";
 import "d3-transition";
 import { scaleLinear } from "d3-scale";
 import { easeCubicOut } from "d3-ease";
 import { aliveIn, rowSpan } from "./chat_family_timeline_data";
-import { centrePopup, chartLinkButtons, chartLinkClick, escapeText, injectChartStyles, profileUrl, raiseAboveOtherPopups, saveChart, toggleChartFullScreen, truncate, yearOf } from "./chat_chart_common";
+import { createChartPopup, mountChartPopup, handleChartPopupButton, chartPopupControls, chartLinkButtons, chartLinkClick, escapeText, profileUrl, truncate, yearOf } from "./chat_chart_common";
 
 const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 const ROW_H = 24;
@@ -47,26 +46,19 @@ function historyFor(rows, first, last) {
 
 /** rows: from buildFamilyTimelineRows. options: {title}. */
 export function showFamilyTimelinePopup(rows, options = {}) {
-  $("#wbe-family-timeline-popup").remove();
-  injectChartStyles();
   const now = new Date().getFullYear();
   const placed = rows.map((row) => ({ row, span: rowSpan(row, now) })).filter(({ span }) => span);
   const undated = rows.filter((row) => !rowSpan(row, now));
 
-  const popup = document.createElement("div");
-  popup.className = "wbe-popup chat-popup ui-draggable wbe-chart-popup";
-  popup.id = "wbe-family-timeline-popup";
-  popup.style.display = "flex";
-  popup.innerHTML = `
+  const popup = createChartPopup({
+    id: "wbe-family-timeline-popup",
+    html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>
       <div class="chat-popup-controls">
         <button type="button" class="small" data-act="history" title="Show or hide history bands">History</button>
         ${chartLinkButtons(options.links)}
-        <button type="button" class="small" data-act="full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
-        <button type="button" class="small" data-act="svg" title="Save as SVG">SVG</button>
-        <button type="button" class="small" data-act="png" title="Save as PNG">PNG</button>
-        <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+        ${chartPopupControls()}
       </div>
     </div>
     <div class="chat-popup-body">
@@ -75,9 +67,8 @@ export function showFamilyTimelinePopup(rows, options = {}) {
       </div>
       <div class="wbe-chart-stage" style="overflow-y:auto"><div class="wbe-chart-tip"></div></div>
       <div class="wbe-chart-footer"><div class="wbe-chart-legend"></div></div>
-    </div>`;
-  document.body.appendChild(popup);
-  centrePopup(popup);
+    </div>`,
+  });
   popup.querySelector(".wbe-chart-title").textContent = options.title || "Family timeline";
 
   const stage = popup.querySelector(".wbe-chart-stage");
@@ -322,18 +313,20 @@ export function showFamilyTimelinePopup(rows, options = {}) {
   popup.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
-    if (button.classList.contains("close-popup")) {
-      popup._wbeLeaveFullScreen?.();
-      popup.remove();
-    } else if (button.dataset.link) chartLinkClick(popup, button, options.links, selfItem?.row.wtid);
+    if (
+      handleChartPopupButton(popup, button, {
+        svg: svg.node(),
+        fileBase: `family-timeline-${(selfItem?.row.wtid || "chart").replace(/[^A-Za-z0-9_-]/g, "")}`,
+      })
+    )
+      return;
+    if (button.dataset.link) chartLinkClick(popup, button, options.links, selfItem?.row.wtid);
     else if (button.dataset.act === "history") bands.attr("display", bands.attr("display") === "none" ? null : "none");
-    else if (button.dataset.act === "full") toggleChartFullScreen(popup);
-    else if (button.dataset.act === "svg" || button.dataset.act === "png") {
-      saveChart(svg.node(), `family-timeline-${(selfItem?.row.wtid || "chart").replace(/[^A-Za-z0-9_-]/g, "")}`, button.dataset.act);
-    }
   });
 
-  raiseAboveOtherPopups(popup);
-  $(popup).draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
+  mountChartPopup(popup, () => {
+    svg.interrupt();
+    svg.selectAll("*").interrupt();
+  });
   return popup;
 }

@@ -7,3 +7,14 @@ export function trimUkCountrySuffix(location) {
   const trimmed = text.replace(/,\s*(?:United\s+Kingdom|UK|U\.K\.|Great\s+Britain)\s*$/i, "").trim();
   return trimmed || text;
 }
+
+/** Human-readable name for an API location field, including the combined scope. */
+export function getLocationFieldLabel(locationField) {
+  if (locationField === "BirthLocation") {
+    return "birth location";
+  }
+  if (locationField === "DeathLocation") {
+    return "death location";
+  }
+  return "birth or death location";
+}

@@ -1,6 +1,7 @@
 // Shared pieces for Genie's d3 charts (fan chart, descendant sunburst): the
 // popup styles, export, tooltip escaping, text contrast and profile links.
 
+import $ from "jquery";
 import { color as d3color } from "d3-color";
 import { mainDomain } from "../../core/pageType";
 
@@ -147,6 +148,35 @@ export function escapeText(value) {
 
 
 const CHART_CSS = `
+  .wbe-kin-dashboard { overflow:auto; padding:16px; }
+  .wbe-kin-controls { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+  .wbe-kin-controls input[type=number] { width:58px; }
+  .wbe-kin-root { background:#25422d; color:white; padding:14px; border-radius:12px; font-size:20px; font-weight:bold; margin:14px 0; }
+  .wbe-kin-root small { display:block; font-size:10px; font-weight:normal; }
+  .wbe-chart-popup .chat-popup-body.wbe-kin-dashboard { overflow:auto; padding:16px; display:block; }
+  .wbe-kin-grid { overflow:auto; margin-top:14px; }
+  .wbe-kin-matrix { border-collapse:separate; border-spacing:10px 8px; width:auto; margin:0 auto; }
+  .wbe-kin-matrix th { font-size:12px; color:#666666; text-align:center; min-width:90px; max-width:100px; padding:6px; }
+  .wbe-kin-matrix tbody th { min-width:85px; width:85px; }
+  .wbe-kin-matrix td { vertical-align:middle; min-width:96px; width:96px; max-width:110px; padding:0; border-left:1px solid #dedecb; }
+  .wbe-kin-matrix .wbe-kin-card { width:100%; margin:4px 0; }
+  .wbe-kin-matrix .wbe-kin-root { margin:4px 0; text-align:center; height:80px; font-size:12px; padding:10px 6px; display:flex; flex-direction:column; justify-content:center; box-sizing:border-box; }
+  .wbe-kin-card { display:flex; flex-direction:column; gap:8px; padding:9px 6px; background:var(--kin-background,#e1f0b4); color:#25422d; border:1px solid var(--kin-border,#a5d167); border-radius:12px; cursor:pointer; min-height:80px; font-size:11px; line-height:1.25; }
+  .wbe-kin-card strong { font-size:16px; color:#25422d; background:white; border-radius:20px; padding:2px 14px; align-self:center; }
+  .wbe-kin-card:focus-visible,.wbe-kin-card[aria-pressed=true] { outline:3px solid #25422d; outline-offset:2px; }
+  .wbe-kin-list { position:fixed; z-index:2147483647; box-sizing:border-box; padding:12px; background:#f0f0eb; color:#333333; border:1px solid #dedecb; border-radius:10px; max-height:320px; overflow:auto; box-shadow:0 5px 22px #0003; }
+  .wbe-kin-list[hidden] { display:none; }
+  .wbe-kin-list h3 { font-size:14px; margin:0 0 8px; }
+  .wbe-kin-list ul { padding:0; list-style:none; }
+  .wbe-kin-list li { padding:8px; margin:4px 0; border:1px solid #dedecb; border-radius:4px; }
+  .wbe-kin-list .wbe-kin-gender-male { background:#f2f1ff; }
+  .wbe-kin-list .wbe-kin-gender-female { background:#ffeeee; }
+  .wbe-kin-list .wbe-kin-gender-unknown { background:#eeffee; }
+  .wbe-kin-list small { display:block; color:#666666; }
+  .wbe-kin-note { font-size:12px; color:#666666; }
+  .wbe-kin-card[aria-pressed=true] strong { background:#fcb815; }
+  .wbe-kin-list a:link { color:#008000; }
+  .wbe-kin-list a:visited { color:#800080; }
   .wbe-chart-popup { width: min(920px, 96vw); height: min(780px, 92vh); display: flex; flex-direction: column; }
   .wbe-chart-popup .chat-popup-controls .wbe-chart-link { color: #1d5f8c; border-color: #9cc3de; background: #f2f8fc; }
   .wbe-chart-popup .chat-popup-controls .wbe-chart-link:hover { background: #e2eff8; }
@@ -260,4 +290,82 @@ export function photoUrl(person, size = 150) {
   if (!data) return "";
   if (data.dir && person.photo) return siteUrl(`${data.dir}/${person.photo}/${size}px-${person.photo}`);
   return data.url ? siteUrl(data.url) : "";
+}
+
+/** Standard controls; action names are shared by each chart's event handlers. */
+export function chartPopupControls() {
+  return `
+        <button type="button" class="small" data-act="full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
+        <button type="button" class="small" data-act="svg" title="Save as SVG">SVG</button>
+        <button type="button" class="small" data-act="png" title="Save as PNG">PNG</button>
+        <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>`;
+}
+
+/** Handle the shared controls; return false for a chart's own controls. */
+export function handleChartPopupButton(popup, button, { svg, fileBase }) {
+  if (button.classList.contains("close-popup")) {
+    closeChartPopup(popup);
+    return true;
+  }
+  const action = button.dataset.act;
+  if (action === "full") {
+    toggleChartFullScreen(popup);
+    return true;
+  }
+  if (action === "svg" || action === "png") {
+    saveChart(svg, fileBase, action);
+    return true;
+  }
+  return false;
+}
+
+/** Close and replacement share cleanup, including document fullscreen listeners. */
+export function closeChartPopup(popup) {
+  if (popup._wbeCloseChart) popup._wbeCloseChart();
+  else {
+    popup._wbeLeaveFullScreen?.();
+    popup.remove();
+  }
+}
+
+/** Create one chart of this kind, releasing the previous instance first. */
+export function createChartPopup({ id, html }) {
+  const previous = document.getElementById(id);
+  if (previous) closeChartPopup(previous);
+  injectChartStyles();
+  const popup = document.createElement("div");
+  popup.id = id;
+  popup.className = "wbe-popup chat-popup ui-draggable wbe-chart-popup";
+  popup.style.display = "flex";
+  popup.innerHTML = html;
+  let closed = false;
+  popup._wbeCloseChart = () => {
+    if (closed) return;
+    closed = true;
+    popup._wbeLeaveFullScreen?.();
+    try {
+      popup._wbeChartCleanup?.();
+    } finally {
+      popup.remove();
+    }
+  };
+  document.body.appendChild(popup);
+  centrePopup(popup);
+  return popup;
+}
+
+/** Finish setup after drawing, and register renderer cleanup for close/replacement. */
+export function mountChartPopup(popup, cleanup, { stage, resize } = {}) {
+  const observer = stage && resize && typeof ResizeObserver === "function" ? new ResizeObserver(resize) : null;
+  observer?.observe(stage);
+  popup._wbeChartCleanup = () => {
+    try {
+      cleanup?.();
+    } finally {
+      observer?.disconnect();
+      if ($.fn.draggable && $(popup).data("ui-draggable")) $(popup).draggable("destroy");
+    }
+  };
+  raiseAboveOtherPopups(popup);
+  if ($.fn.draggable) $(popup).draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
 }

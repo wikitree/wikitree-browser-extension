@@ -5,25 +5,24 @@
 // family timeline (its Close family view, rows from familyLifespanRows), as the
 // user found the two charts "very very similar".
 
-import $ from "jquery";
 import { select, pointer } from "d3-selection";
 import "d3-transition";
 import { scaleLinear, scaleSequential } from "d3-scale";
 import { area as d3area, curveMonotoneX } from "d3-shape";
 import { interpolateRdYlGn, schemeTableau10 } from "d3-scale-chromatic";
 import { easeCubicOut } from "d3-ease";
-import { aliveByYear, generationLabel, lifespanStats } from "./chat_lifespans_data";
+import { generationLabel } from "./chat_kin_labels";
+import { aliveByYear, lifespanStats } from "./chat_lifespans_data";
 import { EVENT_KIND_COLOURS, aliveFor, eventYears, eventsForRows, livedThrough, rowCountries } from "./chat_world_events_data";
 import {
-  centrePopup,
+  createChartPopup,
+  mountChartPopup,
+  handleChartPopupButton,
+  chartPopupControls,
   chartLinkButtons,
   chartLinkClick,
   escapeText,
-  injectChartStyles,
   profileUrl,
-  raiseAboveOtherPopups,
-  saveChart,
-  toggleChartFullScreen,
   truncate,
   yearOf,
 } from "./chat_chart_common";
@@ -108,8 +107,6 @@ export function laneEvents(events, xOf, minGap = 4) {
  * for the switch, position ({left, top}: where the last view was), peopleWord}.
  */
 export function showLifespansPopup(rows, options = {}) {
-  $("#wbe-lifespans-popup").remove();
-  injectChartStyles();
   const family = options.view === "family";
   const descendants = options.view === "descendants";
   const modes = family ? FAMILY_MODES : descendants ? DESCENDANT_MODES : MODES;
@@ -120,19 +117,14 @@ export function showLifespansPopup(rows, options = {}) {
   const ancestors = rows.filter((row) => !isRoot(row));
   const stats = lifespanStats(rows);
 
-  const popup = document.createElement("div");
-  popup.className = "wbe-popup chat-popup ui-draggable wbe-chart-popup";
-  popup.id = "wbe-lifespans-popup";
-  popup.style.display = "flex";
-  popup.innerHTML = `
+  const popup = createChartPopup({
+    id: "wbe-lifespans-popup",
+    html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>
       <div class="chat-popup-controls">
         ${chartLinkButtons(options.links)}
-        <button type="button" class="small" data-act="full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
-        <button type="button" class="small" data-act="svg" title="Save as SVG">SVG</button>
-        <button type="button" class="small" data-act="png" title="Save as PNG">PNG</button>
-        <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+        ${chartPopupControls()}
       </div>
     </div>
     <div class="chat-popup-body">
@@ -150,9 +142,8 @@ export function showLifespansPopup(rows, options = {}) {
       </div>
       <div class="wbe-chart-stage" style="overflow-y:auto"><div class="wbe-chart-tip"></div></div>
       <div class="wbe-chart-footer"><div class="wbe-chart-legend"></div><div class="wbe-chart-centuries"></div></div>
-    </div>`;
-  document.body.appendChild(popup);
-  centrePopup(popup);
+    </div>`,
+  });
   if (options.position?.left) Object.assign(popup.style, { left: options.position.left, top: options.position.top });
   popup.querySelector(".wbe-chart-title").textContent = options.title || "Lifespans";
 
@@ -608,23 +599,27 @@ export function showLifespansPopup(rows, options = {}) {
   popup.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
-    if (button.classList.contains("close-popup")) {
-      popup._wbeLeaveFullScreen?.();
-      popup.remove();
-    } else if (button.dataset.view) {
+    if (
+      handleChartPopupButton(popup, button, {
+        svg: svg.node(),
+        fileBase: `lifespans-${(root?.wtid || "chart").replace(/[^A-Za-z0-9_-]/g, "")}`,
+      })
+    )
+      return;
+    if (button.dataset.view) {
       if (button.dataset.view !== (options.view || "ancestors")) options.onView?.(button.dataset.view, { left: popup.style.left, top: popup.style.top });
     } else if (button.dataset.link) chartLinkClick(popup, button, options.links, root?.wtid);
     else if (button.dataset.mode) {
       state.mode = button.dataset.mode;
       bars.transition("fill").duration(400).attr("fill", (d) => fillFor(d.row, state.mode)); // (named: it mustn't stop the bars growing)
       drawLegend();
-    } else if (button.dataset.act === "full") toggleChartFullScreen(popup);
-    else if (button.dataset.act === "svg" || button.dataset.act === "png") {
-      saveChart(svg.node(), `lifespans-${(root?.wtid || "chart").replace(/[^A-Za-z0-9_-]/g, "")}`, button.dataset.act);
     }
   });
 
-  raiseAboveOtherPopups(popup);
-  $(popup).draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
+  mountChartPopup(popup, () => {
+    svg.interrupt();
+    svg.selectAll("*").interrupt();
+    svg.selectAll("*").interrupt("fill");
+  });
   return popup;
 }

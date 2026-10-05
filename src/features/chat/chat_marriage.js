@@ -2,6 +2,7 @@
 // spouse entry from getRelatives (marriage_date, marriage_location). Live,
 // 2026-10-03, the prompt went to WT+, which said it couldn't search for that.
 
+import { dateParts, ageBetween } from "./chat_dates";
 import { formatPreviewDate } from "./chat_preview_format";
 
 const SUBJECT = String.raw`(this\s+person|the\s+profile\s+person|he|she|they|[A-Z][A-Za-z'_ -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.()]*){0,4})`;
@@ -115,21 +116,10 @@ export function buildMarriageAnswer({ personLabel, marriages, parents = false, o
   return `${personLabel} has ${marriages.length} recorded marriage${marriages.length === 1 ? "" : "s"}:\n${lines.join("\n")}`;
 }
 
-function dateParts(value) {
-  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!match || match[1] === "0000") return null;
-  return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
-}
-
 /** Whole years from one date to another: {years, approx} or null. */
 export function yearsBetween(from, to) {
-  const a = dateParts(from);
-  const b = dateParts(to);
-  if (!a || !b) return null;
-  let years = b.year - a.year;
-  const exact = a.month && b.month && a.day && b.day;
-  if (a.month && b.month && (b.month < a.month || (b.month === a.month && a.day && b.day && b.day < a.day))) years -= 1;
-  return { years, approx: !exact };
+  const span = ageBetween(from, to);
+  return span ? { years: span.age, approx: span.approx } : null;
 }
 
 const yearsText = ({ years, approx }) => `${approx ? "about " : ""}${years} year${years === 1 ? "" : "s"}`;

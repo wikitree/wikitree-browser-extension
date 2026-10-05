@@ -4,8 +4,10 @@
 // can't be right (a mother of 9, a child born after its mother died) are flagged, so
 // the chart is also a way to find mistakes in a tree.
 
+import { dateParts, ageBetween } from "./chat_dates";
+export { dateParts, ageBetween } from "./chat_dates";
 import { generationOfSlot } from "./chat_fan_chart_data";
-import { ancestorWord } from "./chat_lifespans_data";
+import { descendantWord, ancestorWord } from "./chat_kin_labels";
 
 const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 
@@ -60,27 +62,6 @@ export function parseAgesPrompt(prompt) {
   return null;
 }
 
-/** {year, month, day} from "1823-10-04" (0 for unknown parts), or null with no year. */
-export function dateParts(value) {
-  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!match || match[1] === "0000") return null;
-  return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
-}
-
-/**
- * Whole years from one date to another. With both months known it counts birthdays;
- * otherwise it's the difference in years and marked approximate.
- */
-export function ageBetween(from, to) {
-  const a = dateParts(from);
-  const b = dateParts(to);
-  if (!a || !b) return null;
-  if (!a.month || !b.month) return { age: b.year - a.year, approx: true };
-  let age = b.year - a.year;
-  if (b.month < a.month || (b.month === a.month && a.day && b.day && b.day < a.day)) age -= 1;
-  return { age, approx: !(a.day && b.day) };
-}
-
 function relationOf(slot) {
   return slot === 1 ? "" : ancestorWord(generationOfSlot(slot), slot % 2 === 0 ? "Male" : "Female");
 }
@@ -92,11 +73,11 @@ export function deathAgeRows(slots) {
     if (!person || slot < 1) return;
     const span = ageBetween(person.birth, person.death);
     if (!span) return;
-    const gender = slot === 1 ? person.gender : slot % 2 === 0 ? "Male" : "Female";
+    const gender = person.generation !== undefined || slot === 1 ? person.gender : slot % 2 === 0 ? "Male" : "Female";
     let flag = "";
     if (span.age < 0) flag = "Died before they were born: one of the dates is wrong";
     else if (span.age > 105) flag = `Aged ${span.age}: very unlikely, so check the dates`;
-    rows.push({ slot, generation: generationOfSlot(slot), name: person.name, wtid: person.wtid, gender, born: dateParts(person.birth).year, age: span.age, approx: span.approx, relation: relationOf(slot), flag });
+    rows.push({ slot, generation: person.generation ?? generationOfSlot(slot), name: person.name, wtid: person.wtid, gender, born: dateParts(person.birth).year, age: span.age, approx: span.approx, relation: person.generation !== undefined ? descendantWord(person.generation, person.gender) : relationOf(slot), flag });
   });
   return rows;
 }
@@ -108,7 +89,17 @@ export function deathAgeRows(slots) {
 export function parentAgeRows(slots) {
   const rows = [];
   (slots || []).forEach((person, slot) => {
-    if (!person || slot < 2) return;
+    if (!person) return;
+    if (person.children) {
+      if (!["Male", "Female"].includes(person.gender)) return;
+      person.children.forEach((child) => {
+        const pair = [null, child];
+        pair[person.gender === "Male" ? 2 : 3] = { ...person, children: undefined };
+        parentAgeRows(pair).forEach((row) => rows.push({ ...row, slot, generation: person.generation, relation: descendantWord(person.generation, person.gender) }));
+      });
+      return;
+    }
+    if (slot < 2) return;
     const child = slots[Math.floor(slot / 2)];
     if (!child) return;
     const span = ageBetween(person.birth, child.birth);
@@ -180,14 +171,14 @@ export function centuryAverages(rows) {
 }
 
 /** The chat message for the chart. */
-export function buildAgesSummary(slots, ownerText, mode = "death") {
+export function buildAgesSummary(slots, ownerText, mode = "death", scope = "ancestors") {
   const deaths = deathAgeRows(slots).filter((row) => row.slot > 1 || row.age >= 0);
   const parents = parentAgeRows(slots);
   const problems = [...deaths, ...parents].filter((row) => row.flag);
   const lines = [];
   if (mode === "problems") {
-    if (!problems.length) return `I checked ${deaths.length + parents.length} ages in ${ownerText} ancestors and none looks impossible.`;
-    lines.push(`${problems.length} age${problems.length === 1 ? "" : "s"} in ${ownerText} ancestors look wrong:`);
+    if (!problems.length) return `I checked ${deaths.length + parents.length} ages in ${ownerText} ${scope} and none looks impossible.`;
+    lines.push(`${problems.length} age${problems.length === 1 ? "" : "s"} in ${ownerText} ${scope} look wrong:`);
     problems.slice(0, 15).forEach((row) => lines.push(`- ${personText(row)}: ${row.flag}`));
     lines.push("The chart marks them with red rings.");
     return lines.join("\n");
@@ -195,18 +186,18 @@ export function buildAgesSummary(slots, ownerText, mode = "death") {
   if (mode === "parent") {
     const mothers = parents.filter((row) => row.role === "mother" && !row.flag);
     const fathers = parents.filter((row) => row.role === "father" && !row.flag);
-    if (!mothers.length && !fathers.length) return `${ownerText} ancestors don't have enough birth dates to work out parents' ages.`;
-    lines.push(`How old ${ownerText === "Your" ? "your" : ownerText} ancestors were when the next ancestor was born:`);
+    if (!mothers.length && !fathers.length) return `${ownerText} ${scope} don't have enough birth dates to work out parents' ages.`;
+    lines.push(`How old ${ownerText === "Your" ? "your" : ownerText} ${scope} were when the next ${scope === "descendants" ? "descendant" : "ancestor"} was born:`);
     if (mothers.length) lines.push(`- Mothers: average ${mean(mothers.map((r) => r.age))} (${mothers.length}), youngest ${Math.min(...mothers.map((r) => r.age))}, oldest ${Math.max(...mothers.map((r) => r.age))}`);
     if (fathers.length) lines.push(`- Fathers: average ${mean(fathers.map((r) => r.age))} (${fathers.length}), youngest ${Math.min(...fathers.map((r) => r.age))}, oldest ${Math.max(...fathers.map((r) => r.age))}`);
     const oldestFather = fathers.slice().sort((a, b) => b.age - a.age)[0];
     if (oldestFather && oldestFather.age >= 50) lines.push(`${oldestFather.name} (${oldestFather.wtid}) was ${oldestFather.age} when ${oldestFather.childName} was born.`);
   } else {
-    if (!deaths.length) return `${ownerText} ancestors don't have enough birth and death dates to chart their ages.`;
+    if (!deaths.length) return `${ownerText} ${scope} don't have enough birth and death dates to chart their ages.`;
     const good = deaths.filter((row) => !row.flag && row.slot > 1);
     const longest = good.slice().sort((a, b) => b.age - a.age)[0];
     const shortest = good.slice().sort((a, b) => a.age - b.age)[0];
-    lines.push(`${ownerText} ${good.length} ancestors with birth and death dates lived to ${mean(good.map((r) => r.age))} on average.`);
+    lines.push(`${ownerText} ${good.length} ${scope} with birth and death dates lived to ${mean(good.map((r) => r.age))} on average.`);
     const centuries = centuryAverages(good).filter((c) => c.count >= 2);
     if (centuries.length >= 2) lines.push(`By century of birth: ${centuries.map((c) => `${c.century}s ${c.average} (${c.count})`).join(", ")}.`);
     if (longest) lines.push(`Longest life: ${personText(longest)}, ${longest.age}.`);
