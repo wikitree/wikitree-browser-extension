@@ -501,6 +501,24 @@ function hasExactConnectionFullName(match, firstName, lastName) {
   return hasExactConnectionFirstName(match, firstName) && hasExactConnectionSurname(match, lastName);
 }
 
+/** "William Ralph Beacall" → ["Ralph"]: the names between the first and the last. */
+function typedMiddleNames(target) {
+  const parts = String(target || "").replace(/[?.!,]+/g, " ").split(/\s+/).filter(Boolean);
+  return parts.length > 2 ? parts.slice(1, -1) : [];
+}
+
+/**
+ * Does the profile's middle name fit the typed one? "R" fits Ralph; an
+ * unrecorded middle name is "unknown" (null), not a mismatch.
+ */
+function middleNamesAgree(match, typedMiddles) {
+  const profileMiddles = normalizePersonText(match?.MiddleName || match?.MiddleInitial).split(" ").filter(Boolean);
+  if (!profileMiddles.length) return null;
+  return typedMiddles.map(normalizePersonText).every((typed) =>
+    profileMiddles.some((name) => name === typed || (name.length === 1 && typed.startsWith(name)) || (typed.length === 1 && name.startsWith(typed)))
+  );
+}
+
 /** An exact name match on any pairing of the given first names and surnames (birth or known-by names). */
 function hasAnyExactConnectionFullName(match, firstNames, lastNames) {
   return firstNames.some((first) => first && hasExactConnectionFirstName(match, first)) && lastNames.some((last) => last && hasExactConnectionSurname(match, last));
@@ -959,6 +977,25 @@ export function createChatConnectionHandlers({
       currentLastStrictMatches = searchMatches || [];
     }
 
+    // "William Ralph Beacall": searching "William" alone, oldest first, filled
+    // the 20 places with older Williams; "William Ralph" ranks him first (live, 2026-10-06).
+    const middleNames = typedMiddleNames(cleanedTarget);
+    let givenNamesMatches = [];
+    if (middleNames.length && firstName && lastName) {
+      const [, searchMatches] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: [firstName, ...middleNames].join(" "),
+          LastName: lastName,
+          skipVariants: 1,
+          lastNameMatch: "strict",
+          limit: exactMatchSearchLimit,
+        },
+        fields
+      );
+      givenNamesMatches = searchMatches || [];
+    }
+
     let relaxedMatches = [];
     if (firstName && lastName) {
       const [, searchMatches] = await WikiTreeAPI.searchPerson(
@@ -1156,6 +1193,7 @@ export function createChatConnectionHandlers({
     }
 
     const exactOriginalMatches = mergeConnectionMatches([
+      givenNamesMatches,
       strictMatches,
       currentLastStrictMatches,
       wtPlusExactMatches,
@@ -1166,6 +1204,7 @@ export function createChatConnectionHandlers({
         : null;
 
     const matches = mergeConnectionMatches([
+      givenNamesMatches,
       strictHintMatches,
       currentLastStrictHintMatches,
       livingStrictMatches,
@@ -1483,6 +1522,15 @@ export function createChatConnectionHandlers({
         aiExpansion.birthLocation,
         aiExpansion.deathLocation,
       ]);
+    }
+
+    // A typed middle name narrows the field: those whose middle name fits, or
+    // else those with none recorded. A different middle name is someone else.
+    if (middleNames.length && rankedMatches.length) {
+      const agreeing = rankedMatches.filter((entry) => middleNamesAgree(entry.match, middleNames) === true);
+      rankedMatches = agreeing.length
+        ? agreeing
+        : rankedMatches.filter((entry) => middleNamesAgree(entry.match, middleNames) !== false);
     }
 
     if (!rankedMatches.length && sparseExactOriginalMatch) {
