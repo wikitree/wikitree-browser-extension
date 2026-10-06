@@ -640,6 +640,32 @@ export function extractConnectionEndpoints(prompt) {
     .replace(/^\s*(?:please\s+)?(?:what(?:['’]s|\s+is)|show(?:\s+me)?|tell\s+me|find|give\s+me)\s+/i, "")
     .replace(/^\s*the\s+/i, "");
 
+  // "how am I related to Harold?", "how is Maloney-2332 related to McKusick-36?",
+  // "how are Philip and Jefferson related?": needed AI to read (2026-10-06).
+  // A person's relatives ("Calvin's children") are left to the AI; only a name or ID is read here.
+  const relatedQuestion = normalized.replace(/[?.!]+$/, "").trim();
+  const isRelativesPhrase = /['’]s\s+\S/.test(relatedQuestion);
+  const howAmIMatch = isRelativesPhrase
+    ? null
+    : relatedQuestion.match(/^(?:how\s+)?(?:am\s+i|are\s+we)\s+(?:related|connected)\s+to\s+(.+)$/i);
+  if (howAmIMatch?.[1] && !/^(?:any(?:one|body)|someone|somebody)\b/i.test(howAmIMatch[1])) {
+    return { source: "", target: cleanConnectionEndpoint(howAmIMatch[1]) };
+  }
+  const howIsMatch = isRelativesPhrase ? null : relatedQuestion.match(/^how\s+(?:is|was)\s+(.+?)\s+(?:related|connected)\s+to\s+(.+)$/i);
+  if (howIsMatch?.[1] && howIsMatch?.[2]) {
+    const source = cleanConnectionEndpoint(howIsMatch[1]);
+    const target = cleanConnectionEndpoint(howIsMatch[2]);
+    if (isSelfReferenceEndpoint(target)) return { source: "", target: source };
+    return { source: isSelfReferenceEndpoint(source) ? "" : source, target };
+  }
+  const howAreMatch = isRelativesPhrase ? null : relatedQuestion.match(/^how\s+(?:are|were)\s+(.+?)\s+and\s+(.+?)\s+(?:related|connected)$/i);
+  if (howAreMatch?.[1] && howAreMatch?.[2]) {
+    const source = cleanConnectionEndpoint(howAreMatch[1]);
+    const target = cleanConnectionEndpoint(howAreMatch[2]);
+    if (isSelfReferenceEndpoint(target)) return { source: "", target: source };
+    return { source: isSelfReferenceEndpoint(source) ? "" : source, target };
+  }
+
   const possessiveToMeMatch = lead.match(
     /^\s*(.+?)['’]s\s+(?:(?:connection|relationship)(?:\s+or\s+distance)?|distance(?:\s+or\s+connection)?)\s+to\s+me\??\s*$/i
   );

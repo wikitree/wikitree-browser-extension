@@ -1,4 +1,5 @@
 import { createConnectionSourceResolver } from "./chat_connection_source";
+import { REQUESTED_COLUMNS, addRequestedColumns, parseColumnRequest, requestedColumnFields } from "./chat_requested_columns";
 /*
 Created By: Ian Beacall (Beacall-6)
 */
@@ -48,7 +49,9 @@ import {
 } from "./chat_answer";
 import { prefillSearchForm } from "./chat_search_form";
 import { createProfileSearchHandler } from "./chat_profile_search";
-import { createChatAiHelpers } from "./chat_ai";
+import { createChatAiHelpers, isAiPaused, setAiPaused } from "./chat_ai";
+import { aiKeyHelpHtml } from "./chat_ai_key_help";
+import { isHelpPrompt, noAiExamplesHtml } from "./chat_no_ai_examples";
 import { createChatCcHandlers } from "./chat_cc";
 import { createLastResultOperationHandler } from "./chat_last_result";
 import { createChatRelationHandlers } from "./chat_relations";
@@ -338,6 +341,9 @@ let lastConnectionCandidates = [];
 let lastConnectionRankedMatches = [];
 let lastConnectionPopupResult = null;
 let lastStructuredResult = null;
+// Columns asked for with the current prompt ("my cousins with a privacy column"),
+// added to the table the prompt produces.
+let pendingRequestedColumns = null;
 let lastBioPopupId = null;
 let lastBioPopupProfile = null;
 let wtPlusSuggestionOptionsHtml = "";
@@ -2551,6 +2557,34 @@ async function getChatOptions() {
   }
 }
 
+// Fetches the requested columns' fields for a table's profiles and adds them.
+async function withFetchedColumns(table, keys) {
+  const wtIds = [...new Set((table?.rows || []).map((row) => row?.wtid).filter(Boolean))];
+  if (!wtIds.length) return table;
+  showChatShaky(`Fetching ${keys.length === 1 ? "a column" : "columns"} for ${wtIds.length} profiles...`);
+  try {
+    const [, , people] = await fetchPeoplePaged(WBE_CHAT_APP_ID, wtIds, requestedColumnFields(keys), { limit: 1000 });
+    return addRequestedColumns(table, keys, people);
+  } catch (error) {
+    console.info("wbe: fetching requested columns failed", { keys, error });
+    return table;
+  }
+}
+
+// "add a privacy column": to the table already showing.
+async function addColumnsToResult(table, keys) {
+  const titles = keys.map((key) => REQUESTED_COLUMNS[key].title);
+  const titleText = titles.length > 1 ? `${titles.slice(0, -1).join(", ")} and ${titles.at(-1)}` : titles[0];
+  if (!table?.rows?.some((row) => row?.wtid)) {
+    return {
+      message: `There's no list of profiles to add the ${titleText} column${titles.length > 1 ? "s" : ""} to yet. Ask for one first, for example "my cousins with a privacy column".`,
+    };
+  }
+  const withColumns = await withFetchedColumns(table, keys);
+  if (withColumns === table) return { message: `I couldn't fetch the ${titleText} details just now. Please try again.` };
+  return { message: `Added ${titleText} to the table.`, table: withColumns, autoOpen: true };
+}
+
 async function handleChatResult(result) {
   // (a handler's plain-text reply; dropping it showed nothing at all for "Beacall-10", 2026-10-04)
   if (typeof result === "string") result = { message: result };
@@ -2562,6 +2596,12 @@ async function handleChatResult(result) {
   if (result.needsAi && !(await getChatAiConfig())?.key) {
     showNeedsAiKey(lastNonRetryUserPrompt);
     return;
+  }
+
+  if (pendingRequestedColumns && result.table?.rows?.length) {
+    const keys = pendingRequestedColumns;
+    pendingRequestedColumns = null;
+    result = { ...result, table: await withFetchedColumns(result.table, keys) };
   }
 
   const messageText =
@@ -2759,8 +2799,12 @@ function showNeedsAiKey(prompt) {
   // (a question gets just the message and the link; something more like a search gets the form too)
   const withForm = !looksLikeQuestion(prompt);
   const needsKey = needsAiKeyMessage({ withForm });
-  appendMessage("assistant", needsKey.text, {
-    actions: needsKey.actions.map((action) => ({ ...action, onClick: () => window.open(action.url, "_blank", "noopener,noreferrer") })),
+  const text = isAiPaused() ? `${needsKey.text}\n(AI is switched off with the AI switch at the top.)` : needsKey.text;
+  appendMessage("assistant", text, {
+    actions: [
+      ...needsKey.actions.map((action) => ({ ...action, onClick: () => window.open(action.url, "_blank", "noopener,noreferrer") })),
+      { label: WHAT_CAN_I_TYPE, onClick: () => showNoAiExamples() },
+    ],
     searchForm: withForm ? prefillSearchForm(prompt) : null,
   });
 }
@@ -2817,6 +2861,12 @@ async function sendChatPrompt() {
 
   const rawPrompt = stripPromptListDecorations(String($input.val() || ""));
   if (!rawPrompt) {
+    return;
+  }
+  // "help", "what can I type?": the examples panel.
+  if (isHelpPrompt(rawPrompt)) {
+    $input.val("");
+    showNoAiExamples();
     return;
   }
 
@@ -2900,6 +2950,7 @@ async function sendChatPrompt() {
     });
   }
 
+  const previousStructuredResult = lastStructuredResult;
   // If the user chose "New search", discard previous result context before routing
   const newQueryContext = document.querySelector('input[name="wbe-chat-context"]:checked')?.value === "new";
   if (newQueryContext) {
@@ -2951,6 +3002,20 @@ async function sendChatPrompt() {
         })),
       });
       return;
+    }
+
+    // Extra columns: "add a privacy column" goes on the last result; "my cousins
+    // with a gender column" runs "my cousins", then adds it (Discord, 2026-10-06).
+    pendingRequestedColumns = null;
+    const columnRequest = jsonBatchPayload === null ? parseColumnRequest(prompt) : null;
+    if (columnRequest && !columnRequest.rest) {
+      await handleChatResult(await addColumnsToResult(previousStructuredResult, columnRequest.keys));
+      return;
+    }
+    if (columnRequest) {
+      console.debug("wbe: columns requested", columnRequest);
+      pendingRequestedColumns = columnRequest.keys;
+      prompt = columnRequest.rest;
     }
 
     // Handle pending disambiguation: user is replying to a "which one did you mean?" prompt
@@ -3443,6 +3508,7 @@ async function sendChatPrompt() {
   } catch (error) {
     appendMessage("assistant", `Error: ${error?.message || "AI request failed."}`);
   } finally {
+    pendingRequestedColumns = null;
     setPendingState(false);
     try {
       hideChatShaky();
@@ -4222,12 +4288,14 @@ let noKeyTipShown = false;
 // planner; "My connection to…" is handled by Genie's own code).
 // Without an AI key, a chip opens the search form instead of sending a prompt.
 export const SEARCH_FORM_CHIP = "Search by name, place or date";
+// Without an AI key, a chip opens the tested list of what works without AI.
+export const WHAT_CAN_I_TYPE = "What can I type?";
 
 export function welcomeChipPrompts(profileFirstName, { ai = true } = {}) {
   const prompts = profileFirstName
     ? [ai ? `How am I related to ${profileFirstName}?` : `My connection to ${profileFirstName}`, "Tree overview", "Fan chart", "Family Explorer", "Map this person's ancestors", "On this day in this family", "Lifespans", "Ancestors in history", "Surnames", "Name cloud", "X-DNA chart", "Descendant chart", "Family timeline"]
     : ["Tell me about my tree", "Show my fan chart", "Show my Family Explorer", "Map my ancestors", "How complete is my tree?", "How long did my ancestors live?", "What history did my ancestors live through?", "What surnames are in my tree?", "Who could I have inherited X-DNA from?", "On this day in my family", "Show my descendant chart", "Show my family timeline"];
-  return ai ? prompts : [prompts[0], SEARCH_FORM_CHIP, ...prompts.slice(1)];
+  return ai ? prompts : [prompts[0], SEARCH_FORM_CHIP, WHAT_CAN_I_TYPE, ...prompts.slice(1)];
 }
 
 function appendWelcomeChips() {
@@ -4248,6 +4316,10 @@ function appendWelcomeChips() {
       .toggle(index < WELCOME_CHIPS_SHOWN)
       .text(prompt)
       .on("click", () => {
+        if (prompt === WHAT_CAN_I_TYPE) {
+          showNoAiExamples(); // (the chips stay for when the panel closes)
+          return;
+        }
         $chips.remove();
         if (prompt === SEARCH_FORM_CHIP) {
           appendMessage("assistant", "Fill in what you know, then press Search.", { searchForm: {} });
@@ -4278,8 +4350,9 @@ function openPopup() {
     $popup = $(
       `<div id="${CHAT_POPUP_ID}" class="wbe-popup chat-popup">
         <div class="chat-popup-header">
-          <strong>Genie</strong>
+          <strong>Genie <button type="button" class="chat-help-button" aria-label="Genie Help" title="Help: what can I type?">?</button></strong>
           <div class="chat-popup-controls">
+            <button id="wbe-genie-ai-toggle" type="button" role="switch" aria-checked="false" hidden><span class="chat-ai-label">AI</span><span class="chat-ai-state chat-ai-state-off">Off</span><span class="chat-ai-switch"><span class="chat-ai-knob"></span></span><span class="chat-ai-state chat-ai-state-on">On</span></button>
             <button id="${CHAT_CLEAR_ID}" type="button" class="small" title="Clear chat">Clear</button>
             <button type="button" class="small close-popup" aria-label="Close" title="Close">&times;</button>
           </div>
@@ -4311,6 +4384,8 @@ function openPopup() {
 
     positionPopupForOpen($popup.get(0));
     $popup.find(".close-popup").on("click", closePopup);
+    $popup.find("#wbe-genie-ai-toggle").on("click", toggleAiPaused);
+    $popup.find(".chat-help-button").on("click", () => showNoAiExamples());
     $popup.find(`#${CHAT_CLEAR_ID}`).on("click", () => {
       clearHistory();
       appendWelcomeChips();
@@ -4405,15 +4480,99 @@ async function syncChatVisibilityToKeys() {
   applyAiAvailability();
 }
 
+// The "AI On / Off" switch: with a key, switch AI off to see Genie as someone without
+// one does. Without a key, it stays off and explains why a key is worth having.
+async function toggleAiPaused() {
+  const hasRealKey = Boolean((await getChatAiConfig({ ignorePause: true }))?.key);
+  if (!hasRealKey) {
+    showAiKeyHelp();
+    return;
+  }
+  const paused = !isAiPaused();
+  setAiPaused(paused);
+  aiAvailable = await hasAnyApiKey();
+  applyAiAvailability();
+  appendMessage(
+    "assistant",
+    paused
+      ? "AI is off. Genie now works as it does for someone without an AI key (your key is still saved). Use the AI switch at the top to turn it back on."
+      : "AI is on.",
+    { shouldPersist: false }
+  );
+}
+
+// Inside the popup: a body-level overlay ends up under it (see .wbe-popup z-index).
+function showAiKeyHelp() {
+  const $popup = $(`#${CHAT_POPUP_ID}`);
+  if (!$popup.length) return;
+  $popup.find(".chat-ai-help").remove();
+  const $help = $(aiKeyHelpHtml()).appendTo($popup);
+  $help.find(".chat-ai-help-close").on("click", () => $help.remove());
+  $help.find(".chat-ai-help-examples").on("click", () => showNoAiExamples());
+  $help.find(".chat-ai-help-settings").on("click", () => {
+    try {
+      chrome.runtime.sendMessage({ action: "openWbeOptions" });
+    } catch (error) {
+      console.info("wbe: couldn't open the settings page", error);
+    }
+  });
+  $help.find(".chat-ai-help-close").trigger("focus");
+}
+
+// "What can I type?": the tested examples that work without AI. An example
+// runs when clicked; one that needs a result first just goes in the box.
+function showNoAiExamples() {
+  const $popup = $(`#${CHAT_POPUP_ID}`);
+  if (!$popup.length) return;
+  $popup.find(".chat-ai-help").remove();
+  const $help = $(noAiExamplesHtml()).appendTo($popup);
+  $help.find(".chat-ai-help-close").on("click", () => $help.remove());
+  $help.find(".chat-help-ai-key").on("click", () => showAiKeyHelp());
+  $help.find(".chat-example").on("click", function () {
+    const prompt = String($(this).data("prompt") || "");
+    const waitForResult = $(this).data("needs-result") && !lastStructuredResult?.rows?.length;
+    $help.remove();
+    $(`#${CHAT_INPUT_ID}`).val(prompt).trigger("focus");
+    if (!waitForResult) void sendChatPrompt();
+  });
+  $help.find(".chat-ai-help-close").trigger("focus");
+}
+
+async function refreshAiToggle($popup) {
+  const $toggle = $popup.find("#wbe-genie-ai-toggle");
+  const hasRealKey = Boolean((await getChatAiConfig({ ignorePause: true }))?.key);
+  const paused = isAiPaused();
+  const on = hasRealKey && !paused;
+  $toggle
+    .prop("hidden", false)
+    .toggleClass("chat-ai-on", on)
+    .toggleClass("chat-ai-off", hasRealKey && paused)
+    .toggleClass("chat-ai-nokey", !hasRealKey)
+    .attr("aria-checked", String(on))
+    .attr(
+      "title",
+      !hasRealKey
+        ? "AI is off: no AI key yet. Click to see what AI adds and how to get a key."
+        : paused
+        ? "AI is off: Genie answers as it would without a key. Click to turn it back on."
+        : "AI is on. Click to turn it off and try Genie as someone without an AI key (your key stays saved)."
+    );
+}
+
 // The box hint, and the welcome chips' wording, follow whether an AI key is set.
 function applyAiAvailability() {
   const $popup = $(`#${CHAT_POPUP_ID}`);
   if (!$popup.length) return;
+  refreshAiToggle($popup);
   $popup
     .find(`#${CHAT_INPUT_ID}`)
     .attr(
       "placeholder",
-      aiAvailable === false ? "Search WikiTree, or pick a chart (add an AI key in Options to ask questions)" : "Search WikiTree, or ask a question"
+      aiAvailable === false
+        ? isAiPaused()
+          ? "Search WikiTree, or pick a chart (AI is off)"
+          : "Search WikiTree, or pick a chart (add an AI key in Options to ask questions)"
+        : "Search WikiTree, or ask a question"
     );
   if ($popup.find(".chat-welcome-chips").length) appendWelcomeChips();
 }

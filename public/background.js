@@ -333,6 +333,18 @@ if (chrome.contextMenus) {
   });
 }
 
+// Genie's "Open WBE settings" (content scripts can't open the options page).
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.action !== "openWbeOptions") return;
+  if (chrome.runtime.openOptionsPage) {
+    chrome.runtime.openOptionsPage(() => {
+      if (chrome.runtime.lastError) chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
+    });
+  } else {
+    chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
+  }
+});
+
 // Clipboard functions from content script for browsers that don't support navigator.clipboard (i.e. Firefox)
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "copyToClipboard") {

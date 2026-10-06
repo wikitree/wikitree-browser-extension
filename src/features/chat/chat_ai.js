@@ -1,5 +1,26 @@
 import { SHARED_AI_DEFAULT_MODELS } from "../../core/options/shared_ai_options";
 
+// "AI on / AI off" in Genie's header: with a key, AI off answers as if there
+// were none (to try the no-key experience without removing it). Kept per browser.
+const AI_PAUSED_STORAGE_KEY = "wbe-genie-ai-paused";
+
+export function isAiPaused() {
+  try {
+    return localStorage.getItem(AI_PAUSED_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function setAiPaused(paused) {
+  try {
+    if (paused) localStorage.setItem(AI_PAUSED_STORAGE_KEY, "1");
+    else localStorage.removeItem(AI_PAUSED_STORAGE_KEY);
+  } catch {
+    /* storage unavailable: stays on */
+  }
+}
+
 export function createChatAiHelpers({
   getChatOptions,
   getChatHistory,
@@ -48,7 +69,8 @@ export function createChatAiHelpers({
     return recentUserMessages.map((message, index) => `${index + 1}. ${truncateForAi(message?.text)}`).join("\n");
   }
 
-  async function getChatAiConfig() {
+  // { ignorePause: true } reads the real key (for showing the AI on/off button).
+  async function getChatAiConfig({ ignorePause = false } = {}) {
     const options = (await getChatOptions?.()) || {};
     const provider = options.aiProvider || "openai";
     let key = "";
@@ -72,6 +94,7 @@ export function createChatAiHelpers({
       model = model || options.xaiModel || SHARED_AI_DEFAULT_MODELS.xai;
     }
 
+    if (!ignorePause && key && isAiPaused()) return { provider, key: "", model, paused: true };
     return { provider, key, model };
   }
 

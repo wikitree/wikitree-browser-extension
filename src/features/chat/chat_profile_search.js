@@ -14,6 +14,7 @@ import {
 import { addBirthDecadeSqlToDecadeTokens } from "./chat_century_decade";
 import { normalizeWtPlusDateSql } from "./chat_wtplus_date_sql";
 import { buildGroupedResult } from "./chat_group_rows";
+import { addRequestedColumns, requestedColumnFields } from "./chat_requested_columns";
 import { rankProfileRowsByName } from "./chat_profile_rank";
 import {
   applySameCemetery,
@@ -4060,9 +4061,14 @@ export function createProfileSearchHandler({
         );
       }
     });
-    consume(/\bwith\s+(?:last\s+name\s+at\s+birth|lnab|surname|last\s+name)\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+    consume(/\bwith\s+(?:last\s+name\s+at\s+birth|lnab)\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
       const value = stripSurroundingQuotes(match[1]);
-      addTerm(normalizeWtPlusFieldTerm("LastNameAtBirth", value), `last name ${value}`);
+      addTerm(normalizeWtPlusFieldTerm("LastNameAtBirth", value), `last name at birth ${value}`);
+    });
+    // A plain "last name" or "surname" is any of them: at birth, current or other (2026-10-06).
+    consume(/\bwith\s+(?:the\s+)?(?:surname|last\s+name)\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
+      const value = stripSurroundingQuotes(match[1]);
+      addTerm(normalizeWtPlusFieldTerm("AllLastNames", value), `last name ${value}`);
     });
     consume(/\bwith\s+any\s+last\s+name\s+(.+?)(?=$|\b(?:and|or)\b)/i, (match) => {
       const value = stripSurroundingQuotes(match[1]);
@@ -5174,9 +5180,7 @@ export function createProfileSearchHandler({
       }
     }
 
-    match = normalizedText.match(
-      /^(?:profiles?|people)\s+with\s+(?:last\s+name\s+at\s+birth|lnab|surname|last\s+name)\s+(.+)$/i
-    );
+    match = normalizedText.match(/^(?:profiles?|people)\s+with\s+(?:the\s+)?(?:last\s+name\s+at\s+birth|lnab)\s+(.+)$/i);
     if (match?.[1]) {
       const lastName = stripSurroundingQuotes(match[1]);
       if (lastName) {
@@ -5184,6 +5188,19 @@ export function createProfileSearchHandler({
           query: `LastNameAtBirth=${quoteWtPlusValue(lastName)}`,
           title: `WT+ LNAB: ${lastName}`,
           description: `LastNameAtBirth=${lastName}`,
+        };
+      }
+    }
+
+    // A plain "last name" or "surname" is any of them: at birth, current or other (2026-10-06).
+    match = normalizedText.match(/^(?:profiles?|people)\s+with\s+(?:the\s+)?(?:surname|last\s+name)\s+(.+)$/i);
+    if (match?.[1]) {
+      const lastName = stripSurroundingQuotes(match[1]);
+      if (lastName) {
+        return {
+          query: `AllLastNames=${quoteWtPlusValue(lastName)}`,
+          title: `WT+ Any Last Name: ${lastName}`,
+          description: `AllLastNames=${lastName}`,
         };
       }
     }
@@ -5524,6 +5541,7 @@ export function createProfileSearchHandler({
               assumptions: [...(reply.assumptions || []), ...cemeteryNotes],
               fromSpec: true,
               groupBy: reply.search.groupBy || "",
+              columns: reply.columns || [],
             }
           : null;
       }
@@ -5595,12 +5613,28 @@ export function createProfileSearchHandler({
   }
 
   // Tell the user how the AI read the request and what it assumed.
-  function withAiSpecNotes(runResult, aiResult) {
+  async function withAiSpecNotes(runResult, aiResult) {
     if (!aiResult?.fromSpec || !runResult) return runResult;
     // groupBy (C17/C18): count the loaded rows; the person rows stay behind the grouped table.
     if (aiResult.groupBy && runResult?.table?.rows?.length) {
       const grouped = buildGroupedResult(runResult.table, aiResult.groupBy);
       runResult = { ...runResult, message: `${runResult.message || ""}\n${grouped.message}`.trim(), table: grouped.table };
+    }
+    // Extra columns the request asked for ("include a column with gender"):
+    // fetch those fields for the result's profiles.
+    if (aiResult.columns?.length && runResult?.table?.rows?.length) {
+      const wtIds = runResult.table.rows.map((row) => row?.wtid).filter(Boolean);
+      try {
+        showChatShaky(`Fetching ${aiResult.columns.length === 1 ? "a column" : "columns"} for ${wtIds.length} profiles...`);
+        const [, , people] = await fetchPeoplePaged(WBE_CHAT_APP_ID, wtIds, requestedColumnFields(aiResult.columns), {
+          limit: WT_PLUS_GET_PEOPLE_CHUNK,
+        });
+        runResult = { ...runResult, table: addRequestedColumns(runResult.table, aiResult.columns, people) };
+      } catch (error) {
+        console.info("wbe: fetching requested columns failed", { columns: aiResult.columns, error });
+      } finally {
+        hideChatShaky();
+      }
     }
     const message = typeof runResult === "string" ? runResult : runResult.message || "";
     // The run message already quotes the interpretation when it was used as the title.
@@ -8635,7 +8669,7 @@ export function createProfileSearchHandler({
       if (!key) return null;
 
       const system =
-        "You are a parser that converts a user's short search query into a JSON object with the following optional keys: FirstName, LastName, RealName, BirthDateStart, BirthDateEnd, DeathDateStart, DeathDateEnd, BirthLocation, DeathLocation, fatherFirstName, fatherLastName, motherFirstName, motherLastName, spouseQuery, skipVariants (true/false), watchlist (true/false). A plural surname names the family: 'Beacalls' or 'the Beacalls' is LastName 'Beacall'. If the query also has a condition these keys cannot express (emigration, occupation, military service, cause of death, burial, a category, age at death), output {\"unsupported\":\"<that condition>\"} instead. Only output valid JSON and nothing else.";
+        "You are a parser that converts a user's short search query into a JSON object with the following optional keys: FirstName, LastName, RealName, BirthDateStart, BirthDateEnd, DeathDateStart, DeathDateEnd, BirthLocation, DeathLocation, fatherFirstName, fatherLastName, motherFirstName, motherLastName, spouseQuery, skipVariants (true/false), watchlist (true/false). A plural surname names the family: 'Beacalls' or 'the Beacalls' is LastName 'Beacall'. If the query also has a condition these keys cannot express (emigration, occupation, military service, cause of death, burial, a category, age at death), output {\"unsupported\":\"<that condition>\"} instead. If it asks for extra columns or details to show (gender, privacy level, managers…), output {\"unsupported\":\"extra columns\"}. Only output valid JSON and nothing else.";
       const user = `Parse this search query into JSON: "${String(rawQuery || "").trim()}"`;
 
       let aiResult = null;
@@ -8760,6 +8794,16 @@ export function createProfileSearchHandler({
       mainQuery = String(mainQuery || "")
         .replace(/^\s*(?:search:?|find|look(?:\s+up)?)\s+/i, "")
         .trim();
+      // "Provide a list of profiles with last name Garver": the lead-in became a
+      // place, Location="Provide a of" (Discord, 2026-10-06).
+      mainQuery =
+        mainQuery
+          .replace(
+            /^\s*(?:(?:please|can\s+you|could\s+you)\s+)?(?:provide|give|show|get|list|find)(?:\s+(?:me|us))?(?:\s+(?:a|the)\s+list\s+of)?(?:\s+all(?:\s+the)?)?\s+(?=(?:profiles?|people)\b)/i,
+            ""
+          )
+          .replace(/^\s*(?:a|the)\s+list\s+of\s+(?=(?:profiles?|people)\b)/i, "")
+          .trim() || mainQuery;
 
       console.debug("wbe: tryHandleProfileSearchPrompt after strip command", { mainQuery });
 
@@ -8805,9 +8849,16 @@ export function createProfileSearchHandler({
           "siblingBirthGap",
           "projectMissingBox",
         ].includes(localWtPlusQueryCandidate?.searchType);
+      // "profiles with last name Garver": a name search couldn't read it in WT
+      // mode; WT+ lists every profile with that surname.
+      const isExplicitSurnameList =
+        (/^(?:profiles?|people)\s+with\s+(?:the\s+|any\s+)?(?:last\s+name|surname|lnab)\b/i.test(mainQuery) ||
+          /^[A-Za-z][A-Za-z'\-]*\s+(?:profiles|people)$/i.test(mainQuery)) &&
+        /^(?:LastNameAtBirth|AllLastNames)=\S+$/.test(String(localWtPlusQueryCandidate?.query || ""));
       const shouldAutoRouteToWtPlus =
         chatMode !== "wtplus" &&
         Boolean(
+          isExplicitSurnameList ||
           explicitWtPlusQueryCandidate?.query ||
             (localWtPlusQueryCandidate?.query && looksWtPlusOnly) ||
             (preferAiWtPlusQueryCandidate && looksWtPlusOnly)
@@ -8969,11 +9020,11 @@ export function createProfileSearchHandler({
                 { rawPrompt: rawQuery }
               );
               if (!isWtPlusExecutionFailure(singularResult) && !isWtPlusZeroResults(singularResult)) {
-                return annotateAutoRoutedWtPlusResult(withAiSpecNotes(singularResult, singularQuery));
+                return annotateAutoRoutedWtPlusResult(await withAiSpecNotes(singularResult, singularQuery));
               }
             }
             if (!isWtPlusExecutionFailure(aiPrimaryResult)) {
-              return annotateAutoRoutedWtPlusResult(withAiSpecNotes(aiPrimaryResult, aiPrimaryQuery));
+              return annotateAutoRoutedWtPlusResult(await withAiSpecNotes(aiPrimaryResult, aiPrimaryQuery));
             }
             console.info("wbe: WT+ AI search failed; falling back to the local parse", { rawQuery });
           }
@@ -9059,7 +9110,7 @@ export function createProfileSearchHandler({
               // If the other reading finds nothing too, the first zero is the
               // answer: show it, with its own "Born in / Surname" buttons.
               if (!isWtPlusZeroResults(aiRetryResult) && !isWtPlusExecutionFailure(aiRetryResult)) {
-                return annotateAutoRoutedWtPlusResult(withAiSpecNotes(aiRetryResult, aiRetryQuery));
+                return annotateAutoRoutedWtPlusResult(await withAiSpecNotes(aiRetryResult, aiRetryQuery));
               }
             }
           }
@@ -9109,7 +9160,7 @@ export function createProfileSearchHandler({
               })
             );
           }
-          return annotateAutoRoutedWtPlusResult(withAiSpecNotes(aiRunResult, aiWtPlusQuery));
+          return annotateAutoRoutedWtPlusResult(await withAiSpecNotes(aiRunResult, aiWtPlusQuery));
         }
 
         if (shouldForceAiForSuspiciousLocalQuery && localWtPlusQuery?.query) {
@@ -9362,6 +9413,15 @@ export function createProfileSearchHandler({
               query,
               unsupported: aiParseRaw.unsupported,
             });
+            // Any mode: WT+ may express it (a condition, or extra columns as in
+            // "Garvers, with a column for gender"; Discord, 2026-10-06).
+            if (effectiveChatMode !== "wtplus") {
+              const wtPlusResult = await tryHandleProfileSearchPrompt({ ...params, chatModeOverride: "wtplus" }, originalPrompt);
+              const wtPlusMessage = typeof wtPlusResult === "string" ? wtPlusResult : String(wtPlusResult?.message || "");
+              if (wtPlusResult && !/couldn't work out a concrete person search|^I can't run that search/i.test(wtPlusMessage)) {
+                return wtPlusResult;
+              }
+            }
             return `I couldn't work out a concrete person search from "${query}" (it needs ${aiParseRaw.unsupported}).`;
           }
           const aiParse = sanitizeAiParse(aiParseRaw);
