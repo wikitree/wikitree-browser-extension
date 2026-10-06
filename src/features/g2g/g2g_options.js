@@ -37,13 +37,13 @@ const g2g = {
     {
       id: "scissors",
       type: OptionType.CHECKBOX,
-      label: "Copy ID / URL / Question links (Scissors)",
+      label: "Copy ID / URL / Question / G2GLink template (Scissors)",
       defaultValue: true,
     },
     {
       id: "scissors_answers",
       type: OptionType.CHECKBOX,
-      label: "Copy preview / url links for answers (Scissors)",
+      label: "Copy preview / url / template links for answers (Scissors)",
       defaultValue: true,
     },
     {
