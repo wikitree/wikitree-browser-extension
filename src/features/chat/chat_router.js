@@ -8,6 +8,7 @@ without growing chat.js into a single large file.
 import { parseCousinRelationRequest } from "./chat_cousin_helpers";
 import { parseDuplicateCheckPrompt } from "./chat_duplicates";
 import { parseBurialPrompt } from "./chat_burial";
+import { parseFindRelativesPrompt } from "./chat_bio_relatives";
 import { parseProfileFactPrompt } from "./chat_profile_facts";
 import { parseDnaPrompt } from "./chat_dna";
 import { parseFanChartPrompt, parseSurnameChartPrompt } from "./chat_fan_chart_data";
@@ -55,6 +56,7 @@ export const ChatIntent = {
   PERSON_AGE_AT_CHILD_BIRTH: "personAgeAtChildBirth",
   PROFILE_DUPLICATES: "profileDuplicates",
   PERSON_BURIAL: "personBurial",
+  FIND_BIO_RELATIVES: "findBioRelatives",
   PROFILE_FACT: "profileFact",
   DNA: "dna",
   FAN_CHART: "fanChart",
@@ -2951,6 +2953,11 @@ function routeChatPromptUnchecked(prompt, options = {}) {
   const relativeFact = parseRelativeFactPrompt(prompt);
   if (relativeFact) {
     return { intent: ChatIntent.RELATIVE_FACT, params: relativeFact };
+  }
+
+  const bioRelatives = parseFindRelativesPrompt(prompt);
+  if (bioRelatives) {
+    return { intent: ChatIntent.FIND_BIO_RELATIVES, params: bioRelatives };
   }
 
   const marriage = parseMarriagePrompt(prompt);

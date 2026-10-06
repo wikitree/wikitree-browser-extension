@@ -1,4 +1,4 @@
-import { analyseRelationship, ancestorWord, asksForRelationship, buildRelationshipLines, relationshipLead, describeRelationship, detectChance, dnaSentence, relationshipName } from "./chat_relationship_data";
+import { analyseRelationship, ancestorWord, asksForRelationship, buildRelationshipLines, relationshipLead, describeRelationship, detectChance, dnaReferenceForAi, dnaSentence, relationshipName, sharedCmProject, sharedCmWords } from "./chat_relationship_data";
 
 const ancestor = (mName, ShortName, Gender, path1Length, path2Length, extra = {}) => ({
   ancestor_id: mName,
@@ -68,7 +68,13 @@ describe("analyseRelationship", () => {
   });
   test("direct line: steps counted from the html", () => {
     const html = "<h2>Direct Relationship Found</h2><ol><li>1. Murray is the son of A</li><li>2. A is the son of B</li><li>3. B is the son of C</li></ol>";
-    expect(analyseRelationship({ commonAncestors: [], html })).toEqual({ kind: "direct", generations: 3, cm: 850, chance: 100, matchedCm: 850 });
+    expect(analyseRelationship({ commonAncestors: [], html })).toEqual({
+      kind: "direct",
+      generations: 3,
+      cm: 850,
+      scp: { label: "Great-Grandparent", avg: 887, low: 485, high: 1486 },
+      ancestorIs: 2,
+    });
   });
   test("nothing", () => {
     expect(analyseRelationship({ commonAncestors: [], html: "<h2>No Relationship Found</h2>" })).toEqual({ kind: "none" });
@@ -98,13 +104,18 @@ describe("describeRelationship", () => {
     expect(text).toMatch(/^The common ancestor is John Smith \(Smith-1\): Ann's 2nd great-grandfather and Bob's 2nd great-grandfather\./);
     expect(text).toMatch(/may be a half relationship/);
     expect(text).toMatch(/Ann and Bob are also related another way: through Tom Jones \(Jones-8\) and Mary Jones \(Jones-9\) \(Ann's 4th great-grandparents and Bob's 3rd great-grandparents\), 4th cousin once removed\./);
-    expect(text).toMatch(/About 90% of relatives this close share DNA a test would detect; those who do share about 48 cM on average\. Being related more than one way raises the odds\./);
+    expect(text).toMatch(
+      /About 90% of relatives this close share DNA a test would detect; among those who do, the Shared cM Project 4\.0 average for half 3rd cousins \(Half 3C\) is 48 cM \(range 0–168 cM\)\. Being related more than one way raises the odds\./
+    );
+    // The sources come last, after the Y-DNA line.
+    expect(text.split("\n").at(-1)).toMatch(/^Sources: Shared cM Project 4\.0 .*dnapainter\.com\/tools\/sharedcmv4; AncestryDNA's published odds/);
     expect(text).toMatch(/Both lines from John run father to son/);
-    expect(text).not.toMatch(/\bkits?\b|GEDmatch|\bAncestry\b|23andMe|FTDNA/i);
   });
   test("direct and none", () => {
-    expect(describeRelationship({ kind: "direct", generations: 3, cm: 850, chance: 100, matchedCm: 850 }, "you", "Mary")).toBe(
-      "Relatives this close share about 850 cM of DNA on average, and almost all share some."
+    const greatGrandparent = { kind: "direct", generations: 3, cm: 850, scp: { label: "Great-Grandparent", avg: 887, low: 485, high: 1486 }, ancestorIs: 2 };
+    expect(describeRelationship(greatGrandparent, "you", "Mary")).toBe(
+      "A great-grandparent and great-grandchild share on average 887 cM (range 485–1486 cM) in the Shared cM Project 4.0.\n" +
+        "Sources: Shared cM Project 4.0 (Blaine Bettinger, 2020), as in DNA Painter's tool: https://dnapainter.com/tools/sharedcmv4."
     );
     expect(describeRelationship({ kind: "none" }, "you", "X")).toBe("");
   });
@@ -139,9 +150,41 @@ describe("buildRelationshipLines", () => {
   });
 });
 
+test("an 8th great-grandmother: no match odds, no borrowed cousin figures (De_Figuery-1, 2026-10-06)", () => {
+  const steps = Array.from({ length: 10 }, (_, i) => `<li>${i + 1}. P${i} is the daughter of P${i + 1}</li>`).join("");
+  const analysis = analyseRelationship({ commonAncestors: [], html: `<h2>Direct Relationship Found</h2><ol>${steps}</ol>` });
+  expect(analysis).toMatchObject({ kind: "direct", generations: 10, cm: 6.6, scp: null, ancestorIs: 2 });
+  const text = describeRelationship(analysis, "you", "Claire");
+  expect(text).toMatch(/^You are 10 generations below Claire\. .*about 6\.6 cM.*your DNA may include none of Claire's\./);
+  expect(text).toMatch(/no measured figures: the Shared cM Project 4\.0 \(DNA Painter: https:\/\/dnapainter\.com\/tools\/sharedcmv4\) stops at great-grandparents/);
+  expect(text).not.toMatch(/50%|28 cM|WikiTree's estimate/);
+});
+
+test("sharedCmProject and sharedCmWords", () => {
+  expect(sharedCmProject(5, 6)).toEqual({ label: "4C1R", avg: 28, low: 0, high: 126 });
+  expect(sharedCmProject(3, 3, { half: true })).toEqual({ label: "Half 2C", avg: 120, low: 10, high: 325 });
+  expect(sharedCmProject(1, 3)).toEqual({ label: "Great-Aunt / Uncle", avg: 850, low: 330, high: 1467 });
+  expect(sharedCmProject(1, 1, { half: true })).toEqual({ label: "Half Sibling", avg: 1759, low: 1160, high: 2436 });
+  expect(sharedCmProject(2, 0)?.avg).toBe(1754);
+  expect(sharedCmProject(4, 0)).toBeNull();
+  expect(sharedCmProject(10, 10)).toBeNull(); // (9th cousins: beyond the project)
+  expect(sharedCmWords("Half 2C1R")).toBe("half 2nd cousins once removed (Half 2C1R)");
+  expect(sharedCmWords("Sibling")).toBe("siblings");
+});
+
+test("dnaReferenceForAi names its sources", () => {
+  const text = dnaReferenceForAi();
+  expect(text).toMatch(/4C1R: 28 \(0–126\)/);
+  expect(text).toMatch(/dnapainter\.com\/tools\/sharedcmv4/);
+  expect(text).toMatch(/don't use other numbers or call them WikiTree's/);
+});
+
 test("dnaSentence", () => {
-  expect(dnaSentence({ cm: 6.6, chance: 50, matchedCm: 28 })).toBe("About 50% of relatives this close share DNA a test would detect; those who do share about 28 cM on average.");
-  expect(dnaSentence({ cm: 53, chance: 98, matchedCm: 73 })).toBe("About 98% of relatives this close share DNA a test would detect; those who do share about 73 cM on average.");
+  expect(dnaSentence({ cm: 6.6, chance: 50, matchedCm: 28, scp: { label: "4C1R", avg: 28, low: 0, high: 126 } })).toBe(
+    "About 50% of relatives this close share DNA a test would detect; among those who do, the Shared cM Project 4.0 average for 4th cousins once removed (4C1R) is 28 cM (range 0–126 cM).\n" +
+      "Sources: Shared cM Project 4.0 (Blaine Bettinger, 2020), as in DNA Painter's tool: https://dnapainter.com/tools/sharedcmv4; AncestryDNA's published odds of a match (3rd cousins 98%, 4th 71%, 5th 32%, 6th 11%, 8th under 1%; relationships in between are estimated)."
+  );
+  expect(dnaSentence({ cm: 0.4, chance: 4, matchedCm: 20 })).toMatch(/those who do share roughly 20 cM \(the Shared cM Project has no figures this far out\)\.\nSources: AncestryDNA/);
   expect(dnaSentence({ cm: 0.1, chance: 1, matchedCm: 20 })).toMatch(/^Very few relatives this close \(under 2%\)/);
 });
 

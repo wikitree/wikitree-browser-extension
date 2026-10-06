@@ -7,6 +7,16 @@ import { buildTreeAppRecommendations } from "./chat_tree_apps";
 import { getCountryFromLocation, isEmigrantRow, summarizeCountries } from "./chat_place_country";
 import { runDuplicateCheck } from "./chat_duplicates";
 import { buildBurialAnswer } from "./chat_burial";
+import {
+  CANDIDATE_FIELDS,
+  RELATIVE_SPOUSE_FIELDS,
+  spousesOf,
+  buildFindRelativesAnswer,
+  buildRelativesAiPrompt,
+  readRelativesFromBio,
+  relativesFromAiJson,
+  searchRelatives,
+} from "./chat_bio_relatives";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import { buildCompletenessGrid, buildCompletenessSummary, describeBranchCompleteness } from "./chat_completeness_data";
 import { showCompletenessHeatmapPopup } from "./chat_completeness_heatmap";
@@ -126,6 +136,8 @@ export function createChatPeopleHandlers({
   getCurrentChatMode,
   getUserNumId = () => null,
   notify = () => {}, // (text) → a passing note in the chat (not saved)
+  getChatAiConfig = async () => ({ key: "" }),
+  parsePlannerJson = () => null,
 }) {
   /**
    * "I couldn't load X" said why: not in the API yet (a new profile), private to the user, or
@@ -1210,6 +1222,104 @@ export function createChatPeopleHandlers({
     const person = Object.values(people || {}).find((entry) => entry?.Name);
     if (!person) return cantLoad(key);
     return buildBurialAnswer(person);
+  }
+
+  // "Find his family on WikiTree": relatives named in the biography, searched for one by one.
+  async function tryHandleFindBioRelativesPrompt(params, prompt = "") {
+    const targetName = String(params?.target || "").trim();
+    let key = "";
+    if (!targetName) {
+      key = getProfileSubjectRoot()?.wtId || getProfileSubjectRoot()?.key || "";
+      if (!key) return "Open a profile page first, or name the person (for example Smith-123).";
+    } else {
+      const found = await resolveConnectionTargetPerson(targetName, prompt);
+      key = found?.Name || found?.Id || "";
+      if (!key) {
+        return `I couldn't identify which profile you meant by "${targetName}". Try a WikiTree ID like Name-123, or a more specific name.`;
+      }
+    }
+    const [profile] = await WikiTreeAPI.getProfile(
+      WBE_CHAT_APP_ID,
+      key,
+      "Id,Name,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,RealName,Gender,BirthDate,Bio",
+      { bioFormat: "wiki", resolveRedirect: 1 }
+    );
+    if (!profile?.Name) return cantLoad(key);
+    const subjectLabel = `${profile.RealName || profile.FirstName || profile.Name} (${profile.Name})`;
+    const bio = profile.Bio || profile.bio || ""; // the API returns "bio"
+    if (!bio.replace(/\[\[Category:[^\]]*\]\]|==[^=]+==|<references\s*\/>/g, "").trim()) {
+      return `${subjectLabel} has no biography, so there are no relatives to read from it.`;
+    }
+
+    let relatives = [];
+    let readBy = "read from its census tables and text";
+    const { provider, key: aiKey, model } = await getChatAiConfig();
+    if (aiKey) {
+      notify("Reading the biography for relatives…");
+      try {
+        const response = await chrome.runtime.sendMessage({
+          action: "chatWithAI",
+          prompt: buildRelativesAiPrompt(bio, profile),
+          provider,
+          key: aiKey,
+          model,
+          pageContext: { url: window.location.href, title: document.title },
+        });
+        if (response?.success && response.response) {
+          relatives = relativesFromAiJson(parsePlannerJson(response.response), profile);
+          if (relatives.length) readBy = "read by AI";
+        }
+      } catch (error) {
+        console.warn("wbe: AI couldn't read the biography; reading it by code", error);
+      }
+    }
+    if (!relatives.length) relatives = readRelativesFromBio(bio, profile);
+    const roles = Array.isArray(params?.roles) ? params.roles : [];
+    if (roles.length) relatives = relatives.filter((relative) => roles.includes(relative.role));
+    if (!relatives.length) {
+      // (not "I couldn't…": that hands the question to the AI, or with AI off hides this behind "We need AI")
+      return `No ${roles.length ? "such relatives" : "relatives"} found in ${subjectLabel}'s biography. Genie looks for "son of …", "daughter of …", "married …" and census household tables${
+        aiKey ? "" : "; with an AI key Genie can read biographies written in other ways"
+      }.`;
+    }
+    relatives = relatives.slice(0, 40);
+
+    const [entry] =
+      (await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, profile.Id, "Id,Name,FirstName,Gender,BirthDate", {
+        getParents: 1,
+        getSpouses: 1,
+        getChildren: 1,
+        getSiblings: 1,
+      })) || [];
+    const person = entry?.person || {};
+    const attached = [
+      ...Object.values(person.Parents || {}).map((p) => ({ role: p.Gender === "Female" ? "mother" : "father", profile: p })),
+      ...Object.values(person.Spouses || {}).map((p) => ({ role: "spouse", profile: p })),
+      ...Object.values(person.Children || {}).map((p) => ({ role: "child", profile: p })),
+      ...Object.values(person.Siblings || {}).map((p) => ({ role: "sibling", profile: p })),
+    ];
+
+    notify(`Searching WikiTree for ${relatives.length} relative${relatives.length === 1 ? "" : "s"}…`);
+    const results = await searchRelatives({
+      subject: profile,
+      relatives,
+      attached,
+      searchPerson: async (searchParams) => {
+        const [, matches, total] = await WikiTreeAPI.searchPerson(WBE_CHAT_APP_ID, searchParams, CANDIDATE_FIELDS);
+        return { matches, total };
+      },
+      getPeople: async (ids) =>
+        Object.values(
+          (await WikiTreeAPI.getPeople(WBE_CHAT_APP_ID, ids, "Id,Name,FirstName,MiddleName,Nicknames,LastNameAtBirth,RealName"))?.[2] || {}
+        ),
+      getProfiles: async (ids) =>
+        Object.values((await WikiTreeAPI.getPeople(WBE_CHAT_APP_ID, ids, CANDIDATE_FIELDS))?.[2] || {}),
+      getSpouses: async (ids) => {
+        const items = (await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, ids, RELATIVE_SPOUSE_FIELDS, { getSpouses: 1 })) || [];
+        return new Map(items.map((item) => [Number(item?.person?.Id), spousesOf(item?.person)]).filter(([id]) => id));
+      },
+    });
+    return buildFindRelativesAnswer({ subjectLabel, results, readBy });
   }
 
   async function tryHandlePersonMarriagePrompt(params, prompt = "") {
@@ -3561,6 +3671,7 @@ export function createChatPeopleHandlers({
     tryHandlePersonAgeAtChildBirthPrompt,
     tryHandleProfileDuplicatesPrompt,
     tryHandlePersonBurialPrompt,
+    tryHandleFindBioRelativesPrompt,
     tryHandleProfileFactPrompt,
     tryHandleDnaPrompt,
     tryHandleFanChartPrompt,

@@ -1316,6 +1316,7 @@ export async function handleExplicitSearchMode({
         ChatIntent?.PERSON_AGE_AT_CHILD_BIRTH,
         ChatIntent?.PROFILE_DUPLICATES,
         ChatIntent?.PERSON_BURIAL,
+        ChatIntent?.FIND_BIO_RELATIVES,
         ChatIntent?.PROFILE_FACT,
         ChatIntent?.DNA,
         ChatIntent?.FAN_CHART,

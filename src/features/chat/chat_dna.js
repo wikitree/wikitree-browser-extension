@@ -1,8 +1,9 @@
 // DNA questions (the user asked for them, 2026-10-03): a person's DNA tests and
 // haplogroups (getDNATestsByTestTaker), tests connected to a profile
 // (getConnectedDNATestsByProfile), and profiles connected to one of a taker's
-// tests (getConnectedProfilesByDNATest). Kit numbers and testing-company
-// usernames (ftdna, gedmatch, ancestry, …) are never shown.
+// tests (getConnectedProfilesByDNATest). Kit numbers and usernames are shown: testers
+// put them on WikiTree so matches can find them, and the API gives them to anyone (the
+// user, 2026-10-07).
 
 const OWNER = String.raw`(this\s+profile|this\s+person|her|his|their|she|he|they|my|me|I|[A-Z][A-Za-z'_ -]*?-\d+(?:['’]s)?|[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}['’]s)`;
 const TYPE = String.raw`(y[\s-]?dna|y[\s-]?chromosome|paternal|mt[\s-]?dna|mitochondrial|maternal|au[\s-]?dna|autosomal)`;
@@ -81,11 +82,31 @@ export function parseDnaPrompt(prompt) {
 
 const TYPE_LABELS = { yDNA: "Y-DNA", mtDNA: "mtDNA", auDNA: "autosomal DNA" };
 
+// The IDs a tester gave WikiTree, in the API's field order.
+const ID_FIELDS = [
+  ["ancestry", "Ancestry username"],
+  ["ftdna", "FTDNA kit"],
+  ["gedmatch", "GEDmatch"],
+  ["mitoydna", "mitoYDNA"],
+  ["yourDNAportal", "YourDNAportal"],
+  ["ysearch", "Ysearch"],
+  ["mitosearch", "Mitosearch"],
+];
+
+/** "GEDmatch AS8991331", "Ancestry username ciwhitten": the IDs a tester gave WikiTree. */
+export function testerIds(test) {
+  return ID_FIELDS.map(([field, label]) => [label, String(test?.[field] || "").trim()])
+    .filter(([, value]) => value)
+    .map(([label, value]) => `${label} ${value}`);
+}
+
 function testLine(test, { withTaker = false } = {}) {
   const parts = [`${test.dna_name || test.dna_slug || "DNA test"} (${TYPE_LABELS[test.dna_type] || test.dna_type || "?"})`];
   if (test.haplo) parts.push(`Y haplogroup ${test.haplo}`);
   if (test.haplom) parts.push(`mt haplogroup ${test.haplom}`);
   if (Number(test.markers) > 0) parts.push(`${test.markers} markers`);
+  if (test.mttype) parts.push(`mtDNA test ${test.mttype}`);
+  parts.push(...testerIds(test));
   if (withTaker && test.taker?.Name) parts.push(`taken by ${test.taker.Name}`);
   return `- ${parts.join(", ")}`;
 }
@@ -126,7 +147,10 @@ export function buildConnectedTestsAnswer(tests, label) {
     ofType.forEach((test) => {
       const name = test.dna_name || test.dna_slug || "DNA test";
       if (!byTest.has(name)) byTest.set(name, []);
-      if (test.taker?.Name) byTest.get(name).push(test.taker.Name);
+      if (test.taker?.Name) {
+        const ids = testerIds(test);
+        byTest.get(name).push(ids.length ? `${test.taker.Name} (${ids.join(", ")})` : test.taker.Name);
+      }
     });
     lines.push(`${TYPE_LABELS[type]} (${ofType.length}):`);
     byTest.forEach((names, name) => lines.push(`- ${name}: ${[...new Set(names)].join(", ") || "taker not given"}`));

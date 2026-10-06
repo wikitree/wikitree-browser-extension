@@ -51,6 +51,7 @@ import { prefillSearchForm } from "./chat_search_form";
 import { createProfileSearchHandler } from "./chat_profile_search";
 import { createChatAiHelpers, isAiPaused, setAiPaused } from "./chat_ai";
 import { aiKeyHelpHtml } from "./chat_ai_key_help";
+import { dnaReferenceForAi } from "./chat_relationship_data";
 import { isHelpPrompt, noAiExamplesHtml } from "./chat_no_ai_examples";
 import { createChatCcHandlers } from "./chat_cc";
 import { createLastResultOperationHandler } from "./chat_last_result";
@@ -1303,6 +1304,7 @@ const {
   tryHandlePersonAgeAtChildBirthPrompt,
   tryHandleProfileDuplicatesPrompt,
   tryHandlePersonBurialPrompt,
+  tryHandleFindBioRelativesPrompt,
   tryHandleProfileFactPrompt,
   tryHandleDnaPrompt,
   tryHandleFanChartPrompt,
@@ -1360,6 +1362,8 @@ const {
   getCurrentChatMode,
   getUserNumId,
   notify: (text) => appendMessage("assistant", text, { shouldPersist: false }),
+  getChatAiConfig,
+  parsePlannerJson,
 });
 
 function toggleConnectionsPopup() {
@@ -3198,6 +3202,7 @@ async function sendChatPrompt() {
       ChatIntent.PERSON_AGE_AT_CHILD_BIRTH,
       ChatIntent.PROFILE_DUPLICATES,
       ChatIntent.PERSON_BURIAL,
+      ChatIntent.FIND_BIO_RELATIVES,
       ChatIntent.PROFILE_FACT,
       ChatIntent.DNA,
       ChatIntent.FAN_CHART,
@@ -3452,7 +3457,7 @@ async function sendChatPrompt() {
       localFailureForAi ? `Local tool attempt failed with: ${localFailureForAi}` : "",
     ];
     if (profileContextText) aiPromptParts.push(profileContextText);
-    const dnaContextText = await buildDnaContextForPrompt(prompt, contextProfileKey);
+    const dnaContextText = await buildDnaContextForPrompt(prompt, contextProfileKey, conversationContext);
     if (dnaContextText) aiPromptParts.push(dnaContextText);
     const pageContextText = buildPageContextForPrompt(prompt, contextProfileKey, profileBioMissing);
     if (pageContextText) aiPromptParts.push(pageContextText);
@@ -3641,6 +3646,9 @@ async function executeRoutedIntent(routed, prompt) {
   }
   if (routed.intent === ChatIntent.PERSON_BURIAL) {
     return await tryHandlePersonBurialPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.FIND_BIO_RELATIVES) {
+    return await tryHandleFindBioRelativesPrompt(routed.params, prompt);
   }
   if (routed.intent === ChatIntent.PROFILE_DUPLICATES) {
     return await tryHandleProfileDuplicatesPrompt(routed.params, prompt);
@@ -3959,8 +3967,18 @@ async function getLoggedInRootPerson() {
 // A DNA question about a profile: its connected DNA tests from the API (getConnectedDNATestsByProfile),
 // so the AI doesn't say there are none (Murray, Chicoine_dit_Henley-1, 2026-10-05). On the
 // profile page, its DNA Connections box adds what the API doesn't give: each taker's likely share.
-async function buildDnaContextForPrompt(prompt, contextProfileKey) {
-  if (!isDnaPrompt(prompt)) return "";
+// Shared-DNA figures go with any DNA or cM question, and with "what's your source?" after
+// a reply that gave cM: a user asked for a citation and got none (De_Figuery-1, 2026-10-06).
+async function buildDnaContextForPrompt(prompt, contextProfileKey, conversationContext = "") {
+  const asksForSource = /\b(?:cite|citations?|sources?|references?|evidence)\b|where\s+(?:did|does|do)\s+.*\b(?:from|get)\b/i.test(prompt) && /\bcM\b/.test(conversationContext);
+  const wantsReference = isDnaPrompt(prompt) || /\bcM\b|centimorgans?/i.test(prompt) || asksForSource;
+  if (!wantsReference) return "";
+  const reference = dnaReferenceForAi();
+  if (!isDnaPrompt(prompt)) return reference;
+  return [reference, await buildDnaTestsContextForPrompt(prompt, contextProfileKey)].filter(Boolean).join("\n\n");
+}
+
+async function buildDnaTestsContextForPrompt(prompt, contextProfileKey) {
   try {
     const pageRoot = getProfileSubjectRoot();
     // ("who could test?" names no one: on a profile page, the page person)

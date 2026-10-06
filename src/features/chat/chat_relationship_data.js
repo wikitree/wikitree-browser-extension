@@ -4,7 +4,7 @@
 // page ("Relationship Found … X is the third great grandnephew of Y", or "Direct
 // Relationship Found" with numbered steps and no common ancestors). From that: who the
 // common ancestors are and how far up, cousin degree, every route, and the DNA that
-// relatives this close share. No kit numbers or test-company names, ever.
+// relatives this close share.
 
 const GENOME_CM = 6800; // (about: two copies of ~3400 cM of autosomes)
 
@@ -43,17 +43,104 @@ export function relationshipName(gens1, gens2, { half = false, gender1 = "" } = 
   return `${ordinal(degree)} ${pre}cousin${removed ? ` ${removedWord(removed)} removed` : ""}`;
 }
 
-// The chance that relatives share any DNA a test would detect, by meioses between them
-// (3rd cousins = 8: ~98%; 4th = 10: ~71%; 5th = 12: ~32%; 6th = 14: ~11%; 7th = 16: ~4%).
+// The chance that relatives share any DNA a test would detect, by meioses between them.
+// AncestryDNA's published odds ("Should other family members get tested?"): 3rd cousins
+// (8) 98%, 4th (10) 71%, 5th (12) 32%, 6th (14) 11%, 8th (18) under 1%; the removed
+// cousins in between are estimated.
 const DETECT = { 8: 98, 9: 90, 10: 71, 11: 50, 12: 32, 13: 19, 14: 11, 15: 7, 16: 4, 17: 2 };
 export function detectChance(meioses) {
   if (meioses <= 7) return 100;
   return DETECT[meioses] ?? 1;
 }
 
-// Among relatives who do match, by meioses (Shared cM Project averages: 3rd cousins 73,
-// 3C1R 48, 4C 35, 4C1R 28, 5C 25, 5C1R and further about 20). Closer than that nearly all
-// match, so the plain average holds.
+export const SHARED_CM_SOURCE = "Shared cM Project 4.0 (Blaine Bettinger, 2020), as in DNA Painter's tool: https://dnapainter.com/tools/sharedcmv4";
+export const MATCH_ODDS_SOURCE = "AncestryDNA's published odds of a match (3rd cousins 98%, 4th 71%, 5th 32%, 6th 11%, 8th under 1%; relationships in between are estimated)";
+
+// Shared cM Project 4.0, from DNA Painter's tool (2026-10-06): [average, low, high] cM;
+// the range is the project's 99th-percentile range. These are measured among people who
+// match, so a relationship that may not match at all has a range that starts at 0.
+export const SHARED_CM_PROJECT = {
+  Parent: [3485, 2376, 3720],
+  Sibling: [2613, 1613, 3488],
+  "Half Sibling": [1759, 1160, 2436],
+  Grandparent: [1754, 984, 2462],
+  "Aunt / Uncle": [1741, 1201, 2282],
+  "Half Aunt / Uncle": [871, 492, 1315],
+  "Great-Grandparent": [887, 485, 1486],
+  "Great-Aunt / Uncle": [850, 330, 1467],
+  "Half Great-Aunt / Uncle": [431, 184, 668],
+  "Great-Great-Aunt / Uncle": [420, 186, 713],
+  "Half GG-Aunt / Uncle": [208, 103, 284],
+  "1C": [866, 396, 1397],
+  "1C1R": [433, 102, 980],
+  "1C2R": [221, 33, 471],
+  "1C3R": [117, 25, 238],
+  "2C": [229, 41, 592],
+  "2C1R": [122, 14, 353],
+  "2C2R": [71, 0, 244],
+  "2C3R": [51, 0, 154],
+  "3C": [73, 0, 234],
+  "3C1R": [48, 0, 192],
+  "3C2R": [36, 0, 166],
+  "3C3R": [27, 0, 98],
+  "4C": [35, 0, 139],
+  "4C1R": [28, 0, 126],
+  "4C2R": [22, 0, 93],
+  "4C3R": [19, 0, 60],
+  "5C": [25, 0, 117],
+  "5C1R": [21, 0, 80],
+  "5C2R": [18, 0, 65],
+  "5C3R": [13, 0, 30],
+  "6C": [18, 0, 71],
+  "6C1R": [15, 0, 56],
+  "6C2R": [13, 0, 45],
+  "7C": [14, 0, 57],
+  "7C1R": [12, 0, 50],
+  "8C": [11, 0, 42],
+  "Half 1C": [449, 156, 979],
+  "Half 1C1R": [224, 62, 469],
+  "Half 1C2R": [125, 16, 269],
+  "Half 1C3R": [60, 0, 120],
+  "Half 2C": [120, 10, 325],
+  "Half 2C1R": [66, 0, 190],
+  "Half 2C2R": [48, 0, 144],
+  "Half 3C": [48, 0, 168],
+  "Half 3C1R": [37, 0, 139],
+  "Half 3C2R": [27, 0, 78],
+};
+
+/** For the AI: the whole table and its sources, so it quotes these figures (and can cite them). */
+export function dnaReferenceForAi() {
+  const rows = Object.entries(SHARED_CM_PROJECT).map(([label, [avg, low, high]]) => `${label}: ${avg} (${low}–${high})`);
+  return [
+    `SHARED DNA REFERENCE. Quote these figures and name their source; don't use other numbers or call them WikiTree's.`,
+    `Average shared cM (99% range) by relationship, from the ${SHARED_CM_SOURCE}. They are measured among relatives who match; the project has no figures for ancestors beyond great-grandparents (nobody can test them) or for cousins beyond 8th.`,
+    rows.join("; "),
+    `Odds that relatives share enough DNA to match: ${MATCH_ODDS_SOURCE}.`,
+    `An ancestor n generations back passes on about 6800 × 0.5^n cM on average (half each generation); far back, a person may carry none of that ancestor's DNA.`,
+  ].join("\n");
+}
+
+/** The Shared cM Project row for a relationship → {label, avg, low, high}, or null when the project has none. */
+export function sharedCmProject(gens1, gens2, { half = false } = {}) {
+  let label = "";
+  if (!gens2) {
+    label = ["", "Parent", "Grandparent", "Great-Grandparent"][gens1] || "";
+  } else if (gens1 === 1 && gens2 === 1) {
+    label = "Sibling";
+  } else if (gens1 === 1 || gens2 === 1) {
+    label = ["", "Aunt / Uncle", "Great-Aunt / Uncle", "Great-Great-Aunt / Uncle"][Math.max(gens1, gens2) - 1] || "";
+    if (half && label === "Great-Great-Aunt / Uncle") label = "GG-Aunt / Uncle";
+  } else {
+    const removed = Math.abs(gens1 - gens2);
+    label = `${Math.min(gens1, gens2) - 1}C${removed ? `${removed}R` : ""}`;
+  }
+  const key = half && gens2 ? `Half ${label}` : label;
+  const row = label && SHARED_CM_PROJECT[key];
+  return row ? { label: key, avg: row[0], low: row[1], high: row[2] } : null;
+}
+
+// Among relatives who do match, by meioses, when the Shared cM Project has no row (it ends at 8th cousins).
 const MATCHED_CM = { 8: 73, 9: 48, 10: 35, 11: 28, 12: 25, 13: 21 };
 export const matchedCm = (meioses, expected) => (meioses <= 7 ? expected : MATCHED_CM[meioses] || 20);
 
@@ -79,9 +166,13 @@ export function analyseRelationship(json) {
       const steps = (html.replace(/<[^>]+>/g, " ").match(/(?:^|\s)(\d+)\.\s/g) || []).map((s) => Number(s.trim().replace(".", "")));
       const generations = steps.length ? Math.max(...steps) : 0;
       if (generations > 0) {
-        // (an ancestor passes on half each generation; detection odds like a cousin one meiosis further)
+        // An ancestor passes on half each generation. Nobody can test a distant ancestor, so
+        // there are no match odds; the Shared cM Project stops at great-grandparents.
         const cm = roundCm(GENOME_CM * 0.5 ** generations);
-        return { kind: "direct", generations, cm, chance: detectChance(generations + 1), matchedCm: roundCm(matchedCm(generations + 1, cm)) };
+        // "1. Murray is the son of A": person 1 is the descendant, so person 2 the ancestor.
+        const firstStep = html.replace(/<[^>]+>/g, " ").match(/\b1\.\s([^.]*)/)?.[1] || "";
+        const ancestorIs = /\b(?:son|daughter|child)\s+of\b/i.test(firstStep) ? 2 : /\b(?:father|mother|parent)\s+of\b/i.test(firstStep) ? 1 : 0;
+        return { kind: "direct", generations, cm, scp: sharedCmProject(generations, 0), ancestorIs };
       }
     }
     return { kind: "none" };
@@ -114,6 +205,7 @@ export function analyseRelationship(json) {
       route.cm = roundCm(2 * shares * GENOME_CM * 0.5 ** (route.gens1 + route.gens2));
       route.chance = detectChance(route.meioses);
       route.matchedCm = roundCm(matchedCm(route.meioses, route.cm));
+      route.scp = sharedCmProject(route.gens1, route.gens2, { half: !route.couple });
       return route;
     })
     .sort((a, b) => a.gens1 + a.gens2 - (b.gens1 + b.gens2) || a.gens1 - b.gens1);
@@ -123,11 +215,64 @@ export function analyseRelationship(json) {
 
 const joinNames = (names) => (names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
 const possessive = (label) => (label === "you" ? "your" : `${label}'s`);
-/** The DNA sentence: the plain average when nearly all match, else the odds and what matches share. */
-export function dnaSentence({ cm, chance, matchedCm: matched }) {
-  if (chance >= 100) return `Relatives this close share about ${cm} cM of DNA on average, and almost all share some.`;
+/** "4C1R" → "4th cousins once removed (4C1R)", "Great-Aunt / Uncle" → "great-aunts and uncles": the tool's labels in words. */
+export function sharedCmWords(label) {
+  const half = /^Half /.test(label);
+  const base = label.replace(/^Half /, "");
+  const cousin = base.match(/^(\d)C(?:(\d)R)?$/);
+  let words;
+  if (cousin) {
+    words = `${half ? "half " : ""}${ordinal(Number(cousin[1]))} cousins${cousin[2] ? ` ${removedWord(Number(cousin[2]))} removed` : ""}`;
+    return `${words} (${label})`;
+  }
+  const plain = {
+    Parent: "a parent and child",
+    Grandparent: "a grandparent and grandchild",
+    "Great-Grandparent": "a great-grandparent and great-grandchild",
+    Sibling: "siblings",
+    "Aunt / Uncle": "aunts or uncles and their nieces or nephews",
+    "Great-Aunt / Uncle": "great-aunts or great-uncles",
+    "Great-Great-Aunt / Uncle": "2nd great-aunts or great-uncles",
+    "GG-Aunt / Uncle": "2nd great-aunts or great-uncles",
+  }[base];
+  return `${half ? "half-" : ""}${plain || base}`;
+}
+
+const scpText = (scp) => `the Shared cM Project 4.0 average for ${sharedCmWords(scp.label)} is ${scp.avg} cM (range ${scp.low}–${scp.high} cM)`;
+
+/**
+ * The DNA sentences, with their sources: the Shared cM Project average and range where it
+ * has the relationship, and AncestryDNA's odds of a match when not everyone matches.
+ */
+export function dnaSentence({ cm, chance, matchedCm: matched, scp }, extra = "") {
+  const sources = [scp ? SHARED_CM_SOURCE : "", chance < 100 ? MATCH_ODDS_SOURCE : ""].filter(Boolean);
+  const cite = sources.length ? `\nSources: ${sources.join("; ")}.` : "";
+  if (chance >= 100) {
+    if (scp) return `Almost all relatives this close share DNA: ${scpText(scp)}.${extra}${cite}`;
+    return `Relatives this close share about ${cm} cM of DNA on average, and almost all share some.${extra}`;
+  }
   const odds = chance <= 1 ? "Very few relatives this close (under 2%)" : `About ${chance}% of relatives this close`;
-  return `${odds} share DNA a test would detect; those who do share about ${matched || cm} cM on average.`;
+  const amount = scp ? `among those who do, ${scpText(scp)}` : `those who do share roughly ${matched || cm} cM (the Shared cM Project has no figures this far out)`;
+  return `${odds} share DNA a test would detect; ${amount}.${extra}${cite}`;
+}
+
+const DIRECT_PAIRS = { Parent: "A parent and child", Grandparent: "A grandparent and grandchild", "Great-Grandparent": "A great-grandparent and great-grandchild" };
+
+/**
+ * A direct line: the Shared cM Project's figure up to great-grandparents; beyond that,
+ * the halving per generation, and why nothing has been measured. ancestor/descendant:
+ * labels ("you" or a first name) when the direction is known.
+ */
+export function directDnaSentence({ generations, cm, scp }, ancestor = "", descendant = "") {
+  if (scp) return `${DIRECT_PAIRS[scp.label]} share on average ${scp.avg} cM (range ${scp.low}–${scp.high} cM) in the Shared cM Project 4.0.\nSources: ${SHARED_CM_SOURCE}.`;
+  const a = ancestor && ancestor !== "you" ? ancestor : "the ancestor";
+  const d = descendant || "the descendant";
+  const dOwn = d === "you" ? "your" : d === "the descendant" ? "the descendant's" : `${d}'s`;
+  const be = d === "you" ? "are" : "is";
+  return [
+    `${d === "you" ? "You" : d.charAt(0).toUpperCase() + d.slice(1)} ${be} ${generations} generations below ${a}. Each generation passes on half, so on average that is about ${cm} cM, but inheritance is random: ${dOwn} DNA may include none of ${a === "the ancestor" ? "the ancestor's" : `${a}'s`}.`,
+    `Nobody can test someone ${generations} generations back, so there are no measured figures: the Shared cM Project 4.0 (DNA Painter: https://dnapainter.com/tools/sharedcmv4) stops at great-grandparents. DNA evidence for this line comes from matches with ${a === "the ancestor" ? "the ancestor's" : `${a}'s`} other descendants.`,
+  ].join("\n");
 }
 
 /**
@@ -137,7 +282,9 @@ export function dnaSentence({ cm, chance, matchedCm: matched }) {
 export function describeRelationship(analysis, label1, label2, { gender1 = "" } = {}) {
   if (!analysis || analysis.kind === "none") return "";
   if (analysis.kind === "direct") {
-    return dnaSentence(analysis);
+    if (analysis.ancestorIs === 2) return directDnaSentence(analysis, label2, label1);
+    if (analysis.ancestorIs === 1) return directDnaSentence(analysis, label1, label2);
+    return directDnaSentence(analysis);
   }
   const lines = [];
   const [first, ...others] = analysis.routes;
@@ -157,9 +304,9 @@ export function describeRelationship(analysis, label1, label2, { gender1 = "" } 
         .join("; ")}${others.length > shown.length ? "; and more" : ""}.`
     );
   }
-  const cmLine = dnaSentence(first);
   const extra = !others.length ? "" : first.chance >= 100 ? ` Counting every route, expect about ${analysis.cm} cM.` : " Being related more than one way raises the odds.";
-  lines.push(cmLine + extra);
+  const dnaLines = dnaSentence(first, extra).split("\n");
+  lines.push(dnaLines[0]);
   for (const route of analysis.routes.slice(0, 2)) {
     for (const a of route.ancestors) {
       const first = String(a.name).split(" ")[0] || a.name;
@@ -167,6 +314,7 @@ export function describeRelationship(analysis, label1, label2, { gender1 = "" } 
       if (a.mtDNA) lines.push(`Both lines from ${first} run through mothers, so both carry ${first}'s mitochondrial DNA: an mtDNA test could confirm it.`);
     }
   }
+  lines.push(...dnaLines.slice(1));
   return lines.join("\n");
 }
 

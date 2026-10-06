@@ -309,7 +309,13 @@ export function showRelationshipPopup(lines, options = {}) {
         .attr("font-size", 13)
         .attr("fill", DNA)
         .attr("font-weight", 700)
-        .text(route.chance >= 100 ? `Relatives this close share ≈ ${route.cm} cM of DNA on average` : `Those who match share ≈ ${route.matchedCm || route.cm} cM on average`);
+        .text(
+          route.scp
+            ? `${route.chance >= 100 ? "Average" : "If they match, average"} ${route.scp.avg} cM (range ${route.scp.low}–${route.scp.high}): Shared cM Project 4.0`
+            : route.chance >= 100
+            ? `Relatives this close share ≈ ${route.cm} cM of DNA on average`
+            : `Those who match share ≈ ${route.matchedCm || route.cm} cM on average`
+        );
     }
     const chance = Math.max(0, Math.min(100, Number(route.chance) || 0));
     const meterW = 300;
