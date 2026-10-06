@@ -29,7 +29,7 @@ import {
   dataStatusWord,
 } from "./dateUtils.js";
 import { logMerge } from "./debugUtils.js";
-import { minimalPlace, nameLink } from "./displayUtils.js";
+import { fullNarrativePlace, minimalPlace, nameLink } from "./displayUtils.js";
 import { citationDedupeKey, collapseCitationWhitespace, decodeHtmlEntities } from "./citationTextUtils.js";
 import { citationCouldBeAboutEvent, couldHaveServedIn, yearFromDate } from "./citationRelevanceUtils.js";
 import {
@@ -99,6 +99,10 @@ import {
 } from "./familyMatchUtils.js";
 import { normalizeTemplatesInSectionArray, splitBioIntoSections } from "./bioSectionUtils.js";
 import { spell } from "./spellingUtils.js";
+import { configureWikiLinks, getWikiLink, linkTerm } from "./narrativePlaceUtils.js";
+import { resolvePlaceLinks, resolveTopicLinks } from "./wikiLinkResolver.js";
+import { expandTemplateCitation } from "./templateCitationUtils.js";
+import { parentsFirstBirthSentence } from "./birthSentenceUtils.js";
 import { getUSStates, loadUSStates } from "./usStatesStore.js";
 import { getFormData, getPronouns } from "./profileUtils.js";
 import { capitalizeFirstLetter } from "./textUtils.js";
@@ -468,23 +472,29 @@ export function buildBirth(person) {
   if (window.autoBioOptions?.fullNameOrBirthName == "FullName") {
     theName = person.PersonName?.FullName || person.RealName;
   }
-  text += boldBit + theName + boldBit + " was";
-  if (person.BirthDate || person?.BirthLocation) {
-    text += " born";
-    text += buildBirthDate(person);
-    text += buildBirthLocation(person);
-  }
-  if (person.Father || person.Mother) {
-    if (person.BirthDate || person?.BirthLocation) {
-      if (window.autoBioOptions?.firstSentences == "parentsWere") {
-        text += ". ";
-      } else {
-        text += ", ";
-      }
-    } else {
-      text += " the ";
+  const hasBirthDetails = person.BirthDate || person?.BirthLocation;
+  const hasParents = person.Father || person.Mother;
+  if (window.autoBioOptions?.birthParentsFirst && hasBirthDetails && hasParents) {
+    text += buildBirthParentsFirst(person, theName);
+  } else {
+    text += boldBit + theName + boldBit + " was";
+    if (hasBirthDetails) {
+      text += " born";
+      text += buildBirthDate(person);
+      text += buildBirthLocation(person);
     }
-    text += buildParents(person);
+    if (hasParents) {
+      if (hasBirthDetails) {
+        if (window.autoBioOptions?.firstSentences == "parentsWere") {
+          text += ". ";
+        } else {
+          text += ", ";
+        }
+      } else {
+        text += " the ";
+      }
+      text += buildParents(person);
+    }
   }
   text += ".";
   text += addReferences("Birth");
@@ -504,6 +514,18 @@ export function buildBirth(person) {
   return text;
 }
 
+/** The birth sentence with the parents before the date and place (see parentsFirstBirthSentence). */
+function buildBirthParentsFirst(person, theName) {
+  const name = boldBit + theName + boldBit;
+  return parentsFirstBirthSentence({
+    name,
+    parents: buildParents(person),
+    born: " born" + buildBirthDate(person) + buildBirthLocation(person),
+    option: window.autoBioOptions?.firstSentences || "of",
+    subject: person.Pronouns?.subject ? capitalizeFirstLetter(person.Pronouns.subject) : "",
+  });
+}
+
 function buildBirthDate(person) {
   let birthDateBit = "";
   if (person.BirthDate) {
@@ -516,7 +538,7 @@ function buildBirthDate(person) {
 function buildBirthLocation(person) {
   let birthLocationBit = "";
   if (person?.BirthLocation) {
-    birthLocationBit = " in " + person.BirthLocation;
+    birthLocationBit = " in " + fullNarrativePlace(person.BirthLocation);
     let birthPlaces = person.BirthLocation.split(",");
     birthPlaces.forEach(function (place) {
       if (!window.usedPlaces) {
@@ -2802,6 +2824,85 @@ function addReferencePlaces() {
           window.profilePerson.referencePlaces.push(match[1]);
         });
       }
+    }
+  });
+}
+
+/**
+ * With the "full citation" option, a source that is only a {{FamilySearch}} or {{Ancestry Tree}}
+ * template becomes a full citation of that tree for the profile person.
+ */
+function expandTemplateCitations() {
+  if (!window.autoBioOptions?.fullTemplateCitations) {
+    return;
+  }
+  const person = window.profilePerson;
+  const name =
+    person?.PersonName?.BirthName ||
+    [person?.RealName || person?.FirstName, person?.LastNameAtBirth].filter(Boolean).join(" ");
+  (window.references || []).forEach(function (aRef) {
+    if (aRef?.Text) {
+      aRef.Text = expandTemplateCitation(aRef.Text, name);
+    }
+  });
+}
+
+/** The places the narrative is going to mention, as far as they can be known before it is built. */
+function placesForNarrative() {
+  const person = window.profilePerson || {};
+  const places = [person.BirthLocation, person.DeathLocation, person["Baptism Place"]];
+  Object.values(person.Spouses || {}).forEach(function (spouse) {
+    places.push(spouse?.BirthLocation, spouse?.marriage_location);
+  });
+  (window.references || []).forEach(function (aRef) {
+    places.push(aRef?.Residence, aRef?.["Baptism Place"]);
+  });
+  places.push(...(person.referencePlaces || []));
+  return places.filter((place) => typeof place === "string" && place.trim());
+}
+
+/**
+ * With the link options, look up the WikiTree and/or Wikipedia pages for the places, wars and occupations
+ * the narrative will mention, and link the wars and occupations in the sentences that are already built.
+ * (The places are linked as the narrative is built, from what is looked up here.)
+ */
+async function prepareWikiLinks() {
+  configureWikiLinks({ language: $("#mOptions_person_language").val() || "en" });
+  const wikiTree = window.autoBioOptions?.wikiTreeLinks === true;
+  const wikipedia = window.autoBioOptions?.wikipediaLinks === true;
+  if (!wikiTree && !wikipedia) {
+    return;
+  }
+  const references = window.references || [];
+  const wars = references.map((aRef) => aRef?.War).filter(Boolean);
+  const occupations = references
+    .map((aRef) => aRef?.Occupation || aRef?.Household?.find((member) => member.Relation === "Self")?.Occupation)
+    .filter((occupation) => typeof occupation === "string" && occupation.trim());
+  try {
+    const lookups = { wikiTree, wikipedia };
+    await Promise.all([
+      resolvePlaceLinks(placesForNarrative(), lookups),
+      resolveTopicLinks([...wars, ...occupations], lookups),
+    ]);
+  } catch (error) {
+    console.warn("Auto Bio: the Wikipedia/WikiTree link lookup failed", error);
+    return;
+  }
+  references.forEach(function (aRef) {
+    if (!aRef?.Narrative) {
+      return;
+    }
+    const war = aRef.War;
+    if (war && getWikiLink(war.toLowerCase())) {
+      aRef.Narrative = aRef.Narrative.replace(` ${war}.`, ` ${linkTerm(war.toLowerCase(), war)}.`);
+    }
+    const occupation = aRef.Occupation || aRef.Household?.find((member) => member.Relation === "Self")?.Occupation;
+    if (typeof occupation === "string" && occupation.trim() && getWikiLink(occupation.trim().toLowerCase())) {
+      const text = occupation.toLowerCase();
+      aRef.Narrative = aRef.Narrative.replace(
+        `occupation was '${text}'`,
+        `occupation was '${linkTerm(occupation.trim().toLowerCase(), text)}'`
+      );
     }
   });
 }
@@ -5518,6 +5619,8 @@ export async function generateBio() {
     /* The notes from above the Biography heading are in Research Notes now,
     so leave their citations out of the Sources section. */
     sourcesArray(removeNotesBeforeBio(currentBio));
+    expandTemplateCitations();
+    await prepareWikiLinks();
 
     // Find A Grave citation automation removed; no-op
 

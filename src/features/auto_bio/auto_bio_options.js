@@ -174,9 +174,57 @@ const autoBio = {
           defaultValue: "died",
         },
         {
+          id: "birthParentsFirst",
+          type: OptionType.CHECKBOX,
+          label:
+            "Parents first in the birth statement (e.g. X, son of ... and ..., was born on ... in ...), when there are parents and birth details.",
+          defaultValue: false,
+        },
+        {
           id: "fullLocations",
           type: OptionType.CHECKBOX,
           label: "Full location name every time.",
+          defaultValue: false,
+        },
+        {
+          id: "omitCountry",
+          type: OptionType.CHECKBOX,
+          label: "Leave the country out of locations in the narrative (unless the country is all there is).",
+          defaultValue: false,
+        },
+      ],
+    },
+    {
+      id: "linksGroup",
+      type: OptionType.GROUP,
+      label: "Links in the narrative",
+      options: [
+        {
+          id: "wikiTreeLinks",
+          type: OptionType.CHECKBOX,
+          label:
+            "Link locations, wars and occupations to WikiTree pages (a category, project or space page) when there is one.",
+          defaultValue: false,
+        },
+        {
+          id: "wikipediaLinks",
+          type: OptionType.CHECKBOX,
+          label:
+            "Link locations, wars and occupations to Wikipedia articles when there is no WikiTree page. Only articles that have a Wikidata item are used, in the language of the profile when the article exists in it. The place names are looked up on Wikipedia and Wikidata.",
+          defaultValue: false,
+        },
+      ],
+    },
+    {
+      id: "templateCitationsGroup",
+      type: OptionType.GROUP,
+      label: "Citations",
+      options: [
+        {
+          id: "fullTemplateCitations",
+          type: OptionType.CHECKBOX,
+          label:
+            "Turn a bare {{FamilySearch}} or {{Ancestry Tree}} template source into a full citation (with the date accessed).",
           defaultValue: false,
         },
       ],
