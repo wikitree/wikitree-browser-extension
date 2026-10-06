@@ -183,24 +183,30 @@ the one being cropped). The member chooses a shape, then which part of the pictu
 
 ## What each network allows
 
-| Network   | Tag                           | Characters | Pictures | Button                                                                           |
-| --------- | ----------------------------- | ---------- | -------- | -------------------------------------------------------------------------------- |
-| X         | `@WikiTreers`                 | 280        | 4        | Opens the composer with the text filled in                                       |
-| Threads   | `@WikiTreers`                 | 500        | 20       | Opens the composer with the text filled in                                       |
-| Bluesky   | `@wikitree.bsky.social`       | 300        | 4        | Opens the composer with the text filled in                                       |
-| Mastodon  | `@wikitree@genealysis.social` | 500        | 4        | Opens the composer on the member's own server (option)                           |
-| Reddit    | none                          | 300        | 1        | Opens a link post to r/wikitree. The text is the title, with no tags or hashtags |
-| Facebook  | `@WikiTree`                   | 63,206     | 10       | Passes the link only. The member pastes the text                                 |
-| LinkedIn  | `@WikiTree`                   | 3,000      | 9        | Passes the link only. The member pastes the text                                 |
-| Instagram | `@WikiTreers`                 | 2,200      | 10       | No web composer. Copy the caption, save the picture, post in the app             |
-| TikTok    | `@WikiTreers`                 | 2,200      | 35       | As Instagram                                                                     |
-| YouTube   | `@WikiTreers`                 | 5,000      | 1        | As Instagram                                                                     |
+| Network   | Tag                           | Characters | Pictures | Button                                                                                                      |
+| --------- | ----------------------------- | ---------- | -------- | ----------------------------------------------------------------------------------------------------------- |
+| X         | `@WikiTreers`                 | 280        | 4        | Opens the composer with the text filled in                                                                  |
+| Threads   | `@WikiTreers`                 | 500        | 20       | Opens the composer with the text filled in                                                                  |
+| Bluesky   | `@wikitree.bsky.social`       | 300        | 4        | Opens the composer with the text filled in                                                                  |
+| Mastodon  | `@wikitree@genealysis.social` | 500        | 4        | Opens the composer on the member's own server (option)                                                      |
+| Reddit    | none                          | 300        | 1        | Opens a link post to r/wikitree. The text is the title, with no tags or hashtags                            |
+| Facebook  | `@WikiTree`                   | 63,206     | 10       | Passes the link only. The member pastes the text                                                            |
+| LinkedIn  | `@WikiTree`                   | 3,000      | 9        | Passes the link only. The member pastes the text                                                            |
+| Instagram | `@WikiTreers`                 | 2,200      | 10       | No web composer. Copy the caption, save the picture, post in the app                                        |
+| TikTok    | `@WikiTreers`                 | 2,200      | 35       | As Instagram                                                                                                |
+| YouTube   | `@WikiTreers`                 | 5,000      | 1        | As Instagram                                                                                                |
+| Email     | none                          | 1,500      | 10       | Opens the member's mail program (`mailto:`) with a subject and message, or Gmail, Outlook.com or Yahoo Mail |
 
 On X and Mastodon a link counts as 23 characters. No network accepts pictures through a link. The dialog saves them to
 the downloads folder, or opens the system share sheet where the browser supports sharing files. Facebook and LinkedIn
 build the picture from the link preview. A plain `@WikiTree` does not create a tag on Facebook or LinkedIn, so the dialog
 tells the member to retype the `@` and choose the account from the list. Links in Instagram captions are not clickable,
-so the dialog suggests the bio link. The character limits and picture counts are in `CHANNELS` in `share_page_core.js`
+so the dialog suggests the bio link. Email has an editable subject line, no tags or hashtags, and the message ends with
+the page address. A `mailto:` link cannot carry pictures or an address to send to, and some mail programs cut off a long
+link, so the message is limited to 1,500 characters. Members with no mail program set up can open the same message in
+Gmail, Outlook.com or Yahoo Mail (`WEBMAIL` in `share_page_core.js`), and Share with picture… sends the text and pictures to a
+mail app where the browser supports it. The system share sheet cannot set a subject, and Mail would show a title as a
+first line of the message, so no title is sent and a Copy subject button is offered instead. The character limits and picture counts are in `CHANNELS` in `share_page_core.js`
 and are planning values to re-check before each release.
 
 ## Options

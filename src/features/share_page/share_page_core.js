@@ -16,7 +16,8 @@ export const TAG_RE = /@wikitree@genealysis\.social|@wikitree\.bsky\.social|@Wik
 /**
  * mode: "intent" opens the network's composer with the text filled in,
  *       "link" can only be given the page address (the member pastes the text),
- *       "copy" has no web composer (the member posts in the app).
+ *       "copy" has no web composer (the member posts in the app),
+ *       "email" opens the member's mail program (a mailto: link) or a webmail compose page, with a subject and body.
  * max:  how many pictures one post takes. Planning values: confirm before release.
  * urlWeight: the network counts every link as 23 characters.
  * noTags: the network does not use account tags or hashtags (Reddit posts have a title and a link).
@@ -73,6 +74,16 @@ export const CHANNELS = [
     max: 1,
     noTags: true,
     note: "Reddit posts have a title, not a caption, so the text is the title and the page address travels as the link. Reddit does not use tags or the hashtags. A link post shows the page preview. To post a picture, save it and choose an image post.",
+  },
+  {
+    id: "email",
+    name: "Email",
+    tag: "your mail app",
+    limit: 1500,
+    mode: "email",
+    max: 10,
+    noTags: true,
+    note: "Email has no account tag or hashtags. A mail link cannot carry pictures, and some mail programs cut off a long message, so keep it short. To send a picture, save it and attach it, or use Share with picture… where your browser offers it (the subject then has to be pasted in).",
   },
 ];
 
@@ -187,9 +198,15 @@ export function photoLinks(src) {
 /** The suggested post for a page and channel. */
 export function buildText(kind, title, url, channel, options = {}) {
   const body = (BODIES[kind] || BODIES.profile)(title, options.context || {});
+  if (channel.mode === "email") return `${body}\n\n${url}`;
   if (channel.noTags) return body;
   const hashtags = options.hashtags === false ? "" : ` ${BRAND_HASHTAGS}`;
   return `${body}\n\n${url}\n\n${channel.tag}${hashtags}`;
+}
+
+/** The suggested subject line for an email about a page. */
+export function emailSubject(title) {
+  return `${title} on WikiTree`;
 }
 
 /** Swap the account tag in text the member has already edited. */
@@ -212,11 +229,36 @@ function cleanHost(instance) {
   return /^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/.test(host) ? host : "mastodon.social";
 }
 
+/** Line breaks in a mailto: body are CRLF (RFC 6068). The address is left for the member to fill in. */
+export function mailtoUrl(subject, body) {
+  const crlf = (text) => encodeURIComponent((text || "").replace(/\r?\n/g, "\r\n"));
+  return `mailto:?subject=${crlf(subject)}&body=${crlf(body)}`;
+}
+
+/** Webmail compose pages, for members who have no mail program set up for mailto: links. */
+export const WEBMAIL = [
+  { id: "gmail", name: "Gmail", url: "https://mail.google.com/mail/?view=cm&fs=1&su={subject}&body={body}" },
+  {
+    id: "outlook",
+    name: "Outlook.com",
+    url: "https://outlook.live.com/mail/0/deeplink/compose?subject={subject}&body={body}",
+  },
+  { id: "yahoo", name: "Yahoo Mail", url: "https://compose.mail.yahoo.com/?subject={subject}&body={body}" },
+];
+
+export function webmailUrl(provider, subject, body) {
+  const p = WEBMAIL.find((w) => w.id === provider);
+  if (!p) return "";
+  return p.url
+    .replace("{subject}", encodeURIComponent(subject || ""))
+    .replace("{body}", encodeURIComponent(body || ""));
+}
+
 /**
  * The link that opens a network's composer, or "" when the network has none.
  * Facebook and LinkedIn only take the page address; the member pastes the text.
  */
-export function intentUrl(channel, text, url, instance) {
+export function intentUrl(channel, text, url, instance, subject = "") {
   const t = encodeURIComponent(text);
   const u = encodeURIComponent(url);
   switch (channel.id) {
@@ -232,6 +274,8 @@ export function intentUrl(channel, text, url, instance) {
       return `https://www.reddit.com/r/wikitree/submit?type=LINK&title=${encodeURIComponent(
         text.replace(/\s+/g, " ").trim()
       )}&url=${u}`;
+    case "email":
+      return mailtoUrl(subject, text);
     case "facebook":
       return `https://www.facebook.com/sharer/sharer.php?u=${u}`;
     case "linkedin":

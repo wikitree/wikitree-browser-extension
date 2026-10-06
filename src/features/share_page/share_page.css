@@ -219,7 +219,8 @@ h1 .wbe-share-in-heading {
   color: #5f6064;
 }
 
-.wbe-share-dialog textarea {
+.wbe-share-dialog textarea,
+.wbe-share-dialog input[type="text"] {
   width: 100%;
   box-sizing: border-box;
   resize: vertical;
@@ -292,6 +293,19 @@ h1 .wbe-share-in-heading {
   font-size: 0.78rem;
   color: #5f6064;
   overflow-wrap: anywhere;
+}
+
+.wbe-share-pvsubject {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.wbe-share-webmail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #5f6064;
 }
 
 .wbe-share-actions {

@@ -15,6 +15,12 @@ jest.mock("../../core/API/WikiTreeAPI", () => ({
 }));
 jest.mock("../../core/clipboard.js", () => ({ copyToClipboard: jest.fn(() => Promise.resolve()) }));
 
+function typeSubject(value) {
+  const box = document.getElementById("wbeShareSubject");
+  box.value = value;
+  box.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 function typeInto(value) {
   const box = document.getElementById("wbeShareText");
   box.value = value;
@@ -260,7 +266,7 @@ describe("Share Page dialog", () => {
     await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
     await clickShare();
     expect($(".wbe-share-overlay").length).toBe(1);
-    expect($(".wbe-share-channel").length).toBe(10);
+    expect($(".wbe-share-channel").length).toBe(11);
     expect($('.wbe-share-channel[aria-checked="true"] b').text()).toBe("X");
     const text = $("#wbeShareText").val();
     expect(text).toContain("Firman Joseph Robinson (1901-1991)");
@@ -295,6 +301,97 @@ describe("Share Page dialog", () => {
     const text = $("#wbeShareText").val();
     expect(text).not.toContain("@");
     expect(text).not.toContain("#");
+  });
+
+  const chooseEmail = () =>
+    $(".wbe-share-channel")
+      .filter((i, el) => $(el).find("b").text() === "Email")
+      .trigger("click");
+
+  test("Email has a subject, a message with the link and no tags, and opens the mail program", async () => {
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    await clickShare();
+    expect($(".wbe-share-subject").prop("hidden")).toBe(true);
+    chooseEmail();
+    expect($(".wbe-share-subject").prop("hidden")).toBe(false);
+    expect($("#wbeShareSubject").val()).toMatch(/ on WikiTree$/);
+    const text = $("#wbeShareText").val();
+    expect(text).toContain("https://www.wikitree.com/wiki/Robinson-27274");
+    expect(text).not.toContain("@");
+    expect(text).not.toContain("#");
+    const $open = $(".wbe-share-actions a.wbe-share-mailto");
+    expect($open.length).toBe(1);
+    expect($open.attr("href")).toMatch(/^mailto:\?subject=/);
+    expect($open.attr("target")).toBeUndefined();
+    expect($(".wbe-share-pvsubject").text()).toBe(`Subject: ${$("#wbeShareSubject").val()}`);
+  });
+
+  test("editing the subject and message changes the mail link and the webmail links", async () => {
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    await clickShare();
+    chooseEmail();
+    typeSubject("Look at this");
+    typeInto("My own words");
+    const href = $(".wbe-share-mailto").attr("href");
+    expect(href).toContain("subject=Look%20at%20this");
+    expect(href).toContain("body=My%20own%20words");
+    const links = $(".wbe-share-webmail a");
+    expect(links.length).toBe(3);
+    links.each((i, el) => {
+      expect($(el).attr("href")).toMatch(/^https:\/\//);
+      expect($(el).attr("href")).toContain("Look%20at%20this");
+    });
+    expect($(".wbe-share-webmail").prop("hidden")).toBe(false);
+  });
+
+  test("the subject and webmail links are hidden on other channels, and Reset restores the subject", async () => {
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    await clickShare();
+    chooseEmail();
+    const suggested = $("#wbeShareSubject").val();
+    typeSubject("Changed");
+    $(".wbe-share-reset").trigger("click");
+    expect($("#wbeShareSubject").val()).toBe(suggested);
+    $(".wbe-share-channel")
+      .filter((i, el) => $(el).find("b").text() === "Bluesky")
+      .trigger("click");
+    expect($(".wbe-share-subject").prop("hidden")).toBe(true);
+    expect($(".wbe-share-webmail").prop("hidden")).toBe(true);
+    expect($(".wbe-share-pvsubject").prop("hidden")).toBe(true);
+  });
+
+  test("Email has a Copy subject button that copies the subject", async () => {
+    const { copyToClipboard } = require("../../core/clipboard.js");
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    await clickShare();
+    chooseEmail();
+    typeSubject("Look at this");
+    const $copy = $(".wbe-share-actions button").filter((i, el) => $(el).text() === "Copy subject");
+    expect($copy.length).toBe(1);
+    $copy.trigger("click");
+    expect(copyToClipboard).toHaveBeenLastCalledWith("Look at this");
+  });
+
+  test("Email's share sheet button is labelled for the picture and sends no title", async () => {
+    navigator.canShare = jest.fn(() => true);
+    navigator.share = jest.fn(() => Promise.resolve());
+    try {
+      await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+      await clickShare();
+      chooseEmail();
+      const $share = $(".wbe-share-actions button").filter((i, el) => $(el).text() === "Share with picture…");
+      expect($share.length).toBe(1);
+    } finally {
+      delete navigator.canShare;
+      delete navigator.share;
+    }
+  });
+
+  test("Email says pictures must be attached by hand", async () => {
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    await clickShare();
+    chooseEmail();
+    expect($(".wbe-share-note").text()).toContain("Email cannot receive pictures");
   });
 
   test("the Open link points at the member's Mastodon server", async () => {
