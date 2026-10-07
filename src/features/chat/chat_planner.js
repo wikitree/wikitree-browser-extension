@@ -30,6 +30,14 @@ export function plannerDriftsToBios(prompt, planned) {
   return planned?.intent === "spouseBio";
 }
 
+// "Do any of the people in the bio have WT profiles?" came back with target "null", so
+// Genie looked for a person called null (2026-10-07). A placeholder means "not given".
+const PLACEHOLDER_RE = /^(?:null|undefined|none|n\/a|unknown|nil|)$/i;
+export function cleanPlannerParams(params) {
+  if (!params || typeof params !== "object" || Array.isArray(params)) return {};
+  return Object.fromEntries(Object.entries(params).filter(([, value]) => !(value === null || value === undefined || (typeof value === "string" && PLACEHOLDER_RE.test(value.trim())))));
+}
+
 export function createChatAiPlannerHandlers({
   getChatAiConfig,
   getChatOptions,
@@ -163,7 +171,7 @@ export function createChatAiPlannerHandlers({
     return await executeRoutedIntent(
       {
         intent: planned.intent,
-        params: planned.params || {},
+        params: cleanPlannerParams(planned.params),
       },
       prompt
     );

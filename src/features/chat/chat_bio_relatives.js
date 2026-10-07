@@ -25,6 +25,20 @@ const FIND_RELATIVES_RES = [
     "i"
   ),
 ];
+// "Do any of the people in the bio have WT profiles?" (the user, 2026-10-07): the people a
+// biography names, asked about as a group. Group 1 is the bio's owner when named.
+const BIO = String.raw`(?:${SUBJECT_POSS}\s+|the\s+|this\s+)?(?:bio|biography|profile\s+text)`;
+const BIO_PEOPLE = String.raw`(?:people|persons|individuals|names|relatives|relations|family(?:\s+members)?|anyone|anybody|everyone|everybody|someone|somebody)`;
+const IN_BIO = String.raw`(?:(?:named|mentioned|listed|found)\s+)?(?:in|from)\s+${BIO}`;
+const HAS_PROFILE = String.raw`(?:(?:already\s+)?(?:on|in)\s+wikitree|(?:already\s+)?(?:have|has|got)\s+(?:got\s+)?(?:a\s+|any\s+|their\s+own\s+|their\s+|its\s+own\s+)?(?:wikitree\s+)?profiles?(?:\s+(?:on|in)\s+wikitree)?|(?:already\s+)?exists?\s+on\s+wikitree)`;
+FIND_RELATIVES_RES.push(
+  new RegExp(String.raw`^(?:do|does|are|is|have|has)\s+(?:there\s+)?(?:any\s+(?:of\s+)?|all\s+(?:of\s+)?)?(?:the\s+)?${BIO_PEOPLE}\s+${IN_BIO}\s+${HAS_PROFILE}$`, "i"),
+  new RegExp(String.raw`^(?:which|what|who)(?:\s+of)?(?:\s+the)?(?:\s+${BIO_PEOPLE})?\s+${IN_BIO}\s+(?:are|is|have|has)\s+(?:already\s+)?(?:on\s+wikitree|(?:got\s+)?(?:a\s+|any\s+)?(?:wikitree\s+)?profiles?(?:\s+on\s+wikitree)?)$`, "i"),
+  new RegExp(String.raw`^(?:find|search\s+for|look\s+for|look\s+up|check(?:\s+for)?)\s+(?:any\s+of\s+)?(?:the\s+)?${BIO_PEOPLE}\s+${IN_BIO}(?:\s+on\s+wikitree)?$`, "i"),
+  new RegExp(String.raw`^(?:search|check)\s+wikitree\s+for\s+(?:the\s+)?${BIO_PEOPLE}\s+${IN_BIO}$`, "i"),
+  // The short form for the Help (the user, 2026-10-07): "check for profiles", "check the bio for profiles".
+  new RegExp(String.raw`^(?:check|search|look)(?:\s+${BIO})?\s+for\s+(?:wikitree\s+)?profiles(?:\s+(?:in|from)\s+${BIO})?$`, "i")
+);
 const PROFILE_SUBJECT_RE = /^(?:his|her|their|this\s+person(?:'s|’s)|the\s+profile\s+person(?:'s|’s))$/i;
 
 const KIN_ROLES = [
@@ -34,11 +48,58 @@ const KIN_ROLES = [
   [/^(?:spouses?|wife|wives|husbands?)$/i, ["spouse"]],
 ];
 
+// Any word order (the user, 2026-10-07: "recognise Qs in various forms"): a question or
+// "check/find" that names the bio, its people and WikiTree profiles, e.g. "Are the bio
+// people on WikiTree?", "Do the names in the bio match any profiles?". It declines anything
+// that asks for another action (create, link, merge …), about "me", or about duplicates.
+const LOOSE_BIO_RE = /\b(?:bio|biography|profile\s+text)\b/i;
+const LOOSE_PEOPLE_RE =
+  /\b(?:people|persons|individuals|names|relatives|relations|family|kin|anyone|anybody|everyone|everybody|someone|somebody|parents|siblings|brothers|sisters|children|kids|sons|daughters|spouses?|wife|wives|husbands?)\b/i;
+const LOOSE_PROFILE_RE = /\b(?:profiles?|on\s+wikitree|in\s+wikitree)\b/i;
+const LOOSE_OPENING_RE = /^(?:do|does|did|are|is|were|was|have|has|which|who|what|whose|how\s+many|find|check|search|look|see\s+if|any|anyone|anybody|profiles?\s+for)\b/i;
+// Politeness and "tell me" aren't about "me": dropped before the checks.
+const LOOSE_POLITE_RE = /^(?:(?:can|could|would|will)\s+you\s+|please\s+|tell\s+me\s+|show\s+me\s+|let\s+me\s+know\s+)+/i;
+const LOOSE_DECLINE_RE =
+  /\b(?:my|me|mine|i|create|add|make|write|edit|update|link|connect|attach|merge|delete|remove|duplicates?|dupes?|born|died|married|lived|when|where|why|how\s+old|sources?|cited|citations?|census|dna)\b/i;
+const LOOSE_KIN = [
+  [/\bparents\b/i, ["father", "mother"]],
+  [/\b(?:siblings|brothers|sisters)\b/i, ["sibling"]],
+  [/\b(?:children|kids|sons|daughters)\b/i, ["child"]],
+  [/\b(?:spouses?|wife|wives|husbands?)\b/i, ["spouse"]],
+];
+const LOOSE_BIO_WORD = String.raw`(?:'s|’s)\s+(?:bio|biography|profile\s+text)\b`;
+const LOOSE_OWNER_ID_RE = new RegExp(String.raw`\b([A-Za-z][A-Za-z'_]*-\d+)${LOOSE_BIO_WORD}`);
+const LOOSE_OWNER_NAME_RE = new RegExp(String.raw`\b((?:[A-Z][A-Za-z'.]*\s+){0,3}[A-Z][A-Za-z'.]*)${LOOSE_BIO_WORD}`);
+
+/** The bio's owner when named ("Beacall-491's bio", "Philip Beacall's bio"); "" = the page profile. */
+function looseBioOwner(text) {
+  const id = text.match(LOOSE_OWNER_ID_RE);
+  if (id) return id[1];
+  const name = text.match(LOOSE_OWNER_NAME_RE);
+  if (!name) return "";
+  // The sentence's own capital ("Philip's bio …" is fine, "Do Philip's …" loses "Do").
+  const words = name[1].split(/\s+/);
+  if (name.index === 0 && words.length > 1 && LOOSE_OPENING_RE.test(words[0])) words.shift();
+  return LOOSE_OPENING_RE.test(words.join(" ")) && words.length === 1 ? "" : words.join(" ");
+}
+
+function parseLooseBioPeoplePrompt(prompt) {
+  const text = prompt.replace(LOOSE_POLITE_RE, "");
+  if (text.split(" ").length > 16) return null;
+  const withoutBio = text.replace(/\bprofile\s+text\b/gi, "bio");
+  if (!LOOSE_OPENING_RE.test(text) || !LOOSE_BIO_RE.test(text) || !LOOSE_PEOPLE_RE.test(text) || !LOOSE_PROFILE_RE.test(withoutBio)) return null;
+  if (LOOSE_DECLINE_RE.test(text)) return null;
+  const roles = [...new Set(LOOSE_KIN.filter(([re]) => re.test(text)).flatMap(([, kinRoles]) => kinRoles))];
+  return { target: looseBioOwner(text), roles };
+}
+
 /** {target ("" = the page profile), roles ([] = everyone)}, or null. */
 export function parseFindRelativesPrompt(prompt) {
   const text = String(prompt || "")
     .trim()
-    .replace(/[.!?]+$/g, "");
+    .replace(/[.!?]+$/g, "")
+    .replace(/\bWT(?!\+)\b/g, "WikiTree") // "WT profiles"
+    .replace(/\s+/g, " ");
   for (const re of FIND_RELATIVES_RES) {
     const match = text.match(re);
     if (!match) continue;
@@ -51,7 +112,7 @@ export function parseFindRelativesPrompt(prompt) {
     if (!/-\d+$/.test(name) && !/^(?:[A-Z][^\s]*\s*)+$/.test(name)) return null;
     return { target: name, roles };
   }
-  return null;
+  return parseLooseBioPeoplePrompt(text);
 }
 
 // ---------------------------------------------------------------------------
@@ -142,7 +203,11 @@ export function mergeRelatives(list) {
     if (fullness(person.given) > fullness(same.given)) same.given = [...person.given];
     same.altFirst = firstNames.filter((name) => fold(name) !== fold(same.given[0]));
     if (!same.surname && person.surname) same.surname = person.surname;
-    if (!same.birthSurname && person.birthSurname) same.birthSurname = person.birthSurname;
+    // "John Fabian (Beacall) Lacon" after "his son, John Beacall": the fuller form, married name and all.
+    if (!same.birthSurname && person.birthSurname) {
+      same.birthSurname = person.birthSurname;
+      if (person.surname) same.surname = person.surname;
+    }
     if (!same.linkedId && person.linkedId) same.linkedId = person.linkedId;
     if (person.birthYear) same.years.push(person.birthYear);
     if (placeDetail(person.birthPlace) > placeDetail(same.birthPlace)) same.birthPlace = person.birthPlace;
@@ -219,7 +284,7 @@ const RELATION_ROLES = {
 function relativesFromCensus(table, subject) {
   const col = (...names) => table.header.findIndex((cell) => names.some((name) => cell === name || cell.startsWith(name)));
   const nameCol = col("name");
-  const relCol = col("relation", "relationship");
+  const relCol = col("relation", "relationship", "role");
   const ageCol = col("age");
   const sexCol = col("sex", "gender");
   const placeCol = col("birth place", "birthplace", "where born", "born");
@@ -317,6 +382,23 @@ function marriageIsSomeoneElses(text, index, subject) {
   return !own.includes(fold(lead));
 }
 
+/** "Martha Teece (~1835 - ~1909)": the birth year in brackets after a name (not "<1807", a bound). */
+function yearAfter(text, end) {
+  const match = text.slice(end, end + 30).match(/^\s*\(\s*(?:~|abt\.?\s*|about\s+|c\.?\s*|ca\.?\s*)?(1[0-9]\d\d)\b/i);
+  return match ? Number(match[1]) : 0;
+}
+
+const KIN_WORD_ROLES = {
+  wife: ["spouse", "Female"],
+  husband: ["spouse", "Male"],
+  son: ["child", "Male"],
+  daughter: ["child", "Female"],
+  brother: ["sibling", "Male"],
+  sister: ["sibling", "Female"],
+  father: ["father", "Male"],
+  mother: ["mother", "Female"],
+};
+
 function relativesFromText(bio, subject) {
   // "daughter of [[Farrar-123|Perrin Farrar]]": the biography links straight to the relative's profile.
   const linked = new Map();
@@ -342,6 +424,14 @@ function relativesFromText(bio, subject) {
     out.push({ role: "father", ...splitName(match[1]), gender: "Male", evidence: ["biography"], ...linkedId(match[1]) });
     out.push({ role: "mother", ...splitName(match[2]), gender: "Female", evidence: ["biography"], ...linkedId(match[2]) });
   }
+  // "His parents were John Carr (<1807 - >1823) and Elizabeth Beacall (<1798 - >1823)" (Beacall-491).
+  const parentsWere = new RegExp(String.raw`\b[Hh](?:is|er)\s+parents\s+(?:were|are)\s+(${NAME})(?:\s*\([^)]*\))?\s+(?:&|and)\s+(${NAME})`, "g");
+  for (const match of text.matchAll(parentsWere)) {
+    const fatherEnd = match.index + match[0].indexOf(match[1]) + match[1].length;
+    const motherEnd = match.index + match[0].length;
+    out.push({ role: "father", ...splitName(match[1]), gender: "Male", birthYear: yearAfter(text, fatherEnd), evidence: ["biography"], ...linkedId(match[1]) });
+    out.push({ role: "mother", ...splitName(match[2]), gender: "Female", birthYear: yearAfter(text, motherEnd), evidence: ["biography"], ...linkedId(match[2]) });
+  }
   // (the lookahead stops "John" alone matching inside "John Densham & Mary …")
   const oneParent = new RegExp(String.raw`\b(?:son|daughter|child)\s+of\s+(${NAME})(?![A-Za-z'-]|\s+\(?[A-Z]|\s*(?:&|and\b))`, "g");
   for (const match of text.matchAll(oneParent)) {
@@ -355,24 +445,49 @@ function relativesFromText(bio, subject) {
     if (marriageIsSomeoneElses(text, match.index, subject)) continue;
     const name = splitName(match[1]);
     if (!name.surname) continue;
-    out.push({ role: "spouse", ...name, birthSurname: name.birthSurname || name.surname, evidence: ["biography"], ...linkedId(match[1]) });
-  }
-  // "His wife was Bridget Christine McNulty" (Cassidy-5148): a surname not the subject's is her birth name.
-  const partner = new RegExp(String.raw`\b(?:[Hh]is|[Hh]er)\s+([Ww]ife|[Hh]usband)(?:\s+was|\s+is|,)?\s+(${NAME})`, "g");
-  for (const match of text.matchAll(partner)) {
-    if (/'s\s+(?:son|daughter|child|brother|sister|father|mother)\b/i.test(text.slice(Math.max(0, match.index - 40), match.index))) continue;
-    const name = splitName(match[2]);
-    if (!name.surname) continue;
-    const isWife = match[1].toLowerCase() === "wife";
-    const own = [subject?.LastNameAtBirth, subject?.LastNameCurrent].map(fold).includes(fold(name.surname));
     out.push({
       role: "spouse",
       ...name,
-      gender: isWife ? "Female" : "Male",
+      birthSurname: name.birthSurname || name.surname,
+      birthYear: yearAfter(text, match.index + match[0].length),
+      evidence: ["biography"],
+      ...linkedId(match[1]),
+    });
+  }
+  // "His wife was Bridget Christine McNulty" (Cassidy-5148): a surname not the subject's is her birth name.
+  // "His sister was Hannah Beacall (1819 - )", "his son, John Beacall (4)" (Beacall-491).
+  const kin = new RegExp(
+    String.raw`\b(?:[Hh]is|[Hh]er)\s+([Ww]ife|[Hh]usband|[Ss]on|[Dd]aughter|[Bb]rother|[Ss]ister|[Ff]ather|[Mm]other)(?:\s+was|\s+is|,)?\s+(${NAME})`,
+    "g"
+  );
+  for (const match of text.matchAll(kin)) {
+    if (/'s\s+(?:son|daughter|child|brother|sister|father|mother)\b/i.test(text.slice(Math.max(0, match.index - 40), match.index))) continue;
+    const name = splitName(match[2]);
+    if (!name.surname) continue;
+    const [role, gender] = KIN_WORD_ROLES[match[1].toLowerCase()];
+    const own = [subject?.LastNameAtBirth, subject?.LastNameCurrent].map(fold).includes(fold(name.surname));
+    const isWife = role === "spouse" && gender === "Female";
+    out.push({
+      role,
+      ...name,
+      gender,
       ...(isWife && !own && !name.birthSurname ? { birthSurname: name.surname } : {}),
+      birthYear: yearAfter(text, match.index + match[0].length),
       evidence: ["biography"],
       ...linkedId(match[2]),
     });
+  }
+  // "Their children were...", then a list: "# John Fabian (Beacall) Lacon (~1856 - >1939)".
+  const childList = /\b(?:[Tt]heir|[Hh]is|[Hh]er)\s+children\s+(?:were|are|included|was)\b[^\n]*\n+((?:[ \t]*[#*][^\n]*(?:\n|$))+)/g;
+  const listItem = new RegExp(String.raw`^[ \t]*[#*]+\s*(${NAME})`);
+  for (const list of text.matchAll(childList)) {
+    for (const line of list[1].split("\n")) {
+      const match = line.match(listItem);
+      if (!match) continue;
+      const name = splitName(match[1]);
+      if (!name.given.length) continue;
+      out.push({ role: "child", ...name, birthYear: yearAfter(line, match[0].length), evidence: ["biography"], ...linkedId(match[1]) });
+    }
   }
   return out.map((person) => ({ birthYear: 0, birthPlace: "", ...person }));
 }
@@ -395,7 +510,10 @@ function finishRelatives(list, subject) {
     .filter((person) => !(person.role === "spouse" && isSubject(person)))
     .map((person) => {
       const surnames = [];
-      if (["child", "sibling", "father"].includes(person.role)) surnames.push(subjectSurname);
+      // A father the bio names with his own surname is searched by that alone: John Carr is
+      // just John Carr, not a Beacall (Beacall-491; the user, 2026-10-07).
+      if (person.role === "father" && person.surname) surnames.push(person.surname);
+      else if (["child", "sibling", "father"].includes(person.role)) surnames.push(subjectSurname);
       if (person.birthSurname) surnames.push(person.birthSurname);
       if (person.surname) surnames.push(person.surname);
       if (person.role === "mother" || person.role === "spouse") surnames.push(subjectSurname);
@@ -602,6 +720,7 @@ export function scoreCandidate(
   const reasons = [];
   const conflicts = [];
   const notes = []; // facts that neither help nor hurt ("Father on WikiTree: …")
+  let standIn = null; // another profile where the subject should be (Beacall-11 for Beacall-491)
   const no = (why) => ({ score: 0, reasons, conflicts: [why], notes });
   let score = 0;
   const wanted = relative.given.map(fold).filter(Boolean);
@@ -710,6 +829,7 @@ export function scoreCandidate(
     // The subject is on WikiTree: a child whose father there is another John Cassidy (Cassidy-3843,
     // not Cassidy-5079) belongs to another family, unless one of the two is a duplicate.
     if (expected.id && Number(parent.Id) !== Number(expected.id)) {
+      if (expected.isSubject && firstNameAgrees(parent, expected)) standIn = parent;
       score -= 10;
       conflicts.push(`${Label} is ${parentText}, not ${expected.wtid || "this profile"}`);
       continue;
@@ -746,6 +866,7 @@ export function scoreCandidate(
       const middleWanted = fold(expectedPartner.given[1] || "");
       const middleHave = fold(String(partner.MiddleName || "").split(/\s+/)[0]);
       const sameName = !middleWanted || !middleHave || middleWanted[0] === middleHave[0];
+      if (sameName && expectedPartner.isSubject) standIn = partner;
       score -= sameName ? 10 : 25;
       conflicts.push(
         sameName
@@ -763,7 +884,7 @@ export function scoreCandidate(
       conflicts.push(`Married to ${spouses.map((spouse) => `${personName(spouse)} (${spouse.Name})`).join(", ")}`);
     }
   }
-  return { score: Math.max(0, Math.min(100, score)), reasons, conflicts, notes };
+  return { score: Math.max(0, Math.min(100, score)), reasons, conflicts, notes, standIn };
 }
 
 /** Spelling-blind sound of a name: Catherine and Kathryn, Barbara and Barbray come close. */
@@ -790,6 +911,7 @@ export function expectedPartnerFor(relative, subject, relatives) {
       surnames: [subject.LastNameAtBirth, subject.LastNameCurrent].filter(Boolean),
       id: Number(subject.Id) || 0,
       wtid: subject.Name || "",
+      isSubject: true,
     };
   }
   return null;
@@ -798,6 +920,7 @@ export function expectedPartnerFor(relative, subject, relatives) {
 /** The parents each relative should have, from what the bio says about the family. */
 export function expectedParentsFor(relative, subject, relatives) {
   const subjectEntry = {
+    isSubject: true,
     id: Number(subject.Id) || 0,
     wtid: subject.Name || "",
     role: subject.Gender === "Female" ? "mother" : "father",
@@ -867,7 +990,34 @@ function relativeFullName(relative) {
  * The answer: a short summary in the chat, and every candidate side by side with
  * what the bio says in a results table that opens with it.
  */
-export function buildFindRelativesAnswer({ subjectLabel, results, readBy }) {
+/** The profile person's own duplicates, from Find Matches (the user, 2026-10-07: "Duplicate check
+ * should be run with this question"). `duplicates`: {loginNeeded, noAnchor, total, likely: [describeDuplicate(…)]}. */
+export function duplicateLines(duplicates, subjectLabel) {
+  const lines = [];
+  if (!duplicates || duplicates.noAnchor) return lines; // (nothing to compare the candidates with)
+  const who = subjectLabel.replace(/\s*\([^()]*\)$/, "");
+  if (duplicates.loginNeeded) lines.push("", `To check for duplicates of ${who} too, log in to WikiTree.`);
+  else if (duplicates.likely?.length) {
+    const count = duplicates.likely.length;
+    const from = duplicates.source === "finder" ? " (from the Duplicate Finder)" : "";
+    lines.push("", `**${who} may have ${count === 1 ? "a duplicate" : `${count} duplicates`} on WikiTree${from}:**`);
+    for (const d of duplicates.likely) {
+      const heading = d.percent === false ? "Possible duplicate:" : `Possible duplicate (${d.score}%):`;
+      lines.push("", `**${heading}** ${d.wtId} ${d.name}${d.span ? `, ${d.span}` : ""}`);
+      if (d.why) lines.push(`- ✓ ${d.why}`);
+      if (d.warn) lines.push(`- ✗ ${d.warn}`);
+    }
+  } else if (duplicates.source === "finder") {
+    lines.push("", `The Duplicate Finder lists no possible duplicates of ${who}.`);
+  } else if (duplicates.total) {
+    lines.push("", `No likely duplicates of ${who}: none of the ${duplicates.total} profile${duplicates.total === 1 ? "" : "s"} Find Matches lists scores 65% or more.`);
+  } else {
+    lines.push("", `Find Matches lists no possible duplicates of ${who}.`);
+  }
+  return lines;
+}
+
+export function buildFindRelativesAnswer({ subjectLabel, results, readBy, duplicates = null }) {
   const sorted = [...results].sort(
     (a, b) => ROLE_ORDER.indexOf(a.relative.role) - ROLE_ORDER.indexOf(b.relative.role) || (a.relative.birthYear || 9999) - (b.relative.birthYear || 9999)
   );
@@ -878,6 +1028,24 @@ export function buildFindRelativesAnswer({ subjectLabel, results, readBy }) {
   const lines = [
     `${subjectLabel}'s biography names ${results.length} relative${results.length === 1 ? "" : "s"} (${readBy}). I searched WikiTree for each one.`,
   ];
+  lines.push(...duplicateLines(duplicates, subjectLabel));
+  // Beacall-491's family all turned up under Philip Beacall (Beacall-11): this profile may be his duplicate.
+  const standIns = new Map();
+  for (const entry of found) {
+    const best = shown(entry)[0];
+    if (best?.standIn?.Name) standIns.set(best.standIn.Name, { profile: best.standIn, count: (standIns.get(best.standIn.Name)?.count || 0) + 1 });
+  }
+  const twin = [...standIns.values()].sort((a, b) => b.count - a.count)[0];
+  if (twin && twin.count >= 2) {
+    const id = subjectLabel.match(/\(([^()]+)\)$/)?.[1] || "this profile";
+    const listed = (duplicates?.likely || []).some((d) => String(d.wtId).toLowerCase() === String(twin.profile.Name).toLowerCase());
+    lines.push(
+      "",
+      listed
+        ? `**${twin.count} of the relatives below are already in the family of ${personName(twin.profile)} (${twin.profile.Name}),** which backs that up: a merge would bring the whole family together.`
+        : `**${twin.count} of them are already in the family of ${personName(twin.profile)} (${twin.profile.Name}).** If that's the same person, ${id} may be a duplicate of ${twin.profile.Name}: a merge would bring the whole family together.`
+    );
+  }
   // One or two matches read better in the chat than in a popup table.
   const matchCount = found.reduce((sum, entry) => sum + shown(entry).length, 0);
   const useTable = matchCount > 2;
@@ -1013,7 +1181,9 @@ export const CANDIDATE_FIELDS =
  * Searches WikiTree for each relative and scores what comes back.
  * `searchPerson(params)` → matches; `getPeople(ids)` → profiles (injected for tests).
  */
-const sameWikiTreeId = (a, b) => Boolean(a && b) && fold(String(a).replace(/ /g, "_")) === fold(String(b).replace(/ /g, "_"));
+// (not fold(), which drops the digits: Beacall-149 isn't Beacall-20)
+const wtIdKey = (id) => String(id || "").trim().replace(/ /g, "_").toLowerCase();
+const sameWikiTreeId = (a, b) => Boolean(a && b) && wtIdKey(a) === wtIdKey(b);
 
 export async function searchRelatives({ subject, relatives, attached = [], searchPerson, getPeople, getSpouses = null, getProfiles = null }) {
   const subjectYear = yearOf(subject.BirthDate);

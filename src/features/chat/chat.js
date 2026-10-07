@@ -1333,6 +1333,7 @@ const {
   personVisualActions,
   rebuildChartAction,
 } = createChatPeopleHandlers({
+  getProfilePersonInfo,
   ChatIntent,
   WBE_CHAT_APP_ID,
   WikiTreeAPI,

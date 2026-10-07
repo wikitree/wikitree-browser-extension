@@ -110,11 +110,41 @@ describe("parseFindRelativesPrompt", () => {
     ["are the parents on WikiTree?", { target: "", roles: ["father", "mother"] }],
     ["find relatives on WikiTree", { target: "", roles: [] }],
     ["search WikiTree for any siblings", { target: "", roles: ["sibling"] }],
+    // The people in the bio, asked about as a group (the user, 2026-10-07).
+    ["Do any of the people in the bio have WT profiles?", { target: "", roles: [] }],
+    ["Are any of the people mentioned in the biography on WikiTree?", { target: "", roles: [] }],
+    ["Does anyone in the bio have a profile?", { target: "", roles: [] }],
+    ["Is anyone named in his biography already on WikiTree?", { target: "", roles: [] }],
+    ["Which people in the bio are on WikiTree?", { target: "", roles: [] }],
+    ["Who in the biography is on WT?", { target: "", roles: [] }],
+    ["Check the people mentioned in the bio", { target: "", roles: [] }],
+    ["Have any of the family members in the bio got profiles?", { target: "", roles: [] }],
+    ["Search WikiTree for the people in Philip's bio", { target: "Philip", roles: [] }],
+    ["Do any people in Beacall-491's biography exist on WikiTree?", { target: "Beacall-491", roles: [] }],
+    // The short form in the Help.
+    ["check for profiles", { target: "", roles: [] }],
+    ["Check the bio for WikiTree profiles", { target: "", roles: [] }],
+    ["search for profiles in his biography", { target: "", roles: [] }],
+    ["check Beacall-491's bio for profiles", { target: "Beacall-491", roles: [] }],
+    // Any word order: a bio word, a people word and a profile/WikiTree word.
+    ["Are the bio people on WikiTree?", { target: "", roles: [] }],
+    ["Do the names in the bio match any profiles?", { target: "", roles: [] }],
+    ["How many of the people in the bio have profiles?", { target: "", roles: [] }],
+    ["Profiles for the people in the bio?", { target: "", roles: [] }],
+    ["Could you please check if the bio people have profiles", { target: "", roles: [] }],
+    ["Tell me which of the bio's relatives have WikiTree profiles", { target: "", roles: [] }],
+    ["Are the children in the bio on WikiTree?", { target: "", roles: ["child"] }],
+    ["Do the parents named in Beacall-491's bio have profiles?", { target: "Beacall-491", roles: ["father", "mother"] }],
+    ["Do the people in Philip Beacall's bio have profiles?", { target: "Philip Beacall", roles: [] }],
+    ["Are Philip's bio people on WikiTree?", { target: "Philip", roles: [] }],
   ])("%s", (prompt, expected) => {
     expect(parseFindRelativesPrompt(prompt)).toEqual(expected);
   });
 
-  test.each(["her children", "find his parents", "how many relatives does he have", "find my family on wikitree in kent", "are my relatives on WikiTree?", "are any of my relatives on WikiTree?", "find relatives"])(
+  test.each(["her children", "find his parents", "how many relatives does he have", "find my family on wikitree in kent", "are my relatives on WikiTree?", "are any of my relatives on WikiTree?", "find relatives", "What's in the bio?", "Who is in the bio?", "Show me the bio", "Is the WT+ page up?", "check for duplicates", "check for profiles of Smith in Kent",
+    "Create profiles for the people in the bio", "Link the people in the bio to their profiles", "Which people in the bio were born in Kent?",
+    "Do the people in my bio have profiles?", "Who wrote the bio on this profile?", "Is the bio on WikiTree?", "Does anyone in the bio have a duplicate profile?",
+    "Are the sources in the bio on WikiTree?", "What does the profile text say about his family?", "Is anyone in the census in the bio on WikiTree?"])(
     "not: %s",
     (prompt) => expect(parseFindRelativesPrompt(prompt)).toBeNull()
   );
@@ -550,4 +580,31 @@ His wife was Bridget Christine McNulty.
   const himself = scoreCandidate(relative, bridget, { expectedPartner, spousesById: new Map([[1298, [{ ...otherEdward, Id: 5148, Name: "Cassidy-5148", MiddleName: "John" }]]]) });
   expect(himself.reasons).toContain("Married to Edward John Cassidy (Cassidy-5148), as in the biography");
   expect(himself.score).toBeGreaterThan(scored.score + 30);
+});
+
+// Beacall-491 (staging, 2026-10-07): a copy of Philip Beacall (Beacall-11). The children all have
+// Beacall-11 as their father; and only Beacall-20, not Beacall-149, is the linked profile.
+test("relatives whose father is another profile of the same name point to a possible duplicate", async () => {
+  const philip = { Id: 491, Name: "Beacall-491", FirstName: "Philip", LastNameAtBirth: "Beacall", Gender: "Male", BirthDate: "1823" };
+  const relatives = readRelativesFromBio(
+    "== Biography ==\nTheir children were...\n# [[Beacall-20|John Fabian (Beacall) Lacon]] (~1856 - >1939)\n# Jane Beacall (~1865 - )\n",
+    philip
+  );
+  expect(relatives.map((r) => r.given[0])).toEqual(["John", "Jane"]);
+  const other = { Id: 11, Name: "Beacall-11", FirstName: "Philip", LastNameAtBirth: "Beacall", Gender: "Male" };
+  const john = { Id: 20, Name: "Beacall-20", FirstName: "John", MiddleName: "Fabian", LastNameAtBirth: "Beacall", Gender: "Male", BirthDate: "1856-00-00", Father: 11 };
+  const johnRobert = { Id: 149, Name: "Beacall-149", FirstName: "John", MiddleName: "Robert", LastNameAtBirth: "Beacall", Gender: "Male", BirthDate: "1859-00-00" };
+  const jane = { Id: 22, Name: "Beacall-22", FirstName: "Jane", LastNameAtBirth: "Beacall", Gender: "Female", BirthDate: "1864-00-00", Father: 11 };
+  const results = await searchRelatives({
+    subject: philip,
+    relatives,
+    searchPerson: async ({ FirstName }) => ({ matches: FirstName === "John" ? [john, johnRobert] : [jane], total: 2 }),
+    getPeople: async () => [other],
+    getProfiles: async () => [john],
+  });
+  const johnResult = results.find((r) => r.relative.given[0] === "John");
+  const robert = johnResult.candidates.find((c) => c.profile.Name === "Beacall-149");
+  expect(robert?.reasons || []).not.toContain("The biography links to this profile");
+  const { message } = buildFindRelativesAnswer({ subjectLabel: "Philip (Beacall-491)", results, readBy: "read from its text" });
+  expect(message).toContain("**2 of them are already in the family of Philip Beacall (Beacall-11).** If that's the same person, Beacall-491 may be a duplicate of Beacall-11");
 });

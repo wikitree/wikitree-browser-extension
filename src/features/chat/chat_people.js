@@ -5,19 +5,21 @@ import { getGenerationFromAhnen } from "./chat_ahnentafel";
 import { getLocationFieldLabel } from "./chat_place_text";
 import { buildTreeAppRecommendations } from "./chat_tree_apps";
 import { getCountryFromLocation, isEmigrantRow, summarizeCountries } from "./chat_place_country";
-import { runDuplicateCheck } from "./chat_duplicates";
+import { describeDuplicate, findDuplicates, readDuplicateFinder, runDuplicateCheck } from "./chat_duplicates";
 import { buildBurialAnswer } from "./chat_burial";
 import {
   CANDIDATE_FIELDS,
   RELATIVE_SPOUSE_FIELDS,
   spousesOf,
   buildFindRelativesAnswer,
+  duplicateLines,
   buildRelativesAiPrompt,
   readRelativesFromBio,
   relativesFromAiJson,
   searchRelatives,
 } from "./chat_bio_relatives";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
+import { birthPlaceFromBio, birthYearFromBio, readPageAttached, readPageBio } from "./chat_bio_page";
 import { buildCompletenessGrid, buildCompletenessSummary, describeBranchCompleteness } from "./chat_completeness_data";
 import { showCompletenessHeatmapPopup } from "./chat_completeness_heatmap";
 import { buildNeedsHelpAnswer, buildQualitySummary } from "./chat_profile_quality_data";
@@ -111,6 +113,7 @@ export function relativeNameOf(person) {
 
 export function createChatPeopleHandlers({
   ChatIntent,
+  getProfilePersonInfo = () => null,
   WBE_CHAT_APP_ID,
   resolveConnectionTargetPerson,
   getLoggedInRootPerson,
@@ -1238,13 +1241,67 @@ export function createChatPeopleHandlers({
         return `I couldn't identify which profile you meant by "${targetName}". Try a WikiTree ID like Name-123, or a more specific name.`;
       }
     }
-    const [profile] = await WikiTreeAPI.getProfile(
-      WBE_CHAT_APP_ID,
-      key,
-      "Id,Name,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,RealName,Gender,BirthDate,Bio",
-      { bioFormat: "wiki", resolveRedirect: 1 }
-    );
+    let [profile] =
+      (await WikiTreeAPI.getProfile(
+        WBE_CHAT_APP_ID,
+        key,
+        "Id,Name,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,RealName,Gender,BirthDate,Bio",
+        { bioFormat: "wiki", resolveRedirect: 1 }
+      ).catch(() => [])) || [];
+    // Not in the API yet (a new profile, or the staging server): this page has the biography
+    // and the family already connected, which is all this needs (the user, 2026-10-07).
+    let pageAttached = null;
+    if (!profile?.Name && !targetName) {
+      const page = getProfilePersonInfo();
+      const pageBio = page?.Name ? readPageBio(document) : "";
+      if (pageBio) {
+        const year = Number(page.BirthYear) || birthYearFromBio(pageBio);
+        profile = {
+          Id: page.Id,
+          Name: page.Name,
+          FirstName: page.FirstName || String(page.FullName || "").split(" ")[0],
+          LastNameAtBirth: page.LastNameAtBirth || "",
+          RealName: page.FirstName || "",
+          Gender: page.Gender || "",
+          BirthDate: year ? String(year) : "",
+          Bio: pageBio,
+        };
+        pageAttached = readPageAttached(document, page.Name);
+      }
+    }
     if (!profile?.Name) return cantLoad(key);
+    // The profile person's own duplicates, alongside (the user, 2026-10-07).
+    const pagePerson = pageAttached
+      ? {
+          Id: profile.Id,
+          Name: profile.Name,
+          FirstName: profile.FirstName,
+          RealName: profile.FirstName,
+          LastNameAtBirth: profile.LastNameAtBirth,
+          Gender: profile.Gender,
+          BirthDate: profile.BirthDate ? `${profile.BirthDate}-00-00` : "",
+          BirthLocation: birthPlaceFromBio(profile.Bio),
+        }
+      : null;
+    // The Duplicate Finder's scored pairs when it has looked at this profile; otherwise (a new
+    // profile, or staging) Find Matches, scored here.
+    const duplicatesPromise = (async () => {
+      const finder = pagePerson ? null : await readDuplicateFinder(profile.Name);
+      if (finder?.lookupAvailable) return finder;
+      const found = await findDuplicates(
+        WBE_CHAT_APP_ID,
+        { Id: profile.Id, Name: profile.Name, RealName: profile.RealName || profile.FirstName },
+        (url) => {
+          const [path, query = ""] = url.split("?");
+          return getWikiTreePage("Chat", path, query);
+        },
+        { pagePerson }
+      );
+      return { ...found, likely: (found.likely || []).map(describeDuplicate) };
+    })().catch((error) => {
+      console.warn("wbe: duplicate check failed", error);
+      return null;
+    });
     const subjectLabel = `${profile.RealName || profile.FirstName || profile.Name} (${profile.Name})`;
     const bio = profile.Bio || profile.bio || ""; // the API returns "bio"
     if (!bio.replace(/\[\[Category:[^\]]*\]\]|==[^=]+==|<references\s*\/>/g, "").trim()) {
@@ -1278,26 +1335,33 @@ export function createChatPeopleHandlers({
     if (roles.length) relatives = relatives.filter((relative) => roles.includes(relative.role));
     if (!relatives.length) {
       // (not "I couldn't…": that hands the question to the AI, or with AI off hides this behind "We need AI")
-      return `No ${roles.length ? "such relatives" : "relatives"} found in ${subjectLabel}'s biography. Genie looks for "son of …", "daughter of …", "married …" and census household tables${
-        aiKey ? "" : "; with an AI key Genie can read biographies written in other ways"
-      }.`;
+      const duplicates = await duplicatesPromise;
+      return [
+        `No ${roles.length ? "such relatives" : "relatives"} found in ${subjectLabel}'s biography. Genie looks for "son of …", "daughter of …", "married …" and census household tables${
+          aiKey ? "" : "; with an AI key Genie can read biographies written in other ways"
+        }.`,
+        ...duplicateLines(duplicates, subjectLabel),
+      ].join("\n");
     }
     relatives = relatives.slice(0, 40);
 
-    const [entry] =
-      (await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, profile.Id, "Id,Name,FirstName,Gender,BirthDate", {
-        getParents: 1,
-        getSpouses: 1,
-        getChildren: 1,
-        getSiblings: 1,
-      })) || [];
-    const person = entry?.person || {};
-    const attached = [
-      ...Object.values(person.Parents || {}).map((p) => ({ role: p.Gender === "Female" ? "mother" : "father", profile: p })),
-      ...Object.values(person.Spouses || {}).map((p) => ({ role: "spouse", profile: p })),
-      ...Object.values(person.Children || {}).map((p) => ({ role: "child", profile: p })),
-      ...Object.values(person.Siblings || {}).map((p) => ({ role: "sibling", profile: p })),
-    ];
+    let attached = pageAttached;
+    if (!attached) {
+      const [entry] =
+        (await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, profile.Id, "Id,Name,FirstName,Gender,BirthDate", {
+          getParents: 1,
+          getSpouses: 1,
+          getChildren: 1,
+          getSiblings: 1,
+        })) || [];
+      const person = entry?.person || {};
+      attached = [
+        ...Object.values(person.Parents || {}).map((p) => ({ role: p.Gender === "Female" ? "mother" : "father", profile: p })),
+        ...Object.values(person.Spouses || {}).map((p) => ({ role: "spouse", profile: p })),
+        ...Object.values(person.Children || {}).map((p) => ({ role: "child", profile: p })),
+        ...Object.values(person.Siblings || {}).map((p) => ({ role: "sibling", profile: p })),
+      ];
+    }
 
     notify(`Searching WikiTree for ${relatives.length} relative${relatives.length === 1 ? "" : "s"}…`);
     const results = await searchRelatives({
@@ -1319,7 +1383,10 @@ export function createChatPeopleHandlers({
         return new Map(items.map((item) => [Number(item?.person?.Id), spousesOf(item?.person)]).filter(([id]) => id));
       },
     });
-    return buildFindRelativesAnswer({ subjectLabel, results, readBy });
+    const duplicates = await duplicatesPromise;
+    const answer = buildFindRelativesAnswer({ subjectLabel, results, readBy, duplicates });
+    if (pageAttached) answer.message += "\n(Read from this page: the profile isn't in WikiTree's API yet.)";
+    return answer;
   }
 
   async function tryHandlePersonMarriagePrompt(params, prompt = "") {

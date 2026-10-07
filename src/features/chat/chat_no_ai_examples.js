@@ -83,9 +83,9 @@ export const NO_AI_EXAMPLE_SECTIONS = [
       { pattern: "birthdays and anniversaries", examples: ["on this day in my family", "who in my family was born in March"] },
       { pattern: "about the profile you're on", examples: ["her children", "When did she marry?", "How old was he when his first child was born?"] },
       {
-        pattern: "find [his / her] family on WikiTree",
-        examples: ["find his family on WikiTree", "are her parents on WikiTree?"],
-        note: "Reads the parents, wife or husband, children and brothers and sisters named in the biography, and searches WikiTree for each.",
+        pattern: "check for profiles / find [his / her] family on WikiTree",
+        examples: ["check for profiles", "find his family on WikiTree", "are her parents on WikiTree?"],
+        note: "Reads the parents, wife or husband, children and brothers and sisters named in the biography, searches WikiTree for each, and checks the profile for duplicates.",
       },
     ],
   },
