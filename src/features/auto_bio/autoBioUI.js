@@ -5,6 +5,7 @@
 import $ from "jquery";
 import * as Diff from "diff";
 import { getFeatureOptions } from "../../core/options/options_storage";
+import { effectiveAiProvider } from "../../core/options/shared_ai_options";
 import { isIansProfile } from "../../core/pageType";
 import { addWorking, getBioText, removeWorking, setBioText } from "./editorUtils.js";
 import { initBioCheck } from "../bioCheck/bioCheck.js";
@@ -315,7 +316,7 @@ async function improveBioWithAI(e) {
       return;
     }
 
-    const provider = window.autoBioOptions?.aiProvider || "openai";
+    const provider = effectiveAiProvider(window.autoBioOptions || {});
     let selectedKey = "";
     let selectedModel = window.autoBioOptions?.aiModel || "";
 
@@ -336,6 +337,7 @@ async function improveBioWithAI(e) {
       if (!selectedModel) selectedModel = window.autoBioOptions?.xaiModel || "grok-4.3";
     }
 
+    selectedKey = String(selectedKey || "").trim();
     const requestPayload = {
       action: "improveBioWithAI", // FIXED: Matches background.js listener
       oldBio: oldBio,

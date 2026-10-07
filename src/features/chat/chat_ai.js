@@ -1,4 +1,4 @@
-import { SHARED_AI_DEFAULT_MODELS } from "../../core/options/shared_ai_options";
+import { SHARED_AI_DEFAULT_MODELS, effectiveAiProvider } from "../../core/options/shared_ai_options";
 
 // "AI on / AI off" in Genie's header: with a key, AI off answers as if there
 // were none (to try the no-key experience without removing it). Kept per browser.
@@ -72,7 +72,7 @@ export function createChatAiHelpers({
   // { ignorePause: true } reads the real key (for showing the AI on/off button).
   async function getChatAiConfig({ ignorePause = false } = {}) {
     const options = (await getChatOptions?.()) || {};
-    const provider = options.aiProvider || "openai";
+    const provider = effectiveAiProvider(options);
     let key = "";
     let model = options.aiModel || "";
 
@@ -94,6 +94,7 @@ export function createChatAiHelpers({
       model = model || options.xaiModel || SHARED_AI_DEFAULT_MODELS.xai;
     }
 
+    key = String(key).trim(); // a pasted key can carry a space or line break
     if (!ignorePause && key && isAiPaused()) return { provider, key: "", model, paused: true };
     return { provider, key, model };
   }
