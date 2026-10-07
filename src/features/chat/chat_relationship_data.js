@@ -390,6 +390,75 @@ export function buildRelationshipLines(path, analysis) {
   return { ancestors, line1, line2 };
 }
 
+// X-DNA (Murray, 2026-10-07: "if the path between two people is an xDNA path, it should be
+// noted, highlighted even. Finding xDNA match is not easy"). X passes from a mother to every
+// child and from a father to his daughters only, so a line carries it unless it has a
+// father-to-son link.
+const isMale = (person) => /^m/i.test(String(person?.gender || ""));
+const isFemale = (person) => /^f/i.test(String(person?.gender || ""));
+
+/** A line from the top down: {ok: true} | {ok: false, father, son} | {ok: null} (a gender missing). */
+function xDnaDownLine(line) {
+  let unknown = false;
+  for (let i = 0; i + 1 < line.length; i += 1) {
+    const [parent, child] = [line[i], line[i + 1]];
+    if (isMale(parent) && isMale(child)) return { ok: false, father: parent, son: child };
+    if (!isFemale(parent) && !isFemale(child) && !(isMale(parent) && isMale(child))) unknown = true;
+  }
+  return { ok: unknown ? null : true };
+}
+
+/**
+ * Whether X-DNA can come down to both people. lines: buildRelationshipLines (each line from
+ * the common ancestors' child down). → {kind: "x", sources: [ancestor]} (the ancestors whose
+ * X can reach both), {kind: "blocked", father, son}, or {kind: "unknown"}.
+ */
+export function xDnaPath(lines) {
+  if (!lines?.ancestors?.length || !lines.line1?.length || !lines.line2?.length) return { kind: "unknown" };
+  const downs = [lines.line1, lines.line2].map(xDnaDownLine);
+  const blocked = downs.find((down) => down.ok === false);
+  if (blocked) return { kind: "blocked", father: blocked.father, son: blocked.son };
+  if (downs.some((down) => down.ok === null)) return { kind: "unknown" };
+  const tops = [lines.line1[0], lines.line2[0]];
+  // A mother passes X to every child; a father only to daughters.
+  const sources = lines.ancestors.filter((a) => isFemale(a) || (isMale(a) && tops.every(isFemale)));
+  if (sources.length) return { kind: "x", sources };
+  if (lines.ancestors.some((a) => !isFemale(a) && !isMale(a)) || tops.some((p) => !isFemale(p) && !isMale(p))) return { kind: "unknown" };
+  const father = lines.ancestors.find(isMale);
+  return { kind: "blocked", father, son: tops.find(isMale) };
+}
+
+/**
+ * A direct line from getConnections (all "parent" steps or all "child" steps) as people from
+ * the ancestor down, or null.
+ */
+export function directLineDown(path) {
+  const steps = Array.isArray(path) ? path : [];
+  if (steps.length < 2) return null;
+  const types = steps.slice(1).map((p) => p?.pathType);
+  const people = steps.map(chartPerson);
+  if (types.every((t) => t === "parent")) return people.reverse();
+  if (types.every((t) => t === "child")) return people;
+  return null;
+}
+
+/** The highlighted X-DNA line for the chat, or "" when X-DNA can't come down both lines. */
+export function xDnaSentence(lines, label1, label2) {
+  const xdna = xDnaPath(lines);
+  if (xdna.kind !== "x") return "";
+  const names = joinNames(xdna.sources.map((a) => (a.wtid ? `${a.name} (${a.wtid})` : a.name)));
+  const pair = label1 === "you" ? `you and ${label2}` : `${label1} and ${label2}`;
+  return `**X-DNA path:** X-DNA can come down both lines from ${names} to ${pair}: there's no father-to-son link on either line. An X-DNA match could support this relationship.`;
+}
+
+/** The same for a direct line (ancestor first), or "". */
+export function directXDnaSentence(lineDown) {
+  if (!Array.isArray(lineDown) || lineDown.length < 2 || xDnaDownLine(lineDown).ok !== true) return "";
+  const [top, bottom] = [lineDown[0], lineDown[lineDown.length - 1]];
+  const who = (p) => (p.wtid ? `${p.name} (${p.wtid})` : p.name);
+  return `**X-DNA path:** X-DNA can come straight down from ${who(top)} to ${who(bottom)}: there's no father-to-son link on the line.`;
+}
+
 /** "how am I related to X?", "what's my relationship to X": the relationship leads the answer ("connected" asks for the path). */
 export function asksForRelationship(prompt) {
   const text = String(prompt || "");

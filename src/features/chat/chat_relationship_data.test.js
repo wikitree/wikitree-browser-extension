@@ -205,3 +205,56 @@ describe("asksForRelationship / relationshipLead", () => {
     expect(relationshipLead("No relationship found", "Ann")).toBe("");
   });
 });
+
+describe("X-DNA path (Murray, 2026-10-07)", () => {
+  const { xDnaPath, xDnaSentence, directLineDown, directXDnaSentence } = require("./chat_relationship_data");
+  const p = (first, gender, wtid = "") => ({ first, name: `${first} Smith`, gender, wtid });
+  const mary = p("Mary", "Female", "Smith-2");
+  const john = p("John", "Male", "Smith-1");
+
+  test("a mother's X can reach both lines when no father has a son on them", () => {
+    // Mary → Ann → Tom (you) and Mary → Bob → Jane
+    const lines = { ancestors: [john, mary], line1: [p("Ann", "Female"), p("Tom", "Male")], line2: [p("Bob", "Male"), p("Jane", "Female")] };
+    expect(xDnaPath(lines)).toEqual({ kind: "x", sources: [mary] });
+    expect(xDnaSentence(lines, "you", "Jane")).toBe(
+      "**X-DNA path:** X-DNA can come down both lines from Mary Smith (Smith-2) to you and Jane: there's no father-to-son link on either line. An X-DNA match could support this relationship."
+    );
+  });
+
+  test("the father too when both of his children on the lines are daughters", () => {
+    const lines = { ancestors: [john, mary], line1: [p("Ann", "Female")], line2: [p("Sue", "Female")] };
+    expect(xDnaPath(lines).sources).toEqual([john, mary]);
+  });
+
+  test("a father-to-son link blocks it", () => {
+    const bob = p("Bob", "Male");
+    const jim = p("Jim", "Male");
+    const lines = { ancestors: [john, mary], line1: [p("Ann", "Female")], line2: [bob, jim] };
+    expect(xDnaPath(lines)).toEqual({ kind: "blocked", father: bob, son: jim });
+    expect(xDnaSentence(lines, "you", "Jim")).toBe("");
+  });
+
+  test("a lone father with a son at the top blocks it", () => {
+    const bob = p("Bob", "Male");
+    expect(xDnaPath({ ancestors: [john], line1: [p("Ann", "Female")], line2: [bob] })).toEqual({ kind: "blocked", father: john, son: bob });
+  });
+
+  test("a missing gender where it matters: unknown, so nothing is claimed", () => {
+    expect(xDnaPath({ ancestors: [mary], line1: [p("Ann", "Female")], line2: [p("Bob", "Male"), p("Kim", "")] }).kind).toBe("unknown");
+    // (a mother's child of unknown gender doesn't matter)
+    expect(xDnaPath({ ancestors: [mary], line1: [p("Ann", "")], line2: [p("Sue", "Female")] }).kind).toBe("x");
+  });
+
+  test("a direct line", () => {
+    const path = [
+      { Name: "Smith-9", FirstName: "Tom", LastNameAtBirth: "Smith", Gender: "Male" },
+      { Name: "Jones-3", FirstName: "Ann", LastNameAtBirth: "Jones", Gender: "Female", pathType: "parent" },
+      { Name: "Brown-4", FirstName: "Edward", LastNameAtBirth: "Brown", Gender: "Male", pathType: "parent" },
+    ];
+    const down = directLineDown(path);
+    expect(down.map((x) => x.wtid)).toEqual(["Brown-4", "Jones-3", "Smith-9"]);
+    expect(directXDnaSentence(down)).toBe("**X-DNA path:** X-DNA can come straight down from Edward Brown (Brown-4) to Tom Smith (Smith-9): there's no father-to-son link on the line.");
+    path[1].Gender = "Male";
+    expect(directXDnaSentence(directLineDown(path))).toBe("");
+  });
+});

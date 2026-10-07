@@ -2,7 +2,17 @@ import { findWikiTreeIdOnWikidata } from "./chat_wikidata";
 import { sharedParentIds, topSiblingSteps } from "./chat_connection_common";
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { getRelationJSON } from "../../core/API/wwwWikiTree";
-import { analyseRelationship, asksForRelationship, buildRelationshipLines, describeRelationship, relationshipLead } from "./chat_relationship_data";
+import {
+  analyseRelationship,
+  asksForRelationship,
+  buildRelationshipLines,
+  describeRelationship,
+  directLineDown,
+  directXDnaSentence,
+  relationshipLead,
+  xDnaPath,
+  xDnaSentence,
+} from "./chat_relationship_data";
 import { showRelationshipPopup } from "./chat_relationship_chart";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { getProfilePersonInfo } from "../../core/common";
@@ -1621,14 +1631,19 @@ export function createChatConnectionHandlers({
 
   // The relationship chart: getConnections relation=2 runs up through the common ancestor
   // and down again, which is the two lines of descent.
-  async function openRelationshipChart(sourceWtId, targetWtId, relationship, relationshipText, targetName) {
+  // The blood line (getConnections relation=2: up through the common ancestor and down again).
+  function fetchBloodPath(sourceWtId, targetWtId) {
+    return WikiTreeAPI.getConnections(
+      "Chat",
+      [sourceWtId, targetWtId],
+      "Id,Name,Gender,Photo,PhotoData,RealName,FirstName,LastNameAtBirth,LastNameCurrent,Suffix,BirthDate,BirthLocation,DeathDate,Father,Mother",
+      { relation: 2 }
+    );
+  }
+
+  async function openRelationshipChart(sourceWtId, targetWtId, relationship, relationshipText, targetName, bloodPath = null) {
     try {
-      const data = await WikiTreeAPI.getConnections(
-        "Chat",
-        [sourceWtId, targetWtId],
-        "Id,Name,Gender,Photo,PhotoData,RealName,FirstName,LastNameAtBirth,LastNameCurrent,Suffix,BirthDate,BirthLocation,DeathDate,Father,Mother",
-        { relation: 2 }
-      );
+      const data = bloodPath || (await fetchBloodPath(sourceWtId, targetWtId));
       const lines = buildRelationshipLines(data?.path, relationship);
       if (!lines) {
         console.debug("wbe: relationship chart: no line of descent", { data });
@@ -1638,6 +1653,7 @@ export function createChatConnectionHandlers({
         title: `Relationship: ${lines.line1[lines.line1.length - 1]?.first || sourceWtId} and ${targetName || targetWtId}`,
         relationship: /^No relationship found$/i.test(relationshipText) ? "" : relationshipText,
         route: relationship.routes[0],
+        xDna: xDnaPath(lines),
         otherRoutes: relationship.routes.length - 1,
         rootKey: sourceWtId,
       });
@@ -1889,17 +1905,28 @@ export function createChatConnectionHandlers({
       // the common ancestors, every route and the DNA relatives this close share.
       let relationshipDetails = "";
       let relationship = null;
+      let bloodPath = null;
       if (sourceRoot.wtId && targetWtId) {
         try {
           const legacy = await getRelationJSON("Chat", sourceRoot.wtId, targetWtId);
           if (!relationshipText) relationshipText = parseLegacyRelationshipLabel(legacy);
           relationship = analyseRelationship(legacy);
-          relationshipDetails = describeRelationship(
-            relationship,
-            sourceRoot.subjectType === "user" ? "you" : sourceRoot.displayName || sourceRoot.wtId,
-            String(displayName).split(" ")[0] || displayName,
-            { gender1: data?.path?.[0]?.Gender || "" }
-          );
+          const label1 = sourceRoot.subjectType === "user" ? "you" : sourceRoot.displayName || sourceRoot.wtId;
+          const label2 = String(displayName).split(" ")[0] || displayName;
+          relationshipDetails = describeRelationship(relationship, label1, label2, { gender1: data?.path?.[0]?.Gender || "" });
+          // X-DNA needs everyone on the two lines and their genders (Murray, 2026-10-07).
+          if (relationship?.kind === "common" || relationship?.kind === "direct") {
+            try {
+              bloodPath = await fetchBloodPath(sourceRoot.wtId, targetWtId);
+              const xLine =
+                relationship.kind === "common"
+                  ? xDnaSentence(buildRelationshipLines(bloodPath?.path, relationship), label1, label2)
+                  : directXDnaSentence(directLineDown(bloodPath?.path));
+              if (xLine) relationshipDetails = [relationshipDetails, xLine].filter(Boolean).join("\n");
+            } catch (error) {
+              console.debug("wbe: X-DNA check failed", error);
+            }
+          }
         } catch (error) {
           console.debug("wbe: relationship details failed", error);
         }
@@ -1937,7 +1964,7 @@ export function createChatConnectionHandlers({
       const sourceText = sourceRoot.subjectType === "user" ? "you" : `${sourceRoot.displayName} (${sourceRoot.wtId})`;
       const lead = relationship?.kind === "common" && asksForRelationship(prompt) ? relationshipLead(relationshipText, `${displayName} (${targetWtId})`, sourceText) : "";
       if (lead) {
-        openRelationshipChart(sourceRoot.wtId, targetWtId, relationship, relationshipText, displayName);
+        openRelationshipChart(sourceRoot.wtId, targetWtId, relationship, relationshipText, displayName, bloodPath);
       } else {
         try {
           showConnectionsPopup([data]);
@@ -1991,7 +2018,7 @@ export function createChatConnectionHandlers({
             ? [
                 {
                   label: "Relationship chart",
-                  onClick: () => openRelationshipChart(sourceRoot.wtId, targetWtId, relationship, relationshipText, displayName),
+                  onClick: () => openRelationshipChart(sourceRoot.wtId, targetWtId, relationship, relationshipText, displayName, bloodPath),
                 },
               ]
             : []),

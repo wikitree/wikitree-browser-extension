@@ -82,6 +82,15 @@ export function showRelationshipPopup(lines, options = {}) {
   popup.querySelector(".wbe-rel-note").textContent =
     "The ribbon is the share of the common ancestors' DNA each person carries on average · hover a card for details · click to open the profile" +
     (others ? ` · related ${others === 1 ? "one other way" : `${others} other ways`} too (see the chat)` : "");
+  if (options.xDna?.kind === "x") {
+    // Highlighted (Murray, 2026-10-07): X-DNA matches are hard to find.
+    const badge = document.createElement("span");
+    badge.className = "wbe-rel-xdna";
+    badge.textContent = "X-DNA path";
+    badge.title = "X-DNA can come down both lines: there's no father-to-son link on either";
+    badge.style.cssText = "background:#7b3fb3;color:#fff;font-weight:700;border-radius:10px;padding:1px 9px;margin-right:8px;white-space:nowrap";
+    popup.querySelector(".wbe-chart-toolbar").prepend(badge);
+  }
   const stage = popup.querySelector(".wbe-chart-stage");
   const tip = popup.querySelector(".wbe-chart-tip");
   const route = options.route || {};
@@ -393,11 +402,15 @@ export function showRelationshipPopup(lines, options = {}) {
       const cm = k >= 2 ? ` (≈${Math.round((share(k) * 6800) / 10) * 10} cM)` : "";
       return `${person?.first || "?"}: ≈${pct} of their DNA${cm}`;
     });
+  const xDnaSources = options.xDna?.kind === "x" ? options.xDna.sources.map((a) => a.first || String(a.name).split(" ")[0]) : [];
   const dnaLines = () =>
-    (route.ancestors || []).flatMap((a) => [
-      a.yDNA ? `Y-DNA: ${String(a.name).split(" ")[0]}'s passes father to son down both lines` : "",
-      a.mtDNA ? `mtDNA: ${String(a.name).split(" ")[0]}'s passes through the mothers on both lines` : "",
-    ]).filter(Boolean);
+    (route.ancestors || [])
+      .flatMap((a) => [
+        a.yDNA ? `Y-DNA: ${String(a.name).split(" ")[0]}'s passes father to son down both lines` : "",
+        a.mtDNA ? `mtDNA: ${String(a.name).split(" ")[0]}'s passes through the mothers on both lines` : "",
+      ])
+      .concat(xDnaSources.length ? [`X-DNA: ${xDnaSources.join(" or ")}'s can come down both lines`] : [])
+      .filter(Boolean);
   function panelHeight() {
     return 34 + 2 * 44 + 26 + 2 * 17 + dnaLines().length * 17 + 14;
   }
