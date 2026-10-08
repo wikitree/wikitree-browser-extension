@@ -40,7 +40,7 @@ import { parseChildPickPrompt } from "./chat_child_pick";
 import { splitKinDetailsClause } from "./chat_kin_details";
 import { splitKinOrderClause } from "./chat_kin_order";
 import { splitKinFilterClause } from "./chat_kin_filter";
-import { parseAncestorDepthOwner } from "./chat_ancestor_depth";
+import { parseAncestorDepthOwner, parseAncestorSummaryOwner } from "./chat_ancestor_depth";
 import { parseResultPickPrompt } from "./chat_result_pick";
 import { isProfileNarrativePrompt } from "./chat_profile_narrative";
 
@@ -2577,6 +2577,15 @@ export function parseAncestorDepthPrompt(text) {
   return base ? { ...base, generation: MAX_ANCESTOR_GENERATIONS, includeUpTo: true, pick: "depth", subjectText: `${owner} ancestors` } : null;
 }
 
+// "how many direct ancestors does he have?", with or without "what is the
+// earliest birthdate" and "how many generations back": the count, the depth
+// and the earliest-born ancestor in one answer (live, 2026-10-08).
+export function parseAncestorSummaryPrompt(text) {
+  const owner = parseAncestorSummaryOwner(text);
+  const base = owner ? parseAncestorListPrompt(`${owner} ancestors`) : null;
+  return base ? { ...base, generation: MAX_ANCESTOR_GENERATIONS, includeUpTo: true, pick: "summary", subjectText: `${owner} ancestors` } : null;
+}
+
 export function parseAncestorPickPrompt(text) {
   const m = String(text || "")
     .trim()
@@ -2828,6 +2837,10 @@ function routeChatPromptUnchecked(prompt, options = {}) {
     if (livingDescendants?.livingOnly) return { intent: ChatIntent.DESCENDANT_LIST, params: livingDescendants };
   }
   const hasStructuredResult = Boolean(options?.hasStructuredResult);
+  // Before the narrative check: "...can you see beyond the chart on this page?"
+  // read as a question about the profile text (live, 2026-10-08).
+  const ancestorSummary = /\bancestors?\b/i.test(String(prompt || "")) ? parseAncestorSummaryPrompt(prompt) : null;
+  if (ancestorSummary) return { intent: ChatIntent.ANCESTOR_LIST, params: ancestorSummary };
   if (isProfileNarrativePrompt(prompt)) {
     return { intent: ChatIntent.FALLBACK_AI, params: { profileNarrative: true } };
   }
@@ -2868,7 +2881,8 @@ function routeChatPromptUnchecked(prompt, options = {}) {
     parseAncestorPlacePrompt(prompt) ||
     parseAncestorPickPrompt(prompt) ||
     parseAncestorDepthPrompt(prompt) ||
-    parseLongestLivedPrompt(prompt);
+    parseLongestLivedPrompt(prompt) ||
+    parseAncestorSummaryPrompt(prompt);
   if (generationCount) {
     return {
       intent: ChatIntent.ANCESTOR_LIST,
@@ -2891,7 +2905,27 @@ function routeChatPromptUnchecked(prompt, options = {}) {
     return { intent: ChatIntent.ANCESTOR_LIST, params: ancestorsInPlace };
   }
 
+  // "show Weatherall-111's sources" was a relation called "sources" (live, 2026-10-08).
+  const earlySources = /\b(?:sources?|citations?|references?)\b/i.test(prompt) ? parseProfileSourcesPrompt(prompt) : null;
+  if (earlySources) return { intent: ChatIntent.PROFILE_SOURCES, params: earlySources };
+
   const relationQuery = parseRelationPrompt(prompt);
+  // "show Weatherall-111's ancestors" (a suggested follow-up, live 2026-10-08)
+  // was a relation called "ancestors", which the relation handler can't walk.
+  if (relationQuery && /^(?:(?:all|direct|known|recorded)\s+)*ancestors$/i.test(relationQuery.relationRaw || "")) {
+    const named = relationQuery.subjectMode === "named" && relationQuery.subjectName;
+    const owner = named ? `${relationQuery.subjectName}'s` : relationQuery.subjectMode === "user" ? "my" : "their";
+    const base = parseAncestorListPrompt(`${owner} ancestors`);
+    if (base) {
+      return {
+        intent: ChatIntent.ANCESTOR_LIST,
+        params:
+          relationQuery.mode === "count"
+            ? { ...base, generation: MAX_ANCESTOR_GENERATIONS, includeUpTo: true, pick: "summary", subjectText: `${owner} ancestors` }
+            : { ...base, subjectText: `${owner} ancestors` },
+      };
+    }
+  }
   if (relationQuery) {
     return {
       intent: ChatIntent.RELATION_COUNT,

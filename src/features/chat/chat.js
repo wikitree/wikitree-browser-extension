@@ -22,6 +22,7 @@ import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { buildConnectedTestsAnswer, buildHaplogroupAnswer, dnaTypesFromTestSlugs } from "./chat_dna";
 import { getUserWtId, getUserNumId, getProfilePersonInfo } from "../../core/common";
+import { vetSuggestions } from "./chat_suggestions";
 import { setHighestZIndex } from "../../core/common";
 import { routeChatPrompt, ChatIntent, pause, parseExportResultPrompt } from "./chat_router";
 import { CHART_BAR_KEYS, CHART_SHORTCUTS, chartButtonPrompt, chartShortcutCanonicalPrompt } from "./chat_chart_shortcuts";
@@ -3503,7 +3504,15 @@ async function sendChatPrompt() {
       if (answer.cannot) recordUnanswered(prompt, answer.text.split("\n")[0].slice(0, 160));
       appendMessage("assistant", answer.text || "No response text returned.", {
         badge: answer.cannot ? "Couldn't answer" : "AI answer",
-        actions: suggestionActions(answer.suggestions).map((action) => ({
+        // Only follow-ups Genie's own code runs; when the AI couldn't answer,
+        // fill up with requests on the same topic for the person asked about.
+        actions: suggestionActions(
+          vetSuggestions(answer.suggestions, {
+            question: prompt,
+            id: lastAnswerSubject?.wtId || getProfileRootPerson()?.wtId || "",
+            want: answer.cannot ? 3 : Math.min(2, answer.suggestions.length),
+          })
+        ).map((action) => ({
           ...action,
           onClick: () => sendClarifiedPrompt(action.prompt, { newSearch: true }),
         })),

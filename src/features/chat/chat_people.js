@@ -86,7 +86,7 @@ import {
   relationSelector,
 } from "./chat_relative_fact";
 import { descendantCountMessage, pickSpouseByOrdinal, relationshipListLead } from "./chat_relation_chain_text";
-import { buildAncestorDepthMessage } from "./chat_ancestor_depth";
+import { buildAncestorDepthMessage, buildAncestorSummaryMessage } from "./chat_ancestor_depth";
 import { buildTwinsAnswer } from "./chat_twins";
 import { sortByBirth } from "./chat_kin_order";
 import { buildChildrenMarriedAnswer, buildChildrenWithChildrenAnswer } from "./chat_children_with_children";
@@ -609,6 +609,19 @@ export function createChatPeopleHandlers({
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${subjectLabel}'s`;
       return {
         message: buildAncestorDepthMessage(rows, owner, 25),
+        table: makeAncestorProfileTable(`ancestors for ${rootPerson.displayName}`, rows, [[0, "asc"]]),
+        actions: visualActions(rootPerson?.wtId || rootPerson?.key, "ancestors"),
+      };
+    }
+    if (pick === "summary") {
+      const isUser = rootPerson?.subjectType === "user";
+      return {
+        message: buildAncestorSummaryMessage(rows, {
+          subject: isUser ? "You have" : `${subjectLabel} has`,
+          ownerText: isUser ? "Your" : `${subjectLabel}'s`,
+          maxGeneration: 25,
+          formatDate: formatPreviewDate,
+        }),
         table: makeAncestorProfileTable(`ancestors for ${rootPerson.displayName}`, rows, [[0, "asc"]]),
         actions: visualActions(rootPerson?.wtId || rootPerson?.key, "ancestors"),
       };

@@ -70,6 +70,15 @@ describe("ancestor generation counts", () => {
     expect(result.table.rows.map((row) => row.wtid)).toEqual(["Grandad-1"]);
   });
 
+  // Live, 2026-10-08: "how many direct ancestors does he have? What is the
+  // earliest birthdate…?" got an AI answer from the bio alone.
+  test("summary: count, depth and earliest born", async () => {
+    const result = await run("how many ancestors do I have? Who was born earliest?");
+    expect(result.message.split("\n")[0]).toBe("You have 3 known ancestors on WikiTree, going back 2 generations (to the grandparents).");
+    expect(result.message).toMatch(/\n- 2\. grandparents: 1 of 4$/);
+    expect(result.table.rows).toHaveLength(3);
+  });
+
   test("a plain generation list carries the completeness note", async () => {
     const result = await run("show my grandparents", { generation: 2, relationshipLabel: "grandparents" });
     expect(result.message).toMatch(/^Here are grandparents for you \(Root-1\) \(1 found; 1 of your 4 possible grandparents \(25%\) are on WikiTree\):/);
