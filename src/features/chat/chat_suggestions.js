@@ -6,6 +6,7 @@
 // filled with requests on the same topic that are known to work.
 
 import { ChatIntent, routeChatPrompt } from "./chat_router";
+import { preferBracketedIds } from "./chat_family_circle_lookup";
 
 const ID = String.raw`[A-Z][A-Za-z'_-]*-\d+`;
 
@@ -24,10 +25,7 @@ function isKinRelation(relationRaw) {
 
 /** "show John Weatherall's (Weatherall-113) bio" → "show Weatherall-113's bio". */
 export function tidySuggestion(text) {
-  return String(text || "")
-    .replace(/[`*]/g, "")
-    .replace(new RegExp(String.raw`\b[A-Z][\w.'’-]*(?:\s+[A-Z(][\w.'’()-]*){0,5}['’]s\s+\((${ID})\)`, "g"), "$1's")
-    .replace(new RegExp(String.raw`\b[A-Z][\w.'’-]*(?:\s+[A-Z][\w.'’-]*){0,5}\s+\((${ID})\)`, "g"), "$1")
+  return preferBracketedIds(String(text || "").replace(/[`*]/g, ""))
     .replace(/\s+/g, " ")
     .trim()
     .replace(/[.!]+$/, "");

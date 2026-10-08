@@ -627,6 +627,7 @@ export function createChatConnectionHandlers({
   shouldOfferDisambiguation,
   resolveConnectionSourceRoot,
   resolveAliasToRememberedPerson,
+  findInFamilyCircle,
   resolveRelativeTarget,
   setPendingDisambiguationContext,
   buildDisambiguationMessage,
@@ -811,6 +812,17 @@ export function createChatConnectionHandlers({
         console.debug("wbe: resolveConnectionTargetPerson used remembered person", { cleanedTarget, rememberedWtId });
         return rememberedMatch;
       }
+    }
+
+    // A name with the profile person's or the user's surname, not linked on
+    // the page: look in their CC7 before searching all of WikiTree.
+    const familyMatch = await findInFamilyCircle?.(cleanedTarget).catch((error) => {
+      console.debug("wbe: family circle lookup failed", error);
+      return null;
+    });
+    if (familyMatch?.Name && !excludedWtIds.has(familyMatch.Name)) {
+      console.debug("wbe: resolveConnectionTargetPerson found name in family CC7", { cleanedTarget, wtId: familyMatch.Name });
+      return normalizeResolvedConnectionPerson(familyMatch);
     }
 
     const { firstName, lastName } = splitPersonName(cleanedTarget);

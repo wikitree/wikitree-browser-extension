@@ -181,6 +181,12 @@ const CHART_CSS = `
   .wbe-chart-popup .chat-popup-controls .wbe-chart-link { color: #1d5f8c; border-color: #9cc3de; background: #f2f8fc; }
   .wbe-chart-popup .chat-popup-controls .wbe-chart-link:hover { background: #e2eff8; }
   .wbe-chart-popup:fullscreen, .wbe-chart-popup.wbe-chart-full { left: 0 !important; top: 0 !important; width: 100vw !important; height: 100vh !important; max-width: none !important; max-height: none !important; border-radius: 0 !important; background: #fff; }
+  .wbe-chart-popup .chat-popup-header { position: relative; padding-right: 44px; }
+  .wbe-chart-popup .chat-popup-header .close-popup { position: absolute; top: 6px; right: 8px; width: 30px; height: 30px; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; box-shadow: none; color: #555; font-size: 0; cursor: pointer; }
+  .wbe-chart-popup .chat-popup-header .close-popup::before, .wbe-chart-popup .chat-popup-header .close-popup::after { content: ""; position: absolute; left: 50%; top: 50%; width: 16px; height: 2px; border-radius: 1px; background: currentColor; transform: translate(-50%, -50%) rotate(45deg); }
+  .wbe-chart-popup .chat-popup-header .close-popup::after { transform: translate(-50%, -50%) rotate(-45deg); }
+  .wbe-chart-popup .chat-popup-header .close-popup:hover { background: rgba(0,0,0,.08); color: #000; }
+  .wbe-chart-popup .chat-popup-header .close-popup:focus-visible { outline: 2px solid #2f6fb3; outline-offset: 1px; }
   .wbe-chart-popup .chat-popup-body { flex: 1; display: flex; flex-direction: column; padding: 0; overflow: hidden; position: relative; }
   .wbe-chart-toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 10px; border-bottom: 1px solid rgba(0,0,0,.08); font-size: 12px; }
   .wbe-chart-toolbar .wbe-chart-mode { border: 1px solid rgba(0,0,0,.15); background: transparent; border-radius: 999px; padding: 3px 10px; cursor: pointer; font-size: 12px; color: inherit; }

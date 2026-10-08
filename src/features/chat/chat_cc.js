@@ -540,6 +540,7 @@ export function createChatCcHandlers({
   }
 
   return {
+    getCcProfilesForUser,
     getCc7ProfilesForUser,
     tryHandleCc7LocationPrompt,
     tryHandleCcSummaryPrompt,

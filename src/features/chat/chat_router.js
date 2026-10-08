@@ -1,3 +1,4 @@
+import { preferBracketedIds } from "./chat_family_circle_lookup";
 import { parseFamilyMatrixPrompt } from "./chat_family_matrix_data";
 /*
 Intent router for Chat feature.
@@ -777,6 +778,8 @@ export function normalizeConnectionTargetForSearch(value) {
   return String(value || "")
     .trim()
     .replace(/[?.!]+$/, "")
+    // "show John Theodore Weatherall" was the target of "show John Theodore Weatherall's bio" (live, 2026-10-08).
+    .replace(/^(?:please\s+)?(?:show|open|read|display|get|find|give|fetch|pull\s+up|look\s+up)(?:\s+me)?\s+(?:the\s+)?/i, "")
     .replace(/\b(?:the\s+)?(?:actor|actress|singer|musician|writer|poet|politician|comedian|mp|sir|dame)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -798,8 +801,12 @@ export function extractCorrectionTarget(prompt) {
 // "Thomas Beacall (Beacall-13)": the ID in brackets decides who is meant. Name
 // search on the rest found someone else, even Prince Philip (live, 2026-10-04).
 export function embeddedWikiTreeId(value) {
-  const id = String(value || "").match(/\(([^()]+)\)\s*$/)?.[1]?.trim() || "";
-  return isWikiTreeId(id) ? id : "";
+  const text = String(value || "");
+  const id = text.match(/\(([^()]+)\)\s*$/)?.[1]?.trim() || "";
+  if (isWikiTreeId(id)) return id;
+  // "show Weatherall-113": an ID after a command word.
+  const last = normalizeConnectionTargetForSearch(text);
+  return /\s/.test(last) || !isWikiTreeId(last) ? "" : last;
 }
 
 // Surnames can hold hyphens and accents: Schleswig-Holstein-Sonderburg-Glücksburg-1.
@@ -2716,7 +2723,52 @@ export function parseKinGroupPrompt(prompt) {
   return null;
 }
 
+// Kin words a misspelling is mended to ("his agrandparents", live 2026-10-08).
+const KIN_SPELLINGS = [
+  "parents", "grandparents", "grandfathers", "grandmothers", "grandfather", "grandmother", "grandchildren",
+  "grandsons", "granddaughters", "siblings", "brothers", "sisters", "children", "daughters", "cousins",
+  "nieces", "nephews", "uncles", "aunts", "husbands", "spouses", "ancestors", "descendants", "father", "mother",
+  "brother", "sister", "daughter", "cousin", "niece", "nephew", "uncle", "husband", "spouse",
+];
+
+function withinOneEdit(a, b) {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  if (a.length === b.length) return a.slice(i + 1) === b.slice(i + 1) || (a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2));
+  return a.length > b.length ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1);
+}
+
+/**
+ * "How about his agrandparents?" → "his grandparents?": a follow-up lead-in is
+ * dropped, and a kin word one typo away (after his/her/their/my or 's) is mended.
+ */
+export function tidyKinFollowUp(prompt) {
+  let text = String(prompt || "").replace(
+    /\b(his|her|their|my|[\w-]+['’]s)\s+([a-z]{6,})\b/gi,
+    (whole, owner, word) => {
+      const lower = word.toLowerCase();
+      if (KIN_SPELLINGS.includes(lower) || KIN_SPELLINGS.includes(`${lower}s`) || /^(?:great|step|half)/.test(lower)) return whole;
+      // A changed first letter is another word ("pieces", not "nieces").
+      const fixed = KIN_SPELLINGS.find((kin) => (lower[0] === kin[0] || lower.slice(1) === kin) && withinOneEdit(lower, kin));
+      return fixed ? `${owner} ${fixed}` : whole;
+    }
+  );
+  const lead = text.match(/^\s*(?:(?:and|so|ok(?:ay)?|then)[,\s]+)?(?:(?:how|what)\s+about\s+)?(?=(?:his|her|their|my)\s)/i);
+  if (lead && lead[0].trim()) {
+    const rest = text.slice(lead[0].length);
+    const kin = rest.match(/^(?:his|her|their|my)\s+(?:(?:great|step|half|maternal|paternal|other)[\s-]*)*([a-z-]+?)['’]?s?\b/i)?.[1];
+    if (kin && KIN_SPELLINGS.some((word) => word.replace(/s$/, "") === kin.toLowerCase().replace(/s$/, "") || word === `${kin.toLowerCase()}ren`)) text = rest;
+  }
+  return text;
+}
+
 export function routeChatPrompt(prompt, options = {}) {
+  prompt = tidyKinFollowUp(preferBracketedIds(prompt));
+  // "show his family tree chart" was a text filter of the last result (live,
+  // 2026-10-08): a family tree or pedigree chart is the fan chart.
+  prompt = String(prompt || "").replace(/\b(?:family[\s-]+tree|pedigree|ancestor|ancestry)\s+(?:chart|diagram)\b/gi, "fan chart");
   // J4 (live, 2026-10-03): "her parents' other children" are her siblings.
   prompt = rewriteInLawTerms(prompt).replace(/\bparents['’](?:s)?\s+other\s+(children|kids|sons|daughters)\b/i, (_, noun) =>
     /^sons$/i.test(noun) ? "brothers" : /^daughters$/i.test(noun) ? "sisters" : "siblings"
@@ -2910,6 +2962,12 @@ function routeChatPromptUnchecked(prompt, options = {}) {
   if (earlySources) return { intent: ChatIntent.PROFILE_SOURCES, params: earlySources };
 
   const relationQuery = parseRelationPrompt(prompt);
+  // "show Weatherall-111's family tree chart" was a relation called "family
+  // tree chart" (live, 2026-10-08); a chart word makes it the chart.
+  if (relationQuery && /\b(?:chart|tree|map|timeline|cloud|fan|explorer|fractal|sunburst|overview|dashboard|calendar|lifespans?|pedigree|matrix)\b/i.test(relationQuery.relationRaw || "")) {
+    const chartShortcut = parseChartShortcutPrompt(prompt);
+    if (chartShortcut) return { intent: ChatIntent.CHART_SHORTCUT, params: chartShortcut };
+  }
   // "show Weatherall-111's ancestors" (a suggested follow-up, live 2026-10-08)
   // was a relation called "ancestors", which the relation handler can't walk.
   if (relationQuery && /^(?:(?:all|direct|known|recorded)\s+)*ancestors$/i.test(relationQuery.relationRaw || "")) {

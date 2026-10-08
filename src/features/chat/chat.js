@@ -23,8 +23,10 @@ import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { buildConnectedTestsAnswer, buildHaplogroupAnswer, dnaTypesFromTestSlugs } from "./chat_dna";
 import { getUserWtId, getUserNumId, getProfilePersonInfo } from "../../core/common";
 import { vetSuggestions } from "./chat_suggestions";
+import { SHARED_AI_KEY_IDS } from "../../core/options/shared_ai_options";
 import { setHighestZIndex } from "../../core/common";
-import { routeChatPrompt, ChatIntent, pause, parseExportResultPrompt } from "./chat_router";
+import { routeChatPrompt, ChatIntent, pause, parseExportResultPrompt, tidyKinFollowUp } from "./chat_router";
+import { familySurnames, findNameInProfiles, hasFamilySurname, preferBracketedIds } from "./chat_family_circle_lookup";
 import { CHART_BAR_KEYS, CHART_SHORTCUTS, chartButtonPrompt, chartShortcutCanonicalPrompt } from "./chat_chart_shortcuts";
 import "datatables.net-dt/css/jquery.dataTables.css";
 import "datatables.net";
@@ -1141,6 +1143,7 @@ const { resolveConnectionTargetPerson, tryHandleConnectionCorrectionPrompt, tryH
     // remembered "Stephen Brown" never answers for "Stephen Fry".
     // Relation handlers are created below; resolve lazily.
     resolveRelativeTarget: (targetText, prompt) => resolveRelativeTargetPeople(targetText, prompt),
+    findInFamilyCircle: (name) => findPersonInFamilyCircle(name),
     resolveAliasToRememberedPerson: (name) => {
       const resolution = resolvePromptAlias(name);
       if (!resolution?.person?.wtId) {
@@ -1198,7 +1201,7 @@ const reRunSavedWtPlusQuery = profileSearchHandlers.reRunSavedWtPlusQuery;
 const translateWtPlusRefinementTerms = profileSearchHandlers.translateWtPlusRefinementTerms;
 const getLastExecutedWtPlusQuery = profileSearchHandlers.getLastExecutedWtPlusQuery;
 
-const { getCc7ProfilesForUser, tryHandleCc7LocationPrompt, tryHandleCcSummaryPrompt, tryHandleWatchlistPrompt } =
+const { getCcProfilesForUser, getCc7ProfilesForUser, tryHandleCc7LocationPrompt, tryHandleCcSummaryPrompt, tryHandleWatchlistPrompt } =
   createChatCcHandlers({
     WikiTreeAPI,
     WBE_CHAT_APP_ID,
@@ -2861,6 +2864,31 @@ function sendClarifiedPrompt(prompt, { newSearch = false } = {}) {
   sendChatPrompt();
 }
 
+// "John Theodore Weatherall" on Weatherall-111's page (live, 2026-10-08): a
+// name with the profile person's or the user's surname is looked for in
+// their CC7 (getPeople, nuclear 7) before a search of all WikiTree.
+async function findPersonInFamilyCircle(name) {
+  const profile = getProfilePersonInfo() || {};
+  const userWtId = getUserWtId() || "";
+  const surnames = familySurnames({
+    profileWtId: profile.Name,
+    profileLastName: profile.LastNameAtBirth,
+    profileFullName: profile.FullName,
+    userWtId,
+  });
+  if (!hasFamilySurname(name, surnames)) return null;
+  const roots = [];
+  const profileSurnames = familySurnames({ profileWtId: profile.Name, profileLastName: profile.LastNameAtBirth, profileFullName: profile.FullName });
+  if (profile.Id && hasFamilySurname(name, profileSurnames)) roots.push(profile.Id);
+  const userNumId = getUserNumId();
+  if (userNumId && hasFamilySurname(name, familySurnames({ userWtId })) && !roots.includes(userNumId)) roots.push(userNumId);
+  for (const root of roots) {
+    const match = findNameInProfiles(name, await getCcProfilesForUser(root, 7));
+    if (match) return match;
+  }
+  return null;
+}
+
 async function sendChatPrompt() {
   const $input = $(`#${CHAT_INPUT_ID}`);
   if ($input.length === 0) return;
@@ -2877,7 +2905,9 @@ async function sendChatPrompt() {
   }
 
   // Normalize compact suggestion formats like "dbe803" to "Suggestions=803"
-  const normalizedPrompt = parseSuggestionNumberFromPrompt(rawPrompt);
+  // "John Theodore Weatherall's (Weatherall-113) bio" → "Weatherall-113's bio";
+  // "How about his agrandparents?" → "his grandparents?" (live, 2026-10-08).
+  const normalizedPrompt = tidyKinFollowUp(preferBracketedIds(parseSuggestionNumberFromPrompt(rawPrompt)));
 
   // "siblings of the wife of Sarah's father" -> "Sarah's father's wife's siblings",
   // the form the relation and bio handlers parse.
@@ -4511,8 +4541,28 @@ async function syncChatVisibilityToKeys() {
 // The "AI On / Off" switch: with a key, switch AI off to see Genie as someone without
 // one does. Without a key, it stays off and explains why a key is worth having.
 async function toggleAiPaused() {
-  const hasRealKey = Boolean((await getChatAiConfig({ ignorePause: true }))?.key);
+  // After the extension is reloaded or updated, a page that was already open
+  // can't read the settings any more, so the saved key looks missing.
+  if (!extensionContextAlive()) {
+    appendMessage("assistant", "The extension was updated or reloaded since this page opened, so Genie can't read your settings here. Reload this page and switch AI on again.", {
+      shouldPersist: false,
+    });
+    return;
+  }
+  const config = await getChatAiConfig({ ignorePause: true });
+  const hasRealKey = Boolean(config?.key);
   if (!hasRealKey) {
+    // Which AI settings Genie could see (never the keys themselves).
+    try {
+      const options = (await getChatOptions()) || {};
+      console.info("wbe: AI switch found no key", {
+        provider: config?.provider,
+        selected: options.aiProvider,
+        keysSaved: SHARED_AI_KEY_IDS.filter((keyId) => String(options[keyId] || "").trim()),
+      });
+    } catch (error) {
+      /* diagnostics only */
+    }
     showAiKeyHelp();
     return;
   }
@@ -4527,6 +4577,14 @@ async function toggleAiPaused() {
       : "AI is on.",
     { shouldPersist: false }
   );
+}
+
+function extensionContextAlive() {
+  try {
+    return Boolean(chrome?.runtime?.id);
+  } catch (error) {
+    return false;
+  }
 }
 
 // Inside the popup: a body-level overlay ends up under it (see .wbe-popup z-index).

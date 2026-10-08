@@ -302,6 +302,15 @@ function isLikelyWtPlusFilterPrompt(prompt) {
   );
 }
 
+/** "show John Smith's bio", "Smith-1's biography", "bio of John Smith". */
+export function isPersonBioRequest(prompt) {
+  const text = String(prompt || "").trim().replace(/[?.!]+$/, "");
+  return (
+    /['’]s?\s+(?:bio|biography)$/i.test(text) ||
+    /^(?:(?:please\s+)?(?:show|open|read|get|give)(?:\s+me)?\s+)?(?:the\s+)?(?:bio|biography)\s+(?:of|for)\s+\S/i.test(text)
+  );
+}
+
 function isLikelyRelationshipBioPrompt(prompt) {
   const normalizedPrompt = String(prompt || "").trim();
   if (!normalizedPrompt) {
@@ -1365,6 +1374,15 @@ export async function handleExplicitSearchMode({
 
       if (routed?.intent === ChatIntent?.FALLBACK_AI && isLikelyFamilyRelationPrompt(normalizedPrompt)) {
         console.debug("wbe: explicit wt mode deferring family-relation prompt to main flow", {
+          prompt: normalizedPrompt.substring(0, 60),
+        });
+        return { handled: false, prompt: normalizedPrompt };
+      }
+
+      // "show John Theodore Weatherall's bio" was searched for as a name (live,
+      // 2026-10-08); a bio request for a person is the bio handler's.
+      if (isPersonBioRequest(normalizedPrompt)) {
+        console.debug("wbe: explicit wt mode deferring person bio prompt to main flow", {
           prompt: normalizedPrompt.substring(0, 60),
         });
         return { handled: false, prompt: normalizedPrompt };

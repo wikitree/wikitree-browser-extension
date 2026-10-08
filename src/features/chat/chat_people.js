@@ -602,6 +602,26 @@ export function createChatPeopleHandlers({
     };
   }
 
+  // "show his ancestors" lists 10 generations unless asked for more (up to 25):
+  // say so, and offer the rest when the tree reaches the limit (2026-10-08).
+  function withDefaultGenerationNote(result, { usedDefaultGeneration, rows, generation, rootWtId, isUser }) {
+    if (!usedDefaultGeneration || !result || typeof result !== "object" || !rows?.length) return result;
+    const deepest = Math.max(...rows.map((row) => Number(row?.degrees) || 0));
+    const more = deepest >= generation && generation < 25;
+    const note = more
+      ? `This shows ${generation} generations, the usual number. ${isUser ? "Your" : "The"} tree goes further back: up to 25 generations can be shown.`
+      : `That's every ancestor on WikiTree: ${isUser ? "your" : "the"} tree goes back ${deepest} generation${deepest === 1 ? "" : "s"}.`;
+    const moreAction =
+      more && rootWtId
+        ? [{ label: "Show 25 generations", actionType: "send-prompt", prompt: `25 generations of ${isUser ? "my" : `${rootWtId}'s`} ancestors`, newSearch: true }]
+        : [];
+    return {
+      ...result,
+      trailingText: [note, result.trailingText].filter(Boolean).join("\n"),
+      actions: [...moreAction, ...(result.actions || [])],
+    };
+  }
+
   // C9: "most recent" = nearest generation, then latest birth; "earliest" =
   // earliest dated birth, else the most distant generation.
   function buildAncestorPickAnswer(rows, pick, { subjectLabel, rootPerson, locationPhrase, total, treeTakenAsAncestors }) {
@@ -3185,7 +3205,7 @@ export function createChatPeopleHandlers({
           return `I found no ${displayRelationshipLabel} for ${subjectLabel} in previously loaded data.`;
         }
 
-        return buildKinListResult({
+        const cachedResult = buildKinListResult({
           details: params?.details || [],
           order: params?.order || "",
           rows: ancestors,
@@ -3209,6 +3229,13 @@ export function createChatPeopleHandlers({
             dateDirection,
             dateValue,
           },
+        });
+        return withDefaultGenerationNote(cachedResult, {
+          usedDefaultGeneration: usedDefaultGeneration && !filterPhrase && !params?.details?.length,
+          rows: ancestors,
+          generation,
+          rootWtId: rootPerson.wtId,
+          isUser: rootPerson?.subjectType === "user",
         });
       }
     }
@@ -3365,7 +3392,7 @@ export function createChatPeopleHandlers({
         return { ...listResult, message: completeness, inlineMore: null };
       }
 
-      return buildKinListResult({
+      const listResult = buildKinListResult({
         details: params?.details || [],
         order: params?.order || "",
         rows: sortedAncestors,
@@ -3390,6 +3417,13 @@ export function createChatPeopleHandlers({
           dateDirection,
           dateValue,
         },
+      });
+      return withDefaultGenerationNote(listResult, {
+        usedDefaultGeneration: usedDefaultGeneration && !filterPhrase && !params?.details?.length,
+        rows: sortedAncestors,
+        generation,
+        rootWtId: rootPerson.wtId,
+        isUser: rootPerson?.subjectType === "user",
       });
     } catch (error) {
       return `I couldn't list ${relationshipLabel} for ${subjectLabel}. Error: ${error?.message || "unknown error"}`;

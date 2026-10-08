@@ -69,3 +69,28 @@ describe("chart buttons", () => {
     expect(routeChatPrompt("Jefferson descendants").intent).toBe(ChatIntent.CHART_SHORTCUT);
   });
 });
+
+// Live, 2026-10-08: "show Weatherall-111's family tree chart" (typed, AI on) was
+// a relation called "family tree chart", and the AI said there was no such view.
+describe("family tree / pedigree chart = the fan chart", () => {
+  test.each([
+    ["show Weatherall-111's family tree chart", "Weatherall-111"],
+    ["show his family tree chart", "his"],
+    ["my family tree chart", "my"],
+    ["show her pedigree chart", "her"],
+    ["Weatherall-111's ancestor chart", "Weatherall-111"],
+    ["show me a family tree diagram for Weatherall-111", "Weatherall-111"],
+  ])("%s", (prompt, owner) => {
+    expect(routeChatPrompt(prompt)).toMatchObject({ intent: ChatIntent.FAN_CHART, params: { owner } });
+  });
+
+  test("a leading 'show' doesn't hide a chart", () => {
+    expect(parseChartShortcutPrompt("show Weatherall-111's pedigree chart")).toEqual({ chart: "fan", owner: "Weatherall-111" });
+    expect(parseChartShortcutPrompt("show me Thomas Jefferson fractal")).toEqual({ chart: "explorer", owner: "Thomas Jefferson" });
+  });
+
+  test("relatives stay relatives", () => {
+    expect(routeChatPrompt("show Weatherall-111's children").intent).toBe(ChatIntent.RELATION_COUNT);
+    expect(routeChatPrompt("show Weatherall-111's descendants").intent).toBe(ChatIntent.DESCENDANT_LIST);
+  });
+});

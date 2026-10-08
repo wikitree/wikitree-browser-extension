@@ -79,6 +79,20 @@ describe("ancestor generation counts", () => {
     expect(result.table.rows).toHaveLength(3);
   });
 
+  // 2026-10-08: "show Weatherall-111's ancestors" said "within 10 generations"
+  // without saying that's the default, or that 25 can be shown.
+  test("the default 10 generations: says when that's the whole tree", async () => {
+    const result = await run("show my ancestors");
+    expect(result.trailingText).toMatch(/^That's every ancestor on WikiTree: your tree goes back 2 generations\./);
+    expect(result.actions.some((action) => action.label === "Show 25 generations")).toBe(false);
+  });
+
+  test("the default reaches the tree: offers 25 generations", async () => {
+    const result = await run("show my ancestors", { generation: 2, relationshipLabel: "ancestors", includeUpTo: true, defaultGeneration: true });
+    expect(result.trailingText).toMatch(/^This shows 2 generations, the usual number\. Your tree goes further back: up to 25 generations can be shown\./);
+    expect(result.actions[0]).toMatchObject({ label: "Show 25 generations", actionType: "send-prompt", prompt: "25 generations of my ancestors" });
+  });
+
   test("a plain generation list carries the completeness note", async () => {
     const result = await run("show my grandparents", { generation: 2, relationshipLabel: "grandparents" });
     expect(result.message).toMatch(/^Here are grandparents for you \(Root-1\) \(1 found; 1 of your 4 possible grandparents \(25%\) are on WikiTree\):/);

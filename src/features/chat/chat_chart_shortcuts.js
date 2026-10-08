@@ -53,7 +53,9 @@ export function parseChartShortcutPrompt(prompt) {
   const text = String(prompt || "")
     .trim()
     .replace(/[.!?]+$/, "")
-    .replace(/\s+/g, " ");
+    .replace(/\s+/g, " ")
+    // "show Weatherall-111's family tree chart" (live, 2026-10-08)
+    .replace(/^(?:please\s+)?(?:show|open|draw|display|make|view|see|give)(?:\s+me)?\s+(?:the\s+|a\s+)?/i, "");
   if (!text || text.length > 80) return null;
   const owner = String.raw`(${WIKITREE_ID}|${NAME})`;
   const before = text.match(new RegExp(String.raw`^${owner}(?:['’]s?)?\s+(.+)$`));
