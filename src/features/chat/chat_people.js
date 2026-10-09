@@ -66,6 +66,8 @@ import { buildTreeOverview, buildTreeOverviewSummary, TREE_OVERVIEW_GENERATIONS 
 import { buildDescendantLifespanRows, buildLifespanRows, buildLifespansSummary, LIFESPANS_GENERATIONS } from "./chat_lifespans_data";
 
 const MIGRATION_MAP_GENERATIONS = 10;
+// An ancestor list this deep or shallower opens the fan chart; a deeper one shows its table.
+const LIST_FAN_CHART_GENERATIONS = 8;
 import { buildProfileFactAnswer, PROFILE_FACT_FIELDS } from "./chat_profile_facts";
 import {
   buildConnectedProfilesAnswer,
@@ -380,11 +382,14 @@ export function createChatPeopleHandlers({
     // A plain list ("show her ancestors") opens its chart too; a filtered one ("…born in Ohio") just offers it.
     const plainList =
       enrichedChatMeta && !enrichedChatMeta.location && !enrichedChatMeta.dateField && !enrichedChatMeta.missingParent && !enrichedChatMeta.ageAtDeath;
-    // …unless the list goes deeper than the fan chart's generations: then the
-    // table shows it all (user, 2026-10-09: "show details beyond 8 generations
-    // … not a fan chart, but a table").
+    // …unless the list goes deeper than 8 generations: then the table shows it
+    // all (user, 2026-10-09: "show details beyond 8 generations … not a fan
+    // chart, but a table"; "8 generations and below should show the chart").
     const deepest = Math.max(0, ...rows.map((row) => Number(row?.degrees) || 0));
-    const beyondChart = treeAppKind === "ancestors" && deepest > FAN_CHART_DEFAULT_GENERATIONS;
+    const beyondChart = treeAppKind === "ancestors" && deepest > LIST_FAN_CHART_GENERATIONS;
+    if (treeAppKind === "ancestors" && !enrichedChatMeta?.missingParent && deepest > FAN_CHART_DEFAULT_GENERATIONS && !beyondChart) {
+      charts[0] = VISUALS.fan(rootWtId, "", "Fan chart", deepest);
+    }
     const chartOpens = Boolean(charts.length && plainList && rows.length >= 2 && !beyondChart);
     if (chartOpens) setTimeout(() => charts[0].onClick(), 0);
     return {
@@ -2636,11 +2641,13 @@ export function createChatPeopleHandlers({
 
   const CHART_MAKERS = {
     // mode: the fan chart's first colouring ("brickwalls" for brick-wall questions).
-    fan: (key, mode = "", label = "Fan chart") =>
+    // generations: more than the default, for a list that reaches further (up to 8).
+    fan: (key, mode = "", label = "Fan chart", generations = "") =>
       chartAction(label, async () => {
-        const slots = await loadFanSlots(key);
+        const depth = Math.min(FAN_CHART_MAX_GENERATIONS, Number(generations) || FAN_CHART_DEFAULT_GENERATIONS);
+        const slots = await loadFanSlots(key, depth);
         if (!slots[1]) return null;
-        return openFanChart(slots, FAN_CHART_DEFAULT_GENERATIONS, mode);
+        return openFanChart(slots, depth, mode);
       }),
     explorer: (key) =>
       chartAction("Family Explorer", async () => {

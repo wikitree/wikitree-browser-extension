@@ -173,6 +173,7 @@ const CHART_CSS = `
   .wbe-kin-list .wbe-kin-gender-female { background:#ffeeee; }
   .wbe-kin-list .wbe-kin-gender-unknown { background:#eeffee; }
   .wbe-kin-list small { display:block; color:#666666; }
+  .wbe-kin-event { font-size:10px; font-weight:bold; letter-spacing:.06em; text-transform:uppercase; color:#25422d; }
   .wbe-kin-note { font-size:12px; color:#666666; }
   .wbe-kin-card[aria-pressed=true] strong { background:#fcb815; }
   .wbe-kin-list a:link { color:#008000; }
@@ -370,8 +371,19 @@ export function closeChartPopup(popup) {
 }
 
 /** Create one chart of this kind, releasing the previous instance first. */
-export function createChartPopup({ id, html }) {
+export function createChartPopup({ id, html, keepFullScreen = false }) {
   const previous = document.getElementById(id);
+  // A chart that reloads itself ("Load generations") keeps its window, so a full-screen
+  // chart stays full screen (the browser would drop it with the old element, and a new
+  // one can't re-enter without a fresh click). The caller must listen with `popup._wbeSignal`.
+  if (previous && keepFullScreen && previous.classList.contains("wbe-chart-full") && previous._wbeCloseChart) {
+    previous._wbeSignal?.abort();
+    previous._wbeChartCleanup?.();
+    previous._wbeChartCleanup = null;
+    previous._wbeSignal = new AbortController();
+    previous.innerHTML = html;
+    return previous;
+  }
   if (previous) closeChartPopup(previous);
   injectChartStyles();
   const popup = document.createElement("div");
@@ -379,6 +391,7 @@ export function createChartPopup({ id, html }) {
   popup.className = "wbe-popup chat-popup ui-draggable wbe-chart-popup";
   popup.style.display = "flex";
   popup.innerHTML = html;
+  popup._wbeSignal = new AbortController();
   let closed = false;
   popup._wbeCloseChart = () => {
     if (closed) return;

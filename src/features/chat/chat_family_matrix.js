@@ -2,7 +2,12 @@ import { createChartPopup, mountChartPopup, closeChartPopup, escapeText, profile
 import { fullWikiTreeName } from "./chat_fan_chart_data";
 
 const displayDate = (value) => String(value).replace(/-00-00$/, "").replace(/-00$/, "");
-const dates = (person) => [person.birth && !/^0000/.test(person.birth) ? `Born ${displayDate(person.birth)}` : "Birth date unknown", person.living ? "Living" : person.death && !/^0000/.test(person.death) ? `Died ${displayDate(person.death)}` : "Death date unknown"].join(" · ");
+// WikiTree's date status: guess → Abt., before → Bef., after → Aft. ("certain" and blank show nothing).
+const STATUS_PREFIX = { guess: "Abt. ", before: "Bef. ", after: "Aft. " };
+const lifeEvent = (date, place, status) => `${date && !/^0000/.test(date) ? `${STATUS_PREFIX[status] || ""}${displayDate(date)}` : "?"} in ${String(place || "").trim() || "?"}`;
+// "BORN Abt. 1788-01 in Place" / "DIED ? in ?" — a missing part shows as ?; the label is styled (.wbe-kin-event).
+const eventLine = (label, text) => `<span class="wbe-kin-event">${label}</span> ${escapeText(text)}`;
+const datesHtml = (person) => [eventLine("Born", lifeEvent(person.birth, person.birthPlace, person.birthStatus)), person.living ? "Living" : eventLine("Died", lifeEvent(person.death, person.deathPlace, person.deathStatus))].join("<br>");
 
 function relationshipGrid(matrix, rootName) {
   const oldest = Math.max(0, ...matrix.cards.map((card) => card.up - card.down));
@@ -11,15 +16,14 @@ function relationshipGrid(matrix, rootName) {
   const headers = ["Direct family", "Siblings’ branch", ...Array.from({ length: branches - 1 }, (_, i) => `${i + 1}${i === 0 ? "st" : i === 1 ? "nd" : i === 2 ? "rd" : "th"} cousins’ branch`)];
   const rows = [];
   for (let generation = oldest; generation >= youngest; generation--) {
-    const label = generation === 0 ? "Same generation" : `${Math.abs(generation)} generation${Math.abs(generation) === 1 ? "" : "s"} ${generation > 0 ? "above" : "below"}`;
     const cells = headers.map((_, branch) => {
       const cards = matrix.cards.map((card, index) => ({ card, index })).filter(({ card }) => card.up - card.down === generation && (card.down ? card.up : 0) === branch);
-      const focus = generation === 0 && branch === 0 ? `<div class="wbe-kin-root" title="${escapeText(matrix.root.Name || "")}">${escapeText(rootName)}<small>focus person</small></div>` : "";
+      const focus = generation === 0 && branch === 0 ? `<div class="wbe-kin-root" title="${escapeText(matrix.root.Name || "")}">${escapeText(rootName)}</div>` : "";
       return `<td>${focus}${cards.map(({ card, index }) => `<button type="button" class="wbe-kin-card" data-card="${index}" style="--kin-background:${card.down === 0 ? "#ffee99" : card.up === 0 ? "#eeffee" : "#e1f0b4"};--kin-border:${card.down === 0 ? "#fad158" : "#a5d167"}"><strong>${card.people.length}</strong><span>${escapeText(card.label)}</span></button>`).join("")}</td>`;
     }).join("");
-    rows.push(`<tr><th scope="row">${label}</th>${cells}</tr>`);
+    rows.push(`<tr data-generation="${generation}">${cells}</tr>`);
   }
-  return `<div class="wbe-kin-grid"><table class="wbe-kin-matrix"><thead><tr><th scope="col">Generation</th>${headers.map((label) => `<th scope="col">${label}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
+  return `<div class="wbe-kin-grid"><table class="wbe-kin-matrix"><thead><tr>${headers.map((label) => `<th scope="col">${label}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
 }
 
 // Native SVG shapes keep both exports portable, without HTML foreignObject rendering.
@@ -67,14 +71,14 @@ export function familyRelationshipsSvg(popup, title) {
 
 export function showFamilyMatrixPopup(matrix, { reload } = {}) {
   const rootName = fullWikiTreeName(matrix.root) || matrix.root.RealName || matrix.root.Name || "Private profile";
-  const popup = createChartPopup({ id: "wbe-family-matrix-popup", html: `
+  const popup = createChartPopup({ id: "wbe-family-matrix-popup", keepFullScreen: true, html: `
     <div class="chat-popup-header"><strong>Relationship Chart: ${escapeText(rootName)}</strong><div class="chat-popup-controls">${chartPopupControls()}</div></div>
     <div class="chat-popup-body wbe-kin-dashboard">
       <div class="wbe-kin-controls"><label>Ancestors <input type="number" name="ancestors" min="1" max="25" value="${matrix.ancestorDepth}"></label><label>Descendant branches <input type="number" name="descendants" min="1" max="10" value="${matrix.descendantDepth}"></label><button type="button" data-act="load">Load generations</button><input type="search" placeholder="Find a relative" aria-label="Find a relative"></div>
       <p class="wbe-kin-status">${matrix.total} relatives found. Hover or focus a card for names and dates; click to pin its hover list.</p>
       ${relationshipGrid(matrix, rootName)}
       <section class="wbe-kin-list" hidden tabindex="0" aria-label="People in selected relationship"></section>
-      <details class="wbe-kin-note"><summary>About the counts</summary><p>Counts are unique profiles in the fetched range, not everyone who ever lived. Privacy and missing links can hide relatives. Collateral branches use the nearest four ancestor generations. Cousin cards include full and half cousins; uncertain sibling links are grouped as siblings. Where several relationships exist, the closest is shown.</p></details>
+      <details class="wbe-kin-note"><summary>About the counts</summary><p>Counts are unique profiles in the fetched range, not everyone who ever lived. Privacy and missing links can hide relatives. Cousin branches reach as far as the Ancestors number (3rd cousins need 4, 4th cousins 5, up to 8) and the Descendant branches number (at least as large). Cousin cards include full and half cousins; uncertain sibling links are grouped as siblings. Where several relationships exist, the closest is shown.</p></details>
     </div>` });
   const list = popup.querySelector(".wbe-kin-list");
   let selected = null;
@@ -90,7 +94,7 @@ export function showFamilyMatrixPopup(matrix, { reload } = {}) {
     const card = matrix.cards[selected];
     const candidates = query ? matrix.cards.flatMap((group) => group.people.map((person) => ({ ...person, relationship: group.label }))) : card?.people || [];
     const people = candidates.filter((person) => `${person.name} ${person.wtid}`.toLowerCase().includes(query));
-    list.innerHTML = `<h3>${escapeText(query ? "Search results" : card?.label || "Relatives")} · ${people.length}</h3><ul>${people.map((person) => `<li class="wbe-kin-gender-${person.gender === "Male" ? "male" : person.gender === "Female" ? "female" : "unknown"}">${person.wtid ? `<a href="${escapeText(profileUrl(person.wtid))}" target="_blank" rel="noopener noreferrer">${escapeText(person.name)}</a>` : escapeText(person.name)}<small>${escapeText(dates(person))}${person.relationship ? ` · ${escapeText(person.relationship)}` : ""}</small></li>`).join("")}</ul>${people.length ? "" : "<p>No matching people.</p>"}`;
+    list.innerHTML = `<h3>${escapeText(query ? "Search results" : card?.label || "Relatives")} · ${people.length}</h3><ul>${people.map((person) => `<li class="wbe-kin-gender-${person.gender === "Male" ? "male" : person.gender === "Female" ? "female" : "unknown"}">${person.wtid ? `<a href="${escapeText(profileUrl(person.wtid))}" target="_blank" rel="noopener noreferrer">${escapeText(person.name)}</a>` : escapeText(person.name)}<small>${datesHtml(person)}${person.relationship ? `<br>${escapeText(person.relationship)}` : ""}</small></li>`).join("")}</ul>${people.length ? "" : "<p>No matching people.</p>"}`;
     list.hidden = false;
     clearTimeout(hideTimer);
     const anchor = query ? popup.querySelector('input[type="search"]') : popup.querySelector(`[data-card="${selected}"]`);
@@ -112,7 +116,7 @@ export function showFamilyMatrixPopup(matrix, { reload } = {}) {
   list.addEventListener("mouseleave", hide);
   list.addEventListener("focusin", () => clearTimeout(hideTimer));
   list.addEventListener("focusout", hide);
-  popup.addEventListener("keydown", (event) => { if (event.key === "Escape") { pinned = false; list.hidden = true; } });
+  popup.addEventListener("keydown", (event) => { if (event.key === "Escape") { pinned = false; list.hidden = true; } }, { signal: popup._wbeSignal.signal });
   popup.querySelector('input[type="search"]').addEventListener("input", () => { if (selected !== null || popup.querySelector('input[type="search"]').value) show(selected); });
   popup.addEventListener("click", async (event) => {
     const button = event.target.closest("button");
@@ -133,7 +137,7 @@ export function showFamilyMatrixPopup(matrix, { reload } = {}) {
       catch (error) { status.textContent = `Could not load: ${error.message || error}`; }
       finally { button.disabled = false; }
     }
-  });
+  }, { signal: popup._wbeSignal.signal });
   mountChartPopup(popup);
   return popup;
 }

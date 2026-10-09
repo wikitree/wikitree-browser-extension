@@ -44,7 +44,10 @@ const TILE_CREDIT = `Tiles © <a href="https://www.esri.com" target="_blank" rel
 // and Ireland; widened (the user, 2026-10-04: "make this map better like we did in England")
 // so Ireland → Quebec gets the detailed coast too. Further than that (an emigration to
 // Australia) stays on the world outlines, and so do the poles, where Mercator stretches.
-const LOCAL_SPAN = { lon: 110, lat: 45 };
+// Widened again (the user, 2026-10-09: the Y-DNA map, with matches from Britain to the US and
+// Australia, got the plain outlines and the other maps' tiles were better): any spread of towns
+// now gets the tiles, the whole world included (the tile zoom follows the fit).
+const LOCAL_SPAN = { lon: 350, lat: 125 };
 const LOCAL_MAX_LAT = 70;
 let worldPromise = null;
 let chartCounter = 0;
