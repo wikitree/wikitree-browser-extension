@@ -215,7 +215,7 @@ const autoBio = {
           id: "fullTemplateCitations",
           type: OptionType.CHECKBOX,
           label:
-            "Turn a bare {{FamilySearch}} or {{Ancestry Tree}} template source into a full citation (with the date accessed).",
+            "Turn a source that is only a {{FamilySearch}} or {{Ancestry Tree}} template, or only a link to a FamilySearch or Ancestry tree profile, into a full citation (with the date accessed).",
           defaultValue: false,
         },
       ],
