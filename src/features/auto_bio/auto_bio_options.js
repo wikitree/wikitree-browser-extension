@@ -138,6 +138,10 @@ const autoBio = {
               text: "X was born on ... in ... to ... and ...",
             },
             { value: "parentsWere", text: "X was born on ... in ... His/Her parents were ... and ..." },
+            {
+              value: "parentsFirst",
+              text: "X, son/daughter of ... and ..., was born on ... in ...",
+            },
           ],
           defaultValue: "of",
         },
@@ -172,13 +176,6 @@ const autoBio = {
             },
           ],
           defaultValue: "died",
-        },
-        {
-          id: "birthParentsFirst",
-          type: OptionType.CHECKBOX,
-          label:
-            "Parents first in the birth statement (e.g. X, son of ... and ..., was born on ... in ...), when there are parents and birth details.",
-          defaultValue: false,
         },
         {
           id: "fullLocations",

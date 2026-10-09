@@ -102,7 +102,6 @@ import { spell } from "./spellingUtils.js";
 import { configureWikiLinks, getWikiLink, linkTerm } from "./narrativePlaceUtils.js";
 import { resolvePlaceLinks, resolveTopicLinks } from "./wikiLinkResolver.js";
 import { expandTemplateCitation } from "./templateCitationUtils.js";
-import { parentsFirstBirthSentence } from "./birthSentenceUtils.js";
 import { getUSStates, loadUSStates } from "./usStatesStore.js";
 import { getFormData, getPronouns } from "./profileUtils.js";
 import { capitalizeFirstLetter } from "./textUtils.js";
@@ -474,8 +473,11 @@ export function buildBirth(person) {
   }
   const hasBirthDetails = person.BirthDate || person?.BirthLocation;
   const hasParents = person.Father || person.Mother;
-  if (window.autoBioOptions?.birthParentsFirst && hasBirthDetails && hasParents) {
-    text += buildBirthParentsFirst(person, theName);
+  if (window.autoBioOptions?.firstSentences == "parentsFirst" && hasBirthDetails && hasParents) {
+    // "X, son of A and B, was born on ... in ..."
+    text += boldBit + theName + boldBit + ", " + buildParents(person) + ", was born";
+    text += buildBirthDate(person);
+    text += buildBirthLocation(person);
   } else {
     text += boldBit + theName + boldBit + " was";
     if (hasBirthDetails) {
@@ -512,18 +514,6 @@ export function buildBirth(person) {
   }
   text += addReferences("Baptism");
   return text;
-}
-
-/** The birth sentence with the parents before the date and place (see parentsFirstBirthSentence). */
-function buildBirthParentsFirst(person, theName) {
-  const name = boldBit + theName + boldBit;
-  return parentsFirstBirthSentence({
-    name,
-    parents: buildParents(person),
-    born: " born" + buildBirthDate(person) + buildBirthLocation(person),
-    option: window.autoBioOptions?.firstSentences || "of",
-    subject: person.Pronouns?.subject ? capitalizeFirstLetter(person.Pronouns.subject) : "",
-  });
 }
 
 function buildBirthDate(person) {
@@ -817,6 +807,9 @@ function addRefsToRelation(refs, person, relation) {
 
 export function buildParents(person) {
   let option = window.autoBioOptions?.firstSentences || "of"; // Default to "of"
+  if (option === "parentsFirst") {
+    option = "of"; // the parents are worded the same way, buildBirth puts them first
+  }
   let text = "";
   let parents = person.Parents;
 
