@@ -9,18 +9,13 @@
 // "1800s" is ambiguous in English: the whole 19th century, or the decade
 // 1800-1809. Genie asks, unless the wording already says which.
 
+import { ordinal } from "./chat_text_utils";
 import { SQL_TEMPLATES } from "../wikitree_plus_helper/wikitree_plus_helper_sql";
 
 const birthDecadeTemplate = SQL_TEMPLATES.find((template) => template.id === "birth-decade");
 
 export function buildBirthDecadeSqlTerm(decadeStart) {
   return birthDecadeTemplate ? birthDecadeTemplate.buildSql(`${decadeStart}s`) : "";
-}
-
-function ordinal(n) {
-  const mod100 = n % 100;
-  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
-  return `${n}${{ 1: "st", 2: "nd", 3: "rd" }[n % 10] || "th"}`;
 }
 
 // Split on top-level OR (outside quotes), keeping each branch's text.

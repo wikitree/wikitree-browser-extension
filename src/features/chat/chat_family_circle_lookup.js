@@ -3,13 +3,9 @@
 // surname is the profile person's or the user's, look for it in that person's
 // CC7 (getPeople, nuclear 7) before searching the whole of WikiTree.
 
-const norm = (value) =>
-  String(value || "")
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
+import { plainWords } from "./chat_text_utils";
+
+const norm = plainWords;
 const words = (value) => norm(value).split(" ").filter(Boolean);
 const surnameOfId = (wtId) => String(wtId || "").replace(/-\d+$/, "").replace(/_/g, " ");
 

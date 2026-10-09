@@ -4,11 +4,9 @@
 import $ from "jquery";
 import { color as d3color } from "d3-color";
 import { mainDomain } from "../../core/pageType";
+import { yearOf } from "./chat_text_utils";
 
-export function yearOf(value) {
-  const match = String(value || "").match(/^(\d{4})/);
-  return match && match[1] !== "0000" ? Number(match[1]) : null;
-}
+export { yearOf };
 
 export function textColourFor(fill) {
   const c = d3color(fill);

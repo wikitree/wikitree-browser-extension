@@ -7,6 +7,7 @@
 
 import { getCountryFromLocation } from "./chat_place_country";
 import { makeProfileLink } from "./tables";
+import { foldAccents } from "./chat_text_utils";
 
 const SUBJECT_POSS = String.raw`(his|her|their|this\s+person(?:'s|’s)|the\s+profile\s+person(?:'s|’s)|[A-Z][A-Za-z'_ -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,4}(?:'s|’s))`;
 const KIN = String.raw`(family(?:\s+members)?|relatives|relations|kin|parents|siblings|brothers\s+and\s+sisters|children|kids|sons\s+and\s+daughters|spouses?|wife|wives|husbands?)`;
@@ -119,10 +120,7 @@ export function parseFindRelativesPrompt(prompt) {
 // Names
 
 const fold = (value) =>
-  String(value || "")
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
+  foldAccents(value)
     .replace(/[^a-z\s'-]/g, " ")
     .replace(/\s+/g, " ")
     .trim();

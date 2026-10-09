@@ -1,5 +1,6 @@
 import { createChartPopup, mountChartPopup, closeChartPopup, escapeText, profileUrl, toggleChartFullScreen, chartPopupControls, saveChart } from "./chat_chart_common";
 import { fullWikiTreeName } from "./chat_fan_chart_data";
+import { ordinal } from "./chat_text_utils";
 
 const displayDate = (value) => String(value).replace(/-00-00$/, "").replace(/-00$/, "");
 // WikiTree's date status: guess → Abt., before → Bef., after → Aft. ("certain" and blank show nothing).
@@ -13,7 +14,7 @@ function relationshipGrid(matrix, rootName) {
   const oldest = Math.max(0, ...matrix.cards.map((card) => card.up - card.down));
   const youngest = Math.min(0, ...matrix.cards.map((card) => card.up - card.down));
   const branches = Math.max(1, ...matrix.cards.map((card) => card.down ? card.up : 0));
-  const headers = ["Direct family", "Siblings’ branch", ...Array.from({ length: branches - 1 }, (_, i) => `${i + 1}${i === 0 ? "st" : i === 1 ? "nd" : i === 2 ? "rd" : "th"} cousins’ branch`)];
+  const headers = ["Direct family", "Siblings’ branch", ...Array.from({ length: branches - 1 }, (_, i) => `${ordinal(i + 1)} cousins’ branch`)];
   const rows = [];
   for (let generation = oldest; generation >= youngest; generation--) {
     const cells = headers.map((_, branch) => {

@@ -1,5 +1,6 @@
 import { canonicalChartOwner } from "./chat_chart_prompt";
 import { fullWikiTreeName } from "./chat_fan_chart_data";
+import { ordinal } from "./chat_text_utils";
 import { ancestorGenerationLabel, descendantWord } from "./chat_kin_labels";
 
 export const FAMILY_MATRIX_FIELDS = "Id,Name,FirstName,MiddleName,RealName,LastNameAtBirth,LastNameCurrent,Gender,BirthDate,DeathDate,BirthLocation,DeathLocation,DataStatus,Father,Mother,IsLiving";
@@ -42,7 +43,7 @@ function relationLabel(up, down) {
   if (up === 1) return `${greatPrefix(down - 2)}nieces / nephews`;
   const cousin = Math.min(up, down) - 1;
   const removed = Math.abs(up - down);
-  return `${cousin}${cousin === 1 ? "st" : cousin === 2 ? "nd" : cousin === 3 ? "rd" : "th"} cousins${removed ? ` ${removedWord(removed)} removed` : ""}`;
+  return `${ordinal(cousin)} cousins${removed ? ` ${removedWord(removed)} removed` : ""}`;
 }
 
 export function buildFamilyMatrix(people, rootKey, ancestorDepth = 4, descendantDepth = 5) {

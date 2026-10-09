@@ -1,3 +1,4 @@
+import { yearOf } from "./chat_text_utils";
 // "how many of her siblings were born in England?" (live, 2026-10-03: AI). The
 // relation counter has no place or date filter; this splits the clause off so
 // the plain relation routes, and filters its people afterwards. Descendant and
@@ -18,11 +19,6 @@ export function splitKinFilterClause(prompt) {
     ? { field: died ? "DeathLocation" : "BirthLocation", place: match[5].trim() }
     : { field: died ? "DeathDate" : "BirthDate", direction: match[6].toLowerCase(), year: Number(match[7]) };
   return { basePrompt: match[2].trim(), mode: /^how\s+many$/i.test(match[1] || "") ? "count" : "list", filter };
-}
-
-function yearOf(value) {
-  const match = String(value || "").match(/^(\d{4})/);
-  return match && match[1] !== "0000" ? Number(match[1]) : null;
 }
 
 /** {matched, unknown}: unknown people have no value for the field. */

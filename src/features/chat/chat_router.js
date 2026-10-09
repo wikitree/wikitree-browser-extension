@@ -1,4 +1,5 @@
 import { preferBracketedIds } from "./chat_family_circle_lookup";
+import { ordinal } from "./chat_text_utils";
 import { parseFamilyMatrixPrompt } from "./chat_family_matrix_data";
 /*
 Intent router for Chat feature.
@@ -1508,9 +1509,7 @@ function parseAncestorListPrompt(prompt) {
     if (Number.isFinite(greatCount) && greatCount >= 1) {
       return {
         generation: greatCount + 2,
-        relationshipLabel: `${greatCount}${
-          greatCount === 1 ? "st" : greatCount === 2 ? "nd" : greatCount === 3 ? "rd" : "th"
-        } great-grandparents`,
+        relationshipLabel: `${ordinal(greatCount)} great-grandparents`,
       };
     }
   }
@@ -1741,9 +1740,7 @@ function parseDescendantListPrompt(prompt) {
     if (Number.isFinite(greatCount) && greatCount >= 1) {
       return {
         generation: greatCount + 2,
-        relationshipLabel: `${greatCount}${
-          greatCount === 1 ? "st" : greatCount === 2 ? "nd" : greatCount === 3 ? "rd" : "th"
-        } great-grandchildren`,
+        relationshipLabel: `${ordinal(greatCount)} great-grandchildren`,
       };
     }
   }
