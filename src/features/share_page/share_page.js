@@ -21,6 +21,9 @@ import {
   getChannel,
   fileIdFor,
   intentUrl,
+  emailSubject,
+  WEBMAIL,
+  webmailUrl,
   isNameSafe,
   isShareablePrivacy,
   lifeSummary,
@@ -896,7 +899,11 @@ const DIALOG_HTML = `
           <div class="wbe-share-cardphotos" role="radiogroup" aria-label="Picture on the card"></div>
           <p class="wbe-share-hint">Choose which picture from this page is shown on the share card.</p>
         </div>
-        <h3><label for="wbeShareText">3. Post text</label></h3>
+        <div class="wbe-share-subject" hidden>
+          <h3><label for="wbeShareSubject">Subject</label></h3>
+          <input type="text" id="wbeShareSubject" spellcheck="true">
+        </div>
+        <h3>3. <label for="wbeShareText"><span class="wbe-share-textname">Post text</span></label></h3>
         <textarea id="wbeShareText" rows="9" spellcheck="true"></textarea>
         <div class="wbe-share-meter"><span class="wbe-share-count"></span><span class="wbe-share-limit"></span></div>
         <button type="button" class="wbe-share-reset">Reset to suggested text</button>
@@ -904,12 +911,14 @@ const DIALOG_HTML = `
       <div class="wbe-share-col">
         <h3>Preview on <span class="wbe-share-pvname"></span></h3>
         <div class="wbe-share-post">
+          <div class="wbe-share-pvsubject" hidden></div>
           <div class="wbe-share-pvtext"></div>
           <div class="wbe-share-pvmedia"></div>
           <div class="wbe-share-pvlink"></div>
         </div>
         <h3>4. Post it</h3>
         <div class="wbe-share-actions"></div>
+        <div class="wbe-share-webmail" hidden></div>
         <ol class="wbe-share-how"></ol>
         <div class="wbe-share-note" hidden></div>
         <p class="wbe-share-status" role="status" aria-live="polite"></p>
@@ -922,6 +931,11 @@ const HOW = {
   intent: (c) => [`Open ${c.name} with the text filled in.`, "Add any saved pictures.", "Post."],
   link: (c) => ["Copy the post text.", `Open ${c.name} with the link attached.`, "Paste the text, then post."],
   copy: () => ["Save the picture.", "Copy the caption.", "Open the app, add the picture and paste."],
+  email: () => [
+    "Open your mail program, or a webmail page, with the subject and message filled in.",
+    "Add who it is for, and attach any saved pictures.",
+    "Send.",
+  ],
 };
 
 function openDialog(kind, options, profile = null, extras = {}) {
@@ -948,6 +962,7 @@ function openDialog(kind, options, profile = null, extras = {}) {
     url: profileUrl || viewUrl, // for a Tree Apps view, the profile link is the default because anyone can open it
     channel: getChannel(options.defaultChannel).id,
     text: "",
+    subject: emailSubject(title),
     edited: false,
     selected: [images[0].id],
     blobs: {},
@@ -1287,6 +1302,13 @@ function openDialog(kind, options, profile = null, extras = {}) {
 
     // preview
     $overlay.find(".wbe-share-pvname").text(channel.name);
+    const isEmail = channel.mode === "email";
+    $overlay
+      .find(".wbe-share-pvsubject")
+      .prop("hidden", !isEmail)
+      .text(isEmail ? `Subject: ${state.subject}` : "");
+    $overlay.find(".wbe-share-subject").prop("hidden", !isEmail);
+    $overlay.find(".wbe-share-textname").text(isEmail ? "Message" : "Post text");
     $overlay.find(".wbe-share-pvtext").text(state.text);
     const shown = chosenImages().slice(0, 4);
     const $media = $overlay.find(".wbe-share-pvmedia").empty();
@@ -1297,7 +1319,7 @@ function openDialog(kind, options, profile = null, extras = {}) {
     $overlay.find(".wbe-share-pvlink").text(state.url);
 
     // actions
-    const link = intentUrl(channel, state.text, state.url, options.mastodonInstance);
+    const link = intentUrl(channel, state.text, state.url, options.mastodonInstance, state.subject);
     const $actions = $overlay.find(".wbe-share-actions").empty();
     const button = (label, primary, handler, disabled) =>
       $('<button type="button" class="wbe-share-btn"></button>')
@@ -1307,6 +1329,9 @@ function openDialog(kind, options, profile = null, extras = {}) {
         .on("click", handler);
     const open = () =>
       $('<a class="wbe-share-btn" target="_blank" rel="noopener"></a>').attr("href", link).text(`Open ${channel.name}`);
+    // a mailto: link goes to the member's mail program, so it must not open a blank tab
+    const openMail = () =>
+      $('<a class="wbe-share-btn wbe-share-mailto"></a>').attr("href", link).text("Open my email app");
     const copyButton = (primary) =>
       button(channel.mode === "copy" ? "Copy caption" : "Copy post text", primary, async () => {
         try {
@@ -1316,19 +1341,48 @@ function openDialog(kind, options, profile = null, extras = {}) {
           say("Could not copy. Select the text and copy it yourself.");
         }
       });
+    const copySubjectButton = () =>
+      button("Copy subject", false, async () => {
+        try {
+          await copyToClipboard(state.subject);
+          say("Subject copied.");
+        } catch (e) {
+          say("Could not copy. Select the subject and copy it yourself.");
+        }
+      });
     const saveButton = () => {
       const n = chosenImages().length;
       return button(n > 1 ? `Save ${n} pictures` : "Save picture", false, saveImages, !n);
     };
 
-    if (channel.mode === "intent") {
+    if (channel.mode === "email") {
+      $actions.append(openMail().addClass("wbe-share-primary"), copyButton(false), copySubjectButton(), saveButton());
+    } else if (channel.mode === "intent") {
       $actions.append(open().addClass("wbe-share-primary"), copyButton(false), saveButton());
     } else if (channel.mode === "link") {
       $actions.append(copyButton(true), open(), saveButton());
     } else {
       $actions.append(saveButton(), copyButton(true));
     }
-    if (canShareFiles()) $actions.append(button("Share…", false, systemShare, !chosenImages().length));
+    if (canShareFiles()) {
+      const label = channel.mode === "email" ? "Share with picture…" : "Share…";
+      $actions.append(button(label, false, systemShare, !chosenImages().length));
+    }
+
+    const $webmail = $overlay
+      .find(".wbe-share-webmail")
+      .empty()
+      .prop("hidden", channel.mode !== "email");
+    if (channel.mode === "email") {
+      $webmail.append($("<span></span>").text("No mail program? Open the message in:"));
+      WEBMAIL.forEach((w) =>
+        $webmail.append(
+          $('<a class="wbe-share-btn wbe-share-webmail-link" target="_blank" rel="noopener"></a>')
+            .attr("href", webmailUrl(w.id, state.subject, state.text))
+            .text(w.name)
+        )
+      );
+    }
 
     const $how = $overlay.find(".wbe-share-how").empty();
     HOW[channel.mode](channel).forEach((step) => $how.append($("<li></li>").text(step)));
@@ -1338,6 +1392,11 @@ function openDialog(kind, options, profile = null, extras = {}) {
     if (channel.mode === "intent" && chosenImages().length && !channel.noTags) {
       notes.push(
         `${channel.name} cannot receive pictures through a link. Save them first, then add them in the composer.`
+      );
+    }
+    if (channel.mode === "email" && chosenImages().length) {
+      notes.push(
+        "Email cannot receive pictures through a link. Save them first, then attach them to the message. Or use Share with picture…, which sends the picture and message to your mail program, but it cannot set the subject, so use Copy subject and paste it."
       );
     }
     if (over)
@@ -1394,6 +1453,7 @@ function openDialog(kind, options, profile = null, extras = {}) {
           return new File([blob], fileNameOf(image), { type: blob.type || "image/jpeg" });
         })
       );
+      // No title: mail programs' share options ignore it as a subject and add it to the message instead.
       await navigator.share({ text: state.text, files });
     } catch (e) {
       if (e && e.name !== "AbortError") say("Could not open the share sheet. Use Copy and Save instead.");
@@ -1406,6 +1466,13 @@ function openDialog(kind, options, profile = null, extras = {}) {
     state.edited = true;
     renderPost();
   });
+  $overlay
+    .find("#wbeShareSubject")
+    .val(state.subject)
+    .on("input", (e) => {
+      state.subject = e.target.value;
+      renderPost();
+    });
   $overlay.find("#wbeShareCropFor").on("change", (e) => {
     state.active = e.target.value;
     renderCropPanel();
@@ -1456,6 +1523,8 @@ function openDialog(kind, options, profile = null, extras = {}) {
   }
   $overlay.find(".wbe-share-reset").on("click", () => {
     state.edited = false;
+    state.subject = emailSubject(title);
+    $overlay.find("#wbeShareSubject").val(state.subject);
     state.text = suggested();
     $text.val(state.text);
     renderPost();

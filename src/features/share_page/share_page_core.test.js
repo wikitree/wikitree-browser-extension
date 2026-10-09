@@ -1,6 +1,10 @@
 import {
   BRAND_HASHTAGS,
   buildText,
+  emailSubject,
+  mailtoUrl,
+  webmailUrl,
+  WEBMAIL,
   cleanHeading,
   cropRect,
   detectPageKind,
@@ -111,6 +115,37 @@ describe("buildText", () => {
     expect(text).not.toContain("@");
     expect(text).not.toContain("#");
     expect(text).not.toContain("http");
+  });
+});
+
+describe("email", () => {
+  const url = "https://www.wikitree.com/wiki/Robinson-27274";
+  test("the message has the link and no account tag or hashtags", () => {
+    const text = buildText("profile", "Name", url, getChannel("email"));
+    expect(text).toContain(url);
+    expect(text).not.toContain("@");
+    expect(text).not.toContain("#");
+  });
+  test("the suggested subject names the page", () => {
+    expect(emailSubject("Robinson-27274")).toBe("Robinson-27274 on WikiTree");
+  });
+  test("a mailto link has no address and encodes the subject and body, with CRLF line breaks", () => {
+    expect(mailtoUrl("Hi & bye", "one\ntwo")).toBe("mailto:?subject=Hi%20%26%20bye&body=one%0D%0Atwo");
+    expect(intentUrl(getChannel("email"), "a b", url, "", "S")).toBe("mailto:?subject=S&body=a%20b");
+  });
+  test("the address in the text survives encoding", () => {
+    const link = mailtoUrl("s", `see ${url}?a=1&b=2`);
+    expect(decodeURIComponent(link.split("body=")[1])).toBe(`see ${url}?a=1&b=2`);
+  });
+  test("webmail links are https, carry the subject and body, and reject unknown providers", () => {
+    WEBMAIL.forEach((w) => {
+      const link = webmailUrl(w.id, "A & B", "line one\nline two");
+      expect(link.startsWith("https://")).toBe(true);
+      expect(link).toContain("A%20%26%20B");
+      expect(link).toContain("line%20one%0Aline%20two");
+      expect(link).not.toContain("{");
+    });
+    expect(webmailUrl("nope", "s", "b")).toBe("");
   });
 });
 

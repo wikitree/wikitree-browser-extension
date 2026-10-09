@@ -40,11 +40,12 @@ function loadBackground(fetchImpl) {
     Uint8Array,
   };
   vm.runInNewContext(readFileSync(resolve("public/background.js"), "utf8"), context);
-  const listener = listeners[0];
+  // Other features add their own onMessage listeners to the same script, so offer the message to each one:
+  // the one that handles it answers later, so it returns true to keep the channel open.
   return (message) =>
     new Promise((resolve) => {
-      const keptOpen = listener(message, {}, resolve);
-      expect(keptOpen).toBe(true); // the reply is sent after the fetch, so the channel must stay open
+      const keptOpen = listeners.map((listener) => listener(message, {}, resolve)).some((kept) => kept === true);
+      expect(keptOpen).toBe(true);
     });
 }
 
