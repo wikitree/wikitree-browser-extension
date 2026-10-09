@@ -84,3 +84,19 @@ describe("shared AI settings", () => {
     expect(store[SHARED_AI_OPTIONS_KEY].openAIKey).toBe("");
   });
 });
+
+describe("effectiveAiProvider (2026-10-07: OpenAI selected, only a Claude key)", () => {
+  const { effectiveAiProvider } = require("./shared_ai_options");
+  test("the only key's provider when the selected one has none", () => {
+    expect(effectiveAiProvider({ aiProvider: "openai", claudeKey: "sk-ant-x" })).toBe("claude");
+    expect(effectiveAiProvider({ claudeKey: "sk-ant-x" })).toBe("claude");
+  });
+  test("the selected provider when it has a key", () => {
+    expect(effectiveAiProvider({ aiProvider: "openai", openAIKey: "sk-x", claudeKey: "sk-ant-x" })).toBe("openai");
+  });
+  test("several other keys, or none: the selection stands", () => {
+    expect(effectiveAiProvider({ aiProvider: "openai", claudeKey: "a", geminiKey: "b" })).toBe("openai");
+    expect(effectiveAiProvider({ aiProvider: "gemini" })).toBe("gemini");
+    expect(effectiveAiProvider({ aiProvider: "openai", claudeKey: "   " })).toBe("openai");
+  });
+});

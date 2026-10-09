@@ -5,9 +5,21 @@ import { getGenerationFromAhnen } from "./chat_ahnentafel";
 import { getLocationFieldLabel } from "./chat_place_text";
 import { buildTreeAppRecommendations } from "./chat_tree_apps";
 import { getCountryFromLocation, isEmigrantRow, summarizeCountries } from "./chat_place_country";
-import { runDuplicateCheck } from "./chat_duplicates";
+import { describeDuplicate, findDuplicates, readDuplicateFinder, runDuplicateCheck } from "./chat_duplicates";
 import { buildBurialAnswer } from "./chat_burial";
+import {
+  CANDIDATE_FIELDS,
+  RELATIVE_SPOUSE_FIELDS,
+  spousesOf,
+  buildFindRelativesAnswer,
+  duplicateLines,
+  buildRelativesAiPrompt,
+  readRelativesFromBio,
+  relativesFromAiJson,
+  searchRelatives,
+} from "./chat_bio_relatives";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
+import { birthPlaceFromBio, birthYearFromBio, readPageAttached, readPageBio } from "./chat_bio_page";
 import { buildCompletenessGrid, buildCompletenessSummary, describeBranchCompleteness } from "./chat_completeness_data";
 import { showCompletenessHeatmapPopup } from "./chat_completeness_heatmap";
 import { buildNeedsHelpAnswer, buildQualitySummary } from "./chat_profile_quality_data";
@@ -74,7 +86,7 @@ import {
   relationSelector,
 } from "./chat_relative_fact";
 import { descendantCountMessage, pickSpouseByOrdinal, relationshipListLead } from "./chat_relation_chain_text";
-import { buildAncestorDepthMessage } from "./chat_ancestor_depth";
+import { buildAncestorDepthMessage, buildAncestorSummaryMessage } from "./chat_ancestor_depth";
 import { buildTwinsAnswer } from "./chat_twins";
 import { sortByBirth } from "./chat_kin_order";
 import { buildChildrenMarriedAnswer, buildChildrenWithChildrenAnswer } from "./chat_children_with_children";
@@ -101,6 +113,7 @@ export function relativeNameOf(person) {
 
 export function createChatPeopleHandlers({
   ChatIntent,
+  getProfilePersonInfo = () => null,
   WBE_CHAT_APP_ID,
   resolveConnectionTargetPerson,
   getLoggedInRootPerson,
@@ -126,6 +139,8 @@ export function createChatPeopleHandlers({
   getCurrentChatMode,
   getUserNumId = () => null,
   notify = () => {}, // (text) → a passing note in the chat (not saved)
+  getChatAiConfig = async () => ({ key: "" }),
+  parsePlannerJson = () => null,
 }) {
   /**
    * "I couldn't load X" said why: not in the API yet (a new profile), private to the user, or
@@ -336,7 +351,7 @@ export function createChatPeopleHandlers({
         ? [[0, "asc"]]
         : hasDegreeValues
         ? [
-            [6, "asc"],
+            [5, "asc"],
             [0, "asc"],
           ]
         : [[0, "asc"]];
@@ -349,7 +364,6 @@ export function createChatPeopleHandlers({
         window.open(recommendation.url, "_blank", "noopener,noreferrer");
       },
     }));
-    const recommendationSuffix = treeAppActions.length ? "\nRecommended Tree Apps are available below." : "";
 
     if (enrichedChatMeta) {
       table._chatMeta = enrichedChatMeta;
@@ -366,7 +380,12 @@ export function createChatPeopleHandlers({
     // A plain list ("show her ancestors") opens its chart too; a filtered one ("…born in Ohio") just offers it.
     const plainList =
       enrichedChatMeta && !enrichedChatMeta.location && !enrichedChatMeta.dateField && !enrichedChatMeta.missingParent && !enrichedChatMeta.ageAtDeath;
-    const chartOpens = Boolean(charts.length && plainList && rows.length >= 2);
+    // …unless the list goes deeper than the fan chart's generations: then the
+    // table shows it all (user, 2026-10-09: "show details beyond 8 generations
+    // … not a fan chart, but a table").
+    const deepest = Math.max(0, ...rows.map((row) => Number(row?.degrees) || 0));
+    const beyondChart = treeAppKind === "ancestors" && deepest > FAN_CHART_DEFAULT_GENERATIONS;
+    const chartOpens = Boolean(charts.length && plainList && rows.length >= 2 && !beyondChart);
     if (chartOpens) setTimeout(() => charts[0].onClick(), 0);
     return {
       // (the chart opens instead of the table; the Table button shows it)
@@ -375,9 +394,9 @@ export function createChatPeopleHandlers({
         completenessNote ? `; ${completenessNote.replace(/\.$/, "")}` : ""
       }):\n${preview}`,
       inlineMore,
-      trailingText: recommendationSuffix.trim(),
       table,
-      actions: treeAppActions,
+      // Genie's charts and the Tree Apps, shown as two labelled groups.
+      actions: [...charts, ...treeAppActions],
     };
   }
 
@@ -587,13 +606,47 @@ export function createChatPeopleHandlers({
     };
   }
 
+  // "show his ancestors" lists 10 generations unless asked for more (up to 25):
+  // say so, and offer the rest when the tree reaches the limit (2026-10-08).
+  function withDefaultGenerationNote(result, { usedDefaultGeneration, rows, generation, rootWtId, isUser }) {
+    if (!usedDefaultGeneration || !result || typeof result !== "object" || !rows?.length) return result;
+    const deepest = Math.max(...rows.map((row) => Number(row?.degrees) || 0));
+    const more = deepest >= generation && generation < 25;
+    const note = more
+      ? `This shows ${generation} generations, the usual number. ${isUser ? "Your" : "The"} tree goes further back: up to 25 generations can be shown.`
+      : `That's every ancestor on WikiTree: ${isUser ? "your" : "the"} tree goes back ${deepest} generation${deepest === 1 ? "" : "s"}.`;
+    const moreAction =
+      more && rootWtId
+        ? [{ label: "Show 25 generations", actionType: "send-prompt", prompt: `25 generations of ${isUser ? "my" : `${rootWtId}'s`} ancestors`, newSearch: true }]
+        : [];
+    return {
+      ...result,
+      trailingText: [note, result.trailingText].filter(Boolean).join("\n"),
+      actions: [...moreAction, ...(result.actions || [])],
+    };
+  }
+
   // C9: "most recent" = nearest generation, then latest birth; "earliest" =
   // earliest dated birth, else the most distant generation.
-  function buildAncestorPickAnswer(rows, pick, { subjectLabel, rootPerson, locationPhrase, total, treeTakenAsAncestors }) {
+  function buildAncestorPickAnswer(rows, pick, { subjectLabel, rootPerson, locationPhrase, total, treeTakenAsAncestors, askedRepeats }) {
     if (pick === "depth") {
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${subjectLabel}'s`;
       return {
         message: buildAncestorDepthMessage(rows, owner, 25),
+        table: makeAncestorProfileTable(`ancestors for ${rootPerson.displayName}`, rows, [[0, "asc"]]),
+        actions: visualActions(rootPerson?.wtId || rootPerson?.key, "ancestors"),
+      };
+    }
+    if (pick === "summary") {
+      const isUser = rootPerson?.subjectType === "user";
+      return {
+        message: buildAncestorSummaryMessage(rows, {
+          subject: isUser ? "You have" : `${subjectLabel} has`,
+          ownerText: isUser ? "Your" : `${subjectLabel}'s`,
+          maxGeneration: 25,
+          formatDate: formatPreviewDate,
+          askedRepeats,
+        }),
         table: makeAncestorProfileTable(`ancestors for ${rootPerson.displayName}`, rows, [[0, "asc"]]),
         actions: visualActions(rootPerson?.wtId || rootPerson?.key, "ancestors"),
       };
@@ -789,6 +842,10 @@ export function createChatPeopleHandlers({
         return {
           ...row,
           ahnen,
+          // The links, by page Id, for counting repeated ancestors.
+          profileId: String(profile?.Id ?? ""),
+          fatherId: parentFatherId,
+          motherId: parentMotherId,
           hasFather: Boolean(parentFatherId && parentFatherId !== "0"),
           hasMother: Boolean(parentMotherId && parentMotherId !== "0"),
           fatherName: father.name,
@@ -1210,6 +1267,168 @@ export function createChatPeopleHandlers({
     const person = Object.values(people || {}).find((entry) => entry?.Name);
     if (!person) return cantLoad(key);
     return buildBurialAnswer(person);
+  }
+
+  // "Find his family on WikiTree": relatives named in the biography, searched for one by one.
+  async function tryHandleFindBioRelativesPrompt(params, prompt = "") {
+    const targetName = String(params?.target || "").trim();
+    let key = "";
+    if (!targetName) {
+      key = getProfileSubjectRoot()?.wtId || getProfileSubjectRoot()?.key || "";
+      if (!key) return "Open a profile page first, or name the person (for example Smith-123).";
+    } else {
+      const found = await resolveConnectionTargetPerson(targetName, prompt);
+      key = found?.Name || found?.Id || "";
+      if (!key) {
+        return `I couldn't identify which profile you meant by "${targetName}". Try a WikiTree ID like Name-123, or a more specific name.`;
+      }
+    }
+    let [profile] =
+      (await WikiTreeAPI.getProfile(
+        WBE_CHAT_APP_ID,
+        key,
+        "Id,Name,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,RealName,Gender,BirthDate,Bio",
+        { bioFormat: "wiki", resolveRedirect: 1 }
+      ).catch(() => [])) || [];
+    // Not in the API yet (a new profile, or the staging server): this page has the biography
+    // and the family already connected, which is all this needs (the user, 2026-10-07).
+    let pageAttached = null;
+    if (!profile?.Name && !targetName) {
+      const page = getProfilePersonInfo();
+      const pageBio = page?.Name ? readPageBio(document) : "";
+      if (pageBio) {
+        const year = Number(page.BirthYear) || birthYearFromBio(pageBio);
+        profile = {
+          Id: page.Id,
+          Name: page.Name,
+          FirstName: page.FirstName || String(page.FullName || "").split(" ")[0],
+          LastNameAtBirth: page.LastNameAtBirth || "",
+          RealName: page.FirstName || "",
+          Gender: page.Gender || "",
+          BirthDate: year ? String(year) : "",
+          Bio: pageBio,
+        };
+        pageAttached = readPageAttached(document, page.Name);
+      }
+    }
+    if (!profile?.Name) return cantLoad(key);
+    // The profile person's own duplicates, alongside (the user, 2026-10-07).
+    const pagePerson = pageAttached
+      ? {
+          Id: profile.Id,
+          Name: profile.Name,
+          FirstName: profile.FirstName,
+          RealName: profile.FirstName,
+          LastNameAtBirth: profile.LastNameAtBirth,
+          Gender: profile.Gender,
+          BirthDate: profile.BirthDate ? `${profile.BirthDate}-00-00` : "",
+          BirthLocation: birthPlaceFromBio(profile.Bio),
+        }
+      : null;
+    // The Duplicate Finder's scored pairs when it has looked at this profile; otherwise (a new
+    // profile, or staging) Find Matches, scored here.
+    const duplicatesPromise = (async () => {
+      const finder = pagePerson ? null : await readDuplicateFinder(profile.Name);
+      if (finder?.lookupAvailable) return finder;
+      const found = await findDuplicates(
+        WBE_CHAT_APP_ID,
+        { Id: profile.Id, Name: profile.Name, RealName: profile.RealName || profile.FirstName },
+        (url) => {
+          const [path, query = ""] = url.split("?");
+          return getWikiTreePage("Chat", path, query);
+        },
+        { pagePerson }
+      );
+      return { ...found, likely: (found.likely || []).map(describeDuplicate) };
+    })().catch((error) => {
+      console.warn("wbe: duplicate check failed", error);
+      return null;
+    });
+    const subjectLabel = `${profile.RealName || profile.FirstName || profile.Name} (${profile.Name})`;
+    const bio = profile.Bio || profile.bio || ""; // the API returns "bio"
+    if (!bio.replace(/\[\[Category:[^\]]*\]\]|==[^=]+==|<references\s*\/>/g, "").trim()) {
+      return `${subjectLabel} has no biography, so there are no relatives to read from it.`;
+    }
+
+    let relatives = [];
+    let readBy = "read from its census tables and text";
+    const { provider, key: aiKey, model } = await getChatAiConfig();
+    if (aiKey) {
+      notify("Reading the biography for relatives…");
+      try {
+        const response = await chrome.runtime.sendMessage({
+          action: "chatWithAI",
+          prompt: buildRelativesAiPrompt(bio, profile),
+          provider,
+          key: aiKey,
+          model,
+          pageContext: { url: window.location.href, title: document.title },
+        });
+        if (response?.success && response.response) {
+          relatives = relativesFromAiJson(parsePlannerJson(response.response), profile);
+          if (relatives.length) readBy = "read by AI";
+        }
+      } catch (error) {
+        console.warn("wbe: AI couldn't read the biography; reading it by code", error);
+      }
+    }
+    if (!relatives.length) relatives = readRelativesFromBio(bio, profile);
+    const roles = Array.isArray(params?.roles) ? params.roles : [];
+    if (roles.length) relatives = relatives.filter((relative) => roles.includes(relative.role));
+    if (!relatives.length) {
+      // (not "I couldn't…": that hands the question to the AI, or with AI off hides this behind "We need AI")
+      const duplicates = await duplicatesPromise;
+      return [
+        `No ${roles.length ? "such relatives" : "relatives"} found in ${subjectLabel}'s biography. Genie looks for "son of …", "daughter of …", "married …" and census household tables${
+          aiKey ? "" : "; with an AI key Genie can read biographies written in other ways"
+        }.`,
+        ...duplicateLines(duplicates, subjectLabel),
+      ].join("\n");
+    }
+    relatives = relatives.slice(0, 40);
+
+    let attached = pageAttached;
+    if (!attached) {
+      const [entry] =
+        (await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, profile.Id, "Id,Name,FirstName,Gender,BirthDate", {
+          getParents: 1,
+          getSpouses: 1,
+          getChildren: 1,
+          getSiblings: 1,
+        })) || [];
+      const person = entry?.person || {};
+      attached = [
+        ...Object.values(person.Parents || {}).map((p) => ({ role: p.Gender === "Female" ? "mother" : "father", profile: p })),
+        ...Object.values(person.Spouses || {}).map((p) => ({ role: "spouse", profile: p })),
+        ...Object.values(person.Children || {}).map((p) => ({ role: "child", profile: p })),
+        ...Object.values(person.Siblings || {}).map((p) => ({ role: "sibling", profile: p })),
+      ];
+    }
+
+    notify(`Searching WikiTree for ${relatives.length} relative${relatives.length === 1 ? "" : "s"}…`);
+    const results = await searchRelatives({
+      subject: profile,
+      relatives,
+      attached,
+      searchPerson: async (searchParams) => {
+        const [, matches, total] = await WikiTreeAPI.searchPerson(WBE_CHAT_APP_ID, searchParams, CANDIDATE_FIELDS);
+        return { matches, total };
+      },
+      getPeople: async (ids) =>
+        Object.values(
+          (await WikiTreeAPI.getPeople(WBE_CHAT_APP_ID, ids, "Id,Name,FirstName,MiddleName,Nicknames,LastNameAtBirth,RealName"))?.[2] || {}
+        ),
+      getProfiles: async (ids) =>
+        Object.values((await WikiTreeAPI.getPeople(WBE_CHAT_APP_ID, ids, CANDIDATE_FIELDS))?.[2] || {}),
+      getSpouses: async (ids) => {
+        const items = (await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, ids, RELATIVE_SPOUSE_FIELDS, { getSpouses: 1 })) || [];
+        return new Map(items.map((item) => [Number(item?.person?.Id), spousesOf(item?.person)]).filter(([id]) => id));
+      },
+    });
+    const duplicates = await duplicatesPromise;
+    const answer = buildFindRelativesAnswer({ subjectLabel, results, readBy, duplicates });
+    if (pageAttached) answer.message += "\n(Read from this page: the profile isn't in WikiTree's API yet.)";
+    return answer;
   }
 
   async function tryHandlePersonMarriagePrompt(params, prompt = "") {
@@ -2006,13 +2225,35 @@ export function createChatPeopleHandlers({
     }
     if (!rootPerson) return "I could not detect a profile person or your logged-in profile to sum up the tree of.";
     try {
+      // Asked about the ancestors (not for the dashboard) and the tree goes past
+      // the overview's 8 generations: all 25 in a table, the overview a button
+      // away (user, 2026-10-09).
+      if (!params?.explicit) {
+        const slots = await loadFanSlots(rootPerson.key, TREE_OVERVIEW_GENERATIONS);
+        if (slots[1] && fanChartStats(slots).deepest >= TREE_OVERVIEW_GENERATIONS) {
+          const key = slots[1].wtid || rootPerson.wtId || rootPerson.key;
+          const summary = await tryHandleAncestorListPrompt(
+            { generation: 25, relationshipLabel: "ancestors", includeUpTo: true, pick: "summary", subjectText: `${key}'s ancestors` },
+            `how many ancestors does ${key} have`
+          );
+          if (summary && typeof summary === "object") {
+            return { ...summary, actions: [VISUALS.overview(key, "Tree overview"), ...(summary.actions || [])] };
+          }
+        }
+      }
       const shown = await openTreeOverview(rootPerson.key);
       if (!shown) return cantLoad(rootPerson, "ancestors");
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
       const key = shown.slots[1].wtid || rootPerson.key;
       return {
         message: shown.overview.descendants ? `${formatSubjectLabel(rootPerson)} has no parents attached on WikiTree. The overview shows ${shown.overview.descendants.length} descendants found within ${TREE_OVERVIEW_GENERATIONS} generations.` : buildTreeOverviewSummary(shown.overview, owner),
-        actions: shown.opened ? [VISUALS.overview(key, "Open tree overview"), ...visualActions(key, shown.overview.descendants ? "descendants" : "ancestors")] : [VISUALS.explorer(key)],
+        actions: [
+          // The overview stops at 8 generations; the count goes to 25.
+          ...(!shown.overview.descendants && shown.overview.stats.deepest >= TREE_OVERVIEW_GENERATIONS
+            ? [{ label: "Count all generations", actionType: "send-prompt", prompt: `how many ancestors does ${key} have`, newSearch: true }]
+            : []),
+          ...(shown.opened ? [VISUALS.overview(key, "Open tree overview"), ...visualActions(key, shown.overview.descendants ? "descendants" : "ancestors")] : [VISUALS.explorer(key)]),
+        ],
         ...(!shown.overview.descendants ? { table: tableFromSlots(`${owner} ancestors`, shown.slots) } : {}),
         chartOpened: shown.opened,
       };
@@ -2995,7 +3236,7 @@ export function createChatPeopleHandlers({
           return `I found no ${displayRelationshipLabel} for ${subjectLabel} in previously loaded data.`;
         }
 
-        return buildKinListResult({
+        const cachedResult = buildKinListResult({
           details: params?.details || [],
           order: params?.order || "",
           rows: ancestors,
@@ -3019,6 +3260,13 @@ export function createChatPeopleHandlers({
             dateDirection,
             dateValue,
           },
+        });
+        return withDefaultGenerationNote(cachedResult, {
+          usedDefaultGeneration: usedDefaultGeneration && !filterPhrase && !params?.details?.length,
+          rows: ancestors,
+          generation,
+          rootWtId: rootPerson.wtId,
+          isUser: rootPerson?.subjectType === "user",
         });
       }
     }
@@ -3147,6 +3395,7 @@ export function createChatPeopleHandlers({
           locationPhrase,
           total: allAncestors.length,
           treeTakenAsAncestors: Boolean(params?.treeTakenAsAncestors),
+          askedRepeats: Boolean(params?.repeats),
         });
       }
 
@@ -3175,7 +3424,7 @@ export function createChatPeopleHandlers({
         return { ...listResult, message: completeness, inlineMore: null };
       }
 
-      return buildKinListResult({
+      const listResult = buildKinListResult({
         details: params?.details || [],
         order: params?.order || "",
         rows: sortedAncestors,
@@ -3201,7 +3450,26 @@ export function createChatPeopleHandlers({
           dateValue,
         },
       });
+      return withDefaultGenerationNote(listResult, {
+        usedDefaultGeneration: usedDefaultGeneration && !filterPhrase && !params?.details?.length,
+        rows: sortedAncestors,
+        generation,
+        rootWtId: rootPerson.wtId,
+        isUser: rootPerson?.subjectType === "user",
+      });
     } catch (error) {
+      console.warn("wbe: ancestor fetch failed", { generation, key: rootPerson?.key, error: error?.message || error });
+      // Elaine (2.19.0.8, 2026-10-09): a 25-generation question came back as the
+      // 8-generation tree overview, most likely because this fetch failed and
+      // the AI picked something else. Try 10 generations before giving up.
+      if (generation > 10 && !params?.shortenedFrom) {
+        const shorter = await tryHandleAncestorListPrompt({ ...params, generation: 10, shortenedFrom: generation }, prompt);
+        if (shorter && typeof shorter === "object") {
+          const note = `WikiTree didn't return all ${generation} generations this time, so this covers 10. Try again for more.`;
+          return { ...shorter, message: [shorter.message, note].filter(Boolean).join("\n") };
+        }
+        if (typeof shorter === "string" && !/^I couldn't list\b/.test(shorter)) return shorter;
+      }
       return `I couldn't list ${relationshipLabel} for ${subjectLabel}. Error: ${error?.message || "unknown error"}`;
     }
   }
@@ -3561,6 +3829,7 @@ export function createChatPeopleHandlers({
     tryHandlePersonAgeAtChildBirthPrompt,
     tryHandleProfileDuplicatesPrompt,
     tryHandlePersonBurialPrompt,
+    tryHandleFindBioRelativesPrompt,
     tryHandleProfileFactPrompt,
     tryHandleDnaPrompt,
     tryHandleFanChartPrompt,

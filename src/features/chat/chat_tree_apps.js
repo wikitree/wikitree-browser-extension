@@ -70,3 +70,8 @@ export function buildTreeAppRecommendations(kind, wtId) {
 
   return recommendations;
 }
+
+/** A Tree App button (it opens WikiTree's apps in a new tab), as opposed to one of Genie's own. */
+export function isTreeAppAction(action) {
+  return action?.actionType === "external-link" && /^https:\/\/(?:www\.wikitree\.com\/apps\/|apps\.wikitree\.com\/)/.test(String(action?.url || ""));
+}

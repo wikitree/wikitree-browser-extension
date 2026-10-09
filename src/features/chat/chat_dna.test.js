@@ -15,9 +15,9 @@ import {
 
 // Shapes from the live API (Whitten-1, the docs' example), 2026-10-03.
 const tests = [
-  { dna_id: "1", dna_name: "23andMe", dna_type: "auDNA", haplo: "R1b1b2a1a1*", haplom: "U5a1a1", markers: "0", ftdna: "SECRET-KIT" },
+  { dna_id: "1", dna_name: "23andMe", dna_type: "auDNA", haplo: "R1b1b2a1a1*", haplom: "U5a1a1", markers: "0", ftdna: "B12345", ancestry: "ciwhitten", yourDNAportal: "CHR61965ed9" },
   { dna_id: "7", dna_name: "FamilyTreeDNA Mitochondrial", dna_type: "mtDNA", haplo: "", haplom: "U5a1a1aj", markers: "0" },
-  { dna_id: "8", dna_name: "FamilyTreeDNA Y-Chromosome", dna_type: "yDNA", haplo: "R-FTJ31860", haplom: "", markers: "838", gedmatch: "SECRET-GED" },
+  { dna_id: "8", dna_name: "FamilyTreeDNA Y-Chromosome", dna_type: "yDNA", haplo: "R-FTJ31860", haplom: "", markers: "838", gedmatch: "A820770" },
 ];
 
 describe("DNA questions", () => {
@@ -39,11 +39,11 @@ describe("DNA questions", () => {
     expect(parseDnaPrompt(prompt)).toBeNull()
   );
 
-  test("answers never show kit numbers", () => {
+  test("answers show the IDs testers gave WikiTree (the user, 2026-10-07)", () => {
     const taker = buildDnaTakerAnswer(tests, "Whitten-1");
     expect(taker).toMatch(/^Whitten-1 has 3 DNA tests recorded on WikiTree:/);
-    expect(taker).toMatch(/FamilyTreeDNA Y-Chromosome \(Y-DNA\), Y haplogroup R-FTJ31860, 838 markers/);
-    expect(taker).not.toMatch(/SECRET/);
+    expect(taker).toMatch(/FamilyTreeDNA Y-Chromosome \(Y-DNA\), Y haplogroup R-FTJ31860, 838 markers, GEDmatch A820770/);
+    expect(taker).toMatch(/23andMe \(autosomal DNA\), .*Ancestry username ciwhitten, FTDNA kit B12345, YourDNAportal CHR61965ed9/);
     expect(buildHaplogroupAnswer(tests, "Whitten-1", "yDNA")).toBe(
       "Whitten-1 (different tests report them to different depths):\n- Y-DNA haplogroup: R1b1b2a1a1*, R-FTJ31860"
     );
@@ -52,7 +52,7 @@ describe("DNA questions", () => {
     expect(
       buildConnectedTestsAnswer(
         [
-          { dna_name: "AncestryDNA", dna_type: "auDNA", taker: { Name: "Dumas-968" } },
+          { dna_name: "AncestryDNA", dna_type: "auDNA", gedmatch: "AS8991331", taker: { Name: "Dumas-968" } },
           { dna_name: "AncestryDNA", dna_type: "auDNA", taker: { Name: "Maloney-2332" } },
           { dna_name: "FamilyTreeDNA Family Finder", dna_type: "auDNA", taker: { Name: "Maloney-2332" } },
           { dna_name: "FamilyTreeDNA Y-Chromosome", dna_type: "yDNA", taker: { Name: "Maloney-2332" } },
@@ -60,7 +60,7 @@ describe("DNA questions", () => {
         "Moloney-741"
       )
     ).toBe(
-      "4 DNA tests are connected to Moloney-741, from 2 test-takers:\nY-DNA (1):\n- FamilyTreeDNA Y-Chromosome: Maloney-2332\nautosomal DNA (3):\n- AncestryDNA: Dumas-968, Maloney-2332\n- FamilyTreeDNA Family Finder: Maloney-2332"
+      "4 DNA tests are connected to Moloney-741, from 2 test-takers:\nY-DNA (1):\n- FamilyTreeDNA Y-Chromosome: Maloney-2332\nautosomal DNA (3):\n- AncestryDNA: Dumas-968 (GEDmatch AS8991331), Maloney-2332\n- FamilyTreeDNA Family Finder: Maloney-2332"
     );
     expect(buildConnectedTestsAnswer([], "Cook-8721")).toBe("No DNA tests are connected to Cook-8721 on WikiTree.");
     expect(pickTakerTest(tests, "yDNA").dna_id).toBe("8");

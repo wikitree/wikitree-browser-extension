@@ -11,6 +11,7 @@
 
 import { SQL_TEMPLATES } from "../wikitree_plus_helper/wikitree_plus_helper_sql";
 import { GROUP_BY_FIELDS } from "./chat_group_rows";
+import { describeRequestedColumns, knownColumnKeys } from "./chat_requested_columns";
 
 const templateSql = (id, ...args) => SQL_TEMPLATES.find((template) => template.id === id)?.buildSql(...args) || "";
 
@@ -473,6 +474,14 @@ const SPEC_EXAMPLES = [
     },
   ],
   [
+    'profiles with last name "Garver", with a column for gender and one for privacy level',
+    {
+      action: "search",
+      understood: "Profiles with the surname Garver, showing gender and privacy level",
+      search: { names: { anyLastName: "Garver" }, columns: ["gender", "privacy"] },
+    },
+  ],
+  [
     "living people in Kent",
     {
       action: "unsupported",
@@ -523,6 +532,7 @@ export function buildSearchSpecInstructions({
     '- parentStatus: [{"parent":"father"|"mother","status":"uncertain"|"nonBiological"|"certain"|"dnaConfirmed"}] — the relationship status set on the profile ("uncertain fathers" = father uncertain; "DNA-confirmed mothers" = mother dnaConfirmed).',
     '- "Oldest people" / "longest-lived" = deathAge {min: 100} (results can not be sorted, so a high minimum age stands in for "oldest").',
     `- groupBy: one of ${Object.keys(GROUP_BY_FIELDS).join(", ")} — code runs the search, then counts the results in groups. "most common surnames in X" = groupBy lnab; "X births by decade" = groupBy birthDecade; "how many per country" = groupBy country. Never reply unsupported just because a request counts, ranks or groups results.`,
+    `- columns: [keys] — extra columns for the results table ("include a column with gender", "show their privacy level"). How results are shown (columns, a table, a list) is never a condition and never unsupported. Keys: ${describeRequestedColumns()}.`,
     '- sameCemeteryAs: "me" | "current" | a WikiTree ID — buried in the same cemetery as that person (code looks up the cemetery).',
     '- tree: {"ancestorsOf"|"descendantsOf"|"cc7Of": "me" | "current" | a WikiTree ID like "Darwin-15"}.',
     '- special: one of {"type":"spousalAgeGap","minYears":N} | {"type":"parentAgeAtBirth","underAge":N,"overAge":N} | {"type":"siblingBirthGap","maxMonths":N} | {"type":"marriedNoChildren"} | {"type":"diedInChildbirth"} (mothers who died within weeks of a child’s birth; the place is the child’s birth place) | {"type":"createdRecently","days":N}. Put the place and birth years in places/dates as usual.',
@@ -590,7 +600,8 @@ export function readSearchSpecReply(text) {
     return { kind: "unsupported", understood, reason: String(parsed.reason || "").trim() };
   }
   if (parsed?.search && typeof parsed.search === "object") {
-    return { kind: "search", understood, assumptions, search: parsed.search };
+    const columns = knownColumnKeys(parsed.search.columns);
+    return { kind: "search", understood, assumptions, search: parsed.search, columns };
   }
   if (typeof parsed?.query === "string") {
     return { kind: "legacy", understood, parsed };

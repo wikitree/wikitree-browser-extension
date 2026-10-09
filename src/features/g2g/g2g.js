@@ -144,7 +144,7 @@ function linkify() {
 }
 
 /**
- * Add "Preview"/"URL" scissors copy links to each answer/comment anchor on a
+ * Add "Preview"/"URL"/"Template" scissors copy links to each answer/comment anchor on a
  * question page.
  * @returns {void}
  */
@@ -178,7 +178,19 @@ function addScissorsToAnswers() {
       const g2gScissorsClassDiv = $("<div class='g2gScissors'></div>");
       g2gScissorsClassDiv.insertAfter(allAnchorNodes[i].parentNode);
 
-      addItems([previewLinkItem, urlItem], g2gScissorsClassDiv);
+      // Link straight to the answer/comment using everything after /g2g/, e.g.
+      // {{G2GLink|2086639/some-title?show=2087006#a2087006}}. The ?show= part is needed for
+      // answers and comments that aren't on the first page of the question.
+      const g2gPathIndex = href.indexOf("/g2g/");
+      const items = [previewLinkItem, urlItem];
+      if (g2gPathIndex > -1) {
+        items.push({
+          label: "Template",
+          text: "{{G2GLink|" + href.substring(g2gPathIndex + "/g2g/".length) + "}}",
+        });
+      }
+
+      addItems(items, g2gScissorsClassDiv);
     }
   }
 }
@@ -677,7 +689,7 @@ function g2gPageLinksAtTop() {
 }
 
 /**
- * Add the scissors copy panel (ID / URL / Question) to a question page, and
+ * Add the scissors copy panel (ID / URL / Question / Template) to a question page, and
  * optionally per-answer copy links.
  * @param {boolean} alsoInAnswers - Whether to also add copy links to answers.
  * @returns {void}
@@ -711,7 +723,12 @@ function g2gScissors(alsoInAnswers) {
         text: g2gQuestion.replaceAll('"', "“").replaceAll("\n", "").trim(),
       };
 
-      addItems([IDItem, urlItem, questionItem], position, {
+      const templateItem = {
+        label: "Template",
+        text: "{{G2GLink|" + window.g2gID + "}}",
+      };
+
+      addItems([IDItem, urlItem, questionItem, templateItem], position, {
         positioning: "prepend",
         style: "margin-bottom: 1em",
       });

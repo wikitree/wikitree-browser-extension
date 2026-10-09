@@ -30,6 +30,20 @@ const PROVIDERS = [
 
 export const SHARED_AI_KEY_IDS = PROVIDERS.map((provider) => provider.keyId);
 
+const keyOf = (options, provider) => String(options?.[provider.keyId] || "").trim();
+
+/**
+ * The provider to use: the selected one when it has a key; otherwise, when only one provider
+ * has a key, that one (the user, 2026-10-07: "AI Provider" said OpenAI but the member had only
+ * a Claude key, so nothing worked). Unknown or no keys leave the selection as it is.
+ */
+export function effectiveAiProvider(options = {}) {
+  const selected = PROVIDERS.find((provider) => provider.value === options?.aiProvider) || PROVIDERS[0];
+  if (keyOf(options, selected)) return selected.value;
+  const withKeys = PROVIDERS.filter((provider) => keyOf(options, provider));
+  return withKeys.length === 1 ? withKeys[0].value : selected.value;
+}
+
 export const SHARED_AI_OPTION_IDS = [
   "aiProvider",
   ...PROVIDERS.flatMap((provider) => [provider.keyId, provider.modelId]),

@@ -2,7 +2,17 @@ import { findWikiTreeIdOnWikidata } from "./chat_wikidata";
 import { sharedParentIds, topSiblingSteps } from "./chat_connection_common";
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { getRelationJSON } from "../../core/API/wwwWikiTree";
-import { analyseRelationship, asksForRelationship, buildRelationshipLines, describeRelationship, relationshipLead } from "./chat_relationship_data";
+import {
+  analyseRelationship,
+  asksForRelationship,
+  buildRelationshipLines,
+  describeRelationship,
+  directLineDown,
+  directXDnaSentence,
+  relationshipLead,
+  xDnaPath,
+  xDnaSentence,
+} from "./chat_relationship_data";
 import { showRelationshipPopup } from "./chat_relationship_chart";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { getProfilePersonInfo } from "../../core/common";
@@ -501,6 +511,24 @@ function hasExactConnectionFullName(match, firstName, lastName) {
   return hasExactConnectionFirstName(match, firstName) && hasExactConnectionSurname(match, lastName);
 }
 
+/** "William Ralph Beacall" → ["Ralph"]: the names between the first and the last. */
+function typedMiddleNames(target) {
+  const parts = String(target || "").replace(/[?.!,]+/g, " ").split(/\s+/).filter(Boolean);
+  return parts.length > 2 ? parts.slice(1, -1) : [];
+}
+
+/**
+ * Does the profile's middle name fit the typed one? "R" fits Ralph; an
+ * unrecorded middle name is "unknown" (null), not a mismatch.
+ */
+function middleNamesAgree(match, typedMiddles) {
+  const profileMiddles = normalizePersonText(match?.MiddleName || match?.MiddleInitial).split(" ").filter(Boolean);
+  if (!profileMiddles.length) return null;
+  return typedMiddles.map(normalizePersonText).every((typed) =>
+    profileMiddles.some((name) => name === typed || (name.length === 1 && typed.startsWith(name)) || (typed.length === 1 && name.startsWith(typed)))
+  );
+}
+
 /** An exact name match on any pairing of the given first names and surnames (birth or known-by names). */
 function hasAnyExactConnectionFullName(match, firstNames, lastNames) {
   return firstNames.some((first) => first && hasExactConnectionFirstName(match, first)) && lastNames.some((last) => last && hasExactConnectionSurname(match, last));
@@ -599,6 +627,7 @@ export function createChatConnectionHandlers({
   shouldOfferDisambiguation,
   resolveConnectionSourceRoot,
   resolveAliasToRememberedPerson,
+  findInFamilyCircle,
   resolveRelativeTarget,
   setPendingDisambiguationContext,
   buildDisambiguationMessage,
@@ -785,6 +814,17 @@ export function createChatConnectionHandlers({
       }
     }
 
+    // A name with the profile person's or the user's surname, not linked on
+    // the page: look in their CC7 before searching all of WikiTree.
+    const familyMatch = await findInFamilyCircle?.(cleanedTarget).catch((error) => {
+      console.debug("wbe: family circle lookup failed", error);
+      return null;
+    });
+    if (familyMatch?.Name && !excludedWtIds.has(familyMatch.Name)) {
+      console.debug("wbe: resolveConnectionTargetPerson found name in family CC7", { cleanedTarget, wtId: familyMatch.Name });
+      return normalizeResolvedConnectionPerson(familyMatch);
+    }
+
     const { firstName, lastName } = splitPersonName(cleanedTarget);
     // BirthDateDecade matters for living people: the API often withholds the
     // exact BirthDate but still exposes the decade. Templates/Managers carry
@@ -957,6 +997,25 @@ export function createChatConnectionHandlers({
         fields
       );
       currentLastStrictMatches = searchMatches || [];
+    }
+
+    // "William Ralph Beacall": searching "William" alone, oldest first, filled
+    // the 20 places with older Williams; "William Ralph" ranks him first (live, 2026-10-06).
+    const middleNames = typedMiddleNames(cleanedTarget);
+    let givenNamesMatches = [];
+    if (middleNames.length && firstName && lastName) {
+      const [, searchMatches] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: [firstName, ...middleNames].join(" "),
+          LastName: lastName,
+          skipVariants: 1,
+          lastNameMatch: "strict",
+          limit: exactMatchSearchLimit,
+        },
+        fields
+      );
+      givenNamesMatches = searchMatches || [];
     }
 
     let relaxedMatches = [];
@@ -1156,6 +1215,7 @@ export function createChatConnectionHandlers({
     }
 
     const exactOriginalMatches = mergeConnectionMatches([
+      givenNamesMatches,
       strictMatches,
       currentLastStrictMatches,
       wtPlusExactMatches,
@@ -1166,6 +1226,7 @@ export function createChatConnectionHandlers({
         : null;
 
     const matches = mergeConnectionMatches([
+      givenNamesMatches,
       strictHintMatches,
       currentLastStrictHintMatches,
       livingStrictMatches,
@@ -1485,6 +1546,15 @@ export function createChatConnectionHandlers({
       ]);
     }
 
+    // A typed middle name narrows the field: those whose middle name fits, or
+    // else those with none recorded. A different middle name is someone else.
+    if (middleNames.length && rankedMatches.length) {
+      const agreeing = rankedMatches.filter((entry) => middleNamesAgree(entry.match, middleNames) === true);
+      rankedMatches = agreeing.length
+        ? agreeing
+        : rankedMatches.filter((entry) => middleNamesAgree(entry.match, middleNames) !== false);
+    }
+
     if (!rankedMatches.length && sparseExactOriginalMatch) {
       return sparseExactOriginalMatch;
     }
@@ -1573,14 +1643,19 @@ export function createChatConnectionHandlers({
 
   // The relationship chart: getConnections relation=2 runs up through the common ancestor
   // and down again, which is the two lines of descent.
-  async function openRelationshipChart(sourceWtId, targetWtId, relationship, relationshipText, targetName) {
+  // The blood line (getConnections relation=2: up through the common ancestor and down again).
+  function fetchBloodPath(sourceWtId, targetWtId) {
+    return WikiTreeAPI.getConnections(
+      "Chat",
+      [sourceWtId, targetWtId],
+      "Id,Name,Gender,Photo,PhotoData,RealName,FirstName,LastNameAtBirth,LastNameCurrent,Suffix,BirthDate,BirthLocation,DeathDate,Father,Mother",
+      { relation: 2 }
+    );
+  }
+
+  async function openRelationshipChart(sourceWtId, targetWtId, relationship, relationshipText, targetName, bloodPath = null) {
     try {
-      const data = await WikiTreeAPI.getConnections(
-        "Chat",
-        [sourceWtId, targetWtId],
-        "Id,Name,Gender,Photo,PhotoData,RealName,FirstName,LastNameAtBirth,LastNameCurrent,Suffix,BirthDate,BirthLocation,DeathDate,Father,Mother",
-        { relation: 2 }
-      );
+      const data = bloodPath || (await fetchBloodPath(sourceWtId, targetWtId));
       const lines = buildRelationshipLines(data?.path, relationship);
       if (!lines) {
         console.debug("wbe: relationship chart: no line of descent", { data });
@@ -1590,6 +1665,7 @@ export function createChatConnectionHandlers({
         title: `Relationship: ${lines.line1[lines.line1.length - 1]?.first || sourceWtId} and ${targetName || targetWtId}`,
         relationship: /^No relationship found$/i.test(relationshipText) ? "" : relationshipText,
         route: relationship.routes[0],
+        xDna: xDnaPath(lines),
         otherRoutes: relationship.routes.length - 1,
         rootKey: sourceWtId,
       });
@@ -1841,17 +1917,28 @@ export function createChatConnectionHandlers({
       // the common ancestors, every route and the DNA relatives this close share.
       let relationshipDetails = "";
       let relationship = null;
+      let bloodPath = null;
       if (sourceRoot.wtId && targetWtId) {
         try {
           const legacy = await getRelationJSON("Chat", sourceRoot.wtId, targetWtId);
           if (!relationshipText) relationshipText = parseLegacyRelationshipLabel(legacy);
           relationship = analyseRelationship(legacy);
-          relationshipDetails = describeRelationship(
-            relationship,
-            sourceRoot.subjectType === "user" ? "you" : sourceRoot.displayName || sourceRoot.wtId,
-            String(displayName).split(" ")[0] || displayName,
-            { gender1: data?.path?.[0]?.Gender || "" }
-          );
+          const label1 = sourceRoot.subjectType === "user" ? "you" : sourceRoot.displayName || sourceRoot.wtId;
+          const label2 = String(displayName).split(" ")[0] || displayName;
+          relationshipDetails = describeRelationship(relationship, label1, label2, { gender1: data?.path?.[0]?.Gender || "" });
+          // X-DNA needs everyone on the two lines and their genders (Murray, 2026-10-07).
+          if (relationship?.kind === "common" || relationship?.kind === "direct") {
+            try {
+              bloodPath = await fetchBloodPath(sourceRoot.wtId, targetWtId);
+              const xLine =
+                relationship.kind === "common"
+                  ? xDnaSentence(buildRelationshipLines(bloodPath?.path, relationship), label1, label2)
+                  : directXDnaSentence(directLineDown(bloodPath?.path));
+              if (xLine) relationshipDetails = [relationshipDetails, xLine].filter(Boolean).join("\n");
+            } catch (error) {
+              console.debug("wbe: X-DNA check failed", error);
+            }
+          }
         } catch (error) {
           console.debug("wbe: relationship details failed", error);
         }
@@ -1889,7 +1976,7 @@ export function createChatConnectionHandlers({
       const sourceText = sourceRoot.subjectType === "user" ? "you" : `${sourceRoot.displayName} (${sourceRoot.wtId})`;
       const lead = relationship?.kind === "common" && asksForRelationship(prompt) ? relationshipLead(relationshipText, `${displayName} (${targetWtId})`, sourceText) : "";
       if (lead) {
-        openRelationshipChart(sourceRoot.wtId, targetWtId, relationship, relationshipText, displayName);
+        openRelationshipChart(sourceRoot.wtId, targetWtId, relationship, relationshipText, displayName, bloodPath);
       } else {
         try {
           showConnectionsPopup([data]);
@@ -1943,7 +2030,7 @@ export function createChatConnectionHandlers({
             ? [
                 {
                   label: "Relationship chart",
-                  onClick: () => openRelationshipChart(sourceRoot.wtId, targetWtId, relationship, relationshipText, displayName),
+                  onClick: () => openRelationshipChart(sourceRoot.wtId, targetWtId, relationship, relationshipText, displayName, bloodPath),
                 },
               ]
             : []),

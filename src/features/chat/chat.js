@@ -1,4 +1,5 @@
 import { createConnectionSourceResolver } from "./chat_connection_source";
+import { REQUESTED_COLUMNS, addRequestedColumns, parseColumnRequest, requestedColumnFields } from "./chat_requested_columns";
 /*
 Created By: Ian Beacall (Beacall-6)
 */
@@ -21,8 +22,11 @@ import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { buildConnectedTestsAnswer, buildHaplogroupAnswer, dnaTypesFromTestSlugs } from "./chat_dna";
 import { getUserWtId, getUserNumId, getProfilePersonInfo } from "../../core/common";
+import { vetSuggestions } from "./chat_suggestions";
+import { SHARED_AI_KEY_IDS } from "../../core/options/shared_ai_options";
 import { setHighestZIndex } from "../../core/common";
-import { routeChatPrompt, ChatIntent, pause, parseExportResultPrompt } from "./chat_router";
+import { routeChatPrompt, ChatIntent, pause, parseExportResultPrompt, tidyKinFollowUp } from "./chat_router";
+import { familySurnames, findNameInProfiles, hasFamilySurname, preferBracketedIds } from "./chat_family_circle_lookup";
 import { CHART_BAR_KEYS, CHART_SHORTCUTS, chartButtonPrompt, chartShortcutCanonicalPrompt } from "./chat_chart_shortcuts";
 import "datatables.net-dt/css/jquery.dataTables.css";
 import "datatables.net";
@@ -30,6 +34,7 @@ import * as XLSX from "xlsx";
 import "jquery-ui/ui/widgets/draggable";
 import "jquery-ui/ui/widgets/resizable";
 import "./chat.css";
+import { watchForWikiTreeButtons } from "./chat_chart_common";
 import { installChatDebugConsole } from "./chat_debug_console";
 import { findAmbiguousCenturyDecade, rewriteExplicitCenturyDecadeWording } from "./chat_century_decade";
 import { createChatConnectionHandlers } from "./chat_connections";
@@ -48,7 +53,10 @@ import {
 } from "./chat_answer";
 import { prefillSearchForm } from "./chat_search_form";
 import { createProfileSearchHandler } from "./chat_profile_search";
-import { createChatAiHelpers } from "./chat_ai";
+import { createChatAiHelpers, isAiPaused, setAiPaused } from "./chat_ai";
+import { aiKeyHelpHtml } from "./chat_ai_key_help";
+import { dnaReferenceForAi } from "./chat_relationship_data";
+import { isHelpPrompt, noAiExamplesHtml } from "./chat_no_ai_examples";
 import { createChatCcHandlers } from "./chat_cc";
 import { createLastResultOperationHandler } from "./chat_last_result";
 import { createChatRelationHandlers } from "./chat_relations";
@@ -338,6 +346,9 @@ let lastConnectionCandidates = [];
 let lastConnectionRankedMatches = [];
 let lastConnectionPopupResult = null;
 let lastStructuredResult = null;
+// Columns asked for with the current prompt ("my cousins with a privacy column"),
+// added to the table the prompt produces.
+let pendingRequestedColumns = null;
 let lastBioPopupId = null;
 let lastBioPopupProfile = null;
 let wtPlusSuggestionOptionsHtml = "";
@@ -1133,6 +1144,7 @@ const { resolveConnectionTargetPerson, tryHandleConnectionCorrectionPrompt, tryH
     // remembered "Stephen Brown" never answers for "Stephen Fry".
     // Relation handlers are created below; resolve lazily.
     resolveRelativeTarget: (targetText, prompt) => resolveRelativeTargetPeople(targetText, prompt),
+    findInFamilyCircle: (name) => findPersonInFamilyCircle(name),
     resolveAliasToRememberedPerson: (name) => {
       const resolution = resolvePromptAlias(name);
       if (!resolution?.person?.wtId) {
@@ -1190,7 +1202,7 @@ const reRunSavedWtPlusQuery = profileSearchHandlers.reRunSavedWtPlusQuery;
 const translateWtPlusRefinementTerms = profileSearchHandlers.translateWtPlusRefinementTerms;
 const getLastExecutedWtPlusQuery = profileSearchHandlers.getLastExecutedWtPlusQuery;
 
-const { getCc7ProfilesForUser, tryHandleCc7LocationPrompt, tryHandleCcSummaryPrompt, tryHandleWatchlistPrompt } =
+const { getCcProfilesForUser, getCc7ProfilesForUser, tryHandleCc7LocationPrompt, tryHandleCcSummaryPrompt, tryHandleWatchlistPrompt } =
   createChatCcHandlers({
     WikiTreeAPI,
     WBE_CHAT_APP_ID,
@@ -1297,6 +1309,7 @@ const {
   tryHandlePersonAgeAtChildBirthPrompt,
   tryHandleProfileDuplicatesPrompt,
   tryHandlePersonBurialPrompt,
+  tryHandleFindBioRelativesPrompt,
   tryHandleProfileFactPrompt,
   tryHandleDnaPrompt,
   tryHandleFanChartPrompt,
@@ -1325,6 +1338,7 @@ const {
   personVisualActions,
   rebuildChartAction,
 } = createChatPeopleHandlers({
+  getProfilePersonInfo,
   ChatIntent,
   WBE_CHAT_APP_ID,
   WikiTreeAPI,
@@ -1354,6 +1368,8 @@ const {
   getCurrentChatMode,
   getUserNumId,
   notify: (text) => appendMessage("assistant", text, { shouldPersist: false }),
+  getChatAiConfig,
+  parsePlannerJson,
 });
 
 function toggleConnectionsPopup() {
@@ -1546,7 +1562,14 @@ async function fetchPeoplePaged(appId, rootKey, fields, options = {}) {
     const pageOpts = { ...(options || {}), start, limit };
     delete pageOpts.onProgress;
     delete pageOpts.shouldCancel;
-    const [status, total, people] = await WikiTreeAPI.getPeople(appId, rootKey, fields, pageOpts);
+    let status, total, people;
+    try {
+      [status, total, people] = await WikiTreeAPI.getPeople(appId, rootKey, fields, pageOpts);
+    } catch (pageError) {
+      // Once more for transient failures, as the chunked path does.
+      console.debug("wbe: fetchPeoplePaged page failed; retrying", { start, pageError });
+      [status, total, people] = await WikiTreeAPI.getPeople(appId, rootKey, fields, pageOpts);
+    }
     if (status == null) {
       throw new Error("No status returned from getPeople while paging results.");
     }
@@ -2551,6 +2574,34 @@ async function getChatOptions() {
   }
 }
 
+// Fetches the requested columns' fields for a table's profiles and adds them.
+async function withFetchedColumns(table, keys) {
+  const wtIds = [...new Set((table?.rows || []).map((row) => row?.wtid).filter(Boolean))];
+  if (!wtIds.length) return table;
+  showChatShaky(`Fetching ${keys.length === 1 ? "a column" : "columns"} for ${wtIds.length} profiles...`);
+  try {
+    const [, , people] = await fetchPeoplePaged(WBE_CHAT_APP_ID, wtIds, requestedColumnFields(keys), { limit: 1000 });
+    return addRequestedColumns(table, keys, people);
+  } catch (error) {
+    console.info("wbe: fetching requested columns failed", { keys, error });
+    return table;
+  }
+}
+
+// "add a privacy column": to the table already showing.
+async function addColumnsToResult(table, keys) {
+  const titles = keys.map((key) => REQUESTED_COLUMNS[key].title);
+  const titleText = titles.length > 1 ? `${titles.slice(0, -1).join(", ")} and ${titles.at(-1)}` : titles[0];
+  if (!table?.rows?.some((row) => row?.wtid)) {
+    return {
+      message: `There's no list of profiles to add the ${titleText} column${titles.length > 1 ? "s" : ""} to yet. Ask for one first, for example "my cousins with a privacy column".`,
+    };
+  }
+  const withColumns = await withFetchedColumns(table, keys);
+  if (withColumns === table) return { message: `I couldn't fetch the ${titleText} details just now. Please try again.` };
+  return { message: `Added ${titleText} to the table.`, table: withColumns, autoOpen: true };
+}
+
 async function handleChatResult(result) {
   // (a handler's plain-text reply; dropping it showed nothing at all for "Beacall-10", 2026-10-04)
   if (typeof result === "string") result = { message: result };
@@ -2562,6 +2613,12 @@ async function handleChatResult(result) {
   if (result.needsAi && !(await getChatAiConfig())?.key) {
     showNeedsAiKey(lastNonRetryUserPrompt);
     return;
+  }
+
+  if (pendingRequestedColumns && result.table?.rows?.length) {
+    const keys = pendingRequestedColumns;
+    pendingRequestedColumns = null;
+    result = { ...result, table: await withFetchedColumns(result.table, keys) };
   }
 
   const messageText =
@@ -2759,8 +2816,12 @@ function showNeedsAiKey(prompt) {
   // (a question gets just the message and the link; something more like a search gets the form too)
   const withForm = !looksLikeQuestion(prompt);
   const needsKey = needsAiKeyMessage({ withForm });
-  appendMessage("assistant", needsKey.text, {
-    actions: needsKey.actions.map((action) => ({ ...action, onClick: () => window.open(action.url, "_blank", "noopener,noreferrer") })),
+  const text = isAiPaused() ? `${needsKey.text}\n(AI is switched off with the AI switch at the top.)` : needsKey.text;
+  appendMessage("assistant", text, {
+    actions: [
+      ...needsKey.actions.map((action) => ({ ...action, onClick: () => window.open(action.url, "_blank", "noopener,noreferrer") })),
+      { label: WHAT_CAN_I_TYPE, onClick: () => showNoAiExamples() },
+    ],
     searchForm: withForm ? prefillSearchForm(prompt) : null,
   });
 }
@@ -2811,6 +2872,31 @@ function sendClarifiedPrompt(prompt, { newSearch = false } = {}) {
   sendChatPrompt();
 }
 
+// "John Theodore Weatherall" on Weatherall-111's page (live, 2026-10-08): a
+// name with the profile person's or the user's surname is looked for in
+// their CC7 (getPeople, nuclear 7) before a search of all WikiTree.
+async function findPersonInFamilyCircle(name) {
+  const profile = getProfilePersonInfo() || {};
+  const userWtId = getUserWtId() || "";
+  const surnames = familySurnames({
+    profileWtId: profile.Name,
+    profileLastName: profile.LastNameAtBirth,
+    profileFullName: profile.FullName,
+    userWtId,
+  });
+  if (!hasFamilySurname(name, surnames)) return null;
+  const roots = [];
+  const profileSurnames = familySurnames({ profileWtId: profile.Name, profileLastName: profile.LastNameAtBirth, profileFullName: profile.FullName });
+  if (profile.Id && hasFamilySurname(name, profileSurnames)) roots.push(profile.Id);
+  const userNumId = getUserNumId();
+  if (userNumId && hasFamilySurname(name, familySurnames({ userWtId })) && !roots.includes(userNumId)) roots.push(userNumId);
+  for (const root of roots) {
+    const match = findNameInProfiles(name, await getCcProfilesForUser(root, 7));
+    if (match) return match;
+  }
+  return null;
+}
+
 async function sendChatPrompt() {
   const $input = $(`#${CHAT_INPUT_ID}`);
   if ($input.length === 0) return;
@@ -2819,9 +2905,17 @@ async function sendChatPrompt() {
   if (!rawPrompt) {
     return;
   }
+  // "help", "what can I type?": the examples panel.
+  if (isHelpPrompt(rawPrompt)) {
+    $input.val("");
+    showNoAiExamples();
+    return;
+  }
 
   // Normalize compact suggestion formats like "dbe803" to "Suggestions=803"
-  const normalizedPrompt = parseSuggestionNumberFromPrompt(rawPrompt);
+  // "John Theodore Weatherall's (Weatherall-113) bio" → "Weatherall-113's bio";
+  // "How about his agrandparents?" → "his grandparents?" (live, 2026-10-08).
+  const normalizedPrompt = tidyKinFollowUp(preferBracketedIds(parseSuggestionNumberFromPrompt(rawPrompt)));
 
   // "siblings of the wife of Sarah's father" -> "Sarah's father's wife's siblings",
   // the form the relation and bio handlers parse.
@@ -2900,6 +2994,7 @@ async function sendChatPrompt() {
     });
   }
 
+  const previousStructuredResult = lastStructuredResult;
   // If the user chose "New search", discard previous result context before routing
   const newQueryContext = document.querySelector('input[name="wbe-chat-context"]:checked')?.value === "new";
   if (newQueryContext) {
@@ -2951,6 +3046,20 @@ async function sendChatPrompt() {
         })),
       });
       return;
+    }
+
+    // Extra columns: "add a privacy column" goes on the last result; "my cousins
+    // with a gender column" runs "my cousins", then adds it (Discord, 2026-10-06).
+    pendingRequestedColumns = null;
+    const columnRequest = jsonBatchPayload === null ? parseColumnRequest(prompt) : null;
+    if (columnRequest && !columnRequest.rest) {
+      await handleChatResult(await addColumnsToResult(previousStructuredResult, columnRequest.keys));
+      return;
+    }
+    if (columnRequest) {
+      console.debug("wbe: columns requested", columnRequest);
+      pendingRequestedColumns = columnRequest.keys;
+      prompt = columnRequest.rest;
     }
 
     // Handle pending disambiguation: user is replying to a "which one did you mean?" prompt
@@ -3133,6 +3242,7 @@ async function sendChatPrompt() {
       ChatIntent.PERSON_AGE_AT_CHILD_BIRTH,
       ChatIntent.PROFILE_DUPLICATES,
       ChatIntent.PERSON_BURIAL,
+      ChatIntent.FIND_BIO_RELATIVES,
       ChatIntent.PROFILE_FACT,
       ChatIntent.DNA,
       ChatIntent.FAN_CHART,
@@ -3387,7 +3497,7 @@ async function sendChatPrompt() {
       localFailureForAi ? `Local tool attempt failed with: ${localFailureForAi}` : "",
     ];
     if (profileContextText) aiPromptParts.push(profileContextText);
-    const dnaContextText = await buildDnaContextForPrompt(prompt, contextProfileKey);
+    const dnaContextText = await buildDnaContextForPrompt(prompt, contextProfileKey, conversationContext);
     if (dnaContextText) aiPromptParts.push(dnaContextText);
     const pageContextText = buildPageContextForPrompt(prompt, contextProfileKey, profileBioMissing);
     if (pageContextText) aiPromptParts.push(pageContextText);
@@ -3432,7 +3542,15 @@ async function sendChatPrompt() {
       if (answer.cannot) recordUnanswered(prompt, answer.text.split("\n")[0].slice(0, 160));
       appendMessage("assistant", answer.text || "No response text returned.", {
         badge: answer.cannot ? "Couldn't answer" : "AI answer",
-        actions: suggestionActions(answer.suggestions).map((action) => ({
+        // Only follow-ups Genie's own code runs; when the AI couldn't answer,
+        // fill up with requests on the same topic for the person asked about.
+        actions: suggestionActions(
+          vetSuggestions(answer.suggestions, {
+            question: prompt,
+            id: lastAnswerSubject?.wtId || getProfileRootPerson()?.wtId || "",
+            want: answer.cannot ? 3 : Math.min(2, answer.suggestions.length),
+          })
+        ).map((action) => ({
           ...action,
           onClick: () => sendClarifiedPrompt(action.prompt, { newSearch: true }),
         })),
@@ -3443,6 +3561,7 @@ async function sendChatPrompt() {
   } catch (error) {
     appendMessage("assistant", `Error: ${error?.message || "AI request failed."}`);
   } finally {
+    pendingRequestedColumns = null;
     setPendingState(false);
     try {
       hideChatShaky();
@@ -3575,6 +3694,9 @@ async function executeRoutedIntent(routed, prompt) {
   }
   if (routed.intent === ChatIntent.PERSON_BURIAL) {
     return await tryHandlePersonBurialPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.FIND_BIO_RELATIVES) {
+    return await tryHandleFindBioRelativesPrompt(routed.params, prompt);
   }
   if (routed.intent === ChatIntent.PROFILE_DUPLICATES) {
     return await tryHandleProfileDuplicatesPrompt(routed.params, prompt);
@@ -3893,8 +4015,18 @@ async function getLoggedInRootPerson() {
 // A DNA question about a profile: its connected DNA tests from the API (getConnectedDNATestsByProfile),
 // so the AI doesn't say there are none (Murray, Chicoine_dit_Henley-1, 2026-10-05). On the
 // profile page, its DNA Connections box adds what the API doesn't give: each taker's likely share.
-async function buildDnaContextForPrompt(prompt, contextProfileKey) {
-  if (!isDnaPrompt(prompt)) return "";
+// Shared-DNA figures go with any DNA or cM question, and with "what's your source?" after
+// a reply that gave cM: a user asked for a citation and got none (De_Figuery-1, 2026-10-06).
+async function buildDnaContextForPrompt(prompt, contextProfileKey, conversationContext = "") {
+  const asksForSource = /\b(?:cite|citations?|sources?|references?|evidence)\b|where\s+(?:did|does|do)\s+.*\b(?:from|get)\b/i.test(prompt) && /\bcM\b/.test(conversationContext);
+  const wantsReference = isDnaPrompt(prompt) || /\bcM\b|centimorgans?/i.test(prompt) || asksForSource;
+  if (!wantsReference) return "";
+  const reference = dnaReferenceForAi();
+  if (!isDnaPrompt(prompt)) return reference;
+  return [reference, await buildDnaTestsContextForPrompt(prompt, contextProfileKey)].filter(Boolean).join("\n\n");
+}
+
+async function buildDnaTestsContextForPrompt(prompt, contextProfileKey) {
   try {
     const pageRoot = getProfileSubjectRoot();
     // ("who could test?" names no one: on a profile page, the page person)
@@ -4222,12 +4354,14 @@ let noKeyTipShown = false;
 // planner; "My connection to…" is handled by Genie's own code).
 // Without an AI key, a chip opens the search form instead of sending a prompt.
 export const SEARCH_FORM_CHIP = "Search by name, place or date";
+// Without an AI key, a chip opens the tested list of what works without AI.
+export const WHAT_CAN_I_TYPE = "What can I type?";
 
 export function welcomeChipPrompts(profileFirstName, { ai = true } = {}) {
   const prompts = profileFirstName
     ? [ai ? `How am I related to ${profileFirstName}?` : `My connection to ${profileFirstName}`, "Tree overview", "Fan chart", "Family Explorer", "Map this person's ancestors", "On this day in this family", "Lifespans", "Ancestors in history", "Surnames", "Name cloud", "X-DNA chart", "Descendant chart", "Family timeline"]
     : ["Tell me about my tree", "Show my fan chart", "Show my Family Explorer", "Map my ancestors", "How complete is my tree?", "How long did my ancestors live?", "What history did my ancestors live through?", "What surnames are in my tree?", "Who could I have inherited X-DNA from?", "On this day in my family", "Show my descendant chart", "Show my family timeline"];
-  return ai ? prompts : [prompts[0], SEARCH_FORM_CHIP, ...prompts.slice(1)];
+  return ai ? prompts : [prompts[0], SEARCH_FORM_CHIP, WHAT_CAN_I_TYPE, ...prompts.slice(1)];
 }
 
 function appendWelcomeChips() {
@@ -4248,6 +4382,10 @@ function appendWelcomeChips() {
       .toggle(index < WELCOME_CHIPS_SHOWN)
       .text(prompt)
       .on("click", () => {
+        if (prompt === WHAT_CAN_I_TYPE) {
+          showNoAiExamples(); // (the chips stay for when the panel closes)
+          return;
+        }
         $chips.remove();
         if (prompt === SEARCH_FORM_CHIP) {
           appendMessage("assistant", "Fill in what you know, then press Search.", { searchForm: {} });
@@ -4278,8 +4416,9 @@ function openPopup() {
     $popup = $(
       `<div id="${CHAT_POPUP_ID}" class="wbe-popup chat-popup">
         <div class="chat-popup-header">
-          <strong>Genie</strong>
+          <strong>Genie <button type="button" class="chat-help-button" aria-label="Genie Help" title="Help: what can I type?">?</button></strong>
           <div class="chat-popup-controls">
+            <button id="wbe-genie-ai-toggle" type="button" role="switch" aria-checked="false" hidden><span class="chat-ai-label">AI</span><span class="chat-ai-state chat-ai-state-off">Off</span><span class="chat-ai-switch"><span class="chat-ai-knob"></span></span><span class="chat-ai-state chat-ai-state-on">On</span></button>
             <button id="${CHAT_CLEAR_ID}" type="button" class="small" title="Clear chat">Clear</button>
             <button type="button" class="small close-popup" aria-label="Close" title="Close">&times;</button>
           </div>
@@ -4311,6 +4450,8 @@ function openPopup() {
 
     positionPopupForOpen($popup.get(0));
     $popup.find(".close-popup").on("click", closePopup);
+    $popup.find("#wbe-genie-ai-toggle").on("click", toggleAiPaused);
+    $popup.find(".chat-help-button").on("click", () => showNoAiExamples());
     $popup.find(`#${CHAT_CLEAR_ID}`).on("click", () => {
       clearHistory();
       appendWelcomeChips();
@@ -4378,6 +4519,7 @@ function openPopup() {
 
 export function openChatPopup() {
   installChatDebugConsole();
+  watchForWikiTreeButtons();
   openPopup();
 }
 
@@ -4405,15 +4547,127 @@ async function syncChatVisibilityToKeys() {
   applyAiAvailability();
 }
 
+// The "AI On / Off" switch: with a key, switch AI off to see Genie as someone without
+// one does. Without a key, it stays off and explains why a key is worth having.
+async function toggleAiPaused() {
+  // After the extension is reloaded or updated, a page that was already open
+  // can't read the settings any more, so the saved key looks missing.
+  if (!extensionContextAlive()) {
+    appendMessage("assistant", "The extension was updated or reloaded since this page opened, so Genie can't read your settings here. Reload this page and switch AI on again.", {
+      shouldPersist: false,
+    });
+    return;
+  }
+  const config = await getChatAiConfig({ ignorePause: true });
+  const hasRealKey = Boolean(config?.key);
+  if (!hasRealKey) {
+    // Which AI settings Genie could see (never the keys themselves).
+    try {
+      const options = (await getChatOptions()) || {};
+      console.info("wbe: AI switch found no key", {
+        provider: config?.provider,
+        selected: options.aiProvider,
+        keysSaved: SHARED_AI_KEY_IDS.filter((keyId) => String(options[keyId] || "").trim()),
+      });
+    } catch (error) {
+      /* diagnostics only */
+    }
+    showAiKeyHelp();
+    return;
+  }
+  const paused = !isAiPaused();
+  setAiPaused(paused);
+  aiAvailable = await hasAnyApiKey();
+  applyAiAvailability();
+  appendMessage(
+    "assistant",
+    paused
+      ? "AI is off. Genie now works as it does for someone without an AI key (your key is still saved). Use the AI switch at the top to turn it back on."
+      : "AI is on.",
+    { shouldPersist: false }
+  );
+}
+
+function extensionContextAlive() {
+  try {
+    return Boolean(chrome?.runtime?.id);
+  } catch (error) {
+    return false;
+  }
+}
+
+// Inside the popup: a body-level overlay ends up under it (see .wbe-popup z-index).
+function showAiKeyHelp() {
+  const $popup = $(`#${CHAT_POPUP_ID}`);
+  if (!$popup.length) return;
+  $popup.find(".chat-ai-help").remove();
+  const $help = $(aiKeyHelpHtml()).appendTo($popup);
+  $help.find(".chat-ai-help-close").on("click", () => $help.remove());
+  $help.find(".chat-ai-help-examples").on("click", () => showNoAiExamples());
+  $help.find(".chat-ai-help-settings").on("click", () => {
+    try {
+      chrome.runtime.sendMessage({ action: "openWbeOptions" });
+    } catch (error) {
+      console.info("wbe: couldn't open the settings page", error);
+    }
+  });
+  $help.find(".chat-ai-help-close").trigger("focus");
+}
+
+// "What can I type?": the tested examples that work without AI. An example
+// runs when clicked; one that needs a result first just goes in the box.
+function showNoAiExamples() {
+  const $popup = $(`#${CHAT_POPUP_ID}`);
+  if (!$popup.length) return;
+  $popup.find(".chat-ai-help").remove();
+  const $help = $(noAiExamplesHtml()).appendTo($popup);
+  $help.find(".chat-ai-help-close").on("click", () => $help.remove());
+  $help.find(".chat-help-ai-key").on("click", () => showAiKeyHelp());
+  $help.find(".chat-example").on("click", function () {
+    const prompt = String($(this).data("prompt") || "");
+    const waitForResult = $(this).data("needs-result") && !lastStructuredResult?.rows?.length;
+    $help.remove();
+    $(`#${CHAT_INPUT_ID}`).val(prompt).trigger("focus");
+    if (!waitForResult) void sendChatPrompt();
+  });
+  $help.find(".chat-ai-help-close").trigger("focus");
+}
+
+async function refreshAiToggle($popup) {
+  const $toggle = $popup.find("#wbe-genie-ai-toggle");
+  const hasRealKey = Boolean((await getChatAiConfig({ ignorePause: true }))?.key);
+  const paused = isAiPaused();
+  const on = hasRealKey && !paused;
+  $toggle
+    .prop("hidden", false)
+    .toggleClass("chat-ai-on", on)
+    .toggleClass("chat-ai-off", hasRealKey && paused)
+    .toggleClass("chat-ai-nokey", !hasRealKey)
+    .attr("aria-checked", String(on))
+    .attr(
+      "title",
+      !hasRealKey
+        ? "AI is off: no AI key yet. Click to see what AI adds and how to get a key."
+        : paused
+        ? "AI is off: Genie answers as it would without a key. Click to turn it back on."
+        : "AI is on. Click to turn it off and try Genie as someone without an AI key (your key stays saved)."
+    );
+}
+
 // The box hint, and the welcome chips' wording, follow whether an AI key is set.
 function applyAiAvailability() {
   const $popup = $(`#${CHAT_POPUP_ID}`);
   if (!$popup.length) return;
+  refreshAiToggle($popup);
   $popup
     .find(`#${CHAT_INPUT_ID}`)
     .attr(
       "placeholder",
-      aiAvailable === false ? "Search WikiTree, or pick a chart (add an AI key in Options to ask questions)" : "Search WikiTree, or ask a question"
+      aiAvailable === false
+        ? isAiPaused()
+          ? "Search WikiTree, or pick a chart (AI is off)"
+          : "Search WikiTree, or pick a chart (add an AI key in Options to ask questions)"
+        : "Search WikiTree, or ask a question"
     );
   if ($popup.find(".chat-welcome-chips").length) appendWelcomeChips();
 }

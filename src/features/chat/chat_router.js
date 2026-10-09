@@ -1,3 +1,4 @@
+import { preferBracketedIds } from "./chat_family_circle_lookup";
 import { parseFamilyMatrixPrompt } from "./chat_family_matrix_data";
 /*
 Intent router for Chat feature.
@@ -8,6 +9,7 @@ without growing chat.js into a single large file.
 import { parseCousinRelationRequest } from "./chat_cousin_helpers";
 import { parseDuplicateCheckPrompt } from "./chat_duplicates";
 import { parseBurialPrompt } from "./chat_burial";
+import { parseFindRelativesPrompt } from "./chat_bio_relatives";
 import { parseProfileFactPrompt } from "./chat_profile_facts";
 import { parseDnaPrompt } from "./chat_dna";
 import { parseFanChartPrompt, parseSurnameChartPrompt } from "./chat_fan_chart_data";
@@ -39,7 +41,7 @@ import { parseChildPickPrompt } from "./chat_child_pick";
 import { splitKinDetailsClause } from "./chat_kin_details";
 import { splitKinOrderClause } from "./chat_kin_order";
 import { splitKinFilterClause } from "./chat_kin_filter";
-import { parseAncestorDepthOwner } from "./chat_ancestor_depth";
+import { asksAboutRepeats, parseAncestorDepthOwner, parseAncestorSummaryOwner } from "./chat_ancestor_depth";
 import { parseResultPickPrompt } from "./chat_result_pick";
 import { isProfileNarrativePrompt } from "./chat_profile_narrative";
 
@@ -55,6 +57,7 @@ export const ChatIntent = {
   PERSON_AGE_AT_CHILD_BIRTH: "personAgeAtChildBirth",
   PROFILE_DUPLICATES: "profileDuplicates",
   PERSON_BURIAL: "personBurial",
+  FIND_BIO_RELATIVES: "findBioRelatives",
   PROFILE_FACT: "profileFact",
   DNA: "dna",
   FAN_CHART: "fanChart",
@@ -640,6 +643,32 @@ export function extractConnectionEndpoints(prompt) {
     .replace(/^\s*(?:please\s+)?(?:what(?:['’]s|\s+is)|show(?:\s+me)?|tell\s+me|find|give\s+me)\s+/i, "")
     .replace(/^\s*the\s+/i, "");
 
+  // "how am I related to Harold?", "how is Maloney-2332 related to McKusick-36?",
+  // "how are Philip and Jefferson related?": needed AI to read (2026-10-06).
+  // A person's relatives ("Calvin's children") are left to the AI; only a name or ID is read here.
+  const relatedQuestion = normalized.replace(/[?.!]+$/, "").trim();
+  const isRelativesPhrase = /['’]s\s+\S/.test(relatedQuestion);
+  const howAmIMatch = isRelativesPhrase
+    ? null
+    : relatedQuestion.match(/^(?:how\s+)?(?:am\s+i|are\s+we)\s+(?:related|connected)\s+to\s+(.+)$/i);
+  if (howAmIMatch?.[1] && !/^(?:any(?:one|body)|someone|somebody)\b/i.test(howAmIMatch[1])) {
+    return { source: "", target: cleanConnectionEndpoint(howAmIMatch[1]) };
+  }
+  const howIsMatch = isRelativesPhrase ? null : relatedQuestion.match(/^how\s+(?:is|was)\s+(.+?)\s+(?:related|connected)\s+to\s+(.+)$/i);
+  if (howIsMatch?.[1] && howIsMatch?.[2]) {
+    const source = cleanConnectionEndpoint(howIsMatch[1]);
+    const target = cleanConnectionEndpoint(howIsMatch[2]);
+    if (isSelfReferenceEndpoint(target)) return { source: "", target: source };
+    return { source: isSelfReferenceEndpoint(source) ? "" : source, target };
+  }
+  const howAreMatch = isRelativesPhrase ? null : relatedQuestion.match(/^how\s+(?:are|were)\s+(.+?)\s+and\s+(.+?)\s+(?:related|connected)$/i);
+  if (howAreMatch?.[1] && howAreMatch?.[2]) {
+    const source = cleanConnectionEndpoint(howAreMatch[1]);
+    const target = cleanConnectionEndpoint(howAreMatch[2]);
+    if (isSelfReferenceEndpoint(target)) return { source: "", target: source };
+    return { source: isSelfReferenceEndpoint(source) ? "" : source, target };
+  }
+
   const possessiveToMeMatch = lead.match(
     /^\s*(.+?)['’]s\s+(?:(?:connection|relationship)(?:\s+or\s+distance)?|distance(?:\s+or\s+connection)?)\s+to\s+me\??\s*$/i
   );
@@ -749,6 +778,8 @@ export function normalizeConnectionTargetForSearch(value) {
   return String(value || "")
     .trim()
     .replace(/[?.!]+$/, "")
+    // "show John Theodore Weatherall" was the target of "show John Theodore Weatherall's bio" (live, 2026-10-08).
+    .replace(/^(?:please\s+)?(?:show|open|read|display|get|find|give|fetch|pull\s+up|look\s+up)(?:\s+me)?\s+(?:the\s+)?/i, "")
     .replace(/\b(?:the\s+)?(?:actor|actress|singer|musician|writer|poet|politician|comedian|mp|sir|dame)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -770,8 +801,12 @@ export function extractCorrectionTarget(prompt) {
 // "Thomas Beacall (Beacall-13)": the ID in brackets decides who is meant. Name
 // search on the rest found someone else, even Prince Philip (live, 2026-10-04).
 export function embeddedWikiTreeId(value) {
-  const id = String(value || "").match(/\(([^()]+)\)\s*$/)?.[1]?.trim() || "";
-  return isWikiTreeId(id) ? id : "";
+  const text = String(value || "");
+  const id = text.match(/\(([^()]+)\)\s*$/)?.[1]?.trim() || "";
+  if (isWikiTreeId(id)) return id;
+  // "show Weatherall-113": an ID after a command word.
+  const last = normalizeConnectionTargetForSearch(text);
+  return /\s/.test(last) || !isWikiTreeId(last) ? "" : last;
 }
 
 // Surnames can hold hyphens and accents: Schleswig-Holstein-Sonderburg-Glücksburg-1.
@@ -2549,6 +2584,15 @@ export function parseAncestorDepthPrompt(text) {
   return base ? { ...base, generation: MAX_ANCESTOR_GENERATIONS, includeUpTo: true, pick: "depth", subjectText: `${owner} ancestors` } : null;
 }
 
+// "how many direct ancestors does he have?", with or without "what is the
+// earliest birthdate" and "how many generations back": the count, the depth
+// and the earliest-born ancestor in one answer (live, 2026-10-08).
+export function parseAncestorSummaryPrompt(text) {
+  const owner = parseAncestorSummaryOwner(text);
+  const base = owner ? parseAncestorListPrompt(`${owner} ancestors`) : null;
+  return base ? { ...base, generation: MAX_ANCESTOR_GENERATIONS, includeUpTo: true, pick: "summary", subjectText: `${owner} ancestors`, ...(asksAboutRepeats(text) ? { repeats: true } : {}) } : null;
+}
+
 export function parseAncestorPickPrompt(text) {
   const m = String(text || "")
     .trim()
@@ -2679,7 +2723,52 @@ export function parseKinGroupPrompt(prompt) {
   return null;
 }
 
+// Kin words a misspelling is mended to ("his agrandparents", live 2026-10-08).
+const KIN_SPELLINGS = [
+  "parents", "grandparents", "grandfathers", "grandmothers", "grandfather", "grandmother", "grandchildren",
+  "grandsons", "granddaughters", "siblings", "brothers", "sisters", "children", "daughters", "cousins",
+  "nieces", "nephews", "uncles", "aunts", "husbands", "spouses", "ancestors", "descendants", "father", "mother",
+  "brother", "sister", "daughter", "cousin", "niece", "nephew", "uncle", "husband", "spouse",
+];
+
+function withinOneEdit(a, b) {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  if (a.length === b.length) return a.slice(i + 1) === b.slice(i + 1) || (a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2));
+  return a.length > b.length ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1);
+}
+
+/**
+ * "How about his agrandparents?" → "his grandparents?": a follow-up lead-in is
+ * dropped, and a kin word one typo away (after his/her/their/my or 's) is mended.
+ */
+export function tidyKinFollowUp(prompt) {
+  let text = String(prompt || "").replace(
+    /\b(his|her|their|my|[\w-]+['’]s)\s+([a-z]{6,})\b/gi,
+    (whole, owner, word) => {
+      const lower = word.toLowerCase();
+      if (KIN_SPELLINGS.includes(lower) || KIN_SPELLINGS.includes(`${lower}s`) || /^(?:great|step|half)/.test(lower)) return whole;
+      // A changed first letter is another word ("pieces", not "nieces").
+      const fixed = KIN_SPELLINGS.find((kin) => (lower[0] === kin[0] || lower.slice(1) === kin) && withinOneEdit(lower, kin));
+      return fixed ? `${owner} ${fixed}` : whole;
+    }
+  );
+  const lead = text.match(/^\s*(?:(?:and|so|ok(?:ay)?|then)[,\s]+)?(?:(?:how|what)\s+about\s+)?(?=(?:his|her|their|my)\s)/i);
+  if (lead && lead[0].trim()) {
+    const rest = text.slice(lead[0].length);
+    const kin = rest.match(/^(?:his|her|their|my)\s+(?:(?:great|step|half|maternal|paternal|other)[\s-]*)*([a-z-]+?)['’]?s?\b/i)?.[1];
+    if (kin && KIN_SPELLINGS.some((word) => word.replace(/s$/, "") === kin.toLowerCase().replace(/s$/, "") || word === `${kin.toLowerCase()}ren`)) text = rest;
+  }
+  return text;
+}
+
 export function routeChatPrompt(prompt, options = {}) {
+  prompt = tidyKinFollowUp(preferBracketedIds(prompt));
+  // "show his family tree chart" was a text filter of the last result (live,
+  // 2026-10-08): a family tree or pedigree chart is the fan chart.
+  prompt = String(prompt || "").replace(/\b(?:family[\s-]+tree|pedigree|ancestor|ancestry)\s+(?:chart|diagram)\b/gi, "fan chart");
   // J4 (live, 2026-10-03): "her parents' other children" are her siblings.
   prompt = rewriteInLawTerms(prompt).replace(/\bparents['’](?:s)?\s+other\s+(children|kids|sons|daughters)\b/i, (_, noun) =>
     /^sons$/i.test(noun) ? "brothers" : /^daughters$/i.test(noun) ? "sisters" : "siblings"
@@ -2800,6 +2889,10 @@ function routeChatPromptUnchecked(prompt, options = {}) {
     if (livingDescendants?.livingOnly) return { intent: ChatIntent.DESCENDANT_LIST, params: livingDescendants };
   }
   const hasStructuredResult = Boolean(options?.hasStructuredResult);
+  // Before the narrative check: "...can you see beyond the chart on this page?"
+  // read as a question about the profile text (live, 2026-10-08).
+  const ancestorSummary = /\bancestors?\b/i.test(String(prompt || "")) ? parseAncestorSummaryPrompt(prompt) : null;
+  if (ancestorSummary) return { intent: ChatIntent.ANCESTOR_LIST, params: ancestorSummary };
   if (isProfileNarrativePrompt(prompt)) {
     return { intent: ChatIntent.FALLBACK_AI, params: { profileNarrative: true } };
   }
@@ -2840,7 +2933,8 @@ function routeChatPromptUnchecked(prompt, options = {}) {
     parseAncestorPlacePrompt(prompt) ||
     parseAncestorPickPrompt(prompt) ||
     parseAncestorDepthPrompt(prompt) ||
-    parseLongestLivedPrompt(prompt);
+    parseLongestLivedPrompt(prompt) ||
+    parseAncestorSummaryPrompt(prompt);
   if (generationCount) {
     return {
       intent: ChatIntent.ANCESTOR_LIST,
@@ -2863,7 +2957,33 @@ function routeChatPromptUnchecked(prompt, options = {}) {
     return { intent: ChatIntent.ANCESTOR_LIST, params: ancestorsInPlace };
   }
 
+  // "show Weatherall-111's sources" was a relation called "sources" (live, 2026-10-08).
+  const earlySources = /\b(?:sources?|citations?|references?)\b/i.test(prompt) ? parseProfileSourcesPrompt(prompt) : null;
+  if (earlySources) return { intent: ChatIntent.PROFILE_SOURCES, params: earlySources };
+
   const relationQuery = parseRelationPrompt(prompt);
+  // "show Weatherall-111's family tree chart" was a relation called "family
+  // tree chart" (live, 2026-10-08); a chart word makes it the chart.
+  if (relationQuery && /\b(?:chart|tree|map|timeline|cloud|fan|explorer|fractal|sunburst|overview|dashboard|calendar|lifespans?|pedigree|matrix)\b/i.test(relationQuery.relationRaw || "")) {
+    const chartShortcut = parseChartShortcutPrompt(prompt);
+    if (chartShortcut) return { intent: ChatIntent.CHART_SHORTCUT, params: chartShortcut };
+  }
+  // "show Weatherall-111's ancestors" (a suggested follow-up, live 2026-10-08)
+  // was a relation called "ancestors", which the relation handler can't walk.
+  if (relationQuery && /^(?:(?:all|direct|known|recorded)\s+)*ancestors$/i.test(relationQuery.relationRaw || "")) {
+    const named = relationQuery.subjectMode === "named" && relationQuery.subjectName;
+    const owner = named ? `${relationQuery.subjectName}'s` : relationQuery.subjectMode === "user" ? "my" : "their";
+    const base = parseAncestorListPrompt(`${owner} ancestors`);
+    if (base) {
+      return {
+        intent: ChatIntent.ANCESTOR_LIST,
+        params:
+          relationQuery.mode === "count"
+            ? { ...base, generation: MAX_ANCESTOR_GENERATIONS, includeUpTo: true, pick: "summary", subjectText: `${owner} ancestors` }
+            : { ...base, subjectText: `${owner} ancestors` },
+      };
+    }
+  }
   if (relationQuery) {
     return {
       intent: ChatIntent.RELATION_COUNT,
@@ -2925,6 +3045,11 @@ function routeChatPromptUnchecked(prompt, options = {}) {
   const relativeFact = parseRelativeFactPrompt(prompt);
   if (relativeFact) {
     return { intent: ChatIntent.RELATIVE_FACT, params: relativeFact };
+  }
+
+  const bioRelatives = parseFindRelativesPrompt(prompt);
+  if (bioRelatives) {
+    return { intent: ChatIntent.FIND_BIO_RELATIVES, params: bioRelatives };
   }
 
   const marriage = parseMarriagePrompt(prompt);

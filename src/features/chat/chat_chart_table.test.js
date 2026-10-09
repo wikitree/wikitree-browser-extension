@@ -10,7 +10,7 @@ describe("chart tables", () => {
   test("fan slots: Ahnen, relation, first name without the surname", () => {
     const slots = [null, person("A-1", "Ann Smith", "Smith", "Female"), person("B-2", "Bob Smith", "Smith", "Male"), null, person("C-3", "Carl Jones", "Jones", "Male")];
     const table = tableFromSlots("Your ancestors", slots);
-    expect(table.columns.map((column) => column.title)).toEqual(["Ahnen", "Relation", "WT ID", "First Name", "Last Name", "Birth", "Death", "Birth Location"]);
+    expect(table.columns.map((column) => column.title)).toEqual(["Ahnen", "Relation", "WT ID", "First Names", "Last Name", "Birth", "Death", "Birth Location"]);
     expect(table.rows.map((row) => [row.ahnen, row.relation, row.firstName])).toEqual([
       [1, "Self", "Ann"],
       [2, "Father", "Bob"],

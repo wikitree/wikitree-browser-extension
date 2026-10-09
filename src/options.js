@@ -1,7 +1,7 @@
 import $ from "jquery";
 
 import { features, OptionType } from "./core/options/options_registry";
-import { SHARED_AI_FEATURES, SHARED_AI_OPTIONS_KEY, SHARED_AI_OPTION_IDS } from "./core/options/shared_ai_options";
+import { SHARED_AI_FEATURES, SHARED_AI_KEY_IDS, SHARED_AI_OPTIONS_KEY, SHARED_AI_OPTION_IDS, effectiveAiProvider } from "./core/options/shared_ai_options";
 import { categorize } from "./features/register_categories";
 import "./features/register_feature_options";
 import { WBE, isWikiTreeUrl, showAlert, wrapBackupData, getBackupLink, recordBackupMade } from "./core/common";
@@ -92,6 +92,21 @@ const textField = document.getElementById("optionSearch");
 
 function isSharedAiFeature(featureId) {
   return SHARED_AI_FEATURES.includes(featureId);
+}
+
+// A key added for a provider other than the selected one, when it's the only key: select that
+// provider too (the user, 2026-10-07: a member had only a Claude key, with OpenAI selected).
+function selectProviderWithOnlyKey(featureId, changedElement) {
+  const changedId = String(changedElement?.id || "").replace(`${featureId}_`, "");
+  if (!SHARED_AI_KEY_IDS.includes(changedId)) return;
+  const select = document.getElementById(`${featureId}_aiProvider`);
+  if (!select) return;
+  const options = { aiProvider: select.value };
+  SHARED_AI_KEY_IDS.forEach((keyId) => {
+    options[keyId] = document.getElementById(`${featureId}_${keyId}`)?.value || "";
+  });
+  const provider = effectiveAiProvider(options);
+  if (provider !== select.value) select.value = provider;
 }
 
 function getSharedAiOptionStorageKeys() {
@@ -417,6 +432,7 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
   }
 
   function onChange(event) {
+    if (isSharedAiFeature(featureId)) selectProviderWithOnlyKey(featureId, event?.target);
     saveFeatureOptions(featureData);
     updateDependentOptions();
   }

@@ -52,7 +52,7 @@ export function parseProfileFactPrompt(prompt) {
   return null;
 }
 
-const PRIVACY_LEVELS = {
+export const PRIVACY_LEVELS = {
   10: "Unlisted",
   20: "Private",
   30: "Private with public biography",

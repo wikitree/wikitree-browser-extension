@@ -114,6 +114,47 @@ describe("chat_connections target resolution", () => {
     );
   });
 
+  test("a typed middle name finds the right person and drops other middle names (live, 2026-10-06)", async () => {
+    const william = (Name, MiddleName, BirthDate) => ({
+      Id: Number(Name.split("-")[1]),
+      Name,
+      RealName: "William",
+      FirstName: "William",
+      MiddleName,
+      LastNameAtBirth: "Beacall",
+      LastNameCurrent: "Beacall",
+      BirthDate,
+    });
+    const olderWilliams = [william("Beacall-15", "", "1688-10-16"), william("Beacall-62", "", "1749-01-01")];
+    const frederick = william("Beacall-215", "Frederick", "1907-00-00");
+    const ralph = william("Beacall-312", "Ralph", "1911-07-08");
+    WikiTreeAPI.searchPerson.mockImplementation(async (_appId, searchParams) => {
+      if (searchParams.FirstName === "William Ralph") return [0, [ralph, frederick, ...olderWilliams]];
+      if (searchParams.FirstName === "William") return [0, olderWilliams];
+      return [0, []];
+    });
+    const { resolveConnectionTargetPerson } = makeHandlers();
+
+    const matched = await resolveConnectionTargetPerson("William Ralph Beacall", "Connection to William Ralph Beacall");
+
+    expect(matched?.Name).toBe("Beacall-312");
+  });
+
+  test("with no profile carrying the typed middle name, a different middle name is not offered", async () => {
+    const frederick = { Id: 215, Name: "Beacall-215", FirstName: "William", MiddleName: "Frederick", LastNameAtBirth: "Beacall", BirthDate: "1907-00-00" };
+    const plain = { Id: 15, Name: "Beacall-15", FirstName: "William", MiddleName: "", LastNameAtBirth: "Beacall", BirthDate: "1688-10-16" };
+    WikiTreeAPI.searchPerson.mockImplementation(async (_appId, searchParams) =>
+      String(searchParams.FirstName || "").startsWith("William") ? [0, [frederick, plain]] : [0, []]
+    );
+    const setLastConnectionCandidates = jest.fn();
+    const { resolveConnectionTargetPerson } = makeHandlers({ setLastConnectionCandidates });
+
+    await resolveConnectionTargetPerson("William Ralph Beacall", "Connection to William Ralph Beacall");
+
+    const offered = setLastConnectionCandidates.mock.calls.at(-1)[0].map((person) => person.Name);
+    expect(offered).toEqual(["Beacall-15"]);
+  });
+
   test("returns no match when only variant-surname candidates exist for a full-name lookup", async () => {
     const variantSurnameMatch = {
       Id: 202,

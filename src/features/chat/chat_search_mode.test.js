@@ -38,6 +38,32 @@ describe("chat_search_mode explicit routing", () => {
     jest.clearAllMocks();
   });
 
+  test("'Are any relatives on WikiTree?' goes to the relatives search, not a WT+ search (Cassidy-5079)", async () => {
+    const tryHandleProfileSearchPrompt = jest.fn(async () => "searched");
+    const tryHandleAiPlannedIntent = jest.fn(async () => null);
+    const result = await handleExplicitSearchMode({
+      prompt: "Are any relatives on WikiTree?",
+      chatPopupId: "chat-popup",
+      hasStructuredResult: false,
+      getLastStructuredResult: jest.fn(() => null),
+      ChatIntent,
+      routeChatPrompt,
+      buildRecentConversationForAi: jest.fn(() => ""),
+      buildRecentUserMessagesForAi: jest.fn(() => ""),
+      getChatAiConfig: jest.fn(async () => ({ provider: "openai", key: "test", model: "gpt-test" })),
+      appendMessage: jest.fn(),
+      tryHandleProfileSearchPrompt,
+      handleChatResult: jest.fn(),
+      extractFollowupTableFilterText: jest.fn(() => ""),
+      openResultsTable: jest.fn(),
+      tryHandleAiPlannedIntent,
+      setExplicitMode: jest.fn(),
+    });
+    expect(result).toEqual({ handled: false, prompt: "Are any relatives on WikiTree?" });
+    expect(tryHandleProfileSearchPrompt).not.toHaveBeenCalled();
+    expect(tryHandleAiPlannedIntent).not.toHaveBeenCalled();
+  });
+
   test("routes aggregate date filter prompts to WT+ even when WT mode is selected", async () => {
     const tryHandleProfileSearchPrompt = jest.fn(async (options, prompt) => ({
       message: `${options.chatModeOverride}:${prompt}`,

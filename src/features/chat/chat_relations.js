@@ -23,6 +23,28 @@ import {
 
 const MAX_COUSIN_REMOVED = 3;
 
+const GROUP_DEGREES = { parents: 1, children: 1, siblings: 1, spouses: 1, grandparents: 2, parentSiblings: 2, grandparentSiblings: 3 };
+const UPWARD_GROUPS = new Set(["parents", "grandparents"]);
+const ACROSS_GROUPS = new Set(["siblings", "parentSiblings", "grandparentSiblings"]);
+
+/**
+ * How many links (WikiTree degrees) separate the subject from the people a
+ * relation chain reaches: grandparents 2, mother's sisters 2, granduncles 3.
+ * Only for chains whose sum is the shortest path (straight up, then maybe
+ * across; or straight down); "father's wife's children" can include full
+ * siblings, so other chains get "".
+ */
+export function relationChainDegrees(steps = []) {
+  const groups = steps.map((step) => step?.group);
+  if (!groups.length || groups.some((group) => !GROUP_DEGREES[group])) return "";
+  const allDown = groups.every((group) => group === "children");
+  const upThenAcross =
+    groups.slice(0, -1).every((group) => UPWARD_GROUPS.has(group)) &&
+    (UPWARD_GROUPS.has(groups[groups.length - 1]) || ACROSS_GROUPS.has(groups[groups.length - 1]));
+  if (groups.length > 1 && !allDown && !upThenAcross) return "";
+  return groups.reduce((sum, group) => sum + GROUP_DEGREES[group], 0);
+}
+
 export function createChatRelationHandlers({
   WikiTreeAPI,
   WBE_CHAT_APP_ID,
@@ -564,13 +586,13 @@ export function createChatRelationHandlers({
   function toRelationTableRows(people = [], options = {}) {
     const includeCousinOrdinal = !!options.includeCousinOrdinal;
     return people.map((person) => ({
+      degrees: relationRowDegrees(person, options),
       displayName: toDisplayName(person),
       wtid: person?.Name || "",
       firstName: getRelationFirstName(person),
       lnab: person?.LastNameAtBirth || "",
       lastNameCurrent: person?.LastNameCurrent || "",
       ...(includeCousinOrdinal ? { cousinOrdinal: formatCousinOrdinal(getCousinDegree(person)) } : {}),
-      degrees: "",
       removed: person?.removed ?? "",
       gender: person?.Gender || "",
       birth: person?.BirthDate && person.BirthDate !== "0000-00-00" ? person.BirthDate : "",
@@ -579,6 +601,19 @@ export function createChatRelationHandlers({
       deathLocation: person?.DeathLocation || "",
       surname: person?.LastNameAtBirth || person?.LastNameCurrent || "",
     }));
+  }
+
+  // Degrees from the subject (live, 2026-10-08: grandparents showed none). For
+  // cousins, 2n+1 plus the removes (1st cousin: parent, aunt, cousin = 3); a
+  // cousin's Meta.Degrees counts down from the shared ancestor, not from the
+  // subject. Otherwise options.degrees, from the relation chain.
+  function relationRowDegrees(person, options = {}) {
+    if (options.includeCousinOrdinal) {
+      const degree = getCousinDegree(person);
+      const removed = Number(person?.removed) || 0;
+      return Number.isFinite(degree) && degree >= 1 ? 2 * degree + 1 + removed : "";
+    }
+    return Number.isFinite(options.degrees) && options.degrees > 0 ? options.degrees : "";
   }
 
   function filterPeopleByLocation(people = [], location = "", locationField = "AnyLocation") {
@@ -1596,7 +1631,7 @@ export function createChatRelationHandlers({
           actions: hops.length ? [] : familyVisuals(subject.chartKey || subject.wtId || subject.key),
           table: makeStandardProfileTable(
             labelIsUser ? `Your ${noun}` : `${noun} for ${chainLabel}`,
-            toRelationTableRows(relatives),
+            toRelationTableRows(relatives, { degrees: relationChainDegrees(relationSteps) }),
             [[0, "asc"]]
           ),
         };
@@ -1613,7 +1648,7 @@ export function createChatRelationHandlers({
           : `${chainLabel} ${/(?:'s|’s)\s+\w+s$/.test(chainLabel) ? "have" : "has"} ${count} ${noun} in currently accessible data. ${sample}${suffix}${filterNote}`,
         table: makeStandardProfileTable(
           labelIsUser ? `Your ${noun}` : `${noun} for ${chainLabel}`,
-          toRelationTableRows(relatives),
+          toRelationTableRows(relatives, { degrees: relationChainDegrees(relationSteps) }),
           [[0, "asc"]]
         ),
       };

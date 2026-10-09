@@ -234,7 +234,7 @@ export function createChatCcHandlers({
     if (parsed.mode === "count") {
       const defaultOrder = matches.some((person) => person?.degrees !== "" && person?.degrees !== undefined)
         ? [
-            [6, "asc"],
+            [5, "asc"],
             [0, "asc"],
           ]
         : [[0, "asc"]];
@@ -245,7 +245,6 @@ export function createChatCcHandlers({
         message: `I found ${matches.length} ${ccLabel} profile${matches.length === 1 ? "" : "s"} ${countFieldLabel} ${
           parsed.location
         } for ${subjectLabel} (from ${dataSource}).`,
-        trailingText: treeAppActions.length ? "Recommended Tree Apps are available below." : "",
         table: matches.length
           ? makeStandardProfileTable(
               `${ccLabel} profiles in ${parsed.location} for ${subjectRoot.displayName}`,
@@ -287,7 +286,7 @@ export function createChatCcHandlers({
       parsed.field === "DeathLocation" ? "died in" : parsed.field === "BirthLocation" ? "born in" : "in";
     const defaultOrder = matches.some((person) => person?.degrees !== "" && person?.degrees !== undefined)
       ? [
-          [6, "asc"],
+          [5, "asc"],
           [0, "asc"],
         ]
       : [[0, "asc"]];
@@ -297,7 +296,6 @@ export function createChatCcHandlers({
       message: `Here are the ${ccLabel} profiles ${fieldLabel} ${
         parsed.location
       } for ${subjectLabel} (from ${dataSource}):\n${lines.join("\n")}${extra}`,
-      trailingText: treeAppActions.length ? "Recommended Tree Apps are available below." : "",
       table: makeStandardProfileTable(
         `${ccLabel} profiles ${fieldLabel} ${parsed.location} for ${subjectRoot.displayName}`,
         matches.map((person) => ({
@@ -373,9 +371,8 @@ export function createChatCcHandlers({
         message: `${ccSummaryOwner(subjectRoot, subjectLabel, ccLabel)} includes ${rows.length.toLocaleString("en-US")} profile${
           rows.length === 1 ? "" : "s"
         }.\n${preview}${extra}`,
-        trailingText: treeAppActions.length ? "Recommended Tree Apps are available below." : "",
         table: makeStandardProfileTable(`${ccLabel} for ${subjectRoot.displayName}`, rows, [
-          [6, "asc"],
+          [5, "asc"],
           [0, "asc"],
         ]),
         actions: treeAppActions,
@@ -540,6 +537,7 @@ export function createChatCcHandlers({
   }
 
   return {
+    getCcProfilesForUser,
     getCc7ProfilesForUser,
     tryHandleCc7LocationPrompt,
     tryHandleCcSummaryPrompt,

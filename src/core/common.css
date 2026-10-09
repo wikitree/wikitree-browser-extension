@@ -66,6 +66,10 @@ form[name="a_form"] {
   padding-left: 0.5em;
   padding-right: 0.5em;
 }
+.qa-body-js-on .clipboardContainer a {
+  margin-left: 0.2em;
+  padding-top: 0.2em;
+}
 
 #HEADER span.clipboardContainer {
   position: absolute;

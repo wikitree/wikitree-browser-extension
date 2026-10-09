@@ -512,6 +512,175 @@
   margin-left: auto;
 }
 
+/* "AI [switch] On/Off", like G2G's "Newest first" switch. */
+#wbe-genie-ai-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 0.4rem;
+  padding: 2px 4px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #777;
+  cursor: pointer;
+  user-select: none;
+  vertical-align: middle;
+}
+#wbe-genie-ai-toggle[hidden] {
+  display: none !important;
+}
+#wbe-genie-ai-toggle:focus-visible {
+  outline: 2px solid #4caf50;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+#wbe-genie-ai-toggle .chat-ai-switch {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 18px;
+  border-radius: 9px;
+  background: #b0b3b8;
+  transition: background 0.2s ease;
+}
+#wbe-genie-ai-toggle .chat-ai-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: left 0.2s ease;
+}
+/* "Off ◯ On": the knob points at the word that applies, which is darker. */
+#wbe-genie-ai-toggle .chat-ai-label {
+  margin-right: 0.3rem;
+  color: #555;
+}
+#wbe-genie-ai-toggle .chat-ai-state {
+  color: #bbb;
+  font-weight: 400;
+}
+#wbe-genie-ai-toggle:not(.chat-ai-on) .chat-ai-state-off {
+  color: #555;
+  font-weight: 600;
+}
+#wbe-genie-ai-toggle.chat-ai-on .chat-ai-state-on {
+  color: #2e7d32;
+  font-weight: 600;
+}
+#wbe-genie-ai-toggle.chat-ai-on .chat-ai-switch {
+  background: #4caf50;
+}
+#wbe-genie-ai-toggle.chat-ai-on .chat-ai-knob {
+  left: 18px;
+}
+
+/* "AI off" without a key: why AI helps, and how to get a key. A child of the
+   popup (inherits its colours, including dark mode), covering it. */
+.chat-popup > .chat-ai-help {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  overflow-y: auto;
+  padding: 1rem 1.25rem 1.25rem;
+  border-radius: inherit;
+  background: inherit;
+  color: inherit;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.chat-ai-help h3 {
+  margin: 0 2rem 0.5rem 0;
+  font-size: 1.15rem;
+}
+.chat-ai-help h4 {
+  margin: 1rem 0 0.35rem;
+  font-size: 1rem;
+}
+.chat-ai-help p,
+.chat-ai-help ul,
+.chat-ai-help ol {
+  margin: 0.35rem 0;
+}
+.chat-ai-help ul,
+.chat-ai-help ol {
+  padding-left: 1.4rem;
+}
+.chat-ai-help-close {
+  position: sticky;
+  top: 0;
+  float: right;
+  margin: -0.25rem -0.5rem 0 0;
+}
+.chat-ai-help details {
+  border: 1px solid #c8c8c8;
+  border-radius: 6px;
+  margin: 0.35rem 0;
+  padding: 0.3rem 0.6rem;
+}
+.chat-ai-help summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.chat-ai-help-note {
+  font-style: italic;
+}
+.chat-ai-help-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-top: 1rem;
+}
+
+/* The "?" after "Genie" opens Genie Help. */
+.chat-popup-header .chat-help-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 0.35rem;
+  padding: 0;
+  border: 1px solid #9aa0a6;
+  border-radius: 50%;
+  background: none;
+  color: #555;
+  font: 700 0.8rem/1 sans-serif;
+  vertical-align: middle;
+  cursor: pointer;
+}
+.chat-popup-header .chat-help-button:hover,
+.chat-popup-header .chat-help-button:focus-visible {
+  border-color: #4caf50;
+  color: #2e7d32;
+}
+
+/* "What can I type?": the tested no-AI examples, in the same overlay. */
+.chat-examples-help .chat-example-list {
+  list-style: none;
+  padding-left: 0;
+}
+.chat-examples-help .chat-example-list li {
+  margin: 0.45rem 0;
+}
+.chat-example-pattern {
+  font-weight: 600;
+}
+.chat-example-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.2rem;
+}
+
 .chat-popup-controls .wbe-conn-diagram-action[hidden] {
   display: none !important;
 }
@@ -790,9 +959,13 @@
   margin-top: 0.4rem;
 }
 
+/* Buttons keep their natural width and wrap onto more rows (2026-10-08: eight
+   Tree Apps buttons in one row were squeezed into tall ovals). */
 .chat-message-actions {
   margin-top: 0.35rem;
   display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 0.4rem;
 }
 
@@ -827,10 +1000,28 @@
   cursor: pointer;
 }
 
+/* "Genie Charts" and "Tree Apps" groups under an answer. */
+.chat-message-actions-label {
+  align-self: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #5f6c63;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.chat-message-action.chat-message-action--tree-app {
+  background: transparent;
+  border-style: dashed;
+}
+.chat-message-action.chat-message-action--tree-app::after {
+  content: " \2197";
+}
+
 .chat-message-action {
+  max-width: 100%;
   border: 1px solid #bcc8bc;
   background: #f2f7f2;
-  border-radius: 999px;
+  border-radius: 1rem;
   padding: 0.2rem 0.6rem;
   font-size: 0.8rem;
   line-height: 1.2;
@@ -1013,6 +1204,16 @@ div.chat-results-popup table.dataTable tbody tr.background--gender-female td:fir
 
 div.chat-results-popup table.dataTable tbody tr.background--gender-no-gender td:first-child {
   border-left: 5px solid #4caf50 !important;
+}
+
+/* A requested Gender column takes the row's gender colour (the left edge above). */
+div.chat-results-popup table.dataTable tbody tr.background--gender-male td.chat-gender-cell {
+  background-color: #f2f1ff !important;
+  color: #222;
+}
+div.chat-results-popup table.dataTable tbody tr.background--gender-female td.chat-gender-cell {
+  background-color: #ffeeee !important;
+  color: #222;
 }
 
 /* Prevent wrapping for LNAB and Current Last cells in results tables */
@@ -1483,4 +1684,60 @@ div.chat-results-popup table.dataTable td.nowrap-cell {
 }
 .wbe-chat-search-form-problem {
   color: #9a3412;
+}
+
+/* The close buttons of Genie's own windows (the chat, results tables, bios,
+   the connection diagram, the AI help): a drawn ×, like the chart windows'
+   (chat_chart_common.js), but in line with the other header buttons. */
+.chat-popup:not(.wbe-chart-popup) .close-popup,
+.chat-results-popup .chat-results-header .close-popup,
+.chat-ai-help .chat-ai-help-close {
+  position: relative;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  color: #555;
+  font-size: 0;
+  line-height: 0;
+  cursor: pointer;
+}
+.chat-popup:not(.wbe-chart-popup) .close-popup::before,
+.chat-popup:not(.wbe-chart-popup) .close-popup::after,
+.chat-results-popup .chat-results-header .close-popup::before,
+.chat-results-popup .chat-results-header .close-popup::after,
+.chat-ai-help .chat-ai-help-close::before,
+.chat-ai-help .chat-ai-help-close::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 15px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.chat-popup:not(.wbe-chart-popup) .close-popup::after,
+.chat-results-popup .chat-results-header .close-popup::after,
+.chat-ai-help .chat-ai-help-close::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+.chat-popup:not(.wbe-chart-popup) .close-popup:hover,
+.chat-results-popup .chat-results-header .close-popup:hover,
+.chat-ai-help .chat-ai-help-close:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #000;
+}
+.chat-popup:not(.wbe-chart-popup) .close-popup:focus-visible,
+.chat-results-popup .chat-results-header .close-popup:focus-visible,
+.chat-ai-help .chat-ai-help-close:focus-visible {
+  outline: 2px solid #2f6fb3;
+  outline-offset: 1px;
 }

@@ -1,4 +1,4 @@
-import { createChatAiPlannerHandlers } from "./chat_planner";
+import { cleanPlannerParams, createChatAiPlannerHandlers } from "./chat_planner";
 
 describe("chat_planner connection target expansion", () => {
   beforeEach(() => {
@@ -64,5 +64,19 @@ describe("plannerDriftsToBios (live F4, 2026-10-03)", () => {
     ["what did her husband do?", { intent: "fallbackAi", params: {} }, false],
   ])("%s", (prompt, planned, expected) => {
     expect(plannerDriftsToBios(prompt, planned)).toBe(expected);
+  });
+});
+
+describe("cleanPlannerParams", () => {
+  test("drops placeholder values the planner sends for 'no target'", () => {
+    // "Do any of the people in the bio have WT profiles?" came back with target "null" (2026-10-07).
+    expect(cleanPlannerParams({ target: "null", roles: [], place: " none ", name: undefined, year: null, x: "N/A" })).toEqual({ roles: [] });
+  });
+  test("keeps real values", () => {
+    expect(cleanPlannerParams({ target: "Beacall-491", count: 0, flag: false })).toEqual({ target: "Beacall-491", count: 0, flag: false });
+  });
+  test("non-objects become {}", () => {
+    expect(cleanPlannerParams(null)).toEqual({});
+    expect(cleanPlannerParams(["a"])).toEqual({});
   });
 });

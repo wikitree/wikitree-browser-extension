@@ -59,3 +59,8 @@ describe("buildSourcesAnswer", () => {
     expect(buildSourcesAnswer({ label: "X", bio: "== Biography ==\nText." })).toMatch(/has no sources/);
   });
 });
+
+// Live, 2026-10-08: a relation called "sources", then the AI.
+test.each(["show Cook-8721's sources", "list her sources", "show me Cook-8721's citations"])("%s is a sources request", (prompt) =>
+  expect(routeChatPrompt(prompt).intent).toBe(ChatIntent.PROFILE_SOURCES)
+);
