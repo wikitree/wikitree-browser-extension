@@ -36,11 +36,12 @@ describe("makeStandardProfileTable removed column", () => {
         },
       ],
       [
-        [6, "asc"],
+        [5, "asc"],
         [0, "asc"],
       ]
     );
 
+    expect(table.columns[table.defaultOrder[0][0]].key).toBe("degrees");
     expect(table.defaultOrder).toEqual([
       [4, "asc"],
       [0, "asc"],

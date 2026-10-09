@@ -1,6 +1,7 @@
 import $ from "jquery";
 import { escapeHtml } from "../../core/lib/diff_utils";
 import { renderSearchForm } from "./chat_search_form";
+import { isTreeAppAction } from "./chat_tree_apps";
 
 export function createChatHistoryHandlers({
   chatMessagesId,
@@ -698,16 +699,25 @@ export function createChatHistoryHandlers({
     }
 
     if (actions.length) {
-      const $actions = $("<div>").addClass("chat-message-actions");
-      actions.forEach((action) => {
-        if (!action?.label || typeof action.onClick !== "function") {
-          return;
-        }
-        const $button = $("<button>").attr("type", "button").addClass("chat-message-action").text(action.label);
-        $button.on("click", () => invokeChatAction(action));
-        $actions.append($button);
-      });
-      $item.append($actions);
+      // Genie's own charts and WikiTree's Tree Apps (which open in a new tab) as
+      // two labelled groups (user, 2026-10-09), so "Fan chart" and the Tree
+      // Apps' "Fan Chart" aren't mistaken for each other.
+      const usable = actions.filter((action) => action?.label && typeof action.onClick === "function");
+      const treeApps = usable.filter(isTreeAppAction);
+      const genie = usable.filter((action) => !isTreeAppAction(action));
+      const group = (list, label, extraClass = "") => {
+        const $actions = $("<div>").addClass(`chat-message-actions${extraClass ? ` ${extraClass}` : ""}`);
+        if (label) $actions.append($("<span>").addClass("chat-message-actions-label").text(label));
+        list.forEach((action) => {
+          const $button = $("<button>").attr("type", "button").addClass("chat-message-action").text(action.label);
+          if (isTreeAppAction(action)) $button.addClass("chat-message-action--tree-app").attr("title", "Opens in a new tab");
+          $button.on("click", () => invokeChatAction(action));
+          $actions.append($button);
+        });
+        return $actions;
+      };
+      if (genie.length) $item.append(group(genie, treeApps.length ? "Genie Charts" : ""));
+      if (treeApps.length) $item.append(group(treeApps, "Tree Apps", "chat-message-actions--tree-apps"));
     }
 
     $messages.append($item);

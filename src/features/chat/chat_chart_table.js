@@ -40,7 +40,7 @@ export function makeChartTable(title, rows) {
     has("ahnen") ? { title: "Ahnen", key: "ahnen" } : null,
     has("relation") ? { title: "Relation", key: "relation", cellClass: "nowrap-cell" } : null,
     { title: "WT ID", key: "wtid", render: (row) => (row.wtid ? makeProfileLink(row.wtid, row.wtid) : escapeHtml(row.hidden ? "(private)" : "")) },
-    { title: "First Name", key: "firstName" },
+    { title: "First Names", key: "firstNames" },
     { title: "Last Name", key: "lnab", cellClass: "nowrap-cell", headerTitle: "Last name at birth" },
     { title: "Birth", key: "birth", cellClass: "chat-date-cell" },
     { title: "Death", key: "death", cellClass: "chat-date-cell" },

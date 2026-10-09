@@ -351,7 +351,7 @@ export function createChatPeopleHandlers({
         ? [[0, "asc"]]
         : hasDegreeValues
         ? [
-            [6, "asc"],
+            [5, "asc"],
             [0, "asc"],
           ]
         : [[0, "asc"]];
@@ -364,7 +364,6 @@ export function createChatPeopleHandlers({
         window.open(recommendation.url, "_blank", "noopener,noreferrer");
       },
     }));
-    const recommendationSuffix = treeAppActions.length ? "\nRecommended Tree Apps are available below." : "";
 
     if (enrichedChatMeta) {
       table._chatMeta = enrichedChatMeta;
@@ -381,7 +380,12 @@ export function createChatPeopleHandlers({
     // A plain list ("show her ancestors") opens its chart too; a filtered one ("…born in Ohio") just offers it.
     const plainList =
       enrichedChatMeta && !enrichedChatMeta.location && !enrichedChatMeta.dateField && !enrichedChatMeta.missingParent && !enrichedChatMeta.ageAtDeath;
-    const chartOpens = Boolean(charts.length && plainList && rows.length >= 2);
+    // …unless the list goes deeper than the fan chart's generations: then the
+    // table shows it all (user, 2026-10-09: "show details beyond 8 generations
+    // … not a fan chart, but a table").
+    const deepest = Math.max(0, ...rows.map((row) => Number(row?.degrees) || 0));
+    const beyondChart = treeAppKind === "ancestors" && deepest > FAN_CHART_DEFAULT_GENERATIONS;
+    const chartOpens = Boolean(charts.length && plainList && rows.length >= 2 && !beyondChart);
     if (chartOpens) setTimeout(() => charts[0].onClick(), 0);
     return {
       // (the chart opens instead of the table; the Table button shows it)
@@ -390,9 +394,9 @@ export function createChatPeopleHandlers({
         completenessNote ? `; ${completenessNote.replace(/\.$/, "")}` : ""
       }):\n${preview}`,
       inlineMore,
-      trailingText: recommendationSuffix.trim(),
       table,
-      actions: treeAppActions,
+      // Genie's charts and the Tree Apps, shown as two labelled groups.
+      actions: [...charts, ...treeAppActions],
     };
   }
 
@@ -624,7 +628,7 @@ export function createChatPeopleHandlers({
 
   // C9: "most recent" = nearest generation, then latest birth; "earliest" =
   // earliest dated birth, else the most distant generation.
-  function buildAncestorPickAnswer(rows, pick, { subjectLabel, rootPerson, locationPhrase, total, treeTakenAsAncestors }) {
+  function buildAncestorPickAnswer(rows, pick, { subjectLabel, rootPerson, locationPhrase, total, treeTakenAsAncestors, askedRepeats }) {
     if (pick === "depth") {
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${subjectLabel}'s`;
       return {
@@ -641,6 +645,7 @@ export function createChatPeopleHandlers({
           ownerText: isUser ? "Your" : `${subjectLabel}'s`,
           maxGeneration: 25,
           formatDate: formatPreviewDate,
+          askedRepeats,
         }),
         table: makeAncestorProfileTable(`ancestors for ${rootPerson.displayName}`, rows, [[0, "asc"]]),
         actions: visualActions(rootPerson?.wtId || rootPerson?.key, "ancestors"),
@@ -837,6 +842,10 @@ export function createChatPeopleHandlers({
         return {
           ...row,
           ahnen,
+          // The links, by page Id, for counting repeated ancestors.
+          profileId: String(profile?.Id ?? ""),
+          fatherId: parentFatherId,
+          motherId: parentMotherId,
           hasFather: Boolean(parentFatherId && parentFatherId !== "0"),
           hasMother: Boolean(parentMotherId && parentMotherId !== "0"),
           fatherName: father.name,
@@ -2216,13 +2225,35 @@ export function createChatPeopleHandlers({
     }
     if (!rootPerson) return "I could not detect a profile person or your logged-in profile to sum up the tree of.";
     try {
+      // Asked about the ancestors (not for the dashboard) and the tree goes past
+      // the overview's 8 generations: all 25 in a table, the overview a button
+      // away (user, 2026-10-09).
+      if (!params?.explicit) {
+        const slots = await loadFanSlots(rootPerson.key, TREE_OVERVIEW_GENERATIONS);
+        if (slots[1] && fanChartStats(slots).deepest >= TREE_OVERVIEW_GENERATIONS) {
+          const key = slots[1].wtid || rootPerson.wtId || rootPerson.key;
+          const summary = await tryHandleAncestorListPrompt(
+            { generation: 25, relationshipLabel: "ancestors", includeUpTo: true, pick: "summary", subjectText: `${key}'s ancestors` },
+            `how many ancestors does ${key} have`
+          );
+          if (summary && typeof summary === "object") {
+            return { ...summary, actions: [VISUALS.overview(key, "Tree overview"), ...(summary.actions || [])] };
+          }
+        }
+      }
       const shown = await openTreeOverview(rootPerson.key);
       if (!shown) return cantLoad(rootPerson, "ancestors");
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
       const key = shown.slots[1].wtid || rootPerson.key;
       return {
         message: shown.overview.descendants ? `${formatSubjectLabel(rootPerson)} has no parents attached on WikiTree. The overview shows ${shown.overview.descendants.length} descendants found within ${TREE_OVERVIEW_GENERATIONS} generations.` : buildTreeOverviewSummary(shown.overview, owner),
-        actions: shown.opened ? [VISUALS.overview(key, "Open tree overview"), ...visualActions(key, shown.overview.descendants ? "descendants" : "ancestors")] : [VISUALS.explorer(key)],
+        actions: [
+          // The overview stops at 8 generations; the count goes to 25.
+          ...(!shown.overview.descendants && shown.overview.stats.deepest >= TREE_OVERVIEW_GENERATIONS
+            ? [{ label: "Count all generations", actionType: "send-prompt", prompt: `how many ancestors does ${key} have`, newSearch: true }]
+            : []),
+          ...(shown.opened ? [VISUALS.overview(key, "Open tree overview"), ...visualActions(key, shown.overview.descendants ? "descendants" : "ancestors")] : [VISUALS.explorer(key)]),
+        ],
         ...(!shown.overview.descendants ? { table: tableFromSlots(`${owner} ancestors`, shown.slots) } : {}),
         chartOpened: shown.opened,
       };
@@ -3364,6 +3395,7 @@ export function createChatPeopleHandlers({
           locationPhrase,
           total: allAncestors.length,
           treeTakenAsAncestors: Boolean(params?.treeTakenAsAncestors),
+          askedRepeats: Boolean(params?.repeats),
         });
       }
 
@@ -3426,6 +3458,18 @@ export function createChatPeopleHandlers({
         isUser: rootPerson?.subjectType === "user",
       });
     } catch (error) {
+      console.warn("wbe: ancestor fetch failed", { generation, key: rootPerson?.key, error: error?.message || error });
+      // Elaine (2.19.0.8, 2026-10-09): a 25-generation question came back as the
+      // 8-generation tree overview, most likely because this fetch failed and
+      // the AI picked something else. Try 10 generations before giving up.
+      if (generation > 10 && !params?.shortenedFrom) {
+        const shorter = await tryHandleAncestorListPrompt({ ...params, generation: 10, shortenedFrom: generation }, prompt);
+        if (shorter && typeof shorter === "object") {
+          const note = `WikiTree didn't return all ${generation} generations this time, so this covers 10. Try again for more.`;
+          return { ...shorter, message: [shorter.message, note].filter(Boolean).join("\n") };
+        }
+        if (typeof shorter === "string" && !/^I couldn't list\b/.test(shorter)) return shorter;
+      }
       return `I couldn't list ${relationshipLabel} for ${subjectLabel}. Error: ${error?.message || "unknown error"}`;
     }
   }

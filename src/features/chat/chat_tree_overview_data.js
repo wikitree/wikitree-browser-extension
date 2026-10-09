@@ -35,12 +35,15 @@ export function parseTreeOverviewPrompt(prompt) {
     .replace(/[.!?]+$/g, "")
     .replace(/\s+please$/i, "")
     .replace(/^please\s+/i, "");
-  for (const re of PATTERNS) {
+  for (const [index, re] of PATTERNS.entries()) {
     const match = text.match(re);
     if (!match) continue;
     const owner = canonicalOwner(match[1]);
     const ancestorPrompt = !owner ? "this profile's ancestors" : /^(?:my|her|his|their)$/.test(owner) ? `${owner} ancestors` : `${owner}'s ancestors`;
-    return { owner, ancestorPrompt };
+    // "tree overview", "tree stats": the dashboard whatever the depth. "Tell me
+    // about his ancestors" is about the ancestors themselves: the full table
+    // when the tree goes beyond the overview's generations.
+    return { owner, ancestorPrompt, ...(index > 0 ? { explicit: true } : {}) };
   }
   return null;
 }
@@ -116,7 +119,14 @@ export function buildTreeOverviewSummary(overview, ownerText) {
   const { stats, percent, countries, surnames, lifespans, interval, earliest, repeats } = overview;
   if (!stats.found) return `${ownerText} tree has no parents recorded on WikiTree yet, so there's nothing to sum up.`;
   const owner = ownerText === "Your" ? "your" : ownerText;
-  const lines = [`${ownerText} tree: ${stats.found} ancestors over ${stats.rows.length} generations (${percent}% of the ${stats.possible} possible), back ${stats.deepest} generations.`];
+  // The overview reads 8 generations; a tree that fills the 8th goes further
+  // (Elaine, 2026-10-09: "back 8 generations" for a tree 26 deep).
+  const capped = stats.deepest >= TREE_OVERVIEW_GENERATIONS;
+  const lines = [
+    `${ownerText} tree: ${stats.found} ancestors in the nearest ${stats.rows.length} generations (${percent}% of the ${stats.possible} possible)${
+      capped ? `. The tree goes back further: the overview stops at ${TREE_OVERVIEW_GENERATIONS} generations.` : `, back ${stats.deepest} generations.`
+    }`,
+  ];
   if (earliest) lines.push(`The earliest-born: ${earliest.name}, ${earliest.relation.toLowerCase()}, born ${earliest.year}${earliest.place ? ` in ${earliest.place}` : ""}.`);
   if (countries.length) {
     const total = countries.reduce((sum, [, count]) => sum + count, 0);

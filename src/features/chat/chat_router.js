@@ -41,7 +41,7 @@ import { parseChildPickPrompt } from "./chat_child_pick";
 import { splitKinDetailsClause } from "./chat_kin_details";
 import { splitKinOrderClause } from "./chat_kin_order";
 import { splitKinFilterClause } from "./chat_kin_filter";
-import { parseAncestorDepthOwner, parseAncestorSummaryOwner } from "./chat_ancestor_depth";
+import { asksAboutRepeats, parseAncestorDepthOwner, parseAncestorSummaryOwner } from "./chat_ancestor_depth";
 import { parseResultPickPrompt } from "./chat_result_pick";
 import { isProfileNarrativePrompt } from "./chat_profile_narrative";
 
@@ -2590,7 +2590,7 @@ export function parseAncestorDepthPrompt(text) {
 export function parseAncestorSummaryPrompt(text) {
   const owner = parseAncestorSummaryOwner(text);
   const base = owner ? parseAncestorListPrompt(`${owner} ancestors`) : null;
-  return base ? { ...base, generation: MAX_ANCESTOR_GENERATIONS, includeUpTo: true, pick: "summary", subjectText: `${owner} ancestors` } : null;
+  return base ? { ...base, generation: MAX_ANCESTOR_GENERATIONS, includeUpTo: true, pick: "summary", subjectText: `${owner} ancestors`, ...(asksAboutRepeats(text) ? { repeats: true } : {}) } : null;
 }
 
 export function parseAncestorPickPrompt(text) {

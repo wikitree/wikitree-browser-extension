@@ -34,6 +34,7 @@ import * as XLSX from "xlsx";
 import "jquery-ui/ui/widgets/draggable";
 import "jquery-ui/ui/widgets/resizable";
 import "./chat.css";
+import { watchForWikiTreeButtons } from "./chat_chart_common";
 import { installChatDebugConsole } from "./chat_debug_console";
 import { findAmbiguousCenturyDecade, rewriteExplicitCenturyDecadeWording } from "./chat_century_decade";
 import { createChatConnectionHandlers } from "./chat_connections";
@@ -1561,7 +1562,14 @@ async function fetchPeoplePaged(appId, rootKey, fields, options = {}) {
     const pageOpts = { ...(options || {}), start, limit };
     delete pageOpts.onProgress;
     delete pageOpts.shouldCancel;
-    const [status, total, people] = await WikiTreeAPI.getPeople(appId, rootKey, fields, pageOpts);
+    let status, total, people;
+    try {
+      [status, total, people] = await WikiTreeAPI.getPeople(appId, rootKey, fields, pageOpts);
+    } catch (pageError) {
+      // Once more for transient failures, as the chunked path does.
+      console.debug("wbe: fetchPeoplePaged page failed; retrying", { start, pageError });
+      [status, total, people] = await WikiTreeAPI.getPeople(appId, rootKey, fields, pageOpts);
+    }
     if (status == null) {
       throw new Error("No status returned from getPeople while paging results.");
     }
@@ -4511,6 +4519,7 @@ function openPopup() {
 
 export function openChatPopup() {
   installChatDebugConsole();
+  watchForWikiTreeButtons();
   openPopup();
 }
 

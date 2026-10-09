@@ -94,9 +94,20 @@ export function extractCountryFromLocation(location) {
   return parts.length ? parts[parts.length - 1] : "";
 }
 
+// First and middle names in one column (user, 2026-10-09): nobody sorts or
+// filters by a middle name, and many countries don't have them.
+function firstNamesOf(row) {
+  if (row?.firstNames) return row.firstNames;
+  const first = String(row?.firstName || "").trim();
+  const middle = String(row?.middleName || "").trim();
+  if (!middle || ` ${first} `.includes(` ${middle} `)) return first;
+  return [first, middle].filter(Boolean).join(" ");
+}
+
 export function withDerivedRowFields(row) {
   return {
     ...row,
+    firstNames: firstNamesOf(row),
     country:
       row.country ||
       extractCountryFromLocation(row.birthLocation) ||
@@ -121,8 +132,7 @@ export function makeStandardProfileTable(title, rows, defaultOrder = [[0, "asc"]
       key: "wtid",
       render: (row) => makeProfileLink(row.wtid, row.wtid),
     },
-    { title: "First Name", key: "firstName" },
-    { title: "Middle Name", key: "middleName" },
+    { title: "First Names", key: "firstNames" },
     { title: "Last Name", key: "lnab", cellClass: "nowrap-cell", headerTitle: "Last name at birth" },
     { title: "Current Last", key: "lastNameCurrent", cellClass: "nowrap-cell" },
     {
@@ -198,7 +208,6 @@ export function makeStandardProfileTable(title, rows, defaultOrder = [[0, "asc"]
   ];
 
   const optionalColumnKeys = new Set([
-    "middleName",
     "father",
     "mother",
     "spouse",
@@ -282,7 +291,7 @@ export function makeCousinProfileTable(
         key: "wtid",
         render: (row) => makeProfileLink(row.wtid, row.wtid),
       },
-      { title: "First Name", key: "firstName" },
+      { title: "First Names", key: "firstNames" },
       { title: "Last Name", key: "lnab", cellClass: "nowrap-cell", headerTitle: "Last name at birth" },
       { title: "Current Last", key: "lastNameCurrent", cellClass: "nowrap-cell" },
       { title: "#", key: "cousinOrdinal" },
@@ -304,8 +313,7 @@ export function makeAncestorProfileTable(title, rows, defaultOrder = [[0, "asc"]
       key: "wtid",
       render: (row) => makeProfileLink(row.wtid, row.wtid),
     },
-    { title: "First Name", key: "firstName" },
-    { title: "Middle Name", key: "middleName" },
+    { title: "First Names", key: "firstNames" },
     { title: "Last Name", key: "lnab", cellClass: "nowrap-cell", headerTitle: "Last name at birth" },
     { title: "Current Last", key: "lastNameCurrent", cellClass: "nowrap-cell" },
     { title: "Birth", key: "birth", cellClass: "chat-date-cell" },
@@ -314,12 +322,7 @@ export function makeAncestorProfileTable(title, rows, defaultOrder = [[0, "asc"]
     { title: "Death Location", key: "deathLocation" },
   ];
 
-  const columns = baseColumns.filter((column) => {
-    if (column.key !== "middleName") {
-      return true;
-    }
-    return rows.some((row) => String(row?.middleName || "").trim());
-  });
+  const columns = baseColumns;
 
   const indexMap = new Map();
   baseColumns.forEach((column, index) => {
@@ -354,7 +357,7 @@ export function makeWatchlistTable(title, rows, defaultOrder = [[0, "asc"]]) {
         key: "wtid",
         render: (row) => makeProfileLink(row.wtid, row.wtid),
       },
-      { title: "First Name", key: "firstName" },
+      { title: "First Names", key: "firstNames" },
       { title: "Last Name", key: "lnab", cellClass: "nowrap-cell", headerTitle: "Last name at birth" },
       { title: "Current Last", key: "lastNameCurrent", cellClass: "nowrap-cell" },
       { title: "Birth", key: "birth", cellClass: "chat-date-cell" },

@@ -178,8 +178,9 @@ const CHART_CSS = `
   .wbe-kin-list a:link { color:#008000; }
   .wbe-kin-list a:visited { color:#800080; }
   .wbe-chart-popup { width: min(920px, 96vw); height: min(780px, 92vh); display: flex; flex-direction: column; }
-  .wbe-chart-popup .chat-popup-controls .wbe-chart-link { color: #1d5f8c; border-color: #9cc3de; background: #f2f8fc; }
-  .wbe-chart-popup .chat-popup-controls .wbe-chart-link:hover { background: #e2eff8; }
+  /* WikiTree's .btn-secondary sets a white colour with !important. */
+  .wbe-chart-popup .chat-popup-controls .wbe-chart-link, .wbe-chart-popup .chat-popup-controls .wbe-chart-link.btn { color: #25422d !important; border: 1px solid #25422d; background: #fff; }
+  .wbe-chart-popup .chat-popup-controls .wbe-chart-link:hover, .wbe-chart-popup .chat-popup-controls .wbe-chart-link.btn:hover { color: #fff !important; background: #25422d; }
   .wbe-chart-popup:fullscreen, .wbe-chart-popup.wbe-chart-full { left: 0 !important; top: 0 !important; width: 100vw !important; height: 100vh !important; max-width: none !important; max-height: none !important; border-radius: 0 !important; background: #fff; }
   .wbe-chart-popup .chat-popup-header { position: relative; padding-right: 44px; }
   .wbe-chart-popup .chat-popup-header .close-popup { position: absolute; top: 6px; right: 8px; width: 30px; height: 30px; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; box-shadow: none; color: #555; font-size: 0; cursor: pointer; }
@@ -240,7 +241,41 @@ export function installHeaderDoubleClick() {
   });
 }
 
+// WikiTree's own button look (user, 2026-10-09) for the text buttons in the
+// headers of Genie's windows and the chart windows. Not the ×, the AI switch or
+// the "?" help button, which have their own. The links to the other charts
+// get an outline version (injectChartStyles) to set them apart. Popups are watched as they're
+// added to the page, so no window needs its markup changed.
+const WIKITREE_BUTTON_CLASSES = ["btn", "btn-secondary", "btn-sm"];
+const HEADER_BUTTONS =
+  ".chat-popup-header button:not(.close-popup):not(.chat-help-button):not([role='switch']), .chat-results-header button:not(.close-popup)";
+export function useWikiTreeButtons(root) {
+  if (!root?.querySelectorAll) return;
+  const buttons = root.matches?.(HEADER_BUTTONS) ? [root] : [...root.querySelectorAll(HEADER_BUTTONS)];
+  buttons.forEach((button) => button.classList.add(...WIKITREE_BUTTON_CLASSES));
+}
+let wikiTreeButtonWatcher = null;
+export function watchForWikiTreeButtons() {
+  if (wikiTreeButtonWatcher || typeof MutationObserver !== "function" || !document.body) return;
+  useWikiTreeButtons(document.body);
+  wikiTreeButtonWatcher = new MutationObserver((mutations) => {
+    // Charts add thousands of nodes at once: look at each header once per batch.
+    const roots = new Set();
+    for (const mutation of mutations) {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType !== 1 || node instanceof SVGElement) return;
+        const header = node.closest?.(".chat-popup-header, .chat-results-header");
+        if (header) roots.add(header);
+        else if (node.matches?.(".wbe-popup") || node.querySelector?.(".chat-popup-header, .chat-results-header")) roots.add(node);
+      });
+    }
+    roots.forEach(useWikiTreeButtons);
+  });
+  wikiTreeButtonWatcher.observe(document.body, { childList: true, subtree: true });
+}
+
 export function injectChartStyles() {
+  watchForWikiTreeButtons();
   installHeaderDoubleClick();
   if (document.getElementById("wbe-chart-style")) return;
   const style = document.createElement("style");

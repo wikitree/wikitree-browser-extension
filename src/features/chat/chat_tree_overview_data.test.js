@@ -48,7 +48,7 @@ describe("tree overview data", () => {
     expect(overview.earliest).toEqual(expect.objectContaining({ name: "Fred", year: 1880 }));
     expect(overview.months.find((m) => m.name === "March").count).toBe(2);
     const text = buildTreeOverviewSummary(overview, "Your");
-    expect(text).toContain("Your tree: 5 ancestors over 2 generations (83% of the 6 possible), back 2 generations.");
+    expect(text).toContain("Your tree: 5 ancestors in the nearest 2 generations (83% of the 6 possible), back 2 generations.");
     expect(text).toContain("The earliest-born: Fred, grandfather, born 1880.");
     expect(text).toContain("Origins: England 60%, Ireland 40%.");
     expect(text).toContain("Most common surnames: Cook (2), Hall (2), Wood (1).");
@@ -59,5 +59,13 @@ describe("tree overview data", () => {
     const s = new Array(4).fill(null);
     s[1] = person("Ann", "1950", "", "Female");
     expect(buildTreeOverviewSummary(buildTreeOverview(s), "Your")).toMatch(/no parents recorded/);
+  });
+});
+
+describe("overview depth (Elaine, 2026-10-09)", () => {
+  test("a tree that fills the 8th generation is said to go further", () => {
+    const { buildTreeOverviewSummary, TREE_OVERVIEW_GENERATIONS } = require("./chat_tree_overview_data");
+    const overview = { stats: { found: 74, rows: new Array(8), possible: 510, deepest: TREE_OVERVIEW_GENERATIONS }, percent: 15, countries: [], surnames: [], lifespans: {}, interval: {}, earliest: null, repeats: 0 };
+    expect(buildTreeOverviewSummary(overview, "Ted's")).toBe("Ted's tree: 74 ancestors in the nearest 8 generations (15% of the 510 possible). The tree goes back further: the overview stops at 8 generations.");
   });
 });

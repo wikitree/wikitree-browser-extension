@@ -1000,6 +1000,23 @@
   cursor: pointer;
 }
 
+/* "Genie Charts" and "Tree Apps" groups under an answer. */
+.chat-message-actions-label {
+  align-self: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #5f6c63;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.chat-message-action.chat-message-action--tree-app {
+  background: transparent;
+  border-style: dashed;
+}
+.chat-message-action.chat-message-action--tree-app::after {
+  content: " \2197";
+}
+
 .chat-message-action {
   max-width: 100%;
   border: 1px solid #bcc8bc;
@@ -1667,4 +1684,60 @@ div.chat-results-popup table.dataTable td.nowrap-cell {
 }
 .wbe-chat-search-form-problem {
   color: #9a3412;
+}
+
+/* The close buttons of Genie's own windows (the chat, results tables, bios,
+   the connection diagram, the AI help): a drawn ×, like the chart windows'
+   (chat_chart_common.js), but in line with the other header buttons. */
+.chat-popup:not(.wbe-chart-popup) .close-popup,
+.chat-results-popup .chat-results-header .close-popup,
+.chat-ai-help .chat-ai-help-close {
+  position: relative;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  color: #555;
+  font-size: 0;
+  line-height: 0;
+  cursor: pointer;
+}
+.chat-popup:not(.wbe-chart-popup) .close-popup::before,
+.chat-popup:not(.wbe-chart-popup) .close-popup::after,
+.chat-results-popup .chat-results-header .close-popup::before,
+.chat-results-popup .chat-results-header .close-popup::after,
+.chat-ai-help .chat-ai-help-close::before,
+.chat-ai-help .chat-ai-help-close::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 15px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.chat-popup:not(.wbe-chart-popup) .close-popup::after,
+.chat-results-popup .chat-results-header .close-popup::after,
+.chat-ai-help .chat-ai-help-close::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+.chat-popup:not(.wbe-chart-popup) .close-popup:hover,
+.chat-results-popup .chat-results-header .close-popup:hover,
+.chat-ai-help .chat-ai-help-close:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #000;
+}
+.chat-popup:not(.wbe-chart-popup) .close-popup:focus-visible,
+.chat-results-popup .chat-results-header .close-popup:focus-visible,
+.chat-ai-help .chat-ai-help-close:focus-visible {
+  outline: 2px solid #2f6fb3;
+  outline-offset: 1px;
 }
