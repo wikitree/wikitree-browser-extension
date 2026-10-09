@@ -29,8 +29,15 @@ import {
   dataStatusWord,
 } from "./dateUtils.js";
 import { logMerge } from "./debugUtils.js";
-import { minimalPlace, nameLink } from "./displayUtils.js";
-import { citationDedupeKey, collapseCitationWhitespace, decodeHtmlEntities } from "./citationTextUtils.js";
+import { fullNarrativePlace, minimalPlace, nameLink } from "./displayUtils.js";
+import {
+  citationDedupeKey,
+  collapseCitationWhitespace,
+  cemeteryFromFindAGrave,
+  decodeHtmlEntities,
+  isFindAGraveWithoutImage,
+  looksLikeCitationText,
+} from "./citationTextUtils.js";
 import { citationCouldBeAboutEvent, couldHaveServedIn, yearFromDate } from "./citationRelevanceUtils.js";
 import {
   censusNarrativeFromBioSentence,
@@ -99,6 +106,10 @@ import {
 } from "./familyMatchUtils.js";
 import { normalizeTemplatesInSectionArray, splitBioIntoSections } from "./bioSectionUtils.js";
 import { spell } from "./spellingUtils.js";
+import { configureWikiLinks, getWikiLink, linkTerm } from "./narrativePlaceUtils.js";
+import { resolvePlaceLinks, resolveTopicLinks } from "./wikiLinkResolver.js";
+import { expandTemplateCitation } from "./templateCitationUtils.js";
+import { applyInlineCitationAnchors, findInlineCitationAnchors } from "./inlineCitationUtils.js";
 import { getUSStates, loadUSStates } from "./usStatesStore.js";
 import { getFormData, getPronouns } from "./profileUtils.js";
 import { capitalizeFirstLetter } from "./textUtils.js";
@@ -468,23 +479,32 @@ export function buildBirth(person) {
   if (window.autoBioOptions?.fullNameOrBirthName == "FullName") {
     theName = person.PersonName?.FullName || person.RealName;
   }
-  text += boldBit + theName + boldBit + " was";
-  if (person.BirthDate || person?.BirthLocation) {
-    text += " born";
+  const hasBirthDetails = person.BirthDate || person?.BirthLocation;
+  const hasParents = person.Father || person.Mother;
+  if (window.autoBioOptions?.firstSentences == "parentsFirst" && hasBirthDetails && hasParents) {
+    // "X, son of A and B, was born on ... in ..."
+    text += boldBit + theName + boldBit + ", " + buildParents(person) + ", was born";
     text += buildBirthDate(person);
     text += buildBirthLocation(person);
-  }
-  if (person.Father || person.Mother) {
-    if (person.BirthDate || person?.BirthLocation) {
-      if (window.autoBioOptions?.firstSentences == "parentsWere") {
-        text += ". ";
-      } else {
-        text += ", ";
-      }
-    } else {
-      text += " the ";
+  } else {
+    text += boldBit + theName + boldBit + " was";
+    if (hasBirthDetails) {
+      text += " born";
+      text += buildBirthDate(person);
+      text += buildBirthLocation(person);
     }
-    text += buildParents(person);
+    if (hasParents) {
+      if (hasBirthDetails) {
+        if (window.autoBioOptions?.firstSentences == "parentsWere") {
+          text += ". ";
+        } else {
+          text += ", ";
+        }
+      } else {
+        text += " the ";
+      }
+      text += buildParents(person);
+    }
   }
   text += ".";
   text += addReferences("Birth");
@@ -516,7 +536,7 @@ function buildBirthDate(person) {
 function buildBirthLocation(person) {
   let birthLocationBit = "";
   if (person?.BirthLocation) {
-    birthLocationBit = " in " + person.BirthLocation;
+    birthLocationBit = " in " + fullNarrativePlace(person.BirthLocation);
     let birthPlaces = person.BirthLocation.split(",");
     birthPlaces.forEach(function (place) {
       if (!window.usedPlaces) {
@@ -543,7 +563,10 @@ export function assignCemeteryFromSources() {
       return;
     }
 
-    if (source["Record Type"].includes("Death")) {
+    /* With the "keep inline citations" option a Find a Grave memorial (a headstone at a cemetery) is a source for
+    the burial, and so is any other citation typed Burial. */
+    const keepCitations = window.autoBioOptions?.keepInlineCitations;
+    if (source["Record Type"].includes("Death") || (keepCitations && source["Record Type"].includes("Burial"))) {
       let cemeteryMatch = source.Text.match(
         /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Graveyard)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)|Memorial Park).*?),?.*?(?=[;])/im
       );
@@ -601,7 +624,11 @@ export function assignCemeteryFromSources() {
         }
       }
       if (!window.profilePerson.Cemetery) {
-        if (cemeteryMatch) {
+        const memorialCemetery = keepCitations ? cemeteryFromFindAGrave(source.Text) : "";
+        if (memorialCemetery) {
+          window.profilePerson.Cemetery = memorialCemetery;
+          window.profilePerson.CemeteryFull = memorialCemetery;
+        } else if (cemeteryMatch) {
           let cemetery = cemeteryMatch[0].replace("citing ", "").replace("Burial, ", "").trim();
           window.profilePerson.Cemetery = cemetery;
           window.profilePerson.CemeteryFull = cemetery;
@@ -615,8 +642,11 @@ export function assignCemeteryFromSources() {
         }
       }
 
-      if (window.profilePerson?.Cemetery && window.profilePerson?.Cemetery.match(/record|Find a Grave/i)) {
+      /* A cemetery name has no line breaks, templates or citation wording in it. Without this the "Memorial" in
+      a Find a Grave citation made "database<br/>({{FindAGrave|...}} : accessed ...)<br/>Memorial" a cemetery. */
+      if (window.profilePerson?.Cemetery && looksLikeCitationText(window.profilePerson.Cemetery)) {
         window.profilePerson.Cemetery = "";
+        window.profilePerson.CemeteryFull = "";
       }
     }
   });
@@ -626,7 +656,11 @@ export function buildDeath(person) {
   if (!isOK(person?.DeathDate) && !isOK(person.DeathDecade) && !isOK(person.DeathLocation)) {
     return "";
   }
-  const diedWord = window.autoBioOptions?.diedWord || "died";
+  // With the option on, the way the old bio put the death is kept ("was murdered").
+  const diedWord =
+    (window.autoBioOptions?.keepInlineCitations && window.anchoredDeathVerb) ||
+    window.autoBioOptions?.diedWord ||
+    "died";
   let text = person.PersonName?.FirstName + " " + diedWord;
   if (person?.DeathDate) {
     text += " " + formatDate(person?.DeathDate, person.mStatus_DeathDate || "", { needOn: true });
@@ -671,13 +705,15 @@ export function buildDeath(person) {
     text += ", aged " + aboutWord + age;
   }
   text += ".";
+  const deathSentenceEnd = text.length;
   let burialAdded = false;
 
   assignCemeteryFromSources();
 
+  const keepCitations = window.autoBioOptions?.keepInlineCitations;
   window.references.forEach(function (source) {
     if (
-      source["Record Type"].includes("Death") &&
+      (source["Record Type"].includes("Death") || (keepCitations && source["Record Type"].includes("Burial"))) &&
       !source.Relation &&
       !source.Text.match(/Acadian|Wall of Names|sameas=no/i)
     ) {
@@ -721,7 +757,19 @@ export function buildDeath(person) {
     }
   });
 
-  text += addReferences("Death");
+  let burialRefsAdded = false;
+  if (keepCitations) {
+    /* The death citations go after the death sentence, and the burial ones (a Find a Grave memorial, for one)
+    after the sentence about the cemetery. */
+    const burialText = text.slice(deathSentenceEnd);
+    text = text.slice(0, deathSentenceEnd) + addReferences("Death") + burialText;
+    if (burialText.trim()) {
+      text += addReferences("Burial");
+      burialRefsAdded = true;
+    }
+  } else {
+    text += addReferences("Death");
+  }
 
   if (window.profilePerson["Burial Place"] && !burialAdded) {
     text +=
@@ -730,7 +778,9 @@ export function buildDeath(person) {
       " was buried in " +
       removeCountryName(window.profilePerson["Burial Place"].replace(/_/g, " ")) +
       ".";
-    text += addReferences("Burial");
+    if (!burialRefsAdded) {
+      text += addReferences("Burial");
+    }
   }
 
   return text;
@@ -795,6 +845,9 @@ function addRefsToRelation(refs, person, relation) {
 
 export function buildParents(person) {
   let option = window.autoBioOptions?.firstSentences || "of"; // Default to "of"
+  if (option === "parentsFirst") {
+    option = "of"; // the parents are worded the same way, buildBirth puts them first
+  }
   let text = "";
   let parents = person.Parents;
 
@@ -2806,8 +2859,90 @@ function addReferencePlaces() {
   });
 }
 
+/**
+ * With the "full citation" option, a source that is only a {{FamilySearch}} or {{Ancestry Tree}}
+ * template becomes a full citation of that tree for the profile person.
+ */
+function expandTemplateCitations() {
+  if (!window.autoBioOptions?.fullTemplateCitations) {
+    return;
+  }
+  const person = window.profilePerson;
+  const name =
+    person?.PersonName?.BirthName ||
+    [person?.RealName || person?.FirstName, person?.LastNameAtBirth].filter(Boolean).join(" ");
+  (window.references || []).forEach(function (aRef) {
+    if (aRef?.Text) {
+      aRef.Text = expandTemplateCitation(aRef.Text, name);
+    }
+  });
+}
+
+/** The places the narrative is going to mention, as far as they can be known before it is built. */
+function placesForNarrative() {
+  const person = window.profilePerson || {};
+  const places = [person.BirthLocation, person.DeathLocation, person["Baptism Place"]];
+  Object.values(person.Spouses || {}).forEach(function (spouse) {
+    places.push(spouse?.BirthLocation, spouse?.marriage_location);
+  });
+  (window.references || []).forEach(function (aRef) {
+    places.push(aRef?.Residence, aRef?.["Baptism Place"]);
+  });
+  places.push(...(person.referencePlaces || []));
+  return places.filter((place) => typeof place === "string" && place.trim());
+}
+
+/**
+ * With the link options, look up the WikiTree and/or Wikipedia pages for the places, wars and occupations
+ * the narrative will mention, and link the wars and occupations in the sentences that are already built.
+ * (The places are linked as the narrative is built, from what is looked up here.)
+ */
+async function prepareWikiLinks() {
+  configureWikiLinks({ language: $("#mOptions_person_language").val() || "en" });
+  const wikiTree = window.autoBioOptions?.wikiTreeLinks === true;
+  const wikipedia = window.autoBioOptions?.wikipediaLinks === true;
+  if (!wikiTree && !wikipedia) {
+    return;
+  }
+  const references = window.references || [];
+  const occupationOf = (aRef) => {
+    const occupation = aRef?.Occupation || aRef?.Household?.find((member) => member.Relation === "Self")?.Occupation;
+    return typeof occupation === "string" ? occupation.trim().toLowerCase() : "";
+  };
+  const wars = references.map((aRef) => aRef?.War).filter(Boolean);
+  const occupations = references.map(occupationOf).filter(Boolean);
+  try {
+    const lookups = { wikiTree, wikipedia, categoryNameFor: occupationCategoryName };
+    await Promise.all([
+      resolvePlaceLinks(placesForNarrative(), lookups),
+      resolveTopicLinks([...wars, ...occupations], lookups),
+    ]);
+  } catch (error) {
+    console.warn("Auto Bio: the Wikipedia/WikiTree link lookup failed", error);
+    return;
+  }
+  references.forEach(function (aRef) {
+    if (!aRef?.Narrative) {
+      return;
+    }
+    const war = aRef.War;
+    if (war && getWikiLink(war.toLowerCase())) {
+      aRef.Narrative = aRef.Narrative.replace(` ${war}.`, ` ${linkTerm(war.toLowerCase(), war)}.`);
+    }
+    const occupation = occupationOf(aRef);
+    if (occupation && getWikiLink(occupation)) {
+      aRef.Narrative = aRef.Narrative.replace(
+        `occupation was '${occupation}'`,
+        `occupation was '${linkTerm(occupation, occupation)}'`
+      );
+    }
+  });
+}
+
 export function sourcesArray(bio) {
   let dummy = $(document.createElement("html"));
+  // Read which sentence each inline citation followed before the refs that only point back at another are removed.
+  const inlineAnchors = window.autoBioOptions?.keepInlineCitations ? findInlineCitationAnchors(bio) : [];
   bio = bio.replace(/\{\|\s*class="wikitable".*?\|\+ Timeline.*?\|\}/gs, "").replace(/<ref[^>]*\/>/g, "");
   let previousBioText = bio || "";
   try {
@@ -3568,6 +3703,27 @@ export function sourcesArray(bio) {
       }
     }
   });
+  /* With the option on, a citation the old bio had inline goes with the event it followed (see inlineCitationUtils),
+  and sentences Auto Bio cannot write are kept with their citations. */
+  const anchored = window.autoBioOptions?.keepInlineCitations
+    ? applyInlineCitationAnchors(refArr, inlineAnchors, {
+        birthYear: Number(yearFromDate(window.profilePerson?.BirthDate)) || 0,
+        deathYear: Number(yearFromDate(window.profilePerson?.DeathDate)) || 0,
+      })
+    : { sentences: [], deathVerb: "" };
+  window.anchoredSentences = anchored.sentences;
+  window.anchoredDeathVerb = anchored.deathVerb;
+
+  /* A Find a Grave memorial that says (no image) or (no photo) shows nothing of the grave. With the option on it is
+  not used for a burial (or the death, or the birth): it stays under "See also". */
+  const withoutImage = (aRef) =>
+    window.autoBioOptions?.noBurialForFindAGraveWithoutImage && isFindAGraveWithoutImage(aRef.Text);
+  refArr.forEach(function (aRef) {
+    if (withoutImage(aRef)) {
+      aRef["Record Type"] = aRef["Record Type"].filter((type) => !["Burial", "Death"].includes(type));
+    }
+  });
+
   let birthCitation = false;
   let censusCitation = false;
   let findAGraveCitation = false;
@@ -3579,7 +3735,7 @@ export function sourcesArray(bio) {
     if (aRef["Record Type"].includes("Census") && !censusCitation) {
       censusCitation = aRef;
     }
-    if (aRef.Text.match(/findagrave|Find a Grave/i)) {
+    if (aRef.Text.match(/findagrave|Find a Grave/i) && !withoutImage(aRef)) {
       findAGraveCitation = aRef;
     }
   });
@@ -5013,6 +5169,34 @@ export function addUnsourced(feature = "autoBio") {
   }
 }
 
+/**
+ * The WikiTree category for an occupation, as the profile's birth and death places allow
+ * ("Merchant Seamen" or "England, Merchant Seamen"), or "" when there is none.
+ */
+export function occupationCategoryName(occupation) {
+  const entry = occupationCategories[titleCase(occupation)];
+  if (!entry?.Places) {
+    return "";
+  }
+  const places = [];
+  if (window.profilePerson?.BirthLocation) {
+    places.push(window.profilePerson?.BirthLocation.split(", "));
+  }
+  if (window.profilePerson.DeathLocation) {
+    places.push(window.profilePerson.DeathLocation.split(", "));
+  }
+  let name = "";
+  entry.Places.forEach(function (place) {
+    if (places.some((arr) => arr?.includes(place))) {
+      name = `${place}, ${entry.PluralForm}`;
+    }
+  });
+  if (!name && entry.Standalone) {
+    name = entry.PluralForm;
+  }
+  return name;
+}
+
 export function addOccupationCategories(feature = "autoBio") {
   let occupationOption;
   if (feature == "autoCategories") {
@@ -5024,29 +5208,8 @@ export function addOccupationCategories(feature = "autoBio") {
     const occupation = aRef.Occupation;
 
     if (occupationOption && occupation) {
-      const occupationTitleCase = titleCase(occupation);
-      let occupationCategory;
-      if (occupationCategories[occupationTitleCase]) {
-        const places = [];
-        if (window.profilePerson?.BirthLocation) {
-          places.push(window.profilePerson?.BirthLocation.split(", "));
-        }
-        if (window.profilePerson.DeathLocation) {
-          places.push(window.profilePerson.DeathLocation.split(", "));
-        }
-        if (occupationCategories[occupationTitleCase]["Places"]) {
-          occupationCategories[occupationTitleCase]["Places"].forEach(function (place) {
-            if (places.some((arr) => arr?.includes(place))) {
-              occupationCategory = `[[Category: ${place}, ${occupationCategories[occupationTitleCase]["PluralForm"]}]]`;
-            }
-          });
-          if (!occupationCategory) {
-            if (occupationCategories[occupationTitleCase].Standalone) {
-              occupationCategory = `[[Category: ${occupationCategories[occupationTitleCase]["PluralForm"]}]]`;
-            }
-          }
-        }
-      }
+      const name = occupationCategoryName(occupation);
+      const occupationCategory = name ? `[[Category: ${name}]]` : "";
       if (occupationCategory && !window.sectionsObject["StuffBeforeTheBio"].text.includes(occupationCategory)) {
         addUniqueCategoryToStuffBeforeTheBio(occupationCategory);
       }
@@ -5518,6 +5681,8 @@ export async function generateBio() {
     /* The notes from above the Biography heading are in Research Notes now,
     so leave their citations out of the Sources section. */
     sourcesArray(removeNotesBeforeBio(currentBio));
+    expandTemplateCitations();
+    await prepareWikiLinks();
 
     // Find A Grave citation automation removed; no-op
 
@@ -5597,6 +5762,21 @@ export async function generateBio() {
           warRefs.push(aRef);
         }
       }
+    });
+
+    (window.anchoredSentences || []).forEach(function (anchoredSentence) {
+      const year = anchoredSentence.year ? String(anchoredSentence.year) : "";
+      marriagesAndCensusesEtc.push({
+        Narrative: anchoredSentence.sentence,
+        // no date to go by: right after the birth
+        OrderDate: year ? formatDate(year, 0, { format: 8 }) : `${window.profilePerson.BirthYear || "0000"}0001`,
+        "Record Type": ["Anchored"],
+        // one event type each, or events of the same type and year are written as one
+        "Event Type": "Anchored " + anchoredSentence.id,
+        "Event Date": year,
+        Year: year || window.profilePerson.BirthYear || "0000",
+        AnchorId: anchoredSentence.id,
+      });
     });
 
     if (wars?.length) {
@@ -5841,6 +6021,20 @@ export async function generateBio() {
                 if (!theseRefs?.includes(thisRef)) {
                   theseRefs.push(thisRef);
                 }
+              } else if (anEvent.AnchorId && aRef.AnchorId === anEvent.AnchorId) {
+                // a citation the old bio had after this sentence
+                const refName = aRef.RefName || "anchored_" + i;
+                if (aRef.Used || window.refNames?.includes(refName)) {
+                  thisRef = `<ref name="${refName}" />`;
+                } else {
+                  thisRef = ` <ref name="${refName}">${aRef.Text}</ref>`;
+                  aRef.RefName = refName;
+                  aRef.Used = true;
+                  window.refNames.push(refName);
+                }
+                if (!theseRefs?.includes(thisRef)) {
+                  theseRefs.push(thisRef);
+                }
               } else if (
                 aRef["Record Type"]?.includes(anEvent["Event Type"]) &&
                 anEvent["Divorce Date"] &&
@@ -5884,7 +6078,7 @@ export async function generateBio() {
             if (anEvent.FactType == "Burial") {
               window.profilePerson.BurialFact = narrativeBits + thisRef + "\n\n";
             } else {
-              let thisBit = narrativeBits + (theseRefs?.length == 0 ? thisRef : theseRefs.join()) + "\n\n";
+              let thisBit = narrativeBits + (theseRefs?.length == 0 ? thisRef : theseRefs.join("")) + "\n\n";
               marriagesAndCensusesText += thisBit;
             }
           }
