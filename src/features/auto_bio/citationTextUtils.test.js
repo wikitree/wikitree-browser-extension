@@ -1,4 +1,11 @@
-import { citationDedupeKey, collapseCitationWhitespace, decodeHtmlEntities } from "./citationTextUtils.js";
+import {
+  cemeteryFromFindAGrave,
+  isFindAGraveWithoutImage,
+  looksLikeCitationText,
+  citationDedupeKey,
+  collapseCitationWhitespace,
+  decodeHtmlEntities,
+} from "./citationTextUtils.js";
 
 describe("decodeHtmlEntities", () => {
   test("puts back a literal greater-than sign", () => {
@@ -77,5 +84,46 @@ describe("citationDedupeKey", () => {
 
   test("keeps different citations apart", () => {
     expect(citationDedupeKey("Source A")).not.toBe(citationDedupeKey("Source B"));
+  });
+});
+
+describe("looksLikeCitationText", () => {
+  test("is true for citation wording and templates", () => {
+    expect(
+      looksLikeCitationText("database<br/>({{FindAGrave|248785034}} : accessed 22 September 2024)<br/>Memorial")
+    ).toBe(true);
+    expect(looksLikeCitationText("Find a Grave memorial")).toBe(true);
+    expect(looksLikeCitationText("Burial record")).toBe(true);
+  });
+  test("is false for a cemetery name", () => {
+    expect(looksLikeCitationText("Oak Hill Cemetery")).toBe(false);
+    expect(looksLikeCitationText("Mauthausen Memorial")).toBe(false);
+  });
+});
+
+describe("cemeteryFromFindAGrave", () => {
+  test("is what the memorial cites, whatever the cemetery is called", () => {
+    expect(
+      cemeteryFromFindAGrave(
+        'Memorial: "Find a Grave", database<br/>({{FindAGrave|248785034}} : accessed 22 September 2024)<br/>Memorial page for Alfred Algner (23 Jun 1908-11 Mar 1940), citing Mauthausen KZ, Mauthausen, Perg Bezirk, Upper Austria, Austria; Maintained by Martin Václavík (contributor 48392890).'
+      )
+    ).toBe("Mauthausen KZ, Mauthausen, Perg Bezirk, Upper Austria, Austria");
+  });
+  test("is empty for any other citation", () => {
+    expect(cemeteryFromFindAGrave("FamilySearch, citing Burial, Ohio; Entry for A B")).toBe("");
+    expect(cemeteryFromFindAGrave("")).toBe("");
+  });
+});
+
+describe("isFindAGraveWithoutImage", () => {
+  test("is true for a Find a Grave citation that says (no image) or (no photo)", () => {
+    expect(isFindAGraveWithoutImage('Memorial: "Find a Grave", database (no image) Memorial page for A B')).toBe(true);
+    expect(isFindAGraveWithoutImage("Find a Grave memorial {{FindAGrave|1}} (No Photo)")).toBe(true);
+    expect(isFindAGraveWithoutImage("{{FindAGrave|1}} ( no photos )")).toBe(true);
+  });
+  test("is false otherwise", () => {
+    expect(isFindAGraveWithoutImage('Memorial: "Find a Grave", database. Memorial page for A B')).toBe(false);
+    expect(isFindAGraveWithoutImage("A record (no image) from FamilySearch")).toBe(false);
+    expect(isFindAGraveWithoutImage("")).toBe(false);
   });
 });
