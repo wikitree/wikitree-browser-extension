@@ -1,23 +1,30 @@
 /**
  * Finds the pages the narrative can link to for a place, a war or an occupation.
  *
- * A page on WikiTree (a category, project or space page) is preferred. If there is none, the
- * Wikipedia article is used, but only when it has a Wikidata item, and in the language of the
- * profile when the article exists in that language (otherwise the English article is used).
+ * A page on WikiTree is preferred. For a place that is its category, found the way Auto Categories
+ * finds it (so "Washington, Missouri" is Category:Washington County, Missouri); a project or space page
+ * is the next choice. If there is none, the Wikipedia article is used, but only when it has a Wikidata
+ * item, and in the language of the profile when the article exists in it (otherwise the English one).
+ * The two kinds of page are separate options: either can be left out.
  *
  * The lookups are asynchronous, so they are done before the narrative is built. The results are
  * stored with setWikiLink and read back synchronously by joinPlaceParts and linkTerm.
  */
 import { promiseWithTimeout } from "./asyncUtils.js";
+import { findUSState, getLocationCategory } from "./locationCategoryUtils.js";
 import {
+  categoryMatchesPart,
   getWikiLinkLanguage,
   hasWikiLink,
-  indexesWithoutCountry,
+  linkablePartCount,
+  placeLinkKey,
   placePartCandidates,
   placePartKey,
+  placePartLookup,
   setWikiLink,
   splitPlace,
 } from "./narrativePlaceUtils.js";
+import { loadUSStates } from "./usStatesStore.js";
 
 const LOOKUP_TIMEOUT = 8000;
 const CONCURRENCY = 6;
@@ -165,11 +172,11 @@ export async function findWikipediaTarget(titles, language, fetchJson = defaultF
 /* ---- WikiTree ---- */
 
 /**
- * @param {{category?: string[], project?: string[], space?: string[]}} candidates page names by kind
- * @returns {Promise<{kind: string, title: string}|null>} the first page that exists, categories first
+ * @param {{project?: string[], space?: string[]}} candidates page names by kind
+ * @returns {Promise<{kind: string, title: string}|null>} the first page that exists, projects first
  */
 export async function findWikiTreeTarget(candidates, exists = defaultWikiTreeExists) {
-  for (const kind of ["category", "project", "space"]) {
+  for (const kind of ["project", "space"]) {
     for (const title of candidates[kind] || []) {
       const prefix = kind[0].toUpperCase() + kind.slice(1);
       if (await withTimeout(exists(prefix, title), `WikiTree ${prefix} lookup`)) {
@@ -179,6 +186,9 @@ export async function findWikiTreeTarget(candidates, exists = defaultWikiTreeExi
   }
   return null;
 }
+
+/* The WikiTree category of a place, as Auto Categories finds it, looked up without adding anything to the bio. */
+const defaultCategoryFor = (location) => getLocationCategory("Source", location, { sideEffects: false });
 
 /* ---- Putting it together ---- */
 
@@ -203,49 +213,58 @@ async function resolveOnce(key, find) {
   }
 }
 
+function lookupSettings(deps) {
+  const fetchJson = deps.fetchJson || defaultFetchJson;
+  const language = getWikiLinkLanguage();
+  return {
+    wikiTree: deps.wikiTree !== false,
+    exists: deps.exists || defaultWikiTreeExists,
+    categoryFor: deps.categoryFor || defaultCategoryFor,
+    findOnWikipedia: async (titles) =>
+      deps.wikipedia !== false ? findWikipediaTarget(titles, language, fetchJson) : null,
+  };
+}
+
 /**
- * Look up the links for the parts of some places. The highest-level part of a place is not linked
- * (unless it is the only part), so it is not looked up either.
+ * Look up the links for the parts of some places. The highest-level part of a place is not linked, so it
+ * is not looked up either.
  *
  * @param {string[]} places
- * @param {object} [deps] `wikiTree` and `wikipedia` (both default true) say which kinds of page to look for;
- * `fetchJson` and `exists` replace the network calls, for tests
+ * @param {object} [deps] `wikiTree` and `wikipedia` (both default true) say which kinds of page may be
+ *   linked to; `fetchJson`, `exists` and `categoryFor` replace the network calls, for tests
  */
 export async function resolvePlaceLinks(places, deps = {}) {
-  const language = getWikiLinkLanguage();
-  const fetchJson = deps.fetchJson || defaultFetchJson;
-  const exists = deps.exists || defaultWikiTreeExists;
-  const wikiTree = deps.wikiTree !== false;
-  const findOnWikipedia = async (titles) =>
-    deps.wikipedia !== false ? findWikipediaTarget(titles, language, fetchJson) : null;
+  const { wikiTree, exists, categoryFor, findOnWikipedia } = lookupSettings(deps);
+  await loadUSStates();
   const jobs = [];
   const seen = new Set();
 
   [...new Set(places.filter(Boolean))].forEach((place) => {
     const parts = splitPlace(place);
-    const core = indexesWithoutCountry(parts);
-    // The highest-level part shown is left unlinked, so only the parts below it are looked up.
-    const lastLinked = core.length === 1 ? 0 : core.length - 2;
-    for (let index = 0; index <= lastLinked; index++) {
-      const key = placePartKey(parts, index);
-      if (seen.has(key)) {
-        continue;
+    for (let index = 0; index < linkablePartCount(parts); index++) {
+      const key = placeLinkKey(parts, index);
+      if (!seen.has(key)) {
+        seen.add(key);
+        jobs.push({ key, parts, index });
       }
-      seen.add(key);
-      const names = placePartCandidates(parts, index);
-      jobs.push({ key, names });
     }
   });
 
-  await runLimited(jobs, ({ key, names }) =>
+  await runLimited(jobs, ({ key, parts, index }) =>
     resolveOnce(key, async () => {
+      const usPlace = !!findUSState(placePartKey(parts, index));
+      // The category tells which place this is: "Hamilton" in "Fairfield, Hamilton, Ohio" is Hamilton County.
+      const found = await withTimeout(categoryFor(placePartLookup(parts, index, usPlace)), "Location category lookup");
+      const category = found && categoryMatchesPart(found, parts[index]) ? found : null;
+      if (category && wikiTree) {
+        return { kind: "category", title: category };
+      }
+      const names = placePartCandidates(parts, index, usPlace);
       /* Space pages are anyone's to name, so a bare "Farmer" or "Missouri" could be an unrelated page.
       Only the qualified names ("Caledonia, Missouri") are tried as project and space pages. */
       const qualified = names.filter((name) => name.includes(","));
-      const onWikiTree = wikiTree
-        ? await findWikiTreeTarget({ category: names, project: qualified, space: qualified }, exists)
-        : null;
-      return onWikiTree || findOnWikipedia(names);
+      const onWikiTree = wikiTree ? await findWikiTreeTarget({ project: qualified, space: qualified }, exists) : null;
+      return onWikiTree || findOnWikipedia(category ? [category, ...names] : names);
     })
   );
 }
@@ -266,14 +285,13 @@ export function topicTitles(term) {
 /**
  * Look up the links for topics (wars, occupations). The key each is stored under is the term, lower-cased,
  * which is what linkTerm is given.
+ *
+ * @param {string[]} terms
+ * @param {object} [deps] as for resolvePlaceLinks, and `categoryNameFor(term)`: the WikiTree category for a
+ *   term, if it has one (occupations do)
  */
 export async function resolveTopicLinks(terms, deps = {}) {
-  const language = getWikiLinkLanguage();
-  const fetchJson = deps.fetchJson || defaultFetchJson;
-  const exists = deps.exists || defaultWikiTreeExists;
-  const wikiTree = deps.wikiTree !== false;
-  const findOnWikipedia = async (titles) =>
-    deps.wikipedia !== false ? findWikipediaTarget(titles, language, fetchJson) : null;
+  const { wikiTree, exists, findOnWikipedia } = lookupSettings(deps);
   const unique = [
     ...new Set(
       terms
@@ -292,9 +310,18 @@ export async function resolveTopicLinks(terms, deps = {}) {
       if (!titles.length) {
         return null;
       }
-      // Space pages are anyone's to name ("Space:Farmer" is a stranger's page), so only project pages count.
-      const onWikiTree = wikiTree ? await findWikiTreeTarget({ project: titles }, exists) : null;
-      return onWikiTree || findOnWikipedia(titles);
+      if (wikiTree) {
+        const category = deps.categoryNameFor?.(term);
+        if (category) {
+          return { kind: "category", title: category };
+        }
+        // Space pages are anyone's to name ("Space:Farmer" is a stranger's page), so only project pages count.
+        const project = await findWikiTreeTarget({ project: titles }, exists);
+        if (project) {
+          return project;
+        }
+      }
+      return findOnWikipedia(titles);
     })
   );
 }

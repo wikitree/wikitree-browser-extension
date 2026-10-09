@@ -2867,12 +2867,14 @@ async function prepareWikiLinks() {
     return;
   }
   const references = window.references || [];
+  const occupationOf = (aRef) => {
+    const occupation = aRef?.Occupation || aRef?.Household?.find((member) => member.Relation === "Self")?.Occupation;
+    return typeof occupation === "string" ? occupation.trim().toLowerCase() : "";
+  };
   const wars = references.map((aRef) => aRef?.War).filter(Boolean);
-  const occupations = references
-    .map((aRef) => aRef?.Occupation || aRef?.Household?.find((member) => member.Relation === "Self")?.Occupation)
-    .filter((occupation) => typeof occupation === "string" && occupation.trim());
+  const occupations = references.map(occupationOf).filter(Boolean);
   try {
-    const lookups = { wikiTree, wikipedia };
+    const lookups = { wikiTree, wikipedia, categoryNameFor: occupationCategoryName };
     await Promise.all([
       resolvePlaceLinks(placesForNarrative(), lookups),
       resolveTopicLinks([...wars, ...occupations], lookups),
@@ -2889,12 +2891,11 @@ async function prepareWikiLinks() {
     if (war && getWikiLink(war.toLowerCase())) {
       aRef.Narrative = aRef.Narrative.replace(` ${war}.`, ` ${linkTerm(war.toLowerCase(), war)}.`);
     }
-    const occupation = aRef.Occupation || aRef.Household?.find((member) => member.Relation === "Self")?.Occupation;
-    if (typeof occupation === "string" && occupation.trim() && getWikiLink(occupation.trim().toLowerCase())) {
-      const text = occupation.toLowerCase();
+    const occupation = occupationOf(aRef);
+    if (occupation && getWikiLink(occupation)) {
       aRef.Narrative = aRef.Narrative.replace(
-        `occupation was '${text}'`,
-        `occupation was '${linkTerm(occupation.trim().toLowerCase(), text)}'`
+        `occupation was '${occupation}'`,
+        `occupation was '${linkTerm(occupation, occupation)}'`
       );
     }
   });
@@ -5107,6 +5108,34 @@ export function addUnsourced(feature = "autoBio") {
   }
 }
 
+/**
+ * The WikiTree category for an occupation, as the profile's birth and death places allow
+ * ("Merchant Seamen" or "England, Merchant Seamen"), or "" when there is none.
+ */
+export function occupationCategoryName(occupation) {
+  const entry = occupationCategories[titleCase(occupation)];
+  if (!entry?.Places) {
+    return "";
+  }
+  const places = [];
+  if (window.profilePerson?.BirthLocation) {
+    places.push(window.profilePerson?.BirthLocation.split(", "));
+  }
+  if (window.profilePerson.DeathLocation) {
+    places.push(window.profilePerson.DeathLocation.split(", "));
+  }
+  let name = "";
+  entry.Places.forEach(function (place) {
+    if (places.some((arr) => arr?.includes(place))) {
+      name = `${place}, ${entry.PluralForm}`;
+    }
+  });
+  if (!name && entry.Standalone) {
+    name = entry.PluralForm;
+  }
+  return name;
+}
+
 export function addOccupationCategories(feature = "autoBio") {
   let occupationOption;
   if (feature == "autoCategories") {
@@ -5118,29 +5147,8 @@ export function addOccupationCategories(feature = "autoBio") {
     const occupation = aRef.Occupation;
 
     if (occupationOption && occupation) {
-      const occupationTitleCase = titleCase(occupation);
-      let occupationCategory;
-      if (occupationCategories[occupationTitleCase]) {
-        const places = [];
-        if (window.profilePerson?.BirthLocation) {
-          places.push(window.profilePerson?.BirthLocation.split(", "));
-        }
-        if (window.profilePerson.DeathLocation) {
-          places.push(window.profilePerson.DeathLocation.split(", "));
-        }
-        if (occupationCategories[occupationTitleCase]["Places"]) {
-          occupationCategories[occupationTitleCase]["Places"].forEach(function (place) {
-            if (places.some((arr) => arr?.includes(place))) {
-              occupationCategory = `[[Category: ${place}, ${occupationCategories[occupationTitleCase]["PluralForm"]}]]`;
-            }
-          });
-          if (!occupationCategory) {
-            if (occupationCategories[occupationTitleCase].Standalone) {
-              occupationCategory = `[[Category: ${occupationCategories[occupationTitleCase]["PluralForm"]}]]`;
-            }
-          }
-        }
-      }
+      const name = occupationCategoryName(occupation);
+      const occupationCategory = name ? `[[Category: ${name}]]` : "";
       if (occupationCategory && !window.sectionsObject["StuffBeforeTheBio"].text.includes(occupationCategory)) {
         addUniqueCategoryToStuffBeforeTheBio(occupationCategory);
       }

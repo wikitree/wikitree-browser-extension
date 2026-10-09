@@ -1,4 +1,4 @@
-import { indexesWithoutCountry, joinPlaceParts } from "./narrativePlaceUtils.js";
+import { joinPlaceParts } from "./narrativePlaceUtils.js";
 
 export function nameLink(person) {
   let theName = person.PersonName?.BirthName;
@@ -12,58 +12,46 @@ export function nameLink(person) {
   }
 }
 
-const linksOn = (options) => options?.wikiTreeLinks == true || options?.wikipediaLinks == true;
+const linksOn = () => window.autoBioOptions?.wikiTreeLinks == true || window.autoBioOptions?.wikipediaLinks == true;
 
-/**
- * A place as it appears in the narrative: without the country when that option is on, and with its
- * parts linked when links are on. `shortened` leaves out parts that were already used in the narrative.
- */
-function narrativePlace(place, shortened) {
-  const options = window.autoBioOptions;
-  const link = linksOn(options);
-  const parts = place.split(",").map((part) => part.trim());
-  let shown = parts.map((_, i) => i);
-  if (options?.omitCountry == true) {
-    shown = indexesWithoutCountry(parts);
-  }
-  if (shortened) {
-    if (!window.usedPlaces) {
-      window.usedPlaces = [];
-    }
-    const kept = [];
-    let used = 0;
-    shown.forEach(function (partIndex, position) {
-      const trimmedPlace = parts[partIndex];
-      if (window.usedPlaces.includes(trimmedPlace)) {
-        used++;
-      }
-      if (position == 0) {
-        kept.push(partIndex);
-      } else if (!window.usedPlaces.includes(trimmedPlace) || used < 2) {
-        kept.push(partIndex);
-        window.usedPlaces.push(trimmedPlace);
-      }
-    });
-    shown = kept;
-  }
-  return joinPlaceParts(parts, shown, link);
-}
-
-/** The first mention of a place: all of it (less the country, if that option is on). */
+/** The first mention of a place: all of it, with its parts linked when links are on. */
 export function fullNarrativePlace(place) {
-  if (!place || (window.autoBioOptions?.omitCountry != true && !linksOn(window.autoBioOptions))) {
+  if (!place || !linksOn()) {
     return place;
   }
-  return narrativePlace(place, false);
+  const parts = place.split(",").map((part) => part.trim());
+  return joinPlaceParts(
+    parts,
+    parts.map((_, i) => i),
+    true
+  );
 }
 
 export function minimalPlace(place) {
-  if (!place) {
-    return place;
+  if (window.autoBioOptions?.fullLocations == true || !place) {
+    return fullNarrativePlace(place);
   }
-  const options = window.autoBioOptions;
-  if (options?.fullLocations == true) {
-    return options.omitCountry == true || linksOn(options) ? narrativePlace(place, false) : place;
+  if (!window.usedPlaces) {
+    window.usedPlaces = [];
   }
-  return narrativePlace(place, true);
+  const placeSplit = place.split(",");
+  let shown = [];
+  let used = 0;
+  placeSplit.forEach(function (placePart, index) {
+    const trimmedPlace = placePart.trim();
+    if (window.usedPlaces.includes(trimmedPlace)) {
+      used++;
+    }
+    if (index == 0) {
+      shown.push(index);
+    } else if (!window.usedPlaces.includes(trimmedPlace) || used < 2) {
+      shown.push(index);
+      window.usedPlaces.push(trimmedPlace);
+    }
+  });
+  return joinPlaceParts(
+    placeSplit.map((part) => part.trim()),
+    shown,
+    linksOn()
+  );
 }

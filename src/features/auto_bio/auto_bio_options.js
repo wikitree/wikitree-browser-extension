@@ -183,12 +183,6 @@ const autoBio = {
           label: "Full location name every time.",
           defaultValue: false,
         },
-        {
-          id: "omitCountry",
-          type: OptionType.CHECKBOX,
-          label: "Leave the country out of locations in the narrative (unless the country is all there is).",
-          defaultValue: false,
-        },
       ],
     },
     {

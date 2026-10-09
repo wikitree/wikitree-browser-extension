@@ -1,79 +1,9 @@
 /**
- * Places in the narrative: leaving the country out, and turning the parts of a place into links.
- * Everything here is synchronous. The links themselves are looked up beforehand (see wikiLinkResolver.js)
- * and stored with setWikiLink, so the narrative builders can stay synchronous.
+ * Links for the places (and wars and occupations) in the narrative. The pages to link to are looked up
+ * beforehand (see wikiLinkResolver.js) and stored here with setWikiLink, so the narrative builders can
+ * stay synchronous.
  */
-import { countries } from "./countries.js";
-
-const EXTRA_COUNTRY_NAMES = [
-  "United States",
-  "USA",
-  "U.S.A.",
-  "US",
-  "U.S.",
-  "U S A",
-  "U S",
-  "UK",
-  "U.K.",
-  "England",
-  "Scotland",
-  "Wales",
-  "Northern Ireland",
-  "Czechia",
-];
-
-/* Georgia is a country and a US state, and a place that ends in it is far more often the state,
-so it is never treated as a country. */
-const NOT_COUNTRIES = new Set(["georgia"]);
-
-const countryNames = new Set(
-  [...countries.flatMap((country) => [country.name, country.nativeName]), ...EXTRA_COUNTRY_NAMES]
-    .filter(Boolean)
-    .map((name) => name.toLowerCase())
-);
-NOT_COUNTRIES.forEach((name) => countryNames.delete(name));
-
-export function isCountryName(part) {
-  return countryNames.has(
-    String(part || "")
-      .trim()
-      .toLowerCase()
-  );
-}
-
-export function splitPlace(place) {
-  return String(place || "")
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-}
-
-/**
- * The indexes of the parts of a place that remain once the country is left out. A country is only
- * left out when something else is left ("Caledonia, Missouri, United States" -> "Caledonia, Missouri",
- * but "United States" stays as it is), and "England, United Kingdom" loses both only if more is left.
- *
- * @param {string[]} parts the parts of the place, in order
- * @returns {number[]} the indexes to keep
- */
-export function indexesWithoutCountry(parts) {
-  const indexes = parts.map((_, i) => i);
-  while (indexes.length > 1 && isCountryName(parts[indexes[indexes.length - 1]])) {
-    indexes.pop();
-  }
-  return indexes;
-}
-
-export function omitCountry(place) {
-  const parts = splitPlace(place);
-  if (parts.length < 2) {
-    return place;
-  }
-  const indexes = indexesWithoutCountry(parts);
-  return indexes.length === parts.length ? place : indexes.map((i) => parts[i]).join(", ");
-}
-
-/* ---- Links ---- */
+import { findUSState, removeCountryName } from "./locationCategoryUtils.js";
 
 const wikiLinkSettings = { language: "en" };
 const wikiLinks = new Map();
@@ -94,7 +24,14 @@ export function getWikiLinkLanguage() {
   return wikiLinkSettings.language;
 }
 
-/** The key a part of a place is stored under: that part and everything after it, country included. */
+export function splitPlace(place) {
+  return String(place || "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+/** A part of a place and everything after it, country included. */
 export function placePartKey(parts, index) {
   return parts.slice(index).join(", ");
 }
@@ -142,44 +79,120 @@ export function linkTerm(key, text) {
 }
 
 /**
- * The text for the shown parts of a place, each linked where a link was found. The highest-level
- * part shown (the state, or the country) is left unlinked when there is more than one part.
+ * How many parts of a place are linked: all but the highest-level one ("Caledonia, Washington County,
+ * Missouri, United States" links Caledonia and Washington County), and the country is never linked.
+ * A place with only one part besides the country links that part.
+ */
+export function linkablePartCount(parts) {
+  const withoutCountry = splitPlace(removeCountryName(parts.join(", ")));
+  return withoutCountry.length <= 1 ? 1 : withoutCountry.length - 1;
+}
+
+/**
+ * The text for the shown parts of a place, each linked where a link was found.
  *
  * @param {string[]} parts all the parts of the place (used to find the links)
  * @param {number[]} shown the indexes of the parts to show
  * @param {boolean} link whether to add links
  */
 export function joinPlaceParts(parts, shown, link) {
+  const linkable = link ? linkablePartCount(parts) : 0;
   return shown
-    .map((partIndex, position) => {
-      const text = parts[partIndex];
-      if (!link || (shown.length > 1 && position === shown.length - 1)) {
-        return text;
-      }
-      return formatWikiLink(getWikiLink(placePartKey(parts, partIndex)), text);
-    })
+    .map((partIndex) =>
+      partIndex < linkable
+        ? formatWikiLink(getWikiLink(placeLinkKey(parts, partIndex)), parts[partIndex])
+        : parts[partIndex]
+    )
     .join(", ");
 }
 
+const ABBREVIATIONS = [
+  [/\bst\.?(?=\s)/g, "saint"],
+  [/\bmt\.?(?=\s)/g, "mount"],
+  [/\bft\.?(?=\s)/g, "fort"],
+  [/\bco\.(?=\s|$)/g, "county"],
+  [/\btwp\.?(?=\s|$)/g, "township"],
+];
+
+function normalizeName(name) {
+  return ABBREVIATIONS.reduce(
+    (text, [pattern, full]) => text.replace(pattern, full),
+    String(name).toLowerCase().trim()
+  );
+}
+
 /**
- * The names a part of a place might go by, most specific first, as used for the WikiTree category
- * ("Caledonia, Missouri") and the Wikipedia article ("Caledonia, Missouri"). The country is left
- * out of them. The highest-level part has only its own name.
+ * Whether a category is for the place a part names. WikiTree writes a county without the word
+ * ("Washington, Missouri"), so the part "Washington" matches "Washington County, Missouri" too. This
+ * stops a part taking the category of the place after it when it has none of its own.
+ */
+export function categoryMatchesPart(category, part) {
+  const first = normalizeName(String(category).split(",")[0]);
+  const name = normalizeName(part);
+  return first === name || first === `${name} county`;
+}
+
+/**
+ * In a US place a part between the first and the state is a county, whether or not the profile says
+ * "County" ("Caledonia, Washington, Missouri" is in Washington County).
+ *
+ * @returns {string|null} the part with the word County ("Washington County"), or null if it is not a county
+ */
+export function countyName(parts, index, usPlace) {
+  const core = splitPlace(removeCountryName(parts.join(", ")));
+  const name = parts[index];
+  const inTheMiddle = index > 0 && index < core.length - 1;
+  if (!usPlace || !inTheMiddle || /\b(county|parish|borough)$/i.test(name)) {
+    return null;
+  }
+  return `${name} County`;
+}
+
+/**
+ * The place from a part onward as it should be looked up: a county has the word County, so that the
+ * county's own category is found and not the city or township of the same name.
+ */
+export function placePartLookup(parts, index, usPlace) {
+  const county = countyName(parts, index, usPlace);
+  return county ? [county, ...parts.slice(index + 1)].join(", ") : placePartKey(parts, index);
+}
+
+/**
+ * The key a part of a place's link is stored under. It is the lookup form, so "Washington" in "Caledonia,
+ * Washington, Missouri" (the county) is not mixed up with "Washington" in "Washington, Missouri" (the city).
+ */
+export function placeLinkKey(parts, index) {
+  return placePartLookup(parts, index, !!findUSState(placePartKey(parts, index)));
+}
+
+/**
+ * The Wikipedia titles a part of a place might have, most likely first.
  *
  * @param {string[]} parts all the parts of the place
  * @param {number} index the part to name
- * @returns {string[]}
+ * @param {boolean} [usPlace] whether the place is in the United States
  */
-export function placePartCandidates(parts, index) {
-  const core = indexesWithoutCountry(parts).map((i) => parts[i]);
+export function placePartCandidates(parts, index, usPlace = false) {
+  const core = splitPlace(removeCountryName(parts.join(", ")));
   const name = parts[index];
   if (index >= core.length - 1) {
     return [name];
   }
+  const state = core[core.length - 1];
+  const county = countyName(parts, index, usPlace);
+  if (county) {
+    // Not "Benton, Ohio" as a fallback: that is a village, not the county.
+    return [`${county}, ${state}`];
+  }
   const candidates = [
-    `${name}, ${core[core.length - 1]}`,
+    `${name}, ${state}`,
     `${name}, ${core[index + 1]}`,
     `${name}, ${core.slice(index + 1).join(", ")}`,
   ];
+  /* Outside the US an article is usually the bare name ("Dresden", not "Dresden, Sachsen"). It comes last, and
+  a disambiguation page is never linked to, so a name shared by many places is left unlinked. */
+  if (!usPlace) {
+    candidates.push(name);
+  }
   return [...new Set(candidates)];
 }

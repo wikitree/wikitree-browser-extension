@@ -1,52 +1,94 @@
 import {
+  categoryMatchesPart,
   clearWikiLinks,
   configureWikiLinks,
   formatWikiLink,
-  indexesWithoutCountry,
   joinPlaceParts,
-  omitCountry,
+  linkablePartCount,
+  placeLinkKey,
   placePartCandidates,
+  placePartLookup,
   setWikiLink,
   splitPlace,
 } from "./narrativePlaceUtils.js";
-import { minimalPlace } from "./displayUtils.js";
+import { fullNarrativePlace, minimalPlace } from "./displayUtils.js";
+import { loadUSStates } from "./usStatesStore.js";
 
-describe("omitCountry", () => {
-  test("drops the country from the end", () => {
-    expect(omitCountry("Caledonia, Washington County, Missouri, United States")).toBe(
-      "Caledonia, Washington County, Missouri"
-    );
-    expect(omitCountry("Dublin, Ireland")).toBe("Dublin");
-    expect(omitCountry("Leeds, Yorkshire, England, United Kingdom")).toBe("Leeds, Yorkshire");
+beforeAll(loadUSStates);
+
+const CALEDONIA = "Caledonia, Washington, Missouri, United States";
+
+describe("linkablePartCount", () => {
+  test("is all the parts but the highest-level one, and never the country", () => {
+    expect(linkablePartCount(splitPlace(CALEDONIA))).toBe(2);
+    expect(linkablePartCount(splitPlace("Caledonia, Missouri"))).toBe(1);
   });
-
-  test("keeps a country that is all there is", () => {
-    expect(omitCountry("United States")).toBe("United States");
-    expect(omitCountry("England, United Kingdom")).toBe("England");
+  test("a place with one part besides the country links that part", () => {
+    expect(linkablePartCount(splitPlace("Missouri, United States"))).toBe(1);
+    expect(linkablePartCount(splitPlace("Missouri"))).toBe(1);
   });
+});
 
-  test("leaves a place without a country alone", () => {
-    expect(omitCountry("Caledonia, Missouri")).toBe("Caledonia, Missouri");
+describe("categoryMatchesPart", () => {
+  test("matches the part, with or without the word County", () => {
+    expect(categoryMatchesPart("Caledonia, Missouri", "Caledonia")).toBe(true);
+    expect(categoryMatchesPart("Washington County, Missouri", "Washington")).toBe(true);
+    expect(categoryMatchesPart("Saint Louis, Missouri", "St. Louis")).toBe(true);
   });
-
-  test("does not take the state of Georgia for a country", () => {
-    expect(omitCountry("Atlanta, Georgia, United States")).toBe("Atlanta, Georgia");
-    expect(omitCountry("Atlanta, Georgia")).toBe("Atlanta, Georgia");
+  test("does not match the category of another place", () => {
+    expect(categoryMatchesPart("Washington County, Missouri", "Caledonia")).toBe(false);
+    expect(categoryMatchesPart("Washington Township, Ohio", "Washington")).toBe(false);
   });
 });
 
 describe("placePartCandidates", () => {
-  const parts = splitPlace("Caledonia, Washington County, Missouri, United States");
-  test("names a part with the state, then its neighbour", () => {
-    expect(placePartCandidates(parts, 0)).toEqual([
-      "Caledonia, Missouri",
-      "Caledonia, Washington County",
-      "Caledonia, Washington County, Missouri",
+  const parts = splitPlace(CALEDONIA);
+  test("a US part between the first and the state is a county, with or without the word", () => {
+    expect(placePartCandidates(parts, 1, true)).toEqual(["Washington County, Missouri"]);
+    expect(placePartCandidates(splitPlace("Caledonia, Washington County, Missouri, United States"), 1, true)).toEqual([
+      "Washington County, Missouri",
     ]);
-    expect(placePartCandidates(parts, 1)).toEqual(["Washington County, Missouri"]);
+  });
+  test("the first part is named with the state, then its neighbour", () => {
+    expect(placePartCandidates(parts, 0, true)).toEqual([
+      "Caledonia, Missouri",
+      "Caledonia, Washington",
+      "Caledonia, Washington, Missouri",
+    ]);
+  });
+  test("outside the US the bare name is the last resort", () => {
+    const german = splitPlace("Dresden, Kreis Dresden, Sachsen, Deutschland");
+    expect(placePartCandidates(german, 0, false)).toEqual([
+      "Dresden, Sachsen",
+      "Dresden, Kreis Dresden",
+      "Dresden, Kreis Dresden, Sachsen",
+      "Dresden",
+    ]);
   });
   test("the highest-level part is only its own name", () => {
-    expect(placePartCandidates(parts, 2)).toEqual(["Missouri"]);
+    expect(placePartCandidates(parts, 2, true)).toEqual(["Missouri"]);
+  });
+});
+
+describe("placePartLookup and placeLinkKey", () => {
+  const parts = splitPlace(CALEDONIA);
+  test("a county in the middle of a US place is looked up with the word County", () => {
+    expect(placePartLookup(parts, 1, true)).toBe("Washington County, Missouri, United States");
+    expect(placeLinkKey(parts, 1)).toBe("Washington County, Missouri, United States");
+  });
+  test("the first part and the state are looked up as they are", () => {
+    expect(placePartLookup(parts, 0, true)).toBe(CALEDONIA);
+    expect(placePartLookup(parts, 2, true)).toBe("Missouri, United States");
+  });
+  test("so the city and the county of the same name have separate keys", () => {
+    expect(placeLinkKey(splitPlace("Washington, Missouri, United States"), 0)).toBe(
+      "Washington, Missouri, United States"
+    );
+  });
+  test("outside the US nothing is a county", () => {
+    expect(placePartLookup(splitPlace("Leeds, Yorkshire, England, United Kingdom"), 1, false)).toBe(
+      "Yorkshire, England, United Kingdom"
+    );
   });
 });
 
@@ -65,54 +107,52 @@ describe("formatWikiLink", () => {
   });
 });
 
-describe("narrative places", () => {
+describe("places in the narrative", () => {
   afterEach(() => {
     window.autoBioOptions = undefined;
     window.usedPlaces = [];
     clearWikiLinks();
   });
 
-  test("joinPlaceParts links every shown part but the last", () => {
+  function linkTheParts() {
     configureWikiLinks({ language: "en" });
-    const parts = splitPlace("Caledonia, Washington County, Missouri, United States");
-    setWikiLink("Caledonia, Washington County, Missouri, United States", {
-      kind: "wikipedia",
-      title: "Caledonia, Missouri",
-    });
+    setWikiLink(CALEDONIA, { kind: "category", title: "Caledonia, Missouri" });
     setWikiLink("Washington County, Missouri, United States", {
       kind: "wikipedia",
       title: "Washington County, Missouri",
     });
-    expect(joinPlaceParts(parts, indexesWithoutCountry(parts), true)).toBe(
-      "[[Wikipedia:Caledonia, Missouri|Caledonia]], [[Wikipedia:Washington County, Missouri|Washington County]], Missouri"
+  }
+
+  test("joinPlaceParts links the parts below the state, and not the state or the country", () => {
+    linkTheParts();
+    const parts = splitPlace(CALEDONIA);
+    expect(joinPlaceParts(parts, [0, 1, 2, 3], true)).toBe(
+      "[[:Category:Caledonia, Missouri|Caledonia]], [[Wikipedia:Washington County, Missouri|Washington]], Missouri, United States"
     );
   });
 
-  test("minimalPlace is unchanged with the options off", () => {
+  test("with the options off a place is unchanged", () => {
     window.autoBioOptions = {};
     window.usedPlaces = [];
     expect(minimalPlace("Caledonia, Missouri, United States")).toBe("Caledonia, Missouri, United States");
+    expect(fullNarrativePlace(CALEDONIA)).toBe(CALEDONIA);
   });
 
-  test("minimalPlace leaves the country out, and a lone country in", () => {
-    window.autoBioOptions = { omitCountry: true };
-    window.usedPlaces = [];
-    expect(minimalPlace("Caledonia, Missouri, United States")).toBe("Caledonia, Missouri");
-    expect(minimalPlace("United States")).toBe("United States");
-  });
-
-  test("minimalPlace with full locations still leaves the country out", () => {
-    window.autoBioOptions = { omitCountry: true, fullLocations: true };
+  test("minimalPlace still drops places already used", () => {
+    window.autoBioOptions = {};
+    window.usedPlaces = ["Missouri", "United States"];
     expect(minimalPlace("Caledonia, Missouri, United States")).toBe("Caledonia, Missouri");
   });
 
-  test("minimalPlace links parts", () => {
-    window.autoBioOptions = { omitCountry: true, wikiTreeLinks: true };
+  test("minimalPlace and fullNarrativePlace link the parts", () => {
+    linkTheParts();
+    window.autoBioOptions = { wikiTreeLinks: true };
     window.usedPlaces = [];
-    configureWikiLinks({ language: "en" });
-    setWikiLink("Caledonia, Missouri, United States", { kind: "category", title: "Caledonia, Missouri" });
-    expect(minimalPlace("Caledonia, Missouri, United States")).toBe(
-      "[[:Category:Caledonia, Missouri|Caledonia]], Missouri"
+    expect(minimalPlace(CALEDONIA)).toBe(
+      "[[:Category:Caledonia, Missouri|Caledonia]], [[Wikipedia:Washington County, Missouri|Washington]], Missouri, United States"
     );
+    window.autoBioOptions = { wikipediaLinks: true, fullLocations: true };
+    expect(fullNarrativePlace(CALEDONIA)).toContain("[[:Category:Caledonia, Missouri|Caledonia]], ");
+    expect(minimalPlace(CALEDONIA)).toContain("[[:Category:Caledonia, Missouri|Caledonia]], ");
   });
 });

@@ -412,7 +412,14 @@ function isWithinCategoryTimeframe(aCat, eventYear) {
   return true;
 }
 
-export async function getLocationCategory(type, location = null) {
+/**
+ * @param {string} type Birth, Death, Marriage, Cemetery, or anything else for a place found elsewhere
+ * @param {string|null} location the place, for the types that do not read it from the form
+ * @param {{sideEffects?: boolean}} [options] with sideEffects false the place is only looked up: no
+ *   Appalachia category is added to the bio and no note is added to the Auto Bio notes
+ */
+export async function getLocationCategory(type, location = null, options = {}) {
+  const sideEffects = options.sideEffects !== false;
   await loadUSStates();
 
   let categoryType = "location";
@@ -491,7 +498,11 @@ export async function getLocationCategory(type, location = null) {
 
   const resolvedAustralianLocation = resolveAustralianCategoryLocation(searchLocation, type, australianLocations);
   searchLocation = resolvedAustralianLocation.location;
-  if (resolvedAustralianLocation.note && !window.autoBioNotes?.includes(resolvedAustralianLocation.note)) {
+  if (
+    sideEffects &&
+    resolvedAustralianLocation.note &&
+    !window.autoBioNotes?.includes(resolvedAustralianLocation.note)
+  ) {
     if (!Array.isArray(window.autoBioNotes)) {
       window.autoBioNotes = [];
     }
@@ -518,7 +529,7 @@ export async function getLocationCategory(type, location = null) {
   const apiResponses = await Promise.allSettled(apiPromises);
 
   const thisState = findUSState(location);
-  if (thisState && appalachiaStates.includes(thisState)) {
+  if (sideEffects && thisState && appalachiaStates.includes(thisState)) {
     appalachiaCategory(location, thisState);
   }
 
