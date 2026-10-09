@@ -193,6 +193,10 @@ async function DoOrphan() {
                   return;
                 }
               }
+              if (!/^\d+$/.test(String(person.PageId))) {
+                reject();
+                return;
+              }
               addInvisibleInput(form, "idlist[]", person.PageId);
               resolve();
             }
@@ -205,10 +209,18 @@ async function DoOrphan() {
   promises.push(
     new Promise((resolve, reject) => {
       const myId = getUserNumId();
+      if (!/^\d+$/.test(String(myId))) {
+        reject();
+        return;
+      }
       addInvisibleInput(form, "action", "remove");
       addInvisibleInput(form, "personId", myId);
       addInvisibleInput(form, "go", "1");
       getMyEmail(myId).then((myEmail) => {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(myEmail)) {
+          reject();
+          return;
+        }
         addInvisibleInput(form, "object_email", myEmail);
         // console.log("promise email done");
         resolve();
