@@ -3523,6 +3523,20 @@ export function createProfileSearchHandler({
         );
       }
     );
+    // A bare "1850-1899" (or "1850–1899", "1850 to 1899") is a birth year range too; left alone it
+    // became part of the place ("Location=1850-1899 Scotland", 2026-10-10). Whole years only.
+    consume(/\b(\d{4})\s*(?:-|\u2013|\u2014|\bto\b)\s*(\d{4})\b(?![-\d])/i, (match) => {
+      const y1 = Number.parseInt(match[1], 10);
+      const y2 = Number.parseInt(match[2], 10);
+      const startYear = Math.min(y1, y2);
+      const endYear = Math.max(y1, y2);
+      addSqlTerm(
+        buildWtPlusSqlTerm(
+          `([Default].[Birth Date].AsNumber In ${normalizeWtPlusBoundaryDate(String(startYear), "before")}..${normalizeWtPlusBoundaryDate(String(endYear), "after")})`
+        ),
+        `born ${startYear}–${endYear}`
+      );
+    });
     // Bare "between Y1 and Y2" (without "born") — treat as a birth year range.
     // When both years fall in the same century use the NCen magic token so the
     // filter is applied natively rather than via a potentially-fragile sql= term.

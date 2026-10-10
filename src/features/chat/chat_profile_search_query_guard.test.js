@@ -76,6 +76,19 @@ describe("chat_profile_search query guards", () => {
     });
   });
 
+  test("a bare year range is a birth range, not part of the place (Stevenson 1850-1899 Scotland)", async () => {
+    const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
+
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Stevenson 1850-1899 Scotland");
+
+    expect(wtAPIProfileSearch).toHaveBeenCalled();
+    const executedQuery = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
+    expect(executedQuery).toContain("LastNameAtBirth=Stevenson");
+    expect(executedQuery).toContain("Location=Scotland");
+    expect(executedQuery).toContain("In 18500000..18999999");
+    expect(executedQuery).not.toContain("19Cen");
+  });
+
   test("blocks a saved WT+ re-run containing an unknown field without calling the API", async () => {
     const { reRunSavedWtPlusQuery } = makeHandler();
 

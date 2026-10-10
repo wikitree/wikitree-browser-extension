@@ -24,20 +24,73 @@ const YEAR_FIELDS = [
   { from: "diedFrom", to: "diedTo", label: "Died" },
 ];
 
-/** Only what can't be misread: one decade like 1850s, or one year range like 1850-1859, as birth years. */
+const PLACE_STOP = /^(?:between|before|after|from|and|or|who|with|without|that|in|on|at|but|not|no|only|unsourced|unconnected|died|born|married|aged?)$/i;
+
+/** The place words right after "born in" / "died in": capitalised words, stopping at a lower-case word or a digit. */
+function placeAfter(text, event) {
+  const match = text.match(new RegExp(`\\b${event}\\s+in\\s+((?:the\\s+)?[A-Z][\\w'.-]*(?:[ ,]+[A-Z][\\w'.-]*)*)`));
+  if (!match) return "";
+  const words = match[1].split(/[ ,]+/).filter(Boolean);
+  const kept = [];
+  for (const word of words) {
+    if (PLACE_STOP.test(word)) break;
+    kept.push(word);
+  }
+  return kept.join(" ").replace(/^the\s+/i, "");
+}
+
+/** Years next to a life-event word: "died 1900-1950" or "died in the 1900s" → the died boxes; else birth. */
+function yearSpan(text) {
+  const decades = [...text.matchAll(/\b(1[0-9]|20)([0-9])0'?s\b/g)].filter((match) => match[2] !== "0");
+  const ranges = [...text.matchAll(/\b(1[0-9]{3}|20[0-9]{2})\s*(?:[-–]|to)\s*(1[0-9]{3}|20[0-9]{2})\b/g)];
+  let from;
+  let to;
+  let at;
+  if (decades.length === 1 && !ranges.length) {
+    from = Number(`${decades[0][1]}${decades[0][2]}0`);
+    to = from + 9;
+    at = decades[0].index;
+  } else if (ranges.length === 1 && !decades.length && Number(ranges[0][1]) <= Number(ranges[0][2])) {
+    from = Number(ranges[0][1]);
+    to = Number(ranges[0][2]);
+    at = ranges[0].index;
+  } else {
+    return null;
+  }
+  // (the nearest life-event word before the years says whose years they are)
+  const events = [...text.slice(0, at).matchAll(/\b(born|birth|died|death|dying)\b/gi)];
+  const died = events.length > 0 && /^(?:died|death|dying)$/i.test(events[events.length - 1][1]);
+  return { from: String(from), to: String(to), event: died ? "died" : "born" };
+}
+
+/**
+ * Only what can't be misread: one decade like 1850s or one year range like 1850-1859 (as birth years, or
+ * death years after "died"), "last name X", "first name X", "born in Place", "died in Place", men/women,
+ * and the no-sources / no-parents / not-connected words. A bare name or place stays theirs to type.
+ */
 export function prefillSearchForm(prompt) {
   const text = String(prompt || "");
   const values = {};
-  const decades = [...text.matchAll(/\b(1[0-9]|20)([0-9])0'?s\b/g)].filter((match) => match[2] !== "0");
-  const ranges = [...text.matchAll(/\b(1[0-9]{3}|20[0-9]{2})\s*[-–]\s*(1[0-9]{3}|20[0-9]{2})\b/g)];
-  if (decades.length === 1 && !ranges.length) {
-    const start = Number(`${decades[0][1]}${decades[0][2]}0`);
-    values.bornFrom = String(start);
-    values.bornTo = String(start + 9);
-  } else if (ranges.length === 1 && !decades.length && Number(ranges[0][1]) <= Number(ranges[0][2])) {
-    values.bornFrom = ranges[0][1];
-    values.bornTo = ranges[0][2];
+  const span = yearSpan(text);
+  if (span) {
+    values[span.event === "died" ? "diedFrom" : "bornFrom"] = span.from;
+    values[span.event === "died" ? "diedTo" : "bornTo"] = span.to;
   }
+  const lastName = text.match(/\b(?:last\s*name|surname)\s+"?([A-Z][A-Za-z'-]+)"?/i);
+  if (lastName && !PLACE_STOP.test(lastName[1])) values.lastName = lastName[1];
+  const firstName = text.match(/\b(?:first\s*name|forename|given\s+name)\s+"?([A-Z][A-Za-z'-]+)"?/i);
+  if (firstName && !PLACE_STOP.test(firstName[1])) values.firstName = firstName[1];
+  const birthPlace = placeAfter(text, "born");
+  if (birthPlace) values.birthPlace = birthPlace;
+  const deathPlace = placeAfter(text, "died");
+  if (deathPlace) values.deathPlace = deathPlace;
+  if (/\b(?:women|woman|females?|girls?)\b/i.test(text) && !/\b(?:men|man|males?|boys?)\b/i.test(text)) values.gender = "female";
+  else if (/\b(?:men|man|males?|boys?)\b/i.test(text) && !/\b(?:women|woman|females?|girls?)\b/i.test(text)) values.gender = "male";
+  const flags = [];
+  if (/\b(?:unsourced|no\s+sources?|without\s+sources?|missing\s+sources?)\b/i.test(text)) flags.push("Unsourced");
+  if (/\b(?:no\s+parents|without\s+parents|orphans?)\b/i.test(text)) flags.push("NoParents");
+  if (/\b(?:unconnected|not\s+connected)\b/i.test(text)) flags.push("Unconnected");
+  if (flags.length) values.flags = flags;
   return values;
 }
 
