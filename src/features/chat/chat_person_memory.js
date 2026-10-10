@@ -355,6 +355,38 @@ export function pickAnswerSubject(messageText, table = null) {
   return ids.length === 1 ? people.find((person) => person.wtId === ids[0]) : null;
 }
 
+// Who "he"/"she" means next (user, 2026-10-10): the profile person until the user names someone.
+// An answer about one person only becomes the subject when the question named that person (their
+// ID, or a capitalised word of their name: "his son John" → John Weatherall). A question naming
+// nobody ("where was his father born?") keeps the subject as it was; one naming someone else
+// clears it, back to the profile person.
+const WIKITREE_ID_IN_PROMPT = /\b[A-Za-z][A-Za-z'_-]*-\d{1,7}\b/;
+export function promptNamesSomeone(prompt) {
+  const text = String(prompt || "").trim();
+  if (WIKITREE_ID_IN_PROMPT.test(text)) return true;
+  // a capitalised word that isn't the first word or "I"
+  return text
+    .split(/\s+/)
+    .slice(1)
+    .some((word) => /^[A-Z][a-z'-]+(?:'s)?[?,.!]*$/.test(word) && !/^I(?:'[a-z]+)?$/.test(word));
+}
+
+export function promptNamesPerson(prompt, person) {
+  const text = String(prompt || "");
+  if (!person?.wtId) return false;
+  if (text.toLowerCase().includes(person.wtId.toLowerCase())) return true;
+  const words = String(person.displayName || "")
+    .split(/[\s()]+/)
+    .filter((word) => /^[A-Z][A-Za-z'-]{2,}$/.test(word));
+  return words.some((word) => new RegExp(`\\b${word}(?:'s)?\\b`).test(text));
+}
+
+export function nextAnswerSubject(previous, candidate, userPrompt) {
+  if (candidate && promptNamesPerson(userPrompt, candidate)) return candidate;
+  if (promptNamesSomeone(userPrompt)) return null;
+  return previous || null;
+}
+
 // "his wife" right after an answer about Lincoln → "Lincoln-103's wife". The
 // pronoun must fit the person's gender ("her" never means Lincoln); otherwise
 // the prompt is unchanged and the profile person applies.

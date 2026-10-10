@@ -118,10 +118,13 @@ import {
   extractResolvedPeopleFromMessage,
   normalizePersonMemoryToken,
   pickAnswerSubject,
+  nextAnswerSubject,
   rewritePromptWithRememberedPerson,
   rewritePronounToSubject,
   sanitizeResolvedPersonDisplayName,
 } from "./chat_person_memory";
+
+import { WT_PLUS_BIO_CHECK_WORDS, WT_PLUS_RESEARCH_STATUS_WORDS } from "./wt_plus_query_grammar";
 
 // Debug: indicate the chat feature script has been loaded
 console.debug("wbe: chat.js loaded");
@@ -175,6 +178,8 @@ const CHAT_WTPLUS_MAGIC_WORDS_GROUPS = [
       "relation=nuclear",
     ],
   },
+  { label: "Research Status", words: WT_PLUS_RESEARCH_STATUS_WORDS },
+  { label: "Bio Check", words: WT_PLUS_BIO_CHECK_WORDS },
   { label: "Stars", words: ["1star", "2stars", "3stars", "4stars", "5stars"] },
   {
     label: "Other",
@@ -533,8 +538,10 @@ function rememberResolvedPersonFromMatch(person, aliases = []) {
   });
 }
 
-// The person the last answer was about, for "his wife" follow-ups.
+// The person "his"/"her" means in a follow-up: the profile person (null) until the user names
+// someone (nextAnswerSubject). lastSubjectPrompt is what the user typed for the current answer.
 let lastAnswerSubject = null;
+let lastSubjectPrompt = "";
 
 async function getSubjectGender(subject) {
   if (subject.gender !== undefined) return subject.gender;
@@ -1213,6 +1220,9 @@ const { getCcProfilesForUser, getCc7ProfilesForUser, tryHandleCc7LocationPrompt,
     makeStandardProfileTable,
     makeWatchlistTable,
     normalizeText,
+    getUserNumId,
+    showChatShaky,
+    hideChatShaky,
   });
 
 const tryHandleLastResultOperation = createLastResultOperationHandler({
@@ -1339,6 +1349,8 @@ const {
   rebuildChartAction,
 } = createChatPeopleHandlers({
   getProfilePersonInfo,
+  // ("his daughter Carol's lifespans": the chart's person is a relative of the page person)
+  resolveRelativeTarget: (targetText, prompt) => resolveRelativeTargetPeople(targetText, prompt),
   ChatIntent,
   WBE_CHAT_APP_ID,
   WikiTreeAPI,
@@ -2641,7 +2653,7 @@ async function handleChatResult(result) {
       : result.message;
 
   rememberResolvedPeopleFromMessage(messageText);
-  lastAnswerSubject = pickAnswerSubject(messageText, result.table);
+  lastAnswerSubject = nextAnswerSubject(lastAnswerSubject, pickAnswerSubject(messageText, result.table), lastSubjectPrompt);
 
   // A handler can offer a concrete follow-up; a bare "Sure."/"Yes" on the next
   // turn runs offer.prompt instead of being treated as a search term.
@@ -2988,6 +3000,9 @@ async function sendChatPrompt() {
   // person's wife, if the pronoun fits; otherwise the profile person.
   const isFollowupContext =
     document.querySelector('input[name="wbe-chat-context"]:checked')?.value !== "new";
+  lastSubjectPrompt = normalizedPrompt;
+  // ("New search" starts again from the profile person)
+  if (!isFollowupContext) lastAnswerSubject = null;
   if (isFollowupContext && lastAnswerSubject && /\b(?:his|her|their)\s+[A-Za-z]/i.test(prompt)) {
     const pronounRewrite = rewritePronounToSubject(prompt, lastAnswerSubject, await getSubjectGender(lastAnswerSubject));
     console.debug("wbe: pronoun follow-up", {
@@ -3552,7 +3567,7 @@ async function sendChatPrompt() {
     if (response?.success) {
       const answer = parseAiAnswer(response.response || "");
       rememberResolvedPeopleFromMessage(answer.text);
-      lastAnswerSubject = pickAnswerSubject(answer.text);
+      lastAnswerSubject = nextAnswerSubject(lastAnswerSubject, pickAnswerSubject(answer.text), lastSubjectPrompt);
       if (answer.cannot) recordUnanswered(prompt, answer.text.split("\n")[0].slice(0, 160));
       appendMessage("assistant", answer.text || "No response text returned.", {
         badge: answer.cannot ? "Couldn't answer" : "AI answer",
@@ -4468,6 +4483,8 @@ function openPopup() {
     $popup.find(".chat-help-button").on("click", () => showNoAiExamples());
     $popup.find(`#${CHAT_CLEAR_ID}`).on("click", () => {
       clearHistory();
+      // ("profiles I manage with no sources" after Clear was added onto the cleared Devon search; live, 2026-10-10)
+      profileSearchHandlers.resetLastExecutedWtPlusQuery?.();
       appendWelcomeChips();
     });
     $popup.find(`#${CHAT_SEND_ID}`).on("click", sendChatPrompt);

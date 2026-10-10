@@ -302,7 +302,10 @@ function parseWatchlistPrompt(prompt) {
     return { mode: "list", limit: null, filter: filtered };
   }
 
+  // "refresh my watchlist": read it again rather than use the kept copy (2026-10-10)
+  const refresh = /^\s*(?:refresh|reload|re-?read|update)\s+(?:my\s+)?watch\s*list\s*$/i.test(normalizedClean);
   const isWatchlistPrompt =
+    refresh ||
     /^\s*(?:my\s+)?watch\s*list\s*$/i.test(normalizedClean) ||
     /^\s*(?:show|list|open|get)\s+(?:me\s+)?(?:my\s+)?watch\s*list(?:\s+.*)?\s*$/i.test(normalizedClean);
 
@@ -317,6 +320,7 @@ function parseWatchlistPrompt(prompt) {
   return {
     mode: "list",
     limit,
+    ...(refresh ? { refresh: true } : {}),
   };
 }
 
@@ -1552,8 +1556,12 @@ function parseDescendantListPrompt(prompt) {
     .trim();
   const defaultDescendantGeneration = 10;
   if (/\bliving\b/i.test(normalized)) {
-    const rest = normalized.replace(/\bliving\s+/i, "").replace(/^(?:who|which)(?:\s+(?:are|is))?\s+/i, "");
-    const base = parseDescendantListPrompt(rest);
+    // ("…still living" ends in the word: strip it there too, or this recursed forever)
+    const rest = normalized
+      .replace(/\bliving\b\s*/i, "")
+      .replace(/^(?:who|which)(?:\s+(?:are|is))?\s+/i, "")
+      .trim();
+    const base = rest && rest !== normalized ? parseDescendantListPrompt(rest) : null;
     if (base) return { ...base, livingOnly: true };
   }
 
@@ -2075,7 +2083,8 @@ function parseLastResultPrompt(prompt, options = {}) {
   if (bornInMatch?.[1]) {
     const bornInValue = bornInMatch[1].trim();
     const exactYearBorn = bornInValue.match(/^(\d{4})$/);
-    const decadeBorn = bornInValue.match(/^(\d{3}0)s$/);
+    // ("the 1850s" too: it was read as a birth place, 0 rows, live 2026-10-10)
+    const decadeBorn = bornInValue.match(/^(?:the\s+)?(\d{3}0)'?s$/i);
     if (exactYearBorn) {
       return {
         action: "filter",
@@ -2096,7 +2105,7 @@ function parseLastResultPrompt(prompt, options = {}) {
     if (followupBornInMatch?.[1]) {
       const bornVal = followupBornInMatch[1].trim();
       const exactYear = bornVal.match(/^(\d{4})$/);
-      const decadeVal = bornVal.match(/^(\d{3}0)s$/);
+      const decadeVal = bornVal.match(/^(?:the\s+)?(\d{3}0)'?s$/i);
       if (exactYear) {
         return {
           action: "filter",

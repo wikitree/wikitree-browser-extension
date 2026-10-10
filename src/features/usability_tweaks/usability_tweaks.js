@@ -153,15 +153,15 @@ function addScratchPadButton() {
   let editButton = $("input[value='Edit Scratch Pad']").clone().attr("id", "clonedEditButton");
   let saveButton = $("input[value='Save Scratch Pad Changes']").clone().attr("id", "clonedSaveButton");
 
-  // Function to update button visibility and events
+  // Show the clone that matches WikiTree's own buttons. (Only on a change: the observer below
+  // would otherwise see our own show/hide and call this again.)
+  let editing = null;
   function updateButtonVisibility() {
-    if ($("input[value='Edit Scratch Pad']:not(#clonedEditButton)").is(":visible")) {
-      $("#clonedEditButton").show();
-      $("#clonedSaveButton").hide();
-    } else {
-      $("#clonedEditButton").hide();
-      $("#clonedSaveButton").show();
-    }
+    const nowEditing = !$("input[value='Edit Scratch Pad']:not(#clonedEditButton)").is(":visible");
+    if (nowEditing === editing) return;
+    editing = nowEditing;
+    $("#clonedEditButton").toggle(!editing);
+    $("#clonedSaveButton").toggle(editing);
   }
 
   // Bind click events to original buttons
@@ -190,8 +190,22 @@ function addScratchPadButton() {
   // Initial setup
   updateButtonVisibility();
 
-  // Bind click events to original buttons that update the visibility of the cloned buttons
-  $("input[value='Edit Scratch Pad'], input[value='Save Scratch Pad Changes']").on("click", function () {
+  // Follow WikiTree's buttons however the Scratch Pad is opened or saved. Saving with the button at the bottom
+  // used to leave "Save…" at the top: a save can take longer than the old 1-second check, or replace the buttons
+  // that check was bound to.
+  const scratchPad = $("h2:contains(Scratch Pad)").parent()[0];
+  if (scratchPad && typeof MutationObserver === "function") {
+    let queued = false;
+    new MutationObserver(() => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => {
+        queued = false;
+        updateButtonVisibility();
+      });
+    }).observe(scratchPad, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class", "hidden"] });
+  }
+  $(document).on("click", "input[value='Edit Scratch Pad'], input[value='Save Scratch Pad Changes']", function () {
     setTimeout(updateButtonVisibility, 1000);
   });
 }
@@ -340,6 +354,25 @@ async function onlyMembers() {
         }
         #onlyMembers.onlyMembers-active .onlyMembers-state {
           color: #2e7d32;
+        }
+        /* Dark Mode gives every span a dark background (!important), which hid the switch. */
+        body.darkMode #onlyMembers:not(#none) span {
+          background-color: transparent !important;
+        }
+        body.darkMode #onlyMembers:not(#none) .onlyMembers-switch {
+          background-color: #6b7079 !important;
+        }
+        body.darkMode #onlyMembers.onlyMembers-active:not(#none) .onlyMembers-switch {
+          background-color: #4caf50 !important;
+        }
+        body.darkMode #onlyMembers:not(#none) .onlyMembers-knob {
+          background-color: #fff !important;
+        }
+        body.darkMode #onlyMembers:not(#none) .onlyMembers-state {
+          color: #a9b1bb !important;
+        }
+        body.darkMode #onlyMembers.onlyMembers-active:not(#none) .onlyMembers-state {
+          color: #a5d167 !important;
         }
       </style>
     `);

@@ -17,7 +17,17 @@ const templateSql = (id, ...args) => SQL_TEMPLATES.find((template) => template.i
 
 // Spec flag → WT+ term, with the meaning the AI sees in its instructions.
 export const SEARCH_SPEC_FLAGS = {
-  Unsourced: { term: "Unsourced", meaning: "no sources (bio check)" },
+  // bioCheckUnsourced, not WT+'s older Unsourced: Unsourced also took profiles with a plain source list
+  // (Odom-1827; Cheshire 4,436 vs 5,024; live, 2026-10-10)
+  Unsourced: { term: "bioCheckUnsourced", meaning: "no sources (WikiTree's Bio Check)" },
+  BioStyleIssues: { term: "bioCheckStyleIssues", meaning: "biography style problems (Bio Check)" },
+  ResearchUnset: { term: "research=ResearchUnset", meaning: "no Research Status set" },
+  ResearchUnfinished: { term: "ResearchUnfinished", meaning: "Research Status: Unfinished" },
+  ResearchHelp: { term: "ResearchHelp", meaning: "Research Status: Help Requested" },
+  ResearchReview: { term: "ResearchReview", meaning: "Research Status: Sources to Review" },
+  ResearchSilver: { term: "ResearchSilver", meaning: "Research Status: Silver Standard" },
+  ResearchGoldCandidate: { term: "ResearchGoldCandidate", meaning: "Research Status: Gold Standard Candidate" },
+  ResearchGold: { term: "ResearchGold", meaning: "Research Status: Gold Standard (complete and peer reviewed)" },
   Unconnected: { term: "Unconnected", meaning: "not connected to the main tree" },
   Connected: { term: "connected", meaning: "connected to the main tree" },
   Orphan: { term: "Orphan", meaning: "no profile manager" },

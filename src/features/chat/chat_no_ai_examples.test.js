@@ -97,6 +97,12 @@ const WTPLUS_QUERIES = {
   "women who died in Texas 1900-1950": "DeathLocation=Texas",
   "Kent farmers 1850s": "CategoryWord=Yeomen",
   "Irish farmers 1850s": "BirthLocation=Ireland",
+  "twins born in Lancashire": "BirthLocation=Lancashire CategoryWord=Twins",
+  "Devon centenarians": "Location=Devon CategoryWord=Centenarians",
+  "profiles I manage with no sources": "Manager=User-1",
+  "gold standard profiles in Devon": "Location=Devon ResearchGold",
+  "profiles I manage with sources to review": "ResearchReview Manager=User-1",
+  "profiles I manage with style issues": "bioCheckStyleIssues Manager=User-1",
   "Beacall emigrants to Australia": "DeathLocation=Australia NOT BirthLocation=Australia",
   "Scottish emigrants to Canada": "BirthLocation=Scotland DeathLocation=Canada",
   "Smith born in Ohio created in 2023 or 2024": "Created=Created_2024",
@@ -104,6 +110,15 @@ const WTPLUS_QUERIES = {
   "Garver profiles": "LastNameAtBirth=Garver",
   "profiles with last name Garver": "AllLastNames=Garver",
   "LastNameAtBirth=Garver": "LastNameAtBirth=Garver",
+  // (these two ask born/married/died or surname first: the buttons' queries)
+  "Devon profiles with no sources": "BirthLocation=Devon bioCheckUnsourced",
+  "Kent profiles without a father": "AllLastNames=Kent NoFather",
+  "Smith born 1850 Kent": "LastNameAtBirth=Smith BirthLocation=Kent B1850",
+  "the Beacalls of Shropshire": "LastNameAtBirth=Beacalls Location=Shropshire",
+  "Smith family from Kent": "LastNameAtBirth=Smith Location=Kent",
+  "Irish people who went to America": "BirthLocation=Ireland DeathLocation=America",
+  "people who left Ireland": "BirthLocation=Ireland NOT DeathLocation=Ireland",
+  "profiles in Kent created this year": `Location=Kent Created=Created_${new Date().getFullYear()}`,
 };
 
 async function wtPlusQuery(prompt) {
@@ -120,7 +135,8 @@ async function wtPlusQuery(prompt) {
   if (target !== "wtplus" && !readerFirst) return `(${target})`;
   jest.clearAllMocks();
   wtAPIProfileSearch.mockResolvedValue({ response: { profiles: ["1"], searchLog: "" } });
-  await makeHandler().tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, prompt);
+  const result = await makeHandler().tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, prompt);
+  if (!wtAPIProfileSearch.mock.calls.length) return (result?.actions || []).map((action) => action.wtPlusQuery).join(" ;; ");
   return wtAPIProfileSearch.mock.calls.map((call) => decodeURIComponent(call[1])).join(" ;; ");
 }
 

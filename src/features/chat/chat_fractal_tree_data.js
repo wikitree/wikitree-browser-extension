@@ -7,6 +7,7 @@ import { canonicalChartObjectOwner as canonicalOwner } from "./chat_chart_prompt
 
 import { generationOfSlot } from "./chat_fan_chart_data";
 import { fullName } from "./chat_chart_common";
+import { RELATIVE_OWNER } from "./chat_chart_owner";
 
 export const FRACTAL_TREE_DEFAULT_GENERATIONS = { descendants: 6, ancestors: 8 };
 export const FRACTAL_TREE_MAX_GENERATIONS = 10;
@@ -14,7 +15,7 @@ export const FRACTAL_TREE_MAX_GENERATIONS = 10;
 // (descendants fan out much faster than ancestors' 2^n).
 export const FRACTAL_TREE_EXPAND_GENERATIONS = { descendants: 3, ancestors: 7 };
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
+const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const OWNER_AFTER = String.raw`(me|her|him|them|this\s+(?:profile|person)|[A-Z][A-Za-z'_ -]*?-\d+)`;
 const TREE = String.raw`(?:fractal\s+(?:family\s+|ancestor\s+|ancestry\s+|descendant\s+)?(?:tree|chart)|onezoom(?:\s+(?:style\s+)?(?:tree|chart))?|zoom(?:able|ing)\s+(?:family\s+)?tree)`;
 const KIN = String.raw`(ancestors|descendants|family)`;

@@ -1,6 +1,7 @@
 import $ from "jquery";
 
 import { buildTreeAppRecommendations } from "./chat_tree_apps";
+import { readMemberWatchlist, watchlistAgeNote, watchlistDisplayName } from "./chat_managed_profiles";
 
 export function createChatCcHandlers({
   WikiTreeAPI,
@@ -12,6 +13,9 @@ export function createChatCcHandlers({
   makeStandardProfileTable,
   makeWatchlistTable,
   normalizeText,
+  getUserNumId = () => "",
+  showChatShaky,
+  hideChatShaky,
 }) {
   let cc7Cache = {
     rootKey: null,
@@ -416,55 +420,37 @@ export function createChatCcHandlers({
       hasExplicitLimit && Number.isFinite(requestedLimitRaw)
         ? Math.max(1, Math.min(50000, Math.trunc(requestedLimitRaw)))
         : null;
-    const pageSize = 1000;
-    const maxRowsToFetch = requestedLimit ?? 50000;
 
     try {
-      const allEntries = [];
-      let offset = 0;
       let watchlistCount = null;
-
-      while (allEntries.length < maxRowsToFetch) {
-        const pageLimit = Math.min(pageSize, maxRowsToFetch - allEntries.length);
-        const [watchlist, totalCount, status] = await WikiTreeAPI.getWatchlist(
-          WBE_CHAT_APP_ID,
-          "Id,Name,FirstName,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,LastNameOther,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender",
-          {
-            limit: pageLimit,
-            offset,
-            getPerson: 1,
-            getSpace: 0,
-            order: "page_touched",
-          }
-        );
-
-        if (status && status !== 0 && status !== "") {
-          return `I couldn't load your watchlist. API status: ${status}`;
-        }
-
-        const pageEntries = Array.isArray(watchlist) ? watchlist : [];
-        if (watchlistCount == null && Number.isFinite(Number(totalCount))) {
-          watchlistCount = Number(totalCount);
-        }
-
-        if (!pageEntries.length) {
-          break;
-        }
-
-        allEntries.push(...pageEntries);
-        offset += pageEntries.length;
-
-        if (watchlistCount != null && offset >= watchlistCount) {
-          break;
-        }
-        if (pageEntries.length < pageLimit) {
-          break;
-        }
-      }
-
-      const entries = allEntries;
+      // the whole list, kept a while, so "profiles I manage …" next filters it without reading it again
+      const allEntries = await readMemberWatchlist(
+        WikiTreeAPI,
+        WBE_CHAT_APP_ID,
+        getUserNumId(),
+        (read, total) => {
+          watchlistCount = total;
+          showChatShaky?.(`Reading your watchlist: ${read.toLocaleString("en-US")} of ${total.toLocaleString("en-US")}...`);
+        },
+        { refresh: Boolean(params?.refresh) }
+      );
+      const ageNote = watchlistAgeNote(getUserNumId());
+      hideChatShaky?.();
+      if (watchlistCount == null) watchlistCount = allEntries.length;
+      const entries = requestedLimit ? allEntries.slice(0, requestedLimit) : allEntries;
       if (!entries.length) {
-        return "I couldn't find any person profiles on your watchlist. If you're not logged in, please sign in and try again.";
+        // No API session reads as an empty watchlist. (Not "I couldn't…": that hands it to the AI, and
+        // without a key the member got "We need AI" for "my watchlist"; live, 2026-10-10.)
+        let loggedIn = true;
+        try {
+          const userNumId = String(getUserNumId() || "");
+          loggedIn = Boolean(userNumId) && (await WikiTreeAPI.isLoggedIntoAPI(userNumId, WBE_CHAT_APP_ID));
+        } catch (error) {
+          console.debug("wbe: watchlist: API login check failed", error);
+        }
+        return loggedIn
+          ? "There are no person profiles on your watchlist."
+          : "Your watchlist can only be read when you're signed in to WikiTree Apps. Click the green Apps button below and ask again.";
       }
 
       const rows = entries
@@ -477,7 +463,7 @@ export function createChatCcHandlers({
 
           return mapApiPersonToStandardRow(profile, {
             wtid: wtId,
-            displayName: profile.RealName || profile?.Derived?.ShortName || wtId,
+            displayName: watchlistDisplayName(profile) || wtId,
             surnamePreference: "currentFirst",
           });
         })
@@ -498,7 +484,7 @@ export function createChatCcHandlers({
         const listed = filteredRows.slice(0, 12).map((person) => `- ${person.displayName} (${person.wtid})`);
         const more = filteredRows.slice(12);
         return {
-          message: `${filteredRows.length} of the ${allCount} profiles on your watchlist ${label}.\n${listed.join("\n")}`,
+          message: `${filteredRows.length} of the ${allCount} profiles on your watchlist ${label}.${ageNote ? ` ${ageNote}` : ""}\n${listed.join("\n")}`,
           inlineMore: more.length
             ? { count: more.length, text: more.map((person) => `- ${person.displayName} (${person.wtid})`).join("\n") }
             : null,
@@ -527,12 +513,13 @@ export function createChatCcHandlers({
       return {
         message: `Here ${rows.length === 1 ? "is" : "are"} ${rows.length} profile${
           rows.length === 1 ? "" : "s"
-        } from your watchlist (${knownTotal} total).${limitNote}\n${preview}`,
+        } from your watchlist (${knownTotal} total).${limitNote}${ageNote ? ` ${ageNote}` : ""}\n${preview}`,
         inlineMore,
         table: makeWatchlistTable("Your watchlist", rows, [[0, "asc"]]),
       };
     } catch (error) {
-      return `I couldn't load your watchlist. Error: ${error?.message || "unknown error"}`;
+      hideChatShaky?.();
+      return `Reading your watchlist failed (${error?.message || "unknown error"}). The API may be busy: please try again in a minute.`;
     }
   }
 

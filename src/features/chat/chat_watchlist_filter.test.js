@@ -19,6 +19,12 @@ describe("watchlist filters", () => {
     expect(routed.params.filter).toEqual(filter);
   });
 
+  test("refresh my watchlist reads it again", () => {
+    const routed = routeChatPrompt("refresh my watchlist", {});
+    expect(routed.intent).toBe(ChatIntent.WATCHLIST);
+    expect(routed.params.refresh).toBe(true);
+  });
+
   test("plain watchlist has no filter", () => {
     const routed = routeChatPrompt("show my watchlist", {});
     expect(routed.intent).toBe(ChatIntent.WATCHLIST);
@@ -63,5 +69,21 @@ describe("watchlist filters", () => {
       routeChatPrompt("my watchlist profiles that died in Devon", {}).params
     );
     expect(result).toBe("None of the 3 profiles on your watchlist died in Devon.");
+  });
+
+  // Live, 2026-10-10: signed out, "my watchlist" read as empty and went to the AI ("We need AI").
+  test("empty watchlist: signed out asks for the Apps button, and isn't handed to the AI", async () => {
+    const make = (loggedIn) =>
+      createChatCcHandlers({
+        WikiTreeAPI: { getWatchlist: async () => [[], 0, 0], isLoggedIntoAPI: async () => loggedIn },
+        WBE_CHAT_APP_ID: "test",
+        mapApiPersonToStandardRow: () => ({}),
+        makeWatchlistTable: () => ({}),
+        getUserNumId: () => "99",
+      });
+    const signedOut = await make(false).tryHandleWatchlistPrompt({ mode: "list" });
+    expect(signedOut).toMatch(/green Apps button/);
+    expect(signedOut).not.toMatch(/^I couldn/);
+    expect(await make(true).tryHandleWatchlistPrompt({ mode: "list" })).toBe("There are no person profiles on your watchlist.");
   });
 });

@@ -94,12 +94,20 @@ describe("chat_profile_search query guards", () => {
     const garbage = [
       "women named Stevenson born in Scotland 1850-1899 who emigrated",
       "most common surnames in Shropshire",
-      "twins born in Lancashire",
-      "Jones family of Wales",
+      // ("twins born in Lancashire" now reads as BirthLocation + CategoryWord=Twins; test below)
       "Irish farmers born in Kent",
       "Ohio 1850s no sources women",
       "born in Dublin to Irish parents",
       "Kent-born people",
+      // (no-AI corpus measure, 2026-10-10: a lowercase word in a name/place beside a capitalised one, a place twice, marks in a name)
+      "uncertain fathers in Cheshire",
+      "Kentucky in the template",
+      "people who died in the 1918 flu in Kent",
+      "unbelegte Profile in Bayern",
+      "people with the surname Alley born in Nelson",
+      "profiles in Shropshire with no birth place",
+      "…",
+      "(count)",
     ];
     for (const prompt of garbage) {
       wtAPIProfileSearch.mockClear();
@@ -132,6 +140,51 @@ describe("chat_profile_search query guards", () => {
     await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Smith born in Trinidad and Tobago before 1900");
     expect(wtAPIProfileSearch).toHaveBeenCalledTimes(1);
     expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])).toContain('BirthLocation="Trinidad and Tobago"');
+    for (const [prompt, expected] of [
+      ["O'Brien born in Cork", "LastNameAtBirth=O'Brien"],
+      ["born before 1750 in devon", "BirthLocation=devon"],
+    ]) {
+      wtAPIProfileSearch.mockClear();
+      await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, prompt);
+      expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[0]?.[1] || "")).toContain(expected);
+    }
+  });
+
+  test("a plural surname that finds nothing is retried singular (no key)", async () => {
+    const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
+    wtAPIProfileSearch
+      .mockResolvedValueOnce({ response: { profiles: [], searchLog: "" } })
+      .mockResolvedValueOnce({ response: { profiles: ["1"], searchLog: "" } });
+    const result = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Alleys who died in Motueka");
+    expect(wtAPIProfileSearch).toHaveBeenCalledTimes(2);
+    expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])).toContain("LastNameAtBirth=Alleys");
+    expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[1][1])).toContain("LastNameAtBirth=Alley DeathLocation=Motueka");
+    expect(result.message).toContain("Nothing was found for Alleys, so I searched for Alley.");
+  });
+
+  test("the reader's CategoryWord runs as is: no category-tree expansion (Beacall emigrants, no key)", async () => {
+    // live 2026-10-10: wtCatSearch returned every "X Emigrants to Y" tree; the OR query was 205,000 characters
+    const categories = Array.from({ length: 3000 }, (_, i) => ({ Name: `Place${i}__Emigrants` }));
+    const originalFetch = global.fetch;
+    global.fetch = jest.fn(async () => ({ ok: true, json: async () => categories }));
+    try {
+      const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
+      await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Beacall emigrants");
+      expect(global.fetch).not.toHaveBeenCalled();
+      expect(wtAPIProfileSearch).toHaveBeenCalledTimes(1);
+      const sent = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
+      expect(sent).toContain("CategoryWord=Emigrants");
+      expect(sent).not.toContain(" OR ");
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test("twins born in Lancashire runs (no key)", async () => {
+    const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "twins born in Lancashire");
+    expect(wtAPIProfileSearch).toHaveBeenCalledTimes(1);
+    expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])).toBe("BirthLocation=Lancashire CategoryWord=Twins");
   });
 
   test("created years run as one Created_ token per year (no key)", async () => {

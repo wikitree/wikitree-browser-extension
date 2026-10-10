@@ -4,8 +4,9 @@
 // The d3 drawing lives in chat_family_timeline.js.
 
 import { yearOf } from "./chat_chart_common";
+import { RELATIVE_OWNER } from "./chat_chart_owner";
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
+const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const OWNER_AFTER = String.raw`(me|her|him|them|this\s+(?:profile|person)|[A-Z][A-Za-z'_ -]*?-\d+)`;
 const LEAD = String.raw`(?:(?:show|draw|make|create|give|display|open|build|generate)(?:\s+me)?\s+|(?:can|could|would)\s+you\s+(?:show|draw|make)(?:\s+me)?\s+)?`;
 const CHART = String.raw`(?:family\s+timeline|family\s+lifespans?(?:\s+chart)?|lifespans?\s+timeline)`;

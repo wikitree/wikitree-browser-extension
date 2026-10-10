@@ -7,6 +7,7 @@ import { canonicalChartOwner as canonicalOwner } from "./chat_chart_prompt";
 // Record events (registers, censuses, record losses) are the genealogist's own history.
 
 import { getCountryFromLocation } from "./chat_place_country";
+import { RELATIVE_OWNER } from "./chat_chart_owner";
 
 const BRITAIN = ["England", "Scotland", "Wales", "Northern Ireland", "United Kingdom"];
 const BRITISH_ISLES = [...BRITAIN, "Ireland"];
@@ -365,7 +366,7 @@ export function livedThrough(row, fallbackCountries = []) {
     .map((event) => ({ event, age: Math.max(0, event.start - row.start) }));
 }
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
+const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const PATTERNS = [
   // "what was happening when my ancestors were alive", "what was going on in the world when her ancestors lived"
   new RegExp(String.raw`^what\s+was\s+(?:happening|going\s+on)(?:\s+in\s+the\s+world)?\s+(?:when|while)\s+${OWNER}\s+ancestors\s+(?:were\s+alive|lived)$`, "i"),

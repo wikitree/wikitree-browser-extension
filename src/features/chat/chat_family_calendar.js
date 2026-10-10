@@ -98,6 +98,7 @@ export function showFamilyCalendarPopup(events, options = {}) {
     .data(MONTHS.map((name, index) => ({ name, month: index + 1, start: monthStart[index], end: index === 11 ? DAYS : monthStart[index + 1] })))
     .join("path")
     .attr("d", (d) => monthArc({ innerRadius: INNER, outerRadius: OUTER, startAngle: (2 * Math.PI * d.start) / DAYS, endAngle: (2 * Math.PI * d.end) / DAYS }))
+    .attr("class", "wbe-cal-wedge")
     .attr("fill", (d) => (d.month % 2 ? "#f4f6f9" : "#e9edf2"))
     .attr("stroke", "#fff")
     .attr("stroke-width", 1.5)
@@ -115,7 +116,7 @@ export function showFamilyCalendarPopup(events, options = {}) {
   const step = d1 - d0 > 300 ? 100 : 50;
   const ringLayer = g.append("g").attr("pointer-events", "none");
   for (let year = d0; year <= d1 - step / 3; year += step) {
-    ringLayer.append("circle").attr("r", r(year)).attr("fill", "none").attr("stroke", "#c9d1db").attr("stroke-dasharray", "2 3");
+    ringLayer.append("circle").attr("class", "wbe-cal-ring").attr("r", r(year)).attr("fill", "none").attr("stroke", "#c9d1db").attr("stroke-dasharray", "2 3");
     ringLayer
       .append("text")
       .attr("x", 3)
@@ -139,6 +140,7 @@ export function showFamilyCalendarPopup(events, options = {}) {
       .attr("dy", "0.35em")
       .attr("font-size", 12)
       .attr("font-weight", 600)
+      .attr("class", "wbe-cal-month")
       .attr("fill", "#4a5463")
       .text(name.slice(0, 3));
     labelLayer

@@ -17,7 +17,24 @@ export const NO_AI_EXAMPLE_SECTIONS = [
       { pattern: "Who was born / died in [place] in [year]?", examples: ["Who was born in Devon in 1820?"] },
       { pattern: "born / died before or after [year] in [place]", examples: ["born before 1750 in Devon", "died after 1900 in Liverpool"] },
       { pattern: "[place] profiles with no biography", examples: ["Cheshire profiles with no biography"] },
+      {
+        pattern: "[place] profiles with [status]",
+        examples: ["Devon profiles with no sources", "Kent profiles without a father"],
+        note: "Genie first asks whether you meant born, married or died there, or a surname (Kent is both).",
+      },
+      { pattern: "[surname] born [year] [place]", examples: ["Smith born 1850 Kent"] },
+      { pattern: "the [surname]s of [place] / the [surname] family from [place]", examples: ["the Beacalls of Shropshire", "Smith family from Kent"] },
       { pattern: "[place] no birth or death date", examples: ["England no birth or death date"] },
+      {
+        pattern: "[search] with a Research Status: gold standard / gold standard candidates / silver standard / help requested / sources to review / unfinished / no research status",
+        examples: ["gold standard profiles in Devon", "profiles I manage with sources to review"],
+        note: "The Research Status members set at the top of a profile.",
+      },
+      {
+        pattern: "[search] with style issues",
+        examples: ["profiles I manage with style issues"],
+        note: "Biographies that WikiTree's Bio Check finds style problems in. \"No sources\" uses Bio Check too.",
+      },
       { pattern: "[place] [status] born in [decade]", examples: ["Shropshire unsourced born in 1820s"] },
       { pattern: "[place] [years] married but no children listed", examples: ["Staffordshire 1850-1900 married but no children listed"] },
       { pattern: "[place] [years] spousal age gaps over [number] years", examples: ["Lancashire 1800-1899 spousal age gaps over 20 years"] },
@@ -31,21 +48,35 @@ export const NO_AI_EXAMPLE_SECTIONS = [
         note: "Matches WikiTree's category words for the job, such as Farmers, Yeomen and Husbandmen.",
       },
       {
+        pattern: "[place] [twins / triplets / centenarians / convicts]",
+        examples: ["twins born in Lancashire", "Devon centenarians"],
+        note: "WikiTree has categories for these groups.",
+      },
+      {
         pattern: "[nationality] [occupation or emigrants] [years]",
         examples: ["Irish farmers 1850s"],
         note: "A nationality is read as born in that country (Irish = born in Ireland). About 60 nationalities are known.",
       },
       {
         pattern: "[surname] emigrated / emigrants to or from [place]",
-        examples: ["Beacall emigrants to Australia", "Scottish emigrants to Canada"],
-        note: "To a place means died there and not born there; from a place means born there and not died there. With no place, \"Beacall emigrants\" looks in WikiTree's Emigrants category.",
+        examples: ["Beacall emigrants to Australia", "Scottish emigrants to Canada", "Irish people who went to America", "people who left Ireland"],
+        note: "\"Went to\", \"moved to\" and \"settled in\" work the same way, and \"left\" means from. To a place means died there and not born there; from a place means born there and not died there. With no place, \"Beacall emigrants\" looks in WikiTree's Emigrants category.",
       },
       {
         pattern: "[search] created in / before / after [year]",
-        examples: ["Smith born in Ohio created in 2023 or 2024", "Garver born in Ohio created before 2012"],
+        examples: ["Smith born in Ohio created in 2023 or 2024", "Garver born in Ohio created before 2012", "profiles in Kent created this year"],
         note: "When the profile was created on WikiTree (2008 on). Needs a name or place beside it.",
       },
-      { pattern: "[surname] profiles", examples: ["Garver profiles", "profiles with last name Garver"] },
+      {
+        pattern: "[surname] profiles",
+        examples: ["Garver profiles", "profiles with last name Garver"],
+        note: "A plural surname works too: if \"Alleys\" finds nobody, Genie searches for Alley.",
+      },
+      {
+        pattern: "profiles I manage [with a condition or place]",
+        examples: ["profiles I manage with no sources"],
+        note: "Read from your watchlist when you're signed in to WikiTree Apps (the green Apps button); otherwise from WikiTree+. Private profiles can only be shown when you're signed in to Apps. A big watchlist takes a minute or two to read the first time; Genie then keeps it for a few hours (\"refresh my watchlist\" reads it again).",
+      },
       {
         pattern: "WikiTree+ search text",
         examples: ["LastNameAtBirth=Garver"],
@@ -81,7 +112,7 @@ export const NO_AI_EXAMPLE_SECTIONS = [
     id: "charts",
     title: "Charts",
     intro:
-      "Every chart works for you (\"my\"), the profile you're on (\"her\", \"his\", or no name) or anyone else (a WikiTree ID).",
+      "Every chart works for you (\"my\"), the profile you're on (\"her\", \"his\", or no name), a relative (\"his son John's\", \"my mother's\") or anyone else (a WikiTree ID).",
     items: [
       { pattern: "fan chart", examples: ["fan chart", "Cook-8721 fan chart"] },
       { pattern: "Family Explorer", examples: ["Family Explorer"] },
@@ -94,6 +125,11 @@ export const NO_AI_EXAMPLE_SECTIONS = [
       { pattern: "names", examples: ["name cloud", "surname river"] },
       { pattern: "family calendar", examples: ["family calendar"] },
       { pattern: "tree overview", examples: ["tree overview", "Tell me about my tree"] },
+      {
+        pattern: "[my / his / her] [relative] [first name]'s [chart]",
+        examples: ["his son John's lifespans", "my mother's fan chart", "her husband's tree overview"],
+        note: "The name is only needed when there is more than one (two sons, say); Genie asks if it can't tell.",
+      },
     ],
   },
   {
@@ -108,6 +144,20 @@ export const NO_AI_EXAMPLE_SECTIONS = [
       { pattern: "my CC7", examples: ["my CC7"] },
       { pattern: "birthdays and anniversaries", examples: ["on this day in my family", "who in my family was born in March"] },
       { pattern: "about the profile you're on", examples: ["her children", "When did she marry?", "How old was he when his first child was born?"] },
+      {
+        pattern: "when / where was [his / her] [relative] born / did they die",
+        examples: [
+          "Where was his father born?",
+          "When did her mother pass away?",
+          "Where was his son John born?",
+          "When was her eldest daughter born?",
+          "Where was his paternal grandfather born?",
+          "Where was his wife's father from?",
+          "his mother's dates",
+          "How old was his mother when he was born?",
+        ],
+        note: "Also: dad, mum, kids; first / second wife; youngest brother; \"birthplace of her mother\".",
+      },
       {
         pattern: "check for profiles / find [his / her] family on WikiTree",
         examples: ["check for profiles", "find his family on WikiTree", "are her parents on WikiTree?"],

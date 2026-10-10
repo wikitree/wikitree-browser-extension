@@ -221,6 +221,46 @@ function buildMagicWords() {
     { value: "IsInWikiData", label: "IsInWikiData", description: "Profiles linked from WikiData" },
   ]);
 
+  // Research Status and Bio Check (WT+ help, 2026-10-10)
+  addGroup("Research Status", [
+    { value: "ResearchUnset", label: "ResearchUnset", description: "No Research Status set" },
+    { value: "ResearchUnfinished", label: "ResearchUnfinished", description: "Research Status: Unfinished" },
+    { value: "ResearchHelp", label: "ResearchHelp", description: "Research Status: Help Requested" },
+    { value: "ResearchReview", label: "ResearchReview", description: "Research Status: Sources to Review" },
+    { value: "ResearchSilver", label: "ResearchSilver", description: "Research Status: Silver Standard" },
+    { value: "ResearchGoldCandidate", label: "ResearchGoldCandidate", description: "Research Status: Gold Standard Candidate" },
+    { value: "ResearchGold", label: "ResearchGold", description: "Research Status: Gold Standard (complete and peer reviewed)" },
+  ]);
+
+  addGroup("Bio Check", [
+    { value: "bioCheckUnsourced", label: "bioCheckUnsourced", description: "Profiles Bio Check designates as unsourced" },
+    { value: "bioCheckStyleIssues", label: "bioCheckStyleIssues", description: "Biographies with any Bio Check style problem (all of those below)" },
+    { value: "bioCheckDNAMatchTooDistant", label: "bioCheckDNAMatchTooDistant", description: "DNA match too distant" },
+    { value: "bioCheckElementOutOfOrder", label: "bioCheckElementOutOfOrder", description: "Element out of order" },
+    { value: "bioCheckEmptyBioSection", label: "bioCheckEmptyBioSection", description: "Empty biography section" },
+    { value: "bioCheckEndlessComment", label: "bioCheckEndlessComment", description: "Comment with no end" },
+    { value: "bioCheckHasEmail", label: "bioCheckHasEmail", description: "Has an email address" },
+    { value: "bioCheckHasMaternalDNAConf", label: "bioCheckHasMaternalDNAConf", description: "Has a maternal DNA confirmation" },
+    { value: "bioCheckHasPaternalDNAConf", label: "bioCheckHasPaternalDNAConf", description: "Has a paternal DNA confirmation" },
+    { value: "bioCheckHasUnapprovedTemplate", label: "bioCheckHasUnapprovedTemplate", description: "Has an unapproved template" },
+    { value: "bioCheckHorizRuleBeforeBio", label: "bioCheckHorizRuleBeforeBio", description: "Horizontal rule before the biography" },
+    { value: "bioCheckIncompleteDNAConf", label: "bioCheckIncompleteDNAConf", description: "Incomplete DNA confirmation" },
+    { value: "bioCheckMarkedHasSources", label: "bioCheckMarkedHasSources", description: "Marked as having sources" },
+    { value: "bioCheckMissingBioHeading", label: "bioCheckMissingBioHeading", description: "Missing Biography heading" },
+    { value: "bioCheckMissingRefTag", label: "bioCheckMissingRefTag", description: "Missing <references /> tag" },
+    { value: "bioCheckMissingSrcHeading", label: "bioCheckMissingSrcHeading", description: "Missing Sources heading" },
+    { value: "bioCheckMultipleBioHeading", label: "bioCheckMultipleBioHeading", description: "More than one Biography heading" },
+    { value: "bioCheckMultipleRefName", label: "bioCheckMultipleRefName", description: "Reference name used more than once" },
+    { value: "bioCheckMultipleSrcHeading", label: "bioCheckMultipleSrcHeading", description: "More than one Sources heading" },
+    { value: "bioCheckNonRecommendedHTML", label: "bioCheckNonRecommendedHTML", description: "Non-recommended HTML" },
+    { value: "bioCheckNotabilityHasRef", label: "bioCheckNotabilityHasRef", description: "Notability section has a reference" },
+    { value: "bioCheckRefAfterReferences", label: "bioCheckRefAfterReferences", description: "Reference after the references tag" },
+    { value: "bioCheckRefMissingCitation", label: "bioCheckRefMissingCitation", description: "Reference missing its citation" },
+    { value: "bioCheckSpanNoEndingSpan", label: "bioCheckSpanNoEndingSpan", description: "Span with no ending span" },
+    { value: "bioCheckTooManyStickers", label: "bioCheckTooManyStickers", description: "Too many stickers" },
+    { value: "bioCheckUnknownSectionHeading", label: "bioCheckUnknownSectionHeading", description: "Unknown section heading" },
+  ]);
+
   addGroup("Find A Grave", [
     {
       value: "fgcem1234",

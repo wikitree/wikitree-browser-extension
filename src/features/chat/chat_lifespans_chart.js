@@ -191,14 +191,16 @@ export function showLifespansPopup(rows, options = {}) {
   const g = svg.append("g");
   const defs = svg.append("defs");
   const fade = defs.append("linearGradient").attr("id", "wbe-ls-fade").attr("x1", "0").attr("x2", "1");
-  fade.append("stop").attr("offset", "0%").attr("stop-color", "#fff").attr("stop-opacity", 0);
-  fade.append("stop").attr("offset", "100%").attr("stop-color", "#fff").attr("stop-opacity", 0.95);
+  // (Dark Mode fades to its own background: .wbe-ls-fade-stop in chat_chart_common.js.)
+  fade.append("stop").attr("class", "wbe-ls-fade-stop").attr("offset", "0%").attr("stop-color", "#fff").attr("stop-opacity", 0);
+  fade.append("stop").attr("class", "wbe-ls-fade-stop").attr("offset", "100%").attr("stop-color", "#fff").attr("stop-opacity", 0.95);
 
   // Century grid and axis.
   const ticks = x.ticks(Math.min(14, Math.round((x.domain()[1] - x.domain()[0]) / 20)));
+  const tickLabels = [];
   ticks.forEach((year) => {
-    g.append("line").attr("x1", x(year)).attr("x2", x(year)).attr("y1", TOP - 6).attr("y2", height - 20).attr("stroke", "#000").attr("stroke-opacity", year % 100 === 0 ? 0.13 : 0.06);
-    g.append("text").attr("x", x(year)).attr("y", TOP - 12).attr("text-anchor", "middle").attr("font-size", 10.5).attr("fill", "#6b7785").text(year);
+    g.append("line").attr("class", "wbe-ls-grid").attr("x1", x(year)).attr("x2", x(year)).attr("y1", TOP - 6).attr("y2", height - 20).attr("stroke", "#000").attr("stroke-opacity", year % 100 === 0 ? 0.13 : 0.06);
+    tickLabels.push(g.append("text").attr("class", "wbe-ls-muted").attr("x", x(year)).attr("y", TOP - 12).attr("text-anchor", "middle").attr("font-size", 10.5).attr("fill", "#6b7785").text(year));
   });
 
   // How many ancestors were alive each year.
@@ -213,9 +215,9 @@ export function showLifespansPopup(rows, options = {}) {
   const areaGradient = defs.append("linearGradient").attr("id", "wbe-ls-area").attr("x1", "0").attr("x2", "0").attr("y1", "0").attr("y2", "1");
   areaGradient.append("stop").attr("offset", "0%").attr("stop-color", "#2f6fb3").attr("stop-opacity", 0.55);
   areaGradient.append("stop").attr("offset", "100%").attr("stop-color", "#2f6fb3").attr("stop-opacity", 0.08);
-  g.append("text").attr("x", 8).attr("y", areaTop + 14).attr("font-size", 9.5).attr("font-weight", 700).attr("letter-spacing", "0.06em").attr("fill", "#2f6fb3").text(`${word.toUpperCase()}S ALIVE`);
+  g.append("text").attr("x", 8).attr("y", areaTop + 14).attr("font-size", 9.5).attr("font-weight", 700).attr("letter-spacing", "0.06em").attr("class", "wbe-ls-blue").attr("fill", "#2f6fb3").text(`${word.toUpperCase()}S ALIVE`);
   if (stats.peak) {
-    g.append("text").attr("x", 8).attr("y", areaTop + 30).attr("font-size", 11).attr("fill", "#4a5562").text(`Peak: ${stats.peak.count} in ${stats.peak.year}`);
+    g.append("text").attr("x", 8).attr("y", areaTop + 30).attr("font-size", 11).attr("class", "wbe-ls-text").attr("fill", "#4a5562").text(`Peak: ${stats.peak.count} in ${stats.peak.year}`);
   }
   g.append("path")
     .datum(series)
@@ -227,7 +229,7 @@ export function showLifespansPopup(rows, options = {}) {
     .transition()
     .duration(900)
     .attr("opacity", 1);
-  g.append("line").attr("x1", LEFT).attr("x2", WIDTH - RIGHT).attr("y1", areaTop + AREA_H).attr("y2", areaTop + AREA_H).attr("stroke", "#000").attr("stroke-opacity", 0.15);
+  g.append("line").attr("class", "wbe-ls-grid").attr("x1", LEFT).attr("x2", WIDTH - RIGHT).attr("y1", areaTop + AREA_H).attr("y2", areaTop + AREA_H).attr("stroke", "#000").attr("stroke-opacity", 0.15);
 
   // History: the events of the countries they were born in (and the world's), in lanes
   // above the alive-area. Hovering one shades its years and lights who lived through it.
@@ -242,7 +244,7 @@ export function showLifespansPopup(rows, options = {}) {
       .attr("fill-opacity", opacity);
   }
   if (history.lanes) {
-    g.append("text").attr("x", 8).attr("y", laneTop + 9).attr("font-size", 9.5).attr("font-weight", 700).attr("letter-spacing", "0.06em").attr("fill", "#8a6d3b").text("IN HISTORY");
+    g.append("text").attr("x", 8).attr("y", laneTop + 9).attr("font-size", 9.5).attr("font-weight", 700).attr("letter-spacing", "0.06em").attr("class", "wbe-ls-gold").attr("fill", "#8a6d3b").text("IN HISTORY");
     const marks = g
       .append("g")
       .attr("class", "wbe-ls-history")
@@ -305,6 +307,7 @@ export function showLifespansPopup(rows, options = {}) {
       .attr("text-anchor", late ? "end" : "start")
       .attr("y", height - 8)
       .attr("font-size", 10)
+      .attr("class", "wbe-ls-gold")
       .attr("fill", "#a37200")
       .text(rootText);
   }
@@ -339,6 +342,7 @@ export function showLifespansPopup(rows, options = {}) {
       .attr("font-size", 9.5)
       .attr("font-weight", 700)
       .attr("letter-spacing", "0.06em")
+      .attr("class", family && ROLE_COLOURS[group.role] ? null : "wbe-ls-muted")
       .attr("fill", family ? ROLE_COLOURS[group.role] || "#6b7785" : "#6b7785")
       .text(`${label.toUpperCase()} · ${group.count}`);
   });
@@ -361,6 +365,7 @@ export function showLifespansPopup(rows, options = {}) {
     .attr("text-anchor", "end")
     .attr("font-size", (d) => (d.h >= 18 ? 11.5 : 9.5))
     .attr("font-weight", (d) => (isRoot(d.row) ? 700 : 500))
+    .attr("class", "wbe-ls-text")
     .attr("fill", "#2b2f36")
     .text((d) => truncate(`${d.row.name}${d.row.lnab && !d.row.name.includes(d.row.lnab) ? ` ${d.row.lnab}` : ""}`, d.h >= 18 ? 28 : 34));
 
@@ -404,6 +409,7 @@ export function showLifespansPopup(rows, options = {}) {
     .attr("y", (d) => d.h / 2)
     .attr("dy", "0.35em")
     .attr("font-size", 9.5)
+    .attr("class", "wbe-ls-muted")
     .attr("fill", "#6b7785")
     .attr("opacity", 0)
     .text((d) => d.row.age)
@@ -469,9 +475,12 @@ export function showLifespansPopup(rows, options = {}) {
   const lifeText = (row) =>
     row.living ? `${row.start} – living` : `${row.start} – ${row.endKnown ? row.end : "?"}${Number.isFinite(row.age) ? ` · died aged ${row.age}` : ""}`;
 
+  // The year pill covers the axis; hide the years it would half cover.
+  const showTickLabels = (year) => tickLabels.forEach((label) => label.attr("opacity", year !== undefined && Math.abs(x(Number(label.text())) - x(year)) < 36 ? 0 : 1));
   svg.on("mousemove", (event) => {
     const [mx] = pointer(event, svg.node());
     if (mx < LEFT) {
+      showTickLabels();
       scrub.attr("opacity", 0);
       bars.attr("fill-opacity", 1);
       tip.style.opacity = "0";
@@ -484,6 +493,7 @@ export function showLifespansPopup(rows, options = {}) {
     scrubLine.attr("x1", x(year)).attr("x2", x(year));
     scrubYear.attr("x", x(year)).text(year);
     scrubPill.attr("x", x(year) - 20);
+    showTickLabels(year);
     const point = series.find((p) => p.year === year);
     scrubDot.attr("cx", x(year)).attr("cy", ay(point?.count || 0)).attr("opacity", point ? 1 : 0);
     bars.attr("fill-opacity", (d) => (aliveSet.has(d) ? 1 : 0.22));
@@ -540,6 +550,7 @@ export function showLifespansPopup(rows, options = {}) {
   });
   svg.on("mouseleave", () => {
     shadeEvent(focusEvent, 0.1);
+    showTickLabels();
     scrub.attr("opacity", 0);
     bars.attr("fill-opacity", 1);
     tip.style.opacity = "0";

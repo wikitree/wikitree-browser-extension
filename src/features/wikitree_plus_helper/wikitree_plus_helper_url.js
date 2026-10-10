@@ -106,6 +106,8 @@ function filterQueryForSuggestions(query) {
           "Notables",
         ];
         if (knownUnsupported.includes(part)) return false;
+        // Research Status and Bio Check words are text-search words too (2026-10-10)
+        if (/^(?:bioCheck[A-Za-z]+|Research(?:Unset|Unfinished|Help|Review|Silver|GoldCandidate|Gold))$/.test(part)) return false;
 
         // Filter out Tree=, Ancestors=, Descendants=, CC7=, etc.
         if (/^(Tree|Ancestors|Descendants|CC7)=/i.test(part)) return false;

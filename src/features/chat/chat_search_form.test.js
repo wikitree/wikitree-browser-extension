@@ -83,7 +83,7 @@ describe("the form itself", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
     const [values, built] = onSubmit.mock.calls[0];
     expect(values).toMatchObject({ birthPlace: "Yorkshire", bornFrom: "1850", bornTo: "1859", flags: ["Unsourced"] });
-    expect(built.query).toBe("BirthLocation=Yorkshire 1850s Unsourced");
+    expect(built.query).toBe("BirthLocation=Yorkshire 1850s bioCheckUnsourced");
     $form.find('[name="bornTo"]').val("1700");
     $form.trigger("submit");
     expect(onSubmit).toHaveBeenCalledTimes(1);

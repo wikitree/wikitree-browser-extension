@@ -88,9 +88,9 @@ describe("chat_profile_search orphan manager phrasing", () => {
     // The Orphan token parsed correctly and rides along on each scope choice.
     expect(actionQueries).toEqual(
       expect.arrayContaining([
-        "Orphan BirthLocation=Denbighshire",
-        "Orphan DeathLocation=Denbighshire",
-        "Orphan Location=Denbighshire", // the "Any place" option
+        "BirthLocation=Denbighshire Orphan",
+        "DeathLocation=Denbighshire Orphan",
+        "Location=Denbighshire Orphan", // the "Any place" option
       ])
     );
     // Unambiguous place: no surname reading offered.
@@ -118,11 +118,11 @@ describe("chat_profile_search orphan manager phrasing", () => {
 
     const byLabel = Object.fromEntries((result.actions || []).map((a) => [a.label, a.wtPlusQuery]));
     // The UK suffix is trimmed: most profiles say "Kent, England" (D12, 2026-10-03).
-    expect(byLabel["Kent, England (county)"]).toBe('Orphan Location="Kent, England"');
-    expect(byLabel["Surname Kent"]).toBe("Orphan AllLastNames=Kent");
-    expect(byLabel["Kent, Ohio, USA"]).toBe('Orphan Location="Kent, Ohio, United States"');
+    expect(byLabel["Kent, England (county)"]).toBe('Location="Kent, England" Orphan');
+    expect(byLabel["Surname Kent"]).toBe("AllLastNames=Kent Orphan");
+    expect(byLabel["Kent, Ohio, USA"]).toBe('Location="Kent, Ohio, United States" Orphan');
     // The catch-all keeps the original broad term available.
-    expect(byLabel["Any place named Kent"]).toBe("Orphan Location=Kent");
+    expect(byLabel["Any place named Kent"]).toBe("Location=Kent Orphan");
     // Every button re-runs a saved WT+ query in chat.
     expect((result.actions || []).every((a) => a.actionType === "fetch-wtplus-results")).toBe(true);
   });
@@ -139,7 +139,7 @@ describe("chat_profile_search orphan manager phrasing", () => {
     const result = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Denbighshire no manager");
 
     expect(wtAPIProfileSearch).toHaveBeenCalled();
-    expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])).toBe("Orphan Location=Denbighshire");
+    expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])).toBe("Location=Denbighshire Orphan");
     expect(String(result?.message || result)).not.toMatch(/could mean a few different things|Which did you mean/i);
   });
 

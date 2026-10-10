@@ -10,10 +10,11 @@ import { ancestorWord } from "./chat_kin_labels";
 import { buildLifespanRows, lifespanStats } from "./chat_lifespans_data";
 import { buildCalendarEvents, MONTHS } from "./chat_family_calendar_data";
 import { yearOf } from "./chat_chart_common";
+import { RELATIVE_OWNER } from "./chat_chart_owner";
 
 export const TREE_OVERVIEW_GENERATIONS = 8;
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
+const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const TREE = String.raw`(?:family\s+tree|tree|ancestry|ancestors|pedigree|family\s+history)`;
 const PATTERNS = [
   // "tell me about my tree", "tell me about her ancestors", "summarise my ancestry", "analyse Cook-8721's family tree"

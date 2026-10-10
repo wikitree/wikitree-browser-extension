@@ -53,6 +53,12 @@ body.add_unrelated .clipboardContainer {
   margin-left: 0.5em;
 }
 
+body.edit_relation .clipboardContainer a,
+body.add_unrelated .clipboardContainer a {
+  padding-top: 0.2em;
+  margin-left: 0.4em;
+}
+
 form[name="a_form"] {
   position: relative;
 }
@@ -154,6 +160,15 @@ form[name="a_form"] {
 
 [data-tooltip]:hover::before {
   opacity: 1;
+}
+
+/* The Genie in the profile heading: the same green as the other WBE icons (important, or WikiTree's link
+   colours win). Dark Mode's light green is here too, as Dark Mode only recolours SVG files, not inline SVGs. */
+#wbe-genie-button:not(#none) {
+  color: #2b4d37 !important;
+}
+body.darkMode #wbe-genie-button:not(#none) {
+  color: #a5d167 !important;
 }
 
 /* The Genie in the profile heading: the tooltip sits to its left. */

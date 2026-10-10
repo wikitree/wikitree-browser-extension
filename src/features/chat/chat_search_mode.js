@@ -527,6 +527,22 @@ function classifyWtPlusQueryUnit(unit) {
  *
  * Returns "" when the merge is declined or adds nothing.
  */
+// "gold standard profiles in Devon" after another search is a search of its own, not a narrowing of
+// that one (live, 2026-10-10: it was added to "profiles I manage…" and found 0). A follow-up that reads
+// as a whole search (the reader takes it, and it says what to look for: "profiles", "people", a surname,
+// a category or occupation) starts fresh; "born in Kent", "women", "unconnected", "only open ones" narrow.
+export function readsAsNewSearch(prompt) {
+  const text = String(prompt || "").trim();
+  if (/^(?:and|but|also|only|just|now|then|with|without|who|which|that|those|them|of\s+(?:them|those)|among|from\s+(?:them|those))\b/i.test(text)) {
+    return false;
+  }
+  const parsed = parseSearchSpecPrompt(text);
+  if (!parsed) return false;
+  const spec = parsed.spec || {};
+  if (/\b(?:profiles|people|persons|everyone|anyone|everybody|anybody)\b/i.test(text)) return true;
+  return Boolean(spec.names || spec.categories?.length || spec.anyOf?.length || spec.manager);
+}
+
 export function mergeWtPlusRefinementIntoQuery(previousWtPlusQuery, refinementQuery) {
   const previous = String(previousWtPlusQuery || "").trim();
   const refinement = String(refinementQuery || "").trim();
@@ -939,7 +955,9 @@ export async function classifyWtPrompt({ prompt, getChatAiConfig, buildRecentUse
 
   const personCentric = isLikelyPersonCentricPrompt(normalizedPrompt);
   const question = looksLikeQuestion(normalizedPrompt);
-  if (personCentric && !question) {
+  // "profiles I manage with no parents" names no person: it's the member's own profiles (live, 2026-10-10)
+  const managedByMe = parseSearchSpecPrompt(normalizedPrompt)?.spec?.manager === "me";
+  if (personCentric && !question && !managedByMe) {
     return "wt";
   }
 
@@ -963,9 +981,21 @@ export async function classifyWtPrompt({ prompt, getChatAiConfig, buildRecentUse
     // A question needs the AI to answer it: say so, rather than run a search that can't (2026-10-04).
     // ("Who was born in Devon in 1820?" is a search in question form: the strict reader runs it)
     if (question && !parseSearchSpecPrompt(normalizedPrompt)) return "needsAi";
+    // "Devon centenarians", "Kent doctors" look like names, but the reader found a category word in
+    // them: no point in a person search for "Devon Centenarians" first (2026-10-10).
+    const readerSpec = parseSearchSpecPrompt(normalizedPrompt)?.spec;
+    if (readerSpec && (readerSpec.categories?.length || readerSpec.anyOf?.length)) return "wtplus";
+    // "profiles I manage with no father": the family word made it nobody's, and it went to "We need AI"
+    if (managedByMe) return "wtplus";
     // A bare name ("Martha Teece") is the person search's to run; WT+'s parser read it
     // as LastNameAtBirth=Martha Location=Teece (live, 2026-10-04).
     if (isBareName(normalizedPrompt)) return null;
+    // "George Beacall married Margaret" is that person, with a spouse to check: WT+'s parser read it
+    // as LastNameAtBirth=George Location=Beacall (no-AI corpus measure, 2026-10-10).
+    const spouseSplit = normalizedPrompt.match(/^(.+?)\s+(?:married|wed)\s+(.+?)[.?!]*$/i);
+    if (spouseSplit && isBareName(spouseSplit[1]) && /^[\p{L}'’.-]+(?:\s+[\p{L}'’.-]+){0,3}$/u.test(spouseSplit[2])) {
+      return null;
+    }
     return isUnclaimed?.(normalizedPrompt) ? "wtplus" : null;
   }
 
@@ -1275,9 +1305,10 @@ export async function handleExplicitSearchMode({
       // fresh person search, not a narrowing of the previous filter. In the
       // default Search mode, let those fall through to normal routing rather
       // than silently folding a name into the prior location/date query.
-      const refinementIntroducesName = /\b(?:FirstName|LastName|LastNameAtBirth|AllLastNames|WikiTreeID)=/i.test(
-        refinement?.query || ""
-      );
+      // (Manager= too: "profiles I manage …" is a whole new set of profiles, not a narrowing.)
+      const refinementIntroducesName =
+        /\b(?:FirstName|LastName|LastNameAtBirth|AllLastNames|WikiTreeID|Manager)=/i.test(refinement?.query || "") ||
+        readsAsNewSearch(normalizedPrompt);
       const refinementLabel = contextualDateQuery
         ? normalizedPrompt.replace(/[?.!]+$/g, "").trim()
         : refinement?.query || "";

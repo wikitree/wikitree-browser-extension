@@ -222,6 +222,42 @@ const CHART_CSS = `
   .wbe-chart-crumbs { padding: 4px 10px 0; font-size: 12px; min-height: 20px; }
   .wbe-chart-crumb { border: none; background: none; color: #2f6fb3; cursor: pointer; padding: 0; font-size: 12px; }
   .wbe-chart-crumb:disabled { color: inherit; font-weight: 600; cursor: default; }
+
+  /* Dark Mode (darkMode.css) darkens the popups and gives every span, strong, li and small its own dark
+     background and light text, !important. The charts draw for white, so their dark text is redrawn light here,
+     and the light cards keep their own colours. (CSS beats SVG fill attributes; exports keep the attributes.)
+     :not(#none) outweighs Dark Mode's rules. */
+  body.darkMode .wbe-chart-popup .wbe-ls-text:not(#none), body.darkMode .wbe-chart-popup .wbe-cal-month:not(#none) { fill: #dedecb; }
+  body.darkMode .wbe-chart-popup .wbe-ls-muted:not(#none), body.darkMode .wbe-chart-popup .wbe-cal-count:not(#none) { fill: #a9b1bb; }
+  body.darkMode .wbe-chart-popup .wbe-ls-grid:not(#none) { stroke: #fff; }
+  body.darkMode .wbe-chart-popup .wbe-ls-blue:not(#none) { fill: #8fbaf0; }
+  body.darkMode .wbe-chart-popup .wbe-ls-gold:not(#none) { fill: #e6c170; }
+  /* The links to the other charts in the header: dark green on white, which Dark Mode makes dark green on dark. */
+  body.darkMode .wbe-chart-popup .chat-popup-controls .wbe-chart-link:not(#none) { color: #a5d167 !important; border: 1px solid #a5d167 !important; background: transparent !important; }
+  body.darkMode .wbe-chart-popup .chat-popup-controls .wbe-chart-link:not(#none):hover { color: #25422d !important; background: #a5d167 !important; }
+  body.darkMode .wbe-chart-popup .wbe-ls-fade-stop:not(#none) { stop-color: #36393f; }
+  body.darkMode .wbe-chart-popup .wbe-cal-wedge[fill="#f4f6f9"]:not(#none) { fill: #42464e; }
+  body.darkMode .wbe-chart-popup .wbe-cal-wedge[fill="#e9edf2"]:not(#none) { fill: #3b3e45; }
+  body.darkMode .wbe-chart-popup .wbe-cal-wedge[fill="#dbe7f5"]:not(#none) { fill: #4a5a70; }
+  body.darkMode .wbe-chart-popup .wbe-cal-wedge:not(#none) { stroke: #36393f; }
+  body.darkMode .wbe-chart-popup .wbe-cal-ring:not(#none) { stroke: #5c626c; }
+  body.darkMode .wbe-kin-matrix th:not(#none) { color: #a9b1bb !important; background: transparent !important; }
+  body.darkMode .wbe-kin-matrix td:not(#none) { border-left-color: #55595f !important; }
+  body.darkMode .wbe-kin-card:not(#none) { border: 1px solid var(--kin-border,#a5d167) !important; }
+  body.darkMode .wbe-kin-card:not(#none) span { background: transparent !important; color: #25422d !important; }
+  body.darkMode .wbe-kin-card:not(#none) strong { background: white !important; color: #25422d !important; }
+  body.darkMode .wbe-kin-card[aria-pressed=true]:not(#none) strong { background: #fcb815 !important; }
+  body.darkMode .wbe-kin-card:focus-visible:not(#none), body.darkMode .wbe-kin-card[aria-pressed=true]:not(#none) { outline-color: #a5d167; }
+  body.darkMode .wbe-kin-root:not(#none), body.darkMode .wbe-kin-root:not(#none) small { color: white !important; }
+  body.darkMode .wbe-kin-list:not(#none) { background: #2f3137 !important; color: #dedecb !important; border-color: #55595f !important; }
+  body.darkMode .wbe-kin-list:not(#none) li { border-color: #55595f !important; }
+  body.darkMode .wbe-kin-list:not(#none) .wbe-kin-gender-male { background: #393a4e !important; }
+  body.darkMode .wbe-kin-list:not(#none) .wbe-kin-gender-female { background: #4a3a3e !important; }
+  body.darkMode .wbe-kin-list:not(#none) .wbe-kin-gender-unknown { background: #384a3b !important; }
+  body.darkMode .wbe-kin-list:not(#none) small, body.darkMode .wbe-kin-note:not(#none) { color: #a9b1bb !important; background: transparent !important; }
+  body.darkMode .wbe-kin-list:not(#none) .wbe-kin-event { color: #a5d167 !important; background: transparent !important; }
+  body.darkMode .wbe-kin-list:not(#none) a:link { color: #a5d167 !important; }
+  body.darkMode .wbe-kin-list:not(#none) a:visited { color: #c9a0dc !important; }
   `;
 
 // Double-clicking a chart's title bar toggles full screen, as a window's does (user,

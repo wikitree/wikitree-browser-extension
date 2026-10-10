@@ -29,7 +29,17 @@ import { parseSearchSpecPrompt } from "./chat_spec_parser";
 import { hasSentenceWords, looksLikeNotASurname, looksLikeSurnamePlace } from "./chat_sentence_words";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { dataTables, dataTablesLoad } from "../../core/API/wtPlusData";
-import { getProfilePersonInfo, getUserWtId } from "../../core/common";
+import { getProfilePersonInfo, getUserNumId, getUserWtId } from "../../core/common";
+import {
+  MANAGED_WATCHLIST_FIELDS,
+  isManagedBy,
+  matchesManagedSpec,
+  uncheckableSpecParts,
+  watchlistProfiles,
+  readMemberWatchlist,
+  watchlistAgeNote,
+  watchlistDisplayName,
+} from "./chat_managed_profiles";
 import { extractSuggestionId } from "../wikitree_plus_helper/wikitree_plus_helper_url";
 import suggestionsData from "../wikitree_plus_helper/suggestions.json";
 import {
@@ -198,7 +208,7 @@ export function createProfileSearchHandler({
   const WT_ANCESTOR_GRAPH_GENERATIONS = 10;
   const WT_PLUS_PROJECTS_URL = "https://wikitreebee.com/notables_notes_api/json/projects.json";
   const WT_PLUS_FIELD_NAMES = new Set(WT_PLUS_ALLOWED_FIELDS);
-  const WT_PLUS_STATUS_TOKENS = new Set(["Open", "Unsourced", "Unconnected", "Orphan"]);
+  const WT_PLUS_STATUS_TOKENS = new Set(["Open", "Unsourced", "bioCheckUnsourced", "Unconnected", "Orphan"]);
   let wtPlusTemplateCatalogPromise = null;
   let wtPlusProjectAccountsPromise = null;
   const wtPlusParseTelemetry = {
@@ -2051,6 +2061,9 @@ export function createProfileSearchHandler({
         const categoryName = String(entry?.Name || entry?.category || "").trim();
         if (!categoryName) continue;
         const categoryKey = categoryName.toLowerCase();
+        // One search can return thousands ("Emigrants": every "X Emigrants to Y" tree made a
+        // 205,000-character query; live, 2026-10-10), so the cap applies inside a reply too.
+        if (categoryNames.length >= maxCategories) break;
         if (!seenCategories.has(categoryKey)) {
           seenCategories.add(categoryKey);
           categoryNames.push(categoryName);
@@ -4668,8 +4681,11 @@ export function createProfileSearchHandler({
     const familyPresencePhraseRegex =
       /\b(?:no|without(?:\s+a)?|missing)\s+(?:father|mother|parents|spouses?|children)\b|\b(?:with|has|having)\s+(?:a\s+)?(?:father|mother)\b/i;
     const hasExplicitSuggestionKeyword = /\b(?:suggestions?|error\s*id|errorid|err\s*\d+)\b/i.test(normalizedText);
+    // (nor a prompt the strict reader accounts for word by word: "profiles I manage with no sources"
+    // became Suggestions=901 Location="manage sources", 2026-10-10)
     if (
-      (hasExplicitSuggestionKeyword || !familyPresencePhraseRegex.test(normalizedText)) &&
+      (hasExplicitSuggestionKeyword ||
+        (!familyPresencePhraseRegex.test(normalizedText) && !parseSearchSpecPrompt(normalizedText))) &&
       isLikelySuggestionsPrompt(normalizedText)
     ) {
       const suggestionParse = translateSuggestionsFreeTextToQuery(normalizedText);
@@ -4795,7 +4811,11 @@ export function createProfileSearchHandler({
     // (Not in isCustomDeterministicQuery: with a key the AI still reads the prompt first; this is
     // what runs when there is none, instead of the general parser's guess.)
     const specParsed = parseSearchSpecPrompt(normalizedText);
-    if (specParsed) {
+    // ("profiles I manage": the signed-in user; nobody signed in, nothing to search)
+    const specManager = specParsed?.spec?.manager === "me" ? String(getUserWtId() || "").trim() : specParsed?.spec?.manager;
+    if (specParsed && specManager !== "") {
+      const managedByMe = specParsed.spec.manager === "me";
+      if (specManager) specParsed.spec.manager = specManager;
       const compiledSpec = compileSearchSpec(specParsed.spec, {});
       if (compiledSpec.query && !compiledSpec.errors.length && !compiledSpec.routePrompt) {
         return {
@@ -4804,6 +4824,8 @@ export function createProfileSearchHandler({
           description: specParsed.understood,
           understood: specParsed.understood,
           searchType: "text",
+          fromSpecReader: true,
+          ...(managedByMe ? { managedByMe: true, managedSpec: specParsed.spec } : {}),
         };
       }
     }
@@ -6011,13 +6033,43 @@ export function createProfileSearchHandler({
       .trim()
       .toLowerCase();
     const query = String(localWtPlusQuery?.query || "").trim();
-    if (!query || searchType === "suggestions") {
+    // (the strict reader already declines any word it can't place)
+    if (!query || searchType === "suggestions" || localWtPlusQuery?.fromSpecReader) {
       return false;
     }
 
     const fieldAssignments = Array.from(query.matchAll(/\b([A-Za-z_][A-Za-z0-9_.]*)\s*=\s*("[^"]*"|'[^']*'|[^\s]+)/g));
     if (!fieldAssignments.length) {
       return false;
+    }
+
+    // Leftover words of a sentence, by their shape (no-AI corpus measure, 2026-10-10): a name with no
+    // letters or with other marks ("…", "(count)"); a place given twice in one branch ("Location=Cheshire … Location=fathers"); or, where
+    // the user capitalised a name or place, a lowercase word in another one ("uncertain fathers in
+    // Cheshire", "Kentucky in the template", "the flu in Kent", "unbelegte Profile in Bayern",
+    // "Alley born in Nelson"). Connecting words of real places (Isle of Wight, Neumarkt in der
+    // Oberpfalz, the Netherlands) don't count; an all-lowercase prompt ("born in devon") is left alone.
+    const isNameField = (field) => /(?:^|\.)(?:LastNameAtBirth|LastNameCurrent|LastName|AllLastNames|FirstName|Surname)$/i.test(field);
+    const isPlaceField = (field) => /(?:^|\.)(?:Location|BirthLocation|DeathLocation|MarriageLocation)$/i.test(field);
+    const valueOf = (assignment) => stripSurroundingQuotes(String(assignment?.[2] || "")).trim();
+    const nameAndPlaceValues = fieldAssignments.filter((a) => isNameField(a[1]) || isPlaceField(a[1])).map(valueOf);
+    if (
+      fieldAssignments.some(
+        (a) => isNameField(a[1]) && (!/[A-Za-z\u00C0-\u024F]{2}/.test(valueOf(a)) || /[^\p{L}\s'’.-]/u.test(valueOf(a)))
+      )
+    ) {
+      return true;
+    }
+    if (query.split(/\s+OR\s+/).some((branch) => (branch.match(/(?:^|\s)Location\s*=/gi) || []).length > 1)) {
+      return true;
+    }
+    const connectorWord =
+      /^(?:the|of|and|on|upon|by|in|im|am|an|de|del|della|di|da|do|dos|das|du|la|le|les|der|den|des|van|von|zu|zum|zur|ob|sur|en|y|e|op|aan|bei|unter|ober|st|ste|saint)$/i;
+    const valueWords = nameAndPlaceValues.flatMap((value) => value.split(/[\s,]+/).filter((w) => /[A-Za-z]/.test(w)));
+    const hasCapitalised = valueWords.some((w) => /^[A-Z\u00C0-\u00DE]/.test(w));
+    const hasStrayLowercase = valueWords.some((w) => /^[a-z\u00DF-\u00FF]/.test(w) && !connectorWord.test(w));
+    if (hasCapitalised && hasStrayLowercase) {
+      return true;
     }
 
     // "who are my brick walls?" → LastNameAtBirth=my (live C3, 2026-10-03).
@@ -6298,7 +6350,8 @@ export function createProfileSearchHandler({
     const spousalAgeGapFilter =
       effectiveSearchType === "spousalAgeGap" ? runOptions?.customFilter || interpretation?.customFilter || null : null;
 
-    if (effectiveSearchType === "text") {
+    // (The strict reader's CategoryWord already matches every category with the word.)
+    if (effectiveSearchType === "text" && !runOptions?.skipCategoryExpansion && !interpretation?.fromSpecReader) {
       try {
         const categoryExpansion = await maybeExpandWtPlusCategoryTreeQuery(canonicalQuery, {
           rawPrompt: rawPromptForRun,
@@ -6435,7 +6488,7 @@ export function createProfileSearchHandler({
       const scopeRemainder = canonicalQuery
         .replace(WT_PLUS_LOCATION_SCOPE_RE, " ")
         .replace(
-          /\b(?:Orphan|Unsourced|Unconnected|Open|Notables|connected|unlinked|Public|Private|PublicTree|PrivateTree|male|female|NoGender|MissingLocation|UnknownCountry|UnknownRegion|UnofficialLocation|ProjectManaged|PPP|NeverEdited|ApprovedMerge|PendingMerge|UnmergedMatch|GEDCOMJunk|SourceJunk|IsInWikiData|NoFather|NoMother|NoParents|NoSpouses|NoChildren|mtDNA|yDNA|auDNA|noGEDMatchID|noMitoyDNAID|pre1500|B0|D0|NOT|AND|OR)\b/gi,
+          /\b(?:Orphan|Unsourced|bioCheck\w*|Unconnected|Open|Notables|connected|unlinked|Public|Private|PublicTree|PrivateTree|male|female|NoGender|MissingLocation|UnknownCountry|UnknownRegion|UnofficialLocation|ProjectManaged|PPP|NeverEdited|ApprovedMerge|PendingMerge|UnmergedMatch|GEDCOMJunk|SourceJunk|IsInWikiData|NoFather|NoMother|NoParents|NoSpouses|NoChildren|mtDNA|yDNA|auDNA|noGEDMatchID|noMitoyDNAID|pre1500|B0|D0|NOT|AND|OR)\b/gi,
           " "
         )
         .replace(/\s+/g, " ")
@@ -7081,6 +7134,82 @@ export function createProfileSearchHandler({
       hideChatShaky();
       return `I couldn't complete the WT+ query "${canonicalQuery}". Error: ${error?.message || error}`;
     }
+  }
+
+  // "Profiles I manage [with …]": read from the member's watchlist (private profiles included, and today's
+  // data rather than WT+'s copy), keeping those whose Managers include them. Not signed in to the API, or a
+  // condition only WT+ can check (no sources, Research Status, categories): WT+'s Manager= search. WT+ finds
+  // private profiles too, but without an API session they can't be shown, and the reply says so.
+  async function runManagedProfilesSearch(localQuery, rawQuery) {
+    const spec = localQuery.managedSpec || {};
+    const unchecked = uncheckableSpecParts(spec);
+    let userNumId = "";
+    let loggedIn = false;
+    try {
+      userNumId = String(getUserNumId() || "");
+      loggedIn = Boolean(userNumId) && (await WikiTreeAPI.isLoggedIntoAPI(userNumId, WBE_CHAT_APP_ID));
+    } catch (error) {
+      console.debug("wbe: managed profiles: API login check failed", error);
+    }
+
+    if (!loggedIn || unchecked.length) {
+      const result = await runWtPlusProfileQuery(localQuery.query, localQuery.title, localQuery, {
+        rawPrompt: rawQuery,
+        skipCategoryExpansion: true,
+      });
+      // WT+ finds private profiles too (Manager=Beacall-6 bioCheckUnsourced: both private; live, 2026-10-10),
+      // but only an API session can show them.
+      if (isWtPlusExecutionFailure(result) || loggedIn) return result;
+      const note =
+        "Private profiles you manage can only be shown when you're signed in to WikiTree Apps. Click the green Apps button below and ask again.";
+      return typeof result === "string"
+        ? `${result}
+${note}`
+        : { ...result, message: `${String(result?.message || "").trim()}
+${note}` };
+    }
+
+    const people = [];
+    let managedCount = 0;
+    try {
+      showChatShaky("Reading your watchlist...");
+      const entries = await readMemberWatchlist(WikiTreeAPI, WBE_CHAT_APP_ID, userNumId, (read, total) =>
+        showChatShaky(`Reading your watchlist: ${read.toLocaleString("en-US")} of ${total.toLocaleString("en-US")}...`)
+      );
+      for (const person of watchlistProfiles(entries)) {
+        if (!isManagedBy(person, userNumId, getUserWtId())) continue;
+        managedCount += 1;
+        if (matchesManagedSpec(person, spec)) people.push(person);
+      }
+    } catch (error) {
+      hideChatShaky();
+      // (not "I couldn't…": that is handed to the AI, and came back as "…try a more specific name", live 2026-10-10)
+      return `Reading your watchlist failed (${error?.message || error}). The API may be busy: please try again in a minute.`;
+    }
+    hideChatShaky();
+
+    const understood = localQuery.understood || "profiles managed by you";
+    if (!managedCount) {
+      return "I couldn't find any profiles you manage on your watchlist.";
+    }
+    const scope = `the ${managedCount.toLocaleString("en-US")} profile${managedCount === 1 ? "" : "s"} you manage (from your watchlist, private ones included)`;
+    if (!people.length) {
+      return `I interpreted this as "${understood}" and checked ${scope}. None match.${watchlistAgeNote(userNumId) ? ` ${watchlistAgeNote(userNumId)}` : ""}`;
+    }
+    const rows = people.map((person) =>
+      mapApiPersonToStandardRow(person, {
+        wtid: person.Name,
+        displayName: watchlistDisplayName(person) || person.Name,
+      })
+    );
+    const table = makeStandardProfileTable(localQuery.title || `Profiles you manage`, rows, [[0, "asc"]]);
+    return {
+      message: `I interpreted this as "${understood}" and checked ${scope}. Found ${rows.length.toLocaleString("en-US")} profile${
+        rows.length === 1 ? "" : "s"
+      }.${watchlistAgeNote(userNumId) ? ` ${watchlistAgeNote(userNumId)}` : ""}`,
+      table,
+      autoOpen: true,
+    };
   }
 
   function extractWtPlusAncestorsRoot(query) {
@@ -8979,6 +9108,10 @@ export function createProfileSearchHandler({
           explicitWtPlusQuery ||
           parseNaturalLanguageWtPlusQuery(mainQuery) ||
           parseCombinedNaturalLanguageWtPlusQuery(mainQuery);
+        // "profiles I manage": the watchlist has them all, private ones too (2026-10-10)
+        if (localWtPlusQuery?.managedByMe) {
+          return annotateAutoRoutedWtPlusResult(await runManagedProfilesSearch(localWtPlusQuery, rawQuery));
+        }
         const preferAiWtPlusQuery =
           localWtPlusQuery?.searchType === "projectMissingBox" ? false : shouldPreferAiWtPlusQuery(mainQuery);
 
@@ -9113,12 +9246,35 @@ export function createProfileSearchHandler({
             suggestionId: localWtPlusQuery.suggestionId,
             suggestionOptions: localWtPlusQuery.suggestionOptions,
             rawPrompt: rawQuery,
+            skipCategoryExpansion: Boolean(localWtPlusQuery.fromSpecReader),
           });
           // A router-canonical query ("notables in my CC7") means what it says:
           // zero is the answer, not a misreading.
           const canTryAiReparse =
             !["suggestions", "routerCanonical"].includes(localWtPlusQuery.searchType) && isWtPlusZeroResults(localRunResult);
           if (canTryAiReparse) {
+            // "Alleys who died in Motueka" with no AI: LastNameAtBirth=Alleys finds nothing; try Alley
+            // (as the AI path does; only after a zero, since Jones and Adams are real names) (2026-10-10).
+            const singularRetry = singularSurnameRetryQuery(localWtPlusQuery.query);
+            if (singularRetry) {
+              const swap = (text) =>
+                singularRetry.from.reduce((out, from, i) => String(out || "").split(from).join(singularRetry.to[i]), text);
+              console.info("wbe: WT+ zero-result local parse; retrying singular surname", { query: singularRetry.query });
+              const singularResult = await runWtPlusProfileQuery(
+                singularRetry.query,
+                swap(localWtPlusQuery.title),
+                { ...localWtPlusQuery, query: singularRetry.query, understood: swap(localWtPlusQuery.understood) },
+                { rawPrompt: rawQuery, skipCategoryExpansion: Boolean(localWtPlusQuery.fromSpecReader) }
+              );
+              if (!isWtPlusExecutionFailure(singularResult) && !isWtPlusZeroResults(singularResult)) {
+                const note = `Nothing was found for ${singularRetry.from.join(", ")}, so I searched for ${singularRetry.to.join(", ")}.`;
+                return annotateAutoRoutedWtPlusResult(
+                  typeof singularResult === "string"
+                    ? `${note}\n${singularResult}`
+                    : { ...singularResult, message: `${note}\n${singularResult.message || ""}`.trim() }
+                );
+              }
+            }
             const deterministicRetry = buildDeterministicZeroResultRetry(rawQuery);
             const normalizedLocalQuery = normalizeWtPlusQueryString(localWtPlusQuery.query);
             const normalizedDeterministicRetry = normalizeWtPlusQueryString(deterministicRetry?.query || "");
@@ -10082,5 +10238,9 @@ export function createProfileSearchHandler({
     reRunSavedWtPlusQuery,
     translateWtPlusRefinementTerms,
     getLastExecutedWtPlusQuery: () => lastExecutedWtPlusQuery,
+    // (Clear: a cleared conversation has no previous search to continue)
+    resetLastExecutedWtPlusQuery: () => {
+      lastExecutedWtPlusQuery = "";
+    },
   };
 }

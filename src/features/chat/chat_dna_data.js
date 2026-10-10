@@ -5,8 +5,9 @@
 
 import { FAN_CHART_MAX_GENERATIONS, generationOfSlot } from "./chat_fan_chart_data";
 import { ancestorWord, generationLabel } from "./chat_kin_labels";
+import { RELATIVE_OWNER } from "./chat_chart_owner";
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
+const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const X = String.raw`(?:x[\s-]*dna|x[\s-]*chromosomes?|x[\s-]*chromosome\s+dna)`;
 const PATTERNS = [
   // "X-DNA fan chart", "my X-DNA chart", "show her X chromosome inheritance", "X-DNA inheritance chart"

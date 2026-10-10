@@ -7,7 +7,7 @@ describe("compileSearchSpec", () => {
     [
       "B4: unsourced, Shropshire, born in the 1820s",
       { places: [{ text: "Shropshire" }], dates: [{ event: "birth", from: 1820, to: 1829 }], flags: ["Unsourced"] },
-      "Location=Shropshire 1820s Unsourced",
+      "Location=Shropshire 1820s bioCheckUnsourced",
     ],
     [
       "D6: Shropshire with no birth place",

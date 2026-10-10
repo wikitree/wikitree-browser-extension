@@ -219,9 +219,35 @@ async function initDarkMode() {
 function svgFillReplace(svgText, newFillColor) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(svgText, "image/svg+xml");
+  const filled = [...doc.querySelectorAll("[fill]")];
+  // Some icons (e.g. the Extra Watchlist star) set their colour as style="fill:…" instead.
+  const styleFill = /(^|;)\s*fill\s*:\s*([^;]+)/i;
+  const styled = [...doc.querySelectorAll("[style]")].filter((el) => styleFill.test(el.getAttribute("style")));
+  // Leave badges alone: an icon drawn in two or more colours (e.g. the "DNA ✓" pill: dark text on pale green)
+  // would become a solid block if every fill were the same.
+  const colours = new Set(
+    [
+      ...filled.map((el) => [el, el.getAttribute("fill")]),
+      ...styled.map((el) => [el, styleFill.exec(el.getAttribute("style"))[2]]),
+    ]
+      .filter(([el]) => !el.closest("defs, clipPath, mask"))
+      .map(([, fill]) => fill.trim().toLowerCase())
+      .filter((fill) => fill !== "none")
+  );
+  if (colours.size > 1) {
+    return svgText;
+  }
   // Update every element that has a fill attribute.
-  doc.querySelectorAll("[fill]").forEach((el) => {
+  filled.forEach((el) => {
     el.setAttribute("fill", newFillColor);
+  });
+  styled.forEach((el) => {
+    el.setAttribute(
+      "style",
+      el.getAttribute("style").replace(styleFill, (match, start, fill) =>
+        fill.trim().toLowerCase() === "none" ? match : `${start}fill:${newFillColor}`
+      )
+    );
   });
   const serializer = new XMLSerializer();
   return serializer.serializeToString(doc);

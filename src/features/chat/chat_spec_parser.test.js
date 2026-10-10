@@ -130,6 +130,27 @@ describe("parseSearchSpecPrompt occupations, migration and bare-year names", () 
     expect(spec.anyOf.map((alternative) => alternative.categories[0].name)).toEqual(["Farmers", "Yeomen", "Husbandmen"]);
     expect(read("sailors born in Devon").anyOf).toHaveLength(3);
   });
+  test("groups WikiTree categorises: twins, triplets, centenarians, convicts", () => {
+    const spec = read("twins born in Lancashire");
+    expect(spec.places).toEqual([{ text: "Lancashire", event: "birth" }]);
+    expect(JSON.stringify(spec)).toContain('"Twins"');
+    expect(JSON.stringify(read("Devon centenarians"))).toContain('"Centenarians"');
+    expect(JSON.stringify(read("convicts who died in Tasmania"))).toContain('"Convicts"');
+    expect(parseSearchSpecPrompt("twins convicts in Kent")).toBeNull();
+  });
+  test("Research Status and Bio Check words", () => {
+    const flags = (prompt) => read(prompt)?.flags;
+    expect(flags("gold standard profiles in Devon")).toEqual(["ResearchGold"]);
+    expect(flags("gold standard candidates in Devon")).toEqual(["ResearchGoldCandidate"]);
+    expect(flags("silver standard profiles in Devon")).toEqual(["ResearchSilver"]);
+    expect(flags("profiles in Devon with help requested")).toEqual(["ResearchHelp"]);
+    expect(flags("profiles I manage with sources to review")).toEqual(["ResearchReview"]);
+    expect(flags("unfinished profiles in Kent")).toEqual(["ResearchUnfinished"]);
+    expect(flags("profiles in Kent with no research status")).toEqual(["ResearchUnset"]);
+    expect(flags("profiles in Kent with style issues")).toEqual(["BioStyleIssues"]);
+    expect(flags("profiles I manage with bio check problems")).toEqual(["BioStyleIssues"]);
+    expect(read("profiles I manage that are gold standard candidates").manager).toBe("me");
+  });
   test("emigrated to / from a place", () => {
     const spec = read("Beacall emigrated to Australia born in Kent");
     expect(spec.places).toEqual([
@@ -181,5 +202,94 @@ describe("parseSearchSpecPrompt nationalities and bare emigrants", () => {
       categories: [{ name: "Emigrants", match: "word" }],
     });
     expect(read("immigrants born in Kent").categories).toEqual([{ name: "Immigrants", match: "word" }]);
+  });
+});
+
+// "profiles I manage" = manager "me"; the search puts in the signed-in user's ID (2026-10-10).
+test.each([
+  ["profiles I manage with no sources", { manager: "me", flags: ["Unsourced"] }],
+  ["unsourced profiles that I manage", { manager: "me", flags: ["Unsourced"] }],
+  ["profiles managed by me born before 1800", { manager: "me", dates: [{ event: "birth", to: 1799 }] }],
+  ["my managed profiles with no parents", { manager: "me", flags: ["NoParents"] }],
+])("managed by me: %s", (prompt, expected) => {
+  expect(parseSearchSpecPrompt(prompt)?.spec).toEqual(expected);
+  expect(parseSearchSpecPrompt(prompt)?.understood).toContain("managed by you");
+});
+test.each(["my profiles with no sources", "profiles I managed to find"])("not managed by me: %s", (prompt) => {
+  expect(parseSearchSpecPrompt(prompt)?.spec?.manager).toBeUndefined();
+
+});
+
+describe("more ways of saying it (2026-10-10)", () => {
+  test("a known place before 'profiles' or a status word is a place, an unknown word a surname", () => {
+    expect(spec("Devon profiles with no sources")).toEqual({ places: [{ text: "Devon", event: "any" }], flags: ["Unsourced"] });
+    expect(spec("unsourced Devon profiles")).toEqual({ places: [{ text: "Devon", event: "any" }], flags: ["Unsourced"] });
+    expect(spec("Kent profiles without a father")?.places).toEqual([{ text: "Kent", event: "any" }]);
+    expect(spec("Kent people")).toEqual({ places: [{ text: "Kent", event: "any" }] });
+    expect(spec("Garver profiles")).toBeUndefined();
+    expect(spec("Devon")).toBeUndefined();
+  });
+
+  test("anyone, everyone, family and 'of' a place", () => {
+    expect(spec("anyone born in Kent in 1850")).toEqual({
+      places: [{ text: "Kent", event: "birth" }],
+      dates: [{ event: "birth", from: 1850, to: 1850 }],
+    });
+    expect(spec("Smith family from Kent")).toEqual({ names: { lastNameAtBirth: "Smith" }, places: [{ text: "Kent", event: "any" }] });
+    expect(spec("the Beacalls of Shropshire")).toEqual({
+      names: { lastNameAtBirth: "Beacalls" },
+      places: [{ text: "Shropshire", event: "any" }],
+    });
+    expect(spec("profiles of people born in Wales")).toEqual({ places: [{ text: "Wales", event: "birth" }] });
+  });
+
+  test("'called' or 'named' needs a whole name: one word could be either name", () => {
+    expect(spec("anyone called John Smith")).toEqual({ names: { firstName: "John", lastNameAtBirth: "Smith" } });
+    expect(spec("everyone named Mary born in Kent")).toBeUndefined();
+    expect(spec("people called Smith born in Kent")).toBeUndefined();
+  });
+
+  test("Isle of Man is one place, not 'men'", () => {
+    expect(spec("born in Isle of Man")).toEqual({ places: [{ text: "Isle of Man", event: "birth" }] });
+    expect(spec("born in the Isle of Wight")).toEqual({ places: [{ text: "Isle of Wight", event: "birth" }] });
+    // ("in the Netherlands": the "the" goes)
+    expect(spec("born in the Netherlands 1850s")).toEqual({
+      places: [{ text: "Netherlands", event: "birth" }],
+      dates: [{ event: "birth", from: 1850, to: 1859 }],
+    });
+  });
+
+  test("went, moved, settled and left read as emigrating", () => {
+    expect(spec("Smiths who moved to Ohio")).toEqual({
+      names: { lastNameAtBirth: "Smiths" },
+      places: [{ text: "Ohio", event: "death" }],
+      notPlaces: [{ text: "Ohio", event: "birth" }],
+    });
+    expect(spec("people who left Ireland")).toEqual({
+      places: [{ text: "Ireland", event: "birth" }],
+      notPlaces: [{ text: "Ireland", event: "death" }],
+    });
+    expect(spec("Irish people who went to America")).toEqual({
+      places: [
+        { text: "Ireland", event: "birth" },
+        { text: "America", event: "death" },
+      ],
+    });
+  });
+
+  test("a known place straight after an event and year", () => {
+    expect(spec("Smith born 1850 Kent")).toEqual({
+      names: { lastNameAtBirth: "Smith" },
+      places: [{ text: "Kent", event: "birth" }],
+      dates: [{ event: "birth", from: 1850, to: 1850 }],
+    });
+    expect(spec("Smith born 1850 New York")?.places).toEqual([{ text: "New York", event: "birth" }]);
+    expect(spec("Smith born 1850 Spring")).toBeUndefined();
+  });
+
+  test("created this year / last year", () => {
+    const year = new Date().getFullYear();
+    expect(spec("profiles in Kent created this year")?.created).toEqual({ from: year, to: year });
+    expect(spec("born in Kent, added last year")?.created).toEqual({ from: year - 1, to: year - 1 });
   });
 });

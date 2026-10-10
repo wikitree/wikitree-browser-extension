@@ -1741,3 +1741,61 @@ div.chat-results-popup table.dataTable td.nowrap-cell {
   outline: 2px solid #2f6fb3;
   outline-offset: 1px;
 }
+
+/* Dark Mode (darkMode.css) gives every div and span a dark background and every button a white border,
+   !important, and leaves background images alone. These keep Genie's own pieces readable on it.
+   :not(#none) outweighs Dark Mode's rules. */
+body.darkMode .chat-chart-bar:not(#none) {
+  background-image: none !important;
+  border-bottom-color: #55595f !important;
+}
+body.darkMode .chat-chart-bar-label:not(#none) {
+  background: transparent !important;
+  color: #dedecb !important;
+}
+body.darkMode .chat-popup-header:not(#none) {
+  border-bottom-color: #55595f !important;
+}
+body.darkMode .chat-popup-header .chat-help-button:not(#none) {
+  border: 1px solid #a9b1bb !important;
+  color: #dedecb !important;
+  background: none !important;
+}
+body.darkMode .chat-popup-header .chat-help-button:not(#none):hover,
+body.darkMode .chat-popup-header .chat-help-button:not(#none):focus-visible {
+  border-color: #a5d167 !important;
+  color: #a5d167 !important;
+}
+body.darkMode #wbe-genie-ai-toggle:not(#none) {
+  border: 0 !important;
+  background: none !important;
+}
+body.darkMode #wbe-genie-ai-toggle:not(#none) .chat-ai-label {
+  color: #dedecb !important;
+}
+body.darkMode #wbe-genie-ai-toggle:not(#none) .chat-ai-state {
+  color: #b4bac2 !important;
+  background: transparent !important;
+}
+body.darkMode #wbe-genie-ai-toggle:not(#none):not(.chat-ai-on) .chat-ai-state-off {
+  color: #dedecb !important;
+}
+body.darkMode #wbe-genie-ai-toggle.chat-ai-on:not(#none) .chat-ai-state-on {
+  color: #a5d167 !important;
+}
+body.darkMode #wbe-genie-ai-toggle:not(#none) .chat-ai-switch {
+  background: #6b7079 !important;
+}
+body.darkMode #wbe-genie-ai-toggle.chat-ai-on:not(#none) .chat-ai-switch {
+  background: #4caf50 !important;
+}
+body.darkMode #wbe-genie-ai-toggle:not(#none) .chat-ai-knob {
+  background: #fff !important;
+}
+/* The results table's header rows are pale green, under Dark Mode's light text. */
+body.darkMode div.chat-results-popup table.dataTable thead th:not(#none),
+body.darkMode .chat-results-filter-row th:not(#none) {
+  background: #2f3137 !important;
+  color: #dedecb !important;
+  border-bottom-color: #55595f !important;
+}

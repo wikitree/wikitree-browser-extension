@@ -9,6 +9,8 @@
 // What it deliberately leaves alone: a bare "Kent 1820s" (a surname or a place?), "1800s"
 // (a century or a decade?), and anything with a word it can't place.
 
+import { isKnownPlaceName } from "./chat_known_places";
+
 const LEAD_IN = /^\s*(?:(?:search(?:\s+for)?|find|show(?:\s+me)?|list|get|give\s+me)\s+)?(?:(?:who|which\s+(?:people|profiles))(?:\s+(?:was|were|is|are))?\s+)?/i;
 
 const STATUS_FLAGS = [
@@ -20,7 +22,21 @@ const STATUS_FLAGS = [
   ["NoMother", /\b(?:with\s+)?(?:no|without|missing)\s+(?:a\s+)?mother\b/i, "no mother"],
   ["NoSpouses", /\b(?:with\s+)?(?:no|without|missing)\s+(?:a\s+)?(?:spouses?|partners?)\b/i, "no spouse"],
   ["NoChildren", /\b(?:with\s+)?(?:no|without|missing)\s+children\b/i, "no children"],
+  // Bio Check and Research Status (WT+ magic words, 2026-10-10). Candidate before Gold: each match is
+  // taken out of the text, so "gold standard candidates" isn't also Gold.
+  ["BioStyleIssues", /\b(?:with\s+)?(?:bio(?:graphy)?\s+)?(?:style\s+(?:issues|problems)|bio\s*check\s+(?:issues|problems))\b/i, "biography style issues"],
+  ["ResearchGoldCandidate", /\b(?:research\s+status\s+)?gold[\s-]+standard\s+candidates?\b/i, "Gold Standard Candidate"],
+  ["ResearchGold", /\b(?:research\s+status\s+)?gold[\s-]+standard\b/i, "Gold Standard"],
+  ["ResearchSilver", /\b(?:research\s+status\s+)?silver[\s-]+standard\b/i, "Silver Standard"],
+  ["ResearchHelp", /\b(?:(?:with\s+)?(?:research\s+)?help\s+requested|(?:that\s+)?requested\s+(?:research\s+)?help|research\s+help)\b/i, "help requested"],
+  ["ResearchReview", /\b(?:with\s+)?sources\s+to\s+review\b/i, "sources to review"],
+  ["ResearchUnfinished", /\b(?:research\s+status\s+)?unfinished\b/i, "research unfinished"],
+  ["ResearchUnset", /\b(?:with\s+)?(?:no|without)\s+research\s+status(?:\s+set)?\b/i, "no research status"],
 ];
+
+// "profiles I manage", "managed by me", "my managed profiles": manager "me", the signed-in user (the
+// caller puts in the ID). Not "my profiles": that could be the watchlist.
+const MANAGED_BY_ME = /\b(?:(?:that|which)\s+)?I\s+manage\b|\b(?:managed\s+by\s+me|my\s+managed(?=\s+profiles?\b))\b/i;
 
 const FEMALE = /\b(?:women|woman|females?|girls?)\b/i;
 const MALE = /\b(?:men|man|males?|boys?)\b/i;
@@ -47,6 +63,13 @@ const OCCUPATIONS = [
   [/\b(?:sailors|mariners|seamen)\b/i, "sailors", ["Mariners", "Sailors", "Seamen"]],
   [/\bteachers\b/i, "teachers", ["Teachers", "Schoolmasters", "Schoolmistresses"]],
   [/\b(?:clergy|clergymen|ministers|priests|vicars)\b/i, "clergy", ["Clergy", "Ministers", "Priests", "Vicars"]],
+  // WikiTree categorises these groups too ("twins born in Lancashire": BirthLocation + CategoryWord=Twins
+  // 380, Triplets 865, Quadruplets 66, Devon Centenarians 37, Kent Convicts 130; live, 2026-10-10)
+  [/\btwins\b/i, "twins", ["Twins"]],
+  [/\btriplets\b/i, "triplets", ["Triplets"]],
+  [/\bquadruplets\b/i, "quadruplets", ["Quadruplets"]],
+  [/\bcentenarians\b/i, "centenarians", ["Centenarians"]],
+  [/\bconvicts\b/i, "convicts", ["Convicts"]],
 ];
 // "Irish farmers", "Scottish emigrants to Canada": a nationality is read as born in that country.
 const NATIONALITIES = {
@@ -68,8 +91,9 @@ const NATIONALITY_PATTERN = new RegExp(`\\b(${Object.keys(NATIONALITIES).join("|
 const EMIGRANT_PATTERN = /\b(?:who\s+)?(emigrated|emigrants|immigrated|immigrants)\b/i;
 
 // "emigrated to Australia" = died there, not born there; "emigrants from X" the other way round.
+// ("went to", "moved to", "settled in" read as "emigrated to"; "left" as "emigrated from", 2026-10-10)
 const MIGRATION_PATTERN =
-  /\b(?:emigrated|emigrants|immigrated|immigrants)\s+(to|from)\s+([A-Z][A-Za-z'.-]*(?:\s+(?:(?:of|upon|on)\s+)?[A-Z][A-Za-z'.-]*){0,3})/;
+  /\b(?:(?:emigrated|emigrants|immigrated|immigrants)\s+(to|from)|(?:went|moved|sailed|travell?ed|settled)\s+(to|in)|(left))\s+([A-Z][A-Za-z'.-]*(?:\s+(?:(?:of|upon|on)\s+)?[A-Z][A-Za-z'.-]*){0,3})/;
 
 const EVENT_WORDS = {
   born: "birth",
@@ -83,13 +107,22 @@ const EVENT_WORDS = {
   marriages: "marriage",
 };
 const PLURAL_EVENT_WORDS = new Set(["births", "deaths", "marriages"]);
-const FILLER = new Set(["and", "profiles", "profile", "people", "persons", "person", "who", "that", "were", "was", "is", "are", "the", "all", "with", "a", "an", "also", "please", "me"]);
-const PLACE_PREPOSITIONS = new Set(["in", "at", "from"]);
+// (and "anyone born in Kent", "people called Smith", "the Smith family from Kent", 2026-10-10)
+const FILLER = new Set([
+  "and", "profiles", "profile", "people", "persons", "person", "who", "that", "were", "was", "is", "are", "the", "all", "with",
+  "a", "an", "also", "please", "me", "anyone", "everyone", "anybody", "everybody", "family", "families",
+]);
+// ("the Beacalls of Shropshire": "of" before a place)
+const PLACE_PREPOSITIONS = new Set(["in", "at", "from", "of"]);
 const PLACE_STOP = new Set([...Object.keys(EVENT_WORDS), ...FILLER, "in", "at", "from", "before", "after", "no", "without", "not", "or"]);
 
 const PLACE_PARTICLES = new Set(["of", "on", "upon", "de", "la", "le", "du", "van", "von", "der", "del"]);
-// Place names with "and" or "the" inside them: one word to the reader, so "and" can't end a place there.
+// Place names with "and", "the" or "of" inside them: one word to the reader, so "and" can't end a place there
+// (and "Isle of Man" isn't the surname Isle in Man).
 const JOINED_PLACES = [
+  "Isle of Man",
+  "Isle of Wight",
+  "Isle of Skye",
   "Trinidad and Tobago",
   "Bosnia and Herzegovina",
   "Antigua and Barbuda",
@@ -157,6 +190,8 @@ export function parseSearchSpecPrompt(prompt) {
     .replace(/[?!.\s]+$/, "")
     .replace(LEAD_IN, "")} `;
   if (!text.trim()) return null;
+  // (joined first, so the "Man" of "Isle of Man" isn't read as men)
+  text = joinPlaces(text);
 
   const flags = [];
   const flagLabels = [];
@@ -168,6 +203,11 @@ export function parseSearchSpecPrompt(prompt) {
       text = text.replace(match[0], " §F ");
     }
   }
+  let managedByMe = false;
+  text = text.replace(MANAGED_BY_ME, () => {
+    managedByMe = true;
+    return " §F ";
+  });
   let nationality = null;
   text = text.replace(NATIONALITY_PATTERN, (whole, word) => {
     nationality = nationality ? false : { word, country: NATIONALITIES[word] };
@@ -175,8 +215,8 @@ export function parseSearchSpecPrompt(prompt) {
   });
   if (nationality === false) return null;
   let migration = null;
-  text = text.replace(MIGRATION_PATTERN, (whole, direction, place) => {
-    migration = { direction: direction.toLowerCase(), place: place.trim() };
+  text = text.replace(MIGRATION_PATTERN, (whole, direction, moved, left, place) => {
+    migration = { direction: direction ? direction.toLowerCase() : moved ? "to" : "from", place: place.trim() };
     return " §M ";
   });
   let emigrantCategory = null;
@@ -205,6 +245,9 @@ export function parseSearchSpecPrompt(prompt) {
   // "created in 2023", "created before 2015", "created in or before 2015", "created after 2015", "created in 2023 or 2024"
   let created = null;
   let createdLabel = "";
+  // "created this year", "added last year"
+  const thisYear = new Date().getFullYear();
+  text = text.replace(/\b(created|added)\s+(this|last)\s+year\b/gi, (whole, verb, which) => `${verb} in ${which.toLowerCase() === "this" ? thisYear : thisYear - 1}`);
   text = text.replace(CREATED_PATTERN, (whole, kind, first, second) => {
     if (created) {
       created = false;
@@ -239,6 +282,8 @@ export function parseSearchSpecPrompt(prompt) {
   // (only an event word or "in Place" says a leading word is a name; a status word beside one word could be a place)
   let sawMarker = false;
   let sawBareDate = false;
+  // "people called John Smith": a whole name after it; "named Mary" could be either name, so that declines
+  let calledName = false;
   const trailing = [];
   for (let i = 0; i < tokens.length; i += 1) {
     const word = tokens[i];
@@ -276,6 +321,8 @@ export function parseSearchSpecPrompt(prompt) {
     if (PLACE_PREPOSITIONS.has(low)) {
       const words = [];
       let placeText = "";
+      // ("born in the Isle of Wight")
+      if (tokens[i + 1]?.toLowerCase() === "the" && tokens[i + 2] && /^[A-Z]/.test(tokens[i + 2])) i += 1;
       while (i + 1 < tokens.length) {
         const next = tokens[i + 1];
         const nextLow = next.toLowerCase();
@@ -297,6 +344,10 @@ export function parseSearchSpecPrompt(prompt) {
       continue;
     }
     if (FILLER.has(low)) continue;
+    if ((low === "called" || low === "named") && !event && !places.length && !lead.length) {
+      calledName = true;
+      continue;
+    }
     // a word before any event or place word is a name; after one it can't be placed
     // ("Mary Smith 1820 Ohio": capitalised words after a bare year are its place)
     if (sawBareDate && !event && lead.length === 2 && isName(word)) {
@@ -307,12 +358,54 @@ export function parseSearchSpecPrompt(prompt) {
       lead.push(word);
       continue;
     }
+    // "Smith born 1850 Kent": a known place straight after the event's words
+    if (event && isName(word)) {
+      const two = tokens[i + 1] && isName(tokens[i + 1]) ? `${word} ${tokens[i + 1]}` : "";
+      if (two && isKnownPlaceName(two)) {
+        places.push({ text: two, event });
+        sawMarker = true;
+        i += 1;
+        continue;
+      }
+      if (isKnownPlaceName(word)) {
+        places.push({ text: word, event });
+        sawMarker = true;
+        continue;
+      }
+    }
     return null;
   }
 
+  if (calledName) {
+    if (lead.length !== 2) return null;
+    sawMarker = true;
+  }
   if (trailing.length) {
     if (trailing.length > 3) return null;
     places.push({ text: trailing.join(" "), event: "birth" });
+    sawMarker = true;
+  }
+  // "Devon profiles with no sources", "unsourced Devon profiles", "Kent people": a known place on its own with
+  // status words. It goes out as Location= and nothing else, which always asks first whether it's a birth,
+  // marriage or death place, or a surname ("Kent" is both). Anything else beside it and it would just run,
+  // so then it declines as before; "Garver profiles" is a surname as before (2026-10-10).
+  if (
+    lead.length &&
+    lead.every(isName) &&
+    isKnownPlaceName(lead.join(" ")) &&
+    !places.length &&
+    !spanned.length &&
+    !gender &&
+    !created &&
+    !managedByMe &&
+    !occupation &&
+    !migration &&
+    !emigrantCategory &&
+    !nationality &&
+    (flags.length || /\b(?:profiles|people|persons)\b/i.test(prompt))
+  ) {
+    places.push({ text: lead.join(" "), event: "any" });
+    lead.length = 0;
     sawMarker = true;
   }
   const names = {};
@@ -354,9 +447,10 @@ export function parseSearchSpecPrompt(prompt) {
   if (occupation) spec.anyOf = occupation.names.map((name) => ({ categories: [{ name, match: "word" }] }));
   if (gender) spec.gender = gender;
   if (flags.length) spec.flags = flags;
+  if (managedByMe) spec.manager = "me";
   if (!Object.keys(spec).length) return null;
-  // Something to search on besides a gender or a status word alone.
-  if (!spec.names && !spec.places && !spec.dates && !occupation && !emigrantCategory) return null;
+  // Something to search on besides a gender or a status word alone (the profiles you manage are enough).
+  if (!spec.names && !spec.places && !spec.dates && !occupation && !emigrantCategory && !managedByMe) return null;
   // a nationality on its own ("Irish") says too little
   if (nationality && !occupation && !migration && !emigrantCategory && !spec.dates && !spec.flags && !spec.gender && !spec.names && spec.places.length < 2) return null;
 
@@ -381,6 +475,7 @@ function describeSpec(spec, flagLabels, createdLabel = "", { migration, occupati
   if (emigrantCategory) parts.push(`in the ${emigrantCategory} categories`);
   if (nationality) parts.push(`(${nationality.word} read as born in ${nationality.country})`);
   if (createdLabel) parts.push(createdLabel);
+  if (spec.manager === "me") parts.push("managed by you");
   parts.push(...flagLabels);
   return parts.join(", ");
 }

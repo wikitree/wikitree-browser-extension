@@ -7,10 +7,11 @@ import { ancestorWord, generationLabel, descendantWord } from "./chat_kin_labels
 export { ancestorWord, generationLabel, descendantWord } from "./chat_kin_labels";
 import { yearOf } from "./chat_chart_common";
 import { generationOfSlot } from "./chat_fan_chart_data";
+import { RELATIVE_OWNER } from "./chat_chart_owner";
 
 export const LIFESPANS_GENERATIONS = 6;
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
+const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const LEAD = String.raw`(?:(?:show|draw|make|create|give|display|open|build|generate)(?:\s+me)?\s+|(?:can|could|would)\s+you\s+(?:show|draw|make)(?:\s+me)?\s+)?`;
 const CHART = String.raw`(?:life\s*spans?|life\s*lines?|lifespan\s+chart|life\s+expectancy)`;
 const PATTERNS = [

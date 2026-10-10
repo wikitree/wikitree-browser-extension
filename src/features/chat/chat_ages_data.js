@@ -8,8 +8,9 @@ import { dateParts, ageBetween } from "./chat_dates";
 export { dateParts, ageBetween } from "./chat_dates";
 import { generationOfSlot } from "./chat_fan_chart_data";
 import { descendantWord, ancestorWord } from "./chat_kin_labels";
+import { RELATIVE_OWNER } from "./chat_chart_owner";
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
+const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 
 const PATTERNS = [
   // "lives and ages", "my ancestors' ages chart", "age at death chart", "Beacall-11's lifespan statistics"
