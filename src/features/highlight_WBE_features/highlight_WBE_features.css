@@ -27,6 +27,10 @@ lighter colour, etc.). Keep this rule first in the file for the same reason.
       *, .wbe-icon)) {
   border: var(--wbe-colour) 2px solid !important;
 }
+.wbe-highlight #toolbar div.wbe-button-container2 {
+  border: none !important;
+  margin-bottom: 0.2em;
+}
 
 /* 2px border */
 .wbe-highlight #downloadFeatureData,

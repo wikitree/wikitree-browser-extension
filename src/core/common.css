@@ -54,7 +54,8 @@ body.add_unrelated .clipboardContainer {
 }
 
 body.edit_relation .clipboardContainer a,
-body.add_unrelated .clipboardContainer a {
+body.add_unrelated .clipboardContainer a,
+div.wbe-button-container2 a {
   padding-top: 0.2em;
   margin-left: 0.4em;
 }
