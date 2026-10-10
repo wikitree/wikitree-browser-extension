@@ -93,6 +93,7 @@ import "./feed_helper/feed_helper_options";
 import "./find_matches_scores/find_matches_scores_options";
 import "./find_a_grave_memorial_extractor/find_a_grave_memorial_extractor_options";
 import "./g2g/g2g_options";
+import "./gold_standard/gold_standard_options";
 import "./genderPredictor/gender_predictor_options";
 import "./help/help_options";
 import "./hide_my_contributions/hide_my_contributions_options";
