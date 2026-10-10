@@ -6,7 +6,7 @@ registerFeature({
   id: "goldStandard",
   description: "Inspect a profile for Gold Standard issues.",
   category: "Profile",
-  creators: [],
+  creators: [{ name: "Steve Harris", wikitreeid: "Harris-5439" }],
   contributors: [],
   defaultValue: false,
   pages: [isProfilePage, isProfileEdit],
