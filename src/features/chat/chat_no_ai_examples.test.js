@@ -79,7 +79,7 @@ const DETERMINISTIC = new Set(
 
 const WTPLUS_QUERIES = {
   "Devon 1820s": "Location=Devon",
-  "Smith born in Kent before 1800": "LastNameAtBirth=Smith BirthLocation=Kent",
+  "Smith born in Kent before 1800": "AllLastNames=Smith BirthLocation=Kent",
   "Devon births post-1850": "BirthLocation=Devon",
   "born in Ohio died in Texas 1900-1950": "BirthLocation=Ohio DeathLocation=Texas",
   "Who was born in Devon in 1820?": "BirthLocation=Devon B1820",
@@ -107,15 +107,15 @@ const WTPLUS_QUERIES = {
   "Scottish emigrants to Canada": "BirthLocation=Scotland DeathLocation=Canada",
   "Smith born in Ohio created in 2023 or 2024": "Created=Created_2024",
   "Garver born in Ohio created before 2012": "Created=Created_2011",
-  "Garver profiles": "LastNameAtBirth=Garver",
+  "Garver profiles": "AllLastNames=Garver",
   "profiles with last name Garver": "AllLastNames=Garver",
   "LastNameAtBirth=Garver": "LastNameAtBirth=Garver",
   // (these two ask born/married/died or surname first: the buttons' queries)
   "Devon profiles with no sources": "BirthLocation=Devon bioCheckUnsourced",
   "Kent profiles without a father": "AllLastNames=Kent NoFather",
-  "Smith born 1850 Kent": "LastNameAtBirth=Smith BirthLocation=Kent B1850",
-  "the Beacalls of Shropshire": "LastNameAtBirth=Beacalls Location=Shropshire",
-  "Smith family from Kent": "LastNameAtBirth=Smith Location=Kent",
+  "Smith born 1850 Kent": "AllLastNames=Smith BirthLocation=Kent B1850",
+  "the Beacalls of Shropshire": "AllLastNames=Beacalls Location=Shropshire",
+  "Smith family from Kent": "AllLastNames=Smith Location=Kent",
   "Irish people who went to America": "BirthLocation=Ireland DeathLocation=America",
   "people who left Ireland": "BirthLocation=Ireland NOT DeathLocation=Ireland",
   "profiles in Kent created this year": `Location=Kent Created=Created_${new Date().getFullYear()}`,

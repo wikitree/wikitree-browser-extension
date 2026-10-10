@@ -70,7 +70,7 @@ export const NO_AI_EXAMPLE_SECTIONS = [
       {
         pattern: "[surname] profiles",
         examples: ["Garver profiles", "profiles with last name Garver"],
-        note: "A plural surname works too: if \"Alleys\" finds nobody, Genie searches for Alley.",
+        note: "A surname matches any last name, married names included; say \"with last name at birth Garver\" for the birth name only. A plural surname works too: if \"Alleys\" finds nobody, Genie searches for Alley.",
       },
       {
         pattern: "profiles I manage [with a condition or place]",

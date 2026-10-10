@@ -5,7 +5,7 @@ const spec = (prompt) => parseSearchSpecPrompt(prompt)?.spec;
 describe("parseSearchSpecPrompt (searches read without AI)", () => {
   test("a surname with an event, a place and a bound", () => {
     expect(spec("Smith born in Kent before 1800")).toEqual({
-      names: { lastNameAtBirth: "Smith" },
+      names: { anyLastName: "Smith" },
       places: [{ text: "Kent", event: "birth" }],
       dates: [{ event: "birth", to: 1799 }],
     });
@@ -13,7 +13,7 @@ describe("parseSearchSpecPrompt (searches read without AI)", () => {
 
   test("a first and last name, the year before the place", () => {
     expect(spec("John Smith born 1820 in Ohio")).toEqual({
-      names: { firstName: "John", lastNameAtBirth: "Smith" },
+      names: { firstName: "John", anyLastName: "Smith" },
       places: [{ text: "Ohio", event: "birth" }],
       dates: [{ event: "birth", from: 1820, to: 1820 }],
     });
@@ -69,7 +69,7 @@ describe("parseSearchSpecPrompt (searches read without AI)", () => {
     expect(spec("Beacall with no father")).toBeUndefined(); // a surname or a place?
     expect(spec("Kent in 1820s")).toBeUndefined();
     expect(spec("Beacall born in Kent with no father")).toEqual({
-      names: { lastNameAtBirth: "Beacall" },
+      names: { anyLastName: "Beacall" },
       places: [{ text: "Kent", event: "birth" }],
       flags: ["NoFather"],
     });
@@ -77,7 +77,7 @@ describe("parseSearchSpecPrompt (searches read without AI)", () => {
 
   test("place names with 'and' inside stay whole", () => {
     expect(spec("Smith born in Trinidad and Tobago before 1900")).toEqual({
-      names: { lastNameAtBirth: "Smith" },
+      names: { anyLastName: "Smith" },
       places: [{ text: "Trinidad and Tobago", event: "birth" }],
       dates: [{ event: "birth", to: 1899 }],
     });
@@ -104,7 +104,7 @@ describe("parseSearchSpecPrompt created phrases", () => {
   const read = (prompt) => parseSearchSpecPrompt(prompt)?.spec;
   test("created years beside a name or place", () => {
     expect(read("Smith born in Ohio created in 2023")).toEqual({
-      names: { lastNameAtBirth: "Smith" },
+      names: { anyLastName: "Smith" },
       places: [{ text: "Ohio", event: "birth" }],
       created: { from: 2023, to: 2023 },
     });
@@ -165,7 +165,7 @@ describe("parseSearchSpecPrompt occupations, migration and bare-year names", () 
   test("first and last name, a bare year, then a place", () => {
     const parsed = parseSearchSpecPrompt("Mary Smith 1820 Ohio");
     expect(parsed.spec).toEqual({
-      names: { firstName: "Mary", lastNameAtBirth: "Smith" },
+      names: { firstName: "Mary", anyLastName: "Smith" },
       places: [{ text: "Ohio", event: "birth" }],
       dates: [{ event: "birth", from: 1820, to: 1820 }],
     });
@@ -198,7 +198,7 @@ describe("parseSearchSpecPrompt nationalities and bare emigrants", () => {
   });
   test("emigrants with no destination search WikiTree's Emigrants category", () => {
     expect(read("Beacall emigrants")).toEqual({
-      names: { lastNameAtBirth: "Beacall" },
+      names: { anyLastName: "Beacall" },
       categories: [{ name: "Emigrants", match: "word" }],
     });
     expect(read("immigrants born in Kent").categories).toEqual([{ name: "Immigrants", match: "word" }]);
@@ -235,16 +235,16 @@ describe("more ways of saying it (2026-10-10)", () => {
       places: [{ text: "Kent", event: "birth" }],
       dates: [{ event: "birth", from: 1850, to: 1850 }],
     });
-    expect(spec("Smith family from Kent")).toEqual({ names: { lastNameAtBirth: "Smith" }, places: [{ text: "Kent", event: "any" }] });
+    expect(spec("Smith family from Kent")).toEqual({ names: { anyLastName: "Smith" }, places: [{ text: "Kent", event: "any" }] });
     expect(spec("the Beacalls of Shropshire")).toEqual({
-      names: { lastNameAtBirth: "Beacalls" },
+      names: { anyLastName: "Beacalls" },
       places: [{ text: "Shropshire", event: "any" }],
     });
     expect(spec("profiles of people born in Wales")).toEqual({ places: [{ text: "Wales", event: "birth" }] });
   });
 
   test("'called' or 'named' needs a whole name: one word could be either name", () => {
-    expect(spec("anyone called John Smith")).toEqual({ names: { firstName: "John", lastNameAtBirth: "Smith" } });
+    expect(spec("anyone called John Smith")).toEqual({ names: { firstName: "John", anyLastName: "Smith" } });
     expect(spec("everyone named Mary born in Kent")).toBeUndefined();
     expect(spec("people called Smith born in Kent")).toBeUndefined();
   });
@@ -261,7 +261,7 @@ describe("more ways of saying it (2026-10-10)", () => {
 
   test("went, moved, settled and left read as emigrating", () => {
     expect(spec("Smiths who moved to Ohio")).toEqual({
-      names: { lastNameAtBirth: "Smiths" },
+      names: { anyLastName: "Smiths" },
       places: [{ text: "Ohio", event: "death" }],
       notPlaces: [{ text: "Ohio", event: "birth" }],
     });
@@ -279,7 +279,7 @@ describe("more ways of saying it (2026-10-10)", () => {
 
   test("a known place straight after an event and year", () => {
     expect(spec("Smith born 1850 Kent")).toEqual({
-      names: { lastNameAtBirth: "Smith" },
+      names: { anyLastName: "Smith" },
       places: [{ text: "Kent", event: "birth" }],
       dates: [{ event: "birth", from: 1850, to: 1850 }],
     });

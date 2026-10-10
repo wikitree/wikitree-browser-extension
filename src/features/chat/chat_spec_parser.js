@@ -414,7 +414,9 @@ export function parseSearchSpecPrompt(prompt) {
     // "Scottish emigrants to Canada", "Irish farmers": a nationality, not a surname
     if ((migration || occupation) && lead.some(looksLikeNationality)) return null;
     if (lead.length === 2) names.firstName = lead[0];
-    names.lastNameAtBirth = lead[lead.length - 1];
+    // any last name, as the AI is told to use: "Robinson born in Devon" also finds the women who married a
+    // Robinson (LastNameAtBirth found 4 of the AI's 15, user 2026-10-11)
+    names.anyLastName = lead[lead.length - 1];
   }
 
   const spec = {};
@@ -460,7 +462,7 @@ export function parseSearchSpecPrompt(prompt) {
 function describeSpec(spec, flagLabels, createdLabel = "", { migration, occupation, nationality, emigrantCategory } = {}) {
   const span = ({ from, to }) => (from !== undefined && to !== undefined ? (from === to ? `${from}` : `${from}–${to}`) : from !== undefined ? `${from} or later` : `${to} or earlier`);
   const parts = [];
-  const name = [spec.names?.firstName, spec.names?.lastNameAtBirth].filter(Boolean).join(" ");
+  const name = [spec.names?.firstName, spec.names?.anyLastName || spec.names?.lastNameAtBirth].filter(Boolean).join(" ");
   if (name) parts.push(name);
   if (spec.gender) parts.push(spec.gender === "female" ? "women" : "men");
   if (occupation) parts.push(occupation.label);

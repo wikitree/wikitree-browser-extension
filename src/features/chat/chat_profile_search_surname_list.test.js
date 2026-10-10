@@ -77,10 +77,10 @@ describe("surname lists without an AI key", () => {
     ['Provide a list of profiles with last name "Garver"', "wt", "AllLastNames=Garver"],
     ["Give me all the profiles with surname Garver", "wt", "AllLastNames=Garver"],
     ["profiles with last name Garver", "wt", "AllLastNames=Garver"],
-    ["Garver profiles", "wt", "LastNameAtBirth=Garver"],
+    ["Garver profiles", "wt", "AllLastNames=Garver"],
     ["profiles with last name at birth Garver", "wt", "LastNameAtBirth=Garver"],
     // "help" alone opens Genie Help; the surname Help still searches.
-    ["Help profiles", "wt", "LastNameAtBirth=Help"],
+    ["Help profiles", "wt", "AllLastNames=Help"],
     ["profiles with last name Help", "wt", "AllLastNames=Help"],
     ["LastNameAtBirth=Garver", "wt", "LastNameAtBirth=Garver"],
   ])("%s (%s mode)", async (prompt, mode, query) => {

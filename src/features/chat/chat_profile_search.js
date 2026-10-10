@@ -4269,6 +4269,7 @@ export function createProfileSearchHandler({
       const hasFamilyPresenceTerm = terms.some((term) =>
         /^(?:NOT\s+)?No(?:Father|Mother|Parents|Spouses|Children)$/.test(String(term || "").trim())
       );
+      // (a guessed surname is any last name, as the AI and the strict reader use: married names too, user 2026-10-11)
       if (remainderTokens.length === 1) {
         const token = stripSurroundingQuotes(remainderTokens[0]);
         if (token && !/^(?:in|from)$/i.test(token)) {
@@ -4276,7 +4277,7 @@ export function createProfileSearchHandler({
             addTerm(normalizeWtPlusFieldTerm("WikiTreeID", token), `WikiTree ID ${token}`);
           } else if (hasDnaStandaloneTerm && !hasNameScopedTerm) {
             // With DNA prompts, a lone ambiguous token is usually intended as a family name.
-            addTerm(normalizeWtPlusFieldTerm("LastNameAtBirth", token), `last name ${token}`);
+            addTerm(normalizeWtPlusFieldTerm("AllLastNames", token), `last name ${token}`);
           } else if (!hasNameScopedTerm && hasFamilyPresenceTerm) {
             // "Beacall no father" vs "Flintshire no father": a lone token next
             // to family-presence tokens is genuinely ambiguous between surname
@@ -4306,7 +4307,7 @@ export function createProfileSearchHandler({
               to: normalizeWtPlusFieldTerm("AllLastNames", token),
             };
           } else {
-            addTerm(normalizeWtPlusFieldTerm("LastNameAtBirth", token), `last name ${token}`);
+            addTerm(normalizeWtPlusFieldTerm("AllLastNames", token), `last name ${token}`);
           }
         }
       } else if (remainderTokens.length >= 2) {
@@ -4330,7 +4331,7 @@ export function createProfileSearchHandler({
           const possibleSurname = stripSurroundingQuotes(splitTokens.shift());
           const possibleLocation = stripSurroundingQuotes(splitTokens.join(" "));
           if (possibleSurname) {
-            addTerm(normalizeWtPlusFieldTerm("LastNameAtBirth", possibleSurname), `last name ${possibleSurname}`);
+            addTerm(normalizeWtPlusFieldTerm("AllLastNames", possibleSurname), `last name ${possibleSurname}`);
           }
           if (possibleLocation) {
             addTerm(normalizeWtPlusFieldTerm("Location", possibleLocation), `location ${possibleLocation}`);
@@ -6028,6 +6029,30 @@ export function createProfileSearchHandler({
     return /couldn't find any profiles for WT\+ query:/i.test(String(text || ""));
   }
 
+  // "Alleys who died in Motueka", "Robinsons born in Devon 1850-1899": LastNameAtBirth=Robinsons finds
+  // nothing; try Robinson. Only after a zero, since Jones and Adams are real names (2026-10-10). Every
+  // path that runs a parsed query uses this (the no-AI fallback path didn't: Robinsons, live 2026-10-11).
+  // Returns the singular result with a note, or null when there's nothing better.
+  async function retrySingularSurnameAfterZero(result, parsed, runOptions = {}) {
+    if (!isWtPlusZeroResults(result)) return null;
+    const singularRetry = singularSurnameRetryQuery(parsed?.query);
+    if (!singularRetry) return null;
+    const swap = (text) =>
+      singularRetry.from.reduce((out, from, i) => String(out || "").split(from).join(singularRetry.to[i]), text);
+    console.info("wbe: WT+ zero results; retrying singular surname", { query: singularRetry.query });
+    const singularResult = await runWtPlusProfileQuery(
+      singularRetry.query,
+      swap(parsed.title),
+      { ...parsed, query: singularRetry.query, understood: swap(parsed.understood) },
+      runOptions
+    );
+    if (isWtPlusExecutionFailure(singularResult) || isWtPlusZeroResults(singularResult)) return null;
+    const note = `Nothing was found for ${singularRetry.from.join(", ")}, so I searched for ${singularRetry.to.join(", ")}.`;
+    return typeof singularResult === "string"
+      ? `${note}\n${singularResult}`
+      : { ...singularResult, message: `${note}\n${singularResult.message || ""}`.trim() };
+  }
+
   function shouldForceAiForSuspiciousLocalWtPlusQuery(localWtPlusQuery) {
     const searchType = String(localWtPlusQuery?.searchType || "text")
       .trim()
@@ -6073,7 +6098,8 @@ export function createProfileSearchHandler({
     }
 
     // "who are my brick walls?" → LastNameAtBirth=my (live C3, 2026-10-03).
-    const nameFieldRegex = /(?:^|\.)(?:LastNameAtBirth|LastNameCurrent|LastName|FirstName|Surname)$/i;
+    // (AllLastNames too, now that a guessed surname is any last name, 2026-10-11)
+    const nameFieldRegex = /(?:^|\.)(?:LastNameAtBirth|LastNameCurrent|LastName|AllLastNames|FirstName|Surname)$/i;
     // Also words of the sentence itself ("women named Stevenson" gave LastNameAtBirth=named; "most common
     // surnames" gave "most"; "twins born in Lancashire" gave "twins"): never a name (2026-10-10).
     const notANameRegex =
@@ -9253,28 +9279,11 @@ ${note}` };
           const canTryAiReparse =
             !["suggestions", "routerCanonical"].includes(localWtPlusQuery.searchType) && isWtPlusZeroResults(localRunResult);
           if (canTryAiReparse) {
-            // "Alleys who died in Motueka" with no AI: LastNameAtBirth=Alleys finds nothing; try Alley
-            // (as the AI path does; only after a zero, since Jones and Adams are real names) (2026-10-10).
-            const singularRetry = singularSurnameRetryQuery(localWtPlusQuery.query);
-            if (singularRetry) {
-              const swap = (text) =>
-                singularRetry.from.reduce((out, from, i) => String(out || "").split(from).join(singularRetry.to[i]), text);
-              console.info("wbe: WT+ zero-result local parse; retrying singular surname", { query: singularRetry.query });
-              const singularResult = await runWtPlusProfileQuery(
-                singularRetry.query,
-                swap(localWtPlusQuery.title),
-                { ...localWtPlusQuery, query: singularRetry.query, understood: swap(localWtPlusQuery.understood) },
-                { rawPrompt: rawQuery, skipCategoryExpansion: Boolean(localWtPlusQuery.fromSpecReader) }
-              );
-              if (!isWtPlusExecutionFailure(singularResult) && !isWtPlusZeroResults(singularResult)) {
-                const note = `Nothing was found for ${singularRetry.from.join(", ")}, so I searched for ${singularRetry.to.join(", ")}.`;
-                return annotateAutoRoutedWtPlusResult(
-                  typeof singularResult === "string"
-                    ? `${note}\n${singularResult}`
-                    : { ...singularResult, message: `${note}\n${singularResult.message || ""}`.trim() }
-                );
-              }
-            }
+            const singularLocal = await retrySingularSurnameAfterZero(localRunResult, localWtPlusQuery, {
+              rawPrompt: rawQuery,
+              skipCategoryExpansion: Boolean(localWtPlusQuery.fromSpecReader),
+            });
+            if (singularLocal) return annotateAutoRoutedWtPlusResult(singularLocal);
             const deterministicRetry = buildDeterministicZeroResultRetry(rawQuery);
             const normalizedLocalQuery = normalizeWtPlusQueryString(localWtPlusQuery.query);
             const normalizedDeterministicRetry = normalizeWtPlusQueryString(deterministicRetry?.query || "");
@@ -9436,6 +9445,11 @@ ${note}` };
               rawPrompt: rawQuery,
             }
           );
+          const singularFallback = await retrySingularSurnameAfterZero(fallbackRunResult, localWtPlusQuery, {
+            rawPrompt: rawQuery,
+            skipCategoryExpansion: Boolean(localWtPlusQuery.fromSpecReader),
+          });
+          if (singularFallback) return annotateAutoRoutedWtPlusResult(singularFallback);
           const fallbackScopeSwap = localWtPlusQuery.ambiguousScopeSwap;
           if (
             isWtPlusZeroResults(fallbackRunResult) &&
