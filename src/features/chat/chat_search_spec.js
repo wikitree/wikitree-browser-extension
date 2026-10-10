@@ -211,7 +211,49 @@ export function applySameCemetery(search, cemeteryCategories) {
 // Returns { query, routePrompt, errors }. errors non-empty = don't run it.
 // "anyOf" alternatives become WT+ OR branches; WT+ has no grouping, so each
 // branch repeats the shared part.
+// The years a "created" constraint covers. WT+ has one index token per creation year
+// (Created_2023), which is also a legal base term, so a range is one branch per year.
+// ({from,to} are inclusive and may be open; {years:[2023,2024]} is an explicit list.)
+export const FIRST_PROFILE_CREATED_YEAR = 2008;
+const MAX_CREATED_YEARS = 25;
+export function createdYears(created, now = new Date()) {
+  if (!created || typeof created !== "object") return null;
+  const last = now.getFullYear();
+  if (Array.isArray(created.years)) {
+    const years = [...new Set(created.years.map(asYear))];
+    return years.length && years.every((year) => year && year >= FIRST_PROFILE_CREATED_YEAR && year <= last)
+      ? years.sort((a, b) => a - b)
+      : null;
+  }
+  const from = created.from === undefined ? FIRST_PROFILE_CREATED_YEAR : asYear(created.from);
+  const to = created.to === undefined ? last : asYear(created.to);
+  if (!from || !to || from > to) return null;
+  const years = [];
+  for (let year = Math.max(from, FIRST_PROFILE_CREATED_YEAR); year <= Math.min(to, last); year += 1) years.push(year);
+  return years.length && years.length <= MAX_CREATED_YEARS ? years : null;
+}
+
 export function compileSearchSpec(search = {}, context = {}) {
+  const { anyOf, created, ...rest } = search || {};
+  if (created !== undefined) {
+    const years = createdYears(created);
+    if (!years) {
+      return { query: "", routePrompt: "", errors: [`bad created range: ${JSON.stringify(created)}`] };
+    }
+    const alternatives = Array.isArray(anyOf) && anyOf.length ? anyOf : [{}];
+    const branches = years.flatMap((year) =>
+      alternatives.map((alternative) =>
+        compileSingleSearchSpec(mergeAlternative({ ...rest, createdYear: year }, alternative), context)
+      )
+    );
+    const errors = [...new Set(branches.flatMap((branch) => branch.errors))];
+    if (branches.some((branch) => branch.routePrompt)) errors.push("special searches can't be combined with created");
+    return { query: branches.map((branch) => branch.query).join(" OR "), routePrompt: "", errors };
+  }
+  return compileSearchSpecWithoutCreated(search, context);
+}
+
+function compileSearchSpecWithoutCreated(search = {}, context = {}) {
   const { anyOf, ...shared } = search || {};
   if (Array.isArray(anyOf) && anyOf.length) {
     const branches = anyOf.map((alternative) =>
@@ -305,6 +347,7 @@ function compileSingleSearchSpec(search, context) {
     const field = category.match === "word" ? "CategoryWord" : "CategoryFull";
     terms.push(`${field}=${quoteWtPlusSpecValue(category.name)}`);
   }
+  if (search.createdYear) terms.push(`Created=Created_${search.createdYear}`);
   if (search.templateText) terms.push(`TemplateText=${quoteWtPlusSpecValue(search.templateText)}`);
   if (search.manager) terms.push(`Manager=${quoteWtPlusSpecValue(search.manager)}`);
   if (search.managedOnlyBy) {
@@ -520,6 +563,7 @@ export function buildSearchSpecInstructions({
     '- dates: [{"event":"birth|death|marriage","from":YEAR,"to":YEAR}] — whole years, both inclusive, either may be left out.',
     '- missingDates: ["birth","death"] — the date is blank.',
     '- missingPlaces: ["birth","death"] — the place is blank ("no birth place", "missing death location"). A place in the same request is then event "any".',
+    '- created: when the PROFILE was created on WikiTree (not a life event): {"from":YEAR,"to":YEAR} whole years, inclusive, either may be left out ("created before 2015" = {"to":2014}, "created after 2015" = {"from":2016}), or {"years":[2023,2024]} for specific years. Needs a name, place or similar beside it only when the range is wide; the years are searched one by one (2008 on, at most 25).',
     '- gender: "male|female|unknown".',
     `- flags: [${Object.keys(SEARCH_SPEC_FLAGS).join(", ")}]. Meanings: ${describeFlags()}.`,
     '- counts: {"children"|"siblings"|"marriages": {"min":N,"max":N,"exact":N}}.',

@@ -39,7 +39,9 @@ describe("needsAiKeyMessage", () => {
   test("says the question needs a key and links to where to get one", () => {
     const { text, actions } = needsAiKeyMessage();
     expect(text.split("\n")[0]).toBe("We need AI to respond to this. Add an AI API key in Genie's options. The link below shows how to get one and where to put it.");
-    expect(needsAiKeyMessage({ withForm: true }).text).toMatch(/filling in the boxes below/);
+    expect(needsAiKeyMessage({ withForm: true }).text).toMatch(/Fill in the boxes below/);
+    expect(text).toMatch(/short searches like "Devon 1820s"/);
+    expect(text).toMatch(/What can I type\?/);
     expect(actions).toEqual([
       { label: "How to get and add an AI API key", actionType: "external-link", url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#How_to_Set_an_AI_API_Key" },
     ]);

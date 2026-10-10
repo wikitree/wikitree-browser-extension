@@ -25,6 +25,8 @@ import {
   readSearchSpecReply,
 } from "./chat_search_spec";
 import { parseStatusPlaceDecadePrompt } from "./chat_status_place_decade_parser";
+import { parseSearchSpecPrompt } from "./chat_spec_parser";
+import { hasSentenceWords, looksLikeNotASurname, looksLikeSurnamePlace } from "./chat_sentence_words";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { dataTables, dataTablesLoad } from "../../core/API/wtPlusData";
 import { getProfilePersonInfo, getUserWtId } from "../../core/common";
@@ -768,6 +770,17 @@ export function createProfileSearchHandler({
       /\[(?:Default|Death)\]\.\[Death Date\]\.AsNumber\s*(?:In\s+[0-9]{4,8}\.\.[0-9]{4,8}|[<>]=?\s*[0-9]{4,8})/gi,
       "Death"
     );
+
+    // A place whose event has no date of its own ("born in Ohio, died in Texas 1900-1950") would
+    // vanish from the branches below, dropping a condition: leave such a query as it is (2026-10-10).
+    const placeHasNoDate = [
+      [birthLocationTerm, birthPredicates],
+      [marriageLocationTerm, marriagePredicates],
+      [deathLocationTerm, deathPredicates],
+    ].some(([locationTerm, predicates]) => locationTerm && !predicates.length);
+    if (placeHasNoDate) {
+      return text;
+    }
 
     const branches = [];
     const pushBranch = (locationTerm, predicates) => {
@@ -2843,6 +2856,8 @@ export function createProfileSearchHandler({
     // Suggestions=NNN is a bounded, server-indexed set (unlike ProjectManaged/PPP
     // magic words), so it can stand alone as a base term, e.g. "empty biography".
     "Suggestions",
+    // Created=Created_2023 is one creation year's index token: bounded, so a base term too.
+    "Created",
   ]);
 
   function hasPrimaryScopeTermInWtPlusGroup(groupText) {
@@ -3667,7 +3682,13 @@ export function createProfileSearchHandler({
     );
 
     consume(/\bcreated\s+in\s+(\d{4})\b/i, (match) => {
-      addSqlTerm(buildWtPlusSqlTerm(`([Bio].[Created Year].AsNumber = ${match[1]})`), `created in ${match[1]}`);
+      // Created=Created_YYYY is the year's index token (and a legal base term); the sql alone is not.
+      const year = Number(match[1]);
+      if (year >= 2008 && year <= new Date().getFullYear()) {
+        addTerm(`Created=Created_${year}`, `created in ${year}`);
+      } else {
+        addSqlTerm(buildWtPlusSqlTerm(`([Bio].[Created Year].AsNumber = ${match[1]})`), `created in ${match[1]}`);
+      }
     });
 
     consume(new RegExp(`\\b(?:many|more\\s+than|over)\\s+(${WT_PLUS_SMALL_NUMBER_VALUE_PATTERN})\\s+errors?\\b`, "i"), (match) => {
@@ -4287,6 +4308,11 @@ export function createProfileSearchHandler({
             addTerm(normalizeWtPlusFieldTerm("Location", possibleLocation), `location ${possibleLocation}`);
           }
         } else {
+          // "Surname Place" is a guess; "Kent farmers" or "Mary Smith 1820 Ohio" is a guess that would
+          // search for nonsense. Only a clean pair is run (2026-10-10).
+          if (!looksLikeSurnamePlace(remainderTokens)) {
+            return null;
+          }
           const splitTokens = remainderTokens.slice();
           const possibleSurname = stripSurroundingQuotes(splitTokens.shift());
           const possibleLocation = stripSurroundingQuotes(splitTokens.join(" "));
@@ -4762,6 +4788,24 @@ export function createProfileSearchHandler({
         understood: statusPlaceDecadePrompt.understood,
         searchType: "statusPlaceDecade",
       };
+    }
+
+    // Short plain-English searches ("Smith born in Kent before 1800"): the strict reader writes the
+    // same search spec the AI would, and the tested compiler makes the WT+ query (2026-10-10).
+    // (Not in isCustomDeterministicQuery: with a key the AI still reads the prompt first; this is
+    // what runs when there is none, instead of the general parser's guess.)
+    const specParsed = parseSearchSpecPrompt(normalizedText);
+    if (specParsed) {
+      const compiledSpec = compileSearchSpec(specParsed.spec, {});
+      if (compiledSpec.query && !compiledSpec.errors.length && !compiledSpec.routePrompt) {
+        return {
+          query: compiledSpec.query,
+          title: `WT+ search: ${specParsed.understood}`,
+          description: specParsed.understood,
+          understood: specParsed.understood,
+          searchType: "text",
+        };
+      }
     }
 
     const spousalAgeGapPrompt = parseSpousalAgeGapPrompt(normalizedText);
@@ -5978,12 +6022,16 @@ export function createProfileSearchHandler({
 
     // "who are my brick walls?" → LastNameAtBirth=my (live C3, 2026-10-03).
     const nameFieldRegex = /(?:^|\.)(?:LastNameAtBirth|LastNameCurrent|LastName|FirstName|Surname)$/i;
-    const notANameRegex = /^(?:my|me|mine|our|his|her|their|who|what|which|where|how|are|is|was|were|the|a|an)$/i;
+    // Also words of the sentence itself ("women named Stevenson" gave LastNameAtBirth=named; "most common
+    // surnames" gave "most"; "twins born in Lancashire" gave "twins"): never a name (2026-10-10).
+    const notANameRegex =
+      /^(?:my|me|mine|our|his|her|their|who|what|which|where|how|are|is|was|were|the|a|an|named|called|surnamed|surname|surnames|forename|with|without|and|or|in|from|of|for|any|all|some|every|each|most|many|common|top|born|died|people|profiles?|women|men|twins|triplets|widows|widowers|immigrants|emigrants|settlers|veterans|ancestors|descendants|relatives|families|couples|spouses|siblings)$/i;
     if (
       fieldAssignments.some(
         (assignment) =>
           nameFieldRegex.test(String(assignment?.[1] || "")) &&
-          notANameRegex.test(stripSurroundingQuotes(String(assignment?.[2] || "")).trim())
+          (notANameRegex.test(stripSurroundingQuotes(String(assignment?.[2] || "")).trim()) ||
+            looksLikeNotASurname(stripSurroundingQuotes(String(assignment?.[2] || "")).trim()))
       )
     ) {
       return true;
@@ -6017,6 +6065,10 @@ export function createProfileSearchHandler({
       // "born in X" phrase got absorbed into the location field rather than becoming a date.
       const hasBornInValue = /\bborn\b/i.test(value);
 
+      // A word of the sentence inside a place ("Scotland who emigrated", "soldiers in Ohio", "no sources"):
+      // the rest of a sentence, not a place.
+      const hasClauseWord = hasSentenceWords(value);
+
       // Location value is far too long to be a real place name (natural-language fragment).
       const wordCount = value.split(/\s+/).filter(Boolean).length;
       const isTooLong = wordCount > 6;
@@ -6038,6 +6090,7 @@ export function createProfileSearchHandler({
         (hasFamilyToken && (hasComparisonToken || hasNumericWord)) ||
         hasBornInValue ||
         hasDateOrEventWord ||
+        hasClauseWord ||
         isTooLong ||
         hasRelativeTime
       ) {

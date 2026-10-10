@@ -2615,6 +2615,20 @@ async function handleChatResult(result) {
     return;
   }
 
+  // No AI (no key, or the switch is off) and a sentence the person search couldn't use: say what
+  // Genie reads and show the form, not "couldn't find profile matches" for words that were never a name.
+  if (
+    /^\s*(?:I'm\s+sorry,\s*)?I\s+couldn't\s+(?:find\s+profile\s+matches|work\s+out\s+a\s+concrete\s+person\s+search)\b/i.test(
+      String(result.message)
+    ) &&
+    String(lastNonRetryUserPrompt || "").trim().split(/\s+/).length >= 4 &&
+    (isAiPaused() || !(await getChatAiConfig())?.key)
+  ) {
+    recordUnanswered(lastNonRetryUserPrompt, "no AI key");
+    showNeedsAiKey(lastNonRetryUserPrompt);
+    return;
+  }
+
   if (pendingRequestedColumns && result.table?.rows?.length) {
     const keys = pendingRequestedColumns;
     pendingRequestedColumns = null;
@@ -2819,8 +2833,8 @@ function showNeedsAiKey(prompt) {
   const text = isAiPaused() ? `${needsKey.text}\n(AI is switched off with the AI switch at the top.)` : needsKey.text;
   appendMessage("assistant", text, {
     actions: [
-      ...needsKey.actions.map((action) => ({ ...action, onClick: () => window.open(action.url, "_blank", "noopener,noreferrer") })),
       { label: WHAT_CAN_I_TYPE, onClick: () => showNoAiExamples() },
+      ...needsKey.actions.map((action) => ({ ...action, onClick: () => window.open(action.url, "_blank", "noopener,noreferrer") })),
     ],
     searchForm: withForm ? prefillSearchForm(prompt) : null,
   });

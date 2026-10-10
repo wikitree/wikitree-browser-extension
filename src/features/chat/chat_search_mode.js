@@ -1,3 +1,4 @@
+import { parseSearchSpecPrompt } from "./chat_spec_parser";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { WIKITREE_GLOSSARY_FOR_AI } from "./chat_wikitree_glossary";
 import { getProfilePersonInfo } from "../../core/common";
@@ -960,7 +961,8 @@ export async function classifyWtPrompt({ prompt, getChatAiConfig, buildRecentUse
   // ("Yorkshire 1850s") goes to WT+, whose own parser runs it or declines (2026-10-04).
   if (!key) {
     // A question needs the AI to answer it: say so, rather than run a search that can't (2026-10-04).
-    if (question) return "needsAi";
+    // ("Who was born in Devon in 1820?" is a search in question form: the strict reader runs it)
+    if (question && !parseSearchSpecPrompt(normalizedPrompt)) return "needsAi";
     // A bare name ("Martha Teece") is the person search's to run; WT+'s parser read it
     // as LastNameAtBirth=Martha Location=Teece (live, 2026-10-04).
     if (isBareName(normalizedPrompt)) return null;
@@ -1372,6 +1374,25 @@ export async function handleExplicitSearchMode({
         }
       }
 
+      // No AI to read it, and the plain-English reader can ("Beacall emigrants to Australia" looks like a
+      // question about the user's own family, but with nothing else to answer it, a WT+ search is the help).
+      if (routed?.intent === ChatIntent?.FALLBACK_AI && isLikelyFamilyRelationPrompt(normalizedPrompt) && parseSearchSpecPrompt(normalizedPrompt)) {
+        let aiKey = "";
+        try {
+          aiKey = (await getChatAiConfig?.())?.key || "";
+        } catch (error) {
+          aiKey = "";
+        }
+        if (!aiKey) {
+          const readerResult = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, normalizedPrompt);
+          const readerText = typeof readerResult === "string" ? readerResult : readerResult?.message || "";
+          if (readerResult && !/^\s*(?:I'm sorry,\s*)?I (?:couldn't|can't)\b/i.test(readerText)) {
+            await handleChatResult(typeof readerResult === "string" ? { message: readerResult } : readerResult);
+            return { handled: true, prompt: normalizedPrompt };
+          }
+        }
+      }
+
       if (routed?.intent === ChatIntent?.FALLBACK_AI && isLikelyFamilyRelationPrompt(normalizedPrompt)) {
         console.debug("wbe: explicit wt mode deferring family-relation prompt to main flow", {
           prompt: normalizedPrompt.substring(0, 60),
@@ -1642,6 +1663,22 @@ export async function handleExplicitSearchMode({
           message: `I treated that as a follow-up on the current result set and opened the table filtered for \"${followupFilterText}\".`,
         });
         return { handled: true, prompt: normalizedPrompt };
+      }
+
+      // A person search that found nobody for words the plain-English reader understands
+      // ("Beacall emigrants to Australia") is a WT+ search; run that instead (live, 2026-10-10).
+      if (
+        mode !== "wtplus" &&
+        typeof searchResult === "string" &&
+        /couldn't\s+(?:find\s+profile\s+matches|work\s+out\s+a\s+concrete\s+person\s+search)/i.test(searchResult) &&
+        parseSearchSpecPrompt(normalizedPrompt)
+      ) {
+        const readerResult = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, normalizedPrompt);
+        const readerText = typeof readerResult === "string" ? readerResult : readerResult?.message || "";
+        if (readerResult && !/^\s*(?:I'm sorry,\s*)?I (?:couldn't|can't)\b/i.test(readerText)) {
+          await handleChatResult(typeof readerResult === "string" ? { message: readerResult } : readerResult);
+          return { handled: true, prompt: normalizedPrompt };
+        }
       }
 
       // Search could not form a query: let the main flow (planner) try it

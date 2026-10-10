@@ -8,9 +8,13 @@ export const NO_AI_EXAMPLE_SECTIONS = [
     id: "search",
     title: "Search WikiTree",
     intro:
-      "Search all of WikiTree (through WikiTree+) with a place, dates and a condition. Places can be countries, counties, states or towns. Dates can be years, ranges (1800-1850) or decades (1820s).",
+      "Search all of WikiTree (through WikiTree+) with a place, dates and a condition. Short searches work best: Genie reads every word, and if one doesn't fit it asks you to fill in the search form instead of guessing. Places can be countries, counties, states or towns. Dates can be years, ranges (1800-1850) or decades (1820s).",
     items: [
       { pattern: "[place] [decade or years]", examples: ["Devon 1820s"] },
+      { pattern: "[surname] born / died in [place] before or after [year]", examples: ["Smith born in Kent before 1800"] },
+      { pattern: "[place] births / deaths [years]", examples: ["Devon births post-1850"] },
+      { pattern: "born in [place] died in [place] [years]", examples: ["born in Ohio died in Texas 1900-1950"] },
+      { pattern: "Who was born / died in [place] in [year]?", examples: ["Who was born in Devon in 1820?"] },
       { pattern: "born / died before or after [year] in [place]", examples: ["born before 1750 in Devon", "died after 1900 in Liverpool"] },
       { pattern: "[place] profiles with no biography", examples: ["Cheshire profiles with no biography"] },
       { pattern: "[place] no birth or death date", examples: ["England no birth or death date"] },
@@ -19,6 +23,28 @@ export const NO_AI_EXAMPLE_SECTIONS = [
       { pattern: "[place] [years] spousal age gaps over [number] years", examples: ["Lancashire 1800-1899 spousal age gaps over 20 years"] },
       { pattern: "[place] siblings born less than [number] months apart", examples: ["Flintshire siblings born less than 5 months apart"] },
       { pattern: "[place] [occupation or group]", examples: ["Yorkshire miners", "Chicago military"] },
+      { pattern: "[first name] [surname] [year] [place]", examples: ["Mary Smith 1820 Ohio"] },
+      { pattern: "women / men who died in [place] [years]", examples: ["women who died in Texas 1900-1950"] },
+      {
+        pattern: "[place] [farmers / sailors / doctors / teachers / clergy] [years]",
+        examples: ["Kent farmers 1850s"],
+        note: "Matches WikiTree's category words for the job, such as Farmers, Yeomen and Husbandmen.",
+      },
+      {
+        pattern: "[nationality] [occupation or emigrants] [years]",
+        examples: ["Irish farmers 1850s"],
+        note: "A nationality is read as born in that country (Irish = born in Ireland). About 60 nationalities are known.",
+      },
+      {
+        pattern: "[surname] emigrated / emigrants to or from [place]",
+        examples: ["Beacall emigrants to Australia", "Scottish emigrants to Canada"],
+        note: "To a place means died there and not born there; from a place means born there and not died there. With no place, \"Beacall emigrants\" looks in WikiTree's Emigrants category.",
+      },
+      {
+        pattern: "[search] created in / before / after [year]",
+        examples: ["Smith born in Ohio created in 2023 or 2024", "Garver born in Ohio created before 2012"],
+        note: "When the profile was created on WikiTree (2008 on). Needs a name or place beside it.",
+      },
       { pattern: "[surname] profiles", examples: ["Garver profiles", "profiles with last name Garver"] },
       {
         pattern: "WikiTree+ search text",

@@ -13,6 +13,7 @@ import { createProfileSearchHandler } from "./chat_profile_search";
 import { ChatIntent, routeChatPrompt } from "./chat_router";
 import { classifyWtPrompt } from "./chat_search_mode";
 import { NO_AI_EXAMPLE_SECTIONS, allNoAiExamples, isHelpPrompt, noAiExamplesHtml, noAiExamplesWikiText } from "./chat_no_ai_examples";
+import { parseSearchSpecPrompt } from "./chat_spec_parser";
 import { parseColumnRequest } from "./chat_requested_columns";
 import { parseExportResultPrompt } from "./chat_router";
 
@@ -78,8 +79,12 @@ const DETERMINISTIC = new Set(
 
 const WTPLUS_QUERIES = {
   "Devon 1820s": "Location=Devon",
+  "Smith born in Kent before 1800": "LastNameAtBirth=Smith BirthLocation=Kent",
+  "Devon births post-1850": "BirthLocation=Devon",
+  "born in Ohio died in Texas 1900-1950": "BirthLocation=Ohio DeathLocation=Texas",
+  "Who was born in Devon in 1820?": "BirthLocation=Devon B1820",
   "born before 1750 in Devon": "[Birth Date].AsNumber In 1..17499999",
-  "died after 1900 in Liverpool": "[Death Date].AsNumber > 19009999",
+  "died after 1900 in Liverpool": "[Death Date].AsNumber >= 19010000",
   "Cheshire profiles with no biography": "Suggestions=802",
   "England no birth or death date": 'Suggestions="131 132 133 134"',
   "Shropshire unsourced born in 1820s": "Unsourced Location=Shropshire",
@@ -88,6 +93,14 @@ const WTPLUS_QUERIES = {
   "Flintshire siblings born less than 5 months apart": "[Siblings]",
   "Yorkshire miners": "CategoryWord=miner",
   "Chicago military": "CategoryWord=military",
+  "Mary Smith 1820 Ohio": "FirstName=Mary BirthLocation=Ohio B1820",
+  "women who died in Texas 1900-1950": "DeathLocation=Texas",
+  "Kent farmers 1850s": "CategoryWord=Yeomen",
+  "Irish farmers 1850s": "BirthLocation=Ireland",
+  "Beacall emigrants to Australia": "DeathLocation=Australia NOT BirthLocation=Australia",
+  "Scottish emigrants to Canada": "BirthLocation=Scotland DeathLocation=Canada",
+  "Smith born in Ohio created in 2023 or 2024": "Created=Created_2024",
+  "Garver born in Ohio created before 2012": "Created=Created_2011",
   "Garver profiles": "LastNameAtBirth=Garver",
   "profiles with last name Garver": "AllLastNames=Garver",
   "LastNameAtBirth=Garver": "LastNameAtBirth=Garver",
@@ -102,7 +115,9 @@ async function wtPlusQuery(prompt) {
         routeChatPrompt(text, { hasStructuredResult: false })?.intent
       ),
   });
-  if (target !== "wtplus") return `(${target})`;
+  // (these look like questions about your own family to the router; chat_search_mode runs the reader for them with no key)
+  const readerFirst = /\bemigrants\b/i.test(prompt) && Boolean(parseSearchSpecPrompt(prompt));
+  if (target !== "wtplus" && !readerFirst) return `(${target})`;
   jest.clearAllMocks();
   wtAPIProfileSearch.mockResolvedValue({ response: { profiles: ["1"], searchLog: "" } });
   await makeHandler().tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, prompt);

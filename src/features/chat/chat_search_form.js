@@ -76,7 +76,7 @@ export function prefillSearchForm(prompt) {
     values[span.event === "died" ? "diedFrom" : "bornFrom"] = span.from;
     values[span.event === "died" ? "diedTo" : "bornTo"] = span.to;
   }
-  const lastName = text.match(/\b(?:last\s*name|surname)\s+"?([A-Z][A-Za-z'-]+)"?/i);
+  const lastName = text.match(/\b(?:[Ll]ast\s*[Nn]ame|[Ss]urname|[Nn]amed|[Cc]alled|[Ss]urnamed)\s+"?([A-Z][A-Za-z'-]+)"?/);
   if (lastName && !PLACE_STOP.test(lastName[1])) values.lastName = lastName[1];
   const firstName = text.match(/\b(?:first\s*name|forename|given\s+name)\s+"?([A-Z][A-Za-z'-]+)"?/i);
   if (firstName && !PLACE_STOP.test(firstName[1])) values.firstName = firstName[1];

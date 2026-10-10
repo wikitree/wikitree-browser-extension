@@ -340,7 +340,9 @@ function fieldToTerm(fieldId, value) {
   }
 
   if (def.kind === "prefix") {
-    return `${def.prefix}${rawVal}`;
+    // Accept the prefix being typed too ("created_2025" -> Created_2025)
+    const bare = rawVal.toLowerCase().startsWith(def.prefix.toLowerCase()) ? rawVal.slice(def.prefix.length) : rawVal;
+    return bare ? `${def.prefix}${bare}` : "";
   }
 
   if (def.kind === "suffix") {

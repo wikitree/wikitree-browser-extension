@@ -147,8 +147,8 @@ export function needsAiKeyMessage({ withForm = false } = {}) {
     text: [
       "We need AI to respond to this. Add an AI API key in Genie's options. The link below shows how to get one and where to put it.",
       withForm
-        ? "Without one, you can search WikiTree by filling in the boxes below, or pick a chart at the top."
-        : "Without one, Genie can still find people by name, place or date and show the charts at the top.",
+        ? 'Without one, Genie reads short searches like "Devon 1820s" or "Garver profiles". Fill in the boxes below, pick a chart at the top, or press "What can I type?" to see what it understands.'
+        : 'Without one, Genie still understands short searches like "Devon 1820s", "Garver profiles" or "my 3rd cousins", and shows the charts at the top. Press "What can I type?" to see the patterns.',
     ].join("\n"),
     actions: [{ label: "How to get and add an AI API key", actionType: "external-link", url: AI_KEY_HELP_URL }],
   };

@@ -281,10 +281,11 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
     },
     {
       id: "created",
-      label: "created",
-      kind: "index",
+      label: "Created_ (year)",
+      kind: "prefix",
+      prefix: "Created_",
       input: "text",
-      placeholder: "e.g. created_2025",
+      placeholder: "e.g. 2025 (builds Created_2025)",
       group: "Management",
     },
 

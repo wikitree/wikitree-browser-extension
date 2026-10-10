@@ -25,6 +25,13 @@ describe("search form (no AI key)", () => {
       diedTo: "1919",
       flags: ["Unsourced"],
     });
+    expect(prefillSearchForm("women named Stevenson born in Scotland 1850-1899 who emigrated")).toEqual({
+      lastName: "Stevenson",
+      birthPlace: "Scotland",
+      bornFrom: "1850",
+      bornTo: "1899",
+      gender: "female",
+    });
     expect(prefillSearchForm("first name Mary, no parents")).toEqual({ firstName: "Mary", flags: ["NoParents"] });
   });
 

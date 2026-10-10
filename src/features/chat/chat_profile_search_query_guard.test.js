@@ -89,6 +89,68 @@ describe("chat_profile_search query guards", () => {
     expect(executedQuery).not.toContain("19Cen");
   });
 
+  test("a parse with words of the sentence in a name or place isn't run on WT+ (no key)", async () => {
+    const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
+    const garbage = [
+      "women named Stevenson born in Scotland 1850-1899 who emigrated",
+      "most common surnames in Shropshire",
+      "twins born in Lancashire",
+      "Jones family of Wales",
+      "Irish farmers born in Kent",
+      "Ohio 1850s no sources women",
+      "born in Dublin to Irish parents",
+      "Kent-born people",
+    ];
+    for (const prompt of garbage) {
+      wtAPIProfileSearch.mockClear();
+      const result = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, prompt);
+      if (wtAPIProfileSearch.mock.calls.length) throw new Error(`ran: ${prompt} -> ${decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])}`);
+      expect(result).toBeTruthy(); // (Genie answers, with the form or the "needs AI" message, but runs nothing)
+    }
+  });
+
+  test("occupations, a bare year after two names, and emigrants to a place run (no key)", async () => {
+    const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Kent farmers 1850s");
+    let sent = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
+    expect(sent).toContain("CategoryWord=Yeomen");
+    expect(sent).toContain("Location=Kent");
+    wtAPIProfileSearch.mockClear();
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Mary Smith 1820 Ohio");
+    sent = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
+    expect(sent).toContain("FirstName=Mary");
+    expect(sent).toContain("BirthLocation=Ohio");
+    wtAPIProfileSearch.mockClear();
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Beacall emigrants to Australia");
+    sent = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
+    expect(sent).toContain("DeathLocation=Australia");
+    expect(sent).toContain("NOT BirthLocation=Australia");
+  });
+
+  test("real places with 'and' or 'of' are still searched (Trinidad and Tobago, Isle of Wight)", async () => {
+    const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Smith born in Trinidad and Tobago before 1900");
+    expect(wtAPIProfileSearch).toHaveBeenCalledTimes(1);
+    expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])).toContain('BirthLocation="Trinidad and Tobago"');
+  });
+
+  test("created years run as one Created_ token per year (no key)", async () => {
+    const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Smith born in Ohio created in 2023 or 2024");
+    expect(wtAPIProfileSearch).toHaveBeenCalledTimes(1);
+    const sent = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
+    expect(sent).toContain("Created_2023");
+    expect(sent).toContain("Created_2024");
+    expect(sent).toContain("BirthLocation=Ohio");
+  });
+
+  test("a bare 'created in 2023' has a base term (Created_2023)", async () => {
+    const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "profiles created in 2023");
+    expect(wtAPIProfileSearch).toHaveBeenCalledTimes(1);
+    expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])).toContain("Created=Created_2023");
+  });
+
   test("blocks a saved WT+ re-run containing an unknown field without calling the API", async () => {
     const { reRunSavedWtPlusQuery } = makeHandler();
 

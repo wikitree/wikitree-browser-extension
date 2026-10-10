@@ -201,3 +201,16 @@ describe("notPlaces", () => {
     ).toContain('bad parentStatus entry: {"parent":"father","status":"adopted"}');
   });
 });
+
+describe("created years", () => {
+  test("one branch per creation year, each with the other terms", () => {
+    const out = compileSearchSpec({ names: { anyLastName: "Smith" }, created: { years: [2023, 2024] } });
+    expect(out.errors).toEqual([]);
+    expect(out.query).toBe("AllLastNames=Smith Created=Created_2023 OR AllLastNames=Smith Created=Created_2024");
+  });
+  test("ranges are bounded to 2008 on", () => {
+    const out = compileSearchSpec({ places: [{ text: "Kent", event: "birth" }], created: { to: 2010 } });
+    expect(out.query.split(" OR ")).toHaveLength(3);
+    expect(compileSearchSpec({ created: { from: 1990, to: 1995 } }).errors.length).toBe(1);
+  });
+});
