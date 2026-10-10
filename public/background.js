@@ -416,7 +416,48 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     handleSharePageFetchImage(message, sendResponse);
     return true; // Keep channel open for async response
   }
+
+  if (message.action === "goldStandardInspector") {
+    handleGoldStandardInspector(message, sendResponse);
+    return true;
+  }
 });
+
+async function handleGoldStandardInspector(message, sendResponse) {
+  const profile = typeof message?.profile === "string" ? message.profile.trim() : "";
+  if (!profile || profile.length > 200 || !/^[^\s/?#&=]+-\d+$/.test(profile)) {
+    sendResponse({ success: false, error: "The profile ID is missing or invalid." });
+    return;
+  }
+
+  const url = new URL("https://apps.wikitree.com/apps/harris5439/gold-standard/api/inspector.php");
+  url.searchParams.set("profile", profile);
+  url.searchParams.set("appId", "WBEGoldStandard");
+
+  try {
+    const response = await fetch(url.toString(), { headers: { Accept: "application/json" } });
+    if (!response.ok) {
+      throw new Error(`The inspector service returned HTTP ${response.status}.`);
+    }
+    const body = await response.text();
+    if (!body.trim()) {
+      throw new Error("The inspector service returned an empty response instead of JSON.");
+    }
+
+    let data;
+    try {
+      data = JSON.parse(body);
+    } catch {
+      throw new Error("The inspector service returned invalid JSON.");
+    }
+    sendResponse({ success: true, data });
+  } catch (error) {
+    sendResponse({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
 
 // Share Page: fetch a picture from one of WikiTree's own sites for the content script, which the page itself is
 // not allowed to read (for example portraits served from apps.wikitree.com). This ignores the browser's cross-origin
