@@ -267,6 +267,10 @@ export function createChatHistoryHandlers({
     if (/\bin currently accessible family data yet\b/i.test(normalizedMessage)) {
       return false;
     }
+    // Signing in is the fix, which the AI can't do ("my parents", private until you sign in; live, 2026-10-11).
+    if (/\bApps button\b/.test(normalizedMessage)) {
+      return false;
+    }
 
     return /^\s*(?:I'm\s+sorry,\s*)?I\s+could(?:\s+not|n't)\b/i.test(normalizedMessage);
   }
@@ -691,7 +695,7 @@ export function createChatHistoryHandlers({
     $item.append($label, $body);
     // A message that tells people to use the Apps button gets one of its own: the one on the page may be scrolled
     // out of sight, hidden behind the chat, or not on this page at all.
-    if (role === "assistant" && createAppsLoginButton && String(messageText).includes("green Apps button")) {
+    if (role === "assistant" && createAppsLoginButton && String(messageText).includes("Apps button")) {
       $item.append($("<div>").addClass("chat-message-apps-login").append(createAppsLoginButton()));
     }
     if (searchForm) {

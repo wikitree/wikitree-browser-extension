@@ -294,11 +294,25 @@ describe("relation lists with a filter or details clause go to the router (D4/D5
     }
   );
 
-  test("a plain relation list is still handled", async () => {
+  // Both "children's bios" and "children bios" (the user, 2026-10-11).
+  test.each(["Marguerite's children's bios", "Marguerite's children bios", "Marguerite's parents' bios", "Marguerite's parents bios"])(
+    "a relation's bios are still handled: %s",
+    async (prompt) => {
+      const deps = makeDeps();
+      const handlers = createChatBioHandlers(deps);
+      await handlers.tryHandlePersonBioPrompt(prompt);
+      expect(deps.resolveConnectionTargetPerson).toHaveBeenCalledWith("Marguerite", expect.any(String));
+      const wanted = /children/.test(prompt) ? { getChildren: 1 } : { getParents: 1 };
+      expect(deps.WikiTreeAPI.getRelatives).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.anything(), expect.objectContaining(wanted));
+    }
+  );
+
+  // "Lincoln-103's parents" opened a bio list (live, 2026-10-11): a plain list is the router's.
+  test.each(["Marguerite's children", "Lincoln-103's parents", "Ted's grandparents?"])("leaves the list %s to the router", async (prompt) => {
     const deps = makeDeps();
     const handlers = createChatBioHandlers(deps);
-    await handlers.tryHandlePersonBioPrompt("Marguerite's children");
-    expect(deps.resolveConnectionTargetPerson).toHaveBeenCalledWith("Marguerite", expect.any(String));
+    expect(await handlers.tryHandlePersonBioPrompt(prompt)).toBeNull();
+    expect(deps.resolveConnectionTargetPerson).not.toHaveBeenCalled();
   });
 });
 
@@ -353,10 +367,10 @@ describe("a question about a relative goes on to the AI (F4)", () => {
       expect(await handlers.tryHandlePersonBioPrompt(prompt)).toBeNull();
     }
   );
-  test("a plain relation list is still handled", async () => {
+  test("a relation's bios are still handled", async () => {
     const deps = makeDeps();
     const handlers = createChatBioHandlers(deps);
-    await handlers.tryHandlePersonBioPrompt("Marguerite's children");
+    await handlers.tryHandlePersonBioPrompt("Marguerite's children's bios");
     expect(deps.resolveConnectionTargetPerson).toHaveBeenCalled();
   });
 });
@@ -406,6 +420,28 @@ describe("a list request is not a bio request", () => {
     const handlers = createChatBioHandlers(deps);
     expect(await handlers.tryHandlePersonBioPrompt(prompt)).toBeNull();
   });
+});
+
+describe("relativesTableTitle", () => {
+  const { relativesTableTitle } = require("./chat_relation_chain_text");
+  test.each([
+    ["children", "Children of Charles Darwin (Darwin-15)"],
+    ["parents", "Parents of Charles Darwin (Darwin-15)"],
+    ["grandparents", "Grandparents of Charles Darwin (Darwin-15)"],
+    ["ancestors born in England", "Ancestors of Charles Darwin (Darwin-15) born in England"],
+    ["ancestors by age at death", "Ancestors of Charles Darwin (Darwin-15) by age at death"],
+    ["3rd cousins (and up to 3 removed)", "3rd cousins (and up to 3 removed) of Charles Darwin (Darwin-15)"],
+  ])("%s", (noun, title) => expect(relativesTableTitle(noun, "Charles Darwin (Darwin-15)")).toBe(title));
+});
+
+describe("foundRelativesLead", () => {
+  const { foundRelativesLead } = require("./chat_relation_chain_text");
+  test.each([
+    ["parents", 2, "Found both of Abraham's parents."],
+    ["parent", 1, "Found one of Abraham's parents."],
+    ["children", 10, "Found Charles's 10 children."],
+    ["sibling", 1, "Found Charles's sibling."],
+  ])("%s ×%d", (noun, count, text) => expect(foundRelativesLead(noun, count, noun.startsWith("p") ? "Abraham" : "Charles")).toBe(text));
 });
 
 describe("relationshipListLead", () => {
@@ -474,5 +510,26 @@ describe("descendantCountMessage", () => {
       "Philip (Beacall-11) has 6 descendants on WikiTree within 10 generations: 2 children, 3 grandchildren, 1 great-grandchild."
     );
     expect(descendantCountMessage([{ degrees: 1 }], "You", "have")).toBe("You have 1 descendant on WikiTree.");
+  });
+});
+
+// Murray (2026-10-11): "read this biography aloud" looked for a profile called "null", and "read this
+// profile's biography aloud" for one called "read this profile".
+describe("this profile's biography", () => {
+  test.each([
+    "read this biography aloud",
+    "read his biography aloud",
+    "read this profile's biography aloud",
+    "this profile's biography",
+    "his bio",
+    "show me the biography",
+    "show this profile's bio",
+    "Could you read her biography out loud?",
+  ])("%s opens the page person's bio", async (prompt) => {
+    const deps = makeDeps();
+    const handlers = createChatBioHandlers(deps);
+    const result = await handlers.tryHandlePersonBioPrompt(prompt);
+    expect(deps.resolveConnectionTargetPerson).toHaveBeenCalledWith("Dupont-1", expect.any(String));
+    expect(JSON.stringify(result)).not.toMatch(/couldn't identify/);
   });
 });

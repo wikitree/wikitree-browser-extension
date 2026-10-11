@@ -1,4 +1,4 @@
-import { findWikiTreeIdOnWikidata } from "./chat_wikidata";
+import { findTopWikiTreeIdOnWikidata, findWikiTreeIdOnWikidata } from "./chat_wikidata";
 
 const entity = (id, label, wtId, born) => ({
   labels: { en: { value: label } },
@@ -44,5 +44,23 @@ describe("findWikiTreeIdOnWikidata", () => {
       throw new Error("offline");
     };
     expect(await findWikiTreeIdOnWikidata(["Bill Clinton"], 1946, { fetchImpl: broken })).toBeNull();
+  });
+});
+
+describe("findTopWikiTreeIdOnWikidata", () => {
+  test("the first hit's WikiTree ID", async () => {
+    expect(await findTopWikiTreeIdOnWikidata("John Smith", { fetchImpl: fakeFetch() })).toEqual({
+      wtId: "Smith-1",
+      label: "John Smith",
+      qid: "Q3",
+    });
+  });
+  test("null when the first hit has no WikiTree ID (no looking further down)", async () => {
+    expect(await findTopWikiTreeIdOnWikidata("Bill Clinton", { fetchImpl: fakeFetch() })).toBeNull();
+  });
+  test("a full name only", async () => {
+    const calls = [];
+    expect(await findTopWikiTreeIdOnWikidata("Bill", { fetchImpl: fakeFetch(calls) })).toBeNull();
+    expect(calls).toHaveLength(0);
   });
 });

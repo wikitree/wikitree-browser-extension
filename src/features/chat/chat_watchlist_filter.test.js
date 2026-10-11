@@ -82,7 +82,7 @@ describe("watchlist filters", () => {
         getUserNumId: () => "99",
       });
     const signedOut = await make(false).tryHandleWatchlistPrompt({ mode: "list" });
-    expect(signedOut).toMatch(/green Apps button/);
+    expect(signedOut).toMatch(/Apps button/);
     expect(signedOut).not.toMatch(/^I couldn/);
     expect(await make(true).tryHandleWatchlistPrompt({ mode: "list" })).toBe("There are no person profiles on your watchlist.");
   });

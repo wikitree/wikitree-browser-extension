@@ -221,8 +221,8 @@ describe("count and empty-list wording (live F9/E1, 2026-10-03)", () => {
       expect(deps.isLoggedOutOfAppsServer).toHaveBeenCalled();
       return typeof result === "string" ? result : result.message;
     };
-    expect(await ask(true)).toContain("Click the green Apps button below");
-    expect(await ask(false)).not.toContain("green Apps button");
+    expect(await ask(true)).toContain("Apps button below, then open a new page and ask again");
+    expect(await ask(false)).not.toContain("Apps button");
   });
 });
 

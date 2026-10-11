@@ -77,6 +77,6 @@ describe("profiles I manage", () => {
     WikiTreeAPI.isLoggedIntoAPI.mockResolvedValue(false);
     const result = await makeHandler().tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "profiles I manage born in Kent");
     expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])).toContain("Manager=Me-1");
-    expect(result.message).toContain("green Apps button");
+    expect(result.message).toContain("Apps button");
   });
 });

@@ -1,7 +1,7 @@
 import { parseSearchSpecPrompt } from "./chat_spec_parser";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { WIKITREE_GLOSSARY_FOR_AI } from "./chat_wikitree_glossary";
-import { getProfilePersonInfo } from "../../core/common";
+import { getFocusPersonInfo, getChosenFocusPerson } from "./chat_focus_person";
 import { isLikelyMarriedNoChildrenPrompt } from "./chat_married_no_children_filter";
 import { isLikelyParentAgeAtBirthPrompt } from "./chat_parent_age_filter";
 import { isLikelySiblingBirthGapPrompt } from "./chat_sibling_birth_gap_filter";
@@ -28,7 +28,7 @@ function extractNamesFromPrompt(prompt) {
 async function appendProfileContextForCandidates(conversationContext, prompt) {
   let nextContext = String(conversationContext || "");
   const nameCandidates = extractNamesFromPrompt(prompt);
-  const profilePersonInfo = getProfilePersonInfo();
+  const profilePersonInfo = getFocusPersonInfo();
   const seenProfileKeys = new Set();
 
   async function appendProfileContext(profile, label = "") {
@@ -1002,9 +1002,10 @@ export async function classifyWtPrompt({ prompt, getChatAiConfig, buildRecentUse
   // Whose profile this is: "Where did Philip live?" on Philip's profile is a question about him, not a search for him.
   let profileLine = "";
   try {
-    const info = getProfilePersonInfo();
+    const info = getFocusPersonInfo();
     if (info?.Name && !/^Space:/i.test(info.Name)) {
-      profileLine = `The user is viewing the WikiTree profile of ${info.FullName || info.Name} (${info.Name}). A question about that person or their family (where they lived, what work they did, whom they married, what happened to them) is answer, even when it names them.`;
+      const where = getChosenFocusPerson() ? "has chosen to ask about" : "is viewing the WikiTree profile of";
+      profileLine = `The user ${where} ${info.FullName || info.Name} (${info.Name}). A question about that person or their family (where they lived, what work they did, whom they married, what happened to them) is answer, even when it names them.`;
     }
   } catch (error) {
     // (no profile on this page)

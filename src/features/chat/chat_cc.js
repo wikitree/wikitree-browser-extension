@@ -450,7 +450,7 @@ export function createChatCcHandlers({
         }
         return loggedIn
           ? "There are no person profiles on your watchlist."
-          : "Your watchlist can only be read when you're signed in to WikiTree Apps. Click the green Apps button below and ask again.";
+          : "Your watchlist can only be read when you're signed in to WikiTree Apps. Sign in with the Apps button below, then open a new page and ask again.";
       }
 
       const rows = entries

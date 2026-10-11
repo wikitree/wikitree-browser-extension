@@ -88,7 +88,6 @@ export function showNameCloudPopup(clouds, options = {}) {
   popup.className = "wbe-popup chat-popup ui-draggable wbe-chart-popup";
   popup.id = "wbe-name-cloud-popup";
   popup.style.display = "flex";
-  popup.style.height = "min(720px, 92vh)";
   popup.innerHTML = `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>

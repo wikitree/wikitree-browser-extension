@@ -11,7 +11,7 @@
 export const CHART_SHORTCUTS = [
   { key: "familymap", label: "Relationship Chart", title: "Relatives grouped by relationship, with names and dates", words: "relationship\\s+chart|family\\s+(?:map|matrix|cards|relationships)|kinship\\s+(?:map|dashboard)", prompt: (id) => `${id}'s relationship chart` },
   { key: "fan", label: "Fan", title: "Ancestors as a fan chart", words: "fan(?:\\s+chart)?|ancestors?\\s+(?:fan|chart|tree)|(?:family\\s+)?tree\\s+chart|pedigree(?:\\s+chart)?", prompt: (id) => `${id}'s fan chart` },
-  { key: "explorer", label: "Explorer", title: "Family Explorer: zoom in for children, out for parents", words: "(?:family\\s+)?explorer|fractal(?:\\s+tree)?|family\\s+world|cc-?7\\s+tree", prompt: (id) => `${id}'s family explorer` },
+  { key: "explorer", label: "Explorer", title: "Family Explorer: the family round someone, as cards, Branches or a Galaxy", words: "(?:family\\s+)?explorer|fractal(?:\\s+tree)?|branches|family\\s+world|cc-?7\\s+tree", prompt: (id) => `${id}'s family explorer` },
   { key: "descendants", label: "Descendants", title: "Descendants as a sunburst", words: "descendants?(?:\\s+(?:chart|sunburst|tree))?|sunburst", prompt: (id) => `${id}'s descendant chart` },
   { key: "timeline", label: "Timeline", title: "Family timeline: births, marriages and deaths", words: "(?:family\\s+)?timeline", prompt: (id) => `${id}'s family timeline` },
   { key: "lifespans", label: "Lifespans", title: "Every ancestor's life as a bar", words: "lifespans?|life\\s+spans?", prompt: (id) => `${id}'s lifespans` },
@@ -27,6 +27,15 @@ export const CHART_SHORTCUTS = [
   { key: "dnaproof", label: "DNA confirmed", title: "Which parent links are confirmed with DNA", words: "dna[\\s-]+confirmed(?:\\s+chart)?", prompt: (id) => `${id}'s DNA confirmed chart` },
   { key: "ydnamap", label: "Y-DNA map", title: "Map of the profiles connected to this person's Y-DNA test, by birthplace", words: "y[\\s-]?dna\\s+(?:match\\s+)?map", prompt: (id) => `${id}'s Y-DNA match map` },
   { key: "dnatesters", label: "Who could test?", title: "Who carries this person's Y-DNA or mtDNA and could take a test", words: "dna\\s+(?:testers|carriers)", prompt: (id) => `who could take a DNA test for ${id}` },
+];
+
+// The "Charts ▾" menu in every chart window's header (2026-10-11), by what the chart is about.
+// Keys not in CHART_SHORTCUTS (lifeline, familysize, desclives) appear when the chart links to them.
+export const CHART_MENU_GROUPS = [
+  { label: "Ancestors", keys: ["fan", "explorer", "lifespans", "history", "map", "names", "calendar", "overview", "familysize", "ages"] },
+  { label: "Descendants", keys: ["descendants", "descmap", "desclives"] },
+  { label: "Family", keys: ["familymap", "timeline", "lifeline"] },
+  { label: "DNA", keys: ["xdna", "dnalines", "dnaproof"] },
 ];
 
 // The buttons along the top of Genie, in order (the descendants' map is reached from the descendant chart).
@@ -85,10 +94,15 @@ export function chartShortcutCanonicalPrompt(key, wtid) {
   return chart && wtid ? chart.prompt(wtid) : "";
 }
 
-/** What a chart button sends for a person: "Beacall-9 fan chart". */
-export function chartButtonPrompt(key, wtid) {
+/**
+ * What a chart button sends for a person: "Beacall-9 fan chart", or with a first name
+ * "Ian (Beacall-9) fan chart", so the words typed into the box read naturally and show the
+ * ID works (sendChatPrompt's preferBracketedIds reads it back as "Beacall-9 fan chart").
+ */
+export function chartButtonPrompt(key, wtid, firstName = "") {
   const chart = CHART_SHORTCUTS.find((item) => item.key === key);
   if (!chart || !wtid) return "";
   const word = { familymap: "relationship chart", fan: "fan chart", explorer: "Family Explorer", descendants: "descendants", timeline: "timeline", lifespans: "lifespans", history: "in history", map: "map", calendar: "calendar", names: "name cloud", overview: "overview", ages: "ages", xdna: "X-DNA", dnalines: "DNA lines", dnaproof: "DNA confirmed", dnatesters: "DNA testers", ydnamap: "Y-DNA map", descmap: "descendants' map" }[key];
-  return `${wtid} ${word}`;
+  const name = String(firstName || "").trim();
+  return /^\p{Lu}[\p{L}'’-]*$/u.test(name) ? `${name} (${wtid}) ${word}` : `${wtid} ${word}`;
 }

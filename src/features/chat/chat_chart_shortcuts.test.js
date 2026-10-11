@@ -1,6 +1,7 @@
 jest.mock("../../core/common", () => ({ getProfilePersonInfo: jest.fn(() => ({ Name: "Cook-8721" })) }));
 import { CHART_BAR_KEYS, CHART_SHORTCUTS, chartButtonPrompt, chartShortcutCanonicalPrompt, parseChartShortcutPrompt } from "./chat_chart_shortcuts";
 import { routeChatPrompt, ChatIntent } from "./chat_router";
+import { preferBracketedIds } from "./chat_family_circle_lookup";
 
 describe("parseChartShortcutPrompt", () => {
   test.each([
@@ -57,6 +58,14 @@ describe("chart buttons", () => {
   });
   test.each(CHART_BAR_KEYS)("%s button parses for an ID with underscores", (key) => {
     expect(parseChartShortcutPrompt(chartButtonPrompt(key, "Chicoine_dit_Henley-1"))).toEqual({ chart: key, owner: "Chicoine_dit_Henley-1" });
+  });
+  test.each(CHART_BAR_KEYS)("%s button with a first name reads as the ID", (key) => {
+    expect(chartButtonPrompt(key, "Beacall-9", "Ian")).toMatch(/^Ian \(Beacall-9\) /);
+    expect(routeChatPrompt(preferBracketedIds(chartButtonPrompt(key, "Beacall-9", "Ian")))).toEqual(routeChatPrompt(chartButtonPrompt(key, "Beacall-9")));
+  });
+  test("a first name that isn't a plain capitalised word is left out", () => {
+    expect(chartButtonPrompt("fan", "Beacall-9", "ian")).toBe("Beacall-9 fan chart");
+    expect(chartButtonPrompt("fan", "Beacall-9", "")).toBe("Beacall-9 fan chart");
   });
   test("the Y-DNA map button goes straight to the DNA map", () => {
     expect(routeChatPrompt(chartButtonPrompt("ydnamap", "Beacall-9"))).toEqual({ intent: ChatIntent.DNA, params: { kind: "map", owner: "Beacall-9", dnaType: "yDNA" } });

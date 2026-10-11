@@ -29,7 +29,8 @@ import { parseSearchSpecPrompt } from "./chat_spec_parser";
 import { hasSentenceWords, looksLikeNotASurname, looksLikeSurnamePlace } from "./chat_sentence_words";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { dataTables, dataTablesLoad } from "../../core/API/wtPlusData";
-import { getProfilePersonInfo, getUserNumId, getUserWtId } from "../../core/common";
+import { getUserNumId, getUserWtId } from "../../core/common";
+import { getFocusPersonInfo } from "./chat_focus_person";
 import {
   MANAGED_WATCHLIST_FIELDS,
   isManagedBy,
@@ -4409,7 +4410,7 @@ export function createProfileSearchHandler({
   }
 
   function getCurrentProfileWtPlusRoot() {
-    const profile = getProfilePersonInfo();
+    const profile = getFocusPersonInfo();
     if (!profile || Array.isArray(profile)) {
       return null;
     }
@@ -5675,6 +5676,7 @@ export function createProfileSearchHandler({
     if (aiResult?.clarify) {
       return {
         message: aiResult.clarify.question,
+        awaitingDetail: true, // (the next message may be the answer)
         actions: aiResult.clarify.options.map((option) => ({
           label: String(option.label),
           actionType: "send-prompt",
@@ -7187,7 +7189,7 @@ export function createProfileSearchHandler({
       // but only an API session can show them.
       if (isWtPlusExecutionFailure(result) || loggedIn) return result;
       const note =
-        "Private profiles you manage can only be shown when you're signed in to WikiTree Apps. Click the green Apps button below and ask again.";
+        "Private profiles you manage can only be shown when you're signed in to WikiTree Apps. Sign in with the Apps button below, then open a new page and ask again.";
       return typeof result === "string"
         ? `${result}
 ${note}`

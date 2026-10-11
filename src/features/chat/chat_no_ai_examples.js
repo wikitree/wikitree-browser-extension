@@ -75,7 +75,7 @@ export const NO_AI_EXAMPLE_SECTIONS = [
       {
         pattern: "profiles I manage [with a condition or place]",
         examples: ["profiles I manage with no sources"],
-        note: "Read from your watchlist when you're signed in to WikiTree Apps (the green Apps button); otherwise from WikiTree+. Private profiles can only be shown when you're signed in to Apps. A big watchlist takes a minute or two to read the first time; Genie then keeps it for a few hours (\"refresh my watchlist\" reads it again).",
+        note: "Read from your watchlist when you're signed in to WikiTree Apps (the Apps button); otherwise from WikiTree+. Private profiles can only be shown when you're signed in to Apps. A big watchlist takes a minute or two to read the first time; Genie then keeps it for a few hours (\"refresh my watchlist\" reads it again).",
       },
       {
         pattern: "WikiTree+ search text",

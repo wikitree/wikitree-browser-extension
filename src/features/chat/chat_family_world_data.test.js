@@ -4,6 +4,7 @@ import {
   buildFamilyWorldLayout,
   buildFamilyWorldSummary,
   climbFamilyScene,
+  describeFamilyRoot,
   rerootFamilyScene,
   normaliseFamilyScene,
   startFamilyScene,
@@ -200,9 +201,17 @@ describe("family world", () => {
     expect(byUid(after, "p30").parent).toBe(byUid(after, "m4-10").index);
   });
 
+  test("what ↑ Up leads to is named (user, 2026-10-11)", () => {
+    const w = world();
+    expect(describeFamilyRoot(w, { a: 2, b: 3 })).toBe("Tom X & Sue X");
+    expect(describeFamilyRoot(w, { a: 6, b: 0 })).toBe("Joe X");
+    expect(describeFamilyRoot(w, { band: [{ a: 6, b: 7 }, { a: 0, b: 0 }], from: { a: 2, b: 3 } })).toBe("both sets of parents of Tom X & Sue X");
+    expect(describeFamilyRoot(w, null)).toBe("");
+  });
+
   test("summary", () => {
     expect(buildFamilyWorldSummary(world(), "Ann's")).toMatch(
-      /^Ann's Family Explorer starts with 9 people \(2 generations of ancestors so far\)\. It opens on Ann among her brother or sister, with their husbands and wives\./
+      /^Ann's Family Explorer starts with 9 people \(2 generations of ancestors so far\)\. It opens on Ann\. Click anyone to see their children; ↑ Parents goes up to her parents' family, with her brother or sister, and on up\./
     );
   });
 });
@@ -220,9 +229,13 @@ describe("parseFamilyWorldPrompt", () => {
     ["show me everyone connected to Windsor-1", { owner: "Windsor-1", subjectPrompt: "Windsor-1's ancestors" }],
     ["explore my whole family tree", { owner: "my", subjectPrompt: "my ancestors" }],
     ["open a zoomable CC7 for me", { owner: "my", subjectPrompt: "my ancestors" }],
-    ["fractal", { owner: "", subjectPrompt: "this profile's ancestors" }],
-    ["show my fractal tree", { owner: "my", subjectPrompt: "my ancestors" }],
-    ["fractal tree for Cook-8721", { owner: "Cook-8721", subjectPrompt: "Cook-8721's ancestors" }],
+    // (a named view opens on that view: user, 2026-10-11, the tree view is now "Branches")
+    ["fractal", { owner: "", subjectPrompt: "this profile's ancestors", view: "tree" }],
+    ["show my fractal tree", { owner: "my", subjectPrompt: "my ancestors", view: "tree" }],
+    ["fractal tree for Cook-8721", { owner: "Cook-8721", subjectPrompt: "Cook-8721's ancestors", view: "tree" }],
+    ["show Cook-8721's branches", { owner: "Cook-8721", subjectPrompt: "Cook-8721's ancestors", view: "tree" }],
+    ["branches view for her", { owner: "her", subjectPrompt: "her ancestors", view: "tree" }],
+    ["show my galaxy", { owner: "my", subjectPrompt: "my ancestors", view: "galaxy" }],
   ])("%s", (prompt, expected) => expect(parseFamilyWorldPrompt(prompt)).toEqual(expected));
 
   test.each(["show my cc7", "notables in my CC7", "show my family tree", "who is in my family world cup team", "cc7 born in Ohio", "show my ancestors as a fractal tree", "fractal tree of my descendants"])("declines %s", (prompt) =>

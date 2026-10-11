@@ -754,4 +754,9 @@
   body.darkMode .ebWBE .WBEHelpIcon svg path {
     fill: #a5d167;
   }
+  /* The envelope is drawn as a mask over the span's background colour, so the span rule above made it
+     match the page. Give it the same light green as the recoloured SVG icons (e.g. the connection icon). */
+  body.darkMode .icon--email:not(#dummyID) {
+    background-color: #a5d167 !important;
+  }
 }

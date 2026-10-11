@@ -22,19 +22,23 @@ import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { buildConnectedTestsAnswer, buildHaplogroupAnswer, dnaTypesFromTestSlugs } from "./chat_dna";
 import { getUserWtId, getUserNumId, getProfilePersonInfo } from "../../core/common";
+import { focusInfoFromPicker, focusIsPagePerson, getChosenFocusPerson, getFocusPersonInfo, setFocusPerson, updateFocusPerson } from "./chat_focus_person";
 import { vetSuggestions } from "./chat_suggestions";
 import { SHARED_AI_KEY_IDS } from "../../core/options/shared_ai_options";
 import { setHighestZIndex } from "../../core/common";
 import { routeChatPrompt, ChatIntent, pause, parseExportResultPrompt, tidyKinFollowUp } from "./chat_router";
 import { familySurnames, findNameInProfiles, hasFamilySurname, preferBracketedIds } from "./chat_family_circle_lookup";
 import { CHART_BAR_KEYS, CHART_SHORTCUTS, chartButtonPrompt, chartShortcutCanonicalPrompt } from "./chat_chart_shortcuts";
+import { isUnaskedEmptyResultFilter } from "./chat_last_result";
+import { createWhoPicker, lifeYearsText, pickerFirstName, watchlistPickerPeople } from "./chat_who_picker";
+import { readMemberWatchlist, watchlistDisplayName } from "./chat_managed_profiles";
 import "datatables.net-dt/css/jquery.dataTables.css";
 import "datatables.net";
 import * as XLSX from "xlsx";
 import "jquery-ui/ui/widgets/draggable";
 import "jquery-ui/ui/widgets/resizable";
 import "./chat.css";
-import { watchForWikiTreeButtons } from "./chat_chart_common";
+import { setChartMenuHandler, watchForWikiTreeButtons } from "./chat_chart_common";
 import { installChatDebugConsole } from "./chat_debug_console";
 import { findAmbiguousCenturyDecade, rewriteExplicitCenturyDecadeWording } from "./chat_century_decade";
 import { createChatConnectionHandlers } from "./chat_connections";
@@ -63,8 +67,9 @@ import { createChatRelationHandlers } from "./chat_relations";
 import { createChatPeopleHandlers } from "./chat_people";
 import { createChatBioHandlers } from "./chat_bio";
 import { createChatHistoryHandlers } from "./chat_history";
-import { createAppsLoginButton } from "../../core/loginButton";
+import { createAppsLoginButton, redeemAuthcode } from "../../core/loginButton";
 import { createChatAiPlannerHandlers } from "./chat_planner";
+import { mergeFollowupWithUnanswered } from "./chat_followup_merge";
 import {
   shouldOfferDisambiguation,
   buildDisambiguationMessage,
@@ -331,7 +336,7 @@ const CHAT_AI_MESSAGE_MAX_CHARS = 500;
 const CHAT_PERSISTED_STRUCTURED_ROWS_MAX = 250;
 const CHAT_PERSON_MEMORY_MAX_ENTRIES = 100;
 const CHAT_PERSON_MEMORY_AI_CONTEXT_MAX = 10;
-const CHAT_APPS_LOGIN_HINT = "Log in to the apps server for better results. Use the green Apps button below.";
+const CHAT_APPS_LOGIN_HINT = "Log in to the apps server for better results. Use the Apps button below.";
 const CHAT_JSON_BATCH_TRIGGER = /^\s*(?:search\s+)?person(?:s)?\s+from\s+json\s*:?\s*/i;
 const CHAT_JSON_BATCH_MAX_CHOICES = 6;
 const CHAT_JSON_BATCH_ENTRY_PAUSE_MS = 80;
@@ -347,6 +352,10 @@ let pendingDisambiguationContext = null;
 // should run. Without this a bare affirmative falls through to profile search
 // and returns nonsense name matches for "Sure.".
 let pendingFollowupOffer = null;
+// The question Genie couldn't answer, or asked about, just now; the next reply may add detail to it.
+let awaitingDetailFor = "";
+// (the request as routed: after a follow-up was merged into it)
+let lastRoutedPrompt = "";
 let lastConnectionCandidates = [];
 let lastConnectionRankedMatches = [];
 let lastConnectionPopupResult = null;
@@ -1253,7 +1262,8 @@ const {
   CHAT_LAST_BIO_KEY,
   wtAPIProfileSearch,
   WikiTreeAPI,
-  getProfilePersonInfo,
+  getProfilePersonInfo: getFocusPersonInfo,
+  focusIsPagePerson,
   getProfileRootPerson,
   setHighestZIndex,
   escapeHtml,
@@ -1276,10 +1286,12 @@ const {
   buildRecentConversationForAi,
   getLastStructuredResult: () => lastStructuredResult,
   getLastConnectionCandidates: () => lastConnectionCandidates,
-  findSpouseProfileIdsFromDOM,
-  findChildrenProfileIdsFromDOM,
-  findSiblingProfileIdsFromDOM,
-  findParentProfileIdsFromDOM,
+  // The page's family links, only for the page's own person: "my parents" (private on the API)
+  // listed the page person's parents as yours (live, 2026-10-11).
+  findSpouseProfileIdsFromDOM: (key) => (isPagePersonKey(key) ? findSpouseProfileIdsFromDOM() : []),
+  findChildrenProfileIdsFromDOM: (key) => (isPagePersonKey(key) ? findChildrenProfileIdsFromDOM() : []),
+  findSiblingProfileIdsFromDOM: (key) => (isPagePersonKey(key) ? findSiblingProfileIdsFromDOM() : []),
+  findParentProfileIdsFromDOM: (key) => (isPagePersonKey(key) ? findParentProfileIdsFromDOM() : []),
   setLastBioPopupState: ({ id, profile }) => {
     lastBioPopupId = id;
     lastBioPopupProfile = profile;
@@ -1348,7 +1360,8 @@ const {
   personVisualActions,
   rebuildChartAction,
 } = createChatPeopleHandlers({
-  getProfilePersonInfo,
+  getProfilePersonInfo: getFocusPersonInfo,
+  focusIsPagePerson,
   // ("his daughter Carol's lifespans": the chart's person is a relative of the page person)
   resolveRelativeTarget: (targetText, prompt) => resolveRelativeTargetPeople(targetText, prompt),
   ChatIntent,
@@ -2620,6 +2633,8 @@ async function handleChatResult(result) {
   if (!result?.message) {
     return;
   }
+  // (Genie asked what was meant: the next message may be the answer)
+  if (result.awaitingDetail) awaitingDetailFor = String(lastRoutedPrompt || lastNonRetryUserPrompt || "");
 
   // A parser that declined only an AI could read: without a key, say so plainly.
   if (result.needsAi && !(await getChatAiConfig())?.key) {
@@ -2653,7 +2668,7 @@ async function handleChatResult(result) {
       : result.message;
 
   rememberResolvedPeopleFromMessage(messageText);
-  lastAnswerSubject = nextAnswerSubject(lastAnswerSubject, pickAnswerSubject(messageText, result.table), lastSubjectPrompt);
+  lastAnswerSubject = nextAnswerSubject(lastAnswerSubject, pickAnswerSubject(messageText, result.table), lastSubjectPrompt) || chosenSubject();
 
   // A handler can offer a concrete follow-up; a bare "Sure."/"Yes" on the next
   // turn runs offer.prompt instead of being treated as a search term.
@@ -2902,7 +2917,7 @@ function sendClarifiedPrompt(prompt, { newSearch = false } = {}) {
 // name with the profile person's or the user's surname is looked for in
 // their CC7 (getPeople, nuclear 7) before a search of all WikiTree.
 async function findPersonInFamilyCircle(name) {
-  const profile = getProfilePersonInfo() || {};
+  const profile = getFocusPersonInfo() || {};
   const userWtId = getUserWtId() || "";
   const surnames = familySurnames({
     profileWtId: profile.Name,
@@ -2923,6 +2938,14 @@ async function findPersonInFamilyCircle(name) {
   return null;
 }
 
+// One short AI call (no history, no API docs); null without a key or when AI is off.
+async function askAiBriefly(prompt) {
+  const { provider, key, model } = await getChatAiConfig();
+  if (!key) return null;
+  const response = await chrome.runtime.sendMessage({ action: "chatWithAI", prompt, provider, key, model });
+  return response?.success ? response.response || null : null;
+}
+
 async function sendChatPrompt() {
   const $input = $(`#${CHAT_INPUT_ID}`);
   if ($input.length === 0) return;
@@ -2938,6 +2961,7 @@ async function sendChatPrompt() {
     return;
   }
 
+  await finishAppsSignIn();
   // Normalize compact suggestion formats like "dbe803" to "Suggestions=803"
   // "John Theodore Weatherall's (Weatherall-113) bio" → "Weatherall-113's bio";
   // "How about his agrandparents?" → "his grandparents?" (live, 2026-10-08).
@@ -2985,6 +3009,30 @@ async function sendChatPrompt() {
     pendingFollowupOffer = null;
   }
 
+  // A reply that adds detail to the question Genie just couldn't answer (or asked about):
+  // the AI reads them together, and the combined request runs (Elaine, 2026-10-11).
+  const unansweredBefore = awaitingDetailFor;
+  awaitingDetailFor = "";
+  if (
+    unansweredBefore &&
+    !retryRequested &&
+    !followupOfferNote &&
+    !pendingDisambiguationContext &&
+    document.querySelector('input[name="wbe-chat-context"]:checked')?.value !== "new"
+  ) {
+    const merged = await mergeFollowupWithUnanswered({
+      previous: unansweredBefore,
+      reply: prompt,
+      askAi: askAiBriefly,
+    });
+    if (merged) {
+      console.info("wbe: follow-up merged with the unanswered question", { previous: unansweredBefore, reply: prompt, merged });
+      prompt = merged;
+      followupOfferNote = `Taking that as: ${merged}`;
+    }
+  }
+
+  lastRoutedPrompt = prompt;
   ensureResolvedPersonMemoryLoaded();
   const aliasRewrite = applyResolvedPersonAliasesToPrompt(prompt);
   if (aliasRewrite.changed) {
@@ -3003,12 +3051,14 @@ async function sendChatPrompt() {
   lastSubjectPrompt = normalizedPrompt;
   // ("New search" starts again from the profile person)
   if (!isFollowupContext) lastAnswerSubject = null;
-  if (isFollowupContext && lastAnswerSubject && /\b(?:his|her|their)\s+[A-Za-z]/i.test(prompt)) {
-    const pronounRewrite = rewritePronounToSubject(prompt, lastAnswerSubject, await getSubjectGender(lastAnswerSubject));
+  // (someone chosen in the picker is "him"/"her" in New mode too)
+  const pronounSubject = (isFollowupContext && lastAnswerSubject) || chosenSubject();
+  if (pronounSubject && /\b(?:his|her|their)\s+[A-Za-z]/i.test(prompt)) {
+    const pronounRewrite = rewritePronounToSubject(prompt, pronounSubject, await getSubjectGender(pronounSubject));
     console.debug("wbe: pronoun follow-up", {
       prompt,
-      subject: lastAnswerSubject.wtId,
-      gender: lastAnswerSubject.gender,
+      subject: pronounSubject.wtId,
+      gender: pronounSubject.gender,
       rewrittenPrompt: pronounRewrite.changed ? pronounRewrite.prompt : "",
     });
     if (pronounRewrite.changed) prompt = pronounRewrite.prompt;
@@ -3308,6 +3358,13 @@ async function sendChatPrompt() {
       }
       // A search the planner tried and couldn't form ("I couldn't work out a concrete person
       // search…") isn't an answer: go on, so the question still gets one (2026-10-04).
+      // "Smiths born in Devon in the 1850s" after a list of grandparents: the planner made it a text
+      // filter of that list, found nothing and stopped (live, 2026-10-11). A filter that matched
+      // nothing, when the prompt didn't say "only", "those" or "them", goes on as a new question.
+      if (isUnaskedEmptyResultFilter(plannedToolResponse, prompt)) {
+        console.debug("wbe: planner's filter of the last result matched nothing; going on", { prompt: String(prompt).slice(0, 60) });
+        plannedToolResponse = null;
+      }
       if (plannedToolResponse && shouldEscalateLocalFailureToAi(plannedToolResponse)) {
         console.debug("wbe: planner's tool couldn't answer; going on", { prompt: String(prompt).slice(0, 60) });
         plannedToolResponse = null;
@@ -3421,8 +3478,7 @@ async function sendChatPrompt() {
       // 4) Fallback: check getProfilePersonInfo for name match
       if (!profileKey && nameCandidates.length) {
         try {
-          const { getProfilePersonInfo } = await import("../../core/common");
-          const personInfo = getProfilePersonInfo && getProfilePersonInfo();
+          const personInfo = getFocusPersonInfo();
           const fullName = String(personInfo?.FullName || "").toLowerCase();
           let nameCandidate = nameCandidates.find((candidate) => fullName.includes(candidate.toLowerCase()));
           console.log("wbe: fallback DOM profile match attempt", {
@@ -3567,8 +3623,11 @@ async function sendChatPrompt() {
     if (response?.success) {
       const answer = parseAiAnswer(response.response || "");
       rememberResolvedPeopleFromMessage(answer.text);
-      lastAnswerSubject = nextAnswerSubject(lastAnswerSubject, pickAnswerSubject(answer.text), lastSubjectPrompt);
-      if (answer.cannot) recordUnanswered(prompt, answer.text.split("\n")[0].slice(0, 160));
+      lastAnswerSubject = nextAnswerSubject(lastAnswerSubject, pickAnswerSubject(answer.text), lastSubjectPrompt) || chosenSubject();
+      if (answer.cannot) {
+        recordUnanswered(prompt, answer.text.split("\n")[0].slice(0, 160));
+        awaitingDetailFor = prompt;
+      }
       appendMessage("assistant", answer.text || "No response text returned.", {
         badge: answer.cannot ? "Couldn't answer" : "AI answer",
         // Only follow-ups Genie's own code runs; when the AI couldn't answer,
@@ -3956,7 +4015,22 @@ function isNonPersonPageName(value) {
   return !name || name.includes(":");
 }
 
+/** Whether a WikiTree ID or user number is the person on this page. */
+function isPagePersonKey(key) {
+  const page = getProfilePersonInfo();
+  const wanted = String(key ?? "").trim().toLowerCase();
+  return Boolean(wanted && page?.Name) && [page.Name, page.Id].some((value) => String(value ?? "").trim().toLowerCase() === wanted);
+}
+
+// Who a question is about when it names no one: the person chosen in the picker, else the
+// page's (the user, 2026-10-11). getPageRootPerson() is always the page's.
 function getProfileRootPerson() {
+  const chosen = getChosenFocusPerson();
+  if (!chosen) return getPageRootPerson();
+  return { key: chosen.Id || chosen.Name, wtId: chosen.Name, displayName: chosen.FullName || chosen.Name };
+}
+
+function getPageRootPerson() {
   const person = getProfilePersonInfo();
   if (!person?.Name || isNonPersonPageName(person.Name)) {
     return null;
@@ -4175,6 +4249,20 @@ async function buildRelativeBiosContextForAi(prompt, pageRoot) {
 
 
 /**
+ * Back from the Apps login, the page's address carries a one-time code that signs this browser in to the API.
+ * Until it has been used, Genie's checks and lookups count as signed out, and the "signed out" answer was kept
+ * for the page, so the page you came back to didn't seem signed in (the user, 2026-10-11). Wait for it (once
+ * per page, shared with the other features' Apps buttons).
+ */
+async function finishAppsSignIn() {
+  try {
+    await redeemAuthcode(CHAT_APPS_LOGIN_BUTTON_APP_ID);
+  } catch (error) {
+    // (no code, or it failed: carry on signed out)
+  }
+}
+
+/**
  * True when the member is signed in to WikiTree but the API doesn't know it (the separate Apps Login), so answers miss
  * the private profiles they could otherwise see. Asked of the API rather than read from the page's Apps button, which
  * isn't on every page. If it can't be told, false: better no hint than a wrong one. The API keeps the answer per page.
@@ -4183,6 +4271,7 @@ async function isLoggedOutOfAppsServer() {
   const userNumId = getUserNumId();
   if (!userNumId) return false;
   try {
+    await finishAppsSignIn();
     return !(await WikiTreeAPI.isLoggedIntoAPI(userNumId, CHAT_APPS_LOGIN_BUTTON_APP_ID));
   } catch (error) {
     console.debug("wbe: apps login check failed", error);
@@ -4213,7 +4302,8 @@ async function shouldOfferAppsLoginHint() {
 }
 
 async function maybeAppendAppsLoginHint() {
-  if (await shouldOfferAppsLoginHint()) {
+  // (once: openPopup and init can both ask)
+  if ((await shouldOfferAppsLoginHint()) && !$(`#${CHAT_MESSAGES_ID} .chat-message-apps-login`).length) {
     appendMessage("assistant", CHAT_APPS_LOGIN_HINT, { shouldPersist: false });
     const $chips = $(`#${CHAT_MESSAGES_ID} .chat-welcome-chips`); // (keep the chips last)
     $chips.parent().append($chips);
@@ -4329,37 +4419,236 @@ function profileDnaTypes(wtid) {
   return profileDnaTypesCache.get(wtid);
 }
 
+// Buttons type their words into the box, then send (the user, 2026-10-11: in two demos nobody
+// typed anything), so each click shows what could be typed, for anyone.
+let typingTimer = null;
+// "Charts ▾" in a chart window's header runs the chart through the box, as the chart bar does.
+setChartMenuHandler((key, wtid) => {
+  if (!$(`#${CHAT_INPUT_ID}`).length || !wtid) return false;
+  ensureResolvedPersonMemoryLoaded();
+  const known = Object.values(resolvedPeopleByWtId).find((entry) => String(entry?.wtId || "").toLowerCase() === String(wtid).toLowerCase());
+  const firstName = String(known?.displayName || "").split(/\s+/)[0];
+  typeIntoBox(chartButtonPrompt(key, wtid, firstName));
+  return true;
+});
+
+function typeIntoBox(prompt) {
+  const $input = $(`#${CHAT_INPUT_ID}`);
+  const text = String(prompt || "");
+  clearInterval(typingTimer);
+  typingTimer = null;
+  const reducedMotion = Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);
+  if (reducedMotion || !$input.length || !text) {
+    $input.val(text);
+    void sendChatPrompt();
+    return;
+  }
+  // About 0.4 s whatever the length, by the clock: a hidden tab runs timers once a second.
+  const started = Date.now();
+  $input.val("");
+  typingTimer = setInterval(() => {
+    const shown = Math.min(text.length, Math.ceil((text.length * (Date.now() - started)) / 400));
+    $input.val(text.slice(0, shown));
+    if (shown < text.length) return;
+    clearInterval(typingTimer);
+    typingTimer = null;
+    void sendChatPrompt();
+  }, 25);
+}
+
+// Who the chart buttons draw and "his"/"her" mean (the picker above the box, 2026-10-11): null for
+// the profile, or for you off a profile.
+let chosenPerson = null;
+// The first few chart buttons show; "More charts" shows the rest.
+const CHART_BAR_SHOWN = 5;
+
+function defaultPickerPerson() {
+  const profile = getPageRootPerson();
+  if (profile) return { wtId: profile.wtId, name: profile.displayName, note: "this profile" };
+  const me = getUserWtId();
+  return me ? { wtId: me, name: "You", isMe: true } : null;
+}
+
+function currentPickerPerson() {
+  return chosenPerson || defaultPickerPerson();
+}
+
+/** The subject "his"/"her" mean when nothing later says otherwise: the chosen person, if any. */
+function chosenSubject() {
+  if (!chosenPerson) return null;
+  chosenPerson.subject ||= { wtId: chosenPerson.wtId, displayName: chosenPerson.name };
+  return chosenPerson.subject;
+}
+
+function pickerFixedPeople() {
+  const people = [];
+  const add = (person) => {
+    if (person?.wtId && !people.some((other) => other.wtId.toLowerCase() === person.wtId.toLowerCase())) people.push(person);
+  };
+  const profile = getPageRootPerson();
+  if (profile) add({ wtId: profile.wtId, name: profile.displayName, note: "this profile" });
+  const me = getUserWtId();
+  if (me) add({ wtId: me, name: "You", isMe: true });
+  if (chosenPerson) add({ wtId: chosenPerson.wtId, name: chosenPerson.name, isMe: chosenPerson.isMe });
+  ensureResolvedPersonMemoryLoaded();
+  Object.values(resolvedPeopleByWtId)
+    .sort((a, b) => Number(b?.seenOrder || 0) - Number(a?.seenOrder || 0))
+    .slice(0, 6)
+    .forEach((entry) => add({ wtId: entry.wtId, name: entry.displayName || entry.wtId, note: "in this chat" }));
+  return people;
+}
+
+// The profile's parents, spouses, siblings and children, for the picker (the user, 2026-10-11:
+// "other people on the page"). The API's list; private relatives come from the page's links.
+async function pickerFamilyPeople() {
+  const profile = getPageRootPerson();
+  if (!profile?.wtId) return [];
+  const result = await WikiTreeAPI.getRelatives(
+    WBE_CHAT_APP_ID,
+    [profile.wtId],
+    "Id,Name,RealName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,Gender",
+    { getParents: 1, getSpouses: 1, getSiblings: 1, getChildren: 1 }
+  );
+  const person = (Array.isArray(result) ? result[0] : null)?.person || {};
+  const word = { Parents: ["father", "mother", "parent"], Spouses: ["husband", "wife", "spouse"], Siblings: ["brother", "sister", "sibling"], Children: ["son", "daughter", "child"] };
+  const people = [];
+  for (const [group, [male, female, other]] of Object.entries(word)) {
+    Object.values(person[group] || {})
+      .filter((relative) => relative?.Name)
+      .sort((a, b) => String(a.BirthDate || "9999").localeCompare(String(b.BirthDate || "9999")))
+      .forEach((relative) => {
+        const gender = String(relative.Gender || "").toLowerCase();
+        people.push({
+          wtId: relative.Name,
+          name: watchlistDisplayName(relative) || relative.RealName || relative.Name,
+          years: lifeYearsText(relative.BirthDate, relative.DeathDate),
+          note: gender === "male" ? male : gender === "female" ? female : other,
+        });
+      });
+  }
+  return people;
+}
+
+// Other profiles linked on the page (a bio's people, a category's, a watchlist page's).
+function pickerPagePeople() {
+  const people = [];
+  const seen = new Set();
+  document.querySelectorAll('a[href*="/wiki/"]').forEach((link) => {
+    if (people.length >= 40 || link.closest(".wbe-popup, header, nav, #header, .navbar, .dropdown-menu")) return;
+    const match = String(link.getAttribute("href") || "").match(/\/wiki\/([^/?#:]+-\d+)(?:$|[?#])/);
+    if (!match) return;
+    const wtId = decodeURIComponent(match[1]).replace(/ /g, "_");
+    if (seen.has(wtId.toLowerCase())) return;
+    seen.add(wtId.toLowerCase());
+    const text = String(link.textContent || "").replace(/\s+/g, " ").trim();
+    const name = /\p{L}/u.test(text) && text.length <= 60 && text.toLowerCase() !== wtId.toLowerCase() ? text : wtId;
+    people.push({ wtId, name, note: "on this page" });
+  });
+  return people;
+}
+
+// The watchlist is read once (kept for hours, between page loads too); a first read of a big one
+// takes a minute, with the tree dancing (the user, 2026-10-11).
+async function loadPickerWatchlist() {
+  const userNumId = getUserNumId();
+  if (!userNumId) return { people: [], message: "Sign in to WikiTree to search your watchlist." };
+  const slow = setTimeout(() => showChatShaky("Reading your watchlist...", "center"), 400);
+  try {
+    const entries = await readMemberWatchlist(WikiTreeAPI, WBE_CHAT_APP_ID, userNumId, (read, total) =>
+      showChatShaky(`Reading your watchlist: ${read.toLocaleString("en-US")} of ${total.toLocaleString("en-US")}...`, "center")
+    );
+    if (!entries.length) return { people: [], message: "Your watchlist can only be read when you're signed in to WikiTree Apps (the Apps button)." };
+    return { people: watchlistPickerPeople(entries, watchlistDisplayName) };
+  } finally {
+    clearTimeout(slow);
+    hideChatShaky();
+  }
+}
+
+function choosePickerPerson(person) {
+  const fallback = defaultPickerPerson();
+  const isDefault = fallback && String(person?.wtId || "").toLowerCase() === fallback.wtId.toLowerCase();
+  chosenPerson = isDefault || !person?.wtId ? null : { wtId: person.wtId, name: person.name || person.wtId, isMe: Boolean(person.isMe) };
+  // Every question that names no one is now about them (the user, 2026-10-11).
+  setFocusPerson(focusInfoFromPicker(chosenPerson));
+  if (chosenPerson && !chosenPerson.isMe && chosenPerson.name !== chosenPerson.wtId) {
+    rememberResolvedPerson({ wtId: chosenPerson.wtId, displayName: chosenPerson.name, aliases: [chosenPerson.name] });
+  }
+  // From now on "his"/"her" mean them (or the profile person again).
+  lastAnswerSubject = chosenSubject();
+  const $popup = $(`#${CHAT_POPUP_ID}`);
+  renderChartBar($popup);
+  showPlaceholder();
+  $popup.find(`#${CHAT_INPUT_ID}`).trigger("focus");
+  const chosen = chosenPerson;
+  if (!chosen) return;
+  // A typed ID: its name; and the gender, for "his"/"her" in the hint.
+  WikiTreeAPI.getPerson(WBE_CHAT_APP_ID, chosen.wtId, "Id,Name,Gender,RealName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate")
+    .then((result) => {
+      const found = result?._data || result;
+      if (chosenPerson !== chosen || !found?.Name) return;
+      chosenSubject().gender = String(found.Gender || "");
+      updateFocusPerson(chosen.wtId, focusInfoFromPicker(chosen, found));
+      if (chosen.name === chosen.wtId) {
+        chosen.name = watchlistDisplayName(found) || chosen.wtId;
+        chosen.subject.displayName = chosen.name;
+        if (chosen.name !== chosen.wtId) rememberResolvedPerson({ wtId: chosen.wtId, displayName: chosen.name, aliases: [chosen.name] });
+        renderChartBar($popup);
+      }
+      showPlaceholder();
+    })
+    .catch(() => {});
+}
+
 function renderChartBar($popup) {
-  const $bar = $popup.find(".chat-chart-bar").empty();
-  const profile = getProfileRootPerson();
-  const wtid = profile?.wtId || getUserWtId() || "";
-  if (!wtid) return;
-  const who = profile ? String(profile.displayName || wtid).trim().split(/\s+/)[0] : "you";
-  $("<span>").addClass("chat-chart-bar-label").text(`Charts for ${who}:`).attr("title", `Or type a name or ID and a chart, like "${wtid} fan chart" or "Jefferson descendants"`).appendTo($bar);
-  const onPersonProfilePage = Boolean(profile) && getCurrentPageInfo().isPersonProfile;
+  const $bar = $popup.find(".chat-chart-bar");
+  if (!$bar.length) return;
+  let picker = $popup.data("wbeWhoPicker");
+  if (!picker) {
+    picker = createWhoPicker($, {
+      chosen: currentPickerPerson,
+      fixedPeople: pickerFixedPeople,
+      familyPeople: pickerFamilyPeople,
+      pagePeople: pickerPagePeople,
+      onChoose: choosePickerPerson,
+      loadWatchlist: loadPickerWatchlist,
+      // a name that matches no one: Genie looks for it
+      onSearch: (text) => typeIntoBox(text),
+    });
+    $popup.data("wbeWhoPicker", picker);
+    $bar.empty().addClass("chat-chart-bar--collapsed").append(picker.$root, $("<span>").addClass("chat-chart-buttons"));
+  }
+  picker.refresh();
+  const $buttons = $bar.find(".chat-chart-buttons").empty();
+  const person = currentPickerPerson();
+  const wtid = person?.wtId || "";
+  if (!wtid) {
+    $bar.prop("hidden", true);
+    return;
+  }
+  const profile = getPageRootPerson();
+  const isPagePerson = Boolean(profile) && profile.wtId === wtid;
+  const onPersonProfilePage = isPagePerson && getCurrentPageInfo().isPersonProfile;
+  const firstName = person.isMe ? "" : pickerFirstName(person);
+  // (the page's "DNA tested" box answers at once for the person on the page; the user, 2026-10-04)
+  const pageTypes = isPagePerson ? pageDnaTestTypes() : new Set();
+  let shown = 0;
   CHART_BAR_KEYS.forEach((key) => {
     const chart = CHART_SHORTCUTS.find((item) => item.key === key);
+    // Only on a person's profile page, for that person (the user, 2026-10-05): not for you off a
+    // profile, nor on Special:EditPerson, where Paddy asked it about a profile the API didn't have yet.
+    if (key === "dnatesters" && !onPersonProfilePage) return;
     const $button = $("<button>")
       .attr({ type: "button", title: chart.title })
       .addClass("chat-chart-bar-button")
+      .toggleClass("chat-chart-bar-extra", shown++ >= CHART_BAR_SHOWN)
       .text(chart.label)
-      .on("click", () => {
-        $(`#${CHAT_INPUT_ID}`).val(chartButtonPrompt(key, wtid));
-        void sendChatPrompt();
-      })
-      .appendTo($bar);
-    // (the page's "DNA tested" box answers at once for the person on the page; the user, 2026-10-04)
-    const pageTypes = profile ? pageDnaTestTypes() : new Set();
+      .on("click", () => typeIntoBox(chartButtonPrompt(key, wtid, firstName)))
+      .appendTo($buttons);
     const dnaType = DNA_BAR_BUTTON_TYPES[key];
     if (dnaType && !pageTypes.has(dnaType)) {
       $button.prop("hidden", true);
       profileDnaTypes(wtid).then((types) => $button.prop("hidden", !types.has(dnaType)));
-    }
-    // Only on a person's profile page (the user, 2026-10-05): not for you off a profile, nor on
-    // Special:EditPerson, where Paddy asked it about a profile the API didn't have yet.
-    if (key === "dnatesters" && !onPersonProfilePage) {
-      $button.remove();
-      return;
     }
     if (key === "dnatesters" && !pageTypes.size) {
       // An ancestor: who carries their lines. A living person who hasn't tested: hidden.
@@ -4367,6 +4656,16 @@ function renderChartBar($popup) {
       profileIsReadable(wtid).then((info) => $button.prop("hidden", !info || info.living));
     }
   });
+  const collapsed = $bar.hasClass("chat-chart-bar--collapsed");
+  $("<button>")
+    .attr({ type: "button", "aria-expanded": String(!collapsed) })
+    .addClass("chat-chart-bar-button chat-chart-bar-more")
+    .text(collapsed ? "More charts ▾" : "Fewer ▴")
+    .on("click", () => {
+      $bar.toggleClass("chat-chart-bar--collapsed");
+      renderChartBar($popup);
+    })
+    .appendTo($buttons);
   $bar.prop("hidden", false);
 }
 
@@ -4386,11 +4685,19 @@ export const SEARCH_FORM_CHIP = "Search by name, place or date";
 // Without an AI key, a chip opens the tested list of what works without AI.
 export const WHAT_CAN_I_TYPE = "What can I type?";
 
+// On a profile, the chart bar has the charts, so the chips are questions, about this person,
+// about you and about anyone (the user, 2026-10-11: people clicked charts and never typed).
 export function welcomeChipPrompts(profileFirstName, { ai = true } = {}) {
   const prompts = profileFirstName
-    ? [ai ? `How am I related to ${profileFirstName}?` : `My connection to ${profileFirstName}`, "Tree overview", "Fan chart", "Family Explorer", "Map this person's ancestors", "On this day in this family", "Lifespans", "Ancestors in history", "Surnames", "Name cloud", "X-DNA chart", "Descendant chart", "Family timeline"]
+    ? [ai ? `How am I related to ${profileFirstName}?` : `My connection to ${profileFirstName}`, `Who were ${profileFirstName}'s grandparents?`, "Show my fan chart", "Smiths born in Devon in the 1850s", ...(ai ? ["How am I related to Charles Darwin?"] : []), "On this day in this family", "Tell me about my tree", "What surnames are in my tree?"]
     : ["Tell me about my tree", "Show my fan chart", "Show my Family Explorer", "Map my ancestors", "How complete is my tree?", "How long did my ancestors live?", "What history did my ancestors live through?", "What surnames are in my tree?", "Who could I have inherited X-DNA from?", "On this day in my family", "Show my descendant chart", "Show my family timeline"];
   return ai ? prompts : [prompts[0], SEARCH_FORM_CHIP, WHAT_CAN_I_TYPE, ...prompts.slice(1)];
+}
+
+function greetIfNothingAsked() {
+  if (chatHistory.some((entry) => entry?.role === "user")) return;
+  if (!chatHistory.length) appendMessage("assistant", "Genie is ready. Ask a question to begin.", { shouldPersist: false });
+  appendWelcomeChips();
 }
 
 function appendWelcomeChips() {
@@ -4398,7 +4705,7 @@ function appendWelcomeChips() {
   if (!$messages.length) return;
   $messages.find(".chat-welcome-chips").remove();
   const $chips = $("<div>").addClass("chat-message-actions chat-welcome-chips").attr("aria-label", "Try these");
-  const profile = getProfileRootPerson();
+  const profile = getPageRootPerson();
   const profileFirstName = profile ? String(profile.displayName || profile.wtId).trim().split(/\s+/)[0] || profile.wtId : "";
   // The first few show; "More…" opens the rest (there are a dozen charts now).
   // On a Space, Help, Project or Category page, questions about the page come first.
@@ -4420,8 +4727,7 @@ function appendWelcomeChips() {
           appendMessage("assistant", "Fill in what you know, then press Search.", { searchForm: {} });
           return;
         }
-        $(`#${CHAT_INPUT_ID}`).val(prompt);
-        void sendChatPrompt();
+        typeIntoBox(prompt);
       })
       .appendTo($chips);
   });
@@ -4452,9 +4758,9 @@ function openPopup() {
             <button type="button" class="small close-popup" aria-label="Close" title="Close">&times;</button>
           </div>
         </div>
-        <div class="chat-chart-bar" aria-label="Charts" hidden></div>
         <div class="chat-popup-body">
           <div id="${CHAT_MESSAGES_ID}" class="chat-messages"></div>
+          <div class="chat-chart-bar" aria-label="Who and charts" hidden></div>
           <div class="chat-input-row">
             <textarea id="${CHAT_INPUT_ID}" rows="2" placeholder="Search WikiTree, or ask a question" style="flex:1;min-height:48px"></textarea>
             <div id="${CHAT_WTPLUS_SUGGESTION_PICKER_ID}" class="chat-wtplus-suggestion-picker" style="display:none">
@@ -4492,6 +4798,8 @@ function openPopup() {
       persistChatMode(event?.target?.value || getCurrentChatMode());
       clearChatModeNotice($popup);
     });
+    // (typed by hand: typeIntoBox sets the value, which fires no input event)
+    $popup.find(`#${CHAT_INPUT_ID}`).one("input", noteTyped);
     $popup.find(`#${CHAT_INPUT_ID}`).on("keydown", (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -4510,10 +4818,7 @@ function openPopup() {
     bindWtPlusSuggestionPicker($popup);
     // Until something has been asked, greet and offer the chips. (The greeting used to be
     // saved, so a tab that had opened Genie once never showed the chips again.)
-    if (!chatHistory.some((entry) => entry?.role === "user")) {
-      if (!chatHistory.length) appendMessage("assistant", "Genie is ready. Ask a question to begin.", { shouldPersist: false });
-      appendWelcomeChips();
-    }
+    greetIfNothingAsked();
     void maybeAppendAppsLoginHint();
 
     $popup.draggable({
@@ -4690,17 +4995,72 @@ function applyAiAvailability() {
   const $popup = $(`#${CHAT_POPUP_ID}`);
   if (!$popup.length) return;
   refreshAiToggle($popup);
-  $popup
-    .find(`#${CHAT_INPUT_ID}`)
-    .attr(
-      "placeholder",
-      aiAvailable === false
-        ? isAiPaused()
-          ? "Search WikiTree, or pick a chart (AI is off)"
-          : "Search WikiTree, or pick a chart (add an AI key in Options to ask questions)"
-        : "Search WikiTree, or ask a question"
-    );
+  showPlaceholder();
   if ($popup.find(".chat-welcome-chips").length) appendWelcomeChips();
+}
+
+// Until someone has typed into Genie, the box's hint cycles through things to type, about
+// anyone (the user, 2026-10-11: in two demos nobody typed). Each works without AI too.
+export const PLACEHOLDER_EXAMPLES = ["my fan chart", "Darwin-15's descendants", "Robinsons born in Devon 1850-1899", "my connection to Darwin-15", "the Beacalls of Shropshire"];
+// With AI, famous people by name: the AI finds their profile (the user, 2026-10-11).
+export const AI_PLACEHOLDER_EXAMPLES = ["how am I related to Charles Darwin?", "my fan chart", "Robinsons born in Devon 1850-1899", "my connection to Queen Victoria", "who were my great-grandparents?", "how am I related to Abraham Lincoln?", "the Beacalls of Shropshire", "my connection to Jane Austen"];
+const HAS_TYPED_KEY = "wbe-genie-has-typed";
+let placeholderIndex = 0;
+let placeholderTimer = null;
+
+function hasTypedBefore() {
+  try {
+    return localStorage.getItem(HAS_TYPED_KEY) === "1";
+  } catch (error) {
+    return false;
+  }
+}
+
+function noteTyped() {
+  clearInterval(placeholderTimer);
+  placeholderTimer = null;
+  try {
+    localStorage.setItem(HAS_TYPED_KEY, "1");
+  } catch (error) {
+    // (the hint just keeps cycling)
+  }
+  showPlaceholder();
+}
+
+function showPlaceholder() {
+  const $input = $(`#${CHAT_INPUT_ID}`);
+  if (!$input.length) {
+    clearInterval(placeholderTimer);
+    placeholderTimer = null;
+    return;
+  }
+  if (chosenPerson) {
+    const name = chosenPerson.isMe ? "you" : pickerFirstName(chosenPerson) || chosenPerson.name;
+    const gender = String(chosenPerson.subject?.gender || "").toLowerCase();
+    const pronoun = chosenPerson.isMe ? "my" : gender === "male" ? "his" : gender === "female" ? "her" : "their";
+    $input.attr("placeholder", `Ask about ${name}, like "${pronoun} grandparents" or "${pronoun} fan chart"`);
+    return;
+  }
+  if (!hasTypedBefore()) {
+    const examples = aiAvailable === false ? PLACEHOLDER_EXAMPLES : AI_PLACEHOLDER_EXAMPLES;
+    const example = examples[placeholderIndex % examples.length];
+    $input.attr("placeholder", aiAvailable === false ? `Search, or type a chart for anyone, like "${example}"` : `Ask about anyone, like "${example}"`);
+    if (!placeholderTimer) {
+      placeholderTimer = setInterval(() => {
+        placeholderIndex += 1;
+        showPlaceholder();
+      }, 4000);
+    }
+    return;
+  }
+  $input.attr(
+    "placeholder",
+    aiAvailable === false
+      ? isAiPaused()
+        ? "Search WikiTree, or pick a chart (AI is off)"
+        : "Search WikiTree, or pick a chart (add an AI key in Options to ask questions)"
+      : "Search WikiTree, or ask a question"
+  );
 }
 
 function init() {
@@ -4711,7 +5071,11 @@ function init() {
   try {
     loadHistory();
     if (document.getElementById(CHAT_POPUP_ID)) {
+      // The first click loads this module and opens Genie before init runs, so this re-render
+      // wiped the greeting and examples: nobody saw them on a first open (live, 2026-10-11).
       renderHistory();
+      greetIfNothingAsked();
+      void maybeAppendAppsLoginHint();
     }
   } catch (e) {
     /* ignore load errors */

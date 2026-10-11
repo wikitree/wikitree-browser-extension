@@ -1,4 +1,4 @@
-import { parseFractalTreePrompt, buildFractalLayout, placeChildren, markFrontier, graftBranch, hasFrontier, buildFractalTreeSummary, treeFromAncestorSlots } from "./chat_fractal_tree_data";
+import { parseFractalTreePrompt, buildFractalLayout, placeChildren, placeBand, NESTED_GEOMETRY, markFrontier, graftBranch, hasFrontier, buildFractalTreeSummary, treeFromAncestorSlots } from "./chat_fractal_tree_data";
 
 describe("parseFractalTreePrompt", () => {
   test.each([
@@ -108,13 +108,13 @@ describe("buildFractalTreeSummary", () => {
       children: [{ person: person("Big-1"), depth: 1, children: [1, 2, 3, 4].map((i) => leaf(`K-${i}`, 2)) }, leaf("Solo-1", 1)],
     };
     expect(buildFractalTreeSummary(tree, "Ellen's")).toBe(
-      "Ellen's fractal tree holds 6 descendants over 2 generations; 5 lines end in a leaf. The biggest family on it is Big-1's, with 4 children. Zoom into anyone to see their family inside their circle."
+      "Ellen's Branches chart holds 6 descendants over 2 generations; 5 lines end in a leaf. The biggest family on it is Big-1's, with 4 children. Zoom into anyone to see their family inside their circle."
     );
   });
 
   test("no branches", () => {
     expect(buildFractalTreeSummary({ person: person("Solo-1"), children: [], depth: 0 }, "Your", "ancestors")).toBe(
-      "Your fractal tree has no branches yet: no parents are recorded on WikiTree."
+      "Your Branches chart has nothing to show yet: no parents are recorded on WikiTree."
     );
   });
 });
@@ -157,7 +157,21 @@ describe("loading more as you zoom in", () => {
     const tree = { person: anc("Root-1"), depth: 0, children: [{ person: anc("Dad-1", 4), depth: 1, children: [] }] };
     markFrontier(tree, "ancestors", 1);
     expect(buildFractalTreeSummary(tree, "Your", "ancestors")).toBe(
-      "Your fractal tree starts with 1 ancestor over 1 generation, and some lines go further. Zoom into anyone to see their family inside their circle; more generations load as you go."
+      "Your Branches chart starts with 1 ancestor over 1 generation, and some lines go further. Zoom into anyone to see their family inside their circle; more generations load as you go."
     );
+  });
+});
+
+describe("a band of families (user, 2026-10-11: the lower half was left empty)", () => {
+  test("side by side, big, inside the circle and above its name, never overlapping", () => {
+    [[30, 3, 30], [60, 3, 5], [8, 1, 2], [200, 10, 40], [5, 5]].forEach((weights) => {
+      const spots = placeBand(weights);
+      spots.forEach((spot, i) => {
+        expect(Math.hypot(spot.dx, spot.dy) + spot.r).toBeLessThanOrEqual(NESTED_GEOMETRY.margin + 1e-9);
+        expect(spot.dy + spot.r).toBeLessThanOrEqual(NESTED_GEOMETRY.labelTop + 1e-9);
+        spots.slice(i + 1).forEach((other) => expect(Math.hypot(spot.dx - other.dx, spot.dy - other.dy)).toBeGreaterThanOrEqual(spot.r + other.r - 1e-9));
+      });
+      expect(Math.max(...spots.map((s) => s.r))).toBeGreaterThan(0.3);
+    });
   });
 });

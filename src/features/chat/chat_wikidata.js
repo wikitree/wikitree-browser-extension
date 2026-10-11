@@ -59,3 +59,27 @@ export async function findWikiTreeIdOnWikidata(names, birthYear, { fetchImpl = g
   }
   return null;
 }
+
+/**
+ * No birth year to check (AI off): Wikidata's search ranks the famous one first ("Abraham
+ * Lincoln" → Q91, Lincoln-103, ahead of his grandfather Lincoln-229). → the first hit's
+ * {wtId, label, qid} when it has a WikiTree ID, or null. The caller must confirm it (a
+ * notable profile among its own WikiTree matches): for "Mary Smith" the first hit is just
+ * some Mary Smith.
+ */
+export async function findTopWikiTreeIdOnWikidata(name, { fetchImpl = globalThis.fetch } = {}) {
+  const search = String(name || "").trim();
+  if (!search || !/\s/.test(search) || typeof fetchImpl !== "function") return null;
+  try {
+    const found = await getJson({ action: "wbsearchentities", search, language: "en", type: "item", limit: "1" }, fetchImpl);
+    const id = found?.search?.[0]?.id;
+    if (!id) return null;
+    const data = await getJson({ action: "wbgetentities", ids: id, props: "claims|labels", languages: "en" }, fetchImpl);
+    const entity = data?.entities?.[id];
+    const wtId = String(claimValue(entity, WIKITREE_ID) || "").trim();
+    return wtId ? { wtId, label: entity?.labels?.en?.value || search, qid: id } : null;
+  } catch (error) {
+    console.debug("wbe: Wikidata top lookup failed", { name: search, error: error?.message || error });
+    return null;
+  }
+}

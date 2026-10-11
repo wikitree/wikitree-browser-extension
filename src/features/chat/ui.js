@@ -1024,7 +1024,7 @@ export function showConnectionsPopup(connectionsResult) {
           ? `<td class="connections-step-cell"></td>`
           : `<td class="connections-step-cell" style="background:${branchColour}">${step}</td>`;
       return `
-        <tr class="${rowClass} connections-row" data-row-index="${i}" title="Click to see this step in the diagram">
+        <tr class="${rowClass} connections-row" data-row-index="${i}" title="Click to see this step in the chart">
           ${stepCell}
           <td class="name-cell">${renderConnectionPersonLink(person, name)}</td>
           <td style="background:${getRelationColour(relation)}">${arrow}${escapeHtml(relation)}</td>
@@ -1066,13 +1066,13 @@ export function showConnectionsPopup(connectionsResult) {
     <div class="chat-popup-header ui-draggable-handle">
       <strong>Connections Path</strong>
       <div class="chat-popup-controls">
-        <button type="button" class="small" id="wbe-conn-view-toggle" title="Switch to diagram view">Diagram</button>
+        <button type="button" class="small" id="wbe-conn-view-toggle" title="Switch to the chart">Chart</button>
         <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-layout-toggle" title="Switch to compact layout" hidden>Compact</button>
         <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-zoom-out" aria-label="Zoom out" title="Zoom out" hidden>-</button>
         <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-zoom-in" aria-label="Zoom in" title="Zoom in" hidden>+</button>
-        <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-fit" title="Fit diagram to popup" hidden>Fit</button>
+        <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-fit" title="Fit the chart to the window" hidden>Fit</button>
         <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-replay" title="Draw the path again, step by step" hidden>Replay</button>
-        <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-open" title="Open the full diagram in a new tab" hidden>Open</button>
+        <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-open" title="Open the full chart in a new tab" hidden>Open</button>
         <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-pdf" title="Open print dialog for PDF export" hidden>PDF</button>
         <button type="button" class="small" id="wbe-conn-full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
         <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
@@ -1128,8 +1128,8 @@ export function showConnectionsPopup(connectionsResult) {
     layoutToggleBtn.textContent = diagramState.layoutMode === "tree" ? "Compact" : "Tree";
     layoutToggleBtn.title =
       diagramState.layoutMode === "tree" ? "Switch to compact packed layout" : "Switch to tree layout";
-    viewToggleBtn.textContent = isDiagramVisible ? "Table" : "Diagram";
-    viewToggleBtn.title = isDiagramVisible ? "Switch to table view" : "Switch to diagram view";
+    viewToggleBtn.textContent = isDiagramVisible ? "Table" : "Chart";
+    viewToggleBtn.title = isDiagramVisible ? "Switch to the table" : "Switch to the chart";
   }
 
   // The camera follows the drawing animation until the user scrolls, drags or zooms.
@@ -1403,7 +1403,11 @@ export function showConnectionsPopup(connectionsResult) {
       printOnLoad: true,
     });
   });
-  syncDiagramToolbar(false);
+  // The chart first, the table a click away (the user, 2026-10-11).
+  tableView.style.display = "none";
+  diagramView.style.display = "";
+  renderDiagram({ preserveScale: false, focusFirstPerson: true });
+  syncDiagramToolbar(true);
   setHighestZIndex(popup);
   $(popup).draggable({
     handle: ".chat-popup-header",

@@ -29,7 +29,9 @@ describe("connections diagram motion", () => {
       { Id: 3, Name: "C-1", FirstName: "Cat", LastNameAtBirth: "C", Gender: "Female", pathType: "spouse" },
     ];
     showConnectionsPopup([{ path }]);
-    document.querySelector("#wbe-conn-view-toggle").click();
+    // (the chart opens first: user, 2026-10-11)
+    expect(document.querySelector("#wbe-conn-table-view").style.display).toBe("none");
+    expect(document.querySelector("#wbe-conn-view-toggle").textContent).toBe("Table");
     const scroll = document.querySelector(".conn-diag-scroll");
     expect(scroll.classList.contains("conn-diag-scroll--animate")).toBe(true);
     const links = document.querySelectorAll(".conn-diag-link");
@@ -60,6 +62,8 @@ describe("table rows link to diagram cards", () => {
       { Id: 2, Name: "B-1", FirstName: "Bob", LastNameAtBirth: "B", Gender: "Male", pathType: "father" },
     ];
     showConnectionsPopup([{ path }]);
+    document.querySelector("#wbe-conn-view-toggle").click();
+    expect(document.querySelector("#wbe-conn-view-toggle").textContent).toBe("Chart");
     document.querySelector('tr[data-row-index="1"] td.connections-step-cell').click();
     expect(document.querySelector("#wbe-conn-diagram-view").style.display).toBe("");
     expect(document.querySelector("#wbe-conn-table-view").style.display).toBe("none");

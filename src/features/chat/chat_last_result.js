@@ -625,3 +625,10 @@ export function createLastResultOperationHandler({
     return null;
   };
 }
+
+/** A "No rows matched" answer to a prompt that never asked to filter (no "only", "those", "them"…). */
+export function isUnaskedEmptyResultFilter(response, prompt) {
+  const message = typeof response === "string" ? response : response?.message;
+  if (!/^No rows matched this filter in the current result set\b/.test(String(message || ""))) return false;
+  return !/\b(?:only|those|them|these|they|which|filter|keep|of them)\b/i.test(String(prompt || ""));
+}
