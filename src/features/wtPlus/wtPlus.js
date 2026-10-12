@@ -793,6 +793,7 @@ function onDlgSelectTemplateFlt() {
   lb.innerHTML = dataTables.templates
     .filter(
       (item) =>
+        item.status?.toLowerCase() === "approved" &&
         (s0 === "" || item.type.match(r0)) &&
         (s1 === "" || item.name.match(r1) || item.group.match(r1) || item.subgroup.match(r1))
       //    ).map(item => '<option value="' + item.name + '">' + item.name + ' (' + item.group + ': ' + item.subgroup + ')</option>' ).join('\n')
