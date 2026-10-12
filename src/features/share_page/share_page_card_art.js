@@ -153,3 +153,33 @@ export function drawDnaPanel(surname, dna) {
   });
   return canvas;
 }
+
+const MEDALS = {
+  gold: { fill: "#f8a820", edge: "#b9760a" },
+  silver: { fill: "#c9ccd1", edge: "#80858c" },
+  candidate: { fill: "#fff3d6", edge: "#f8a820" },
+};
+
+/**
+ * A small medal on a green ribbon, in the style of the Research Status icons: gold, silver, or a pale gold ring for a
+ * Gold Standard Candidate. (cx, cy) is the middle of the medal's disc.
+ */
+export function drawMedal(g, cx, cy, tier) {
+  const colours = MEDALS[tier] || MEDALS.silver;
+  g.fillStyle = BRAND.green;
+  [-1, 1].forEach((side) => {
+    g.beginPath();
+    g.moveTo(cx + side * 2, cy + 3);
+    g.lineTo(cx + side * 12, cy + 3);
+    g.lineTo(cx + side * 7, cy + 21);
+    g.closePath();
+    g.fill();
+  });
+  g.beginPath();
+  g.arc(cx, cy, 12, 0, Math.PI * 2);
+  g.fillStyle = colours.fill;
+  g.fill();
+  g.strokeStyle = colours.edge;
+  g.lineWidth = 3;
+  g.stroke();
+}

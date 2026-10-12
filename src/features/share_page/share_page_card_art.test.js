@@ -1,4 +1,4 @@
-import { ART_HEIGHT, ART_WIDTH, drawDnaPanel, drawRankBadge, drawScoreBadge } from "./share_page_card_art";
+import { ART_HEIGHT, ART_WIDTH, drawDnaPanel, drawMedal, drawRankBadge, drawScoreBadge } from "./share_page_card_art";
 
 // jsdom has no canvas, so give it one that remembers the text it was asked to draw and the shapes it was asked to fill.
 let drawn;
@@ -83,5 +83,13 @@ describe("drawn card pictures", () => {
     expect(texts()).toEqual(expect.arrayContaining(["au", "5 members"]));
     expect(texts()).not.toContain("Y");
     expect(texts()).not.toContain("mt");
+  });
+});
+
+describe("drawMedal", () => {
+  test.each(["gold", "silver", "candidate", "unknown"])("draws a disc for the %s tier", (tier) => {
+    const g = document.createElement("canvas").getContext("2d");
+    drawMedal(g, 100, 100, tier);
+    expect(drawn.shapes).toEqual([["arc", 100, 100, 12]]);
   });
 });
