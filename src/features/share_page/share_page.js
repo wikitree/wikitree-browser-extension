@@ -15,7 +15,6 @@ import {
   appNameFromSlug,
   appSummary,
   buildText,
-  cleanHeading,
   cropRect,
   detectPageKind,
   getChannel,
@@ -303,11 +302,6 @@ function readPageFacts() {
     .filter((i, el) => !$(el).closest("table").length)
     .map((i, el) => textWithoutControls($(el)))
     .get();
-  const sections = $body
-    .find("h2")
-    .map((i, el) => cleanHeading(textWithoutControls($(el))))
-    .get()
-    .filter((text) => text && !/^contents$/i.test(text));
   const counts = {};
   // a surname page says how many profiles it lists: "Search all 652 profiles."
   const listed = clean($("main").first().text()).match(/Search all ([\d,]+) profiles/i);
@@ -320,7 +314,7 @@ function readPageFacts() {
     else if (/^pages/i.test(m[1])) counts.pages = n;
     else counts.profiles = n;
   });
-  return { paragraphs, sections, counts };
+  return { paragraphs, counts };
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -686,6 +680,8 @@ const FOOTER_HEIGHT = 56;
 // where a portrait, or the surname hub's score, rank or DNA picture, goes beside a profile's title and fields
 // the text under a profile's fields is drawn in the largest of these sizes that fits
 const BIO_SIZES = [34, 32, 30, 28, 26, 24];
+// the least height the photo gets when it goes under the text
+const UNDER_MIN_PHOTO = 240;
 const SIDE_BOX = { x: 724, y: 172, w: 300, h: 346 };
 
 // Same address as the page, so the canvas stays clean enough to save.
@@ -703,6 +699,7 @@ const LOGO_PATH = "/images/wikitree-logo-tagline.png";
  */
 async function drawShareCard(kind, title, extras = {}) {
   const { photoSrc = "", summary = null, subtitle = "", graphic = null, slot = null, badge = null } = extras;
+  const placement = extras.placement === "under" ? "under" : "beside";
   const canvas = document.createElement("canvas");
   canvas.width = CARD_SIZE;
   canvas.height = CARD_SIZE;
@@ -802,17 +799,20 @@ async function drawShareCard(kind, title, extras = {}) {
     const scale = Math.min(box.w / w, box.h / h);
     g.drawImage(graphic, box.x + (box.w - w * scale) / 2, box.y + (box.h - h * scale) / 2, w * scale, h * scale);
   } else if (summary) {
-    const hasSide = !!(photo || slot);
+    // A photo goes beside the title and fields, or, when the member chooses, under the text across the whole card,
+    // which leaves a wide photo far more room. The surname hub's drawn pictures always go beside.
+    const under = placement === "under" && !!photo;
+    const hasSide = !!(photo || slot) && !under;
     const textWidth = hasSide ? SIDE_BOX.x - left - 40 : width;
     g.font = font("700 54px");
     const titleBottom = wrapText(g, title, left, 224, textWidth, 62, hasSide ? 3 : 2);
-    if (photo) drawPhoto(SIDE_BOX.x, SIDE_BOX.y, SIDE_BOX.w, SIDE_BOX.h);
-    else if (slot) g.drawImage(slot, SIDE_BOX.x, SIDE_BOX.y, SIDE_BOX.w, SIDE_BOX.h);
+    if (hasSide && photo) drawPhoto(SIDE_BOX.x, SIDE_BOX.y, SIDE_BOX.w, SIDE_BOX.h);
+    else if (hasSide && slot) g.drawImage(slot, SIDE_BOX.x, SIDE_BOX.y, SIDE_BOX.w, SIDE_BOX.h);
 
     // the data fields: one column beside a picture, two columns when there is none
     const fields = summary.fields.slice(0, 4);
     const fieldsTop = titleBottom + 58;
-    const pitch = hasSide ? 96 : 104;
+    const pitch = hasSide ? 96 : under ? 90 : 104; // under the text, the fields are packed tighter to leave the photo room
     let fieldsBottom = titleBottom;
     fields.forEach((field, i) => {
       const x = hasSide ? left : left + (i % 2) * (width / 2);
@@ -830,7 +830,49 @@ async function drawShareCard(kind, title, extras = {}) {
       fieldsBottom = Math.max(fieldsBottom, y + 30 + (lines.length - 1) * 28);
     });
 
-    if (summary.bio) {
+    if (under) {
+      // the text, then the photo shown whole across the card in the room that is left
+      const top = fields.length ? fieldsBottom + 40 : titleBottom + 60;
+      const floor = contentBottom + 14;
+      g.font = font("400 24px");
+      const wanted = summary.bio ? countLines(g, summary.bio, width) : 0;
+      const keep = Math.max(2, Math.floor((floor - top - 44 - UNDER_MIN_PHOTO) / 34) + 1); // lines kept so the photo has room
+      const textHeight = wanted ? (Math.min(wanted, keep) - 1) * 34 : -44;
+      const natural = (width * photo.height) / photo.width;
+      const photoHeight = Math.min(natural, floor - (top + textHeight + 44));
+      const photoTop = floor - photoHeight;
+      if (summary.bio) {
+        const room = photoTop - 44 - top;
+        let size = 24;
+        for (const candidate of BIO_SIZES) {
+          g.font = font(`400 ${candidate}px`);
+          if ((countLines(g, summary.bio, width) - 1) * Math.round(candidate * 1.4) <= room) {
+            size = candidate;
+            break;
+          }
+        }
+        const line = Math.round(size * 1.4);
+        g.fillStyle = BRAND.ink;
+        g.font = font(`400 ${size}px`);
+        wrapText(g, summary.bio, left, top, width, line, Math.max(2, Math.floor(room / line) + 1));
+      }
+      // The photo fills the width when that crops at most 40% of its height, otherwise it is shown whole on a band.
+      const shown = photo.width / photo.height / (width / photoHeight);
+      if (shown >= 0.6 && shown <= 1) {
+        drawPhoto(left, photoTop, width, photoHeight);
+      } else {
+        g.fillStyle = BRAND.band;
+        g.fillRect(left, photoTop, width, photoHeight);
+        const scale = Math.min(width / photo.width, photoHeight / photo.height);
+        g.drawImage(
+          photo,
+          left + (width - photo.width * scale) / 2,
+          photoTop + (photoHeight - photo.height * scale) / 2,
+          photo.width * scale,
+          photo.height * scale
+        );
+      }
+    } else if (summary.bio) {
       // the text goes below the fields and the picture, as large as fits in the room that is left
       const sideBottom = hasSide ? SIDE_BOX.y + SIDE_BOX.h : 0;
       const top = (fields.length ? Math.max(fieldsBottom, sideBottom) : Math.max(titleBottom, sideBottom)) + 56;
@@ -979,6 +1021,13 @@ const DIALOG_HTML = `
           <h3>Picture on the card</h3>
           <div class="wbe-share-cardphotos" role="radiogroup" aria-label="Picture on the card"></div>
           <p class="wbe-share-hint">Choose which picture from this page is shown on the share card.</p>
+          <label class="wbe-share-photoplace" hidden>
+            <span>Picture position</span>
+            <select id="wbeSharePhotoPlace">
+              <option value="beside">Beside the text</option>
+              <option value="under">Under the text (more room for a wide picture)</option>
+            </select>
+          </label>
         </div>
         <div class="wbe-share-subject" hidden>
           <h3><label for="wbeShareSubject">Subject</label></h3>
@@ -1045,6 +1094,7 @@ function openDialog(kind, options, profile = null, extras = {}) {
     text: "",
     subject: emailSubject(title),
     edited: false,
+    photoPlace: "beside",
     selected: [images[0].id],
     blobs: {},
   };
@@ -1130,6 +1180,7 @@ function openDialog(kind, options, profile = null, extras = {}) {
           photoSrc: graphic ? "" : cardPhotoSrc(),
           slot: graphic ? null : cardSlot(),
           summary: cardSummary ? { fields: cardSummary.fields, bio: state.bio } : null,
+          placement: state.photoPlace,
           badge,
           subtitle: app ? app.person : "",
           graphic,
@@ -1214,6 +1265,8 @@ function openDialog(kind, options, profile = null, extras = {}) {
     const show = hasCard && kind !== "treeApp" && cardChoices.length > 0;
     $overlay.find(".wbe-share-cardphoto").prop("hidden", !show);
     if (!show) return;
+    // the position matters only for a photo on a card that has text; the surname hub's drawn pictures stay beside it
+    $overlay.find(".wbe-share-photoplace").prop("hidden", !(cardSummary && cardPhotoSrc()));
     const $box = $overlay.find(".wbe-share-cardphotos").empty();
     const choose = (id) => () => {
       state.cardPhoto = id;
@@ -1560,6 +1613,10 @@ function openDialog(kind, options, profile = null, extras = {}) {
       state.subject = e.target.value;
       renderPost();
     });
+  $overlay.find("#wbeSharePhotoPlace").on("change", (e) => {
+    state.photoPlace = e.target.value === "under" ? "under" : "beside";
+    redrawCard();
+  });
   $overlay.find("#wbeShareCropFor").on("change", (e) => {
     state.active = e.target.value;
     renderCropPanel();

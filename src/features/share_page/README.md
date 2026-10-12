@@ -107,10 +107,10 @@ portrait, and a short life summary:
   Candidate", "Gold Standard: Genealogically Complete and Peer Reviewed"). The status comes from `ResearchStatus` in the
   `getProfile` call that already checks privacy. Lower statuses show nothing. See `researchBadge()` and `drawMedal()`.
 
-**Help, project and free-space pages** show the title, the opening sentences of the page's text (footnote markers removed,
-tables skipped, up to about 330 characters) and an "On this page" field with the first section names. Standard sections (Sources, References, Footnotes, See also and the
-like) and a heading that only repeats the page's own title ("Andersonia" on "Andersonia, California One Place Study") are
-left out, and if nothing is left there is no field and the text gets the room. See `usefulSections()`.
+**Help, project and free-space pages** show the title and the opening sentences of the page's text (footnote markers
+removed, tables skipped, up to about 330 characters). The page's headings are not listed on any of them: many of these
+pages are lists of topics or of people (Help:WikiTree Team, Help:Projects), and a list of headings is not a useful summary
+of any page.
 
 **Surname (genealogy) pages** (the hub at `/genealogy/PEASLEY`) show the title, up to four fields read from the page's
 text (Profiles: "Search all 652 profiles"; Open profiles and Rank: "Rank: 8,840th most popular surname on WikiTree, with
@@ -135,15 +135,19 @@ styling. The hub's search box is not offered, as it is not something to share.
 **Category pages** show counts of subcategories, pages and person profiles, and a line inviting people to explore the
 category and check their connections to the ancestors in it.
 
-Section names and text are read without the controls inside them: WikiTree's "[edit]" link, footnote markers, and the
-Link and URL copy buttons that Scissors adds to headings, so a heading shows as "Andersonia", not "Andersonia[edit] Link
-URL". See `cleanHeading()` and `textWithoutControls()`.
+The page's text is read without the controls inside it: WikiTree's "[edit]" link, footnote markers, and the Link and URL
+copy buttons that Scissors adds. See `textWithoutControls()`.
 
 **The picture on the card.** A profile or free-space page starts with its primary photo on the card (the first photo on the
 page). Help, project and category pages start with no photo, because their first picture is often a logo or badge. On any
 of these a "Picture on the card" strip lets the member choose any photo found on the page, or none, and the card redraws.
 The photo fills a portrait slot at the right, and the text stops short of it. Tree Apps cards show the chart instead and
 have no chooser.
+
+**Picture position.** A photo on a card that has text goes beside the title and fields by default. "Picture position" in
+the dialog moves it under the text instead, across the whole card, which leaves a wide picture far more room. A photo
+that loses at most 40% of its height to fill the width does so; a taller one is shown whole on a band. The surname hub's
+drawn pictures always go beside the text. See `drawShareCard()`.
 
 For all of these the member can edit the text in the dialog and the card redraws.
 

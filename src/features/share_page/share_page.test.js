@@ -881,7 +881,25 @@ describe("Share Page dialog", () => {
     expect($("#wbeShareSummary").val()).toContain("Andersonia was named for the President");
   });
 
-  test("a help page still lists its real sections, without the edit link and copy buttons", async () => {
+  test("the picture can go under the text, and the choice only shows for a photo on a card with text", async () => {
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    await clickShare();
+    await settle();
+    const place = document.getElementById("wbeSharePhotoPlace");
+    expect($(".wbe-share-photoplace").prop("hidden")).toBe(false);
+    expect(place.value).toBe("beside");
+    const before = global.mockCanvasSizes.length;
+    place.value = "under";
+    place.dispatchEvent(new Event("change", { bubbles: true }));
+    await settle();
+    expect(global.mockCanvasSizes.length).toBeGreaterThan(before);
+    // with no picture on the card there is nothing to place
+    $(".wbe-share-cardphotobtn")[0].click();
+    await settle();
+    expect($(".wbe-share-photoplace").prop("hidden")).toBe(true);
+  });
+
+  test("a help page shows its opening text and does not list its headings", async () => {
     await loadFeature(
       "/wiki/Help:Projects",
       `<main><h1>Help:Projects</h1><div class="body-text"><p>A project is a group of members organized around a topic or volunteer activity.</p>
@@ -892,11 +910,27 @@ describe("Share Page dialog", () => {
     await clickShare();
     await settle();
     const drawn = global.mockCardText.join("|");
-    expect(drawn).toContain("ON THIS PAGE");
-    expect(drawn).toContain("Topical Projects");
-    expect(drawn).toContain("Functional Projects");
-    expect(drawn).not.toContain("[edit]");
-    expect(drawn).not.toContain("URL");
+    expect(drawn).not.toContain("ON THIS PAGE");
+    expect(drawn).not.toContain("Topical Projects");
+    expect(drawn).not.toContain("Functional Projects");
+    expect($("#wbeShareSummary").val()).toContain("A project is a group of members");
+  });
+
+  test("a project page shows its opening text and does not list its headings", async () => {
+    await loadFeature(
+      "/wiki/Project:Acadians",
+      `<main><h1>Acadians Project</h1><div class="body-text"><p>The Acadians Project on WikiTree is dedicated to building a single, well-sourced family tree of the French immigrants who settled in Acadia.</p>
+        <h2>Mission[edit] <ul class="copy--buttons"><li><button>Link</button></li><li><button>URL</button></li></ul></h2>
+        <h2>How to join<span class="editsection">[edit]</span></h2></div></main>`,
+      "Acadians Project | WikiTree FREE Family Tree"
+    );
+    await clickShare();
+    await settle();
+    const drawn = global.mockCardText.join("|");
+    expect(drawn).not.toContain("ON THIS PAGE");
+    expect(drawn).not.toContain("Mission");
+    expect(drawn).not.toContain("How to join");
+    expect($("#wbeShareSummary").val()).toContain("The Acadians Project on WikiTree");
   });
 
   test("a surname (genealogy) page gets a Share button, a card and a post", async () => {

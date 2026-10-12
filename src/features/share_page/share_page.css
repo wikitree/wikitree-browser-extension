@@ -552,3 +552,20 @@ h1 .wbe-share-in-heading {
   background: #f0f0eb;
   color: inherit;
 }
+
+.wbe-share-photoplace {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+.wbe-share-photoplace select {
+  font: inherit;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid #dcdcd5;
+  border-radius: 0.4rem;
+  background: #f0f0eb;
+  color: inherit;
+  max-width: 100%;
+}

@@ -501,19 +501,6 @@ export function appNameFromSlug(slug) {
 // Summaries for pages that are not profiles
 // ---------------------------------------------------------------------------------------------
 
-/**
- * A section heading as plain text. WikiTree's own "[edit]" link and the Link and URL copy buttons that Scissors adds sit
- * inside the heading, so "Andersonia[edit] Link URL" becomes "Andersonia".
- */
-export function cleanHeading(text) {
-  return (text || "")
-    .replace(/\[\s*edit\s*\]/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/(?:\s+ID)?(?:\s+Link)?\s+URL$/i, "")
-    .trim();
-}
-
 function cutAtWord(text, max) {
   if (text.length <= max) return text;
   return text.slice(0, max).replace(/\s+\S*$/, "") + "…";
@@ -547,7 +534,7 @@ export function leadSummary(paragraphs, maxChars = 330) {
 /**
  * The facts and short text for the share card of a help, project, free-space or category page.
  *
- * facts: { paragraphs: [text], sections: [heading], counts: { subcategories, pages, profiles } }
+ * facts: { paragraphs: [text], counts: { subcategories, pages, profiles } }
  * Returns null for other kinds, or when there is nothing to show.
  */
 /** 8840 becomes "8,840th", 1 "1st", 22 "22nd". */
@@ -590,31 +577,6 @@ export function parseGenealogyText(text = "") {
   return result;
 }
 
-const BOILERPLATE_SECTIONS =
-  /^(sources?|references?|footnotes?|notes?|citations?|bibliography|see also|external links?|further reading|acknowledge?ments?|research notes?|contents)$/i;
-
-const plain = (text) =>
-  (text || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-
-/**
- * The section names worth listing on a card. Standard sections every page has (Sources, References, ...) tell the reader
- * nothing, and neither does a heading that only repeats the page's own title ("Andersonia" on "Andersonia, California One
- * Place Study").
- */
-export function usefulSections(sections = [], title = "") {
-  const pageTitle = plain(title.replace(/^(Space|Project|Help|Category):/i, ""));
-  return sections.map(cleanHeading).filter((heading) => {
-    if (!heading || BOILERPLATE_SECTIONS.test(heading)) return false;
-    // only a heading that is just part of the title goes: "Andersonia" in "Andersonia, California One Place Study".
-    // One that adds to the title ("Topical Projects" on "Help:Projects") stays.
-    const name = plain(heading);
-    return !(name.length >= 3 && ` ${pageTitle} `.includes(` ${name} `));
-  });
-}
-
 export function pageSummary(kind, facts = {}) {
   const fields = [];
   let bio = "";
@@ -629,12 +591,9 @@ export function pageSummary(kind, facts = {}) {
     bio =
       "Explore the subcategories, pages and profiles in this category. Check your connections to the ancestors listed here.";
   } else if (kind === "help" || kind === "project" || kind === "space") {
+    // Just the opening text. Headings are left off these pages: help pages list topics or people (Help:WikiTree Team),
+    // and a list of headings is not a useful summary of any of them.
     bio = leadSummary(facts.paragraphs || []);
-    const sections = usefulSections(facts.sections || [], facts.title || "");
-    if (sections.length) {
-      const lines = sections.length > 2 ? [sections[0], `${sections[1]} +${sections.length - 2} more`] : sections;
-      fields.push({ label: "On this page", lines, names: true });
-    }
   } else if (kind === "genealogy") {
     // a surname hub: "Peasley Genealogy", with the numbers the page shows
     const hub = facts.genealogy || {};
