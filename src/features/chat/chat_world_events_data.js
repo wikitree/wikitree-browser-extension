@@ -9,6 +9,7 @@ import { canonicalChartOwner as canonicalOwner } from "./chat_chart_prompt";
 import { getCountryFromLocation } from "./chat_place_country";
 import { RELATIVE_OWNER } from "./chat_chart_owner";
 import { linesWithMore, textWithMoreLink } from "./chat_more_text";
+import { fullName } from "./chat_text_utils";
 
 const BRITAIN = ["England", "Scotland", "Wales", "Northern Ireland", "United Kingdom"];
 const BRITISH_ISLES = [...BRITAIN, "Ireland"];
@@ -459,7 +460,7 @@ export function aliveFor(event, rows) {
 
 function personText(entry, ownerText) {
   const whose = ownerText === "Your" ? "your" : ownerText;
-  return `${entry.row.name} (${whose} ${String(entry.row.relation || "").toLowerCase()}${entry.age ? `, aged ${entry.age}` : ", born during it"})`;
+  return `${fullName(entry.row)} (${whose} ${String(entry.row.relation || "").toLowerCase()}${entry.age ? `, aged ${entry.age}` : ", born during it"})`;
 }
 
 /**

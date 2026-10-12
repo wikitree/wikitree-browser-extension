@@ -4,7 +4,7 @@
 // events they lived through below. The rows come from buildFamilyTimelineRows; the
 // d3 drawing lives in chat_life_line.js.
 
-import { yearOf } from "./chat_chart_common";
+import { fullName, yearOf } from "./chat_chart_common";
 import { rowSpan } from "./chat_family_timeline_data";
 import { livedThrough, placeRegions } from "./chat_world_events_data";
 import { joinWithAndMore } from "./chat_more_text";
@@ -79,7 +79,7 @@ export function buildLifeLine(rows, { now = new Date().getFullYear(), fallbackCo
   const family = [];
   const add = (year, kind, text, row = null) => family.push({ year, age: year - start, kind, text, wtid: row?.wtid || "" });
   add(start, "birth", `Born${self.birthLocation ? ` in ${self.birthLocation}` : ""}`, self);
-  const who = (row) => `${row.relation} ${row.name}`;
+  const who = (row) => `${row.relation} ${fullName(row)}`;
   // Only "before"/"after" dates are dropped: they bound a date rather than give it.
   const bounded = (status) => status === "before" || status === "after";
   others.forEach((row) => {
@@ -87,11 +87,11 @@ export function buildLifeLine(rows, { now = new Date().getFullYear(), fallbackCo
     const died = bounded(row.deathStatus) ? 0 : yearOf(row.death);
     if (row.role === "parent" && died && died <= end) {
       if (died >= start) add(died, "loss", `${who(row)} died`, row);
-      else family.push({ year: died, age: died - start, kind: "loss", text: `${who(row)} died before ${self.name} was born`, wtid: row.wtid, before: true });
+      else family.push({ year: died, age: died - start, kind: "loss", text: `${who(row)} died before ${fullName(self)} was born`, wtid: row.wtid, before: true });
     }
     if (row.role === "spouse") {
       const married = yearOf(row.marriage);
-      if (within(married)) add(married, "marriage", `Married ${row.name}${row.marriagePlace ? ` in ${row.marriagePlace}` : ""}`, row);
+      if (within(married)) add(married, "marriage", `Married ${fullName(row)}${row.marriagePlace ? ` in ${row.marriagePlace}` : ""}`, row);
       if (within(died)) add(died, "loss", `${who(row)} died`, row);
     }
     if (row.role === "sibling") {
@@ -102,7 +102,7 @@ export function buildLifeLine(rows, { now = new Date().getFullYear(), fallbackCo
       if (within(born)) add(born, "child", `${who(row)} born`, row);
       if (within(died)) add(died, "loss", `${who(row)} died`, row);
     }
-    if (row.role === "grandchild" && within(born)) add(born, "grandchild", `Grandchild ${row.name} born${row.parentName ? ` (child of ${row.parentName})` : ""}`, row);
+    if (row.role === "grandchild" && within(born)) add(born, "grandchild", `Grandchild ${fullName(row)} born${row.parentName ? ` (child of ${row.parentName})` : ""}`, row);
   });
   if (deathYear) add(deathYear, "death", `Died${self.deathLocation ? ` in ${self.deathLocation}` : ""}, aged about ${deathYear - start}`, self);
   const order = Object.keys(LIFE_EVENT_KINDS);
@@ -131,9 +131,9 @@ export function buildLifePlaces(self, others, start, end) {
   const points = [];
   if (self.birthLocation) points.push({ year: start, location: self.birthLocation, text: "born there" });
   others.forEach((row) => {
-    if (row.role === "spouse" && row.marriagePlace && yearOf(row.marriage)) points.push({ year: yearOf(row.marriage), location: row.marriagePlace, text: `married ${row.name} there` });
+    if (row.role === "spouse" && row.marriagePlace && yearOf(row.marriage)) points.push({ year: yearOf(row.marriage), location: row.marriagePlace, text: `married ${fullName(row)} there` });
     if (row.role === "child" && row.birthLocation && yearOf(row.birth) && row.birthStatus !== "before" && row.birthStatus !== "after") {
-      points.push({ year: yearOf(row.birth), location: row.birthLocation, text: `${row.name} born there` });
+      points.push({ year: yearOf(row.birth), location: row.birthLocation, text: `${fullName(row)} born there` });
     }
   });
   const deathYear = yearOf(self.death);

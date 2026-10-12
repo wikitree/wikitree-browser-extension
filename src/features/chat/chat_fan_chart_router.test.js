@@ -17,7 +17,7 @@ describe("fan chart routing", () => {
 });
 
 describe("family world routing", () => {
-  test.each(["show my family world", "show Cook-8721's CC7 tree", "show me everyone connected to her", "explore my whole family tree", "fractal", "show me my fractal tree"])("%s routes to the family world", (prompt) => {
+  test.each(["show my family world", "show Cook-8721's CC7 tree", "show me everyone connected to her", "explore my whole family tree", "fractal", "show me my fractal tree", "show my 3D family tree", "my fan tower", "Cook-8721's tornado"])("%s routes to the family world", (prompt) => {
     expect(routeChatPrompt(prompt).intent).toBe(ChatIntent.FAMILY_WORLD);
     expect(isWtPlusOnlyPrompt(prompt)).toBe(false);
   });

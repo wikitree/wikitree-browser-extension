@@ -24,6 +24,7 @@ import {
   chartLinkClick,
   createPinnableTip,
   escapeText,
+  fullName,
   profileUrl,
   tipMoreHint,
   truncate,
@@ -302,7 +303,7 @@ export function showLifespansPopup(rows, options = {}) {
       .attr("stroke-width", 1.3)
       .attr("stroke-dasharray", "4 3");
     const late = x(root.start) > WIDTH - RIGHT - 150; // (keep the label inside the chart)
-    const rootText = `${truncate(root.name, 24)} born ${root.start}`;
+    const rootText = `${truncate(fullName(root), 28)} born ${root.start}`;
     const rootLabelX = x(root.start) + (late ? -4 : 4);
     rootLabel = late ? [rootLabelX - rootText.length * 5.6, rootLabelX] : [rootLabelX, rootLabelX + rootText.length * 5.6];
     g.append("text")
@@ -370,7 +371,7 @@ export function showLifespansPopup(rows, options = {}) {
     .attr("font-weight", (d) => (isRoot(d.row) ? 700 : 500))
     .attr("class", "wbe-ls-text")
     .attr("fill", "#2b2f36")
-    .text((d) => truncate(`${d.row.name}${d.row.lnab && !d.row.name.includes(d.row.lnab) ? ` ${d.row.lnab}` : ""}`, d.h >= 18 ? 28 : 34));
+    .text((d) => truncate(fullName(d.row), d.h >= 18 ? 28 : 34));
 
   const barY = (d) => (d.h >= 12 ? 3 : 1);
   const barH = (d) => d.h - 2 * barY(d);
@@ -426,9 +427,9 @@ export function showLifespansPopup(rows, options = {}) {
   if (rootItem) {
     const events = [];
     placed.forEach(({ row }) => {
-      if (row.role === "spouse" && yearOf(row.marriage)) events.push({ year: yearOf(row.marriage), kind: "marriage", text: `Married ${row.name}${row.marriagePlace ? ` in ${row.marriagePlace}` : ""}` });
-      if (row.role === "child") events.push({ year: row.start, kind: "child", text: `${row.relation} ${row.name} born` });
-      if (row.role === "parent" && row.endKnown) events.push({ year: row.end, kind: "death", text: `${row.relation} ${row.name} died` });
+      if (row.role === "spouse" && yearOf(row.marriage)) events.push({ year: yearOf(row.marriage), kind: "marriage", text: `Married ${fullName(row)}${row.marriagePlace ? ` in ${row.marriagePlace}` : ""}` });
+      if (row.role === "child") events.push({ year: row.start, kind: "child", text: `${row.relation} ${fullName(row)} born` });
+      if (row.role === "parent" && row.endKnown) events.push({ year: row.end, kind: "death", text: `${row.relation} ${fullName(row)} died` });
     });
     g.append("g")
       .attr("transform", `translate(0,${rootItem.y})`)
@@ -470,7 +471,7 @@ export function showLifespansPopup(rows, options = {}) {
   };
   // In a pinned tip the names open the profiles.
   const rowName = (row, all) =>
-    all && row.wtid ? `<a href="${profileUrl(row.wtid)}" target="_blank" rel="noopener">${escapeText(row.name)}</a>` : escapeText(row.name);
+    all && row.wtid ? `<a href="${profileUrl(row.wtid)}" target="_blank" rel="noopener">${escapeText(fullName(row))}</a>` : escapeText(fullName(row));
 
   // "Lived through: the Great Famine (aged 12), …" from their own country's events.
   function historyNote(row) {
@@ -535,7 +536,7 @@ export function showLifespansPopup(rows, options = {}) {
       const row = hovered.row;
       showTipHtml(
         event,
-        `<div class="wbe-chart-tip-rel">${escapeText(row.relation || "")}</div><b>${escapeText(row.name)}</b>
+        `<div class="wbe-chart-tip-rel">${escapeText(row.relation || "")}</div><b>${escapeText(fullName(row))}</b>
         <div>${escapeText(lifeText(row))}</div>
         ${row.birthLocation ? `<div style="opacity:.75">Born in ${escapeText(row.birthLocation)}</div>` : ""}
         ${row.start <= year && year <= row.end ? `<div>In ${year}: aged ${year - row.start}${row.endKnown || row.living ? "" : "?"}</div>` : ""}

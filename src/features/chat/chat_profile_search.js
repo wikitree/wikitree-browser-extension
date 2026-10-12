@@ -95,6 +95,7 @@ import { parseProjectMissingBoxPrompt } from "./chat_project_missing_box_filter"
 import { matchLocationTopicCategory } from "./chat_place_topic_category";
 import { isLikelyPersonAliasLabel } from "./chat_person_memory";
 import wtPlusProjectsCatalog from "./wtplus_projects.json";
+import { projectAccountMap, projectKey } from "./chat_project_accounts";
 
 // Build a compact one-line catalog of suggestion codes and titles for the AI
 // system prompt.  Lazily computed and cached.
@@ -2520,14 +2521,6 @@ export function createProfileSearchHandler({
     };
   }
 
-  function normalizeWtPlusProjectLookupKey(value) {
-    return String(value || "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-  }
-
   async function ensureWtPlusProjectAccountCatalogLoaded() {
     if (!wtPlusProjectAccountsPromise) {
       wtPlusProjectAccountsPromise = (async () => {
@@ -2559,31 +2552,8 @@ export function createProfileSearchHandler({
         if (!data || typeof data !== "object") {
           return new Map();
         }
-
-        const map = new Map();
-        Object.entries(data).forEach(([managerId, details]) => {
-          const managerText = String(managerId || "").trim();
-          if (!managerText) {
-            return;
-          }
-
-          const projectName = String(details?.Project || "").trim();
-          const normalizedProjectName = normalizeWtPlusProjectLookupKey(projectName);
-          const normalizedManagerId = normalizeWtPlusProjectLookupKey(managerText);
-          if (normalizedProjectName) {
-            map.set(normalizedProjectName, managerText);
-            if (normalizedProjectName.endsWith(" project")) {
-              map.set(normalizedProjectName.replace(/\s+project$/, "").trim(), managerText);
-            } else {
-              map.set(`${normalizedProjectName} project`.trim(), managerText);
-            }
-          }
-          if (normalizedManagerId) {
-            map.set(normalizedManagerId, managerText);
-          }
-        });
-
-        return map;
+        // (name or ID → account ID)
+        return new Map([...projectAccountMap(data)].map(([key, entry]) => [key, entry.id]));
       })().catch((error) => {
         console.info("wbe: failed to load WT+ project manager catalog", { error });
         return new Map();
@@ -2606,7 +2576,7 @@ export function createProfileSearchHandler({
       return managerValue;
     }
 
-    const normalized = normalizeWtPlusProjectLookupKey(managerValue);
+    const normalized = projectKey(managerValue);
     if (!normalized) {
       return "";
     }
@@ -3494,8 +3464,12 @@ export function createProfileSearchHandler({
       addSqlTerm(buildWtPlusSqlTerm("([Default].[Privacy].AsNumber < 50)"), "private profiles");
     });
 
+    // The look-ahead never held (\s* gave its space back), so "profiles in any category with the word Huguenot"
+    // ran CategoryFull="with the word Huguenot" Location=any (0; CategoryWord=Huguenot is 12,431) and "unsourced
+    // profiles with no category died in Kent" read a category "died in Kent". After a bare "category" these words
+    // start no name ("category word" is the next rule's); after "category:" anything does (sweep, 2026-10-12).
     consume(
-      /\b(?:in\s+)?category\s*[:=]?\s*(?!born\b|died\b|married\b|with\b|ancestors?\b|descendants?\b|cc7\b|in\s+tree\b)(.+)$/i,
+      /\b(?:in\s+)?category(?:\s*[:=]\s*|\s+(?!\s|born\b|died\b|married\b|with\b|ancestors?\b|descendants?\b|cc7\b|in\s+tree\b|word\b))(.+)$/i,
       (match) => {
         const category = stripSurroundingQuotes(match[1]);
         addTerm(normalizeWtPlusFieldTerm("CategoryFull", category), `category ${category}`);
@@ -4687,15 +4661,17 @@ export function createProfileSearchHandler({
       .trim()
       .replace(/^["“”'‘’\s[]+|["“”'‘’\s\]]+$/g, "")
       .replace(/\s*[?.!]+$/, "");
-    let match = text.match(
-      /^(.*?)\bcategory\s*[:=-]?\s*(?!born\b|died\b|married\b|with\b|ancestors?\b|descendants?\b|cc7\b|in\s+tree\b|word\b)(.+)$/i
-    );
+    // (A bare "category with …" or "category word …" isn't a name: "category word Huguenot" searched a category
+    // "word Huguenot", as \s* gave its space back to the look-ahead. Born, Died, Married and Descendants do start
+    // real names, "profiles in category Married Successive Siblings" (284); sweep, 2026-10-12.)
+    let match = text.match(/^(.*?)\bcategory(?:\s*[:=-]\s*|\s+(?!\s|with\b|word\b))(.+)$/i);
     if (match && !match[1].replace(CATEGORY_LEAD_IN, "").trim()) return stripSurroundingQuotes(match[2]) || null;
     // ("Rodeo Professionals category without a spouse": family, status and clause words may follow)
     match = text.match(/^(.+?)\s+category\b(.*)$/i);
     if (!match) return null;
     const name = stripSurroundingQuotes(match[1].replace(CATEGORY_LEAD_IN, ""));
-    if (!name || /\b(?:category|in|who|whose|which|my|our|profiles?|people)\b/i.test(name)) return null;
+    // ("profiles in any Huguenot category" searched CategoryWord="any Huguenot", 0: "any" names no one category)
+    if (!name || /\b(?:category|in|who|whose|which|my|our|any|profiles?|people)\b/i.test(name)) return null;
     const rest = match[2].trim();
     return !rest || buildWtPlusCategoryQuery(`${name} ${rest}`)?.category === name ? `${name}${rest ? ` ${rest}` : ""}` : null;
   }
@@ -4716,10 +4692,15 @@ export function createProfileSearchHandler({
     [new RegExp(`\\s+(?:(?:who|that)\\s+(?:have|has|had)\\s+no|with\\s+no|having\\s+no|without(?:\\s+any)?)\\s+${what}$`, "i"), flag],
   ]);
   const CATEGORY_CLAUSE_START = /\s+(?=(?:who|whose|which|that|with|without|having|born|died|married|buried|and\s+its|but\s+not)\b)/i;
+  // "Category: Ohio, United States Civil War and its subcategories" searched for a category with that whole name
+  // (CategoryWord, 0). WT+'s SubCat9 is the category and every subcategory under it, nine levels down: 8,149, where
+  // CategoryFull has 29 (live, 2026-10-12). Other words about subcategories ("but not its subcategories") aren't read.
+  const CATEGORY_SUBCATEGORIES_TAIL = /[\s,]*\(?\b(?:and|plus|with|including)\s+(?:all\s+)?(?:of\s+)?(?:its\s+|their\s+|the\s+)?sub[-\s]?categor(?:y|ies)\)?$/i;
   function buildWtPlusCategoryQuery(raw) {
     let category = String(raw || "")
       .trim()
       .replace(/\s*[?.!]+$/, "");
+    let subcategories = false;
     const terms = [];
     const tails = [
       ...CATEGORY_FAMILY_TAILS,
@@ -4729,6 +4710,11 @@ export function createProfileSearchHandler({
     ];
     for (let changed = true; changed; ) {
       changed = false;
+      const subcategoriesTail = category.match(CATEGORY_SUBCATEGORIES_TAIL);
+      if (subcategoriesTail) {
+        subcategories = changed = true;
+        category = category.slice(0, subcategoriesTail.index).trim();
+      }
       for (const [re, term] of tails) {
         const tail = category.match(re);
         if (!tail) continue;
@@ -4737,6 +4723,7 @@ export function createProfileSearchHandler({
         changed = true;
       }
     }
+    if (/\bsub[-\s]?categor/i.test(category) || (subcategories && /\bnot$/i.test(category))) return null;
     const clause = category.match(CATEGORY_CLAUSE_START);
     if (clause) {
       const rest = parseSearchSpecPrompt(category.slice(clause.index).trim());
@@ -4747,8 +4734,10 @@ export function createProfileSearchHandler({
     }
     category = stripSurroundingQuotes(category);
     if (!category) return null;
-    const query = [`CategoryFull=${toWtPlusCategoryFullValueFromCategoryName(category)}`, ...terms].join(" ");
-    return { query, category, title: `WT+ Category: ${category}${terms.length ? ` (${terms.join(", ")})` : ""}`, description: query };
+    const tree = subcategories ? `SubCat9=${quoteWtPlusValue(category)}` : `CategoryFull=${toWtPlusCategoryFullValueFromCategoryName(category)}`;
+    const query = [tree, ...terms].join(" ");
+    const title = `WT+ Category: ${category}${subcategories ? " and its subcategories" : ""}`;
+    return { query, category, title: `${title}${terms.length ? ` (${terms.join(", ")})` : ""}`, description: query };
   }
 
   // "Williams born in Pennsylvania with no death date": the words before the suggestion's own ("with no death
@@ -4816,9 +4805,10 @@ export function createProfileSearchHandler({
 
     // First: the readers below took "Category: Killed in Action" for a first name and two places, and
     // "Category: Pennsylvania Quakers died before 1800" for a place (sweep, 2026-10-12).
+    // A name it reads, with words after it that it can't, is a decline: the readers below put those words in the
+    // name, CategoryWord="Ohio, United States Civil War but not its subcategories" (sweep, 2026-10-12).
     const namedCategory = categoryNameFromPrompt(normalizedText);
-    const categorySearch = namedCategory && buildWtPlusCategoryQuery(namedCategory);
-    if (categorySearch) return categorySearch;
+    if (namedCategory) return buildWtPlusCategoryQuery(namedCategory);
 
     // "profiles in <project> but missing the project box in bio" is a specific
     // shape (Manager=<project> Suggestions=933). It contains "missing" and
@@ -6461,6 +6451,8 @@ export function createProfileSearchHandler({
     const query = String(canonicalQuery || "");
     const prompt = String(rawPrompt || "");
     if ((query.match(/(?:^|\s)Location=/gi) || []).length !== 1) return null;
+    // ("... NOT Location=Kent" would become everyone not named Kent)
+    if (/(?:^|\s)NOT\s+Location=/i.test(query)) return null;
     if (/(?:^|\s)(?:AllLastNames|LastName\w*|LNAB)=/i.test(query) || /\bLocation\s*=/i.test(prompt)) return null;
     const rawValue = String(query.match(WT_PLUS_LOCATION_SCOPE_RE)?.[2] || "").trim();
     const word = stripSurroundingQuotes(rawValue);
@@ -6937,8 +6929,9 @@ export function createProfileSearchHandler({
         // place when a surname was meant), so offer the other readings.
         const zeroScopeActions = buildLocationScopeRefinementActions(canonicalQuery, suggestionId, suggestionOptions, {
           otherReadingsOnly: true,
-          // (not counted: as the place it found nothing, so the surname is worth a try)
-          surname: runOptions?.fromScopeChoice ? null : locationSurnameQuery(canonicalQuery, runOptions?.rawPrompt),
+          // (counted, as on the other paths: an uncounted one was often the only reading offered and found
+          // nothing too, "Nebraska people born before 1600 with no sources", 2026-10-12)
+          surname: await surnameReading(),
         });
         if (zeroScopeActions.length) {
           return {

@@ -21,6 +21,7 @@
 
 import { buildFractalLayout } from "./chat_fractal_tree_data";
 import { getCountryFromLocation } from "./chat_place_country";
+import { fullName } from "./chat_text_utils";
 
 // getPeople nuclear depths: the first fetch around the person (CC3: ~3s, where CC4 took ~20s for an old colonial family), and each
 // fetch around someone at the edge as you zoom (CC3 around them).
@@ -34,7 +35,7 @@ const W_OWNER_AFTER = String.raw`(me|us|her|him|them|this\s+(?:profile|person)|[
 const W_LEAD = String.raw`(?:(?:show|draw|open|explore|make|build|give)(?:\s+me)?\s+)?`;
 // (and plain "fractal" / "fractal tree": the family world is the fractal tree's newest version; "my ancestors as a
 // fractal tree" still gets the ancestors-only one)
-const W_VIEW = String.raw`(?:family\s+(?:world|explorer)|explorer|cc-?7\s+(?:tree|chart|view|world|map)|zoomable\s+cc-?7|fractal(?:\s+(?:tree|chart|view|world))?|branches(?:\s+(?:view|chart))?|galaxy(?:\s+view)?)`;
+const W_VIEW = String.raw`(?:family\s+(?:world|explorer)|explorer|cc-?7\s+(?:tree|chart|view|world|map)|zoomable\s+cc-?7|fractal(?:\s+(?:tree|chart|view|world))?|branches(?:\s+(?:view|chart))?|galaxy(?:\s+view)?|3-?d(?:\s+(?:view|model|tree|chart|family\s+tree|ancestors))?|(?:ancestor\s+|family\s+)?tornado|fan\s+tower)`;
 const WORLD_PATTERNS = [
   // "show my family world", "Cook-8721's CC7 tree", "family world"
   new RegExp(String.raw`^${W_LEAD}(?:an?\s+|the\s+)?(?:${W_OWNER}\s+)?${W_VIEW}$`, "i"),
@@ -71,7 +72,10 @@ export function parseFamilyWorldPrompt(prompt) {
       : raw;
     const subjectPrompt = !owner ? "this profile's ancestors" : /^(?:my|her|his|their)$/.test(owner) ? `${owner} ancestors` : `${owner}'s ancestors`;
     // (a view named in the prompt opens on that view, whichever was used last: "my galaxy", "Beacall-9's branches")
-    const view = /\b(?:branches|fractal)\b/i.test(text) ? "tree" : /\bgalaxy\b/i.test(text) ? "galaxy" : "";
+    const view = /\b(?:branches|fractal)\b/i.test(text) ? "tree" : /\bgalaxy\b/i.test(text) ? "galaxy" : /\b(?:3-?d|tornado|fan\s+tower)\b/i.test(text) ? "3d" : "";
+    // (and the 3D view's shape: "my fan tower", "Cook-8721's tornado")
+    const shape = /\bfan\s+tower\b/i.test(text) ? "tower" : /\btornado\b/i.test(text) ? "tornado" : "";
+    if (shape) return { owner, subjectPrompt, view, shape };
     return view ? { owner, subjectPrompt, view } : { owner, subjectPrompt };
   }
   return null;
@@ -654,5 +658,5 @@ export function buildFamilyWorldSummary(world, ownerText) {
   [focus.fatherId, focus.motherId].filter(Boolean).forEach((id) => (kids.get(id) || []).forEach((child) => child.id !== focus.id && siblings.add(child.id)));
   const pronoun = focus.gender === "Female" ? "her" : focus.gender === "Male" ? "his" : "their";
   const brothers = siblings.size ? `, with ${pronoun} ${siblings.size === 1 ? "brother or sister" : `${siblings.size} brothers and sisters`}` : "";
-  return `${ownerText} Family Explorer starts with ${world.people.size.toLocaleString()} people (${up} generation${up === 1 ? "" : "s"} of ancestors so far). It opens on ${focus.name}. Click anyone to see their children; ↑ Parents goes up to ${pronoun} parents' family${brothers}, and on up. More loads as you go.`;
+  return `${ownerText} Family Explorer starts with ${world.people.size.toLocaleString()} people (${up} generation${up === 1 ? "" : "s"} of ancestors so far). It opens on ${fullName(focus)}. Click anyone to see their children; ↑ Parents goes up to ${pronoun} parents' family${brothers}, and on up. More loads as you go.`;
 }

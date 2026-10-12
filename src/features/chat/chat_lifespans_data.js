@@ -5,7 +5,7 @@
 
 import { ancestorWord, generationLabel, descendantWord } from "./chat_kin_labels";
 export { ancestorWord, generationLabel, descendantWord } from "./chat_kin_labels";
-import { yearOf } from "./chat_chart_common";
+import { fullName, yearOf } from "./chat_chart_common";
 import { generationOfSlot } from "./chat_fan_chart_data";
 import { RELATIVE_OWNER } from "./chat_chart_owner";
 
@@ -243,13 +243,13 @@ export function buildLifespansSummary(rows, ownerText, undated = 0) {
   if (stats.byCentury.length > 1) {
     lines.push(`By century of birth: ${stats.byCentury.map((c) => `${c.century}s ${c.average}`).join(" · ")}.`);
   }
-  if (stats.longest) lines.push(`Longest-lived: ${stats.longest.name}, ${lower(stats.longest.relation)}, ${stats.longest.age} (${stats.longest.start}–${stats.longest.end}).`);
+  if (stats.longest) lines.push(`Longest-lived: ${fullName(stats.longest)}, ${lower(stats.longest.relation)}, ${stats.longest.age} (${stats.longest.start}–${stats.longest.end}).`);
   if (stats.peak) lines.push(`Most alive at once: ${stats.peak.count}, in ${stats.peak.year}.`);
   if (root && stats.atRootBirth?.count) {
     const { count, oldest } = stats.atRootBirth;
     lines.push(
-      `When ${root.name} was born in ${root.start}, ${count} of these ancestors were alive${
-        oldest ? `; the eldest was ${oldest.name} (${lower(oldest.relation)}, born ${oldest.start})` : ""
+      `When ${fullName(root)} was born in ${root.start}, ${count} of these ancestors were alive${
+        oldest ? `; the eldest was ${fullName(oldest)} (${lower(oldest.relation)}, born ${oldest.start})` : ""
       }.`
     );
   }

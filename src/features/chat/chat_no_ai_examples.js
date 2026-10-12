@@ -19,8 +19,8 @@ export const NO_AI_EXAMPLE_SECTIONS = [
       { pattern: "[place] profiles with no biography", examples: ["Cheshire profiles with no biography"] },
       {
         pattern: "[place] profiles with [status]",
-        examples: ["Devon profiles with no sources", "Kent profiles without a father"],
-        note: "Genie first asks whether you meant born, married or died there, or a surname (Kent is both).",
+        examples: ["Devon profiles with no sources", "Kent profiles without a father", "Lancashire profiles with no death date born before 1850"],
+        note: "On its own, Genie first asks whether you meant born, married or died there, or a surname (Kent is both). With dates beside it, Genie searches the place and offers the surname as a button when WikiTree has people by that name.",
       },
       { pattern: "[surname] born [year] [place]", examples: ["Smith born 1850 Kent"] },
       { pattern: "the [surname]s of [place] / the [surname] family from [place]", examples: ["the Beacalls of Shropshire", "Smith family from Kent"] },
@@ -29,6 +29,16 @@ export const NO_AI_EXAMPLE_SECTIONS = [
       {
         pattern: "Category: [name] (with or without children / parents / a spouse, [status], born / died [place or years])",
         examples: ["Category: Mayflower Passengers no parents", "Who is in the Salem Witch Trials category?", "Category: Pennsylvania Quakers died before 1800"],
+      },
+      {
+        pattern: "Category: [name] and its subcategories",
+        examples: ["Category: Pennsylvania Quakers and its subcategories"],
+        note: "The category and every category inside it.",
+      },
+      {
+        pattern: "category word [word]",
+        examples: ["category word Huguenot"],
+        note: "Any category with that word in its name.",
       },
       {
         pattern: "[search] with a Research Status: gold standard / gold standard candidates / silver standard / help requested / sources to review / unfinished / no research status",
@@ -75,12 +85,17 @@ export const NO_AI_EXAMPLE_SECTIONS = [
       {
         pattern: "[surname] profiles",
         examples: ["Garver profiles", "profiles with last name Garver"],
-        note: "A surname matches any last name, married names included; say \"with last name at birth Garver\" for the birth name only. A plural surname works too: if \"Alleys\" finds nobody, Genie searches for Alley.",
+        note: "A surname matches any last name, married names included; say \"with last name at birth Garver\" for the birth name only. A plural surname works too: Genie counts both spellings on WikiTree+, so \"the Smiths\" finds the Smith family.",
       },
       {
         pattern: "profiles I manage [with a condition or place]",
         examples: ["profiles I manage with no sources"],
         note: "Read from your watchlist when you're signed in to WikiTree Apps (the Apps button); otherwise from WikiTree+. Private profiles can only be shown when you're signed in to Apps. A big watchlist takes a minute or two to read the first time; Genie then keeps it for a few hours (\"refresh my watchlist\" reads it again).",
+      },
+      {
+        pattern: "profiles managed by [project or WikiTree ID] [with a condition or place]",
+        examples: ["profiles managed by the Mayflower Project with no sources"],
+        note: "A project is searched as its account (the Mayflower Project is WikiTree-9).",
       },
       {
         pattern: "WikiTree+ search text",

@@ -193,9 +193,27 @@ describe("AI search spec replies", () => {
     });
     const result = await run("Cheshire no biography at all");
     const message = typeof result === "string" ? result : result.message;
-    expect(wtAPIProfileSearch).toHaveBeenCalledTimes(2);
+    // (and a count of the surname reading, which finds nothing too, so it isn't offered)
+    expect(wtAPIProfileSearch.mock.calls.filter((call) => call[2]?.maxProfiles !== 1)).toHaveLength(2);
     expect(message).toContain("Location=Cheshire Suggestions=802");
     expect(message).not.toContain("AllLastNames=Cheshire");
+  });
+  test("a place left out (NOT Location=) isn't offered as a surname", async () => {
+    aiReplies({
+      action: "search",
+      understood: "Farmers born in the 1850s, not in Kent",
+      search: {
+        dates: [{ event: "birth", from: 1850, to: 1859 }],
+        categories: [{ name: "Farmers", match: "word" }],
+        notPlaces: [{ text: "Kent", event: "any" }],
+      },
+    });
+    const result = await run("farmers born in the 1850s excluding Kent");
+    const message = typeof result === "string" ? result : result.message;
+    expect(executedQuery()).toContain("NOT Location=Kent");
+    // ("NOT AllLastNames=Kent" would be everyone not named Kent, 2026-10-12)
+    expect(wtAPIProfileSearch.mock.calls.map((call) => decodeURIComponent(call[1])).join("\n")).not.toContain("AllLastNames");
+    expect(message).not.toContain("surname too");
   });
   test("a zero prefix before sql= is reported as no results, not a SQL error", async () => {
     wtAPIProfileSearch.mockResolvedValue({

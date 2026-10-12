@@ -11,6 +11,7 @@
 
 import { withAccentsMasked } from "./chat_accent_mask";
 import { isKnownPlaceName } from "./chat_known_places";
+import { projectAccountMap, projectKey } from "./chat_project_accounts";
 
 const LEAD_IN = /^\s*(?:(?:search(?:\s+for)?|find|show(?:\s+me)?|list|get|give\s+me)\s+)?(?:(?:who|which\s+(?:people|profiles))(?:\s+(?:was|were|is|are))?\s+)?/i;
 
@@ -47,6 +48,29 @@ export const STATUS_FLAG_TAILS = STATUS_FLAGS.map(([term, re]) => [new RegExp(`\
 // "profiles I manage", "managed by me", "my managed profiles": manager "me", the signed-in user (the
 // caller puts in the ID). Not "my profiles": that could be the watchlist.
 const MANAGED_BY_ME = /\b(?:(?:that|which)\s+)?I\s+manage\b|\b(?:managed\s+by\s+me|my\s+managed(?=\s+profiles?\b))\b/i;
+
+// "managed by Beacall-6", "managed by the Mayflower Project": a WikiTree ID, or a project read as its account
+// from the list the search already uses (Mayflower Project: WikiTree-9). WT+'s Manager= takes only an ID
+// (Manager="Mayflower Project" finds 0), so a manager it can't place declines. The general parser took the
+// rest of the sentence as the name: Manager="the Mayflower Project with no sources" (sweep, 2026-10-12).
+const PROJECT_ACCOUNTS = projectAccountMap();
+const MANAGED_BY = /\bmanaged\s+by\s+(?!me\b(?!-\d))(?:the\s+)?/i;
+
+/** The manager named after "managed by" and where its words end; false when they name no ID or project. */
+function readManager(text) {
+  const by = text.match(MANAGED_BY);
+  if (!by) return null;
+  const start = by.index + by[0].length;
+  const words = [...text.slice(start).matchAll(/\S+/g)].slice(0, 6);
+  const end = (count) => start + words[count - 1].index + words[count - 1][0].length;
+  const first = clean(words[0]?.[0] || "");
+  if (/^[A-Za-z][A-Za-z0-9_'-]*-\d+$/.test(first)) return { id: first, label: first, from: by.index, to: end(1) };
+  for (let count = words.length; count > 0; count -= 1) {
+    const project = PROJECT_ACCOUNTS.get(projectKey(words.slice(0, count).map(([word]) => word).join(" ")));
+    if (project) return { id: project.id, label: `the ${project.name} (${project.id})`, from: by.index, to: end(count) };
+  }
+  return false;
+}
 
 const FEMALE = /\b(?:women|woman|females?|girls?)\b/i;
 const MALE = /\b(?:men|man|males?|boys?)\b/i;
@@ -193,6 +217,8 @@ function readDates(text) {
 
 const looksLikeNationality = (word) => /(?:ish|ese|ian|ican)$|^(?:French|Dutch|Swiss|Greek|German|Welsh|Manx)$/i.test(word);
 const isName = (word) => /^[A-Z][A-Za-z'-]+$/.test(word);
+// (a surname's hyphened parts are capitalised, "Smith-Jones": "Kent-born" and "Kent-area" aren't surnames)
+const isSurname = (word) => isName(word) && word.split("-").every((part) => /^[A-Z]/.test(part));
 const clean = (word) => word.replace(/^[^A-Za-z0-9§]+|[^A-Za-z0-9§'-]+$/g, "");
 
 /** The words of a sentence as a spec, or null when any word isn't accounted for. */
@@ -212,6 +238,10 @@ function parseAsciiSearchSpecPrompt(prompt) {
   if (!text.trim()) return null;
   // (joined first, so the "Man" of "Isle of Man" isn't read as men)
   text = joinPlaces(text);
+  // (the manager before the status words: they end its name, "the Mayflower Project with no sources")
+  const manager = readManager(text);
+  if (manager === false) return null;
+  if (manager) text = `${text.slice(0, manager.from)} §F ${text.slice(manager.to)}`;
 
   const flags = [];
   const flagLabels = [];
@@ -310,6 +340,8 @@ function parseAsciiSearchSpecPrompt(prompt) {
   // (only an event word or "in Place" says a leading word is a name; a status word beside one word could be a place)
   let sawMarker = false;
   let sawBareDate = false;
+  // (the words before an occupation, read as its place: "Kent farmers")
+  let occupationLead = "";
   // "people called John Smith": a whole name after it; "named Mary" could be either name, so that declines
   let calledName = false;
   const trailing = [];
@@ -330,7 +362,8 @@ function parseAsciiSearchSpecPrompt(prompt) {
         // "Kent farmers 1850s": the words before an occupation word are its place
         if (word === "§O" && !event && lead.length && lead.some(looksLikeNationality)) return null;
         if (word === "§O" && !event && lead.length && lead.every(isName) && lead.length <= 3) {
-          places.push({ text: lead.join(" "), event: "any" });
+          occupationLead = lead.join(" ");
+          places.push({ text: occupationLead, event: "any" });
           lead.length = 0;
         }
       }
@@ -404,6 +437,17 @@ function parseAsciiSearchSpecPrompt(prompt) {
     return null;
   }
 
+  // "Methodist ministers in Cornwall", "Quaker farmers in Pennsylvania": beside "in" another place, a word before
+  // a job that isn't a known place may describe the job, not place it (Location=Methodist, sweep 2026-10-12): a
+  // town in Cornwall wouldn't need Cornwall. On its own it stays the place ("Boston doctors"), and beside a birth
+  // place it's where they worked ("Plymouth sailors born in Devon").
+  if (
+    occupationLead &&
+    !isKnownPlaceName(occupationLead) &&
+    places.some((place) => place.text !== occupationLead && place.event === "any")
+  ) {
+    return null;
+  }
   if (calledName) {
     if (lead.length !== 2) return null;
     sawMarker = true;
@@ -418,11 +462,14 @@ function parseAsciiSearchSpecPrompt(prompt) {
   // place, or a surname ("Kent" is both). With dates beside it ("Lancashire profiles with no death date born
   // before 1850") it runs as the place, and the result offers the surname instead, when WikiTree+ has
   // profiles that way (Lancashire, England and Wales are surnames too; the user, 2026-10-12). "Garver
-  // profiles" is a surname as before (2026-10-10).
+  // profiles" is a surname as before (2026-10-10). "The Kent family" is a surname (it ran as the place,
+  // Location=Kent, 2026-10-12).
+  const namedFamily = /\bfamily\b/i.test(prompt);
   if (
     lead.length &&
     lead.every(isName) &&
     isKnownPlaceName(lead.join(" ")) &&
+    !namedFamily &&
     !places.length &&
     !managedByMe &&
     !occupation &&
@@ -441,8 +488,9 @@ function parseAsciiSearchSpecPrompt(prompt) {
   if (
     lead.length === 1 &&
     isName(lead[0]) &&
-    !isKnownPlaceName(lead[0]) &&
-    (/\bfamil(?:y|ies)\b/i.test(prompt) || (tokens.length === 2 && tokens[0].toLowerCase() === "the" && /s$/.test(lead[0])))
+    (namedFamily ||
+      (!isKnownPlaceName(lead[0]) &&
+        (/\bfamilies\b/i.test(prompt) || (tokens.length === 2 && tokens[0].toLowerCase() === "the" && /s$/.test(lead[0])))))
   ) {
     sawMarker = true;
   }
@@ -460,10 +508,19 @@ function parseAsciiSearchSpecPrompt(prompt) {
   }
   // "Kent profiles born in Ohio", "Lancashire people who emigrated": a known place as profiles beside another
   // place, a job or a migration could be the place or the surname, and neither reading is the likelier. Decline.
-  if (lead.length && isKnownPlaceName(lead.join(" ")) && /\b(?:profiles|people|persons)\b/i.test(prompt)) return null;
+  // ("Kent profiles managed by me born 1850" and "Kent profiles English" stay surnames, as before.)
+  if (
+    lead.length &&
+    !namedFamily &&
+    isKnownPlaceName(lead.join(" ")) &&
+    (places.length || occupation || migration || emigrantCategory) &&
+    /\b(?:profiles|people|persons)\b/i.test(prompt)
+  ) {
+    return null;
+  }
   const names = {};
   if (lead.length) {
-    if (!sawMarker || lead.length > 2 || !lead.every(isName)) return null;
+    if (!sawMarker || lead.length > 2 || !lead.every(isName) || !isSurname(lead[lead.length - 1])) return null;
     // "Scottish emigrants to Canada", "Irish farmers": a nationality, not a surname
     if ((migration || occupation) && lead.some(looksLikeNationality)) return null;
     if (lead.length === 2) names.firstName = lead[0];
@@ -505,16 +562,17 @@ function parseAsciiSearchSpecPrompt(prompt) {
   if (missingDates.length) spec.missingDates = [...new Set(missingDates)];
   if (missingPlaces.length) spec.missingPlaces = [...new Set(missingPlaces)];
   if (managedByMe) spec.manager = "me";
+  else if (manager) spec.manager = manager.id;
   if (!Object.keys(spec).length) return null;
   // Something to search on besides a gender or a status word alone (the profiles you manage are enough).
-  if (!spec.names && !spec.places && !spec.dates && !occupation && !emigrantCategory && !managedByMe) return null;
+  if (!spec.names && !spec.places && !spec.dates && !occupation && !emigrantCategory && !managedByMe && !manager) return null;
   // a nationality on its own ("Irish") says too little
   if (nationality && !occupation && !migration && !emigrantCategory && !spec.dates && !spec.flags && !spec.missingDates && !spec.missingPlaces && !spec.gender && !spec.names && spec.places.length < 2) return null;
 
-  return { spec, understood: describeSpec(spec, flagLabels, createdLabel, { migration, occupation, nationality, emigrantCategory }) };
+  return { spec, understood: describeSpec(spec, flagLabels, createdLabel, { migration, occupation, nationality, emigrantCategory, manager }) };
 }
 
-function describeSpec(spec, flagLabels, createdLabel = "", { migration, occupation, nationality, emigrantCategory } = {}) {
+function describeSpec(spec, flagLabels, createdLabel = "", { migration, occupation, nationality, emigrantCategory, manager } = {}) {
   const span = ({ from, to }) => (from !== undefined && to !== undefined ? (from === to ? `${from}` : `${from}–${to}`) : from !== undefined ? `${from} or later` : `${to} or earlier`);
   const parts = [];
   const name = [spec.names?.firstName, spec.names?.anyLastName || spec.names?.lastNameAtBirth].filter(Boolean).join(" ");
@@ -533,6 +591,7 @@ function describeSpec(spec, flagLabels, createdLabel = "", { migration, occupati
   if (nationality) parts.push(`(${nationality.word} read as born in ${nationality.country})`);
   if (createdLabel) parts.push(createdLabel);
   if (spec.manager === "me") parts.push("managed by you");
+  else if (manager) parts.push(`managed by ${manager.label}`);
   parts.push(...flagLabels);
   return parts.join(", ");
 }

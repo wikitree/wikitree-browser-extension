@@ -4,10 +4,10 @@
 import $ from "jquery";
 import { color as d3color } from "d3-color";
 import { mainDomain } from "../../core/pageType";
-import { yearOf } from "./chat_text_utils";
+import { fullName, yearOf } from "./chat_text_utils";
 import { CHART_MENU_GROUPS, CHART_SHORTCUTS } from "./chat_chart_shortcuts";
 
-export { yearOf };
+export { fullName, yearOf };
 
 export function textColourFor(fill) {
   const c = d3color(fill);
@@ -19,15 +19,6 @@ export function textColourFor(fill) {
 /** An absolute URL on the WikiTree site for a site path such as "/photo.php/…". */
 export function siteUrl(path) {
   return /^https?:/i.test(path) ? path : `https://${mainDomain}${path.startsWith("/") ? "" : "/"}${path}`;
-}
-
-/** "George Hightower": RealName is the first name only, so add the surname at birth unless it's already there. */
-export function fullName(person) {
-  const name = String(person?.name || "").trim();
-  const surname = String(person?.lnab || "").trim();
-  if (!name) return surname || person?.wtid || "";
-  if (!surname || name.toLowerCase().split(/\s+/).includes(surname.toLowerCase())) return name;
-  return `${name} ${surname}`;
 }
 
 export function profileUrl(wtid) {
@@ -551,6 +542,13 @@ function download(name, href) {
   document.body.appendChild(a);
   a.click();
   a.remove();
+}
+
+/** Saves `blob` as a file called `name`. */
+export function downloadBlob(name, blob) {
+  const url = URL.createObjectURL(blob);
+  download(name, url);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 /** Saves the chart as "svg" or "png" (2400px wide, white background). The first <g> is the zoom layer and is reset. */

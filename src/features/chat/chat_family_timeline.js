@@ -8,7 +8,7 @@ import "d3-transition";
 import { scaleLinear } from "d3-scale";
 import { easeCubicOut } from "d3-ease";
 import { aliveIn, rowSpan } from "./chat_family_timeline_data";
-import { createChartPopup, mountChartPopup, handleChartPopupButton, chartPopupControls, chartLinkButtons, chartLinkClick, createPinnableTip, escapeText, profileUrl, tipMoreHint, truncate, yearOf } from "./chat_chart_common";
+import { createChartPopup, mountChartPopup, handleChartPopupButton, chartPopupControls, chartLinkButtons, chartLinkClick, createPinnableTip, escapeText, fullName, profileUrl, tipMoreHint, truncate, yearOf } from "./chat_chart_common";
 
 const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 const ROW_H = 24;
@@ -164,7 +164,7 @@ export function showFamilyTimelinePopup(rows, options = {}) {
     .attr("font-size", (d) => (d.row.role === "self" ? 12.5 : 11.5))
     .attr("font-weight", (d) => (d.row.role === "self" ? 700 : 500))
     .attr("fill", "#2b2f36")
-    .text((d) => truncate(`${d.row.name}${d.row.lnab && !d.row.name.includes(d.row.lnab) ? ` ${d.row.lnab}` : ""}`, 26));
+    .text((d) => truncate(fullName(d.row), 26));
 
   const bars = rowG
     .append("rect")
@@ -208,9 +208,9 @@ export function showFamilyTimelinePopup(rows, options = {}) {
   if (selfItem) {
     const events = [];
     placed.forEach(({ row }) => {
-      if (row.role === "spouse" && yearOf(row.marriage)) events.push({ year: yearOf(row.marriage), kind: "marriage", text: `Married ${row.name}${row.marriagePlace ? ` in ${row.marriagePlace}` : ""}` });
-      if (row.role === "child" && yearOf(row.birth)) events.push({ year: yearOf(row.birth), kind: "child", text: `${row.relation} ${row.name} born` });
-      if (row.role === "parent" && yearOf(row.death)) events.push({ year: yearOf(row.death), kind: "death", text: `${row.relation} ${row.name} died` });
+      if (row.role === "spouse" && yearOf(row.marriage)) events.push({ year: yearOf(row.marriage), kind: "marriage", text: `Married ${fullName(row)}${row.marriagePlace ? ` in ${row.marriagePlace}` : ""}` });
+      if (row.role === "child" && yearOf(row.birth)) events.push({ year: yearOf(row.birth), kind: "child", text: `${row.relation} ${fullName(row)} born` });
+      if (row.role === "parent" && yearOf(row.death)) events.push({ year: yearOf(row.death), kind: "death", text: `${row.relation} ${fullName(row)} died` });
     });
     const eventG = root.append("g").attr("transform", `translate(0,${selfItem.y})`);
     eventG
@@ -278,7 +278,7 @@ export function showFamilyTimelinePopup(rows, options = {}) {
       .attr("transform", (d) => `translate(${x(year)},${d.y + ROW_H / 2})`)
       .select("text")
       .text((d) => year - d.span.start);
-    const name = (row, all) => (all && row.wtid ? `<a href="${profileUrl(row.wtid)}" target="_blank" rel="noopener">${escapeText(row.name)}</a>` : escapeText(row.name));
+    const name = (row, all) => (all && row.wtid ? `<a href="${profileUrl(row.wtid)}" target="_blank" rel="noopener">${escapeText(fullName(row))}</a>` : escapeText(fullName(row)));
     const yearTip = (all) =>
       `<div class="wbe-chart-tip-rel">In ${year}</div>${
         (all ? alive : alive.slice(0, 14))
@@ -304,7 +304,7 @@ export function showFamilyTimelinePopup(rows, options = {}) {
     if (!placed.some(({ row }) => row.role === role)) return;
     const span = document.createElement("span");
     span.innerHTML = `<i style="background:${ROLE_COLOURS[role]}"></i>`;
-    span.appendChild(document.createTextNode(label || selfItem?.row.name || "Self"));
+    span.appendChild(document.createTextNode(label || (selfItem && fullName(selfItem.row)) || "Self"));
     legend.appendChild(span);
   });
   [
@@ -320,7 +320,7 @@ export function showFamilyTimelinePopup(rows, options = {}) {
   if (undated.length) {
     const span = document.createElement("span");
     span.style.opacity = "0.7";
-    span.textContent = `Not shown (no birth year): ${undated.map((row) => row.name).join(", ")}`;
+    span.textContent = `Not shown (no birth year): ${undated.map(fullName).join(", ")}`;
     legend.appendChild(span);
   }
 

@@ -277,6 +277,14 @@ describe("chat second-set prompt corpus (deterministic WT+ parses)", () => {
     expect(executedQuery).toMatch(/All Managers/);
   });
 
+  // (it ran Manager="the Mayflower Project with no sources" and found 0; sweep, 2026-10-12)
+  test("managed by the Mayflower Project with no sources", async () => {
+    const executedQuery = await executedQueryFor("profiles managed by the Mayflower Project with no sources");
+    expect(executedQuery).toContain("Manager=WikiTree-9");
+    expect(executedQuery).toContain("bioCheckUnsourced");
+    expect(executedQuery).not.toMatch(/with no sources/);
+  });
+
   test("England ProjectManaged or PPP", async () => {
     const executedQuery = await executedQueryFor("England ProjectManaged or PPP");
     const branches = executedQuery.split(/\s+OR\s+/i);
@@ -290,15 +298,19 @@ describe("chat second-set prompt corpus (deterministic WT+ parses)", () => {
   test("Dickin 19th century and female retries the ambiguous token as a surname on zero results", async () => {
     // First run guesses Location=Dickin and finds nothing; the deterministic
     // retry must swap the lone token to a surname scope.
-    wtAPIProfileSearch
-      .mockResolvedValueOnce({ response: { found: 0, profiles: [], searchLog: "Result: 0\r\n" } })
-      .mockResolvedValueOnce({ response: { found: 1, profiles: ["1"], searchLog: "Result: 1\r\n" } });
+    // (the zero result also counts the surname reading: a MaxProfiles=1 call)
+    wtAPIProfileSearch.mockImplementation(async (appId, query, options) =>
+      options?.maxProfiles !== 1 && /Location=Dickin/.test(decodeURIComponent(query))
+        ? { response: { found: 0, profiles: [], searchLog: "Result: 0\r\n" } }
+        : { response: { found: 1, profiles: ["1"], searchLog: "Result: 1\r\n" } }
+    );
 
     await runPrompt("Dickin 19th century and female");
 
-    expect(wtAPIProfileSearch).toHaveBeenCalledTimes(2);
-    const firstQuery = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
-    const retryQuery = decodeURIComponent(wtAPIProfileSearch.mock.calls[1][1]);
+    const searches = wtAPIProfileSearch.mock.calls.filter((call) => call[2]?.maxProfiles !== 1);
+    expect(searches).toHaveLength(2);
+    const firstQuery = decodeURIComponent(searches[0][1]);
+    const retryQuery = decodeURIComponent(searches[1][1]);
     expect(firstQuery).toContain("Location=Dickin");
     expect(retryQuery).toContain("AllLastNames=Dickin");
     expect(retryQuery).toMatch(/19Cen|18000101\.\.18991231/);

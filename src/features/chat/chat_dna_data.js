@@ -7,6 +7,7 @@ import { FAN_CHART_MAX_GENERATIONS, generationOfSlot } from "./chat_fan_chart_da
 import { ancestorWord, generationLabel } from "./chat_kin_labels";
 import { RELATIVE_OWNER } from "./chat_chart_owner";
 import { linesWithMore } from "./chat_more_text";
+import { fullName } from "./chat_text_utils";
 
 const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const X = String.raw`(?:x[\s-]*dna|x[\s-]*chromosomes?|x[\s-]*chromosome\s+dna)`;
@@ -227,7 +228,7 @@ export function buildParentStatusSummary(slots, ownerText) {
   const lines = [`${ownerText} ${total} ancestors in ${generations} generations, by how sure each parent link is: ${parts.join(", ")}.`];
   const named = (key) =>
     slots
-      .map((person, slot) => (person && slot >= 2 && parentLinkStatus(slots, slot) === key ? `${person.name} (${person.wtid}), ${ancestorWord(generationOfSlot(slot), slot % 2 === 0 ? "Male" : "Female").toLowerCase()}` : ""))
+      .map((person, slot) => (person && slot >= 2 && parentLinkStatus(slots, slot) === key ? `${fullName(person)} (${person.wtid}), ${ancestorWord(generationOfSlot(slot), slot % 2 === 0 ? "Male" : "Female").toLowerCase()}` : ""))
       .filter(Boolean);
   const dna = named("dna");
   const uncertain = named("uncertain");
@@ -291,7 +292,7 @@ export function buildDnaLinesSummary(slots, ownerText, { chartOpened = true } = 
     if (!last) return `- ${kind}: no ${line === "y" ? "father" : "mother"} recorded yet.`;
     const generation = generationOfSlot(last.slot);
     const born = [last.person.birth ? String(last.person.birth).slice(0, 4) : "", last.person.birthLocation].filter(Boolean).join(", ");
-    return `- ${kind}: back ${generation} generation${generation === 1 ? "" : "s"} to ${last.person.name} (${last.person.wtid})${born ? `, born ${born}` : ""}. ${dnaLineCarrierNote(root, line)}.`;
+    return `- ${kind}: back ${generation} generation${generation === 1 ? "" : "s"} to ${fullName(last.person)} (${last.person.wtid})${born ? `, born ${born}` : ""}. ${dnaLineCarrierNote(root, line)}.`;
   };
   return [
     `${ownerText} direct DNA lines:`,
@@ -319,7 +320,7 @@ export function lineSharersHeading(root, line, entry) {
   const name = root?.name || root?.wtid || "This person";
   const kind = line === "y" ? (root?.gender === "Female" ? "father's Y-DNA line" : "Y-DNA line") : "mtDNA line";
   const born = entry.person.birth ? `, born ${String(entry.person.birth).slice(0, 4)}` : "";
-  return `${name}'s ${kind} goes back ${entry.generation} generation${entry.generation === 1 ? "" : "s"} to ${entry.person.name} (${entry.person.wtid})${born}. Everyone below who carries it shares it with ${name}.`;
+  return `${name}'s ${kind} goes back ${entry.generation} generation${entry.generation === 1 ? "" : "s"} to ${fullName(entry.person)} (${entry.person.wtid})${born}. Everyone below who carries it shares it with ${name}.`;
 }
 
 /** The descendant generations to load from a line's furthest ancestor to reach today. */
@@ -404,7 +405,7 @@ export function buildDnaCarrierSummary(tree, ownerText, generations, testers = [
       living.length ? `, ${living.length} of them living` : ""
     }.`,
   ];
-  const line = (carrier) => `- ${carrier.person.name}${carrier.person.wtid ? ` (${carrier.person.wtid})` : ""}, ${generationText(carrier.depth)}${carrier.person.birth ? `, born ${String(carrier.person.birth).slice(0, 4)}` : ""}`;
+  const line = (carrier) => `- ${fullName(carrier.person)}${carrier.person.wtid ? ` (${carrier.person.wtid})` : ""}, ${generationText(carrier.depth)}${carrier.person.birth ? `, born ${String(carrier.person.birth).slice(0, 4)}` : ""}`;
   // Carriers who have already tested (the user, 2026-10-04: the "could test" list for
   // Moloney-741 was exactly the two men who had).
   const testedSet = new Set(testers);

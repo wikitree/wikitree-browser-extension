@@ -198,7 +198,73 @@ describe("a category with or without children", () => {
     const sent = wtAPIProfileSearch.mock.calls.map((call) => decodeURIComponent(call[1]));
     expect(sent.filter((query) => /\?|^CategoryFull=Irish_Quakers$/.test(query))).toEqual([]);
   });
+  // "Category: Ohio, United States Civil War and its subcategories" ran CategoryWord="Ohio, United States Civil War
+  // and its subcategories" (0). WT+'s SubCat9 is the category and its subcategories (8,149; live, 2026-10-12).
+  test.each([
+    ["Category: Ohio, United States Civil War and its subcategories", 'SubCat9="Ohio, United States Civil War"'],
+    ["Category: Ohio, United States Civil War including subcategories", 'SubCat9="Ohio, United States Civil War"'],
+    ["Category: Ohio, United States Civil War (including subcategories)", 'SubCat9="Ohio, United States Civil War"'],
+    ["profiles in Category: Ohio, United States Civil War and subcategories", 'SubCat9="Ohio, United States Civil War"'],
+    ["Ohio, United States Civil War category and its subcategories", 'SubCat9="Ohio, United States Civil War"'],
+    ["Category: Mayflower Passengers and its subcategories with children", 'SubCat9="Mayflower Passengers" NOT NoChildren'],
+  ])("%s", async (prompt, query) => {
+    expect(await executedQueryFor(prompt)).toBe(query);
+  });
+
+  // Anything else about subcategories isn't read, and the words never become part of a category's name.
+  test.each([
+    "Category: Ohio, United States Civil War but not its subcategories",
+    "Category: Ohio, United States Civil War not including subcategories",
+    "Category: Ohio, United States Civil War and its subcategories born in Ohio",
+  ])("%s", async (prompt) => {
+    const { tryHandleProfileSearchPrompt } = makeHandler({ hasAnyApiKey: jest.fn(() => false) });
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, prompt);
+    const sent = wtAPIProfileSearch.mock.calls.map((call) => decodeURIComponent(call[1]));
+    expect(sent.filter((query) => /subcategor/i.test(query))).toEqual([]);
+  });
+
 });
+
+// "profiles in any category with the word Huguenot" ran CategoryWord="with the word Huguenot" Location=any (0;
+// CategoryWord=Huguenot is 12,431): the look-ahead that stops "category with …" being a name gave way to \s*.
+// These shapes aren't read without AI; "category word X" and "Category: X" are (sweep, 2026-10-12).
+describe("a category described rather than named", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    wtAPIProfileSearch.mockResolvedValue({ response: { profiles: ["1"], searchLog: "Result: 1\r\n" } });
+    // (real names start Married and Descendants; live catalogue, 2026-10-12)
+    wtAPICatCIBSearch.mockImplementation((caller, type, query) => {
+      const words = String(query).toLowerCase();
+      const categories = ["Married Successive Siblings", "Descendants of Early Postmasters", "Huguenots"]
+        .filter((name) => name.toLowerCase().includes(words))
+        .map((category) => ({ category }));
+      return Promise.resolve({ response: categories.length ? { found: categories.length, categories } : { found: 0 } });
+    });
+  });
+  test.each([
+    "profiles in any category with the word Huguenot",
+    "people in any category containing the word Huguenot",
+    "profiles in a category with Huguenot in its name",
+    "profiles in any Huguenot category",
+    "profiles in category word Huguenot",
+  ])("%s isn't searched", async (prompt) => {
+    const { tryHandleProfileSearchPrompt } = makeHandler({ hasAnyApiKey: jest.fn(() => false) });
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, prompt);
+    const searches = wtAPIProfileSearch.mock.calls.filter((call) => call[2]?.maxProfiles !== 1);
+    expect(searches.map((call) => decodeURIComponent(call[1]))).toEqual([]);
+  });
+  test.each([
+    ["category word Huguenot", "CategoryWord=Huguenot"],
+    ["profiles with category word Huguenot", "CategoryWord=Huguenot"],
+    ["unsourced profiles with no category died in Kent", 'Unsourced DeathLocation=Kent sql="([Categories].[Category].LineCount = 0)"'],
+    ["profiles in category Huguenots", "CategoryFull=Huguenots"],
+    ["profiles in category Married Successive Siblings", "CategoryFull=Married_Successive_Siblings"],
+    ["Category: Descendants of Early Postmasters", "CategoryFull=Descendants_of_Early_Postmasters"],
+  ])("%s", async (prompt, query) => {
+    expect(await executedQueryFor(prompt)).toBe(query);
+  });
+});
+
 
 // "Williams born in Pennsylvania with no death date" ran Location="Williams in Pennsylvania" Suggestions=576: the
 // words before the suggestion's own went out as one place, and 576 is "FindAGrave - Empty death date", only the

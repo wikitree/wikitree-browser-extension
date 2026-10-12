@@ -1872,7 +1872,7 @@ export function createChatPeopleHandlers({
     return world;
   }
 
-  function openFamilyWorld(world, view = "") {
+  function openFamilyWorld(world, view = "", shape = "") {
     const focus = world.people.get(world.focusId) || {};
     const hiddenCount = () => [...world.people.values()].filter((person) => person?.hidden).length;
     let noted = hiddenCount() > 0;
@@ -1902,6 +1902,12 @@ export function createChatPeopleHandlers({
         // The Family and Galaxy views read the people themselves and fetch round whoever they move to.
         raw: world,
         load: (id) => expand({ id }),
+        // The 3D view: everyone's ancestors back `generations` from `id`.
+        loadAncestors: async (id, generations) => {
+          const [, , people] = await fetchPeoplePaged(WBE_CHAT_APP_ID, id, FAMILY_WORLD_FIELDS, { ancestors: generations, minGeneration: 0, limit: 1000 });
+          mergeWorldPeople(world, people, { root: id, ancestors: generations });
+          if (world.noteHiddenOnce) world.noteHiddenOnce();
+        },
         climb: (from) => climbFamilyScene(world, from),
         reroot: (root, anchorUid, nodes, how) => rerootFamilyScene(world, root, anchorUid, nodes, how),
         normalise: () => normaliseFamilyScene(world),
@@ -1915,6 +1921,7 @@ export function createChatPeopleHandlers({
         links: chartLinks("fan", "descendants", "timeline"),
         linkKey: focus.wtid || "",
         view,
+        shape,
         homeName: String(focus.name || "").trim(),
       }
     );
@@ -1930,7 +1937,7 @@ export function createChatPeopleHandlers({
       const world = await loadFamilyWorld(rootPerson.key);
       if (!world.focusId) return cantLoad(rootPerson, "family");
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
-      const open = () => openFamilyWorld(world, params?.view);
+      const open = () => openFamilyWorld(world, params?.view, params?.shape);
       open();
       return {
         message: buildFamilyWorldSummary(world, owner),

@@ -128,6 +128,41 @@ describe("parseSearchSpecPrompt created phrases", () => {
     expect(parseSearchSpecPrompt("profiles created in 2023")).toBeNull();
     expect(parseSearchSpecPrompt("born in Kent created in 2023 created in 2024")).toBeNull();
   });
+  // (review of the place-or-surname change, 2026-10-12)
+  test("a family named after a place is a surname", () => {
+    expect(read("the Kent family profiles born before 1800")).toEqual({
+      names: { anyLastName: "Kent" },
+      dates: [{ event: "birth", to: 1799 }],
+    });
+    expect(read("Kent family profiles born before 1800")?.names).toEqual({ anyLastName: "Kent" });
+    expect(read("the Kent family born in Ohio")).toEqual({
+      names: { anyLastName: "Kent" },
+      places: [{ text: "Ohio", event: "birth" }],
+    });
+    // ("families" could be families in Kent)
+    expect(parseSearchSpecPrompt("Kent families")).toBeNull();
+    expect(parseSearchSpecPrompt("the Netherlands")).toBeNull();
+  });
+  test("a place word managed by me or beside a nationality stays a surname", () => {
+    expect(read("Kent profiles managed by me born 1850")).toEqual({
+      names: { anyLastName: "Kent" },
+      dates: [{ event: "birth", from: 1850, to: 1850 }],
+      manager: "me",
+    });
+    for (const prompt of ["Kent profiles English", "English Kent profiles"]) {
+      expect(read(prompt)).toEqual({ names: { anyLastName: "Kent" }, places: [{ text: "England", event: "birth" }] });
+    }
+    expect(parseSearchSpecPrompt("Kent profiles born in Ohio")).toBeNull();
+  });
+  test.each(["Lancashire-born people with no death date", "Kent-born profiles unsourced", "Kent-area profiles unsourced"])(
+    "a hyphened place word isn't a surname: %s",
+    (prompt) => {
+      expect(parseSearchSpecPrompt(prompt)).toBeNull();
+    }
+  );
+  test("a double-barrelled surname still is one", () => {
+    expect(read("Smith-Jones profiles with no sources")).toEqual({ names: { anyLastName: "Smith-Jones" }, flags: ["Unsourced"] });
+  });
 });
 
 describe("parseSearchSpecPrompt occupations, migration and bare-year names", () => {
@@ -180,6 +215,20 @@ describe("parseSearchSpecPrompt occupations, migration and bare-year names", () 
     });
     expect(parseSearchSpecPrompt("Kent 1820 Ohio")).toBeNull();
   });
+  test("a word before a job, beside 'in' another place, declines unless it's a known place", () => {
+    // (it ran Location=Methodist, sweep 2026-10-12)
+    expect(parseSearchSpecPrompt("Methodist ministers in Cornwall")).toBeNull();
+    expect(parseSearchSpecPrompt("Quaker farmers in Pennsylvania")).toBeNull();
+    expect(read("Kent farmers in Ohio").places).toEqual([
+      { text: "Kent", event: "any" },
+      { text: "Ohio", event: "any" },
+    ]);
+    expect(read("Plymouth sailors born in Devon").places).toEqual([
+      { text: "Plymouth", event: "any" },
+      { text: "Devon", event: "birth" },
+    ]);
+    expect(read("Boston doctors").places).toEqual([{ text: "Boston", event: "any" }]);
+  });
 });
 
 describe("parseSearchSpecPrompt nationalities and bare emigrants", () => {
@@ -227,6 +276,34 @@ test.each([
 test.each(["my profiles with no sources", "profiles I managed to find"])("not managed by me: %s", (prompt) => {
   expect(parseSearchSpecPrompt(prompt)?.spec?.manager).toBeUndefined();
 
+});
+
+// "managed by <WikiTree ID or project>": the ID, or the project's account (Mayflower Project: WikiTree-9); the
+// words after it are read as usual. It ran Manager="the Mayflower Project with no sources" (sweep, 2026-10-12).
+test.each([
+  ["profiles managed by the Mayflower Project with no sources", { manager: "WikiTree-9", flags: ["Unsourced"] }],
+  ["profiles managed by the Mayflower Project that are unsourced", { manager: "WikiTree-9", flags: ["Unsourced"] }],
+  ["unsourced profiles managed by the mayflower project", { manager: "WikiTree-9", flags: ["Unsourced"] }],
+  ["profiles managed by the Mayflower Project", { manager: "WikiTree-9" }],
+  ["profiles managed by Smith-123 with no sources", { manager: "Smith-123", flags: ["Unsourced"] }],
+  ["profiles managed by the England Project born in Devon", { manager: "WikiTree-57", places: [{ text: "Devon", event: "birth" }] }],
+  ["Devon profiles managed by the England Project", { manager: "WikiTree-57", places: [{ text: "Devon", event: "any" }] }],
+  ["profiles managed by Me-1", { manager: "Me-1" }],
+])("managed by someone: %s", (prompt, expected) => {
+  expect(spec(prompt)).toEqual(expected);
+});
+test("the reading names the project and its account", () => {
+  expect(parseSearchSpecPrompt("profiles managed by the Mayflower Project with no sources")?.understood).toBe(
+    "managed by the Mayflower Project (WikiTree-9), no sources"
+  );
+});
+// (WT+'s Manager= takes only an ID: a name it can't place is the general parser's, or the AI's, to read)
+test.each([
+  "profiles managed by the Foo Bar Project with no sources",
+  "profiles managed by John Smith",
+  "profiles managed only by the England Project",
+])("a manager it can't place declines: %s", (prompt) => {
+  expect(spec(prompt)).toBeUndefined();
 });
 
 describe("more ways of saying it (2026-10-10)", () => {

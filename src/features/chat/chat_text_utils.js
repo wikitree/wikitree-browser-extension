@@ -46,3 +46,12 @@ export function yearOf(value) {
   const match = String(value || "").match(/^(\d{4})/);
   return match && match[1] !== "0000" ? Number(match[1]) : null;
 }
+
+/** "George Hightower": RealName is the first name only, so add the surname at birth unless it's already there. */
+export function fullName(person) {
+  const name = String(person?.name || "").trim();
+  const surname = String(person?.lnab || "").trim();
+  if (!name) return surname || person?.wtid || "";
+  if (!surname || name.toLowerCase().split(/\s+/).includes(surname.toLowerCase())) return name;
+  return `${name} ${surname}`;
+}

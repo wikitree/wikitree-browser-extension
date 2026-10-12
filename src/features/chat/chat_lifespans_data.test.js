@@ -81,6 +81,14 @@ describe("lifespan rows and stats", () => {
     expect(text).toMatch(/When Ann was born in 1900, 3 of these ancestors were alive; the eldest was Dan/);
     expect(buildLifespansSummary([], "Your", 4)).toMatch(/don't have enough/);
   });
+
+  test("summary names people in full (first name plus surname at birth)", () => {
+    const { rows, undated } = buildLifespanRows(slots(), 2026);
+    const withSurnames = rows.map((row) => ({ ...row, lnab: "Rouquié" }));
+    const text = buildLifespansSummary(withSurnames, "Ann's", undated);
+    expect(text).toMatch(/Longest-lived: Dan Rouquié, grandfather/);
+    expect(text).toMatch(/When Ann Rouquié was born in 1900, .* the eldest was Dan Rouquié/);
+  });
 });
 
 describe("descendant lifespans", () => {

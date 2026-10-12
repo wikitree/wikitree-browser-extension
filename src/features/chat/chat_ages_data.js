@@ -9,6 +9,7 @@ export { dateParts, ageBetween } from "./chat_dates";
 import { generationOfSlot } from "./chat_fan_chart_data";
 import { descendantWord, ancestorWord } from "./chat_kin_labels";
 import { RELATIVE_OWNER } from "./chat_chart_owner";
+import { fullName } from "./chat_text_utils";
 
 const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 
@@ -78,7 +79,7 @@ export function deathAgeRows(slots) {
     let flag = "";
     if (span.age < 0) flag = "Died before they were born: one of the dates is wrong";
     else if (span.age > 105) flag = `Aged ${span.age}: very unlikely, so check the dates`;
-    rows.push({ slot, generation: person.generation ?? generationOfSlot(slot), name: person.name, wtid: person.wtid, gender, born: dateParts(person.birth).year, age: span.age, approx: span.approx, relation: person.generation !== undefined ? descendantWord(person.generation, person.gender) : relationOf(slot), flag });
+    rows.push({ slot, generation: person.generation ?? generationOfSlot(slot), name: fullName(person), wtid: person.wtid, gender, born: dateParts(person.birth).year, age: span.age, approx: span.approx, relation: person.generation !== undefined ? descendantWord(person.generation, person.gender) : relationOf(slot), flag });
   });
   return rows;
 }
@@ -121,10 +122,10 @@ export function parentAgeRows(slots) {
     rows.push({
       slot,
       generation: generationOfSlot(slot),
-      name: person.name,
+      name: fullName(person),
       wtid: person.wtid,
       role,
-      childName: child.name,
+      childName: fullName(child),
       childWtid: child.wtid,
       born: childBorn.year,
       age: span.age,

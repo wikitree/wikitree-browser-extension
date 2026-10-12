@@ -211,7 +211,7 @@ describe("family world", () => {
 
   test("summary", () => {
     expect(buildFamilyWorldSummary(world(), "Ann's")).toMatch(
-      /^Ann's Family Explorer starts with 9 people \(2 generations of ancestors so far\)\. It opens on Ann\. Click anyone to see their children; ↑ Parents goes up to her parents' family, with her brother or sister, and on up\./
+      /^Ann's Family Explorer starts with 9 people \(2 generations of ancestors so far\)\. It opens on Ann X\. Click anyone to see their children; ↑ Parents goes up to her parents' family, with her brother or sister, and on up\./
     );
   });
 });
@@ -236,9 +236,14 @@ describe("parseFamilyWorldPrompt", () => {
     ["show Cook-8721's branches", { owner: "Cook-8721", subjectPrompt: "Cook-8721's ancestors", view: "tree" }],
     ["branches view for her", { owner: "her", subjectPrompt: "her ancestors", view: "tree" }],
     ["show my galaxy", { owner: "my", subjectPrompt: "my ancestors", view: "galaxy" }],
+    // (the 3D view, and its shape when named)
+    ["show my 3D family tree", { owner: "my", subjectPrompt: "my ancestors", view: "3d" }],
+    ["3D view of Cook-8721", { owner: "Cook-8721", subjectPrompt: "Cook-8721's ancestors", view: "3d" }],
+    ["my fan tower", { owner: "my", subjectPrompt: "my ancestors", view: "3d", shape: "tower" }],
+    ["show Cook-8721's ancestor tornado", { owner: "Cook-8721", subjectPrompt: "Cook-8721's ancestors", view: "3d", shape: "tornado" }],
   ])("%s", (prompt, expected) => expect(parseFamilyWorldPrompt(prompt)).toEqual(expected));
 
-  test.each(["show my cc7", "notables in my CC7", "show my family tree", "who is in my family world cup team", "cc7 born in Ohio", "show my ancestors as a fractal tree", "fractal tree of my descendants"])("declines %s", (prompt) =>
+  test.each(["show my cc7", "notables in my CC7", "show my family tree", "who is in my family world cup team", "cc7 born in Ohio", "show my ancestors as a fractal tree", "fractal tree of my descendants", "3d printing", "tornado warnings in Kansas"])("declines %s", (prompt) =>
     expect(parseFamilyWorldPrompt(prompt)).toBeNull()
   );
 });

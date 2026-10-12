@@ -23,6 +23,7 @@ import { createChartPopup, mountChartPopup, closeChartPopup, chartLinkButtons, c
 import { showSpiralTreePopup } from "./chat_fractal_spiral";
 import { mountFamilyNavigator } from "./chat_family_navigator";
 import { mountFamilyGalaxy } from "./chat_family_galaxy";
+import { mountFamily3d } from "./chat_family_3d";
 import { moreTextToHtml, textWithMoreLink } from "./chat_more_text";
 
 export { photoUrl };
@@ -64,6 +65,7 @@ const EXPLORER_VIEWS = [
   { key: "tree", label: "Branches", title: "Each family a branch: click a family to see their children, zoom out for the parents" },
   { key: "family", label: "Family", title: "One person with their parents, brothers and sisters, husband or wife and children: click anyone to move to them" },
   { key: "galaxy", label: "Galaxy", title: "Everyone loaded as stars round one person: ancestors above, descendants below, each branch its own colour" },
+  { key: "3d", label: "3D", title: "The ancestors as a 3D model to turn round, a Tornado or a Fan tower, and download for 3D printing" },
 ];
 // "1 child", "3 children", "1 descendant".
 const counted = (count, plural) => `${count} ${count === 1 ? plural.replace(/ren$|s$/, "") : plural}`;
@@ -1527,6 +1529,7 @@ function showNestedTreePopup(tree, options = {}) {
     }
     popup.classList.toggle("wbe-explorer-alt", name !== "tree");
     popup.classList.toggle("wbe-explorer-galaxy", name === "galaxy");
+    popup.classList.toggle("wbe-explorer-3d", name === "3d");
     popup.querySelectorAll("[data-view]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.view === name)));
     if (name === "tree") {
       // (the other view may have loaded more people)
@@ -1539,8 +1542,10 @@ function showNestedTreePopup(tree, options = {}) {
       const refreshStats = () => {
         popup.querySelector(".wbe-chart-stats").innerHTML = world.stats();
       };
-      const mount = name === "galaxy" ? mountFamilyGalaxy : mountFamilyNavigator;
-      explorerView = { name, host, api: mount(host, { world: world.raw, load: world.load, startId, onCentre: refreshStats }) };
+      const mount = name === "galaxy" ? mountFamilyGalaxy : name === "3d" ? mountFamily3d : mountFamilyNavigator;
+      // (the 3D view fetches ancestors further back; a prompt can name its shape: "my fan tower")
+      const mounted = mount(host, { world: world.raw, load: world.load, loadAncestors: world.loadAncestors, shape: options.shape, startId, onCentre: refreshStats });
+      explorerView = { name, host, api: mounted };
     }
     if (!remember) return;
     try {

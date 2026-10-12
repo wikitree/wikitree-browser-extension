@@ -6,7 +6,7 @@
 import { yearOf } from "./chat_chart_common";
 import { RELATIVE_OWNER } from "./chat_chart_owner";
 import { textWithMoreLink } from "./chat_more_text";
-import { joinWithAnd } from "./chat_text_utils";
+import { fullName, joinWithAnd } from "./chat_text_utils";
 
 const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const OWNER_AFTER = String.raw`(me|her|him|them|this\s+(?:profile|person)|[A-Z][A-Za-z'_ -]*?-\d+)`;
@@ -202,11 +202,11 @@ export function buildFamilyTimelineSummary(rows, ownerText) {
       .map(({ row, span }) => ({ row, years: Math.min(span.end, selfSpan.end) - Math.max(span.start, selfSpan.start) }))
       .filter(({ years }) => years > 0)
       .sort((a, b) => b.years - a.years)[0];
-    if (longest) overlap = ` ${self.name} shared the most years with ${longest.row.name} (${longest.row.relation.toLowerCase()}): ${longest.years}.`;
+    if (longest) overlap = ` ${fullName(self)} shared the most years with ${fullName(longest.row)} (${longest.row.relation.toLowerCase()}): ${longest.years}.`;
   }
   // ("N more" opens their names)
   const datedRows = new Set(dated.map(({ row }) => row));
-  const undated = rows.filter((row) => !datedRows.has(row)).map((row) => (row.relation ? `${row.name} (${row.relation.toLowerCase()})` : row.name));
+  const undated = rows.filter((row) => !datedRows.has(row)).map((row) => (row.relation ? `${fullName(row)} (${row.relation.toLowerCase()})` : fullName(row)));
   const has = undated.length === 1 ? "has" : "have";
   return `${ownerText} family timeline shows ${dated.length} people from ${first} to ${last}.${overlap}${
     undated.length ? textWithMoreLink(" ", `${undated.length} more`, ` ${has} no birth year.`, ` No birth year for ${joinWithAnd(undated)}.`) : ""
