@@ -104,13 +104,17 @@ export function summarizeWorldPerson(person) {
     living: person.IsLiving === undefined || person.IsLiving === null ? null : Number(person.IsLiving) === 1,
     birthLocation: person.BirthLocation || "",
     birthCountry: getCountryFromLocation(person.BirthLocation || "") || "",
+    // (for the card: where they died, and "about", "before" or "after" on the dates)
+    deathLocation: person.DeathLocation || "",
+    birthStatus: String(person.DataStatus?.BirthDate || ""),
+    deathStatus: String(person.DataStatus?.DeathDate || ""),
     photo: person.Photo || "",
     photoData: person.PhotoData || null,
     fatherId: Number(person.Father) || 0,
     motherId: Number(person.Mother) || 0,
     spouses: (Array.isArray(person.Spouses) ? person.Spouses : Object.values(person.Spouses || {}))
       .filter((spouse) => spouse && Number(spouse.Id))
-      .map((spouse) => ({ id: Number(spouse.Id), wtid: spouse.Name || "", married: cleanDate(spouse.MarriageDate || spouse.marriage_date) })),
+      .map((spouse) => ({ id: Number(spouse.Id), wtid: spouse.Name || "", married: cleanDate(spouse.MarriageDate || spouse.marriage_date), place: spouse.MarriageLocation || spouse.marriage_location || "" })),
   };
 }
 

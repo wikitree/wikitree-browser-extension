@@ -5,6 +5,7 @@
 
 import { galaxyLayout, galaxyRelation, branchLabel, isStar, GALAXY_HUES } from "./chat_family_galaxy_data";
 import { familyLoaded } from "./chat_family_navigator_data";
+import { familyFactsHtml, familyFetcher } from "./chat_family_card";
 import { escapeText, fullName, lifeYears, photoUrl, profileUrl, siteUrl } from "./chat_chart_common";
 import { reducedMotion } from "./chat_fractal_common";
 
@@ -25,8 +26,16 @@ const GALAXY_CSS = `
   .wbe-galaxy-hint { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); padding: 5px 14px; border-radius: 999px; background: rgba(20,26,60,.7); color: #c9d0f0; font-size: 12px; white-space: nowrap; pointer-events: none; }
   .wbe-galaxy-tip { position: absolute; pointer-events: none; padding: 4px 10px; border-radius: 8px; background: rgba(10,14,40,.88); border: 1px solid rgba(160,170,255,.35); font-size: 12.5px; white-space: nowrap; transform: translate(12px, -50%); }
   .wbe-galaxy-tip small { color: #aab3df; }
-  .wbe-galaxy-card { position: absolute; right: 14px; bottom: 44px; width: 270px; padding: 12px 14px; border-radius: 14px; background: rgba(14,19,50,.92); border: 1px solid rgba(160,170,255,.35); box-shadow: 0 10px 30px rgba(0,0,0,.5); display: flex; gap: 12px; }
+  .wbe-galaxy-card { position: absolute; right: 14px; bottom: 44px; width: 320px; max-width: calc(100% - 28px); max-height: calc(100% - 100px); overflow-y: auto; box-sizing: border-box; padding: 12px 14px; border-radius: 14px; background: rgba(14,19,50,.94); border: 1px solid rgba(160,170,255,.35); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
   .wbe-galaxy-card[hidden] { display: none; }
+  .wbe-galaxy-head { display: flex; gap: 12px; padding-right: 18px; }
+  .wbe-galaxy-id { font-size: 11.5px; color: #8f98c4; margin-top: 1px; }
+  .wbe-galaxy-facts { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(160,170,255,.22); font-size: 12.5px; line-height: 1.4; color: #dfe4ff; }
+  .wbe-galaxy-facts > div { margin: 0 0 5px; }
+  .wbe-galaxy-facts b { font-weight: 650; color: #ffd166; margin-right: 4px; }
+  .wbe-galaxy-facts small { color: #9aa4d6; font-size: 11.5px; }
+  .wbe-galaxy-facts .wbe-galaxy-kids { margin: -2px 0 6px 12px; }
+  .wbe-galaxy-facts .wbe-galaxy-loading { color: #9aa4d6; font-style: italic; }
   .wbe-galaxy-photo { flex: none; width: 64px; height: 64px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: #2a3270; font-weight: 600; font-size: 22px; }
   .wbe-galaxy-photo img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; }
   .wbe-galaxy-card .wbe-galaxy-rel { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #ffd166; }
@@ -36,6 +45,10 @@ const GALAXY_CSS = `
   .wbe-galaxy-place { font-size: 12px; color: #9aa4d6; margin-top: 2px; }
   .wbe-galaxy-card button { margin-top: 8px; border: 1px solid #ffd166; background: transparent; color: #ffd166; border-radius: 999px; padding: 3px 12px; font: 600 12px system-ui, sans-serif; cursor: pointer; }
   .wbe-galaxy-card button:hover { background: rgba(255,209,102,.15); }
+  .wbe-galaxy .wbe-galaxy-card button.wbe-galaxy-who:not(#none), .wbe-galaxy .wbe-galaxy-card a.wbe-galaxy-who:not(#none), .wbe-galaxy .wbe-galaxy-card a.wbe-galaxy-who:not(#none):visited { margin: 0; padding: 0; border: 0; border-radius: 0; background: none; font: inherit; font-weight: 600; color: #9fc3ff !important; text-decoration: none; cursor: pointer; }
+  .wbe-galaxy .wbe-galaxy-card button.wbe-galaxy-who:not(#none) { text-decoration: underline dotted; text-underline-offset: 2px; }
+  .wbe-galaxy .wbe-galaxy-card .wbe-galaxy-who:not(#none):hover { text-decoration: underline; background: none; }
+  .wbe-galaxy .wbe-galaxy-card button.wbe-galaxy-close:not(#none) { position: absolute; top: 6px; right: 6px; margin: 0; padding: 0 7px; border: 0; border-radius: 999px; font-size: 17px; line-height: 1.3; color: #9aa4d6; background: none; }
   .wbe-galaxy-status { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); padding: 5px 14px; border-radius: 999px; background: rgba(20,26,60,.85); font-size: 12.5px; }
   .wbe-galaxy-status[hidden] { display: none; }
 `;
@@ -157,7 +170,8 @@ function planetSprite(colour, variant = 0) {
 }
 
 /**
- * Mounts the view in `host`. options: {world (people, focusId, …), load(id) → Promise, startId, onCentre(person)}.
+ * Mounts the view in `host`. options: {world (people, focusId, …), load(id) → Promise, loadNearby(id, steps) →
+ * Promise (1: someone's family, for their card), startId, onCentre(person)}.
  * Returns {centre(id), up(), home(), resize(), destroy(), currentId(), canvas}.
  */
 export function mountFamilyGalaxy(host, options) {
@@ -202,6 +216,8 @@ export function mountFamilyGalaxy(host, options) {
   let hovered = 0;
   let frame = 0;
   let destroyed = false;
+  // (the card fetches someone's family when it isn't all here, and shows it when it comes; centre() fetches the middle one's)
+  const family = familyFetcher(world, options.loadNearby && ((id) => options.loadNearby(id, 1)), (id) => !destroyed && selected === id && renderCard());
   let loadToken = 0;
   let lastTime = 0;
   let idleSince = 0;
@@ -279,8 +295,15 @@ export function mountFamilyGalaxy(host, options) {
     keyEl.appendChild(note);
   }
 
+  /** Shows id's card (user, 2026-10-12: "Richer card for Galaxy, please"), fetching their family if it isn't all here. */
   function showCard(id) {
     selected = id;
+    renderCard();
+    if (byId.has(id) && id !== current) family.ensure(byId.get(id).person);
+  }
+
+  function renderCard() {
+    const id = selected;
     const node = byId.get(id);
     if (!node) {
       cardEl.hidden = true;
@@ -289,15 +312,20 @@ export function mountFamilyGalaxy(host, options) {
     const person = node.person;
     const url = photoUrl(person, 150);
     const relation = id === current ? "In the middle" : galaxyRelation(layout, people, id);
+    const facts = familyFactsHtml(people, id, { prefix: "wbe-galaxy", pickOf: (other) => (byId.has(other.id) ? String(other.id) : ""), pickTitle: "Show their star", loading: family.loading(id) });
     cardEl.innerHTML = `
-      <span class="wbe-galaxy-photo">${url ? `<img src="${escapeText(url)}" alt="">` : escapeText(initials(person))}</span>
-      <span>
-        <span class="wbe-galaxy-rel">${escapeText(relation)}</span>
-        ${person.wtid ? `<a class="wbe-galaxy-name" href="${escapeText(profileUrl(person.wtid))}" target="_blank" rel="noopener" title="Open the WikiTree profile">${escapeText(fullName(person))}</a>` : `<span class="wbe-galaxy-name">${escapeText(fullName(person))}</span>`}
-        ${lifeYears(person) ? `<div class="wbe-galaxy-life">${escapeText(lifeYears(person))}</div>` : ""}
-        ${person.birthLocation ? `<div class="wbe-galaxy-place">${escapeText(person.birthLocation)}</div>` : ""}
-        ${id === current ? "" : `<button type="button" data-centre="${id}">Centre here</button>`}
-      </span>`;
+      <button type="button" class="wbe-galaxy-close" data-close title="Close" aria-label="Close">×</button>
+      <div class="wbe-galaxy-head">
+        <span class="wbe-galaxy-photo">${url ? `<img src="${escapeText(url)}" alt="">` : escapeText(initials(person))}</span>
+        <span>
+          <span class="wbe-galaxy-rel">${escapeText(relation)}</span>
+          ${person.wtid ? `<a class="wbe-galaxy-name" href="${escapeText(profileUrl(person.wtid))}" target="_blank" rel="noopener" title="Open the WikiTree profile">${escapeText(fullName(person))}</a>` : `<span class="wbe-galaxy-name">${escapeText(fullName(person))}</span>`}
+          ${lifeYears(person) ? `<div class="wbe-galaxy-life">${escapeText(lifeYears(person))}</div>` : ""}
+          ${person.wtid ? `<div class="wbe-galaxy-id">${escapeText(person.wtid)}</div>` : ""}
+          ${id === current ? "" : `<button type="button" data-centre="${id}">Centre here</button>`}
+        </span>
+      </div>
+      ${facts}`;
     const image = cardEl.querySelector("img");
     if (image) {
       image.addEventListener("error", () => {
@@ -307,6 +335,13 @@ export function mountFamilyGalaxy(host, options) {
       });
     }
     cardEl.hidden = false;
+  }
+
+  /** Picks someone out: their card, and the camera a little toward their star so it comes forward. */
+  function pick(id) {
+    const star = shown.find((entry) => entry.node.id === id);
+    showCard(id);
+    if (star) camera.fly = { from: { ...camera.target }, to: { x: star.x * 0.5, y: star.y * 0.5, z: star.z * 0.5 }, start: performance.now() };
   }
 
   /** Lays the galaxy out round `id` and moves the stars there. */
@@ -547,10 +582,7 @@ export function mountFamilyGalaxy(host, options) {
       showCard(current);
       return;
     }
-    const node = hit.star.node;
-    showCard(node.id);
-    // (fly a little toward them so they come forward)
-    camera.fly = { from: { ...camera.target }, to: { x: hit.star.x * 0.5, y: hit.star.y * 0.5, z: hit.star.z * 0.5 }, start: performance.now() };
+    pick(hit.star.node.id);
   });
   canvas.addEventListener("pointerleave", () => {
     hovered = 0;
@@ -571,11 +603,17 @@ export function mountFamilyGalaxy(host, options) {
     if (hit && hit.star.node.id !== current) centre(hit.star.node.id);
   });
   cardEl.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-centre]");
-    if (button) centre(Number(button.dataset.centre));
+    const button = event.target.closest("button");
+    if (!button) return;
+    if (button.dataset.centre) centre(Number(button.dataset.centre));
+    else if (button.dataset.pick) pick(Number(button.dataset.pick));
+    else if (button.hasAttribute("data-close")) {
+      cardEl.hidden = true;
+      selected = 0;
+    }
   });
   root.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && selected !== current) {
+    if (event.key === "Escape" && !cardEl.hidden && selected !== current) {
       event.stopPropagation();
       showCard(current);
     }

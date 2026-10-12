@@ -1544,7 +1544,7 @@ function showNestedTreePopup(tree, options = {}) {
       };
       const mount = name === "galaxy" ? mountFamilyGalaxy : name === "3d" ? mountFamily3d : mountFamilyNavigator;
       // (the 3D view fetches ancestors further back; a prompt can name its shape: "my fan tower")
-      const mounted = mount(host, { world: world.raw, load: world.load, loadAncestors: world.loadAncestors, shape: options.shape, startId, onCentre: refreshStats });
+      const mounted = mount(host, { world: world.raw, load: world.load, loadAncestors: world.loadAncestors, loadNearby: world.loadNearby, shape: options.shape, startId, onCentre: refreshStats });
       explorerView = { name, host, api: mounted };
     }
     if (!remember) return;

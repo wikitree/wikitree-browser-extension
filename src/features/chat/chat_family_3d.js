@@ -1,7 +1,8 @@
 // The Family Explorer's "3D" view (see chat_print3d_data.js for the shapes): the person's ancestors as
 // Plaques (a plaque with each person's name, years and birthplace, joined like a family tree, each
 // generation's branches a quarter turn from the last), a Tornado (balls on struts, twisting up a generation
-// a level) or a Fan tower (the fan chart as a stepped relief), turning slowly on a turntable, with
+// a level) or a Fan tower (the fan chart as a stepped relief), or CC plaques (everyone within a few steps,
+// on pages fanned round the person: chat_family_plaques_data.js), turning slowly on a turntable, with
 // "Download for 3D printing". One canvas, drawn in 3D by hand (no 3D library).
 
 import JSZip from "jszip";
@@ -36,14 +37,18 @@ import {
 import { generationOfSlot } from "./chat_fan_chart_data";
 import { buildColouring } from "./chat_fan_chart";
 import { ancestorWord } from "./chat_kin_labels";
+import { familyFactsHtml, familyFetcher } from "./chat_family_card";
+import { GALAXY_HUES, branchLabel } from "./chat_family_galaxy_data";
+import { NEARBY, nearbyPlaquesLayout } from "./chat_family_plaques_data";
 import { downloadBlob, escapeText, fullName, lifeYears, photoUrl, profileUrl, siteUrl } from "./chat_chart_common";
 import { reducedMotion } from "./chat_fractal_common";
 
 const STYLE_ID = "wbe-3d-style";
 const SHAPE_KEY = "wbe-explorer-3d-look"; // (was -shape, before Plaques, the shape it now opens on)
-const SHAPES = ["plaques", "tornado", "tower"];
-const SHAPE_NAMES = { plaques: "Plaques", tornado: "Tornado", tower: "Fan tower" };
+const SHAPES = ["plaques", "nearby", "tornado", "tower"];
+const SHAPE_NAMES = { plaques: "Plaques", nearby: "CC plaques", tornado: "Tornado", tower: "Fan tower" };
 const GENERATIONS_KEY = "wbe-explorer-3d-generations";
+const STEPS_KEY = "wbe-explorer-3d-steps";
 const COLOUR_KEY = "wbe-explorer-3d-colour";
 const TURN_SPEED = 0.12; // radians a second
 const LABELS_MAX = 160;
@@ -61,7 +66,17 @@ const COLOUR_MODES = [
   { key: "repeats", label: "Repeats" },
   { key: "xdna", label: "X-DNA" },
 ];
+// CC plaques: everyone isn't an ancestor, so only the colourings that don't need the fan chart's numbering.
+const NEARBY_MODES = [
+  { key: "lines", label: "Branches" },
+  { key: "country", label: "Birth country" },
+  { key: "century", label: "Birth year" },
+  { key: "surname", label: "Surnames" },
+  { key: "gender", label: "Men and women" },
+];
+const GENDER_COLOURS = { male: "#7fa7d9", female: "#e59ab8", unknown: "#c4c8ce" };
 const FOCUS_RING = "#f0b400";
+const BAR_COLOUR = [154, 143, 122]; // a family's bars and chords, which are no one person's
 
 const CSS = `
   .wbe-3d { position: absolute; inset: 0; overflow: hidden; outline: none; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #2b2f36; background: #efebe3; }
@@ -69,6 +84,7 @@ const CSS = `
   .wbe-3d canvas.wbe-3d-canvas:active { cursor: grabbing; }
   .wbe-3d-bar { position: absolute; top: 10px; left: 12px; right: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; z-index: 2; pointer-events: none; }
   .wbe-3d-bar > * { pointer-events: auto; }
+  .wbe-3d-seg[hidden] { display: none; }
   .wbe-3d-seg { display: inline-flex; align-items: center; border: 1px solid #cdc3ab; border-radius: 999px; overflow: hidden; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
   .wbe-3d button:not(#none) { border: 0; margin: 0; background: transparent; padding: 4px 12px; font: 600 12.5px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #4a4030 !important; cursor: pointer; line-height: 1.4; }
   .wbe-3d .wbe-3d-seg button + button:not(#none) { border-left: 1px solid #e6dbbd; }
@@ -98,7 +114,15 @@ const CSS = `
   .wbe-3d-status[hidden], .wbe-3d-tip[hidden], .wbe-3d-card[hidden] { display: none; }
   .wbe-3d-tip { position: absolute; pointer-events: none; padding: 4px 10px; border-radius: 8px; background: rgba(255,255,255,.95); border: 1px solid #d8cfb8; box-shadow: 0 3px 10px rgba(0,0,0,.12); font-size: 12.5px; white-space: nowrap; transform: translate(14px, -50%); z-index: 2; }
   .wbe-3d-tip small { color: #6b6458; }
-  .wbe-3d-card { position: absolute; right: 14px; bottom: 44px; width: 270px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.96); border: 1px solid #ddd3bb; box-shadow: 0 10px 30px rgba(0,0,0,.15); display: flex; gap: 12px; z-index: 2; }
+  .wbe-3d-card { position: absolute; right: 14px; bottom: 44px; width: 320px; max-width: calc(100% - 28px); max-height: calc(100% - 100px); overflow-y: auto; box-sizing: border-box; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.97); border: 1px solid #ddd3bb; box-shadow: 0 10px 30px rgba(0,0,0,.15); z-index: 2; }
+  .wbe-3d-head { display: flex; gap: 12px; padding-right: 18px; }
+  .wbe-3d-id { font-size: 11.5px; color: #8a8273; margin-top: 1px; }
+  .wbe-3d-facts { margin-top: 10px; padding-top: 8px; border-top: 1px solid #eee5cf; font-size: 12.5px; line-height: 1.4; color: #2b2f36; }
+  .wbe-3d-facts > div { margin: 0 0 5px; }
+  .wbe-3d-facts b { font-weight: 650; color: #8a6a12; margin-right: 4px; }
+  .wbe-3d-facts small { color: #6b6458; font-size: 11.5px; }
+  .wbe-3d-facts .wbe-3d-kids { margin: -2px 0 6px 12px; }
+  .wbe-3d-facts .wbe-3d-loading { color: #6b6458; font-style: italic; }
   .wbe-3d-photo { flex: none; width: 64px; height: 64px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: #e8e0cc; font-weight: 600; font-size: 22px; color: #5a5246; }
   .wbe-3d-photo img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; }
   .wbe-3d-rel { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #8a6a12; }
@@ -108,6 +132,10 @@ const CSS = `
   .wbe-3d-place { font-size: 12px; color: #6b6458; margin-top: 2px; }
   .wbe-3d .wbe-3d-card button:not(#none) { margin-top: 8px; border: 1px solid #b88a00; color: #8a6a12 !important; border-radius: 999px; padding: 3px 12px; }
   .wbe-3d .wbe-3d-card button:not(#none):hover { background: #fff3d1; }
+  .wbe-3d .wbe-3d-card button.wbe-3d-who:not(#none), .wbe-3d .wbe-3d-card a.wbe-3d-who:not(#none), .wbe-3d .wbe-3d-card a.wbe-3d-who:not(#none):visited { margin: 0; padding: 0; border: 0; border-radius: 0; background: none; font: inherit; font-weight: 600; color: #1f4f8a !important; text-decoration: none; cursor: pointer; }
+  .wbe-3d .wbe-3d-card button.wbe-3d-who:not(#none) { text-decoration: underline dotted; text-underline-offset: 2px; }
+  .wbe-3d .wbe-3d-card .wbe-3d-who:not(#none):hover { text-decoration: underline; background: none; }
+  .wbe-3d .wbe-3d-card button.wbe-3d-close:not(#none) { position: absolute; top: 6px; right: 6px; margin: 0; padding: 0 7px; border: 0; border-radius: 999px; font-size: 17px; line-height: 1.3; color: #8a8273 !important; background: none; }
 `;
 
 function injectStyles() {
@@ -170,7 +198,8 @@ function relationOf(slot, person) {
 }
 
 /**
- * Mounts the view in `host`. options: {world, load(id), loadAncestors(id, generations) → Promise, startId,
+ * Mounts the view in `host`. options: {world, load(id), loadAncestors(id, generations) → Promise,
+ * loadNearby(id, steps) → Promise (everyone within `steps`; 1 for a card's family), startId,
  * onCentre(person), shape}. Returns {centre(id), up(), home(), resize(), destroy(), currentId(), canvas}.
  */
 export function mountFamily3d(host, options) {
@@ -184,7 +213,8 @@ export function mountFamily3d(host, options) {
     <canvas class="wbe-3d-canvas" aria-label="The ancestors as a 3D model"></canvas>
     <div class="wbe-3d-bar">
       <span class="wbe-3d-seg" role="group" aria-label="Shape">
-        <button type="button" data-shape="plaques" title="A plaque for each ancestor, joined like a family tree, the branches going off every way">Plaques</button>
+        <button type="button" data-shape="plaques" title="A plaque for each ancestor, joined like a family tree, the branches going off every way">Ancestor plaques</button>
+        <button type="button" data-shape="nearby" title="A plaque for everyone within a few steps (a parent, child, brother or sister, husband or wife is a step), joined like a family tree, each branch on a page of its own">CC plaques</button>
         <button type="button" data-shape="tornado" title="Ancestors as balls on struts, twisting up a generation a level">Tornado</button>
         <button type="button" data-shape="tower" title="The fan chart as a stepped tower: the person in the middle, each generation a step lower and further out">Fan tower</button>
       </span>
@@ -194,7 +224,7 @@ export function mountFamily3d(host, options) {
         <button type="button" data-gens="1" title="More generations">+</button>
       </span>
       <label class="wbe-3d-seg wbe-3d-colour">Colour <select aria-label="Colour by">${COLOUR_MODES.map((mode) => `<option value="${mode.key}">${mode.label}</option>`).join("")}</select></label>
-      <span class="wbe-3d-seg"><button type="button" data-act3d="menu" aria-expanded="false">Download for 3D printing ▾</button></span>
+      <span class="wbe-3d-seg wbe-3d-print"><button type="button" data-act3d="menu" aria-expanded="false">Download for 3D printing ▾</button></span>
     </div>
     <div class="wbe-3d-menu" hidden>
       <strong>Download for 3D printing</strong>
@@ -235,17 +265,23 @@ export function mountFamily3d(host, options) {
     return Math.max(MIN_GENERATIONS, Math.min(mostGenerations(), Number(remembered(`${GENERATIONS_KEY}-${shape}`, fallback)) || fallback));
   };
   let generations = generationsFor();
+  // (CC plaques: how many steps out, as getPeople's nuclear counts them)
+  let steps = Math.max(NEARBY.minSteps, Math.min(NEARBY.maxSteps, Number(remembered(STEPS_KEY, NEARBY.defaultSteps)) || NEARBY.defaultSteps));
   let current = 0;
   let slots = [];
   let tornado = null;
   let tower = null;
   let plaques = null;
+  let nearby = null; // the CC plaques, each plaque and post with its slot (its place in nearby.order)
   const photos = new Map(); // photo URL → {image, ready}
   let towerTris = [];
   let baseTris = [];
   let tops = new Map(); // slot → the outline of their block's top and its middle (the Fan tower's names)
   let mode = remembered(COLOUR_KEY, "lines");
   if (!COLOUR_MODES.some((entry) => entry.key === mode)) mode = "lines";
+  const modesFor = () => (shape === "nearby" ? NEARBY_MODES : COLOUR_MODES);
+  // (one remembered for all; a shape without it shows its first)
+  const shownMode = () => (modesFor().some((entry) => entry.key === mode) ? mode : "lines");
   let colours = new Map(); // slot → "#rrggbb"
   let shades = new Map(); // slot → [r, g, b]
   let legend = [];
@@ -260,7 +296,10 @@ export function mountFamily3d(host, options) {
   let idleSince = 0;
   let placed = []; // what was drawn, for hovering and clicking
   const fetched = new Set();
-  const camera = { yaw: -2.2, pitch: 0.3, zoom: 1, distance: 300, target: [0, 0, 50], fit: null };
+  // (the card fetches someone's family when it isn't all here, and shows it when it comes)
+  const family = familyFetcher(world, options.loadNearby && ((id) => options.loadNearby(id, 1)), (id) => !destroyed && slots[selected]?.id === id && renderCard());
+  let slotOfId = new Map(); // Id → their (first) slot, for the card's names
+  const camera = { yaw: -2.2, pitch: 0.3, zoom: 1, distance: 300, target: [0, 0, 50], fit: null, close: false };
 
   function measure() {
     const rect = root.getBoundingClientRect();
@@ -277,29 +316,52 @@ export function mountFamily3d(host, options) {
   }
 
   function size() {
-    return { plaques, tornado, tower }[shape]?.size || { width: 100, height: 100 };
+    return { plaques, nearby, tornado, tower }[shape]?.size || { width: 100, height: 100 };
   }
 
   /** Moves the camera to take in the whole model. */
   function fitCamera(instant = false) {
-    const { width: across, height: tall } = size();
+    const { width: across, depth = across, height: tall, middle = [0, 0] } = size();
+    camera.close = false;
+    // (CC plaques fan out one way from the person: it turns round their middle, kept in view whichever way it faces)
+    const widest = shape === "nearby" ? Math.hypot(across, depth) * 0.8 : across;
     const to = {
-      distance: Math.max(across, tall) * { plaques: 2.05, tower: 2.1, tornado: 2.25 }[shape],
-      target: [0, 0, tall * { plaques: 0.56, tower: 0.25, tornado: 0.47 }[shape]],
-      pitch: { plaques: 0.38, tower: 0.62, tornado: 0.3 }[shape],
+      distance: Math.max(widest, tall) * { plaques: 2.05, nearby: 2.05, tower: 2.1, tornado: 2.25 }[shape],
+      target: [...middle, tall * { plaques: 0.56, nearby: 0.5, tower: 0.25, tornado: 0.47 }[shape]],
+      pitch: { plaques: 0.38, nearby: 0.45, tower: 0.62, tornado: 0.3 }[shape],
+      zoom: 1,
     };
+    glideTo(to, instant);
+  }
+
+  /** Moves the camera to `to` ({distance, target, pitch, zoom}), smoothly unless `instant`. */
+  function glideTo(to, instant = false) {
     if (instant || !motion) {
-      Object.assign(camera, { distance: to.distance, target: to.target, pitch: to.pitch, fit: null });
+      Object.assign(camera, { distance: to.distance, target: to.target, pitch: to.pitch, zoom: to.zoom ?? camera.zoom, fit: null });
       return;
     }
-    camera.fit = { from: { distance: camera.distance, target: [...camera.target], pitch: camera.pitch }, to, start: performance.now() };
+    camera.fit = { from: { distance: camera.distance, target: [...camera.target], pitch: camera.pitch, zoom: camera.zoom }, to, start: performance.now() };
   }
 
   function rebuild() {
-    slots = ancestorSlots(people, current, generations);
-    tornado = tornadoLayout(slots, generations);
-    tower = fanTowerLayout(slots, generations);
-    plaques = plaquesLayout(slots, generations);
+    if (shape === "nearby") {
+      // (everyone numbered like slots, the person 1 and the rest nearest first, so picking and colouring work the same)
+      const layout = nearbyPlaquesLayout(people, current, steps);
+      const slotOf = new Map(layout.order.map((person, slot) => [person?.id, slot]));
+      nearby = {
+        ...layout,
+        plaques: layout.plaques.map((plaque) => ({ ...plaque, slot: slotOf.get(plaque.id) })),
+        links: layout.links.map((link) => ({ ...link, slot: (link.id && slotOf.get(link.id)) || 0 })),
+      };
+      slots = layout.order;
+    } else {
+      slots = ancestorSlots(people, current, generations);
+      tornado = tornadoLayout(slots, generations);
+      tower = fanTowerLayout(slots, generations);
+      plaques = plaquesLayout(slots, generations);
+    }
+    slotOfId = new Map();
+    slots.forEach((person, slot) => person && !slotOfId.has(person.id) && slotOfId.set(person.id, slot));
     towerTris = [];
     baseTris = [];
     tops = new Map();
@@ -308,7 +370,7 @@ export function mountFamily3d(host, options) {
       towerTriangles(tower).forEach((triangle) => (triangle.slot ? towerTris : baseTris).push(triangle));
       tower.blocks.forEach((block) => tops.set(block.slot, blockTop(block)));
     } else {
-      const base = discMesh((shape === "plaques" ? plaques : tornado).base.r, 0, PLAQUE.base, 72);
+      const base = discMesh({ plaques, nearby, tornado }[shape].base.r, 0, PLAQUE.base, 72);
       base.triangles.forEach(([a, b, c]) => {
         const points = [base.vertices[a], base.vertices[b], base.vertices[c]];
         baseTris.push({ slot: 0, key: "root", points, normal: triangleNormal(...points), centre: [0, 1, 2].map((k) => (points[0][k] + points[1][k] + points[2][k]) / 3) });
@@ -322,7 +384,22 @@ export function mountFamily3d(host, options) {
   /** Everyone's colour in the colouring chosen; the person it starts from is always ivory. */
   function colourAll() {
     let colourOf;
-    if (mode === "lines") {
+    const mode = shownMode();
+    if (shape === "nearby" && mode === "lines") {
+      // (each branch off the person in its own colour, as in the Galaxy: their father's side, each child, …)
+      const branchOf = new Map(nearby.plaques.map((plaque) => [plaque.slot, plaque.branch]));
+      colourOf = (slot) => (branchOf.get(slot) >= 0 ? GALAXY_HUES[branchOf.get(slot) % GALAXY_HUES.length] : IVORY);
+      legend = nearby.branches.map((branch) => ({ colour: GALAXY_HUES[branch.index % GALAXY_HUES.length], label: branchLabel(branch, slots[1]) }));
+    } else if (shape === "nearby" && mode === "gender") {
+      const kind = (person) => (/^m/i.test(person.gender) ? "male" : /^f/i.test(person.gender) ? "female" : "unknown");
+      colourOf = (slot) => GENDER_COLOURS[kind(slots[slot])];
+      const counts = slots.reduce((all, person, slot) => (person && slot > 1 ? { ...all, [kind(person)]: (all[kind(person)] || 0) + 1 } : all), {});
+      legend = [
+        { colour: GENDER_COLOURS.male, label: `Men (${counts.male || 0})` },
+        { colour: GENDER_COLOURS.female, label: `Women (${counts.female || 0})` },
+        ...(counts.unknown ? [{ colour: GENDER_COLOURS.unknown, label: `Not known (${counts.unknown})` }] : []),
+      ];
+    } else if (mode === "lines") {
       colourOf = (slot) => PART_COLOURS[lineKey(slot)];
       legend = PRINT_PARTS.filter((part) => part.key !== "root")
         .filter((part) => slots[Number(part.key.slice(4))] || (part.key === "line4" && slots[2]) || (part.key === "line6" && slots[3]))
@@ -345,10 +422,25 @@ export function mountFamily3d(host, options) {
 
   function drawBar() {
     root.querySelectorAll("[data-shape]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.shape === shape)));
-    $(".wbe-3d-gens").textContent = `${generations} generations`;
-    $('[data-gens="-1"]').disabled = generations <= MIN_GENERATIONS;
-    $('[data-gens="1"]').disabled = generations >= mostGenerations();
-    $(".wbe-3d-colour select").value = mode;
+    const near = shape === "nearby";
+    $(".wbe-3d-gens").textContent = near ? `${steps} step${steps === 1 ? "" : "s"} (CC${steps})` : `${generations} generations`;
+    $('[data-gens="-1"]').disabled = near ? steps <= NEARBY.minSteps : generations <= MIN_GENERATIONS;
+    $('[data-gens="1"]').disabled = near ? steps >= NEARBY.maxSteps : generations >= mostGenerations();
+    $('[data-gens="-1"]').title = near ? "Fewer steps" : "Fewer generations";
+    $('[data-gens="1"]').title = near ? "More steps (a parent, child, brother or sister, husband or wife is a step)" : "More generations";
+    const select = $(".wbe-3d-colour select");
+    if (select.dataset.shape !== (near ? "nearby" : "")) {
+      select.innerHTML = modesFor()
+        .map((entry) => `<option value="${entry.key}">${entry.label}</option>`)
+        .join("");
+      select.dataset.shape = near ? "nearby" : "";
+    }
+    select.value = shownMode();
+    // (CC plaques aren't made to print yet)
+    $(".wbe-3d-print").hidden = near;
+    if (near) menuEl.hidden = true;
+    $(".wbe-3d-hint").textContent = near ? "Drag to turn · scroll to zoom · click someone to go to them" : "Drag to turn · scroll to zoom · click someone to see who they are";
+    if (near) return;
     const used = new Set([IVORY, ...colours.values()]).size;
     $(".wbe-3d-colours").textContent =
       used > PRINTER_COLOURS ? `These colours need ${used} filaments; most colour printers take ${PRINTER_COLOURS} or fewer. "Grandparents' lines" prints in ${PRINTER_COLOURS}.` : "";
@@ -365,6 +457,21 @@ export function mountFamily3d(host, options) {
 
   function drawKey() {
     const person = people.get(current);
+    if (shape === "nearby") {
+      keyEl.innerHTML = `<b>Everyone within ${steps} step${steps === 1 ? "" : "s"} of ${escapeText(fullName(person || {}))}</b>`;
+      legend.slice(0, 12).forEach((item) => {
+        const span = document.createElement("span");
+        span.innerHTML = `<i style="background:${item.colour}"></i>`;
+        span.appendChild(document.createTextNode(item.label));
+        keyEl.appendChild(span);
+      });
+      const note = document.createElement("small");
+      const count = Math.max(0, nearby.plaques.length - 1);
+      // (someone reached only through a brother or sister whose parents aren't here has nothing to hang from)
+      note.textContent = `${count.toLocaleString()} ${count === 1 ? "person" : "people"}${legend.length > 12 ? ` · ${legend.length - 12} more branches` : ""}${nearby.loose ? ` · ${nearby.loose} left out, joined only by a brother or sister whose parents aren't here` : ""}`;
+      keyEl.appendChild(note);
+      return;
+    }
     const found = slots.filter((entry, slot) => slot > 1 && entry).length;
     const possible = 2 ** (generations + 1) - 2;
     keyEl.innerHTML = `<b>Ancestors of ${escapeText(fullName(person || {}))}</b>`;
@@ -380,24 +487,45 @@ export function mountFamily3d(host, options) {
     keyEl.appendChild(note);
   }
 
+  /** "Great-grandmother · father's side", or for CC plaques "first cousin". */
+  function relationFor(slot, person) {
+    if (shape === "nearby") {
+      if (slot === 1) return `Everyone within ${steps} step${steps === 1 ? "" : "s"} is here`;
+      const words = nearby.relation(person.id);
+      return words ? words[0].toUpperCase() + words.slice(1) : "";
+    }
+    return slot === 1 ? "Their ancestors are all here" : relationOf(slot, person);
+  }
+
+  /** Shows slot's card (user, 2026-10-12: "Can you add much more information in these cards?"), fetching their family if it isn't all here. */
   function showCard(slot) {
     selected = slot;
-    const person = slots[slot];
+    renderCard();
+    family.ensure(slots[slot]);
+  }
+
+  function renderCard() {
+    const person = slots[selected];
     if (!person) {
       cardEl.hidden = true;
       return;
     }
     const url = photoUrl(person, 150);
-    const relation = slot === 1 ? "Their ancestors are all here" : relationOf(slot, person);
+    const relation = relationFor(selected, person);
+    const facts = familyFactsHtml(people, person.id, { prefix: "wbe-3d", pickOf: (other) => slotOfId.get(other.id) || "", pickTitle: "Show them on the model", loading: family.loading(person.id) });
     cardEl.innerHTML = `
-      <span class="wbe-3d-photo">${url ? `<img src="${escapeText(url)}" alt="">` : escapeText(initials(person))}</span>
-      <span>
-        <span class="wbe-3d-rel">${escapeText(relation)}</span>
-        ${person.wtid ? `<a class="wbe-3d-name" href="${escapeText(profileUrl(person.wtid))}" target="_blank" rel="noopener" title="Open the WikiTree profile">${escapeText(fullName(person))}</a>` : `<span class="wbe-3d-name">${escapeText(fullName(person))}</span>`}
-        ${lifeYears(person) ? `<div class="wbe-3d-life">${escapeText(lifeYears(person))}</div>` : ""}
-        ${person.birthLocation ? `<div class="wbe-3d-place">${escapeText(person.birthLocation)}</div>` : ""}
-        ${slot === 1 || person.hidden ? "" : `<button type="button" data-start="${person.id}">Show their ancestors</button>`}
-      </span>`;
+      <button type="button" class="wbe-3d-close" data-act3d="close" title="Close" aria-label="Close">×</button>
+      <div class="wbe-3d-head">
+        <span class="wbe-3d-photo">${url ? `<img src="${escapeText(url)}" alt="">` : escapeText(initials(person))}</span>
+        <span>
+          <span class="wbe-3d-rel">${escapeText(relation)}</span>
+          ${person.wtid ? `<a class="wbe-3d-name" href="${escapeText(profileUrl(person.wtid))}" target="_blank" rel="noopener" title="Open the WikiTree profile">${escapeText(fullName(person))}</a>` : `<span class="wbe-3d-name">${escapeText(fullName(person))}</span>`}
+          ${lifeYears(person) ? `<div class="wbe-3d-life">${escapeText(lifeYears(person))}</div>` : ""}
+          ${person.wtid ? `<div class="wbe-3d-id">${escapeText(person.wtid)}</div>` : ""}
+          ${selected === 1 || person.hidden ? "" : `<button type="button" data-start="${person.id}">${shape === "nearby" ? "Start from them" : "Show their ancestors"}</button>`}
+        </span>
+      </div>
+      ${facts}`;
     const image = cardEl.querySelector("img");
     if (image) {
       image.addEventListener("error", () => {
@@ -409,7 +537,7 @@ export function mountFamily3d(host, options) {
     cardEl.hidden = false;
   }
 
-  /** Builds the model from `id` up, fetching ancestors not loaded yet. */
+  /** Builds the model from `id` (up, or all round for CC plaques), fetching who isn't loaded yet. */
   async function centre(id) {
     const person = people.get(id);
     if (!person || person.hidden || destroyed) return;
@@ -418,18 +546,22 @@ export function mountFamily3d(host, options) {
     fitCamera();
     showCard(1);
     options.onCentre?.(person);
-    const wanted = `${id}|${generations}`;
-    if (!options.loadAncestors || fetched.has(wanted) || ancestorsLoaded(people, slots)) {
+    const near = shape === "nearby";
+    // (CC plaques: fetched round them at least this many steps out already)
+    const wanted = near ? `near|${id}|${steps}` : `${id}|${generations}`;
+    const done = near ? [...fetched].some((key) => key.startsWith(`near|${id}|`) && Number(key.split("|")[2]) >= steps) : fetched.has(wanted) || ancestorsLoaded(people, slots);
+    const load = near ? options.loadNearby : options.loadAncestors;
+    if (!load || done) {
       setStatus("");
       return;
     }
     const token = ++loadToken;
-    setStatus(`Finding ${fullName(person)}'s ancestors…`);
+    setStatus(near ? `Finding everyone within ${steps} step${steps === 1 ? "" : "s"} of ${fullName(person)}…${steps >= 4 ? " (this can take a minute)" : ""}` : `Finding ${fullName(person)}'s ancestors…`);
     try {
-      await options.loadAncestors(id, generations);
+      await load(id, near ? steps : generations);
       fetched.add(wanted);
     } catch (error) {
-      if (token === loadToken) setStatus("WikiTree didn't answer. Change the generations to try again.");
+      if (token === loadToken) setStatus(`WikiTree didn't answer. Change the ${near ? "steps" : "generations"} to try again.`);
       return;
     }
     if (token !== loadToken || current !== id || destroyed) return;
@@ -442,10 +574,11 @@ export function mountFamily3d(host, options) {
 
   function setShape(next) {
     if (next === shape) return;
+    const wasNearby = shape === "nearby" || next === "nearby";
     shape = next;
     remember(SHAPE_KEY, shape);
     const wanted = generationsFor();
-    if (wanted !== generations) {
+    if (wanted !== generations || wasNearby) {
       generations = wanted;
       centre(current);
       return;
@@ -455,6 +588,14 @@ export function mountFamily3d(host, options) {
   }
 
   function setGenerations(step) {
+    if (shape === "nearby") {
+      const more = Math.max(NEARBY.minSteps, Math.min(NEARBY.maxSteps, steps + step));
+      if (more === steps) return;
+      steps = more;
+      remember(STEPS_KEY, steps);
+      centre(current);
+      return;
+    }
     const next = Math.max(MIN_GENERATIONS, Math.min(mostGenerations(), generations + step));
     if (next === generations) return;
     generations = next;
@@ -463,6 +604,7 @@ export function mountFamily3d(host, options) {
   }
 
   async function download(format) {
+    if (shape === "nearby") return;
     const leaveOutLiving = $(".wbe-3d-living").checked;
     const person = people.get(current) || {};
     const title = `${SHAPE_NAMES[shape]} of ${fullName(person)}'s ancestors, ${generations} generations`;
@@ -545,7 +687,7 @@ export function mountFamily3d(host, options) {
   /** A rod from a to b (projected), in slot's colour, shaded so it reads as round. */
   function paintRod(slot, a, b, radius) {
     const w = Math.max(1, radius * (a.scale + b.scale));
-    const colour = shades.get(slot) || rgb(IVORY);
+    const colour = shades.get(slot) || (slot ? rgb(IVORY) : BAR_COLOUR);
     const lit = slot === selected ? mix(colour, rgb(FOCUS_RING), 0.5) : colour;
     ctx.lineCap = "round";
     ctx.strokeStyle = css(mix(lit, [0, 0, 0], 0.35));
@@ -554,6 +696,7 @@ export function mountFamily3d(host, options) {
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
     ctx.stroke();
+    if (w < 2) return;
     // (a lighter stripe down one side)
     ctx.strokeStyle = css(mix(lit, [255, 255, 255], 0.2));
     ctx.lineWidth = w * 0.4;
@@ -609,18 +752,18 @@ export function mountFamily3d(host, options) {
    * and can be read from anywhere), its top showing as a slab's from above. Returns the plaques drawn,
    * nearest last, for hovering and clicking.
    */
-  function paintPlaques(view) {
+  function paintPlaques(view, model) {
     paintTriangles(view, baseTris);
     const items = [];
     const flat = Math.hypot(view.back[0], view.back[1]) || 1;
     const toward = [view.back[0] / flat, view.back[1] / flat];
-    plaques.links.forEach((link) => {
+    model.links.forEach((link) => {
       const a = projectPoint(view, link.from, width, height);
       const b = projectPoint(view, link.to, width, height);
       if (!a.scale || !b.scale) return;
       items.push({ kind: "link", link, a, b, depth: (a.depth + b.depth) / 2 + 1.5 });
     });
-    plaques.plaques.forEach((plaque) => {
+    model.plaques.forEach((plaque) => {
       const at = (u, v, w) => projectPoint(view, [plaque.x + view.right[0] * u + toward[0] * w, plaque.y + view.right[1] * u + toward[1] * w, plaque.z + v], width, height);
       const [across, up, thick] = [plaque.w / 2, plaque.h / 2, plaque.t / 2];
       const corners = [at(-across, up, thick), at(across, up, thick), at(across, -up, thick), at(-across, -up, thick)];
@@ -657,6 +800,15 @@ export function mountFamily3d(host, options) {
     }
     const [W, H] = [plaque.w * 10, plaque.h * 10];
     const px = Math.hypot(tr.x - tl.x, tr.y - tl.y) / W; // screen pixels to a unit
+    if (px * W < 12) {
+      // (too small to read: a patch of its colour, quicker with hundreds)
+      ctx.fillStyle = slot === selected ? FOCUS_RING : css(mix(colour, [255, 255, 255], 0.35));
+      ctx.beginPath();
+      corners.forEach((corner, i) => (i ? ctx.lineTo(corner.x, corner.y) : ctx.moveTo(corner.x, corner.y)));
+      ctx.closePath();
+      ctx.fill();
+      return;
+    }
     ctx.save();
     ctx.setTransform((ratio * (tr.x - tl.x)) / W, (ratio * (tr.y - tl.y)) / W, (ratio * (bl.x - tl.x)) / H, (ratio * (bl.y - tl.y)) / H, ratio * tl.x, ratio * tl.y);
     ctx.beginPath();
@@ -808,15 +960,17 @@ export function mountFamily3d(host, options) {
       camera.distance = from.distance + (to.distance - from.distance) * k;
       camera.pitch = from.pitch + (to.pitch - from.pitch) * k;
       camera.target = from.target.map((value, i) => value + (to.target[i] - value) * k);
+      if (to.zoom !== undefined) camera.zoom = from.zoom + (to.zoom - from.zoom) * k;
       if (k >= 1) camera.fit = null;
     }
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     paintBackground();
     const view = frameNow();
     const labels = [];
-    if (shape === "plaques" && plaques) {
-      paintShadow(view, plaques.base.r);
-      placed = paintPlaques(view);
+    const board = { plaques, nearby }[shape];
+    if (board) {
+      paintShadow(view, board.base.r);
+      placed = paintPlaques(view, board);
     } else if (shape === "tower" && tower) {
       paintShadow(view, tower.base.r);
       // (the base first and on its own: its long thin triangles sort in front of the walls otherwise)
@@ -876,6 +1030,24 @@ export function mountFamily3d(host, options) {
     return best ? best.slot : 0;
   }
 
+  /**
+   * CC plaques: clicking someone too small to read brings them close and turns round them; clicking the
+   * background goes back out to everyone.
+   */
+  function goTo(slot) {
+    const plaque = slot && nearby.plaques.find((entry) => entry.slot === slot);
+    if (!plaque) {
+      if (camera.close) fitCamera();
+      camera.close = false;
+      return;
+    }
+    const focal = Math.min(width, height) * 1.6;
+    const shown = (plaque.w * focal) / (camera.distance * camera.zoom);
+    if (shown >= 110) return;
+    camera.close = true;
+    glideTo({ distance: (plaque.w * focal) / 170, target: [plaque.x, plaque.y, plaque.z], pitch: camera.pitch, zoom: 1 });
+  }
+
   // Drag to turn, scroll to zoom, click someone.
   let dragging = null;
   canvas.addEventListener("pointerdown", (event) => {
@@ -900,7 +1072,7 @@ export function mountFamily3d(host, options) {
     const person = slots[slot];
     tipEl.hidden = !person;
     if (person) {
-      const relation = relationOf(slot, person);
+      const relation = slot === 1 ? "" : relationFor(slot, person);
       tipEl.innerHTML = `${escapeText(fullName(person))} ${lifeYears(person) ? `<small>${escapeText(lifeYears(person))}</small>` : ""}${relation ? `<br><small>${escapeText(relation)}</small>` : ""}`;
       tipEl.style.left = `${event.clientX - rect.left}px`;
       tipEl.style.top = `${event.clientY - rect.top}px`;
@@ -915,6 +1087,7 @@ export function mountFamily3d(host, options) {
     const rect = canvas.getBoundingClientRect();
     const slot = slotAt(event.clientX - rect.left, event.clientY - rect.top);
     showCard(slot || 1);
+    if (shape === "nearby") goTo(slot);
   });
   canvas.addEventListener("pointerleave", () => {
     hovered = 0;
@@ -924,7 +1097,9 @@ export function mountFamily3d(host, options) {
     "wheel",
     (event) => {
       event.preventDefault();
-      camera.zoom = Math.max(0.3, Math.min(3, camera.zoom * Math.exp(event.deltaY * 0.0012)));
+      // (CC plaques can be hundreds across: zoom right in on someone)
+      camera.zoom = Math.max(shape === "nearby" ? 0.04 : 0.3, Math.min(3, camera.zoom * Math.exp(event.deltaY * 0.0012)));
+      camera.fit = null;
       idleSince = performance.now();
     },
     { passive: false }
@@ -950,6 +1125,11 @@ export function mountFamily3d(host, options) {
           button.disabled = false;
         });
     } else if (button.dataset.start) centre(Number(button.dataset.start));
+    else if (button.dataset.pick) showCard(Number(button.dataset.pick));
+    else if (button.dataset.act3d === "close") {
+      cardEl.hidden = true;
+      selected = 0;
+    }
   });
   $(".wbe-3d-colour select").addEventListener("change", (event) => {
     mode = event.target.value;
@@ -963,7 +1143,7 @@ export function mountFamily3d(host, options) {
     if (!menuEl.hidden) {
       event.stopPropagation();
       menuEl.hidden = true;
-    } else if (selected !== 1) {
+    } else if (!cardEl.hidden && selected !== 1) {
       event.stopPropagation();
       showCard(1);
     }

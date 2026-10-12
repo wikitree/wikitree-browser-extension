@@ -1908,6 +1908,8 @@ export function createChatPeopleHandlers({
           mergeWorldPeople(world, people, { root: id, ancestors: generations });
           if (world.noteHiddenOnce) world.noteHiddenOnce();
         },
+        // The 3D view's CC plaques: everyone within `steps` of `id` (and, with 1, the family for someone's card).
+        loadNearby: (id, steps) => world.fetchAround(id, steps),
         climb: (from) => climbFamilyScene(world, from),
         reroot: (root, anchorUid, nodes, how) => rerootFamilyScene(world, root, anchorUid, nodes, how),
         normalise: () => normaliseFamilyScene(world),
