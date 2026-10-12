@@ -41,7 +41,7 @@ export const CHANNELS = [
     mode: "intent",
     max: 4,
     urlWeight: true,
-    note: "WikiTree is on genealysis.social. The tag works from any server. Set your own server in the WBE options so the composer opens there.",
+    note: "WikiTree is on genealysis.social, where many genealogists have their accounts, so the composer opens there. The tag works from any server. If your account is on another server, set it in the WBE options.",
   },
   {
     id: "linkedin",
@@ -226,7 +226,7 @@ function cleanHost(instance) {
     .replace(/\/.*$/, "")
     .trim()
     .toLowerCase();
-  return /^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/.test(host) ? host : "mastodon.social";
+  return /^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/.test(host) ? host : "genealysis.social";
 }
 
 /** Line breaks in a mailto: body are CRLF (RFC 6068). The address is left for the member to fill in. */
@@ -283,6 +283,43 @@ export function intentUrl(channel, text, url, instance, subject = "") {
     default:
       return "";
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Research status and notability statement on the share card
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The Research Status codes getProfile returns (10 Unfinished, 20 Help Requested, 30 Sources to Review, 40 Silver Standard,
+ * 50 Gold Standard Candidate, 60 Gold Standard) that go on the card: Silver Standard and above. The labels are the ones
+ * WikiTree shows near the top of a profile (Help:Research_Status).
+ */
+export const RESEARCH_BADGES = {
+  40: { tier: "silver", label: "Silver Standard" },
+  50: { tier: "candidate", label: "Gold Standard Candidate" },
+  60: { tier: "gold", label: "Gold Standard: Genealogically Complete and Peer Reviewed" },
+};
+
+/** {tier, label} for a profile at Silver Standard or above, otherwise null. */
+export function researchBadge(code) {
+  return RESEARCH_BADGES[Number(code)] || null;
+}
+
+/** A notability statement as plain one-line text. WikiTree keeps them to two sentences or 350 characters. */
+export function cleanNotability(text) {
+  return (text || "").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * The text under the facts on a profile's card. source: "notability" (the profile's Notability statement),
+ * "life" (written from the profile's facts) or "both". With no statement the life summary is used.
+ */
+export function cardBio(source, notability, life) {
+  const statement = cleanNotability(notability);
+  if (!statement) return life || "";
+  if (source === "life") return life || statement;
+  if (source === "both") return life ? `${statement} ${life}` : statement;
+  return statement;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -464,19 +501,6 @@ export function appNameFromSlug(slug) {
 // Summaries for pages that are not profiles
 // ---------------------------------------------------------------------------------------------
 
-/**
- * A section heading as plain text. WikiTree's own "[edit]" link and the Link and URL copy buttons that Scissors adds sit
- * inside the heading, so "Andersonia[edit] Link URL" becomes "Andersonia".
- */
-export function cleanHeading(text) {
-  return (text || "")
-    .replace(/\[\s*edit\s*\]/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/(?:\s+ID)?(?:\s+Link)?\s+URL$/i, "")
-    .trim();
-}
-
 function cutAtWord(text, max) {
   if (text.length <= max) return text;
   return text.slice(0, max).replace(/\s+\S*$/, "") + "…";
@@ -510,7 +534,7 @@ export function leadSummary(paragraphs, maxChars = 330) {
 /**
  * The facts and short text for the share card of a help, project, free-space or category page.
  *
- * facts: { paragraphs: [text], sections: [heading], counts: { subcategories, pages, profiles } }
+ * facts: { paragraphs: [text], counts: { subcategories, pages, profiles } }
  * Returns null for other kinds, or when there is nothing to show.
  */
 /** 8840 becomes "8,840th", 1 "1st", 22 "22nd". */
@@ -553,31 +577,6 @@ export function parseGenealogyText(text = "") {
   return result;
 }
 
-const BOILERPLATE_SECTIONS =
-  /^(sources?|references?|footnotes?|notes?|citations?|bibliography|see also|external links?|further reading|acknowledge?ments?|research notes?|contents)$/i;
-
-const plain = (text) =>
-  (text || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-
-/**
- * The section names worth listing on a card. Standard sections every page has (Sources, References, ...) tell the reader
- * nothing, and neither does a heading that only repeats the page's own title ("Andersonia" on "Andersonia, California One
- * Place Study").
- */
-export function usefulSections(sections = [], title = "") {
-  const pageTitle = plain(title.replace(/^(Space|Project|Help|Category):/i, ""));
-  return sections.map(cleanHeading).filter((heading) => {
-    if (!heading || BOILERPLATE_SECTIONS.test(heading)) return false;
-    // only a heading that is just part of the title goes: "Andersonia" in "Andersonia, California One Place Study".
-    // One that adds to the title ("Topical Projects" on "Help:Projects") stays.
-    const name = plain(heading);
-    return !(name.length >= 3 && ` ${pageTitle} `.includes(` ${name} `));
-  });
-}
-
 export function pageSummary(kind, facts = {}) {
   const fields = [];
   let bio = "";
@@ -592,12 +591,9 @@ export function pageSummary(kind, facts = {}) {
     bio =
       "Explore the subcategories, pages and profiles in this category. Check your connections to the ancestors listed here.";
   } else if (kind === "help" || kind === "project" || kind === "space") {
+    // Just the opening text. Headings are left off these pages: help pages list topics or people (Help:WikiTree Team),
+    // and a list of headings is not a useful summary of any of them.
     bio = leadSummary(facts.paragraphs || []);
-    const sections = usefulSections(facts.sections || [], facts.title || "");
-    if (sections.length) {
-      const lines = sections.length > 2 ? [sections[0], `${sections[1]} +${sections.length - 2} more`] : sections;
-      fields.push({ label: "On this page", lines, names: true });
-    }
   } else if (kind === "genealogy") {
     // a surname hub: "Peasley Genealogy", with the numbers the page shows
     const hub = facts.genealogy || {};

@@ -1,11 +1,13 @@
 import {
   BRAND_HASHTAGS,
   buildText,
+  cardBio,
+  cleanNotability,
+  researchBadge,
   emailSubject,
   mailtoUrl,
   webmailUrl,
   WEBMAIL,
-  cleanHeading,
   cropRect,
   detectPageKind,
   getChannel,
@@ -22,7 +24,6 @@ import {
   ordinal,
   pageSummary,
   parseGenealogyText,
-  usefulSections,
   profileKeyFor,
   viewSlug,
   measure,
@@ -118,6 +119,38 @@ describe("buildText", () => {
   });
 });
 
+describe("research status badge", () => {
+  test("Silver Standard and above get a badge, with WikiTree's own wording", () => {
+    expect(researchBadge(40)).toEqual({ tier: "silver", label: "Silver Standard" });
+    expect(researchBadge("50")).toEqual({ tier: "candidate", label: "Gold Standard Candidate" });
+    expect(researchBadge(60).label).toBe("Gold Standard: Genealogically Complete and Peer Reviewed");
+    expect(researchBadge(60).tier).toBe("gold");
+  });
+  test("lower statuses and missing values get none", () => {
+    [0, 10, 20, 30, undefined, null, "", "x", 70].forEach((code) => expect(researchBadge(code)).toBeNull());
+  });
+});
+
+describe("notability statement on the card", () => {
+  const life = "He was born in 1901.";
+  test("cleanNotability makes one tidy line", () => {
+    expect(cleanNotability("  A   statement\n over  two lines. ")).toBe("A statement over two lines.");
+    expect(cleanNotability(undefined)).toBe("");
+  });
+  test("the statement is used by default, the life summary on request, or both", () => {
+    expect(cardBio("notability", "Statement.", life)).toBe("Statement.");
+    expect(cardBio("life", "Statement.", life)).toBe(life);
+    expect(cardBio("both", "Statement.", life)).toBe("Statement. He was born in 1901.");
+  });
+  test("with no statement the life summary is used whatever was asked for", () => {
+    ["notability", "life", "both"].forEach((source) => expect(cardBio(source, "  ", life)).toBe(life));
+  });
+  test("with no life summary the statement stands alone", () => {
+    expect(cardBio("both", "Statement.", "")).toBe("Statement.");
+    expect(cardBio("life", "Statement.", "")).toBe("Statement.");
+  });
+});
+
 describe("email", () => {
   const url = "https://www.wikitree.com/wiki/Robinson-27274";
   test("the message has the link and no account tag or hashtags", () => {
@@ -181,8 +214,12 @@ describe("intentUrl", () => {
       "https://example.social/share?text=t"
     );
     expect(intentUrl(getChannel("mastodon"), "t", url, "bad host<script>")).toBe(
-      "https://mastodon.social/share?text=t"
+      "https://genealysis.social/share?text=t"
     );
+  });
+  test("Mastodon opens genealysis.social, where WikiTree is, when no server is set", () => {
+    expect(intentUrl(getChannel("mastodon"), "t", url, "")).toBe("https://genealysis.social/share?text=t");
+    expect(intentUrl(getChannel("mastodon"), "t", url, undefined)).toBe("https://genealysis.social/share?text=t");
   });
   test("Reddit sends a title and a link to r/wikitree", () => {
     expect(intentUrl(getChannel("reddit"), "A  title", url)).toContain(
@@ -351,14 +388,29 @@ describe("pageSummary", () => {
     expect(summary.bio).toContain("Explore the subcategories, pages and profiles in this category.");
     expect(summary.bio).toContain("Check your connections to the ancestors listed here.");
   });
-  test("a help, project or free-space page shows its opening text and sections", () => {
-    const summary = pageSummary("project", {
-      paragraphs: ["WikiTree Ambassadors are volunteers who have taken on the mission of spreading the WikiTree Love."],
-      sections: ["Who are Ambassadors?", "Why does WikiTree need Ambassadors?", "How can I help?"],
-    });
-    expect(summary.bio).toContain("WikiTree Ambassadors are volunteers");
-    expect(summary.fields[0].label).toBe("On this page");
-    expect(summary.fields[0].lines).toEqual(["Who are Ambassadors?", "Why does WikiTree need Ambassadors? +1 more"]);
+  test.each([
+    [
+      "project",
+      "Project:Ambassadors",
+      "Ambassadors are volunteers who spread the WikiTree love.",
+      ["Who are Ambassadors?", "How can I help?"],
+    ],
+    [
+      "space",
+      "Andersonia, California One Place Study",
+      "Andersonia was named for the President of the company.",
+      ["History", "Residents"],
+    ],
+    [
+      "help",
+      "Help:WikiTree Team",
+      "The success of WikiTree is based on its community of volunteers.",
+      ["Paul Bech, Project Assistant", "Abby Glann, Wood Owl"],
+    ],
+  ])("a %s page shows its opening text and does not list its headings", (kind, title, opening, headings) => {
+    const summary = pageSummary(kind, { title, paragraphs: [opening], sections: headings });
+    expect(summary.fields).toEqual([]);
+    expect(summary.bio).toContain(opening.slice(0, 30));
   });
   test("other kinds have no summary", () => {
     expect(pageSummary("treeApp", {})).toBeNull();
@@ -421,66 +473,11 @@ describe("cropRect", () => {
   });
 });
 
-describe("cleanHeading", () => {
-  test.each([
-    ["Andersonia[edit] Link URL", "Andersonia"],
-    ["Sources[edit] Link URL", "Sources"],
-    ["Biography [edit] ID Link URL", "Biography"],
-    ["Topical Projects [edit]", "Topical Projects"],
-    ["Who are Ambassadors?", "Who are Ambassadors?"],
-    ["A Useful Link", "A Useful Link"],
-    ["  Spaced   out  ", "Spaced out"],
-    ["", ""],
-  ])("%j becomes %j", (input, output) => {
-    expect(cleanHeading(input)).toBe(output);
-  });
-});
-
 describe("page summaries stay clean", () => {
-  test("section names lose the edit link and the copy buttons", () => {
-    const summary = pageSummary("help", {
-      title: "Help:Projects",
-      paragraphs: ["A project is a group of members organized around a topic or volunteer activity."],
-      sections: ["Topical Projects[edit] Link URL", "Functional Projects[edit] Link URL"],
-    });
-    expect(summary.fields[0].lines).toEqual(["Topical Projects", "Functional Projects"]);
-  });
-  test("a page whose only sections repeat its title or are standard ones lists none", () => {
-    const summary = pageSummary("space", {
-      title: "Andersonia, California One Place Study",
-      paragraphs: ["Andersonia was named for the President of Southern Humboldt Lumber Company, Henry Neff Anderson."],
-      sections: ["Andersonia[edit] Link URL", "Sources[edit] Link URL"],
-    });
-    expect(summary.fields).toEqual([]);
-    expect(summary.bio).toContain("Andersonia was named for the President");
-  });
   test("the opening text loses stray [edit] markers", () => {
     expect(leadSummary(["The Ambassadors Project[edit] helps spread the word about WikiTree every single day."])).toBe(
       "The Ambassadors Project helps spread the word about WikiTree every single day."
     );
-  });
-});
-
-describe("usefulSections", () => {
-  test("drops standard sections and headings that repeat the page title", () => {
-    expect(
-      usefulSections(
-        ["Andersonia", "History", "Sources", "References", "Footnotes", "See also", "Acknowledgments", "Contents"],
-        "Andersonia, California One Place Study"
-      )
-    ).toEqual(["History"]);
-  });
-  test("ignores the Space:, Project:, Help: and Category: prefix when comparing with the title", () => {
-    expect(usefulSections(["Projects", "Topical Projects"], "Help:Projects")).toEqual(["Topical Projects"]);
-  });
-  test("keeps real sections, cleaned", () => {
-    expect(usefulSections(["Who are Ambassadors?[edit] Link URL", "Teams"], "Ambassadors Project")).toEqual([
-      "Who are Ambassadors?",
-      "Teams",
-    ]);
-  });
-  test("without a title only the standard sections go", () => {
-    expect(usefulSections(["Andersonia", "Sources"])).toEqual(["Andersonia"]);
   });
 });
 

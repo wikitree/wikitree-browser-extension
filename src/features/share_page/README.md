@@ -82,7 +82,7 @@ closes it.
 
 ## Share card
 
-A 1200 × 630 picture drawn on a canvas, so no screenshot and no extra permission is needed. It uses WikiTree's colours
+A 1080 × 1080 square (1:1, the size of an Instagram post, which the other networks also show well) drawn on a canvas, so no screenshot and no extra permission is needed. It uses WikiTree's colours
 (taken from the live site's header and footer, with the gold from the logo), Roboto, and the site's own logo file
 (`/images/wikitree-logo-tagline.png`, loaded from the same address as the page so the picture can be saved). If Roboto or
 the logo has not loaded, it falls back to Arial and the word "WikiTree". The footer reads "WikiTree.com" and "The FREE
@@ -97,11 +97,20 @@ portrait, and a short life summary:
   the first name otherwise.
 - It says nothing about someone who could still be living: no death year and born less than 110 years ago. Private
   children are skipped. See `lifeSummary()` in `share_page_core.js`.
+- **Notability statement.** If the profile has one (the `{{Notability}}` box under the Biography heading, read from the
+  page: the row with the star icon whose alt text says "Notability Statement"), the card starts with that text instead
+  of the life summary. A "Text to start from" choice in the dialog switches to the life summary or to both. Statements
+  are limited to about 350 characters, so they fit the card; both together may be cut short. See `readNotability()` in
+  `share_page.js` and `cardBio()` in `share_page_core.js`.
+- **Research status.** A profile or free-space page at Silver Standard (40), Gold Standard Candidate (50) or Gold
+  Standard (60) shows a medal and WikiTree's own wording next to "PROFILE" ("Silver Standard", "Gold Standard
+  Candidate", "Gold Standard: Genealogically Complete and Peer Reviewed"). The status comes from `ResearchStatus` in the
+  `getProfile` call that already checks privacy. Lower statuses show nothing. See `researchBadge()` and `drawMedal()`.
 
-**Help, project and free-space pages** show the title, the opening sentences of the page's text (footnote markers removed,
-tables skipped, up to about 330 characters) and an "On this page" field with the first section names. Standard sections (Sources, References, Footnotes, See also and the
-like) and a heading that only repeats the page's own title ("Andersonia" on "Andersonia, California One Place Study") are
-left out, and if nothing is left there is no field and the text gets the room. See `usefulSections()`.
+**Help, project and free-space pages** show the title and the opening sentences of the page's text (footnote markers
+removed, tables skipped, up to about 330 characters). The page's headings are not listed on any of them: many of these
+pages are lists of topics or of people (Help:WikiTree Team, Help:Projects), and a list of headings is not a useful summary
+of any page.
 
 **Surname (genealogy) pages** (the hub at `/genealogy/PEASLEY`) show the title, up to four fields read from the page's
 text (Profiles: "Search all 652 profiles"; Open profiles and Rank: "Rank: 8,840th most popular surname on WikiTree, with
@@ -126,15 +135,19 @@ styling. The hub's search box is not offered, as it is not something to share.
 **Category pages** show counts of subcategories, pages and person profiles, and a line inviting people to explore the
 category and check their connections to the ancestors in it.
 
-Section names and text are read without the controls inside them: WikiTree's "[edit]" link, footnote markers, and the
-Link and URL copy buttons that Scissors adds to headings, so a heading shows as "Andersonia", not "Andersonia[edit] Link
-URL". See `cleanHeading()` and `textWithoutControls()`.
+The page's text is read without the controls inside it: WikiTree's "[edit]" link, footnote markers, and the Link and URL
+copy buttons that Scissors adds. See `textWithoutControls()`.
 
 **The picture on the card.** A profile or free-space page starts with its primary photo on the card (the first photo on the
 page). Help, project and category pages start with no photo, because their first picture is often a logo or badge. On any
 of these a "Picture on the card" strip lets the member choose any photo found on the page, or none, and the card redraws.
 The photo fills a portrait slot at the right, and the text stops short of it. Tree Apps cards show the chart instead and
 have no chooser.
+
+**Picture position.** A photo on a card that has text goes beside the title and fields by default. "Picture position" in
+the dialog moves it under the text instead, across the whole card, which leaves a wide picture far more room. A photo
+that loses at most 40% of its height to fill the width does so; a taller one is shown whole on a band. The surname hub's
+drawn pictures always go beside the text. See `drawShareCard()`.
 
 For all of these the member can edit the text in the dialog and the card redraws.
 
@@ -188,7 +201,7 @@ the one being cropped). The member chooses a shape, then which part of the pictu
 | X         | `@WikiTreers`                 | 280        | 4        | Opens the composer with the text filled in                                                                  |
 | Threads   | `@WikiTreers`                 | 500        | 20       | Opens the composer with the text filled in                                                                  |
 | Bluesky   | `@wikitree.bsky.social`       | 300        | 4        | Opens the composer with the text filled in                                                                  |
-| Mastodon  | `@wikitree@genealysis.social` | 500        | 4        | Opens the composer on the member's own server (option)                                                      |
+| Mastodon  | `@wikitree@genealysis.social` | 500        | 4        | Opens the composer on the member's own server (option; `genealysis.social`, where WikiTree is, by default)  |
 | Reddit    | none                          | 300        | 1        | Opens a link post to r/wikitree. The text is the title, with no tags or hashtags                            |
 | Facebook  | `@WikiTree`                   | 63,206     | 10       | Passes the link only. The member pastes the text                                                            |
 | LinkedIn  | `@WikiTree`                   | 3,000      | 9        | Passes the link only. The member pastes the text                                                            |
@@ -211,12 +224,12 @@ and are planning values to re-check before each release.
 
 ## Options
 
-| Option                                                                           | Default         |
-| -------------------------------------------------------------------------------- | --------------- |
-| Channel selected when the dialog opens                                           | Facebook        |
-| Your Mastodon server (for example mastodon.social)                               | mastodon.social |
-| Add a short summary to the share card (life summary, or the page's opening text) | On              |
-| Add the WikiTree hashtags to the post                                            | On              |
+| Option                                                                           | Default           |
+| -------------------------------------------------------------------------------- | ----------------- |
+| Channel selected when the dialog opens                                           | Facebook          |
+| Your Mastodon server (for example genealysis.social or mastodon.social)          | genealysis.social |
+| Add a short summary to the share card (life summary, or the page's opening text) | On                |
+| Add the WikiTree hashtags to the post                                            | On                |
 
 ## Background script
 
