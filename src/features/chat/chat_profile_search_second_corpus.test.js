@@ -96,13 +96,13 @@ describe("chat second-set prompt corpus (deterministic WT+ parses)", () => {
 
   test("died after 1900 in Liverpool", async () => {
     const executedQuery = await executedQueryFor("died after 1900 in Liverpool");
-    expect(executedQuery).toMatch(/\[Default\]\.\[Death Date\]\.AsNumber > 1900/);
+    expect(executedQuery).toMatch(/\[Default\]\.\[Death Date\]\.AsNumber >=? 190/);
     expect(executedQuery).toMatch(/(?:Death)?Location=Liverpool/);
   });
 
   test("noun form: death after 1900 Liverpool, England", async () => {
     const executedQuery = await executedQueryFor("death after 1900 Liverpool, England");
-    expect(executedQuery).toMatch(/\[Default\]\.\[Death Date\]\.AsNumber > 1900/);
+    expect(executedQuery).toMatch(/\[Default\]\.\[Death Date\]\.AsNumber >=? 190/);
     expect(executedQuery).not.toContain("LastNameAtBirth=death");
     expect(executedQuery).toMatch(/Location=/);
   });

@@ -7,7 +7,7 @@
 
 const STATUS_PHRASES = [
   {
-    term: "Unsourced",
+    term: "bioCheckUnsourced", // (see chat_search_spec.js: more accurate than Unsourced)
     pattern: /\b(?:unsourced|(?:with\s+)?no\s+sources?|missing\s+sources?|without\s+(?:any\s+)?sources?)\b/i,
   },
   { term: "Unconnected", pattern: /\b(?:unconnected|not\s+connected)\b/i },

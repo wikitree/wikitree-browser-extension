@@ -34,7 +34,7 @@ const W_OWNER_AFTER = String.raw`(me|us|her|him|them|this\s+(?:profile|person)|[
 const W_LEAD = String.raw`(?:(?:show|draw|open|explore|make|build|give)(?:\s+me)?\s+)?`;
 // (and plain "fractal" / "fractal tree": the family world is the fractal tree's newest version; "my ancestors as a
 // fractal tree" still gets the ancestors-only one)
-const W_VIEW = String.raw`(?:family\s+(?:world|explorer)|explorer|cc-?7\s+(?:tree|chart|view|world|map)|zoomable\s+cc-?7|fractal(?:\s+(?:tree|chart|view|world))?)`;
+const W_VIEW = String.raw`(?:family\s+(?:world|explorer)|explorer|cc-?7\s+(?:tree|chart|view|world|map)|zoomable\s+cc-?7|fractal(?:\s+(?:tree|chart|view|world))?|branches(?:\s+(?:view|chart))?|galaxy(?:\s+view)?)`;
 const WORLD_PATTERNS = [
   // "show my family world", "Cook-8721's CC7 tree", "family world"
   new RegExp(String.raw`^${W_LEAD}(?:an?\s+|the\s+)?(?:${W_OWNER}\s+)?${W_VIEW}$`, "i"),
@@ -70,7 +70,9 @@ export function parseFamilyWorldPrompt(prompt) {
       ? ""
       : raw;
     const subjectPrompt = !owner ? "this profile's ancestors" : /^(?:my|her|his|their)$/.test(owner) ? `${owner} ancestors` : `${owner}'s ancestors`;
-    return { owner, subjectPrompt };
+    // (a view named in the prompt opens on that view, whichever was used last: "my galaxy", "Beacall-9's branches")
+    const view = /\b(?:branches|fractal)\b/i.test(text) ? "tree" : /\bgalaxy\b/i.test(text) ? "galaxy" : "";
+    return view ? { owner, subjectPrompt, view } : { owner, subjectPrompt };
   }
   return null;
 }
@@ -94,6 +96,8 @@ export function summarizeWorldPerson(person) {
     gender: person.Gender || "",
     birth: cleanDate(person.BirthDate),
     death: cleanDate(person.DeathDate),
+    // (null when the API didn't say)
+    living: person.IsLiving === undefined || person.IsLiving === null ? null : Number(person.IsLiving) === 1,
     birthLocation: person.BirthLocation || "",
     birthCountry: getCountryFromLocation(person.BirthLocation || "") || "",
     photo: person.Photo || "",
@@ -442,6 +446,23 @@ export function rerootFamilyScene(world, root, anchorUid, previousNodes, how = "
   return true;
 }
 
+/**
+ * Who a view's root is, for "↑ Up to …": "John Weatherall & Annie Thomason", or for two families side by side
+ * "both sets of parents of Ted Weatherall & Flora Hooper".
+ */
+export function describeFamilyRoot(world, root) {
+  const nameOf = (id) => {
+    const person = id ? world.people.get(id) : null;
+    return person ? `${person.name} ${person.lnab}`.trim() : "";
+  };
+  if (!root) return "";
+  if (root.band) {
+    const couple = [root.from?.a, root.from?.b].map(nameOf).filter(Boolean).join(" & ");
+    return couple ? `both sets of parents of ${couple}` : "both sets of parents";
+  }
+  return [root.a, root.b].map(nameOf).filter(Boolean).join(" & ");
+}
+
 /** Resets the view's offset and scale to plain units; returns the old ones (the renderer folds them into its zoom). */
 export function normaliseFamilyScene(world) {
   const { scale, x, y } = world.scene;
@@ -632,6 +653,6 @@ export function buildFamilyWorldSummary(world, ownerText) {
   const siblings = new Set();
   [focus.fatherId, focus.motherId].filter(Boolean).forEach((id) => (kids.get(id) || []).forEach((child) => child.id !== focus.id && siblings.add(child.id)));
   const pronoun = focus.gender === "Female" ? "her" : focus.gender === "Male" ? "his" : "their";
-  const among = siblings.size ? `${focus.name} among ${pronoun} ${siblings.size === 1 ? "brother or sister" : `${siblings.size} brothers and sisters`}, with their husbands and wives` : `${focus.name} and ${pronoun} family`;
-  return `${ownerText} Family Explorer starts with ${world.people.size.toLocaleString()} people (${up} generation${up === 1 ? "" : "s"} of ancestors so far). It opens on ${among}. Zoom into anyone for their children; zoom out for both sets of parents, with their brothers and sisters. More loads as you go.`;
+  const brothers = siblings.size ? `, with ${pronoun} ${siblings.size === 1 ? "brother or sister" : `${siblings.size} brothers and sisters`}` : "";
+  return `${ownerText} Family Explorer starts with ${world.people.size.toLocaleString()} people (${up} generation${up === 1 ? "" : "s"} of ancestors so far). It opens on ${focus.name}. Click anyone to see their children; ↑ Parents goes up to ${pronoun} parents' family${brothers}, and on up. More loads as you go.`;
 }

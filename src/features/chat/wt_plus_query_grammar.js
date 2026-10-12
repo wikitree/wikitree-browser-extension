@@ -67,7 +67,49 @@ const WT_PLUS_ALLOWED_FIELDS = [
   "profilelist",
   "changesmonth",
   "Suggestions",
+  // (WT+ help, 2026-10-10: bioCheck=bioCheckUnsourced, research=ResearchUnset)
+  "bioCheck",
+  "Research",
   "sql",
+];
+
+// WT+ Bio Check and Research Status magic words (WT+ help, 2026-10-10; all checked live on Devon).
+export const WT_PLUS_BIO_CHECK_WORDS = [
+  "bioCheckUnsourced",
+  "bioCheckStyleIssues",
+  "bioCheckDNAMatchTooDistant",
+  "bioCheckElementOutOfOrder",
+  "bioCheckEmptyBioSection",
+  "bioCheckEndlessComment",
+  "bioCheckHasEmail",
+  "bioCheckHasMaternalDNAConf",
+  "bioCheckHasPaternalDNAConf",
+  "bioCheckHasUnapprovedTemplate",
+  "bioCheckHorizRuleBeforeBio",
+  "bioCheckIncompleteDNAConf",
+  "bioCheckMarkedHasSources",
+  "bioCheckMissingBioHeading",
+  "bioCheckMissingRefTag",
+  "bioCheckMissingSrcHeading",
+  "bioCheckMultipleBioHeading",
+  "bioCheckMultipleRefName",
+  "bioCheckMultipleSrcHeading",
+  "bioCheckNonRecommendedHTML",
+  "bioCheckNotabilityHasRef",
+  "bioCheckRefAfterReferences",
+  "bioCheckRefMissingCitation",
+  "bioCheckSpanNoEndingSpan",
+  "bioCheckTooManyStickers",
+  "bioCheckUnknownSectionHeading",
+];
+export const WT_PLUS_RESEARCH_STATUS_WORDS = [
+  "ResearchUnset",
+  "ResearchUnfinished",
+  "ResearchHelp",
+  "ResearchReview",
+  "ResearchSilver",
+  "ResearchGoldCandidate",
+  "ResearchGold",
 ];
 
 const WT_PLUS_FIELD_NAME_MAP = new Map(WT_PLUS_ALLOWED_FIELDS.map((name) => [name.toLowerCase(), name]));
@@ -117,6 +159,7 @@ const WT_PLUS_RAW_TOKEN_CANONICAL = new Map([
   ["gedcomjunk", "GEDCOMJunk"],
   ["sourcejunk", "SourceJunk"],
   ["isinwikidata", "IsInWikiData"],
+  ...[...WT_PLUS_BIO_CHECK_WORDS, ...WT_PLUS_RESEARCH_STATUS_WORDS].map((word) => [word.toLowerCase(), word]),
   ["relation=father", "relation=father"],
   ["relation=mother", "relation=mother"],
   ["relation=parents", "relation=parents"],

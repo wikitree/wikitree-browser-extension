@@ -1,3 +1,4 @@
+import { foldAccents } from "./chat_text_utils";
 // The WikiTree name search also returns sound-alike surnames (Beacall -> Bickel,
 // Buckel), in no particular order. Put the rows that match the name as typed
 // first: exact surname, then exact first name. A name that matches only as a
@@ -5,12 +6,7 @@
 // "married Margaret") ranks below one that matches as the first name. The order
 // is otherwise kept.
 
-const norm = (value) =>
-  String(value || "")
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .trim();
+const norm = (value) => foldAccents(value).trim();
 
 const firstToken = (value) => norm(value).split(/\s+/)[0] || "";
 

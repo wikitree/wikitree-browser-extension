@@ -138,6 +138,10 @@ const autoBio = {
               text: "X was born on ... in ... to ... and ...",
             },
             { value: "parentsWere", text: "X was born on ... in ... His/Her parents were ... and ..." },
+            {
+              value: "parentsFirst",
+              text: "X, son/daughter of ... and ..., was born on ... in ...",
+            },
           ],
           defaultValue: "of",
         },
@@ -177,6 +181,55 @@ const autoBio = {
           id: "fullLocations",
           type: OptionType.CHECKBOX,
           label: "Full location name every time.",
+          defaultValue: false,
+        },
+      ],
+    },
+    {
+      id: "linksGroup",
+      type: OptionType.GROUP,
+      label: "Links in the narrative",
+      options: [
+        {
+          id: "wikiTreeLinks",
+          type: OptionType.CHECKBOX,
+          label:
+            "Link locations, wars and occupations to WikiTree pages (a category, project or space page) when there is one.",
+          defaultValue: false,
+        },
+        {
+          id: "wikipediaLinks",
+          type: OptionType.CHECKBOX,
+          label:
+            "Link locations, wars and occupations to Wikipedia articles when there is no WikiTree page. Only articles that have a Wikidata item are used, in the language of the profile when the article exists in it. The place names are looked up on Wikipedia and Wikidata.",
+          defaultValue: false,
+        },
+      ],
+    },
+    {
+      id: "templateCitationsGroup",
+      type: OptionType.GROUP,
+      label: "Citations",
+      options: [
+        {
+          id: "noBurialForFindAGraveWithoutImage",
+          type: OptionType.CHECKBOX,
+          label:
+            "Don't use a Find a Grave citation that says (no image) or (no photo) for a burial sentence. Leave it under See also.",
+          defaultValue: false,
+        },
+        {
+          id: "keepInlineCitations",
+          type: OptionType.CHECKBOX,
+          label:
+            "Keep the citations the old bio had inline with the event they followed (even when their wording doesn't say what they are). Keep sentences Auto Bio can't write itself (e.g. imprisonment) and how a death was put (e.g. 'was murdered'). Don't use Find a Grave for the death when another source was cited for it.",
+          defaultValue: false,
+        },
+        {
+          id: "fullTemplateCitations",
+          type: OptionType.CHECKBOX,
+          label:
+            "Turn a source that is only a {{FamilySearch}} or {{Ancestry Tree}} template, or only a link to a FamilySearch or Ancestry tree profile, into a full citation (with the date accessed).",
           defaultValue: false,
         },
       ],

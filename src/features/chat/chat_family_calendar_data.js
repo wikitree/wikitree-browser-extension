@@ -6,12 +6,13 @@ import { canonicalChartOwner as canonicalOwner } from "./chat_chart_prompt";
 
 import { generationOfSlot } from "./chat_fan_chart_data";
 import { ancestorWord } from "./chat_kin_labels";
+import { RELATIVE_OWNER } from "./chat_chart_owner";
 
 export const FAMILY_CALENDAR_GENERATIONS = 8;
 export const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const MONTH_DAYS = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
+const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const GROUP = String.raw`(?:family(?:\s+tree)?|tree|ancestors|ancestry|relatives)`;
 const LEAD = String.raw`(?:(?:show|draw|make|open|display|give)(?:\s+me)?\s+)?`;
 const MONTH = String.raw`(january|february|march|april|may|june|july|august|september|october|november|december)`;

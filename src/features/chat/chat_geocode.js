@@ -1,3 +1,4 @@
+import { plainWords } from "./chat_text_utils";
 // Town-level birthplaces for the migration maps (2026-10-03, the user's ask:
 // "Wem → Birkenhead", not England → Wales). WikiTree has no coordinates, so
 // each birthplace text is looked up on OpenStreetMap data: first on komoot's
@@ -153,13 +154,7 @@ async function photonSearch(query, counties = false) {
     });
 }
 
-const plain = (text) =>
-  String(text || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
+const plain = plainWords;
 
 // For comparing names: Saint, Sainte, Ste and St are one word, and a final "s" doesn't count
 // ("St Anne des Mont" is Sainte-Anne-des-Monts; Murray's map, 2026-10-05).

@@ -5,8 +5,9 @@
 
 import { FAN_CHART_MAX_GENERATIONS, generationOfSlot } from "./chat_fan_chart_data";
 import { ancestorWord, generationLabel } from "./chat_kin_labels";
+import { RELATIVE_OWNER } from "./chat_chart_owner";
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
+const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const X = String.raw`(?:x[\s-]*dna|x[\s-]*chromosomes?|x[\s-]*chromosome\s+dna)`;
 const PATTERNS = [
   // "X-DNA fan chart", "my X-DNA chart", "show her X chromosome inheritance", "X-DNA inheritance chart"
@@ -426,7 +427,7 @@ export function buildDnaCarrierSummary(tree, ownerText, generations, testers = [
   const hidden = hiddenCarrierChildren(tree);
   if (hidden) {
     lines.push(
-      `${hidden} private profile${hidden === 1 ? " is a child" : "s are children"} of carriers: WikiTree doesn't show you ${hidden === 1 ? "it" : "them"}, and living people are usually private. Use the green Apps button below, then ask again, to see who they are.`
+      `${hidden} private profile${hidden === 1 ? " is a child" : "s are children"} of carriers: WikiTree doesn't show you ${hidden === 1 ? "it" : "them"}, and living people are usually private. Use the Apps button below, then ask again, to see who they are.`
     );
   }
   if (brief) return lines.join("\n");

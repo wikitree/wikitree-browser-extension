@@ -567,6 +567,48 @@ export const SQL_TEMPLATES = [
   },
   {
     category: "Management",
+    id: "created-year-before",
+    label: "Created before year",
+    description: "Find profiles created before a year (use 'on or before' below to include it)",
+    buildSql: (y) =>
+      /^\d{4}$/.test(String(y || "").trim()) ? `sql="([Bio].[Created Year].AsNumber < ${String(y).trim()})"` : "",
+    inputs: [{ type: "number", label: "Year", placeholder: "2015" }],
+  },
+  {
+    category: "Management",
+    id: "created-year-through",
+    label: "Created in or before year",
+    description: "Find profiles created in or before a year",
+    buildSql: (y) =>
+      /^\d{4}$/.test(String(y || "").trim()) ? `sql="([Bio].[Created Year].AsNumber <= ${String(y).trim()})"` : "",
+    inputs: [{ type: "number", label: "Year", placeholder: "2015" }],
+  },
+  {
+    category: "Management",
+    id: "created-year-after",
+    label: "Created after year",
+    description: "Find profiles created after a year",
+    buildSql: (y) =>
+      /^\d{4}$/.test(String(y || "").trim()) ? `sql="([Bio].[Created Year].AsNumber > ${String(y).trim()})"` : "",
+    inputs: [{ type: "number", label: "Year", placeholder: "2015" }],
+  },
+  {
+    category: "Management",
+    id: "created-year-either",
+    label: "Created in either of two years",
+    description: "Find profiles created in one of two years",
+    buildSql: (a, b) => {
+      const y1 = String(a || "").trim();
+      const y2 = String(b || "").trim();
+      return /^\d{4}$/.test(y1) && /^\d{4}$/.test(y2) ? `sql="([Bio].[Created Year].AsNumber in ${y1}, ${y2})"` : "";
+    },
+    inputs: [
+      { type: "number", label: "Year 1", placeholder: "2023" },
+      { type: "number", label: "Year 2", placeholder: "2024" },
+    ],
+  },
+  {
+    category: "Management",
     id: "many-errors",
     label: "Many error suggestions",
     description: "Find profiles with more than specified errors",

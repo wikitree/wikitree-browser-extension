@@ -7,7 +7,7 @@ describe("compileSearchSpec", () => {
     [
       "B4: unsourced, Shropshire, born in the 1820s",
       { places: [{ text: "Shropshire" }], dates: [{ event: "birth", from: 1820, to: 1829 }], flags: ["Unsourced"] },
-      "Location=Shropshire 1820s Unsourced",
+      "Location=Shropshire 1820s bioCheckUnsourced",
     ],
     [
       "D6: Shropshire with no birth place",
@@ -199,5 +199,18 @@ describe("notPlaces", () => {
     expect(
       compileSearchSpec({ places: [{ text: "Kent" }], parentStatus: [{ parent: "father", status: "adopted" }] }).errors
     ).toContain('bad parentStatus entry: {"parent":"father","status":"adopted"}');
+  });
+});
+
+describe("created years", () => {
+  test("one branch per creation year, each with the other terms", () => {
+    const out = compileSearchSpec({ names: { anyLastName: "Smith" }, created: { years: [2023, 2024] } });
+    expect(out.errors).toEqual([]);
+    expect(out.query).toBe("AllLastNames=Smith Created=Created_2023 OR AllLastNames=Smith Created=Created_2024");
+  });
+  test("ranges are bounded to 2008 on", () => {
+    const out = compileSearchSpec({ places: [{ text: "Kent", event: "birth" }], created: { to: 2010 } });
+    expect(out.query.split(" OR ")).toHaveLength(3);
+    expect(compileSearchSpec({ created: { from: 1990, to: 1995 } }).errors.length).toBe(1);
   });
 });

@@ -1,4 +1,4 @@
-import { findWikiTreeIdOnWikidata } from "./chat_wikidata";
+import { findTopWikiTreeIdOnWikidata, findWikiTreeIdOnWikidata } from "./chat_wikidata";
 import { sharedParentIds, topSiblingSteps } from "./chat_connection_common";
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { getRelationJSON } from "../../core/API/wwwWikiTree";
@@ -15,7 +15,7 @@ import {
 } from "./chat_relationship_data";
 import { showRelationshipPopup } from "./chat_relationship_chart";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
-import { getProfilePersonInfo } from "../../core/common";
+import { getFocusPersonInfo } from "./chat_focus_person";
 import { formatDate } from "../../core/formatting";
 import {
   ChatIntent,
@@ -719,7 +719,7 @@ export function createChatConnectionHandlers({
     if (!wanted || /\s/.test(wanted) || isWikiTreeId(target)) {
       return null;
     }
-    const pagePerson = getProfilePersonInfo();
+    const pagePerson = getFocusPersonInfo();
     const wtId = String(pagePerson?.Name || "").trim();
     if (!isWikiTreeId(wtId) || excludedWtIds.has(wtId)) {
       return null;
@@ -740,6 +740,26 @@ export function createChatConnectionHandlers({
       .map((name) => normalizePersonText(String(name || "").trim().split(/\s+/)[0]))
       .filter(Boolean);
     return givenNames.includes(wanted) && (person?.Name || person?.Id) ? person : null;
+  }
+
+  // Marked notable on WikiTree: a Notability/Notables/Wikidata/Succession template or a WikiTree-* manager.
+  function hasNotabilityEvidence(match) {
+    const names = (Array.isArray(match?.Templates) ? match.Templates : []).map((template) =>
+      String(template?.name || "").toLowerCase()
+    );
+    if (names.some((name) => /notab|^wikidata$|^succession$/.test(name))) return true;
+    return (Array.isArray(match?.Managers) ? match.Managers : []).some((manager) =>
+      /^WikiTree-\d+$/i.test(String(manager?.Name || ""))
+    );
+  }
+
+  // A Notability template about someone's relative: "He was the grandfather of [[Lincoln-103|...]]".
+  function isRelativeOfNotableTemplate(template) {
+    if (String(template?.name || "").toLowerCase() !== "notability") return false;
+    const text = String(template?.params?.text || "");
+    return /\b(?:father|mother|grand(?:father|mother|son|daughter|parent|child)|ancestor|son|daughter|wife|husband|brother|sister|uncle|aunt|nephew|niece|cousin)\s+of\s+\[\[/i.test(
+      text
+    );
   }
 
   async function resolveConnectionTargetPerson(target, prompt = "", options = {}) {
@@ -1515,8 +1535,17 @@ export function createChatConnectionHandlers({
           let score = entry.score;
           const templates = Array.isArray(entry.match?.Templates) ? entry.match.Templates : [];
           const templateNames = templates.map((template) => String(template?.name || "").toLowerCase());
-          if (templateNames.some((name) => name.includes("notable"))) {
+          // ("Notability" is the template's name; "notable" never matched it.)
+          if (templateNames.some((name) => name.includes("notable") || name.includes("notability"))) {
             score += 180;
+          }
+          // An office held: the famous one, not a namesake relative who shares the
+          // family's templates ("Abraham Lincoln" went to his grandfather, Lincoln-229, 2026-10-11).
+          if (templateNames.includes("succession")) {
+            score += 160;
+          }
+          if (templates.some(isRelativeOfNotableTemplate)) {
+            score -= 200;
           }
           if (templateNames.some((name) => name === "wikidata")) {
             score += 140;
@@ -1537,6 +1566,24 @@ export function createChatConnectionHandlers({
           return { ...entry, score };
         })
         .sort((left, right) => right.score - left.score);
+    }
+
+    // No birth year to check (AI off, or the AI gave none) and more than one namesake: Wikidata's
+    // top hit for the name is the famous one. It counts only when that profile is among these
+    // matches and is marked notable, so "Mary Smith" isn't some famous Mary (2026-10-11:
+    // "Abraham Lincoln's parents" went to his grandfather, Lincoln-229).
+    if (
+      rankedMatches.length > 1 &&
+      !(normalizedBirthDate || aiExpansion?.birthYear) &&
+      rankedMatches.some((entry) => hasNotabilityEvidence(entry.match))
+    ) {
+      const top = await findTopWikiTreeIdOnWikidata(cleanedTarget);
+      const index = top?.wtId ? rankedMatches.findIndex((entry) => String(entry.match?.Name || "") === top.wtId) : -1;
+      if (index > 0 && hasNotabilityEvidence(rankedMatches[index].match)) {
+        console.info("wbe: resolveConnectionTargetPerson used Wikidata's top hit", { cleanedTarget, ...top });
+        const [chosen] = rankedMatches.splice(index, 1);
+        rankedMatches.unshift({ ...chosen, score: (rankedMatches[0]?.score || 0) + 1 });
+      }
     }
 
     if ((aiExpansion?.birthLocation || aiExpansion?.deathLocation) && rankedMatches.length > 1) {
@@ -1775,13 +1822,13 @@ export function createChatConnectionHandlers({
 
     let resolvedTarget = target;
     if (isPageProfileTarget(resolvedTarget)) {
-      const pagePerson = getProfilePersonInfo();
+      const pagePerson = getFocusPersonInfo();
       resolvedTarget = pagePerson?.Name || "";
       if (!resolvedTarget) return "Open a profile first: Genie connects you to the profile you're looking at.";
     }
     if (!resolvedTarget) {
       try {
-        const pagePerson = getProfilePersonInfo();
+        const pagePerson = getFocusPersonInfo();
         if (pagePerson && pagePerson.Name) {
           const escape = (s) => String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
           const first = pagePerson.FirstName || "";

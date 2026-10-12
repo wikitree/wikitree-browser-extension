@@ -5,11 +5,12 @@
 
 import { fullWikiTreeName } from "./chat_fan_chart_data";
 import { getCountryFromLocation } from "./chat_place_country";
+import { RELATIVE_OWNER } from "./chat_chart_owner";
 
 export const DESCENDANT_CHART_DEFAULT_GENERATIONS = 5;
 export const DESCENDANT_CHART_MAX_GENERATIONS = 10;
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
+const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const OWNER_AFTER = String.raw`(me|her|him|them|this\s+(?:profile|person)|[A-Z][A-Za-z'_ -]*?-\d+)`;
 const CHART = String.raw`(?:(?:descendants?|descendancy|family)\s+(?:chart|sunburst|wheel|diagram)|sunburst)`;
 const GENS = String.raw`(?:\s+(?:with|of|for|showing)?\s*(\d{1,2})\s+generations?)?`;

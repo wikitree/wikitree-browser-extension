@@ -115,7 +115,6 @@ export function showOriginsPopup(series, options = {}) {
   popup.className = "wbe-popup chat-popup ui-draggable wbe-chart-popup";
   popup.id = popupId;
   popup.style.display = "flex";
-  popup.style.height = "min(640px, 92vh)";
   popup.innerHTML = `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>

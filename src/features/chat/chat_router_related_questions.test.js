@@ -23,3 +23,21 @@ test("am I related to anyone famous? stays a notables search", () => {
     ChatIntent.CONNECTION_LOOKUP
   );
 });
+
+// "…for a living" ends in "living": the descendant-list parser recursed until the stack overflowed (2026-10-10).
+test.each(["what did her husband do for a living?", "living", "my descendants still living"])("no stack overflow: %s", (prompt) => {
+  expect(() => routeChatPrompt(prompt, { hasStructuredResult: false })).not.toThrow();
+});
+
+// "born in the 1850s" after a result was a birth-place filter for "the 1850s" (0 rows, live 2026-10-10).
+test.each([
+  ["born in the 1850s", 1850, 1859],
+  ["born in 1850s", 1850, 1859],
+  ["show born in the 1820s", 1820, 1829],
+  ["born in the 1850's", 1850, 1859],
+])("a decade after a result filters birth years: %s", (prompt, start, end) => {
+  expect(routeChatPrompt(prompt, { hasStructuredResult: true })?.params).toEqual({
+    action: "filter",
+    filter: { kind: "birthYearRange", start, end },
+  });
+});

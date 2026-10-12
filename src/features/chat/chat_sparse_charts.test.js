@@ -209,3 +209,61 @@ test("living descendant requests exclude deceased and unknown-status profiles", 
   expect(result).toContain("marked living");
   expect(fetchPeoplePaged.mock.calls[0][2]).toContain("IsLiving");
 });
+
+// "his daughter Carol Moak's lifespans" on Moak-135 (user, 2026-10-10): the chart is for that daughter.
+describe("a chart for a relative of the page person", () => {
+  const daughters = [
+    { Id: 89, Name: "Moak-89", FirstName: "Carol", LastNameAtBirth: "Moak" },
+    { Id: 90, Name: "Moak-90", FirstName: "Joan", LastNameAtBirth: "Moak" },
+  ];
+  function handlersWith(people) {
+    const fetchPeoplePaged = jest.fn(async (appId, key) => [null, null, { 1: { Id: 1, Name: String(key), Father: 2 }, 2: { Id: 2, Name: "Moak-135", FirstName: "Asa", BirthDate: "1903-01-01" } }]);
+    const resolveRelativeTarget = jest.fn(async () => ({ people, label: "Asa's daughters" }));
+    const handlers = createChatPeopleHandlers({
+      WBE_CHAT_APP_ID: "test",
+      getProfileSubjectRoot: () => ({ key: "Moak-135", wtId: "Moak-135", subjectType: "profile" }),
+      formatSubjectLabel: (root) => root?.wtId || "",
+      fetchPeoplePaged,
+      resolveRelativeTarget,
+    });
+    return { handlers, fetchPeoplePaged, resolveRelativeTarget };
+  }
+
+  test("the named daughter is charted", async () => {
+    const { handlers, fetchPeoplePaged, resolveRelativeTarget } = handlersWith(daughters);
+    await handlers.tryHandleFanChartPrompt({ ancestorPrompt: "his daughter Carol MOak's ancestors", generations: 3 });
+    expect(resolveRelativeTarget.mock.calls[0][0]).toBe("his daughter");
+    expect(fetchPeoplePaged.mock.calls[0][1]).toBe(89);
+    expect(showFanChartPopup).toHaveBeenCalledTimes(1);
+  });
+
+  test("several daughters and no name: asks which, lists them", async () => {
+    const { handlers, fetchPeoplePaged } = handlersWith(daughters);
+    const reply = await handlers.tryHandleFanChartPrompt({ ancestorPrompt: "his daughter's ancestors", generations: 3 });
+    expect(String(reply?.message || reply)).toContain("Carol (Moak-89), Joan (Moak-90)");
+    expect(fetchPeoplePaged).not.toHaveBeenCalled();
+  });
+
+  test("no daughter with that name: says so and lists who there is", async () => {
+    const { handlers } = handlersWith(daughters);
+    const reply = await handlers.tryHandleFanChartPrompt({ ancestorPrompt: "his daughter Susan's ancestors", generations: 3 });
+    expect(String(reply?.message || reply)).toContain("named Susan");
+    expect(String(reply?.message || reply)).toContain("Joan (Moak-90)");
+  });
+});
+
+test("an owner-keyed answer (timeline) resolves a relative too", async () => {
+  const resolveRelativeTarget = jest.fn(async () => ({ people: [{ Id: 89, Name: "Moak-89", FirstName: "Carol" }], label: "Asa's daughters" }));
+  const resolveConnectionTargetPerson = jest.fn();
+  const handlers = createChatPeopleHandlers({
+    WBE_CHAT_APP_ID: "test",
+    getProfileSubjectRoot: () => ({ key: "Moak-135", wtId: "Moak-135" }),
+    formatSubjectLabel: () => "",
+    resolveRelativeTarget,
+    resolveConnectionTargetPerson,
+    fetchPeoplePaged: async () => [null, null, {}],
+  });
+  await handlers.tryHandleFamilyTimelinePrompt({ owner: "his daughter Carol" });
+  expect(resolveRelativeTarget.mock.calls[0][0]).toBe("his daughter");
+  expect(resolveConnectionTargetPerson).not.toHaveBeenCalled();
+});

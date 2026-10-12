@@ -47,7 +47,7 @@ describe("describeUnloadedProfile", () => {
     const message = describeUnloadedProfile({ label, what: "ancestors", status: "hidden", apiLoggedIn: false, privateHint: "Ask about an ancestor." });
     expect(message).toContain("profile is private to you");
     expect(message).toContain("can't see their ancestors");
-    expect(message).toContain("green Apps button");
+    expect(message).toContain("Apps button");
     expect(message).toMatch(/Ask about an ancestor\.$/);
     expect(describeUnloadedProfile({ label, status: "hidden", apiLoggedIn: true })).not.toContain("Apps");
   });

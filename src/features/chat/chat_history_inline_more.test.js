@@ -92,6 +92,16 @@ describe("chat_history inline more trailing text", () => {
     ).toBe(false);
   });
 
+  test("does not escalate an answer whose fix is the Apps button", () => {
+    const { handlers } = createTestHandlers();
+
+    expect(
+      handlers.shouldEscalateLocalFailureToAi({
+        message: "I couldn't read your watchlist. Sign in with the Apps button below, then open a new page and ask again.",
+      })
+    ).toBe(false);
+  });
+
   test("still escalates unresolved profile-search failures to AI", () => {
     const { handlers } = createTestHandlers();
 

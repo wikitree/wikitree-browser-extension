@@ -159,7 +159,7 @@ describe("translateWtPlusRefinementTerms", () => {
   test("translates a date fragment", () => {
     const { translateWtPlusRefinementTerms } = makeHandler();
     const query = String(translateWtPlusRefinementTerms("born after 1850")?.query || "");
-    expect(query).toMatch(/1850/);
+    expect(query).toMatch(/185[01]/); // ("after 1850" is 1851 onward)
   });
 
   test("returns null for empty input", () => {

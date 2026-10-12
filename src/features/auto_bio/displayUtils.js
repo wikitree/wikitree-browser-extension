@@ -1,3 +1,5 @@
+import { joinPlaceParts } from "./narrativePlaceUtils.js";
+
 export function nameLink(person) {
   let theName = person.PersonName?.BirthName;
   if (window.autoBioOptions?.fullNameOrBirthName == "FullName") {
@@ -10,15 +12,30 @@ export function nameLink(person) {
   }
 }
 
+const linksOn = () => window.autoBioOptions?.wikiTreeLinks == true || window.autoBioOptions?.wikipediaLinks == true;
+
+/** The first mention of a place: all of it, with its parts linked when links are on. */
+export function fullNarrativePlace(place) {
+  if (!place || !linksOn()) {
+    return place;
+  }
+  const parts = place.split(",").map((part) => part.trim());
+  return joinPlaceParts(
+    parts,
+    parts.map((_, i) => i),
+    true
+  );
+}
+
 export function minimalPlace(place) {
   if (window.autoBioOptions?.fullLocations == true || !place) {
-    return place;
+    return fullNarrativePlace(place);
   }
   if (!window.usedPlaces) {
     window.usedPlaces = [];
   }
   const placeSplit = place.split(",");
-  let showPlace = [];
+  let shown = [];
   let used = 0;
   placeSplit.forEach(function (placePart, index) {
     const trimmedPlace = placePart.trim();
@@ -26,13 +43,15 @@ export function minimalPlace(place) {
       used++;
     }
     if (index == 0) {
-      showPlace.push(trimmedPlace);
+      shown.push(index);
     } else if (!window.usedPlaces.includes(trimmedPlace) || used < 2) {
-      showPlace.push(trimmedPlace);
+      shown.push(index);
       window.usedPlaces.push(trimmedPlace);
-    } else {
-      return showPlace.join(", ");
     }
   });
-  return showPlace.join(", ");
+  return joinPlaceParts(
+    placeSplit.map((part) => part.trim()),
+    shown,
+    linksOn()
+  );
 }

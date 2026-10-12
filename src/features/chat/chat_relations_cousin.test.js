@@ -594,7 +594,7 @@ describe("chat_relations cousin handling", () => {
       "third cousins"
     );
 
-    expect(result.table.title).toBe("3rd cousins (and up to 3 removed) for Profile Person (Profile-9)");
+    expect(result.table.title).toBe("3rd cousins (and up to 3 removed) of Profile Person (Profile-9)");
     expect(fetchPeoplePaged).toHaveBeenCalled();
   });
 

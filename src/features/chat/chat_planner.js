@@ -80,7 +80,7 @@ export function createChatAiPlannerHandlers({
       const count = lastResult.rows.length;
       const title = lastResult.title || "results";
       const wtPlusHint = lastResult.wtPlusQuery ? ` (WT+ query: "${lastResult.wtPlusQuery}")` : "";
-      return `Current loaded result: "${title}"${wtPlusHint} with ${count} rows. If the user's prompt is refining/filtering this result (e.g. "only from X", "only in X", "only those born in X", "only women", "born in the 19th century", "1800-1900", "sort by birth"), use ${ChatIntent.LAST_RESULT_OPERATION}.`;
+      return `Current loaded result: "${title}"${wtPlusHint} with ${count} rows. If the user's prompt is refining/filtering this result (e.g. "only from X", "only in X", "only those born in X", "only women", "born in the 19th century", "1800-1900", "sort by birth"), use ${ChatIntent.LAST_RESULT_OPERATION}. A prompt that is a whole search on its own, like "Smiths born in Devon in the 1850s", is a new search, not a filter of this result.`;
     })();
 
     const plannerPrompt = [

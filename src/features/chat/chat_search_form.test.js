@@ -11,6 +11,30 @@ describe("search form (no AI key)", () => {
     expect(prefillSearchForm("John Smith of Yorkshire")).toEqual({}); // names and places are theirs to type
   });
 
+  test("prefill also reads last names, born/died places, died years, who and flags", () => {
+    expect(prefillSearchForm("women with last name Stevenson born in Scotland 1850-1899")).toEqual({
+      lastName: "Stevenson",
+      birthPlace: "Scotland",
+      bornFrom: "1850",
+      bornTo: "1899",
+      gender: "female",
+    });
+    expect(prefillSearchForm("unsourced people who died in Kent Ohio in the 1910s")).toEqual({
+      deathPlace: "Kent Ohio",
+      diedFrom: "1910",
+      diedTo: "1919",
+      flags: ["Unsourced"],
+    });
+    expect(prefillSearchForm("women named Stevenson born in Scotland 1850-1899 who emigrated")).toEqual({
+      lastName: "Stevenson",
+      birthPlace: "Scotland",
+      bornFrom: "1850",
+      bornTo: "1899",
+      gender: "female",
+    });
+    expect(prefillSearchForm("first name Mary, no parents")).toEqual({ firstName: "Mary", flags: ["NoParents"] });
+  });
+
   test("the values make the spec the AI would", () => {
     expect(
       searchFormSpec({ lastName: "Beacall", birthPlace: "Yorkshire", bornFrom: "1850", bornTo: "1859", gender: "female", flags: ["Unsourced"] })
@@ -59,7 +83,7 @@ describe("the form itself", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
     const [values, built] = onSubmit.mock.calls[0];
     expect(values).toMatchObject({ birthPlace: "Yorkshire", bornFrom: "1850", bornTo: "1859", flags: ["Unsourced"] });
-    expect(built.query).toBe("BirthLocation=Yorkshire 1850s Unsourced");
+    expect(built.query).toBe("BirthLocation=Yorkshire 1850s bioCheckUnsourced");
     $form.find('[name="bornTo"]').val("1700");
     $form.trigger("submit");
     expect(onSubmit).toHaveBeenCalledTimes(1);

@@ -48,7 +48,7 @@ describe("chat_history Apps Login button", () => {
     const { handlers } = createTestHandlers();
     handlers.appendMessage(
       "assistant",
-      "Log in to the apps server for better results. Use the green Apps button below.",
+      "Log in to the apps server for better results. Use the Apps button below.",
       { shouldPersist: false }
     );
     const $pill = $(".chat-message .chat-message-apps-login .wbe-app-login");
@@ -60,7 +60,7 @@ describe("chat_history Apps Login button", () => {
   test("other messages, and the member's own, get no button", () => {
     const { handlers, createAppsLoginButton } = createTestHandlers();
     handlers.appendMessage("assistant", "Firman Joseph Robinson was born in 1901.", { shouldPersist: false });
-    handlers.appendMessage("user", "where is the green Apps button?", { shouldPersist: false });
+    handlers.appendMessage("user", "where is the Apps button?", { shouldPersist: false });
     expect($(".chat-message-apps-login").length).toBe(0);
     expect(createAppsLoginButton).not.toHaveBeenCalled();
   });

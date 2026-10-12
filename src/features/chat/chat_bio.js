@@ -1,6 +1,6 @@
 import $ from "jquery";
 import { isProfileNarrativePrompt } from "./chat_profile_narrative";
-import { describeRelationChain, pickSpouseByOrdinal, splitOrdinalFromRelation, rewriteInLawTerms } from "./chat_relation_chain_text";
+import { describeRelationChain, pickSpouseByOrdinal, relativesBiosTitle, splitOrdinalFromRelation, rewriteInLawTerms } from "./chat_relation_chain_text";
 import { profileLinkHtml } from "./chat_profile_link";
 import { unloadedProfileMessage } from "./chat_profile_availability";
 
@@ -37,6 +37,7 @@ export function createChatBioHandlers({
   findSiblingProfileIdsFromDOM,
   findParentProfileIdsFromDOM,
   setLastBioPopupState,
+  focusIsPagePerson = () => true,
 }) {
   function safePageRoot() {
     try {
@@ -334,7 +335,7 @@ export function createChatBioHandlers({
       if (siblings.length) return siblings;
 
       if (skipDomFallback) return [];
-      const domCandidates = findSiblingProfileIdsFromDOM();
+      const domCandidates = findSiblingProfileIdsFromDOM(id);
       if (!domCandidates.length) return [];
       const profiles = await fetchProfilesForIds(domCandidates, "Name,Id", { resolveRedirect: 1 });
       return profiles.map((profileData, index) => (profileData ? domCandidates[index] : null)).filter(Boolean);
@@ -375,7 +376,7 @@ export function createChatBioHandlers({
         .filter(Boolean);
       if (children.length) return children;
 
-      const domCandidates = findChildrenProfileIdsFromDOM();
+      const domCandidates = findChildrenProfileIdsFromDOM(id);
       if (!domCandidates.length) return [];
       const candidateProfiles = await fetchProfilesForIds(domCandidates, "Name,Id", { resolveRedirect: 1 });
       return candidateProfiles.map((profileData, index) => (profileData ? domCandidates[index] : null)).filter(Boolean);
@@ -459,7 +460,7 @@ export function createChatBioHandlers({
     }
 
     try {
-      const domParents = findParentProfileIdsFromDOM();
+      const domParents = findParentProfileIdsFromDOM(personKey);
       if (domParents && domParents.length) {
         const numericIds = [];
         for (const wtid of domParents) {
@@ -500,7 +501,7 @@ export function createChatBioHandlers({
         });
         return reply;
       }
-      params.target = getProfileRootPerson()?.Name || "";
+      params.target = getProfileRootPerson()?.wtId || getProfileRootPerson()?.Name || getProfilePersonInfo()?.Name || "";
     }
 
     const resolved = await resolveConnectionTargetPerson(params.target || target, prompt);
@@ -508,7 +509,8 @@ export function createChatBioHandlers({
       return `I couldn't identify which profile you meant by "${params.target || target}".`;
     }
 
-    const personKey = resolved.Id || resolved.Name;
+    // The WikiTree ID: getProfile reads a number as a page Id, a different person.
+    const personKey = resolved.Name || resolved.Id;
     try {
       showChatShaky("Looking up spouse(s)...");
       const [profile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, personKey, "", {
@@ -520,7 +522,7 @@ export function createChatBioHandlers({
       const spouses = Object.values(spousesObj || []);
       if (!spouses.length) {
         try {
-          const domIds = findSpouseProfileIdsFromDOM();
+          const domIds = findSpouseProfileIdsFromDOM(personKey);
           console.debug("wbe: tryHandleSpouseBioPrompt DOM fallback ids", { domIds });
           if (domIds && domIds.length) {
             if (domIds.length === 1) {
@@ -701,6 +703,24 @@ export function createChatBioHandlers({
     let relationRaw = null;
     let intermediateRelations = [];
 
+    // "read this biography aloud", "show his bio", "this profile's biography": the bio of the person being
+    // asked about (the picker's, else the page's). It looked for a profile called "null" or "read this
+    // profile" (Murray, 2026-10-11). Reading aloud isn't done yet (wow-ideas); the bio opens.
+    const ownBioMatch = str
+      .replace(/\s+(?:aloud|out\s+loud|to\s+me|for\s+me|please)\s*[?.!]*$/i, "")
+      .replace(/[?.!]+$/, "")
+      .trim()
+      .match(
+        /^(?:(?:please\s+)?(?:can|could|would)\s+you\s+)?(?:(?:read|show|open|display|view|see|give)(?:\s+me)?\s+|let\s+me\s+see\s+)?(?:(?:this|the|his|her|their)\s+(?:(?:profile|person|page)['’]s\s+)?)?bio(?:graphy)?$/i
+      );
+    if (ownBioMatch) {
+      const root = getProfileRootPerson?.();
+      const rootId = String(root?.wtId || root?.Name || getProfilePersonInfo?.()?.Name || "").trim();
+      if (!rootId || /:/.test(rootId)) return "Open a profile, or choose someone in the About box, and I'll open their biography.";
+      targetRaw = rootId;
+      relationRaw = "self";
+    }
+
     // "what sources does this profile have?": "profile" names the page in a
     // question; it isn't a bio request (live D10, 2026-10-03: it showed a
     // husband's biography).
@@ -731,6 +751,16 @@ export function createChatBioHandlers({
     // answers it (live D1, 2026-10-03: the target became "who was Ellen").
     if (!/\bbio(?:graphy|s)?\b/i.test(str) && /^(?:who|whom)\s+(?:was|is|were|are)\s+[^']+(?:'s|’s|'|’)\s/i.test(str)) {
       console.info("wbe: tryHandlePersonBioPrompt - 'who was X's …' question, deferring to main router", { prompt });
+      return null;
+    }
+
+    // "Lincoln-103's parents" asks for a list, not bios: the router's relatives list answers it (live, 2026-10-11:
+    // it opened a bio list, "Found 2 parents for Abraham").
+    if (
+      !/\b(?:bio(?:graph(?:y|ies)|s)?|profiles?)\b/i.test(str) &&
+      /^[^']+(?:'s|’s|'|’)\s+(?:parents|children|siblings|brothers|sisters|sons|daughters|grandparents|grandchildren|cousins|aunts|uncles|nieces|nephews|half-siblings|step-?children|step-?parents)\??$/i.test(str.trim())
+    ) {
+      console.info("wbe: tryHandlePersonBioPrompt - a list of relatives, deferring to main router", { prompt });
       return null;
     }
 
@@ -858,7 +888,7 @@ export function createChatBioHandlers({
         .word.toLowerCase()
         .replace(/[^a-z]/g, "");
       if (targetRelKey !== "self" && Object.prototype.hasOwnProperty.call(relMap, targetRelKey)) {
-        const rootPersonName = getProfileRootPerson()?.Name || getProfilePersonInfo()?.Name || "";
+        const rootPersonName = getProfileRootPerson()?.wtId || getProfileRootPerson()?.Name || getProfilePersonInfo()?.Name || "";
         if (rootPersonName) {
           intermediateRelations = [targetRaw.trim().toLowerCase(), ...intermediateRelations];
           targetRaw = rootPersonName;
@@ -1025,7 +1055,8 @@ export function createChatBioHandlers({
       }
     }
 
-    if (!resolved?.Name && !resolved?.Id) {
+    // (the page's spouse links, only while the question is about the page's person)
+    if (!resolved?.Name && !resolved?.Id && focusIsPagePerson()) {
       try {
         const needle = String(targetRaw || "")
           .trim()
@@ -1299,9 +1330,15 @@ export function createChatBioHandlers({
           /* ignore */
         }
         console.info("wbe: tryHandlePersonBioPrompt fetching profile for self", { personKey });
+        // The WikiTree ID: getProfile reads a number as a page Id, a different person
+        // (live, 2026-10-11: Atkinson-5584's person Id is Kuehn-224's page Id).
+        const profileKey =
+          /^\d+$/.test(String(personKey)) && String(personKey) === String(resolved?.Id) && resolved?.Name
+            ? resolved.Name
+            : personKey;
         const [profile] = await WikiTreeAPI.getProfile(
           WBE_CHAT_APP_ID,
-          personKey,
+          profileKey,
           "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
           {
             bioFormat: "both",
@@ -1362,7 +1399,7 @@ export function createChatBioHandlers({
           wtid: spouse.Name,
           displayName: spouse.RealName || spouse.Name,
         }));
-        if (!entries.length) {
+        if (!entries.length && focusIsPagePerson()) {
           try {
             const domSpouseEls = Array.from(
               document.querySelectorAll(
@@ -1577,7 +1614,7 @@ export function createChatBioHandlers({
         const ids = entries.map((entry) => entry.wtid).filter(Boolean);
         try {
           showBioListPopup(
-            `${relationType} bios for ${subjectDisplayName}`,
+            relativesBiosTitle(subjectDisplayName, relationType),
             entries.slice(0, 50),
             handleOpenFromBioList
           );
@@ -1588,7 +1625,7 @@ export function createChatBioHandlers({
               label: "Open List",
               onClick: () =>
                 showBioListPopup(
-                  `${relationType} bios for ${subjectDisplayName}`,
+                  relativesBiosTitle(subjectDisplayName, relationType),
                   entries.slice(0, 50),
                   handleOpenFromBioList
                 ),

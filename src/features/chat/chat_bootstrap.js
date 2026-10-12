@@ -177,8 +177,7 @@ function ensureGenieButton() {
   button.setAttribute("data-tooltip", "Genie");
   button.setAttribute("aria-label", "Open Genie");
   button.style.cssText = "display:inline-block;width:44px;height:44px;margin-right:12px;opacity:.85;transition:opacity .15s,transform .15s;";
-  // (The same green as the other WBE icons; important, or WikiTree's link colours win.)
-  button.style.setProperty("color", "#2b4d37", "important");
+  // (Its colour is in common.css, so Dark Mode can change it.)
   button.innerHTML = GENIE_ICON_SVG;
   button.querySelector("svg").style.cssText = "display:block;width:100%;height:100%;";
   button.addEventListener("mouseenter", () => {

@@ -176,6 +176,32 @@ export function relationshipListLead(label, count) {
   return count === 1 ? `Here is the ${text}` : `Here are the ${text}s`;
 }
 
+/** A table's title: "Children of Charles Darwin (Darwin-15)" (the user, 2026-10-11: not "children for Charles"). */
+export function relativesTableTitle(noun, owner) {
+  const text = String(noun || "").trim();
+  // "Ancestors of Charles Darwin born in England", not "Ancestors born in England of …"
+  const split = text.match(/^(.+?)\s+((?:born|died|by|who|whose|living|lived|from|with|that|in)\b.*)$/i);
+  const [head, tail] = split ? [split[1], ` ${split[2]}`] : [text, ""];
+  return `${head.charAt(0).toUpperCase()}${head.slice(1)} of ${owner}${tail}`;
+}
+
+/** "Marguerite's children's bios", "Abraham's parents' bios" (the user, 2026-10-11: not "children bios for"). */
+export function relativesBiosTitle(owner, noun) {
+  const relatives = /s$/i.test(noun) ? `${noun}'` : `${noun}'s`;
+  return `${owner}'s ${relatives} bios`;
+}
+
+/**
+ * "Found both of Abraham's parents.", "Found Charles's 10 children." (the user, 2026-10-11: "Found 2 parents for
+ * Abraham" read oddly). noun is already singular or plural for count.
+ */
+export function foundRelativesLead(noun, count, firstName) {
+  const owner = `${firstName}'s`;
+  if (noun === "parents" && count === 2) return `Found both of ${owner} parents.`;
+  if (noun === "parent" && count === 1) return `Found one of ${owner} parents.`;
+  return `Found ${owner} ${count === 1 ? noun : `${count} ${noun}`}.`;
+}
+
 /** 1 → "children", 2 → "grandchildren", 3 → "great-grandchildren", 5 → "3x great-grandchildren". */
 export function descendantGenerationWord(degree, count = 2) {
   const one = count === 1;

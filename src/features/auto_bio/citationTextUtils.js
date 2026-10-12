@@ -87,3 +87,32 @@ export function citationDedupeKey(text = "") {
     .trim()
     .toLowerCase();
 }
+
+/**
+ * Whether text picked out of a citation is really citation wording and not what was looked for (a cemetery
+ * name, say): it has line breaks, templates or the words a citation is made of in it.
+ */
+export function looksLikeCitationText(text = "") {
+  return /record|Find\s?a\s?Grave|<br|\{\{|\}\}|\bdatabase\b|\baccessed\b/i.test(text);
+}
+
+/**
+ * The cemetery a Find a Grave citation is for. A memorial is a headstone at a cemetery, and the citation
+ * names it after "citing": "Memorial page for A B (1900-1950), citing Oak Hill Cemetery, Atmore, Alabama, USA;
+ * Maintained by ...". Returns the cemetery with its place, or "".
+ */
+export function cemeteryFromFindAGrave(text = "") {
+  if (!/findagrave|Find a Grave/i.test(text)) {
+    return "";
+  }
+  const match = text.match(/\bciting\s+([^;]+?)\s*(?:;|$)/i);
+  return match ? match[1].trim() : "";
+}
+
+/**
+ * A Find a Grave citation that says there is no picture of the headstone: "(no image)" or "(no photo)".
+ * Such a memorial shows nothing of the grave, so it is not much of a source for a burial.
+ */
+export function isFindAGraveWithoutImage(text = "") {
+  return /findagrave|Find a Grave/i.test(text) && /\(\s*no\s+(?:image|photo)s?\s*\)/i.test(text);
+}

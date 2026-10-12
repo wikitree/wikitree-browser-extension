@@ -13,6 +13,7 @@ import { createProfileSearchHandler } from "./chat_profile_search";
 import { ChatIntent, routeChatPrompt } from "./chat_router";
 import { classifyWtPrompt } from "./chat_search_mode";
 import { NO_AI_EXAMPLE_SECTIONS, allNoAiExamples, isHelpPrompt, noAiExamplesHtml, noAiExamplesWikiText } from "./chat_no_ai_examples";
+import { parseSearchSpecPrompt } from "./chat_spec_parser";
 import { parseColumnRequest } from "./chat_requested_columns";
 import { parseExportResultPrompt } from "./chat_router";
 
@@ -78,8 +79,12 @@ const DETERMINISTIC = new Set(
 
 const WTPLUS_QUERIES = {
   "Devon 1820s": "Location=Devon",
+  "Smith born in Kent before 1800": "AllLastNames=Smith BirthLocation=Kent",
+  "Devon births post-1850": "BirthLocation=Devon",
+  "born in Ohio died in Texas 1900-1950": "BirthLocation=Ohio DeathLocation=Texas",
+  "Who was born in Devon in 1820?": "BirthLocation=Devon B1820",
   "born before 1750 in Devon": "[Birth Date].AsNumber In 1..17499999",
-  "died after 1900 in Liverpool": "[Death Date].AsNumber > 19009999",
+  "died after 1900 in Liverpool": "[Death Date].AsNumber >= 19010000",
   "Cheshire profiles with no biography": "Suggestions=802",
   "England no birth or death date": 'Suggestions="131 132 133 134"',
   "Shropshire unsourced born in 1820s": "Unsourced Location=Shropshire",
@@ -88,9 +93,32 @@ const WTPLUS_QUERIES = {
   "Flintshire siblings born less than 5 months apart": "[Siblings]",
   "Yorkshire miners": "CategoryWord=miner",
   "Chicago military": "CategoryWord=military",
-  "Garver profiles": "LastNameAtBirth=Garver",
+  "Mary Smith 1820 Ohio": "FirstName=Mary BirthLocation=Ohio B1820",
+  "women who died in Texas 1900-1950": "DeathLocation=Texas",
+  "Kent farmers 1850s": "CategoryWord=Yeomen",
+  "Irish farmers 1850s": "BirthLocation=Ireland",
+  "twins born in Lancashire": "BirthLocation=Lancashire CategoryWord=Twins",
+  "Devon centenarians": "Location=Devon CategoryWord=Centenarians",
+  "profiles I manage with no sources": "Manager=User-1",
+  "gold standard profiles in Devon": "Location=Devon ResearchGold",
+  "profiles I manage with sources to review": "ResearchReview Manager=User-1",
+  "profiles I manage with style issues": "bioCheckStyleIssues Manager=User-1",
+  "Beacall emigrants to Australia": "DeathLocation=Australia NOT BirthLocation=Australia",
+  "Scottish emigrants to Canada": "BirthLocation=Scotland DeathLocation=Canada",
+  "Smith born in Ohio created in 2023 or 2024": "Created=Created_2024",
+  "Garver born in Ohio created before 2012": "Created=Created_2011",
+  "Garver profiles": "AllLastNames=Garver",
   "profiles with last name Garver": "AllLastNames=Garver",
   "LastNameAtBirth=Garver": "LastNameAtBirth=Garver",
+  // (these two ask born/married/died or surname first: the buttons' queries)
+  "Devon profiles with no sources": "BirthLocation=Devon bioCheckUnsourced",
+  "Kent profiles without a father": "AllLastNames=Kent NoFather",
+  "Smith born 1850 Kent": "AllLastNames=Smith BirthLocation=Kent B1850",
+  "the Beacalls of Shropshire": "AllLastNames=Beacalls Location=Shropshire",
+  "Smith family from Kent": "AllLastNames=Smith Location=Kent",
+  "Irish people who went to America": "BirthLocation=Ireland DeathLocation=America",
+  "people who left Ireland": "BirthLocation=Ireland NOT DeathLocation=Ireland",
+  "profiles in Kent created this year": `Location=Kent Created=Created_${new Date().getFullYear()}`,
 };
 
 async function wtPlusQuery(prompt) {
@@ -102,10 +130,13 @@ async function wtPlusQuery(prompt) {
         routeChatPrompt(text, { hasStructuredResult: false })?.intent
       ),
   });
-  if (target !== "wtplus") return `(${target})`;
+  // (these look like questions about your own family to the router; chat_search_mode runs the reader for them with no key)
+  const readerFirst = /\bemigrants\b/i.test(prompt) && Boolean(parseSearchSpecPrompt(prompt));
+  if (target !== "wtplus" && !readerFirst) return `(${target})`;
   jest.clearAllMocks();
   wtAPIProfileSearch.mockResolvedValue({ response: { profiles: ["1"], searchLog: "" } });
-  await makeHandler().tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, prompt);
+  const result = await makeHandler().tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, prompt);
+  if (!wtAPIProfileSearch.mock.calls.length) return (result?.actions || []).map((action) => action.wtPlusQuery).join(" ;; ");
   return wtAPIProfileSearch.mock.calls.map((call) => decodeURIComponent(call[1])).join(" ;; ");
 }
 

@@ -38,7 +38,7 @@ export function describeUnloadedProfile({ label, what = "", status, isPagePerson
   if (status === "hidden") {
     const login =
       apiLoggedIn === false
-        ? " If you're on its Trusted List, log in to the API with the green Apps button (it has its own login), then ask again."
+        ? " If you're on its Trusted List, log in to the API with the Apps button (it has its own login), then ask again."
         : "";
     return `${label}'s profile is private to you (usually a living person), so Genie can't see ${what ? `their ${what}` : "it"}.${login}${privateHint ? ` ${privateHint}` : ""}`;
   }

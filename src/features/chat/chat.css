@@ -444,16 +444,142 @@
   cursor: move;
 }
 
-/* Chart buttons under the header (2026-10-03): they wrap (a sideways scrollbar looked broken). */
+/* "About [Ted ▾]" and the chart buttons, just above the box (2026-10-11; they were a band under the
+   header): they wrap (a sideways scrollbar looked broken). */
 .chat-chart-bar {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.5rem;
+  padding: 0.4rem 0 0.45rem;
+  flex-shrink: 0;
+}
+
+.chat-chart-buttons {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.35rem 0.75rem;
-  border-bottom: 1px solid #ececec;
-  background: linear-gradient(90deg, #f4f8ff, #fbf6ff);
-  flex-shrink: 0;
+}
+
+.chat-chart-bar--collapsed .chat-chart-bar-extra {
+  display: none;
+}
+
+.chat-chart-bar-more {
+  border-style: dashed;
+}
+
+.chat-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.chat-who-label {
+  font-size: 0.75rem;
+  color: #5a6672;
+}
+
+.chat-who-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 16rem;
+  border: 1px solid #2f6fb3;
+  background: #eef4fb;
+  color: #1d3f66;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.chat-who-button:hover,
+.chat-who-button[aria-expanded="true"] {
+  background: #2f6fb3;
+  color: #fff;
+}
+
+.chat-who-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-who-caret {
+  font-size: 0.7rem;
+}
+
+/* Opens upward, over the messages: the box is below. */
+.chat-who-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 0.2rem);
+  z-index: 5;
+  width: min(24rem, 100%);
+  background: #fff;
+  border: 1px solid #c9d6ea;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  padding: 0.4rem;
+}
+
+.chat-who-menu[hidden] {
+  display: none;
+}
+
+.chat-who-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #c9d6ea;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+.chat-who-list {
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.chat-who-item {
+  padding: 0.3rem 0.45rem;
+  border-radius: 5px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  line-height: 1.3;
+}
+
+.chat-who-item[aria-selected="true"],
+.chat-who-item:hover {
+  background: #eef4fb;
+}
+
+.chat-who-id,
+.chat-who-note,
+.chat-who-status {
+  color: #6b7580;
+  font-size: 0.75rem;
+}
+
+.chat-who-search {
+  color: #24456e;
+  font-style: italic;
+}
+
+.chat-who-status {
+  padding: 0.3rem 0.45rem;
+}
+
+.chat-who-more {
+  color: #24456e;
+  font-weight: 600;
+  border-top: 1px solid #e3e8ee;
 }
 
 .chat-chart-bar[hidden] {
@@ -1740,4 +1866,74 @@ div.chat-results-popup table.dataTable td.nowrap-cell {
 .chat-ai-help .chat-ai-help-close:focus-visible {
   outline: 2px solid #2f6fb3;
   outline-offset: 1px;
+}
+
+/* Dark Mode (darkMode.css) gives every div and span a dark background and every button a white border,
+   !important, and leaves background images alone. These keep Genie's own pieces readable on it.
+   :not(#none) outweighs Dark Mode's rules. */
+body.darkMode .chat-chart-bar:not(#none),
+body.darkMode .chat-chart-buttons:not(#none),
+body.darkMode .chat-who:not(#none),
+body.darkMode .chat-who-label:not(#none),
+body.darkMode .chat-who-name:not(#none),
+body.darkMode .chat-who-caret:not(#none),
+body.darkMode .chat-who-id:not(#none),
+body.darkMode .chat-who-note:not(#none),
+body.darkMode .chat-who-item-name:not(#none) {
+  background: transparent !important;
+}
+body.darkMode .chat-who-label:not(#none),
+body.darkMode .chat-who-id:not(#none),
+body.darkMode .chat-who-note:not(#none) {
+  color: #b9bfb0 !important;
+}
+body.darkMode .chat-chart-bar-label:not(#none) {
+  background: transparent !important;
+  color: #dedecb !important;
+}
+body.darkMode .chat-popup-header:not(#none) {
+  border-bottom-color: #55595f !important;
+}
+body.darkMode .chat-popup-header .chat-help-button:not(#none) {
+  border: 1px solid #a9b1bb !important;
+  color: #dedecb !important;
+  background: none !important;
+}
+body.darkMode .chat-popup-header .chat-help-button:not(#none):hover,
+body.darkMode .chat-popup-header .chat-help-button:not(#none):focus-visible {
+  border-color: #a5d167 !important;
+  color: #a5d167 !important;
+}
+body.darkMode #wbe-genie-ai-toggle:not(#none) {
+  border: 0 !important;
+  background: none !important;
+}
+body.darkMode #wbe-genie-ai-toggle:not(#none) .chat-ai-label {
+  color: #dedecb !important;
+}
+body.darkMode #wbe-genie-ai-toggle:not(#none) .chat-ai-state {
+  color: #b4bac2 !important;
+  background: transparent !important;
+}
+body.darkMode #wbe-genie-ai-toggle:not(#none):not(.chat-ai-on) .chat-ai-state-off {
+  color: #dedecb !important;
+}
+body.darkMode #wbe-genie-ai-toggle.chat-ai-on:not(#none) .chat-ai-state-on {
+  color: #a5d167 !important;
+}
+body.darkMode #wbe-genie-ai-toggle:not(#none) .chat-ai-switch {
+  background: #6b7079 !important;
+}
+body.darkMode #wbe-genie-ai-toggle.chat-ai-on:not(#none) .chat-ai-switch {
+  background: #4caf50 !important;
+}
+body.darkMode #wbe-genie-ai-toggle:not(#none) .chat-ai-knob {
+  background: #fff !important;
+}
+/* The results table's header rows are pale green, under Dark Mode's light text. */
+body.darkMode div.chat-results-popup table.dataTable thead th:not(#none),
+body.darkMode .chat-results-filter-row th:not(#none) {
+  background: #2f3137 !important;
+  color: #dedecb !important;
+  border-bottom-color: #55595f !important;
 }

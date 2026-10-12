@@ -9,7 +9,7 @@ jest.mock("../../core/common", () => ({
   getProfilePersonInfo: jest.fn(() => null),
 }));
 
-import { AI_CHAT_CLAIM_RULES, classifyWtPrompt, handleExplicitSearchMode, isBareName } from "./chat_search_mode";
+import { AI_CHAT_CLAIM_RULES, classifyWtPrompt, handleExplicitSearchMode, isBareName, readsAsNewSearch } from "./chat_search_mode";
 import { ChatIntent, routeChatPrompt } from "./chat_router";
 
 function makeVisibleWtModeDom() {
@@ -238,6 +238,34 @@ describe("chat_search_mode explicit routing", () => {
       translateWtPlusRefinementTerms: jest.fn(() => ({ query: "WikiTreeID=Beacall-10" })),
       reRunSavedWtPlusQuery,
       getLastExecutedWtPlusQuery: () => "AllLastNames=Smith BirthLocation=Yorkshire 1850s",
+    });
+    expect(reRunSavedWtPlusQuery).not.toHaveBeenCalled();
+  });
+
+  // Live, 2026-10-10: "profiles I manage with no sources" after a Devon search ran "Location=Devon ResearchGold bioCheckUnsourced Manager=Beacall-6".
+  test("profiles I manage is a new search, not a continuation", async () => {
+    const reRunSavedWtPlusQuery = jest.fn(async () => ({ message: "should not run" }));
+    await handleExplicitSearchMode({
+      prompt: "profiles I manage with no sources",
+      chatPopupId: "chat-popup",
+      hasStructuredResult: false,
+      getLastStructuredResult: jest.fn(() => null),
+      ChatIntent,
+      routeChatPrompt: jest.fn(() => ({ intent: ChatIntent.FALLBACK_AI })),
+      buildRecentConversationForAi: jest.fn(() => ""),
+      buildRecentUserMessagesForAi: jest.fn(() => ""),
+      getChatAiConfig: jest.fn(async () => ({ key: "" })),
+      appendMessage: jest.fn(),
+      tryHandleProfileSearchPrompt: jest.fn(async () => null),
+      handleChatResult: jest.fn(async () => {}),
+      extractFollowupTableFilterText: jest.fn(() => ""),
+      openResultsTable: jest.fn(),
+      tryHandleAiPlannedIntent: jest.fn(async () => null),
+      setExplicitMode: jest.fn(),
+      continueQueryContext: true,
+      translateWtPlusRefinementTerms: jest.fn(() => ({ query: "bioCheckUnsourced Manager=Beacall-6" })),
+      reRunSavedWtPlusQuery,
+      getLastExecutedWtPlusQuery: () => "Location=Devon ResearchGold",
     });
     expect(reRunSavedWtPlusQuery).not.toHaveBeenCalled();
   });
@@ -521,6 +549,17 @@ describe("no AI key: searches still run", () => {
       expect(await classifyWtPrompt({ prompt, getChatAiConfig: noKey, isUnclaimed })).toBeNull();
     }
     expect(await classifyWtPrompt({ prompt: "Beacall-10", getChatAiConfig: noKey, isUnclaimed })).toBe("wt");
+    // (2026-10-10: was LastNameAtBirth=George Location=Beacall)
+    expect(await classifyWtPrompt({ prompt: "George Beacall married Margaret", getChatAiConfig: noKey, isUnclaimed })).toBeNull();
+    expect(await classifyWtPrompt({ prompt: "Kent married 1850s", getChatAiConfig: noKey, isUnclaimed })).toBe("wtplus");
+    // a category word: straight to WT+, not a person search for "Devon Centenarians" first (2026-10-10)
+    for (const prompt of ["Devon centenarians", "Kent doctors", "Yorkshire convicts"]) {
+      expect(await classifyWtPrompt({ prompt, getChatAiConfig: noKey, isUnclaimed })).toBe("wtplus");
+    }
+    // the member's own profiles, whatever family word is in it (live, 2026-10-10: "no father" got "We need AI")
+    for (const prompt of ["profiles I manage with no father", "profiles I manage with no parents", "profiles I manage born in England"]) {
+      expect(await classifyWtPrompt({ prompt, getChatAiConfig: noKey, isUnclaimed: () => false })).toBe("wtplus");
+    }
   });
 
   test("words that make it a filter search aren't a bare name", async () => {
@@ -557,3 +596,50 @@ describe("questions about the profile person", () => {
     expect(tryHandleProfileSearchPrompt).not.toHaveBeenCalled();
   });
 });
+
+// Live, 2026-10-10: "gold standard profiles in Devon" after "profiles I manage…" was merged into it (0 found).
+describe("a follow-up that reads as a whole search starts fresh", () => {
+  test.each(["gold standard profiles in Devon", "people born in Kent in the 1850s", "Kent farmers", "Smith born in Ohio"])("new: %s", (prompt) => {
+    expect(readsAsNewSearch(prompt)).toBe(true);
+  });
+  test.each(["born in Kent", "women", "unconnected", "only profiles born in Kent", "died after 1900", "and died in Yorkshire"])(
+    "narrows: %s",
+    (prompt) => {
+      expect(readsAsNewSearch(prompt)).toBe(false);
+    }
+  );
+
+  const run = async (prompt) => {
+    const reRunSavedWtPlusQuery = jest.fn(async () => ({ message: "merged" }));
+    await handleExplicitSearchMode({
+      prompt,
+      chatPopupId: "chat-popup",
+      hasStructuredResult: false,
+      getLastStructuredResult: jest.fn(() => null),
+      ChatIntent,
+      routeChatPrompt: jest.fn(() => ({ intent: ChatIntent.FALLBACK_AI })),
+      buildRecentConversationForAi: jest.fn(() => ""),
+      buildRecentUserMessagesForAi: jest.fn(() => ""),
+      getChatAiConfig: jest.fn(async () => ({ key: "" })),
+      appendMessage: jest.fn(),
+      tryHandleProfileSearchPrompt: jest.fn(async () => null),
+      handleChatResult: jest.fn(async () => {}),
+      extractFollowupTableFilterText: jest.fn(() => ""),
+      openResultsTable: jest.fn(),
+      tryHandleAiPlannedIntent: jest.fn(async () => null),
+      setExplicitMode: jest.fn(),
+      continueQueryContext: true,
+      translateWtPlusRefinementTerms: jest.fn(() => ({ query: "Location=Devon ResearchGold" })),
+      reRunSavedWtPlusQuery,
+      getLastExecutedWtPlusQuery: () => "bioCheckUnsourced Manager=Beacall-6",
+    });
+    return reRunSavedWtPlusQuery;
+  };
+  test("not merged", async () => {
+    expect(await run("gold standard profiles in Devon")).not.toHaveBeenCalled();
+  });
+  test("a narrowing still merges", async () => {
+    expect(await run("born in Devon")).toHaveBeenCalled();
+  });
+});
+

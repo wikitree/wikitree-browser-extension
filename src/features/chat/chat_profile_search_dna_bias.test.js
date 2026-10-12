@@ -82,8 +82,8 @@ describe("chat_profile_search DNA token ambiguity", () => {
     const executedQuery = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
 
     expect(executedQuery).toContain("mtDNA");
-    expect(executedQuery).toContain("LastNameAtBirth=Anderson");
+    expect(executedQuery).toContain("AllLastNames=Anderson");
     expect(executedQuery).not.toContain("Location=Anderson");
-    expect(result.message).toContain("LastNameAtBirth=Anderson");
+    expect(result.message).toContain("AllLastNames=Anderson");
   });
 });

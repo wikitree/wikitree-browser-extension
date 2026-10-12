@@ -3,11 +3,29 @@
 import { injectChartStyles } from "./chat_chart_common";
 
 const FRACTAL_CSS = `
-  #wbe-fractal-popup { width: min(1320px, 96vw); height: min(900px, 92vh); }
-  #wbe-fractal-popup .wbe-chart-stage { background: #ffffff; }
+  /* (the size comes from .wbe-chart-popup, so the size button works here too) */
+  #wbe-fractal-popup .wbe-chart-stage { background: radial-gradient(ellipse at 50% 40%, #fffdf7 0%, #f6f3ea 55%, #ece7da 100%); }
+  #wbe-fractal-popup .wbe-fractal-up { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 2; max-width: calc(100% - 32px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 6px 16px; border: 1px solid #a3c48c; border-radius: 999px; background: rgba(255,255,255,.94); color: #22303a; font: 600 13.5px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+  #wbe-fractal-popup .wbe-fractal-up:hover, #wbe-fractal-popup .wbe-fractal-up:focus-visible { background: #e1f0b4; outline: none; }
+  body.darkMode #wbe-fractal-popup .wbe-fractal-up:not(#none) { background: rgba(255,255,255,.94) !important; color: #22303a !important; border-color: #a3c48c !important; }
+  #wbe-fractal-popup .wbe-fractal-hint { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 2; padding: 7px 16px; border-radius: 999px; background: rgba(34,48,58,.86); color: #fff; font-size: 13.5px; white-space: nowrap; pointer-events: none; box-shadow: 0 2px 10px rgba(0,0,0,.15); transition: opacity .45s ease; }
+  #wbe-fractal-popup .wbe-fractal-hint-gone { opacity: 0; }
+  body.darkMode #wbe-fractal-popup .wbe-fractal-hint:not(#none) { background: rgba(34,48,58,.92) !important; color: #fff !important; }
   #wbe-fractal-popup canvas { width: 100%; height: 100%; display: block; cursor: grab; }
   #wbe-fractal-popup canvas:active { cursor: grabbing; }
   #wbe-fractal-popup .wbe-fractal-search { border: 1px solid rgba(0,0,0,.2); border-radius: 999px; padding: 3px 10px; font-size: 12px; width: 170px; }
+  #wbe-fractal-popup .wbe-explorer-views { display: inline-flex; flex: none; margin-right: 12px; border: 1px solid #d2c193; border-radius: 999px; overflow: hidden; background: #fff; }
+  #wbe-fractal-popup .wbe-explorer-views button { border: 0; margin: 0; background: transparent; padding: 4px 15px; font: 600 12.5px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #5b4a2a; cursor: pointer; }
+  #wbe-fractal-popup .wbe-explorer-views button + button { border-left: 1px solid #e6dbbd; }
+  #wbe-fractal-popup .wbe-explorer-views button:hover { background: #fff6dc; }
+  #wbe-fractal-popup .wbe-explorer-views button[aria-pressed="true"] { background: #f0b400; color: #241c0b; }
+  body.darkMode #wbe-fractal-popup .wbe-explorer-views button:not(#none) { background: #fff !important; color: #5b4a2a !important; }
+  body.darkMode #wbe-fractal-popup .wbe-explorer-views button[aria-pressed="true"]:not(#none) { background: #f0b400 !important; color: #241c0b !important; }
+  #wbe-fractal-popup .wbe-explorer-host { position: absolute; inset: 0; z-index: 1; }
+  /* (in the Family and Galaxy views, the tree's own controls go) */
+  #wbe-fractal-popup.wbe-explorer-alt canvas:not(.wbe-galaxy-canvas), #wbe-fractal-popup.wbe-explorer-alt .wbe-fractal-up, #wbe-fractal-popup.wbe-explorer-alt .wbe-fractal-hint,
+  #wbe-fractal-popup.wbe-explorer-alt .wbe-fractal-crumbs, #wbe-fractal-popup.wbe-explorer-alt .wbe-chart-mode, #wbe-fractal-popup.wbe-explorer-alt .wbe-chart-legend,
+  #wbe-fractal-popup.wbe-explorer-alt:not(.wbe-explorer-galaxy) [data-act="png"] { display: none !important; }
   #wbe-fractal-popup .wbe-fractal-crumbs { padding: 4px 10px; font-size: 12px; min-height: 18px; border-bottom: 1px solid rgba(0,0,0,.06); }
 `;
 

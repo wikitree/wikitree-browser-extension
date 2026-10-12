@@ -1,3 +1,4 @@
+import { ordinal } from "./chat_text_utils";
 function stripSurroundingQuotes(value) {
   if (value == null) return "";
   return String(value)
@@ -129,17 +130,7 @@ export function formatCousinLabel(degree, plural = true) {
     return plural ? "cousins" : "cousin";
   }
 
-  const suffix =
-    number % 100 >= 11 && number % 100 <= 13
-      ? "th"
-      : number % 10 === 1
-      ? "st"
-      : number % 10 === 2
-      ? "nd"
-      : number % 10 === 3
-      ? "rd"
-      : "th";
-  return `${number}${suffix} cousin${plural ? "s" : ""}`;
+  return `${ordinal(number)} cousin${plural ? "s" : ""}`;
 }
 
 export function formatCousinRelationshipLabel(degree, removed, plural = true) {

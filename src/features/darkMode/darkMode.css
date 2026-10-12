@@ -316,6 +316,16 @@
     border: 1px solid white !important;
   }
 
+  /* The Apps pill: the same light green as the other WBE icons in Dark Mode (its key takes the text colour). */
+  body.darkMode button.wbe-app-login:not(#none) {
+    background: #a5d167 !important;
+    color: #25422d !important;
+    border: 0 !important;
+  }
+  body.darkMode button.wbe-app-login:not(#none):hover {
+    background: #bfe08c !important;
+  }
+
   body.darkMode input.qa-a-select-button {
     background-image: url("https://www.wikitree.com/g2g/qa-theme/WikiTree/select-star.png") no-repeat !important;
     border: 0 !important;
@@ -735,9 +745,18 @@
     border: 1px solid forestgreen !important;
     background-color: #008000 !important;
   }
-  body.darkMode #ebWBE:not(#dummyID) a:link,
-  body.darkMode #ebWBE:not(#dummyID) a:visited,
-  body.darkMode #ebWBE:not(#dummyID) {
+  body.darkMode .ebWBE:not(#dummyID) a:link,
+  body.darkMode .ebWBE:not(#dummyID) a:visited,
+  body.darkMode .ebWBE:not(#dummyID) {
     background-color: inherit !important;
+  }
+  /* The "?" by "Enhanced by…" is an inline SVG, so the SVG recolouring misses it. */
+  body.darkMode .ebWBE .WBEHelpIcon svg path {
+    fill: #a5d167;
+  }
+  /* The envelope is drawn as a mask over the span's background colour, so the span rule above made it
+     match the page. Give it the same light green as the recoloured SVG icons (e.g. the connection icon). */
+  body.darkMode .icon--email:not(#dummyID) {
+    background-color: #a5d167 !important;
   }
 }

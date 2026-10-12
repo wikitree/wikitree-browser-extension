@@ -8,9 +8,13 @@ import {
   NIECE_NEPHEW_RE,
   nieceNephewToChain,
   pickSpouseByOrdinal,
+  foundRelativesLead,
   relationshipListLead,
+  relativesBiosTitle,
+  relativesTableTitle,
   splitOrdinalFromRelation,
 } from "./chat_relation_chain_text";
+import { watchlistDisplayName } from "./chat_managed_profiles";
 import {
   DEFAULT_ALL_COUSIN_ANCESTOR_GENERATION,
   MAX_COUSIN_ANCESTOR_GENERATION,
@@ -20,6 +24,10 @@ import {
   parseCousinRelationRequest,
   selectPeopleAtMinimalSharedGeneration,
 } from "./chat_cousin_helpers";
+
+// Your relatives can be private to the API until you sign in to the apps server; the sign-in
+// takes effect on the next page (the user, 2026-10-11).
+const APPS_LOGIN_RETRY_HINT = " Sign in to the apps server with the Apps button below, then open a new page and ask again.";
 
 const MAX_COUSIN_REMOVED = 3;
 
@@ -424,7 +432,18 @@ export function createChatRelationHandlers({
     return isPrivatePlaceholder(person) ? "Private" : "";
   }
 
+  /** "Abraham" from "Abraham Lincoln"; "" for an ID or anything not a plain name. */
+  function firstNameOf(name) {
+    const first = String(name || "").trim().split(/\s+/)[0] || "";
+    return /^\p{Lu}[\p{L}'’.-]*$/u.test(first) ? first : "";
+  }
+
   function toDisplayName(person) {
+    // The name as PersonName writes it, as elsewhere in Genie (the user, 2026-10-11).
+    if (person?.FirstName && (person.LastNameAtBirth || person.LastNameCurrent) && !isPrivatePlaceholder(person)) {
+      const named = watchlistDisplayName(person);
+      if (named) return named;
+    }
     const fallbackSurname = String(person?.LastNameCurrent || person?.LastNameAtBirth || "").trim();
     let preferred = String(person?.RealName || person?.Derived?.ShortName || getPrivateLongName(person) || "").trim();
     if (preferred) {
@@ -920,7 +939,7 @@ export function createChatRelationHandlers({
       }
       subject = {
         key: resolved.Id || resolved.Name,
-        label: `${resolved.RealName || resolved?.Derived?.ShortName || resolved.Name} (${
+        label: `${watchlistDisplayName(resolved) || resolved.RealName || resolved.Name} (${
           resolved.Name || resolved.Id
         })`,
         isUser: false,
@@ -931,9 +950,13 @@ export function createChatRelationHandlers({
     } else {
       const profileRoot =
         !forceUserSubject && typeof getProfileSubjectRoot === "function" ? getProfileSubjectRoot() : null;
-      if (profileRoot?.key) {
+      // You, chosen in the picker: "your grandparents", as when no profile is open (2026-10-11).
+      const rootIsUser =
+        Boolean(profileRoot?.wtId) && String(profileRoot.wtId).toLowerCase() === String(getUserWtId() || "").toLowerCase();
+      if (profileRoot?.key && !rootIsUser) {
         subject = {
           key: profileRoot.key,
+          firstName: firstNameOf(profileRoot.displayName),
           label: `${profileRoot.displayName || profileRoot.wtId || profileRoot.key}${
             profileRoot.wtId ? ` (${profileRoot.wtId})` : ""
           }`,
@@ -1036,7 +1059,7 @@ export function createChatRelationHandlers({
       if (!cousins.length) {
         const appsLoginHint =
           subject.isUser && (await isLoggedOutOfAppsServer())
-            ? " Click the green Apps button below and try again, so Chat can use full app-server access."
+            ? APPS_LOGIN_RETRY_HINT
             : "";
         if (location && removedMatchedCousins.length) {
           const missingLocationCount = removedMatchedCousins.filter((person) => {
@@ -1099,7 +1122,7 @@ export function createChatRelationHandlers({
                 locationPhrase ? ` ${locationPhrase}` : ""
               } in currently accessible data. ${sample}${suffix}${privateNote}`,
           table: makeCousinProfileTable(
-            subject.isUser ? `Your ${resultLabel}` : `${resultLabel} for ${subject.label}`,
+            subject.isUser ? `Your ${resultLabel}` : relativesTableTitle(resultLabel, subject.label),
             cousinRows
           ),
         };
@@ -1117,7 +1140,7 @@ export function createChatRelationHandlers({
             } found).${privateNote}\n${preview}`,
         inlineMore,
         table: makeCousinProfileTable(
-          subject.isUser ? `Your ${resultLabel}` : `${resultLabel} for ${subject.label}`,
+          subject.isUser ? `Your ${resultLabel}` : relativesTableTitle(resultLabel, subject.label),
           cousinRows
         ),
       };
@@ -1355,7 +1378,8 @@ export function createChatRelationHandlers({
       subject = {
         key: resolved.Id || resolved.Name,
         chartKey: resolved.Name || resolved.Id,
-        label: `${resolved.RealName || resolved?.Derived?.ShortName || resolved.Name} (${
+        firstName: firstNameOf(resolved.RealName || resolved.FirstName),
+        label: `${watchlistDisplayName(resolved) || resolved.RealName || resolved.Name} (${
           resolved.Name || resolved.Id
         })`,
         isUser: false,
@@ -1363,9 +1387,13 @@ export function createChatRelationHandlers({
     } else {
       const profileRoot =
         !forceUserSubject && typeof getProfileSubjectRoot === "function" ? getProfileSubjectRoot() : null;
-      if (profileRoot?.key) {
+      // You, chosen in the picker: "your grandparents", as when no profile is open (2026-10-11).
+      const rootIsUser =
+        Boolean(profileRoot?.wtId) && String(profileRoot.wtId).toLowerCase() === String(getUserWtId() || "").toLowerCase();
+      if (profileRoot?.key && !rootIsUser) {
         subject = {
           key: profileRoot.key,
+          firstName: firstNameOf(profileRoot.displayName),
           label: `${profileRoot.displayName || profileRoot.wtId || profileRoot.key}${
             profileRoot.wtId ? ` (${profileRoot.wtId})` : ""
           }`,
@@ -1585,12 +1613,14 @@ export function createChatRelationHandlers({
       if (!count) {
         const appsLoginHint =
           subject.isUser && (await isLoggedOutOfAppsServer())
-            ? " Click the green Apps button below and try again, so Chat can use full app-server access."
+            ? APPS_LOGIN_RETRY_HINT
             : "";
 
         if (mode === "list") {
           return labelIsUser
-            ? `I couldn't find any ${noun} in currently accessible family data yet. Try asking about a specific person (for example: "Who are the granduncles of Name-123?").${appsLoginHint}`
+            ? appsLoginHint
+              ? `None of your ${noun} are visible: they may be private.${appsLoginHint}`
+              : `I couldn't find any ${noun} in currently accessible family data yet. Try asking about a specific person (for example: "Who are the granduncles of Name-123?").`
             : // A plain fact, not a failure: "I couldn't…" drew "try a more specific
               // name" advice for a person who was found (live E1, 2026-10-03).
               `No ${noun} are recorded for ${chainLabel} on WikiTree.${filterNote}${appsLoginHint}`;
@@ -1613,7 +1643,11 @@ export function createChatRelationHandlers({
             displayName: toDisplayName(person),
           }));
           showBioListPopup(
-            labelIsUser ? `Your ${noun} bios` : `${noun} bios for ${chainLabel}`,
+            labelIsUser
+              ? relativesBiosTitle("Your", noun).replace("Your's", "Your")
+              : !hops.length && subject.firstName
+                ? relativesBiosTitle(subject.firstName, noun)
+                : `${noun} bios for ${chainLabel}`,
             entries.slice(0, 50),
             handleOpenFromBioList
           );
@@ -1625,12 +1659,14 @@ export function createChatRelationHandlers({
         return {
           message: labelIsUser
             ? `Here are your ${noun} (${count} found):${filterNote}\n${preview}`
+            : !hops.length && subject.firstName
+            ? `${foundRelativesLead(noun, count, subject.firstName)}${filterNote}\n${preview}`
             : `${relationshipListLead(noun, count)} for ${chainLabel} (${count} found):${filterNote}\n${preview}`,
           inlineMore,
           // Chart buttons for the person whose family this is (not for chained relations).
           actions: hops.length ? [] : familyVisuals(subject.chartKey || subject.wtId || subject.key),
           table: makeStandardProfileTable(
-            labelIsUser ? `Your ${noun}` : `${noun} for ${chainLabel}`,
+            labelIsUser ? `Your ${noun}` : relativesTableTitle(noun, chainLabel),
             toRelationTableRows(relatives, { degrees: relationChainDegrees(relationSteps) }),
             [[0, "asc"]]
           ),
@@ -1647,7 +1683,7 @@ export function createChatRelationHandlers({
           ? `You have ${count} ${noun} in currently accessible data. ${sample}${suffix}${filterNote}`
           : `${chainLabel} ${/(?:'s|’s)\s+\w+s$/.test(chainLabel) ? "have" : "has"} ${count} ${noun} in currently accessible data. ${sample}${suffix}${filterNote}`,
         table: makeStandardProfileTable(
-          labelIsUser ? `Your ${noun}` : `${noun} for ${chainLabel}`,
+          labelIsUser ? `Your ${noun}` : relativesTableTitle(noun, chainLabel),
           toRelationTableRows(relatives, { degrees: relationChainDegrees(relationSteps) }),
           [[0, "asc"]]
         ),

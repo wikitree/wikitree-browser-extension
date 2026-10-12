@@ -1,6 +1,7 @@
 import { buildFamilyMatrix, loadFamilyMatrixPeople } from "./chat_family_matrix_data";
 import { showFamilyMatrixPopup } from "./chat_family_matrix";
 import { descendantWord } from "./chat_kin_labels";
+import { parseRelativeOwner, relativesNamed } from "./chat_chart_owner";
 import { getGenerationFromAhnen } from "./chat_ahnentafel";
 import { getLocationFieldLabel } from "./chat_place_text";
 import { buildTreeAppRecommendations } from "./chat_tree_apps";
@@ -37,6 +38,7 @@ import {
   buildFamilyWorldSummary,
   climbFamilyScene,
   createFamilyWorld,
+  describeFamilyRoot,
   mergeWorldPeople,
   normaliseFamilyScene,
   rerootFamilyScene,
@@ -66,7 +68,11 @@ import { buildTreeOverview, buildTreeOverviewSummary, TREE_OVERVIEW_GENERATIONS 
 import { buildDescendantLifespanRows, buildLifespanRows, buildLifespansSummary, LIFESPANS_GENERATIONS } from "./chat_lifespans_data";
 
 const MIGRATION_MAP_GENERATIONS = 10;
+// An ancestor list this deep or shallower opens the fan chart; a deeper one shows its table.
+const LIST_FAN_CHART_GENERATIONS = 8;
 import { buildProfileFactAnswer, PROFILE_FACT_FIELDS } from "./chat_profile_facts";
+import { relativesTableTitle } from "./chat_relation_chain_text";
+import { watchlistDisplayName } from "./chat_managed_profiles";
 import {
   buildConnectedProfilesAnswer,
   buildConnectedTestsAnswer,
@@ -83,6 +89,7 @@ import {
   buildAgeGapAnswer,
   buildRelativeAgeAtDeathAnswer,
   buildRelativeFactAnswer,
+  buildAgeAtOwnerBirthAnswer,
   relationSelector,
 } from "./chat_relative_fact";
 import { descendantCountMessage, pickSpouseByOrdinal, relationshipListLead } from "./chat_relation_chain_text";
@@ -114,6 +121,7 @@ export function relativeNameOf(person) {
 export function createChatPeopleHandlers({
   ChatIntent,
   getProfilePersonInfo = () => null,
+  focusIsPagePerson = () => true,
   WBE_CHAT_APP_ID,
   resolveConnectionTargetPerson,
   getLoggedInRootPerson,
@@ -141,6 +149,7 @@ export function createChatPeopleHandlers({
   notify = () => {}, // (text) → a passing note in the chat (not saved)
   getChatAiConfig = async () => ({ key: "" }),
   parsePlannerJson = () => null,
+  resolveRelativeTarget = async () => null, // ("his daughter" → {people, label}, a message, or null)
 }) {
   /**
    * "I couldn't load X" said why: not in the API yet (a new profile), private to the user, or
@@ -162,7 +171,7 @@ export function createChatPeopleHandlers({
     }
     let isPagePerson = false;
     try {
-      isPagePerson = isSamePerson(subject, getProfileRootPerson?.());
+      isPagePerson = focusIsPagePerson() && isSamePerson(subject, getProfileRootPerson?.());
     } catch (error) {
       // (no page person)
     }
@@ -355,7 +364,11 @@ export function createChatPeopleHandlers({
             [0, "asc"],
           ]
         : [[0, "asc"]];
-    const table = makeTable(`${displayRelationshipLabel} for ${rootDisplayName}`, rows, defaultOrder);
+    const table = makeTable(
+      relativesTableTitle(displayRelationshipLabel, rootWtId && rootDisplayName !== rootWtId ? `${rootDisplayName} (${rootWtId})` : rootDisplayName),
+      rows,
+      defaultOrder
+    );
     const treeAppActions = buildTreeAppRecommendations(treeAppKind, rootWtId).map((recommendation) => ({
       label: recommendation.label,
       actionType: "external-link",
@@ -380,11 +393,14 @@ export function createChatPeopleHandlers({
     // A plain list ("show her ancestors") opens its chart too; a filtered one ("…born in Ohio") just offers it.
     const plainList =
       enrichedChatMeta && !enrichedChatMeta.location && !enrichedChatMeta.dateField && !enrichedChatMeta.missingParent && !enrichedChatMeta.ageAtDeath;
-    // …unless the list goes deeper than the fan chart's generations: then the
-    // table shows it all (user, 2026-10-09: "show details beyond 8 generations
-    // … not a fan chart, but a table").
+    // …unless the list goes deeper than 8 generations: then the table shows it
+    // all (user, 2026-10-09: "show details beyond 8 generations … not a fan
+    // chart, but a table"; "8 generations and below should show the chart").
     const deepest = Math.max(0, ...rows.map((row) => Number(row?.degrees) || 0));
-    const beyondChart = treeAppKind === "ancestors" && deepest > FAN_CHART_DEFAULT_GENERATIONS;
+    const beyondChart = treeAppKind === "ancestors" && deepest > LIST_FAN_CHART_GENERATIONS;
+    if (treeAppKind === "ancestors" && !enrichedChatMeta?.missingParent && deepest > FAN_CHART_DEFAULT_GENERATIONS && !beyondChart) {
+      charts[0] = VISUALS.fan(rootWtId, "", "Fan chart", deepest);
+    }
     const chartOpens = Boolean(charts.length && plainList && rows.length >= 2 && !beyondChart);
     if (chartOpens) setTimeout(() => charts[0].onClick(), 0);
     return {
@@ -546,6 +562,13 @@ export function createChatPeopleHandlers({
     });
   }
 
+  /** "Charles Darwin (Darwin-15)" for a table title. */
+  function ownerTitle(person) {
+    const name = String(person?.displayName || "").trim();
+    const wtId = String(person?.wtId || "").trim();
+    return wtId && name && name !== wtId ? `${name} (${wtId})` : name || wtId;
+  }
+
   // "ancestors who lived past 90": {min: 91}; unknown ages never match.
   // C5 "where were my ancestors born?" → countries with counts; C6 "which of my
   // ancestors emigrated?" → born in one country, died in another.
@@ -553,7 +576,7 @@ export function createChatPeopleHandlers({
     const owner = rootPerson?.subjectType === "user" ? "your" : `${subjectLabel}'s`;
     const Owner = owner.charAt(0).toUpperCase() + owner.slice(1);
     if (!rows.length) return `I found no ${label} for ${subjectLabel} on WikiTree.`;
-    const tableTitle = (what) => `${label} ${what} for ${rootPerson.displayName}`;
+    const tableTitle = (what) => relativesTableTitle(`${label} ${what}`, ownerTitle(rootPerson));
     if (params?.emigrated) {
       const emigrants = rows.filter(isEmigrantRow).map((row) => ({
         ...row,
@@ -633,7 +656,7 @@ export function createChatPeopleHandlers({
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${subjectLabel}'s`;
       return {
         message: buildAncestorDepthMessage(rows, owner, 25),
-        table: makeAncestorProfileTable(`ancestors for ${rootPerson.displayName}`, rows, [[0, "asc"]]),
+        table: makeAncestorProfileTable(relativesTableTitle("ancestors", ownerTitle(rootPerson)), rows, [[0, "asc"]]),
         actions: visualActions(rootPerson?.wtId || rootPerson?.key, "ancestors"),
       };
     }
@@ -647,7 +670,7 @@ export function createChatPeopleHandlers({
           formatDate: formatPreviewDate,
           askedRepeats,
         }),
-        table: makeAncestorProfileTable(`ancestors for ${rootPerson.displayName}`, rows, [[0, "asc"]]),
+        table: makeAncestorProfileTable(relativesTableTitle("ancestors", ownerTitle(rootPerson)), rows, [[0, "asc"]]),
         actions: visualActions(rootPerson?.wtId || rootPerson?.key, "ancestors"),
       };
     }
@@ -676,7 +699,7 @@ export function createChatPeopleHandlers({
     const place = chosen.birthLocation ? ` in ${chosen.birthLocation}` : "";
     return {
       message: `${owner} ${which} ancestor${locationPhrase ? ` ${locationPhrase}` : ""} is ${chosen.displayName || chosen.wtid} (${chosen.wtid})${born}${place}${genText}. ${locationPhrase ? `${rows.length} of ${total} ancestors match` : `${total} ancestors checked`}; all are in the table.`,
-      table: makeAncestorProfileTable(`ancestors${locationPhrase ? ` ${locationPhrase}` : ""} for ${rootPerson.displayName}`, sorted, [[0, "asc"]]),
+      table: makeAncestorProfileTable(relativesTableTitle(`ancestors${locationPhrase ? ` ${locationPhrase}` : ""}`, ownerTitle(rootPerson)), sorted, [[0, "asc"]]),
     };
   }
 
@@ -705,7 +728,7 @@ export function createChatPeopleHandlers({
     return {
       message: `${owner} longest-lived ancestor${where} is ${formatPreviewName(top)} (${top.wtid}), who died aged about ${top.ageAtDeath} (${dates}${genText}).${tieText} ${aged.length} of ${rows.length} ancestors have both dates; they are all in the table.${scopeNote}`,
       table: makeAncestorProfileTable(
-        `ancestors by age at death for ${rootPerson.displayName}`,
+        relativesTableTitle("ancestors by age at death", ownerTitle(rootPerson)),
         aged,
         [[0, "asc"]]
       ),
@@ -945,8 +968,44 @@ export function createChatPeopleHandlers({
     return "";
   }
 
+  /**
+   * "his daughter Carol Moak's ancestors": the page person's daughters, narrowed to the one named
+   * Carol (2026-10-10). A root, {unresolvedName, message} when it isn't exactly one person, or null
+   * when the prompt doesn't start with a relative.
+   */
+  async function resolveRelativeSubjectRoot(prompt) {
+    const owner = parseRelativeOwner(prompt);
+    if (!owner) return null;
+    const found = await resolveRelativeTarget(owner.relation, prompt);
+    const asked = [owner.relation, ...owner.names].join(" ");
+    if (typeof found === "string") return { unresolvedName: asked, message: found };
+    if (!found) return null;
+    const people = found.people || [];
+    const matches = relativesNamed(people, owner.names);
+    if (matches.length === 1) {
+      const person = matches[0];
+      return {
+        key: person.Id || person.Name,
+        wtId: person.Name,
+        displayName: watchlistDisplayName(person) || person.RealName || person.Name,
+        subjectType: "named",
+      };
+    }
+    const listed = (matches.length ? matches : people)
+      .map((person) => `${person.RealName || person.FirstName || person.Name}${person.Name ? ` (${person.Name})` : ""}`)
+      .join(", ");
+    const message = !people.length
+      ? `I couldn't find ${found.label} in the family data I can see.`
+      : matches.length
+        ? `${found.label} could be any of ${matches.length} people: ${listed}. Which one? Ask again with the WikiTree ID, or a first name.`
+        : `I couldn't find ${found.label} named ${owner.names.join(" ")}. I found: ${listed}.`;
+    return { unresolvedName: asked, message };
+  }
+
   async function resolveAncestorSubjectRoot(prompt) {
     const normalizedPrompt = String(prompt || "").trim();
+    const relativeRoot = await resolveRelativeSubjectRoot(normalizedPrompt);
+    if (relativeRoot) return relativeRoot;
     const asksForUser = /\b(my|me|mine|myself)\b/i.test(normalizedPrompt);
     const asksForProfile = /\b(profile\s+person|current\s+profile|this\s+profile)\b/i.test(normalizedPrompt);
 
@@ -985,7 +1044,7 @@ export function createChatPeopleHandlers({
       return {
         key: resolved.Id || resolved.Name,
         wtId: resolved.Name,
-        displayName: resolved.RealName || resolved?.Derived?.ShortName || resolved.Name,
+        displayName: watchlistDisplayName(resolved) || resolved.RealName || resolved.Name,
         subjectType: "named",
       };
     }
@@ -1000,6 +1059,8 @@ export function createChatPeopleHandlers({
 
   async function resolveDescendantSubjectRoot(prompt) {
     const normalizedPrompt = String(prompt || "").trim();
+    const relativeRoot = await resolveRelativeSubjectRoot(normalizedPrompt);
+    if (relativeRoot) return relativeRoot;
     const asksForUser = /\b(my|me|mine|myself)\b/i.test(normalizedPrompt);
     const asksForProfile = /\b(profile\s+person|current\s+profile|this\s+profile)\b/i.test(normalizedPrompt);
 
@@ -1038,7 +1099,7 @@ export function createChatPeopleHandlers({
       return {
         key: resolved.Id || resolved.Name,
         wtId: resolved.Name,
-        displayName: resolved.RealName || resolved?.Derived?.ShortName || resolved.Name,
+        displayName: watchlistDisplayName(resolved) || resolved.RealName || resolved.Name,
         subjectType: "named",
       };
     }
@@ -1139,7 +1200,7 @@ export function createChatPeopleHandlers({
 
       return {
         message: `Here are ${relationshipLabel} for ${personLabel} (${spouses.length} found):\n${preview}${extra}`,
-        table: makeStandardProfileTable(`${relationshipLabel} for ${rootProfile.Name}`, spouses, [[0, "asc"]]),
+        table: makeStandardProfileTable(relativesTableTitle(relationshipLabel, personLabel), spouses, [[0, "asc"]]),
         actions: visualActions(rootProfile.Name, "family"),
       };
     } catch (error) {
@@ -1295,7 +1356,7 @@ export function createChatPeopleHandlers({
     let pageAttached = null;
     if (!profile?.Name && !targetName) {
       const page = getProfilePersonInfo();
-      const pageBio = page?.Name ? readPageBio(document) : "";
+      const pageBio = page?.Name && focusIsPagePerson() ? readPageBio(document) : "";
       if (pageBio) {
         const year = Number(page.BirthYear) || birthYearFromBio(pageBio);
         profile = {
@@ -1530,6 +1591,11 @@ export function createChatPeopleHandlers({
       const key = getProfileSubjectRoot()?.wtId || getProfileSubjectRoot()?.key || "";
       return key ? { key } : { error: "Open a profile page first, or name the person (for example Smith-123)." };
     }
+    // "his daughter Carol": a relative of the page person, not a name to search for
+    const relativeRoot = await resolveRelativeSubjectRoot(`${ownerName}'s`);
+    if (relativeRoot) {
+      return relativeRoot.unresolvedName ? { error: relativeRoot.message } : { key: relativeRoot.wtId || relativeRoot.key };
+    }
     const found = await resolveConnectionTargetPerson(ownerName, prompt);
     const key = found?.Name || found?.Id || "";
     return key
@@ -1600,7 +1666,7 @@ export function createChatPeopleHandlers({
   async function tryHandleFanChartPrompt(params, prompt = "") {
     const rootPerson = await resolveAncestorSubjectRoot(params?.ancestorPrompt || prompt);
     if (rootPerson?.unresolvedName) {
-      return `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
+      return rootPerson.message || `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
     }
     if (!rootPerson) return "I could not detect a profile person or your logged-in profile to draw a fan chart for.";
     const generations = Number(params?.generations) || FAN_CHART_DEFAULT_GENERATIONS;
@@ -1703,7 +1769,7 @@ export function createChatPeopleHandlers({
     const other = which === "ancestors" ? "descendants" : "ancestors";
     return showFractalTreePopup(tree, {
       which,
-      title: `Fractal tree of ${fullName(person)}'s ${noun}${person.wtid ? ` (${person.wtid})` : ""}`,
+      title: `Branches: ${fullName(person)}'s ${noun}${person.wtid ? ` (${person.wtid})` : ""}`,
       // Zooming into someone at the edge of what's loaded fetches the next generations of their branch.
       onExpand: (branchPerson) => loadFractalTree(branchPerson.wtid || branchPerson.id, which, FRACTAL_TREE_EXPAND_GENERATIONS[which]),
       // The header button turns the tree round: the same person's ancestors ⇄ descendants.
@@ -1716,10 +1782,10 @@ export function createChatPeopleHandlers({
     });
   }
 
-  /** A "Fractal tree" button for ancestor and descendant answers. */
+  /** A "Branches" chart button for ancestor and descendant answers. */
   function fractalTreeAction(key, which = "descendants") {
     return {
-      label: "Fractal tree",
+      label: "Branches",
       onClick: async () => {
         try {
           const tree = await loadFractalTree(key, which, FRACTAL_TREE_DEFAULT_GENERATIONS[which]);
@@ -1736,9 +1802,9 @@ export function createChatPeopleHandlers({
     const subjectPrompt = params?.subjectPrompt || prompt;
     const rootPerson = which === "ancestors" ? await resolveAncestorSubjectRoot(subjectPrompt) : await resolveDescendantSubjectRoot(subjectPrompt);
     if (rootPerson?.unresolvedName) {
-      return `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
+      return rootPerson.message || `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
     }
-    if (!rootPerson) return "I could not detect a profile person or your logged-in profile to draw a fractal tree for.";
+    if (!rootPerson) return "I could not detect a profile person or your logged-in profile to draw a Branches chart for.";
     const generations = Number(params?.generations) || FRACTAL_TREE_DEFAULT_GENERATIONS[which];
     try {
       const tree = await loadFractalTree(rootPerson.key, which, generations);
@@ -1749,25 +1815,31 @@ export function createChatPeopleHandlers({
       if (hasBranches) open();
       return {
         message: buildFractalTreeSummary(tree, owner, which),
-        actions: hasBranches ? [{ label: "Open fractal tree", onClick: open }] : [],
+        actions: hasBranches ? [{ label: "Open Branches chart", onClick: open }] : [],
         table: tableFromTree(`${owner} ${which}`, tree, which),
         chartOpened: hasBranches,
       };
     } catch (error) {
-      return `The fractal tree failed to load (${error?.message || error}).`;
+      return `The Branches chart failed to load (${error?.message || error}).`;
     }
   }
 
   // Family world (2026-10-03): the fractal tree's CC7-style version: the person
   // among their brothers and sisters, descendants nested inside; zooming out
   // brings both sets of parents' families; getPeople "nuclear" around whoever you zoom to.
-  const FAMILY_WORLD_FIELDS = `${FAN_CHART_FIELDS},Spouses,Meta`;
+  const FAMILY_WORLD_FIELDS = `${FAN_CHART_FIELDS},Spouses,Meta,IsLiving`;
 
   async function loadFamilyWorld(key) {
     const world = createFamilyWorld(key);
     const fetchAround = async (root, nuclear) => {
-      const [, , people] = await fetchPeoplePaged(WBE_CHAT_APP_ID, root, FAMILY_WORLD_FIELDS, { nuclear, limit: 1000 });
+      // (getPeople nuclear 2+ can leave out someone nuclear 1 has: live 2026-10-11, Weatherall-111's son
+      // Weatherall-110 came with nuclear=1 only; so the immediate family is asked for as well)
+      const [[, , people], [, , close]] = await Promise.all([
+        fetchPeoplePaged(WBE_CHAT_APP_ID, root, FAMILY_WORLD_FIELDS, { nuclear, limit: 1000 }),
+        nuclear > 1 ? fetchPeoplePaged(WBE_CHAT_APP_ID, root, FAMILY_WORLD_FIELDS, { nuclear: 1, limit: 1000 }) : [null, null, {}],
+      ]);
       mergeWorldPeople(world, people, { root, nuclear });
+      if (nuclear > 1) mergeWorldPeople(world, close, { root, nuclear: 1 });
       // Hidden profiles found while zooming get the same note as at the start, once.
       if (world.noteHiddenOnce) world.noteHiddenOnce();
     };
@@ -1779,7 +1851,7 @@ export function createChatPeopleHandlers({
     return world;
   }
 
-  function openFamilyWorld(world) {
+  function openFamilyWorld(world, view = "") {
     const focus = world.people.get(world.focusId) || {};
     const hiddenCount = () => [...world.people.values()].filter((person) => person?.hidden).length;
     let noted = hiddenCount() > 0;
@@ -1789,33 +1861,40 @@ export function createChatPeopleHandlers({
       noted = true;
       noteHiddenProfiles(hiddenCount());
     };
+    // (only a fetch that worked counts as tried: one that failed, say on WikiTree's bot check, is tried again)
+    // (after three failures it counts as tried too, so zooming out can go on without them)
+    const expand = (request) =>
+      world.fetchAround(request.id, FAMILY_WORLD_NUCLEAR.expand).then(
+        () => world.tried.add(request.id),
+        (error) => {
+          world.failedFetches = world.failedFetches || new Map();
+          const count = (world.failedFetches.get(request.id) || 0) + 1;
+          world.failedFetches.set(request.id, count);
+          if (count >= 3) world.tried.add(request.id);
+          throw error;
+        }
+      );
     return showFamilyWorldPopup(
       {
         build: () => buildFamilyWorldLayout(world),
-        // (only a fetch that worked counts as tried: one that failed, say on WikiTree's bot check, is tried again)
-        // (after three failures it counts as tried too, so zooming out can go on without them)
-        expand: (request) =>
-          world.fetchAround(request.id, FAMILY_WORLD_NUCLEAR.expand).then(
-            () => world.tried.add(request.id),
-            (error) => {
-              world.failedFetches = world.failedFetches || new Map();
-              const count = (world.failedFetches.get(request.id) || 0) + 1;
-              world.failedFetches.set(request.id, count);
-              if (count >= 3) world.tried.add(request.id);
-              throw error;
-            }
-          ),
+        expand,
+        // The Family and Galaxy views read the people themselves and fetch round whoever they move to.
+        raw: world,
+        load: (id) => expand({ id }),
         climb: (from) => climbFamilyScene(world, from),
         reroot: (root, anchorUid, nodes, how) => rerootFamilyScene(world, root, anchorUid, nodes, how),
         normalise: () => normaliseFamilyScene(world),
         home: () => startFamilyScene(world),
-        stats: () =>
-          `<strong>${world.people.size.toLocaleString()}</strong>people loaded so far · zoom into anyone for their children · zoom out for both sets of parents`,
+        describe: (root) => describeFamilyRoot(world, root),
+        // (how to move about is on the stage itself, different in each view; user: "'↑ Parents for theirs' … sounds like nonsense")
+        stats: () => `<strong>${world.people.size.toLocaleString()}</strong>people loaded so far · more load as you go`,
       },
       {
         title: `Family Explorer: ${fullName(focus)}${focus.wtid ? ` (${focus.wtid})` : ""}`,
         links: chartLinks("fan", "descendants", "timeline"),
         linkKey: focus.wtid || "",
+        view,
+        homeName: String(focus.name || "").trim(),
       }
     );
   }
@@ -1823,14 +1902,14 @@ export function createChatPeopleHandlers({
   async function tryHandleFamilyWorldPrompt(params, prompt = "") {
     const rootPerson = await resolveAncestorSubjectRoot(params?.subjectPrompt || prompt);
     if (rootPerson?.unresolvedName) {
-      return `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
+      return rootPerson.message || `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
     }
     if (!rootPerson) return "I could not detect a profile person or your logged-in profile to explore the family of.";
     try {
       const world = await loadFamilyWorld(rootPerson.key);
       if (!world.focusId) return cantLoad(rootPerson, "family");
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
-      const open = () => openFamilyWorld(world);
+      const open = () => openFamilyWorld(world, params?.view);
       open();
       return {
         message: buildFamilyWorldSummary(world, owner),
@@ -1868,7 +1947,7 @@ export function createChatPeopleHandlers({
   async function tryHandleDescendantMapPrompt(params, prompt = "") {
     const rootPerson = await resolveDescendantSubjectRoot(params?.descendantPrompt || prompt);
     if (rootPerson?.unresolvedName) {
-      return `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
+      return rootPerson.message || `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
     }
     if (!rootPerson) return "I could not detect a profile person or your logged-in profile to map the descendants of.";
     try {
@@ -1892,7 +1971,7 @@ export function createChatPeopleHandlers({
     if (params?.descendants) return tryHandleDescendantMapPrompt(params, prompt);
     const rootPerson = await resolveAncestorSubjectRoot(params?.ancestorPrompt || prompt);
     if (rootPerson?.unresolvedName) {
-      return `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
+      return rootPerson.message || `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
     }
     if (!rootPerson) return "I could not detect a profile person or your logged-in profile to map the ancestors of.";
     try {
@@ -2061,7 +2140,7 @@ export function createChatPeopleHandlers({
   async function tryHandleNameCloudPrompt(params, prompt = "") {
     const rootPerson = await resolveAncestorSubjectRoot(params?.ancestorPrompt || prompt);
     if (rootPerson?.unresolvedName) {
-      return `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
+      return rootPerson.message || `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
     }
     if (!rootPerson) return "I could not detect a profile person or your logged-in profile to gather the names of.";
     if (params?.familySize) {
@@ -2221,7 +2300,7 @@ export function createChatPeopleHandlers({
   async function tryHandleTreeOverviewPrompt(params, prompt = "") {
     const rootPerson = await resolveAncestorSubjectRoot(params?.ancestorPrompt || prompt);
     if (rootPerson?.unresolvedName) {
-      return `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
+      return rootPerson.message || `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
     }
     if (!rootPerson) return "I could not detect a profile person or your logged-in profile to sum up the tree of.";
     try {
@@ -2266,7 +2345,7 @@ export function createChatPeopleHandlers({
   async function tryHandleAgesPrompt(params, prompt = "") {
     const rootPerson = await resolveAncestorSubjectRoot(params?.ancestorPrompt || prompt);
     if (rootPerson?.unresolvedName) {
-      return `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
+      return rootPerson.message || `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
     }
     if (!rootPerson) return "I could not detect a profile person or your logged-in profile to chart the ages of.";
     try {
@@ -2316,7 +2395,7 @@ export function createChatPeopleHandlers({
   async function tryHandleFamilyCalendarPrompt(params, prompt = "") {
     const rootPerson = await resolveAncestorSubjectRoot(params?.ancestorPrompt || prompt);
     if (rootPerson?.unresolvedName) {
-      return `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
+      return rootPerson.message || `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
     }
     if (!rootPerson) return "I could not detect a profile person or your logged-in profile to make a family calendar for.";
     try {
@@ -2341,7 +2420,7 @@ export function createChatPeopleHandlers({
   async function tryHandleLifespansPrompt(params, prompt = "") {
     const rootPerson = await resolveAncestorSubjectRoot(params?.ancestorPrompt || prompt);
     if (rootPerson?.unresolvedName) {
-      return `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
+      return rootPerson.message || `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
     }
     if (!rootPerson) return "I could not detect a profile person or your logged-in profile to chart the ancestors of.";
     try {
@@ -2451,7 +2530,7 @@ export function createChatPeopleHandlers({
     }
     const people = `${count} profile${count === 1 ? "" : "s"}`;
     if (loggedIn === false) {
-      notify(`${people} show as "Private" because the WikiTree API doesn't know you're logged in (it has its own login). Use the green Apps button below, then open the chart again.`);
+      notify(`${people} show as "Private" because the WikiTree API doesn't know you're logged in (it has its own login). Use the Apps button below, then open the chart again.`);
     } else if (loggedIn) notify(`${people} show as "Private": their privacy settings hide them from you.`);
   }
 
@@ -2562,7 +2641,7 @@ export function createChatPeopleHandlers({
   async function tryHandleDescendantChartPrompt(params, prompt = "") {
     const rootPerson = await resolveDescendantSubjectRoot(params?.descendantPrompt || prompt);
     if (rootPerson?.unresolvedName) {
-      return `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
+      return rootPerson.message || `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
     }
     if (!rootPerson) return "I could not detect a profile person or your logged-in profile to draw a descendant chart for.";
     const generations = Number(params?.generations) || DESCENDANT_CHART_DEFAULT_GENERATIONS;
@@ -2636,11 +2715,13 @@ export function createChatPeopleHandlers({
 
   const CHART_MAKERS = {
     // mode: the fan chart's first colouring ("brickwalls" for brick-wall questions).
-    fan: (key, mode = "", label = "Fan chart") =>
+    // generations: more than the default, for a list that reaches further (up to 8).
+    fan: (key, mode = "", label = "Fan chart", generations = "") =>
       chartAction(label, async () => {
-        const slots = await loadFanSlots(key);
+        const depth = Math.min(FAN_CHART_MAX_GENERATIONS, Number(generations) || FAN_CHART_DEFAULT_GENERATIONS);
+        const slots = await loadFanSlots(key, depth);
         if (!slots[1]) return null;
-        return openFanChart(slots, FAN_CHART_DEFAULT_GENERATIONS, mode);
+        return openFanChart(slots, depth, mode);
       }),
     explorer: (key) =>
       chartAction("Family Explorer", async () => {
@@ -2695,7 +2776,7 @@ export function createChatPeopleHandlers({
     descmap: ["Map", "Where these descendants were born, on a world map"],
   };
   function chartLinks(...names) {
-    return names.map((name) => ({ label: CHART_LINKS[name][0], title: CHART_LINKS[name][1], open: (key) => VISUALS[name](key).onClick() }));
+    return names.map((name) => ({ key: name, label: CHART_LINKS[name][0], title: CHART_LINKS[name][1], open: (key) => VISUALS[name](key).onClick() }));
   }
 
   // Each button records which chart it opens, for whom, so chat history can rebuild it after a reload.
@@ -2919,16 +3000,36 @@ export function createChatPeopleHandlers({
       return buildRelativeFactAnswer([person], params?.fact, nameOf);
     }
     const { list, gender, grand } = relationSelector(params?.relationRaw);
-    const relativeFields = `Id,Name,RealName,Derived.ShortName,Gender,LastNameAtBirth,BirthDate,BirthLocation,DeathDate,DeathLocation${
+    const relativeFields = `Id,Name,FirstName,RealName,Derived.ShortName,Gender,LastNameAtBirth,BirthDate,BirthLocation,DeathDate,DeathLocation${
       list === "Spouses" ? ",marriage_date" : ""
     }`;
-    const [entry] = (await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, key, relativeFields, { [`get${list}`]: 1 })) || [];
-    const owner = entry?.person;
+    // "his wife's father": the first step's people are the owners of the second (2026-10-10)
+    let ownerKeys = key;
+    let viaOwner = null;
+    if (params?.via) {
+      const viaSelector = relationSelector(params.via);
+      const [viaEntry] = (await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, key, relativeFields, { [`get${viaSelector.list}`]: 1 })) || [];
+      viaOwner = viaEntry?.person;
+      if (!viaOwner) return cantLoad(key);
+      const viaPeople = Object.values(viaOwner[viaSelector.list] || {}).filter(
+        (person) => !viaSelector.gender || person?.Gender === viaSelector.gender
+      );
+      if (!viaPeople.length) return `WikiTree has no ${params.via} recorded for ${nameOf(viaOwner)}.`;
+      ownerKeys = viaPeople.map((person) => person.Id);
+    }
+    const entries = (await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, ownerKeys, relativeFields, { [`get${list}`]: 1 })) || [];
+    const owner = entries[0]?.person;
     if (!owner) return cantLoad(key);
-    let relatives = Object.values(owner[list] || {});
+    const relativesById = new Map();
+    entries.forEach((item) => Object.values(item?.person?.[list] || {}).forEach((relative) => relativesById.set(String(relative?.Id), relative)));
+    let relatives = [...relativesById.values()];
     if (grand) {
       // Two steps along the same list: children's children, parents' parents (N4).
-      const stepIds = relatives.map((relative) => relative?.Id).filter(Boolean);
+      // ("paternal grandfather": only the father's side)
+      const stepIds = relatives
+        .filter((relative) => !params?.side || relative?.Gender === params.side)
+        .map((relative) => relative?.Id)
+        .filter(Boolean);
       const grandItems = stepIds.length
         ? (await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, stepIds, relativeFields, { [`get${list}`]: 1 })) || []
         : [];
@@ -2940,6 +3041,35 @@ export function createChatPeopleHandlers({
     }
     let people = relatives.filter((person) => !gender || person?.Gender === gender);
     if (params?.ordinal && list === "Spouses") people = pickSpouseByOrdinal(people, params.ordinal);
+    // (with a via step, owner is that step's person: "Mary's father", not "Mary's wife's father")
+    const relationWord = String(params?.relationRaw || "relative");
+    // "his son John"
+    if (params?.named) {
+      const wanted = String(params.named).toLowerCase();
+      people = people.filter((person) =>
+        [person?.FirstName, person?.RealName, String(person?.Derived?.ShortName || person?.ShortName || "").split(/\s+/)[0]].some(
+          (name) => String(name || "").toLowerCase() === wanted
+        )
+      );
+      if (!people.length) return `WikiTree has no ${relationWord} called ${params.named} recorded for ${nameOf(owner)}.`;
+    }
+    // "her eldest daughter", "his second son", "his youngest brother": by birth date
+    if (params?.rank) {
+      const dated = people
+        .filter((person) => person?.BirthDate && !/^0000/.test(person.BirthDate))
+        .sort((a, b) => String(a.BirthDate).localeCompare(String(b.BirthDate)));
+      if (dated.length < people.length) {
+        return `Not all of ${nameOf(owner)}'s ${relationWord.replace(/s?$/, "s")} have a birth date recorded, so I can't tell which is the ${
+          params.rank === "last" ? "youngest" : params.rank === 1 ? "eldest" : `number ${params.rank} by age`
+        }.`;
+      }
+      const picked = params.rank === "last" ? dated[dated.length - 1] : dated[params.rank - 1];
+      people = picked ? [picked] : [];
+    }
+    if (params?.fact === "ageAtOwnerBirth") {
+      if (!people.length) return `WikiTree has no ${relationWord} recorded for ${nameOf(owner)}.`;
+      return buildAgeAtOwnerBirthAnswer(owner, people, nameOf);
+    }
     if (params?.fact === "ageAtDeath" || params?.fact === "ageGap") {
       if (!people.length) return `WikiTree has no ${params?.ordinal ? "such " : ""}${String(params?.relationRaw || "relative")} recorded for ${nameOf(owner)}.`;
       return params.fact === "ageAtDeath" ? buildRelativeAgeAtDeathAnswer(people, nameOf) : buildAgeGapAnswer(owner, people, nameOf);
@@ -3035,7 +3165,7 @@ export function createChatPeopleHandlers({
     const relationshipLabel = String(params?.relationshipLabel || `${generation} generations back`).trim();
     const rootPerson = await resolveAncestorSubjectRoot(prompt);
     if (rootPerson?.unresolvedName) {
-      return `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123, or a more specific name.`;
+      return rootPerson.message || `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123, or a more specific name.`;
     }
     if (!rootPerson) {
       return "I could not detect a profile person or your logged-in profile to use as the starting point.";
@@ -3170,7 +3300,7 @@ export function createChatPeopleHandlers({
       : prompt;
     const rootPerson = await resolveAncestorSubjectRoot(params?.subjectText || subjectPrompt);
     if (rootPerson?.unresolvedName) {
-      return `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123, or a more specific name.`;
+      return rootPerson.message || `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123, or a more specific name.`;
     }
     if (!rootPerson) {
       return "I could not detect a profile person or your logged-in profile to use as the starting point.";
@@ -3520,7 +3650,7 @@ export function createChatPeopleHandlers({
       : baseDisplayRelationshipLabel;
     const rootPerson = await resolveDescendantSubjectRoot(params?.subjectText || prompt);
     if (rootPerson?.unresolvedName) {
-      return `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123, or a more specific name.`;
+      return rootPerson.message || `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123, or a more specific name.`;
     }
     if (!rootPerson) {
       return "I could not detect a profile person or your logged-in profile to use as the starting point.";
@@ -3769,19 +3899,28 @@ export function createChatPeopleHandlers({
       return null;
     }
 
-    const rootProfile = getProfileRootPerson();
+    // "how am I connected to the Coker family": from you; otherwise the person being asked about.
+    const rootProfile = params?.root === "user" ? await getLoggedInRootPerson() : getProfileRootPerson();
     if (!rootProfile) {
-      return "This query needs an open profile page so I can use the current profile person as the starting point.";
+      return params?.root === "user"
+        ? "I couldn't tell who you are: make sure you're logged in to WikiTree."
+        : "Open a profile, or choose someone in the About box, and I'll search their CC7 for that surname.";
     }
 
     try {
       const cc7Profiles = await getCc7ProfilesForUser(rootProfile.key);
-      const familyNeedle = normalizeSurname(familyName);
+      // "Bexar or Coker": any of them (Elaine, 2026-10-11).
+      const familyNeedles = new Set(
+        familyName
+          .split(/\s*(?:,|\bor\b|\band\b|\/)\s*/i)
+          .map((name) => normalizeSurname(name))
+          .filter(Boolean)
+      );
       const matches = cc7Profiles
         .filter((profile) => {
           const lastNameAtBirth = normalizeSurname(profile.LastNameAtBirth);
           const lastNameCurrent = normalizeSurname(profile.LastNameCurrent);
-          return lastNameAtBirth === familyNeedle || lastNameCurrent === familyNeedle;
+          return familyNeedles.has(lastNameAtBirth) || familyNeedles.has(lastNameCurrent);
         })
         .map((profile) =>
           mapApiPersonToStandardRow(profile, {
@@ -3792,7 +3931,19 @@ export function createChatPeopleHandlers({
         .sort((left, right) => left.degrees - right.degrees || left.displayName.localeCompare(right.displayName));
 
       if (!matches.length) {
-        return `I found no CC7 matches for the ${familyName} family from ${rootProfile.displayName} (${rootProfile.wtId}).`;
+        // Say how far it looked, and that signing in may show more (Elaine's Coker search, 2026-10-11).
+        let signInHint = "";
+        try {
+          if (!(await WikiTreeAPI.isLoggedIntoAPI(getUserNumId(), WBE_CHAT_APP_ID))) {
+            signInHint =
+              " Private profiles are hidden: sign in with the Apps button below, then open a new page and ask again.";
+          }
+        } catch (error) {
+          // (unknown: say nothing about signing in)
+        }
+        return `None of the ${cc7Profiles.length.toLocaleString()} people I can see within 7 degrees of ${
+          rootProfile.displayName
+        } (${rootProfile.wtId}) has the surname ${familyName}.${signInHint}`;
       }
 
       const closestDegree = matches[0].degrees;

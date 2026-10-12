@@ -7,6 +7,7 @@ import { canonicalChartObjectOwner as canonicalOwner } from "./chat_chart_prompt
 
 import { generationOfSlot } from "./chat_fan_chart_data";
 import { fullName } from "./chat_chart_common";
+import { RELATIVE_OWNER } from "./chat_chart_owner";
 
 export const FRACTAL_TREE_DEFAULT_GENERATIONS = { descendants: 6, ancestors: 8 };
 export const FRACTAL_TREE_MAX_GENERATIONS = 10;
@@ -14,7 +15,7 @@ export const FRACTAL_TREE_MAX_GENERATIONS = 10;
 // (descendants fan out much faster than ancestors' 2^n).
 export const FRACTAL_TREE_EXPAND_GENERATIONS = { descendants: 3, ancestors: 7 };
 
-const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
+const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const OWNER_AFTER = String.raw`(me|her|him|them|this\s+(?:profile|person)|[A-Z][A-Za-z'_ -]*?-\d+)`;
 const TREE = String.raw`(?:fractal\s+(?:family\s+|ancestor\s+|ancestry\s+|descendant\s+)?(?:tree|chart)|onezoom(?:\s+(?:style\s+)?(?:tree|chart))?|zoom(?:able|ing)\s+(?:family\s+)?tree)`;
 const KIN = String.raw`(ancestors|descendants|family)`;
@@ -130,9 +131,11 @@ export const NESTED_GEOMETRY = {
   trunkBase: 0.34, // y of the trunk's foot (below centre is +y)
   fork: 0.1, // y of the fork
   arcRadius: 0.5, // children's centres, measured from the fork
-  maxChildRadius: 0.34,
-  onlyChildRadius: 0.42,
-  margin: 0.95, // children stay inside this radius
+  // (bigger than at first, so a family fills its circle; user, 2026-10-11: "Still not pretty")
+  maxChildRadius: 0.4,
+  onlyChildRadius: 0.48,
+  margin: 0.96, // children stay inside this radius
+  labelTop: 0.47, // and above this, where the circle's own name begins
 };
 
 /**
@@ -158,10 +161,41 @@ export function placeChildren(weights) {
     const dx = Math.sin(mid) * arcRadius;
     const dy = g.fork - Math.cos(mid) * arcRadius;
     const room = g.margin - Math.sqrt(dx * dx + dy * dy);
-    const neighbour = n === 1 ? Infinity : arcRadius * Math.sin(part / 2) * 0.94;
-    const r = Math.max(0.012, Math.min(n === 1 ? g.onlyChildRadius : g.maxChildRadius, neighbour, room));
+    const neighbour = n === 1 ? Infinity : arcRadius * Math.sin(part / 2) * 0.98;
+    const r = Math.max(0.012, Math.min(n === 1 ? g.onlyChildRadius : g.maxChildRadius, neighbour, room, g.labelTop - dy));
     return { dx: round(dx), dy: round(dy), r: round(r), angle: mid };
   });
+}
+
+/**
+ * A band (both sets of parents, with the couple between them): the families side by side across the
+ * middle, as big as fits above the band's name (user, 2026-10-11: the lower half was left empty).
+ */
+export function placeBand(weights) {
+  const n = weights.length;
+  if (!n) return [];
+  const g = NESTED_GEOMETRY;
+  const shares = weights.map((w) => Math.sqrt(w));
+  const gap = 0.03;
+  // (the row sits a little above the middle, and each circle as low as the name allows)
+  const rowY = -0.04;
+  let k = 0.46 / Math.max(...shares);
+  for (let tries = 0; tries < 200; tries++) {
+    const radii = shares.map((share) => Math.max(0.012, Math.min(0.46, share * k)));
+    const width = radii.reduce((sum, r) => sum + r * 2, 0) + gap * (n - 1);
+    let x = -width / 2;
+    const spots = radii.map((r) => {
+      const dx = x + r;
+      x += r * 2 + gap;
+      const dy = Math.min(rowY, g.labelTop - r);
+      return { dx, dy, r };
+    });
+    if (spots.every((spot) => Math.hypot(spot.dx, spot.dy) + spot.r <= g.margin) || tries === 199) {
+      return spots.map((spot) => ({ dx: round(spot.dx), dy: round(spot.dy), r: round(spot.r), angle: Math.atan2(spot.dx, g.fork - spot.dy) }));
+    }
+    k *= 0.97;
+  }
+  return [];
 }
 
 /**
@@ -194,7 +228,7 @@ export function buildFractalLayout(root) {
     nodes.push(node);
     // Each child's share is fixed the first time it's laid out, so when a branch
     // grows (more generations load) everything already on screen stays put.
-    const spots = placeChildren(
+    const spots = (tree.kind === "band" ? placeBand : placeChildren)(
       tree.children.map((child) => {
         if (child.layoutWeight === undefined) child.layoutWeight = child.weight;
         return child.layoutWeight;
@@ -211,15 +245,15 @@ export function buildFractalLayout(root) {
   return { nodes };
 }
 
-/** "Ellen's fractal tree holds 212 descendants over 6 generations; 140 lines end in a leaf." */
+/** "Ellen's Branches chart holds 212 descendants over 6 generations; 140 lines end in a leaf." */
 export function buildFractalTreeSummary(tree, ownerText, which = "descendants") {
-  if (!tree?.person) return `${ownerText} fractal tree couldn't be drawn.`;
+  if (!tree?.person) return `${ownerText} Branches chart couldn't be drawn.`;
   countPeople(tree);
   const people = tree.weight - 1;
   if (!people) {
     return which === "ancestors"
-      ? `${ownerText} fractal tree has no branches yet: no parents are recorded on WikiTree.`
-      : `${ownerText} fractal tree has no branches yet: no children are recorded on WikiTree.`;
+      ? `${ownerText} Branches chart has nothing to show yet: no parents are recorded on WikiTree.`
+      : `${ownerText} Branches chart has nothing to show yet: no children are recorded on WikiTree.`;
   }
   let deepest = 0;
   let leaves = 0;
@@ -239,9 +273,9 @@ export function buildFractalTreeSummary(tree, ownerText, which = "descendants") 
   const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
   if (hasFrontier(tree)) {
     // Only part of the tree is loaded (ancestors can run to millions), so no grand total.
-    return `${ownerText} fractal tree starts with ${plural(people, noun)} over ${plural(deepest, "generation")}, and some lines go further.${family} Zoom into anyone to see their family inside their circle; more generations load as you go.`;
+    return `${ownerText} Branches chart starts with ${plural(people, noun)} over ${plural(deepest, "generation")}, and some lines go further.${family} Zoom into anyone to see their family inside their circle; more generations load as you go.`;
   }
-  return `${ownerText} fractal tree holds ${plural(people, noun)} over ${plural(deepest, "generation")}; ${leaves} line${
+  return `${ownerText} Branches chart holds ${plural(people, noun)} over ${plural(deepest, "generation")}; ${leaves} line${
     leaves === 1 ? " ends" : "s end"
   } in a leaf.${family} Zoom into anyone to see their family inside their circle.`;
 }

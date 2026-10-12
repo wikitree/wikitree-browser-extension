@@ -1,4 +1,5 @@
 import { preferBracketedIds } from "./chat_family_circle_lookup";
+import { ordinal } from "./chat_text_utils";
 import { parseFamilyMatrixPrompt } from "./chat_family_matrix_data";
 /*
 Intent router for Chat feature.
@@ -130,7 +131,7 @@ const RESULT_FIELD_ALIASES = {
   "birth century": "birthCentury",
 };
 
-import { getProfilePersonInfo } from "../../core/common";
+import { getFocusPersonInfo } from "./chat_focus_person";
 
 // getPeople returns up to 25 generations of ancestors. A prompt with no number
 // uses the default, which stays at 10 because deep trees page slowly.
@@ -301,7 +302,10 @@ function parseWatchlistPrompt(prompt) {
     return { mode: "list", limit: null, filter: filtered };
   }
 
+  // "refresh my watchlist": read it again rather than use the kept copy (2026-10-10)
+  const refresh = /^\s*(?:refresh|reload|re-?read|update)\s+(?:my\s+)?watch\s*list\s*$/i.test(normalizedClean);
   const isWatchlistPrompt =
+    refresh ||
     /^\s*(?:my\s+)?watch\s*list\s*$/i.test(normalizedClean) ||
     /^\s*(?:show|list|open|get)\s+(?:me\s+)?(?:my\s+)?watch\s*list(?:\s+.*)?\s*$/i.test(normalizedClean);
 
@@ -316,6 +320,7 @@ function parseWatchlistPrompt(prompt) {
   return {
     mode: "list",
     limit,
+    ...(refresh ? { refresh: true } : {}),
   };
 }
 
@@ -327,7 +332,7 @@ const RELATION_WORDS_RE =
 // they already take ("list her children") keep their route. A his/her/she owner
 // is the profile person; spouse words keep SPOUSE_LIST.
 function pronounOwnerToProfile(owner) {
-  const name = getProfilePersonInfo()?.Name || "";
+  const name = getFocusPersonInfo()?.Name || "";
   return /^(?:she|he|they|her|him|them|his|their)$/i.test(owner) && name ? name : owner;
 }
 
@@ -338,12 +343,35 @@ function parseLateRelationPrompt(prompt) {
   const isPlainRelation = (text) =>
     (RELATION_WORDS_RE.test(String(text).trim()) || Boolean(parseCousinRelationRequest(text))) &&
     !/^(?:wives|wife|husbands?|spouses?)$/i.test(String(text).trim());
-  const profileName = getProfilePersonInfo()?.Name || "";
+  const profileName = getFocusPersonInfo()?.Name || "";
   const pronounOwnerMatch = normalized.match(
     /^(?:(?:who|what)\s+(?:are|were|was|is)\s+|list\s+|show(?:\s+me)?\s+|tell\s+me\s+)?(?:his|her|their)\s+(.+)$/i
   );
   if (pronounOwnerMatch?.[1] && isPlainRelation(pronounOwnerMatch[1]) && profileName) {
     return { mode: "list", relationRaw: pronounOwnerMatch[1].trim(), subjectMode: "named", subjectName: profileName };
+  }
+  // "my parents", "Lincoln-103's parents", "parents of Lincoln-103": a lookup on the WikiTree API,
+  // not a WT+ search (live, 2026-10-11: these went to the AI, which chose WT+). A plain name
+  // is looked up by the code that finds people by name.
+  const lead = /^(?:(?:who|what)\s+(?:are|were|was|is)\s+|list\s+|show(?:\s+me)?\s+|tell\s+me\s+)?(?:the\s+)?/i;
+  const rest = normalized.replace(lead, "");
+  const myMatch = rest.match(/^(?:my|our)\s+(.+)$/i);
+  if (myMatch?.[1] && isPlainRelation(myMatch[1])) {
+    return { mode: "list", relationRaw: myMatch[1].trim(), subjectMode: "user" };
+  }
+  // (or a capitalised name, "Abraham Lincoln's parents", as "who were Abraham Lincoln's parents?" already is:
+  // with AI off it became a WT+ query, Location="Abraham Lincoln's"; live, 2026-10-11)
+  const idPossessiveMatch =
+    rest.match(/^([\p{L}][\p{L}\p{M}'_ -]*-\d+)['’]s\s+(.+)$/iu) ||
+    rest.match(/^(\p{Lu}[\p{L}\p{M}.-]*(?:\s+\p{Lu}[\p{L}\p{M}.-]*){0,3})['’]s\s+(.+)$/u);
+  const idOfMatch = rest.match(/^(.+?)\s+of\s+([\p{L}][\p{L}\p{M}'_ -]*-\d+)$/iu);
+  const [idOwner, idRelation] = idPossessiveMatch ? [idPossessiveMatch[1], idPossessiveMatch[2]] : idOfMatch ? [idOfMatch[2], idOfMatch[1]] : [];
+  if (idOwner && isPlainRelation(idRelation)) {
+    return { mode: "list", relationRaw: idRelation.trim(), subjectMode: "named", subjectName: idOwner.trim() };
+  }
+  // "Who were the grandparents?": the person being asked about, as bare "grandparents" is.
+  if (rest !== normalized && isPlainRelation(rest)) {
+    return { mode: "list", relationRaw: rest.trim(), subjectMode: "contextual" };
   }
   const pastPossessiveMatch = normalized.match(/^(?:who|what)\s+(?:were|was|is)\s+(.+?)['’]s\s+(.+)$/i);
   if (pastPossessiveMatch?.[1] && pastPossessiveMatch?.[2] && isPlainRelation(pastPossessiveMatch[2])) {
@@ -514,7 +542,7 @@ function parseRelationPrompt(prompt) {
     .replace(/s['’](?=\s)/g, "s's")
     .replace(NIECE_NEPHEW_RE, nieceNephewToChain);
   const pronounChain = chainPrompt.match(/^(?:his|her|their)\s+([A-Za-z ]+?)['’]s\s+(.+?)\??$/i);
-  const pronounChainProfile = getProfilePersonInfo()?.Name || "";
+  const pronounChainProfile = getFocusPersonInfo()?.Name || "";
   const barePossessiveChainMatch =
     pronounChain && pronounChainProfile && RELATION_WORD_REGEX.test(pronounChain[1].trim())
       ? [chainPrompt, pronounChainProfile, `${pronounChain[1].trim()}'s ${pronounChain[2]}`]
@@ -876,7 +904,7 @@ export function findPageContextPersonCandidate(target) {
   const targetParts = splitPersonName(cleanedTarget);
   const deduped = new Map();
 
-  const profilePerson = getProfilePersonInfo();
+  const profilePerson = getFocusPersonInfo();
   if (profilePerson?.Name) {
     const profileCandidate = {
       wtId: profilePerson.Name,
@@ -1083,14 +1111,33 @@ function parseProfileFamilyConnectionPrompt(prompt) {
   const match = prompt.match(
     /(?:find\s+)?(?:the\s+)?closest\s+connection\s+between\s+(the\s+)?(profile\s+person|current\s+profile|this\s+profile)\s+and\s+(?:the\s+)?(.+?)(?:\s+family)?\??$/i
   );
-  if (!match?.[3]) {
-    return null;
+  if (match?.[3]) {
+    return {
+      familyName: match[3].trim(),
+      root: "profile",
+    };
   }
-
-  return {
-    familyName: match[3].trim(),
-    root: "profile",
-  };
+  // Elaine (2026-10-11, finding projects for new surname pages): "what's the most closely connected person
+  // with the surname bexar or coker?" The CC7 search answers it; it needs a surname word ("surname",
+  // "named", "family") so "nearest ancestor born in Kent" isn't one.
+  const closest = String(prompt || "")
+    .trim()
+    .replace(/[?.!]+$/, "")
+    .match(
+      /^(?:(?:who|what)(?:'s|\s+is|\s+are)\s+|find\s+|show\s+(?:me\s+)?)?(?:the\s+)?(?:most\s+closely|closest|nearest)\s+(?:(?:connected|related)\s+)?(?:(?:person|people|relative|relatives|profile|profiles|one|connection|cousin)\s+)?(.+)$/i
+    );
+  const rest = closest?.[1] || "";
+  const named =
+    rest.match(/^(?:with|having)\s+(?:the\s+)?(?:sur|last\s+)names?\s+(?:of\s+)?(.+)$/i) ||
+    rest.match(/^(?:named|called|surnamed)\s+(.+)$/i) ||
+    rest.match(/^(?:(?:to|of|from|in)\s+)?(?:the\s+)?(.+?)\s+famil(?:y|ies)$/i);
+  const names = String(named?.[1] || "")
+    .replace(/\s+(?:to|from|of|in)\s+(?:this|the|my)\s+(?:profile|person|tree|page)$/i, "")
+    .replace(/^the\s+/i, "")
+    .trim();
+  if (!names || names.split(/\s*(?:,|\bor\b|\band\b|\/)\s*/i).some((name) => !/^\p{L}[\p{L}\p{M}'’ -]*$/u.test(name))) return null;
+  const display = names.replace(/\p{L}[\p{L}\p{M}'’-]*/gu, (word) => (/^(?:or|and)$/i.test(word) ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1)));
+  return { familyName: display, root: /\b(?:I|me|my)\b/i.test(prompt) ? "user" : "profile" };
 }
 
 // D13 "average lifespan of my ancestors": the planner turned it into one
@@ -1508,9 +1555,7 @@ function parseAncestorListPrompt(prompt) {
     if (Number.isFinite(greatCount) && greatCount >= 1) {
       return {
         generation: greatCount + 2,
-        relationshipLabel: `${greatCount}${
-          greatCount === 1 ? "st" : greatCount === 2 ? "nd" : greatCount === 3 ? "rd" : "th"
-        } great-grandparents`,
+        relationshipLabel: `${ordinal(greatCount)} great-grandparents`,
       };
     }
   }
@@ -1553,8 +1598,12 @@ function parseDescendantListPrompt(prompt) {
     .trim();
   const defaultDescendantGeneration = 10;
   if (/\bliving\b/i.test(normalized)) {
-    const rest = normalized.replace(/\bliving\s+/i, "").replace(/^(?:who|which)(?:\s+(?:are|is))?\s+/i, "");
-    const base = parseDescendantListPrompt(rest);
+    // ("…still living" ends in the word: strip it there too, or this recursed forever)
+    const rest = normalized
+      .replace(/\bliving\b\s*/i, "")
+      .replace(/^(?:who|which)(?:\s+(?:are|is))?\s+/i, "")
+      .trim();
+    const base = rest && rest !== normalized ? parseDescendantListPrompt(rest) : null;
     if (base) return { ...base, livingOnly: true };
   }
 
@@ -1741,9 +1790,7 @@ function parseDescendantListPrompt(prompt) {
     if (Number.isFinite(greatCount) && greatCount >= 1) {
       return {
         generation: greatCount + 2,
-        relationshipLabel: `${greatCount}${
-          greatCount === 1 ? "st" : greatCount === 2 ? "nd" : greatCount === 3 ? "rd" : "th"
-        } great-grandchildren`,
+        relationshipLabel: `${ordinal(greatCount)} great-grandchildren`,
       };
     }
   }
@@ -2078,7 +2125,8 @@ function parseLastResultPrompt(prompt, options = {}) {
   if (bornInMatch?.[1]) {
     const bornInValue = bornInMatch[1].trim();
     const exactYearBorn = bornInValue.match(/^(\d{4})$/);
-    const decadeBorn = bornInValue.match(/^(\d{3}0)s$/);
+    // ("the 1850s" too: it was read as a birth place, 0 rows, live 2026-10-10)
+    const decadeBorn = bornInValue.match(/^(?:the\s+)?(\d{3}0)'?s$/i);
     if (exactYearBorn) {
       return {
         action: "filter",
@@ -2099,7 +2147,7 @@ function parseLastResultPrompt(prompt, options = {}) {
     if (followupBornInMatch?.[1]) {
       const bornVal = followupBornInMatch[1].trim();
       const exactYear = bornVal.match(/^(\d{4})$/);
-      const decadeVal = bornVal.match(/^(\d{3}0)s$/);
+      const decadeVal = bornVal.match(/^(?:the\s+)?(\d{3}0)'?s$/i);
       if (exactYear) {
         return {
           action: "filter",
@@ -2355,7 +2403,7 @@ function parseSpousePrompt(prompt) {
   if (ordinalMatch?.[1]) {
     const rawTarget = ordinalMatch[1].trim();
     const isPronoun = /^(?:her|his|their|this\s+person|the\s+profile\s+person)$/i.test(rawTarget);
-    const target = isPronoun ? getProfilePersonInfo()?.Name || "" : rawTarget.replace(/(?:'s|’s)$/, "");
+    const target = isPronoun ? getFocusPersonInfo()?.Name || "" : rawTarget.replace(/(?:'s|’s)$/, "");
     if (!target || (!isPronoun && !/(?:'s|’s)\s/.test(ordinalMatch[0]) && !/-\d+$/.test(target))) return null;
     const word = ordinalMatch[3].toLowerCase();
     return {
@@ -2396,11 +2444,11 @@ function parseSpousePrompt(prompt) {
 
   // "her husband", "his wives" (E12 neighbour, 2026-10-03: fell to the AI).
   const pronounSpouseMatch = normalized.match(/^\s*(?:her|his|their)\s+(wives|wife|husbands|husband|spouses|spouse)\??$/i);
-  if (pronounSpouseMatch?.[1] && getProfilePersonInfo()?.Name) {
+  if (pronounSpouseMatch?.[1] && getFocusPersonInfo()?.Name) {
     const word = pronounSpouseMatch[1].toLowerCase();
     return {
       gender: /^wi/.test(word) ? "Female" : /^husband/.test(word) ? "Male" : null,
-      target: getProfilePersonInfo().Name,
+      target: getFocusPersonInfo().Name,
       relationshipLabel: /^wi/.test(word) ? "wives" : /^husband/.test(word) ? "husbands" : "spouses",
     };
   }
@@ -2992,6 +3040,15 @@ function routeChatPromptUnchecked(prompt, options = {}) {
   }
 
   const connectionEndpoints = extractConnectionEndpoints(prompt);
+  // "closest connection to the Coker family": a surname in the CC7, not a person called "the Coker family".
+  const familyTarget = String(connectionEndpoints?.target || "").match(/^(?:the\s+)?(\p{L}[\p{L}\p{M}'’-]*)\s+famil(?:y|ies)$/u);
+  if (familyTarget && !connectionEndpoints.source) {
+    const name = familyTarget[1];
+    return {
+      intent: ChatIntent.PROFILE_FAMILY_CONNECTION,
+      params: { familyName: name.charAt(0).toUpperCase() + name.slice(1), root: /\b(?:I|me|my)\b/i.test(prompt) ? "user" : "profile" },
+    };
+  }
   if (connectionEndpoints?.target) {
     return {
       intent: ChatIntent.CONNECTION_LOOKUP,

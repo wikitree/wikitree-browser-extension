@@ -1,4 +1,4 @@
-import { createLastResultOperationHandler } from "./chat_last_result";
+import { createLastResultOperationHandler, isUnaskedEmptyResultFilter } from "./chat_last_result";
 
 function createRows(count, overrides = {}) {
   return Array.from({ length: count }, (_, index) => ({
@@ -234,5 +234,20 @@ describe("M3 open-ended year ranges become table bounds", () => {
     expect(result.message).toBe('I opened the current result set in a table with the Birth column filter set to "< 1885". 1 of 2 rows match.');
     const after = await handler({ action: "filter", filter: { kind: "birthYearRange", start: 1885, end: "" } });
     expect(after.message).toMatch(/"> 1884"/);
+  });
+});
+
+describe("isUnaskedEmptyResultFilter (live, 2026-10-11)", () => {
+  const none = "No rows matched this filter in the current result set: text contains Smith Devon 1850s.";
+  test("a new search the planner made a filter goes on", () => {
+    expect(isUnaskedEmptyResultFilter(none, "Smiths born in Devon in the 1850s")).toBe(true);
+    expect(isUnaskedEmptyResultFilter({ message: none }, "Robinsons born in Devon 1850-1899")).toBe(true);
+  });
+  test("a filter the prompt asked for stays", () => {
+    expect(isUnaskedEmptyResultFilter(none, "only those born in Devon")).toBe(false);
+    expect(isUnaskedEmptyResultFilter(none, "which of them were born in the 1850s?")).toBe(false);
+  });
+  test("other answers stay", () => {
+    expect(isUnaskedEmptyResultFilter("Filtered the current result set down to 2 rows", "Smiths in Devon")).toBe(false);
   });
 });

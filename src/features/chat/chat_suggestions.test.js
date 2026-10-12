@@ -16,7 +16,7 @@ describe("AI follow-up suggestions", () => {
     ["show Weatherall-111's ancestors", "show Weatherall-111's ancestors"],
     ["show Weatherall-111's family tree chart", "show Weatherall-111's family tree chart"],
     ["show John Theodore Weatherall's (Weatherall-113) bio", "show Weatherall-113's bio"],
-    ["Weatherall-111's siblings", "show Weatherall-111's siblings"],
+    ["Weatherall-111's siblings", "Weatherall-111's siblings"],
     ["Weatherall-111's sources", "show Weatherall-111's sources"],
     ["show Weatherall-113's parents", "show Weatherall-113's parents"],
     ["Weatherall-111 fan chart", "Weatherall-111 fan chart"],

@@ -17,21 +17,104 @@ const FACT_WORDS = [
   // H1 (live, 2026-10-03): "what was her husband's name?" went to the AI, which
   // answered about someone from an earlier result.
   { fact: "name", re: /^(?:(?:full|first|given)\s+)?names?$/i },
+  // "his mother's dates", "her father's birth and death"
+  { fact: "dates", re: /^(?:(?:life\s*)?dates|life\s*spans?|birth\s+and\s+death(?:\s+dates)?|dates\s+of\s+birth\s+and\s+death)$/i },
 ];
 
+// More ways of asking (user, 2026-10-10: "we want to be able to answer this about their family members"):
+// "his son John", "her eldest daughter", "his paternal grandfather", "his wife's father", "his dad",
+// "when did his mother pass away", "where was his father from", "what year…", "which town…",
+// "when and where…", "birthplace of his mother", "his mother's dates".
+const QUALIFIER = String.raw`(?:(?<qual>eldest|oldest|youngest|paternal|maternal|first|second|third|fourth|1st|2nd|3rd|4th|last)\s+)?`;
+const CHAIN =
+  String.raw`(?:${RELATION.replace(/^\(/, "(?<via>")}(?:'s|’s)\s+)?` +
+  QUALIFIER +
+  RELATION.replace(/^\(/, "(?<rel>") +
+  String.raw`(?:\s+(?<named>[A-Z][A-Za-z'-]+))?`;
+const NAMED_OWNER = OWNER.replace(/^\(/, "(?<owner>");
+const ASK_PLACE = String.raw`where|(?:in\s+)?(?:what|which)\s+(?:town|village|city|place|parish|county|country|state|province)`;
+const ASK_DATE = String.raw`when|(?:in\s+)?what\s+year|(?:on\s+)?what\s+(?:date|day)`;
 const PATTERNS = [
-  // "what was her mother's maiden name", "what is Cook-8721's father's birth date"
+  // "what was her mother's maiden name", "what is Cook-8721's father's birth date", "his son John's birthplace"
   {
-    re: new RegExp(String.raw`^(?:what\s+(?:was|is|were|are)\s+)?${OWNER}\s+${RELATION}(?:'s|’s|'|’)\s+(.+)$`, "i"),
-    fact: (m) => FACT_WORDS.find((entry) => entry.re.test(m[3].trim()))?.fact || "",
+    re: new RegExp(String.raw`^(?:what\s+(?:was|is|were|are)\s+)?${NAMED_OWNER}\s+${CHAIN}(?:'s|’s|'|’)\s+(?<factText>.+)$`, "i"),
+    fact: (g) => FACT_WORDS.find((entry) => entry.re.test(g.factText.trim()))?.fact || "",
   },
-  // "when was her husband born", "where did his father die"
+  // "the birthplace of his mother", "date of death of her husband"
   {
-    re: new RegExp(String.raw`^(when|where)\s+(?:was|were|did)\s+${OWNER}\s+${RELATION}\s+(born|die)$`, "i"),
-    fact: (m) => (/^born$/i.test(m[4]) ? (/^where$/i.test(m[1]) ? "birthPlace" : "birth") : /^where$/i.test(m[1]) ? "deathPlace" : "death"),
-    shift: true,
+    re: new RegExp(String.raw`^(?:what\s+(?:was|is|were|are)\s+)?(?:the\s+)?(?<factText>[a-z ]+?)\s+of\s+${NAMED_OWNER}\s+${CHAIN}$`, "i"),
+    fact: (g) => FACT_WORDS.find((entry) => entry.re.test(g.factText.trim()))?.fact || "",
+  },
+  // "when was her husband born", "where did his father die", "when did his mother pass away",
+  // "when and where was his son John born", "in what year did her mother die", "which county was his dad born in"
+  {
+    re: new RegExp(
+      String.raw`^(?<ask>when\s+and\s+where|where\s+and\s+when|${ASK_PLACE}|${ASK_DATE})\s+(?:was|were|did)\s+${NAMED_OWNER}\s+${CHAIN}\s+(?<verb>born|die|pass\s+away|pass|come\s+from)(?:\s+in)?$`,
+      "i"
+    ),
+    fact: (g) => {
+      const death = /^(?:die|pass)/i.test(g.verb);
+      if (/\band\b/i.test(g.ask)) return death ? "death" : "birth";
+      const place = new RegExp(String.raw`^(?:${ASK_PLACE})$`, "i").test(g.ask);
+      if (/^come/i.test(g.verb)) return place ? "birthPlace" : "";
+      return death ? (place ? "deathPlace" : "death") : place ? "birthPlace" : "birth";
+    },
+  },
+  // "where was his father from"
+  {
+    re: new RegExp(String.raw`^where\s+(?:was|were|is|are)\s+${NAMED_OWNER}\s+${CHAIN}\s+from$`, "i"),
+    fact: () => "birthPlace",
   },
 ];
+
+// "dad", "mum", "kids": the words the patterns know.
+const FAMILY_WORDS = [
+  [/\b(?:dad|daddy|papa)\b/gi, "father"],
+  [/\b(?:mum|mom|mummy|mommy|mam|mama|mamma)\b/gi, "mother"],
+  [/\b(?:dads|daddies)\b/gi, "fathers"],
+  [/\b(?:mums|moms)\b/gi, "mothers"],
+  [/\bkids\b/gi, "children"],
+  [/\bkid\b/gi, "child"],
+  [/\bgran(?:ny|nie)?\b/gi, "grandmother"],
+  [/\bgrand(?:dad|pa)\b/gi, "grandfather"],
+  [/\bgrand(?:mum|mom|ma)\b/gi, "grandmother"],
+  [/\bhubby\b/gi, "husband"],
+];
+export function normalizeFamilyWords(text) {
+  return FAMILY_WORDS.reduce((out, [re, word]) => out.replace(re, word), String(text || ""));
+}
+
+const RANK_VALUES = { eldest: 1, oldest: 1, first: 1, "1st": 1, second: 2, "2nd": 2, third: 3, "3rd": 3, fourth: 4, "4th": 4, youngest: "last", last: "last" };
+
+/** The extras a chain carries: via (in-law step), side (paternal/maternal), rank/ordinal, named. Null if they don't fit. */
+function chainExtras(groups, relationRaw) {
+  const extras = {};
+  if (groups.via) {
+    // one step before the relation ("his wife's father"); a grand-relation as the first step is too far
+    if (/^grand/i.test(groups.via)) return null;
+    extras.via = groups.via.toLowerCase();
+  }
+  const qual = String(groups.qual || "").toLowerCase();
+  if (qual === "paternal" || qual === "maternal") {
+    if (!/^grand(?:mothers?|fathers?|parents?)$/.test(relationRaw)) return null;
+    extras.side = qual === "paternal" ? "Male" : "Female";
+  } else if (qual) {
+    if (/^(?:husbands?|wife|wives|spouses?)$/.test(relationRaw)) {
+      if (/^(?:eldest|oldest|youngest)$/.test(qual)) return null;
+      extras.ordinal = ORDINAL_VALUES[qual];
+    } else if (/^(?:sons?|daughters?|children|child|brothers?|sisters?|siblings?|grandsons?|granddaughters?|grandchildren|grandchild)$/.test(relationRaw)) {
+      extras.rank = RANK_VALUES[qual];
+    } else {
+      return null;
+    }
+  }
+  if (groups.named) {
+    // "his son John": a capitalised first name, after a relation that can have several
+    if (!/^[A-Z]/.test(groups.named) || /^(?:mother|father)$/.test(relationRaw)) return null;
+    extras.named = groups.named;
+  }
+  return extras;
+}
 
 // F1/F12, "where was she born?" / "what was her maiden name?": the person's own
 // fact (live, 2026-10-03: the AI asked which woman "she" meant).
@@ -71,6 +154,7 @@ export function parseRelativeFactPrompt(prompt) {
   const text = String(prompt || "")
     .trim()
     .replace(/[.!?]+$/g, "");
+  const normalized = normalizeFamilyWords(text);
   const compare = text.match(COMPARE_RE);
   if (compare) {
     const subject = ownerFromText(compare[1]);
@@ -87,17 +171,20 @@ export function parseRelativeFactPrompt(prompt) {
     if (ownerKey === null) continue;
     return { owner: ownerKey, relationRaw: "self", fact: fact(match) };
   }
-  for (const { re, fact, shift } of PATTERNS) {
-    const match = text.match(re);
+  for (const { re, fact } of PATTERNS) {
+    const match = normalized.match(re);
     if (!match) continue;
-    const ownerText = (shift ? match[2] : match[1]).replace(/(?:'s|’s)$/, "");
-    const relationRaw = (shift ? match[3] : match[2]).toLowerCase();
-    const factName = fact(match);
+    const groups = match.groups || {};
+    const ownerText = groups.owner.replace(/(?:'s|’s)$/, "");
+    const relationRaw = groups.rel.toLowerCase();
+    const factName = fact(groups);
     if (!factName) continue;
     const owner = /^(?:her|his|their)$/i.test(ownerText) ? "" : /^my$/i.test(ownerText) ? "me" : ownerText;
     // Case-insensitive patterns: a bare name must really be capitalised.
     if (owner && owner !== "me" && !/-\d+$/.test(owner) && !/^(?:[A-Z][^\s]*\s*)+$/.test(owner)) return null;
-    return { owner, relationRaw, fact: factName };
+    const extras = chainExtras(groups, relationRaw);
+    if (!extras) return null;
+    return { owner, relationRaw, fact: factName, ...extras };
   }
   return null;
 }
@@ -116,6 +203,11 @@ const AGE_GAP_RE = new RegExp(
   "i"
 );
 
+const PARENT_AGE_AT_BIRTH_RE = new RegExp(
+  String.raw`^how\s+old\s+(?:was|were)\s+${OWNER}\s+(mother|father|parents)\s+when\s+${SELF_SUBJECT}\s+(?:was|were)\s+born$`,
+  "i"
+);
+
 function withOrdinal(params, ordinalText, relationRaw) {
   if (!ordinalText) return params;
   // Ordinals pick a spouse by marriage date; "her second son" isn't handled here.
@@ -125,9 +217,20 @@ function withOrdinal(params, ordinalText, relationRaw) {
 
 /** Age at death or age gap for a relative: {owner, relationRaw, fact, ordinal?} or null. */
 export function parseRelativeAgePrompt(prompt) {
-  const text = String(prompt || "")
-    .trim()
-    .replace(/[.!?]+$/g, "");
+  const text = normalizeFamilyWords(
+    String(prompt || "")
+      .trim()
+      .replace(/[.!?]+$/g, "")
+  );
+  // "how old was his mother when he was born" (2026-10-10)
+  const atBirth = text.match(PARENT_AGE_AT_BIRTH_RE);
+  if (atBirth) {
+    const owner = ownerFromText(atBirth[1]);
+    const subject = ownerFromText(atBirth[3]);
+    if (owner !== null && subject !== null && (!subject || subject === owner)) {
+      return { owner, relationRaw: atBirth[2].toLowerCase(), fact: "ageAtOwnerBirth" };
+    }
+  }
   const death = text.match(AGE_AT_DEATH_RE);
   if (death) {
     const [ownerText, ordinalText, relation] = death[1] ? [death[1], death[2], death[3]] : [death[4], death[5], death[6]];
@@ -183,6 +286,7 @@ const FACT_LABELS = {
   birthPlace: "birth place",
   deathPlace: "death place",
   name: "name",
+  dates: "dates",
 };
 
 function factValue(person, fact) {
@@ -193,6 +297,11 @@ function factValue(person, fact) {
   }
   if (fact === "death") {
     return [date(person?.DeathDate), person?.DeathLocation ? `in ${person.DeathLocation}` : ""].filter(Boolean).join(" ");
+  }
+  if (fact === "dates") {
+    const born = factValue(person, "birth");
+    const died = factValue(person, "death");
+    return [born ? `was born ${born}` : "", died ? `died ${died}` : ""].filter(Boolean).join(" and ");
   }
   if (fact === "birthPlace") return String(person?.BirthLocation || "").trim();
   if (fact === "deathPlace") return String(person?.DeathLocation || "").trim();
@@ -209,7 +318,8 @@ export function buildRelativeFactAnswer(people, fact, labelOf) {
   const lines = people.map((person) => {
     const value = factValue(person, fact);
     // "Martha … was born in Wrockwardine", not "Martha …: birth place Wrockwardine" (2026-10-04).
-    const verb = { birth: "was born", death: "died", birthPlace: "was born in", deathPlace: "died in" }[fact] || "";
+    const verb = { birth: "was born", death: "died", birthPlace: "was born in", deathPlace: "died in", dates: "" }[fact] ?? "";
+    if (fact === "dates") return value ? `${labelOf(person)} ${value}` : `${labelOf(person)}: no dates recorded`;
     if (!value) return `${labelOf(person)}: no ${label} recorded`;
     return verb ? `${labelOf(person)} ${verb} ${value}` : `${labelOf(person)}: ${label} ${value}`;
   });
@@ -260,4 +370,20 @@ export function buildAgeComparisonAnswer(owner, people, fact, labelOf) {
   });
   const head = `${labelOf(owner)} was born ${formatPreviewDate(owner.BirthDate)}.`;
   return lines.length === 1 ? `${head} ${lines[0]}.` : `${head}\n${lines.map((line) => `- ${line}`).join("\n")}`;
+}
+
+/** "Mary Smith (Smith-2) was about 27 when Cyrus (Weatherall-111) was born (1871 / 1898)." */
+export function buildAgeAtOwnerBirthAnswer(owner, people, labelOf) {
+  const ownerBirth = birthKey(owner?.BirthDate);
+  if (!ownerBirth) return `${labelOf(owner)} has no birth date recorded, so I can't work it out.`;
+  const lines = people.map((person) => {
+    const birth = birthKey(person?.BirthDate);
+    if (!birth) return `${labelOf(person)}: no birth date recorded`;
+    let years = Number(ownerBirth.slice(0, 4)) - Number(birth.slice(0, 4));
+    const partial = /-00/.test(birth) || /-00/.test(ownerBirth);
+    if (!partial && ownerBirth.slice(5) < birth.slice(5)) years -= 1;
+    return `${labelOf(person)} (b. ${formatPreviewDate(person.BirthDate)}) was ${partial ? "about " : ""}${years}`;
+  });
+  const tail = `when ${labelOf(owner)} was born (${formatPreviewDate(owner.BirthDate)})`;
+  return lines.length === 1 ? `${lines[0]} ${tail}.` : `${tail[0].toUpperCase()}${tail.slice(1)}:\n${lines.map((line) => `- ${line}`).join("\n")}`;
 }

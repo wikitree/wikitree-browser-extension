@@ -1,0 +1,106 @@
+.wbe-gold-standard-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid #25422d;
+  border-radius: 999px;
+  background: #fff;
+  color: #25422d;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.4;
+  cursor: pointer;
+  vertical-align: middle;
+  animation: wbe-gold-standard-fade-in 0.25s ease-out;
+}
+
+@keyframes wbe-gold-standard-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.wbe-gold-standard-button:hover {
+  background: #e4ebe5;
+}
+
+.wbe-gold-standard-button:focus-visible {
+  outline: 2px solid #25422d;
+  outline-offset: 2px;
+}
+
+.wbe-gold-standard-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2rem 1rem;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.wbe-gold-standard-dialog {
+  width: min(46rem, 100%);
+  overflow: hidden;
+  border-radius: 0.6rem;
+  background: #fff;
+  color: #393a3c;
+  box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.35);
+  font: 1rem/1.5 Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.wbe-gold-standard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 1.2rem;
+  border-bottom: 3px solid #f8a820;
+  background: #f0f0eb;
+}
+
+.wbe-gold-standard-header h2 {
+  margin: 0;
+  color: #25422d;
+  font-size: 1.2rem;
+}
+
+.wbe-gold-standard-close {
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.wbe-gold-standard-content {
+  padding: 1.2rem;
+}
+
+.wbe-gold-standard-results {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.wbe-gold-standard-results li + li {
+  margin-top: 0.65rem;
+}
+
+.wbe-gold-standard-passed {
+  margin: 0;
+  color: #25422d;
+  font-weight: 600;
+}
+
+.wbe-gold-standard-error {
+  margin: 0;
+  color: #a12622;
+}

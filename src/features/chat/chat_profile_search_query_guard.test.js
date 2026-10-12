@@ -76,6 +76,134 @@ describe("chat_profile_search query guards", () => {
     });
   });
 
+  test("a bare year range is a birth range, not part of the place (Stevenson 1850-1899 Scotland)", async () => {
+    const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
+
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Stevenson 1850-1899 Scotland");
+
+    expect(wtAPIProfileSearch).toHaveBeenCalled();
+    const executedQuery = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
+    expect(executedQuery).toContain("AllLastNames=Stevenson");
+    expect(executedQuery).toContain("Location=Scotland");
+    expect(executedQuery).toContain("In 18500000..18999999");
+    expect(executedQuery).not.toContain("19Cen");
+  });
+
+  test("a parse with words of the sentence in a name or place isn't run on WT+ (no key)", async () => {
+    const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
+    const garbage = [
+      "women named Stevenson born in Scotland 1850-1899 who emigrated",
+      "most common surnames in Shropshire",
+      // ("twins born in Lancashire" now reads as BirthLocation + CategoryWord=Twins; test below)
+      "Irish farmers born in Kent",
+      "Ohio 1850s no sources women",
+      "born in Dublin to Irish parents",
+      "Kent-born people",
+      // (no-AI corpus measure, 2026-10-10: a lowercase word in a name/place beside a capitalised one, a place twice, marks in a name)
+      "uncertain fathers in Cheshire",
+      "Kentucky in the template",
+      "people who died in the 1918 flu in Kent",
+      "unbelegte Profile in Bayern",
+      "people with the surname Alley born in Nelson",
+      "profiles in Shropshire with no birth place",
+      "…",
+      "(count)",
+    ];
+    for (const prompt of garbage) {
+      wtAPIProfileSearch.mockClear();
+      const result = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, prompt);
+      if (wtAPIProfileSearch.mock.calls.length) throw new Error(`ran: ${prompt} -> ${decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])}`);
+      expect(result).toBeTruthy(); // (Genie answers, with the form or the "needs AI" message, but runs nothing)
+    }
+  });
+
+  test("occupations, a bare year after two names, and emigrants to a place run (no key)", async () => {
+    const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Kent farmers 1850s");
+    let sent = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
+    expect(sent).toContain("CategoryWord=Yeomen");
+    expect(sent).toContain("Location=Kent");
+    wtAPIProfileSearch.mockClear();
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Mary Smith 1820 Ohio");
+    sent = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
+    expect(sent).toContain("FirstName=Mary");
+    expect(sent).toContain("BirthLocation=Ohio");
+    wtAPIProfileSearch.mockClear();
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Beacall emigrants to Australia");
+    sent = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
+    expect(sent).toContain("DeathLocation=Australia");
+    expect(sent).toContain("NOT BirthLocation=Australia");
+  });
+
+  test("real places with 'and' or 'of' are still searched (Trinidad and Tobago, Isle of Wight)", async () => {
+    const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Smith born in Trinidad and Tobago before 1900");
+    expect(wtAPIProfileSearch).toHaveBeenCalledTimes(1);
+    expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])).toContain('BirthLocation="Trinidad and Tobago"');
+    for (const [prompt, expected] of [
+      ["O'Brien born in Cork", "AllLastNames=O'Brien"],
+      ["born before 1750 in devon", "BirthLocation=devon"],
+    ]) {
+      wtAPIProfileSearch.mockClear();
+      await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, prompt);
+      expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[0]?.[1] || "")).toContain(expected);
+    }
+  });
+
+  test("a plural surname that finds nothing is retried singular (no key)", async () => {
+    const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
+    wtAPIProfileSearch
+      .mockResolvedValueOnce({ response: { profiles: [], searchLog: "" } })
+      .mockResolvedValueOnce({ response: { profiles: ["1"], searchLog: "" } });
+    const result = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Alleys who died in Motueka");
+    expect(wtAPIProfileSearch).toHaveBeenCalledTimes(2);
+    expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])).toContain("AllLastNames=Alleys");
+    expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[1][1])).toContain("AllLastNames=Alley DeathLocation=Motueka");
+    expect(result.message).toContain("Nothing was found for Alleys, so I searched for Alley.");
+  });
+
+  test("the reader's CategoryWord runs as is: no category-tree expansion (Beacall emigrants, no key)", async () => {
+    // live 2026-10-10: wtCatSearch returned every "X Emigrants to Y" tree; the OR query was 205,000 characters
+    const categories = Array.from({ length: 3000 }, (_, i) => ({ Name: `Place${i}__Emigrants` }));
+    const originalFetch = global.fetch;
+    global.fetch = jest.fn(async () => ({ ok: true, json: async () => categories }));
+    try {
+      const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
+      await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Beacall emigrants");
+      expect(global.fetch).not.toHaveBeenCalled();
+      expect(wtAPIProfileSearch).toHaveBeenCalledTimes(1);
+      const sent = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
+      expect(sent).toContain("CategoryWord=Emigrants");
+      expect(sent).not.toContain(" OR ");
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test("twins born in Lancashire runs (no key)", async () => {
+    const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "twins born in Lancashire");
+    expect(wtAPIProfileSearch).toHaveBeenCalledTimes(1);
+    expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])).toBe("BirthLocation=Lancashire CategoryWord=Twins");
+  });
+
+  test("created years run as one Created_ token per year (no key)", async () => {
+    const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Smith born in Ohio created in 2023 or 2024");
+    expect(wtAPIProfileSearch).toHaveBeenCalledTimes(1);
+    const sent = decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1]);
+    expect(sent).toContain("Created_2023");
+    expect(sent).toContain("Created_2024");
+    expect(sent).toContain("BirthLocation=Ohio");
+  });
+
+  test("a bare 'created in 2023' has a base term (Created_2023)", async () => {
+    const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "profiles created in 2023");
+    expect(wtAPIProfileSearch).toHaveBeenCalledTimes(1);
+    expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])).toContain("Created=Created_2023");
+  });
+
   test("blocks a saved WT+ re-run containing an unknown field without calling the API", async () => {
     const { reRunSavedWtPlusQuery } = makeHandler();
 
@@ -255,4 +383,25 @@ test("a bare WikiTree ID fetches that profile instead of searching for it as a n
   expect(fetchPeoplePaged.mock.calls[0][1]).toEqual(["Beacall-10"]);
   expect(JSON.stringify(result)).toContain("Beacall-10");
   expect(JSON.stringify(result)).not.toMatch(/couldn't find/i);
+
+});
+
+// "Robinsons born in Devon 1850-1899" with no AI: zero for Robinsons and no retry (live, 2026-10-11).
+test("a plural surname that finds nothing is retried singular, with no AI too", async () => {
+  wtAPIProfileSearch.mockImplementation(async (appId, query) =>
+    /Robinsons/.test(decodeURIComponent(query))
+      ? { response: { profiles: [], found: 0, searchLog: "Result: 0\r\n" } }
+      : { response: { profiles: ["1"], found: 1, searchLog: "Result: 1\r\n" } }
+  );
+  for (const overrides of [{ getChatAiConfig: jest.fn(async () => ({})), hasAnyApiKey: jest.fn(() => false) }, {}]) {
+    wtAPIProfileSearch.mockClear();
+    const result = await makeHandler(overrides).tryHandleProfileSearchPrompt(
+      { chatModeOverride: "wtplus" },
+      "Robinsons born in Devon 1850-1899"
+    );
+    const queries = wtAPIProfileSearch.mock.calls.map((call) => decodeURIComponent(call[1]));
+    expect(queries[0]).toContain("AllLastNames=Robinsons");
+    expect(queries[1]).toContain("AllLastNames=Robinson BirthLocation=Devon");
+    expect(String(result?.message || result)).toMatch(/^Nothing was found for Robinsons, so I searched for Robinson\./);
+  }
 });
