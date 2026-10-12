@@ -41,7 +41,7 @@ export const CHANNELS = [
     mode: "intent",
     max: 4,
     urlWeight: true,
-    note: "WikiTree is on genealysis.social. The tag works from any server. Set your own server in the WBE options so the composer opens there.",
+    note: "WikiTree is on genealysis.social, where many genealogists have their accounts, so the composer opens there. The tag works from any server. If your account is on another server, set it in the WBE options.",
   },
   {
     id: "linkedin",
@@ -226,7 +226,7 @@ function cleanHost(instance) {
     .replace(/\/.*$/, "")
     .trim()
     .toLowerCase();
-  return /^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/.test(host) ? host : "mastodon.social";
+  return /^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/.test(host) ? host : "genealysis.social";
 }
 
 /** Line breaks in a mailto: body are CRLF (RFC 6068). The address is left for the member to fill in. */
@@ -283,6 +283,43 @@ export function intentUrl(channel, text, url, instance, subject = "") {
     default:
       return "";
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Research status and notability statement on the share card
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The Research Status codes getProfile returns (10 Unfinished, 20 Help Requested, 30 Sources to Review, 40 Silver Standard,
+ * 50 Gold Standard Candidate, 60 Gold Standard) that go on the card: Silver Standard and above. The labels are the ones
+ * WikiTree shows near the top of a profile (Help:Research_Status).
+ */
+export const RESEARCH_BADGES = {
+  40: { tier: "silver", label: "Silver Standard" },
+  50: { tier: "candidate", label: "Gold Standard Candidate" },
+  60: { tier: "gold", label: "Gold Standard: Genealogically Complete and Peer Reviewed" },
+};
+
+/** {tier, label} for a profile at Silver Standard or above, otherwise null. */
+export function researchBadge(code) {
+  return RESEARCH_BADGES[Number(code)] || null;
+}
+
+/** A notability statement as plain one-line text. WikiTree keeps them to two sentences or 350 characters. */
+export function cleanNotability(text) {
+  return (text || "").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * The text under the facts on a profile's card. source: "notability" (the profile's Notability statement),
+ * "life" (written from the profile's facts) or "both". With no statement the life summary is used.
+ */
+export function cardBio(source, notability, life) {
+  const statement = cleanNotability(notability);
+  if (!statement) return life || "";
+  if (source === "life") return life || statement;
+  if (source === "both") return life ? `${statement} ${life}` : statement;
+  return statement;
 }
 
 // ---------------------------------------------------------------------------------------------

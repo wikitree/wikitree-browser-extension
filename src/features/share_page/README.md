@@ -82,7 +82,7 @@ closes it.
 
 ## Share card
 
-A 1200 × 630 picture drawn on a canvas, so no screenshot and no extra permission is needed. It uses WikiTree's colours
+A 1080 × 1080 square (1:1, the size of an Instagram post, which the other networks also show well) drawn on a canvas, so no screenshot and no extra permission is needed. It uses WikiTree's colours
 (taken from the live site's header and footer, with the gold from the logo), Roboto, and the site's own logo file
 (`/images/wikitree-logo-tagline.png`, loaded from the same address as the page so the picture can be saved). If Roboto or
 the logo has not loaded, it falls back to Arial and the word "WikiTree". The footer reads "WikiTree.com" and "The FREE
@@ -97,6 +97,15 @@ portrait, and a short life summary:
   the first name otherwise.
 - It says nothing about someone who could still be living: no death year and born less than 110 years ago. Private
   children are skipped. See `lifeSummary()` in `share_page_core.js`.
+- **Notability statement.** If the profile has one (the `{{Notability}}` box under the Biography heading, read from the
+  page: the row with the star icon whose alt text says "Notability Statement"), the card starts with that text instead
+  of the life summary. A "Text to start from" choice in the dialog switches to the life summary or to both. Statements
+  are limited to about 350 characters, so they fit the card; both together may be cut short. See `readNotability()` in
+  `share_page.js` and `cardBio()` in `share_page_core.js`.
+- **Research status.** A profile or free-space page at Silver Standard (40), Gold Standard Candidate (50) or Gold
+  Standard (60) shows a medal and WikiTree's own wording next to "PROFILE" ("Silver Standard", "Gold Standard
+  Candidate", "Gold Standard: Genealogically Complete and Peer Reviewed"). The status comes from `ResearchStatus` in the
+  `getProfile` call that already checks privacy. Lower statuses show nothing. See `researchBadge()` and `drawMedal()`.
 
 **Help, project and free-space pages** show the title, the opening sentences of the page's text (footnote markers removed,
 tables skipped, up to about 330 characters) and an "On this page" field with the first section names. Standard sections (Sources, References, Footnotes, See also and the
@@ -188,7 +197,7 @@ the one being cropped). The member chooses a shape, then which part of the pictu
 | X         | `@WikiTreers`                 | 280        | 4        | Opens the composer with the text filled in                                                                  |
 | Threads   | `@WikiTreers`                 | 500        | 20       | Opens the composer with the text filled in                                                                  |
 | Bluesky   | `@wikitree.bsky.social`       | 300        | 4        | Opens the composer with the text filled in                                                                  |
-| Mastodon  | `@wikitree@genealysis.social` | 500        | 4        | Opens the composer on the member's own server (option)                                                      |
+| Mastodon  | `@wikitree@genealysis.social` | 500        | 4        | Opens the composer on the member's own server (option; `genealysis.social`, where WikiTree is, by default)  |
 | Reddit    | none                          | 300        | 1        | Opens a link post to r/wikitree. The text is the title, with no tags or hashtags                            |
 | Facebook  | `@WikiTree`                   | 63,206     | 10       | Passes the link only. The member pastes the text                                                            |
 | LinkedIn  | `@WikiTree`                   | 3,000      | 9        | Passes the link only. The member pastes the text                                                            |
@@ -211,12 +220,12 @@ and are planning values to re-check before each release.
 
 ## Options
 
-| Option                                                                           | Default         |
-| -------------------------------------------------------------------------------- | --------------- |
-| Channel selected when the dialog opens                                           | Facebook        |
-| Your Mastodon server (for example mastodon.social)                               | mastodon.social |
-| Add a short summary to the share card (life summary, or the page's opening text) | On              |
-| Add the WikiTree hashtags to the post                                            | On              |
+| Option                                                                           | Default           |
+| -------------------------------------------------------------------------------- | ----------------- |
+| Channel selected when the dialog opens                                           | Facebook          |
+| Your Mastodon server (for example genealysis.social or mastodon.social)          | genealysis.social |
+| Add a short summary to the share card (life summary, or the page's opening text) | On                |
+| Add the WikiTree hashtags to the post                                            | On                |
 
 ## Background script
 

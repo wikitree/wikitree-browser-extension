@@ -27,7 +27,7 @@ function typeInto(value) {
   box.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-const NAME_FIELDS = ["Privacy", "IsLiving", "FirstName", "MiddleName", "LastNameCurrent"];
+const NAME_FIELDS = ["Privacy", "IsLiving", "FirstName", "MiddleName", "LastNameCurrent", "ResearchStatus"];
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -120,7 +120,10 @@ beforeAll(() => {
     fill() {},
     stroke() {},
   });
-  window.HTMLCanvasElement.prototype.toDataURL = () => "data:image/png;base64,AAAA";
+  window.HTMLCanvasElement.prototype.toDataURL = function () {
+    global.mockCanvasSizes.push([this.width, this.height]);
+    return "data:image/png;base64,AAAA";
+  };
   window.HTMLCanvasElement.prototype.toBlob = (cb) => cb(new Blob(["x"], { type: "image/png" }));
   global.fetch = (url) =>
     /apps\.wikitree\.com|other\.example/.test(String(url))
@@ -168,6 +171,7 @@ beforeEach(() => {
   global.mockGetAncestors = jest.fn(() => Promise.resolve([relative("Robinson-27274"), relative("Robinson-27275")]));
   global.mockSvgSources = [];
   global.mockCardText = [];
+  global.mockCanvasSizes = [];
   global.mockDrawn = [];
   global.mockPhotoSize = null;
   global.mockGetProfile = jest.fn(() => Promise.resolve([{ Privacy: 60, IsLiving: 0 }, 0, "page"]));
@@ -1058,6 +1062,76 @@ describe("Share Page dialog", () => {
     await clickShare();
     return $("#wbeShareSummary").val();
   };
+
+  const NOTABILITY_HTML = `
+    <h2 id="Biography"><span class="mw-headline">Biography</span></h2>
+    <div class="row align-items-center mb-3"><div class="col-auto"><img alt="This is a Notability Statement that summarizes the person's significance for history or genealogy." src="/photo.php/thumb/9/98/WTIL-32.png/50px-WTIL-32.png"></div>
+      <div class="col fw-bold"><b>Firman Joseph Robinson</b> was a   noted
+        fiddler and farmer. He is remembered as the Fiddler of Caledonia.</div></div>`;
+  const STATEMENT =
+    "Firman Joseph Robinson was a noted fiddler and farmer. He is remembered as the Fiddler of Caledonia.";
+
+  test("the share card is a 1080 by 1080 square, like an Instagram post", async () => {
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    await clickShare();
+    expect(global.mockCanvasSizes).toContainEqual([1080, 1080]);
+    expect(global.mockCanvasSizes).not.toContainEqual([1200, 630]);
+  });
+
+  test("a profile with a Notability statement starts the card text with it", async () => {
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML + NOTABILITY_HTML);
+    await clickShare();
+    expect($("#wbeShareSummary").val()).toBe(STATEMENT);
+    expect($(".wbe-share-biosource").prop("hidden")).toBe(false);
+    expect(global.mockCardText.join("|")).toContain("fiddler and farmer");
+  });
+
+  test("the member can switch the card text to the life summary, or to both", async () => {
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML + NOTABILITY_HTML);
+    await clickShare();
+    const choose = (value) => {
+      const select = document.getElementById("wbeShareBioSource");
+      select.value = value;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    choose("life");
+    const life = $("#wbeShareSummary").val();
+    expect(life).not.toContain("fiddler");
+    expect(life.length).toBeGreaterThan(20);
+    choose("both");
+    expect($("#wbeShareSummary").val()).toBe(`${STATEMENT} ${life}`);
+    choose("notability");
+    expect($("#wbeShareSummary").val()).toBe(STATEMENT);
+  });
+
+  test("a profile without a Notability statement has no source choice", async () => {
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    await clickShare();
+    expect($(".wbe-share-biosource").prop("hidden")).toBe(true);
+    expect($("#wbeShareSummary").val()).toContain("was born in Caledonia");
+  });
+
+  test.each([
+    [60, "Gold Standard: Genealogically Complete and Peer Reviewed"],
+    [50, "Gold Standard Candidate"],
+    [40, "Silver Standard"],
+  ])("a profile at research status %i shows %s on the card", async (code, label) => {
+    global.mockGetProfile = jest.fn(() =>
+      Promise.resolve([{ Privacy: 60, IsLiving: 0, ResearchStatus: code }, 0, "page"])
+    );
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    await clickShare();
+    expect(global.mockCardText).toContain(label);
+  });
+
+  test.each([0, 10, 20, 30])("research status %i is not shown on the card", async (code) => {
+    global.mockGetProfile = jest.fn(() =>
+      Promise.resolve([{ Privacy: 60, IsLiving: 0, ResearchStatus: code }, 0, "page"])
+    );
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    await clickShare();
+    expect(global.mockCardText.join("|")).not.toMatch(/Standard|Unfinished|Help Requested|Sources to Review/);
+  });
 
   test("the card names relatives the API says are deceased", async () => {
     const bio = await summaryOf();

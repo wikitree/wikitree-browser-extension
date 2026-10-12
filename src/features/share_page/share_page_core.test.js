@@ -1,6 +1,9 @@
 import {
   BRAND_HASHTAGS,
   buildText,
+  cardBio,
+  cleanNotability,
+  researchBadge,
   emailSubject,
   mailtoUrl,
   webmailUrl,
@@ -118,6 +121,38 @@ describe("buildText", () => {
   });
 });
 
+describe("research status badge", () => {
+  test("Silver Standard and above get a badge, with WikiTree's own wording", () => {
+    expect(researchBadge(40)).toEqual({ tier: "silver", label: "Silver Standard" });
+    expect(researchBadge("50")).toEqual({ tier: "candidate", label: "Gold Standard Candidate" });
+    expect(researchBadge(60).label).toBe("Gold Standard: Genealogically Complete and Peer Reviewed");
+    expect(researchBadge(60).tier).toBe("gold");
+  });
+  test("lower statuses and missing values get none", () => {
+    [0, 10, 20, 30, undefined, null, "", "x", 70].forEach((code) => expect(researchBadge(code)).toBeNull());
+  });
+});
+
+describe("notability statement on the card", () => {
+  const life = "He was born in 1901.";
+  test("cleanNotability makes one tidy line", () => {
+    expect(cleanNotability("  A   statement\n over  two lines. ")).toBe("A statement over two lines.");
+    expect(cleanNotability(undefined)).toBe("");
+  });
+  test("the statement is used by default, the life summary on request, or both", () => {
+    expect(cardBio("notability", "Statement.", life)).toBe("Statement.");
+    expect(cardBio("life", "Statement.", life)).toBe(life);
+    expect(cardBio("both", "Statement.", life)).toBe("Statement. He was born in 1901.");
+  });
+  test("with no statement the life summary is used whatever was asked for", () => {
+    ["notability", "life", "both"].forEach((source) => expect(cardBio(source, "  ", life)).toBe(life));
+  });
+  test("with no life summary the statement stands alone", () => {
+    expect(cardBio("both", "Statement.", "")).toBe("Statement.");
+    expect(cardBio("life", "Statement.", "")).toBe("Statement.");
+  });
+});
+
 describe("email", () => {
   const url = "https://www.wikitree.com/wiki/Robinson-27274";
   test("the message has the link and no account tag or hashtags", () => {
@@ -181,8 +216,12 @@ describe("intentUrl", () => {
       "https://example.social/share?text=t"
     );
     expect(intentUrl(getChannel("mastodon"), "t", url, "bad host<script>")).toBe(
-      "https://mastodon.social/share?text=t"
+      "https://genealysis.social/share?text=t"
     );
+  });
+  test("Mastodon opens genealysis.social, where WikiTree is, when no server is set", () => {
+    expect(intentUrl(getChannel("mastodon"), "t", url, "")).toBe("https://genealysis.social/share?text=t");
+    expect(intentUrl(getChannel("mastodon"), "t", url, undefined)).toBe("https://genealysis.social/share?text=t");
   });
   test("Reddit sends a title and a link to r/wikitree", () => {
     expect(intentUrl(getChannel("reddit"), "A  title", url)).toContain(

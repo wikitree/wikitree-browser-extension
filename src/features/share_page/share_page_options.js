@@ -27,8 +27,8 @@ registerFeature({
     {
       id: "mastodonInstance",
       type: OptionType.TEXT,
-      label: "Your Mastodon server (for example mastodon.social)",
-      defaultValue: "mastodon.social",
+      label: "Your Mastodon server (for example genealysis.social or mastodon.social)",
+      defaultValue: "genealysis.social",
     },
     {
       id: "cardSummary",

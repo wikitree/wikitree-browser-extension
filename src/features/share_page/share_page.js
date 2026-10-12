@@ -6,7 +6,7 @@ import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { copyToClipboard } from "../../core/clipboard.js";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
-import { BRAND, CARD_FONT, drawDnaPanel, drawRankBadge, drawScoreBadge } from "./share_page_card_art";
+import { BRAND, CARD_FONT, drawDnaPanel, drawMedal, drawRankBadge, drawScoreBadge } from "./share_page_card_art";
 import {
   BASE_URL,
   CHANNELS,
@@ -27,6 +27,9 @@ import {
   isNameSafe,
   isShareablePrivacy,
   lifeSummary,
+  cardBio,
+  cleanNotability,
+  researchBadge,
   measure,
   parseGenealogyText,
   pageSummary,
@@ -76,6 +79,7 @@ async function checkShareable(kind) {
       "FirstName",
       "MiddleName",
       "LastNameCurrent",
+      "ResearchStatus",
     ]);
     // An image's file name only looks like a profile ID; if no such profile exists, the image does not belong to one.
     if (!profile && (kind === "imagePage" || kind === "fullImage")) return { ok: true, profile: null };
@@ -625,6 +629,22 @@ function loadImage(src) {
   });
 }
 
+/** How many lines wrapText would use for the text at the current font. */
+function countLines(g, text, maxWidth) {
+  let lines = 1;
+  let line = "";
+  text.split(/\s+/).forEach((word) => {
+    const test = line ? line + " " + word : word;
+    if (g.measureText(test).width > maxWidth && line) {
+      lines++;
+      line = word;
+    } else {
+      line = test;
+    }
+  });
+  return lines;
+}
+
 /** Draw text wrapped to a width, and return the baseline of the last line so the next block can start below it. */
 function wrapText(g, text, x, y, maxWidth, lineHeight, maxLines) {
   const words = text.split(/\s+/);
@@ -658,6 +678,16 @@ function fitLine(g, text, maxWidth) {
   return shortened.trimEnd() + "…";
 }
 
+// The card is an Instagram square post, 1080 by 1080 (1:1), which every network also shows well.
+const CARD_SIZE = 1080;
+const CARD_MARGIN = 56;
+const HEADER_HEIGHT = 88;
+const FOOTER_HEIGHT = 56;
+// where a portrait, or the surname hub's score, rank or DNA picture, goes beside a profile's title and fields
+// the text under a profile's fields is drawn in the largest of these sizes that fits
+const BIO_SIZES = [34, 32, 30, 28, 26, 24];
+const SIDE_BOX = { x: 724, y: 172, w: 300, h: 346 };
+
 // Same address as the page, so the canvas stays clean enough to save.
 const LOGO_PATH = "/images/wikitree-logo-tagline.png";
 
@@ -672,10 +702,10 @@ const LOGO_PATH = "/images/wikitree-logo-tagline.png";
  *          subtitle?: string, graphic?: HTMLImageElement|HTMLCanvasElement|null}} [extras]
  */
 async function drawShareCard(kind, title, extras = {}) {
-  const { photoSrc = "", summary = null, subtitle = "", graphic = null, slot = null } = extras;
+  const { photoSrc = "", summary = null, subtitle = "", graphic = null, slot = null, badge = null } = extras;
   const canvas = document.createElement("canvas");
-  canvas.width = 1200;
-  canvas.height = 630;
+  canvas.width = CARD_SIZE;
+  canvas.height = CARD_SIZE;
   const g = canvas.getContext("2d");
   const font = (spec) => `${spec} ${CARD_FONT}`;
 
@@ -685,37 +715,51 @@ async function drawShareCard(kind, title, extras = {}) {
   }
   const [logo, photo] = await Promise.all([loadImage(LOGO_PATH), photoSrc ? loadImage(photoSrc) : null]);
 
+  const left = CARD_MARGIN;
+  const right = CARD_SIZE - CARD_MARGIN;
+  const width = right - left;
+  const contentBottom = CARD_SIZE - FOOTER_HEIGHT - 30; // the last line of text sits on this baseline
+
   g.fillStyle = BRAND.paper;
-  g.fillRect(0, 0, 1200, 630);
+  g.fillRect(0, 0, CARD_SIZE, CARD_SIZE);
 
   // header band with the logo, as on the site
   g.fillStyle = BRAND.band;
-  g.fillRect(0, 0, 1200, 76);
+  g.fillRect(0, 0, CARD_SIZE, HEADER_HEIGHT);
   g.fillStyle = BRAND.gold;
-  g.fillRect(0, 76, 1200, 3);
+  g.fillRect(0, HEADER_HEIGHT, CARD_SIZE, 3);
   if (logo) {
-    const height = 52;
-    g.drawImage(logo, 48, 12, (logo.width / logo.height) * height, height);
+    const height = 60;
+    g.drawImage(logo, left, (HEADER_HEIGHT - height) / 2, (logo.width / logo.height) * height, height);
   } else {
     g.fillStyle = BRAND.green;
-    g.font = font("700 34px");
-    g.fillText("WikiTree", 48, 50);
+    g.font = font("700 38px");
+    g.fillText("WikiTree", left, 58);
   }
 
   // footer band
   g.fillStyle = BRAND.green;
-  g.fillRect(0, 584, 1200, 46);
+  g.fillRect(0, CARD_SIZE - FOOTER_HEIGHT, CARD_SIZE, FOOTER_HEIGHT);
   g.fillStyle = "#ffffff";
-  g.font = font("700 20px");
-  g.fillText("WikiTree.com", 48, 614);
-  g.font = font("400 20px");
+  g.font = font("700 22px");
+  g.fillText("WikiTree.com", left, CARD_SIZE - 20);
+  g.font = font("400 22px");
   g.textAlign = "right";
-  g.fillText("The FREE Family Tree", 1152, 614);
+  g.fillText("The FREE Family Tree", right, CARD_SIZE - 20);
   g.textAlign = "left";
 
   g.fillStyle = BRAND.green;
-  g.font = font("700 20px");
-  g.fillText((KIND_LABELS[kind] || "").toUpperCase(), 48, 128);
+  g.font = font("700 22px");
+  const kindLabel = (KIND_LABELS[kind] || "").toUpperCase();
+  g.fillText(kindLabel, left, 146);
+  if (badge && !graphic) {
+    // Research Status at Silver Standard or above, on the same line as the kind of page
+    const x = left + g.measureText(kindLabel).width + 44;
+    drawMedal(g, x, 139, badge.tier);
+    g.fillStyle = BRAND.ink;
+    g.font = font("700 20px");
+    g.fillText(fitLine(g, badge.label, right - (x + 28)), x + 28, 146);
+  }
 
   const drawPhoto = (x, y, w, h) => {
     const scale = Math.max(w / photo.width, h / photo.height);
@@ -738,61 +782,90 @@ async function drawShareCard(kind, title, extras = {}) {
 
   g.fillStyle = BRAND.ink;
   if (graphic) {
-    // Tree Apps: the app's name, the person and what the view shows on the left, the chart as the member sees it on the right
-    g.font = font("700 52px");
-    let y = wrapText(g, title, 48, 200, 300, 60, 3);
+    // Tree Apps: the app's name, the person and what the view shows across the top, the chart as the member sees it below
+    g.font = font("700 56px");
+    let y = wrapText(g, title, left, 224, width, 64, 2);
     if (subtitle) {
       g.fillStyle = BRAND.ink;
-      g.font = font("700 24px");
-      y = wrapText(g, subtitle, 48, y + 46, 300, 32, 3);
+      g.font = font("700 28px");
+      y = wrapText(g, subtitle, left, y + 48, width, 36, 2);
     }
     if (summary && summary.bio) {
       g.fillStyle = BRAND.muted;
-      g.font = font("400 22px");
-      wrapText(g, summary.bio, 48, y + 54, 300, 30, 7);
+      g.font = font("400 24px");
+      y = wrapText(g, summary.bio, left, y + 44, width, 32, 3);
     }
     const w = graphic.naturalWidth || graphic.width;
     const h = graphic.naturalHeight || graphic.height;
-    const box = { x: 372, y: 96, w: 780, h: 476 };
+    const top = y + 36;
+    const box = { x: left, y: top, w: width, h: contentBottom + 14 - top };
     const scale = Math.min(box.w / w, box.h / h);
     g.drawImage(graphic, box.x + (box.w - w * scale) / 2, box.y + (box.h - h * scale) / 2, w * scale, h * scale);
   } else if (summary) {
-    g.font = font("700 44px");
-    wrapText(g, title, 48, 184, 800, 50, 2);
-    summary.fields.slice(0, 4).forEach((field, i) => {
-      const x = 48 + (i % 2) * 410;
-      const y = 272 + Math.floor(i / 2) * 88;
+    const hasSide = !!(photo || slot);
+    const textWidth = hasSide ? SIDE_BOX.x - left - 40 : width;
+    g.font = font("700 54px");
+    const titleBottom = wrapText(g, title, left, 224, textWidth, 62, hasSide ? 3 : 2);
+    if (photo) drawPhoto(SIDE_BOX.x, SIDE_BOX.y, SIDE_BOX.w, SIDE_BOX.h);
+    else if (slot) g.drawImage(slot, SIDE_BOX.x, SIDE_BOX.y, SIDE_BOX.w, SIDE_BOX.h);
+
+    // the data fields: one column beside a picture, two columns when there is none
+    const fields = summary.fields.slice(0, 4);
+    const fieldsTop = titleBottom + 58;
+    const pitch = hasSide ? 96 : 104;
+    let fieldsBottom = titleBottom;
+    fields.forEach((field, i) => {
+      const x = hasSide ? left : left + (i % 2) * (width / 2);
+      const y = fieldsTop + (hasSide ? i : Math.floor(i / 2)) * pitch;
       g.fillStyle = BRAND.green;
-      g.font = font("700 14px");
+      g.font = font("700 16px");
       g.fillText(field.label.toUpperCase(), x, y);
-      field.lines.slice(0, 2).forEach((line, row) => {
+      const lines = field.lines.slice(0, 2);
+      lines.forEach((line, row) => {
         const secondary = row === 1 && !field.names; // a place under a date is lighter; every name is bold
         g.fillStyle = secondary ? BRAND.muted : BRAND.ink;
-        g.font = font(secondary ? "400 18px" : "700 21px");
-        g.fillText(fitLine(g, line, 380), x, y + 27 + row * 24);
+        g.font = font(secondary ? "400 20px" : "700 24px");
+        g.fillText(fitLine(g, line, (hasSide ? textWidth : width / 2 - 24) - 8), x, y + 30 + row * 28);
       });
+      fieldsBottom = Math.max(fieldsBottom, y + 30 + (lines.length - 1) * 28);
     });
-    if (photo) drawPhoto(892, 100, 260, 300);
-    else if (slot) g.drawImage(slot, 892, 100, 260, 300);
+
     if (summary.bio) {
-      // the text sits just below the data fields, and gets more room and a larger size when there are fewer of them
-      const rows = Math.ceil(Math.min(summary.fields.length, 4) / 2);
-      const layout = [
-        { y: 280, size: 25, line: 36, lines: 7 },
-        { y: 272 + 88 + 22, size: 23, line: 32, lines: 5 },
-        { y: 272 + 176 + 22, size: 21, line: 28, lines: 4 },
-      ][rows];
+      // the text goes below the fields and the picture, as large as fits in the room that is left
+      const sideBottom = hasSide ? SIDE_BOX.y + SIDE_BOX.h : 0;
+      const top = (fields.length ? Math.max(fieldsBottom, sideBottom) : Math.max(titleBottom, sideBottom)) + 56;
+      const room = contentBottom - top;
+      let size = BIO_SIZES[BIO_SIZES.length - 1];
+      for (const candidate of BIO_SIZES) {
+        g.font = font(`400 ${candidate}px`);
+        if ((countLines(g, summary.bio, width) - 1) * Math.round(candidate * 1.4) <= room) {
+          size = candidate;
+          break;
+        }
+      }
+      const line = Math.round(size * 1.4);
       g.fillStyle = BRAND.ink;
-      g.font = font(`400 ${layout.size}px`);
-      // with fewer than two rows of fields the text starts level with the photo, so it stops short of it
-      wrapText(g, summary.bio, 48, layout.y, (photo || slot) && rows < 2 ? 810 : 1104, layout.line, layout.lines);
+      g.font = font(`400 ${size}px`);
+      wrapText(g, summary.bio, left, top, width, line, Math.max(2, Math.floor(room / line) + 1));
     }
   } else {
-    g.font = font("700 52px");
-    wrapText(g, title, 48, 200, photo ? 540 : 1104, 62, 5);
-    if (photo) drawPhoto(652, 112, 500, 440);
+    // a picture with its title: the title across the top, the picture filling the rest
+    g.font = font("700 60px");
+    const titleBottom = wrapText(g, title, left, 226, width, 70, photo ? 2 : 6);
+    if (photo) drawPhoto(left, titleBottom + 46, width, contentBottom + 14 - (titleBottom + 46));
   }
   return canvas;
+}
+
+/**
+ * The profile's Notability statement, the box under the Biography heading that summarizes why the person matters to
+ * history or genealogy. WikiTree shows it with a star icon whose alt text says what it is.
+ */
+function readNotability() {
+  const icon = document.querySelector('img[alt*="Notability Statement"]');
+  const row = icon && icon.closest(".row");
+  const box = row && row.querySelector(".col.fw-bold, .col:not(.col-auto)");
+  return cleanNotability(box ? box.textContent : "");
 }
 
 /** The vitals and family lists shown on a profile, read from the page's own markup. */
@@ -887,6 +960,14 @@ const DIALOG_HTML = `
         </div>
         <div class="wbe-share-summary" hidden>
           <h3><label for="wbeShareSummary">Summary on the card</label></h3>
+          <label class="wbe-share-biosource" hidden>
+            <span>Text to start from</span>
+            <select id="wbeShareBioSource">
+              <option value="notability">Notability statement</option>
+              <option value="life">Life summary</option>
+              <option value="both">Both</option>
+            </select>
+          </label>
           <textarea id="wbeShareSummary" rows="4" spellcheck="true"></textarea>
           <p class="wbe-share-hint wbe-share-summary-hint"></p>
         </div>
@@ -990,7 +1071,12 @@ function openDialog(kind, options, profile = null, extras = {}) {
       : kind === "treeApp"
       ? { fields: [], bio: appSummary(app) }
       : pageSummary(kind, { ...readPageFacts(), title, genealogy: kind === "genealogy" ? hubFacts : null });
-  state.bio = cardSummary ? cardSummary.bio : "";
+  // A profile with a Notability statement starts with it on the card; the member can use the life summary instead, or both.
+  const notability = kind === "profile" && cardSummary ? readNotability() : "";
+  const lifeBio = cardSummary ? cardSummary.bio : "";
+  state.bioSource = notability ? "notability" : "life";
+  state.bio = cardSummary ? cardBio(state.bioSource, notability, lifeBio) : "";
+  const badge = kind === "profile" || kind === "space" ? researchBadge(profile && profile.ResearchStatus) : null;
   // What the member can put in the card's picture slot: on a surname hub the drawn score, rank and DNA pictures, the
   // one-name study's coordinator and background, then the photos found on the page.
   const surname = title.replace(/\s+Genealogy.*$/i, "").trim();
@@ -1044,6 +1130,7 @@ function openDialog(kind, options, profile = null, extras = {}) {
           photoSrc: graphic ? "" : cardPhotoSrc(),
           slot: graphic ? null : cardSlot(),
           summary: cardSummary ? { fields: cardSummary.fields, bio: state.bio } : null,
+          badge,
           subtitle: app ? app.person : "",
           graphic,
         })
@@ -1566,13 +1653,24 @@ function openDialog(kind, options, profile = null, extras = {}) {
       .find(".wbe-share-summary-hint")
       .text(
         kind === "profile"
-          ? "Built from this profile's dates, places and family lists. Check it before you post."
+          ? notability
+            ? "Starts with this profile's Notability statement. You can use the life summary built from its dates, places and family lists instead, or both (the card has room for about four lines, so both may be cut short). Choosing again replaces what you typed."
+            : "Built from this profile's dates, places and family lists. Check it before you post."
           : kind === "category"
           ? "Counts are from this category page. Edit the text if you like."
           : kind === "treeApp"
           ? "Describes what the view is showing now. Edit it to say what you like."
           : "Taken from the top of this page. Check it before you post."
       );
+    if (notability) {
+      $overlay.find(".wbe-share-biosource").prop("hidden", false);
+      $overlay.find("#wbeShareBioSource").on("change", (e) => {
+        state.bioSource = e.target.value;
+        state.bio = cardBio(state.bioSource, notability, lifeBio);
+        $summary.val(state.bio);
+        redrawCard();
+      });
+    }
     $summary.val(state.bio).on("input", () => {
       state.bio = $summary.val();
       clearTimeout(redrawTimer);
