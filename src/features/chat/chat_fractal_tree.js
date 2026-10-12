@@ -189,7 +189,8 @@ export function showFractalTreePopup(tree, options = {}) {
     } catch (error) {
       // Storage may be blocked; the switch still works for this popup.
     }
-    showFractalTreePopup(tree, { ...options, layout: next });
+    // (the ancestors as last loaded with birth parents switched)
+    showFractalTreePopup(options.biological?.tree || tree, { ...options, layout: next });
   };
   if (layout === "spiral") return showSpiralTreePopup(tree, { ...options, onSwitchLayout });
   return showNestedTreePopup(tree, { ...options, onSwitchLayout });
@@ -213,6 +214,8 @@ function showNestedTreePopup(tree, options = {}) {
   const world = options.world || null;
   const buildLayout = () => (world ? world.build() : { nodes: buildFractalLayout(tree).nodes });
   let { nodes } = buildLayout();
+  // (everything below starts from the first circle: with none, say so rather than "o[n].parent" (live, 2026-10-12))
+  if (!nodes.length) throw new Error("WikiTree sent no one to show");
   let roots = nodes.filter((node) => node.parent === -1);
   const state = {
     mode: nodes.some((node) => yearOf(node.person.birth)) ? "century" : "plain",
@@ -258,6 +261,11 @@ function showNestedTreePopup(tree, options = {}) {
               ).join("")}</div>`
             : ""
         }
+        ${
+          world?.setBiological || options.biological
+            ? `<label class="wbe-explorer-bio" hidden><input type="checkbox"> <span></span></label>`
+            : ""
+        }
         ${MODES.map((m) => `<button type="button" class="wbe-chart-mode" data-mode="${m.key}">${m.label}</button>`).join("")}
         <span class="wbe-chart-spacer"></span>
         <input type="search" class="wbe-fractal-search" placeholder="Find someone on the tree…" aria-label="Find someone on the tree">
@@ -271,6 +279,74 @@ function showNestedTreePopup(tree, options = {}) {
     </div>`,
   });
   popup.querySelector(".wbe-chart-title").textContent = options.title || "Branches";
+
+  // Someone's biological parents (BioFather, BioMother), switched one person at a time (the user, 2026-10-13: "the
+  // switches should probably be on individuals"): the switch is for whoever the view is on, when they have any.
+  const bioToggle = popup.querySelector(".wbe-explorer-bio");
+  // (an ancestors chart without a family world, options.biological {shown, reload}: the person in the circle looked at)
+  function plainBioChoice(person) {
+    if (!person || person.hidden || !(person.bioFatherId || person.bioMotherId)) return null;
+    const name = [person.name, person.lnab].filter(Boolean).join(" ") || person.wtid;
+    return { id: Number(person.id), name, on: options.biological.shown.has(Number(person.id)) };
+  }
+  function currentBioChoice() {
+    if (!world) return plainBioChoice(currentNode()?.person);
+    // (in the tree, of a couple, the one with birth parents recorded: Patty Luker, not Pat Rockstrom who married her)
+    const node = explorerView ? null : currentNode();
+    const couple = node?.kind === "family" && Array.isArray(node.person?.couple) ? node.person.couple.filter(Boolean) : [];
+    // (in a view with someone picked, theirs when they have any: Patty Luker in Terry's 3D view)
+    const picked = explorerView?.api.selectedId?.() || 0;
+    if (picked && world.bioChoice(picked)) return world.bioChoice(picked);
+    const id = explorerView ? explorerView.api.currentId() : couple.map((member) => member.id).find((memberId) => world.bioChoice(memberId)) || treePersonId();
+    return world.bioChoice(id);
+  }
+  function updateBioToggle() {
+    if (!bioToggle) return;
+    const choice = currentBioChoice();
+    bioToggle.hidden = !choice;
+    if (!choice) return;
+    bioToggle.dataset.id = choice.id;
+    bioToggle.querySelector("input").checked = choice.on;
+    bioToggle.querySelector("span").textContent = `${choice.name}'s biological parents`;
+    bioToggle.title = choice.on
+      ? `Showing ${choice.name} with their biological parents. Untick for the parents who raised them.`
+      : `Show ${choice.name} with their biological parents (on WikiTree as BioFather and BioMother) instead of the parents who raised them.`;
+  }
+  // The ancestors chart is loaded again with the choice (getPeople "ancestors" sends both lines), then flies to them.
+  async function reloadWithBirthParents(id, on) {
+    const { shown } = options.biological;
+    const input = bioToggle.querySelector("input");
+    if (on) shown.add(id);
+    else shown.delete(id);
+    input.disabled = true;
+    try {
+      const next = await options.biological.reload();
+      if (!next?.person || !popup.isConnected) return;
+      tree = next;
+      options.biological.tree = next;
+      state.doneKeys.clear();
+      state.failedKeys.clear();
+      relayout();
+      const at = nodes.findIndex((node) => Number(node.person?.id) === id);
+      flyTo(Math.max(0, at), reducedMotion() ? 0 : 700);
+    } catch (error) {
+      console.warn("wbe: Branches biological parents failed", error);
+      if (on) shown.delete(id);
+      else shown.add(id);
+    } finally {
+      input.disabled = false;
+      updateBioToggle();
+    }
+  }
+  bioToggle?.querySelector("input").addEventListener("change", (event) => {
+    const id = Number(bioToggle.dataset.id);
+    if (!world) return void reloadWithBirthParents(id, event.target.checked);
+    world.setBiological(id, event.target.checked);
+    if (!explorerView) return flyHome(reducedMotion() ? 0 : 700, id);
+    // (the other views start again on them; the tree too, when it's next shown)
+    state.restartTree = true;
+    switchView(explorerView.name, false, id);
+  });
 
   const stage = popup.querySelector(".wbe-chart-stage");
   const tip = popup.querySelector(".wbe-chart-tip");
@@ -702,6 +778,11 @@ function showNestedTreePopup(tree, options = {}) {
     const fittedSource = keyOf(nodes[state.fitted]);
     const focusSource = keyOf(nodes[state.focus]);
     ({ nodes } = buildLayout());
+    // (no one left in the view's circle, say placeholders a later fetch replaced: back to the start)
+    if (!nodes.length && world) {
+      world.home();
+      ({ nodes } = buildLayout());
+    }
     roots = nodes.filter((node) => node.parent === -1);
     const indexOf = (key) => (key ? nodes.findIndex((node) => keyOf(node) === key) : -1);
     state.fitted = indexOf(fittedSource);
@@ -1064,7 +1145,7 @@ function showNestedTreePopup(tree, options = {}) {
 
   function lineOf(index) {
     const set = new Set();
-    for (let i = index; i >= 0; i = nodes[i].parent) set.add(i);
+    for (let i = index; i >= 0 && nodes[i]; i = nodes[i].parent) set.add(i);
     return set;
   }
 
@@ -1130,6 +1211,7 @@ function showNestedTreePopup(tree, options = {}) {
   function updateCrumbs(index) {
     if (index === state.crumbIndex) return;
     state.crumbIndex = index;
+    updateBioToggle();
     const trail = [...lineOf(index)].reverse();
     crumbs.innerHTML = "";
     trail.forEach((i, position) => {
@@ -1266,13 +1348,15 @@ function showNestedTreePopup(tree, options = {}) {
    * The family world's start: the person themselves (their family filling the view, or among their brothers
    * and sisters when they have none), inside their parents' circle. (User, 2026-10-11: it opened on the parents.)
    */
-  function flyHome(duration = 1000) {
+  // (to `personId`'s parents' family, or the person the Explorer is about)
+  function flyHome(duration = 1000, personId = 0) {
     canvasSelection.interrupt("fly");
-    world.home();
+    world.home(personId || undefined);
     relayout();
     state.holdReroot = true;
     canvasSelection.call(zoomer.transform, fitNode(nodes[0], 0.15));
-    flyTo(Math.max(0, nodes.findIndex((node) => node.focus)), duration)
+    const at = personId ? nodes.findIndex((node) => node.depth > 0 && node.person?.id === personId) : -1;
+    flyTo(Math.max(0, at >= 0 ? at : nodes.findIndex((node) => node.focus)), duration)
       ?.on("end.hold", () => (state.holdReroot = false))
       .on("interrupt.hold", () => (state.holdReroot = false));
   }
@@ -1469,6 +1553,7 @@ function showNestedTreePopup(tree, options = {}) {
   });
 
   function drawFooter() {
+    updateBioToggle();
     const leaves = nodes.filter((node) => node.leaf).length;
     const deepest = nodes.reduce((max, node) => Math.max(max, node.depth), 0);
     const partial = world || hasFrontier(tree);
@@ -1518,10 +1603,11 @@ function showNestedTreePopup(tree, options = {}) {
   }
 
   let explorerView = null; // {name, host, api} while the Family or Galaxy view is showing
-  function switchView(name, remember = true) {
+  // (again: the same view built afresh, starting on that person; for the "Biological parents" option)
+  function switchView(name, remember = true, again = 0) {
     const showing = explorerView?.name || "tree";
-    if (!world?.raw || name === showing) return;
-    const startId = explorerView ? explorerView.api.currentId() : treePersonId();
+    if (!world?.raw || (name === showing && !again)) return;
+    const startId = again || (explorerView ? explorerView.api.currentId() : treePersonId());
     if (explorerView) {
       explorerView.api.destroy();
       explorerView.host.remove();
@@ -1531,7 +1617,12 @@ function showNestedTreePopup(tree, options = {}) {
     popup.classList.toggle("wbe-explorer-galaxy", name === "galaxy");
     popup.classList.toggle("wbe-explorer-3d", name === "3d");
     popup.querySelectorAll("[data-view]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.view === name)));
-    if (name === "tree") {
+    if (name === "tree" && state.restartTree) {
+      // (round whoever the other view is on now, not the one switched: live, Terry's view after Patty's switch)
+      state.restartTree = false;
+      flyHome(0, startId);
+      resize();
+    } else if (name === "tree") {
       // (the other view may have loaded more people)
       relayout();
       resize();
@@ -1541,11 +1632,14 @@ function showNestedTreePopup(tree, options = {}) {
       stage.appendChild(host);
       const refreshStats = () => {
         popup.querySelector(".wbe-chart-stats").innerHTML = world.stats();
+        updateBioToggle();
       };
       const mount = name === "galaxy" ? mountFamilyGalaxy : name === "3d" ? mountFamily3d : mountFamilyNavigator;
       // (the 3D view fetches ancestors further back; a prompt can name its shape: "my fan tower")
-      const mounted = mount(host, { world: world.raw, load: world.load, loadAncestors: world.loadAncestors, loadNearby: world.loadNearby, shape: options.shape, startId, onCentre: refreshStats });
+      const mounted = mount(host, { world: world.raw, load: world.load, loadAncestors: world.loadAncestors, loadNearby: world.loadNearby, shape: options.shape, startId, onCentre: refreshStats, onSelect: updateBioToggle });
       explorerView = { name, host, api: mounted };
+      // (a view can report its centre while mounting, before it's explorerView: the switch then named the tree's person)
+      updateBioToggle();
     }
     if (!remember) return;
     try {

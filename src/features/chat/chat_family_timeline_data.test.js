@@ -55,6 +55,13 @@ describe("buildFamilyTimelineRows", () => {
     expect(rows[2].marriage).toBe("1852-03-04");
   });
 
+  test("leaves out a marriage marked not to show (Murray Maloney, 2026-10-12)", () => {
+    const ex = { Id: 7, Name: "Ex-1", RealName: "Walter", Gender: "Male", BirthDate: "1830-00-00", do_not_display: "1" };
+    const withEx = { person: { ...entry.person, Spouses: { ...entry.person.Spouses, 7: ex } } };
+    expect(buildFamilyTimelineRows(withEx, []).map((row) => row.name)).not.toContain("Walter");
+    expect(buildFamilyTimelineRows(withEx, []).map((row) => row.name)).toContain("Charles");
+  });
+
   test("spans and who was alive", () => {
     expect(rowSpan(rows[1])).toEqual({ start: 1832, end: 1898, endKnown: true });
     expect(rowSpan(rows[3], 2026)).toEqual({ start: 1835, end: 1905, endKnown: false });

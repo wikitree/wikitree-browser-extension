@@ -7,6 +7,7 @@ import { canonicalChartOwner as canonicalOwner } from "./chat_chart_prompt";
 
 import { yearOf } from "./chat_chart_common";
 import { generationOfSlot } from "./chat_fan_chart_data";
+import { shownGender } from "./chat_gender_display";
 import { generationLabel } from "./chat_kin_labels";
 import { RELATIVE_OWNER } from "./chat_chart_owner";
 
@@ -88,7 +89,7 @@ export function buildFamilySizes(slots, people) {
             id: person.Id,
             wtid: person.Name || "",
             name: person.RealName || person.FirstName || person?.Derived?.ShortName || person.Name || "Private",
-            gender: person.Gender || "",
+            gender: shownGender(person),
             birthYear,
             deathYear,
             diedYoung: !!(birthYear && deathYear && deathYear - birthYear < DIED_YOUNG_AGE),

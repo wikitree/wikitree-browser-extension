@@ -7,7 +7,9 @@
 // relatives this close share.
 
 import { joinWithAnd } from "./chat_text_utils";
+import { shownGender } from "./chat_gender_display";
 import { textWithMoreLink } from "./chat_more_text";
+import { connectionStepKind } from "./chat_connection_common";
 
 const GENOME_CM = 6800; // (about: two copies of ~3400 cM of autosomes)
 
@@ -334,7 +336,8 @@ const chartPerson = (p) => {
     wtid: p?.Name || "",
     first: first || p?.Name || "Private",
     name: [first, surname, String(p?.Suffix || "").trim()].filter(Boolean).join(" ") || p?.Name || "Private",
-    gender: p?.Gender || "",
+    gender: shownGender(p),
+    sex: p?.Gender || "",
     birthYear: year(p?.BirthDate),
     deathYear: year(p?.DeathDate),
     birthPlace: String(p?.BirthLocation || "").trim(),
@@ -353,8 +356,9 @@ const chartPerson = (p) => {
  */
 export function buildRelationshipLines(path, analysis) {
   const steps = Array.isArray(path) ? path : [];
-  if (steps.length < 2 || steps.slice(1).some((p) => !["parent", "child", "sibling"].includes(p?.pathType))) return null;
-  const types = steps.map((p) => p?.pathType || "");
+  // (a step through BioFather/BioMother, "bioparent", is the same kind of step)
+  const types = steps.map((p) => connectionStepKind(p?.pathType));
+  if (steps.length < 2 || types.slice(1).some((type) => !["parent", "child", "sibling"].includes(type))) return null;
   const people = steps.map(chartPerson);
   // Each link's status sits on the upper person of a climb and the lower one of a descent.
   for (let i = 1; i < steps.length; i += 1) {
@@ -393,11 +397,17 @@ export function buildRelationshipLines(path, analysis) {
 // noted, highlighted even. Finding xDNA match is not easy"). X passes from a mother to every
 // child and from a father to his daughters only, so a line carries it unless it has a
 // father-to-son link.
-const isMale = (person) => /^m/i.test(String(person?.gender || ""));
-const isFemale = (person) => /^f/i.test(String(person?.gender || ""));
+// (the sex at birth, even when the gender is marked not to show)
+const isMale = (person) => /^m/i.test(String(person?.sex ?? person?.gender ?? ""));
+const isFemale = (person) => /^f/i.test(String(person?.sex ?? person?.gender ?? ""));
 
-/** A line from the top down: {ok: true} | {ok: false, father, son} | {ok: null} (a gender missing). */
+/**
+ * A line from the top down: {ok: true} | {ok: false, father, son} | {ok: false, adopted} (a non-biological link,
+ * which passes no DNA) | {ok: null} (a gender missing).
+ */
 function xDnaDownLine(line) {
+  const adopted = line.find((person) => person.status === 5);
+  if (adopted) return { ok: false, adopted };
   let unknown = false;
   for (let i = 0; i + 1 < line.length; i += 1) {
     const [parent, child] = [line[i], line[i + 1]];
@@ -415,6 +425,7 @@ function xDnaDownLine(line) {
 export function xDnaPath(lines) {
   if (!lines?.ancestors?.length || !lines.line1?.length || !lines.line2?.length) return { kind: "unknown" };
   const downs = [lines.line1, lines.line2].map(xDnaDownLine);
+  if (downs.some((down) => down.adopted)) return { kind: "unknown" };
   const blocked = downs.find((down) => down.ok === false);
   if (blocked) return { kind: "blocked", father: blocked.father, son: blocked.son };
   if (downs.some((down) => down.ok === null)) return { kind: "unknown" };
@@ -434,10 +445,12 @@ export function xDnaPath(lines) {
 export function directLineDown(path) {
   const steps = Array.isArray(path) ? path : [];
   if (steps.length < 2) return null;
-  const types = steps.slice(1).map((p) => p?.pathType);
+  const types = steps.slice(1).map((p) => connectionStepKind(p?.pathType));
   const people = steps.map(chartPerson);
-  if (types.every((t) => t === "parent")) return people.reverse();
-  if (types.every((t) => t === "child")) return people;
+  // Each link's status on the lower person, as in buildRelationshipLines.
+  const status = (i) => Number(steps[i].pathStatus) || 0;
+  if (types.every((t) => t === "parent")) return people.map((person, i) => ({ ...person, status: i + 1 < steps.length ? status(i + 1) : 0 })).reverse();
+  if (types.every((t) => t === "child")) return people.map((person, i) => ({ ...person, status: i ? status(i) : 0 }));
   return null;
 }
 

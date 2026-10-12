@@ -4,6 +4,7 @@
 // Field docs: https://github.com/wikitree/wikitree-api/blob/main/getProfile.md
 import { PRIVACY_LEVELS } from "./chat_profile_facts";
 import { escapeHtml } from "../../core/lib/diff_utils";
+import { shownGender } from "./chat_gender_display";
 
 const RESEARCH_STATUSES = {
   0: "",
@@ -59,7 +60,8 @@ const status = (field, labels) => (person) => {
 
 export const REQUESTED_COLUMNS = {
   // Coloured like the row's left edge (chat.css), from the row's gender class.
-  gender: { title: "Gender", fields: "Gender", value: (p) => p.Gender || "", meaning: "male/female", cellClass: "chat-gender-cell" },
+  // (blank when it's marked not to show, as on WikiTree)
+  gender: { title: "Gender", fields: "Gender,DataStatus", value: (p) => shownGender(p), meaning: "male/female", cellClass: "chat-gender-cell" },
   privacy: {
     title: "Privacy",
     fields: "Privacy",
@@ -154,7 +156,7 @@ export function knownColumnKeys(keys) {
 
 /** The getPeople fields the columns need. */
 export function requestedColumnFields(keys) {
-  return [...new Set(["Id", "Name", ...knownColumnKeys(keys).map((key) => REQUESTED_COLUMNS[key].fields)])].join(",");
+  return [...new Set(["Id", "Name", ...knownColumnKeys(keys).flatMap((key) => REQUESTED_COLUMNS[key].fields.split(","))])].join(",");
 }
 
 const idKey = (value) => String(value || "").trim().replace(/ /g, "_").toLowerCase();

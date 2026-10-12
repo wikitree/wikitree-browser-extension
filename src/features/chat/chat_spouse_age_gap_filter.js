@@ -1,3 +1,5 @@
+import { isHiddenMarriage } from "./chat_marriage_display";
+
 function stripSurroundingQuotes(value) {
   if (value == null) return "";
   return String(value)
@@ -189,6 +191,8 @@ export function buildSpousalAgeGapMatches(people = [], spousesById = {}, constra
       : Object.entries(spousesRaw || {});
 
     for (const [spouseKey, spouseRef] of spouseEntries) {
+      // (not marriages the manager chose not to show)
+      if (isHiddenMarriage(spouseRef)) continue;
       const spouseId = String(spouseRef?.Id || spouseKey || "").trim();
       if (!spouseId || spouseId === "0" || spouseId === profileId) {
         continue;

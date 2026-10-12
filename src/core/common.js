@@ -1001,8 +1001,9 @@ function addDataButtons() {
     </div>
   `;
   $(".masonry-wrapper").after(dataButtons);
-  $("#downloadFeatureData").on("click", downloadFullBackup);
-  $("#importFeatureData").on("click", importFeatureData);
+  // Wrapped so jQuery's click event isn't passed in as the onDone/onStatus callback.
+  $("#downloadFeatureData").on("click", () => downloadFullBackup());
+  $("#importFeatureData").on("click", () => importFeatureData());
 }
 
 /**

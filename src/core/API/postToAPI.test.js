@@ -182,3 +182,27 @@ describe("WikiTreeAPI.postToAPI retries", () => {
     expect(error.message.length).toBeLessThan(400);
   });
 });
+
+// The Apps login runs out while a page sits open (Murray, 2026-10-13): the answer is kept five minutes, not for good.
+describe("WikiTreeAPI.isLoggedIntoAPI", () => {
+  afterEach(() => {
+    delete global.fetch;
+    jest.restoreAllMocks();
+  });
+
+  it("asks again once the kept answer is five minutes old", async () => {
+    let result = "ok";
+    global.fetch = jest.fn(async () => fakeResponse({ body: JSON.stringify({ clientLogin: { result } }) }));
+    let now = 1_000_000;
+    jest.spyOn(Date, "now").mockImplementation(() => now);
+
+    expect(await WikiTreeAPI.isLoggedIntoAPI(4242)).toBe(true);
+    result = "error";
+    now += 60 * 1000;
+    expect(await WikiTreeAPI.isLoggedIntoAPI(4242)).toBe(true);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    now += 5 * 60 * 1000;
+    expect(await WikiTreeAPI.isLoggedIntoAPI(4242)).toBe(false);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+});

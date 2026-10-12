@@ -208,7 +208,12 @@ export function navigatorLayout(family) {
   const parentY = ROW.parents;
   const both = family.father && family.mother;
   // (a parent not recorded isn't drawn: the line comes from the one who is)
-  const parentSlot = (person, side) => (person ? add(person, roleWord("parent", person), "l", both ? side * PARENT_SPREAD : 0, parentY, centreKey) : null);
+  // ("Biological father" when the person is shown with their birth parents: chat_family_world_data.js)
+  const parentRole = (person) => {
+    const word = roleWord("parent", person);
+    return person.id && (person.id === centre.bioFatherId || person.id === centre.bioMotherId) ? `Biological ${word.toLowerCase()}` : word;
+  };
+  const parentSlot = (person, side) => (person ? add(person, parentRole(person), "l", both ? side * PARENT_SPREAD : 0, parentY, centreKey) : null);
   const fatherCard = parentSlot(family.father, -1);
   const motherCard = parentSlot(family.mother, 1);
   const parentsRing = fatherCard && motherCard ? couple("parents", fatherCard, motherCard, "") : null;

@@ -12,7 +12,7 @@ test("a spec reply keeps known extra columns only", () => {
 });
 
 test("fields to fetch", () => {
-  expect(requestedColumnFields(["gender", "privacy", "fatherStatus", "motherStatus"])).toBe("Id,Name,Gender,Privacy,DataStatus");
+  expect(requestedColumnFields(["gender", "privacy", "fatherStatus", "motherStatus"])).toBe("Id,Name,Gender,DataStatus,Privacy");
   expect(describeRequestedColumns()).toMatch(/^gender \(male\/female\), privacy \(privacy level\), /);
 });
 

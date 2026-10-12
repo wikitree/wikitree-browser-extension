@@ -74,7 +74,8 @@ const NEARBY_MODES = [
   { key: "surname", label: "Surnames" },
   { key: "gender", label: "Men and women" },
 ];
-const GENDER_COLOURS = { male: "#7fa7d9", female: "#e59ab8", unknown: "#c4c8ce" };
+// (other: a gender marked not to show, green as on WikiTree: chat_gender_display.js)
+const GENDER_COLOURS = { male: "#7fa7d9", female: "#e59ab8", other: "#8cc79a", unknown: "#c4c8ce" };
 const FOCUS_RING = "#f0b400";
 const BAR_COLOUR = [154, 143, 122]; // a family's bars and chords, which are no one person's
 
@@ -224,6 +225,7 @@ export function mountFamily3d(host, options) {
         <button type="button" data-gens="1" title="More generations">+</button>
       </span>
       <label class="wbe-3d-seg wbe-3d-colour">Colour <select aria-label="Colour by">${COLOUR_MODES.map((mode) => `<option value="${mode.key}">${mode.label}</option>`).join("")}</select></label>
+      <span class="wbe-3d-seg wbe-3d-turn"><button type="button" data-act3d="turn" aria-pressed="true" title="Turn the model slowly. It stops as soon as you click, drag or scroll it">Turn</button></span>
       <span class="wbe-3d-seg wbe-3d-print"><button type="button" data-act3d="menu" aria-expanded="false">Download for 3D printing ▾</button></span>
     </div>
     <div class="wbe-3d-menu" hidden>
@@ -293,7 +295,9 @@ export function mountFamily3d(host, options) {
   let destroyed = false;
   let loadToken = 0;
   let lastTime = 0;
-  let idleSince = 0;
+  // (it turns slowly until someone clicks, drags or scrolls it, then stays still until Turn is pressed: the user,
+  // 2026-10-13, "it soon starts moving again")
+  let turning = motion;
   let placed = []; // what was drawn, for hovering and clicking
   const fetched = new Set();
   // (the card fetches someone's family when it isn't all here, and shows it when it comes)
@@ -391,12 +395,13 @@ export function mountFamily3d(host, options) {
       colourOf = (slot) => (branchOf.get(slot) >= 0 ? GALAXY_HUES[branchOf.get(slot) % GALAXY_HUES.length] : IVORY);
       legend = nearby.branches.map((branch) => ({ colour: GALAXY_HUES[branch.index % GALAXY_HUES.length], label: branchLabel(branch, slots[1]) }));
     } else if (shape === "nearby" && mode === "gender") {
-      const kind = (person) => (/^m/i.test(person.gender) ? "male" : /^f/i.test(person.gender) ? "female" : "unknown");
+      const kind = (person) => (/^m/i.test(person.gender) ? "male" : /^f/i.test(person.gender) ? "female" : person.sex ? "other" : "unknown");
       colourOf = (slot) => GENDER_COLOURS[kind(slots[slot])];
       const counts = slots.reduce((all, person, slot) => (person && slot > 1 ? { ...all, [kind(person)]: (all[kind(person)] || 0) + 1 } : all), {});
       legend = [
         { colour: GENDER_COLOURS.male, label: `Men (${counts.male || 0})` },
         { colour: GENDER_COLOURS.female, label: `Women (${counts.female || 0})` },
+        ...(counts.other ? [{ colour: GENDER_COLOURS.other, label: `Gender not shown (${counts.other})` }] : []),
         ...(counts.unknown ? [{ colour: GENDER_COLOURS.unknown, label: `Not known (${counts.unknown})` }] : []),
       ];
     } else if (mode === "lines") {
@@ -502,6 +507,8 @@ export function mountFamily3d(host, options) {
     selected = slot;
     renderCard();
     family.ensure(slots[slot]);
+    // (the Explorer's biological-parents switch follows who is picked: Patty Luker in Terry's view, the user, 2026-10-13)
+    options.onSelect?.();
   }
 
   function renderCard() {
@@ -953,7 +960,8 @@ export function mountFamily3d(host, options) {
     if (destroyed) return;
     const dt = lastTime ? Math.min(0.05, (time - lastTime) / 1000) : 0;
     lastTime = time;
-    if (motion && !dragging && time - idleSince > 3000) camera.yaw += TURN_SPEED * dt;
+    // (hovering doesn't pause it: moving the mouse out across the model stopped it, the user, 2026-10-13)
+    if (turning && !dragging) camera.yaw += TURN_SPEED * dt;
     if (camera.fit) {
       const k = ease(Math.min(1, (time - camera.fit.start) / 900));
       const { from, to } = camera.fit;
@@ -1050,14 +1058,21 @@ export function mountFamily3d(host, options) {
 
   // Drag to turn, scroll to zoom, click someone.
   let dragging = null;
+  const turnButton = $(".wbe-3d-turn button");
+  const setTurning = (on) => {
+    turning = Boolean(on) && motion;
+    turnButton.setAttribute("aria-pressed", String(turning));
+  };
+  $(".wbe-3d-turn").hidden = !motion;
+  setTurning(turning);
   canvas.addEventListener("pointerdown", (event) => {
+    setTurning(false);
     dragging = { x: event.clientX, y: event.clientY, yaw: camera.yaw, pitch: camera.pitch, moved: false };
     canvas.setPointerCapture?.(event.pointerId);
     menuEl.hidden = true;
   });
   canvas.addEventListener("pointermove", (event) => {
     const rect = canvas.getBoundingClientRect();
-    idleSince = performance.now();
     if (dragging) {
       const dx = event.clientX - dragging.x;
       const dy = event.clientY - dragging.y;
@@ -1082,7 +1097,6 @@ export function mountFamily3d(host, options) {
   canvas.addEventListener("pointerup", (event) => {
     const drag = dragging;
     dragging = null;
-    idleSince = performance.now();
     if (drag?.moved) return;
     const rect = canvas.getBoundingClientRect();
     const slot = slotAt(event.clientX - rect.left, event.clientY - rect.top);
@@ -1100,7 +1114,7 @@ export function mountFamily3d(host, options) {
       // (CC plaques can be hundreds across: zoom right in on someone)
       camera.zoom = Math.max(shape === "nearby" ? 0.04 : 0.3, Math.min(3, camera.zoom * Math.exp(event.deltaY * 0.0012)));
       camera.fit = null;
-      idleSince = performance.now();
+      setTurning(false);
     },
     { passive: false }
   );
@@ -1114,6 +1128,7 @@ export function mountFamily3d(host, options) {
     if (!button) return;
     if (button.dataset.shape) setShape(button.dataset.shape);
     else if (button.dataset.gens) setGenerations(Number(button.dataset.gens));
+    else if (button.dataset.act3d === "turn") setTurning(!turning);
     else if (button.dataset.act3d === "menu") {
       menuEl.hidden = !menuEl.hidden;
       button.setAttribute("aria-expanded", String(!menuEl.hidden));
@@ -1129,6 +1144,7 @@ export function mountFamily3d(host, options) {
     else if (button.dataset.act3d === "close") {
       cardEl.hidden = true;
       selected = 0;
+      options.onSelect?.();
     }
   });
   $(".wbe-3d-colour select").addEventListener("change", (event) => {
@@ -1185,6 +1201,7 @@ export function mountFamily3d(host, options) {
     },
     resize: measure,
     currentId: () => current,
+    selectedId: () => Number(slots[selected]?.id) || 0,
     destroy() {
       destroyed = true;
       cancelAnimationFrame(frame);

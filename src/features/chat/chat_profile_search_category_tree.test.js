@@ -186,6 +186,30 @@ describe("chat_profile_search category tree expansion", () => {
     expect(choiceCalls).toHaveLength(0);
   });
 
+  test("an exact Category: name runs as written, not grown into its project categories (Murray, Puritan Great Migration)", async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        response: {
+          categories: ["Puritan_Great_Migration", "Puritan_Great_Migration_Project_Needs_Research", "Puritan_Great_Migration_Spouse"].map((Name) => ({ Name })),
+        },
+      }),
+    }));
+    // (the catalogue lists it first, live 2026-10-13, then 31 near-namesakes)
+    mockPicker({ "Puritan Great Migration": ["Puritan Great Migration", "Puritan Great Migration Project Needs Research", "Puritan Great Migration Spouse"] });
+    mockAi({ understood: "Your ancestors in the Puritan Great Migration category", query: "Ancestors=Maloney-2332 CategoryFull=Puritan_Great_Migration" }, "");
+
+    const { tryHandleProfileSearchPrompt } = makeHandler();
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "identify all of my ancestors with Category:Puritan_Great_Migration");
+    expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])).toBe("Ancestors=Maloney-2332 CategoryFull=Puritan_Great_Migration");
+
+    // Named without "Category:", it's still the one category the catalogue has by that name.
+    wtAPIProfileSearch.mockClear();
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "my ancestors in the Puritan Great Migration category");
+    expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])).toBe("Ancestors=Maloney-2332 CategoryFull=Puritan_Great_Migration");
+    expect(blindSeedCalls()).toHaveLength(0);
+  });
+
   test("no tree chosen: the AI's query runs unchanged (London butchers)", async () => {
     mockPicker({ "London Butchers": ["Butchers' Company, City of London"], Butchers: ["England, Butchers"] });
     mockAi({ understood: "London butchers", query: "Location=London CategoryWord=Butchers" }, "");

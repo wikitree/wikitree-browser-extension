@@ -638,6 +638,24 @@
   margin-left: auto;
 }
 
+/* Logged in to the apps server or not (Murray, 2026-10-13): a quiet tick, or "Logged out" and the Apps button. */
+.chat-apps-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 0.3rem;
+  font-size: 0.8rem;
+  color: #5b7d4f;
+  white-space: nowrap;
+}
+.chat-apps-status[hidden] {
+  display: none !important;
+}
+.chat-apps-status-out {
+  color: #a4421c;
+  font-weight: 600;
+}
+
 /* "AI [switch] On/Off", like G2G's "Newest first" switch. */
 #wbe-genie-ai-toggle {
   display: inline-flex;

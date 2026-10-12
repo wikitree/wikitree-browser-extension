@@ -5,6 +5,8 @@
 
 import { fullWikiTreeName } from "./chat_fan_chart_data";
 import { getCountryFromLocation } from "./chat_place_country";
+import { shownGender } from "./chat_gender_display";
+import { raisedNotBornToIds } from "./chat_birth_family";
 import { RELATIVE_OWNER } from "./chat_chart_owner";
 
 export const DESCENDANT_CHART_DEFAULT_GENERATIONS = 5;
@@ -78,7 +80,9 @@ function summarize(person) {
     hidden: !(person.RealName || person?.Derived?.ShortName || person.FirstName || person.Name),
     fullName: fullWikiTreeName(person),
     lnab: person.LastNameAtBirth || "",
-    gender: person.Gender || "",
+    // (the gender to show, blank when marked not to; sex: the sex at birth, for DNA lines: chat_gender_display.js)
+    gender: shownGender(person),
+    sex: person.Gender || "",
     birth: cleanDate(person.BirthDate),
     death: cleanDate(person.DeathDate),
     birthLocation: person.BirthLocation || "",
@@ -88,6 +92,8 @@ function summarize(person) {
     photoData: person.PhotoData || null,
     // (IsLiving is asked for by the DNA carriers chart: who could still take a test)
     living: Number(person.IsLiving) === 1,
+    // (parents who raised them but aren't their birth parents: DNA lines stop there)
+    notBornTo: raisedNotBornToIds(person),
   };
 }
 

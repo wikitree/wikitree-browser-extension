@@ -2,6 +2,7 @@ import $ from "jquery";
 import { isProfileNarrativePrompt } from "./chat_profile_narrative";
 import { describeRelationChain, pickSpouseByOrdinal, relativesBiosTitle, splitOrdinalFromRelation, rewriteInLawTerms } from "./chat_relation_chain_text";
 import { profileLinkHtml } from "./chat_profile_link";
+import { shownSpouses } from "./chat_marriage_display";
 import { unloadedProfileMessage } from "./chat_profile_availability";
 
 export function createChatBioHandlers({
@@ -168,8 +169,8 @@ export function createChatBioHandlers({
       });
       console.debug("wbe: listSpousesForId fetched profile", { id, profile });
       hideChatShaky();
-      const spousesObj = profile?.Spouses || {};
-      const spouses = Object.values(spousesObj || []).map((spouse) => ({
+      // (not marriages the manager chose not to show: see chat_marriage_display.js)
+      const spouses = shownSpouses(profile?.Spouses).map((spouse) => ({
         wtid: spouse.Name,
         displayName: spouse.RealName || (spouse.Derived && spouse.Derived.ShortName) || spouse.Name,
       }));
@@ -410,7 +411,7 @@ export function createChatBioHandlers({
     const result = await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, parentId, "Id,Name,RealName,Gender", {
       getSpouses: 1,
     });
-    const spouses = Object.values(result?.[0]?.person?.Spouses || {}).filter((s) => s?.Name);
+    const spouses = shownSpouses(result?.[0]?.person?.Spouses).filter((s) => s?.Name);
     const wantedGender = isStepMother ? "female" : "male";
     const people = spouses
       .filter((s) => !(otherParentId > 0 && Number(s.Id) === otherParentId))
@@ -518,8 +519,7 @@ export function createChatBioHandlers({
         resolveRedirect: 1,
       });
       hideChatShaky();
-      const spousesObj = profile?.Spouses || {};
-      const spouses = Object.values(spousesObj || []);
+      const spouses = shownSpouses(profile?.Spouses);
       if (!spouses.length) {
         try {
           const domIds = findSpouseProfileIdsFromDOM(personKey);
@@ -658,7 +658,7 @@ export function createChatBioHandlers({
           const uniqueIds = [...new Set(profiles.map((profile) => String(profile)))].slice(0, 200);
           showChatShaky(`Fetching ${uniqueIds.length} profiles...`);
           const fields =
-            "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,RealName,BirthDate,BirthLocation,DeathDate,DeathLocation,Gender,Id,Name";
+            "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,RealName,BirthDate,BirthLocation,DeathDate,DeathLocation,Gender,DataStatus,Id,Name";
           const [, resultByKey, peopleData] = await WikiTreeAPI.getPeople(WBE_CHAT_APP_ID, uniqueIds, fields, {
             resolveRedirect: 1,
           });
@@ -702,6 +702,14 @@ export function createChatBioHandlers({
     let targetRaw = null;
     let relationRaw = null;
     let intermediateRelations = [];
+
+    // "Patty's bio siblings", "who are her biological parents?": the birth family, not a biography (live,
+    // 2026-10-13: "Patty's bio siblings" opened Patty's bio). The router's relation answers take these.
+    const birthRelationRe = /\b(?:biological|birth|bio)\s+(?:mothers?|moms?|fathers?|dads?|parents?|daughters?|sons?|children|kids?|brothers?|sisters?|siblings?)\b/gi;
+    if (birthRelationRe.test(str) && !/\bbio(?:graphy|graphies|s)?\b/i.test(str.replace(birthRelationRe, ""))) {
+      console.info("wbe: tryHandlePersonBioPrompt - a birth-family relation, deferring to main router", { prompt });
+      return null;
+    }
 
     // "read this biography aloud", "show his bio", "this profile's biography": the bio of the person being
     // asked about (the picker's, else the page's). It looked for a profile called "null" or "read this
@@ -1179,7 +1187,7 @@ export function createChatBioHandlers({
           { getSpouses: 1 }
         );
         const [pr] = result;
-        const spouses = Object.values(pr?.person?.Spouses || {}).filter((spouse) => spouse?.Name);
+        const spouses = shownSpouses(pr?.person?.Spouses).filter((spouse) => spouse?.Name);
         const hopWord = String(hopRelation).toLowerCase();
         const wantedGender = /^(wife|wives)$/.test(hopWord) ? "female" : /^(husband|husbands)$/.test(hopWord) ? "male" : null;
         const genderMatches = wantedGender
@@ -1396,7 +1404,7 @@ export function createChatBioHandlers({
           : /^(husband|husbands)$/i.test(String(relationRaw || ""))
           ? "male"
           : null;
-        let spouseValues = Object.values(profile?.Spouses || {});
+        let spouseValues = shownSpouses(profile?.Spouses);
         if (wantedSpouseGender) {
           const genderMatches = spouseValues.filter(
             (s) => String(s?.Gender || "").toLowerCase() === wantedSpouseGender

@@ -232,7 +232,7 @@ async function populateInterface() {
     if (apiWatchlist.length == 0) {
       return {
         status: false,
-        msg: `We could not find any Free Space pages for user ${getUserWtId()} (${userNumId}}) currently logged into the API server.`,
+        msg: `We could not find any Free Space pages for user ${getUserWtId()} (${userNumId}) currently logged into the API server.`,
       };
       // Should we clear any pages from the db but keeping the folders?
       // It's not strictly necessary other than saving a bit of space.
@@ -770,10 +770,6 @@ function getUpdatedFolders() {
     }
   });
 
-  if (updatedFolders.length === 0) {
-    console.warn("No folders found in getUpdatedFolders.");
-  }
-
   // console.log("getUpdatedFolders result:", updatedFolders);
   return updatedFolders;
 }
@@ -1018,12 +1014,11 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
         // Save the updated folders to storage, but first remove the storage change listener
         // so we try to process our own save yet again.
         browserAPI.storage.onChanged.removeListener(storageChangeListener);
+        // No folders means the popup never loaded (not logged in, no Free Space pages): removing a
+        // folder always leaves Unorganized behind. Saving that empty list would wipe the stored groups.
         if (updatedFolders.length > 0) {
           // console.log("Saving updated folders to storage:", updatedFolders);
           saveWatchlistToDB(updatedFolders);
-        } else {
-          // console.warn("No folders to save after removing empty folders.");
-          saveWatchlistToDB([]); // Save an empty list if all folders are removed
         }
 
         // Remove the popup

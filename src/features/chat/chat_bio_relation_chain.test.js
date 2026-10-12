@@ -541,3 +541,15 @@ describe("this profile's biography", () => {
     expect(JSON.stringify(result)).not.toMatch(/couldn't identify/);
   });
 });
+
+describe("tryHandlePersonBioPrompt and the birth family", () => {
+  test.each(["Patty's bio siblings", "who are Patty's bio siblings?", "Luker-573's biological parents", "my birth mother"])(
+    "%s goes to the router",
+    async (prompt) => {
+      expect(await createChatBioHandlers(makeDeps()).tryHandlePersonBioPrompt(prompt)).toBeNull();
+    }
+  );
+  test("bios of the birth family are still bios", async () => {
+    expect(await createChatBioHandlers(makeDeps()).tryHandlePersonBioPrompt("Patty's biological parents' bios")).not.toBeNull();
+  });
+});

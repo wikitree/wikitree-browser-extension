@@ -14,7 +14,10 @@ if (typeof API_URL === "undefined") {
 }
 
 const dateTokenCache = {};
-const apiLoginStatusCache = new Map();
+const apiLoginStatusCache = new Map(); // userNumId → {status: Promise<boolean>, at}
+// The Apps login runs out while a page sits open: an answer older than this is asked again (Murray, 2026-10-13:
+// "If you go away for a while and come back to it, it doesn't work, and doesn't tell you why").
+const API_LOGIN_STATUS_MAX_AGE_MS = 5 * 60 * 1000;
 
 /**
  * Serializes WikiTree fuzzy date using formatting string
@@ -581,7 +584,7 @@ WikiTreeAPI.getAppsServerAccessErrorMessage = function (featureName = "This feat
 
 WikiTreeAPI.setCachedApiLoginStatus = function (userNumId, loggedIn) {
   if (!userNumId) return;
-  apiLoginStatusCache.set(String(userNumId), Promise.resolve(Boolean(loggedIn)));
+  apiLoginStatusCache.set(String(userNumId), { status: Promise.resolve(Boolean(loggedIn)), at: Date.now() });
 };
 
 WikiTreeAPI.clearCachedApiLoginStatus = function (userNumId) {
@@ -593,10 +596,11 @@ WikiTreeAPI.clearCachedApiLoginStatus = function (userNumId) {
 WikiTreeAPI.isLoggedIntoAPI = async function (userNumId, appId = "WBE_check_login") {
   if (!userNumId) return false;
   const cacheKey = String(userNumId);
-  if (!apiLoginStatusCache.has(cacheKey)) {
-    apiLoginStatusCache.set(
-      cacheKey,
-      WikiTreeAPI.postToAPI({
+  const cached = apiLoginStatusCache.get(cacheKey);
+  if (!cached || Date.now() - cached.at > API_LOGIN_STATUS_MAX_AGE_MS) {
+    apiLoginStatusCache.set(cacheKey, {
+      at: Date.now(),
+      status: WikiTreeAPI.postToAPI({
         appId: appId,
         action: "clientLogin",
         checkLogin: userNumId,
@@ -605,11 +609,11 @@ WikiTreeAPI.isLoggedIntoAPI = async function (userNumId, appId = "WBE_check_logi
         .catch((error) => {
           apiLoginStatusCache.delete(cacheKey);
           throw error;
-        })
-    );
+        }),
+    });
   }
 
-  return await apiLoginStatusCache.get(cacheKey);
+  return await apiLoginStatusCache.get(cacheKey).status;
 };
 
 // api.wikitree.com sometimes answers a perfectly good request with a 5xx (or a 429 when it is

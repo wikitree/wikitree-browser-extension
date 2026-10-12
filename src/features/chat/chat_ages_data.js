@@ -64,8 +64,10 @@ export function parseAgesPrompt(prompt) {
   return null;
 }
 
-function relationOf(slot) {
-  return slot === 1 ? "" : ancestorWord(generationOfSlot(slot), slot % 2 === 0 ? "Male" : "Female");
+// (fathers are even slots, mothers odd; neutral for someone whose gender isn't shown: chat_gender_display.js)
+const notShown = (person) => Boolean(person && !person.gender && person.sex);
+function relationOf(slot, person = null) {
+  return slot === 1 ? "" : ancestorWord(generationOfSlot(slot), notShown(person) ? "" : slot % 2 === 0 ? "Male" : "Female");
 }
 
 /** One row per ancestor with a birth and death date: {slot, generation, name, wtid, gender, born, age, approx, relation, flag}. */
@@ -75,11 +77,11 @@ export function deathAgeRows(slots) {
     if (!person || slot < 1) return;
     const span = ageBetween(person.birth, person.death);
     if (!span) return;
-    const gender = person.generation !== undefined || slot === 1 ? person.gender : slot % 2 === 0 ? "Male" : "Female";
+    const gender = person.generation !== undefined || slot === 1 || notShown(person) ? person.gender : slot % 2 === 0 ? "Male" : "Female";
     let flag = "";
     if (span.age < 0) flag = "Died before they were born: one of the dates is wrong";
     else if (span.age > 105) flag = `Aged ${span.age}: very unlikely, so check the dates`;
-    rows.push({ slot, generation: person.generation ?? generationOfSlot(slot), name: fullName(person), wtid: person.wtid, gender, born: dateParts(person.birth).year, age: span.age, approx: span.approx, relation: person.generation !== undefined ? descendantWord(person.generation, person.gender) : relationOf(slot), flag });
+    rows.push({ slot, generation: person.generation ?? generationOfSlot(slot), name: fullName(person), wtid: person.wtid, gender, born: dateParts(person.birth).year, age: span.age, approx: span.approx, relation: person.generation !== undefined ? descendantWord(person.generation, person.gender) : relationOf(slot, person), flag });
   });
   return rows;
 }
@@ -93,10 +95,12 @@ export function parentAgeRows(slots) {
   (slots || []).forEach((person, slot) => {
     if (!person) return;
     if (person.children) {
-      if (!["Male", "Female"].includes(person.gender)) return;
+      // (father or mother by the sex at birth, even when the gender isn't shown)
+      const sex = person.sex ?? person.gender;
+      if (!["Male", "Female"].includes(sex)) return;
       person.children.forEach((child) => {
         const pair = [null, child];
-        pair[person.gender === "Male" ? 2 : 3] = { ...person, children: undefined };
+        pair[sex === "Male" ? 2 : 3] = { ...person, children: undefined };
         parentAgeRows(pair).forEach((row) => rows.push({ ...row, slot, generation: person.generation, relation: descendantWord(person.generation, person.gender) }));
       });
       return;
@@ -107,17 +111,18 @@ export function parentAgeRows(slots) {
     const span = ageBetween(person.birth, child.birth);
     if (!span) return;
     const role = slot % 2 === 0 ? "father" : "mother";
+    const word = notShown(person) ? "parent" : role;
     let flag = "";
-    if (span.age < (role === "mother" ? 12 : 13)) flag = `A ${role} aged ${span.age}: check the dates or the parent`;
-    else if (role === "mother" && span.age > 52) flag = `A mother aged ${span.age}: unlikely, so check the dates or the parent`;
-    else if (role === "father" && span.age > 80) flag = `A father aged ${span.age}: unlikely, so check the dates or the parent`;
+    if (span.age < (role === "mother" ? 12 : 13)) flag = `A ${word} aged ${span.age}: check the dates or the parent`;
+    else if (role === "mother" && span.age > 52) flag = `A ${word} aged ${span.age}: unlikely, so check the dates or the parent`;
+    else if (role === "father" && span.age > 80) flag = `A ${word} aged ${span.age}: unlikely, so check the dates or the parent`;
     // A mother can't give birth after she died; a father can die before the birth, but not by more than about a year.
     const died = dateParts(person.death);
     const childBorn = dateParts(child.birth);
     if (!flag && died && childBorn) {
       const gap = childBorn.year - died.year;
-      if (role === "mother" && gap > 0) flag = `Born ${gap} year${gap === 1 ? "" : "s"} after the mother died`;
-      if (role === "father" && gap > 1) flag = `Born ${gap} years after the father died`;
+      if (role === "mother" && gap > 0) flag = `Born ${gap} year${gap === 1 ? "" : "s"} after the ${word} died`;
+      if (role === "father" && gap > 1) flag = `Born ${gap} years after the ${word} died`;
     }
     rows.push({
       slot,
@@ -130,7 +135,8 @@ export function parentAgeRows(slots) {
       born: childBorn.year,
       age: span.age,
       approx: span.approx,
-      relation: relationOf(slot),
+      relation: relationOf(slot, person),
+      neutral: word === "parent",
       flag,
     });
   });

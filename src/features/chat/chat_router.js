@@ -297,8 +297,9 @@ function parseWatchlistPrompt(prompt) {
   };
 }
 
+// ("biological parents", "birth mother", "bio siblings": the birth family, for parents, children and siblings; 2026-10-13)
 const RELATION_WORDS_RE =
-  /^(?:grand\s*aunts?|grand\s*uncles?|grand\s*mothers?|grand\s*fathers?|grand\s*parents?|aunts?|uncles?|mothers?|moms?|fathers?|dads?|parents?|daughters?|sons?|children|kids?|wives|wife|husbands?|spouses?|brothers?|sisters?|siblings?)$/i;
+  /^(?:grand\s*aunts?|grand\s*uncles?|grand\s*mothers?|grand\s*fathers?|grand\s*parents?|aunts?|uncles?|mothers?|moms?|fathers?|dads?|parents?|daughters?|sons?|children|kids?|wives|wife|husbands?|spouses?|brothers?|sisters?|siblings?|(?:biological|birth|bio)\s+(?:mothers?|moms?|fathers?|dads?|parents?|daughters?|sons?|children|kids?|brothers?|sisters?|siblings?))$/i;
 
 // E1/E2 (live, 2026-10-03): "who were her grandparents?", "how many siblings
 // did she have?" fell to the AI. Tried only after the family routes, so forms

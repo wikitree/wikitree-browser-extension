@@ -4,6 +4,8 @@ import { escapeHtml } from "../../core/lib/diff_utils";
 import { setHighestZIndex } from "../../core/common";
 import { PersonName } from "../auto_bio/person_name";
 import { profileLinkHtml } from "./chat_profile_link";
+import { shownGender } from "./chat_gender_display";
+import { connectionStepKind, connectionStepLabel } from "./chat_connection_common";
 import { installHeaderDoubleClick, toggleChartFullScreen } from "./chat_chart_common";
 
 /**
@@ -343,7 +345,7 @@ function buildConnectionsDiagramLayout(path, stepMeta, options = {}) {
     const dy = dyRaw && dyRaw !== "0000" ? dyRaw : "?";
     const rel = i === 0 ? "" : person.pathType || "";
     const arrow = i === 0 ? "" : getConnectionDirectionArrow(rel);
-    const gender = normalizeText(person.Gender || "");
+    const gender = normalizeText(shownGender(person));
     const avatarBg = gender === "male" ? "#c8d8f0" : gender === "female" ? "#f5d0d4" : "#c8e6c9";
     const birthLoc = person.BirthLocation ? `Born: ${person.BirthLocation}` : "";
     const deathLoc = person.DeathLocation ? `Died: ${person.DeathLocation}` : "";
@@ -376,7 +378,7 @@ function buildConnectionsDiagramLayout(path, stepMeta, options = {}) {
         <div class="conn-diag-name">${renderConnectionPersonLink(person, name)}</div>
         <div class="conn-diag-years">${escapeHtml(by)} – ${escapeHtml(dy)}</div>
         ${place ? `<div class="conn-diag-place">${escapeHtml(place)}</div>` : ""}
-        ${rel ? `<div class="conn-diag-rel">${arrow}${escapeHtml(rel)}</div>` : ""}
+        ${rel ? `<div class="conn-diag-rel">${arrow}${escapeHtml(connectionStepLabel(rel))}</div>` : ""}
       </div>
     </div>`;
   });
@@ -1015,7 +1017,7 @@ export function showConnectionsPopup(connectionsResult) {
       const birthLoc = person.BirthLocation || "";
       const deathDate = formatDate(person.DeathDate);
       const deathLoc = person.DeathLocation || "";
-      const normalizedGender = normalizeText(person.Gender);
+      const normalizedGender = normalizeText(shownGender(person));
       let rowClass = "background--gender-no-gender";
       if (normalizedGender === "male") rowClass = "background--gender-male";
       else if (normalizedGender === "female") rowClass = "background--gender-female";
@@ -1027,7 +1029,7 @@ export function showConnectionsPopup(connectionsResult) {
         <tr class="${rowClass} connections-row" data-row-index="${i}" title="Click to see this step in the chart">
           ${stepCell}
           <td class="name-cell">${renderConnectionPersonLink(person, name)}</td>
-          <td style="background:${getRelationColour(relation)}">${arrow}${escapeHtml(relation)}</td>
+          <td style="background:${getRelationColour(connectionStepKind(relation))}">${arrow}${escapeHtml(connectionStepLabel(relation))}</td>
           <td style="background:${getYearColour(person.BirthDate)}">${escapeHtml(birthDate)}</td>
           <td class="birth-location-cell">${escapeHtml(birthLoc)}</td>
           <td style="background:${getYearColour(person.DeathDate)}">${escapeHtml(deathDate)}</td>

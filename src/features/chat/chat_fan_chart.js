@@ -13,14 +13,14 @@ import { interpolateSpectral, interpolateYlGn, schemeTableau10 } from "d3-scale-
 import { interpolate } from "d3-interpolate";
 import { easeCubicOut, easeBackOut } from "d3-ease";
 import { hsl } from "d3-color";
-import { generationOfSlot, fanChartStats, fanChartCountries, fanChartRepeats, fanChartSurnames, yearOf } from "./chat_fan_chart_data";
+import { generationOfSlot, fanBirthParentChoices, fanChartStats, fanChartCountries, fanChartRepeats, fanChartSurnames, isBirthParentSlot, yearOf } from "./chat_fan_chart_data";
 import { buildOriginsSeries } from "./chat_origins_data";
 import { showOriginsPopup } from "./chat_origins_chart";
 import { buildMigration } from "./chat_migration_data";
 import { showMigrationMapPopup } from "./chat_migration_map";
 import { PARENT_STATUSES, autosomalShare, dnaLineAncestors, dnaLineCarrierNote, dnaLineOf, lineTestSummary, parentLinkStatus, parentStatusCounts, percentText, xDnaShares } from "./chat_dna_data";
 import { researchStatusLabel } from "./chat_profile_quality_data";
-import { chartPopupControls, centrePopup, chartLinkButtons, chartLinkClick, escapeText, injectChartStyles, lifeYears as years, profileUrl, raiseAboveOtherPopups, saveChart, toggleChartFullScreen, textColourFor, truncate } from "./chat_chart_common";
+import { chartPopupControls, centrePopup, chartLinkButtons, chartLinkClick, escapeText, injectChartStyles, personNameText, lifeYears as years, profileUrl, raiseAboveOtherPopups, saveChart, toggleChartFullScreen, textColourFor, truncate } from "./chat_chart_common";
 import { joinWithAnd } from "./chat_text_utils";
 import { joinWithAndMore, moreTextToHtml } from "./chat_more_text";
 
@@ -317,12 +317,17 @@ export function buildColouring(slots, mode, maxGeneration, extra = {}) {
     };
   }
   if (mode === "gender") {
+    // (green for someone whose gender is marked not to show, as WikiTree does: chat_gender_display.js)
+    const notShown = (person) => Boolean(person && !person.gender && person.sex);
+    const kindOf = (person, slot) => (notShown(person) ? "other" : slot % 2 === 0 ? "male" : "female");
+    const colours = { male: "#7fa7d9", female: "#e59ab8", other: "#8cc79a" };
     return {
-      fill: (person, slot) => (slot % 2 === 0 ? "#7fa7d9" : "#e59ab8"),
-      key: (person, slot) => (slot % 2 === 0 ? "male" : "female"),
+      fill: (person, slot) => colours[kindOf(person, slot)],
+      key: kindOf,
       legend: [
-        { key: "male", label: "Fathers", colour: "#7fa7d9" },
-        { key: "female", label: "Mothers", colour: "#e59ab8" },
+        { key: "male", label: "Fathers", colour: colours.male },
+        { key: "female", label: "Mothers", colour: colours.female },
+        ...(slots.some((person, slot) => slot > 1 && notShown(person)) ? [{ key: "other", label: "Gender not shown", colour: colours.other }] : []),
       ],
     };
   }
@@ -373,12 +378,14 @@ export function showFanChartPopup(slots, options = {}) {
     lineTestsPending: false,
     qualityPending: false,
     qualityTried: new Set(),
+    // Ids of people shown with their birth parents (the "Biological parents" switches), kept as you re-centre.
+    bioShown: new Set((options.bioShown || []).map(Number)),
   };
 
   // Completeness mode needs the checklist fields (DataStatus, Bio, …), so the chart's
   // slots are fetched again with them the first time it's chosen.
   const wantsQuality = () => state.mode === "completeness";
-  const recenterOptions = () => ({ quality: wantsQuality() });
+  const recenterOptions = () => ({ quality: wantsQuality(), bioShown: [...state.bioShown] });
   async function loadQuality() {
     if (state.qualityPending || typeof options.onRecenter !== "function") return;
     if (!state.slots.some((person, slot) => slot >= 1 && person && !person.quality)) return;
@@ -388,7 +395,7 @@ export function showFanChartPopup(slots, options = {}) {
     state.qualityTried.add(tried);
     state.qualityPending = true;
     try {
-      const next = await options.onRecenter(wtid, generationOfSlot(state.slots.length - 1), { quality: true });
+      const next = await options.onRecenter(wtid, generationOfSlot(state.slots.length - 1), { quality: true, bioShown: [...state.bioShown] });
       if (next?.slots?.[1]?.wtid === state.slots[1]?.wtid) state.slots = next.slots;
     } catch (error) {
       console.warn("wbe: fan chart completeness failed", error);
@@ -446,6 +453,7 @@ export function showFanChartPopup(slots, options = {}) {
         <button type="button" class="wbe-chart-mode" data-act="zoomin" title="Zoom in (or scroll / pinch): small names appear as they get big enough to read">Zoom +</button>
         <button type="button" class="wbe-chart-mode" data-act="zoomout" title="Zoom out">Zoom −</button>
       </div>
+      <div class="wbe-chart-toolbar wbe-fan-bio" hidden></div>
       <div class="wbe-chart-stage"><div class="wbe-chart-tip"></div></div>
       <div class="wbe-chart-footer">
         <div class="wbe-chart-stats"></div>
@@ -523,7 +531,7 @@ export function showFanChartPopup(slots, options = {}) {
       html = `<div class="wbe-chart-tip-rel">${escapeText(relationWord(slot) || "Root")}${line ? ` · ${escapeText(line)}` : ""}</div>
         <b>${escapeText(person.name || person.wtid)}</b> <span style="opacity:.7">(${escapeText(person.wtid)})</span>
         ${born ? `<div>Born: ${escapeText(born)}</div>` : ""}${died ? `<div>Died: ${escapeText(died)}</div>` : ""}
-        ${repeatNote(slot)}${qualityNote(person)}${dnaNote(slot)}
+        ${birthParentNote(slot)}${repeatNote(slot)}${qualityNote(person)}${dnaNote(slot)}
         <div class="wbe-chart-tip-hint">Click to open${slot > 1 && options.onRecenter ? " · double-click to re-centre here" : ""}</div>`;
     } else {
       const child = state.slots[Math.floor(slot / 2)];
@@ -569,6 +577,56 @@ export function showFanChartPopup(slots, options = {}) {
     }
     return `<div class="wbe-chart-tip-dna">${escapeText(parts.join(" · "))}</div>`;
   }
+
+  // Someone there as a birth parent, or with birth parents recorded (shown or not).
+  function birthParentNote(slot) {
+    const person = state.slots[slot];
+    const child = state.slots[Math.floor(slot / 2)];
+    const notes = [];
+    const childName = personNameText(child) || "?";
+    if (isBirthParentSlot(state.slots, slot)) notes.push(`Biological ${slot % 2 === 0 ? "father" : "mother"} of ${childName}`);
+    if (person?.bioFatherId || person?.bioMotherId) {
+      const name = personNameText(person);
+      notes.push(person.bioShown ? "Shown with their biological parents" : `Biological parents recorded: tick “${name}” above the chart to show them`);
+    }
+    return notes.map((note) => `<div class="wbe-chart-tip-bio">${escapeText(note)}</div>`).join("");
+  }
+
+  // The "Biological parents" switches: one for each person in the chart with a birth parent recorded.
+  function drawBirthParentChoices() {
+    const row = popup.querySelector(".wbe-fan-bio");
+    const choices = fanBirthParentChoices(state.slots);
+    row.hidden = !choices.length;
+    row.innerHTML = choices.length
+      ? `<span title="On WikiTree as BioFather and BioMother, where someone was raised by other parents">Biological parents:</span>${choices
+          .map(
+            (choice) =>
+              `<label title="${escapeText(choice.on ? `Showing ${choice.name} with their biological parents. Untick for the parents who raised them.` : `Show ${choice.name} with their biological parents instead of the parents who raised them`)}"><input type="checkbox" data-bio="${choice.id}"${choice.on ? " checked" : ""}> ${escapeText(choice.name)}</label>`
+          )
+          .join("")}`
+      : "";
+  }
+
+  async function setBirthParents(id, on) {
+    if (on) state.bioShown.add(id);
+    else state.bioShown.delete(id);
+    // (from the people already fetched; slots made some other way are fetched again)
+    let next = options.rebuild?.(state.slots, state.bioShown);
+    if (!next && state.slots[1]?.wtid && typeof options.onRecenter === "function") {
+      try {
+        next = (await options.onRecenter(state.slots[1].wtid, generationOfSlot(state.slots.length - 1), recenterOptions()))?.slots;
+      } catch (error) {
+        console.warn("wbe: fan chart biological parents failed", error);
+      }
+    }
+    if (next?.[1]) state.slots = next;
+    if (popup.isConnected) render();
+  }
+
+  popup.querySelector(".wbe-fan-bio").addEventListener("change", (event) => {
+    const id = Number(event.target?.dataset?.bio);
+    if (id) void setBirthParents(id, event.target.checked);
+  });
 
   function qualityNote(person) {
     const quality = person?.quality;
@@ -638,6 +696,7 @@ export function showFanChartPopup(slots, options = {}) {
     popup.querySelector(".wbe-fan-gens").hidden = typeof options.onRecenter !== "function";
     popup.querySelector('[data-act="fewer"]').disabled = shownGenerations <= FAN_GENERATIONS_MIN;
     popup.querySelector('[data-act="more"]').disabled = shownGenerations >= FAN_GENERATIONS_MAX;
+    drawBirthParentChoices();
     fitViewBox();
     chart.selectAll("*").remove();
     defs.selectAll("*").remove();
@@ -939,8 +998,8 @@ export function showFanChartPopup(slots, options = {}) {
     if (noParents) {
       popup.querySelector(".wbe-fan-gens").hidden = true;
       popup.querySelector(".wbe-chart-stats").textContent = state.mode === "xdna"
-        ? state.slots[1]?.gender === "Male"
-          ? "No parents are attached. His X chromosome comes from his mother; attach her profile to trace that line."
+        ? (state.slots[1]?.sex ?? state.slots[1]?.gender) === "Male"
+          ? `No parents are attached. ${state.slots[1]?.gender ? "His" : "Their"} X chromosome comes from ${state.slots[1]?.gender ? "his" : "their"} mother; attach her profile to trace that line.`
           : "No parents are attached. Attach parent profiles to trace X-DNA inheritance."
         : "No parents are attached on WikiTree yet.";
       popup.querySelector(".wbe-chart-bars").innerHTML = "";
@@ -995,7 +1054,8 @@ export function showFanChartPopup(slots, options = {}) {
     } else if (button.dataset.act === "back") {
       const previous = state.history.pop();
       if (!previous) return;
-      state.slots = previous.slots;
+      // (with the birth parents chosen since)
+      state.slots = options.rebuild?.(previous.slots, state.bioShown) || previous.slots;
       state.title = previous.title;
       svg.call(zoomer.transform, zoomIdentity);
       render();
@@ -1011,7 +1071,7 @@ export function showFanChartPopup(slots, options = {}) {
       const series = buildOriginsSeries(rows);
       if (series) {
         showOriginsPopup(series, {
-          title: `Ancestral origins: ${state.slots[1]?.name || ""} (${state.slots[1]?.wtid || ""})`,
+          title: `Ancestral origins: ${personNameText(state.slots[1])} (${state.slots[1]?.wtid || ""})`,
           fileBase: fileBase().replace(/^fan-chart/, "origins"),
         });
       } else button.title = "No birthplaces recorded in this chart";
@@ -1020,7 +1080,7 @@ export function showFanChartPopup(slots, options = {}) {
       const migration = buildMigration(state.slots);
       if (migration.places.length) {
         void showMigrationMapPopup(migration, {
-          title: `Migration map: ${state.slots[1]?.name || ""} (${state.slots[1]?.wtid || ""})`,
+          title: `Migration map: ${personNameText(state.slots[1])} (${state.slots[1]?.wtid || ""})`,
           fileBase: fileBase().replace(/^fan-chart/, "migration-map"),
         }).catch((error) => console.warn("wbe: migration map failed", error));
       } else button.title = "No birthplaces recorded in this chart";

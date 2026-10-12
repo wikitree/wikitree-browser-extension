@@ -263,3 +263,27 @@ describe("nieces and nephews are the siblings' children (live H4, 2026-10-03)", 
     expect(chained.actions).toEqual([]);
   });
 });
+
+describe("a gender marked not to show (the user, 2026-10-12)", () => {
+  const JO = { Id: 402, Name: "Jo-1", FirstName: "Jo", LastNameAtBirth: "Brown", Gender: "Female", DataStatus: { Gender: "blank" } };
+  const withChildren = () =>
+    makeHandlers({
+      fetchChildrenIdsForId: jest.fn(async (key) => (/^(?:100|Sarah-1)$/.test(String(key)) ? [400, 401, 402] : [])),
+      fetchProfilesForIds: jest.fn(async (ids) => [DAVE, EVE, JO].filter((p) => ids.map(String).includes(String(p.Id)))),
+    });
+  const ask = async (relationRaw) => {
+    const { handlers } = withChildren();
+    const result = await handlers.tryHandleRelationCountPrompt({ mode: "list", relationRaw, subjectMode: "named", subjectName: "Sarah" }, `who were Sarah's ${relationRaw}`);
+    return result;
+  };
+
+  test("not a daughter, but one of the children, with a note", async () => {
+    const daughters = await ask("daughters");
+    expect(daughters.table.rows.map((row) => row.wtid)).toEqual(["Eve-1"]);
+    expect(daughters.message).toContain("(Not counted: 1 child whose gender is marked not to show.)");
+    const children = await ask("children");
+    expect(children.table.rows.map((row) => row.wtid).sort()).toEqual(["Dave-1", "Eve-1", "Jo-1"]);
+    expect(children.table.rows.find((row) => row.wtid === "Jo-1").gender).toBe("");
+    expect(children.message).not.toContain("Not counted");
+  });
+});

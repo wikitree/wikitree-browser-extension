@@ -96,9 +96,15 @@ export function parseDnaChartPrompt(prompt) {
   return null;
 }
 
+// DNA lines follow the sex at birth (`sex`); the words follow the gender shown (`gender`, blank when the profile
+// marks it not to show: chat_gender_display.js). Summaries without `sex` have only `gender`.
+const sexOf = (person) => person?.sex ?? person?.gender ?? "";
+// "his" or "her", or "their" when the gender isn't shown
+const possessive = (person) => (person?.gender === "Male" ? "his" : person?.gender === "Female" ? "her" : "their");
+
 /** Gender of the person in a slot: fathers are even, mothers odd, the root from the profile. */
 function slotGender(slots, slot) {
-  if (slot === 1) return slots[1]?.gender || "";
+  if (slot === 1) return sexOf(slots[1]);
   return slot % 2 === 0 ? "Male" : "Female";
 }
 
@@ -108,7 +114,7 @@ function slotGender(slots, slot) {
  * root's gender isn't recorded. Length: slotCount.
  */
 export function xDnaShares(slots, slotCount = slots.length) {
-  const rootGender = slots[1]?.gender;
+  const rootGender = sexOf(slots[1]);
   if (rootGender !== "Male" && rootGender !== "Female") return null;
   const share = new Array(slotCount).fill(0);
   share[1] = 1;
@@ -168,11 +174,15 @@ export function buildXDnaSummary(slots, ownerText, { chartOpened = true } = {}) 
   const rows = xDnaRows(slots);
   const owner = ownerText === "Your" ? "you" : ownerText.replace(/['’]s$/, "");
   if (!rows) return `${ownerText} profile has no gender recorded, so I can't trace the X chromosome.${chartOpened ? " The fan chart's X-DNA mode needs it." : ""}`;
-  const male = root.gender === "Male";
+  const male = sexOf(root) === "Male";
+  // (no "as a man" for someone whose gender isn't shown)
+  const shown = Boolean(root.gender);
+  const who = ownerText === "Your" ? (shown ? `As a ${male ? "man" : "woman"}, you` : "You") : shown ? `${owner}, a ${male ? "man" : "woman"},` : owner;
+  const whose = ownerText === "Your" ? "your" : possessive(root);
   const lines = [
     male
-      ? `${ownerText === "Your" ? "As a man, you" : `${owner}, a man,`} got ${ownerText === "Your" ? "your" : "his"} only X chromosome from ${ownerText === "Your" ? "your" : "his"} mother, so no X-DNA comes down the direct paternal line.`
-      : `${ownerText === "Your" ? "As a woman, you" : `${owner}, a woman,`} got one X chromosome from each parent, but ${ownerText === "Your" ? "your" : "her"} father passed on only his mother's.`,
+      ? `${who} got ${whose} only X chromosome from ${whose} mother, so no X-DNA comes down the direct paternal line.`
+      : `${who} got one X chromosome from each parent, but ${whose} father passed on only his mother's.`,
     "Ancestors who could have passed X-DNA down, generation by generation:",
   ];
   rows.slice(0, 6).forEach((row) => {
@@ -228,7 +238,7 @@ export function buildParentStatusSummary(slots, ownerText) {
   const lines = [`${ownerText} ${total} ancestors in ${generations} generations, by how sure each parent link is: ${parts.join(", ")}.`];
   const named = (key) =>
     slots
-      .map((person, slot) => (person && slot >= 2 && parentLinkStatus(slots, slot) === key ? `${fullName(person)} (${person.wtid}), ${ancestorWord(generationOfSlot(slot), slot % 2 === 0 ? "Male" : "Female").toLowerCase()}` : ""))
+      .map((person, slot) => (person && slot >= 2 && parentLinkStatus(slots, slot) === key ? `${fullName(person)} (${person.wtid}), ${ancestorWord(generationOfSlot(slot), !person.gender && person.sex ? "" : slot % 2 === 0 ? "Male" : "Female").toLowerCase()}` : ""))
       .filter(Boolean);
   const dna = named("dna");
   const uncertain = named("uncertain");
@@ -276,8 +286,8 @@ export function lineTestSummary(tests, line) {
 export function dnaLineCarrierNote(root, line) {
   const name = root?.name || "The centre person";
   if (line === "mt") return `${name} carries this mtDNA`;
-  if (root?.gender === "Male") return `${name} carries this Y-DNA`;
-  if (root?.gender === "Female") return `${name}'s father and brothers carry this Y-DNA`;
+  if (sexOf(root) === "Male") return `${name} carries this Y-DNA`;
+  if (sexOf(root) === "Female") return `${name}'s father and brothers carry this Y-DNA`;
   return "Carried by the centre person's father's sons";
 }
 
@@ -318,7 +328,7 @@ export function furthestLineAncestors(slots) {
 /** The line's heading: "Murray's Y-DNA line goes back 5 generations to William (Moloney-741), born 1760." */
 export function lineSharersHeading(root, line, entry) {
   const name = root?.name || root?.wtid || "This person";
-  const kind = line === "y" ? (root?.gender === "Female" ? "father's Y-DNA line" : "Y-DNA line") : "mtDNA line";
+  const kind = line === "y" ? (sexOf(root) === "Female" ? "father's Y-DNA line" : "Y-DNA line") : "mtDNA line";
   const born = entry.person.birth ? `, born ${String(entry.person.birth).slice(0, 4)}` : "";
   return `${name}'s ${kind} goes back ${entry.generation} generation${entry.generation === 1 ? "" : "s"} to ${fullName(entry.person)} (${entry.person.wtid})${born}. Everyone below who carries it shares it with ${name}.`;
 }
@@ -338,9 +348,11 @@ export function lineSharersGenerations(entry) {
 export function dnaCarrierKind(chain) {
   const people = chain || [];
   if (people.length < 2) return "";
-  const rootGender = people[0]?.gender;
-  if (rootGender === "Male") return people.every((person) => person?.gender === "Male") ? "y" : "";
-  if (rootGender === "Female") return people.slice(0, -1).every((person) => person?.gender === "Female") ? "mt" : "";
+  // (an adopted or step child, raised by but not born to the one before: no DNA comes down that step)
+  if (people.slice(1).some((person, index) => (person?.notBornTo || []).includes(Number(people[index]?.id) || 0))) return "";
+  const rootGender = sexOf(people[0]);
+  if (rootGender === "Male") return people.every((person) => sexOf(person) === "Male") ? "y" : "";
+  if (rootGender === "Female") return people.slice(0, -1).every((person) => sexOf(person) === "Female") ? "mt" : "";
   return "";
 }
 
@@ -360,7 +372,7 @@ export function dnaCarriers(tree) {
 
 /** Private profiles (no gender or name shown) whose parent passes the line on: possible living carriers. */
 export function hiddenCarrierChildren(tree) {
-  const rootGender = tree?.person?.gender;
+  const rootGender = sexOf(tree?.person);
   if (rootGender !== "Male" && rootGender !== "Female") return 0;
   let count = 0;
   const passesOn = (node, chain) => {
@@ -368,7 +380,7 @@ export function hiddenCarrierChildren(tree) {
     if (next.length === 1) return true;
     const kind = dnaCarrierKind(next);
     // a man passes Y-DNA to sons; only a woman passes mtDNA on
-    return kind === "y" || (kind === "mt" && node.person.gender === "Female");
+    return kind === "y" || (kind === "mt" && sexOf(node.person) === "Female");
   };
   const walk = (node, chain) => {
     if (!passesOn(node, chain)) return;
@@ -395,8 +407,8 @@ export function buildDnaCarrierSummary(tree, ownerText, generations, testers = [
   const root = tree?.person;
   if (!root) return "I couldn't load that person's descendants.";
   const name = root.name || root.wtid;
-  if (root.gender !== "Male" && root.gender !== "Female") return `${name}'s gender isn't recorded, so I can't tell which DNA lines pass down.`;
-  const male = root.gender === "Male";
+  if (sexOf(root) !== "Male" && sexOf(root) !== "Female") return `${name}'s gender isn't recorded, so I can't tell which DNA lines pass down.`;
+  const male = sexOf(root) === "Male";
   const carriers = dnaCarriers(tree);
   const living = carriers.filter((carrier) => carrier.person.living);
   const what = male ? "Y-DNA (passed from father to son)" : "mtDNA (passed from a mother to all her children, and on through daughters)";
@@ -435,8 +447,8 @@ export function buildDnaCarrierSummary(tree, ownerText, generations, testers = [
   if (brief) return lines.join("\n");
   lines.push(
     male
-      ? `${name}'s mtDNA came from his mother: ask "who could take a DNA test for" her to find its carriers.`
-      : `${name}'s sons carry her mtDNA but can't pass it on; her Y-DNA line is her father's.`
+      ? `${name}'s mtDNA came from ${possessive(root)} mother: ask "who could take a DNA test for" her to find its carriers.`
+      : `${name}'s sons carry ${possessive(root)} mtDNA but can't pass it on; ${possessive(root)} Y-DNA line is ${possessive(root)} father's.`
   );
   lines.push(`A test only proves the line if each father-son${male ? "" : " or mother-daughter"} link is right: the DNA confirmed chart shows which are already confirmed.`);
   return lines.join("\n");

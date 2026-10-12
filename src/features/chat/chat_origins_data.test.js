@@ -91,7 +91,9 @@ describe("fullWikiTreeName", () => {
     [{ FirstName: "Mary", MiddleName: "Ellen", LastNameAtBirth: "Urquhart", LastNameCurrent: "Maloney" }, "Mary Ellen (Urquhart) Maloney"],
     [{ FirstName: "Lemuel", MiddleName: "", LastNameAtBirth: "Milliken", LastNameCurrent: "Milliken" }, "Lemuel Milliken"],
     [{ FirstName: "John", LastNameAtBirth: "Smith" }, "John Smith"],
-    [{ RealName: "Ann", LastNameAtBirth: "X" }, ""],
+    // (no FirstName, as for a semi-private profile logged out: from RealName, 2026-10-13)
+    [{ RealName: "Ann", LastNameAtBirth: "X" }, "Ann X"],
+    [{ RealName: "Ann" }, ""],
   ])("%j → %s", (person, expected) => {
     expect(fullWikiTreeName(person)).toBe(expected);
   });

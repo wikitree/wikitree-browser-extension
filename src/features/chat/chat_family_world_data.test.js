@@ -4,6 +4,7 @@ import {
   buildFamilyWorldLayout,
   buildFamilyWorldSummary,
   climbFamilyScene,
+  connectedWorldPeople,
   describeFamilyRoot,
   rerootFamilyScene,
   normaliseFamilyScene,
@@ -268,5 +269,103 @@ describe("hidden profiles (negative Ids, numbered per response)", () => {
     mergeWorldPeople(w, { 1: raw(1, "Gf-1", 0, 0, "1900", 0, "Male", [-1]), [-1]: hidden(-1, 0, 0, [1]), [-2]: hidden(-2, 1, -1) }, { root: "Gf-1", nuclear: 2 });
     mergeWorldPeople(w, { 1: raw(1, "Gf-1", 0, 0, "1900", 0, "Male", [-1]), [-1]: hidden(-1, 0, 0, [1]), [-2]: hidden(-2, 1, -1), [-3]: hidden(-3, 1, -1) }, { root: "Gf-1", nuclear: 2 });
     expect([...w.people.keys()].filter((id) => id < 0)).toHaveLength(3); // the wife and two children, not five
+  });
+
+  // Live, 2026-10-12 (Murray Maloney: "The Family Explorer failed to load (undefined is not an object (evaluating
+  // 'o[n].parent'))"): not logged in to the API, his own profile names his parents' Ids, but neither is sent.
+  test("parents named but not sent: it opens on the person alone", () => {
+    const w = createFamilyWorld("Me-1");
+    mergeWorldPeople(w, { 1: raw(1, "Me-1", 20, 21, "1950", 0, "Male") }, { root: "Me-1", nuclear: 1 });
+    expect(startFamilyScene(w).root).toEqual({ a: 1, b: 0, solo: true });
+    const { nodes } = buildFamilyWorldLayout(w);
+    expect(nodes.length).toBeGreaterThan(0);
+    expect(nodes.some((node) => node.person?.id === 1)).toBe(true);
+    expect(buildFamilyWorldSummary(w, "Me's")).toBe("Me's Family Explorer has only Me X so far: the WikiTree API sent none of his family.");
+  });
+
+  test("one parent sent: their family, without the other", () => {
+    const w = createFamilyWorld("Me-1");
+    mergeWorldPeople(w, { 1: raw(1, "Me-1", 20, 21, "1950", 0, "Male"), 21: raw(21, "Mum-21", 0, 0, "1925", 1, "Female") }, { root: "Me-1", nuclear: 1 });
+    const { nodes } = buildFamilyWorldLayout(w);
+    expect(nodes[0].person.id).toBe(21);
+    expect(nodes.some((node) => node.person?.id === 1)).toBe(true);
+  });
+});
+
+// Murray Maloney, 2026-10-12: "Your charts are ignoring my 'Don't show my ex(es)' setting".
+describe("marriages marked not to show (do_not_display)", () => {
+  const flagged = (spouseId, flag) => ({ Id: spouseId, Name: `S-${spouseId}`, MarriageDate: "1990-00-00", do_not_display: flag, DoNotDisplay: flag });
+  // Ann (1) married Dan (30), marked not to show on her side only; Dan's mother Flo (31) and sister Gil (32) come too.
+  const exWorld = (extra = {}) => {
+    const w = createFamilyWorld("Ann-1");
+    mergeWorldPeople(
+      w,
+      {
+        ...people,
+        1: { ...raw(1, "Ann-1", 2, 3, "1900", 0, "Female"), Spouses: [flagged(30, "1")] },
+        30: { ...raw(30, "Dan-30", 0, 31, "1898", 1, "Male"), Spouses: [flagged(1, "0")] },
+        31: raw(31, "Flo-31", 0, 0, "1870", 2, "Female"),
+        32: raw(32, "Gil-32", 0, 31, "1902", 3, "Female"),
+        ...extra,
+      },
+      { root: "Ann-1", nuclear: 3 }
+    );
+    return w;
+  };
+
+  test("the marriage goes both ways round, and the ex isn't in any circle", () => {
+    const w = exWorld();
+    expect(w.people.get(1).spouses).toEqual([]);
+    expect(w.people.get(30).spouses).toEqual([]);
+    const { nodes } = buildFamilyWorldLayout(w);
+    expect(nodes.some((node) => [30, 31, 32].includes(node.person?.id) || node.couple?.a === 30 || node.couple?.b === 30)).toBe(false);
+  });
+
+  test("the table and count leave out the ex and their family", () => {
+    const w = exWorld();
+    const ids = connectedWorldPeople(w).map((person) => person.id);
+    expect(ids).not.toContain(30);
+    expect(ids).not.toContain(31);
+    expect(ids).toEqual(expect.arrayContaining([1, 2, 3, 4, 5, 6, 7, 8, 10]));
+    expect(buildFamilyWorldSummary(w, "Ann's")).toMatch(/starts with 9 people/);
+  });
+
+  // (user, 2026-10-12: "maybe just attach the kids to Murray? … They can have a missing parent")
+  test("a child of theirs is the person's alone; the ex isn't in any circle", () => {
+    const w = exWorld({ 40: raw(40, "Kid-40", 30, 1, "1925", 1, "Male") });
+    expect(w.people.get(40)).toMatchObject({ fatherId: 0, motherId: 1 });
+    const { nodes } = buildFamilyWorldLayout(w);
+    expect(nodes.some((node) => node.person?.id === 40)).toBe(true);
+    expect(nodes.some((node) => [30, 31, 32].includes(node.person?.id) || node.couple?.a === 30 || node.couple?.b === 30)).toBe(false);
+    const ids = connectedWorldPeople(w).map((person) => person.id);
+    expect(ids).toContain(40);
+    expect(ids).not.toContain(30);
+  });
+
+  test("not inside the circle of a later marriage, as if that one were their parent", () => {
+    const w = exWorld({
+      1: { ...raw(1, "Ann-1", 2, 3, "1900", 0, "Female"), Spouses: [flagged(30, "1"), flagged(50, "0")] },
+      50: { ...raw(50, "Hal-50", 0, 0, "1897", 1, "Male"), Spouses: [flagged(1, "0")] },
+      40: raw(40, "Kid-40", 30, 1, "1925", 1, "Male"),
+    });
+    const { nodes } = buildFamilyWorldLayout(w);
+    const kid = nodes.find((node) => node.person?.id === 40);
+    expect(nodes[kid.parent].uid).not.toBe("m1-50");
+    expect(nodes.find((node) => node.uid === "m1-50")).toBeTruthy();
+  });
+
+  test("from the child's own Explorer, both their parents stay", () => {
+    const w = createFamilyWorld("Kid-40");
+    mergeWorldPeople(
+      w,
+      {
+        40: raw(40, "Kid-40", 30, 1, "1925", 0, "Male"),
+        1: { ...raw(1, "Ann-1", 0, 0, "1900", 1, "Female"), Spouses: [flagged(30, "1")] },
+        30: { ...raw(30, "Dan-30", 0, 0, "1898", 1, "Male"), Spouses: [flagged(1, "1")] },
+      },
+      { root: "Kid-40", nuclear: 1 }
+    );
+    expect(w.people.get(40)).toMatchObject({ fatherId: 30, motherId: 1 });
+    expect(w.people.get(1).spouses).toEqual([]);
   });
 });

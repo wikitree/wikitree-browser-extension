@@ -25,6 +25,8 @@ const RIBBON = 64; // (the ribbon's width where it carries all of the couple's D
 const ROW_MS = 420;
 const PANEL_W = 250;
 const GENDER = { Male: "#4f86d0", Female: "#e0709b", "": "#9aa3ad" };
+// Gender marked not to show: green, as on WikiTree.
+const genderColour = (person, unknown = GENDER[""]) => GENDER[person.gender] || (person.sex ? "#8cc79a" : unknown);
 const GOLD = "#e0a412";
 const DNA = "#8e5bd6";
 const LINK_STYLE = {
@@ -232,11 +234,11 @@ export function showRelationshipPopup(lines, options = {}) {
         .attr("height", CARD_H)
         .attr("rx", 10)
         .attr("fill", ancestor ? "#fff8e6" : "#ffffff")
-        .attr("stroke", ancestor || end ? GOLD : GENDER[person.gender] || GENDER[""])
+        .attr("stroke", ancestor || end ? GOLD : genderColour(person))
         .attr("stroke-width", ancestor || end ? 2.6 : 1.6);
       const avatarX = 30;
       const url = photoUrl(person, 75);
-      g.append("circle").attr("cx", avatarX).attr("cy", CARD_H / 2).attr("r", 20).attr("fill", GENDER[person.gender] || GENDER[""]).attr("opacity", 0.22);
+      g.append("circle").attr("cx", avatarX).attr("cy", CARD_H / 2).attr("r", 20).attr("fill", genderColour(person)).attr("opacity", 0.22);
       if (url) {
         const clipId = `wbe-rel-photo-${String(person.wtid).replace(/[^A-Za-z0-9_-]/g, "")}-${k}`;
         defs.append("clipPath").attr("id", clipId).append("circle").attr("cx", avatarX).attr("cy", CARD_H / 2).attr("r", 20);
@@ -248,7 +250,7 @@ export function showRelationshipPopup(lines, options = {}) {
           .attr("text-anchor", "middle")
           .attr("font-size", 16)
           .attr("font-weight", 700)
-          .attr("fill", GENDER[person.gender] || "#6b7682")
+          .attr("fill", genderColour(person, "#6b7682"))
           .text((person.first || person.name || "?").charAt(0));
       }
       g.append("text").attr("class", "wbe-rel-name").attr("x", 58).attr("y", 24).attr("font-size", 13).attr("font-weight", 700).attr("fill", "#1d2a36").text(truncate(person.name, 25));

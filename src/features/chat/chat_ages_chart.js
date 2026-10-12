@@ -221,7 +221,7 @@ export function showAgesPopup(slots, options = {}) {
       .attr("cx", (row) => x(row.born))
       .attr("cy", sweep ? y(Math.max(0, minAge)) : (row) => y(row.age))
       .attr("r", (row) => (row.flag ? 6.5 : 5.5))
-      .attr("fill", (row) => COLOURS[row.role ? (row.role === "father" ? "Male" : "Female") : row.gender || ""] || COLOURS[""])
+      .attr("fill", (row) => COLOURS[row.role ? (row.neutral ? "" : row.role === "father" ? "Male" : "Female") : row.gender || ""] || COLOURS[""])
       .attr("fill-opacity", (row) => (row.approx ? 0.55 : 0.9))
       .attr("stroke", (row) => (row.flag ? COLOURS.flag : "#ffffff"))
       .attr("stroke-width", (row) => (row.flag ? 2.5 : 1.2))

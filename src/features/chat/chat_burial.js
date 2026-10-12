@@ -5,6 +5,7 @@
 
 import { pickCemeteryCategories } from "./chat_search_spec";
 import { formatPreviewDate } from "./chat_preview_format";
+import { shownGender } from "./chat_gender_display";
 
 const SUBJECT = String.raw`(this\s+person|the\s+profile\s+person|he|she|they|him|her|them|[A-Z][A-Za-z'_ -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.()]*){0,4})`;
 const BURIAL_PROMPT_RES = [
@@ -51,7 +52,7 @@ export function findGraveLinks(bio) {
 
 export function buildBurialAnswer(person) {
   const label = `${person.RealName || person.Name} (${person.Name})`;
-  const pronoun = person.Gender === "Female" ? "She" : person.Gender === "Male" ? "He" : "They";
+  const pronoun = { Female: "She", Male: "He" }[shownGender(person)] || "They";
   const categories = Array.isArray(person.Categories) ? person.Categories : Object.values(person.Categories || {});
   const cemeteries = pickCemeteryCategories(categories);
   const graves = findGraveLinks(person.Bio || person.bio); // the API returns "bio"

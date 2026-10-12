@@ -1,6 +1,8 @@
 // Relationship chains ("Sarah's father's wife's siblings' bios") written other
 // ways, and the parts of a chain step the relation words alone don't carry.
 
+import { shownGender } from "./chat_gender_display";
+
 const RELATION_WORD =
   "(?:fathers?|dads?|mothers?|mums?|moms?|parents?|sons?|daughters?|child(?:ren)?|kids?|wi(?:fe|ves)|husbands?|spouses?|partners?|brothers?|sisters?|siblings?|(?:grand)?(?:aunts?|uncles?)|grand(?:father|mother|parent)s?)";
 const ORDINAL_WORD = "(?:first|1st|second|2nd|third|3rd|fourth|4th|fifth|5th|last|latest|current)";
@@ -121,8 +123,9 @@ function pathStepWord(person) {
   const type = String(person?.pathType || "").toLowerCase();
   const entry = PATH_STEP_WORDS.find(([pattern]) => pattern.test(type));
   if (!entry) return "";
-  const gender = String(person?.Gender || "").toLowerCase();
-  return entry[1][gender === "male" ? 0 : gender === "female" ? 1 : 2];
+  const gender = shownGender(person).toLowerCase();
+  // A link through BioFather/BioMother: "biological father".
+  return `${/^bio(?:parent|child|sibling)/.test(type) ? "biological " : ""}${entry[1][gender === "male" ? 0 : gender === "female" ? 1 : 2]}`;
 }
 
 /**
@@ -140,7 +143,7 @@ export function describeConnectionPath(path, sourceLabel, targetLabel, maxSteps 
   // With a relationship name from WikiTree: "…'s grandson (his daughter's son)".
   const named = String(relationship || "").trim().toLowerCase();
   if (named && hops.length > 1 && /^[a-z -]+$/.test(named)) {
-    const gender = String(path[0]?.Gender || "").toLowerCase();
+    const gender = shownGender(path[0]).toLowerCase();
     const pronoun = isYou ? "your" : gender === "male" ? "his" : gender === "female" ? "her" : "their";
     const owner = isYou ? "your" : `${sourceLabel}'s`;
     return `${targetLabel} is ${owner} ${named} (${pronoun} ${hops.join("'s ")}).`;

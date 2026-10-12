@@ -72,7 +72,9 @@ function buildColouring(root, mode, focus = root) {
     const counts = new Map();
     nodes.forEach((node) => counts.set(keyOf(node), (counts.get(keyOf(node)) || 0) + 1));
     const centre = focus.data.person;
-    const kind = centre.gender === "Male" ? "y" : centre.gender === "Female" ? "mt" : "";
+    // (DNA lines follow the sex at birth, even when the gender isn't shown)
+    const sex = centre.sex ?? centre.gender;
+    const kind = sex === "Male" ? "y" : sex === "Female" ? "mt" : "";
     const dnaWord = kind === "y" ? "Y-DNA" : "mtDNA";
     return {
       fill: (node) => CARRIER_COLOURS[keyOf(node)],
@@ -331,7 +333,7 @@ export function showDescendantChartPopup(tree, options = {}) {
     const kind = carrierKindOf(node, state.focus);
     const centre = state.focus.data.person.name || state.focus.data.person.wtid;
     const dnaWord = kind === "y" ? "Y-DNA" : "mtDNA";
-    if (!kind) return `<div class="wbe-chart-tip-dna">Doesn't carry ${escapeText(centre)}'s ${state.focus.data.person.gender === "Female" ? "mtDNA" : "Y-DNA"}</div>`;
+    if (!kind) return `<div class="wbe-chart-tip-dna">Doesn't carry ${escapeText(centre)}'s ${(state.focus.data.person.sex ?? state.focus.data.person.gender) === "Female" ? "mtDNA" : "Y-DNA"}</div>`;
     return `<div class="wbe-chart-tip-dna">Carries ${escapeText(centre)}'s ${dnaWord}${node.data.person.living ? `: living, so could take a ${dnaWord} test` : ""}</div>`;
   }
 

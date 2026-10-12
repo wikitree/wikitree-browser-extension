@@ -5,6 +5,8 @@
 
 import { yearOf } from "./chat_chart_common";
 import { RELATIVE_OWNER } from "./chat_chart_owner";
+import { shownGender } from "./chat_gender_display";
+import { shownSpouses } from "./chat_marriage_display";
 import { textWithMoreLink } from "./chat_more_text";
 import { fullName, joinWithAnd } from "./chat_text_utils";
 
@@ -72,7 +74,7 @@ function personRow(person, role, extra = {}) {
     name: person.RealName || person?.Derived?.ShortName || person.FirstName || person.Name || "Private",
     hidden: !(person.RealName || person?.Derived?.ShortName || person.FirstName || person.Name),
     lnab: person.LastNameAtBirth || "",
-    gender: person.Gender || "",
+    gender: shownGender(person), // (blank when marked not to show)
     birth: cleanDate(person.BirthDate),
     death: cleanDate(person.DeathDate),
     // ("before"/"after"/"guess"/"certain": a death "after 1823" isn't a death in 1823)
@@ -110,7 +112,8 @@ export function buildFamilyTimelineRows(entry, grandchildEntries = []) {
   const rows = [personRow(root, "self")];
   const values = (map) => Object.values(map || {}).filter(Boolean);
   values(root.Parents).forEach((person) => rows.push(personRow(person, "parent")));
-  values(root.Spouses).forEach((person) =>
+  // (not marriages the manager chose not to show)
+  shownSpouses(root.Spouses).forEach((person) =>
     rows.push(personRow(person, "spouse", { marriage: cleanDate(person.marriage_date), marriagePlace: person.marriage_location || "" }))
   );
   values(root.Siblings).forEach((person) => rows.push(personRow(person, "sibling")));

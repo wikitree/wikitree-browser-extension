@@ -1,5 +1,6 @@
 import { canonicalChartOwner } from "./chat_chart_prompt";
 import { fullWikiTreeName } from "./chat_fan_chart_data";
+import { shownGender } from "./chat_gender_display";
 import { ordinal } from "./chat_text_utils";
 import { ancestorGenerationLabel, descendantWord } from "./chat_kin_labels";
 
@@ -66,7 +67,7 @@ export function buildFamilyMatrix(people, rootKey, ancestorDepth = 4, descendant
     }
     const key = `${closest.up}:${closest.down}:${label}`;
     if (!groups.has(key)) groups.set(key, { key, label, up: closest.up, down: closest.down, people: [] });
-    groups.get(key).people.push({ id: person.Id, wtid: person.Name || "", name: fullWikiTreeName(person) || person.RealName || person.Name || "Private profile", gender: person.Gender || "", birth: person.BirthDate || "", death: person.DeathDate || "", birthStatus: person.DataStatus?.BirthDate || "", deathStatus: person.DataStatus?.DeathDate || "", birthPlace: person.BirthLocation || "", deathPlace: person.DeathLocation || "", living: Number(person.IsLiving) === 1 });
+    groups.get(key).people.push({ id: person.Id, wtid: person.Name || "", name: fullWikiTreeName(person) || person.RealName || person.Name || "Private profile", gender: shownGender(person), birth: person.BirthDate || "", death: person.DeathDate || "", birthStatus: person.DataStatus?.BirthDate || "", deathStatus: person.DataStatus?.DeathDate || "", birthPlace: person.BirthLocation || "", deathPlace: person.DeathLocation || "", living: Number(person.IsLiving) === 1 });
   }
   const cards = [...groups.values()].sort((a, b) => (b.up - b.down) - (a.up - a.down) || a.up - b.up);
   cards.forEach((card) => card.people.sort((a, b) => a.birth.localeCompare(b.birth) || a.name.localeCompare(b.name)));

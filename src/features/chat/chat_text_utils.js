@@ -47,6 +47,14 @@ export function yearOf(value) {
   return match && match[1] !== "0000" ? Number(match[1]) : null;
 }
 
+/**
+ * The name as PersonName writes it ("Mary (Jones) Smith", the user: "Use PersonName"), from a chart summary's
+ * fullName (fullWikiTreeName), else fullName below. For chart titles and the like.
+ */
+export function personNameText(person) {
+  return String(person?.fullName || "").trim() || fullName(person);
+}
+
 /** "George Hightower": RealName is the first name only, so add the surname at birth unless it's already there. */
 export function fullName(person) {
   const name = String(person?.name || "").trim();

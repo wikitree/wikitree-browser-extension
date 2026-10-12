@@ -2,6 +2,7 @@ import $ from "jquery";
 
 import { buildTreeAppRecommendations } from "./chat_tree_apps";
 import { linesWithMore } from "./chat_more_text";
+import { shownGender } from "./chat_gender_display";
 import { readMemberWatchlist, watchlistAgeNote, watchlistDisplayName } from "./chat_managed_profiles";
 
 export function createChatCcHandlers({
@@ -56,7 +57,7 @@ export function createChatCcHandlers({
       const [status, , people] = await WikiTreeAPI.getPeople(
         WBE_CHAT_APP_ID,
         userNumId,
-        "Id,Name,FirstName,MiddleName,BirthLocation,DeathLocation,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,LastNameOther,BirthDate,DeathDate,Gender,Meta",
+        "Id,Name,FirstName,MiddleName,BirthLocation,DeathLocation,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,LastNameOther,BirthDate,DeathDate,Gender,DataStatus,Meta",
         options
       );
 
@@ -183,7 +184,7 @@ export function createChatCcHandlers({
           birthLocation: profile.BirthLocation || "",
           deathLocation: profile.DeathLocation || "",
           degrees: profile.Degrees,
-          gender: profile.Gender || "",
+          gender: shownGender(profile),
           surname: profile.LastNameCurrent || profile.LastNameAtBirth || "",
           birth: profile.BirthDate || "",
           death: profile.DeathDate || "",

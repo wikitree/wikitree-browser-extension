@@ -26,6 +26,9 @@ const FRACTAL_CSS = `
   #wbe-fractal-popup.wbe-explorer-alt canvas:not(.wbe-galaxy-canvas):not(.wbe-3d-canvas), #wbe-fractal-popup.wbe-explorer-alt .wbe-fractal-up, #wbe-fractal-popup.wbe-explorer-alt .wbe-fractal-hint,
   #wbe-fractal-popup.wbe-explorer-alt .wbe-fractal-crumbs, #wbe-fractal-popup.wbe-explorer-alt .wbe-chart-mode, #wbe-fractal-popup.wbe-explorer-alt .wbe-chart-legend,
   #wbe-fractal-popup.wbe-explorer-alt:not(.wbe-explorer-galaxy):not(.wbe-explorer-3d) [data-act="png"] { display: none !important; }
+  #wbe-fractal-popup .wbe-explorer-bio { display: inline-flex; align-items: center; gap: 5px; flex: none; margin-right: 12px; font-size: 12.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+  #wbe-fractal-popup .wbe-explorer-bio[hidden] { display: none; }
+  #wbe-fractal-popup .wbe-explorer-bio input { margin: 0; }
   #wbe-fractal-popup .wbe-fractal-crumbs { padding: 4px 10px; font-size: 12px; min-height: 18px; border-bottom: 1px solid rgba(0,0,0,.06); }
 `;
 

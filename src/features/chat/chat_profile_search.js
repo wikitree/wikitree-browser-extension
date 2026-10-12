@@ -1,5 +1,6 @@
 import { getGenerationFromAhnen } from "./chat_ahnentafel";
 import { joinWithAnd } from "./chat_text_utils";
+import { isHiddenMarriage, shownSpouses } from "./chat_marriage_display";
 import { trimUkCountrySuffix } from "./chat_place_text";
 import {
   pluralSurnameCandidates,
@@ -165,7 +166,8 @@ export function matchSpouseByName(spousesObj, spouseQuery, { normalizeText, quot
       String(value || "")
         .trim()
         .toLowerCase());
-  const spouses = Array.isArray(spousesObj) ? spousesObj : Object.values(spousesObj || {});
+  // (not marriages the manager chose not to show)
+  const spouses = shownSpouses(spousesObj);
   const normSpouse = normalize(spouseQuery);
   const spouseTokens = (normSpouse || "").split(/\s+/).filter(Boolean);
   if (!spouses.length || !spouseTokens.length) {
@@ -1229,6 +1231,15 @@ export function createProfileSearchHandler({
         (/\bproject\b/i.test(templateValue) ? findCanonicalWtPlusProjectBoxTemplateName(templateValue) : null);
       return canonical ? `TemplateText=${quoteWtPlusValue(canonical)}` : full;
     });
+  }
+
+  /** Whether the prompt names this category itself, as "Category:Puritan_Great_Migration" or "Category: Puritan Great Migration". */
+  function promptNamesCategory(rawPrompt, categoryName) {
+    const wanted = normalizeWtPlusCategoryText(String(categoryName || "").replace(/__/g, ", ").replace(/_/g, " "));
+    if (!wanted) return false;
+    return Array.from(String(rawPrompt || "").matchAll(/\bcategory\s*:\s*(.+)/gi)).some((match) =>
+      normalizeWtPlusCategoryText(match[1].replace(/__/g, ", ").replace(/_/g, " ")).startsWith(wanted)
+    );
   }
 
   async function canonicalizeWtPlusCategoryTerms(queryText) {
@@ -2343,6 +2354,16 @@ export function createProfileSearchHandler({
     }
 
     const rawPrompt = String(runOptions?.rawPrompt || "").trim();
+    // "my ancestors with Category:Puritan_Great_Migration" names one category exactly: run it as written. Growing it
+    // into every category with those words OR'd together ran the project's maintenance categories instead
+    // (…_Project_Needs_Research, …_Spouse: Murray, 2026-10-13, "an unnecessarily obtuse interpretation"). The same
+    // when the catalogue has a category by that very name. ("… and its subcategories" is SubCat9, read elsewhere.)
+    if (
+      /^CategoryFull$/i.test(parsedCategory.field || "") &&
+      (runOptions?.exactCategory || promptNamesCategory(rawPrompt, stripSurroundingQuotes(parsedCategory.categoryValue)))
+    ) {
+      return null;
+    }
     const seedFromCategory = /^CategoryFull$/i.test(parsedCategory.field)
       ? toWtPlusCategorySearchTextFromCategoryFull(parsedCategory.categoryValue)
       : normalizeWtPlusCategorySearchSeed(parsedCategory.categoryValue);
@@ -6622,6 +6643,8 @@ export function createProfileSearchHandler({
       try {
         const categoryExpansion = await maybeExpandWtPlusCategoryTreeQuery(canonicalQuery, {
           rawPrompt: rawPromptForRun,
+          // (a single category the catalogue has by that very name)
+          exactCategory: categoryMatches.length === 1 && categoryMatches[0]?.exact === true,
         });
         if (categoryExpansion?.expandedQuery && categoryExpansion.expandedQuery !== canonicalQuery) {
           console.info("wbe: expanded WT+ category query via recursive category-name search", {
@@ -6956,7 +6979,7 @@ export function createProfileSearchHandler({
       const wantsManagerColumn = /(?:^|\s)Manager=/i.test(canonicalQuery) || /\b(?:ProjectManaged|PPP)\b/.test(canonicalQuery);
       const wantsCategoryColumn = queryHasCategoryTerms(canonicalQuery);
       const fields =
-        "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,Father,Mother,BirthDate,BirthDateDecade,BirthLocation,DeathDate,DeathDateDecade,DeathLocation,Gender,Id,Name,Categories" +
+        "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,Derived.ShortName,Derived.LongNamePrivate,Derived.BirthNamePrivate,Father,Mother,BirthDate,BirthDateDecade,BirthLocation,DeathDate,DeathDateDecade,DeathLocation,Gender,DataStatus,Id,Name,Categories" +
         (createdRecentlyFilter ? ",Created" : "") +
         (wantsManagerColumn ? ",Managers,TrustedList" : "") +
         (spousalAgeGapFilter || includeMarriageDetails ? ",Spouses" : "");
@@ -7094,7 +7117,7 @@ export function createProfileSearchHandler({
           ...new Set(
             people
               .flatMap((person) =>
-                Object.entries(person?.Spouses || {}).map(([spouseKey, spouseRef]) =>
+                Object.entries(person?.Spouses || {}).filter(([, spouseRef]) => !isHiddenMarriage(spouseRef)).map(([spouseKey, spouseRef]) =>
                   String(spouseRef?.Id || spouseKey || "").trim()
                 )
               )
@@ -8739,7 +8762,7 @@ ${note}` };
     const [, , peopleById] = await fetchPeoplePaged(
       WBE_CHAT_APP_ID,
       uniqueIds,
-      "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,BirthDate,DeathDate,BirthLocation,DeathLocation,LastNameAtBirth,LastNameCurrent,Gender,Father,Mother,Spouses,HasChildren",
+      "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,BirthDate,DeathDate,BirthLocation,DeathLocation,LastNameAtBirth,LastNameCurrent,Gender,DataStatus,Father,Mother,Spouses,HasChildren",
       { resolveRedirect: 1, limit: 1000 }
     );
     hideChatShaky();
@@ -10159,7 +10182,7 @@ ${note}` };
       const [, , people] = await fetchPeoplePaged(
         WBE_CHAT_APP_ID,
         profileIds,
-        "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,BirthDate,DeathDate,BirthLocation,DeathLocation,LastNameAtBirth,LastNameCurrent,LastNameOther,Gender" +
+        "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,BirthDate,DeathDate,BirthLocation,DeathLocation,LastNameAtBirth,LastNameCurrent,LastNameOther,Gender,DataStatus" +
           (spouseQuery ? ",Spouses" : ""),
         spouseQuery ? { getSpouses: 1 } : {}
       );

@@ -2,7 +2,10 @@ import { getLocationFieldLabel } from "./chat_place_text";
 import { formatPreviewDate } from "./chat_preview_format";
 import { formatKinPlaceDetails } from "./chat_kin_details";
 import { sortByBirth } from "./chat_kin_order";
+import { shownSpouses } from "./chat_marriage_display";
+import { shownGender } from "./chat_gender_display";
 import { applyKinFilter, kinFilterPhrase } from "./chat_kin_filter";
+import { asksForBirthRelation, birthParentIds, isBirthChildOf, separateBirthParentIds } from "./chat_birth_family";
 import {
   describeRelationChain,
   NIECE_NEPHEW_RE,
@@ -52,6 +55,17 @@ export function relationChainDegrees(steps = []) {
   if (groups.length > 1 && !allDown && !upThenAcross) return "";
   return groups.reduce((sum, group) => sum + GROUP_DEGREES[group], 0);
 }
+
+// What a relation group is called without gender words.
+const NEUTRAL_RELATION_NOUNS = {
+  grandparentSiblings: ["grandparent's sibling", "grandparents' siblings"],
+  grandparents: ["grandparent", "grandparents"],
+  parentSiblings: ["parent's sibling", "parents' siblings"],
+  parents: ["parent", "parents"],
+  children: ["child", "children"],
+  spouses: ["spouse", "spouses"],
+  siblings: ["sibling", "siblings"],
+};
 
 export function createChatRelationHandlers({
   WikiTreeAPI,
@@ -212,7 +226,12 @@ export function createChatRelationHandlers({
       },
     ];
 
-    return specs.find((spec) => spec.pattern.test(value)) || null;
+    const spec = specs.find((entry) => entry.pattern.test(value)) || null;
+    // "biological parents", "birth mother", "bio siblings" (user, 2026-10-13): the birth family, not the one who raised them
+    if (spec && ["parents", "children", "siblings"].includes(spec.group) && asksForBirthRelation(value, spec.pattern)) {
+      return { ...spec, biological: true, singular: `biological ${spec.singular}`, plural: `biological ${spec.plural}` };
+    }
+    return spec;
   }
 
   function normalizeRelationChainText(rawRelation) {
@@ -461,6 +480,12 @@ export function createChatRelationHandlers({
     return composed || person?.Name || `ID ${person?.Id || "unknown"}`;
   }
 
+  // " (Luker-601)"; nothing for a private profile, whose Id is a stand-in (live, 2026-10-13: "Private (-1)")
+  function idSuffix(person) {
+    const id = person?.Name || (Number(person?.Id) > 0 ? person.Id : "");
+    return id ? ` (${id})` : "";
+  }
+
   function formatRelationPreviewLine(person, placeDetails = []) {
     const details = [];
     if (Number.isFinite(Number(person?.removed))) {
@@ -474,7 +499,7 @@ export function createChatRelationHandlers({
     }
 
     const detailSuffix = details.length ? ` - ${details.join(", ")}` : "";
-    return `- ${toDisplayName(person)} (${person?.Name || person?.Id || "unknown"})${detailSuffix}${formatKinPlaceDetails(
+    return `- ${toDisplayName(person)}${idSuffix(person)}${detailSuffix}${formatKinPlaceDetails(
       person,
       placeDetails
     )}`;
@@ -545,7 +570,7 @@ export function createChatRelationHandlers({
       .join(", ");
     const detailSuffix = details.length ? ` - ${details.join(", ")}` : "";
 
-    return `- ${relationLabel}: ${toDisplayName(person)} (${person?.Name || person?.Id || "unknown"})${detailSuffix}`;
+    return `- ${relationLabel}: ${toDisplayName(person)}${idSuffix(person)}${detailSuffix}`;
   }
 
   function buildRelationPreviewAndInlineMore(people, previewLimit = 20, placeDetails = []) {
@@ -613,7 +638,7 @@ export function createChatRelationHandlers({
       lastNameCurrent: person?.LastNameCurrent || "",
       ...(includeCousinOrdinal ? { cousinOrdinal: formatCousinOrdinal(getCousinDegree(person)) } : {}),
       removed: person?.removed ?? "",
-      gender: person?.Gender || "",
+      gender: shownGender(person),
       birth: person?.BirthDate && person.BirthDate !== "0000-00-00" ? person.BirthDate : "",
       death: person?.DeathDate && person.DeathDate !== "0000-00-00" ? person.DeathDate : "",
       birthLocation: person?.BirthLocation || "",
@@ -1262,7 +1287,94 @@ export function createChatRelationHandlers({
     return [];
   }
 
+  const BIRTH_FIELDS = () => `${RELATION_PERSON_FIELDS},Father,Mother,BioFather,BioMother`;
+
+  /** The person's own record, with both pairs of parents. */
+  async function birthRecordOf(personKey) {
+    const [, , people] = await fetchPeoplePaged(WBE_CHAT_APP_ID, [personKey], BIRTH_FIELDS(), {});
+    return Object.values(people || {}).find(Boolean) || null;
+  }
+
+  /** Biological parents, children or siblings: through BioFather/BioMother where recorded, else Father/Mother not marked non-biological. */
+  async function collectBirthRelatives(personKey, group) {
+    const self = await birthRecordOf(personKey);
+    const selfId = Number(self?.Id) || 0;
+    if (!selfId) return [];
+    // (getPeople descendants sends BioFather/BioMother; nuclear can leave BioFather out.) A descendants response can
+    // give a profile it masks a stand-in Id, and links to them use it: Riley Luker-574 came back as -4, his children's
+    // BioFather -4 (live, Luker-573, 2026-10-13). So the Ids to match are read from the person's own record in the
+    // same response: `idsIn(selfThere)`, falling back to the Ids asked for.
+    const childrenOf = async (keys, idsIn) => {
+      const [, , people] = await fetchPeoplePaged(WBE_CHAT_APP_ID, keys, BIRTH_FIELDS(), { descendants: 1 });
+      const list = Object.values(people || {}).filter(Boolean);
+      const selfThere = list.find((person) => Number(person.Id) === selfId || (self.Name && person.Name === self.Name));
+      const ids = (selfThere && idsIn(selfThere).filter(Boolean).length ? idsIn(selfThere) : keys).filter(Boolean);
+      return list.filter((person) => person !== selfThere && Number(person.Id) !== selfId && ids.some((id) => isBirthChildOf(person, id)));
+    };
+    if (group === "children") return await childrenOf([selfId], (there) => [Number(there.Id)]);
+    const { father, mother } = birthParentIds(self);
+    const parents = [father, mother].filter((id) => id > 0);
+    if (!parents.length) return [];
+    if (group === "siblings") {
+      return await childrenOf(parents, (there) => {
+        const inThere = birthParentIds(there);
+        return [father > 0 ? inThere.father : 0, mother > 0 ? inThere.mother : 0];
+      });
+    }
+    const [, , people] = await fetchPeoplePaged(WBE_CHAT_APP_ID, parents, RELATION_PERSON_FIELDS, {});
+    return Object.values(people || {}).filter(Boolean);
+  }
+
+  /**
+   * After "Patty's parents" (or father, mother): a line naming birth parents recorded besides the parents who
+   * raised them, " Biological father also recorded: Riley Luker (Luker-574)." Empty when there are none.
+   */
+  async function birthParentsNote(personKey, gender) {
+    try {
+      const self = await birthRecordOf(personKey);
+      const apart = separateBirthParentIds(self);
+      const ids = [gender === "Female" ? 0 : apart.father, gender === "Male" ? 0 : apart.mother];
+      if (!ids.some(Boolean)) return "";
+      const shown = ids.filter((id) => id > 0);
+      const [, , people] = shown.length ? await fetchPeoplePaged(WBE_CHAT_APP_ID, shown, RELATION_PERSON_FIELDS, {}) : [null, null, {}];
+      const byId = new Map(Object.values(people || {}).filter(Boolean).map((person) => [Number(person.Id), person]));
+      const named = (id) => (id < 0 || !byId.has(id) ? "a private profile" : `${toDisplayName(byId.get(id))}${byId.get(id).Name ? ` (${byId.get(id).Name})` : ""}`);
+      const parts = [ids[0] && `biological father ${named(ids[0])}`, ids[1] && `biological mother ${named(ids[1])}`].filter(Boolean);
+      const text = parts.join(" and ");
+      return ` WikiTree also records a ${text}.`;
+    } catch (error) {
+      return "";
+    }
+  }
+
+  /**
+   * After "Patty's siblings" (or brothers, sisters) for someone with birth parents recorded apart from the parents
+   * who raised them: the birth siblings the plain answer leaves out (live, 2026-10-13: Luker-573 had "no siblings",
+   * while her profile lists seven through her birth parents). Empty when there are none.
+   */
+  async function birthSiblingsNote(personKey, gender, shownIds) {
+    try {
+      const self = await birthRecordOf(personKey);
+      const apart = separateBirthParentIds(self);
+      if (!apart.father && !apart.mother) return "";
+      const extra = (await collectBirthRelatives(personKey, "siblings")).filter(
+        (person) => !shownIds.has(Number(person.Id)) && (!gender || shownGender(person) === gender)
+      );
+      if (!extra.length) return "";
+      const word = gender === "Male" ? ["brother", "brothers"] : gender === "Female" ? ["sister", "sisters"] : ["sibling", "siblings"];
+      const names = extra.slice(0, 3).map((person) => (person.Name ? `${toDisplayName(person)} (${person.Name})` : "a private profile"));
+      const more = extra.length > 3 ? ` and ${extra.length - 3} more` : "";
+      return ` WikiTree also records ${extra.length} biological ${extra.length === 1 ? word[0] : word[1]} through their birth parents: ${names.join(", ")}${more}. Ask for "biological ${word[1]}" to list them.`;
+    } catch (error) {
+      return "";
+    }
+  }
+
   async function collectRelationPeople(personKey, relationSpec) {
+    if (relationSpec.biological) {
+      return await collectBirthRelatives(personKey, relationSpec.group);
+    }
+
     if (relationSpec.group === "siblings") {
       const [entry] = await getRelativesOrEmpty(WBE_CHAT_APP_ID, personKey, `${RELATION_PERSON_FIELDS},Siblings`, {
         getSiblings: 1,
@@ -1303,7 +1415,8 @@ export function createChatRelationHandlers({
       const [entry] = await getRelativesOrEmpty(WBE_CHAT_APP_ID, personKey, `${RELATION_PERSON_FIELDS},Spouses`, {
         getSpouses: 1,
       });
-      return Object.values(entry?.person?.Spouses || {});
+      // (not marriages the manager chose not to show)
+      return shownSpouses(entry?.person?.Spouses);
     }
 
     if (relationSpec.group === "parents") {
@@ -1591,11 +1704,25 @@ export function createChatRelationHandlers({
     try {
       let relatives = await collectRelativesForSteps(subject, relationSteps);
       let filterNote = "";
+      // A gendered word leaves out those whose gender is marked not to show: to
+      // WikiTree they're a child, not a daughter (user, 2026-10-12).
+      const genderHidden = relationSpec.gender ? relatives.filter((person) => !shownGender(person)).length : 0;
+      if (genderHidden) {
+        relatives = relatives.filter((person) => shownGender(person));
+        const [one, many] = NEUTRAL_RELATION_NOUNS[relationSpec.group] || ["relative", "relatives"];
+        filterNote = ` (Not counted: ${genderHidden} ${genderHidden === 1 ? one : many} whose gender is marked not to show.)`;
+      }
+      if (relationSpec.group === "parents" && !relationSpec.biological && relationSteps.length === 1) {
+        filterNote += await birthParentsNote(subject.key, relationSpec.gender);
+      }
+      if (relationSpec.group === "siblings" && !relationSpec.biological && relationSteps.length === 1) {
+        filterNote += await birthSiblingsNote(subject.key, relationSpec.gender, new Set(relatives.map((person) => Number(person.Id))));
+      }
       if (params?.filter) {
         const total = relatives.length;
         const { matched, unknown } = applyKinFilter(relatives, params.filter);
         relatives = matched;
-        if (unknown) filterNote = ` (${unknown} of the ${total} have no ${/Location$/.test(params.filter.field) ? "place" : "date"} recorded.)`;
+        if (unknown) filterNote += ` (${unknown} of the ${total} have no ${/Location$/.test(params.filter.field) ? "place" : "date"} recorded.)`;
       }
 
       const count = relatives.length;
@@ -1620,6 +1747,8 @@ export function createChatRelationHandlers({
           return labelIsUser
             ? appsLoginHint
               ? `None of your ${noun} are visible: they may be private.${appsLoginHint}`
+              : genderHidden
+              ? `No ${noun} are recorded for you on WikiTree.${filterNote}`
               : `I couldn't find any ${noun} in currently accessible family data yet. Try asking about a specific person (for example: "Who are the granduncles of Name-123?").`
             : // A plain fact, not a failure: "I couldn't…" drew "try a more specific
               // name" advice for a person who was found (live E1, 2026-10-03).
@@ -1631,7 +1760,8 @@ export function createChatRelationHandlers({
       }
 
       if (mode === "list") {
-        const wantsBio = /\bbio(?:s|graphy|graphies)?\b/i.test(prompt || relationRaw);
+        // ("bio parents" are birth parents, not biographies)
+        const wantsBio = !relationSpec.biological && /\bbio(?:s|graphy|graphies)?\b/i.test(prompt || relationRaw);
         const { preview, inlineMore } = buildRelationPreviewAndInlineMore(
           params?.order ? sortByBirth(relatives, params.order) : relatives,
           20,

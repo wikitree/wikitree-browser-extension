@@ -4,10 +4,10 @@
 import $ from "jquery";
 import { color as d3color } from "d3-color";
 import { mainDomain } from "../../core/pageType";
-import { fullName, yearOf } from "./chat_text_utils";
+import { fullName, personNameText, yearOf } from "./chat_text_utils";
 import { CHART_MENU_GROUPS, CHART_SHORTCUTS } from "./chat_chart_shortcuts";
 
-export { fullName, yearOf };
+export { fullName, personNameText, yearOf };
 
 export function textColourFor(fill) {
   const c = d3color(fill);
@@ -362,6 +362,10 @@ const CHART_CSS = `
   .wbe-chart-tip.wbe-chart-tip-pinned { max-height: 70%; overflow-y: auto; box-shadow: 0 0 0 2px #8fbf5a, 0 6px 20px rgba(60,45,20,.22); }
   .wbe-chart-tip .wbe-chart-tip-repeat { color: #b0185a; margin-top: 4px; }
   .wbe-chart-tip .wbe-chart-tip-dna { color: #6a3bb5; margin-top: 4px; }
+  .wbe-chart-tip .wbe-chart-tip-bio { color: #2f6fb3; margin-top: 4px; }
+  .wbe-chart-toolbar.wbe-fan-bio { gap: 4px 12px; }
+  .wbe-chart-toolbar.wbe-fan-bio[hidden] { display: none; }
+  .wbe-fan-bio label { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; cursor: pointer; }
   .wbe-chart-tip .wbe-chart-tip-quality { color: #2f6b3a; margin-top: 4px; }
   .wbe-chart-tip .wbe-chart-tip-history { color: #8a5a00; margin-top: 4px; }
   .wbe-chart-stats .wbe-chart-repeats { white-space: normal; font-size: 11px; color: #c2185b; margin-top: 2px; max-width: 220px; }

@@ -20,8 +20,11 @@
 // first time it's laid out, so nothing moves when more arrives.
 
 import { buildFractalLayout } from "./chat_fractal_tree_data";
+import { isHiddenMarriage, shownSpouses } from "./chat_marriage_display";
 import { getCountryFromLocation } from "./chat_place_country";
-import { fullName } from "./chat_text_utils";
+import { shownGender } from "./chat_gender_display";
+import { fullName, personNameText } from "./chat_text_utils";
+import { fullWikiTreeName } from "./chat_fan_chart_data";
 
 // getPeople nuclear depths: the first fetch around the person (CC3: ~3s, where CC4 took ~20s for an old colonial family), and each
 // fetch around someone at the edge as you zoom (CC3 around them).
@@ -97,7 +100,11 @@ export function summarizeWorldPerson(person) {
     name: person.RealName || person?.Derived?.ShortName || person.FirstName || person.Name || "Private",
     hidden: !(person.RealName || person?.Derived?.ShortName || person.FirstName || person.Name),
     lnab: person.LastNameAtBirth || "",
-    gender: person.Gender || "",
+    // (as PersonName writes it, for titles: personNameText)
+    fullName: fullWikiTreeName(person),
+    // (the gender to show, blank when marked not to; sex: the sex at birth, for DNA lines: chat_gender_display.js)
+    gender: shownGender(person),
+    sex: person.Gender || "",
     birth: cleanDate(person.BirthDate),
     death: cleanDate(person.DeathDate),
     // (null when the API didn't say)
@@ -112,8 +119,14 @@ export function summarizeWorldPerson(person) {
     photoData: person.PhotoData || null,
     fatherId: Number(person.Father) || 0,
     motherId: Number(person.Mother) || 0,
-    spouses: (Array.isArray(person.Spouses) ? person.Spouses : Object.values(person.Spouses || {}))
-      .filter((spouse) => spouse && Number(spouse.Id))
+    // (the birth parents of someone raised by others, who are the Father and Mother: see showChosenParents)
+    bioFatherId: Number(person.BioFather) || 0,
+    bioMotherId: Number(person.BioMother) || 0,
+    nonBioFather: String(person.DataStatus?.Father || "") === "5",
+    nonBioMother: String(person.DataStatus?.Mother || "") === "5",
+    // (not marriages the manager chose not to show: see chat_marriage_display.js)
+    spouses: shownSpouses(person.Spouses)
+      .filter((spouse) => Number(spouse.Id))
       .map((spouse) => ({ id: Number(spouse.Id), wtid: spouse.Name || "", married: cleanDate(spouse.MarriageDate || spouse.marriage_date), place: spouse.MarriageLocation || spouse.marriage_location || "" })),
   };
 }
@@ -175,6 +188,8 @@ function withUniqueHiddenIds(world, people) {
     Id: map(person.Id),
     Father: map(person.Father),
     Mother: map(person.Mother),
+    BioFather: map(person.BioFather),
+    BioMother: map(person.BioMother),
     Spouses: (Array.isArray(person.Spouses) ? person.Spouses : Object.values(person.Spouses || {})).map((spouse) => (spouse ? { ...spouse, Id: map(spouse.Id) } : spouse)),
   }));
 }
@@ -190,7 +205,9 @@ function replaceCoveredHidden(world, incoming) {
   );
   if (!covered.size) return;
   [...world.people.values()].forEach((person) => {
-    if (person.id < 0 && covered.has(visibleParentsKey(person.fatherId, person.motherId))) world.people.delete(person.id);
+    // (the parents as sent, whichever pair is shown)
+    const sent = person.raisedBy || person;
+    if (person.id < 0 && covered.has(visibleParentsKey(sent.fatherId, sent.motherId))) world.people.delete(person.id);
   });
 }
 
@@ -200,7 +217,7 @@ function dropUnlinkedHidden(world) {
     changed = false;
     const linked = new Set();
     world.people.forEach((person) => {
-      [person.fatherId, person.motherId].forEach((id) => id < 0 && linked.add(id));
+      [person.fatherId, person.motherId, person.bioFatherId, person.bioMotherId, person.raisedBy?.fatherId, person.raisedBy?.motherId].forEach((id) => id < 0 && linked.add(id));
       (person.spouses || []).forEach((spouse) => spouse.id < 0 && linked.add(spouse.id));
     });
     [...world.people.values()].forEach((person) => {
@@ -210,6 +227,118 @@ function dropUnlinkedHidden(world) {
       }
     });
   }
+}
+
+// Biological parents (the user, 2026-10-13: "Adopted people usually add their adoptive parents as their parents. They
+// may also add their Bio parents … We want to be able to optionally show them and their connections"). Father and
+// Mother are the parents who raised someone (marked non-biological); BioFather and BioMother their birth parents.
+// The choice is each person's (the user: "the switches should probably be on individuals": Terry Rockstrom's birth
+// mother is Patty Luker, who has two pairs of parents herself): someone in world.bioShown is shown as their birth
+// parents' child, in their family. Where only one birth parent is recorded, a parent marked non-biological on the
+// other side goes (they weren't a couple).
+const hasBioParents = (person) => Boolean(person?.bioFatherId || person?.bioMotherId);
+
+function showChosenParents(world) {
+  world.people.forEach((person) => {
+    if (!person.raisedBy) person.raisedBy = { fatherId: person.fatherId, motherId: person.motherId };
+    // (dropHiddenMarriages works its cuts out again from the parents chosen here)
+    delete person.parentsAsSent;
+    const { fatherId, motherId } = person.raisedBy;
+    const bio = hasBioParents(person) && Boolean(world.bioShown?.has(person.id));
+    person.fatherId = !bio ? fatherId : person.bioFatherId || (person.nonBioFather ? 0 : fatherId);
+    person.motherId = !bio ? motherId : person.bioMotherId || (person.nonBioMother ? 0 : motherId);
+  });
+}
+
+/** For the Explorer's switch: {id, name, on} for someone with a birth parent recorded, else null. */
+export function bioParentsChoice(world, id) {
+  const person = world.people.get(Number(id));
+  if (!hasBioParents(person) || person.hidden) return null;
+  return { id: person.id, name: personNameText(person), on: Boolean(world.bioShown?.has(person.id)) };
+}
+
+/** Birth parents recorded but not loaded (a nuclear fetch can leave them out: live, Luker-573's father), once each. */
+export function bioParentsToFetch(world) {
+  if (!world.bioAsked) world.bioAsked = new Set();
+  const ids = new Set();
+  world.people.forEach((person) => [person.bioFatherId, person.bioMotherId].forEach((id) => id > 0 && !world.people.has(id) && !world.bioAsked.has(id) && ids.add(id)));
+  ids.forEach((id) => world.bioAsked.add(id));
+  return [...ids];
+}
+
+/**
+ * People whose birth parents may be missing, to fetch by key alone, once each: getPeople "nuclear" can send
+ * BioFather as null when it isn't (live 2026-10-13: Luker-573's with nuclear=2, Rockstrom-4's with nuclear=1; the
+ * keys alone, ancestors and descendants send them). Those raised by a non-biological parent, or with one birth parent.
+ */
+export function bioParentsToCheck(world) {
+  if (!world.bioChecked) world.bioChecked = new Set();
+  const ids = [...world.people.values()]
+    .filter((person) => person.id > 0 && !person.hidden && !world.bioChecked.has(person.id))
+    .filter((person) => (person.nonBioFather || person.nonBioMother || hasBioParents(person)) && !(person.bioFatherId && person.bioMotherId))
+    .map((person) => person.id);
+  ids.forEach((id) => world.bioChecked.add(id));
+  return ids;
+}
+
+/** Shows someone's birth parents (on) or the parents who raised them, and starts the view again round them. */
+export function setBiologicalParents(world, id, on) {
+  if (!world.bioShown) world.bioShown = new Set();
+  if (on) world.bioShown.add(Number(id));
+  else world.bioShown.delete(Number(id));
+  showChosenParents(world);
+  dropHiddenMarriages(world, []);
+  // (the families change shape, so their frozen shares go; never without a scene: the tree's zoom reads it, live
+  // 2026-10-13)
+  world.weights = new Map();
+  startFamilyScene(world, Number(id));
+  return world;
+}
+
+// A marriage marked not to show (do_not_display) goes both ways round: the other one's record may not say so.
+// The ex goes from their children's families too (user, 2026-10-12: "maybe just attach the kids to Murray? … They
+// can have a missing parent"): a child of the marriage keeps only the parent nearer the person the Explorer is
+// about, by parents and children; for that child (or their children), nearer to both, both stay. Worked out again
+// after every fetch, from the parents as sent (parentsAsSent, also how jointKids knows it isn't the spouse's child).
+function dropHiddenMarriages(world, incoming) {
+  incoming.forEach((person) =>
+    (Array.isArray(person.Spouses) ? person.Spouses : Object.values(person.Spouses || {})).forEach((spouse) => {
+      if (!isHiddenMarriage(spouse)) return;
+      if (!world.hiddenMarriages) world.hiddenMarriages = new Set();
+      world.hiddenMarriages.add(marriageKey(Number(person.Id), Number(spouse.Id)));
+    })
+  );
+  if (!world.hiddenMarriages) return;
+  const hidden = (x, y) => Boolean(x && y) && world.hiddenMarriages.has(marriageKey(x, y));
+  world.people.forEach((person) => {
+    if (person.parentsAsSent) {
+      Object.assign(person, person.parentsAsSent);
+      delete person.parentsAsSent;
+    }
+    if (person.spouses.some((spouse) => hidden(person.id, spouse.id))) person.spouses = person.spouses.filter((spouse) => !hidden(person.id, spouse.id));
+  });
+  const children = [...world.people.values()].filter((person) => hidden(person.fatherId, person.motherId));
+  if (!children.length) return;
+  // Steps from the person the Explorer is about, by parents and children only.
+  const kids = childrenIndex(world);
+  const steps = new Map(world.people.has(world.focusId) ? [[world.focusId, 0]] : []);
+  const queue = [...steps.keys()];
+  for (let at = 0; at < queue.length; at += 1) {
+    const person = world.people.get(queue[at]);
+    [person.fatherId, person.motherId, ...(kids.get(person.id) || []).map((child) => child.id)].forEach((id) => {
+      if (!world.people.has(id) || steps.has(id)) return;
+      steps.set(id, steps.get(person.id) + 1);
+      queue.push(id);
+    });
+  }
+  const away = (id) => (steps.has(id) ? steps.get(id) : Infinity);
+  children.forEach((child) => {
+    const [father, mother] = [away(child.fatherId), away(child.motherId)];
+    if (father === mother) return;
+    child.parentsAsSent = { fatherId: child.fatherId, motherId: child.motherId };
+    if (father > mother) child.fatherId = 0;
+    else child.motherId = 0;
+  });
 }
 
 /**
@@ -226,7 +355,11 @@ export function mergeWorldPeople(world, people, { root, nuclear = 0, ancestors =
   replaceCoveredHidden(world, incoming);
   incoming.forEach((person) => {
     const id = Number(person.Id);
-    world.people.set(id, summarizeWorldPerson(person));
+    const summary = summarizeWorldPerson(person);
+    // (a getPeople "nuclear" can send BioFather as null when it isn't, so one known stays: see bioParentsToCheck)
+    const before = world.people.get(id);
+    if (before) ["bioFatherId", "bioMotherId"].forEach((field) => (summary[field] = summary[field] || before[field] || 0));
+    world.people.set(id, summary);
     const degrees = Number(person.Meta?.Degrees);
     // (nothing more can be fetched around a profile WikiTree won't show)
     if (id < 0 || (nuclear > 0 && Number.isFinite(degrees) && degrees < nuclear)) {
@@ -241,6 +374,8 @@ export function mergeWorldPeople(world, people, { root, nuclear = 0, ancestors =
     const focus = findPerson(world, world.focusKey);
     if (focus) world.focusId = focus.id;
   }
+  showChosenParents(world);
+  dropHiddenMarriages(world, incoming);
   if (!rootPerson) return world;
   world.tried.add(rootPerson.id);
   if (descendants > 0) {
@@ -329,11 +464,13 @@ function jointKids(world, kids, x, y) {
       [y, x],
     ].forEach(([one, two]) => {
       const partners = partnersOf(world, kids, one);
-      if (partners.size === 1 && partners.has(two)) add((kids.get(one) || []).filter((child) => !otherParent(child, one)));
+      // (not a child whose other parent was left out: dropHiddenMarriages)
+      if (partners.size === 1 && partners.has(two)) add((kids.get(one) || []).filter((child) => !otherParent(child, one) && !child.parentsAsSent));
     });
   } else {
     const one = x || y;
-    if (partnersOf(world, kids, one).size !== 1) add((kids.get(one) || []).filter((child) => !otherParent(child, one)));
+    const single = partnersOf(world, kids, one).size === 1;
+    add((kids.get(one) || []).filter((child) => !otherParent(child, one) && (!single || child.parentsAsSent)));
   }
   return [...found.values()].sort((a, b) => (a.birth || "9999").localeCompare(b.birth || "9999") || a.id - b.id);
 }
@@ -368,16 +505,19 @@ function orderCouple(world, x, y) {
 /** The couple whose children's circle holds `personId` (their parents), or null. */
 function parentCouple(world, kids, personId) {
   const person = world.people.get(personId);
-  if (!person || (!person.fatherId && !person.motherId)) return null;
+  // (parents named but not sent, as for someone the API doesn't know is logged in, make no family: live,
+  // 2026-10-12, Murray Maloney's Explorer opened on an empty circle and failed to load)
+  if (!person || ![person.fatherId, person.motherId].some((id) => id && world.people.has(id))) return null;
   const parentId = person.fatherId || person.motherId;
   const family = familiesOf(world, kids, parentId).find((entry) => entry.kids.some((child) => child.id === personId));
   return family ? orderCouple(world, parentId, family.other) : orderCouple(world, person.fatherId, person.motherId);
 }
 
-/** The first view: the person among their brothers and sisters, inside their parents' circle. */
-export function startFamilyScene(world) {
+/** The first view: the person (or `personId`) among their brothers and sisters, inside their parents' circle. */
+export function startFamilyScene(world, personId = world.focusId) {
   const kids = childrenIndex(world);
-  const root = parentCouple(world, kids, world.focusId) || { a: world.focusId, b: 0, solo: true };
+  const id = world.people.has(personId) ? personId : world.focusId;
+  const root = parentCouple(world, kids, id) || { a: id, b: 0, solo: true };
   world.scene = { root, scale: 1, x: 0, y: 0, trail: [] };
   return world.scene;
 }
@@ -652,6 +792,36 @@ export function buildFamilyWorldLayout(world) {
 }
 
 /** "Elizabeth's family world starts with 497 people: … zoom out for both sets of parents …" */
+/**
+ * Everyone joined to the focus person by parents, children and the marriages shown, for the answer's table and count:
+ * not someone loaded only through a marriage marked not to show (dropHiddenMarriages), nor their family.
+ */
+export function connectedWorldPeople(world) {
+  const kids = childrenIndex(world);
+  const partners = new Map();
+  const partner = (a, b) => (partners.has(a) ? partners.get(a).push(b) : partners.set(a, [b]));
+  world.people.forEach((person) =>
+    person.spouses.forEach((spouse) => {
+      partner(person.id, spouse.id);
+      partner(spouse.id, person.id);
+    })
+  );
+  const seen = new Set(world.people.has(world.focusId) ? [world.focusId] : []);
+  const queue = [...seen];
+  for (let at = 0; at < queue.length; at += 1) {
+    const person = world.people.get(queue[at]);
+    const parents = [person.fatherId, person.motherId].filter(Boolean);
+    // (brothers and sisters too, through parents who weren't sent)
+    const next = [...parents, ...(partners.get(person.id) || []), ...[person.id, ...parents].flatMap((id) => (kids.get(id) || []).map((child) => child.id))];
+    next.forEach((id) => {
+      if (!world.people.has(id) || seen.has(id)) return;
+      seen.add(id);
+      queue.push(id);
+    });
+  }
+  return [...world.people.values()].filter((person) => seen.has(person.id));
+}
+
 export function buildFamilyWorldSummary(world, ownerText) {
   const focus = world.people.get(world.focusId);
   if (!focus) return `${ownerText} Family Explorer couldn't be loaded.`;
@@ -661,6 +831,9 @@ export function buildFamilyWorldSummary(world, ownerText) {
   const siblings = new Set();
   [focus.fatherId, focus.motherId].filter(Boolean).forEach((id) => (kids.get(id) || []).forEach((child) => child.id !== focus.id && siblings.add(child.id)));
   const pronoun = focus.gender === "Female" ? "her" : focus.gender === "Male" ? "his" : "their";
+  const count = connectedWorldPeople(world).length;
+  // (no "1 people", nor "↑ Parents goes up" when WikiTree sent no family at all: live, Dudgeon-166, 2026-10-13)
+  if (count === 1) return `${ownerText} Family Explorer has only ${fullName(focus)} so far: the WikiTree API sent none of ${pronoun} family.`;
   const brothers = siblings.size ? `, with ${pronoun} ${siblings.size === 1 ? "brother or sister" : `${siblings.size} brothers and sisters`}` : "";
-  return `${ownerText} Family Explorer starts with ${world.people.size.toLocaleString()} people (${up} generation${up === 1 ? "" : "s"} of ancestors so far). It opens on ${fullName(focus)}. Click anyone to see their children; ↑ Parents goes up to ${pronoun} parents' family${brothers}, and on up. More loads as you go.`;
+  return `${ownerText} Family Explorer starts with ${count.toLocaleString()} people (${up} generation${up === 1 ? "" : "s"} of ancestors so far). It opens on ${fullName(focus)}. Click anyone to see their children; ↑ Parents goes up to ${pronoun} parents' family${brothers}, and on up. More loads as you go.`;
 }

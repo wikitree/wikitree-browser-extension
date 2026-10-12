@@ -33,19 +33,26 @@ import { showLifeLinePopup } from "./chat_life_line";
 import { buildFamilySizes, describeFamilySizes, FAMILY_SIZE_GENERATIONS } from "./chat_family_size_data";
 import { showFamilySizePopup } from "./chat_family_size_chart";
 import { showFamilyWorldPopup, showFractalTreePopup } from "./chat_fractal_tree";
+import { isHiddenMarriage, shownSpouses } from "./chat_marriage_display";
+import { shownGender } from "./chat_gender_display";
 import {
   buildFamilyWorldLayout,
   buildFamilyWorldSummary,
+  bioParentsChoice,
+  bioParentsToCheck,
+  bioParentsToFetch,
   climbFamilyScene,
+  connectedWorldPeople,
   createFamilyWorld,
   describeFamilyRoot,
   mergeWorldPeople,
   normaliseFamilyScene,
   rerootFamilyScene,
+  setBiologicalParents,
   startFamilyScene,
   FAMILY_WORLD_NUCLEAR,
 } from "./chat_family_world_data";
-import { fullName } from "./chat_chart_common";
+import { fullName, personNameText } from "./chat_chart_common";
 import { buildFractalTreeSummary, markFrontier, treeFromAncestorSlots, FRACTAL_TREE_DEFAULT_GENERATIONS, FRACTAL_TREE_EXPAND_GENERATIONS } from "./chat_fractal_tree_data";
 import { buildDescendantTree, buildDescendantChartSummary, DESCENDANT_CHART_DEFAULT_GENERATIONS, buildForest } from "./chat_descendant_chart_data";
 import { showDescendantChartPopup } from "./chat_descendant_chart";
@@ -104,7 +111,7 @@ import { formatKinPlaceDetails } from "./chat_kin_details";
 import { formatPreviewDate, formatPreviewName } from "./chat_preview_format";
 
 const QUALITY_FIELDS = "NoChildren,ResearchStatus,Spouses,IsLiving,Bio";
-const FAN_CHART_FIELDS = "Id,Name,RealName,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,Gender,BirthDate,DeathDate,BirthLocation,DeathLocation,Father,Mother,Photo,PhotoData,DataStatus";
+const FAN_CHART_FIELDS = "Id,Name,RealName,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,Gender,BirthDate,DeathDate,BirthLocation,DeathLocation,Father,Mother,BioFather,BioMother,Photo,PhotoData,DataStatus";
 
 export { formatPreviewDate, formatPreviewName };
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
@@ -1150,7 +1157,7 @@ export function createChatPeopleHandlers({
       const result = await WikiTreeAPI.getRelatives(
         WBE_CHAT_APP_ID,
         personKey,
-        "Id,Name,RealName,Derived.ShortName,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender",
+        "Id,Name,RealName,Derived.ShortName,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender,DataStatus",
         { getSpouses: 1 }
       );
       const [peopleResult] = result;
@@ -1160,7 +1167,9 @@ export function createChatPeopleHandlers({
       }
 
       const rootProfile = peopleResult.person;
-      const spousesData = Object.values(rootProfile.Spouses || {});
+      // (not marriages the manager chose not to show, nor those from the biography instead: Murray Maloney, 2026-10-12)
+      const spousesData = shownSpouses(rootProfile.Spouses);
+      if (!spousesData.length && Object.values(rootProfile.Spouses || {}).some(isHiddenMarriage)) return `No spouses found for ${personLabel}.`;
 
       if (!spousesData.length) {
         const word = /\bwi(?:fe|ves)\b/i.test(relationshipLabel) ? "wife" : /\bhusbands?\b/i.test(relationshipLabel) ? "husband" : "spouse";
@@ -1174,7 +1183,7 @@ export function createChatPeopleHandlers({
           firstName: spouse.FirstName || spouse.RealName || "",
           lnab: spouse.LastNameAtBirth || "",
           lastNameCurrent: spouse.LastNameCurrent || "",
-          gender: spouse.Gender || "",
+          gender: shownGender(spouse),
           birth: spouse.BirthDate && spouse.BirthDate !== "0000-00-00" ? spouse.BirthDate : "",
           death: spouse.DeathDate && spouse.DeathDate !== "0000-00-00" ? spouse.DeathDate : "",
           birthLocation: spouse.BirthLocation || "",
@@ -1261,7 +1270,7 @@ export function createChatPeopleHandlers({
     }
 
     const approximate = isPartialDate(birthDate) || isPartialDate(deathDate);
-    const pronoun = person.Gender === "Female" ? "she" : person.Gender === "Male" ? "he" : "";
+    const pronoun = { Female: "she", Male: "he" }[shownGender(person)] || "";
     const ageStr = approximate ? `approximately ${ageAtDeath}` : String(ageAtDeath);
     // No gender loaded: "when they died" reads as someone else (live E3).
     return `${displayName} (${wtId}) was ${ageStr} years old ${pronoun ? `when ${pronoun} died` : "at death"}.`;
@@ -1286,18 +1295,18 @@ export function createChatPeopleHandlers({
     const response = await WikiTreeAPI.getPerson(
       WBE_CHAT_APP_ID,
       key,
-      "Id,Name,RealName,Derived.ShortName,Gender,BirthDate,Children"
+      "Id,Name,RealName,Derived.ShortName,Gender,DataStatus,BirthDate,Children"
     );
     const person = response?._data || response || {};
     const displayName = person.RealName || person?.Derived?.ShortName || person.Name || String(key);
     const wtId = person.Name || String(key);
-    const pronoun = person.Gender === "Female" ? "she" : person.Gender === "Male" ? "he" : "they";
+    const pronoun = { Female: "she", Male: "he" }[shownGender(person)] || "they";
     const known = (value) => (value && value !== "0000-00-00" ? value : "");
     const childNoun = params.childGender === "Male" ? "son" : params.childGender === "Female" ? "daughter" : "child";
     // getPerson wraps each child in a Person; the fields live on _data.
     const children = Object.values(person.Children || {})
       .map((child) => child?._data || child)
-      .filter((child) => !params.childGender || child.Gender === params.childGender)
+      .filter((child) => !params.childGender || shownGender(child) === params.childGender)
       .filter((child) => known(child.BirthDate))
       .sort((a, b) => String(a.BirthDate).localeCompare(String(b.BirthDate)));
     if (!children.length) {
@@ -1338,7 +1347,7 @@ export function createChatPeopleHandlers({
     const [, , people] = await WikiTreeAPI.getPeople(
       WBE_CHAT_APP_ID,
       [key],
-      "Id,Name,RealName,Gender,DeathDate,DeathLocation,Categories,Bio"
+      "Id,Name,RealName,Gender,DataStatus,DeathDate,DeathLocation,Categories,Bio"
     );
     const person = Object.values(people || {}).find((entry) => entry?.Name);
     if (!person) return cantLoad(key);
@@ -1531,7 +1540,9 @@ export function createChatPeopleHandlers({
       const [entry] = (await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, personKey, "Id,Name,RealName,Derived.ShortName,Gender", {
         getSpouses: 1,
       })) || [];
-      return entry?.person ? { person: entry.person, spouses: Object.values(entry.person.Spouses || {}) } : null;
+      // (not marriages the manager chose not to show: hiddenOnly, so the biography isn't read for them instead)
+      const all = Object.values(entry?.person?.Spouses || {});
+      return entry?.person ? { person: entry.person, spouses: shownSpouses(all), hiddenOnly: all.length > 0 && all.every(isHiddenMarriage) } : null;
     };
     const asMarriage = (spouse) => ({
       spouseLabel: nameOf(spouse),
@@ -1543,17 +1554,17 @@ export function createChatPeopleHandlers({
       const [entry] = (await WikiTreeAPI.getRelatives(
         WBE_CHAT_APP_ID,
         key,
-        "Id,Name,RealName,Derived.ShortName,Gender,BirthDate,DeathDate",
+        "Id,Name,RealName,Derived.ShortName,Gender,DataStatus,BirthDate,DeathDate",
         { getSpouses: 1 }
       )) || [];
       if (!entry?.person) return cantLoad(key);
-      const marriages = Object.values(entry.person.Spouses || {})
+      const marriages = shownSpouses(entry.person.Spouses)
         .map((spouse) => ({ ...asMarriage(spouse), spouseDeath: spouse?.DeathDate || "", endDate: spouse?.marriage_end_date || "" }))
         .sort((a, b) => String(a.date || "9999").localeCompare(String(b.date || "9999")));
       return buildMarriageTimingAnswer({
         person: {
           label: nameOf(entry.person),
-          gender: entry.person.Gender,
+          gender: shownGender(entry.person),
           birth: entry.person.BirthDate,
           death: entry.person.DeathDate,
         },
@@ -1590,7 +1601,7 @@ export function createChatPeopleHandlers({
     const marriages = subject.spouses
       .map(asMarriage)
       .sort((a, b) => String(a.date || "9999").localeCompare(String(b.date || "9999")));
-    if (!marriages.length) {
+    if (!marriages.length && !subject.hiddenOnly) {
       const fromBio = await spouseFromBio(subject.person?.Name || key, nameOf(subject.person), "spouse", prompt);
       if (fromBio) return fromBio;
     }
@@ -1643,18 +1654,30 @@ export function createChatPeopleHandlers({
 
   // Fan chart (2026-10-03): ancestors drawn with d3 in a popup; the reply sums it up.
   // quality: also the Gold Standard checklist fields (biographies included, so heavier).
-  async function loadFanSlots(key, generations = FAN_CHART_DEFAULT_GENERATIONS, { quality = false } = {}) {
+  // The people each set of slots came from, so the fan can switch someone's birth parents without fetching again.
+  const fanSlotSources = new WeakMap();
+  // bioShown: Ids of people shown with their birth parents (getPeople "ancestors" sends both lines).
+  async function loadFanSlots(key, generations = FAN_CHART_DEFAULT_GENERATIONS, { quality = false, bioShown = [] } = {}) {
     const [, , people] = await fetchPeoplePaged(WBE_CHAT_APP_ID, key, quality ? `${FAN_CHART_FIELDS},${QUALITY_FIELDS}` : FAN_CHART_FIELDS, {
       ancestors: generations,
       minGeneration: 0,
       limit: 1000,
     });
-    return buildFanSlots(people, key, generations);
+    const slots = buildFanSlots(people, key, generations, { bioShown });
+    fanSlotSources.set(slots, { people, key, generations });
+    return slots;
+  }
+  function rebuildFanSlots(slots, bioShown) {
+    const source = fanSlotSources.get(slots);
+    if (!source) return null;
+    const next = buildFanSlots(source.people, source.key, source.generations, { bioShown });
+    fanSlotSources.set(next, source);
+    return next;
   }
 
   function openFanChart(slots, generations = FAN_CHART_DEFAULT_GENERATIONS, mode = "") {
     noteHiddenProfiles(slots.filter((person) => person?.hidden).length);
-    const titleFor = (person) => `Fan chart: ${person?.name || person?.wtid || ""}${person?.wtid ? ` (${person.wtid})` : ""}`;
+    const titleFor = (person) => `Fan chart: ${personNameText(person)}${person?.wtid ? ` (${person.wtid})` : ""}`;
     return showFanChartPopup(slots, {
       title: titleFor(slots[1]),
       mode,
@@ -1663,10 +1686,12 @@ export function createChatPeopleHandlers({
         const [result] = (await WikiTreeAPI.postToAPI({ appId: WBE_CHAT_APP_ID, action: "getConnectedDNATestsByProfile", key: wtid })) || [];
         return result?.dnaTests || [];
       },
-      onRecenter: async (wtid, wanted = generations, { quality = false } = {}) => {
-        const next = await loadFanSlots(wtid, wanted, { quality });
+      onRecenter: async (wtid, wanted = generations, { quality = false, bioShown = [] } = {}) => {
+        const next = await loadFanSlots(wtid, wanted, { quality, bioShown });
         return { slots: next, title: titleFor(next[1]) };
       },
+      // Someone's birth parents in place of the parents who raised them (the fan's "Biological parents" switches).
+      rebuild: (current, bioShown) => rebuildFanSlots(current, bioShown),
     });
   }
 
@@ -1674,7 +1699,7 @@ export function createChatPeopleHandlers({
   function openCompletenessHeatmap(slots) {
     const person = slots[1] || {};
     return showCompletenessHeatmapPopup(slots, {
-      title: `Completeness heatmap: ${person.name || person.wtid || ""}${person.wtid ? ` (${person.wtid})` : ""}`,
+      title: `Completeness heatmap: ${personNameText(person)}${person.wtid ? ` (${person.wtid})` : ""}`,
       rootKey: person.wtid,
       links: chartLinks("overview", "fan", "explorer"),
       onOpenBranch: async (wtid) => {
@@ -1777,22 +1802,27 @@ export function createChatPeopleHandlers({
 
   // Fractal tree (2026-10-03): a OneZoom-style zoomable family tree (the user's
   // model: onezoom.org, "but for families"). Descendants by default; ancestors on request.
-  async function loadFractalTree(key, which, generations) {
-    const tree = which === "ancestors" ? treeFromAncestorSlots(await loadFanSlots(key, generations)) : await loadDescendantTree(key, generations);
+  // bioShown: for ancestors, Ids of people shown with their birth parents.
+  async function loadFractalTree(key, which, generations, { bioShown = [] } = {}) {
+    const tree = which === "ancestors" ? treeFromAncestorSlots(await loadFanSlots(key, generations, { bioShown })) : await loadDescendantTree(key, generations);
     // People at the edge of what's loaded may have more; the popup loads them as you zoom in.
     if (tree?.person) markFrontier(tree, which, generations);
     return tree;
   }
 
-  function openFractalTree(tree, which) {
+  function openFractalTree(tree, which, generations = FRACTAL_TREE_DEFAULT_GENERATIONS[which]) {
     const person = tree?.person || {};
     const noun = which === "ancestors" ? "ancestors" : "descendants";
     const other = which === "ancestors" ? "descendants" : "ancestors";
+    // Ancestors: someone's birth parents in place of the parents who raised them, one person at a time.
+    const bioShown = new Set();
+    const rootKey = person.wtid || person.id;
     return showFractalTreePopup(tree, {
       which,
-      title: `Branches: ${fullName(person)}'s ${noun}${person.wtid ? ` (${person.wtid})` : ""}`,
+      title: `Branches: ${personNameText(person)}'s ${noun}${person.wtid ? ` (${person.wtid})` : ""}`,
       // Zooming into someone at the edge of what's loaded fetches the next generations of their branch.
-      onExpand: (branchPerson) => loadFractalTree(branchPerson.wtid || branchPerson.id, which, FRACTAL_TREE_EXPAND_GENERATIONS[which]),
+      onExpand: (branchPerson) => loadFractalTree(branchPerson.wtid || branchPerson.id, which, FRACTAL_TREE_EXPAND_GENERATIONS[which], { bioShown }),
+      biological: which === "ancestors" && rootKey ? { shown: bioShown, reload: () => loadFractalTree(rootKey, which, generations, { bioShown }) } : null,
       // The header button turns the tree round: the same person's ancestors ⇄ descendants.
       onSwitchWhich: person.wtid
         ? async () => {
@@ -1832,7 +1862,7 @@ export function createChatPeopleHandlers({
       if (!tree?.person) return `I couldn't load ${formatSubjectLabel(rootPerson)}'s ${which} from WikiTree.`;
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
       const hasBranches = tree.children.length > 0;
-      const open = () => openFractalTree(tree, which);
+      const open = () => openFractalTree(tree, which, generations);
       if (hasBranches) open();
       return {
         message: buildFractalTreeSummary(tree, owner, which),
@@ -1852,6 +1882,19 @@ export function createChatPeopleHandlers({
 
   async function loadFamilyWorld(key) {
     const world = createFamilyWorld(key);
+    // Birth parents (BioFather, BioMother) a fetch named but didn't send, for the "Biological parents" option.
+    const fetchBioParents = async () => {
+      // (first, by key alone, those a nuclear fetch may have sent without them)
+      const check = bioParentsToCheck(world);
+      if (check.length) {
+        const [, , checked] = await fetchPeoplePaged(WBE_CHAT_APP_ID, check, FAMILY_WORLD_FIELDS, {});
+        mergeWorldPeople(world, checked, { root: world.focusKey });
+      }
+      const ids = bioParentsToFetch(world);
+      if (!ids.length) return;
+      const [, , people] = await fetchPeoplePaged(WBE_CHAT_APP_ID, ids, FAMILY_WORLD_FIELDS, {});
+      mergeWorldPeople(world, people, { root: world.focusKey });
+    };
     const fetchAround = async (root, nuclear) => {
       // (getPeople nuclear 2+ can leave out someone nuclear 1 has: live 2026-10-11, Weatherall-111's son
       // Weatherall-110 came with nuclear=1 only; so the immediate family is asked for as well)
@@ -1861,13 +1904,25 @@ export function createChatPeopleHandlers({
       ]);
       mergeWorldPeople(world, people, { root, nuclear });
       if (nuclear > 1) mergeWorldPeople(world, close, { root, nuclear: 1 });
+      await fetchBioParents();
       // Hidden profiles found while zooming get the same note as at the start, once.
       if (world.noteHiddenOnce) world.noteHiddenOnce();
     };
     // A nuclear getPeople leaves out the starting person (Degrees 0), so fetch them alongside (live, 2026-10-03).
     // (Later expansions start from someone already loaded.)
-    const [, [, , self]] = await Promise.all([fetchAround(key, FAMILY_WORLD_NUCLEAR.start), fetchPeoplePaged(WBE_CHAT_APP_ID, key, FAMILY_WORLD_FIELDS)]);
-    mergeWorldPeople(world, self, { root: key, nuclear: FAMILY_WORLD_NUCLEAR.start });
+    // With ancestors=1, parents WikiTree won't show come as Father/Mother -1, -2, where the person's own record
+    // and the nuclear fetch give nothing (live, Dudgeon-166 logged out of the API, 2026-10-13); they're counted
+    // for the "not shown" note, not drawn.
+    const [, [, , selfAndParents]] = await Promise.all([
+      fetchAround(key, FAMILY_WORLD_NUCLEAR.start),
+      fetchPeoplePaged(WBE_CHAT_APP_ID, key, FAMILY_WORLD_FIELDS, { ancestors: 1 }),
+    ]);
+    const isSelf = (person) => String(person?.Name) === String(key) || String(person?.Id) === String(key) || Number(person?.Meta?.Degrees) === 0;
+    const self = Object.values(selfAndParents || {}).filter((person) => Number(person?.Id) > 0 && isSelf(person));
+    world.privateParents = self.length === 1 ? [self[0].Father, self[0].Mother].filter((id) => Number(id) < 0).length : 0;
+    const asSent = self.map((person) => ({ ...person, Father: Number(person.Father) > 0 ? person.Father : 0, Mother: Number(person.Mother) > 0 ? person.Mother : 0 }));
+    mergeWorldPeople(world, asSent, { root: key, nuclear: FAMILY_WORLD_NUCLEAR.start });
+    await fetchBioParents();
     world.fetchAround = fetchAround;
     return world;
   }
@@ -1875,8 +1930,10 @@ export function createChatPeopleHandlers({
   function openFamilyWorld(world, view = "", shape = "") {
     const focus = world.people.get(world.focusId) || {};
     const hiddenCount = () => [...world.people.values()].filter((person) => person?.hidden).length;
-    let noted = hiddenCount() > 0;
-    noteHiddenProfiles(hiddenCount());
+    // (parents named by Id but not sent: private, and often the API login missing; the Explorer opens on them alone)
+    const unsentParents = [focus.fatherId, focus.motherId].filter((id) => id > 0 && !world.people.has(id)).length + (world.privateParents || 0);
+    let noted = hiddenCount() > 0 || unsentParents > 0;
+    noteHiddenProfiles(hiddenCount(), { unsentParents, whose: fullName(focus) });
     world.noteHiddenOnce = () => {
       if (noted || !hiddenCount()) return;
       noted = true;
@@ -1913,13 +1970,16 @@ export function createChatPeopleHandlers({
         climb: (from) => climbFamilyScene(world, from),
         reroot: (root, anchorUid, nodes, how) => rerootFamilyScene(world, root, anchorUid, nodes, how),
         normalise: () => normaliseFamilyScene(world),
-        home: () => startFamilyScene(world),
+        home: (id) => startFamilyScene(world, id),
         describe: (root) => describeFamilyRoot(world, root),
+        // Someone's birth parents instead of the parents who raised them, where WikiTree has them.
+        bioChoice: (id) => bioParentsChoice(world, id),
+        setBiological: (id, on) => setBiologicalParents(world, id, on),
         // (how to move about is on the stage itself, different in each view; user: "'↑ Parents for theirs' … sounds like nonsense")
         stats: () => `<strong>${world.people.size.toLocaleString()}</strong>people loaded so far · more load as you go`,
       },
       {
-        title: `Family Explorer: ${fullName(focus)}${focus.wtid ? ` (${focus.wtid})` : ""}`,
+        title: `Family Explorer: ${personNameText(focus)}${focus.wtid ? ` (${focus.wtid})` : ""}`,
         links: chartLinks("fan", "descendants", "timeline"),
         linkKey: focus.wtid || "",
         view,
@@ -1944,7 +2004,7 @@ export function createChatPeopleHandlers({
       return {
         message: buildFamilyWorldSummary(world, owner),
         actions: [{ label: "Open Family Explorer", onClick: open }],
-        table: tableFromPeople(`${owner} family (Family Explorer)`, world.people.values()),
+        table: tableFromPeople(`${owner} family (Family Explorer)`, connectedWorldPeople(world)),
         chartOpened: true,
       };
     } catch (error) {
@@ -1965,7 +2025,7 @@ export function createChatPeopleHandlers({
     const opened = migration.places.length > 0 && tree.children.length > 0;
     if (opened) {
       await showMigrationMapPopup(migration, {
-        title: `Descendants' map: ${person.name || person.wtid} (${person.wtid})`,
+        title: `Descendants' map: ${personNameText(person)} (${person.wtid})`,
         fileBase: `descendant-map-${String(person.wtid || "").replace(/[^A-Za-z0-9_-]/g, "")}`,
         arcHint: "Parent → child born in a new place",
         peopleWord: "descendant",
@@ -2065,7 +2125,7 @@ export function createChatPeopleHandlers({
       if (rows.filter((row) => row.generation > 0).length < 1) return { rows, undated, table, opened: false };
       showLifespansPopup(rows, {
         ...common,
-        title: `Lifespans: ${person.name || person.wtid}${person.wtid ? ` (${person.wtid})` : ""}`,
+        title: `Lifespans: ${personNameText(person)}${person.wtid ? ` (${person.wtid})` : ""}`,
         undated,
         links: chartLinks("descendants", "descmap", "explorer"),
       });
@@ -2083,7 +2143,7 @@ export function createChatPeopleHandlers({
     if (rows.filter((row) => row.generation > 0).length < 1) return { rows, undated, table, opened: false };
     showLifespansPopup(rows, {
       ...common,
-      title: `Lifespans: ${slots[1].name || slots[1].wtid} (${slots[1].wtid})`,
+      title: `Lifespans: ${personNameText(slots[1])} (${slots[1].wtid})`,
       undated,
       links: chartLinks("overview", "fan", "explorer", "calendar"),
     });
@@ -2110,7 +2170,7 @@ export function createChatPeopleHandlers({
     const opened = clouds.first.length + clouds.surname.length > 0;
     if (opened) {
       showNameCloudPopup(clouds, {
-        title: `Name cloud: ${scope} of ${slots[1].name || slots[1].wtid} (${slots[1].wtid})`,
+        title: `Name cloud: ${scope} of ${personNameText(slots[1])} (${slots[1].wtid})`,
         scope,
         rootKey: slots[1].wtid,
         links: chartLinks("overview", "fan", "lifespans", "explorer"),
@@ -2127,13 +2187,13 @@ export function createChatPeopleHandlers({
     // The parents' children: getPeople with descendants: 1 on every ancestor who is someone's parent.
     const parentIds = [...new Set(slots.slice(2).filter(Boolean).map((person) => person.id).filter(Boolean))];
     const [, , people] = parentIds.length
-      ? await fetchPeoplePaged(WBE_CHAT_APP_ID, parentIds, "Id,Name,RealName,FirstName,Gender,BirthDate,DeathDate,Father,Mother", { descendants: 1, limit: 100 })
+      ? await fetchPeoplePaged(WBE_CHAT_APP_ID, parentIds, "Id,Name,RealName,FirstName,Gender,DataStatus,BirthDate,DeathDate,Father,Mother", { descendants: 1, limit: 100 })
       : [null, null, {}];
     const data = buildFamilySizes(slots, people);
     const opened = data.couples.length >= 1;
     if (opened) {
       showFamilySizePopup(data, {
-        title: `Family size: ${slots[1].name || slots[1].wtid} (${slots[1].wtid})`,
+        title: `Family size: ${personNameText(slots[1])} (${slots[1].wtid})`,
         rootKey: slots[1].wtid,
         links: chartLinks("lifespans", "fan", "overview", "explorer"),
       });
@@ -2147,7 +2207,7 @@ export function createChatPeopleHandlers({
     if (!series || series.generations.length < 2) return null;
     showOriginsPopup(series, {
       kind: "surname",
-      title: `Surname river: ${slots[1].name || slots[1].wtid} (${slots[1].wtid})`,
+      title: `Surname river: ${personNameText(slots[1])} (${slots[1].wtid})`,
       fileBase: `surname-river-${String(slots[1].wtid || "").replace(/[^A-Za-z0-9_-]/g, "")}`,
       // More or fewer generations: reload the ancestors and redraw.
       generations,
@@ -2245,7 +2305,8 @@ export function createChatPeopleHandlers({
     if (tree) visit(tree);
     const person = relatives?.[0]?.person;
     for (const [group, relation] of [["Siblings", "Sibling"], ["Spouses", "Spouse"]]) {
-      Object.values(person?.[group] || {}).forEach((relative) => {
+      // (not marriages the manager chose not to show)
+      (group === "Spouses" ? shownSpouses(person?.Spouses) : Object.values(person?.[group] || {})).forEach((relative) => {
         const summary = buildFanSlots({ [relative.Id]: relative }, relative.Id || relative.Name, 0)[1];
         if (summary) family.push({ ...summary, generation: 1, relation });
       });
@@ -2303,7 +2364,7 @@ export function createChatPeopleHandlers({
     if (opened) {
       const run = (action) => () => action.onClick();
       showTreeOverviewPopup(overview, {
-        title: `Tree overview: ${slots[1].name || wtid} (${wtid})`,
+        title: `Tree overview: ${personNameText(slots[1]) || wtid} (${wtid})`,
         open: {
           familymap: run(chartAction("Relationship Chart", async () => {
             const result = await tryHandleFamilyMatrixPrompt({ ancestorPrompt: `${wtid}'s ancestors` });
@@ -2404,7 +2465,7 @@ export function createChatPeopleHandlers({
       };
       const open = () =>
         showAgesPopup(ages, {
-          title: `Lives & ages (${scope}): ${slots[1].name || key} (${key})`,
+          title: `Lives & ages (${scope}): ${personNameText(slots[1]) || key} (${key})`,
           mode: params?.mode || "death",
           links: chartLinks("fan", "lifespans", "overview"),
           rootKey: key,
@@ -2550,18 +2611,25 @@ export function createChatPeopleHandlers({
   // Profiles the API sent without a name (user, 2026-10-03: "I'M LOGGED IN AND THOSE are my
   // grandparents"). Being logged in to www.wikitree.com doesn't log you in to api.wikitree.com:
   // that's the separate Apps Login. Says which it is, once per chart.
-  async function noteHiddenProfiles(count) {
-    if (!count) return;
+  // unsentParents: how many of `whose`'s parents WikiTree named but didn't send at all (Murray Maloney, 2026-10-12:
+  // "can you detect that I am not logged in? If so, then maybe it should remind me to log in").
+  async function noteHiddenProfiles(count, { unsentParents = 0, whose = "" } = {}) {
+    if (!count && !unsentParents) return;
+    const signedIn = Boolean(getUserNumId());
     let loggedIn = null;
     try {
-      loggedIn = await WikiTreeAPI.isLoggedIntoAPI(getUserNumId(), WBE_CHAT_APP_ID);
+      if (signedIn) loggedIn = await WikiTreeAPI.isLoggedIntoAPI(getUserNumId(), WBE_CHAT_APP_ID);
     } catch (error) {
       // (unknown: say nothing about logging in)
     }
-    const people = `${count} profile${count === 1 ? "" : "s"}`;
+    const parts = [];
+    if (unsentParents) parts.push(unsentParents > 1 ? `${whose}'s parents aren't shown` : `One of ${whose}'s parents isn't shown`);
+    if (count) parts.push(`${count} profile${count === 1 ? "" : "s"} show as "Private"`);
+    const what = parts.join(", and ");
     if (loggedIn === false) {
-      notify(`${people} show as "Private" because the WikiTree API doesn't know you're logged in (it has its own login). Use the Apps button below, then open the chart again.`);
-    } else if (loggedIn) notify(`${people} show as "Private": their privacy settings hide them from you.`);
+      notify(`${what} because the WikiTree API doesn't know you're logged in (it has its own login). Use the Apps button below, then open the chart again.`);
+    } else if (loggedIn) notify(`${what}: their privacy settings hide them from you.`);
+    else if (!signedIn) notify(`${what}: they're private, and you aren't logged in to WikiTree.`);
   }
 
   function countHidden(node) {
@@ -2572,7 +2640,7 @@ export function createChatPeopleHandlers({
     const person = tree?.person || {};
     noteHiddenProfiles(countHidden(tree));
     return showDescendantChartPopup(tree, {
-      title: `Descendants: ${person.name || person.wtid}${person.wtid ? ` (${person.wtid})` : ""}`,
+      title: `Descendants: ${personNameText(person)}${person.wtid ? ` (${person.wtid})` : ""}`,
       mode,
       links: chartLinks("fan", "explorer", "descmap", "desclives", "timeline"),
     });
@@ -2765,7 +2833,7 @@ export function createChatPeopleHandlers({
         const migration = buildMigration(slots);
         if (slots[1] && migration.places.length) {
           await showMigrationMapPopup(migration, {
-            title: `Migration map: ${slots[1].name || slots[1].wtid} (${slots[1].wtid})`,
+            title: `Migration map: ${personNameText(slots[1])} (${slots[1].wtid})`,
             fileBase: `migration-map-${String(slots[1].wtid || "").replace(/[^A-Za-z0-9_-]/g, "")}`,
           });
           return { opened: true };
@@ -2966,11 +3034,11 @@ export function createChatPeopleHandlers({
     const { key, error } = await resolveOwnerKey(String(params?.target || "").trim(), prompt);
     if (error) return error;
     const nameOf = relativeNameOf;
-    const [entry] = (await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, key, "Id,Name,RealName,Derived.ShortName,BirthDate,Gender", { getChildren: 1 })) || [];
+    const [entry] = (await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, key, "Id,Name,RealName,Derived.ShortName,BirthDate,Gender,DataStatus", { getChildren: 1 })) || [];
     const owner = entry?.person;
     if (!owner) return cantLoad(key);
     const children = Object.values(owner.Children || {})
-      .filter((child) => !params?.gender || child?.Gender === params.gender)
+      .filter((child) => !params?.gender || shownGender(child) === params.gender)
       .sort((a, b) =>
       String(a?.BirthDate || "9999").localeCompare(String(b?.BirthDate || "9999"))
     );
@@ -2980,7 +3048,7 @@ export function createChatPeopleHandlers({
       ? await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, children.map((child) => child.Id), "Id,Name", { [`get${list}`]: 1 })
       : [];
     const countById = new Map(
-      (grandItems || []).map((item) => [Number(item?.person?.Id), Object.keys(item?.person?.[list] || {}).length])
+      (grandItems || []).map((item) => [Number(item?.person?.Id), (married ? shownSpouses(item?.person?.Spouses) : Object.keys(item?.person?.[list] || {})).length])
     );
     if (married) {
       const rows = children.map((child) => ({ label: nameOf(child), spouseCount: countById.get(Number(child.Id)) || 0 }));
@@ -3030,9 +3098,11 @@ export function createChatPeopleHandlers({
       return buildRelativeFactAnswer([person], params?.fact, nameOf);
     }
     const { list, gender, grand } = relationSelector(params?.relationRaw);
-    const relativeFields = `Id,Name,FirstName,RealName,Derived.ShortName,Gender,LastNameAtBirth,BirthDate,BirthLocation,DeathDate,DeathLocation${
+    const relativeFields = `Id,Name,FirstName,RealName,Derived.ShortName,Gender,DataStatus,LastNameAtBirth,BirthDate,BirthLocation,DeathDate,DeathLocation${
       list === "Spouses" ? ",marriage_date" : ""
     }`;
+    // (not marriages the manager chose not to show)
+    const listOf = (person, which) => (which === "Spouses" ? shownSpouses(person?.Spouses) : Object.values(person?.[which] || {}));
     // "his wife's father": the first step's people are the owners of the second (2026-10-10)
     let ownerKeys = key;
     let viaOwner = null;
@@ -3041,7 +3111,7 @@ export function createChatPeopleHandlers({
       const [viaEntry] = (await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, key, relativeFields, { [`get${viaSelector.list}`]: 1 })) || [];
       viaOwner = viaEntry?.person;
       if (!viaOwner) return cantLoad(key);
-      const viaPeople = Object.values(viaOwner[viaSelector.list] || {}).filter(
+      const viaPeople = listOf(viaOwner, viaSelector.list).filter(
         (person) => !viaSelector.gender || person?.Gender === viaSelector.gender
       );
       if (!viaPeople.length) return `WikiTree has no ${params.via} recorded for ${nameOf(viaOwner)}.`;
@@ -3051,7 +3121,7 @@ export function createChatPeopleHandlers({
     const owner = entries[0]?.person;
     if (!owner) return cantLoad(key);
     const relativesById = new Map();
-    entries.forEach((item) => Object.values(item?.person?.[list] || {}).forEach((relative) => relativesById.set(String(relative?.Id), relative)));
+    entries.forEach((item) => listOf(item?.person, list).forEach((relative) => relativesById.set(String(relative?.Id), relative)));
     let relatives = [...relativesById.values()];
     if (grand) {
       // Two steps along the same list: children's children, parents' parents (N4).
@@ -3065,11 +3135,12 @@ export function createChatPeopleHandlers({
         : [];
       const byId = new Map();
       grandItems.forEach((item) =>
-        Object.values(item?.person?.[list] || {}).forEach((grandRelative) => byId.set(String(grandRelative?.Id), grandRelative))
+        listOf(item?.person, list).forEach((grandRelative) => byId.set(String(grandRelative?.Id), grandRelative))
       );
       relatives = [...byId.values()];
     }
-    let people = relatives.filter((person) => !gender || person?.Gender === gender);
+    // (the side and the "via" step follow the family links; the word asked for is how WikiTree shows them)
+    let people = relatives.filter((person) => !gender || shownGender(person) === gender);
     if (params?.ordinal && list === "Spouses") people = pickSpouseByOrdinal(people, params.ordinal);
     // (with a via step, owner is that step's person: "Mary's father", not "Mary's wife's father")
     const relationWord = String(params?.relationRaw || "relative");

@@ -6,9 +6,11 @@
 import { ancestorGenerationLabel as generationWord } from "./chat_kin_labels";
 import { canonicalChartObjectOwner as canonicalOwner } from "./chat_chart_prompt";
 import { getCountryFromLocation } from "./chat_place_country";
+import { shownGender } from "./chat_gender_display";
 import { profileQuality } from "./chat_profile_quality_data";
 import { PersonName } from "../auto_bio/person_name";
 import { RELATIVE_OWNER } from "./chat_chart_owner";
+import { personNameText } from "./chat_text_utils";
 
 export const FAN_CHART_DEFAULT_GENERATIONS = 7;
 export const FAN_CHART_MAX_GENERATIONS = 10;
@@ -102,12 +104,14 @@ function displayName(person) {
 
 /** "First Middle (LNAB) Current": the LNAB in brackets only when it differs; "" without a first name or surname. */
 export function fullWikiTreeName(person) {
-  if (!person?.FirstName || !(person.LastNameAtBirth || person.LastNameCurrent)) return "";
+  // (a semi-private profile sends no FirstName, only RealName: live, Rockstrom-4 logged out, 2026-10-13)
+  const first = person?.FirstName || person?.RealName;
+  if (!first || !(person.LastNameAtBirth || person.LastNameCurrent)) return "";
   try {
     // (PersonName writes "(Smith) null" when one surname is missing: fill it from the other.)
     const lnab = person.LastNameAtBirth || person.LastNameCurrent;
     const current = person.LastNameCurrent || person.LastNameAtBirth;
-    const name = new PersonName({ ...person, LastNameAtBirth: lnab, LastNameCurrent: current }).withParts([
+    const name = new PersonName({ ...person, FirstName: first, LastNameAtBirth: lnab, LastNameCurrent: current }).withParts([
       "FirstName",
       "MiddleNames",
       "LastNameAtBirth",
@@ -119,11 +123,31 @@ export function fullWikiTreeName(person) {
   }
 }
 
+// Biological parents (the user, 2026-10-13): Father and Mother are the parents who raised someone (marked
+// non-biological, DataStatus "5"); BioFather and BioMother their birth parents. getPeople "ancestors" sends both
+// lines (live, Rockstrom-4), with DataStatus.BioFather/BioMother for how sure the birth links are. Someone in
+// `bioShown` has their birth parents in their parent slots; with one birth parent recorded, a parent marked
+// non-biological on the other side is left out (they weren't a couple).
+function chosenParents(person, bio) {
+  const status = person.DataStatus || {};
+  const side = (raised, birth) => {
+    const nonBio = String(status[raised] ?? "") === "5";
+    if (bio && Number(person[birth])) return { id: Number(person[birth]), status: String(status[birth] ?? "") };
+    if (bio && nonBio) return { id: 0, status: "" };
+    return { id: Number(person[raised]) || 0, status: String(status[raised] ?? "") };
+  };
+  return { father: side("Father", "BioFather"), mother: side("Mother", "BioMother") };
+}
+
+const hasBirthParents = (person) => Boolean(Number(person?.BioFather) || Number(person?.BioMother));
+
 /**
  * people: getPeople's people map (keyed by Id, with Father and Mother Ids).
  * Returns slots[1 … 2^(generations+1)-1]; each is a person summary or null.
+ * bioShown: Ids of people to show with their birth parents (see chosenParents).
  */
-export function buildFanSlots(people, rootKey, generations) {
+export function buildFanSlots(people, rootKey, generations, { bioShown = [] } = {}) {
+  const shown = new Set([...(bioShown || [])].map(Number));
   const byId = new Map();
   const byName = new Map();
   Object.values(people || {}).forEach((person) => {
@@ -135,37 +159,48 @@ export function buildFanSlots(people, rootKey, generations) {
   const total = 2 ** (generations + 1);
   const slots = new Array(total).fill(null);
   if (!root) return slots;
-  const summarize = (person) => ({
-    id: person.Id,
-    wtid: person.Name || "",
-    name: displayName(person),
-    hidden: displayName(person) === "Private" && !person?.Name,
-    fullName: fullWikiTreeName(person),
-    lnab: person.LastNameAtBirth || "",
-    gender: person.Gender || "",
-    birth: cleanDate(person.BirthDate),
-    death: cleanDate(person.DeathDate),
-    birthLocation: person.BirthLocation || "",
-    deathLocation: person.DeathLocation || "",
-    birthCountry: getCountryFromLocation(person.BirthLocation || "") || "",
-    photo: person.Photo || "",
-    photoData: person.PhotoData || null,
-    fatherId: Number(person.Father) || 0,
-    motherId: Number(person.Mother) || 0,
-    // How sure each parent link is ("30" = confirmed with DNA): see parentLinkStatus.
-    fatherStatus: String(person.DataStatus?.Father ?? ""),
-    motherStatus: String(person.DataStatus?.Mother ?? ""),
-    // The Gold Standard checklist, when the loader asked for its fields (see profileQuality).
-    ...(person.NoChildren !== undefined ? { quality: profileQuality(person) } : {}),
-  });
+  const summarize = (person) => {
+    const bio = shown.has(Number(person.Id)) && hasBirthParents(person);
+    const { father, mother } = chosenParents(person, bio);
+    return {
+      id: person.Id,
+      wtid: person.Name || "",
+      name: displayName(person),
+      hidden: displayName(person) === "Private" && !person?.Name,
+      fullName: fullWikiTreeName(person),
+      lnab: person.LastNameAtBirth || "",
+      // (the gender to show, blank when marked not to; sex: the sex at birth, for DNA lines: chat_gender_display.js)
+      gender: shownGender(person),
+      sex: person.Gender || "",
+      birth: cleanDate(person.BirthDate),
+      death: cleanDate(person.DeathDate),
+      birthLocation: person.BirthLocation || "",
+      deathLocation: person.DeathLocation || "",
+      birthCountry: getCountryFromLocation(person.BirthLocation || "") || "",
+      photo: person.Photo || "",
+      photoData: person.PhotoData || null,
+      // (the parents in the chart: the birth parents for someone in bioShown)
+      fatherId: father.id,
+      motherId: mother.id,
+      // How sure each parent link is ("30" = confirmed with DNA, "5" non-biological): see parentLinkStatus.
+      fatherStatus: father.status,
+      motherStatus: mother.status,
+      bioFatherId: Number(person.BioFather) || 0,
+      bioMotherId: Number(person.BioMother) || 0,
+      bioShown: bio,
+      // The Gold Standard checklist, when the loader asked for its fields (see profileQuality).
+      ...(person.NoChildren !== undefined ? { quality: profileQuality(person) } : {}),
+    };
+  };
   const people0 = new Array(total).fill(null);
   people0[1] = root;
   slots[1] = summarize(root);
   for (let slot = 1; slot < total / 2; slot += 1) {
     const person = people0[slot];
     if (!person) continue;
-    const father = Number(person.Father) ? byId.get(String(person.Father)) : null;
-    const mother = Number(person.Mother) ? byId.get(String(person.Mother)) : null;
+    const { fatherId, motherId } = slots[slot];
+    const father = fatherId ? byId.get(String(fatherId)) : null;
+    const mother = motherId ? byId.get(String(motherId)) : null;
     if (father) {
       people0[slot * 2] = father;
       slots[slot * 2] = summarize(father);
@@ -176,6 +211,23 @@ export function buildFanSlots(people, rootKey, generations) {
     }
   }
   return slots;
+}
+
+/** Everyone in the chart with a birth parent recorded, once each, nearest first: [{id, name, on}]. */
+export function fanBirthParentChoices(slots) {
+  const seen = new Set();
+  return (slots || [])
+    .filter((person, slot) => slot >= 1 && person && !person.hidden && (person.bioFatherId || person.bioMotherId))
+    .filter((person) => !seen.has(Number(person.id)) && seen.add(Number(person.id)))
+    .map((person) => ({ id: Number(person.id), name: personNameText(person), on: Boolean(person.bioShown) }));
+}
+
+/** Whether the person in `slot` is there as their child's birth parent. */
+export function isBirthParentSlot(slots, slot) {
+  const child = slots?.[Math.floor(slot / 2)];
+  const person = slots?.[slot];
+  if (!child?.bioShown || !person || slot < 2) return false;
+  return Number(slot % 2 === 0 ? child.bioFatherId : child.bioMotherId) === Number(person.id);
 }
 
 export function generationOfSlot(slot) {

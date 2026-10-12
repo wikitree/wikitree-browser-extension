@@ -36,6 +36,7 @@ import {
   isPageProfileTarget,
 } from "./chat_router";
 import { describeConnectionPath } from "./chat_relation_chain_text";
+import { shownGender } from "./chat_gender_display";
 import { hideChatShaky, showConnectionsPopup } from "./ui";
 import { PERSON_MEMORY_ALIAS_STOPWORDS, normalizePersonMemoryToken } from "./chat_person_memory";
 
@@ -804,7 +805,7 @@ export function createChatConnectionHandlers({
         await WikiTreeAPI.getPerson(
           "Chat",
           cleanedTarget,
-          "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender"
+          "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender,DataStatus"
         )
       );
     }
@@ -825,7 +826,7 @@ export function createChatConnectionHandlers({
         await WikiTreeAPI.getPerson(
           "Chat",
           rememberedWtId,
-          "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender"
+          "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender,DataStatus"
         )
       );
       if (rememberedMatch?.Name || rememberedMatch?.Id) {
@@ -850,7 +851,7 @@ export function createChatConnectionHandlers({
     // exact BirthDate but still exposes the decade. Templates/Managers carry
     // notability evidence (Notables templates, Wikidata, WikiTree-* managers).
     const fields =
-      "Id,Name,RealName,Derived.ShortName,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,BirthLocation,DeathLocation,Gender,IsLiving,Templates,Managers";
+      "Id,Name,RealName,Derived.ShortName,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,BirthLocation,DeathLocation,Gender,DataStatus,IsLiving,Templates,Managers";
     const commonAlias = normalizeConnectionAiExpansion(getCommonAliasExpansion(cleanedTarget));
     const trustedAliasWtId = isWikiTreeId(commonAlias?.wtId || "") ? String(commonAlias.wtId).trim() : "";
     let aiExpansion = commonAlias;
@@ -872,7 +873,7 @@ export function createChatConnectionHandlers({
         await WikiTreeAPI.getPerson(
           "Chat",
           trustedAliasWtId,
-          "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender"
+          "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender,DataStatus"
         )
       );
     }
@@ -890,7 +891,7 @@ export function createChatConnectionHandlers({
           await WikiTreeAPI.getPerson(
             "Chat",
             wikidata.wtId,
-            "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender"
+            "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender,DataStatus"
           )
         );
         if (person?.Name || person?.Id) {
@@ -1695,7 +1696,7 @@ export function createChatConnectionHandlers({
     return WikiTreeAPI.getConnections(
       "Chat",
       [sourceWtId, targetWtId],
-      "Id,Name,Gender,Photo,PhotoData,RealName,FirstName,LastNameAtBirth,LastNameCurrent,Suffix,BirthDate,BirthLocation,DeathDate,Father,Mother",
+      "Id,Name,Gender,DataStatus,Photo,PhotoData,RealName,FirstName,LastNameAtBirth,LastNameCurrent,Suffix,BirthDate,BirthLocation,DeathDate,Father,Mother,BioFather,BioMother",
       { relation: 2 }
     );
   }
@@ -1730,7 +1731,7 @@ export function createChatConnectionHandlers({
       const data = await WikiTreeAPI.getConnections(
         "Chat",
         [sourceKey, targetWtId],
-        "Id,Name,Gender,Photo,PhotoData,RealName,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,Nicknames,Prefix,Suffix,BirthName,BirthNamePrivate,BirthDate,BirthLocation,DeathDate,DeathLocation,Father,Mother,pathType",
+        "Id,Name,Gender,DataStatus,Photo,PhotoData,RealName,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,Nicknames,Prefix,Suffix,BirthName,BirthNamePrivate,BirthDate,BirthLocation,DeathDate,DeathLocation,Father,Mother,BioFather,BioMother,pathType",
         {
           relation: relationCode,
         }
@@ -1980,7 +1981,7 @@ export function createChatConnectionHandlers({
           relationship = analyseRelationship(legacy);
           const label1 = sourceRoot.subjectType === "user" ? "you" : sourceRoot.displayName || sourceRoot.wtId;
           const label2 = String(displayName).split(" ")[0] || displayName;
-          relationshipDetails = describeRelationship(relationship, label1, label2, { gender1: data?.path?.[0]?.Gender || "" });
+          relationshipDetails = describeRelationship(relationship, label1, label2, { gender1: shownGender(data?.path?.[0]) });
           // X-DNA needs everyone on the two lines and their genders (Murray, 2026-10-07).
           if (relationship?.kind === "common" || relationship?.kind === "direct") {
             try {

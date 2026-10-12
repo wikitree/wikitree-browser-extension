@@ -44,6 +44,9 @@ const NAV_CSS = `
   .wbe-nav-male .wbe-nav-photo { background: linear-gradient(145deg, #a9c3e3, #7ea6d8); }
   .wbe-nav-female { --ring: #df98b1; }
   .wbe-nav-female .wbe-nav-photo { background: linear-gradient(145deg, #f0bfd0, #df98b1); }
+  /* a gender marked not to show: green, as on WikiTree */
+  .wbe-nav-other { --ring: #8cc79a; }
+  .wbe-nav-other .wbe-nav-photo { background: linear-gradient(145deg, #bfe3c6, #8cc79a); }
   .wbe-nav-text { min-width: 0; display: flex; flex-direction: column; gap: .12em; }
   .wbe-nav-role { font-size: .7em; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: #9a8558; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .wbe-nav-name { font-size: 1.12em; font-weight: 650; line-height: 1.18; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -230,7 +233,7 @@ export function mountFamilyNavigator(host, options) {
       card.half ? "wbe-nav-half" : "",
       person.stub ? "wbe-nav-stub" : "",
       person.hidden ? "wbe-nav-hidden" : "",
-      gender === "male" ? "wbe-nav-male" : gender === "female" ? "wbe-nav-female" : "",
+      gender === "male" ? "wbe-nav-male" : gender === "female" ? "wbe-nav-female" : person.sex ? "wbe-nav-other" : "",
     ]
       .filter(Boolean)
       .join(" ");

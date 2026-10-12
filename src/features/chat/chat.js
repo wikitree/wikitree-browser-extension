@@ -1,6 +1,8 @@
 import { createConnectionSourceResolver } from "./chat_connection_source";
 import { REQUESTED_COLUMNS, addRequestedColumns, parseColumnRequest, requestedColumnFields } from "./chat_requested_columns";
 import { joinWithAnd } from "./chat_text_utils";
+import { shownSpouses } from "./chat_marriage_display";
+import { shownGender } from "./chat_gender_display";
 import { joinWithAndMore } from "./chat_more_text";
 /*
 Created By: Ian Beacall (Beacall-6)
@@ -339,12 +341,15 @@ const CHAT_PERSISTED_STRUCTURED_ROWS_MAX = 250;
 const CHAT_PERSON_MEMORY_MAX_ENTRIES = 100;
 const CHAT_PERSON_MEMORY_AI_CONTEXT_MAX = 10;
 const CHAT_APPS_LOGIN_HINT = "Log in to the apps server for better results. Use the Apps button below.";
+// (Murray, 2026-10-13: "If you go away for a while and come back to it, it doesn't work, and doesn't tell you why")
+const CHAT_APPS_LOGIN_LAPSED =
+  "You're no longer logged in to the apps server: the login runs out after a while. Until you log in again, answers leave out private profiles you can normally see. Use the Apps button below to log in.";
 const CHAT_JSON_BATCH_TRIGGER = /^\s*(?:search\s+)?person(?:s)?\s+from\s+json\s*:?\s*/i;
 const CHAT_JSON_BATCH_MAX_CHOICES = 6;
 const CHAT_JSON_BATCH_ENTRY_PAUSE_MS = 80;
 const CHAT_JSON_BATCH_MAX_BIRTH_YEAR = 1800;
 const RELATION_PERSON_FIELDS =
-  "Id,Name,Gender,RealName,Derived.ShortName,LongNamePrivate,BirthNamePrivate,Derived.LongNamePrivate,Derived.BirthNamePrivate,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation";
+  "Id,Name,Gender,DataStatus,RealName,Derived.ShortName,LongNamePrivate,BirthNamePrivate,Derived.LongNamePrivate,Derived.BirthNamePrivate,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation";
 let chatHistory = [];
 let lastNonRetryUserPrompt = "";
 let lastConnectionContext = null;
@@ -557,8 +562,10 @@ let lastSubjectPrompt = "";
 async function getSubjectGender(subject) {
   if (subject.gender !== undefined) return subject.gender;
   try {
-    const person = await WikiTreeAPI.getPerson(WBE_CHAT_APP_ID, subject.wtId, "Id,Name,Gender");
+    const person = await WikiTreeAPI.getPerson(WBE_CHAT_APP_ID, subject.wtId, "Id,Name,Gender,DataStatus");
+    // gender: whom "his"/"her" can mean; shownGender: the words Genie uses (blank when marked not to show)
     subject.gender = String((person?._data || person)?.Gender || "");
+    subject.shownGender = shownGender(person?._data || person);
   } catch (error) {
     subject.gender = "";
   }
@@ -2963,6 +2970,8 @@ async function sendChatPrompt() {
   }
 
   await finishAppsSignIn();
+  // (a login that ran out while the page sat open is said before the answer that misses what it would have shown)
+  await refreshAppsLoginState({ warn: true });
   // Normalize compact suggestion formats like "dbe803" to "Suggestions=803"
   // "John Theodore Weatherall's (Weatherall-113) bio" → "Weatherall-113's bio";
   // "How about his agrandparents?" → "his grandparents?" (live, 2026-10-08).
@@ -3942,12 +3951,8 @@ function mapApiPersonToStandardRow(person = {}, options = {}) {
   let marriageDate = "";
   let marriageLocation = "";
   try {
-    const rawSpouses = person?.Spouses;
-    const spouseEntries = Array.isArray(rawSpouses)
-      ? rawSpouses
-      : rawSpouses && typeof rawSpouses === "object"
-      ? Object.values(rawSpouses)
-      : [];
+    // (not marriages the manager chose not to show: see chat_marriage_display.js)
+    const spouseEntries = shownSpouses(person?.Spouses);
 
     if (spouseEntries.length) {
       spouseList = spouseEntries.map((s) => {
@@ -3997,7 +4002,7 @@ function mapApiPersonToStandardRow(person = {}, options = {}) {
     marriageDate,
     marriageLocation,
     degrees: options.degrees ?? "",
-    gender: person.Gender || "",
+    gender: shownGender(person),
     birth: birthValue,
     death: deathValue,
     birthLocation: person.BirthLocation || "",
@@ -4308,7 +4313,48 @@ async function shouldOfferAppsLoginHint() {
   return isLoggedOutOfAppsServer();
 }
 
+// Whether the API knew the member last time it was asked (null: not asked yet), so a login that has run out since
+// can be said once, when it's found.
+let appsLoggedInLastSeen = null;
+
+/** The header's "Apps" status: a quiet tick when logged in to the apps server, the Apps button when not. */
+function renderAppsStatus(loggedOut) {
+  const $status = $("#wbe-genie-apps-status");
+  if (!$status.length) return;
+  $status.empty().prop("hidden", false).toggleClass("chat-apps-status-out", loggedOut);
+  if (loggedOut) {
+    $status
+      .attr("title", "Not logged in to the apps server: answers leave out private profiles you can normally see")
+      .append($("<span>").addClass("chat-apps-status-text").text("Logged out"), createAppsLoginButton(CHAT_APPS_LOGIN_BUTTON_APP_ID, "Log in to the apps server"));
+  } else {
+    $status
+      .attr("title", "Logged in to the apps server: answers include the private profiles you can see")
+      .append($("<span>").addClass("chat-apps-status-text").text("Apps ✓"));
+  }
+}
+
+/**
+ * Ask the API again (it keeps the answer five minutes) and show it in the header. With warn, a login that has run
+ * out since last time gets a message saying so, with its own Apps button. Nothing for someone not signed in to
+ * WikiTree, or with the Apps button turned off in Usability Tweaks.
+ */
+async function refreshAppsLoginState({ warn = false } = {}) {
+  if (!getUserNumId()) return;
+  try {
+    const usabilityOptions = (await getFeatureOptions("usabilityTweaks")) || {};
+    if ((usabilityOptions.addApiLoginButton || "all") === "none") return;
+  } catch (error) {
+    // (options unavailable: the defaults, which show it)
+  }
+  const loggedOut = await isLoggedOutOfAppsServer();
+  const lapsed = loggedOut && appsLoggedInLastSeen === true;
+  appsLoggedInLastSeen = !loggedOut;
+  renderAppsStatus(loggedOut);
+  if (lapsed && warn) appendMessage("assistant", CHAT_APPS_LOGIN_LAPSED, { shouldPersist: false });
+}
+
 async function maybeAppendAppsLoginHint() {
+  void refreshAppsLoginState();
   // (once: openPopup and init can both ask)
   if ((await shouldOfferAppsLoginHint()) && !$(`#${CHAT_MESSAGES_ID} .chat-message-apps-login`).length) {
     appendMessage("assistant", CHAT_APPS_LOGIN_HINT, { shouldPersist: false });
@@ -4513,18 +4559,19 @@ async function pickerFamilyPeople() {
   const result = await WikiTreeAPI.getRelatives(
     WBE_CHAT_APP_ID,
     [profile.wtId],
-    "Id,Name,RealName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,Gender",
+    "Id,Name,RealName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,Gender,DataStatus",
     { getParents: 1, getSpouses: 1, getSiblings: 1, getChildren: 1 }
   );
   const person = (Array.isArray(result) ? result[0] : null)?.person || {};
   const word = { Parents: ["father", "mother", "parent"], Spouses: ["husband", "wife", "spouse"], Siblings: ["brother", "sister", "sibling"], Children: ["son", "daughter", "child"] };
   const people = [];
   for (const [group, [male, female, other]] of Object.entries(word)) {
-    Object.values(person[group] || {})
+    // (not marriages the manager chose not to show)
+    (group === "Spouses" ? shownSpouses(person.Spouses) : Object.values(person[group] || {}))
       .filter((relative) => relative?.Name)
       .sort((a, b) => String(a.BirthDate || "9999").localeCompare(String(b.BirthDate || "9999")))
       .forEach((relative) => {
-        const gender = String(relative.Gender || "").toLowerCase();
+        const gender = shownGender(relative).toLowerCase();
         people.push({
           wtId: relative.Name,
           name: watchlistDisplayName(relative) || relative.RealName || relative.Name,
@@ -4590,11 +4637,12 @@ function choosePickerPerson(person) {
   const chosen = chosenPerson;
   if (!chosen) return;
   // A typed ID: its name; and the gender, for "his"/"her" in the hint.
-  WikiTreeAPI.getPerson(WBE_CHAT_APP_ID, chosen.wtId, "Id,Name,Gender,RealName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate")
+  WikiTreeAPI.getPerson(WBE_CHAT_APP_ID, chosen.wtId, "Id,Name,Gender,DataStatus,RealName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate")
     .then((result) => {
       const found = result?._data || result;
       if (chosenPerson !== chosen || !found?.Name) return;
       chosenSubject().gender = String(found.Gender || "");
+      chosenSubject().shownGender = shownGender(found);
       updateFocusPerson(chosen.wtId, focusInfoFromPicker(chosen, found));
       if (chosen.name === chosen.wtId) {
         chosen.name = watchlistDisplayName(found) || chosen.wtId;
@@ -4763,6 +4811,7 @@ function openPopup() {
         <div class="chat-popup-header">
           <strong>Genie <button type="button" class="chat-help-button" aria-label="Genie Help" title="Help: what can I type?">?</button></strong>
           <div class="chat-popup-controls">
+            <span id="wbe-genie-apps-status" class="chat-apps-status" hidden></span>
             <button id="wbe-genie-ai-toggle" type="button" role="switch" aria-checked="false" hidden><span class="chat-ai-label">AI</span><span class="chat-ai-state chat-ai-state-off">Off</span><span class="chat-ai-switch"><span class="chat-ai-knob"></span></span><span class="chat-ai-state chat-ai-state-on">On</span></button>
             <button id="${CHAT_CLEAR_ID}" type="button" class="small" title="Clear chat">Clear</button>
             <button type="button" class="small close-popup" aria-label="Close" title="Close">&times;</button>
@@ -5046,7 +5095,7 @@ function showPlaceholder() {
   }
   if (chosenPerson) {
     const name = chosenPerson.isMe ? "you" : pickerFirstName(chosenPerson) || chosenPerson.name;
-    const gender = String(chosenPerson.subject?.gender || "").toLowerCase();
+    const gender = String(chosenPerson.subject?.shownGender ?? chosenPerson.subject?.gender ?? "").toLowerCase();
     const pronoun = chosenPerson.isMe ? "my" : gender === "male" ? "his" : gender === "female" ? "her" : "their";
     $input.attr("placeholder", `Ask about ${name}, like "${pronoun} grandparents" or "${pronoun} fan chart"`);
     return;

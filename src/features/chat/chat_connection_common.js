@@ -5,6 +5,12 @@
 // the diagram (ui.js) draws them above it.
 
 const relationText = (person) => String(person?.pathType || "").toLowerCase();
+
+// Links through BioFather/BioMother come back as "bioparent", "biochild" and "biosibling" (2026-10-13).
+/** "bioparent" -> "biological parent", for showing. */
+export const connectionStepLabel = (pathType) => String(pathType || "").replace(/^bio(?=parent|child|sibling)/i, "biological ");
+/** "bioparent" -> "parent": the kind of step, biological or not. */
+export const connectionStepKind = (pathType) => String(pathType || "").toLowerCase().replace(/^bio(?=parent|child|sibling)/, "");
 const isUp = (person) => /parent|father|mother/.test(relationText(person));
 const isDown = (person) => /child|son|daughter/.test(relationText(person));
 
@@ -31,9 +37,13 @@ export function topSiblingSteps(path) {
   return steps;
 }
 
-/** The parent ids two siblings share (fathers first). */
+/** The parent ids two siblings share (fathers first), biological parents too. */
 export function sharedParentIds(a, b) {
-  return ["Father", "Mother"]
-    .map((field) => Number(a?.[field]) || 0)
-    .filter((id, index) => id && id === (Number(b?.[["Father", "Mother"][index]]) || 0));
+  const ids = (person, fields) => fields.map((field) => Number(person?.[field]) || 0).filter((id) => id > 0);
+  return [
+    ["Father", "BioFather"],
+    ["Mother", "BioMother"],
+  ]
+    .map((fields) => ids(a, fields).find((id) => ids(b, fields).includes(id)) || 0)
+    .filter(Boolean);
 }
