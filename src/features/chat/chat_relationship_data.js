@@ -6,6 +6,9 @@
 // common ancestors are and how far up, cousin degree, every route, and the DNA that
 // relatives this close share.
 
+import { joinWithAnd } from "./chat_text_utils";
+import { textWithMoreLink } from "./chat_more_text";
+
 const GENOME_CM = 6800; // (about: two copies of ~3400 cM of autosomes)
 
 const ORDINALS = ["", "1st", "2nd", "3rd"];
@@ -213,7 +216,6 @@ export function analyseRelationship(json) {
   return { kind: "common", routes, cm: roundCm(routes.reduce((sum, route) => sum + route.cm, 0)) };
 }
 
-const joinNames = (names) => (names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
 const possessive = (label) => (label === "you" ? "your" : `${label}'s`);
 /** "4C1R" → "4th cousins once removed (4C1R)", "Great-Aunt / Uncle" → "great-aunts and uncles": the tool's labels in words. */
 export function sharedCmWords(label) {
@@ -288,7 +290,7 @@ export function describeRelationship(analysis, label1, label2, { gender1 = "" } 
   }
   const lines = [];
   const [first, ...others] = analysis.routes;
-  const who = (route) => joinNames(route.ancestors.map((a) => (a.wtId ? `${a.name} (${a.wtId})` : a.name)));
+  const who = (route) => joinWithAnd(route.ancestors.map((a) => (a.wtId ? `${a.name} (${a.wtId})` : a.name)));
   const noun = (route) => (route.ancestors.length > 1 ? "parents" : route.ancestors[0].gender === "male" ? "father" : route.ancestors[0].gender === "female" ? "mother" : "parent");
   const both = (route) => `${possessive(label1)} ${ancestorWord(route.gens1, noun(route))} and ${possessive(label2)} ${ancestorWord(route.gens2, noun(route))}`;
   const many = first.ancestors.length > 1;
@@ -297,12 +299,9 @@ export function describeRelationship(analysis, label1, label2, { gender1 = "" } 
     lines.push(`Only one of the couple is on WikiTree here, so this may be a half relationship (descended from different spouses).`);
   }
   if (others.length) {
-    const shown = others.slice(0, 3);
-    lines.push(
-      `${label1 === "you" ? "You're" : `${label1} and ${label2} are`} also related ${others.length === 1 ? "another way" : `${others.length} more ways`}: ${shown
-        .map((route) => `through ${who(route)} (${both(route)}), ${relationshipName(route.gens1, route.gens2, { half: !route.couple, gender1 })}`)
-        .join("; ")}${others.length > shown.length ? "; and more" : ""}.`
-    );
+    const ways = others.map((route) => `through ${who(route)} (${both(route)}), ${relationshipName(route.gens1, route.gens2, { half: !route.couple, gender1 })}`);
+    const listed = ways.length > 3 ? textWithMoreLink(`${ways.slice(0, 3).join("; ")}; and `, `${ways.length - 3} more`, "", ways.join("; ")) : ways.join("; ");
+    lines.push(`${label1 === "you" ? "You're" : `${label1} and ${label2} are`} also related ${others.length === 1 ? "another way" : `${others.length} more ways`}: ${listed}.`);
   }
   const extra = !others.length ? "" : first.chance >= 100 ? ` Counting every route, expect about ${analysis.cm} cM.` : " Being related more than one way raises the odds.";
   const dnaLines = dnaSentence(first, extra).split("\n");
@@ -446,7 +445,7 @@ export function directLineDown(path) {
 export function xDnaSentence(lines, label1, label2) {
   const xdna = xDnaPath(lines);
   if (xdna.kind !== "x") return "";
-  const names = joinNames(xdna.sources.map((a) => (a.wtid ? `${a.name} (${a.wtid})` : a.name)));
+  const names = joinWithAnd(xdna.sources.map((a) => (a.wtid ? `${a.name} (${a.wtid})` : a.name)));
   const pair = label1 === "you" ? `you and ${label2}` : `${label1} and ${label2}`;
   return `**X-DNA path:** X-DNA can come down both lines from ${names} to ${pair}: there's no father-to-son link on either line. An X-DNA match could support this relationship.`;
 }

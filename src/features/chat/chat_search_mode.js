@@ -989,6 +989,10 @@ export async function classifyWtPrompt({ prompt, getChatAiConfig, buildRecentUse
     if (managedByMe) return "wtplus";
     // A bare name ("Martha Teece") is the person search's to run; WT+'s parser read it
     // as LastNameAtBirth=Martha Location=Teece (live, 2026-10-04).
+    // ...but "the Smiths" and "Smith family" are a family, which the reader took as a surname (2026-10-12)
+    if (isBareName(normalizedPrompt) && readerSpec?.names?.anyLastName && !readerSpec.names.firstName) {
+      return isUnclaimed?.(normalizedPrompt) ? "wtplus" : null;
+    }
     if (isBareName(normalizedPrompt)) return null;
     // "George Beacall married Margaret" is that person, with a spouse to check: WT+'s parser read it
     // as LastNameAtBirth=George Location=Beacall (no-AI corpus measure, 2026-10-10).

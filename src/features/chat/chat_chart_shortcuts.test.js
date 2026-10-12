@@ -103,3 +103,13 @@ describe("family tree / pedigree chart = the fan chart", () => {
     expect(routeChatPrompt("show Weatherall-111's descendants").intent).toBe(ChatIntent.DESCENDANT_LIST);
   });
 });
+
+// Anne (Fiordalisi-11), on her French grandfather (2026-10-12): every chart button said "We need AI".
+test.each([
+  ["Lefèvre-123 fan chart", { chart: "fan", owner: "Lefèvre-123" }],
+  ["Ménard-45's history", { chart: "history", owner: "Ménard-45" }],
+  ["Saint-Pierre-12 explorer", { chart: "explorer", owner: "Saint-Pierre-12" }],
+  ["Hélène's lifespans", { chart: "lifespans", owner: "Hélène" }],
+])("accented and hyphenated owners: %s", (prompt, expected) => {
+  expect(parseChartShortcutPrompt(prompt)).toMatchObject(expected);
+});

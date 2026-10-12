@@ -238,6 +238,50 @@ export function escapeText(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
 }
 
+/**
+ * A hover tip that a click pins, as the migration map and origins chart do: a tip that ends "…and N more" can then
+ * list everyone (the user, 2026-10-12: every "N more" must open). place(event) positions the tip; the next click
+ * on the chart closes it.
+ */
+export function createPinnableTip(tip, place) {
+  let pinned = false;
+  const showAt = (event, html) => {
+    tip.innerHTML = html;
+    place(event);
+    tip.style.opacity = "1";
+  };
+  return {
+    get pinned() {
+      return pinned;
+    },
+    show(event, html) {
+      if (!pinned) showAt(event, html);
+    },
+    hide() {
+      if (!pinned) tip.style.opacity = "0";
+    },
+    pin(event, html, hint = "Click the chart to close") {
+      pinned = true;
+      tip.classList.add("wbe-chart-tip-pinned");
+      tip.style.pointerEvents = "auto";
+      showAt(event, `${html}<div class="wbe-chart-tip-hint">${escapeText(hint)}</div>`);
+    },
+    unpin() {
+      if (!pinned) return false;
+      pinned = false;
+      tip.classList.remove("wbe-chart-tip-pinned");
+      tip.style.pointerEvents = "";
+      tip.style.opacity = "0";
+      return true;
+    },
+  };
+}
+
+/** "…and 12 more · click to list them all" under a hover tip's first few; nothing when all are shown. */
+export function tipMoreHint(hidden) {
+  return hidden > 0 ? `<div class="wbe-chart-tip-hint">…and ${hidden} more · click to list them all</div>` : "";
+}
+
 
 const CHART_CSS = `
   .wbe-kin-dashboard { overflow:auto; padding:16px; }

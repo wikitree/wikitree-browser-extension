@@ -11,4 +11,6 @@ export const WIKITREE_GLOSSARY_FOR_AI = [
   "- LNAB = Last Name at Birth; WikiTree IDs are built from it (Smith-123). https://www.wikitree.com/wiki/Help:Last_Name_at_Birth",
   "- Pre-1700 and Pre-1500 profiles may only be edited by members who have certified for them. https://www.wikitree.com/wiki/Help:Pre-1700_Profiles",
   "- CC7 = the people within 7 degrees of connection by blood or marriage.",
+  // Murray, 2026-10-12: the AI said to move a DNA Confirmation section to the testers' profiles.
+  "- When advising on a profile: a DNA Confirmation section belongs on the profile whose parent link it confirms. It names the testers and their matches (often living descendants), and it is what lets that parent be marked 'confirmed with DNA', so never suggest moving it. Research Notes sections are fine. Don't suggest moving sourced evidence off the profile it supports. https://www.wikitree.com/wiki/Help:DNA_Confirmation",
 ].join("\n");

@@ -3,6 +3,7 @@
 // the result rows once the search has run.
 
 import { getCountryFromLocation } from "./chat_place_country";
+import { linesWithMore } from "./chat_more_text";
 
 export const GROUP_BY_FIELDS = {
   lnab: "surname at birth",
@@ -65,13 +66,12 @@ export function buildGroupedResult(sourceTable, field, maxLines = 15) {
   const rows = sourceTable?.rows || [];
   const label = GROUP_BY_FIELDS[field] || field;
   const { groups, unknown } = groupRows(rows, field);
-  const lines = groups.slice(0, maxLines).map((group) => `- ${group.label}: ${group.count.toLocaleString()}`);
-  const more = groups.length > maxLines ? `\n…and ${groups.length - maxLines} more in the table.` : "";
+  const lines = linesWithMore(groups.map((group) => `- ${group.label}: ${group.count.toLocaleString()}`), maxLines, { after: " in the table" });
   const unknownLine = unknown ? `\n${unknown.toLocaleString()} with no ${label} recorded.` : "";
   return {
     message: `${rows.length.toLocaleString()} profiles by ${label} (${groups.length} ${
       groups.length === 1 ? "group" : "groups"
-    }):\n${lines.join("\n")}${more}${unknownLine}`,
+    }):\n${lines}${unknownLine}`,
     table: {
       title: `${sourceTable?.title || "Results"} by ${label}`,
       defaultOrder: CHRONOLOGICAL.has(field) ? [[0, "asc"]] : [[1, "desc"]],

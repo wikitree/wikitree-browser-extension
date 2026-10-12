@@ -8,6 +8,7 @@ import { canonicalChartOwner as canonicalOwner } from "./chat_chart_prompt";
 
 import { getCountryFromLocation } from "./chat_place_country";
 import { RELATIVE_OWNER } from "./chat_chart_owner";
+import { linesWithMore, textWithMoreLink } from "./chat_more_text";
 
 const BRITAIN = ["England", "Scotland", "Wales", "Northern Ireland", "United Kingdom"];
 const BRITISH_ISLES = [...BRITAIN, "Ireland"];
@@ -476,9 +477,13 @@ export function buildHistorySummary(rows, ownerText, countries, eventId = "") {
     const local = alive.filter((entry) => eventFits(event, rowRegions(entry.row)));
     const shown = local.length ? local : alive;
     const lines = [`${alive.length} of ${whose} ancestors with known dates were alive during ${lower(event.label)} (${eventYears(event)}):`];
-    shown.slice(0, 8).forEach((entry) => lines.push(`• ${personText(entry, ownerText)}${entry.row.birthLocation ? `, born in ${entry.row.birthLocation}` : ""}`));
-    if (shown.length > 8) lines.push(`…and ${shown.length - 8} more.`);
-    if (local.length && local.length < alive.length) lines.push(`(${alive.length - local.length} more ${alive.length - local.length === 1 ? "was" : "were"} alive then but born and died elsewhere.)`);
+    const personLine = (entry) => `• ${personText(entry, ownerText)}${entry.row.birthLocation ? `, born in ${entry.row.birthLocation}` : ""}`;
+    lines.push(linesWithMore(shown.map(personLine), 8));
+    const elsewhere = local.length ? alive.filter((entry) => !local.includes(entry)) : [];
+    if (elsewhere.length) {
+      const was = elsewhere.length === 1 ? "was" : "were";
+      lines.push(textWithMoreLink("(", `${elsewhere.length} more`, ` ${was} alive then but born and died elsewhere.)`, `Alive then but born and died elsewhere:\n${elsewhere.map(personLine).join("\n")}`));
+    }
     lines.push("The lifespans chart marks it: hover the event above the bars.");
     return lines.join("\n");
   }
@@ -517,10 +522,7 @@ export function buildPersonHistorySummary(row, label, fallbackCountries = [], ch
   const span = `${row.start}–${row.endKnown ? end : ""}`;
   if (!events.length) return `I have no world events on my list for ${label}'s lifetime (${span}).`;
   const lines = [`${label} (${span}${row.birthLocation ? `, born in ${row.birthLocation}` : ""}) lived through:`];
-  events.slice(0, 10).forEach(({ event, age }) => {
-    lines.push(`• ${eventYears(event)}, ${lower(event.label)} (${age ? `aged ${age}` : "born during it"})`);
-  });
-  if (events.length > 10) lines.push(`…and ${events.length - 10} more.`);
+  lines.push(linesWithMore(events.map(({ event, age }) => `• ${eventYears(event)}, ${lower(event.label)} (${age ? `aged ${age}` : "born during it"})`), 10));
   const records = all.filter((entry) => entry.event.kind === "record");
   if (records.length) lines.push(`For the records: ${records.slice(0, 3).map(({ event }) => `${event.start}, ${lower(event.label)}`).join("; ")}.`);
   if (!row.endKnown && !row.living) lines.push(`(No death year is recorded, so this assumes about 60 years.)`);

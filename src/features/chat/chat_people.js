@@ -109,6 +109,7 @@ const FAN_CHART_FIELDS = "Id,Name,RealName,FirstName,MiddleName,LastNameAtBirth,
 export { formatPreviewDate, formatPreviewName };
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { checkProfileInApi, describeUnloadedProfile, isSamePerson } from "./chat_profile_availability";
+import { joinWithAndMore, linesWithMore } from "./chat_more_text";
 
 // "William Burton (Burton-13215)": RealName alone is the first name (live,
 // 2026-10-03: "William (Burton-13215) was died…"). Derived.ShortName comes back
@@ -589,14 +590,13 @@ export function createChatPeopleHandlers({
       if (!emigrants.length) {
         return `None of ${owner} ${rows.length} ${label} were born and died in different countries (${withBoth} have both places recorded).`;
       }
-      const preview = emigrants
-        .slice(0, 10)
-        .map((row) => `- ${row.displayName || row.wtid} (${row.wtid}): ${row.birthCountry} → ${row.deathCountry}`)
-        .join("\n");
+      const preview = linesWithMore(
+        emigrants.map((row) => `- ${row.displayName || row.wtid} (${row.wtid}): ${row.birthCountry} → ${row.deathCountry}`),
+        10,
+        { after: " in the table" }
+      );
       return {
-        message: `${emigrants.length} of ${owner} ${rows.length} ${label} were born in one country and died in another (${withBoth} have both places recorded):\n${preview}${
-          emigrants.length > 10 ? `\n…and ${emigrants.length - 10} more in the table.` : ""
-        }`,
+        message: `${emigrants.length} of ${owner} ${rows.length} ${label} were born in one country and died in another (${withBoth} have both places recorded):\n${preview}`,
         table: makeAncestorProfileTable(tableTitle("who emigrated"), emigrants, [[0, "asc"]]),
       };
     }
@@ -992,7 +992,7 @@ export function createChatPeopleHandlers({
       };
     }
     const listed = (matches.length ? matches : people)
-      .map((person) => `${person.RealName || person.FirstName || person.Name}${person.Name ? ` (${person.Name})` : ""}`)
+      .map((person) => `${fullName({ name: person.RealName || person.FirstName, lnab: person.LastNameAtBirth, wtid: person.Name })}${person.Name ? ` (${person.Name})` : ""}`)
       .join(", ");
     const message = !people.length
       ? `I couldn't find ${found.label} in the family data I can see.`
@@ -1112,6 +1112,21 @@ export function createChatPeopleHandlers({
     return await getLoggedInRootPerson();
   }
 
+  // "Who was his wife?" with no wife attached: the biography may name her ("married Ellen Maria Watkins on
+  // 25 July 1888", Rowland-18000), so read it and look for her on WikiTree, rather than stop at "No spouses
+  // found" (a tester, 2026-10-12: only a third question, about the bio, got the answer).
+  async function spouseFromBio(personKey, personLabel, word, prompt) {
+    const answer = await tryHandleFindBioRelativesPrompt({ target: String(personKey), roles: ["spouse"], skipDuplicates: true }, prompt).catch(
+      (error) => {
+        console.warn("wbe: couldn't read the biography for a spouse", error);
+        return null;
+      }
+    );
+    if (!answer) return null;
+    const lead = `WikiTree has no ${word} attached to ${personLabel}, so I looked in the biography.`;
+    return typeof answer === "string" ? `${lead}\n\n${answer}` : { ...answer, message: `${lead}\n\n${answer.message}` };
+  }
+
   async function tryHandleSpouseListPrompt(params, prompt = "") {
     const genderFilter = params?.gender || null;
     const relationshipLabel = String(params?.relationshipLabel || "spouses").trim();
@@ -1148,7 +1163,8 @@ export function createChatPeopleHandlers({
       const spousesData = Object.values(rootProfile.Spouses || {});
 
       if (!spousesData.length) {
-        return `No spouses found for ${personLabel}.`;
+        const word = /\bwi(?:fe|ves)\b/i.test(relationshipLabel) ? "wife" : /\bhusbands?\b/i.test(relationshipLabel) ? "husband" : "spouse";
+        return (await spouseFromBio(rootPerson.Name || personKey, personLabel, word, prompt)) || `No spouses found for ${personLabel}.`;
       }
 
       let spouses = spousesData
@@ -1192,14 +1208,13 @@ export function createChatPeopleHandlers({
         return buildOrdinalSpouseAnswer(spouses, params.ordinal, relationshipLabel, personLabel);
       }
 
-      const preview = (params?.order ? sortByBirth(spouses, params.order) : spouses)
-        .slice(0, 12)
-        .map((person) => buildPersonPreviewLine(person, params?.details || []))
-        .join("\n");
-      const extra = spouses.length > 12 ? `\n...and ${spouses.length - 12} more.` : "";
+      const preview = linesWithMore(
+        (params?.order ? sortByBirth(spouses, params.order) : spouses).map((person) => buildPersonPreviewLine(person, params?.details || [])),
+        12
+      );
 
       return {
-        message: `Here are ${relationshipLabel} for ${personLabel} (${spouses.length} found):\n${preview}${extra}`,
+        message: `Here are ${relationshipLabel} for ${personLabel} (${spouses.length} found):\n${preview}`,
         table: makeStandardProfileTable(relativesTableTitle(relationshipLabel, personLabel), spouses, [[0, "asc"]]),
         actions: visualActions(rootProfile.Name, "family"),
       };
@@ -1388,7 +1403,8 @@ export function createChatPeopleHandlers({
       : null;
     // The Duplicate Finder's scored pairs when it has looked at this profile; otherwise (a new
     // profile, or staging) Find Matches, scored here.
-    const duplicatesPromise = (async () => {
+    // (not when the question was "who was his wife?": that answer is about her, not his duplicates)
+    const duplicatesPromise = params?.skipDuplicates ? Promise.resolve(null) : (async () => {
       const finder = pagePerson ? null : await readDuplicateFinder(profile.Name);
       if (finder?.lookupAvailable) return finder;
       const found = await findDuplicates(
@@ -1405,7 +1421,8 @@ export function createChatPeopleHandlers({
       console.warn("wbe: duplicate check failed", error);
       return null;
     });
-    const subjectLabel = `${profile.RealName || profile.FirstName || profile.Name} (${profile.Name})`;
+    // Full names, not "Edward (Rowland-18000)" (the user, 2026-10-12).
+    const subjectLabel = `${fullName({ name: profile.RealName || profile.FirstName, lnab: profile.LastNameAtBirth, wtid: profile.Name })} (${profile.Name})`;
     const bio = profile.Bio || profile.bio || ""; // the API returns "bio"
     if (!bio.replace(/\[\[Category:[^\]]*\]\]|==[^=]+==|<references\s*\/>/g, "").trim()) {
       return `${subjectLabel} has no biography, so there are no relatives to read from it.`;
@@ -1573,6 +1590,10 @@ export function createChatPeopleHandlers({
     const marriages = subject.spouses
       .map(asMarriage)
       .sort((a, b) => String(a.date || "9999").localeCompare(String(b.date || "9999")));
+    if (!marriages.length) {
+      const fromBio = await spouseFromBio(subject.person?.Name || key, nameOf(subject.person), "spouse", prompt);
+      if (fromBio) return fromBio;
+    }
     return buildMarriageAnswer({ personLabel: nameOf(subject.person), marriages });
   }
 
@@ -2224,7 +2245,7 @@ export function createChatPeopleHandlers({
     const opened = events.length > 0;
     if (opened) {
       showFamilyCalendarPopup(events, {
-        title: `Family calendar: ${slots[1].name || slots[1].wtid} (${slots[1].wtid})`,
+        title: `Family calendar: ${slots[1].fullName || slots[1].name || slots[1].wtid} (${slots[1].wtid})`,
         rootKey: slots[1].wtid,
         focusMonth,
         links: chartLinks("overview", "fan", "lifespans", "timeline"),
@@ -2600,7 +2621,7 @@ export function createChatPeopleHandlers({
     }
     if (!takers.size) return "";
     const names = [...takers.keys()];
-    const shown = names.slice(0, 8).join(", ") + (names.length > 8 ? `, and ${names.length - 8} more` : "");
+    const shown = joinWithAndMore(names, { max: 8 });
     const autosomalOnly = [...takers.values()].every((types) => types.every((type) => type === "auDNA"));
     return `${names.length} other DNA test-taker${names.length === 1 ? " is" : "s are"} already connected to the profile${
       autosomalOnly ? " by autosomal tests" : ""
@@ -3948,18 +3969,17 @@ export function createChatPeopleHandlers({
 
       const closestDegree = matches[0].degrees;
       const closestMatches = matches.filter((person) => person.degrees === closestDegree);
-      const preview = closestMatches
-        .slice(0, 6)
-        .map((person) => `${person.displayName} (${person.wtid})`)
-        .join(", ");
-      const extra = closestMatches.length > 6 ? `, and ${closestMatches.length - 6} more` : "";
+      const preview = joinWithAndMore(
+        closestMatches.map((person) => `${person.displayName} (${person.wtid})`),
+        { max: 6 }
+      );
 
       return {
         message: `The closest ${familyName} connection from ${rootProfile.displayName} (${
           rootProfile.wtId
         }) is degree ${closestDegree}. Closest match${
           closestMatches.length === 1 ? "" : "es"
-        }: ${preview}${extra}. I found ${matches.length} total ${familyName} match${
+        }: ${preview}. I found ${matches.length} total ${familyName} match${
           matches.length === 1 ? "" : "es"
         } in accessible CC7 data.`,
         table: makeStandardProfileTable(`${familyName} family matches from ${rootProfile.displayName}`, matches),

@@ -219,3 +219,118 @@ body.page-Special_EditFamilySteps table {
   padding: 0.2em;
   display: inline-block;
 }
+
+/* ─── Profile details (family, sources, stickers, categories) ─── */
+#potentialMatchesSection .smfDetails {
+  margin-top: 4px;
+  max-width: 22em;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #444;
+}
+#potentialMatchesSection .smfChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 2px;
+}
+#potentialMatchesSection .smfChips:empty {
+  display: none;
+}
+#potentialMatchesSection .smfChip {
+  display: inline-block;
+  padding: 0 6px;
+  border: 1px solid #ccc;
+  border-radius: 9px;
+  background: #f4f4f0;
+  color: #333;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+#potentialMatchesSection .smfChip.smfWarn {
+  border-color: #e0b4a8;
+  background: #fbeae5;
+  color: #8a2b14;
+}
+#potentialMatchesSection .smfLine {
+  margin-top: 2px;
+}
+#potentialMatchesSection .smfLabel {
+  font-weight: bold;
+  color: #555;
+}
+#potentialMatchesSection .smfPills {
+  display: inline;
+}
+#potentialMatchesSection .smfPill {
+  display: inline-block;
+  margin: 2px 3px 0 0;
+  padding: 0 7px;
+  border: 1px solid #c9d8b6;
+  border-radius: 9px;
+  background: #f1f6ea;
+  color: #25422d;
+  font-size: 11px;
+  line-height: 1.6;
+  text-decoration: none;
+}
+#potentialMatchesSection a.smfPill:hover {
+  background: #e1edd2;
+  text-decoration: underline;
+}
+#potentialMatchesSection .smfPill.smfSticker {
+  border-color: #e8d39a;
+  background: #fdf6e0;
+  color: #5a4610;
+}
+#potentialMatchesSection.smfHideDetails .smfDetails {
+  display: none;
+}
+
+/* "Details" On/Off switch, matching the G2G "Newest first" switch */
+#filterButtons .smfSwitch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 0.8em;
+  vertical-align: middle;
+  font-size: 0.9em;
+  font-weight: 600;
+  color: #777;
+  cursor: pointer;
+  user-select: none;
+}
+#filterButtons .smfSwitchTrack {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 18px;
+  border-radius: 9px;
+  background: #b0b3b8;
+  transition: background 0.2s ease;
+}
+#filterButtons .smfSwitchKnob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: left 0.2s ease;
+}
+#filterButtons .smfSwitch.smfSwitchOn .smfSwitchTrack {
+  background: #4caf50;
+}
+#filterButtons .smfSwitch.smfSwitchOn .smfSwitchKnob {
+  left: 18px;
+}
+#filterButtons .smfSwitchState {
+  min-width: 2.2em;
+}
+#filterButtons .smfSwitch.smfSwitchOn .smfSwitchState {
+  color: #2e7d32;
+}

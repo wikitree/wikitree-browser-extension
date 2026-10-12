@@ -96,7 +96,6 @@ describe("chat_profile_search query guards", () => {
       "most common surnames in Shropshire",
       // ("twins born in Lancashire" now reads as BirthLocation + CategoryWord=Twins; test below)
       "Irish farmers born in Kent",
-      "Ohio 1850s no sources women",
       "born in Dublin to Irish parents",
       "Kent-born people",
       // (no-AI corpus measure, 2026-10-10: a lowercase word in a name/place beside a capitalised one, a place twice, marks in a name)
@@ -105,7 +104,6 @@ describe("chat_profile_search query guards", () => {
       "people who died in the 1918 flu in Kent",
       "unbelegte Profile in Bayern",
       "people with the surname Alley born in Nelson",
-      "profiles in Shropshire with no birth place",
       "…",
       "(count)",
     ];
@@ -115,6 +113,31 @@ describe("chat_profile_search query guards", () => {
       if (wtAPIProfileSearch.mock.calls.length) throw new Error(`ran: ${prompt} -> ${decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])}`);
       expect(result).toBeTruthy(); // (Genie answers, with the form or the "needs AI" message, but runs nothing)
     }
+  });
+
+  // A place with status words and dates runs as the place; the reply offers the surname instead (Ohio and
+  // Lancashire are surnames too; the user, 2026-10-12). A place after "in" is only a place.
+  test("a place word beside status words and dates runs as the place (no key)", async () => {
+    const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
+    const run = async (prompt) => {
+      wtAPIProfileSearch.mockClear();
+      wtAPIProfileSearch.mockResolvedValue({ response: { profiles: ["1"], searchLog: "Result: 5\r\n" } });
+      const result = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, prompt);
+      const calls = wtAPIProfileSearch.mock.calls.map((call) => [decodeURIComponent(call[1]), call[2]?.maxProfiles]);
+      return { result, search: calls.find(([, max]) => max !== 1)?.[0], counts: calls.filter(([, max]) => max === 1).map(([q]) => q) };
+    };
+    const ohio = await run("Ohio 1850s no sources women");
+    expect(ohio.search).toMatch(/^Location=Ohio\b/);
+    expect(ohio.search).toMatch(/\bfemale\b/);
+    expect(ohio.search).toMatch(/bioCheckUnsourced/);
+    expect(ohio.counts).toEqual([ohio.search.replace("Location=Ohio", "AllLastNames=Ohio")]);
+    expect(ohio.result.actions.map((action) => action.label)).toContain("Search the surname Ohio instead");
+    expect(ohio.result.message).toMatch(/Ohio is a surname too: the same search for the surname finds 5 profiles/);
+
+    const shropshire = await run("profiles in Shropshire with no birth place");
+    expect(shropshire.search).toBe(`Location=Shropshire sql="([Default].[Birth Location] = '')"`);
+    expect(shropshire.counts).toEqual([]);
+    expect(shropshire.result.actions.map((action) => action.label)).not.toContain("Search the surname Shropshire instead");
   });
 
   test("occupations, a bare year after two names, and emigrants to a place run (no key)", async () => {
@@ -152,13 +175,16 @@ describe("chat_profile_search query guards", () => {
 
   test("a plural surname that finds nothing is retried singular (no key)", async () => {
     const { tryHandleProfileSearchPrompt } = makeHandler({ getChatAiConfig: jest.fn(async () => ({})) });
-    wtAPIProfileSearch
-      .mockResolvedValueOnce({ response: { profiles: [], searchLog: "" } })
-      .mockResolvedValueOnce({ response: { profiles: ["1"], searchLog: "" } });
+    // (with WikiTree+'s surname counts unavailable: with them, Alleys is read as Alley before searching)
+    const runs = [{ response: { profiles: [], searchLog: "" } }, { response: { profiles: ["1"], searchLog: "" } }];
+    wtAPIProfileSearch.mockImplementation(async (caller, query, params) =>
+      params?.maxProfiles === 1 ? { response: { profiles: [], searchLog: "" } } : runs.shift()
+    );
     const result = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Alleys who died in Motueka");
-    expect(wtAPIProfileSearch).toHaveBeenCalledTimes(2);
-    expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])).toContain("AllLastNames=Alleys");
-    expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[1][1])).toContain("AllLastNames=Alley DeathLocation=Motueka");
+    const sent = wtAPIProfileSearch.mock.calls.filter((call) => call[2]?.maxProfiles !== 1);
+    expect(sent).toHaveLength(2);
+    expect(decodeURIComponent(sent[0][1])).toContain("AllLastNames=Alleys");
+    expect(decodeURIComponent(sent[1][1])).toContain("AllLastNames=Alley DeathLocation=Motueka");
     expect(result.message).toContain("Nothing was found for Alleys, so I searched for Alley.");
   });
 
@@ -388,8 +414,11 @@ test("a bare WikiTree ID fetches that profile instead of searching for it as a n
 
 // "Robinsons born in Devon 1850-1899" with no AI: zero for Robinsons and no retry (live, 2026-10-11).
 test("a plural surname that finds nothing is retried singular, with no AI too", async () => {
-  wtAPIProfileSearch.mockImplementation(async (appId, query) =>
-    /Robinsons/.test(decodeURIComponent(query))
+  // (with WikiTree+'s surname counts unavailable: with them, Robinsons is read as Robinson before searching)
+  wtAPIProfileSearch.mockImplementation(async (appId, query, params) =>
+    params?.maxProfiles === 1
+      ? { response: { profiles: [], searchLog: "" } }
+      : /Robinsons/.test(decodeURIComponent(query))
       ? { response: { profiles: [], found: 0, searchLog: "Result: 0\r\n" } }
       : { response: { profiles: ["1"], found: 1, searchLog: "Result: 1\r\n" } }
   );
@@ -399,7 +428,9 @@ test("a plural surname that finds nothing is retried singular, with no AI too", 
       { chatModeOverride: "wtplus" },
       "Robinsons born in Devon 1850-1899"
     );
-    const queries = wtAPIProfileSearch.mock.calls.map((call) => decodeURIComponent(call[1]));
+    const queries = wtAPIProfileSearch.mock.calls
+      .filter((call) => call[2]?.maxProfiles !== 1)
+      .map((call) => decodeURIComponent(call[1]));
     expect(queries[0]).toContain("AllLastNames=Robinsons");
     expect(queries[1]).toContain("AllLastNames=Robinson BirthLocation=Devon");
     expect(String(result?.message || result)).toMatch(/^Nothing was found for Robinsons, so I searched for Robinson\./);

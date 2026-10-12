@@ -7,17 +7,20 @@
 
 import { getCountryFromLocation } from "./chat_place_country";
 import { makeProfileLink } from "./tables";
-import { foldAccents } from "./chat_text_utils";
+import { foldAccents, joinWithAnd } from "./chat_text_utils";
 
 const SUBJECT_POSS = String.raw`(his|her|their|this\s+person(?:'s|’s)|the\s+profile\s+person(?:'s|’s)|[A-Z][A-Za-z'_ -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,4}(?:'s|’s))`;
-const KIN = String.raw`(family(?:\s+members)?|relatives|relations|kin|parents|siblings|brothers\s+and\s+sisters|children|kids|sons\s+and\s+daughters|spouses?|wife|wives|husbands?)`;
+const KIN_WORD = String.raw`(?:family(?:\s+members)?|relatives|relations|kin|parents|siblings|brothers\s+and\s+sisters|children|kids|sons\s+and\s+daughters|spouses?|wife|wives|husbands?)`;
+// "wife or children", "parents, siblings and children": one or more, kept together.
+const KIN = String.raw`(${KIN_WORD}(?:(?:\s*,\s*(?:and\s+|or\s+)?|\s+(?:and|or|&)\s+)${KIN_WORD})*)`;
 const ON_WT = String.raw`(?:already\s+)?(?:on|in)\s+wikitree`;
 const FIND = String.raw`(?:find|search\s+for|look\s+for|look\s+up|check\s+for|check)`;
 // No owner named ("are any relatives on WikiTree?", "find the parents on WikiTree") means the page profile, not "me".
 const SUBJECT = String.raw`(?:${SUBJECT_POSS}\s+|the\s+)?`;
 const FIND_RELATIVES_RES = [
   new RegExp(String.raw`^${FIND}\s+(?:any\s+)?${SUBJECT}${KIN}\s+${ON_WT}$`, "i"),
-  new RegExp(String.raw`^(?:(?:are|is)\s+(?:there\s+)?)?(?:any\s+(?:of\s+)?|some\s+(?:of\s+)?)?${SUBJECT}${KIN}\s+${ON_WT}$`, "i"),
+  // "Are there profiles for this person's wife or children on WikiTree?" (Rowland-18000, 2026-10-12)
+  new RegExp(String.raw`^(?:(?:are|is)\s+(?:there\s+)?)?(?:any\s+)?(?:profiles?\s+for\s+)?(?:any\s+(?:of\s+)?|some\s+(?:of\s+)?)?${SUBJECT}${KIN}\s+${ON_WT}$`, "i"),
   new RegExp(String.raw`^(?:which|who)\s+of\s+${SUBJECT}${KIN}\s+(?:are|is)\s+${ON_WT}$`, "i"),
   new RegExp(String.raw`^(?:search|check)\s+wikitree\s+for\s+(?:any\s+)?${SUBJECT}${KIN}$`, "i"),
   new RegExp(String.raw`^(?:does|do)\s+${SUBJECT_POSS}\s+${KIN}\s+(?:exist|have\s+profiles?)\s+${ON_WT}$`, "i"),
@@ -41,13 +44,6 @@ FIND_RELATIVES_RES.push(
   new RegExp(String.raw`^(?:check|search|look)(?:\s+${BIO})?\s+for\s+(?:wikitree\s+)?profiles(?:\s+(?:in|from)\s+${BIO})?$`, "i")
 );
 const PROFILE_SUBJECT_RE = /^(?:his|her|their|this\s+person(?:'s|’s)|the\s+profile\s+person(?:'s|’s))$/i;
-
-const KIN_ROLES = [
-  [/^parents$/i, ["father", "mother"]],
-  [/^(?:siblings|brothers\s+and\s+sisters)$/i, ["sibling"]],
-  [/^(?:children|kids|sons\s+and\s+daughters)$/i, ["child"]],
-  [/^(?:spouses?|wife|wives|husbands?)$/i, ["spouse"]],
-];
 
 // Any word order (the user, 2026-10-07: "recognise Qs in various forms"): a question or
 // "check/find" that names the bio, its people and WikiTree profiles, e.g. "Are the bio
@@ -106,7 +102,10 @@ export function parseFindRelativesPrompt(prompt) {
     if (!match) continue;
     const subject = String(match[1] || "").trim();
     const kin = String(match[2] || "").trim();
-    const roles = KIN_ROLES.find(([kinRe]) => kinRe.test(kin))?.[1] || [];
+    // "family" or "relatives" anywhere in the list means everyone; otherwise each kin word's roles.
+    const roles = /\b(?:family|relatives|relations|kin)\b/i.test(kin)
+      ? []
+      : [...new Set(LOOSE_KIN.filter(([re]) => re.test(kin)).flatMap(([, kinRoles]) => kinRoles))];
     if (!subject || PROFILE_SUBJECT_RE.test(subject)) return { target: "", roles };
     const name = subject.replace(/(?:'s|’s)$/, "").trim();
     // Case-insensitive patterns: a bare name must really be capitalised.
@@ -978,10 +977,26 @@ function relativeShort(relative) {
   return `${role} ${relative.given[0] || "?"}${relative.birthYear ? `, b. about ${relative.birthYear}` : ""}`;
 }
 
+/** "Ellen Maria (Watkins) Rowland": a wife or mother by her birth and married names, as WikiTree writes them. */
 function relativeFullName(relative) {
   const surname = relative.birthSurname || relative.surnames?.[0] || relative.surname || "";
   const others = (relative.firstNames || []).slice(1);
-  return [...relative.given, surname].filter(Boolean).join(" ") + (others.length ? ` (also ${others.join(", ")})` : "");
+  const married =
+    relative.role === "mother" || (relative.role === "spouse" && relative.gender === "Female")
+      ? (relative.surnames || []).find((name) => name && fold(name) !== fold(surname)) || ""
+      : "";
+  const surnames = married && surname ? `(${surname}) ${married}` : surname;
+  return [...relative.given, surnames].filter(Boolean).join(" ") + (others.length ? ` (also ${others.join(", ")})` : "");
+}
+
+/** "Wife Ellen Maria (Watkins) Rowland, b. about 1867 (searched for Ellen Watkins and Ellen Rowland, born 1862–1872)":
+ * the tester couldn't tell whether "Wife Ellen" had been looked for under her maiden name (2026-10-12). */
+function relativeNotFound(entry) {
+  const relative = entry.relative;
+  const searched = entry.searched || [];
+  const names = joinWithAnd(searched);
+  const how = names ? ` (searched for ${names}${entry.searchedYears ? `, born ${entry.searchedYears}` : ""})` : "";
+  return `${ROLE_WORDS[relative.role](relative.gender)} ${relativeFullName(relative)}${relative.birthYear ? `, b. about ${relative.birthYear}` : ""}${how}`;
 }
 
 /**
@@ -1024,7 +1039,7 @@ export function buildFindRelativesAnswer({ subjectLabel, results, readBy, duplic
   const found = sorted.filter((entry) => !entry.attached && shown(entry).length);
   const missing = sorted.filter((entry) => !entry.attached && !shown(entry).length);
   const lines = [
-    `${subjectLabel}'s biography names ${results.length} relative${results.length === 1 ? "" : "s"} (${readBy}). I searched WikiTree for each one.`,
+    `${subjectLabel}'s biography names ${results.length} relative${results.length === 1 ? "" : "s"} (${readBy}). I searched WikiTree for ${results.length === 1 ? "them" : "each one"}.`,
   ];
   lines.push(...duplicateLines(duplicates, subjectLabel));
   // Beacall-491's family all turned up under Philip Beacall (Beacall-11): this profile may be his duplicate.
@@ -1079,7 +1094,7 @@ export function buildFindRelativesAnswer({ subjectLabel, results, readBy, duplic
     lines.push("", `**Already connected (${attached.length}):** ${attached.map((entry) => `${relativeShort(entry.relative)} (${entry.attached.profile.Name})`).join("; ")}`);
   }
   if (missing.length) {
-    lines.push("", `**No good match, so probably not on WikiTree yet (${missing.length}):** ${missing.map((entry) => relativeShort(entry.relative)).join("; ")}`);
+    lines.push("", `**No good match, so probably not on WikiTree yet (${missing.length}):**`, ...missing.map((entry) => `- ${relativeNotFound(entry)}`));
   }
   if (found.length) {
     lines.push(
@@ -1191,6 +1206,7 @@ export async function searchRelatives({ subject, relatives, attached = [], searc
     candidates: [],
   }));
   const toSearch = pending.filter((entry) => !entry.attached);
+  toSearch.forEach((entry) => (entry.searched = []));
   const yearParams = (relative) => {
     if (relative.birthYear) return { BirthDate: String(relative.birthYear), dateSpread: 5 };
     if (!relative.yearRange) return {};
@@ -1246,6 +1262,13 @@ export async function searchRelatives({ subject, relatives, attached = [], searc
       const full = ABBREVIATIONS[fold(firstName).replace(/\.$/, "")];
       const params = { FirstName: full ? full[0].toUpperCase() + full.slice(1) : firstName, LastName: surname, limit: 50, ...yearParams(relative) };
       if (place) params.BirthLocation = place;
+      // (for the answer: "searched for Ellen Watkins and Ellen Rowland")
+      const searchedName = `${params.FirstName} ${surname}`;
+      if (!entry.searched.includes(searchedName)) entry.searched.push(searchedName);
+      if (params.BirthDate && params.dateSpread) {
+        const year = Number(params.BirthDate);
+        entry.searchedYears = `${year - params.dateSpread}–${year + params.dateSpread}`;
+      }
       const { matches, total } = await runSearch(params);
       for (const match of matches) byId.set(Number(match.Id), match);
       return total;

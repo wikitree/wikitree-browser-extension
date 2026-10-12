@@ -5,6 +5,8 @@
 // put them on WikiTree so matches can find them, and the API gives them to anyone (the
 // user, 2026-10-07).
 
+import { linesWithMore } from "./chat_more_text";
+
 const OWNER = String.raw`(this\s+profile|this\s+person|her|his|their|she|he|they|my|me|I|[A-Z][A-Za-z'_ -]*?-\d+(?:['’]s)?|[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}['’]s)`;
 const TYPE = String.raw`(y[\s-]?dna|y[\s-]?chromosome|paternal|mt[\s-]?dna|mitochondrial|maternal|au[\s-]?dna|autosomal)`;
 
@@ -180,9 +182,8 @@ export function buildNoDnaMapTestAnswer(label, dnaTypeWanted) {
 export function buildConnectedProfilesAnswer(connections, label, test) {
   const testName = `${test?.dna_name || "DNA test"} (${TYPE_LABELS[test?.dna_type] || test?.dna_type || "?"})`;
   if (!connections?.length) return `No profiles are connected to ${label}'s ${testName} on WikiTree.`;
-  const shown = connections.slice(0, 25).map((connection) => `- ${connection.Name}`);
-  const more = connections.length > 25 ? `\n…and ${connections.length - 25} more.` : "";
-  return `${connections.length} profile${connections.length === 1 ? " is" : "s are"} connected to ${label}'s ${testName}:\n${shown.join("\n")}${more}`;
+  const shown = linesWithMore(connections.map((connection) => `- ${connection.Name}`), 25);
+  return `${connections.length} profile${connections.length === 1 ? " is" : "s are"} connected to ${label}'s ${testName}:\n${shown}`;
 }
 
 /**

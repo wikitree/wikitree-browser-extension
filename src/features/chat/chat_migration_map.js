@@ -20,7 +20,7 @@ import { easeCubicOut } from "d3-ease";
 import { feature } from "topojson-client";
 import { REGION_POINTS, SPLIT_COUNTRIES } from "./chat_migration_data";
 import { cachedPoint, geocodeLocations, loadGeocodeCache, pendingLookups } from "./chat_geocode";
-import { chartPopupControls, centrePopup, escapeText, injectChartStyles, raiseAboveOtherPopups, saveChart, toggleChartFullScreen } from "./chat_chart_common";
+import { chartPopupControls, centrePopup, escapeText, injectChartStyles, raiseAboveOtherPopups, saveChart, tipMoreHint, toggleChartFullScreen } from "./chat_chart_common";
 
 const WIDTH = 960;
 const HEIGHT = 540;
@@ -273,8 +273,7 @@ export async function showMigrationMapPopup(firstMigration, options = {}) {
       return `<div class="wbe-chart-tip-rel">${flow.count} move${flow.count === 1 ? "" : "s"}${flow.firstYear ? ` · by ${flow.firstYear}` : ""}</div>
         <b>${escapeText(flow.from)} → ${escapeText(flow.to)}</b>
         ${shown.map((example) => `<div>${personLink(example.parent, example.parentWtid)} → ${personLink(example.child, example.childWtid)}</div>`).join("")}
-        ${flow.count > shown.length ? `<div class="wbe-chart-tip-hint">…and ${flow.count - shown.length} more</div>` : ""}
-        ${all ? "" : `<div class="wbe-chart-tip-hint">${escapeText(options.arcHint || "Parent → child born in the new place")} · click to pin</div>`}`;
+        ${all ? "" : `<div class="wbe-chart-tip-hint">${escapeText(options.arcHint || "Parent → child born in the new place")}</div>${flow.examples.length > shown.length ? tipMoreHint(flow.examples.length - shown.length) : `<div class="wbe-chart-tip-hint">Click to pin</div>`}`}`;
     };
     const placeTipHtml = (place, all) => {
       const people = place.people?.length ? place.people : place.names.map((label) => ({ label, wtid: "" }));
@@ -283,8 +282,7 @@ export async function showMigrationMapPopup(firstMigration, options = {}) {
         ${(place.locations || []).filter((text) => text && text !== place.key).map((text) => `<div class="wbe-chart-tip-hint">${escapeText(text)}</div>`).join("")}
         <div>${place.count} ${escapeText(options.peopleWord || "ancestor")}${place.count === 1 ? "" : "s"} born here:</div>
         ${shown.map((person) => `<div>${personLink(person.label, person.wtid)}</div>`).join("")}
-        ${place.count > shown.length ? `<div class="wbe-chart-tip-hint">…and ${place.count - shown.length} more</div>` : ""}
-        ${all ? "" : `<div class="wbe-chart-tip-hint">Click to pin · double-click to zoom in</div>`}`;
+        ${all ? "" : `${tipMoreHint(people.length - shown.length)}<div class="wbe-chart-tip-hint">${people.length > shown.length ? "Double-click to zoom in" : "Click to pin · double-click to zoom in"}</div>`}`;
     };
     svg.on("click.unpin", () => {
       if (!pinned) return;

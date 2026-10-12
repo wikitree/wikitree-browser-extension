@@ -11,7 +11,7 @@ import { area, curveMonotoneX, stack, stackOffsetExpand, stackOffsetWiggle, stac
 import { scaleLinear, scalePoint } from "d3-scale";
 import { easeCubicInOut } from "d3-ease";
 import { OTHER_COUNTRIES } from "./chat_origins_data";
-import { chartPopupControls, centrePopup, escapeText, injectChartStyles, raiseAboveOtherPopups, saveChart, toggleChartFullScreen, textColourFor } from "./chat_chart_common";
+import { chartPopupControls, centrePopup, escapeText, injectChartStyles, raiseAboveOtherPopups, saveChart, tipMoreHint, toggleChartFullScreen, textColourFor } from "./chat_chart_common";
 
 const WIDTH = 900;
 const HEIGHT = 470;
@@ -231,8 +231,7 @@ export function showOriginsPopup(series, options = {}) {
       if (!people.length) return "";
       const shown = people.slice(0, 6);
       return `<div style="margin-top:4px">${shown.map((person) => `<div>${personLink(person)}</div>`).join("")}</div>
-        ${people.length > shown.length ? `<div class="wbe-chart-tip-hint">…and ${people.length - shown.length} more</div>` : ""}
-        <div class="wbe-chart-tip-hint">Click to list everyone with this name</div>`;
+        ${people.length > shown.length ? tipMoreHint(people.length - shown.length) : `<div class="wbe-chart-tip-hint">Click to list everyone with this name</div>`}`;
     }
     const groups = generations
       .filter((g) => g.people?.[key]?.length)
@@ -240,14 +239,21 @@ export function showOriginsPopup(series, options = {}) {
     return groups.join("");
   }
 
+  // The names folded into "Other": the first 14 in the hover tip, all of them once pinned.
+  function otherNamesHtml(gen, key, all) {
+    if (key !== OTHER || !gen.otherNames?.length) return "";
+    const shown = all ? gen.otherNames : gen.otherNames.slice(0, 14);
+    return `<div style="margin-top:4px">${shown.map(([name, n]) => escapeText(n > 1 ? `${name} (${n})` : name)).join(", ")}</div>${all ? "" : tipMoreHint(gen.otherNames.length - shown.length)}`;
+  }
+
   function pinTip(event, key) {
     const gen = nearestGeneration(pointer(event, svg.node())[0]);
-    if (!gen.people?.[key] && !generations.some((g) => g.people?.[key]?.length)) return;
+    if (!gen.people?.[key] && !generations.some((g) => g.people?.[key]?.length) && !otherNamesHtml(gen, key, true)) return;
     const overall = series.totals.find(([name]) => name === key)?.[1] || 0;
     pinned = true;
     tip.classList.add("wbe-chart-tip-pinned");
     tip.style.pointerEvents = "auto";
-    tip.innerHTML = `<b>${escapeText(key)}</b><div>${overall} ${overall === 1 ? "ancestor" : "ancestors"}</div>${peopleHtml(gen, key, true)}
+    tip.innerHTML = `<b>${escapeText(key)}</b><div>${overall} ${overall === 1 ? "ancestor" : "ancestors"}</div>${otherNamesHtml(gen, key, true)}${peopleHtml(gen, key, true)}
       <div class="wbe-chart-tip-hint">Click a name to open the profile · click the chart to close</div>`;
     const rect = stage.getBoundingClientRect();
     tip.style.left = `${Math.min(event.clientX - rect.left + 14, rect.width - 290)}px`;
@@ -275,7 +281,7 @@ export function showOriginsPopup(series, options = {}) {
       <b>${escapeText(key)}</b>
       <div>${count} of ${gen.total} ${withWord} (${percent}%)</div>
       ${gen.unknown ? `<div style="opacity:.75">${gen.unknown} more ${withoutWord}</div>` : ""}
-      ${key === OTHER && gen.otherNames?.length ? `<div style="margin-top:4px">${gen.otherNames.slice(0, 14).map(([name, n]) => escapeText(n > 1 ? `${name} (${n})` : name)).join(", ")}${gen.otherNames.length > 14 ? `, +${gen.otherNames.length - 14} more` : ""}</div>` : ""}
+      ${otherNamesHtml(gen, key, false)}
       ${peopleHtml(gen, key, false)}
       <div class="wbe-chart-tip-hint">All generations: ${overallCount}</div>`;
     const rect = stage.getBoundingClientRect();

@@ -281,6 +281,26 @@ function normalizeAiEscapedWtPlusQuotes(queryText) {
   return String(queryText || "").replace(/\\+(["'])/g, "$1");
 }
 
+// WT+ reads NOT as "the terms before it, minus the terms after it" (live, 2026-10-12): "NoFather NOT NoMother
+// BirthLocation=Scotland" took everyone in Scotland with no mother away from everyone with no father, 14,213,895
+// profiles, where "BirthLocation=Scotland NoFather NOT NoMother" is 11,366. So each "NOT term" goes to the end of
+// its OR branch, after every term it should narrow; a branch of nothing but NOTs is left as it is.
+function moveNegationsLast(tokens) {
+  const branches = [[]];
+  tokens.forEach((token) => (token === "OR" ? branches.push([]) : branches[branches.length - 1].push(token)));
+  return branches
+    .map((branch) => {
+      const kept = [];
+      const negated = [];
+      for (let index = 0; index < branch.length; index++) {
+        if (branch[index] === "NOT" && index + 1 < branch.length) negated.push("NOT", branch[++index]);
+        else kept.push(branch[index]);
+      }
+      return kept.length ? [...kept, ...negated] : branch;
+    })
+    .reduce((all, branch, index) => (index ? [...all, "OR", ...branch] : branch), []);
+}
+
 function validateAndRepairWtPlusQuery(queryText) {
   const normalizedInput = normalizeAiEscapedWtPlusQuotes(queryText);
   const tokens = tokenizeWtPlusQuery(normalizedInput);
@@ -320,7 +340,9 @@ function validateAndRepairWtPlusQuery(queryText) {
     normalizedTokens.push(normalizedRaw);
   }
 
-  const normalizedQuery = normalizedTokens.join(" ").trim();
+  const orderedTokens = moveNegationsLast(normalizedTokens);
+  if (orderedTokens.join(" ") !== normalizedTokens.join(" ")) diagnostics.push("moved-not-last");
+  const normalizedQuery = orderedTokens.join(" ").trim();
   if (!normalizedQuery) {
     diagnostics.push("empty-normalized-query");
     return { isValid: false, normalizedQuery: "", diagnostics };
@@ -574,6 +596,9 @@ function buildSuggestionKeywordIndex() {
       cleanTitle,
       contentWords,
       hasAbsenceWords: absenceWords.length > 0,
+      // "FindAGrave - Empty birth date" is only the profiles whose memorial has a date: 7 Edwards, where "no
+      // birth date" (B0) is 2,420 (2026-10-12). Those need the words Find a Grave.
+      needsFindAGrave: /^find\s*a\s*grave\b/i.test(rawTitle),
     });
   }
 
@@ -611,8 +636,10 @@ function matchSuggestionByNaturalLanguage(queryText) {
   let bestMatch = null;
   let bestScore = 0;
 
+  const saysFindAGrave = /\bfind\s*a\s*grave\b|\bfag\b/i.test(String(queryText || ""));
   for (const entry of index) {
     const { contentWords, hasAbsenceWords } = entry;
+    if (entry.needsFindAGrave && !saysFindAGrave) continue;
     const matchedContent = contentWords.filter((w) => text.includes(w));
 
     if (matchedContent.length === 0) continue;
@@ -716,6 +743,7 @@ function translateSuggestionsFreeTextToQuery(queryText) {
       "profile", "profiles", "people", "person", "member", "members", "bio",
       "with", "after", "that", "the", "a", "an", "by", "but", "and", "or",
       "at", "all", "any", "whatsoever", "even", "still",
+      "findagrave", "find", "grave", "fag",
     ]);
     remainder = remainder
       .split(/\s+/)
@@ -778,6 +806,7 @@ function translateSuggestionsFreeTextToQuery(queryText) {
       maxErrors,
     },
     understood: suggestionId ? `suggestion ${suggestionId}${remainder ? ` with ${remainder}` : ""}` : remainder,
+    suggestionTitle: nlMatchedTitle,
   };
 }
 

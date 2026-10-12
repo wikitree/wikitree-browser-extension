@@ -119,6 +119,11 @@ const WTPLUS_QUERIES = {
   "Irish people who went to America": "BirthLocation=Ireland DeathLocation=America",
   "people who left Ireland": "BirthLocation=Ireland NOT DeathLocation=Ireland",
   "profiles in Kent created this year": `Location=Kent Created=Created_${new Date().getFullYear()}`,
+  "Edwards profiles with no birth date": "AllLastNames=Edwards B0",
+  "born in Devon with no death date": "BirthLocation=Devon D0",
+  "Category: Mayflower Passengers no parents": "CategoryFull=Mayflower_Passengers NoParents",
+  "Who is in the Salem Witch Trials category?": "CategoryFull=Salem_Witch_Trials",
+  "Category: Pennsylvania Quakers died before 1800": "CategoryFull=Pennsylvania_Quakers sql=",
 };
 
 async function wtPlusQuery(prompt) {
@@ -134,10 +139,12 @@ async function wtPlusQuery(prompt) {
   const readerFirst = /\bemigrants\b/i.test(prompt) && Boolean(parseSearchSpecPrompt(prompt));
   if (target !== "wtplus" && !readerFirst) return `(${target})`;
   jest.clearAllMocks();
-  wtAPIProfileSearch.mockResolvedValue({ response: { profiles: ["1"], searchLog: "" } });
+  wtAPIProfileSearch.mockResolvedValue({ response: { profiles: ["1"], searchLog: "Result: 1\r\n" } });
   const result = await makeHandler().tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, prompt);
-  if (!wtAPIProfileSearch.mock.calls.length) return (result?.actions || []).map((action) => action.wtPlusQuery).join(" ;; ");
-  return wtAPIProfileSearch.mock.calls.map((call) => decodeURIComponent(call[1])).join(" ;; ");
+  // (a count — maxProfiles 1 — isn't the search: "is Devon a surname too?" is asked before the question)
+  const searches = wtAPIProfileSearch.mock.calls.filter((call) => call[2]?.maxProfiles !== 1);
+  if (!searches.length) return (result?.actions || []).map((action) => action.wtPlusQuery).join(" ;; ");
+  return searches.map((call) => decodeURIComponent(call[1])).join(" ;; ");
 }
 
 const bySection = (id) => allNoAiExamples().filter((e) => e.section === id).map((e) => e.example);

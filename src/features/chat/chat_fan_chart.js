@@ -21,6 +21,8 @@ import { showMigrationMapPopup } from "./chat_migration_map";
 import { PARENT_STATUSES, autosomalShare, dnaLineAncestors, dnaLineCarrierNote, dnaLineOf, lineTestSummary, parentLinkStatus, parentStatusCounts, percentText, xDnaShares } from "./chat_dna_data";
 import { researchStatusLabel } from "./chat_profile_quality_data";
 import { chartPopupControls, centrePopup, chartLinkButtons, chartLinkClick, escapeText, injectChartStyles, lifeYears as years, profileUrl, raiseAboveOtherPopups, saveChart, toggleChartFullScreen, textColourFor, truncate } from "./chat_chart_common";
+import { joinWithAnd } from "./chat_text_utils";
+import { joinWithAndMore, moreTextToHtml } from "./chat_more_text";
 
 const ROOT_RADIUS = 58;
 // The − / + generation buttons (user, 2026-10-04: "maybe we could have more?").
@@ -127,7 +129,10 @@ export function buildColouring(slots, mode, maxGeneration, extra = {}) {
     slots.forEach((person, slot) => {
       if (person && slot >= 2) counts.set(completenessBand(person), (counts.get(completenessBand(person)) || 0) + 1);
     });
-    const help = slots.filter((person, slot) => slot >= 2 && [10, 20, 30].includes(person?.quality?.researchStatus)).length;
+    // Who they are, by name: "(see the tips)" left a tester asking where the tips were (Anne, 2026-10-12).
+    const helpPeople = slots.filter((person, slot) => slot >= 2 && [10, 20, 30].includes(person?.quality?.researchStatus));
+    const help = helpPeople.length;
+    const helpList = joinWithAndMore(helpPeople.map((person) => person.fullName || person.name || person.wtid), { max: 4 });
     return {
       fill: (person) => COMPLETENESS_COLOURS[completenessBand(person)],
       key: (person) => completenessBand(person),
@@ -138,7 +143,7 @@ export function buildColouring(slots, mode, maxGeneration, extra = {}) {
           : counts.get("unchecked")
           ? [{ key: "unchecked", label: `Not checked (${counts.get("unchecked")})`, colour: COMPLETENESS_COLOURS.unchecked }]
           : []),
-        ...(help ? [{ key: "help", label: `${help} marked Unfinished, Help Requested or Sources to Review (see the tips)`, colour: "#ffffff" }] : []),
+        ...(help ? [{ key: "help", label: `${help} marked Unfinished, Help Requested or Sources to Review: ${helpList} (point to a person in the chart for details)`, colour: "#ffffff" }] : []),
       ],
     };
   }
@@ -569,7 +574,7 @@ export function showFanChartPopup(slots, options = {}) {
     const quality = person?.quality;
     if (!wantsQuality() || !quality) return "";
     const status = researchStatusLabel(quality.researchStatus);
-    const missing = quality.missing.length ? `Missing: ${quality.missing.slice(0, 5).join(", ")}${quality.missing.length > 5 ? ` and ${quality.missing.length - 5} more` : ""}` : "";
+    const missing = quality.missing.length ? `Missing: ${joinWithAnd(quality.missing)}` : "";
     return `<div class="wbe-chart-tip-quality"><b>Profile completeness: ${Math.round(100 * quality.score)}%</b>${status ? ` · Research status: ${escapeText(status)}` : ""}${
       missing ? `<div>${escapeText(missing)}</div>` : ""
     }</div>`;
@@ -956,8 +961,8 @@ export function showFanChartPopup(slots, options = {}) {
     legend.innerHTML = "";
     colouring.legend.forEach((item) => {
       const span = document.createElement("span");
-      span.innerHTML = `<i style="background:${item.colour}"></i>`;
-      span.appendChild(document.createTextNode(item.label));
+      // (a label's "N more" is a link that opens the rest)
+      span.innerHTML = `<i style="background:${item.colour}"></i>${moreTextToHtml(item.label)}`;
       span.addEventListener("mouseenter", () => {
         state.highlight = { type: "key", match: (d) => d.key === item.key };
         applyHighlight();

@@ -14,6 +14,7 @@ import { easeCubicOut } from "d3-ease";
 import { generationLabel } from "./chat_kin_labels";
 import { aliveByYear, lifespanStats } from "./chat_lifespans_data";
 import { EVENT_KIND_COLOURS, aliveFor, eventYears, eventsForRows, livedThrough, rowCountries } from "./chat_world_events_data";
+import { joinWithAnd } from "./chat_text_utils";
 import {
   createChartPopup,
   mountChartPopup,
@@ -21,8 +22,10 @@ import {
   chartPopupControls,
   chartLinkButtons,
   chartLinkClick,
+  createPinnableTip,
   escapeText,
   profileUrl,
+  tipMoreHint,
   truncate,
   yearOf,
 } from "./chat_chart_common";
@@ -454,21 +457,28 @@ export function showLifespansPopup(rows, options = {}) {
   const scrubYear = scrub.append("text").attr("y", TOP - 12).attr("text-anchor", "middle").attr("font-size", 12).attr("font-weight", 700).attr("fill", "#fff");
   const scrubDot = scrub.append("circle").attr("r", 4).attr("fill", "#2f6fb3").attr("stroke", "#fff").attr("stroke-width", 1.5);
 
-  function showTipHtml(event, html) {
+  const tipPin = createPinnableTip(tip, (event) => {
     const rect = stage.getBoundingClientRect();
-    tip.innerHTML = html;
     tip.style.left = `${Math.min(event.clientX - rect.left + 14, rect.width - 290)}px`;
     tip.style.top = `${Math.min(event.clientY - rect.top + stage.scrollTop + 14, stage.scrollTop + rect.height - 150)}px`;
-    tip.style.opacity = "1";
-  }
+  });
+  // The tip's full form when it lists only the first few ("…and N more"): a click pins it with everyone.
+  let tipAll = null;
+  const showTipHtml = (event, html, all = null) => {
+    tipAll = all;
+    tipPin.show(event, html);
+  };
+  // In a pinned tip the names open the profiles.
+  const rowName = (row, all) =>
+    all && row.wtid ? `<a href="${profileUrl(row.wtid)}" target="_blank" rel="noopener">${escapeText(row.name)}</a>` : escapeText(row.name);
 
   // "Lived through: the Great Famine (aged 12), …" from their own country's events.
   function historyNote(row) {
     if (!history.lanes) return "";
     const seen = livedThrough(row, countries).filter((entry) => entry.event.kind !== "record" && history.placed.some((item) => item.id === entry.event.id));
     if (!seen.length) return "";
-    const shown = seen.slice(0, 4).map((entry) => `${entry.event.label.replace(/^The\b/, "the")} (${entry.age ? `aged ${entry.age}` : "born during it"})`);
-    return `<div class="wbe-chart-tip-history">Lived through ${escapeText(shown.join(", "))}${seen.length > 4 ? ` and ${seen.length - 4} more` : ""}</div>`;
+    const events = seen.map((entry) => `${entry.event.label.replace(/^The\b/, "the")} (${entry.age ? `aged ${entry.age}` : "born during it"})`);
+    return `<div class="wbe-chart-tip-history">Lived through ${escapeText(joinWithAnd(events))}</div>`;
   }
 
   const lowerFirst = (text) => String(text || "").replace(/^\w/, (ch) => ch.toLowerCase());
@@ -478,12 +488,13 @@ export function showLifespansPopup(rows, options = {}) {
   // The year pill covers the axis; hide the years it would half cover.
   const showTickLabels = (year) => tickLabels.forEach((label) => label.attr("opacity", year !== undefined && Math.abs(x(Number(label.text())) - x(year)) < 36 ? 0 : 1));
   svg.on("mousemove", (event) => {
+    if (tipPin.pinned) return;
     const [mx] = pointer(event, svg.node());
     if (mx < LEFT) {
       showTickLabels();
       scrub.attr("opacity", 0);
       bars.attr("fill-opacity", 1);
-      tip.style.opacity = "0";
+      tipPin.hide();
       return;
     }
     const year = Math.round(x.invert(mx));
@@ -509,15 +520,13 @@ export function showLifespansPopup(rows, options = {}) {
       const aliveRows = new Set(alive.map((entry) => entry.row));
       bars.attr("fill-opacity", (d) => (aliveRows.has(d.row) ? 1 : 0.18));
       shadeEvent(historyEvent);
-      showTipHtml(
-        event,
+      const eventTip = (all) =>
         `<div class="wbe-chart-tip-rel">${escapeText(eventYears(historyEvent.full))}</div><b>${escapeText(historyEvent.label)}</b>
         <div>${alive.length ? `${alive.length} of these ${words(2)} alive` : `None of these ${words(2)} alive (with known dates)`}</div>
-        ${alive
-          .slice(0, 6)
-          .map((entry) => `<div>${escapeText(entry.row.name)} <span style="opacity:.6">${escapeText(lowerFirst(entry.row.relation))}</span>: ${entry.age ? `aged ${entry.age}` : "born during it"}</div>`)
-          .join("")}${alive.length > 6 ? `<div>…and ${alive.length - 6} more</div>` : ""}`
-      );
+        ${(all ? alive : alive.slice(0, 6))
+          .map((entry) => `<div>${rowName(entry.row, all)} <span style="opacity:.6">${escapeText(lowerFirst(entry.row.relation))}</span>: ${entry.age ? `aged ${entry.age}` : "born during it"}</div>`)
+          .join("")}${all ? "" : tipMoreHint(alive.length - 6)}`;
+      showTipHtml(event, eventTip(false), alive.length > 6 ? () => eventTip(true) : null);
       return;
     }
     shadeEvent(focusEvent, 0.1);
@@ -537,23 +546,26 @@ export function showLifespansPopup(rows, options = {}) {
     }
     const counted = alive.filter(({ row }) => !isRoot(row));
     const now = history.placed.filter((item) => item.start <= year && year <= item.end);
-    const lines = counted
-      .slice(0, 12)
-      .map(({ row }) => `<div>${escapeText(row.name)} <span style="opacity:.6">${escapeText(lowerFirst(row.relation))}</span>: ${year - row.start}${row.endKnown ? "" : "?"}</div>`)
-      .join("");
-    showTipHtml(
-      event,
-      `<div class="wbe-chart-tip-rel">In ${year}</div><b>${counted.length} ${words(counted.length)} alive</b>${lines}${
-        counted.length > 12 ? `<div>…and ${counted.length - 12} more</div>` : ""
-      }${now.map((item) => `<div class="wbe-chart-tip-history" style="color:${EVENT_KIND_COLOURS[item.kind]}">◆ ${escapeText(item.label)}</div>`).join("")}`
-    );
+    const yearTip = (all) =>
+      `<div class="wbe-chart-tip-rel">In ${year}</div><b>${counted.length} ${words(counted.length)} alive</b>${(all ? counted : counted.slice(0, 12))
+        .map(({ row }) => `<div>${rowName(row, all)} <span style="opacity:.6">${escapeText(lowerFirst(row.relation))}</span>: ${year - row.start}${row.endKnown ? "" : "?"}</div>`)
+        .join("")}${all ? "" : tipMoreHint(counted.length - 12)}${now
+        .map((item) => `<div class="wbe-chart-tip-history" style="color:${EVENT_KIND_COLOURS[item.kind]}">◆ ${escapeText(item.label)}</div>`)
+        .join("")}`;
+    showTipHtml(event, yearTip(false), counted.length > 12 ? () => yearTip(true) : null);
+  });
+  // A click pins a tip that lists only the first few; the next click closes it. (A click on a bar opens the profile.)
+  svg.on("click.pin", (event) => {
+    if (tipPin.unpin()) return;
+    if (tipAll && !event.target?.__data__?.row) tipPin.pin(event, tipAll());
   });
   svg.on("mouseleave", () => {
+    if (tipPin.pinned) return;
     shadeEvent(focusEvent, 0.1);
     showTickLabels();
     scrub.attr("opacity", 0);
     bars.attr("fill-opacity", 1);
-    tip.style.opacity = "0";
+    tipPin.hide();
   });
 
   // Legend for the colour mode, and the average age by century as little bars.

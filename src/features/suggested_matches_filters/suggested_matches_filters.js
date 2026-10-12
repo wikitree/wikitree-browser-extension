@@ -277,7 +277,9 @@ function initTextFilter() {
     //
     $("table#matchesTable tr[id^=potentialMatch]").each(function () {
       const $row = $(this);
-      const nameText = $row.find("td").eq(0).text().toLowerCase();
+      // Profile-detail chips (e.g. "unsourced") are searchable while shown, but not the relatives/categories lines.
+      const hiddenDetails = $("#potentialMatchesSection").hasClass("smfHideDetails") ? ".smfDetails" : ".smfLine";
+      const nameText = $row.find("td").eq(0).clone().find(hiddenDetails).remove().end().text().toLowerCase();
       const birthText = $row.find("td").eq(1).text().toLowerCase();
       const deathText = $row.find("td").eq(2).text().toLowerCase();
 
@@ -418,12 +420,7 @@ function initTextFilter() {
 
 shouldInitializeFeature("suggestedMatchesFilters").then((result) => {
   if (result) {
-    $("#enterBasicDataButton").on("click", function () {
-      setTimeout(() => {
-        checkReady();
-      }, 2000);
-      addNewPersonToH1();
-    });
+    // initCheckAgainLogic's click handler runs the lookup (a second handler here set the filters up twice).
     initCheckAgainLogic();
   }
 });
@@ -1123,6 +1120,12 @@ async function initSuggestedMatchesFilters() {
     <button class="btn btn-secondary" id="locationFilterButton">location</button>
     <button class="btn btn-secondary" id="nameFilterButton">name</button>
     <button class="btn btn-secondary" id="dateFilterButton">date</button>
+    <span id="smfDetailsSwitch" class="smfSwitch" role="button" tabindex="0" aria-pressed="false"
+      title="Show each suggestion's family, sources, stickers and categories">
+      <span class="smfSwitchLabel">Details</span>
+      <span class="smfSwitchTrack"><span class="smfSwitchKnob"></span></span>
+      <span class="smfSwitchState">Off</span>
+    </span>
 
     <div class="textFilter">
       <label for="suggestedMatchesTextFilter">Text Filter: </label>
@@ -1170,6 +1173,7 @@ async function initSuggestedMatchesFilters() {
       <li><em>Death‐only</em> (e.g. <code>d<1900</code> or <code>death>1950</code>) → match rows whose death‐year is &lt;1900 or &gt;1950.</li>
       <li><em>Generic year</em> (e.g. <code><1900</code> or <code>>1850</code>) → match if <strong>any</strong> four‐digit year (in Birth or Death) satisfies that comparison.</li>
     </ul>
+    <p>Profile details are searchable too, e.g. <code>!unsourced</code>, <code>!"no family"</code> or <code>!unconnected</code>.</p>
     <p>Combine these in clauses with <code>OR</code> (or <code>||</code>) to create alternate clauses. Negations always apply globally.</p>
   </div>
 `);
@@ -1234,6 +1238,7 @@ async function initSuggestedMatchesFilters() {
     if (options.highlightMatches) {
       highlightMatches();
     }
+    initDetailsSwitch();
     if (options.defaultFilterText) {
       $("#suggestedMatchesTextFilter").val(options.defaultFilterText);
       $("#suggestedMatchesTextFilter").trigger("input");
@@ -1301,6 +1306,226 @@ async function initSuggestedMatchesFilters() {
     }
   });
 }
+
+// Templates that cite or illustrate rather than describe the person; not shown as stickers.
+const NON_STICKER_TEMPLATE =
+  /^(image|unsourced|familysearch|findagrave|billiongraves|wikidata|wikipedia|ancestry|geni|archive|cite|citation|fold3|newspapers|freebmd|gro|scotlandspeople|clear|ref)\b/i;
+
+function chunk(list, size) {
+  const chunks = [];
+  for (let i = 0; i < list.length; i += size) chunks.push(list.slice(i, i + size));
+  return chunks;
+}
+
+// Counts citations in a wiki bio: <ref> tags (not reuses) plus bullets under == Sources ==.
+function countSources(bio) {
+  if (!bio) return 0;
+  const refs = (bio.match(/<ref(\s[^>]*)?>/gi) || []).filter((tag) => !tag.endsWith("/>")).length;
+  const sourcesSection = bio.split(/^==\s*Sources\s*==\s*$/im)[1] || "";
+  const bullets = (sourcesSection.split(/^==[^=]/m)[0].match(/^\*/gm) || []).length;
+  return refs + bullets;
+}
+
+function plural(count, word, pluralWord = word + "s") {
+  return `${count} ${count === 1 ? word : pluralWord}`;
+}
+
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
+
+async function fetchProfileDetails(ids) {
+  const details = {};
+  for (const ids100 of chunk(ids, 100)) {
+    const [, resultByKey, people] = await WikiTreeAPI.getPeople(
+      WBE_SMF_APP_ID,
+      ids100,
+      "Id,Name,Categories,Templates,Bio,Photo,Connected,Father,Mother,Spouses",
+      { bioFormat: "wiki" }
+    );
+    ids100.forEach((id) => {
+      const person = people && resultByKey ? WikiTreeAPI.lookupProfile(id, resultByKey, people) : null;
+      if (person) details[id] = { person };
+    });
+  }
+  // A separate nuclear call for the family (without bios, which would come for every relative too).
+  // Relatives come back as a flat list, so match them to each profile by Id and Father/Mother.
+  for (const ids25 of chunk(ids, 25)) {
+    const [, , family] = await WikiTreeAPI.getPeople(
+      WBE_SMF_APP_ID,
+      ids25,
+      "Id,Name,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,Father,Mother",
+      { nuclear: 1, limit: 1000 }
+    );
+    const relatives = Object.values(family || {});
+    const byId = (relativeId) => family?.[relativeId] || { Id: relativeId };
+    const byBirth = (a, b) => (getYear(a.BirthDate) || 9999) - (getYear(b.BirthDate) || 9999);
+    ids25.forEach((id) => {
+      const person = details[id]?.person;
+      if (!person) return;
+      const parentIds = [person.Father, person.Mother].filter((parentId) => parentId > 0);
+      const spouses = Array.isArray(person.Spouses) ? person.Spouses : Object.values(person.Spouses || {});
+      details[id].family = {
+        parents: [person.Father, person.Mother].filter(Boolean).map(byId),
+        spouses: spouses.map((spouse) => ({ ...spouse, ...byId(Number(spouse.Id)) })),
+        children: relatives.filter((r) => r.Father === person.Id || r.Mother === person.Id).sort(byBirth),
+        siblings: relatives
+          .filter((r) => r.Id !== person.Id && (parentIds.includes(r.Father) || parentIds.includes(r.Mother)))
+          .sort(byBirth),
+      };
+    });
+  }
+  return details;
+}
+
+function relativeHtml(relative) {
+  // e.g. "Paralee (Young) Smith"
+  const lastNames =
+    relative.LastNameCurrent && relative.LastNameCurrent !== relative.LastNameAtBirth
+      ? `(${relative.LastNameAtBirth}) ${relative.LastNameCurrent}`
+      : relative.LastNameAtBirth;
+  const fullName = [relative.FirstName, relative.MiddleName, lastNames].filter(Boolean).join(" ");
+  const name = fullName || relative.Name || "Private";
+  const birthYear = getYear(relative.BirthDate);
+  const deathYear = getYear(relative.DeathDate);
+  const years = birthYear || deathYear ? ` (${birthYear || "?"}–${deathYear || ""})` : "";
+  const link = relative.Name
+    ? `<a href="https://www.wikitree.com/wiki/${encodeURIComponent(relative.Name)}" target="_blank">${escapeHtml(name)}</a>`
+    : escapeHtml(name);
+  return link + escapeHtml(years);
+}
+
+function profileDetailsHtml(detail) {
+  const p = detail.person;
+  const chips = [];
+  const lines = [];
+  const chip = (text, cls = "", title = "") =>
+    `<span class="smfChip ${cls}"${title ? ` title="${escapeHtml(title)}"` : ""}>${escapeHtml(text)}</span>`;
+  const line = (label, itemsHtml) =>
+    lines.push(`<div class="smfLine"><span class="smfLabel">${label}:</span> ${itemsHtml.join(", ")}</div>`);
+
+  const family = detail.family || { parents: [], spouses: [], children: [], siblings: [] };
+  [
+    ["Parent", "Parents", family.parents],
+    ["Spouse", "Spouses", family.spouses],
+    ["Child", "Children", family.children],
+    ["Sibling", "Siblings", family.siblings],
+  ].forEach(([word, pluralWord, relatives]) => {
+    if (relatives.length) line(relatives.length === 1 ? word : pluralWord, relatives.map(relativeHtml));
+  });
+  if (!lines.length) chips.push(chip("no family", "smfWarn"));
+
+  if (p.Connected === 0) chips.push(chip("unconnected", "smfWarn", "Not connected to the global tree"));
+
+  const templateNames = [...new Set((p.Templates || []).map((t) => t?.name).filter(Boolean))];
+  if (templateNames.some((name) => /^unsourced\b/i.test(name))) {
+    chips.push(chip("unsourced", "smfWarn"));
+  } else if (p.bio !== undefined) {
+    const sources = countSources(p.bio);
+    chips.push(chip(sources ? plural(sources, "source") : "no sources", sources ? "" : "smfWarn"));
+  }
+
+  if (p.Photo) chips.push(chip("photo"));
+
+  const stickers = templateNames.filter((name) => !NON_STICKER_TEMPLATE.test(name));
+  const categories = (p.Categories || []).map((name) => String(name).replaceAll("_", " "));
+  // Category and sticker names contain commas, so show them as pills rather than a comma list.
+  const pills = (label, pillsHtml) =>
+    lines.push(`<div class="smfLine"><span class="smfLabel">${label}:</span> <span class="smfPills">${pillsHtml.join("")}</span></div>`);
+  if (stickers.length) {
+    pills(
+      stickers.length === 1 ? "Sticker" : "Stickers",
+      stickers.map((name) => `<span class="smfPill smfSticker">${escapeHtml(name)}</span>`)
+    );
+  }
+  if (categories.length) {
+    pills(
+      categories.length === 1 ? "Category" : "Categories",
+      (p.Categories || []).map(
+        (name) =>
+          `<a class="smfPill" href="https://www.wikitree.com/wiki/Category:${encodeURIComponent(name)}" target="_blank">` +
+          `${escapeHtml(String(name).replaceAll("_", " "))}</a>`
+      )
+    );
+  }
+
+  return `<div class="smfDetails"><div class="smfChips">${chips.join("")}</div>${lines.join("")}</div>`;
+}
+
+const DETAILS_STORAGE_KEY = "wbeSuggestedMatchesDetails";
+
+function setDetailsSwitch(on) {
+  $("#smfDetailsSwitch")
+    .toggleClass("smfSwitchOn", on)
+    .attr("aria-pressed", String(on))
+    .find(".smfSwitchState")
+    .text(on ? "On" : "Off");
+  $("#potentialMatchesSection").toggleClass("smfHideDetails", !on);
+  // Details are only fetched once they're wanted.
+  const $table = $("table#matchesTable");
+  if (on && !$table.data("smfDetailsRequested")) {
+    $table.data("smfDetailsRequested", true);
+    addProfileDetails();
+  }
+  $("#suggestedMatchesTextFilter").trigger("input");
+}
+
+function initDetailsSwitch() {
+  let on = true;
+  try {
+    on = localStorage.getItem(DETAILS_STORAGE_KEY) !== "off";
+  } catch (error) {
+    // Storage unavailable: default to on.
+  }
+  setDetailsSwitch(on);
+}
+
+// Bound once here: the filters can be set up more than once per page, and a second handler would undo each click.
+$(document).on("click keydown", "#smfDetailsSwitch", function (e) {
+  if (e.type === "keydown" && e.key !== "Enter" && e.key !== " ") return;
+  e.preventDefault();
+  const nowOn = !$(this).hasClass("smfSwitchOn");
+  try {
+    localStorage.setItem(DETAILS_STORAGE_KEY, nowOn ? "on" : "off");
+  } catch (error) {
+    // Not remembered; fine.
+  }
+  setDetailsSwitch(nowOn);
+});
+
+async function addProfileDetails() {
+  const rows = $("table#matchesTable tr[id^=potentialMatch]").get();
+  const ids = [
+    ...new Set(
+      rows
+        .map((row) => $(row).find("td").eq(0).find("a").first().attr("href")?.split("wiki/")[1])
+        .filter(Boolean)
+        .map((id) => decodeURIComponent(id).replaceAll(" ", "_"))
+    ),
+  ];
+  if (!ids.length) return;
+
+  let details;
+  try {
+    details = await fetchProfileDetails(ids);
+  } catch (error) {
+    console.error("Suggested Matches Filters: couldn't load profile details", error);
+    return;
+  }
+
+  rows.forEach((row) => {
+    const nameCell = $(row).find("td").eq(0);
+    const href = nameCell.find("a").first().attr("href");
+    const id = href && decodeURIComponent(href.split("wiki/")[1] || "").replaceAll(" ", "_");
+    if (!details[id]) return;
+    nameCell.find(".smfDetails").remove();
+    nameCell.append(profileDetailsHtml(details[id]));
+  });
+
+  // Re-run any text filter so it can match the new details.
+  $("#suggestedMatchesTextFilter").trigger("input");
+}
+
 
 function initCheckAgainLogic() {
   const $btn = $("#enterBasicDataButton");

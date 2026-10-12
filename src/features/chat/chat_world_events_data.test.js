@@ -1,6 +1,7 @@
 jest.mock("../../core/common", () => ({ getProfilePersonInfo: jest.fn(() => ({ Name: "Cook-8721" })) }));
 import { WORLD_EVENTS, eventsForRows, placeCountry, placeRegions, aliveFor, buildHistorySummary, buildPersonHistorySummary, eventsForSpan, eventYears, findEvent, livedThrough, parseHistoryPrompt, rowCountries } from "./chat_world_events_data";
 import { laneEvents } from "./chat_lifespans_chart";
+import { plainMoreText, shortMoreText } from "./chat_more_text";
 import { routeChatPrompt, ChatIntent } from "./chat_router";
 import { isWtPlusOnlyPrompt } from "./chat_search_mode";
 
@@ -116,11 +117,14 @@ describe("buildHistorySummary", () => {
   });
 
   test("one event: those born there lead", () => {
-    const text = buildHistorySummary(rows, "Your", ["Ireland", "United States"], "great-famine");
+    const full = buildHistorySummary(rows, "Your", ["Ireland", "United States"], "great-famine");
+    const text = shortMoreText(full);
     expect(text).toMatch(/^3 of your ancestors with known dates were alive during the Great Famine in Ireland \(1845–1852\):/);
     expect(text).toMatch(/• Pat Murphy \(your grandfather, aged 15\), born in Cork, Ireland/);
     expect(text).not.toMatch(/• John Smith/);
     expect(text).toMatch(/\(1 more was alive then but born and died elsewhere\.\)/);
+    // "1 more" opens them
+    expect(plainMoreText(full)).toMatch(/Alive then but born and died elsewhere:\n• John Smith/);
   });
 
   test("nobody alive", () => {

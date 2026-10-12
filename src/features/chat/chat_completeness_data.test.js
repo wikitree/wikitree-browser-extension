@@ -1,4 +1,5 @@
 import { parseCompletenessPrompt, nearestGaps, buildCompletenessSummary, buildCompletenessGrid, branchCompleteness, describeBranchCompleteness } from "./chat_completeness_data";
+import { plainMoreText, shortMoreText } from "./chat_more_text";
 
 const person = (name, gender = "Male") => ({ name, wtid: `${name}-1`, id: name, gender });
 
@@ -56,7 +57,9 @@ describe("completeness summary", () => {
     expect(text).toContain("5 of 14 ancestors over 3 generations");
     expect(text).toContain("• Parents: 2 of 2 (100%) ✓");
     expect(text).toContain("• Grandparents: 3 of 4 (75%)");
-    expect(text).toContain("Cat (mother) has no father recorded; Dan (grandfather) has no parents recorded; Eve (grandmother) has no parents recorded; and 1 more brick wall.");
+    expect(shortMoreText(text)).toContain("Cat (mother) has no father recorded; Dan (grandfather) has no parents recorded; Eve (grandmother) has no parents recorded; and 1 more brick wall.");
+    // "1 more" opens the rest
+    expect(plainMoreText(text)).toContain("Eve (grandmother) has no parents recorded; Gil (grandfather) has no parents recorded. The fan chart");
   });
 
   test("no parents at all", () => {

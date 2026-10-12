@@ -1,3 +1,4 @@
+import { plainMoreText, shortMoreText } from "./chat_more_text";
 import { parseFamilyTimelinePrompt, buildFamilyTimelineRows, rowSpan, aliveIn, buildFamilyTimelineSummary, familyLifespanRows } from "./chat_family_timeline_data";
 import { isProfileNarrativePrompt } from "./chat_profile_narrative";
 
@@ -79,5 +80,11 @@ describe("buildFamilyTimelineRows", () => {
     expect(buildFamilyTimelineSummary(rows, "Ellen's")).toBe(
       "Ellen's family timeline shows 6 people from 1800 to 1945. Ellen shared the most years with Charles (husband): 46."
     );
+  });
+
+  test("summary: those with no birth year are a link that names them", () => {
+    const text = buildFamilyTimelineSummary([...rows, { id: 99, name: "Lost Child", relation: "Son", role: "child" }], "Ellen's");
+    expect(shortMoreText(text)).toMatch(/: 46\. 1 more has no birth year\.$/);
+    expect(plainMoreText(text)).toMatch(/: 46\. No birth year for Lost Child \(son\)\.$/);
   });
 });

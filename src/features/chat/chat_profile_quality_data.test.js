@@ -91,8 +91,8 @@ describe("buildNeedsHelpAnswer", () => {
       "Marked as needing work (Research Status), 1:",
       '- Help Requested: Ann (A-1), 94%: needs "no more children" box',
       "The least complete against the Gold Standard checklist:",
-      "- Cid (C-1), 87%: needs birth place, death place",
-      "- Bob (B-1), 87%: needs birth place, death place",
+      "- Cid (C-1), 87%: needs birth place and death place",
+      "- Bob (B-1), 87%: needs birth place and death place",
     ]);
   });
   test("no statuses set", () => {

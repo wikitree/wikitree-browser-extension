@@ -2,6 +2,7 @@ import $ from "jquery";
 import { escapeHtml } from "../../core/lib/diff_utils";
 import { renderSearchForm } from "./chat_search_form";
 import { isTreeAppAction } from "./chat_tree_apps";
+import { moreTextToHtml } from "./chat_more_text";
 
 export function createChatHistoryHandlers({
   chatMessagesId,
@@ -382,6 +383,10 @@ export function createChatHistoryHandlers({
   }
 
   function formatStandardChatMessageBody(text) {
+    return moreTextToHtml(text, formatPlainChatText);
+  }
+
+  function formatPlainChatText(text) {
     // AI answers use **bold** and bare help-page URLs (live C34, 2026-10-03).
     // URLs are parked before the WT ID linker so an ID inside one stays intact.
     const urls = [];

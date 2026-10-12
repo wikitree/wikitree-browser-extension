@@ -30,6 +30,18 @@ export function plannerDriftsToBios(prompt, planned) {
   return planned?.intent === "spouseBio";
 }
 
+// "suggest ways to improve this profile" on Maloney-2333 became the tree-wide
+// "which of my ancestors need help" and a fan chart (Murray, 2026-10-12). Advice
+// about one profile is the AI's, with that profile's text; a tree-wide tool
+// answers only a question that asked about the tree or the ancestors.
+export function plannerDriftsFromOneProfile(prompt, planned) {
+  const original = String(prompt || "");
+  if (!/\b(?:this|the|his|her|their)\s+(?:profile|person|page|bio(?:graphy)?)\b|\b[A-Z][A-Za-z'_ -]*-\d+\b/.test(original)) return false;
+  if (/\b(?:ancestors?|tree|family|relatives|profiles|branch(?:es)?|lines?)\b/i.test(original)) return false;
+  const target = planned?.intent === "rewrite" ? String(planned.params?.prompt || "") : "";
+  return /\b(?:need(?:s)?\s+help|tree\s+overview|completeness|gold\s+standard)\b/i.test(target);
+}
+
 // "Do any of the people in the bio have WT profiles?" came back with target "null", so
 // Genie looked for a person called null (2026-10-07). A placeholder means "not given".
 const PLACEHOLDER_RE = /^(?:null|undefined|none|n\/a|unknown|nil|)$/i;
@@ -128,6 +140,8 @@ export function createChatAiPlannerHandlers({
       `    "find his family on WikiTree" / "find her family on WikiTree" / "find Smith-123's family on WikiTree" (whether the relatives named in a biography already have WikiTree profiles: parents, brothers and sisters, wife or husband, children, often on a profile with no family attached; keep his/her here; only the parents -> "are his parents on WikiTree", only the children -> "find her children on WikiTree"; "are any relatives on WikiTree?" with no "my" or "me" is about the profile person, so -> "find his family on WikiTree", never the user's own relatives)`,
       `    Write numbers as digits and ordinals as 3rd/7th.`,
       `- ${ChatIntent.FALLBACK_AI} with params {}`,
+      // Murray, 2026-10-12: "suggest ways to improve this profile" got the tree-wide tool.
+      `Advice about ONE profile ("suggest ways to improve this profile", "what could be improved on this profile?", "what's missing from Smith-123?", "suggest changes to his profile") is ${ChatIntent.FALLBACK_AI}: the AI answers from that profile's biography and sources. "this profile", "his"/"her" or no person = the profile person. The ancestors-need-help, completeness and tree overview tools are only for questions about the tree or the ancestors.`,
       "If unsure, return fallbackAi.",
       recentUserMessages ? `Recent user messages:\n${recentUserMessages}` : "",
       conversationContext ? `Recent conversation:\n${conversationContext}` : "",
@@ -159,7 +173,7 @@ export function createChatAiPlannerHandlers({
     }
 
     const planned = parsePlannerJson(response.response);
-    if (!planned?.intent || planned.intent === ChatIntent.FALLBACK_AI || plannerDriftsToBios(prompt, planned)) {
+    if (!planned?.intent || planned.intent === ChatIntent.FALLBACK_AI || plannerDriftsToBios(prompt, planned) || plannerDriftsFromOneProfile(prompt, planned)) {
       return null;
     }
     if (planned.intent === "rewrite") {

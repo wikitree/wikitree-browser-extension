@@ -1,4 +1,5 @@
 import { SHARED_AI_DEFAULT_MODELS, effectiveAiProvider } from "../../core/options/shared_ai_options";
+import { plainMoreText } from "./chat_more_text";
 
 // "AI on / AI off" in Genie's header: with a key, AI off answers as if there
 // were none (to try the no-key experience without removing it). Kept per browser.
@@ -28,7 +29,7 @@ export function createChatAiHelpers({
   chatAiHistoryMaxMessages = 12,
 }) {
   function truncateForAi(text, maxChars = chatAiMessageMaxChars) {
-    const normalized = String(text || "")
+    const normalized = plainMoreText(text || "")
       .replace(/\s+/g, " ")
       .trim();
     if (normalized.length <= maxChars) {

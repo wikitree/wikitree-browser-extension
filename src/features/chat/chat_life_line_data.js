@@ -7,6 +7,7 @@
 import { yearOf } from "./chat_chart_common";
 import { rowSpan } from "./chat_family_timeline_data";
 import { livedThrough, placeRegions } from "./chat_world_events_data";
+import { joinWithAndMore } from "./chat_more_text";
 
 const OWNER = String.raw`(my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s|[A-Z][A-Za-z'-]*(?:\s+[A-Z][A-Za-z'-]*){0,3}['’]s)`;
 const OWNER_AFTER = String.raw`(me|her|him|them|this\s+(?:profile|person)|[A-Z][A-Za-z'_ -]*?-\d+|[A-Z][A-Za-z'-]*(?:\s+[A-Z][A-Za-z'-]*){0,3})`;
@@ -201,7 +202,7 @@ export function buildLifeLineSummary(line, label) {
   const grandchildren = of("grandchild");
   if (grandchildren.length) lines.push(`• ${plural(grandchildren.length, "grandchild")} born in ${name}'s lifetime, the first in ${grandchildren[0].year} (aged ${grandchildren[0].age}).`);
   const events = line.history.filter((entry) => entry.event.kind !== "record");
-  if (events.length) lines.push(`• World events along the way: ${events.slice(0, 4).map(({ event, age }) => `${event.label.replace(/^The\b/, "the")} (${age ? `aged ${age}` : "born during it"})`).join(", ")}${events.length > 4 ? `, and ${events.length - 4} more` : ""}.`);
+  if (events.length) lines.push(`• World events along the way: ${joinWithAndMore(events.map(({ event, age }) => `${event.label.replace(/^The\b/, "the")} (${age ? `aged ${age}` : "born during it"})`), { max: 4 })}.`);
   if (!line.endKnown && !line.living) lines.push(`(No death year is recorded, so the line stops at ${line.end}.)`);
   if (lines.length === 1) lines.push("No marriages, children or family deaths with dates are recorded on WikiTree yet.");
   return lines.join("\n");

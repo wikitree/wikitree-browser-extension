@@ -6,6 +6,7 @@ import { canonicalChartOwner as canonicalOwner } from "./chat_chart_prompt";
 import { FAN_CHART_MAX_GENERATIONS, fanChartStats, generationOfSlot } from "./chat_fan_chart_data";
 import { ancestorWord, generationLabel } from "./chat_kin_labels";
 import { RELATIVE_OWNER } from "./chat_chart_owner";
+import { textWithMoreLink } from "./chat_more_text";
 
 const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const TREE = String.raw`(?:family\s+tree|tree|pedigree|ancestry|family\s+history)`;
@@ -117,12 +118,13 @@ export function buildCompletenessSummary(slots, ownerText) {
   });
   const gaps = nearestGaps(slots);
   if (gaps.length) {
-    const named = gaps.slice(0, 3).map((gap) => {
+    const named = gaps.map((gap) => {
       const who = gap.slot === 1 ? gap.child.name || gap.child.wtid : `${gap.child.name || gap.child.wtid} (${ancestorWord(gap.generation, gap.child.gender).toLowerCase()})`;
       return `${who} has no ${gap.missing} recorded`;
     });
-    const more = gaps.length - named.length;
-    lines.push(`The nearest gaps: ${named.join("; ")}${more > 0 ? `; and ${more} more brick wall${more === 1 ? "" : "s"}` : ""}. The fan chart marks them all.`);
+    const more = named.length - 3;
+    const listed = more > 0 ? textWithMoreLink(`${named.slice(0, 3).join("; ")}; and `, `${more} more`, ` brick wall${more === 1 ? "" : "s"}`, named.join("; ")) : named.join("; ");
+    lines.push(`The nearest gaps: ${listed}. The fan chart marks them all.`);
   } else {
     lines.push(`No brick walls inside ${rows.length} generations.`);
   }

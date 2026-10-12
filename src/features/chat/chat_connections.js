@@ -1921,6 +1921,14 @@ export function createChatConnectionHandlers({
         return "I could not detect a source profile for this connection lookup.";
       }
 
+      // "How am I related to Murray?", asked by Murray (2026-10-12): it searched for a path from him to himself.
+      if (sourceRoot.wtId && String(sourceRoot.wtId).toLowerCase() === String(targetWtId).toLowerCase()) {
+        const name = String(sourceRoot.displayName || matchedPerson.RealName || "").trim().split(/\s+/)[0] || targetWtId;
+        return promptRefersToUser(prompt)
+          ? `But… you are ${name}! (${targetWtId} is your own profile.) To see how you're related to someone else, ask "How am I related to Smith-123?" or open their profile and ask there.`
+          : `That's the same person twice: ${sourceRoot.displayName || matchedPerson.RealName || targetWtId} (${targetWtId}).`;
+      }
+
       const sourceKey = sourceRoot.wtId || String(sourceRoot.key || "");
       if (!sourceKey) {
         return "I could not detect a source profile for this connection lookup.";

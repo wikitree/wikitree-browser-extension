@@ -9,6 +9,7 @@
 // What it deliberately leaves alone: a bare "Kent 1820s" (a surname or a place?), "1800s"
 // (a century or a decade?), and anything with a word it can't place.
 
+import { withAccentsMasked } from "./chat_accent_mask";
 import { isKnownPlaceName } from "./chat_known_places";
 
 const LEAD_IN = /^\s*(?:(?:search(?:\s+for)?|find|show(?:\s+me)?|list|get|give\s+me)\s+)?(?:(?:who|which\s+(?:people|profiles))(?:\s+(?:was|were|is|are))?\s+)?/i;
@@ -31,8 +32,17 @@ const STATUS_FLAGS = [
   ["ResearchHelp", /\b(?:(?:with\s+)?(?:research\s+)?help\s+requested|(?:that\s+)?requested\s+(?:research\s+)?help|research\s+help)\b/i, "help requested"],
   ["ResearchReview", /\b(?:with\s+)?sources\s+to\s+review\b/i, "sources to review"],
   ["ResearchUnfinished", /\b(?:research\s+status\s+)?unfinished\b/i, "research unfinished"],
-  ["ResearchUnset", /\b(?:with\s+)?(?:no|without)\s+research\s+status(?:\s+set)?\b/i, "no research status"],
+  ["ResearchUnset", /\b(?:with\s+)?(?:no|without)\s+(?:an?\s+)?research\s+status(?:\s+set)?\b/i, "no research status"],
 ];
+
+// "with no birth date", "missing a death date": WT+'s B0 / D0 (the spec's missingDates). These went to the
+// FindAGrave suggestions instead ("FindAGrave - Empty birth date"): Edwards 7 there, 2,420 with B0 (2026-10-12).
+// "no birth place" / "no death location": the blank field (missingPlaces), not "Wrong word in last name at birth".
+const MISSING_FIELD =
+  /\b(?:with\s+)?(?:no|without|missing|(?:an?\s+)?(?:empty|blank|unknown))\s+(?:an?\s+|any\s+)?(birth|death)\s*(dates?|places?|locations?)\b/gi;
+
+// The same words at the very end of a name ("Category: Rodeo Cowboys without a father"), as [pattern, WT+ term].
+export const STATUS_FLAG_TAILS = STATUS_FLAGS.map(([term, re]) => [new RegExp(`\\s+(?:${re.source})$`, "i"), term]);
 
 // "profiles I manage", "managed by me", "my managed profiles": manager "me", the signed-in user (the
 // caller puts in the ID). Not "my profiles": that could be the watchlist.
@@ -86,6 +96,8 @@ const NATIONALITIES = {
   Filipino: "Philippines", Egyptian: "Egypt", Israeli: "Israel", Lebanese: "Lebanon", Iranian: "Iran",
   Maltese: "Malta", Luxembourgish: "Luxembourg",
 };
+/** "English" → "England"; anything else → "". */
+export const nationalityCountry = (word) => NATIONALITIES[word] || "";
 const NATIONALITY_PATTERN = new RegExp(`\\b(${Object.keys(NATIONALITIES).join("|")})\\b`);
 // Without a destination, WikiTree's own Emigrants / Immigrants categories are all there is to search.
 const EMIGRANT_PATTERN = /\b(?:who\s+)?(emigrated|emigrants|immigrated|immigrants)\b/i;
@@ -184,7 +196,15 @@ const isName = (word) => /^[A-Z][A-Za-z'-]+$/.test(word);
 const clean = (word) => word.replace(/^[^A-Za-z0-9§]+|[^A-Za-z0-9§'-]+$/g, "");
 
 /** The words of a sentence as a spec, or null when any word isn't accounted for. */
+// Accented names and places ("Müllers born in Zürich", "people born in Montréal") are read as plain
+// stand-ins and put back afterwards (2026-10-12): see chat_accent_mask.js.
 export function parseSearchSpecPrompt(prompt) {
+  return withAccentsMasked(prompt, parseAsciiSearchSpecPrompt);
+}
+
+function parseAsciiSearchSpecPrompt(prompt) {
+  // (Find a Grave's own checks are suggestions; "Find a Grave profiles in Devon" isn't the surname Grave)
+  if (/\bfind\s*a\s*grave\b/i.test(String(prompt || ""))) return null;
   let text = ` ${String(prompt || "")
     .trim()
     .replace(/[?!.\s]+$/, "")
@@ -203,6 +223,14 @@ export function parseSearchSpecPrompt(prompt) {
       text = text.replace(match[0], " §F ");
     }
   }
+  const missingDates = [];
+  const missingPlaces = [];
+  text = text.replace(MISSING_FIELD, (all, event, field) => {
+    const isDate = /^date/i.test(field);
+    (isDate ? missingDates : missingPlaces).push(event.toLowerCase());
+    flagLabels.push(`no ${event.toLowerCase()} ${isDate ? "date" : "place"}`);
+    return " §F ";
+  });
   let managedByMe = false;
   text = text.replace(MANAGED_BY_ME, () => {
     managedByMe = true;
@@ -386,28 +414,53 @@ export function parseSearchSpecPrompt(prompt) {
     sawMarker = true;
   }
   // "Devon profiles with no sources", "unsourced Devon profiles", "Kent people": a known place on its own with
-  // status words. It goes out as Location= and nothing else, which always asks first whether it's a birth,
-  // marriage or death place, or a surname ("Kent" is both). Anything else beside it and it would just run,
-  // so then it declines as before; "Garver profiles" is a surname as before (2026-10-10).
+  // status words. It goes out as Location=; on its own that asks first whether it's a birth, marriage or death
+  // place, or a surname ("Kent" is both). With dates beside it ("Lancashire profiles with no death date born
+  // before 1850") it runs as the place, and the result offers the surname instead, when WikiTree+ has
+  // profiles that way (Lancashire, England and Wales are surnames too; the user, 2026-10-12). "Garver
+  // profiles" is a surname as before (2026-10-10).
   if (
     lead.length &&
     lead.every(isName) &&
     isKnownPlaceName(lead.join(" ")) &&
     !places.length &&
-    !spanned.length &&
-    !gender &&
-    !created &&
     !managedByMe &&
     !occupation &&
     !migration &&
     !emigrantCategory &&
     !nationality &&
-    (flags.length || /\b(?:profiles|people|persons)\b/i.test(prompt))
+    (flags.length || missingDates.length || missingPlaces.length || /\b(?:profiles|people|persons)\b/i.test(prompt))
   ) {
     places.push({ text: lead.join(" "), event: "any" });
     lead.length = 0;
     sawMarker = true;
   }
+  // "the Smiths", "the Smith family", "Beacall family": a surname on its own, named as a family, is a name
+  // (it declined: no marker; "the Smiths" became AllLastNames=the Location=Smiths, 2026-10-12). Whether
+  // "Smiths" is the Smith family is the search's question (it counts both surnames on WikiTree+).
+  if (
+    lead.length === 1 &&
+    isName(lead[0]) &&
+    !isKnownPlaceName(lead[0]) &&
+    (/\bfamil(?:y|ies)\b/i.test(prompt) || (tokens.length === 2 && tokens[0].toLowerCase() === "the" && /s$/.test(lead[0])))
+  ) {
+    sawMarker = true;
+  }
+  // "Edwards profiles with no birth date", "Garver people unsourced": a name that isn't a known place, as
+  // profiles, with status words, is a surname (as "Garver profiles" is elsewhere; 2026-10-12).
+  if (
+    lead.length === 1 &&
+    isName(lead[0]) &&
+    !isKnownPlaceName(lead[0]) &&
+    !looksLikeNationality(lead[0]) &&
+    (flags.length || missingDates.length || missingPlaces.length) &&
+    /\b(?:profiles|people|persons)\b/i.test(prompt)
+  ) {
+    sawMarker = true;
+  }
+  // "Kent profiles born in Ohio", "Lancashire people who emigrated": a known place as profiles beside another
+  // place, a job or a migration could be the place or the surname, and neither reading is the likelier. Decline.
+  if (lead.length && isKnownPlaceName(lead.join(" ")) && /\b(?:profiles|people|persons)\b/i.test(prompt)) return null;
   const names = {};
   if (lead.length) {
     if (!sawMarker || lead.length > 2 || !lead.every(isName)) return null;
@@ -449,12 +502,14 @@ export function parseSearchSpecPrompt(prompt) {
   if (occupation) spec.anyOf = occupation.names.map((name) => ({ categories: [{ name, match: "word" }] }));
   if (gender) spec.gender = gender;
   if (flags.length) spec.flags = flags;
+  if (missingDates.length) spec.missingDates = [...new Set(missingDates)];
+  if (missingPlaces.length) spec.missingPlaces = [...new Set(missingPlaces)];
   if (managedByMe) spec.manager = "me";
   if (!Object.keys(spec).length) return null;
   // Something to search on besides a gender or a status word alone (the profiles you manage are enough).
   if (!spec.names && !spec.places && !spec.dates && !occupation && !emigrantCategory && !managedByMe) return null;
   // a nationality on its own ("Irish") says too little
-  if (nationality && !occupation && !migration && !emigrantCategory && !spec.dates && !spec.flags && !spec.gender && !spec.names && spec.places.length < 2) return null;
+  if (nationality && !occupation && !migration && !emigrantCategory && !spec.dates && !spec.flags && !spec.missingDates && !spec.missingPlaces && !spec.gender && !spec.names && spec.places.length < 2) return null;
 
   return { spec, understood: describeSpec(spec, flagLabels, createdLabel, { migration, occupation, nationality, emigrantCategory }) };
 }

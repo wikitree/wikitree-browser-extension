@@ -1,6 +1,14 @@
 import { getGenerationFromAhnen } from "./chat_ahnentafel";
+import { joinWithAnd } from "./chat_text_utils";
 import { trimUkCountrySuffix } from "./chat_place_text";
-import { singularSurnameRetryQuery } from "./chat_surname_plural";
+import {
+  pluralSurnameCandidates,
+  pluralSurnameReading,
+  singularSurname,
+  singularSurnameRetryQuery,
+  swapSurnames,
+  withSingularSurnames,
+} from "./chat_surname_plural";
 import { matchQueryCategories, queryHasCategoryTerms } from "./chat_query_categories";
 import { wtAPICatCIBSearch, wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import {
@@ -25,7 +33,8 @@ import {
   readSearchSpecReply,
 } from "./chat_search_spec";
 import { parseStatusPlaceDecadePrompt } from "./chat_status_place_decade_parser";
-import { parseSearchSpecPrompt } from "./chat_spec_parser";
+import { STATUS_FLAG_TAILS, nationalityCountry, parseSearchSpecPrompt } from "./chat_spec_parser";
+import { isKnownPlaceName } from "./chat_known_places";
 import { hasSentenceWords, looksLikeNotASurname, looksLikeSurnamePlace } from "./chat_sentence_words";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { dataTables, dataTablesLoad } from "../../core/API/wtPlusData";
@@ -111,6 +120,35 @@ function getCompactSuggestionCatalog() {
   }
   _compactSuggestionCatalog = lines.join(" | ");
   return _compactSuggestionCatalog;
+}
+
+/**
+ * The profile counts in a WT+ searchLog ("Result: 12", "Cached: 12", "Too many profiles!!! 466090"), NaN where
+ * absent. count is the one to believe: Result, else Cached, else the too-many total.
+ */
+export function wtPlusLogCounts(searchLog) {
+  const text = String(searchLog || "");
+  const number = (re) => {
+    const match = text.match(re);
+    return match?.[1] ? Number.parseInt(match[1], 10) : NaN;
+  };
+  const result = number(/\bResult:\s*(\d+)\b/i);
+  const cached = number(/\bCached:\s*(\d+)\b/i);
+  const tooMany = number(/Too many profiles!!!\s*(\d+)/i);
+  const count = [result, cached, tooMany].find(Number.isFinite);
+  return { result, cached, tooMany, hasTooMany: /Too many profiles!!!/i.test(text), count: count ?? NaN };
+}
+
+/** A button that runs another WT+ query in chat: another reading, scope or surname. */
+export function wtPlusRerunAction(label, wtPlusQuery, { suggestionId = "", suggestionOptions = {} } = {}) {
+  return {
+    label,
+    actionType: "fetch-wtplus-results",
+    wtPlusQuery,
+    wtPlusSearchType: "text",
+    wtPlusSuggestionId: suggestionId || "",
+    wtPlusSuggestionOptions: suggestionOptions || {},
+  };
 }
 
 /**
@@ -312,7 +350,9 @@ export function createProfileSearchHandler({
       const response = await wtAPICatCIBSearch("ChatWTPlusCategory", "category", requested);
       const categories = Array.isArray(response?.response?.categories) ? response.response.categories : [];
       if (!categories.length) {
-        return null;
+        // The catalogue answered and has no such category ("Rodeo Cowboys"; there are "Cowboys" and "Rodeo
+        // Professionals").
+        return response?.response ? { requested, category: "", unknown: true } : null;
       }
 
       const exact = categories.find(
@@ -338,6 +378,7 @@ export function createProfileSearchHandler({
           exact: false,
         };
       }
+      return { requested, category: "", unknown: true };
     } catch (error) {
       console.info("wbe: category validation failed", { categoryText: requested, error });
     }
@@ -970,14 +1011,7 @@ export function createProfileSearchHandler({
     }
 
     const withScope = (field) => query.replace(WT_PLUS_LOCATION_SCOPE_RE, `$1${field}=${rawValue}`);
-    const makeAction = (label, nextQuery) => ({
-      label,
-      actionType: "fetch-wtplus-results",
-      wtPlusQuery: nextQuery,
-      wtPlusSearchType: "text",
-      wtPlusSuggestionId: suggestionId || "",
-      wtPlusSuggestionOptions: suggestionOptions || {},
-    });
+    const makeAction = (label, nextQuery) => wtPlusRerunAction(label, nextQuery, { suggestionId, suggestionOptions });
 
     // After a zero result, born/married/died in the same place can only find
     // fewer (none), so only other readings are worth offering.
@@ -996,17 +1030,9 @@ export function createProfileSearchHandler({
       actions.push(makeAction(`Any place in ${display}`, query));
     }
 
-    // A single unquoted word may be ambiguous: "Kent" is a county AND a surname,
-    // so offer the surname reading. But don't offer it for words that can only
-    // be places ("Denbighshire", "Scotland") — no surname ends in -shire.
-    const isSingleWord = /^[A-Za-z][A-Za-z'-]*$/.test(display);
-    const isUnambiguousPlace =
-      /(?:shire|county)$/i.test(display) ||
-      WT_PLUS_KNOWN_COUNTRY_NAMES.some((country) => String(country).toLowerCase() === display.toLowerCase());
-    if (isSingleWord && !isUnambiguousPlace) {
-      actions.push(
-        makeAction(`Surname ${display}`, query.replace(WT_PLUS_LOCATION_SCOPE_RE, `$1AllLastNames=${rawValue}`))
-      );
+    // The word as a surname, when WikiTree+ finds profiles that way (locationSurnameReading).
+    if (options.surname?.query) {
+      actions.push(makeAction(options.includeAny ? `Surname ${display}` : `Search the surname ${display} instead`, options.surname.query));
     }
 
     return actions;
@@ -1060,14 +1086,7 @@ export function createProfileSearchHandler({
       const parsed = JSON.parse(jsonText);
       if (!Array.isArray(parsed) || !parsed.length) return null;
 
-      const makeAction = (label, nextQuery) => ({
-        label,
-        actionType: "fetch-wtplus-results",
-        wtPlusQuery: nextQuery,
-        wtPlusSearchType: "text",
-        wtPlusSuggestionId: suggestionId || "",
-        wtPlusSuggestionOptions: suggestionOptions || {},
-      });
+      const makeAction = (label, nextQuery) => wtPlusRerunAction(label, nextQuery, { suggestionId, suggestionOptions });
       const quoteVal = (value) => {
         const clean = stripSurroundingQuotes(String(value || "")).trim();
         if (!clean) return "";
@@ -1224,9 +1243,21 @@ export function createProfileSearchHandler({
 
     for (const match of matches) {
       const rawValue = match[1];
-      const requestedCategory = stripSurroundingQuotes(rawValue);
+      // The catalogue knows names as written ("Mayflower Passengers", "British Army, World War II").
+      const requestedCategory = stripSurroundingQuotes(rawValue).replace(/__/g, ", ").replace(/_/g, " ");
       const resolved = await resolveWtPlusCategoryName(requestedCategory);
-      if (!resolved?.category) continue;
+      if (resolved?.unknown) {
+        // No category has that name; every category containing it is the nearest search (CategoryWord takes a
+        // phrase: "Rodeo Cowboys" 35).
+        categoryMatches.push({ requested: requestedCategory, category: "", asWord: true });
+        nextQuery = nextQuery.replace(match[0], `CategoryWord=${quoteWtPlusValue(requestedCategory)}`);
+        continue;
+      }
+      if (!resolved?.category) {
+        // Lookup failed: still write the name the way WT+ stores it.
+        nextQuery = nextQuery.replace(match[0], `CategoryFull=${toWtPlusCategoryFullValueFromCategoryName(requestedCategory)}`);
+        continue;
+      }
 
       // No category is named "Titanic Passengers"; the closest was "Guernsey,
       // RMS Titanic Passengers" (3). Every category containing the phrase is
@@ -1240,8 +1271,10 @@ export function createProfileSearchHandler({
         continue;
       }
 
+      // CategoryFull takes the stored name, spaces as _ and ", " as __: CategoryFull=Mayflower_Passengers is 104
+      // profiles, CategoryFull="Mayflower Passengers" none (WT+ live, 2026-10-12).
       categoryMatches.push(resolved);
-      nextQuery = nextQuery.replace(match[0], `CategoryFull=${quoteWtPlusValue(resolved.category)}`);
+      nextQuery = nextQuery.replace(match[0], `CategoryFull=${toWtPlusCategoryFullValueFromCategoryName(resolved.category)}`);
     }
 
     return {
@@ -1252,7 +1285,7 @@ export function createProfileSearchHandler({
 
   function normalizeWtPlusCategorySearchSeed(value) {
     return String(value || "")
-      .replace(/^\s*(?:search(?:\s+for)?|find|show|list|get|look(?:\s+up)?)\s+/i, "")
+      .replace(/^\s*(?:search(?:\s+for)?|find(?!\s*a\s*grave\b)|show|list|get|look(?:\s+up)?)\s+/i, "")
       .replace(/\b(?:profiles?|people|members?)\b/gi, " ")
       .replace(/\bcategory\b/gi, " ")
       .replace(/\s{2,}/g, " ")
@@ -4497,7 +4530,7 @@ export function createProfileSearchHandler({
   function inferWtPlusFamilyFieldFromRawQuery(rawQuery) {
     const normalizedText = String(rawQuery || "")
       .trim()
-      .replace(/^\s*(?:search(?:\s+for)?|find|show|list|get|look(?:\s+up)?)\s+/i, "")
+      .replace(/^\s*(?:search(?:\s+for)?|find(?!\s*a\s*grave\b)|show|list|get|look(?:\s+up)?)\s+/i, "")
       .replace(/^\s*(?:me\s+)?/i, "")
       .replace(/[.!?]+$/g, "")
       .trim();
@@ -4641,16 +4674,151 @@ export function createProfileSearchHandler({
     };
   }
 
+  // The category a prompt names, with any family or status words after it, or null: "Category: Irish Quakers",
+  // "profiles in category Irish Quakers unsourced", "Salem Witch Trials category", "profiles in the Irish Quakers
+  // category". Words before it other than these are part of the search, so it takes nothing: "What's the syntax
+  // for finding unsourced profiles in Category: Irish Quakers?" ran CategoryFull=Irish_Quakers? (23,281, every
+  // category starting "Irish_Quakers", and no "unsourced"; sweep 2026-10-12). "Hopkins in the Mayflower Passengers
+  // category" isn't a category name either.
+  const CATEGORY_LEAD_IN =
+    /^(?:(?:show|find|list|search(?:\s+for)?)\s+(?:me\s+)?|(?:who|which\s+(?:profiles|people)|how\s+many\s+(?:profiles|people))\s+(?:is|are|was|were)\s+|who['’]s\s+)?(?:(?:all\s+)?(?:the\s+)?(?:profiles?|people|members?)\s+)?(?:(?:in|from)\s+)?(?:the\s+)?/i;
+  function categoryNameFromPrompt(raw) {
+    const text = String(raw || "")
+      .trim()
+      .replace(/^["“”'‘’\s[]+|["“”'‘’\s\]]+$/g, "")
+      .replace(/\s*[?.!]+$/, "");
+    let match = text.match(
+      /^(.*?)\bcategory\s*[:=-]?\s*(?!born\b|died\b|married\b|with\b|ancestors?\b|descendants?\b|cc7\b|in\s+tree\b|word\b)(.+)$/i
+    );
+    if (match && !match[1].replace(CATEGORY_LEAD_IN, "").trim()) return stripSurroundingQuotes(match[2]) || null;
+    // ("Rodeo Professionals category without a spouse": family, status and clause words may follow)
+    match = text.match(/^(.+?)\s+category\b(.*)$/i);
+    if (!match) return null;
+    const name = stripSurroundingQuotes(match[1].replace(CATEGORY_LEAD_IN, ""));
+    if (!name || /\b(?:category|in|who|whose|which|my|our|profiles?|people)\b/i.test(name)) return null;
+    const rest = match[2].trim();
+    return !rest || buildWtPlusCategoryQuery(`${name} ${rest}`)?.category === name ? `${name}${rest ? ` ${rest}` : ""}` : null;
+  }
+
+  // "Category: Rodeo Cowboys with children" (a WT+ user, 2026-10-12): the category is "Rodeo Cowboys" and
+  // "with children" is WT+'s NOT NoChildren; it searched for a category called "Rodeo Cowboys with children".
+  // Family and status words at the end (in words or as WT+'s own NoChildren / NOT NoFather …) come off the name;
+  // then a date or place the search reader knows ("Category: Pennsylvania Quakers died before 1800"). Anything
+  // else after "who/with/born/died…" isn't a name and isn't understood, so there's no category search at all.
+  const CATEGORY_FAMILY_TAILS = [
+    ["NoChildren", "(?:children|kids)"],
+    ["NoFather", "(?:a\\s+)?father"],
+    ["NoMother", "(?:a\\s+)?mother"],
+    ["NoParents", "(?:both\\s+)?parents"],
+    ["NoSpouses", "(?:a\\s+)?(?:spouses?|husband|wife)"],
+  ].flatMap(([flag, what]) => [
+    [new RegExp(`\\s+(?:(?:who|that)\\s+(?:have|has|had)|with|having)\\s+(?:any\\s+|some\\s+)?${what}$`, "i"), `NOT ${flag}`],
+    [new RegExp(`\\s+(?:(?:who|that)\\s+(?:have|has|had)\\s+no|with\\s+no|having\\s+no|without(?:\\s+any)?)\\s+${what}$`, "i"), flag],
+  ]);
+  const CATEGORY_CLAUSE_START = /\s+(?=(?:who|whose|which|that|with|without|having|born|died|married|buried|and\s+its|but\s+not)\b)/i;
+  function buildWtPlusCategoryQuery(raw) {
+    let category = String(raw || "")
+      .trim()
+      .replace(/\s*[?.!]+$/, "");
+    const terms = [];
+    const tails = [
+      ...CATEGORY_FAMILY_TAILS,
+      // (the search reader's own words: "without a father", "unsourced", "gold standard")
+      ...STATUS_FLAG_TAILS,
+      [/\s+(NOT\s+)?(NoFather|NoMother|NoParents|NoSpouses|NoChildren)$/i, null],
+    ];
+    for (let changed = true; changed; ) {
+      changed = false;
+      for (const [re, term] of tails) {
+        const tail = category.match(re);
+        if (!tail) continue;
+        terms.unshift(term || `${tail[1] ? "NOT " : ""}${tail[2]}`);
+        category = category.slice(0, tail.index).trim();
+        changed = true;
+      }
+    }
+    const clause = category.match(CATEGORY_CLAUSE_START);
+    if (clause) {
+      const rest = parseSearchSpecPrompt(category.slice(clause.index).trim());
+      const compiled = rest?.spec ? compileSearchSpec(rest.spec, {}) : null;
+      if (!compiled?.query || compiled.errors?.length) return null;
+      terms.unshift(compiled.query);
+      category = category.slice(0, clause.index).trim();
+    }
+    category = stripSurroundingQuotes(category);
+    if (!category) return null;
+    const query = [`CategoryFull=${toWtPlusCategoryFullValueFromCategoryName(category)}`, ...terms].join(" ");
+    return { query, category, title: `WT+ Category: ${category}${terms.length ? ` (${terms.join(", ")})` : ""}`, description: query };
+  }
+
+  // "Williams born in Pennsylvania with no death date": the words before the suggestion's own ("with no death
+  // date") are the search, read as any other ("Williams, born in Pennsylvania"), or as a surname ("Edwards
+  // profiles"). They went out as one place, Location="Williams in Pennsylvania" (sweep, 2026-10-12). Words it
+  // can't read decline rather than become a place.
+  const SUGGESTION_ABSENCE_CLAUSE =
+    /^(.*?)\s*\b(?:(?:with|that\s+(?:have|has)|who\s+(?:have|has)|which\s+(?:have|has)|having)\s+)?(?:no|missing|without|empty|blank|lacking)\b/i;
+  function scopeSuggestionSearch(text, parse) {
+    const clause = parse?.suggestionId && !/\s/.test(parse.suggestionId) ? String(text).match(SUGGESTION_ABSENCE_CLAUSE) : null;
+    if (!clause) return parse;
+    // The suggestion is named by its own words, not by the search's: "profiles in Shropshire with no birth
+    // place" matched "Unconnected empty public profile" on "profiles". ("Find a Grave" is the suggestion's.)
+    const findAGrave = clause[1].match(/\bfind\s*a\s*grave\b|\bfag\b/i)?.[0] || "";
+    const phrase = `${findAGrave} ${String(text).slice(clause[1].length)}`.trim();
+    if (translateSuggestionsFreeTextToQuery(phrase)?.suggestionId !== parse.suggestionId) return null;
+    const scope = clause[1]
+      .replace(findAGrave, " ")
+      .replace(/\s+(?:and|that|who|which|with)$/i, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    // (nothing before it: the search, if any, comes after, "FindAGrave empty death date in Kent")
+    if (!scope || /^(?:(?:all|the|any)\s+)?(?:profiles?|people|persons)$/i.test(scope)) return parse;
+    const what = parse.suggestionTitle || `suggestion ${parse.suggestionId}`;
+    const read = parseSearchSpecPrompt(scope);
+    const compiled = read?.spec ? compileSearchSpec(read.spec, {}) : null;
+    if (compiled?.query && !compiled.errors?.length && !/\bOR\b/.test(compiled.query)) {
+      return { ...parse, query: `${compiled.query} Suggestions=${parse.suggestionId}`, understood: `${read.understood}; ${what}` };
+    }
+    const surname = scope.match(/^(?:the\s+)?([A-Z][A-Za-z'’-]+)\s+(?:profiles|people|family)$/);
+    // ("English profiles": born in England, as "Irish farmers" is)
+    const country = surname && nationalityCountry(surname[1]);
+    if (country) {
+      return {
+        ...parse,
+        query: `${normalizeWtPlusFieldTerm("BirthLocation", country)} Suggestions=${parse.suggestionId}`,
+        understood: `born in ${country}; ${what}`,
+      };
+    }
+    // ("Cheshire no biography at all": a place on its own, as before)
+    const place = scope.replace(/^(?:in|from)\s+/i, "").replace(/\s+(?:profiles|people)$/i, "");
+    if (isKnownPlaceName(place)) {
+      return { ...parse, query: `${normalizeWtPlusFieldTerm("Location", place)} Suggestions=${parse.suggestionId}`, understood: `${place}; ${what}` };
+    }
+    if (surname && !isKnownPlaceName(surname[1])) {
+      return {
+        ...parse,
+        query: `${normalizeWtPlusFieldTerm("AllLastNames", surname[1])} Suggestions=${parse.suggestionId}`,
+        understood: `last name ${surname[1]}; ${what}`,
+      };
+    }
+    return null;
+  }
+
   function parseNaturalLanguageWtPlusQuery(queryText) {
     const text = normalizeWtPlusStatusAliases(queryText);
     if (!text) return null;
 
     const normalizedText = stripSurroundingQuotes(
       text
-        .replace(/^\s*(?:search(?:\s+for)?|find|show|list|get|look(?:\s+up)?)\s+/i, "")
+        .replace(/^\s*(?:search(?:\s+for)?|find(?!\s*a\s*grave\b)|show|list|get|look(?:\s+up)?)\s+/i, "")
         .replace(/^\s*(?:me\s+)?/i, "")
         .trim()
     );
+
+    // First: the readers below took "Category: Killed in Action" for a first name and two places, and
+    // "Category: Pennsylvania Quakers died before 1800" for a place (sweep, 2026-10-12).
+    const namedCategory = categoryNameFromPrompt(normalizedText);
+    const categorySearch = namedCategory && buildWtPlusCategoryQuery(namedCategory);
+    if (categorySearch) return categorySearch;
 
     // "profiles in <project> but missing the project box in bio" is a specific
     // shape (Manager=<project> Suggestions=933). It contains "missing" and
@@ -4690,7 +4858,7 @@ export function createProfileSearchHandler({
         (!familyPresencePhraseRegex.test(normalizedText) && !parseSearchSpecPrompt(normalizedText))) &&
       isLikelySuggestionsPrompt(normalizedText)
     ) {
-      const suggestionParse = translateSuggestionsFreeTextToQuery(normalizedText);
+      const suggestionParse = scopeSuggestionSearch(normalizedText, translateSuggestionsFreeTextToQuery(normalizedText));
       if (suggestionParse?.query) {
         // In chat mode, execute suggestions prompts as text search so we can
         // show a people table when WT+ can return matches, and still offer the
@@ -4971,34 +5139,7 @@ export function createProfileSearchHandler({
       };
     }
 
-    let match = normalizedText.match(
-      /^(?:profiles?|people)\s+(?:in\s+)?category\s*[:=]?\s*(?!born\b|died\b|married\b|with\b|ancestors?\b|descendants?\b|cc7\b|in\s+tree\b)(.+)$/i
-    );
-    if (match?.[1]) {
-      const category = stripSurroundingQuotes(match[1]);
-      if (category) {
-        return {
-          query: `CategoryFull=${quoteWtPlusValue(category)}`,
-          title: `WT+ Category: ${category}`,
-          description: `CategoryFull=${category}`,
-        };
-      }
-    }
-
-    match = normalizedText.match(
-      /^(?:in\s+)?category\s*[:=]?\s*(?!born\b|died\b|married\b|with\b|ancestors?\b|descendants?\b|cc7\b|in\s+tree\b)(.+)$/i
-    );
-    if (match?.[1]) {
-      const category = stripSurroundingQuotes(match[1]);
-      if (category) {
-        return {
-          query: `CategoryFull=${quoteWtPlusValue(category)}`,
-          title: `WT+ Category: ${category}`,
-          description: `CategoryFull=${category}`,
-        };
-      }
-    }
-
+    let match;
     match = normalizedText.match(/^(?:profiles?|people)\s+(?:with\s+)?category\s+word\s*[:=]?\s*(.+)$/i);
     if (match?.[1]) {
       const categoryWord = stripSurroundingQuotes(match[1]);
@@ -5763,7 +5904,7 @@ export function createProfileSearchHandler({
     }
 
     const normalizedBareText = text
-      .replace(/^\s*(?:search(?:\s+for)?|find|show|list|get|look(?:\s+up)?)\s+/i, "")
+      .replace(/^\s*(?:search(?:\s+for)?|find(?!\s*a\s*grave\b)|show|list|get|look(?:\s+up)?)\s+/i, "")
       .replace(/^\s*(?:me\s+)?/i, "")
       .trim();
 
@@ -6035,24 +6176,29 @@ export function createProfileSearchHandler({
   // nothing; try Robinson. Only after a zero, since Jones and Adams are real names (2026-10-10). Every
   // path that runs a parsed query uses this (the no-AI fallback path didn't: Robinsons, live 2026-10-11).
   // Returns the singular result with a note, or null when there's nothing better.
-  async function retrySingularSurnameAfterZero(result, parsed, runOptions = {}) {
+  // An AI reading (noteAsAssumption) says it among the AI's assumptions instead of above the result.
+  async function retrySingularSurnameAfterZero(result, parsed, runOptions = {}, { noteAsAssumption = false } = {}) {
     if (!isWtPlusZeroResults(result)) return null;
     const singularRetry = singularSurnameRetryQuery(parsed?.query);
     if (!singularRetry) return null;
-    const swap = (text) =>
-      singularRetry.from.reduce((out, from, i) => String(out || "").split(from).join(singularRetry.to[i]), text);
+    const pairs = singularRetry.from.map((from, i) => [from, singularRetry.to[i]]);
+    const swap = (text) => swapSurnames(text, pairs);
+    const note = `nothing was found for ${joinWithAnd(singularRetry.from)}, so I searched for ${joinWithAnd(singularRetry.to)}`;
+    const singularParsed = {
+      ...parsed,
+      query: singularRetry.query,
+      title: swap(parsed.title),
+      understood: swap(parsed.understood),
+      ...(noteAsAssumption ? { assumptions: [...(parsed.assumptions || []).map(swap), note] } : {}),
+    };
     console.info("wbe: WT+ zero results; retrying singular surname", { query: singularRetry.query });
-    const singularResult = await runWtPlusProfileQuery(
-      singularRetry.query,
-      swap(parsed.title),
-      { ...parsed, query: singularRetry.query, understood: swap(parsed.understood) },
-      runOptions
-    );
+    const singularResult = await runWtPlusProfileQuery(singularParsed.query, singularParsed.title, singularParsed, runOptions);
     if (isWtPlusExecutionFailure(singularResult) || isWtPlusZeroResults(singularResult)) return null;
-    const note = `Nothing was found for ${singularRetry.from.join(", ")}, so I searched for ${singularRetry.to.join(", ")}.`;
+    if (noteAsAssumption) return withAiSpecNotes(singularResult, singularParsed);
+    const lead = `${note.charAt(0).toUpperCase()}${note.slice(1)}.`;
     return typeof singularResult === "string"
-      ? `${note}\n${singularResult}`
-      : { ...singularResult, message: `${note}\n${singularResult.message || ""}`.trim() };
+      ? `${lead}\n${singularResult}`
+      : { ...singularResult, message: `${lead}\n${singularResult.message || ""}`.trim() };
   }
 
   function shouldForceAiForSuspiciousLocalWtPlusQuery(localWtPlusQuery) {
@@ -6183,7 +6329,7 @@ export function createProfileSearchHandler({
 
   function buildDeterministicZeroResultRetry(rawQuery) {
     const text = String(rawQuery || "")
-      .replace(/^\s*(?:search(?:\s+for)?|find|show|list|get|look(?:\s+up)?)\s+/i, "")
+      .replace(/^\s*(?:search(?:\s+for)?|find(?!\s*a\s*grave\b)|show|list|get|look(?:\s+up)?)\s+/i, "")
       .trim();
     if (!text) return null;
 
@@ -6288,7 +6434,108 @@ export function createProfileSearchHandler({
   // that produce no table (for example "too many profiles").
   let lastExecutedWtPlusQuery = "";
 
+  // Profiles with a surname on WikiTree+, kept for the page (a surname's count barely moves).
+  const countSurnameProfiles = (name) => countWtPlusQuery(`AllLastNames=${name}`);
+
+  // Profiles a WT+ query finds, without loading them (NaN when it fails).
+  const wtPlusQueryCounts = new Map();
+  async function countWtPlusQuery(query) {
+    if (wtPlusQueryCounts.has(query)) return wtPlusQueryCounts.get(query);
+    let count = NaN;
+    try {
+      const response = await wtAPIProfileSearch("ChatWTPlus", encodeURIComponent(query), { maxProfiles: 1 });
+      count = wtPlusLogCounts(response?.response?.searchLog || response?.searchLog).count;
+    } catch (error) {
+      console.info("wbe: WT+ count failed", { query, error });
+    }
+    if (Number.isFinite(count)) wtPlusQueryCounts.set(query, count);
+    return count;
+  }
+
+  // "Lancashire profiles with no death date born before 1850": a place name on its own can be a surname
+  // (the user, 2026-10-12). WikiTree+ had profiles with the surname Kent 14,161, England 7,646, Wales 2,653,
+  // Lancashire 299, and 165 of the 210 places the reader knows at least one, some of them only by mistake
+  // (Ohio 9). So a place word the person didn't put after "in" or "from" runs as the place, and the reply
+  // offers the same search for the surname when WikiTree+ finds profiles that way. {word, query} or null.
+  function locationSurnameQuery(canonicalQuery, rawPrompt) {
+    const query = String(canonicalQuery || "");
+    const prompt = String(rawPrompt || "");
+    if ((query.match(/(?:^|\s)Location=/gi) || []).length !== 1) return null;
+    if (/(?:^|\s)(?:AllLastNames|LastName\w*|LNAB)=/i.test(query) || /\bLocation\s*=/i.test(prompt)) return null;
+    const rawValue = String(query.match(WT_PLUS_LOCATION_SCOPE_RE)?.[2] || "").trim();
+    const word = stripSurroundingQuotes(rawValue);
+    if (!/^[A-Za-z][A-Za-z'-]*$/.test(word)) return null;
+    const words = (before) => new RegExp(String.raw`${before}\b${word}\b`, "i");
+    if (!words("").test(prompt)) return null;
+    if (words(String.raw`\b(?:in|from|at|near|around|across|throughout|of)\s+(?:the\s+)?(?:county\s+of\s+)?`).test(prompt)) return null;
+    return { word, query: query.replace(WT_PLUS_LOCATION_SCOPE_RE, `$1AllLastNames=${rawValue}`) };
+  }
+
+  // locationSurnameQuery with its count, when that's more than none: {word, query, count} or null.
+  async function locationSurnameReading(canonicalQuery, rawPrompt) {
+    const reading = locationSurnameQuery(canonicalQuery, rawPrompt);
+    if (!reading) return null;
+    const count = await countWtPlusQuery(reading.query);
+    return count > 0 ? { ...reading, count } : null;
+  }
+
+  const surnameReadingNote = (reading) =>
+    reading
+      ? `${reading.word} is a surname too: the same search for the surname finds ${reading.count.toLocaleString("en-US")} profile${
+          reading.count === 1 ? "" : "s"
+        }.`
+      : "";
+
+  // Before any search: is "Smiths" the surname Smiths or the Smith family? WikiTree+'s counts decide
+  // (chat_surname_plural.js). Not for one person ("Mary Woods"), a typed WT+ query or a button's query.
   async function runWtPlusProfileQuery(wtPlusQuery, title, interpretation = null, runOptions = {}) {
+    const query = String(wtPlusQuery || "");
+    const names =
+      runOptions?.fromScopeChoice ||
+      /(?:^|\s)FirstName=/i.test(query) ||
+      /\b(?:AllLastNames|LastName\w*|LNAB)\s*=/i.test(String(runOptions?.rawPrompt || ""))
+        ? []
+        : pluralSurnameCandidates(query);
+    if (!names.length) return runWtPlusProfileQueryAsGiven(wtPlusQuery, title, interpretation, runOptions);
+    const readings = await Promise.all(
+      names.map(async (name) => {
+        const singular = singularSurname(name);
+        const [typedCount, singularCount] = await Promise.all([countSurnameProfiles(name), countSurnameProfiles(singular)]);
+        return { name, singular, typedCount, singularCount, reading: pluralSurnameReading(typedCount, singularCount) };
+      })
+    );
+    const family = readings.filter((item) => item.reading === "singular");
+    const offers = readings.filter((item) => item.reading === "offer");
+    const swap = (text) => swapSurnames(text, family.map((item) => [item.name, item.singular]));
+    const runQuery = family.length ? withSingularSurnames(query, family.map((item) => item.name)) : query;
+    if (family.length) console.info("wbe: plural surname read as the family", { query, runQuery, readings });
+    const result = await runWtPlusProfileQueryAsGiven(
+      runQuery,
+      swap(title),
+      interpretation ? { ...interpretation, query: runQuery, understood: swap(interpretation.understood) } : interpretation,
+      runOptions
+    );
+    const note = family
+      .map(
+        (item) =>
+          `I read "${item.name}" as the ${item.singular} family: WikiTree+ has ${item.typedCount.toLocaleString()} ` +
+          `profile${item.typedCount === 1 ? "" : "s"} with the surname ${item.name} and ${item.singularCount.toLocaleString()} with ${item.singular}.`
+      )
+      .join(" ");
+    const actions = [
+      ...family.map((item) => wtPlusRerunAction(`Search ${item.name} instead`, query)),
+      ...offers.map((item) => wtPlusRerunAction(`Search ${item.singular} instead`, withSingularSurnames(runQuery, [item.name]))),
+    ];
+    if (!note && !actions.length) return result;
+    const base = typeof result === "string" ? { message: result } : result || { message: "" };
+    return {
+      ...base,
+      message: note ? `${note}\n${base.message || ""}`.trim() : base.message,
+      actions: [...(base.actions || []), ...actions],
+    };
+  }
+
+  async function runWtPlusProfileQueryAsGiven(wtPlusQuery, title, interpretation = null, runOptions = {}) {
     const templateCanonicalQuery = await canonicalizeWtPlusTemplateTerms(wtPlusQuery);
     const contextCanonicalQuery = resolveWtPlusContextPlaceholders(templateCanonicalQuery);
     const rangeCanonicalQuery = canonicalizeWtPlusSqlDateRanges(contextCanonicalQuery);
@@ -6403,11 +6650,30 @@ export function createProfileSearchHandler({
       }
     }
 
+    // "find some gold standard profiles" (Murray, 2026-10-12): WT+ can't run a filter on its own, but
+    // "Genie is being obtuse … it insists on demanding that I use Magic Words". Say so plainly and offer
+    // places to look, each a button that runs the same search there.
     if (!isSuggestionsSearch && !hasPrimaryScopeTermInWtPlusQuery(canonicalQuery)) {
+      // (the scope goes first in each OR branch: a branch's sql= runs to its end)
+      const scopeAction = (label, term) => wtPlusRerunAction(label, applyLeadingScopeToEachOrBranch(canonicalQuery, term));
+      const userId = String(getUserWtId() || "").trim();
+      const focus = getFocusPersonInfo();
+      const focusId = String(focus?.Name || "").trim();
+      const focusName = String(focus?.FullName || focus?.RealName || focusId).trim();
+      const actions = [];
+      if (focusId && !/:/.test(focusId)) {
+        actions.push(scopeAction(`Within 7 degrees of ${focusName}`, `CC7=${focusId}`));
+        actions.push(scopeAction(`${focusName}'s ancestors`, `Ancestors=${focusId}`));
+      }
+      if (userId) {
+        actions.push(scopeAction("Profiles I manage", `Manager=${userId}`));
+        if (userId !== focusId) actions.push(scopeAction("My ancestors", `Ancestors=${userId}`));
+      }
       return {
-        message:
-          "WT+ query needs a base search term in each OR branch (for example Location, name, Manager, Tree, Category, or WikiTreeID). Magic words like ProjectManaged/PPP and sql filters can refine results, but they cannot be the only terms.",
-        showMagicWordsRef: true,
+        message: `WikiTree+ can't search every profile for that on its own: it needs somewhere to look. ${
+          actions.length ? "Choose one below, or add" : "Add"
+        } a place, surname or category, for example "gold standard profiles in Devon".`,
+        actions,
       };
     }
 
@@ -6512,6 +6778,17 @@ export function createProfileSearchHandler({
     // the query is empty. A query already narrowed by a date, age, name,
     // category, suggestion, etc. runs directly. Skipped when the user already
     // chose a scope via a button (reRunSavedWtPlusQuery sets fromScopeChoice).
+    // The place word as a surname (locationSurnameReading): counted once, and only where it's offered (not
+    // after a scope button, which chose the place).
+    let surnameReadingPromise = null;
+    const surnameReading = () => {
+      if (!surnameReadingPromise) {
+        surnameReadingPromise = runOptions?.fromScopeChoice
+          ? Promise.resolve(null)
+          : locationSurnameReading(canonicalQuery, runOptions?.rawPrompt);
+      }
+      return surnameReadingPromise;
+    };
     if (!runOptions?.fromScopeChoice && !isSuggestionsSearch) {
       const scopeRemainder = canonicalQuery
         .replace(WT_PLUS_LOCATION_SCOPE_RE, " ")
@@ -6548,6 +6825,7 @@ export function createProfileSearchHandler({
             ? []
             : buildLocationScopeRefinementActions(canonicalQuery, suggestionId, suggestionOptions, {
                 includeAny: true,
+                surname: await surnameReading(),
               });
         if (disambiguationActions.length) {
           hideChatShaky();
@@ -6570,16 +6848,11 @@ export function createProfileSearchHandler({
       const response = await wtAPIProfileSearch("ChatWTPlus", encodedQuery, { maxProfiles: WT_PLUS_MAX_PROFILES });
       const searchLog = String(response?.response?.searchLog || response?.searchLog || "");
       const foundCount = Number(response?.response?.found);
-      const searchLogResultMatch = searchLog.match(/\bResult:\s*(\d+)\b/i);
-      const searchLogCachedMatch = searchLog.match(/\bCached:\s*(\d+)\b/i);
-      const resultCountFromLog = searchLogResultMatch?.[1] ? Number.parseInt(searchLogResultMatch[1], 10) : NaN;
-      const cachedCountFromLog = searchLogCachedMatch?.[1] ? Number.parseInt(searchLogCachedMatch[1], 10) : NaN;
-      const effectiveLogCount = Number.isFinite(resultCountFromLog)
-        ? resultCountFromLog
-        : Number.isFinite(cachedCountFromLog)
-        ? cachedCountFromLog
-        : NaN;
-      const tooManyMatch = searchLog.match(/Too many profiles!!!\s*(\d+)?/i);
+      const logCounts = wtPlusLogCounts(searchLog);
+      const resultCountFromLog = logCounts.result;
+      const cachedCountFromLog = logCounts.cached;
+      const effectiveLogCount = Number.isFinite(resultCountFromLog) ? resultCountFromLog : cachedCountFromLog;
+      const tooManyMatch = logCounts.hasTooMany;
       // WT+ logs this both for a query that really starts with sql= and for one
       // whose terms before sql= matched nobody (probed 2026-10-02). Only the
       // first is an error; the second is an ordinary zero-result search.
@@ -6607,7 +6880,7 @@ export function createProfileSearchHandler({
       }
       if (tooManyMatch || cappedByMaxProfiles) {
         hideChatShaky();
-        const matchedCount = tooManyMatch?.[1] ? Number.parseInt(tooManyMatch[1], 10) : NaN;
+        const matchedCount = logCounts.tooMany;
         const overCapCount = Number.isFinite(matchedCount)
           ? matchedCount
           : Number.isFinite(effectiveLogCount)
@@ -6626,18 +6899,18 @@ export function createProfileSearchHandler({
           : "too many";
         // Narrowing is exactly what this case needs, so offer the life-event
         // scopes here too — this early return used to skip them.
-        const tooManyScopeActions = buildLocationScopeRefinementActions(
-          canonicalQuery,
-          suggestionId,
-          suggestionOptions
-        );
+        const tooManySurnameReading = await surnameReading();
+        const tooManyScopeActions = buildLocationScopeRefinementActions(canonicalQuery, suggestionId, suggestionOptions, {
+          surname: tooManySurnameReading,
+        });
         return {
           message:
             `WT+ found ${countText} profiles for query: ${canonicalQuery}. That is too many for Genie to load usefully. ` +
             `Genie can display up to ${WT_PLUS_MAX_PROFILES.toLocaleString()} results, but fewer results will load faster. ` +
             (tooManyScopeActions.length
               ? "Use the buttons below to narrow it, or add a date range or category."
-              : "Please narrow the search (for example add a date range, category, manager, or a more specific location)."),
+              : "Please narrow the search (for example add a date range, category, manager, or a more specific location).") +
+            (tooManySurnameReading ? ` ${surnameReadingNote(tooManySurnameReading)}` : ""),
           actions: [
             {
               label: "Open in WT+",
@@ -6664,6 +6937,8 @@ export function createProfileSearchHandler({
         // place when a surname was meant), so offer the other readings.
         const zeroScopeActions = buildLocationScopeRefinementActions(canonicalQuery, suggestionId, suggestionOptions, {
           otherReadingsOnly: true,
+          // (not counted: as the place it found nothing, so the surname is worth a try)
+          surname: runOptions?.fromScopeChoice ? null : locationSurnameQuery(canonicalQuery, runOptions?.rawPrompt),
         });
         if (zeroScopeActions.length) {
           return {
@@ -6674,6 +6949,8 @@ export function createProfileSearchHandler({
         return `I couldn't find any profiles for WT+ query: ${canonicalQuery}`;
       }
 
+      // (counted while the profiles load)
+      surnameReading();
       const uniqueIds = [...new Set(profiles.map((value) => String(value)))];
       // This load (and its retry pass) can take a while for large result sets,
       // so make it cancellable. The paging loop polls isChatShakyCancelled().
@@ -7127,15 +7404,17 @@ export function createProfileSearchHandler({
           wtPlusSuggestionOptions: suggestionOptions,
         });
       }
-      const scopeRefinementActions = buildLocationScopeRefinementActions(
-        canonicalQuery,
-        suggestionId,
-        suggestionOptions
-      );
+      const locationAsSurname = await surnameReading();
+      const scopeRefinementActions = buildLocationScopeRefinementActions(canonicalQuery, suggestionId, suggestionOptions, {
+        surname: locationAsSurname,
+      });
       actions.push(...scopeRefinementActions);
-      const scopeNote = scopeRefinementActions.length
-        ? "This matched a birth, marriage or death place. Use the buttons to narrow it."
-        : "";
+      const scopeNote = [
+        scopeRefinementActions.length ? "This matched a birth, marriage or death place. Use the buttons to narrow it." : "",
+        surnameReadingNote(locationAsSurname),
+      ]
+        .filter(Boolean)
+        .join(" ");
       const extraNotes = [
         categoryNote ? `Also ${categoryNote}.` : "",
         truncationNote || "",
@@ -8988,9 +9267,12 @@ ${note}` };
       // "married in Cheshire" / "married after 1899" are marriage-date/place
       // constraints, not spouse names; and the tail must plausibly be a name.
       const spouseTailCandidate = String(spouseMatch?.[2] || "").trim();
+      // "who married more than twice" / "married 3 times" count marriages: no spouse is called "more than twice"
+      // (it searched "BirthLocation=Massachusetts male" and said nothing of the rest; sweep 2026-10-12).
       const spouseTailLooksLikeConstraint =
         /^(?:in|at|on|before|after|circa|by|around|between|the|a|an)\b/i.test(spouseTailCandidate) ||
-        /^\d/.test(spouseTailCandidate);
+        /^\d/.test(spouseTailCandidate) ||
+        /\b(?:once|twice|thrice|times|(?:more|fewer|less)\s+than|at\s+(?:least|most))\b/i.test(spouseTailCandidate);
       const spouseTailLooksLikeName = isLikelyPersonAliasLabel(stripSurroundingQuotes(spouseTailCandidate));
       if (spouseMatch && !spouseMatchLooksLikePossessiveChain && !spouseTailLooksLikeConstraint && spouseTailLooksLikeName) {
         mainQuery = (spouseMatch[1] || "").trim().replace(/\s+(?:with|whose|and)\s*$/i, "") || query;
@@ -9005,7 +9287,7 @@ ${note}` };
       });
 
       try {
-        if (/^\s*(?:search:?|find|look(?:\s+up)?)\b/i.test(rawQuery) && /\bcategory\b/i.test(rawQuery)) {
+        if (/^\s*(?:search:?|find(?!\s*a\s*grave\b)|look(?:\s+up)?)\b/i.test(rawQuery) && /\bcategory\b/i.test(rawQuery)) {
           console.debug("wbe: explicit search+category detected — preserving rawQuery for category detection", {
             rawQuery,
           });
@@ -9016,7 +9298,7 @@ ${note}` };
       }
 
       mainQuery = String(mainQuery || "")
-        .replace(/^\s*(?:search:?|find|look(?:\s+up)?)\s+/i, "")
+        .replace(/^\s*(?:search:?|find(?!\s*a\s*grave\b)|look(?:\s+up)?)\s+/i, "")
         .trim();
       // "Provide a list of profiles with last name Garver": the lead-in became a
       // place, Location="Provide a of" (Discord, 2026-10-06).
@@ -9035,7 +9317,7 @@ ${note}` };
         const mqTokens = (mainQuery || "").split(/\s+/).filter(Boolean);
         if (mqTokens.length === 1) {
           const originalTokens = String(query || "")
-            .replace(/^\s*(?:search:?|find|look(?:\s+up)?)\s+/i, "")
+            .replace(/^\s*(?:search:?|find(?!\s*a\s*grave\b)|look(?:\s+up)?)\s+/i, "")
             .trim()
             .split(/\s+/)
             .filter(Boolean);
@@ -9055,7 +9337,7 @@ ${note}` };
 
       const explicitWtPlusQueryCandidate =
         parseExplicitWtPlusQuery(mainQuery) ||
-        parseExplicitWtPlusQuery(rawQuery.replace(/^\s*(?:search:?|find|look(?:\s+up)?)\s+/i, ""));
+        parseExplicitWtPlusQuery(rawQuery.replace(/^\s*(?:search:?|find(?!\s*a\s*grave\b)|look(?:\s+up)?)\s+/i, ""));
       const localWtPlusQueryCandidate =
         parseNaturalLanguageWtPlusQuery(mainQuery) || parseCombinedNaturalLanguageWtPlusQuery(mainQuery);
       const preferAiWtPlusQueryCandidate = shouldPreferAiWtPlusQuery(mainQuery);
@@ -9131,7 +9413,7 @@ ${note}` };
       if (effectiveChatMode === "wtplus") {
         const explicitWtPlusQuery =
           parseExplicitWtPlusQuery(mainQuery) ||
-          parseExplicitWtPlusQuery(rawQuery.replace(/^\s*(?:search:?|find|look(?:\s+up)?)\s+/i, ""));
+          parseExplicitWtPlusQuery(rawQuery.replace(/^\s*(?:search:?|find(?!\s*a\s*grave\b)|look(?:\s+up)?)\s+/i, ""));
         const localWtPlusQuery =
           explicitWtPlusQuery ||
           parseNaturalLanguageWtPlusQuery(mainQuery) ||
@@ -9224,33 +9506,8 @@ ${note}` };
               aiPrimaryQuery,
               { rawPrompt: rawQuery }
             );
-            const singularRetry = isWtPlusZeroResults(aiPrimaryResult)
-              ? singularSurnameRetryQuery(aiPrimaryQuery.query)
-              : null;
-            if (singularRetry) {
-              const swap = (text) =>
-                singularRetry.from.reduce((out, from, i) => String(out || "").split(from).join(singularRetry.to[i]), text);
-              const singularQuery = {
-                ...aiPrimaryQuery,
-                query: singularRetry.query,
-                title: swap(aiPrimaryQuery.title),
-                understood: swap(aiPrimaryQuery.understood),
-                assumptions: [
-                  ...(aiPrimaryQuery.assumptions || []).map(swap),
-                  `nothing was found for ${singularRetry.from.join(", ")}, so I searched for ${singularRetry.to.join(", ")}`,
-                ],
-              };
-              console.info("wbe: WT+ zero results; retrying singular surname", { query: singularRetry.query });
-              const singularResult = await runWtPlusProfileQuery(
-                singularQuery.query,
-                singularQuery.title,
-                singularQuery,
-                { rawPrompt: rawQuery }
-              );
-              if (!isWtPlusExecutionFailure(singularResult) && !isWtPlusZeroResults(singularResult)) {
-                return annotateAutoRoutedWtPlusResult(await withAiSpecNotes(singularResult, singularQuery));
-              }
-            }
+            const singularAi = await retrySingularSurnameAfterZero(aiPrimaryResult, aiPrimaryQuery, { rawPrompt: rawQuery }, { noteAsAssumption: true });
+            if (singularAi) return annotateAutoRoutedWtPlusResult(singularAi);
             if (!isWtPlusExecutionFailure(aiPrimaryResult)) {
               return annotateAutoRoutedWtPlusResult(await withAiSpecNotes(aiPrimaryResult, aiPrimaryQuery));
             }
@@ -9403,16 +9660,8 @@ ${note}` };
             needsAi: true,
             message:
               "I couldn't safely re-interpret that query for WT+. The deterministic parse looked malformed, so I skipped running it. Please rephrase with explicit fields (for example: LastNameAtBirth=More MarriageLocation=Yorkshire).",
-            actions: [
-              {
-                label: "Open in WT+",
-                actionType: "wtplus-open",
-                wtPlusQuery: localWtPlusQuery.query,
-                wtPlusSearchType: localWtPlusQuery.searchType || "text",
-                wtPlusSuggestionId: localWtPlusQuery.suggestionId || "",
-                wtPlusSuggestionOptions: localWtPlusQuery.suggestionOptions || {},
-              },
-            ],
+            // (no "Open in WT+": the query is the one that looked wrong, e.g. AllLastNames=the
+            // Location=Netherlands, 2026-10-12)
           };
         }
 
@@ -9500,88 +9749,15 @@ ${note}` };
 
       let categoryName = null;
       try {
-        const detectCategoryName = (raw) => {
-          if (!raw) return null;
-          const stripQuotes = (s) => (s || "").replace(/^["“”'‘’\s\[]+|["“”'‘’\s\]]+$/g, "").trim();
-          const rRaw = String(raw).trim();
-          const r = stripQuotes(rRaw);
-          let m = r.match(/^Category:\s*(.+)$/i);
-          if (m) return stripQuotes(m[1]);
-          m = r.match(/^(.+?)\s+category\s*$/i);
-          if (m) return stripQuotes(m[1]);
-          m = r.match(/\bcategory\s*[:\-]?\s*(.+)$/i);
-          if (m) return stripQuotes(m[1]);
-          m = rRaw.match(/['"“”'‘’]([^'"“”'‘’]+)['"“”'‘’]\s+category/i);
-          if (m) return stripQuotes(m[1]);
-          return null;
-        };
-
-        const detRaw = detectCategoryName(rawQuery);
-        const detMain = detectCategoryName(mainQuery);
-        const detQuery = detectCategoryName(query);
-        categoryName = detRaw || detMain || detQuery;
-        console.debug("wbe: detectCategoryName result", {
-          rawQuery,
-          mainQuery,
-          query,
-          detRaw,
-          detMain,
-          detQuery,
-          categoryName,
-        });
+        categoryName = categoryNameFromPrompt(rawQuery) || categoryNameFromPrompt(mainQuery) || categoryNameFromPrompt(query);
+        console.debug("wbe: detectCategoryName result", { rawQuery, mainQuery, query, categoryName });
         if (categoryName && effectiveChatMode !== "wt") {
-          showChatShaky(`Looking up category "${categoryName}" via WT+...`);
-          try {
-            let chosenCategory = stripSurroundingQuotes(categoryName);
-            chosenCategory = String(chosenCategory || "")
-              .replace(/^\s*Search\s+[:\-]?\s*/i, "")
-              .trim();
-
-            let catVal = chosenCategory.replace(/,\s+/g, "__");
-            catVal = catVal.replace(/\s+/g, "_");
-
-            const qb = normalizeWtPlusQueryString(`CategoryFull=${catVal}`);
-            if (!qb) {
-              hideChatShaky();
-              return `I couldn't build a valid WT+ category query for "${chosenCategory}".`;
-            }
-            const encodedQ = encodeURIComponent(qb);
-            const debugUrl = `https://plus.wikitree.com/function/WTWebProfileSearch/apiWBE_ChatCategory.json?Query=${encodedQ}&MaxProfiles=${WT_PLUS_MAX_PROFILES}&Format=JSON`;
-            console.debug("wbe: WT+ deterministic CategoryFull", { chosenCategory, catVal, qb, encodedQ, debugUrl });
-
-            const resp = await wtAPIProfileSearch("ChatCategory", encodedQ, { maxProfiles: WT_PLUS_MAX_PROFILES });
-            const profiles = resp?.response?.profiles || [];
-            if (!profiles.length) {
-              console.debug("wbe: wtAPIProfileSearch returned no profiles", { qb, resp });
-              hideChatShaky();
-              return `I couldn't find any profiles for Category:${chosenCategory} via WT+.`;
-            }
-
-            const uniqueIds = [...new Set(profiles.map((p) => String(p)))];
-
-            showChatShaky(`Fetching ${uniqueIds.length} profiles...`);
-            const fields =
-              "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,BirthDate,BirthLocation,DeathDate,DeathLocation,Gender,Id,Name";
-            const [, , peopleById] = await fetchPeoplePaged(WBE_CHAT_APP_ID, uniqueIds, fields, {
-              resolveRedirect: 1,
-              limit: WT_PLUS_GET_PEOPLE_CHUNK,
-            });
-
-            const people = uniqueIds.map((k) => peopleById?.[String(k)]).filter(Boolean);
-            const rows = people.map((p) => mapApiPersonToStandardRow(p, { wtId: p?.Name }));
-
-            const table = makeStandardProfileTable(`Category: ${chosenCategory}`, rows, [[0, "asc"]]);
-            table.columns = (table.columns || []).filter((c) => !["degrees", "spouse", "spouseList"].includes(c.key));
-            hideChatShaky();
-            return annotateAutoRoutedWtPlusResult({
-              message: `Found ${rows.length} profiles in Category:${chosenCategory}`,
-              table,
-            });
-          } catch (error) {
-            hideChatShaky();
-            console.debug("wbe: category search failed", error);
+          // The same reading as the search reader's: family and status words off the end, then WT+'s own run
+          // (the category catalogue, zero results, "too many").
+          const categorySearch = buildWtPlusCategoryQuery(String(categoryName).replace(/^\s*Search\s+[:\-]?\s*/i, ""));
+          if (categorySearch) {
             return annotateAutoRoutedWtPlusResult(
-              `I couldn't complete the category lookup for "${categoryName}". Error: ${error?.message || error}`
+              await runWtPlusProfileQuery(categorySearch.query, categorySearch.title, categorySearch, { rawPrompt: rawQuery })
             );
           }
         } else if (categoryName && effectiveChatMode === "wt") {

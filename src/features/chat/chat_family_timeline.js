@@ -8,7 +8,7 @@ import "d3-transition";
 import { scaleLinear } from "d3-scale";
 import { easeCubicOut } from "d3-ease";
 import { aliveIn, rowSpan } from "./chat_family_timeline_data";
-import { createChartPopup, mountChartPopup, handleChartPopupButton, chartPopupControls, chartLinkButtons, chartLinkClick, escapeText, profileUrl, truncate, yearOf } from "./chat_chart_common";
+import { createChartPopup, mountChartPopup, handleChartPopupButton, chartPopupControls, chartLinkButtons, chartLinkClick, createPinnableTip, escapeText, profileUrl, tipMoreHint, truncate, yearOf } from "./chat_chart_common";
 
 const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 const ROW_H = 24;
@@ -241,15 +241,20 @@ export function showFamilyTimelinePopup(rows, options = {}) {
   const scrubYear = scrub.append("text").attr("y", TOP - 14).attr("text-anchor", "middle").attr("font-size", 12).attr("font-weight", 700).attr("fill", "#fff");
   const ageLayer = scrub.append("g");
 
-  function showTipHtml(event, html) {
+  const tipPin = createPinnableTip(tip, (event) => {
     const rect = stage.getBoundingClientRect();
-    tip.innerHTML = html;
     tip.style.left = `${Math.min(event.clientX - rect.left + 14, rect.width - 290)}px`;
     tip.style.top = `${Math.min(event.clientY - rect.top + stage.scrollTop + 14, stage.scrollTop + rect.height - 140)}px`;
-    tip.style.opacity = "1";
+  });
+  // The year tip's full form when it lists only the first few: a click pins it with everyone.
+  let tipAll = null;
+  function showTipHtml(event, html, all = null) {
+    tipAll = all;
+    tipPin.show(event, html);
   }
 
   svg.on("mousemove", (event) => {
+    if (tipPin.pinned) return;
     const [mx] = pointer(event, svg.node());
     if (mx < LEFT) return;
     const year = Math.round(x.invert(mx));
@@ -273,16 +278,25 @@ export function showFamilyTimelinePopup(rows, options = {}) {
       .attr("transform", (d) => `translate(${x(year)},${d.y + ROW_H / 2})`)
       .select("text")
       .text((d) => year - d.span.start);
-    const lines = alive
-      .slice(0, 14)
-      .map(({ row, age, approximate }) => `<div>${escapeText(row.name)}${row.relation ? ` <span style="opacity:.6">${escapeText(row.relation.replace(/^\w+/, (word) => word.toLowerCase()))}</span>` : ""}: ${approximate ? "~" : ""}${age}</div>`)
-      .join("");
-    showTipHtml(event, `<div class="wbe-chart-tip-rel">In ${year}</div>${lines || "<div>Nobody here was alive.</div>"}${alive.length > 14 ? `<div>…and ${alive.length - 14} more</div>` : ""}`);
+    const name = (row, all) => (all && row.wtid ? `<a href="${profileUrl(row.wtid)}" target="_blank" rel="noopener">${escapeText(row.name)}</a>` : escapeText(row.name));
+    const yearTip = (all) =>
+      `<div class="wbe-chart-tip-rel">In ${year}</div>${
+        (all ? alive : alive.slice(0, 14))
+          .map(({ row, age, approximate }) => `<div>${name(row, all)}${row.relation ? ` <span style="opacity:.6">${escapeText(row.relation.replace(/^\w+/, (word) => word.toLowerCase()))}</span>` : ""}: ${approximate ? "~" : ""}${age}</div>`)
+          .join("") || "<div>Nobody here was alive.</div>"
+      }${all ? "" : tipMoreHint(alive.length - 14)}`;
+    showTipHtml(event, yearTip(false), alive.length > 14 ? () => yearTip(true) : null);
+  });
+  // A click pins a tip that lists only the first few; the next click closes it. (A click on a bar opens the profile.)
+  svg.on("click.pin", (event) => {
+    if (tipPin.unpin()) return;
+    if (tipAll && !event.target?.__data__?.row) tipPin.pin(event, tipAll());
   });
   svg.on("mouseleave", () => {
+    if (tipPin.pinned) return;
     scrub.attr("opacity", 0);
     bars.attr("fill-opacity", 1);
-    tip.style.opacity = "0";
+    tipPin.hide();
   });
 
   const legend = popup.querySelector(".wbe-chart-legend");

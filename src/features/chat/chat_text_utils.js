@@ -27,6 +27,20 @@ export function plainWords(value) {
     .trim();
 }
 
+/**
+ * "a", "a and b", "a, b, and c" (the Oxford comma: the user, 2026-10-12). With max, the first few and a
+ * count: "a, b, c, and 4 more".
+ */
+export function joinWithAnd(items, { max = Infinity } = {}) {
+  const list = (items || []).filter((item) => item !== undefined && item !== null && item !== "");
+  if (list.length > max) {
+    const shown = list.slice(0, Math.max(1, max));
+    return `${shown.join(", ")}${shown.length > 1 ? "," : ""} and ${list.length - shown.length} more`;
+  }
+  if (list.length <= 2) return list.join(" and ");
+  return `${list.slice(0, -1).join(", ")}, and ${list[list.length - 1]}`;
+}
+
 /** The year of a WikiTree date ("1788-01-00" → 1788), or null when there is none ("0000-00-00"). */
 export function yearOf(value) {
   const match = String(value || "").match(/^(\d{4})/);

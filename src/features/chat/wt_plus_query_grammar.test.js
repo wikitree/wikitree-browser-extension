@@ -72,6 +72,14 @@ describe("wt_plus_query_grammar query validation and repair", () => {
       "sql=\"([Templates].[Template text].AsString Like '*project_box*')\"",
     ],
     ["sql=\"Not([Bio].[Headings].AsString Like '*B2*S2*')\"", "sql=\"Not([Bio].[Headings].AsString Like '*B2*S2*')\""],
+    // NOT takes away what follows it, so it goes last in its branch (WT+ live, 2026-10-12).
+    [
+      'NoFather NOT NoMother BirthLocation=Scotland sql="([Default].[Birth Date].AsNumber In 18200000..18409999)"',
+      'NoFather BirthLocation=Scotland sql="([Default].[Birth Date].AsNumber In 18200000..18409999)" NOT NoMother',
+    ],
+    ["NOT NoChildren CategoryWord=Military OR NOT NoChildren CategoryWord=Army", "CategoryWord=Military NOT NoChildren OR CategoryWord=Army NOT NoChildren"],
+    ["CategoryFull=Mayflower_Passengers NOT NoChildren NOT NoFather", "CategoryFull=Mayflower_Passengers NOT NoChildren NOT NoFather"],
+    ["NOT NoChildren", "NOT NoChildren"],
     [
       "sql=\"([Bio].[Replicated DNA yHaplogroup].AsString Like '*R1b*')\"",
       "sql=\"([Bio].[Replicated DNA yHaplogroup].AsString Like '*R1b*')\"",
@@ -120,6 +128,7 @@ describe("wt_plus_query_grammar suggestions free text", () => {
         maxErrors: "200",
       },
       understood: "suggestion 321 with in Devon",
+      suggestionTitle: "",
     });
   });
 

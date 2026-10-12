@@ -23,6 +23,7 @@ import { createChartPopup, mountChartPopup, closeChartPopup, chartLinkButtons, c
 import { showSpiralTreePopup } from "./chat_fractal_spiral";
 import { mountFamilyNavigator } from "./chat_family_navigator";
 import { mountFamilyGalaxy } from "./chat_family_galaxy";
+import { moreTextToHtml, textWithMoreLink } from "./chat_more_text";
 
 export { photoUrl };
 
@@ -148,7 +149,10 @@ function buildColouring(nodes, mode, palette = {}) {
         const rest = ranked.length - listed.length;
         return [
           ...listed.map(([value, count]) => ({ key: value, label: `${value} (${count})`, colour: colourOf(value) })),
-          ...(rest ? [{ key: "Other", label: `${rest} more`, colour: "#a0a0a0", match: (person) => valueOf(person) && !listedKeys.has(valueOf(person)) }] : []),
+          // ("N more" opens the names it holds)
+          ...(rest
+            ? [{ key: "Other", label: textWithMoreLink("", `${rest} more`, "", ranked.slice(listed.length).map(([value, count]) => `${value} (${count})`).join(", ")), colour: "#a0a0a0", match: (person) => valueOf(person) && !listedKeys.has(valueOf(person)) }]
+            : []),
           ...(unknown ? [{ key: "?", label: mode === "country" ? "No birthplace" : "No surname", colour: UNKNOWN }] : []),
         ];
       },
@@ -1478,8 +1482,7 @@ function showNestedTreePopup(tree, options = {}) {
     legend.title = colouring.legendFor ? "In view now (the key changes as you zoom)" : "";
     items.forEach((item) => {
       const span = document.createElement("span");
-      span.innerHTML = `<i style="background:${item.colour}"></i>`;
-      span.appendChild(document.createTextNode(item.label));
+      span.innerHTML = `<i style="background:${item.colour}"></i>${moreTextToHtml(item.label)}`;
       span.addEventListener("mouseenter", () => {
         const matches = nodes.filter((node) =>
           item.key === "plain" ? node.leaf : item.match ? item.match(node.person) : colouring.key(node.person) === item.key

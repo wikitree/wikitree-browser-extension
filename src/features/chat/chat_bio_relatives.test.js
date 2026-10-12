@@ -102,6 +102,11 @@ describe("parseFindRelativesPrompt", () => {
     ["are her parents on WikiTree?", { target: "", roles: ["father", "mother"] }],
     ["find his children on WikiTree", { target: "", roles: ["child"] }],
     ["find Densham-156's family on WikiTree", { target: "Densham-156", roles: [] }],
+    // A tester on Rowland-18000 (2026-10-12): the first question went to a person called "Are there profiles for this person".
+    ["Are there profiles for this person's wife or children on WikiTree", { target: "", roles: ["child", "spouse"] }],
+    ["Are his parents, siblings and children on WikiTree?", { target: "", roles: ["father", "mother", "sibling", "child"] }],
+    ["Are Rowland-18000's wife and children on WikiTree?", { target: "Rowland-18000", roles: ["child", "spouse"] }],
+    ["are her brothers and sisters on WikiTree?", { target: "", roles: ["sibling"] }],
     ["find the people named in his biography", { target: "", roles: [] }],
     // No owner named: the page profile (Cassidy-5079), never the user.
     ["Are any relatives on WikiTree?", { target: "", roles: [] }],
@@ -306,10 +311,26 @@ describe("searchRelatives and the answer", () => {
         "**Likely match (95%):** Densham-200 Edith May Densham, 1873–\n- ✓ Same middle name (May)\n- ✓ Born 1873\n- ✓ Born in Pill, Somerset, England"
     );
     expect(message).toContain("**Already connected (1):** Brother Theophilus, b. about 1843 (Densham-300)");
-    expect(message).toContain("**No good match, so probably not on WikiTree yet (1):** Daughter Ella, b. about 1881");
+    expect(message).toContain(
+      "**No good match, so probably not on WikiTree yet (1):**\n- Daughter Ella Densham, b. about 1881 (searched for Ella Densham, born 1876–1886)"
+    );
     expect(message).toContain("check the profiles before adding a relationship");
     expect(table).toBeUndefined();
     expect(autoOpen).toBeUndefined();
+  });
+
+  // Rowland-18000 (a tester, 2026-10-12): "Does parsing the bio … work out the pre-marriage name of the wife?"
+  // It does; the answer now says so, with her names as WikiTree writes them.
+  test("a wife not found is named by her birth and married names, with the names searched", async () => {
+    const edward = { Id: 2, Name: "Rowland-18000", FirstName: "Edward", LastNameAtBirth: "Rowland", BirthDate: "1866-04-11" };
+    const ellen = { role: "spouse", given: ["Ellen", "Maria"], firstNames: ["Ellen"], surnames: ["Watkins", "Rowland"], birthSurname: "Watkins", birthYear: 1867, birthPlace: "", gender: "Female" };
+    const searchPerson = jest.fn(async () => []);
+    const results = await searchRelatives({ subject: edward, relatives: [ellen], searchPerson, getPeople: async () => [] });
+    expect(searchPerson.mock.calls.map(([params]) => `${params.FirstName} ${params.LastName}`)).toEqual(["Ellen Watkins", "Ellen Rowland"]);
+    const { message } = buildFindRelativesAnswer({ subjectLabel: "Edward (Rowland-18000)", results, readBy: "read by AI" });
+    expect(message).toContain(
+      "- Wife Ellen Maria (Watkins) Rowland, b. about 1867 (searched for Ellen Watkins and Ellen Rowland, born 1862–1872)"
+    );
   });
 });
 

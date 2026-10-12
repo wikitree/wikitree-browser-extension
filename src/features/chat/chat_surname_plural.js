@@ -12,15 +12,51 @@ export function singularSurname(name) {
   return "";
 }
 
+// "Smiths born in Devon", "the Smiths": the surname Smiths, or the Smith family? The words can't say
+// (Jones, Woods and Owens are surnames too), so WikiTree+'s own counts decide (2026-10-12). Profiles
+// with each surname, probed that day: Smiths 31 / Smith 466,090; Browns 57 / Brown 246,312; Halls 937 /
+// Hall 103,899 (all read as the family). Hills 6,088 / Hill 87,166; Woods 30,247 / Wood 79,340; Owens
+// 22,294 / Owen 21,635; Jones / Jone 38 (all real names, kept as typed).
+export const PLURAL_SURNAME_RATIO = 50;
+
+/**
+ * How to read a surname that could be a plural, from the profile counts for it and its singular:
+ * "singular" (the family), "offer" (keep it, but the singular is the commoner name, so offer it),
+ * or "typed". Unknown counts keep it as typed (a zero result still retries the singular).
+ */
+export function pluralSurnameReading(typedCount, singularCount) {
+  if (!Number.isFinite(typedCount) || !Number.isFinite(singularCount) || singularCount <= 0) return "typed";
+  if (typedCount === 0 || singularCount >= PLURAL_SURNAME_RATIO * typedCount) return "singular";
+  return singularCount > typedCount ? "offer" : "typed";
+}
+
+/** The surnames in a WT+ query that could be plurals ("Smiths", not "Smith" or "Willis"). */
+export function pluralSurnameCandidates(query) {
+  const names = [];
+  String(query || "").replace(SURNAME_TERM_RE, (whole, key, quote, value) => {
+    if (singularSurname(value) && !names.some((name) => name.toLowerCase() === value.toLowerCase())) names.push(value);
+    return whole;
+  });
+  return names;
+}
+
+/** The query with just these surnames made singular. */
+export function withSingularSurnames(query, names) {
+  const swap = new Set((names || []).map((name) => String(name).toLowerCase()));
+  return String(query || "").replace(SURNAME_TERM_RE, (whole, key, quote, value) =>
+    swap.has(value.toLowerCase()) ? `${key}=${quote}${singularSurname(value)}${quote}` : whole
+  );
+}
+
 /** {query, from, to} with each plural surname made singular, or null. */
 export function singularSurnameRetryQuery(query) {
-  const pairs = [];
-  const rewritten = String(query || "").replace(SURNAME_TERM_RE, (whole, key, quote, value) => {
-    const singular = singularSurname(value);
-    if (!singular) return whole;
-    pairs.push([value, singular]);
-    return `${key}=${quote}${singular}${quote}`;
-  });
-  if (!pairs.length) return null;
-  return { query: rewritten, from: pairs.map(([from]) => from), to: pairs.map(([, to]) => to) };
+  const from = pluralSurnameCandidates(query);
+  if (!from.length) return null;
+  return { query: withSingularSurnames(query, from), from, to: from.map(singularSurname) };
+}
+
+/** The text with each [from, to] surname swapped, for a title or a note ("Smiths in Devon" → "Smith in Devon"). */
+export function swapSurnames(text, pairs) {
+  if (!text || !pairs?.length) return text;
+  return pairs.reduce((out, [from, to]) => String(out).split(from).join(to), text);
 }

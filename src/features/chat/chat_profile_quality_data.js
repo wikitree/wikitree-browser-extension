@@ -4,6 +4,8 @@
 // for them (most of these are the DataStatus field), the "no more spouses" and "no more
 // children" boxes, and inline source citations. Research status Gold Standard = 100%.
 
+import { joinWithAndMore } from "./chat_more_text";
+
 /** WikiTree's Research Status codes (getProfile.md). */
 export const RESEARCH_STATUSES = {
   10: "Unfinished",
@@ -159,8 +161,8 @@ export function buildNeedsHelpAnswer(people, ownerText, { limit = 8 } = {}) {
   const scored = (people || []).filter((p) => p?.quality && !p.quality.gold);
   if (!scored.length) return "";
   const describe = (p) => {
-    const missing = p.quality.missing.slice(0, 3).join(", ");
-    return `${p.name || p.wtid} (${p.wtid}), ${Math.round(100 * p.quality.score)}%${missing ? `: needs ${missing}${p.quality.missing.length > 3 ? ` and ${p.quality.missing.length - 3} more` : ""}` : ""}`;
+    const missing = joinWithAndMore(p.quality.missing, { max: 3 });
+    return `${p.name || p.wtid} (${p.wtid}), ${Math.round(100 * p.quality.score)}%${missing ? `: needs ${missing}` : ""}`;
   };
   const lines = [];
   const flagged = HELP_STATUSES.flatMap((code) => scored.filter((p) => p.quality.researchStatus === code));

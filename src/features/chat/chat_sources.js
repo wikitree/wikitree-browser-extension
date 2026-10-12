@@ -2,6 +2,8 @@
 // the lines under == Sources == in the biography wikitext (live, 2026-10-03: the
 // bio handler read "profile" as a bio request and showed a husband's biography).
 
+import { linesWithMore } from "./chat_more_text";
+
 const SUBJECT = String.raw`(this\s+(?:profile|page|person)|the\s+profile(?:\s+person)?|(?:his|her|their)\s+(?:profile|page)|he|she|they|him|her|them|[A-Z][A-Za-z'_ -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.()]*){0,4})`;
 const SOURCES = String.raw`(?:sources?|citations?|references?)`;
 const SOURCES_PROMPT_RES = [
@@ -88,7 +90,6 @@ export function buildSourcesAnswer({ label, bio, countOnly = false }) {
   const noun = `source${sources.length === 1 ? "" : "s"}`;
   if (countOnly) return `${label} has ${sources.length} ${noun} in the biography.`;
   const shorten = (source) => (source.length > MAX_SOURCE_CHARS ? `${source.slice(0, MAX_SOURCE_CHARS - 1)}…` : source);
-  const listed = sources.slice(0, MAX_LISTED).map((source, index) => `${index + 1}. ${shorten(source)}`);
-  const more = sources.length > MAX_LISTED ? `\n…and ${sources.length - MAX_LISTED} more on the profile.` : "";
-  return `${label} has ${sources.length} ${noun} in the biography:\n${listed.join("\n")}${more}`;
+  const listed = linesWithMore(sources.map((source, index) => `${index + 1}. ${shorten(source)}`), MAX_LISTED, { after: " on the profile" });
+  return `${label} has ${sources.length} ${noun} in the biography:\n${listed}`;
 }

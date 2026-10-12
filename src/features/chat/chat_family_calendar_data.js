@@ -7,6 +7,7 @@ import { canonicalChartOwner as canonicalOwner } from "./chat_chart_prompt";
 import { generationOfSlot } from "./chat_fan_chart_data";
 import { ancestorWord } from "./chat_kin_labels";
 import { RELATIVE_OWNER } from "./chat_chart_owner";
+import { linesWithMore } from "./chat_more_text";
 
 export const FAMILY_CALENDAR_GENERATIONS = 8;
 export const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -99,7 +100,9 @@ export function buildCalendarEvents(slots) {
       generation,
       relation: person.relation ?? (generation === 0 ? "" : ancestorWord(generation, person.gender)),
       wtid: person.wtid || "",
-      name: person.name || person.wtid || "",
+      // The full WikiTree name (PersonName), not just "John" (the user, 2026-10-12).
+      name: person.fullName || person.name || person.wtid || "",
+      shortName: person.name || person.wtid || "",
       gender: person.gender || "",
     };
     [
@@ -145,8 +148,7 @@ export function buildCalendarSummary(events, ownerText, params = {}, now = new D
     if (!inMonth.length) lines.push(`None of ${ownerText === "Your" ? "your" : ownerText} ${params.scope === "family" ? "family members" : "ancestors"} with full dates ${what} in ${MONTHS[params.month - 1]}.`);
     else {
       lines.push(`${inMonth.length} of ${ownerText === "Your" ? "your" : ownerText} ${params.scope === "family" ? "family members" : "ancestors"} ${what} in ${MONTHS[params.month - 1]}:`);
-      inMonth.slice(0, 8).forEach((event) => lines.push(`• ${event.day} ${MONTHS[event.month - 1]}: ${eventLine(event, ownerText)}`));
-      if (inMonth.length > 8) lines.push(`…and ${inMonth.length - 8} more on the calendar.`);
+      lines.push(linesWithMore(inMonth.map((event) => `• ${event.day} ${MONTHS[event.month - 1]}: ${eventLine(event, ownerText)}`), 8, { after: " on the calendar" }));
     }
   } else {
     const month = now.getMonth() + 1;

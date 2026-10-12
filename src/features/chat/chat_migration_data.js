@@ -233,7 +233,7 @@ export function buildMigration(slots, pointFor = cachedPoint) {
     const born = yearOf(person.birth);
     if (born && (!place.firstYear || born < place.firstYear)) place.firstYear = born;
     if (place.names.length < 6) place.names.push(migrationPersonLabel(person));
-    if (place.people.length < 15) place.people.push({ label: migrationPersonLabel(person), wtid: person.wtid || "" });
+    place.people.push({ label: migrationPersonLabel(person), wtid: person.wtid || "" });
     if (place.locations.length < 3 && !place.locations.includes(person.birthLocation)) place.locations.push(person.birthLocation);
   });
   const flows = new Map();
@@ -253,7 +253,7 @@ export function buildMigration(slots, pointFor = cachedPoint) {
     flow.generation = Math.max(flow.generation, generationOfSlot(slot));
     const year = yearOf(child.birth);
     if (year && (!flow.firstYear || year < flow.firstYear)) flow.firstYear = year;
-    if (flow.examples.length < 8) flow.examples.push({ parent: migrationPersonLabel(parent), child: migrationPersonLabel(child), year, parentWtid: parent.wtid || "", childWtid: child.wtid || "" });
+    flow.examples.push({ parent: migrationPersonLabel(parent), child: migrationPersonLabel(child), year, parentWtid: parent.wtid || "", childWtid: child.wtid || "" });
   });
   const sortedFlows = [...flows.values()].sort(
     (a, b) => (a.firstYear ?? 9999) - (b.firstYear ?? 9999) || b.generation - a.generation || b.count - a.count
@@ -297,7 +297,7 @@ export function buildDescendantMigration(tree, pointFor = cachedPoint) {
       const place = places.get(region.key);
       place.count += 1;
       if (place.names.length < 6) place.names.push(migrationPersonLabel(person));
-      if (place.people.length < 15) place.people.push({ label: migrationPersonLabel(person), wtid: person.wtid || "" });
+      place.people.push({ label: migrationPersonLabel(person), wtid: person.wtid || "" });
       if (place.locations.length < 3 && !place.locations.includes(person.birthLocation)) place.locations.push(person.birthLocation);
       const born = yearOf(person.birth);
       if (born && (!place.firstYear || born < place.firstYear)) place.firstYear = born;
@@ -311,7 +311,7 @@ export function buildDescendantMigration(tree, pointFor = cachedPoint) {
       flow.generation = Math.max(flow.generation, node.depth || 0);
       const year = yearOf(person.birth);
       if (year && (!flow.firstYear || year < flow.firstYear)) flow.firstYear = year;
-      if (flow.examples.length < 8) flow.examples.push({ parent: migrationPersonLabel(parentNode.person), child: migrationPersonLabel(person), year, parentWtid: parentNode.person?.wtid || "", childWtid: person.wtid || "" });
+      flow.examples.push({ parent: migrationPersonLabel(parentNode.person), child: migrationPersonLabel(person), year, parentWtid: parentNode.person?.wtid || "", childWtid: person.wtid || "" });
     }
     // (an unplaced child passes on its parent's place, so a gap doesn't hide a move)
     (node.children || []).forEach((child) => visit(child, region ? node : parentNode, region || parentRegion));

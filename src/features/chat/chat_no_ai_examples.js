@@ -25,6 +25,11 @@ export const NO_AI_EXAMPLE_SECTIONS = [
       { pattern: "[surname] born [year] [place]", examples: ["Smith born 1850 Kent"] },
       { pattern: "the [surname]s of [place] / the [surname] family from [place]", examples: ["the Beacalls of Shropshire", "Smith family from Kent"] },
       { pattern: "[place] no birth or death date", examples: ["England no birth or death date"] },
+      { pattern: "[search] with no birth date / no death date", examples: ["Edwards profiles with no birth date", "born in Devon with no death date"] },
+      {
+        pattern: "Category: [name] (with or without children / parents / a spouse, [status], born / died [place or years])",
+        examples: ["Category: Mayflower Passengers no parents", "Who is in the Salem Witch Trials category?", "Category: Pennsylvania Quakers died before 1800"],
+      },
       {
         pattern: "[search] with a Research Status: gold standard / gold standard candidates / silver standard / help requested / sources to review / unfinished / no research status",
         examples: ["gold standard profiles in Devon", "profiles I manage with sources to review"],
@@ -142,6 +147,7 @@ export const NO_AI_EXAMPLE_SECTIONS = [
       { pattern: "my ancestors who lived past / died under [age]", examples: ["my ancestors who lived past 90", "my ancestors who died under 5"] },
       { pattern: "brick walls", examples: ["brick walls", "my ancestors with a missing parent"] },
       { pattern: "my CC7", examples: ["my CC7"] },
+      { pattern: "my / his / her CC7 born / died / in [place]", examples: ["his CC7 born in Ontario", "how many of my CC7 died in Kent"] },
       { pattern: "birthdays and anniversaries", examples: ["on this day in my family", "who in my family was born in March"] },
       { pattern: "about the profile you're on", examples: ["her children", "When did she marry?", "How old was he when his first child was born?"] },
       {

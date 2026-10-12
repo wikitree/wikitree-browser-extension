@@ -11,6 +11,7 @@ import { parseCousinRelationRequest } from "./chat_cousin_helpers";
 import { parseDuplicateCheckPrompt } from "./chat_duplicates";
 import { parseBurialPrompt } from "./chat_burial";
 import { parseFindRelativesPrompt } from "./chat_bio_relatives";
+import { withAccentsMasked } from "./chat_accent_mask";
 import { parseProfileFactPrompt } from "./chat_profile_facts";
 import { parseDnaPrompt } from "./chat_dna";
 import { parseFanChartPrompt, parseSurnameChartPrompt } from "./chat_fan_chart_data";
@@ -166,57 +167,29 @@ function matchKinDateClause(normalized, kinWords, parseBase) {
   return withDateConstraint(base, /^died$/i.test(match[2]) ? "DeathDate" : "BirthDate", match[3].toLowerCase(), match[4]);
 }
 
+// Whose CC: "my", "his/her/their" (the page person) or "Name's"/"Name-123's"; resolveCc7SubjectRoot reads which.
+// "his CC7 born in Ontario" went to the AI, which only wrote a search (the user, 2026-10-12).
+const CC_OWNER = String.raw`(?:(my|his|her|their|[^?]+?['’]s)\s+)?`;
+const CC_LOCATION_FIELDS = { born: "BirthLocation", died: "DeathLocation" };
+
 function parseCc7LocationPrompt(prompt) {
-  const compactBorn = prompt.match(/^(?:my\s+)?cc(\d+)\s+born\s+in\s+(.+?)\??$/i);
-  if (compactBorn?.[2]) {
-    return { mode: "list", location: compactBorn[2].trim(), field: "BirthLocation", nuclear: Number(compactBorn[1]) };
-  }
+  const text = String(prompt || "")
+    .trim()
+    .replace(/[.!?]+$/, "");
+  const result = (match, mode, verb) => {
+    // "notables in Cook-8721's CC7 in Kent" is a filtered search, not a CC7 list.
+    if (!match || (match[1] && CC_FILTER_WORD_RE.test(match[1]))) return null;
+    return { mode, location: match[match.length - 1].trim(), field: CC_LOCATION_FIELDS[verb] || "AnyLocation", nuclear: Number(match[2]) };
+  };
+  const compact = text.match(
+    new RegExp(String.raw`^(?:(?:show|list|find)\s+(?:me\s+)?)?${CC_OWNER}cc(\d+)\s+(?:(?:profiles|people|members|relatives)\s+)?(?:(?:who|that)\s+(?:(?:were|was|are|is)\s+)?)?(?:(born|died)\s+)?in\s+(.+)$`, "i")
+  );
+  if (compact) return result([compact[0], compact[1], compact[2], compact[4]], "list", compact[3]?.toLowerCase());
 
-  const compactDied = prompt.match(/^(?:my\s+)?cc(\d+)\s+died\s+in\s+(.+?)\??$/i);
-  if (compactDied?.[2]) {
-    return { mode: "list", location: compactDied[2].trim(), field: "DeathLocation", nuclear: Number(compactDied[1]) };
-  }
-
-  const compactIn = prompt.match(/^(?:my\s+)?cc(\d+)\s+in\s+(.+?)\??$/i);
-  if (compactIn?.[2]) {
-    return { mode: "list", location: compactIn[2].trim(), field: "AnyLocation", nuclear: Number(compactIn[1]) };
-  }
-
-  const bornList = prompt.match(/(?:which|who)\s+of\s+my\s+cc(\d+)\s+(?:were|was|are|is)\s+born\s+in\s+(.+?)\??$/i);
-  if (bornList?.[2]) {
-    return { mode: "list", location: bornList[2].trim(), field: "BirthLocation", nuclear: Number(bornList[1]) };
-  }
-
-  const bornCount = prompt.match(/how\s+many\s+of\s+my\s+cc(\d+)\s+(?:were|was|are|is)\s+born\s+in\s+(.+?)\??$/i);
-  if (bornCount?.[2]) {
-    return { mode: "count", location: bornCount[2].trim(), field: "BirthLocation", nuclear: Number(bornCount[1]) };
-  }
-
-  const diedList = prompt.match(/(?:which|who)\s+of\s+my\s+cc(\d+)\s+(?:were|was|are|is)\s+died\s+in\s+(.+?)\??$/i);
-  if (diedList?.[2]) {
-    return { mode: "list", location: diedList[2].trim(), field: "DeathLocation", nuclear: Number(diedList[1]) };
-  }
-
-  const diedCount = prompt.match(/how\s+many\s+of\s+my\s+cc(\d+)\s+(?:were|was|are|is)\s+died\s+in\s+(.+?)\??$/i);
-  if (diedCount?.[2]) {
-    return { mode: "count", location: diedCount[2].trim(), field: "DeathLocation", nuclear: Number(diedCount[1]) };
-  }
-
-  // Fallback location query for CC7 when user doesn't specify born/died.
-  const listMatch = prompt.match(/(?:which|who)\s+of\s+my\s+cc(\d+)\s+(?:were|was|are|is)\s+born\s+in\s+(.+?)\??$/i);
-  if (listMatch?.[2]) {
-    return { mode: "list", location: listMatch[2].trim(), field: "AnyLocation", nuclear: Number(listMatch[1]) };
-  }
-
-  const genericList = prompt.match(/(?:which|who)\s+of\s+my\s+cc(\d+)\s+.*\s+in\s+(.+?)\??$/i);
-  if (genericList?.[2]) {
-    return { mode: "list", location: genericList[2].trim(), field: "AnyLocation", nuclear: Number(genericList[1]) };
-  }
-
-  const countMatch = prompt.match(/how\s+many\s+of\s+my\s+cc(\d+)\s+.*\s+in\s+(.+?)\??$/i);
-  if (countMatch?.[2]) {
-    return { mode: "count", location: countMatch[2].trim(), field: "AnyLocation", nuclear: Number(countMatch[1]) };
-  }
+  const ofCc = text.match(
+    new RegExp(String.raw`\b(which|who|how\s+many)\s+of\s+${CC_OWNER}cc(\d+)\s+(?:(?:were|was|are|is)\s+)?(?:(born|died)\s+in\s+|.*\s+in\s+)(.+)$`, "i")
+  );
+  if (ofCc) return result([ofCc[0], ofCc[2], ofCc[3], ofCc[5]], /^how/i.test(ofCc[1]) ? "count" : "list", ofCc[4]?.toLowerCase());
 
   return null;
 }
@@ -2813,6 +2786,10 @@ export function tidyKinFollowUp(prompt) {
 }
 
 export function routeChatPrompt(prompt, options = {}) {
+  return withAccentsMasked(prompt, (text) => routeAsciiChatPrompt(text, options));
+}
+
+function routeAsciiChatPrompt(prompt, options = {}) {
   prompt = tidyKinFollowUp(preferBracketedIds(prompt));
   // "show his family tree chart" was a text filter of the last result (live,
   // 2026-10-08): a family tree or pedigree chart is the fan chart.

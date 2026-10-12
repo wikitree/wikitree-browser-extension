@@ -240,7 +240,7 @@ describe("a chart for a relative of the page person", () => {
   test("several daughters and no name: asks which, lists them", async () => {
     const { handlers, fetchPeoplePaged } = handlersWith(daughters);
     const reply = await handlers.tryHandleFanChartPrompt({ ancestorPrompt: "his daughter's ancestors", generations: 3 });
-    expect(String(reply?.message || reply)).toContain("Carol (Moak-89), Joan (Moak-90)");
+    expect(String(reply?.message || reply)).toContain("Carol Moak (Moak-89), Joan Moak (Moak-90)");
     expect(fetchPeoplePaged).not.toHaveBeenCalled();
   });
 
@@ -248,7 +248,7 @@ describe("a chart for a relative of the page person", () => {
     const { handlers } = handlersWith(daughters);
     const reply = await handlers.tryHandleFanChartPrompt({ ancestorPrompt: "his daughter Susan's ancestors", generations: 3 });
     expect(String(reply?.message || reply)).toContain("named Susan");
-    expect(String(reply?.message || reply)).toContain("Joan (Moak-90)");
+    expect(String(reply?.message || reply)).toContain("Joan Moak (Moak-90)");
   });
 });
 

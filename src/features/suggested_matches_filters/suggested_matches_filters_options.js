@@ -11,7 +11,8 @@ registerFeature({
   description:
     "Lets you filter out suggested matches for new profiles by location, name, and/or date. " +
     "The Highlight and Sort option finds exact name, date, and location matches, highlights them and brings " +
-    "suggestions with the most matches to the top of the list.",
+    "suggestions with the most matches to the top of the list. A Details switch shows each suggestion's family, " +
+    "sources, stickers and categories.",
   category: "Editing/Add_Person",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],

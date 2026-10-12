@@ -1,6 +1,7 @@
 import $ from "jquery";
 
 import { buildTreeAppRecommendations } from "./chat_tree_apps";
+import { linesWithMore } from "./chat_more_text";
 import { readMemberWatchlist, watchlistAgeNote, watchlistDisplayName } from "./chat_managed_profiles";
 
 export function createChatCcHandlers({
@@ -156,7 +157,7 @@ export function createChatCcHandlers({
     const subjectLabel = formatSubjectLabel(subjectRoot);
 
     let matches = [];
-    let dataSource = "API";
+    let fromPage = ""; // (" from the CC7 table on this page" when the API failed)
 
     try {
       const cc7Profiles = await getCcProfilesForUser(subjectRoot.key, nuclear);
@@ -175,7 +176,7 @@ export function createChatCcHandlers({
         })
         .map((profile) => ({
           wtid: profile.Name,
-          name: profile.RealName || profile?.Derived?.ShortName || profile.Name,
+          name: watchlistDisplayName(profile) || profile.Name, // full names (the user, 2026-10-12)
           firstName: profile.FirstName || "",
           lnab: profile.LastNameAtBirth || "",
           lastNameCurrent: profile.LastNameCurrent || "",
@@ -201,7 +202,7 @@ export function createChatCcHandlers({
         }`;
       }
 
-      dataSource = "current table view";
+      fromPage = " (from the CC7 table on this page)";
       const needle = parsed.location.toLowerCase();
       rows.forEach((row) => {
         const wtid = (row.getAttribute("data-wtid") || "").trim();
@@ -235,6 +236,10 @@ export function createChatCcHandlers({
       });
     }
 
+    // Nearest first, as the table opens.
+    const degreeOf = (person) => (person.degrees === "" || person.degrees === undefined ? Infinity : Number(person.degrees));
+    matches.sort((a, b) => degreeOf(a) - degreeOf(b) || String(a.name).localeCompare(String(b.name)));
+
     if (parsed.mode === "count") {
       const defaultOrder = matches.some((person) => person?.degrees !== "" && person?.degrees !== undefined)
         ? [
@@ -248,7 +253,7 @@ export function createChatCcHandlers({
       return {
         message: `I found ${matches.length} ${ccLabel} profile${matches.length === 1 ? "" : "s"} ${countFieldLabel} ${
           parsed.location
-        } for ${subjectLabel} (from ${dataSource}).`,
+        } for ${subjectLabel}${fromPage}.`,
         table: matches.length
           ? makeStandardProfileTable(
               `${ccLabel} profiles in ${parsed.location} for ${subjectRoot.displayName}`,
@@ -274,18 +279,15 @@ export function createChatCcHandlers({
     }
 
     if (!matches.length) {
-      return `I found no ${ccLabel} profiles in ${parsed.location} for ${subjectLabel} (from ${dataSource}).`;
+      return `I found no ${ccLabel} profiles in ${parsed.location} for ${subjectLabel}${fromPage}.`;
     }
 
     const maxToShow = 25;
-    const shown = matches.slice(0, maxToShow);
-    const lines = shown.map(
-      (person) =>
-        `- ${person.name} (${person.wtid})${
-          person.degrees !== undefined && person.degrees !== "" ? `, degree ${person.degrees}` : ""
-        } - ${person.birthLocation}${person.deathLocation ? ` | died: ${person.deathLocation}` : ""}`
-    );
-    const extra = matches.length > maxToShow ? `\n...and ${matches.length - maxToShow} more.` : "";
+    const lines = matches.map((person) => {
+      const places = [person.birthLocation && `born ${person.birthLocation}`, person.deathLocation && `died ${person.deathLocation}`].filter(Boolean).join("; ");
+      const degree = person.degrees !== undefined && person.degrees !== "" ? `, degree ${person.degrees}` : "";
+      return `- ${person.name} (${person.wtid})${degree}${places ? `: ${places}` : ""}`;
+    });
     const fieldLabel =
       parsed.field === "DeathLocation" ? "died in" : parsed.field === "BirthLocation" ? "born in" : "in";
     const defaultOrder = matches.some((person) => person?.degrees !== "" && person?.degrees !== undefined)
@@ -299,7 +301,7 @@ export function createChatCcHandlers({
     return {
       message: `Here are the ${ccLabel} profiles ${fieldLabel} ${
         parsed.location
-      } for ${subjectLabel} (from ${dataSource}):\n${lines.join("\n")}${extra}`,
+      } for ${subjectLabel}${fromPage}:\n${linesWithMore(lines, maxToShow, { after: " in the table" })}`,
       table: makeStandardProfileTable(
         `${ccLabel} profiles ${fieldLabel} ${parsed.location} for ${subjectRoot.displayName}`,
         matches.map((person) => ({
@@ -364,17 +366,16 @@ export function createChatCcHandlers({
             normalizeText(left.displayName).localeCompare(normalizeText(right.displayName))
         );
 
-      const preview = rows
-        .slice(0, 15)
-        .map((person) => `- ${person.displayName} (${person.wtid}), degree ${person.degrees}`)
-        .join("\n");
-      const extra = rows.length > 15 ? `\n...and ${rows.length - 15} more.` : "";
+      const preview = linesWithMore(
+        rows.map((person) => `- ${person.displayName} (${person.wtid}), degree ${person.degrees}`),
+        15
+      );
       const treeAppActions = nuclear === 7 ? buildTreeAppActions("cc7", subjectRoot.wtId) : [];
 
       return {
         message: `${ccSummaryOwner(subjectRoot, subjectLabel, ccLabel)} includes ${rows.length.toLocaleString("en-US")} profile${
           rows.length === 1 ? "" : "s"
-        }.\n${preview}${extra}`,
+        }.\n${preview}`,
         table: makeStandardProfileTable(`${ccLabel} for ${subjectRoot.displayName}`, rows, [
           [5, "asc"],
           [0, "asc"],

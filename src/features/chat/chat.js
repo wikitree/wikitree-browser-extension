@@ -1,5 +1,7 @@
 import { createConnectionSourceResolver } from "./chat_connection_source";
 import { REQUESTED_COLUMNS, addRequestedColumns, parseColumnRequest, requestedColumnFields } from "./chat_requested_columns";
+import { joinWithAnd } from "./chat_text_utils";
+import { joinWithAndMore } from "./chat_more_text";
 /*
 Created By: Ian Beacall (Beacall-6)
 */
@@ -1461,14 +1463,13 @@ async function fetchProfilesForIds(ids = [], fields = "Name,Id", opts = {}) {
     hideChatShaky();
     if (errors.length) {
       try {
-        const summary = errors
-          .slice(0, 10)
-          .map((er) => `${er.id} (${er.message.replace(/\n/g, " ")})`)
-          .join(", ");
-        const extra = errors.length > 10 ? ` and ${errors.length - 10} more` : "";
+        const summary = joinWithAndMore(
+          errors.map((er) => `${er.id} (${er.message.replace(/\n/g, " ")})`),
+          { max: 10 }
+        );
         appendMessage(
           "assistant",
-          `Failed to load some profiles: ${summary}${extra}. Partial results are shown where available.`,
+          `Failed to load some profiles: ${summary}. Partial results are shown where available.`,
           { shouldPersist: false }
         );
       } catch (e) {
@@ -2616,7 +2617,7 @@ async function withFetchedColumns(table, keys) {
 // "add a privacy column": to the table already showing.
 async function addColumnsToResult(table, keys) {
   const titles = keys.map((key) => REQUESTED_COLUMNS[key].title);
-  const titleText = titles.length > 1 ? `${titles.slice(0, -1).join(", ")} and ${titles.at(-1)}` : titles[0];
+  const titleText = joinWithAnd(titles);
   if (!table?.rows?.some((row) => row?.wtid)) {
     return {
       message: `There's no list of profiles to add the ${titleText} column${titles.length > 1 ? "s" : ""} to yet. Ask for one first, for example "my cousins with a privacy column".`,
@@ -3551,6 +3552,10 @@ async function sendChatPrompt() {
             categories,
             rawProfileJson ? "GETPROFILE_JSON:" : "",
             rawProfileJson,
+            // Murray's own living profile got an unrelated answer (2026-10-12): the API hides it.
+            !bio && !profile?.BirthDate && !sources
+              ? `The API returned no biography, dates or sources for ${profileKey}: the profile is probably private (most living people's are), so Genie can't see its details through the API. Use the page text if it is given below; if the question needs details neither has, say so plainly and why. Don't answer a different question.`
+              : "",
           ]
             .filter(Boolean)
             .join("\n\n");
@@ -4057,7 +4062,9 @@ function extractNamedSubjectForCc7Prompt(prompt) {
     return "";
   }
 
-  const possessiveMatch = normalized.match(/(.+?)'s\s+cc7\b/i);
+  const possessiveMatch = normalized
+    .replace(/^(?:(?:show|list|find)\s+(?:me\s+)?|(?:which|who|how\s+many)\s+of\s+)/i, "")
+    .match(/(.+?)['’]s\s+cc\d+\b/i);
   if (possessiveMatch?.[1]) {
     return possessiveMatch[1].trim();
   }
@@ -4706,7 +4713,10 @@ function appendWelcomeChips() {
   $messages.find(".chat-welcome-chips").remove();
   const $chips = $("<div>").addClass("chat-message-actions chat-welcome-chips").attr("aria-label", "Try these");
   const profile = getPageRootPerson();
-  const profileFirstName = profile ? String(profile.displayName || profile.wtId).trim().split(/\s+/)[0] || profile.wtId : "";
+  // On your own profile, "How am I related to Murray?" is pointless (Murray, on his own profile, 2026-10-12):
+  // the questions about you and your tree come instead.
+  const isOwnProfile = Boolean(profile?.wtId) && String(profile.wtId).toLowerCase() === String(getUserWtId() || "").toLowerCase();
+  const profileFirstName = profile && !isOwnProfile ? String(profile.displayName || profile.wtId).trim().split(/\s+/)[0] || profile.wtId : "";
   // The first few show; "More…" opens the rest (there are a dozen charts now).
   // On a Space, Help, Project or Category page, questions about the page come first.
   const pageChips = profile ? [] : currentPageChipPrompts(getCurrentPageInfo(), { ai: aiAvailable !== false });

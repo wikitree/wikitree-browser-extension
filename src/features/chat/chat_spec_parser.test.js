@@ -108,8 +108,17 @@ describe("parseSearchSpecPrompt created phrases", () => {
       places: [{ text: "Ohio", event: "birth" }],
       created: { from: 2023, to: 2023 },
     });
-    // (a bare "Kent created in 2023" could be a surname or a place: declined)
-    expect(parseSearchSpecPrompt("Kent profiles created in 2023")).toBeNull();
+    // (a bare "Kent created in 2023" could be a surname or a place: it runs as the place, and the reply
+    // offers the surname instead when WikiTree+ has profiles that way; the user, 2026-10-12)
+    expect(read("Kent profiles created in 2023")).toEqual({
+      places: [{ text: "Kent", event: "any" }],
+      created: { from: 2023, to: 2023 },
+    });
+    expect(read("Lancashire profiles with no death date born before 1850")).toEqual({
+      places: [{ text: "Lancashire", event: "any" }],
+      dates: [{ event: "birth", to: 1849 }],
+      missingDates: ["death"],
+    });
     expect(read("born in Kent created before 2015").created).toEqual({ to: 2014 });
     expect(read("born in Kent, created after 2015").created).toEqual({ from: 2016 });
     expect(read("born in Kent created in or before 2015").created).toEqual({ to: 2015 });

@@ -318,27 +318,34 @@ describe("chat second-set prompt corpus (deterministic WT+ parses)", () => {
     expect(executedQuery).toContain("fgcem105308");
   });
 
-  test("a bare Location= scope offers life-event refinements, and a surname reading only when ambiguous", async () => {
+  test("a bare Location= scope offers life-event refinements, and a surname reading when WikiTree+ has it", async () => {
+    // Profiles with each surname (WikiTree+, 2026-10-12): Kent 14,161, Scotland 1,067, Denbighshire 0. Places
+    // are surnames too (Lancashire, England, Wales; the user, 2026-10-12), so the count decides, not the word.
+    const surnames = { Kent: 14161, Scotland: 1067, Denbighshire: 0 };
     const labelsFor = async (prompt) => {
       jest.clearAllMocks();
-      wtAPIProfileSearch.mockResolvedValue({ response: { profiles: ["1"], searchLog: "Result: 1\r\n" } });
+      wtAPIProfileSearch.mockImplementation(async (app, query) => {
+        const surname = decodeURIComponent(query).match(/AllLastNames=(\w+)/)?.[1];
+        return { response: { profiles: ["1"], searchLog: `Result: ${surname ? surnames[surname] : 1}\r\n` } };
+      });
       const result = await runPrompt(prompt);
       return (result.actions || []).map((action) => action.label);
     };
 
     const kent = await labelsFor("Kent no manager");
     expect(kent).toEqual(expect.arrayContaining(["Born in Kent", "Married in Kent", "Died in Kent"]));
-    // "Kent" is a county AND a surname, so the surname reading is offered.
     expect(kent).toContain("Surname Kent");
+    expect(await labelsFor("Scotland no manager")).toContain("Surname Scotland");
 
-    // "-shire" and known countries can only be places — no surname button.
     const denbighshire = await labelsFor("Denbighshire no manager");
     expect(denbighshire).toEqual(expect.arrayContaining(["Born in Denbighshire", "Died in Denbighshire"]));
     expect(denbighshire).not.toContain("Surname Denbighshire");
-    expect(await labelsFor("Scotland no manager")).not.toContain("Surname Scotland");
+
+    // "in Kent" says it's the place
+    expect(await labelsFor("unmanaged profiles in Kent")).not.toContain("Surname Kent");
   });
 
-  test("choosing 'Any place' still surfaces scope refinements when it is too many / zero", async () => {
+  test("choosing 'Any place' still surfaces scope refinements when it is too many / zero, but not the surname", async () => {
     // The user accepted the vague scope via the "Any place" button, which
     // re-runs Location=Kent directly (fromScopeChoice). Those result branches
     // used to return before the refinement buttons were attached.
@@ -350,16 +357,15 @@ describe("chat second-set prompt corpus (deterministic WT+ parses)", () => {
       searchLog: "Result: 99999 Maximum number of profiles\r\n",
     });
     const tooMany = await reRunSavedWtPlusQuery("Orphan Location=Kent", "text");
-    expect((tooMany.actions || []).map((a) => a.label)).toEqual(
-      expect.arrayContaining(["Born in Kent", "Died in Kent", "Surname Kent"])
-    );
+    expect((tooMany.actions || []).map((a) => a.label)).toEqual(expect.arrayContaining(["Born in Kent", "Died in Kent"]));
+    // (the button chose the place)
+    expect((tooMany.actions || []).map((a) => a.label)).not.toContain("Surname Kent");
 
     jest.clearAllMocks();
     wtAPIProfileSearch.mockResolvedValue({ response: { found: 0, profiles: [] }, searchLog: "Result: 0\r\n" });
     const zero = await reRunSavedWtPlusQuery("Orphan Location=Kent", "text");
-    // Born/married/died in Kent can only find fewer than 0, so only the surname
-    // reading is offered.
-    expect((zero.actions || []).map((a) => a.label)).toEqual(["Surname Kent"]);
+    // Born/married/died in Kent can only find fewer than 0, and the button chose the place.
+    expect(zero.actions || []).toEqual([]);
   });
 
   test("plain-English orphan phrasing parses to the Orphan token (offered on each scope choice), never leaking 'manager'", async () => {
@@ -376,7 +382,8 @@ describe("chat second-set prompt corpus (deterministic WT+ parses)", () => {
       jest.clearAllMocks();
       wtAPIProfileSearch.mockResolvedValue({ response: { profiles: ["1"], searchLog: "Result: 1\r\n" } });
       const result = await runPrompt(prompt);
-      expect(wtAPIProfileSearch).not.toHaveBeenCalled();
+      // (nothing searched; at most a count: is Denbighshire a surname too?)
+      expect(wtAPIProfileSearch.mock.calls.every((call) => call[2]?.maxProfiles === 1)).toBe(true);
       const actionQueries = (result.actions || []).map((a) => a.wtPlusQuery);
       expect(actionQueries.length).toBeGreaterThan(0);
       for (const q of actionQueries) {

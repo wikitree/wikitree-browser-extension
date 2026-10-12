@@ -42,9 +42,11 @@ export const CHART_MENU_GROUPS = [
 export const CHART_BAR_KEYS = ["fan", "explorer", "descendants", "lifespans", "history", "map", "calendar", "names", "overview", "familymap", "ages", "xdna", "dnalines", "ydnamap", "dnatesters"];
 
 // (lower case too: "beacall-9 fractal" can only be an ID)
-const WIKITREE_ID = String.raw`[A-Za-z][A-Za-z'_ ]*?[A-Za-z]-\d+`;
+// Accents and hyphens too: "Lefèvre-123", "Saint-Pierre-12" (Anne, on her French grandfather, 2026-10-12: every
+// chart button said "We need AI"). The regexes using these take the "u" flag.
+const WIKITREE_ID = String.raw`\p{L}[\p{L}\p{M}'_ -]*?[\p{L}\p{M}]-\d+`;
 // A name: up to five words, the first capitalised ("Jefferson", "Thomas Jefferson", "Mary Ann de la Cour").
-const NAME = String.raw`[A-Z][A-Za-z'’.-]*(?:\s+[A-Za-z'’.-]+){0,4}`;
+const NAME = String.raw`\p{Lu}[\p{L}\p{M}'’.-]*(?:\s+[\p{L}\p{M}'’.-]+){0,4}`;
 // Capitalised words that start a sentence, not a name.
 const NOT_A_NAME = /^(?:show|list|find|open|draw|make|get|give|display|who|what|which|where|when|how|why|is|are|was|were|do|does|did|can|could|my|our|your|his|her|their|the|a|an|this|that|me|i|map|plot|explore)\b/i;
 
@@ -60,6 +62,7 @@ function chartFor(word) {
  */
 export function parseChartShortcutPrompt(prompt) {
   const text = String(prompt || "")
+    .normalize("NFC")
     .trim()
     .replace(/[.!?]+$/, "")
     .replace(/\s+/g, " ")
@@ -67,8 +70,8 @@ export function parseChartShortcutPrompt(prompt) {
     .replace(/^(?:please\s+)?(?:show|open|draw|display|make|view|see|give)(?:\s+me)?\s+(?:the\s+|a\s+)?/i, "");
   if (!text || text.length > 80) return null;
   const owner = String.raw`(${WIKITREE_ID}|${NAME})`;
-  const before = text.match(new RegExp(String.raw`^${owner}(?:['’]s?)?\s+(.+)$`));
-  const after = text.match(new RegExp(String.raw`^(.+?)\s+(?:for|of)\s+${owner}$`));
+  const before = text.match(new RegExp(String.raw`^${owner}(?:['’]s?)?\s+(.+)$`, "u"));
+  const after = text.match(new RegExp(String.raw`^(.+?)\s+(?:for|of)\s+${owner}$`, "u"));
   // Try every split, the shortest name first: "Thomas Jefferson descendants' map".
   const candidates = [];
   if (before) {
@@ -81,8 +84,8 @@ export function parseChartShortcutPrompt(prompt) {
   for (const [who, word] of candidates) {
     const chart = chartFor(word);
     if (!chart) continue;
-    const isId = new RegExp(`^${WIKITREE_ID}$`).test(who);
-    if (!isId && (!new RegExp(`^${NAME}$`).test(who) || NOT_A_NAME.test(who))) continue;
+    const isId = new RegExp(`^${WIKITREE_ID}$`, "u").test(who);
+    if (!isId && (!new RegExp(`^${NAME}$`, "u").test(who) || NOT_A_NAME.test(who))) continue;
     return { chart: chart.key, owner: who };
   }
   return null;

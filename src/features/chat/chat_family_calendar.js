@@ -251,7 +251,9 @@ export function showFamilyCalendarPopup(events, options = {}) {
       centreLow.text(`${inMonth.filter((e) => e.type === "death").length} died`);
       return;
     }
-    centreTop.text(truncate(root?.name || options.rootKey || "", 14));
+    // (the full name when it fits the circle, else the first name)
+    const fullName = root?.name || "";
+    centreTop.text(truncate(fullName && fullName.length <= 16 ? fullName : root?.shortName || options.rootKey || "", 16));
     centreMid.text(`${shown.filter((e) => e.type === "birth").length} birthdays`);
     centreLow.text(`${shown.filter((e) => e.type === "death").length} deaths`);
   }

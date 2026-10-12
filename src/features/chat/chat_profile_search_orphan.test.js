@@ -82,7 +82,10 @@ describe("chat_profile_search orphan manager phrasing", () => {
     // asks born/married/died up front instead of running the vague query.
     const result = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Denbighshire no manager");
 
-    expect(wtAPIProfileSearch).not.toHaveBeenCalled();
+    // (only a count: is Denbighshire a surname too?)
+    expect(wtAPIProfileSearch.mock.calls.map((call) => [decodeURIComponent(call[1]), call[2]])).toEqual([
+      ["AllLastNames=Denbighshire Orphan", { maxProfiles: 1 }],
+    ]);
     expect(result.message).toMatch(/birth, marriage, or death place/i);
     const actionQueries = (result.actions || []).map((a) => a.wtPlusQuery);
     // The Orphan token parsed correctly and rides along on each scope choice.
@@ -146,6 +149,8 @@ describe("chat_profile_search orphan manager phrasing", () => {
   test("falls back to born/married/died buttons when AI is unavailable", async () => {
     // allowAiFallback stays false (default handler), so no AI round-trip.
     const { tryHandleProfileSearchPrompt } = makeHandler();
+    // (WikiTree+ has profiles with the surname Kent, so that's offered too)
+    wtAPIProfileSearch.mockResolvedValue({ response: { profiles: ["1"], searchLog: "Result: 3\r\n" } });
 
     const result = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "Kent no manager");
 

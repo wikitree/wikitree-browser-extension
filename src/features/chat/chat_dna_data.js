@@ -6,6 +6,7 @@
 import { FAN_CHART_MAX_GENERATIONS, generationOfSlot } from "./chat_fan_chart_data";
 import { ancestorWord, generationLabel } from "./chat_kin_labels";
 import { RELATIVE_OWNER } from "./chat_chart_owner";
+import { linesWithMore } from "./chat_more_text";
 
 const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const X = String.raw`(?:x[\s-]*dna|x[\s-]*chromosomes?|x[\s-]*chromosome\s+dna)`;
@@ -230,9 +231,9 @@ export function buildParentStatusSummary(slots, ownerText) {
       .filter(Boolean);
   const dna = named("dna");
   const uncertain = named("uncertain");
-  if (dna.length) lines.push(`Confirmed with DNA:\n${dna.slice(0, 12).map((line) => `- ${line}`).join("\n")}${dna.length > 12 ? `\n…and ${dna.length - 12} more.` : ""}`);
+  if (dna.length) lines.push(`Confirmed with DNA:\n${linesWithMore(dna.map((line) => `- ${line}`), 12)}`);
   else lines.push("None of these links is marked as confirmed with DNA yet.");
-  if (uncertain.length) lines.push(`Marked uncertain (worth a look):\n${uncertain.slice(0, 8).map((line) => `- ${line}`).join("\n")}`);
+  if (uncertain.length) lines.push(`Marked uncertain (worth a look):\n${linesWithMore(uncertain.map((line) => `- ${line}`), 8)}`);
   lines.push("The chart colours each ancestor by the link to their child: purple is confirmed with DNA, green confident, amber uncertain.");
   return lines.join("\n");
 }
@@ -413,7 +414,7 @@ export function buildDnaCarrierSummary(tree, ownerText, generations, testers = [
     lines.push(`Already tested: ${testers.length} ${testWord} test${testers.length === 1 ? " is" : "s are"} connected to ${name} on WikiTree, taken by ${testers.join(", ")}.`);
   }
   if (untested.length) {
-    lines.push(`Living and not yet tested, so they could take a ${testWord} test:\n${untested.slice(0, 12).map(line).join("\n")}${untested.length > 12 ? `\n…and ${untested.length - 12} more.` : ""}`);
+    lines.push(`Living and not yet tested, so they could take a ${testWord} test:\n${linesWithMore(untested.map(line), 12)}`);
   } else if (living.length) {
     lines.push(`Every living carrier on WikiTree has already tested. Any others would be among the private profiles, or not on WikiTree yet.`);
   } else if (carriers.length) {

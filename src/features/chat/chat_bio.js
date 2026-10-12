@@ -754,6 +754,14 @@ export function createChatBioHandlers({
       return null;
     }
 
+    // "Are there profiles for this person's wife or children on WikiTree": a yes/no question, not a person
+    // called "Are there profiles for this person" (a tester on Rowland-18000, 2026-10-12). A name never
+    // starts with "are", "is", "does"…, so the router (or the AI) takes these.
+    if (/^(?:are|is|was|were|do|does|did|has|have|had)\s+[^']+(?:'s|’s|'|’)\s/i.test(str)) {
+      console.info("wbe: tryHandlePersonBioPrompt - a yes/no question, deferring to main router", { prompt });
+      return null;
+    }
+
     // "Lincoln-103's parents" asks for a list, not bios: the router's relatives list answers it (live, 2026-10-11:
     // it opened a bio list, "Found 2 parents for Abraham").
     if (

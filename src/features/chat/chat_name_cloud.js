@@ -20,6 +20,7 @@ import {
   profileUrl,
   raiseAboveOtherPopups,
   saveChart,
+  tipMoreHint,
   toggleChartFullScreen,
 } from "./chat_chart_common";
 
@@ -155,8 +156,8 @@ export function showNameCloudPopup(clouds, options = {}) {
       .map((person) => `<div>${escapeText(person.name)}${state.kind === "first" && person.lnab && !person.name.includes(person.lnab) ? ` ${escapeText(person.lnab)}` : ""}${person.birthYear ? ` <span style="opacity:.6">b. ${person.birthYear}</span>` : ""}</div>`)
       .join("");
     tip.innerHTML = `<div class="wbe-chart-tip-rel">${word.count} ${options.scope === "descendants" ? "descendant" : "ancestor"}${word.count === 1 ? "" : "s"}${range ? ` · born ${range}` : ""}</div><b>${escapeText(word.text)}</b>${names}${
-      word.people.length > 8 ? `<div>…and ${word.people.length - 8} more</div>` : ""
-    }<div class="wbe-chart-tip-hint">Click to list them</div>`;
+      word.people.length > 8 ? tipMoreHint(word.people.length - 8) : `<div class="wbe-chart-tip-hint">Click to list them</div>`
+    }`;
     tip.style.left = `${Math.min(event.clientX - rect.left + 14, rect.width - 290)}px`;
     tip.style.top = `${Math.min(event.clientY - rect.top + 14, rect.height - 160)}px`;
     tip.style.opacity = "1";

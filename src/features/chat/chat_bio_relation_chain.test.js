@@ -392,6 +392,14 @@ test("which of her siblings died first goes to the router (G2)", async () => {
   expect(await handlers.tryHandlePersonBioPrompt("which of Cook-8721's siblings died first")).toBeNull();
 });
 
+test("a yes/no question about someone's relatives goes to the router (Rowland-18000)", async () => {
+  const deps = makeDeps();
+  const handlers = createChatBioHandlers(deps);
+  expect(await handlers.tryHandlePersonBioPrompt("Are there profiles for this person's wife or children on WikiTree")).toBeNull();
+  expect(await handlers.tryHandlePersonBioPrompt("Is Marguerite's husband on WikiTree?")).toBeNull();
+  expect(deps.resolveConnectionTargetPerson).not.toHaveBeenCalled();
+});
+
 test("who was Ellen's first husband goes to the router (D1)", async () => {
   const deps = makeDeps();
   const handlers = createChatBioHandlers(deps);
