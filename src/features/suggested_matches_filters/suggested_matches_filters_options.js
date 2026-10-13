@@ -25,6 +25,12 @@ registerFeature({
       defaultValue: true,
     },
     {
+      id: "detailsSiblings",
+      type: OptionType.CHECKBOX,
+      label: "Include siblings in Details (collapsed)",
+      defaultValue: true,
+    },
+    {
       id: "defaultFilterText",
       type: OptionType.TEXT,
       label: "Filter Text",

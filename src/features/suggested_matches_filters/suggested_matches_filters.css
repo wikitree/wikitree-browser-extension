@@ -334,3 +334,10 @@ body.page-Special_EditFamilySteps table {
 #filterButtons .smfSwitch.smfSwitchOn .smfSwitchState {
   color: #2e7d32;
 }
+#potentialMatchesSection details.smfSiblings summary {
+  cursor: pointer;
+  width: fit-content;
+}
+#potentialMatchesSection details.smfSiblings[open] summary {
+  margin-bottom: 1px;
+}

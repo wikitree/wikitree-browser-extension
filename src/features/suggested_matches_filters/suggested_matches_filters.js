@@ -1409,11 +1409,19 @@ function profileDetailsHtml(detail) {
     ["Parent", "Parents", family.parents],
     ["Spouse", "Spouses", family.spouses],
     ["Child", "Children", family.children],
-    ["Sibling", "Siblings", family.siblings],
   ].forEach(([word, pluralWord, relatives]) => {
     if (relatives.length) line(relatives.length === 1 ? word : pluralWord, relatives.map(relativeHtml));
   });
-  if (!lines.length) chips.push(chip("no family", "smfWarn"));
+  // Siblings can be many, so they start collapsed (or are left out by option).
+  if (family.siblings.length && options.detailsSiblings !== false) {
+    const count = family.siblings.length;
+    lines.push(
+      `<details class="smfLine smfSiblings"><summary><span class="smfLabel">${count === 1 ? "Sibling" : "Siblings"}` +
+        `</span> (${count})</summary>${family.siblings.map(relativeHtml).join(", ")}</details>`
+    );
+  }
+  // Hidden siblings still count as family.
+  if (!lines.length && !family.siblings.length) chips.push(chip("no family", "smfWarn"));
 
   if (p.Connected === 0) chips.push(chip("unconnected", "smfWarn", "Not connected to the global tree"));
 
