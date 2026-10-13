@@ -114,7 +114,7 @@ describe("chat_history inline more trailing text", () => {
 });
 
 describe("chat_history WT+ zero-result message with alternative readings", () => {
-  test("keeps the query clean and says 'no results' once", () => {
+  test("keeps the query clean and says 'no profiles' once, not as a filter", () => {
     createTestHandlers().handlers.appendMessage(
       "assistant",
       "I couldn't find any profiles for WT+ query: Location=Cheshire Suggestions=802. Try one of these readings instead:"
@@ -123,7 +123,8 @@ describe("chat_history WT+ zero-result message with alternative readings", () =>
     const bodyHtml = getMessageBodyHtml();
     const bodyText = document.querySelector(".chat-message-body")?.textContent || "";
     expect(document.querySelector(".chat-query-code")?.textContent).toBe("Location=Cheshire Suggestions=802");
-    expect(bodyText.match(/No results were found for this filter/g)).toHaveLength(1);
+    expect(bodyText.match(/No profiles found/g)).toHaveLength(1);
+    expect(bodyText).not.toMatch(/filter/);
     expect(bodyHtml).toContain("Try one of these readings instead:");
   });
 
@@ -134,7 +135,7 @@ describe("chat_history WT+ zero-result message with alternative readings", () =>
     );
 
     const notes = Array.from(document.querySelectorAll(".chat-query-note")).map((note) => note.textContent);
-    expect(notes).toEqual(["No results were found for this filter.", "Assumed: Cheshire read as a surname"]);
+    expect(notes).toEqual(["Assumed: Cheshire read as a surname"]);
   });
 });
 

@@ -239,16 +239,9 @@ export function createChatHistoryHandlers({
       .trim();
 
     if (!/[?]$/.test(message)) {
-      if (isWtPlusZeroResults) {
-        // A message that already offers alternative readings ends with a colon
-        // and its buttons follow; appending a sentence would land between them.
-        if (/:\s*$/.test(message)) {
-          return message;
-        }
-        // Keep note lines ("Understood as: …") after the sentence, not before it.
-        const [firstLine, ...noteLines] = message.split("\n");
-        return [`${firstLine} No results were found for this filter.`, ...noteLines].join("\n");
-      }
+      // (no "No results were found for this filter": it read as if a button had filtered the answer above
+      // when it ran a new search; user, 2026-10-13)
+      if (isWtPlusZeroResults) return message;
       const hasAdviceAlready = /\b(try|please|refresh|restate|set it|log in)\b/i.test(message);
       message += hasAdviceAlready
         ? " What would you like to try next?"
@@ -356,7 +349,6 @@ export function createChatHistoryHandlers({
         '<div class="chat-query-box">',
         `<code class="chat-query-code">${escapedNoResultsQuery}</code>`,
         "</div>",
-        '<div class="chat-query-note">No results were found for this filter.</div>',
         noResultsMatch[2] ? `<div class="chat-query-note">${escapeHtml(noResultsMatch[2])}</div>` : "",
       ].join("");
     }
