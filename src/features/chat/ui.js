@@ -398,7 +398,7 @@ function buildConnectionsDiagramLayout(path, stepMeta, options = {}) {
     const pair = [path[ghost.k - 1], path[ghost.k]].map((person) => formatConnectionPersonName(person)).join(" and ");
     cardsHtml += `<div class="conn-diag-ghost" title="${escapeHtml(`The parents of ${pair}: the common ancestors on this path`)}"
       style="left:${ghost.left}px;top:${ghost.top}px;width:${CARD_W}px;min-height:${CARD_H}px;--i:${ghost.k}">
-      <span class="conn-diag-badge">${ghost.parents.length > 1 ? "Common ancestors" : "Common ancestor"}</span>
+      <span class="conn-diag-badge">${ghost.parents.length > 1 ? "Parents" : "Parent"}</span>
       ${lines}
     </div>`;
   });
