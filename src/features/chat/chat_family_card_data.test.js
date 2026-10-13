@@ -1,4 +1,4 @@
-import { ageAtDeath, cardDate, cardFacts } from "./chat_family_card_data";
+import { ageAtDeath, cardDate, cardFacts, cardWhen } from "./chat_family_card_data";
 
 const person = (id, extra = {}) => ({ id, wtid: `P-${id}`, name: `Person ${id}`, hidden: false, gender: "", birth: "", death: "", birthLocation: "", deathLocation: "", fatherId: 0, motherId: 0, spouses: [], ...extra });
 const world = (...list) => new Map(list.map((entry) => [entry.id, entry]));
@@ -17,6 +17,15 @@ describe("cardDate", () => {
     expect(cardDate("1844-00-00", "after")).toBe("after 1844");
     expect(cardDate("1844-00-00", "certain")).toBe("1844");
   });
+});
+
+test("cardWhen: 'on' a day, 'in' a month or year, nothing before about, before or after", () => {
+  expect(cardWhen("1820-11-20")).toBe("on 20 November 1820");
+  expect(cardWhen("1820-11-00")).toBe("in November 1820");
+  expect(cardWhen("1820-00-00", "certain")).toBe("in 1820");
+  expect(cardWhen("1820-11-20", "guess")).toBe("about 20 November 1820");
+  expect(cardWhen("1820-00-00", "before")).toBe("before 1820");
+  expect(cardWhen("")).toBe("");
 });
 
 describe("ageAtDeath", () => {
@@ -43,7 +52,7 @@ describe("cardFacts", () => {
     person(2, { gender: "Male", birth: "1735" }),
     person(3, { gender: "Female", birth: "1740" }),
     person(4, { gender: "Female" }),
-    person(5, { gender: "Female", spouses: [{ id: 1, wtid: "P-1", married: "1810-00-00" }] }),
+    person(5, { gender: "Female", spouses: [{ id: 1, wtid: "P-1", married: "1810-00-00", status: "guess" }] }),
     person(6, { fatherId: 2, motherId: 3, birth: "1771" }),
     person(7, { fatherId: 2, motherId: 8, birth: "1780" }),
     person(8, {}),
@@ -66,8 +75,8 @@ describe("cardFacts", () => {
   });
   test("each marriage in order, with its children", () => {
     expect(facts.marriages.map((entry) => [entry.spouse.id, entry.married, entry.place, entry.children.map((child) => child.id)])).toEqual([
-      [4, "June 1790", "Laurens", [11, 10]],
-      [5, "1810", "", [12]],
+      [4, "in June 1790", "Laurens", [11, 10]],
+      [5, "about 1810", "", [12]],
     ]);
     expect(facts.children.map((child) => child.id)).toEqual([13]);
   });

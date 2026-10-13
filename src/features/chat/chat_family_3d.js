@@ -37,7 +37,7 @@ import {
 import { generationOfSlot } from "./chat_fan_chart_data";
 import { buildColouring } from "./chat_fan_chart";
 import { ancestorWord } from "./chat_kin_labels";
-import { familyFactsHtml, familyFetcher } from "./chat_family_card";
+import { familyFactsHtml, familyFetcher, showMoreInCard } from "./chat_family_card";
 import { GALAXY_HUES, branchLabel } from "./chat_family_galaxy_data";
 import { NEARBY, nearbyPlaquesLayout } from "./chat_family_plaques_data";
 import { downloadBlob, escapeText, fullName, lifeYears, photoUrl, profileUrl, siteUrl } from "./chat_chart_common";
@@ -215,7 +215,7 @@ export function mountFamily3d(host, options) {
     <div class="wbe-3d-bar">
       <span class="wbe-3d-seg" role="group" aria-label="Shape">
         <button type="button" data-shape="plaques" title="A plaque for each ancestor, joined like a family tree, the branches going off every way">Ancestor plaques</button>
-        <button type="button" data-shape="nearby" title="A plaque for everyone within a few steps (a parent, child, brother or sister, husband or wife is a step), joined like a family tree, each branch on a page of its own">CC plaques</button>
+        <button type="button" data-shape="nearby" title="A plaque for everyone within a few steps (a parent, child, sibling, husband or wife is a step), joined like a family tree, each branch on a page of its own">CC plaques</button>
         <button type="button" data-shape="tornado" title="Ancestors as balls on struts, twisting up a generation a level">Tornado</button>
         <button type="button" data-shape="tower" title="The fan chart as a stepped tower: the person in the middle, each generation a step lower and further out">Fan tower</button>
       </span>
@@ -432,7 +432,7 @@ export function mountFamily3d(host, options) {
     $('[data-gens="-1"]').disabled = near ? steps <= NEARBY.minSteps : generations <= MIN_GENERATIONS;
     $('[data-gens="1"]').disabled = near ? steps >= NEARBY.maxSteps : generations >= mostGenerations();
     $('[data-gens="-1"]').title = near ? "Fewer steps" : "Fewer generations";
-    $('[data-gens="1"]').title = near ? "More steps (a parent, child, brother or sister, husband or wife is a step)" : "More generations";
+    $('[data-gens="1"]').title = near ? "More steps (a parent, child, sibling, husband or wife is a step)" : "More generations";
     const select = $(".wbe-3d-colour select");
     if (select.dataset.shape !== (near ? "nearby" : "")) {
       select.innerHTML = modesFor()
@@ -473,7 +473,7 @@ export function mountFamily3d(host, options) {
       const note = document.createElement("small");
       const count = Math.max(0, nearby.plaques.length - 1);
       // (someone reached only through a brother or sister whose parents aren't here has nothing to hang from)
-      note.textContent = `${count.toLocaleString()} ${count === 1 ? "person" : "people"}${legend.length > 12 ? ` · ${legend.length - 12} more branches` : ""}${nearby.loose ? ` · ${nearby.loose} left out, joined only by a brother or sister whose parents aren't here` : ""}`;
+      note.textContent = `${count.toLocaleString()} ${count === 1 ? "person" : "people"}${legend.length > 12 ? ` · ${legend.length - 12} more branches` : ""}${nearby.loose ? ` · ${nearby.loose} left out, joined only by a sibling whose parents aren't here` : ""}`;
       keyEl.appendChild(note);
       return;
     }
@@ -495,11 +495,11 @@ export function mountFamily3d(host, options) {
   /** "Great-grandmother · father's side", or for CC plaques "first cousin". */
   function relationFor(slot, person) {
     if (shape === "nearby") {
-      if (slot === 1) return `Everyone within ${steps} step${steps === 1 ? "" : "s"} is here`;
+      if (slot === 1) return "";
       const words = nearby.relation(person.id);
       return words ? words[0].toUpperCase() + words.slice(1) : "";
     }
-    return slot === 1 ? "Their ancestors are all here" : relationOf(slot, person);
+    return slot === 1 ? "" : relationOf(slot, person);
   }
 
   /** Shows slot's card (user, 2026-10-12: "Can you add much more information in these cards?"), fetching their family if it isn't all here. */
@@ -525,7 +525,7 @@ export function mountFamily3d(host, options) {
       <div class="wbe-3d-head">
         <span class="wbe-3d-photo">${url ? `<img src="${escapeText(url)}" alt="">` : escapeText(initials(person))}</span>
         <span>
-          <span class="wbe-3d-rel">${escapeText(relation)}</span>
+          ${relation ? `<span class="wbe-3d-rel">${escapeText(relation)}</span>` : ""}
           ${person.wtid ? `<a class="wbe-3d-name" href="${escapeText(profileUrl(person.wtid))}" target="_blank" rel="noopener" title="Open the WikiTree profile">${escapeText(fullName(person))}</a>` : `<span class="wbe-3d-name">${escapeText(fullName(person))}</span>`}
           ${lifeYears(person) ? `<div class="wbe-3d-life">${escapeText(lifeYears(person))}</div>` : ""}
           ${person.wtid ? `<div class="wbe-3d-id">${escapeText(person.wtid)}</div>` : ""}
@@ -1141,6 +1141,7 @@ export function mountFamily3d(host, options) {
         });
     } else if (button.dataset.start) centre(Number(button.dataset.start));
     else if (button.dataset.pick) showCard(Number(button.dataset.pick));
+    else if (button.dataset.more) showMoreInCard(button);
     else if (button.dataset.act3d === "close") {
       cardEl.hidden = true;
       selected = 0;

@@ -7,12 +7,27 @@
 import { cardFacts } from "./chat_family_card_data";
 import { escapeText, fullName, lifeYears, profileUrl } from "./chat_chart_common";
 
-/** "A, B and C", the first `most` of them, then how many more. */
-export function cardList(items, most = 12) {
+/**
+ * "A, B and C", the first `most` of them, then "and N more": with a `prefix`, a button (data-more) that shows the
+ * rest (see showMoreInCard). One over `most` is just shown (user, 2026-10-13: "if it's only one more, just show
+ * the one more").
+ */
+export function cardList(items, most = 12, prefix = "") {
+  const join = (words) => (words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}` : words[0] || "");
+  if (items.length <= most + 1) return join(items);
   const shown = items.slice(0, most);
-  const more = items.length - shown.length;
-  const words = more ? [...shown, `${more} more`] : shown;
-  return words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}` : words[0] || "";
+  const rest = items.slice(most);
+  if (!prefix) return join([...shown, `${rest.length} more`]);
+  return `${shown.join(", ")}<span> and <button type="button" class="${prefix}-who" data-more="1" title="Show the others">${rest.length} more</button></span><span hidden>, ${join(rest)}</span>`;
+}
+
+/** The "and N more" button (`button`, from cardList) gives way to the names it stood for. */
+export function showMoreInCard(button) {
+  const wrap = button.parentElement;
+  const rest = wrap?.nextElementSibling;
+  if (!rest) return;
+  rest.hidden = false;
+  wrap.remove();
 }
 
 /**
@@ -35,23 +50,24 @@ export function familyFactsHtml(people, id, { prefix, pickOf = () => "", pickTit
   const event = (label, { date, place }, extra = "") => (date || place ? `<div><b>${label}</b>${escapeText(date)}${place ? `${date ? " in " : ""}${escapeText(place)}` : ""}${extra}</div>` : "");
   const privateNote = (count, others) => (count ? ` <small>(${others ? "and " : ""}${count} private)</small>` : "");
   const rows = [event("Born", facts.born), event("Died", facts.died, age)];
-  if (facts.parents.length) rows.push(`<div><b>Parents</b>${cardList(facts.parents.map(who))}</div>`);
+  if (facts.parents.length) rows.push(`<div><b>Parents</b>${cardList(facts.parents.map(who), 12, prefix)}</div>`);
   facts.marriages.forEach((marriage) => {
     const spouse = marriage.spouse ? who(marriage.spouse) : marriage.wtid ? link(marriage.wtid, marriage.wtid) : "";
-    const when = [marriage.married && ` in ${escapeText(marriage.married)}`, marriage.place && ` in ${escapeText(marriage.place)}`].filter(Boolean).join("");
+    const when = [marriage.married && ` ${escapeText(marriage.married)}`, marriage.place && ` in ${escapeText(marriage.place)}`].filter(Boolean).join("");
     rows.push(`<div><b>Married</b>${spouse}${when}</div>`);
     if (marriage.children.length || marriage.hidden) {
       const label = marriage.children.length === 1 ? "Child" : marriage.children.length ? `Children (${marriage.children.length})` : "Children";
-      rows.push(`<div class="${prefix}-kids"><b>${label}</b>${cardList(marriage.children.map(who))}${privateNote(marriage.hidden, marriage.children.length)}</div>`);
+      rows.push(`<div class="${prefix}-kids"><b>${label}</b>${cardList(marriage.children.map(who), 12, prefix)}${privateNote(marriage.hidden, marriage.children.length)}</div>`);
     }
   });
   if (facts.children.length || facts.hidden.children) {
     const label = facts.marriages.length ? "Other children" : "Children";
-    rows.push(`<div><b>${label}${facts.children.length > 1 ? ` (${facts.children.length})` : ""}</b>${cardList(facts.children.map(who))}${privateNote(facts.hidden.children, facts.children.length)}</div>`);
+    rows.push(`<div><b>${label}${facts.children.length > 1 ? ` (${facts.children.length})` : ""}</b>${cardList(facts.children.map(who), 12, prefix)}${privateNote(facts.hidden.children, facts.children.length)}</div>`);
   }
   if (facts.siblings.length || facts.hidden.siblings) {
     const names = facts.siblings.map((entry) => `${who(entry.person)}${entry.half ? " <small>half</small>" : ""}`);
-    rows.push(`<div><b>Brothers and sisters${facts.siblings.length > 1 ? ` (${facts.siblings.length})` : ""}</b>${cardList(names)}${privateNote(facts.hidden.siblings, names.length)}</div>`);
+    const label = facts.siblings.length === 1 && !facts.hidden.siblings ? "Sibling" : `Siblings${facts.siblings.length > 1 ? ` (${facts.siblings.length})` : ""}`;
+    rows.push(`<div><b>${label}</b>${cardList(names, 12, prefix)}${privateNote(facts.hidden.siblings, names.length)}</div>`);
   }
   if (loading) rows.push(`<div class="${prefix}-loading">Finding their family…</div>`);
   const html = rows.filter(Boolean).join("");

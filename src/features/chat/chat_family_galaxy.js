@@ -5,7 +5,7 @@
 
 import { galaxyLayout, galaxyRelation, branchLabel, isStar, GALAXY_HUES } from "./chat_family_galaxy_data";
 import { familyLoaded } from "./chat_family_navigator_data";
-import { familyFactsHtml, familyFetcher } from "./chat_family_card";
+import { familyFactsHtml, familyFetcher, showMoreInCard } from "./chat_family_card";
 import { escapeText, fullName, lifeYears, photoUrl, profileUrl, siteUrl } from "./chat_chart_common";
 import { reducedMotion } from "./chat_fractal_common";
 
@@ -607,6 +607,7 @@ export function mountFamilyGalaxy(host, options) {
     if (!button) return;
     if (button.dataset.centre) centre(Number(button.dataset.centre));
     else if (button.dataset.pick) pick(Number(button.dataset.pick));
+    else if (button.dataset.more) showMoreInCard(button);
     else if (button.hasAttribute("data-close")) {
       cardEl.hidden = true;
       selected = 0;

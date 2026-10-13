@@ -182,7 +182,7 @@ export const NO_AI_EXAMPLE_SECTIONS = [
       {
         pattern: "check for profiles / find [his / her] family on WikiTree",
         examples: ["check for profiles", "find his family on WikiTree", "are her parents on WikiTree?"],
-        note: "Reads the parents, wife or husband, children and brothers and sisters named in the biography, searches WikiTree for each, and checks the profile for duplicates.",
+        note: "Reads the parents, wife or husband, children and siblings named in the biography, searches WikiTree for each, and checks the profile for duplicates.",
       },
     ],
   },

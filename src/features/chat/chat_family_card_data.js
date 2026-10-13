@@ -24,6 +24,16 @@ export function cardDate(date, status = "") {
   return word ? `${word} ${text}` : text;
 }
 
+/**
+ * When something happened, to follow a verb: "on 12 March 1769" for a day, "in March 1769" or "in 1769", and no
+ * "on" or "in" before "about", "before" or "after" (user, 2026-10-13: "It says 'in' and then gives a day").
+ */
+export function cardWhen(date, status = "") {
+  const text = cardDate(date, status);
+  if (!text || STATUS_WORDS[String(status || "").toLowerCase()]) return text;
+  return `${parts(date).d && parts(date).m ? "on" : "in"} ${text}`;
+}
+
 /** How old someone was when they died: {years, about}, or null when it can't be told. */
 export function ageAtDeath(person) {
   const born = parts(person?.birth);
@@ -41,7 +51,7 @@ const byBirth = (a, b) => (a.birth || "9999").localeCompare(b.birth || "9999") |
 
 /**
  * Everything the card shows about `id`: {born: {date, place}, died: {date, place}, age, parents, marriages:
- * [{spouse (or null when not loaded), wtid, married, place, children, hidden}], children (with no husband or
+ * [{spouse (or null when not loaded), wtid, married ("on 20 November 1820", see cardWhen), place, children, hidden}], children (with no husband or
  * wife here), siblings: [{person, half}], hidden: {children, siblings}}. Hidden (private) profiles are only counted.
  */
 export function cardFacts(people, id) {
@@ -56,22 +66,22 @@ export function cardFacts(people, id) {
   // Husbands and wives: theirs, and anyone loaded who lists them; then the other parent of any child.
   const marriages = [];
   const marriageOf = new Map();
-  const addMarriage = (spouseId, wtid = "", married = "", place = "") => {
+  const addMarriage = (spouseId, wtid = "", married = "", place = "", marriedStatus = "") => {
     if (!spouseId || spouseId === id) return;
     const known = marriageOf.get(spouseId);
     if (known) {
-      known.married = known.married || married;
+      if (!known.married) Object.assign(known, { married, marriedStatus });
       known.place = known.place || place;
       return;
     }
     const spouse = people.get(spouseId);
     if (spouse?.hidden) return;
-    const entry = { spouse: spouse || null, wtid: spouse?.wtid || wtid, married, place, children: [], hidden: 0 };
+    const entry = { spouse: spouse || null, wtid: spouse?.wtid || wtid, married, marriedStatus, place, children: [], hidden: 0 };
     marriageOf.set(spouseId, entry);
     marriages.push(entry);
   };
-  (person.spouses || []).forEach((spouse) => addMarriage(spouse.id, spouse.wtid, spouse.married, spouse.place));
-  everyone.forEach((other) => (other.spouses || []).forEach((spouse) => spouse.id === id && addMarriage(other.id, other.wtid, spouse.married, spouse.place)));
+  (person.spouses || []).forEach((spouse) => addMarriage(spouse.id, spouse.wtid, spouse.married, spouse.place, spouse.status));
+  everyone.forEach((other) => (other.spouses || []).forEach((spouse) => spouse.id === id && addMarriage(other.id, other.wtid, spouse.married, spouse.place, spouse.status)));
   children.forEach((child) => {
     const parentId = otherParent(child);
     if (parentId && people.has(parentId) && !marriageOf.has(parentId)) addMarriage(parentId);
@@ -97,7 +107,7 @@ export function cardFacts(people, id) {
     died: { date: cardDate(person.death, person.deathStatus), place: person.deathLocation || "" },
     age: ageAtDeath(person),
     parents,
-    marriages: marriages.map((entry) => ({ ...entry, married: cardDate(entry.married) })),
+    marriages: marriages.map(({ marriedStatus, ...entry }) => ({ ...entry, married: cardWhen(entry.married, marriedStatus) })),
     children: loose,
     siblings,
     hidden: { children: looseHidden, siblings: allSiblings.length - siblings.length },

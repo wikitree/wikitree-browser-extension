@@ -1,4 +1,4 @@
-import { cardList, familyFactsHtml, familyFetcher } from "./chat_family_card";
+import { cardList, familyFactsHtml, familyFetcher, showMoreInCard } from "./chat_family_card";
 
 const person = (id, extra = {}) => ({ id, wtid: `P-${id}`, name: `Person ${id}`, hidden: false, gender: "", birth: "", death: "", birthLocation: "", deathLocation: "", fatherId: 0, motherId: 0, spouses: [], ...extra });
 const world = (...list) => new Map(list.map((entry) => [entry.id, entry]));
@@ -7,7 +7,20 @@ test("cardList", () => {
   expect(cardList(["A"])).toBe("A");
   expect(cardList(["A", "B", "C"])).toBe("A, B and C");
   expect(cardList(["A", "B", "C", "D"], 2)).toBe("A, B and 2 more");
+  expect(cardList(["A", "B", "C"], 2)).toBe("A, B and C"); // (never "and 1 more")
   expect(cardList([])).toBe("");
+});
+
+test("cardList's 'and N more' shows the others when clicked", () => {
+  const div = document.createElement("div");
+  div.innerHTML = cardList(["A", "B", "C", "D", "E"], 2, "x");
+  const visible = () => [...div.childNodes].filter((node) => !node.hidden).map((node) => node.textContent).join("");
+  expect(visible()).toBe("A, B and 3 more");
+  const button = div.querySelector("button[data-more]");
+  expect(button.className).toBe("x-who");
+  showMoreInCard(button);
+  expect(visible()).toBe("A, B, C, D and E");
+  expect(div.querySelector("button")).toBeNull();
 });
 
 describe("familyFactsHtml", () => {

@@ -127,7 +127,7 @@ export function summarizeWorldPerson(person) {
     // (not marriages the manager chose not to show: see chat_marriage_display.js)
     spouses: shownSpouses(person.Spouses)
       .filter((spouse) => Number(spouse.Id))
-      .map((spouse) => ({ id: Number(spouse.Id), wtid: spouse.Name || "", married: cleanDate(spouse.MarriageDate || spouse.marriage_date), place: spouse.MarriageLocation || spouse.marriage_location || "" })),
+      .map((spouse) => ({ id: Number(spouse.Id), wtid: spouse.Name || "", married: cleanDate(spouse.MarriageDate || spouse.marriage_date), status: String(spouse.data_status?.marriage_date || spouse.DataStatus?.MarriageDate || ""), place: spouse.MarriageLocation || spouse.marriage_location || "" })),
   };
 }
 
@@ -834,6 +834,6 @@ export function buildFamilyWorldSummary(world, ownerText) {
   const count = connectedWorldPeople(world).length;
   // (no "1 people", nor "↑ Parents goes up" when WikiTree sent no family at all: live, Dudgeon-166, 2026-10-13)
   if (count === 1) return `${ownerText} Family Explorer has only ${fullName(focus)} so far: the WikiTree API sent none of ${pronoun} family.`;
-  const brothers = siblings.size ? `, with ${pronoun} ${siblings.size === 1 ? "brother or sister" : `${siblings.size} brothers and sisters`}` : "";
+  const brothers = siblings.size ? `, with ${pronoun} ${siblings.size === 1 ? "sibling" : `${siblings.size} siblings`}` : "";
   return `${ownerText} Family Explorer starts with ${count.toLocaleString()} people (${up} generation${up === 1 ? "" : "s"} of ancestors so far). It opens on ${fullName(focus)}. Click anyone to see their children; ↑ Parents goes up to ${pronoun} parents' family${brothers}, and on up. More loads as you go.`;
 }

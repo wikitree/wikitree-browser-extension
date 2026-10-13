@@ -212,7 +212,7 @@ describe("family world", () => {
 
   test("summary", () => {
     expect(buildFamilyWorldSummary(world(), "Ann's")).toMatch(
-      /^Ann's Family Explorer starts with 9 people \(2 generations of ancestors so far\)\. It opens on Ann X\. Click anyone to see their children; ↑ Parents goes up to her parents' family, with her brother or sister, and on up\./
+      /^Ann's Family Explorer starts with 9 people \(2 generations of ancestors so far\)\. It opens on Ann X\. Click anyone to see their children; ↑ Parents goes up to her parents' family, with her sibling, and on up\./
     );
   });
 });

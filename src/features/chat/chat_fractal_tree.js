@@ -63,7 +63,7 @@ const HINT_KEY = "wbe-explorer-hint-seen";
 const VIEW_KEY = "wbe-explorer-view";
 const EXPLORER_VIEWS = [
   { key: "tree", label: "Branches", title: "Each family a branch: click a family to see their children, zoom out for the parents" },
-  { key: "family", label: "Family", title: "One person with their parents, brothers and sisters, husband or wife and children: click anyone to move to them" },
+  { key: "family", label: "Family", title: "One person with their parents, siblings, husband or wife and children: click anyone to move to them" },
   { key: "galaxy", label: "Galaxy", title: "Everyone loaded as stars round one person: ancestors above, descendants below, each branch its own colour" },
   { key: "3d", label: "3D", title: "The ancestors as a 3D model to turn round, a Tornado or a Fan tower, and download for 3D printing" },
 ];
